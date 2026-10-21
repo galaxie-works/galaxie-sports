@@ -1,0 +1,21 @@
+# Contexto de build das imagens (raiz do monorepo). Mantém fora dependências locais, builds e dados.
+**/node_modules
+**/dist
+**/.turbo
+**/.next
+**/coverage
+.git
+.github
+.claude
+.vscode
+.idea
+.env
+.env.*
+!.env.example
+docs
+data/raw
+data/assets
+data/snapshots
+**/*.dump
+**/*.sql.gz
+infra/portainer
