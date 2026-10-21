@@ -146,7 +146,7 @@ describe('Agente Cenário (integração)', () => {
     );
     const feed = await db.select().from(changeFeed).where(eq(changeFeed.topic, 'event.context_published'));
     expect(feed).toHaveLength(1);
-    expect(feed[0]).toMatchObject({ entityType: 'event', entityId: secondLeg });
+    expect(feed[0]).toMatchObject({ entityType: 'event_context', entityId: secondLeg });
     expect((feed[0]!.payload as { tags: string[] }).tags).toContain(`event_context:${secondLeg}`);
   });
 
