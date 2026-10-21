@@ -21,6 +21,23 @@ const MINUTE = 60_000;
  */
 export const DEFAULT_JOBS: readonly ScheduledJob[] = [
   {
+    name: 'sync-daily',
+    description:
+      'Sync diário do futebol (DAILY): agenda D-1/D0/D+1, lesões, detalhe dos encerrados, rodízio; idempotente no dia',
+    cron: '5 0 * * *',
+    script: 'dist/cli/sync-daily.js',
+    args: [],
+    timeoutMs: 120 * MINUTE,
+  },
+  {
+    name: 'assets-mirror',
+    description: 'Espelha logos/bandeiras/fotos do raw para o S3 (CDN de mídia; não consome cota da API)',
+    cron: '30 1 * * *',
+    script: 'dist/cli/mirror-assets.js',
+    args: ['--descobrir-raw', '--limite', '2000'],
+    timeoutMs: 90 * MINUTE,
+  },
+  {
     name: 'quota-status',
     description: 'Lê /status de cada API (não consome cota) e reconcilia o Quota Governor',
     cron: '5 * * * *',

@@ -5,6 +5,8 @@
  *   pnpm --filter @galaxie/ingestor bootstrap:catalog --sem-live
  *     # planeja o dia sem ao vivo (LIVE = 0, DAILY = já usado) para liberar a folga ao BOOTSTRAP.
  *     # A política padrão protege 40 + 40 chamadas para sync diário e ao vivo e cede só 5 ao bootstrap.
+ * Sem APISPORTS_KEY (ex.: depois de snapshot:import) roda em modo offline: reprocessa o catálogo a partir
+ * do raw, sem chamar o fornecedor.
  */
 import { resolve } from 'node:path';
 import { closeDb, createDb } from '@galaxie/db';
@@ -25,7 +27,8 @@ if (process.argv.includes('--plan')) {
   });
   await closeDb(db);
 } else {
-  const { db, client, governor } = contextFromEnv();
+  const { db, client, governor, offline } = contextFromEnv();
+  if (offline) console.log('Sem APISPORTS_KEY: modo offline — reprocessa o catálogo a partir do raw.');
   if (process.argv.includes('--sem-live')) {
     const usage = await governor.usage('football');
     await governor.plan('football', usage.dayUtc, { LIVE: 0, DAILY: usage.used.DAILY });

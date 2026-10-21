@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
-import { ApiSportsError, RequestInFlightError } from './errors.js';
+import { ApiSportsError, OfflineMissError, RequestInFlightError } from './errors.js';
 import { API_HOSTS, type ApiSport } from './hosts.js';
 import { PlanRules } from './plan.js';
 import type { QuotaGovernor, QuotaTicket } from './quota/governor.js';
 import { RateLimiter, systemClock, type Clock } from './rate-limiter.js';
 import type { RawStore } from './raw-store.js';
 import { normalizeParams, requestHash } from './request-hash.js';
-import { ttlFor } from './ttl.js';
+import { FOREVER, ttlFor } from './ttl.js';
 import { classifyErrors, type CallRequest, type CallResult, type Envelope, type Outcome } from './types.js';
 
 const PROVIDER = 'api-sports';
@@ -25,6 +25,11 @@ export interface ApiSportsClientOptions {
   timeoutMs?: number;
   /** Chamado quando o fornecedor desloca a janela de temporadas do plano. */
   onPlanChange?: (plan: PlanRules) => void;
+  /**
+   * Modo offline (ambiente local sem chave, ex.: após restaurar um snapshot do raw): serve a resposta
+   * mais recente do raw, de qualquer idade, e nunca chama o fornecedor (OfflineMissError).
+   */
+  offline?: boolean;
   /** Observador de cada requisição resolvida (cache ou rede) — usado para logs estruturados. */
   onCall?: (event: CallEvent) => void;
 }
@@ -81,11 +86,24 @@ export class ApiSportsClient {
     return this.plan;
   }
 
+  get offline(): boolean {
+    return this.options.offline ?? false;
+  }
+
   async get<T = unknown>(req: CallRequest): Promise<CallResult<T>> {
     const params = normalizeParams(req.params ?? {});
     const hash = requestHash(PROVIDER, req.sport, req.endpoint, params);
     const startedAt = this.clock.now();
     const now = new Date(startedAt);
+
+    if (this.options.offline) {
+      const hit = await this.fromCache<T>(hash, FOREVER, now);
+      if (hit) {
+        this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
+        return hit;
+      }
+      throw new OfflineMissError(req.endpoint, params);
+    }
 
     const maxAge = req.maxAgeMs ?? ttlFor(req.endpoint, params, now);
     if (maxAge > 0) {

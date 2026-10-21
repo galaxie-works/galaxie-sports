@@ -31,6 +31,18 @@ groups:
           summary: 'Último backup do Postgres com sucesso há {{ $value | humanizeDuration }}'
           description: 'O serviço backup deveria gerar um dump por dia. Veja os logs do container backup.'
 
+  - name: galaxie-freshness
+    rules:
+      # O sync diário (00:05 UTC) grava ao menos a agenda do dia no raw; 26 h sem nada novo = sync parado.
+      - alert: FootballRawStale
+        expr: time() - galaxie_raw_last_fetched_timestamp_seconds{sport="football"} > 26 * 3600
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Nada novo no raw do futebol há {{ $value | humanizeDuration }}'
+          description: 'Verifique o job sync-daily (ops.job_run, logs do ingestor) e a cota DAILY.'
+
   - name: galaxie-live
     rules:
       # O intervalo esperado é um placeholder (LIVE_POLL_INTERVAL_SECONDS) até o Live Scheduler publicar o intervalo dinâmico.

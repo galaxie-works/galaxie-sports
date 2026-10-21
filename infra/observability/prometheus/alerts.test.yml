@@ -90,6 +90,27 @@ tests:
               summary: 'Último backup do Postgres com sucesso há 1d 3h 0m 0s'
               description: 'O serviço backup deveria gerar um dump por dia. Veja os logs do container backup.'
 
+  - name: raw do futebol parado há mais de 26 horas
+    interval: 1m
+    input_series:
+      - series: 'galaxie_raw_last_fetched_timestamp_seconds{sport="football"}'
+        values: '0x1700'
+      - series: 'galaxie_raw_last_fetched_timestamp_seconds{sport="hockey"}'
+        values: '0+60x1700'
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: FootballRawStale
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: FootballRawStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              sport: football
+            exp_annotations:
+              summary: 'Nada novo no raw do futebol há 1d 3h 0m 0s'
+              description: 'Verifique o job sync-daily (ops.job_run, logs do ingestor) e a cota DAILY.'
+
   - name: coletor do banco falhando
     interval: 1m
     input_series:

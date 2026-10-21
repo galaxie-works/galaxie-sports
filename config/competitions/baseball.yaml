@@ -1,0 +1,241 @@
+# =============================================================================
+# Galaxie Sports - catálogo de competições: beisebol (v1.baseball.api-sports.io)
+# Mesmo schema de config/competitions/football.yaml. Consumido por
+#   pnpm --filter @galaxie/ingestor bootstrap:sports baseball
+#
+# TIERS (prioridade latino-americana, docs/03 §6)
+#   tier 1 - competições prioritárias: temporadas inteiras no bootstrap (--jogos) e live.
+#   tier 2 - espelhadas com tratamento leve; histórico conforme a cota.
+#   tier 3 - todo o resto do /leagues entra automaticamente (sem precisar estar aqui).
+#
+# CAMPOS
+#   name / country / type - exatamente como a API devolve (league.name, country.name,
+#                           type em minúsculas); a conferência do bootstrap aponta diferenças.
+#   api_sports_id         - ID da liga nesta API (o mesmo número pode existir em outra API;
+#                           o mapeamento em core.provider_map é sempre por esporte).
+#   verify                - false = ID e nome conferidos no /leagues capturado (snapshot 2025/2026,
+#                           ver docs/research/api-sports-outros-esportes.md); confirme na primeira execução autenticada.
+#   seasons_strategy      - calendar-year (2026 = 2026) ou split-year (2026 = 2026/27).
+# Nenhuma liga brasileira no /leagues; o foco é Caribe, México, Venezuela e torneios de seleções.
+# =============================================================================
+schema_version: 1
+sport: baseball
+competitions:
+
+  # ---------------------------------------------------------------- tier 1
+  - slug: lmb
+    name: "LMB"
+    country: "Mexico"
+    type: league
+    api_sports_id: 21
+    verify: false
+    tier: 1
+    region: north-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { es: "Liga Mexicana de Béisbol", pt-BR: "Liga Mexicana de Beisebol" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: lmp
+    name: "LMP"
+    country: "Mexico"
+    type: league
+    api_sports_id: 22
+    verify: false
+    tier: 1
+    region: north-america
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { es: "Liga Mexicana del Pacífico", pt-BR: "Liga Mexicana do Pacífico" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: lidom
+    name: "LIDOM"
+    country: "Dominican-Republic"
+    type: league
+    api_sports_id: 11
+    verify: false
+    tier: 1
+    region: caribbean
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { es: "Liga de Béisbol Profesional de la República Dominicana" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: lvbp
+    name: "LVBP"
+    country: "Venezuela"
+    type: league
+    api_sports_id: 31
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { es: "Liga Venezolana de Béisbol Profesional" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: caribbean-series
+    name: "Caribbean Series"
+    country: "North-Central-America"
+    type: cup
+    api_sports_id: 39
+    verify: false
+    tier: 1
+    region: caribbean
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { es: "Serie del Caribe", pt-BR: "Série do Caribe" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: world-baseball-classic
+    name: "World Baseball Classic"
+    country: "World"
+    type: cup
+    api_sports_id: 70
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { es: "Clásico Mundial de Béisbol", pt-BR: "Clássico Mundial de Beisebol" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: pan-american-games-baseball
+    name: "Pan American Games"
+    country: "World"
+    type: cup
+    api_sports_id: 41
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Beisebol — Jogos Pan-Americanos", es: "Béisbol — Juegos Panamericanos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: olympics-baseball
+    name: "Olympic Games"
+    country: "World"
+    type: cup
+    api_sports_id: 47
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Beisebol — Jogos Olímpicos", es: "Béisbol — Juegos Olímpicos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: mlb
+    name: "MLB"
+    country: "USA"
+    type: league
+    api_sports_id: 1
+    verify: false
+    tier: 1
+    region: north-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { en: "Major League Baseball" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+
+  # ---------------------------------------------------------------- tier 2
+  - slug: lmbp
+    name: "LMBP"
+    country: "Venezuela"
+    type: league
+    api_sports_id: 57
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { es: "Liga Mayor de Béisbol Profesional" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: lbprc
+    name: "LBPRC"
+    country: "Puerto-Rico"
+    type: league
+    api_sports_id: 25
+    verify: false
+    tier: 2
+    region: caribbean
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { es: "Liga de Béisbol Profesional Roberto Clemente" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: serie-nacional-cuba
+    name: "Serie Nacional"
+    country: "Cuba"
+    type: league
+    api_sports_id: 9
+    verify: false
+    tier: 2
+    region: caribbean
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { es: "Serie Nacional de Béisbol" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: liga-elite-cuba
+    name: "Liga Elite"
+    country: "Cuba"
+    type: league
+    api_sports_id: 63
+    verify: false
+    tier: 2
+    region: caribbean
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { es: "Liga Élite del Béisbol Cubano" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: colombia-lpb
+    name: "LPB"
+    country: "Colombia"
+    type: league
+    api_sports_id: 49
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { es: "Liga Profesional de Béisbol de Colombia" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: serie-de-las-americas
+    name: "Serie de las Americas"
+    country: "World"
+    type: cup
+    api_sports_id: 77
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { es: "Serie de las Américas" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: central-american-caribbean-games-baseball
+    name: "Central American & Caribbean Games"
+    country: "North-Central-America"
+    type: league
+    api_sports_id: 40
+    verify: false
+    tier: 2
+    region: caribbean
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { es: "Juegos Centroamericanos y del Caribe — béisbol" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: champions-league-americas-baseball
+    name: "Champions League Americas"
+    country: "World"
+    type: cup
+    api_sports_id: 69
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: world-cup-u23-baseball
+    name: "World Cup U23"
+    country: "World"
+    type: cup
+    api_sports_id: 46
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]

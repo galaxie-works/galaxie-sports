@@ -97,6 +97,8 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `S3_BUCKET` / `ASSETS_PUBLIC_BASE_URL` | não | `galaxie-sports-assets` / vazio | Assets |
 | `APISPORTS_KEY` | **sim** | — | Chave do dashboard da api-sports (só o ingestor recebe) |
 | `APISPORTS_PLAN` / `QUOTA_RESERVE_PERCENT` | não | `free` / `15` | Política do Quota Governor (ingestor e métricas) |
+| `SCHEDULE_SYNC_DAILY` | não | `5 0 * * *` | Sync diário do futebol logo após a virada do dia de cota |
+| `SCHEDULE_ASSETS_MIRROR` | não | `30 1 * * *` | Espelho de assets (não consome cota) |
 | `SCHEDULE_QUOTA_STATUS` | não | `5 * * * *` | Reconciliação da cota via `/status` (não consome cota); `off` desliga |
 | `SCHEDULE_BOOTSTRAP_CATALOG` | não | `15 3 * * 1` | Catálogo do futebol (segunda, 03:15 UTC; ~8 chamadas BOOTSTRAP) |
 | `SCHEDULER_RUN_ON_START` | não | vazio | Jobs para rodar já na partida (ex.: `quota-status`) |
@@ -154,12 +156,14 @@ tempo limite, sem sobreposição e registrado em `ops.job_run` (alimenta as mét
 
 | Job | Agenda padrão (UTC) | CLI | Cota |
 |---|---|---|---|
+| `sync-daily` | `5 0 * * *` | `dist/cli/sync-daily.js` | DAILY (agenda D-1/D0/D+1, lesões, detalhes, rodízio); idempotente no dia |
+| `assets-mirror` | `30 1 * * *` | `dist/cli/mirror-assets.js --descobrir-raw --limite 2000` | 0 (CDN de mídia → S3 interno) |
 | `quota-status` | `5 * * * *` | `dist/cli/quota.js` | 0 (`/status`) — reconcilia o Governor com o contador do fornecedor |
 | `bootstrap-catalog` | `15 3 * * 1` | `dist/cli/bootstrap-catalog.js` | ≤ 8 BOOTSTRAP (reaproveita o raw dentro do TTL) |
 
 Execução manual (registrada): console do `ingestor` → `node dist/cli/scheduler.js --run quota-status`.
-Novos jobs (sync diário, live poller, assets) entram em `services/ingestor/src/scheduler/schedule.ts` à medida que forem
-implementados.
+Novos jobs (live poller, bootstraps de temporadas/detalhes/pessoas quando houver cota) entram em
+`services/ingestor/src/scheduler/schedule.ts` à medida que forem necessários.
 
 ## Observabilidade (issue #6)
 
@@ -186,7 +190,7 @@ nunca contado em memória: várias réplicas da API reportam o mesmo número e n
 
 **Alertas** ([`alerts.yml`](../observability/prometheus/alerts.yml), testados com `promtool` no CI):
 `QuotaBelow20Percent` (cota < 20% por 5 min), `JobFailingRepeatedly` (≥ 3 falhas seguidas), `LiveEventStale` (evento em
-andamento sem atualização há mais de 2 intervalos), `BackupStale` (último backup OK há mais de 26 h), `ApiDown`,
+andamento sem atualização há mais de 2 intervalos), `BackupStale` (último backup OK há mais de 26 h), `FootballRawStale` (nada novo no raw do futebol há 26 h), `ApiDown`,
 `MetricsCollectorDown`, `ApiLatencyP95High` (p95 > 150 ms). Eles aparecem como _firing_ no Prometheus e no Grafana
 (_Alerting → Alert rules_, fonte Prometheus). **Notificação** (e-mail, chat) exige um Alertmanager ou contact point do
 Grafana com o canal que você escolher — ver "O que fica de fora".
@@ -297,6 +301,5 @@ docker compose -p galaxie-staging-local -f infra/portainer/stack.yml --env-file 
   Live Scheduler publicar o intervalo dinâmico.
 - **Latência por chamada ao fornecedor** vai para os logs (`duration_ms`), não para o Prometheus: os jobs são processos
   curtos. Um _pushgateway_ ou métricas no próprio scheduler resolvem quando houver worker contínuo (live poller).
-- **Alerta de frescor do raw** por esporte: a métrica existe; o alerta entra quando o sync diário estiver agendado.
 - **Assets públicos**: o RustFS fica só na rede interna; publicar `ASSETS_PUBLIC_BASE_URL` (CDN ou rota no proxy) é outra issue.
 - **Hardening** (firewall, fail2ban, atualizações automáticas, DR completo) — issue #84.

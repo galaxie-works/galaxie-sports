@@ -1,0 +1,33 @@
+{
+  "name": "@galaxie/knowledge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Base semântica versionada (data/knowledge): validação, seed no Postgres, resolução de IDs, detecção de clássico e biblioteca de copy",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src --passWithNoTests",
+    "test:integration": "vitest run --dir test",
+    "knowledge:validate": "node dist/cli/validate.js",
+    "seed:semantic": "node --env-file-if-exists=../../.env dist/cli/seed-semantic.js",
+    "resolve:ids": "node --env-file-if-exists=../../.env dist/cli/resolve-ids.js"
+  },
+  "dependencies": {
+    "@galaxie/db": "workspace:*",
+    "ajv": "^8.20.0",
+    "drizzle-orm": "^0.45.4",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "postgres": "^3.4.9"
+  }
+}

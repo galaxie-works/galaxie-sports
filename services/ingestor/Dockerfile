@@ -25,6 +25,7 @@ COPY --from=build /out/package.json ./package.json
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/dist ./dist
 COPY --from=build /repo/config /srv/config
+COPY --from=build /repo/data/knowledge /srv/data/knowledge
 USER node
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD ["node", "-e", "const s=require('fs').statSync(process.env.SCHEDULER_HEARTBEAT_FILE);process.exit(Date.now()-s.mtimeMs<120000?0:1)"]

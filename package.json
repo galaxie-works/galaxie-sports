@@ -21,7 +21,12 @@
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "db:generate": "pnpm --filter @galaxie/db db:generate",
     "db:migrate": "pnpm --filter @galaxie/db db:migrate",
-    "db:studio": "pnpm --filter @galaxie/db db:studio"
+    "db:studio": "pnpm --filter @galaxie/db db:studio",
+    "db:seed:semantic": "turbo run build --filter=@galaxie/knowledge --output-logs=errors-only && pnpm --filter @galaxie/knowledge seed:semantic",
+    "knowledge:validate": "turbo run build --filter=@galaxie/knowledge --output-logs=errors-only && pnpm --filter @galaxie/knowledge knowledge:validate",
+    "resolve:ids": "turbo run build --filter=@galaxie/knowledge --output-logs=errors-only && pnpm --filter @galaxie/knowledge resolve:ids",
+    "snapshot:export": "pnpm --filter @galaxie/ingestor snapshot:export",
+    "snapshot:restore": "pnpm --filter @galaxie/ingestor snapshot:import"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

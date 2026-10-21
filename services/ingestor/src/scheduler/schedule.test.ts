@@ -12,10 +12,11 @@ describe('scheduleFromEnv', () => {
     const jobs = scheduleFromEnv({
       SCHEDULE_QUOTA_STATUS: '*/30 * * * *',
       SCHEDULE_BOOTSTRAP_CATALOG: 'off',
+      SCHEDULE_SYNC_DAILY: 'false',
       SCHEDULER_TIMEOUT_MINUTES: '2',
     });
-    expect(jobs).toHaveLength(1);
-    expect(jobs[0]).toMatchObject({ name: 'quota-status', cron: '*/30 * * * *', timeoutMs: 120_000 });
+    expect(jobs.map((j) => j.name)).toEqual(['assets-mirror', 'quota-status']);
+    expect(jobs[1]).toMatchObject({ name: 'quota-status', cron: '*/30 * * * *', timeoutMs: 120_000 });
   });
 
   it('recusa expressão cron inválida com mensagem legível', () => {
@@ -26,7 +27,9 @@ describe('scheduleFromEnv', () => {
 
   it('nome da variável e próximas execuções em UTC', () => {
     expect(envKey('bootstrap-catalog')).toBe('SCHEDULE_BOOTSTRAP_CATALOG');
-    const [job] = scheduleFromEnv({ SCHEDULE_QUOTA_STATUS: '5 * * * *', SCHEDULE_BOOTSTRAP_CATALOG: 'off' });
+    const job = scheduleFromEnv({ SCHEDULE_QUOTA_STATUS: '5 * * * *' }).find(
+      (j) => j.name === 'quota-status',
+    );
     const runs = nextRuns(job!, 2, new Date('2026-10-21T14:30:00Z'));
     expect(runs.map((d) => d.toISOString())).toEqual([
       '2026-10-21T15:05:00.000Z',

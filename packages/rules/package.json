@@ -1,0 +1,41 @@
+{
+  "name": "@galaxie/rules",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Motor de regras determinístico: tabelas calculadas localmente e contexto competitivo (stakes)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/loader.d.ts",
+      "default": "./dist/config/loader.js"
+    },
+    "./db": {
+      "types": "./dist/db/index.d.ts",
+      "default": "./dist/db/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src",
+    "test:integration": "vitest run --dir test",
+    "docs:labels": "node dist/cli/write-labels-doc.js"
+  },
+  "dependencies": {
+    "@galaxie/db": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "postgres": "^3.4.9"
+  }
+}

@@ -1,0 +1,31 @@
+# Premier League (Inglaterra).
+# Desempate (Handbook, seção C): pontos, saldo, gols pró; persistindo, pontos no confronto
+# direto e gols fora no confronto direto; persistindo e havendo título/rebaixamento/vaga em
+# jogo, partida extra (play-off) — aqui representada como empate não resolvido.
+slug: premier-league
+name: Premier League
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - h2h_away_goals
+    - drawing_of_lots
+
+league:
+  teams: 20
+  matches_per_team: 38
+  meetings_per_pair: 2
+  title: true
+  zones:
+    - { id: champions_league, kind: qualification, from: 1, to: 4 }
+    - { id: europa_league, kind: qualification, from: 5, to: 5 }
+    - { id: relegation, kind: relegation, from: 18, to: 20 }
+
+knockout: null
+
+sources:
+  - https://www.premierleague.com/publications

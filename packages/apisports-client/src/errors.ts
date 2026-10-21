@@ -42,3 +42,14 @@ export class QuotaExceededError extends Error {
     this.name = 'QuotaExceededError';
   }
 }
+
+/** Modo offline (sem chave): a resposta não está no raw e o cliente não pode chamar o fornecedor. */
+export class OfflineMissError extends Error {
+  constructor(
+    readonly endpoint: string,
+    readonly params: Record<string, string>,
+  ) {
+    super(`Modo offline: ${endpoint}?${new URLSearchParams(params).toString()} não está no raw`);
+    this.name = 'OfflineMissError';
+  }
+}

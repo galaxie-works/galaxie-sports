@@ -1,6 +1,7 @@
 # Base semântica — seleções nacionais (schema v1 de times, ver data/knowledge/SCHEMA.md)
 # country = ISO 3166-1 alpha-2 (Inglaterra = GB-ENG). world_cup_titles conferido no infobox da Wikipedia (inclui a Copa de 2026).
-# founded = null de propósito (data da federação não é data da seleção). api_sports.team_id: null — nenhuma fonte exibiu o ID.
+# founded = null de propósito (data da federação não é data da seleção). api_sports.team_id: null — nenhuma fonte exibiu o ID,
+# exceto brazil-nt (6), resolvido por `pnpm resolve:ids` no raw /teams?country=Brazil (team.national = true).
 schema_version: 1
 teams:
 - slug: brazil-nt
@@ -10,7 +11,7 @@ teams:
     abbreviation: BRA
   labels: {pt-BR: Seleção Brasileira, es: Brasil, en: Brazil}
   api_sports:
-    team_id: null
+    team_id: 6
     match: {name: Brazil, country: Brazil}
   founded: null
   colors:
