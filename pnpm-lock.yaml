@@ -47,6 +47,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/geo':
+        specifier: workspace:*
+        version: link:../../packages/geo
       '@galaxie/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
@@ -125,6 +128,15 @@ importers:
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+
+  packages/geo:
+    dependencies:
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
 
   packages/knowledge:
     dependencies:
@@ -256,6 +268,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/geo':
+        specifier: workspace:*
+        version: link:../../packages/geo
       '@galaxie/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge

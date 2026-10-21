@@ -5,14 +5,17 @@
  *   pnpm --filter @galaxie/ingestor bootstrap:catalog --sem-live
  *     # planeja o dia sem ao vivo (LIVE = 0, DAILY = já usado) para liberar a folga ao BOOTSTRAP.
  *     # A política padrão protege 40 + 40 chamadas para sync diário e ao vivo e cede só 5 ao bootstrap.
+ * Ao fim, aplica config/geo em core.country (o mesmo que `geo:seed`).
  * Sem APISPORTS_KEY (ex.: depois de snapshot:import) roda em modo offline: reprocessa o catálogo a partir
  * do raw, sem chamar o fornecedor.
  */
 import { resolve } from 'node:path';
 import { closeDb, createDb } from '@galaxie/db';
+import { loadGeoConfig } from '@galaxie/geo';
 import { planFootballCatalog, runFootballCatalogJob, summarize } from '../bootstrap/football-catalog-job.js';
 import { loadFootballCatalog } from '../catalog/catalog-config.js';
 import { contextFromEnv } from '../context.js';
+import { seedGeo } from '../geo/seed.js';
 import { logger, report } from '../logger.js';
 
 const catalogPath = resolve('../../config/competitions/football.yaml');
@@ -43,5 +46,7 @@ if (process.argv.includes('--plan')) {
   report('Catálogo gravado', { stats: result.stats, catalog: summarize(result.check) });
   const problems = result.check.filter((c) => c.status !== 'ok');
   if (problems.length) report('Competições com divergência no catálogo', problems);
+  // geografia da navegação (confederação, código COI, nomes pt-BR/es) — idempotente, sem cota
+  report('Geografia gravada em core.country', await seedGeo(db, loadGeoConfig()));
   await closeDb(db);
 }

@@ -37,6 +37,7 @@ import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
 import { WhereToWatch, WhereToWatchParams, WhereToWatchQuery } from './where-to-watch.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
+import { navigationPaths } from './openapi-navigation.js';
 import {
   Person,
   Squad,
@@ -129,6 +130,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
     paths: {
       ...semanticPaths(),
       ...multisportPaths(),
+      ...navigationPaths(),
       '/v1/sports': {
         get: getOp('Esportes disponíveis e cobertura', 'Catálogo', list(Sport), { query: LocaleQuery }),
       },

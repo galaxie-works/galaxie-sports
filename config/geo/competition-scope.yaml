@@ -1,0 +1,186 @@
+# =============================================================================
+# Galaxie Sports - escopo das competições internacionais na navegação por país.
+# Consumido pela API (/v1/countries/{code}/competitions); validado por packages/geo.
+#
+# Uma competição aparece na página de um país quando:
+#   - é DOMÉSTICA: core.competition.country_code = país (não precisa estar aqui); ou
+#   - está listada abaixo e o país participa dela (membro de uma das `confederations`
+#     ou listado em `countries`).
+#
+# CAMPOS (por esporte, em `sports.<slug>.competitions`, na ordem de exibição dentro do grupo)
+#   slug            - slug da competição em config/competitions/<esporte>.yaml. Competições fora do
+#                     catálogo (tier 3, slug gerado pelo bootstrap) exigem `api_sports_id`, que é o
+#                     critério de casamento (core.provider_map), estável mesmo se o nome mudar.
+#   scope           - continental_clubs (copas continentais de clubes), national_teams (seleções)
+#                     ou world_clubs (mundiais de clubes). `domestic` vem do país da competição.
+#   confederations  - confederações participantes (config/geo/confederations.yaml). FIFA = global
+#                     (todos os países). Nos outros esportes o código indica o bloco continental
+#                     equivalente (CONMEBOL = América do Sul, CONCACAF = Américas do Norte/Central
+#                     e Caribe, UEFA = Europa).
+#   countries       - países participantes além (ou em vez) das confederações: convidados
+#                     (Copa América) ou recortes (Leagues Cup = México e EUA).
+#   featured        - domésticas em destaque: vêm primeiro no grupo do país (dentro do mesmo tier),
+#                     nesta ordem (ex.: Brasileirão e Copa do Brasil antes dos estaduais).
+#   excluded        - competições internacionais do catálogo que NÃO entram na navegação por país
+#                     (amistosos de clubes, F1 e MMA, que não têm recorte por país). O teste exige
+#                     que toda competição internacional do catálogo esteja mapeada ou excluída.
+# =============================================================================
+schema_version: 1
+
+sports:
+  football:
+    competitions:
+      # ── copas continentais de clubes ──
+      - { slug: conmebol-libertadores, scope: continental_clubs, confederations: [CONMEBOL] }
+      - { slug: conmebol-sudamericana, scope: continental_clubs, confederations: [CONMEBOL] }
+      - { slug: conmebol-recopa, scope: continental_clubs, confederations: [CONMEBOL] }
+      - { slug: uefa-champions-league, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: uefa-europa-league, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: uefa-conference-league, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: world-uefa-super-cup-531, api_sports_id: 531, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: concacaf-champions-cup, scope: continental_clubs, confederations: [CONCACAF] }
+      - { slug: leagues-cup, scope: continental_clubs, countries: [MX, US] }
+      # ── seleções ──
+      - { slug: fifa-world-cup, scope: national_teams, confederations: [FIFA] }
+      - { slug: wc-qualification-conmebol, scope: national_teams, confederations: [CONMEBOL] }
+      - { slug: wc-qualification-concacaf, scope: national_teams, confederations: [CONCACAF] }
+      - { slug: wc-qualification-uefa, scope: national_teams, confederations: [UEFA] }
+      # convidados da CONCACAF na edição de 2024
+      - { slug: copa-america, scope: national_teams, confederations: [CONMEBOL], countries: [MX, US, CA, CR, JM, PA] }
+      - { slug: uefa-euro, scope: national_teams, confederations: [UEFA] }
+      - { slug: uefa-nations-league, scope: national_teams, confederations: [UEFA] }
+      - { slug: concacaf-nations-league, scope: national_teams, confederations: [CONCACAF] }
+      - { slug: world-concacaf-gold-cup-22, api_sports_id: 22, scope: national_teams, confederations: [CONCACAF] }
+      - { slug: world-conmebol-uefa-finalissima-913, api_sports_id: 913, scope: national_teams, confederations: [CONMEBOL, UEFA] }
+      - { slug: olympics-men, scope: national_teams, confederations: [FIFA] }
+      - { slug: olympics-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: pan-american-games, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: fifa-womens-world-cup, scope: national_teams, confederations: [FIFA] }
+      - { slug: copa-america-femenina, scope: national_teams, confederations: [CONMEBOL] }
+      - { slug: fifa-u20-world-cup, scope: national_teams, confederations: [FIFA] }
+      - { slug: fifa-u17-world-cup, scope: national_teams, confederations: [FIFA] }
+      - { slug: sudamericano-sub-20, scope: national_teams, confederations: [CONMEBOL] }
+      - { slug: international-friendlies, scope: national_teams, confederations: [FIFA] }
+      # ── mundiais de clubes ──
+      - { slug: fifa-club-world-cup, scope: world_clubs, confederations: [FIFA] }
+      - { slug: world-fifa-intercontinental-cup-1168, api_sports_id: 1168, scope: world_clubs, confederations: [FIFA] }
+    excluded: [club-friendlies]
+    featured:
+      [
+        brasileirao-serie-a,
+        copa-do-brasil,
+        brasileirao-serie-b,
+        brasileirao-serie-c,
+        brasileirao-serie-d,
+        supercopa-do-brasil,
+        copa-do-nordeste,
+        argentina-liga-profesional,
+        copa-argentina,
+        argentina-copa-de-la-liga,
+        uruguay-primera,
+        uruguay-primera-clausura,
+        paraguay-primera-apertura,
+        paraguay-primera-clausura,
+        liga-mx,
+        premier-league,
+        fa-cup,
+        efl-championship,
+        laliga,
+        copa-del-rey,
+        serie-a-italia,
+        coppa-italia,
+        bundesliga,
+        dfb-pokal,
+        ligue-1,
+        coupe-de-france,
+      ]
+
+  basketball:
+    competitions:
+      - { slug: bcl-americas, scope: continental_clubs, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: south-american-league-basketball, scope: continental_clubs, confederations: [CONMEBOL] }
+      - { slug: euroleague, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: fiba-world-cup, scope: national_teams, confederations: [FIFA] }
+      - { slug: fiba-americup, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: olympics-basketball, scope: national_teams, confederations: [FIFA] }
+      - { slug: olympics-basketball-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: pan-american-games-basketball, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: pan-american-games-basketball-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: south-american-championship-basketball, scope: national_teams, confederations: [CONMEBOL] }
+      - { slug: south-american-championship-basketball-women, scope: national_teams, confederations: [CONMEBOL] }
+      - { slug: fiba-americup-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: fiba-world-cup-women, scope: national_teams, confederations: [FIFA] }
+    featured: [nbb, liga-nacional-de-basquet]
+
+  volleyball:
+    competitions:
+      - { slug: vnl, scope: national_teams, confederations: [FIFA] }
+      - { slug: vnl-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: olympics-volleyball, scope: national_teams, confederations: [FIFA] }
+      - { slug: olympics-volleyball-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: pan-american-games-volleyball, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: pan-american-games-volleyball-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: pan-american-cup-volleyball, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: pan-american-cup-volleyball-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: world-championship-volleyball, scope: national_teams, confederations: [FIFA] }
+      - { slug: world-championship-volleyball-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: world-cup-volleyball, scope: national_teams, confederations: [FIFA] }
+      - { slug: world-cup-volleyball-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: club-world-championship-volleyball, scope: world_clubs, confederations: [FIFA] }
+      - { slug: club-world-championship-volleyball-women, scope: world_clubs, confederations: [FIFA] }
+    featured: [superliga-masculina, superliga-feminina, lva]
+
+  baseball:
+    competitions:
+      # campeões das ligas de inverno do Caribe (e convidados recentes)
+      - { slug: caribbean-series, scope: continental_clubs, countries: [DO, MX, PR, VE, CU, PA, CO] }
+      - { slug: serie-de-las-americas, scope: continental_clubs, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: champions-league-americas-baseball, scope: continental_clubs, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: world-baseball-classic, scope: national_teams, confederations: [FIFA] }
+      - { slug: olympics-baseball, scope: national_teams, confederations: [FIFA] }
+      - { slug: pan-american-games-baseball, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      # Jogos Centro-Americanos e do Caribe incluem Colômbia e Venezuela
+      - { slug: central-american-caribbean-games-baseball, scope: national_teams, confederations: [CONCACAF], countries: [CO, VE] }
+      - { slug: world-cup-u23-baseball, scope: national_teams, confederations: [FIFA] }
+
+  handball:
+    competitions:
+      - { slug: pan-american-club-championship-handball, scope: continental_clubs, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: pan-american-club-championship-handball-women, scope: continental_clubs, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: olympics-handball, scope: national_teams, confederations: [FIFA] }
+      - { slug: olympics-handball-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: world-championship-handball, scope: national_teams, confederations: [FIFA] }
+      - { slug: world-championship-handball-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: pan-american-games-handball, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: pan-american-games-handball-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: south-central-american-championship-handball, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: south-central-american-championship-handball-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: pan-american-championship-handball, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: pan-american-championship-handball-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: super-globe-handball, scope: world_clubs, confederations: [FIFA] }
+
+  hockey:
+    competitions:
+      - { slug: olympics-ice-hockey, scope: national_teams, confederations: [FIFA] }
+      - { slug: olympics-ice-hockey-women, scope: national_teams, confederations: [FIFA] }
+
+  rugby:
+    competitions:
+      # franquias de Nova Zelândia, Austrália e Fiji (Pacífico)
+      - { slug: super-rugby, scope: continental_clubs, countries: [NZ, AU, FJ] }
+      - { slug: rugby-world-cup, scope: national_teams, confederations: [FIFA] }
+      - { slug: rugby-world-cup-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: rugby-sevens-world-cup, scope: national_teams, confederations: [FIFA] }
+      - { slug: rugby-sevens-world-cup-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: olympics-rugby-sevens, scope: national_teams, confederations: [FIFA] }
+      - { slug: olympics-rugby-sevens-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: pan-american-games-rugby-sevens, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: pan-american-games-rugby-sevens-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: americas-rugby-championship, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: americas-pacific-challenge, scope: national_teams, confederations: [CONMEBOL, CONCACAF, OFC] }
+
+  formula-1:
+    excluded: [formula-1-world-championship]
+
+  mma:
+    excluded: [mma-all-fights]
