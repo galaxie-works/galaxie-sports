@@ -103,6 +103,7 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `SCHEDULE_NORMALIZE_FOOTBALL` | não | `35 0 * * *` | Normalização raw → core depois do sync |
 | `SCHEDULE_EVENTS_CLOCK` | não | `* * * * *` | Relógio dos eventos (sem cota) |
 | `SCHEDULE_ASSETS_MIRROR` | não | `30 1 * * *` | Espelho de assets (não consome cota) |
+| `SCHEDULE_CHANGE_FEED_PRUNE` / `CHANGE_FEED_RETENTION_DAYS` | não | `45 2 * * *` / `7` | Retenção do `ops.change_feed`: apaga mudanças mais velhas que N dias, mantendo a última de cada entidade e o que os webhooks ainda não leram (limita a retomada do SSE por `Last-Event-ID` a N dias) |
 | `SCHEDULE_QUOTA_STATUS` | não | `5 * * * *` | Reconciliação da cota via `/status` (não consome cota); `off` desliga |
 | `SCHEDULE_BOOTSTRAP_CATALOG` | não | `15 3 * * 1` | Catálogo do futebol (segunda, 03:15 UTC; ~8 chamadas BOOTSTRAP) |
 | `SCHEDULER_RUN_ON_START` | não | vazio | Jobs para rodar já na partida (ex.: `quota-status`) |

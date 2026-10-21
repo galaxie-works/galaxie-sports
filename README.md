@@ -4,7 +4,7 @@
 
 Galaxie Sports espelha internamente toda a [api-sports.io](https://api-sports.io) (12 APIs), normaliza tudo em um modelo canônico orientado a evento e acrescenta o que nenhum fornecedor de dados entrega pronto: **onde assistir por país**, **base semântica de clássicos e torcidas** ("Choque-Rei", "Avanti, Palestra!"), **cenário pré-jogo calculado** e **agendamento inteligente ao vivo** — tudo dentro de um orçamento rigoroso de chamadas.
 
-> 📌 Backlog e andamento: [GitHub Project · Galaxie Sports](https://github.com/users/galaxie-works/projects/4) · Status: **planejamento concluído, implementação iniciando**.
+> 📌 Backlog e andamento: [GitHub Project · Galaxie Sports](https://github.com/users/galaxie-works/projects/4) · Status: **backend implementado** — espelho, API `/v1`, onde assistir, base semântica, tempo real (SSE/webhooks), ao vivo e agentes de IA; app de demonstração e produção/comercial em andamento.
 
 ---
 
@@ -165,11 +165,10 @@ Detalhes: [docs/09-app-demonstracao.md](docs/09-app-demonstracao.md).
 
 ```
 galaxie-sports/
-├── apps/                       # api (Fastify) · demo (a criar)
-├── services/                   # ingestor · ai-agents (esqueleto)
-├── packages/                   # db (schema + migrations) · apisports-client · providers · contracts
-├── packages/                   # db (schema + migrations) · apisports-client · contracts · rules
-├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS)
+├── apps/                       # api (Fastify) · demo (a criar, #62)
+├── services/                   # ingestor (jobs, normalização, ao vivo) · ai-agents (LLM, cenário, resumo, onde assistir, curador)
+├── packages/                   # db · apisports-client · providers · contracts · rules · knowledge · where-to-watch · observability
+├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS) · portainer · observability · backup
 ├── config/
 │   ├── competitions/football.yaml   # 76 competições com IDs verificados e tiers
 │   ├── competitions/<esporte>.yaml  # demais 11 APIs, prioridade LatAm (NBB, Liga A, Superliga, LVA, VNL...)
@@ -221,7 +220,12 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm snapshot:export` · `pnpm snapshot:restore [arquivo]` | Exporta o raw (+ manifesto de assets) para `data/snapshots/*.ndjson.gz` e restaura num banco local — zero chamadas |
 | `pnpm --filter @galaxie/ingestor bootstrap:sports --plan` | Catálogo das outras 11 APIs (países, ligas, temporadas; `--jogos` para temporadas inteiras e classificação das prioritárias); sem `--plan`, executa |
 | `pnpm --filter @galaxie/ingestor assets:mirror --plan` | Asset Mirror: baixa logos/bandeiras/imagens da CDN de mídia (fora da cota) para o bucket S3 e preenche `core.asset`; `--descobrir-raw` varre o raw |
-| `pnpm --filter @galaxie/api tenant:create --slug <slug>` | Cria/atualiza um tenant e gera uma chave de API (plano, mercados, esportes e rate limit por flags) |
+| `pnpm --filter @galaxie/ingestor events:importance [--plan]` | Recalcula clássico (`derby_id`) e importância dos eventos já gravados a partir da base semântica (rode depois de `pnpm db:seed:semantic`; eventos novos já saem certos do upsert) |
+| `pnpm --filter @galaxie/ingestor live:run [--plan]` | Live Scheduler + Live Poller (`fixtures?live=`), com o orçamento LIVE do dia — ver [docs/07 §2.1](docs/07-ia-tempo-real-e-enriquecimento.md#21-live-scheduler-o-agendamento-inteligente) |
+| `pnpm --filter @galaxie/ingestor change-feed:prune [--dias 7] [--plan]` | Retenção do `ops.change_feed` (job diário do scheduler) |
+| `pnpm --filter @galaxie/ai-agents context:run` · `recap:run` · `wtw:run` · `curator:run --dry-run` · `eval:report` | Agentes de IA (cenário, resumo, onde assistir, curador) e painel de custo/qualidade; sem chave de LLM seguem só com o determinístico — ver [docs/07](docs/07-ia-tempo-real-e-enriquecimento.md) |
+| `pnpm --filter @galaxie/api tenant:create --slug <slug>` | Cria/atualiza um tenant a partir do modelo do plano (`config/plans.yaml`) e gera uma chave de API (mercados, esportes, limites e escopos por flags) |
+| `pnpm --filter @galaxie/api webhooks:worker` · `webhook create\|list\|dlq\|replay` | Worker e administração dos webhooks assinados — ver [docs/05 §5.2](docs/05-api-publica.md#52-webhooks) |
 | `pnpm --filter @galaxie/api admin:key` | Gera uma chave administrativa para `/internal/admin/*` (onboarding de tenants, chaves e uso) e o hash para `ADMIN_KEY_HASHES` — ver [docs/05 §1.2](docs/05-api-publica.md#12-onboarding-autoatendimento-e-uso) |
 | `docker compose -f infra/docker-compose.yml --profile load run --rm k6 run /scripts/<cenário>.js` | Testes de carga k6 (`live-burst`, `catalog-browse`, `cache-hit-vs-miss`) — ver [tests/load](tests/load/README.md) |
 
@@ -231,7 +235,7 @@ Os jobs de ingestão (`bootstrap:*`, `sync:daily`) aceitam `--plan` (rede × cac
 
 **Ambiente local sem chave**: `pnpm snapshot:restore` + `pnpm --filter @galaxie/ingestor bootstrap:catalog` sem `APISPORTS_KEY` — o cliente entra em modo offline e só lê o raw.
 
-Ainda por vir (backlog): `pnpm db:seed:semantic`, normalização raw → core das partidas, live poller e o app de demonstração.
+Ainda por vir: o app de demonstração (`apps/demo`) e os marcos F6–F8 do [roadmap](docs/10-roadmap-e-backlog.md).
 
 Ferramentas já disponíveis:
 

@@ -27,6 +27,8 @@
     "normalize:football": "node --env-file-if-exists=../../.env dist/cli/normalize-football.js",
     "normalize:sports": "node --env-file-if-exists=../../.env dist/cli/normalize-sports.js",
     "events:clock": "node --env-file-if-exists=../../.env dist/cli/events-clock.js",
+    "events:importance": "node --env-file-if-exists=../../.env dist/cli/events-importance.js",
+    "change-feed:prune": "node --env-file-if-exists=../../.env dist/cli/change-feed-prune.js",
     "bootstrap:seasons": "node --env-file-if-exists=../../.env dist/cli/bootstrap-seasons.js",
     "bootstrap:details": "node --env-file-if-exists=../../.env dist/cli/bootstrap-details.js",
     "bootstrap:people": "node --env-file-if-exists=../../.env dist/cli/bootstrap-people.js",
@@ -36,12 +38,15 @@
     "snapshot:export": "node --env-file-if-exists=../../.env dist/cli/snapshot-export.js",
     "snapshot:import": "node --env-file-if-exists=../../.env dist/cli/snapshot-import.js",
     "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
-    "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js"
+    "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js",
+    "geo:seed": "node --env-file-if-exists=../../.env dist/cli/geo-seed.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1153.0",
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/geo": "workspace:*",
+    "@galaxie/knowledge": "workspace:*",
     "@galaxie/observability": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",

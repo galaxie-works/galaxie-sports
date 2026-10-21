@@ -5,6 +5,8 @@ export * from './normalize/upsert-core.js';
 export * from './normalize/event-state.js';
 export * from './normalize/raw-runner.js';
 export * from './normalize/ingest.js';
+export * from './normalize/importance.js';
+export * from './ops/change-feed-retention.js';
 export { uuidv7 } from './normalize/uuid.js';
 
 export * from './context.js';
@@ -20,6 +22,7 @@ export * from './jobs/details-job.js';
 export * from './jobs/people-job.js';
 export * from './jobs/daily-job.js';
 export * from './knowledge/derbies.js';
+export { seedGeo, type GeoSeedStats } from './geo/seed.js';
 export * from './snapshot/raw-snapshot.js';
 export { loadMediaDenylist, runAssetMirror, type MirrorReport } from './assets/asset-mirror.js';
 export { InMemoryAssetStore, PgAssetStore, type AssetStore } from './assets/asset-store.js';

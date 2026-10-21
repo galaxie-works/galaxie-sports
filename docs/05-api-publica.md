@@ -41,7 +41,8 @@ Cada rota declara o módulo exigido (`/mirror` e o catálogo `/v1` exigem `core_
 
 ```bash
 pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --label dev
-# opções: --markets BR,AR --sports football --rate-limit 600 --scopes core_data --env live
+# padrões do modelo do plano (config/plans.yaml, §1.2); ajustes: --markets BR,AR --sports football
+# --rate-limit 600 --daily-quota 50000|none --scopes core_data --env live
 ```
 
 ### 1.2 Onboarding, autoatendimento e uso
@@ -155,6 +156,9 @@ Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 |---|---|
 | `GET /v1/sports` | Esportes disponíveis e cobertura |
 | `GET /v1/countries` | Países, bandeiras, confederação |
+| `GET /v1/countries/{code}` | País com confederação (código + nome localizado) e bandeira (§3.1.1) |
+| `GET /v1/countries/{code}/competitions?sport=&max_tier=` | Competições do país por esporte e escopo: domésticas, continentais de clubes, seleção, mundiais (§3.1.1) |
+| `GET /v1/navigation` | Menu da demo em uma chamada: 12 esportes (contagens, `has_data`) e países da navegação (§3.1.1) |
 | `GET /v1/competitions?sport=&country=&tier=` | Competições com apelidos (semântica) |
 | `GET /v1/competitions/{id}` | Detalhe + temporadas |
 | `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos |
@@ -173,6 +177,45 @@ Convenções implementadas:
   - `groups[]`: por tabela/grupo, `leader` e `zones` (`id`, `kind`, `label` localizado, faixa `from`–`to` e os times que estão nela agora). Sem regulamento, as zonas saem das faixas contíguas de `description` do fornecedor;
   - `bracket[]`: fases de mata-mata em ordem, com os confrontos (`participants`, `legs` com perna 1/2, `aggregate`, `winner_id` e `status` `scheduled`/`in_progress`/`decided`). Com regulamento de ida e volta, o confronto só é dado como decidido com as duas pernas no `core`; o vencedor sai do agregado, depois dos pênaltis da última perna e, por fim, do `winner` do fornecedor;
   - `decisive_events[]`: até 10 próximos jogos (não encerrados, a partir de 3 h atrás) com stakes decisivos (título, vaga, rebaixamento, eliminação, mata-mata) ou finais, por `importance`.
+
+#### 3.1.1 Navegação por país (`apps/api/src/routes/v1/navigation.ts`)
+
+Um país participa de confederações e de campeonatos que outros países também jogam (Libertadores e Sul-Americana para os dez da CONMEBOL). O modelo vem de dois arquivos versionados, validados por `packages/geo` (Zod + testes que cruzam com `config/competitions/*.yaml`):
+
+- [`config/geo/confederations.yaml`](../config/geo/confederations.yaml) — as seis confederações com os 218 membros da FIFA (código de país da api-sports, incl. `GB-ENG`/`GB-SCT`/`GB-WLS`/`GB-NIR` e `XK`; código COI; nome `en`/`pt-BR`/`es`), as regiões dos catálogos dos outros esportes (`SOUTH-AMERICA` → CONMEBOL…) e a navegação da demo: os 10 da CONMEBOL + México + Inglaterra, Espanha, Itália, Alemanha, França e Portugal, e a ordem dos 12 esportes.
+- [`config/geo/competition-scope.yaml`](../config/geo/competition-scope.yaml) — por esporte, as competições internacionais com `scope` (`continental_clubs`, `national_teams`, `world_clubs`) e participantes (`confederations`, com `FIFA` = global, e/ou `countries`: convidados da Copa América, México e EUA na Leagues Cup). Competições fora do catálogo (Supercopa da UEFA, Intercontinental, Copa Ouro, Finalíssima) casam pelo `api_sports_id` em `core.provider_map`. `featured` dá a ordem editorial das domésticas (Brasileirão e Copa do Brasil antes dos estaduais); `excluded` tira da navegação o que não tem recorte por país (amistosos de clubes, F1, MMA).
+
+`pnpm --filter @galaxie/ingestor geo:seed` (também roda ao fim do `bootstrap:catalog`) grava em `core.country` a confederação, o código COI e os nomes pt-BR/es, preservando o `en` do fornecedor; é idempotente, não gasta cota e só cria os países da navegação que faltarem. A API usa o YAML como fallback (nome, confederação) quando o banco ainda não tem o dado.
+
+| Rota | Resposta |
+|---|---|
+| `GET /v1/navigation` | `sports[]` — os 12 esportes na ordem do menu (futebol primeiro): `slug`, `name`, `competitions` (todos os tiers), `events`, `has_data` (há competição ou evento no banco), `mirror`; `countries[]` — países da navegação com `name`, `flag` e `confederation` (`code` + nome localizado); `confederations[]` — seções do menu (CONMEBOL, CONCACAF, UEFA) com os códigos dos países |
+| `GET /v1/countries/{code}` | `code`, `name`, `ioc_code`, `flag`, `confederation` e `in_navigation`. Código ISO2 ou extensão (`GB-ENG`), em qualquer caixa; fora do banco e do config/geo → 404 |
+| `GET /v1/countries/{code}/competitions` | `country` + `sports[]` (futebol primeiro; só esportes com alguma competição), cada um com `groups[]` na ordem `domestic` → `continental_clubs` → `national_teams` → `world_clubs` (grupo vazio é omitido), com `label` localizado e `competitions[]` no formato de `/v1/competitions` + `scope` e `confederations`. Domésticas: `country_code` = país e `tier ≤ max_tier` (padrão 2 = catalogadas; 3 traz todo o espelho). Ordem no grupo: tier, posição editorial (ordem do arquivo de escopo ou `featured`) e nome |
+
+Todas exigem `core_data`, aceitam `?locale`/`Accept-Language` (nomes com a cadeia `es-XX → es → en`) e ficam 24 h no cache (tags `country`, `competition`, `season`, `sport`). As contagens de eventos de `/v1/navigation` podem atrasar até o TTL (a rota não é purgada a cada evento).
+
+```bash
+curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/countries/BR/competitions?sport=football&locale=pt-BR"
+```
+
+```json
+{
+  "country": { "code": "BR", "name": "Brasil", "ioc_code": "BRA", "flag": "https://cdn…/api-sports/flags/br.svg",
+               "confederation": { "code": "CONMEBOL", "name": "CONMEBOL (América do Sul)" }, "in_navigation": true },
+  "sports": [{
+    "sport": { "slug": "football", "name": "Futebol" },
+    "groups": [
+      { "scope": "domestic", "label": "Competições nacionais", "competitions": ["Brasileirão Série A", "Copa do Brasil", "Campeonato Baiano", "…"] },
+      { "scope": "continental_clubs", "label": "Copas continentais de clubes", "competitions": ["Libertadores", "Copa Sul-Americana", "Recopa Sul-Americana"] },
+      { "scope": "national_teams", "label": "Seleção", "competitions": ["Copa do Mundo", "Eliminatórias Sul-Americanas", "Copa América", "…"] },
+      { "scope": "world_clubs", "label": "Mundiais de clubes", "competitions": ["Mundial de Clubes", "FIFA Intercontinental Cup"] }
+    ]
+  }]
+}
+```
+
+(Exemplo resumido: cada item de `competitions` é um objeto completo — `id`, `slug`, `name`, `official_name`, `nicknames`, `tier`, `country`, `logo`, `current_season`, `scope` e `confederations`.)
 
 ### 3.2 Eventos
 
@@ -230,6 +273,8 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 - **`/lineups`** e **`/stats`**: do detalhe da partida (`core.football_fixture.detail`); IDs do fornecedor resolvidos para os nossos via `provider_map` (times e pessoas, com foto). Sem detalhe sincronizado: `available: false` e listas vazias. Outros esportes: `available: false` por ora.
 - **`/h2h?limit=`** (1–50, padrão 10): confrontos **encerrados** entre os dois participantes no `core` (qualquer competição, exceto o próprio evento), do mais recente ao mais antigo; `summary` (`played`, `draws`, `wins`/`goals` por time) considera todo o histórico. Nunca chama o fornecedor.
 - **`/{id}.ics`**: `text/calendar` (RFC 5545) com um `VEVENT`: `UID <id>@galaxie.sports`, `DTSTART`/`DTEND` em UTC (`starts_at` e `ends_at_expected`), `SUMMARY` "Mandante × Visitante · Competição", `LOCATION`, `STATUS` (`CANCELLED` para cancelado/abandonado, `TENTATIVE` para adiado), linhas CRLF dobradas em 75 octetos. O título segue o locale; os horários não dependem de `tz`.
+- **`/context?locale=&kind=scenario|recap`** (módulo `live_intelligence`; `apps/api/src/routes/v1/event-context.ts`): cenário pré-jogo e resumo pós-jogo dos agentes de IA (docs/07 §2.3), lidos de `enrich.event_context` por `readEventContext` (`@galaxie/db`, a mesma leitura dos agentes): a versão vigente por tipo no locale pedido, ignorando as rejeitadas pela revisão editorial — sem fallback entre locales (a copy é por mercado; locale sem texto → `data: []`). Cada item traz `text`, `sentences`, `origin` (`llm` aprovado pelos guardrails ou `fallback` determinístico), `model`, `confidence`, `review_status` (`auto`/`reviewed`), `generated_at` (no `tz`), `fits` (TV/mobile/web) e `sources` (core, regulamento com URL). Sem `kind`, os dois tipos. Evento inexistente → 404; esporte fora do plano → 403. TTL 1 h, purgado por `event.context_published` (tags `event_context:<id>` e `event:<id>`).
+- **`context` no detalhe**: para tenants com `live_intelligence`, `GET /v1/events/{id}` traz `context: { scenario, recap }` (texto vigente no locale, `origin` e `generated_at`, ou `null`) — uma consulta indexada a mais; para os demais planos o campo não aparece (a resposta em cache varia por isso).
 - **Cache**: detalhe com TTL de 10 s se ao vivo ou começando em até 2 h, 5 min se agendado e 1 h se encerrado; agenda até 5 min. Tags `event:<id>` (e `event` nas listas): `publishChange(db, { entityType: 'event', entityId })` purga. O plano do tenant (esporte) é verificado também quando a resposta vem do cache.
 
 ### 3.3 Times, atletas e semântica
@@ -399,6 +444,8 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 
 `data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score`; `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`.
 
+**Ao vivo (Live Poller, #55) — sem tópico próprio.** O poller (`services/ingestor/src/live`) aplica cada tick pela normalização, que grava `core.event` e `core.event_incident`; os triggers de captura publicam então `event.score_changed`, `event.status_changed` e `event.incident_added` — o mesmo caminho de qualquer outro writer, uma vez só por mudança. O sinal `topic = live` que o poller também publica no change feed (gol, encerramento, fonte *stale*/recuperada) é **interno**: purga as tags `live`, `competition:<id>` e `season:<id>` e serve à operação, mas não sai no SSE nem nos webhooks (não é um tópico público), o que evita entregas duplicadas. A fonte fora do ar não gera mudança pública: o último placar válido fica e `data_freshness.is_stale` aparece na REST. Medido (teste `apps/api/test/live-sse.integration.test.ts`: `fixtures?live=` falso → `LivePoller.tick` → cliente SSE): gol no stream em ~80 ms (meta ≤ 5 s).
+
 ### 5.1 SSE — `GET /v1/stream`
 
 ```http
@@ -412,7 +459,7 @@ Last-Event-ID: 1041
 | `events` | Até 200 IDs de evento (vírgula). Vazio = todos os eventos do contrato |
 | `competitions`, `sports` | Filtros adicionais (até 50 competições, 20 esportes); esporte fora do contrato → 403 |
 | `topics` | Nomes curtos ou completos; padrão: todos os do plano. Tópico de módulo não contratado → 403 `MODULE_NOT_IN_PLAN` |
-| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` e o cliente deve recarregar o estado pela REST) |
+| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` e o cliente deve recarregar o estado pela REST). O change feed guarda `CHANGE_FEED_RETENTION_DAYS` dias (padrão 7; job `change-feed-prune` do ingestor, que mantém a última mudança de cada entidade e o que os webhooks ainda não leram) |
 | `?key=` | Chave para `EventSource` do navegador, que não envia headers (ver *trade-off* abaixo) |
 
 Mensagens: `id:` (ID da mudança), `event:` (tópico), `data:` (JSON). O stream começa com `retry: 3000` e, depois da retomada, `event: ready` com `{ "last_event_id": "...", "topics": [...] }`. Heartbeat a cada 15 s (comentário `: hb <ts>`), que mantém proxies e balanceadores com a conexão aberta.
@@ -533,11 +580,12 @@ Formato RFC 9457 (`application/problem+json`):
 
 | Recurso | TTL (CDN) | Invalidação ativa |
 |---|---|---|
-| Países, competições, times, venues | 24 h | Na sincronização diária |
+| Países, competições, times, venues, navegação (`/v1/navigation`, `/v1/countries/{code}/*`) | 24 h | Na sincronização diária |
 | Elencos, tabelas | 1 h | Ao fim de cada rodada |
 | Agenda do dia | 5 min | Mudança de horário/status |
 | Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |
 | Onde assistir | 60 s | Correção aceita (purge) |
+| Cenário/resumo de IA (`/v1/events/{id}/context`) | 1 h | Nova geração ou revisão (`event.context_published`) |
 | Semântica (clássicos, perfis, glossário, copy) | 24 h (retrospecto do clássico: 1 h) | Merge de PR na base / novo seed |
 | Quadro de medalhas | 24 h (edição encerrada) · 60 s (em andamento) · 1 h (futura) | Nova carga/QA de medalhas |
 | Assets (imagens) | 30 dias, imutável por hash | Nova versão = nova URL (`?v=` com o início do sha256 de `core.asset`) |

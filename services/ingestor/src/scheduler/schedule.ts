@@ -63,6 +63,15 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 90 * MINUTE,
   },
   {
+    name: 'change-feed-prune',
+    description:
+      'Retenção do ops.change_feed: apaga mudanças com mais de CHANGE_FEED_RETENTION_DAYS (padrão 7), mantendo a última por entidade e o que os webhooks ainda não leram',
+    cron: '45 2 * * *',
+    script: 'dist/cli/change-feed-prune.js',
+    args: [],
+    timeoutMs: 30 * MINUTE,
+  },
+  {
     name: 'quota-status',
     description: 'Lê /status de cada API (não consome cota) e reconcilia o Quota Governor',
     cron: '5 * * * *',

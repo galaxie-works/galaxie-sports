@@ -1,0 +1,288 @@
+# =============================================================================
+# Galaxie Sports - geografia do futebol: confederações, países e navegação.
+# Consumido por:
+#   pnpm --filter @galaxie/ingestor geo:seed     (preenche core.country.confederation,
+#                                                 ioc_code e nomes pt-BR/es; idempotente)
+#   API /v1/countries/{code}, /v1/countries/{code}/competitions e /v1/navigation
+# Validado por packages/geo (Zod + testes unitários).
+#
+# CAMPOS
+#   confederations[].code     - código da confederação (CONMEBOL, CONCACAF, UEFA, AFC, CAF, OFC).
+#                               "FIFA" é reservado para competições globais (config/geo/competition-scope.yaml).
+#   confederations[].members  - países membros da FIFA por confederação. `code` é o código de país
+#                               da api-sports (ISO 3166-1 alpha-2, com as extensões GB-ENG, GB-SCT,
+#                               GB-WLS e GB-NIR e XK para Kosovo); `ioc` é o código do COI (quando o
+#                               membro tem comitê olímpico próprio); `name` traz en, pt-BR e es (a API
+#                               segue a cadeia es-XX -> es -> en e pt-BR -> pt -> en).
+#   regions                   - pseudo-países de região usados pelos catálogos dos outros esportes
+#                               (country "South-America" -> código SOUTH-AMERICA) e o bloco
+#                               continental equivalente.
+#   navigation.countries      - países da navegação da demo, na ordem do menu.
+#   navigation.sports         - os 12 esportes na ordem do menu, com nome localizado (fallback quando
+#                               o banco ainda não tem core.sport).
+# Fontes: estatutos e listas de associações-membro da FIFA e das seis confederações (conferência
+# manual em out/2026); nomes pt-BR/es alinhados com a base de CONs (services/ingestor multisport).
+# =============================================================================
+schema_version: 1
+
+navigation:
+  countries: [BR, AR, BO, CL, CO, EC, PY, PE, UY, VE, MX, GB-ENG, ES, IT, DE, FR, PT]
+  sports:
+    - { slug: football, name: { en: Football, pt-BR: Futebol, es: Fútbol } }
+    - { slug: basketball, name: { en: Basketball, pt-BR: Basquete, es: Básquetbol } }
+    - { slug: volleyball, name: { en: Volleyball, pt-BR: Vôlei, es: Vóleibol } }
+    - { slug: formula-1, name: { en: Formula 1, pt-BR: Fórmula 1, es: Fórmula 1 } }
+    - { slug: mma, name: { en: MMA, pt-BR: MMA, es: MMA } }
+    - { slug: nba, name: { en: NBA, pt-BR: NBA, es: NBA } }
+    - { slug: american-football, name: { en: American football, pt-BR: Futebol americano, es: Fútbol americano } }
+    - { slug: baseball, name: { en: Baseball, pt-BR: Beisebol, es: Béisbol } }
+    - { slug: hockey, name: { en: Hockey, pt-BR: Hóquei, es: Hockey } }
+    - { slug: handball, name: { en: Handball, pt-BR: Handebol, es: Balonmano } }
+    - { slug: rugby, name: { en: Rugby, pt-BR: Rúgbi, es: Rugby } }
+    - { slug: afl, name: { en: AFL, pt-BR: Futebol australiano, es: Fútbol australiano } }
+
+regions:
+  SOUTH-AMERICA: CONMEBOL
+  NORTH-CENTRAL-AMERICA: CONCACAF
+  EUROPE: UEFA
+  ASIA: AFC
+  AFRICA: CAF
+  OCEANIA: OFC
+
+confederations:
+  - code: CONMEBOL
+    name: { en: CONMEBOL (South America), pt-BR: CONMEBOL (América do Sul), es: CONMEBOL (Sudamérica) }
+    members:
+      - { code: AR, ioc: ARG, name: { en: Argentina, pt-BR: Argentina, es: Argentina } }
+      - { code: BO, ioc: BOL, name: { en: Bolivia, pt-BR: Bolívia, es: Bolivia } }
+      - { code: BR, ioc: BRA, name: { en: Brazil, pt-BR: Brasil, es: Brasil } }
+      - { code: CL, ioc: CHI, name: { en: Chile, pt-BR: Chile, es: Chile } }
+      - { code: CO, ioc: COL, name: { en: Colombia, pt-BR: Colômbia, es: Colombia } }
+      - { code: EC, ioc: ECU, name: { en: Ecuador, pt-BR: Equador, es: Ecuador } }
+      - { code: PY, ioc: PAR, name: { en: Paraguay, pt-BR: Paraguai, es: Paraguay } }
+      - { code: PE, ioc: PER, name: { en: Peru, pt-BR: Peru, es: Perú } }
+      - { code: UY, ioc: URU, name: { en: Uruguay, pt-BR: Uruguai, es: Uruguay } }
+      - { code: VE, ioc: VEN, name: { en: Venezuela, pt-BR: Venezuela, es: Venezuela } }
+  - code: CONCACAF
+    name: { en: "CONCACAF (North, Central America and Caribbean)", pt-BR: CONCACAF (Américas do Norte e Central e Caribe), es: "CONCACAF (Norte, Centroamérica y Caribe)" }
+    members:
+      - { code: AI, name: { en: Anguilla, pt-BR: Anguila, es: Anguila } }
+      - { code: AG, ioc: ANT, name: { en: Antigua and Barbuda, pt-BR: Antígua e Barbuda, es: Antigua y Barbuda } }
+      - { code: AW, ioc: ARU, name: { en: Aruba, pt-BR: Aruba, es: Aruba } }
+      - { code: BS, ioc: BAH, name: { en: Bahamas, pt-BR: Bahamas, es: Bahamas } }
+      - { code: BB, ioc: BAR, name: { en: Barbados, pt-BR: Barbados, es: Barbados } }
+      - { code: BZ, ioc: BIZ, name: { en: Belize, pt-BR: Belize, es: Belice } }
+      - { code: BM, ioc: BER, name: { en: Bermuda, pt-BR: Bermudas, es: Bermudas } }
+      - { code: BQ, name: { en: Bonaire, pt-BR: Bonaire, es: Bonaire } }
+      - { code: VG, ioc: IVB, name: { en: British Virgin Islands, pt-BR: Ilhas Virgens Britânicas, es: Islas Vírgenes Británicas } }
+      - { code: CA, ioc: CAN, name: { en: Canada, pt-BR: Canadá, es: Canadá } }
+      - { code: KY, ioc: CAY, name: { en: Cayman Islands, pt-BR: Ilhas Cayman, es: Islas Caimán } }
+      - { code: CR, ioc: CRC, name: { en: Costa Rica, pt-BR: Costa Rica, es: Costa Rica } }
+      - { code: CU, ioc: CUB, name: { en: Cuba, pt-BR: Cuba, es: Cuba } }
+      - { code: CW, name: { en: Curaçao, pt-BR: Curaçao, es: Curazao } }
+      - { code: DM, ioc: DMA, name: { en: Dominica, pt-BR: Dominica, es: Dominica } }
+      - { code: DO, ioc: DOM, name: { en: Dominican Republic, pt-BR: República Dominicana, es: República Dominicana } }
+      - { code: SV, ioc: ESA, name: { en: El Salvador, pt-BR: El Salvador, es: El Salvador } }
+      - { code: GF, name: { en: French Guiana, pt-BR: Guiana Francesa, es: Guayana Francesa } }
+      - { code: GD, ioc: GRN, name: { en: Grenada, pt-BR: Granada, es: Granada } }
+      - { code: GP, name: { en: Guadeloupe, pt-BR: Guadalupe, es: Guadalupe } }
+      - { code: GT, ioc: GUA, name: { en: Guatemala, pt-BR: Guatemala, es: Guatemala } }
+      - { code: GY, ioc: GUY, name: { en: Guyana, pt-BR: Guiana, es: Guyana } }
+      - { code: HT, ioc: HAI, name: { en: Haiti, pt-BR: Haiti, es: Haití } }
+      - { code: HN, ioc: HON, name: { en: Honduras, pt-BR: Honduras, es: Honduras } }
+      - { code: JM, ioc: JAM, name: { en: Jamaica, pt-BR: Jamaica, es: Jamaica } }
+      - { code: MQ, name: { en: Martinique, pt-BR: Martinica, es: Martinica } }
+      - { code: MX, ioc: MEX, name: { en: Mexico, pt-BR: México, es: México } }
+      - { code: MS, name: { en: Montserrat, pt-BR: Montserrat, es: Montserrat } }
+      - { code: NI, ioc: NCA, name: { en: Nicaragua, pt-BR: Nicarágua, es: Nicaragua } }
+      - { code: PA, ioc: PAN, name: { en: Panama, pt-BR: Panamá, es: Panamá } }
+      - { code: PR, ioc: PUR, name: { en: Puerto Rico, pt-BR: Porto Rico, es: Puerto Rico } }
+      - { code: KN, ioc: SKN, name: { en: Saint Kitts and Nevis, pt-BR: São Cristóvão e Névis, es: San Cristóbal y Nieves } }
+      - { code: LC, ioc: LCA, name: { en: Saint Lucia, pt-BR: Santa Lúcia, es: Santa Lucía } }
+      - { code: MF, name: { en: Saint Martin, pt-BR: São Martinho, es: San Martín } }
+      - { code: VC, ioc: VIN, name: { en: Saint Vincent and the Grenadines, pt-BR: São Vicente e Granadinas, es: San Vicente y las Granadinas } }
+      - { code: SX, name: { en: Sint Maarten, pt-BR: Sint Maarten, es: San Martín (Países Bajos) } }
+      - { code: SR, ioc: SUR, name: { en: Suriname, pt-BR: Suriname, es: Surinam } }
+      - { code: TT, ioc: TTO, name: { en: Trinidad and Tobago, pt-BR: Trinidad e Tobago, es: Trinidad y Tobago } }
+      - { code: TC, name: { en: Turks and Caicos Islands, pt-BR: Ilhas Turcas e Caicos, es: Islas Turcas y Caicos } }
+      - { code: US, ioc: USA, name: { en: USA, pt-BR: Estados Unidos, es: Estados Unidos } }
+      - { code: VI, ioc: ISV, name: { en: US Virgin Islands, pt-BR: Ilhas Virgens Americanas, es: Islas Vírgenes de los Estados Unidos } }
+  - code: UEFA
+    name: { en: UEFA (Europe), pt-BR: UEFA (Europa), es: UEFA (Europa) }
+    members:
+      - { code: AL, ioc: ALB, name: { en: Albania, pt-BR: Albânia, es: Albania } }
+      - { code: AD, ioc: AND, name: { en: Andorra, pt-BR: Andorra, es: Andorra } }
+      - { code: AM, ioc: ARM, name: { en: Armenia, pt-BR: Armênia, es: Armenia } }
+      - { code: AT, ioc: AUT, name: { en: Austria, pt-BR: Áustria, es: Austria } }
+      - { code: AZ, ioc: AZE, name: { en: Azerbaijan, pt-BR: Azerbaijão, es: Azerbaiyán } }
+      - { code: BY, ioc: BLR, name: { en: Belarus, pt-BR: Belarus, es: Bielorrusia } }
+      - { code: BE, ioc: BEL, name: { en: Belgium, pt-BR: Bélgica, es: Bélgica } }
+      - { code: BA, ioc: BIH, name: { en: Bosnia and Herzegovina, pt-BR: Bósnia e Herzegovina, es: Bosnia y Herzegovina } }
+      - { code: BG, ioc: BUL, name: { en: Bulgaria, pt-BR: Bulgária, es: Bulgaria } }
+      - { code: HR, ioc: CRO, name: { en: Croatia, pt-BR: Croácia, es: Croacia } }
+      - { code: CY, ioc: CYP, name: { en: Cyprus, pt-BR: Chipre, es: Chipre } }
+      - { code: CZ, ioc: CZE, name: { en: Czech Republic, pt-BR: República Tcheca, es: República Checa } }
+      - { code: DK, ioc: DEN, name: { en: Denmark, pt-BR: Dinamarca, es: Dinamarca } }
+      - { code: GB-ENG, name: { en: England, pt-BR: Inglaterra, es: Inglaterra } }
+      - { code: EE, ioc: EST, name: { en: Estonia, pt-BR: Estônia, es: Estonia } }
+      - { code: FO, name: { en: Faroe Islands, pt-BR: Ilhas Faroé, es: Islas Feroe } }
+      - { code: FI, ioc: FIN, name: { en: Finland, pt-BR: Finlândia, es: Finlandia } }
+      - { code: FR, ioc: FRA, name: { en: France, pt-BR: França, es: Francia } }
+      - { code: GE, ioc: GEO, name: { en: Georgia, pt-BR: Geórgia, es: Georgia } }
+      - { code: DE, ioc: GER, name: { en: Germany, pt-BR: Alemanha, es: Alemania } }
+      - { code: GI, name: { en: Gibraltar, pt-BR: Gibraltar, es: Gibraltar } }
+      - { code: GR, ioc: GRE, name: { en: Greece, pt-BR: Grécia, es: Grecia } }
+      - { code: HU, ioc: HUN, name: { en: Hungary, pt-BR: Hungria, es: Hungría } }
+      - { code: IS, ioc: ISL, name: { en: Iceland, pt-BR: Islândia, es: Islandia } }
+      - { code: IL, ioc: ISR, name: { en: Israel, pt-BR: Israel, es: Israel } }
+      - { code: IT, ioc: ITA, name: { en: Italy, pt-BR: Itália, es: Italia } }
+      - { code: KZ, ioc: KAZ, name: { en: Kazakhstan, pt-BR: Cazaquistão, es: Kazajistán } }
+      - { code: XK, ioc: KOS, name: { en: Kosovo, pt-BR: Kosovo, es: Kosovo } }
+      - { code: LV, ioc: LAT, name: { en: Latvia, pt-BR: Letônia, es: Letonia } }
+      - { code: LI, ioc: LIE, name: { en: Liechtenstein, pt-BR: Liechtenstein, es: Liechtenstein } }
+      - { code: LT, ioc: LTU, name: { en: Lithuania, pt-BR: Lituânia, es: Lituania } }
+      - { code: LU, ioc: LUX, name: { en: Luxembourg, pt-BR: Luxemburgo, es: Luxemburgo } }
+      - { code: MT, ioc: MLT, name: { en: Malta, pt-BR: Malta, es: Malta } }
+      - { code: MD, ioc: MDA, name: { en: Moldova, pt-BR: Moldávia, es: Moldavia } }
+      - { code: ME, ioc: MNE, name: { en: Montenegro, pt-BR: Montenegro, es: Montenegro } }
+      - { code: NL, ioc: NED, name: { en: Netherlands, pt-BR: Holanda, es: Países Bajos } }
+      - { code: MK, ioc: MKD, name: { en: North Macedonia, pt-BR: Macedônia do Norte, es: Macedonia del Norte } }
+      - { code: GB-NIR, name: { en: Northern Ireland, pt-BR: Irlanda do Norte, es: Irlanda del Norte } }
+      - { code: NO, ioc: NOR, name: { en: Norway, pt-BR: Noruega, es: Noruega } }
+      - { code: PL, ioc: POL, name: { en: Poland, pt-BR: Polônia, es: Polonia } }
+      - { code: PT, ioc: POR, name: { en: Portugal, pt-BR: Portugal, es: Portugal } }
+      - { code: IE, ioc: IRL, name: { en: Republic of Ireland, pt-BR: Irlanda, es: Irlanda } }
+      - { code: RO, ioc: ROU, name: { en: Romania, pt-BR: Romênia, es: Rumania } }
+      - { code: RU, ioc: RUS, name: { en: Russia, pt-BR: Rússia, es: Rusia } }
+      - { code: SM, ioc: SMR, name: { en: San Marino, pt-BR: San Marino, es: San Marino } }
+      - { code: GB-SCT, name: { en: Scotland, pt-BR: Escócia, es: Escocia } }
+      - { code: RS, ioc: SRB, name: { en: Serbia, pt-BR: Sérvia, es: Serbia } }
+      - { code: SK, ioc: SVK, name: { en: Slovakia, pt-BR: Eslováquia, es: Eslovaquia } }
+      - { code: SI, ioc: SLO, name: { en: Slovenia, pt-BR: Eslovênia, es: Eslovenia } }
+      - { code: ES, ioc: ESP, name: { en: Spain, pt-BR: Espanha, es: España } }
+      - { code: SE, ioc: SWE, name: { en: Sweden, pt-BR: Suécia, es: Suecia } }
+      - { code: CH, ioc: SUI, name: { en: Switzerland, pt-BR: Suíça, es: Suiza } }
+      - { code: TR, ioc: TUR, name: { en: Türkiye, pt-BR: Turquia, es: Turquía } }
+      - { code: UA, ioc: UKR, name: { en: Ukraine, pt-BR: Ucrânia, es: Ucrania } }
+      - { code: GB-WLS, name: { en: Wales, pt-BR: País de Gales, es: Gales } }
+  - code: AFC
+    name: { en: AFC (Asia), pt-BR: AFC (Ásia), es: AFC (Asia) }
+    members:
+      - { code: AF, ioc: AFG, name: { en: Afghanistan, pt-BR: Afeganistão, es: Afganistán } }
+      - { code: AU, ioc: AUS, name: { en: Australia, pt-BR: Austrália, es: Australia } }
+      - { code: BH, ioc: BRN, name: { en: Bahrain, pt-BR: Bahrein, es: Baréin } }
+      - { code: BD, ioc: BAN, name: { en: Bangladesh, pt-BR: Bangladesh, es: Bangladés } }
+      - { code: BT, ioc: BHU, name: { en: Bhutan, pt-BR: Butão, es: Bután } }
+      - { code: BN, ioc: BRU, name: { en: Brunei, pt-BR: Brunei, es: Brunéi } }
+      - { code: KH, ioc: CAM, name: { en: Cambodia, pt-BR: Camboja, es: Camboya } }
+      - { code: CN, ioc: CHN, name: { en: China, pt-BR: China, es: China } }
+      - { code: TW, ioc: TPE, name: { en: Chinese Taipei, pt-BR: Taipé Chinesa, es: China Taipéi } }
+      - { code: GU, ioc: GUM, name: { en: Guam, pt-BR: Guam, es: Guam } }
+      - { code: HK, ioc: HKG, name: { en: Hong Kong, pt-BR: Hong Kong, es: Hong Kong } }
+      - { code: IN, ioc: IND, name: { en: India, pt-BR: Índia, es: India } }
+      - { code: ID, ioc: INA, name: { en: Indonesia, pt-BR: Indonésia, es: Indonesia } }
+      - { code: IR, ioc: IRI, name: { en: Iran, pt-BR: Irã, es: Irán } }
+      - { code: IQ, ioc: IRQ, name: { en: Iraq, pt-BR: Iraque, es: Irak } }
+      - { code: JP, ioc: JPN, name: { en: Japan, pt-BR: Japão, es: Japón } }
+      - { code: JO, ioc: JOR, name: { en: Jordan, pt-BR: Jordânia, es: Jordania } }
+      - { code: KW, ioc: KUW, name: { en: Kuwait, pt-BR: Kuwait, es: Kuwait } }
+      - { code: KG, ioc: KGZ, name: { en: Kyrgyzstan, pt-BR: Quirguistão, es: Kirguistán } }
+      - { code: LA, ioc: LAO, name: { en: Laos, pt-BR: Laos, es: Laos } }
+      - { code: LB, ioc: LBN, name: { en: Lebanon, pt-BR: Líbano, es: Líbano } }
+      - { code: MO, name: { en: Macau, pt-BR: Macau, es: Macao } }
+      - { code: MY, ioc: MAS, name: { en: Malaysia, pt-BR: Malásia, es: Malasia } }
+      - { code: MV, ioc: MDV, name: { en: Maldives, pt-BR: Maldivas, es: Maldivas } }
+      - { code: MN, ioc: MGL, name: { en: Mongolia, pt-BR: Mongólia, es: Mongolia } }
+      - { code: MM, ioc: MYA, name: { en: Myanmar, pt-BR: Mianmar, es: Myanmar } }
+      - { code: NP, ioc: NEP, name: { en: Nepal, pt-BR: Nepal, es: Nepal } }
+      - { code: KP, ioc: PRK, name: { en: North Korea, pt-BR: Coreia do Norte, es: Corea del Norte } }
+      - { code: OM, ioc: OMA, name: { en: Oman, pt-BR: Omã, es: Omán } }
+      - { code: PK, ioc: PAK, name: { en: Pakistan, pt-BR: Paquistão, es: Pakistán } }
+      - { code: PS, ioc: PLE, name: { en: Palestine, pt-BR: Palestina, es: Palestina } }
+      - { code: PH, ioc: PHI, name: { en: Philippines, pt-BR: Filipinas, es: Filipinas } }
+      - { code: QA, ioc: QAT, name: { en: Qatar, pt-BR: Catar, es: Catar } }
+      - { code: SA, ioc: KSA, name: { en: Saudi Arabia, pt-BR: Arábia Saudita, es: Arabia Saudita } }
+      - { code: SG, ioc: SGP, name: { en: Singapore, pt-BR: Singapura, es: Singapur } }
+      - { code: LK, ioc: SRI, name: { en: Sri Lanka, pt-BR: Sri Lanka, es: Sri Lanka } }
+      - { code: SY, ioc: SYR, name: { en: Syria, pt-BR: Síria, es: Siria } }
+      - { code: TJ, ioc: TJK, name: { en: Tajikistan, pt-BR: Tadjiquistão, es: Tayikistán } }
+      - { code: TH, ioc: THA, name: { en: Thailand, pt-BR: Tailândia, es: Tailandia } }
+      - { code: TL, ioc: TLS, name: { en: Timor-Leste, pt-BR: Timor-Leste, es: Timor Oriental } }
+      - { code: TM, ioc: TKM, name: { en: Turkmenistan, pt-BR: Turcomenistão, es: Turkmenistán } }
+      - { code: AE, ioc: UAE, name: { en: United Arab Emirates, pt-BR: Emirados Árabes Unidos, es: Emiratos Árabes Unidos } }
+      - { code: UZ, ioc: UZB, name: { en: Uzbekistan, pt-BR: Uzbequistão, es: Uzbekistán } }
+      - { code: VN, ioc: VIE, name: { en: Vietnam, pt-BR: Vietnã, es: Vietnam } }
+      - { code: YE, ioc: YEM, name: { en: Yemen, pt-BR: Iêmen, es: Yemen } }
+      - { code: KR, ioc: KOR, name: { en: South Korea, pt-BR: Coreia do Sul, es: Corea del Sur } }
+      - { code: MP, name: { en: Northern Mariana Islands, pt-BR: Ilhas Marianas do Norte, es: Islas Marianas del Norte } }
+  - code: CAF
+    name: { en: CAF (Africa), pt-BR: CAF (África), es: CAF (África) }
+    members:
+      - { code: DZ, ioc: ALG, name: { en: Algeria, pt-BR: Argélia, es: Argelia } }
+      - { code: AO, ioc: ANG, name: { en: Angola, pt-BR: Angola, es: Angola } }
+      - { code: BJ, ioc: BEN, name: { en: Benin, pt-BR: Benin, es: Benín } }
+      - { code: BW, ioc: BOT, name: { en: Botswana, pt-BR: Botsuana, es: Botsuana } }
+      - { code: BF, ioc: BUR, name: { en: Burkina Faso, pt-BR: Burkina Faso, es: Burkina Faso } }
+      - { code: BI, ioc: BDI, name: { en: Burundi, pt-BR: Burundi, es: Burundi } }
+      - { code: CV, ioc: CPV, name: { en: Cape Verde, pt-BR: Cabo Verde, es: Cabo Verde } }
+      - { code: CM, ioc: CMR, name: { en: Cameroon, pt-BR: Camarões, es: Camerún } }
+      - { code: CF, ioc: CAF, name: { en: Central African Republic, pt-BR: República Centro-Africana, es: República Centroafricana } }
+      - { code: TD, ioc: CHA, name: { en: Chad, pt-BR: Chade, es: Chad } }
+      - { code: KM, ioc: COM, name: { en: Comoros, pt-BR: Comores, es: Comoras } }
+      - { code: CG, ioc: CGO, name: { en: Congo, pt-BR: Congo, es: Congo } }
+      - { code: CD, ioc: COD, name: { en: DR Congo, pt-BR: RD Congo, es: RD del Congo } }
+      - { code: DJ, ioc: DJI, name: { en: Djibouti, pt-BR: Djibouti, es: Yibuti } }
+      - { code: EG, ioc: EGY, name: { en: Egypt, pt-BR: Egito, es: Egipto } }
+      - { code: GQ, ioc: GEQ, name: { en: Equatorial Guinea, pt-BR: Guiné Equatorial, es: Guinea Ecuatorial } }
+      - { code: ER, ioc: ERI, name: { en: Eritrea, pt-BR: Eritreia, es: Eritrea } }
+      - { code: SZ, ioc: SWZ, name: { en: Eswatini, pt-BR: Essuatíni, es: Esuatini } }
+      - { code: ET, ioc: ETH, name: { en: Ethiopia, pt-BR: Etiópia, es: Etiopía } }
+      - { code: GA, ioc: GAB, name: { en: Gabon, pt-BR: Gabão, es: Gabón } }
+      - { code: GM, ioc: GAM, name: { en: Gambia, pt-BR: Gâmbia, es: Gambia } }
+      - { code: GH, ioc: GHA, name: { en: Ghana, pt-BR: Gana, es: Ghana } }
+      - { code: GN, ioc: GUI, name: { en: Guinea, pt-BR: Guiné, es: Guinea } }
+      - { code: GW, ioc: GBS, name: { en: Guinea-Bissau, pt-BR: Guiné-Bissau, es: Guinea-Bisáu } }
+      - { code: CI, ioc: CIV, name: { en: Ivory Coast, pt-BR: Costa do Marfim, es: Costa de Marfil } }
+      - { code: KE, ioc: KEN, name: { en: Kenya, pt-BR: Quênia, es: Kenia } }
+      - { code: LS, ioc: LES, name: { en: Lesotho, pt-BR: Lesoto, es: Lesoto } }
+      - { code: LR, ioc: LBR, name: { en: Liberia, pt-BR: Libéria, es: Liberia } }
+      - { code: LY, ioc: LBA, name: { en: Libya, pt-BR: Líbia, es: Libia } }
+      - { code: MG, ioc: MAD, name: { en: Madagascar, pt-BR: Madagascar, es: Madagascar } }
+      - { code: MW, ioc: MAW, name: { en: Malawi, pt-BR: Malawi, es: Malaui } }
+      - { code: ML, ioc: MLI, name: { en: Mali, pt-BR: Mali, es: Malí } }
+      - { code: MR, ioc: MTN, name: { en: Mauritania, pt-BR: Mauritânia, es: Mauritania } }
+      - { code: MU, ioc: MRI, name: { en: Mauritius, pt-BR: Maurício, es: Mauricio } }
+      - { code: MA, ioc: MAR, name: { en: Morocco, pt-BR: Marrocos, es: Marruecos } }
+      - { code: MZ, ioc: MOZ, name: { en: Mozambique, pt-BR: Moçambique, es: Mozambique } }
+      - { code: NA, ioc: NAM, name: { en: Namibia, pt-BR: Namíbia, es: Namibia } }
+      - { code: NE, ioc: NIG, name: { en: Niger, pt-BR: Níger, es: Níger } }
+      - { code: NG, ioc: NGR, name: { en: Nigeria, pt-BR: Nigéria, es: Nigeria } }
+      - { code: RW, ioc: RWA, name: { en: Rwanda, pt-BR: Ruanda, es: Ruanda } }
+      - { code: ST, ioc: STP, name: { en: São Tomé and Príncipe, pt-BR: São Tomé e Príncipe, es: Santo Tomé y Príncipe } }
+      - { code: SN, ioc: SEN, name: { en: Senegal, pt-BR: Senegal, es: Senegal } }
+      - { code: SC, ioc: SEY, name: { en: Seychelles, pt-BR: Seicheles, es: Seychelles } }
+      - { code: SL, ioc: SLE, name: { en: Sierra Leone, pt-BR: Serra Leoa, es: Sierra Leona } }
+      - { code: SO, ioc: SOM, name: { en: Somalia, pt-BR: Somália, es: Somalia } }
+      - { code: ZA, ioc: RSA, name: { en: South Africa, pt-BR: África do Sul, es: Sudáfrica } }
+      - { code: SS, ioc: SSD, name: { en: South Sudan, pt-BR: Sudão do Sul, es: Sudán del Sur } }
+      - { code: SD, ioc: SUD, name: { en: Sudan, pt-BR: Sudão, es: Sudán } }
+      - { code: TZ, ioc: TAN, name: { en: Tanzania, pt-BR: Tanzânia, es: Tanzania } }
+      - { code: TG, ioc: TOG, name: { en: Togo, pt-BR: Togo, es: Togo } }
+      - { code: TN, ioc: TUN, name: { en: Tunisia, pt-BR: Tunísia, es: Túnez } }
+      - { code: UG, ioc: UGA, name: { en: Uganda, pt-BR: Uganda, es: Uganda } }
+      - { code: ZM, ioc: ZAM, name: { en: Zambia, pt-BR: Zâmbia, es: Zambia } }
+      - { code: ZW, ioc: ZIM, name: { en: Zimbabwe, pt-BR: Zimbábue, es: Zimbabue } }
+  - code: OFC
+    name: { en: OFC (Oceania), pt-BR: OFC (Oceania), es: OFC (Oceanía) }
+    members:
+      - { code: AS, ioc: ASA, name: { en: American Samoa, pt-BR: Samoa Americana, es: Samoa Americana } }
+      - { code: CK, ioc: COK, name: { en: Cook Islands, pt-BR: Ilhas Cook, es: Islas Cook } }
+      - { code: FJ, ioc: FIJ, name: { en: Fiji, pt-BR: Fiji, es: Fiyi } }
+      - { code: NC, name: { en: New Caledonia, pt-BR: Nova Caledônia, es: Nueva Caledonia } }
+      - { code: NZ, ioc: NZL, name: { en: New Zealand, pt-BR: Nova Zelândia, es: Nueva Zelanda } }
+      - { code: PG, ioc: PNG, name: { en: Papua New Guinea, pt-BR: Papua-Nova Guiné, es: Papúa Nueva Guinea } }
+      - { code: WS, ioc: SAM, name: { en: Samoa, pt-BR: Samoa, es: Samoa } }
+      - { code: SB, ioc: SOL, name: { en: Solomon Islands, pt-BR: Ilhas Salomão, es: Islas Salomón } }
+      - { code: PF, name: { en: Tahiti, pt-BR: Taiti, es: Tahití } }
+      - { code: TO, ioc: TGA, name: { en: Tonga, pt-BR: Tonga, es: Tonga } }
+      - { code: VU, ioc: VAN, name: { en: Vanuatu, pt-BR: Vanuatu, es: Vanuatu } }

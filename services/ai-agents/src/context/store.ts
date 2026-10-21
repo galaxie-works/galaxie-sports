@@ -1,6 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray } from 'drizzle-orm';
-import { eventContext, publishChange, type Database } from '@galaxie/db';
+import {
+  eventContext,
+  publishChange,
+  readEventContext as readStoredContext,
+  type Database,
+  type EventContextRow,
+} from '@galaxie/db';
 import { surfaceFit, type Surface } from '../guardrails/index.js';
 import type { LlmUsage } from '../llm/types.js';
 import { confidenceOf, type LocaleText } from './writer.js';
@@ -141,55 +146,19 @@ export async function saveEventContexts(db: Database, input: SaveContextInput): 
   });
 }
 
-export interface StoredContextRow {
-  eventId: string;
-  locale: string;
-  kind: string;
-  content: StoredContextContent;
-  sources: ContextSource[];
-  model: string;
-  confidence: number | null;
-  reviewStatus: string;
-  createdAt: Date;
-}
+export type StoredContextRow = EventContextRow<StoredContextContent> & { sources: ContextSource[] };
 
 /**
  * Versão mais recente por (tipo, locale) do evento — ignora linhas `rejected` pela revisão editorial.
- * É a leitura que a rota `GET /v1/events/{id}/context` usa.
+ * A leitura mora em `@galaxie/db` (`readEventContext`), compartilhada com a rota
+ * `GET /v1/events/{id}/context` da API; aqui o conteúdo vem tipado como os agentes o gravam.
  */
 export async function readEventContext(
   db: Database,
   eventId: string,
   options: { kinds?: readonly ContextKind[]; locales?: readonly string[] } = {},
 ): Promise<StoredContextRow[]> {
-  const filters = [eq(eventContext.eventId, eventId)];
-  if (options.kinds?.length) filters.push(inArray(eventContext.kind, [...options.kinds]));
-  if (options.locales?.length) filters.push(inArray(eventContext.locale, [...options.locales]));
-  const rows = await db
-    .select()
-    .from(eventContext)
-    .where(and(...filters))
-    .orderBy(desc(eventContext.createdAt));
-  const latest = new Map<string, StoredContextRow>();
-  for (const r of rows) {
-    if (r.reviewStatus === 'rejected') continue;
-    const key = `${r.kind}|${r.locale}`;
-    if (latest.has(key)) continue;
-    latest.set(key, {
-      eventId: r.eventId,
-      locale: r.locale,
-      kind: r.kind,
-      content: r.content as StoredContextContent,
-      sources: r.sources as ContextSource[],
-      model: r.model,
-      confidence: r.confidence === null ? null : Number(r.confidence),
-      reviewStatus: r.reviewStatus,
-      createdAt: r.createdAt,
-    });
-  }
-  return [...latest.values()].sort(
-    (a, b) => a.kind.localeCompare(b.kind) || a.locale.localeCompare(b.locale),
-  );
+  return readStoredContext<StoredContextContent>(db, eventId, options);
 }
 
 /** Hash dos fatos da geração mais recente por locale (para não regenerar o que não mudou). */

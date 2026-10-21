@@ -10,6 +10,7 @@ import type {
 } from './catalog.js';
 import type { Problem, SupportedLocale } from './common.js';
 import type { CompetitionContext } from './context.js';
+import type { EventContext } from './event-context.js';
 import type {
   Event,
   EventLineups,
@@ -51,6 +52,12 @@ import type {
   UpcomingDerbiesQuery,
   UpcomingDerby,
 } from './semantic.js';
+import type {
+  CountryCompetitions,
+  CountryCompetitionsQuery,
+  CountryDetail,
+  Navigation,
+} from './navigation.js';
 
 export interface GalaxieClientOptions {
   /** Ex.: http://localhost:8080 */
@@ -127,6 +134,12 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     competitions: (query: Omit<CompetitionsQuery, 'locale'> & LocaleOpts = {}) =>
       v1<Page<CompetitionSummary>>('/v1/competitions', query as Query & LocaleOpts),
     competition: (id: string, opts: LocaleOpts = {}) => v1<Competition>(`/v1/competitions/${seg(id)}`, opts),
+    /** Menu da navegação: 12 esportes e países com bandeira e confederação. */
+    navigation: (opts: LocaleOpts = {}) => v1<Navigation>('/v1/navigation', opts),
+    country: (code: string, opts: LocaleOpts = {}) => v1<CountryDetail>(`/v1/countries/${seg(code)}`, opts),
+    /** Competições do país por esporte e escopo (domésticas, continentais, seleções, mundiais). */
+    countryCompetitions: (code: string, query: Omit<CountryCompetitionsQuery, 'locale'> & LocaleOpts = {}) =>
+      v1<CountryCompetitions>(`/v1/countries/${seg(code)}/competitions`, query as Query & LocaleOpts),
     standings: (id: string, season: number | 'current', opts: LocaleOpts = {}) =>
       v1<Standings>(`/v1/competitions/${seg(id)}/seasons/${season}/standings`, opts),
     venue: (id: string, opts: LocaleOpts = {}) => v1<Venue>(`/v1/venues/${seg(id)}`, opts),
@@ -148,6 +161,9 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     eventLineups: (id: string, opts: LocaleOpts = {}) =>
       v1<EventLineups>(`/v1/events/${seg(id)}/lineups`, opts),
     eventStats: (id: string, opts: LocaleOpts = {}) => v1<EventStats>(`/v1/events/${seg(id)}/stats`, opts),
+    /** Cenário pré-jogo / resumo pós-jogo de IA (módulo live_intelligence). */
+    eventContext: (id: string, opts: LocaleOpts & { kind?: 'scenario' | 'recap' } = {}) =>
+      v1<EventContext>(`/v1/events/${seg(id)}/context`, opts),
     eventH2h: (id: string, opts: LocaleOpts & { limit?: number } = {}) =>
       v1<HeadToHead>(`/v1/events/${seg(id)}/h2h`, opts),
     /** Arquivo .ics (RFC 5545) do evento, como texto. */
