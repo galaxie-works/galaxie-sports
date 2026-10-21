@@ -1,0 +1,42 @@
+# Glossário esportivo — pt-BR. Ver docs/06 §4.3 e §5 e data/knowledge/SCHEMA.md.
+# Só termos positivos; rivalidade exige requires: declared_rival (copy_permission).
+# Todos nascem draft até revisão nativa do mercado.
+schema_version: 1
+locale: pt-BR
+sport: football
+terms:
+  - key: torcer
+    term: "torcer por"
+    meaning: "Dar apoio a um time e esperar que ele tenha um resultado positivo."
+    example: "Hoje é dia de torcer pelo seu time!"
+    category: support
+    copy_intents: [anticipate, cheer]
+    requires: declared_affinity
+    sources: ["https://dicionario.priberam.org/torcer"]
+    review_status: draft
+  - key: torcedor
+    term: "torcedor"
+    meaning: "Quem apoia um time ou um esportista; adepto."
+    example: "A torcida lotou o estádio."
+    category: fans
+    copy_intents: [inform]
+    sources: ["https://dicionario.priberam.org/torcedor"]
+    review_status: draft
+  - key: golaco
+    term: "golaço"
+    meaning: "Gol muito bem marcado, de bela execução."
+    example: "Que golaço no segundo tempo!"
+    category: match
+    copy_intents: [inform]
+    sources: ["https://dicionario.priberam.org/golaço"]
+    review_status: draft
+  - key: secar
+    term: "secar"
+    meaning: "Torcer de brincadeira para que o rival não tenha sucesso no jogo dele."
+    example: "Dia de secar o rival!"
+    category: rivalry
+    copy_intents: [rivalry]
+    requires: declared_rival
+    note: "Uso lúdico e informal; só para rival declarado pelo usuário, nunca como ofensa (docs/06 §4.2)."
+    sources: ["https://pt.wiktionary.org/wiki/secar", "https://github.com/galaxie-works/galaxie-sports/blob/main/docs/06-semantica-e-conteudo.md"]
+    review_status: draft

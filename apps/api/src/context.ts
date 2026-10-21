@@ -19,6 +19,21 @@ export interface AppContext {
   cache: ResponseCache;
   /** ASSETS_PUBLIC_BASE_URL — base pública do nosso storage de assets. */
   assetsBaseUrl: string | undefined;
+  /** Camada semântica: piso editorial e pasta da base (glossário). */
+  semantic?: SemanticConfig;
+}
+
+/** Status editoriais da base semântica, do menos ao mais revisado. */
+export type ReviewStatus = 'draft' | 'reviewed' | 'approved';
+
+export interface SemanticConfig {
+  /**
+   * Status editorial mínimo servido pela API (SEMANTIC_MIN_REVIEW_STATUS). Padrão `approved` (produção);
+   * em desenvolvimento local use `draft` para ver a base inteira. O cliente pode endurecer, nunca afrouxar.
+   */
+  minReviewStatus?: ReviewStatus;
+  /** Pasta data/knowledge (KNOWLEDGE_DIR); padrão: a do repositório. */
+  knowledgeDir?: string;
 }
 
 export function requireDb(ctx: AppContext): Database {
