@@ -57,7 +57,7 @@ erDiagram
 | Tabela | Campos-chave | Observação |
 |---|---|---|
 | `core.sport` | `slug`, `name_i18n` | football, basketball, formula-1, volleyball, olympics… |
-| `core.country` | `iso2`, `name_i18n`, `flag_asset_id` | Inclui "World" e confederações |
+| `core.country` | `iso2`, `name_i18n`, `flag_asset_id`, `confederation`, `ioc_code` | Inclui "World" e confederações; `confederation`, `ioc_code` e os nomes pt-BR/es vêm de `config/geo/confederations.yaml` (`geo:seed`) |
 | `core.competition` | `id`, `sport`, `country_iso2`, `type` (league/cup/tournament/multisport), `tier`, `live_priority` | Liga, copa, GP de F1, evento de MMA, Jogos Olímpicos |
 | `core.season` | `competition_id`, `label` ("2026", "2026/27"), `start`, `end`, `current` | |
 | `core.stage` | `season_id`, `kind` (regular, group, round_of_16, quarter, semi, final, race_weekend…), `name_i18n`, `order` | Agrupa o calendário por fase/rodada/fim de semana de corrida |

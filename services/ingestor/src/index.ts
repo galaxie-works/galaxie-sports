@@ -20,6 +20,7 @@ export * from './jobs/details-job.js';
 export * from './jobs/people-job.js';
 export * from './jobs/daily-job.js';
 export * from './knowledge/derbies.js';
+export { seedGeo, type GeoSeedStats } from './geo/seed.js';
 export * from './snapshot/raw-snapshot.js';
 export { loadMediaDenylist, runAssetMirror, type MirrorReport } from './assets/asset-mirror.js';
 export { InMemoryAssetStore, PgAssetStore, type AssetStore } from './assets/asset-store.js';

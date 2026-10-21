@@ -53,6 +53,34 @@ Regras de UI (herdadas do ReUI): reutilizar componentes do registry em vez de re
 | 9 | **Seletor de mercado** | Troca de país/locale mostra a localização da copy e do onde assistir | Select, Command | `?locale=`, `?country=` |
 | 10 | **Painel de operação** | Cota gasta por API/dia, jobs, frescor dos dados, fila de enriquecimento | Charts, Data Grid (ReUI), Gantt (janelas ao vivo) | `/internal/ops/*` |
 | 11 | **Explorador da API** | Documentação OpenAPI interativa + playground do espelho `/mirror` | Scalar/Redoc embutido | `/docs` |
+| 12 | **Menu e página do país** | Esportes e países no menu lateral; por país, competições nacionais, copas continentais, seleção e mundiais (§2.1) | Sidebar, Collapsible, Avatar (bandeiras), Badge | `/v1/navigation`, `/v1/countries/{code}/competitions` |
+
+### 2.1 Navegação: menu de esportes e páginas de país
+
+O menu lateral da demo nasce de **uma chamada**, `GET /v1/navigation?locale=` ([docs/05 §3.1.1](05-api-publica.md#311-navegação-por-país-appsapisrcroutesv1navigationts)):
+
+```
+Esportes                     Países
+  ⚽ Futebol        (1249)     CONMEBOL (América do Sul)
+  🏀 Basquete       (sem dados)  🇧🇷 Brasil  🇦🇷 Argentina  🇧🇴 Bolívia  🇨🇱 Chile  🇨🇴 Colômbia
+  🏐 Vôlei          (sem dados)  🇪🇨 Equador  🇵🇾 Paraguai  🇵🇪 Peru  🇺🇾 Uruguai  🇻🇪 Venezuela
+  … os 12 esportes             CONCACAF  🇲🇽 México
+                               UEFA  🏴 Inglaterra  🇪🇸 Espanha  🇮🇹 Itália  🇩🇪 Alemanha  🇫🇷 França  🇵🇹 Portugal
+```
+
+- **Esportes**: os 12, sempre na mesma ordem (futebol primeiro). `has_data: false` deixa o item esmaecido (sem competições nem eventos no banco); as contagens viram badge.
+- **Países**: 17 na primeira versão (os 10 da CONMEBOL, México, Inglaterra, Espanha, Itália, Alemanha, França e Portugal), agrupados por confederação (`confederations[]`), com bandeira do nosso storage. A lista e a ordem vêm de `config/geo/confederations.yaml` — incluir um país é editar o YAML (e rodar `geo:seed`).
+
+A **página do país** chama `GET /v1/countries/{code}/competitions?locale=` (opcional `sport=`) e desenha, por esporte, até quatro seções:
+
+| Seção (`scope`) | Exemplo: Brasil | Exemplo: México | Exemplo: Inglaterra |
+|---|---|---|---|
+| Competições nacionais (`domestic`) | Brasileirão A–D, Copa do Brasil, Supercopa, Copa do Nordeste, estaduais | Liga MX, Liga MX Femenil | Premier League, FA Cup, Championship |
+| Copas continentais de clubes (`continental_clubs`) | Libertadores, Sul-Americana, Recopa | Concacaf Champions Cup, Leagues Cup | Champions, Europa, Conference, Supercopa da UEFA |
+| Seleção (`national_teams`) | Copa do Mundo, Eliminatórias, Copa América, Olimpíadas… | Copa do Mundo, Eliminatórias, Copa América (convidado), Nations League, Copa Ouro… | Copa do Mundo, Eliminatórias, Euro, Nations League… |
+| Mundiais de clubes (`world_clubs`) | Mundial de Clubes, Intercontinental | idem | idem |
+
+O que liga os países é a confederação: Brasil e Argentina veem a **mesma** Libertadores (mesmo `id`), e o clique leva à página da competição (tela 4). Competições internacionais e seus participantes ficam em `config/geo/competition-scope.yaml`; as domésticas saem do país da competição no catálogo (`max_tier=3` mostra também o restante do espelho). Nos outros esportes vale o mesmo modelo (NBB e FIBA AmeriCup para o Brasil no basquete, Superliga e VNL no vôlei) assim que o catálogo do esporte for carregado.
 
 ## 3. Perfis de demonstração
 

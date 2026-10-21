@@ -51,6 +51,12 @@ import type {
   UpcomingDerbiesQuery,
   UpcomingDerby,
 } from './semantic.js';
+import type {
+  CountryCompetitions,
+  CountryCompetitionsQuery,
+  CountryDetail,
+  Navigation,
+} from './navigation.js';
 
 export interface GalaxieClientOptions {
   /** Ex.: http://localhost:8080 */
@@ -127,6 +133,12 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     competitions: (query: Omit<CompetitionsQuery, 'locale'> & LocaleOpts = {}) =>
       v1<Page<CompetitionSummary>>('/v1/competitions', query as Query & LocaleOpts),
     competition: (id: string, opts: LocaleOpts = {}) => v1<Competition>(`/v1/competitions/${seg(id)}`, opts),
+    /** Menu da navegação: 12 esportes e países com bandeira e confederação. */
+    navigation: (opts: LocaleOpts = {}) => v1<Navigation>('/v1/navigation', opts),
+    country: (code: string, opts: LocaleOpts = {}) => v1<CountryDetail>(`/v1/countries/${seg(code)}`, opts),
+    /** Competições do país por esporte e escopo (domésticas, continentais, seleções, mundiais). */
+    countryCompetitions: (code: string, query: Omit<CountryCompetitionsQuery, 'locale'> & LocaleOpts = {}) =>
+      v1<CountryCompetitions>(`/v1/countries/${seg(code)}/competitions`, query as Query & LocaleOpts),
     standings: (id: string, season: number | 'current', opts: LocaleOpts = {}) =>
       v1<Standings>(`/v1/competitions/${seg(id)}/seasons/${season}/standings`, opts),
     venue: (id: string, opts: LocaleOpts = {}) => v1<Venue>(`/v1/venues/${seg(id)}`, opts),

@@ -46,6 +46,9 @@ describe('OpenAPI', () => {
         '/v1/account/keys',
         '/v1/account/keys/rotate',
         '/v1/account/usage',
+        '/v1/navigation',
+        '/v1/countries/{code}',
+        '/v1/countries/{code}/competitions',
       ]),
     );
     expect(Object.keys(doc.components?.schemas ?? {})).toEqual(

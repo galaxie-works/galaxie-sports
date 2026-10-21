@@ -29,6 +29,9 @@ COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/dist ./dist
 # modelos de plano usados no onboarding (/internal/admin); o código procura em <raiz>/config/plans.yaml
 COPY --from=build /repo/config/plans.yaml /srv/config/plans.yaml
+# geografia da navegação (/v1/navigation, /v1/countries/{code}/*): confederações e escopo das competições
+COPY --from=build /repo/config/geo /srv/config/geo
+ENV GEO_CONFIG_DIR=/srv/config/geo
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \

@@ -8,6 +8,7 @@ import { teamRoutes } from './teams.js';
 import { copyRoutes } from './copy.js';
 import { multisportRoutes } from './multisport.js';
 import { semanticRoutes } from './semantic.js';
+import { navigationRoutes } from './navigation.js';
 
 /**
  * Rotas /v1. Cada grupo é um módulo próprio:
@@ -25,4 +26,6 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await semanticRoutes(app, ctx);
   await copyRoutes(app, ctx);
   await multisportRoutes(app, ctx);
+  // navegação por país e menu de esportes — módulo core_data
+  await navigationRoutes(app, ctx);
 }
