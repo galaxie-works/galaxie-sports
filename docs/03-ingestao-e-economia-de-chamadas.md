@@ -201,6 +201,44 @@ Particularidades confirmadas:
 
 Prioridade latino-americana: basquete (NBB, Liga A argentina, NBA), vôlei (Superliga brasileira, LVA, VNL), Fórmula 1, beisebol caribenho/mexicano e MMA.
 
+### 6.1 Bootstrap do catálogo das 11 APIs (implementado)
+
+`pnpm --filter @galaxie/ingestor bootstrap:sports [--plan] [--sem-live] [--jogos [--tier N] [--temporadas N]] [esportes...]` — código em `services/ingestor/src/catalog/sport-catalog.ts` (perfis e normalização) e `src/bootstrap/sport-catalog-job.ts` (job). Os esportes rodam em paralelo (cota e limite por minuto são por API), tudo com prioridade BOOTSTRAP no Quota Governor; o que já está no raw dentro do TTL não gasta cota, e o que não cabe no orçamento do dia fica **adiado** (o job não falha).
+
+| API | Referência (1 chamada cada, 24 h de TTL) | Vira no `core` |
+|---|---|---|
+| Basquete | `/timezone`, `/seasons`, `/countries`, `/leagues`, `/bookmakers`, `/bets` | países, 427 competições, ~3.500 temporadas com `coverage` |
+| Beisebol, handebol, hóquei, rúgbi, vôlei | `/timezone`, `/seasons`, `/countries`, `/leagues`, `/odds/bets`, `/odds/bookmakers` | países, competições, temporadas |
+| AFL | `/timezone`, `/seasons`, `/leagues`, `/odds/bets`, `/odds/bookmakers` | 1 competição (o `/leagues` vem com uma linha por temporada e sem país → Austrália) |
+| NFL | `/timezone`, `/seasons`, `/leagues`, `/odds/bets`, `/odds/bookmakers` | NFL e NCAA com `coverage` por temporada |
+| Fórmula 1 | `/timezone`, `/seasons`, `/competitions`, `/circuits`, `/teams` | competição sintética `world-championship` (1 temporada por ano), construtores em `core.participant`, circuitos em `core.venue` (com imagem). Os GPs ficam no raw e viram etapas quando as corridas forem normalizadas |
+| MMA | `/timezone`, `/seasons`, `/categories`, `/teams`, `/odds/bets`, `/odds/bookmakers` | competição sintética `all-fights` (a API não filtra por organização) |
+| NBA v2 | `/seasons`, `/leagues`, `/teams` | 6 "ligas" em texto (`standard`, `vegas`...), temporadas de `/seasons` (2024 = 2024/25), 66 times em `core.participant` (logos da Wikimedia ficam fora do Asset Mirror) |
+
+- **IDs no escopo do esporte**: `core.provider_map (provider, sport, entity_type, provider_id)` — o ID 192 do basquete e o 192 do vôlei são competições diferentes.
+- **Catálogo YAML por esporte**: `config/competitions/<esporte>.yaml`, mesmo schema do `football.yaml` (slug, nome/país/tipo como o fornecedor devolve, `api_sports_id`, tier, `live_priority`, labels). Tier 1 = prioridade LatAm (NBB 26, Liga A 18, BCLA 299, AmeriCup, Olímpicos e Pan; Superliga 25/24, LVA 4, VNL 183/184; LMB, LMP, LIDOM, LVBP, Série do Caribe, WBC; Top 12; F1; MMA; NBA `standard`). O resto do `/leagues` entra como tier 3. Os nomes foram conferidos contra o `/leagues` capturado (0 divergências); o job repete a conferência a cada execução.
+- **Temporadas inteiras (`--jogos`)**: `games?league&season` (F1 `races?season`, MMA `fights?season`, NBA `games?league=standard&season`) das competições até `--tier` (padrão 1), dentro da janela do plano (free: 2022–2024; planos pagos: as `--temporadas` mais recentes). No basquete a chave vem do `/leagues` (`season=2024-2025`). Só grava no raw — a normalização dos jogos em `core.event` é outra etapa.
+- `--plan` mostra, por esporte, quantas chamadas sairiam do raw e quantas gastariam cota. Sem `/leagues` no raw, estima as temporadas pelo YAML × janela do plano — um limite superior (ex.: Olímpicos só têm 2024 na janela); depois do primeiro catálogo, o plano usa as temporadas reais.
+
+Custo no plano free (janela 2022–2024):
+
+| API | Referência | `--jogos` tier 1 | `--jogos --tier 2` | Total tier 1 |
+|---|---:|---:|---:|---:|
+| AFL | 5 | 0 | 3 | 5 |
+| Beisebol | 6 | 18 | 35 | 24 |
+| Basquete | 6 | 16 | 76 | 22 |
+| Fórmula 1 | 5 | 3 | 3 | 8 |
+| Handebol | 6 | 7 | 12 | 13 |
+| Hóquei | 6 | 2 | 5 | 8 |
+| MMA | 6 | 3 | 3 | 9 |
+| NBA | 3 | 3 | 3 | 6 |
+| NFL | 5 | 0 | 3 | 5 |
+| Rúgbi | 6 | 7 | 17 | 13 |
+| Vôlei | 6 | 19 | 47 | 25 |
+| **Total** | **60** | **78** | **207** | **138** |
+
+Cada API cabe num único dia com `--sem-live` (85 chamadas de folga para o BOOTSTRAP); com a política padrão (5 para o BOOTSTRAP) o catálogo leva 1–2 dias por API e o restante fica adiado para o dia seguinte.
+
 ## 7. Assets (escudos, bandeiras, estádios, jogadores, técnicos…)
 
 URLs de mídia **não consomem cota**. Padrões do futebol:
@@ -223,9 +261,34 @@ pnpm raw:export --out ./data/raw
 ./scripts/pwsh/Sync-ApiSportsAssets.ps1 -SourcePath ./data/raw -Destination ./data/assets -ThrottleLimit 4
 ```
 
-Os arquivos vão para o object storage (`core.asset`) e a API reescreve as URLs para o nosso CDN.
+### 7.1 Asset Mirror em Node (worker agendado)
 
-> Escudos e marcas pertencem a clubes e ligas; o fornecedor os disponibiliza só para identificação. Uso comercial final exige validação jurídica. Atenção: o "logo" que a api-sports serve para o Paulistão (liga 475) é o escudo de um clube homônimo — não usar.
+O caminho de produção é o worker `services/ingestor` (issue #18), que grava no bucket S3 (RustFS local, `S3_ENDPOINT` com *path-style*) e preenche `core.asset`:
+
+```bash
+pnpm --filter @galaxie/ingestor assets:mirror --plan            # quantos faltam (nenhum download)
+pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw   # registra toda URL de mídia do raw e espelha
+pnpm --filter @galaxie/ingestor assets:mirror --limite 500 --concorrencia 3 --pausa-ms 250
+```
+
+| Aspecto | Comportamento |
+|---|---|
+| Fonte | Linhas de `core.asset` ainda não espelhadas (o bootstrap dos catálogos registra bandeiras, logos, imagens de circuitos) e, com `--descobrir-raw`, toda URL `media(-N).api-sports.io` encontrada nos corpos de `raw.api_response` (12 esportes, qualquer tipo de imagem) |
+| Educação com a CDN | 3 downloads simultâneos, 250 ms de pausa por worker, User-Agent genérico (`galaxie-sports-asset-mirror/0.1`), *backoff* exponencial em 429/5xx respeitando `Retry-After`; um 429 pausa todos os workers e 5 assets seguidos com 429 interrompem a execução |
+| 404 | Registrado sem repetir: `fetched_at` preenchido e `storage_key` nulo (estado "ausente"); `--retentar-ausentes` tenta de novo |
+| Gravação | Chave `api-sports/<caminho original>` (ex.: `api-sports/football/teams/121.png`), `sha256`, `bytes`, `width`/`height` (PNG, SVG, GIF, JPEG e WebP lidos pelo cabeçalho), `fetched_at` |
+| Idempotência | A segunda execução não baixa nada: só entram assets com `storage_key` e `fetched_at` nulos. Falhas transitórias continuam pendentes |
+| Lista de bloqueio | `config/assets/denylist.yaml` (também lida pelo script PowerShell): o logo da liga 475 (Paulistão) não é baixado, e se já tiver sido é desvinculado (`storage_key` nulo) |
+| Execução | Registrada em `ops.job_run` (`assets:mirror`) com contagens, 404 e falhas |
+
+**Reescrita de URLs para o nosso CDN** — funções puras em `@galaxie/apisports-client` (`media.ts`), para a API:
+
+- `rewriteMediaUrl(url, { publicBaseUrl: ASSETS_PUBLIC_BASE_URL, denylist })` → `https://<cdn>/api-sports/football/teams/121.png`; URL bloqueada → `null`; URL fora da CDN da api-sports (ex.: Wikimedia na NBA) volta intacta. `rewriteMediaUrls(envelope, ...)` aplica em um JSON inteiro.
+- `publicAssetUrl(asset.storageKey, ASSETS_PUBLIC_BASE_URL, asset.sha256)` → URL a partir de `core.asset`, com `?v=<8 hex do sha256>` para o CDN cachear por muito tempo e mudar de URL quando a imagem mudar. Asset ausente (404 ou bloqueado) = sem imagem.
+
+O script PowerShell continua útil para inspeção local (grava em disco + `manifest.csv`); o worker Node é o que roda agendado e alimenta a API.
+
+> Escudos e marcas pertencem a clubes e ligas; o fornecedor os disponibiliza só para identificação. Uso comercial final exige validação jurídica. Atenção: o "logo" que a api-sports serve para o Paulistão (liga 475) é o escudo de um clube homônimo — está na lista de bloqueio (`config/assets/denylist.yaml`).
 
 ## 8. Camada de provedores (pronta para produção)
 
@@ -296,3 +359,49 @@ Testar com a nossa chave:
 - Repetir o teste de erros × cota com o ledger próprio ligado.
 
 Já validados em 21/10/2026 (ver §1.1): cota separada por esporte, `/status` gratuito, janela de datas, temporadas 2022–2024, `h2h` com todas as temporadas, hóquei aceitando `date` sem `season`.
+
+## 11. Jobs de ingestão do futebol
+
+Implementação: [`services/ingestor/src/jobs`](../services/ingestor/src/jobs). Todos os jobs:
+
+- chamam **só** pelo `ApiSportsClient` (cache do raw → plano → Quota Governor → rede), com prioridade `BOOTSTRAP` ou `DAILY` e `jobId = job-run:<id>`;
+- registram cada execução em `ops.job_run` (status `ok`/`partial`/`error`, chamadas gastas e contagens por passo);
+- são **retomáveis**: cada item concluído marca `ops.sync_cursor` — `(football, /fixtures, league=71&season=2024)`, `(football, /fixtures, id=123)` para o detalhe de uma partida (compartilhado entre o bootstrap e o sync diário), `(football, /trophies, player=9)` por pessoa num lote de 20;
+- têm `--plan`: mostram, por passo, o que já foi feito, o que sairia do raw (cache) e o que gastaria cota — **sem chamar**; fases que dependem de chamadas anteriores (ex.: pares de h2h, que dependem das listas de times) são montadas a partir do raw atual e marcadas como estimativa por baixo;
+- **param graciosamente** quando o Governor nega (`QuotaExceededError`), quando o fornecedor diz que a cota do dia acabou ou ao atingir `--max-chamadas`: o relatório mostra o que ficou pendente e a próxima execução continua de onde parou. Erros de um item (ex.: erro de plano) contam tentativa; após 3, o item é deixado de lado até `--forcar`;
+- só buscam e gravam o raw. A normalização raw → core (#22) se pluga pelo gancho `afterFetch(envelope, request)`, chamado após cada resposta (rede ou cache); o padrão não faz nada.
+
+| Comando | Issue | O que faz | Ordem / prioridade |
+|---|---|---|---|
+| `bootstrap:seasons` | #13 | Por competição × temporada: `teams`, `fixtures`, `fixtures/rounds?dates=true`, `standings`¹, `injuries`¹, `players/top{scorers,assists,yellowcards,redcards}`¹; `venues?country` por país | tier → recência (a temporada mais recente de cada liga antes das antigas) → `live_priority` |
+| `bootstrap:seasons --h2h-temporada-atual` | #13 | Free: reconstrói a temporada atual das ligas tier 1 por `fixtures/headtohead` (pares de times da temporada acessível mais recente; jogos deduplicados por `fixture.id` em `reconstructSeasonFromH2h`) | 190 chamadas por liga de 20 clubes; times promovidos chegam pelo sync diário |
+| `bootstrap:details` | #14 | Detalhe das encerradas conhecidas pelo raw (listas, h2h, agendas): pagos `fixtures?ids=` ×20; free `fixtures?id=` e, por padrão (`--escopo auto`), só clássicos e jogos decisivos (finais, semis, quartas) | tier 1 → clássicos → tier 2; temporada atual e jogos recentes primeiro; pula temporadas sem eventos/escalações/estatísticas no `coverage` |
+| `bootstrap:people` | #15 | `players/squads`, `coachs`, `transfers` por time (tier ≤ 2); `trophies`/`sidelined` em lotes de 20 (elencos e técnicos atuais tier 1); `fixtures/headtohead` de todos os clássicos da base semântica (IDs da base ou resolvidos por nome+país nas listas do raw); `--estatisticas-jogadores` para `players?league&season` paginado (tier 1) | squads tier 1 primeiro |
+| `sync:daily` | #19 | `fixtures?date=` D-1/D0/D+1, `injuries?date=` D0, `/leagues`, `/status` (sem cota); detalhe dos encerrados de D-1…D-3 sem detalhe; rodízio (squads 7 dias, coachs/transfers/trophies/sidelined 30 dias) dos times tier 1; `--outros-esportes` traz `games/races/fights?date=` das outras 11 APIs | cada item vale 1×/dia UTC: reexecutar no mesmo dia não gasta |
+| `snapshot:export` / `snapshot:import` | #20 | `raw.api_response` + manifesto de `core.asset` ⇄ `data/snapshots/*.ndjson.gz` (fora do Git), idempotente | zero chamadas |
+
+¹ só quando o `coverage` da temporada não é `false`.
+
+### 11.1 Custo estimado (catálogo real: 46 competições tier 1 + 30 tier 2)
+
+Números de `--plan` sobre o catálogo carregado em 21/10/2026 (raw só com a referência global) e, onde o plano depende de listas ainda não baixadas, pelas fórmulas de §3.
+
+| Job | Free | Pro |
+|---|---|---|
+| `bootstrap:seasons` | **1.573** chamadas (197 temporadas 2022–2024; 219 puladas pelo `coverage`) → ~40 dias a 40/dia | **4.071** (514 temporadas: todas as iniciadas no tier 1, as 3 mais recentes no tier 2; 574 puladas) → < 1 dia |
+| `--h2h-temporada-atual` | ≈ 150 por liga (27 ligas tier 1 → ≈ 4.000; use `--ligas` para priorizar) | 0 (a temporada atual vem por `season`) |
+| `bootstrap:details` | 1 por jogo, só clássicos/decisivos (centenas) | ≈ partidas encerradas ÷ 20 (≈ 5.500 para ~110 mil jogos) |
+| `bootstrap:people` | ≈ 3.300 (times) + ≈ 2.000 (pessoas) + 82 (clássicos) — mesmo custo do Pro, mas ~135 dias | ≈ 5.400 → < 1 dia |
+| `sync:daily` | ≤ 45/dia: 5 fixas + até 35 detalhes + 5 do rodízio | ≈ 5 + ⌈encerrados ÷ 20⌉ + 200 do rodízio |
+
+A estimativa de dias do `--plan` usa limite − reserva − sync diário (free 40/dia, Pro 6.275/dia), supondo `--sem-live`; ajuste com `--por-dia`. O total do Pro fica em ≈ 15–17 mil chamadas para listas + detalhe + pessoas — dentro dos ~22 mil de §3 (que incluíam `players?league&season` de todas as temporadas tier 1, opcional aqui).
+
+### 11.2 Ambiente local sem chave
+
+```bash
+pnpm snapshot:export                      # no ambiente com dados: data/snapshots/raw-<data>.ndjson.gz
+pnpm snapshot:restore                     # local: restaura o snapshot mais recente (ou informe o arquivo)
+pnpm --filter @galaxie/ingestor bootstrap:catalog   # sem APISPORTS_KEY: modo offline, reprocessa do raw
+```
+
+Sem `APISPORTS_KEY`, o `ApiSportsClient` entra em **modo offline**: serve a resposta mais recente do raw (de qualquer idade) e nunca chama o fornecedor (`OfflineMissError`). Os assets em si ficam no object storage; o snapshot leva só o manifesto (URL de origem → `storage_key`, `sha256`).

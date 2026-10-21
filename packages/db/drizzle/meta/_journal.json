@@ -22,6 +22,20 @@
       "when": 1792594105677,
       "tag": "0002_quota_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792604591616,
+      "tag": "0003_api_tenants",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792605971043,
+      "tag": "0004_semantic_seed",
+      "breakpoints": true
     }
   ]
 }

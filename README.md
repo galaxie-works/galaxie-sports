@@ -170,7 +170,9 @@ galaxie-sports/
 ├── packages/                   # db (schema + migrations) · apisports-client · contracts · rules
 ├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS)
 ├── config/
-│   └── competitions/football.yaml   # 76 competições com IDs verificados e tiers
+│   ├── competitions/football.yaml   # 76 competições com IDs verificados e tiers
+│   ├── competitions/<esporte>.yaml  # demais 11 APIs, prioridade LatAm (NBB, Liga A, Superliga, LVA, VNL...)
+│   └── assets/denylist.yaml         # mídia do fornecedor que não pode ser usada (ex.: logo do Paulistão)
 ├── data/
 │   └── knowledge/              # base semântica (times, clássicos, seleções, competições)
 ├── scripts/
@@ -192,7 +194,8 @@ pnpm build
 pnpm db:migrate                 # aplica as migrations (idempotente)
 pnpm test                       # testes unitários
 pnpm test:integration           # testes de integração contra o Postgres local
-pnpm --filter @galaxie/api dev  # API em http://localhost:8080/health
+pnpm --filter @galaxie/api tenant:create --slug demo-local   # imprime uma chave de API (x-galaxie-key)
+pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência interativa em /docs
 ```
 
 | Comando | O que faz |
@@ -203,11 +206,23 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080/health
 | `pnpm infra:down` | Para a infra local (volumes preservados) |
 | `pnpm --filter @galaxie/ingestor quota` | Cota do dia por API (lê `/status`, que não consome cota) |
 | `pnpm --filter @galaxie/ingestor raw:import` | Importa respostas brutas salvas em `data/raw/<esporte>/*.json` (zero chamadas) |
-| `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa |
+| `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa (sem `APISPORTS_KEY`, reprocessa do raw em modo offline) |
+| `pnpm --filter @galaxie/ingestor bootstrap:seasons --plan` | Temporadas por competição: fixtures, teams, rounds, standings, injuries, rankings e venues (só o que o `coverage` permite); `--h2h-temporada-atual` reconstrói a temporada atual no free |
+| `pnpm --filter @galaxie/ingestor bootstrap:details --plan` | Detalhe das partidas encerradas (tier 1 → clássicos → tier 2): `fixtures?ids=` ×20 nos pagos; no free, `fixtures?id=` só de clássicos e jogos decisivos |
+| `pnpm --filter @galaxie/ingestor bootstrap:people --plan` | Elencos, técnicos, transferências, títulos, afastamentos e h2h dos clássicos; `--estatisticas-jogadores` para `players?league&season` |
+| `pnpm --filter @galaxie/ingestor sync:daily --plan` | Sync diário (≤ 45 chamadas no free): agenda D-1/D0/D+1, injuries, `/leagues`, detalhe dos encerrados e rodízio de entidades |
+| `pnpm snapshot:export` · `pnpm snapshot:restore [arquivo]` | Exporta o raw (+ manifesto de assets) para `data/snapshots/*.ndjson.gz` e restaura num banco local — zero chamadas |
+| `pnpm --filter @galaxie/ingestor bootstrap:sports --plan` | Catálogo das outras 11 APIs (países, ligas, temporadas; `--jogos` para temporadas inteiras das prioritárias); sem `--plan`, executa |
+| `pnpm --filter @galaxie/ingestor assets:mirror --plan` | Asset Mirror: baixa logos/bandeiras/imagens da CDN de mídia (fora da cota) para o bucket S3 e preenche `core.asset`; `--descobrir-raw` varre o raw |
+| `pnpm --filter @galaxie/api tenant:create --slug <slug>` | Cria/atualiza um tenant e gera uma chave de API (plano, mercados, esportes e rate limit por flags) |
 
 > A porta do Postgres é **5433** para não colidir com instalações nativas na 5432. Ajuste `POSTGRES_PORT`/`DATABASE_URL` no `.env` se precisar.
 
-Ainda por vir (backlog): `pnpm db:seed:semantic`, `pnpm snapshot:restore`, workers de ingestão e o app de demonstração.
+Os jobs de ingestão (`bootstrap:*`, `sync:daily`) aceitam `--plan` (rede × cache × já feito por passo, sem chamar), `--sem-live` (libera a folga do dia para o BOOTSTRAP), `--max-chamadas N` e `--forcar`; param graciosamente quando a cota acaba e a próxima execução continua de onde parou (`ops.sync_cursor`). Detalhes e estimativas em [docs/03 §11](docs/03-ingestao-e-economia-de-chamadas.md#11-jobs-de-ingestão-do-futebol).
+
+**Ambiente local sem chave**: `pnpm snapshot:restore` + `pnpm --filter @galaxie/ingestor bootstrap:catalog` sem `APISPORTS_KEY` — o cliente entra em modo offline e só lê o raw.
+
+Ainda por vir (backlog): `pnpm db:seed:semantic`, normalização raw → core das partidas, live poller e o app de demonstração.
 
 Ferramentas já disponíveis:
 
@@ -215,7 +230,8 @@ Ferramentas já disponíveis:
 # Cota e plano de cada uma das 12 APIs (endpoint /status)
 $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | Format-Table
 
-# Espelha todos os assets referenciados nas respostas brutas exportadas
+# Espelha em disco todos os assets referenciados nas respostas brutas exportadas
+# (o worker agendado que grava no S3 e em core.asset é `pnpm --filter @galaxie/ingestor assets:mirror`)
 ./scripts/pwsh/Sync-ApiSportsAssets.ps1 -SourcePath ./data/raw -Destination ./data/assets
 ```
 
