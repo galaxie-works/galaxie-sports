@@ -1,0 +1,401 @@
+import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import * as z from 'zod';
+import {
+  CompetitionParams,
+  CompetitionsQuery,
+  IdParams,
+  LocaleQuery,
+  MIRROR_SPORTS,
+  StandingsParams,
+  type Competition,
+  type CompetitionSummary,
+  type Country,
+  type Sport,
+  type Standings,
+  type Venue,
+} from '@galaxie/contracts';
+import {
+  asset,
+  competition,
+  competitionProfile,
+  country,
+  participant,
+  providerMap,
+  season,
+  sport,
+  standing,
+  venue,
+  type Database,
+  type I18nText,
+} from '@galaxie/db';
+import { sendCached } from '../../cache/http.js';
+import { CACHE_TTL } from '../../cache/policy.js';
+import { requireDb, type AppContext } from '../../context.js';
+import { problems } from '../../errors.js';
+import { formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
+import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
+
+const MODULE = { module: 'core_data' } as const;
+const MIRRORED = new Set<string>(MIRROR_SPORTS);
+
+const CompetitionCursor = z.object({ t: z.number().int(), n: z.string(), i: z.string().regex(UUID_RE) });
+
+type CountryRow = { code: string; name: I18nText } | null;
+
+/** Locale e fuso da requisição; registra Content-Language. */
+function localeOf(request: FastifyRequest, query: { locale?: z.infer<typeof LocaleQuery>['locale'] }) {
+  return resolveLocale(query.locale, request.headers['accept-language']);
+}
+
+/** Rotas do catálogo (docs/05 §3.1). Todas exigem o módulo core_data. */
+export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
+  const countryRef = (c: CountryRow, locale: string) =>
+    c ? { code: c.code, name: pickText(c.name as Record<string, string>, locale, c.code)! } : null;
+
+  // ─── /v1/sports ──────────────────────────────────────────────────────────────────────────────
+  app.get('/v1/sports', { config: MODULE }, async (request, reply) => {
+    const query = parseInput(LocaleQuery, request.query);
+    const locale = localeOf(request, query);
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.catalog,
+      vary: [locale],
+      load: async () => {
+        const db = requireDb(ctx);
+        const rows = await db
+          .select({ slug: sport.slug, name: sport.name, competitions: count(competition.id) })
+          .from(sport)
+          .leftJoin(competition, eq(competition.sport, sport.slug))
+          .groupBy(sport.slug)
+          .orderBy(asc(sport.slug));
+        const data: Sport[] = rows.map((r) => ({
+          slug: r.slug,
+          name: pickText(r.name as Record<string, string>, locale, r.slug)!,
+          competitions: Number(r.competitions),
+          mirror: MIRRORED.has(r.slug) ? `/mirror/${r.slug}` : null,
+        }));
+        return { body: { data }, tags: ['sport', 'competition'] };
+      },
+    });
+  });
+
+  // ─── /v1/countries ───────────────────────────────────────────────────────────────────────────
+  app.get('/v1/countries', { config: MODULE }, async (request, reply) => {
+    const query = parseInput(LocaleQuery, request.query);
+    const locale = localeOf(request, query);
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.catalog,
+      vary: [locale],
+      load: async () => {
+        const db = requireDb(ctx);
+        const rows = await db
+          .select({ c: country, storageKey: asset.storageKey, sourceUrl: asset.sourceUrl })
+          .from(country)
+          .leftJoin(asset, eq(asset.id, country.flagAssetId));
+        const data: Country[] = rows
+          .map((r) => ({
+            code: r.c.code,
+            name: pickText(r.c.name as Record<string, string>, locale, r.c.code)!,
+            ioc_code: r.c.iocCode,
+            confederation: r.c.confederation,
+            flag: assetUrl(ctx.assetsBaseUrl, r.storageKey, r.sourceUrl),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, locale));
+        return { body: { data }, tags: ['country', 'asset'] };
+      },
+    });
+  });
+
+  // ─── /v1/competitions ────────────────────────────────────────────────────────────────────────
+  app.get('/v1/competitions', { config: MODULE }, async (request, reply) => {
+    const query = parseInput(CompetitionsQuery, request.query);
+    const locale = localeOf(request, query);
+    const cursor = query.cursor ? decodeCursor(CompetitionCursor, query.cursor) : undefined;
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.catalog,
+      vary: [locale],
+      load: async () => {
+        const db = requireDb(ctx);
+        const conds: SQL[] = [];
+        if (query.sport) conds.push(eq(competition.sport, query.sport));
+        if (query.country) conds.push(eq(competition.countryCode, query.country));
+        if (query.tier) conds.push(eq(competition.tier, query.tier));
+        if (query.q) {
+          const p = `%${likeEscape(query.q)}%`;
+          conds.push(
+            or(
+              ilike(competition.name, p),
+              ilike(competition.slug, p),
+              sql`${competition.labels}::text ilike ${p}`,
+              sql`exists (select 1 from ${competitionProfile} cp
+                          where cp.competition_id = ${competition.id}
+                            and (cp.nicknames::text ilike ${p} or cp.labels::text ilike ${p}))`,
+            )!,
+          );
+        }
+        if (cursor)
+          conds.push(
+            sql`(${competition.tier}, ${competition.name}, ${competition.id}) > (${cursor.t}, ${cursor.n}, ${cursor.i}::uuid)`,
+          );
+        const rows = await selectCompetitions(db)
+          .where(and(...conds))
+          .orderBy(asc(competition.tier), asc(competition.name), asc(competition.id))
+          .limit(query.limit + 1);
+        const pageRows = rows.slice(0, query.limit);
+        const data = await toSummaries(db, pageRows, locale);
+        const last = pageRows.at(-1);
+        const next_cursor =
+          rows.length > query.limit && last
+            ? encodeCursor({ t: last.c.tier, n: last.c.name, i: last.c.id })
+            : null;
+        return {
+          body: { data, next_cursor },
+          tags: ['competition', 'season', 'competition_profile', 'country'],
+        };
+      },
+    });
+  });
+
+  // ─── /v1/competitions/:id ────────────────────────────────────────────────────────────────────
+  app.get('/v1/competitions/:id', { config: MODULE }, async (request, reply) => {
+    const params = parseInput(CompetitionParams, request.params);
+    const query = parseInput(LocaleQuery, request.query);
+    const locale = localeOf(request, query);
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.catalog,
+      vary: [locale],
+      load: async () => {
+        const db = requireDb(ctx);
+        const row = await findCompetition(db, params.id);
+        const [summary] = await toSummaries(db, [row], locale);
+        const [profile] = await db
+          .select({ trophy: competitionProfile.trophyNickname })
+          .from(competitionProfile)
+          .where(eq(competitionProfile.competitionId, row.c.id))
+          .limit(1);
+        const seasons = await db
+          .select()
+          .from(season)
+          .where(eq(season.competitionId, row.c.id))
+          .orderBy(desc(season.year));
+        const ids = await db
+          .select({ provider: providerMap.provider, providerId: providerMap.providerId })
+          .from(providerMap)
+          .where(and(eq(providerMap.entityType, 'competition'), eq(providerMap.entityId, row.c.id)));
+        const body: Competition = {
+          ...summary!,
+          trophy_nickname: profile?.trophy ?? null,
+          external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
+          seasons: seasons.map((s) => ({
+            year: s.year,
+            label: s.label,
+            start_date: s.startDate,
+            end_date: s.endDate,
+            current: s.current,
+            coverage: s.coverage ?? null,
+          })),
+        };
+        return { body, tags: [`competition:${row.c.id}`, 'season', 'competition_profile'] };
+      },
+    });
+  });
+
+  // ─── /v1/competitions/:id/seasons/:season/standings ──────────────────────────────────────────
+  app.get('/v1/competitions/:id/seasons/:season/standings', { config: MODULE }, async (request, reply) => {
+    const params = parseInput(StandingsParams, request.params);
+    const query = parseInput(LocaleQuery, request.query);
+    const locale = localeOf(request, query);
+    const tz = query.tz ?? 'UTC';
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.standings,
+      vary: [locale, tz],
+      load: async () => {
+        const db = requireDb(ctx);
+        const row = await findCompetition(db, params.id);
+        const [s] = await db
+          .select()
+          .from(season)
+          .where(
+            and(
+              eq(season.competitionId, row.c.id),
+              params.season === 'current' ? eq(season.current, true) : eq(season.year, Number(params.season)),
+            ),
+          )
+          .orderBy(desc(season.year))
+          .limit(1);
+        if (!s) throw problems.notFound('Temporada');
+
+        const rows = await db
+          .select({
+            st: standing,
+            p: {
+              id: participant.id,
+              name: participant.name,
+              shortName: participant.shortName,
+            },
+            storageKey: asset.storageKey,
+            sourceUrl: asset.sourceUrl,
+          })
+          .from(standing)
+          .innerJoin(participant, eq(participant.id, standing.participantId))
+          .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+          .where(eq(standing.seasonId, s.id))
+          .orderBy(asc(standing.group), asc(standing.rank));
+
+        const groups = new Map<string, Standings['groups'][number]>();
+        let updatedAt: Date | null = null;
+        for (const r of rows) {
+          const g = groups.get(r.st.group) ?? { name: r.st.group || null, rows: [] };
+          groups.set(r.st.group, g);
+          g.rows.push({
+            rank: r.st.rank,
+            participant: {
+              id: r.p.id,
+              name: r.p.name,
+              short_name: r.p.shortName,
+              logo: assetUrl(ctx.assetsBaseUrl, r.storageKey, r.sourceUrl),
+            },
+            points: r.st.points,
+            played: r.st.played,
+            won: r.st.won,
+            drawn: r.st.drawn,
+            lost: r.st.lost,
+            goals_for: r.st.goalsFor,
+            goals_against: r.st.goalsAgainst,
+            goal_diff: r.st.goalsFor - r.st.goalsAgainst,
+            form: r.st.form,
+            description: r.st.description,
+          });
+          if (!updatedAt || r.st.updatedAt > updatedAt) updatedAt = r.st.updatedAt;
+        }
+        const source = rows[0]?.st.source;
+        const body: Standings = {
+          competition_id: row.c.id,
+          season: { year: s.year, label: s.label },
+          groups: [...groups.values()],
+          source: source === 'provider' || source === 'computed' ? source : null,
+          updated_at: updatedAt ? formatInstant(updatedAt, tz) : null,
+        };
+        return { body, tags: [`standing:${s.id}`, `competition:${row.c.id}`] };
+      },
+    });
+  });
+
+  // ─── /v1/venues/:id ──────────────────────────────────────────────────────────────────────────
+  app.get('/v1/venues/:id', { config: MODULE }, async (request, reply) => {
+    const params = parseInput(IdParams, request.params);
+    const query = parseInput(LocaleQuery, request.query);
+    const locale = localeOf(request, query);
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.catalog,
+      vary: [locale],
+      load: async () => {
+        const db = requireDb(ctx);
+        const [row] = await db
+          .select({
+            v: venue,
+            country: { code: country.code, name: country.name },
+            storageKey: asset.storageKey,
+            sourceUrl: asset.sourceUrl,
+          })
+          .from(venue)
+          .leftJoin(country, eq(country.code, venue.countryCode))
+          .leftJoin(asset, eq(asset.id, venue.imageAssetId))
+          .where(eq(venue.id, params.id))
+          .limit(1);
+        if (!row) throw problems.notFound('Venue');
+        const body: Venue = {
+          id: row.v.id,
+          name: row.v.name,
+          city: row.v.city,
+          country: countryRef(row.country?.code ? (row.country as CountryRow) : null, locale),
+          capacity: row.v.capacity,
+          surface: row.v.surface,
+          image: assetUrl(ctx.assetsBaseUrl, row.storageKey, row.sourceUrl),
+        };
+        return { body, tags: [`venue:${row.v.id}`] };
+      },
+    });
+  });
+
+  // ─── helpers ─────────────────────────────────────────────────────────────────────────────────
+
+  function selectCompetitions(db: Database) {
+    return db
+      .select({
+        c: competition,
+        country: { code: country.code, name: country.name },
+        logoKey: asset.storageKey,
+        logoUrl: asset.sourceUrl,
+      })
+      .from(competition)
+      .leftJoin(country, eq(country.code, competition.countryCode))
+      .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+      .$dynamic();
+  }
+
+  type CompetitionRow = Awaited<ReturnType<ReturnType<typeof selectCompetitions>['execute']>>[number];
+
+  async function findCompetition(db: Database, idOrSlug: string): Promise<CompetitionRow> {
+    const where = UUID_RE.test(idOrSlug) ? eq(competition.id, idOrSlug) : eq(competition.slug, idOrSlug);
+    const [row] = await selectCompetitions(db)
+      .where(where)
+      .orderBy(sql`(${competition.sport} = 'football') desc`)
+      .limit(1);
+    if (!row) throw problems.notFound('Competição');
+    return row;
+  }
+
+  async function toSummaries(
+    db: Database,
+    rows: CompetitionRow[],
+    locale: string,
+  ): Promise<CompetitionSummary[]> {
+    const ids = rows.map((r) => r.c.id);
+    if (!ids.length) return [];
+    const profiles = await db
+      .select({
+        competitionId: competitionProfile.competitionId,
+        labels: competitionProfile.labels,
+        nicknames: competitionProfile.nicknames,
+      })
+      .from(competitionProfile)
+      .where(inArray(competitionProfile.competitionId, ids));
+    const profileBy = new Map(profiles.map((p) => [p.competitionId, p]));
+    const current = await db
+      .selectDistinctOn([season.competitionId], {
+        competitionId: season.competitionId,
+        year: season.year,
+        label: season.label,
+      })
+      .from(season)
+      .where(and(inArray(season.competitionId, ids), eq(season.current, true)))
+      .orderBy(season.competitionId, desc(season.year));
+    const currentBy = new Map(current.map((s) => [s.competitionId, s]));
+
+    return rows.map((r): CompetitionSummary => {
+      const profile = profileBy.get(r.c.id);
+      const labels = { ...(r.c.labels ?? {}), ...(profile?.labels ?? {}) } as Record<string, string>;
+      const cur = currentBy.get(r.c.id);
+      return {
+        id: r.c.id,
+        slug: r.c.slug,
+        sport: r.c.sport,
+        name: pickText(labels, locale, r.c.name)!,
+        official_name: r.c.name,
+        nicknames: pickList(profile?.nicknames, locale),
+        type: r.c.type,
+        tier: r.c.tier,
+        country: countryRef(r.country?.code ? (r.country as CountryRow) : null, locale),
+        logo: assetUrl(ctx.assetsBaseUrl, r.logoKey, r.logoUrl),
+        current_season: cur ? { year: cur.year, label: cur.label } : null,
+      };
+    });
+  }
+}
