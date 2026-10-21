@@ -1,0 +1,39 @@
+# Base semântica — clássicos do vôlei brasileiro (Superliga) (schema v1)
+schema_version: 1
+region: br
+derbies:
+  - slug: volleyball-classico-mineiro-masculino
+    name: Clássico Mineiro (Sada Cruzeiro × Minas)
+    aliases: ["Clássico mineiro", "Cruzeiro × Minas", "Sada Cruzeiro × Minas"]
+    labels: { pt-BR: "Clássico Mineiro", es: "Clásico mineiro", en: "Minas Gerais derby" }
+    teams: [volleyball-sada-cruzeiro, volleyball-minas-masculino]
+    scope: state
+    intensity: 4
+    first_match: null
+    origin: "Duelo das duas principais equipes masculinas de Minas Gerais, disputado na Superliga e no Campeonato Mineiro."
+    trivia:
+      - "Segundo o Flashscore, Sada Cruzeiro e Minas fizeram 12 finais seguidas do Campeonato Mineiro masculino, todas vencidas pelo Cruzeiro."
+      - "Em 2013, o Sada Cruzeiro venceu o Minas por 3 a 2 em Contagem e encerrou uma sequência de nove vitórias do rival."
+    sources:
+      - "https://abcdoabc.com.br/superliga-masculina-bb-20-21-sada-cruzeiro-vence-o-minas-no-classico-mineiro/"
+      - "https://www.flashscore.com.br/noticias/sada-cruzeiro-e-minas-voltam-a-se-enfrentar-agora-pelo-campeonato-mineiro-de-volei/bkuX6RS0/"
+      - "https://jornaldebrasilia.com.br/mais-esportes/sada-cruzeiro-derrota-minas-e-quebra-sequencia-de-vitorias-do-rival/"
+    review_status: draft
+
+  - slug: volleyball-minas-praia-clube
+    name: Clássico Mineiro (Minas × Praia Clube)
+    aliases: ["Final pão de queijo", "Minas × Praia", "Praia × Minas"]
+    labels: { pt-BR: "Minas × Praia Clube", es: "Minas vs. Praia Clube", en: "Minas vs. Praia Clube" }
+    teams: [volleyball-minas-feminino, volleyball-praia-clube-feminino]
+    scope: state
+    intensity: 4
+    first_match: null
+    origin: "Rivalidade entre Belo Horizonte e Uberlândia que se tornou a final mais frequente da Superliga feminina; a imprensa chama a decisão de 'final pão de queijo'."
+    trivia:
+      - "O clássico decidiu a Superliga feminina em cinco temporadas seguidas, de 2018-19 a 2023-24 (a de 2019-20 foi cancelada)."
+      - "Até abril de 2026, as equipes tinham disputado 31 finais desde 2013, com 21 títulos do Minas e 10 do Praia."
+      - "Na final de 2025-26, no Ibirapuera, o Praia Clube venceu por 3 a 0 e conquistou seu terceiro título da Superliga."
+    sources:
+      - "https://www.lance.com.br/volei/minas-domina-retrospecto-em-finais-contra-o-praia-clube-confira.html"
+      - "https://www.cnnbrasil.com.br/esportes/volei/praia-clube-supreende-domina-minas-e-e-campeao-da-superliga-feminina/"
+    review_status: draft

@@ -1,0 +1,130 @@
+# Base semântica — construtoras da Fórmula 1 (temporada 2026) com apelidos documentados ou relevância para a América Latina (schema v1)
+schema_version: 1
+kind: constructor
+participants:
+  - slug: f1-ferrari
+    names:
+      official: Scuderia Ferrari
+      short: Ferrari
+      abbreviation: FER
+    labels: { pt-BR: "Ferrari", es: "Ferrari", en: "Ferrari" }
+    api_sports:
+      team_id: null
+      match: { name: "Scuderia Ferrari", country: "Italy" }
+    founded: null
+    country: IT
+    city: Maranello
+    colors: [vermelho]
+    nicknames: [Scuderia, Cavallino Rampante, Il Cavallino]
+    fans:
+      group_nicknames: [Tifosi]
+    identity:
+      - "Fundada por Enzo Ferrari em 1929, é a equipe mais antiga e mais vitoriosa da Fórmula 1, presente em todos os campeonatos desde 1950."
+      - "O apelido Cavallino Rampante vem do cavalo empinado do seu emblema; o vermelho segue a tradição do rosso corsa italiano."
+      - "Recordista de títulos de construtores, com 16 conquistas."
+    sources:
+      - "https://en.wikipedia.org/wiki/Scuderia_Ferrari"
+    review_status: draft
+
+  - slug: f1-mercedes
+    names:
+      official: Mercedes-AMG Petronas F1 Team
+      short: Mercedes
+      abbreviation: MER
+    labels: { pt-BR: "Mercedes", es: "Mercedes", en: "Mercedes" }
+    api_sports:
+      team_id: null
+      match: { name: "Mercedes-AMG Petronas", country: "Germany" }
+    founded: null
+    country: DE
+    city: Brackley
+    colors: [prata]
+    nicknames: ["Silver Arrows", Silberpfeile]
+    identity:
+      - "Os carros correm na tradicional cor prata da Mercedes-Benz, origem do apelido 'Flechas de Prata'."
+      - "Conquistou oito títulos de construtores consecutivos, de 2014 a 2021, um recorde."
+    sources:
+      - "https://en.wikipedia.org/wiki/Mercedes-AMG_Petronas_F1_Team"
+    review_status: draft
+
+  - slug: f1-mclaren
+    names:
+      official: McLaren Formula 1 Team
+      short: McLaren
+      abbreviation: MCL
+    labels: { pt-BR: "McLaren", es: "McLaren", en: "McLaren" }
+    api_sports:
+      team_id: null
+      match: { name: "McLaren Racing", country: "United Kingdom" }
+    founded: null
+    country: GB
+    city: Woking
+    nicknames: []
+    identity:
+      - "Fundada em 1963 pelo neozelandês Bruce McLaren."
+      - "Dez títulos de construtores, os mais recentes em 2024 e 2025."
+    sources:
+      - "https://en.wikipedia.org/wiki/McLaren"
+    review_status: draft
+
+  - slug: f1-alpine
+    names:
+      official: BWT Alpine F1 Team
+      short: Alpine
+      abbreviation: ALP
+    labels: { pt-BR: "Alpine", es: "Alpine", en: "Alpine" }
+    api_sports:
+      team_id: null
+      match: { name: "Alpine F1 Team", country: "France" }
+    founded: null
+    country: FR
+    city: Enstone
+    nicknames: []
+    identity:
+      - "Equipe de Enstone que sucedeu a Renault em 2021; a mesma estrutura já correu como Toleman, Benetton, Renault e Lotus."
+      - "Equipe do argentino Franco Colapinto na temporada 2026."
+    sources:
+      - "https://en.wikipedia.org/wiki/Alpine_F1_Team"
+      - "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship"
+    review_status: draft
+
+  - slug: f1-audi
+    names:
+      official: Audi Revolut F1 Team
+      short: Audi
+      abbreviation: AUD
+    labels: { pt-BR: "Audi", es: "Audi", en: "Audi" }
+    api_sports:
+      team_id: null
+      match: { name: "Audi", country: "Germany" }
+    founded: null
+    country: DE
+    city: Hinwil
+    nicknames: []
+    identity:
+      - "Estreou na Fórmula 1 em 2026, após a compra da Sauber, com base principal em Hinwil, na Suíça."
+      - "O brasileiro Gabriel Bortoleto marcou os primeiros pontos da história da equipe, com o 9º lugar no GP da Austrália de 2026."
+    sources:
+      - "https://en.wikipedia.org/wiki/Audi_in_Formula_One"
+    review_status: draft
+
+  - slug: f1-cadillac
+    names:
+      official: Cadillac Formula 1 Team
+      short: Cadillac
+      abbreviation: CAD
+    labels: { pt-BR: "Cadillac", es: "Cadillac", en: "Cadillac" }
+    api_sports:
+      team_id: null
+      match: { name: "Cadillac", country: "USA" }
+    founded: null
+    country: US
+    city: Fishers
+    region: Indiana
+    nicknames: []
+    identity:
+      - "Estreou em 2026 como a 11ª equipe do grid, com sede em Fishers, Indiana."
+      - "Equipe do mexicano Sergio 'Checo' Pérez e do finlandês Valtteri Bottas em 2026."
+    sources:
+      - "https://en.wikipedia.org/wiki/Cadillac_in_Formula_One"
+    review_status: draft

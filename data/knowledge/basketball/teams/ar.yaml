@@ -1,0 +1,168 @@
+# Base semântica — clubes de básquet da Argentina (Liga Nacional) envolvidos em clássicos documentados (schema v1)
+schema_version: 1
+country: AR
+teams:
+  # ------------------------------------------------------------------ MAR DEL PLATA
+  - slug: basketball-penarol-mar-del-plata
+    names:
+      official: Club Atlético Peñarol
+      short: Peñarol
+      abbreviation: PEN
+    labels: { pt-BR: "Peñarol de Mar del Plata", es: "Peñarol de Mar del Plata", en: "Peñarol Mar del Plata" }
+    api_sports:
+      team_id: null
+      match: { name: "Penarol", country: "Argentina" }
+    founded: 1922-11-07
+    city: Mar del Plata
+    region: Buenos Aires
+    colors: [azul, blanco]
+    nicknames: [Milrayitas, La Pe, Peña]
+    stadium:
+      name: Polideportivo Islas Malvinas
+      city: Mar del Plata
+    rivals:
+      - { team: basketball-quilmes-mar-del-plata, derby: basketball-clasico-marplatense, intensity: 4 }
+    identity:
+      - "Juega con camiseta de finas rayas verticales azules y blancas; de ahí el apodo Milrayitas."
+      - "Cinco veces campeón de la Liga Nacional (1993-94, 2009-10, 2010-11, 2011-12 y 2013-14) y bicampeón de la Liga de las Américas."
+    copy_hints:
+      es-AR:
+        nicknames: [Milrayitas]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Peñarol_(Mar_del_Plata)"
+      - "https://lanacion.com.ar/deportes/penarol-repitio-el-triunfo-en-el-clasico-marplatense-ante-quilmes-nid1749354"
+    review_status: draft
+
+  - slug: basketball-quilmes-mar-del-plata
+    names:
+      official: Club Atlético Quilmes
+      short: Quilmes
+      abbreviation: QUI
+    labels: { pt-BR: "Quilmes de Mar del Plata", es: "Quilmes de Mar del Plata", en: "Quilmes Mar del Plata" }
+    api_sports:
+      team_id: null
+      match: { name: "Quilmes", country: "Argentina" }
+    founded: 1922-04-12
+    city: Mar del Plata
+    region: Buenos Aires
+    nicknames: [Tricolor, Cervecero, Indio]
+    rivals:
+      - { team: basketball-penarol-mar-del-plata, derby: basketball-clasico-marplatense, intensity: 4 }
+    identity:
+      - "Club marplatense fundado en 1922, el mismo año que su clásico rival Peñarol."
+      - "Disputó muchas temporadas de la Liga Nacional; en 2025-26 jugó La Liga Argentina, la segunda categoría."
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Quilmes_(Mar_del_Plata)"
+      - "https://lanacion.com.ar/deportes/penarol-repitio-el-triunfo-en-el-clasico-marplatense-ante-quilmes-nid1749354"
+    review_status: draft
+
+  # ------------------------------------------------------------------ SANTIAGO DEL ESTERO
+  - slug: basketball-quimsa
+    names:
+      official: Asociación Atlética Quimsa
+      short: Quimsa
+      abbreviation: QMS
+    labels: { pt-BR: "Quimsa", es: "Quimsa", en: "Quimsa" }
+    api_sports:
+      team_id: null
+      match: { name: "Quimsa", country: "Argentina" }
+    founded: 1989-08-13
+    city: Santiago del Estero
+    region: Santiago del Estero
+    colors: [azul, rojo]
+    nicknames: [La Fusión]
+    mascot: Kushi
+    stadium:
+      name: Estadio Ciudad de Santiago del Estero
+      nicknames: [Estadio Ciudad]
+      city: Santiago del Estero
+    rivals:
+      - { team: basketball-olimpico-la-banda, derby: basketball-clasico-santiagueno, intensity: 4 }
+    identity:
+      - "Nació en 1989 de la fusión de tres clubes; su nombre viene de 'kimsa', que significa 'tres' en quichua."
+      - "Campeón de la Liga Nacional 2014-15 y 2022-23, y dos veces de la Basketball Champions League Americas."
+    sources:
+      - "https://es.wikipedia.org/wiki/Asociación_Atlética_Quimsa"
+      - "https://www.baenegocios.com/deportes/Quimsa-le-gano-a-su-escolta-Olimpico-el-clasico-santiagueno-y-sigue-liderando-el-torneo-20240123-0005.html"
+    review_status: draft
+
+  - slug: basketball-olimpico-la-banda
+    names:
+      official: Club Ciclista Olímpico
+      short: Olímpico
+      abbreviation: OLI
+    labels: { pt-BR: "Olímpico de La Banda", es: "Olímpico de La Banda", en: "Olímpico de La Banda" }
+    api_sports:
+      team_id: null
+      match: { name: "Olimpico", country: "Argentina" }
+    founded: 1921-12-09
+    city: La Banda
+    region: Santiago del Estero
+    nicknames: [Negro, Negro Bandeño]
+    stadium:
+      name: Estadio Vicente Rosales
+      city: La Banda
+    rivals:
+      - { team: basketball-quimsa, derby: basketball-clasico-santiagueno, intensity: 4 }
+    identity:
+      - "Ascendió a la Liga Nacional como campeón del Torneo Nacional de Ascenso 2007-08."
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Ciclista_Olímpico"
+      - "https://www.diariopanorama.com/noticia/319977/olimpico-logro-triunfo-mas-abultado-historia-clasico"
+    review_status: draft
+
+  # ------------------------------------------------------------------ CÓRDOBA
+  - slug: basketball-atenas-cordoba
+    names:
+      official: Asociación Deportiva Atenas
+      short: Atenas
+      abbreviation: ATE
+    labels: { pt-BR: "Atenas de Córdoba", es: "Atenas de Córdoba", en: "Atenas de Córdoba" }
+    api_sports:
+      team_id: null
+      match: { name: "Atenas", country: "Argentina" }
+    founded: 1938-04-17
+    city: Córdoba
+    region: Córdoba
+    nicknames: [El Griego]
+    stadium:
+      name: Estadio Estructuras Pretensa Atenas
+      city: Córdoba
+    rivals:
+      - { team: basketball-instituto-cordoba, derby: basketball-clasico-cordobes, intensity: 4 }
+    identity:
+      - "Es el club más ganador de la historia de la Liga Nacional, con nueve títulos."
+      - "Desde octubre de 2024 es local en su propio estadio, junto a su sede en el barrio General Bustos."
+    sources:
+      - "https://es.wikipedia.org/wiki/Asociación_Deportiva_Atenas"
+      - "https://hoydia.com.ar/deportes/basquet/instituto-y-atenas-cierran-el-ano-en-el-sandrin/"
+    review_status: draft
+
+  - slug: basketball-instituto-cordoba
+    names:
+      official: Instituto Atlético Central Córdoba
+      short: Instituto
+      abbreviation: INS
+    labels: { pt-BR: "Instituto", es: "Instituto", en: "Instituto" }
+    api_sports:
+      team_id: null
+      match: { name: "Instituto", country: "Argentina" }
+    founded: 1918-08-08
+    city: Córdoba
+    region: Córdoba
+    colors: [rojo, blanco]
+    nicknames: [La Gloria, Albirrojo, El Glorioso Cordobés]
+    stadium:
+      name: Gimnasio Ángel Sandrín
+      city: Córdoba
+    rivals:
+      - { team: basketball-atenas-cordoba, derby: basketball-clasico-cordobes, intensity: 4 }
+    identity:
+      - "Ganó su primera Liga Nacional en la temporada 2021-22."
+    copy_hints:
+      es-AR:
+        nicknames: [La Gloria]
+    sources:
+      - "https://es.wikipedia.org/wiki/Instituto_Atlético_Central_Córdoba_(baloncesto)"
+      - "https://cba24n.com.ar/noche-de-clasico-cordobes-en-la-liga-nacional-de-basquet_a5de57f9ad91dda49891470bc"
+    review_status: draft

@@ -1,0 +1,265 @@
+{
+  "get": "games",
+  "parameters": {
+    "league": "57",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 5,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "id": 370289,
+      "date": "2024-09-21T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1726959600,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 681,
+          "name": "Dallas Stars",
+          "logo": "https://media.api-sports.io/hockey/teams/681.png"
+        },
+        "away": {
+          "id": 698,
+          "name": "St. Louis Blues",
+          "logo": "https://media.api-sports.io/hockey/teams/698.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 1
+      },
+      "periods": {
+        "first": "0-0",
+        "second": "1-0",
+        "third": "1-1",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 370293,
+      "date": "2024-09-22T22:00:00+00:00",
+      "time": "22:00",
+      "timestamp": 1727042400,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Over Time",
+        "short": "AOT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 683,
+          "name": "Edmonton Oilers",
+          "logo": "https://media.api-sports.io/hockey/teams/683.png"
+        },
+        "away": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 2
+      },
+      "periods": {
+        "first": "1-1",
+        "second": "0-0",
+        "third": "1-1",
+        "overtime": "1-0",
+        "penalties": null
+      },
+      "events": true
+    },
+    {
+      "id": 370388,
+      "date": "2024-10-01T01:00:00+00:00",
+      "time": "01:00",
+      "timestamp": 1727744400,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "After Penalties",
+        "short": "AP"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 683,
+          "name": "Edmonton Oilers",
+          "logo": "https://media.api-sports.io/hockey/teams/683.png"
+        },
+        "away": {
+          "id": 701,
+          "name": "Vancouver Canucks",
+          "logo": "https://media.api-sports.io/hockey/teams/701.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 2
+      },
+      "periods": {
+        "first": "0-0",
+        "second": "0-1",
+        "third": "2-1",
+        "overtime": "0-0",
+        "penalties": "2-0"
+      },
+      "events": true
+    },
+    {
+      "id": 386217,
+      "date": "2024-10-07T23:00:00+00:00",
+      "time": "23:00",
+      "timestamp": 1728342000,
+      "timezone": "UTC",
+      "week": null,
+      "timer": null,
+      "status": {
+        "long": "Cancelled",
+        "short": "CANC"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 699,
+          "name": "Tampa Bay Lightning",
+          "logo": "https://media.api-sports.io/hockey/teams/699.png"
+        },
+        "away": {
+          "id": 689,
+          "name": "Nashville Predators",
+          "logo": "https://media.api-sports.io/hockey/teams/689.png"
+        }
+      },
+      "scores": {
+        "home": null,
+        "away": null
+      },
+      "periods": {
+        "first": null,
+        "second": null,
+        "third": null,
+        "overtime": null,
+        "penalties": null
+      },
+      "events": false
+    },
+    {
+      "id": 394278,
+      "date": "2025-05-06T00:00:00+00:00",
+      "time": "00:00",
+      "timestamp": 1746489600,
+      "timezone": "UTC",
+      "week": "Quarter-finals",
+      "timer": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "name": "USA",
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg"
+      },
+      "league": {
+        "id": 57,
+        "name": "NHL",
+        "type": "League",
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 700,
+          "name": "Toronto Maple Leafs",
+          "logo": "https://media.api-sports.io/hockey/teams/700.png"
+        },
+        "away": {
+          "id": 684,
+          "name": "Florida Panthers",
+          "logo": "https://media.api-sports.io/hockey/teams/684.png"
+        }
+      },
+      "scores": {
+        "home": 5,
+        "away": 4
+      },
+      "periods": {
+        "first": "3-1",
+        "second": "1-0",
+        "third": "1-3",
+        "overtime": null,
+        "penalties": null
+      },
+      "events": true
+    }
+  ]
+}

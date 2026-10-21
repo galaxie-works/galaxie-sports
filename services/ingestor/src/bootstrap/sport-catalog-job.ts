@@ -35,6 +35,8 @@ export interface SportCallResult {
 export interface SeasonGamesConfig {
   maxTier: number;
   latestSeasons: number;
+  /** Também busca a classificação de cada temporada (padrão no CLI; `--sem-tabelas` desliga). */
+  standings?: boolean;
 }
 
 function seasonWindow(plan: PlanLimits): { min: number; max: number } | undefined {
@@ -112,8 +114,8 @@ export interface SportCatalogJobOptions {
 /**
  * Bootstrap do catálogo de um esporte (prioridade BOOTSTRAP): endpoints de referência → core (países,
  * competições, temporadas, participantes/locais quando houver, assets) e conferência do YAML.
- * Com `games`, busca também a temporada inteira das competições prioritárias (só para o raw; a normalização
- * dos jogos em core.event é outra etapa).
+ * Com `games`, busca também a temporada inteira das competições prioritárias e, com `games.standings`, a
+ * classificação de cada temporada (só para o raw; `normalize:sports` leva jogos e tabelas ao core).
  */
 export async function runSportCatalogJob(
   db: Database,

@@ -1,15 +1,22 @@
 /**
  * Normalização a partir do raw (zero chamadas ao fornecedor): lê a resposta mais recente **bem-sucedida**
  * de cada requisição (`request_hash`) em `raw.api_response`, normaliza e grava no core.
- * Reprocessar tudo duas vezes gera o mesmo estado (issue #22).
+ * Reprocessar tudo duas vezes gera o mesmo estado (issues #22 e #25).
  */
 import { and, eq, sql } from 'drizzle-orm';
-import { apiResponse, jobRun, syncCursor, type Database } from '@galaxie/db';
+import { apiResponse, jobRun, sport as sportTable, syncCursor, type Database } from '@galaxie/db';
 import {
+  API_SPORTS_OTHER_SPORTS,
   NORMALIZABLE_FOOTBALL_ENDPOINTS,
+  NORMALIZABLE_SPORT_ENDPOINTS,
   normalizeFootballEnvelope,
+  normalizeSportEnvelope,
+  SPORT_SUPPLEMENT_ENDPOINTS,
+  type ApiSportsOtherSport,
   type EnvelopeLike,
+  type NormalizedBatch,
 } from '@galaxie/providers';
+import { SPORTS } from '../catalog/persist.js';
 import { addStats, emptyStats, upsertBatch, type UpsertOptions, type UpsertStats } from './upsert-core.js';
 
 export interface NormalizeRawOptions extends UpsertOptions {
@@ -67,17 +74,39 @@ export async function latestSuccessfulResponses(
     order by fetched_at asc, id asc`);
 }
 
-export async function normalizeFootballFromRaw(
+/** Normalizador de envelope de um esporte (puro, de `@galaxie/providers`). */
+type EnvelopeNormalizer = (
+  endpoint: string,
+  envelope: EnvelopeLike,
+  observedAt: Date,
+  params: Record<string, string>,
+) => { batch: NormalizedBatch; items: number } | null;
+
+/**
+ * Lê do raw a última resposta bem-sucedida de cada requisição do esporte, normaliza e grava no core.
+ * `rank` ordena as respostas antes do processamento (estável pela ordem de coleta): os complementos
+ * (resultados, grid) vêm depois das listas que criam os eventos.
+ */
+async function normalizeFromRaw(
   db: Database,
-  options: NormalizeRawOptions = {},
+  sport: string,
+  normalize: EnvelopeNormalizer,
+  endpoints: readonly string[],
+  options: NormalizeRawOptions,
+  rank: (endpoint: string) => number = () => 0,
 ): Promise<NormalizeRawResult> {
   const provider = options.provider ?? 'api-sports';
-  const latest = await latestSuccessfulResponses(db, {
-    provider,
-    sport: 'football',
-    endpoints: options.endpoints ?? NORMALIZABLE_FOOTBALL_ENDPOINTS,
-    afterId: options.afterId ?? 0,
-  });
+  const latest = (
+    await latestSuccessfulResponses(db, {
+      provider,
+      sport,
+      endpoints: options.endpoints ?? endpoints,
+      afterId: options.afterId ?? 0,
+    })
+  )
+    .map((row, i) => ({ row, i }))
+    .sort((a, b) => rank(a.row.endpoint) - rank(b.row.endpoint) || a.i - b.i)
+    .map(({ row }) => row);
 
   const rows: RawRowReport[] = [];
   let stats = emptyStats();
@@ -97,7 +126,7 @@ export async function normalizeFootballFromRaw(
       items: 0,
     };
     try {
-      const normalized = normalizeFootballEnvelope(
+      const normalized = normalize(
         row.endpoint,
         (raw?.body ?? { response: [] }) as EnvelopeLike,
         new Date(row.fetched_at),
@@ -120,19 +149,53 @@ export async function normalizeFootballFromRaw(
   return { rows, stats, lastRawId };
 }
 
-const CURSOR = { endpoint: 'normalize:core', key: 'football' } as const;
+export async function normalizeFootballFromRaw(
+  db: Database,
+  options: NormalizeRawOptions = {},
+): Promise<NormalizeRawResult> {
+  return normalizeFromRaw(
+    db,
+    'football',
+    normalizeFootballEnvelope,
+    NORMALIZABLE_FOOTBALL_ENDPOINTS,
+    options,
+  );
+}
 
-/** Lê o cursor do modo incremental (`ops.sync_cursor`). */
-export async function readNormalizeCursor(db: Database, provider = 'api-sports'): Promise<number> {
+/** Normalização raw → core de um dos 11 esportes além do futebol (issue #25). */
+export async function normalizeSportFromRaw(
+  db: Database,
+  sport: ApiSportsOtherSport,
+  options: NormalizeRawOptions = {},
+): Promise<NormalizeRawResult> {
+  return normalizeFromRaw(
+    db,
+    sport,
+    (endpoint, envelope, observedAt, params) =>
+      normalizeSportEnvelope(sport, endpoint, envelope, observedAt, params),
+    NORMALIZABLE_SPORT_ENDPOINTS[sport],
+    options,
+    (endpoint) => (SPORT_SUPPLEMENT_ENDPOINTS.has(endpoint) ? 1 : 0),
+  );
+}
+
+const CURSOR_ENDPOINT = 'normalize:core';
+
+/** Lê o cursor do modo incremental (`ops.sync_cursor`, um por esporte). */
+export async function readNormalizeCursor(
+  db: Database,
+  provider = 'api-sports',
+  sport = 'football',
+): Promise<number> {
   const [row] = await db
     .select({ cursor: syncCursor.cursor })
     .from(syncCursor)
     .where(
       and(
         eq(syncCursor.provider, provider),
-        eq(syncCursor.sport, 'football'),
-        eq(syncCursor.endpoint, CURSOR.endpoint),
-        eq(syncCursor.key, CURSOR.key),
+        eq(syncCursor.sport, sport),
+        eq(syncCursor.endpoint, CURSOR_ENDPOINT),
+        eq(syncCursor.key, sport),
       ),
     );
   const value = (row?.cursor as { lastRawId?: number } | null)?.lastRawId;
@@ -143,10 +206,18 @@ export async function writeNormalizeCursor(
   db: Database,
   lastRawId: number,
   provider = 'api-sports',
+  sport = 'football',
 ): Promise<void> {
   await db
     .insert(syncCursor)
-    .values({ provider, sport: 'football', ...CURSOR, cursor: { lastRawId }, completedAt: new Date() })
+    .values({
+      provider,
+      sport,
+      endpoint: CURSOR_ENDPOINT,
+      key: sport,
+      cursor: { lastRawId },
+      completedAt: new Date(),
+    })
     .onConflictDoUpdate({
       target: [syncCursor.provider, syncCursor.sport, syncCursor.endpoint, syncCursor.key],
       set: { cursor: { lastRawId }, completedAt: new Date(), updatedAt: new Date() },
@@ -158,20 +229,25 @@ export interface NormalizeJobOptions extends NormalizeRawOptions {
   full?: boolean;
 }
 
-/** Job com registro em `ops.job_run` e cursor incremental em `ops.sync_cursor`. */
-export async function runNormalizeFootballJob(
+/** Job com registro em `ops.job_run` (`normalize:<esporte>`) e cursor incremental em `ops.sync_cursor`. */
+async function runNormalizeJob(
   db: Database,
-  options: NormalizeJobOptions = {},
+  sport: string,
+  run: (options: NormalizeRawOptions) => Promise<NormalizeRawResult>,
+  options: NormalizeJobOptions,
 ): Promise<NormalizeRawResult> {
   const provider = options.provider ?? 'api-sports';
-  const [run] = await db.insert(jobRun).values({ job: 'normalize:football', status: 'running' }).returning();
+  const [job] = await db
+    .insert(jobRun)
+    .values({ job: `normalize:${sport}`, status: 'running' })
+    .returning();
   try {
-    const afterId = options.full ? 0 : await readNormalizeCursor(db, provider);
-    const result = await normalizeFootballFromRaw(db, { ...options, afterId });
+    const afterId = options.full ? 0 : await readNormalizeCursor(db, provider, sport);
+    const result = await run({ ...options, afterId });
     const errors = result.rows.filter((r) => r.outcome === 'error');
     // com erro, o cursor para antes da primeira resposta que falhou (será tentada de novo; o upsert é idempotente)
     const next = errors.length ? Math.min(...errors.map((e) => e.id)) - 1 : result.lastRawId;
-    if (next != null) await writeNormalizeCursor(db, Math.max(afterId, next), provider);
+    if (next != null) await writeNormalizeCursor(db, Math.max(afterId, next), provider, sport);
     await db
       .update(jobRun)
       .set({
@@ -185,13 +261,44 @@ export async function runNormalizeFootballJob(
               .slice(0, 4000)
           : null,
       })
-      .where(eq(jobRun.id, run!.id));
+      .where(eq(jobRun.id, job!.id));
     return result;
   } catch (err) {
     await db
       .update(jobRun)
       .set({ status: 'error', finishedAt: new Date(), error: String(err) })
-      .where(eq(jobRun.id, run!.id));
+      .where(eq(jobRun.id, job!.id));
     throw err;
   }
+}
+
+/** Job `normalize:football` com registro em `ops.job_run` e cursor incremental em `ops.sync_cursor`. */
+export async function runNormalizeFootballJob(
+  db: Database,
+  options: NormalizeJobOptions = {},
+): Promise<NormalizeRawResult> {
+  return runNormalizeJob(db, 'football', (o) => normalizeFootballFromRaw(db, o), options);
+}
+
+export interface NormalizeSportsJobOptions extends NormalizeJobOptions {
+  /** Esportes a normalizar (padrão: os 11 além do futebol). */
+  sports?: readonly ApiSportsOtherSport[];
+}
+
+/**
+ * `normalize:sports`: um job por esporte (`normalize:<esporte>`, cursor próprio em `ops.sync_cursor`).
+ * Os esportes rodam em sequência; o upsert trava por provedor/esporte.
+ */
+export async function runNormalizeSportsJob(
+  db: Database,
+  options: NormalizeSportsJobOptions = {},
+): Promise<{ sport: ApiSportsOtherSport; result: NormalizeRawResult }[]> {
+  // o core exige o esporte cadastrado (o bootstrap do catálogo já faz isso; aqui é só garantia)
+  await db.insert(sportTable).values(SPORTS).onConflictDoNothing();
+  const out: { sport: ApiSportsOtherSport; result: NormalizeRawResult }[] = [];
+  for (const sport of options.sports ?? API_SPORTS_OTHER_SPORTS) {
+    const result = await runNormalizeJob(db, sport, (o) => normalizeSportFromRaw(db, sport, o), options);
+    out.push({ sport, result });
+  }
+  return out;
 }

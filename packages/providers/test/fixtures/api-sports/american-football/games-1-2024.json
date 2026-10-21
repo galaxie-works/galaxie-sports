@@ -1,0 +1,204 @@
+{
+  "get": "games",
+  "parameters": {
+    "league": "1",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "game": {
+        "id": 13146,
+        "stage": "Pre Season",
+        "week": "Hall of Fame Weekend",
+        "date": {
+          "timezone": "UTC",
+          "date": "2024-08-02",
+          "time": "00:00",
+          "timestamp": 1722556800
+        },
+        "venue": {
+          "name": "Tom Benson Hall of Fame Stadium",
+          "city": "Canton"
+        },
+        "status": {
+          "short": "FT",
+          "long": "Finished",
+          "timer": null
+        }
+      },
+      "league": {
+        "id": 1,
+        "name": "NFL",
+        "season": "2024",
+        "logo": "https://media.api-sports.io/american-football/leagues/1.png",
+        "country": {
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        }
+      },
+      "teams": {
+        "home": {
+          "id": 16,
+          "name": "Chicago Bears",
+          "logo": "https://media.api-sports.io/american-football/teams/16.png"
+        },
+        "away": {
+          "id": 26,
+          "name": "Houston Texans",
+          "logo": "https://media.api-sports.io/american-football/teams/26.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 0,
+          "quarter_2": 14,
+          "quarter_3": 7,
+          "quarter_4": null,
+          "overtime": null,
+          "total": 21
+        },
+        "away": {
+          "quarter_1": 7,
+          "quarter_2": 10,
+          "quarter_3": 0,
+          "quarter_4": null,
+          "overtime": null,
+          "total": 17
+        }
+      }
+    },
+    {
+      "game": {
+        "id": 13200,
+        "stage": "Regular Season",
+        "week": "Week 1",
+        "date": {
+          "timezone": "UTC",
+          "date": "2024-09-09",
+          "time": "00:20",
+          "timestamp": 1725841200
+        },
+        "venue": {
+          "name": "Ford Field",
+          "city": "Detroit"
+        },
+        "status": {
+          "short": null,
+          "long": "Final/OT",
+          "timer": null
+        }
+      },
+      "league": {
+        "id": 1,
+        "name": "NFL",
+        "season": "2024",
+        "logo": "https://media.api-sports.io/american-football/leagues/1.png",
+        "country": {
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        }
+      },
+      "teams": {
+        "home": {
+          "id": 7,
+          "name": "Detroit Lions",
+          "logo": "https://media.api-sports.io/american-football/teams/7.png"
+        },
+        "away": {
+          "id": 31,
+          "name": "Los Angeles Rams",
+          "logo": "https://media.api-sports.io/american-football/teams/31.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": 0,
+          "quarter_2": 10,
+          "quarter_3": 7,
+          "quarter_4": 3,
+          "overtime": 6,
+          "total": 26
+        },
+        "away": {
+          "quarter_1": 3,
+          "quarter_2": 0,
+          "quarter_3": 7,
+          "quarter_4": 10,
+          "overtime": 0,
+          "total": 20
+        }
+      }
+    },
+    {
+      "game": {
+        "id": 17148,
+        "stage": "Post Season",
+        "week": "Pro Bowl",
+        "date": {
+          "timezone": "UTC",
+          "date": "2025-02-02",
+          "time": "20:00",
+          "timestamp": 1738526400
+        },
+        "venue": {
+          "name": "Camping World Stadium",
+          "city": "Orlando"
+        },
+        "status": {
+          "short": "NS",
+          "long": "Not Started",
+          "timer": null
+        }
+      },
+      "league": {
+        "id": 1,
+        "name": "NFL",
+        "season": "2024",
+        "logo": "https://media.api-sports.io/american-football/leagues/1.png",
+        "country": {
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        }
+      },
+      "teams": {
+        "home": {
+          "id": 33,
+          "name": "NFC",
+          "logo": "https://media.api-sports.io/american-football/teams/33.png"
+        },
+        "away": {
+          "id": 34,
+          "name": "AFC",
+          "logo": "https://media.api-sports.io/american-football/teams/34.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "overtime": null,
+          "total": null
+        },
+        "away": {
+          "quarter_1": null,
+          "quarter_2": null,
+          "quarter_3": null,
+          "quarter_4": null,
+          "overtime": null,
+          "total": null
+        }
+      }
+    }
+  ]
+}

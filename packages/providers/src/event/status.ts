@@ -35,21 +35,24 @@ export function isInPlay(s: EventStatus): boolean {
 export const STARTING_WINDOW_MS = 10 * 60_000;
 
 /**
- * Duração esperada (minutos, do apito ao fim) por esporte — base do *fallback* temporal.
- * Futebol: 90 + intervalo 15 + acréscimos ≈ 115 min (docs/04 §3).
+ * Duração esperada (minutos, do apito ao fim) por esporte — base do *fallback* temporal (docs/04 §3).
+ * Futebol: 90 + intervalo 15 + acréscimos ≈ 115 min. Demais (issue #25): basquete/NBA ~2h15, vôlei ~2h,
+ * handebol ~1h45, hóquei ~2h30, beisebol ~3h, futebol americano ~3h30, rúgbi ~1h50, AFL ~2h45 e
+ * F1 ~2h (a corrida; treinos e classificação informam a própria duração). No MMA o card é variável:
+ * a duração de cada luta é calculada pelo normalizador a partir do bloco do card (`durationMin`).
  */
 export const EXPECTED_DURATION_MIN: Readonly<Record<string, number>> = {
   football: 115,
-  basketball: 150,
-  nba: 150,
+  basketball: 135,
+  nba: 135,
   volleyball: 120,
-  handball: 100,
+  handball: 105,
   hockey: 150,
   rugby: 110,
-  afl: 150,
+  afl: 165,
   'american-football': 210,
-  baseball: 200,
-  mma: 300,
+  baseball: 180,
+  mma: 30,
   'formula-1': 120,
 };
 
@@ -60,6 +63,10 @@ export const EXTRA_TIME_MIN: Readonly<Record<string, number>> = {
   nba: 20,
   hockey: 30,
   handball: 25,
+  rugby: 25,
+  afl: 15,
+  'american-football': 20,
+  baseball: 40,
 };
 
 const DEFAULT_DURATION_MIN = 180;
@@ -72,6 +79,8 @@ export interface ExpectedEndInput {
   actualStartAt?: Date | null | undefined;
   /** A partida já está (ou esteve) em prorrogação/pênaltis. */
   extraTime?: boolean | undefined;
+  /** Duração própria do evento (ex.: sessão de treino da F1, bloco do card de MMA); substitui a do esporte. */
+  durationMin?: number | null | undefined;
 }
 
 /** `ends_at_expected`: início (real, se conhecido e posterior ao oficial) + duração do esporte (+ prorrogação). */
@@ -81,7 +90,7 @@ export function expectedEnd(input: ExpectedEndInput): Date {
       ? input.actualStartAt
       : input.startsAt;
   const minutes =
-    (EXPECTED_DURATION_MIN[input.sport] ?? DEFAULT_DURATION_MIN) +
+    (input.durationMin ?? EXPECTED_DURATION_MIN[input.sport] ?? DEFAULT_DURATION_MIN) +
     (input.extraTime ? (EXTRA_TIME_MIN[input.sport] ?? 0) : 0);
   return new Date(base.getTime() + minutes * 60_000);
 }

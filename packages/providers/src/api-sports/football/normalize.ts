@@ -39,7 +39,7 @@ const SPORT = 'football';
  * Junta duas versões da mesma entidade: valores conhecidos da mais nova prevalecem e `null` não apaga —
  * exceto que uma simples referência nunca sobrescreve a versão completa (só preenche lacunas).
  */
-function mergeKnown<T extends { reference?: boolean }>(prev: T | undefined, next: T): T {
+export function mergeKnown<T extends { reference?: boolean }>(prev: T | undefined, next: T): T {
   if (!prev) return next;
   const [base, over] = next.reference && !prev.reference ? [next, prev] : [prev, next];
   const out = { ...base } as Record<string, unknown>;

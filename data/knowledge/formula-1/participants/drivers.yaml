@@ -1,0 +1,99 @@
+# Base semântica — pilotos de Fórmula 1 relevantes para a América Latina, com apelidos verificáveis (schema v1)
+schema_version: 1
+kind: driver
+participants:
+  - slug: f1-sergio-perez
+    names:
+      official: Sergio Michel Pérez Mendoza
+      short: Sergio Pérez
+      abbreviation: PER
+    labels: { pt-BR: "Checo Pérez", es-MX: "Checo Pérez", es: "Checo Pérez", en: "Sergio Pérez" }
+    api_sports:
+      team_id: null
+      match: { name: "Sergio Perez", country: "Mexico" }
+    country: MX
+    city: Guadalajara
+    region: Jalisco
+    nicknames: [Checo]
+    identity:
+      - "Nascido em Guadalajara, estreou na Fórmula 1 em 2011 pela Sauber."
+      - "Venceu seis Grandes Prêmios; em 2026 corre pela Cadillac."
+    copy_hints:
+      es-MX:
+        nicknames: [Checo]
+      pt-BR:
+        nicknames: [Checo]
+    sources:
+      - "https://en.wikipedia.org/wiki/Sergio_P%C3%A9rez"
+      - "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship"
+    review_status: draft
+
+  - slug: f1-franco-colapinto
+    names:
+      official: Franco Colapinto
+      short: Colapinto
+      abbreviation: COL
+    labels: { pt-BR: "Franco Colapinto", es-AR: "Franco Colapinto", es: "Franco Colapinto", en: "Franco Colapinto" }
+    api_sports:
+      team_id: null
+      match: { name: "Franco Colapinto", country: "Argentina" }
+    country: AR
+    city: Pilar
+    region: Buenos Aires
+    nicknames: [Il Gaucho, El Gaucho]
+    identity:
+      - "Nascido em Pilar, na província de Buenos Aires; estreou na Fórmula 1 pela Williams em 2024 e corre pela Alpine em 2026."
+      - "O apelido 'Il Gaucho' surgiu na Sky Sport F1 italiana após o GP de Singapura de 2025."
+    copy_hints:
+      es-AR:
+        nicknames: [El Gaucho]
+    sources:
+      - "https://alpinef1.com/drivers/franco-colapinto"
+      - "https://www.c5n.com/deportes/el-particular-apodo-que-le-puso-la-prensa-europea-franco-colapinto-n217515"
+      - "https://news.agrofy.com.ar/noticia/214482/gaucho-formula-1-respuesta-franco-colapinto-su-nuevo-apodo-y-quien-es-verdadero"
+    review_status: draft
+
+  - slug: f1-gabriel-bortoleto
+    names:
+      official: Gabriel Lourenzo Bortoleto Oliveira
+      short: Gabriel Bortoleto
+      abbreviation: BOR
+    labels: { pt-BR: "Gabriel Bortoleto", es: "Gabriel Bortoleto", en: "Gabriel Bortoleto" }
+    api_sports:
+      team_id: null
+      match: { name: "Gabriel Bortoleto", country: "Brazil" }
+    country: BR
+    city: Osasco
+    region: SP
+    nicknames: [Gabi]
+    identity:
+      - "Campeão da Fórmula 3 em 2023 e da Fórmula 2 em 2024; estreou na F1 pela Sauber em 2025."
+      - "Em 2026 corre pela Audi e marcou os primeiros pontos da história da equipe, no GP da Austrália."
+    sources:
+      - "https://en.wikipedia.org/wiki/Gabriel_Bortoleto"
+      - "https://en.wikipedia.org/wiki/Audi_in_Formula_One"
+    review_status: draft
+
+  - slug: f1-fernando-alonso
+    names:
+      official: Fernando Alonso Díaz
+      short: Fernando Alonso
+      abbreviation: ALO
+    labels: { pt-BR: "Fernando Alonso", es: "Fernando Alonso", en: "Fernando Alonso" }
+    api_sports:
+      team_id: null
+      match: { name: "Fernando Alonso", country: "Spain" }
+    country: ES
+    city: Oviedo
+    region: Astúrias
+    nicknames: [El Nano, Magic, El Samurái]
+    identity:
+      - "Bicampeão mundial de Fórmula 1 (2005 e 2006) pela Renault."
+      - "Corre pela Aston Martin desde 2023."
+    copy_hints:
+      es:
+        nicknames: [El Nano]
+    sources:
+      - "https://es.wikipedia.org/wiki/Fernando_Alonso"
+      - "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship"
+    review_status: draft

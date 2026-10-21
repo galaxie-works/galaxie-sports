@@ -1,0 +1,147 @@
+{
+  "get": "standings",
+  "parameters": {
+    "league": "1",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "league": {
+        "id": 1,
+        "name": "NFL",
+        "season": 2024,
+        "logo": "https://media.api-sports.io/american-football/leagues/1.png",
+        "country": {
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        }
+      },
+      "conference": "American Football Conference",
+      "division": "AFC East",
+      "position": 1,
+      "team": {
+        "id": 20,
+        "name": "Buffalo Bills",
+        "logo": "https://media.api-sports.io/american-football/teams/20.png"
+      },
+      "won": 13,
+      "lost": 4,
+      "ties": 0,
+      "points": {
+        "for": 525,
+        "against": 368,
+        "difference": 157
+      },
+      "records": {
+        "home": "8-0",
+        "road": "5-4",
+        "conference": "9-3",
+        "division": "5-1"
+      },
+      "streak": "L1",
+      "ncaa_conference": {
+        "won": null,
+        "lost": null,
+        "points": {
+          "for": null,
+          "against": null
+        }
+      }
+    },
+    {
+      "league": {
+        "id": 1,
+        "name": "NFL",
+        "season": 2024,
+        "logo": "https://media.api-sports.io/american-football/leagues/1.png",
+        "country": {
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        }
+      },
+      "conference": "American Football Conference",
+      "division": "AFC East",
+      "position": 2,
+      "team": {
+        "id": 25,
+        "name": "Miami Dolphins",
+        "logo": "https://media.api-sports.io/american-football/teams/25.png"
+      },
+      "won": 8,
+      "lost": 9,
+      "ties": 0,
+      "points": {
+        "for": 345,
+        "against": 364,
+        "difference": -19
+      },
+      "records": {
+        "home": "5-3",
+        "road": "3-6",
+        "conference": "6-6",
+        "division": "3-3"
+      },
+      "streak": "L1",
+      "ncaa_conference": {
+        "won": null,
+        "lost": null,
+        "points": {
+          "for": null,
+          "against": null
+        }
+      }
+    },
+    {
+      "league": {
+        "id": 1,
+        "name": "NFL",
+        "season": 2024,
+        "logo": "https://media.api-sports.io/american-football/leagues/1.png",
+        "country": {
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        }
+      },
+      "conference": "American Football Conference",
+      "division": "AFC East",
+      "position": 3,
+      "team": {
+        "id": 13,
+        "name": "New York Jets",
+        "logo": "https://media.api-sports.io/american-football/teams/13.png"
+      },
+      "won": 5,
+      "lost": 12,
+      "ties": 0,
+      "points": {
+        "for": 338,
+        "against": 404,
+        "difference": -66
+      },
+      "records": {
+        "home": "3-5",
+        "road": "2-7",
+        "conference": "5-7",
+        "division": "2-4"
+      },
+      "streak": "W1",
+      "ncaa_conference": {
+        "won": null,
+        "lost": null,
+        "points": {
+          "for": null,
+          "against": null
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,410 @@
+{
+  "get": "races",
+  "parameters": {
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 12,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "id": 1857,
+      "competition": {
+        "id": 2,
+        "name": "Bahrain Grand Prix",
+        "location": {
+          "country": "Bahrain",
+          "city": "Sakhir"
+        }
+      },
+      "circuit": {
+        "id": 2,
+        "name": "Bahrain International Circuit",
+        "image": "https://media.api-sports.io/formula-1/circuits/2.png"
+      },
+      "season": 2024,
+      "type": "Race",
+      "laps": {
+        "current": null,
+        "total": 57
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": 25
+        },
+        "time": "1:32.608"
+      },
+      "distance": "308.5 Kms",
+      "timezone": "utc",
+      "date": "2024-03-02T15:00:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 1858,
+      "competition": {
+        "id": 2,
+        "name": "Bahrain Grand Prix",
+        "location": {
+          "country": "Bahrain",
+          "city": "Sakhir"
+        }
+      },
+      "circuit": {
+        "id": 2,
+        "name": "Bahrain International Circuit",
+        "image": "https://media.api-sports.io/formula-1/circuits/2.png"
+      },
+      "season": 2024,
+      "type": "1st Qualifying",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-03-01T16:00:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 1859,
+      "competition": {
+        "id": 2,
+        "name": "Bahrain Grand Prix",
+        "location": {
+          "country": "Bahrain",
+          "city": "Sakhir"
+        }
+      },
+      "circuit": {
+        "id": 2,
+        "name": "Bahrain International Circuit",
+        "image": "https://media.api-sports.io/formula-1/circuits/2.png"
+      },
+      "season": 2024,
+      "type": "3rd Practice",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-03-01T12:30:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 1860,
+      "competition": {
+        "id": 2,
+        "name": "Bahrain Grand Prix",
+        "location": {
+          "country": "Bahrain",
+          "city": "Sakhir"
+        }
+      },
+      "circuit": {
+        "id": 2,
+        "name": "Bahrain International Circuit",
+        "image": "https://media.api-sports.io/formula-1/circuits/2.png"
+      },
+      "season": 2024,
+      "type": "2nd Practice",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-02-29T15:00:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 1861,
+      "competition": {
+        "id": 2,
+        "name": "Bahrain Grand Prix",
+        "location": {
+          "country": "Bahrain",
+          "city": "Sakhir"
+        }
+      },
+      "circuit": {
+        "id": 2,
+        "name": "Bahrain International Circuit",
+        "image": "https://media.api-sports.io/formula-1/circuits/2.png"
+      },
+      "season": 2024,
+      "type": "1st Practice",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-02-29T11:30:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 1977,
+      "competition": {
+        "id": 2,
+        "name": "Bahrain Grand Prix",
+        "location": {
+          "country": "Bahrain",
+          "city": "Sakhir"
+        }
+      },
+      "circuit": {
+        "id": 2,
+        "name": "Bahrain International Circuit",
+        "image": "https://media.api-sports.io/formula-1/circuits/2.png"
+      },
+      "season": 2024,
+      "type": "2nd Qualifying",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-03-01T16:25:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 1978,
+      "competition": {
+        "id": 2,
+        "name": "Bahrain Grand Prix",
+        "location": {
+          "country": "Bahrain",
+          "city": "Sakhir"
+        }
+      },
+      "circuit": {
+        "id": 2,
+        "name": "Bahrain International Circuit",
+        "image": "https://media.api-sports.io/formula-1/circuits/2.png"
+      },
+      "season": 2024,
+      "type": "3rd Qualifying",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-03-01T16:48:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 1908,
+      "competition": {
+        "id": 11,
+        "name": "Austria Grand Prix",
+        "location": {
+          "country": "Austria",
+          "city": "Spielberg"
+        }
+      },
+      "circuit": {
+        "id": 11,
+        "name": "Red Bull Ring",
+        "image": "https://media.api-sports.io/formula-1/circuits/11.png"
+      },
+      "season": 2024,
+      "type": "Sprint",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-06-29T10:00:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 2002,
+      "competition": {
+        "id": 11,
+        "name": "Austria Grand Prix",
+        "location": {
+          "country": "Austria",
+          "city": "Spielberg"
+        }
+      },
+      "circuit": {
+        "id": 11,
+        "name": "Red Bull Ring",
+        "image": "https://media.api-sports.io/formula-1/circuits/11.png"
+      },
+      "season": 2024,
+      "type": "1st Sprint Shootout",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-06-28T14:30:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 2003,
+      "competition": {
+        "id": 11,
+        "name": "Austria Grand Prix",
+        "location": {
+          "country": "Austria",
+          "city": "Spielberg"
+        }
+      },
+      "circuit": {
+        "id": 11,
+        "name": "Red Bull Ring",
+        "image": "https://media.api-sports.io/formula-1/circuits/11.png"
+      },
+      "season": 2024,
+      "type": "2nd Sprint Shootout",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-06-28T14:49:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 2004,
+      "competition": {
+        "id": 11,
+        "name": "Austria Grand Prix",
+        "location": {
+          "country": "Austria",
+          "city": "Spielberg"
+        }
+      },
+      "circuit": {
+        "id": 11,
+        "name": "Red Bull Ring",
+        "image": "https://media.api-sports.io/formula-1/circuits/11.png"
+      },
+      "season": 2024,
+      "type": "3rd Sprint Shootout",
+      "laps": {
+        "current": null,
+        "total": null
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": null
+        },
+        "time": null
+      },
+      "distance": null,
+      "timezone": "utc",
+      "date": "2024-06-28T15:06:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    },
+    {
+      "id": 1967,
+      "competition": {
+        "id": 33,
+        "name": "Qatar Grand Prix",
+        "location": {
+          "country": "Qatar",
+          "city": "Losail"
+        }
+      },
+      "circuit": {
+        "id": 30,
+        "name": "Losail International Circuit",
+        "image": "https://media.api-sports.io/formula-1/circuits/30.png"
+      },
+      "season": 2024,
+      "type": "Race",
+      "laps": {
+        "current": null,
+        "total": 57
+      },
+      "fastest_lap": {
+        "driver": {
+          "id": 49
+        },
+        "time": "1:22.384"
+      },
+      "distance": "308.9 Kms",
+      "timezone": "utc",
+      "date": "2024-12-01T16:00:00+00:00",
+      "weather": null,
+      "status": "Completed"
+    }
+  ]
+}

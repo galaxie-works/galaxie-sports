@@ -22,8 +22,9 @@ describe('validateKnowledge — base real', () => {
   it('data/knowledge não tem erros', async () => {
     const report = await validateKnowledge(await loadKnowledge());
     expect(report.errors).toEqual([]);
-    expect(report.counts.teams).toBe(187);
-    expect(report.counts.derbies).toBe(82);
+    // futebol 187 times/seleções e 82 clássicos + basquete, vôlei e F1 (issue #44)
+    expect(report.counts.teams).toBe(218);
+    expect(report.counts.derbies).toBe(93);
     expect(report.counts.competitions).toBe(43);
     expect(report.counts.copyTemplates).toBeGreaterThanOrEqual(8 * 24);
   });
@@ -115,6 +116,53 @@ describe('validateKnowledge — regras', () => {
       'copy/es-AR.yaml': `schema_version: 1\nlocale: es-MX\nsport: football\ntemplates:\n  - { key: inform-1, intent: inform, tone: 1, template: "Hoy juega {team}", confidence: HIGH, review_status: draft }\n`,
     });
     expect(codes(report.errors)).toContain('file-name');
+  });
+});
+
+describe('validateKnowledge — outros esportes (issue #44)', () => {
+  it('pastas por esporte: times, clássicos e participantes (F1) com o esporte do caminho', async () => {
+    const kb = await loadKnowledge();
+    const bySport = (sport: string) => kb.teams.filter((t) => t.sport === sport).length;
+    expect(bySport('basketball')).toBeGreaterThan(0);
+    expect(bySport('volleyball')).toBeGreaterThan(0);
+    const drivers = kb.teams.filter((t) => t.sport === 'formula-1' && t.kind === 'driver');
+    expect(drivers.map((d) => d.entry.slug)).toContain('f1-sergio-perez');
+    expect(drivers.every((d) => d.listKey === 'participants' && d.countryCode)).toBe(true);
+    expect(kb.derbies.filter((d) => d.sport === 'basketball').length).toBeGreaterThan(0);
+  });
+
+  it('arquivo de participantes exige kind e country em cada item', async () => {
+    const ok = await validateFiles({
+      'formula-1/participants/drivers.yaml': `schema_version: 1\nkind: driver\nparticipants:${team('f1-piloto', '\n    country: MX')}`,
+    });
+    expect(ok.errors).toEqual([]);
+    const bad = await validateFiles({
+      'formula-1/participants/drivers.yaml': `schema_version: 1\nkind: piloto\nparticipants:${team('f1-piloto')}`,
+    });
+    expect(codes(bad.errors)).toEqual(['schema', 'schema']);
+  });
+
+  it('clássico e rival só entre times do mesmo esporte', async () => {
+    const report = await validateFiles({
+      'football/teams/br.yaml': `schema_version: 1\ncountry: BR\nteams:${team('alfa', `\n    rivals:\n      - { team: basketball-beta, derby: misto, intensity: 3 }`)}`,
+      'basketball/teams/br.yaml': `schema_version: 1\ncountry: BR\nteams:${team('basketball-beta', `\n    rivals:\n      - { team: alfa, derby: misto, intensity: 3 }`)}`,
+      'basketball/derbies/br.yaml': `schema_version: 1\nregion: br\nderbies:\n  - slug: misto\n    name: Misto\n    teams: [alfa, basketball-beta]\n    scope: city\n    intensity: 3\n    sources: ["https://example.org/m"]\n    review_status: draft\n`,
+    });
+    expect(codes(report.errors)).toEqual(expect.arrayContaining(['derby-cross-sport', 'rival-cross-sport']));
+  });
+
+  it('api_sports.team_id fora do futebol é erro (a vinculação ainda é só no futebol)', async () => {
+    const report = await validateFiles({
+      'volleyball/teams/br.yaml': `schema_version: 1\ncountry: BR\nteams:${team('volleyball-alfa').replace('team_id: null', 'team_id: 25')}`,
+    });
+    expect(codes(report.errors)).toEqual(['provider-id-sport']);
+  });
+
+  it('pasta de esporte desconhecido é erro de layout', async () => {
+    const report = await validateFiles({
+      'curling/teams/br.yaml': `schema_version: 1\ncountry: BR\nteams:${team('curling-alfa')}`,
+    });
+    expect(codes(report.errors)).toEqual(['layout']);
   });
 });
 
