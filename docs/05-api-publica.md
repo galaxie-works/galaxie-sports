@@ -165,7 +165,7 @@ Exemplo de evento canônico:
 }
 ```
 
-> Os IDs de times acima são ilustrativos; os IDs reais vêm do `provider_map` após o bootstrap.
+> Os IDs de times acima são ilustrativos; os IDs reais vêm do `provider_map` após o bootstrap. Os códigos de `stakes` e seus textos nos 8 mercados estão catalogados em [docs/rules](rules/README.md#catálogo-de-códigos).
 
 ### 3.3 Times, atletas e semântica
 

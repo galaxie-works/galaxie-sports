@@ -1,0 +1,46 @@
+# CONMEBOL Sudamericana.
+# Fase de grupos (8 grupos de 4, 6 jogos): mesmos critérios da Libertadores.
+# 1º: oitavas; 2º: playoffs (contra 3º colocados da Libertadores); 3º–4º: eliminados.
+# Mata-mata: ida e volta, sem gol fora (desde 2022), pênaltis direto; final em jogo único.
+slug: conmebol-sudamericana
+name: CONMEBOL Sudamericana
+format: groups_and_knockout
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - away_goals_for
+    - fewest_red_cards
+    - fewest_yellow_cards
+    - drawing_of_lots
+
+league:
+  teams: 4
+  matches_per_team: 6
+  meetings_per_pair: 2
+  title: false
+  zones:
+    - { id: round_of_16, kind: qualification, from: 1, to: 1 }
+    - { id: knockout_playoff, kind: qualification, from: 2, to: 2 }
+    - { id: elimination, kind: elimination, from: 3, to: 4 }
+
+knockout:
+  default: { legs: 2, away_goals: false, extra_time: false, penalties: true }
+  stages:
+    final: { legs: 1, extra_time: true, penalties: true, neutral_venue: true, decides_title: true }
+
+overrides:
+  - seasons: { to: 2021 }
+    knockout:
+      default: { away_goals: true }
+      stages:
+        final: { away_goals: false }
+  - seasons: { to: 2018 }
+    knockout:
+      stages:
+        final: { legs: 2, away_goals: false, extra_time: true, neutral_venue: false, decides_title: true }
+
+sources:
+  - https://www.conmebol.com/documentos/

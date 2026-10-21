@@ -167,7 +167,7 @@ Detalhes: [docs/09-app-demonstracao.md](docs/09-app-demonstracao.md).
 galaxie-sports/
 ├── apps/                       # api (Fastify) · demo (a criar)
 ├── services/                   # ingestor · ai-agents (esqueleto)
-├── packages/                   # db (schema + migrations) · apisports-client · contracts
+├── packages/                   # db (schema + migrations) · apisports-client · contracts · rules
 ├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS)
 ├── config/
 │   ├── competitions/football.yaml   # 76 competições com IDs verificados e tiers

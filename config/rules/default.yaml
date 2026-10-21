@@ -1,0 +1,26 @@
+# Regulamento genérico — usado quando a competição não tem arquivo próprio
+# (loadCompetitionRules(slug, { fallbackToDefault: true })). Formato: docs/rules/README.md.
+slug: default
+name: Padrão genérico
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  # Depois dos pontos: saldo, gols pró, vitórias; persistindo, sorteio (ordem determinística + aviso).
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - wins
+    - drawing_of_lots
+
+league:
+  meetings_per_pair: 2
+  title: true
+  zones: []
+
+knockout:
+  default: { legs: 2, away_goals: false, extra_time: true, penalties: true }
+  stages:
+    final: { legs: 1, extra_time: true, penalties: true, neutral_venue: true, decides_title: true }
+
+sources: []
