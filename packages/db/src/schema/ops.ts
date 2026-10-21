@@ -29,13 +29,28 @@ export const quotaLedger = ops.table(
     priority: quotaPriority('priority').notNull(),
     endpoint: text('endpoint').notNull(),
     requestHash: text('request_hash').notNull(),
-    /** ok | plan_error | rate_limited | http_error | timeout */
+    /** pending (reservada, ainda não enviada) | ok | plan_error | rate_limited | quota_exhausted | auth_error | http_error | timeout */
     outcome: text('outcome').notNull(),
     remainingAfter: integer('remaining_after'),
     jobId: text('job_id'),
     sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('quota_ledger_day_idx').on(t.provider, t.api, t.dayUtc)],
+);
+
+/** Contador do fornecedor lido via /status (gratuito) — usado como piso na reconciliação, pois é eventualmente consistente. */
+export const quotaSnapshot = ops.table(
+  'quota_snapshot',
+  {
+    provider: text('provider').notNull().default('api-sports'),
+    api: text('api').notNull(),
+    dayUtc: date('day_utc').notNull(),
+    providerUsed: integer('provider_used').notNull(),
+    providerLimit: integer('provider_limit').notNull(),
+    plan: text('plan'),
+    capturedAt: timestamp('captured_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.api, t.dayUtc] })],
 );
 
 export const quotaBudget = ops.table(
