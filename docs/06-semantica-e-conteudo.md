@@ -10,7 +10,7 @@ A camada semântica é o que transforma `team_id: 121 vs team_id: 126` em **"Cho
 | **Perfil semântico do time** | Apelidos (Verdão, Timão, Tricolor, Mengão), mascote, demônimo da torcida (palmeirense, corintiano), gritos curtos (Avanti, Palestra! · Vai, Corinthians!), estádio e apelidos, fatos de identidade | `data/knowledge/football/teams/<país>.yaml` |
 | **Seleções** | Seleção/Canarinho, Albiceleste, La Celeste, La Roja, El Tri, Les Bleus… | `data/knowledge/football/national-teams.yaml` |
 | **Competições** | "Glória Eterna" (Libertadores), "Paulistão", "Orelhuda"/"La Orejona" (Champions) | `data/knowledge/competitions/*.yaml` |
-| **Biblioteca de copy** | Microcopy por locale × intenção × intensidade | `semantic.copy_template` (ver §4) |
+| **Biblioteca de copy** | Microcopy por locale × intenção × intensidade | `data/knowledge/copy/<locale>.yaml` → `semantic.copy_template` (ver §4) |
 
 Schema completo e regras editoriais: [`data/knowledge/SCHEMA.md`](../data/knowledge/SCHEMA.md).
 
@@ -33,7 +33,7 @@ flowchart LR
 
 ## 3. Como a semântica aparece nos dados
 
-1. **Detecção de clássico**: no upsert de um `core.event` de futebol, se os dois participantes formam um par em `semantic.derby`, o evento recebe `derby_id` e `competition_context` inclui `derby`.
+1. **Detecção de clássico**: no upsert de um `core.event` de futebol, se os dois participantes formam um par em `semantic.derby`, o evento recebe `derby_id` e `competition_context` inclui `derby`. Implementação: `assignEventDerbies(db, { eventIds })` e `findDerby(db, a, b)` em `packages/knowledge` (casam por `semantic.team_profile.participant_id`); o seed recalcula todos os eventos e `core.event.derby_id` tem FK para `semantic.derby` (`ON DELETE SET NULL`).
 2. **Importância**: `importance = f(tier da competição, fase, clássico × intensidade, decisão de título/rebaixamento, interesse da audiência)`. Usada para ordenar "Meu dia esportivo" e escolher o que a IA ao vivo prioriza.
 3. **Enriquecimento de card**: `GET /v1/events/{id}` traz `derby: { slug, name, intensity }` e, por participante, `nickname` no locale pedido.
 

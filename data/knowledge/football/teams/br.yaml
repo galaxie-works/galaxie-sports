@@ -2,6 +2,7 @@
 # Série A 2026 (20 clubes) + clubes tradicionais fora da elite em 2026.
 # Fontes de api_sports.team_id: arquivos públicos no GitHub que referenciam
 # media.api-sports.io/football/teams/<id>.png para o clube (ver sources de cada entrada).
+# santa-cruz (753): resolvido por `pnpm resolve:ids` no raw /teams?country=Brazil (fundação 1914, Recife).
 schema_version: 1
 country: BR
 teams:
@@ -785,7 +786,7 @@ teams:
       short: Santa Cruz
       abbreviation: SCZ
     api_sports:
-      team_id: null
+      team_id: 753
       match: { name: "Santa Cruz", country: "Brazil" }
     founded: 1914-02-03
     city: Recife

@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.galaxie-sports.local/knowledge/copy.schema.json",
+  "title": "Biblioteca de copy — data/knowledge/copy/<locale>.yaml (docs/06 §4)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "locale", "sport", "templates"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "locale": { "$ref": "common.schema.json#/definitions/copyLocale" },
+    "sport": { "enum": ["football"] },
+    "templates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "intent", "tone", "template", "confidence", "review_status"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z]+(-[a-z0-9]+)*$",
+            "description": "Chave estável dentro do locale (ex.: cheer-3-derby)"
+          },
+          "intent": { "enum": ["inform", "anticipate", "cheer", "rivalry", "urgency", "decisive"] },
+          "tone": { "type": "integer", "minimum": 1, "maximum": 4 },
+          "template": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120,
+            "description": "Texto curto (legível em TV); placeholders: {team}, {nickname}, {rival}, {minutes}"
+          },
+          "affinity_type": { "enum": ["heart", "support", "sympathy", "rival", "interest", null] },
+          "affinity_source": { "enum": ["explicit", "inferred", null] },
+          "momentum": {
+            "enum": ["D-3+", "D-2", "D-1", "today", "T-60", "T-30", "T-10", "starting", "live", null]
+          },
+          "competition_context": {
+            "enum": [
+              "regular",
+              "derby",
+              "playoff",
+              "knockout",
+              "semifinal",
+              "final",
+              "title",
+              "lead",
+              "relegation",
+              null
+            ]
+          },
+          "confidence": { "enum": ["HIGH", "MEDIUM", "EXPERIMENTAL"] },
+          "review_status": { "$ref": "common.schema.json#/definitions/reviewStatus" }
+        }
+      }
+    }
+  }
+}

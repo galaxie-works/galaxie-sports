@@ -50,6 +50,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Base semântica (JSON Schema + referências em data/knowledge)
+        run: pnpm --filter @galaxie/knowledge knowledge:validate
+
       - name: Typecheck
         run: pnpm typecheck
 

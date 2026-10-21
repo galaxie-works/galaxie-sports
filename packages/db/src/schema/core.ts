@@ -11,8 +11,11 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { createdAt, i18n, pkUuidV7, updatedAt } from './_shared.js';
+// Import circular (semantic também importa core) é seguro: a referência só é avaliada sob demanda.
+import { derby } from './semantic.js';
 
 export const core = pgSchema('core');
 
@@ -268,7 +271,8 @@ export const event = core.table(
     /** true quando servimos last-known-good porque a fonte falhou. */
     isStale: boolean('is_stale').notNull().default(false),
     importance: integer('importance').notNull().default(0),
-    derbyId: uuid('derby_id'),
+    /** Clássico detectado pelos participantes (semantic.derby); some se o clássico sair da base. */
+    derbyId: uuid('derby_id').references((): AnyPgColumn => derby.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
