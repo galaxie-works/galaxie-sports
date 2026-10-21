@@ -48,6 +48,23 @@ Algoritmo base (determinístico, auditável):
 
 Papel do LLM (modelo leve, ex.: `claude-haiku-5-5`): **reordenar prioridades** quando há mais jogos relevantes do que orçamento (ex.: final de estadual × rodada de Série A × clássico europeu), considerando o mercado ativo e a importância. Saída estruturada, validada contra o orçamento; se o LLM falhar, o algoritmo base segue sozinho.
 
+**Implementação** (`services/ai-agents/src/priority`, issue #56) — interface pura para o scheduler:
+
+```ts
+import { prioritizeLive, recordPriorityDecision } from '@galaxie/ai-agents';
+
+const decision = await prioritizeLive(
+  { candidates, budget: 65, activeMarkets: ['BR', 'AR'] }, // candidatos com custo estimado em chamadas
+  llm, // LlmClient (tier light) ou null
+);
+await recordPriorityDecision(db, decision); // ops.job_run, job = ai:live-priority
+```
+
+- Demanda ≤ orçamento: nem chama o LLM (`source: 'base'`).
+- Demanda > orçamento: o LLM devolve um ranking (`{ eventId, reason }[]`); ids desconhecidos ou repetidos invalidam a resposta (volta ao algoritmo base), ids omitidos entram no fim na ordem base. Os candidatos entram no prompt como dado (`<dados_externos>`).
+- A seleção final é **sempre** código (`applyBudget`, guloso na ordem decidida): nunca passa do orçamento. A decisão traz origem, motivo, ranking com justificativas, gasto, modelo e uso de tokens.
+- Algoritmo base: `importance` + mercado ativo (+30) + tier (+20 por nível acima do 4) + clássico (+15) + stakes decisivos (+10); desempate por horário e id.
+
 Exemplo no plano gratuito (100 chamadas/dia na API de futebol):
 
 | Item | Chamadas |
@@ -116,11 +133,47 @@ Texto gerado (pt-BR): *"O mandante venceu a ida por 2 a 1 e se classifica com qu
 
 Resumo pós-jogo: gerado após `FT` a partir de `core.event_incident` + estatísticas; validador confere que todo jogador, minuto e placar citado existe nos dados.
 
+**Implementação** (`services/ai-agents/src/context` e `src/recap`, issues #57 e #58):
+
+| Etapa | Cenário (`kind = scenario`) | Resumo (`kind = recap`) |
+|---|---|---|
+| Candidatos | futebol `scheduled` nas próximas 72 h, competições tier ≤ 2 | `finished` nas últimas 36 h, tier ≤ 2; ou `onEventFinished(db, id, llm)` no gatilho de FT |
+| Fatos | `computeEventStakes`: regulamento (`config/rules`, com `default` de reserva), fase, ida/volta (outra partida da mesma fase com mandos invertidos) ou tabela do grupo + jogos da rodada → `knockoutStakes` / `leagueMatchStakes`. Sem stakes, não há cenário | placar (intervalo, prorrogação, pênaltis, agregado), gols com time beneficiado e placar parcial (gol contra testado nas duas convenções; disputa de pênaltis descartada), pênaltis perdidos, expulsões e estatísticas do espelho |
+| LLM | tier `standard`, uma chamada para todos os locales pedidos; 1–3 frases; rótulos fixos de cada stake por locale vão nos fatos como referência de significado | tier `standard`; 2–4 frases |
+| Validador | fatos + termos proibidos + tamanho de TV (320 caracteres, 3 frases) + idioma | fatos (placar final, minutos, autoria de gol) + termos + tamanho mobile (600, 4 frases) + idioma |
+| Fallback | rótulos fixos de `@galaxie/rules` por time (ex.: "Palmeiras: avança com empate") | timeline: "Fim de jogo: Palmeiras 4 x 1 Corinthians. Gols do Palmeiras: Atacante A (12' e 90+4')…" |
+
+Fluxo comum (`writeLocalizedTexts`): o LLM redige → cada locale passa pelos guardrails → os reprovados voltam **uma** vez ao LLM com o motivo → o que continuar reprovado (ou se o LLM falhar, estourar o orçamento ou não estiver configurado) usa o texto determinístico. Texto reprovado **nunca** é publicado.
+
+O validador factual (`checkFacts`, em `guardrails/facts.ts`) reprova: número (algarismo ou por extenso) fora dos fatos; placar ("2 a 1", "2x1", "2-1") que não existiu; placar diferente do final em frase de resultado ("venceu", "empatou", "ganó"…); minuto fora da timeline (`12'`, `45+2'`, "aos 12", "a los 12"); nome próprio (sequência com inicial maiúscula, com conectores "de/da/del") que não é subsequência de um nome dos fatos — apelidos não estão nos fatos, então são reprovados; pessoa citada em frase de gol que não participou de gol.
+
+Gravação em `enrich.event_context` (histórico; uma linha por evento × locale × tipo × geração): `content` com `text`, `sentences`, `origin` (`llm` | `fallback`), tentativas, violações das tentativas reprovadas, `factsHash` (não regenera se os fatos não mudaram; `--forcar` regenera), superfícies em que cabe (`fits`), dados da execução (chamadas, tokens, custo) e dados estruturados (stakes ou placar/gols); `sources` (core, regulamento e suas URLs); `model` (modelo do LLM ou `template:*@v1`); `confidence` 0,9 (aprovado de primeira), 0,8 (na 2ª), 1,0 (determinístico). Cada geração publica `event.context_published` no change feed (tag `event_context:<id>`), base do webhook e do purge. `readEventContext(db, id, { kinds, locales })` devolve a versão mais recente por tipo × locale (ignora `review_status = rejected`) — é a leitura prevista para `GET /v1/events/{id}/context`.
+
+```bash
+pnpm --filter @galaxie/ai-agents context:run --plan            # o que seria gerado (sem LLM, sem gravar)
+pnpm --filter @galaxie/ai-agents context:run [--evento <id>] [--horas 72] [--tier 2] [--locales pt-BR,es-AR] [--forcar] [--sem-llm]
+pnpm --filter @galaxie/ai-agents recap:run [--plan] [--evento <id>] [--horas 36]   # a cada 2–5 min: resumo ≤ 10 min após o FT
+```
+
+Sem cliente LLM configurado (`src/llm`, por `AI_PROVIDER`), as CLIs avisam e seguem só com o texto determinístico.
+
 ### 2.4 Agente Curador Semântico
 
 - Roda semanalmente e sob demanda (time novo promovido, mudança de nome de estádio).
 - Pesquisa e propõe entradas YAML com fontes; abre **PR** com `review_status: draft`.
 - Nunca altera entradas `approved` sem PR revisado.
+
+**Implementação** (`services/ai-agents/src/curator`, issue #59):
+
+1. **Lacunas** (código, sem IA) a partir do core — clubes de competições tier 1 com jogos nos últimos 120 / próximos 60 dias: `missing_team` (sem entrada no YAML), `unresolved_id` (entrada sem `api_sports.team_id` → `pnpm resolve:ids`, não IA) e `venue_mismatch` (estádio do provedor diferente do nome e dos apelidos do YAML — naming rights).
+2. **Pesquisa** (LLM tier `research` com busca web, JSON estruturado): o código monta a entrada, força `review_status: draft`, preenche `api_sports` a partir do banco (nunca do LLM), exige ≥ 1 fonte http(s) (declaradas + citações do provedor) e reprova termo proibido, padrão de prompt injection ou letra de canção. Estádio: só troca com conclusão confiável e fonte; o nome antigo vira apelido e a entrada volta a `draft`. Entrada `approved` **nunca** é alterada: vira nota "para revisão" no relatório.
+3. **Validação**: cada proposta é aplicada em memória (acréscimo no fim de `teams`, edição cirúrgica dos nós — o resto do arquivo fica byte a byte igual) e a base inteira passa pelo mesmo `validateKnowledge` do CI; erro novo reverte e reprova a proposta.
+4. **Saída**: padrão **dry-run** — `proposals.json`, `report.md` (corpo do PR), `changes.diff` e os YAML propostos em `files/`, num diretório temporário ou em `--saida`. `--open-pr` (opcional) exige árvore Git limpa, cria `curator/<data>`, commita, faz push e roda `gh pr create`.
+
+```bash
+pnpm --filter @galaxie/ai-agents curator:run --dry-run [--saida ./tmp/curador] [--tier 1] [--limite 10] [--sem-llm]
+pnpm --filter @galaxie/ai-agents curator:run --open-pr       # agendamento sugerido: segunda, 06:00 UTC
+```
 
 ## 3. Guardrails
 
@@ -133,6 +186,20 @@ Resumo pós-jogo: gerado após `FT` a partir de `core.event_incident` + estatís
 | Custo descontrolado | Orçamento diário de tokens por agente; cache por `(evento, país)`; modelos menores onde possível |
 | Prompt injection via páginas web | Conteúdo web tratado como dado; o agente não executa instruções encontradas em páginas |
 
+**Módulo reutilizável** `@galaxie/ai-agents/guardrails` (`services/ai-agents/src/guardrails`, issue #60):
+
+| Peça | O que faz |
+|---|---|
+| `checkGeneratedText(text, { locale, facts, surface, allowRivalry })` | Porta única: fatos, termos proibidos, rivalidade, tamanho, idioma (pt × es) e eco de prompt injection; devolve a lista de violações (vazia = aprovado) |
+| `checkFacts` / `FactSheetBuilder` | Validador factual (§2.3) a partir dos fatos citáveis (números, placares, nomes, pessoas, minutos) |
+| `findForbiddenTerms(text, locale)` | Listas por locale (pt-BR e base es + gírias regionais de AR, MX, CO, CL, PE, UY, EC) nas categorias `insult`, `violence`, `discrimination`, `tragedy` e `rivalry`; termos normalizados (sem acento), `*` = sufixo. Nomes dos fatos são liberados (`allowPhrases`). Expressões do jogo ("tiro livre", "briga pelo título") não são barradas |
+| `rivalryAllowed(affinityType, affinitySource)` | Rivalidade só com rival **declarado** (`copy_permission` de `@galaxie/knowledge`); cenário e resumo são para o público geral → nunca |
+| `checkLength` / `MAX_LENGTH` | TV 320 caracteres / 160 por frase / 3 frases; mobile 600 / 240 / 4; web 1200 / 320 / 8 |
+| `wrapUntrusted`, `UNTRUSTED_DATA_RULE`, `detectPromptInjection`, `sanitizeExcerpt`, `isAllowedUrl` | Conteúdo externo entra no prompt em `<dados_externos>` (delimitadores neutralizados) com a regra de "dado, não instrução"; padrões de injeção (pt, es, en) descartam o conteúdo/proposta; evidência ≤ 200 caracteres sem HTML; URLs só http(s), sem credenciais, com lista de domínios opcional |
+| `guardrailSystemRules()` | Regras factuais + linguagem segura + dados externos para o system prompt |
+
+O orçamento diário de tokens por agente fica no módulo de LLM (`src/llm`); os agentes tratam qualquer erro do cliente (inclusive orçamento esgotado) como falha e caem no algoritmo/texto determinístico.
+
 ## 4. Avaliação contínua
 
 | Métrica | Como medir | Meta |
@@ -142,6 +209,13 @@ Resumo pós-jogo: gerado após `FT` a partir de `core.event_incident` + estatís
 | Fidelidade do cenário | % de textos com 0 divergência factual (validador + amostra humana) | 100% |
 | Cobertura ao vivo | % de minutos de jogos tier 1 com atualização ≤ intervalo planejado | ≥ 95% |
 | Custo por evento enriquecido | Tokens × preço / eventos | Acompanhar por tier |
+
+Painel de custo e qualidade: `pnpm --filter @galaxie/ai-agents eval:report [--dias 7] [--json]` (`computeAiMetrics`), calculado do que os agentes gravaram:
+
+- **Por agente** (cenário, resumo): textos, eventos, aprovação do LLM na 1ª e na 2ª tentativa, taxa de fallback e motivos, divergências barradas por tipo (`unknown_name`, `wrong_result`, `forbidden_insult`…), fidelidade pelo validador (meta 100%) e pela amostra humana (`review_status` `reviewed` × `rejected` em `enrich.event_context`).
+- **Custo**: chamadas, tokens e US$ (por execução, sem contar duas vezes os locales) e custo por evento enriquecido.
+- **Cobertura tier 1**: cenário publicado antes do início; resumo em ≤ 10 min do FT (`core.event_state_log`) com mediana; onde assistir `confirmed` até T-3h.
+- Precisão do onde assistir (amostra manual) e cobertura ao vivo (ticks do scheduler) aparecem como "n/d" até terem fonte de dados.
 
 ## 5. Modelos sugeridos
 
