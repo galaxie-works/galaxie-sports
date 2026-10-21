@@ -1,0 +1,79 @@
+# Regras de alerta do Galaxie Sports (issue #6). Testadas com `promtool test rules alerts.test.yml`.
+# As métricas vêm do /metrics da API, que lê ops.quota_ledger, ops.job_run, raw.api_response e core.event.
+groups:
+  - name: galaxie-quota
+    rules:
+      - alert: QuotaBelow20Percent
+        expr: galaxie_quota_remaining_ratio < 0.20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Cota da API {{ $labels.api }} abaixo de 20%'
+          description: 'Restam {{ $value | humanizePercentage }} da cota diária de {{ $labels.api }}. Reveja o plano do dia (governor.plan) ou adie BOOTSTRAP/ADHOC.'
+
+  - name: galaxie-jobs
+    rules:
+      - alert: JobFailingRepeatedly
+        expr: galaxie_job_consecutive_failures >= 3
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Job {{ $labels.job_name }} falhou {{ $value }} vezes seguidas'
+          description: 'Veja ops.job_run (coluna error) e os logs com job={{ $labels.job_name }}.'
+
+      - alert: BackupStale
+        expr: time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"} > 26 * 3600
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Último backup do Postgres com sucesso há {{ $value | humanizeDuration }}'
+          description: 'O serviço backup deveria gerar um dump por dia. Veja os logs do container backup.'
+
+  - name: galaxie-live
+    rules:
+      # O intervalo esperado é um placeholder (LIVE_POLL_INTERVAL_SECONDS) até o Live Scheduler publicar o intervalo dinâmico.
+      - alert: LiveEventStale
+        expr: >-
+          max by (sport) (galaxie_live_event_max_staleness_seconds)
+          > on() group_left()
+          2 * max(galaxie_live_poll_interval_seconds)
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Evento ao vivo de {{ $labels.sport }} sem atualização há {{ $value | humanizeDuration }}'
+          description: 'Mais de 2 intervalos do live poller sem atualização válida. Verifique a cota LIVE e o worker ao vivo.'
+
+  - name: galaxie-platform
+    rules:
+      - alert: ApiDown
+        expr: up{job="galaxie-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'API fora do ar para o Prometheus'
+          description: 'O alvo {{ $labels.instance }} não responde ao /metrics há 2 minutos.'
+
+      - alert: MetricsCollectorDown
+        expr: galaxie_metrics_collector_up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Coletor de métricas {{ $labels.collector }} falhando'
+          description: 'A consulta ao banco para as métricas falha há 5 minutos (banco indisponível?).'
+
+      - alert: ApiLatencyP95High
+        expr: >-
+          histogram_quantile(0.95,
+            sum by (le) (rate(galaxie_http_request_duration_seconds_bucket{route!="/metrics"}[5m]))
+          ) > 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'p95 da API acima de 150 ms'
+          description: 'p95 atual: {{ $value | humanizeDuration }} (NFR: ≤ 150 ms com cache quente).'

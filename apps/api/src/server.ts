@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { pingDb, type Database } from '@galaxie/db';
+import { apiLoggerOptions, registerObservability } from './observability.js';
 
 export interface ServerOptions {
   db?: Database;
@@ -8,7 +9,8 @@ export interface ServerOptions {
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
 export function buildServer(options: ServerOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({ logger: options.logger ? apiLoggerOptions() : false });
+  registerObservability(app, { db: options.db });
 
   app.get('/health', async () => ({ status: 'ok', service: 'galaxie-sports-api' }));
 

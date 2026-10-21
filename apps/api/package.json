@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@galaxie/db": "workspace:*",
+    "@galaxie/observability": "workspace:*",
     "fastify": "^5.12.7"
   }
 }

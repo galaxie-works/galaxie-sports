@@ -7,6 +7,7 @@ import {
   PlanRules,
 } from '@galaxie/apisports-client';
 import { createDb, type Database } from '@galaxie/db';
+import { logger, logProviderCall } from './logger.js';
 
 export interface IngestorContext {
   db: Database;
@@ -29,6 +30,9 @@ export function contextFromEnv(env: NodeJS.ProcessEnv = process.env): IngestorCo
     store: new PgRawStore(db),
     governor,
     plan: new PlanRules(plan),
+    onCall: logProviderCall(),
+    onPlanChange: (rules) =>
+      logger.warn({ seasons: rules.current.seasons }, 'fornecedor deslocou a janela de temporadas do plano'),
   });
   return { db, client, governor };
 }

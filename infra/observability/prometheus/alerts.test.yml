@@ -1,0 +1,107 @@
+# Testes simulados dos alertas: docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w \
+#   --entrypoint promtool prom/prometheus:v3.15.1 test rules alerts.test.yml
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: cota abaixo de 20% dispara depois de 5 minutos
+    interval: 1m
+    input_series:
+      - series: 'galaxie_quota_remaining_ratio{api="football"}'
+        values: '0.5 0.3 0.19 0.15 0.12 0.10 0.10 0.10 0.10'
+      - series: 'galaxie_quota_remaining_ratio{api="basketball"}'
+        values: '0.9x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: QuotaBelow20Percent
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: QuotaBelow20Percent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              api: football
+            exp_annotations:
+              summary: 'Cota da API football abaixo de 20%'
+              description: 'Restam 10% da cota diária de football. Reveja o plano do dia (governor.plan) ou adie BOOTSTRAP/ADHOC.'
+
+  - name: job falhando 3 vezes seguidas
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_consecutive_failures{job_name="quota-status"}'
+        values: '0 1 2 3 3'
+      - series: 'galaxie_job_consecutive_failures{job_name="bootstrap-catalog"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: JobFailingRepeatedly
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: JobFailingRepeatedly
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job_name: quota-status
+            exp_annotations:
+              summary: 'Job quota-status falhou 3 vezes seguidas'
+              description: 'Veja ops.job_run (coluna error) e os logs com job=quota-status.'
+
+  - name: evento ao vivo sem atualização por mais de 2 intervalos
+    interval: 1m
+    input_series:
+      - series: 'galaxie_live_poll_interval_seconds{instance="api:8080",job="galaxie-api"}'
+        values: '300x20'
+      - series: 'galaxie_live_event_max_staleness_seconds{sport="football",instance="api:8080",job="galaxie-api"}'
+        values: '0+60x20'
+      - series: 'galaxie_live_event_max_staleness_seconds{sport="basketball",instance="api:8080",job="galaxie-api"}'
+        values: '30x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LiveEventStale
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: LiveEventStale
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sport: football
+            exp_annotations:
+              summary: 'Evento ao vivo de football sem atualização há 12m 0s'
+              description: 'Mais de 2 intervalos do live poller sem atualização válida. Verifique a cota LIVE e o worker ao vivo.'
+
+  - name: backup sem sucesso há mais de 26 horas
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"}'
+        values: '0x1700'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: BackupStale
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: BackupStale
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job_name: pg-backup
+            exp_annotations:
+              summary: 'Último backup do Postgres com sucesso há 1d 3h 0m 0s'
+              description: 'O serviço backup deveria gerar um dump por dia. Veja os logs do container backup.'
+
+  - name: coletor do banco falhando
+    interval: 1m
+    input_series:
+      - series: 'galaxie_metrics_collector_up{collector="quota"}'
+        values: '1 0 0 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: MetricsCollectorDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              collector: quota
+            exp_annotations:
+              summary: 'Coletor de métricas quota falhando'
+              description: 'A consulta ao banco para as métricas falha há 5 minutos (banco indisponível?).'

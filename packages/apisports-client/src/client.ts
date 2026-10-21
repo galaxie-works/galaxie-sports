@@ -25,6 +25,24 @@ export interface ApiSportsClientOptions {
   timeoutMs?: number;
   /** Chamado quando o fornecedor desloca a janela de temporadas do plano. */
   onPlanChange?: (plan: PlanRules) => void;
+  /** Observador de cada requisição resolvida (cache ou rede) — usado para logs estruturados. */
+  onCall?: (event: CallEvent) => void;
+}
+
+/** Uma requisição resolvida pelo cliente, para logs (`job_id`, `sport`, `endpoint`...). */
+export interface CallEvent {
+  sport: ApiSport;
+  endpoint: string;
+  priority: CallRequest['priority'];
+  jobId?: string | undefined;
+  requestHash: string;
+  /** `cache` = servido do raw (0 cota); `network` = chamada real ao fornecedor. */
+  source: 'cache' | 'network';
+  /** Desfecho registrado no ledger (só para `network`). */
+  outcome?: Outcome | undefined;
+  statusCode?: number | undefined;
+  quotaRemaining?: number | undefined;
+  durationMs: number;
 }
 
 export interface ProviderStatus {
@@ -66,12 +84,16 @@ export class ApiSportsClient {
   async get<T = unknown>(req: CallRequest): Promise<CallResult<T>> {
     const params = normalizeParams(req.params ?? {});
     const hash = requestHash(PROVIDER, req.sport, req.endpoint, params);
-    const now = new Date(this.clock.now());
+    const startedAt = this.clock.now();
+    const now = new Date(startedAt);
 
     const maxAge = req.maxAgeMs ?? ttlFor(req.endpoint, params, now);
     if (maxAge > 0) {
       const hit = await this.fromCache<T>(hash, maxAge, now);
-      if (hit) return hit;
+      if (hit) {
+        this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
+        return hit;
+      }
     }
 
     this.plan.validate(params, now);
@@ -122,7 +144,10 @@ export class ApiSportsClient {
         const now = this.clock.now();
         const window = maxAge > 0 ? maxAge : now - startedAt + IN_FLIGHT_POLL_MS;
         const hit = await this.fromCache<T>(hash, window, new Date(now));
-        if (hit) return hit;
+        if (hit) {
+          this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
+          return hit;
+        }
         if (now - startedAt > this.timeoutMs) throw err;
       }
     }
@@ -144,6 +169,7 @@ export class ApiSportsClient {
     } catch (err) {
       const outcome: Outcome = err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'http_error';
       await this.options.governor.settle(ticket, outcome);
+      this.emit(req, hash, { source: 'network', outcome, durationMs: this.clock.now() - startedAt });
       throw new ApiSportsError(outcome, String(err), hash);
     }
 
@@ -180,6 +206,13 @@ export class ApiSportsClient {
       fetchedAt,
     });
     await this.options.governor.settle(ticket, outcome, quotaRemaining);
+    this.emit(req, hash, {
+      source: 'network',
+      outcome,
+      statusCode: response.status,
+      quotaRemaining,
+      durationMs: fetchedAt.getTime() - startedAt,
+    });
 
     if (outcome === 'plan_error' && envelope) {
       const message = JSON.stringify(envelope.errors);
@@ -190,6 +223,27 @@ export class ApiSportsClient {
     }
 
     return { envelope, source: 'network', requestHash: hash, fetchedAt, quotaRemaining };
+  }
+
+  /** Notifica o observador (logs); uma falha no observador nunca derruba a chamada. */
+  private emit(
+    req: CallRequest,
+    hash: string,
+    detail: Pick<CallEvent, 'source' | 'durationMs'> & Partial<CallEvent>,
+  ): void {
+    if (!this.options.onCall) return;
+    try {
+      this.options.onCall({
+        sport: req.sport,
+        endpoint: req.endpoint,
+        priority: req.priority,
+        jobId: req.jobId,
+        requestHash: hash,
+        ...detail,
+      });
+    } catch {
+      // observador com defeito não afeta a ingestão
+    }
   }
 
   /** Percorre todas as páginas (cada página é uma requisição na cota). */
