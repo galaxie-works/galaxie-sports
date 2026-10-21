@@ -13,7 +13,28 @@ O app de demonstração (`apps/demo`) mostra o serviço funcionando de ponta a p
 | Tempo real | SSE (`/v1/stream`) com reconciliação no cache do TanStack Query |
 | Gráficos | Recharts (via componentes de chart do shadcn) |
 | i18n | `next-intl` com os 8 locales |
-| Outras bibliotecas | **A definir** — novas bibliotecas de componentes serão incorporadas conforme forem enviadas e esta página será atualizada |
+| Outras bibliotecas | Lista recebida em 21/10/2026 — ver §1.1; avaliação e escolha final na issue [#72](https://github.com/galaxie-works/galaxie-sports/issues/72) |
+
+### 1.1 Bibliotecas de componentes candidatas
+
+Todas são do ecossistema shadcn/ui (Tailwind + React). Base: **shadcn/ui + ReUI**; as demais entram por necessidade concreta de tela, depois da avaliação na [#72](https://github.com/galaxie-works/galaxie-sports/issues/72).
+
+| Biblioteca | Link | Uso previsto na demo |
+|---|---|---|
+| **ReUI** | <https://reui.io/> | Base: data-grid, filters, kanban, gantt (tabelas de classificação, agenda, painel de operação) |
+| Aceternity UI | <https://ui.aceternity.com/components> | Efeitos de destaque em telas de apresentação (hero do "Meu dia esportivo") |
+| Magic UI | <https://magicui.design/> | Animações e micro-interações (placar ao vivo, contadores) |
+| Animate UI | <https://animate-ui.com/> | Variantes animadas de componentes shadcn |
+| iconiq UI | <https://iconiqui.com/> | A avaliar |
+| Vengeance UI | <https://www.vengenceui.com/> | A avaliar |
+| cuicui (Application UI) | <https://cuicui.day/application-ui> | Padrões de aplicação (formulários, listas, navegação) |
+| Shadcnblocks | <https://www.shadcnblocks.com/> | Blocos de página prontos |
+| shadcn/space | <https://shadcnspace.com/> | Blocos e templates |
+| blocks.so | <https://blocks.so/> | Blocos de página prontos |
+| Morphin | <https://morphin.dev/> | A avaliar |
+| Unlumen UI | <https://ui.unlumen.com/components> | A avaliar |
+
+Critérios da avaliação (#72): instalação via registry do `shadcn` CLI; licença (gratuito × Pro pago — nada de componentes Pro sem licença); compatibilidade com a versão de React/Tailwind do projeto; peso das dependências de animação; acessibilidade e navegação por foco (a demo pode ser apresentada em TV); sobreposição com o que o ReUI já oferece — **reutilizar antes de adicionar**.
 
 Regras de UI (herdadas do ReUI): reutilizar componentes do registry em vez de recriar; tokens semânticos de cor; estados via variantes de Badge; espaçamento com `gap-*`; nenhum texto abaixo de `text-xs`; animações discretas (no máximo 1 entrada por tela, sem *stagger* em tabelas).
 

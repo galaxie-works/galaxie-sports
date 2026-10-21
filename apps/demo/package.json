@@ -1,0 +1,7 @@
+{
+  "name": "@galaxie/demo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "App de demonstração (Next.js + shadcn/ui + ReUI) — criado na issue #62",
+  "scripts": {}
+}

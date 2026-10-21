@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: galaxie
+          POSTGRES_PASSWORD: galaxie
+          POSTGRES_DB: galaxie_sports
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U galaxie -d galaxie_sports"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://galaxie:galaxie@localhost:5432/galaxie_sports
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Formatação
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Testes unitários
+        run: pnpm test
+
+      - name: Migrations sem drift (schema TS ⇄ SQL versionado)
+        working-directory: packages/db
+        run: |
+          pnpm exec drizzle-kit generate --name=ci_drift_check
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error::O schema Drizzle mudou sem migration versionada. Rode 'pnpm db:generate' e commite a pasta drizzle/."
+            git status --porcelain drizzle
+            exit 1
+          fi
+
+      - name: Testes de integração (Postgres)
+        run: pnpm test:integration

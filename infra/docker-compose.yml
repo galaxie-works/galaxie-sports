@@ -1,0 +1,70 @@
+# Infra local do Galaxie Sports: Postgres 17, Valkey (Redis) e RustFS (S3 compatível).
+# Uso: pnpm infra:up  ·  pnpm infra:down
+name: galaxie-sports
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-galaxie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-galaxie}
+      POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
+    ports:
+      - '${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: ['valkey-server', '--appendonly', 'yes']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Object storage S3-compatível. A MinIO deixou de publicar imagens públicas; usamos RustFS (API compatível).
+  s3:
+    image: rustfs/rustfs:1.0.2
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-galaxie}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-galaxie-secret}
+      RUSTFS_CONSOLE_ENABLE: 'true'
+    ports:
+      - '${S3_PORT:-9000}:9000'
+      - '${S3_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - s3data:/data
+
+  # Cria o bucket de assets com leitura pública (imagens servidas pela API/CDN) e encerra.
+  s3-init:
+    image: amazon/aws-cli:2.38.2
+    depends_on:
+      - s3
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-galaxie}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-galaxie-secret}
+      AWS_DEFAULT_REGION: us-east-1
+      BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && break; sleep 2; done
+        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$BUCKET"
+        aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket "$$BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$BUCKET/*\"]}]}"
+        echo "bucket $$BUCKET pronto"
+    restart: 'no'
+
+volumes:
+  pgdata:
+  valkeydata:
+  s3data:

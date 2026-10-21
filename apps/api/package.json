@@ -1,0 +1,26 @@
+{
+  "name": "@galaxie/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API p\u00c3\u00bablica Galaxie Sports (espelho compat\u00c3\u00advel + /v1)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "dev": "node --env-file-if-exists=../../.env --watch dist/main.js",
+    "start": "node --env-file-if-exists=../../.env dist/main.js"
+  },
+  "dependencies": {
+    "@galaxie/db": "workspace:*",
+    "fastify": "^5.12.7"
+  }
+}

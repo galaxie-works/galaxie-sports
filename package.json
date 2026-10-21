@@ -1,0 +1,37 @@
+{
+  "name": "galaxie-sports",
+  "private": true,
+  "description": "API de dados esportivos para a América Latina — monorepo",
+  "packageManager": "pnpm@11.5.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "infra:up": "docker compose -f infra/docker-compose.yml --env-file .env up -d --wait postgres valkey s3 && docker compose -f infra/docker-compose.yml --env-file .env run --rm s3-init",
+    "infra:down": "docker compose -f infra/docker-compose.yml --env-file .env down",
+    "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
+    "db:generate": "pnpm --filter @galaxie/db db:generate",
+    "db:migrate": "pnpm --filter @galaxie/db db:migrate",
+    "db:studio": "pnpm --filter @galaxie/db db:studio"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^5.0.5"
+  }
+}
