@@ -16,6 +16,7 @@ describe('scheduleFromEnv', () => {
       SCHEDULER_TIMEOUT_MINUTES: '2',
     });
     expect(jobs.map((j) => j.name)).toEqual([
+      'live-run',
       'normalize-football',
       'events-clock',
       'assets-mirror',
@@ -26,6 +27,18 @@ describe('scheduleFromEnv', () => {
       cron: '*/30 * * * *',
       timeoutMs: 120_000,
     });
+  });
+
+  it('agenda o sync diário logo após a virada da cota (00:05 UTC) e o ao vivo a cada 5 min', () => {
+    const jobs = scheduleFromEnv({});
+    const daily = jobs.find((j) => j.name === 'sync-daily')!;
+    expect(daily.cron).toBe('5 0 * * *');
+    expect(nextRuns(daily, 1, new Date('2026-10-21T23:59:00Z'))[0]!.toISOString()).toBe(
+      '2026-10-22T00:05:00.000Z',
+    );
+    const live = jobs.find((j) => j.name === 'live-run')!;
+    expect(live).toMatchObject({ cron: '*/5 * * * *', script: 'dist/cli/live-run.js' });
+    expect(live.timeoutMs).toBeGreaterThanOrEqual(12 * 3_600_000);
   });
 
   it('recusa expressão cron inválida com mensagem legível', () => {

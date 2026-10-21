@@ -30,6 +30,8 @@
     "bootstrap:details": "node --env-file-if-exists=../../.env dist/cli/bootstrap-details.js",
     "bootstrap:people": "node --env-file-if-exists=../../.env dist/cli/bootstrap-people.js",
     "sync:daily": "node --env-file-if-exists=../../.env dist/cli/sync-daily.js",
+    "live:run": "node --env-file-if-exists=../../.env dist/cli/live-run.js",
+    "standings:recompute": "node --env-file-if-exists=../../.env dist/cli/standings-recompute.js",
     "snapshot:export": "node --env-file-if-exists=../../.env dist/cli/snapshot-export.js",
     "snapshot:import": "node --env-file-if-exists=../../.env dist/cli/snapshot-import.js",
     "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
@@ -41,6 +43,7 @@
     "@galaxie/db": "workspace:*",
     "@galaxie/observability": "workspace:*",
     "@galaxie/providers": "workspace:*",
+    "@galaxie/rules": "workspace:*",
     "croner": "^10.0.1",
     "drizzle-orm": "^0.45.4",
     "yaml": "^2.9.1"

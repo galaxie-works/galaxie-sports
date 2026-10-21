@@ -30,6 +30,15 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 120 * MINUTE,
   },
   {
+    name: 'live-run',
+    description:
+      'Ao vivo (LIVE): Live Scheduler + Live Poller enquanto houver janela; planeja o orçamento do dia (LIVE = 0 sem jogos) e sai ocioso',
+    cron: '*/5 * * * *',
+    script: 'dist/cli/live-run.js',
+    args: [],
+    timeoutMs: 20 * 60 * MINUTE,
+  },
+  {
     name: 'normalize-football',
     description: 'Normalização incremental raw → core do futebol (sem chamadas ao fornecedor)',
     cron: '35 0 * * *',

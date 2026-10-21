@@ -49,6 +49,8 @@ export interface RunOptions {
   trigger: 'schedule' | 'manual' | 'start';
   /** Tempo para o processo encerrar depois do SIGTERM antes do SIGKILL. */
   killGraceMs?: number;
+  /** Encerramento do scheduler: repassa SIGTERM ao filho (ex.: o ao vivo termina o tick e sai). */
+  signal?: AbortSignal | undefined;
 }
 
 export interface RunResult {
@@ -86,6 +88,12 @@ export async function runJob(job: ScheduledJob, options: RunOptions): Promise<Ru
     });
     let timedOut = false;
     let killTimer: NodeJS.Timeout | undefined;
+    const onAbort = () => {
+      log.info({}, 'scheduler encerrando; repassando SIGTERM ao job');
+      child.kill('SIGTERM');
+    };
+    if (options.signal?.aborted) onAbort();
+    else options.signal?.addEventListener('abort', onAbort, { once: true });
     const timer = setTimeout(() => {
       timedOut = true;
       log.warn({ timeout_ms: job.timeoutMs }, 'job excedeu o tempo limite; encerrando');
@@ -95,11 +103,13 @@ export async function runJob(job: ScheduledJob, options: RunOptions): Promise<Ru
     child.once('error', (spawnError) => {
       clearTimeout(timer);
       clearTimeout(killTimer);
+      options.signal?.removeEventListener('abort', onAbort);
       done({ exitCode: null, signal: null, timedOut, spawnError });
     });
     child.once('exit', (exitCode, signal) => {
       clearTimeout(timer);
       clearTimeout(killTimer);
+      options.signal?.removeEventListener('abort', onAbort);
       done({ exitCode, signal, timedOut });
     });
   });

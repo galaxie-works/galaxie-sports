@@ -154,7 +154,7 @@ Regras de economia aplicadas pelo `packages/apisports-client`:
 1. **Nunca chamar duas vezes** a mesma `request_hash` dentro do TTL do endpoint (tabela abaixo).
 2. **Pré-validar** temporada/data/parâmetros contra as restrições do plano vigente.
 3. **Ler `coverage`** antes de pedir eventos, escalações, estatísticas, jogadores, injuries ou odds.
-4. **Tabelas da temporada atual são calculadas localmente** a partir dos resultados (o free não acessa `standings` da temporada corrente); com o bootstrap Pro, partimos da tabela completa e só aplicamos os novos resultados.
+4. **Tabelas da temporada atual são calculadas localmente** a partir dos resultados (o free não acessa `standings` da temporada corrente), com o motor determinístico de `@galaxie/rules` (`config/rules/<slug>.yaml` ou o genérico) e `source = 'computed'`: ao fim do `sync:daily` (temporadas com resultado novo) e a cada jogo encerrado no ao vivo. Tabela do provedor mais nova que o último resultado (bootstrap Pro) prevalece; mais velha, é substituída com os mesmos grupos. Reprocessar à mão: `pnpm --filter @galaxie/ingestor standings:recompute`.
 5. **Fila de detalhe com prioridade**: em fins de semana com 150–250 jogos, tier 2 pode atrasar 1–3 dias — o card mostra o placar (que veio no `fixtures?date=`) e o detalhe chega depois.
 
 | Endpoint | TTL no cache (sem mudança esperada) |
@@ -167,18 +167,31 @@ Regras de economia aplicadas pelo `packages/apisports-client`:
 
 ## 5. Ao vivo
 
-| Cenário | Chamadas | Intervalo resultante |
-|---|---|---|
-| Free: 45 chamadas numa janela de 10 h (sábado) | 45 | ~13 min |
-| Free: 45 chamadas num pico de 3 h (quarta 19h–22h BRT) | 45 | ~4 min |
-| Free: 1 jogo prioritário (110 min) com 45 chamadas | 45 | ~2,5 min |
-| Pro (7.500/dia): janela de 8 h a cada 15 s | ~1.920 | **15 s** (igual à fonte) |
+Orçamento LIVE do free: 100 − 15 (reserva) − 40 (saldo protegido do DAILY) = **45 chamadas por dia UTC**, das quais até
+1/4 confirma o placar final de cada jogo (1 `fixtures?id=` quando ele sai do `live`). Números da simulação com relógio e
+fornecedor falsos e a cota contada pelo Quota Governor
+([`simulation.test.ts`](../services/ingestor/src/live/simulation.test.ts),
+[`schedule.test.ts`](../services/ingestor/src/live/schedule.test.ts)):
 
+| Cenário | Janela (min) | Chamadas LIVE | Intervalo médio | Intervalos observados |
+|---|---|---|---|---|
+| Free · quarta, dia UTC 21/10: Champions 16:45/19:00 + Brasileirão 19h BRT (até 21h BRT) | 395 | 45 (38 ticks + 7 confirmações) | **~10 min** | mediana 10,7 min; reta final ~6 min; mín. 4,5 min |
+| Free · mesma noite, dia UTC 22/10: Brasileirão, Argentina, Libertadores (semi), Liga MX (21h–01h BRT) | 250 | 45 (39 + 6) | **~6,4 min** | mediana 6,4 min; reta final ~5 min; mín. 3,8 min |
+| Free · 1 jogo prioritário no dia | 135 | 45 (44 + 1) | **~3 min** | minuto normal 3,6 min; reta final 1,8 min; intervalo de jogo pulado |
+| Free · sábado de 10 h (7 jogos tier 1, 15h–23h30 UTC) | 545 | 45 (38 + 7) | **~14 min** | jogos de prioridade média e clássicos de liga menor ficam de fora (teto de 15 min) |
+| Pro (7.500/dia) · a mesma quarta | 395 + 250 | 1.435 + 1.005 (só o útil; o resto vai ao BOOTSTRAP) | **15 s** (igual à fonte) | 99,6% dos intervalos em 15 s; intervalo de jogo pulado (10 min) |
+
+- Os 10 jogos da quarta terminam no core com o placar certo; tier 1 com **≥ 95% dos minutos** cobertos (leitura da liga a
+  até 2 intervalos médios); nenhum dia passa do orçamento LIVE nem toca o saldo do DAILY (o sync de 00:05 UTC gasta o dele).
+- A janela de Brasil/Argentina atravessa a virada do dia de cota (00:00 UTC = 21h BRT): cada dia UTC tem os seus 45.
 - Uma chamada `fixtures?live=<ids das ligas com jogo na janela>` traz **todos** os jogos ao vivo dessas ligas com placar, minuto, status e **eventos**.
-- Escalações e estatísticas ao vivo exigem `fixtures?id=` por jogo — no free, só para o jogo mais importante da janela.
+- Escalações e estatísticas ao vivo exigem `fixtures?id=` por jogo — no free, só para o jogo mais importante da janela e
+  só se o orçamento permitir (`live:run --destaque auto`: dobra o custo do tick, entra se o intervalo ficar ≤ 3 min).
 - O **Live Scheduler** ([07](07-ia-tempo-real-e-enriquecimento.md#21-live-scheduler-o-agendamento-inteligente)) calcula as janelas e o intervalo; o LLM só reordena prioridades quando há mais jogos relevantes do que orçamento.
 
-**Conclusão honesta**: com o free dá para demonstrar um "quase ao vivo" (minutos). Para o produto vendido com SLA de placar ≤ 30 s, é necessário plano pago (ou o provedor licenciado do cliente).
+**Conclusão honesta**: com o free dá para demonstrar um "quase ao vivo" — **3 a 15 minutos** entre leituras, conforme
+a quantidade de jogos do dia (o gol aparece no app em até um intervalo + ~5 s do change feed). Para o produto vendido
+com SLA de placar ≤ 30 s, é necessário plano pago (15 s) ou o provedor licenciado do cliente.
 
 ## 6. Demais esportes
 
@@ -377,7 +390,7 @@ Implementação: [`services/ingestor/src/jobs`](../services/ingestor/src/jobs). 
 - são **retomáveis**: cada item concluído marca `ops.sync_cursor` — `(football, /fixtures, league=71&season=2024)`, `(football, /fixtures, id=123)` para o detalhe de uma partida (compartilhado entre o bootstrap e o sync diário), `(football, /trophies, player=9)` por pessoa num lote de 20;
 - têm `--plan`: mostram, por passo, o que já foi feito, o que sairia do raw (cache) e o que gastaria cota — **sem chamar**; fases que dependem de chamadas anteriores (ex.: pares de h2h, que dependem das listas de times) são montadas a partir do raw atual e marcadas como estimativa por baixo;
 - **param graciosamente** quando o Governor nega (`QuotaExceededError`), quando o fornecedor diz que a cota do dia acabou ou ao atingir `--max-chamadas`: o relatório mostra o que ficou pendente e a próxima execução continua de onde parou. Erros de um item (ex.: erro de plano) contam tentativa; após 3, o item é deixado de lado até `--forcar`;
-- só buscam e gravam o raw. A normalização raw → core (#22) se pluga pelo gancho `afterFetch(envelope, request)`, chamado após cada resposta (rede ou cache); o padrão não faz nada.
+- gravam o raw e, no `sync:daily` e no `bootstrap:details`, levam cada resposta direto ao core pelo gancho `afterFetch(envelope, request)` (`normalizeAfterFetch`: mesma normalização idempotente do `normalize:football`, com o `fetched_at` original como observação — resposta antiga do cache nunca regride um estado mais novo; `--sem-normalizar` desliga). O detalhe (`fixtures?id=`/`ids=`) vira `event_incident` e `football_fixture.detail` (escalações, estatísticas, jogadores) na hora.
 
 | Comando | Issue | O que faz | Ordem / prioridade |
 |---|---|---|---|
@@ -385,7 +398,9 @@ Implementação: [`services/ingestor/src/jobs`](../services/ingestor/src/jobs). 
 | `bootstrap:seasons --h2h-temporada-atual` | #13 | Free: reconstrói a temporada atual das ligas tier 1 por `fixtures/headtohead` (pares de times da temporada acessível mais recente; jogos deduplicados por `fixture.id` em `reconstructSeasonFromH2h`) | 190 chamadas por liga de 20 clubes; times promovidos chegam pelo sync diário |
 | `bootstrap:details` | #14 | Detalhe das encerradas conhecidas pelo raw (listas, h2h, agendas): pagos `fixtures?ids=` ×20; free `fixtures?id=` e, por padrão (`--escopo auto`), só clássicos e jogos decisivos (finais, semis, quartas) | tier 1 → clássicos → tier 2; temporada atual e jogos recentes primeiro; pula temporadas sem eventos/escalações/estatísticas no `coverage` |
 | `bootstrap:people` | #15 | `players/squads`, `coachs`, `transfers` por time (tier ≤ 2); `trophies`/`sidelined` em lotes de 20 (elencos e técnicos atuais tier 1); `fixtures/headtohead` de todos os clássicos da base semântica (IDs da base ou resolvidos por nome+país nas listas do raw); `--estatisticas-jogadores` para `players?league&season` paginado (tier 1) | squads tier 1 primeiro |
-| `sync:daily` | #19 | `fixtures?date=` D-1/D0/D+1, `injuries?date=` D0, `/leagues`, `/status` (sem cota); detalhe dos encerrados de D-1…D-3 sem detalhe; rodízio (squads 7 dias, coachs/transfers/trophies/sidelined 30 dias) dos times tier 1; `--outros-esportes` traz `games/races/fights?date=` das outras 11 APIs | cada item vale 1×/dia UTC: reexecutar no mesmo dia não gasta |
+| `sync:daily` | #19 | `fixtures?date=` D-1/D0/D+1, `injuries?date=` D0, `/leagues`, `/status` (sem cota); detalhe dos encerrados de D-1…D-3 sem detalhe; rodízio (squads 7 dias, coachs/transfers/trophies/sidelined 30 dias) dos times tier 1; `--outros-esportes` traz `games/races/fights?date=` das outras 11 APIs; tudo direto ao core e, no fim, tabelas recalculadas localmente. Agendado às 00:05 UTC (job `sync-daily`) | cada item vale 1×/dia UTC: reexecutar no mesmo dia não gasta |
+| `live:run` | #54 #55 | Live Scheduler + Live Poller (§5, [07 §2.1](07-ia-tempo-real-e-enriquecimento.md#21-live-scheduler-o-agendamento-inteligente)): planeja o LIVE do dia no Governor e faz 1 `fixtures?live=` por tick; `--plan` mostra o plano sem chamar. Job `live-run` a cada 5 min (sai ocioso) | LIVE |
+| `standings:recompute` | #19 | Tabelas calculadas a partir dos resultados do core (sem chamadas) | — |
 | `snapshot:export` / `snapshot:import` | #20 | `raw.api_response` + manifesto de `core.asset` ⇄ `data/snapshots/*.ndjson.gz` (fora do Git), idempotente | zero chamadas |
 
 ¹ só quando o `coverage` da temporada não é `false`.

@@ -45,6 +45,8 @@ const db: Database | undefined = process.env.DATABASE_URL
 if (!db) log.warn('DATABASE_URL não definida: as execuções não serão registradas em ops.job_run');
 const recorder = db ? new PgRunRecorder(db) : undefined;
 const running = new Set<Promise<RunResult>>();
+/** Abortado no encerramento: os jobs em andamento recebem SIGTERM (o ao vivo fecha o tick e sai). */
+const shutdownController = new AbortController();
 
 function execute(name: string, trigger: 'schedule' | 'manual' | 'start'): Promise<RunResult> {
   const job = jobs.find((j) => j.name === name);
@@ -52,7 +54,13 @@ function execute(name: string, trigger: 'schedule' | 'manual' | 'start'): Promis
     throw new Error(
       `Job desconhecido ou desligado: "${name}". Disponíveis: ${jobs.map((j) => j.name).join(', ')}`,
     );
-  const run = runJob(job, { cwd: packageRoot, recorder, logger: log, trigger });
+  const run = runJob(job, {
+    cwd: packageRoot,
+    recorder,
+    logger: log,
+    trigger,
+    signal: shutdownController.signal,
+  });
   running.add(run);
   void run.finally(() => running.delete(run));
   return run;
@@ -113,6 +121,7 @@ async function shutdown(signal: string) {
   log.info({ signal, running: running.size }, 'encerrando scheduler; aguardando jobs em andamento');
   for (const c of crons) c.stop();
   clearInterval(heartbeat);
+  shutdownController.abort();
   await Promise.race([Promise.allSettled([...running]), new Promise((r) => setTimeout(r, 25_000))]);
   if (db) await closeDb(db);
   process.exit(0);

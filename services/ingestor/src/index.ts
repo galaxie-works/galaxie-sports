@@ -35,3 +35,15 @@ export { planSportCatalog, runSportCatalogJob } from './bootstrap/sport-catalog-
 export { loadSportCatalog, type SportCatalogCompetition } from './catalog/catalog-config.js';
 export { upsertCatalog } from './catalog/persist.js';
 export { OTHER_SPORTS, SPORT_PROFILES, type OtherSport } from './catalog/sport-catalog.js';
+
+// ao vivo (docs/07 §2.1): Live Scheduler, Live Poller e processo de longa duração
+export * from './live/types.js';
+export * from './live/schedule.js';
+export * from './live/diff.js';
+export * from './live/store.js';
+export * from './live/memory-store.js';
+export * from './live/poller.js';
+export * from './live/runner.js';
+export * from './live/state.js';
+export * from './standings/recompute.js';
+export * from './normalize/after-fetch.js';
