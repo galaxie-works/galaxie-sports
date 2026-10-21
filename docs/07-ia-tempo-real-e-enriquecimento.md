@@ -106,6 +106,50 @@ Cadência: busca completa em T-7d e T-24h; em T-3h e T-30min apenas **revalida a
 
 Exemplo do resultado esperado (Brasil, semifinal de Libertadores): TV aberta nacional, canal gratuito no YouTube e streaming por assinatura — exatamente o tipo de resposta que hoje o torcedor busca fora da plataforma.
 
+#### 2.2.1 Implementação
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| Dicionário de emissoras | `config/broadcasters/<iso2>.yaml` (BR, AR, MX, CO, CL, PE, UY, EC) + `_common.yaml` | Nome canônico, aliases, canais, `medium`, `access_model`, domínios oficiais, grupo de mídia, variantes regionais (afiliadas → UF) e as fontes do país (organizadores, imprensa, agregadores) |
+| Tabela de direitos | `config/broadcast-rights/<iso2>.yaml` | Competição × ciclo (`valid_from`/`valid_to`) → `holders` (+0,1), `uncertain_holders` (neutros), `per_round_selection` (ativa a penalidade de fonte velha) e URLs das fontes. Semeada de [research/onde-assistir.md §2](research/onde-assistir.md) |
+| Política editorial | `config/broadcasters/_policy.yaml` + `WTW_BLOCKLIST_FILE`/`WTW_BLOCKLIST` | Blocklist aplicada no validador e nas correções. Operadoras omitidas por política não são nomeadas no repositório: a lista efetiva vem de fora do Git |
+| Agente | `services/ai-agents/src/wtw/agent.ts` | Nível `research`, busca na web restrita à allowlist do país (organizadores + emissoras + imprensa; ≤ 100 domínios; agregadores fora), consultas sugeridas em pt (BR) ou es, tabela de direitos e opções anteriores como contexto; saída em JSON Schema estrito (`schema.ts`) com evidência (URL + trecho) e `stance` (confirma/nega) |
+| Verificação HTTP | `services/ai-agents/src/wtw/evidence.ts`, `fetcher.ts` | Toda URL de evidência é buscada de novo (http(s) público, sem redirecionar para rede interna, User-Agent genérico `galaxie-sports/0.1`, timeout e limite de tamanho): página fora do ar → evidência descartada; página que não cita a emissora → rebaixada ao nível de agregador. Agregadores nunca são buscados |
+| Validador | `packages/where-to-watch/src/validator.ts` | Regras de §2.2 (função pura). Detalhes abaixo |
+| Versionamento | `packages/where-to-watch/src/store.ts` | Cada mudança material (status, canal, acesso, link, confiança, flags) cria uma versão nova e aposenta a anterior (`superseded_by`/`superseded_at`); sem mudança, só renova `last_verified_at`. Chaves que sumiram viram versão `retracted`. Mudança visível → `where_to_watch.changed` no change feed |
+| Agendamento | `services/ai-agents/src/wtw/scheduler.ts`, `runner.ts` | Janelas abaixo; registros idempotentes em `enrich.wtw_run` (`run_key = evento:país:janela`) |
+| Correção editorial | `packages/where-to-watch/src/editorial.ts` + rotas `/internal/where-to-watch/*` ([05 §4.2](05-api-publica.md#42-rotas-internas-correção-editorial-auditoria-e-métricas)) | Inclusão/correção/remoção com trilha (`enrich.broadcast_correction`) e propagação pelo change feed; versões editoriais travam a chave contra o agente |
+| Auditoria e métricas | `packages/where-to-watch/src/audit.ts`, `metrics.ts`; CLI `wtw:audit` | Ver §4 |
+
+**Regras do validador (código):**
+
+1. Opção sem evidência **acessível** (fetch 2xx) é descartada; nome ou URL na blocklist → descartada sem registrar o nome.
+2. Normalização pelo dicionário (sem acento/caixa, `+` = "plus"; aliases, canais e afiliadas). O meio e o modelo de acesso vêm do dicionário, não do LLM. **Nome desconhecido → `pending` com a flag `unknown_broadcaster`** (fila de revisão; nunca publicado).
+3. Dedupe por (região, emissora, meio), juntando evidências por URL.
+4. Tipo da fonte por domínio, relativo à opção: site da própria emissora (ou do mesmo grupo de mídia) = primária; organizador = primária; site de **outra** emissora = imprensa; imprensa do país = imprensa; agregador ou domínio desconhecido = 0,4.
+5. Confiança = melhor fonte + 0,1 (detentor na tabela) − 0,2 (emissora fora da tabela, flag `rights_mismatch`) + 0,1 (≥ 2 domínios registráveis distintos) − 0,3 (competição com escolha por rodada e todas as fontes datadas com mais de 72 h, flag `stale_source`); limitada a [0, 1].
+6. ≥ 0,7 → `confirmed`; 0,5–0,7 → `pending`; < 0,5 → descartada. Fonte primária que nega + primária que confirma, ou canais divergentes entre primárias → `omitted` (`conflict = true`). Negação primária sem confirmação primária → descartada.
+
+**Janelas e cadência** (`wtw:run`, cron sugerido a cada 5 min):
+
+| Janela | Tiers | Modo |
+|---|---|---|
+| T-7d | 1 | Busca completa |
+| T-24h | 1 e 2 | Busca completa |
+| T-3h | 1 e 2 | Revalidação: refaz o fetch das URLs salvas e compara com o hash da última verificação; hash igual, ou emissora + trecho ainda na página → só renova `last_verified_at` (**zero tokens**). Fonte caiu/mudou ou não há opção confirmada → busca completa |
+| T-30min | 1 e 2 | Igual a T-3h |
+| manual | — | `POST /internal/.../rerun` ou `wtw:run --evento <id> --pais BR --forcar` |
+
+Vale só a janela mais próxima já aberta (janelas perdidas não são recuperadas). Mercado entra quando há linha na tabela de direitos, a competição é do próprio país ou é internacional. Mercados ativos: `WTW_MARKETS` ou a união dos `markets` dos tenants com o módulo `where_to_watch`. Numa busca completa, as opções já salvas voltam como candidatas (com as evidências antigas rebuscadas) — uma busca que "não achou" não apaga opção boa; ela só cai se a própria fonte não se sustentar.
+
+```bash
+pnpm --filter @galaxie/ai-agents wtw:run --plan                     # o que está devido (sem LLM)
+pnpm --filter @galaxie/ai-agents wtw:run [--evento <id>] [--pais BR] [--limite 20]
+pnpm --filter @galaxie/ai-agents wtw:run --evento <id> --pais BR --forcar
+```
+
+**Sinal de provedor (Sportmonks TV Stations):** ainda não plugado — entra como mais uma evidência com confiança de agregador (0,4) quando o provedor de produção existir.
+
 ### 2.3 Agente Cenário (pré-jogo) e Resumo (pós-jogo)
 
 O cenário é **calculado** e só **redigido** pela IA. O motor de regras é o pacote `@galaxie/rules` — catálogo de códigos e regulamentos em [docs/rules](rules/README.md):
@@ -183,8 +227,22 @@ pnpm --filter @galaxie/ai-agents curator:run --open-pr       # agendamento suger
 | Fonte não confiável | Lista de domínios priorizados por país; confiança mínima 0,8 |
 | Conteúdo ofensivo | Prompt com regras de linguagem segura + filtro de termos proibidos por locale |
 | Direitos autorais | Evidência limitada a trechos curtos (≤ 200 caracteres); nunca reproduzir matérias |
-| Custo descontrolado | Orçamento diário de tokens por agente; cache por `(evento, país)`; modelos menores onde possível |
-| Prompt injection via páginas web | Conteúdo web tratado como dado; o agente não executa instruções encontradas em páginas |
+| Custo descontrolado | Orçamento diário de tokens (`AI_DAILY_TOKEN_BUDGET`, global + limites opcionais por agente) com ledger em `ops.llm_usage`; cache por `(evento, país, janela)` (`enrich.wtw_run`); revalidação T-3h/T-30min sem tokens; modelos menores onde possível |
+| Prompt injection via páginas web | Conteúdo web tratado como dado (regras no prompt de sistema, `wrapUntrusted` para texto externo); saída presa a JSON Schema; toda URL citada é rebuscada e conferida pelo validador; o LLM não publica nada sozinho |
+
+### 3.1 Camada de LLM (`services/ai-agents/src/llm`)
+
+Contrato único `LlmClient.generateJson` (`types.ts`); provedor por `AI_PROVIDER`:
+
+| Provedor | Implementação |
+|---|---|
+| `openai` (padrão) | SDK oficial `openai`, **Responses API** com `text.format` `json_schema` estrito e a ferramenta `web_search` (`filters.allowed_domains` ≤ 100, `user_location` com o país do `purpose`); citações `url_citation` + fontes consultadas |
+| `anthropic` | SDK `@anthropic-ai/sdk`, Messages API: saída pela ferramenta `submit_<schema>` (`input_schema` = schema pedido; forçada quando não há busca), `web_search_20250305` com `allowed_domains`; continua `pause_turn` e pede a entrega se o modelo terminar sem a ferramenta |
+
+- Toda saída é validada com ajv contra o schema; fora do schema, 429, 5xx, timeout e falha de conexão são retentados com backoff exponencial com jitter (`AI_MAX_RETRIES`, padrão 3). Recusa e resposta incompleta não.
+- `pricing.ts`: tabela de preços (US$/MTok, conferida em 2026-10-21) + US$ 10/1.000 buscas → `usage.costUsd`.
+- `budget.ts`: `TokenBudget` + `BudgetedLlmClient` (reserva antes, registra depois, inclusive falhas). Outros agentes: `createLlmClientFromEnv(env, { db })` (cliente do provedor já com orçamento) ou `withTokenBudget(qualquerCliente, { db })`; `purpose` no formato `<agente>:...` (o prefixo identifica o agente; terminar em `:<ISO2>` localiza a busca).
+- Testes usam `FakeLlmClient` (fila ou função; valida o schema) e SDKs falsos — nenhuma chamada real.
 
 **Módulo reutilizável** `@galaxie/ai-agents/guardrails` (`services/ai-agents/src/guardrails`, issue #60):
 
@@ -210,6 +268,14 @@ O orçamento diário de tokens por agente fica no módulo de LLM (`src/llm`); os
 | Cobertura ao vivo | % de minutos de jogos tier 1 com atualização ≤ intervalo planejado | ≥ 95% |
 | Custo por evento enriquecido | Tokens × preço / eventos | Acompanhar por tier |
 
+**Onde assistir — como é medido hoje** (`packages/where-to-watch/src/audit.ts` e `metrics.ts`):
+
+- **Amostra diária:** `wtw:audit --amostrar` sorteia 20 opções `confirmed` vigentes ainda não auditadas (sorteio determinístico por dia → idempotente) + **todas** as publicadas com confiança entre 0,70 e 0,75. Fila em `enrich.broadcast_audit`; veredito por `wtw:audit --marcar <id> --veredito correto|incorreto|incerto --revisor <handle>` ou `POST /internal/where-to-watch/audits/{id}`.
+- **Precisão:** corretas / (corretas + incorretas) nas auditorias dos últimos 30 dias (meta 98%).
+- **Cobertura até T-3h:** pares (jogo tier 1 já iniciado × mercado ativo) com uma versão `confirmed` vigente no instante T-3h (meta 95%). **Verificação em T-3h:** pares com execução concluída entre T-4h e o início (meta 100%).
+- **Tempo de correção:** `created_at − reported_at` das correções editoriais (média, p50, máximo). A propagação (correção → cache purgado) é medida no teste de integração da API (SLA ≤ 5 min).
+- Painel: `wtw:audit --metricas` (tabela com metas) e `GET /internal/where-to-watch/metrics?format=prometheus` (alvo de scrape enquanto o plugin `/metrics` de observabilidade não existir): `galaxie_wtw_coverage_t3h_ratio`, `galaxie_wtw_verification_t3h_ratio`, `galaxie_wtw_precision_ratio`, `galaxie_wtw_correction_seconds`, `galaxie_wtw_options{status}`, `galaxie_wtw_runs_24h{status}`, `galaxie_llm_tokens_today{agent}`, `galaxie_llm_cost_usd_today{agent}`, `galaxie_wtw_target{metric}`.
+
 Painel de custo e qualidade: `pnpm --filter @galaxie/ai-agents eval:report [--dias 7] [--json]` (`computeAiMetrics`), calculado do que os agentes gravaram:
 
 - **Por agente** (cenário, resumo): textos, eventos, aprovação do LLM na 1ª e na 2ª tentativa, taxa de fallback e motivos, divergências barradas por tipo (`unknown_name`, `wrong_result`, `forbidden_insult`…), fidelidade pelo validador (meta 100%) e pela amostra humana (`review_status` `reviewed` × `rejected` em `enrich.event_context`).
@@ -219,8 +285,12 @@ Painel de custo e qualidade: `pnpm --filter @galaxie/ai-agents eval:report [--di
 
 ## 5. Modelos sugeridos
 
-| Tarefa | Modelo | Motivo |
-|---|---|---|
-| Onde assistir (busca + raciocínio sobre fontes) | `claude-sonnet-5-5` | Bom equilíbrio entre qualidade de pesquisa e custo |
-| Priorização ao vivo, classificação, microcopy | `claude-haiku-5-5` | Baixa latência e custo |
-| Curadoria semântica e revisão editorial assistida | `claude-opus-5-5` | Maior qualidade em pesquisa e checagem |
+Os agentes pedem um **nível** (`light`, `standard`, `research`); o modelo concreto vem de `AI_MODEL_LIGHT/STANDARD/RESEARCH` ou do padrão do provedor (conferido nas páginas oficiais em 2026-10-21):
+
+| Nível | Uso | OpenAI (padrão) | Anthropic |
+|---|---|---|---|
+| `light` | Priorização ao vivo, classificação, microcopy | `gpt-6-luna` (US$ 0,10/0,50 por MTok) | `claude-haiku-5-5` (US$ 0,10/0,50) |
+| `standard` | Redação de cenário/resumo a partir de fatos | `gpt-6.1-sol` (US$ 2/10) | `claude-sonnet-5-5` (US$ 2/10) |
+| `research` | Onde assistir, curadoria (busca na web) | `gpt-6.1-sol` (US$ 2/10) | `claude-sonnet-5-5` (US$ 2/10) |
+
+Motivo: `gpt-6.1-sol` e `claude-sonnet-5-5` entregam qualidade perto do topo de linha com busca na web e saída estruturada a ~1/5 do preço de `gpt-6-astra` (US$ 10/50) / `claude-opus-5-5` (US$ 4/20); para "achar e citar a grade" o validador determinístico compensa a diferença. Curadoria semântica e revisão editorial assistida podem subir para `gpt-6-astra`/`claude-opus-5-5` via `model` na requisição.

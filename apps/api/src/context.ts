@@ -1,5 +1,7 @@
+import type { AdminGuard } from './admin/guard.js';
 import type { MediaDenylist } from '@galaxie/apisports-client';
 import type { ApiModule, Database } from '@galaxie/db';
+import type { WtwConfig } from '@galaxie/where-to-watch';
 import type { TenantContext } from './auth/authenticator.js';
 import type { ResponseCache } from './cache/store.js';
 import type { RulesRegistry } from './events/rules-registry.js';
@@ -27,6 +29,10 @@ export interface AppContext {
   cache: ResponseCache;
   /** ASSETS_PUBLIC_BASE_URL — base pública do nosso storage de assets. */
   assetsBaseUrl: string | undefined;
+  /** Guard das rotas internas (/internal/...): ADMIN_KEY_HASHES + ADMIN_IP_ALLOWLIST; ausente → 503. */
+  adminGuard?: AdminGuard | undefined;
+  /** Dicionários/política do onde assistir (carregados sob demanda de config/). */
+  wtwConfig?: () => WtwConfig;
   /** Regulamentos (config/rules) para stakes e contexto competitivo. */
   rules: RulesRegistry;
   /** Lista de bloqueio de mídia (config/assets/denylist.yaml) aplicada na reescrita do espelho. */

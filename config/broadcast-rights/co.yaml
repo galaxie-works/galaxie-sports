@@ -1,0 +1,69 @@
+# =============================================================================
+# Tabela de direitos — Colômbia (CO). Formato e regras: config/broadcast-rights/br.yaml.
+# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21).
+# Canais abertos da Libertadores no país: [incerto] — sem linha própria.
+# Operadoras de TV paga omitidas por política editorial não aparecem aqui.
+# =============================================================================
+schema_version: 1
+country: CO
+updated_at: 2026-10-21
+rights:
+  - competition: conmebol-libertadores
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    sources:
+      - https://www.sportcal.com/media/paramount-espn-onefootball-take-over-regional-rights-to-libertadores-for-2023-26/
+  - competition: conmebol-sudamericana
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    uncertain_holders: [paramount_plus]
+    sources:
+      - https://www.expreso.com.pe/deportes/partidos-de-hoy-martes-28-de-julio-de-2026-horarios-canales-de-tv-y-plataformas-para-ver-en-vivo-futbol-copa-sudamericana-programacion-pronostico-champions-league-noticia/1304488/
+  - competition: premier-league
+    season: 2026
+    valid_from: 2026-08-01
+    valid_to: 2027-06-30
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    sources:
+      - https://es.digitaltrends.com/deportes/derechos-transmision-ligas-europeas-2026-27-america-latina/
+  - competition: laliga
+    season: 2026
+    valid_from: 2026-08-01
+    valid_to: 2032-06-30
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    sources:
+      - https://es.digitaltrends.com/deportes/derechos-transmision-ligas-europeas-2026-27-america-latina/
+  - competition: uefa-champions-league
+    season: 2026
+    valid_from: 2026-07-01
+    valid_to: 2027-06-30
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    sources:
+      - https://tavilatam.com/en/latin-america-champions-league-broadcast-rights-awarded-to-disney-and-paramount-in-spanish-speaking-latin-america-and-to-warner-bros-discovery-in-brazil/
+  - competition: uefa-champions-league
+    season: 2027
+    valid_from: 2027-07-01
+    valid_to: 2031-06-30
+    per_round_selection: true
+    holders: [espn, disney_plus, paramount_plus]
+    sources:
+      - https://tavilatam.com/en/latin-america-champions-league-broadcast-rights-awarded-to-disney-and-paramount-in-spanish-speaking-latin-america-and-to-warner-bros-discovery-in-brazil/
+  - competition: fifa-world-cup
+    season: 2026
+    valid_from: 2026-06-11
+    valid_to: 2026-07-19
+    per_round_selection: false
+    holders: [caracol, rcn, espn, disney_plus, paramount_plus]
+    uncertain_holders: [win_sports]
+    sources:
+      - https://www.publimetro.co/deportes/2026/05/06/mas-competencia-para-rcn-y-caracol-ademas-de-espn-otro-canal-transmitiria-los-104-partidos-del-mundial/
+      - https://canaltrece.com.co/noticias/donde-ver-los-partidos-de-colombia-en-el-mundial-2026/

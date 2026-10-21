@@ -4,6 +4,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgSchema,
   primaryKey,
   text,
@@ -93,6 +94,34 @@ export const jobRun = ops.table(
     stats: jsonb('stats'),
   },
   (t) => [index('job_run_job_started_idx').on(t.job, t.startedAt)],
+);
+
+/**
+ * Ledger de uso de LLM (uma linha por chamada) — fonte da verdade do orçamento diário de tokens
+ * (AI_DAILY_TOKEN_BUDGET) compartilhado por todos os agentes (services/ai-agents/src/llm/budget.ts).
+ */
+export const llmUsage = ops.table(
+  'llm_usage',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    /** Dia do orçamento (UTC). */
+    dayUtc: date('day_utc').notNull(),
+    /** Agente (prefixo de `purpose`, ex.: wtw, live, context). */
+    agent: text('agent').notNull(),
+    purpose: text('purpose').notNull(),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    tier: text('tier').notNull(),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    webSearches: integer('web_searches').notNull().default(0),
+    costUsd: numeric('cost_usd', { precision: 12, scale: 6 }),
+    /** ok | error */
+    outcome: text('outcome').notNull(),
+    error: text('error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('llm_usage_day_agent_idx').on(t.dayUtc, t.agent)],
 );
 
 /** Mudanças publicadas — alimenta SSE, webhooks e purge de CDN. */

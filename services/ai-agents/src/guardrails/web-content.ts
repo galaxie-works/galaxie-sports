@@ -35,7 +35,7 @@ function neutralize(text: string): string {
 }
 
 /** Embrulha conteúdo não confiável para entrar no prompt como dado. */
-export function wrapUntrusted(item: UntrustedContent): string {
+export function wrapUntrustedContent(item: UntrustedContent): string {
   const max = item.maxChars ?? 4000;
   const body = neutralize(item.content).slice(0, max);
   const source = neutralize(item.source).replace(/"/g, "'");

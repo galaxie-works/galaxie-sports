@@ -3,7 +3,7 @@
  * - validador factual (`checkFacts`, `FactSheetBuilder`);
  * - filtro de termos proibidos por locale (`findForbiddenTerms`) e rivalidade (`rivalryAllowed`);
  * - limites de tamanho por superfície (`checkLength`, `MAX_LENGTH`);
- * - conteúdo web como dado (`wrapUntrusted`, `detectPromptInjection`, `sanitizeExcerpt`);
+ * - conteúdo web como dado (`wrapUntrustedContent`, `detectPromptInjection`, `sanitizeExcerpt`);
  * - porta única `checkGeneratedText` e regras de prompt (`guardrailSystemRules`).
  */
 export * from './text.js';

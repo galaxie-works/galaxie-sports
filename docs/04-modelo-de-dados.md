@@ -262,6 +262,15 @@ create table enrich.broadcast_option (
   superseded_by    uuid
 );
 
+-- Implementado (migration 0006): broadcast_option ganhou broadcaster_id (id do dicionário),
+-- source_kind, conflict, flags[], run_id, created_at (criação da versão) e superseded_at.
+-- Versão vigente = superseded_by is null (remoção = versão 'retracted'). Tabelas novas:
+--   enrich.wtw_run              execuções do agente por (evento, país, janela), run_key único
+--   enrich.broadcast_correction trilha de correções editoriais (add/correct/remove/rerun)
+--   enrich.broadcast_audit      fila de auditoria amostral (veredito humano)
+--   ops.llm_usage               ledger de uso de LLM (orçamento diário de tokens de todos os agentes)
+-- Detalhes: docs/07 §2.2.1 e §3.1.
+
 create table enrich.event_context (
   event_id     uuid not null references core.event(id),
   locale       text not null,

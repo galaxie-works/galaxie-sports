@@ -1,0 +1,46 @@
+# =============================================================================
+# Dicionário de emissoras e plataformas — Equador (EC)
+# Formato e regras: ver config/broadcasters/br.yaml.
+# Fonte do panorama: docs/research/onde-assistir.md §2.2–2.3 (revisado em 2026-10-21).
+# Operadoras de TV paga não são nomeadas por política editorial (ver _policy.yaml).
+# =============================================================================
+schema_version: 1
+country: EC
+language: es-EC
+updated_at: 2026-10-21
+broadcasters:
+  - id: teleamazonas
+    name: Teleamazonas
+    aliases: ['Tele Amazonas']
+    medium: free_tv
+    access_model: free
+    domains: [teleamazonas.com]
+  - id: espn
+    name: ESPN
+    aliases: ['ESPN Ecuador']
+    channels: ['ESPN 2', 'ESPN 3']
+    medium: pay_tv
+    access_model: subscription
+    group: disney
+    domains: [espn.com.ec]
+  - id: disney_plus
+    name: Disney+
+    aliases: ['Disney Plus', 'Disney+ Premium']
+    medium: streaming_svod
+    access_model: subscription
+    group: disney
+    domains: [disneyplus.com]
+  - id: paramount_plus
+    name: Paramount+
+    aliases: ['Paramount Plus']
+    medium: streaming_svod
+    access_model: subscription
+    domains: [paramountplus.com]
+sources:
+  organizers: [ligapro.ec, fef.ec]
+  press:
+    - eluniverso.com
+    - primicias.ec
+    - expreso.ec
+    - elcomercio.com
+    - estadio.ec

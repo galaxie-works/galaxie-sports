@@ -41,6 +41,7 @@ describe('OpenAPI', () => {
         '/v1/teams/{id}/squad',
         '/v1/people/{id}',
         '/mirror/{sport}/{endpoint}',
+        '/v1/events/{id}/where-to-watch',
         '/v1/account',
         '/v1/account/keys',
         '/v1/account/keys/rotate',
@@ -58,6 +59,8 @@ describe('OpenAPI', () => {
         'TeamSummary',
         'TeamOverview',
         'Person',
+        'WhereToWatch',
+        'WhereToWatchOption',
       ]),
     );
     expect(doc.components?.securitySchemes?.galaxieKey).toMatchObject({

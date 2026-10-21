@@ -37,7 +37,8 @@
     "ioredis": "^5.11.1",
     "postgres": "^3.4.9",
     "yaml": "^2.9.1",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "@galaxie/where-to-watch": "workspace:*"
   },
   "devDependencies": {
     "@galaxie/ingestor": "workspace:*"

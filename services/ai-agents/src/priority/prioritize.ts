@@ -1,5 +1,5 @@
 import { jobRun, type Database } from '@galaxie/db';
-import { detectPromptInjection, wrapUntrusted } from '../guardrails/index.js';
+import { detectPromptInjection, wrapUntrustedContent } from '../guardrails/index.js';
 import type { LlmClient, LlmUsage } from '../llm/types.js';
 
 /**
@@ -223,7 +223,7 @@ export async function prioritizeLive(req: PriorityRequest, llm: LlmClient | null
           role: 'user',
           content: [
             `Orçamento: ${req.budget} chamadas. Demanda: ${demand}. Mercados ativos: ${req.activeMarkets.join(', ') || 'nenhum'}.`,
-            wrapUntrusted({
+            wrapUntrustedContent({
               source: 'candidatos do live scheduler',
               content: JSON.stringify(payload),
               maxChars: 20_000,

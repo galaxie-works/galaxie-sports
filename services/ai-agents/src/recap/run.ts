@@ -6,7 +6,7 @@ import { loadEventCore } from '../context/event-core.js';
 import {
   countOrigins,
   emptyReport,
-  matchLabel,
+  eventMatchLabel,
   type AgentRunItem,
   type AgentRunReport,
 } from '../context/run.js';
@@ -90,7 +90,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
     }
     const item: AgentRunItem = {
       eventId: id,
-      label: matchLabel(core),
+      label: eventMatchLabel(core),
       startsAt: core.startsAt.toISOString(),
       action: 'skipped',
     };

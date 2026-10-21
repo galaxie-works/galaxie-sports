@@ -339,6 +339,31 @@ Regras de contrato:
 | Ordenação | A API ordena por `medium`/confiança; a **ordenação final por direito de acesso do usuário** (incluído, ativação, upgrade, extra, externo) é responsabilidade do cliente, que conhece o assinante |
 | Limite de exibição | A API retorna todas as opções válidas; recomenda-se exibir até 4 |
 
+### 4.1 Implementação
+
+- **Rota:** `GET /v1/events/{id}/where-to-watch?country=BR[&region=SP][&locale=][&tz=]` (`apps/api/src/routes/v1/where-to-watch.ts`). Exige o módulo `where_to_watch` e o país em `tenant.markets` (`MARKET_NOT_IN_PLAN`); evento inexistente → 404. `country` é ISO2 (case-insensitive); país fora dos 8 mercados responde `unknown`.
+- **O que sai:** só a versão vigente com `status: confirmed` de cada opção (`enrich.broadcast_option` com `superseded_by` nulo). `pending` (0,5–0,7, emissora desconhecida), `omitted` (conflito) e `retracted` (removida) ficam só internamente. Campos extras em relação ao exemplo acima: `provider_id` (id do dicionário `config/broadcasters/<iso2>.yaml`) e `watch_url`.
+- **Região:** com `region`, devolve as nacionais (`region: null`) + as daquela UF/praça; sem `region`, todas (cada uma com seu `region`).
+- **Ordenação:** `free_tv`, `youtube`, `streaming_free`, `pay_tv`, `streaming_svod`, `official_app`, `radio`; depois confiança e nome.
+- **Sem informação confiável:** `status: "unknown"`, `options: []`, `message` no locale (pt-BR: "Não temos as informações de transmissão ainda."; es-*: "Todavía no tenemos la información de transmisión.").
+- **Cache:** TTL 60 s, tags `where_to_watch:<evento>` e `event:<evento>`. Toda mudança visível publica `where_to_watch.changed` no `ops.change_feed` (`entity_type = where_to_watch`, `entity_id = <evento>`, `payload.country`), o que purga Valkey + CDN em segundos (LISTEN/NOTIFY; ≤ 5 s pela varredura) e alimenta SSE/webhook (#34/#35). O teste de integração `apps/api/test/where-to-watch.integration.test.ts` mede a propagação de uma remoção editorial (meta ≤ 5 min; na prática < 1 s).
+
+### 4.2 Rotas internas (correção editorial, auditoria e métricas)
+
+Mesmo guard de `/internal/admin`: `x-galaxie-admin-key` validada contra `ADMIN_KEY_HASHES` e allowlist `ADMIN_IP_ALLOWLIST` (sem hashes configurados, as rotas respondem 503) e `x-galaxie-actor` com o handle interno de quem age (`[a-z0-9._-]`, sem e-mail) — gravado na trilha `enrich.broadcast_correction`. Respostas com `Cache-Control: no-store`.
+
+| Método e rota | Efeito |
+|---|---|
+| `GET /internal/where-to-watch/events/{id}?country=BR[&history=true]` | Versões vigentes (todos os status), últimas execuções do agente e, com `history`, todas as versões e a trilha de correções |
+| `POST /internal/where-to-watch/events/{id}/options` | Inclui opção `confirmed` (confiança 1,00, `produced_by = editorial:<handle>`): `{country, region?, provider, provider_id?, channel?, medium, access_model, watch_url?, evidence?[{url, excerpt}], reason, reported_at?}` |
+| `PATCH /internal/where-to-watch/options/{optionId}` | Corrige a versão vigente (nova versão editorial; versão desatualizada → 409 `CONFLICT`) |
+| `DELETE /internal/where-to-watch/options/{optionId}` | Remove (`{reason, reported_at?}`): nova versão `retracted` editorial |
+| `POST /internal/where-to-watch/events/{id}/rerun` | Enfileira reexecução do agente (`{country, mode?: full\|revalidate, reason}`) → 202 |
+| `GET /internal/where-to-watch/audits` · `POST /internal/where-to-watch/audits/{auditId}` | Fila de auditoria amostral e veredito (`{verdict: correct\|incorrect\|unsure, note?}`) |
+| `GET /internal/where-to-watch/metrics[?format=prometheus][&days=30][&countries=BR,AR]` | Métricas e metas de docs/07 §4 (JSON ou formato de texto do Prometheus) |
+
+Versões editoriais **travam** a chave (região × emissora × meio): o agente não as sobrescreve nem as retrai. A blocklist editorial também vale para inclusões e correções (400). `reported_at` (quando o erro foi reportado) alimenta a métrica de tempo de correção.
+
 ## 5. Tempo real
 
 | Mecanismo | Rota | Uso |
@@ -496,7 +521,7 @@ Formato RFC 9457 (`application/problem+json`):
 | 401 `INVALID_KEY` | Chave ausente/inválida |
 | 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
 | 404 `NOT_FOUND` | Entidade inexistente |
-| 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente) |
+| 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente; rotas internas de correção quando a versão corrigida não é mais a vigente) |
 | 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
 | 429 `RATE_LIMITED` | Limite do tenant |
 | 503 `DEGRADED` | Raro: só quando nem last-known-good existe |

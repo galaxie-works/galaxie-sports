@@ -1,0 +1,78 @@
+# =============================================================================
+# Tabela de direitos — Argentina (AR). Formato e regras: config/broadcast-rights/br.yaml.
+# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21).
+# Operadoras de TV paga omitidas por política editorial não aparecem aqui.
+# =============================================================================
+schema_version: 1
+country: AR
+updated_at: 2026-10-21
+rights:
+  - competition: argentina-liga-profesional
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: true
+    holders: [espn_premium, tnt_sports_premium]
+    notes: Metade dos jogos de cada rodada em cada um (Pack Fútbol). TNT até 2031, ESPN até 2030 (fonte única).
+    sources:
+      - https://tavilatam.com/en/argentina-tnt-sports-renews-deal-with-afa-to-extend-broadcasting-rights-for-local-soccer-league-until-2031/
+      - https://442.perfil.com/noticias/futbol/futbol-libre-en-2026-las-3-alternativas-para-ver-los-partidos-sin-cortes.phtml
+  - competition: conmebol-libertadores
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    holders: []
+    uncertain_holders: [fox_sports, disney_plus, espn]
+    sources:
+      - https://unanimodeportes.com/deportes/futbol/copa-libertadores/donde-ver-jornada-6/
+  - competition: conmebol-sudamericana
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    sources:
+      - https://gestion.pe/mix/sports/espn-en-vivo-gratis-donde-ver-partido-boca-juniors-vs-0higgins-online-por-disney-plus-premium-por-vuelta-de-playoffs-de-copa-sudamericana-2026-nnda-nnrt-noticia/
+  - competition: premier-league
+    season: 2026
+    valid_from: 2026-08-01
+    valid_to: 2027-06-30
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    sources:
+      - https://es.digitaltrends.com/deportes/derechos-transmision-ligas-europeas-2026-27-america-latina/
+  - competition: laliga
+    season: 2026
+    valid_from: 2026-08-01
+    valid_to: 2032-06-30
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    notes: 190 jogos por temporada até 2031/32.
+    sources:
+      - https://es.digitaltrends.com/deportes/derechos-transmision-ligas-europeas-2026-27-america-latina/
+  - competition: uefa-champions-league
+    season: 2026
+    valid_from: 2026-07-01
+    valid_to: 2027-06-30
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    sources:
+      - https://tavilatam.com/en/latin-america-champions-league-broadcast-rights-awarded-to-disney-and-paramount-in-spanish-speaking-latin-america-and-to-warner-bros-discovery-in-brazil/
+  - competition: uefa-champions-league
+    season: 2027
+    valid_from: 2027-07-01
+    valid_to: 2031-06-30
+    per_round_selection: true
+    holders: [espn, disney_plus, paramount_plus]
+    sources:
+      - https://tavilatam.com/en/latin-america-champions-league-broadcast-rights-awarded-to-disney-and-paramount-in-spanish-speaking-latin-america-and-to-warner-bros-discovery-in-brazil/
+  - competition: fifa-world-cup
+    season: 2026
+    valid_from: 2026-06-11
+    valid_to: 2026-07-19
+    per_round_selection: false
+    holders: [tv_publica, telefe, tyc_sports, disney_plus, paramount_plus]
+    sources:
+      - https://eleconomista.com.ar/deportes/donde-ver-mundial-2026-vivo-tv-streaming-todos-partidos-n95666
+      - https://culturageek.com.ar/donde-ver-final-mundial-2026/

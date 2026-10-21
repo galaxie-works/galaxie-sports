@@ -33,6 +33,7 @@ import {
   TeamSummary,
 } from './events.js';
 import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
+import { WhereToWatch, WhereToWatchParams, WhereToWatchQuery } from './where-to-watch.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import {
@@ -120,6 +121,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       { name: 'Times e pessoas', description: 'Times, elencos e pessoas (docs/05 §3.3).' },
       { name: 'Espelho', description: 'Espelho compatível com a api-sports (docs/05 §2).' },
+      { name: 'Onde assistir', description: 'Opções de transmissão por evento × país (docs/05 §4).' },
       { name: 'Tempo real', description: 'SSE e webhooks assinados (docs/05 §5).' },
       { name: 'Conta', description: 'Autoatendimento do tenant: chaves e uso (docs/05 §1.2).' },
     ],
@@ -289,6 +291,21 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           { path: IdParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
+      },
+      '/v1/events/{id}/where-to-watch': {
+        get: {
+          ...getOp(
+            'Onde assistir o evento num país',
+            'Onde assistir',
+            WhereToWatch,
+            { path: WhereToWatchParams, query: WhereToWatchQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Só opções publicadas (confiança ≥ 0,7, sem conflito). Sem informação confiável: `status: unknown`, ' +
+            '`options: []` e `message` localizada. Exige o módulo `where_to_watch` e o país nos mercados do tenant. ' +
+            'Correções editoriais propagam em ≤ 5 min (purge de cache + webhook `where_to_watch.changed`).',
+        },
       },
       '/v1/stream': {
         get: {

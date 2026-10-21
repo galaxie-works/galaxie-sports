@@ -1,0 +1,127 @@
+# =============================================================================
+# Tabela de direitos — Brasil (BR): competição × temporada → quem PODE transmitir
+#
+# É o "prior" do agente Onde Assistir (docs/07 §2.2): o agente parte daqui e confirma
+# jogo a jogo. No validador, opção de um detentor (`holders`) ganha +0,1; opção de quem
+# não aparece em `holders` nem em `uncertain_holders` perde 0,2 (rights_mismatch).
+# `uncertain_holders` = marcados [incerto] na pesquisa: nem bônus, nem penalidade.
+#
+# season: rótulo da api-sports (ano de início). valid_from/valid_to delimitam o ciclo e
+# são o que o validador usa (data do jogo). per_round_selection: a emissora escolhe o
+# jogo por rodada → fonte com mais de 72 h perde 0,3.
+# broadcaster: id do dicionário config/broadcasters/br.yaml.
+#
+# Fonte: docs/research/onde-assistir.md §2.1 (pesquisa de 2026-10-21) — os links de
+# cada linha são os anúncios/reportagens citados lá. Operadoras de TV paga omitidas por
+# política editorial não aparecem aqui.
+# =============================================================================
+schema_version: 1
+country: BR
+updated_at: 2026-10-21
+rights:
+  - competition: brasileirao-serie-a
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: true
+    holders: [globo, sportv, premiere, ge_tv, record, cazetv, prime_video, globoplay]
+    notes: >-
+      Globo (aberta, 1 jogo por rodada), SporTV, Premiere (PPV), GE TV (alguns jogos da Libra),
+      Record + CazéTV (1 jogo por rodada, LFU/FFU) e Prime Video (1 jogo exclusivo por rodada).
+      Lei do Mandante: o clube mandante define a plataforma.
+    sources:
+      - https://www.lance.com.br/lance-negocios/onde-assistir-ao-brasileirao-2026-entenda-divisao-dos-direitos-de-transmissao.html
+      - https://www.meioemensagem.com.br/midia/brasileirao-2026-onde-assistir-e-patrocinadores
+  - competition: copa-do-brasil
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    holders: [globo, sportv, premiere, prime_video, ge_tv, globoplay]
+    sources:
+      - https://abcdoabc.com.br/copa-do-brasil-confira-toda-as-transmisso
+  - competition: copa-do-brasil
+    season: 2027
+    valid_from: 2027-01-01
+    valid_to: 2030-12-31
+    per_round_selection: false
+    holders: [globo, sportv, globoplay, prime_video]
+    uncertain_holders: [espn, disney_plus]
+    notes: Ciclo 2027–30 — Globo (aberta + multiplataforma) e Amazon + ESPN (participação da ESPN incerta).
+    sources:
+      - https://www.bemparana.com.br/esportes/copa-do-brasil-chega-a-r-4-bilhoes-em-direitos-com-espn-globo-e-amazon/
+  - competition: conmebol-libertadores
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: true
+    holders: [globo, ge_tv, globoplay, espn, disney_plus, paramount_plus]
+    notes: Globo (aberta, quartas e quintas) + GE TV; ESPN/Disney+ (pago e streaming); Paramount+ (exclusivos na fase de grupos).
+    sources:
+      - https://maquinadoesporte.com.br/futebol/globo-espn-e-paramount-garantem-direitos-de-transmissao-da-libertadores
+      - https://www.jornalopcao.com.br/ultimas-noticias/libertadores-2026-comeca-com-seis-brasileiros-em-campo-confira-jogos-e-transmissoes-812500/
+  - competition: conmebol-libertadores
+    season: 2027
+    valid_from: 2027-01-01
+    valid_to: 2030-12-31
+    per_round_selection: true
+    holders: [globo, espn, disney_plus]
+    sources:
+      - https://www.sportcal.com/media/globo-and-espn-keep-copa-libertadores-and-sudamericana-rights-until-2030/
+  - competition: conmebol-sudamericana
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    holders: [espn, disney_plus, paramount_plus]
+    uncertain_holders: [sbt]
+    sources:
+      - https://www.sportcal.com/media/globo-and-espn-keep-copa-libertadores-and-sudamericana-rights-until-2030/
+  - competition: premier-league
+    season: 2026
+    valid_from: 2026-08-01
+    valid_to: 2027-06-30
+    per_round_selection: false
+    holders: [espn, disney_plus]
+    uncertain_holders: [cazetv]
+    notes: ESPN/Disney+ com os 380 jogos.
+    sources:
+      - https://es.digitaltrends.com/deportes/derechos-transmision-ligas-europeas-2026-27-america-latina/
+  - competition: laliga
+    season: 2026
+    valid_from: 2026-08-01
+    valid_to: 2032-06-30
+    per_round_selection: false
+    holders: [cazetv]
+    notes: CazéTV por 6 temporadas a partir de 2026/27 (anúncio de maio de 2026).
+    sources:
+      - https://es.digitaltrends.com/deportes/derechos-transmision-ligas-europeas-2026-27-america-latina/
+  - competition: uefa-champions-league
+    season: 2026
+    valid_from: 2026-07-01
+    valid_to: 2027-06-30
+    per_round_selection: true
+    holders: [tnt_sports, hbo_max]
+    uncertain_holders: [sbt]
+    notes: Warner Bros. Discovery (TNT Sports + HBO Max); SBT em aberto em 2026/27 é incerto.
+    sources:
+      - https://trivela.com.br/europa/champions-league/onde-assistir-a-champions-league-2025-26-confira-a-transmissao-dos-jogos/
+  - competition: uefa-champions-league
+    season: 2027
+    valid_from: 2027-07-01
+    valid_to: 2031-06-30
+    per_round_selection: true
+    holders: [tnt_sports, hbo_max]
+    sources:
+      - https://tavilatam.com/en/latin-america-champions-league-broadcast-rights-awarded-to-disney-and-paramount-in-spanish-speaking-latin-america-and-to-warner-bros-discovery-in-brazil/
+  - competition: fifa-world-cup
+    season: 2026
+    valid_from: 2026-06-11
+    valid_to: 2026-07-19
+    per_round_selection: false
+    holders: [cazetv, globo, sportv, globoplay, sbt, n_sports, ge_tv]
+    uncertain_holders: [prime_video]
+    notes: CazéTV (104 jogos), Globo/SporTV/Globoplay (~54), SBT + N Sports (32), GE TV (32). Encerrada em 19/07/2026.
+    sources:
+      - https://www.poder360.com.br/copa-2026/saiba-onde-assistir-a-todos-os-jogos-da-copa-do-mundo/
+      - https://dplnews.com/guia-donde-puedo-ver-mundial-futbol-2026-america-latina/

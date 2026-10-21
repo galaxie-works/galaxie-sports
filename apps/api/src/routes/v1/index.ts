@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../../context.js';
 import { catalogRoutes } from './catalog.js';
+import { whereToWatchRoutes } from './where-to-watch.js';
 import { contextRoutes } from './context.js';
 import { eventRoutes } from './events.js';
 import { teamRoutes } from './teams.js';
@@ -16,6 +17,7 @@ import { semanticRoutes } from './semantic.js';
  */
 export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   await catalogRoutes(app, ctx);
+  await whereToWatchRoutes(app, ctx);
   await contextRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await teamRoutes(app, ctx);

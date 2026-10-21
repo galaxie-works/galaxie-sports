@@ -2,6 +2,7 @@ import Fastify, { type FastifyContextConfig, type FastifyInstance } from 'fastif
 import type { Redis } from 'ioredis';
 import type { MediaDenylist } from '@galaxie/apisports-client';
 import { pingDb, type Database } from '@galaxie/db';
+import { loadWtwConfig, type WtwConfig } from '@galaxie/where-to-watch';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
 import { adminRoutes } from './admin/routes.js';
@@ -16,6 +17,7 @@ import { RulesRegistry } from './events/rules-registry.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
 import { apiKeyFrom, registerRealtime, type RealtimeOptions } from './realtime/index.js';
 import { docsRoutes } from './routes/docs.js';
+import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { mirrorRoutes } from './routes/mirror.js';
 import { apiLoggerOptions, registerObservability } from './observability.js';
 import { accountRoutes } from './routes/v1/account.js';
@@ -45,6 +47,8 @@ export interface ServerOptions {
   assetsBaseUrl?: string;
   /** URL pública anunciada no OpenAPI. */
   publicUrl?: string;
+  /** Configuração do onde assistir (padrão: carregada de config/ na primeira rota interna que usar). */
+  wtwConfig?: WtwConfig;
   /** Tempo real: `GET /v1/stream` (SSE) com fan-out via Valkey (requer db). */
   realtime?: boolean | RealtimeOptions;
   /** Tamanho máximo do corpo das requisições (bytes). Padrão 64 KiB. */
@@ -99,10 +103,14 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const windowMs = options.rateLimitWindowMs ?? 60_000;
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
   const authenticator = store ? new Authenticator(store, options.authenticator) : undefined;
+  let wtwConfig = options.wtwConfig;
+  const adminGuard = options.admin?.keyHashes.length ? new AdminGuard(options.admin) : undefined;
   const ctx: AppContext = {
     db: options.db,
     cache,
     assetsBaseUrl: options.assetsBaseUrl,
+    adminGuard,
+    wtwConfig: () => (wtwConfig ??= loadWtwConfig()),
     rules: new RulesRegistry(options.rulesDir),
     mediaDenylist: options.mediaDenylist,
     now: options.now ?? (() => new Date()),
@@ -164,11 +172,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     await docsRoutes(instance, { publicUrl: options.publicUrl });
     await v1Routes(instance, ctx);
     await mirrorRoutes(instance, ctx);
+    await internalWhereToWatchRoutes(instance, ctx);
     await accountRoutes(instance, { db: options.db, usage: usageBackend });
   });
 
   if (options.admin?.keyHashes.length && options.db) {
-    const guard = new AdminGuard(options.admin);
+    const guard = adminGuard!;
     const plans = options.admin.plans ?? loadPlans();
     app.register(adminRoutes, { db: options.db, guard, plans, usage: usageBackend });
   }

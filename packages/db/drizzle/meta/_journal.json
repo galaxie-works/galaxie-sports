@@ -71,6 +71,13 @@
       "when": 1792609957123,
       "tag": "0009_sport_event_detail",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792610346042,
+      "tag": "0010_where_to_watch",
+      "breakpoints": true
     }
   ]
 }
