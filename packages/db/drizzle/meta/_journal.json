@@ -43,6 +43,13 @@
       "when": 1792606288146,
       "tag": "0005_event_state_and_roster",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792607001658,
+      "tag": "0006_multisport",
+      "breakpoints": true
     }
   ]
 }

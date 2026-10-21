@@ -208,6 +208,9 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm --filter @galaxie/ingestor quota` | Cota do dia por API (lê `/status`, que não consome cota) |
 | `pnpm --filter @galaxie/ingestor raw:import` | Importa respostas brutas salvas em `data/raw/<esporte>/*.json` (zero chamadas) |
 | `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa |
+| `pnpm --filter @galaxie/ingestor multisport:seed` | CONs, edições (OG/Inverno/Pan), esportes e ligação com os torneios da api-sports (zero chamadas) |
+| `pnpm --filter @galaxie/ingestor multisport:wikidata` | Histórico de medalhas via Wikidata (CC0), com cache no raw — ver [docs/08](docs/08-olimpiadas-e-panamericano.md) |
+| `pnpm --filter @galaxie/ingestor multisport:qa --noc BRA` | Cobertura, selo de qualidade por edição e histórico por país (zero chamadas) |
 | `pnpm --filter @galaxie/ingestor normalize:football [--tudo]` | Normaliza o raw do futebol no core (eventos, times, pessoas, elencos, classificação) — zero chamadas; incremental por padrão |
 | `pnpm --filter @galaxie/ingestor events:clock` | Avança o relógio dos eventos (T-10, fallback temporal sem fonte) |
 | `pnpm --filter @galaxie/ingestor bootstrap:seasons --plan` | Temporadas por competição: fixtures, teams, rounds, standings, injuries, rankings e venues (só o que o `coverage` permite); `--h2h-temporada-atual` reconstrói a temporada atual no free |
