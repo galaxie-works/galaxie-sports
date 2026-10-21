@@ -1,5 +1,6 @@
 import Fastify, { type FastifyContextConfig, type FastifyInstance } from 'fastify';
 import type { Redis } from 'ioredis';
+import type { MediaDenylist } from '@galaxie/apisports-client';
 import { pingDb, type Database } from '@galaxie/db';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
@@ -9,8 +10,9 @@ import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
 import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.js';
 import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
-import type { AppContext } from './context.js';
+import type { AppContext, SemanticConfig } from './context.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
+import { RulesRegistry } from './events/rules-registry.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
 import { docsRoutes } from './routes/docs.js';
 import { mirrorRoutes } from './routes/mirror.js';
@@ -57,6 +59,14 @@ export interface ServerOptions {
   /** Envio do buffer de uso ao backend (ms; padrão 1000) e consolidação no Postgres (ms; padrão 60000). */
   usageFlushIntervalMs?: number;
   usagePersistIntervalMs?: number;
+  /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
+  rulesDir?: string;
+  /** URLs de mídia bloqueadas (config/assets/denylist.yaml). */
+  mediaDenylist?: MediaDenylist;
+  /** Relógio injetável (testes de momentum/agenda). */
+  now?: () => Date;
+  /** Piso editorial da semântica e pasta da base (SEMANTIC_MIN_REVIEW_STATUS, KNOWLEDGE_DIR). */
+  semantic?: SemanticConfig;
 }
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
@@ -86,7 +96,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const windowMs = options.rateLimitWindowMs ?? 60_000;
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
   const authenticator = store ? new Authenticator(store, options.authenticator) : undefined;
-  const ctx: AppContext = { db: options.db, cache, assetsBaseUrl: options.assetsBaseUrl };
+  const ctx: AppContext = {
+    db: options.db,
+    cache,
+    assetsBaseUrl: options.assetsBaseUrl,
+    rules: new RulesRegistry(options.rulesDir),
+    mediaDenylist: options.mediaDenylist,
+    now: options.now ?? (() => new Date()),
+    ...(options.semantic ? { semantic: options.semantic } : {}),
+  };
   const usageBackend =
     options.usage === false
       ? undefined

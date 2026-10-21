@@ -47,9 +47,18 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
       '@galaxie/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@galaxie/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@galaxie/rules':
+        specifier: workspace:*
+        version: link:../../packages/rules
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
@@ -68,6 +77,10 @@ importers:
       zod:
         specifier: ^4.6.7
         version: 4.6.7
+    devDependencies:
+      '@galaxie/ingestor':
+        specifier: workspace:*
+        version: link:../../services/ingestor
 
   apps/demo: {}
 

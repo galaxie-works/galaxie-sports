@@ -28,6 +28,49 @@ describe('createGalaxieClient', () => {
     expect((call.init?.headers as Record<string, string>)['x-galaxie-key']).toBe('k');
   });
 
+  it('eventos, times e .ics', async () => {
+    const { fn, calls } = fakeFetch((url) =>
+      url.pathname.endsWith('.ics')
+        ? new Response('BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n', {
+            headers: { 'content-type': 'text/calendar' },
+          })
+        : Response.json({ data: [], next_cursor: null }),
+    );
+    const client = createGalaxieClient({
+      baseUrl: 'http://api.test',
+      apiKey: 'k',
+      tz: 'America/Sao_Paulo',
+      fetch: fn,
+    });
+    await client.events({ date: '2026-10-21', status: 'scheduled,live', order: 'importance' });
+    expect(calls[0]!.url.pathname).toBe('/v1/events');
+    expect(Object.fromEntries(calls[0]!.url.searchParams)).toEqual({
+      tz: 'America/Sao_Paulo',
+      date: '2026-10-21',
+      status: 'scheduled,live',
+      order: 'importance',
+    });
+    await client.teamEvents('t1', { from: '2026-10-01' });
+    expect(calls[1]!.url.pathname).toBe('/v1/teams/t1/events');
+    expect(await client.eventIcs('e1')).toContain('BEGIN:VCALENDAR');
+    expect(calls[2]!.url.pathname).toBe('/v1/events/e1.ics');
+  });
+
+  it('monta as rotas semânticas e multiesportivas (listas viram vírgula)', async () => {
+    const { fn, calls } = fakeFetch(() => Response.json({}));
+    const client = createGalaxieClient({ baseUrl: 'http://api.test', apiKey: 'k', fetch: fn });
+    await client.teamSemantic('palmeiras', { locale: 'es-AR' });
+    await client.copy({ intent: 'cheer', affinity_type: 'heart', affinity_source: 'explicit' });
+    await client.medalHistory({ noc: ['BRA', 'ARG'], type: ['OG'] });
+    await client.medals('og-summer-2024', { sort: 'total', region: 'latam' });
+    expect(calls.map((c) => `${c.url.pathname}?${c.url.searchParams}`)).toEqual([
+      '/v1/teams/palmeiras/semantic?locale=es-AR',
+      '/v1/copy?intent=cheer&affinity_type=heart&affinity_source=explicit',
+      '/v1/multisport/history/medals?noc=BRA%2CARG&type=OG',
+      '/v1/multisport/games/og-summer-2024/medals?sort=total&region=latam',
+    ]);
+  });
+
   it('expõe a origem do espelho e lança GalaxieApiError com o problem', async () => {
     const { fn } = fakeFetch((url) =>
       url.pathname.startsWith('/mirror')
