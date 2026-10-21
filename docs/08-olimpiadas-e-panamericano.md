@@ -71,8 +71,88 @@ Regras-chave:
 
 Regra: o modelo **nunca grava** resultado ou medalha; ele sugere, e a gravação passa por fonte licenciada ou aprovação editorial.
 
-## 6. Pendências
+## 6. O que está implementado (issues #75 e #78)
 
+### 6.1 Schema `multisport` (`packages/db/src/schema/multisport.ts`, migration `0003_multisport`)
+
+| Tabela / view | Conteúdo |
+|---|---|
+| `games` | Edições com `slug` (`og-summer-2016`, `og-winter-2026`, `pan-2027`), tipo (`OG`, `PAN`; `YOG`, `PARAPAN`, `PAN_JR` previstos), estação, ano do nome oficial, sede, CON sede, datas, fuso IANA, status (`completed`/`in_progress`/`upcoming`), QID do Wikidata e **selo de qualidade do quadro** (`medal_coverage`, `medal_data_quality`) |
+| `noc` | 206 CONs do COI + 41 da Panam Sports + especiais (AIN, EOR, ROT, IOA, IOP, ZZX, ROC, OAR, COR) + históricos (URS, EUN, GDR, FRG, EUA, TCH, YUG, SCG, BOH, ANZ, AHO…), com `iso3`/`iso2`, nomes pt-BR/es/en e sucessor |
+| `sport`, `discipline` | Códigos inspirados no ODF (AQU/SWM, ATH, JUD…); `two_bronzes` nas lutas (judô, boxe, taekwondo, wrestling, caratê, squash, raquetebol) |
+| `event`, `phase`, `unit`, `result` | Prova → fase → unidade (com `odf_rsc` e ligação futura a `core.event`) → resultado (rank, IRM, recordes) |
+| `person`, `participant`, `team_member` | Pessoa (QID, Olympedia), participante = atleta × CON ou equipe (prova × CON × cor) |
+| `medal` | **Uma linha = uma medalha no quadro**; `revoked_at`/`revoked_reason`, `source`, `source_key` (upsert idempotente), `confidence` |
+| `medal_table` (view) | Quadro **derivado** (nunca digitado): ignora revogadas, `rank_by_gold` (ouro → prata → bronze) e `rank_by_total` (total, desempate por ouro → prata → bronze); empates exatos dividem a posição |
+| `medal_table_snapshot` | Quadro materializado, recalculado após cada carga |
+| `medal_reference` | Totais de referência **só para QA** (agregados das delegações no Wikidata e números conferidos na Wikipedia) |
+| `source_ref` | Proveniência de cada edição/prova/pessoa/medalha, com licença (`CC0-1.0`) |
+| `games_provider_league`, `games_competition` | Ligas dos coletivos na api-sports e a ligação edição ↔ `core.competition`/`core.season` (#78) |
+
+### 6.2 Seeds e CLIs (`services/ingestor`)
+
+```bash
+pnpm --filter @galaxie/ingestor multisport:seed                 # CONs, edições, esportes, ligas + ligação com o core (zero chamadas)
+pnpm --filter @galaxie/ingestor multisport:wikidata             # medalhas de todas as edições encerradas (Wikidata, CC0)
+pnpm --filter @galaxie/ingestor multisport:wikidata --games og-summer-2016,pan-2023 [--refresh] [--max-age-days 30]
+pnpm --filter @galaxie/ingestor multisport:qa --noc BRA,ARG     # selo por edição, derivado × referências, histórico por país
+```
+
+- **Edições**: Verão 1896–2032 (Tóquio 2020 com datas de 2021; LA 2028 14–30/07; Brisbane 2032 23/07–08/08), Inverno 1924–2030 (Milano Cortina 2026 6–22/02) e Pan-Americanos 1951–2027 (Santiago 2023 20/10–05/11; **Lima 2027 23/07–08/08**). Status calculado pela data da carga.
+- **Carga do Wikidata** (`src/multisport/wikidata`): consulta SPARQL paginada (`LIMIT/OFFSET` com `ORDER BY`), sequencial, intervalo mínimo de 1,5 s, novas tentativas com backoff exponencial (respeita `Retry-After` em 429/503), User-Agent genérico `galaxie-sports/0.1 (multisport loader)` e **cache de todas as respostas em `raw.api_response` (`provider = 'wikidata'`)** — rodar de novo não volta ao endpoint.
+- **Modelo de medalha no Wikidata**: prova (`P361+` → edição) com participação `P710` (na prova) ou `P1344` (no atleta); medalha pelo qualificador `P166` (ouro/prata/bronze) ou pela classificação `P1352` 1–3 **somente sem fase ou na final** (`P2443`: vitória em eliminatória/semifinal não vira ouro). Partidas, fases, itens agregadores ("atletismo nos Jogos de 2016"), concursos de arte e esportes de demonstração são excluídos.
+- **CON**: país/delegação na própria declaração → "país para o esporte" (`P1532`) vigente no ano → país do item (equipes) → cidadania (`P27`), mapeados pelo código COI (`P984`); dupla cidadania é desfeita pela interseção entre os passos. Nos Jogos Olímpicos o país atual vira o código da época (URS/EUN, TCH/BOH, YUG/SCG, EUA, RU1, OAR/ROC/AIN).
+- **Regras do quadro**: provas individuais = 1 medalha por atleta (empates geram duas; lutas, dois bronzes); provas por equipe (rótulo, item de equipe ou 2+ atletas do mesmo CON com a mesma cor) = 1 medalha por CON × cor, com os integrantes em `team_member`; integrante com dupla nacionalidade é devolvido ao CON majoritário da equipe; declaração depreciada vira medalha **revogada** (`revoked_at`), salvo se o atleta tiver declaração válida.
+- **Torneios da api-sports (#78)**: `multisport:seed` liga, sem chamadas, as competições já presentes em `core.competition` (via `core.provider_map`) às edições, **pelas datas da temporada** (janela de 21 dias antes da abertura até 3 dias depois; sem datas, pelo ano). Isso resolve rótulos enganosos (temporada "2020" jogada em 2021, "2023" do vôlei/handebol olímpico = Paris 2024). Ligas de basquete (192/193, Pan 286/294), vôlei (189/190, 195/213), handebol (155/156, 170/169), rúgbi (74/75, 107/108), beisebol (47, 41) e hóquei (131/151) ficam em `games_provider_league` e são ligadas automaticamente quando o catálogo do esporte for carregado.
+
+### 6.3 Carga real de 21/10/2026 e cobertura
+
+Execução completa (`multisport:wikidata`, todas as 74 edições encerradas; 67 têm ao menos uma medalha): **394 consultas ao WDQS** (≈ 11 min, sem erros nem novas tentativas), 438 respostas brutas (5,7 MB) em `raw`; reprocessar tudo a partir do cache fez 2 consultas novas.
+
+| Item | Total |
+|---|---|
+| Medalhas | 17.896 (9 revogadas) em 6.519 provas |
+| Pessoas / participantes | 15.942 / 13.844 |
+| CONs com medalha | 156 |
+| Referências de QA | 1.778 (agregados de delegação do Wikidata + 49 números da Wikipedia) |
+| Torneios ligados (futebol) | 8: Olympics Men 2012/2016/2020/2024, Olympics Women 2016/2020/2024, Pan American Games 2023 |
+
+Selo por edição (cobertura = medalhas carregadas ÷ referência):
+
+| Edições | Cobertura | Selo |
+|---|---|---|
+| Tóquio 2020 | 99,2% (1.071 de 1.080) | `complete` |
+| Rio 2016 · Londres 2012 · Pequim 2008 | 95,7% · 93,2% · 88,5% | `partial` |
+| Paris 2024 | 83,1% (868 de 1.044) | `partial` |
+| Demais Verão 1896–2004 | 63–97% | `partial` (≥ 75%) ou `insufficient` (1936, 1956–1964, 1976, 1980, 1988) |
+| Inverno 1932–1960, 1998–2018 | 75–93% | `partial` |
+| Inverno 1924–1928, 1964–1994 | 59–74% | `insufficient` |
+| Inverno 2022 e Milano Cortina 2026 | sem agregado de referência | `unknown` |
+| **Pan-Americanos (todas as edições)** | **≤ 6%** | `insufficient` |
+
+Conferência América Latina (derivado × Wikipedia, G/P/B):
+
+| Edição | Confere exatamente | Diferenças |
+|---|---|---|
+| Tóquio 2020 | **BRA 7/6/8**, ARG, COL, CUB, DOM, ECU, VEN | MEX 0/2/4 × 0/0/4 (duas pratas a mais por atribuição de CON); USA 39/40/33 × 39/41/33 |
+| Rio 2016 | ARG, COL, CUB, DOM, MEX, PUR, VEN | **BRA 6/6/6 × 7/6/6** — o ouro do futebol masculino não tem medalhistas na prova do Wikidata (só na partida final, que é excluída) |
+| Paris 2024 | COL, CUB, DOM, GUA, PER | BRA 3/7/6 × 3/7/10; MEX 0/2/2 × 0/3/2; ECU, CHI, ARG ±1 |
+| Milano Cortina 2026 | **BRA 1/0/0** (Lucas Pinheiro Braathen) | — |
+| Santiago 2023 | — | **BRA 2/1/0 × 66/73/66 (205)**; cobertura de 2,9% |
+| Lima 2019 | — | BRA 0/3/5 × 54/45/70 (169); cobertura de 5,4% |
+
+### 6.4 Ressalvas de qualidade de dados
+
+- **Pan-Americanos: o Wikidata não serve para o quadro.** Há itens de prova para várias edições (ex.: ~330 em Lima 2019), mas quase nenhum tem medalhistas (`P710`/`P1344` com medalha ou classificação): de 0 a 127 declarações por edição, contra 1.300+ medalhas distribuídas; também não há agregados de medalhas nas delegações nem um item "medalha de ouro dos Jogos Pan-Americanos" usado nos atletas. O que existe foi carregado (selo `insufficient`) e **não deve ser publicado como quadro nem ranking**. Caminhos: importar os quadros da Wikipedia (CC BY-SA, exige atribuição e share-alike — decisão jurídica), entrada editorial assistida ou acordo com a Panam Sports.
+- **Olimpíadas**: lacunas por prova (`no_gold`/`no_silver`/`no_bronze` no relatório de QA), em especial torneios coletivos cujos medalhistas só aparecem na partida final; CON inferido pela cidadania pode errar com dupla nacionalidade (confiança 0,7 em `medal.confidence`); Alemanha 1968–1988 só sai correta quando o atleta tem `P1532` = Alemanha Oriental/Ocidental; edições antigas com equipes mistas (ZZX) aparecem divididas por CON.
+- **Revogações**: só as que o Wikidata marca como declaração depreciada (9 hoje); a data é o fim (`P582`) da declaração ou a data em que a carga detectou.
+- **Regra de exibição**: a API deve publicar quadro/ranking só com `medal_data_quality` em `complete` ou `partial` (com aviso de cobertura) e mostrar a fonte (`source_ref`, CC0).
+
+## 7. Pendências
+
+- Rotas `/v1/multisport/*` na API (o histórico por país já tem a consulta pronta em `medalHistoryByNoc`; o quadro, em `medalTableForGames`).
+- Fonte licenciada para o histórico do Pan-Americano (ver §6.4) e para preencher as lacunas olímpicas (Olympedia mediante licença).
+- Carregar os catálogos de basquete, vôlei, handebol, rúgbi, beisebol e hóquei para ligar os torneios olímpicos/pan-americanos já mapeados.
 - Confirmar IDs das ligas olímpicas/pan-americanas nas APIs coletivas com `/leagues?search=olympic` e `?search=pan american` (1 chamada por esporte).
 - Datas do Parapan Lima 2027.
 - Contato comercial com a Panam Sports / comitê Lima 2027.

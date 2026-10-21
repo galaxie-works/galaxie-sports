@@ -56,6 +56,13 @@ describe('migrations', () => {
     );
     expect(rows.map((r) => r.schema_name)).toEqual(['core', 'enrich', 'ops', 'raw', 'semantic']);
   });
+
+  it('cria o schema multisport com a view derivada do quadro de medalhas', async () => {
+    const rows = await db.execute<{ table_name: string }>(
+      sql`select table_name from information_schema.views where table_schema = 'multisport'`,
+    );
+    expect(rows.map((r) => r.table_name)).toEqual(['medal_table']);
+  });
 });
 
 describe('uuid v7', () => {
