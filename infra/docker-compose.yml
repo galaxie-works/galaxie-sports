@@ -20,7 +20,7 @@ services:
       retries: 20
 
   valkey:
-    image: valkey/valkey:8-alpine
+    image: valkey/valkey:9-alpine
     command: ['valkey-server', '--appendonly', 'yes']
     ports:
       - '${REDIS_PORT:-6379}:6379'
