@@ -1,3 +1,5 @@
+> **Validado com a API real em 21/10/2026:** os 76 IDs existem no `/leagues`; nome, país e tipo conferem após dois ajustes (id 268 do Uruguai agora se chama "Primera División"; id 15, Mundial de Clubes, é tipado como `Cup`). A conferência roda a cada execução de `bootstrap:catalog`.
+
 # Catálogo de competições de futebol (API-FOOTBALL v3)
 
 Arquivo de configuração: [`config/competitions/football.yaml`](../../config/competitions/football.yaml)

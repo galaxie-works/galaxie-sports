@@ -2,7 +2,7 @@
   "name": "@galaxie/apisports-client",
   "version": "0.1.0",
   "private": true,
-  "description": "Cliente tipado das 12 APIs da api-sports com gravaÃ§Ã£o raw e contabilizaÃ§Ã£o de cota",
+  "description": "Cliente tipado das 12 APIs da api-sports com gravação raw e contabilização de cota",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

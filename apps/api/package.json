@@ -2,7 +2,7 @@
   "name": "@galaxie/api",
   "version": "0.1.0",
   "private": true,
-  "description": "API p\u00c3\u00bablica Galaxie Sports (espelho compat\u00c3\u00advel + /v1)",
+  "description": "API pública Galaxie Sports (espelho compatível + /v1)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
