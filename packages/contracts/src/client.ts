@@ -22,6 +22,34 @@ import type {
 } from './events.js';
 import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
 import type { Person, Squad, Team, TeamEventsQuery, TeamOverview, TeamsQuery } from './teams.js';
+import type {
+  Delegation,
+  GamesDetail,
+  GamesListQuery,
+  GamesSummary,
+  MedalHistory,
+  MedalHistoryQuery,
+  MedalsQuery,
+  MedalTable,
+  MsEventDetail,
+  NocToday,
+  ScheduleQuery,
+  ScheduleUnit,
+} from './multisport.js';
+import type {
+  CopyQuery,
+  CopySuggestion,
+  DerbiesQuery,
+  Derby,
+  DerbySummary,
+  Glossary,
+  GlossaryQuery,
+  ReviewQuery,
+  TeamRivals,
+  TeamSemantic,
+  UpcomingDerbiesQuery,
+  UpcomingDerby,
+} from './semantic.js';
 
 export interface GalaxieClientOptions {
   /** Ex.: http://localhost:8080 */
@@ -57,8 +85,14 @@ export class GalaxieApiError extends Error {
   }
 }
 
-type Query = Record<string, string | number | undefined>;
+type Query = Record<string, string | number | boolean | undefined>;
 type LocaleOpts = { locale?: SupportedLocale; tz?: string };
+/** Filtros de query sem o locale (o cliente injeta o padrão) e com listas como string ou array. */
+type Q<T> = { [K in keyof Omit<T, 'locale' | 'tz'>]?: unknown } & LocaleOpts;
+const toQuery = (q: object): Query =>
+  Object.fromEntries(
+    Object.entries(q).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : (v as Query[string])]),
+  );
 
 /** Cliente tipado da API Galaxie Sports (usado pelo demo). Funciona em Node 24 e no browser. */
 export function createGalaxieClient(options: GalaxieClientOptions) {
@@ -128,6 +162,35 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     squad: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
       v1<Squad>(`/v1/teams/${seg(id)}/squad`, opts),
     person: (id: string, opts: LocaleOpts = {}) => v1<Person>(`/v1/people/${seg(id)}`, opts),
+    // ─── semântica (docs/06 §5) ───
+    derbies: (query: Q<DerbiesQuery> = {}) => v1<{ data: DerbySummary[] }>('/v1/derbies', toQuery(query)),
+    upcomingDerbies: (query: Q<UpcomingDerbiesQuery> = {}) =>
+      v1<{ data: UpcomingDerby[] }>('/v1/derbies/upcoming', toQuery(query)),
+    derby: (slug: string, query: Q<ReviewQuery> = {}) =>
+      v1<Derby>(`/v1/derbies/${seg(slug)}`, toQuery(query)),
+    teamSemantic: (id: string, query: Q<ReviewQuery> = {}) =>
+      v1<TeamSemantic>(`/v1/teams/${seg(id)}/semantic`, toQuery(query)),
+    teamRivals: (id: string, query: Q<ReviewQuery> = {}) =>
+      v1<TeamRivals>(`/v1/teams/${seg(id)}/rivals`, toQuery(query)),
+    glossary: (query: Q<GlossaryQuery> = {}) => v1<Glossary>('/v1/glossary', toQuery(query)),
+    copy: (query: Q<CopyQuery> & { intent: string }) => v1<CopySuggestion>('/v1/copy', toQuery(query)),
+    // ─── multiesporte (docs/08 §4) ───
+    games: (query: Q<GamesListQuery> = {}) =>
+      v1<{ data: GamesSummary[] }>('/v1/multisport/games', toQuery(query)),
+    gamesEdition: (slug: string, opts: LocaleOpts = {}) =>
+      v1<GamesDetail>(`/v1/multisport/games/${seg(slug)}`, opts),
+    medals: (slug: string, query: Q<MedalsQuery> = {}) =>
+      v1<MedalTable>(`/v1/multisport/games/${seg(slug)}/medals`, toQuery(query)),
+    schedule: (slug: string, query: Q<ScheduleQuery> = {}) =>
+      v1<Page<ScheduleUnit>>(`/v1/multisport/games/${seg(slug)}/schedule`, toQuery(query)),
+    gamesEvent: (slug: string, id: string, opts: LocaleOpts = {}) =>
+      v1<MsEventDetail>(`/v1/multisport/games/${seg(slug)}/events/${seg(id)}`, opts),
+    delegation: (slug: string, noc: string, opts: LocaleOpts = {}) =>
+      v1<Delegation>(`/v1/multisport/games/${seg(slug)}/nocs/${seg(noc)}/athletes`, opts),
+    nocToday: (slug: string, noc: string, query: LocaleOpts & { date?: string } = {}) =>
+      v1<NocToday>(`/v1/multisport/games/${seg(slug)}/today/${seg(noc)}`, query),
+    medalHistory: (query: Q<MedalHistoryQuery> & { noc: string | string[] }) =>
+      v1<MedalHistory>('/v1/multisport/history/medals', toQuery(query)),
     /** Espelho compatível: mesmo endpoint e parâmetros da api-sports. */
     mirror: async (sport: MirrorSport, endpoint: string, params: Query = {}): Promise<MirrorResult> => {
       const res = await request(`/mirror/${sport}/${endpoint.replace(/^\//, '')}`, params);

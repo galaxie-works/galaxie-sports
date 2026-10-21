@@ -32,6 +32,7 @@ import {
   TeamSummary,
 } from './events.js';
 import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
+import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import {
   Person,
   Squad,
@@ -119,6 +120,8 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       { name: 'Espelho', description: 'Espelho compatível com a api-sports (docs/05 §2).' },
     ],
     paths: {
+      ...semanticPaths(),
+      ...multisportPaths(),
       '/v1/sports': {
         get: getOp('Esportes disponíveis e cobertura', 'Catálogo', list(Sport), { query: LocaleQuery }),
       },

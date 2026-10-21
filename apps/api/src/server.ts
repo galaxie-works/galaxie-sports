@@ -7,12 +7,13 @@ import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
 import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.js';
 import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
-import type { AppContext } from './context.js';
+import type { AppContext, SemanticConfig } from './context.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
 import { RulesRegistry } from './events/rules-registry.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
 import { docsRoutes } from './routes/docs.js';
 import { mirrorRoutes } from './routes/mirror.js';
+import { apiLoggerOptions, registerObservability } from './observability.js';
 import { v1Routes } from './routes/v1/index.js';
 
 export interface ServerOptions {
@@ -41,11 +42,14 @@ export interface ServerOptions {
   mediaDenylist?: MediaDenylist;
   /** Relógio injetável (testes de momentum/agenda). */
   now?: () => Date;
+  /** Piso editorial da semântica e pasta da base (SEMANTIC_MIN_REVIEW_STATUS, KNOWLEDGE_DIR). */
+  semantic?: SemanticConfig;
 }
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
 export function buildServer(options: ServerOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({ logger: options.logger ? apiLoggerOptions() : false });
+  registerObservability(app, { db: options.db });
   const prefix = options.keyPrefix ?? 'gs:';
 
   const cache =
@@ -64,6 +68,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     rules: new RulesRegistry(options.rulesDir),
     mediaDenylist: options.mediaDenylist,
     now: options.now ?? (() => new Date()),
+    ...(options.semantic ? { semantic: options.semantic } : {}),
   };
 
   registerErrorHandling(app);

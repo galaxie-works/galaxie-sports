@@ -27,6 +27,8 @@
     "@galaxie/db": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",
+    "@galaxie/knowledge": "workspace:*",
+    "@galaxie/observability": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.7",
     "ioredis": "^5.11.1",

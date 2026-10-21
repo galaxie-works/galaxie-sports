@@ -12,6 +12,7 @@ import { PgCursorStore } from './jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from './jobs/runtime/job-run-store.js';
 import { PgRawSource } from './jobs/runtime/raw-source.js';
 import type { RunDeps } from './jobs/runtime/runner.js';
+import { logger, logProviderCall } from './logger.js';
 
 export interface IngestorContext {
   db: Database;
@@ -40,6 +41,9 @@ export function contextFromEnv(env: NodeJS.ProcessEnv = process.env): IngestorCo
     governor,
     plan: new PlanRules(plan),
     offline,
+    onCall: logProviderCall(),
+    onPlanChange: (rules) =>
+      logger.warn({ seasons: rules.current.seasons }, 'fornecedor deslocou a janela de temporadas do plano'),
   });
   return { db, client, governor, offline };
 }

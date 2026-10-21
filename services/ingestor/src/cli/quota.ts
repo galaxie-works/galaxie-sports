@@ -13,6 +13,7 @@ import {
   type ApiSport,
 } from '@galaxie/apisports-client';
 import { closeDb, createDb } from '@galaxie/db';
+import { report } from '../logger.js';
 
 const { APISPORTS_KEY, DATABASE_URL, APISPORTS_PLAN, QUOTA_RESERVE_PERCENT } = process.env;
 if (!APISPORTS_KEY || !DATABASE_URL) throw new Error('Defina APISPORTS_KEY e DATABASE_URL (.env).');
@@ -45,5 +46,5 @@ for (const sport of sports) {
     reserva: usage.reserve,
   });
 }
-console.table(rows);
+report('Cota do dia por API', rows);
 await closeDb(db);

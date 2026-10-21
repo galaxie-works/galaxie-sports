@@ -27,6 +27,21 @@ export interface AppContext {
   mediaDenylist: MediaDenylist | undefined;
   /** Relógio (testes). */
   now: () => Date;
+  /** Camada semântica: piso editorial e pasta da base (glossário). */
+  semantic?: SemanticConfig;
+}
+
+/** Status editoriais da base semântica, do menos ao mais revisado. */
+export type ReviewStatus = 'draft' | 'reviewed' | 'approved';
+
+export interface SemanticConfig {
+  /**
+   * Status editorial mínimo servido pela API (SEMANTIC_MIN_REVIEW_STATUS). Padrão `approved` (produção);
+   * em desenvolvimento local use `draft` para ver a base inteira. O cliente pode endurecer, nunca afrouxar.
+   */
+  minReviewStatus?: ReviewStatus;
+  /** Pasta data/knowledge (KNOWLEDGE_DIR); padrão: a do repositório. */
+  knowledgeDir?: string;
 }
 
 export function requireDb(ctx: AppContext): Database {

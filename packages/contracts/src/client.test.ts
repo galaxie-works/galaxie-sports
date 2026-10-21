@@ -56,6 +56,21 @@ describe('createGalaxieClient', () => {
     expect(calls[2]!.url.pathname).toBe('/v1/events/e1.ics');
   });
 
+  it('monta as rotas semânticas e multiesportivas (listas viram vírgula)', async () => {
+    const { fn, calls } = fakeFetch(() => Response.json({}));
+    const client = createGalaxieClient({ baseUrl: 'http://api.test', apiKey: 'k', fetch: fn });
+    await client.teamSemantic('palmeiras', { locale: 'es-AR' });
+    await client.copy({ intent: 'cheer', affinity_type: 'heart', affinity_source: 'explicit' });
+    await client.medalHistory({ noc: ['BRA', 'ARG'], type: ['OG'] });
+    await client.medals('og-summer-2024', { sort: 'total', region: 'latam' });
+    expect(calls.map((c) => `${c.url.pathname}?${c.url.searchParams}`)).toEqual([
+      '/v1/teams/palmeiras/semantic?locale=es-AR',
+      '/v1/copy?intent=cheer&affinity_type=heart&affinity_source=explicit',
+      '/v1/multisport/history/medals?noc=BRA%2CARG&type=OG',
+      '/v1/multisport/games/og-summer-2024/medals?sort=total&region=latam',
+    ]);
+  });
+
   it('expõe a origem do espelho e lança GalaxieApiError com o problem', async () => {
     const { fn } = fakeFetch((url) =>
       url.pathname.startsWith('/mirror')

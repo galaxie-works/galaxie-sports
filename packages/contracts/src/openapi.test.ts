@@ -2,6 +2,8 @@ import { Validator } from '@seriousme/openapi-schema-validator';
 import { describe, expect, it } from 'vitest';
 import { CompetitionsQuery } from './catalog.js';
 import { LocaleQuery } from './common.js';
+import { GamesListQuery, MedalHistoryQuery, ScheduleQuery } from './multisport.js';
+import { CopyQuery } from './semantic.js';
 import { buildOpenApiDocument } from './openapi.js';
 
 describe('OpenAPI', () => {
@@ -58,6 +60,56 @@ describe('OpenAPI', () => {
       in: 'header',
       name: 'x-galaxie-key',
     });
+  });
+});
+
+describe('OpenAPI — semântica e multiesporte', () => {
+  it('publica as rotas de docs/06 §5 e docs/08 §4', () => {
+    const doc = buildOpenApiDocument();
+    expect(Object.keys(doc.paths ?? {})).toEqual(
+      expect.arrayContaining([
+        '/v1/derbies',
+        '/v1/derbies/upcoming',
+        '/v1/derbies/{slug}',
+        '/v1/teams/{id}/semantic',
+        '/v1/teams/{id}/rivals',
+        '/v1/glossary',
+        '/v1/copy',
+        '/v1/multisport/games',
+        '/v1/multisport/games/{slug}/medals',
+        '/v1/multisport/games/{slug}/schedule',
+        '/v1/multisport/games/{slug}/events/{id}',
+        '/v1/multisport/games/{slug}/nocs/{noc}/athletes',
+        '/v1/multisport/games/{slug}/today/{noc}',
+        '/v1/multisport/history/medals',
+      ]),
+    );
+    expect(Object.keys(doc.components?.schemas ?? {})).toEqual(
+      expect.arrayContaining([
+        'Derby',
+        'TeamSemantic',
+        'GlossaryTerm',
+        'CopySuggestion',
+        'MedalTable',
+        'MedalHistory',
+      ]),
+    );
+  });
+
+  it('normaliza listas de tipos e CONs e aplica padrões', () => {
+    expect(MedalHistoryQuery.parse({ noc: 'bra, arg' })).toMatchObject({
+      noc: ['BRA', 'ARG'],
+      type: ['OG', 'PAN'],
+    });
+    expect(GamesListQuery.parse({ type: 'og' }).type).toEqual(['OG']);
+    expect(GamesListQuery.safeParse({ type: 'XX' }).success).toBe(false);
+    expect(ScheduleQuery.parse({ medal_only: 'true', noc: 'bra' })).toMatchObject({
+      medal_only: true,
+      noc: 'BRA',
+      limit: 50,
+    });
+    expect(CopyQuery.parse({ intent: 'cheer' })).toMatchObject({ sport: 'football', tone: 2 });
+    expect(CopyQuery.safeParse({ intent: 'cheer', min_review_status: 'qualquer' }).success).toBe(false);
   });
 });
 
