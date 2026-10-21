@@ -1,0 +1,177 @@
+# =============================================================================
+# Galaxie Sports - catálogo de competições: rúgbi (v1.rugby.api-sports.io)
+# Mesmo schema de config/competitions/football.yaml. Consumido por
+#   pnpm --filter @galaxie/ingestor bootstrap:sports rugby
+#
+# TIERS (prioridade latino-americana, docs/03 §6)
+#   tier 1 - competições prioritárias: temporadas inteiras no bootstrap (--jogos) e live.
+#   tier 2 - espelhadas com tratamento leve; histórico conforme a cota.
+#   tier 3 - todo o resto do /leagues entra automaticamente (sem precisar estar aqui).
+#
+# CAMPOS
+#   name / country / type - exatamente como a API devolve (league.name, country.name,
+#                           type em minúsculas); a conferência do bootstrap aponta diferenças.
+#   api_sports_id         - ID da liga nesta API (o mesmo número pode existir em outra API;
+#                           o mapeamento em core.provider_map é sempre por esporte).
+#   verify                - false = ID e nome conferidos no /leagues capturado (snapshot 2025/2026,
+#                           ver docs/research/api-sports-outros-esportes.md); confirme na primeira execução autenticada.
+#   seasons_strategy      - calendar-year (2026 = 2026) ou split-year (2026 = 2026/27).
+# Super Rugby Americas e ligas do Uruguai, Chile e Brasil não aparecem no snapshot; resolver com /leagues?search=.
+# =============================================================================
+schema_version: 1
+sport: rugby
+competitions:
+
+  # ---------------------------------------------------------------- tier 1
+  - slug: top-12-argentina
+    name: "Top 12"
+    country: "Argentina"
+    type: league
+    api_sports_id: 1
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { es: "Top 12 de la URBA", pt-BR: "Top 12 (Argentina)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: olympics-rugby-sevens
+    name: "Olympic Games 7's"
+    country: "World"
+    type: cup
+    api_sports_id: 74
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Rúgbi de 7 masculino — Jogos Olímpicos", es: "Rugby 7 masculino — Juegos Olímpicos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: olympics-rugby-sevens-women
+    name: "Olympic Games 7's Women"
+    country: "World"
+    type: cup
+    api_sports_id: 75
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Rúgbi de 7 feminino — Jogos Olímpicos", es: "Rugby 7 femenino — Juegos Olímpicos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: pan-american-games-rugby-sevens
+    name: "Pan American Games 7's"
+    country: "World"
+    type: cup
+    api_sports_id: 107
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Rúgbi de 7 masculino — Jogos Pan-Americanos", es: "Rugby 7 masculino — Juegos Panamericanos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: pan-american-games-rugby-sevens-women
+    name: "Pan American Games 7's Women"
+    country: "World"
+    type: cup
+    api_sports_id: 108
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Rúgbi de 7 feminino — Jogos Pan-Americanos", es: "Rugby 7 femenino — Juegos Panamericanos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+
+  # ---------------------------------------------------------------- tier 2
+  - slug: rugby-world-cup
+    name: "World Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 69
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Copa do Mundo de Rúgbi", es: "Copa del Mundo de Rugby" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: rugby-world-cup-women
+    name: "World Cup Women"
+    country: "World"
+    type: cup
+    api_sports_id: 70
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: rugby-sevens-world-cup
+    name: "Sevens World Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 86
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: rugby-sevens-world-cup-women
+    name: "Sevens World Cup Women"
+    country: "World"
+    type: cup
+    api_sports_id: 87
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: super-rugby
+    name: "Super Rugby"
+    country: "World"
+    type: league
+    api_sports_id: 71
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: americas-rugby-championship
+    name: "Americas Championship"
+    country: "World"
+    type: cup
+    api_sports_id: 100
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { es: "Americas Rugby Championship" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: americas-pacific-challenge
+    name: "Americas Pacific Challenge"
+    country: "World"
+    type: cup
+    api_sports_id: 92
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: major-league-rugby
+    name: "Major League Rugby"
+    country: "USA"
+    type: league
+    api_sports_id: 44
+    verify: false
+    tier: 2
+    region: north-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]

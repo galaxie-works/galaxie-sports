@@ -1,0 +1,168 @@
+import 'zod-openapi';
+import * as z from 'zod';
+import { AssetUrl, CountryRef, LocaleQuery, PaginationQuery } from './common.js';
+
+// ─── esportes ────────────────────────────────────────────────────────────────────────────────────
+
+export const Sport = z
+  .object({
+    slug: z.string().meta({ example: 'football' }),
+    name: z.string().meta({ example: 'Futebol' }),
+    competitions: z.number().int().meta({ description: 'Competições catalogadas.' }),
+    mirror: z
+      .string()
+      .nullable()
+      .meta({ description: 'Prefixo do espelho compatível, quando houver.', example: '/mirror/football' }),
+  })
+  .meta({ id: 'Sport' });
+export type Sport = z.infer<typeof Sport>;
+
+// ─── países ──────────────────────────────────────────────────────────────────────────────────────
+
+export const Country = z
+  .object({
+    code: z
+      .string()
+      .meta({ description: 'ISO 3166-1 alpha-2 (ou extensão como GB-ENG; WORLD).', example: 'BR' }),
+    name: z.string().meta({ example: 'Brasil' }),
+    ioc_code: z.string().nullable().meta({ example: 'BRA' }),
+    confederation: z.string().nullable().meta({ example: 'CONMEBOL' }),
+    flag: AssetUrl,
+  })
+  .meta({ id: 'Country' });
+export type Country = z.infer<typeof Country>;
+
+// ─── competições ─────────────────────────────────────────────────────────────────────────────────
+
+export const SeasonRef = z
+  .object({ year: z.number().int().meta({ example: 2026 }), label: z.string().meta({ example: '2026' }) })
+  .meta({ id: 'SeasonRef' });
+
+export const Season = z
+  .object({
+    year: z.number().int().meta({ example: 2026 }),
+    label: z.string().meta({ example: '2025/26' }),
+    start_date: z.iso.date().nullable(),
+    end_date: z.iso.date().nullable(),
+    current: z.boolean(),
+    coverage: z.unknown().nullable().meta({ description: 'Cobertura informada pelo provedor.' }),
+  })
+  .meta({ id: 'Season' });
+export type Season = z.infer<typeof Season>;
+
+export const COMPETITION_TYPES = ['league', 'cup', 'tournament', 'multisport'] as const;
+
+export const CompetitionSummary = z
+  .object({
+    id: z.uuid(),
+    slug: z.string().meta({ example: 'libertadores' }),
+    sport: z.string().meta({ example: 'football' }),
+    name: z.string().meta({ description: 'Nome localizado (ou o oficial).', example: 'Libertadores' }),
+    official_name: z.string().meta({ example: 'CONMEBOL Libertadores' }),
+    nicknames: z.array(z.string()).meta({ example: ['Glória Eterna', 'Liberta'] }),
+    type: z.enum(COMPETITION_TYPES),
+    tier: z.number().int().min(1).max(3).meta({ description: '1 = cobertura máxima; 3 = apenas espelho.' }),
+    country: CountryRef.nullable(),
+    logo: AssetUrl,
+    current_season: SeasonRef.nullable(),
+  })
+  .meta({ id: 'CompetitionSummary' });
+export type CompetitionSummary = z.infer<typeof CompetitionSummary>;
+
+export const Competition = CompetitionSummary.extend({
+  trophy_nickname: z.string().nullable(),
+  external_ids: z
+    .record(z.string(), z.string())
+    .meta({ description: 'IDs nos provedores de dados.', example: { 'api-sports': '13' } }),
+  seasons: z.array(Season),
+}).meta({ id: 'Competition' });
+export type Competition = z.infer<typeof Competition>;
+
+export const CompetitionsQuery = LocaleQuery.extend(PaginationQuery.shape).extend({
+  sport: z.string().max(40).optional().meta({ example: 'football' }),
+  country: z
+    .string()
+    .max(20)
+    .transform((v) => v.toUpperCase())
+    .optional()
+    .meta({ description: 'Código do país.', example: 'BR' }),
+  tier: z.coerce.number().int().min(1).max(3).optional(),
+  q: z.string().trim().min(2).max(80).optional().meta({ description: 'Busca por nome, slug ou apelido.' }),
+});
+export type CompetitionsQuery = z.input<typeof CompetitionsQuery>;
+
+export const CompetitionParams = z.object({
+  id: z
+    .string()
+    .min(1)
+    .max(120)
+    .meta({ description: 'UUID ou slug da competição.', example: 'libertadores' }),
+});
+
+export const StandingsParams = CompetitionParams.extend({
+  season: z
+    .string()
+    .regex(/^(\d{4}|current)$/, 'use o ano (ex.: 2026) ou "current"')
+    .meta({ description: 'Ano da temporada ou `current`.', example: '2026' }),
+});
+
+// ─── tabelas ─────────────────────────────────────────────────────────────────────────────────────
+
+export const ParticipantRef = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    short_name: z.string().nullable(),
+    logo: AssetUrl,
+  })
+  .meta({ id: 'ParticipantRef' });
+
+export const StandingRow = z
+  .object({
+    rank: z.number().int(),
+    participant: ParticipantRef,
+    points: z.number().int(),
+    played: z.number().int(),
+    won: z.number().int(),
+    drawn: z.number().int(),
+    lost: z.number().int(),
+    goals_for: z.number().int(),
+    goals_against: z.number().int(),
+    goal_diff: z.number().int(),
+    form: z.string().nullable().meta({ example: 'WWDLW' }),
+    description: z.string().nullable().meta({ example: 'Promotion - CONMEBOL Libertadores' }),
+  })
+  .meta({ id: 'StandingRow' });
+
+export const Standings = z
+  .object({
+    competition_id: z.uuid(),
+    season: SeasonRef,
+    groups: z.array(
+      z.object({
+        name: z.string().nullable().meta({ description: 'Grupo (null em liga de grupo único).' }),
+        rows: z.array(StandingRow),
+      }),
+    ),
+    source: z.enum(['provider', 'computed']).nullable(),
+    updated_at: z.string().nullable().meta({ description: 'ISO 8601 no fuso pedido (`tz`).' }),
+  })
+  .meta({ id: 'Standings' });
+export type Standings = z.infer<typeof Standings>;
+
+// ─── venues ──────────────────────────────────────────────────────────────────────────────────────
+
+export const Venue = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    city: z.string().nullable(),
+    country: CountryRef.nullable(),
+    capacity: z.number().int().nullable(),
+    surface: z.string().nullable(),
+    image: AssetUrl,
+  })
+  .meta({ id: 'Venue' });
+export type Venue = z.infer<typeof Venue>;
+
+export const IdParams = z.object({ id: z.uuid() });
