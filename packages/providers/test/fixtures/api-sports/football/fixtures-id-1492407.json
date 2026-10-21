@@ -1,0 +1,258 @@
+{
+  "get": "fixtures",
+  "parameters": { "id": "1492407" },
+  "errors": [],
+  "results": 1,
+  "paging": { "current": 1, "total": 1 },
+  "response": [
+    {
+      "fixture": {
+        "id": 1492407,
+        "referee": "Árbitro Anônimo",
+        "timezone": "UTC",
+        "date": "2026-10-11T20:30:00+00:00",
+        "timestamp": 1791750600,
+        "periods": { "first": 1791750600, "second": 1791754200 },
+        "venue": { "id": 258, "name": "Estádio 258", "city": "Sao Paulo" },
+        "status": { "long": "Match Finished", "short": "FT", "elapsed": 90, "extra": null }
+      },
+      "league": {
+        "id": 71,
+        "name": "Serie A",
+        "country": "Brazil",
+        "logo": "https://media.api-sports.io/football/leagues/71.png",
+        "flag": "https://media.api-sports.io/flags/br.svg",
+        "season": 2026,
+        "round": "Regular Season - 30",
+        "standings": true
+      },
+      "teams": {
+        "home": {
+          "id": 121,
+          "name": "Palmeiras",
+          "logo": "https://media.api-sports.io/football/teams/121.png",
+          "winner": true
+        },
+        "away": {
+          "id": 131,
+          "name": "Corinthians",
+          "logo": "https://media.api-sports.io/football/teams/131.png",
+          "winner": false
+        }
+      },
+      "goals": { "home": 4, "away": 1 },
+      "score": {
+        "halftime": { "home": 2, "away": 0 },
+        "fulltime": { "home": 4, "away": 1 },
+        "extratime": { "home": null, "away": null },
+        "penalty": { "home": null, "away": null }
+      },
+      "events": [
+        {
+          "time": { "elapsed": 12, "extra": null },
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "player": { "id": 900001, "name": "Atacante A" },
+          "assist": { "id": 900002, "name": "Meia A" },
+          "type": "Goal",
+          "detail": "Normal Goal",
+          "comments": null
+        },
+        {
+          "time": { "elapsed": 30, "extra": null },
+          "team": {
+            "id": 131,
+            "name": "Corinthians",
+            "logo": "https://media.api-sports.io/football/teams/131.png"
+          },
+          "player": { "id": 900011, "name": "Zagueiro B" },
+          "assist": { "id": null, "name": null },
+          "type": "Card",
+          "detail": "Yellow Card",
+          "comments": "Foul"
+        },
+        {
+          "time": { "elapsed": 45, "extra": 2 },
+          "team": {
+            "id": 131,
+            "name": "Corinthians",
+            "logo": "https://media.api-sports.io/football/teams/131.png"
+          },
+          "player": { "id": 900011, "name": "Zagueiro B" },
+          "assist": { "id": null, "name": null },
+          "type": "Goal",
+          "detail": "Own Goal",
+          "comments": null
+        },
+        {
+          "time": { "elapsed": 58, "extra": null },
+          "team": {
+            "id": 131,
+            "name": "Corinthians",
+            "logo": "https://media.api-sports.io/football/teams/131.png"
+          },
+          "player": { "id": 900012, "name": "Atacante B" },
+          "assist": { "id": null, "name": null },
+          "type": "Goal",
+          "detail": "Missed Penalty",
+          "comments": null
+        },
+        {
+          "time": { "elapsed": 63, "extra": null },
+          "team": {
+            "id": 131,
+            "name": "Corinthians",
+            "logo": "https://media.api-sports.io/football/teams/131.png"
+          },
+          "player": { "id": 900012, "name": "Atacante B" },
+          "assist": { "id": 900013, "name": "Reserva B" },
+          "type": "subst",
+          "detail": "Substitution 1",
+          "comments": null
+        },
+        {
+          "time": { "elapsed": 70, "extra": null },
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "player": { "id": 900001, "name": "Atacante A" },
+          "assist": { "id": null, "name": null },
+          "type": "Var",
+          "detail": "Goal cancelled",
+          "comments": null
+        },
+        {
+          "time": { "elapsed": 77, "extra": null },
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "player": { "id": 900002, "name": "Meia A" },
+          "assist": { "id": null, "name": null },
+          "type": "Goal",
+          "detail": "Penalty",
+          "comments": null
+        },
+        {
+          "time": { "elapsed": 81, "extra": null },
+          "team": {
+            "id": 131,
+            "name": "Corinthians",
+            "logo": "https://media.api-sports.io/football/teams/131.png"
+          },
+          "player": { "id": 900013, "name": "Reserva B" },
+          "assist": { "id": null, "name": null },
+          "type": "Goal",
+          "detail": "Normal Goal",
+          "comments": null
+        },
+        {
+          "time": { "elapsed": 90, "extra": 4 },
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "player": { "id": 900001, "name": "Atacante A" },
+          "assist": { "id": null, "name": null },
+          "type": "Goal",
+          "detail": "Normal Goal",
+          "comments": null
+        }
+      ],
+      "lineups": [
+        {
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png",
+            "colors": null
+          },
+          "coach": {
+            "id": 800001,
+            "name": "Técnico A",
+            "photo": "https://media.api-sports.io/football/coachs/800001.png"
+          },
+          "formation": "4-2-3-1",
+          "startXI": [
+            { "player": { "id": 900001, "name": "Atacante A", "number": 9, "pos": "F", "grid": "5:1" } },
+            { "player": { "id": 900002, "name": "Meia A", "number": 10, "pos": "M", "grid": "4:2" } }
+          ],
+          "substitutes": [
+            { "player": { "id": 900003, "name": "Reserva A", "number": 19, "pos": "F", "grid": null } }
+          ]
+        },
+        {
+          "team": {
+            "id": 131,
+            "name": "Corinthians",
+            "logo": "https://media.api-sports.io/football/teams/131.png",
+            "colors": null
+          },
+          "coach": {
+            "id": 800002,
+            "name": "Técnico B",
+            "photo": "https://media.api-sports.io/football/coachs/800002.png"
+          },
+          "formation": "4-4-2",
+          "startXI": [
+            { "player": { "id": 900011, "name": "Zagueiro B", "number": 3, "pos": "D", "grid": "2:2" } },
+            { "player": { "id": 900012, "name": "Atacante B", "number": 9, "pos": "F", "grid": "4:1" } }
+          ],
+          "substitutes": [
+            { "player": { "id": 900013, "name": "Reserva B", "number": 18, "pos": "F", "grid": null } }
+          ]
+        }
+      ],
+      "statistics": [
+        {
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "statistics": [
+            { "type": "Shots on Goal", "value": 8 },
+            { "type": "Ball Possession", "value": "58%" }
+          ]
+        },
+        {
+          "team": {
+            "id": 131,
+            "name": "Corinthians",
+            "logo": "https://media.api-sports.io/football/teams/131.png"
+          },
+          "statistics": [
+            { "type": "Shots on Goal", "value": 3 },
+            { "type": "Ball Possession", "value": "42%" }
+          ]
+        }
+      ],
+      "players": [
+        {
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "players": [
+            {
+              "player": {
+                "id": 900001,
+                "name": "Atacante A",
+                "photo": "https://media.api-sports.io/football/players/900001.png"
+              },
+              "statistics": [{ "games": { "minutes": 90, "rating": "8.4" }, "goals": { "total": 2 } }]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

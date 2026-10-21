@@ -1,0 +1,292 @@
+# =============================================================================
+# Galaxie Sports - catálogo de competições: vôlei (v1.volleyball.api-sports.io)
+# Mesmo schema de config/competitions/football.yaml. Consumido por
+#   pnpm --filter @galaxie/ingestor bootstrap:sports volleyball
+#
+# TIERS (prioridade latino-americana, docs/03 §6)
+#   tier 1 - competições prioritárias: temporadas inteiras no bootstrap (--jogos) e live.
+#   tier 2 - espelhadas com tratamento leve; histórico conforme a cota.
+#   tier 3 - todo o resto do /leagues entra automaticamente (sem precisar estar aqui).
+#
+# CAMPOS
+#   name / country / type - exatamente como a API devolve (league.name, country.name,
+#                           type em minúsculas); a conferência do bootstrap aponta diferenças.
+#   api_sports_id         - ID da liga nesta API (o mesmo número pode existir em outra API;
+#                           o mapeamento em core.provider_map é sempre por esporte).
+#   verify                - false = ID e nome conferidos no /leagues capturado (snapshot 2025/2026,
+#                           ver docs/research/api-sports-outros-esportes.md); confirme na primeira execução autenticada.
+#   seasons_strategy      - calendar-year (2026 = 2026) ou split-year (2026 = 2026/27).
+# Atenção: a mídia do vôlei usa o caminho /volley/ (não /volleyball/).
+# Em scores vêm os sets vencidos; os pontos de cada set ficam em periods.
+# =============================================================================
+schema_version: 1
+sport: volleyball
+competitions:
+
+  # ---------------------------------------------------------------- tier 1
+  - slug: superliga-masculina
+    name: "SuperLiga"
+    country: "Brazil"
+    type: league
+    api_sports_id: 25
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Superliga Masculina de Vôlei", es: "Superliga de Brasil (masculina)", en: "Brazilian Superliga (men's)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: superliga-feminina
+    name: "Superliga Women"
+    country: "Brazil"
+    type: league
+    api_sports_id: 24
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Superliga Feminina de Vôlei", es: "Superliga de Brasil (femenina)", en: "Brazilian Superliga (women's)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: lva
+    name: "LVA"
+    country: "Argentina"
+    type: league
+    api_sports_id: 4
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Liga Argentina de Vôlei", es: "Liga de Voleibol Argentina", en: "Argentine Volleyball League" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: vnl
+    name: "Nations League"
+    country: "World"
+    type: cup
+    api_sports_id: 183
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Liga das Nações de Vôlei (masculina)", es: "Liga de Naciones de Voleibol (masculina)", en: "Volleyball Nations League (men's)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: vnl-women
+    name: "Nations League Women"
+    country: "World"
+    type: cup
+    api_sports_id: 184
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Liga das Nações de Vôlei (feminina)", es: "Liga de Naciones de Voleibol (femenina)", en: "Volleyball Nations League (women's)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: pan-american-games-volleyball
+    name: "Pan American Games"
+    country: "World"
+    type: cup
+    api_sports_id: 195
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Vôlei masculino — Jogos Pan-Americanos", es: "Voleibol masculino — Juegos Panamericanos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: pan-american-games-volleyball-women
+    name: "Pan American Games Women"
+    country: "World"
+    type: cup
+    api_sports_id: 213
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Vôlei feminino — Jogos Pan-Americanos", es: "Voleibol femenino — Juegos Panamericanos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  # rótulos de temporada suspeitos (2019/2023 para Tóquio/Paris) — valide antes de mapear edições
+  - slug: olympics-volleyball
+    name: "Olympic Games"
+    country: "World"
+    type: cup
+    api_sports_id: 189
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Vôlei masculino — Jogos Olímpicos", es: "Voleibol masculino — Juegos Olímpicos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: olympics-volleyball-women
+    name: "Olympic Games Women"
+    country: "World"
+    type: cup
+    api_sports_id: 190
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Vôlei feminino — Jogos Olímpicos", es: "Voleibol femenino — Juegos Olímpicos" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+
+  # ---------------------------------------------------------------- tier 2
+  - slug: liga-femenina-voley-argentina
+    name: "Liga Women"
+    country: "Argentina"
+    type: league
+    api_sports_id: 3
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { es: "Liga Femenina de Voleibol Argentino" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: copa-aclav
+    name: "Copa ACLAV"
+    country: "Argentina"
+    type: cup
+    api_sports_id: 2
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: copa-master-voley
+    name: "Copa Master"
+    country: "Argentina"
+    type: cup
+    api_sports_id: 1
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: peru-lnsv
+    name: "LNSV"
+    country: "Peru"
+    type: league
+    api_sports_id: 111
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { es: "Liga Nacional Superior de Voleibol (masculina)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: peru-lnsv-women
+    name: "LNSV Women"
+    country: "Peru"
+    type: league
+    api_sports_id: 110
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { es: "Liga Nacional Superior de Voleibol (femenina)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: pan-american-cup-volleyball
+    name: "Pan-American Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 206
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Copa Pan-Americana de Vôlei (masculina)", es: "Copa Panamericana de Voleibol (masculina)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: pan-american-cup-volleyball-women
+    name: "Pan-American Cup Women"
+    country: "World"
+    type: cup
+    api_sports_id: 201
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Copa Pan-Americana de Vôlei (feminina)", es: "Copa Panamericana de Voleibol (femenina)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: club-world-championship-volleyball
+    name: "Club World Championship"
+    country: "World"
+    type: cup
+    api_sports_id: 223
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Mundial de Clubes de Vôlei (masculino)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: club-world-championship-volleyball-women
+    name: "Club World Championship Women"
+    country: "World"
+    type: cup
+    api_sports_id: 224
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Mundial de Clubes de Vôlei (feminino)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: world-championship-volleyball
+    name: "World Championship"
+    country: "World"
+    type: cup
+    api_sports_id: 185
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Campeonato Mundial de Vôlei (masculino)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: world-championship-volleyball-women
+    name: "World Championship Women"
+    country: "World"
+    type: cup
+    api_sports_id: 186
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Campeonato Mundial de Vôlei (feminino)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: world-cup-volleyball
+    name: "World Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 188
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: world-cup-volleyball-women
+    name: "World Cup Women"
+    country: "World"
+    type: cup
+    api_sports_id: 187
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+
+notes:
+  - "Sul-Americano de Clubes não foi encontrado no snapshot do /leagues; resolver com /leagues?search= quando houver chave."

@@ -1,5 +1,5 @@
 {
-  "id": "3f6280f8-779c-40f2-b19a-5ef459f265f9",
+  "id": "82a60760-39c0-4040-ac55-f58b01aa5b8c",
   "prevId": "9b36aade-6423-4068-9fe8-fff2903337d9",
   "version": "7",
   "dialect": "postgresql",
@@ -3525,34 +3525,64 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "multisport.discipline": {
-      "name": "discipline",
-      "schema": "multisport",
+    "api.api_key": {
+      "name": "api_key",
+      "schema": "api",
       "columns": {
-        "code": {
-          "name": "code",
-          "type": "text",
+        "id": {
+          "name": "id",
+          "type": "uuid",
           "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
           "notNull": true
         },
-        "sport_code": {
-          "name": "sport_code",
+        "prefix": {
+          "name": "prefix",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
-          "type": "jsonb",
+        "secret_hash": {
+          "name": "secret_hash",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "two_bronzes": {
-          "name": "two_bronzes",
-          "type": "boolean",
+        "label": {
+          "name": "label",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": false
+          "notNull": false
+        },
+        "scopes": {
+          "name": "scopes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -3563,11 +3593,26 @@
         }
       },
       "indexes": {
-        "discipline_sport_idx": {
-          "name": "discipline_sport_idx",
+        "api_key_prefix_uq": {
+          "name": "api_key_prefix_uq",
           "columns": [
             {
-              "expression": "sport_code",
+              "expression": "prefix",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "api_key_tenant_idx": {
+          "name": "api_key_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3580,18 +3625,18 @@
         }
       },
       "foreignKeys": {
-        "discipline_sport_code_sport_code_fk": {
-          "name": "discipline_sport_code_sport_code_fk",
-          "tableFrom": "discipline",
-          "tableTo": "sport",
-          "schemaTo": "multisport",
+        "api_key_tenant_id_tenant_id_fk": {
+          "name": "api_key_tenant_id_tenant_id_fk",
+          "tableFrom": "api_key",
+          "tableTo": "tenant",
+          "schemaTo": "api",
           "columnsFrom": [
-            "sport_code"
+            "tenant_id"
           ],
           "columnsTo": [
-            "code"
+            "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -3601,9 +3646,158 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "multisport.games": {
-      "name": "games",
-      "schema": "multisport",
+    "api.backfill_request": {
+      "name": "backfill_request",
+      "schema": "api",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'api-sports'"
+        },
+        "sport": {
+          "name": "sport",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "endpoint": {
+          "name": "endpoint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "params": {
+          "name": "params",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_hash": {
+          "name": "request_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "priority": {
+          "name": "priority",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ADHOC'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "hits": {
+          "name": "hits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_requested_at": {
+          "name": "first_requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_requested_at": {
+          "name": "last_requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "backfill_request_hash_uq": {
+          "name": "backfill_request_hash_uq",
+          "columns": [
+            {
+              "expression": "request_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "backfill_request_status_idx": {
+          "name": "backfill_request_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_requested_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "backfill_request_tenant_id_tenant_id_fk": {
+          "name": "backfill_request_tenant_id_tenant_id_fk",
+          "tableFrom": "backfill_request",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "api.tenant": {
+      "name": "tenant",
+      "schema": "api",
       "columns": {
         "id": {
           "name": "id",
@@ -3618,1819 +3812,52 @@
           "primaryKey": false,
           "notNull": true
         },
-        "type": {
-          "name": "type",
-          "type": "games_type",
-          "typeSchema": "multisport",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "season": {
-          "name": "season",
-          "type": "games_season",
-          "typeSchema": "multisport",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "year": {
-          "name": "year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "edition": {
-          "name": "edition",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "name": {
           "name": "name",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "host_city": {
-          "name": "host_city",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "host_noc": {
-          "name": "host_noc",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "start_date": {
-          "name": "start_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "end_date": {
-          "name": "end_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tz": {
-          "name": "tz",
+        "plan": {
+          "name": "plan",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "status": {
-          "name": "status",
-          "type": "games_status",
-          "typeSchema": "multisport",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "wikidata_qid": {
-          "name": "wikidata_qid",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "medal_coverage": {
-          "name": "medal_coverage",
-          "type": "numeric(5, 4)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "medal_data_quality": {
-          "name": "medal_data_quality",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "games_slug_uq": {
-          "name": "games_slug_uq",
-          "columns": [
-            {
-              "expression": "slug",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "games_type_season_year_uq": {
-          "name": "games_type_season_year_uq",
-          "columns": [
-            {
-              "expression": "type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "season",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "year",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "games_wikidata_uq": {
-          "name": "games_wikidata_uq",
-          "columns": [
-            {
-              "expression": "wikidata_qid",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "games_host_noc_noc_code_fk": {
-          "name": "games_host_noc_noc_code_fk",
-          "tableFrom": "games",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "host_noc"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.games_competition": {
-      "name": "games_competition",
-      "schema": "multisport",
-      "columns": {
-        "games_id": {
-          "name": "games_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "season_id": {
-          "name": "season_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sport": {
-          "name": "sport",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gender": {
-          "name": "gender",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "provider_league_id": {
-          "name": "provider_league_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "matched_by": {
-          "name": "matched_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "games_competition_competition_idx": {
-          "name": "games_competition_competition_idx",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "games_competition_games_id_games_id_fk": {
-          "name": "games_competition_games_id_games_id_fk",
-          "tableFrom": "games_competition",
-          "tableTo": "games",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "games_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "games_competition_competition_id_competition_id_fk": {
-          "name": "games_competition_competition_id_competition_id_fk",
-          "tableFrom": "games_competition",
-          "tableTo": "competition",
-          "schemaTo": "core",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "games_competition_season_id_season_id_fk": {
-          "name": "games_competition_season_id_season_id_fk",
-          "tableFrom": "games_competition",
-          "tableTo": "season",
-          "schemaTo": "core",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "games_competition_games_id_competition_id_pk": {
-          "name": "games_competition_games_id_competition_id_pk",
-          "columns": [
-            "games_id",
-            "competition_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.games_provider_league": {
-      "name": "games_provider_league",
-      "schema": "multisport",
-      "columns": {
-        "games_type": {
-          "name": "games_type",
-          "type": "games_type",
-          "typeSchema": "multisport",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "games_season": {
-          "name": "games_season",
-          "type": "games_season",
-          "typeSchema": "multisport",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'summer'"
-        },
-        "sport": {
-          "name": "sport",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gender": {
-          "name": "gender",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'api-sports'"
-        },
-        "provider_league_id": {
-          "name": "provider_league_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "games_provider_league_provider_sport_provider_league_id_pk": {
-          "name": "games_provider_league_provider_sport_provider_league_id_pk",
-          "columns": [
-            "provider",
-            "sport",
-            "provider_league_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.medal": {
-      "name": "medal",
-      "schema": "multisport",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "participant_id": {
-          "name": "participant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "noc_code": {
-          "name": "noc_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "medal": {
-          "name": "medal",
-          "type": "medal_type",
-          "typeSchema": "multisport",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "awarded_at": {
-          "name": "awarded_at",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revoked_reason": {
-          "name": "revoked_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_key": {
-          "name": "source_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "confidence": {
-          "name": "confidence",
-          "type": "numeric(3, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "medal_source_key_uq": {
-          "name": "medal_source_key_uq",
-          "columns": [
-            {
-              "expression": "source_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "medal_event_idx": {
-          "name": "medal_event_idx",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "medal_noc_idx": {
-          "name": "medal_noc_idx",
-          "columns": [
-            {
-              "expression": "noc_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "medal_event_id_event_id_fk": {
-          "name": "medal_event_id_event_id_fk",
-          "tableFrom": "medal",
-          "tableTo": "event",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "medal_participant_id_participant_id_fk": {
-          "name": "medal_participant_id_participant_id_fk",
-          "tableFrom": "medal",
-          "tableTo": "participant",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "medal_noc_code_noc_code_fk": {
-          "name": "medal_noc_code_noc_code_fk",
-          "tableFrom": "medal",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "noc_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.medal_reference": {
-      "name": "medal_reference",
-      "schema": "multisport",
-      "columns": {
-        "games_id": {
-          "name": "games_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "noc_code": {
-          "name": "noc_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gold": {
-          "name": "gold",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "silver": {
-          "name": "silver",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bronze": {
-          "name": "bronze",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "url": {
-          "name": "url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "retrieved_at": {
-          "name": "retrieved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "medal_reference_games_id_games_id_fk": {
-          "name": "medal_reference_games_id_games_id_fk",
-          "tableFrom": "medal_reference",
-          "tableTo": "games",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "games_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "medal_reference_noc_code_noc_code_fk": {
-          "name": "medal_reference_noc_code_noc_code_fk",
-          "tableFrom": "medal_reference",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "noc_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "medal_reference_games_id_noc_code_source_pk": {
-          "name": "medal_reference_games_id_noc_code_source_pk",
-          "columns": [
-            "games_id",
-            "noc_code",
-            "source"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.medal_table_snapshot": {
-      "name": "medal_table_snapshot",
-      "schema": "multisport",
-      "columns": {
-        "games_id": {
-          "name": "games_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "noc_code": {
-          "name": "noc_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gold": {
-          "name": "gold",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "silver": {
-          "name": "silver",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bronze": {
-          "name": "bronze",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total": {
-          "name": "total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rank_by_gold": {
-          "name": "rank_by_gold",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rank_by_total": {
-          "name": "rank_by_total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "computed_at": {
-          "name": "computed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "medal_table_snapshot_games_id_games_id_fk": {
-          "name": "medal_table_snapshot_games_id_games_id_fk",
-          "tableFrom": "medal_table_snapshot",
-          "tableTo": "games",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "games_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "medal_table_snapshot_noc_code_noc_code_fk": {
-          "name": "medal_table_snapshot_noc_code_noc_code_fk",
-          "tableFrom": "medal_table_snapshot",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "noc_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "medal_table_snapshot_games_id_noc_code_pk": {
-          "name": "medal_table_snapshot_games_id_noc_code_pk",
-          "columns": [
-            "games_id",
-            "noc_code"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.event": {
-      "name": "event",
-      "schema": "multisport",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "games_id": {
-          "name": "games_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "discipline_code": {
-          "name": "discipline_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "gender": {
-          "name": "gender",
-          "type": "event_gender",
-          "typeSchema": "multisport",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'O'"
-        },
-        "name": {
-          "name": "name",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "odf_code": {
-          "name": "odf_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_team": {
-          "name": "is_team",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "medal_slots": {
-          "name": "medal_slots",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "event_date": {
-          "name": "event_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "wikidata_qid": {
-          "name": "wikidata_qid",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_sport": {
-          "name": "source_sport",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "ms_event_wikidata_uq": {
-          "name": "ms_event_wikidata_uq",
-          "columns": [
-            {
-              "expression": "wikidata_qid",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ms_event_odf_uq": {
-          "name": "ms_event_odf_uq",
-          "columns": [
-            {
-              "expression": "games_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "odf_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ms_event_games_idx": {
-          "name": "ms_event_games_idx",
-          "columns": [
-            {
-              "expression": "games_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "discipline_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "event_games_id_games_id_fk": {
-          "name": "event_games_id_games_id_fk",
-          "tableFrom": "event",
-          "tableTo": "games",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "games_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "event_discipline_code_discipline_code_fk": {
-          "name": "event_discipline_code_discipline_code_fk",
-          "tableFrom": "event",
-          "tableTo": "discipline",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "discipline_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.participant": {
-      "name": "participant",
-      "schema": "multisport",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "kind": {
-          "name": "kind",
-          "type": "participant_kind",
-          "typeSchema": "multisport",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "noc_code": {
-          "name": "noc_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "person_id": {
-          "name": "person_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "team_name": {
-          "name": "team_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "external_key": {
-          "name": "external_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "wikidata_qid": {
-          "name": "wikidata_qid",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "ms_participant_key_uq": {
-          "name": "ms_participant_key_uq",
-          "columns": [
-            {
-              "expression": "external_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ms_participant_noc_idx": {
-          "name": "ms_participant_noc_idx",
-          "columns": [
-            {
-              "expression": "noc_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ms_participant_person_idx": {
-          "name": "ms_participant_person_idx",
-          "columns": [
-            {
-              "expression": "person_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "participant_noc_code_noc_code_fk": {
-          "name": "participant_noc_code_noc_code_fk",
-          "tableFrom": "participant",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "noc_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "participant_person_id_person_id_fk": {
-          "name": "participant_person_id_person_id_fk",
-          "tableFrom": "participant",
-          "tableTo": "person",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.person": {
-      "name": "person",
-      "schema": "multisport",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "full_name": {
-          "name": "full_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "given_name": {
-          "name": "given_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "family_name": {
-          "name": "family_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "birth_date": {
-          "name": "birth_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "gender": {
-          "name": "gender",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "wikidata_qid": {
-          "name": "wikidata_qid",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "olympedia_id": {
-          "name": "olympedia_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "world_athletics_id": {
-          "name": "world_athletics_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fiba_id": {
-          "name": "fiba_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "ms_person_wikidata_uq": {
-          "name": "ms_person_wikidata_uq",
-          "columns": [
-            {
-              "expression": "wikidata_qid",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ms_person_name_idx": {
-          "name": "ms_person_name_idx",
-          "columns": [
-            {
-              "expression": "full_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.sport": {
-      "name": "sport",
-      "schema": "multisport",
-      "columns": {
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.noc": {
-      "name": "noc",
-      "schema": "multisport",
-      "columns": {
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "iso3": {
-          "name": "iso3",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "iso2": {
-          "name": "iso2",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name": {
-          "name": "name",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'noc'"
-        },
-        "ioc_member": {
-          "name": "ioc_member",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "panam_member": {
-          "name": "panam_member",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "successor_code": {
-          "name": "successor_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "flag_url": {
-          "name": "flag_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "wikidata_qid": {
-          "name": "wikidata_qid",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "noc_iso2_idx": {
-          "name": "noc_iso2_idx",
-          "columns": [
-            {
-              "expression": "iso2",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "noc_iso3_idx": {
-          "name": "noc_iso3_idx",
-          "columns": [
-            {
-              "expression": "iso3",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.phase": {
-      "name": "phase",
-      "schema": "multisport",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "phase_event_code_uq": {
-          "name": "phase_event_code_uq",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "phase_event_id_event_id_fk": {
-          "name": "phase_event_id_event_id_fk",
-          "tableFrom": "phase",
-          "tableTo": "event",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.result": {
-      "name": "result",
-      "schema": "multisport",
-      "columns": {
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "participant_id": {
-          "name": "participant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rank": {
-          "name": "rank",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "result_value": {
-          "name": "result_value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "result_type": {
-          "name": "result_type",
-          "type": "result_type",
-          "typeSchema": "multisport",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "irm": {
-          "name": "irm",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "qualified_mark": {
-          "name": "qualified_mark",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "records": {
-          "name": "records",
+        "modules": {
+          "name": "modules",
           "type": "text[]",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "raw": {
-          "name": "raw",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
+        "markets": {
+          "name": "markets",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "result_unit_id_unit_id_fk": {
-          "name": "result_unit_id_unit_id_fk",
-          "tableFrom": "result",
-          "tableTo": "unit",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "unit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "default": "'{}'"
         },
-        "result_participant_id_participant_id_fk": {
-          "name": "result_participant_id_participant_id_fk",
-          "tableFrom": "result",
-          "tableTo": "participant",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "result_unit_id_participant_id_pk": {
-          "name": "result_unit_id_participant_id_pk",
-          "columns": [
-            "unit_id",
-            "participant_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.source_ref": {
-      "name": "source_ref",
-      "schema": "multisport",
-      "columns": {
-        "entity_type": {
-          "name": "entity_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_id": {
-          "name": "source_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "url": {
-          "name": "url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "license": {
-          "name": "license",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fetched_at": {
-          "name": "fetched_at",
-          "type": "timestamp with time zone",
+        "sports": {
+          "name": "sports",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "source_ref_source_idx": {
-          "name": "source_ref_source_idx",
-          "columns": [
-            {
-              "expression": "source",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "source_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "source_ref_entity_type_entity_id_source_source_id_pk": {
-          "name": "source_ref_entity_type_entity_id_source_source_id_pk",
-          "columns": [
-            "entity_type",
-            "entity_id",
-            "source",
-            "source_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.team_member": {
-      "name": "team_member",
-      "schema": "multisport",
-      "columns": {
-        "team_participant_id": {
-          "name": "team_participant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
+          "default": "'{}'"
         },
-        "person_id": {
-          "name": "person_id",
-          "type": "uuid",
+        "rate_limit_per_minute": {
+          "name": "rate_limit_per_minute",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "team_member_team_participant_id_participant_id_fk": {
-          "name": "team_member_team_participant_id_participant_id_fk",
-          "tableFrom": "team_member",
-          "tableTo": "participant",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "team_participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "team_member_person_id_person_id_fk": {
-          "name": "team_member_person_id_person_id_fk",
-          "tableFrom": "team_member",
-          "tableTo": "person",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "team_member_team_participant_id_person_id_pk": {
-          "name": "team_member_team_participant_id_person_id_pk",
-          "columns": [
-            "team_participant_id",
-            "person_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "multisport.unit": {
-      "name": "unit",
-      "schema": "multisport",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
           "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "phase_id": {
-          "name": "phase_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "odf_rsc": {
-          "name": "odf_rsc",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name": {
-          "name": "name",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "start_utc": {
-          "name": "start_utc",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "end_utc": {
-          "name": "end_utc",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "venue": {
-          "name": "venue",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
+          "default": 120
         },
         "status": {
           "name": "status",
-          "type": "unit_status",
-          "typeSchema": "multisport",
+          "type": "tenant_status",
+          "typeSchema": "api",
           "primaryKey": false,
           "notNull": true,
-          "default": "'scheduled'"
-        },
-        "is_medal_unit": {
-          "name": "is_medal_unit",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "core_event_id": {
-          "name": "core_event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
+          "default": "'active'"
         },
         "created_at": {
           "name": "created_at",
@@ -5447,70 +3874,18 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "unit_odf_rsc_uq": {
-          "name": "unit_odf_rsc_uq",
-          "columns": [
-            {
-              "expression": "odf_rsc",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "unit_start_idx": {
-          "name": "unit_start_idx",
-          "columns": [
-            {
-              "expression": "start_utc",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "unit_phase_id_phase_id_fk": {
-          "name": "unit_phase_id_phase_id_fk",
-          "tableFrom": "unit",
-          "tableTo": "phase",
-          "schemaTo": "multisport",
-          "columnsFrom": [
-            "phase_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "unit_core_event_id_event_id_fk": {
-          "name": "unit_core_event_id_event_id_fk",
-          "tableFrom": "unit",
-          "tableTo": "event",
-          "schemaTo": "core",
-          "columnsFrom": [
-            "core_event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "tenant_slug_unique": {
+          "name": "tenant_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -5623,81 +3998,12 @@
         "ADHOC"
       ]
     },
-    "multisport.event_gender": {
-      "name": "event_gender",
-      "schema": "multisport",
+    "api.tenant_status": {
+      "name": "tenant_status",
+      "schema": "api",
       "values": [
-        "M",
-        "W",
-        "X",
-        "O"
-      ]
-    },
-    "multisport.games_season": {
-      "name": "games_season",
-      "schema": "multisport",
-      "values": [
-        "summer",
-        "winter"
-      ]
-    },
-    "multisport.games_status": {
-      "name": "games_status",
-      "schema": "multisport",
-      "values": [
-        "completed",
-        "in_progress",
-        "upcoming"
-      ]
-    },
-    "multisport.games_type": {
-      "name": "games_type",
-      "schema": "multisport",
-      "values": [
-        "OG",
-        "YOG",
-        "PAN",
-        "PARAPAN",
-        "PAN_JR"
-      ]
-    },
-    "multisport.medal_type": {
-      "name": "medal_type",
-      "schema": "multisport",
-      "values": [
-        "G",
-        "S",
-        "B"
-      ]
-    },
-    "multisport.participant_kind": {
-      "name": "participant_kind",
-      "schema": "multisport",
-      "values": [
-        "athlete",
-        "team"
-      ]
-    },
-    "multisport.result_type": {
-      "name": "result_type",
-      "schema": "multisport",
-      "values": [
-        "time",
-        "points",
-        "distance",
-        "score",
-        "rank"
-      ]
-    },
-    "multisport.unit_status": {
-      "name": "unit_status",
-      "schema": "multisport",
-      "values": [
-        "scheduled",
-        "live",
-        "finished",
-        "delayed",
-        "cancelled"
+        "active",
+        "suspended"
       ]
     }
   },
@@ -5707,70 +4013,12 @@
     "semantic": "semantic",
     "enrich": "enrich",
     "ops": "ops",
-    "multisport": "multisport"
+    "api": "api"
   },
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {
-    "multisport.medal_table": {
-      "columns": {
-        "games_id": {
-          "name": "games_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "noc_code": {
-          "name": "noc_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gold": {
-          "name": "gold",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "silver": {
-          "name": "silver",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bronze": {
-          "name": "bronze",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total": {
-          "name": "total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rank_by_gold": {
-          "name": "rank_by_gold",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rank_by_total": {
-          "name": "rank_by_total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "definition": "with counts as (\n      select e.games_id, m.noc_code,\n        count(*) filter (where m.medal = 'G')::int as gold,\n        count(*) filter (where m.medal = 'S')::int as silver,\n        count(*) filter (where m.medal = 'B')::int as bronze,\n        count(*)::int as total\n      from multisport.medal m\n      join multisport.event e on e.id = m.event_id\n      where m.revoked_at is null\n      group by e.games_id, m.noc_code\n    )\n    select games_id, noc_code, gold, silver, bronze, total,\n      (rank() over (partition by games_id order by gold desc, silver desc, bronze desc))::int as rank_by_gold,\n      (rank() over (partition by games_id order by total desc, gold desc, silver desc, bronze desc))::int as rank_by_total\n    from counts",
-      "name": "medal_table",
-      "schema": "multisport",
-      "isExisting": false,
-      "materialized": false
-    }
-  },
+  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

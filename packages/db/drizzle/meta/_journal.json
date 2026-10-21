@@ -26,8 +26,29 @@
     {
       "idx": 3,
       "version": "7",
-      "when": 1792605965078,
-      "tag": "0003_multisport",
+      "when": 1792604591616,
+      "tag": "0003_api_tenants",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792605971043,
+      "tag": "0004_semantic_seed",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792606288146,
+      "tag": "0005_event_state_and_roster",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792607001658,
+      "tag": "0006_multisport",
       "breakpoints": true
     }
   ]

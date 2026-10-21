@@ -22,11 +22,23 @@
     "bootstrap:catalog": "node --env-file-if-exists=../../.env dist/cli/bootstrap-catalog.js",
     "multisport:seed": "node --env-file-if-exists=../../.env dist/cli/multisport-seed.js",
     "multisport:wikidata": "node --env-file-if-exists=../../.env dist/cli/multisport-wikidata.js",
-    "multisport:qa": "node --env-file-if-exists=../../.env dist/cli/multisport-qa.js"
+    "multisport:qa": "node --env-file-if-exists=../../.env dist/cli/multisport-qa.js",
+    "normalize:football": "node --env-file-if-exists=../../.env dist/cli/normalize-football.js",
+    "events:clock": "node --env-file-if-exists=../../.env dist/cli/events-clock.js",
+    "bootstrap:seasons": "node --env-file-if-exists=../../.env dist/cli/bootstrap-seasons.js",
+    "bootstrap:details": "node --env-file-if-exists=../../.env dist/cli/bootstrap-details.js",
+    "bootstrap:people": "node --env-file-if-exists=../../.env dist/cli/bootstrap-people.js",
+    "sync:daily": "node --env-file-if-exists=../../.env dist/cli/sync-daily.js",
+    "snapshot:export": "node --env-file-if-exists=../../.env dist/cli/snapshot-export.js",
+    "snapshot:import": "node --env-file-if-exists=../../.env dist/cli/snapshot-import.js",
+    "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
+    "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1153.0",
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/providers": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "yaml": "^2.9.1"
   },

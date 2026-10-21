@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.galaxie-sports.local/knowledge/competitions.schema.json",
+  "title": "Semântica de competições — data/knowledge/competitions/*.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "competitions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "competitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slug", "api_sports_league_id", "labels", "sources"],
+        "properties": {
+          "slug": { "$ref": "common.schema.json#/definitions/slug" },
+          "api_sports_league_id": { "type": ["integer", "null"], "minimum": 1 },
+          "labels": { "$ref": "common.schema.json#/definitions/labels" },
+          "nicknames": {
+            "type": "object",
+            "propertyNames": { "$ref": "common.schema.json#/definitions/labelLocale" },
+            "additionalProperties": { "$ref": "common.schema.json#/definitions/stringList" }
+          },
+          "trophy_nickname": { "type": ["string", "null"], "minLength": 1 },
+          "sources": { "$ref": "common.schema.json#/definitions/sources" },
+          "review_status": { "$ref": "common.schema.json#/definitions/reviewStatus" }
+        }
+      }
+    }
+  }
+}
