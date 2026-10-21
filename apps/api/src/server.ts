@@ -14,11 +14,7 @@ import type { AppContext, SemanticConfig } from './context.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
 import { RulesRegistry } from './events/rules-registry.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
-import {
-  apiKeyFrom,
-  registerRealtime,
-  type RealtimeOptions,
-} from './realtime/index.js';
+import { apiKeyFrom, registerRealtime, type RealtimeOptions } from './realtime/index.js';
 import { docsRoutes } from './routes/docs.js';
 import { mirrorRoutes } from './routes/mirror.js';
 import { apiLoggerOptions, registerObservability } from './observability.js';
