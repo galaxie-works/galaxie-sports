@@ -1,0 +1,48 @@
+# Biblioteca de copy — Argentina (es-AR). Ver docs/06 §4 e data/knowledge/SCHEMA.md.
+# Padrões naturais: "alentar", "se viene", "hinchar por", voseo ("seguilo"). Preferir apoio positivo;
+# rivalidade só para rival DECLARADO e sem provocação. Placeholders: {team}, {nickname}, {rival}, {minutes}.
+# Todos os templates nascem draft até revisão nativa.
+schema_version: 1
+locale: es-AR
+sport: football
+templates:
+  # ------------------------------------------------------------------ inform
+  - { key: inform-1, intent: inform, tone: 1, template: "Próximo partido: {team}", confidence: HIGH, review_status: draft }
+  - { key: inform-1-today, intent: inform, tone: 1, momentum: today, template: "Hoy juega {team}", confidence: HIGH, review_status: draft }
+  - { key: inform-1-d1, intent: inform, tone: 1, momentum: D-1, template: "Mañana juega {team}", confidence: HIGH, review_status: draft }
+  - { key: inform-1-t30, intent: inform, tone: 1, momentum: T-30, template: "{team} sale a la cancha en {minutes} minutos", confidence: HIGH, review_status: draft }
+  - { key: inform-1-live, intent: inform, tone: 1, momentum: live, template: "{team} está jugando ahora", confidence: HIGH, review_status: draft }
+  - { key: inform-2-today, intent: inform, tone: 2, momentum: today, template: "Hoy hay partido de {team}", confidence: HIGH, review_status: draft }
+  - { key: inform-2-derby, intent: inform, tone: 2, competition_context: derby, template: "Hoy hay clásico: {team} vs. {rival}", confidence: HIGH, review_status: draft }
+  # ------------------------------------------------------------------ anticipate
+  - { key: anticipate-1-d1, intent: anticipate, tone: 1, momentum: D-1, template: "Mañana hay partido de {team}", confidence: HIGH, review_status: draft }
+  - { key: anticipate-2-today, intent: anticipate, tone: 2, momentum: today, template: "Se viene el partido de {team}", confidence: HIGH, review_status: draft }
+  - { key: anticipate-2-t60, intent: anticipate, tone: 2, momentum: T-60, template: "En {minutes} minutos juega {team}", confidence: HIGH, review_status: draft }
+  - { key: anticipate-3-today, intent: anticipate, tone: 3, momentum: today, template: "¡Se viene! Hoy hay que alentar a {team}", confidence: MEDIUM, review_status: draft }
+  - { key: anticipate-3-d1, intent: anticipate, tone: 3, momentum: D-1, template: "Mañana se alienta. ¡Vamos, {nickname}!", confidence: MEDIUM, review_status: draft }
+  - { key: anticipate-4-today, intent: anticipate, tone: 4, momentum: today, template: "¡Hoy es el día! ¡Dale, {nickname}!", confidence: HIGH, review_status: draft }
+  # ------------------------------------------------------------------ cheer
+  - { key: cheer-2, intent: cheer, tone: 2, template: "¡Suerte, {team}!", confidence: HIGH, review_status: draft }
+  - { key: cheer-3, intent: cheer, tone: 3, template: "¡Vamos, {team}!", confidence: HIGH, review_status: draft }
+  - { key: cheer-3-nickname, intent: cheer, tone: 3, template: "¡Dale, {nickname}!", confidence: HIGH, review_status: draft }
+  - { key: cheer-3-derby, intent: cheer, tone: 3, competition_context: derby, template: "{team} vs. {rival}: hoy hay clásico. ¡A alentar!", confidence: HIGH, review_status: draft }
+  - { key: cheer-4, intent: cheer, tone: 4, template: "¡Dale, {nickname}, hoy te alentamos más que nunca!", confidence: MEDIUM, review_status: draft }
+  - { key: cheer-4-final, intent: cheer, tone: 4, competition_context: final, template: "¡Es la final! ¡Vamos, {nickname}!", confidence: HIGH, review_status: draft }
+  # ------------------------------------------------------------------ rivalry (rival declarado; tono positivo)
+  - { key: rivalry-1, intent: rivalry, tone: 1, affinity_type: rival, affinity_source: explicit, template: "Hoy juega {rival}, tu rival de siempre", confidence: HIGH, review_status: draft }
+  - { key: rivalry-2, intent: rivalry, tone: 2, affinity_type: rival, affinity_source: explicit, template: "Juega {rival}. ¿Lo vas a seguir?", confidence: MEDIUM, review_status: draft }
+  - { key: rivalry-3, intent: rivalry, tone: 3, affinity_type: rival, affinity_source: explicit, template: "Hoy juega {rival}. ¿Hinchamos por el rival del rival?", confidence: MEDIUM, review_status: draft }
+  # ------------------------------------------------------------------ urgency
+  - { key: urgency-1-t10, intent: urgency, tone: 1, momentum: T-10, template: "{team} sale a la cancha en {minutes} minutos", confidence: HIGH, review_status: draft }
+  - { key: urgency-2-starting, intent: urgency, tone: 2, momentum: starting, template: "Arranca el partido de {team}", confidence: HIGH, review_status: draft }
+  - { key: urgency-2-live, intent: urgency, tone: 2, momentum: live, template: "{team} juega ahora. Seguilo en vivo", confidence: HIGH, review_status: draft }
+  - { key: urgency-3-starting, intent: urgency, tone: 3, momentum: starting, template: "¡Ya arranca! ¡Vamos, {nickname}!", confidence: HIGH, review_status: draft }
+  - { key: urgency-4-starting, intent: urgency, tone: 4, momentum: starting, template: "¡Arranca! ¡A dejar todo, {nickname}!", confidence: MEDIUM, review_status: draft }
+  # ------------------------------------------------------------------ decisive
+  - { key: decisive-1, intent: decisive, tone: 1, template: "Partido decisivo hoy: juega {team}", confidence: HIGH, review_status: draft }
+  - { key: decisive-2-final, intent: decisive, tone: 2, competition_context: final, template: "Final hoy: {team} va por el título", confidence: HIGH, review_status: draft }
+  - { key: decisive-2-relegation, intent: decisive, tone: 2, competition_context: relegation, template: "Partido clave por la permanencia: juega {team}", confidence: MEDIUM, review_status: draft }
+  - { key: decisive-3, intent: decisive, tone: 3, template: "Partido grande hoy. ¡Vamos, {nickname}!", confidence: HIGH, review_status: draft }
+  - { key: decisive-3-title, intent: decisive, tone: 3, competition_context: title, template: "Hoy puede llegar el título. ¡Dale, {nickname}!", confidence: HIGH, review_status: draft }
+  - { key: decisive-3-relegation, intent: decisive, tone: 3, competition_context: relegation, template: "Hoy se define todo. ¡Fuerza, {team}!", confidence: MEDIUM, review_status: draft }
+  - { key: decisive-4-final, intent: decisive, tone: 4, competition_context: final, template: "¡Final! ¡Hoy se deja todo, {nickname}!", confidence: HIGH, review_status: draft }
