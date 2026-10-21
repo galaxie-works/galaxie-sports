@@ -19,7 +19,7 @@ Galaxie Sports espelha internamente toda a [api-sports.io](https://api-sports.io
 - [IA ao vivo e enriquecimento](#ia-ao-vivo-e-enriquecimento)
 - [App de demonstração](#app-de-demonstração)
 - [Estrutura do repositório](#estrutura-do-repositório)
-- [Como rodar (alvo)](#como-rodar-alvo)
+- [Como rodar](#como-rodar)
 - [Documentação](#documentação)
 - [Roadmap](#roadmap)
 
@@ -165,9 +165,10 @@ Detalhes: [docs/09-app-demonstracao.md](docs/09-app-demonstracao.md).
 
 ```
 galaxie-sports/
-├── apps/                       # (a criar) api · demo
-├── services/                   # (a criar) ingestor · ai-agents
-├── packages/                   # (a criar) db · apisports-client · contracts
+├── apps/                       # api (Fastify) · demo (a criar)
+├── services/                   # ingestor · ai-agents (esqueleto)
+├── packages/                   # db (schema + migrations) · apisports-client · contracts
+├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS)
 ├── config/
 │   └── competitions/football.yaml   # 76 competições com IDs verificados e tiers
 ├── data/
@@ -179,18 +180,31 @@ galaxie-sports/
 └── README.md
 ```
 
-## Como rodar (alvo)
+## Como rodar
 
-> O código será criado conforme o backlog. Os comandos abaixo são o contrato de desenvolvimento.
+Pré-requisitos: **Node.js 24**, **pnpm 11**, **Docker** (Desktop ou Engine).
 
 ```bash
 cp .env.example .env            # preencha APISPORTS_KEY, ANTHROPIC_API_KEY...
 pnpm install
-pnpm infra:up                   # Postgres, Valkey, MinIO
-pnpm db:migrate && pnpm db:seed:semantic
-pnpm snapshot:restore           # dados locais sem gastar cota
-pnpm dev                        # API + demo + workers
+pnpm infra:up                   # Postgres 17 (porta 5433), Valkey (6379), RustFS/S3 (9000) + bucket de assets
+pnpm build
+pnpm db:migrate                 # aplica as migrations (idempotente)
+pnpm test                       # testes unitários
+pnpm test:integration           # testes de integração contra o Postgres local
+pnpm --filter @galaxie/api dev  # API em http://localhost:8080/health
 ```
+
+| Comando | O que faz |
+|---|---|
+| `pnpm lint` · `pnpm format:check` · `pnpm typecheck` | Qualidade (também rodam no CI) |
+| `pnpm db:generate` | Gera migration a partir do schema Drizzle (`packages/db/src/schema`) |
+| `pnpm db:studio` | Drizzle Studio para inspecionar o banco |
+| `pnpm infra:down` | Para a infra local (volumes preservados) |
+
+> A porta do Postgres é **5433** para não colidir com instalações nativas na 5432. Ajuste `POSTGRES_PORT`/`DATABASE_URL` no `.env` se precisar.
+
+Ainda por vir (backlog): `pnpm db:seed:semantic`, `pnpm snapshot:restore`, workers de ingestão e o app de demonstração.
 
 Ferramentas já disponíveis:
 

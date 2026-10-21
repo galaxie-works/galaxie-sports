@@ -1,0 +1,9 @@
+dist
+coverage
+pnpm-lock.yaml
+packages/db/drizzle
+docs
+data
+*.md
+config
+scripts

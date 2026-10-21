@@ -60,7 +60,7 @@ _Base técnica para todo o resto: monorepo, ambiente local reproduzível, schema
 | Issue | Título | Tipo | Prioridade | Tamanho | Depende de |
 |---|---|---|---|---|---|
 | [#2](https://github.com/galaxie-works/galaxie-sports/issues/2) | Monorepo pnpm + Turborepo com TypeScript, lint e CI | task | P0 | M | — |
-| [#3](https://github.com/galaxie-works/galaxie-sports/issues/3) | Infra local com Docker Compose (Postgres 17, Valkey, MinIO) | task | P0 | S | [#2](https://github.com/galaxie-works/galaxie-sports/issues/2) |
+| [#3](https://github.com/galaxie-works/galaxie-sports/issues/3) | Infra local com Docker Compose (Postgres 17, Valkey, S3) | task | P0 | S | [#2](https://github.com/galaxie-works/galaxie-sports/issues/2) |
 | [#4](https://github.com/galaxie-works/galaxie-sports/issues/4) | Schema do banco v1: raw, core, semantic, enrich, ops (Drizzle) | task | P0 | L | [#3](https://github.com/galaxie-works/galaxie-sports/issues/3) |
 | [#5](https://github.com/galaxie-works/galaxie-sports/issues/5) | Stack de staging na VPS com Portainer + backups diários | task | P1 | M | [#3](https://github.com/galaxie-works/galaxie-sports/issues/3), [#4](https://github.com/galaxie-works/galaxie-sports/issues/4) |
 | [#6](https://github.com/galaxie-works/galaxie-sports/issues/6) | Observabilidade: logs estruturados, métricas e painel de cota | task | P1 | M | [#2](https://github.com/galaxie-works/galaxie-sports/issues/2) |

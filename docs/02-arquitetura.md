@@ -92,7 +92,7 @@ galaxie-sports/
 ├── scripts/
 │   └── pwsh/                 # scripts PowerShell operacionais
 ├── infra/
-│   ├── docker-compose.yml    # Postgres, Redis, MinIO, API, workers
+│   ├── docker-compose.yml    # Postgres 17, Valkey, RustFS (S3), bucket de assets
 │   └── portainer/            # stacks para VPS
 └── docs/                     # esta documentação
 ```
