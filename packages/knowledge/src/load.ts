@@ -7,6 +7,8 @@ import type {
   CopyFile,
   CopyTemplateEntry,
   DerbyEntry,
+  GlossaryFile,
+  GlossaryTermEntry,
   TeamEntry,
   TeamsFile,
 } from './types.js';
@@ -14,7 +16,8 @@ import type {
 /** data/knowledge na raiz do repositório (vale tanto para src/ quanto para dist/). */
 export const DEFAULT_KNOWLEDGE_DIR = fileURLToPath(new URL('../../../data/knowledge', import.meta.url));
 
-export type FileKind = 'teams' | 'national-teams' | 'derbies' | 'competitions' | 'copy' | 'unknown';
+export type FileKind =
+  'teams' | 'national-teams' | 'derbies' | 'competitions' | 'copy' | 'glossary' | 'unknown';
 
 export interface KnowledgeFile {
   /** Caminho absoluto. */
@@ -40,6 +43,7 @@ export interface Located<T> {
 
 export type LocatedTeam = Located<TeamEntry> & { countryCode: string; kind: 'club' | 'national_team' };
 export type LocatedCopyTemplate = Located<CopyTemplateEntry> & { locale: string; sport: string };
+export type LocatedGlossaryTerm = Located<GlossaryTermEntry> & { locale: string; sport: string };
 
 export interface KnowledgeBase {
   dir: string;
@@ -48,6 +52,7 @@ export interface KnowledgeBase {
   derbies: Located<DerbyEntry>[];
   competitions: Located<CompetitionEntry>[];
   copyTemplates: LocatedCopyTemplate[];
+  glossary: LocatedGlossaryTerm[];
 }
 
 /** Classifica um arquivo pelo caminho relativo dentro de data/knowledge. */
@@ -57,6 +62,7 @@ export function fileKind(rel: string): FileKind {
   if (/^football\/derbies\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'derbies';
   if (/^competitions\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'competitions';
   if (/^copy\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'copy';
+  if (/^glossary\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'glossary';
   return 'unknown';
 }
 
@@ -128,7 +134,15 @@ export async function loadKnowledge(dir: string = DEFAULT_KNOWLEDGE_DIR): Promis
 }
 
 export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): KnowledgeBase {
-  const kb: KnowledgeBase = { dir, files, teams: [], derbies: [], competitions: [], copyTemplates: [] };
+  const kb: KnowledgeBase = {
+    dir,
+    files,
+    teams: [],
+    derbies: [],
+    competitions: [],
+    copyTemplates: [],
+    glossary: [],
+  };
   for (const file of files) {
     switch (file.kind) {
       case 'teams': {
@@ -163,9 +177,44 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
         });
         break;
       }
+      case 'glossary': {
+        const data = file.data as Partial<GlossaryFile> | null;
+        const list = Array.isArray(data?.terms) ? data.terms : [];
+        list.forEach((entry, index) => {
+          if (isObject(entry) && typeof entry['key'] === 'string')
+            kb.glossary.push({
+              file: file.rel,
+              index,
+              entry: entry as unknown as GlossaryTermEntry,
+              locale: String(data?.locale ?? ''),
+              sport: String(data?.sport ?? ''),
+            });
+        });
+        break;
+      }
       default:
         break;
     }
   }
   return kb;
+}
+
+/**
+ * Lê só data/knowledge/glossary (usado pela API em GET /v1/glossary, sem carregar a base inteira).
+ * Pasta ausente = glossário vazio.
+ */
+export async function loadGlossary(dir: string = DEFAULT_KNOWLEDGE_DIR): Promise<LocatedGlossaryTerm[]> {
+  let paths: string[];
+  try {
+    paths = await listYamlFiles(join(dir, 'glossary'));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw err;
+  }
+  const files: KnowledgeFile[] = [];
+  for (const path of paths) {
+    const rel = relative(dir, path).split(sep).join('/');
+    files.push(parseKnowledgeFile(path, rel, await readFile(path, 'utf8')));
+  }
+  return buildKnowledgeBase(dir, files).glossary;
 }

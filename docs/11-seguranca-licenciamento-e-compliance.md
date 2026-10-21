@@ -36,7 +36,7 @@
 | Webhooks | Assinatura HMAC-SHA256 + timestamp (proteção contra replay) |
 | Rate limiting | Por tenant e por IP na borda |
 | Dependências | Dependabot + `pnpm audit` no CI |
-| Backups | Dump diário do Postgres (o schema `raw` é o ativo mais caro de reconstruir) com retenção de 30 dias |
+| Backups | Dump diário do Postgres (o schema `raw` é o ativo mais caro de reconstruir) com retenção de 30 dias, cópia remota opcional e restore testado no CI — [infra/portainer/README.md](../infra/portainer/README.md#backups) |
 | Acesso administrativo | Rotas `/internal/*` apenas por VPN/allowlist |
 
 ## 5. Neutralidade de marca
