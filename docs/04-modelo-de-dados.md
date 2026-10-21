@@ -175,10 +175,10 @@ O *momentum esportivo* (o que está em jogo) é independente: ver `competition_c
 |---|---|
 | Tier da competição | 1 → 40 · 2 → 25 · 3 → 10 · desconhecido → 5 |
 | Fase (`core.stage.kind`) | final 30 · semi 22 · quartas 16 · oitavas 12 · playoff 10 · 3º lugar, 16 avos, rebaixamento 8 · grupos, fase de liga, fase eliminatória 6 · 32 avos 5 · pontos corridos 4 (+ até 6 na reta final) · 64 avos, outra 3 · preliminar 2 · amistoso 0 |
-| Clássico | 6 × intensidade (1–5) da base semântica — busca injetada (`DerbyLookup`) |
+| Clássico | 6 × intensidade (1–5) da base semântica — `DerbyLookup`; padrão no upsert: `createDerbyLookup` de `@galaxie/knowledge` (pares de `semantic.derby` já semeados, uma consulta por lote) |
 | Decisão | título 15 · rebaixamento 10 · eliminação 8 · vaga 6 (soma limitada a 20) |
 
-Sem busca de clássicos na execução, o clássico e a importância já calculados são preservados.
+Todo upsert de evento (normalização do raw, `afterFetch` dos jobs, ao vivo) consulta a base semântica do banco: o evento já é gravado com `derby_id` e a intensidade na importância. Com `derbyLookup: false` (busca desligada), o clássico e a importância já calculados são preservados. Para eventos gravados antes do seed (ou depois de mudar a base), `pnpm --filter @galaxie/ingestor events:importance [--esporte football] [--desde AAAA-MM-DD] [--plan]` recalcula `derby_id` (`assignEventDerbies`) e a importância com a mesma fórmula, só nas linhas que mudaram, e purga o cache desses eventos pelo change feed (tópico interno `event.importance_recomputed`).
 
 ### 3.4 Normalização raw → core (futebol, issue #22)
 

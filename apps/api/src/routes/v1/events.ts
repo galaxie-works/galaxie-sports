@@ -18,6 +18,7 @@ import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl, type BuildContext } from '../../events/builder.js';
 import { buildLineups, buildStats, buildTimeline } from '../../events/detail.js';
 import { buildIcs } from '../../events/ics.js';
+import { eventContextSummary } from './event-context.js';
 import {
   assertWindow,
   eventHead,
@@ -151,10 +152,12 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     const query = parseInput(LocaleQuery, request.query);
     const locale = localeOf(request, query);
     const tz = query.tz ?? 'UTC';
+    // resumo do cenário/resumo de IA só para quem contratou live_intelligence (a resposta varia por isso)
+    const withContext = !ics && !!request.tenant?.modules.includes('live_intelligence');
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: ics ? CACHE_TTL.schedule : CACHE_TTL.standings,
-      vary: [locale, ics ? 'ics' : tz],
+      vary: [locale, ics ? 'ics' : tz, ...(withContext ? ['context'] : [])],
       check: sportCheck(request),
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz);
@@ -163,6 +166,10 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         const e = built.dto;
         const tags = [`event:${e.id}`, ...(e.competition ? [`competition:${e.competition.id}`] : [])];
         if (!ics) {
+          if (withContext) {
+            e.context = await eventContextSummary(bctx.db, e.id, locale, tz);
+            tags.push(`event_context:${e.id}`);
+          }
           return {
             body: e,
             tags,

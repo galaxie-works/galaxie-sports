@@ -20,6 +20,7 @@ describe('scheduleFromEnv', () => {
       'normalize-football',
       'events-clock',
       'assets-mirror',
+      'change-feed-prune',
       'quota-status',
     ]);
     expect(jobs.find((j) => j.name === 'quota-status')).toMatchObject({

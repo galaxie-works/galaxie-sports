@@ -256,6 +256,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
       '@galaxie/observability':
         specifier: workspace:*
         version: link:../../packages/observability

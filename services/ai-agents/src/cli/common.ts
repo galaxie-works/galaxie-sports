@@ -2,6 +2,7 @@
 import { createDb, type Database } from '@galaxie/db';
 import type { AgentRunReport } from '../context/run.js';
 import { isAgentLocale, type AgentLocale } from '../guardrails/index.js';
+import { createLlmClientFromEnv } from '../llm/factory.js';
 import type { LlmClient } from '../llm/types.js';
 
 export function dbFromEnv(): Database {
@@ -10,42 +11,29 @@ export function dbFromEnv(): Database {
   return createDb(url, { max: 4 });
 }
 
-/** Fábricas de cliente LLM procuradas no módulo `src/llm` (implementado à parte, por provedor). */
-const FACTORY_NAMES = ['createLlmClientFromEnv', 'createLlmClient', 'llmClientFromEnv'];
-const MODULES = ['../llm/index.js', '../llm/client.js', '../llm/factory.js'];
-
 /**
- * Carrega o cliente LLM configurado por ambiente (AI_PROVIDER + chaves). Sem módulo, sem chave
- * ou com erro de configuração devolve null: os agentes seguem só com texto determinístico.
+ * Cliente LLM do ambiente (AI_PROVIDER + chave) **com o orçamento diário de tokens** no ledger
+ * compartilhado `ops.llm_usage` (`createLlmClientFromEnv(env, { db })`): todos os agentes e processos
+ * descontam do mesmo AI_DAILY_TOKEN_BUDGET. Sem chave ou com configuração inválida devolve null — o
+ * agente segue só com o texto/algoritmo determinístico.
  */
-export async function loadLlmClient(): Promise<{ client: LlmClient | null; reason?: string }> {
-  for (const spec of MODULES) {
-    let mod: Record<string, unknown>;
-    try {
-      mod = (await import(new URL(spec, import.meta.url).href)) as Record<string, unknown>;
-    } catch {
-      continue;
-    }
-    for (const name of FACTORY_NAMES) {
-      const factory = mod[name];
-      if (typeof factory !== 'function') continue;
-      try {
-        const client = (await (factory as () => unknown)()) as LlmClient | null;
-        if (client && typeof client.generateJson === 'function') return { client };
-      } catch (err) {
-        return { client: null, reason: err instanceof Error ? err.message : String(err) };
-      }
-    }
+export function loadLlmClient(
+  db: Database,
+  env: Record<string, string | undefined> = process.env,
+): { client: LlmClient | null; reason?: string } {
+  try {
+    return { client: createLlmClientFromEnv(env, { db }) };
+  } catch (err) {
+    return { client: null, reason: err instanceof Error ? err.message : String(err) };
   }
-  return { client: null, reason: 'nenhuma fábrica de cliente LLM encontrada em src/llm' };
 }
 
-export async function llmOrNull(disabled: boolean | undefined): Promise<LlmClient | null> {
+export function llmOrNull(disabled: boolean | undefined, db: Database): LlmClient | null {
   if (disabled) {
     console.log('LLM desligado (--sem-llm): usando apenas texto determinístico.');
     return null;
   }
-  const { client, reason } = await loadLlmClient();
+  const { client, reason } = loadLlmClient(db);
   if (!client) console.log(`LLM indisponível (${reason}): usando apenas texto determinístico.`);
   return client;
 }

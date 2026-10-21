@@ -1,6 +1,7 @@
 import 'zod-openapi';
 import * as z from 'zod';
 import { AssetUrl, LocaleQuery, PaginationQuery } from './common.js';
+import { EventContextSummary } from './event-context.js';
 
 /** Estados canônicos do evento (docs/04 §3). */
 export const EVENT_STATUSES = [
@@ -148,6 +149,7 @@ export const Event = z
     competition_context: z.array(z.enum(COMPETITION_CONTEXTS)),
     stakes: z.array(EventStake).meta({ description: 'Vazio em eventos encerrados ou sem regulamento.' }),
     data_freshness: z.object({ last_valid_at: z.string().nullable(), is_stale: z.boolean() }),
+    context: EventContextSummary.optional(),
   })
   .meta({ id: 'Event', description: 'Evento canônico (docs/05 §3.2).' });
 export type Event = z.infer<typeof Event>;
