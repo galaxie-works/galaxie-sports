@@ -1,0 +1,332 @@
+import { performance } from 'node:perf_hooks';
+import { API_SPORTS, utcDayString, type QuotaPolicy } from '@galaxie/apisports-client';
+import type { Database } from '@galaxie/db';
+import { collectDefaultMetrics, Gauge, Histogram, Registry } from 'prom-client';
+import {
+  jobStats,
+  ledgerCounts,
+  liveEvents,
+  plannedBudgets,
+  providerSnapshots,
+  rawFreshness,
+  type JobStatsRow,
+  type LedgerCountRow,
+  type LiveRow,
+  type FreshnessRow,
+} from './queries.js';
+import { computeQuotaStates, type QuotaState } from './quota.js';
+
+export interface MetricsOptions {
+  /** Sem banco, só as métricas de processo e de HTTP são expostas. */
+  db?: Database | undefined;
+  /** Política do Quota Governor por API (mesma do ingestor). Obrigatória quando há banco. */
+  policyFor?: ((api: string) => QuotaPolicy) | undefined;
+  /** APIs reportadas no painel de cota. Padrão: as 12 da api-sports. */
+  apis?: readonly string[] | undefined;
+  /** Intervalo esperado do live poller (s). Placeholder até o Live Scheduler definir o intervalo dinâmico. */
+  livePollIntervalSeconds?: number | undefined;
+  /** Janela (h) olhada para o frescor do raw. Padrão: 7 dias. */
+  freshnessWindowHours?: number | undefined;
+  /** Cache das consultas ao banco entre coletas (ms) — protege o Postgres de vários scrapers. Padrão: 5 s. */
+  cacheMs?: number | undefined;
+  /** Métricas padrão do Node (CPU, memória, event loop). Padrão: true. */
+  defaultMetrics?: boolean | undefined;
+  now?: (() => Date) | undefined;
+  /** Chamado quando uma consulta de métricas falha (para log). */
+  onCollectorError?: ((collector: string, err: unknown) => void) | undefined;
+}
+
+export interface GalaxieMetrics {
+  registry: Registry;
+  /** Latência das requisições HTTP da API (labels: method, route, status_code). */
+  httpDuration: Histogram<'method' | 'route' | 'status_code'>;
+}
+
+/** Buckets alinhados ao NFR de p95 ≤ 150 ms (docs/02 §7). */
+export const HTTP_BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.15, 0.25, 0.5, 1, 2.5, 5, 10];
+
+interface GroupResult<T> {
+  ok: boolean;
+  data?: T;
+  seconds: number;
+}
+
+/** Uma consulta compartilhada por várias métricas na mesma coleta (executa no máximo uma vez a cada `ttlMs`). */
+class CollectorGroup<T> {
+  private pending: Promise<GroupResult<T>> | undefined;
+  private startedAt = 0;
+
+  constructor(
+    readonly name: string,
+    private readonly load: () => Promise<T>,
+    private readonly ttlMs: number,
+    private readonly onError?: (collector: string, err: unknown) => void,
+  ) {}
+
+  get(): Promise<GroupResult<T>> {
+    const now = Date.now();
+    if (!this.pending || now - this.startedAt >= this.ttlMs) {
+      this.startedAt = now;
+      this.pending = this.run();
+    }
+    return this.pending;
+  }
+
+  private async run(): Promise<GroupResult<T>> {
+    const start = performance.now();
+    try {
+      const data = await this.load();
+      return { ok: true, data, seconds: (performance.now() - start) / 1000 };
+    } catch (err) {
+      this.onError?.(this.name, err);
+      return { ok: false, seconds: (performance.now() - start) / 1000 };
+    }
+  }
+}
+
+function dbGauge<T, L extends string>(
+  registry: Registry,
+  group: CollectorGroup<T>,
+  name: string,
+  help: string,
+  labelNames: readonly L[],
+  fill: (gauge: Gauge<L>, data: T) => void,
+): Gauge<L> {
+  const gauge: Gauge<L> = new Gauge<L>({
+    name,
+    help,
+    labelNames,
+    registers: [registry],
+    async collect() {
+      const result = await group.get();
+      gauge.reset();
+      if (result.ok && result.data !== undefined) fill(gauge, result.data);
+    },
+  });
+  return gauge;
+}
+
+const seconds = (d: Date) => d.getTime() / 1000;
+
+interface QuotaData {
+  dayUtc: string;
+  yesterday: string;
+  ledger: LedgerCountRow[];
+  states: QuotaState[];
+}
+
+/** Registro Prometheus do Galaxie Sports: cota, jobs, frescor do raw, ao vivo e latência HTTP. */
+export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
+  const registry = new Registry();
+  if (options.defaultMetrics ?? true) collectDefaultMetrics({ register: registry });
+
+  const httpDuration = new Histogram<'method' | 'route' | 'status_code'>({
+    name: 'galaxie_http_request_duration_seconds',
+    help: 'Latência das requisições HTTP da API por método, rota (template) e status',
+    labelNames: ['method', 'route', 'status_code'],
+    buckets: HTTP_BUCKETS,
+    registers: [registry],
+  });
+
+  const livePoll = new Gauge({
+    name: 'galaxie_live_poll_interval_seconds',
+    help: 'Intervalo esperado entre atualizações ao vivo (placeholder até o Live Scheduler; LIVE_POLL_INTERVAL_SECONDS)',
+    registers: [registry],
+  });
+  livePoll.set(options.livePollIntervalSeconds ?? 300);
+
+  const db = options.db;
+  if (!db) return { registry, httpDuration };
+
+  const policyFor = options.policyFor;
+  if (!policyFor) throw new Error('createMetrics: informe policyFor quando houver banco.');
+  const apis = options.apis ?? API_SPORTS;
+  const now = options.now ?? (() => new Date());
+  const ttl = Math.max(1_000, options.cacheMs ?? 5_000);
+  const windowHours = options.freshnessWindowHours ?? 24 * 7;
+  const onError = options.onCollectorError;
+
+  const quota = new CollectorGroup<QuotaData>(
+    'quota',
+    async () => {
+      const today = now();
+      const dayUtc = utcDayString(today);
+      const yesterday = utcDayString(new Date(today.getTime() - 86_400_000));
+      const [ledger, snapshots, budgets] = await Promise.all([
+        ledgerCounts(db, apis, yesterday),
+        providerSnapshots(db, dayUtc),
+        plannedBudgets(db, dayUtc),
+      ]);
+      return {
+        dayUtc,
+        yesterday,
+        ledger,
+        states: computeQuotaStates(apis, dayUtc, policyFor, ledger, snapshots, budgets),
+      };
+    },
+    ttl,
+    onError,
+  );
+  const jobs = new CollectorGroup<JobStatsRow[]>('jobs', () => jobStats(db), ttl, onError);
+  const freshness = new CollectorGroup<FreshnessRow[]>(
+    'freshness',
+    () => rawFreshness(db, apis, windowHours),
+    ttl,
+    onError,
+  );
+  const live = new CollectorGroup<LiveRow[]>('live', () => liveEvents(db), ttl, onError);
+  const groups = [quota, jobs, freshness, live] as CollectorGroup<unknown>[];
+
+  // ── cota (fonte: ops.quota_ledger / quota_snapshot / quota_budget) ──────────────────────────────
+  dbGauge(
+    registry,
+    quota,
+    'galaxie_provider_calls',
+    'Chamadas ao fornecedor registradas no ledger (hoje e ontem, UTC) por API, prioridade e desfecho',
+    ['api', 'day_utc', 'period', 'priority', 'outcome'],
+    (g, d) => {
+      for (const r of d.ledger) {
+        const period = r.dayUtc === d.dayUtc ? 'today' : r.dayUtc === d.yesterday ? 'yesterday' : 'older';
+        g.set({ api: r.api, day_utc: r.dayUtc, period, priority: r.priority, outcome: r.outcome }, r.calls);
+      }
+    },
+  );
+  const perApi = (name: string, help: string, value: (s: QuotaState) => number | undefined): Gauge<'api'> =>
+    dbGauge(registry, quota, name, help, ['api'], (g, d) => {
+      for (const s of d.states) {
+        const v = value(s);
+        if (v !== undefined) g.set({ api: s.api }, v);
+      }
+    });
+  perApi('galaxie_quota_daily_limit', 'Limite diário efetivo de chamadas por API', (s) => s.dailyLimit);
+  perApi('galaxie_quota_reserve', 'Reserva de segurança (só LIVE crítico usa)', (s) => s.reserve);
+  perApi(
+    'galaxie_quota_used',
+    'Uso efetivo do dia: máximo entre o ledger e o contador do fornecedor',
+    (s) => s.effectiveUsed,
+  );
+  perApi('galaxie_quota_remaining', 'Chamadas restantes no dia (limite − uso efetivo)', (s) => s.remaining);
+  perApi('galaxie_quota_remaining_ratio', 'Fração da cota diária restante (0..1)', (s) => s.remainingRatio);
+  perApi(
+    'galaxie_quota_provider_used',
+    'Contador do fornecedor (/status) + chamadas posteriores à leitura',
+    (s) => s.providerUsed,
+  );
+  dbGauge(
+    registry,
+    quota,
+    'galaxie_quota_budget',
+    'Orçamento do dia por API e prioridade (plano do dia ou fatia padrão da política)',
+    ['api', 'priority'],
+    (g, d) => {
+      for (const s of d.states) {
+        for (const [priority, value] of Object.entries(s.budget)) g.set({ api: s.api, priority }, value);
+      }
+    },
+  );
+
+  // ── jobs (fonte: ops.job_run) ────────────────────────────────────────────────────────────────────
+  dbGauge(
+    registry,
+    jobs,
+    'galaxie_job_runs',
+    'Execuções de jobs nas últimas 24 h por status',
+    ['job_name', 'status'],
+    (g, rows) => {
+      for (const r of rows)
+        for (const [status, n] of Object.entries(r.runs24h)) g.set({ job_name: r.job, status }, n);
+    },
+  );
+  dbGauge(
+    registry,
+    jobs,
+    'galaxie_job_consecutive_failures',
+    'Falhas seguidas desde o último sucesso',
+    ['job_name'],
+    (g, rows) => {
+      for (const r of rows) g.set({ job_name: r.job }, r.consecutiveFailures);
+    },
+  );
+  dbGauge(
+    registry,
+    jobs,
+    'galaxie_job_last_run_timestamp_seconds',
+    'Início da execução mais recente (epoch s)',
+    ['job_name'],
+    (g, rows) => {
+      for (const r of rows) g.set({ job_name: r.job }, seconds(r.lastStartedAt));
+    },
+  );
+  dbGauge(
+    registry,
+    jobs,
+    'galaxie_job_last_success_timestamp_seconds',
+    'Início da última execução com sucesso (epoch s)',
+    ['job_name'],
+    (g, rows) => {
+      for (const r of rows) if (r.lastSuccessAt) g.set({ job_name: r.job }, seconds(r.lastSuccessAt));
+    },
+  );
+  dbGauge(
+    registry,
+    jobs,
+    'galaxie_job_last_duration_seconds',
+    'Duração da execução mais recente já concluída (s)',
+    ['job_name'],
+    (g, rows) => {
+      for (const r of rows) {
+        if (r.lastFinishedAt)
+          g.set({ job_name: r.job }, (r.lastFinishedAt.getTime() - r.lastStartedAt.getTime()) / 1000);
+      }
+    },
+  );
+
+  // ── frescor do raw ───────────────────────────────────────────────────────────────────────────────
+  dbGauge(
+    registry,
+    freshness,
+    'galaxie_raw_last_fetched_timestamp_seconds',
+    'Última resposta gravada em raw.api_response por esporte (epoch s; só a janela recente)',
+    ['sport'],
+    (g, rows) => {
+      for (const r of rows) g.set({ sport: r.sport }, seconds(r.lastFetchedAt));
+    },
+  );
+
+  // ── ao vivo (fonte: core.event) ──────────────────────────────────────────────────────────────────
+  dbGauge(registry, live, 'galaxie_live_events', 'Eventos em andamento por esporte', ['sport'], (g, rows) => {
+    for (const r of rows) g.set({ sport: r.sport }, r.events);
+  });
+  dbGauge(
+    registry,
+    live,
+    'galaxie_live_event_max_staleness_seconds',
+    'Maior tempo sem atualização válida entre os eventos em andamento (s)',
+    ['sport'],
+    (g, rows) => {
+      for (const r of rows) g.set({ sport: r.sport }, r.maxStalenessSeconds);
+    },
+  );
+
+  // ── saúde dos coletores (registrado por último: reflete a coleta corrente) ───────────────────────
+  const up: Gauge<'collector'> = new Gauge<'collector'>({
+    name: 'galaxie_metrics_collector_up',
+    help: '1 se a consulta do coletor funcionou na última coleta, 0 se falhou (ex.: banco fora)',
+    labelNames: ['collector'],
+    registers: [registry],
+    async collect() {
+      for (const group of groups) up.set({ collector: group.name }, (await group.get()).ok ? 1 : 0);
+    },
+  });
+  const duration: Gauge<'collector'> = new Gauge<'collector'>({
+    name: 'galaxie_metrics_collector_duration_seconds',
+    help: 'Duração da consulta do coletor (s)',
+    labelNames: ['collector'],
+    registers: [registry],
+    async collect() {
+      for (const group of groups) duration.set({ collector: group.name }, (await group.get()).seconds);
+    },
+  });
+
+  return { registry, httpDuration };
+}

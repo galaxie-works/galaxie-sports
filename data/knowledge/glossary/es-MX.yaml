@@ -1,0 +1,33 @@
+# Glossário esportivo — es-MX. Ver docs/06 §4.3 e §5 e data/knowledge/SCHEMA.md.
+# Só termos positivos; rivalidade exige requires: declared_rival (copy_permission).
+# Todos nascem draft até revisão nativa do mercado.
+schema_version: 1
+locale: es-MX
+sport: football
+terms:
+  - key: irle-a
+    term: "irle a (le voy al…)"
+    meaning: "Tomar partido por un equipo; ser su aficionado."
+    example: "¿A quién le vas hoy?"
+    category: support
+    copy_intents: [anticipate, cheer]
+    requires: declared_affinity
+    note: "Identidad fuerte solo con relación declarada por el usuario (docs/06 §4.3)."
+    sources: ["https://dem.colmex.mx/ver/ir"]
+    review_status: draft
+  - key: aficion
+    term: "afición"
+    meaning: "Grupo de personas que comparten el gusto por un deporte o un equipo."
+    example: "La afición llenó el estadio."
+    category: fans
+    copy_intents: [inform]
+    sources: ["https://dem.colmex.mx/ver/afición"]
+    review_status: draft
+  - key: golazo
+    term: "golazo"
+    meaning: "Gol que se destaca por la belleza de su ejecución."
+    example: "¡Qué golazo en el segundo tiempo!"
+    category: match
+    copy_intents: [inform]
+    sources: ["https://es.wiktionary.org/wiki/golazo"]
+    review_status: draft

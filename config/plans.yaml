@@ -1,0 +1,50 @@
+# Modelos de plano comercial (docs/01 §6) usados no onboarding de tenants
+# (POST /internal/admin/tenants). Cada tenant copia os valores do modelo na criação e pode ter
+# ajustes próprios (módulos, mercados, esportes, limites). Mudar este arquivo NÃO altera tenants
+# existentes — use PATCH /internal/admin/tenants/{id} com "applyTemplate": true para reaplicar.
+#
+# Campos:
+#   name                  nome comercial exibido
+#   modules               módulos incluídos (core_data, where_to_watch, semantic, live_intelligence, multisport)
+#   markets               países ISO2 incluídos por padrão; [] = todos
+#   sports                esportes incluídos por padrão (slug); [] = todos
+#   rateLimitPerMinute    requisições por minuto, por rota (janela fixa no Valkey)
+#   dailyRequestQuota     cota diária de requisições (todas as rotas); null = sem cota
+#   defaultKeyEnv         ambiente da chave inicial: live | test
+
+plans:
+  core_data:
+    name: Core Data
+    modules: [core_data]
+    markets: []
+    sports: []
+    rateLimitPerMinute: 120
+    dailyRequestQuota: 100000
+    defaultKeyEnv: live
+
+  fan_experience:
+    name: Fan Experience
+    modules: [core_data, where_to_watch, semantic]
+    markets: []
+    sports: []
+    rateLimitPerMinute: 300
+    dailyRequestQuota: 500000
+    defaultKeyEnv: live
+
+  live_intelligence:
+    name: Live Intelligence
+    modules: [core_data, where_to_watch, semantic, live_intelligence, multisport]
+    markets: []
+    sports: []
+    rateLimitPerMinute: 600
+    dailyRequestQuota: 2000000
+    defaultKeyEnv: live
+
+  enterprise:
+    name: Enterprise
+    modules: [core_data, where_to_watch, semantic, live_intelligence, multisport]
+    markets: []
+    sports: []
+    rateLimitPerMinute: 3000
+    dailyRequestQuota: null
+    defaultKeyEnv: live

@@ -2,10 +2,12 @@ import {
   bigint,
   bigserial,
   boolean,
+  date,
   index,
   integer,
   jsonb,
   pgSchema,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -52,6 +54,8 @@ export const tenant = api.table('tenant', {
   sports: text('sports').array().notNull().default([]),
   /** Requisições por minuto, por rota. */
   rateLimitPerMinute: integer('rate_limit_per_minute').notNull().default(120),
+  /** Cota diária de requisições (todas as rotas); null = sem cota. Informativa (exibida no uso). */
+  dailyRequestQuota: integer('daily_request_quota'),
   status: tenantStatus('status').notNull().default('active'),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -69,6 +73,8 @@ export const apiKey = api.table(
       .notNull()
       .references(() => tenant.id, { onDelete: 'cascade' }),
     prefix: text('prefix').notNull(),
+    /** Ambiente do prefixo da chave (`gs_live_` / `gs_test_`). */
+    env: text('env').$type<'live' | 'test'>().notNull().default('live'),
     /** scrypt$N$r$p$sal$hash (base64url). */
     secretHash: text('secret_hash').notNull(),
     label: text('label'),
@@ -80,6 +86,26 @@ export const apiKey = api.table(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('api_key_prefix_uq').on(t.prefix), index('api_key_tenant_idx').on(t.tenantId)],
+);
+
+/**
+ * Uso diário por tenant × rota (padrão da rota, ex.: `GET /v1/competitions/:id`). Os contadores
+ * vivem no Valkey (HINCRBY em chaves diárias) e são consolidados aqui periodicamente; `requests`
+ * é o total acumulado do dia (o flush é idempotente).
+ */
+export const usageDaily = api.table(
+  'usage_daily',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Dia em UTC. */
+    day: date('day', { mode: 'string' }).notNull(),
+    route: text('route').notNull(),
+    requests: bigint('requests', { mode: 'number' }).notNull().default(0),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.day, t.route] }), index('usage_daily_day_idx').on(t.day)],
 );
 
 /**

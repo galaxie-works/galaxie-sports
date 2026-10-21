@@ -13,6 +13,7 @@ data/knowledge/
 │   └── derbies/<region>.yaml       # clássicos/dérbis (br, south-america, mexico, europe, international)
 ├── competitions/*.yaml             # apelidos e semântica de competições (ex.: "Glória Eterna" = Libertadores)
 ├── copy/<locale>.yaml              # biblioteca de microcopy por mercado (pt-BR e 7 variantes de espanhol)
+├── glossary/<locale>.yaml          # glossário esportivo por mercado (GET /v1/glossary)
 └── schemas/*.schema.json           # JSON Schemas (draft-07) de cada tipo de arquivo
 ```
 
@@ -134,6 +135,29 @@ templates:
 ```
 
 Campos opcionais restringem o template: `null` vale para qualquer valor do pedido. A escolha em tempo de execução é feita por `selectCopy` (`packages/knowledge`), que aplica o `copy_permission`: afinidade inferida recebe só `inform` tom 1; rivalidade só com rival declarado. Evite artigo antes de `{team}`/`{rival}` (o gênero muda por clube).
+
+## `glossary/<locale>.yaml`
+
+Termos esportivos **positivos** de cada mercado (docs/06 §4.3), servidos por `GET /v1/glossary?locale=`.
+
+```yaml
+schema_version: 1
+locale: pt-BR
+sport: football                    # football | multi
+terms:
+  - key: secar                     # único no locale
+    term: "secar"
+    meaning: "Torcer de brincadeira para que o rival não tenha sucesso no jogo dele."   # uma frase, no idioma do mercado
+    example: "Dia de secar o rival!"                 # opcional, curto e sem ofensa
+    category: rivalry              # support | rivalry | fans | match | competition
+    copy_intents: [rivalry]        # opcional: intenções de copy em que o termo cabe
+    requires: declared_rival       # opcional: declared_rival | declared_affinity (copy_permission)
+    note: "Uso lúdico; só para rival declarado."     # opcional
+    sources: ["https://..."]       # dicionário ou referência
+    review_status: draft
+```
+
+Regras do validador: termo de rivalidade (`category: rivalry` ou `copy_intents` com `rivalry`) exige `requires: declared_rival` (erro); termo de torcida (`cheer`) sem `requires` gera aviso; chave única por locale; `locale` igual ao nome do arquivo; heurística de letra em `meaning`, `note` e `example`.
 
 ## Regras editoriais (guardrails)
 
