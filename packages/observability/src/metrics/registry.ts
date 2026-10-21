@@ -6,12 +6,14 @@ import {
   jobStats,
   ledgerCounts,
   liveEvents,
+  liveSchedulerStates,
   plannedBudgets,
   providerSnapshots,
   rawFreshness,
   type JobStatsRow,
   type LedgerCountRow,
   type LiveRow,
+  type LiveSchedulerRow,
   type FreshnessRow,
 } from './queries.js';
 import { computeQuotaStates, type QuotaState } from './quota.js';
@@ -174,7 +176,13 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     ttl,
     onError,
   );
-  const live = new CollectorGroup<LiveRow[]>('live', () => liveEvents(db), ttl, onError);
+  // eventos em andamento e estado do Live Scheduler na mesma coleta (em sequência: não aumenta a concorrência no banco)
+  const live = new CollectorGroup<{ events: LiveRow[]; scheduler: LiveSchedulerRow[] }>(
+    'live',
+    async () => ({ events: await liveEvents(db), scheduler: await liveSchedulerStates(db) }),
+    ttl,
+    onError,
+  );
   const groups = [quota, jobs, freshness, live] as CollectorGroup<unknown>[];
 
   // ── cota (fonte: ops.quota_ledger / quota_snapshot / quota_budget) ──────────────────────────────
@@ -294,8 +302,8 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
   );
 
   // ── ao vivo (fonte: core.event) ──────────────────────────────────────────────────────────────────
-  dbGauge(registry, live, 'galaxie_live_events', 'Eventos em andamento por esporte', ['sport'], (g, rows) => {
-    for (const r of rows) g.set({ sport: r.sport }, r.events);
+  dbGauge(registry, live, 'galaxie_live_events', 'Eventos em andamento por esporte', ['sport'], (g, d) => {
+    for (const r of d.events) g.set({ sport: r.sport }, r.events);
   });
   dbGauge(
     registry,
@@ -303,8 +311,61 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     'galaxie_live_event_max_staleness_seconds',
     'Maior tempo sem atualização válida entre os eventos em andamento (s)',
     ['sport'],
-    (g, rows) => {
-      for (const r of rows) g.set({ sport: r.sport }, r.maxStalenessSeconds);
+    (g, d) => {
+      for (const r of d.events) g.set({ sport: r.sport }, r.maxStalenessSeconds);
+    },
+  );
+
+  // ── Live Scheduler (fonte: ops.sync_cursor, publicado pelo processo do ao vivo) ─────────────────────
+  dbGauge(
+    registry,
+    live,
+    'galaxie_live_scheduler_interval_seconds',
+    'Intervalo médio planejado pelo Live Scheduler (minutos de janela ÷ orçamento LIVE, mínimo 15 s)',
+    ['sport'],
+    (g, d) => {
+      for (const r of d.scheduler)
+        if (r.intervalSeconds !== null) g.set({ sport: r.sport }, r.intervalSeconds);
+    },
+  );
+  dbGauge(
+    registry,
+    live,
+    'galaxie_live_scheduler_ticks_left',
+    'Ticks que ainda cabem no orçamento LIVE do dia',
+    ['sport'],
+    (g, d) => {
+      for (const r of d.scheduler) g.set({ sport: r.sport }, r.ticksLeft);
+    },
+  );
+  dbGauge(
+    registry,
+    live,
+    'galaxie_live_scheduler_window_minutes',
+    'Minutos de janela ao vivo que restam no dia de cota',
+    ['sport'],
+    (g, d) => {
+      for (const r of d.scheduler) g.set({ sport: r.sport }, r.windowMinutes);
+    },
+  );
+  dbGauge(
+    registry,
+    live,
+    'galaxie_live_scheduler_active_events',
+    'Jogos em janela ao vivo agora',
+    ['sport'],
+    (g, d) => {
+      for (const r of d.scheduler) g.set({ sport: r.sport }, r.activeEvents);
+    },
+  );
+  dbGauge(
+    registry,
+    live,
+    'galaxie_live_scheduler_updated_timestamp_seconds',
+    'Última atualização do estado do Live Scheduler (epoch s)',
+    ['sport'],
+    (g, d) => {
+      for (const r of d.scheduler) g.set({ sport: r.sport }, seconds(r.updatedAt));
     },
   );
 

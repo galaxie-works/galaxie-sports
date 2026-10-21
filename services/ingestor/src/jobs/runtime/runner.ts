@@ -138,6 +138,8 @@ export interface RunDeps extends JobDeps {
 export interface FetchedRequest extends PlannedRequest {
   source: 'cache' | 'network';
   requestHash: string;
+  /** Quando o fornecedor entregou a resposta (`fetched_at` do raw; no cache, o da coleta original). */
+  fetchedAt: Date;
 }
 
 /**
@@ -312,7 +314,12 @@ export async function runJob(spec: JobSpec, deps: RunDeps, opts: RunOptions = {}
           });
           if (res.source === 'network') callsSpent += 1;
           countInto(steps, item.step, res.source);
-          await afterFetch(res.envelope, { ...item, source: res.source, requestHash: res.requestHash });
+          await afterFetch(res.envelope, {
+            ...item,
+            source: res.source,
+            requestHash: res.requestHash,
+            fetchedAt: res.fetchedAt,
+          });
           await deps.cursors.complete(
             item.cursors,
             {

@@ -205,3 +205,43 @@ export async function liveEvents(db: Database): Promise<LiveRow[]> {
     maxStalenessSeconds: Math.max(0, Number(r.max_staleness ?? 0)),
   }));
 }
+
+export interface LiveSchedulerRow {
+  sport: string;
+  /** Intervalo médio planejado (s); `null` sem janela ou sem orçamento. */
+  intervalSeconds: number | null;
+  ticksLeft: number;
+  liveBudget: number;
+  windowMinutes: number;
+  activeEvents: number;
+  updatedAt: Date;
+}
+
+/**
+ * Estado publicado pelo processo do ao vivo (Live Scheduler) em `ops.sync_cursor`
+ * (endpoint `live:scheduler`, chave `state`): intervalo dinâmico, orçamento e janelas do dia.
+ */
+export async function liveSchedulerStates(db: Database): Promise<LiveSchedulerRow[]> {
+  const rows = await db.execute<{
+    sport: string;
+    cursor: Record<string, unknown> | null;
+    updated_at: string | Date;
+  }>(sql`
+    select sport, cursor, updated_at
+    from ops.sync_cursor
+    where endpoint = 'live:scheduler' and key = 'state'
+  `);
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  return rows.map((r) => {
+    const c = r.cursor ?? {};
+    return {
+      sport: r.sport,
+      intervalSeconds: typeof c.intervalSeconds === 'number' ? c.intervalSeconds : null,
+      ticksLeft: num(c.ticksLeft),
+      liveBudget: num(c.liveBudget),
+      windowMinutes: num(c.windowMinutes),
+      activeEvents: num(c.activeEvents),
+      updatedAt: new Date(r.updated_at),
+    };
+  });
+}

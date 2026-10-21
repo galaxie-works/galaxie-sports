@@ -7,16 +7,23 @@
  *         · detalhe dos encerrados (tier 1 → clássicos → tier 2) · rodízio de entidades tier 1.
  * Opções: --max-detalhes N (free 35) · --rodizio N (free 5) · --dias-atras 3 · --lesoes-amanha
  *         · --outros-esportes (games/races/fights?date= nas outras 11 APIs) · --max-chamadas N · --forcar
+ *         · --sem-normalizar (só grava o raw) · --sem-tabelas (não recalcula as classificações)
+ * Cada resposta vai direto ao core (agenda, placares, detalhe dos encerrados); no fim, as tabelas das
+ * temporadas com resultado novo são recalculadas localmente (@galaxie/rules, source = computed).
  */
 import { resolve } from 'node:path';
 import { type ApiSport } from '@galaxie/apisports-client';
 import { closeDb } from '@galaxie/db';
 import { jobContextFromEnv } from '../context.js';
-import { dailyJob, OTHER_SPORTS_SCHEDULE } from '../jobs/daily-job.js';
+import { dailyJob, OTHER_SPORTS_SCHEDULE, startOfUtcDay } from '../jobs/daily-job.js';
 import { resolveDerbiesFromRaw } from '../knowledge/derbies.js';
+import { logger } from '../logger.js';
+import { normalizeAfterFetch } from '../normalize/after-fetch.js';
+import { recomputeStandings } from '../standings/recompute.js';
 import { intOption, parseCli, planOrRun, runCli } from './job-cli.js';
 
 const knowledgeDir = resolve('../../data/knowledge');
+const rulesDir = resolve('../../config/rules');
 
 await runCli(async () => {
   const { values } = parseCli({
@@ -26,6 +33,8 @@ await runCli(async () => {
     'lesoes-amanha': { type: 'boolean', default: false },
     'outros-esportes': { type: 'boolean', default: false },
     'sem-status': { type: 'boolean', default: false },
+    'sem-normalizar': { type: 'boolean', default: false },
+    'sem-tabelas': { type: 'boolean', default: false },
   });
   const ctx = jobContextFromEnv();
   try {
@@ -49,7 +58,44 @@ await runCli(async () => {
       injuriesTomorrow: values['lesoes-amanha'],
       otherSports: values['outros-esportes'],
     });
-    await planOrRun(ctx, spec, { ...values, 'sem-live': false });
+    const normalize = values['sem-normalizar']
+      ? undefined
+      : normalizeAfterFetch(ctx.db, {
+          onError: (err, endpoint, params) =>
+            logger.warn(
+              { err, endpoint, params },
+              'falha ao normalizar resposta; o normalize:football tenta de novo',
+            ),
+        });
+    const report = await planOrRun(
+      ctx,
+      spec,
+      { ...values, 'sem-live': false },
+      normalize ? { afterFetch: normalize.afterFetch } : {},
+    );
+    if (report && normalize) {
+      const n = normalize.report();
+      console.log(
+        `Core: ${n.normalized} resposta(s) normalizadas (${n.stats.events.inserted} eventos novos, ${n.stats.events.updated} atualizados, ${n.stats.incidents} incidentes) · ${n.empty} vazias · ${n.errors} com erro.`,
+      );
+    }
+    if (report && !values['sem-tabelas']) {
+      // tabelas da temporada atual: recalculadas a partir dos resultados novos (D-1…D-N)
+      const days = (intOption(values['dias-atras'], 'dias-atras') ?? 3) + 1;
+      const since = new Date(startOfUtcDay(ctx.now()).getTime() - days * 86_400_000);
+      const tables = await recomputeStandings(ctx.db, { since, rulesDir });
+      const written = tables.filter((t) => t.outcome === 'written');
+      console.log(
+        `Tabelas: ${written.length} recalculada(s) de ${tables.length} temporada(s) com resultado novo` +
+          (written.length ? ` (${written.map((t) => `${t.competition} ${t.year}`).join(', ')})` : '') +
+          '.',
+      );
+      for (const t of tables.filter((x) => x.outcome !== 'written'))
+        logger.info(
+          { season_id: t.seasonId, competition: t.competition, outcome: t.outcome, detail: t.detail },
+          'tabela não recalculada',
+        );
+    }
   } finally {
     await closeDb(ctx.db);
   }

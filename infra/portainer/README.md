@@ -98,6 +98,8 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `APISPORTS_KEY` | **sim** | — | Chave do dashboard da api-sports (só o ingestor recebe) |
 | `APISPORTS_PLAN` / `QUOTA_RESERVE_PERCENT` | não | `free` / `15` | Política do Quota Governor (ingestor e métricas) |
 | `SCHEDULE_SYNC_DAILY` | não | `5 0 * * *` | Sync diário do futebol logo após a virada do dia de cota |
+| `SCHEDULE_LIVE_RUN` | não | `*/5 * * * *` | Ao vivo: inicia o Live Scheduler/Poller (sai sozinho sem janela próxima; não sobrepõe) |
+| `LIVE_FEATURED` / `LIVE_MAX_INTERVAL_MINUTES` / `LIVE_IDLE_EXIT_MINUTES` / `LIVE_PROTECT_DAILY` | não | `off` / `15` / `15` / fatia DAILY | Detalhe do jogo principal por tick (`off`, `auto`, `on`), teto do intervalo, ociosidade antes de sair e saldo DAILY protegido |
 | `SCHEDULE_NORMALIZE_FOOTBALL` | não | `35 0 * * *` | Normalização raw → core depois do sync |
 | `SCHEDULE_EVENTS_CLOCK` | não | `* * * * *` | Relógio dos eventos (sem cota) |
 | `SCHEDULE_ASSETS_MIRROR` | não | `30 1 * * *` | Espelho de assets (não consome cota) |
@@ -158,7 +160,8 @@ tempo limite, sem sobreposição e registrado em `ops.job_run` (alimenta as mét
 
 | Job | Agenda padrão (UTC) | CLI | Cota |
 |---|---|---|---|
-| `sync-daily` | `5 0 * * *` | `dist/cli/sync-daily.js` | DAILY (agenda D-1/D0/D+1, lesões, detalhes, rodízio); idempotente no dia |
+| `sync-daily` | `5 0 * * *` | `dist/cli/sync-daily.js` | DAILY (agenda D-1/D0/D+1, lesões, detalhes, rodízio) direto ao core + tabelas calculadas; idempotente no dia |
+| `live-run` | `*/5 * * * *` | `dist/cli/live-run.js` | LIVE: planeja o orçamento do dia (LIVE = 0 sem jogos relevantes) e roda o poller enquanto houver janela |
 | `normalize-football` | `35 0 * * *` | `dist/cli/normalize-football.js` | 0 (raw → core incremental) |
 | `events-clock` | `* * * * *` | `dist/cli/events-clock.js` | 0 (transições de estado pelo horário previsto) |
 | `assets-mirror` | `30 1 * * *` | `dist/cli/mirror-assets.js --descobrir-raw --limite 2000` | 0 (CDN de mídia → S3 interno) |
@@ -166,7 +169,11 @@ tempo limite, sem sobreposição e registrado em `ops.job_run` (alimenta as mét
 | `bootstrap-catalog` | `15 3 * * 1` | `dist/cli/bootstrap-catalog.js` | ≤ 8 BOOTSTRAP (reaproveita o raw dentro do TTL) |
 
 Execução manual (registrada): console do `ingestor` → `node dist/cli/scheduler.js --run quota-status`.
-Novos jobs (live poller, bootstraps de temporadas/detalhes/pessoas quando houver cota) entram em
+Plano do ao vivo sem chamar nada: `node dist/cli/live-run.js --plan` (ou `--plan --dia amanha`).
+O `live-run` fica no ar enquanto houver janela ao vivo (um processo por vez — o cron a cada 5 min só o reinicia
+quando ele saiu ocioso); no encerramento do container o scheduler repassa SIGTERM e ele termina o tick em
+andamento. Atenção: `SCHEDULER_TIMEOUT_MINUTES` vale para todos os jobs — um valor baixo encerra o ao vivo no meio
+da noite. Novos jobs (bootstraps de temporadas/detalhes/pessoas quando houver cota) entram em
 `services/ingestor/src/scheduler/schedule.ts` à medida que forem necessários.
 
 ## Observabilidade (issue #6)
@@ -187,7 +194,8 @@ nunca contado em memória: várias réplicas da API reportam o mesmo número e n
 | `galaxie_job_runs` (24 h), `galaxie_job_consecutive_failures`, `galaxie_job_last_run_timestamp_seconds`, `galaxie_job_last_success_timestamp_seconds`, `galaxie_job_last_duration_seconds` | `job_name` (+ `status`) | `ops.job_run` |
 | `galaxie_raw_last_fetched_timestamp_seconds` | `sport` | `raw.api_response` (janela de 7 dias) |
 | `galaxie_live_events`, `galaxie_live_event_max_staleness_seconds` | `sport` | `core.event` em andamento |
-| `galaxie_live_poll_interval_seconds` | — | `LIVE_POLL_INTERVAL_SECONDS` (placeholder) |
+| `galaxie_live_poll_interval_seconds` | — | `LIVE_POLL_INTERVAL_SECONDS` (base do alerta `LiveEventStale`) |
+| `galaxie_live_scheduler_interval_seconds`, `_ticks_left`, `_window_minutes`, `_active_events`, `_updated_timestamp_seconds` | `sport` | Estado publicado pelo `live-run` em `ops.sync_cursor` (`live:scheduler`) |
 | `galaxie_http_request_duration_seconds` | `method`, `route`, `status_code` | Fastify (histograma) |
 | `galaxie_metrics_collector_up`, `_duration_seconds` | `collector` | saúde das consultas |
 | `process_*`, `nodejs_*` | — | prom-client |
@@ -289,6 +297,7 @@ S3_SECRET_KEY=localsecret123
 APISPORTS_KEY=nao-usada
 SCHEDULE_QUOTA_STATUS=off
 SCHEDULE_BOOTSTRAP_CATALOG=off
+SCHEDULE_LIVE_RUN=off
 METRICS_TOKEN=local
 GRAFANA_ADMIN_PASSWORD=local
 EOF
@@ -301,8 +310,9 @@ docker compose -p galaxie-staging-local -f infra/portainer/stack.yml --env-file 
 
 - **Notificações de alerta**: falta escolher o canal (e-mail, chat, pager) e configurar Alertmanager ou contact point
   do Grafana.
-- **Intervalo ao vivo real**: `galaxie_live_poll_interval_seconds` é um placeholder (`LIVE_POLL_INTERVAL_SECONDS`) até o
-  Live Scheduler publicar o intervalo dinâmico.
+- **Alerta com o intervalo dinâmico**: o Live Scheduler já publica `galaxie_live_scheduler_interval_seconds`, mas o
+  `LiveEventStale` segue sobre `LIVE_POLL_INTERVAL_SECONDS`: com 15 s (Pro) ele dispararia em todo intervalo de jogo
+  (o poller pula o HT e os eventos em `break` ficam sem atualização). Falta excluir `break` da idade máxima e trocar a base.
 - **Latência por chamada ao fornecedor** vai para os logs (`duration_ms`), não para o Prometheus: os jobs são processos
   curtos. Um _pushgateway_ ou métricas no próprio scheduler resolvem quando houver worker contínuo (live poller).
 - **Assets públicos**: o RustFS fica só na rede interna; publicar `ASSETS_PUBLIC_BASE_URL` (CDN ou rota no proxy) é outra issue.

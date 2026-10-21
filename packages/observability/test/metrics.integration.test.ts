@@ -11,6 +11,7 @@ import {
   quotaSnapshot,
   runMigrations,
   sport,
+  syncCursor,
   type Database,
 } from '@galaxie/db';
 import postgres from 'postgres';
@@ -279,6 +280,31 @@ describe('frescor e ao vivo', () => {
     expect(staleness).toBeGreaterThan(15 * 60 - 5);
     expect(staleness).toBeLessThan(15 * 60 + 120);
     expect(m.get('galaxie_live_poll_interval_seconds')).toBe(240);
+  });
+
+  it('estado do Live Scheduler publicado pelo processo do ao vivo', async () => {
+    await db.insert(syncCursor).values({
+      sport: 'football',
+      endpoint: 'live:scheduler',
+      key: 'state',
+      cursor: {
+        sport: 'football',
+        intervalSeconds: 372.5,
+        ticksLeft: 31,
+        windowMinutes: 250,
+        activeEvents: 3,
+      },
+      updatedAt: ago(MIN),
+    });
+    const m = await scrape();
+    expect(m.get('galaxie_live_scheduler_interval_seconds', { sport: 'football' })).toBe(372.5);
+    expect(m.get('galaxie_live_scheduler_ticks_left', { sport: 'football' })).toBe(31);
+    expect(m.get('galaxie_live_scheduler_window_minutes', { sport: 'football' })).toBe(250);
+    expect(m.get('galaxie_live_scheduler_active_events', { sport: 'football' })).toBe(3);
+    expect(m.get('galaxie_live_scheduler_updated_timestamp_seconds', { sport: 'football' })).toBeCloseTo(
+      ago(MIN).getTime() / 1000,
+      0,
+    );
   });
 
   it('coletores reportam saúde', async () => {

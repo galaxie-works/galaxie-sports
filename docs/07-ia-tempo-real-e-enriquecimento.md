@@ -77,6 +77,18 @@ Exemplo no plano gratuito (100 chamadas/dia na API de futebol):
 
 No plano pago (ex.: 7.500/dia), o mesmo algoritmo chega ao limite de 15 s por *tick*.
 
+**Implementação (issues #54 e #55)** — [`services/ingestor/src/live`](../services/ingestor/src/live), processo `pnpm --filter @galaxie/ingestor live:run` (job `live-run` do scheduler, a cada 5 min; sai sozinho quando não há janela próxima):
+
+- **Candidatos**: `core.event` de hoje e amanhã (UTC) com `core.competition.live_priority`/`tier`, `core.stage.kind`, `derby_id` e `importance`; entram os de prioridade alta/média e os clássicos (qualquer competição).
+- **Janelas** por esporte: futebol `[apito − 5, apito + 130]`, alinhada ao relógio de jogo quando o apito atrasa; mata-mata ganha **+45 min contingentes** (prorrogação + pênaltis), que viram firmes ao aparecer `ET`/`BT`/`P`; jogo ainda em andamento no core mantém a janela aberta (teto de 4 h). Demais esportes: duração esperada (docs/04 §3) + 15 min.
+- **Minutos ponderados**: intervalo de jogo vale 0 (pulado), tempo normal 1, reta final (≥ 75'), prorrogação e pênaltis 2. O orçamento é distribuído pelos minutos ponderados: `intervalo(minuto) = máx(15 s, minutos_ponderados ÷ ticks ÷ peso)` — nunca passa do orçamento. Em execução, o peso vem do estado real (HT visto → pula 10 min; `2H` ≥ 75', `ET`, `P` → peso 2).
+- **Orçamento LIVE** = limite − reserva − tudo o que já foi usado − **saldo protegido do DAILY** (padrão: a fatia DAILY do dia). Até 1/4 dele fica reservado para confirmar o placar final de cada jogo (`fixtures?id=` quando ele sai do `live`, que também grava escalações e estatísticas e marca o cursor do detalhe para o sync diário não repetir). Gravado no Governor com `governor.plan` (só o útil: com todos os minutos a 15 s, o resto fica para o BOOTSTRAP); **dia sem jogo relevante → LIVE = 0**.
+- **Mais jogos que orçamento**: inclusão gulosa por prioridade (alta → média → clássico, tier, importância; jogo já em andamento nunca perde a vaga) enquanto o intervalo médio ficar ≤ 15 min (`LIVE_MAX_INTERVAL_MINUTES`). Um priorizador opcional (`prioritize`, ex.: LLM leve) pode reordenar; se falhar, segue a ordem base.
+- **Poller**: cada tick é **uma** chamada `listLive(<ligas em janela>)` com prioridade LIVE pelo `ApiSportsProvider`/`ApiSportsClient` (`fixtures?live=71-128`), diff contra o core (status, placar, relógio, timeline), aplicação pela normalização (máquina de estados, *last-known-good*: 5xx → `is_stale` sem inventar placar, com recuo exponencial após 3 falhas) e sinal `topic = live` no `ops.change_feed` (gol, encerramento, stale/recuperado — mudança só de relógio não é publicada). Jogo encerrado → tabela da temporada recalculada (#19). Opcional (`--destaque auto|on`): detalhe ao vivo do jogo principal a cada tick, se o orçamento permitir.
+- **Estado publicado** em `ops.sync_cursor` (`live:scheduler`) → métricas `galaxie_live_scheduler_*`. `live:run --plan` mostra janelas, orçamento e intervalo do dia sem chamar nada.
+
+Intervalos simulados (relógio e fornecedor falsos, cota contada pelo Governor) em [03 §5](03-ingestao-e-economia-de-chamadas.md#5-ao-vivo).
+
 ### 2.2 Agente Onde Assistir
 
 | Item | Definição |
