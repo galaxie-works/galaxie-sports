@@ -21,7 +21,9 @@
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "db:generate": "pnpm --filter @galaxie/db db:generate",
     "db:migrate": "pnpm --filter @galaxie/db db:migrate",
-    "db:studio": "pnpm --filter @galaxie/db db:studio"
+    "db:studio": "pnpm --filter @galaxie/db db:studio",
+    "snapshot:export": "pnpm --filter @galaxie/ingestor snapshot:export",
+    "snapshot:restore": "pnpm --filter @galaxie/ingestor snapshot:import"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
