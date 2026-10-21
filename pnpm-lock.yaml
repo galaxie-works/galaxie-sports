@@ -75,6 +75,12 @@ importers:
         specifier: ^0.31.11
         version: 0.31.11
 
+  packages/providers:
+    dependencies:
+      '@galaxie/apisports-client':
+        specifier: workspace:*
+        version: link:../apisports-client
+
   services/ai-agents: {}
 
   services/ingestor:
@@ -85,6 +91,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(postgres@3.4.9)

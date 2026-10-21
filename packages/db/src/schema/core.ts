@@ -9,6 +9,7 @@ import {
   smallint,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -223,7 +224,9 @@ export const roster = core.table(
     validTo: date('valid_to'),
   },
   (t) => [
-    uniqueIndex('roster_uq').on(t.participantId, t.personId, t.role, t.seasonId),
+    // NULLS NOT DISTINCT: o elenco atual (season_id nulo) também é único por participante/pessoa/papel,
+    // o que permite upsert idempotente de players/squads e coachs.
+    unique('roster_uq').on(t.participantId, t.personId, t.role, t.seasonId).nullsNotDistinct(),
     index('roster_person_idx').on(t.personId),
   ],
 );
@@ -267,6 +270,10 @@ export const event = core.table(
     lastValidAt: timestamp('last_valid_at', { withTimezone: true }),
     /** true quando servimos last-known-good porque a fonte falhou. */
     isStale: boolean('is_stale').notNull().default(false),
+    /** De onde veio o status atual: provider (dado do fornecedor) | temporal (inferido pelo horário). */
+    statusSource: text('status_source').notNull().default('provider'),
+    /** Provedor dono do estado atual (precedência entre provedores, docs/03 §8). */
+    sourceProvider: text('source_provider'),
     importance: integer('importance').notNull().default(0),
     derbyId: uuid('derby_id'),
     createdAt: createdAt(),
@@ -309,7 +316,7 @@ export const eventStateLog = core.table(
       .references(() => event.id, { onDelete: 'cascade' }),
     fromStatus: eventStatus('from_status'),
     toStatus: eventStatus('to_status').notNull(),
-    /** provider | temporal_fallback | correction | editorial */
+    /** provider | temporal | temporal_fallback | correction | editorial */
     reason: text('reason').notNull(),
     payload: jsonb('payload'),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),

@@ -61,11 +61,11 @@ erDiagram
 | `core.competition` | `id`, `sport`, `country_iso2`, `type` (league/cup/tournament/multisport), `tier`, `live_priority` | Liga, copa, GP de F1, evento de MMA, Jogos Olímpicos |
 | `core.season` | `competition_id`, `label` ("2026", "2026/27"), `start`, `end`, `current` | |
 | `core.stage` | `season_id`, `kind` (regular, group, round_of_16, quarter, semi, final, race_weekend…), `name_i18n`, `order` | Agrupa o calendário por fase/rodada/fim de semana de corrida |
-| `core.event` | `id` (UUID nosso), `sport`, `stage_id`, `starts_at`, `ends_at_expected`, `status`, `status_detail`, `minute`, `score` (jsonb), `venue_id`, `last_valid_at`, `is_stale` | **Entidade canônica** — ver §3 |
+| `core.event` | `id` (UUID nosso), `sport`, `stage_id`, `starts_at`, `ends_at_expected`, `status`, `status_detail`, `status_source`, `clock`, `score` (jsonb), `venue_id`, `last_valid_at`, `is_stale`, `source_provider` | **Entidade canônica** — ver §3 |
 | `core.participant` | `id`, `kind` (club, national_team, athlete, driver, constructor, fighter), `name`, `short_name`, `country_iso2`, `logo_asset_id` | Times, seleções e atletas individuais |
 | `core.event_participant` | `event_id`, `participant_id`, `side` (home/away/lane/grid), `result` | Suporta 2 lados (futebol) ou N (F1, atletismo) |
 | `core.person` | `id`, `name`, `birth_date`, `nationality`, `photo_asset_id` | Jogadores, técnicos, pilotos, lutadores |
-| `core.roster` | `participant_id`, `person_id`, `season_id`, `role`, `number`, `position` | Elenco por temporada |
+| `core.roster` | `participant_id`, `person_id`, `season_id`, `role`, `number`, `position` | Elenco por temporada; `season_id` nulo = elenco atual (único com `NULLS NOT DISTINCT`) |
 | `core.venue` | `id`, `name`, `city`, `country_iso2`, `capacity`, `surface`, `image_asset_id` | Estádios, circuitos, arenas |
 | `core.event_incident` | `event_id`, `minute`, `extra`, `type` (goal, card, subst, var, period…), `participant_id`, `person_id`, `detail` | Timeline e "momentos-chave" |
 | `core.standing` | `season_id`, `group`, `participant_id`, `rank`, `points`, `form`, `description` | Tabelas e grupos |
@@ -74,7 +74,9 @@ erDiagram
 
 ### 2.2 Tabelas específicas por esporte
 
-Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ricos, ligadas ao `core.event`:
+Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ricos, ligadas ao `core.event`.
+
+> **Implementado no futebol (issue #22):** `core.football_fixture` guarda o resumo (`fixture`/`league`/`teams`/`goals`/`score`) e, em `detail` (JSONB), as partes do detalhe recebidas (`events`, `lineups`, `statistics`, `players`), mescladas por chave — o ao vivo traz só `events` e não apaga as escalações. Escalações e estatísticas ficam no JSONB até alguma consulta precisar de índice; a timeline vai para `core.event_incident` e as pessoas citadas para `core.person`. As tabelas abaixo são o alvo para quando houver consulta que justifique.
 
 | Esporte | Tabelas |
 |---|---|
@@ -97,9 +99,11 @@ Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ric
 | `status_detail` | text | Código original do fornecedor (`1H`, `HT`, `2H`, `ET`, `P`, `FT`, `AET`, `PEN`, `PST`…) |
 | `clock` | jsonb | `{ "minute": 67, "extra": null, "period": "2H" }` |
 | `score` | jsonb | `{ "home": 1, "away": 0, "halftime": {...}, "extratime": null, "penalty": null, "aggregate": {"home": 3, "away": 1} }` |
-| `last_valid_at` | timestamptz | Última atualização válida recebida |
-| `is_stale` | bool | `true` quando servimos *last-known-good* |
-| `importance` | int | Score calculado (tier da competição + fase + clássico + interesse) |
+| `last_valid_at` | timestamptz | Instante da última observação válida aplicada (o `fetched_at` do raw, não o relógio do processamento) |
+| `is_stale` | bool | `true` quando servimos *last-known-good* (fonte falhou ou estado inferido pelo horário) |
+| `status_source` | text | `provider` (o fornecedor confirmou) ou `temporal` (inferido pelo horário) |
+| `source_provider` | text null | Provedor dono do estado atual — base da precedência entre provedores ([03 §8](03-ingestao-e-economia-de-chamadas.md)) |
+| `importance` | int | Score 0–100 calculado (§3.3) |
 | `derby_id` | uuid null | Preenchido quando o confronto é um clássico da base semântica |
 
 ### 3.1 Máquina de estados e *last-known-good*
@@ -128,18 +132,64 @@ Regras:
 3. Atingido `ends_at_expected` sem fonte, o evento pode ir a `finished` como *fallback*.
 4. Quando a fonte normalizar, o estado válido **corrige** o card — inclusive `finished → live` (prorrogação, pênaltis, atraso, bandeira vermelha na F1).
 
+Implementação (issue #26): lógica pura em `@galaxie/providers` (`initialState`, `applyObservation`, `tick`), persistida pelo ingestor (`upsertBatch`, `applyProviderFailure`, `advanceEventClock` — CLI `pnpm --filter @galaxie/ingestor events:clock`). Detalhes que o diagrama não mostra:
+
+- **`starting` é nosso**: nenhum fornecedor tem esse estado. `NS`/`TBD` viram `scheduled` antes de T-10 e `starting` a partir de T-10 (avaliado no instante da observação). Com `NS` **fresco** depois do apito, o evento fica em `starting` (atraso no início).
+- **Dado fresco** = última observação válida há no máximo 10 min e `is_stale = false`. Sem dado fresco, `starting → live` acontece no apito e `live`/`break → finished` em `ends_at_expected` (`reason = temporal_fallback`, `status_source = temporal`, `is_stale = true`).
+- **Só observações mais novas contam**: uma observação com instante ≤ `last_valid_at` é descartada (`out_of_order`). Reprocessar o raw nunca desfaz o que veio depois — inclusive a inferência temporal.
+- **Card nunca regride a estado inválido**: um evento que o **fornecedor** já deu como iniciado ou encerrado (`live`, `break`, `suspended`, `finished`) não volta ao pré-jogo sem mudança de `starts_at` (remarcação). Um estado inferido pelo horário pode ser corrigido para qualquer estado pela fonte.
+- **Código desconhecido** é descartado (`unknown_status`); na criação, o evento entra pelo horário.
+- **`ends_at_expected`** = início (o real, `fixture.periods.first`, se posterior ao oficial) + duração do esporte: futebol 115 min (+45 com prorrogação/pênaltis), basquete/NBA 150, vôlei 120, handebol 100, hóquei 150, rúgbi 110, AFL 150, futebol americano 210, beisebol 200, MMA 300, F1 120; demais 180.
+- **`core.event_state_log.reason`**: `provider`, `temporal` (scheduled → starting), `temporal_fallback`, `correction` (finished → live ou estado inferido desfeito), `editorial`. O `occurred_at` das transições temporais é o instante-limite (T-10, apito, fim previsto), não o da execução.
+
+Mapeamento dos códigos da api-sports football (`status.short`):
+
+| Código | Estado | Código | Estado |
+|---|---|---|---|
+| `TBD`, `NS` | `scheduled`/`starting` (pelo horário) | `SUSP`, `INT` | `suspended` |
+| `1H`, `2H`, `ET`, `P`, `LIVE` | `live` | `FT`, `AET`, `PEN`, `AWD`, `WO` | `finished` |
+| `HT`, `BT` | `break` | `PST` / `CANC` / `ABD` | `postponed` / `cancelled` / `abandoned` |
+
 ### 3.2 Momentum temporal (calculado, não armazenado)
 
 | Valor | Regra |
 |---|---|
-| `D-3+` | ≥ 3 dias para o início |
-| `D-2`, `D-1` | 2 dias / véspera |
-| `today` | mesmo dia (fuso do usuário) |
-| `T-60`, `T-30`, `T-10` | minutos para o início |
-| `starting` | entre T-10 e o apito |
-| `live` | em andamento |
+| `D-3+` | ≥ 3 dias civis para o início |
+| `D-2`, `D-1` | 2 dias civis / véspera |
+| `today` | mesmo dia civil e mais de 60 min para o início |
+| `T-60`, `T-30`, `T-10` | 30–60, 10–30 e 0–10 min para o início |
+| `starting` | horário oficial já passou e o fornecedor ainda não confirmou o início |
+| `live` | em andamento (inclui intervalo e interrupção) |
+
+Os dias são contados no **fuso IANA do cliente** (`America/Sao_Paulo`, `Europe/Madrid`…; fuso inválido cai em UTC); os minutos valem para qualquer fuso e têm precedência sobre os dias (23:30 de um jogo às 00:15 é `T-60`, não `D-1`). Eventos encerrados, adiados, cancelados ou abandonados não têm momentum. Função pura `momentum(event, now, tz)` em `@galaxie/providers` (issue #27).
 
 O *momentum esportivo* (o que está em jogo) é independente: ver `competition_context` em [06](06-semantica-e-conteudo.md).
+
+### 3.3 Importância
+
+`importance = tier + fase + clássico × intensidade + decisão`, limitado a 0–100 (função pura `importance()` em `@galaxie/providers`; o ingestor grava o resultado em `core.event.importance`):
+
+| Componente | Pontos |
+|---|---|
+| Tier da competição | 1 → 40 · 2 → 25 · 3 → 10 · desconhecido → 5 |
+| Fase (`core.stage.kind`) | final 30 · semi 22 · quartas 16 · oitavas 12 · playoff 10 · 3º lugar, 16 avos, rebaixamento 8 · grupos, fase de liga, fase eliminatória 6 · 32 avos 5 · pontos corridos 4 (+ até 6 na reta final) · 64 avos, outra 3 · preliminar 2 · amistoso 0 |
+| Clássico | 6 × intensidade (1–5) da base semântica — busca injetada (`DerbyLookup`) |
+| Decisão | título 15 · rebaixamento 10 · eliminação 8 · vaga 6 (soma limitada a 20) |
+
+Sem busca de clássicos na execução, o clássico e a importância já calculados são preservados.
+
+### 3.4 Normalização raw → core (futebol, issue #22)
+
+`pnpm --filter @galaxie/ingestor normalize:football [--tudo] [--relogio]` lê, para cada `request_hash`, a resposta **mais recente bem-sucedida** (HTTP 2xx e `errors` vazio) de `raw.api_response` — `fixtures` (temporada, dia, ao vivo, detalhe), `fixtures/headtohead`, `teams`, `players/squads`, `coachs`, `players`, `standings` — normaliza para o lote neutro de `@galaxie/providers` e grava no core numa transação por resposta. Zero chamadas ao fornecedor. Sem `--tudo`, processa só o que entrou depois do cursor em `ops.sync_cursor`; cada execução fica em `ops.job_run`.
+
+- **IDs estáveis**: toda entidade é achada por `core.provider_map (provider, sport, entity_type, provider_id)`; IDs novos são UUID v7 gerados no processo.
+- **Idempotência**: reprocessar o raw inteiro gera o mesmo estado, inclusive `updated_at` — cada upsert só toca a linha quando algum valor muda.
+- **Coalesce**: `null` do fornecedor não apaga valor conhecido. Entidades citadas só como **referência** (time numa partida, jogador numa escalação ou no elenco, estádio da partida) apenas preenchem lacunas; o endpoint próprio (`teams`, `players`, `coachs`) é quem sobrescreve.
+- **Competição/temporada/fase**: competições e temporadas ausentes do catálogo são criadas (tier 3; o bootstrap do catálogo continua dono de tier e slug). `league.round` vira `core.stage` (`kind`, nome pt-BR/es/en e ordem: "Regular Season - 12" → `regular`, "Rodada 12").
+- **Timeline**: `event_incident.sequence` é a posição no array `events` do fornecedor; itens que somem do array saem. Vale a timeline do detalhe mais recente, mesmo que uma lista de partidas mais nova já tenha atualizado o estado.
+- **Elenco atual** (`players/squads`, `coachs`): `season_id` nulo, único por participante/pessoa/papel (`NULLS NOT DISTINCT`); a resposta é uma fotografia — quem não está nela sai do elenco atual.
+- **Classificação**: `standings` → `core.standing` com `source = 'provider'`.
+- **Tipo do participante**: times vindos de partidas entram como `club` e não sobrescrevem `national_team` informado por `teams`.
 
 ## 4. `semantic` — base de conhecimento
 

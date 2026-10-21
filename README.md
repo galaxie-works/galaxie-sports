@@ -167,7 +167,7 @@ Detalhes: [docs/09-app-demonstracao.md](docs/09-app-demonstracao.md).
 galaxie-sports/
 ├── apps/                       # api (Fastify) · demo (a criar)
 ├── services/                   # ingestor · ai-agents (esqueleto)
-├── packages/                   # db (schema + migrations) · apisports-client · contracts
+├── packages/                   # db (schema + migrations) · apisports-client · providers · contracts
 ├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS)
 ├── config/
 │   └── competitions/football.yaml   # 76 competições com IDs verificados e tiers
@@ -204,6 +204,8 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080/health
 | `pnpm --filter @galaxie/ingestor quota` | Cota do dia por API (lê `/status`, que não consome cota) |
 | `pnpm --filter @galaxie/ingestor raw:import` | Importa respostas brutas salvas em `data/raw/<esporte>/*.json` (zero chamadas) |
 | `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa |
+| `pnpm --filter @galaxie/ingestor normalize:football [--tudo]` | Normaliza o raw do futebol no core (eventos, times, pessoas, elencos, classificação) — zero chamadas; incremental por padrão |
+| `pnpm --filter @galaxie/ingestor events:clock` | Avança o relógio dos eventos (T-10, fallback temporal sem fonte) |
 
 > A porta do Postgres é **5433** para não colidir com instalações nativas na 5432. Ajuste `POSTGRES_PORT`/`DATABASE_URL` no `.env` se precisar.
 

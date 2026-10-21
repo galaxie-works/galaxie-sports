@@ -1,0 +1,44 @@
+{
+  "get": "players",
+  "parameters": { "team": "121", "season": "2024" },
+  "errors": [],
+  "results": 1,
+  "paging": { "current": 1, "total": 1 },
+  "response": [
+    {
+      "player": {
+        "id": 900001,
+        "name": "Atacante A",
+        "firstname": "Atacante",
+        "lastname": "A",
+        "age": 27,
+        "birth": { "date": "1999-03-03", "place": "Cidade X", "country": "Brazil" },
+        "nationality": "Brazil",
+        "height": "182 cm",
+        "weight": "78 kg",
+        "injured": false,
+        "photo": "https://media.api-sports.io/football/players/900001.png"
+      },
+      "statistics": [
+        {
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "league": { "id": 71, "name": "Serie A", "country": "Brazil", "season": 2024 },
+          "games": { "appearences": 30, "number": 9, "position": "Attacker" }
+        },
+        {
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "league": { "id": 13, "name": "CONMEBOL Libertadores", "country": "World", "season": 2024 },
+          "games": { "appearences": 8, "number": 9, "position": "Attacker" }
+        }
+      ]
+    }
+  ]
+}
