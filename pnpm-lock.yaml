@@ -34,7 +34,7 @@ importers:
         version: 8.72.0(eslint@10.13.0)(typescript@6.0.3)
       vitest:
         specifier: ^5.0.5
-        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/api:
     dependencies:
@@ -52,7 +52,7 @@ importers:
         version: link:../../packages/observability
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       fastify:
         specifier: ^5.12.7
         version: 5.12.7
@@ -75,7 +75,7 @@ importers:
         version: link:../db
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
     devDependencies:
       postgres:
         specifier: ^3.4.9
@@ -98,7 +98,7 @@ importers:
     dependencies:
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -117,7 +117,7 @@ importers:
         version: 8.20.0
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -136,7 +136,7 @@ importers:
         version: link:../db
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       pino:
         specifier: ^10.4.0
         version: 10.4.0
@@ -148,6 +148,12 @@ importers:
         specifier: ^3.4.9
         version: 3.4.9
 
+  packages/providers:
+    dependencies:
+      '@galaxie/apisports-client':
+        specifier: workspace:*
+        version: link:../apisports-client
+
   packages/rules:
     dependencies:
       '@galaxie/db':
@@ -155,7 +161,7 @@ importers:
         version: link:../db
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -180,12 +186,15 @@ importers:
       '@galaxie/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@galaxie/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       croner:
         specifier: ^10.0.1
         version: 10.0.1
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -831,8 +840,8 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
-  '@opentelemetry/api@1.9.1':
-    resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
+  '@opentelemetry/api@1.10.0':
+    resolution: {integrity: sha512-lMkyes8iHrG+mk6WH7X70MdCLI2RS0FwNBY1PyQ8UemaijE2m5mv5A0Niy3HtbYTFrgkUEQjFMXmSAk2hQDuPQ==}
     engines: {node: '>=8.0.0'}
 
   '@oxc-project/types@0.154.0':
@@ -2452,7 +2461,7 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
-  '@opentelemetry/api@1.9.1': {}
+  '@opentelemetry/api@1.10.0': {}
 
   '@oxc-project/types@0.154.0': {}
 
@@ -2774,9 +2783,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.15
 
-  drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9):
+  drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9):
     optionalDependencies:
-      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/api': 1.10.0
       postgres: 3.4.9
 
   es-module-lexer@2.3.2: {}
@@ -3217,7 +3226,7 @@ snapshots:
 
   prom-client@15.1.3:
     dependencies:
-      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/api': 1.10.0
       tdigest: 0.1.3
 
   punycode@2.3.1: {}
@@ -3381,7 +3390,7 @@ snapshots:
       tsx: 4.23.15
       yaml: 2.9.1
 
-  vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)):
+  vitest@5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.5(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -3398,7 +3407,7 @@ snapshots:
       vite: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
       why-is-node-running: 3.2.1
     optionalDependencies:
-      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/api': 1.10.0
       '@types/node': 24.19.2
     transitivePeerDependencies:
       - msw

@@ -21,6 +21,8 @@
     "raw:import": "node --env-file-if-exists=../../.env dist/cli/import-raw.js",
     "bootstrap:catalog": "node --env-file-if-exists=../../.env dist/cli/bootstrap-catalog.js",
     "scheduler": "node --env-file-if-exists=../../.env dist/cli/scheduler.js",
+    "normalize:football": "node --env-file-if-exists=../../.env dist/cli/normalize-football.js",
+    "events:clock": "node --env-file-if-exists=../../.env dist/cli/events-clock.js",
     "bootstrap:seasons": "node --env-file-if-exists=../../.env dist/cli/bootstrap-seasons.js",
     "bootstrap:details": "node --env-file-if-exists=../../.env dist/cli/bootstrap-details.js",
     "bootstrap:people": "node --env-file-if-exists=../../.env dist/cli/bootstrap-people.js",
@@ -35,6 +37,7 @@
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/db": "workspace:*",
     "@galaxie/observability": "workspace:*",
+    "@galaxie/providers": "workspace:*",
     "croner": "^10.0.1",
     "drizzle-orm": "^0.45.4",
     "yaml": "^2.9.1"

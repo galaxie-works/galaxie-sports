@@ -15,8 +15,17 @@ describe('scheduleFromEnv', () => {
       SCHEDULE_SYNC_DAILY: 'false',
       SCHEDULER_TIMEOUT_MINUTES: '2',
     });
-    expect(jobs.map((j) => j.name)).toEqual(['assets-mirror', 'quota-status']);
-    expect(jobs[1]).toMatchObject({ name: 'quota-status', cron: '*/30 * * * *', timeoutMs: 120_000 });
+    expect(jobs.map((j) => j.name)).toEqual([
+      'normalize-football',
+      'events-clock',
+      'assets-mirror',
+      'quota-status',
+    ]);
+    expect(jobs.find((j) => j.name === 'quota-status')).toMatchObject({
+      name: 'quota-status',
+      cron: '*/30 * * * *',
+      timeoutMs: 120_000,
+    });
   });
 
   it('recusa expressão cron inválida com mensagem legível', () => {

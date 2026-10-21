@@ -1,0 +1,83 @@
+{
+  "get": "coachs",
+  "parameters": { "team": "121" },
+  "errors": [],
+  "results": 2,
+  "paging": { "current": 1, "total": 1 },
+  "response": [
+    {
+      "id": 800001,
+      "name": "Técnico A",
+      "firstname": "Técnico",
+      "lastname": "A",
+      "age": 52,
+      "birth": { "date": "1974-01-01", "place": "Cidade A", "country": "Portugal" },
+      "nationality": "Portugal",
+      "height": "178 cm",
+      "weight": "75 kg",
+      "photo": "https://media.api-sports.io/football/coachs/800001.png",
+      "team": {
+        "id": 121,
+        "name": "Palmeiras",
+        "logo": "https://media.api-sports.io/football/teams/121.png"
+      },
+      "career": [
+        {
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "start": "2020-11-01",
+          "end": null
+        },
+        {
+          "team": {
+            "id": 999,
+            "name": "Clube Antigo",
+            "logo": "https://media.api-sports.io/football/teams/999.png"
+          },
+          "start": "2019-01-01",
+          "end": "2020-10-01"
+        }
+      ]
+    },
+    {
+      "id": 800003,
+      "name": "Técnico C",
+      "firstname": "Técnico",
+      "lastname": "C",
+      "age": 60,
+      "birth": { "date": "1966-05-05", "place": "Cidade C", "country": "Brazil" },
+      "nationality": "Brazil",
+      "height": null,
+      "weight": null,
+      "photo": "https://media.api-sports.io/football/coachs/800003.png",
+      "team": {
+        "id": 124,
+        "name": "Fluminense",
+        "logo": "https://media.api-sports.io/football/teams/124.png"
+      },
+      "career": [
+        {
+          "team": {
+            "id": 124,
+            "name": "Fluminense",
+            "logo": "https://media.api-sports.io/football/teams/124.png"
+          },
+          "start": "2025-01-01",
+          "end": null
+        },
+        {
+          "team": {
+            "id": 121,
+            "name": "Palmeiras",
+            "logo": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "start": "2018-01-01",
+          "end": "2019-12-01"
+        }
+      ]
+    }
+  ]
+}

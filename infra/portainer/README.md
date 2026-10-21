@@ -98,6 +98,8 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `APISPORTS_KEY` | **sim** | — | Chave do dashboard da api-sports (só o ingestor recebe) |
 | `APISPORTS_PLAN` / `QUOTA_RESERVE_PERCENT` | não | `free` / `15` | Política do Quota Governor (ingestor e métricas) |
 | `SCHEDULE_SYNC_DAILY` | não | `5 0 * * *` | Sync diário do futebol logo após a virada do dia de cota |
+| `SCHEDULE_NORMALIZE_FOOTBALL` | não | `35 0 * * *` | Normalização raw → core depois do sync |
+| `SCHEDULE_EVENTS_CLOCK` | não | `* * * * *` | Relógio dos eventos (sem cota) |
 | `SCHEDULE_ASSETS_MIRROR` | não | `30 1 * * *` | Espelho de assets (não consome cota) |
 | `SCHEDULE_QUOTA_STATUS` | não | `5 * * * *` | Reconciliação da cota via `/status` (não consome cota); `off` desliga |
 | `SCHEDULE_BOOTSTRAP_CATALOG` | não | `15 3 * * 1` | Catálogo do futebol (segunda, 03:15 UTC; ~8 chamadas BOOTSTRAP) |
@@ -157,6 +159,8 @@ tempo limite, sem sobreposição e registrado em `ops.job_run` (alimenta as mét
 | Job | Agenda padrão (UTC) | CLI | Cota |
 |---|---|---|---|
 | `sync-daily` | `5 0 * * *` | `dist/cli/sync-daily.js` | DAILY (agenda D-1/D0/D+1, lesões, detalhes, rodízio); idempotente no dia |
+| `normalize-football` | `35 0 * * *` | `dist/cli/normalize-football.js` | 0 (raw → core incremental) |
+| `events-clock` | `* * * * *` | `dist/cli/events-clock.js` | 0 (transições de estado pelo horário previsto) |
 | `assets-mirror` | `30 1 * * *` | `dist/cli/mirror-assets.js --descobrir-raw --limite 2000` | 0 (CDN de mídia → S3 interno) |
 | `quota-status` | `5 * * * *` | `dist/cli/quota.js` | 0 (`/status`) — reconcilia o Governor com o contador do fornecedor |
 | `bootstrap-catalog` | `15 3 * * 1` | `dist/cli/bootstrap-catalog.js` | ≤ 8 BOOTSTRAP (reaproveita o raw dentro do TTL) |

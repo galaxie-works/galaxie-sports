@@ -30,6 +30,22 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 120 * MINUTE,
   },
   {
+    name: 'normalize-football',
+    description: 'Normalização incremental raw → core do futebol (sem chamadas ao fornecedor)',
+    cron: '35 0 * * *',
+    script: 'dist/cli/normalize-football.js',
+    args: [],
+    timeoutMs: 60 * MINUTE,
+  },
+  {
+    name: 'events-clock',
+    description: 'Relógio dos eventos (scheduled → starting → live → finished pelo horário previsto)',
+    cron: '* * * * *',
+    script: 'dist/cli/events-clock.js',
+    args: [],
+    timeoutMs: 5 * MINUTE,
+  },
+  {
     name: 'assets-mirror',
     description: 'Espelha logos/bandeiras/fotos do raw para o S3 (CDN de mídia; não consome cota da API)',
     cron: '30 1 * * *',

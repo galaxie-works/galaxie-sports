@@ -167,6 +167,7 @@ Detalhes: [docs/09-app-demonstracao.md](docs/09-app-demonstracao.md).
 galaxie-sports/
 ├── apps/                       # api (Fastify) · demo (a criar)
 ├── services/                   # ingestor · ai-agents (esqueleto)
+├── packages/                   # db (schema + migrations) · apisports-client · providers · contracts
 ├── packages/                   # db (schema + migrations) · apisports-client · contracts · rules
 ├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS)
 ├── config/
@@ -206,7 +207,9 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm infra:down` | Para a infra local (volumes preservados) |
 | `pnpm --filter @galaxie/ingestor quota` | Cota do dia por API (lê `/status`, que não consome cota) |
 | `pnpm --filter @galaxie/ingestor raw:import` | Importa respostas brutas salvas em `data/raw/<esporte>/*.json` (zero chamadas) |
-| `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa (sem `APISPORTS_KEY`, reprocessa do raw em modo offline) |
+| `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa |
+| `pnpm --filter @galaxie/ingestor normalize:football [--tudo]` | Normaliza o raw do futebol no core (eventos, times, pessoas, elencos, classificação) — zero chamadas; incremental por padrão |
+| `pnpm --filter @galaxie/ingestor events:clock` | Avança o relógio dos eventos (T-10, fallback temporal sem fonte) |
 | `pnpm --filter @galaxie/ingestor bootstrap:seasons --plan` | Temporadas por competição: fixtures, teams, rounds, standings, injuries, rankings e venues (só o que o `coverage` permite); `--h2h-temporada-atual` reconstrói a temporada atual no free |
 | `pnpm --filter @galaxie/ingestor bootstrap:details --plan` | Detalhe das partidas encerradas (tier 1 → clássicos → tier 2): `fixtures?ids=` ×20 nos pagos; no free, `fixtures?id=` só de clássicos e jogos decisivos |
 | `pnpm --filter @galaxie/ingestor bootstrap:people --plan` | Elencos, técnicos, transferências, títulos, afastamentos e h2h dos clássicos; `--estatisticas-jogadores` para `players?league&season` |
