@@ -114,6 +114,12 @@ export interface TeamsFile {
   country: string;
   teams: TeamEntry[];
 }
+/** `<esporte>/participants/*.yaml`: pilotos, equipes da F1, lutadores... (cada item com `country`). */
+export interface ParticipantsFile {
+  schema_version: 1;
+  kind: 'driver' | 'constructor' | 'fighter' | 'athlete';
+  participants: TeamEntry[];
+}
 export interface NationalTeamsFile {
   schema_version: 1;
   teams: TeamEntry[];
@@ -127,6 +133,39 @@ export interface CompetitionsFile {
   schema_version: 1;
   competitions: CompetitionEntry[];
 }
+/** Categorias do glossário por mercado (docs/06 §5). */
+export const GLOSSARY_CATEGORIES = ['support', 'rivalry', 'fans', 'match', 'competition'] as const;
+export type GlossaryCategory = (typeof GLOSSARY_CATEGORIES)[number];
+
+/**
+ * Termo esportivo de um mercado (data/knowledge/glossary/<locale>.yaml). Só entram termos positivos;
+ * os de rivalidade exigem `requires: declared_rival` (copy_permission, docs/06 §4.2).
+ */
+export interface GlossaryTermEntry {
+  key: string;
+  term: string;
+  /** Significado no idioma do mercado. */
+  meaning: string;
+  /** Frase curta de exemplo. */
+  example?: string | null;
+  category: GlossaryCategory;
+  /** Intenções de copy em que o termo cabe. */
+  copy_intents?: CopyIntent[];
+  /** Restrição de uso: só com rival declarado / só com afinidade declarada. */
+  requires?: 'declared_rival' | 'declared_affinity' | null;
+  /** Observação editorial curta (ex.: variante regional, cuidado de tom). */
+  note?: string | null;
+  sources: string[];
+  review_status: ReviewStatus;
+}
+
+export interface GlossaryFile {
+  schema_version: 1;
+  locale: string;
+  sport: 'football' | 'multi';
+  terms: GlossaryTermEntry[];
+}
+
 export interface CopyFile {
   schema_version: 1;
   locale: string;

@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyServerOptions } from 'fastify';
 import type { Database } from '@galaxie/db';
 import { createMetrics, loggerOptions, maskIp, quotaPolicyFromEnv } from '@galaxie/observability';
+import { redactKey } from './realtime/sse.js';
 
 /**
  * Observabilidade da API (issue #6): logs JSON (pino) e /metrics (Prometheus).
@@ -17,7 +18,7 @@ export function apiLoggerOptions(
     serializers: {
       req: (req: FastifyRequest) => ({
         method: req.method,
-        url: req.url,
+        url: redactKey(req.url), // `?key=` do EventSource nunca vai para o log
         route: req.routeOptions?.url,
         client_ip: maskIp(req.ip),
       }),

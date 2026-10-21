@@ -2,7 +2,7 @@
   "name": "@galaxie/ai-agents",
   "version": "0.1.0",
   "private": true,
-  "description": "Agentes de IA: live scheduler, onde assistir, cenário, curadoria semântica",
+  "description": "Agentes de IA: live scheduler, onde assistir, cenário, resumo, curadoria semântica e guardrails",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,11 +10,42 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./guardrails": {
+      "types": "./dist/guardrails/index.d.ts",
+      "default": "./dist/guardrails/index.js"
+    },
+    "./llm": {
+      "types": "./dist/llm/index.d.ts",
+      "default": "./dist/llm/index.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --dir src --passWithNoTests",
+    "test:integration": "vitest run --dir test",
+    "context:run": "node --env-file-if-exists=../../.env dist/cli/context-run.js",
+    "recap:run": "node --env-file-if-exists=../../.env dist/cli/recap-run.js",
+    "curator:run": "node --env-file-if-exists=../../.env dist/cli/curator-run.js",
+    "eval:report": "node --env-file-if-exists=../../.env dist/cli/eval-report.js",
+    "wtw:run": "node --env-file-if-exists=../../.env dist/cli/wtw-run.js",
+    "wtw:audit": "node --env-file-if-exists=../../.env dist/cli/wtw-audit.js"
+  },
+  "dependencies": {
+    "@galaxie/db": "workspace:*",
+    "@galaxie/knowledge": "workspace:*",
+    "@galaxie/rules": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "yaml": "^2.9.1",
+    "@anthropic-ai/sdk": "^0.136.0",
+    "@galaxie/where-to-watch": "workspace:*",
+    "ajv": "^8.20.0",
+    "openai": "^7.39.0"
+  },
+  "devDependencies": {
+    "@galaxie/ingestor": "workspace:*",
+    "@galaxie/providers": "workspace:*",
+    "postgres": "^3.4.9"
   }
 }

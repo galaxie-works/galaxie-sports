@@ -17,15 +17,24 @@ export interface Issue {
 export interface ValidationReport {
   errors: Issue[];
   warnings: Issue[];
-  counts: { files: number; teams: number; derbies: number; competitions: number; copyTemplates: number };
+  counts: {
+    files: number;
+    teams: number;
+    derbies: number;
+    competitions: number;
+    copyTemplates: number;
+    glossaryTerms: number;
+  };
 }
 
 const SCHEMA_BY_KIND: Partial<Record<FileKind, string>> = {
   teams: 'teams.schema.json',
   'national-teams': 'national-teams.schema.json',
+  participants: 'participants.schema.json',
   derbies: 'derbies.schema.json',
   competitions: 'competitions.schema.json',
   copy: 'copy.schema.json',
+  glossary: 'glossary.schema.json',
 };
 
 /** Compila os JSON Schemas de data/knowledge/schemas. */
@@ -193,7 +202,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
         lineOf(file, ['region']),
         `region ${data['region']} difere do nome do arquivo`,
       );
-    if (file.kind === 'copy' && data?.['locale'] !== base)
+    if ((file.kind === 'copy' || file.kind === 'glossary') && data?.['locale'] !== base)
       add(
         'error',
         'file-name',
@@ -207,7 +216,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   const namespaces: [string, { slug: string; file: string; path: (string | number)[] }[]][] = [
     [
       'time/seleção',
-      kb.teams.map((t) => ({ slug: t.entry.slug, file: t.file, path: ['teams', t.index, 'slug'] })),
+      kb.teams.map((t) => ({ slug: t.entry.slug, file: t.file, path: [t.listKey, t.index, 'slug'] })),
     ],
     [
       'clássico',
@@ -249,21 +258,34 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
     }
   }
 
-  // 4. IDs da api-sports únicos
-  const teamIds = new Map<number, string>();
+  // 4. IDs da api-sports únicos (por esporte: cada API tem os seus IDs)
+  const teamIds = new Map<string, string>();
   for (const t of kb.teams) {
     const id = t.entry.api_sports?.team_id;
     if (typeof id !== 'number') continue;
-    const prev = teamIds.get(id);
+    const idPath = at(t.file, [t.listKey, t.index, 'api_sports', 'team_id']);
+    // o seed e o resolve:ids ligam perfis a participantes só no futebol; nos demais o ID fica para depois
+    if (t.sport !== 'football') {
+      add(
+        'error',
+        'provider-id-sport',
+        t.file,
+        idPath,
+        `${t.entry.slug}: api_sports.team_id ainda não é suportado em ${t.sport} (use null; a vinculação é só no futebol)`,
+      );
+      continue;
+    }
+    const key = `${t.sport}:${id}`;
+    const prev = teamIds.get(key);
     if (prev)
       add(
         'error',
         'duplicate-provider-id',
         t.file,
-        at(t.file, ['teams', t.index, 'api_sports', 'team_id']),
+        idPath,
         `api_sports.team_id ${id} repetido (${prev} e ${t.entry.slug})`,
       );
-    else teamIds.set(id, t.entry.slug);
+    else teamIds.set(key, t.entry.slug);
   }
   const leagueIds = new Map<number, string>();
   for (const c of kb.competitions) {
@@ -296,6 +318,17 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
           `clássico ${d.entry.slug}: time inexistente ${slug}`,
         );
     });
+    list.forEach((slug, i) => {
+      const team = teams.get(slug);
+      if (team && team.sport !== d.sport)
+        add(
+          'error',
+          'derby-cross-sport',
+          d.file,
+          at(d.file, ['derbies', d.index, 'teams', i]),
+          `clássico ${d.entry.slug} (${d.sport}): ${slug} é de ${team.sport}`,
+        );
+    });
     const [a, b] = list;
     if (a && b && teams.has(a) && teams.has(b)) {
       const rivalsOf = (s: string) => (teams.get(s)!.entry.rivals ?? []).map((r) => r.team);
@@ -312,12 +345,20 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   for (const t of kb.teams) {
     const rivals = Array.isArray(t.entry.rivals) ? t.entry.rivals : [];
     rivals.forEach((r, i) => {
-      const path = ['teams', t.index, 'rivals', i];
+      const path = [t.listKey, t.index, 'rivals', i];
       const line = at(t.file, path);
       if (r.team === t.entry.slug)
         add('error', 'self-rival', t.file, line, `${t.entry.slug} lista a si mesmo como rival`);
       const rival = teams.get(r.team);
       if (!rival) add('error', 'unknown-team', t.file, line, `${t.entry.slug}: rival inexistente ${r.team}`);
+      else if (rival.sport !== t.sport)
+        add(
+          'error',
+          'rival-cross-sport',
+          t.file,
+          line,
+          `${t.entry.slug} (${t.sport}): rival ${r.team} é de ${rival.sport}`,
+        );
       if (r.derby) {
         const d = derbies.get(r.derby);
         if (!d)
@@ -357,7 +398,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   const sourceOwners: [string, string, (string | number)[], unknown][] = [
     ...kb.teams.map(
       (t) =>
-        [t.file, t.entry.slug, ['teams', t.index, 'sources'], t.entry.sources] as [
+        [t.file, t.entry.slug, [t.listKey, t.index, 'sources'], t.entry.sources] as [
           string,
           string,
           (string | number)[],
@@ -402,7 +443,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
     add(verdict.level, 'lyric-like', file, at(file, path), `${who}: "${excerpt}" ${verdict.reason}`);
   };
   for (const t of kb.teams) {
-    const base = ['teams', t.index];
+    const base = [t.listKey, t.index];
     (t.entry.rallying_cries ?? []).forEach(
       (s, i) =>
         typeof s === 'string' && flag(checkChant(s), t.file, [...base, 'rallying_cries', i], t.entry.slug, s),
@@ -430,6 +471,9 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   // 8. biblioteca de copy
   issues.push(...validateCopy(kb, at));
 
+  // 9. glossário por mercado
+  issues.push(...validateGlossary(kb, at));
+
   const sortKey = (i: Issue) => `${i.file ?? ''}|${String(i.line ?? 0).padStart(6, '0')}`;
   const sorted = issues.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
   return {
@@ -441,6 +485,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
       derbies: kb.derbies.length,
       competitions: kb.competitions.length,
       copyTemplates: kb.copyTemplates.length,
+      glossaryTerms: kb.glossary.length,
     },
   };
 }
@@ -527,13 +572,84 @@ function validateCopy(
   return out;
 }
 
+/**
+ * Glossário (data/knowledge/glossary/<locale>.yaml): chaves únicas por locale, termos curtos e positivos e
+ * as mesmas regras do copy_permission — termo de rivalidade só com rival declarado; torcida só com
+ * afinidade declarada.
+ */
+function validateGlossary(
+  kb: KnowledgeBase,
+  at: (file: string, path: (string | number)[]) => number | null,
+): Issue[] {
+  const out: Issue[] = [];
+  const add = (level: Issue['level'], code: string, file: string, line: number | null, message: string) =>
+    out.push({ level, code, file, line, message });
+  const keys = new Set<string>();
+  const locales = new Set<string>();
+  for (const t of kb.glossary) {
+    const e = t.entry;
+    const line = at(t.file, ['terms', t.index]);
+    locales.add(t.locale);
+    const fullKey = `${t.locale}.${e.key}`;
+    if (keys.has(fullKey))
+      add('error', 'duplicate-key', t.file, line, `termo de glossário duplicado: ${e.key}`);
+    keys.add(fullKey);
+    const intents = Array.isArray(e.copy_intents) ? e.copy_intents : [];
+    if ((e.category === 'rivalry' || intents.includes('rivalry')) && e.requires !== 'declared_rival')
+      add(
+        'error',
+        'copy-permission',
+        t.file,
+        line,
+        `${e.key}: termo de rivalidade exige requires: declared_rival (docs/06 §4.2)`,
+      );
+    if (intents.includes('cheer') && !e.requires)
+      add(
+        'warning',
+        'copy-permission',
+        t.file,
+        line,
+        `${e.key}: termo de torcida (cheer) sem requires — use declared_affinity`,
+      );
+    for (const field of ['meaning', 'note'] as const) {
+      const text = e[field];
+      if (typeof text !== 'string') continue;
+      const verdict = checkProse(text);
+      if (verdict)
+        add(
+          verdict.level,
+          'lyric-like',
+          t.file,
+          at(t.file, ['terms', t.index, field]),
+          `${e.key}: ${verdict.reason}`,
+        );
+    }
+    if (typeof e.example === 'string') {
+      const verdict = checkChant(e.example);
+      if (verdict)
+        add(
+          verdict.level,
+          'lyric-like',
+          t.file,
+          at(t.file, ['terms', t.index, 'example']),
+          `${e.key}: ${verdict.reason}`,
+        );
+    }
+  }
+  if (kb.glossary.length)
+    for (const locale of COPY_LOCALES)
+      if (!locales.has(locale))
+        add('warning', 'glossary-coverage', 'glossary', null, `sem glossário para ${locale}`);
+  return out;
+}
+
 /** Formata o relatório para terminal (pt-BR). */
 export function formatReport(report: ValidationReport): string {
   const line = (i: Issue) =>
     `  ${i.level === 'error' ? '✗' : '!'} ${i.file ?? '-'}${i.line ? `:${i.line}` : ''} [${i.code}] ${i.message}`;
   const c = report.counts;
   return [
-    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos · ${c.competitions} competições · ${c.copyTemplates} templates de copy`,
+    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário`,
     ...(report.errors.length ? [`Erros (${report.errors.length}):`, ...report.errors.map(line)] : []),
     ...(report.warnings.length ? [`Avisos (${report.warnings.length}):`, ...report.warnings.map(line)] : []),
     report.errors.length

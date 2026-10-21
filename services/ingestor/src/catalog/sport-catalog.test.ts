@@ -276,6 +276,47 @@ describe('temporadas inteiras (--jogos)', () => {
     ]);
   });
 
+  it('com standings, a classificação de cada temporada vem logo depois dos jogos', () => {
+    const calls = planSeasonCalls(SPORT_PROFILES.basketball, rows, {
+      seasonWindow: { min: 2024, max: 2024 },
+      standings: true,
+    });
+    expect(calls.map((c) => [c.competition, c.endpoint, c.params])).toEqual([
+      ['nbb', '/games', { league: '26', season: '2024-2025' }],
+      ['nbb', '/standings', { league: '26', season: '2024-2025' }],
+      ['olympics-basketball', '/games', { league: '192', season: '2024' }],
+      ['olympics-basketball', '/standings', { league: '192', season: '2024' }],
+    ]);
+    const estimated = estimateSeasonCalls(SPORT_PROFILES.basketball, BASKETBALL_CATALOG, {
+      seasonWindow: { min: 2024, max: 2024 },
+      currentYear: 2026,
+      standings: true,
+    });
+    expect(estimated.map((c) => c.endpoint)).toEqual(['/games', '/standings', '/games', '/standings']);
+  });
+
+  it('F1 busca os dois rankings da temporada; MMA não tem classificação', () => {
+    const f1 = SPORT_PROFILES['formula-1'].build(new Map([['/seasons', [2024]]]), {
+      catalog: [],
+      today: TODAY,
+    });
+    expect(
+      planSeasonCalls(SPORT_PROFILES['formula-1'], f1, { maxTier: 3, latestSeasons: 1, standings: true }).map(
+        (c) => [c.endpoint, c.params],
+      ),
+    ).toEqual([
+      ['/races', { season: '2024' }],
+      ['/rankings/drivers', { season: '2024' }],
+      ['/rankings/teams', { season: '2024' }],
+    ]);
+    const mma = SPORT_PROFILES.mma.build(new Map([['/seasons', [2024]]]), { catalog: [], today: TODAY });
+    expect(
+      planSeasonCalls(SPORT_PROFILES.mma, mma, { maxTier: 3, latestSeasons: 1, standings: true }).map(
+        (c) => c.endpoint,
+      ),
+    ).toEqual(['/fights']);
+  });
+
   it('sem janela (plano pago) usa as temporadas mais recentes', () => {
     const calls = planSeasonCalls(SPORT_PROFILES.basketball, rows, { latestSeasons: 1, maxTier: 3 });
     expect(calls.map((c) => c.params)).toEqual([

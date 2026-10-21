@@ -47,3 +47,5 @@ export * from './live/runner.js';
 export * from './live/state.js';
 export * from './standings/recompute.js';
 export * from './normalize/after-fetch.js';
+export { seedMultisport, todayUtc, type SeedStats as MultisportSeedStats } from './multisport/seed.js';
+export { linkGamesCompetitions, type LinkReport as GamesLinkReport } from './multisport/competition-link.js';

@@ -45,6 +45,24 @@ describe('Authenticator', () => {
     expect(store.touched).toHaveLength(1);
   });
 
+  it('não recalcula o scrypt para o mesmo segredo errado dentro da janela de cache', async () => {
+    const { store, key } = await memoryTenant();
+    let lookups = 0;
+    const counting = {
+      findKeyByPrefix: (p: string) => {
+        lookups += 1;
+        return store.findKeyByPrefix(p);
+      },
+      touchKey: store.touchKey.bind(store),
+    };
+    const auth = new Authenticator(counting);
+    const wrong = `${key.slice(0, -4)}AAAA`;
+    await expect(auth.authenticate(wrong)).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    await expect(auth.authenticate(wrong)).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    expect(lookups).toBe(1);
+    await expect(auth.authenticate(key)).resolves.toMatchObject({ slug: 'teste' });
+  });
+
   it('rejeita chave expirada', async () => {
     const { store, key, prefix } = await memoryTenant();
     store.keys.get(prefix)!.expiresAt = new Date(Date.now() - 1);

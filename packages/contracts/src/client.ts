@@ -9,7 +9,48 @@ import type {
   Venue,
 } from './catalog.js';
 import type { Problem, SupportedLocale } from './common.js';
+import type { CompetitionContext } from './context.js';
+import type {
+  Event,
+  EventLineups,
+  EventsQuery,
+  EventStats,
+  EventTimeline,
+  HeadToHead,
+  LiveEventsQuery,
+  TeamSummary,
+} from './events.js';
 import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
+import type { WhereToWatch } from './where-to-watch.js';
+import type { Person, Squad, Team, TeamEventsQuery, TeamOverview, TeamsQuery } from './teams.js';
+import type {
+  Delegation,
+  GamesDetail,
+  GamesListQuery,
+  GamesSummary,
+  MedalHistory,
+  MedalHistoryQuery,
+  MedalsQuery,
+  MedalTable,
+  MsEventDetail,
+  NocToday,
+  ScheduleQuery,
+  ScheduleUnit,
+} from './multisport.js';
+import type {
+  CopyQuery,
+  CopySuggestion,
+  DerbiesQuery,
+  Derby,
+  DerbySummary,
+  Glossary,
+  GlossaryQuery,
+  ReviewQuery,
+  TeamRivals,
+  TeamSemantic,
+  UpcomingDerbiesQuery,
+  UpcomingDerby,
+} from './semantic.js';
 
 export interface GalaxieClientOptions {
   /** Ex.: http://localhost:8080 */
@@ -45,8 +86,14 @@ export class GalaxieApiError extends Error {
   }
 }
 
-type Query = Record<string, string | number | undefined>;
+type Query = Record<string, string | number | boolean | undefined>;
 type LocaleOpts = { locale?: SupportedLocale; tz?: string };
+/** Filtros de query sem o locale (o cliente injeta o padrão) e com listas como string ou array. */
+type Q<T> = { [K in keyof Omit<T, 'locale' | 'tz'>]?: unknown } & LocaleOpts;
+const toQuery = (q: object): Query =>
+  Object.fromEntries(
+    Object.entries(q).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : (v as Query[string])]),
+  );
 
 /** Cliente tipado da API Galaxie Sports (usado pelo demo). Funciona em Node 24 e no browser. */
 export function createGalaxieClient(options: GalaxieClientOptions) {
@@ -83,6 +130,72 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     standings: (id: string, season: number | 'current', opts: LocaleOpts = {}) =>
       v1<Standings>(`/v1/competitions/${seg(id)}/seasons/${season}/standings`, opts),
     venue: (id: string, opts: LocaleOpts = {}) => v1<Venue>(`/v1/venues/${seg(id)}`, opts),
+    /** Onde assistir um evento num país (`region` = UF/praça, opcional). */
+    whereToWatch: (eventId: string, country: string, opts: LocaleOpts & { region?: string } = {}) =>
+      v1<WhereToWatch>(`/v1/events/${seg(eventId)}/where-to-watch`, { country, ...opts } as Query &
+        LocaleOpts),
+    competitionContext: (id: string, opts: LocaleOpts & { season?: number | 'current' } = {}) =>
+      v1<CompetitionContext>(`/v1/competitions/${seg(id)}/context`, opts),
+
+    // ─── eventos ─────────────────────────────────────────────────────────────────────────────────
+    events: (query: Omit<EventsQuery, 'locale' | 'status'> & LocaleOpts & { status?: string } = {}) =>
+      v1<Page<Event>>('/v1/events', query as Query & LocaleOpts),
+    liveEvents: (query: Omit<LiveEventsQuery, 'locale'> & LocaleOpts = {}) =>
+      v1<{ data: Event[] }>('/v1/events/live', query as Query & LocaleOpts),
+    event: (id: string, opts: LocaleOpts = {}) => v1<Event>(`/v1/events/${seg(id)}`, opts),
+    eventTimeline: (id: string, opts: LocaleOpts = {}) =>
+      v1<EventTimeline>(`/v1/events/${seg(id)}/timeline`, opts),
+    eventLineups: (id: string, opts: LocaleOpts = {}) =>
+      v1<EventLineups>(`/v1/events/${seg(id)}/lineups`, opts),
+    eventStats: (id: string, opts: LocaleOpts = {}) => v1<EventStats>(`/v1/events/${seg(id)}/stats`, opts),
+    eventH2h: (id: string, opts: LocaleOpts & { limit?: number } = {}) =>
+      v1<HeadToHead>(`/v1/events/${seg(id)}/h2h`, opts),
+    /** Arquivo .ics (RFC 5545) do evento, como texto. */
+    eventIcs: async (id: string, opts: LocaleOpts = {}): Promise<string> =>
+      (await request(`/v1/events/${seg(id)}.ics`, { locale: options.locale, ...opts })).text(),
+
+    // ─── times e pessoas ─────────────────────────────────────────────────────────────────────────
+    teams: (query: Omit<TeamsQuery, 'locale'> & LocaleOpts = {}) =>
+      v1<Page<TeamSummary>>('/v1/teams', query as Query & LocaleOpts),
+    team: (id: string, opts: LocaleOpts = {}) => v1<Team>(`/v1/teams/${seg(id)}`, opts),
+    teamOverview: (id: string, opts: LocaleOpts = {}) =>
+      v1<TeamOverview>(`/v1/teams/${seg(id)}/overview`, opts),
+    teamEvents: (
+      id: string,
+      query: Omit<TeamEventsQuery, 'locale' | 'status'> & LocaleOpts & { status?: string } = {},
+    ) => v1<Page<Event>>(`/v1/teams/${seg(id)}/events`, query as Query & LocaleOpts),
+    squad: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
+      v1<Squad>(`/v1/teams/${seg(id)}/squad`, opts),
+    person: (id: string, opts: LocaleOpts = {}) => v1<Person>(`/v1/people/${seg(id)}`, opts),
+    // ─── semântica (docs/06 §5) ───
+    derbies: (query: Q<DerbiesQuery> = {}) => v1<{ data: DerbySummary[] }>('/v1/derbies', toQuery(query)),
+    upcomingDerbies: (query: Q<UpcomingDerbiesQuery> = {}) =>
+      v1<{ data: UpcomingDerby[] }>('/v1/derbies/upcoming', toQuery(query)),
+    derby: (slug: string, query: Q<ReviewQuery> = {}) =>
+      v1<Derby>(`/v1/derbies/${seg(slug)}`, toQuery(query)),
+    teamSemantic: (id: string, query: Q<ReviewQuery> = {}) =>
+      v1<TeamSemantic>(`/v1/teams/${seg(id)}/semantic`, toQuery(query)),
+    teamRivals: (id: string, query: Q<ReviewQuery> = {}) =>
+      v1<TeamRivals>(`/v1/teams/${seg(id)}/rivals`, toQuery(query)),
+    glossary: (query: Q<GlossaryQuery> = {}) => v1<Glossary>('/v1/glossary', toQuery(query)),
+    copy: (query: Q<CopyQuery> & { intent: string }) => v1<CopySuggestion>('/v1/copy', toQuery(query)),
+    // ─── multiesporte (docs/08 §4) ───
+    games: (query: Q<GamesListQuery> = {}) =>
+      v1<{ data: GamesSummary[] }>('/v1/multisport/games', toQuery(query)),
+    gamesEdition: (slug: string, opts: LocaleOpts = {}) =>
+      v1<GamesDetail>(`/v1/multisport/games/${seg(slug)}`, opts),
+    medals: (slug: string, query: Q<MedalsQuery> = {}) =>
+      v1<MedalTable>(`/v1/multisport/games/${seg(slug)}/medals`, toQuery(query)),
+    schedule: (slug: string, query: Q<ScheduleQuery> = {}) =>
+      v1<Page<ScheduleUnit>>(`/v1/multisport/games/${seg(slug)}/schedule`, toQuery(query)),
+    gamesEvent: (slug: string, id: string, opts: LocaleOpts = {}) =>
+      v1<MsEventDetail>(`/v1/multisport/games/${seg(slug)}/events/${seg(id)}`, opts),
+    delegation: (slug: string, noc: string, opts: LocaleOpts = {}) =>
+      v1<Delegation>(`/v1/multisport/games/${seg(slug)}/nocs/${seg(noc)}/athletes`, opts),
+    nocToday: (slug: string, noc: string, query: LocaleOpts & { date?: string } = {}) =>
+      v1<NocToday>(`/v1/multisport/games/${seg(slug)}/today/${seg(noc)}`, query),
+    medalHistory: (query: Q<MedalHistoryQuery> & { noc: string | string[] }) =>
+      v1<MedalHistory>('/v1/multisport/history/medals', toQuery(query)),
     /** Espelho compatível: mesmo endpoint e parâmetros da api-sports. */
     mirror: async (sport: MirrorSport, endpoint: string, params: Query = {}): Promise<MirrorResult> => {
       const res = await request(`/mirror/${sport}/${endpoint.replace(/^\//, '')}`, params);

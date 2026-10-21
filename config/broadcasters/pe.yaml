@@ -1,0 +1,47 @@
+# =============================================================================
+# Dicionário de emissoras e plataformas — Peru (PE)
+# Formato e regras: ver config/broadcasters/br.yaml.
+# Fonte do panorama: docs/research/onde-assistir.md §2.2–2.3 (revisado em 2026-10-21).
+# Operadoras de TV paga não são nomeadas por política editorial (ver _policy.yaml).
+# =============================================================================
+schema_version: 1
+country: PE
+language: es-PE
+updated_at: 2026-10-21
+broadcasters:
+  - id: america_tv
+    name: América TV
+    aliases: ['America TV', 'América Televisión', 'América tvGO', 'Canal 4']
+    medium: free_tv
+    access_model: free
+    domains: [americatv.com.pe]
+  - id: espn
+    name: ESPN
+    aliases: ['ESPN Perú', 'ESPN Peru']
+    channels: ['ESPN 2', 'ESPN 3', 'ESPN 4']
+    medium: pay_tv
+    access_model: subscription
+    group: disney
+    domains: [espn.com.pe]
+  - id: disney_plus
+    name: Disney+
+    aliases: ['Disney Plus', 'Disney+ Premium']
+    medium: streaming_svod
+    access_model: subscription
+    group: disney
+    domains: [disneyplus.com]
+  - id: paramount_plus
+    name: Paramount+
+    aliases: ['Paramount Plus']
+    medium: streaming_svod
+    access_model: subscription
+    domains: [paramountplus.com]
+sources:
+  organizers: [liga1.pe, fpf.org.pe]
+  press:
+    - larepublica.pe
+    - libero.pe
+    - elcomercio.pe
+    - depor.com
+    - gestion.pe
+    - expreso.com.pe

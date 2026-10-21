@@ -1,0 +1,54 @@
+# Base semântica — clássicos do básquet argentino (Liga Nacional) (schema v1)
+schema_version: 1
+region: ar
+derbies:
+  - slug: basketball-clasico-marplatense
+    name: Clásico marplatense
+    aliases: ["Peñarol vs. Quilmes", "Clásico de Mar del Plata"]
+    labels: { pt-BR: "Clássico de Mar del Plata", es-AR: "Clásico marplatense", es: "Clásico marplatense", en: "Mar del Plata derby" }
+    teams: [basketball-penarol-mar-del-plata, basketball-quilmes-mar-del-plata]
+    scope: city
+    intensity: 4
+    first_match: null
+    origin: "Rivalidad de los dos grandes clubes de básquet de Mar del Plata, ambos fundados en 1922."
+    trivia:
+      - "En la temporada 2013-14 se jugó por primera vez en cuartos de final de la Liga Nacional."
+      - "A fines de 2014, Peñarol llevaba 77 victorias contra 35 de Quilmes en el historial."
+    sources:
+      - "https://lanacion.com.ar/deportes/penarol-repitio-el-triunfo-en-el-clasico-marplatense-ante-quilmes-nid1749354"
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Peñarol_(Mar_del_Plata)"
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Quilmes_(Mar_del_Plata)"
+    review_status: draft
+
+  - slug: basketball-clasico-santiagueno
+    name: Clásico santiagueño
+    aliases: ["Quimsa vs. Olímpico", "Olímpico vs. Quimsa"]
+    labels: { pt-BR: "Clássico santiaguenho", es-AR: "Clásico santiagueño", es: "Clásico santiagueño", en: "Santiago del Estero derby" }
+    teams: [basketball-quimsa, basketball-olimpico-la-banda]
+    scope: state
+    intensity: 4
+    first_match: null
+    origin: "Enfrenta a los dos equipos de la provincia de Santiago del Estero en la Liga Nacional: Quimsa, de la capital, y Olímpico, de La Banda."
+    trivia:
+      - "El triunfo más abultado del clásico en la Liga Nacional fue de Olímpico: 87-63 en el Estadio Ciudad, en mayo de 2019."
+    sources:
+      - "https://www.diariopanorama.com/noticia/319977/olimpico-logro-triunfo-mas-abultado-historia-clasico"
+      - "https://www.baenegocios.com/deportes/Quimsa-le-gano-a-su-escolta-Olimpico-el-clasico-santiagueno-y-sigue-liderando-el-torneo-20240123-0005.html"
+      - "https://es.wikipedia.org/wiki/Asociación_Atlética_Quimsa"
+    review_status: draft
+
+  - slug: basketball-clasico-cordobes
+    name: Clásico cordobés
+    aliases: ["Instituto vs. Atenas", "Atenas vs. Instituto"]
+    labels: { pt-BR: "Clássico cordobês", es-AR: "Clásico cordobés", es: "Clásico cordobés", en: "Córdoba derby" }
+    teams: [basketball-atenas-cordoba, basketball-instituto-cordoba]
+    scope: city
+    intensity: 4
+    first_match: null
+    origin: "Duelo de los dos clubes de la ciudad de Córdoba en la Liga Nacional: Atenas, el más ganador de la historia, e Instituto."
+    trivia:
+      - "En diciembre de 2025, en el Ángel Sandrín, se jugó el choque número 34 del historial nacional, con amplia ventaja de Instituto."
+    sources:
+      - "https://hoydia.com.ar/deportes/basquet/instituto-y-atenas-cierran-el-ano-en-el-sandrin/"
+      - "https://cba24n.com.ar/noche-de-clasico-cordobes-en-la-liga-nacional-de-basquet_a5de57f9ad91dda49891470bc"
+    review_status: draft

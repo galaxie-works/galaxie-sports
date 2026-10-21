@@ -1,0 +1,142 @@
+# Base semântica — franquias da NBA (EUA) envolvidas nas rivalidades clássicas de basketball/derbies/nba.yaml (schema v1)
+schema_version: 1
+country: US
+teams:
+  - slug: basketball-los-angeles-lakers
+    names:
+      official: Los Angeles Lakers
+      short: Lakers
+      abbreviation: LAL
+    labels: { pt-BR: "Los Angeles Lakers", es: "Los Angeles Lakers", en: "Los Angeles Lakers" }
+    api_sports:
+      team_id: null
+      match: { name: "Los Angeles Lakers", country: "USA" }
+    founded: null
+    city: Los Angeles
+    region: CA
+    colors: [roxo, dourado, preto]
+    nicknames: []
+    stadium:
+      name: Crypto.com Arena
+      city: Los Angeles
+    rivals:
+      - { team: basketball-boston-celtics, derby: basketball-lakers-celtics, intensity: 5 }
+    identity:
+      - "A franquia nasceu em 1946 como Detroit Gems e ganhou o nome Lakers em Minneapolis, a cidade da 'Terra dos 10 mil lagos'."
+      - "O apelido 'Showtime' marcou o ataque de contra-ataque veloz do time nos anos 1980."
+    sources:
+      - "https://en.wikipedia.org/wiki/Los_Angeles_Lakers"
+      - "https://en.wikipedia.org/wiki/Celtics%E2%80%93Lakers_rivalry"
+      - "https://www.mentalfloss.com/article/23115/origins-all-30-nba-team-names"
+    review_status: draft
+
+  - slug: basketball-boston-celtics
+    names:
+      official: Boston Celtics
+      short: Celtics
+      abbreviation: BOS
+    labels: { pt-BR: "Boston Celtics", es: "Boston Celtics", en: "Boston Celtics" }
+    api_sports:
+      team_id: null
+      match: { name: "Boston Celtics", country: "USA" }
+    founded: 1946-06-06
+    city: Boston
+    region: MA
+    colors: [verde, branco]
+    nicknames: []
+    mascot: Lucky the Leprechaun
+    stadium:
+      name: TD Garden
+      city: Boston
+    rivals:
+      - { team: basketball-los-angeles-lakers, derby: basketball-lakers-celtics, intensity: 5 }
+      - { team: basketball-philadelphia-76ers, derby: basketball-celtics-76ers, intensity: 4 }
+    identity:
+      - "Um dos oito times originais da liga em 1946; o nome foi escolhido pelo fundador Walter Brown."
+      - "O mascote Lucky the Leprechaun homenageia a grande comunidade de origem irlandesa de Boston."
+    sources:
+      - "https://en.wikipedia.org/wiki/Boston_Celtics"
+      - "https://www.mentalfloss.com/article/23115/origins-all-30-nba-team-names"
+    review_status: draft
+
+  - slug: basketball-philadelphia-76ers
+    names:
+      official: Philadelphia 76ers
+      short: 76ers
+      abbreviation: PHI
+    labels: { pt-BR: "Philadelphia 76ers", es: "Philadelphia 76ers", en: "Philadelphia 76ers" }
+    api_sports:
+      team_id: null
+      match: { name: "Philadelphia 76ers", country: "USA" }
+    founded: null
+    city: Philadelphia
+    region: PA
+    colors: [azul, vermelho, branco]
+    nicknames: [Sixers]
+    stadium:
+      name: Xfinity Mobile Arena
+      city: Philadelphia
+    rivals:
+      - { team: basketball-boston-celtics, derby: basketball-celtics-76ers, intensity: 4 }
+    identity:
+      - "Fundado em 1946 como Syracuse Nationals; mudou-se para a Filadélfia em 1963."
+      - "O nome 76ers lembra a assinatura da Declaração de Independência dos EUA, em 1776, na Filadélfia."
+    sources:
+      - "https://en.wikipedia.org/wiki/Philadelphia_76ers"
+      - "https://www.mentalfloss.com/article/23115/origins-all-30-nba-team-names"
+    review_status: draft
+
+  - slug: basketball-chicago-bulls
+    names:
+      official: Chicago Bulls
+      short: Bulls
+      abbreviation: CHI
+    labels: { pt-BR: "Chicago Bulls", es: "Chicago Bulls", en: "Chicago Bulls" }
+    api_sports:
+      team_id: null
+      match: { name: "Chicago Bulls", country: "USA" }
+    founded: 1966-01-16
+    city: Chicago
+    region: IL
+    colors: [vermelho, preto, branco]
+    nicknames: []
+    mascot: Benny the Bull
+    stadium:
+      name: United Center
+      city: Chicago
+    rivals:
+      - { team: basketball-detroit-pistons, derby: basketball-bulls-pistons, intensity: 4 }
+    identity:
+      - "Conquistou seis títulos da NBA nos anos 1990 (1991–1993 e 1996–1998)."
+    sources:
+      - "https://en.wikipedia.org/wiki/Chicago_Bulls"
+      - "https://en.wikipedia.org/wiki/Bulls%E2%80%93Pistons_rivalry"
+    review_status: draft
+
+  - slug: basketball-detroit-pistons
+    names:
+      official: Detroit Pistons
+      short: Pistons
+      abbreviation: DET
+    labels: { pt-BR: "Detroit Pistons", es: "Detroit Pistons", en: "Detroit Pistons" }
+    api_sports:
+      team_id: null
+      match: { name: "Detroit Pistons", country: "USA" }
+    founded: null
+    city: Detroit
+    region: MI
+    colors: [azul, vermelho]
+    nicknames: ["Bad Boys"]
+    stadium:
+      name: Little Caesars Arena
+      city: Detroit
+    rivals:
+      - { team: basketball-chicago-bulls, derby: basketball-bulls-pistons, intensity: 4 }
+    identity:
+      - "Nasceu em Fort Wayne como Zollner Pistons, nome ligado à fábrica de pistões do dono; mudou-se para Detroit em 1957."
+      - "'Bad Boys' é o apelido do time físico e defensivo do fim dos anos 1980, bicampeão da NBA em 1989 e 1990."
+    sources:
+      - "https://en.wikipedia.org/wiki/Detroit_Pistons"
+      - "https://en.wikipedia.org/wiki/Bulls%E2%80%93Pistons_rivalry"
+      - "https://www.mentalfloss.com/article/23115/origins-all-30-nba-team-names"
+    review_status: draft

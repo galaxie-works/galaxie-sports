@@ -1,0 +1,152 @@
+# =============================================================================
+# Dicionário de emissoras e plataformas — Brasil (BR)
+#
+# Normaliza o nome que vem das fontes ("TV Globo", "Rede Globo", "Globo") para um id
+# canônico, com meio (medium) e modelo de acesso (access_model) — docs/07 §2.2.
+# Nome que não casa com nenhuma entrada (nem alias, nem variante regional) vai para
+# revisão: a opção fica `pending` com a flag `unknown_broadcaster` e não aparece.
+#
+# medium: free_tv | pay_tv | streaming_svod | streaming_free | youtube | official_app | radio
+# access_model: free | subscription | ppv | unknown
+# domains: domínios oficiais (subdomínios incluídos; caminho opcional, ex. youtube.com/@canal).
+# group: entradas do mesmo grupo compartilham domínios como fonte primária.
+# regional_variants: afiliadas/praças — o nome casa com a entrada e fixa a região (UF).
+#
+# Fonte do panorama: docs/research/onde-assistir.md §2.1 (revisado em 2026-10-21).
+# Operadoras de TV paga não são nomeadas por política editorial (ver _policy.yaml).
+# =============================================================================
+schema_version: 1
+country: BR
+language: pt-BR
+updated_at: 2026-10-21
+broadcasters:
+  - id: globo
+    name: Globo
+    aliases: ['TV Globo', 'Rede Globo', 'Globo TV']
+    medium: free_tv
+    access_model: free
+    group: globo
+    domains: [globo.com]
+    regional_variants:
+      - { name: 'RBS TV', region: RS }
+      - { name: 'NSC TV', region: SC }
+      - { name: 'RPC', region: PR }
+      - { name: 'TV Bahia', region: BA }
+      - { name: 'TV Verdes Mares', region: CE }
+      - { name: 'TV Globo Pernambuco', region: PE }
+      - { name: 'TV Anhanguera', region: GO }
+      - { name: 'TV Liberal', region: PA }
+      - { name: 'TV Gazeta', region: ES }
+  - id: sportv
+    name: SporTV
+    aliases: ['Sportv']
+    channels: ['SporTV 2', 'SporTV 3']
+    medium: pay_tv
+    access_model: subscription
+    group: globo
+    domains: [sportv.globo.com]
+  - id: premiere
+    name: Premiere
+    aliases: ['Premiere FC', 'Premiere Play', 'Premiere Clubes']
+    medium: pay_tv
+    access_model: ppv
+    group: globo
+    domains: [premiere.globo.com]
+  - id: ge_tv
+    name: GE TV
+    aliases: ['ge tv', 'getv', 'Canal GE TV', 'GE TV (YouTube)']
+    medium: youtube
+    access_model: free
+    group: globo
+    domains: [ge.globo.com, youtube.com/@getv]
+  - id: globoplay
+    name: Globoplay
+    aliases: ['Globo Play', 'Globoplay + canais ao vivo']
+    medium: streaming_svod
+    access_model: subscription
+    group: globo
+    domains: [globoplay.globo.com]
+  - id: cazetv
+    name: CazéTV
+    aliases: ['Cazé TV', 'CazeTV', 'Caze TV', 'Canal CazéTV']
+    medium: youtube
+    access_model: free
+    domains: [youtube.com/@CazeTV, cazetv.com.br]
+  - id: record
+    name: Record
+    aliases: ['TV Record', 'RecordTV', 'Record TV', 'Rede Record']
+    medium: free_tv
+    access_model: free
+    domains: [record.r7.com, r7.com]
+  - id: sbt
+    name: SBT
+    aliases: ['Sistema Brasileiro de Televisão', 'TV SBT']
+    medium: free_tv
+    access_model: free
+    domains: [sbt.com.br]
+  - id: band
+    name: Band
+    aliases: ['TV Bandeirantes', 'Rede Bandeirantes', 'Bandeirantes']
+    medium: free_tv
+    access_model: free
+    domains: [band.uol.com.br]
+  - id: n_sports
+    name: N Sports
+    aliases: ['NSports', 'N Sports TV']
+    medium: streaming_free
+    access_model: free
+    domains: [nsports.com.br]
+  - id: prime_video
+    name: Prime Video
+    aliases: ['Amazon Prime Video', 'Amazon Prime']
+    medium: streaming_svod
+    access_model: subscription
+    domains: [primevideo.com, amazon.com.br]
+  - id: espn
+    name: ESPN
+    aliases: ['ESPN Brasil']
+    channels: ['ESPN 2', 'ESPN 3', 'ESPN 4', 'ESPN 5', 'ESPN 6']
+    medium: pay_tv
+    access_model: subscription
+    group: disney
+    domains: [espn.com.br]
+  - id: disney_plus
+    name: Disney+
+    aliases: ['Disney Plus', 'Disney+ Premium', 'Disney Plus Premium', 'Disney+ (ESPN)']
+    medium: streaming_svod
+    access_model: subscription
+    group: disney
+    domains: [disneyplus.com]
+  - id: paramount_plus
+    name: Paramount+
+    aliases: ['Paramount Plus', 'Paramount+ Brasil']
+    medium: streaming_svod
+    access_model: subscription
+    domains: [paramountplus.com]
+  - id: tnt_sports
+    name: TNT Sports
+    aliases: ['TNT', 'TNT Sports Brasil']
+    medium: pay_tv
+    access_model: subscription
+    group: wbd
+    domains: [tntsports.com.br]
+  - id: hbo_max
+    name: HBO Max
+    aliases: ['Max', 'HBOMax']
+    medium: streaming_svod
+    access_model: subscription
+    group: wbd
+    domains: [hbomax.com, max.com]
+sources:
+  organizers: [cbf.com.br]
+  press:
+    - lance.com.br
+    - uol.com.br
+    - terra.com.br
+    - estadao.com.br
+    - folha.uol.com.br
+    - olhardigital.com.br
+    - meioemensagem.com.br
+    - maquinadoesporte.com.br
+    - trivela.com.br
+    - poder360.com.br

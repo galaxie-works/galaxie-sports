@@ -212,15 +212,18 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm --filter @galaxie/ingestor multisport:wikidata` | Histórico de medalhas via Wikidata (CC0), com cache no raw — ver [docs/08](docs/08-olimpiadas-e-panamericano.md) |
 | `pnpm --filter @galaxie/ingestor multisport:qa --noc BRA` | Cobertura, selo de qualidade por edição e histórico por país (zero chamadas) |
 | `pnpm --filter @galaxie/ingestor normalize:football [--tudo]` | Normaliza o raw do futebol no core (eventos, times, pessoas, elencos, classificação) — zero chamadas; incremental por padrão |
+| `pnpm --filter @galaxie/ingestor normalize:sports [--esporte nba] [--tudo]` | Normaliza o raw dos outros 11 esportes no core (jogos, sessões da F1, lutas do MMA, classificação, times) — zero chamadas; incremental por esporte |
 | `pnpm --filter @galaxie/ingestor events:clock` | Avança o relógio dos eventos (T-10, fallback temporal sem fonte) |
 | `pnpm --filter @galaxie/ingestor bootstrap:seasons --plan` | Temporadas por competição: fixtures, teams, rounds, standings, injuries, rankings e venues (só o que o `coverage` permite); `--h2h-temporada-atual` reconstrói a temporada atual no free |
 | `pnpm --filter @galaxie/ingestor bootstrap:details --plan` | Detalhe das partidas encerradas (tier 1 → clássicos → tier 2): `fixtures?ids=` ×20 nos pagos; no free, `fixtures?id=` só de clássicos e jogos decisivos |
 | `pnpm --filter @galaxie/ingestor bootstrap:people --plan` | Elencos, técnicos, transferências, títulos, afastamentos e h2h dos clássicos; `--estatisticas-jogadores` para `players?league&season` |
 | `pnpm --filter @galaxie/ingestor sync:daily --plan` | Sync diário (≤ 45 chamadas no free): agenda D-1/D0/D+1, injuries, `/leagues`, detalhe dos encerrados e rodízio de entidades |
 | `pnpm snapshot:export` · `pnpm snapshot:restore [arquivo]` | Exporta o raw (+ manifesto de assets) para `data/snapshots/*.ndjson.gz` e restaura num banco local — zero chamadas |
-| `pnpm --filter @galaxie/ingestor bootstrap:sports --plan` | Catálogo das outras 11 APIs (países, ligas, temporadas; `--jogos` para temporadas inteiras das prioritárias); sem `--plan`, executa |
+| `pnpm --filter @galaxie/ingestor bootstrap:sports --plan` | Catálogo das outras 11 APIs (países, ligas, temporadas; `--jogos` para temporadas inteiras e classificação das prioritárias); sem `--plan`, executa |
 | `pnpm --filter @galaxie/ingestor assets:mirror --plan` | Asset Mirror: baixa logos/bandeiras/imagens da CDN de mídia (fora da cota) para o bucket S3 e preenche `core.asset`; `--descobrir-raw` varre o raw |
 | `pnpm --filter @galaxie/api tenant:create --slug <slug>` | Cria/atualiza um tenant e gera uma chave de API (plano, mercados, esportes e rate limit por flags) |
+| `pnpm --filter @galaxie/api admin:key` | Gera uma chave administrativa para `/internal/admin/*` (onboarding de tenants, chaves e uso) e o hash para `ADMIN_KEY_HASHES` — ver [docs/05 §1.2](docs/05-api-publica.md#12-onboarding-autoatendimento-e-uso) |
+| `docker compose -f infra/docker-compose.yml --profile load run --rm k6 run /scripts/<cenário>.js` | Testes de carga k6 (`live-burst`, `catalog-browse`, `cache-hit-vs-miss`) — ver [tests/load](tests/load/README.md) |
 
 > A porta do Postgres é **5433** para não colidir com instalações nativas na 5432. Ajuste `POSTGRES_PORT`/`DATABASE_URL` no `.env` se precisar.
 
@@ -257,6 +260,9 @@ $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | For
 | 10 | [Roadmap e backlog](docs/10-roadmap-e-backlog.md) | Fases, marcos e issues |
 | — | [Como contribuir](CONTRIBUTING.md) | Convenções de código, testes, migrations e PRs |
 | 11 | [Segurança, licenciamento e compliance](docs/11-seguranca-licenciamento-e-compliance.md) | Licenças de dados, IA, LGPD, segurança |
+| — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
+| — | [Exercício de DR](docs/runbooks/exercicio-dr.md) | Backup → ensaio → restauração, com o registro do último exercício |
+| — | [Testes de carga](tests/load/README.md) | Cenários k6, metas p95 e modelo de relatório |
 
 Pesquisas de apoio (com fontes): [api-sports futebol](docs/research/api-sports-football.md) · [demais esportes](docs/research/api-sports-outros-esportes.md) · [catálogo de competições](docs/research/catalogo-competicoes.md) · [onde assistir](docs/research/onde-assistir.md) · [Olimpíadas e Pan](docs/research/olimpiadas-e-panamericano.md) · [Sportmonks](docs/research/sportmonks.md).
 

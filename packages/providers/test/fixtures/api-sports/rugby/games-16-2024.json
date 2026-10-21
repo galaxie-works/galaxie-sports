@@ -1,0 +1,192 @@
+{
+  "get": "games",
+  "parameters": {
+    "league": "16",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "id": 45917,
+      "date": "2024-09-07T12:30:00+00:00",
+      "time": "12:30",
+      "timestamp": 1725712200,
+      "timezone": "UTC",
+      "week": "1",
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 7,
+        "name": "France",
+        "code": "FR",
+        "flag": "https://media.api-sports.io/flags/fr.svg"
+      },
+      "league": {
+        "id": 16,
+        "name": "Top 14",
+        "type": "League",
+        "logo": "https://media.api-sports.io/rugby/leagues/16.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 95,
+          "name": "Aviron Bayonnais",
+          "logo": "https://media.api-sports.io/rugby/teams/95.png"
+        },
+        "away": {
+          "id": 120,
+          "name": "USA Perpignan",
+          "logo": "https://media.api-sports.io/rugby/teams/120.png"
+        }
+      },
+      "scores": {
+        "home": 21,
+        "away": 19
+      },
+      "periods": {
+        "first": {
+          "home": 12,
+          "away": 16
+        },
+        "second": {
+          "home": 9,
+          "away": 3
+        },
+        "overtime": {
+          "home": null,
+          "away": null
+        },
+        "second_overtime": {
+          "home": null,
+          "away": null
+        }
+      }
+    },
+    {
+      "id": 49688,
+      "date": "2025-06-28T19:05:00+00:00",
+      "time": "19:05",
+      "timestamp": 1751137500,
+      "timezone": "UTC",
+      "week": "Final",
+      "status": {
+        "long": "After Extra Time",
+        "short": "AET"
+      },
+      "country": {
+        "id": 7,
+        "name": "France",
+        "code": "FR",
+        "flag": "https://media.api-sports.io/flags/fr.svg"
+      },
+      "league": {
+        "id": 16,
+        "name": "Top 14",
+        "type": "League",
+        "logo": "https://media.api-sports.io/rugby/leagues/16.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 107,
+          "name": "Stade Toulousain",
+          "logo": "https://media.api-sports.io/rugby/teams/107.png"
+        },
+        "away": {
+          "id": 96,
+          "name": "Bordeaux Begles",
+          "logo": "https://media.api-sports.io/rugby/teams/96.png"
+        }
+      },
+      "scores": {
+        "home": 39,
+        "away": 33
+      },
+      "periods": {
+        "first": {
+          "home": 20,
+          "away": 16
+        },
+        "second": {
+          "home": 13,
+          "away": 17
+        },
+        "overtime": {
+          "home": 6,
+          "away": 0
+        },
+        "second_overtime": {
+          "home": null,
+          "away": null
+        }
+      }
+    },
+    {
+      "id": 49508,
+      "date": "2025-06-13T19:05:00+00:00",
+      "time": "19:05",
+      "timestamp": 1749841500,
+      "timezone": "UTC",
+      "week": "Quarter-finals",
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 7,
+        "name": "France",
+        "code": "FR",
+        "flag": "https://media.api-sports.io/flags/fr.svg"
+      },
+      "league": {
+        "id": 16,
+        "name": "Top 14",
+        "type": "League",
+        "logo": "https://media.api-sports.io/rugby/leagues/16.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 95,
+          "name": "Aviron Bayonnais",
+          "logo": "https://media.api-sports.io/rugby/teams/95.png"
+        },
+        "away": {
+          "id": 99,
+          "name": "Clermont",
+          "logo": "https://media.api-sports.io/rugby/teams/99.png"
+        }
+      },
+      "scores": {
+        "home": 20,
+        "away": 3
+      },
+      "periods": {
+        "first": {
+          "home": 9,
+          "away": 3
+        },
+        "second": {
+          "home": 11,
+          "away": 0
+        },
+        "overtime": {
+          "home": null,
+          "away": null
+        },
+        "second_overtime": {
+          "home": null,
+          "away": null
+        }
+      }
+    }
+  ]
+}

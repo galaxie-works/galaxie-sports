@@ -27,6 +27,8 @@ WORKDIR /srv/apps/api
 COPY --from=build /out/package.json ./package.json
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/dist ./dist
+# modelos de plano usados no onboarding (/internal/admin); o código procura em <raiz>/config/plans.yaml
+COPY --from=build /repo/config/plans.yaml /srv/config/plans.yaml
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \

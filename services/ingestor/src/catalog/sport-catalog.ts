@@ -6,6 +6,7 @@
  */
 import { isProviderMediaUrl, type ApiSport, type Params } from '@galaxie/apisports-client';
 import type { I18nText } from '@galaxie/db';
+import { F1_COMPETITION_ID, MMA_COMPETITION_ID } from '@galaxie/providers';
 import type { SportCatalogCompetition } from './catalog-config.js';
 import { mergeSameYear, seasonLabel, slugify, type ApiSeason } from './football-catalog.js';
 import type { CatalogRows, CompetitionRow, CountryRow, ParticipantRow, VenueRow } from './persist.js';
@@ -51,6 +52,8 @@ export interface SportProfile {
   build(responses: ReferenceResponses, ctx: BuildContext): CatalogRows;
   /** Chamada que traz a temporada inteira de uma competição (flag `--jogos`). */
   seasonCall(competitionProviderId: string, seasonKey: string): SeasonCall;
+  /** Classificação da temporada (`standings`; F1 `rankings/drivers` e `rankings/teams`; MMA não tem). */
+  standingsCalls(competitionProviderId: string, seasonKey: string): SeasonCall[];
 }
 
 // ─── países ──────────────────────────────────────────────────────────────────────────────────────
@@ -304,10 +307,13 @@ function countryFromConfig(name: string | undefined, fallback: ProviderCountry):
   return name === 'World' ? WORLD : { name, code: null, flag: null };
 }
 
-/** F1: não há "campeonato" na API — uma competição sintética por temporada (/seasons) + GPs no raw. */
-export const F1_CHAMPIONSHIP_ID = 'world-championship';
+/**
+ * F1: não há "campeonato" na API — uma competição sintética por temporada (/seasons); os GPs viram fases
+ * (`race_weekend`) e as sessões viram eventos na normalização (`normalize:sports`).
+ */
+export const F1_CHAMPIONSHIP_ID = F1_COMPETITION_ID;
 /** MMA: não há filtro por organização — uma competição sintética com todas as lutas da temporada. */
-export const MMA_ALL_FIGHTS_ID = 'all-fights';
+export const MMA_ALL_FIGHTS_ID = MMA_COMPETITION_ID;
 
 function buildF1(responses: ReferenceResponses, ctx: BuildContext): CatalogRows {
   const cfg = configById(ctx.catalog).get(F1_CHAMPIONSHIP_ID);
@@ -412,6 +418,10 @@ const games = (league: string, season: string): SeasonCall => ({
   params: { league, season },
 });
 
+const standings = (league: string, season: string): SeasonCall[] => [
+  { endpoint: '/standings', params: { league, season } },
+];
+
 function classic(sport: OtherSport, odds: readonly string[]): SportProfile {
   return {
     sport,
@@ -419,6 +429,7 @@ function classic(sport: OtherSport, odds: readonly string[]): SportProfile {
     required: ['/countries', '/leagues'],
     build: (r, ctx) => buildLeagueCatalog(r.get('/countries'), r.get('/leagues'), ctx),
     seasonCall: games,
+    standingsCalls: standings,
   };
 }
 
@@ -443,6 +454,7 @@ export const SPORT_PROFILES: Record<OtherSport, SportProfile> = {
         flag: 'https://media.api-sports.io/flags/au.svg',
       }),
     seasonCall: games,
+    standingsCalls: standings,
   },
   'american-football': {
     sport: 'american-football',
@@ -450,6 +462,7 @@ export const SPORT_PROFILES: Record<OtherSport, SportProfile> = {
     required: ['/leagues'],
     build: (r, ctx) => buildLeagueCatalog(undefined, r.get('/leagues'), ctx),
     seasonCall: games,
+    standingsCalls: standings,
   },
   'formula-1': {
     sport: 'formula-1',
@@ -458,6 +471,10 @@ export const SPORT_PROFILES: Record<OtherSport, SportProfile> = {
     build: buildF1,
     // todas as sessões da temporada (treinos, classificação, sprint e corrida)
     seasonCall: (_id, season) => ({ endpoint: '/races', params: { season } }),
+    standingsCalls: (_id, season) => [
+      { endpoint: '/rankings/drivers', params: { season } },
+      { endpoint: '/rankings/teams', params: { season } },
+    ],
   },
   mma: {
     sport: 'mma',
@@ -465,6 +482,7 @@ export const SPORT_PROFILES: Record<OtherSport, SportProfile> = {
     required: ['/seasons'],
     build: buildMma,
     seasonCall: (_id, season) => ({ endpoint: '/fights', params: { season } }),
+    standingsCalls: () => [],
   },
   nba: {
     sport: 'nba',
@@ -472,6 +490,7 @@ export const SPORT_PROFILES: Record<OtherSport, SportProfile> = {
     required: ['/seasons', '/leagues', '/teams'],
     build: buildNba,
     seasonCall: games,
+    standingsCalls: standings,
   },
 };
 
@@ -528,6 +547,8 @@ export interface SeasonGamesOptions {
   /** Janela de temporadas aceita pelo plano (free: 2022–2024); sem janela, usa as `latestSeasons` mais recentes. */
   seasonWindow?: { min: number; max: number } | undefined;
   latestSeasons?: number;
+  /** Também busca a classificação de cada temporada (`standings`; F1 rankings). */
+  standings?: boolean | undefined;
 }
 
 export interface PlannedSeasonCall extends SeasonCall {
@@ -535,7 +556,10 @@ export interface PlannedSeasonCall extends SeasonCall {
   season: number;
 }
 
-/** Monta as chamadas `games?league&season` (F1 `races?season`, MMA `fights?season`) das competições prioritárias. */
+/**
+ * Monta as chamadas `games?league&season` (F1 `races?season`, MMA `fights?season`) das competições prioritárias
+ * e, com `standings`, a classificação de cada temporada logo depois de cada uma.
+ */
 export function planSeasonCalls(
   profile: SportProfile,
   rows: CatalogRows,
@@ -550,11 +574,11 @@ export function planSeasonCalls(
       ? c.seasons.filter((s) => s.year >= window.min && s.year <= window.max)
       : [...c.seasons].sort((a, b) => b.year - a.year).slice(0, options.latestSeasons ?? 3);
     for (const s of seasons.sort((a, b) => a.year - b.year)) {
-      out.push({
-        competition: c.slug,
-        season: s.year,
-        ...profile.seasonCall(c.providerId, s.providerKey ?? String(s.year)),
-      });
+      const key = s.providerKey ?? String(s.year);
+      out.push({ competition: c.slug, season: s.year, ...profile.seasonCall(c.providerId, key) });
+      if (options.standings)
+        for (const call of profile.standingsCalls(c.providerId, key))
+          out.push({ competition: c.slug, season: s.year, ...call });
     }
   }
   return out;
@@ -583,6 +607,9 @@ export function estimateSeasonCalls(
           ? `${year}-${year + 1}`
           : String(year);
       out.push({ competition: c.slug, season: year, ...profile.seasonCall(String(c.api_sports_id), key) });
+      if (options.standings)
+        for (const call of profile.standingsCalls(String(c.api_sports_id), key))
+          out.push({ competition: c.slug, season: year, ...call });
     }
   }
   return out;

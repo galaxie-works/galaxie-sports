@@ -1,0 +1,18 @@
+# =============================================================================
+# Política editorial do onde assistir — blocklist
+#
+# Broadcasters/plataformas da blocklist nunca chegam à API pública: o validador
+# descarta a opção (e qualquer evidência hospedada nos domínios bloqueados) antes
+# de gravar. A regra vale também para correções editoriais.
+#
+# Por decisão do produto, algumas operadoras de TV paga não são nomeadas em nenhum
+# arquivo do repositório. A lista efetiva é a soma desta lista com a carregada em
+# tempo de execução de:
+#   - WTW_BLOCKLIST_FILE  — caminho de um YAML fora do Git, no mesmo formato abaixo;
+#   - WTW_BLOCKLIST       — nomes e/ou domínios separados por vírgula.
+#
+# Formato de cada entrada: { name: "...", aliases: ["..."], domains: ["..."] }
+# (uma string simples também vale e é tratada como `name`).
+# =============================================================================
+schema_version: 1
+blocklist: []

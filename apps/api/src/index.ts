@@ -5,3 +5,7 @@ export { InMemoryTenantStore, PgTenantStore, type TenantStore } from './auth/ten
 export { ChangeFeedListener, tagsForChange } from './cache/change-feed.js';
 export { NoopCdnPurger, RecordingCdnPurger, type CdnPurger } from './cache/purger.js';
 export { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
+export { ChangeStream, registerRealtime, type RealtimeOptions } from './realtime/index.js';
+export { WebhookWorker, type WebhookWorkerOptions } from './webhooks/worker.js';
+export { signWebhook, verifyWebhookSignature, SIGNATURE_HEADER } from './webhooks/signature.js';
+export { createWebhookEndpoint, replayDeadDeliveries } from './webhooks/admin.js';

@@ -64,6 +64,8 @@ export const PHASE_POINTS: Readonly<Record<StageKind, number>> = {
   league_phase: 6,
   round_of_64: 5,
   regular: 4,
+  // um GP vale como uma rodada do campeonato
+  race_weekend: 4,
   round_of_128: 3,
   other: 3,
   qualifying: 2,

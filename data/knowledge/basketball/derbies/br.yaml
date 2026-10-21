@@ -1,0 +1,56 @@
+# Base semântica — clássicos do basquete brasileiro (NBB) (schema v1)
+schema_version: 1
+region: br
+derbies:
+  - slug: basketball-franca-bauru
+    name: Franca × Bauru
+    aliases: ["Clássico paulista", "Bauru × Franca"]
+    labels: { pt-BR: "Franca × Bauru", es: "Franca vs. Bauru", en: "Franca vs. Bauru" }
+    teams: [basketball-franca, basketball-bauru]
+    scope: state
+    intensity: 4
+    first_match: null
+    origin: "Duelo de dois polos do basquete do interior paulista, tratado pela imprensa como clássico do NBB."
+    trivia:
+      - "Em março de 2017, Franca venceu o clássico por 92 a 85 na prorrogação, no Pedrocão, diante de mais de 4 mil torcedores."
+      - "O Franca aponta o Bauru como seu maior rival atual."
+    sources:
+      - "https://www.gazetaesportiva.com/?p=2421539"
+      - "https://www.gazetaesportiva.com/mais-esportes/basquete/embalado-com-recorde-e-titulo-lider-bauru-faz-classico-com-o-franca/"
+      - "https://pt.wikipedia.org/wiki/Franca_Basquetebol_Clube"
+    review_status: draft
+
+  - slug: basketball-classico-dos-jardins
+    name: Clássico dos Jardins
+    aliases: ["Paulistano × Pinheiros", "Dérbi da capital", "Clássico da capital"]
+    labels: { pt-BR: "Clássico dos Jardins", es: "Clásico de los Jardins", en: "Jardins derby" }
+    teams: [basketball-paulistano, basketball-pinheiros]
+    scope: city
+    intensity: 3
+    first_match: null
+    origin: "Os dois clubes têm sede nos Jardins, em São Paulo: o Paulistano no Jardim América e o Pinheiros no Jardim Europa."
+    trivia:
+      - "Em outubro de 2018, o Paulistano venceu o Pinheiros por 92 a 88 no 'clássico do Jardins' e foi à final do Campeonato Paulista."
+    sources:
+      - "https://www.gazetaesportiva.com/?p=2645579"
+      - "https://dol.com.br/esporte/esporte-brasil/noticia-570968-pinheiros-vence-derbi-da-capital-contra-o-paulistano-pelo-nbb.html"
+      - "https://pt.wikipedia.org/wiki/Club_Athletico_Paulistano"
+      - "https://pt.wikipedia.org/wiki/Esporte_Clube_Pinheiros"
+    review_status: draft
+
+  - slug: basketball-classico-dos-milhoes
+    name: Clássico dos Milhões
+    aliases: ["Flamengo × Vasco", "Fla × Vasco"]
+    labels: { pt-BR: "Clássico dos Milhões", es: "Clásico de los Millones", en: "Clássico dos Milhões" }
+    teams: [basketball-flamengo, basketball-vasco]
+    scope: city
+    intensity: 3
+    first_match: null
+    origin: "O nome do grande clássico carioca do futebol também é usado nos duelos entre Flamengo e Vasco no NBB."
+    trivia:
+      - "O primeiro Clássico dos Milhões do NBB, em janeiro de 2017, foi vencido pelo Vasco."
+      - "Na abertura do NBB 2024-25, o Flamengo venceu por 59 a 50 e chegou a oito vitórias em nove jogos do clássico na liga."
+    sources:
+      - "https://www.netvasco.com.br/n/347793/basquete-vasco-perde-para-o-urubu-na-estreia-do-nbb-59-a-50"
+      - "https://pt.wikipedia.org/wiki/Club_de_Regatas_Vasco_da_Gama_(basquete)"
+    review_status: draft

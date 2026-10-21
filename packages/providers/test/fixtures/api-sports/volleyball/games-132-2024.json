@@ -1,0 +1,204 @@
+{
+  "get": "games",
+  "parameters": {
+    "league": "132",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "id": 168698,
+      "date": "2024-09-04T14:00:00+00:00",
+      "time": "14:00",
+      "timestamp": 1725458400,
+      "timezone": "UTC",
+      "week": "1",
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 39,
+        "name": "Russia",
+        "code": "RU",
+        "flag": "https://media.api-sports.io/flags/ru.svg"
+      },
+      "league": {
+        "id": 132,
+        "name": "Superleague",
+        "type": "League",
+        "logo": "https://media.api-sports.io/volley/leagues/132.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 1044,
+          "name": "Surgut region",
+          "logo": "https://media.api-sports.io/volley/teams/1044.png"
+        },
+        "away": {
+          "id": 1078,
+          "name": "MGTU Moscow",
+          "logo": "https://media.api-sports.io/volley/teams/1078.png"
+        }
+      },
+      "scores": {
+        "home": 3,
+        "away": 0
+      },
+      "periods": {
+        "first": {
+          "home": 27,
+          "away": 25
+        },
+        "second": {
+          "home": 25,
+          "away": 23
+        },
+        "third": {
+          "home": 25,
+          "away": 22
+        },
+        "fourth": {
+          "home": null,
+          "away": null
+        },
+        "fifth": {
+          "home": null,
+          "away": null
+        }
+      }
+    },
+    {
+      "id": 168702,
+      "date": "2024-09-07T15:00:00+00:00",
+      "time": "15:00",
+      "timestamp": 1725721200,
+      "timezone": "UTC",
+      "week": "1",
+      "status": {
+        "long": "Cancelled",
+        "short": "CANC"
+      },
+      "country": {
+        "id": 39,
+        "name": "Russia",
+        "code": "RU",
+        "flag": "https://media.api-sports.io/flags/ru.svg"
+      },
+      "league": {
+        "id": 132,
+        "name": "Superleague",
+        "type": "League",
+        "logo": "https://media.api-sports.io/volley/leagues/132.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 1041,
+          "name": "Novosibirsk",
+          "logo": "https://media.api-sports.io/volley/teams/1041.png"
+        },
+        "away": {
+          "id": 124,
+          "name": "Soligorsk",
+          "logo": "https://media.api-sports.io/volley/teams/124.png"
+        }
+      },
+      "scores": {
+        "home": null,
+        "away": null
+      },
+      "periods": {
+        "first": {
+          "home": null,
+          "away": null
+        },
+        "second": {
+          "home": null,
+          "away": null
+        },
+        "third": {
+          "home": null,
+          "away": null
+        },
+        "fourth": {
+          "home": null,
+          "away": null
+        },
+        "fifth": {
+          "home": null,
+          "away": null
+        }
+      }
+    },
+    {
+      "id": 179760,
+      "date": "2025-03-19T12:00:00+00:00",
+      "time": "12:00",
+      "timestamp": 1742385600,
+      "timezone": "UTC",
+      "week": "Quarter-finals",
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 39,
+        "name": "Russia",
+        "code": "RU",
+        "flag": "https://media.api-sports.io/flags/ru.svg"
+      },
+      "league": {
+        "id": 132,
+        "name": "Superleague",
+        "type": "League",
+        "logo": "https://media.api-sports.io/volley/leagues/132.png",
+        "season": 2024
+      },
+      "teams": {
+        "home": {
+          "id": 1041,
+          "name": "Novosibirsk",
+          "logo": "https://media.api-sports.io/volley/teams/1041.png"
+        },
+        "away": {
+          "id": 1047,
+          "name": "Zenit St. Petersburg",
+          "logo": "https://media.api-sports.io/volley/teams/1047.png"
+        }
+      },
+      "scores": {
+        "home": 2,
+        "away": 3
+      },
+      "periods": {
+        "first": {
+          "home": 18,
+          "away": 25
+        },
+        "second": {
+          "home": 16,
+          "away": 25
+        },
+        "third": {
+          "home": 25,
+          "away": 19
+        },
+        "fourth": {
+          "home": 25,
+          "away": 22
+        },
+        "fifth": {
+          "home": 9,
+          "away": 15
+        }
+      }
+    }
+  ]
+}

@@ -25,6 +25,7 @@
     "multisport:wikidata": "node --env-file-if-exists=../../.env dist/cli/multisport-wikidata.js",
     "multisport:qa": "node --env-file-if-exists=../../.env dist/cli/multisport-qa.js",
     "normalize:football": "node --env-file-if-exists=../../.env dist/cli/normalize-football.js",
+    "normalize:sports": "node --env-file-if-exists=../../.env dist/cli/normalize-sports.js",
     "events:clock": "node --env-file-if-exists=../../.env dist/cli/events-clock.js",
     "bootstrap:seasons": "node --env-file-if-exists=../../.env dist/cli/bootstrap-seasons.js",
     "bootstrap:details": "node --env-file-if-exists=../../.env dist/cli/bootstrap-details.js",

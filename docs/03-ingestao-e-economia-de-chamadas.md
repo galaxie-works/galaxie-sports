@@ -230,27 +230,33 @@ Prioridade latino-americana: basquete (NBB, Liga A argentina, NBA), vôlei (Supe
 
 - **IDs no escopo do esporte**: `core.provider_map (provider, sport, entity_type, provider_id)` — o ID 192 do basquete e o 192 do vôlei são competições diferentes.
 - **Catálogo YAML por esporte**: `config/competitions/<esporte>.yaml`, mesmo schema do `football.yaml` (slug, nome/país/tipo como o fornecedor devolve, `api_sports_id`, tier, `live_priority`, labels). Tier 1 = prioridade LatAm (NBB 26, Liga A 18, BCLA 299, AmeriCup, Olímpicos e Pan; Superliga 25/24, LVA 4, VNL 183/184; LMB, LMP, LIDOM, LVBP, Série do Caribe, WBC; Top 12; F1; MMA; NBA `standard`). O resto do `/leagues` entra como tier 3. Os nomes foram conferidos contra o `/leagues` capturado (0 divergências); o job repete a conferência a cada execução.
-- **Temporadas inteiras (`--jogos`)**: `games?league&season` (F1 `races?season`, MMA `fights?season`, NBA `games?league=standard&season`) das competições até `--tier` (padrão 1), dentro da janela do plano (free: 2022–2024; planos pagos: as `--temporadas` mais recentes). No basquete a chave vem do `/leagues` (`season=2024-2025`). Só grava no raw — a normalização dos jogos em `core.event` é outra etapa.
+- **Temporadas inteiras (`--jogos`)**: `games?league&season` (F1 `races?season`, MMA `fights?season`, NBA `games?league=standard&season`) das competições até `--tier` (padrão 1), dentro da janela do plano (free: 2022–2024; planos pagos: as `--temporadas` mais recentes). No basquete a chave vem do `/leagues` (`season=2024-2025`). Junto, a **classificação de cada temporada** (`standings?league&season`; F1 `rankings/drivers?season` e `rankings/teams?season`; MMA não tem) — `--sem-tabelas` desliga. Só grava no raw; `normalize:sports` leva ao core (abaixo).
 - `--plan` mostra, por esporte, quantas chamadas sairiam do raw e quantas gastariam cota. Sem `/leagues` no raw, estima as temporadas pelo YAML × janela do plano — um limite superior (ex.: Olímpicos só têm 2024 na janela); depois do primeiro catálogo, o plano usa as temporadas reais.
 
-Custo no plano free (janela 2022–2024):
+Custo no plano free (janela 2022–2024). A classificação dobra as chamadas de temporada (F1: 2 rankings por temporada; MMA: nenhuma):
 
-| API | Referência | `--jogos` tier 1 | `--jogos --tier 2` | Total tier 1 |
-|---|---:|---:|---:|---:|
-| AFL | 5 | 0 | 3 | 5 |
-| Beisebol | 6 | 18 | 35 | 24 |
-| Basquete | 6 | 16 | 76 | 22 |
-| Fórmula 1 | 5 | 3 | 3 | 8 |
-| Handebol | 6 | 7 | 12 | 13 |
-| Hóquei | 6 | 2 | 5 | 8 |
-| MMA | 6 | 3 | 3 | 9 |
-| NBA | 3 | 3 | 3 | 6 |
-| NFL | 5 | 0 | 3 | 5 |
-| Rúgbi | 6 | 7 | 17 | 13 |
-| Vôlei | 6 | 19 | 47 | 25 |
-| **Total** | **60** | **78** | **207** | **138** |
+| API | Referência | `--jogos` tier 1 (só jogos) | + tabelas | Total tier 1 com tabelas | `--jogos --tier 2` (só jogos) |
+|---|---:|---:|---:|---:|---:|
+| AFL | 5 | 0 | 0 | 5 | 3 |
+| Beisebol | 6 | 18 | 18 | 42 | 35 |
+| Basquete | 6 | 16 | 16 | 38 | 76 |
+| Fórmula 1 | 5 | 3 | 6 | 14 | 3 |
+| Handebol | 6 | 7 | 7 | 20 | 12 |
+| Hóquei | 6 | 2 | 2 | 10 | 5 |
+| MMA | 6 | 3 | 0 | 9 | 3 |
+| NBA | 3 | 3 | 3 | 9 | 3 |
+| NFL | 5 | 0 | 0 | 5 | 3 |
+| Rúgbi | 6 | 7 | 7 | 20 | 17 |
+| Vôlei | 6 | 19 | 19 | 44 | 47 |
+| **Total** | **60** | **78** | **78** | **216** | **207** |
 
-Cada API cabe num único dia com `--sem-live` (85 chamadas de folga para o BOOTSTRAP); com a política padrão (5 para o BOOTSTRAP) o catálogo leva 1–2 dias por API e o restante fica adiado para o dia seguinte.
+Cada API cabe num único dia com `--sem-live` (85 chamadas de folga para o BOOTSTRAP); com a política padrão (5 para o BOOTSTRAP) o catálogo leva 1–2 dias por API e o restante fica adiado para o dia seguinte. O que já está no raw dentro do TTL não gasta cota de novo.
+
+### 6.2 Normalização raw → core dos demais esportes (implementado)
+
+`pnpm --filter @galaxie/ingestor normalize:sports [--esporte basketball ...] [--tudo] [--relogio]` — zero chamadas ao fornecedor; lê o que o `bootstrap:sports --jogos` (e, no futuro, o diário e o ao vivo) gravou no raw e leva ao core: jogos/corridas/lutas → `core.event` (com N participantes na F1 e os dois cantos no MMA), GPs da F1 → fases `race_weekend`, categorias do MMA → fases, tabelas → `core.standing`, times → `core.participant` e o item original em `core.sport_event_detail`. Mapeamento de status, durações (`ends_at_expected`) e regras em [04 §3.5](04-modelo-de-dados.md#35-normalização-raw--core-dos-demais-esportes-issues-25-e-16).
+
+Para a F1, resultado e grid de cada corrida (`rankings/races?race=`, `rankings/startinggrid?race=`) são normalizados quando estão no raw, mas o bootstrap ainda não os busca (1 chamada por sessão; ~24 GPs × 2 por temporada): ficam para um job de detalhes da F1.
 
 ## 7. Assets (escudos, bandeiras, estádios, jogadores, técnicos…)
 

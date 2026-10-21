@@ -12,6 +12,10 @@ export interface Loaded {
   ttl?: number;
   /** false = não guardar no cache do Valkey (ainda recebe ETag). */
   store?: boolean;
+  /** Corpo já serializado (string) com este Content-Type, em vez de JSON. */
+  contentType?: string;
+  /** Metadados internos guardados com a resposta (não enviados). */
+  meta?: Record<string, string>;
 }
 
 export interface CachedRouteOptions {
@@ -19,6 +23,8 @@ export interface CachedRouteOptions {
   /** Partes que variam a resposta além de rota e query (locale resolvido, fuso...). */
   vary?: string[];
   load: () => Promise<Loaded>;
+  /** Validação por requisição sobre os metadados (roda também no HIT; ex.: esporte fora do plano). */
+  check?: (meta: Record<string, string>) => void;
 }
 
 export function etagOf(body: string): string {
@@ -68,7 +74,8 @@ export async function sendCached(
     ttl = Math.max(0, Math.ceil(ttl - (Date.now() - entry.storedAt) / 1000));
   } else {
     const loaded = await options.load();
-    const body = JSON.stringify(loaded.body);
+    const body =
+      loaded.contentType && typeof loaded.body === 'string' ? loaded.body : JSON.stringify(loaded.body);
     ttl = loaded.ttl ?? options.ttl;
     entry = {
       status: 200,
@@ -76,6 +83,8 @@ export async function sendCached(
       etag: etagOf(body),
       tags: loaded.tags,
       ...(loaded.headers ? { headers: loaded.headers } : {}),
+      ...(loaded.contentType ? { contentType: loaded.contentType } : {}),
+      ...(loaded.meta ? { meta: loaded.meta } : {}),
       storedAt: Date.now(),
     };
     reply.header('x-galaxie-cache', 'MISS');
@@ -88,6 +97,7 @@ export async function sendCached(
     }
   }
 
+  options.check?.(entry.meta ?? {});
   for (const [k, v] of Object.entries(entry.headers ?? {})) reply.header(k, v);
   reply
     .header('etag', entry.etag)
@@ -96,5 +106,8 @@ export async function sendCached(
   if (entry.tags.length) reply.header('surrogate-key', entry.tags.join(' '));
 
   if (matchesEtag(request.headers['if-none-match'], entry.etag)) return reply.code(304).send();
-  return reply.code(entry.status).header('content-type', 'application/json; charset=utf-8').send(entry.body);
+  return reply
+    .code(entry.status)
+    .header('content-type', entry.contentType ?? 'application/json; charset=utf-8')
+    .send(entry.body);
 }

@@ -61,6 +61,12 @@ Regras-chave:
 | `GET /v1/multisport/games/{slug}/today/{noc}` | "Brasil hoje" / "Argentina hoy": chances de medalha, resultados e onde assistir |
 | `GET /v1/multisport/history/medals?noc=BRA&type=OG,PAN` | Histórico por país |
 
+Implementadas no módulo `multisport` (`apps/api/src/routes/v1/multisport.ts`; contratos em `packages/contracts/src/multisport.ts`; detalhes de contrato e cache em [docs/05 §3.4.1](05-api-publica.md#341-implementação-appsapisrcroutesv1multisportts)). Também há `GET /v1/multisport/games/{slug}`, que lista os torneios coletivos ligados à edição (`games_competition`, #78).
+
+**Regra de qualidade na API (escolha: resposta sinalizada).** Quadro, ranking, medalhas do dia e histórico só saem com `medal_data_quality` `complete` ou `partial`. Nos demais casos (`insufficient`, `unknown`, edição futura) a resposta é **200** com `data_quality.publishable = false`, `notice` localizado e lista vazia; no histórico a edição vai para `withheld`. `partial` sai com aviso de cobertura. Exemplo: `GET /v1/multisport/games/pan-2023/medals` → `publishable: false`, `data: []`; `GET /v1/multisport/history/medals?noc=BRA` → edições olímpicas publicáveis em `data` e os Pan-Americanos em `withheld`.
+
+Com a carga real (§6.3), `GET /v1/multisport/games/og-summer-2016/medals?region=latam` devolve BRA 6/6/6 (14º por ouro) com aviso "Quadro parcial: cobertura de 95,7%", e a delegação `og-summer-2024/nocs/BRA/athletes` traz Rebeca Andrade (1 ouro, 2 pratas) no topo. A agenda (`/schedule`) e "hoje" ficam sem unidades até existir uma fonte de agenda.
+
 ## 5. Onde a IA ajuda (sem ser fonte de verdade)
 
 1. **Resolução de entidades**: casar o mesmo atleta entre fontes (grafias, acentos, nomes compostos hispânicos), com aprovação por regra/humano.
@@ -150,7 +156,8 @@ Conferência América Latina (derivado × Wikipedia, G/P/B):
 
 ## 7. Pendências
 
-- Rotas `/v1/multisport/*` na API (o histórico por país já tem a consulta pronta em `medalHistoryByNoc`; o quadro, em `medalTableForGames`).
+- Agenda oficial por unidade (sessões/baterias) e lista de inscritos por CON — as rotas `/schedule`, `/today` e `/athletes` já existem, mas dependem dessa carga (hoje a delegação é derivada de medalhas e resultados).
+- Chances de medalha (`medal_chances`, projeções rotuladas) e onde assistir por unidade (`where_to_watch` via `unit.core_event_id`) em `/today/{noc}`.
 - Fonte licenciada para o histórico do Pan-Americano (ver §6.4) e para preencher as lacunas olímpicas (Olympedia mediante licença).
 - Carregar os catálogos de basquete, vôlei, handebol, rúgbi, beisebol e hóquei para ligar os torneios olímpicos/pan-americanos já mapeados.
 - Confirmar IDs das ligas olímpicas/pan-americanas nas APIs coletivas com `/leagues?search=olympic` e `?search=pan american` (1 chamada por esporte).

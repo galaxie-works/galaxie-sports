@@ -68,8 +68,8 @@ const derbyOf = async (eventId: string) =>
 describe('seedSemantic', () => {
   it('carrega toda a base de data/knowledge', async () => {
     const result = await seedSemantic(db, kb, { gitSha: 'abc123' });
-    expect(result.teams).toMatchObject({ total: 187, inserted: 187, updated: 0, removed: 0 });
-    expect(result.derbies).toMatchObject({ total: 82, inserted: 82 });
+    expect(result.teams).toMatchObject({ total: 218, inserted: 218, updated: 0, removed: 0 });
+    expect(result.derbies).toMatchObject({ total: 93, inserted: 93 });
     expect(result.competitions).toMatchObject({ total: 43, inserted: 43 });
     expect(result.copyTemplates.inserted).toBeGreaterThanOrEqual(8 * 24);
 
@@ -85,13 +85,24 @@ describe('seedSemantic', () => {
     expect(palmeiras!.rivals).toContainEqual({ team: 'sao-paulo', derby: 'choque-rei', intensity: 4 });
     const [brazil] = await db.select().from(teamProfile).where(eq(teamProfile.slug, 'brazil-nt'));
     expect(brazil).toMatchObject({ kind: 'national_team', countryCode: 'BR', worldCupTitles: 5 });
+    // outros esportes (issue #44): tipo do arquivo de participantes, ainda sem vínculo com o core
+    const [checo] = await db.select().from(teamProfile).where(eq(teamProfile.slug, 'f1-sergio-perez'));
+    expect(checo).toMatchObject({
+      kind: 'driver',
+      countryCode: 'MX',
+      participantId: null,
+      sourceFile: 'data/knowledge/formula-1/participants/drivers.yaml',
+    });
+    expect(checo!.nicknames).toContain('Checo');
+    const [lakersCeltics] = await db.select().from(derby).where(eq(derby.slug, 'basketball-lakers-celtics'));
+    expect(lakersCeltics).toMatchObject({ intensity: 5, scope: 'national' });
 
     const [choque] = await db.select().from(derby).where(eq(derby.slug, 'choque-rei'));
     const pair = await db.select().from(derbyTeam).where(eq(derbyTeam.derbyId, choque!.id));
     expect(pair.map((p) => p.teamSlug).sort()).toEqual(['palmeiras', 'sao-paulo']);
 
     const [run] = await db.select().from(loadRun);
-    expect(run).toMatchObject({ gitSha: 'abc123', teams: 187, derbies: 82, competitions: 43 });
+    expect(run).toMatchObject({ gitSha: 'abc123', teams: 218, derbies: 93, competitions: 43 });
     const copies = await db.select().from(copyTemplate).where(eq(copyTemplate.key, 'pt-BR.rivalry-3'));
     expect(copies[0]).toMatchObject({
       locale: 'pt-BR',
@@ -108,7 +119,7 @@ describe('seedSemantic', () => {
     const result = await seedSemantic(db, kb, { gitSha: 'abc123' });
     for (const s of [result.teams, result.derbies, result.competitions, result.copyTemplates])
       expect(s).toMatchObject({ inserted: 0, updated: 0, removed: 0 });
-    expect(result.teams.unchanged).toBe(187);
+    expect(result.teams.unchanged).toBe(218);
     const after = await db
       .select({ slug: teamProfile.slug, updatedAt: teamProfile.updatedAt })
       .from(teamProfile);
