@@ -1,0 +1,71 @@
+{
+  "get": "rankings",
+  "parameters": {
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "position": 1,
+      "driver": {
+        "id": 25,
+        "name": "Max Verstappen",
+        "abbr": "VER",
+        "number": 1,
+        "image": "https://media.api-sports.io/formula-1/drivers/25.png"
+      },
+      "team": {
+        "id": 1,
+        "name": "Red Bull Racing",
+        "logo": "https://media.api-sports.io/formula-1/teams/1.png"
+      },
+      "points": 437,
+      "wins": 9,
+      "behind": null,
+      "season": 2024
+    },
+    {
+      "position": 2,
+      "driver": {
+        "id": 49,
+        "name": "Lando Norris",
+        "abbr": "NOR",
+        "number": 4,
+        "image": "https://media.api-sports.io/formula-1/drivers/49.png"
+      },
+      "team": {
+        "id": 2,
+        "name": "McLaren Racing",
+        "logo": "https://media.api-sports.io/formula-1/teams/2.png"
+      },
+      "points": 374,
+      "wins": 4,
+      "behind": 63,
+      "season": 2024
+    },
+    {
+      "position": 3,
+      "driver": {
+        "id": 34,
+        "name": "Charles Leclerc",
+        "abbr": "LEC",
+        "number": 16,
+        "image": "https://media.api-sports.io/formula-1/drivers/34.png"
+      },
+      "team": {
+        "id": 3,
+        "name": "Scuderia Ferrari",
+        "logo": "https://media.api-sports.io/formula-1/teams/3.png"
+      },
+      "points": 356,
+      "wins": 3,
+      "behind": 81,
+      "season": 2024
+    }
+  ]
+}

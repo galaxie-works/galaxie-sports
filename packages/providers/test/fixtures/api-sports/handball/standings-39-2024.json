@@ -1,0 +1,158 @@
+{
+  "get": "standings",
+  "parameters": {
+    "league": "39",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 1,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    [
+      {
+        "position": 1,
+        "stage": "Bundesliga - Regular Season",
+        "group": {
+          "name": null
+        },
+        "team": {
+          "id": 315,
+          "name": "Fuchse Berlin",
+          "logo": "https://media.api-sports.io/handball/teams/315.png"
+        },
+        "league": {
+          "id": 39,
+          "name": "Bundesliga",
+          "type": "League",
+          "logo": "https://media.api-sports.io/handball/leagues/39.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 13,
+          "name": "Germany",
+          "code": "DE",
+          "flag": "https://media.api-sports.io/flags/de.svg"
+        },
+        "games": {
+          "played": 34,
+          "win": {
+            "total": 27,
+            "percentage": "79.41"
+          },
+          "draw": {
+            "total": 4,
+            "percentage": "11.76"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "8.82"
+          }
+        },
+        "goals": {
+          "for": 1197,
+          "against": 984
+        },
+        "points": 58,
+        "form": "WWWWW",
+        "description": "Promotion - Champions League"
+      },
+      {
+        "position": 2,
+        "stage": "Bundesliga - Regular Season",
+        "group": {
+          "name": null
+        },
+        "team": {
+          "id": 328,
+          "name": "SC Magdeburg",
+          "logo": "https://media.api-sports.io/handball/teams/328.png"
+        },
+        "league": {
+          "id": 39,
+          "name": "Bundesliga",
+          "type": "League",
+          "logo": "https://media.api-sports.io/handball/leagues/39.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 13,
+          "name": "Germany",
+          "code": "DE",
+          "flag": "https://media.api-sports.io/flags/de.svg"
+        },
+        "games": {
+          "played": 34,
+          "win": {
+            "total": 28,
+            "percentage": "82.35"
+          },
+          "draw": {
+            "total": 1,
+            "percentage": "2.94"
+          },
+          "lose": {
+            "total": 5,
+            "percentage": "14.71"
+          }
+        },
+        "goals": {
+          "for": 1076,
+          "against": 913
+        },
+        "points": 57,
+        "form": "WWWWW",
+        "description": "Promotion - Champions League"
+      },
+      {
+        "position": 3,
+        "stage": "Bundesliga - Regular Season",
+        "group": {
+          "name": null
+        },
+        "team": {
+          "id": 324,
+          "name": "MT Melsungen",
+          "logo": "https://media.api-sports.io/handball/teams/324.png"
+        },
+        "league": {
+          "id": 39,
+          "name": "Bundesliga",
+          "type": "League",
+          "logo": "https://media.api-sports.io/handball/leagues/39.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 13,
+          "name": "Germany",
+          "code": "DE",
+          "flag": "https://media.api-sports.io/flags/de.svg"
+        },
+        "games": {
+          "played": 34,
+          "win": {
+            "total": 27,
+            "percentage": "79.41"
+          },
+          "draw": {
+            "total": 1,
+            "percentage": "2.94"
+          },
+          "lose": {
+            "total": 6,
+            "percentage": "17.65"
+          }
+        },
+        "goals": {
+          "for": 1020,
+          "against": 906
+        },
+        "points": 55,
+        "form": "WDWLW",
+        "description": "Promotion - European League"
+      }
+    ]
+  ]
+}

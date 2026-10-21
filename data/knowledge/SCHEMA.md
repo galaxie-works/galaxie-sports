@@ -11,6 +11,14 @@ data/knowledge/
 │   ├── teams/<iso2>.yaml           # um arquivo por país (br, ar, uy, cl, co, pe, ec, py, bo, ve, mx, gb-eng, es, it, de, fr, pt, nl...)
 │   ├── national-teams.yaml         # seleções
 │   └── derbies/<region>.yaml       # clássicos/dérbis (br, south-america, mexico, europe, international)
+├── basketball/                     # NBA, NBB e Liga Nacional argentina (a NBA fica aqui, não em "nba")
+│   ├── teams/<iso2>.yaml           # us, br, ar
+│   └── derbies/<region>.yaml       # nba, br, ar
+├── volleyball/
+│   ├── teams/br.yaml               # Superliga masculina e feminina (equipes do mesmo clube = itens separados)
+│   └── derbies/br.yaml
+├── formula-1/
+│   └── participants/<arquivo>.yaml # constructors.yaml (kind: constructor), drivers.yaml (kind: driver)
 ├── competitions/*.yaml             # apelidos e semântica de competições (ex.: "Glória Eterna" = Libertadores)
 ├── copy/<locale>.yaml              # biblioteca de microcopy por mercado (pt-BR e 7 variantes de espanhol)
 ├── glossary/<locale>.yaml          # glossário esportivo por mercado (GET /v1/glossary)
@@ -77,6 +85,28 @@ teams:
 | `world_cup_titles` | `national-teams.yaml` | Número de títulos mundiais (somente se verificado) |
 
 Locales válidos em `copy_hints`: `pt-BR`, `es-AR`, `es-MX`, `es-CO`, `es-CL`, `es-PE`, `es-UY`, `es-EC`, `es-PY`, `es-BO`, `es-VE` e `es` (genérico, só para clubes/seleções fora da América Latina).
+
+## Outros esportes (issue #44)
+
+As pastas de primeiro nível são os esportes do `core.sport` (`football`, `basketball`, `volleyball`, `formula-1`, `handball`, `hockey`, `rugby`, `baseball`, `american-football`, `afl`, `mma`); dentro delas valem os mesmos formatos (`teams/<iso2>.yaml`, `derbies/<region>.yaml`). Regras adicionais:
+
+- **Slugs com prefixo do esporte** (`basketball-flamengo`, `volleyball-minas-feminino`, `f1-ferrari`) — os slugs são globais e o do futebol (`flamengo`) já existe.
+- **Clássicos e rivais só dentro do mesmo esporte** (erros `derby-cross-sport` e `rival-cross-sport`).
+- **`api_sports.team_id: null` fora do futebol** (erro `provider-id-sport`): o seed e o `resolve:ids` só vinculam perfis a `core.participant` no futebol; nos demais o vínculo fica para quando o resolvedor for multiesporte. `match.name`/`match.country` registram como a api-sports provavelmente escreve o nome.
+- **`<esporte>/participants/<arquivo>.yaml`** para quem não é clube de um país só (pilotos, equipes da F1, lutadores):
+
+```yaml
+schema_version: 1
+kind: driver                 # driver | constructor | fighter | athlete → semantic.team_profile.kind
+participants:
+  - slug: f1-sergio-perez    # mesmo formato de um time, com `country` obrigatório
+    names: { official: Sergio Michel Pérez Mendoza, short: Sergio Pérez, abbreviation: PER }
+    api_sports: { team_id: null, match: { name: "Sergio Perez", country: "Mexico" } }
+    country: MX
+    nicknames: [Checo]
+    sources: ["https://..."]
+    review_status: draft
+```
 
 ## `derbies/<region>.yaml`
 

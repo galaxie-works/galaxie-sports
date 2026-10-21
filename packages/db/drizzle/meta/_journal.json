@@ -64,6 +64,13 @@
       "when": 1792609807462,
       "tag": "0008_realtime",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792609957123,
+      "tag": "0009_sport_event_detail",
+      "breakpoints": true
     }
   ]
 }

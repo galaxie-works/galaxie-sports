@@ -1,0 +1,170 @@
+# Base semântica — clubes de basquete do Brasil (NBB) envolvidos em clássicos documentados (schema v1)
+schema_version: 1
+country: BR
+teams:
+  # ------------------------------------------------------------------ INTERIOR PAULISTA
+  - slug: basketball-franca
+    names:
+      official: Franca Basquetebol Clube
+      short: Franca
+      abbreviation: FRA
+    labels: { pt-BR: "Franca", es: "Franca", en: "Franca" }
+    api_sports:
+      team_id: null
+      match: { name: "Franca", country: "Brazil" }
+    founded: 1959-05-10
+    city: Franca
+    region: SP
+    colors: [azul, vermelho, branco]
+    nicknames: []
+    mascot: Touro
+    stadium:
+      name: Ginásio Poliesportivo Pedro Morilla Fuentes
+      nicknames: [Pedrocão]
+      city: Franca
+    rivals:
+      - { team: basketball-bauru, derby: basketball-franca-bauru, intensity: 4 }
+    identity:
+      - "O clube ajudou a tornar Franca conhecida como a 'Capital do Basquete' brasileiro."
+      - "Campeão do NBB por várias temporadas seguidas a partir de 2021-22."
+    sources:
+      - "https://pt.wikipedia.org/wiki/Franca_Basquetebol_Clube"
+      - "https://www.gazetaesportiva.com/mais-esportes/basquete/embalado-com-recorde-e-titulo-lider-bauru-faz-classico-com-o-franca/"
+    review_status: draft
+
+  - slug: basketball-bauru
+    names:
+      official: Associação Bauru Basketball Team
+      short: Bauru
+      abbreviation: BAU
+    labels: { pt-BR: "Bauru", es: "Bauru", en: "Bauru" }
+    api_sports:
+      team_id: null
+      match: { name: "Bauru", country: "Brazil" }
+    founded: null
+    city: Bauru
+    region: SP
+    colors: [verde, branco, preto]
+    nicknames: [Dragão]
+    mascot: Dunk
+    stadium:
+      name: Ginásio Panela de Pressão
+      nicknames: [Panela de Pressão]
+      city: Bauru
+    rivals:
+      - { team: basketball-franca, derby: basketball-franca-bauru, intensity: 4 }
+    identity:
+      - "Campeão da Liga das Américas em 2015 e do NBB 2016-17."
+      - "O mascote Dunk é um dragão, como o apelido do time."
+    sources:
+      - "https://pt.wikipedia.org/wiki/Associação_Bauru_Basketball_Team"
+      - "https://www.gazetaesportiva.com/?p=2421539"
+    review_status: draft
+
+  # ------------------------------------------------------------------ CAPITAL PAULISTA
+  - slug: basketball-paulistano
+    names:
+      official: Club Athletico Paulistano
+      short: Paulistano
+      abbreviation: CAP
+    labels: { pt-BR: "Paulistano", es: "Paulistano", en: "Paulistano" }
+    api_sports:
+      team_id: null
+      match: { name: "Paulistano", country: "Brazil" }
+    founded: null
+    city: São Paulo
+    region: SP
+    colors: [vermelho, branco]
+    nicknames: [CAP, Alvirrubro]
+    stadium:
+      name: Ginásio Antônio Prado Júnior
+      city: São Paulo
+    rivals:
+      - { team: basketball-pinheiros, derby: basketball-classico-dos-jardins, intensity: 3 }
+    identity:
+      - "Clube poliesportivo fundado em 1900 no Jardim América, em São Paulo."
+      - "Campeão do NBB na temporada 2017-18."
+    sources:
+      - "https://pt.wikipedia.org/wiki/Club_Athletico_Paulistano"
+      - "https://www.gazetaesportiva.com/?p=2645579"
+    review_status: draft
+
+  - slug: basketball-pinheiros
+    names:
+      official: Esporte Clube Pinheiros
+      short: Pinheiros
+      abbreviation: PIN
+    labels: { pt-BR: "Pinheiros", es: "Pinheiros", en: "Pinheiros" }
+    api_sports:
+      team_id: null
+      match: { name: "Pinheiros", country: "Brazil" }
+    founded: 1899-09-07
+    city: São Paulo
+    region: SP
+    nicknames: []
+    stadium:
+      name: Ginásio Henrique Villaboim
+      city: São Paulo
+    rivals:
+      - { team: basketball-paulistano, derby: basketball-classico-dos-jardins, intensity: 3 }
+    identity:
+      - "Fundado em 1899 como Sport Club Germania; mudou de nome durante a Segunda Guerra Mundial."
+      - "Campeão da Liga das Américas da FIBA em 2013."
+    sources:
+      - "https://pt.wikipedia.org/wiki/Esporte_Clube_Pinheiros"
+      - "https://dol.com.br/esporte/esporte-brasil/noticia-554389-paulistano-vence-classico-e-toma-o-3-lugar-do-pinheiros-no-nbb.html"
+    review_status: draft
+
+  # ------------------------------------------------------------------ RIO DE JANEIRO
+  - slug: basketball-flamengo
+    names:
+      official: Clube de Regatas do Flamengo
+      short: Flamengo
+      abbreviation: FLA
+    labels: { pt-BR: "Flamengo", es: "Flamengo", en: "Flamengo" }
+    api_sports:
+      team_id: null
+      match: { name: "Flamengo", country: "Brazil" }
+    founded: 1895-11-15
+    city: Rio de Janeiro
+    region: RJ
+    colors: [vermelho, preto]
+    nicknames: [Mengão, Rubro-Negro, FlaBasquete]
+    stadium:
+      name: Maracanãzinho
+      city: Rio de Janeiro
+    rivals:
+      - { team: basketball-vasco, derby: basketball-classico-dos-milhoes, intensity: 3 }
+    identity:
+      - "Maior campeão do NBB, com sete títulos entre 2009 e 2020-21."
+      - "Bicampeão da Copa Intercontinental da FIBA (2014 e 2022)."
+    sources:
+      - "https://en.wikipedia.org/wiki/Flamengo_Basketball"
+      - "https://www.netvasco.com.br/n/347793/basquete-vasco-perde-para-o-urubu-na-estreia-do-nbb-59-a-50"
+    review_status: draft
+
+  - slug: basketball-vasco
+    names:
+      official: Club de Regatas Vasco da Gama
+      short: Vasco
+      abbreviation: VAS
+    labels: { pt-BR: "Vasco", es: "Vasco da Gama", en: "Vasco da Gama" }
+    api_sports:
+      team_id: null
+      match: { name: "Vasco da Gama", country: "Brazil" }
+    founded: null
+    city: Rio de Janeiro
+    region: RJ
+    colors: [preto, branco]
+    nicknames: [Gigante da Colina, Cruzmaltino]
+    stadium:
+      name: Ginásio Cyro Aranha
+      city: Rio de Janeiro
+    rivals:
+      - { team: basketball-flamengo, derby: basketball-classico-dos-milhoes, intensity: 3 }
+    identity:
+      - "Bicampeão brasileiro (2000 e 2001) e da Liga Sul-Americana (1999 e 2000)."
+    sources:
+      - "https://pt.wikipedia.org/wiki/Club_de_Regatas_Vasco_da_Gama_(basquete)"
+      - "https://www.netvasco.com.br/n/347793/basquete-vasco-perde-para-o-urubu-na-estreia-do-nbb-59-a-50"
+    review_status: draft

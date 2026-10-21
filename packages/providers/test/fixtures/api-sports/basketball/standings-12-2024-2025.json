@@ -1,0 +1,146 @@
+{
+  "get": "standings",
+  "parameters": {
+    "league": "12",
+    "season": "2024-2025"
+  },
+  "errors": [],
+  "results": 1,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    [
+      {
+        "position": 1,
+        "stage": "NBA - Regular Season",
+        "group": {
+          "name": "Western Conference",
+          "points": 0
+        },
+        "team": {
+          "id": 152,
+          "name": "Oklahoma City Thunder",
+          "logo": "https://media.api-sports.io/basketball/teams/152.png"
+        },
+        "league": {
+          "id": 12,
+          "name": "NBA",
+          "type": "League",
+          "season": "2024-2025",
+          "logo": "https://media.api-sports.io/basketball/leagues/12.png"
+        },
+        "country": {
+          "id": 5,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 82,
+          "win": {
+            "total": 68,
+            "percentage": "0.829"
+          },
+          "lose": {
+            "total": 14,
+            "percentage": "0.171"
+          }
+        },
+        "points": {
+          "for": 9881,
+          "against": 8826
+        },
+        "form": "WWWWL",
+        "description": "Promotion - NBA (Play Offs: 1/8-finals)"
+      },
+      {
+        "position": 2,
+        "stage": "NBA - Regular Season",
+        "group": {
+          "name": "Western Conference",
+          "points": 0
+        },
+        "team": {
+          "id": 142,
+          "name": "Houston Rockets",
+          "logo": "https://media.api-sports.io/basketball/teams/142.png"
+        },
+        "league": {
+          "id": 12,
+          "name": "NBA",
+          "type": "League",
+          "season": "2024-2025",
+          "logo": "https://media.api-sports.io/basketball/leagues/12.png"
+        },
+        "country": {
+          "id": 5,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 82,
+          "win": {
+            "total": 52,
+            "percentage": "0.634"
+          },
+          "lose": {
+            "total": 30,
+            "percentage": "0.366"
+          }
+        },
+        "points": {
+          "for": 9372,
+          "against": 9002
+        },
+        "form": "LLLWW",
+        "description": "Promotion - NBA (Play Offs: 1/8-finals)"
+      },
+      {
+        "position": 3,
+        "stage": "NBA - Regular Season",
+        "group": {
+          "name": "Western Conference",
+          "points": 0
+        },
+        "team": {
+          "id": 145,
+          "name": "Los Angeles Lakers",
+          "logo": "https://media.api-sports.io/basketball/teams/145.png"
+        },
+        "league": {
+          "id": 12,
+          "name": "NBA",
+          "type": "League",
+          "season": "2024-2025",
+          "logo": "https://media.api-sports.io/basketball/leagues/12.png"
+        },
+        "country": {
+          "id": 5,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 82,
+          "win": {
+            "total": 50,
+            "percentage": "0.610"
+          },
+          "lose": {
+            "total": 32,
+            "percentage": "0.390"
+          }
+        },
+        "points": {
+          "for": 9298,
+          "against": 9198
+        },
+        "form": "LWWLW",
+        "description": "Promotion - NBA (Play Offs: 1/8-finals)"
+      }
+    ]
+  ]
+}

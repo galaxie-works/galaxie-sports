@@ -28,7 +28,7 @@ export interface CandidatePool {
 export interface TeamRef {
   slug: string;
   file: string;
-  kind: 'club' | 'national_team';
+  kind: LocatedTeam['kind'];
   countryCode: string;
   countryName: string;
   currentId: number | null;

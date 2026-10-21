@@ -1,0 +1,83 @@
+{
+  "get": "rankings",
+  "parameters": {
+    "race": "1967"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "race": {
+        "id": 1967
+      },
+      "driver": {
+        "id": 25,
+        "name": "Max Verstappen",
+        "abbr": "VER",
+        "number": 1,
+        "image": "https://media.api-sports.io/formula-1/drivers/25.png"
+      },
+      "team": {
+        "id": 1,
+        "name": "Red Bull Racing",
+        "logo": "https://media.api-sports.io/formula-1/teams/1.png"
+      },
+      "position": 1,
+      "time": "1:31:05.323",
+      "laps": 57,
+      "grid": "2",
+      "pits": 3,
+      "gap": null
+    },
+    {
+      "race": {
+        "id": 1967
+      },
+      "driver": {
+        "id": 34,
+        "name": "Charles Leclerc",
+        "abbr": "LEC",
+        "number": 16,
+        "image": "https://media.api-sports.io/formula-1/drivers/34.png"
+      },
+      "team": {
+        "id": 3,
+        "name": "Scuderia Ferrari",
+        "logo": "https://media.api-sports.io/formula-1/teams/3.png"
+      },
+      "position": 2,
+      "time": "+6.031",
+      "laps": 57,
+      "grid": "5",
+      "pits": 3,
+      "gap": null
+    },
+    {
+      "race": {
+        "id": 1967
+      },
+      "driver": {
+        "id": 97,
+        "name": "Oscar Piastri",
+        "abbr": "PIA",
+        "number": 81,
+        "image": "https://media.api-sports.io/formula-1/drivers/97.png"
+      },
+      "team": {
+        "id": 2,
+        "name": "McLaren Racing",
+        "logo": "https://media.api-sports.io/formula-1/teams/2.png"
+      },
+      "position": 3,
+      "time": "+6.819",
+      "laps": 57,
+      "grid": "4",
+      "pits": 3,
+      "gap": null
+    }
+  ]
+}

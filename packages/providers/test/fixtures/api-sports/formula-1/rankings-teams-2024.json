@@ -1,0 +1,44 @@
+{
+  "get": "rankings",
+  "parameters": {
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "position": 1,
+      "team": {
+        "id": 2,
+        "name": "McLaren Racing",
+        "logo": "https://media.api-sports.io/formula-1/teams/2.png"
+      },
+      "points": 666,
+      "season": 2024
+    },
+    {
+      "position": 2,
+      "team": {
+        "id": 3,
+        "name": "Scuderia Ferrari",
+        "logo": "https://media.api-sports.io/formula-1/teams/3.png"
+      },
+      "points": 652,
+      "season": 2024
+    },
+    {
+      "position": 3,
+      "team": {
+        "id": 1,
+        "name": "Red Bull Racing",
+        "logo": "https://media.api-sports.io/formula-1/teams/1.png"
+      },
+      "points": 589,
+      "season": 2024
+    }
+  ]
+}

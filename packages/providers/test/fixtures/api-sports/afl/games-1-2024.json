@@ -1,0 +1,113 @@
+{
+  "get": "games",
+  "parameters": {
+    "league": "1",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 2,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "game": {
+        "id": 2952
+      },
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "date": "2024-03-07T08:30:00+00:00",
+      "time": "08:30",
+      "timestamp": "1709800200",
+      "timezone": "UTC",
+      "round": "Regular Season",
+      "week": 0,
+      "venue": "Sydney Cricket Ground",
+      "attendance": null,
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "teams": {
+        "home": {
+          "id": 14,
+          "name": "Sydney Swans",
+          "logo": "https://media.api-sports.io/afl/teams/14.png"
+        },
+        "away": {
+          "id": 9,
+          "name": "Melbourne Demons",
+          "logo": "https://media.api-sports.io/afl/teams/9.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "score": 86,
+          "goals": 12,
+          "behinds": 14,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "away": {
+          "score": 64,
+          "goals": 9,
+          "behinds": 10,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      }
+    },
+    {
+      "game": {
+        "id": 2871
+      },
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "date": "2024-06-27T14:00:00+00:00",
+      "time": "14:00",
+      "timestamp": "1719496800",
+      "timezone": "UTC",
+      "round": "Regular Season",
+      "week": 16,
+      "venue": "Adelaide Oval",
+      "attendance": null,
+      "status": {
+        "long": "Cancelled",
+        "short": "CANC"
+      },
+      "teams": {
+        "home": {
+          "id": 1,
+          "name": "Adelaide Crows",
+          "logo": "https://media.api-sports.io/afl/teams/1.png"
+        },
+        "away": {
+          "id": 18,
+          "name": "Greater Western Sydney Giants",
+          "logo": "https://media.api-sports.io/afl/teams/18.png"
+        }
+      },
+      "scores": {
+        "home": {
+          "score": 0,
+          "goals": 0,
+          "behinds": 0,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "away": {
+          "score": 0,
+          "goals": 0,
+          "behinds": 0,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      }
+    }
+  ]
+}

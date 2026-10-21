@@ -8,6 +8,8 @@
  *   opções:
  *     --sem-live        planeja o dia sem ao vivo (LIVE = 0, DAILY = já usado) para liberar a folga ao BOOTSTRAP
  *     --jogos           também busca temporadas inteiras (games?league&season; F1 races?season; MMA fights?season)
+ *                       e a classificação de cada temporada (standings?league&season; F1 rankings/drivers e /teams)
+ *     --sem-tabelas     com --jogos, não busca a classificação
  *     --tier N          competições até o tier N entram no --jogos (padrão 1)
  *     --temporadas N    sem janela de plano (planos pagos), quantas temporadas recentes buscar (padrão 3)
  */
@@ -26,6 +28,7 @@ const { values, positionals } = parseArgs({
     plan: { type: 'boolean', default: false },
     'sem-live': { type: 'boolean', default: false },
     jogos: { type: 'boolean', default: false },
+    'sem-tabelas': { type: 'boolean', default: false },
     tier: { type: 'string', default: '1' },
     temporadas: { type: 'string', default: '3' },
   },
@@ -37,7 +40,11 @@ if (invalid.length) {
 }
 const sports: OtherSport[] = positionals.length ? (positionals as OtherSport[]) : [...OTHER_SPORTS];
 const games = values.jogos
-  ? { maxTier: Number(values.tier), latestSeasons: Number(values.temporadas) }
+  ? {
+      maxTier: Number(values.tier),
+      latestSeasons: Number(values.temporadas),
+      standings: !values['sem-tabelas'],
+    }
   : undefined;
 const catalogPath = (sport: string) => resolve(`../../config/competitions/${sport}.yaml`);
 

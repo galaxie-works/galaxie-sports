@@ -1,0 +1,75 @@
+{
+  "get": "standings",
+  "parameters": {
+    "league": "1",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "position": 1,
+      "team": {
+        "id": 14,
+        "name": "Sydney Swans",
+        "logo": "https://media.api-sports.io/afl/teams/14.png"
+      },
+      "pts": 68,
+      "games": {
+        "played": 23,
+        "win": 17,
+        "drawn": 0,
+        "lost": 6
+      },
+      "points": {
+        "for": 2242,
+        "against": 1769
+      },
+      "last_5": "WWWLL"
+    },
+    {
+      "position": 2,
+      "team": {
+        "id": 11,
+        "name": "Port Adelaide Power",
+        "logo": "https://media.api-sports.io/afl/teams/11.png"
+      },
+      "pts": 64,
+      "games": {
+        "played": 23,
+        "win": 16,
+        "drawn": 0,
+        "lost": 7
+      },
+      "points": {
+        "for": 2011,
+        "against": 1752
+      },
+      "last_5": "WWWWW"
+    },
+    {
+      "position": 3,
+      "team": {
+        "id": 7,
+        "name": "Geelong Cats",
+        "logo": "https://media.api-sports.io/afl/teams/7.png"
+      },
+      "pts": 60,
+      "games": {
+        "played": 23,
+        "win": 15,
+        "drawn": 0,
+        "lost": 8
+      },
+      "points": {
+        "for": 2164,
+        "against": 1928
+      },
+      "last_5": "WLWWW"
+    }
+  ]
+}

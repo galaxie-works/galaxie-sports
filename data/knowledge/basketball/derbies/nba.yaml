@@ -1,0 +1,49 @@
+# Base semântica — rivalidades clássicas da NBA (schema v1)
+schema_version: 1
+region: nba
+derbies:
+  - slug: basketball-lakers-celtics
+    name: Lakers × Celtics
+    aliases: ["Celtics–Lakers rivalry", "Celtics × Lakers"]
+    labels: { pt-BR: "Lakers × Celtics", es: "Lakers vs. Celtics", en: "Celtics–Lakers rivalry" }
+    teams: [basketball-los-angeles-lakers, basketball-boston-celtics]
+    scope: national
+    intensity: 5
+    first_match: 1948-11-09
+    origin: "As duas franquias mais vitoriosas da NBA se enfrentaram pela primeira vez numa final em 1959."
+    trivia:
+      - "É o duelo mais repetido em finais da NBA: 12 decisões, 9 vencidas pelo Boston e 3 pelo Los Angeles."
+      - "A rivalidade Magic Johnson × Larry Bird reacendeu o clássico nos anos 1980, com finais em 1984, 1985 e 1987."
+      - "Em 2010, o Lakers venceu o Celtics no jogo 7 da final, com Kobe Bryant eleito MVP das finais."
+    sources: ["https://en.wikipedia.org/wiki/Celtics%E2%80%93Lakers_rivalry"]
+    review_status: draft
+
+  - slug: basketball-celtics-76ers
+    name: Celtics × 76ers
+    aliases: ["Celtics–76ers rivalry", "Celtics × Sixers"]
+    labels: { pt-BR: "Celtics × 76ers", es: "Celtics vs. 76ers", en: "Celtics–76ers rivalry" }
+    teams: [basketball-boston-celtics, basketball-philadelphia-76ers]
+    scope: national
+    intensity: 4
+    first_match: null
+    origin: "Rivalidade da Conferência Leste marcada pelos duelos Bill Russell × Wilt Chamberlain nos anos 1960."
+    trivia:
+      - "As duas franquias somam 23 séries de playoffs entre si, um dos confrontos mais frequentes da história da NBA."
+      - "Larry Bird e Julius Erving protagonizaram finais do Leste em 1981 e 1985, ambas vencidas pelo Boston."
+    sources: ["https://en.wikipedia.org/wiki/Celtics%E2%80%9376ers_rivalry"]
+    review_status: draft
+
+  - slug: basketball-bulls-pistons
+    name: Bulls × Pistons
+    aliases: ["Bulls–Pistons rivalry", "Pistons × Bulls"]
+    labels: { pt-BR: "Bulls × Pistons", es: "Bulls vs. Pistons", en: "Bulls–Pistons rivalry" }
+    teams: [basketball-chicago-bulls, basketball-detroit-pistons]
+    scope: national
+    intensity: 4
+    first_match: null
+    origin: "Ganhou força entre 1988 e 1991, quando os 'Bad Boys' de Detroit e o Chicago de Michael Jordan se cruzaram em quatro playoffs seguidos."
+    trivia:
+      - "O Detroit eliminou o Chicago em 1988, 1989 e 1990; em 1991 os Bulls varreram os Pistons por 4 a 0 e conquistaram seu primeiro título."
+      - "As 'Jordan Rules' foram a estratégia defensiva do Detroit para conter Michael Jordan."
+    sources: ["https://en.wikipedia.org/wiki/Bulls%E2%80%93Pistons_rivalry"]
+    review_status: draft

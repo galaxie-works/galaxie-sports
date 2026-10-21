@@ -1,0 +1,110 @@
+# Base semântica — equipes de vôlei do Brasil (Superliga masculina e feminina) envolvidas em clássicos documentados (schema v1)
+# Times masculino e feminino do mesmo clube são participantes diferentes no provedor: cada um tem sua própria entrada.
+schema_version: 1
+country: BR
+teams:
+  # ------------------------------------------------------------------ SUPERLIGA MASCULINA
+  - slug: volleyball-sada-cruzeiro
+    names:
+      official: Sada Cruzeiro Vôlei
+      short: Sada Cruzeiro
+      abbreviation: CRU
+    labels: { pt-BR: "Sada Cruzeiro", es: "Sada Cruzeiro", en: "Sada Cruzeiro" }
+    api_sports:
+      team_id: null
+      match: { name: "Sada Cruzeiro", country: "Brazil" }
+    founded: 2006-06-14
+    city: Contagem
+    region: MG
+    colors: [azul, branco]
+    nicknames: [Celeste, Guerreiros das Quadras]
+    mascot: Raposa
+    stadium:
+      name: Ginásio Poliesportivo do Riacho
+      nicknames: [Riacho]
+      city: Contagem
+    rivals:
+      - { team: volleyball-minas-masculino, derby: volleyball-classico-mineiro-masculino, intensity: 4 }
+    identity:
+      - "Equipe da Superliga masculina, fundada em 2006 em Betim como Sada Vôlei e associada ao Cruzeiro desde 2009."
+      - "Pentacampeão mundial de clubes da FIVB (2013, 2015, 2016, 2021 e 2024)."
+    copy_hints:
+      pt-BR:
+        nicknames: [Celeste]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Sada_Cruzeiro_Vôlei"
+      - "https://abcdoabc.com.br/superliga-masculina-bb-20-21-sada-cruzeiro-vence-o-minas-no-classico-mineiro/"
+    review_status: draft
+
+  - slug: volleyball-minas-masculino
+    names:
+      official: Minas Tênis Clube
+      short: Minas
+      abbreviation: MTC
+    labels: { pt-BR: "Minas", es: "Minas", en: "Minas" }
+    api_sports:
+      team_id: null
+      match: { name: "Minas", country: "Brazil" }
+    founded: 1935-11-15
+    city: Belo Horizonte
+    region: MG
+    nicknames: []
+    rivals:
+      - { team: volleyball-sada-cruzeiro, derby: volleyball-classico-mineiro-masculino, intensity: 4 }
+    identity:
+      - "Equipe masculina do Minas Tênis Clube na Superliga masculina."
+      - "Tetracampeão da Superliga masculina (1999-00, 2000-01, 2001-02 e 2006-07)."
+    sources:
+      - "https://pt.wikipedia.org/wiki/Minas_Tênis_Clube"
+      - "https://www.flashscore.com.br/noticias/sada-cruzeiro-e-minas-voltam-a-se-enfrentar-agora-pelo-campeonato-mineiro-de-volei/bkuX6RS0/"
+    review_status: draft
+
+  # ------------------------------------------------------------------ SUPERLIGA FEMININA
+  - slug: volleyball-minas-feminino
+    names:
+      official: Minas Tênis Clube
+      short: Minas
+      abbreviation: MTC
+    labels: { pt-BR: "Minas (feminino)", es: "Minas (femenino)", en: "Minas (women)" }
+    api_sports:
+      team_id: null
+      match: { name: "Minas W", country: "Brazil" }
+    founded: 1935-11-15
+    city: Belo Horizonte
+    region: MG
+    nicknames: []
+    stadium:
+      name: Arena Juscelino Kubitschek
+      city: Belo Horizonte
+    rivals:
+      - { team: volleyball-praia-clube-feminino, derby: volleyball-minas-praia-clube, intensity: 4 }
+    identity:
+      - "Equipe feminina do Minas Tênis Clube na Superliga feminina; desde 2022-23 joga como Gerdau/Minas."
+      - "Hexacampeão da Superliga feminina (1992-93, 2001-02, 2018-19, 2020-21, 2021-22 e 2023-24)."
+    sources:
+      - "https://pt.wikipedia.org/wiki/Minas_Tênis_Clube_(voleibol_feminino)"
+      - "https://www.lance.com.br/volei/minas-domina-retrospecto-em-finais-contra-o-praia-clube-confira.html"
+    review_status: draft
+
+  - slug: volleyball-praia-clube-feminino
+    names:
+      official: Praia Clube
+      short: Praia Clube
+      abbreviation: PRC
+    labels: { pt-BR: "Praia Clube", es: "Praia Clube", en: "Praia Clube" }
+    api_sports:
+      team_id: null
+      match: { name: "Praia Clube W", country: "Brazil" }
+    founded: 1935-07-10
+    city: Uberlândia
+    region: MG
+    nicknames: []
+    rivals:
+      - { team: volleyball-minas-feminino, derby: volleyball-minas-praia-clube, intensity: 4 }
+    identity:
+      - "Equipe feminina do Praia Clube, de Uberlândia, na Superliga feminina."
+      - "Tricampeão da Superliga feminina (2017-18, 2022-23 e 2025-26)."
+    sources:
+      - "https://pt.wikipedia.org/wiki/Praia_Clube"
+      - "https://www.cnnbrasil.com.br/esportes/volei/praia-clube-supreende-domina-minas-e-e-campeao-da-superliga-feminina/"
+    review_status: draft

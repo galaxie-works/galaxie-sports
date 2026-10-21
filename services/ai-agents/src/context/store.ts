@@ -123,17 +123,21 @@ export async function saveEventContexts(db: Database, input: SaveContextInput): 
       createdAt: generatedAt,
     };
   });
-  if (rows.length) await db.insert(eventContext).values(rows);
-  return publishChange(db, {
-    topic: CONTEXT_PUBLISHED_TOPIC,
-    entityType: 'event',
-    entityId: input.eventId,
-    payload: {
-      kind: input.kind,
-      locales: input.texts.map((t) => t.locale),
-      origins: Object.fromEntries(input.texts.map((t) => [t.locale, t.origin])),
-      tags: [`event_context:${input.eventId}`, ...(input.tags ?? [])],
-    },
+  // Mesma transação e mesma entidade do trigger de captura (ops.capture_context_published): o
+  // ops.publish_change funde as duas publicações numa única linha do change feed, unindo as tags.
+  return db.transaction(async (tx) => {
+    if (rows.length) await tx.insert(eventContext).values(rows);
+    return publishChange(tx, {
+      topic: CONTEXT_PUBLISHED_TOPIC,
+      entityType: 'event_context',
+      entityId: input.eventId,
+      payload: {
+        kind: input.kind,
+        locales: input.texts.map((t) => t.locale),
+        origins: Object.fromEntries(input.texts.map((t) => [t.locale, t.origin])),
+        tags: [`event_context:${input.eventId}`, ...(input.tags ?? [])],
+      },
+    });
   });
 }
 

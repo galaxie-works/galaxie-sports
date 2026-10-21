@@ -33,7 +33,9 @@ const kb = await loadKnowledge(dir);
 const db = createDb(process.env.DATABASE_URL, { max: 2 });
 try {
   const pool = await loadCandidatePool(db);
+  // o resolvedor casa com o raw do futebol: perfis de outros esportes ficam de fora
   const refs = kb.teams
+    .filter((t) => t.sport === 'football')
     .map(teamRef)
     .filter(
       (t) =>

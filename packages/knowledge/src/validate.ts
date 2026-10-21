@@ -30,6 +30,7 @@ export interface ValidationReport {
 const SCHEMA_BY_KIND: Partial<Record<FileKind, string>> = {
   teams: 'teams.schema.json',
   'national-teams': 'national-teams.schema.json',
+  participants: 'participants.schema.json',
   derbies: 'derbies.schema.json',
   competitions: 'competitions.schema.json',
   copy: 'copy.schema.json',
@@ -215,7 +216,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   const namespaces: [string, { slug: string; file: string; path: (string | number)[] }[]][] = [
     [
       'time/seleção',
-      kb.teams.map((t) => ({ slug: t.entry.slug, file: t.file, path: ['teams', t.index, 'slug'] })),
+      kb.teams.map((t) => ({ slug: t.entry.slug, file: t.file, path: [t.listKey, t.index, 'slug'] })),
     ],
     [
       'clássico',
@@ -257,21 +258,34 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
     }
   }
 
-  // 4. IDs da api-sports únicos
-  const teamIds = new Map<number, string>();
+  // 4. IDs da api-sports únicos (por esporte: cada API tem os seus IDs)
+  const teamIds = new Map<string, string>();
   for (const t of kb.teams) {
     const id = t.entry.api_sports?.team_id;
     if (typeof id !== 'number') continue;
-    const prev = teamIds.get(id);
+    const idPath = at(t.file, [t.listKey, t.index, 'api_sports', 'team_id']);
+    // o seed e o resolve:ids ligam perfis a participantes só no futebol; nos demais o ID fica para depois
+    if (t.sport !== 'football') {
+      add(
+        'error',
+        'provider-id-sport',
+        t.file,
+        idPath,
+        `${t.entry.slug}: api_sports.team_id ainda não é suportado em ${t.sport} (use null; a vinculação é só no futebol)`,
+      );
+      continue;
+    }
+    const key = `${t.sport}:${id}`;
+    const prev = teamIds.get(key);
     if (prev)
       add(
         'error',
         'duplicate-provider-id',
         t.file,
-        at(t.file, ['teams', t.index, 'api_sports', 'team_id']),
+        idPath,
         `api_sports.team_id ${id} repetido (${prev} e ${t.entry.slug})`,
       );
-    else teamIds.set(id, t.entry.slug);
+    else teamIds.set(key, t.entry.slug);
   }
   const leagueIds = new Map<number, string>();
   for (const c of kb.competitions) {
@@ -304,6 +318,17 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
           `clássico ${d.entry.slug}: time inexistente ${slug}`,
         );
     });
+    list.forEach((slug, i) => {
+      const team = teams.get(slug);
+      if (team && team.sport !== d.sport)
+        add(
+          'error',
+          'derby-cross-sport',
+          d.file,
+          at(d.file, ['derbies', d.index, 'teams', i]),
+          `clássico ${d.entry.slug} (${d.sport}): ${slug} é de ${team.sport}`,
+        );
+    });
     const [a, b] = list;
     if (a && b && teams.has(a) && teams.has(b)) {
       const rivalsOf = (s: string) => (teams.get(s)!.entry.rivals ?? []).map((r) => r.team);
@@ -320,12 +345,20 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   for (const t of kb.teams) {
     const rivals = Array.isArray(t.entry.rivals) ? t.entry.rivals : [];
     rivals.forEach((r, i) => {
-      const path = ['teams', t.index, 'rivals', i];
+      const path = [t.listKey, t.index, 'rivals', i];
       const line = at(t.file, path);
       if (r.team === t.entry.slug)
         add('error', 'self-rival', t.file, line, `${t.entry.slug} lista a si mesmo como rival`);
       const rival = teams.get(r.team);
       if (!rival) add('error', 'unknown-team', t.file, line, `${t.entry.slug}: rival inexistente ${r.team}`);
+      else if (rival.sport !== t.sport)
+        add(
+          'error',
+          'rival-cross-sport',
+          t.file,
+          line,
+          `${t.entry.slug} (${t.sport}): rival ${r.team} é de ${rival.sport}`,
+        );
       if (r.derby) {
         const d = derbies.get(r.derby);
         if (!d)
@@ -365,7 +398,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   const sourceOwners: [string, string, (string | number)[], unknown][] = [
     ...kb.teams.map(
       (t) =>
-        [t.file, t.entry.slug, ['teams', t.index, 'sources'], t.entry.sources] as [
+        [t.file, t.entry.slug, [t.listKey, t.index, 'sources'], t.entry.sources] as [
           string,
           string,
           (string | number)[],
@@ -410,7 +443,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
     add(verdict.level, 'lyric-like', file, at(file, path), `${who}: "${excerpt}" ${verdict.reason}`);
   };
   for (const t of kb.teams) {
-    const base = ['teams', t.index];
+    const base = [t.listKey, t.index];
     (t.entry.rallying_cries ?? []).forEach(
       (s, i) =>
         typeof s === 'string' && flag(checkChant(s), t.file, [...base, 'rallying_cries', i], t.entry.slug, s),

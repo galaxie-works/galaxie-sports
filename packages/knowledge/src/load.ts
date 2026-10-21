@@ -7,6 +7,7 @@ import type {
   CopyFile,
   CopyTemplateEntry,
   DerbyEntry,
+  ParticipantsFile,
   GlossaryFile,
   GlossaryTermEntry,
   TeamEntry,
@@ -17,7 +18,30 @@ import type {
 export const DEFAULT_KNOWLEDGE_DIR = fileURLToPath(new URL('../../../data/knowledge', import.meta.url));
 
 export type FileKind =
-  'teams' | 'national-teams' | 'derbies' | 'competitions' | 'copy' | 'glossary' | 'unknown';
+  'teams' | 'national-teams' | 'participants' | 'derbies' | 'competitions' | 'copy' | 'glossary' | 'unknown';
+
+/**
+ * Esportes com pasta própria em data/knowledge (`<esporte>/teams`, `<esporte>/derbies`,
+ * `<esporte>/participants`). Os slugs são os do `core.sport`; a NBA fica em `basketball`.
+ */
+export const KNOWLEDGE_SPORTS = [
+  'football',
+  'afl',
+  'american-football',
+  'baseball',
+  'basketball',
+  'formula-1',
+  'handball',
+  'hockey',
+  'mma',
+  'rugby',
+  'volleyball',
+] as const;
+export type KnowledgeSport = (typeof KNOWLEDGE_SPORTS)[number];
+
+/** Tipo do participante de cada arquivo `<esporte>/participants/*.yaml` (campo `kind` no topo). */
+export const PARTICIPANT_KINDS = ['driver', 'constructor', 'fighter', 'athlete'] as const;
+export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 
 export interface KnowledgeFile {
   /** Caminho absoluto. */
@@ -41,7 +65,15 @@ export interface Located<T> {
   entry: T;
 }
 
-export type LocatedTeam = Located<TeamEntry> & { countryCode: string; kind: 'club' | 'national_team' };
+export type LocatedTeam = Located<TeamEntry> & {
+  countryCode: string;
+  kind: 'club' | 'national_team' | ParticipantKind;
+  /** Esporte da pasta do arquivo (football, basketball, volleyball, formula-1...). */
+  sport: KnowledgeSport;
+  /** Chave da lista no arquivo (`teams` ou `participants`), para localizar linhas. */
+  listKey: 'teams' | 'participants';
+};
+export type LocatedDerby = Located<DerbyEntry> & { sport: KnowledgeSport };
 export type LocatedCopyTemplate = Located<CopyTemplateEntry> & { locale: string; sport: string };
 export type LocatedGlossaryTerm = Located<GlossaryTermEntry> & { locale: string; sport: string };
 
@@ -49,7 +81,7 @@ export interface KnowledgeBase {
   dir: string;
   files: KnowledgeFile[];
   teams: LocatedTeam[];
-  derbies: Located<DerbyEntry>[];
+  derbies: LocatedDerby[];
   competitions: Located<CompetitionEntry>[];
   copyTemplates: LocatedCopyTemplate[];
   glossary: LocatedGlossaryTerm[];
@@ -57,13 +89,21 @@ export interface KnowledgeBase {
 
 /** Classifica um arquivo pelo caminho relativo dentro de data/knowledge. */
 export function fileKind(rel: string): FileKind {
-  if (/^football\/teams\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'teams';
+  const sport = sportOf(rel);
+  if (sport && /^[a-z0-9-]+\/teams\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'teams';
   if (rel === 'football/national-teams.yaml') return 'national-teams';
-  if (/^football\/derbies\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'derbies';
+  if (sport && /^[a-z0-9-]+\/participants\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'participants';
+  if (sport && /^[a-z0-9-]+\/derbies\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'derbies';
   if (/^competitions\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'competitions';
   if (/^copy\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'copy';
   if (/^glossary\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'glossary';
   return 'unknown';
+}
+
+/** Esporte da primeira pasta do caminho relativo (`basketball/teams/br.yaml` → basketball), ou null. */
+export function sportOf(rel: string): KnowledgeSport | null {
+  const first = rel.split('/')[0] ?? '';
+  return (KNOWLEDGE_SPORTS as readonly string[]).includes(first) ? (first as KnowledgeSport) : null;
 }
 
 async function listYamlFiles(dir: string): Promise<string[]> {
@@ -148,16 +188,45 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
       case 'teams': {
         const country = String((file.data as Partial<TeamsFile> | null)?.country ?? '');
         for (const t of items<TeamEntry>(file, 'teams'))
-          kb.teams.push({ ...t, countryCode: t.entry.country ?? country, kind: 'club' });
+          kb.teams.push({
+            ...t,
+            countryCode: t.entry.country ?? country,
+            kind: 'club',
+            sport: sportOf(file.rel)!,
+            listKey: 'teams',
+          });
         break;
       }
       case 'national-teams': {
         for (const t of items<TeamEntry>(file, 'teams'))
-          kb.teams.push({ ...t, countryCode: t.entry.country ?? '', kind: 'national_team' });
+          kb.teams.push({
+            ...t,
+            countryCode: t.entry.country ?? '',
+            kind: 'national_team',
+            sport: 'football',
+            listKey: 'teams',
+          });
+        break;
+      }
+      case 'participants': {
+        const declared = (file.data as Partial<ParticipantsFile> | null)?.kind;
+        const kind = (PARTICIPANT_KINDS as readonly string[]).includes(String(declared))
+          ? (declared as ParticipantKind)
+          : 'athlete';
+        for (const t of items<TeamEntry>(file, 'participants'))
+          kb.teams.push({
+            ...t,
+            countryCode: t.entry.country ?? '',
+            kind,
+            sport: sportOf(file.rel)!,
+            listKey: 'participants',
+          });
         break;
       }
       case 'derbies':
-        kb.derbies.push(...items<DerbyEntry>(file, 'derbies'));
+        kb.derbies.push(
+          ...items<DerbyEntry>(file, 'derbies').map((d) => ({ ...d, sport: sportOf(file.rel)! })),
+        );
         break;
       case 'competitions':
         kb.competitions.push(...items<CompetitionEntry>(file, 'competitions'));

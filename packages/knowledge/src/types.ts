@@ -114,6 +114,12 @@ export interface TeamsFile {
   country: string;
   teams: TeamEntry[];
 }
+/** `<esporte>/participants/*.yaml`: pilotos, equipes da F1, lutadores... (cada item com `country`). */
+export interface ParticipantsFile {
+  schema_version: 1;
+  kind: 'driver' | 'constructor' | 'fighter' | 'athlete';
+  participants: TeamEntry[];
+}
 export interface NationalTeamsFile {
   schema_version: 1;
   teams: TeamEntry[];
