@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+import * as z from 'zod';
 import { normalizeParams, requestHash, ttlFor } from '@galaxie/apisports-client';
 import { MIRROR_SPORTS, type MirrorEnvelope, type MirrorSport } from '@galaxie/contracts';
 import { apiResponse, backfillRequest, type Database } from '@galaxie/db';
@@ -7,11 +8,27 @@ import { assertSport } from '../auth/authenticator.js';
 import { sendCached } from '../cache/http.js';
 import { requireDb, type AppContext } from '../context.js';
 import { problems } from '../errors.js';
+import { parseInput } from '../util.js';
 
 const PROVIDER = 'api-sports';
 const SPORTS = new Set<string>(MIRROR_SPORTS);
 const ENDPOINT_RE = /^[a-z0-9][a-z0-9/_-]{0,99}$/;
 const KEY_ORDER = ['get', 'parameters', 'errors', 'results', 'paging', 'response'];
+
+/** Rota `/mirror/:sport/*`: o endpoint (curinga) é validado com ENDPOINT_RE no handler. */
+const MirrorRouteParams = z.object({ sport: z.string().max(40), '*': z.string().max(200).default('') });
+
+/**
+ * Query do espelho: nomes e valores livres (são os parâmetros do fornecedor), mas limitados — no
+ * máximo 20 parâmetros, nome `[A-Za-z0-9_-]{1,40}`, valor até 200 caracteres. Evita que combinações
+ * arbitrárias encham `api.backfill_request`.
+ */
+const MirrorQuery = z
+  .record(
+    z.string().regex(/^[A-Za-z0-9_-]{1,40}$/, 'nome de parâmetro inválido'),
+    z.union([z.string().max(200), z.array(z.string().max(200)).max(5)]),
+  )
+  .refine((q) => Object.keys(q).length <= 20, 'no máximo 20 parâmetros');
 
 /** TTL do espelho: o mesmo frescor que o cliente da api-sports usa para o endpoint, entre 15 s e 24 h. */
 export function mirrorTtlSec(endpoint: string, params: Record<string, string>, now = new Date()): number {
@@ -109,15 +126,15 @@ export async function enqueueBackfill(
  */
 export async function mirrorRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   app.get('/mirror/:sport/*', { config: { module: 'core_data' } }, async (request, reply) => {
-    const { sport, '*': rest } = request.params as { sport: string; '*': string };
+    const { sport, '*': rest } = parseInput(MirrorRouteParams, request.params);
     if (!SPORTS.has(sport)) throw problems.notFound('Esporte do espelho');
-    const path = (rest ?? '').replace(/\/+$/, '');
+    const path = rest.replace(/\/+$/, '');
     if (!ENDPOINT_RE.test(path))
       throw problems.invalidParams([{ path: 'endpoint', message: 'endpoint inválido' }]);
     if (request.tenant) assertSport(request.tenant, sport);
 
     const endpoint = `/${path}`;
-    const params = queryParams(request.query);
+    const params = queryParams(parseInput(MirrorQuery, request.query ?? {}));
     const hash = requestHash(PROVIDER, sport as MirrorSport, endpoint, params);
     const assetBase = ctx.assetsBaseUrl ? { 'x-galaxie-asset-base': ctx.assetsBaseUrl } : undefined;
 

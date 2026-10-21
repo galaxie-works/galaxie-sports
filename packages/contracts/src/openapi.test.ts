@@ -24,6 +24,10 @@ describe('OpenAPI', () => {
         '/v1/competitions/{id}/seasons/{season}/standings',
         '/v1/venues/{id}',
         '/mirror/{sport}/{endpoint}',
+        '/v1/account',
+        '/v1/account/keys',
+        '/v1/account/keys/rotate',
+        '/v1/account/usage',
       ]),
     );
     expect(Object.keys(doc.components?.schemas ?? {})).toEqual(

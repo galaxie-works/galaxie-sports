@@ -7,6 +7,12 @@ declare module 'fastify' {
   interface FastifyContextConfig {
     /** Módulo exigido pela rota; rotas sem módulo são públicas (health, docs). */
     module?: ApiModule;
+    /** Exige chave de tenant válida sem exigir módulo (ex.: /v1/account). */
+    authenticated?: boolean;
+    /** Rota administrativa (/internal/admin), protegida pelo AdminGuard. */
+    admin?: boolean;
+    /** Rota pública declarada explicitamente (auditoria de autenticação). */
+    public?: boolean;
   }
   interface FastifyRequest {
     tenant: TenantContext | null;

@@ -16,6 +16,8 @@
 				request>client_ip ip_mask 24 48
 				request>headers>Authorization delete
 				request>headers>X-Api-Key delete
+				request>headers>X-Galaxie-Key delete
+				request>headers>X-Galaxie-Admin-Key delete
 				request>headers>Cookie delete
 			}
 		}
@@ -41,6 +43,8 @@
 				request>client_ip ip_mask 24 48
 				request>headers>Authorization delete
 				request>headers>X-Api-Key delete
+				request>headers>X-Galaxie-Key delete
+				request>headers>X-Galaxie-Admin-Key delete
 				request>headers>Cookie delete
 			}
 		}

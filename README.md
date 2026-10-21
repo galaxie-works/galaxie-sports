@@ -221,6 +221,8 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm --filter @galaxie/ingestor bootstrap:sports --plan` | Catálogo das outras 11 APIs (países, ligas, temporadas; `--jogos` para temporadas inteiras das prioritárias); sem `--plan`, executa |
 | `pnpm --filter @galaxie/ingestor assets:mirror --plan` | Asset Mirror: baixa logos/bandeiras/imagens da CDN de mídia (fora da cota) para o bucket S3 e preenche `core.asset`; `--descobrir-raw` varre o raw |
 | `pnpm --filter @galaxie/api tenant:create --slug <slug>` | Cria/atualiza um tenant e gera uma chave de API (plano, mercados, esportes e rate limit por flags) |
+| `pnpm --filter @galaxie/api admin:key` | Gera uma chave administrativa para `/internal/admin/*` (onboarding de tenants, chaves e uso) e o hash para `ADMIN_KEY_HASHES` — ver [docs/05 §1.2](docs/05-api-publica.md#12-onboarding-autoatendimento-e-uso) |
+| `docker compose -f infra/docker-compose.yml --profile load run --rm k6 run /scripts/<cenário>.js` | Testes de carga k6 (`live-burst`, `catalog-browse`, `cache-hit-vs-miss`) — ver [tests/load](tests/load/README.md) |
 
 > A porta do Postgres é **5433** para não colidir com instalações nativas na 5432. Ajuste `POSTGRES_PORT`/`DATABASE_URL` no `.env` se precisar.
 
@@ -257,6 +259,9 @@ $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | For
 | 10 | [Roadmap e backlog](docs/10-roadmap-e-backlog.md) | Fases, marcos e issues |
 | — | [Como contribuir](CONTRIBUTING.md) | Convenções de código, testes, migrations e PRs |
 | 11 | [Segurança, licenciamento e compliance](docs/11-seguranca-licenciamento-e-compliance.md) | Licenças de dados, IA, LGPD, segurança |
+| — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
+| — | [Exercício de DR](docs/runbooks/exercicio-dr.md) | Backup → ensaio → restauração, com o registro do último exercício |
+| — | [Testes de carga](tests/load/README.md) | Cenários k6, metas p95 e modelo de relatório |
 
 Pesquisas de apoio (com fontes): [api-sports futebol](docs/research/api-sports-football.md) · [demais esportes](docs/research/api-sports-outros-esportes.md) · [catálogo de competições](docs/research/catalogo-competicoes.md) · [onde assistir](docs/research/onde-assistir.md) · [Olimpíadas e Pan](docs/research/olimpiadas-e-panamericano.md) · [Sportmonks](docs/research/sportmonks.md).
 

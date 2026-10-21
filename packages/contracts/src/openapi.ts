@@ -17,6 +17,7 @@ import {
   StandingsParams,
   Venue,
 } from './catalog.js';
+import { accountPaths } from './account.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { Event, TeamSummary } from './events.js';
 import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
@@ -90,6 +91,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
     tags: [
       { name: 'Catálogo', description: 'Esportes, países, competições, tabelas e venues (docs/05 §3.1).' },
       { name: 'Espelho', description: 'Espelho compatível com a api-sports (docs/05 §2).' },
+      { name: 'Conta', description: 'Autoatendimento do tenant: chaves e uso (docs/05 §1.2).' },
     ],
     paths: {
       '/v1/sports': {
@@ -157,6 +159,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           },
         },
       },
+      ...accountPaths,
     },
     components: {
       securitySchemes: {

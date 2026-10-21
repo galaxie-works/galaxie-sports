@@ -44,6 +44,45 @@ pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --l
 # opções: --markets BR,AR --sports football --rate-limit 600 --scopes core_data --env live
 ```
 
+### 1.2 Onboarding, autoatendimento e uso
+
+**Modelos de plano** — [`config/plans.yaml`](../config/plans.yaml) define, para cada plano comercial (Core Data, Fan Experience, Live Intelligence, Enterprise — docs/01 §6), os módulos, mercados e esportes padrão, `rateLimitPerMinute`, `dailyRequestQuota` (informativa; `null` = sem cota) e o ambiente da chave inicial. O arquivo é validado na subida da API (Zod); o teste unitário garante que os módulos batem com `PLAN_MODULES`. Mudar o arquivo não altera tenants existentes (use `applyTemplate`).
+
+**API administrativa** — `/internal/admin/*`, só registrada quando `ADMIN_KEY_HASHES` está definida. Exige a chave administrativa no header `x-galaxie-admin-key` (`gs_admin_<32 bytes>`; gere com `pnpm --filter @galaxie/api admin:key`, que imprime a chave **uma vez** e o hash `sha256$...` para o ambiente) e, com `ADMIN_IP_ALLOWLIST` (IPs/CIDRs), responde **404** fora da allowlist. O proxy público já devolve 404 para `/internal/*` ([Caddyfile](../infra/caddy/Caddyfile)); o acesso é pela rede privada/VPN. Respostas `no-store`, sem CORS. Corpo e parâmetros validados com Zod (`.strict()`: campo desconhecido → 400).
+
+| Rota | Uso |
+|---|---|
+| `GET /internal/admin/plans` | Modelos de plano carregados |
+| `POST /internal/admin/tenants` | Onboarding: `{ slug, name, plan, modules?, markets?, sports?, rateLimitPerMinute?, dailyRequestQuota?, key?: { label?, scopes?, env?, expiresAt? } \| false }` → 201 com o tenant e a **chave exibida uma única vez**; slug repetido → 409 `CONFLICT` |
+| `GET /internal/admin/tenants?status=&plan=&limit=&offset=` | Lista |
+| `GET /internal/admin/tenants/{id\|slug}` | Tenant + metadados das chaves (nunca hash/segredo) |
+| `PATCH /internal/admin/tenants/{id\|slug}` | Plano, módulos, mercados, esportes, limites, `status` (`suspended` bloqueia todas as chaves); `applyTemplate: true` reaplica o modelo do plano antes dos demais campos |
+| `POST /internal/admin/tenants/{id}/keys` | Emite chave (escopos ⊆ módulos do tenant) |
+| `POST /internal/admin/tenants/{id}/keys/{keyId}/rotate` | Nova chave (mesmo rótulo/escopos/ambiente); a antiga expira em `graceSeconds` (padrão 86400; 0 = revoga já; máx. 7 dias) |
+| `POST /internal/admin/tenants/{id}/keys/{keyId}/revoke` | Revoga |
+| `GET /internal/admin/tenants/{id}/usage?from=&to=` | Uso por dia e rota (dias UTC; padrão últimos 7; máx. 92) |
+| `GET /internal/admin/usage?from=&to=` | Total por tenant no período |
+| `POST /internal/admin/usage/flush` | Força a consolidação Valkey → Postgres |
+
+```bash
+curl -X POST http://localhost:8080/internal/admin/tenants \
+  -H "x-galaxie-admin-key: $GALAXIE_ADMIN_KEY" -H 'content-type: application/json' \
+  -d '{"slug":"portal-esportivo","name":"Portal Esportivo","plan":"fan_experience","markets":["BR","AR"]}'
+```
+
+**Autoatendimento do tenant** — `/v1/account/*` exige uma chave válida, mas nenhum módulo (todo tenant gerencia a própria conta). Respostas `no-store`; documentadas no OpenAPI (tag *Conta*).
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/account` | Plano, módulos, mercados, esportes, limites e a chave em uso (`effectiveModules` = módulos ∩ escopos) |
+| `GET /v1/account/keys` | Chaves do tenant (prefixo, rótulo, escopos, status, último uso) |
+| `POST /v1/account/keys/rotate` | Rotaciona **a chave usada na requisição**: `{ graceSeconds? }` (padrão 86400) → 201 com a chave nova (exibida uma vez) |
+| `GET /v1/account/usage?from=&to=` | Uso por dia e rota + `dailyRequestQuota` |
+
+Revogação, suspensão e mudança de plano valem em até 60 s (cache do autenticador por instância).
+
+**Contadores de uso** — toda requisição autenticada incrementa um `Map` em memória (tenant × dia UTC × padrão de rota; sem I/O na requisição). A cada 1 s (`USAGE_FLUSH_MS`) o buffer agregado vira **um** pipeline de `HINCRBY` no Valkey (`<prefixo>usage:<dia>:<tenant>`, campo = rota; set `<prefixo>usage:<dia>:tenants`; TTL 4 dias). A cada 60 s (`USAGE_PERSIST_MS`) uma instância (trava `SET NX`) consolida ontem e hoje em `api.usage_daily` com `greatest(...)` — idempotente e sem regredir se o Valkey for reiniciado. As consultas combinam o consolidado com os contadores vivos. Em queda abrupta da instância perde-se no máximo o último segundo. A 10k req/s isso dá ~1 round-trip/s por instância.
+
 ## 2. Espelho compatível — `/mirror`
 
 ```http
@@ -253,6 +292,8 @@ Formato RFC 9457 (`application/problem+json`):
 | 401 `INVALID_KEY` | Chave ausente/inválida |
 | 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
 | 404 `NOT_FOUND` | Entidade inexistente |
+| 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente) |
+| 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
 | 429 `RATE_LIMITED` | Limite do tenant |
 | 503 `DEGRADED` | Raro: só quando nem last-known-good existe |
 | 500 `INTERNAL_ERROR` | Erro inesperado (registrado em log) |

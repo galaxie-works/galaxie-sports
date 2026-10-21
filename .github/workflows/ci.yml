@@ -81,3 +81,58 @@ jobs:
 
       - name: Testes de integração (Postgres)
         run: pnpm test:integration
+
+  secrets:
+    name: Segredos (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: 8.28.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Instala o gitleaks (binário oficial, checksum verificado)
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/$tarball"
+          curl -sSfLO "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          tar -xzf "$tarball" gitleaks
+          rm -f "$tarball" "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+
+      - name: Varredura de segredos (histórico completo)
+        run: ./gitleaks git . --config .gitleaks.toml --redact --no-banner --verbose
+
+  audit:
+    name: Auditoria de dependências (informativa)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Não bloqueia o merge: o relatório vai para o resumo do job; correções chegam via Dependabot.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: pnpm audit --prod
+        run: |
+          set +e
+          pnpm audit --prod > audit.txt 2>&1
+          status=$?
+          {
+            echo "## pnpm audit --prod"
+            echo
+            echo '```'
+            cat audit.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat audit.txt
+          if [ $status -ne 0 ]; then echo "::warning::pnpm audit encontrou vulnerabilidades (ver resumo do job)."; fi
+          exit 0

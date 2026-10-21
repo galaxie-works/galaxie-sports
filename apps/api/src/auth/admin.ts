@@ -10,6 +10,9 @@ import {
 } from '@galaxie/db';
 import { generateApiKey, hashSecret, type KeyEnv } from './keys.js';
 
+/** Banco ou transação (as funções abaixo podem rodar dentro de `db.transaction`). */
+export type DbOrTx = Database | Parameters<Parameters<Database['transaction']>[0]>[0];
+
 export interface TenantInput {
   slug: string;
   name: string;
@@ -19,6 +22,7 @@ export interface TenantInput {
   markets?: string[];
   sports?: string[];
   rateLimitPerMinute?: number;
+  dailyRequestQuota?: number | null;
 }
 
 export function isModule(value: string): value is ApiModule {
@@ -38,6 +42,7 @@ export async function upsertTenant(
     markets: (input.markets ?? []).map((m) => m.toUpperCase()),
     sports: input.sports ?? [],
     rateLimitPerMinute: input.rateLimitPerMinute ?? 120,
+    ...(input.dailyRequestQuota !== undefined ? { dailyRequestQuota: input.dailyRequestQuota } : {}),
   };
   const [row] = await db
     .insert(tenant)
@@ -55,9 +60,14 @@ export interface CreatedKey {
 }
 
 export async function createApiKey(
-  db: Database,
+  db: DbOrTx,
   tenantId: string,
-  options: { label?: string; scopes?: ApiModule[]; env?: KeyEnv; expiresAt?: Date } = {},
+  options: {
+    label?: string | undefined;
+    scopes?: ApiModule[] | undefined;
+    env?: KeyEnv | undefined;
+    expiresAt?: Date | undefined;
+  } = {},
 ): Promise<CreatedKey> {
   const generated = generateApiKey(options.env ?? 'live');
   const [row] = await db
@@ -65,6 +75,7 @@ export async function createApiKey(
     .values({
       tenantId,
       prefix: generated.prefix,
+      env: generated.env,
       secretHash: await hashSecret(generated.secret),
       label: options.label ?? null,
       scopes: options.scopes ?? null,
