@@ -1,0 +1,76 @@
+import Link from 'next/link';
+import { Suspense } from 'react';
+
+import { PageHeader } from '@/components/app-shell/page-header';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getVenue } from '@/lib/galaxie/api';
+
+const SURFACE_LABEL: Record<string, string> = {
+  grass: 'Grama natural',
+  'artificial turf': 'Grama sintética',
+  artificial: 'Grama sintética',
+  hybrid: 'Grama híbrida',
+};
+
+async function Content({ params }: { params: PageProps<'/locais/[id]'>['params'] }) {
+  const { id } = await params;
+  const venue = await getVenue(id);
+  const facts = [
+    venue.city ? ['Cidade', venue.city] : null,
+    venue.capacity ? ['Capacidade', `${venue.capacity.toLocaleString('pt-BR')} lugares`] : null,
+    venue.surface ? ['Gramado', SURFACE_LABEL[venue.surface.toLowerCase()] ?? venue.surface] : null,
+  ].filter((f): f is [string, string] => f !== null);
+
+  return (
+    <>
+      <PageHeader title={venue.name} />
+      <div className="flex flex-col gap-6 p-4 md:p-6">
+        {venue.image ? (
+          <Card className="py-0">
+            {/* Foto do estádio vinda do espelho de mídia (S3); não passa pelo otimizador do Next. */}
+            <img src={venue.image} alt={venue.name} className="h-64 w-full object-cover" />
+          </Card>
+        ) : null}
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">{venue.name}</h1>
+          {venue.country ? (
+            <Link
+              href={`/paises/${venue.country.code.toLowerCase()}`}
+              className="text-muted-foreground text-sm hover:underline"
+            >
+              {venue.country.name}
+            </Link>
+          ) : null}
+        </div>
+        {facts.length ? (
+          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {facts.map(([k, v]) => (
+              <div key={k} className="flex flex-col gap-0.5">
+                <dt className="text-muted-foreground text-xs">{k}</dt>
+                <dd className="text-sm font-medium">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+export default function VenuePage({ params }: PageProps<'/locais/[id]'>) {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <PageHeader title={<Skeleton className="h-4 w-32" />} />
+          <div className="p-4 md:p-6">
+            <Skeleton className="aspect-[21/9] w-full" />
+          </div>
+        </>
+      }
+    >
+      <Content params={params} />
+    </Suspense>
+  );
+}
