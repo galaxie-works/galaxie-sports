@@ -33,6 +33,7 @@ import {
   TeamSummary,
 } from './events.js';
 import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
+import { RealtimeChange, StreamQuery } from './realtime.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import {
   Person,
@@ -119,6 +120,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       { name: 'Times e pessoas', description: 'Times, elencos e pessoas (docs/05 §3.3).' },
       { name: 'Espelho', description: 'Espelho compatível com a api-sports (docs/05 §2).' },
+      { name: 'Tempo real', description: 'SSE e webhooks assinados (docs/05 §5).' },
       { name: 'Conta', description: 'Autoatendimento do tenant: chaves e uso (docs/05 §1.2).' },
     ],
     paths: {
@@ -287,6 +289,29 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           { path: IdParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
+      },
+      '/v1/stream': {
+        get: {
+          summary: 'Mudanças em tempo real (Server-Sent Events)',
+          description:
+            'Stream `text/event-stream`: cada mensagem tem `id` (use no `Last-Event-ID` para retomar), ' +
+            '`event` (o tópico) e `data` (RealtimeChange). Heartbeat por comentário a cada 15 s. ' +
+            'Autentique com `x-galaxie-key` ou `?key=` (EventSource). Detalhes em docs/05 §5.',
+          tags: ['Tempo real'],
+          requestParams: {
+            query: StreamQuery,
+            header: z.object({
+              'last-event-id': z.string().optional().meta({ description: 'Retoma após esta mudança.' }),
+            }),
+          },
+          responses: {
+            '200': {
+              description: 'Stream SSE de RealtimeChange',
+              content: { 'text/event-stream': { schema: RealtimeChange } },
+            },
+            ...errorResponses(400, 401, 403, 429, 503),
+          },
+        },
       },
       '/mirror/{sport}/{endpoint}': {
         get: {

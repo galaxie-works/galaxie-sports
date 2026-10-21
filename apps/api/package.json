@@ -20,6 +20,8 @@
     "dev": "node --env-file-if-exists=../../.env --watch dist/main.js",
     "start": "node --env-file-if-exists=../../.env dist/main.js",
     "tenant:create": "node --env-file-if-exists=../../.env dist/cli/tenant-create.js",
+    "webhook": "node --env-file-if-exists=../../.env dist/cli/webhook.js",
+    "webhooks:worker": "node --env-file-if-exists=../../.env dist/webhooks/worker-main.js",
     "admin:key": "node dist/cli/admin-key.js"
   },
   "dependencies": {

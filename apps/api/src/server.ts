@@ -14,6 +14,7 @@ import type { AppContext, SemanticConfig } from './context.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
 import { RulesRegistry } from './events/rules-registry.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
+import { apiKeyFrom, registerRealtime, type RealtimeOptions } from './realtime/index.js';
 import { docsRoutes } from './routes/docs.js';
 import { mirrorRoutes } from './routes/mirror.js';
 import { apiLoggerOptions, registerObservability } from './observability.js';
@@ -44,6 +45,8 @@ export interface ServerOptions {
   assetsBaseUrl?: string;
   /** URL pública anunciada no OpenAPI. */
   publicUrl?: string;
+  /** Tempo real: `GET /v1/stream` (SSE) com fan-out via Valkey (requer db). */
+  realtime?: boolean | RealtimeOptions;
   /** Tamanho máximo do corpo das requisições (bytes). Padrão 64 KiB. */
   bodyLimit?: number;
   /** `trustProxy` do Fastify (IP real atrás de proxy/CDN; ver TRUST_PROXY). Padrão false. */
@@ -127,8 +130,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     const module = request.routeOptions.config?.module;
     if (!module && !request.routeOptions.config?.authenticated) return;
     if (!authenticator) throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
-    const header = request.headers['x-galaxie-key'];
-    const tenant = await authenticator.authenticate(Array.isArray(header) ? header[0] : header);
+    const tenant = await authenticator.authenticate(apiKeyFrom(request));
     request.tenant = tenant;
     if (module) assertModule(tenant, module);
 
@@ -197,6 +199,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     app.decorate('changeFeed', listener);
     app.addHook('onReady', async () => listener.start());
     app.addHook('onClose', async () => listener.stop());
+  }
+
+  if (options.realtime && options.db) {
+    registerRealtime(app, {
+      db: options.db,
+      ...(options.redis ? { redis: options.redis } : {}),
+      keyPrefix: prefix,
+      options: typeof options.realtime === 'object' ? options.realtime : {},
+    });
   }
 
   return app;

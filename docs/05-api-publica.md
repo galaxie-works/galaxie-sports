@@ -335,7 +335,7 @@ Regras de contrato:
 | Sem informação confiável | `status: "unknown"`, `options: []` e `message` localizada ("Não temos as informações de transmissão ainda.") — o evento **continua** existindo |
 | Conflito entre fontes ou confiança < limiar | Opção **omitida** (registrada internamente como `omitted`) |
 | Mesma plataforma vinda de várias fontes | Deduplicada; fontes agregadas em `sources` |
-| Correção aceita (inclusão/remoção) | Propagada ao cliente em **≤ 5 min** (purge de cache + SSE + webhook `where_to_watch.changed`) |
+| Correção aceita (inclusão/remoção) | Propagada ao cliente em **≤ 5 min** (purge de cache + SSE + webhook `where_to_watch.changed`). O trigger de `enrich.broadcast_option` publica a mudança no change feed sem depender do writer; purge das tags `where_to_watch:<evento>` e `event:<evento>` em < 1 s (§5, §7.1) |
 | Ordenação | A API ordena por `medium`/confiança; a **ordenação final por direito de acesso do usuário** (incluído, ativação, upgrade, extra, externo) é responsabilidade do cliente, que conhece o assinante |
 | Limite de exibição | A API retorna todas as opções válidas; recomenda-se exibir até 4 |
 
@@ -346,6 +346,141 @@ Regras de contrato:
 | **SSE** | `GET /v1/stream?events=<ids>&topics=score,status,incidents,where_to_watch` | Cards ao vivo na TV/web sem recarregar |
 | **Webhooks** | Configurados por tenant | `event.status_changed`, `event.score_changed`, `event.incident_added`, `where_to_watch.changed`, `event.context_published` — assinados com HMAC-SHA256 |
 | **Polling** | `GET /v1/events/live` com `ETag` | Clientes simples |
+
+**Tópicos** (nome curto em `?topics=` → nome completo no SSE/webhook) e o módulo do plano exigido:
+
+| Curto | Tópico | Quando | Módulo |
+|---|---|---|---|
+| `status` | `event.status_changed` | Mudou `status`, `status_detail` ou o relógio (`clock`) do evento | `core_data` |
+| `score` | `event.score_changed` | Mudou o placar | `core_data` |
+| `incidents` | `event.incident_added` | Lance novo na timeline (gol, cartão, VAR...) | `core_data` |
+| `where_to_watch` | `where_to_watch.changed` | Opção de transmissão incluída, corrigida ou removida | `where_to_watch` |
+| `context` | `event.context_published` | Cenário/resumo de IA publicado ou revisado | `live_intelligence` |
+
+**Payload** (`data:` do SSE e corpo do webhook — schema `RealtimeChange` no OpenAPI), compacto: o evento, o tópico, os campos que mudaram e os novos valores. Para o estado completo, use a rota REST do evento.
+
+```json
+{
+  "id": "1042",
+  "topic": "event.score_changed",
+  "event_id": "0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d10",
+  "sport": "football",
+  "competition_id": "0192c7e1-…",
+  "changed": ["score"],
+  "data": { "score": { "home": 1, "away": 0 } },
+  "occurred_at": "2026-10-21T22:47:12.345Z"
+}
+```
+
+`data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score`; `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`.
+
+### 5.1 SSE — `GET /v1/stream`
+
+```http
+GET /v1/stream?events=<id>,<id>&topics=score,status,incidents
+x-galaxie-key: gs_live_xxx
+Last-Event-ID: 1041
+```
+
+| Parâmetro | Regra |
+|---|---|
+| `events` | Até 200 IDs de evento (vírgula). Vazio = todos os eventos do contrato |
+| `competitions`, `sports` | Filtros adicionais (até 50 competições, 20 esportes); esporte fora do contrato → 403 |
+| `topics` | Nomes curtos ou completos; padrão: todos os do plano. Tópico de módulo não contratado → 403 `MODULE_NOT_IN_PLAN` |
+| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` e o cliente deve recarregar o estado pela REST) |
+| `?key=` | Chave para `EventSource` do navegador, que não envia headers (ver *trade-off* abaixo) |
+
+Mensagens: `id:` (ID da mudança), `event:` (tópico), `data:` (JSON). O stream começa com `retry: 3000` e, depois da retomada, `event: ready` com `{ "last_event_id": "...", "topics": [...] }`. Heartbeat a cada 15 s (comentário `: hb <ts>`), que mantém proxies e balanceadores com a conexão aberta.
+
+```js
+const es = new EventSource(`${API}/v1/stream?events=${id}&topics=score,status&key=${KEY_DE_LEITURA}`);
+es.addEventListener('event.score_changed', (e) => atualizarPlacar(JSON.parse(e.data)));
+// reconexão automática: o navegador reenvia Last-Event-ID e a API completa o que faltou
+```
+
+**Chave na URL (`?key=`) — *trade-off*.** O `EventSource` nativo não envia headers, então a chave vai na query. Ela pode ficar em histórico do navegador, logs de proxies/CDN e no `Referer`. A API remove `key=` dos próprios logs, mas recomendamos: (1) no servidor ou em apps, usar o header `x-galaxie-key` (ex.: `fetch` com leitura do stream, ou um polyfill de EventSource com headers); (2) no navegador, usar uma **chave dedicada**, restrita por escopo (`--scopes core_data`) e rotacionável, nunca a chave principal do tenant. `?key=` só vale para `/v1/stream`.
+
+**Limites e robustez.**
+
+- **Conexões por tenant:** no máximo `SSE_MAX_CONNECTIONS_PER_TENANT` (padrão 100) simultâneas, somando todas as instâncias (lease por conexão no Valkey, renovado no heartbeat; expira sozinho se a instância cair). Acima → 429 `RATE_LIMITED` com `retry-after: 30`. A abertura também conta no rate limit da rota.
+- **Backpressure:** se o cliente não consome (socket cheio), as mensagens ficam numa fila de até 1 MiB; estourou, a conexão é derrubada e o cliente retoma pelo `Last-Event-ID` — um cliente lento nunca segura memória da API.
+- **Entrega:** pelo menos uma vez, em ordem de ID na prática; a mesma mudança não é repetida numa conexão (deduplicação por ID). Clientes devem tratar mudanças como idempotentes pelo `id`.
+
+**Arquitetura (fan-out horizontal).**
+
+```mermaid
+flowchart LR
+  W[Writers<br/>ingestor · agentes · editorial] --> T[(core.event · event_incident<br/>enrich.broadcast_option · event_context)]
+  T -- triggers --> CF[(ops.change_feed)]
+  CF -- NOTIFY ops_change_feed --> R[Relay<br/>1 instância líder]
+  R -- PUBLISH stream:changes --> V[(Valkey)]
+  V --> A1[API 1 · SSE] & A2[API 2 · SSE] & A3[API n · SSE]
+  CF --> WK[Worker de webhooks] --> CL[Endpoints dos clientes]
+  CF --> P[Purge de cache · CDN]
+```
+
+1. **Captura** (migration `0006_realtime`): triggers em `core.event` (status/detalhe/relógio → `event.status_changed`; placar → `event.score_changed`), `core.event_incident` (INSERT → `event.incident_added`; lances de eventos que começaram há mais de 2 dias — carga histórica — não notificam), `enrich.broadcast_option` (INSERT/UPDATE/DELETE → `where_to_watch.changed`; só reverificar `last_verified_at` não notifica) e `enrich.event_context` (publicado/revisado → `event.context_published`). Todos chamam `ops.publish_change()`, a mesma função usada por `publishChange()` no app: a mesma (tópico, entidade) publicada várias vezes **na mesma transação** vira uma linha só, com os payloads fundidos (listas acumulam). O NOTIFY sai no commit.
+2. **Relay**: uma instância por vez (lease `<prefixo>stream:relay` no Valkey, 10 s) lê o change feed — acordada pelo NOTIFY e por varredura a cada 1 s — e publica cada mudança pública no canal `<prefixo>stream:changes`. O cursor tolera IDs que ficam visíveis fora de ordem (transações lentas) e pula lacunas definitivas após 10 s.
+3. **Hub**: toda instância assina o canal e entrega às suas conexões, aplicando filtros e o contrato do tenant (módulos, esportes, mercados). Sem Valkey, cada instância é seu próprio relay (desenvolvimento).
+
+**Latência medida** (testes de integração, Postgres + Valkey locais): mudança no banco → mensagem SSE em ~10–20 ms com NOTIFY; ~1 s só com a varredura (sem NOTIFY). Meta: ≤ 5 s. Troca de líder do relay (instância caiu): até 10 s.
+
+### 5.2 Webhooks
+
+Cadastro (por enquanto via CLI de administração; a API de autoatendimento é um follow-up):
+
+```bash
+pnpm --filter @galaxie/api webhook create --tenant demo-local --url https://cliente.example/hooks/galaxie \
+  --topics score,status,where_to_watch [--events <ids>] [--competitions <ids>] [--sports football]
+# exibe o segredo whsec_... uma única vez
+pnpm --filter @galaxie/api webhook list [--tenant demo-local]
+pnpm --filter @galaxie/api webhook disable|enable --id <endpoint>
+pnpm --filter @galaxie/api webhook dlq [--id <endpoint>]
+pnpm --filter @galaxie/api webhook replay --id <endpoint> | --deliveries <ids>
+```
+
+URL: `https://` (http só para `localhost`, ou com `--allow-http`), sem credenciais. Sem `--topics`, o endpoint recebe todos os tópicos do plano; filtros e contrato do tenant valem como no SSE.
+
+**Requisição** — `POST` com o corpo `RealtimeChange` (acima) e os headers:
+
+| Header | Valor |
+|---|---|
+| `x-galaxie-signature` | `t=<unix segundos>,v1=<hex de HMAC-SHA256(segredo, "<t>.<corpo bruto>")>` |
+| `x-galaxie-event` | Tópico |
+| `x-galaxie-delivery` | ID da entrega |
+| `x-galaxie-attempt` | Tentativa (1, 2, ...) |
+| `idempotency-key` | `<endpoint>:<id da mudança>` — igual em todas as tentativas; descarte duplicatas por ela |
+| `user-agent` | `galaxie-sports-webhooks/0.1` |
+
+**Retentativas e DLQ.** Qualquer resposta fora de 2xx (inclusive redirecionamentos, que não são seguidos) ou timeout de 10 s é falha. Retentativa exponencial: 10 s, 20 s, 40 s... (±20% de jitter, teto de 1 h), até 10 tentativas (~2,5 h); depois a entrega vai para a **DLQ** (`status = dead` em `api.webhook_delivery`), listável e reenfileirável pela CLI. O corpo fica congelado no enfileiramento: retentativas reenviam exatamente o mesmo JSON (a assinatura é refeita com o `t` do envio). Configuração do worker: `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_RETRY_BASE_MS`, `WEBHOOK_TIMEOUT_MS`.
+
+**Worker** — processo separado da API (`pnpm --filter @galaxie/api webhooks:worker`), para que endpoints lentos nunca disputem recursos com as requisições. Pode rodar em mais de uma instância: o enfileiramento (cursor em `api.webhook_cursor`) e a reivindicação de entregas usam `FOR UPDATE SKIP LOCKED`, e cada entrega é única por (endpoint, mudança). Latência medida (local): mudança → POST no endpoint em ~20–60 ms.
+
+**Verificação da assinatura (Node):**
+
+```js
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+/** Verifica `x-galaxie-signature` sobre o corpo BRUTO (antes de JSON.parse). */
+export function verifyGalaxieSignature(rawBody, header, secret, toleranceSec = 300) {
+  const parts = Object.fromEntries(header.split(',').map((p) => p.trim().split('=', 2)));
+  const t = Number(parts.t);
+  if (!Number.isInteger(t) || !parts.v1) return false;
+  if (Math.abs(Date.now() / 1000 - t) > toleranceSec) return false; // proteção contra replay
+  const expected = createHmac('sha256', secret).update(`${t}.${rawBody}`).digest();
+  const received = Buffer.from(parts.v1, 'hex');
+  return received.length === expected.length && timingSafeEqual(expected, received);
+}
+
+// Express: app.post('/hooks/galaxie', express.raw({ type: 'application/json' }), (req, res) => {
+//   if (!verifyGalaxieSignature(req.body.toString('utf8'), req.get('x-galaxie-signature'), SECRET))
+//     return res.sendStatus(401);
+//   const change = JSON.parse(req.body);   // deduplique por req.get('idempotency-key')
+//   res.sendStatus(204);                   // responda rápido; processe de forma assíncrona
+// });
+```
+
+O segredo fica em `api.webhook_endpoint.secret` (o worker precisa dele para assinar). Rotação: cadastre um novo endpoint, migre o receptor e desative o antigo.
 
 ## 6. Erros
 
@@ -387,7 +522,7 @@ Formato RFC 9457 (`application/problem+json`):
 - **Cache de respostas no Valkey** (`<prefixo>cache:<hash>`): chave = método + caminho + query ordenada + locale resolvido (+ fuso quando a resposta tem instantes). Respostas independem do tenant. Sem Valkey (ou com falha), a resposta sai direto do banco.
 - **Headers:** `ETag` (sha1 do corpo), `Cache-Control: public, max-age=min(TTL, 300), s-maxage=TTL, stale-while-revalidate=…` (o navegador revalida em ≤ 5 min; a CDN usa o TTL cheio e é purgada ativamente), `Vary: Accept-Language, x-galaxie-key`, `surrogate-key` com as tags da resposta e `x-galaxie-cache: HIT|MISS`. `If-None-Match` igual ao ETag → 304 sem corpo.
 - **Tags de purge:** entidade `<tipo>:<id>` e coleção `<tipo>`. Ex.: detalhe da competição → `competition:<id>`; lista de competições → `competition`, `season`, `competition_profile`, `country`; tabela → `standing:<season_id>`, `competition:<id>`; venue → `venue:<id>`; espelho → `api_response:<request_hash>`.
-- **Change feed:** todo writer que altera dado servido pela API chama `publishChange(db, { topic, entityType, entityId, payload? })` (`@galaxie/db`), que insere em `ops.change_feed` e faz `pg_notify('ops_change_feed', id)` na mesma transação. A API escuta o canal (LISTEN) e também varre a tabela a cada 5 s (cobre writers que não notificam); cada mudança purga as tags `<entityType>:<entityId>`, `<entityType>` e `payload.tags` no Valkey e na CDN. Propagação típica: < 1 s com NOTIFY, ≤ 5 s só com a varredura — dentro do SLA de 5 min do onde assistir.
+- **Change feed:** mudanças em `core.event`, `core.event_incident`, `enrich.broadcast_option` e `enrich.event_context` chegam ao `ops.change_feed` sozinhas, por triggers (§5.1). Os demais writers que alteram dado servido pela API chamam `publishChange(db, { topic, entityType, entityId, payload? })` (`@galaxie/db`), que usa a mesma função `ops.publish_change()` (deduplicada por transação) e faz `pg_notify('ops_change_feed', id)`. Entidades dos triggers: `event:<id>` (estado, placar, lances), `where_to_watch:<event_id>` (+ `event:<event_id>`) e `event_context:<event_id>` (+ `event:<event_id>`). A API escuta o canal (LISTEN) e também varre a tabela a cada 5 s (cobre writers que não notificam); cada mudança purga as tags `<entityType>:<entityId>`, `<entityType>` e `payload.tags` no Valkey e na CDN. Propagação típica: < 1 s com NOTIFY, ≤ 5 s só com a varredura — dentro do SLA de 5 min do onde assistir.
 - **CDN:** interface `CdnPurger.purgeTags(tags)`; hoje `NoopCdnPurger`. A implementação concreta (purge por `Surrogate-Key` ou `Cache-Tag`, conforme a CDN) entra quando a CDN for escolhida — a API já emite `surrogate-key`.
 
 ## 8. Versionamento
