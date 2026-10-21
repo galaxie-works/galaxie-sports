@@ -646,6 +646,11 @@ describe('camada de provedores', () => {
   it('clássico informado pela base semântica entra na importância', async () => {
     const env = fixture<{ response: ApiFixture[] }>('fixtures-headtohead-121-131.json');
     const derbyId = '01900000-0000-7000-8000-000000000001';
+    // core.event.derby_id tem FK para semantic.derby: o clássico precisa existir
+    await db.execute(
+      sql`insert into semantic.derby (id, slug, name, scope, intensity, source_file)
+          values (${derbyId}, 'derby-paulista-teste', 'Derby Paulista', 'state', 5, 'teste') on conflict do nothing`,
+    );
     await upsertBatch(db, normalizeFixtures(env.response, new Date('2026-10-21T19:00:00Z')), {
       derbyLookup: () => ({ derbyId, intensity: 5 }),
     });
