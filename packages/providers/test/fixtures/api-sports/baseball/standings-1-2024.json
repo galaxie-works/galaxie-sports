@@ -1,0 +1,271 @@
+{
+  "get": "standings",
+  "parameters": {
+    "league": "1",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 2,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    [
+      {
+        "position": 1,
+        "stage": null,
+        "group": {
+          "name": "American League"
+        },
+        "team": {
+          "id": 25,
+          "name": "New York Yankees",
+          "logo": "https://media.api-sports.io/baseball/teams/25.png"
+        },
+        "league": {
+          "id": 1,
+          "name": "MLB",
+          "type": "League",
+          "logo": "https://media.api-sports.io/baseball/leagues/1.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 1,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 162,
+          "win": {
+            "total": 94,
+            "percentage": "0.580"
+          },
+          "lose": {
+            "total": 68,
+            "percentage": "0.420"
+          }
+        },
+        "points": {
+          "for": 1041,
+          "against": 894
+        },
+        "form": "LWLLL",
+        "description": null
+      },
+      {
+        "position": 2,
+        "stage": null,
+        "group": {
+          "name": "American League"
+        },
+        "team": {
+          "id": 9,
+          "name": "Cleveland Indians",
+          "logo": "https://media.api-sports.io/baseball/teams/9.png"
+        },
+        "league": {
+          "id": 1,
+          "name": "MLB",
+          "type": "League",
+          "logo": "https://media.api-sports.io/baseball/leagues/1.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 1,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 161,
+          "win": {
+            "total": 92,
+            "percentage": "0.571"
+          },
+          "lose": {
+            "total": 69,
+            "percentage": "0.429"
+          }
+        },
+        "points": {
+          "for": 900,
+          "against": 813
+        },
+        "form": "LLWLL",
+        "description": null
+      },
+      {
+        "position": 3,
+        "stage": null,
+        "group": {
+          "name": "American League"
+        },
+        "team": {
+          "id": 4,
+          "name": "Baltimore Orioles",
+          "logo": "https://media.api-sports.io/baseball/teams/4.png"
+        },
+        "league": {
+          "id": 1,
+          "name": "MLB",
+          "type": "League",
+          "logo": "https://media.api-sports.io/baseball/leagues/1.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 1,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 162,
+          "win": {
+            "total": 91,
+            "percentage": "0.562"
+          },
+          "lose": {
+            "total": 71,
+            "percentage": "0.438"
+          }
+        },
+        "points": {
+          "for": 970,
+          "against": 827
+        },
+        "form": "LLWWW",
+        "description": null
+      }
+    ],
+    [
+      {
+        "position": 1,
+        "stage": null,
+        "group": {
+          "name": "American League Central"
+        },
+        "team": {
+          "id": 9,
+          "name": "Cleveland Indians",
+          "logo": "https://media.api-sports.io/baseball/teams/9.png"
+        },
+        "league": {
+          "id": 1,
+          "name": "MLB",
+          "type": "League",
+          "logo": "https://media.api-sports.io/baseball/leagues/1.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 1,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 161,
+          "win": {
+            "total": 92,
+            "percentage": "0.571"
+          },
+          "lose": {
+            "total": 69,
+            "percentage": "0.429"
+          }
+        },
+        "points": {
+          "for": 900,
+          "against": 813
+        },
+        "form": "LLWLL",
+        "description": null
+      },
+      {
+        "position": 2,
+        "stage": null,
+        "group": {
+          "name": "American League Central"
+        },
+        "team": {
+          "id": 16,
+          "name": "Kansas City Royals",
+          "logo": "https://media.api-sports.io/baseball/teams/16.png"
+        },
+        "league": {
+          "id": 1,
+          "name": "MLB",
+          "type": "League",
+          "logo": "https://media.api-sports.io/baseball/leagues/1.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 1,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 162,
+          "win": {
+            "total": 86,
+            "percentage": "0.531"
+          },
+          "lose": {
+            "total": 76,
+            "percentage": "0.469"
+          }
+        },
+        "points": {
+          "for": 893,
+          "against": 807
+        },
+        "form": "LLWLW",
+        "description": null
+      },
+      {
+        "position": 3,
+        "stage": null,
+        "group": {
+          "name": "American League Central"
+        },
+        "team": {
+          "id": 12,
+          "name": "Detroit Tigers",
+          "logo": "https://media.api-sports.io/baseball/teams/12.png"
+        },
+        "league": {
+          "id": 1,
+          "name": "MLB",
+          "type": "League",
+          "logo": "https://media.api-sports.io/baseball/leagues/1.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 1,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 162,
+          "win": {
+            "total": 86,
+            "percentage": "0.531"
+          },
+          "lose": {
+            "total": 76,
+            "percentage": "0.469"
+          }
+        },
+        "points": {
+          "for": 873,
+          "against": 804
+        },
+        "form": "LLWWL",
+        "description": null
+      }
+    ]
+  ]
+}

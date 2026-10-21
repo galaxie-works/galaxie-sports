@@ -47,8 +47,36 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1792607733451,
-      "tag": "0006_where_to_watch",
+      "when": 1792607001658,
+      "tag": "0006_multisport",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792608255324,
+      "tag": "0007_api_usage_e_onboarding",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792609807462,
+      "tag": "0008_realtime",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792609957123,
+      "tag": "0009_sport_event_detail",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792610346042,
+      "tag": "0010_where_to_watch",
       "breakpoints": true
     }
   ]

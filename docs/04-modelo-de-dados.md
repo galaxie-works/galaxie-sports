@@ -86,6 +86,8 @@ Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ric
 | MMA | `mma_fight`, `mma_fighter_record` |
 | Vôlei, handebol, hóquei, rúgbi, beisebol, AFL, NFL | `<sport>_game` + estatísticas disponíveis |
 
+> **Implementado nos outros 11 esportes (issue #25):** um espelho **genérico** em vez de uma tabela por esporte — `core.sport_event_detail` (`event_id`, `sport`, `provider`, `provider_event_id`, `kind` = `game`/`race`/`fight`, `summary` JSONB com o item do fornecedor, `detail` JSONB com as partes vindas de endpoints auxiliares e `detail_fetched_at`). O placar com parciais vai para `core.event.score` (`periods`, `breakdown`) e os N participantes para `core.event_participant`. As tabelas por esporte acima continuam como alvo para quando uma consulta pedir índice. Detalhes em §3.5.
+
 ## 3. `core.event` — a entidade canônica
 
 | Campo | Tipo | Descrição |
@@ -139,7 +141,7 @@ Implementação (issue #26): lógica pura em `@galaxie/providers` (`initialState
 - **Só observações mais novas contam**: uma observação com instante ≤ `last_valid_at` é descartada (`out_of_order`). Reprocessar o raw nunca desfaz o que veio depois — inclusive a inferência temporal.
 - **Card nunca regride a estado inválido**: um evento que o **fornecedor** já deu como iniciado ou encerrado (`live`, `break`, `suspended`, `finished`) não volta ao pré-jogo sem mudança de `starts_at` (remarcação). Um estado inferido pelo horário pode ser corrigido para qualquer estado pela fonte.
 - **Código desconhecido** é descartado (`unknown_status`); na criação, o evento entra pelo horário.
-- **`ends_at_expected`** = início (o real, `fixture.periods.first`, se posterior ao oficial) + duração do esporte: futebol 115 min (+45 com prorrogação/pênaltis), basquete/NBA 150, vôlei 120, handebol 100, hóquei 150, rúgbi 110, AFL 150, futebol americano 210, beisebol 200, MMA 300, F1 120; demais 180.
+- **`ends_at_expected`** = início (o real, `fixture.periods.first`, se posterior ao oficial) + duração do esporte: futebol 115 min (+45 com prorrogação/pênaltis), basquete/NBA 135 (+20 na prorrogação), vôlei 120, handebol 105 (+25), hóquei 150 (+30), rúgbi 110 (+25), AFL 165 (+15), futebol americano 210 (+20), beisebol 180 (+40 com entradas extras) e F1 120 (a corrida; treinos 60, Q1/Q2/Q3 25 cada, sprint 60, sprint shootout 20 por parte). No MMA a duração é do **card**: cada luta termina com o bloco do card em que está (nº de lutas do bloco × 30 min, +15 se for o card principal). Demais 180.
 - **`core.event_state_log.reason`**: `provider`, `temporal` (scheduled → starting), `temporal_fallback`, `correction` (finished → live ou estado inferido desfeito), `editorial`. O `occurred_at` das transições temporais é o instante-limite (T-10, apito, fim previsto), não o da execução.
 
 Mapeamento dos códigos da api-sports football (`status.short`):
@@ -191,9 +193,42 @@ Sem busca de clássicos na execução, o clássico e a importância já calculad
 - **Classificação**: `standings` → `core.standing` com `source = 'provider'`.
 - **Tipo do participante**: times vindos de partidas entram como `club` e não sobrescrevem `national_team` informado por `teams`.
 
+### 3.5 Normalização raw → core dos demais esportes (issues #25 e #16)
+
+`pnpm --filter @galaxie/ingestor normalize:sports [--esporte basketball ...] [--tudo] [--relogio] [--detalhe]` faz o mesmo que o futebol (§3.4) para as 11 outras APIs, com um job e um cursor por esporte (`ops.job_run` `normalize:<esporte>`, `ops.sync_cursor` `normalize:core`/`<esporte>`). Normalizadores puros em `@galaxie/providers` (`api-sports/sports/*`), mesmo upsert idempotente do futebol.
+
+| API | Endpoints normalizados | Vira no core |
+|---|---|---|
+| Basquete, beisebol, handebol, hóquei, rúgbi, vôlei, AFL, NFL | `games`, `games/h2h`, `standings`, `teams` | evento com mandante/visitante (`home`/`away`), placar total + parciais em `score.periods` (`q1`…`q4`/`ot`; `i1`…`i9`/`extra`; `p1`…`p3`/`ot`/`so`; `h1`/`h2`/`ot`/`ot2`; `s1`…`s5`) e `score.breakdown` (AFL goals/behinds, beisebol hits/errors); `week`/`round`/`stage` → `core.stage`; tabela → `core.standing` |
+| NBA v2 | `games`, `standings`, `teams` | idem, com `visitors` → `away`, `linescore` → `q1`…/`ot1`…, `stage` numérico (1 pré-temporada, 2 regular, 3+ playoffs — a confirmar) e tabela por conferência |
+| F1 | `races`, `rankings/races`, `rankings/startinggrid`, `rankings/drivers`, `rankings/teams` | cada **sessão** (treinos, Q1–Q3, sprint shootout, sprint, corrida) vira evento; o **GP** vira `core.stage` `race_weekend` (`grand-prix-<id>`) da temporada da competição sintética `world-championship`; o circuito é o `venue`; resultado e grid entram como **N participantes** `grid` (posição final em `position`; `result` com posição, tempo, voltas, grid, pits, gap, equipe e tempo de classificação); rankings → duas tabelas (`drivers`, `constructors`) |
+| MMA | `fights`, `fights/results` | cada luta vira evento na competição sintética `all-fights`, com os cantos `corner_red` (= `first`) e `corner_blue` (= `second`, na ordem do fornecedor) e `result.winner`; a **categoria de peso** vira `core.stage` (`category-<nome>`, nome traduzido: "Peso-galo", "Peso pluma"…); o card (`slug`, `is_main`) fica no espelho; `fights/results` soma método, round e tempo em `detail.result` |
+
+- **Complementos** (`rankings/races`, `rankings/startinggrid`, `fights/results`) não descrevem o estado do evento: não passam pela máquina de estados, só **mesclam** participantes (`result` somado, `position` nula não apaga a conhecida, nada é removido) e detalhe. O runner os processa depois das listas que criam os eventos.
+- **IDs**: pilotos usam o prefixo `driver-<id>` em `core.provider_map` (os IDs de piloto e de equipe da F1 colidem); equipes, circuitos e competições sintéticas usam os mesmos IDs do catálogo (`bootstrap:sports`).
+- **Logos**: só URLs de `media.api-sports.io` viram `core.asset` (a NBA v2 aponta para a Wikimedia). Pilotos e lutadores usam os tipos de asset `driver` e `fighter`.
+- **Classificação sem pontos** (basquete, beisebol, NBA, NFL): `points` = vitórias; o hóquei soma vitórias/derrotas na prorrogação; pontos fracionados da F1 são arredondados (o valor exato fica no raw). Com mais de uma fase na mesma resposta, o grupo vira `"<fase> · <grupo>"`.
+
+Mapeamento de status por esporte (`status.short`; sem código curto, vale o texto `status.long`):
+
+| Esporte | Pré-jogo (`scheduled`/`starting`) | `live` | `break` | `finished` | Outros |
+|---|---|---|---|---|---|
+| Basquete | `NS` | `Q1`–`Q4`, `OT` | `HT`, `BT` | `FT`, `AOT`, `AWD` | `POST` adiado · `CANC` cancelado · `SUSP` suspenso · `ABD` abandonado |
+| Beisebol | `NS` | `IN1`…`IN9` (e extras `IN10`+) | — | `FT` | `POST` · `CANC` · `INTR` suspenso · `ABD` |
+| Hóquei | `NS` | `P1`–`P3`, `OT`, `PT` (shootout) | `BT` | `FT`, `AOT`, `AP` | `POST` · `CANC` · `INTR` · `ABD` · `AW` (decidido) |
+| Handebol / rúgbi | `NS` | `1H`, `2H`, `ET`, `PT` | `HT`, `BT` | `FT`, `AET`, `AP`, `AW` | `POST` · `CANC` · `INTR` · `ABD` |
+| Vôlei | `NS` | `S1`–`S5` | — | `FT`, `AW` | `POST` · `CANC` · `INTR` · `ABD` |
+| AFL | `NS` | `Q1`–`Q4`, `ET` | `QT`, `HT`, `BT` | `FT`, `AET`, `AW` | `POST` · `CANC` · `INTR` · `ABD` |
+| NFL/NCAA | `NS` | `Q1`–`Q4`, `OT` | `HT` | `FT`, `AOT`, texto `Final/OT` (sem código curto) | `PST`/`POST` · `CANC` · `SUSP`/`INTR` · `ABD` |
+| NBA v2 | `short` 1 / `Scheduled` | `short` 2 / `In Play` | `In Play` com `halftime` ou `endOfPeriod` | `short` 3 / `Finished` | `Postponed` · `Canceled` |
+| F1 (texto) | `Scheduled` | `Live` | — | `Completed` | `Postponed` · `Cancelled` |
+| MMA | `NS`, `IN` (apresentação), `PF` (pré-luta), `WO` (walkout — no MMA não é W.O.) | `LIVE` | `EOR` (fim de round) | `FT` | `PST`/`POST` · `CANC` |
+
+Códigos observados nas respostas capturadas: basquete `FT`/`AOT`/`CANC`; beisebol `FT`/`POST`/`ABD`/`CANC`; hóquei `FT`/`AOT`/`AP`/`CANC`; rúgbi `FT`/`AET`; vôlei `FT`/`CANC`; AFL `FT`/`CANC`; NFL `FT`/`NS`/`Final/OT`; MMA `FT`/`CANC`/`PF`/`NS`; F1 `Completed`; NBA `Scheduled`. Os demais vêm das specs oficiais ou do padrão da plataforma — código desconhecido é descartado (`unknown_status`) e o evento segue pelo horário.
+
 ## 4. `semantic` — base de conhecimento
 
-Carregada a partir de [`data/knowledge`](../data/knowledge/SCHEMA.md) por `pnpm db:seed:semantic`.
+Carregada a partir de [`data/knowledge`](../data/knowledge/SCHEMA.md) por `pnpm db:seed:semantic`. Desde a issue #44 a base tem pastas por esporte (`football/`, `basketball/`, `volleyball/`, `formula-1/`…): os perfis de outros esportes entram em `semantic.team_profile` com `kind` do arquivo (`club`, `driver`, `constructor`…), mas ainda **sem** vínculo com `core.participant` (o vínculo por `api_sports.team_id` e o `resolve:ids` são só do futebol).
 
 | Tabela | Conteúdo |
 |---|---|
@@ -258,7 +293,7 @@ create table enrich.event_context (
 | `ops.quota_budget` | Orçamento planejado por `api × dia × prioridade` |
 | `ops.sync_cursor` | Marca d'água por `(sport, endpoint, chave)` — ex.: último `fixtures?league=71&season=2026` sincronizado |
 | `ops.job_run` | Execuções de jobs, duração, chamadas gastas, erros |
-| `ops.change_feed` | Mudanças publicadas (para SSE/webhooks e purge de cache/CDN) — gravadas com `publishChange()`, que também faz `pg_notify('ops_change_feed', id)` |
+| `ops.change_feed` | Mudanças publicadas (para SSE/webhooks e purge de cache/CDN) — gravadas por triggers (`core.event`, `core.event_incident`, `enrich.broadcast_option`, `enrich.event_context`) ou por `publishChange()`; ambos usam `ops.publish_change()`, que deduplica por transação e faz `pg_notify('ops_change_feed', id)` (docs/05 §5) |
 
 ## 6.1 `api` — tenants, chaves e backfill do espelho
 
@@ -267,6 +302,9 @@ create table enrich.event_context (
 | `api.tenant` | Cliente da API: `slug`, `plan`, `modules[]`, `markets[]` (vazio = todos), `sports[]` (vazio = todos), `rate_limit_per_minute`, `status` |
 | `api.api_key` | Chaves do tenant: `prefix` (único, em claro), `secret_hash` (scrypt com sal), `scopes[]` (restringe módulos), `expires_at`, `revoked_at`, `last_used_at` |
 | `api.backfill_request` | Combinações pedidas ao `/mirror` sem raw: `sport`, `endpoint`, `params`, `request_hash` (único), `priority` ADHOC, `status`, `hits` — consumidas pelo ingestor |
+| `api.webhook_endpoint` | Webhook de um tenant: `url`, `secret` (HMAC-SHA256), `topics[]` (vazio = todos do plano), `filters` (`events`/`competitions`/`sports`), `active` (docs/05 §5.2) |
+| `api.webhook_delivery` | Uma entrega por (endpoint, mudança do change feed), única: `payload` congelado, `status` (`pending`/`delivered`/`dead` = DLQ), `attempts`, `next_retry_at`, `response_code`, `last_error` |
+| `api.webhook_cursor` | Marca d'água do enfileirador de webhooks sobre `ops.change_feed` |
 
 Regras de autenticação, planos e rate limit: [05 §1.1](05-api-publica.md#11-implementação-schema-api).
 

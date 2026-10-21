@@ -17,10 +17,35 @@ import {
   StandingsParams,
   Venue,
 } from './catalog.js';
+import { accountPaths } from './account.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
-import { Event, TeamSummary } from './events.js';
+import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
+import {
+  Event,
+  EventLineups,
+  EventParams,
+  EventsQuery,
+  EventStats,
+  EventTimeline,
+  H2hQuery,
+  HeadToHead,
+  LiveEventsQuery,
+  TeamSummary,
+} from './events.js';
 import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
 import { WhereToWatch, WhereToWatchParams, WhereToWatchQuery } from './where-to-watch.js';
+import { RealtimeChange, StreamQuery } from './realtime.js';
+import { multisportPaths, semanticPaths } from './openapi-semantic.js';
+import {
+  Person,
+  Squad,
+  SquadQuery,
+  Team,
+  TeamEventsQuery,
+  TeamOverview,
+  TeamParams,
+  TeamsQuery,
+} from './teams.js';
 
 const problemContent = { 'application/problem+json': { schema: Problem } };
 
@@ -90,10 +115,19 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
     security: [{ galaxieKey: [] }],
     tags: [
       { name: 'Catálogo', description: 'Esportes, países, competições, tabelas e venues (docs/05 §3.1).' },
+      {
+        name: 'Eventos',
+        description: 'Agenda, ao vivo, detalhe, timeline, escalações, estatísticas (docs/05 §3.2).',
+      },
+      { name: 'Times e pessoas', description: 'Times, elencos e pessoas (docs/05 §3.3).' },
       { name: 'Espelho', description: 'Espelho compatível com a api-sports (docs/05 §2).' },
       { name: 'Onde assistir', description: 'Opções de transmissão por evento × país (docs/05 §4).' },
+      { name: 'Tempo real', description: 'SSE e webhooks assinados (docs/05 §5).' },
+      { name: 'Conta', description: 'Autoatendimento do tenant: chaves e uso (docs/05 §1.2).' },
     ],
     paths: {
+      ...semanticPaths(),
+      ...multisportPaths(),
       '/v1/sports': {
         get: getOp('Esportes disponíveis e cobertura', 'Catálogo', list(Sport), { query: LocaleQuery }),
       },
@@ -121,6 +155,134 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           [400, 401, 403, 404, 429],
         ),
       },
+      '/v1/competitions/{id}/context': {
+        get: getOp(
+          'O que está em jogo: líder, zonas, chaveamento e próximos jogos decisivos',
+          'Catálogo',
+          CompetitionContext,
+          { path: ContextParams, query: ContextQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/events': {
+        get: getOp('Agenda multiesporte (paginada por cursor)', 'Eventos', page(Event), {
+          query: EventsQuery,
+        }),
+      },
+      '/v1/events/live': {
+        get: getOp('Eventos ao vivo', 'Eventos', list(Event), { query: LiveEventsQuery }),
+      },
+      '/v1/events/{id}': {
+        get: getOp(
+          'Evento completo',
+          'Eventos',
+          Event,
+          { path: EventParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/events/{id}/timeline': {
+        get: getOp(
+          'Momentos-chave (gols, cartões, VAR, substituições)',
+          'Eventos',
+          EventTimeline,
+          { path: EventParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/events/{id}/lineups': {
+        get: getOp(
+          'Escalações e formação',
+          'Eventos',
+          EventLineups,
+          { path: EventParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/events/{id}/stats': {
+        get: getOp(
+          'Estatísticas por time e jogador',
+          'Eventos',
+          EventStats,
+          { path: EventParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/events/{id}/h2h': {
+        get: getOp(
+          'Histórico do confronto (do core, sem chamada ao fornecedor)',
+          'Eventos',
+          HeadToHead,
+          { path: EventParams, query: H2hQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/events/{id}.ics': {
+        get: {
+          summary: 'Arquivo de calendário (RFC 5545)',
+          tags: ['Eventos'],
+          requestParams: { path: EventParams, query: LocaleQuery, header: acceptLanguage },
+          responses: {
+            '200': {
+              description: 'VCALENDAR com um VEVENT (horários em UTC)',
+              headers: okHeaders,
+              content: { 'text/calendar': { schema: z.string() } },
+            },
+            '304': { description: 'Não modificado (If-None-Match)' },
+            ...errorResponses(400, 401, 403, 404, 429),
+          },
+        },
+      },
+      '/v1/teams': {
+        get: getOp('Busca de times e seleções (paginada)', 'Times e pessoas', page(TeamSummary), {
+          query: TeamsQuery,
+        }),
+      },
+      '/v1/teams/{id}': {
+        get: getOp(
+          'Detalhe do time',
+          'Times e pessoas',
+          Team,
+          { path: TeamParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/teams/{id}/overview': {
+        get: getOp(
+          'Card do time: posição, forma, últimos resultados, ao vivo e próximo jogo',
+          'Times e pessoas',
+          TeamOverview,
+          { path: TeamParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/teams/{id}/events': {
+        get: getOp(
+          'Jogos do time (paginado)',
+          'Times e pessoas',
+          page(Event),
+          { path: TeamParams, query: TeamEventsQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/teams/{id}/squad': {
+        get: getOp(
+          'Elenco e comissão técnica',
+          'Times e pessoas',
+          Squad,
+          { path: TeamParams, query: SquadQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/people/{id}': {
+        get: getOp(
+          'Jogador, técnico ou piloto',
+          'Times e pessoas',
+          Person,
+          { path: TeamParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
       '/v1/venues/{id}': {
         get: getOp(
           'Estádio/circuito/arena',
@@ -143,6 +305,29 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
             'Só opções publicadas (confiança ≥ 0,7, sem conflito). Sem informação confiável: `status: unknown`, ' +
             '`options: []` e `message` localizada. Exige o módulo `where_to_watch` e o país nos mercados do tenant. ' +
             'Correções editoriais propagam em ≤ 5 min (purge de cache + webhook `where_to_watch.changed`).',
+        },
+      },
+      '/v1/stream': {
+        get: {
+          summary: 'Mudanças em tempo real (Server-Sent Events)',
+          description:
+            'Stream `text/event-stream`: cada mensagem tem `id` (use no `Last-Event-ID` para retomar), ' +
+            '`event` (o tópico) e `data` (RealtimeChange). Heartbeat por comentário a cada 15 s. ' +
+            'Autentique com `x-galaxie-key` ou `?key=` (EventSource). Detalhes em docs/05 §5.',
+          tags: ['Tempo real'],
+          requestParams: {
+            query: StreamQuery,
+            header: z.object({
+              'last-event-id': z.string().optional().meta({ description: 'Retoma após esta mudança.' }),
+            }),
+          },
+          responses: {
+            '200': {
+              description: 'Stream SSE de RealtimeChange',
+              content: { 'text/event-stream': { schema: RealtimeChange } },
+            },
+            ...errorResponses(400, 401, 403, 429, 503),
+          },
         },
       },
       '/mirror/{sport}/{endpoint}': {
@@ -174,13 +359,13 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           },
         },
       },
+      ...accountPaths,
     },
     components: {
       securitySchemes: {
         galaxieKey: { type: 'apiKey', in: 'header', name: 'x-galaxie-key' },
       },
-      // Placeholders de #31/#32 — já disponíveis para tipagem do demo.
-      schemas: { Event, TeamSummary },
+      schemas: { Event, TeamSummary, Team, Person },
     },
   };
   return createDocument(doc);

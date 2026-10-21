@@ -1,0 +1,42 @@
+# Glossário esportivo — es-CO. Ver docs/06 §4.3 e §5 e data/knowledge/SCHEMA.md.
+# Só termos positivos; rivalidade exige requires: declared_rival (copy_permission).
+# Todos nascem draft até revisão nativa do mercado.
+schema_version: 1
+locale: es-CO
+sport: football
+terms:
+  - key: hacer-fuerza
+    term: "hacer fuerza por"
+    meaning: "Apoyar a un equipo deseando que le vaya bien."
+    example: "¡Hoy hacemos fuerza por el equipo!"
+    category: support
+    copy_intents: [anticipate, cheer]
+    requires: declared_affinity
+    note: "Uso coloquial colombiano registrado en la guía editorial; falta fuente lexicográfica externa: requiere revisión nativa."
+    sources: ["https://github.com/galaxie-works/galaxie-sports/blob/main/docs/06-semantica-e-conteudo.md"]
+    review_status: draft
+  - key: hincha
+    term: "hincha"
+    meaning: "Partidario entusiasta de un club deportivo; quien sigue y apoya a su equipo."
+    example: "Los hinchas llenaron el estadio."
+    category: fans
+    copy_intents: [inform]
+    sources: ["https://es.wiktionary.org/wiki/hincha"]
+    review_status: draft
+  - key: alentar
+    term: "alentar"
+    meaning: "Animar, dar aliento y vigor; en el fútbol, apoyar al equipo durante el partido."
+    example: "¡A alentar al equipo hoy!"
+    category: support
+    copy_intents: [anticipate, cheer]
+    requires: declared_affinity
+    sources: ["https://es.wiktionary.org/wiki/alentar"]
+    review_status: draft
+  - key: golazo
+    term: "golazo"
+    meaning: "Gol que se destaca por la belleza de su ejecución."
+    example: "¡Qué golazo en el segundo tiempo!"
+    category: match
+    copy_intents: [inform]
+    sources: ["https://es.wiktionary.org/wiki/golazo"]
+    review_status: draft

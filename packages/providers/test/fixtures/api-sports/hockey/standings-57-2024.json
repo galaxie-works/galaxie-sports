@@ -1,0 +1,325 @@
+{
+  "get": "standings",
+  "parameters": {
+    "league": "57",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 2,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    [
+      {
+        "position": 1,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 704,
+          "name": "Winnipeg Jets",
+          "logo": "https://media.api-sports.io/hockey/teams/704.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 82,
+          "win": {
+            "total": 43,
+            "percentage": "0.524"
+          },
+          "win_overtime": {
+            "total": 13,
+            "percentage": "0.159"
+          },
+          "lose": {
+            "total": 22,
+            "percentage": "0.268"
+          },
+          "lose_overtime": {
+            "total": 4,
+            "percentage": "0.049"
+          }
+        },
+        "goals": {
+          "for": 277,
+          "against": 191
+        },
+        "points": 116,
+        "form": "WLWWW",
+        "description": "Promotion - NHL (Play Offs: )"
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 702,
+          "name": "Vegas Golden Knights",
+          "logo": "https://media.api-sports.io/hockey/teams/702.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 82,
+          "win": {
+            "total": 46,
+            "percentage": "0.561"
+          },
+          "win_overtime": {
+            "total": 4,
+            "percentage": "0.049"
+          },
+          "lose": {
+            "total": 22,
+            "percentage": "0.268"
+          },
+          "lose_overtime": {
+            "total": 10,
+            "percentage": "0.122"
+          }
+        },
+        "goals": {
+          "for": 275,
+          "against": 219
+        },
+        "points": 110,
+        "form": "WLWWL",
+        "description": "Promotion - NHL (Play Offs: )"
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Regular Season",
+        "group": {
+          "name": "Western Conference"
+        },
+        "team": {
+          "id": 681,
+          "name": "Dallas Stars",
+          "logo": "https://media.api-sports.io/hockey/teams/681.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 82,
+          "win": {
+            "total": 41,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 9,
+            "percentage": "0.110"
+          },
+          "lose": {
+            "total": 26,
+            "percentage": "0.317"
+          },
+          "lose_overtime": {
+            "total": 6,
+            "percentage": "0.073"
+          }
+        },
+        "goals": {
+          "for": 277,
+          "against": 224
+        },
+        "points": 106,
+        "form": "LLLLL",
+        "description": "Promotion - NHL (Play Offs: )"
+      }
+    ],
+    [
+      {
+        "position": 1,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 693,
+          "name": "Ottawa Senators",
+          "logo": "https://media.api-sports.io/hockey/teams/693.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 7,
+          "win": {
+            "total": 3,
+            "percentage": "0.429"
+          },
+          "win_overtime": {
+            "total": 2,
+            "percentage": "0.286"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.143"
+          },
+          "lose_overtime": {
+            "total": 1,
+            "percentage": "0.143"
+          }
+        },
+        "goals": {
+          "for": 24,
+          "against": 22
+        },
+        "points": 11,
+        "form": "WWWLL",
+        "description": null
+      },
+      {
+        "position": 2,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 674,
+          "name": "Buffalo Sabres",
+          "logo": "https://media.api-sports.io/hockey/teams/674.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 6,
+          "win": {
+            "total": 3,
+            "percentage": "0.500"
+          },
+          "win_overtime": {
+            "total": 2,
+            "percentage": "0.333"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "0.167"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 26,
+          "against": 17
+        },
+        "points": 10,
+        "form": "WLWWW",
+        "description": null
+      },
+      {
+        "position": 3,
+        "stage": "NHL - Pre-season",
+        "group": {
+          "name": "Atlantic Division"
+        },
+        "team": {
+          "id": 684,
+          "name": "Florida Panthers",
+          "logo": "https://media.api-sports.io/hockey/teams/684.png"
+        },
+        "league": {
+          "id": 57,
+          "name": "NHL",
+          "type": "League",
+          "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+          "season": 2024
+        },
+        "country": {
+          "id": 31,
+          "name": "USA",
+          "code": "US",
+          "flag": "https://media.api-sports.io/flags/us.svg"
+        },
+        "games": {
+          "played": 8,
+          "win": {
+            "total": 3,
+            "percentage": "0.375"
+          },
+          "win_overtime": {
+            "total": 2,
+            "percentage": "0.250"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "0.375"
+          },
+          "lose_overtime": {
+            "total": 0,
+            "percentage": "0.000"
+          }
+        },
+        "goals": {
+          "for": 30,
+          "against": 30
+        },
+        "points": 10,
+        "form": "WWLWL",
+        "description": null
+      }
+    ]
+  ]
+}

@@ -44,6 +44,45 @@ pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --l
 # opções: --markets BR,AR --sports football --rate-limit 600 --scopes core_data --env live
 ```
 
+### 1.2 Onboarding, autoatendimento e uso
+
+**Modelos de plano** — [`config/plans.yaml`](../config/plans.yaml) define, para cada plano comercial (Core Data, Fan Experience, Live Intelligence, Enterprise — docs/01 §6), os módulos, mercados e esportes padrão, `rateLimitPerMinute`, `dailyRequestQuota` (informativa; `null` = sem cota) e o ambiente da chave inicial. O arquivo é validado na subida da API (Zod); o teste unitário garante que os módulos batem com `PLAN_MODULES`. Mudar o arquivo não altera tenants existentes (use `applyTemplate`).
+
+**API administrativa** — `/internal/admin/*`, só registrada quando `ADMIN_KEY_HASHES` está definida. Exige a chave administrativa no header `x-galaxie-admin-key` (`gs_admin_<32 bytes>`; gere com `pnpm --filter @galaxie/api admin:key`, que imprime a chave **uma vez** e o hash `sha256$...` para o ambiente) e, com `ADMIN_IP_ALLOWLIST` (IPs/CIDRs), responde **404** fora da allowlist. O proxy público já devolve 404 para `/internal/*` ([Caddyfile](../infra/caddy/Caddyfile)); o acesso é pela rede privada/VPN. Respostas `no-store`, sem CORS. Corpo e parâmetros validados com Zod (`.strict()`: campo desconhecido → 400).
+
+| Rota | Uso |
+|---|---|
+| `GET /internal/admin/plans` | Modelos de plano carregados |
+| `POST /internal/admin/tenants` | Onboarding: `{ slug, name, plan, modules?, markets?, sports?, rateLimitPerMinute?, dailyRequestQuota?, key?: { label?, scopes?, env?, expiresAt? } \| false }` → 201 com o tenant e a **chave exibida uma única vez**; slug repetido → 409 `CONFLICT` |
+| `GET /internal/admin/tenants?status=&plan=&limit=&offset=` | Lista |
+| `GET /internal/admin/tenants/{id\|slug}` | Tenant + metadados das chaves (nunca hash/segredo) |
+| `PATCH /internal/admin/tenants/{id\|slug}` | Plano, módulos, mercados, esportes, limites, `status` (`suspended` bloqueia todas as chaves); `applyTemplate: true` reaplica o modelo do plano antes dos demais campos |
+| `POST /internal/admin/tenants/{id}/keys` | Emite chave (escopos ⊆ módulos do tenant) |
+| `POST /internal/admin/tenants/{id}/keys/{keyId}/rotate` | Nova chave (mesmo rótulo/escopos/ambiente); a antiga expira em `graceSeconds` (padrão 86400; 0 = revoga já; máx. 7 dias) |
+| `POST /internal/admin/tenants/{id}/keys/{keyId}/revoke` | Revoga |
+| `GET /internal/admin/tenants/{id}/usage?from=&to=` | Uso por dia e rota (dias UTC; padrão últimos 7; máx. 92) |
+| `GET /internal/admin/usage?from=&to=` | Total por tenant no período |
+| `POST /internal/admin/usage/flush` | Força a consolidação Valkey → Postgres |
+
+```bash
+curl -X POST http://localhost:8080/internal/admin/tenants \
+  -H "x-galaxie-admin-key: $GALAXIE_ADMIN_KEY" -H 'content-type: application/json' \
+  -d '{"slug":"portal-esportivo","name":"Portal Esportivo","plan":"fan_experience","markets":["BR","AR"]}'
+```
+
+**Autoatendimento do tenant** — `/v1/account/*` exige uma chave válida, mas nenhum módulo (todo tenant gerencia a própria conta). Respostas `no-store`; documentadas no OpenAPI (tag *Conta*).
+
+| Rota | Uso |
+|---|---|
+| `GET /v1/account` | Plano, módulos, mercados, esportes, limites e a chave em uso (`effectiveModules` = módulos ∩ escopos) |
+| `GET /v1/account/keys` | Chaves do tenant (prefixo, rótulo, escopos, status, último uso) |
+| `POST /v1/account/keys/rotate` | Rotaciona **a chave usada na requisição**: `{ graceSeconds? }` (padrão 86400) → 201 com a chave nova (exibida uma vez) |
+| `GET /v1/account/usage?from=&to=` | Uso por dia e rota + `dailyRequestQuota` |
+
+Revogação, suspensão e mudança de plano valem em até 60 s (cache do autenticador por instância).
+
+**Contadores de uso** — toda requisição autenticada incrementa um `Map` em memória (tenant × dia UTC × padrão de rota; sem I/O na requisição). A cada 1 s (`USAGE_FLUSH_MS`) o buffer agregado vira **um** pipeline de `HINCRBY` no Valkey (`<prefixo>usage:<dia>:<tenant>`, campo = rota; set `<prefixo>usage:<dia>:tenants`; TTL 4 dias). A cada 60 s (`USAGE_PERSIST_MS`) uma instância (trava `SET NX`) consolida ontem e hoje em `api.usage_daily` com `greatest(...)` — idempotente e sem regredir se o Valkey for reiniciado. As consultas combinam o consolidado com os contadores vivos. Em queda abrupta da instância perde-se no máximo o último segundo. A 10k req/s isso dá ~1 round-trip/s por instância.
+
 ## 2. Espelho compatível — `/mirror`
 
 ```http
@@ -94,11 +133,19 @@ Esportes do espelho:
 Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 
 1. `GET /mirror/{sport}/{endpoint...}` — o endpoint pode ter barras (`/mirror/football/fixtures/headtohead?h2h=121-131`). Os parâmetros são normalizados com `normalizeParams` e a identidade é o mesmo `requestHash('api-sports', sport, endpoint, params)` usado pelo `ApiSportsClient` — a ordem dos parâmetros não importa.
-2. **Hit** (`x-galaxie-source: raw-hit`): serve o `body` da resposta **mais recente com sucesso** (HTTP 2xx e `errors` vazio) em `raw.api_response`, com `x-galaxie-fetched-at`. Como o JSONB não preserva a ordem das chaves, o envelope volta na ordem da api-sports (`get, parameters, errors, results, paging, response`); objetos internos podem ter as chaves em outra ordem (mesmo JSON).
-3. **Miss** (`x-galaxie-source: miss`): envelope vazio (`parameters: []` quando não há parâmetros, como o fornecedor) e upsert em **`api.backfill_request`** (`request_hash` único; repetições somam `hits`; `status` `pending → done/failed/skipped`, a cargo do ingestor). Respostas *miss* não entram no cache.
-4. Cache: TTL igual ao frescor do endpoint no cliente da api-sports (`ttlFor`, entre 15 s e 24 h); tag de purge `api_response:<request_hash>`.
-5. `x-galaxie-asset-base` traz `ASSETS_PUBLIC_BASE_URL` quando configurado. Ainda **não** implementados: `rebuilt` (remontar a partir do `core`), `stale` e a reescrita de URLs de mídia dentro do corpo — follow-ups da issue do espelho.
-6. Erros de autenticação/plano do espelho também saem em `application/problem+json` (§6), e não no formato de erro da api-sports.
+2. **Hit** (`x-galaxie-source: raw-hit`): serve o `body` da resposta **mais recente com sucesso** (HTTP 2xx e `errors` vazio) em `raw.api_response` enquanto ela estiver dentro do frescor do endpoint (`ttlFor`: 10 s no ao vivo, 5 min na agenda do dia, 1 min por `id`, 24 h em referências, "para sempre" em temporadas e dias encerrados), com `x-galaxie-fetched-at`. Como o JSONB não preserva a ordem das chaves, o envelope volta na ordem da api-sports (`get, parameters, errors, results, paging, response`); objetos internos podem ter as chaves em outra ordem (mesmo JSON).
+3. **Remontado** (`x-galaxie-source: rebuilt`): quando não há raw para a combinação — ou o raw passou do frescor e o `core` tem observação mais nova que ele —, partidas de futebol são remontadas de `core.football_fixture` (resumo `fixture/league/teams/goals/score` do fornecedor, na ordem de chaves da api-sports). `x-galaxie-fetched-at` = maior `last_valid_at` das partidas. Combinações remontáveis (`apps/api/src/routes/mirror-rebuild.ts`):
+   - `fixtures?id=` e `fixtures?ids=` (até 20) — com `events`, `lineups`, `statistics` e `players` do detalhe (`[]` quando ainda não sincronizado);
+   - `fixtures?live=all|<ligas>` — estado ao vivo do `core` (`live`, `break`, `suspended`), com `events`;
+   - `fixtures?date=` ou `fixtures?league=&season=` / `fixtures?team=&season=`, com `round`, `status` (`FT-AET`), `from`/`to` e `timezone` opcionais;
+   - `fixtures/headtohead?h2h=A-B`, com `last`, `league`, `season`, `status`, `date`, `from`/`to` e `timezone`.
+
+   `timezone` converte `fixture.date` para o fuso (como o fornecedor). Outros parâmetros (`venue`, `next`, `last` fora do h2h…) e demais endpoints/esportes não são remontados. Remontagem sem nenhuma partida conta como *miss*.
+4. **Last-known-good** (`x-galaxie-source: stale`): raw fora do frescor e nada mais novo no `core` — serve o raw com `x-galaxie-fetched-at` e fica no cache por no máximo 60 s.
+5. **Miss** (`x-galaxie-source: miss`): envelope vazio (`parameters: []` quando não há parâmetros, como o fornecedor) e upsert em **`api.backfill_request`** (`request_hash` único; repetições somam `hits`; `status` `pending → done/failed/skipped`, a cargo do ingestor). Respostas *miss* não entram no cache.
+6. Cache: TTL igual ao frescor do endpoint no cliente da api-sports (`ttlFor`, entre 15 s e 24 h); tags de purge `api_response:<request_hash>` (e `event` nas remontadas).
+7. **Mídia**: com `ASSETS_PUBLIC_BASE_URL`, toda URL `media(-N).api-sports.io` do corpo é reescrita para o nosso CDN (`rewriteMediaUrls` de `@galaxie/apisports-client`: `<base>/api-sports/<caminho original>`, chave determinística do Asset Mirror) e `x-galaxie-asset-base` traz a base. URLs da lista de bloqueio (`config/assets/denylist.yaml`, ou `MEDIA_DENYLIST_PATH`) viram `null`; URLs fora da CDN do fornecedor ficam intactas.
+8. Erros de autenticação/plano do espelho também saem em `application/problem+json` (§6), e não no formato de erro da api-sports.
 
 ## 3. API canônica — `/v1`
 
@@ -121,7 +168,11 @@ Convenções implementadas:
 - `/v1/competitions/{id}` aceita **UUID ou slug** e traz `seasons` (mais recente primeiro), `trophy_nickname` e `external_ids` (`{"api-sports": "71"}`).
 - Standings: `{season}` é o ano (`2026`) ou `current`; tabela vazia → `groups: []` (a temporada existe, a tabela ainda não foi sincronizada). `updated_at` respeita `?tz`.
 - Assets (`logo`, `flag`, `image`): `ASSETS_PUBLIC_BASE_URL` + `core.asset.storage_key` quando o asset já foi espelhado; senão, a `source_url` original.
-- `GET /v1/competitions/{id}/context` ainda **não** existe: depende dos eventos (#31).
+- `GET /v1/competitions/{id}/context?season=current|AAAA` (padrão `current`) — o que está em jogo, a partir de `core.standing`, das partidas do `core` e do regulamento (`config/rules/<slug>.yaml`, [docs/rules](rules/README.md)):
+  - `format` do regulamento (`league`, `cup`, `league_phase`, `groups_and_knockout`; `null` sem arquivo próprio);
+  - `groups[]`: por tabela/grupo, `leader` e `zones` (`id`, `kind`, `label` localizado, faixa `from`–`to` e os times que estão nela agora). Sem regulamento, as zonas saem das faixas contíguas de `description` do fornecedor;
+  - `bracket[]`: fases de mata-mata em ordem, com os confrontos (`participants`, `legs` com perna 1/2, `aggregate`, `winner_id` e `status` `scheduled`/`in_progress`/`decided`). Com regulamento de ida e volta, o confronto só é dado como decidido com as duas pernas no `core`; o vencedor sai do agregado, depois dos pênaltis da última perna e, por fim, do `winner` do fornecedor;
+  - `decisive_events[]`: até 10 próximos jogos (não encerrados, a partir de 3 h atrás) com stakes decisivos (título, vaga, rebaixamento, eliminação, mata-mata) ou finais, por `importance`.
 
 ### 3.2 Eventos
 
@@ -167,28 +218,85 @@ Exemplo de evento canônico:
 
 > Os IDs de times acima são ilustrativos; os IDs reais vêm do `provider_map` após o bootstrap. Os códigos de `stakes` e seus textos nos 8 mercados estão catalogados em [docs/rules](rules/README.md#catálogo-de-códigos).
 
+Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `apps/api/src/events/builder.ts`):
+
+- **Agenda** `GET /v1/events`: `{ data, next_cursor }`, `limit` 1–200 (padrão 50). `date` é o dia civil no fuso `tz` e tem precedência; `from`/`to` aceitam dia civil (início/fim inclusivo do dia no fuso) ou instante ISO 8601; **sem nenhum dos três, a agenda começa hoje** (no fuso). `competition` aceita UUID ou slug; `team` é o UUID do participante; `country` casa o país da competição **ou** de um participante; `status` é lista separada por vírgulas; `importance_min` 0–100. `order=starts_at` (padrão, crescente; cursor `starts_at,id`) ou `order=importance` (decrescente, depois horário; cursor `importance,starts_at,id`). Tenant com `sports` restritos só vê esses esportes; pedir outro → 403.
+- **Ao vivo** `GET /v1/events/live`: `{ data }` (até 500) com `status` `live`, `break` ou `suspended`, por importância; TTL 10 s.
+- **Evento**: `competition` com `nickname` (primeiro apelido de `semantic.competition_profile` no locale) e `logo`; `stage.name` localizado (`core.stage.name`) com a perna — `Semifinal · Volta` / `Semifinales · Vuelta`. A perna vem do confronto: duas partidas do mesmo par na mesma fase (a mais antiga é a ida); com regulamento de jogo único, não há perna. `score` traz `halftime`, `extratime`, `penalty` e `aggregate` (só no jogo de volta, com a ida encerrada: ida + placar atual da volta, nos lados da volta). `participants[]` com `logo`, `nickname` (primeiro apelido da base semântica) e `winner`; `clock` e `status_detail` do fornecedor; `importance` gravada pelo ingestor; `momentum` calculado no fuso pedido (docs/04 §3.2).
+- **`derby`**: `{ slug, name (localizado), intensity }` de `core.event.derby_id`.
+- **`competition_context`**: `regular` (pontos corridos/grupos/fase de liga), `knockout`, `semifinal`, `final`, `playoff` (pela fase), `derby`, `lead` (um dos dois é o 1º da tabela), `title`/`relegation` (quando algum stake trata disso).
+- **`stakes`**: só para eventos não encerrados de competições **com regulamento próprio** em `config/rules` (sem arquivo, nada é afirmado). Mata-mata: `knockoutStakes` com as regras da fase (`knockout_round` "1st Round" → `first_round` no YAML); a volta exige a ida encerrada no `core`. Pontos corridos: `leagueMatchStakes` com a tabela de `core.standing` (o grupo que contém os dois times) e os demais jogos da mesma rodada. `text` traz só o locale da resposta. Dados incompatíveis com o regulamento (ex.: mais jogos que o previsto) → `[]`.
+- **`/timeline`**: `core.event_incident` na ordem do fornecedor (`sequence`), com `team` (lado e logo), `player`/`assist` (`id` do `core.person`, ou `null` com o nome do fornecedor) e `comments`.
+- **`/lineups`** e **`/stats`**: do detalhe da partida (`core.football_fixture.detail`); IDs do fornecedor resolvidos para os nossos via `provider_map` (times e pessoas, com foto). Sem detalhe sincronizado: `available: false` e listas vazias. Outros esportes: `available: false` por ora.
+- **`/h2h?limit=`** (1–50, padrão 10): confrontos **encerrados** entre os dois participantes no `core` (qualquer competição, exceto o próprio evento), do mais recente ao mais antigo; `summary` (`played`, `draws`, `wins`/`goals` por time) considera todo o histórico. Nunca chama o fornecedor.
+- **`/{id}.ics`**: `text/calendar` (RFC 5545) com um `VEVENT`: `UID <id>@galaxie.sports`, `DTSTART`/`DTEND` em UTC (`starts_at` e `ends_at_expected`), `SUMMARY` "Mandante × Visitante · Competição", `LOCATION`, `STATUS` (`CANCELLED` para cancelado/abandonado, `TENTATIVE` para adiado), linhas CRLF dobradas em 75 octetos. O título segue o locale; os horários não dependem de `tz`.
+- **Cache**: detalhe com TTL de 10 s se ao vivo ou começando em até 2 h, 5 min se agendado e 1 h se encerrado; agenda até 5 min. Tags `event:<id>` (e `event` nas listas): `publishChange(db, { entityType: 'event', entityId })` purga. O plano do tenant (esporte) é verificado também quando a resposta vem do cache.
+
 ### 3.3 Times, atletas e semântica
 
 | Método e rota | Descrição |
 |---|---|
 | `GET /v1/teams?sport=&country=&competition=&q=` | Busca de times/seleções |
+| `GET /v1/teams/{id}` | Detalhe do time (estádio, país, IDs externos) |
 | `GET /v1/teams/{id}/overview` | Posição no torneio, forma recente (últimos 5), últimos resultados, próximo jogo + onde assistir |
 | `GET /v1/teams/{id}/events?from=&to=` | Jogos do time |
 | `GET /v1/teams/{id}/squad?season=` | Elenco e comissão técnica |
-| `GET /v1/teams/{id}/semantic?locale=` | Apelidos, mascote, torcida, gritos, estádio, rivais, fatos |
+| `GET /v1/teams/{id}/semantic?locale=` | Cartão de identidade: apelidos, mascote, torcida, gritos, estádio, rivais, fatos, dicas de copy do mercado |
+| `GET /v1/teams/{id}/rivals?locale=` | Rivais e clássicos do time (segmentação/CRM) |
 | `GET /v1/derbies?country=&team=` | Clássicos |
-| `GET /v1/derbies/{slug}` | Clássico + histórico de confrontos (h2h do espelho) |
+| `GET /v1/derbies/upcoming?days=7&country=` | Clássicos dos próximos dias (eventos com `derby_id`) |
+| `GET /v1/derbies/{slug}` | Clássico + retrospecto calculado dos eventos do `core` |
+| `GET /v1/glossary?locale=&category=` | Glossário esportivo por mercado ("secar", "hinchar por", "le voy al", "hacer fuerza"…) |
 | `GET /v1/people/{id}` | Jogador/técnico/piloto |
-| `GET /v1/copy?locale=&sport=&intent=&affinity=&momentum=&context=` | Microcopy sugerida (badges, chamadas) respeitando `copy_permission` |
+| `GET /v1/copy?locale=&sport=&intent=&tone=&affinity_type=&affinity_source=&momentum=&context=&team=&rival=&minutes=` | Microcopy sugerida (badges, chamadas) respeitando `copy_permission` |
+
+#### 3.3.1 Implementação da semântica (`apps/api/src/routes/v1/semantic.ts` e `copy.ts`)
+
+- **Módulo `semantic`** em todas as rotas desta tabela a partir de `/v1/teams/{id}/semantic` (planos `fan_experience`, `live_intelligence` e `enterprise`). As demais rotas de times ficam com `/v1/teams` (#32).
+- **`{id}` de time** aceita o UUID do participante (`core.participant`, ligado por `semantic.team_profile.participant_id`) ou o slug do perfil (`palmeiras`). Clássico usa o slug (`choque-rei`).
+- **Piso editorial (`review_status`).** Cada item da base tem `draft`, `reviewed` ou `approved`. A API serve só itens com status ≥ ao mínimo efetivo = o maior entre o piso do servidor e `?min_review_status=` — o cliente **endurece, nunca afrouxa**. Piso do servidor: variável `SEMANTIC_MIN_REVIEW_STATUS` (padrão **`approved`**, o de produção; em desenvolvimento local use `draft`, já que toda a base ainda está em revisão). Listas filtram; detalhe abaixo do piso → 404 com `detail` explicando o motivo. Um piso por tenant fica para quando houver configuração por tenant no schema `api`.
+- **Locale.** Nomes de time/clássico seguem `labels` com a cadeia `es-XX → es → en`; `copy_hints` e glossário usam só o locale e o idioma (`es-AR → es`), nunca outro idioma. `/v1/copy` não tem fallback entre locales (copy é localizada pela intenção).
+- **`/v1/derbies`**: lista completa (`{ data }`), por intensidade e slug; `country` casa o país de qualquer um dos dois times; `team` inexistente → 404.
+- **`/v1/derbies/upcoming`**: eventos com `core.event.derby_id` entre agora e `days` dias (1–30, padrão 7), sem encerrados/cancelados/adiados; cache de agenda (5 min). Vazia enquanto não houver eventos futuros sincronizados.
+- **`/v1/derbies/{slug}`**: retrospecto **calculado só de `core.event`** (status `finished`, placar presente, os dois participantes em qualquer mando) — nunca chama o provedor. Traz vitórias e gols por time, empates, até 3 maiores goleadas (saldo → gols → mais recente), últimos 5, primeiro/último confronto e `next_event`. Pênaltis aparecem em `penalties`, mas o jogo conta como empate. Sem os dois times ligados ao `core`, `retrospect.available = false`. TTL 1 h (muda a cada clássico encerrado).
+- **`/v1/teams/{id}/rivals`**: rivais declarados no perfil + clássicos que incluem o time, com `derby`, `intensity` e `mutual` (os dois se declaram rivais); rival abaixo do piso é omitido e clássico abaixo dele vira `derby: null`.
+- **`/v1/glossary`**: lido de `data/knowledge/glossary/<locale>.yaml` (validado por `pnpm knowledge:validate`), carregado uma vez por processo; pasta configurável por `KNOWLEDGE_DIR` (padrão: `data/knowledge` do repositório). Cada termo traz `requires` (`declared_rival`/`declared_affinity`) — a mesma regra do `copy_permission`.
+- **`/v1/copy`**: templates de `semantic.copy_template` (seed da base) escolhidos por `selectCopy` (`packages/knowledge`). `affinity_source=inferred` → só `inform` tom 1; rivalidade só com `affinity_type=rival&affinity_source=explicit`. `team`/`rival` (UUID ou slug) preenchem `{team}`, `{nickname}` (apelido do mercado) e `{rival}`; `minutes` preenche `{minutes}`; com algum deles, templates com placeholder sem valor são descartados e `text` vem pronto; sem nenhum, `text` é `null` e o cliente preenche o `template`. `variant` é uma semente opaca para variar entre equivalentes — **nunca** envie dado pessoal. Sem template compatível, `selection: null` (200).
+- **Cache**: 24 h (`semantic`) com `ETag`/304; tags `derby:<id>`, `team_profile:<slug>`, `derby`, `team_profile`, `copy_template`, `glossary`. O seed semântico ainda não publica no change feed: até lá, mudanças na base valem ao fim do TTL.
+
+Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
+
+- `GET /v1/teams`: `{ data, next_cursor }` ordenado por nome; `q` (≥ 2 caracteres) busca em nome, nome curto, código e apelidos/nomes da base semântica; `competition` (UUID ou slug) = times com jogos na competição. Cada item traz `nicknames` da base semântica (vazio sem perfil).
+- `GET /v1/teams/{id}`: resumo + `country_ref` localizado, `founded`, `venue` (estádio da casa, com imagem) e `external_ids`.
+- `GET /v1/teams/{id}/overview`: em uma chamada, `team`, `standings` (por competição, a temporada atual ou a mais recente com tabela do time), `form` (últimos 5 encerrados, do mais recente ao mais antigo; placar do ponto de vista do time; empate decidido nos pênaltis usa o `winner` do fornecedor), `last_events` (5), `live_event` e `next_event` (próximo `scheduled`/`starting` a partir de 3 h atrás), todos no formato de evento de §3.2 (com stakes). Onde assistir do próximo jogo entra com a issue de onde assistir.
+- `GET /v1/teams/{id}/events`: mesmos filtros, ordenação e cursor da agenda (§3.2), sem janela padrão (sem `from`/`to`, todo o histórico em ordem crescente).
+- `GET /v1/teams/{id}/squad?season=`: sem `season`, o elenco atual (`core.roster.season_id` nulo); com o ano, os elencos de temporadas daquele ano. `players`, `coaches`, `staff`, ordenados por posição (goleiro → atacante), número e nome; pessoa com `age` calculada.
+- `GET /v1/people/{id}`: dados de `core.person`, foto, `age`, `teams` (elencos, atual primeiro) e `external_ids`.
+- Cache: times e pessoas 24 h, elenco 1 h, overview/jogos até 5 min (10 s se houver jogo ao vivo ou começando); tags `participant:<id>`, `person:<id>`, `roster`, `event`.
 
 ### 3.4 Olimpíadas e Pan-Americano
 
 | Método e rota | Descrição |
 |---|---|
-| `GET /v1/multisport/games` | Edições (Olimpíadas de Verão/Inverno, Pan-Americano) |
-| `GET /v1/multisport/games/{slug}/medals?country=` | Quadro de medalhas |
-| `GET /v1/multisport/games/{slug}/schedule?sport=&date=&country=` | Agenda por modalidade |
-| `GET /v1/multisport/games/{slug}/athletes?country=BR` | Delegação |
+| `GET /v1/multisport/games?type=OG,PAN&year=&season=&status=` | Edições (Olimpíadas de Verão/Inverno, Pan-Americano) |
+| `GET /v1/multisport/games/{slug}` | Edição |
+| `GET /v1/multisport/games/{slug}/medals?sort=gold\|total&region=latam&noc=` | Quadro de medalhas |
+| `GET /v1/multisport/games/{slug}/schedule?date=&sport=&noc=&medal_only=&tz=` | Agenda por dia/modalidade/país (paginada por cursor) |
+| `GET /v1/multisport/games/{slug}/events/{id}` | Prova: fases, unidades, resultados e medalhas |
+| `GET /v1/multisport/games/{slug}/nocs/{noc}/athletes` | Delegação |
+| `GET /v1/multisport/games/{slug}/today/{noc}?date=&tz=` | "Brasil hoje" / "Argentina hoy" |
+| `GET /v1/multisport/history/medals?noc=BRA,ARG&type=OG,PAN&season=` | Histórico de medalhas por país |
+
+#### 3.4.1 Implementação (`apps/api/src/routes/v1/multisport.ts`)
+
+- **Módulo `multisport`** (planos `live_intelligence` e `enterprise`). Países pelo código COI (`BRA`, `CHI`, `URU`…), case-insensitive; `noc` aceita lista separada por vírgula no histórico.
+- **Regra de qualidade (docs/08 §6.4) — escolha: resposta sinalizada, não erro.** Quadro, ranking, medalhas do dia e histórico só são publicados quando `games.medal_data_quality` é `complete` ou `partial`. Fora disso a resposta é **200** com `data_quality: { level, coverage, publishable: false, notice }` e `data: []` (no histórico, a edição vai para `withheld`). Motivos: o cliente renderiza "indisponível" sem tratar erro, a resposta é cacheável e não há como exibir número errado (a lista vem vazia). `partial` sai com `notice` localizado ("Quadro parcial: cobertura de 95,7%…"). `unknown` (sem referência para medir) e edições futuras também não publicam.
+- **Quadro**: view `multisport.medal_table` (derivada, sem revogadas); `rank` é a posição no critério pedido (`sort=gold` padrão COI ou `total`), empates dividem a posição; `region=latam` filtra `LATAM_NOCS` mantendo as posições globais. `sources` traz fonte e licença (Wikidata, CC0) para atribuição.
+- **Agenda**: unidades (`multisport.unit`) da edição, por início; `date` é o dia **local** no `tz` pedido ou, sem `tz`, no fuso da sede; `sport` aceita código do esporte ou da disciplina (ODF); `noc` filtra unidades com resultado/participante do CON; `medal_only=true` só unidades de medalha. Vazia enquanto a agenda oficial não é carregada (hoje não há fonte de agenda).
+- **Delegação** (`basis: medals_and_results`): atletas derivados das medalhas (individuais e integrantes de equipes) e dos resultados, por ouro → prata → bronze → nome. A lista oficial de inscritos é follow-up.
+- **"Hoje"**: unidades do dia com o CON e medalhas com `awarded_at` no dia (só se publicável); `medal_chances` e `where_to_watch` vêm `null` (reservados). Sem `date`, "hoje" é calculado no fuso (`tz` ou da sede).
+- **Cache**: edições e histórico 24 h; quadro 24 h (encerrada), 60 s (em andamento) ou 1 h (futura); agenda, provas e "hoje" 5 min; delegação 1 h. Tags `games:<id>`, `medal_table:<id>`, `medal`, `unit`.
+- **#78**: os torneios coletivos (futebol, basquete, vôlei, handebol…) ficam ligados à edição por `multisport.games_competition` e seus jogos são eventos comuns do `core` (listados por `/v1/events`, #31, pela competição); quando houver agenda por unidade, a ligação unidade ↔ evento canônico sai em `core_event_id`.
 
 ## 4. Onde assistir
 
@@ -227,7 +335,7 @@ Regras de contrato:
 | Sem informação confiável | `status: "unknown"`, `options: []` e `message` localizada ("Não temos as informações de transmissão ainda.") — o evento **continua** existindo |
 | Conflito entre fontes ou confiança < limiar | Opção **omitida** (registrada internamente como `omitted`) |
 | Mesma plataforma vinda de várias fontes | Deduplicada; fontes agregadas em `sources` |
-| Correção aceita (inclusão/remoção) | Propagada ao cliente em **≤ 5 min** (purge de cache + SSE + webhook `where_to_watch.changed`) |
+| Correção aceita (inclusão/remoção) | Propagada ao cliente em **≤ 5 min** (purge de cache + SSE + webhook `where_to_watch.changed`). O trigger de `enrich.broadcast_option` publica a mudança no change feed sem depender do writer; purge das tags `where_to_watch:<evento>` e `event:<evento>` em < 1 s (§5, §7.1) |
 | Ordenação | A API ordena por `medium`/confiança; a **ordenação final por direito de acesso do usuário** (incluído, ativação, upgrade, extra, externo) é responsabilidade do cliente, que conhece o assinante |
 | Limite de exibição | A API retorna todas as opções válidas; recomenda-se exibir até 4 |
 
@@ -264,6 +372,141 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 | **Webhooks** | Configurados por tenant | `event.status_changed`, `event.score_changed`, `event.incident_added`, `where_to_watch.changed`, `event.context_published` — assinados com HMAC-SHA256 |
 | **Polling** | `GET /v1/events/live` com `ETag` | Clientes simples |
 
+**Tópicos** (nome curto em `?topics=` → nome completo no SSE/webhook) e o módulo do plano exigido:
+
+| Curto | Tópico | Quando | Módulo |
+|---|---|---|---|
+| `status` | `event.status_changed` | Mudou `status`, `status_detail` ou o relógio (`clock`) do evento | `core_data` |
+| `score` | `event.score_changed` | Mudou o placar | `core_data` |
+| `incidents` | `event.incident_added` | Lance novo na timeline (gol, cartão, VAR...) | `core_data` |
+| `where_to_watch` | `where_to_watch.changed` | Opção de transmissão incluída, corrigida ou removida | `where_to_watch` |
+| `context` | `event.context_published` | Cenário/resumo de IA publicado ou revisado | `live_intelligence` |
+
+**Payload** (`data:` do SSE e corpo do webhook — schema `RealtimeChange` no OpenAPI), compacto: o evento, o tópico, os campos que mudaram e os novos valores. Para o estado completo, use a rota REST do evento.
+
+```json
+{
+  "id": "1042",
+  "topic": "event.score_changed",
+  "event_id": "0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d10",
+  "sport": "football",
+  "competition_id": "0192c7e1-…",
+  "changed": ["score"],
+  "data": { "score": { "home": 1, "away": 0 } },
+  "occurred_at": "2026-10-21T22:47:12.345Z"
+}
+```
+
+`data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score`; `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`.
+
+### 5.1 SSE — `GET /v1/stream`
+
+```http
+GET /v1/stream?events=<id>,<id>&topics=score,status,incidents
+x-galaxie-key: gs_live_xxx
+Last-Event-ID: 1041
+```
+
+| Parâmetro | Regra |
+|---|---|
+| `events` | Até 200 IDs de evento (vírgula). Vazio = todos os eventos do contrato |
+| `competitions`, `sports` | Filtros adicionais (até 50 competições, 20 esportes); esporte fora do contrato → 403 |
+| `topics` | Nomes curtos ou completos; padrão: todos os do plano. Tópico de módulo não contratado → 403 `MODULE_NOT_IN_PLAN` |
+| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` e o cliente deve recarregar o estado pela REST) |
+| `?key=` | Chave para `EventSource` do navegador, que não envia headers (ver *trade-off* abaixo) |
+
+Mensagens: `id:` (ID da mudança), `event:` (tópico), `data:` (JSON). O stream começa com `retry: 3000` e, depois da retomada, `event: ready` com `{ "last_event_id": "...", "topics": [...] }`. Heartbeat a cada 15 s (comentário `: hb <ts>`), que mantém proxies e balanceadores com a conexão aberta.
+
+```js
+const es = new EventSource(`${API}/v1/stream?events=${id}&topics=score,status&key=${KEY_DE_LEITURA}`);
+es.addEventListener('event.score_changed', (e) => atualizarPlacar(JSON.parse(e.data)));
+// reconexão automática: o navegador reenvia Last-Event-ID e a API completa o que faltou
+```
+
+**Chave na URL (`?key=`) — *trade-off*.** O `EventSource` nativo não envia headers, então a chave vai na query. Ela pode ficar em histórico do navegador, logs de proxies/CDN e no `Referer`. A API remove `key=` dos próprios logs, mas recomendamos: (1) no servidor ou em apps, usar o header `x-galaxie-key` (ex.: `fetch` com leitura do stream, ou um polyfill de EventSource com headers); (2) no navegador, usar uma **chave dedicada**, restrita por escopo (`--scopes core_data`) e rotacionável, nunca a chave principal do tenant. `?key=` só vale para `/v1/stream`.
+
+**Limites e robustez.**
+
+- **Conexões por tenant:** no máximo `SSE_MAX_CONNECTIONS_PER_TENANT` (padrão 100) simultâneas, somando todas as instâncias (lease por conexão no Valkey, renovado no heartbeat; expira sozinho se a instância cair). Acima → 429 `RATE_LIMITED` com `retry-after: 30`. A abertura também conta no rate limit da rota.
+- **Backpressure:** se o cliente não consome (socket cheio), as mensagens ficam numa fila de até 1 MiB; estourou, a conexão é derrubada e o cliente retoma pelo `Last-Event-ID` — um cliente lento nunca segura memória da API.
+- **Entrega:** pelo menos uma vez, em ordem de ID na prática; a mesma mudança não é repetida numa conexão (deduplicação por ID). Clientes devem tratar mudanças como idempotentes pelo `id`.
+
+**Arquitetura (fan-out horizontal).**
+
+```mermaid
+flowchart LR
+  W[Writers<br/>ingestor · agentes · editorial] --> T[(core.event · event_incident<br/>enrich.broadcast_option · event_context)]
+  T -- triggers --> CF[(ops.change_feed)]
+  CF -- NOTIFY ops_change_feed --> R[Relay<br/>1 instância líder]
+  R -- PUBLISH stream:changes --> V[(Valkey)]
+  V --> A1[API 1 · SSE] & A2[API 2 · SSE] & A3[API n · SSE]
+  CF --> WK[Worker de webhooks] --> CL[Endpoints dos clientes]
+  CF --> P[Purge de cache · CDN]
+```
+
+1. **Captura** (migration `0006_realtime`): triggers em `core.event` (status/detalhe/relógio → `event.status_changed`; placar → `event.score_changed`), `core.event_incident` (INSERT → `event.incident_added`; lances de eventos que começaram há mais de 2 dias — carga histórica — não notificam), `enrich.broadcast_option` (INSERT/UPDATE/DELETE → `where_to_watch.changed`; só reverificar `last_verified_at` não notifica) e `enrich.event_context` (publicado/revisado → `event.context_published`). Todos chamam `ops.publish_change()`, a mesma função usada por `publishChange()` no app: a mesma (tópico, entidade) publicada várias vezes **na mesma transação** vira uma linha só, com os payloads fundidos (listas acumulam). O NOTIFY sai no commit.
+2. **Relay**: uma instância por vez (lease `<prefixo>stream:relay` no Valkey, 10 s) lê o change feed — acordada pelo NOTIFY e por varredura a cada 1 s — e publica cada mudança pública no canal `<prefixo>stream:changes`. O cursor tolera IDs que ficam visíveis fora de ordem (transações lentas) e pula lacunas definitivas após 10 s.
+3. **Hub**: toda instância assina o canal e entrega às suas conexões, aplicando filtros e o contrato do tenant (módulos, esportes, mercados). Sem Valkey, cada instância é seu próprio relay (desenvolvimento).
+
+**Latência medida** (testes de integração, Postgres + Valkey locais): mudança no banco → mensagem SSE em ~10–20 ms com NOTIFY; ~1 s só com a varredura (sem NOTIFY). Meta: ≤ 5 s. Troca de líder do relay (instância caiu): até 10 s.
+
+### 5.2 Webhooks
+
+Cadastro (por enquanto via CLI de administração; a API de autoatendimento é um follow-up):
+
+```bash
+pnpm --filter @galaxie/api webhook create --tenant demo-local --url https://cliente.example/hooks/galaxie \
+  --topics score,status,where_to_watch [--events <ids>] [--competitions <ids>] [--sports football]
+# exibe o segredo whsec_... uma única vez
+pnpm --filter @galaxie/api webhook list [--tenant demo-local]
+pnpm --filter @galaxie/api webhook disable|enable --id <endpoint>
+pnpm --filter @galaxie/api webhook dlq [--id <endpoint>]
+pnpm --filter @galaxie/api webhook replay --id <endpoint> | --deliveries <ids>
+```
+
+URL: `https://` (http só para `localhost`, ou com `--allow-http`), sem credenciais. Sem `--topics`, o endpoint recebe todos os tópicos do plano; filtros e contrato do tenant valem como no SSE.
+
+**Requisição** — `POST` com o corpo `RealtimeChange` (acima) e os headers:
+
+| Header | Valor |
+|---|---|
+| `x-galaxie-signature` | `t=<unix segundos>,v1=<hex de HMAC-SHA256(segredo, "<t>.<corpo bruto>")>` |
+| `x-galaxie-event` | Tópico |
+| `x-galaxie-delivery` | ID da entrega |
+| `x-galaxie-attempt` | Tentativa (1, 2, ...) |
+| `idempotency-key` | `<endpoint>:<id da mudança>` — igual em todas as tentativas; descarte duplicatas por ela |
+| `user-agent` | `galaxie-sports-webhooks/0.1` |
+
+**Retentativas e DLQ.** Qualquer resposta fora de 2xx (inclusive redirecionamentos, que não são seguidos) ou timeout de 10 s é falha. Retentativa exponencial: 10 s, 20 s, 40 s... (±20% de jitter, teto de 1 h), até 10 tentativas (~2,5 h); depois a entrega vai para a **DLQ** (`status = dead` em `api.webhook_delivery`), listável e reenfileirável pela CLI. O corpo fica congelado no enfileiramento: retentativas reenviam exatamente o mesmo JSON (a assinatura é refeita com o `t` do envio). Configuração do worker: `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_RETRY_BASE_MS`, `WEBHOOK_TIMEOUT_MS`.
+
+**Worker** — processo separado da API (`pnpm --filter @galaxie/api webhooks:worker`), para que endpoints lentos nunca disputem recursos com as requisições. Pode rodar em mais de uma instância: o enfileiramento (cursor em `api.webhook_cursor`) e a reivindicação de entregas usam `FOR UPDATE SKIP LOCKED`, e cada entrega é única por (endpoint, mudança). Latência medida (local): mudança → POST no endpoint em ~20–60 ms.
+
+**Verificação da assinatura (Node):**
+
+```js
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+/** Verifica `x-galaxie-signature` sobre o corpo BRUTO (antes de JSON.parse). */
+export function verifyGalaxieSignature(rawBody, header, secret, toleranceSec = 300) {
+  const parts = Object.fromEntries(header.split(',').map((p) => p.trim().split('=', 2)));
+  const t = Number(parts.t);
+  if (!Number.isInteger(t) || !parts.v1) return false;
+  if (Math.abs(Date.now() / 1000 - t) > toleranceSec) return false; // proteção contra replay
+  const expected = createHmac('sha256', secret).update(`${t}.${rawBody}`).digest();
+  const received = Buffer.from(parts.v1, 'hex');
+  return received.length === expected.length && timingSafeEqual(expected, received);
+}
+
+// Express: app.post('/hooks/galaxie', express.raw({ type: 'application/json' }), (req, res) => {
+//   if (!verifyGalaxieSignature(req.body.toString('utf8'), req.get('x-galaxie-signature'), SECRET))
+//     return res.sendStatus(401);
+//   const change = JSON.parse(req.body);   // deduplique por req.get('idempotency-key')
+//   res.sendStatus(204);                   // responda rápido; processe de forma assíncrona
+// });
+```
+
+O segredo fica em `api.webhook_endpoint.secret` (o worker precisa dele para assinar). Rotação: cadastre um novo endpoint, migre o receptor e desative o antigo.
+
 ## 6. Erros
 
 Formato RFC 9457 (`application/problem+json`):
@@ -278,7 +521,8 @@ Formato RFC 9457 (`application/problem+json`):
 | 401 `INVALID_KEY` | Chave ausente/inválida |
 | 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
 | 404 `NOT_FOUND` | Entidade inexistente |
-| 409 `CONFLICT` | Rotas internas: a versão corrigida não é mais a vigente |
+| 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente; rotas internas de correção quando a versão corrigida não é mais a vigente) |
+| 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
 | 429 `RATE_LIMITED` | Limite do tenant |
 | 503 `DEGRADED` | Raro: só quando nem last-known-good existe |
 | 500 `INTERNAL_ERROR` | Erro inesperado (registrado em log) |
@@ -294,7 +538,8 @@ Formato RFC 9457 (`application/problem+json`):
 | Agenda do dia | 5 min | Mudança de horário/status |
 | Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |
 | Onde assistir | 60 s | Correção aceita (purge) |
-| Semântica | 24 h | Merge de PR na base |
+| Semântica (clássicos, perfis, glossário, copy) | 24 h (retrospecto do clássico: 1 h) | Merge de PR na base / novo seed |
+| Quadro de medalhas | 24 h (edição encerrada) · 60 s (em andamento) · 1 h (futura) | Nova carga/QA de medalhas |
 | Assets (imagens) | 30 dias, imutável por hash | Nova versão = nova URL (`?v=` com o início do sha256 de `core.asset`) |
 
 ### 7.1 Implementação
@@ -302,7 +547,7 @@ Formato RFC 9457 (`application/problem+json`):
 - **Cache de respostas no Valkey** (`<prefixo>cache:<hash>`): chave = método + caminho + query ordenada + locale resolvido (+ fuso quando a resposta tem instantes). Respostas independem do tenant. Sem Valkey (ou com falha), a resposta sai direto do banco.
 - **Headers:** `ETag` (sha1 do corpo), `Cache-Control: public, max-age=min(TTL, 300), s-maxage=TTL, stale-while-revalidate=…` (o navegador revalida em ≤ 5 min; a CDN usa o TTL cheio e é purgada ativamente), `Vary: Accept-Language, x-galaxie-key`, `surrogate-key` com as tags da resposta e `x-galaxie-cache: HIT|MISS`. `If-None-Match` igual ao ETag → 304 sem corpo.
 - **Tags de purge:** entidade `<tipo>:<id>` e coleção `<tipo>`. Ex.: detalhe da competição → `competition:<id>`; lista de competições → `competition`, `season`, `competition_profile`, `country`; tabela → `standing:<season_id>`, `competition:<id>`; venue → `venue:<id>`; espelho → `api_response:<request_hash>`.
-- **Change feed:** todo writer que altera dado servido pela API chama `publishChange(db, { topic, entityType, entityId, payload? })` (`@galaxie/db`), que insere em `ops.change_feed` e faz `pg_notify('ops_change_feed', id)` na mesma transação. A API escuta o canal (LISTEN) e também varre a tabela a cada 5 s (cobre writers que não notificam); cada mudança purga as tags `<entityType>:<entityId>`, `<entityType>` e `payload.tags` no Valkey e na CDN. Propagação típica: < 1 s com NOTIFY, ≤ 5 s só com a varredura — dentro do SLA de 5 min do onde assistir.
+- **Change feed:** mudanças em `core.event`, `core.event_incident`, `enrich.broadcast_option` e `enrich.event_context` chegam ao `ops.change_feed` sozinhas, por triggers (§5.1). Os demais writers que alteram dado servido pela API chamam `publishChange(db, { topic, entityType, entityId, payload? })` (`@galaxie/db`), que usa a mesma função `ops.publish_change()` (deduplicada por transação) e faz `pg_notify('ops_change_feed', id)`. Entidades dos triggers: `event:<id>` (estado, placar, lances), `where_to_watch:<event_id>` (+ `event:<event_id>`) e `event_context:<event_id>` (+ `event:<event_id>`). A API escuta o canal (LISTEN) e também varre a tabela a cada 5 s (cobre writers que não notificam); cada mudança purga as tags `<entityType>:<entityId>`, `<entityType>` e `payload.tags` no Valkey e na CDN. Propagação típica: < 1 s com NOTIFY, ≤ 5 s só com a varredura — dentro do SLA de 5 min do onde assistir.
 - **CDN:** interface `CdnPurger.purgeTags(tags)`; hoje `NoopCdnPurger`. A implementação concreta (purge por `Surrogate-Key` ou `Cache-Tag`, conforme a CDN) entra quando a CDN for escolhida — a API já emite `surrogate-key`.
 
 ## 8. Versionamento

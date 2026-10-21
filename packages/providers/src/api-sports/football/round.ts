@@ -19,6 +19,7 @@ const PHASE_RANK: Readonly<Record<StageKind, number>> = {
   semi_final: 11,
   third_place: 12,
   final: 13,
+  race_weekend: 2,
 };
 
 export interface ParsedRound {
@@ -107,6 +108,8 @@ function names(
       return { pt: 'Final', es: 'Final' };
     case 'friendly':
       return { pt: 'Amistosos', es: 'Amistosos' };
+    case 'race_weekend':
+      return { pt: prefix, es: prefix };
     default:
       return withRound({ pt: prefix, es: prefix }, n);
   }

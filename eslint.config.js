@@ -25,4 +25,11 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
+  {
+    // Scripts k6 (tests/load): rodam no runtime do k6, não no Node.
+    files: ['tests/load/**/*.js'],
+    languageOptions: {
+      globals: { __ENV: 'readonly', __VU: 'readonly', __ITER: 'readonly', open: 'readonly' },
+    },
+  },
 );

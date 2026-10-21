@@ -25,6 +25,13 @@ export interface EventScore {
   extratime?: ScorePair | null;
   penalty?: ScorePair | null;
   aggregate?: { home: number; away: number } | null;
+  /**
+   * Parciais por período nos esportes além do futebol, em ordem: quartos (`q1`…`q4`, `ot`), sets
+   * (`s1`…`s5`), tempos (`h1`, `h2`, `ot`), períodos (`p1`…`p3`, `ot`, `so`) ou entradas (`i1`…`i9`, `extra`).
+   */
+  periods?: Record<string, ScorePair> | null;
+  /** Detalhe do placar por lado (AFL: goals/behinds; beisebol: hits/errors). */
+  breakdown?: { home: Record<string, number | null>; away: Record<string, number | null> } | null;
 }
 
 /** De onde veio o estado atual: dado do fornecedor ou inferência pelo horário. */

@@ -243,6 +243,10 @@ export type EventScore = {
   extratime?: { home: number | null; away: number | null } | null;
   penalty?: { home: number | null; away: number | null } | null;
   aggregate?: { home: number; away: number } | null;
+  /** Parciais por período (quartos, sets, tempos, entradas) nos esportes além do futebol. */
+  periods?: Record<string, { home: number | null; away: number | null }> | null;
+  /** Detalhe do placar por lado (AFL: goals/behinds; beisebol: hits/errors). */
+  breakdown?: { home: Record<string, number | null>; away: Record<string, number | null> } | null;
 };
 
 export type EventClock = { minute: number | null; extra: number | null; period: string | null };
@@ -416,4 +420,32 @@ export const footballFixture = core.table(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex('football_fixture_provider_uq').on(t.providerFixtureId)],
+);
+
+// ─── demais esportes ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Espelho genérico do jogo/corrida/luta da api-sports nos 11 esportes além do futebol (issue #25),
+ * ligado ao evento canônico: o item do fornecedor em `summary` (games, races, fights) e as partes
+ * vindas de endpoints auxiliares (F1 `rankings/races`/`startinggrid`, MMA `fights/results`) em `detail`.
+ */
+export const sportEventDetail = core.table(
+  'sport_event_detail',
+  {
+    eventId: uuid('event_id')
+      .primaryKey()
+      .references(() => event.id, { onDelete: 'cascade' }),
+    sport: text('sport')
+      .notNull()
+      .references(() => sport.slug),
+    provider: text('provider').notNull(),
+    providerEventId: text('provider_event_id').notNull(),
+    /** game | race | fight */
+    kind: text('kind').notNull(),
+    summary: jsonb('summary').notNull(),
+    detail: jsonb('detail'),
+    detailFetchedAt: timestamp('detail_fetched_at', { withTimezone: true }),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex('sport_event_detail_provider_uq').on(t.provider, t.sport, t.providerEventId)],
 );

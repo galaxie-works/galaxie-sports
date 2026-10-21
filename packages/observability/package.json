@@ -1,0 +1,34 @@
+{
+  "name": "@galaxie/observability",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Logs estruturados (pino) e métricas Prometheus (cota, jobs, frescor, ao vivo) do Galaxie Sports",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src --passWithNoTests",
+    "test:integration": "vitest run --dir test"
+  },
+  "dependencies": {
+    "@galaxie/apisports-client": "workspace:*",
+    "@galaxie/db": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "pino": "^10.4.0",
+    "prom-client": "^15.1.3"
+  },
+  "devDependencies": {
+    "postgres": "^3.4.9"
+  }
+}

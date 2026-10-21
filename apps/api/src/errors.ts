@@ -76,10 +76,13 @@ export function registerErrorHandling(app: FastifyInstance): void {
     if (err instanceof ProblemError) return sendProblem(reply, request, err);
     const status = (err as FastifyError).statusCode ?? 500;
     if (status >= 400 && status < 500) {
+      if (status === 404) return sendProblem(reply, request, problems.notFound());
+      if (status === 400) return sendProblem(reply, request, problems.invalidParams([], err.message));
+      // 413 (corpo grande demais), 415 (content-type não suportado) etc. mantêm o status original
       return sendProblem(
         reply,
         request,
-        status === 404 ? problems.notFound() : problems.invalidParams([], err.message),
+        new ProblemError(status, 'INVALID_PARAMS', 'Requisição inválida', err.message),
       );
     }
     request.log.error({ err }, 'erro não tratado');

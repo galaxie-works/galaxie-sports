@@ -1,0 +1,141 @@
+{
+  "get": "standings/",
+  "parameters": {
+    "league": "standard",
+    "season": "2024"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "league": "standard",
+      "season": 2024,
+      "team": {
+        "id": 2,
+        "name": "Boston Celtics",
+        "nickname": "Celtics",
+        "code": "BOS",
+        "logo": "https://upload.wikimedia.org/wikipedia/en/8/8f/Boston_Celtics.svg"
+      },
+      "conference": {
+        "name": "east",
+        "rank": 2,
+        "win": 0,
+        "loss": 0
+      },
+      "division": {
+        "name": "atlantic",
+        "rank": 1,
+        "win": 0,
+        "loss": 0,
+        "gamesBehind": null
+      },
+      "win": {
+        "home": 28,
+        "away": 33,
+        "total": 0,
+        "percentage": "0.000",
+        "lastTen": 8
+      },
+      "loss": {
+        "home": 13,
+        "away": 8,
+        "total": 0,
+        "percentage": "0.000",
+        "lastTen": 2
+      },
+      "gamesBehind": null,
+      "streak": 2,
+      "winStreak": true,
+      "tieBreakerPoints": null
+    },
+    {
+      "league": "standard",
+      "season": 2024,
+      "team": {
+        "id": 24,
+        "name": "New York Knicks",
+        "nickname": "Knicks",
+        "code": "NYK",
+        "logo": "https://upload.wikimedia.org/wikipedia/fr/3/34/Knicks_de_NY.png"
+      },
+      "conference": {
+        "name": "east",
+        "rank": 11,
+        "win": 0,
+        "loss": 0
+      },
+      "division": {
+        "name": "atlantic",
+        "rank": 3,
+        "win": 0,
+        "loss": 0,
+        "gamesBehind": "10"
+      },
+      "win": {
+        "home": 27,
+        "away": 24,
+        "total": 0,
+        "percentage": "0.000",
+        "lastTen": 6
+      },
+      "loss": {
+        "home": 14,
+        "away": 17,
+        "total": 0,
+        "percentage": "0.000",
+        "lastTen": 4
+      },
+      "gamesBehind": "10",
+      "streak": 1,
+      "winStreak": true,
+      "tieBreakerPoints": null
+    },
+    {
+      "league": "standard",
+      "season": 2024,
+      "team": {
+        "id": 38,
+        "name": "Toronto Raptors",
+        "nickname": "Raptors",
+        "code": "TOR",
+        "logo": "https://upload.wikimedia.org/wikipedia/fr/8/89/Raptors2015.png"
+      },
+      "conference": {
+        "name": "east",
+        "rank": 14,
+        "win": 0,
+        "loss": 0
+      },
+      "division": {
+        "name": "atlantic",
+        "rank": 5,
+        "win": 0,
+        "loss": 0,
+        "gamesBehind": "31"
+      },
+      "win": {
+        "home": 18,
+        "away": 12,
+        "total": 0,
+        "percentage": "0.000",
+        "lastTen": 5
+      },
+      "loss": {
+        "home": 23,
+        "away": 29,
+        "total": 0,
+        "percentage": "0.000",
+        "lastTen": 5
+      },
+      "gamesBehind": "31",
+      "streak": 2,
+      "winStreak": false,
+      "tieBreakerPoints": null
+    }
+  ]
+}

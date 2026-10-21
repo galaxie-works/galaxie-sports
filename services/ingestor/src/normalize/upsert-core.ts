@@ -20,6 +20,7 @@ import {
   person,
   roster,
   season,
+  sportEventDetail,
   stage,
   standing,
   venue,
@@ -83,6 +84,8 @@ export interface UpsertStats {
   rosters: number;
   standings: number;
   assets: number;
+  /** Complementos aplicados (resultados/grid da F1, desfecho do MMA) e os que não acharam o evento. */
+  supplements: { applied: number; missingEvent: number };
 }
 
 export function emptyStats(): UpsertStats {
@@ -106,6 +109,7 @@ export function emptyStats(): UpsertStats {
     rosters: 0,
     standings: 0,
     assets: 0,
+    supplements: { applied: 0, missingEvent: 0 },
   };
 }
 
@@ -133,6 +137,10 @@ export function addStats(a: UpsertStats, b: UpsertStats): UpsertStats {
     rosters: a.rosters + b.rosters,
     standings: a.standings + b.standings,
     assets: a.assets + b.assets,
+    supplements: {
+      applied: a.supplements.applied + b.supplements.applied,
+      missingEvent: a.supplements.missingEvent + b.supplements.missingEvent,
+    },
   };
 }
 
@@ -216,7 +224,7 @@ export async function upsertBatchInTx(
   const assetIds = await refs.assets([
     ...batch.competitions.map((c) => ({ kind: 'league_logo' as const, url: c.logoUrl })),
     ...batch.venues.map((v) => ({ kind: 'venue' as const, url: v.imageUrl })),
-    ...batch.participants.map((p) => ({ kind: 'team_logo' as const, url: p.logoUrl })),
+    ...batch.participants.map((p) => ({ kind: p.logoKind ?? ('team_logo' as const), url: p.logoUrl })),
     ...batch.persons.map((p) => ({ kind: p.photoKind, url: p.photoUrl })),
   ]);
   stats.assets = assetIds.size;
@@ -627,6 +635,12 @@ export async function upsertBatchInTx(
     }
   }
 
+  // ─ espelho dos demais esportes (jogo, corrida, luta) ─
+  await upsertSportMirrors(tx, batch, allowedEvents);
+
+  // ─ complementos de eventos já conhecidos (F1 resultados/grid, MMA desfecho) ─
+  await upsertSupplements(tx, batch, scope, stats, participantId);
+
   // ─ elencos ─
   const rosterRows = dedupeBy(
     batch.rosters.flatMap((r) => {
@@ -959,4 +973,114 @@ async function upsertEvents(
   await linkIds(tx, scope, 'event', links);
   await insertLogs(tx, logs);
   return allowed;
+}
+
+// ─── demais esportes: espelho e complementos ─────────────────────────────────────────────────────
+
+/**
+ * `core.sport_event_detail`: o resumo (item do fornecedor) acompanha o estado aplicado — uma lista mais
+ * antiga não reescreve o resumo; o detalhe vindo dos complementos é preservado (mesmo padrão do futebol).
+ */
+async function upsertSportMirrors(tx: Tx, batch: NormalizedBatch, allowed: AllowedEvent[]): Promise<void> {
+  const sd = sportEventDetail;
+  for (const applied of [true, false]) {
+    const mirrors = allowed.filter((e) => e.source.sportEvent && e.stateApplied === applied);
+    const summary = applied ? sql`excluded.summary` : sql`${sd.summary}`;
+    for (const chunk of chunks(mirrors, 200)) {
+      await tx
+        .insert(sd)
+        .values(
+          chunk.map(({ id, source }) => {
+            const m = source.sportEvent!;
+            return {
+              eventId: id,
+              sport: batch.sport,
+              provider: batch.provider,
+              providerEventId: m.providerEventId,
+              kind: m.kind,
+              summary: m.summary,
+              detail: m.detail,
+              detailFetchedAt: m.detail ? batch.observedAt : null,
+            };
+          }),
+        )
+        .onConflictDoUpdate({
+          target: sd.eventId,
+          set: { summary, updatedAt: sql`now()` },
+          setWhere: sql`${sd.summary} is distinct from ${summary}`,
+        });
+    }
+  }
+}
+
+/**
+ * Complementos (F1 `rankings/races`/`startinggrid`, MMA `fights/results`): não passam pela máquina de
+ * estados. Participantes são mesclados — `result` somado ao existente, `position` nula não apaga a
+ * conhecida, nada é removido — e o detalhe é somado ao espelho, salvo se o já gravado for mais novo.
+ */
+async function upsertSupplements(
+  tx: Tx,
+  batch: NormalizedBatch,
+  scope: ProviderScope,
+  stats: UpsertStats,
+  participantId: (pid: string | null) => string | null,
+): Promise<void> {
+  const supplements = batch.eventSupplements ?? [];
+  if (!supplements.length) return;
+  const eventIds = await resolveIds(
+    tx,
+    scope,
+    'event',
+    supplements.map((s) => s.eventId),
+  );
+  const ep = eventParticipant;
+  const epRows = dedupeBy(
+    supplements.flatMap((s) => {
+      const eventId = eventIds.get(s.eventId);
+      if (!eventId) return [];
+      return s.participants.flatMap((p) => {
+        const pid = participantId(p.participantId);
+        return pid
+          ? [{ eventId, participantId: pid, side: p.side, position: p.position, result: p.result }]
+          : [];
+      });
+    }),
+    (r) => `${r.eventId}|${r.participantId}`,
+  );
+  const result = sql`coalesce(${ep.result}, '{}'::jsonb) || coalesce(excluded.result, '{}'::jsonb)`;
+  const position = sql`coalesce(excluded.position, ${ep.position})`;
+  for (const chunk of chunks(epRows, 500)) {
+    await tx
+      .insert(ep)
+      .values(chunk)
+      .onConflictDoUpdate({
+        target: [ep.eventId, ep.participantId],
+        set: { side: sql`excluded.side`, position, result },
+        setWhere: sql`(${ep.side}, ${ep.position}, ${ep.result}) is distinct from (excluded.side, ${position}, ${result})`,
+      });
+  }
+
+  const sd = sportEventDetail;
+  for (const s of supplements) {
+    const eventId = eventIds.get(s.eventId);
+    if (!eventId) {
+      stats.supplements.missingEvent += 1;
+      continue;
+    }
+    stats.supplements.applied += 1;
+    if (!s.detail) continue;
+    const next = sql`case
+      when ${sd.detailFetchedAt} is not null and ${batch.observedAt.toISOString()}::timestamptz < ${sd.detailFetchedAt} then ${sd.detail}
+      else coalesce(${sd.detail}, '{}'::jsonb) || ${JSON.stringify(s.detail)}::jsonb end`;
+    const fetchedAt = sql`greatest(${sd.detailFetchedAt}, ${batch.observedAt.toISOString()}::timestamptz)`;
+    await tx
+      .update(sd)
+      .set({ detail: next, detailFetchedAt: fetchedAt, updatedAt: sql`now()` })
+      .where(
+        and(
+          eq(sd.eventId, eventId),
+          sql`(${sd.detail}, ${sd.detailFetchedAt}) is distinct from (${next}, ${fetchedAt})`,
+        ),
+      );
+  }
 }

@@ -21,6 +21,7 @@ pnpm test:integration     # integração (test/**/*.integration.test.ts) contra 
 |---|---|
 | `packages/db` | Schema Drizzle (`src/schema/*`), migrations (`drizzle/`), cliente e migrator |
 | `packages/apisports-client` | Único ponto de saída para a api-sports (cache no raw, plano, Quota Governor, limite por minuto) |
+| `packages/observability` | Logger JSON compartilhado (pino) e métricas Prometheus lidas do banco (cota, jobs, frescor, ao vivo) |
 | `packages/providers` | Camada de provedores plugável (`SportsDataProvider`, lote normalizado neutro, `ApiSportsProvider`) e lógica pura do evento (máquina de estados, momentum, importância) |
 | `packages/contracts` | DTOs Zod → OpenAPI compartilhados entre API e demo |
 | `packages/rules` | Motor de regras determinístico: tabelas calculadas e stakes; regulamentos em `config/rules/*.yaml` ([docs/rules](docs/rules/README.md)) |

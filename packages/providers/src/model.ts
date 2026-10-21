@@ -29,12 +29,15 @@ export const STAGE_KINDS = [
   'third_place',
   'final',
   'friendly',
+  /** Fim de semana de Grande Prêmio (F1): agrupa treinos, classificação, sprint e corrida. */
+  'race_weekend',
   'other',
 ] as const;
 export type StageKind = (typeof STAGE_KINDS)[number];
 
 export type ParticipantKind = 'club' | 'national_team' | 'athlete' | 'driver' | 'constructor' | 'fighter';
-export type AssetKind = 'team_logo' | 'league_logo' | 'venue' | 'player' | 'coach' | 'flag';
+export type AssetKind =
+  'team_logo' | 'league_logo' | 'venue' | 'player' | 'coach' | 'flag' | 'driver' | 'fighter' | 'circuit';
 
 /** Temporada de uma competição do provedor: `(competição, ano)` — o ano é o rótulo de busca (ex.: 2025 = 2025/26). */
 export interface SeasonRef {
@@ -90,6 +93,8 @@ export interface NormalizedParticipant {
   founded: number | null;
   venueId: string | null;
   logoUrl: string | null;
+  /** Tipo do asset da imagem (padrão `team_logo`; pilotos e lutadores usam `driver`/`fighter`). */
+  logoKind?: AssetKind;
   /**
    * `true` quando a entidade só aparece como referência (time numa partida, jogador numa escalação):
    * preenche lacunas, mas não sobrescreve dados vindos do endpoint próprio da entidade.
@@ -148,6 +153,21 @@ export interface FootballFixtureMirror {
   detail: Record<string, unknown> | null;
 }
 
+/**
+ * Espelho genérico do jogo/corrida/luta da api-sports para os esportes além do futebol
+ * (tabela `core.sport_event_detail`): o item do fornecedor em `summary` e as partes de detalhe
+ * vindas de endpoints auxiliares (resultados, grid) em `detail`.
+ */
+export interface SportEventMirror {
+  /** ID do fornecedor (o mesmo do `NormalizedEvent.id`). */
+  providerEventId: string;
+  /** game | race | fight */
+  kind: 'game' | 'race' | 'fight';
+  /** Item do fornecedor como veio (games, races, fights). */
+  summary: Record<string, unknown>;
+  detail: Record<string, unknown> | null;
+}
+
 export interface NormalizedEvent {
   id: string;
   competitionId: string | null;
@@ -160,6 +180,21 @@ export interface NormalizedEvent {
   /** Timeline completa quando a resposta a traz; `undefined` = não veio nesta resposta (mantém a atual). */
   incidents?: NormalizedIncident[];
   footballFixture?: FootballFixtureMirror;
+  sportEvent?: SportEventMirror;
+}
+
+/**
+ * Complemento de um evento já conhecido vindo de um endpoint auxiliar que não descreve o estado
+ * (F1 `rankings/races` e `rankings/startinggrid`, MMA `fights/results`). Não passa pela máquina de
+ * estados: os participantes são mesclados (nunca removidos) e o detalhe é somado ao espelho.
+ */
+export interface NormalizedEventSupplement {
+  /** ID do evento no provedor. */
+  eventId: string;
+  /** Participantes a mesclar: `result` é somado ao existente e `position` nula não apaga a conhecida. */
+  participants: NormalizedEventParticipant[];
+  /** Partes de detalhe a somar em `core.sport_event_detail.detail` (ex.: `{ results: [...] }`). */
+  detail: Record<string, unknown> | null;
 }
 
 export interface NormalizedRoster {
@@ -211,6 +246,8 @@ export interface NormalizedBatch {
   rosters: NormalizedRoster[];
   rosterSnapshots: RosterSnapshot[];
   standings: NormalizedStanding[];
+  /** Complementos de eventos já conhecidos (resultados, grid de largada). */
+  eventSupplements: NormalizedEventSupplement[];
 }
 
 export function emptyBatch(provider: string, sport: string, observedAt: Date): NormalizedBatch {
@@ -227,6 +264,7 @@ export function emptyBatch(provider: string, sport: string, observedAt: Date): N
     rosters: [],
     rosterSnapshots: [],
     standings: [],
+    eventSupplements: [],
   };
 }
 
@@ -248,6 +286,7 @@ export function mergeBatches(batches: NormalizedBatch[]): NormalizedBatch | null
     out.rosters.push(...b.rosters);
     out.rosterSnapshots.push(...b.rosterSnapshots);
     out.standings.push(...b.standings);
+    out.eventSupplements.push(...b.eventSupplements);
   }
   return out;
 }

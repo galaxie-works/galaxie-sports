@@ -24,6 +24,7 @@ flowchart LR
 | `event/momentum.ts` | `momentum(event, now, tz)`: D-3+ … live no fuso do cliente |
 | `event/importance.ts` | `importance({ tier, stageKind, derby, decisive })` → 0–100 com detalhamento |
 | `api-sports/football/*` | Mapa de status, rodada → fase, normalizadores puros dos envelopes v3 (`fixtures`, `fixtures/headtohead`, `teams`, `players/squads`, `coachs`, `players`, `standings`, `leagues`) |
+| `api-sports/sports/*` | Os 11 esportes além do futebol: mapa de status por esporte (`mapSportStatus`) e normalizadores puros (`games`, `standings`, `teams`; F1 `races` e `rankings/*`; MMA `fights` e `fights/results`) — docs/04 §3.5 |
 | `api-sports/provider.ts` | `ApiSportsProvider` sobre o `ApiSportsClient` (cache no raw, plano e cota) |
 
 ## Uso

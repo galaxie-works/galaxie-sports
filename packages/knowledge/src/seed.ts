@@ -345,6 +345,8 @@ export async function linkParticipants(tx: Tx | Database): Promise<number> {
                limit 1) as participant_id
         from semantic.team_profile tp
        where tp.api_sports_team_id is not null
+         -- só o futebol tem vinculação por ID; os demais esportes (team_id null) ficam para depois
+         and tp.source_file like 'data/knowledge/football/%'
     )
     update semantic.team_profile tp
        set participant_id = target.participant_id, updated_at = now()
