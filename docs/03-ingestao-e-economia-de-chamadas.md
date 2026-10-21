@@ -106,6 +106,8 @@ Ordem de execução e custo estimado para as **76 competições** do catálogo (
 | 7 | H2H de todos os clássicos da base semântica: `fixtures/headtohead?h2h=` | 1 por clássico | ~100 clássicos |
 | 8 | `venues?country` para os países do catálogo | 1 por país | ~30 |
 
+> ✅ **Passo 1 executado em 21/10/2026** (`pnpm --filter @galaxie/ingestor bootstrap:catalog`): 170 países, **1.249 competições**, **8.781 temporadas** com cobertura e 1.418 logos/bandeiras registrados para o Asset Mirror — custo de **6 chamadas** (`/countries` e `/leagues` vieram do raw). As 76 competições de `config/competitions/football.yaml` conferem com o `/leagues` real. Como a política padrão protege 80 chamadas para DAILY/LIVE e cede só 5 ao BOOTSTRAP, o job aceita `--sem-live` para planejar o dia sem ao vivo enquanto não houver jogos sendo acompanhados.
+
 **Estimativa** (temporada atual + 5 temporadas históricas para tier 1; atual + 2 para tier 2):
 
 | Bloco | Cálculo | Chamadas |

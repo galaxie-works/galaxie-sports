@@ -270,8 +270,9 @@ competitions:
     live_priority: high
     labels: { pt-BR: "Campeonato Chileno", es: "Campeonato Nacional (Primera División de Chile)", en: "Chilean Primera División" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/265.png"]
-  - slug: uruguay-primera-apertura
-    name: "Primera División - Apertura"
+  # id 268 era "Primera División - Apertura"; em out/2026 o /leagues o chama de "Primera División" (temporada inteira)
+  - slug: uruguay-primera
+    name: "Primera División"
     country: "Uruguay"
     type: league
     api_sports_id: 268
@@ -280,7 +281,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Campeonato Uruguaio - Apertura", es: "Primera División de Uruguay - Apertura", en: "Uruguayan Primera División - Apertura" }
+    labels: { pt-BR: "Campeonato Uruguaio", es: "Primera División de Uruguay", en: "Uruguayan Primera División" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/268.png"]
   - slug: uruguay-primera-clausura
     name: "Primera División - Clausura"
@@ -479,11 +480,11 @@ competitions:
     live_priority: high
     labels: { pt-BR: "Copa do Mundo FIFA", es: "Copa Mundial de la FIFA", en: "FIFA World Cup" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/1.png"]
-  # api-sports types this id as League (not Cup)
+  # validado em 21/10/2026: o /leagues atual tipa o id 15 como Cup
   - slug: fifa-club-world-cup
     name: "FIFA Club World Cup"
     country: "World"
-    type: league
+    type: cup
     api_sports_id: 15
     verify: false
     tier: 1
