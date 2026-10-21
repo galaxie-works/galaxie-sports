@@ -2,6 +2,7 @@ export * from './common.js';
 export * from './catalog.js';
 export * from './mirror.js';
 export * from './events.js';
+export * from './account.js';
 export * from './teams.js';
 export * from './context.js';
 export * from './semantic.js';

@@ -4,6 +4,7 @@ import { Redis } from 'ioredis';
 import { parse } from 'yaml';
 import { MediaDenylist, type MediaDenylistEntry } from '@galaxie/apisports-client';
 import { closeDb, createDb } from '@galaxie/db';
+import { hardeningFromEnv } from './config.js';
 import type { ReviewStatus } from './context.js';
 import { buildServer } from './server.js';
 
@@ -25,6 +26,7 @@ const redis = process.env.REDIS_URL
 redis?.on('error', () => {}); // reconexão automática; falhas de cache/rate limit são registradas por requisição
 
 const port = Number(process.env.API_PORT ?? 8080);
+const hardening = hardeningFromEnv();
 const REVIEW_STATUSES: ReviewStatus[] = ['draft', 'reviewed', 'approved'];
 const minReviewStatus = process.env.SEMANTIC_MIN_REVIEW_STATUS as ReviewStatus | undefined;
 if (minReviewStatus && !REVIEW_STATUSES.includes(minReviewStatus))
@@ -32,6 +34,7 @@ if (minReviewStatus && !REVIEW_STATUSES.includes(minReviewStatus))
     `SEMANTIC_MIN_REVIEW_STATUS inválido: ${minReviewStatus} (use draft, reviewed ou approved)`,
   );
 const app = buildServer({
+  ...hardening,
   ...(db ? { db } : {}),
   ...(redis ? { redis } : {}),
   logger: true,
@@ -45,6 +48,11 @@ const app = buildServer({
     ...(process.env.KNOWLEDGE_DIR ? { knowledgeDir: process.env.KNOWLEDGE_DIR } : {}),
   },
 });
+
+if (hardening.admin && !hardening.admin.ipAllowlist?.length)
+  app.log.warn(
+    'ADMIN_IP_ALLOWLIST vazia: /internal/admin aceita qualquer IP (use só atrás de VPN/rede privada).',
+  );
 
 const shutdown = async () => {
   await app.close();

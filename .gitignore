@@ -29,3 +29,6 @@ Thumbs.db
 
 # worktrees e estado local de agentes
 .claude/
+
+# resultados locais dos testes de carga (k6 --summary-export)
+tests/load/results/

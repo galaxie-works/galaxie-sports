@@ -34,6 +34,8 @@ export interface AuthenticatorOptions {
  */
 export class Authenticator {
   private readonly cache = new Map<string, { ctx: TenantContext; expiresAt: number }>();
+  /** Chaves com prefixo existente mas segredo errado: evita recalcular o scrypt a cada tentativa. */
+  private readonly rejected = new Map<string, number>();
   private readonly lastTouch = new Map<string, number>();
   private readonly cacheTtlMs: number;
   private readonly touchIntervalMs: number;
@@ -57,9 +59,15 @@ export class Authenticator {
     const cacheKey = createHash('sha256').update(rawKey.trim()).digest('base64url');
     const cached = this.cache.get(cacheKey);
     if (cached && cached.expiresAt > now.getTime()) return cached.ctx;
+    if ((this.rejected.get(cacheKey) ?? 0) > now.getTime()) throw problems.invalidKey();
 
     const record = await this.store.findKeyByPrefix(parsed.prefix);
-    if (!record || !(await verifySecret(parsed.secret, record.secretHash))) throw problems.invalidKey();
+    if (!record) throw problems.invalidKey();
+    if (!(await verifySecret(parsed.secret, record.secretHash))) {
+      if (this.rejected.size > 10_000) this.rejected.clear();
+      this.rejected.set(cacheKey, now.getTime() + this.cacheTtlMs);
+      throw problems.invalidKey();
+    }
     if (record.revokedAt && record.revokedAt <= now) throw problems.invalidKey('Chave revogada.');
     if (record.expiresAt && record.expiresAt <= now) throw problems.invalidKey('Chave expirada.');
     if (record.tenant.status !== 'active') throw problems.invalidKey('Tenant suspenso.');

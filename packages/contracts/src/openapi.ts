@@ -17,6 +17,7 @@ import {
   StandingsParams,
   Venue,
 } from './catalog.js';
+import { accountPaths } from './account.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
 import {
@@ -118,6 +119,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       { name: 'Times e pessoas', description: 'Times, elencos e pessoas (docs/05 §3.3).' },
       { name: 'Espelho', description: 'Espelho compatível com a api-sports (docs/05 §2).' },
+      { name: 'Conta', description: 'Autoatendimento do tenant: chaves e uso (docs/05 §1.2).' },
     ],
     paths: {
       ...semanticPaths(),
@@ -315,6 +317,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           },
         },
       },
+      ...accountPaths,
     },
     components: {
       securitySchemes: {

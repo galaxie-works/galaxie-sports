@@ -1,0 +1,78 @@
+# Atualizações automáticas de dependências (docs/11 §4, SECURITY.md).
+# Atualizações de segurança chegam assim que publicadas; as de versão, semanalmente e agrupadas
+# para não inundar a fila de PRs. Majors de runtime/infra ficam para revisão manual.
+version: 2
+updates:
+  # Workspace pnpm inteiro (o ecossistema npm entende pnpm-lock.yaml)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+      prod-dependencies:
+        dependency-type: production
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Sao_Paulo
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: 'chore(ci)'
+    groups:
+      actions:
+        patterns: ['*']
+
+  # Imagens base dos Dockerfiles (API, ingestor, backup, Caddy, Prometheus, Grafana)
+  - package-ecosystem: docker
+    directories:
+      - /apps/api
+      - /services/ingestor
+      - /infra/backup
+      - /infra/caddy
+      - /infra/observability/prometheus
+      - /infra/observability/grafana
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Sao_Paulo
+    labels: [dependencies, infra]
+    commit-message:
+      prefix: 'chore(docker)'
+    groups:
+      docker-images:
+        patterns: ['*']
+        update-types: [minor, patch]
+
+  # Imagens dos compose (infra local, stack de staging e k6)
+  - package-ecosystem: docker-compose
+    directories:
+      - /infra
+      - /infra/portainer
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Sao_Paulo
+    labels: [dependencies, infra]
+    commit-message:
+      prefix: 'chore(docker)'
+    groups:
+      compose-images:
+        patterns: ['*']
+        update-types: [minor, patch]

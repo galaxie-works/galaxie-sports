@@ -114,6 +114,12 @@ services:
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
       ASSETS_PUBLIC_BASE_URL: ${ASSETS_PUBLIC_BASE_URL:-}
       API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
+      # Hardening (SECURITY.md): CORS estrito, /internal/admin (chave + allowlist), proxy confiável, HSTS
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      ADMIN_KEY_HASHES: ${ADMIN_KEY_HASHES:-}
+      ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      HSTS_MAX_AGE: ${HSTS_MAX_AGE:-31536000}
     depends_on:
       migrate:
         condition: service_completed_successfully

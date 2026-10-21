@@ -19,7 +19,8 @@
     "test:integration": "vitest run --dir test",
     "dev": "node --env-file-if-exists=../../.env --watch dist/main.js",
     "start": "node --env-file-if-exists=../../.env dist/main.js",
-    "tenant:create": "node --env-file-if-exists=../../.env dist/cli/tenant-create.js"
+    "tenant:create": "node --env-file-if-exists=../../.env dist/cli/tenant-create.js",
+    "admin:key": "node dist/cli/admin-key.js"
   },
   "dependencies": {
     "@galaxie/apisports-client": "workspace:*",
