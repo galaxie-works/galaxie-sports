@@ -31,6 +31,15 @@
 .PARAMETER DelayMs
     Pausa por download em cada worker, para respeitar a CDN. Padrão 150 ms.
 
+.PARAMETER DenylistPath
+    Lista de bloqueio (URLs que o fornecedor serve erradas, ex.: o logo do Paulistão). Padrão:
+    config/assets/denylist.yaml — a mesma do worker Node (pnpm --filter @galaxie/ingestor assets:mirror).
+
+.NOTES
+    Este script grava em disco (útil para inspeção e cópia manual). O worker Node (services/ingestor,
+    assets:mirror) é o caminho agendado: grava no bucket S3 e preenche core.asset (storage_key, sha256,
+    dimensões) para a API reescrever as URLs para o nosso CDN.
+
 .EXAMPLE
     ./scripts/pwsh/Sync-ApiSportsAssets.ps1 -SourcePath ./data/raw -Destination ./data/assets
 
@@ -45,6 +54,7 @@ param(
     [ValidateRange(1, 16)] [int] $ThrottleLimit = 4,
     [ValidateRange(0, 10000)] [int] $DelayMs = 150,
     [ValidateRange(0, 10)] [int] $MaxRetries = 3,
+    [string]   $DenylistPath = (Join-Path $PSScriptRoot '../../config/assets/denylist.yaml'),
     [switch]   $Force
 )
 
@@ -74,6 +84,18 @@ if ($UrlListPath) {
 
 # Normaliza host (media-1, media-2 ... → media) para não baixar o mesmo arquivo duas vezes
 $normalized = $urls | ForEach-Object { $_ -replace '^http://', 'https://' -replace '//media-\d+\.', '//media.' } | Sort-Object -Unique
+
+# Lista de bloqueio: linhas "- url: https://media.api-sports.io/..." do YAML (sem depender de módulo YAML)
+if ($DenylistPath -and (Test-Path -LiteralPath $DenylistPath)) {
+    $denied = @(
+        Select-String -LiteralPath $DenylistPath -Pattern '^\s*-?\s*url:\s*["'']?(https?://\S+?)["'']?\s*$' |
+            ForEach-Object { $_.Matches[0].Groups[1].Value -replace '^http://', 'https://' -replace '//media-\d+\.', '//media.' }
+    )
+    if ($denied.Count) {
+        $normalized = @($normalized | Where-Object { $_ -notin $denied })
+        Write-Verbose "Bloqueadas pela lista: $($denied -join ', ')"
+    }
+}
 Write-Host "URLs de mídia únicas: $($normalized.Count)"
 
 # 2) Planejar ---------------------------------------------------------------------------------------

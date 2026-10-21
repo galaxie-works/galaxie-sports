@@ -19,9 +19,12 @@
     "quota": "node --env-file-if-exists=../../.env dist/cli/quota.js",
     "test:integration": "vitest run --dir test",
     "raw:import": "node --env-file-if-exists=../../.env dist/cli/import-raw.js",
-    "bootstrap:catalog": "node --env-file-if-exists=../../.env dist/cli/bootstrap-catalog.js"
+    "bootstrap:catalog": "node --env-file-if-exists=../../.env dist/cli/bootstrap-catalog.js",
+    "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
+    "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1153.0",
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/db": "workspace:*",
     "drizzle-orm": "^0.45.4",

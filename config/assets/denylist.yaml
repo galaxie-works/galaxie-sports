@@ -1,0 +1,13 @@
+# =============================================================================
+# Assets da CDN de mídia da api-sports que NÃO podem ser usados no produto.
+#
+# O Asset Mirror (pnpm --filter @galaxie/ingestor assets:mirror) não baixa estas URLs, desvincula do
+# storage as que já tiverem sido espelhadas (core.asset.storage_key = null) e a reescrita de URLs da API
+# (rewriteMediaUrl / rewriteMediaUrls em @galaxie/apisports-client) devolve null para elas.
+#
+# A comparação usa a URL normalizada (https, host media.api-sports.io, sem query string).
+# =============================================================================
+schema_version: 1
+denylist:
+  - url: https://media.api-sports.io/football/leagues/475.png
+    reason: 'Paulista - A1: o fornecedor serve o escudo de um clube homônimo, não a marca do campeonato (docs/03 §7).'

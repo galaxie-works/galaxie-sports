@@ -170,7 +170,9 @@ galaxie-sports/
 ├── packages/                   # db (schema + migrations) · apisports-client · contracts
 ├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS)
 ├── config/
-│   └── competitions/football.yaml   # 76 competições com IDs verificados e tiers
+│   ├── competitions/football.yaml   # 76 competições com IDs verificados e tiers
+│   ├── competitions/<esporte>.yaml  # demais 11 APIs, prioridade LatAm (NBB, Liga A, Superliga, LVA, VNL...)
+│   └── assets/denylist.yaml         # mídia do fornecedor que não pode ser usada (ex.: logo do Paulistão)
 ├── data/
 │   └── knowledge/              # base semântica (times, clássicos, seleções, competições)
 ├── scripts/
@@ -204,6 +206,8 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080/health
 | `pnpm --filter @galaxie/ingestor quota` | Cota do dia por API (lê `/status`, que não consome cota) |
 | `pnpm --filter @galaxie/ingestor raw:import` | Importa respostas brutas salvas em `data/raw/<esporte>/*.json` (zero chamadas) |
 | `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa |
+| `pnpm --filter @galaxie/ingestor bootstrap:sports --plan` | Catálogo das outras 11 APIs (países, ligas, temporadas; `--jogos` para temporadas inteiras das prioritárias); sem `--plan`, executa |
+| `pnpm --filter @galaxie/ingestor assets:mirror --plan` | Asset Mirror: baixa logos/bandeiras/imagens da CDN de mídia (fora da cota) para o bucket S3 e preenche `core.asset`; `--descobrir-raw` varre o raw |
 
 > A porta do Postgres é **5433** para não colidir com instalações nativas na 5432. Ajuste `POSTGRES_PORT`/`DATABASE_URL` no `.env` se precisar.
 
@@ -215,7 +219,8 @@ Ferramentas já disponíveis:
 # Cota e plano de cada uma das 12 APIs (endpoint /status)
 $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | Format-Table
 
-# Espelha todos os assets referenciados nas respostas brutas exportadas
+# Espelha em disco todos os assets referenciados nas respostas brutas exportadas
+# (o worker agendado que grava no S3 e em core.asset é `pnpm --filter @galaxie/ingestor assets:mirror`)
 ./scripts/pwsh/Sync-ApiSportsAssets.ps1 -SourcePath ./data/raw -Destination ./data/assets
 ```
 

@@ -10,3 +10,4 @@ export * from './quota/policy.js';
 export * from './quota/governor.js';
 export * from './quota/pg-governor.js';
 export * from './client.js';
+export * from './media.js';
