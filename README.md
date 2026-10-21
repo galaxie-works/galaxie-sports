@@ -194,7 +194,8 @@ pnpm build
 pnpm db:migrate                 # aplica as migrations (idempotente)
 pnpm test                       # testes unitários
 pnpm test:integration           # testes de integração contra o Postgres local
-pnpm --filter @galaxie/api dev  # API em http://localhost:8080/health
+pnpm --filter @galaxie/api tenant:create --slug demo-local   # imprime uma chave de API (x-galaxie-key)
+pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência interativa em /docs
 ```
 
 | Comando | O que faz |
@@ -208,6 +209,7 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080/health
 | `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa |
 | `pnpm --filter @galaxie/ingestor bootstrap:sports --plan` | Catálogo das outras 11 APIs (países, ligas, temporadas; `--jogos` para temporadas inteiras das prioritárias); sem `--plan`, executa |
 | `pnpm --filter @galaxie/ingestor assets:mirror --plan` | Asset Mirror: baixa logos/bandeiras/imagens da CDN de mídia (fora da cota) para o bucket S3 e preenche `core.asset`; `--descobrir-raw` varre o raw |
+| `pnpm --filter @galaxie/api tenant:create --slug <slug>` | Cria/atualiza um tenant e gera uma chave de API (plano, mercados, esportes e rate limit por flags) |
 
 > A porta do Postgres é **5433** para não colidir com instalações nativas na 5432. Ajuste `POSTGRES_PORT`/`DATABASE_URL` no `.env` se precisar.
 
