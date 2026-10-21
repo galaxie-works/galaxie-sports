@@ -26,8 +26,22 @@
     {
       "idx": 3,
       "version": "7",
-      "when": 1792605257614,
-      "tag": "0003_event_state_and_roster",
+      "when": 1792604591616,
+      "tag": "0003_api_tenants",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792605971043,
+      "tag": "0004_semantic_seed",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792606288146,
+      "tag": "0005_event_state_and_roster",
       "breakpoints": true
     }
   ]

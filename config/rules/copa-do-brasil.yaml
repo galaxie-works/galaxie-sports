@@ -1,0 +1,24 @@
+# Copa do Brasil (CBF) — formato vigente.
+# 1ª fase: jogo único na casa do clube de menor ranking; o visitante avança com empate.
+# 2ª fase: jogo único; empate vai direto aos pênaltis.
+# 3ª fase em diante (inclusive a final): ida e volta, sem gol fora, empate no agregado vai
+# direto aos pênaltis (sem prorrogação).
+# Edições antigas (gol fora etc.) ainda não estão modeladas — revise antes de usar histórico.
+slug: copa-do-brasil
+name: Copa do Brasil
+format: cup
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+
+league: null
+
+knockout:
+  default: { legs: 2, away_goals: false, extra_time: false, penalties: true }
+  stages:
+    first_round: { legs: 1, extra_time: false, penalties: false, draw_advantage: away }
+    second_round: { legs: 1, extra_time: false, penalties: true }
+    final: { legs: 2, away_goals: false, extra_time: false, penalties: true, decides_title: true }
+
+sources:
+  - https://www.cbf.com.br/futebol-brasileiro/competicoes/copa-brasil-masculino

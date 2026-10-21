@@ -1,6 +1,6 @@
 # 04 · Modelo de dados
 
-Banco: **PostgreSQL 17** com cinco schemas — `raw`, `core`, `semantic`, `enrich` e `ops`. Migrations em `packages/db` (Drizzle).
+Banco: **PostgreSQL 17** com seis schemas — `raw`, `core`, `semantic`, `enrich`, `ops` e `api`. Migrations em `packages/db` (Drizzle).
 
 ## 1. `raw` — respostas brutas (bronze)
 
@@ -68,7 +68,7 @@ erDiagram
 | `core.roster` | `participant_id`, `person_id`, `season_id`, `role`, `number`, `position` | Elenco por temporada; `season_id` nulo = elenco atual (único com `NULLS NOT DISTINCT`) |
 | `core.venue` | `id`, `name`, `city`, `country_iso2`, `capacity`, `surface`, `image_asset_id` | Estádios, circuitos, arenas |
 | `core.event_incident` | `event_id`, `minute`, `extra`, `type` (goal, card, subst, var, period…), `participant_id`, `person_id`, `detail` | Timeline e "momentos-chave" |
-| `core.standing` | `season_id`, `group`, `participant_id`, `rank`, `points`, `form`, `description` | Tabelas e grupos |
+| `core.standing` | `season_id`, `group`, `participant_id`, `rank`, `points`, `form`, `description`, `source` | Tabelas e grupos; `source = computed` quando calculada localmente ([docs/rules](rules/README.md)) |
 | `core.provider_map` | `entity_type`, `entity_id`, `provider`, `provider_id`, `sport` | Liga nossos IDs aos IDs da api-sports e de outras fontes |
 | `core.asset` | `id`, `kind` (team_logo, league_logo, flag, venue, player, coach…), `source_url`, `storage_key`, `sha256`, `width`, `height`, `fetched_at` | Espelho de mídia |
 
@@ -249,7 +249,17 @@ create table enrich.event_context (
 | `ops.quota_budget` | Orçamento planejado por `api × dia × prioridade` |
 | `ops.sync_cursor` | Marca d'água por `(sport, endpoint, chave)` — ex.: último `fixtures?league=71&season=2026` sincronizado |
 | `ops.job_run` | Execuções de jobs, duração, chamadas gastas, erros |
-| `ops.change_feed` | Mudanças publicadas (para SSE/webhooks e purge de CDN) |
+| `ops.change_feed` | Mudanças publicadas (para SSE/webhooks e purge de cache/CDN) — gravadas com `publishChange()`, que também faz `pg_notify('ops_change_feed', id)` |
+
+## 6.1 `api` — tenants, chaves e backfill do espelho
+
+| Tabela | Uso |
+|---|---|
+| `api.tenant` | Cliente da API: `slug`, `plan`, `modules[]`, `markets[]` (vazio = todos), `sports[]` (vazio = todos), `rate_limit_per_minute`, `status` |
+| `api.api_key` | Chaves do tenant: `prefix` (único, em claro), `secret_hash` (scrypt com sal), `scopes[]` (restringe módulos), `expires_at`, `revoked_at`, `last_used_at` |
+| `api.backfill_request` | Combinações pedidas ao `/mirror` sem raw: `sport`, `endpoint`, `params`, `request_hash` (único), `priority` ADHOC, `status`, `hits` — consumidas pelo ingestor |
+
+Regras de autenticação, planos e rate limit: [05 §1.1](05-api-publica.md#11-implementação-schema-api).
 
 ## 7. Convenções
 

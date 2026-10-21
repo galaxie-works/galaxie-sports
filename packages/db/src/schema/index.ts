@@ -4,3 +4,4 @@ export * from './core.js';
 export * from './semantic.js';
 export * from './enrich.js';
 export * from './ops.js';
+export * from './api.js';

@@ -91,7 +91,7 @@ Exemplo do resultado esperado (Brasil, semifinal de Libertadores): TV aberta nac
 
 ### 2.3 Agente Cenário (pré-jogo) e Resumo (pós-jogo)
 
-O cenário é **calculado** e só **redigido** pela IA:
+O cenário é **calculado** e só **redigido** pela IA. O motor de regras é o pacote `@galaxie/rules` — catálogo de códigos e regulamentos em [docs/rules](rules/README.md):
 
 ```mermaid
 flowchart LR
@@ -107,7 +107,7 @@ Exemplo de `stakes` para um jogo de volta (ida 2 × 1 para o mandante da volta):
 ```json
 [
   { "team": "home", "code": "advances_with_draw" },
-  { "team": "away", "code": "needs_win_by_2_to_advance" },
+  { "team": "away", "code": "needs_win_by_2" },
   { "team": "away", "code": "win_by_1_goes_to_penalties" }
 ]
 ```

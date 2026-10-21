@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.galaxie-sports.local/knowledge/teams.schema.json",
+  "title": "Clubes de um país — data/knowledge/football/teams/<iso2>.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "country", "teams"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "country": { "$ref": "common.schema.json#/definitions/countryCode" },
+    "teams": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "common.schema.json#/definitions/team" }
+    }
+  }
+}

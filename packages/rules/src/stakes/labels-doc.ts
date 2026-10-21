@@ -1,0 +1,57 @@
+import {
+  KNOCKOUT_FAMILIES,
+  LEAGUE_FAMILIES,
+  makeStake,
+  type StakeFamily,
+  type StakeParams,
+} from './codes.js';
+import { STAKE_LOCALES, stakeText } from './labels.js';
+
+/** Parâmetros de exemplo usados na documentação de cada família. */
+export function exampleParams(family: StakeFamily): StakeParams | undefined {
+  if (family.includes('_zone')) return { zone: 'libertadores_group_stage' };
+  if (
+    /(^|_)n(_|$)/.test(family) ||
+    family.startsWith('specific_draw') ||
+    family.startsWith('outcome_depends')
+  ) {
+    return { n: family.startsWith('advances_with_draw') || family.startsWith('specific_draw') ? 1 : 2 };
+  }
+  return undefined;
+}
+
+function section(family: StakeFamily): string {
+  const stake = makeStake('home', family, exampleParams(family));
+  const lines = [
+    `### \`${family}\` — ex.: \`${stake.code}\``,
+    '',
+    '| Locale | Texto (exemplo) |',
+    '|---|---|',
+    ...STAKE_LOCALES.map((locale) => `| ${locale} | ${stakeText(stake, locale)} |`),
+    '',
+  ];
+  return lines.join('\n');
+}
+
+/**
+ * docs/rules/rotulos.md — gerado a partir de labels.ts
+ * (`pnpm --filter @galaxie/rules docs:labels`; um teste garante que está em dia).
+ */
+export function renderLabelsMarkdown(): string {
+  return [
+    '# Rótulos localizados dos stakes',
+    '',
+    '> Arquivo **gerado** a partir de `packages/rules/src/stakes/labels.ts` por',
+    '> `pnpm --filter @galaxie/rules docs:labels`. Não edite à mão: altere o mapa e regenere.',
+    '> Códigos e semântica: [README](README.md#catálogo-de-códigos).',
+    '',
+    'Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertadores_group_stage`.',
+    '',
+    '## Mata-mata',
+    '',
+    ...KNOCKOUT_FAMILIES.map(section),
+    '## Pontos corridos, grupos e fase de liga',
+    '',
+    ...LEAGUE_FAMILIES.map(section),
+  ].join('\n');
+}

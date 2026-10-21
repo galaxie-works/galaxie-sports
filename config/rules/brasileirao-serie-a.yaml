@@ -1,0 +1,37 @@
+# Campeonato Brasileiro Série A (CBF).
+# Desempate (Regulamento Específico da Competição, art. de critérios de desempate):
+#   1) vitórias, 2) saldo de gols, 3) gols pró, 4) confronto direto (só entre dois clubes),
+#   5) menos cartões vermelhos, 6) menos cartões amarelos, 7) sorteio.
+# Zonas nominais: G4 = fase de grupos da Libertadores, 5º–6º = fase preliminar da Libertadores,
+# 7º–12º = Sul-Americana, Z4 = rebaixamento. As vagas podem ser redistribuídas (campeões da
+# Copa do Brasil/Libertadores/Sul-Americana) — a redistribuição não é calculada aqui.
+slug: brasileirao-serie-a
+name: Campeonato Brasileiro Série A
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - wins
+    - goal_difference
+    - goals_for
+    - { criterion: h2h_points, max_teams: 2 }
+    - fewest_red_cards
+    - fewest_yellow_cards
+    - drawing_of_lots
+
+league:
+  teams: 20
+  matches_per_team: 38
+  meetings_per_pair: 2
+  title: true
+  zones:
+    - { id: libertadores_group_stage, kind: qualification, from: 1, to: 4 }
+    - { id: libertadores_qualifying, kind: qualification, from: 5, to: 6 }
+    - { id: sudamericana, kind: qualification, from: 7, to: 12 }
+    - { id: relegation, kind: relegation, from: 17, to: 20 }
+
+knockout: null
+
+sources:
+  - https://www.cbf.com.br/futebol-brasileiro/competicoes/campeonato-brasileiro-serie-a

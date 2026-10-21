@@ -1,0 +1,73 @@
+/**
+ * @galaxie/rules — motor determinístico (funções puras, sem I/O):
+ * - tabelas calculadas localmente a partir de resultados (#24);
+ * - contexto competitivo estruturado — stakes — para a IA apenas redigir (#28).
+ *
+ * Carregamento dos YAML: `@galaxie/rules/config`. Gravação em `core.standing`: `@galaxie/rules/db`.
+ */
+export type * from './config/types.js';
+export { TIE_BREAKER_IDS, ZONE_KINDS } from './config/types.js';
+export { parseCompetitionRules, knockoutStageRules, deepMerge, RulesConfigError } from './config/parse.js';
+
+export type * from './standings/types.js';
+export {
+  accumulate,
+  applyMatch,
+  basePoints,
+  chronological,
+  emptyRecord,
+  formString,
+  recordFromBaseline,
+  StandingsInputError,
+  totalPoints,
+} from './standings/accumulate.js';
+export {
+  computeStandings,
+  computeTable,
+  isHeadToHead,
+  rankRecords,
+  type ComputeStandingsInput,
+} from './standings/compute.js';
+
+export {
+  KNOCKOUT_FAMILIES,
+  LEAGUE_FAMILIES,
+  STAKE_FAMILIES,
+  makeStake,
+  stakeCode,
+  type Stake,
+  type StakeFamily,
+  type StakeParams,
+  type StakeSide,
+} from './stakes/codes.js';
+export {
+  knockoutStakes,
+  tieOutcome,
+  KnockoutInputError,
+  type KnockoutMatchInput,
+  type TieOutcome,
+} from './stakes/knockout.js';
+export {
+  analyzeLeague,
+  isBadZone,
+  leagueMatchStakes,
+  LeagueInputError,
+  type Fixture,
+  type LeagueMatchInput,
+  type LeagueOutlookInput,
+  type LeagueTeamInput,
+  type TeamOutlook,
+  type ZoneStatus,
+} from './stakes/league.js';
+export {
+  isStakeLocale,
+  localizeStake,
+  stakeText,
+  zoneLabel,
+  STAKE_LABELS,
+  STAKE_LOCALES,
+  ZONE_LABELS,
+  type LabelTemplate,
+  type LocalizedStake,
+  type StakeLocale,
+} from './stakes/labels.js';

@@ -1,0 +1,34 @@
+# LaLiga (Espanha).
+# Desempate (Reglamento General RFEF, art. 201): confronto direto PRIMEIRO — pontos e saldo
+# nos jogos entre os empatados (só quando todos esses jogos já foram disputados); depois saldo
+# geral, gols pró geral e fair play.
+slug: laliga
+name: LaLiga
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  h2h_reapply: true
+  tie_breakers:
+    - { criterion: h2h_points, require_complete: true }
+    - { criterion: h2h_goal_difference, require_complete: true }
+    - goal_difference
+    - goals_for
+    - fair_play
+    - drawing_of_lots
+
+league:
+  teams: 20
+  matches_per_team: 38
+  meetings_per_pair: 2
+  title: true
+  zones:
+    - { id: champions_league, kind: qualification, from: 1, to: 4 }
+    - { id: europa_league, kind: qualification, from: 5, to: 5 }
+    - { id: conference_league, kind: qualification, from: 6, to: 6 }
+    - { id: relegation, kind: relegation, from: 18, to: 20 }
+
+knockout: null
+
+sources:
+  - https://www.rfef.es/es/federacion/normativa

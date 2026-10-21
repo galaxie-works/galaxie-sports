@@ -11,8 +11,20 @@ data/knowledge/
 │   ├── teams/<iso2>.yaml           # um arquivo por país (br, ar, uy, cl, co, pe, ec, py, bo, ve, mx, gb-eng, es, it, de, fr, pt, nl...)
 │   ├── national-teams.yaml         # seleções
 │   └── derbies/<region>.yaml       # clássicos/dérbis (br, south-america, mexico, europe, international)
-└── competitions/football.yaml      # apelidos e semântica de competições (ex.: "Glória Eterna" = Libertadores)
+├── competitions/*.yaml             # apelidos e semântica de competições (ex.: "Glória Eterna" = Libertadores)
+├── copy/<locale>.yaml              # biblioteca de microcopy por mercado (pt-BR e 7 variantes de espanhol)
+└── schemas/*.schema.json           # JSON Schemas (draft-07) de cada tipo de arquivo
 ```
+
+## Validação, seed e resolução de IDs
+
+| Comando | O que faz |
+|---|---|
+| `pnpm knowledge:validate` | JSON Schema + regras cruzadas: slugs únicos, `team_id`/`api_sports_league_id` únicos, clássicos com times existentes, rivais apontando para times/clássicos existentes (avisa quando a rivalidade não é recíproca ou a intensidade diverge da do clássico), `sources` obrigatórias, locales permitidos, `review_status` válido, heurística contra letra de hino/canção e regras de `copy_permission` nos templates. Roda no CI; erro = merge bloqueado. |
+| `pnpm db:seed:semantic` | Carrega tudo em `semantic.*` (idempotente; remove o que saiu do YAML), liga perfis a `core.participant`/`core.competition` via `provider_map`, recalcula `core.event.derby_id` e registra `semantic.load_run` com o SHA do Git. |
+| `pnpm resolve:ids` | Casa slugs com times da api-sports usando só o banco local (raw `/teams?country=`, `/fixtures`, `/leagues` e `core.participant`). `--write` grava no YAML apenas os casos resolvidos sem ambiguidade (só o valor muda; comentários e estilo ficam); `--apply-db` grava `core.provider_map` e `team_profile.participant_id` quando o participante existe; `--json` salva o relatório. |
+
+Os editores com suporte a YAML Language Server podem usar os schemas com `# yaml-language-server: $schema=../../schemas/teams.schema.json`.
 
 ## `teams/<iso2>.yaml`
 
@@ -96,8 +108,32 @@ competitions:
     labels: { pt-BR: Libertadores, es: Libertadores, en: Copa Libertadores }
     nicknames: { pt-BR: [Glória Eterna, Liberta], es: [La Gloria Eterna, La Copa] }
     trophy_nickname: null
-    sources: []
+    sources: ["https://..."]                     # pelo menos uma URL
+    review_status: draft                         # opcional (padrão draft)
 ```
+
+## `copy/<locale>.yaml`
+
+Microcopy localizada **pela intenção** (docs/06 §4), um arquivo por mercado: `pt-BR`, `es-AR`, `es-MX`, `es-CO`, `es-CL`, `es-PE`, `es-UY`, `es-EC`.
+
+```yaml
+schema_version: 1
+locale: pt-BR
+sport: football
+templates:
+  - key: rivalry-3                 # único no locale; no banco vira "pt-BR.rivalry-3"
+    intent: rivalry                # inform | anticipate | cheer | rivalry | urgency | decisive
+    tone: 3                        # 1 informativo · 2 próximo · 3 torcedor · 4 alta energia
+    affinity_type: rival           # opcional: heart | support | sympathy | rival | interest
+    affinity_source: explicit      # opcional: explicit | inferred
+    momentum: null                 # opcional: D-3+, D-2, D-1, today, T-60, T-30, T-10, starting, live
+    competition_context: null      # opcional: regular, derby, playoff, knockout, semifinal, final, title, lead, relegation
+    template: "{rival} em campo hoje. Dia de secar!"   # placeholders: {team} {nickname} {rival} {minutes}
+    confidence: HIGH               # HIGH | MEDIUM | EXPERIMENTAL
+    review_status: draft
+```
+
+Campos opcionais restringem o template: `null` vale para qualquer valor do pedido. A escolha em tempo de execução é feita por `selectCopy` (`packages/knowledge`), que aplica o `copy_permission`: afinidade inferida recebe só `inform` tom 1; rivalidade só com rival declarado. Evite artigo antes de `{team}`/`{rival}` (o gênero muda por clube).
 
 ## Regras editoriais (guardrails)
 

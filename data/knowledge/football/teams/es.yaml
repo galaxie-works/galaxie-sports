@@ -1,6 +1,7 @@
 # Base semântica — clubes da Espanha (schema v1, ver data/knowledge/SCHEMA.md)
 # labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
 # api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+# athletic-club (531): resolvido por `pnpm resolve:ids` (nome idêntico em partida de LaLiga no raw /fixtures).
 schema_version: 1
 country: ES
 teams:
@@ -292,7 +293,7 @@ teams:
     abbreviation: ATH
   labels: {pt-BR: Athletic Bilbao, es: Athletic Club, en: Athletic Club}
   api_sports:
-    team_id: null
+    team_id: 531
     match: {name: Athletic Club, country: Spain}
   founded: 1898-07-18
   city: Bilbao
