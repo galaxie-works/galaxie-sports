@@ -10,6 +10,7 @@ import type {
 } from './catalog.js';
 import type { Problem, SupportedLocale } from './common.js';
 import type { CompetitionContext } from './context.js';
+import type { EventContext } from './event-context.js';
 import type {
   Event,
   EventLineups,
@@ -148,6 +149,9 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     eventLineups: (id: string, opts: LocaleOpts = {}) =>
       v1<EventLineups>(`/v1/events/${seg(id)}/lineups`, opts),
     eventStats: (id: string, opts: LocaleOpts = {}) => v1<EventStats>(`/v1/events/${seg(id)}/stats`, opts),
+    /** Cenário pré-jogo / resumo pós-jogo de IA (módulo live_intelligence). */
+    eventContext: (id: string, opts: LocaleOpts & { kind?: 'scenario' | 'recap' } = {}) =>
+      v1<EventContext>(`/v1/events/${seg(id)}/context`, opts),
     eventH2h: (id: string, opts: LocaleOpts & { limit?: number } = {}) =>
       v1<HeadToHead>(`/v1/events/${seg(id)}/h2h`, opts),
     /** Arquivo .ics (RFC 5545) do evento, como texto. */

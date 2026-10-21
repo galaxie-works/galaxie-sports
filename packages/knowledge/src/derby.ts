@@ -31,6 +31,65 @@ export async function findDerby(db: Executor, teamAId: string, teamBId: string):
   return row ? { ...row, intensity: Number(row.intensity) } : null;
 }
 
+/** Clássico achado pelo par de participantes, no formato do `DerbyLookup` de `@galaxie/providers`. */
+export type DerbyPairMatch = {
+  derbyId: string;
+  slug: string;
+  name: string;
+  intensity: number;
+};
+
+/** Chave do par de participantes, independente da ordem. */
+export const participantPairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+/**
+ * Todos os clássicos com os dois times ligados ao core (`team_profile.participant_id`), indexados pelo
+ * par de participantes. Com mais de um clássico para o mesmo par, fica o de maior intensidade (depois o
+ * slug) — o mesmo desempate de `findDerby` e `assignEventDerbies`.
+ */
+export async function loadDerbyPairs(db: Executor): Promise<Map<string, DerbyPairMatch>> {
+  const rows = await db.execute<{
+    derby_id: string;
+    slug: string;
+    name: string;
+    intensity: number;
+    a: string;
+    b: string;
+  }>(sql`
+    select d.id as derby_id, d.slug, d.name, d.intensity,
+           min(tp.participant_id::text) as a, max(tp.participant_id::text) as b
+      from semantic.derby d
+      join semantic.derby_team dt on dt.derby_id = d.id
+      join semantic.team_profile tp on tp.slug = dt.team_slug
+     where tp.participant_id is not null
+     group by d.id, d.slug, d.name, d.intensity
+    having count(*) = 2 and count(distinct tp.participant_id) = 2
+     order by d.intensity desc, d.slug`);
+  const pairs = new Map<string, DerbyPairMatch>();
+  for (const r of rows) {
+    const key = participantPairKey(r.a, r.b);
+    if (!pairs.has(key))
+      pairs.set(key, { derbyId: r.derby_id, slug: r.slug, name: r.name, intensity: Number(r.intensity) });
+  }
+  return pairs;
+}
+
+/**
+ * `DerbyLookup` lido do banco (base semântica já semeada): carrega os pares uma única vez, na primeira
+ * consulta, e responde em memória. É o gancho do upsert de eventos: o `derby_id` (e a intensidade na
+ * importância) sai certo já na gravação do evento.
+ */
+export function createDerbyLookup(
+  db: Executor,
+): (participantA: string, participantB: string) => Promise<DerbyPairMatch | null> {
+  let pairs: Promise<Map<string, DerbyPairMatch>> | undefined;
+  return async (a, b) => {
+    if (!a || !b || a === b) return null;
+    pairs ??= loadDerbyPairs(db);
+    return (await pairs).get(participantPairKey(a, b)) ?? null;
+  };
+}
+
 /**
  * Preenche (ou limpa) core.event.derby_id a partir dos dois participantes de cada evento.
  * Sem `eventIds`, recalcula todos os eventos (usado pelo seed); com `eventIds`, só esses — é o

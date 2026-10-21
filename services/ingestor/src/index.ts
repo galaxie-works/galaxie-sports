@@ -5,6 +5,8 @@ export * from './normalize/upsert-core.js';
 export * from './normalize/event-state.js';
 export * from './normalize/raw-runner.js';
 export * from './normalize/ingest.js';
+export * from './normalize/importance.js';
+export * from './ops/change-feed-retention.js';
 export { uuidv7 } from './normalize/uuid.js';
 
 export * from './context.js';
