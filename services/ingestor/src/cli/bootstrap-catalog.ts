@@ -13,6 +13,7 @@ import { closeDb, createDb } from '@galaxie/db';
 import { planFootballCatalog, runFootballCatalogJob, summarize } from '../bootstrap/football-catalog-job.js';
 import { loadFootballCatalog } from '../catalog/catalog-config.js';
 import { contextFromEnv } from '../context.js';
+import { logger, report } from '../logger.js';
 
 const catalogPath = resolve('../../config/competitions/football.yaml');
 
@@ -20,8 +21,10 @@ if (process.argv.includes('--plan')) {
   if (!process.env.DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
   const db = createDb(process.env.DATABASE_URL);
   const plan = await planFootballCatalog(db);
-  console.table(plan);
-  console.log(`Chamadas que gastariam cota: ${plan.filter((p) => p.source === 'network').length}`);
+  report('Plano do bootstrap do catálogo', plan);
+  report('Chamadas que gastariam cota', {
+    network_calls: plan.filter((p) => p.source === 'network').length,
+  });
   await closeDb(db);
 } else {
   const { db, client, governor, offline } = contextFromEnv();
@@ -29,14 +32,16 @@ if (process.argv.includes('--plan')) {
   if (process.argv.includes('--sem-live')) {
     const usage = await governor.usage('football');
     await governor.plan('football', usage.dayUtc, { LIVE: 0, DAILY: usage.used.DAILY });
-    console.log(`Dia ${usage.dayUtc} planejado sem ao vivo: folga liberada para o BOOTSTRAP.`);
+    logger.info(
+      { sport: 'football', day_utc: usage.dayUtc },
+      'dia planejado sem ao vivo: folga liberada para o BOOTSTRAP',
+    );
   }
   const catalog = await loadFootballCatalog(catalogPath);
   const result = await runFootballCatalogJob(db, client, catalog);
-  console.table(result.calls);
-  console.log('Gravado:', JSON.stringify(result.stats));
-  console.log('Catálogo:', JSON.stringify(summarize(result.check)));
+  report('Chamadas do bootstrap do catálogo', result.calls);
+  report('Catálogo gravado', { stats: result.stats, catalog: summarize(result.check) });
   const problems = result.check.filter((c) => c.status !== 'ok');
-  if (problems.length) console.table(problems);
+  if (problems.length) report('Competições com divergência no catálogo', problems);
   await closeDb(db);
 }

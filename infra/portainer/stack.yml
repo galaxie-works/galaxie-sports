@@ -1,0 +1,251 @@
+# Stack de staging do Galaxie Sports para Portainer (ADR-08) — issue #5.
+# Deploy: Portainer → Stacks → Add stack → Repository, "Compose path" = infra/portainer/stack.yml.
+# Variáveis (segredos inclusive) no próprio Portainer; lista completa em infra/portainer/stack.env.example.
+# Passo a passo, TLS, backups e restore: infra/portainer/README.md.
+#
+# Validar localmente: docker compose -f infra/portainer/stack.yml --env-file infra/portainer/stack.env.example config -q
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+x-node-env: &node-env
+  NODE_ENV: production
+  APP_ENV: staging
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
+  REDIS_URL: redis://valkey:6379
+  S3_ENDPOINT: http://s3:9000
+  S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+  APISPORTS_PLAN: ${APISPORTS_PLAN:-free}
+  QUOTA_RESERVE_PERCENT: ${QUOTA_RESERVE_PERCENT:-15}
+
+services:
+  # ── dados ─────────────────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-galaxie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
+    shm_size: 256mb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    command: ['valkey-server', '--appendonly', 'yes']
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  # Object storage S3-compatível (assets espelhados). Só na rede interna.
+  s3:
+    image: rustfs/rustfs:1.0.2
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+      RUSTFS_CONSOLE_ENABLE: 'false'
+    volumes:
+      - s3data:/data
+    logging: *logging
+
+  s3-init:
+    image: amazon/aws-cli:2.38.2
+    depends_on:
+      - s3
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+      AWS_DEFAULT_REGION: us-east-1
+      BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && break; sleep 2; done
+        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$BUCKET"
+        echo "bucket $$BUCKET pronto"
+    restart: 'no'
+    logging: *logging
+
+  # ── aplicação ─────────────────────────────────────────────────────────────────────────────────
+  # Aplica as migrations (idempotente) antes de API e ingestor subirem. Usa a imagem construída pelo serviço api.
+  migrate:
+    image: ${IMAGE_PREFIX:-galaxie-sports}-api:${IMAGE_TAG:-staging}
+    command: ['node', 'node_modules/@galaxie/db/dist/migrate-cli.js']
+    environment:
+      <<: *node-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+    logging: *logging
+
+  api:
+    image: ${IMAGE_PREFIX:-galaxie-sports}-api:${IMAGE_TAG:-staging}
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    pull_policy: ${PULL_POLICY:-build}
+    restart: unless-stopped
+    environment:
+      <<: *node-env
+      API_PORT: '8080'
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      LIVE_POLL_INTERVAL_SECONDS: ${LIVE_POLL_INTERVAL_SECONDS:-300}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      ASSETS_PUBLIC_BASE_URL: ${ASSETS_PUBLIC_BASE_URL:-}
+      API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+    expose:
+      - '8080'
+    # Healthcheck vem da imagem (GET /health).
+    logging: *logging
+
+  # Scheduler: roda os CLIs do ingestor em horários fixos (UTC) e registra cada execução em ops.job_run.
+  ingestor:
+    image: ${IMAGE_PREFIX:-galaxie-sports}-ingestor:${IMAGE_TAG:-staging}
+    build:
+      context: ../..
+      dockerfile: services/ingestor/Dockerfile
+    pull_policy: ${PULL_POLICY:-build}
+    restart: unless-stopped
+    environment:
+      <<: *node-env
+      APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
+      ASSETS_PUBLIC_BASE_URL: ${ASSETS_PUBLIC_BASE_URL:-}
+      SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-5 0 * * *}
+      SCHEDULE_NORMALIZE_FOOTBALL: ${SCHEDULE_NORMALIZE_FOOTBALL:-35 0 * * *}
+      SCHEDULE_EVENTS_CLOCK: ${SCHEDULE_EVENTS_CLOCK:-* * * * *}
+      SCHEDULE_ASSETS_MIRROR: ${SCHEDULE_ASSETS_MIRROR:-30 1 * * *}
+      SCHEDULE_QUOTA_STATUS: ${SCHEDULE_QUOTA_STATUS:-5 * * * *}
+      SCHEDULE_BOOTSTRAP_CATALOG: ${SCHEDULE_BOOTSTRAP_CATALOG:-15 3 * * 1}
+      SCHEDULER_RUN_ON_START: ${SCHEDULER_RUN_ON_START:-}
+      SCHEDULER_TIMEOUT_MINUTES: ${SCHEDULER_TIMEOUT_MINUTES:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 40s
+    logging: *logging
+
+  # ── backups ───────────────────────────────────────────────────────────────────────────────────
+  # pg_dump diário (BACKUP_TIME, UTC) com retenção de 30 dias no volume `backups` e cópia opcional para S3 externo.
+  backup:
+    image: ${IMAGE_PREFIX:-galaxie-sports}-backup:${IMAGE_TAG:-staging}
+    build:
+      context: ../backup
+    pull_policy: ${PULL_POLICY:-build}
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGUSER: ${POSTGRES_USER:-galaxie}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
+      BACKUP_TIME: ${BACKUP_TIME:-03:30}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_ON_START: ${BACKUP_ON_START:-true}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-postgres}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-us-east-1}
+    volumes:
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+
+  # ── observabilidade ───────────────────────────────────────────────────────────────────────────
+  prometheus:
+    image: ${IMAGE_PREFIX:-galaxie-sports}-prometheus:${IMAGE_TAG:-staging}
+    build:
+      context: ../observability/prometheus
+    pull_policy: ${PULL_POLICY:-build}
+    restart: unless-stopped
+    environment:
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
+    volumes:
+      - promdata:/prometheus
+    depends_on:
+      - api
+    logging: *logging
+
+  grafana:
+    image: ${IMAGE_PREFIX:-galaxie-sports}-grafana:${IMAGE_TAG:-staging}
+    build:
+      context: ../observability/grafana
+    pull_policy: ${PULL_POLICY:-build}
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD}
+      GF_SERVER_ROOT_URL: https://${GRAFANA_DOMAIN:-grafana.localhost}
+    volumes:
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
+  # ── borda: TLS automático ─────────────────────────────────────────────────────────────────────
+  # Remova este serviço se a VPS já tiver um proxy (Traefik, etc.) — ver README.
+  caddy:
+    image: ${IMAGE_PREFIX:-galaxie-sports}-caddy:${IMAGE_TAG:-staging}
+    build:
+      context: ../caddy
+    pull_policy: ${PULL_POLICY:-build}
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?defina API_DOMAIN}
+      GRAFANA_DOMAIN: ${GRAFANA_DOMAIN:-grafana.localhost}
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+      - '${HTTPS_PORT:-443}:443/udp'
+    volumes:
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - api
+      - grafana
+    logging: *logging
+
+volumes:
+  pgdata:
+  valkeydata:
+  s3data:
+  backups:
+  promdata:
+  grafanadata:
+  caddydata:
+  caddyconfig:

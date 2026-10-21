@@ -11,6 +11,7 @@ import { ProblemError, problems, registerErrorHandling } from './errors.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
 import { docsRoutes } from './routes/docs.js';
 import { mirrorRoutes } from './routes/mirror.js';
+import { apiLoggerOptions, registerObservability } from './observability.js';
 import { v1Routes } from './routes/v1/index.js';
 
 export interface ServerOptions {
@@ -39,7 +40,8 @@ export interface ServerOptions {
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
 export function buildServer(options: ServerOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({ logger: options.logger ? apiLoggerOptions() : false });
+  registerObservability(app, { db: options.db });
   const prefix = options.keyPrefix ?? 'gs:';
 
   const cache =

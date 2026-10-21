@@ -9,6 +9,7 @@ import {
 import { jobRun, type Database } from '@galaxie/db';
 import { eq } from 'drizzle-orm';
 import type { CatalogCompetition } from '../catalog/catalog-config.js';
+import { logger } from '../logger.js';
 import {
   buildCatalogRows,
   checkCatalog,
@@ -64,6 +65,12 @@ export async function runFootballCatalogJob(
     .insert(jobRun)
     .values({ job: 'bootstrap:football-catalog', status: 'running' })
     .returning();
+  const log = logger.child({
+    job_id: `job-run:${run!.id}`,
+    job: 'bootstrap:football-catalog',
+    sport: 'football',
+  });
+  log.info('job iniciado');
   try {
     const calls: PlannedCall[] = [];
     const envelopes = new Map<string, Envelope>();
@@ -92,12 +99,17 @@ export async function runFootballCatalogJob(
         stats: { ...stats, catalog: summarize(check) },
       })
       .where(eq(jobRun.id, run!.id));
+    log.info(
+      { calls_spent: calls.filter((c) => c.source === 'network').length, stats, catalog: summarize(check) },
+      'job concluído',
+    );
     return { calls, stats, check };
   } catch (err) {
     await db
       .update(jobRun)
       .set({ status: 'error', finishedAt: new Date(), error: String(err) })
       .where(eq(jobRun.id, run!.id));
+    log.error({ err }, 'job falhou');
     throw err;
   }
 }

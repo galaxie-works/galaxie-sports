@@ -34,7 +34,7 @@ importers:
         version: 8.72.0(eslint@10.13.0)(typescript@6.0.3)
       vitest:
         specifier: ^5.0.5
-        version: 5.0.5(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/api:
     dependencies:
@@ -50,9 +50,12 @@ importers:
       '@galaxie/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
+      '@galaxie/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       fastify:
         specifier: ^5.12.7
         version: 5.12.7
@@ -79,7 +82,7 @@ importers:
         version: link:../db
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
     devDependencies:
       postgres:
         specifier: ^3.4.9
@@ -102,7 +105,7 @@ importers:
     dependencies:
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -121,10 +124,32 @@ importers:
         version: 8.20.0
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+    devDependencies:
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
+
+  packages/observability:
+    dependencies:
+      '@galaxie/apisports-client':
+        specifier: workspace:*
+        version: link:../apisports-client
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../db
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
+      pino:
+        specifier: ^10.4.0
+        version: 10.4.0
+      prom-client:
+        specifier: ^15.1.3
+        version: 15.1.3
     devDependencies:
       postgres:
         specifier: ^3.4.9
@@ -143,7 +168,7 @@ importers:
         version: link:../db
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -165,12 +190,18 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@galaxie/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      croner:
+        specifier: ^10.0.1
+        version: 10.0.1
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(postgres@3.4.9)
+        version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -816,6 +847,10 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
+  '@opentelemetry/api@1.10.0':
+    resolution: {integrity: sha512-lMkyes8iHrG+mk6WH7X70MdCLI2RS0FwNBY1PyQ8UemaijE2m5mv5A0Niy3HtbYTFrgkUEQjFMXmSAk2hQDuPQ==}
+    engines: {node: '>=8.0.0'}
+
   '@oxc-project/types@0.154.0':
     resolution: {integrity: sha512-KYOUGQFlLWR+s4QMV2Q9ko38TZm7EdO87Qm7rvZLqk/webse/cDjtyxKhg/47l0byCbs/k46LT8qc4PKjAikzA==}
 
@@ -1120,6 +1155,9 @@ packages:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
 
+  bintrees@1.0.2:
+    resolution: {integrity: sha512-VOMgTMwjAaUG580SXn3LacVgjurrbMme7ZZNYGSSV7mmtY6QQRh0Eg3pwIcntQ77DErK1L0NxkbetjcoXzVwKw==}
+
   bowser@2.14.1:
     resolution: {integrity: sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg==}
 
@@ -1144,6 +1182,10 @@ packages:
   cookie@2.0.1:
     resolution: {integrity: sha512-yuToqVvRrj6pfDXREyQAAv8SkAEk/8GS3jQRTiUMm66TVtBYmqQeoEjL2Lmq8Rpo6271vH76InTChTitEAm65w==}
     engines: {node: '>=22'}
+
+  croner@10.0.1:
+    resolution: {integrity: sha512-ixNtAJndqh173VQ4KodSdJEI6nuioBWI0V1ITNKhZZsO0pEMoDxz539T4FTTbSZ/xIOSuDnzxLVRqBVSvPNE2g==}
+    engines: {node: '>=18.0'}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -1639,6 +1681,11 @@ packages:
   process-warning@5.1.1:
     resolution: {integrity: sha512-oCkNVj4OKnKEcocVBcDfiIugN1/cE6rgfT3nCtzeqZPA8+rIxMaQ0xXzIkGP8Gj2qUaP1UR7uhJ1VD8lUCpzCg==}
 
+  prom-client@15.1.3:
+    resolution: {integrity: sha512-6ZiOBfCywsD4k1BN9IX0uZhF+tJkV8q8llP64G5Hajs4JOeVLPCwpPVcpXy3BwYiUGgyJzsJJQeOIv7+hDSq8g==}
+    engines: {node: ^16 || ^18 || >=20}
+    deprecated: prom-client has been replaced by @prometheus-io/client
+
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
@@ -1734,6 +1781,9 @@ packages:
 
   std-env@4.3.0:
     resolution: {integrity: sha512-OtU/EgQ1kIm5KwqQpBC6ZEMXrZRui11w8zgfTWp8cdO9B8OaPsbA8bTHO2P+HNo1VlUTGMVBwPhydu6poeXiag==}
+
+  tdigest@0.1.3:
+    resolution: {integrity: sha512-zbRt+lT+/H4fRItHshczHErVCQnitJk8MfMT24MqFJf3YL7SJJPqGIGeuOdvxXxM/AHFzKBl7WoyaYwqO9s3Kw==}
 
   thread-stream@4.2.0:
     resolution: {integrity: sha512-e2zZ96wSChazBsbENf/Pcm/4swHt2cEKQ92rhUjkL9GCKiTDJIaTBenjE/m9DXi0QBmTMDkFDdOomUy20A1tDQ==}
@@ -2418,6 +2468,8 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
+  '@opentelemetry/api@1.10.0': {}
+
   '@oxc-project/types@0.154.0': {}
 
   '@pinojs/redact@0.4.0': {}
@@ -2687,6 +2739,8 @@ snapshots:
 
   balanced-match@4.0.4: {}
 
+  bintrees@1.0.2: {}
+
   bowser@2.14.1: {}
 
   brace-expansion@5.0.12:
@@ -2708,6 +2762,8 @@ snapshots:
   cluster-key-slot@1.1.1: {}
 
   cookie@2.0.1: {}
+
+  croner@10.0.1: {}
 
   cross-spawn@7.0.6:
     dependencies:
@@ -2734,8 +2790,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.15
 
-  drizzle-orm@0.45.4(postgres@3.4.9):
+  drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9):
     optionalDependencies:
+      '@opentelemetry/api': 1.10.0
       postgres: 3.4.9
 
   es-module-lexer@2.3.2: {}
@@ -3174,6 +3231,11 @@ snapshots:
 
   process-warning@5.1.1: {}
 
+  prom-client@15.1.3:
+    dependencies:
+      '@opentelemetry/api': 1.10.0
+      tdigest: 0.1.3
+
   punycode@2.3.1: {}
 
   qified@0.10.1:
@@ -3258,6 +3320,10 @@ snapshots:
 
   std-env@4.3.0: {}
 
+  tdigest@0.1.3:
+    dependencies:
+      bintrees: 1.0.2
+
   thread-stream@4.2.0:
     dependencies:
       real-require: 1.0.0
@@ -3331,7 +3397,7 @@ snapshots:
       tsx: 4.23.15
       yaml: 2.9.1
 
-  vitest@5.0.5(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)):
+  vitest@5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.5(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -3348,6 +3414,7 @@ snapshots:
       vite: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
       why-is-node-running: 3.2.1
     optionalDependencies:
+      '@opentelemetry/api': 1.10.0
       '@types/node': 24.19.2
     transitivePeerDependencies:
       - msw

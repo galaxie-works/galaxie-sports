@@ -1,0 +1,53 @@
+# Proxy reverso com TLS automático (Let's Encrypt/ZeroSSL via ACME) para o staging.
+# Domínios vêm do ambiente do container: API_DOMAIN (obrigatório) e GRAFANA_DOMAIN (opcional).
+# Com "localhost" (testes locais) o Caddy usa a CA interna dele.
+{
+	admin off
+	servers {
+		trusted_proxies static private_ranges
+	}
+	# Logs internos do Caddy (inclusive erros de proxy) também sem IP completo nem credenciais.
+	log default {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip ip_mask 24 48
+				request>client_ip ip_mask 24 48
+				request>headers>Authorization delete
+				request>headers>X-Api-Key delete
+				request>headers>Cookie delete
+			}
+		}
+	}
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+	# Métricas e rotas internas nunca saem pelo proxy público (docs/11 §4: /internal/* só por VPN/allowlist).
+	@internal path /metrics /metrics/* /internal /internal/*
+	respond @internal 404
+	reverse_proxy api:8080 {
+		health_uri /health
+		health_interval 15s
+	}
+	# Log de acesso em JSON sem IP completo nem credenciais (docs/11 §3).
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip ip_mask 24 48
+				request>client_ip ip_mask 24 48
+				request>headers>Authorization delete
+				request>headers>X-Api-Key delete
+				request>headers>Cookie delete
+			}
+		}
+	}
+}
+
+{$GRAFANA_DOMAIN:grafana.localhost} {
+	encode zstd gzip
+	reverse_proxy grafana:3000
+}
