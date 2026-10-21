@@ -188,11 +188,16 @@ describe('webhooks assinados', () => {
     // ~100 ms e ~200 ms (±20%) entre as tentativas
     expect(attempts[1]!.at - attempts[0]!.at).toBeGreaterThanOrEqual(70);
     expect(attempts[2]!.at - attempts[1]!.at).toBeGreaterThanOrEqual(150);
-    const [d] = await db
-      .select()
-      .from(webhookDelivery)
-      .where(eq(webhookDelivery.topic, 'event.status_changed'));
-    expect(d).toMatchObject({ status: 'delivered', attempts: 3, responseCode: 200 });
+    // o 3º POST chega ao servidor antes de o worker gravar o resultado: espera a gravação
+    await expect
+      .poll(
+        async () =>
+          (
+            await db.select().from(webhookDelivery).where(eq(webhookDelivery.topic, 'event.status_changed'))
+          )[0],
+        { timeout: 5_000 },
+      )
+      .toMatchObject({ status: 'delivered', attempts: 3, responseCode: 200 });
   });
 
   it('após N falhas vai para a DLQ; replay recoloca na fila e entrega', async () => {

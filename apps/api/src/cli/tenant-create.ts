@@ -1,21 +1,25 @@
 import { parseArgs } from 'node:util';
 import { API_PLANS, closeDb, createDb, type ApiModule, type ApiPlan } from '@galaxie/db';
+import { loadPlans } from '../admin/plans.js';
+import { resolveTenantValues } from '../admin/tenants.js';
 import { createApiKey, isModule, upsertTenant } from '../auth/admin.js';
 
 const USAGE = `Uso: pnpm --filter @galaxie/api tenant:create --slug <slug> [opções]
 
-Cria (ou atualiza) um tenant e gera uma chave de API nova.
+Cria (ou atualiza) um tenant a partir do modelo do plano (config/plans.yaml; PLANS_CONFIG_PATH
+sobrescreve) e gera uma chave de API nova. As opções abaixo ajustam o modelo.
 
-  --slug         identificador do tenant (obrigatório)
-  --name         nome exibido (padrão: o slug)
-  --plan         ${API_PLANS.join(' | ')} (padrão: enterprise)
-  --modules      lista separada por vírgula (padrão: módulos do plano)
-  --markets      países ISO2 separados por vírgula (padrão: todos)
-  --sports       esportes separados por vírgula (padrão: todos)
-  --rate-limit   requisições por minuto, por rota (padrão: 120)
-  --label        rótulo da chave (ex.: demo-local)
-  --scopes       restringe a chave a estes módulos (padrão: todos os do tenant)
-  --env          live | test (prefixo da chave; padrão: test)
+  --slug          identificador do tenant (obrigatório)
+  --name          nome exibido (padrão: o slug)
+  --plan          ${API_PLANS.join(' | ')} (padrão: enterprise)
+  --modules       lista separada por vírgula (padrão: módulos do plano)
+  --markets       países ISO2 separados por vírgula (padrão: os do plano; vazio = todos)
+  --sports        esportes separados por vírgula (padrão: os do plano; vazio = todos)
+  --rate-limit    requisições por minuto, por rota (padrão: rateLimitPerMinute do plano)
+  --daily-quota   cota diária de requisições (padrão: dailyRequestQuota do plano; "none" = sem cota)
+  --label         rótulo da chave (ex.: demo-local)
+  --scopes        restringe a chave a estes módulos (padrão: todos os do tenant)
+  --env           live | test (prefixo da chave; padrão: test — chave de desenvolvimento)
 `;
 
 const csv = (v: string | undefined) =>
@@ -43,6 +47,7 @@ const { values } = parseArgs({
     markets: { type: 'string' },
     sports: { type: 'string' },
     'rate-limit': { type: 'string' },
+    'daily-quota': { type: 'string' },
     label: { type: 'string' },
     scopes: { type: 'string' },
     env: { type: 'string', default: 'test' },
@@ -71,27 +76,49 @@ if (!url) {
   process.exit(1);
 }
 
+function positiveIntOrExit(raw: string | undefined, flag: string): number | undefined {
+  if (raw === undefined) return undefined;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) {
+    console.error(`${flag} precisa ser um inteiro positivo.`);
+    process.exit(1);
+  }
+  return n;
+}
+
 const modules = modulesOrExit(csv(values.modules), '--modules');
 const scopes = modulesOrExit(csv(values.scopes), '--scopes');
 const markets = csv(values.markets);
 const sports = csv(values.sports);
+const rateLimit = positiveIntOrExit(values['rate-limit'], '--rate-limit');
+const dailyQuota =
+  values['daily-quota'] === 'none' ? null : positiveIntOrExit(values['daily-quota'], '--daily-quota');
+// modelo do plano (config/plans.yaml) + ajustes das flags — o mesmo cálculo do onboarding administrativo
+const resolved = resolveTenantValues(loadPlans(), {
+  plan: values.plan as ApiPlan,
+  ...(modules ? { modules } : {}),
+  ...(markets ? { markets } : {}),
+  ...(sports ? { sports } : {}),
+  ...(rateLimit !== undefined ? { rateLimitPerMinute: rateLimit } : {}),
+  ...(dailyQuota !== undefined ? { dailyRequestQuota: dailyQuota } : {}),
+});
 const db = createDb(url, { max: 1 });
 try {
   const t = await upsertTenant(db, {
     slug: values.slug,
     name: values.name ?? values.slug,
-    plan: values.plan as ApiPlan,
-    ...(modules ? { modules } : {}),
-    ...(markets ? { markets } : {}),
-    ...(sports ? { sports } : {}),
-    ...(values['rate-limit'] ? { rateLimitPerMinute: Number(values['rate-limit']) } : {}),
+    ...resolved,
   });
   const key = await createApiKey(db, t.id, {
     env: values.env,
     ...(values.label ? { label: values.label } : {}),
     ...(scopes ? { scopes } : {}),
   });
-  console.log(`Tenant ${values.slug} ${t.created ? 'criado' : 'atualizado'} (${t.id}).`);
+  console.log(
+    `Tenant ${values.slug} ${t.created ? 'criado' : 'atualizado'} (${t.id}) — plano ${resolved.plan}: ` +
+      `${resolved.modules.join(', ')} · ${resolved.rateLimitPerMinute} req/min · ` +
+      `cota diária ${resolved.dailyRequestQuota ?? 'sem limite'}.`,
+  );
   console.log(`Chave ${key.prefix} criada. Guarde-a agora — ela não será exibida novamente:\n`);
   console.log(`  ${key.key}\n`);
   console.log(`Teste: curl -H "x-galaxie-key: ${key.key}" http://localhost:8080/v1/sports`);

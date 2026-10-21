@@ -271,6 +271,9 @@ importers:
       '@galaxie/geo':
         specifier: workspace:*
         version: link:../../packages/geo
+      '@galaxie/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
       '@galaxie/observability':
         specifier: workspace:*
         version: link:../../packages/observability

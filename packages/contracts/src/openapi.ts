@@ -32,6 +32,7 @@ import {
   LiveEventsQuery,
   TeamSummary,
 } from './events.js';
+import { EventContext, EventContextQuery } from './event-context.js';
 import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
 import { WhereToWatch, WhereToWatchParams, WhereToWatchQuery } from './where-to-watch.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
@@ -210,6 +211,21 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           [400, 401, 403, 404, 429],
         ),
       },
+      '/v1/events/{id}/context': {
+        get: {
+          ...getOp(
+            'Cenário pré-jogo / resumo pós-jogo gerado por IA, com fontes',
+            'Eventos',
+            EventContext,
+            { path: EventParams, query: EventContextQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Texto calculado a partir dos fatos (regulamento, tabela, timeline) e só redigido pela IA; todo texto ' +
+            'passa pelos guardrails e, se reprovado, vira o texto determinístico (`origin: fallback`). Exige o ' +
+            'módulo `live_intelligence`. Atualizações chegam pelo tópico `event.context_published` (SSE/webhook).',
+        },
+      },
       '/v1/events/{id}/h2h': {
         get: getOp(
           'Histórico do confronto (do core, sem chamada ao fornecedor)',
@@ -367,7 +383,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       securitySchemes: {
         galaxieKey: { type: 'apiKey', in: 'header', name: 'x-galaxie-key' },
       },
-      schemas: { Event, TeamSummary, Team, Person },
+      schemas: { Event, EventContext, TeamSummary, Team, Person },
     },
   };
   return createDocument(doc);

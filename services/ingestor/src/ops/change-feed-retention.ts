@@ -1,0 +1,71 @@
+/**
+ * Retenção do `ops.change_feed` (follow-up do #35): apaga mudanças com mais de N dias, mas mantém a
+ * mais recente de cada entidade (`entity_type`, `entity_id`) — quem consulta "a última mudança de X"
+ * continua achando — e nunca apaga o que o enfileirador de webhooks ainda não leu
+ * (`api.webhook_cursor`). O SSE só retoma pelo `Last-Event-ID` dentro da janela de retenção.
+ * Apaga em lotes curtos para não segurar locks; rode uma vez por dia (job `change-feed-prune`).
+ */
+import { sql } from 'drizzle-orm';
+import type { Database } from '@galaxie/db';
+
+export const DEFAULT_CHANGE_FEED_RETENTION_DAYS = 7;
+
+export interface ChangeFeedRetentionOptions {
+  /** Idade mínima (dias) para apagar. Padrão 7. */
+  retentionDays?: number;
+  /** Linhas por DELETE. Padrão 5000. */
+  batchSize?: number;
+  now?: Date;
+  /** Só conta o que seria apagado. */
+  dryRun?: boolean;
+}
+
+export interface ChangeFeedRetentionReport {
+  cutoff: Date;
+  /** Apagadas (ou que seriam apagadas, no `dryRun`). */
+  deleted: number;
+  /** Maior id que o enfileirador de webhooks já leu (limite superior do que pode ser apagado); null = sem consumidor. */
+  webhookCursor: number | null;
+  dryRun: boolean;
+}
+
+export async function pruneChangeFeed(
+  db: Database,
+  options: ChangeFeedRetentionOptions = {},
+): Promise<ChangeFeedRetentionReport> {
+  const days = options.retentionDays ?? DEFAULT_CHANGE_FEED_RETENTION_DAYS;
+  if (!Number.isFinite(days) || days < 1)
+    throw new Error('A retenção do change feed precisa ser de ≥ 1 dia.');
+  const batch = options.batchSize ?? 5000;
+  const cutoff = new Date((options.now ?? new Date()).getTime() - days * 86_400_000);
+  const [cur] = await db.execute<{ id: string | null }>(
+    sql`select min(last_change_id)::text as id from api.webhook_cursor`,
+  );
+  const webhookCursor = cur?.id == null ? null : Number(cur.id);
+  const report: ChangeFeedRetentionReport = {
+    cutoff,
+    deleted: 0,
+    webhookCursor,
+    dryRun: options.dryRun ?? false,
+  };
+  const victims = sql`
+    select cf.id from ops.change_feed cf
+     where cf.created_at < ${cutoff.toISOString()}::timestamptz
+       ${webhookCursor === null ? sql`` : sql`and cf.id <= ${webhookCursor}`}
+       and cf.id not in (select max(l.id) from ops.change_feed l group by l.entity_type, l.entity_id)`;
+
+  if (report.dryRun) {
+    const [row] = await db.execute<{ n: number }>(sql`select count(*)::int as n from (${victims}) v`);
+    report.deleted = Number(row?.n ?? 0);
+    return report;
+  }
+  for (;;) {
+    const rows = await db.execute<{ id: string }>(sql`
+      delete from ops.change_feed
+       where id in (${victims} order by cf.id limit ${batch})
+       returning id`);
+    report.deleted += rows.length;
+    if (rows.length < batch) break;
+  }
+  return report;
+}

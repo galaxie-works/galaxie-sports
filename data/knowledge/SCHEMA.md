@@ -30,7 +30,7 @@ data/knowledge/
 | Comando | O que faz |
 |---|---|
 | `pnpm knowledge:validate` | JSON Schema + regras cruzadas: slugs únicos, `team_id`/`api_sports_league_id` únicos, clássicos com times existentes, rivais apontando para times/clássicos existentes (avisa quando a rivalidade não é recíproca ou a intensidade diverge da do clássico), `sources` obrigatórias, locales permitidos, `review_status` válido, heurística contra letra de hino/canção e regras de `copy_permission` nos templates. Roda no CI; erro = merge bloqueado. |
-| `pnpm db:seed:semantic` | Carrega tudo em `semantic.*` (idempotente; remove o que saiu do YAML), liga perfis a `core.participant`/`core.competition` via `provider_map`, recalcula `core.event.derby_id` e registra `semantic.load_run` com o SHA do Git. |
+| `pnpm db:seed:semantic` | Carrega tudo em `semantic.*` (idempotente; remove o que saiu do YAML), liga perfis a `core.participant`/`core.competition` via `provider_map`, recalcula `core.event.derby_id` e registra `semantic.load_run` com o SHA do Git. Depois, `pnpm --filter @galaxie/ingestor events:importance` recalcula a importância dos eventos já gravados (os novos já saem certos do upsert). |
 | `pnpm resolve:ids` | Casa slugs com times da api-sports usando só o banco local (raw `/teams?country=`, `/fixtures`, `/leagues` e `core.participant`). `--write` grava no YAML apenas os casos resolvidos sem ambiguidade (só o valor muda; comentários e estilo ficam); `--apply-db` grava `core.provider_map` e `team_profile.participant_id` quando o participante existe; `--json` salva o relatório. |
 
 Os editores com suporte a YAML Language Server podem usar os schemas com `# yaml-language-server: $schema=../../schemas/teams.schema.json`.

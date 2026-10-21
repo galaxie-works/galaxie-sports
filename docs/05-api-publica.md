@@ -41,7 +41,8 @@ Cada rota declara o módulo exigido (`/mirror` e o catálogo `/v1` exigem `core_
 
 ```bash
 pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --label dev
-# opções: --markets BR,AR --sports football --rate-limit 600 --scopes core_data --env live
+# padrões do modelo do plano (config/plans.yaml, §1.2); ajustes: --markets BR,AR --sports football
+# --rate-limit 600 --daily-quota 50000|none --scopes core_data --env live
 ```
 
 ### 1.2 Onboarding, autoatendimento e uso
@@ -272,6 +273,8 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 - **`/lineups`** e **`/stats`**: do detalhe da partida (`core.football_fixture.detail`); IDs do fornecedor resolvidos para os nossos via `provider_map` (times e pessoas, com foto). Sem detalhe sincronizado: `available: false` e listas vazias. Outros esportes: `available: false` por ora.
 - **`/h2h?limit=`** (1–50, padrão 10): confrontos **encerrados** entre os dois participantes no `core` (qualquer competição, exceto o próprio evento), do mais recente ao mais antigo; `summary` (`played`, `draws`, `wins`/`goals` por time) considera todo o histórico. Nunca chama o fornecedor.
 - **`/{id}.ics`**: `text/calendar` (RFC 5545) com um `VEVENT`: `UID <id>@galaxie.sports`, `DTSTART`/`DTEND` em UTC (`starts_at` e `ends_at_expected`), `SUMMARY` "Mandante × Visitante · Competição", `LOCATION`, `STATUS` (`CANCELLED` para cancelado/abandonado, `TENTATIVE` para adiado), linhas CRLF dobradas em 75 octetos. O título segue o locale; os horários não dependem de `tz`.
+- **`/context?locale=&kind=scenario|recap`** (módulo `live_intelligence`; `apps/api/src/routes/v1/event-context.ts`): cenário pré-jogo e resumo pós-jogo dos agentes de IA (docs/07 §2.3), lidos de `enrich.event_context` por `readEventContext` (`@galaxie/db`, a mesma leitura dos agentes): a versão vigente por tipo no locale pedido, ignorando as rejeitadas pela revisão editorial — sem fallback entre locales (a copy é por mercado; locale sem texto → `data: []`). Cada item traz `text`, `sentences`, `origin` (`llm` aprovado pelos guardrails ou `fallback` determinístico), `model`, `confidence`, `review_status` (`auto`/`reviewed`), `generated_at` (no `tz`), `fits` (TV/mobile/web) e `sources` (core, regulamento com URL). Sem `kind`, os dois tipos. Evento inexistente → 404; esporte fora do plano → 403. TTL 1 h, purgado por `event.context_published` (tags `event_context:<id>` e `event:<id>`).
+- **`context` no detalhe**: para tenants com `live_intelligence`, `GET /v1/events/{id}` traz `context: { scenario, recap }` (texto vigente no locale, `origin` e `generated_at`, ou `null`) — uma consulta indexada a mais; para os demais planos o campo não aparece (a resposta em cache varia por isso).
 - **Cache**: detalhe com TTL de 10 s se ao vivo ou começando em até 2 h, 5 min se agendado e 1 h se encerrado; agenda até 5 min. Tags `event:<id>` (e `event` nas listas): `publishChange(db, { entityType: 'event', entityId })` purga. O plano do tenant (esporte) é verificado também quando a resposta vem do cache.
 
 ### 3.3 Times, atletas e semântica
@@ -441,6 +444,8 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 
 `data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score`; `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`.
 
+**Ao vivo (Live Poller, #55) — sem tópico próprio.** O poller (`services/ingestor/src/live`) aplica cada tick pela normalização, que grava `core.event` e `core.event_incident`; os triggers de captura publicam então `event.score_changed`, `event.status_changed` e `event.incident_added` — o mesmo caminho de qualquer outro writer, uma vez só por mudança. O sinal `topic = live` que o poller também publica no change feed (gol, encerramento, fonte *stale*/recuperada) é **interno**: purga as tags `live`, `competition:<id>` e `season:<id>` e serve à operação, mas não sai no SSE nem nos webhooks (não é um tópico público), o que evita entregas duplicadas. A fonte fora do ar não gera mudança pública: o último placar válido fica e `data_freshness.is_stale` aparece na REST. Medido (teste `apps/api/test/live-sse.integration.test.ts`: `fixtures?live=` falso → `LivePoller.tick` → cliente SSE): gol no stream em ~80 ms (meta ≤ 5 s).
+
 ### 5.1 SSE — `GET /v1/stream`
 
 ```http
@@ -454,7 +459,7 @@ Last-Event-ID: 1041
 | `events` | Até 200 IDs de evento (vírgula). Vazio = todos os eventos do contrato |
 | `competitions`, `sports` | Filtros adicionais (até 50 competições, 20 esportes); esporte fora do contrato → 403 |
 | `topics` | Nomes curtos ou completos; padrão: todos os do plano. Tópico de módulo não contratado → 403 `MODULE_NOT_IN_PLAN` |
-| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` e o cliente deve recarregar o estado pela REST) |
+| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` e o cliente deve recarregar o estado pela REST). O change feed guarda `CHANGE_FEED_RETENTION_DAYS` dias (padrão 7; job `change-feed-prune` do ingestor, que mantém a última mudança de cada entidade e o que os webhooks ainda não leram) |
 | `?key=` | Chave para `EventSource` do navegador, que não envia headers (ver *trade-off* abaixo) |
 
 Mensagens: `id:` (ID da mudança), `event:` (tópico), `data:` (JSON). O stream começa com `retry: 3000` e, depois da retomada, `event: ready` com `{ "last_event_id": "...", "topics": [...] }`. Heartbeat a cada 15 s (comentário `: hb <ts>`), que mantém proxies e balanceadores com a conexão aberta.
@@ -580,6 +585,7 @@ Formato RFC 9457 (`application/problem+json`):
 | Agenda do dia | 5 min | Mudança de horário/status |
 | Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |
 | Onde assistir | 60 s | Correção aceita (purge) |
+| Cenário/resumo de IA (`/v1/events/{id}/context`) | 1 h | Nova geração ou revisão (`event.context_published`) |
 | Semântica (clássicos, perfis, glossário, copy) | 24 h (retrospecto do clássico: 1 h) | Merge de PR na base / novo seed |
 | Quadro de medalhas | 24 h (edição encerrada) · 60 s (em andamento) · 1 h (futura) | Nova carga/QA de medalhas |
 | Assets (imagens) | 30 dias, imutável por hash | Nova versão = nova URL (`?v=` com o início do sha256 de `core.asset`) |

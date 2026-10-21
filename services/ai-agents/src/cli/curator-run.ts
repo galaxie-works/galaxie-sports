@@ -29,7 +29,7 @@ if (values['dry-run'] && values['open-pr']) throw new Error('Use --dry-run ou --
 
 const db = dbFromEnv();
 try {
-  const llm = await llmOrNull(values['sem-llm']);
+  const llm = llmOrNull(values['sem-llm'], db);
   const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
   const tier = intFlag(values.tier, 'tier');
   const limit = intFlag(values.limite, 'limite');

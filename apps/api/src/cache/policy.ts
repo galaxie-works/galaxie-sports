@@ -14,6 +14,8 @@ export const CACHE_TTL = {
   /** Onde assistir — correção propagada em ≤ 5 min via purge. */
   whereToWatch: 60,
   semantic: 24 * 3600,
+  /** Cenário/resumo de IA — purgado ativamente por `event.context_published`. */
+  context: 3600,
 } as const;
 
 export type CacheResource = keyof typeof CACHE_TTL;

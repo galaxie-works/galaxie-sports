@@ -30,7 +30,11 @@ export interface ChangeRow {
 
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 
-/** Forma pública (SSE `data:` e corpo do webhook); `undefined` para tópicos internos (catálogo, espelho...). */
+/**
+ * Forma pública (SSE `data:` e corpo do webhook); `undefined` para tópicos internos (catálogo, espelho,
+ * `live` do Live Poller...). O ao vivo chega aos clientes pelos tópicos dos triggers de `core.event` e
+ * `core.event_incident`, que disparam quando o poller grava — o `live` só purga cache (docs/05 §5).
+ */
 export function toRealtimeChange(row: ChangeRow): RealtimeChange | undefined {
   if (!isChangeTopic(row.topic)) return undefined;
   const p = (row.payload && typeof row.payload === 'object' ? row.payload : {}) as Record<string, unknown>;

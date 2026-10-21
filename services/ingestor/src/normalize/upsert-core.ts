@@ -42,6 +42,7 @@ import {
   type SeasonRef,
   type StageKind,
 } from '@galaxie/providers';
+import { createDerbyLookup } from '@galaxie/knowledge';
 import { slugify } from '../catalog/football-catalog.js';
 import { insertLogs, logRows, stateColumns, stateFromRow } from './event-state.js';
 import {
@@ -60,7 +61,12 @@ import { uuidv7 } from './uuid.js';
 
 export interface UpsertOptions {
   precedence?: PrecedencePolicy;
-  derbyLookup?: DerbyLookup;
+  /**
+   * Busca de clássico pelo par de participantes. Padrão: a base semântica já semeada no banco
+   * (`createDerbyLookup` de `@galaxie/knowledge`), então todo evento gravado sai com `derby_id` e a
+   * intensidade do clássico na importância. `false` desliga (preserva o clássico já gravado).
+   */
+  derbyLookup?: DerbyLookup | false;
   machine?: MachineOptions;
 }
 
@@ -818,6 +824,8 @@ async function upsertEvents(
   refs: EventRefs,
 ): Promise<AllowedEvent[]> {
   const precedence = options.precedence ?? DEFAULT_PRECEDENCE;
+  const derbyLookup: DerbyLookup | undefined =
+    options.derbyLookup === false ? undefined : (options.derbyLookup ?? createDerbyLookup(tx));
   const events = dedupeBy(batch.events, (e) => e.id);
   const mapped = await resolveIds(
     tx,
@@ -868,9 +876,7 @@ async function upsertEvents(
     const stageRef = seasonId && e.stageLabel ? refs.stageIds.get(`${seasonId}|${e.stageLabel}`) : undefined;
     const sides = e.participants.flatMap((p) => refs.participantId(p.participantId) ?? []);
     const derby =
-      options.derbyLookup && sides.length === 2
-        ? ((await options.derbyLookup(sides[0]!, sides[1]!)) ?? null)
-        : null;
+      derbyLookup && sides.length === 2 ? ((await derbyLookup(sides[0]!, sides[1]!)) ?? null) : null;
     const score = importance({
       tier: competitionId ? (tiers.get(competitionId) ?? null) : null,
       stageKind: stageRef?.kind ?? null,
@@ -923,8 +929,8 @@ async function upsertEvents(
       stageId: context.stageId ?? prev.stageId,
       venueId: context.venueId ?? prev.venueId,
       // sem busca de clássicos nesta execução, preserva o clássico (e sua importância) já calculado
-      derbyId: options.derbyLookup ? context.derbyId : prev.derbyId,
-      importance: !options.derbyLookup && prev.derbyId ? prev.importance : context.importance,
+      derbyId: derbyLookup ? context.derbyId : prev.derbyId,
+      importance: !derbyLookup && prev.derbyId ? prev.importance : context.importance,
     };
     const sourceProvider = step.ignored ? prev.sourceProvider : batch.provider;
     const contextChanged =
