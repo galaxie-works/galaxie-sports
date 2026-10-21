@@ -6,7 +6,7 @@ import {
   DerbyParams,
   GlossaryQuery,
   ReviewQuery,
-  TeamParams,
+  SemanticTeamParams,
   UpcomingDerbiesQuery,
   type Derby,
   type DerbyMatch,
@@ -261,7 +261,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
 
   // ─── /v1/teams/:id/semantic ──────────────────────────────────────────────────────────────────
   app.get('/v1/teams/:id/semantic', { config: MODULE }, async (request, reply) => {
-    const params = parseInput(TeamParams, request.params);
+    const params = parseInput(SemanticTeamParams, request.params);
     const query = parseInput(ReviewQuery, request.query);
     const locale = localeOf(request, query);
     const min = effectiveMinReview(ctx, query.min_review_status);
@@ -323,7 +323,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
 
   // ─── /v1/teams/:id/rivals ────────────────────────────────────────────────────────────────────
   app.get('/v1/teams/:id/rivals', { config: MODULE }, async (request, reply) => {
-    const params = parseInput(TeamParams, request.params);
+    const params = parseInput(SemanticTeamParams, request.params);
     const query = parseInput(ReviewQuery, request.query);
     const locale = localeOf(request, query);
     const min = effectiveMinReview(ctx, query.min_review_status);

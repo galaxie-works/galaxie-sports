@@ -3,12 +3,13 @@ import type { AppContext } from '../../context.js';
 import { MemoryResponseCache } from '../../cache/store.js';
 import { copyHintsFor, effectiveMinReview, meetsReview, retrospect } from './semantic.js';
 
-const ctx = (minReviewStatus?: 'draft' | 'reviewed' | 'approved'): AppContext => ({
-  db: undefined,
-  cache: new MemoryResponseCache(),
-  assetsBaseUrl: undefined,
-  ...(minReviewStatus ? { semantic: { minReviewStatus } } : {}),
-});
+const ctx = (minReviewStatus?: 'draft' | 'reviewed' | 'approved'): AppContext =>
+  ({
+    db: undefined,
+    cache: new MemoryResponseCache(),
+    assetsBaseUrl: undefined,
+    ...(minReviewStatus ? { semantic: { minReviewStatus } } : {}),
+  }) as unknown as AppContext; // só os campos usados pelas funções puras testadas aqui
 
 describe('piso editorial', () => {
   it('padrão approved; o pedido só endurece', () => {

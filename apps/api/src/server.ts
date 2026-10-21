@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Redis } from 'ioredis';
+import type { MediaDenylist } from '@galaxie/apisports-client';
 import { pingDb, type Database } from '@galaxie/db';
 import { assertModule, Authenticator, type AuthenticatorOptions } from './auth/authenticator.js';
 import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
@@ -8,6 +9,7 @@ import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
 import type { AppContext, SemanticConfig } from './context.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
+import { RulesRegistry } from './events/rules-registry.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
 import { docsRoutes } from './routes/docs.js';
 import { mirrorRoutes } from './routes/mirror.js';
@@ -34,6 +36,12 @@ export interface ServerOptions {
   assetsBaseUrl?: string;
   /** URL pública anunciada no OpenAPI. */
   publicUrl?: string;
+  /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
+  rulesDir?: string;
+  /** URLs de mídia bloqueadas (config/assets/denylist.yaml). */
+  mediaDenylist?: MediaDenylist;
+  /** Relógio injetável (testes de momentum/agenda). */
+  now?: () => Date;
   /** Piso editorial da semântica e pasta da base (SEMANTIC_MIN_REVIEW_STATUS, KNOWLEDGE_DIR). */
   semantic?: SemanticConfig;
 }
@@ -57,6 +65,9 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     db: options.db,
     cache,
     assetsBaseUrl: options.assetsBaseUrl,
+    rules: new RulesRegistry(options.rulesDir),
+    mediaDenylist: options.mediaDenylist,
+    now: options.now ?? (() => new Date()),
     ...(options.semantic ? { semantic: options.semantic } : {}),
   };
 

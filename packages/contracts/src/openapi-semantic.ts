@@ -29,7 +29,7 @@ import {
   Glossary,
   GlossaryQuery,
   ReviewQuery,
-  TeamParams,
+  SemanticTeamParams,
   TeamRivals,
   TeamSemantic,
   UpcomingDerbiesQuery,
@@ -79,7 +79,7 @@ export function semanticPaths(): ZodOpenApiPathsObject {
           'Cartão de identidade do time',
           'Semântica',
           TeamSemantic,
-          { path: TeamParams, query: ReviewQuery },
+          { path: SemanticTeamParams, query: ReviewQuery },
           [400, 401, 403, 404, 429],
         ),
         'Apelidos, mascote, torcida, gritos, estádio, rivais, fatos e dicas de copy do mercado pedido. ' +
@@ -93,7 +93,7 @@ export function semanticPaths(): ZodOpenApiPathsObject {
           'Rivais e clássicos do time',
           'Semântica',
           TeamRivals,
-          { path: TeamParams, query: ReviewQuery },
+          { path: SemanticTeamParams, query: ReviewQuery },
           [400, 401, 403, 404, 429],
         ),
         'Mapeamento time → rivais/clássicos para segmentação (rivais declarados pelo time e clássicos que o ' +

@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import * as z from 'zod';
+import { COMPETITION_CONTEXTS } from './events.js';
 import { AssetUrl, LocaleQuery } from './common.js';
 import { MOMENTUM_VALUES } from './events.js';
 
@@ -182,7 +183,8 @@ export type UpcomingDerby = z.infer<typeof UpcomingDerby>;
 
 // ─── times ───────────────────────────────────────────────────────────────────────────────────────
 
-export const TeamParams = z.object({ id: TeamKey });
+/** Times na camada semântica aceitam UUID do participante ou slug do perfil. */
+export const SemanticTeamParams = z.object({ id: TeamKey });
 
 export const TeamRival = z
   .object({
@@ -284,17 +286,6 @@ export type Glossary = z.infer<typeof Glossary>;
 
 export const AFFINITY_TYPES = ['heart', 'support', 'sympathy', 'rival', 'interest'] as const;
 export const AFFINITY_SOURCES = ['explicit', 'inferred'] as const;
-export const COMPETITION_CONTEXTS = [
-  'regular',
-  'derby',
-  'playoff',
-  'knockout',
-  'semifinal',
-  'final',
-  'title',
-  'lead',
-  'relegation',
-] as const;
 
 export const CopyQuery = ReviewQuery.extend({
   sport: z.string().max(40).default('football').meta({ example: 'football' }),

@@ -53,6 +53,12 @@ importers:
       '@galaxie/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@galaxie/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@galaxie/rules':
+        specifier: workspace:*
+        version: link:../../packages/rules
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(@opentelemetry/api@1.10.0)(postgres@3.4.9)
@@ -65,6 +71,9 @@ importers:
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
       zod:
         specifier: ^4.6.7
         version: 4.6.7
