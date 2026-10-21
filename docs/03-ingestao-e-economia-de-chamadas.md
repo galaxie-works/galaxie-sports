@@ -23,7 +23,29 @@
 
 A janela de temporadas do free se desloca (2021–2023 em 2025 → 2022–2024 em 2026); é provável que vá para 2023–2025 no início de 2027. O Quota Governor lê a mensagem de erro e se ajusta.
 
-### 1.1 Como era possível "baixar todos os anos com uma requisição"
+### 1.1 Validação com a nossa chave (21/10/2026)
+
+Executado com ~10 chamadas do futebol e 1 de basquete, hóquei e vôlei; **todas as respostas foram guardadas** em `data/raw/` (fora do Git) e entram no bootstrap.
+
+| Teste | Resultado |
+|---|---|
+| `/status` das 12 APIs | Todas **Free**, 100/dia, **cota separada por esporte**; `/status` **não consome** cota. A assinatura free mostra data de fim (25/10/2026) — acompanhar se renova sozinha |
+| `/leagues` sem parâmetros | **1.249 competições**, até 17 temporadas cada (Série A: 2010 → 2026) — 1 chamada |
+| `fixtures?league=71&season=2026` | ❌ `Free plans do not have access to this season, try from 2022 to 2024.` |
+| `fixtures?league=71&season=2024` | ✅ 380 jogos numa resposta, sem paginação |
+| `fixtures?date=2026-10-21` | ✅ 273 jogos do mundo (26 de competições do nosso catálogo) |
+| `fixtures?date=2026-10-17` | ❌ `try from 2026-10-20 to 2026-10-22` — janela confirmada: **ontem → amanhã** |
+| **`fixtures/headtohead?h2h=121-131`** (Palmeiras × Corinthians) | ✅ **46 jogos de 2010 a 2026, inclusive a temporada atual** (Série A, Paulistão, Copa do Brasil). O `h2h` **não** sofre a restrição de temporadas |
+| `players/squads?team=121` | ✅ elenco atual (sem `season`) |
+| `transfers?team=121` | ✅ 388 transferências — histórico inteiro |
+| `teams?country=Brazil` | ✅ **1.596 times** numa resposta |
+| `games?date=` em basquete / hóquei / vôlei | ✅ 140 / 96 / 44 jogos — hóquei **aceita** `date` sem `season` (o relato contrário não se confirmou) |
+| Erros de plano consomem cota? | **Inconclusivo**: as respostas de erro vieram sem headers de cota e a contagem final (90 restantes após 11 envios, 2 erros e 1 *timeout*) sugere que erros não são cobrados. O `/status` e o header `x-ratelimit-requests-remaining` são **eventualmente consistentes** (oscilam entre chamadas) — o `ops.quota_ledger` próprio é a fonte da verdade |
+| Respostas grandes | `fixtures?date=` com `timezone` excedeu 60 s de *timeout* — usar *timeout* ≥ 180 s e UTC |
+
+**Consequência prática — o `h2h` como chave-mestra do histórico.** Como `fixtures/headtohead` devolve todos os confrontos entre dois times em todas as competições e temporadas (inclusive a atual), uma liga de 20 clubes tem 190 pares: **190 chamadas reconstroem todo o histórico de confrontos da liga desde 2010, incluindo os jogos já disputados da temporada corrente** — algo que o `season` bloqueado não permite. Para o Brasileirão, isso cabe em 2 dias de cota free. É uso legítimo de um endpoint documentado dentro da cota (não contorna limites), mas o fornecedor pode mudar esse comportamento; o Quota Governor deve detectar se o `h2h` passar a filtrar temporadas.
+
+### 1.2 Como era possível "baixar todos os anos com uma requisição"
 
 Até ago/2024 o plano gratuito não restringia temporadas. Além disso, alguns endpoints **não têm parâmetro de temporada** e devolvem a história inteira numa chamada — continuam funcionando no free:
 
@@ -107,7 +129,7 @@ Se o Pro não for contratado, o bootstrap do futebol fica assim:
 | Referência global | 8 | 1 dia |
 | Listas 2022–2024 das competições tier 1 (46 × 3 × 9) | ≈ 1.250 | ~15 dias (85 úteis/dia) |
 | Detalhe 2022–2024 | 1 por jogo (sem `ids`) | inviável em escala → **só clássicos e jogos decisivos** |
-| Temporada atual | **não listável**; construída a partir de hoje com `fixtures?date=` | contínuo |
+| Temporada atual | **não listável por `season`**; reconstruída via `fixtures/headtohead` por par de clubes (190 chamadas por liga de 20 times, todas as temporadas desde 2010) + `fixtures?date=` daqui para frente | ~2 dias por liga |
 | Elencos atuais (`players/squads?team`) | ≈ 700 times tier 1 | ~8 dias |
 
 ## 4. Fase B — Atualização diária (free)
@@ -244,7 +266,9 @@ flowchart TB
 Testar com a nossa chave:
 
 - Se requisições recusadas por plano ou por limite/min consomem cota.
-- Se `fixtures/headtohead` no free devolve jogos fora de 2022–2024.
 - Se `injuries?ids`, `odds/live` e `odds?date` funcionam no free.
 - Se a janela de datas segue UTC ou o parâmetro `timezone`.
-- Confirmar cota separada por esporte com `/status` de cada API ([`Get-ApiSportsStatus.ps1`](../scripts/pwsh/Get-ApiSportsStatus.ps1)).
+- Se a assinatura free (data de fim 25/10/2026 no `/status`) renova automaticamente.
+- Repetir o teste de erros × cota com o ledger próprio ligado.
+
+Já validados em 21/10/2026 (ver §1.1): cota separada por esporte, `/status` gratuito, janela de datas, temporadas 2022–2024, `h2h` com todas as temporadas, hóquei aceitando `date` sem `season`.
