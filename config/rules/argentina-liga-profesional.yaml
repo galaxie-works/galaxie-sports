@@ -1,0 +1,31 @@
+# Liga Profesional de Fútbol (Argentina) — tabela anual de pontos corridos.
+# Desempate: saldo, gols pró, confronto direto, gols como visitante; empate pelo título vai a
+# partida extra (representado como empate não resolvido).
+# ATENÇÃO: o formato muda quase todo ano (Apertura/Clausura com zonas e playoffs desde 2025) e
+# o rebaixamento é decidido pela tabela de "promedios" (média de pontos de 3 temporadas) e pela
+# tabela anual — nenhum dos dois é calculado aqui. Revise a cada temporada.
+slug: argentina-liga-profesional
+name: Liga Profesional de Fútbol
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - away_goals_for
+    - drawing_of_lots
+
+league:
+  teams: 28
+  matches_per_team: 27
+  meetings_per_pair: 1
+  title: true
+  zones: []
+
+knockout:
+  default: { legs: 1, extra_time: false, penalties: true }
+
+sources:
+  - https://www.afa.com.ar/

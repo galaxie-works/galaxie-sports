@@ -1,0 +1,37 @@
+# Ligue 1 (França), 18 clubes desde 2023/24.
+# Desempate (Règlement LFP): saldo geral; confronto direto (pontos, saldo, gols pró);
+# gols pró geral; gols fora geral; fair play.
+# 1º–3º: fase de liga da Champions; 4º: fase preliminar da Champions; 16º: playoff de rebaixamento.
+slug: ligue-1
+name: Ligue 1
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - h2h_points
+    - h2h_goal_difference
+    - h2h_goals_for
+    - goals_for
+    - away_goals_for
+    - fair_play
+    - drawing_of_lots
+
+league:
+  teams: 18
+  matches_per_team: 34
+  meetings_per_pair: 2
+  title: true
+  zones:
+    - { id: champions_league, kind: qualification, from: 1, to: 3 }
+    - { id: champions_league_qualifying, kind: qualification, from: 4, to: 4 }
+    - { id: europa_league, kind: qualification, from: 5, to: 5 }
+    - { id: conference_league, kind: qualification, from: 6, to: 6 }
+    - { id: relegation_playoff, kind: relegation_playoff, from: 16, to: 16 }
+    - { id: relegation, kind: relegation, from: 17, to: 18 }
+
+knockout: null
+
+sources:
+  - https://www.lfp.fr/reglements

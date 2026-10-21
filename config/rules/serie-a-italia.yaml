@@ -1,0 +1,32 @@
+# Serie A (Itália).
+# Desempate (desde 2022/23): confronto direto (pontos, depois saldo), saldo geral, gols pró,
+# sorteio. Empate em pontos pelo título ou pelo último lugar de rebaixamento vai a partida
+# extra (spareggio) — representado aqui como empate não resolvido quando persistir.
+slug: serie-a-italia
+name: Serie A
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - h2h_points
+    - h2h_goal_difference
+    - goal_difference
+    - goals_for
+    - drawing_of_lots
+
+league:
+  teams: 20
+  matches_per_team: 38
+  meetings_per_pair: 2
+  title: true
+  zones:
+    - { id: champions_league, kind: qualification, from: 1, to: 4 }
+    - { id: europa_league, kind: qualification, from: 5, to: 5 }
+    - { id: conference_league, kind: qualification, from: 6, to: 6 }
+    - { id: relegation, kind: relegation, from: 18, to: 20 }
+
+knockout: null
+
+sources:
+  - https://www.legaseriea.it/

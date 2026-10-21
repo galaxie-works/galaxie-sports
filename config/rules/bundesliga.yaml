@@ -1,0 +1,34 @@
+# Bundesliga (Alemanha).
+# Desempate (Spielordnung DFL, §5): saldo, gols pró, confronto direto (pontos, gols fora no
+# confronto direto), gols fora no geral; persistindo, partida extra em campo neutro.
+# 16º lugar disputa o playoff de rebaixamento contra o 3º da 2. Bundesliga.
+slug: bundesliga
+name: Bundesliga
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - h2h_away_goals
+    - away_goals_for
+    - drawing_of_lots
+
+league:
+  teams: 18
+  matches_per_team: 34
+  meetings_per_pair: 2
+  title: true
+  zones:
+    - { id: champions_league, kind: qualification, from: 1, to: 4 }
+    - { id: europa_league, kind: qualification, from: 5, to: 5 }
+    - { id: conference_league, kind: qualification, from: 6, to: 6 }
+    - { id: relegation_playoff, kind: relegation_playoff, from: 16, to: 16 }
+    - { id: relegation, kind: relegation, from: 17, to: 18 }
+
+knockout: null
+
+sources:
+  - https://www.dfl.de/de/ueber-uns/statuten/
