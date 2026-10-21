@@ -24,7 +24,11 @@ describe('OpenAPI', () => {
         '/v1/competitions/{id}/seasons/{season}/standings',
         '/v1/venues/{id}',
         '/mirror/{sport}/{endpoint}',
+        '/v1/events/{id}/where-to-watch',
       ]),
+    );
+    expect(Object.keys(doc.components?.schemas ?? {})).toEqual(
+      expect.arrayContaining(['WhereToWatch', 'WhereToWatchOption']),
     );
     expect(Object.keys(doc.components?.schemas ?? {})).toEqual(
       expect.arrayContaining(['Problem', 'Competition', 'CompetitionSummary', 'Event', 'TeamSummary']),

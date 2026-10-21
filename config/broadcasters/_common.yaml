@@ -1,0 +1,33 @@
+# =============================================================================
+# Onde assistir — fontes comuns a todos os países (somadas às de cada <iso2>.yaml)
+#
+# A classificação da fonte de uma evidência é feita por código, pelo domínio da URL
+# (docs/07 §2.2): emissora dona da opção (ou do mesmo grupo) > organizador > imprensa
+# (inclui sites de outras emissoras) > agregador > desconhecida.
+#
+# Agregadores sem licença de reuso (docs/research/onde-assistir.md §1) NUNCA são
+# raspados: o validador não busca essas URLs e elas valem no máximo como pista
+# (confiança de agregador, 0,4 — sozinhas nunca publicam).
+# =============================================================================
+schema_version: 1
+sources:
+  organizers:
+    - conmebol.com
+    - uefa.com
+    - fifa.com
+    - concacaf.com
+    - premierleague.com
+    - laliga.com
+  press:
+    - infobae.com
+    - as.com
+    - goal.com
+    - 90min.com
+  aggregators:
+    - livesoccertv.com
+    - flashscore.com
+    - sofascore.com
+    - fotmob.com
+    - futbolenlatv.com
+    - futbolenlatv.es
+    - justwatch.com

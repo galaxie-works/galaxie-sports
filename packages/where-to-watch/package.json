@@ -1,0 +1,32 @@
+{
+  "name": "@galaxie/where-to-watch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Onde assistir: dicionário de emissoras, tabela de direitos, validador determinístico, versionamento, correção editorial, auditoria e métricas",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src",
+    "test:integration": "vitest run --dir test"
+  },
+  "dependencies": {
+    "@galaxie/db": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "postgres": "^3.4.9"
+  }
+}

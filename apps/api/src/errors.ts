@@ -43,6 +43,7 @@ export const problems = {
   marketNotInPlan: (market: string) =>
     new ProblemError(403, 'MARKET_NOT_IN_PLAN', `Plano não inclui o mercado ${market}`),
   notFound: (what = 'Recurso') => new ProblemError(404, 'NOT_FOUND', `${what} não encontrado`),
+  conflict: (detail: string) => new ProblemError(409, 'CONFLICT', 'Conflito com o estado atual', detail),
   rateLimited: (retryAfterSec: number) =>
     new ProblemError(429, 'RATE_LIMITED', 'Limite de requisições do tenant atingido', undefined, {
       headers: { 'retry-after': String(retryAfterSec) },

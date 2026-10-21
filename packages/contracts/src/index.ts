@@ -2,6 +2,7 @@ export * from './common.js';
 export * from './catalog.js';
 export * from './mirror.js';
 export * from './events.js';
+export * from './where-to-watch.js';
 export { buildOpenApiDocument, type OpenApiOptions } from './openapi.js';
 export {
   createGalaxieClient,

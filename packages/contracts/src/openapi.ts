@@ -20,6 +20,7 @@ import {
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { Event, TeamSummary } from './events.js';
 import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
+import { WhereToWatch, WhereToWatchParams, WhereToWatchQuery } from './where-to-watch.js';
 
 const problemContent = { 'application/problem+json': { schema: Problem } };
 
@@ -90,6 +91,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
     tags: [
       { name: 'Catálogo', description: 'Esportes, países, competições, tabelas e venues (docs/05 §3.1).' },
       { name: 'Espelho', description: 'Espelho compatível com a api-sports (docs/05 §2).' },
+      { name: 'Onde assistir', description: 'Opções de transmissão por evento × país (docs/05 §4).' },
     ],
     paths: {
       '/v1/sports': {
@@ -127,6 +129,21 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           { path: IdParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
+      },
+      '/v1/events/{id}/where-to-watch': {
+        get: {
+          ...getOp(
+            'Onde assistir o evento num país',
+            'Onde assistir',
+            WhereToWatch,
+            { path: WhereToWatchParams, query: WhereToWatchQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Só opções publicadas (confiança ≥ 0,7, sem conflito). Sem informação confiável: `status: unknown`, ' +
+            '`options: []` e `message` localizada. Exige o módulo `where_to_watch` e o país nos mercados do tenant. ' +
+            'Correções editoriais propagam em ≤ 5 min (purge de cache + webhook `where_to_watch.changed`).',
+        },
       },
       '/mirror/{sport}/{endpoint}': {
         get: {

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../../context.js';
 import { catalogRoutes } from './catalog.js';
+import { whereToWatchRoutes } from './where-to-watch.js';
 
 /**
  * Rotas /v1. Cada grupo é um módulo próprio:
@@ -10,4 +11,5 @@ import { catalogRoutes } from './catalog.js';
  */
 export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   await catalogRoutes(app, ctx);
+  await whereToWatchRoutes(app, ctx);
 }

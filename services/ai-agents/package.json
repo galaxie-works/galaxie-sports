@@ -10,11 +10,29 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./llm": {
+      "types": "./dist/llm/index.d.ts",
+      "default": "./dist/llm/index.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --dir src --passWithNoTests",
+    "test:integration": "vitest run --dir test",
+    "wtw:run": "node --env-file-if-exists=../../.env dist/cli/wtw-run.js",
+    "wtw:audit": "node --env-file-if-exists=../../.env dist/cli/wtw-audit.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.136.0",
+    "@galaxie/db": "workspace:*",
+    "@galaxie/where-to-watch": "workspace:*",
+    "ajv": "^8.20.0",
+    "drizzle-orm": "^0.45.4",
+    "openai": "^7.39.0"
+  },
+  "devDependencies": {
+    "postgres": "^3.4.9"
   }
 }

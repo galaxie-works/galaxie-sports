@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Redis } from 'ioredis';
 import { pingDb, type Database } from '@galaxie/db';
+import { loadWtwConfig, type WtwConfig } from '@galaxie/where-to-watch';
 import { assertModule, Authenticator, type AuthenticatorOptions } from './auth/authenticator.js';
 import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
 import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.js';
@@ -10,6 +11,7 @@ import type { AppContext } from './context.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
 import { docsRoutes } from './routes/docs.js';
+import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { mirrorRoutes } from './routes/mirror.js';
 import { v1Routes } from './routes/v1/index.js';
 
@@ -33,6 +35,10 @@ export interface ServerOptions {
   assetsBaseUrl?: string;
   /** URL pública anunciada no OpenAPI. */
   publicUrl?: string;
+  /** ADMIN_API_KEY — habilita as rotas internas (correção editorial do onde assistir, métricas). */
+  adminKey?: string;
+  /** Configuração do onde assistir (padrão: carregada de config/ na primeira rota interna que usar). */
+  wtwConfig?: WtwConfig;
 }
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
@@ -49,7 +55,14 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const windowMs = options.rateLimitWindowMs ?? 60_000;
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
   const authenticator = store ? new Authenticator(store, options.authenticator) : undefined;
-  const ctx: AppContext = { db: options.db, cache, assetsBaseUrl: options.assetsBaseUrl };
+  let wtwConfig = options.wtwConfig;
+  const ctx: AppContext = {
+    db: options.db,
+    cache,
+    assetsBaseUrl: options.assetsBaseUrl,
+    adminKey: options.adminKey,
+    wtwConfig: () => (wtwConfig ??= loadWtwConfig()),
+  };
 
   registerErrorHandling(app);
   app.decorateRequest('tenant', null);
@@ -93,6 +106,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     await docsRoutes(instance, { publicUrl: options.publicUrl });
     await v1Routes(instance, ctx);
     await mirrorRoutes(instance, ctx);
+    await internalWhereToWatchRoutes(instance, ctx);
   });
 
   if (options.changeFeed && options.db) {

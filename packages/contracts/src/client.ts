@@ -10,6 +10,7 @@ import type {
 } from './catalog.js';
 import type { Problem, SupportedLocale } from './common.js';
 import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
+import type { WhereToWatch } from './where-to-watch.js';
 
 export interface GalaxieClientOptions {
   /** Ex.: http://localhost:8080 */
@@ -83,6 +84,10 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     standings: (id: string, season: number | 'current', opts: LocaleOpts = {}) =>
       v1<Standings>(`/v1/competitions/${seg(id)}/seasons/${season}/standings`, opts),
     venue: (id: string, opts: LocaleOpts = {}) => v1<Venue>(`/v1/venues/${seg(id)}`, opts),
+    /** Onde assistir um evento num país (`region` = UF/praça, opcional). */
+    whereToWatch: (eventId: string, country: string, opts: LocaleOpts & { region?: string } = {}) =>
+      v1<WhereToWatch>(`/v1/events/${seg(eventId)}/where-to-watch`, { country, ...opts } as Query &
+        LocaleOpts),
     /** Espelho compatível: mesmo endpoint e parâmetros da api-sports. */
     mirror: async (sport: MirrorSport, endpoint: string, params: Query = {}): Promise<MirrorResult> => {
       const res = await request(`/mirror/${sport}/${endpoint.replace(/^\//, '')}`, params);

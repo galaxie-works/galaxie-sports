@@ -1,0 +1,99 @@
+# =============================================================================
+# Dicionário de emissoras e plataformas — Argentina (AR)
+# Formato e regras: ver config/broadcasters/br.yaml.
+# Fonte do panorama: docs/research/onde-assistir.md §2.2–2.3 (revisado em 2026-10-21).
+# Operadoras de TV paga não são nomeadas por política editorial (ver _policy.yaml).
+# =============================================================================
+schema_version: 1
+country: AR
+language: es-AR
+updated_at: 2026-10-21
+broadcasters:
+  - id: espn
+    name: ESPN
+    aliases: ['ESPN Argentina']
+    channels: ['ESPN 2', 'ESPN 3', 'ESPN 4']
+    medium: pay_tv
+    access_model: subscription
+    group: disney
+    domains: [espn.com.ar]
+  - id: espn_premium
+    name: ESPN Premium
+    aliases: ['ESPN Premium Argentina']
+    medium: pay_tv
+    access_model: subscription
+    group: disney
+    domains: [espn.com.ar]
+  - id: disney_plus
+    name: Disney+
+    aliases: ['Disney Plus', 'Disney+ Premium', 'Disney Plus Premium']
+    medium: streaming_svod
+    access_model: subscription
+    group: disney
+    domains: [disneyplus.com]
+  - id: fox_sports
+    name: Fox Sports
+    aliases: ['FOX Sports Argentina', 'Fox Sports 2', 'Fox Sports 3']
+    medium: pay_tv
+    access_model: subscription
+    domains: [foxsports.com.ar]
+  - id: tnt_sports
+    name: TNT Sports
+    aliases: ['TNT Sports Argentina', 'TNT']
+    medium: pay_tv
+    access_model: subscription
+    group: wbd
+    domains: [tntsports.com.ar]
+  - id: tnt_sports_premium
+    name: TNT Sports Premium
+    aliases: ['TNT Premium']
+    medium: pay_tv
+    access_model: subscription
+    group: wbd
+    domains: [tntsports.com.ar]
+  - id: hbo_max
+    name: HBO Max
+    aliases: ['Max', 'HBOMax']
+    medium: streaming_svod
+    access_model: subscription
+    group: wbd
+    domains: [hbomax.com, max.com]
+  - id: tyc_sports
+    name: TyC Sports
+    aliases: ['TyC', 'TyC Sports Play', 'Tyc Sports']
+    medium: pay_tv
+    access_model: subscription
+    domains: [tycsports.com]
+  - id: telefe
+    name: Telefe
+    aliases: ['Telefé', 'Canal Telefe']
+    medium: free_tv
+    access_model: free
+    domains: [telefe.com, mitelefe.com]
+  - id: tv_publica
+    name: TV Pública
+    aliases: ['Televisión Pública', 'TV Publica', 'Canal 7']
+    medium: free_tv
+    access_model: free
+    domains: [tvpublica.com.ar]
+  - id: paramount_plus
+    name: Paramount+
+    aliases: ['Paramount Plus']
+    medium: streaming_svod
+    access_model: subscription
+    domains: [paramountplus.com]
+  - id: fanatiz
+    name: Fanatiz
+    aliases: []
+    medium: streaming_svod
+    access_model: subscription
+    domains: [fanatiz.com]
+sources:
+  organizers: [afa.com.ar, ligaprofesional.ar]
+  press:
+    - ole.com.ar
+    - clarin.com
+    - lanacion.com.ar
+    - perfil.com
+    - eleconomista.com.ar
+    - unanimodeportes.com

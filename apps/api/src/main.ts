@@ -16,6 +16,7 @@ const app = buildServer({
   changeFeed: true,
   ...(process.env.ASSETS_PUBLIC_BASE_URL ? { assetsBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL } : {}),
   publicUrl: process.env.API_PUBLIC_URL ?? `http://localhost:${port}`,
+  ...(process.env.ADMIN_API_KEY ? { adminKey: process.env.ADMIN_API_KEY } : {}),
 });
 
 const shutdown = async () => {
