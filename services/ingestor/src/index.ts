@@ -35,3 +35,5 @@ export { planSportCatalog, runSportCatalogJob } from './bootstrap/sport-catalog-
 export { loadSportCatalog, type SportCatalogCompetition } from './catalog/catalog-config.js';
 export { upsertCatalog } from './catalog/persist.js';
 export { OTHER_SPORTS, SPORT_PROFILES, type OtherSport } from './catalog/sport-catalog.js';
+export { seedMultisport, todayUtc, type SeedStats as MultisportSeedStats } from './multisport/seed.js';
+export { linkGamesCompetitions, type LinkReport as GamesLinkReport } from './multisport/competition-link.js';

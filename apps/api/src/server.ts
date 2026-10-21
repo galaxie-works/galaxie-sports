@@ -6,7 +6,7 @@ import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
 import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.js';
 import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
-import type { AppContext } from './context.js';
+import type { AppContext, SemanticConfig } from './context.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
 import { docsRoutes } from './routes/docs.js';
@@ -33,6 +33,8 @@ export interface ServerOptions {
   assetsBaseUrl?: string;
   /** URL pública anunciada no OpenAPI. */
   publicUrl?: string;
+  /** Piso editorial da semântica e pasta da base (SEMANTIC_MIN_REVIEW_STATUS, KNOWLEDGE_DIR). */
+  semantic?: SemanticConfig;
 }
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
@@ -49,7 +51,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const windowMs = options.rateLimitWindowMs ?? 60_000;
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
   const authenticator = store ? new Authenticator(store, options.authenticator) : undefined;
-  const ctx: AppContext = { db: options.db, cache, assetsBaseUrl: options.assetsBaseUrl };
+  const ctx: AppContext = {
+    db: options.db,
+    cache,
+    assetsBaseUrl: options.assetsBaseUrl,
+    ...(options.semantic ? { semantic: options.semantic } : {}),
+  };
 
   registerErrorHandling(app);
   app.decorateRequest('tenant', null);

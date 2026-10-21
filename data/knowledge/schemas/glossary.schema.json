@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.galaxie-sports.local/knowledge/glossary.schema.json",
+  "title": "Glossário por mercado — data/knowledge/glossary/<locale>.yaml (docs/06 §4.3 e §5)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "locale", "sport", "terms"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "locale": { "$ref": "common.schema.json#/definitions/copyLocale" },
+    "sport": { "enum": ["football", "multi"] },
+    "terms": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "term", "meaning", "category", "sources", "review_status"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "Chave estável dentro do locale (ex.: secar, hacer-fuerza)"
+          },
+          "term": { "type": "string", "minLength": 2, "maxLength": 60 },
+          "meaning": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 240,
+            "description": "Significado no idioma do mercado, em uma frase"
+          },
+          "example": {
+            "type": ["string", "null"],
+            "minLength": 3,
+            "maxLength": 120,
+            "description": "Frase curta de uso (legível em TV); positiva, sem ofensa"
+          },
+          "category": { "enum": ["support", "rivalry", "fans", "match", "competition"] },
+          "copy_intents": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "enum": ["inform", "anticipate", "cheer", "rivalry", "urgency", "decisive"] }
+          },
+          "requires": { "enum": ["declared_rival", "declared_affinity", null] },
+          "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 240 },
+          "sources": { "$ref": "common.schema.json#/definitions/sources" },
+          "review_status": { "$ref": "common.schema.json#/definitions/reviewStatus" }
+        }
+      }
+    }
+  }
+}
