@@ -1,0 +1,55 @@
+{
+  "get": "players/squads",
+  "parameters": {
+    "team": "121"
+  },
+  "errors": [],
+  "results": 1,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "team": {
+        "id": 121,
+        "logo": "https://media.api-sports.io/football/teams/121.png",
+        "name": "Palmeiras"
+      },
+      "players": [
+        {
+          "id": 31353,
+          "age": 27,
+          "name": "Jogador 1",
+          "photo": "https://media.api-sports.io/football/players/31353.png",
+          "number": 21,
+          "position": "Goalkeeper"
+        },
+        {
+          "id": 10373,
+          "age": 27,
+          "name": "Jogador 2",
+          "photo": "https://media.api-sports.io/football/players/10373.png",
+          "number": 1,
+          "position": "Goalkeeper"
+        },
+        {
+          "id": 580796,
+          "age": 18,
+          "name": "Jogador 3",
+          "photo": "https://media.api-sports.io/football/players/580796.png",
+          "number": 1,
+          "position": "Goalkeeper"
+        },
+        {
+          "id": 10372,
+          "age": 39,
+          "name": "Jogador 4",
+          "photo": "https://media.api-sports.io/football/players/10372.png",
+          "number": 14,
+          "position": "Goalkeeper"
+        }
+      ]
+    }
+  ]
+}

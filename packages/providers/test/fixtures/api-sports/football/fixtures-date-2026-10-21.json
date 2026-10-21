@@ -1,0 +1,714 @@
+{
+  "get": "fixtures",
+  "parameters": {
+    "date": "2026-10-21"
+  },
+  "errors": [],
+  "results": 10,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "goals": {
+        "away": null,
+        "home": null
+      },
+      "score": {
+        "penalty": {
+          "away": null,
+          "home": null
+        },
+        "fulltime": {
+          "away": null,
+          "home": null
+        },
+        "halftime": {
+          "away": null,
+          "home": null
+        },
+        "extratime": {
+          "away": null,
+          "home": null
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 1615,
+          "logo": "https://media.api-sports.io/football/teams/1615.png",
+          "name": "DC United",
+          "winner": null
+        },
+        "home": {
+          "id": 2242,
+          "logo": "https://media.api-sports.io/football/teams/2242.png",
+          "name": "FC Cincinnati",
+          "winner": null
+        }
+      },
+      "league": {
+        "id": 253,
+        "flag": "https://media.api-sports.io/flags/us.svg",
+        "logo": "https://media.api-sports.io/football/leagues/253.png",
+        "name": "Major League Soccer",
+        "round": "Regular Season - 23",
+        "season": 2026,
+        "country": "USA",
+        "standings": true
+      },
+      "fixture": {
+        "id": 1490439,
+        "date": "2026-10-21T23:00:00+00:00",
+        "venue": {
+          "id": 19229,
+          "city": "Cincinnati",
+          "name": "Estádio 19229"
+        },
+        "status": {
+          "long": "Not Started",
+          "extra": null,
+          "short": "NS",
+          "elapsed": null
+        },
+        "periods": {
+          "first": null,
+          "second": null
+        },
+        "referee": "Árbitro Anônimo",
+        "timezone": "UTC",
+        "timestamp": 1792623600
+      }
+    },
+    {
+      "goals": {
+        "away": 0,
+        "home": 0
+      },
+      "score": {
+        "penalty": {
+          "away": null,
+          "home": null
+        },
+        "fulltime": {
+          "away": null,
+          "home": null
+        },
+        "halftime": {
+          "away": 0,
+          "home": 0
+        },
+        "extratime": {
+          "away": null,
+          "home": null
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 7014,
+          "logo": "https://media.api-sports.io/football/teams/7014.png",
+          "name": "Nardo",
+          "winner": null
+        },
+        "home": {
+          "id": 16222,
+          "logo": "https://media.api-sports.io/football/teams/16222.png",
+          "name": "Aalesund II",
+          "winner": null
+        }
+      },
+      "league": {
+        "id": 775,
+        "flag": "https://media.api-sports.io/flags/no.svg",
+        "logo": "https://media.api-sports.io/football/leagues/775.png",
+        "name": "3. Division - Girone 2",
+        "round": "Regular Season - 17",
+        "season": 2026,
+        "country": "Norway",
+        "standings": true
+      },
+      "fixture": {
+        "id": 1496673,
+        "date": "2026-10-21T14:00:00+00:00",
+        "venue": {
+          "id": null,
+          "city": null,
+          "name": null
+        },
+        "status": {
+          "long": "First Half",
+          "extra": null,
+          "short": "1H",
+          "elapsed": 14
+        },
+        "periods": {
+          "first": 1792591200,
+          "second": null
+        },
+        "referee": null,
+        "timezone": "UTC",
+        "timestamp": 1792591200
+      }
+    },
+    {
+      "goals": {
+        "away": 2,
+        "home": 0
+      },
+      "score": {
+        "penalty": {
+          "away": null,
+          "home": null
+        },
+        "fulltime": {
+          "away": 2,
+          "home": 0
+        },
+        "halftime": {
+          "away": 1,
+          "home": 0
+        },
+        "extratime": {
+          "away": null,
+          "home": null
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 27586,
+          "logo": "https://media.api-sports.io/football/teams/27586.png",
+          "name": "Pakhtakor II",
+          "winner": true
+        },
+        "home": {
+          "id": 27587,
+          "logo": "https://media.api-sports.io/football/teams/27587.png",
+          "name": "Respublika FA",
+          "winner": false
+        }
+      },
+      "league": {
+        "id": 1075,
+        "flag": "https://media.api-sports.io/flags/uz.svg",
+        "logo": "https://media.api-sports.io/football/leagues/1075.png",
+        "name": "Pro League A",
+        "round": "Regular Season - 23",
+        "season": 2026,
+        "country": "Uzbekistan",
+        "standings": true
+      },
+      "fixture": {
+        "id": 1531116,
+        "date": "2026-10-21T10:00:00+00:00",
+        "venue": {
+          "id": null,
+          "city": null,
+          "name": null
+        },
+        "status": {
+          "long": "Match Finished",
+          "extra": 5,
+          "short": "FT",
+          "elapsed": 90
+        },
+        "periods": {
+          "first": 1792576800,
+          "second": 1792580400
+        },
+        "referee": null,
+        "timezone": "UTC",
+        "timestamp": 1792576800
+      }
+    },
+    {
+      "goals": {
+        "away": 1,
+        "home": 2
+      },
+      "score": {
+        "penalty": {
+          "away": null,
+          "home": null
+        },
+        "fulltime": {
+          "away": null,
+          "home": null
+        },
+        "halftime": {
+          "away": 1,
+          "home": 2
+        },
+        "extratime": {
+          "away": null,
+          "home": null
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 18992,
+          "logo": "https://media.api-sports.io/football/teams/18992.png",
+          "name": "Åsane W",
+          "winner": false
+        },
+        "home": {
+          "id": 15952,
+          "logo": "https://media.api-sports.io/football/teams/15952.png",
+          "name": "Kolbotn W",
+          "winner": true
+        }
+      },
+      "league": {
+        "id": 915,
+        "flag": "https://media.api-sports.io/flags/no.svg",
+        "logo": "https://media.api-sports.io/football/leagues/915.png",
+        "name": "1. Division Women",
+        "round": "Regular Season - 18",
+        "season": 2026,
+        "country": "Norway",
+        "standings": true
+      },
+      "fixture": {
+        "id": 1535657,
+        "date": "2026-10-21T13:00:00+00:00",
+        "venue": {
+          "id": 0,
+          "city": null,
+          "name": null
+        },
+        "status": {
+          "long": "Second Half",
+          "extra": null,
+          "short": "2H",
+          "elapsed": 55
+        },
+        "periods": {
+          "first": 1792587600,
+          "second": 1792591200
+        },
+        "referee": null,
+        "timezone": "UTC",
+        "timestamp": 1792587600
+      }
+    },
+    {
+      "goals": {
+        "away": 0,
+        "home": 0
+      },
+      "score": {
+        "penalty": {
+          "away": null,
+          "home": null
+        },
+        "fulltime": {
+          "away": null,
+          "home": null
+        },
+        "halftime": {
+          "away": 0,
+          "home": 0
+        },
+        "extratime": {
+          "away": null,
+          "home": null
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 3658,
+          "logo": "https://media.api-sports.io/football/teams/3658.png",
+          "name": "Comunicaciones",
+          "winner": null
+        },
+        "home": {
+          "id": 3664,
+          "logo": "https://media.api-sports.io/football/teams/3664.png",
+          "name": "Malacateco",
+          "winner": null
+        }
+      },
+      "league": {
+        "id": 339,
+        "flag": "https://media.api-sports.io/flags/gt.svg",
+        "logo": "https://media.api-sports.io/football/leagues/339.png",
+        "name": "Liga Nacional",
+        "round": "Regular Season - 15",
+        "season": 2026,
+        "country": "Guatemala",
+        "standings": false
+      },
+      "fixture": {
+        "id": 1559676,
+        "date": "2026-10-21T16:00:00+00:00",
+        "venue": {
+          "id": null,
+          "city": null,
+          "name": null
+        },
+        "status": {
+          "long": "Match Suspended",
+          "extra": 4,
+          "short": "SUSP",
+          "elapsed": null
+        },
+        "periods": {
+          "first": 1792548000,
+          "second": null
+        },
+        "referee": null,
+        "timezone": "UTC",
+        "timestamp": 1792598400
+      }
+    },
+    {
+      "goals": {
+        "away": null,
+        "home": null
+      },
+      "score": {
+        "penalty": {
+          "away": null,
+          "home": null
+        },
+        "fulltime": {
+          "away": null,
+          "home": null
+        },
+        "halftime": {
+          "away": null,
+          "home": null
+        },
+        "extratime": {
+          "away": null,
+          "home": null
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 8653,
+          "logo": "https://media.api-sports.io/football/teams/8653.png",
+          "name": "Gloucester City",
+          "winner": null
+        },
+        "home": {
+          "id": 7226,
+          "logo": "https://media.api-sports.io/football/teams/7226.png",
+          "name": "Frome Town",
+          "winner": null
+        }
+      },
+      "league": {
+        "id": 60,
+        "flag": "https://media.api-sports.io/flags/gb-eng.svg",
+        "logo": "https://media.api-sports.io/football/leagues/60.png",
+        "name": "Non League Premier - Southern South",
+        "round": "Regular Season - 14",
+        "season": 2026,
+        "country": "England",
+        "standings": true
+      },
+      "fixture": {
+        "id": 1597419,
+        "date": "2026-10-21T18:45:00+00:00",
+        "venue": {
+          "id": null,
+          "city": null,
+          "name": null
+        },
+        "status": {
+          "long": "Match Postponed",
+          "extra": null,
+          "short": "PST",
+          "elapsed": null
+        },
+        "periods": {
+          "first": null,
+          "second": null
+        },
+        "referee": null,
+        "timezone": "UTC",
+        "timestamp": 1792608300
+      }
+    },
+    {
+      "goals": {
+        "away": 1,
+        "home": 0
+      },
+      "score": {
+        "penalty": {
+          "away": null,
+          "home": null
+        },
+        "fulltime": {
+          "away": null,
+          "home": null
+        },
+        "halftime": {
+          "away": 1,
+          "home": 0
+        },
+        "extratime": {
+          "away": null,
+          "home": null
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 23084,
+          "logo": "https://media.api-sports.io/football/teams/23084.png",
+          "name": "Zhytomyr U19",
+          "winner": true
+        },
+        "home": {
+          "id": 23080,
+          "logo": "https://media.api-sports.io/football/teams/23080.png",
+          "name": "Obolon' Kyiv U19",
+          "winner": false
+        }
+      },
+      "league": {
+        "id": 1065,
+        "flag": "https://media.api-sports.io/flags/ua.svg",
+        "logo": "https://media.api-sports.io/football/leagues/1065.png",
+        "name": "U19 League",
+        "round": "Regular Season - 11",
+        "season": 2026,
+        "country": "Ukraine",
+        "standings": true
+      },
+      "fixture": {
+        "id": 1611780,
+        "date": "2026-10-21T10:30:00+00:00",
+        "venue": {
+          "id": null,
+          "city": null,
+          "name": null
+        },
+        "status": {
+          "long": "Match Interrupted",
+          "extra": null,
+          "short": "INT",
+          "elapsed": null
+        },
+        "periods": {
+          "first": 1792578600,
+          "second": 1792582200
+        },
+        "referee": null,
+        "timezone": "UTC",
+        "timestamp": 1792578600
+      }
+    },
+    {
+      "goals": {
+        "away": null,
+        "home": null
+      },
+      "score": {
+        "penalty": {
+          "away": null,
+          "home": null
+        },
+        "fulltime": {
+          "away": null,
+          "home": null
+        },
+        "halftime": {
+          "away": null,
+          "home": null
+        },
+        "extratime": {
+          "away": null,
+          "home": null
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 23384,
+          "logo": "https://media.api-sports.io/football/teams/23384.png",
+          "name": "Taguig",
+          "winner": null
+        },
+        "home": {
+          "id": 8013,
+          "logo": "https://media.api-sports.io/football/teams/8013.png",
+          "name": "Yangon United",
+          "winner": null
+        }
+      },
+      "league": {
+        "id": 1132,
+        "flag": null,
+        "logo": "https://media.api-sports.io/football/leagues/1132.png",
+        "name": "AFC Challenge League",
+        "round": "Group Stage",
+        "season": 2026,
+        "country": "World",
+        "standings": false
+      },
+      "fixture": {
+        "id": 1638862,
+        "date": "2026-10-21T08:00:00+00:00",
+        "venue": {
+          "id": null,
+          "city": "Samarinda",
+          "name": "Estádio local"
+        },
+        "status": {
+          "long": "Match Cancelled",
+          "extra": null,
+          "short": "CANC",
+          "elapsed": null
+        },
+        "periods": {
+          "first": null,
+          "second": null
+        },
+        "referee": null,
+        "timezone": "UTC",
+        "timestamp": 1792569600
+      }
+    },
+    {
+      "goals": {
+        "away": 1,
+        "home": 1
+      },
+      "score": {
+        "penalty": {
+          "away": 5,
+          "home": 4
+        },
+        "fulltime": {
+          "away": 1,
+          "home": 1
+        },
+        "halftime": {
+          "away": 0,
+          "home": 1
+        },
+        "extratime": {
+          "away": 0,
+          "home": 0
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 2771,
+          "logo": "https://media.api-sports.io/football/teams/2771.png",
+          "name": "Chiangrai United",
+          "winner": true
+        },
+        "home": {
+          "id": 26998,
+          "logo": "https://media.api-sports.io/football/teams/26998.png",
+          "name": "Burapha United",
+          "winner": false
+        }
+      },
+      "league": {
+        "id": 298,
+        "flag": "https://media.api-sports.io/flags/th.svg",
+        "logo": "https://media.api-sports.io/football/leagues/298.png",
+        "name": "FA Cup",
+        "round": "Round of 64",
+        "season": 2026,
+        "country": "Thailand",
+        "standings": false
+      },
+      "fixture": {
+        "id": 1645167,
+        "date": "2026-10-21T10:00:00+00:00",
+        "venue": {
+          "id": null,
+          "city": null,
+          "name": null
+        },
+        "status": {
+          "long": "Match Finished",
+          "extra": null,
+          "short": "PEN",
+          "elapsed": 120
+        },
+        "periods": {
+          "first": 1792576800,
+          "second": 1792580400
+        },
+        "referee": null,
+        "timezone": "UTC",
+        "timestamp": 1792576800
+      }
+    },
+    {
+      "goals": {
+        "away": 1,
+        "home": 3
+      },
+      "score": {
+        "penalty": {
+          "away": null,
+          "home": null
+        },
+        "fulltime": {
+          "away": 1,
+          "home": 1
+        },
+        "halftime": {
+          "away": 1,
+          "home": 0
+        },
+        "extratime": {
+          "away": 0,
+          "home": 2
+        }
+      },
+      "teams": {
+        "away": {
+          "id": 6594,
+          "logo": "https://media.api-sports.io/football/teams/6594.png",
+          "name": "Royal Thai Fleet",
+          "winner": false
+        },
+        "home": {
+          "id": 6583,
+          "logo": "https://media.api-sports.io/football/teams/6583.png",
+          "name": "Phitsanulok",
+          "winner": true
+        }
+      },
+      "league": {
+        "id": 298,
+        "flag": "https://media.api-sports.io/flags/th.svg",
+        "logo": "https://media.api-sports.io/football/leagues/298.png",
+        "name": "FA Cup",
+        "round": "Round of 64",
+        "season": 2026,
+        "country": "Thailand",
+        "standings": false
+      },
+      "fixture": {
+        "id": 1645182,
+        "date": "2026-10-21T11:00:00+00:00",
+        "venue": {
+          "id": null,
+          "city": null,
+          "name": null
+        },
+        "status": {
+          "long": "Match Finished",
+          "extra": null,
+          "short": "AET",
+          "elapsed": 120
+        },
+        "periods": {
+          "first": 1792580400,
+          "second": 1792584000
+        },
+        "referee": null,
+        "timezone": "UTC",
+        "timestamp": 1792580400
+      }
+    }
+  ]
+}

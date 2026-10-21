@@ -1,0 +1,74 @@
+{
+  "get": "teams",
+  "parameters": {
+    "country": "Brazil"
+  },
+  "errors": [],
+  "results": 3,
+  "paging": {
+    "current": 1,
+    "total": 1
+  },
+  "response": [
+    {
+      "team": {
+        "id": 6,
+        "code": "BRA",
+        "logo": "https://media.api-sports.io/football/teams/6.png",
+        "name": "Brazil",
+        "country": "Brazil",
+        "founded": 1914,
+        "national": true
+      },
+      "venue": {
+        "id": 11531,
+        "city": "Rio de Janeiro",
+        "name": "Estádio 11531",
+        "image": "https://media.api-sports.io/football/venues/11531.png",
+        "address": "Endereço omitido",
+        "surface": "grass",
+        "capacity": 78838
+      }
+    },
+    {
+      "team": {
+        "id": 121,
+        "code": "PAL",
+        "logo": "https://media.api-sports.io/football/teams/121.png",
+        "name": "Palmeiras",
+        "country": "Brazil",
+        "founded": 1914,
+        "national": false
+      },
+      "venue": {
+        "id": 258,
+        "city": "São Paulo, São Paulo",
+        "name": "Estádio 258",
+        "image": "https://media.api-sports.io/football/venues/258.png",
+        "address": "Endereço omitido",
+        "surface": "grass",
+        "capacity": 43713
+      }
+    },
+    {
+      "team": {
+        "id": 131,
+        "code": "COR",
+        "logo": "https://media.api-sports.io/football/teams/131.png",
+        "name": "Corinthians",
+        "country": "Brazil",
+        "founded": 1910,
+        "national": false
+      },
+      "venue": {
+        "id": 11531,
+        "city": "São Paulo, São Paulo",
+        "name": "Estádio 11531",
+        "image": "https://media.api-sports.io/football/venues/11531.png",
+        "address": "Endereço omitido",
+        "surface": "grass",
+        "capacity": 49205
+      }
+    }
+  ]
+}

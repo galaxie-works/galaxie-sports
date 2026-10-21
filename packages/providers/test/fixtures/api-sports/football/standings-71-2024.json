@@ -1,0 +1,74 @@
+{
+  "get": "standings",
+  "parameters": { "league": "71", "season": "2024" },
+  "errors": [],
+  "results": 1,
+  "paging": { "current": 1, "total": 1 },
+  "response": [
+    {
+      "league": {
+        "id": 71,
+        "name": "Serie A",
+        "country": "Brazil",
+        "logo": "https://media.api-sports.io/football/leagues/71.png",
+        "flag": "https://media.api-sports.io/flags/br.svg",
+        "season": 2024,
+        "standings": [
+          [
+            {
+              "rank": 1,
+              "team": {
+                "id": 121,
+                "name": "Palmeiras",
+                "logo": "https://media.api-sports.io/football/teams/121.png"
+              },
+              "points": 73,
+              "goalsDiff": 33,
+              "group": "Serie A",
+              "form": "WWDWL",
+              "status": "same",
+              "description": "Promotion - CONMEBOL Libertadores (Group Stage: )",
+              "all": { "played": 38, "win": 22, "draw": 7, "lose": 9, "goals": { "for": 60, "against": 27 } }
+            },
+            {
+              "rank": 2,
+              "team": {
+                "id": 119,
+                "name": "Internacional",
+                "logo": "https://media.api-sports.io/football/teams/119.png"
+              },
+              "points": 65,
+              "goalsDiff": 17,
+              "group": "Serie A",
+              "form": "DWWLW",
+              "status": "up",
+              "description": "Promotion - CONMEBOL Libertadores (Group Stage: )",
+              "all": { "played": 38, "win": 18, "draw": 11, "lose": 9, "goals": { "for": 53, "against": 36 } }
+            },
+            {
+              "rank": 3,
+              "team": {
+                "id": 131,
+                "name": "Corinthians",
+                "logo": "https://media.api-sports.io/football/teams/131.png"
+              },
+              "points": 56,
+              "goalsDiff": 9,
+              "group": "Serie A",
+              "form": "WLDWW",
+              "status": "down",
+              "description": null,
+              "all": {
+                "played": 38,
+                "win": 15,
+                "draw": 11,
+                "lose": 12,
+                "goals": { "for": 54, "against": 45 }
+              }
+            }
+          ]
+        ]
+      }
+    }
+  ]
+}

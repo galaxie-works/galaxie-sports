@@ -123,6 +123,12 @@ importers:
         specifier: ^3.4.9
         version: 3.4.9
 
+  packages/providers:
+    dependencies:
+      '@galaxie/apisports-client':
+        specifier: workspace:*
+        version: link:../apisports-client
+
   packages/rules:
     dependencies:
       '@galaxie/db':
@@ -152,6 +158,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(postgres@3.4.9)
