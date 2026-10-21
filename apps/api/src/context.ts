@@ -1,3 +1,4 @@
+import type { AdminGuard } from './admin/guard.js';
 import type { MediaDenylist } from '@galaxie/apisports-client';
 import type { ApiModule, Database } from '@galaxie/db';
 import type { WtwConfig } from '@galaxie/where-to-watch';
@@ -28,8 +29,8 @@ export interface AppContext {
   cache: ResponseCache;
   /** ASSETS_PUBLIC_BASE_URL — base pública do nosso storage de assets. */
   assetsBaseUrl: string | undefined;
-  /** ADMIN_API_KEY — habilita as rotas internas (/internal/...); sem ela, respondem 503. */
-  adminKey?: string | undefined;
+  /** Guard das rotas internas (/internal/...): ADMIN_KEY_HASHES + ADMIN_IP_ALLOWLIST; ausente → 503. */
+  adminGuard?: AdminGuard | undefined;
   /** Dicionários/política do onde assistir (carregados sob demanda de config/). */
   wtwConfig?: () => WtwConfig;
   /** Regulamentos (config/rules) para stakes e contexto competitivo. */

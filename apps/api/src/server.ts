@@ -47,8 +47,6 @@ export interface ServerOptions {
   assetsBaseUrl?: string;
   /** URL pública anunciada no OpenAPI. */
   publicUrl?: string;
-  /** ADMIN_API_KEY — habilita as rotas internas (correção editorial do onde assistir, métricas). */
-  adminKey?: string;
   /** Configuração do onde assistir (padrão: carregada de config/ na primeira rota interna que usar). */
   wtwConfig?: WtwConfig;
   /** Tempo real: `GET /v1/stream` (SSE) com fan-out via Valkey (requer db). */
@@ -106,11 +104,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
   const authenticator = store ? new Authenticator(store, options.authenticator) : undefined;
   let wtwConfig = options.wtwConfig;
+  const adminGuard = options.admin?.keyHashes.length ? new AdminGuard(options.admin) : undefined;
   const ctx: AppContext = {
     db: options.db,
     cache,
     assetsBaseUrl: options.assetsBaseUrl,
-    adminKey: options.adminKey,
+    adminGuard,
     wtwConfig: () => (wtwConfig ??= loadWtwConfig()),
     rules: new RulesRegistry(options.rulesDir),
     mediaDenylist: options.mediaDenylist,
@@ -178,7 +177,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   });
 
   if (options.admin?.keyHashes.length && options.db) {
-    const guard = new AdminGuard(options.admin);
+    const guard = adminGuard!;
     const plans = options.admin.plans ?? loadPlans();
     app.register(adminRoutes, { db: options.db, guard, plans, usage: usageBackend });
   }

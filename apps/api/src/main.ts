@@ -46,7 +46,6 @@ const app = buildServer({
   ...(process.env.RULES_DIR ? { rulesDir: process.env.RULES_DIR } : {}),
   ...(mediaDenylist ? { mediaDenylist } : {}),
   publicUrl: process.env.API_PUBLIC_URL ?? `http://localhost:${port}`,
-  ...(process.env.ADMIN_API_KEY ? { adminKey: process.env.ADMIN_API_KEY } : {}),
   semantic: {
     minReviewStatus: minReviewStatus ?? 'approved',
     ...(process.env.KNOWLEDGE_DIR ? { knowledgeDir: process.env.KNOWLEDGE_DIR } : {}),

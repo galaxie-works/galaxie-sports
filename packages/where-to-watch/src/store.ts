@@ -228,14 +228,15 @@ export async function applyAgentResult(db: Database, input: ApplyAgentInput): Pr
         if (publicDiff(prev, null)) result.publicChanged = true;
       }
     }
+    // Publica na mesma transação da escrita: o trigger de captura (ops.capture_broadcast_change) e esta
+    // publicação viram uma única linha no change feed (ops.publish_change funde por tópico × entidade).
+    if (result.publicChanged) {
+      result.changeId = await notifyChange(tx as unknown as Database, input.eventId, input.country, {
+        reason: 'agent',
+        runId: input.runId ?? null,
+      });
+    }
   });
-
-  if (result.publicChanged) {
-    result.changeId = await notifyChange(db, input.eventId, input.country, {
-      reason: 'agent',
-      runId: input.runId ?? null,
-    });
-  }
   return result;
 }
 

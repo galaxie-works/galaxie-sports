@@ -69,7 +69,7 @@ export function emptyReport(agent: AgentRunReport['agent']): AgentRunReport {
   };
 }
 
-export function matchLabel(core: EventCore): string {
+export function eventMatchLabel(core: EventCore): string {
   return `${core.home.name} x ${core.away.name}`;
 }
 
@@ -131,7 +131,7 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
     }
     const item: AgentRunItem = {
       eventId: id,
-      label: matchLabel(core),
+      label: eventMatchLabel(core),
       startsAt: core.startsAt.toISOString(),
       action: 'skipped',
     };

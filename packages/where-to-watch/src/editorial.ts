@@ -171,37 +171,39 @@ export async function addOption(db: Database, input: AddOptionInput): Promise<Co
     medium: input.medium,
   });
   const found: { previous: BroadcastOptionRow | null } = { previous: null };
-  const option = await db.transaction(async (tx) => {
-    const previous =
-      (await currentOptions(tx, input.eventId, country)).find((r) => rowKey(r) === key) ?? null;
-    found.previous = previous;
-    return insertVersion(
-      tx,
-      {
-        eventId: input.eventId,
-        countryCode: country,
-        region,
-        providerName: input.providerName.trim(),
-        broadcasterId: input.broadcasterId ?? null,
-        channelName: input.channel?.trim() || null,
-        medium: input.medium,
-        accessModel: input.accessModel,
-        url: input.url ?? null,
-        language: input.language ?? null,
-        status: 'confirmed',
-        confidence: '1.00',
-        evidence: toEvidence(input.evidence, now),
-        sourceKind: 'editorial',
-        conflict: false,
-        flags: [],
-        lastVerifiedAt: now,
-        producedBy: `editorial:${input.actor}`,
-      },
-      previous,
-      now,
-    );
+  return db.transaction(async (tx) => {
+    const option = await (async () => {
+      const previous =
+        (await currentOptions(tx, input.eventId, country)).find((r) => rowKey(r) === key) ?? null;
+      found.previous = previous;
+      return insertVersion(
+        tx,
+        {
+          eventId: input.eventId,
+          countryCode: country,
+          region,
+          providerName: input.providerName.trim(),
+          broadcasterId: input.broadcasterId ?? null,
+          channelName: input.channel?.trim() || null,
+          medium: input.medium,
+          accessModel: input.accessModel,
+          url: input.url ?? null,
+          language: input.language ?? null,
+          status: 'confirmed',
+          confidence: '1.00',
+          evidence: toEvidence(input.evidence, now),
+          sourceKind: 'editorial',
+          conflict: false,
+          flags: [],
+          lastVerifiedAt: now,
+          producedBy: `editorial:${input.actor}`,
+        },
+        previous,
+        now,
+      );
+    })();
+    return finish(tx as unknown as Database, 'add', { ...input, country }, found.previous, option);
   });
-  return finish(db, 'add', { ...input, country }, found.previous, option);
 }
 
 async function currentById(db: Database, optionId: string): Promise<BroadcastOptionRow> {
@@ -249,40 +251,48 @@ export async function correctOption(
     [patch.url, ...(patch.evidence ?? []).map((e) => e.url)],
   );
 
-  const option = await db.transaction(async (tx) => {
-    const [locked] = await tx
-      .select({ id: broadcastOption.id })
-      .from(broadcastOption)
-      .where(and(eq(broadcastOption.id, optionId), isNull(broadcastOption.supersededBy)))
-      .for('update');
-    if (!locked) throw new WtwError('conflict', 'A opção mudou durante a correção; recarregue.');
-    return insertVersion(
-      tx,
-      {
-        ...stripVersionFields(prev),
-        providerName: patch.providerName?.trim() ?? prev.providerName,
-        broadcasterId: patch.broadcasterId !== undefined ? patch.broadcasterId : prev.broadcasterId,
-        channelName: patch.channel !== undefined ? patch.channel?.trim() || null : prev.channelName,
-        medium: patch.medium ?? prev.medium,
-        accessModel: patch.accessModel ?? prev.accessModel,
-        url: patch.url !== undefined ? patch.url : prev.url,
-        region,
-        language: patch.language !== undefined ? patch.language : prev.language,
-        status: patch.status ?? 'confirmed',
-        confidence: '1.00',
-        conflict: false,
-        flags: [],
-        evidence: patch.evidence ? toEvidence(patch.evidence, now) : prev.evidence,
-        sourceKind: 'editorial',
-        lastVerifiedAt: now,
-        producedBy: `editorial:${base.actor}`,
-        runId: null,
-      },
+  return db.transaction(async (tx) => {
+    const option = await (async () => {
+      const [locked] = await tx
+        .select({ id: broadcastOption.id })
+        .from(broadcastOption)
+        .where(and(eq(broadcastOption.id, optionId), isNull(broadcastOption.supersededBy)))
+        .for('update');
+      if (!locked) throw new WtwError('conflict', 'A opção mudou durante a correção; recarregue.');
+      return insertVersion(
+        tx,
+        {
+          ...stripVersionFields(prev),
+          providerName: patch.providerName?.trim() ?? prev.providerName,
+          broadcasterId: patch.broadcasterId !== undefined ? patch.broadcasterId : prev.broadcasterId,
+          channelName: patch.channel !== undefined ? patch.channel?.trim() || null : prev.channelName,
+          medium: patch.medium ?? prev.medium,
+          accessModel: patch.accessModel ?? prev.accessModel,
+          url: patch.url !== undefined ? patch.url : prev.url,
+          region,
+          language: patch.language !== undefined ? patch.language : prev.language,
+          status: patch.status ?? 'confirmed',
+          confidence: '1.00',
+          conflict: false,
+          flags: [],
+          evidence: patch.evidence ? toEvidence(patch.evidence, now) : prev.evidence,
+          sourceKind: 'editorial',
+          lastVerifiedAt: now,
+          producedBy: `editorial:${base.actor}`,
+          runId: null,
+        },
+        prev,
+        now,
+      );
+    })();
+    return finish(
+      tx as unknown as Database,
+      'correct',
+      { ...base, eventId: prev.eventId, country: prev.countryCode },
       prev,
-      now,
+      option,
     );
   });
-  return finish(db, 'correct', { ...base, eventId: prev.eventId, country: prev.countryCode }, prev, option);
 }
 
 /** Remove uma opção (nova versão `retracted` editorial: o agente não a recria). */
@@ -296,8 +306,8 @@ export async function removeOption(
   const prev = await currentById(db, optionId);
   if (prev.status === 'retracted' && prev.producedBy.startsWith('editorial:'))
     throw new WtwError('conflict', 'Opção já removida.');
-  const option = await db.transaction(async (tx) =>
-    insertVersion(
+  return db.transaction(async (tx) => {
+    const option = await insertVersion(
       tx,
       {
         ...stripVersionFields(prev),
@@ -308,9 +318,15 @@ export async function removeOption(
       },
       prev,
       now,
-    ),
-  );
-  return finish(db, 'remove', { ...base, eventId: prev.eventId, country: prev.countryCode }, prev, option);
+    );
+    return finish(
+      tx as unknown as Database,
+      'remove',
+      { ...base, eventId: prev.eventId, country: prev.countryCode },
+      prev,
+      option,
+    );
+  });
 }
 
 /** Enfileira uma reexecução manual do agente (consumida pelo worker/CLI `wtw:run`). */

@@ -350,7 +350,7 @@ Regras de contrato:
 
 ### 4.2 Rotas internas (correção editorial, auditoria e métricas)
 
-Header `x-galaxie-admin-key` = `ADMIN_API_KEY` (sem a variável, as rotas respondem 503) e `x-galaxie-actor` com o handle interno de quem age (`[a-z0-9._-]`, sem e-mail) — gravado na trilha `enrich.broadcast_correction`. Respostas com `Cache-Control: no-store`.
+Mesmo guard de `/internal/admin`: `x-galaxie-admin-key` validada contra `ADMIN_KEY_HASHES` e allowlist `ADMIN_IP_ALLOWLIST` (sem hashes configurados, as rotas respondem 503) e `x-galaxie-actor` com o handle interno de quem age (`[a-z0-9._-]`, sem e-mail) — gravado na trilha `enrich.broadcast_correction`. Respostas com `Cache-Control: no-store`.
 
 | Método e rota | Efeito |
 |---|---|

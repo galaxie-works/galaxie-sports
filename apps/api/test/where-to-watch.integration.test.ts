@@ -18,6 +18,7 @@ import { applyAgentResult, loadWtwConfig, validateCandidates } from '@galaxie/wh
 import { createApiKey, upsertTenant } from '../src/auth/admin.js';
 import { RecordingCdnPurger } from '../src/cache/purger.js';
 import { buildServer } from '../src/server.js';
+import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -29,7 +30,7 @@ const testUrl = (() => {
   return u.toString();
 })();
 const keyPrefix = `gs-wtw-${randomBytes(4).toString('hex')}:`;
-const ADMIN_KEY = `adm_${randomBytes(16).toString('hex')}`;
+const ADMIN_KEY = generateAdminKey();
 
 let admin: postgres.Sql;
 let db: Database;
@@ -135,7 +136,7 @@ beforeAll(async () => {
     keyPrefix,
     cdnPurger: cdn,
     changeFeed: { pollIntervalMs: 250 },
-    adminKey: ADMIN_KEY,
+    admin: { keyHashes: [hashAdminKey(ADMIN_KEY)] },
     wtwConfig: config,
   });
   await app.ready();
