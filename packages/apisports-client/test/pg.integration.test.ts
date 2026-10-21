@@ -143,3 +143,66 @@ describe('ApiSportsClient + Postgres', () => {
     expect(ledger[0]).toMatchObject({ outcome: 'ok', remainingAfter: 99, priority: 'DAILY' });
   });
 });
+
+describe('revisão: concorrência entre processos e leituras atrasadas', () => {
+  it('dois processos pedindo a mesma coisa ao mesmo tempo geram uma única chamada ao fornecedor', async () => {
+    const calls: string[] = [];
+    const fetchFn = (async (input: string | URL | Request) => {
+      calls.push(String(input));
+      await new Promise((r) => setTimeout(r, 300));
+      return new Response(
+        JSON.stringify({
+          get: 'teams',
+          parameters: [],
+          errors: [],
+          results: 1,
+          paging: { current: 1, total: 1 },
+          response: [{ id: 1 }],
+        }),
+      );
+    }) as typeof globalThis.fetch;
+    const makeClient = () =>
+      new ApiSportsClient({
+        apiKey: 'k',
+        store: new PgRawStore(db),
+        governor: new PgQuotaGovernor(db, () => defaultPolicy(100)),
+        fetch: fetchFn,
+        rateLimiter: new RateLimiter(600),
+      });
+    const req = {
+      sport: 'handball',
+      endpoint: '/teams',
+      params: { country: 'Brazil' },
+      priority: 'DAILY',
+    } as const;
+    const [a, b] = await Promise.all([makeClient().get(req), makeClient().get(req)]);
+    expect(calls).toHaveLength(1);
+    expect([a.source, b.source].sort()).toEqual(['cache', 'network']);
+  });
+
+  it('reconcile com leitura atrasada não reduz o piso de uso', async () => {
+    let t = Date.parse('2026-10-21T16:00:00Z');
+    const gov = new PgQuotaGovernor(
+      db,
+      () => defaultPolicy(100),
+      () => new Date(t),
+    );
+    await gov.reconcile('baseball', 10, 100, 'Free');
+    for (let i = 0; i < 5; i++) {
+      t += 1000;
+      await gov.acquire({ api: 'baseball', priority: 'DAILY', endpoint: '/games', requestHash: `r${i}` });
+    }
+    expect((await gov.usage('baseball')).providerUsed).toBe(15);
+    t += 1000;
+    await gov.reconcile('baseball', 10, 100, 'Free');
+    expect((await gov.usage('baseball')).providerUsed).toBe(15);
+  });
+
+  it('limite reconciliado do fornecedor vira teto da política', async () => {
+    const gov = new PgQuotaGovernor(db, () => defaultPolicy(7500), now);
+    await gov.reconcile('american-football', 0, 100, 'Free');
+    const report = await gov.usage('american-football');
+    expect(report.dailyLimit).toBe(100);
+    expect(report.budget.DAILY).toBe(40);
+  });
+});

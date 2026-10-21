@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { apiResponse, type Database } from '@galaxie/db';
 
 export interface RawRecord {
@@ -25,7 +25,7 @@ export interface RawHit {
   quotaRemaining: number | null;
 }
 
-/** Armazena toda resposta bruta e serve respostas frescas (sem erro) para evitar chamadas repetidas. */
+/** Armazena toda resposta bruta e serve respostas frescas (HTTP 2xx e sem erro no envelope) para evitar chamadas repetidas. */
 export interface RawStore {
   findFresh(requestHash: string, maxAgeMs: number, now: Date): Promise<RawHit | undefined>;
   save(record: RawRecord): Promise<void>;
@@ -44,7 +44,14 @@ export class InMemoryRawStore implements RawStore {
     const minTime = Number.isFinite(maxAgeMs) ? now.getTime() - maxAgeMs : Number.NEGATIVE_INFINITY;
     const hit = [...this.records]
       .reverse()
-      .find((r) => r.requestHash === requestHash && isSuccess(r.errors) && r.fetchedAt.getTime() >= minTime);
+      .find(
+        (r) =>
+          r.requestHash === requestHash &&
+          r.statusCode >= 200 &&
+          r.statusCode < 300 &&
+          isSuccess(r.errors) &&
+          r.fetchedAt.getTime() >= minTime,
+      );
     return hit ? { body: hit.body, fetchedAt: hit.fetchedAt, quotaRemaining: hit.quotaRemaining } : undefined;
   }
 
@@ -58,7 +65,12 @@ export class PgRawStore implements RawStore {
 
   async findFresh(requestHash: string, maxAgeMs: number, now: Date): Promise<RawHit | undefined> {
     const success = sql`(${apiResponse.errors} is null or ${apiResponse.errors} in ('[]'::jsonb, '{}'::jsonb))`;
-    const conditions = [eq(apiResponse.requestHash, requestHash), success];
+    const conditions = [
+      eq(apiResponse.requestHash, requestHash),
+      success,
+      gte(apiResponse.statusCode, 200),
+      lt(apiResponse.statusCode, 300),
+    ];
     if (Number.isFinite(maxAgeMs))
       conditions.push(gte(apiResponse.fetchedAt, new Date(now.getTime() - maxAgeMs)));
     const [row] = await this.db

@@ -23,6 +23,14 @@ export class PlanViolationError extends Error {
   }
 }
 
+/** Outra chamada idêntica (mesmo request hash) já está em andamento — aguarde o resultado dela no raw. */
+export class RequestInFlightError extends Error {
+  constructor(readonly requestHash: string) {
+    super(`Requisição ${requestHash.slice(0, 12)}… já em andamento`);
+    this.name = 'RequestInFlightError';
+  }
+}
+
 /** Negada pelo Quota Governor: o orçamento da prioridade (e o que ela pode emprestar) acabou. */
 export class QuotaExceededError extends Error {
   constructor(

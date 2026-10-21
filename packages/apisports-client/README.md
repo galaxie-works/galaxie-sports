@@ -47,13 +47,13 @@ await client.status('football'); // /status não consome cota e reconcilia o Gov
 
 | Módulo | Função |
 |---|---|
-| `client.ts` | `get`, `getAllPages` (cada página = 1 requisição), `status` |
+| `client.ts` | `get`, `getAllPages` (cada página = 1 requisição), `status`; pedidos idênticos simultâneos (no processo ou entre processos) geram uma única chamada |
 | `plan.ts` | Restrições do plano (free: temporadas 2022–2024, `date` ontem→amanhã, sem `ids`/`last`/`next`, `page ≤ 3`); aprende a nova janela quando o fornecedor a desloca |
 | `ttl.ts` | Por quanto tempo reutilizar uma resposta do raw (referência 24 h, entidades lentas 7 dias, jogos antigos para sempre, ao vivo 10 s) |
-| `rate-limiter.ts` | Token bucket por API (10/min no free) |
-| `raw-store.ts` | `PgRawStore` / `InMemoryRawStore` — grava todo envelope e serve respostas frescas sem erro |
+| `rate-limiter.ts` | Espaçamento por API: 1 chamada a cada 60/perMinute s (6 s no free), sem rajada inicial |
+| `raw-store.ts` | `PgRawStore` / `InMemoryRawStore` — grava todo envelope e só reaproveita respostas HTTP 2xx sem erro no envelope |
 | `quota/policy.ts` | Decisão pura: limite − reserva, fatia por prioridade, empréstimo só da folga não protegida |
-| `quota/pg-governor.ts` | Reserva atômica (advisory lock por API/dia) em `ops.quota_ledger`, plano do dia em `ops.quota_budget`, contador do fornecedor em `ops.quota_snapshot` |
+| `quota/pg-governor.ts` | Reserva atômica (advisory lock por API/dia) em `ops.quota_ledger`, plano do dia em `ops.quota_budget`, contador e limite do fornecedor em `ops.quota_snapshot` (o limite menor prevalece; leituras atrasadas não reduzem o piso) |
 
 ## Política padrão (free, 100/dia)
 

@@ -91,3 +91,43 @@ describe('InMemoryQuotaGovernor.reconcile', () => {
     ).rejects.toBeInstanceOf(QuotaExceededError);
   });
 });
+
+describe('limite do fornecedor', () => {
+  it('limite informado pelo fornecedor menor que o configurado prevalece (Pro expirou → free)', () => {
+    const pro = defaultPolicy(7500, 15);
+    const used = { ...emptyUsage(), DAILY: 45 }; // 40 da fatia + 5 de folga no free
+    expect(decide(pro, { used }, 'DAILY').allow).toBe(true);
+    expect(decide(pro, { used, providerLimit: 100 }, 'DAILY').allow).toBe(false);
+  });
+});
+
+describe('reconcile com leitura atrasada', () => {
+  it('não esquece as chamadas feitas desde a leitura anterior', async () => {
+    const gov = new InMemoryQuotaGovernor(
+      () => policy,
+      () => new Date('2026-10-21T12:00:00Z'),
+    );
+    await gov.reconcile('nba', 10, 100);
+    for (let i = 0; i < 5; i++) {
+      await gov.acquire({ api: 'nba', priority: 'DAILY', endpoint: '/games', requestHash: `h${i}` });
+    }
+    expect((await gov.usage('nba')).providerUsed).toBe(15);
+    await gov.reconcile('nba', 10, 100); // fornecedor ainda não contou as 5
+    expect((await gov.usage('nba')).providerUsed).toBe(15);
+  });
+
+  it('pedido idêntico pendente bloqueia uma segunda reserva', async () => {
+    const gov = new InMemoryQuotaGovernor(
+      () => policy,
+      () => new Date('2026-10-21T12:00:00Z'),
+    );
+    const t = await gov.acquire({ api: 'afl', priority: 'DAILY', endpoint: '/games', requestHash: 'same' });
+    await expect(
+      gov.acquire({ api: 'afl', priority: 'DAILY', endpoint: '/games', requestHash: 'same' }),
+    ).rejects.toThrow(/andamento/);
+    await gov.settle(t, 'ok');
+    await expect(
+      gov.acquire({ api: 'afl', priority: 'DAILY', endpoint: '/games', requestHash: 'same' }),
+    ).resolves.toBeDefined();
+  });
+});

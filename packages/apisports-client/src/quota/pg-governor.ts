@@ -1,9 +1,10 @@
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { quotaBudget, quotaLedger, quotaSnapshot, type Database } from '@galaxie/db';
-import { QuotaExceededError } from '../errors.js';
+import { QuotaExceededError, RequestInFlightError } from '../errors.js';
 import type { Outcome, Priority } from '../types.js';
 import {
   buildReport,
+  IN_FLIGHT_STALE_MS,
   utcDayString,
   type AcquireRequest,
   type QuotaGovernor,
@@ -25,6 +26,26 @@ export class PgQuotaGovernor implements QuotaGovernor {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
+  private async countSince(
+    tx: Pick<Database, 'select'>,
+    api: string,
+    day: string,
+    since: Date,
+  ): Promise<number> {
+    const [row] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(quotaLedger)
+      .where(
+        and(
+          eq(quotaLedger.provider, PROVIDER),
+          eq(quotaLedger.api, api),
+          eq(quotaLedger.dayUtc, day),
+          gte(quotaLedger.sentAt, since),
+        ),
+      );
+    return row?.n ?? 0;
+  }
+
   private async snapshot(tx: Pick<Database, 'select'>, api: string, day: string): Promise<UsageSnapshot> {
     const used = emptyUsage();
     const counts = await tx
@@ -45,32 +66,25 @@ export class PgQuotaGovernor implements QuotaGovernor {
       : undefined;
 
     const [snap] = await tx
-      .select({ providerUsed: quotaSnapshot.providerUsed, capturedAt: quotaSnapshot.capturedAt })
+      .select({
+        providerUsed: quotaSnapshot.providerUsed,
+        providerLimit: quotaSnapshot.providerLimit,
+        capturedAt: quotaSnapshot.capturedAt,
+      })
       .from(quotaSnapshot)
       .where(
         and(eq(quotaSnapshot.provider, PROVIDER), eq(quotaSnapshot.api, api), eq(quotaSnapshot.dayUtc, day)),
       );
 
-    let providerUsed: number | undefined;
-    if (snap) {
-      const [after] = await tx
-        .select({ n: sql<number>`count(*)::int` })
-        .from(quotaLedger)
-        .where(
-          and(
-            eq(quotaLedger.provider, PROVIDER),
-            eq(quotaLedger.api, api),
-            eq(quotaLedger.dayUtc, day),
-            gte(quotaLedger.sentAt, snap.capturedAt),
-          ),
-        );
-      providerUsed = snap.providerUsed + (after?.n ?? 0);
-    }
-
     return {
       used,
       ...(planned ? { planned } : {}),
-      ...(providerUsed !== undefined ? { providerUsed } : {}),
+      ...(snap
+        ? {
+            providerUsed: snap.providerUsed + (await this.countSince(tx, api, day, snap.capturedAt)),
+            providerLimit: snap.providerLimit,
+          }
+        : {}),
     };
   }
 
@@ -78,6 +92,18 @@ export class PgQuotaGovernor implements QuotaGovernor {
     const day = utcDayString(this.now());
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${PROVIDER}|${req.api}|${day}`}))`);
+      const [inFlight] = await tx
+        .select({ id: quotaLedger.id })
+        .from(quotaLedger)
+        .where(
+          and(
+            eq(quotaLedger.requestHash, req.requestHash),
+            eq(quotaLedger.outcome, 'pending'),
+            gte(quotaLedger.sentAt, new Date(this.now().getTime() - IN_FLIGHT_STALE_MS)),
+          ),
+        )
+        .limit(1);
+      if (inFlight) throw new RequestInFlightError(req.requestHash);
       const decision = decide(this.policyFor(req.api), await this.snapshot(tx, req.api, day), req.priority, {
         critical: req.critical ?? false,
       });
@@ -115,19 +141,37 @@ export class PgQuotaGovernor implements QuotaGovernor {
 
   async reconcile(api: string, providerUsed: number, providerLimit: number, plan?: string): Promise<void> {
     const dayUtc = utcDayString(this.now());
-    await this.db
-      .insert(quotaSnapshot)
-      .values({ provider: PROVIDER, api, dayUtc, providerUsed, providerLimit, plan: plan ?? null })
-      .onConflictDoUpdate({
-        target: [quotaSnapshot.provider, quotaSnapshot.api, quotaSnapshot.dayUtc],
-        // o contador do fornecedor só cresce no dia: nunca regredir por leitura atrasada
-        set: {
-          providerUsed: sql`greatest(${quotaSnapshot.providerUsed}, excluded.provider_used)`,
-          providerLimit,
-          plan: plan ?? null,
-          capturedAt: this.now(),
-        },
-      });
+    await this.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${PROVIDER}|${api}|${dayUtc}`}))`);
+      const [prev] = await tx
+        .select({ providerUsed: quotaSnapshot.providerUsed, capturedAt: quotaSnapshot.capturedAt })
+        .from(quotaSnapshot)
+        .where(
+          and(
+            eq(quotaSnapshot.provider, PROVIDER),
+            eq(quotaSnapshot.api, api),
+            eq(quotaSnapshot.dayUtc, dayUtc),
+          ),
+        );
+      // O contador do fornecedor é eventualmente consistente: uma leitura atrasada não pode "esquecer"
+      // as chamadas feitas desde a leitura anterior. Incorporamos essas chamadas ao piso antes de avançar.
+      const baseline = prev
+        ? prev.providerUsed + (await this.countSince(tx, api, dayUtc, prev.capturedAt))
+        : 0;
+      const values = {
+        providerUsed: Math.max(baseline, providerUsed),
+        providerLimit,
+        plan: plan ?? null,
+        capturedAt: this.now(),
+      };
+      await tx
+        .insert(quotaSnapshot)
+        .values({ provider: PROVIDER, api, dayUtc, ...values })
+        .onConflictDoUpdate({
+          target: [quotaSnapshot.provider, quotaSnapshot.api, quotaSnapshot.dayUtc],
+          set: values,
+        });
+    });
   }
 
   async plan(api: string, dayUtc: string, planned: Partial<Record<Priority, number>>): Promise<void> {

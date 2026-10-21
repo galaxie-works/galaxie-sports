@@ -9,8 +9,9 @@ export const systemClock: Clock = {
 };
 
 /**
- * Token bucket por chave (uma por API/esporte). Respeita o limite por minuto do plano —
- * estourá-lo pode levar a bloqueio pelo firewall do fornecedor.
+ * Espaçamento por chave (uma por API/esporte): no máximo 1 chamada a cada 60/perMinute segundos
+ * (6 s no free). Sem rajada inicial — um cliente novo não pode disparar o minuto inteiro de uma vez,
+ * o que estouraria o limite e pode levar a bloqueio pelo firewall do fornecedor.
  * As chamadas são serializadas por chave para que a ordem de espera seja justa.
  */
 export class RateLimiter {
@@ -27,7 +28,7 @@ export class RateLimiter {
 
   take(key: string): Promise<void> {
     const bucket = this.buckets.get(key) ?? {
-      tokens: this.perMinute,
+      tokens: 1,
       updatedAt: this.clock.now(),
       queue: Promise.resolve(),
     };
@@ -41,7 +42,7 @@ export class RateLimiter {
     const ratePerMs = this.perMinute / 60_000;
     for (;;) {
       const now = this.clock.now();
-      bucket.tokens = Math.min(this.perMinute, bucket.tokens + (now - bucket.updatedAt) * ratePerMs);
+      bucket.tokens = Math.min(1, bucket.tokens + (now - bucket.updatedAt) * ratePerMs);
       bucket.updatedAt = now;
       if (bucket.tokens >= 1) {
         bucket.tokens -= 1;

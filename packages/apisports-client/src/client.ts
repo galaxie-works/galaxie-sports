@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
-import { ApiSportsError } from './errors.js';
+import { ApiSportsError, RequestInFlightError } from './errors.js';
 import { API_HOSTS, type ApiSport } from './hosts.js';
 import { PlanRules } from './plan.js';
-import type { QuotaGovernor } from './quota/governor.js';
+import type { QuotaGovernor, QuotaTicket } from './quota/governor.js';
 import { RateLimiter, systemClock, type Clock } from './rate-limiter.js';
 import type { RawStore } from './raw-store.js';
 import { normalizeParams, requestHash } from './request-hash.js';
@@ -10,6 +10,8 @@ import { ttlFor } from './ttl.js';
 import { classifyErrors, type CallRequest, type CallResult, type Envelope, type Outcome } from './types.js';
 
 const PROVIDER = 'api-sports';
+/** Intervalo de checagem do raw enquanto outro processo busca a mesma requisição. */
+const IN_FLIGHT_POLL_MS = 1_000;
 
 export interface ApiSportsClientOptions {
   apiKey: string;
@@ -38,6 +40,7 @@ export interface ProviderStatus {
  * 1. reaproveita o raw se houver resposta fresca (TTL por endpoint) — sem gastar cota;
  * 2. é pré-validada contra as restrições do plano;
  * 3. reserva cota no Quota Governor e respeita o limite por minuto;
+ *    pedidos idênticos simultâneos (no processo ou entre processos) geram uma única chamada;
  * 4. grava o envelope integral em raw.api_response e o desfecho em ops.quota_ledger.
  */
 export class ApiSportsClient {
@@ -46,6 +49,7 @@ export class ApiSportsClient {
   private readonly fetchFn: typeof globalThis.fetch;
   private readonly clock: Clock;
   private readonly timeoutMs: number;
+  private readonly inFlight = new Map<string, Promise<CallResult<unknown>>>();
 
   constructor(private readonly options: ApiSportsClientOptions) {
     this.plan = options.plan ?? new PlanRules();
@@ -66,28 +70,62 @@ export class ApiSportsClient {
 
     const maxAge = req.maxAgeMs ?? ttlFor(req.endpoint, params, now);
     if (maxAge > 0) {
-      const hit = await this.options.store.findFresh(hash, maxAge, now);
-      if (hit) {
-        return {
-          envelope: hit.body as Envelope<T>,
-          source: 'cache',
-          requestHash: hash,
-          fetchedAt: hit.fetchedAt,
-          quotaRemaining: hit.quotaRemaining ?? undefined,
-        };
-      }
+      const hit = await this.fromCache<T>(hash, maxAge, now);
+      if (hit) return hit;
     }
 
     this.plan.validate(params, now);
 
-    const ticket = await this.options.governor.acquire({
-      api: req.sport,
-      priority: req.priority,
-      endpoint: req.endpoint,
+    // Mesmo processo: pedidos idênticos simultâneos compartilham a mesma chamada.
+    const pending = this.inFlight.get(hash);
+    if (pending) return pending as Promise<CallResult<T>>;
+    const call = this.fetchOnce<T>(req, params, hash, maxAge).finally(() => this.inFlight.delete(hash));
+    this.inFlight.set(hash, call);
+    return call;
+  }
+
+  private async fromCache<T>(hash: string, maxAge: number, now: Date): Promise<CallResult<T> | undefined> {
+    const hit = await this.options.store.findFresh(hash, maxAge, now);
+    if (!hit) return undefined;
+    return {
+      envelope: hit.body as Envelope<T>,
+      source: 'cache',
       requestHash: hash,
-      jobId: req.jobId,
-      critical: req.critical,
-    });
+      fetchedAt: hit.fetchedAt,
+      quotaRemaining: hit.quotaRemaining ?? undefined,
+    };
+  }
+
+  private async fetchOnce<T>(
+    req: CallRequest,
+    params: Record<string, string>,
+    hash: string,
+    maxAge: number,
+  ): Promise<CallResult<T>> {
+    const startedAt = this.clock.now();
+    let ticket: QuotaTicket;
+    for (;;) {
+      try {
+        ticket = await this.options.governor.acquire({
+          api: req.sport,
+          priority: req.priority,
+          endpoint: req.endpoint,
+          requestHash: hash,
+          jobId: req.jobId,
+          critical: req.critical,
+        });
+        break;
+      } catch (err) {
+        if (!(err instanceof RequestInFlightError)) throw err;
+        // Outro processo está buscando exatamente isto: espera o resultado dele aparecer no raw.
+        await this.clock.sleep(IN_FLIGHT_POLL_MS);
+        const now = this.clock.now();
+        const window = maxAge > 0 ? maxAge : now - startedAt + IN_FLIGHT_POLL_MS;
+        const hit = await this.fromCache<T>(hash, window, new Date(now));
+        if (hit) return hit;
+        if (now - startedAt > this.timeoutMs) throw err;
+      }
+    }
 
     try {
       await this.limiter.take(req.sport);

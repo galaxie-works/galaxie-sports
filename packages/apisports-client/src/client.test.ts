@@ -216,7 +216,8 @@ describe('ApiSportsClient', () => {
     for (let i = 0; i < 11; i++) {
       await client.get({ sport: 'football', endpoint: '/teams', params: { id: i }, priority: 'DAILY' });
     }
-    expect(clock.t - start).toBeGreaterThanOrEqual(6_000);
+    // 11 chamadas espaçadas de 6 s: a 11ª sai pelo menos 60 s depois da 1ª
+    expect(clock.t - start).toBeGreaterThanOrEqual(60_000);
   });
 
   it('/status não consome cota e reconcilia o contador do fornecedor', async () => {
@@ -238,5 +239,36 @@ describe('ApiSportsClient', () => {
     expect(usage.totalUsed).toBe(0);
     expect(usage.providerUsed).toBe(42);
     expect(api.calls).toHaveLength(1);
+  });
+
+  it('não reaproveita resposta HTTP de erro mesmo com envelope sem erros', async () => {
+    let n = 0;
+    const { client, api } = setup(() => {
+      n += 1;
+      return n === 1 ? { status: 503, body: envelope([]) } : { body: envelope([{ ok: true }]) };
+    });
+    await expect(
+      client.get({ sport: 'football', endpoint: '/countries', priority: 'DAILY' }),
+    ).rejects.toMatchObject({
+      outcome: 'http_error',
+    });
+    const res = await client.get({ sport: 'football', endpoint: '/countries', priority: 'DAILY' });
+    expect(res.source).toBe('network');
+    expect(api.calls).toHaveLength(2);
+  });
+
+  it('pedidos idênticos simultâneos no mesmo processo geram uma única chamada', async () => {
+    const { client, api, governor } = setup(() => ({ body: envelope([{ id: 1 }]) }));
+    const req = {
+      sport: 'football',
+      endpoint: '/teams',
+      params: { country: 'Brazil' },
+      priority: 'DAILY',
+    } as const;
+    const [a, b, c] = await Promise.all([client.get(req), client.get(req), client.get(req)]);
+    expect(api.calls).toHaveLength(1);
+    expect(a.requestHash).toBe(b.requestHash);
+    expect(c.envelope.results).toBe(1);
+    expect((await governor.usage('football')).totalUsed).toBe(1);
   });
 });

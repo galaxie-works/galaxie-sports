@@ -27,6 +27,8 @@ export interface UsageSnapshot {
    * Usado como piso do total — o contador do fornecedor é eventualmente consistente.
    */
   providerUsed?: number;
+  /** Limite diário informado pelo fornecedor (/status). Se menor que o da política, prevalece. */
+  providerLimit?: number;
 }
 
 export interface Decision {
@@ -40,6 +42,17 @@ export interface Decision {
 
 export function emptyUsage(): Record<Priority, number> {
   return Object.fromEntries(PRIORITIES.map((p) => [p, 0])) as Record<Priority, number>;
+}
+
+/**
+ * Política efetiva: se o fornecedor informa um limite menor que o configurado (ex.: Pro expirou e voltou
+ * ao free), as fatias e a reserva passam a ser calculadas sobre o limite do fornecedor.
+ */
+export function effectivePolicy(policy: QuotaPolicy, usage: UsageSnapshot): QuotaPolicy {
+  const limit = usage.providerLimit;
+  return limit !== undefined && limit > 0 && limit < policy.dailyLimit
+    ? { ...policy, dailyLimit: limit }
+    : policy;
 }
 
 export function budgetFor(policy: QuotaPolicy, usage: UsageSnapshot, p: Priority): number {
@@ -57,11 +70,12 @@ export function reserveOf(policy: QuotaPolicy): number {
  * 3. Fora dela, só usa a folga que sobra depois de proteger o saldo de DAILY e LIVE.
  */
 export function decide(
-  policy: QuotaPolicy,
+  configured: QuotaPolicy,
   usage: UsageSnapshot,
   p: Priority,
   opts: { critical?: boolean } = {},
 ): Decision {
+  const policy = effectivePolicy(configured, usage);
   const sumUsed = PRIORITIES.reduce((acc, q) => acc + usage.used[q], 0);
   const totalUsed = Math.max(sumUsed, usage.providerUsed ?? 0);
   const cap = policy.dailyLimit - (p === 'LIVE' && opts.critical ? 0 : reserveOf(policy));
