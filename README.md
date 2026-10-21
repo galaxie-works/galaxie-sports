@@ -121,7 +121,7 @@ A meta é copiar "tudo" e manter atualizado com **100 chamadas por dia por API**
 
 Estratégia completa, números e cronograma do bootstrap: [docs/03-ingestao-e-economia-de-chamadas.md](docs/03-ingestao-e-economia-de-chamadas.md).
 
-> **Licença**: os termos da api-sports proíbem revender os dados. O espelho é base de desenvolvimento e demonstração; em produção, a camada de provedores permite usar uma fonte licenciada (inclusive a do próprio cliente) sem mudar a API. Ver [docs/11](docs/11-seguranca-licenciamento-e-compliance.md).
+> **Licença**: os termos da api-sports proíbem revender os dados. O espelho é base de desenvolvimento e demonstração; em produção, a camada de provedores permite usar uma fonte licenciada — **candidata principal: [Sportmonks](docs/research/sportmonks.md)** (Enterprise com redistribuição) — ou a do próprio cliente, sem mudar a API. Ver [docs/11](docs/11-seguranca-licenciamento-e-compliance.md).
 
 ## Base semântica
 
@@ -218,7 +218,7 @@ $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | For
 | 10 | [Roadmap e backlog](docs/10-roadmap-e-backlog.md) | Fases, marcos e issues |
 | 11 | [Segurança, licenciamento e compliance](docs/11-seguranca-licenciamento-e-compliance.md) | Licenças de dados, IA, LGPD, segurança |
 
-Pesquisas de apoio (com fontes): [api-sports futebol](docs/research/api-sports-football.md) · [demais esportes](docs/research/api-sports-outros-esportes.md) · [catálogo de competições](docs/research/catalogo-competicoes.md) · [onde assistir](docs/research/onde-assistir.md) · [Olimpíadas e Pan](docs/research/olimpiadas-e-panamericano.md).
+Pesquisas de apoio (com fontes): [api-sports futebol](docs/research/api-sports-football.md) · [demais esportes](docs/research/api-sports-outros-esportes.md) · [catálogo de competições](docs/research/catalogo-competicoes.md) · [onde assistir](docs/research/onde-assistir.md) · [Olimpíadas e Pan](docs/research/olimpiadas-e-panamericano.md) · [Sportmonks](docs/research/sportmonks.md).
 
 ## Roadmap
 

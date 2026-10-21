@@ -24,13 +24,13 @@ gantt
 |---|---|---|---|
 | **F0 · Fundação** | Monorepo, infraestrutura local, schema do banco, CI e observabilidade. | 31/10/2026 | 5 |
 | **F1 · Data Mirror** | Cópia interna da api-sports com economia de chamadas, assets e sync diário. | 14/11/2026 | 13 |
-| **F2 · Event Foundation & API v1** | Normalização, entidade evento canônica e API pública (espelho + /v1). | 28/11/2026 | 15 |
+| **F2 · Event Foundation & API v1** | Normalização, entidade evento canônica e API pública (espelho + /v1). | 28/11/2026 | 16 |
 | **F3 · Base semântica** | Clássicos, apelidos, gritos, competições e copy localizada. | 28/11/2026 | 8 |
 | **F4 · Onde assistir** | Serviço de transmissões por evento e país com IA, validação e correções em ≤ 5 min. | 12/12/2026 | 6 |
 | **F5 · Live & IA** | Agendador inteligente ao vivo, cenário pré-jogo, resumo pós-jogo e curadoria. | 12/12/2026 | 7 |
 | **F6 · App de demonstração** | Demo em Next.js + shadcn + ReUI consumindo apenas a API Galaxie. | 19/12/2026 | 11 |
 | **F7 · Olimpíadas & Pan-Americano** | Módulo multiesportivo: Lima 2027, LA 2028, histórico olímpico. | 31/03/2027 | 5 |
-| **F8 · Produção & comercial** | Plano pago, licenças, pacotes comerciais, segurança e testes de carga. | 31/01/2027 | 6 |
+| **F8 · Produção & comercial** | Plano pago, licenças, pacotes comerciais, segurança e testes de carga. | 31/01/2027 | 7 |
 
 ## 2. Caminho crítico do MVP de demonstração
 
@@ -106,6 +106,7 @@ _Transformar o raw em um modelo canônico orientado a evento e expor a API Galax
 | [#34](https://github.com/galaxie-works/galaxie-sports/issues/34) | Cache (Redis + CDN), ETag e change feed com purge | feature | P0 | M | [#31](https://github.com/galaxie-works/galaxie-sports/issues/31) |
 | [#35](https://github.com/galaxie-works/galaxie-sports/issues/35) | Tempo real: SSE /v1/stream e webhooks assinados | feature | P0 | M | [#34](https://github.com/galaxie-works/galaxie-sports/issues/34) |
 | [#36](https://github.com/galaxie-works/galaxie-sports/issues/36) | OpenAPI 3.1, documentação interativa e pacote de contratos | docs | P1 | S | [#30](https://github.com/galaxie-works/galaxie-sports/issues/30) |
+| [#87](https://github.com/galaxie-works/galaxie-sports/issues/87) | SportmonksProvider: implementação do provedor licenciado | feature | P1 | L | [#23](https://github.com/galaxie-works/galaxie-sports/issues/23), [#86](https://github.com/galaxie-works/galaxie-sports/issues/86) |
 
 ### [#37](https://github.com/galaxie-works/galaxie-sports/issues/37) Base de conhecimento semântico
 
@@ -191,6 +192,7 @@ _Levar o serviço de demonstração a produto vendável: licenças, plano pago, 
 | [#83](https://github.com/galaxie-works/galaxie-sports/issues/83) | Onboarding de tenant e portal de chaves | feature | P2 | M | [#33](https://github.com/galaxie-works/galaxie-sports/issues/33) |
 | [#84](https://github.com/galaxie-works/galaxie-sports/issues/84) | Hardening de segurança, backups e recuperação de desastre | task | P1 | M | [#5](https://github.com/galaxie-works/galaxie-sports/issues/5) |
 | [#85](https://github.com/galaxie-works/galaxie-sports/issues/85) | Testes de carga para picos (clássicos, finais, Pan) | task | P1 | S | [#35](https://github.com/galaxie-works/galaxie-sports/issues/35) |
+| [#86](https://github.com/galaxie-works/galaxie-sports/issues/86) | Spike: avaliar Sportmonks como provedor licenciado (trial + proposta Enterprise com redistribuição) | spike | P0 | M | [#80](https://github.com/galaxie-works/galaxie-sports/issues/80) |
 
 ## 4. Convenções do backlog
 

@@ -230,7 +230,8 @@ Os arquivos vão para o object storage (`core.asset`) e a API reescreve as URLs 
 ```mermaid
 flowchart LR
   P1[ApiSportsProvider] --> N[Normalizador]
-  P2[LicensedProvider<br/>fornecedor do cliente] --> N
+  P2[SportmonksProvider<br/>candidato licenciado] --> N
+  P4[ClientProvider<br/>fornecedor do cliente] --> N
   P3[MultisportProvider<br/>fontes olímpicas] --> N
   N --> CORE[(core)]
   CORE --> API[API Galaxie]
@@ -239,6 +240,25 @@ flowchart LR
 - Cada provedor implementa a mesma interface (`listCompetitions`, `listEvents`, `getEventDetail`, `listLive`…) e grava seu próprio raw.
 - `core.provider_map` liga IDs de vários provedores à mesma entidade.
 - Em produção, o cliente pode usar **o provedor de dados que já licencia**; a camada semântica, o onde assistir e a IA continuam idênticos.
+
+### 8.1 Sportmonks como provedor de produção (candidato)
+
+Pesquisa completa: [research/sportmonks.md](research/sportmonks.md).
+
+| Ponto | Sportmonks | api-sports |
+|---|---|---|
+| Esportes | Futebol (2.200+ ligas), críquete, Fórmula 1 | 12 APIs |
+| Preço de prateleira (futebol) | Starter €29 (5 ligas) · Growth €99 (30) · **Pro €249 (120 ligas)** · Enterprise sob consulta | Free · Pro US$ 19 · Ultra 29 · Mega 39 |
+| Cota | 2.000–5.000 chamadas **por entidade por hora** | 100–150.000 por dia |
+| Histórico | 3 temporadas nos planos self-serve; anterior é *add-on* | Todas no pago; 2022–2024 no free |
+| Ao vivo | Polling (`/livescores/latest` a cada 10 s; ~15 s evento→API); sem webhooks | Polling (15 s); sem webhooks |
+| **TV Stations** | ✅ emissoras por jogo e país em todos os planos — cobertura e precisão **não documentadas** | ❌ |
+| **Redistribuição B2B** | **Só com aprovação por escrito** ("Redistribution as a feed needs written approval") → contrato Enterprise | Proibida (revenda) |
+| Imagens | Logos e fotos **não** licenciados pela Sportmonks | Só para identificação |
+
+Lacunas para o nosso catálogo: futebol olímpico sem ao vivo; Copa do Brasil e Sul-Americana sem tabela/artilharia; estaduais sem estatísticas avançadas (Carioca, Baiano, Paranaense, Pernambucano e Catarinense também sem escalações); Liga BetPlay sem escalações; Liga MX sem artilharia; Eliminatórias CONMEBOL sem escalações. Nesses pontos, o espelho api-sports ou o cálculo local continuam úteis.
+
+Implicações para o `SportmonksProvider`: montagem de `include`/`filters`, paginação por cursor, buckets de limite por entidade/hora, conversão ano → `season_id`, tabela de IDs por provedor e mapeamento dos 25 status de partida para o nosso enum (detalhado na pesquisa).
 
 ## 9. Quota Governor
 

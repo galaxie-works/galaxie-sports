@@ -8,6 +8,7 @@
 | Plano Pro temporário | Recomendado por 30 dias para o bootstrap (temporada atual + histórico + `ids=`). Uso interno com cache é compatível com os termos |
 | Revenda | Os termos **proíbem revender ou vender diretamente** os dados. Construir produto próprio é permitido |
 | Produção comercial | Exige **acordo por escrito** com a api-sports para expor os dados a terceiros via nossa API **ou** uso de outra fonte licenciada (inclusive o provedor que o cliente já contrata) através da camada de provedores (ADR-09) |
+| Sportmonks (candidato) | Planos self-serve permitem construir e vender produto próprio, mas **redistribuição como feed a outras empresas exige aprovação por escrito** → negociar **Enterprise** com cláusula explícita de redistribuição/white-label para os nossos clientes. Acesso é precificado por domínio e o token não pode ser compartilhado entre empresas. Logos/fotos não são licenciados por eles. Ver [research/sportmonks.md](research/sportmonks.md) |
 | Termos | Regidos pela lei francesa; última atualização em 21/05/2025; o fornecedor pode alterar o free sem aviso |
 | Múltiplas contas/chaves para burlar limites | **Proibido** neste projeto. A economia vem do desenho (raw, cache, chamadas de alto rendimento), não de contornar regras |
 | Imagens (logos, escudos, fotos) | Espelhadas para desempenho; escudos e marcas pertencem a clubes/ligas. Uso comercial final deve ser validado juridicamente com o cliente |
