@@ -1,0 +1,172 @@
+# Base semântica — competições de futebol (schema v1)
+# Arquivo compartilhado: outros mercados (Europa, etc.) devem apenas acrescentar
+# itens à lista `competitions`. Agrupe por bloco com um comentário de seção.
+# api_sports_league_id só quando verificado (fontes: arquivos públicos que referenciam
+# media.api-sports.io/football/leagues/<id>.png); caso contrário null.
+schema_version: 1
+competitions:
+  # ------------------------------------------------------------- CONMEBOL
+  - slug: libertadores
+    api_sports_league_id: 13
+    labels: { pt-BR: "Libertadores", es: "Libertadores", en: "Copa Libertadores" }
+    nicknames: { pt-BR: ["Glória Eterna", "Liberta"], es: ["La Gloria Eterna", "La Copa"] }
+    trophy_nickname: null
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://github.com/rohunx/goal-edge-copy/blob/main/src/lib/leagues.ts"
+
+  - slug: sudamericana
+    api_sports_league_id: 11
+    labels: { pt-BR: "Copa Sul-Americana", es: "Copa Sudamericana", en: "Copa Sudamericana" }
+    nicknames: { pt-BR: ["Sul-Americana", "Sula"], es: ["La Sudamericana", "La Suda"] }
+    trophy_nickname: null
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://github.com/rohunx/goal-edge-copy/blob/main/src/lib/leagues.ts"
+
+  - slug: recopa-sudamericana
+    api_sports_league_id: 541
+    labels: { pt-BR: "Recopa Sul-Americana", es: "Recopa Sudamericana", en: "Recopa Sudamericana" }
+    nicknames: { pt-BR: ["Recopa"], es: ["Recopa"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  # ------------------------------------------------------- BRASIL — NACIONAIS
+  - slug: brasileirao-serie-a
+    api_sports_league_id: 71
+    labels: { pt-BR: "Brasileirão Série A", es: "Brasileirão", en: "Brazilian Série A" }
+    nicknames: { pt-BR: ["Brasileirão", "Campeonato Brasileiro", "Série A"], es: ["Brasileirão"] }
+    trophy_nickname: null
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://github.com/rohunx/goal-edge-copy/blob/main/src/lib/leagues.ts"
+
+  - slug: brasileirao-serie-b
+    api_sports_league_id: 72
+    labels: { pt-BR: "Brasileirão Série B", es: "Serie B de Brasil", en: "Brazilian Série B" }
+    nicknames: { pt-BR: ["Série B", "Segundona"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: brasileirao-serie-c
+    api_sports_league_id: 75
+    labels: { pt-BR: "Brasileirão Série C", es: "Serie C de Brasil", en: "Brazilian Série C" }
+    nicknames: { pt-BR: ["Série C"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: brasileirao-serie-d
+    api_sports_league_id: 76
+    labels: { pt-BR: "Brasileirão Série D", es: "Serie D de Brasil", en: "Brazilian Série D" }
+    nicknames: { pt-BR: ["Série D"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: copa-do-brasil
+    api_sports_league_id: 73
+    labels: { pt-BR: "Copa do Brasil", es: "Copa de Brasil", en: "Copa do Brasil" }
+    nicknames: { pt-BR: ["Copa do Brasil"] }
+    trophy_nickname: null
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_leagues.sql"
+
+  - slug: supercopa-do-brasil
+    api_sports_league_id: 632
+    labels: { pt-BR: "Supercopa do Brasil", es: "Supercopa de Brasil", en: "Brazilian Super Cup" }
+    nicknames: { pt-BR: ["Supercopa"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  # ------------------------------------------------------- BRASIL — REGIONAIS
+  - slug: copa-do-nordeste
+    api_sports_league_id: 612
+    labels: { pt-BR: "Copa do Nordeste", es: "Copa do Nordeste", en: "Copa do Nordeste" }
+    nicknames: { pt-BR: ["Nordestão", "Lampions League"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: copa-verde
+    api_sports_league_id: 843
+    labels: { pt-BR: "Copa Verde", es: "Copa Verde", en: "Copa Verde" }
+    nicknames: { pt-BR: [] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  # ------------------------------------------------------- BRASIL — ESTADUAIS
+  - slug: campeonato-paulista
+    api_sports_league_id: 475
+    labels: { pt-BR: "Campeonato Paulista", es: "Campeonato Paulista", en: "São Paulo State Championship" }
+    nicknames: { pt-BR: ["Paulistão", "Paulista"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-carioca
+    api_sports_league_id: 624
+    labels: { pt-BR: "Campeonato Carioca", es: "Campeonato Carioca", en: "Rio de Janeiro State Championship" }
+    nicknames: { pt-BR: ["Cariocão", "Carioca"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-mineiro
+    api_sports_league_id: 629
+    labels: { pt-BR: "Campeonato Mineiro", es: "Campeonato Mineiro", en: "Minas Gerais State Championship" }
+    nicknames: { pt-BR: ["Mineiro"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-gaucho
+    api_sports_league_id: 477
+    labels: { pt-BR: "Campeonato Gaúcho", es: "Campeonato Gaúcho", en: "Rio Grande do Sul State Championship" }
+    nicknames: { pt-BR: ["Gauchão", "Gaúcho"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-paranaense
+    api_sports_league_id: 606
+    labels: { pt-BR: "Campeonato Paranaense", es: "Campeonato Paranaense", en: "Paraná State Championship" }
+    nicknames: { pt-BR: ["Paranaense"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-catarinense
+    api_sports_league_id: 604
+    labels: { pt-BR: "Campeonato Catarinense", es: "Campeonato Catarinense", en: "Santa Catarina State Championship" }
+    nicknames: { pt-BR: ["Catarinense"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-baiano
+    api_sports_league_id: 602
+    labels: { pt-BR: "Campeonato Baiano", es: "Campeonato Baiano", en: "Bahia State Championship" }
+    nicknames: { pt-BR: ["Baianão", "Baiano"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-pernambucano
+    api_sports_league_id: 622
+    labels: { pt-BR: "Campeonato Pernambucano", es: "Campeonato Pernambucano", en: "Pernambuco State Championship" }
+    nicknames: { pt-BR: ["Pernambucano"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-cearense
+    api_sports_league_id: 609
+    labels: { pt-BR: "Campeonato Cearense", es: "Campeonato Cearense", en: "Ceará State Championship" }
+    nicknames: { pt-BR: ["Cearense"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-paraense
+    api_sports_league_id: 627
+    labels: { pt-BR: "Campeonato Paraense", es: "Campeonato Paraense", en: "Pará State Championship" }
+    nicknames: { pt-BR: ["Parazão", "Paraense"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+
+  - slug: campeonato-goiano
+    api_sports_league_id: 628
+    labels: { pt-BR: "Campeonato Goiano", es: "Campeonato Goiano", en: "Goiás State Championship" }
+    nicknames: { pt-BR: ["Goianão", "Goiano"] }
+    trophy_nickname: null
+    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]

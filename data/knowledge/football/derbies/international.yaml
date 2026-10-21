@@ -1,0 +1,169 @@
+# Base semântica — clássicos/dérbis entre seleções (schema v1, ver data/knowledge/SCHEMA.md)
+# teams = slugs de football/teams/*.yaml ou football/national-teams.yaml. first_match = null quando a data exata não foi confirmada.
+schema_version: 1
+region: international
+derbies:
+- slug: superclasico-de-las-americas
+  name: Superclásico de las Américas
+  aliases:
+  - Clásico sudamericano
+  - Superclássico das Américas
+  - Brasil x Argentina
+  - South American derby
+  labels: {pt-BR: Brasil x Argentina, es: Superclásico de las Américas, en: Argentina–Brazil rivalry}
+  teams:
+  - brazil-nt
+  - argentina-nt
+  scope: international
+  intensity: 5
+  first_match: null
+  origin: Rivalidade entre as seleções de Brasil e Argentina, descrita pela FIFA como a "essência da rivalidade no futebol".
+  trivia:
+  - O primeiro jogo entre as seleções foi em 1914.
+  - '"Superclásico de las Américas" também foi o nome de um torneio amistoso entre as duas, disputado a partir de 2011, sucessor da Copa Roca.'
+  - O primeiro encontro em Copas do Mundo foi em 1974.
+  sources:
+  - https://en.wikipedia.org/wiki/Argentina%E2%80%93Brazil_football_rivalry
+  - https://pt.wikipedia.org/wiki/Rivalidade_entre_Argentina_e_Brasil_no_futebol
+  - https://es.wikipedia.org/wiki/Cl%C3%A1sico_sudamericano
+  - https://en.wikipedia.org/wiki/Supercl%C3%A1sico_de_las_Am%C3%A9ricas
+  review_status: draft
+- slug: clasico-del-rio-de-la-plata
+  name: Clásico del Río de la Plata
+  aliases:
+  - Río de la Plata derby
+  - Clássico do Rio da Prata
+  - Argentina x Uruguai
+  labels: {pt-BR: Clássico do Rio da Prata, es: Clásico del Río de la Plata, en: Río de la Plata derby}
+  teams:
+  - argentina-nt
+  - uruguay-nt
+  scope: international
+  intensity: 5
+  first_match: 1902-07-20
+  origin: Considerado o confronto entre seleções mais disputado da história do futebol.
+  trivia:
+  - O primeiro jogo oficial, em Montevidéu, terminou 6–0 para a Argentina.
+  - As duas fizeram a final da primeira Copa do Mundo, em 1930, vencida pelo Uruguai.
+  sources:
+  - https://en.wikipedia.org/wiki/Argentina%E2%80%93Uruguay_football_rivalry
+  - https://pt.wikipedia.org/wiki/Rivalidade_entre_Argentina_e_Uruguai_no_futebol
+  - https://es.wikipedia.org/wiki/Cl%C3%A1sico_del_R%C3%ADo_de_la_Plata
+  review_status: draft
+- slug: classico-do-rio-negro
+  name: Clássico do Rio Negro
+  aliases:
+  - Clásico del Río Negro
+  - Brasil x Uruguai
+  labels: {pt-BR: Brasil x Uruguai, es: Clásico del Río Negro, en: Brazil–Uruguay rivalry}
+  teams:
+  - brazil-nt
+  - uruguay-nt
+  scope: international
+  intensity: 4
+  first_match: null
+  origin: Rivalidade entre seleções vizinhas que somam sete títulos mundiais.
+  trivia:
+  - 'O primeiro jogo oficial foi no Sul-Americano de 1916: Uruguai 2–1.'
+  - Em 16 de julho de 1950, o Uruguai venceu o Brasil por 2–1 no Maracanã, no jogo decisivo da Copa, episódio conhecido como Maracanazo.
+  sources:
+  - https://en.wikipedia.org/wiki/Brazil%E2%80%93Uruguay_football_rivalry
+  - https://pt.wikipedia.org/wiki/Rivalidade_entre_Brasil_e_Uruguai_no_futebol
+  - https://es.wikipedia.org/wiki/Rivalidad_futbol%C3%ADstica_entre_Brasil_y_Uruguay
+  review_status: draft
+- slug: clasico-del-pacifico
+  name: Clásico del Pacífico
+  aliases:
+  - Chile x Peru
+  - Clássico do Pacífico
+  labels: {pt-BR: Clássico do Pacífico, es: Clásico del Pacífico, en: Chile–Peru rivalry}
+  teams:
+  - chile-nt
+  - peru-nt
+  scope: international
+  intensity: 4
+  first_match: null
+  origin: Rivalidade histórica entre as seleções de Chile e Peru, vizinhos na costa do Pacífico.
+  trivia:
+  - 'O primeiro encontro foi no Sul-Americano de 1935, em Lima: Peru 1–0.'
+  - O primeiro duelo em Eliminatórias de Copa foi para o Mundial de 1974.
+  sources:
+  - https://en.wikipedia.org/wiki/Chile%E2%80%93Peru_football_rivalry
+  review_status: draft
+- slug: clasico-de-la-concacaf
+  name: Clásico de la Concacaf
+  aliases:
+  - México x Estados Unidos
+  - Mexico–United States rivalry
+  labels: {pt-BR: México x Estados Unidos, es: Clásico de la Concacaf, en: Mexico–United States rivalry}
+  teams:
+  - mexico-nt
+  - usa-nt
+  scope: international
+  intensity: 5
+  first_match: null
+  origin: O apelido "Clásico de la Concacaf" surgiu nos anos 1990, quando os dois se firmaram como as principais forças da Concacaf.
+  trivia:
+  - 'O primeiro jogo foi em 1934, na Itália, valendo vaga na Copa do Mundo daquele ano: Estados Unidos 4–2.'
+  sources:
+  - https://en.wikipedia.org/wiki/Mexico%E2%80%93United_States_soccer_rivalry
+  - https://es.wikipedia.org/wiki/Rivalidad_futbol%C3%ADstica_entre_Estados_Unidos_y_M%C3%A9xico
+  - https://www.clarosports.com/futbol/seleccion-mexicana/mexico-vs-estados-unidos-quien-manda-en-el-clasico-de-concacaf-historial-y-resultados/
+  review_status: draft
+- slug: england-germany
+  name: England–Germany
+  aliases:
+  - Inglaterra x Alemanha
+  - Inglaterra vs. Alemania
+  labels: {pt-BR: Inglaterra x Alemanha, es: Inglaterra vs. Alemania, en: England–Germany rivalry}
+  teams:
+  - england-nt
+  - germany-nt
+  scope: international
+  intensity: 4
+  first_match: 1930-05-10
+  origin: Rivalidade marcada por jogos decisivos como a final da Copa de 1966 e as semifinais da Copa de 1990 e da Euro 1996.
+  trivia:
+  - O primeiro jogo internacional oficial foi um amistoso em Berlim.
+  - Também se enfrentaram nas oitavas de final da Copa de 2010 e da Euro 2020.
+  sources:
+  - https://en.wikipedia.org/wiki/England%E2%80%93Germany_football_rivalry
+  - https://es.wikipedia.org/wiki/Rivalidad_futbol%C3%ADstica_entre_Alemania_e_Inglaterra
+  review_status: draft
+- slug: germany-netherlands
+  name: Germany–Netherlands
+  aliases:
+  - Alemanha x Holanda
+  - Alemania vs. Países Bajos
+  labels: {pt-BR: Alemanha x Holanda, es: Alemania vs. Países Bajos, en: Germany–Netherlands rivalry}
+  teams:
+  - germany-nt
+  - netherlands-nt
+  scope: international
+  intensity: 4
+  first_match: null
+  origin: A rivalidade esportiva ganhou força após a final da Copa de 1974, vencida pela Alemanha Ocidental sobre a Holanda.
+  sources:
+  - https://en.wikipedia.org/wiki/Germany%E2%80%93Netherlands_football_rivalry
+  review_status: draft
+- slug: derbi-iberico
+  name: Derbi ibérico
+  aliases:
+  - Dérbi Ibérico
+  - Iberian Derby
+  - Espanha x Portugal
+  labels: {pt-BR: Dérbi Ibérico, es: Derbi ibérico, en: Iberian Derby}
+  teams:
+  - spain-nt
+  - portugal-nt
+  scope: international
+  intensity: 4
+  first_match: 1921-12-19
+  origin: Uma das rivalidades entre seleções mais antigas, iniciada no primeiro amistoso internacional de Portugal, em Madri.
+  trivia:
+  - A Espanha venceu o primeiro jogo por 3–1.
+  - 'A primeira vitória portuguesa veio em 1947: 4–1.'
+  sources:
+  - https://en.wikipedia.org/wiki/Portugal%E2%80%93Spain_football_rivalry
+  - https://pt.wikipedia.org/wiki/Rivalidade_entre_Espanha_e_Portugal_no_futebol
+  review_status: draft

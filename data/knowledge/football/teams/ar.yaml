@@ -1,0 +1,619 @@
+schema_version: 1
+country: AR
+teams:
+  - slug: boca-juniors
+    names:
+      official: Club Atlético Boca Juniors
+      short: Boca Juniors
+      abbreviation: BOC
+    api_sports:
+      team_id: 451
+      match: { name: "Boca Juniors", country: "Argentina" }
+    founded: 1905-04-03
+    city: Buenos Aires
+    region: CABA
+    colors: [azul, oro]
+    nicknames: [Xeneize, Azul y Oro]
+    fans:
+      demonym: xeneize
+    rallying_cries: ["¡Dale Bo!", "¡Vamos Boca!"]
+    stadium:
+      name: Estadio Alberto J. Armando
+      nicknames: [La Bombonera]
+      city: Buenos Aires
+    rivals:
+      - { team: river-plate, derby: superclasico-argentino, intensity: 5 }
+    identity:
+      - "Fundado en el barrio de La Boca, de tradición genovesa; de ahí el apodo Xeneize."
+      - "Juega en La Bombonera, uno de los estadios más emblemáticos del fútbol mundial."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Dale Bo!", "¡Vamos Boca!", "Hoy alentamos al Xeneize"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Boca_Juniors"
+      - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
+      - "https://futboltotal.futbol/teams/boca-juniors"
+    review_status: draft
+
+  - slug: river-plate
+    names:
+      official: Club Atlético River Plate
+      short: River Plate
+      abbreviation: RIV
+    api_sports:
+      team_id: 435
+      match: { name: "River Plate", country: "Argentina" }
+    founded: 1901-05-25
+    city: Buenos Aires
+    region: CABA
+    colors: [blanco, rojo]
+    nicknames: [Millonario, La Banda]
+    fans:
+      demonym: riverplatense
+      group_nicknames: [millonarios]
+    rallying_cries: ["¡Vamos River!"]
+    stadium:
+      name: Estadio Monumental Antonio Vespucio Liberti
+      nicknames: [El Monumental]
+      city: Buenos Aires
+    rivals:
+      - { team: boca-juniors, derby: superclasico-argentino, intensity: 5 }
+    identity:
+      - "Nació en La Boca en 1901 y luego se trasladó al barrio de Núñez."
+      - "Su camiseta blanca con la banda roja cruzada es uno de sus símbolos."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos River!", "¡Dale Millo!", "Hoy alentamos a la Banda"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_River_Plate"
+      - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: independiente
+    names:
+      official: Club Atlético Independiente
+      short: Independiente
+      abbreviation: IND
+    api_sports:
+      team_id: 453
+      match: { name: "Independiente", country: "Argentina" }
+    founded: 1905-01-01
+    city: Avellaneda
+    region: Buenos Aires
+    colors: [rojo]
+    nicknames: [El Rojo, Diablos Rojos, Rey de Copas]
+    fans:
+      demonym: hincha del Rojo
+    rallying_cries: ["¡Vamos Rojo!"]
+    stadium:
+      name: Estadio Libertadores de América - Ricardo Enrique Bochini
+      nicknames: [Libertadores de América]
+      city: Avellaneda
+    rivals:
+      - { team: racing-club, derby: clasico-de-avellaneda, intensity: 5 }
+    identity:
+      - "Conocido como Rey de Copas por su récord de 7 Copas Libertadores."
+      - "Adoptó el color rojo en 1908; sus primeras camisetas fueron blancas."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Rojo!", "Hoy alentamos al Rey de Copas"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Independiente"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: racing-club
+    names:
+      official: Racing Club
+      short: Racing
+      abbreviation: RAC
+    api_sports:
+      team_id: 436
+      match: { name: "Racing Club", country: "Argentina" }
+    founded: 1903-03-25
+    city: Avellaneda
+    region: Buenos Aires
+    colors: [celeste, blanco]
+    nicknames: [La Academia]
+    fans:
+      demonym: racinguista
+    rallying_cries: ["¡Vamos Racing!", "¡Vamos Academia!"]
+    stadium:
+      name: Estadio Presidente Perón
+      nicknames: [El Cilindro]
+      city: Avellaneda
+    rivals:
+      - { team: independiente, derby: clasico-de-avellaneda, intensity: 5 }
+    identity:
+      - "Primer club argentino campeón intercontinental (1967)."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Racing!", "¡Vamos Academia!"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Racing_Club"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: san-lorenzo
+    names:
+      official: Club Atlético San Lorenzo de Almagro
+      short: San Lorenzo
+      abbreviation: SLO
+    api_sports:
+      team_id: 460
+      match: { name: "San Lorenzo", country: "Argentina" }
+    founded: 1908-04-01
+    city: Buenos Aires
+    region: CABA
+    colors: [azul, rojo]
+    nicknames: [Ciclón, Cuervo, Santos de Boedo]
+    fans:
+      demonym: cuervo
+    rallying_cries: ["¡Vamos Ciclón!"]
+    stadium:
+      name: Estadio Pedro Bidegain
+      nicknames: [Nuevo Gasómetro]
+      city: Buenos Aires
+    rivals:
+      - { team: huracan, derby: clasico-san-lorenzo-huracan, intensity: 5 }
+    identity:
+      - "Su nombre homenajea al sacerdote Lorenzo Massa, que dio refugio a los jóvenes fundadores."
+      - "Ganó la Copa Libertadores en 2014."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Ciclón!", "Hoy alentamos al Cuervo"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_San_Lorenzo_de_Almagro"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: huracan
+    names:
+      official: Club Atlético Huracán
+      short: Huracán
+      abbreviation: HUR
+    api_sports:
+      team_id: 445
+      match: { name: "Huracan", country: "Argentina" }
+    founded: 1908-11-01
+    city: Buenos Aires
+    region: CABA
+    colors: [blanco, rojo]
+    nicknames: [Globo, Quemero]
+    fans:
+      demonym: quemero
+    rallying_cries: ["¡Vamos Globo!"]
+    stadium:
+      name: Estadio Tomás Adolfo Ducó
+      nicknames: [Palacio Ducó]
+      city: Buenos Aires
+    rivals:
+      - { team: san-lorenzo, derby: clasico-san-lorenzo-huracan, intensity: 5 }
+    identity:
+      - "Su escudo lleva un globo aerostático, origen del apodo Globo."
+      - "Fecha oficial de fundación 1908, aunque su origen se remonta a 1903 en Pompeya."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Globo!", "Hoy alentamos al Quemero"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Huracán"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: velez-sarsfield
+    names:
+      official: Club Atlético Vélez Sarsfield
+      short: Vélez
+      abbreviation: VEL
+    api_sports:
+      team_id: 438
+      match: { name: "Velez Sarsfield", country: "Argentina" }
+    founded: 1910-01-01
+    city: Buenos Aires
+    region: CABA
+    colors: [blanco, azul]
+    nicknames: [El Fortín]
+    fans:
+      demonym: fortinero
+    rallying_cries: ["¡Vamos Vélez!"]
+    stadium:
+      name: Estadio José Amalfitani
+      nicknames: [El Fortín de Liniers]
+      city: Buenos Aires
+    rivals: []
+    identity:
+      - "Club del barrio de Liniers; campeón de la Copa Libertadores y la Intercontinental en 1994."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Vélez!", "Hoy alentamos al Fortín"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Vélez_Sarsfield"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: estudiantes-lp
+    names:
+      official: Club Estudiantes de La Plata
+      short: Estudiantes
+      abbreviation: EST
+    api_sports:
+      team_id: 450
+      match: { name: "Estudiantes L.P.", country: "Argentina" }
+    founded: 1905-08-04
+    city: La Plata
+    region: Buenos Aires
+    colors: [rojo, blanco]
+    nicknames: [Pincha, Pincharratas, El León]
+    fans:
+      demonym: pincharrata
+    rallying_cries: ["¡Vamos Pincha!"]
+    stadium:
+      name: Estadio Jorge Luis Hirschi
+      nicknames: []
+      city: La Plata
+    rivals:
+      - { team: gimnasia-lp, derby: clasico-platense, intensity: 5 }
+    identity:
+      - "Ganó tres Copas Libertadores consecutivas (1968, 1969 y 1970) y una más en 2009."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Pincha!", "Hoy alentamos al León"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Estudiantes_de_La_Plata"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: gimnasia-lp
+    names:
+      official: Club de Gimnasia y Esgrima La Plata
+      short: Gimnasia
+      abbreviation: GIM
+    api_sports:
+      team_id: 434
+      match: { name: "Gimnasia L.P.", country: "Argentina" }
+    founded: 1887-06-03
+    city: La Plata
+    region: Buenos Aires
+    colors: [blanco, azul]
+    nicknames: [El Lobo, Tripero]
+    fans:
+      demonym: tripero
+    rallying_cries: ["¡Vamos Lobo!"]
+    stadium:
+      name: Estadio Juan Carmelo Zerillo
+      nicknames: [El Bosque]
+      city: La Plata
+    rivals:
+      - { team: estudiantes-lp, derby: clasico-platense, intensity: 5 }
+    identity:
+      - "Fundado en 1887, es uno de los clubes más antiguos de Argentina."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Lobo!", "Hoy alentamos al Tripero"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_de_Gimnasia_y_Esgrima_La_Plata"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: rosario-central
+    names:
+      official: Club Atlético Rosario Central
+      short: Rosario Central
+      abbreviation: CEN
+    api_sports:
+      team_id: 437
+      match: { name: "Rosario Central", country: "Argentina" }
+    founded: 1889-12-24
+    city: Rosario
+    region: Santa Fe
+    colors: [azul, amarillo]
+    nicknames: [Canalla, Central]
+    fans:
+      demonym: canalla
+    rallying_cries: ["¡Vamos Central!"]
+    stadium:
+      name: Estadio Gigante de Arroyito
+      nicknames: [El Gigante]
+      city: Rosario
+    rivals:
+      - { team: newells-old-boys, derby: clasico-rosarino, intensity: 5 }
+    identity:
+      - "El apodo Canalla nació como burla de su rival y fue adoptado con orgullo por su hinchada."
+      - "Fundado por trabajadores del ferrocarril Central Argentino."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Central!", "Hoy alentamos al Canalla"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Rosario_Central"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: newells-old-boys
+    names:
+      official: Club Atlético Newell's Old Boys
+      short: Newell's
+      abbreviation: NOB
+    api_sports:
+      team_id: 457
+      match: { name: "Newells Old Boys", country: "Argentina" }
+    founded: 1903-11-03
+    city: Rosario
+    region: Santa Fe
+    colors: [rojo, negro]
+    nicknames: [La Lepra, Leproso, Rojinegro]
+    fans:
+      demonym: leproso
+    rallying_cries: ["¡Vamos Newell's!"]
+    stadium:
+      name: Estadio Marcelo Bielsa
+      nicknames: [El Coloso del Parque]
+      city: Rosario
+    rivals:
+      - { team: rosario-central, derby: clasico-rosarino, intensity: 5 }
+    identity:
+      - "El apodo Leproso se adoptó con orgullo; según la tradición, nació de un partido benéfico para un hospital."
+      - "Su nombre homenajea a Isaac Newell, educador inglés radicado en Rosario."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Newell's!", "Hoy alentamos a la Lepra"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Newell's_Old_Boys"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: talleres-cordoba
+    names:
+      official: Club Atlético Talleres
+      short: Talleres
+      abbreviation: TAL
+    api_sports:
+      team_id: 456
+      match: { name: "Talleres Cordoba", country: "Argentina" }
+    founded: 1913-10-12
+    city: Córdoba
+    region: Córdoba
+    colors: [azul, blanco]
+    nicknames: [La T, Matador]
+    fans:
+      demonym: null
+    rallying_cries: ["¡Vamos Talleres!"]
+    stadium:
+      name: Estadio Mario Alberto Kempes
+      nicknames: [El Kempes]
+      city: Córdoba
+    rivals:
+      - { team: belgrano-cordoba, derby: clasico-cordobes, intensity: 5 }
+    identity:
+      - "Fundado por trabajadores de los talleres ferroviarios de Córdoba."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Talleres!", "Hoy alentamos a la T"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Talleres"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: belgrano-cordoba
+    names:
+      official: Club Atlético Belgrano
+      short: Belgrano
+      abbreviation: BEL
+    api_sports:
+      team_id: 440
+      match: { name: "Belgrano Cordoba", country: "Argentina" }
+    founded: 1905-03-19
+    city: Córdoba
+    region: Córdoba
+    colors: [celeste]
+    nicknames: [El Pirata, Celeste]
+    fans:
+      demonym: pirata
+    rallying_cries: ["¡Vamos Pirata!"]
+    stadium:
+      name: Estadio Julio César Villagra
+      nicknames: [Gigante de Alberdi]
+      city: Córdoba
+    rivals:
+      - { team: talleres-cordoba, derby: clasico-cordobes, intensity: 5 }
+    identity:
+      - "Club del barrio Alberdi de Córdoba."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Pirata!", "Hoy alentamos al Celeste"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Belgrano"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: lanus
+    names:
+      official: Club Atlético Lanús
+      short: Lanús
+      abbreviation: LAN
+    api_sports:
+      team_id: 446
+      match: { name: "Lanus", country: "Argentina" }
+    founded: 1915-01-03
+    city: Lanús
+    region: Buenos Aires
+    colors: [granate]
+    nicknames: [El Granate]
+    fans:
+      demonym: granate
+    rallying_cries: ["¡Vamos Granate!"]
+    stadium:
+      name: Estadio Ciudad de Lanús - Néstor Díaz Pérez
+      nicknames: [La Fortaleza]
+      city: Lanús
+    rivals:
+      - { team: banfield, derby: clasico-del-sur-ar, intensity: 4 }
+    identity:
+      - "Campeón de la Copa Sudamericana en 2013."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Granate!", "Hoy alentamos a Lanús"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Lanús"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: banfield
+    names:
+      official: Club Atlético Banfield
+      short: Banfield
+      abbreviation: BAN
+    api_sports:
+      team_id: 449
+      match: { name: "Banfield", country: "Argentina" }
+    founded: 1896-01-21
+    city: Banfield
+    region: Buenos Aires
+    colors: [verde, blanco]
+    nicknames: [El Taladro]
+    fans:
+      demonym: banfileño
+    rallying_cries: ["¡Vamos Taladro!"]
+    stadium:
+      name: Estadio Florencio Sola
+      nicknames: []
+      city: Banfield
+    rivals:
+      - { team: lanus, derby: clasico-del-sur-ar, intensity: 4 }
+    identity:
+      - "Fundado por inmigrantes británicos en 1896; campeón del Apertura 2009."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Taladro!", "Hoy alentamos a Banfield"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Banfield"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: argentinos-juniors
+    names:
+      official: Asociación Atlética Argentinos Juniors
+      short: Argentinos Juniors
+      abbreviation: ARG
+    api_sports:
+      team_id: 458
+      match: { name: "Argentinos JRS", country: "Argentina" }
+    founded: 1904-08-15
+    city: Buenos Aires
+    region: CABA
+    colors: [rojo, blanco]
+    nicknames: [El Bicho, Semillero del Mundo]
+    fans:
+      demonym: hincha del Bicho
+    rallying_cries: ["¡Vamos Bicho!"]
+    stadium:
+      name: Estadio Diego Armando Maradona
+      nicknames: []
+      city: Buenos Aires
+    rivals: []
+    identity:
+      - "Club donde debutó Diego Maradona; su estadio lleva su nombre."
+      - "Campeón de la Copa Libertadores 1985."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Bicho!", "Hoy alentamos al Semillero del Mundo"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Asociación_Atlética_Argentinos_Juniors"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: colon-santa-fe
+    names:
+      official: Club Atlético Colón
+      short: Colón
+      abbreviation: COL
+    api_sports:
+      team_id: 448
+      match: { name: "Colon Santa Fe", country: "Argentina" }
+    founded: 1905-05-05
+    city: Santa Fe
+    region: Santa Fe
+    colors: [rojo, negro]
+    nicknames: [Sabalero]
+    fans:
+      demonym: sabalero
+    rallying_cries: ["¡Vamos Colón!"]
+    stadium:
+      name: Estadio Brigadier General Estanislao López
+      nicknames: [Cementerio de los Elefantes]
+      city: Santa Fe
+    rivals:
+      - { team: union-santa-fe, derby: clasico-santafesino, intensity: 5 }
+    identity:
+      - "Su estadio es conocido como Cementerio de los Elefantes por los resultados ante equipos grandes."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Colón!", "Hoy alentamos al Sabalero"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Colón"
+      - "https://futboltotal.futbol/teams/colon-santa-fe"
+    review_status: draft
+
+  - slug: union-santa-fe
+    names:
+      official: Club Atlético Unión
+      short: Unión
+      abbreviation: UNI
+    api_sports:
+      team_id: 441
+      match: { name: "Union Santa Fe", country: "Argentina" }
+    founded: 1907-04-15
+    city: Santa Fe
+    region: Santa Fe
+    colors: [rojo, blanco]
+    nicknames: [Tatengue]
+    fans:
+      demonym: tatengue
+    rallying_cries: ["¡Vamos Unión!"]
+    stadium:
+      name: Estadio 15 de Abril
+      nicknames: []
+      city: Santa Fe
+    rivals:
+      - { team: colon-santa-fe, derby: clasico-santafesino, intensity: 5 }
+    identity:
+      - "Su estadio lleva el nombre de la fecha de fundación del club."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Unión!", "Hoy alentamos al Tatengue"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Unión"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft
+
+  - slug: defensa-y-justicia
+    names:
+      official: Club Social y Deportivo Defensa y Justicia
+      short: Defensa y Justicia
+      abbreviation: DYJ
+    api_sports:
+      team_id: 442
+      match: { name: "Defensa Y Justicia", country: "Argentina" }
+    founded: 1935-03-20
+    city: Florencio Varela
+    region: Buenos Aires
+    colors: [amarillo, verde]
+    nicknames: [El Halcón, El Halcón de Varela, El Defe]
+    fans:
+      demonym: halcón
+    rallying_cries: ["¡Vamos Halcón!"]
+    stadium:
+      name: Estadio Norberto Tomaghello
+      nicknames: []
+      city: Florencio Varela
+    rivals: []
+    identity:
+      - "Adoptó el verde y amarillo en 1982, colores ligados a la empresa de colectivos El Halcón."
+      - "Campeón de la Copa Sudamericana 2020."
+    copy_hints:
+      es-AR:
+        cheer: ["¡Vamos Halcón!", "Hoy alentamos al Defe"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Social_y_Deportivo_Defensa_y_Justicia"
+      - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
+    review_status: draft

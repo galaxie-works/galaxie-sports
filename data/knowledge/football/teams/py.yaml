@@ -1,0 +1,129 @@
+schema_version: 1
+country: PY
+teams:
+  - slug: olimpia-py
+    names:
+      official: Club Olimpia
+      short: Olimpia
+      abbreviation: OLI
+    api_sports:
+      team_id: 1182
+      match: { name: "Olimpia", country: "Paraguay" }
+    founded: 1902-07-25
+    city: Asunción
+    region: Asunción
+    colors: [blanco, negro]
+    nicknames: [El Decano, Rey de Copas, Franjeado, Expreso Decano]
+    fans:
+      demonym: olimpista
+    rallying_cries: ["¡Vamos Olimpia!", "¡Vamos Decano!"]
+    stadium:
+      name: Estadio Manuel Ferreira
+      nicknames: []
+      city: Asunción
+    rivals:
+      - { team: cerro-porteno, derby: superclasico-paraguayo, intensity: 5 }
+    identity:
+      - "Considerado el decano del fútbol paraguayo, de ahí el apodo El Decano."
+      - "Tres veces campeón de la Copa Libertadores (1979, 1990 y 2002)."
+    copy_hints:
+      es-PY:
+        cheer: ["¡Vamos Olimpia!", "¡Vamos Decano!", "Hoy alentamos al Franjeado"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Olimpia"
+      - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
+    review_status: draft
+
+  - slug: cerro-porteno
+    names:
+      official: Club Cerro Porteño
+      short: Cerro Porteño
+      abbreviation: CER
+    api_sports:
+      team_id: 1176
+      match: { name: "Cerro Porteno", country: "Paraguay" }
+    founded: 1912-10-01
+    city: Asunción
+    region: Asunción
+    colors: [azul, grana]
+    nicknames: [El Ciclón, Azulgrana, Ciclón de Barrio Obrero]
+    fans:
+      demonym: cerrista
+    rallying_cries: ["¡Vamos Cerro!", "¡Vamos Ciclón!"]
+    stadium:
+      name: Estadio General Pablo Rojas
+      nicknames: [La Nueva Olla]
+      city: Asunción
+    rivals:
+      - { team: olimpia-py, derby: superclasico-paraguayo, intensity: 5 }
+    identity:
+      - "Club nacido en el Barrio Obrero de Asunción, de colores azul y grana."
+    copy_hints:
+      es-PY:
+        cheer: ["¡Vamos Cerro!", "¡Vamos Ciclón!", "Hoy alentamos al Azulgrana"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Cerro_Porteño"
+      - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
+    review_status: draft
+
+  - slug: libertad-py
+    names:
+      official: Club Libertad
+      short: Libertad
+      abbreviation: LIB
+    api_sports:
+      team_id: 1179
+      match: { name: "Libertad Asuncion", country: "Paraguay" }
+    founded: 1905-07-30
+    city: Asunción
+    region: Asunción
+    colors: [blanco, negro]
+    nicknames: [Gumarelo, Guma, Albinegro, Repollero]
+    fans:
+      demonym: gumarelo
+    rallying_cries: ["¡Vamos Libertad!", "¡Vamos Guma!"]
+    stadium:
+      name: Estadio La Huerta
+      nicknames: []
+      city: Asunción
+    rivals: []
+    identity:
+      - "Club del barrio Las Mercedes de Asunción, de franjas verticales blancas y negras."
+    copy_hints:
+      es-PY:
+        cheer: ["¡Vamos Libertad!", "¡Vamos Guma!"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Libertad"
+      - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
+    review_status: draft
+
+  - slug: guarani-py
+    names:
+      official: Club Guaraní
+      short: Guaraní
+      abbreviation: GUA
+    api_sports:
+      team_id: 1174
+      match: { name: "Club Guarani", country: "Paraguay" }
+    founded: 1903-10-12
+    city: Asunción
+    region: Asunción
+    colors: [amarillo, negro]
+    nicknames: [La Aurora, El Legendario, Aborigen]
+    fans:
+      demonym: null
+    rallying_cries: ["¡Vamos Guaraní!"]
+    stadium:
+      name: Estadio Rogelio Silvino Livieres
+      nicknames: [Dos Bocas]
+      city: Asunción
+    rivals: []
+    identity:
+      - "Uno de los clubes más antiguos de Paraguay, fundado en 1903."
+    copy_hints:
+      es-PY:
+        cheer: ["¡Vamos Guaraní!", "Hoy alentamos a la Aurora"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Guaraní"
+      - "https://futboltotal.futbol/teams/club-guarani"
+    review_status: draft

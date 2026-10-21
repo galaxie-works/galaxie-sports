@@ -1,0 +1,205 @@
+# Base semântica — clubes de Portugal (schema v1, ver data/knowledge/SCHEMA.md)
+# labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
+# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+schema_version: 1
+country: PT
+teams:
+- slug: benfica
+  names:
+    official: Sport Lisboa e Benfica
+    short: Benfica
+    abbreviation: SLB
+  labels: {pt-BR: Benfica, es: Benfica, en: Benfica}
+  api_sports:
+    team_id: null
+    match: {name: Benfica, country: Portugal}
+  founded: 1904-02-28
+  city: Lisboa
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - Águias
+  - Encarnados
+  - O Glorioso
+  fans:
+    demonym: benfiquista
+  mascot: Vitória
+  rallying_cries:
+  - E pluribus unum
+  stadium:
+    name: Estádio da Luz
+    nicknames:
+    - Luz
+    city: Lisboa
+  rivals:
+  - {team: porto, derby: o-classico, intensity: 5}
+  - {team: sporting-cp, derby: derby-de-lisboa, intensity: 5}
+  identity:
+  - Fundado em 28 de fevereiro de 1904 como Sport Lisboa.
+  - A águia Vitória sobrevoa o estádio antes dos jogos em casa.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Benfica
+      - Águias
+      - Encarnados
+      - Glorioso
+      cheer:
+      - Vai, Benfica!
+    es:
+      nicknames:
+      - Benfica
+      - Las Águilas
+      - Encarnados
+      cheer:
+      - ¡Vamos, Benfica!
+  sources:
+  - https://en.wikipedia.org/wiki/S.L._Benfica
+  - https://pt.wikipedia.org/wiki/Sport_Lisboa_e_Benfica
+  - https://es.wikipedia.org/wiki/Sport_Lisboa_e_Benfica
+  review_status: draft
+- slug: porto
+  names:
+    official: Futebol Clube do Porto
+    short: Porto
+    abbreviation: FCP
+  labels: {pt-BR: Porto, es: Porto, en: FC Porto}
+  api_sports:
+    team_id: null
+    match: {name: FC Porto, country: Portugal}
+  founded: 1893-09-28
+  city: Porto
+  colors:
+  - azul
+  - branco
+  nicknames:
+  - Dragões
+  - Azuis e Brancos
+  fans:
+    demonym: portista
+  stadium:
+    name: Estádio do Dragão
+    nicknames:
+    - Dragão
+    city: Porto
+  rivals:
+  - {team: benfica, derby: o-classico, intensity: 5}
+  identity:
+  - Fundado em 28 de setembro de 1893 como Foot-Ball Club do Porto.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Porto
+      - Dragões
+      - Azuis e Brancos
+      cheer:
+      - Vai, Porto!
+    es:
+      nicknames:
+      - Porto
+      - Oporto
+      - Los Dragones
+      cheer:
+      - ¡Vamos, Porto!
+  sources:
+  - https://en.wikipedia.org/wiki/FC_Porto
+  - https://pt.wikipedia.org/wiki/Futebol_Clube_do_Porto
+  - https://es.wikipedia.org/wiki/Futebol_Clube_do_Porto
+  review_status: draft
+- slug: sporting-cp
+  names:
+    official: Sporting Clube de Portugal
+    short: Sporting
+    abbreviation: SCP
+  labels: {pt-BR: Sporting, es: Sporting de Lisboa, en: Sporting CP}
+  api_sports:
+    team_id: null
+    match: {name: Sporting CP, country: Portugal}
+  founded: 1906-07-01
+  city: Lisboa
+  colors:
+  - verde
+  - branco
+  nicknames:
+  - Leões
+  - Verde e Brancos
+  fans:
+    demonym: sportinguista
+  mascot: Jubas
+  rallying_cries:
+  - Esforço, Dedicação, Devoção e Glória
+  stadium:
+    name: Estádio José Alvalade
+    nicknames:
+    - Alvalade
+    city: Lisboa
+  rivals:
+  - {team: benfica, derby: derby-de-lisboa, intensity: 5}
+  identity:
+  - Fundado em 1º de julho de 1906; o nome de fundação é Sporting Club de Portugal.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Sporting
+      - Leões
+      - Verde e Brancos
+      cheer:
+      - Vai, Sporting!
+    es:
+      nicknames:
+      - Sporting de Lisboa
+      - Los Leones
+      cheer:
+      - ¡Vamos, Sporting!
+  sources:
+  - https://en.wikipedia.org/wiki/Sporting_CP
+  - https://pt.wikipedia.org/wiki/Sporting_Clube_de_Portugal
+  - https://es.wikipedia.org/wiki/Sporting_Club_de_Portugal
+  review_status: draft
+- slug: braga
+  names:
+    official: Sporting Clube de Braga
+    short: Braga
+    abbreviation: SCB
+  labels: {pt-BR: Braga, es: Braga, en: Braga}
+  api_sports:
+    team_id: null
+    match: {name: SC Braga, country: Portugal}
+  founded: 1921-01-19
+  city: Braga
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - Arsenalistas
+  - Guerreiros do Minho
+  - Arcebispos
+  fans:
+    demonym: braguista
+  stadium:
+    name: Estádio Municipal de Braga
+    city: Braga
+  identity:
+  - Fundado em 19 de janeiro de 1921.
+  - O apelido "Arsenalistas" vem do uniforme vermelho e branco semelhante ao do Arsenal inglês, mudança atribuída ao técnico húngaro József Szabó.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Braga
+      - Arsenalistas
+      - Guerreiros do Minho
+      cheer:
+      - Vai, Braga!
+    es:
+      nicknames:
+      - Braga
+      - Los Arsenalistas
+      - Guerreros del Miño
+      cheer:
+      - ¡Vamos, Braga!
+  sources:
+  - https://en.wikipedia.org/wiki/S.C._Braga
+  - https://pt.wikipedia.org/wiki/Sporting_Clube_de_Braga
+  - https://es.wikipedia.org/wiki/Sporting_Clube_de_Braga
+  review_status: draft

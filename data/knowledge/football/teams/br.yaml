@@ -1,0 +1,1243 @@
+# Base semântica — clubes do Brasil (schema v1)
+# Série A 2026 (20 clubes) + clubes tradicionais fora da elite em 2026.
+# Fontes de api_sports.team_id: arquivos públicos no GitHub que referenciam
+# media.api-sports.io/football/teams/<id>.png para o clube (ver sources de cada entrada).
+schema_version: 1
+country: BR
+teams:
+  # ---------------------------------------------------------------- SÉRIE A 2026
+  - slug: palmeiras
+    names:
+      official: Sociedade Esportiva Palmeiras
+      short: Palmeiras
+      abbreviation: PAL
+    api_sports:
+      team_id: 121
+      match: { name: "Palmeiras", country: "Brazil" }
+    founded: 1914-08-26
+    city: São Paulo
+    region: SP
+    colors: [verde, branco]
+    nicknames: ["Verdão", "Alviverde", "Palestra", "Porco", "Academia de Futebol"]
+    fans:
+      demonym: palmeirense
+      group_nicknames: ["Porcada"]
+    mascot: Porco
+    rallying_cries: ["Avanti, Palestra!"]
+    stadium:
+      name: Nubank Parque
+      nicknames: ["Allianz Parque", "Arena"]
+      city: São Paulo
+    rivals:
+      - { team: corinthians, derby: derby-paulista, intensity: 5 }
+      - { team: sao-paulo, derby: choque-rei, intensity: 4 }
+      - { team: santos, derby: classico-da-saudade, intensity: 3 }
+    identity:
+      - "Fundado por imigrantes italianos como Palestra Italia; adotou o nome Palmeiras em 1942."
+      - "O apelido Porco nasceu como provocação de rivais e foi adotado pela própria torcida."
+      - "Em 2026 o estádio passou a se chamar Nubank Parque (antes Allianz Parque) por contrato de naming rights."
+    copy_hints:
+      pt-BR:
+        cheer: ["Avanti, Palestra!", "Vai, Verdão!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras"
+      - "https://www.lance.com.br/palmeiras/abel-ferreira-explica-como-surgiu-o-grito-motivacional-avanti-palestra.html"
+      - "https://www.band.com.br/esportes/arena-do-palmeiras-ganhara-nome-do-nubank-em-maio-e-tera-troca-de-letreiro-em-julho-202604101514"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: corinthians
+    names:
+      official: Sport Club Corinthians Paulista
+      short: Corinthians
+      abbreviation: COR
+    api_sports:
+      team_id: 131
+      match: { name: "Corinthians", country: "Brazil" }
+    founded: 1910-09-01
+    city: São Paulo
+    region: SP
+    colors: [preto, branco]
+    nicknames: ["Timão", "Alvinegro do Parque São Jorge", "Coringão"]
+    fans:
+      demonym: corintiano
+      group_nicknames: ["Fiel", "Fiel Torcida"]
+    mascot: Mosqueteiro
+    rallying_cries: ["Vai, Corinthians!"]
+    stadium:
+      name: Neo Química Arena
+      nicknames: ["Arena Corinthians", "Itaquerão"]
+      city: São Paulo
+    rivals:
+      - { team: palmeiras, derby: derby-paulista, intensity: 5 }
+      - { team: sao-paulo, derby: majestoso, intensity: 4 }
+      - { team: santos, derby: classico-alvinegro, intensity: 4 }
+      - { team: flamengo, derby: classico-do-povo, intensity: 3 }
+    identity:
+      - "Fundado em 1910 por operários no bairro do Bom Retiro; o nome homenageia o Corinthian FC, de Londres."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vai, Corinthians!", "Vai, Timão!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Sport_Club_Corinthians_Paulista"
+      - "https://www.mktesportivo.com/2026/04/corinthians-define-prazo-para-naming-rights-e-avanca-em-negociacao-com-a-caixa-sobre-a-arena/"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: sao-paulo
+    names:
+      official: São Paulo Futebol Clube
+      short: São Paulo
+      abbreviation: SAO
+    api_sports:
+      team_id: 126
+      match: { name: "Sao Paulo", country: "Brazil" }
+    founded: 1930-01-25
+    city: São Paulo
+    region: SP
+    colors: [vermelho, branco, preto]
+    nicknames: ["Tricolor Paulista", "Tricolor do Morumbi", "Soberano", "Clube da Fé", "O Mais Querido"]
+    fans:
+      demonym: são-paulino
+    mascot: Santo Paulo
+    rallying_cries: ["Vamos, São Paulo!"]
+    stadium:
+      name: MorumBIS
+      nicknames: ["Morumbi", "Estádio Cícero Pompeu de Toledo"]
+      city: São Paulo
+    rivals:
+      - { team: palmeiras, derby: choque-rei, intensity: 4 }
+      - { team: corinthians, derby: majestoso, intensity: 4 }
+      - { team: santos, derby: san-sao, intensity: 3 }
+    identity:
+      - "A data oficial de fundação, 25 de janeiro de 1930, coincide com o aniversário da cidade de São Paulo."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, São Paulo!", "Vai, Tricolor!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/São_Paulo_Futebol_Clube"
+      - "https://www.band.com.br/esportes/corinthians-mudar-naming-rights-veja-estadios-serie-a-202603101201"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: santos
+    names:
+      official: Santos Futebol Clube
+      short: Santos
+      abbreviation: SAN
+    api_sports:
+      team_id: 128
+      match: { name: "Santos", country: "Brazil" }
+    founded: 1912-04-14
+    city: Santos
+    region: SP
+    colors: [preto, branco]
+    nicknames: ["Peixe", "Alvinegro Praiano", "Santástico"]
+    fans:
+      demonym: santista
+    mascot: Baleia
+    rallying_cries: []
+    stadium:
+      name: Vila Belmiro
+      nicknames: ["Estádio Urbano Caldeira", "Vila"]
+      city: Santos
+    rivals:
+      - { team: corinthians, derby: classico-alvinegro, intensity: 4 }
+      - { team: sao-paulo, derby: san-sao, intensity: 3 }
+      - { team: palmeiras, derby: classico-da-saudade, intensity: 3 }
+    identity:
+      - "Clube em que Pelé jogou a maior parte da carreira."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Peixe!", "Vai, Santos!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Santos_Futebol_Clube"
+      - "https://www.opovo.com.br/agencia/jogada10/2026/07/31/santos-foca-nas-obras-da-vila-belmiro-enquanto-aguarda-wtorre.html"
+      - "https://github.com/lucca-schramm/test/blob/main/brasileirao_a.json"
+    review_status: draft
+
+  - slug: flamengo
+    names:
+      official: Clube de Regatas do Flamengo
+      short: Flamengo
+      abbreviation: FLA
+    api_sports:
+      team_id: 127
+      match: { name: "Flamengo", country: "Brazil" }
+    founded: 1895-11-15
+    city: Rio de Janeiro
+    region: RJ
+    colors: [vermelho, preto]
+    nicknames: ["Mengão", "Mengo", "Fla", "Rubro-Negro", "O Mais Querido", "Urubu"]
+    fans:
+      demonym: flamenguista
+      group_nicknames: ["Nação Rubro-Negra"]
+    mascot: Urubu
+    rallying_cries: ["Mengão!"]
+    stadium:
+      name: Maracanã
+      nicknames: ["Estádio Jornalista Mário Filho", "Maraca"]
+      city: Rio de Janeiro
+    rivals:
+      - { team: fluminense, derby: fla-flu, intensity: 5 }
+      - { team: vasco-da-gama, derby: classico-dos-milhoes, intensity: 5 }
+      - { team: botafogo, derby: classico-da-rivalidade, intensity: 4 }
+      - { team: corinthians, derby: classico-do-povo, intensity: 3 }
+    identity:
+      - "Nasceu como clube de remo em 1895 no Rio de Janeiro."
+      - "O Urubu, antes usado por rivais como provocação, foi adotado pela torcida em 1969."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Mengão!", "Vai, Flamengo!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Clube_de_Regatas_do_Flamengo"
+      - "https://pt.wikipedia.org/wiki/Clássico_da_Rivalidade"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: fluminense
+    names:
+      official: Fluminense Football Club
+      short: Fluminense
+      abbreviation: FLU
+    api_sports:
+      team_id: 124
+      match: { name: "Fluminense", country: "Brazil" }
+    founded: 1902-07-21
+    city: Rio de Janeiro
+    region: RJ
+    colors: [grená, verde, branco]
+    nicknames: ["Flu", "Tricolor das Laranjeiras", "Pó de Arroz"]
+    fans:
+      demonym: tricolor
+    mascot: Cartola
+    rallying_cries: ["Saudações Tricolores!"]
+    stadium:
+      name: Maracanã
+      nicknames: ["Estádio Jornalista Mário Filho", "Maraca"]
+      city: Rio de Janeiro
+    rivals:
+      - { team: flamengo, derby: fla-flu, intensity: 5 }
+      - { team: vasco-da-gama, derby: classico-dos-gigantes, intensity: 3 }
+      - { team: botafogo, derby: classico-vovo, intensity: 3 }
+    identity:
+      - "Fundado em 1902 no bairro de Laranjeiras; campeão da Libertadores de 2023."
+      - "O apelido Pó de Arroz, nascido como provocação em 1914, foi ressignificado pela torcida."
+    copy_hints:
+      pt-BR:
+        cheer: ["Saudações Tricolores!", "Vamos, Fluzão!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Fluminense_Football_Club"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: botafogo
+    names:
+      official: Botafogo de Futebol e Regatas
+      short: Botafogo
+      abbreviation: BOT
+    api_sports:
+      team_id: 120
+      match: { name: "Botafogo", country: "Brazil" }
+    founded: null
+    city: Rio de Janeiro
+    region: RJ
+    colors: [preto, branco]
+    nicknames: ["Fogão", "Fogo", "Glorioso", "Estrela Solitária", "Bota"]
+    fans:
+      demonym: botafoguense
+    mascot: Biriba (cachorro)
+    rallying_cries: []
+    stadium:
+      name: Estádio Nilton Santos
+      nicknames: ["Engenhão", "Nilton Santos"]
+      city: Rio de Janeiro
+    rivals:
+      - { team: flamengo, derby: classico-da-rivalidade, intensity: 4 }
+      - { team: fluminense, derby: classico-vovo, intensity: 3 }
+      - { team: vasco-da-gama, derby: classico-da-amizade, intensity: 3 }
+    identity:
+      - "Resultado da fusão, em 8 de dezembro de 1942, do Club de Regatas Botafogo (1894) com o Botafogo Football Club (1904)."
+      - "A Estrela Solitária do escudo virou sinônimo do clube."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Fogão!", "Vai, Glorioso!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Botafogo_de_Futebol_e_Regatas"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: vasco-da-gama
+    names:
+      official: Club de Regatas Vasco da Gama
+      short: Vasco
+      abbreviation: VAS
+    api_sports:
+      team_id: 133
+      match: { name: "Vasco DA Gama", country: "Brazil" }
+    founded: 1898-08-21
+    city: Rio de Janeiro
+    region: RJ
+    colors: [preto, branco]
+    nicknames: ["Gigante da Colina", "Cruz-Maltino", "Vascão", "Expresso da Vitória"]
+    fans:
+      demonym: vascaíno
+    mascot: Almirante
+    rallying_cries: ["Casaca!"]
+    stadium:
+      name: São Januário
+      nicknames: ["Estádio Vasco da Gama", "Colina Histórica"]
+      city: Rio de Janeiro
+    rivals:
+      - { team: flamengo, derby: classico-dos-milhoes, intensity: 5 }
+      - { team: fluminense, derby: classico-dos-gigantes, intensity: 3 }
+      - { team: botafogo, derby: classico-da-amizade, intensity: 3 }
+    identity:
+      - "Fundado em 1898 por remadores; o nome homenageia o navegador Vasco da Gama."
+      - "Campeão carioca de 1923 com os Camisas Negras, time formado majoritariamente por jogadores negros e trabalhadores."
+    copy_hints:
+      pt-BR:
+        cheer: ["Casaca!", "Vamos, Vascão!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Club_de_Regatas_Vasco_da_Gama"
+      - "https://www.lance.com.br/vasco/casaca-x-caza-conheca-a-origem-dos-canticos-de-vasco-e-sport.html"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: atletico-mineiro
+    names:
+      official: Clube Atlético Mineiro
+      short: Atlético-MG
+      abbreviation: CAM
+    api_sports:
+      team_id: 1062
+      match: { name: "Atletico-MG", country: "Brazil" }
+    founded: 1908-03-25
+    city: Belo Horizonte
+    region: MG
+    colors: [preto, branco]
+    nicknames: ["Galo", "Galo Doido", "Alvinegro Mineiro"]
+    fans:
+      demonym: atleticano
+      group_nicknames: ["Massa", "Massa Atleticana"]
+    mascot: Galo
+    rallying_cries: ["Eu acredito!"]
+    stadium:
+      name: Arena MRV
+      nicknames: []
+      city: Belo Horizonte
+    rivals:
+      - { team: cruzeiro, derby: classico-mineiro, intensity: 5 }
+      - { team: america-mineiro, derby: classico-das-multidoes-bh, intensity: 2 }
+    identity:
+      - "Fundado em 1908 em Belo Horizonte; campeão da Libertadores de 2013, quando o mantra Eu acredito embalou a torcida."
+    copy_hints:
+      pt-BR:
+        cheer: ["Eu acredito!", "Vamos, Galo!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Clube_Atlético_Mineiro"
+      - "https://www.correiobraziliense.com.br/esportes/2023/11/6661814-atletico-reacende-mantra-8216eu-acredito-8217-por-sonho-do-brasileirao.html"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: cruzeiro
+    names:
+      official: Cruzeiro Esporte Clube
+      short: Cruzeiro
+      abbreviation: CRU
+    api_sports:
+      team_id: 135
+      match: { name: "Cruzeiro", country: "Brazil" }
+    founded: 1921-01-02
+    city: Belo Horizonte
+    region: MG
+    colors: [azul, branco]
+    nicknames: ["Raposa", "Cabuloso", "Rei de Copas", "Celeste"]
+    fans:
+      demonym: cruzeirense
+      group_nicknames: ["Nação Azul"]
+    mascot: Raposa
+    rallying_cries: []
+    stadium:
+      name: Mineirão
+      nicknames: ["Estádio Governador Magalhães Pinto", "Gigante da Pampulha"]
+      city: Belo Horizonte
+    rivals:
+      - { team: atletico-mineiro, derby: classico-mineiro, intensity: 5 }
+    identity:
+      - "Fundado em 1921 como Palestra Italia por imigrantes italianos; adotou o nome Cruzeiro em 1942."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Cruzeiro!", "Vai, Raposa!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Cruzeiro_Esporte_Clube"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: gremio
+    names:
+      official: Grêmio Foot-Ball Porto Alegrense
+      short: Grêmio
+      abbreviation: GRE
+    api_sports:
+      team_id: 130
+      match: { name: "Gremio", country: "Brazil" }
+    founded: 1903-09-15
+    city: Porto Alegre
+    region: RS
+    colors: [azul, preto, branco]
+    nicknames: ["Imortal Tricolor", "Tricolor dos Pampas", "Rei de Copas"]
+    fans:
+      demonym: gremista
+    mascot: Mosqueteiro
+    rallying_cries: []
+    stadium:
+      name: Arena do Grêmio
+      nicknames: ["Arena"]
+      city: Porto Alegre
+    rivals:
+      - { team: internacional, derby: gre-nal, intensity: 5 }
+    identity:
+      - "Fundado em 1903 em Porto Alegre; conhecido como Imortal Tricolor."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Imortal!", "Vai, Grêmio!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Grêmio_Foot-Ball_Porto_Alegrense"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: internacional
+    names:
+      official: Sport Club Internacional
+      short: Internacional
+      abbreviation: INT
+    api_sports:
+      team_id: 119
+      match: { name: "Internacional", country: "Brazil" }
+    founded: 1909-04-04
+    city: Porto Alegre
+    region: RS
+    colors: [vermelho, branco]
+    nicknames: ["Inter", "Colorado", "Clube do Povo", "Celeiro de Ases", "Rolo Compressor"]
+    fans:
+      demonym: colorado
+    mascot: Saci
+    rallying_cries: []
+    stadium:
+      name: Beira-Rio
+      nicknames: ["Estádio José Pinheiro Borda", "Gigante da Beira-Rio"]
+      city: Porto Alegre
+    rivals:
+      - { team: gremio, derby: gre-nal, intensity: 5 }
+    identity:
+      - "Fundado em 1909 em Porto Alegre; apelidado de Clube do Povo."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Inter!", "Vai, Colorado!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Sport_Club_Internacional"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: athletico-paranaense
+    names:
+      official: Club Athletico Paranaense
+      short: Athletico-PR
+      abbreviation: CAP
+    api_sports:
+      team_id: 134
+      match: { name: "Atletico Paranaense", country: "Brazil" }
+    founded: 1924-03-26
+    city: Curitiba
+    region: PR
+    colors: [vermelho, preto]
+    nicknames: ["Furacão", "Furacão da Baixada", "Rubro-Negro Paranaense", "CAP"]
+    fans:
+      demonym: athleticano
+    mascot: Furacão
+    rallying_cries: []
+    stadium:
+      name: Arena da Baixada
+      nicknames: ["Estádio Mario Celso Petraglia", "Baixada"]
+      city: Curitiba
+    rivals:
+      - { team: coritiba, derby: atletiba, intensity: 5 }
+    identity:
+      - "Fundado em 1924 em Curitiba."
+      - "Desde 2024 o nome institucional do estádio é Estádio Mario Celso Petraglia; o apelido Arena da Baixada segue em uso e o contrato de naming rights anterior terminou em 2025."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Furacão!", "Vai, Athletico!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Club_Athletico_Paranaense"
+      - "https://www.bemparana.com.br/esportes/atletico-paranaense/conselho-do-athletico-aprova-por-unanimidade-mudanca-de-nome-para-estadio-mario-celso-petraglia/"
+      - "https://www.band.com.br/band-parana/noticias/ligga-confirma-fim-de-contrato-com-o-athletico-202507251433"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: coritiba
+    names:
+      official: Coritiba Foot Ball Club
+      short: Coritiba
+      abbreviation: CFC
+    api_sports:
+      team_id: 147
+      match: { name: "Coritiba", country: "Brazil" }
+    founded: 1909-10-12
+    city: Curitiba
+    region: PR
+    colors: [verde, branco]
+    nicknames: ["Coxa", "Coxa-Branca", "Alviverde"]
+    fans:
+      demonym: coxa-branca
+    mascot: Vovô Coxa
+    rallying_cries: []
+    stadium:
+      name: Couto Pereira
+      nicknames: ["Estádio Major Antônio Couto Pereira", "Alto da Glória"]
+      city: Curitiba
+    rivals:
+      - { team: athletico-paranaense, derby: atletiba, intensity: 5 }
+    identity:
+      - "Fundado em 1909 por descendentes de alemães; é o clube mais antigo do Paraná."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Coxa!", "Vai, Coritiba!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Coritiba_Foot_Ball_Club"
+      - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
+    review_status: draft
+
+  - slug: bahia
+    names:
+      official: Esporte Clube Bahia
+      short: Bahia
+      abbreviation: BAH
+    api_sports:
+      team_id: 118
+      match: { name: "Bahia", country: "Brazil" }
+    founded: 1931-01-01
+    city: Salvador
+    region: BA
+    colors: [azul, vermelho, branco]
+    nicknames: ["Bahêa", "Tricolor de Aço", "Esquadrão de Aço", "Tricolor Baiano"]
+    fans:
+      demonym: tricolor
+    mascot: Super-Homem
+    rallying_cries: ["Bahêa!"]
+    stadium:
+      name: Casa de Apostas Arena Fonte Nova
+      nicknames: ["Arena Fonte Nova", "Fonte Nova"]
+      city: Salvador
+    rivals:
+      - { team: vitoria-ba, derby: ba-vi, intensity: 5 }
+    identity:
+      - "Fundado em 1º de janeiro de 1931 em Salvador; primeiro campeão da Taça Brasil, em 1959."
+    copy_hints:
+      pt-BR:
+        cheer: ["Bahêa!", "Vamos, Esquadrão!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Esporte_Clube_Bahia"
+      - "https://www.band.com.br/esportes/corinthians-mudar-naming-rights-veja-estadios-serie-a-202603101201"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: vitoria-ba
+    names:
+      official: Esporte Clube Vitória
+      short: Vitória
+      abbreviation: VIT
+    api_sports:
+      team_id: 136
+      match: { name: "Vitoria", country: "Brazil" }
+    founded: 1899-05-13
+    city: Salvador
+    region: BA
+    colors: [vermelho, preto]
+    nicknames: ["Leão da Barra", "Rubro-Negro Baiano", "Leão"]
+    fans:
+      demonym: rubro-negro
+    mascot: Leão
+    rallying_cries: []
+    stadium:
+      name: Barradão
+      nicknames: ["Estádio Manoel Barradas"]
+      city: Salvador
+    rivals:
+      - { team: bahia, derby: ba-vi, intensity: 5 }
+    identity:
+      - "Fundado em 1899, é um dos clubes de futebol mais antigos do Brasil."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Leão!", "Vai, Vitória!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Esporte_Clube_Vitória"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: chapecoense
+    names:
+      official: Associação Chapecoense de Futebol
+      short: Chapecoense
+      abbreviation: CHA
+    api_sports:
+      team_id: 132
+      match: { name: "Chapecoense-sc", country: "Brazil" }
+    founded: 1973-05-10
+    city: Chapecó
+    region: SC
+    colors: [verde, branco]
+    nicknames: ["Chape", "Verdão do Oeste", "Furacão do Oeste"]
+    fans:
+      demonym: chapecoense
+    mascot: Índio Condá
+    rallying_cries: ["Vamos, vamos, Chape!"]
+    stadium:
+      name: Arena Condá
+      nicknames: ["Condá"]
+      city: Chapecó
+    rivals: []
+    identity:
+      - "Fundada em 1973 em Chapecó; declarada campeã da Copa Sul-Americana de 2016."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, vamos, Chape!", "Vai, Verdão do Oeste!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Associação_Chapecoense_de_Futebol"
+      - "https://acores.rtp.pt/?p=26655"
+      - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
+    review_status: draft
+
+  - slug: mirassol
+    names:
+      official: Mirassol Futebol Clube
+      short: Mirassol
+      abbreviation: MIR
+    api_sports:
+      team_id: 7848
+      match: { name: "Mirassol", country: "Brazil" }
+    founded: 1925-11-09
+    city: Mirassol
+    region: SP
+    colors: [amarelo, verde]
+    nicknames: ["Leão Caipira", "Leão"]
+    fans:
+      demonym: mirassolense
+    mascot: Leão
+    rallying_cries: []
+    stadium:
+      name: Maião
+      nicknames: ["Estádio José Maria de Campos Maia"]
+      city: Mirassol
+    rivals: []
+    identity:
+      - "Clube do interior paulista que estreou na Série A em 2025."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Leão Caipira!", "Vai, Mirassol!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Mirassol_Futebol_Clube"
+      - "https://github.com/lucca-schramm/test/blob/main/brasileirao_a.json"
+      - "https://github.com/MrPatinhas/cartologia_awken/blob/master/local_dbs/Paulista/paulista_dados_partidas.csv"
+    review_status: draft
+
+  - slug: red-bull-bragantino
+    names:
+      official: Red Bull Bragantino
+      short: Bragantino
+      abbreviation: RBB
+    api_sports:
+      team_id: 794
+      match: { name: "RB Bragantino", country: "Brazil" }
+    founded: 1928-01-08
+    city: Bragança Paulista
+    region: SP
+    colors: [branco, vermelho]
+    nicknames: ["Massa Bruta", "Braga", "Toro Loko"]
+    fans:
+      demonym: bragantino
+    mascot: Touro
+    rallying_cries: []
+    stadium:
+      name: Nabi Abi Chedid
+      nicknames: ["Nabizão"]
+      city: Bragança Paulista
+    rivals: []
+    identity:
+      - "Fundado em 1928 como Clube Atlético Bragantino; passou a se chamar Red Bull Bragantino em 2020."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Massa Bruta!", "Vai, Braga!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Red_Bull_Bragantino"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: remo
+    names:
+      official: Clube do Remo
+      short: Remo
+      abbreviation: REM
+    api_sports:
+      team_id: 1198
+      match: { name: "Remo", country: "Brazil" }
+    founded: 1905-02-05
+    city: Belém
+    region: PA
+    colors: [azul, branco]
+    nicknames: ["Leão Azul", "Leão Azul Paraense", "Rei da Amazônia", "O Mais Querido do Pará"]
+    fans:
+      demonym: remista
+      group_nicknames: ["Fenômeno Azul"]
+    mascot: Leão
+    rallying_cries: []
+    stadium:
+      name: Banpará Baenão
+      nicknames: ["Baenão", "Estádio Evandro Almeida"]
+      city: Belém
+    rivals:
+      - { team: paysandu, derby: re-pa, intensity: 5 }
+    identity:
+      - "Fundado em 1905 em Belém; disputa a Série A de 2026, sua primeira na era dos pontos corridos."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Leão Azul!", "Vai, Remo!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Clube_do_Remo"
+      - "https://diariodopara.com.br/bola/cbf-confirma-clubes-do-brasileirao-2026-serie-d-cresce-e-bate-recorde/"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  # ------------------------------------------------- TRADICIONAIS FORA DA SÉRIE A 2026
+  - slug: sport-recife
+    names:
+      official: Sport Club do Recife
+      short: Sport
+      abbreviation: SPT
+    api_sports:
+      team_id: 123
+      match: { name: "Sport Recife", country: "Brazil" }
+    founded: 1905-05-13
+    city: Recife
+    region: PE
+    colors: [vermelho, preto]
+    nicknames: ["Leão da Ilha", "Leão do Norte", "Rubro-Negro Pernambucano"]
+    fans:
+      demonym: rubro-negro
+    mascot: Leão
+    rallying_cries: ["Cazá! Cazá!"]
+    stadium:
+      name: Ilha do Retiro
+      nicknames: ["Estádio Adelmar da Costa Carvalho"]
+      city: Recife
+    rivals:
+      - { team: santa-cruz, derby: classico-das-multidoes-recife, intensity: 4 }
+      - { team: nautico, derby: classico-dos-classicos, intensity: 4 }
+    identity:
+      - "Fundado em 1905 no Recife, por iniciativa de Guilherme de Aquino Fonseca."
+    copy_hints:
+      pt-BR:
+        cheer: ["Cazá! Cazá!", "Vamos, Leão!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Sport_Club_do_Recife"
+      - "https://www.lance.com.br/vasco/casaca-x-caza-conheca-a-origem-dos-canticos-de-vasco-e-sport.html"
+      - "https://github.com/lucca-schramm/test/blob/main/brasileirao_a.json"
+    review_status: draft
+
+  - slug: nautico
+    names:
+      official: Clube Náutico Capibaribe
+      short: Náutico
+      abbreviation: NAU
+    api_sports:
+      team_id: 755
+      match: { name: "Nautico Recife", country: "Brazil" }
+    founded: 1901-04-07
+    city: Recife
+    region: PE
+    colors: [vermelho, branco]
+    nicknames: ["Timbu", "Alvirrubro", "Timba"]
+    fans:
+      demonym: alvirrubro
+    mascot: Timbu
+    rallying_cries: []
+    stadium:
+      name: Aflitos
+      nicknames: ["Estádio Eládio de Barros Carvalho"]
+      city: Recife
+    rivals:
+      - { team: sport-recife, derby: classico-dos-classicos, intensity: 4 }
+      - { team: santa-cruz, derby: classico-das-emocoes, intensity: 3 }
+    identity:
+      - "Fundado em 1901 como clube de remo às margens do rio Capibaribe."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Timbu!", "Vai, Náutico!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Clube_Náutico_Capibaribe"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: santa-cruz
+    names:
+      official: Santa Cruz Futebol Clube
+      short: Santa Cruz
+      abbreviation: SCZ
+    api_sports:
+      team_id: null
+      match: { name: "Santa Cruz", country: "Brazil" }
+    founded: 1914-02-03
+    city: Recife
+    region: PE
+    colors: [preto, branco, vermelho]
+    nicknames: ["Cobra Coral", "Tricolor do Arruda", "Santinha", "Gigante do Arruda"]
+    fans:
+      demonym: tricolor
+    mascot: Cobra-coral
+    rallying_cries: []
+    stadium:
+      name: Arruda
+      nicknames: ["Estádio José do Rego Maciel", "Mundão do Arruda"]
+      city: Recife
+    rivals:
+      - { team: sport-recife, derby: classico-das-multidoes-recife, intensity: 4 }
+      - { team: nautico, derby: classico-das-emocoes, intensity: 3 }
+    identity:
+      - "Fundado em 1914 no Recife; conhecido como Cobra Coral."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Santinha!", "Vai, Cobra Coral!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Santa_Cruz_Futebol_Clube"
+    review_status: draft
+
+  - slug: ceara
+    names:
+      official: Ceará Sporting Club
+      short: Ceará
+      abbreviation: CEA
+    api_sports:
+      team_id: 129
+      match: { name: "Ceara", country: "Brazil" }
+    founded: 1914-06-02
+    city: Fortaleza
+    region: CE
+    colors: [preto, branco]
+    nicknames: ["Vozão", "Vovô", "Alvinegro de Porangabuçu"]
+    fans:
+      demonym: alvinegro
+    mascot: Vovô
+    rallying_cries: ["Vozão!"]
+    stadium:
+      name: Arena Castelão
+      nicknames: ["Castelão", "Estádio Governador Plácido Castelo"]
+      city: Fortaleza
+    rivals:
+      - { team: fortaleza, derby: classico-rei, intensity: 5 }
+    identity:
+      - "Fundado em 1914 em Fortaleza; venceu o primeiro Clássico-Rei, em 1918."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Vozão!", "Vai, Ceará!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Ceará_Sporting_Club"
+      - "https://mais.opovo.com.br/jornal/esportes/2020/12/17/classico-rei-completa-102-anos-nesta-quinta-feira--veja-historico-entre-equipes.html"
+      - "https://github.com/lucca-schramm/test/blob/main/brasileirao_a.json"
+    review_status: draft
+
+  - slug: fortaleza
+    names:
+      official: Fortaleza Esporte Clube
+      short: Fortaleza
+      abbreviation: FOR
+    api_sports:
+      team_id: 154
+      match: { name: "Fortaleza EC", country: "Brazil" }
+    founded: 1918-10-18
+    city: Fortaleza
+    region: CE
+    colors: [vermelho, azul, branco]
+    nicknames: ["Leão do Pici", "Leão"]
+    fans:
+      demonym: tricolor
+    mascot: Leão
+    rallying_cries: []
+    stadium:
+      name: Arena Castelão
+      nicknames: ["Castelão", "Estádio Governador Plácido Castelo"]
+      city: Fortaleza
+    rivals:
+      - { team: ceara, derby: classico-rei, intensity: 5 }
+    identity:
+      - "Fundado em 1918; foi finalista da Copa Sul-Americana de 2023 e é tricampeão da Copa do Nordeste."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Leão!", "Vai, Fortaleza!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Fortaleza_Esporte_Clube"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: paysandu
+    names:
+      official: Paysandu Sport Club
+      short: Paysandu
+      abbreviation: PAY
+    api_sports:
+      team_id: 149
+      match: { name: "Paysandu", country: "Brazil" }
+    founded: 1914-02-02
+    city: Belém
+    region: PA
+    colors: [azul, branco]
+    nicknames: ["Papão", "Papão da Curuzu", "Bicolor", "Lobo"]
+    fans:
+      demonym: bicolor
+    mascot: Lobo
+    rallying_cries: []
+    stadium:
+      name: Curuzu
+      nicknames: ["Estádio Leônidas Sodré de Castro"]
+      city: Belém
+    rivals:
+      - { team: remo, derby: re-pa, intensity: 5 }
+    identity:
+      - "Fundado em 1914 em Belém; também manda jogos no Mangueirão (Estádio Olímpico do Pará)."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Papão!", "Vai, Paysandu!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Paysandu_Sport_Club"
+      - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
+    review_status: draft
+
+  - slug: criciuma
+    names:
+      official: Criciúma Esporte Clube
+      short: Criciúma
+      abbreviation: CRI
+    api_sports:
+      team_id: 140
+      match: { name: "Criciuma", country: "Brazil" }
+    founded: 1947-05-13
+    city: Criciúma
+    region: SC
+    colors: [amarelo, preto, branco]
+    nicknames: ["Tigre", "Tigrão", "Tricolor Predestinado"]
+    fans:
+      demonym: carvoeiro
+    mascot: Tigre
+    rallying_cries: []
+    stadium:
+      name: Heriberto Hülse
+      nicknames: []
+      city: Criciúma
+    rivals: []
+    identity:
+      - "Fundado em 1947 como Comerciário; campeão da Copa do Brasil de 1991."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Tigre!", "Vai, Criciúma!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Criciúma_Esporte_Clube"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: avai
+    names:
+      official: Avaí Futebol Clube
+      short: Avaí
+      abbreviation: AVA
+    api_sports:
+      team_id: 145
+      match: { name: "Avai", country: "Brazil" }
+    founded: 1923-09-01
+    city: Florianópolis
+    region: SC
+    colors: [azul, branco]
+    nicknames: ["Leão da Ilha", "Time da Raça"]
+    fans:
+      demonym: avaiano
+    mascot: Leão
+    rallying_cries: []
+    stadium:
+      name: Ressacada
+      nicknames: ["Estádio Aderbal Ramos da Silva"]
+      city: Florianópolis
+    rivals:
+      - { team: figueirense, derby: classico-da-capital-sc, intensity: 4 }
+    identity:
+      - "Fundado em 1923 em Florianópolis; conhecido como Leão da Ilha."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Leão da Ilha!", "Vai, Avaí!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Avaí_Futebol_Clube"
+      - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
+    review_status: draft
+
+  - slug: figueirense
+    names:
+      official: Figueirense Futebol Clube
+      short: Figueirense
+      abbreviation: FIG
+    api_sports:
+      team_id: 137
+      match: { name: "Figueirense", country: "Brazil" }
+    founded: 1921-06-12
+    city: Florianópolis
+    region: SC
+    colors: [preto, branco]
+    nicknames: ["Figueira", "Furacão do Estreito", "Alvinegro Catarinense"]
+    fans:
+      demonym: alvinegro
+    mascot: Furacão
+    rallying_cries: []
+    stadium:
+      name: Orlando Scarpelli
+      nicknames: ["Estádio Orlando Scarpelli", "Scarpelli"]
+      city: Florianópolis
+    rivals:
+      - { team: avai, derby: classico-da-capital-sc, intensity: 4 }
+    identity:
+      - "Fundado em 1921 no bairro do Estreito, em Florianópolis."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Figueira!", "Vai, Furacão!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Figueirense_Futebol_Clube"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: juventude
+    names:
+      official: Esporte Clube Juventude
+      short: Juventude
+      abbreviation: JUV
+    api_sports:
+      team_id: 152
+      match: { name: "Juventude", country: "Brazil" }
+    founded: 1913-06-29
+    city: Caxias do Sul
+    region: RS
+    colors: [verde, branco]
+    nicknames: ["Ju", "Juve", "Papo", "Alviverde"]
+    fans:
+      demonym: juventudista
+    mascot: Periquito
+    rallying_cries: []
+    stadium:
+      name: Alfredo Jaconi
+      nicknames: ["Estádio Alfredo Jaconi", "Jaconi"]
+      city: Caxias do Sul
+    rivals: []
+    identity:
+      - "Fundado em 1913 em Caxias do Sul; campeão da Copa do Brasil de 1999."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Ju!", "Vai, Juventude!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Esporte_Clube_Juventude"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: goias
+    names:
+      official: Goiás Esporte Clube
+      short: Goiás
+      abbreviation: GOI
+    api_sports:
+      team_id: 151
+      match: { name: "Goias", country: "Brazil" }
+    founded: 1943-04-06
+    city: Goiânia
+    region: GO
+    colors: [verde, branco]
+    nicknames: ["Verdão", "Verdão da Serra", "Esmeraldino"]
+    fans:
+      demonym: esmeraldino
+    mascot: Periquito
+    rallying_cries: []
+    stadium:
+      name: Serrinha
+      nicknames: ["Estádio Hailé Pinheiro"]
+      city: Goiânia
+    rivals:
+      - { team: atletico-goianiense, derby: classico-do-equilibrio, intensity: 3 }
+    identity:
+      - "Fundado em 1943 em Goiânia; manda jogos na Serrinha."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Verdão da Serra!", "Vai, Goiás!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Goiás_Esporte_Clube"
+      - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
+    review_status: draft
+
+  - slug: atletico-goianiense
+    names:
+      official: Atlético Clube Goianiense
+      short: Atlético-GO
+      abbreviation: ACG
+    api_sports:
+      team_id: 144
+      match: { name: "Atletico Goianiense", country: "Brazil" }
+    founded: 1937-04-02
+    city: Goiânia
+    region: GO
+    colors: [vermelho, preto]
+    nicknames: ["Dragão", "Dragão Campineiro", "Rubro-Negro"]
+    fans:
+      demonym: atleticano
+    mascot: Dragão
+    rallying_cries: []
+    stadium:
+      name: Antônio Accioly
+      nicknames: ["Estádio Antônio Accioly"]
+      city: Goiânia
+    rivals:
+      - { team: goias, derby: classico-do-equilibrio, intensity: 3 }
+    identity:
+      - "Fundado em 1937 no bairro de Campinas, em Goiânia; apelidado de Dragão."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Dragão!", "Vai, Atlético!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Atlético_Clube_Goianiense"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: america-mineiro
+    names:
+      official: América Futebol Clube
+      short: América-MG
+      abbreviation: AME
+    api_sports:
+      team_id: 125
+      match: { name: "America Mineiro", country: "Brazil" }
+    founded: 1912-04-30
+    city: Belo Horizonte
+    region: MG
+    colors: [verde, preto, branco]
+    nicknames: ["Coelho", "Coelhão", "Decacampeão", "Time do Horto"]
+    fans:
+      demonym: americano
+    mascot: Coelho
+    rallying_cries: []
+    stadium:
+      name: Arena Independência
+      nicknames: ["Independência", "Estádio Raimundo Sampaio"]
+      city: Belo Horizonte
+    rivals:
+      - { team: atletico-mineiro, derby: classico-das-multidoes-bh, intensity: 2 }
+    identity:
+      - "Fundado em 1912; o apelido Decacampeão vem dos dez títulos mineiros seguidos (1916–1925)."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Coelho!", "Vai, América!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/América_Futebol_Clube_(Belo_Horizonte)"
+      - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
+    review_status: draft
+
+  - slug: cuiaba
+    names:
+      official: Cuiabá Esporte Clube
+      short: Cuiabá
+      abbreviation: CUI
+    api_sports:
+      team_id: 1193
+      match: { name: "Cuiaba", country: "Brazil" }
+    founded: 2001-12-12
+    city: Cuiabá
+    region: MT
+    colors: [verde, amarelo]
+    nicknames: ["Dourado", "Auriverde da Baixada"]
+    fans:
+      demonym: cuiabanista
+    mascot: Dourado (peixe)
+    rallying_cries: []
+    stadium:
+      name: Arena Pantanal
+      nicknames: []
+      city: Cuiabá
+    rivals: []
+    identity:
+      - "Fundado em 2001; manda jogos na Arena Pantanal, construída para a Copa do Mundo de 2014."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Dourado!", "Vai, Cuiabá!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Cuiabá_Esporte_Clube"
+      - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
+    review_status: draft
+
+  - slug: ponte-preta
+    names:
+      official: Associação Atlética Ponte Preta
+      short: Ponte Preta
+      abbreviation: PON
+    api_sports:
+      team_id: 139
+      match: { name: "Ponte Preta", country: "Brazil" }
+    founded: 1900-08-11
+    city: Campinas
+    region: SP
+    colors: [preto, branco]
+    nicknames: ["Macaca"]
+    fans:
+      demonym: pontepretano
+    mascot: Macaca
+    rallying_cries: []
+    stadium:
+      name: Moisés Lucarelli
+      nicknames: ["Majestoso", "Estádio Moisés Lucarelli"]
+      city: Campinas
+    rivals:
+      - { team: guarani-sp, derby: derbi-campineiro, intensity: 5 }
+    identity:
+      - "Fundada em 1900 em Campinas; o nome vem do bairro da Ponte Preta, batizado por uma ponte ferroviária de madeira pintada de piche."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Macaca!", "Vai, Ponte!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Associação_Atlética_Ponte_Preta"
+      - "https://pt.wikipedia.org/wiki/Dérbi_Campineiro"
+      - "https://github.com/MrPatinhas/cartologia_awken/blob/master/local_dbs/Paulista/paulista_dados_partidas.csv"
+    review_status: draft
+
+  - slug: guarani-sp
+    names:
+      official: Guarani Futebol Clube
+      short: Guarani
+      abbreviation: GUA
+    api_sports:
+      team_id: 138
+      match: { name: "Guarani Campinas", country: "Brazil" }
+    founded: 1911-04-02
+    city: Campinas
+    region: SP
+    colors: [verde, branco]
+    nicknames: ["Bugre"]
+    fans:
+      demonym: bugrino
+    mascot: Índio
+    rallying_cries: []
+    stadium:
+      name: Brinco de Ouro
+      nicknames: ["Brinco de Ouro da Princesa"]
+      city: Campinas
+    rivals:
+      - { team: ponte-preta, derby: derbi-campineiro, intensity: 5 }
+    identity:
+      - "Fundado em 1911; o nome homenageia a ópera O Guarani, de Carlos Gomes."
+      - "Campeão brasileiro de 1978."
+    copy_hints:
+      pt-BR:
+        cheer: ["Vamos, Bugre!", "Vai, Guarani!"]
+    sources:
+      - "https://pt.wikipedia.org/wiki/Guarani_Futebol_Clube"
+      - "https://pt.wikipedia.org/wiki/Dérbi_Campineiro"
+      - "https://github.com/MrPatinhas/cartologia_awken/blob/master/local_dbs/Paulista/paulista_dados_partidas.csv"
+    review_status: draft

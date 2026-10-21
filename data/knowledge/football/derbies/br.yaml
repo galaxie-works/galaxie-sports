@@ -1,0 +1,377 @@
+# Base semântica — clássicos do futebol brasileiro (schema v1)
+schema_version: 1
+region: br
+derbies:
+  # ------------------------------------------------------------------ SÃO PAULO
+  - slug: derby-paulista
+    name: Derby Paulista
+    aliases: ["Dérbi Paulista", "Derby", "Dérbi"]
+    labels: { pt-BR: "Derby Paulista", es: "Derby Paulista", en: "Paulista Derby" }
+    teams: [palmeiras, corinthians]
+    scope: state
+    intensity: 5
+    first_match: 1917-05-06
+    origin: "Nome dado pelo jornalista Thomaz Mazzoni em referência ao Derby de Epsom, corrida de cavalos inglesa."
+    trivia:
+      - "No primeiro jogo, o Palestra Itália venceu por 3 a 0, com três gols de Caetano."
+    sources: ["https://pt.wikipedia.org/wiki/Derby_Paulista"]
+    review_status: draft
+
+  - slug: choque-rei
+    name: Choque-Rei
+    aliases: ["Choque Rei"]
+    labels: { pt-BR: "Choque-Rei", es: "Choque-Rei", en: "Choque-Rei" }
+    teams: [palmeiras, sao-paulo]
+    scope: state
+    intensity: 4
+    first_match: 1930-03-30
+    origin: "Nome atribuído ao jornalista Thomaz Mazzoni, de A Gazeta Esportiva, nos anos 1940."
+    trivia:
+      - "O primeiro confronto, no Estádio da Floresta, terminou empatado em 2 a 2."
+      - "Um Choque-Rei de 1950 no Pacaembu foi o primeiro evento esportivo transmitido ao vivo pela TV brasileira a partir de um estádio."
+    sources: ["https://pt.wikipedia.org/wiki/Choque-Rei"]
+    review_status: draft
+
+  - slug: majestoso
+    name: Majestoso
+    aliases: ["Clássico Majestoso"]
+    labels: { pt-BR: "Majestoso", es: "Majestoso", en: "Majestoso" }
+    teams: [corinthians, sao-paulo]
+    scope: state
+    intensity: 4
+    first_match: 1930-05-25
+    origin: "Apelido dado pelo jornalista Thomaz Mazzoni, de A Gazeta Esportiva."
+    trivia:
+      - "O primeiro jogo, no Parque São Jorge, terminou Corinthians 2 a 1."
+    sources: ["https://pt.wikipedia.org/wiki/Majestoso"]
+    review_status: draft
+
+  - slug: san-sao
+    name: San-São
+    aliases: ["San São"]
+    labels: { pt-BR: "San-São", es: "San-São", en: "San-São" }
+    teams: [santos, sao-paulo]
+    scope: state
+    intensity: 3
+    first_match: 1930-05-11
+    origin: "Nome criado pelo jornalista Thomaz Mazzoni, de A Gazeta Esportiva, em 1956."
+    trivia:
+      - "Pelé marcou seu gol número 500 num San-São na Vila Belmiro, em 2 de setembro de 1962."
+    sources: ["https://pt.wikipedia.org/wiki/San-São"]
+    review_status: draft
+
+  - slug: classico-alvinegro
+    name: Clássico Alvinegro
+    aliases: ["Santos x Corinthians"]
+    labels: { pt-BR: "Clássico Alvinegro", es: "Clásico Albinegro", en: "Black-and-White Derby" }
+    teams: [santos, corinthians]
+    scope: state
+    intensity: 4
+    first_match: null
+    origin: "O nome vem das cores preta e branca usadas pelos dois clubes."
+    trivia:
+      - "Em 2002, as pedaladas de Robinho na final do Brasileirão marcaram a história do clássico."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_Alvinegro"]
+    review_status: draft
+
+  - slug: classico-da-saudade
+    name: Clássico da Saudade
+    aliases: ["Palmeiras x Santos"]
+    labels: { pt-BR: "Clássico da Saudade", es: "Clásico de la Nostalgia", en: "Nostalgia Derby" }
+    teams: [palmeiras, santos]
+    scope: state
+    intensity: 3
+    first_match: 1915-10-03
+    origin: "Remete aos anos 1960, quando Santos de Pelé e Palmeiras de Ademir da Guia dominavam o futebol paulista."
+    trivia:
+      - "O primeiro jogo foi um amistoso beneficente em prol das vítimas da seca de 1915 no Nordeste."
+      - "Em 1958, pelo Torneio Rio-São Paulo, o Santos venceu por 7 a 6 no Pacaembu."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_da_Saudade"]
+    review_status: draft
+
+  - slug: derbi-campineiro
+    name: Dérbi Campineiro
+    aliases: ["Derby Campineiro", "Bugre x Macaca"]
+    labels: { pt-BR: "Dérbi Campineiro", es: "Derbi de Campinas", en: "Campinas Derby" }
+    teams: [guarani-sp, ponte-preta]
+    scope: city
+    intensity: 5
+    first_match: 1912-03-24
+    origin: null
+    trivia:
+      - "O maior público registrado foi de 38.948 pessoas, no Pacaembu, em 1979."
+    sources: ["https://pt.wikipedia.org/wiki/Dérbi_Campineiro"]
+    review_status: draft
+
+  # -------------------------------------------------------------- RIO DE JANEIRO
+  - slug: fla-flu
+    name: Fla-Flu
+    aliases: ["Fla x Flu", "Clássico das Multidões"]
+    labels: { pt-BR: "Fla-Flu", es: "Fla-Flu", en: "Fla-Flu" }
+    teams: [flamengo, fluminense]
+    scope: city
+    intensity: 5
+    first_match: 1912-07-07
+    origin: "Nome popularizado pelo jornalista Mário Filho em 1933."
+    trivia:
+      - "A final do Carioca de 1963 reuniu 194.603 espectadores no Maracanã."
+      - "Desde 2012 o Fla-Flu é patrimônio cultural imaterial da cidade do Rio de Janeiro."
+    sources: ["https://pt.wikipedia.org/wiki/Fla-Flu"]
+    review_status: draft
+
+  - slug: classico-dos-milhoes
+    name: Clássico dos Milhões
+    aliases: ["Flamengo x Vasco", "Fla x Vasco"]
+    labels: { pt-BR: "Clássico dos Milhões", es: "Clásico de los Millones", en: "Derby of the Millions" }
+    teams: [flamengo, vasco-da-gama]
+    scope: city
+    intensity: 5
+    first_match: null
+    origin: null
+    trivia:
+      - "A maior goleada do clássico é o 7 a 0 do Vasco em 1931, pelo Campeonato Carioca."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_dos_Milhões"]
+    review_status: draft
+
+  - slug: classico-da-rivalidade
+    name: Clássico da Rivalidade
+    aliases: ["Fla-Bota", "Flamengo x Botafogo"]
+    labels: { pt-BR: "Clássico da Rivalidade", es: "Clásico de la Rivalidad", en: "Rivalry Derby" }
+    teams: [flamengo, botafogo]
+    scope: city
+    intensity: 4
+    first_match: 1913-05-13
+    origin: "O confronto passou a ser chamado assim a partir dos anos 1960."
+    trivia:
+      - "No primeiro jogo, o Botafogo venceu por 1 a 0 em General Severiano."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_da_Rivalidade"]
+    review_status: draft
+
+  - slug: classico-vovo
+    name: Clássico Vovô
+    aliases: ["Botafogo x Fluminense"]
+    labels: { pt-BR: "Clássico Vovô", es: "Clásico Abuelo", en: "Grandpa Derby" }
+    teams: [fluminense, botafogo]
+    scope: city
+    intensity: 3
+    first_match: 1905-10-22
+    origin: "Nome reflete que Botafogo e Fluminense são os clubes de futebol mais antigos entre os grandes do Rio."
+    trivia:
+      - "O título carioca de 1907 ficou em disputa por 89 anos até ser dividido entre os dois clubes em 1996."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_Vovô"]
+    review_status: draft
+
+  - slug: classico-dos-gigantes
+    name: Clássico dos Gigantes
+    aliases: ["Vasco x Fluminense"]
+    labels: { pt-BR: "Clássico dos Gigantes", es: "Clásico de los Gigantes", en: "Giants Derby" }
+    teams: [vasco-da-gama, fluminense]
+    scope: city
+    intensity: 3
+    first_match: 1923-03-11
+    origin: "Nome escolhido por leitores do diário Lance! em votação concluída em 17 de maio de 2006."
+    trivia:
+      - "É o único clássico carioca que já teve jogos válidos pela Copa Libertadores."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_dos_Gigantes"]
+    review_status: draft
+
+  - slug: classico-da-amizade
+    name: Clássico da Amizade
+    aliases: ["Clássico Cruz e Fogo", "Botafogo x Vasco"]
+    labels: { pt-BR: "Clássico da Amizade", es: "Clásico de la Amistad", en: "Friendship Derby" }
+    teams: [botafogo, vasco-da-gama]
+    scope: city
+    intensity: 3
+    first_match: 1923-04-22
+    origin: "Nome dado pela imprensa pela boa relação histórica entre as torcidas."
+    trivia:
+      - "O recorde de público é de 149.005 pessoas, no Maracanã, em 1968."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_da_Amizade"]
+    review_status: draft
+
+  # ---------------------------------------------------------------- MINAS GERAIS
+  - slug: classico-mineiro
+    name: Clássico Mineiro
+    aliases: ["Superclássico Mineiro", "Derby Mineiro", "Galo x Raposa"]
+    labels: { pt-BR: "Clássico Mineiro", es: "Clásico Mineiro", en: "Minas Gerais Derby" }
+    teams: [atletico-mineiro, cruzeiro]
+    scope: city
+    intensity: 5
+    first_match: 1921-04-17
+    origin: null
+    trivia:
+      - "No primeiro jogo, o Palestra Itália (atual Cruzeiro) venceu por 3 a 0."
+      - "O recorde de público é de 123.351 pessoas, no Mineirão, em 1969."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_Mineiro"]
+    review_status: draft
+
+  - slug: classico-das-multidoes-bh
+    name: Clássico das Multidões
+    aliases: ["América x Atlético", "Coelho x Galo"]
+    labels: { pt-BR: "Clássico das Multidões (BH)", es: "Clásico de las Multitudes (BH)", en: "Crowds Derby (Belo Horizonte)" }
+    teams: [america-mineiro, atletico-mineiro]
+    scope: city
+    intensity: 2
+    first_match: null
+    origin: null
+    trivia: []
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_das_Multidões"]
+    review_status: draft
+
+  # ---------------------------------------------------------------------- SUL
+  - slug: gre-nal
+    name: Gre-Nal
+    aliases: ["Grenal"]
+    labels: { pt-BR: "Gre-Nal", es: "Gre-Nal", en: "Gre-Nal" }
+    teams: [gremio, internacional]
+    scope: city
+    intensity: 5
+    first_match: 1909-07-18
+    origin: "Termo criado em 1926 pelo jornalista Ivo dos Santos Martins para abreviar os nomes dos clubes."
+    trivia:
+      - "O primeiro Gre-Nal terminou Grêmio 10 a 0, com cinco gols de Edgar Booth."
+    sources: ["https://pt.wikipedia.org/wiki/Grenal"]
+    review_status: draft
+
+  - slug: atletiba
+    name: Atletiba
+    aliases: ["Athletico x Coritiba"]
+    labels: { pt-BR: "Atletiba", es: "Atletiba", en: "Atletiba" }
+    teams: [athletico-paranaense, coritiba]
+    scope: city
+    intensity: 5
+    first_match: 1924-06-08
+    origin: "Junção dos nomes Atlético e Coritiba."
+    trivia:
+      - "Um Atletiba de 1934 foi a primeira partida de futebol transmitida por rádio no Paraná."
+    sources: ["https://pt.wikipedia.org/wiki/Atletiba"]
+    review_status: draft
+
+  - slug: classico-da-capital-sc
+    name: Clássico da Capital
+    aliases: ["Avaí x Figueirense"]
+    labels: { pt-BR: "Clássico da Capital", es: "Clásico de la Capital", en: "Florianópolis Derby" }
+    teams: [avai, figueirense]
+    scope: city
+    intensity: 4
+    first_match: 1924-04-13
+    origin: null
+    trivia:
+      - "No primeiro clássico, o Figueirense virou de 0 a 3 para 4 a 3."
+    sources: ["https://www.nsctotal.com.br/?p=7086364", "https://www.nsctotal.com.br/?p=2648032"]
+    review_status: draft
+
+  # ------------------------------------------------------------------ NORDESTE
+  - slug: ba-vi
+    name: Ba-Vi
+    aliases: ["Bavi", "Bahia x Vitória"]
+    labels: { pt-BR: "Ba-Vi", es: "Ba-Vi", en: "Ba-Vi" }
+    teams: [bahia, vitoria-ba]
+    scope: city
+    intensity: 5
+    first_match: 1932-04-10
+    origin: "Junção dos nomes Bahia e Vitória."
+    trivia:
+      - "O primeiro Ba-Vi, pelo Torneio Início, durou apenas 20 minutos."
+    sources: ["https://pt.wikipedia.org/wiki/Ba-Vi"]
+    review_status: draft
+
+  - slug: classico-rei
+    name: Clássico-Rei
+    aliases: ["Clássico Rei", "Ceará x Fortaleza"]
+    labels: { pt-BR: "Clássico-Rei", es: "Clásico Rey", en: "King Derby" }
+    teams: [ceara, fortaleza]
+    scope: city
+    intensity: 5
+    first_match: 1918-12-17
+    origin: "O jornal O POVO chamou o jogo de Choque-Rei em 1962; o nome logo virou Clássico-Rei."
+    trivia:
+      - "No primeiro confronto, o Ceará venceu por 2 a 0 o recém-fundado Fortaleza."
+    sources: ["https://mais.opovo.com.br/jornal/esportes/2020/12/17/classico-rei-completa-102-anos-nesta-quinta-feira--veja-historico-entre-equipes.html"]
+    review_status: draft
+
+  - slug: classico-das-multidoes-recife
+    name: Clássico das Multidões
+    aliases: ["Sport x Santa Cruz"]
+    labels: { pt-BR: "Clássico das Multidões", es: "Clásico de las Multitudes", en: "Crowds Derby" }
+    teams: [sport-recife, santa-cruz]
+    scope: city
+    intensity: 4
+    first_match: 1916-05-06
+    origin: "Reúne os dois clubes mais populares da cidade do Recife."
+    trivia:
+      - "O recorde de público é de 76.682 pessoas, no Arruda, em 1999."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_das_Multidões_(Recife)"]
+    review_status: draft
+
+  - slug: classico-dos-classicos
+    name: Clássico dos Clássicos
+    aliases: ["Sport x Náutico"]
+    labels: { pt-BR: "Clássico dos Clássicos", es: "Clásico de los Clásicos", en: "Derby of Derbies" }
+    teams: [sport-recife, nautico]
+    scope: city
+    intensity: 4
+    first_match: 1909-07-25
+    origin: "Antes chamado de Fla-Flu pernambucano, recebeu o nome atual em anúncio do Jornal Pequeno de 18 de agosto de 1945."
+    trivia:
+      - "É o clássico mais antigo do Nordeste e o terceiro mais antigo do Brasil."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_dos_Clássicos"]
+    review_status: draft
+
+  - slug: classico-das-emocoes
+    name: Clássico das Emoções
+    aliases: ["Náutico x Santa Cruz"]
+    labels: { pt-BR: "Clássico das Emoções", es: "Clásico de las Emociones", en: "Emotions Derby" }
+    teams: [nautico, santa-cruz]
+    scope: city
+    intensity: 3
+    first_match: 1917-06-29
+    origin: null
+    trivia:
+      - "O jogo do centenário, em 2017, valeu a Taça Gena, homenagem a um ex-jogador campeão pelos dois clubes."
+    sources: ["https://pt.wikipedia.org/wiki/Clássico_das_Emoções_(Pernambuco)"]
+    review_status: draft
+
+  # ---------------------------------------------------------- NORTE E CENTRO-OESTE
+  - slug: re-pa
+    name: Re-Pa
+    aliases: ["Clássico Rei da Amazônia", "Remo x Paysandu"]
+    labels: { pt-BR: "Re-Pa", es: "Re-Pa", en: "Re-Pa" }
+    teams: [remo, paysandu]
+    scope: city
+    intensity: 5
+    first_match: 1914-06-14
+    origin: "Junção dos nomes Remo e Paysandu."
+    trivia:
+      - "Em 2016 o clássico foi declarado patrimônio cultural imaterial do Pará."
+    sources: ["https://pt.wikipedia.org/wiki/Re-Pa"]
+    review_status: draft
+
+  - slug: classico-do-equilibrio
+    name: Clássico do Equilíbrio
+    aliases: ["Goiás x Atlético-GO"]
+    labels: { pt-BR: "Clássico do Equilíbrio", es: "Clásico del Equilibrio", en: "Balance Derby" }
+    teams: [goias, atletico-goianiense]
+    scope: city
+    intensity: 3
+    first_match: null
+    origin: "O apelido vem da competitividade e do equilíbrio histórico entre os dois clubes."
+    trivia: []
+    sources: ["https://www.lance.com.br/lancepedia/goias-atletico-go-quem-venceu-mais.html"]
+    review_status: draft
+
+  # --------------------------------------------------------------- INTERESTADUAIS
+  - slug: classico-do-povo
+    name: Clássico do Povo
+    aliases: ["Clássico das Multidões", "Encontro das Nações", "Corinthians x Flamengo"]
+    labels: { pt-BR: "Clássico do Povo", es: "Clásico del Pueblo", en: "People's Derby" }
+    teams: [corinthians, flamengo]
+    scope: national
+    intensity: 3
+    first_match: null
+    origin: "Reúne as duas maiores torcidas do Brasil."
+    trivia: []
+    sources:
+      - "https://www.metropoles.com/esportes/futebol/com-favoritismo-rubro-negro-corinthians-tenta-surpreender-no-maracana"
+      - "https://www.lance.com.br/brasileirao/otimo-classico-das-multidoes-timao-fla-empatam-itaquera.html"
+    review_status: draft

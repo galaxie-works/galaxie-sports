@@ -1,0 +1,164 @@
+schema_version: 1
+country: PE
+teams:
+  - slug: alianza-lima
+    names:
+      official: Club Alianza Lima
+      short: Alianza Lima
+      abbreviation: ALI
+    api_sports:
+      team_id: 2553
+      match: { name: "Alianza Lima", country: "Peru" }
+    founded: 1901-02-15
+    city: Lima
+    region: Lima
+    colors: [azul, blanco]
+    nicknames: [Blanquiazules, Íntimos]
+    fans:
+      demonym: aliancista
+    rallying_cries: ["¡Arriba Alianza!", "¡Vamos Alianza!"]
+    stadium:
+      name: Estadio Alejandro Villanueva
+      nicknames: [Matute]
+      city: Lima
+    rivals:
+      - { team: universitario, derby: clasico-peruano, intensity: 5 }
+    identity:
+      - "Fundado en 1901 como Sport Alianza; es un símbolo del distrito de La Victoria."
+    copy_hints:
+      es-PE:
+        cheer: ["¡Arriba Alianza!", "¡Vamos Alianza!", "Hoy alentamos a los Íntimos"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Alianza_Lima"
+      - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_peruano"
+      - "https://futboltotal.futbol/teams/emelec"
+    review_status: draft
+
+  - slug: universitario
+    names:
+      official: Club Universitario de Deportes
+      short: Universitario
+      abbreviation: UNI
+    api_sports:
+      team_id: 2540
+      match: { name: "Universitario", country: "Peru" }
+    founded: 1924-08-07
+    city: Lima
+    region: Lima
+    colors: [crema, rojo]
+    nicknames: [La U, Cremas, Merengues]
+    fans:
+      demonym: crema
+    rallying_cries: ["¡Y dale U!", "¡Vamos la U!"]
+    stadium:
+      name: Estadio Monumental
+      nicknames: [Monumental de Ate]
+      city: Lima
+    rivals:
+      - { team: alianza-lima, derby: clasico-peruano, intensity: 5 }
+    identity:
+      - "Fundado en 1924 como Federación Universitaria de Fútbol por estudiantes de San Marcos."
+    copy_hints:
+      es-PE:
+        cheer: ["¡Y dale U!", "¡Vamos la U!", "Hoy alentamos a los Cremas"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Universitario_de_Deportes"
+      - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_peruano"
+      - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
+    review_status: draft
+
+  - slug: sporting-cristal
+    names:
+      official: Club Sporting Cristal
+      short: Sporting Cristal
+      abbreviation: SCR
+    api_sports:
+      team_id: 2546
+      match: { name: "Sporting Cristal", country: "Peru" }
+    founded: 1955-12-13
+    city: Lima
+    region: Lima
+    colors: [celeste, blanco]
+    nicknames: [Celestes, Rimenses, Cerveceros]
+    fans:
+      demonym: celeste
+    rallying_cries: ["¡Vamos Cristal!"]
+    stadium:
+      name: Estadio Alberto Gallardo
+      nicknames: []
+      city: Lima
+    rivals: []
+    identity:
+      - "Fundado en 1955 en el distrito del Rímac, de ahí el apodo Rimenses."
+      - "Finalista de la Copa Libertadores 1997."
+    copy_hints:
+      es-PE:
+        cheer: ["¡Vamos Cristal!", "Hoy alentamos a los Celestes"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Sporting_Cristal"
+      - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
+    review_status: draft
+
+  - slug: melgar
+    names:
+      official: Foot Ball Club Melgar
+      short: Melgar
+      abbreviation: MEL
+    api_sports:
+      team_id: 2554
+      match: { name: "FBC Melgar", country: "Peru" }
+    founded: 1915-03-25
+    city: Arequipa
+    region: Arequipa
+    colors: [rojo, negro]
+    nicknames: [El Dominó, Rojinegro]
+    fans:
+      demonym: rojinegro
+    rallying_cries: ["¡Vamos Melgar!", "¡Vamos Dominó!"]
+    stadium:
+      name: Estadio Monumental de la UNSA
+      nicknames: [Monumental de la UNSA]
+      city: Arequipa
+    rivals:
+      - { team: cienciano, derby: clasico-del-sur-pe, intensity: 4 }
+    identity:
+      - "Uno de los clubes más antiguos del Perú; nació en 1915 como Juventud Melgar."
+    copy_hints:
+      es-PE:
+        cheer: ["¡Vamos Melgar!", "Hoy alentamos al Dominó"]
+    sources:
+      - "https://en.wikipedia.org/wiki/FBC_Melgar"
+      - "https://futboltotal.futbol/teams/fbc-melgar-peru"
+    review_status: draft
+
+  - slug: cienciano
+    names:
+      official: Club Sportivo Cienciano
+      short: Cienciano
+      abbreviation: CIE
+    api_sports:
+      team_id: 2562
+      match: { name: "Cienciano", country: "Peru" }
+    founded: 1901-07-08
+    city: Cusco
+    region: Cusco
+    colors: [rojo, blanco]
+    nicknames: [Rojo Imperial, Los Imperiales, Furia Roja]
+    fans:
+      demonym: imperial
+    rallying_cries: ["¡Vamos Cienciano!"]
+    stadium:
+      name: Estadio Inca Garcilaso de la Vega
+      nicknames: []
+      city: Cusco
+    rivals:
+      - { team: melgar, derby: clasico-del-sur-pe, intensity: 4 }
+    identity:
+      - "Primer club peruano en ganar un título internacional: la Copa Sudamericana 2003."
+    copy_hints:
+      es-PE:
+        cheer: ["¡Vamos Cienciano!", "Hoy alentamos al Rojo Imperial"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Sportivo_Cienciano"
+      - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
+    review_status: draft

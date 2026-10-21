@@ -1,0 +1,458 @@
+# Base semântica — clubes da Itália (schema v1, ver data/knowledge/SCHEMA.md)
+# labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
+# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+schema_version: 1
+country: IT
+teams:
+- slug: juventus
+  names:
+    official: Juventus Football Club S.p.A.
+    short: Juventus
+    abbreviation: JUV
+  labels: {pt-BR: Juventus, es: Juventus, en: Juventus}
+  api_sports:
+    team_id: null
+    match: {name: Juventus, country: Italy}
+  founded: 1897-11-01
+  city: Turim
+  colors:
+  - branco
+  - preto
+  nicknames:
+  - La Vecchia Signora
+  - Madama
+  - La Fidanzata d'Italia
+  - I Bianconeri
+  - Juve
+  fans:
+    demonym: juventino
+  mascot: Jay
+  rallying_cries:
+  - Fino alla fine
+  stadium:
+    name: Allianz Stadium
+    nicknames:
+    - Juventus Stadium
+    city: Turim
+  rivals:
+  - {team: inter, derby: derby-ditalia, intensity: 5}
+  - {team: torino, derby: derby-della-mole, intensity: 4}
+  identity:
+  - Data de fundação convencionada em 1º de novembro de 1897, como Sport-Club Juventus.
+  - '"Fino alla fine" (Até o fim) é o lema adotado pelo clube.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Velha Senhora
+      - Juve
+      - Bianconeri
+      cheer:
+      - Forza Juve!
+    es:
+      nicknames:
+      - La Vecchia Signora
+      - La Vieja Señora
+      - La Juve
+      - Bianconeri
+      cheer:
+      - ¡Forza Juve!
+  sources:
+  - https://en.wikipedia.org/wiki/Juventus_FC
+  - https://pt.wikipedia.org/wiki/Juventus_Football_Club
+  - https://es.wikipedia.org/wiki/Juventus_de_Tur%C3%ADn
+  - https://www.goal.com/es/noticias/fino-alla-fine-uno-de-los-lemas-de-la-juventus/9ot1vbs5qd4u1bmlfq6h63248
+  review_status: draft
+- slug: inter
+  names:
+    official: Football Club Internazionale Milano S.p.A.
+    short: Inter
+    abbreviation: INT
+  labels: {pt-BR: Inter de Milão, es: Inter de Milán, en: Inter Milan}
+  api_sports:
+    team_id: null
+    match: {name: Inter, country: Italy}
+  founded: 1908-03-09
+  city: Milão
+  colors:
+  - preto
+  - azul
+  nicknames:
+  - I Nerazzurri
+  - La Beneamata
+  - Il Biscione
+  fans:
+    demonym: interista
+  stadium:
+    name: San Siro
+    nicknames:
+    - Stadio Giuseppe Meazza
+    city: Milão
+  rivals:
+  - {team: milan, derby: derby-della-madonnina, intensity: 5}
+  - {team: juventus, derby: derby-ditalia, intensity: 5}
+  identity:
+  - Fundada em 9 de março de 1908 como Football Club Internazionale, por dissidentes do Milan.
+  - Divide o San Siro (Giuseppe Meazza) com o Milan.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Inter
+      - Nerazzurri
+      - Biscione
+      cheer:
+      - Forza Inter!
+    es:
+      nicknames:
+      - Inter
+      - Nerazzurri
+      - Negriazules
+      cheer:
+      - ¡Forza Inter!
+  sources:
+  - https://en.wikipedia.org/wiki/Inter_Milan
+  - https://pt.wikipedia.org/wiki/Football_Club_Internazionale_Milano
+  - https://es.wikipedia.org/wiki/Inter_de_Mil%C3%A1n
+  review_status: draft
+- slug: milan
+  names:
+    official: Associazione Calcio Milan S.p.A.
+    short: Milan
+    abbreviation: MIL
+  labels: {pt-BR: Milan, es: Milan, en: AC Milan}
+  api_sports:
+    team_id: null
+    match: {name: AC Milan, country: Italy}
+  founded: null
+  city: Milão
+  colors:
+  - vermelho
+  - preto
+  nicknames:
+  - I Rossoneri
+  - Il Diavolo
+  fans:
+    demonym: milanista
+  mascot: Milanello
+  stadium:
+    name: San Siro
+    nicknames:
+    - Stadio Giuseppe Meazza
+    city: Milão
+  rivals:
+  - {team: inter, derby: derby-della-madonnina, intensity: 5}
+  identity:
+  - Fundado em dezembro de 1899 como Milan Foot-Ball and Cricket Club (as fontes divergem entre os dias 16 e 18).
+  - O diabo vermelho e preto ("Il Diavolo") é o símbolo do clube.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Milan
+      - Rossoneri
+      - Diabo
+      cheer:
+      - Forza Milan!
+    es:
+      nicknames:
+      - Milan
+      - Rossoneri
+      - Rojinegros
+      - El Diablo
+      cheer:
+      - ¡Forza Milan!
+  sources:
+  - https://en.wikipedia.org/wiki/AC_Milan
+  - https://pt.wikipedia.org/wiki/Associazione_Calcio_Milan
+  - https://es.wikipedia.org/wiki/Associazione_Calcio_Milan
+  review_status: draft
+- slug: napoli
+  names:
+    official: Società Sportiva Calcio Napoli S.p.A.
+    short: Napoli
+    abbreviation: NAP
+  labels: {pt-BR: Napoli, es: Napoli, en: Napoli}
+  api_sports:
+    team_id: null
+    match: {name: Napoli, country: Italy}
+  founded: null
+  city: Nápoles
+  colors:
+  - azul-celeste
+  - branco
+  nicknames:
+  - Gli Azzurri
+  - I Partenopei
+  - I Ciucciarelli
+  fans:
+    demonym: napoletano
+  mascot: '''O Ciuccio'
+  stadium:
+    name: Stadio Diego Armando Maradona
+    nicknames:
+    - Maradona
+    - San Paolo (nome anterior)
+    city: Nápoles
+  identity:
+  - Fundado em 1926 como Associazione Calcio Napoli; refundado em 2004 (Napoli Soccer, depois SSC Napoli).
+  - O estádio leva o nome de Diego Armando Maradona.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Napoli
+      - Partenopeus
+      - Azzurri
+      cheer:
+      - Forza Napoli!
+    es:
+      nicknames:
+      - Napoli
+      - Partenopeos
+      - Azzurri
+      cheer:
+      - ¡Forza Napoli!
+  sources:
+  - https://en.wikipedia.org/wiki/SSC_Napoli
+  - https://pt.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Calcio_Napoli
+  - https://es.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Calcio_Napoli
+  review_status: draft
+- slug: roma
+  names:
+    official: Associazione Sportiva Roma S.p.A.
+    short: Roma
+    abbreviation: ROM
+  labels: {pt-BR: Roma, es: Roma, en: Roma}
+  api_sports:
+    team_id: null
+    match: {name: AS Roma, country: Italy}
+  founded: 1927-06-07
+  city: Roma
+  colors:
+  - grená
+  - amarelo
+  nicknames:
+  - I Giallorossi
+  - La Lupa
+  - La Magica
+  - I Lupi
+  fans:
+    demonym: romanista
+  mascot: Romolo
+  stadium:
+    name: Stadio Olimpico
+    nicknames:
+    - Olímpico de Roma
+    city: Roma
+  rivals:
+  - {team: lazio, derby: derby-della-capitale, intensity: 5}
+  identity:
+  - Fundada em 7 de junho de 1927.
+  - A loba capitolina, símbolo de Roma, está no escudo do clube.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Roma
+      - Giallorossi
+      - Loba
+      cheer:
+      - Forza Roma!
+    es:
+      nicknames:
+      - Roma
+      - Giallorossi
+      - La Loba
+      cheer:
+      - ¡Forza Roma!
+  sources:
+  - https://en.wikipedia.org/wiki/AS_Roma
+  - https://pt.wikipedia.org/wiki/Associazione_Sportiva_Roma
+  - https://es.wikipedia.org/wiki/Associazione_Sportiva_Roma
+  review_status: draft
+- slug: lazio
+  names:
+    official: Società Sportiva Lazio S.p.A.
+    short: Lazio
+    abbreviation: LAZ
+  labels: {pt-BR: Lazio, es: Lazio, en: Lazio}
+  api_sports:
+    team_id: null
+    match: {name: Lazio, country: Italy}
+  founded: 1900-01-09
+  city: Roma
+  colors:
+  - azul-celeste
+  - branco
+  nicknames:
+  - I Biancocelesti
+  - Le Aquile
+  - Gli Aquilotti
+  fans:
+    demonym: laziale
+  mascot: Olimpia
+  stadium:
+    name: Stadio Olimpico
+    nicknames:
+    - Olímpico de Roma
+    city: Roma
+  rivals:
+  - {team: roma, derby: derby-della-capitale, intensity: 5}
+  identity:
+  - Fundada em 9 de janeiro de 1900 como Società Podistica Lazio.
+  - Divide o Stadio Olimpico com a Roma.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Lazio
+      - Biancocelesti
+      - Águias
+      cheer:
+      - Forza Lazio!
+    es:
+      nicknames:
+      - Lazio
+      - Biancocelesti
+      - Las Águilas
+      cheer:
+      - ¡Forza Lazio!
+  sources:
+  - https://en.wikipedia.org/wiki/SS_Lazio
+  - https://pt.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Lazio
+  - https://es.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Lazio
+  review_status: draft
+- slug: atalanta
+  names:
+    official: Atalanta Bergamasca Calcio S.p.A.
+    short: Atalanta
+    abbreviation: ATA
+  labels: {pt-BR: Atalanta, es: Atalanta, en: Atalanta}
+  api_sports:
+    team_id: null
+    match: {name: Atalanta, country: Italy}
+  founded: 1907-10-17
+  city: Bérgamo
+  colors:
+  - preto
+  - azul
+  nicknames:
+  - La Dea
+  - Gli Orobici
+  - I Nerazzurri
+  stadium:
+    name: New Balance Arena
+    nicknames:
+    - Stadio Atleti Azzurri d'Italia
+    city: Bérgamo
+  identity:
+  - Fundada em 17 de outubro de 1907; o nome homenageia a heroína Atalanta da mitologia grega, origem do apelido "La Dea".
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Atalanta
+      - La Dea
+      - Deusa
+      cheer:
+      - Forza Atalanta!
+    es:
+      nicknames:
+      - Atalanta
+      - La Dea
+      - La Diosa
+      cheer:
+      - ¡Forza Atalanta!
+  sources:
+  - https://en.wikipedia.org/wiki/Atalanta_BC
+  - https://pt.wikipedia.org/wiki/Atalanta_Bergamasca_Calcio
+  - https://es.wikipedia.org/wiki/Atalanta_Bergamasca_Calcio
+  review_status: draft
+- slug: fiorentina
+  names:
+    official: ACF Fiorentina S.p.A.
+    short: Fiorentina
+    abbreviation: FIO
+  labels: {pt-BR: Fiorentina, es: Fiorentina, en: Fiorentina}
+  api_sports:
+    team_id: null
+    match: {name: Fiorentina, country: Italy}
+  founded: 1926-08-29
+  city: Florença
+  colors:
+  - roxo
+  - branco
+  nicknames:
+  - La Viola
+  - I Viola
+  - I Gigliati
+  fans:
+    demonym: fiorentino
+  stadium:
+    name: Stadio Artemio Franchi
+    nicknames:
+    - Artemio Franchi
+    city: Florença
+  identity:
+  - Fundada em 29 de agosto de 1926 como Associazione Calcio Fiorentina; refundada em 2002 (Florentia Viola, depois ACF Fiorentina).
+  - O lírio ("giglio") de Florença está no escudo e origina o apelido "Gigliati".
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Fiorentina
+      - Viola
+      - Violeta
+      cheer:
+      - Forza Viola!
+    es:
+      nicknames:
+      - Fiorentina
+      - La Viola
+      - Los Violetas
+      cheer:
+      - ¡Forza Viola!
+  sources:
+  - https://en.wikipedia.org/wiki/ACF_Fiorentina
+  - https://pt.wikipedia.org/wiki/Associazione_Calcio_Firenze_Fiorentina
+  - https://es.wikipedia.org/wiki/ACF_Fiorentina
+  review_status: draft
+- slug: torino
+  names:
+    official: Torino Football Club S.p.A.
+    short: Torino
+    abbreviation: TOR
+  labels: {pt-BR: Torino, es: Torino, en: Torino}
+  api_sports:
+    team_id: null
+    match: {name: Torino, country: Italy}
+  founded: 1906-12-03
+  city: Turim
+  colors:
+  - grená
+  nicknames:
+  - Il Toro
+  - I Granata
+  stadium:
+    name: Stadio Olimpico Grande Torino
+    nicknames:
+    - Olímpico Grande Torino
+    city: Turim
+  rivals:
+  - {team: juventus, derby: derby-della-mole, intensity: 4}
+  identity:
+  - Fundado em 3 de dezembro de 1906 como Foot-Ball Club Torino.
+  - Incluído nesta base como rival da Juventus no Derby della Mole.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Torino
+      - Toro
+      - Grená
+      cheer:
+      - Forza Toro!
+    es:
+      nicknames:
+      - Torino
+      - El Toro
+      - Los Granate
+      cheer:
+      - ¡Forza Toro!
+  sources:
+  - https://en.wikipedia.org/wiki/Torino_FC
+  - https://pt.wikipedia.org/wiki/Torino_Football_Club
+  - https://es.wikipedia.org/wiki/Torino_Football_Club
+  review_status: draft

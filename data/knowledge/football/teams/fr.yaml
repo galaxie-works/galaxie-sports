@@ -1,0 +1,251 @@
+# Base semântica — clubes da França (inclui AS Monaco, que disputa a liga francesa) (schema v1, ver data/knowledge/SCHEMA.md)
+# labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
+# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+schema_version: 1
+country: FR
+teams:
+- slug: paris-saint-germain
+  names:
+    official: Paris Saint-Germain Football Club
+    short: Paris Saint-Germain
+    abbreviation: PSG
+  labels: {pt-BR: PSG, es: PSG, en: Paris Saint-Germain}
+  api_sports:
+    team_id: null
+    match: {name: Paris Saint Germain, country: France}
+  founded: 1970-08-12
+  city: Paris
+  colors:
+  - azul
+  - vermelho
+  - branco
+  nicknames:
+  - Les Parisiens
+  - Les Rouge-et-Bleu
+  - PSG
+  mascot: Germain le Lynx
+  rallying_cries:
+  - Ici c'est Paris
+  stadium:
+    name: Parc des Princes
+    nicknames:
+    - Parque dos Príncipes
+    city: Paris
+  rivals:
+  - {team: marseille, derby: le-classique, intensity: 5}
+  identity:
+  - Fundado em 12 de agosto de 1970.
+  - '"Ici c''est Paris" (Aqui é Paris) é o slogan associado ao clube e à torcida.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - PSG
+      - Parisienses
+      - Time Parisiense
+      cheer:
+      - Vai, PSG!
+    es:
+      nicknames:
+      - PSG
+      - Los Parisinos
+      - Club Parisino
+      cheer:
+      - ¡Vamos, PSG!
+  sources:
+  - https://en.wikipedia.org/wiki/Paris_Saint-Germain_FC
+  - https://pt.wikipedia.org/wiki/Paris_Saint-Germain_Football_Club
+  - https://es.wikipedia.org/wiki/Paris_Saint-Germain_Football_Club
+  - https://www.psg.fr/en/content/icp-la-maison-london
+  review_status: draft
+- slug: marseille
+  names:
+    official: Olympique de Marseille
+    short: Olympique de Marseille
+    abbreviation: OM
+  labels: {pt-BR: Olympique de Marselha, es: Olympique de Marsella, en: Marseille}
+  api_sports:
+    team_id: null
+    match: {name: Marseille, country: France}
+  founded: 1899-08-31
+  city: Marselha
+  colors:
+  - branco
+  - azul-celeste
+  nicknames:
+  - L'OM
+  - Les Phocéens
+  - Les Olympiens
+  mascot: Nino
+  rallying_cries:
+  - Droit au but
+  stadium:
+    name: Stade Vélodrome
+    nicknames:
+    - Vélodrome
+    city: Marselha
+  rivals:
+  - {team: paris-saint-germain, derby: le-classique, intensity: 5}
+  - {team: lyon, derby: choc-des-olympiques, intensity: 3}
+  identity:
+  - Fundado em 31 de agosto de 1899.
+  - '"Droit au but" (Direto ao gol) é o lema do clube.'
+  - '"Phocéens" remete à fundação de Marselha por gregos de Foceia.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Olympique de Marselha
+      - OM
+      - Focenses
+      cheer:
+      - Vai, OM!
+    es:
+      nicknames:
+      - Olympique de Marsella
+      - OM
+      - Los Focenses
+      cheer:
+      - ¡Vamos, OM!
+  sources:
+  - https://en.wikipedia.org/wiki/Olympique_de_Marseille
+  - https://pt.wikipedia.org/wiki/Olympique_de_Marseille
+  - https://es.wikipedia.org/wiki/Olympique_de_Marsella
+  review_status: draft
+- slug: lyon
+  names:
+    official: Olympique Lyonnais
+    short: Lyon
+    abbreviation: OL
+  labels: {pt-BR: Lyon, es: Olympique de Lyon, en: Lyon}
+  api_sports:
+    team_id: null
+    match: {name: Lyon, country: France}
+  founded: null
+  city: Lyon
+  colors:
+  - branco
+  - azul
+  - vermelho
+  nicknames:
+  - Les Gones
+  - L'OL
+  mascot: Lyou
+  stadium:
+    name: Parc Olympique Lyonnais
+    nicknames:
+    - Groupama Stadium
+    city: Décines-Charpieu
+  rivals:
+  - {team: marseille, derby: choc-des-olympiques, intensity: 3}
+  identity:
+  - Fundado em 1950 (as fontes divergem sobre o dia).
+  - '"Gones" é uma palavra do dialeto lionês para "garotos".'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Lyon
+      - OL
+      - Les Gones
+      cheer:
+      - Vai, Lyon!
+    es:
+      nicknames:
+      - Lyon
+      - OL
+      - Los Gones
+      cheer:
+      - ¡Vamos, Lyon!
+  sources:
+  - https://en.wikipedia.org/wiki/Olympique_Lyonnais
+  - https://pt.wikipedia.org/wiki/Olympique_Lyonnais
+  - https://es.wikipedia.org/wiki/Olympique_de_Lyon
+  review_status: draft
+- slug: monaco
+  names:
+    official: Association Sportive de Monaco Football Club
+    short: Monaco
+    abbreviation: ASM
+  labels: {pt-BR: Monaco, es: Mónaco, en: Monaco}
+  api_sports:
+    team_id: null
+    match: {name: Monaco, country: France}
+  founded: 1924-08-23
+  city: Mônaco
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - Les Rouge et Blanc
+  - Les Monégasques
+  - Le Rocher
+  stadium:
+    name: Stade Louis II
+    nicknames:
+    - Louis II
+    city: Mônaco
+  identity:
+  - Fundado em 23 de agosto de 1924; clube do Principado de Mônaco que disputa o sistema de ligas da França.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Monaco
+      - Monegascos
+      - Clube do Principado
+      cheer:
+      - Vai, Monaco!
+    es:
+      nicknames:
+      - Mónaco
+      - Los Monegascos
+      cheer:
+      - ¡Vamos, Mónaco!
+  sources:
+  - https://en.wikipedia.org/wiki/AS_Monaco_FC
+  - https://pt.wikipedia.org/wiki/Association_Sportive_de_Monaco_Football_Club
+  - https://es.wikipedia.org/wiki/Association_Sportive_Monaco_Football_Club
+  review_status: draft
+- slug: lille
+  names:
+    official: Lille Olympique Sporting Club
+    short: Lille
+    abbreviation: LOSC
+  labels: {pt-BR: Lille, es: Lille, en: Lille}
+  api_sports:
+    team_id: null
+    match: {name: Lille, country: France}
+  founded: null
+  city: Lille
+  colors:
+  - vermelho
+  - branco
+  - azul-marinho
+  nicknames:
+  - Les Dogues
+  - LOSC
+  - Les Nordistes
+  stadium:
+    name: Stade Pierre-Mauroy
+    nicknames:
+    - Pierre-Mauroy
+    city: Villeneuve-d'Ascq
+  identity:
+  - Fundado em 1944 a partir da fusão de clubes de Lille (as fontes divergem sobre o dia).
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Lille
+      - LOSC
+      - Mastins
+      cheer:
+      - Vai, Lille!
+    es:
+      nicknames:
+      - Lille
+      - LOSC
+      - Los Dogos
+      cheer:
+      - ¡Vamos, Lille!
+  sources:
+  - https://en.wikipedia.org/wiki/Lille_OSC
+  - https://pt.wikipedia.org/wiki/Lille_Olympique_Sporting_Club
+  - https://es.wikipedia.org/wiki/Lille_Olympique_Sporting_Club
+  review_status: draft

@@ -1,0 +1,66 @@
+schema_version: 1
+country: VE
+teams:
+  - slug: caracas-fc
+    names:
+      official: Caracas Fútbol Club
+      short: Caracas FC
+      abbreviation: CAR
+    api_sports:
+      team_id: 2808
+      match: { name: "Caracas F.C.", country: "Venezuela" }
+    founded: 1967-12-12
+    city: Caracas
+    region: Distrito Capital
+    colors: [rojo]
+    nicknames: [Rojos del Ávila, El Rojo]
+    fans:
+      demonym: null
+    rallying_cries: ["¡Vamos Caracas!", "¡Vamos Rojo!"]
+    stadium:
+      name: Estadio Olímpico de la UCV
+      nicknames: []
+      city: Caracas
+    rivals:
+      - { team: deportivo-tachira, derby: clasico-venezolano, intensity: 5 }
+    identity:
+      - "El apodo Rojos del Ávila alude al cerro El Ávila, símbolo de Caracas."
+    copy_hints:
+      es-VE:
+        cheer: ["¡Vamos Caracas!", "Hoy alentamos a los Rojos del Ávila"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Caracas_Fútbol_Club"
+      - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
+    review_status: draft
+
+  - slug: deportivo-tachira
+    names:
+      official: Deportivo Táchira Fútbol Club
+      short: Deportivo Táchira
+      abbreviation: TAC
+    api_sports:
+      team_id: 2807
+      match: { name: "Deportivo Tachira F.C.", country: "Venezuela" }
+    founded: 1974-01-11
+    city: San Cristóbal
+    region: Táchira
+    colors: [amarillo, negro]
+    nicknames: [Carrusel Aurinegro, Aurinegros, Gigante Andino, Atigrados]
+    fans:
+      demonym: aurinegro
+    rallying_cries: ["¡Vamos Táchira!", "¡Vamos Carrusel!"]
+    stadium:
+      name: Estadio Polideportivo de Pueblo Nuevo
+      nicknames: [Pueblo Nuevo]
+      city: San Cristóbal
+    rivals:
+      - { team: caracas-fc, derby: clasico-venezolano, intensity: 5 }
+    identity:
+      - "Fundado en 1974 como San Cristóbal Fútbol Club."
+    copy_hints:
+      es-VE:
+        cheer: ["¡Vamos Táchira!", "Hoy alentamos al Carrusel Aurinegro"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Deportivo_Táchira_Fútbol_Club"
+      - "https://futboltotal.futbol/teams/deportivo-tachira-fc"
+    review_status: draft

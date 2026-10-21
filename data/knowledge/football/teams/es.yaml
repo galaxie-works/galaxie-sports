@@ -1,0 +1,477 @@
+# Base semântica — clubes da Espanha (schema v1, ver data/knowledge/SCHEMA.md)
+# labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
+# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+schema_version: 1
+country: ES
+teams:
+- slug: real-madrid
+  names:
+    official: Real Madrid Club de Fútbol
+    short: Real Madrid
+    abbreviation: RMA
+  labels: {pt-BR: Real Madrid, es: Real Madrid, en: Real Madrid}
+  api_sports:
+    team_id: null
+    match: {name: Real Madrid, country: Spain}
+  founded: 1902-03-06
+  city: Madrid
+  colors:
+  - branco
+  nicknames:
+  - Los Blancos
+  - Los Merengues
+  - Los Vikingos
+  - La Casa Blanca
+  fans:
+    demonym: madridista
+  rallying_cries:
+  - ¡Hala Madrid!
+  stadium:
+    name: Bernabéu
+    nicknames:
+    - Santiago Bernabéu
+    - Estadio Santiago Bernabéu
+    city: Madrid
+  rivals:
+  - {team: barcelona, derby: el-clasico, intensity: 5}
+  - {team: atletico-madrid, derby: derbi-madrileno, intensity: 5}
+  identity:
+  - Fundado em 6 de março de 1902 como Madrid Football Club; o título "Real" foi concedido pelo rei Afonso XIII em 1920.
+  - Em novembro de 2025 o clube passou a usar oficialmente a forma curta "Bernabéu" para o estádio.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Merengue
+      - Time Merengue
+      - Real
+      - Galácticos
+      cheer:
+      - Hala Madrid!
+    es:
+      nicknames:
+      - Merengues
+      - Los Blancos
+      - Club Blanco
+      - Vikingos
+      cheer:
+      - ¡Hala Madrid!
+  sources:
+  - https://en.wikipedia.org/wiki/Real_Madrid_CF
+  - https://pt.wikipedia.org/wiki/Real_Madrid_Club_de_F%C3%BAtbol
+  - https://es.wikipedia.org/wiki/Real_Madrid_Club_de_F%C3%BAtbol
+  - https://www.football-espana.net/2025/11/12/real-madrid-make-new-stadium-name-official-with-new-branding
+  review_status: draft
+- slug: barcelona
+  names:
+    official: Futbol Club Barcelona
+    short: Barcelona
+    abbreviation: BAR
+  labels: {pt-BR: Barcelona, es: Barcelona, en: Barcelona}
+  api_sports:
+    team_id: null
+    match: {name: Barcelona, country: Spain}
+  founded: 1899-11-29
+  city: Barcelona
+  colors:
+  - azul
+  - grená
+  nicknames:
+  - Barça
+  - Blaugrana
+  - Culers
+  fans:
+    demonym: culé
+    group_nicknames:
+    - Culers
+    - Barcelonistas
+    - Blaugranas
+  rallying_cries:
+  - Més que un club
+  - Visca Barça!
+  stadium:
+    name: Camp Nou
+    nicknames:
+    - Spotify Camp Nou
+    city: Barcelona
+  rivals:
+  - {team: real-madrid, derby: el-clasico, intensity: 5}
+  identity:
+  - Fundado em 29 de novembro de 1899 como Foot-Ball Club Barcelona.
+  - '"Més que un club" (Mais que um clube) é o lema oficial.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Barça
+      - Blaugrana
+      - Time Catalão
+      cheer:
+      - Visca Barça!
+      - Força Barça!
+    es:
+      nicknames:
+      - Barça
+      - Blaugrana
+      - Azulgrana
+      - Culés
+      cheer:
+      - ¡Visca Barça!
+      - ¡Força Barça!
+  sources:
+  - https://en.wikipedia.org/wiki/FC_Barcelona
+  - https://pt.wikipedia.org/wiki/Futbol_Club_Barcelona
+  - https://es.wikipedia.org/wiki/F%C3%BAtbol_Club_Barcelona
+  review_status: draft
+- slug: atletico-madrid
+  names:
+    official: Club Atlético de Madrid, S.A.D.
+    short: Atlético de Madrid
+    abbreviation: ATM
+  labels: {pt-BR: Atlético de Madrid, es: Atlético de Madrid, en: Atlético Madrid}
+  api_sports:
+    team_id: null
+    match: {name: Atletico Madrid, country: Spain}
+  founded: 1903-04-26
+  city: Madrid
+  colors:
+  - vermelho
+  - branco
+  - azul
+  nicknames:
+  - Atleti
+  - Colchoneros
+  - Rojiblancos
+  - Indios
+  fans:
+    demonym: colchonero
+    group_nicknames:
+    - Colchoneros
+    - Atléticos
+  mascot: Indi
+  stadium:
+    name: Estadio Metropolitano
+    nicknames:
+    - Riyadh Air Metropolitano
+    - Metropolitano
+    city: Madrid
+  rivals:
+  - {team: real-madrid, derby: derbi-madrileno, intensity: 5}
+  identity:
+  - Fundado em 26 de abril de 1903 como Athletic Club Sucursal de Madrid, filial do Athletic de Bilbao.
+  - '"Colchoneros" (colchoeiros) remete às listras vermelhas e brancas, semelhantes aos colchões da época.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Atleti
+      - Colchoneros
+      - Rojiblancos
+      cheer:
+      - Aúpa, Atleti!
+    es:
+      nicknames:
+      - Atleti
+      - Colchoneros
+      - Rojiblancos
+      cheer:
+      - ¡Aúpa Atleti!
+  sources:
+  - https://en.wikipedia.org/wiki/Atl%C3%A9tico_Madrid
+  - https://pt.wikipedia.org/wiki/Club_Atl%C3%A9tico_de_Madrid
+  - https://es.wikipedia.org/wiki/Club_Atl%C3%A9tico_de_Madrid
+  review_status: draft
+- slug: sevilla
+  names:
+    official: Sevilla Fútbol Club, S.A.D.
+    short: Sevilla
+    abbreviation: SEV
+  labels: {pt-BR: Sevilla, es: Sevilla, en: Sevilla}
+  api_sports:
+    team_id: null
+    match: {name: Sevilla, country: Spain}
+  founded: 1890-01-25
+  city: Sevilha
+  colors:
+  - branco
+  - vermelho
+  nicknames:
+  - Sevillistas
+  - Nervionenses
+  - Hispalenses
+  - Palanganas
+  - Blanquirrojos
+  fans:
+    demonym: sevillista
+  stadium:
+    name: Estadio Ramón Sánchez-Pizjuán
+    nicknames:
+    - Sánchez-Pizjuán
+    city: Sevilha
+  rivals:
+  - {team: real-betis, derby: derbi-sevillano, intensity: 5}
+  identity:
+  - Fundado em 25 de janeiro de 1890 como Sevilla Foot-ball Club.
+  - '"Nervionenses" vem do bairro de Nervión, onde fica o estádio.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Sevilla
+      - Nervionenses
+      - Sevillistas
+      cheer:
+      - Vamos, Sevilla!
+    es:
+      nicknames:
+      - Sevillistas
+      - Nervionenses
+      - Hispalenses
+      cheer:
+      - ¡Vamos, mi Sevilla!
+  sources:
+  - https://en.wikipedia.org/wiki/Sevilla_FC
+  - https://pt.wikipedia.org/wiki/Sevilla_F%C3%BAtbol_Club
+  - https://es.wikipedia.org/wiki/Sevilla_F%C3%BAtbol_Club
+  review_status: draft
+- slug: real-betis
+  names:
+    official: Real Betis Balompié, S.A.D.
+    short: Real Betis
+    abbreviation: BET
+  labels: {pt-BR: Betis, es: Betis, en: Real Betis}
+  api_sports:
+    team_id: null
+    match: {name: Real Betis, country: Spain}
+  founded: 1907-09-12
+  city: Sevilha
+  colors:
+  - verde
+  - branco
+  nicknames:
+  - Béticos
+  - Verdiblancos
+  - Heliopolitanos
+  - El Glorioso
+  fans:
+    demonym: bético
+  mascot: Palmerín
+  rallying_cries:
+  - ¡Viva er Betis manque pierda!
+  stadium:
+    name: Estadio Benito Villamarín
+    nicknames:
+    - Villamarín
+    city: Sevilha
+  rivals:
+  - {team: sevilla, derby: derbi-sevillano, intensity: 5}
+  identity:
+  - Fundado em 12 de setembro de 1907 como Sevilla Balompié.
+  - Durante a reconstrução do Benito Villamarín (iniciada em 2025) manda jogos provisoriamente no Estadio La Cartuja.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Betis
+      - Verdiblancos
+      - Béticos
+      cheer:
+      - Viva o Betis!
+    es:
+      nicknames:
+      - Béticos
+      - Verdiblancos
+      - Heliopolitanos
+      cheer:
+      - ¡Viva er Betis manque pierda!
+  sources:
+  - https://en.wikipedia.org/wiki/Real_Betis
+  - https://pt.wikipedia.org/wiki/Real_Betis_Balompi%C3%A9
+  - https://es.wikipedia.org/wiki/Real_Betis_Balompi%C3%A9
+  - https://stadiumdb.com/news/2025/11/spain_betis_facing_longer_exile_villamarin_rebuild_slipping_away_from_original_plan
+  review_status: draft
+- slug: athletic-club
+  names:
+    official: Athletic Club
+    short: Athletic Club
+    abbreviation: ATH
+  labels: {pt-BR: Athletic Bilbao, es: Athletic Club, en: Athletic Club}
+  api_sports:
+    team_id: null
+    match: {name: Athletic Club, country: Spain}
+  founded: 1898-07-18
+  city: Bilbao
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - Lehoiak
+  - Los Leones
+  - Zurigorriak
+  - Rojiblancos
+  rallying_cries:
+  - Aupa Athletic!
+  stadium:
+    name: San Mamés
+    nicknames:
+    - La Catedral
+    - San Mamés Barria
+    city: Bilbao
+  rivals:
+  - {team: real-sociedad, derby: derbi-vasco, intensity: 4}
+  identity:
+  - Fundado em 18 de julho de 1898 em Bilbao, no País Basco.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Athletic Bilbao
+      - Leões
+      cheer:
+      - Aupa, Athletic!
+    es:
+      nicknames:
+      - Los Leones
+      - Athletic de Bilbao
+      - Rojiblancos
+      cheer:
+      - ¡Aupa Athletic!
+  sources:
+  - https://en.wikipedia.org/wiki/Athletic_Bilbao
+  - https://pt.wikipedia.org/wiki/Athletic_Club
+  - https://es.wikipedia.org/wiki/Athletic_Club
+  - https://stadiumdb.com/stadiums/esp/estadio_san_mames
+  review_status: draft
+- slug: real-sociedad
+  names:
+    official: Real Sociedad de Fútbol, S.A.D.
+    short: Real Sociedad
+    abbreviation: RSO
+  labels: {pt-BR: Real Sociedad, es: Real Sociedad, en: Real Sociedad}
+  api_sports:
+    team_id: null
+    match: {name: Real Sociedad, country: Spain}
+  founded: 1909-09-07
+  city: San Sebastián
+  colors:
+  - azul
+  - branco
+  nicknames:
+  - Txuri-Urdin
+  - La Real
+  - Erreala
+  stadium:
+    name: Reale Arena
+    nicknames:
+    - Anoeta
+    city: San Sebastián
+  rivals:
+  - {team: athletic-club, derby: derbi-vasco, intensity: 4}
+  identity:
+  - Fundada em 7 de setembro de 1909 como Sociedad de Foot-Ball de San Sebastián.
+  - '"Txuri-Urdin" significa "branco-azul" em basco.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - La Real
+      - Txuri-Urdin
+      cheer:
+      - Aupa, Real!
+    es:
+      nicknames:
+      - La Real
+      - Txuri-urdin
+      cheer:
+      - ¡Aupa Real!
+  sources:
+  - https://en.wikipedia.org/wiki/Real_Sociedad
+  - https://pt.wikipedia.org/wiki/Real_Sociedad_de_F%C3%BAtbol
+  - https://es.wikipedia.org/wiki/Real_Sociedad_de_F%C3%BAtbol
+  review_status: draft
+- slug: valencia
+  names:
+    official: Valencia Club de Fútbol, S.A.D.
+    short: Valencia
+    abbreviation: VAL
+  labels: {pt-BR: Valencia, es: Valencia, en: Valencia}
+  api_sports:
+    team_id: null
+    match: {name: Valencia, country: Spain}
+  founded: 1919-03-18
+  city: Valência
+  colors:
+  - branco
+  - preto
+  nicknames:
+  - Los Che
+  - Blanquinegros
+  - Murciélagos
+  fans:
+    demonym: valencianista
+  mascot: Morcego
+  rallying_cries:
+  - Amunt Valencia!
+  stadium:
+    name: Mestalla
+    city: Valência
+  identity:
+  - Fundado em 18 de março de 1919 como Valencia Foot-ball Club.
+  - O morcego do escudo deu origem ao apelido "Murciélagos".
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Valencia
+      - Morcegos
+      - Che
+      cheer:
+      - Amunt, Valencia!
+    es:
+      nicknames:
+      - Los Che
+      - Ches
+      - Blanquinegros
+      - Murciélagos
+      cheer:
+      - ¡Amunt Valencia!
+  sources:
+  - https://en.wikipedia.org/wiki/Valencia_CF
+  - https://pt.wikipedia.org/wiki/Valencia_Club_de_F%C3%BAtbol
+  - https://es.wikipedia.org/wiki/Valencia_Club_de_F%C3%BAtbol
+  review_status: draft
+- slug: villarreal
+  names:
+    official: Villarreal Club de Fútbol, S.A.D.
+    short: Villarreal
+    abbreviation: VIL
+  labels: {pt-BR: Villarreal, es: Villarreal, en: Villarreal}
+  api_sports:
+    team_id: null
+    match: {name: Villarreal, country: Spain}
+  founded: 1923-03-10
+  city: Vila-real
+  colors:
+  - amarelo
+  nicknames:
+  - El Submarino Amarillo
+  - Groguets
+  stadium:
+    name: Estadio de la Cerámica
+    nicknames:
+    - La Cerámica
+    city: Vila-real
+  identity:
+  - Fundado em 10 de março de 1923, na cidade de Vila-real (Castellón).
+  - O apelido "Submarino Amarillo" vem do uniforme todo amarelo.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Submarino Amarelo
+      - Villarreal
+      cheer:
+      - Vamos, Submarino!
+    es:
+      nicknames:
+      - Submarino Amarillo
+      - El Submarino
+      - Groguets
+      cheer:
+      - ¡Vamos, Submarino!
+  sources:
+  - https://en.wikipedia.org/wiki/Villarreal_CF
+  - https://pt.wikipedia.org/wiki/Villarreal_Club_de_F%C3%BAtbol
+  - https://es.wikipedia.org/wiki/Villarreal_Club_de_F%C3%BAtbol
+  review_status: draft

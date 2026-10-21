@@ -1,0 +1,28 @@
+# deps / builds
+node_modules/
+.pnpm-store/
+dist/
+build/
+.next/
+.turbo/
+coverage/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# data dumps & local mirrors (never commit provider data or downloaded assets)
+data/raw/
+data/assets/
+data/snapshots/
+*.dump
+*.sql.gz
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/

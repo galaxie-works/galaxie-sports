@@ -1,0 +1,226 @@
+schema_version: 1
+country: EC
+teams:
+  - slug: barcelona-sc
+    names:
+      official: Barcelona Sporting Club
+      short: Barcelona SC
+      abbreviation: BSC
+    api_sports:
+      team_id: 1152
+      match: { name: "Barcelona S.C.", country: "Ecuador" }
+    founded: 1925-05-01
+    city: Guayaquil
+    region: Guayas
+    colors: [amarillo]
+    nicknames: [Ídolo del Ecuador, Toreros, Canarios]
+    fans:
+      demonym: barcelonista
+    rallying_cries: ["¡Vamos Barcelona!", "¡Vamos Toreros!"]
+    stadium:
+      name: Estadio Monumental Isidro Romero Carbo
+      nicknames: [El Monumental]
+      city: Guayaquil
+    rivals:
+      - { team: emelec, derby: clasico-del-astillero, intensity: 5 }
+    identity:
+      - "Fundado en 1925 en el barrio del Astillero de Guayaquil por inmigrantes catalanes y guayaquileños."
+      - "Finalista de la Copa Libertadores en 1990 y 1998."
+    copy_hints:
+      es-EC:
+        cheer: ["¡Vamos Barcelona!", "¡Vamos Toreros!", "Hoy alentamos al Ídolo"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Barcelona_Sporting_Club"
+      - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
+    review_status: draft
+
+  - slug: emelec
+    names:
+      official: Club Sport Emelec
+      short: Emelec
+      abbreviation: EME
+    api_sports:
+      team_id: 1148
+      match: { name: "Emelec", country: "Ecuador" }
+    founded: 1929-04-28
+    city: Guayaquil
+    region: Guayas
+    colors: [azul]
+    nicknames: [El Bombillo, Eléctricos, Millonarios]
+    fans:
+      demonym: emelecista
+    rallying_cries: ["¡Vamos Emelec!", "¡Vamos Bombillo!"]
+    stadium:
+      name: Estadio George Capwell
+      nicknames: [El Capwell]
+      city: Guayaquil
+    rivals:
+      - { team: barcelona-sc, derby: clasico-del-astillero, intensity: 5 }
+    identity:
+      - "Fundado por George Capwell, directivo de la Empresa Eléctrica del Ecuador; de ahí el nombre Emelec y el apodo Bombillo."
+    copy_hints:
+      es-EC:
+        cheer: ["¡Vamos Emelec!", "Hoy alentamos al Bombillo"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Sport_Emelec"
+      - "https://futboltotal.futbol/teams/emelec"
+    review_status: draft
+
+  - slug: ldu-quito
+    names:
+      official: Liga Deportiva Universitaria de Quito
+      short: LDU Quito
+      abbreviation: LDU
+    api_sports:
+      team_id: 1158
+      match: { name: "LDU de Quito", country: "Ecuador" }
+    founded: null
+    city: Quito
+    region: Pichincha
+    colors: [blanco]
+    nicknames: [Liga, Albos, La U]
+    fans:
+      demonym: liguista
+    rallying_cries: ["¡Vamos Liga!"]
+    stadium:
+      name: Estadio Rodrigo Paz Delgado
+      nicknames: [Casa Blanca]
+      city: Quito
+    rivals:
+      - { team: aucas, derby: superclasico-de-quito, intensity: 5 }
+    identity:
+      - "Primer club ecuatoriano campeón de la Copa Libertadores (2008)."
+    copy_hints:
+      es-EC:
+        cheer: ["¡Vamos Liga!", "Hoy alentamos a los Albos"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Liga_Deportiva_Universitaria_de_Quito"
+      - "https://en.wikipedia.org/wiki/Superclásico_de_Quito"
+      - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
+    review_status: draft
+
+  - slug: independiente-del-valle
+    names:
+      official: Independiente del Valle
+      short: Independiente del Valle
+      abbreviation: IDV
+    api_sports:
+      team_id: 1153
+      match: { name: "Independiente del Valle", country: "Ecuador" }
+    founded: 1958-03-01
+    city: Sangolquí
+    region: Pichincha
+    colors: [azul, negro]
+    nicknames: [Rayados del Valle, Negriazules]
+    fans:
+      demonym: null
+    rallying_cries: ["¡Vamos Independiente!"]
+    stadium:
+      name: Estadio Banco Guayaquil
+      nicknames: []
+      city: Sangolquí
+    rivals: []
+    identity:
+      - "Campeón de la Copa Sudamericana 2019 y 2022, y finalista de la Copa Libertadores 2016."
+      - "Reconocido por su trabajo en formación de juveniles."
+    copy_hints:
+      es-EC:
+        cheer: ["¡Vamos Independiente!", "Hoy alentamos a los Rayados"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Independiente_del_Valle"
+      - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
+    review_status: draft
+
+  - slug: el-nacional-ec
+    names:
+      official: Club Deportivo El Nacional
+      short: El Nacional
+      abbreviation: NAC
+    api_sports:
+      team_id: 1150
+      match: { name: "El Nacional", country: "Ecuador" }
+    founded: 1964-06-01
+    city: Quito
+    region: Pichincha
+    colors: [rojo, azul, blanco]
+    nicknames: [Puros Criollos, Militares, El Rojo]
+    fans:
+      demonym: null
+    rallying_cries: ["¡Vamos Nacional!"]
+    stadium:
+      name: Estadio Olímpico Atahualpa
+      nicknames: [El Atahualpa]
+      city: Quito
+    rivals: []
+    identity:
+      - "Club vinculado a las Fuerzas Armadas del Ecuador; el apodo Puros Criollos alude a su tradición de jugar con futbolistas ecuatorianos."
+    copy_hints:
+      es-EC:
+        cheer: ["¡Vamos Nacional!", "Hoy alentamos a los Puros Criollos"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Deportivo_El_Nacional"
+      - "https://futboltotal.futbol/teams/el-nacional-ecuador"
+    review_status: draft
+
+  - slug: aucas
+    names:
+      official: Sociedad Deportiva Aucas
+      short: Aucas
+      abbreviation: AUC
+    api_sports:
+      team_id: 1156
+      match: { name: "Aucas", country: "Ecuador" }
+    founded: 1945-02-06
+    city: Quito
+    region: Pichincha
+    colors: [amarillo, rojo]
+    nicknames: [Ídolo de Quito, Papá Aucas, Equipo Oriental]
+    fans:
+      demonym: null
+    rallying_cries: ["¡Vamos Aucas!"]
+    stadium:
+      name: Estadio Gonzalo Pozo Ripalda
+      nicknames: [Chillogallo, La Caldera del Sur]
+      city: Quito
+    rivals:
+      - { team: ldu-quito, derby: superclasico-de-quito, intensity: 5 }
+    identity:
+      - "Sus colores oficiales son oro y grana; campeón de la Liga ecuatoriana en 2022."
+    copy_hints:
+      es-EC:
+        cheer: ["¡Vamos Aucas!", "Hoy alentamos al Ídolo de Quito"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Sociedad_Deportiva_Aucas"
+      - "https://futboltotal.futbol/teams/aucas"
+    review_status: draft
+
+  - slug: deportivo-quito
+    names:
+      official: Sociedad Deportivo Quito
+      short: Deportivo Quito
+      abbreviation: DQU
+    api_sports:
+      team_id: 1984
+      match: { name: "Deportivo Quito", country: "Ecuador" }
+    founded: null
+    city: Quito
+    region: Pichincha
+    colors: [azul, grana]
+    nicknames: [Chullas, Azulgranas, AKD]
+    fans:
+      demonym: null
+    rallying_cries: ["¡Vamos Quito!"]
+    stadium:
+      name: Estadio Olímpico Atahualpa
+      nicknames: [El Atahualpa]
+      city: Quito
+    rivals: []
+    identity:
+      - "Club histórico de la capital ecuatoriana, de colores azul y grana."
+    copy_hints:
+      es-EC:
+        cheer: ["¡Vamos Quito!", "Hoy alentamos a los Chullas"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Sociedad_Deportivo_Quito"
+      - "https://futboltotal.futbol/teams/deportivo-quito"
+    review_status: draft

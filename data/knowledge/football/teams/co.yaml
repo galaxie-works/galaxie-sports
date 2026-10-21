@@ -1,0 +1,289 @@
+schema_version: 1
+country: CO
+teams:
+  - slug: atletico-nacional
+    names:
+      official: Club Atlético Nacional S.A.
+      short: Atlético Nacional
+      abbreviation: NAC
+    api_sports:
+      team_id: 1137
+      match: { name: "Atletico Nacional", country: "Colombia" }
+    founded: 1947-04-30
+    city: Medellín
+    region: Antioquia
+    colors: [verde, blanco]
+    nicknames: [Verdolaga, El Verde Paisa, El Rey de Copas]
+    fans:
+      demonym: verdolaga
+    rallying_cries: ["¡Vamos Nacional!", "¡Vamos Verde!"]
+    stadium:
+      name: Estadio Atanasio Girardot
+      nicknames: [El Atanasio]
+      city: Medellín
+    rivals:
+      - { team: independiente-medellin, derby: clasico-paisa, intensity: 5 }
+    identity:
+      - "Primer club colombiano campeón de la Copa Libertadores (1989); volvió a ganarla en 2016."
+    copy_hints:
+      es-CO:
+        cheer: ["¡Vamos Nacional!", "Hoy hacemos fuerza por el Verde", "¡Vamos Verdolaga!"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Atlético_Nacional"
+      - "https://futboltotal.futbol/league/primera-a/clasificacion"
+    review_status: draft
+
+  - slug: millonarios
+    names:
+      official: Millonarios Fútbol Club
+      short: Millonarios
+      abbreviation: MIL
+    api_sports:
+      team_id: 1125
+      match: { name: "Millonarios", country: "Colombia" }
+    founded: 1946-06-18
+    city: Bogotá
+    region: Bogotá D.C.
+    colors: [azul, blanco]
+    nicknames: [Embajadores, Albiazules, El Ballet Azul]
+    fans:
+      demonym: millonario
+    rallying_cries: ["¡Vamos Millos!", "¡Vamos Millonarios!"]
+    stadium:
+      name: Estadio Nemesio Camacho El Campín
+      nicknames: [El Campín]
+      city: Bogotá
+    rivals:
+      - { team: independiente-santa-fe, derby: clasico-capitalino-co, intensity: 5 }
+    identity:
+      - "En la era de El Dorado (1949-1954) fue conocido como el Ballet Azul."
+    copy_hints:
+      es-CO:
+        cheer: ["¡Vamos Millos!", "Hoy hacemos fuerza por el Embajador"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Millonarios_Fútbol_Club"
+      - "https://futboltotal.futbol/league/primera-a/clasificacion"
+    review_status: draft
+
+  - slug: america-de-cali
+    names:
+      official: América de Cali S.A.
+      short: América de Cali
+      abbreviation: AME
+    api_sports:
+      team_id: 1138
+      match: { name: "America de Cali", country: "Colombia" }
+    founded: 1927-02-13
+    city: Cali
+    region: Valle del Cauca
+    colors: [rojo]
+    nicknames: [La Mechita, Los Diablos Rojos, El Rojo, La Pasión de un Pueblo]
+    fans:
+      demonym: americano
+    rallying_cries: ["¡Vamos América!", "¡Vamos Mechita!"]
+    stadium:
+      name: Estadio Olímpico Pascual Guerrero
+      nicknames: [El Pascual]
+      city: Cali
+    rivals:
+      - { team: deportivo-cali, derby: clasico-vallecaucano, intensity: 5 }
+    identity:
+      - "Pentacampeón colombiano consecutivo entre 1982 y 1986."
+    copy_hints:
+      es-CO:
+        cheer: ["¡Vamos América!", "Hoy hacemos fuerza por la Mechita"]
+    sources:
+      - "https://es.wikipedia.org/wiki/América_de_Cali"
+      - "https://futboltotal.futbol/league/primera-a/clasificacion"
+    review_status: draft
+
+  - slug: deportivo-cali
+    names:
+      official: Asociación Deportivo Cali
+      short: Deportivo Cali
+      abbreviation: CAL
+    api_sports:
+      team_id: 1127
+      match: { name: "Deportivo Cali", country: "Colombia" }
+    founded: 1912-11-23
+    city: Cali
+    region: Valle del Cauca
+    colors: [verde, blanco]
+    nicknames: [Azucareros, Verdiblancos]
+    fans:
+      demonym: azucarero
+    rallying_cries: ["¡Vamos Cali!"]
+    stadium:
+      name: Estadio Deportivo Cali
+      nicknames: [Palmaseca]
+      city: Palmira
+    rivals:
+      - { team: america-de-cali, derby: clasico-vallecaucano, intensity: 5 }
+    identity:
+      - "Juega como local en su estadio propio, ubicado en Palmira."
+    copy_hints:
+      es-CO:
+        cheer: ["¡Vamos Cali!", "Hoy hacemos fuerza por el Verdiblanco"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Asociación_Deportivo_Cali"
+      - "https://futboltotal.futbol/league/primera-a/clasificacion"
+    review_status: draft
+
+  - slug: independiente-santa-fe
+    names:
+      official: Independiente Santa Fe S.A.
+      short: Santa Fe
+      abbreviation: SFE
+    api_sports:
+      team_id: 1139
+      match: { name: "Santa Fe", country: "Colombia" }
+    founded: 1941-02-28
+    city: Bogotá
+    region: Bogotá D.C.
+    colors: [rojo, blanco]
+    nicknames: [Cardenales, El Expreso Rojo, León]
+    fans:
+      demonym: santafereño
+    rallying_cries: ["¡Vamos Santa Fe!", "¡Vamos León!"]
+    stadium:
+      name: Estadio Nemesio Camacho El Campín
+      nicknames: [El Campín]
+      city: Bogotá
+    rivals:
+      - { team: millonarios, derby: clasico-capitalino-co, intensity: 5 }
+    identity:
+      - "Primer campeón del fútbol profesional colombiano (1948)."
+      - "Campeón de la Copa Sudamericana 2015."
+    copy_hints:
+      es-CO:
+        cheer: ["¡Vamos Santa Fe!", "Hoy hacemos fuerza por el Cardenal"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Independiente_Santa_Fe"
+      - "https://futboltotal.futbol/league/primera-a/clasificacion"
+    review_status: draft
+
+  - slug: junior-barranquilla
+    names:
+      official: Club Deportivo Popular Junior F.C. S.A.
+      short: Junior
+      abbreviation: JUN
+    api_sports:
+      team_id: 1135
+      match: { name: "Junior", country: "Colombia" }
+    founded: 1924-08-07
+    city: Barranquilla
+    region: Atlántico
+    colors: [rojo, blanco, azul]
+    nicknames: [El Tiburón, Rojiblancos, Curramberos]
+    fans:
+      demonym: juniorista
+    rallying_cries: ["¡Vamos Junior!", "¡Vamos Tiburón!"]
+    stadium:
+      name: Estadio Metropolitano Roberto Meléndez
+      nicknames: [El Metropolitano]
+      city: Barranquilla
+    rivals: []
+    identity:
+      - "Fundado en 1924 con el nombre de Juventud Infantil."
+    copy_hints:
+      es-CO:
+        cheer: ["¡Vamos Junior!", "Hoy hacemos fuerza por el Tiburón"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Junior_de_Barranquilla"
+      - "https://futboltotal.futbol/league/primera-a/clasificacion"
+    review_status: draft
+
+  - slug: independiente-medellin
+    names:
+      official: Deportivo Independiente Medellín
+      short: Independiente Medellín
+      abbreviation: DIM
+    api_sports:
+      team_id: 1128
+      match: { name: "Independiente Medellin", country: "Colombia" }
+    founded: 1913-11-14
+    city: Medellín
+    region: Antioquia
+    colors: [rojo, azul]
+    nicknames: [El Poderoso de la Montaña, El Rojo, DIM]
+    fans:
+      demonym: poderoso
+    rallying_cries: ["¡Vamos Medellín!", "¡Vamos Poderoso!"]
+    stadium:
+      name: Estadio Atanasio Girardot
+      nicknames: [El Atanasio]
+      city: Medellín
+    rivals:
+      - { team: atletico-nacional, derby: clasico-paisa, intensity: 5 }
+    identity:
+      - "Uno de los clubes más antiguos de Colombia, fundado en 1913."
+    copy_hints:
+      es-CO:
+        cheer: ["¡Vamos Medellín!", "Hoy hacemos fuerza por el Poderoso"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Deportivo_Independiente_Medellín"
+      - "https://futboltotal.futbol/league/primera-a/clasificacion"
+    review_status: draft
+
+  - slug: once-caldas
+    names:
+      official: Corporación Deportiva Once Caldas
+      short: Once Caldas
+      abbreviation: ONC
+    api_sports:
+      team_id: 1136
+      match: { name: "Once Caldas", country: "Colombia" }
+    founded: null
+    city: Manizales
+    region: Caldas
+    colors: [blanco]
+    nicknames: [El Blanco Blanco, Los Albos, El Equipo del Alma]
+    fans:
+      demonym: albo
+    rallying_cries: ["¡Vamos Once!", "¡Vamos Once Caldas!"]
+    stadium:
+      name: Estadio Palogrande
+      nicknames: []
+      city: Manizales
+    rivals: []
+    identity:
+      - "Nació en 1947 como Deportes Caldas y adoptó el nombre Once Caldas en 1961 tras fusionarse con Once Deportivo."
+      - "Campeón de la Copa Libertadores 2004."
+    copy_hints:
+      es-CO:
+        cheer: ["¡Vamos Once Caldas!", "Hoy hacemos fuerza por el Blanco Blanco"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Once_Caldas"
+      - "https://futboltotal.futbol/league/primera-a/clasificacion"
+    review_status: draft
+
+  - slug: deportes-tolima
+    names:
+      official: Club Deportes Tolima S.A.
+      short: Deportes Tolima
+      abbreviation: TOL
+    api_sports:
+      team_id: 1142
+      match: { name: "Deportes Tolima", country: "Colombia" }
+    founded: 1954-12-18
+    city: Ibagué
+    region: Tolima
+    colors: [vinotinto, oro]
+    nicknames: [Pijao, Vinotinto y Oro]
+    fans:
+      demonym: pijao
+    rallying_cries: ["¡Vamos Tolima!"]
+    stadium:
+      name: Estadio Manuel Murillo Toro
+      nicknames: []
+      city: Ibagué
+    rivals: []
+    identity:
+      - "Club de Ibagué, conocida como la Ciudad Musical de Colombia."
+    copy_hints:
+      es-CO:
+        cheer: ["¡Vamos Tolima!", "Hoy hacemos fuerza por el Vinotinto y Oro"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Deportes_Tolima"
+      - "https://futboltotal.futbol/league/primera-a/clasificacion"
+    review_status: draft

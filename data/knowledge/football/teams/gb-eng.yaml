@@ -1,0 +1,551 @@
+# Base semântica — clubes da Inglaterra (schema v1, ver data/knowledge/SCHEMA.md)
+# labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
+# api_sports.team_id: IDs vistos em resposta da API-Football (lista da Premier League) citada em sources.
+schema_version: 1
+country: GB-ENG
+teams:
+- slug: manchester-city
+  names:
+    official: Manchester City Football Club
+    short: Manchester City
+    abbreviation: MCI
+  labels: {pt-BR: Manchester City, es: Manchester City, en: Manchester City}
+  api_sports:
+    team_id: 50
+    match: {name: Manchester City, country: England}
+  founded: null
+  city: Manchester
+  colors:
+  - azul-celeste
+  - branco
+  nicknames:
+  - The Citizens
+  - Cityzens
+  - The Sky Blues
+  - City
+  fans:
+    demonym: citizen
+  mascot: Moonchester
+  rallying_cries:
+  - Superbia in Proelio
+  stadium:
+    name: Etihad Stadium
+    nicknames:
+    - City of Manchester Stadium
+    city: Manchester
+  rivals:
+  - {team: manchester-united, derby: manchester-derby, intensity: 5}
+  identity:
+  - Fundado em 1880 como St. Mark's (West Gorton); adotou o nome Manchester City em 16 de abril de 1894.
+  - '"Superbia in Proelio" (Orgulho na Batalha) é o lema do clube.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - City
+      - Citizens
+      - Azuis Celestes
+      cheer:
+      - Vai, City!
+    es:
+      nicknames:
+      - Citizens
+      - Skyblues
+      - los Citizens
+      cheer:
+      - ¡Vamos, City!
+  sources:
+  - https://en.wikipedia.org/wiki/Manchester_City_F.C.
+  - https://pt.wikipedia.org/wiki/Manchester_City_Football_Club
+  - https://es.wikipedia.org/wiki/Manchester_City_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: manchester-united
+  names:
+    official: Manchester United Football Club
+    short: Manchester United
+    abbreviation: MUN
+  labels: {pt-BR: Manchester United, es: Manchester United, en: Manchester United}
+  api_sports:
+    team_id: 33
+    match: {name: Manchester United, country: England}
+  founded: 1878-03-05
+  city: Manchester
+  colors:
+  - vermelho
+  - branco
+  - preto
+  nicknames:
+  - The Red Devils
+  - United
+  - Man Utd
+  mascot: Fred the Red
+  stadium:
+    name: Old Trafford
+    nicknames:
+    - Theatre of Dreams
+    - Teatro dos Sonhos
+    city: Manchester
+  rivals:
+  - {team: manchester-city, derby: manchester-derby, intensity: 5}
+  - {team: liverpool, derby: north-west-derby, intensity: 5}
+  identity:
+  - Fundado em 5 de março de 1878 como Newton Heath LYR F.C.; passou a se chamar Manchester United em 1902.
+  - '"Busby Babes" é o apelido histórico da geração formada por Matt Busby nos anos 1950.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Diabos Vermelhos
+      - Os Diabos Vermelhos
+      - United
+      - Man United
+      cheer:
+      - Vai, United!
+    es:
+      nicknames:
+      - Diablos Rojos
+      - Los Diablos Rojos
+      - United
+      cheer:
+      - ¡Vamos, United!
+  sources:
+  - https://en.wikipedia.org/wiki/Manchester_United_F.C.
+  - https://pt.wikipedia.org/wiki/Manchester_United_Football_Club
+  - https://es.wikipedia.org/wiki/Manchester_United_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: liverpool
+  names:
+    official: Liverpool Football Club
+    short: Liverpool
+    abbreviation: LIV
+  labels: {pt-BR: Liverpool, es: Liverpool, en: Liverpool}
+  api_sports:
+    team_id: 40
+    match: {name: Liverpool, country: England}
+  founded: 1892-06-03
+  city: Liverpool
+  colors:
+  - vermelho
+  nicknames:
+  - The Reds
+  mascot: Mighty Red
+  rallying_cries:
+  - You'll Never Walk Alone
+  stadium:
+    name: Anfield
+    city: Liverpool
+  rivals:
+  - {team: everton, derby: merseyside-derby, intensity: 5}
+  - {team: manchester-united, derby: north-west-derby, intensity: 5}
+  identity:
+  - Fundado em 3 de junho de 1892.
+  - '"You''ll Never Walk Alone" aparece no escudo do clube e é o lema associado à torcida.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Reds
+      - Os Vermelhos
+      cheer:
+      - Vai, Liverpool!
+      - You'll Never Walk Alone
+    es:
+      nicknames:
+      - Reds
+      - Los Reds
+      - Los Rojos
+      cheer:
+      - ¡Vamos, Liverpool!
+      - You'll Never Walk Alone
+  sources:
+  - https://en.wikipedia.org/wiki/Liverpool_F.C.
+  - https://pt.wikipedia.org/wiki/Liverpool_Football_Club
+  - https://es.wikipedia.org/wiki/Liverpool_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: arsenal
+  names:
+    official: The Arsenal Football Club
+    short: Arsenal
+    abbreviation: ARS
+  labels: {pt-BR: Arsenal, es: Arsenal, en: Arsenal}
+  api_sports:
+    team_id: 42
+    match: {name: Arsenal, country: England}
+  founded: null
+  city: Londres
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - The Gunners
+  fans:
+    demonym: Gooner
+    group_nicknames:
+    - Gooners
+  mascot: Gunnersaurus
+  rallying_cries:
+  - Victoria Concordia Crescit
+  stadium:
+    name: Emirates Stadium
+    city: Londres
+  rivals:
+  - {team: tottenham-hotspur, derby: north-london-derby, intensity: 5}
+  identity:
+  - Fundado em 1886 como Dial Square por trabalhadores do arsenal real de Woolwich, origem do apelido "Gunners".
+  - Após a temporada 2003-04 ganhou o apelido "The Invincibles" ao terminar a Premier League sem derrotas.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Gunners
+      cheer:
+      - Vai, Arsenal!
+    es:
+      nicknames:
+      - Gunners
+      - Los Gunners
+      - Los Artilleros
+      cheer:
+      - ¡Vamos, Arsenal!
+  sources:
+  - https://en.wikipedia.org/wiki/Arsenal_F.C.
+  - https://pt.wikipedia.org/wiki/Arsenal_Football_Club
+  - https://es.wikipedia.org/wiki/Arsenal_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: chelsea
+  names:
+    official: Chelsea Football Club
+    short: Chelsea
+    abbreviation: CHE
+  labels: {pt-BR: Chelsea, es: Chelsea, en: Chelsea}
+  api_sports:
+    team_id: 49
+    match: {name: Chelsea, country: England}
+  founded: 1905-03-10
+  city: Londres
+  colors:
+  - azul
+  - branco
+  nicknames:
+  - The Blues
+  - The Pride of London
+  mascot: Stamford the Lion
+  stadium:
+    name: Stamford Bridge
+    nicknames:
+    - The Bridge
+    city: Londres
+  identity:
+  - Fundado em 10 de março de 1905; manda seus jogos em Stamford Bridge desde a fundação.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Blues
+      - Os Azuis
+      cheer:
+      - Vai, Chelsea!
+    es:
+      nicknames:
+      - Blues
+      - Los Blues
+      - Los Azules
+      cheer:
+      - ¡Vamos, Chelsea!
+  sources:
+  - https://en.wikipedia.org/wiki/Chelsea_F.C.
+  - https://pt.wikipedia.org/wiki/Chelsea_Football_Club
+  - https://es.wikipedia.org/wiki/Chelsea_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: tottenham-hotspur
+  names:
+    official: Tottenham Hotspur Football Club
+    short: Tottenham
+    abbreviation: TOT
+  labels: {pt-BR: Tottenham, es: Tottenham, en: Tottenham Hotspur}
+  api_sports:
+    team_id: 47
+    match: {name: Tottenham, country: England}
+  founded: 1882-09-05
+  city: Londres
+  colors:
+  - branco
+  - azul-marinho
+  nicknames:
+  - Spurs
+  - The Lilywhites
+  mascot: Chirpy
+  rallying_cries:
+  - Audere est Facere
+  stadium:
+    name: Tottenham Hotspur Stadium
+    city: Londres
+  rivals:
+  - {team: arsenal, derby: north-london-derby, intensity: 5}
+  identity:
+  - Fundado em 5 de setembro de 1882 como Hotspur F.C.
+  - '"Audere est Facere" (Ousar é fazer) é o lema do clube.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Spurs
+      - Lírios Brancos
+      cheer:
+      - Vai, Spurs!
+    es:
+      nicknames:
+      - Spurs
+      - Los Spurs
+      cheer:
+      - ¡Vamos, Spurs!
+  sources:
+  - https://en.wikipedia.org/wiki/Tottenham_Hotspur_F.C.
+  - https://pt.wikipedia.org/wiki/Tottenham_Hotspur_Football_Club
+  - https://es.wikipedia.org/wiki/Tottenham_Hotspur_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: newcastle-united
+  names:
+    official: Newcastle United Football Club
+    short: Newcastle
+    abbreviation: NEW
+  labels: {pt-BR: Newcastle, es: Newcastle, en: Newcastle United}
+  api_sports:
+    team_id: 34
+    match: {name: Newcastle, country: England}
+  founded: null
+  city: Newcastle upon Tyne
+  colors:
+  - preto
+  - branco
+  nicknames:
+  - The Magpies
+  - The Toon
+  fans:
+    demonym: Geordie
+    group_nicknames:
+    - Toon Army
+  mascot: Monty Magpie
+  stadium:
+    name: St James' Park
+    city: Newcastle upon Tyne
+  rivals:
+  - {team: sunderland, derby: tyne-wear-derby, intensity: 5}
+  identity:
+  - Clube formado em 1892 com o nome Newcastle United, a partir do Newcastle East End (origem em 1881 como Stanley F.C.).
+  - '"Magpies" (pegas) vem das listras alvinegras do uniforme.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Magpies
+      - Toon
+      cheer:
+      - Vai, Newcastle!
+    es:
+      nicknames:
+      - Magpies
+      - Las Urracas
+      - Los Magpies
+      cheer:
+      - ¡Vamos, Newcastle!
+  sources:
+  - https://en.wikipedia.org/wiki/Newcastle_United_F.C.
+  - https://pt.wikipedia.org/wiki/Newcastle_United_Football_Club
+  - https://es.wikipedia.org/wiki/Newcastle_United_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: aston-villa
+  names:
+    official: Aston Villa Football Club
+    short: Aston Villa
+    abbreviation: AVL
+  labels: {pt-BR: Aston Villa, es: Aston Villa, en: Aston Villa}
+  api_sports:
+    team_id: 66
+    match: {name: Aston Villa, country: England}
+  founded: 1874-11-21
+  city: Birmingham
+  colors:
+  - grená
+  - azul-celeste
+  nicknames:
+  - The Villans
+  - The Lions
+  - Villa
+  mascot: Hercules the Lion
+  stadium:
+    name: Villa Park
+    city: Birmingham
+  identity:
+  - Fundado em 21 de novembro de 1874 em Aston, Birmingham.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Villa
+      - Villans
+      - Leões
+      cheer:
+      - Vai, Villa!
+    es:
+      nicknames:
+      - Villa
+      - Los Villanos
+      - Los Leones
+      cheer:
+      - ¡Vamos, Villa!
+  sources:
+  - https://en.wikipedia.org/wiki/Aston_Villa_F.C.
+  - https://pt.wikipedia.org/wiki/Aston_Villa_Football_Club
+  - https://es.wikipedia.org/wiki/Aston_Villa_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: everton
+  names:
+    official: Everton Football Club
+    short: Everton
+    abbreviation: EVE
+  labels: {pt-BR: Everton, es: Everton, en: Everton}
+  api_sports:
+    team_id: 45
+    match: {name: Everton, country: England}
+  founded: null
+  city: Liverpool
+  colors:
+  - azul
+  - branco
+  nicknames:
+  - The Toffees
+  - The Blues
+  - The People's Club
+  - The School of Science
+  fans:
+    demonym: Evertonian
+  mascot: Changy the Elephant
+  rallying_cries:
+  - Nil Satis Nisi Optimum
+  stadium:
+    name: Hill Dickinson Stadium
+    nicknames:
+    - Everton Stadium
+    city: Liverpool
+  rivals:
+  - {team: liverpool, derby: merseyside-derby, intensity: 5}
+  identity:
+  - Fundado em 1878; a partir de 2025 trocou Goodison Park pelo novo Hill Dickinson Stadium.
+  - '"Nil Satis Nisi Optimum" (Nada além do melhor basta) é o lema do clube.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Toffees
+      - Caramelos
+      - Clube do Povo
+      cheer:
+      - Vai, Everton!
+    es:
+      nicknames:
+      - Toffees
+      - Los Toffees
+      - Los Caramelos
+      cheer:
+      - ¡Vamos, Everton!
+  sources:
+  - https://en.wikipedia.org/wiki/Everton_F.C.
+  - https://pt.wikipedia.org/wiki/Everton_Football_Club
+  - https://es.wikipedia.org/wiki/Everton_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: west-ham-united
+  names:
+    official: West Ham United Football Club
+    short: West Ham
+    abbreviation: WHU
+  labels: {pt-BR: West Ham, es: West Ham, en: West Ham United}
+  api_sports:
+    team_id: 48
+    match: {name: West Ham, country: England}
+  founded: 1895-06-29
+  city: Londres
+  colors:
+  - grená
+  - azul-celeste
+  nicknames:
+  - The Hammers
+  - The Irons
+  - The Academy of Football
+  mascot: Hammerhead
+  stadium:
+    name: London Stadium
+    nicknames:
+    - Estádio Olímpico de Londres
+    city: Londres
+  identity:
+  - Fundado em 29 de junho de 1895 como Thames Ironworks; virou West Ham United em 5 de julho de 1900.
+  - Os martelos do escudo e o apelido "Irons" lembram a origem operária no estaleiro Thames Ironworks.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Hammers
+      - Os Martelos
+      - Academia do Futebol
+      cheer:
+      - Vai, West Ham!
+    es:
+      nicknames:
+      - Hammers
+      - Los Hammers
+      - Los Martillos
+      cheer:
+      - ¡Vamos, West Ham!
+  sources:
+  - https://en.wikipedia.org/wiki/West_Ham_United_F.C.
+  - https://pt.wikipedia.org/wiki/West_Ham_United_Football_Club
+  - https://es.wikipedia.org/wiki/West_Ham_United_Football_Club
+  - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
+  review_status: draft
+- slug: sunderland
+  names:
+    official: Sunderland Association Football Club
+    short: Sunderland
+    abbreviation: SUN
+  labels: {pt-BR: Sunderland, es: Sunderland, en: Sunderland}
+  api_sports:
+    team_id: null
+    match: {name: Sunderland, country: England}
+  founded: 1879-10-17
+  city: Sunderland
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - The Black Cats
+  fans:
+    demonym: Mackem
+    group_nicknames:
+    - Mackems
+  mascot: Samson and Delilah
+  stadium:
+    name: Stadium of Light
+    city: Sunderland
+  rivals:
+  - {team: newcastle-united, derby: tyne-wear-derby, intensity: 5}
+  identity:
+  - Fundado em 1879 como Sunderland and District Teachers.
+  - Incluído nesta base como rival do Newcastle no Tyne–Wear derby.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Black Cats
+      - Gatos Pretos
+      cheer:
+      - Vai, Sunderland!
+    es:
+      nicknames:
+      - Black Cats
+      - Los Gatos Negros
+      cheer:
+      - ¡Vamos, Sunderland!
+  sources:
+  - https://en.wikipedia.org/wiki/Sunderland_A.F.C.
+  - https://pt.wikipedia.org/wiki/Sunderland_Association_Football_Club
+  - https://es.wikipedia.org/wiki/Sunderland_Association_Football_Club
+  review_status: draft

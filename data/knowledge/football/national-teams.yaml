@@ -1,0 +1,1104 @@
+# Base semântica — seleções nacionais (schema v1 de times, ver data/knowledge/SCHEMA.md)
+# country = ISO 3166-1 alpha-2 (Inglaterra = GB-ENG). world_cup_titles conferido no infobox da Wikipedia (inclui a Copa de 2026).
+# founded = null de propósito (data da federação não é data da seleção). api_sports.team_id: null — nenhuma fonte exibiu o ID.
+schema_version: 1
+teams:
+- slug: brazil-nt
+  names:
+    official: Seleção Brasileira de Futebol
+    short: Brasil
+    abbreviation: BRA
+  labels: {pt-BR: Seleção Brasileira, es: Brasil, en: Brazil}
+  api_sports:
+    team_id: null
+    match: {name: Brazil, country: Brazil}
+  founded: null
+  colors:
+  - amarelo
+  - verde
+  - azul
+  nicknames:
+  - Seleção
+  - Canarinho
+  - Amarelinha
+  - Verde-Amarela
+  country: BR
+  world_cup_titles: 5
+  rivals:
+  - {team: argentina-nt, derby: superclasico-de-las-americas, intensity: 5}
+  - {team: uruguay-nt, derby: classico-do-rio-negro, intensity: 4}
+  identity:
+  - 'Única seleção pentacampeã mundial: 1958, 1962, 1970, 1994 e 2002.'
+  - Disputou todas as edições da Copa do Mundo desde 1930.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Seleção
+      - Canarinho
+      - Amarelinha
+      - Verde-Amarela
+      - Pentacampeã
+      cheer:
+      - Vai, Brasil!
+      - Vamos, Seleção!
+    es:
+      nicknames:
+      - La Canarinha
+      - La Verdeamarela
+      - La Auriverde
+      cheer:
+      - ¡Vamos, Brasil!
+  sources:
+  - https://en.wikipedia.org/wiki/Brazil_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Brasileira_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Brasil
+  review_status: draft
+- slug: argentina-nt
+  names:
+    official: Selección Argentina de Fútbol
+    short: Argentina
+    abbreviation: ARG
+  labels: {pt-BR: Argentina, es: Argentina, en: Argentina}
+  api_sports:
+    team_id: null
+    match: {name: Argentina, country: Argentina}
+  founded: null
+  colors:
+  - azul-celeste
+  - branco
+  nicknames:
+  - La Albiceleste
+  - La Selección
+  country: AR
+  world_cup_titles: 3
+  rivals:
+  - {team: brazil-nt, derby: superclasico-de-las-americas, intensity: 5}
+  - {team: uruguay-nt, derby: clasico-del-rio-de-la-plata, intensity: 5}
+  identity:
+  - Campeã mundial em 1978, 1986 e 2022; vice-campeã em 2026, perdendo a final para a Espanha.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Albiceleste
+      - Tricampeã mundial
+      cheer:
+      - Vamos, Argentina!
+    es:
+      nicknames:
+      - La Albiceleste
+      - La Selección
+      cheer:
+      - ¡Vamos, Argentina!
+  sources:
+  - https://en.wikipedia.org/wiki/Argentina_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Argentina_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Argentina
+  - https://www.nbcnewyork.com/world-cup/spain-argentina-final-messi-yamal-score/6527556/
+  review_status: draft
+- slug: uruguay-nt
+  names:
+    official: Selección Uruguaya de Fútbol
+    short: Uruguai
+    abbreviation: URU
+  labels: {pt-BR: Uruguai, es: Uruguay, en: Uruguay}
+  api_sports:
+    team_id: null
+    match: {name: Uruguay, country: Uruguay}
+  founded: null
+  colors:
+  - azul-celeste
+  - branco
+  nicknames:
+  - La Celeste
+  - Celeste Olímpica
+  - Los Charrúas
+  country: UY
+  world_cup_titles: 2
+  stadium:
+    name: Estadio Centenario
+    city: Montevidéu
+  rivals:
+  - {team: argentina-nt, derby: clasico-del-rio-de-la-plata, intensity: 5}
+  - {team: brazil-nt, derby: classico-do-rio-negro, intensity: 4}
+  identity:
+  - Campeão mundial em 1930 (primeira Copa, em casa) e 1950.
+  - Campeão olímpico em 1924 e 1928, origem do apelido "Celeste Olímpica".
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Celeste
+      - Celeste Olímpica
+      - Charruas
+      cheer:
+      - Vamos, Uruguai!
+    es:
+      nicknames:
+      - La Celeste
+      - Celeste Olímpica
+      - Los Charrúas
+      cheer:
+      - ¡Vamos, Uruguay!
+      - ¡Arriba la Celeste!
+  sources:
+  - https://en.wikipedia.org/wiki/Uruguay_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Uruguaia_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Uruguay
+  review_status: draft
+- slug: chile-nt
+  names:
+    official: Selección de Fútbol de Chile
+    short: Chile
+    abbreviation: CHI
+  labels: {pt-BR: Chile, es: Chile, en: Chile}
+  api_sports:
+    team_id: null
+    match: {name: Chile, country: Chile}
+  founded: null
+  colors:
+  - vermelho
+  - azul
+  - branco
+  nicknames:
+  - La Roja
+  - El Equipo de Todos
+  country: CL
+  world_cup_titles: 0
+  stadium:
+    name: Estadio Nacional Julio Martínez Prádanos
+    nicknames:
+    - Estadio Nacional
+    city: Santiago
+  rivals:
+  - {team: peru-nt, derby: clasico-del-pacifico, intensity: 4}
+  identity:
+  - 'Melhor campanha em Copas: 3º lugar em 1962, como anfitrião.'
+  - Bicampeão da Copa América (2015 e Centenário 2016).
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - La Roja
+      cheer:
+      - Vamos, Chile!
+    es:
+      nicknames:
+      - La Roja
+      - El Equipo de Todos
+      cheer:
+      - ¡Vamos, Chile!
+      - ¡Chi-chi-chi, le-le-le!
+  sources:
+  - https://en.wikipedia.org/wiki/Chile_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Chilena_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Chile
+  review_status: draft
+- slug: colombia-nt
+  names:
+    official: Selección Colombia
+    short: Colômbia
+    abbreviation: COL
+  labels: {pt-BR: Colômbia, es: Colombia, en: Colombia}
+  api_sports:
+    team_id: null
+    match: {name: Colombia, country: Colombia}
+  founded: null
+  colors:
+  - amarelo
+  - azul
+  - vermelho
+  nicknames:
+  - Los Cafeteros
+  - La Tricolor
+  - La Sele
+  country: CO
+  world_cup_titles: 0
+  stadium:
+    name: Estadio Metropolitano Roberto Meléndez
+    nicknames:
+    - El Metropolitano
+    city: Barranquilla
+  identity:
+  - 'Melhor campanha em Copas: quartas de final em 2014.'
+  - Campeã da Copa América de 2001.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Cafeteros
+      - Tricolor
+      cheer:
+      - Vamos, Colômbia!
+    es:
+      nicknames:
+      - Los Cafeteros
+      - La Tricolor
+      - La Sele
+      cheer:
+      - ¡Vamos, Colombia!
+  sources:
+  - https://en.wikipedia.org/wiki/Colombia_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Colombiana_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Colombia
+  review_status: draft
+- slug: peru-nt
+  names:
+    official: Selección Peruana de Fútbol
+    short: Peru
+    abbreviation: PER
+  labels: {pt-BR: Peru, es: Perú, en: Peru}
+  api_sports:
+    team_id: null
+    match: {name: Peru, country: Peru}
+  founded: null
+  colors:
+  - branco
+  - vermelho
+  nicknames:
+  - La Bicolor
+  - La Blanquirroja
+  - La Rojiblanca
+  - Los Incas
+  country: PE
+  world_cup_titles: 0
+  stadium:
+    name: Estadio Nacional del Perú
+    nicknames:
+    - Estadio Nacional
+    city: Lima
+  rivals:
+  - {team: chile-nt, derby: clasico-del-pacifico, intensity: 4}
+  identity:
+  - Campeão da Copa América em 1939 e 1975.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Bicolor
+      - Blanquirroja
+      - Incas
+      cheer:
+      - Vamos, Peru!
+    es:
+      nicknames:
+      - La Bicolor
+      - La Blanquirroja
+      - La Rojiblanca
+      cheer:
+      - ¡Arriba Perú!
+      - ¡Vamos, Perú!
+  sources:
+  - https://en.wikipedia.org/wiki/Peru_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Peruana_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_del_Per%C3%BA
+  review_status: draft
+- slug: ecuador-nt
+  names:
+    official: Selección de Fútbol de Ecuador
+    short: Equador
+    abbreviation: ECU
+  labels: {pt-BR: Equador, es: Ecuador, en: Ecuador}
+  api_sports:
+    team_id: null
+    match: {name: Ecuador, country: Ecuador}
+  founded: null
+  colors:
+  - amarelo
+  - azul
+  - vermelho
+  nicknames:
+  - La Tri
+  - La Tricolor
+  country: EC
+  world_cup_titles: 0
+  stadium:
+    name: Estadio Rodrigo Paz Delgado
+    city: Quito
+  identity:
+  - 'Estreou em Copas em 2002; melhor campanha: oitavas de final em 2006.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - La Tri
+      - Tricolor
+      cheer:
+      - Vamos, Equador!
+    es:
+      nicknames:
+      - La Tri
+      - La Tricolor
+      cheer:
+      - ¡Vamos, Ecuador!
+      - ¡Sí se puede!
+  sources:
+  - https://en.wikipedia.org/wiki/Ecuador_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Equatoriana_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Ecuador
+  review_status: draft
+- slug: paraguay-nt
+  names:
+    official: Selección Paraguaya de Fútbol
+    short: Paraguai
+    abbreviation: PAR
+  labels: {pt-BR: Paraguai, es: Paraguay, en: Paraguay}
+  api_sports:
+    team_id: null
+    match: {name: Paraguay, country: Paraguay}
+  founded: null
+  colors:
+  - vermelho
+  - branco
+  - azul
+  nicknames:
+  - La Albirroja
+  - Los Guaraníes
+  country: PY
+  world_cup_titles: 0
+  stadium:
+    name: Estadio Defensores del Chaco
+    city: Assunção
+  identity:
+  - 'Melhor campanha em Copas: quartas de final em 2010.'
+  - Campeão da Copa América em 1953 e 1979.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Albirroja
+      - Guaranis
+      cheer:
+      - Vamos, Paraguai!
+    es:
+      nicknames:
+      - La Albirroja
+      - Los Guaraníes
+      cheer:
+      - ¡Vamos, Paraguay!
+  sources:
+  - https://en.wikipedia.org/wiki/Paraguay_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Paraguaia_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Paraguay
+  review_status: draft
+- slug: bolivia-nt
+  names:
+    official: Selección de Fútbol de Bolivia
+    short: Bolívia
+    abbreviation: BOL
+  labels: {pt-BR: Bolívia, es: Bolivia, en: Bolivia}
+  api_sports:
+    team_id: null
+    match: {name: Bolivia, country: Bolivia}
+  founded: null
+  colors:
+  - verde
+  - amarelo
+  - vermelho
+  nicknames:
+  - La Verde
+  country: BO
+  world_cup_titles: 0
+  identity:
+  - Campeã da Copa América de 1963, em casa.
+  - Manda jogos em grande altitude (La Paz e El Alto).
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - La Verde
+      cheer:
+      - Vamos, Bolívia!
+    es:
+      nicknames:
+      - La Verde
+      cheer:
+      - ¡Vamos, Bolivia!
+  sources:
+  - https://en.wikipedia.org/wiki/Bolivia_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Boliviana_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Bolivia
+  review_status: draft
+- slug: venezuela-nt
+  names:
+    official: Selección de Fútbol de Venezuela
+    short: Venezuela
+    abbreviation: VEN
+  labels: {pt-BR: Venezuela, es: Venezuela, en: Venezuela}
+  api_sports:
+    team_id: null
+    match: {name: Venezuela, country: Venezuela}
+  founded: null
+  colors:
+  - vinho
+  - branco
+  nicknames:
+  - La Vinotinto
+  country: VE
+  world_cup_titles: 0
+  identity:
+  - 'Melhor campanha na Copa América: 4º lugar em 2011.'
+  - O apelido vem da cor vinho do uniforme.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Vinotinto
+      cheer:
+      - Vamos, Venezuela!
+    es:
+      nicknames:
+      - La Vinotinto
+      cheer:
+      - ¡Vamos, Vinotinto!
+  sources:
+  - https://en.wikipedia.org/wiki/Venezuela_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Venezuelana_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Venezuela
+  review_status: draft
+- slug: mexico-nt
+  names:
+    official: Selección de Fútbol de México
+    short: México
+    abbreviation: MEX
+  labels: {pt-BR: México, es: México, en: Mexico}
+  api_sports:
+    team_id: null
+    match: {name: Mexico, country: Mexico}
+  founded: null
+  colors:
+  - verde
+  - branco
+  - vermelho
+  nicknames:
+  - El Tri
+  - El Tricolor
+  country: MX
+  world_cup_titles: 0
+  stadium:
+    name: Estadio Azteca
+    nicknames:
+    - Azteca
+    city: Cidade do México
+  rivals:
+  - {team: usa-nt, derby: clasico-de-la-concacaf, intensity: 5}
+  identity:
+  - 'Melhor campanha em Copas: quartas de final em 1970 e 1986, ambas em casa.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - El Tri
+      - Tricolor
+      cheer:
+      - Vamos, México!
+    es:
+      nicknames:
+      - El Tri
+      - El Tricolor
+      cheer:
+      - ¡Vamos, México!
+      - ¡Sí se puede!
+  sources:
+  - https://en.wikipedia.org/wiki/Mexico_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Mexicana_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_M%C3%A9xico
+  review_status: draft
+- slug: usa-nt
+  names:
+    official: United States Men's National Soccer Team
+    short: Estados Unidos
+    abbreviation: USA
+  labels: {pt-BR: Estados Unidos, es: Estados Unidos, en: United States}
+  api_sports:
+    team_id: null
+    match: {name: USA, country: USA}
+  founded: null
+  colors:
+  - branco
+  - azul
+  - vermelho
+  nicknames:
+  - USMNT
+  - The Stars and Stripes
+  - The Yanks
+  country: US
+  world_cup_titles: 0
+  rivals:
+  - {team: mexico-nt, derby: clasico-de-la-concacaf, intensity: 5}
+  identity:
+  - 'Melhor campanha em Copas: 3º lugar em 1930.'
+  - Coanfitrião da Copa do Mundo de 2026 com México e Canadá.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Estados Unidos
+      - Yanks
+      - USMNT
+      cheer:
+      - Vamos, Estados Unidos!
+    es:
+      nicknames:
+      - Estados Unidos
+      - Las Barras y las Estrellas
+      - USMNT
+      cheer:
+      - ¡Vamos, Estados Unidos!
+  sources:
+  - https://en.wikipedia.org/wiki/United_States_men's_national_soccer_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_de_Futebol_dos_Estados_Unidos
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_los_Estados_Unidos
+  review_status: draft
+- slug: canada-nt
+  names:
+    official: Canada Men's National Soccer Team
+    short: Canadá
+    abbreviation: CAN
+  labels: {pt-BR: Canadá, es: Canadá, en: Canada}
+  api_sports:
+    team_id: null
+    match: {name: Canada, country: Canada}
+  founded: null
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - Canucks
+  - Les Rouges
+  country: CA
+  world_cup_titles: 0
+  identity:
+  - 'Melhor campanha em Copas: oitavas de final em 2026, como coanfitrião.'
+  - Campeão da Copa Ouro em 2000.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Canadá
+      - Canucks
+      cheer:
+      - Vamos, Canadá!
+    es:
+      nicknames:
+      - Canadá
+      - Los Canucks
+      cheer:
+      - ¡Vamos, Canadá!
+  sources:
+  - https://en.wikipedia.org/wiki/Canada_men's_national_soccer_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Canadense_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Canad%C3%A1
+  review_status: draft
+- slug: costa-rica-nt
+  names:
+    official: Selección de Fútbol de Costa Rica
+    short: Costa Rica
+    abbreviation: CRC
+  labels: {pt-BR: Costa Rica, es: Costa Rica, en: Costa Rica}
+  api_sports:
+    team_id: null
+    match: {name: Costa Rica, country: Costa Rica}
+  founded: null
+  colors:
+  - vermelho
+  - azul
+  - branco
+  nicknames:
+  - Los Ticos
+  - La Sele
+  - La Tricolor
+  country: CR
+  world_cup_titles: 0
+  stadium:
+    name: Estadio Nacional de Costa Rica
+    city: San José
+  identity:
+  - 'Melhor campanha em Copas: quartas de final em 2014.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Ticos
+      - La Sele
+      cheer:
+      - Vamos, Costa Rica!
+    es:
+      nicknames:
+      - Los Ticos
+      - La Sele
+      - La Tricolor
+      cheer:
+      - ¡Vamos, Ticos!
+      - ¡Pura vida!
+  sources:
+  - https://en.wikipedia.org/wiki/Costa_Rica_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Costarriquenha_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Costa_Rica
+  review_status: draft
+- slug: spain-nt
+  names:
+    official: Selección Española de Fútbol
+    short: Espanha
+    abbreviation: ESP
+  labels: {pt-BR: Espanha, es: España, en: Spain}
+  api_sports:
+    team_id: null
+    match: {name: Spain, country: Spain}
+  founded: null
+  colors:
+  - vermelho
+  - amarelo
+  nicknames:
+  - La Roja
+  - La Furia Roja
+  country: ES
+  world_cup_titles: 2
+  rivals:
+  - {team: portugal-nt, derby: derbi-iberico, intensity: 4}
+  identity:
+  - 'Campeã mundial em 2010 e 2026 (final de 2026: 1–0 na prorrogação sobre a Argentina, em 19 de julho de 2026).'
+  - 'Tetracampeã europeia: 1964, 2008, 2012 e 2024.'
+  - Na Espanha, "La Roja" substituiu os antigos apelidos "La Furia" e "La Furia Roja".
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - La Roja
+      - A Fúria
+      cheer:
+      - Vamos, Espanha!
+    es:
+      nicknames:
+      - La Roja
+      - La Furia Roja
+      cheer:
+      - ¡Vamos, España!
+      - ¡A por ellos!
+  sources:
+  - https://en.wikipedia.org/wiki/Spain_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Espanhola_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Espa%C3%B1a
+  - https://www.nbcnewyork.com/world-cup/spain-argentina-final-messi-yamal-score/6527556/
+  review_status: draft
+- slug: france-nt
+  names:
+    official: Équipe de France de football
+    short: França
+    abbreviation: FRA
+  labels: {pt-BR: França, es: Francia, en: France}
+  api_sports:
+    team_id: null
+    match: {name: France, country: France}
+  founded: null
+  colors:
+  - azul
+  - branco
+  - vermelho
+  nicknames:
+  - Les Bleus
+  - Les Tricolores
+  country: FR
+  world_cup_titles: 2
+  stadium:
+    name: Stade de France
+    city: Saint-Denis
+  identity:
+  - Campeã mundial em 1998 e 2018.
+  - Campeã europeia em 1984 e 2000.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Les Bleus
+      - Os Azuis
+      cheer:
+      - Vamos, França!
+    es:
+      nicknames:
+      - Les Bleus
+      - Los Galos
+      - Los Azules
+      cheer:
+      - ¡Vamos, Francia!
+      - Allez les Bleus!
+  sources:
+  - https://en.wikipedia.org/wiki/France_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Francesa_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Francia
+  review_status: draft
+- slug: germany-nt
+  names:
+    official: Deutsche Fußballnationalmannschaft
+    short: Alemanha
+    abbreviation: GER
+  labels: {pt-BR: Alemanha, es: Alemania, en: Germany}
+  api_sports:
+    team_id: null
+    match: {name: Germany, country: Germany}
+  founded: null
+  colors:
+  - branco
+  - preto
+  nicknames:
+  - Die Mannschaft
+  - Nationalelf
+  - DFB-Elf
+  - DFB-Team
+  country: DE
+  world_cup_titles: 4
+  rivals:
+  - {team: england-nt, derby: england-germany, intensity: 4}
+  - {team: netherlands-nt, derby: germany-netherlands, intensity: 4}
+  identity:
+  - Campeã mundial em 1954, 1974 e 1990 (como Alemanha Ocidental) e 2014.
+  - Campeã europeia em 1972, 1980 e 1996.
+  - Na Alemanha a equipe é chamada sobretudo de "Nationalmannschaft" ou "DFB-Elf"; "Die Mannschaft" é mais usado pela imprensa estrangeira.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Alemanha
+      - Mannschaft
+      - Tetracampeã
+      cheer:
+      - Vamos, Alemanha!
+    es:
+      nicknames:
+      - Alemania
+      - La Mannschaft
+      - Los Teutones
+      cheer:
+      - ¡Vamos, Alemania!
+  sources:
+  - https://en.wikipedia.org/wiki/Germany_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Alem%C3%A3_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Alemania
+  review_status: draft
+- slug: italy-nt
+  names:
+    official: Nazionale di calcio dell'Italia
+    short: Itália
+    abbreviation: ITA
+  labels: {pt-BR: Itália, es: Italia, en: Italy}
+  api_sports:
+    team_id: null
+    match: {name: Italy, country: Italy}
+  founded: null
+  colors:
+  - azul
+  - branco
+  nicknames:
+  - Gli Azzurri
+  - Squadra Azzurra
+  - La Nazionale
+  country: IT
+  world_cup_titles: 4
+  identity:
+  - Campeã mundial em 1934, 1938, 1982 e 2006.
+  - Campeã europeia em 1968 e 2020.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Azzurra
+      - Squadra Azzurra
+      - Tetracampeã
+      cheer:
+      - Forza Azzurri!
+    es:
+      nicknames:
+      - La Azzurra
+      - Los Azzurri
+      - La Nazionale
+      cheer:
+      - ¡Vamos, Italia!
+  sources:
+  - https://en.wikipedia.org/wiki/Italy_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Italiana_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Italia
+  review_status: draft
+- slug: england-nt
+  names:
+    official: England National Football Team
+    short: Inglaterra
+    abbreviation: ENG
+  labels: {pt-BR: Inglaterra, es: Inglaterra, en: England}
+  api_sports:
+    team_id: null
+    match: {name: England, country: England}
+  founded: null
+  colors:
+  - branco
+  - azul-marinho
+  nicknames:
+  - The Three Lions
+  country: GB-ENG
+  world_cup_titles: 1
+  stadium:
+    name: Wembley Stadium
+    nicknames:
+    - Wembley
+    city: Londres
+  rivals:
+  - {team: germany-nt, derby: england-germany, intensity: 4}
+  identity:
+  - Campeã mundial em 1966, em casa.
+  - 3º lugar na Copa do Mundo de 2026.
+  - Vice-campeã europeia em 2020 e 2024.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Inglaterra
+      - Três Leões
+      cheer:
+      - Vamos, Inglaterra!
+    es:
+      nicknames:
+      - Inglaterra
+      - Los Tres Leones
+      cheer:
+      - ¡Vamos, Inglaterra!
+  sources:
+  - https://en.wikipedia.org/wiki/England_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Inglesa_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Inglaterra
+  - https://blog.wego.com/who-won-the-fifa-world-cup/
+  review_status: draft
+- slug: portugal-nt
+  names:
+    official: Seleção Portuguesa de Futebol
+    short: Portugal
+    abbreviation: POR
+  labels: {pt-BR: Portugal, es: Portugal, en: Portugal}
+  api_sports:
+    team_id: null
+    match: {name: Portugal, country: Portugal}
+  founded: null
+  colors:
+  - vermelho
+  - verde
+  nicknames:
+  - Seleção das Quinas
+  - Lusos
+  country: PT
+  world_cup_titles: 0
+  rivals:
+  - {team: spain-nt, derby: derbi-iberico, intensity: 4}
+  identity:
+  - Campeão europeu em 2016.
+  - 'Melhor campanha em Copas: 3º lugar em 1966.'
+  - '"Quinas" são os cinco escudetes da bandeira portuguesa.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Seleção das Quinas
+      - Lusos
+      cheer:
+      - Força, Portugal!
+    es:
+      nicknames:
+      - Portugal
+      - Los Lusos
+      cheer:
+      - ¡Vamos, Portugal!
+  sources:
+  - https://en.wikipedia.org/wiki/Portugal_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Portuguesa_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Portugal
+  review_status: draft
+- slug: netherlands-nt
+  names:
+    official: Nederlands voetbalelftal
+    short: Holanda
+    abbreviation: NED
+  labels: {pt-BR: Holanda, es: Países Bajos, en: Netherlands}
+  api_sports:
+    team_id: null
+    match: {name: Netherlands, country: Netherlands}
+  founded: null
+  colors:
+  - laranja
+  nicknames:
+  - Oranje
+  - Het Nederlands Elftal
+  country: NL
+  world_cup_titles: 0
+  rivals:
+  - {team: germany-nt, derby: germany-netherlands, intensity: 4}
+  identity:
+  - 'Três vezes vice-campeã mundial: 1974, 1978 e 2010.'
+  - Campeã europeia em 1988.
+  - '"Laranja Mecânica" (Clockwork Orange) é o apelido da geração do futebol total dos anos 1970.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Holanda
+      - Laranja Mecânica
+      - Oranje
+      cheer:
+      - Vamos, Holanda!
+    es:
+      nicknames:
+      - Países Bajos
+      - Holanda
+      - La Naranja Mecánica
+      - Oranje
+      cheer:
+      - ¡Vamos, Holanda!
+  sources:
+  - https://en.wikipedia.org/wiki/Netherlands_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Neerlandesa_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_los_Pa%C3%ADses_Bajos
+  review_status: draft
+- slug: belgium-nt
+  names:
+    official: Belgian National Football Team
+    short: Bélgica
+    abbreviation: BEL
+  labels: {pt-BR: Bélgica, es: Bélgica, en: Belgium}
+  api_sports:
+    team_id: null
+    match: {name: Belgium, country: Belgium}
+  founded: null
+  colors:
+  - vermelho
+  - preto
+  - amarelo
+  nicknames:
+  - Rode Duivels
+  - Diables Rouges
+  - Roten Teufel
+  country: BE
+  world_cup_titles: 0
+  stadium:
+    name: King Baudouin Stadium
+    nicknames:
+    - Estádio Rei Balduíno
+    city: Bruxelas
+  identity:
+  - 'Melhor campanha em Copas: 3º lugar em 2018.'
+  - 'O apelido aparece nas três línguas oficiais: neerlandês, francês e alemão.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Diabos Vermelhos
+      - Bélgica
+      cheer:
+      - Vamos, Bélgica!
+    es:
+      nicknames:
+      - Los Diablos Rojos
+      - Bélgica
+      cheer:
+      - ¡Vamos, Bélgica!
+  sources:
+  - https://en.wikipedia.org/wiki/Belgium_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Belga_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_B%C3%A9lgica
+  review_status: draft
+- slug: croatia-nt
+  names:
+    official: Hrvatska nogometna reprezentacija
+    short: Croácia
+    abbreviation: CRO
+  labels: {pt-BR: Croácia, es: Croacia, en: Croatia}
+  api_sports:
+    team_id: null
+    match: {name: Croatia, country: Croatia}
+  founded: null
+  colors:
+  - vermelho
+  - branco
+  - azul
+  nicknames:
+  - Vatreni
+  - Kockasti
+  country: HR
+  world_cup_titles: 0
+  identity:
+  - Vice-campeã mundial em 2018; estreou em Copas em 1998, terminando em 3º lugar.
+  - '"Kockasti" (xadrezados) remete ao uniforme quadriculado vermelho e branco.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Croácia
+      - Vatreni
+      - Time Xadrez
+      cheer:
+      - Vamos, Croácia!
+    es:
+      nicknames:
+      - Croacia
+      - Vatreni
+      - Los Ardientes
+      cheer:
+      - ¡Vamos, Croacia!
+  sources:
+  - https://en.wikipedia.org/wiki/Croatia_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Croata_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Croacia
+  review_status: draft
+- slug: morocco-nt
+  names:
+    official: Équipe du Maroc de football
+    short: Marrocos
+    abbreviation: MAR
+  labels: {pt-BR: Marrocos, es: Marruecos, en: Morocco}
+  api_sports:
+    team_id: null
+    match: {name: Morocco, country: Morocco}
+  founded: null
+  colors:
+  - vermelho
+  - verde
+  nicknames:
+  - Atlas Lions
+  - Usud al-Atlas
+  country: MA
+  world_cup_titles: 0
+  stadium:
+    name: Prince Moulay Abdellah Stadium
+    city: Rabat
+  identity:
+  - 4º lugar na Copa do Mundo de 2022, melhor campanha de uma seleção africana até então.
+  - Campeão da Copa Africana de Nações em 1976 e 2025.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Marrocos
+      - Leões do Atlas
+      cheer:
+      - Vamos, Marrocos!
+    es:
+      nicknames:
+      - Marruecos
+      - Los Leones del Atlas
+      cheer:
+      - ¡Vamos, Marruecos!
+  sources:
+  - https://en.wikipedia.org/wiki/Morocco_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Marroquina_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Marruecos
+  review_status: draft
+- slug: japan-nt
+  names:
+    official: Japan National Football Team
+    short: Japão
+    abbreviation: JPN
+  labels: {pt-BR: Japão, es: Japón, en: Japan}
+  api_sports:
+    team_id: null
+    match: {name: Japan, country: Japan}
+  founded: null
+  colors:
+  - azul
+  - branco
+  nicknames:
+  - Samurai Blue
+  country: JP
+  world_cup_titles: 0
+  identity:
+  - 'Tetracampeão da Copa da Ásia: 1992, 2000, 2004 e 2011.'
+  - 'Melhor campanha em Copas: oitavas de final (2002, 2010, 2018 e 2022).'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Japão
+      - Samurais Azuis
+      cheer:
+      - Vamos, Japão!
+    es:
+      nicknames:
+      - Japón
+      - Los Samuráis Azules
+      cheer:
+      - ¡Vamos, Japón!
+  sources:
+  - https://en.wikipedia.org/wiki/Japan_national_football_team
+  - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Japonesa_de_Futebol
+  - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Jap%C3%B3n
+  review_status: draft

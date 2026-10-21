@@ -1,0 +1,458 @@
+schema_version: 1
+country: MX
+teams:
+  - slug: club-america
+    names:
+      official: Club América
+      short: América
+      abbreviation: AME
+    api_sports:
+      team_id: 2287
+      match: { name: "Club America", country: "Mexico" }
+    founded: 1916-10-12
+    city: Ciudad de México
+    region: CDMX
+    colors: [amarillo, azul]
+    nicknames: [Águilas, Azulcremas]
+    fans:
+      demonym: americanista
+    mascot: Águila
+    rallying_cries: ["¡Vamos América!", "¡Arriba las Águilas!"]
+    stadium:
+      name: Estadio Azteca
+      nicknames: [Estadio Banorte, Coloso de Santa Úrsula]
+      city: Ciudad de México
+    rivals:
+      - { team: guadalajara, derby: clasico-nacional-mx, intensity: 5 }
+      - { team: cruz-azul, derby: clasico-joven, intensity: 4 }
+      - { team: pumas-unam, derby: clasico-capitalino-mx, intensity: 4 }
+    identity:
+      - "Uno de los clubes más laureados del fútbol mexicano."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos América!", "Le voy al América", "¡Arriba las Águilas!"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_América"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: guadalajara
+    names:
+      official: Club Deportivo Guadalajara
+      short: Chivas
+      abbreviation: GDL
+    api_sports:
+      team_id: 2278
+      match: { name: "Guadalajara Chivas", country: "Mexico" }
+    founded: 1906-05-08
+    city: Guadalajara
+    region: Jalisco
+    colors: [rojo, blanco, azul]
+    nicknames: [Chivas, Rebaño Sagrado, Rojiblancos]
+    fans:
+      demonym: chiva
+    mascot: Chiva
+    rallying_cries: ["¡Vamos Chivas!", "¡Arriba las Chivas!"]
+    stadium:
+      name: Estadio Akron
+      nicknames: []
+      city: Zapopan
+    rivals:
+      - { team: club-america, derby: clasico-nacional-mx, intensity: 5 }
+      - { team: atlas, derby: clasico-tapatio, intensity: 5 }
+    identity:
+      - "Tradición de jugar solo con futbolistas mexicanos."
+      - "El apodo Chivas nació como burla de la prensa y fue adoptado con orgullo por el club."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Chivas!", "Le voy a las Chivas", "¡Arriba el Rebaño!"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Deportivo_Guadalajara"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: cruz-azul
+    names:
+      official: Club de Fútbol Cruz Azul
+      short: Cruz Azul
+      abbreviation: CAZ
+    api_sports:
+      team_id: 2295
+      match: { name: "Cruz Azul", country: "Mexico" }
+    founded: 1927-05-22
+    city: Ciudad de México
+    region: CDMX
+    colors: [azul, blanco]
+    nicknames: [La Máquina, Cementeros, Celestes]
+    fans:
+      demonym: cementero
+    rallying_cries: ["¡Vamos Cruz Azul!", "¡Vamos Máquina!"]
+    stadium:
+      name: Estadio Azteca
+      nicknames: [Estadio Banorte]
+      city: Ciudad de México
+    rivals:
+      - { team: club-america, derby: clasico-joven, intensity: 4 }
+    identity:
+      - "Nació en Jasso, Hidalgo, ligado a la cooperativa cementera Cruz Azul."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Cruz Azul!", "Le voy al Cruz Azul", "¡Vamos Máquina!"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Cruz_Azul_Fútbol_Club"
+      - "https://www.poresto.com/deportes/2026/7/17/liga-mx-confirma-que-cruz-azul-jugara-en-el-estadio-azteca-para-el-apertura-2026-y-pone-fin-a-la-novela-no-tengo-casa.html"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: pumas-unam
+    names:
+      official: Club Universidad Nacional
+      short: Pumas UNAM
+      abbreviation: PUM
+    api_sports:
+      team_id: 2286
+      match: { name: "U.N.A.M. - Pumas", country: "Mexico" }
+    founded: 1954-08-02
+    city: Ciudad de México
+    region: CDMX
+    colors: [azul, oro]
+    nicknames: [Pumas, Auriazules, Universitarios, Felinos]
+    fans:
+      demonym: universitario
+    mascot: Puma
+    rallying_cries: ["¡Goya!", "¡Vamos Pumas!"]
+    stadium:
+      name: Estadio Olímpico Universitario
+      nicknames: [Olímpico de CU]
+      city: Ciudad de México
+    rivals:
+      - { team: club-america, derby: clasico-capitalino-mx, intensity: 4 }
+    identity:
+      - "Equipo de la Universidad Nacional Autónoma de México, reconocido por su cantera."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Goya!", "Le voy a los Pumas", "¡Vamos Pumas!"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Universidad_Nacional"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: tigres-uanl
+    names:
+      official: Club de Fútbol Tigres de la Universidad Autónoma de Nuevo León
+      short: Tigres
+      abbreviation: TIG
+    api_sports:
+      team_id: 2279
+      match: { name: "Tigres UANL", country: "Mexico" }
+    founded: 1960-03-07
+    city: San Nicolás de los Garza
+    region: Nuevo León
+    colors: [amarillo, azul]
+    nicknames: [Felinos, Auriazules]
+    fans:
+      demonym: tigre
+    mascot: Tigre
+    rallying_cries: ["¡Vamos Tigres!"]
+    stadium:
+      name: Estadio Universitario
+      nicknames: [El Volcán]
+      city: San Nicolás de los Garza
+    rivals:
+      - { team: monterrey, derby: clasico-regio, intensity: 5 }
+    identity:
+      - "Representa a la Universidad Autónoma de Nuevo León; campeón de la Concachampions 2020."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Tigres!", "Le voy a Tigres"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_de_Fútbol_Tigres_de_la_Universidad_Autónoma_de_Nuevo_León"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: monterrey
+    names:
+      official: Club de Fútbol Monterrey
+      short: Monterrey
+      abbreviation: MTY
+    api_sports:
+      team_id: 2282
+      match: { name: "Monterrey", country: "Mexico" }
+    founded: 1945-06-28
+    city: Guadalupe
+    region: Nuevo León
+    colors: [azul, blanco]
+    nicknames: [Rayados, La Pandilla]
+    fans:
+      demonym: rayado
+    rallying_cries: ["¡Vamos Rayados!"]
+    stadium:
+      name: Estadio BBVA
+      nicknames: [El Gigante de Acero]
+      city: Guadalupe
+    rivals:
+      - { team: tigres-uanl, derby: clasico-regio, intensity: 5 }
+    identity:
+      - "Cinco veces campeón de la Concacaf Liga de Campeones."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Rayados!", "Le voy a Rayados"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_de_Fútbol_Monterrey"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: toluca
+    names:
+      official: Deportivo Toluca Fútbol Club
+      short: Toluca
+      abbreviation: TOL
+    api_sports:
+      team_id: 2281
+      match: { name: "Toluca", country: "Mexico" }
+    founded: 1917-02-12
+    city: Toluca
+    region: Estado de México
+    colors: [rojo, blanco]
+    nicknames: [Diablos Rojos, Choriceros]
+    fans:
+      demonym: choricero
+    rallying_cries: ["¡Vamos Toluca!", "¡Vamos Diablos!"]
+    stadium:
+      name: Estadio Nemesio Díez
+      nicknames: [La Bombonera]
+      city: Toluca
+    rivals: []
+    identity:
+      - "Club de la capital del Estado de México, conocido como los Diablos Rojos."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Toluca!", "Le voy al Toluca"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Deportivo_Toluca_Fútbol_Club"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: pachuca
+    names:
+      official: Club de Fútbol Pachuca
+      short: Pachuca
+      abbreviation: PAC
+    api_sports:
+      team_id: 2292
+      match: { name: "Pachuca", country: "Mexico" }
+    founded: null
+    city: Pachuca
+    region: Hidalgo
+    colors: [azul, blanco]
+    nicknames: [Tuzos]
+    fans:
+      demonym: tuzo
+    mascot: Tuzo
+    rallying_cries: ["¡Vamos Tuzos!"]
+    stadium:
+      name: Estadio Hidalgo
+      nicknames: [El Huracán]
+      city: Pachuca
+    rivals: []
+    identity:
+      - "Considerado la cuna del fútbol en México, introducido por mineros ingleses de Cornualles."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Tuzos!", "Le voy al Pachuca"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_de_Fútbol_Pachuca"
+      - "https://en.wikipedia.org/wiki/C.F._Pachuca"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: club-leon
+    names:
+      official: Club León
+      short: León
+      abbreviation: LEO
+    api_sports:
+      team_id: 2289
+      match: { name: "Leon", country: "Mexico" }
+    founded: 1944-08-20
+    city: León
+    region: Guanajuato
+    colors: [verde, blanco]
+    nicknames: [La Fiera, Panzas Verdes, Esmeraldas]
+    fans:
+      demonym: esmeralda
+    rallying_cries: ["¡Vamos León!", "¡Vamos Fiera!"]
+    stadium:
+      name: Estadio León
+      nicknames: [Nou Camp]
+      city: León
+    rivals: []
+    identity:
+      - "Club del Bajío conocido como La Fiera; campeón de la Concachampions 2023."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos León!", "Le voy a la Fiera"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_León"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: santos-laguna
+    names:
+      official: Club Santos Laguna
+      short: Santos Laguna
+      abbreviation: SAN
+    api_sports:
+      team_id: 2285
+      match: { name: "Santos Laguna", country: "Mexico" }
+    founded: 1983-09-03
+    city: Torreón
+    region: Coahuila
+    colors: [verde, blanco]
+    nicknames: [Guerreros]
+    fans:
+      demonym: santista
+    rallying_cries: ["¡Vamos Santos!", "¡Vamos Guerreros!"]
+    stadium:
+      name: Estadio Corona
+      nicknames: [TSM Corona]
+      city: Torreón
+    rivals: []
+    identity:
+      - "Representa a la Comarca Lagunera, entre Coahuila y Durango."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Santos!", "Le voy a los Guerreros"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Santos_Laguna"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: atlas
+    names:
+      official: Club Atlas
+      short: Atlas
+      abbreviation: ATL
+    api_sports:
+      team_id: 2283
+      match: { name: "Atlas", country: "Mexico" }
+    founded: 1916-08-15
+    city: Guadalajara
+    region: Jalisco
+    colors: [rojo, negro]
+    nicknames: [Rojinegros, Zorros, La Academia]
+    fans:
+      demonym: atlista
+      group_nicknames: [La Fiel]
+    mascot: Zorro
+    rallying_cries: ["¡Vamos Atlas!", "¡Arriba el Atlas!"]
+    stadium:
+      name: Estadio Jalisco
+      nicknames: []
+      city: Guadalajara
+    rivals:
+      - { team: guadalajara, derby: clasico-tapatio, intensity: 5 }
+    identity:
+      - "Fundado por jóvenes tapatíos que habían estudiado en Inglaterra."
+      - "Bicampeón de Liga MX en Apertura 2021 y Clausura 2022."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Atlas!", "Le voy al Atlas", "¡Arriba el Atlas!"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlas"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: puebla
+    names:
+      official: Club Puebla
+      short: Puebla
+      abbreviation: PUE
+    api_sports:
+      team_id: 2291
+      match: { name: "Puebla", country: "Mexico" }
+    founded: 1944-05-07
+    city: Puebla
+    region: Puebla
+    colors: [azul, blanco]
+    nicknames: [La Franja, Camoteros]
+    fans:
+      demonym: camotero
+    rallying_cries: ["¡Vamos Puebla!", "¡Vamos Franja!"]
+    stadium:
+      name: Estadio Cuauhtémoc
+      nicknames: []
+      city: Puebla
+    rivals: []
+    identity:
+      - "Su camiseta blanca con franja azul diagonal da origen al apodo La Franja."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Puebla!", "Le voy a la Franja"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Puebla"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: necaxa
+    names:
+      official: Club Necaxa
+      short: Necaxa
+      abbreviation: NEC
+    api_sports:
+      team_id: 2288
+      match: { name: "Necaxa", country: "Mexico" }
+    founded: 1923-08-21
+    city: Aguascalientes
+    region: Aguascalientes
+    colors: [rojo, blanco]
+    nicknames: [Rayos, Electricistas, Once Hermanos]
+    fans:
+      demonym: necaxista
+    rallying_cries: ["¡Vamos Necaxa!", "¡Vamos Rayos!"]
+    stadium:
+      name: Estadio Victoria
+      nicknames: []
+      city: Aguascalientes
+    rivals: []
+    identity:
+      - "Nació en la Ciudad de México ligado a la compañía de luz; se mudó a Aguascalientes en 2003."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Necaxa!", "Le voy a los Rayos"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Necaxa"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft
+
+  - slug: tijuana
+    names:
+      official: Club Tijuana Xoloitzcuintles de Caliente
+      short: Tijuana
+      abbreviation: TIJ
+    api_sports:
+      team_id: 2280
+      match: { name: "Club Tijuana", country: "Mexico" }
+    founded: 2007-01-14
+    city: Tijuana
+    region: Baja California
+    colors: [rojo, negro]
+    nicknames: [Xolos]
+    fans:
+      demonym: xolo
+    mascot: Xoloitzcuintle
+    rallying_cries: ["¡Vamos Xolos!"]
+    stadium:
+      name: Estadio Caliente
+      nicknames: []
+      city: Tijuana
+    rivals: []
+    identity:
+      - "Su apodo Xolos homenajea al xoloitzcuintle, perro originario de México; campeón del Apertura 2012."
+    copy_hints:
+      es-MX:
+        cheer: ["¡Vamos Xolos!", "Le voy a los Xolos"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Tijuana"
+      - "https://futboltotal.futbol/league/liga-mx/clasificacion"
+    review_status: draft

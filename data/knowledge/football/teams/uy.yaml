@@ -1,0 +1,196 @@
+schema_version: 1
+country: UY
+teams:
+  - slug: penarol
+    names:
+      official: Club Atlético Peñarol
+      short: Peñarol
+      abbreviation: PEÑ
+    api_sports:
+      team_id: 2348
+      match: { name: "Penarol", country: "Uruguay" }
+    founded: 1891-09-28
+    city: Montevideo
+    region: Montevideo
+    colors: [amarillo, negro]
+    nicknames: [Carbonero, Manya, Aurinegro, Mirasol]
+    fans:
+      demonym: carbonero
+      group_nicknames: [manyas]
+    rallying_cries: ["¡Vamos Peñarol!", "¡Vamos Manya!"]
+    stadium:
+      name: Estadio Campeón del Siglo
+      nicknames: [Campeón del Siglo]
+      city: Montevideo
+    rivals:
+      - { team: nacional-uy, derby: clasico-uruguayo, intensity: 5 }
+    identity:
+      - "Sus orígenes se remontan al Central Uruguay Railway Cricket Club (CURCC), fundado en 1891 por trabajadores ferroviarios; la continuidad histórica es debatida por su rival."
+      - "Cinco veces campeón de la Copa Libertadores."
+    copy_hints:
+      es-UY:
+        cheer: ["¡Vamos Peñarol!", "¡Vamos Manya!", "Hoy alentamos al Carbonero"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Atlético_Peñarol"
+      - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_uruguayo"
+      - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
+    review_status: draft
+
+  - slug: nacional-uy
+    names:
+      official: Club Nacional de Football
+      short: Nacional
+      abbreviation: NAC
+    api_sports:
+      team_id: 2356
+      match: { name: "Club Nacional", country: "Uruguay" }
+    founded: 1899-05-14
+    city: Montevideo
+    region: Montevideo
+    colors: [blanco, azul, rojo]
+    nicknames: [Bolso, Tricolor]
+    fans:
+      demonym: tricolor
+      group_nicknames: [bolsilludos]
+    rallying_cries: ["¡Vamos Nacional!", "¡Vamos Bolso!"]
+    stadium:
+      name: Gran Parque Central
+      nicknames: [Parque Central]
+      city: Montevideo
+    rivals:
+      - { team: penarol, derby: clasico-uruguayo, intensity: 5 }
+    identity:
+      - "Fundado en 1899 por estudiantes uruguayos; se reivindica como el primer club de fútbol fundado por criollos en el país."
+      - "El Gran Parque Central fue sede de partidos del Mundial de 1930."
+      - "Tres veces campeón de la Copa Libertadores."
+    copy_hints:
+      es-UY:
+        cheer: ["¡Vamos Nacional!", "¡Vamos Bolso!", "Hoy alentamos al Tricolor"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Nacional_de_Football"
+      - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
+    review_status: draft
+
+  - slug: defensor-sporting
+    names:
+      official: Defensor Sporting Club
+      short: Defensor Sporting
+      abbreviation: DEF
+    api_sports:
+      team_id: 2350
+      match: { name: "Defensor Sporting", country: "Uruguay" }
+    founded: 1913-03-15
+    city: Montevideo
+    region: Montevideo
+    colors: [violeta, blanco]
+    nicknames: [Violeta, Defensor]
+    fans:
+      demonym: violeta
+    rallying_cries: ["¡Vamos Defensor!"]
+    stadium:
+      name: Estadio Luis Franzini
+      nicknames: [El Franzini]
+      city: Montevideo
+    rivals: []
+    identity:
+      - "Actual denominación tras la fusión de Defensor con Sporting en 1989."
+    copy_hints:
+      es-UY:
+        cheer: ["¡Vamos Defensor!", "Hoy alentamos a la Violeta"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Defensor_Sporting_Club"
+      - "https://futboltotal.futbol/teams/defensor-sporting-uruguay"
+    review_status: draft
+
+  - slug: danubio
+    names:
+      official: Danubio Fútbol Club
+      short: Danubio
+      abbreviation: DAN
+    api_sports:
+      team_id: 2352
+      match: { name: "Danubio", country: "Uruguay" }
+    founded: 1932-03-01
+    city: Montevideo
+    region: Montevideo
+    colors: [blanco, negro]
+    nicknames: [La Franja]
+    fans:
+      demonym: danubiano
+    rallying_cries: ["¡Vamos Danubio!"]
+    stadium:
+      name: Estadio Jardines del Hipódromo María Mincheff de Lazaroff
+      nicknames: [Jardines del Hipódromo]
+      city: Montevideo
+    rivals: []
+    identity:
+      - "Su camiseta blanca con franja diagonal negra da origen al apodo La Franja."
+    copy_hints:
+      es-UY:
+        cheer: ["¡Vamos Danubio!", "Hoy alentamos a la Franja"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Danubio_Fútbol_Club"
+      - "https://futboltotal.futbol/teams/danubio"
+    review_status: draft
+
+  - slug: liverpool-uy
+    names:
+      official: Liverpool Fútbol Club
+      short: Liverpool
+      abbreviation: LIV
+    api_sports:
+      team_id: 2358
+      match: { name: "Liverpool Montevideo", country: "Uruguay" }
+    founded: 1915-02-15
+    city: Montevideo
+    region: Montevideo
+    colors: [negro, azul]
+    nicknames: [Negriazul]
+    fans:
+      demonym: negriazul
+    rallying_cries: ["¡Vamos Liverpool!"]
+    stadium:
+      name: Estadio Belvedere
+      nicknames: [Belvedere]
+      city: Montevideo
+    rivals: []
+    identity:
+      - "Club del barrio Belvedere de Montevideo; campeón uruguayo en 2023."
+    copy_hints:
+      es-UY:
+        cheer: ["¡Vamos Liverpool!", "Hoy alentamos al Negriazul"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Liverpool_Fútbol_Club"
+      - "https://futboltotal.futbol/teams/liverpool-montevideo"
+    review_status: draft
+
+  - slug: montevideo-wanderers
+    names:
+      official: Montevideo Wanderers Fútbol Club
+      short: Wanderers
+      abbreviation: WAN
+    api_sports:
+      team_id: 2360
+      match: { name: "Wanderers", country: "Uruguay" }
+    founded: 1902-08-15
+    city: Montevideo
+    region: Montevideo
+    colors: [blanco, negro]
+    nicknames: [Bohemio]
+    fans:
+      demonym: bohemio
+    rallying_cries: ["¡Vamos Wanderers!"]
+    stadium:
+      name: Parque Alfredo Víctor Viera
+      nicknames: []
+      city: Montevideo
+    rivals: []
+    identity:
+      - "Uno de los clubes históricos del fútbol uruguayo, conocido como Los Bohemios."
+    copy_hints:
+      es-UY:
+        cheer: ["¡Vamos Wanderers!", "Hoy alentamos al Bohemio"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Montevideo_Wanderers_Fútbol_Club"
+      - "https://futboltotal.futbol/teams/wanderers"
+    review_status: draft

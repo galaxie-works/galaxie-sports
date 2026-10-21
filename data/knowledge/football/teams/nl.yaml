@@ -1,0 +1,148 @@
+# Base semântica — clubes dos Países Baixos (schema v1, ver data/knowledge/SCHEMA.md)
+# labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
+# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+schema_version: 1
+country: NL
+teams:
+- slug: ajax
+  names:
+    official: Amsterdamsche Football Club Ajax
+    short: Ajax
+    abbreviation: AJA
+  labels: {pt-BR: Ajax, es: Ajax, en: Ajax}
+  api_sports:
+    team_id: null
+    match: {name: Ajax, country: Netherlands}
+  founded: 1900-03-18
+  city: Amsterdã
+  colors:
+  - branco
+  - vermelho
+  nicknames:
+  - Godenzonen
+  - Ajacieden
+  - De Amsterdammers
+  mascot: Lucky Lynx
+  stadium:
+    name: Johan Cruyff Arena
+    nicknames:
+    - Johan Cruijff ArenA
+    city: Amsterdã
+  rivals:
+  - {team: feyenoord, derby: de-klassieker, intensity: 5}
+  identity:
+  - Fundado em 18 de março de 1900; "Godenzonen" (filhos dos deuses) remete ao herói grego Ájax.
+  - O estádio homenageia Johan Cruyff.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Ajax
+      - Filhos dos Deuses
+      cheer:
+      - Vai, Ajax!
+    es:
+      nicknames:
+      - Ajax
+      - Hijos de los Dioses
+      cheer:
+      - ¡Vamos, Ajax!
+  sources:
+  - https://en.wikipedia.org/wiki/AFC_Ajax
+  - https://pt.wikipedia.org/wiki/Amsterdamsche_Football_Club_Ajax
+  - https://es.wikipedia.org/wiki/Ajax_de_%C3%81msterdam
+  review_status: draft
+- slug: psv
+  names:
+    official: Philips Sport Vereniging
+    short: PSV
+    abbreviation: PSV
+  labels: {pt-BR: PSV, es: PSV, en: PSV Eindhoven}
+  api_sports:
+    team_id: null
+    match: {name: PSV Eindhoven, country: Netherlands}
+  founded: 1913-08-31
+  city: Eindhoven
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - Boeren
+  - Lampen
+  - Rood-witten
+  mascot: Phoxy
+  stadium:
+    name: Philips Stadion
+    city: Eindhoven
+  identity:
+  - Fundado em 31 de agosto de 1913 como clube esportivo da empresa Philips, origem do apelido "Lampen" (lâmpadas).
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - PSV
+      - Camponeses
+      - Lâmpadas
+      cheer:
+      - Vai, PSV!
+    es:
+      nicknames:
+      - PSV
+      - Los Granjeros
+      - Rojiblancos
+      cheer:
+      - ¡Vamos, PSV!
+  sources:
+  - https://en.wikipedia.org/wiki/PSV_Eindhoven
+  - https://pt.wikipedia.org/wiki/PSV_Eindhoven
+  - https://es.wikipedia.org/wiki/PSV_Eindhoven
+  review_status: draft
+- slug: feyenoord
+  names:
+    official: Feyenoord Rotterdam
+    short: Feyenoord
+    abbreviation: FEY
+  labels: {pt-BR: Feyenoord, es: Feyenoord, en: Feyenoord}
+  api_sports:
+    team_id: null
+    match: {name: Feyenoord, country: Netherlands}
+  founded: 1908-07-19
+  city: Roterdã
+  colors:
+  - vermelho
+  - branco
+  - preto
+  nicknames:
+  - De club aan de Maas
+  - De club van het volk
+  - De Trots van Zuid
+  mascot: Coentje
+  rallying_cries:
+  - Geen woorden maar daden
+  stadium:
+    name: De Kuip
+    nicknames:
+    - Stadion Feijenoord
+    city: Roterdã
+  rivals:
+  - {team: ajax, derby: de-klassieker, intensity: 5}
+  identity:
+  - Fundado em 19 de julho de 1908 como Wilhelmina.
+  - '"Geen woorden maar daden" (Não palavras, mas atos) é o lema do clube.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Feyenoord
+      - Clube do Povo
+      cheer:
+      - Vai, Feyenoord!
+    es:
+      nicknames:
+      - Feyenoord
+      - El Club del Pueblo
+      cheer:
+      - ¡Vamos, Feyenoord!
+  sources:
+  - https://en.wikipedia.org/wiki/Feyenoord
+  - https://pt.wikipedia.org/wiki/Feyenoord_Rotterdam
+  - https://es.wikipedia.org/wiki/Feyenoord
+  - https://rotterdammakeithappen.nl/en/brand-partners/feyenoord
+  review_status: draft

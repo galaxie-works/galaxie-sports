@@ -1,0 +1,261 @@
+schema_version: 1
+country: CL
+teams:
+  - slug: colo-colo
+    names:
+      official: Club Social y Deportivo Colo-Colo
+      short: Colo-Colo
+      abbreviation: CC
+    api_sports:
+      team_id: 2315
+      match: { name: "Colo Colo", country: "Chile" }
+    founded: 1925-04-19
+    city: Santiago
+    region: Región Metropolitana
+    colors: [blanco, negro]
+    nicknames: [El Cacique, Albo, El Popular]
+    fans:
+      demonym: colocolino
+      group_nicknames: [albos]
+    rallying_cries: ["¡Vamos Colo-Colo!", "¡Vamos Cacique!"]
+    stadium:
+      name: Estadio Monumental David Arellano
+      nicknames: [El Monumental]
+      city: Santiago
+    rivals:
+      - { team: universidad-de-chile, derby: superclasico-chileno, intensity: 5 }
+    identity:
+      - "Fundado en 1925 por los hermanos Arellano; su nombre evoca al cacique mapuche Colo-Colo."
+      - "Primer club chileno campeón de la Copa Libertadores (1991)."
+    copy_hints:
+      es-CL:
+        cheer: ["¡Vamos Colo-Colo!", "¡Vamos Cacique!", "Hoy alentamos al Albo"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Social_y_Deportivo_Colo-Colo"
+      - "https://en.wikipedia.org/wiki/Colo-Colo"
+      - "https://futboltotal.futbol/teams/colo-colo"
+    review_status: draft
+
+  - slug: universidad-de-chile
+    names:
+      official: Club Universidad de Chile
+      short: Universidad de Chile
+      abbreviation: UCH
+    api_sports:
+      team_id: 2323
+      match: { name: "Universidad de Chile", country: "Chile" }
+    founded: 1927-05-24
+    city: Santiago
+    region: Región Metropolitana
+    colors: [azul, rojo, blanco]
+    nicknames: [La U, El Romántico Viajero, Los Azules, El Chuncho]
+    fans:
+      demonym: azul
+    rallying_cries: ["¡Vamos la U!", "¡Vamos Azul!"]
+    stadium:
+      name: Estadio Nacional Julio Martínez Prádanos
+      nicknames: [El Nacional]
+      city: Santiago
+    rivals:
+      - { team: colo-colo, derby: superclasico-chileno, intensity: 5 }
+      - { team: universidad-catolica-cl, derby: clasico-universitario-cl, intensity: 4 }
+    identity:
+      - "Su símbolo es el chuncho, un búho que aparece en su escudo."
+      - "Campeón de la Copa Sudamericana 2011."
+    copy_hints:
+      es-CL:
+        cheer: ["¡Vamos la U!", "¡Vamos Azul!", "Hoy alentamos al Romántico Viajero"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Universidad_de_Chile"
+      - "https://futboltotal.futbol/teams/universidad-de-chile"
+    review_status: draft
+
+  - slug: universidad-catolica-cl
+    names:
+      official: Club Deportivo Universidad Católica
+      short: Universidad Católica
+      abbreviation: UC
+    api_sports:
+      team_id: 2994
+      match: { name: "U. Catolica", country: "Chile" }
+    founded: 1937-04-21
+    city: Santiago
+    region: Región Metropolitana
+    colors: [blanco, azul]
+    nicknames: [Los Cruzados, La UC]
+    fans:
+      demonym: cruzado
+    rallying_cries: ["¡Vamos la Católica!", "¡Vamos Cruzados!"]
+    stadium:
+      name: Estadio San Carlos de Apoquindo
+      nicknames: [San Carlos]
+      city: Santiago
+    rivals:
+      - { team: universidad-de-chile, derby: clasico-universitario-cl, intensity: 4 }
+    identity:
+      - "Su camiseta blanca con franja azul y cruz roja es su sello."
+    copy_hints:
+      es-CL:
+        cheer: ["¡Vamos la Católica!", "¡Vamos Cruzados!"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Deportivo_Universidad_Católica"
+      - "https://www.fotmob.com/teams/6458"
+      - "https://futboltotal.futbol/teams/u-catolica"
+    review_status: draft
+
+  - slug: cobreloa
+    names:
+      official: Club de Deportes Cobreloa
+      short: Cobreloa
+      abbreviation: COB
+    api_sports:
+      team_id: 2332
+      match: { name: "Cobreloa", country: "Chile" }
+    founded: 1977-01-07
+    city: Calama
+    region: Antofagasta
+    colors: [naranja]
+    nicknames: [Los Zorros del Desierto, Loínos]
+    fans:
+      demonym: loíno
+    rallying_cries: ["¡Vamos Cobreloa!"]
+    stadium:
+      name: Estadio Zorros del Desierto
+      nicknames: []
+      city: Calama
+    rivals: []
+    identity:
+      - "Club de la ciudad minera de Calama; finalista de la Copa Libertadores en 1981 y 1982."
+    copy_hints:
+      es-CL:
+        cheer: ["¡Vamos Cobreloa!", "Hoy alentamos a los Zorros del Desierto"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_de_Deportes_Cobreloa"
+      - "https://futboltotal.futbol/teams/cobreloa"
+    review_status: draft
+
+  - slug: everton-cl
+    names:
+      official: Everton de Viña del Mar
+      short: Everton
+      abbreviation: EVE
+    api_sports:
+      team_id: 2325
+      match: { name: "Everton de Vina", country: "Chile" }
+    founded: 1909-06-24
+    city: Viña del Mar
+    region: Valparaíso
+    colors: [azul, amarillo]
+    nicknames: [Ruleteros, Oro y Cielo]
+    fans:
+      demonym: evertoniano
+    rallying_cries: ["¡Vamos Everton!"]
+    stadium:
+      name: Estadio Sausalito
+      nicknames: [Sausalito]
+      city: Viña del Mar
+    rivals:
+      - { team: santiago-wanderers, derby: clasico-porteno-cl, intensity: 4 }
+    identity:
+      - "Fundado en 1909 por jóvenes anglochilenos que tomaron el nombre del Everton inglés."
+    copy_hints:
+      es-CL:
+        cheer: ["¡Vamos Everton!", "Hoy alentamos al Oro y Cielo"]
+    sources:
+      - "https://en.wikipedia.org/wiki/Everton_de_Viña_del_Mar"
+      - "https://futboltotal.futbol/teams/everton-de-vina"
+    review_status: draft
+
+  - slug: santiago-wanderers
+    names:
+      official: Club de Deportes Santiago Wanderers
+      short: Santiago Wanderers
+      abbreviation: SWA
+    api_sports:
+      team_id: 2333
+      match: { name: "Santiago Wanderers", country: "Chile" }
+    founded: 1892-08-15
+    city: Valparaíso
+    region: Valparaíso
+    colors: [verde, blanco]
+    nicknames: [El Decano, Los Caturros, Los Porteños]
+    fans:
+      demonym: caturro
+    rallying_cries: ["¡Vamos Wanderers!"]
+    stadium:
+      name: Estadio Elías Figueroa Brander
+      nicknames: [Playa Ancha]
+      city: Valparaíso
+    rivals:
+      - { team: everton-cl, derby: clasico-porteno-cl, intensity: 4 }
+    identity:
+      - "Fundado en 1892, es uno de los clubes más antiguos de Chile; de ahí el apodo El Decano."
+    copy_hints:
+      es-CL:
+        cheer: ["¡Vamos Wanderers!", "Hoy alentamos al Decano"]
+    sources:
+      - "https://en.wikipedia.org/wiki/Santiago_Wanderers"
+      - "https://futboltotal.futbol/teams/santiago-wanderers"
+    review_status: draft
+
+  - slug: palestino
+    names:
+      official: Club Deportivo Palestino
+      short: Palestino
+      abbreviation: PAL
+    api_sports:
+      team_id: 2318
+      match: { name: "Palestino", country: "Chile" }
+    founded: 1920-08-20
+    city: Santiago
+    region: Región Metropolitana
+    colors: [blanco, rojo, verde, negro]
+    nicknames: [Árabes, Tino-Tino, Tricolor, Baisanos]
+    fans:
+      demonym: palestinista
+    rallying_cries: ["¡Vamos Palestino!"]
+    stadium:
+      name: Estadio Municipal de La Cisterna
+      nicknames: []
+      city: Santiago
+    rivals: []
+    identity:
+      - "Fundado por la colectividad palestina en Chile; sus colores son los de la bandera palestina."
+    copy_hints:
+      es-CL:
+        cheer: ["¡Vamos Palestino!", "Hoy alentamos al Tino-Tino"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Deportivo_Palestino"
+      - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
+    review_status: draft
+
+  - slug: union-espanola
+    names:
+      official: Club Deportivo Unión Española
+      short: Unión Española
+      abbreviation: UES
+    api_sports:
+      team_id: 2321
+      match: { name: "Union Espanola", country: "Chile" }
+    founded: 1897-05-18
+    city: Santiago
+    region: Región Metropolitana
+    colors: [rojo, amarillo]
+    nicknames: [La Furia, El Rojo, Hispanos]
+    fans:
+      demonym: hispano
+    rallying_cries: ["¡Vamos Unión!"]
+    stadium:
+      name: Estadio Santa Laura
+      nicknames: [Santa Laura]
+      city: Santiago
+    rivals: []
+    identity:
+      - "Nació en 1897 como Centro Español de Instrucción y Recreación; sus colores aluden a la bandera de España."
+    copy_hints:
+      es-CL:
+        cheer: ["¡Vamos Unión!", "Hoy alentamos a la Furia Roja"]
+    sources:
+      - "https://es.wikipedia.org/wiki/Club_Deportivo_Unión_Española"
+      - "https://futboltotal.futbol/teams/colo-colo"
+    review_status: draft

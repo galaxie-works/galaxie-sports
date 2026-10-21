@@ -1,0 +1,231 @@
+# 05 · API pública Galaxie Sports
+
+A API tem **duas faces**:
+
+1. **Espelho compatível** (`/mirror/{sport}/{endpoint}`) — mesma URL relativa, mesmos parâmetros e **o mesmo envelope** da api-sports. Quem já integrou a api-sports só troca a URL base e a chave.
+2. **API canônica** (`/v1/...`) — orientada a evento, multiesporte, localizada e enriquecida (onde assistir, semântica, contexto, momentum).
+
+Especificação formal: OpenAPI 3.1 gerada a partir de `packages/contracts` e publicada em `/docs` (Scalar/Redoc).
+
+## 1. Autenticação, tenants e limites
+
+| Item | Regra |
+|---|---|
+| Autenticação | Header `x-galaxie-key: <chave do tenant>` (chaves rotacionáveis, escopos por módulo) |
+| Tenant | Cada cliente tem plano (Core Data, Fan Experience, Live Intelligence, Enterprise), mercados ativos e esportes contratados |
+| Rate limit | Por tenant e por rota; headers `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset` |
+| Locale | `Accept-Language` ou `?locale=` (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY, es-EC) |
+| Fuso | `?tz=America/Sao_Paulo` (padrão UTC) |
+| Cache | `ETag` + `Cache-Control` por tipo de recurso; `If-None-Match` retorna 304 |
+
+## 2. Espelho compatível — `/mirror`
+
+```http
+GET /mirror/football/fixtures?league=71&season=2026&round=Regular Season - 30
+x-galaxie-key: gs_live_xxx
+```
+
+Resposta (mesmo envelope da api-sports):
+
+```json
+{
+  "get": "fixtures",
+  "parameters": { "league": "71", "season": "2026", "round": "Regular Season - 30" },
+  "errors": [],
+  "results": 10,
+  "paging": { "current": 1, "total": 1 },
+  "response": [ { "fixture": { "id": 1234567, "...": "..." }, "league": {}, "teams": {}, "goals": {}, "score": {} } ]
+}
+```
+
+Extras do espelho (headers, sem alterar o corpo):
+
+| Header | Significado |
+|---|---|
+| `x-galaxie-source` | `raw-hit` (resposta idêntica já obtida do fornecedor), `rebuilt` (montada a partir do `core`), `stale` (last-known-good) |
+| `x-galaxie-fetched-at` | Quando o dado foi obtido do fornecedor |
+| `x-galaxie-asset-base` | URL base do nosso CDN de assets (logos/bandeiras reescritos para o nosso storage) |
+
+Esportes do espelho:
+
+| Esporte | Prefixo | Fornecedor original |
+|---|---|---|
+| ![](images/sports/football.png) Futebol | `/mirror/football` | `v3.football.api-sports.io` |
+| ![](images/sports/afl.png) AFL | `/mirror/afl` | `v1.afl.api-sports.io` |
+| ![](images/sports/baseball.png) Beisebol | `/mirror/baseball` | `v1.baseball.api-sports.io` |
+| ![](images/sports/basketball.png) Basquete | `/mirror/basketball` | `v1.basketball.api-sports.io` |
+| ![](images/sports/formula-1.png) Fórmula 1 | `/mirror/formula-1` | `v1.formula-1.api-sports.io` |
+| ![](images/sports/handball.png) Handebol | `/mirror/handball` | `v1.handball.api-sports.io` |
+| ![](images/sports/hockey.png) Hóquei | `/mirror/hockey` | `v1.hockey.api-sports.io` |
+| ![](images/sports/mma.png) MMA | `/mirror/mma` | `v1.mma.api-sports.io` |
+| ![](images/sports/nba.png) NBA | `/mirror/nba` | `v2.nba.api-sports.io` |
+| ![](images/sports/nfl.png) NFL | `/mirror/american-football` | `v1.american-football.api-sports.io` |
+| ![](images/sports/rugby.png) Rúgbi | `/mirror/rugby` | `v1.rugby.api-sports.io` |
+| ![](images/sports/volleyball.png) Vôlei | `/mirror/volleyball` | `v1.volleyball.api-sports.io` |
+
+> O espelho **nunca** repassa a requisição ao fornecedor em tempo real. Se a combinação de parâmetros não existir no `raw` nem puder ser remontada do `core`, a resposta é `results: 0` com `x-galaxie-source: miss` e a combinação entra na fila de *backfill* do Quota Governor (prioridade ADHOC).
+
+## 3. API canônica — `/v1`
+
+### 3.1 Catálogo
+
+| Método e rota | Descrição |
+|---|---|
+| `GET /v1/sports` | Esportes disponíveis e cobertura |
+| `GET /v1/countries` | Países, bandeiras, confederação |
+| `GET /v1/competitions?sport=&country=&tier=` | Competições com apelidos (semântica) |
+| `GET /v1/competitions/{id}` | Detalhe + temporadas |
+| `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos |
+| `GET /v1/competitions/{id}/context` | O que está em jogo: líder, G4/G6, Z4, mata-mata, chaveamento, próximos confrontos decisivos |
+| `GET /v1/venues/{id}` | Estádio/circuito/arena |
+
+### 3.2 Eventos
+
+| Método e rota | Descrição |
+|---|---|
+| `GET /v1/events?date=&from=&to=&sport=&competition=&team=&country=&status=&importance_min=` | Agenda multiesporte paginada por cursor, ordenada por `starts_at` ou `importance` |
+| `GET /v1/events/live?sport=&competition=` | Eventos ao vivo |
+| `GET /v1/events/{id}` | Evento completo: participantes, placar, estado, momentum, clássico, contexto |
+| `GET /v1/events/{id}/timeline` | Momentos-chave por minuto (gols, cartões, VAR, substituições) |
+| `GET /v1/events/{id}/lineups` | Escalações e formação |
+| `GET /v1/events/{id}/stats` | Estatísticas por time e jogador |
+| `GET /v1/events/{id}/where-to-watch?country=BR&region=SP` | Opções de transmissão (§4) |
+| `GET /v1/events/{id}/context?locale=pt-BR` | Cenário pré-jogo / resumo pós-jogo gerado por IA, com fontes |
+| `GET /v1/events/{id}.ics` | Arquivo de calendário |
+| `GET /v1/events/{id}/h2h` | Histórico do confronto (do espelho, sem nova chamada) |
+
+Exemplo de evento canônico:
+
+```json
+{
+  "id": "0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d10",
+  "sport": "football",
+  "competition": { "id": "…", "slug": "libertadores", "name": "CONMEBOL Libertadores", "nickname": "Glória Eterna" },
+  "stage": { "kind": "semi_final", "leg": 2, "name": "Semifinal · Volta" },
+  "starts_at": "2026-10-22T00:30:00Z",
+  "status": "scheduled",
+  "momentum": "today",
+  "participants": [
+    { "side": "home", "id": "…", "name": "Palmeiras", "logo": "https://assets.galaxie.sports/football/teams/121.png" },
+    { "side": "away", "id": "…", "name": "Fluminense", "logo": "https://assets.galaxie.sports/football/teams/124.png" }
+  ],
+  "score": { "home": null, "away": null, "aggregate": { "home": 2, "away": 1 } },
+  "venue": { "name": "…", "city": "São Paulo" },
+  "derby": null,
+  "competition_context": ["semifinal", "knockout"],
+  "stakes": [
+    { "team": "home", "code": "advances_with_draw", "text": { "pt-BR": "Avança com empate" } },
+    { "team": "away", "code": "needs_win_by_2", "text": { "pt-BR": "Precisa vencer por 2 gols para avançar direto" } }
+  ],
+  "data_freshness": { "last_valid_at": "2026-10-21T13:00:05Z", "is_stale": false }
+}
+```
+
+> Os IDs de times acima são ilustrativos; os IDs reais vêm do `provider_map` após o bootstrap.
+
+### 3.3 Times, atletas e semântica
+
+| Método e rota | Descrição |
+|---|---|
+| `GET /v1/teams?sport=&country=&competition=&q=` | Busca de times/seleções |
+| `GET /v1/teams/{id}/overview` | Posição no torneio, forma recente (últimos 5), últimos resultados, próximo jogo + onde assistir |
+| `GET /v1/teams/{id}/events?from=&to=` | Jogos do time |
+| `GET /v1/teams/{id}/squad?season=` | Elenco e comissão técnica |
+| `GET /v1/teams/{id}/semantic?locale=` | Apelidos, mascote, torcida, gritos, estádio, rivais, fatos |
+| `GET /v1/derbies?country=&team=` | Clássicos |
+| `GET /v1/derbies/{slug}` | Clássico + histórico de confrontos (h2h do espelho) |
+| `GET /v1/people/{id}` | Jogador/técnico/piloto |
+| `GET /v1/copy?locale=&sport=&intent=&affinity=&momentum=&context=` | Microcopy sugerida (badges, chamadas) respeitando `copy_permission` |
+
+### 3.4 Olimpíadas e Pan-Americano
+
+| Método e rota | Descrição |
+|---|---|
+| `GET /v1/multisport/games` | Edições (Olimpíadas de Verão/Inverno, Pan-Americano) |
+| `GET /v1/multisport/games/{slug}/medals?country=` | Quadro de medalhas |
+| `GET /v1/multisport/games/{slug}/schedule?sport=&date=&country=` | Agenda por modalidade |
+| `GET /v1/multisport/games/{slug}/athletes?country=BR` | Delegação |
+
+## 4. Onde assistir
+
+```http
+GET /v1/events/{id}/where-to-watch?country=BR&region=SP&locale=pt-BR
+```
+
+```json
+{
+  "event_id": "0192c7e2-…",
+  "country": "BR",
+  "status": "resolved",
+  "message": null,
+  "options": [
+    {
+      "id": "…",
+      "provider": "Emissora de TV aberta X",
+      "channel": "Canal X",
+      "medium": "free_tv",
+      "access_model": "free",
+      "region": null,
+      "confidence": 0.97,
+      "status": "confirmed",
+      "last_verified_at": "2026-10-21T12:00:00Z",
+      "sources": [ { "publisher": "Organizador da competição", "url": "https://…" } ]
+    }
+  ],
+  "updated_at": "2026-10-21T12:00:00Z"
+}
+```
+
+Regras de contrato:
+
+| Regra | Comportamento |
+|---|---|
+| Sem informação confiável | `status: "unknown"`, `options: []` e `message` localizada ("Não temos as informações de transmissão ainda.") — o evento **continua** existindo |
+| Conflito entre fontes ou confiança < limiar | Opção **omitida** (registrada internamente como `omitted`) |
+| Mesma plataforma vinda de várias fontes | Deduplicada; fontes agregadas em `sources` |
+| Correção aceita (inclusão/remoção) | Propagada ao cliente em **≤ 5 min** (purge de cache + SSE + webhook `where_to_watch.changed`) |
+| Ordenação | A API ordena por `medium`/confiança; a **ordenação final por direito de acesso do usuário** (incluído, ativação, upgrade, extra, externo) é responsabilidade do cliente, que conhece o assinante |
+| Limite de exibição | A API retorna todas as opções válidas; recomenda-se exibir até 4 |
+
+## 5. Tempo real
+
+| Mecanismo | Rota | Uso |
+|---|---|---|
+| **SSE** | `GET /v1/stream?events=<ids>&topics=score,status,incidents,where_to_watch` | Cards ao vivo na TV/web sem recarregar |
+| **Webhooks** | Configurados por tenant | `event.status_changed`, `event.score_changed`, `event.incident_added`, `where_to_watch.changed`, `event.context_published` — assinados com HMAC-SHA256 |
+| **Polling** | `GET /v1/events/live` com `ETag` | Clientes simples |
+
+## 6. Erros
+
+Formato RFC 9457 (`application/problem+json`):
+
+```json
+{ "type": "https://docs.galaxie.sports/errors/quota", "title": "Plano não inclui o módulo where_to_watch", "status": 403, "code": "MODULE_NOT_IN_PLAN" }
+```
+
+| Código | Situação |
+|---|---|
+| 400 `INVALID_PARAMS` | Parâmetro inválido |
+| 401 `INVALID_KEY` | Chave ausente/inválida |
+| 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
+| 404 `NOT_FOUND` | Entidade inexistente |
+| 429 `RATE_LIMITED` | Limite do tenant |
+| 503 `DEGRADED` | Raro: só quando nem last-known-good existe |
+
+## 7. TTLs de cache recomendados
+
+| Recurso | TTL (CDN) | Invalidação ativa |
+|---|---|---|
+| Países, competições, times, venues | 24 h | Na sincronização diária |
+| Elencos, tabelas | 1 h | Ao fim de cada rodada |
+| Agenda do dia | 5 min | Mudança de horário/status |
+| Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |
+| Onde assistir | 60 s | Correção aceita (purge) |
+| Semântica | 24 h | Merge de PR na base |
+| Assets (imagens) | 30 dias, imutável por hash | Nova versão = nova URL |
+
+## 8. Versionamento
+
+- `/v1` estável; mudanças incompatíveis vão para `/v2` com 6 meses de convivência.
+- Campos novos podem ser adicionados a qualquer momento (clientes devem ignorar campos desconhecidos).
+- O espelho `/mirror` segue a versão do fornecedor (`v3` futebol, `v1`/`v2` demais) — mudança de versão do fornecedor gera um novo prefixo (`/mirror/football-v4`).

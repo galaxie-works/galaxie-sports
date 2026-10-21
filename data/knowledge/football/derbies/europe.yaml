@@ -1,0 +1,427 @@
+# Base semântica — clássicos/dérbis de clubes europeus (schema v1, ver data/knowledge/SCHEMA.md)
+# teams = slugs de football/teams/*.yaml ou football/national-teams.yaml. first_match = null quando a data exata não foi confirmada.
+schema_version: 1
+region: europe
+derbies:
+- slug: el-clasico
+  name: El Clásico
+  aliases:
+  - El Clàssic
+  - Clásico español
+  - Barça x Real
+  labels: {pt-BR: El Clásico, es: El Clásico, en: El Clásico}
+  teams:
+  - real-madrid
+  - barcelona
+  scope: national
+  intensity: 5
+  first_match: null
+  origin: Nome dado a qualquer jogo entre Barcelona e Real Madrid; originalmente só os do Campeonato Espanhol, hoje todas as competições.
+  trivia:
+  - O primeiro confronto foi em 1902.
+  - Em 2025-26, um Clásico definiu matematicamente o título da LaLiga para o Barcelona.
+  sources:
+  - https://en.wikipedia.org/wiki/El_Cl%C3%A1sico
+  - https://pt.wikipedia.org/wiki/El_Cl%C3%A1sico
+  - https://es.wikipedia.org/wiki/El_Cl%C3%A1sico
+  review_status: draft
+- slug: derbi-madrileno
+  name: Derbi madrileño
+  aliases:
+  - Madrid derby
+  - Dérbi de Madrid
+  labels: {pt-BR: Dérbi de Madrid, es: Derbi madrileño, en: Madrid derby}
+  teams:
+  - real-madrid
+  - atletico-madrid
+  scope: city
+  intensity: 5
+  first_match: null
+  origin: Nome dos jogos entre Real Madrid e Atlético de Madrid, os dois grandes clubes da capital espanhola.
+  sources:
+  - https://en.wikipedia.org/wiki/Madrid_derby
+  - https://pt.wikipedia.org/wiki/D%C3%A9rbi_de_Madrid
+  - https://es.wikipedia.org/wiki/Derbi_madrile%C3%B1o
+  review_status: draft
+- slug: derbi-sevillano
+  name: Derbi sevillano
+  aliases:
+  - El Gran Derbi
+  - Derbi de Sevilla
+  - Dérbi da Andaluzia
+  labels: {pt-BR: Dérbi de Sevilha, es: Derbi sevillano, en: Seville derby}
+  teams:
+  - sevilla
+  - real-betis
+  scope: city
+  intensity: 5
+  first_match: 1915-10-08
+  origin: Clássico municipal de Sevilha entre Sevilla e Real Betis, também chamado de "El Gran Derbi".
+  trivia:
+  - O primeiro dérbi terminou com vitória do Sevilla por 4–3.
+  - O primeiro jogo oficial foi em 19 de fevereiro de 1928, pela Copa del Rey.
+  sources:
+  - https://en.wikipedia.org/wiki/Seville_derby
+  - https://pt.wikipedia.org/wiki/D%C3%A9rbi_da_Andaluzia
+  - https://es.wikipedia.org/wiki/Derbi_sevillano
+  review_status: draft
+- slug: derbi-vasco
+  name: Derbi vasco
+  aliases:
+  - Basque derby
+  - Dérbi basco
+  labels: {pt-BR: Dérbi basco, es: Derbi vasco, en: Basque derby}
+  teams:
+  - athletic-club
+  - real-sociedad
+  scope: state
+  intensity: 4
+  first_match: null
+  origin: Clássico entre os dois maiores clubes do País Basco, Athletic Club (Bilbao) e Real Sociedad (San Sebastián).
+  trivia:
+  - Disputado pela primeira vez em abril de 1909.
+  - Os dois se enfrentaram na final da Copa del Rey de 2020.
+  sources:
+  - https://en.wikipedia.org/wiki/Basque_derby
+  - https://pt.wikipedia.org/wiki/D%C3%A9rbi_basco
+  - https://es.wikipedia.org/wiki/Derbi_vasco
+  review_status: draft
+- slug: derby-della-madonnina
+  name: Derby della Madonnina
+  aliases:
+  - Derby di Milano
+  - Dérbi de Milão
+  labels: {pt-BR: Derby della Madonnina, es: Derbi de Milán, en: Milan derby}
+  teams:
+  - inter
+  - milan
+  scope: city
+  intensity: 5
+  first_match: 1908-10-18
+  origin: O nome homenageia a estátua da Madonnina no topo do Duomo de Milão.
+  trivia:
+  - O primeiro dérbi foi a final da Chiasso Cup de 1908, na Suíça; o Milan venceu por 2–1.
+  - Os dois clubes dividem o estádio San Siro.
+  sources:
+  - https://en.wikipedia.org/wiki/Derby_della_Madonnina
+  - https://pt.wikipedia.org/wiki/Derby_della_Madonnina
+  - https://es.wikipedia.org/wiki/Derbi_de_Mil%C3%A1n
+  review_status: draft
+- slug: derby-ditalia
+  name: Derby d'Italia
+  aliases:
+  - Dérbi da Itália
+  - Inter x Juventus
+  labels: {pt-BR: Derby d'Italia, es: Derbi de Italia, en: Derby d'Italia}
+  teams:
+  - inter
+  - juventus
+  scope: national
+  intensity: 5
+  first_match: null
+  origin: Termo cunhado em 1967 pelo jornalista italiano Gianni Brera para o confronto entre Inter e Juventus.
+  sources:
+  - https://en.wikipedia.org/wiki/Derby_d'Italia
+  - https://pt.wikipedia.org/wiki/Derby_d'Italia
+  - https://es.wikipedia.org/wiki/Derbi_de_Italia
+  review_status: draft
+- slug: derby-della-capitale
+  name: Derby della Capitale
+  aliases:
+  - Derby di Roma
+  - Derby Capitolino
+  - Derby del Cupolone
+  - Rome derby
+  labels: {pt-BR: Dérbi de Roma, es: Derbi de Roma, en: Rome derby}
+  teams:
+  - roma
+  - lazio
+  scope: city
+  intensity: 5
+  first_match: 1929-12-08
+  origin: Clássico municipal de Roma entre Lazio e Roma, que dividem o Stadio Olimpico.
+  trivia:
+  - O primeiro dérbi terminou 1–0 para a Roma.
+  - A Lazio venceu seu primeiro dérbi em 23 de outubro de 1932.
+  sources:
+  - https://en.wikipedia.org/wiki/Derby_della_Capitale
+  - https://pt.wikipedia.org/wiki/Derby_della_Capitale
+  - https://es.wikipedia.org/wiki/Derbi_de_Roma
+  review_status: draft
+- slug: derby-della-mole
+  name: Derby della Mole
+  aliases:
+  - Derby di Torino
+  - Turin derby
+  - Dérbi de Turim
+  labels: {pt-BR: Derby della Mole, es: Derbi de Turín, en: Turin derby}
+  teams:
+  - juventus
+  - torino
+  scope: city
+  intensity: 4
+  first_match: 1907-01-13
+  origin: O nome vem da Mole Antonelliana, símbolo arquitetônico de Turim.
+  trivia:
+  - É o mais antigo dérbi municipal ainda disputado no futebol italiano.
+  - Foi o primeiro jogo oficial da história do Torino.
+  sources:
+  - https://en.wikipedia.org/wiki/Derby_della_Mole
+  - https://pt.wikipedia.org/wiki/Derby_della_Mole
+  - https://es.wikipedia.org/wiki/Derbi_de_Tur%C3%ADn
+  review_status: draft
+- slug: der-klassiker
+  name: Der Klassiker
+  aliases:
+  - German Clásico
+  - Clássico alemão
+  - Bayern x Dortmund
+  labels: {pt-BR: Der Klassiker, es: Der Klassiker, en: Der Klassiker}
+  teams:
+  - bayern-munchen
+  - borussia-dortmund
+  scope: national
+  intensity: 5
+  first_match: 1965-10-16
+  origin: Nome dado aos jogos entre Bayern de Munique e Borussia Dortmund, dois dos clubes mais vitoriosos da Alemanha.
+  trivia:
+  - O primeiro jogo terminou 2–0 para o Dortmund, em Munique.
+  - Os dois decidiram a final da Liga dos Campeões de 2013.
+  sources:
+  - https://en.wikipedia.org/wiki/Der_Klassiker
+  - https://pt.wikipedia.org/wiki/Der_Klassiker
+  - https://es.wikipedia.org/wiki/Der_Klassiker
+  review_status: draft
+- slug: revierderby
+  name: Revierderby
+  aliases:
+  - Ruhr derby
+  - Derbi del Ruhr
+  - Dérbi do Ruhr
+  labels: {pt-BR: Revierderby, es: Derbi del Ruhr, en: Revierderby}
+  teams:
+  - borussia-dortmund
+  - schalke-04
+  scope: state
+  intensity: 5
+  first_match: 1925-05-03
+  origin: O nome vem de "Revier", forma curta de "Bergbaurevier" (região mineira), como é chamado o Ruhr.
+  trivia:
+  - No primeiro encontro o Schalke venceu por 4–2.
+  sources:
+  - https://en.wikipedia.org/wiki/Revierderby
+  - https://pt.wikipedia.org/wiki/Revierderby
+  - https://es.wikipedia.org/wiki/Derbi_del_Ruhr
+  review_status: draft
+- slug: le-classique
+  name: Le Classique
+  aliases:
+  - Le Classico
+  - Le Clasico
+  - Le Derby de France
+  - PSG x OM
+  labels: {pt-BR: Le Classique, es: Le Classique, en: Le Classique}
+  teams:
+  - paris-saint-germain
+  - marseille
+  scope: national
+  intensity: 5
+  first_match: 1971-12-12
+  origin: Maior rivalidade do futebol francês, entre Paris Saint-Germain e Olympique de Marseille.
+  trivia:
+  - O primeiro encontro foi no Stade Vélodrome, com vitória do Marseille por 4–2.
+  - A primeira vitória do PSG em Marselha veio só em 8 de dezembro de 1979.
+  sources:
+  - https://en.wikipedia.org/wiki/Le_Classique
+  - https://pt.wikipedia.org/wiki/Le_Classique
+  - https://es.wikipedia.org/wiki/Le_Classique
+  review_status: draft
+- slug: choc-des-olympiques
+  name: Choc des Olympiques
+  aliases:
+  - Derby des Olympiques
+  - Olympico
+  labels: {pt-BR: Choc des Olympiques, es: Choc des Olympiques, en: Choc des Olympiques}
+  teams:
+  - lyon
+  - marseille
+  scope: national
+  intensity: 3
+  first_match: 1945-09-23
+  origin: Rivalidade entre os dois grandes clubes franceses com "Olympique" no nome, Lyon e Marseille.
+  trivia:
+  - O primeiro encontro terminou 1–1.
+  - A imprensa francesa popularizou o apelido "Olympico", em referência a El Clásico.
+  sources:
+  - https://en.wikipedia.org/wiki/Choc_des_Olympiques
+  - https://pt.wikipedia.org/wiki/Choc_des_Olympiques
+  - https://es.wikipedia.org/wiki/Choc_des_Olympiques
+  review_status: draft
+- slug: north-london-derby
+  name: North London Derby
+  aliases:
+  - NLD
+  - Dérbi do Norte de Londres
+  labels: {pt-BR: Dérbi do Norte de Londres, es: Derbi del Norte de Londres, en: North London derby}
+  teams:
+  - arsenal
+  - tottenham-hotspur
+  scope: city
+  intensity: 5
+  first_match: 1887-11-19
+  origin: A rivalidade começou em 1913, quando o Arsenal se mudou de Woolwich para o norte de Londres.
+  trivia:
+  - O primeiro encontro, em 1887, foi um amistoso, quando o Arsenal ainda se chamava Royal Arsenal.
+  - O primeiro jogo pela liga foi em 4 de dezembro de 1909, vitória do Arsenal por 1–0.
+  sources:
+  - https://en.wikipedia.org/wiki/North_London_derby
+  - https://pt.wikipedia.org/wiki/D%C3%A9rbi_do_norte_de_Londres
+  - https://es.wikipedia.org/wiki/Derbi_del_Norte_de_Londres
+  review_status: draft
+- slug: merseyside-derby
+  name: Merseyside Derby
+  aliases:
+  - Dérbi de Merseyside
+  - Derbi de Merseyside
+  labels: {pt-BR: Dérbi de Merseyside, es: Derbi de Merseyside, en: Merseyside derby}
+  teams:
+  - liverpool
+  - everton
+  scope: city
+  intensity: 5
+  first_match: 1894-10-13
+  origin: Clássico da cidade de Liverpool entre Everton e Liverpool, o dérbi de elite mais antigo da Inglaterra.
+  trivia:
+  - É disputado sem interrupção na primeira divisão desde a temporada 1962-63.
+  - Anfield e Goodison Park ficavam a menos de uma milha, separados pelo Stanley Park.
+  sources:
+  - https://en.wikipedia.org/wiki/Merseyside_derby
+  - https://pt.wikipedia.org/wiki/D%C3%A9rbi_do_Merseyside
+  - https://es.wikipedia.org/wiki/Derbi_de_Merseyside
+  review_status: draft
+- slug: manchester-derby
+  name: Manchester Derby
+  aliases:
+  - Dérbi de Manchester
+  - Derbi de Mánchester
+  labels: {pt-BR: Dérbi de Manchester, es: Derbi de Mánchester, en: Manchester derby}
+  teams:
+  - manchester-city
+  - manchester-united
+  scope: city
+  intensity: 5
+  first_match: 1881-11-12
+  origin: Clássico entre Manchester City e Manchester United, disputado desde 1881.
+  trivia:
+  - O primeiro jogo reuniu St. Mark's (futuro City) e Newton Heath (futuro United).
+  - O primeiro dérbi com iluminação artificial foi em 26 de fevereiro de 1889.
+  sources:
+  - https://en.wikipedia.org/wiki/Manchester_derby
+  - https://pt.wikipedia.org/wiki/D%C3%A9rbi_de_Manchester
+  - https://es.wikipedia.org/wiki/Derbi_de_M%C3%A1nchester
+  review_status: draft
+- slug: north-west-derby
+  name: North West Derby
+  aliases:
+  - Northwest derby
+  - Liverpool x Manchester United
+  - Derbi del Noroeste
+  labels: {pt-BR: Clássico do Noroeste da Inglaterra, es: Derbi del Noroeste de Inglaterra, en: North West derby}
+  teams:
+  - liverpool
+  - manchester-united
+  scope: national
+  intensity: 5
+  first_match: null
+  origin: Rivalidade entre Liverpool e Manchester United, considerada por jogadores e torcedores maior até que os dérbis locais de cada clube.
+  trivia:
+  - O primeiro encontro foi um jogo-desempate (test match) da Football League em 1894.
+  sources:
+  - https://en.wikipedia.org/wiki/Liverpool_F.C.%E2%80%93Manchester_United_F.C._rivalry
+  - https://pt.wikipedia.org/wiki/North_West_Derby
+  - https://es.wikipedia.org/wiki/Derbi_del_Noroeste_de_Inglaterra
+  review_status: draft
+- slug: tyne-wear-derby
+  name: Tyne–Wear Derby
+  aliases:
+  - Wear–Tyne derby
+  - North East derby
+  - Dérbi de Tyne-Wear
+  labels: {pt-BR: Dérbi de Tyne-Wear, es: Derbi de Tyne & Wear, en: Tyne–Wear derby}
+  teams:
+  - newcastle-united
+  - sunderland
+  scope: state
+  intensity: 5
+  first_match: null
+  origin: Dérbi do nordeste da Inglaterra entre Newcastle United e Sunderland, cidades quase contíguas.
+  trivia:
+  - O primeiro encontro foi em 1883.
+  sources:
+  - https://en.wikipedia.org/wiki/Tyne%E2%80%93Wear_derby
+  - https://pt.wikipedia.org/wiki/Derby_de_Tyne-Wear
+  - https://es.wikipedia.org/wiki/Derbi_de_Tyne_%26_Wear
+  review_status: draft
+- slug: o-classico
+  name: O Clássico
+  aliases:
+  - Benfica x Porto
+  - Clásico portugués
+  labels: {pt-BR: O Clássico, es: O Clássico, en: O Clássico}
+  teams:
+  - benfica
+  - porto
+  scope: national
+  intensity: 5
+  first_match: 1912-04-28
+  origin: Nome dado aos jogos entre Benfica e Porto, os dois clubes portugueses mais vitoriosos em competições europeias.
+  trivia:
+  - O primeiro jogo foi uma exibição vencida pelo Benfica por 8–2.
+  - Apesar dos sete títulos europeus somados, nunca se enfrentaram em competição europeia.
+  sources:
+  - https://en.wikipedia.org/wiki/O_Cl%C3%A1ssico
+  - https://pt.wikipedia.org/wiki/FC_Porto_vs._SL_Benfica
+  - https://es.wikipedia.org/wiki/O_Cl%C3%A1ssico
+  review_status: draft
+- slug: derby-de-lisboa
+  name: Derby de Lisboa
+  aliases:
+  - Dérbi de Lisboa
+  - Dérbi lisboeta
+  - Derby da Capital
+  - Lisbon derby
+  labels: {pt-BR: Dérbi de Lisboa, es: Derbi de Lisboa, en: Lisbon derby}
+  teams:
+  - benfica
+  - sporting-cp
+  scope: city
+  intensity: 5
+  first_match: null
+  origin: A rivalidade nasceu em 1907, quando oito jogadores do Benfica se transferiram para o Sporting antes do primeiro dérbi.
+  trivia:
+  - É considerado o maior dérbi do futebol português.
+  sources:
+  - https://en.wikipedia.org/wiki/Derby_de_Lisboa
+  - https://pt.wikipedia.org/wiki/Sporting_CP_vs._SL_Benfica
+  - https://es.wikipedia.org/wiki/Derby_da_Capital
+  review_status: draft
+- slug: de-klassieker
+  name: De Klassieker
+  aliases:
+  - Ajax x Feyenoord
+  - O Clássico holandês
+  labels: {pt-BR: De Klassieker, es: De Klassieker, en: De Klassieker}
+  teams:
+  - ajax
+  - feyenoord
+  scope: national
+  intensity: 5
+  first_match: 1921-10-09
+  origin: Clássico entre Ajax (Amsterdã) e Feyenoord (Roterdã), os dois maiores clubes das duas maiores cidades dos Países Baixos.
+  trivia:
+  - O primeiro encontro foi em Roterdã.
+  sources:
+  - https://en.wikipedia.org/wiki/De_Klassieker
+  - https://pt.wikipedia.org/wiki/De_Klassieker
+  - https://es.wikipedia.org/wiki/De_Klassieker
+  review_status: draft

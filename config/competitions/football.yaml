@@ -1,0 +1,993 @@
+# =============================================================================
+# Galaxie Sports - football competition catalog (API-FOOTBALL v3 / api-sports.io)
+# Generated 2026-10-21. Consumed by the mirror bootstrap.
+#
+# TIERS
+#   tier 1 - live AI coverage + full history backfill (all seasons api-sports has).
+#            Brazilian national + state top flights, CONMEBOL club cups, the main
+#            South American / Mexican leagues, Europe's big five + UEFA club cups,
+#            FIFA / CONMEBOL / CONCACAF / UEFA national-team tournaments, Olympics.
+#   tier 2 - mirrored (fixtures, results, standings, lineups/events where covered)
+#            with lighter live treatment; history backfill may be limited to the
+#            last N seasons by the bootstrap config.
+#
+# FIELDS
+#   name / country / type  - exactly as api-sports returns them (league.name,
+#                            country.name, league.type lower-cased). Used only for
+#                            the bootstrap fallback match when api_sports_id is null.
+#   api_sports_id          - API-FOOTBALL v3 league id. verify:false means the id was
+#                            confirmed by at least two independent public sources
+#                            (league dumps of GET /leagues committed to GitHub) and by
+#                            a visual check of media.api-sports.io/football/leagues/<id>.png
+#                            (all 76 checked; only 475 shows a wrong crest, see notes).
+#                            verify:true + null id => resolve at bootstrap via
+#                            GET /leagues?country=<country> matching name+country+type.
+#   seasons_strategy       - how api-sports labels seasons: calendar-year (2026 = 2026)
+#                            or split-year (2026 = 2026/27). For national-team
+#                            tournaments the label is the edition year.
+#   live_priority          - polling priority for live fixtures (high|medium|low|none).
+#   sources                - where the id was verified.
+#
+# Source key (dumps of GET /leagues / fixtures):
+#   https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java
+#   https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data
+#   https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js
+#   https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures  (2026 fixtures, Brazilian ids)
+# =============================================================================
+schema_version: 1
+sport: football
+competitions:
+
+  # ---------------------------------------------------------------- tier 1
+  - slug: brasileirao-serie-a
+    name: "Serie A"
+    country: "Brazil"
+    type: league
+    api_sports_id: 71
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Brasileirão Série A", es: "Brasileirão Serie A", en: "Brazilian Série A" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/71.png"]
+  - slug: copa-do-brasil
+    name: "Copa Do Brasil"
+    country: "Brazil"
+    type: cup
+    api_sports_id: 73
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Copa do Brasil", es: "Copa de Brasil", en: "Copa do Brasil" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/73.png"]
+  - slug: conmebol-libertadores
+    name: "CONMEBOL Libertadores"
+    country: "World"
+    type: cup
+    api_sports_id: 13
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Copa Libertadores", es: "Copa Libertadores", en: "Copa Libertadores" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/13.png"]
+  - slug: conmebol-sudamericana
+    name: "CONMEBOL Sudamericana"
+    country: "World"
+    type: cup
+    api_sports_id: 11
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Copa Sul-Americana", es: "Copa Sudamericana", en: "Copa Sudamericana" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/11.png"]
+  - slug: conmebol-recopa
+    name: "CONMEBOL Recopa"
+    country: "World"
+    type: cup
+    api_sports_id: 541
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Recopa Sul-Americana", es: "Recopa Sudamericana", en: "Recopa Sudamericana" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/541.png"]
+  # logo served at leagues/475.png is a club crest (Paulista FC/Jundiaí), not the FPF mark - id confirmed by text sources + 2026 fixtures
+  - slug: paulista-a1
+    name: "Paulista - A1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 475
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Paulista (Paulistão) A1", es: "Campeonato Paulista A1", en: "São Paulo State Championship (Paulista A1)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/475.png"]
+  - slug: carioca
+    name: "Carioca - 1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 624
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Carioca", es: "Campeonato Carioca", en: "Rio de Janeiro State Championship (Carioca)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/624.png"]
+  - slug: mineiro
+    name: "Mineiro - 1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 629
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Mineiro", es: "Campeonato Mineiro", en: "Minas Gerais State Championship (Mineiro)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/629.png"]
+  - slug: gaucho
+    name: "Gaúcho - 1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 477
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Gaúcho", es: "Campeonato Gaúcho", en: "Rio Grande do Sul State Championship (Gaúcho)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/477.png"]
+  - slug: paranaense
+    name: "Paranaense - 1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 606
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Campeonato Paranaense", es: "Campeonato Paranaense", en: "Paraná State Championship (Paranaense)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/606.png"]
+  - slug: baiano
+    name: "Baiano - 1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 602
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Campeonato Baiano", es: "Campeonato Baiano", en: "Bahia State Championship (Baiano)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/602.png"]
+  - slug: pernambucano
+    name: "Pernambucano - 1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 622
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Campeonato Pernambucano", es: "Campeonato Pernambucano", en: "Pernambuco State Championship (Pernambucano)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/622.png"]
+  - slug: cearense
+    name: "Cearense - 1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 609
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Campeonato Cearense", es: "Campeonato Cearense", en: "Ceará State Championship (Cearense)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/609.png"]
+  - slug: goiano
+    name: "Goiano - 1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 628
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Campeonato Goiano", es: "Campeonato Goiano", en: "Goiás State Championship (Goiano)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/628.png"]
+  - slug: catarinense
+    name: "Catarinense - 1"
+    country: "Brazil"
+    type: league
+    api_sports_id: 604
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Campeonato Catarinense", es: "Campeonato Catarinense", en: "Santa Catarina State Championship (Catarinense)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/604.png"]
+  # since 2025 Apertura + Clausura are expected under id 128 (tournament in round name) - confirm at bootstrap
+  - slug: argentina-liga-profesional
+    name: "Liga Profesional Argentina"
+    country: "Argentina"
+    type: league
+    api_sports_id: 128
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Argentino (Liga Profesional)", es: "Liga Profesional de Fútbol", en: "Argentine Liga Profesional" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/128.png"]
+  # historical: played 2020-2024; replaced by Apertura inside id 128 from 2025 - mirror for history only
+  - slug: argentina-copa-de-la-liga
+    name: "Copa de la Liga Profesional"
+    country: "Argentina"
+    type: league
+    api_sports_id: 1032
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa da Liga Profissional (Argentina)", es: "Copa de la Liga Profesional", en: "Argentine Copa de la Liga" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/1032.png"]
+  - slug: copa-argentina
+    name: "Copa Argentina"
+    country: "Argentina"
+    type: cup
+    api_sports_id: 130
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Copa Argentina", es: "Copa Argentina", en: "Copa Argentina" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/130.png"]
+  - slug: chile-primera-division
+    name: "Primera División"
+    country: "Chile"
+    type: league
+    api_sports_id: 265
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Chileno", es: "Campeonato Nacional (Primera División de Chile)", en: "Chilean Primera División" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/265.png"]
+  - slug: uruguay-primera-apertura
+    name: "Primera División - Apertura"
+    country: "Uruguay"
+    type: league
+    api_sports_id: 268
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Uruguaio - Apertura", es: "Primera División de Uruguay - Apertura", en: "Uruguayan Primera División - Apertura" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/268.png"]
+  - slug: uruguay-primera-clausura
+    name: "Primera División - Clausura"
+    country: "Uruguay"
+    type: league
+    api_sports_id: 270
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Uruguaio - Clausura", es: "Primera División de Uruguay - Clausura", en: "Uruguayan Primera División - Clausura" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/270.png"]
+  # Apertura and Finalización share id 239; split via round names
+  - slug: colombia-primera-a
+    name: "Primera A"
+    country: "Colombia"
+    type: league
+    api_sports_id: 239
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Colombiano (Liga BetPlay)", es: "Liga BetPlay Dimayor (Primera A)", en: "Colombian Primera A" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/239.png"]
+  # source lists name 'Primera División'; current logo is 'Liga 1' - api-sports may now return 'Liga 1'. Id is stable
+  - slug: peru-liga-1
+    name: "Primera División"
+    country: "Peru"
+    type: league
+    api_sports_id: 281
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Peruano (Liga 1)", es: "Liga 1 de Perú", en: "Peruvian Liga 1" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/281.png"]
+  - slug: ecuador-ligapro-serie-a
+    name: "Liga Pro"
+    country: "Ecuador"
+    type: league
+    api_sports_id: 242
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Equatoriano (LigaPro Série A)", es: "LigaPro Serie A", en: "Ecuadorian LigaPro Serie A" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/242.png"]
+  - slug: paraguay-primera-apertura
+    name: "Division Profesional - Apertura"
+    country: "Paraguay"
+    type: league
+    api_sports_id: 250
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Paraguaio - Apertura", es: "División Profesional de Paraguay - Apertura", en: "Paraguayan Primera División - Apertura" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/250.png"]
+  - slug: paraguay-primera-clausura
+    name: "Division Profesional - Clausura"
+    country: "Paraguay"
+    type: league
+    api_sports_id: 252
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Paraguaio - Clausura", es: "División Profesional de Paraguay - Clausura", en: "Paraguayan Primera División - Clausura" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/252.png"]
+  # season 2026 = Apertura 2026 + Clausura 2027
+  - slug: liga-mx
+    name: "Liga MX"
+    country: "Mexico"
+    type: league
+    api_sports_id: 262
+    verify: false
+    tier: 1
+    region: north-central-america
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Campeonato Mexicano (Liga MX)", es: "Liga MX", en: "Liga MX" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/262.png"]
+  - slug: premier-league
+    name: "Premier League"
+    country: "England"
+    type: league
+    api_sports_id: 39
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Premier League (Campeonato Inglês)", es: "Premier League", en: "Premier League" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/39.png"]
+  - slug: laliga
+    name: "La Liga"
+    country: "Spain"
+    type: league
+    api_sports_id: 140
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "LaLiga (Campeonato Espanhol)", es: "LaLiga", en: "LaLiga" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/140.png"]
+  - slug: serie-a-italia
+    name: "Serie A"
+    country: "Italy"
+    type: league
+    api_sports_id: 135
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Serie A (Campeonato Italiano)", es: "Serie A de Italia", en: "Serie A (Italy)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/135.png"]
+  - slug: bundesliga
+    name: "Bundesliga"
+    country: "Germany"
+    type: league
+    api_sports_id: 78
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Bundesliga (Campeonato Alemão)", es: "Bundesliga", en: "Bundesliga" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/78.png"]
+  - slug: ligue-1
+    name: "Ligue 1"
+    country: "France"
+    type: league
+    api_sports_id: 61
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Ligue 1 (Campeonato Francês)", es: "Ligue 1", en: "Ligue 1" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/61.png"]
+  - slug: uefa-champions-league
+    name: "UEFA Champions League"
+    country: "World"
+    type: cup
+    api_sports_id: 2
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Liga dos Campeões da UEFA", es: "UEFA Champions League", en: "UEFA Champions League" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/2.png"]
+  - slug: uefa-europa-league
+    name: "UEFA Europa League"
+    country: "World"
+    type: cup
+    api_sports_id: 3
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Liga Europa da UEFA", es: "UEFA Europa League", en: "UEFA Europa League" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/3.png"]
+  # UEFA renamed it 'UEFA Conference League' (2024/25); api-sports name may follow. Id is stable
+  - slug: uefa-conference-league
+    name: "UEFA Europa Conference League"
+    country: "World"
+    type: cup
+    api_sports_id: 848
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Liga Conferência da UEFA", es: "UEFA Conference League", en: "UEFA Conference League" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/848.png"]
+  # season = edition year (2026)
+  - slug: fifa-world-cup
+    name: "World Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 1
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Copa do Mundo FIFA", es: "Copa Mundial de la FIFA", en: "FIFA World Cup" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/1.png"]
+  # api-sports types this id as League (not Cup)
+  - slug: fifa-club-world-cup
+    name: "FIFA Club World Cup"
+    country: "World"
+    type: league
+    api_sports_id: 15
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Copa do Mundo de Clubes da FIFA", es: "Mundial de Clubes de la FIFA", en: "FIFA Club World Cup" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/15.png"]
+  # season label = World Cup edition year (e.g. 2026 covers matches 2023-2025)
+  - slug: wc-qualification-conmebol
+    name: "World Cup - Qualification South America"
+    country: "World"
+    type: cup
+    api_sports_id: 34
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Eliminatórias Sul-Americanas", es: "Eliminatorias Sudamericanas", en: "World Cup Qualifiers - CONMEBOL" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/34.png"]
+  # season label = World Cup edition year
+  - slug: wc-qualification-concacaf
+    name: "World Cup - Qualification CONCACAF"
+    country: "World"
+    type: cup
+    api_sports_id: 31
+    verify: false
+    tier: 1
+    region: north-central-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Eliminatórias da CONCACAF", es: "Eliminatorias de la Concacaf", en: "World Cup Qualifiers - CONCACAF" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/31.png"]
+  # season label = World Cup edition year
+  - slug: wc-qualification-uefa
+    name: "World Cup - Qualification Europe"
+    country: "World"
+    type: cup
+    api_sports_id: 32
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Eliminatórias Europeias", es: "Eliminatorias de la UEFA", en: "World Cup Qualifiers - UEFA" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/32.png"]
+  # season = edition year (2024)
+  - slug: copa-america
+    name: "Copa America"
+    country: "World"
+    type: cup
+    api_sports_id: 9
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Copa América", es: "Copa América", en: "Copa América" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/9.png"]
+  # season = edition year (2024)
+  - slug: uefa-euro
+    name: "Euro Championship"
+    country: "World"
+    type: cup
+    api_sports_id: 4
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Eurocopa", es: "Eurocopa", en: "UEFA European Championship" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/4.png"]
+  # season 2024 = 2024/25 edition (group stage + finals in the following year)
+  - slug: uefa-nations-league
+    name: "UEFA Nations League"
+    country: "World"
+    type: cup
+    api_sports_id: 5
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: high
+    labels: { pt-BR: "Liga das Nações da UEFA", es: "UEFA Nations League", en: "UEFA Nations League" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/5.png"]
+  # scope said 'Nations League' only - CONCACAF edition included for completeness; drop if only UEFA is meant
+  - slug: concacaf-nations-league
+    name: "CONCACAF Nations League"
+    country: "World"
+    type: cup
+    api_sports_id: 536
+    verify: false
+    tier: 1
+    region: north-central-america
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Liga das Nações da CONCACAF", es: "Liga de Naciones de la Concacaf", en: "CONCACAF Nations League" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/536.png"]
+  # season = Games year (2024, 2028)
+  - slug: olympics-men
+    name: "Olympics Men"
+    country: "World"
+    type: cup
+    api_sports_id: 480
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Futebol Olímpico Masculino", es: "Fútbol Olímpico Masculino", en: "Olympic Football Tournament - Men" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/480.png"]
+  # season = Games year (2024, 2028)
+  - slug: olympics-women
+    name: "Olympics Women"
+    country: "World"
+    type: cup
+    api_sports_id: 524
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Futebol Olímpico Feminino", es: "Fútbol Olímpico Femenino", en: "Olympic Football Tournament - Women" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/524.png"]
+
+  # ---------------------------------------------------------------- tier 2
+  - slug: brasileirao-serie-b
+    name: "Serie B"
+    country: "Brazil"
+    type: league
+    api_sports_id: 72
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Brasileirão Série B", es: "Brasileirão Serie B", en: "Brazilian Série B" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/72.png"]
+  - slug: brasileirao-serie-c
+    name: "Serie C"
+    country: "Brazil"
+    type: league
+    api_sports_id: 75
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Brasileirão Série C", es: "Brasileirão Serie C", en: "Brazilian Série C" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/75.png"]
+  - slug: brasileirao-serie-d
+    name: "Serie D"
+    country: "Brazil"
+    type: league
+    api_sports_id: 76
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Brasileirão Série D", es: "Brasileirão Serie D", en: "Brazilian Série D" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/76.png"]
+  - slug: copa-do-nordeste
+    name: "Copa do Nordeste"
+    country: "Brazil"
+    type: cup
+    api_sports_id: 612
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Copa do Nordeste", es: "Copa do Nordeste", en: "Copa do Nordeste" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/612.png"]
+  - slug: supercopa-do-brasil
+    name: "Supercopa do Brasil"
+    country: "Brazil"
+    type: cup
+    api_sports_id: 632
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Supercopa do Brasil", es: "Supercopa de Brasil", en: "Brazilian Super Cup" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/632.png"]
+  - slug: brasileirao-feminino
+    name: "Brasileiro Women"
+    country: "Brazil"
+    type: league
+    api_sports_id: 74
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Brasileirão Feminino A1", es: "Brasileirão Femenino", en: "Brazilian Women's Série A1" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://github.com/jonas556440/scout-dados-cartola/tree/main/data/fixtures", "https://media.api-sports.io/football/leagues/74.png"]
+  - slug: bolivia-primera-division
+    name: "Primera División"
+    country: "Bolivia"
+    type: league
+    api_sports_id: 344
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Boliviano", es: "División Profesional de Bolivia", en: "Bolivian Primera División" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/344.png"]
+  - slug: venezuela-primera-division
+    name: "Primera División"
+    country: "Venezuela"
+    type: league
+    api_sports_id: 299
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Venezuelano (Liga FUTVE)", es: "Liga FUTVE", en: "Venezuelan Primera División" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/299.png"]
+  # scope marked it with '?' - kept in tier 2, low live priority
+  - slug: liga-mx-femenil
+    name: "Liga MX Femenil"
+    country: "Mexico"
+    type: league
+    api_sports_id: 673
+    verify: false
+    tier: 2
+    region: north-central-america
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga MX Feminina", es: "Liga MX Femenil", en: "Liga MX Femenil" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/673.png"]
+  - slug: argentina-primera-nacional
+    name: "Primera Nacional"
+    country: "Argentina"
+    type: league
+    api_sports_id: 129
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Primera Nacional (2ª divisão argentina)", es: "Primera Nacional", en: "Argentine Primera Nacional" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/129.png"]
+  - slug: primeira-liga
+    name: "Primeira Liga"
+    country: "Portugal"
+    type: league
+    api_sports_id: 94
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Liga Portugal (Campeonato Português)", es: "Primeira Liga de Portugal", en: "Primeira Liga (Portugal)" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/94.png"]
+  - slug: eredivisie
+    name: "Eredivisie"
+    country: "Netherlands"
+    type: league
+    api_sports_id: 88
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Eredivisie (Campeonato Holandês)", es: "Eredivisie", en: "Eredivisie" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/88.png"]
+  - slug: efl-championship
+    name: "Championship"
+    country: "England"
+    type: league
+    api_sports_id: 40
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Championship (2ª divisão inglesa)", es: "EFL Championship", en: "EFL Championship" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/40.png"]
+  - slug: fa-cup
+    name: "FA Cup"
+    country: "England"
+    type: cup
+    api_sports_id: 45
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Copa da Inglaterra (FA Cup)", es: "FA Cup", en: "FA Cup" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/45.png"]
+  - slug: copa-del-rey
+    name: "Copa del Rey"
+    country: "Spain"
+    type: cup
+    api_sports_id: 143
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Copa do Rei", es: "Copa del Rey", en: "Copa del Rey" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/143.png"]
+  - slug: coppa-italia
+    name: "Coppa Italia"
+    country: "Italy"
+    type: cup
+    api_sports_id: 137
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Copa da Itália", es: "Copa de Italia", en: "Coppa Italia" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/137.png"]
+  - slug: dfb-pokal
+    name: "DFB Pokal"
+    country: "Germany"
+    type: cup
+    api_sports_id: 81
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Copa da Alemanha (DFB-Pokal)", es: "Copa de Alemania (DFB-Pokal)", en: "DFB-Pokal" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/81.png"]
+  - slug: coupe-de-france
+    name: "Coupe de France"
+    country: "France"
+    type: cup
+    api_sports_id: 66
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Copa da França", es: "Copa de Francia", en: "Coupe de France" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/66.png"]
+  - slug: mls
+    name: "Major League Soccer"
+    country: "USA"
+    type: league
+    api_sports_id: 253
+    verify: false
+    tier: 2
+    region: north-central-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "MLS (Major League Soccer)", es: "MLS", en: "Major League Soccer" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/253.png"]
+  - slug: saudi-pro-league
+    name: "Pro League"
+    country: "Saudi-Arabia"
+    type: league
+    api_sports_id: 307
+    verify: false
+    tier: 2
+    region: asia
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Saudi Pro League (Campeonato Saudita)", es: "Liga Profesional Saudí", en: "Saudi Pro League" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/307.png"]
+  # renamed 'Champions Cup' by CONCACAF in 2024; api-sports name in sources is still 'CONCACAF Champions League'
+  - slug: concacaf-champions-cup
+    name: "CONCACAF Champions League"
+    country: "World"
+    type: cup
+    api_sports_id: 16
+    verify: false
+    tier: 2
+    region: north-central-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Copa dos Campeões da CONCACAF", es: "Copa de Campeones de la Concacaf", en: "CONCACAF Champions Cup" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/16.png"]
+  - slug: leagues-cup
+    name: "Leagues Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 772
+    verify: false
+    tier: 2
+    region: north-central-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Leagues Cup", es: "Leagues Cup", en: "Leagues Cup" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/772.png"]
+  # season = edition year (2027)
+  - slug: fifa-womens-world-cup
+    name: "World Cup - Women"
+    country: "World"
+    type: cup
+    api_sports_id: 8
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Copa do Mundo Feminina FIFA", es: "Copa Mundial Femenina de la FIFA", en: "FIFA Women's World Cup" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/8.png"]
+  - slug: copa-america-femenina
+    name: "Copa America Femenina"
+    country: "World"
+    type: cup
+    api_sports_id: 926
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Copa América Feminina", es: "Copa América Femenina", en: "Copa América Femenina" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/926.png"]
+  # single id for the Games football tournament - check at bootstrap whether men and women share it
+  - slug: pan-american-games
+    name: "Pan American Games"
+    country: "World"
+    type: cup
+    api_sports_id: 1045
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Futebol nos Jogos Pan-Americanos", es: "Fútbol en los Juegos Panamericanos", en: "Pan American Games Football" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/1045.png"]
+  - slug: club-friendlies
+    name: "Friendlies Clubs"
+    country: "World"
+    type: cup
+    api_sports_id: 667
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Amistosos de clubes", es: "Amistosos de clubes", en: "Club Friendlies" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/667.png"]
+  - slug: international-friendlies
+    name: "Friendlies"
+    country: "World"
+    type: cup
+    api_sports_id: 10
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Amistosos internacionais (seleções)", es: "Amistosos internacionales", en: "International Friendlies" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/10.png"]
+  - slug: fifa-u20-world-cup
+    name: "World Cup - U20"
+    country: "World"
+    type: cup
+    api_sports_id: 490
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa do Mundo Sub-20", es: "Mundial Sub-20", en: "FIFA U-20 World Cup" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/490.png"]
+  # became an annual 48-team tournament from 2025
+  - slug: fifa-u17-world-cup
+    name: "World Cup - U17"
+    country: "World"
+    type: cup
+    api_sports_id: 587
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa do Mundo Sub-17", es: "Mundial Sub-17", en: "FIFA U-17 World Cup" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/587.png"]
+  - slug: sudamericano-sub-20
+    name: "Sudamericano U20"
+    country: "World"
+    type: cup
+    api_sports_id: 773
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Sul-Americano Sub-20", es: "Sudamericano Sub-20", en: "South American U-20 Championship" }
+    sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/773.png"]
+
+notes:
+  - "Ids are stable across seasons in api-sports; names are not (sponsor/rebrand changes). The bootstrap must key on api_sports_id and only use name+country+type for entries with verify:true. Log (do not fail) when the returned name differs from the catalog name."
+  - "Argentina: the format changes almost every year. 2020-2024 used Liga Profesional (id 128) plus a separate Copa de la Liga Profesional (id 1032). From 2025 the season is Apertura + Clausura (zones + playoffs) and no separate Copa de la Liga is played; both tournaments are expected under id 128 with the tournament in the round name, and id 1032 should have no new seasons (mirrored for history only). Copa Argentina (130) is unaffected. Verify the 2026 round naming at bootstrap via GET /fixtures/rounds?league=128&season=2026."
+  - "Apertura/Clausura representation differs per country: Uruguay (268 Apertura, 270 Clausura) and Paraguay (250 Apertura, 252 Clausura) have separate league ids per tournament; the Uruguayan Intermedio and the annual aggregate table are not separate ids in the sources. Liga MX (262), Colombia Primera A (239), Peru (281), Ecuador LigaPro (242) and Chile (265) use a single id per season with phases split through round names (e.g. 'Apertura - 1', 'Clausura - 3', 'Torneo Apertura', 'Second Stage') and sometimes multiple standings groups. Derive the phase from fixture.league.round / standings group names, never assume one table per season."
+  - "Liga MX and Liga MX Femenil are split-year in api-sports: season 2026 = Apertura 2026 + Clausura 2027, even though the competition is played in two calendar years."
+  - "Brazilian state championships (ids 475, 624, 629, 477, 606, 602, 622, 609, 628, 604) are all typed 'League' in api-sports and confirmed with 2026 fixtures. Expect coverage depth below the national leagues: fixtures/results/standings are the baseline, while lineups, events, player statistics and odds can be partial, late or absent (often depending on the season and on whether big clubs are involved) - not verified per season here. Check per-season coverage flags (GET /leagues?id=<id>&season=<y> -> seasons[].coverage) before promising AI live features."
+  - "The api-sports logo for Paulista - A1 (leagues/475.png) currently shows a club crest (Paulista FC, Jundiaí) instead of the FPF championship mark. The id itself is confirmed by text sources and 2026 fixtures; do not use that logo in the product."
+  - "Renamed competitions whose api-sports name may lag or have changed: 848 (UEFA Europa Conference League -> UEFA Conference League), 16 (CONCACAF Champions League -> CONCACAF Champions Cup), 281 Peru (Primera División vs 'Liga 1' branding). Ids are confirmed; names are what the sources returned."
+  - "National-team tournaments (World Cup, qualifiers, Copa America, Euro, Olympics, youth World Cups) are labelled by edition year in api-sports, e.g. World Cup qualification CONMEBOL season 2026 contains matches from 2023-2025. The next cycle (2030) will appear as a new season on the same ids."
+  - "FIFA Club World Cup (15) appears with type 'League' in some api-sports dumps; the new 32-team format (2025) and the annual FIFA Intercontinental Cup (separate id, not mirrored here) should not be confused."
+  - "CONCACAF Nations League (536) was added because the scope said only 'Nations League'; remove it if only the UEFA competition was intended."
+  - "Pan American Games (1045) is a single id in the sources; confirm at bootstrap whether women's tournament fixtures share the id or need a separate one."
+  - "Friendlies (10) and Friendlies Clubs (667) are very high-volume; mirror them with filters (teams of interest) rather than full backfill."
+  - "The api-football.com documentation and dashboard pages block automated fetching (HTTP 403); ids were therefore verified from public GitHub dumps of the API responses plus the media.api-sports.io logos. Re-check all ids against GET /leagues on the first authenticated bootstrap run."

@@ -1,0 +1,330 @@
+# Base semântica — clubes da Alemanha (schema v1, ver data/knowledge/SCHEMA.md)
+# labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
+# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+schema_version: 1
+country: DE
+teams:
+- slug: bayern-munchen
+  names:
+    official: Fußball-Club Bayern München e. V.
+    short: Bayern
+    abbreviation: FCB
+  labels: {pt-BR: Bayern de Munique, es: Bayern Múnich, en: Bayern Munich}
+  api_sports:
+    team_id: null
+    match: {name: Bayern München, country: Germany}
+  founded: 1900-02-27
+  city: Munique
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - Die Bayern
+  - Die Roten
+  - Stern des Südens
+  - Der Rekordmeister
+  mascot: Berni
+  rallying_cries:
+  - Mia san mia
+  stadium:
+    name: Allianz Arena
+    city: Munique
+  rivals:
+  - {team: borussia-dortmund, derby: der-klassiker, intensity: 5}
+  identity:
+  - Fundado em 27 de fevereiro de 1900.
+  - '"Mia san mia" (Nós somos nós, em bávaro) é o lema do clube.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Bayern
+      - Bávaros
+      - Gigante da Baviera
+      cheer:
+      - Vai, Bayern!
+    es:
+      nicknames:
+      - Bayern
+      - Los Bávaros
+      - Gigante de Baviera
+      cheer:
+      - ¡Vamos, Bayern!
+  sources:
+  - https://en.wikipedia.org/wiki/FC_Bayern_Munich
+  - https://pt.wikipedia.org/wiki/FC_Bayern_M%C3%BCnchen
+  - https://es.wikipedia.org/wiki/Bayern_de_M%C3%BAnich
+  review_status: draft
+- slug: borussia-dortmund
+  names:
+    official: Ballspielverein Borussia 09 e. V. Dortmund
+    short: Borussia Dortmund
+    abbreviation: BVB
+  labels: {pt-BR: Borussia Dortmund, es: Borussia Dortmund, en: Borussia Dortmund}
+  api_sports:
+    team_id: null
+    match: {name: Borussia Dortmund, country: Germany}
+  founded: 1909-12-19
+  city: Dortmund
+  colors:
+  - amarelo
+  - preto
+  nicknames:
+  - Die Schwarzgelben
+  - Die Borussen
+  - BVB
+  mascot: Emma
+  rallying_cries:
+  - Echte Liebe
+  stadium:
+    name: Signal Iduna Park
+    nicknames:
+    - Westfalenstadion
+    city: Dortmund
+  rivals:
+  - {team: schalke-04, derby: revierderby, intensity: 5}
+  - {team: bayern-munchen, derby: der-klassiker, intensity: 5}
+  identity:
+  - Fundado em 19 de dezembro de 1909.
+  - O estádio é conhecido historicamente como Westfalenstadion.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Borussia
+      - BVB
+      - Aurinegros
+      cheer:
+      - Vai, Borussia!
+    es:
+      nicknames:
+      - Borussia
+      - BVB
+      - Los Aurinegros
+      cheer:
+      - ¡Vamos, Borussia!
+  sources:
+  - https://en.wikipedia.org/wiki/Borussia_Dortmund
+  - https://pt.wikipedia.org/wiki/Borussia_Dortmund
+  - https://es.wikipedia.org/wiki/Borussia_Dortmund
+  review_status: draft
+- slug: bayer-leverkusen
+  names:
+    official: Bayer 04 Leverkusen Fußball GmbH
+    short: Bayer Leverkusen
+    abbreviation: B04
+  labels: {pt-BR: Bayer Leverkusen, es: Bayer Leverkusen, en: Bayer Leverkusen}
+  api_sports:
+    team_id: null
+    match: {name: Bayer Leverkusen, country: Germany}
+  founded: 1904-07-01
+  city: Leverkusen
+  colors:
+  - vermelho
+  - preto
+  nicknames:
+  - Die Werkself
+  - Die Schwarzroten
+  mascot: Brian the Lion
+  stadium:
+    name: BayArena
+    city: Leverkusen
+  identity:
+  - Fundado em 1º de julho de 1904 por funcionários da empresa Bayer, origem do apelido "Werkself" (o time da fábrica).
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Leverkusen
+      - Werkself
+      cheer:
+      - Vai, Leverkusen!
+    es:
+      nicknames:
+      - Leverkusen
+      - Werkself
+      cheer:
+      - ¡Vamos, Leverkusen!
+  sources:
+  - https://en.wikipedia.org/wiki/Bayer_04_Leverkusen
+  - https://pt.wikipedia.org/wiki/Bayer_04_Leverkusen
+  - https://es.wikipedia.org/wiki/Bayer_Leverkusen
+  review_status: draft
+- slug: rb-leipzig
+  names:
+    official: RasenBallsport Leipzig e. V.
+    short: RB Leipzig
+    abbreviation: RBL
+  labels: {pt-BR: RB Leipzig, es: RB Leipzig, en: RB Leipzig}
+  api_sports:
+    team_id: null
+    match: {name: RB Leipzig, country: Germany}
+  founded: 2009-05-19
+  city: Leipzig
+  colors:
+  - vermelho
+  - branco
+  nicknames:
+  - Die Roten Bullen
+  - Bullen
+  - RBL
+  mascot: Bulli
+  stadium:
+    name: Red Bull Arena
+    city: Leipzig
+  identity:
+  - Fundado em 19 de maio de 2009; o nome oficial "RasenBallsport" significa "esporte de bola na grama".
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Leipzig
+      - Touros Vermelhos
+      cheer:
+      - Vai, Leipzig!
+    es:
+      nicknames:
+      - Leipzig
+      - Los Toros Rojos
+      cheer:
+      - ¡Vamos, Leipzig!
+  sources:
+  - https://en.wikipedia.org/wiki/RB_Leipzig
+  - https://pt.wikipedia.org/wiki/RasenBallsport_Leipzig
+  - https://es.wikipedia.org/wiki/RasenBallsport_Leipzig
+  review_status: draft
+- slug: schalke-04
+  names:
+    official: Fußballclub Gelsenkirchen-Schalke 04 e. V.
+    short: Schalke 04
+    abbreviation: S04
+  labels: {pt-BR: Schalke 04, es: Schalke 04, en: Schalke 04}
+  api_sports:
+    team_id: null
+    match: {name: FC Schalke 04, country: Germany}
+  founded: 1904-05-04
+  city: Gelsenkirchen
+  colors:
+  - azul
+  - branco
+  nicknames:
+  - Die Königsblauen
+  - Die Knappen
+  - S04
+  mascot: Erwin
+  stadium:
+    name: Veltins-Arena
+    nicknames:
+    - Arena AufSchalke
+    city: Gelsenkirchen
+  rivals:
+  - {team: borussia-dortmund, derby: revierderby, intensity: 5}
+  identity:
+  - Fundado em 4 de maio de 1904 como Westfalia Schalke.
+  - '"Die Knappen" (os mineiros) remete à tradição mineira da região do Ruhr.'
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Schalke
+      - Azuis Reais
+      - Mineiros
+      cheer:
+      - Vai, Schalke!
+    es:
+      nicknames:
+      - Schalke
+      - Los Azules Reales
+      - Los Mineros
+      cheer:
+      - ¡Vamos, Schalke!
+  sources:
+  - https://en.wikipedia.org/wiki/FC_Schalke_04
+  - https://pt.wikipedia.org/wiki/FC_Schalke_04
+  - https://es.wikipedia.org/wiki/FC_Schalke_04
+  review_status: draft
+- slug: vfb-stuttgart
+  names:
+    official: Verein für Bewegungsspiele Stuttgart 1893 e. V.
+    short: Stuttgart
+    abbreviation: VFB
+  labels: {pt-BR: Stuttgart, es: Stuttgart, en: VfB Stuttgart}
+  api_sports:
+    team_id: null
+    match: {name: VfB Stuttgart, country: Germany}
+  founded: 1893-09-09
+  city: Stuttgart
+  colors:
+  - branco
+  - vermelho
+  nicknames:
+  - Die Roten
+  - Die Schwaben
+  - VfB
+  mascot: Fritzle
+  stadium:
+    name: MHPArena
+    city: Stuttgart
+  identity:
+  - Fundado em 9 de setembro de 1893.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Stuttgart
+      - VfB
+      - Suábios
+      cheer:
+      - Vai, Stuttgart!
+    es:
+      nicknames:
+      - Stuttgart
+      - VfB
+      - Los Suabos
+      cheer:
+      - ¡Vamos, Stuttgart!
+  sources:
+  - https://en.wikipedia.org/wiki/VfB_Stuttgart
+  - https://pt.wikipedia.org/wiki/VfB_Stuttgart
+  - https://es.wikipedia.org/wiki/VfB_Stuttgart
+  review_status: draft
+- slug: eintracht-frankfurt
+  names:
+    official: Eintracht Frankfurt e. V.
+    short: Eintracht Frankfurt
+    abbreviation: SGE
+  labels: {pt-BR: Eintracht Frankfurt, es: Eintracht Fráncfort, en: Eintracht Frankfurt}
+  api_sports:
+    team_id: null
+    match: {name: Eintracht Frankfurt, country: Germany}
+  founded: 1899-03-08
+  city: Frankfurt
+  colors:
+  - vermelho
+  - preto
+  - branco
+  nicknames:
+  - Die Adler
+  - SGE
+  - Launische Diva
+  - Die Diva vom Main
+  mascot: Attila
+  stadium:
+    name: Deutsche Bank Park
+    nicknames:
+    - Waldstadion
+    city: Frankfurt
+  identity:
+  - Fundado em 8 de março de 1899; uma águia chamada Attila é o mascote do clube.
+  copy_hints:
+    pt-BR:
+      nicknames:
+      - Eintracht
+      - Águias
+      cheer:
+      - Vai, Eintracht!
+    es:
+      nicknames:
+      - Eintracht
+      - Las Águilas
+      cheer:
+      - ¡Vamos, Eintracht!
+  sources:
+  - https://en.wikipedia.org/wiki/Eintracht_Frankfurt
+  - https://pt.wikipedia.org/wiki/Eintracht_Frankfurt
+  - https://es.wikipedia.org/wiki/Eintracht_Fr%C3%A1ncfort
+  review_status: draft
