@@ -150,8 +150,8 @@ Exemplo de evento canônico:
   "status": "scheduled",
   "momentum": "today",
   "participants": [
-    { "side": "home", "id": "…", "name": "Palmeiras", "logo": "https://assets.galaxie.sports/football/teams/121.png" },
-    { "side": "away", "id": "…", "name": "Fluminense", "logo": "https://assets.galaxie.sports/football/teams/124.png" }
+    { "side": "home", "id": "…", "name": "Palmeiras", "logo": "https://assets.galaxie.sports/api-sports/football/teams/121.png?v=9879fc79" },
+    { "side": "away", "id": "…", "name": "Fluminense", "logo": "https://assets.galaxie.sports/api-sports/football/teams/124.png?v=1f0c2a7e" }
   ],
   "score": { "home": null, "away": null, "aggregate": { "home": 2, "away": 1 } },
   "venue": { "name": "…", "city": "São Paulo" },
@@ -269,7 +269,7 @@ Formato RFC 9457 (`application/problem+json`):
 | Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |
 | Onde assistir | 60 s | Correção aceita (purge) |
 | Semântica | 24 h | Merge de PR na base |
-| Assets (imagens) | 30 dias, imutável por hash | Nova versão = nova URL |
+| Assets (imagens) | 30 dias, imutável por hash | Nova versão = nova URL (`?v=` com o início do sha256 de `core.asset`) |
 
 ### 7.1 Implementação
 

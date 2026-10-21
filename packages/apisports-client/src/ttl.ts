@@ -16,6 +16,11 @@ const REFERENCE = new Set([
   '/odds/bookmakers',
   '/odds/bets',
   '/odds/live/bets',
+  // demais esportes: catálogos que mudam pouco (F1 /competitions, MMA /categories, basquete /bookmakers e /bets)
+  '/competitions',
+  '/categories',
+  '/bookmakers',
+  '/bets',
 ]);
 
 const SLOW_ENTITIES = new Set([
