@@ -1,17 +1,37 @@
 import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
-import { normalizeParams, requestHash, ttlFor } from '@galaxie/apisports-client';
+import * as z from 'zod';
+import { normalizeParams, requestHash, rewriteMediaUrls, ttlFor } from '@galaxie/apisports-client';
 import { MIRROR_SPORTS, type MirrorEnvelope, type MirrorSport } from '@galaxie/contracts';
 import { apiResponse, backfillRequest, type Database } from '@galaxie/db';
 import { assertSport } from '../auth/authenticator.js';
 import { sendCached } from '../cache/http.js';
 import { requireDb, type AppContext } from '../context.js';
 import { problems } from '../errors.js';
+import { parseInput } from '../util.js';
+import { rebuildFromCore } from './mirror-rebuild.js';
 
 const PROVIDER = 'api-sports';
 const SPORTS = new Set<string>(MIRROR_SPORTS);
 const ENDPOINT_RE = /^[a-z0-9][a-z0-9/_-]{0,99}$/;
 const KEY_ORDER = ['get', 'parameters', 'errors', 'results', 'paging', 'response'];
+/** Resposta last-known-good (`stale`) fica no cache por pouco tempo: a próxima pode vir remontada/fresca. */
+const STALE_TTL_SEC = 60;
+
+/** Rota `/mirror/:sport/*`: o endpoint (curinga) é validado com ENDPOINT_RE no handler. */
+const MirrorRouteParams = z.object({ sport: z.string().max(40), '*': z.string().max(200).default('') });
+
+/**
+ * Query do espelho: nomes e valores livres (são os parâmetros do fornecedor), mas limitados — no
+ * máximo 20 parâmetros, nome `[A-Za-z0-9_-]{1,40}`, valor até 200 caracteres. Evita que combinações
+ * arbitrárias encham `api.backfill_request`.
+ */
+const MirrorQuery = z
+  .record(
+    z.string().regex(/^[A-Za-z0-9_-]{1,40}$/, 'nome de parâmetro inválido'),
+    z.union([z.string().max(200), z.array(z.string().max(200)).max(5)]),
+  )
+  .refine((q) => Object.keys(q).length <= 20, 'no máximo 20 parâmetros');
 
 /** TTL do espelho: o mesmo frescor que o cliente da api-sports usa para o endpoint, entre 15 s e 24 h. */
 export function mirrorTtlSec(endpoint: string, params: Record<string, string>, now = new Date()): number {
@@ -104,40 +124,70 @@ export async function enqueueBackfill(
 }
 
 /**
- * Espelho compatível `/mirror/{sport}/{endpoint}` (docs/05 §2): serve o raw mais recente da mesma
- * requisição com o envelope original. Nunca chama o fornecedor; sem dado → `results: 0`, `miss` e backfill.
+ * Espelho compatível `/mirror/{sport}/{endpoint}` (docs/05 §2). Nunca chama o fornecedor:
+ * 1. `raw-hit` — raw mais recente com sucesso, dentro do frescor do endpoint (`ttlFor`);
+ * 2. `rebuilt` — remontado do `core` quando o raw falta ou o core tem dado mais novo que ele;
+ * 3. `stale` — raw fora do frescor e nada mais novo no core (last-known-good);
+ * 4. `miss` — `results: 0` e backfill ADHOC.
+ * Com `ASSETS_PUBLIC_BASE_URL`, as URLs de mídia do corpo são reescritas para o nosso CDN.
  */
 export async function mirrorRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   app.get('/mirror/:sport/*', { config: { module: 'core_data' } }, async (request, reply) => {
-    const { sport, '*': rest } = request.params as { sport: string; '*': string };
+    const { sport, '*': rest } = parseInput(MirrorRouteParams, request.params);
     if (!SPORTS.has(sport)) throw problems.notFound('Esporte do espelho');
-    const path = (rest ?? '').replace(/\/+$/, '');
+    const path = rest.replace(/\/+$/, '');
     if (!ENDPOINT_RE.test(path))
       throw problems.invalidParams([{ path: 'endpoint', message: 'endpoint inválido' }]);
     if (request.tenant) assertSport(request.tenant, sport);
 
     const endpoint = `/${path}`;
-    const params = queryParams(request.query);
+    const params = queryParams(parseInput(MirrorQuery, request.query ?? {}));
     const hash = requestHash(PROVIDER, sport as MirrorSport, endpoint, params);
     const assetBase = ctx.assetsBaseUrl ? { 'x-galaxie-asset-base': ctx.assetsBaseUrl } : undefined;
+    const rewrite = (body: unknown) =>
+      ctx.assetsBaseUrl
+        ? rewriteMediaUrls(body, { publicBaseUrl: ctx.assetsBaseUrl, denylist: ctx.mediaDenylist })
+        : body;
+    const now = ctx.now();
+    const ttl = mirrorTtlSec(endpoint, params, now);
 
     return sendCached(request, reply, ctx.cache, {
-      ttl: mirrorTtlSec(endpoint, params),
+      ttl,
       vary: [hash],
       load: async () => {
         const db = requireDb(ctx);
         const raw = await latestRaw(db, sport, endpoint, hash);
-        if (raw) {
+        const freshMs = ttlFor(endpoint, params, now);
+        const served = (body: unknown, source: 'raw-hit' | 'stale', fetchedAt: Date) => ({
+          body: rewrite(orderEnvelope(body)),
+          tags: [`api_response:${hash}`],
+          headers: {
+            'x-galaxie-source': source,
+            'x-galaxie-fetched-at': fetchedAt.toISOString(),
+            ...assetBase,
+          },
+          ...(source === 'stale' ? { ttl: Math.min(ttl, STALE_TTL_SEC) } : {}),
+        });
+        if (raw && now.getTime() - raw.fetchedAt.getTime() <= freshMs)
+          return served(raw.body, 'raw-hit', raw.fetchedAt);
+
+        const rebuilt = await rebuildFromCore(db, sport, endpoint, params).catch((err: unknown) => {
+          request.log.warn({ err }, 'espelho: falha ao remontar do core');
+          return null;
+        });
+        if (rebuilt && (!raw || (rebuilt.latestAt && rebuilt.latestAt > raw.fetchedAt))) {
           return {
-            body: orderEnvelope(raw.body),
-            tags: [`api_response:${hash}`],
+            body: rewrite(rebuilt.body),
+            tags: [`api_response:${hash}`, 'event'],
             headers: {
-              'x-galaxie-source': 'raw-hit',
-              'x-galaxie-fetched-at': raw.fetchedAt.toISOString(),
+              'x-galaxie-source': 'rebuilt',
+              ...(rebuilt.latestAt ? { 'x-galaxie-fetched-at': rebuilt.latestAt.toISOString() } : {}),
               ...assetBase,
             },
           };
         }
+        if (raw) return served(raw.body, 'stale', raw.fetchedAt);
+
         await enqueueBackfill(db, {
           sport,
           endpoint,

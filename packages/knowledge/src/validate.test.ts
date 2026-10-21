@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildKnowledgeBase, DEFAULT_KNOWLEDGE_DIR, loadKnowledge, parseKnowledgeFile } from './load.js';
+import {
+  buildKnowledgeBase,
+  DEFAULT_KNOWLEDGE_DIR,
+  loadGlossary,
+  loadKnowledge,
+  parseKnowledgeFile,
+} from './load.js';
 import { checkChant, checkProse } from './lyrics.js';
 import { validateKnowledge, type Issue } from './validate.js';
 
@@ -27,6 +33,7 @@ describe('validateKnowledge — base real', () => {
     expect(report.counts.derbies).toBe(93);
     expect(report.counts.competitions).toBe(43);
     expect(report.counts.copyTemplates).toBeGreaterThanOrEqual(8 * 24);
+    expect(report.counts.glossaryTerms).toBeGreaterThanOrEqual(8 * 3);
   });
 });
 
@@ -116,6 +123,53 @@ describe('validateKnowledge — regras', () => {
       'copy/es-AR.yaml': `schema_version: 1\nlocale: es-MX\nsport: football\ntemplates:\n  - { key: inform-1, intent: inform, tone: 1, template: "Hoy juega {team}", confidence: HIGH, review_status: draft }\n`,
     });
     expect(codes(report.errors)).toContain('file-name');
+  });
+
+  const glossary = (locale: string, terms: string) =>
+    `schema_version: 1\nlocale: ${locale}\nsport: football\nterms:\n${terms}`;
+  const term = (key: string, extra = '') =>
+    `  - key: ${key}\n    term: ${key}\n    meaning: "Significado curto do termo ${key}."\n    category: support\n    sources: ["https://example.org/${key}"]\n    review_status: draft\n${extra}`;
+
+  it('glossário: aceita termo positivo e lê pelo loadGlossary', async () => {
+    const report = await validateFiles({
+      'glossary/pt-BR.yaml': glossary(
+        'pt-BR',
+        term('torcer', '    copy_intents: [cheer]\n    requires: declared_affinity\n'),
+      ),
+    });
+    expect(report.errors).toEqual([]);
+    expect(report.counts.glossaryTerms).toBe(1);
+    expect(codes(report.warnings)).toContain('glossary-coverage');
+  });
+
+  it('glossário: rivalidade sem rival declarado, chave duplicada e locale trocado são erro', async () => {
+    const rivalry = term('secar').replace('category: support', 'category: rivalry');
+    const report = await validateFiles({
+      'glossary/pt-BR.yaml': glossary('pt-BR', rivalry + term('torcer') + term('torcer')),
+      'glossary/es-AR.yaml': glossary('es-MX', term('alentar')),
+    });
+    expect(codes(report.errors)).toEqual(
+      expect.arrayContaining(['copy-permission', 'duplicate-key', 'file-name']),
+    );
+  });
+
+  it('glossário: termo de torcida sem restrição é aviso', async () => {
+    const report = await validateFiles({
+      'glossary/es-AR.yaml': glossary('es-AR', term('alentar', '    copy_intents: [cheer]\n')),
+    });
+    expect(report.errors).toEqual([]);
+    expect(codes(report.warnings)).toContain('copy-permission');
+  });
+});
+
+describe('loadGlossary', () => {
+  it('lê só data/knowledge/glossary (8 mercados) e devolve vazio sem a pasta', async () => {
+    const terms = await loadGlossary();
+    expect(new Set(terms.map((t) => t.locale)).size).toBe(8);
+    expect(terms.find((t) => t.locale === 'pt-BR' && t.entry.key === 'secar')?.entry.requires).toBe(
+      'declared_rival',
+    );
+    expect(await loadGlossary('/caminho/que/nao/existe')).toEqual([]);
   });
 });
 

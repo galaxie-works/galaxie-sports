@@ -17,7 +17,14 @@ export interface Issue {
 export interface ValidationReport {
   errors: Issue[];
   warnings: Issue[];
-  counts: { files: number; teams: number; derbies: number; competitions: number; copyTemplates: number };
+  counts: {
+    files: number;
+    teams: number;
+    derbies: number;
+    competitions: number;
+    copyTemplates: number;
+    glossaryTerms: number;
+  };
 }
 
 const SCHEMA_BY_KIND: Partial<Record<FileKind, string>> = {
@@ -27,6 +34,7 @@ const SCHEMA_BY_KIND: Partial<Record<FileKind, string>> = {
   derbies: 'derbies.schema.json',
   competitions: 'competitions.schema.json',
   copy: 'copy.schema.json',
+  glossary: 'glossary.schema.json',
 };
 
 /** Compila os JSON Schemas de data/knowledge/schemas. */
@@ -194,7 +202,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
         lineOf(file, ['region']),
         `region ${data['region']} difere do nome do arquivo`,
       );
-    if (file.kind === 'copy' && data?.['locale'] !== base)
+    if ((file.kind === 'copy' || file.kind === 'glossary') && data?.['locale'] !== base)
       add(
         'error',
         'file-name',
@@ -463,6 +471,9 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   // 8. biblioteca de copy
   issues.push(...validateCopy(kb, at));
 
+  // 9. glossário por mercado
+  issues.push(...validateGlossary(kb, at));
+
   const sortKey = (i: Issue) => `${i.file ?? ''}|${String(i.line ?? 0).padStart(6, '0')}`;
   const sorted = issues.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
   return {
@@ -474,6 +485,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
       derbies: kb.derbies.length,
       competitions: kb.competitions.length,
       copyTemplates: kb.copyTemplates.length,
+      glossaryTerms: kb.glossary.length,
     },
   };
 }
@@ -560,13 +572,84 @@ function validateCopy(
   return out;
 }
 
+/**
+ * Glossário (data/knowledge/glossary/<locale>.yaml): chaves únicas por locale, termos curtos e positivos e
+ * as mesmas regras do copy_permission — termo de rivalidade só com rival declarado; torcida só com
+ * afinidade declarada.
+ */
+function validateGlossary(
+  kb: KnowledgeBase,
+  at: (file: string, path: (string | number)[]) => number | null,
+): Issue[] {
+  const out: Issue[] = [];
+  const add = (level: Issue['level'], code: string, file: string, line: number | null, message: string) =>
+    out.push({ level, code, file, line, message });
+  const keys = new Set<string>();
+  const locales = new Set<string>();
+  for (const t of kb.glossary) {
+    const e = t.entry;
+    const line = at(t.file, ['terms', t.index]);
+    locales.add(t.locale);
+    const fullKey = `${t.locale}.${e.key}`;
+    if (keys.has(fullKey))
+      add('error', 'duplicate-key', t.file, line, `termo de glossário duplicado: ${e.key}`);
+    keys.add(fullKey);
+    const intents = Array.isArray(e.copy_intents) ? e.copy_intents : [];
+    if ((e.category === 'rivalry' || intents.includes('rivalry')) && e.requires !== 'declared_rival')
+      add(
+        'error',
+        'copy-permission',
+        t.file,
+        line,
+        `${e.key}: termo de rivalidade exige requires: declared_rival (docs/06 §4.2)`,
+      );
+    if (intents.includes('cheer') && !e.requires)
+      add(
+        'warning',
+        'copy-permission',
+        t.file,
+        line,
+        `${e.key}: termo de torcida (cheer) sem requires — use declared_affinity`,
+      );
+    for (const field of ['meaning', 'note'] as const) {
+      const text = e[field];
+      if (typeof text !== 'string') continue;
+      const verdict = checkProse(text);
+      if (verdict)
+        add(
+          verdict.level,
+          'lyric-like',
+          t.file,
+          at(t.file, ['terms', t.index, field]),
+          `${e.key}: ${verdict.reason}`,
+        );
+    }
+    if (typeof e.example === 'string') {
+      const verdict = checkChant(e.example);
+      if (verdict)
+        add(
+          verdict.level,
+          'lyric-like',
+          t.file,
+          at(t.file, ['terms', t.index, 'example']),
+          `${e.key}: ${verdict.reason}`,
+        );
+    }
+  }
+  if (kb.glossary.length)
+    for (const locale of COPY_LOCALES)
+      if (!locales.has(locale))
+        add('warning', 'glossary-coverage', 'glossary', null, `sem glossário para ${locale}`);
+  return out;
+}
+
 /** Formata o relatório para terminal (pt-BR). */
 export function formatReport(report: ValidationReport): string {
   const line = (i: Issue) =>
     `  ${i.level === 'error' ? '✗' : '!'} ${i.file ?? '-'}${i.line ? `:${i.line}` : ''} [${i.code}] ${i.message}`;
   const c = report.counts;
   return [
-    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos · ${c.competitions} competições · ${c.copyTemplates} templates de copy`,
+    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário`,
     ...(report.errors.length ? [`Erros (${report.errors.length}):`, ...report.errors.map(line)] : []),
     ...(report.warnings.length ? [`Avisos (${report.warnings.length}):`, ...report.warnings.map(line)] : []),
     report.errors.length

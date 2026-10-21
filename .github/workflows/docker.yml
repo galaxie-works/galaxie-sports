@@ -1,0 +1,158 @@
+name: Imagens e stack de staging
+
+# Só constrói e valida (sem publicar). Publicar no GHCR é opcional — ver infra/portainer/README.md.
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'services/ingestor/**'
+      - 'packages/**'
+      - 'config/**'
+      - 'infra/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.dockerignore'
+      - '.github/workflows/docker.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'services/ingestor/**'
+      - 'packages/**'
+      - 'config/**'
+      - 'infra/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.dockerignore'
+      - '.github/workflows/docker.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            context: .
+            file: apps/api/Dockerfile
+          - image: ingestor
+            context: .
+            file: services/ingestor/Dockerfile
+          - image: backup
+            context: infra/backup
+            file: infra/backup/Dockerfile
+          - image: prometheus
+            context: infra/observability/prometheus
+            file: infra/observability/prometheus/Dockerfile
+          - image: grafana
+            context: infra/observability/grafana
+            file: infra/observability/grafana/Dockerfile
+          - image: caddy
+            context: infra/caddy
+            file: infra/caddy/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (sem push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: false
+          tags: galaxie-sports-${{ matrix.image }}:ci
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  stack:
+    name: valida stack, alertas e scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: docker compose config (stack do Portainer)
+        run: docker compose -f infra/portainer/stack.yml --env-file infra/portainer/stack.env.example config -q
+
+      - name: Alertas — teste simulado (promtool)
+        run: |
+          docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
+            prom/prometheus:v3.15.1 test rules alerts.test.yml
+          docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
+            prom/prometheus:v3.15.1 check config prometheus.yml --syntax-only
+
+      - name: Caddyfile
+        run: |
+          docker run --rm -e API_DOMAIN=api.example.test -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.11.7-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+      - name: Painel do Grafana é JSON válido
+        run: jq empty infra/observability/grafana/dashboards/*.json
+
+      - name: shellcheck
+        run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh
+
+  backup-restore:
+    name: backup e restore ponta a ponta
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: galaxie
+          POSTGRES_PASSWORD: galaxie
+          POSTGRES_DB: galaxie_sports
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U galaxie -d galaxie_sports"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      E2E_DB: galaxie_backup_e2e
+      BACKUP_IMAGE: galaxie-sports-backup:ci
+      DOCKER_NETWORK: host
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: galaxie
+      PGPASSWORD: galaxie
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter "@galaxie/db..." run build
+
+      - name: Imagem de backup
+        run: docker build -t "$BACKUP_IMAGE" infra/backup
+
+      - name: Banco descartável migrado
+        run: |
+          psql -d galaxie_sports -c "create database $E2E_DB"
+          DATABASE_URL="postgres://galaxie:galaxie@localhost:5432/$E2E_DB" pnpm --filter @galaxie/db db:migrate
+
+      - name: backup → perda → ensaio → restore
+        run: bash infra/backup/e2e-test.sh

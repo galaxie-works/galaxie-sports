@@ -29,15 +29,21 @@
 
 ## 4. Segurança
 
+Política, rotação de segredos e como reportar vulnerabilidades: [SECURITY.md](../SECURITY.md).
+
 | Controle | Implementação |
 |---|---|
-| Segredos | `APISPORTS_KEY`, `ANTHROPIC_API_KEY`, credenciais de banco/S3 em variáveis de ambiente/secret store — **nunca** no Git (`.env` no `.gitignore`) |
-| Autenticação de tenants | API keys com hash (argon2) no banco, rotação, escopos por módulo |
-| Webhooks | Assinatura HMAC-SHA256 + timestamp (proteção contra replay) |
-| Rate limiting | Por tenant e por IP na borda |
-| Dependências | Dependabot + `pnpm audit` no CI |
-| Backups | Dump diário do Postgres (o schema `raw` é o ativo mais caro de reconstruir) com retenção de 30 dias |
-| Acesso administrativo | Rotas `/internal/*` apenas por VPN/allowlist |
+| Segredos | `APISPORTS_KEY`, `ANTHROPIC_API_KEY`, credenciais de banco/S3 em variáveis de ambiente/secret store — **nunca** no Git (`.env` no `.gitignore`). Varredura de segredos (gitleaks, histórico completo) em todo PR; rotação documentada no SECURITY.md |
+| Autenticação de tenants | API keys `gs_<live\|test>_<prefixo>_<segredo>` (256 bits), segredo guardado só como hash **scrypt** com sal (N=2¹⁴, r=8, p=1, `node:crypto`), comparação em tempo constante, rotação com período de graça, revogação, escopos por módulo — revisão em [SECURITY.md §Chaves](../SECURITY.md#chaves-de-api) |
+| Acesso administrativo | `/internal/*`: bloqueado no proxy público (404), chave administrativa (`x-galaxie-admin-key`, hash `sha256$` em `ADMIN_KEY_HASHES`, várias para rotação) **e** allowlist de IP/CIDR (`ADMIN_IP_ALLOWLIST`; fora dela → 404). Sem hash configurado, as rotas não existem |
+| Headers HTTP | `nosniff`, `X-Frame-Options: DENY`, CSP `default-src 'none'` (JSON) / `frame-ancestors 'none'` (`/docs`), `Referrer-Policy: no-referrer`, COOP/CORP `same-origin`, HSTS opcional (`HSTS_MAX_AGE`) |
+| CORS | Estrito: só as origens de `CORS_ORIGINS`, sem credenciais, métodos `GET/HEAD/POST`; nunca em `/internal/*`; sem a variável, nenhum header CORS |
+| Entrada | Toda rota valida params/query/corpo com Zod (auditoria automática em `security.test.ts`: rota sem autenticação declarada quebra o teste); corpo máx. 64 KiB (`API_BODY_LIMIT`, 413); query do espelho limitada (20 parâmetros, 200 caracteres) |
+| Webhooks | Assinatura HMAC-SHA256 + timestamp (proteção contra replay) — notas de implementação em [SECURITY.md §Webhooks](../SECURITY.md#webhooks) |
+| Rate limiting | Por tenant e rota (Valkey); por IP na borda |
+| Logs | Sem chaves (`x-galaxie-key`/`x-galaxie-admin-key` removidos também nos logs do Caddy) e com IP mascarado |
+| Dependências | Dependabot (npm, GitHub Actions, Docker/Compose — `.github/dependabot.yml`) + `pnpm audit --prod` informativo no CI |
+| Backups | Dump diário do Postgres (o schema `raw` é o ativo mais caro de reconstruir) com retenção de 30 dias, cópia remota opcional e restore testado no CI — [infra/portainer/README.md](../infra/portainer/README.md#backups); exercício de DR: [docs/runbooks/exercicio-dr.md](runbooks/exercicio-dr.md) |
 
 ## 5. Neutralidade de marca
 

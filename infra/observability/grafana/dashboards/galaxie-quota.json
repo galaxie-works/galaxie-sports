@@ -1,0 +1,313 @@
+{
+  "uid": "galaxie-quota",
+  "title": "Galaxie Sports · Cota, ingestão e API",
+  "description": "Cota por API em tempo real (ops.quota_ledger), jobs, frescor do raw, ao vivo e latência da API.",
+  "tags": ["galaxie", "quota"],
+  "timezone": "utc",
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "time": { "from": "now-24h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Cota por API (dia UTC corrente)",
+      "id": 100,
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "type": "bargauge",
+      "title": "Cota restante por API",
+      "description": "1 − max(ledger, contador do fornecedor) / limite diário. Alerta abaixo de 20%.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 10, "w": 10, "x": 0, "y": 1 },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.2 },
+              { "color": "green", "value": 0.4 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "max by (api) (galaxie_quota_remaining_ratio)",
+          "legendFormat": "{{api}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Uso efetivo da cota no dia",
+      "description": "Chamadas contadas no dia (o maior entre o ledger e o contador do fornecedor). Zera às 00:00 UTC.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 10, "w": 14, "x": 10, "y": 1 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0, "custom": { "lineWidth": 2, "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "max by (api) (galaxie_quota_used) > 0",
+          "legendFormat": "{{api}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Orçamento × uso por prioridade (hoje)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 11 },
+      "targets": [
+        {
+          "refId": "budget",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "max by (api, priority) (galaxie_quota_budget)",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "used",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (api, priority) (max without (instance) (galaxie_provider_calls{period=\"today\"}))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "merge", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": {
+              "api": "API",
+              "priority": "Prioridade",
+              "Value #budget": "Orçamento",
+              "Value #used": "Usadas"
+            }
+          }
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Usadas", "desc": true }] }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Chamadas hoje por desfecho (exceto ok)",
+      "description": "plan_error, rate_limited, quota_exhausted, auth_error, http_error, timeout e pendentes.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 11 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (api, outcome) (max without (instance) (galaxie_provider_calls{period=\"today\", outcome!=\"ok\"}))",
+          "legendFormat": "{{api}} · {{outcome}}"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Jobs e frescor dos dados",
+      "id": 101,
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "panels": []
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Falhas seguidas por job",
+      "description": "Alerta a partir de 3 falhas seguidas (ops.job_run).",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 22 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "max by (job_name) (galaxie_job_consecutive_failures)",
+          "legendFormat": "{{job_name}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Tempo desde o último sucesso",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 22 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "time() - max by (job_name) (galaxie_job_last_success_timestamp_seconds)",
+          "legendFormat": "{{job_name}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Frescor do raw por esporte",
+      "description": "Tempo desde a última resposta gravada em raw.api_response (janela de 7 dias).",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 22 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "time() - max by (sport) (galaxie_raw_last_fetched_timestamp_seconds)",
+          "legendFormat": "{{sport}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Ao vivo e API",
+      "id": 102,
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "panels": []
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Ao vivo: maior atraso de atualização",
+      "description": "Alerta quando passa de 2 intervalos do live poller (linha tracejada).",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 29 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "min": 0 },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "limite (2 intervalos)" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "max by (sport) (galaxie_live_event_max_staleness_seconds)",
+          "legendFormat": "{{sport}}"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "2 * max(galaxie_live_poll_interval_seconds)",
+          "legendFormat": "limite (2 intervalos)"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Latência da API (p50 / p95)",
+      "description": "NFR: p95 ≤ 150 ms com cache quente.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 29 },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(galaxie_http_request_duration_seconds_bucket{route!=\"/metrics\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(galaxie_http_request_duration_seconds_bucket{route!=\"/metrics\"}[5m])))",
+          "legendFormat": "p50"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Requisições por rota e status",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 29 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (route, status_code) (rate(galaxie_http_request_duration_seconds_count{route!=\"/metrics\"}[5m]))",
+          "legendFormat": "{{route}} {{status_code}}"
+        }
+      ]
+    }
+  ]
+}

@@ -272,6 +272,8 @@ beforeAll(async () => {
     assetsBaseUrl: ASSETS,
     cdnPurger: cdn,
     changeFeed: { pollIntervalMs: 250 },
+    // relógio fixo: o raw da agenda (10:00Z) ainda está no frescor do endpoint (5 min) → raw-hit
+    now: () => new Date('2026-10-21T10:02:00Z'),
   });
   await app.ready();
 }, 60_000);

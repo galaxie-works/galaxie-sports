@@ -1,0 +1,17 @@
+# Configuração do gitleaks (varredura de segredos no CI — .github/workflows/ci.yml, job "segredos").
+# Usa as regras padrão e só libera falsos positivos conhecidos. Antes de adicionar uma exceção,
+# confirme que o valor não é um segredo real; se for, revogue-o primeiro (SECURITY.md §Segredos).
+title = "galaxie-sports"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Chaves de template de copy em testes (identificadores, não segredos)"
+regexTarget = "line"
+regexes = ['''copyTemplate\.key''']
+
+[[allowlists]]
+description = "Senha fictícia da stack de teste local no README do Portainer (sequência hex 0-f)"
+regexTarget = "match"
+regexes = ['''=0123456789abcdef$''']

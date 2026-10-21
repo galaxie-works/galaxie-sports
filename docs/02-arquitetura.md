@@ -93,7 +93,10 @@ galaxie-sports/
 │   └── pwsh/                 # scripts PowerShell operacionais
 ├── infra/
 │   ├── docker-compose.yml    # Postgres 17, Valkey, RustFS (S3), bucket de assets
-│   └── portainer/            # stacks para VPS
+│   ├── portainer/            # stack de staging (Portainer) + guia de deploy/restore
+│   ├── backup/               # imagem de backup: pg_dump diário, retenção, restore scriptado
+│   ├── observability/        # Prometheus (alertas) e Grafana (painel de cota)
+│   └── caddy/                # proxy reverso com TLS automático
 └── docs/                     # esta documentação
 ```
 
@@ -152,8 +155,9 @@ sequenceDiagram
   L->>AS: GET /fixtures?live=71-13-11
   AS-->>L: todos os jogos ao vivo dessas ligas + eventos
   L->>P: grava raw + upsert core (diff)
-  P-->>A: NOTIFY event_changed
-  A-->>A: purge cache + push SSE/webhook
+  P->>P: trigger → ops.change_feed (event.score_changed, ...)
+  P-->>A: NOTIFY ops_change_feed
+  A-->>A: purge cache + relay (Valkey pub/sub) → SSE; worker → webhooks assinados
 ```
 
 ### 5.3 Onde assistir
@@ -170,7 +174,7 @@ sequenceDiagram
   W-->>V: opções + URLs + trechos de evidência
   V->>V: dedup · conflito? · confiança ≥ limiar?
   V->>P: upsert opções (confirmed/probable/omitted)
-  P-->>A: NOTIFY wtw_changed → purge ≤ 5 min
+  P-->>A: trigger → ops.change_feed (where_to_watch.changed) + NOTIFY → purge + SSE/webhook ≤ 5 min
 ```
 
 ## 6. Decisões de arquitetura (ADRs resumidos)
@@ -206,7 +210,7 @@ sequenceDiagram
 | Ambiente | Onde | Dados |
 |---|---|---|
 | `local` | Docker Compose (`infra/docker-compose.yml`) | Snapshot do raw (dump) — zero chamadas ao fornecedor |
-| `staging` | VPS + Portainer | Ingestão real com chave free |
+| `staging` | VPS + Portainer ([`infra/portainer`](../infra/portainer/README.md): stack, TLS, backups, restore e observabilidade) | Ingestão real com chave free |
 | `production` | VPS dedicada ou nuvem gerenciada | Plano pago do fornecedor + CDN |
 
 Variáveis de ambiente principais (nunca versionadas):
