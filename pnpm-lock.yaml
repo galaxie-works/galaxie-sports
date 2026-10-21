@@ -47,7 +47,18 @@ importers:
 
   apps/demo: {}
 
-  packages/apisports-client: {}
+  packages/apisports-client:
+    dependencies:
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../db
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(postgres@3.4.9)
+    devDependencies:
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
 
   packages/contracts: {}
 
@@ -66,7 +77,14 @@ importers:
 
   services/ai-agents: {}
 
-  services/ingestor: {}
+  services/ingestor:
+    dependencies:
+      '@galaxie/apisports-client':
+        specifier: workspace:*
+        version: link:../../packages/apisports-client
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../../packages/db
 
 packages:
 

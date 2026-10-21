@@ -281,6 +281,8 @@ flowchart TB
 | ADHOC (*miss* do espelho) | 0–5% | — |
 | Reserva | 10–15% | só LIVE em decisões |
 
+Implementação: [`packages/apisports-client`](../packages/apisports-client/README.md) (`PgQuotaGovernor`, `ApiSportsClient`). Relatório de cota do dia: `pnpm --filter @galaxie/ingestor quota`.
+
 ## 10. Pendências de validação (issue de spike)
 
 Testar com a nossa chave:
