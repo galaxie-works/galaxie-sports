@@ -9,6 +9,12 @@ import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './c
 import type { AppContext } from './context.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
+import {
+  apiKeyFrom,
+  registerRealtime,
+  requestLogSerializer,
+  type RealtimeOptions,
+} from './realtime/index.js';
 import { docsRoutes } from './routes/docs.js';
 import { mirrorRoutes } from './routes/mirror.js';
 import { v1Routes } from './routes/v1/index.js';
@@ -33,11 +39,13 @@ export interface ServerOptions {
   assetsBaseUrl?: string;
   /** URL pública anunciada no OpenAPI. */
   publicUrl?: string;
+  /** Tempo real: `GET /v1/stream` (SSE) com fan-out via Valkey (requer db). */
+  realtime?: boolean | RealtimeOptions;
 }
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
 export function buildServer(options: ServerOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({ logger: options.logger ? { serializers: { req: requestLogSerializer } } : false });
   const prefix = options.keyPrefix ?? 'gs:';
 
   const cache =
@@ -59,8 +67,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     const module = request.routeOptions.config?.module;
     if (!module) return;
     if (!authenticator) throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
-    const header = request.headers['x-galaxie-key'];
-    const tenant = await authenticator.authenticate(Array.isArray(header) ? header[0] : header);
+    const tenant = await authenticator.authenticate(apiKeyFrom(request));
     request.tenant = tenant;
     assertModule(tenant, module);
 
@@ -103,6 +110,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     app.decorate('changeFeed', listener);
     app.addHook('onReady', async () => listener.start());
     app.addHook('onClose', async () => listener.stop());
+  }
+
+  if (options.realtime && options.db) {
+    registerRealtime(app, {
+      db: options.db,
+      ...(options.redis ? { redis: options.redis } : {}),
+      keyPrefix: prefix,
+      options: typeof options.realtime === 'object' ? options.realtime : {},
+    });
   }
 
   return app;

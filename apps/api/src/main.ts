@@ -14,6 +14,9 @@ const app = buildServer({
   ...(redis ? { redis } : {}),
   logger: true,
   changeFeed: true,
+  realtime: {
+    maxConnectionsPerTenant: Number(process.env.SSE_MAX_CONNECTIONS_PER_TENANT ?? 100),
+  },
   ...(process.env.ASSETS_PUBLIC_BASE_URL ? { assetsBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL } : {}),
   publicUrl: process.env.API_PUBLIC_URL ?? `http://localhost:${port}`,
 });

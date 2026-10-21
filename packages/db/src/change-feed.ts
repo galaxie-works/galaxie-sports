@@ -1,36 +1,34 @@
 import { sql } from 'drizzle-orm';
 import type { Database } from './client.js';
-import { changeFeed } from './schema/ops.js';
 
 /** Canal do LISTEN/NOTIFY usado para acordar os consumidores do change feed (purge de cache, SSE...). */
 export const CHANGE_FEED_CHANNEL = 'ops_change_feed';
 
 export interface ChangeInput {
-  /** Ex.: catalog, standings, event, where_to_watch, raw. */
+  /** Ex.: catalog, standings, event.score_changed, where_to_watch.changed. */
   topic: string;
-  /** Ex.: competition, season, standing, venue, country, sport, event, api_response. */
+  /** Ex.: competition, season, standing, venue, country, sport, event, where_to_watch, api_response. */
   entityType: string;
   entityId: string;
   /** Dados livres; `tags` (string[]) acrescenta tags de cache a purgar. */
   payload?: Record<string, unknown> | null;
 }
 
+/** Executor aceito por publishChange: o banco ou uma transação aberta. */
+type Executor = Pick<Database, 'execute'>;
+
 /**
- * Publica uma mudança no `ops.change_feed` e notifica os ouvintes na mesma transação
- * (o NOTIFY só é entregue no commit). Use em todo writer que altera dados servidos pela API.
+ * Publica uma mudança no `ops.change_feed` e notifica os ouvintes (o NOTIFY só é entregue no commit).
+ * Usa `ops.publish_change`, a mesma função dos triggers de captura (migration 0006): a mesma
+ * (tópico, entidade) publicada duas vezes na mesma transação — por um trigger e pelo app, por
+ * exemplo — vira uma única linha com os payloads fundidos. Mudanças em `core.event`,
+ * `core.event_incident`, `enrich.broadcast_option` e `enrich.event_context` já são capturadas
+ * pelos triggers; use publishChange para os demais writers (catálogo, tabelas, espelho...).
  */
-export async function publishChange(db: Database, change: ChangeInput): Promise<number> {
-  return db.transaction(async (tx) => {
-    const [row] = await tx
-      .insert(changeFeed)
-      .values({
-        topic: change.topic,
-        entityType: change.entityType,
-        entityId: change.entityId,
-        payload: change.payload ?? null,
-      })
-      .returning({ id: changeFeed.id });
-    await tx.execute(sql`select pg_notify(${CHANGE_FEED_CHANNEL}, ${String(row!.id)})`);
-    return row!.id;
-  });
+export async function publishChange(db: Executor, change: ChangeInput): Promise<number> {
+  const payload = change.payload == null ? null : JSON.stringify(change.payload);
+  const rows = await db.execute<{ id: string }>(
+    sql`select ops.publish_change(${change.topic}, ${change.entityType}, ${change.entityId}, ${payload}::jsonb)::text as id`,
+  );
+  return Number(rows[0]!.id);
 }

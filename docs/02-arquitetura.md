@@ -152,8 +152,9 @@ sequenceDiagram
   L->>AS: GET /fixtures?live=71-13-11
   AS-->>L: todos os jogos ao vivo dessas ligas + eventos
   L->>P: grava raw + upsert core (diff)
-  P-->>A: NOTIFY event_changed
-  A-->>A: purge cache + push SSE/webhook
+  P->>P: trigger → ops.change_feed (event.score_changed, ...)
+  P-->>A: NOTIFY ops_change_feed
+  A-->>A: purge cache + relay (Valkey pub/sub) → SSE; worker → webhooks assinados
 ```
 
 ### 5.3 Onde assistir
@@ -170,7 +171,7 @@ sequenceDiagram
   W-->>V: opções + URLs + trechos de evidência
   V->>V: dedup · conflito? · confiança ≥ limiar?
   V->>P: upsert opções (confirmed/probable/omitted)
-  P-->>A: NOTIFY wtw_changed → purge ≤ 5 min
+  P-->>A: trigger → ops.change_feed (where_to_watch.changed) + NOTIFY → purge + SSE/webhook ≤ 5 min
 ```
 
 ## 6. Decisões de arquitetura (ADRs resumidos)

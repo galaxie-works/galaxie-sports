@@ -249,7 +249,7 @@ create table enrich.event_context (
 | `ops.quota_budget` | Orçamento planejado por `api × dia × prioridade` |
 | `ops.sync_cursor` | Marca d'água por `(sport, endpoint, chave)` — ex.: último `fixtures?league=71&season=2026` sincronizado |
 | `ops.job_run` | Execuções de jobs, duração, chamadas gastas, erros |
-| `ops.change_feed` | Mudanças publicadas (para SSE/webhooks e purge de cache/CDN) — gravadas com `publishChange()`, que também faz `pg_notify('ops_change_feed', id)` |
+| `ops.change_feed` | Mudanças publicadas (para SSE/webhooks e purge de cache/CDN) — gravadas por triggers (`core.event`, `core.event_incident`, `enrich.broadcast_option`, `enrich.event_context`) ou por `publishChange()`; ambos usam `ops.publish_change()`, que deduplica por transação e faz `pg_notify('ops_change_feed', id)` (docs/05 §5) |
 
 ## 6.1 `api` — tenants, chaves e backfill do espelho
 
@@ -258,6 +258,9 @@ create table enrich.event_context (
 | `api.tenant` | Cliente da API: `slug`, `plan`, `modules[]`, `markets[]` (vazio = todos), `sports[]` (vazio = todos), `rate_limit_per_minute`, `status` |
 | `api.api_key` | Chaves do tenant: `prefix` (único, em claro), `secret_hash` (scrypt com sal), `scopes[]` (restringe módulos), `expires_at`, `revoked_at`, `last_used_at` |
 | `api.backfill_request` | Combinações pedidas ao `/mirror` sem raw: `sport`, `endpoint`, `params`, `request_hash` (único), `priority` ADHOC, `status`, `hits` — consumidas pelo ingestor |
+| `api.webhook_endpoint` | Webhook de um tenant: `url`, `secret` (HMAC-SHA256), `topics[]` (vazio = todos do plano), `filters` (`events`/`competitions`/`sports`), `active` (docs/05 §5.2) |
+| `api.webhook_delivery` | Uma entrega por (endpoint, mudança do change feed), única: `payload` congelado, `status` (`pending`/`delivered`/`dead` = DLQ), `attempts`, `next_retry_at`, `response_code`, `last_error` |
+| `api.webhook_cursor` | Marca d'água do enfileirador de webhooks sobre `ops.change_feed` |
 
 Regras de autenticação, planos e rate limit: [05 §1.1](05-api-publica.md#11-implementação-schema-api).
 
