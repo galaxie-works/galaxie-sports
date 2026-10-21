@@ -8,6 +8,10 @@ export interface CachedResponse {
   tags: string[];
   /** Headers extras a reproduzir (ex.: x-galaxie-source do espelho). */
   headers?: Record<string, string>;
+  /** Content-Type quando o corpo não é JSON (ex.: text/calendar). */
+  contentType?: string;
+  /** Metadados internos, não enviados (ex.: esporte do evento, para checar o plano no HIT). */
+  meta?: Record<string, string>;
   storedAt: number;
 }
 

@@ -9,7 +9,19 @@ import type {
   Venue,
 } from './catalog.js';
 import type { Problem, SupportedLocale } from './common.js';
+import type { CompetitionContext } from './context.js';
+import type {
+  Event,
+  EventLineups,
+  EventsQuery,
+  EventStats,
+  EventTimeline,
+  HeadToHead,
+  LiveEventsQuery,
+  TeamSummary,
+} from './events.js';
 import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
+import type { Person, Squad, Team, TeamEventsQuery, TeamOverview, TeamsQuery } from './teams.js';
 
 export interface GalaxieClientOptions {
   /** Ex.: http://localhost:8080 */
@@ -83,6 +95,39 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     standings: (id: string, season: number | 'current', opts: LocaleOpts = {}) =>
       v1<Standings>(`/v1/competitions/${seg(id)}/seasons/${season}/standings`, opts),
     venue: (id: string, opts: LocaleOpts = {}) => v1<Venue>(`/v1/venues/${seg(id)}`, opts),
+    competitionContext: (id: string, opts: LocaleOpts & { season?: number | 'current' } = {}) =>
+      v1<CompetitionContext>(`/v1/competitions/${seg(id)}/context`, opts),
+
+    // ─── eventos ─────────────────────────────────────────────────────────────────────────────────
+    events: (query: Omit<EventsQuery, 'locale' | 'status'> & LocaleOpts & { status?: string } = {}) =>
+      v1<Page<Event>>('/v1/events', query as Query & LocaleOpts),
+    liveEvents: (query: Omit<LiveEventsQuery, 'locale'> & LocaleOpts = {}) =>
+      v1<{ data: Event[] }>('/v1/events/live', query as Query & LocaleOpts),
+    event: (id: string, opts: LocaleOpts = {}) => v1<Event>(`/v1/events/${seg(id)}`, opts),
+    eventTimeline: (id: string, opts: LocaleOpts = {}) =>
+      v1<EventTimeline>(`/v1/events/${seg(id)}/timeline`, opts),
+    eventLineups: (id: string, opts: LocaleOpts = {}) =>
+      v1<EventLineups>(`/v1/events/${seg(id)}/lineups`, opts),
+    eventStats: (id: string, opts: LocaleOpts = {}) => v1<EventStats>(`/v1/events/${seg(id)}/stats`, opts),
+    eventH2h: (id: string, opts: LocaleOpts & { limit?: number } = {}) =>
+      v1<HeadToHead>(`/v1/events/${seg(id)}/h2h`, opts),
+    /** Arquivo .ics (RFC 5545) do evento, como texto. */
+    eventIcs: async (id: string, opts: LocaleOpts = {}): Promise<string> =>
+      (await request(`/v1/events/${seg(id)}.ics`, { locale: options.locale, ...opts })).text(),
+
+    // ─── times e pessoas ─────────────────────────────────────────────────────────────────────────
+    teams: (query: Omit<TeamsQuery, 'locale'> & LocaleOpts = {}) =>
+      v1<Page<TeamSummary>>('/v1/teams', query as Query & LocaleOpts),
+    team: (id: string, opts: LocaleOpts = {}) => v1<Team>(`/v1/teams/${seg(id)}`, opts),
+    teamOverview: (id: string, opts: LocaleOpts = {}) =>
+      v1<TeamOverview>(`/v1/teams/${seg(id)}/overview`, opts),
+    teamEvents: (
+      id: string,
+      query: Omit<TeamEventsQuery, 'locale' | 'status'> & LocaleOpts & { status?: string } = {},
+    ) => v1<Page<Event>>(`/v1/teams/${seg(id)}/events`, query as Query & LocaleOpts),
+    squad: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
+      v1<Squad>(`/v1/teams/${seg(id)}/squad`, opts),
+    person: (id: string, opts: LocaleOpts = {}) => v1<Person>(`/v1/people/${seg(id)}`, opts),
     /** Espelho compatível: mesmo endpoint e parâmetros da api-sports. */
     mirror: async (sport: MirrorSport, endpoint: string, params: Query = {}): Promise<MirrorResult> => {
       const res = await request(`/mirror/${sport}/${endpoint.replace(/^\//, '')}`, params);

@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Redis } from 'ioredis';
+import type { MediaDenylist } from '@galaxie/apisports-client';
 import { pingDb, type Database } from '@galaxie/db';
 import { assertModule, Authenticator, type AuthenticatorOptions } from './auth/authenticator.js';
 import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
@@ -8,6 +9,7 @@ import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
 import type { AppContext } from './context.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
+import { RulesRegistry } from './events/rules-registry.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
 import { docsRoutes } from './routes/docs.js';
 import { mirrorRoutes } from './routes/mirror.js';
@@ -33,6 +35,12 @@ export interface ServerOptions {
   assetsBaseUrl?: string;
   /** URL pública anunciada no OpenAPI. */
   publicUrl?: string;
+  /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
+  rulesDir?: string;
+  /** URLs de mídia bloqueadas (config/assets/denylist.yaml). */
+  mediaDenylist?: MediaDenylist;
+  /** Relógio injetável (testes de momentum/agenda). */
+  now?: () => Date;
 }
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
@@ -49,7 +57,14 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const windowMs = options.rateLimitWindowMs ?? 60_000;
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
   const authenticator = store ? new Authenticator(store, options.authenticator) : undefined;
-  const ctx: AppContext = { db: options.db, cache, assetsBaseUrl: options.assetsBaseUrl };
+  const ctx: AppContext = {
+    db: options.db,
+    cache,
+    assetsBaseUrl: options.assetsBaseUrl,
+    rules: new RulesRegistry(options.rulesDir),
+    mediaDenylist: options.mediaDenylist,
+    now: options.now ?? (() => new Date()),
+  };
 
   registerErrorHandling(app);
   app.decorateRequest('tenant', null);
