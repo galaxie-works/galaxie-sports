@@ -359,3 +359,49 @@ Testar com a nossa chave:
 - Repetir o teste de erros × cota com o ledger próprio ligado.
 
 Já validados em 21/10/2026 (ver §1.1): cota separada por esporte, `/status` gratuito, janela de datas, temporadas 2022–2024, `h2h` com todas as temporadas, hóquei aceitando `date` sem `season`.
+
+## 11. Jobs de ingestão do futebol
+
+Implementação: [`services/ingestor/src/jobs`](../services/ingestor/src/jobs). Todos os jobs:
+
+- chamam **só** pelo `ApiSportsClient` (cache do raw → plano → Quota Governor → rede), com prioridade `BOOTSTRAP` ou `DAILY` e `jobId = job-run:<id>`;
+- registram cada execução em `ops.job_run` (status `ok`/`partial`/`error`, chamadas gastas e contagens por passo);
+- são **retomáveis**: cada item concluído marca `ops.sync_cursor` — `(football, /fixtures, league=71&season=2024)`, `(football, /fixtures, id=123)` para o detalhe de uma partida (compartilhado entre o bootstrap e o sync diário), `(football, /trophies, player=9)` por pessoa num lote de 20;
+- têm `--plan`: mostram, por passo, o que já foi feito, o que sairia do raw (cache) e o que gastaria cota — **sem chamar**; fases que dependem de chamadas anteriores (ex.: pares de h2h, que dependem das listas de times) são montadas a partir do raw atual e marcadas como estimativa por baixo;
+- **param graciosamente** quando o Governor nega (`QuotaExceededError`), quando o fornecedor diz que a cota do dia acabou ou ao atingir `--max-chamadas`: o relatório mostra o que ficou pendente e a próxima execução continua de onde parou. Erros de um item (ex.: erro de plano) contam tentativa; após 3, o item é deixado de lado até `--forcar`;
+- só buscam e gravam o raw. A normalização raw → core (#22) se pluga pelo gancho `afterFetch(envelope, request)`, chamado após cada resposta (rede ou cache); o padrão não faz nada.
+
+| Comando | Issue | O que faz | Ordem / prioridade |
+|---|---|---|---|
+| `bootstrap:seasons` | #13 | Por competição × temporada: `teams`, `fixtures`, `fixtures/rounds?dates=true`, `standings`¹, `injuries`¹, `players/top{scorers,assists,yellowcards,redcards}`¹; `venues?country` por país | tier → recência (a temporada mais recente de cada liga antes das antigas) → `live_priority` |
+| `bootstrap:seasons --h2h-temporada-atual` | #13 | Free: reconstrói a temporada atual das ligas tier 1 por `fixtures/headtohead` (pares de times da temporada acessível mais recente; jogos deduplicados por `fixture.id` em `reconstructSeasonFromH2h`) | 190 chamadas por liga de 20 clubes; times promovidos chegam pelo sync diário |
+| `bootstrap:details` | #14 | Detalhe das encerradas conhecidas pelo raw (listas, h2h, agendas): pagos `fixtures?ids=` ×20; free `fixtures?id=` e, por padrão (`--escopo auto`), só clássicos e jogos decisivos (finais, semis, quartas) | tier 1 → clássicos → tier 2; temporada atual e jogos recentes primeiro; pula temporadas sem eventos/escalações/estatísticas no `coverage` |
+| `bootstrap:people` | #15 | `players/squads`, `coachs`, `transfers` por time (tier ≤ 2); `trophies`/`sidelined` em lotes de 20 (elencos e técnicos atuais tier 1); `fixtures/headtohead` de todos os clássicos da base semântica (IDs da base ou resolvidos por nome+país nas listas do raw); `--estatisticas-jogadores` para `players?league&season` paginado (tier 1) | squads tier 1 primeiro |
+| `sync:daily` | #19 | `fixtures?date=` D-1/D0/D+1, `injuries?date=` D0, `/leagues`, `/status` (sem cota); detalhe dos encerrados de D-1…D-3 sem detalhe; rodízio (squads 7 dias, coachs/transfers/trophies/sidelined 30 dias) dos times tier 1; `--outros-esportes` traz `games/races/fights?date=` das outras 11 APIs | cada item vale 1×/dia UTC: reexecutar no mesmo dia não gasta |
+| `snapshot:export` / `snapshot:import` | #20 | `raw.api_response` + manifesto de `core.asset` ⇄ `data/snapshots/*.ndjson.gz` (fora do Git), idempotente | zero chamadas |
+
+¹ só quando o `coverage` da temporada não é `false`.
+
+### 11.1 Custo estimado (catálogo real: 46 competições tier 1 + 30 tier 2)
+
+Números de `--plan` sobre o catálogo carregado em 21/10/2026 (raw só com a referência global) e, onde o plano depende de listas ainda não baixadas, pelas fórmulas de §3.
+
+| Job | Free | Pro |
+|---|---|---|
+| `bootstrap:seasons` | **1.573** chamadas (197 temporadas 2022–2024; 219 puladas pelo `coverage`) → ~40 dias a 40/dia | **4.071** (514 temporadas: todas as iniciadas no tier 1, as 3 mais recentes no tier 2; 574 puladas) → < 1 dia |
+| `--h2h-temporada-atual` | ≈ 150 por liga (27 ligas tier 1 → ≈ 4.000; use `--ligas` para priorizar) | 0 (a temporada atual vem por `season`) |
+| `bootstrap:details` | 1 por jogo, só clássicos/decisivos (centenas) | ≈ partidas encerradas ÷ 20 (≈ 5.500 para ~110 mil jogos) |
+| `bootstrap:people` | ≈ 3.300 (times) + ≈ 2.000 (pessoas) + 82 (clássicos) — mesmo custo do Pro, mas ~135 dias | ≈ 5.400 → < 1 dia |
+| `sync:daily` | ≤ 45/dia: 5 fixas + até 35 detalhes + 5 do rodízio | ≈ 5 + ⌈encerrados ÷ 20⌉ + 200 do rodízio |
+
+A estimativa de dias do `--plan` usa limite − reserva − sync diário (free 40/dia, Pro 6.275/dia), supondo `--sem-live`; ajuste com `--por-dia`. O total do Pro fica em ≈ 15–17 mil chamadas para listas + detalhe + pessoas — dentro dos ~22 mil de §3 (que incluíam `players?league&season` de todas as temporadas tier 1, opcional aqui).
+
+### 11.2 Ambiente local sem chave
+
+```bash
+pnpm snapshot:export                      # no ambiente com dados: data/snapshots/raw-<data>.ndjson.gz
+pnpm snapshot:restore                     # local: restaura o snapshot mais recente (ou informe o arquivo)
+pnpm --filter @galaxie/ingestor bootstrap:catalog   # sem APISPORTS_KEY: modo offline, reprocessa do raw
+```
+
+Sem `APISPORTS_KEY`, o `ApiSportsClient` entra em **modo offline**: serve a resposta mais recente do raw (de qualquer idade) e nunca chama o fornecedor (`OfflineMissError`). Os assets em si ficam no object storage; o snapshot leva só o manifesto (URL de origem → `storage_key`, `sha256`).

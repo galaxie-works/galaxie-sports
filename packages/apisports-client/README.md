@@ -41,6 +41,10 @@ const { envelope, source } = await client.get({
 });
 
 await client.status('football'); // /status não consome cota e reconcilia o Governor
+
+// Ambiente local sem chave (ex.: depois de `snapshot:import`): só lê o raw, de qualquer idade,
+// e lança OfflineMissError em vez de chamar o fornecedor.
+const offline = new ApiSportsClient({ apiKey: '', store, governor, offline: true });
 ```
 
 ## Peças

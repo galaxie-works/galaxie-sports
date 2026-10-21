@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiSportsClient } from './client.js';
-import { ApiSportsError, PlanViolationError, QuotaExceededError } from './errors.js';
+import { ApiSportsError, OfflineMissError, PlanViolationError, QuotaExceededError } from './errors.js';
 import { FREE_PLAN, PlanRules } from './plan.js';
 import { InMemoryQuotaGovernor } from './quota/governor.js';
 import { defaultPolicy } from './quota/policy.js';
@@ -270,5 +270,34 @@ describe('ApiSportsClient', () => {
     expect(a.requestHash).toBe(b.requestHash);
     expect(c.envelope.results).toBe(1);
     expect((await governor.usage('football')).totalUsed).toBe(1);
+  });
+
+  it('modo offline serve o raw de qualquer idade e nunca chama o fornecedor', async () => {
+    const { store, api, governor, clock } = setup(() => ({ body: envelope([]) }));
+    const online = new ApiSportsClient({
+      apiKey: 'test-key',
+      store,
+      governor,
+      fetch: api.fetchFn,
+      clock,
+      rateLimiter: new RateLimiter(6000, clock),
+    });
+    await online.get({ sport: 'football', endpoint: '/countries', priority: 'DAILY' });
+    clock.t += 30 * 86_400_000; // muito além do TTL de 24 h
+
+    const offline = new ApiSportsClient({
+      apiKey: '',
+      store,
+      governor,
+      fetch: api.fetchFn,
+      clock,
+      offline: true,
+    });
+    const res = await offline.get({ sport: 'football', endpoint: '/countries', priority: 'DAILY' });
+    expect(res.source).toBe('cache');
+    await expect(
+      offline.get({ sport: 'football', endpoint: '/timezone', priority: 'DAILY' }),
+    ).rejects.toBeInstanceOf(OfflineMissError);
+    expect(api.calls).toHaveLength(1);
   });
 });
