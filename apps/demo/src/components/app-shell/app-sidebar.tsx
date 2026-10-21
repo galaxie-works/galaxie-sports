@@ -17,7 +17,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar';
-import { COUNTRIES, MAIN_NAV, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
+import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
 
 function isActive(pathname: string | null, href: string) {
   if (pathname === null) return false;
@@ -48,16 +48,6 @@ function CurrentSidebarNav() {
 function SidebarNav({ pathname }: { pathname: string | null }) {
   return (
     <SidebarContent>
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {MAIN_NAV.map((item) => (
-              <NavLink key={item.href} item={item} pathname={pathname} />
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
       <SidebarGroup>
         <SidebarGroupLabel>Esportes</SidebarGroupLabel>
         <SidebarGroupContent>

@@ -1,16 +1,13 @@
 import type { MirrorSport } from '@galaxie/contracts';
 import {
   Activity,
-  CalendarDays,
   CarFront,
   CircleDot,
   Dumbbell,
   Goal,
   Hand,
   HandFist,
-  LayoutDashboard,
   Medal,
-  Radio,
   Shield,
   Trophy,
   Volleyball,
@@ -22,12 +19,6 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
 }
-
-export const MAIN_NAV: NavItem[] = [
-  { href: '/', label: 'Meu dia', icon: CalendarDays },
-  { href: '/ao-vivo', label: 'Ao vivo', icon: Radio },
-  { href: '/painel', label: 'Painel de operação', icon: LayoutDashboard },
-];
 
 export interface SportNav extends NavItem {
   slug: MirrorSport;
