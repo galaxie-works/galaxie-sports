@@ -233,6 +233,7 @@ $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | For
 | 08 | [Olimpíadas e Pan-Americano](docs/08-olimpiadas-e-panamericano.md) | Fontes, modelo multiesporte, Lima 2027, LA 2028 |
 | 09 | [App de demonstração](docs/09-app-demonstracao.md) | Stack, telas, perfis de demo |
 | 10 | [Roadmap e backlog](docs/10-roadmap-e-backlog.md) | Fases, marcos e issues |
+| — | [Como contribuir](CONTRIBUTING.md) | Convenções de código, testes, migrations e PRs |
 | 11 | [Segurança, licenciamento e compliance](docs/11-seguranca-licenciamento-e-compliance.md) | Licenças de dados, IA, LGPD, segurança |
 
 Pesquisas de apoio (com fontes): [api-sports futebol](docs/research/api-sports-football.md) · [demais esportes](docs/research/api-sports-outros-esportes.md) · [catálogo de competições](docs/research/catalogo-competicoes.md) · [onde assistir](docs/research/onde-assistir.md) · [Olimpíadas e Pan](docs/research/olimpiadas-e-panamericano.md) · [Sportmonks](docs/research/sportmonks.md).
