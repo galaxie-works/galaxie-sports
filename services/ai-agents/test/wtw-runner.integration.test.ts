@@ -484,7 +484,7 @@ describe('onde assistir por rodada', () => {
     expect(pub!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
   });
 
-  it('orçamento global esgotado: alocação pulada sem chamar o provedor; os direitos saem mesmo assim', async () => {
+  it('orçamento global esgotado: alocação adiada sem chamar o provedor; os direitos saem e a execução volta para a fila', async () => {
     const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 50' });
     const now = new Date(KICKOFF.getTime() - 40 * H);
     await enqueueRuns(
@@ -498,6 +498,9 @@ describe('onde assistir por rodada', () => {
     expect(o!.stats.allocation).toMatch(/alocação falhou: Orçamento diário/);
     expect(fake.calls).toHaveLength(0);
     expect((await currentOptions(db, ids[0]!, 'BR')).every((r) => r.status === 'probable')).toBe(true);
+    // sem orçamento a rodada não fecha como "feita": volta para a fila e é alocada quando houver orçamento
+    const [row] = await db.select().from(wtwRun).where(eq(wtwRun.eventId, ids[0]!));
+    expect(row?.status).toBe('queued');
   });
 
   it('reexecução manual: alocação só daquele jogo; evento já iniciado é pulado', async () => {
