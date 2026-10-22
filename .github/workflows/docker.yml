@@ -94,8 +94,8 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
           push: ${{ env.PUBLISH == 'true' }}
+          # Só tags do GHCR: com push ligado o Buildx envia TODAS as tags (uma sem registry iria para o Docker Hub).
           tags: |
-            galaxie-sports-${{ matrix.image }}:ci
             ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:${{ github.sha }}
             ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:staging
           cache-from: type=gha,scope=${{ matrix.image }}
