@@ -1,3 +1,4 @@
+import { FREE_PLAN, PlanRules, PRO_PLAN } from '@galaxie/apisports-client';
 import { describe, expect, it, vi } from 'vitest';
 import { harness } from '../../testing/fake-api.js';
 import {
@@ -105,6 +106,20 @@ describe('classify / planJob', () => {
     expect(await classify([{ ...item, staleBefore: new Date(h.clock.t - 7 * 86_400_000) }], h.deps)).toEqual([
       'network',
     ]);
+  });
+
+  it('com planFor, valida cada item contra o plano da sua API (futebol pro, basquete free)', async () => {
+    const h = harness();
+    const deps = {
+      ...h.deps,
+      planFor: (sport: string) => new PlanRules(sport === 'football' ? PRO_PLAN : FREE_PLAN),
+    };
+    const items = [
+      plannedRequest('fixtures', 'football', '/fixtures', { league: 71, season: 2026 }),
+      plannedRequest('games', 'basketball', '/games', { league: 12, season: 2026 }),
+    ];
+    expect(await classify(items, h.deps)).toEqual(['blocked', 'blocked']);
+    expect(await classify(items, deps)).toEqual(['network', 'blocked']);
   });
 });
 

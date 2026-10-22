@@ -17,14 +17,24 @@ export interface ApiSportsClientOptions {
   apiKey: string;
   store: RawStore;
   governor: QuotaGovernor;
+  /** Mesmas regras de plano para todas as APIs (compatibilidade). Prefira `planFor`. */
   plan?: PlanRules;
+  /**
+   * Regras de plano por API (cada API tem assinatura própria). Chamado uma vez por esporte; o resultado
+   * fica em cache no cliente (PlanRules aprende a janela de temporadas por API). Tem precedência sobre `plan`.
+   */
+  planFor?: (sport: ApiSport) => PlanRules;
+  /**
+   * Limitador compartilhado (as chaves já são por API). Sem ele, o cliente cria um limitador por API
+   * com o `perMinute` do plano daquela API.
+   */
   rateLimiter?: RateLimiter;
   fetch?: typeof globalThis.fetch;
   clock?: Clock;
   /** Respostas grandes (fixtures?date=) podem passar de 60 s. */
   timeoutMs?: number;
-  /** Chamado quando o fornecedor desloca a janela de temporadas do plano. */
-  onPlanChange?: (plan: PlanRules) => void;
+  /** Chamado quando o fornecedor desloca a janela de temporadas do plano de uma API. */
+  onPlanChange?: (plan: PlanRules, sport: ApiSport) => void;
   /**
    * Modo offline (ambiente local sem chave, ex.: após restaurar um snapshot do raw): serve a resposta
    * mais recente do raw, de qualquer idade, e nunca chama o fornecedor (OfflineMissError).
@@ -67,23 +77,43 @@ export interface ProviderStatus {
  * 4. grava o envelope integral em raw.api_response e o desfecho em ops.quota_ledger.
  */
 export class ApiSportsClient {
-  private readonly plan: PlanRules;
-  private readonly limiter: RateLimiter;
+  private readonly rules = new Map<ApiSport, PlanRules>();
+  private readonly limiters = new Map<ApiSport, RateLimiter>();
   private readonly fetchFn: typeof globalThis.fetch;
   private readonly clock: Clock;
   private readonly timeoutMs: number;
   private readonly inFlight = new Map<string, Promise<CallResult<unknown>>>();
 
   constructor(private readonly options: ApiSportsClientOptions) {
-    this.plan = options.plan ?? new PlanRules();
     this.clock = options.clock ?? systemClock;
-    this.limiter = options.rateLimiter ?? new RateLimiter(this.plan.current.perMinute, this.clock);
     this.fetchFn = options.fetch ?? globalThis.fetch;
     this.timeoutMs = options.timeoutMs ?? 180_000;
   }
 
+  /** Regras do plano do futebol (API principal). Para as demais APIs, use `planRulesFor(sport)`. */
   get planRules(): PlanRules {
-    return this.plan;
+    return this.planRulesFor('football');
+  }
+
+  /** Regras do plano de uma API (criadas na primeira consulta e reaproveitadas). */
+  planRulesFor(sport: ApiSport): PlanRules {
+    let rules = this.rules.get(sport);
+    if (!rules) {
+      rules = this.options.planFor?.(sport) ?? this.options.plan ?? new PlanRules();
+      this.rules.set(sport, rules);
+    }
+    return rules;
+  }
+
+  /** Limitador por minuto de uma API: o compartilhado, se informado, ou um com o `perMinute` do plano dela. */
+  private limiterFor(sport: ApiSport): RateLimiter {
+    if (this.options.rateLimiter) return this.options.rateLimiter;
+    let limiter = this.limiters.get(sport);
+    if (!limiter) {
+      limiter = new RateLimiter(this.planRulesFor(sport).current.perMinute, this.clock);
+      this.limiters.set(sport, limiter);
+    }
+    return limiter;
   }
 
   get offline(): boolean {
@@ -114,7 +144,7 @@ export class ApiSportsClient {
       }
     }
 
-    this.plan.validate(params, now);
+    this.planRulesFor(req.sport).validate(params, now);
 
     // Mesmo processo: pedidos idênticos simultâneos compartilham a mesma chamada.
     const pending = this.inFlight.get(hash);
@@ -171,7 +201,7 @@ export class ApiSportsClient {
     }
 
     try {
-      await this.limiter.take(req.sport);
+      await this.limiterFor(req.sport).take(req.sport);
     } catch (err) {
       await this.options.governor.release(ticket);
       throw err;
@@ -234,7 +264,8 @@ export class ApiSportsClient {
 
     if (outcome === 'plan_error' && envelope) {
       const message = JSON.stringify(envelope.errors);
-      if (this.plan.learnFromPlanError(message)) this.options.onPlanChange?.(this.plan);
+      const rules = this.planRulesFor(req.sport);
+      if (rules.learnFromPlanError(message)) this.options.onPlanChange?.(rules, req.sport);
     }
     if (outcome !== 'ok' || !envelope) {
       throw new ApiSportsError(outcome, envelope?.errors ?? text.slice(0, 500), hash);
@@ -295,7 +326,7 @@ export class ApiSportsClient {
       active: r.subscription?.active ?? null,
       end: r.subscription?.end ?? null,
       used: r.requests?.current ?? 0,
-      limitDay: r.requests?.limit_day ?? this.plan.current.dailyLimit,
+      limitDay: r.requests?.limit_day ?? this.planRulesFor(sport).current.dailyLimit,
     };
     await this.options.governor.reconcile(sport, status.used, status.limitDay, status.plan ?? undefined);
     return status;

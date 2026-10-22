@@ -126,7 +126,10 @@ export interface PhaseReport {
 export interface JobDeps {
   cursors: CursorStore;
   raw: RawSource;
+  /** Regras do plano usadas quando `planFor` não é informado. */
   plan: PlanRules;
+  /** Regras do plano por API (cada API tem assinatura própria); tem precedência sobre `plan`. */
+  planFor?: ((sport: ApiSport) => PlanRules) | undefined;
   now: () => Date;
 }
 
@@ -170,7 +173,7 @@ export async function classify(items: PlannedRequest[], deps: JobDeps, force = f
       if (cs.some((s) => !s?.completedAt && attemptsOf(s) >= MAX_ATTEMPTS)) return 'failed';
     }
     try {
-      deps.plan.validate(item.params, now);
+      (deps.planFor?.(item.sport) ?? deps.plan).validate(item.params, now);
     } catch (err) {
       if (err instanceof PlanViolationError) return 'blocked';
       throw err;
