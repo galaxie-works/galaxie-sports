@@ -66,5 +66,16 @@ echo "limpando o cache de respostas da API"
 ssh "$VPS" "cd $DIR && for p in 'gs:cache:*' 'gs:tag:*'; do \
   docker compose exec -T valkey sh -c \"valkey-cli --scan --pattern '\$p' | xargs -r -n 200 valkey-cli del >/dev/null\"; done"
 
+# conta do provedor de IA com crédito? (chamada mínima, ~20 tokens) — só avisa, não derruba o deploy
+echo "conta da IA"
+ssh "$VPS" "cd $DIR && docker compose exec -T agents node -e '
+  if (process.env.AI_PROVIDER !== \"openai\" || !process.env.OPENAI_API_KEY) { console.log(\"WARN  IA: provedor sem chave OpenAI configurada\"); process.exit(0); }
+  fetch(\"https://api.openai.com/v1/responses\", { method: \"POST\",
+    headers: { authorization: \"Bearer \" + process.env.OPENAI_API_KEY, \"content-type\": \"application/json\" },
+    body: JSON.stringify({ model: process.env.AI_MODEL_LIGHT || \"gpt-6-luna\", input: \"ok\", max_output_tokens: 16 }) })
+    .then(async (r) => { const j = await r.json().catch(() => ({}));
+      console.log(r.ok ? \"PASS  IA: conta com crédito\" : \"WARN  IA: \" + r.status + \" \" + (j.error?.code || j.error?.type || \"\") + \" — agentes no texto determinístico\"); })
+    .catch((e) => console.log(\"WARN  IA: sem conexão com o provedor (\" + e.message + \")\"));'"
+
 echo "smoke test"
 ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$WT/infra/vps-telemetry/smoke.mjs"
