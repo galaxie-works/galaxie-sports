@@ -1,5 +1,6 @@
 # Base semântica — clássicos do básquet argentino (Liga Nacional) (schema v1)
 schema_version: 1
+text_locale: es # idioma de origin e trivia (docs/06 §3.3)
 region: ar
 derbies:
   - slug: basketball-clasico-marplatense

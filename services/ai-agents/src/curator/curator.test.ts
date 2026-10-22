@@ -195,19 +195,22 @@ describe('aplicação e validação (dry-run em memória)', () => {
   });
 
   it('país novo cria arquivo próprio', () => {
-    const text = appendTeam(null, 'HN', {
+    const entry = {
       slug: 'olimpia-hn',
       names: { official: 'Club Deportivo Olimpia', short: 'Olimpia' },
       api_sports: { team_id: null, match: { name: 'Olimpia', country: 'Honduras' } },
       nicknames: [],
       sources: ['https://x.test'],
-      review_status: 'draft',
-    });
+      review_status: 'draft' as const,
+    };
+    const text = appendTeam(null, 'HN', entry);
     expect(parseDocument(text).toJS()).toMatchObject({
       schema_version: 1,
+      text_locale: 'es', // país hispânico: identity sai em espanhol
       country: 'HN',
       teams: [{ slug: 'olimpia-hn' }],
     });
+    expect(parseDocument(appendTeam(null, 'JP', entry)).toJS()).not.toHaveProperty('text_locale');
   });
 
   it('mesmo estádio com grafias diferentes não vira lacuna', () => {

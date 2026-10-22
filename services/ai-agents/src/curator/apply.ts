@@ -9,7 +9,12 @@ import {
   type TeamEntry,
 } from '@galaxie/knowledge';
 import { unifiedDiff } from './diff.js';
-import type { AddTeamProposal, CuratorProposal, UpdateStadiumProposal } from './propose.js';
+import {
+  entryLocale,
+  type AddTeamProposal,
+  type CuratorProposal,
+  type UpdateStadiumProposal,
+} from './propose.js';
 
 /**
  * Aplica as propostas aceitas aos YAML **em memória**, uma a uma, revalidando a base inteira
@@ -39,6 +44,8 @@ export function appendTeam(source: string | null, countryCode: string, entry: Te
       `# Base semântica — clubes (${countryCode.toUpperCase()}) (schema v1)`,
       '# Arquivo criado pelo Agente Curador Semântico; revise antes de aprovar.',
       'schema_version: 1',
+      // o curador escreve identity em espanhol nos países hispânicos (entryLocale); docs/06 §3.3
+      ...(entryLocale(countryCode).startsWith('es') ? ['text_locale: es'] : []),
       `country: ${countryCode.toUpperCase()}`,
       'teams:',
       '',

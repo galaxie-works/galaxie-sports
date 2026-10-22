@@ -8,6 +8,8 @@ import {
   loadRun,
   teamProfile,
   type Database,
+  type LocalizedDerbyTexts,
+  type LocalizedTeamTexts,
   type TeamRival,
 } from '@galaxie/db';
 import { toCopyTemplate } from './copy/library.js';
@@ -60,7 +62,8 @@ function chunks<T>(list: T[]): T[][] {
 
 /** Monta as linhas de semantic.* a partir da base carregada (sem tocar no banco). */
 export function buildSeedRows(kb: KnowledgeBase) {
-  const teams = kb.teams.map(({ entry: t, file, countryCode, kind }) => {
+  const texts = textsBySlug(kb);
+  const teams = kb.teams.map(({ entry: t, file, countryCode, kind, textLocale }) => {
     const row = {
       slug: t.slug,
       kind,
@@ -83,6 +86,8 @@ export function buildSeedRows(kb: KnowledgeBase) {
         intensity: r.intensity ?? null,
       })),
       identity: t.identity ?? [],
+      textLocale,
+      texts: (texts.teams.get(t.slug) ?? {}) as Record<string, LocalizedTeamTexts>,
       copyHints: t.copy_hints ?? null,
       worldCupTitles: t.world_cup_titles ?? null,
       sourceFile: `data/knowledge/${file}`,
@@ -91,7 +96,7 @@ export function buildSeedRows(kb: KnowledgeBase) {
     };
     return { ...row, contentHash: contentHash(row) };
   });
-  const derbies = kb.derbies.map(({ entry: d, file }) => {
+  const derbies = kb.derbies.map(({ entry: d, file, textLocale }) => {
     const row = {
       slug: d.slug,
       name: d.name,
@@ -102,6 +107,8 @@ export function buildSeedRows(kb: KnowledgeBase) {
       firstMatch: d.first_match ?? null,
       origin: d.origin ?? null,
       trivia: d.trivia ?? [],
+      textLocale,
+      texts: (texts.derbies.get(d.slug) ?? {}) as Record<string, LocalizedDerbyTexts>,
       sourceFile: `data/knowledge/${file}`,
       sources: d.sources ?? [],
       reviewStatus: d.review_status ?? 'draft',
@@ -144,6 +151,19 @@ export function buildSeedRows(kb: KnowledgeBase) {
     return { ...row, contentHash: contentHash(row) };
   });
   return { teams, derbies, derbyTeams, competitions, copy };
+}
+
+/** Traduções de i18n/<locale>.yaml agrupadas por slug: `{ "<locale>": { ...campos, review_status } }`. */
+function textsBySlug(kb: KnowledgeBase) {
+  const teams = new Map<string, Record<string, unknown>>();
+  const derbies = new Map<string, Record<string, unknown>>();
+  for (const x of kb.texts) {
+    const { slug, note: _note, ...fields } = x.entry;
+    const target = x.listKey === 'teams' ? teams : derbies;
+    if (!target.has(slug)) target.set(slug, {});
+    target.get(slug)![x.locale] = fields;
+  }
+  return { teams, derbies };
 }
 
 const emptyStats = (total: number): EntityStats => ({

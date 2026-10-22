@@ -22,6 +22,7 @@ data/knowledge/
 ├── competitions/*.yaml             # apelidos e semântica de competições (ex.: "Glória Eterna" = Libertadores)
 ├── copy/<locale>.yaml              # biblioteca de microcopy por mercado (pt-BR e 7 variantes de espanhol)
 ├── glossary/<locale>.yaml          # glossário esportivo por mercado (GET /v1/glossary)
+├── i18n/<locale>.yaml              # textos livres traduzidos (pt-BR, es neutro e es-XX) — ver abaixo
 └── schemas/*.schema.json           # JSON Schemas (draft-07) de cada tipo de arquivo
 ```
 
@@ -29,8 +30,9 @@ data/knowledge/
 
 | Comando | O que faz |
 |---|---|
-| `pnpm knowledge:validate` | JSON Schema + regras cruzadas: slugs únicos, `team_id`/`api_sports_league_id` únicos, clássicos com times existentes, rivais apontando para times/clássicos existentes (avisa quando a rivalidade não é recíproca ou a intensidade diverge da do clássico), `sources` obrigatórias, locales permitidos, `review_status` válido, heurística contra letra de hino/canção, nomes anteriores e `api_sports_venue_id` dos estádios e regras de `copy_permission` nos templates. Roda no CI; erro = merge bloqueado. |
+| `pnpm knowledge:validate` | JSON Schema + regras cruzadas: slugs únicos, `team_id`/`api_sports_league_id` únicos, clássicos com times existentes, rivais apontando para times/clássicos existentes (avisa quando a rivalidade não é recíproca ou a intensidade diverge da do clássico), `sources` obrigatórias, locales permitidos, `review_status` válido, traduções de `i18n/` (slug existente, sem repetir o idioma-base, mesmos fatos do original) e idioma dos textos livres, heurística contra letra de hino/canção, nomes anteriores e `api_sports_venue_id` dos estádios e regras de `copy_permission` nos templates. Roda no CI; erro = merge bloqueado. |
 | `pnpm db:seed:semantic` | Carrega tudo em `semantic.*` (idempotente; remove o que saiu do YAML), liga perfis a `core.participant`/`core.competition` via `provider_map`, liga os estádios do YAML a `core.venue` (nome curado, ver abaixo), recalcula `core.event.derby_id` e registra `semantic.load_run` com o SHA do Git. Depois, `pnpm --filter @galaxie/ingestor events:importance` recalcula a importância dos eventos já gravados (os novos já saem certos do upsert). |
+| `pnpm knowledge:i18n` | Cobertura das traduções de `i18n/` por locale: quantos times e clássicos com texto em outro idioma já têm tradução (`--locale es`, `--arquivo football/teams/br.yaml`, `--faltando` lista o que falta). |
 | `pnpm resolve:ids` | Casa slugs com times da api-sports usando só o banco local (raw `/teams?country=`, `/fixtures`, `/leagues` e `core.participant`). `--write` grava no YAML apenas os casos resolvidos sem ambiguidade (só o valor muda; comentários e estilo ficam); `--apply-db` grava `core.provider_map` e `team_profile.participant_id` quando o participante existe; `--json` salva o relatório. |
 
 Os editores com suporte a YAML Language Server podem usar os schemas com `# yaml-language-server: $schema=../../schemas/teams.schema.json`.
@@ -39,6 +41,7 @@ Os editores com suporte a YAML Language Server podem usar os schemas com `# yaml
 
 ```yaml
 schema_version: 1
+text_locale: pt-BR             # opcional: idioma dos textos livres (identity, mascot, colors, fans); padrão pt-BR, `es` nos países hispânicos
 country: BR                    # ISO 3166-1 alpha-2 (Inglaterra = GB-ENG)
 teams:
   - slug: palmeiras            # kebab-case, único globalmente; prefixe com país se houver ambiguidade (ex.: nacional-uy)
@@ -197,6 +200,48 @@ terms:
 ```
 
 Regras do validador: termo de rivalidade (`category: rivalry` ou `copy_intents` com `rivalry`) exige `requires: declared_rival` (erro); termo de torcida (`cheer`) sem `requires` gera aviso; chave única por locale; `locale` igual ao nome do arquivo; heurística de letra em `meaning`, `note` e `example`.
+
+## `i18n/<locale>.yaml`
+
+Tradução dos **textos livres** para um mercado (docs/06 §3.3). Cada arquivo de times, seleções, participantes ou clássicos escreve esses textos num idioma só, declarado no topo:
+
+```yaml
+schema_version: 1
+text_locale: es        # idioma de identity, mascot, colors e fans (ou origin e trivia); padrão pt-BR
+country: AR
+teams: [...]
+```
+
+As traduções ficam em um arquivo por locale (`pt-BR`, `es` e `es-AR`, `es-MX`, `es-CO`, `es-CL`, `es-PE`, `es-UY`, `es-EC`, `es-PY`, `es-BO`, `es-VE`):
+
+```yaml
+schema_version: 1
+locale: es-AR
+teams:
+  - slug: palmeiras                      # time, seleção ou participante existente
+    identity:                            # os MESMOS fatos do original, na mesma ordem
+      - "Fundado por inmigrantes italianos como Palestra Italia; adoptó el nombre Palmeiras en 1942."
+      - "El apodo Porco (chancho, en portugués) nació como una cargada de los rivales y la hinchada lo adoptó con orgullo."
+      - "En 2026 la cancha pasó a llamarse Nubank Parque (antes Allianz Parque) por un contrato de naming rights."
+    mascot: Porco (chancho)              # opcional
+    colors: [verde, blanco]              # opcional
+    fans: { demonym: palmeirense }       # opcional (demonym, group_nicknames)
+    note: "Porco = chancho; cargada e hinchada no lugar de burla e afición."   # opcional, só editorial
+    review_status: draft
+derbies:
+  - slug: classico-do-povo
+    origin: "Reúne a las dos hinchadas más grandes de Brasil."   # e/ou trivia (até 3)
+    review_status: draft
+```
+
+- **Campo a campo.** A API escolhe cada campo pela cadeia `es-XX → es → original`; uma variante só precisa trazer o que muda (o `es-AR` acima deixa as cores no `es`).
+- **`es` neutro primeiro.** Todo texto em português ganha a versão `es` (vocabulário pan-hispânico: *afición*, *estadio*, *entrenador*); `es-XX` só quando a palavra muda no país — torcida (*hinchada*, *barra*, *porra*), estádio (*cancha*), o bicho ou objeto de um apelido (*chancho*, *puerco*, *marrano*), gíria (*cargada*, *talla*, *vacilón*). Fato puro (data, fundador, título) fica só no `es`. Gritos em segunda pessoa (voseo, *le voy al*) vão em `copy_hints.<locale>.cheer` do próprio time.
+- **Tradução não cria fato.** Glosas entre parênteses só explicam o apelido; o validador avisa quando a quantidade de fatos ou de curiosidades difere da do original (`i18n-drift`).
+- **`review_status` próprio**, nunca acima do original (`i18n-review`): a tradução entra `draft` e um revisor nativo do mercado a promove. A API só serve a tradução que atinge o piso editorial; abaixo dele o campo cai no próximo da cadeia.
+
+Regras do validador: `locale` igual ao nome do arquivo; slug de time/clássico existente (`i18n-unknown-slug`); tradução no mesmo idioma do original é erro (`i18n-redundant`: edite o arquivo de origem); tradução repetida no mesmo arquivo; heurística de letra; e heurística de idioma (`text-language`) também nos textos originais — português num arquivo `text_locale: es` ou numa tradução `es-*` vira aviso.
+
+`pnpm knowledge:i18n` mostra a cobertura por locale (`--locale es`, `--arquivo football/teams/br.yaml`, `--faltando` para listar o que ainda cai no original).
 
 ## Regras editoriais (guardrails)
 

@@ -236,8 +236,8 @@ Carregada a partir de [`data/knowledge`](../data/knowledge/SCHEMA.md) por `pnpm 
 
 | Tabela | Conteúdo |
 |---|---|
-| `semantic.team_profile` | Por `participant_id`: nomes, apelidos, mascote, demônimo da torcida, gritos, estádio e apelidos, fatos de identidade, `review_status` |
-| `semantic.derby` | Clássicos: nome, aliases, labels por locale, escopo, intensidade (1–5), primeiro jogo, origem, curiosidades |
+| `semantic.team_profile` | Por `participant_id`: nomes, apelidos, mascote, demônimo da torcida, gritos, estádio e apelidos, fatos de identidade, `review_status`; `text_locale` (idioma dos textos livres) e `texts` (traduções de `data/knowledge/i18n`, [docs/06 §3.3](06-semantica-e-conteudo.md#33-textos-livres-por-idioma)) |
+| `semantic.derby` | Clássicos: nome, aliases, labels por locale, escopo, intensidade (1–5), primeiro jogo, origem, curiosidades, `text_locale` e `texts` (traduções de origem e curiosidades) |
 | `semantic.derby_team` | Times de cada clássico |
 | `semantic.competition_profile` | Apelidos de competições ("Glória Eterna", "Orelhuda"…) |
 | `semantic.copy_template` | Biblioteca de microcopy por `locale × sport × copy_intent × tone_intensity × confidence` |

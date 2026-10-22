@@ -11,6 +11,7 @@ A camada semântica é o que transforma `team_id: 121 vs team_id: 126` em **"Cho
 | **Seleções** | Seleção/Canarinho, Albiceleste, La Celeste, La Roja, El Tri, Les Bleus… | `data/knowledge/football/national-teams.yaml` |
 | **Competições** | "Glória Eterna" (Libertadores), "Paulistão", "Orelhuda"/"La Orejona" (Champions) | `data/knowledge/competitions/*.yaml` |
 | **Biblioteca de copy** | Microcopy por locale × intenção × intensidade | `data/knowledge/copy/<locale>.yaml` → `semantic.copy_template` (ver §4) |
+| **Textos por idioma** | Fatos, mascote, cores e torcida em `es` neutro e por país ("chancho" em es-AR, "puerco" em es-MX, "marrano" em es-CO) e em pt-BR para os clubes hispânicos (§3.3) | `data/knowledge/i18n/<locale>.yaml` |
 | **Glossário por mercado** | "secar" (pt-BR), "hinchar por"/"alentar" (es-AR), "le voy al" (es-MX), "hacer fuerza" (es-CO), "hincha", "golazo"… | `data/knowledge/glossary/<locale>.yaml` (servido direto do YAML por `GET /v1/glossary`) |
 
 Schema completo e regras editoriais: [`data/knowledge/SCHEMA.md`](../data/knowledge/SCHEMA.md).
@@ -79,6 +80,28 @@ Exemplos (dados locais de 2026-10-22):
 - bônus total ≤ 10; `relevance.score = min(100, importance + bonus)`.
 
 O mercado vem de `?market=XX` ou, sem ele, do único mercado do plano do tenant (`api.tenant.markets` com exatamente um país); sem mercado, `relevance` é `null`. A API expõe `relevance: { market, score, bonus, reasons }` (`reasons`: `team_from_market`, `domestic_competition`, `continental_competition`), `order=relevance` e `relevance_min` nas listas (docs/05 §3.2). Implementação em `apps/api/src/events/relevance.ts`.
+
+### 3.3 Textos livres por idioma
+
+Fatos (`identity`), mascote, cores e torcida do time, e `origin`/`trivia` do clássico são **texto livre**: cada arquivo os escreve no idioma do país (`text_locale` no topo; padrão `pt-BR`, `es` nos arquivos hispânicos). As traduções ficam em [`data/knowledge/i18n/<locale>.yaml`](../data/knowledge/SCHEMA.md#i18nlocaleyaml) (`pt-BR`, `es` e `es-XX`), com `review_status` próprio, e o seed as grava em `semantic.team_profile.texts` / `semantic.derby.texts` (`{ "<locale>": { ...campos, review_status } }`) ao lado de `text_locale`.
+
+**Escolha na API** (`GET /v1/teams/{id}/semantic`, `GET /v1/derbies/{slug}`): campo a campo, a tradução do locale exato, depois a do idioma (`es-AR → es`), só as que atingem o status editorial mínimo; o original vence assim que a cadeia chega ao idioma dele (uma base `es` responde a `es-MX` sem tradução `es-MX`). Sem tradução publicada, o campo sai no original — melhor o fato no idioma errado do que nenhum — e `text_locale` diz de onde veio o texto principal (`identity`; `origin` no clássico), para o cliente decidir se mostra. É diferente de `labels` (`es-XX → es → en`) e de `copy_hints` (locale e idioma, nunca outro idioma).
+
+**Quando vale um texto por país** (decisão):
+
+| Caso | Onde escrever | Exemplo |
+|---|---|---|
+| Fato puro: datas, fundadores, títulos, nomes | só `es` (neutro, pan-hispânico, sem voseo nem gíria) | "Fundado en 1910 por obreros en el barrio de Bom Retiro…" |
+| Torcida e estádio | `es-XX`, quando a palavra muda | *hinchada* (AR, UY, CL, PE, CO, EC) × *afición*/*porra* (MX); *cancha* (AR, UY); *barra* (CO, PE) |
+| Apelido explicado pelo bicho ou objeto local | `es-XX` | Porco: *chancho* (AR, UY, CL, PE, EC), *puerco* (MX), *marrano* (CO); Urubu: *zopilote* (MX), *jote* (CL), *gallinazo* (CO, PE, EC), *cuervo* (UY); Cartola: *galera* (AR, UY) |
+| Gíria de brincadeira | `es-XX` | *cargada* (AR, UY), *talla* (CL), *vacilón* (PE) |
+| Segunda pessoa (gritos) | `copy_hints.<locale>.cheer` no YAML do time | voseo "¡Dale, Verdão, que hoy lo ganás!" (AR), "que vos podés" (UY); "¡Le voy al Verdão!" (MX); "¡Hágale!" (CO); "ya po" (CL); "de una" (EC) |
+
+A variante herda do `es` campo a campo: `es-AR` pode trazer só `identity` e `mascot` e deixar as cores no `es`. Por isso a tradução é **dos mesmos fatos, na mesma ordem** — nunca fato novo (o validador avisa quando a contagem diverge). `es-PY`, `es-BO` e `es-VE` são aceitos, mas ainda sem variante própria (caem no `es`).
+
+**Produção e manutenção.** Curadoria em YAML, como o resto da base: a tradução entra `draft`, um revisor nativo do mercado a passa a `reviewed`/`approved` (nunca acima do original). `pnpm knowledge:validate` confere schema, slug existente, idioma-base repetido (`i18n-redundant`), fatos a mais ou a menos (`i18n-drift`), heurística de letra e uma heurística de idioma (`text-language`: português num `es`, espanhol num `pt-BR`); `pnpm knowledge:i18n [--locale es] [--arquivo football/teams/br.yaml] --faltando` lista o que ainda cai no original. O Agente Curador já escreve `identity` no idioma do país e marca `text_locale: es` nos arquivos novos de países hispânicos.
+
+**Cobertura (out/2026).** Todo texto livre da base tem `es` neutro e `pt-BR`: em espanhol, os clubes do Brasil e da Europa, as seleções, NBA/NBB, vôlei, F1 e os clássicos escritos em português; em português, os clubes e clássicos hispânicos. Há variantes nos 7 mercados para Palmeiras, Flamengo, Fluminense e Atlético-MG e para os clássicos do Povo e da Amizade, e gritos por mercado (`es` + 7 variantes) para os 12 grandes do Brasil e `es` para os 5 grandes da Argentina. O CI cobra que nada fique sem tradução (`packages/knowledge/src/i18n.test.ts`); `pnpm knowledge:i18n --faltando` mostra o que falta ao acrescentar itens.
 
 ## 4. Framework de linguagem, badges e momentum
 

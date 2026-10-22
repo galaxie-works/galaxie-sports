@@ -90,6 +90,100 @@ export function copyHintsFor(
   return { locale: null, cheer: [], nicknames: [] };
 }
 
+type TextFields = Record<string, unknown>;
+
+/**
+ * Textos livres no locale pedido (docs/06 §3.3), campo a campo: a tradução do locale exato e depois a do
+ * idioma (es-AR → es), só as que atingem o status editorial mínimo; senão o original do YAML. O original
+ * vence assim que a cadeia chega ao idioma dele (base `es` responde a es-MX sem tradução es-MX). Devolve
+ * também de qual locale veio cada campo.
+ */
+export function localizedTexts<T extends TextFields>(
+  original: T,
+  originalLocale: string,
+  translations: Record<string, { [K in keyof T]?: T[K] | undefined } & { review_status?: string }>,
+  locale: string,
+  min: ReviewStatus,
+): { values: T; sources: Record<keyof T, string> } {
+  const chain = [...new Set([locale, locale.split('-')[0]!])];
+  const values = { ...original };
+  const sources = Object.fromEntries(Object.keys(original).map((k) => [k, originalLocale])) as Record<
+    keyof T,
+    string
+  >;
+  for (const key of Object.keys(original) as (keyof T)[]) {
+    for (const l of chain) {
+      if (l === originalLocale) break;
+      const t = translations[l];
+      if (!t || !meetsReview(t.review_status ?? 'draft', min) || t[key] === undefined) continue;
+      values[key] = t[key] as T[keyof T];
+      sources[key] = l;
+      break;
+    }
+  }
+  return { values, sources };
+}
+
+type TeamTextRow = {
+  identity?: string[];
+  mascot?: string;
+  colors?: string[];
+  fans?: { demonym?: string; group_nicknames?: string[] };
+  review_status: string;
+};
+
+/** Identidade, mascote, cores e torcida do perfil no locale pedido (ver `localizedTexts`). */
+export function teamTexts(
+  p: Pick<ProfileRow, 'identity' | 'mascot' | 'colors' | 'fans' | 'textLocale' | 'texts'>,
+  locale: string,
+  min: ReviewStatus,
+) {
+  const fans = (p.fans ?? {}) as { demonym?: string | null; group_nicknames?: string[] };
+  const translations = Object.fromEntries(
+    Object.entries((p.texts ?? {}) as Record<string, TeamTextRow>).map(([l, t]) => [
+      l,
+      {
+        identity: t.identity,
+        mascot: t.mascot,
+        colors: t.colors,
+        demonym: t.fans?.demonym,
+        group_nicknames: t.fans?.group_nicknames,
+        review_status: t.review_status,
+      },
+    ]),
+  );
+  const { values, sources } = localizedTexts(
+    {
+      identity: p.identity,
+      mascot: p.mascot as string | null,
+      colors: p.colors,
+      demonym: fans.demonym ?? null,
+      group_nicknames: fans.group_nicknames ?? [],
+    },
+    p.textLocale,
+    translations,
+    locale,
+    min,
+  );
+  return { ...values, textLocale: sources.identity };
+}
+
+/** origin e trivia do clássico no locale pedido (ver `localizedTexts`). */
+export function derbyTexts(
+  row: Pick<typeof derby.$inferSelect, 'origin' | 'trivia' | 'textLocale' | 'texts'>,
+  locale: string,
+  min: ReviewStatus,
+) {
+  const { values, sources } = localizedTexts(
+    { origin: row.origin, trivia: row.trivia },
+    row.textLocale,
+    (row.texts ?? {}) as Record<string, { origin?: string; trivia?: string[]; review_status: string }>,
+    locale,
+    min,
+  );
+  return { ...values, textLocale: row.origin ? sources.origin : sources.trivia };
+}
+
 export function teamRef(p: ProfileRow, locale: string): SemanticTeamRef {
   return {
     slug: p.slug,
@@ -244,12 +338,14 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const resolved = ids.every((id): id is string => !!id);
         const matches = resolved ? await headToHead(db, ids[0]!, ids[1]!, locale, tz, d.teams) : [];
         const next = resolved ? await nextMeeting(db, ids[0]!, ids[1]!, locale, tz) : null;
+        const texts = derbyTexts(row, locale, min);
         const body: Derby = {
           ...derbySummary(d, locale),
           labels: (row.labels ?? {}) as Record<string, string>,
           first_match: row.firstMatch,
-          origin: row.origin,
-          trivia: row.trivia,
+          origin: texts.origin,
+          trivia: texts.trivia,
+          text_locale: texts.textLocale,
           sources: row.sources,
           next_event: next,
           retrospect: retrospect(matches, resolved, a!.slug, b!.slug, tz),
@@ -276,7 +372,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         if (!meetsReview(p.reviewStatus, min)) throw notPublished('Perfil semântico do time', min);
         const names = p.names as Names;
         const hints = copyHintsFor(p.copyHints, locale);
-        const fans = (p.fans ?? {}) as { demonym?: string | null; group_nicknames?: string[] };
+        const texts = teamTexts(p, locale, min);
         const stadium = p.stadium as {
           name: string;
           nicknames?: string[];
@@ -306,10 +402,10 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
           city: p.city,
           region: p.region,
           founded: p.founded,
-          colors: p.colors,
+          colors: texts.colors,
           nicknames: [...new Set([...hints.nicknames, ...p.nicknames])],
-          mascot: p.mascot,
-          fans: { demonym: fans.demonym ?? null, group_nicknames: fans.group_nicknames ?? [] },
+          mascot: texts.mascot,
+          fans: { demonym: texts.demonym, group_nicknames: texts.group_nicknames },
           rallying_cries: p.rallyingCries,
           stadium: stadium
             ? {
@@ -320,7 +416,8 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
               }
             : null,
           rivals: await rivalsOf(db, p, locale, min),
-          identity: p.identity,
+          identity: texts.identity,
+          text_locale: texts.textLocale,
           copy_hints: hints,
           world_cup_titles: p.worldCupTitles ?? null,
           sources: p.sources,

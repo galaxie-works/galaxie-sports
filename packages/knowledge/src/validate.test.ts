@@ -6,6 +6,7 @@ import {
   loadKnowledge,
   parseKnowledgeFile,
 } from './load.js';
+import { guessLanguage } from './language.js';
 import { checkChant, checkProse } from './lyrics.js';
 import { validateKnowledge, type Issue } from './validate.js';
 
@@ -265,5 +266,87 @@ describe('heurística de letra', () => {
     expect(checkProse('a\nb\nc')?.level).toBe('error');
     expect(checkProse('x'.repeat(301))?.level).toBe('warning');
     expect(checkProse('Fundado em 1914 por imigrantes italianos.')).toBeNull();
+  });
+});
+
+describe('validateKnowledge — textos por idioma (docs/06 §3.3)', () => {
+  const br = `schema_version: 1\ncountry: BR\nteams:${team(
+    'alfa',
+    '\n    mascot: Porco\n    identity:\n      - "Fundado em 1914 por imigrantes italianos."\n      - "O apelido nasceu como provocação dos rivais."',
+  )}${team('beta')}`;
+  const derbies = `schema_version: 1\nregion: br\nderbies:\n  - slug: classico-ab\n    name: Clássico AB\n    teams: [alfa, beta]\n    scope: city\n    intensity: 3\n    origin: "Nome dado pela imprensa nos anos 1940."\n    sources: ["https://example.org/ab"]\n    review_status: draft\n`;
+
+  it('aceita tradução es e variante regional, com o locale no topo', async () => {
+    const report = await validateFiles({
+      'football/teams/br.yaml': br,
+      'i18n/es.yaml': `schema_version: 1\nlocale: es\nteams:\n  - slug: alfa\n    identity:\n      - "Fundado en 1914 por inmigrantes italianos."\n      - "El apodo nació como una provocación de los rivales."\n    mascot: Cerdo\n    review_status: draft\n`,
+      'i18n/es-AR.yaml': `schema_version: 1\nlocale: es-AR\nteams:\n  - slug: alfa\n    mascot: Chancho\n    fans: { group_nicknames: [La hinchada del Chancho] }\n    review_status: draft\n`,
+    });
+    expect(report.errors).toEqual([]);
+    expect(report.warnings).toEqual([]);
+    expect(report.counts.texts).toBe(2);
+  });
+
+  it('slug inexistente, tradução repetida, idioma-base repetido e locale trocado são erro', async () => {
+    const report = await validateFiles({
+      'football/teams/br.yaml': br,
+      'football/derbies/br.yaml': derbies,
+      'i18n/pt-BR.yaml': `schema_version: 1\nlocale: pt-BR\nteams:\n  - slug: alfa\n    mascot: Porquinho\n    review_status: draft\n`,
+      'i18n/es.yaml': `schema_version: 1\nlocale: es-MX\nteams:\n  - slug: gama\n    mascot: Gato\n    review_status: draft\n  - slug: beta\n    colors: [verde]\n    review_status: draft\n  - slug: beta\n    colors: [blanco]\n    review_status: draft\nderbies:\n  - slug: classico-xy\n    origin: "Nombre dado por la prensa."\n    review_status: draft\n`,
+    });
+    expect(codes(report.errors).sort()).toEqual(
+      ['duplicate-key', 'file-name', 'i18n-redundant', 'i18n-unknown-slug', 'i18n-unknown-slug'].sort(),
+    );
+  });
+
+  it('tradução sem campo traduzível é erro de schema', async () => {
+    const report = await validateFiles({
+      'football/teams/br.yaml': br,
+      'i18n/es.yaml': `schema_version: 1\nlocale: es\nteams:\n  - slug: alfa\n    review_status: draft\n`,
+    });
+    expect(codes(report.errors)).toContain('schema');
+  });
+
+  it('avisa fatos a mais ou a menos, texto no idioma errado e tradução mais revisada que o original', async () => {
+    const report = await validateFiles({
+      'football/teams/br.yaml': br,
+      'football/derbies/br.yaml': derbies,
+      'i18n/es.yaml': `schema_version: 1\nlocale: es\nteams:\n  - slug: alfa\n    identity:\n      - "Fundado em 1914 por imigrantes italianos, é um dos maiores do país."\n    review_status: approved\n  - slug: beta\n    mascot: Gato\n    review_status: draft\nderbies:\n  - slug: classico-ab\n    trivia: ["El primer partido terminó empatado."]\n    review_status: draft\n`,
+    });
+    expect(report.errors).toEqual([]);
+    expect(codes(report.warnings).sort()).toEqual(
+      // derby-without-rival: o par mínimo do teste não declara rivals
+      [
+        'derby-without-rival',
+        'i18n-drift',
+        'i18n-drift',
+        'i18n-drift',
+        'i18n-review',
+        'text-language',
+      ].sort(),
+    );
+  });
+
+  it('texto original fora do text_locale do arquivo é aviso', async () => {
+    const report = await validateFiles({
+      'football/teams/ar.yaml': `schema_version: 1\ntext_locale: es\ncountry: AR\nteams:${team(
+        'alfa',
+        '\n    identity:\n      - "Fundado em 1905 no bairro da Boca, é o time do povo."',
+      )}`,
+    });
+    expect(codes(report.warnings)).toEqual(['text-language']);
+  });
+});
+
+describe('guessLanguage', () => {
+  it('distingue português de espanhol pelas palavras funcionais, ignorando nomes próprios', () => {
+    expect(
+      guessLanguage('Fundado por imigrantes italianos como Palestra Italia; adotou o nome em 1942.'),
+    ).toBe('pt');
+    expect(guessLanguage('El apodo Porco nació como una burla de los rivales y la hinchada lo adoptó.')).toBe(
+      'es',
+    );
+    expect(guessLanguage('Verdão, São Paulo e Peñarol')).toBeNull();
+    expect(guessLanguage('Fue campeón de la Copa Libertadores en 1985.')).toBe('es');
   });
 });

@@ -7,6 +7,7 @@
   "required": ["schema_version", "country", "teams"],
   "properties": {
     "schema_version": { "const": 1 },
+    "text_locale": { "$ref": "common.schema.json#/definitions/textLocale" },
     "country": { "$ref": "common.schema.json#/definitions/countryCode" },
     "teams": {
       "type": "array",

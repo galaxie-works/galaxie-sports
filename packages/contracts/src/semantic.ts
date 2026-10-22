@@ -151,11 +151,19 @@ export const DerbyUpcomingEvent = z
   })
   .meta({ id: 'DerbyUpcomingEvent' });
 
+/** Locale dos textos livres servidos (docs/06 §3.3). */
+const TextLocaleField = z.string().meta({
+  description:
+    'Locale de onde vieram os textos livres (identity, mascote, torcida, cores; origin e trivia no clássico): o pedido, o idioma (es-AR → es) ou o original da base quando ainda não há tradução publicada para o mercado.',
+  example: 'es',
+});
+
 export const Derby = DerbySummary.extend({
   labels: z.record(z.string(), z.string()).meta({ description: 'Nome por mercado.' }),
   first_match: z.iso.date().nullable(),
   origin: z.string().nullable(),
   trivia: z.array(z.string()),
+  text_locale: TextLocaleField,
   sources: z.array(z.string()),
   next_event: DerbyUpcomingEvent.nullable(),
   retrospect: DerbyRetrospect,
@@ -229,6 +237,7 @@ export const TeamSemantic = z
       .nullable(),
     rivals: z.array(TeamRival),
     identity: z.array(z.string()),
+    text_locale: TextLocaleField,
     copy_hints: z
       .object({
         locale: z.string().nullable().meta({ description: 'Locale de onde vieram as dicas (com fallback).' }),

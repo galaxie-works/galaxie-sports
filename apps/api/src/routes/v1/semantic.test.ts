@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { AppContext } from '../../context.js';
 import { MemoryResponseCache } from '../../cache/store.js';
-import { copyHintsFor, effectiveMinReview, meetsReview, retrospect } from './semantic.js';
+import {
+  copyHintsFor,
+  derbyTexts,
+  effectiveMinReview,
+  meetsReview,
+  retrospect,
+  teamTexts,
+} from './semantic.js';
 
 const ctx = (minReviewStatus?: 'draft' | 'reviewed' | 'approved'): AppContext =>
   ({
@@ -34,6 +41,84 @@ describe('copyHintsFor', () => {
     expect(copyHintsFor(hints, 'es-AR')).toEqual({ locale: 'es', cheer: [], nicknames: ['Verdão'] });
     expect(copyHintsFor({ es: {} }, 'pt-BR')).toEqual({ locale: null, cheer: [], nicknames: [] });
     expect(copyHintsFor(null, 'es-MX').locale).toBeNull();
+  });
+});
+
+describe('textos livres por locale (docs/06 §3.3)', () => {
+  const palmeiras = {
+    identity: ['Fundado por imigrantes italianos.', 'O apelido Porco foi adotado pela torcida.'],
+    mascot: 'Porco',
+    colors: ['verde', 'branco'],
+    fans: { demonym: 'palmeirense', group_nicknames: ['Porcada'] },
+    textLocale: 'pt-BR',
+    texts: {
+      es: {
+        identity: ['Fundado por inmigrantes italianos.', 'El apodo Porco fue adoptado por la afición.'],
+        mascot: 'Cerdo',
+        colors: ['verde', 'blanco'],
+        review_status: 'approved' as const,
+      },
+      'es-AR': {
+        identity: ['Fundado por inmigrantes italianos.', 'El apodo Porco (chancho) lo adoptó la hinchada.'],
+        mascot: 'Chancho',
+        review_status: 'approved' as const,
+      },
+      'es-MX': { mascot: 'Puerco', review_status: 'draft' as const },
+    },
+  };
+
+  it('usa a variante do país, cai campo a campo para es e nunca passa do idioma', () => {
+    const ar = teamTexts(palmeiras, 'es-AR', 'approved');
+    expect(ar.mascot).toBe('Chancho');
+    expect(ar.identity[1]).toContain('hinchada');
+    expect(ar.colors).toEqual(['verde', 'blanco']); // es-AR não traduz cores: vem do es
+    expect(ar.demonym).toBe('palmeirense'); // ninguém traduz: original
+    expect(ar.textLocale).toBe('es-AR');
+
+    const co = teamTexts(palmeiras, 'es-CO', 'approved');
+    expect(co.identity[1]).toContain('afición');
+    expect(co.textLocale).toBe('es');
+
+    const br = teamTexts(palmeiras, 'pt-BR', 'draft');
+    expect(br.mascot).toBe('Porco');
+    expect(br.textLocale).toBe('pt-BR');
+  });
+
+  it('respeita o status editorial mínimo de cada tradução', () => {
+    expect(teamTexts(palmeiras, 'es-MX', 'approved').mascot).toBe('Cerdo');
+    expect(teamTexts(palmeiras, 'es-MX', 'draft').mascot).toBe('Puerco');
+  });
+
+  it('sem tradução publicada devolve o original e diz de onde veio', () => {
+    const t = teamTexts({ ...palmeiras, texts: {} }, 'es-AR', 'draft');
+    expect(t.identity).toEqual(palmeiras.identity);
+    expect(t.textLocale).toBe('pt-BR');
+  });
+
+  it('original em espanhol: variante regional vence, pt-BR usa a tradução', () => {
+    const boca = {
+      origin: 'Ambos clubes nacieron en La Boca.',
+      trivia: ['El primer partido lo ganó River.'],
+      textLocale: 'es',
+      texts: {
+        'pt-BR': {
+          origin: 'Os dois clubes nasceram no bairro da Boca.',
+          trivia: ['O primeiro jogo foi vencido pelo River.'],
+          review_status: 'draft' as const,
+        },
+        'es-MX': {
+          origin: 'Ambos clubes nacieron en el barrio de La Boca.',
+          review_status: 'draft' as const,
+        },
+      },
+    };
+    expect(derbyTexts(boca, 'es-UY', 'draft')).toMatchObject({ origin: boca.origin, textLocale: 'es' });
+    expect(derbyTexts(boca, 'es-MX', 'draft')).toMatchObject({
+      origin: 'Ambos clubes nacieron en el barrio de La Boca.',
+      trivia: boca.trivia,
+      textLocale: 'es-MX',
+    });
+    expect(derbyTexts(boca, 'pt-BR', 'draft').textLocale).toBe('pt-BR');
   });
 });
 

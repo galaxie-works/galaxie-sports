@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=../schemas/i18n.schema.json
+#
+# México: afición (e porra para o grupo que alenta), puerco, zopilote. Só os campos que mudam;
+# o resto cai no es de i18n/es.yaml, que já usa "afición" (docs/06 §3.3).
+schema_version: 1
+locale: es-MX
+
+teams:
+  - slug: palmeiras
+    identity:
+      - "Fundado por inmigrantes italianos como Palestra Italia; adoptó el nombre Palmeiras en 1942."
+      - "El apodo Porco (puerco, en portugués) nació como una burla de los rivales y la afición lo adoptó como propio."
+      - "En 2026 el estadio pasó a llamarse Nubank Parque (antes Allianz Parque) por un contrato de naming rights."
+    mascot: Porco (puerco)
+    review_status: draft
+
+  - slug: flamengo
+    identity:
+      - "Nació como club de remo en 1895, en Río de Janeiro."
+      - "El Urubu (un zopilote), que los rivales usaban como burla, fue adoptado por la afición en 1969."
+    mascot: Urubu (zopilote)
+    review_status: draft
+
+  - slug: atletico-mineiro
+    identity:
+      - "Fundado en 1908 en Belo Horizonte; campeón de la Copa Libertadores 2013, cuando el lema Eu acredito («Yo creo») prendió a toda la porra."
+    note: "Prender (entusiasmar) e porra são usos mexicanos."
+    review_status: draft
