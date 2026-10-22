@@ -34,6 +34,7 @@ import {
   timelineRequest,
   whereToWatchRequest,
 } from '@/lib/galaxie/api';
+import { versusColors } from '@/lib/team-colors';
 import { COUNTRIES } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
@@ -268,11 +269,37 @@ function WhereToWatchCard({
               </li>
             ))}
           </ul>
+        ) : wtw?.to_confirm?.length ? (
+          // Direitos conhecidos no país, mas o canal deste jogo ainda não foi alocado pela rodada.
+          <div className="flex flex-col gap-2">
+            <p className="text-muted-foreground text-xs">
+              Detentores dos direitos no país · canal deste jogo a confirmar
+            </p>
+            <ul className="flex flex-col gap-2">
+              {wtw.to_confirm.map((t) => (
+                <li
+                  key={t.provider_id ?? t.provider}
+                  className="flex items-center gap-3 rounded-md border border-dashed p-2"
+                >
+                  {t.logo ? (
+                    <img src={t.logo} alt="" className="h-6 w-10 shrink-0 object-contain" />
+                  ) : (
+                    <Tv className="text-muted-foreground size-5 w-10 shrink-0" aria-hidden />
+                  )}
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate font-medium">{t.provider}</span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {MEDIUM_LABEL[t.medium] ?? t.medium}
+                      {t.sources?.[0] ? ` · fonte: ${t.sources[0].publisher}` : ''}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : (
           <p className="text-muted-foreground">
-            {wtw?.to_confirm?.length
-              ? `Canal a confirmar: ${wtw.to_confirm.map((t) => t.provider).join(', ')}.`
-              : (wtw?.message ?? 'Sem informação de transmissão para este país.')}
+            {wtw?.message ?? 'Sem informação de transmissão para este país.'}
           </p>
         )}
       </CardContent>
@@ -287,10 +314,12 @@ function H2hSection({ h2h }: { h2h: HeadToHead }) {
   const [a, b] = h2h.participants;
   const winsOf = (id?: string) => h2h.summary.teams.find((t) => t.id === id)?.wins ?? 0;
   const total = h2h.summary.played;
+  // cor predominante de cada escudo: quem leva a melhor no confronto fica visível pela cor
+  const [colorA, colorB] = versusColors(a?.colors, b?.colors);
   const bars = [
-    { label: a?.name ?? '', value: winsOf(a?.id), cls: 'bg-primary' },
-    { label: 'Empates', value: h2h.summary.draws, cls: 'bg-muted-foreground' },
-    { label: b?.name ?? '', value: winsOf(b?.id), cls: 'bg-info' },
+    { label: a?.name ?? '', value: winsOf(a?.id), color: colorA },
+    { label: 'Empates', value: h2h.summary.draws, color: 'var(--muted-foreground)' },
+    { label: b?.name ?? '', value: winsOf(b?.id), color: colorB },
   ];
   return (
     <Section title="Confronto direto" description={`${total} jogos na base`} api={h2hRequest(h2h.event_id)}>
@@ -298,14 +327,17 @@ function H2hSection({ h2h }: { h2h: HeadToHead }) {
         <CardContent className="flex flex-col gap-3">
           <div className="flex h-2 overflow-hidden rounded-full">
             {bars.map((x) => (
-              <div key={x.label} className={x.cls} style={{ width: `${(x.value / total) * 100}%` }} />
+              <div key={x.label} style={{ width: `${(x.value / total) * 100}%`, backgroundColor: x.color }} />
             ))}
           </div>
           <div className="flex justify-between text-sm">
             {bars.map((x) => (
               <div key={x.label} className="flex flex-col items-center">
                 <span className="text-xl font-semibold tabular-nums">{x.value}</span>
-                <span className="text-muted-foreground text-xs">{x.label}</span>
+                <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                  <span className="size-2 rounded-full" style={{ backgroundColor: x.color }} aria-hidden />
+                  {x.label}
+                </span>
               </div>
             ))}
           </div>

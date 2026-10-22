@@ -27,11 +27,14 @@ WORKDIR /srv/apps/api
 COPY --from=build /out/package.json ./package.json
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/dist ./dist
-# modelos de plano usados no onboarding (/internal/admin); o código procura em <raiz>/config/plans.yaml
-COPY --from=build /repo/config/plans.yaml /srv/config/plans.yaml
-# geografia da navegação (/v1/navigation, /v1/countries/{code}/*): confederações e escopo das competições
-COPY --from=build /repo/config/geo /srv/config/geo
-ENV GEO_CONFIG_DIR=/srv/config/geo
+# config/ e a base semântica inteiros, no mesmo layout do repositório (/srv = raiz): planos, geografia,
+# regulamentos (stakes, tags do torcedor), dicionários do onde assistir, denylist de mídia e glossário.
+# Os pacotes procuram esses arquivos a partir de si mesmos, o que não vale no node_modules do deploy, e
+# silenciam quando não acham (lista vazia) — por isso os ENV apontam o caminho e o smoke test confere.
+COPY --from=build /repo/config /srv/config
+COPY --from=build /repo/data/knowledge /srv/data/knowledge
+ENV GEO_CONFIG_DIR=/srv/config/geo RULES_CONFIG_DIR=/srv/config/rules WTW_CONFIG_DIR=/srv/config \
+    MEDIA_DENYLIST_PATH=/srv/config/assets/denylist.yaml KNOWLEDGE_DIR=/srv/data/knowledge
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \

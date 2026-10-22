@@ -1,4 +1,5 @@
 import { eq, inArray } from 'drizzle-orm';
+import { teamColors } from '../teams/colors.js';
 import type { Event, EventParticipant, EventStake, SupportedLocale } from '@galaxie/contracts';
 import {
   asset,
@@ -299,6 +300,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       country: participant.countryCode,
       logoKey: asset.storageKey,
       logoUrl: asset.sourceUrl,
+      logoPalette: asset.palette,
       nicknames: teamProfile.nicknames,
       rallyingCries: teamProfile.rallyingCries,
       copyHints: teamProfile.copyHints,
@@ -325,6 +327,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       short_name: r.p.shortName,
       logo: assetUrl(ctx.assetsBaseUrl, r.logoKey, r.logoUrl),
       nickname: r.nicknames?.[0] ?? null,
+      colors: teamColors(r.logoPalette),
       winner: typeof winner === 'boolean' ? winner : null,
       // preenchidas depois dos stakes
       fan_tags: [],

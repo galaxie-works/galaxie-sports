@@ -38,7 +38,30 @@ Com pacotes privados, a VPS precisa de `docker login ghcr.io` com um token só `
 mesmos nomes/tags, enviar com `docker save … | gzip | ssh root@<vps> 'gunzip | docker load'` e usar
 `PULL_POLICY=missing` no `.env`.
 
-## Deploy
+## Atualizar (rotina: toda publicação passa por aqui)
+
+```bash
+infra/vps-telemetry/deploy.sh          # da máquina de desenvolvimento: constrói, envia, sobe, pós-deploy e smoke test
+```
+
+O script constrói `api`, `ingestor` e `demo` no commit (padrão `origin/main`), envia por `docker save | ssh docker load`,
+atualiza `compose.yml` e `IMAGE_TAG` (com backup dos dois), sobe a stack mantendo a escala do ingestor e roda os
+passos pós-deploy idempotentes (seed da base semântica, nomes curados de estádios, importância). Depois executa o
+**smoke test** (`smoke.mjs`), que confere cada funcionalidade entregue **com dados**, não só o status 200: glossário, cores
+e campanha do time, stakes e tags do torcedor, minuto a minuto, resumo da IA, conteúdo relacionado, emissoras e a
+proteção do login. `FAIL` (código, imagem ou config quebrados) sai com 1; `WARN` (dado incompleto: sync, cota, IA)
+aparece no relatório. Para rodar só o smoke test:
+
+```bash
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T demo node -' < infra/vps-telemetry/smoke.mjs
+```
+
+Os pacotes leem `config/` e `data/knowledge` a partir de si mesmos e **silenciam** quando não acham (lista vazia), então
+um diretório fora da imagem não dá erro, só some a funcionalidade. Por isso as imagens levam `config/` inteiro (e a API a
+base semântica), com `RULES_CONFIG_DIR`, `WTW_CONFIG_DIR`, `GEO_CONFIG_DIR`, `KNOWLEDGE_DIR` e `MEDIA_DENYLIST_PATH`, e o
+CI confere os caminhos dentro das imagens de `api` e `ingestor` em todo PR.
+
+## Deploy (primeira vez)
 
 ```bash
 mkdir -p /docker/galaxie-sports && cd /docker/galaxie-sports
