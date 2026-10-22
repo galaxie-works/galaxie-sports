@@ -24,6 +24,7 @@ import type {
 import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
 import type { Broadcaster, WhereToWatch } from './where-to-watch.js';
 import type { RelatedContent, RelatedContentTypeName } from './related.js';
+import type { SearchQuery, SearchResponse } from './search.js';
 import type { Person, Squad, Team, TeamEventsQuery, TeamOverview, TeamsQuery } from './teams.js';
 import type {
   Delegation,
@@ -187,6 +188,8 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       (await request(`/v1/events/${seg(id)}.ics`, { locale: options.locale, ...opts })).text(),
 
     // ─── times e pessoas ─────────────────────────────────────────────────────────────────────────
+    /** Busca global: times, competições, jogos, pessoas, estádios e países. */
+    search: (query: Q<SearchQuery> & { q: string }) => v1<SearchResponse>('/v1/search', toQuery(query)),
     teams: (query: Omit<TeamsQuery, 'locale'> & LocaleOpts = {}) =>
       v1<Page<TeamSummary>>('/v1/teams', query as Query & LocaleOpts),
     team: (id: string, opts: LocaleOpts = {}) => v1<Team>(`/v1/teams/${seg(id)}`, opts),

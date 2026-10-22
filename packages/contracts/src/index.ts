@@ -12,6 +12,7 @@ export * from './context.js';
 export * from './semantic.js';
 export * from './multisport.js';
 export * from './navigation.js';
+export * from './search.js';
 export { buildOpenApiDocument, type OpenApiOptions } from './openapi.js';
 export {
   createGalaxieClient,
