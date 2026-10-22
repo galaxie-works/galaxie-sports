@@ -13,6 +13,7 @@ import type { AssetStore, MirrorAsset } from './asset-store.js';
 import { imageInfo } from './image-info.js';
 import { MediaFetcher } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
+import { paletteFromPng, PLACEHOLDER_LOGO_SHA256 } from './palette.js';
 
 /** Lê config/assets/denylist.yaml (`denylist: [{ url, reason }]`). */
 export async function loadMediaDenylist(path: string): Promise<MediaDenylist> {
@@ -131,6 +132,10 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
         width: info.width,
         height: info.height,
         fetchedAt: new Date(clock.now()),
+        // cores do time (gradiente sugerido da API) saem do próprio escudo, no mesmo update
+        ...(item.kind === 'team_logo' && info.contentType === 'image/png'
+          ? { palette: PLACEHOLDER_LOGO_SHA256.has(sha256) ? null : paletteFromPng(res.body) }
+          : {}),
       });
       report.stored += 1;
       report.bytes += res.body.length;

@@ -220,6 +220,7 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm snapshot:export` · `pnpm snapshot:restore [arquivo]` | Exporta o raw (+ manifesto de assets) para `data/snapshots/*.ndjson.gz` e restaura num banco local — zero chamadas |
 | `pnpm --filter @galaxie/ingestor bootstrap:sports --plan` | Catálogo das outras 11 APIs (países, ligas, temporadas; `--jogos` para temporadas inteiras e classificação das prioritárias); sem `--plan`, executa |
 | `pnpm --filter @galaxie/ingestor assets:mirror --plan` | Asset Mirror: baixa logos/bandeiras/imagens da CDN de mídia (fora da cota) para o bucket S3 e preenche `core.asset`; `--descobrir-raw` varre o raw |
+| `pnpm --filter @galaxie/ingestor assets:palette [--plan]` | Cores dos times: extrai a paleta dos escudos já espelhados (cor predominante/secundária, monocromático) para o `colors` e o gradiente sugerido do Team — zero chamadas |
 | `pnpm --filter @galaxie/ingestor events:importance [--plan]` | Recalcula clássico (`derby_id`) e importância dos eventos já gravados a partir da base semântica (rode depois de `pnpm db:seed:semantic`; eventos novos já saem certos do upsert) |
 | `pnpm --filter @galaxie/ingestor live:run [--plan]` | Live Scheduler + Live Poller (`fixtures?live=`), com o orçamento LIVE do dia — ver [docs/07 §2.1](docs/07-ia-tempo-real-e-enriquecimento.md#21-live-scheduler-o-agendamento-inteligente) |
 | `pnpm --filter @galaxie/ingestor change-feed:prune [--dias 7] [--plan]` | Retenção do `ops.change_feed` (job diário do scheduler) |

@@ -20,6 +20,7 @@ describe('scheduleFromEnv', () => {
       'normalize-football',
       'events-clock',
       'assets-mirror',
+      'assets-palette',
       'change-feed-prune',
       'quota-status',
     ]);

@@ -39,6 +39,7 @@
     "snapshot:import": "node --env-file-if-exists=../../.env dist/cli/snapshot-import.js",
     "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
     "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js",
+    "assets:palette": "node --env-file-if-exists=../../.env dist/cli/assets-palette.js",
     "geo:seed": "node --env-file-if-exists=../../.env dist/cli/geo-seed.js"
   },
   "dependencies": {

@@ -1,0 +1,1 @@
+ALTER TABLE "core"."asset" ADD COLUMN "palette" jsonb;

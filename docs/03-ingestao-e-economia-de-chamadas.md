@@ -299,7 +299,25 @@ pnpm --filter @galaxie/ingestor assets:mirror --limite 500 --concorrencia 3 --pa
 | Idempotência | A segunda execução não baixa nada: só entram assets com `storage_key` e `fetched_at` nulos. Falhas transitórias continuam pendentes |
 | Lista de bloqueio | `config/assets/denylist.yaml` (também lida pelo script PowerShell): o logo da liga 475 (Paulistão) não é baixado, e se já tiver sido é desvinculado (`storage_key` nulo) |
 | Execução | Registrada em `ops.job_run` (`assets:mirror`) com contagens, 404 e falhas |
+| Cores dos times | Ao gravar um `team_logo` em PNG, o mesmo update preenche `core.asset.palette` (`{ version, dominant, secondary, monochrome }`) — ver §7.2 |
 
+### 7.2 Cores dos times (paleta do escudo)
+
+A API expõe em cada `Team` um `colors` (cor predominante, secundária e o **gradiente sugerido** `linear-gradient(9deg, #000 0%, <primária> 100%)`), calculado do escudo que já espelhamos — sem chamada externa. O código está em `services/ingestor/src/assets/palette.ts`:
+
+- **Decodificador PNG próprio** (`node:zlib`, sem dependências): tipos de cor 0, 2, 3 (paleta + `tRNS`), 4 e 6, 1–16 bits, não entrelaçado, os 5 filtros. SVG, entrelaçado ou arquivo corrompido → sem paleta.
+- **Algoritmo**: só pixels com alfa ≥ 200; quase-branco, quase-preto e cinzas (croma < 40) ficam fora da escolha; o resto vai para faixas de matiz de 15° (suavizadas com as vizinhas) e, na família vencedora, a cor é a média da faixa de luminosidade mais frequente (`dominant`). `secondary` é a próxima família com matiz a ≥ 40° e ao menos 6% dos pixels coloridos (ou `null`). Com menos de 8% de pixels coloridos o escudo é `monochrome` (Botafogo, Vasco, Santos) e `dominant` vira o cinza-escuro neutro `#3a3a3a`, para o gradiente continuar legível.
+- **Placeholders do fornecedor** ("image not available", "official logo soon", escudo-contorno cinza — cada um repetido em dezenas de times) são reconhecidos pelo `sha256` (`PLACEHOLDER_LOGO_SHA256`) e ficam sem paleta: não são cor de time. No banco local eram 309 de 2.101 escudos PNG.
+- Alguns "PNG" da CDN são JPEG com extensão `.png` (54 no banco local): o decodificador os recusa, ficam sem paleta e voltam como candidatos (custo: uma leitura do bucket por execução).
+- **Novos escudos** recebem a paleta no próprio Asset Mirror; os já espelhados, pelo backfill:
+
+```bash
+pnpm --filter @galaxie/ingestor assets:palette --plan      # quantos team_logo PNG estão sem paleta
+pnpm --filter @galaxie/ingestor assets:palette             # lê do bucket, calcula e grava (zero chamadas ao fornecedor)
+pnpm --filter @galaxie/ingestor assets:palette --limite 500 --verbose
+```
+
+O backfill registra a execução em `ops.job_run` (`assets:palette`) e roda agendado logo depois do espelho (job `assets-palette`). O campo `version` da paleta permite recalcular quando o algoritmo mudar (basta zerar `palette`).
 **Reescrita de URLs para o nosso CDN** — funções puras em `@galaxie/apisports-client` (`media.ts`), para a API:
 
 - `rewriteMediaUrl(url, { publicBaseUrl: ASSETS_PUBLIC_BASE_URL, denylist })` → `https://<cdn>/api-sports/football/teams/121.png`; URL bloqueada → `null`; URL fora da CDN da api-sports (ex.: Wikimedia na NBA) volta intacta. `rewriteMediaUrls(envelope, ...)` aplica em um JSON inteiro.
@@ -416,6 +434,7 @@ Implementação: [`services/ingestor/src/jobs`](../services/ingestor/src/jobs). 
 | `sync:daily` | #19 | `fixtures?date=` D-1/D0/D+1, `injuries?date=` D0, `/leagues`, `/status` (sem cota); detalhe dos encerrados de D-1…D-3 sem detalhe; rodízio (squads 7 dias, coachs/transfers/trophies/sidelined 30 dias) dos times tier 1; `--outros-esportes` traz `games/races/fights?date=` das outras 11 APIs; tudo direto ao core e, no fim, tabelas recalculadas localmente. Agendado às 00:05 UTC (job `sync-daily`) | cada item vale 1×/dia UTC: reexecutar no mesmo dia não gasta |
 | `live:run` | #54 #55 | Live Scheduler + Live Poller (§5, [07 §2.1](07-ia-tempo-real-e-enriquecimento.md#21-live-scheduler-o-agendamento-inteligente)): planeja o LIVE do dia no Governor e faz 1 `fixtures?live=` por tick; `--plan` mostra o plano sem chamar. Job `live-run` a cada 5 min (sai ocioso) | LIVE |
 | `standings:recompute` | #19 | Tabelas calculadas a partir dos resultados do core (sem chamadas) | — |
+| `assets:palette` | — | Cores dos times: lê do bucket os `team_logo` PNG já espelhados sem `palette`, decodifica e grava a paleta (§7.2); `--plan` só conta, `--limite N`. Job `assets-palette` às 03:10 UTC | zero chamadas (storage + banco) |
 | `snapshot:export` / `snapshot:import` | #20 | `raw.api_response` + manifesto de `core.asset` ⇄ `data/snapshots/*.ndjson.gz` (fora do Git), idempotente | zero chamadas |
 
 ¹ só quando o `coverage` da temporada não é `false`.
