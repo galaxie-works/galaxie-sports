@@ -813,6 +813,33 @@ describe('/v1/teams e /v1/people', () => {
       'W 1-0',
       'W 1-0',
     ]);
+    // campanha: em disputa primeiro; copa sem tabela entra com o confronto em andamento
+    expect(o.competitions[0]).toMatchObject({
+      competition: { slug: 'conmebol-libertadores' },
+      season: { year: 2026 },
+      campaign: {
+        status: 'in_progress',
+        stage_kind: 'semi_final',
+        label: { 'pt-BR': 'Nas semifinais' },
+        detail: { 'pt-BR': 'Contra Fluminense (ida: 2–1)' },
+        opponent: { name: 'Fluminense' },
+        decided_by_event_id: null,
+        ongoing: true,
+      },
+    });
+    expect(o.competitions[1]).toMatchObject({
+      competition: { slug: 'brasileirao-serie-a' },
+      season: { year: 2026 },
+      campaign: { status: 'league', ongoing: true },
+    });
+    expect(o.competitions.filter((c: { campaign: { ongoing: boolean } }) => !c.campaign.ongoing)).toEqual(
+      o.competitions.slice(2),
+    );
+    const es = (await get(`/v1/teams/${ids.palmeiras}/overview?locale=es-AR`)).json();
+    expect(es.competitions[0].campaign).toMatchObject({
+      label: { 'es-AR': 'En semifinales' },
+      detail: { 'es-AR': 'Contra Fluminense (ida: 2–1)' },
+    });
     expect(o.last_events).toHaveLength(5);
     expect(o.last_events[0].id).toBe(ids.leg1);
     expect(o.live_event).toBeNull();
