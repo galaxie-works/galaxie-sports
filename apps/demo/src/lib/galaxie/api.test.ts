@@ -75,6 +75,12 @@ const PAIRS: [string, ApiRequest, (c: ReturnType<typeof createGalaxieClient>) =>
   ['overview', teamOverviewRequest(TEAM, 'pt-BR'), (c) => c.teamOverview(TEAM)],
   ['semântica', teamSemanticRequest(TEAM, 'pt-BR'), (c) => c.teamSemantic(TEAM)],
   ['elenco', squadRequest(TEAM, 'pt-BR'), (c) => c.squad(TEAM)],
+  [
+    'overview na temporada',
+    teamOverviewRequest(TEAM, 'pt-BR', 2025),
+    (c) => c.teamOverview(TEAM, { season: 2025 }),
+  ],
+  ['elenco na temporada', squadRequest(TEAM, 'pt-BR', 2025), (c) => c.squad(TEAM, { season: 2025 })],
   ['evento', eventRequest(EVENT, 'pt-BR'), (c) => c.event(EVENT)],
   ['evento no mercado', eventRequest(EVENT, 'pt-BR', 'BR'), (c) => c.event(EVENT, { market: 'BR' })],
   ['h2h', h2hRequest(EVENT, 'pt-BR'), (c) => c.eventH2h(EVENT, { limit: 10 })],

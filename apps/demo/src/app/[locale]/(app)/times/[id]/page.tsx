@@ -1,5 +1,5 @@
-import type { Squad, TeamColors, TeamSemantic } from '@galaxie/contracts';
-import { Calendar, MapPin, Megaphone, Quote, Users } from 'lucide-react';
+import type { Squad, TeamColors, TeamSeason, TeamSemantic } from '@galaxie/contracts';
+import { Calendar, History, MapPin, Megaphone, Quote, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -11,6 +11,7 @@ import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { FormChips } from '@/components/sport/form-chips';
 import { Intensity } from '@/components/sport/intensity';
+import { SeasonSelect, type SeasonOption } from '@/components/sport/season-select';
 import { Section } from '@/components/sport/section';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +30,19 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import { calendarDate } from '@/lib/i18n/format';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
+
+/** `?temporada=2025` da URL (o primeiro valor, se repetido); fora de um ano inteiro, nada. */
+function seasonParam(raw: string | string[] | undefined): number | undefined {
+  const n = Number(Array.isArray(raw) ? raw[0] : raw);
+  return raw !== undefined && Number.isInteger(n) ? n : undefined;
+}
+
+/**
+ * Rótulo da temporada: o do fornecedor; num ano com rótulos diferentes (Paulista 2020 e Brasileirão
+ * 2020/21), o que cruza o ano, que cobre o período inteiro.
+ */
+const seasonLabel = (s: TeamSeason) =>
+  s.labels.reduce((a, b) => (b.length > a.length ? b : a), s.labels[0] ?? String(s.year));
 
 /** Cores do clube como vêm da base semântica (nomes em pt-BR, sem acento: ver `colorKey`). */
 const COLOR_HEX: Record<string, string> = {
@@ -351,11 +365,14 @@ function SquadSection({
   api,
   locale,
   t,
+  season,
 }: {
   squad: Squad;
   api: ApiRequest;
   locale: Locale;
   t: Dictionary;
+  /** Rótulo da temporada anterior escolhida (sem ela, o elenco atual). */
+  season?: string;
 }) {
   const tx = t.team.squad;
   // agrupa pela posição do fornecedor (chave em inglês); o rótulo sai do dicionário
@@ -375,13 +392,20 @@ function SquadSection({
     ),
     ...(squad.coaches.length ? [['staff', tx.staff, squad.coaches] as const] : []),
   ];
-  if (!people.length) return null;
+  if (!people.length) {
+    // temporada anterior sem elenco na base: avisa em vez de sumir com a seção
+    return season ? (
+      <Section title={tx.title} api={api}>
+        <p className="text-muted-foreground text-sm">{fill(tx.unavailable, { season })}</p>
+      </Section>
+    ) : null;
+  }
 
   return (
     <Section
       title={tx.title}
       api={api}
-      description={`${plural(locale, squad.players.length, tx.players)}${squad.season ? ` · ${squad.season}` : ''}`}
+      description={`${plural(locale, squad.players.length, tx.players)}${season ? ` · ${season}` : ''}`}
     >
       <div className="flex flex-col gap-5">
         {people.map(([key, label, members]) => (
@@ -412,19 +436,39 @@ function SquadSection({
   );
 }
 
-async function Content({ params }: { params: PageProps<'/[locale]/times/[id]'>['params'] }) {
-  const [{ id }, { locale, t }] = await Promise.all([params, getI18n()]);
-  const [overview, semantic, squad] = await Promise.all([
-    getTeamOverview(id, locale),
-    getTeamSemantic(id, locale),
-    getSquad(id, locale),
+async function Content({
+  params,
+  searchParams,
+}: Pick<PageProps<'/[locale]/times/[id]'>, 'params' | 'searchParams'>) {
+  const [{ id }, query, { locale, t }] = await Promise.all([params, searchParams, getI18n()]);
+  const [latest, semantic] = await Promise.all([getTeamOverview(id, locale), getTeamSemantic(id, locale)]);
+  // API anterior ao seletor (sem `seasons`): só a temporada atual, sem combobox
+  const seasons = latest.seasons ?? [];
+  // só anos com jogos do time; a temporada corrente é a visão padrão (sem `?temporada`)
+  const past = seasons.find((s) => s.year === seasonParam(query.temporada) && !s.current);
+  const year = past?.year;
+  const [overview, squad] = await Promise.all([
+    year === undefined ? latest : getTeamOverview(id, locale, year),
+    getSquad(id, locale, year),
   ]);
   const { team } = overview;
+  const tsx = t.team.season;
+  const label = past ? seasonLabel(past) : undefined;
   const nicknames = semantic?.nicknames.length ? semantic.nicknames : team.nicknames;
   const upcoming = [overview.live_event, overview.next_event].filter((e) => e !== null);
   // API anterior à campanha (sem `competitions`): a seção some em vez de quebrar a página
   const competitions = overview.competitions ?? [];
-  const overviewApi = teamOverviewRequest(id, locale);
+  const overviewApi = teamOverviewRequest(id, locale, year);
+  const basePath = `/times/${id}`;
+  const options: SeasonOption[] = seasons.map((s) => ({
+    year: s.year,
+    label: seasonLabel(s),
+    hint: [plural(locale, s.events, tsx.events), s.has_incidents ? null : tsx.noIncidents]
+      .filter(Boolean)
+      .join(' · '),
+    current: s.current,
+  }));
+  const shownYear = year ?? seasons.find((s) => s.current)?.year;
 
   // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
   // API anterior aos nomes curados (sem `former_names`): nada a mostrar em vez de quebrar a página
@@ -432,14 +476,44 @@ async function Content({ params }: { params: PageProps<'/[locale]/times/[id]'>['
 
   return (
     <>
-      <PageHeader title={team.name} kind="time" api={overviewApi} />
+      <PageHeader
+        title={team.name}
+        label={label ? `${team.name} · ${label}` : undefined}
+        kind="time"
+        api={overviewApi}
+      />
       <div className="relative isolate flex flex-col gap-8 p-4 md:p-6">
         {team.colors ? <TeamBand colors={team.colors} /> : null}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Crest src={team.logo} name={team.name} size="xl" />
           <div className="flex flex-col gap-2">
             <div className="flex flex-col">
-              <h1 className="text-2xl font-semibold tracking-tight">{team.name}</h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <h1 className="text-2xl font-semibold tracking-tight">{team.name}</h1>
+                {options.length && shownYear !== undefined ? (
+                  <SeasonSelect
+                    options={options}
+                    value={shownYear}
+                    basePath={basePath}
+                    texts={{ label: tsx.label, search: tsx.search, empty: tsx.empty, current: tsx.current }}
+                  />
+                ) : null}
+                {label ? (
+                  <span className="flex items-center gap-2">
+                    <Badge variant="warning-light" size="lg" radius="full">
+                      <History aria-hidden />
+                      {fill(tsx.badge, { season: label })}
+                    </Badge>
+                    <Link
+                      href={basePath}
+                      scroll={false}
+                      className="text-muted-foreground text-xs hover:underline"
+                    >
+                      {tsx.backToCurrent}
+                    </Link>
+                  </span>
+                ) : null}
+              </div>
               {semantic?.official_name && semantic.official_name !== team.name ? (
                 <span className="text-muted-foreground text-sm">{semantic.official_name}</span>
               ) : null}
@@ -485,7 +559,13 @@ async function Content({ params }: { params: PageProps<'/[locale]/times/[id]'>['
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
             {overview.form.length ? (
-              <Section title={t.team.form.title} description={t.team.form.description} api={overviewApi}>
+              <Section
+                title={t.team.form.title}
+                description={
+                  label ? fill(t.team.form.descriptionSeason, { season: label }) : t.team.form.description
+                }
+                api={overviewApi}
+              >
                 <FormChips
                   items={overview.form.map((f) => ({
                     result: f.result,
@@ -499,7 +579,11 @@ async function Content({ params }: { params: PageProps<'/[locale]/times/[id]'>['
             {competitions.length ? (
               <Section
                 title={t.team.competitions.title}
-                description={t.team.competitions.description}
+                description={
+                  label
+                    ? fill(t.team.competitions.descriptionSeason, { season: label })
+                    : t.team.competitions.description
+                }
                 api={overviewApi}
               >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -521,7 +605,11 @@ async function Content({ params }: { params: PageProps<'/[locale]/times/[id]'>['
             ) : null}
 
             {overview.last_events.length ? (
-              <Section title={t.team.lastMatches} api={overviewApi}>
+              <Section
+                title={t.team.lastMatches}
+                description={label ? fill(t.team.lastMatchesSeason, { season: label }) : undefined}
+                api={overviewApi}
+              >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {overview.last_events.map((e) => (
                     <EventCard key={e.id} event={e} />
@@ -543,7 +631,15 @@ async function Content({ params }: { params: PageProps<'/[locale]/times/[id]'>['
           </div>
         </div>
 
-        {squad ? <SquadSection squad={squad} api={squadRequest(id, locale)} locale={locale} t={t} /> : null}
+        {squad ? (
+          <SquadSection
+            squad={squad}
+            api={squadRequest(id, locale, year)}
+            locale={locale}
+            t={t}
+            season={label}
+          />
+        ) : null}
       </div>
     </>
   );
@@ -570,10 +666,10 @@ function Fallback() {
   );
 }
 
-export default function TeamPage({ params }: PageProps<'/[locale]/times/[id]'>) {
+export default function TeamPage({ params, searchParams }: PageProps<'/[locale]/times/[id]'>) {
   return (
     <Suspense fallback={<Fallback />}>
-      <Content params={params} />
+      <Content params={params} searchParams={searchParams} />
     </Suspense>
   );
 }

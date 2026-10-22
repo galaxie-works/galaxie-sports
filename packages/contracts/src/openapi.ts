@@ -54,6 +54,7 @@ import {
   Team,
   TeamEventsQuery,
   TeamOverview,
+  TeamOverviewQuery,
   TeamParams,
   TeamsQuery,
 } from './teams.js';
@@ -280,10 +281,10 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       '/v1/teams/{id}/overview': {
         get: getOp(
-          'Card do time: campanha nas competições, posição, forma, últimos resultados, ao vivo e próximo jogo',
+          'Card do time: campanha nas competições, posição, forma, últimos resultados, ao vivo e próximo jogo — da temporada atual ou de um ano (`season`)',
           'Times e pessoas',
           TeamOverview,
-          { path: TeamParams, query: LocaleQuery },
+          { path: TeamParams, query: TeamOverviewQuery },
           [400, 401, 403, 404, 429],
         ),
       },

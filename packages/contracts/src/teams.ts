@@ -130,16 +130,57 @@ export const TeamCompetition = z
   .meta({ id: 'TeamCompetition' });
 export type TeamCompetition = z.infer<typeof TeamCompetition>;
 
+/** Ano de temporada (`core.season.year`): o início da temporada, também nas que cruzam anos (2025/26 → 2025). */
+const SeasonYear = z.coerce.number().int().min(1900).max(2100);
+
+export const TeamOverviewQuery = LocaleQuery.extend({
+  season: SeasonYear.optional().meta({
+    description:
+      'Ano da temporada (`season.year`: 2025 também seleciona as temporadas 2025/26). Sem ele, a temporada ' +
+      'atual (ou a mais recente) de cada competição. Os anos com dados estão em `seasons`.',
+    example: 2025,
+  }),
+});
+export type TeamOverviewQuery = z.input<typeof TeamOverviewQuery>;
+
+export const TeamSeason = z
+  .object({
+    year: z.number().int().meta({ example: 2025 }),
+    labels: z.array(z.string()).meta({
+      description:
+        'Rótulos das temporadas das competições nesse ano, como o fornecedor os escreve ("2025", "2025/26").',
+      example: ['2025'],
+    }),
+    events: z.number().int().meta({ description: 'Jogos do time nas temporadas desse ano.', example: 76 }),
+    has_incidents: z
+      .boolean()
+      .meta({ description: 'Algum jogo da temporada tem lances (gols, cartões, substituições).' }),
+    current: z.boolean().meta({
+      description:
+        'Temporada corrente do time (a mais recente marcada como atual): a única com `next_event` e `live_event`.',
+    }),
+  })
+  .meta({ id: 'TeamSeason' });
+export type TeamSeason = z.infer<typeof TeamSeason>;
+
 export const TeamOverview = z
   .object({
     team: Team,
-    standings: z
-      .array(TeamStanding)
-      .meta({ description: 'Posição nas temporadas atuais (ou mais recentes) das competições do time.' }),
+    season: z.number().int().nullable().meta({
+      description: 'Ano pedido em `?season` (null: temporada atual ou mais recente de cada competição).',
+    }),
+    seasons: z.array(TeamSeason).meta({
+      description: 'Anos de temporada com jogos do time, do mais recente ao mais antigo (para o seletor).',
+    }),
+    standings: z.array(TeamStanding).meta({
+      description:
+        'Posição nas temporadas atuais (ou mais recentes) das competições do time; com `season`, nas daquele ano.',
+    }),
     competitions: z.array(TeamCompetition).meta({
       description:
         'Campanha em cada competição (temporada atual ou mais recente, inclusive copas sem tabela), ' +
-        'em disputa primeiro e depois a mais recente.',
+        'em disputa primeiro e depois a mais recente. Com `season`, a campanha de cada competição naquele ' +
+        'ano (campeão, vice, eliminado ou posição final).',
     }),
     form: z
       .array(
@@ -149,10 +190,15 @@ export const TeamOverview = z
           score: z.string().meta({ example: '2-1' }),
         }),
       )
-      .meta({ description: 'Últimos 5 resultados, do mais recente ao mais antigo.' }),
-    last_events: z.array(Event),
-    live_event: Event.nullable(),
-    next_event: Event.nullable(),
+      .meta({
+        description:
+          'Últimos 5 resultados, do mais recente ao mais antigo (com `season`, os últimos daquele ano).',
+      }),
+    last_events: z
+      .array(Event)
+      .meta({ description: 'Últimos jogos encerrados (com `season`, daquele ano).' }),
+    live_event: Event.nullable().meta({ description: 'null quando `season` não é a temporada corrente.' }),
+    next_event: Event.nullable().meta({ description: 'null quando `season` não é a temporada corrente.' }),
   })
   .meta({ id: 'TeamOverview' });
 export type TeamOverview = z.infer<typeof TeamOverview>;
@@ -161,13 +207,7 @@ export const TeamEventsQuery = EventsQuery.omit({ team: true });
 export type TeamEventsQuery = z.input<typeof TeamEventsQuery>;
 
 export const SquadQuery = LocaleQuery.extend({
-  season: z.coerce
-    .number()
-    .int()
-    .min(1900)
-    .max(2100)
-    .optional()
-    .meta({ description: 'Ano da temporada; sem ele, o elenco atual.' }),
+  season: SeasonYear.optional().meta({ description: 'Ano da temporada; sem ele, o elenco atual.' }),
 });
 
 const SquadMember = z.object({

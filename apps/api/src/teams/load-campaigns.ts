@@ -35,8 +35,13 @@ function pickStanding(rows: (CampaignStanding & { seasonId: string })[]): Campai
 /**
  * Campanha do time em cada competição (temporada atual ou a mais recente), inclusive copas sem
  * tabela, para o overview do time. Ordem: em disputa primeiro; depois a atividade mais recente.
+ * Com `year`, a campanha de cada competição na temporada daquele ano (`season.year`), por mais antiga.
  */
-export async function loadTeamCompetitions(bctx: BuildContext, teamId: string): Promise<TeamCompetition[]> {
+export async function loadTeamCompetitions(
+  bctx: BuildContext,
+  teamId: string,
+  year?: number,
+): Promise<TeamCompetition[]> {
   const { db, locale } = bctx;
 
   // 1. temporadas com jogos ou tabela do time
@@ -82,9 +87,10 @@ export async function loadTeamCompetitions(bctx: BuildContext, teamId: string): 
     .innerJoin(competition, eq(competition.id, season.competitionId))
     .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
     .leftJoin(asset, eq(asset.id, competition.logoAssetId))
-    .where(inArray(season.id, candidateIds));
+    .where(and(inArray(season.id, candidateIds), year === undefined ? undefined : eq(season.year, year)));
 
-  // por competição: a temporada atual ou, sem ela, a mais recente; antigas (sem jogo há 12 meses) saem
+  // por competição: a temporada atual ou, sem ela, a mais recente; antigas (sem jogo há 12 meses) saem.
+  // Com `year` só sobra uma temporada por competição (única por ano) e nenhuma sai por ser antiga.
   const byCompetition = new Map<string, (typeof seasonRows)[number]>();
   for (const r of seasonRows) {
     const cur = byCompetition.get(r.c.id);
@@ -97,7 +103,7 @@ export async function loadTeamCompetitions(bctx: BuildContext, teamId: string): 
   }
   const cutoff = bctx.now.getTime() - RECENT_MS;
   const selected = [...byCompetition.values()].filter(
-    (r) => r.s.current || (lastBy.get(r.s.id) ?? 0) >= cutoff,
+    (r) => year !== undefined || r.s.current || (lastBy.get(r.s.id) ?? 0) >= cutoff,
   );
   if (!selected.length) return [];
   const seasonIds = selected.map((r) => r.s.id);
