@@ -255,6 +255,9 @@ services:
       SCHEDULE_RECAP_RUN: ${SCHEDULE_RECAP_RUN:-*/5 * * * *}
       SCHEDULE_CONTEXT_RUN: ${SCHEDULE_CONTEXT_RUN:-10 * * * *}
       SCHEDULE_WTW_RUN: ${SCHEDULE_WTW_RUN:-*/5 * * * *}
+      # Conteúdo relacionado: sem chave, o job falha rápido e nada é gravado
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      SCHEDULE_RELATED_RUN: ${SCHEDULE_RELATED_RUN:-*/30 0-6,12-23 * * *}
     depends_on:
       migrate:
         condition: service_completed_successfully

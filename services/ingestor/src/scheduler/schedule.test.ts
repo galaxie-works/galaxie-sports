@@ -55,7 +55,7 @@ describe('scheduleFromEnv', () => {
 
   it('perfil agents: só os agentes de IA, rodando no pacote do ai-agents', () => {
     const jobs = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_CONTEXT_RUN: 'off' });
-    expect(jobs.map((j) => j.name)).toEqual(['recap-run', 'wtw-run']);
+    expect(jobs.map((j) => j.name)).toEqual(['recap-run', 'wtw-run', 'related-run']);
     expect(jobs.every((j) => j.cwd === '../ai-agents')).toBe(true);
     expect(jobsForProfile(undefined)).toBe(DEFAULT_JOBS);
     expect(jobsForProfile(' Agents ')).toBe(AGENT_JOBS);
