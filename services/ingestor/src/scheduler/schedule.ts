@@ -65,6 +65,15 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 90 * MINUTE,
   },
   {
+    name: 'assets-palette',
+    description:
+      'Cores dos times: paleta dos escudos já espelhados sem palette (lê do S3; sem chamadas ao fornecedor)',
+    cron: '10 3 * * *',
+    script: 'dist/cli/assets-palette.js',
+    args: ['--limite', '5000'],
+    timeoutMs: 30 * MINUTE,
+  },
+  {
     name: 'change-feed-prune',
     description:
       'Retenção do ops.change_feed: apaga mudanças com mais de CHANGE_FEED_RETENTION_DAYS (padrão 7), mantendo a última por entidade e o que os webhooks ainda não leram',

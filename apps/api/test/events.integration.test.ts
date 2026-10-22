@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MediaDenylist, normalizeParams, requestHash } from '@galaxie/apisports-client';
 import {
   apiResponse,
+  asset,
   closeDb,
   competition,
   competitionProfile,
@@ -764,14 +765,32 @@ describe('/v1/teams e /v1/people', () => {
     expect(p1.data[0].id).not.toBe(p2.data[0].id);
   });
 
-  it('detalhe do time com estádio e IDs externos', async () => {
+  it('detalhe do time com estádio, IDs externos e cores do escudo', async () => {
+    // paleta como o espelho de mídia grava (core.asset.palette do escudo)
+    const [palmeiras] = await db
+      .select({ logo: participant.logoAssetId })
+      .from(participant)
+      .where(eq(participant.id, ids.palmeiras!));
+    await db
+      .update(asset)
+      .set({ palette: { version: 1, dominant: '#006937', secondary: null, monochrome: false } })
+      .where(eq(asset.id, palmeiras!.logo!));
+
     const t = (await get(`/v1/teams/${ids.palmeiras}`)).json();
     expect(t).toMatchObject({
       name: 'Palmeiras',
       country_ref: { code: 'BR', name: 'Brasil' },
       external_ids: { 'api-sports': '121' },
       venue: { name: 'Estádio 258' },
+      colors: {
+        primary: '#006937',
+        secondary: null,
+        monochrome: false,
+        gradient: 'linear-gradient(9deg, #000 0%, #006937 100%)',
+      },
     });
+    // sem paleta (escudo ainda não espelhado) → colors null
+    expect((await get(`/v1/teams/${ids.corinthians}`)).json().colors).toBeNull();
     expect((await get('/v1/teams/01a15f83-0f07-78a6-9de5-191d031f73d3')).statusCode).toBe(404);
   });
 
@@ -780,6 +799,7 @@ describe('/v1/teams e /v1/people', () => {
     expect(res.statusCode).toBe(200);
     const o = res.json();
     expect(o.team.name).toBe('Palmeiras');
+    expect(o.team.colors).toMatchObject({ primary: '#006937', gradient: expect.stringContaining('#006937') });
     expect(o.standings[0]).toMatchObject({
       competition: { slug: 'brasileirao-serie-a', name: 'Brasileirão Série A' },
       season: { year: 2024 },

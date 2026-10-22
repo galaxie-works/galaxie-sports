@@ -1,14 +1,15 @@
-import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, notInArray, or, sql } from 'drizzle-orm';
 import {
   isProviderMediaUrl,
   mediaKindFromUrl,
   normalizeMediaUrl,
   type MediaAssetKind,
 } from '@galaxie/apisports-client';
-import { apiResponse, asset, type Database } from '@galaxie/db';
+import { apiResponse, asset, type AssetPalette, type Database } from '@galaxie/db';
+import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
 
 /**
- * Estado de um asset em core.asset (sem colunas novas):
+ * Estado de um asset em core.asset:
  * - pendente:   storage_key nulo e fetched_at nulo;
  * - espelhado:  storage_key preenchido (sha256, bytes, dimensões e fetched_at junto);
  * - ausente:    storage_key nulo e fetched_at preenchido — 404 na CDN ou bloqueado; não é tentado de novo
@@ -27,6 +28,14 @@ export interface StoredInfo {
   width: number | null;
   height: number | null;
   fetchedAt: Date;
+  /** Cores do escudo (só team_logo em PNG); ausente = não mexe na coluna. */
+  palette?: AssetPalette | null;
+}
+
+/** team_logo já espelhado em PNG e ainda sem paleta (backfill `assets:palette`). */
+export interface PaletteCandidate {
+  id: string;
+  storageKey: string;
 }
 
 export interface PendingQuery {
@@ -51,6 +60,9 @@ export interface AssetStore {
   /** Registra URLs novas (idempotente). Retorna quantas eram novas. */
   register(urls: string[]): Promise<number>;
   counts(): Promise<AssetCounts>;
+  /** team_logo espelhados em PNG com palette nula (fora os placeholders do fornecedor), na ordem de criação. */
+  paletteCandidates(limit?: number): Promise<PaletteCandidate[]>;
+  savePalette(id: string, palette: AssetPalette): Promise<void>;
 }
 
 // ─── memória (testes) ────────────────────────────────────────────────────────────────────────────
@@ -62,6 +74,7 @@ export interface MemoryAssetRow extends MirrorAsset {
   width: number | null;
   height: number | null;
   fetchedAt: Date | null;
+  palette: AssetPalette | null;
 }
 
 export class InMemoryAssetStore implements AssetStore {
@@ -83,6 +96,7 @@ export class InMemoryAssetStore implements AssetStore {
       width: null,
       height: null,
       fetchedAt: null,
+      palette: null,
     };
     this.rows.push(row);
     return row;
@@ -118,6 +132,7 @@ export class InMemoryAssetStore implements AssetStore {
         width: null,
         height: null,
         fetchedAt: at,
+        palette: null,
       },
     );
   }
@@ -151,12 +166,37 @@ export class InMemoryAssetStore implements AssetStore {
     const missing = this.rows.filter((r) => !r.storageKey && r.fetchedAt).length;
     return { total: this.rows.length, stored, missing, pending: this.rows.length - stored - missing };
   }
+
+  async paletteCandidates(limit?: number): Promise<PaletteCandidate[]> {
+    const rows = this.rows.filter(
+      (r) =>
+        r.kind === 'team_logo' &&
+        r.storageKey?.toLowerCase().endsWith('.png') &&
+        !r.palette &&
+        !PLACEHOLDER_LOGO_SHA256.has(r.sha256 ?? ''),
+    );
+    return rows.slice(0, limit ?? rows.length).map((r) => ({ id: r.id, storageKey: r.storageKey! }));
+  }
+
+  async savePalette(id: string, palette: AssetPalette): Promise<void> {
+    this.rows.find((r) => r.id === id)!.palette = palette;
+  }
 }
 
 // ─── Postgres ────────────────────────────────────────────────────────────────────────────────────
 
 /** Mesma expressão de normalizeMediaUrl, para casar URLs gravadas com variações de host/protocolo. */
 const MEDIA_URL_SQL = `^https?://media(-[0-9]+)?\\.api-sports\\.io/`;
+
+/** Colunas zeradas quando o asset sai do storage (404, bloqueado). */
+const UNLINKED = {
+  storageKey: null,
+  sha256: null,
+  bytes: null,
+  width: null,
+  height: null,
+  palette: null,
+} as const;
 
 export class PgAssetStore implements AssetStore {
   constructor(private readonly db: Database) {}
@@ -179,7 +219,7 @@ export class PgAssetStore implements AssetStore {
   async markMissing(id: string, at: Date): Promise<void> {
     await this.db
       .update(asset)
-      .set({ storageKey: null, sha256: null, bytes: null, width: null, height: null, fetchedAt: at })
+      .set({ ...UNLINKED, fetchedAt: at })
       .where(eq(asset.id, id));
   }
 
@@ -194,7 +234,7 @@ export class PgAssetStore implements AssetStore {
     if (!ids.length) return 0;
     await this.db
       .update(asset)
-      .set({ storageKey: null, sha256: null, bytes: null, width: null, height: null, fetchedAt: at })
+      .set({ ...UNLINKED, fetchedAt: at })
       .where(inArray(asset.id, ids));
     return ids.length;
   }
@@ -223,6 +263,26 @@ export class PgAssetStore implements AssetStore {
       .from(asset);
     const { total, stored, missing } = row ?? { total: 0, stored: 0, missing: 0 };
     return { total, stored, missing, pending: total - stored - missing };
+  }
+
+  async paletteCandidates(limit?: number): Promise<PaletteCandidate[]> {
+    const q = this.db
+      .select({ id: asset.id, storageKey: sql<string>`${asset.storageKey}` })
+      .from(asset)
+      .where(
+        and(
+          eq(asset.kind, 'team_logo'),
+          isNull(asset.palette),
+          sql`lower(${asset.storageKey}) like '%.png'`,
+          or(isNull(asset.sha256), notInArray(asset.sha256, [...PLACEHOLDER_LOGO_SHA256])),
+        ),
+      )
+      .orderBy(asc(asset.createdAt), asc(asset.id));
+    return limit ? q.limit(limit) : q;
+  }
+
+  async savePalette(id: string, palette: AssetPalette): Promise<void> {
+    await this.db.update(asset).set({ palette }).where(eq(asset.id, id));
   }
 
   /**

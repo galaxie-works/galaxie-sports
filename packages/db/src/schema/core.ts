@@ -67,6 +67,20 @@ export const sport = core.table('sport', {
   createdAt: createdAt(),
 });
 
+/**
+ * Paleta extraída do escudo (team_logo) pelo espelho de mídia — base das "cores do time" e do
+ * gradiente sugerido expostos na API. `version` permite recalcular quando o algoritmo mudar.
+ */
+export type AssetPalette = {
+  version: 1;
+  /** Cor predominante (#rrggbb); cinza-escuro neutro quando o escudo é monocromático. */
+  dominant: string;
+  /** Segunda cor, com matiz distinto da predominante; null quando não há. */
+  secondary: string | null;
+  /** Escudo essencialmente preto/branco/cinza (ex.: Corinthians, Botafogo, Vasco). */
+  monochrome: boolean;
+};
+
 export const asset = core.table(
   'asset',
   {
@@ -79,6 +93,8 @@ export const asset = core.table(
     height: integer('height'),
     bytes: integer('bytes'),
     fetchedAt: timestamp('fetched_at', { withTimezone: true }),
+    /** Só para team_logo em PNG; preenchido no espelho ou pelo backfill `assets:palette`. */
+    palette: jsonb('palette').$type<AssetPalette>(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('asset_source_url_uq').on(t.sourceUrl)],

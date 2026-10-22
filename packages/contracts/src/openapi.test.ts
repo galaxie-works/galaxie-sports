@@ -4,6 +4,7 @@ import { CompetitionsQuery } from './catalog.js';
 import { LocaleQuery } from './common.js';
 import { GamesListQuery, MedalHistoryQuery, ScheduleQuery } from './multisport.js';
 import { CopyQuery } from './semantic.js';
+import { TeamColors, teamGradient } from './teams.js';
 import { buildOpenApiDocument } from './openapi.js';
 
 describe('OpenAPI', () => {
@@ -64,12 +65,20 @@ describe('OpenAPI', () => {
         'EventContextText',
         'EventContextSummary',
         'TeamSummary',
+        'Team',
+        'TeamColors',
         'TeamOverview',
         'Person',
         'WhereToWatch',
         'WhereToWatchOption',
       ]),
     );
+    const team = doc.components?.schemas?.Team as { properties?: Record<string, unknown> };
+    expect(team.properties).toHaveProperty('colors');
+    expect(doc.components?.schemas?.TeamColors).toMatchObject({
+      properties: { gradient: { example: 'linear-gradient(9deg, #000 0%, #006937 100%)' } },
+      required: ['primary', 'secondary', 'monochrome', 'gradient'],
+    });
     expect(doc.components?.securitySchemes?.galaxieKey).toMatchObject({
       in: 'header',
       name: 'x-galaxie-key',
@@ -137,5 +146,17 @@ describe('schemas de query', () => {
     expect(LocaleQuery.safeParse({ locale: 'fr-FR' }).success).toBe(false);
     expect(LocaleQuery.safeParse({ tz: 'Mars/Olympus' }).success).toBe(false);
     expect(LocaleQuery.safeParse({ locale: 'es-AR', tz: 'America/Sao_Paulo' }).success).toBe(true);
+  });
+
+  it('cores do time: gradiente sugerido a partir da primária e hex validado', () => {
+    expect(teamGradient('#006937')).toBe('linear-gradient(9deg, #000 0%, #006937 100%)');
+    const colors = {
+      primary: '#006937',
+      secondary: null,
+      monochrome: false,
+      gradient: teamGradient('#006937'),
+    };
+    expect(TeamColors.parse(colors)).toEqual(colors);
+    expect(() => TeamColors.parse({ ...colors, primary: 'green' })).toThrow();
   });
 });

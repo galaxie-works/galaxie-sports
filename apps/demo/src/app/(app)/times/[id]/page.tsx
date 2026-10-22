@@ -1,10 +1,11 @@
-import type { Squad, TeamSemantic } from '@galaxie/contracts';
+import type { Squad, TeamColors, TeamSemantic } from '@galaxie/contracts';
 import { Calendar, MapPin, Megaphone, Quote, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
+import { CopyButton } from '@/components/sport/copy-button';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { FormChips } from '@/components/sport/form-chips';
@@ -44,93 +45,158 @@ function Fact({ icon: Icon, children }: { icon: typeof MapPin; children: React.R
   );
 }
 
-function IdentityCard({ s }: { s: TeamSemantic }) {
+/**
+ * Faixa no topo da página com o gradiente sugerido do time (API `colors.gradient`), esmaecendo para o
+ * fundo escuro. Fica atrás do hero (o contêiner tem `isolate`); um véu escuro mantém o texto legível.
+ */
+function TeamBand({ colors }: { colors: TeamColors }) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80"
+      style={{
+        maskImage: 'linear-gradient(to bottom, #000 35%, transparent)',
+        WebkitMaskImage: 'linear-gradient(to bottom, #000 35%, transparent)',
+      }}
+    >
+      <div className="absolute inset-0" style={{ background: colors.gradient }} />
+      <div className="absolute inset-0 bg-black/25" />
+    </div>
+  );
+}
+
+function SuggestedGradient({ colors }: { colors: TeamColors }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-muted-foreground text-xs">Gradiente sugerido</span>
+      <div className="flex items-center gap-3">
+        <span
+          className="border-border size-6 shrink-0 rounded-full border"
+          style={{ background: colors.gradient }}
+        />
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+          {[colors.primary, colors.secondary]
+            .filter((c) => c !== null)
+            .map((c) => (
+              <span key={c} className="flex items-center gap-1">
+                <span className="border-border size-3 rounded-full border" style={{ background: c }} />
+                {c}
+              </span>
+            ))}
+          {colors.monochrome ? (
+            <Badge variant="outline" radius="full">
+              monocromático
+            </Badge>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        <code className="bg-muted text-muted-foreground min-w-0 flex-1 truncate rounded-md px-2 py-1 font-mono text-xs">
+          {colors.gradient}
+        </code>
+        <CopyButton value={colors.gradient} label="Copiar CSS do gradiente" />
+      </div>
+    </div>
+  );
+}
+
+function IdentityCard({ s, colors }: { s: TeamSemantic | null; colors: TeamColors | null }) {
+  if (!s && !colors) return null;
   return (
     <Card>
       <CardHeader>
         <CardTitle>Identidade</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
-        {s.rallying_cries.length ? (
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <Megaphone className="size-3.5" aria-hidden /> Grito de guerra
-            </span>
-            {s.rallying_cries.map((c) => (
-              <p key={c} className="text-primary text-xl font-semibold tracking-tight">
-                {c}
-              </p>
-            ))}
-          </div>
-        ) : null}
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-          {s.mascot ? (
-            <div>
-              <dt className="text-muted-foreground text-xs">Mascote</dt>
-              <dd>{s.mascot}</dd>
-            </div>
-          ) : null}
-          {s.fans.demonym ? (
-            <div>
-              <dt className="text-muted-foreground text-xs">Torcedor</dt>
-              <dd>{s.fans.demonym}</dd>
-            </div>
-          ) : null}
-          {s.fans.group_nicknames.length ? (
-            <div>
-              <dt className="text-muted-foreground text-xs">Torcida</dt>
-              <dd>{s.fans.group_nicknames.join(', ')}</dd>
-            </div>
-          ) : null}
-          {s.stadium ? (
-            <div>
-              <dt className="text-muted-foreground text-xs">Estádio</dt>
-              <dd>
-                {s.stadium.name}
-                {s.stadium.nicknames.length ? (
-                  <span className="text-muted-foreground"> ({s.stadium.nicknames.join(', ')})</span>
-                ) : null}
-              </dd>
-            </div>
-          ) : null}
-          {s.colors.length ? (
-            <div>
-              <dt className="text-muted-foreground text-xs">Cores</dt>
-              <dd className="flex flex-wrap items-center gap-2">
-                {s.colors.map((c) => (
-                  <span key={c} className="flex items-center gap-1">
-                    <span
-                      className="border-border size-3 rounded-full border"
-                      style={{ background: COLOR_HEX[c.toLowerCase()] ?? 'transparent' }}
-                    />
-                    {c}
-                  </span>
-                ))}
-              </dd>
-            </div>
-          ) : null}
-          {s.world_cup_titles ? (
-            <div>
-              <dt className="text-muted-foreground text-xs">Copas do Mundo</dt>
-              <dd>{s.world_cup_titles}</dd>
-            </div>
-          ) : null}
-        </dl>
-        {s.identity.length ? (
-          <ul className="flex flex-col gap-2">
-            {s.identity.map((fact) => (
-              <li key={fact} className="text-muted-foreground flex gap-2">
-                <Quote className="text-primary mt-0.5 size-3.5 shrink-0" aria-hidden />
-                <span>{fact}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <p className="text-muted-foreground text-xs">
-          Base semântica Galaxie · status editorial: {s.review_status}
-        </p>
+        {colors ? <SuggestedGradient colors={colors} /> : null}
+        {s ? <SemanticIdentity s={s} /> : null}
       </CardContent>
     </Card>
+  );
+}
+
+function SemanticIdentity({ s }: { s: TeamSemantic }) {
+  return (
+    <>
+      {s.rallying_cries.length ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+            <Megaphone className="size-3.5" aria-hidden /> Grito de guerra
+          </span>
+          {s.rallying_cries.map((c) => (
+            <p key={c} className="text-primary text-xl font-semibold tracking-tight">
+              {c}
+            </p>
+          ))}
+        </div>
+      ) : null}
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+        {s.mascot ? (
+          <div>
+            <dt className="text-muted-foreground text-xs">Mascote</dt>
+            <dd>{s.mascot}</dd>
+          </div>
+        ) : null}
+        {s.fans.demonym ? (
+          <div>
+            <dt className="text-muted-foreground text-xs">Torcedor</dt>
+            <dd>{s.fans.demonym}</dd>
+          </div>
+        ) : null}
+        {s.fans.group_nicknames.length ? (
+          <div>
+            <dt className="text-muted-foreground text-xs">Torcida</dt>
+            <dd>{s.fans.group_nicknames.join(', ')}</dd>
+          </div>
+        ) : null}
+        {s.stadium ? (
+          <div>
+            <dt className="text-muted-foreground text-xs">Estádio</dt>
+            <dd>
+              {s.stadium.name}
+              {s.stadium.nicknames.length ? (
+                <span className="text-muted-foreground"> ({s.stadium.nicknames.join(', ')})</span>
+              ) : null}
+            </dd>
+          </div>
+        ) : null}
+        {s.colors.length ? (
+          <div>
+            <dt className="text-muted-foreground text-xs">Cores</dt>
+            <dd className="flex flex-wrap items-center gap-2">
+              {s.colors.map((c) => (
+                <span key={c} className="flex items-center gap-1">
+                  <span
+                    className="border-border size-3 rounded-full border"
+                    style={{ background: COLOR_HEX[c.toLowerCase()] ?? 'transparent' }}
+                  />
+                  {c}
+                </span>
+              ))}
+            </dd>
+          </div>
+        ) : null}
+        {s.world_cup_titles ? (
+          <div>
+            <dt className="text-muted-foreground text-xs">Copas do Mundo</dt>
+            <dd>{s.world_cup_titles}</dd>
+          </div>
+        ) : null}
+      </dl>
+      {s.identity.length ? (
+        <ul className="flex flex-col gap-2">
+          {s.identity.map((fact) => (
+            <li key={fact} className="text-muted-foreground flex gap-2">
+              <Quote className="text-primary mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <span>{fact}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="text-muted-foreground text-xs">
+        Base semântica Galaxie · status editorial: {s.review_status}
+      </p>
+    </>
   );
 }
 
@@ -235,7 +301,8 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
   return (
     <>
       <PageHeader title={team.name} />
-      <div className="flex flex-col gap-8 p-4 md:p-6">
+      <div className="relative isolate flex flex-col gap-8 p-4 md:p-6">
+        {team.colors ? <TeamBand colors={team.colors} /> : null}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Crest src={team.logo} name={team.name} size="xl" />
           <div className="flex flex-col gap-2">
@@ -339,7 +406,7 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
           </div>
 
           <div className="flex flex-col gap-6">
-            {semantic ? <IdentityCard s={semantic} /> : null}
+            <IdentityCard s={semantic} colors={team.colors} />
             {semantic ? <RivalsCard s={semantic} /> : null}
           </div>
         </div>
