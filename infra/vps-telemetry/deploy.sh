@@ -12,7 +12,8 @@
 #   3. compose.yml do SHA na VPS (com backup do anterior) e IMAGE_TAG no .env (com backup)
 #   4. docker compose up -d (ingestor continua com a escala atual) → migrations
 #   5. pós-deploy idempotente: seed da base semântica, nomes curados de estádios e importância
-#   6. smoke test (infra/vps-telemetry/smoke.mjs); falha → código de saída 1
+#   6. limpa o cache de respostas da API (senão a versão anterior segue servida por até 24 h)
+#   7. smoke test (infra/vps-telemetry/smoke.mjs); falha → código de saída 1
 set -euo pipefail
 
 VPS="${VPS:-root@145.223.94.149}"
@@ -58,6 +59,12 @@ ssh "$VPS" "cd $DIR && \
   docker compose run --rm --no-deps ingestor node dist/cli/derive-names.js >/dev/null && \
   docker compose run --rm --no-deps ingestor node dist/cli/events-importance.js --esporte football --proximos-dias 7 >/dev/null && \
   echo ok"
+
+# cache de respostas da API (até 24 h, last-known-good): o que a versão anterior calculou não pode
+# continuar sendo servido — só as chaves de resposta e de tag; rate limit e o resto ficam
+echo "limpando o cache de respostas da API"
+ssh "$VPS" "cd $DIR && for p in 'gs:cache:*' 'gs:tag:*'; do \
+  docker compose exec -T valkey sh -c \"valkey-cli --scan --pattern '\$p' | xargs -r -n 200 valkey-cli del >/dev/null\"; done"
 
 echo "smoke test"
 ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$ROOT/infra/vps-telemetry/smoke.mjs"
