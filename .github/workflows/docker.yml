@@ -1,10 +1,12 @@
 name: Imagens e stack de staging
 
-# Só constrói e valida (sem publicar). Publicar no GHCR é opcional — ver infra/portainer/README.md.
+# Constrói e valida em todo PR; no push para a main publica as imagens no GHCR (exceto o caddy, que a VPS
+# com Traefik não usa) com as tags <sha> e staging — ver infra/vps-telemetry/README.md.
 on:
   pull_request:
     paths:
       - 'apps/api/**'
+      - 'apps/demo/**'
       - 'services/ingestor/**'
       - 'packages/**'
       - 'config/**'
@@ -18,6 +20,7 @@ on:
     branches: [main]
     paths:
       - 'apps/api/**'
+      - 'apps/demo/**'
       - 'services/ingestor/**'
       - 'packages/**'
       - 'config/**'
@@ -41,6 +44,12 @@ jobs:
     name: build ${{ matrix.image }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # Publica só no push para a main; o caddy fica de fora (a VPS usa o Traefik).
+      PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.image != 'caddy' }}
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +60,9 @@ jobs:
           - image: ingestor
             context: .
             file: services/ingestor/Dockerfile
+          - image: demo
+            context: .
+            file: apps/demo/Dockerfile
           - image: backup
             context: infra/backup
             file: infra/backup/Dockerfile
@@ -68,13 +80,24 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build (sem push)
+      - name: Login no GHCR
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (e push na main)
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
-          push: false
-          tags: galaxie-sports-${{ matrix.image }}:ci
+          push: ${{ env.PUBLISH == 'true' }}
+          # Só tags do GHCR: com push ligado o Buildx envia TODAS as tags (uma sem registry iria para o Docker Hub).
+          tags: |
+            ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:${{ github.sha }}
+            ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:staging
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
@@ -87,6 +110,9 @@ jobs:
 
       - name: docker compose config (stack do Portainer)
         run: docker compose -f infra/portainer/stack.yml --env-file infra/portainer/stack.env.example config -q
+
+      - name: docker compose config (VPS com Traefik)
+        run: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
 
       - name: Alertas — teste simulado (promtool)
         run: |
