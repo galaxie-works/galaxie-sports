@@ -10,21 +10,28 @@ import { Input } from '@/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Spinner } from '@/components/ui/spinner';
 import { authClient } from '@/lib/auth/client';
+import { useI18n } from '@/lib/i18n/client';
+import type { Dictionary } from '@/lib/i18n/dictionary';
+import { fill, rich } from '@/lib/i18n/text';
 
 /** Mesmos valores do servidor (lib/auth/server.ts), repetidos aqui para não importar código do servidor. */
 const OTP_LENGTH = 6;
 const OTP_MINUTES = 10;
 const RESEND_SECONDS = 60;
 
-const REASON: Record<string, string> = {
-  expirado: 'Seu acesso à demo expirou. Fale com quem te convidou para renovar.',
-};
+type AuthErrors = Dictionary['auth']['errors'];
+
+/** Motivo do redirecionamento para o login (`?motivo=`). */
+const REASON: Record<string, keyof AuthErrors> = { expirado: 'expired' };
 
 /** Mensagens dos erros do login por código (códigos do Better Auth e os da própria demo). */
-const OTP_ERROR: Record<string, string> = {
-  INVALID_OTP: 'Código incorreto. Confira o e-mail e tente de novo.',
-  OTP_EXPIRED: 'Este código expirou. Peça um novo.',
-  TOO_MANY_ATTEMPTS: 'Muitas tentativas com este código. Peça um novo.',
+const OTP_ERROR: Record<string, keyof AuthErrors> = {
+  INVALID_OTP: 'invalidOtp',
+  OTP_EXPIRED: 'otpExpired',
+  TOO_MANY_ATTEMPTS: 'tooManyAttempts',
+  OTP_RESEND_TOO_SOON: 'resendTooSoon',
+  ACCESS_EXPIRED: 'expired',
+  BANNED_USER: 'banned',
 };
 
 /** Só aceita voltar para um caminho interno (evita redirecionamento aberto). */
@@ -34,10 +41,10 @@ function safeNext(value: string | null) {
 
 type AuthError = { status?: number; code?: string; message?: string };
 
-function describe(err: AuthError, fallback: string) {
-  if (err.status === 429) return 'Muitas tentativas em pouco tempo. Aguarde um minuto e tente de novo.';
-  if (err.code && OTP_ERROR[err.code]) return OTP_ERROR[err.code]!;
-  return err.message ?? fallback;
+function describe(errors: AuthErrors, err: AuthError, fallback: keyof AuthErrors) {
+  if (err.code && OTP_ERROR[err.code]) return errors[OTP_ERROR[err.code]!];
+  if (err.status === 429) return errors.rateLimited;
+  return errors[fallback];
 }
 
 function ErrorAlert({ children }: { children: React.ReactNode }) {
@@ -56,11 +63,14 @@ function ErrorAlert({ children }: { children: React.ReactNode }) {
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const { t, locale } = useI18n();
+  const errors = t.auth.errors;
+  const reason = REASON[params.get('motivo') ?? ''];
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(REASON[params.get('motivo') ?? ''] ?? null);
+  const [error, setError] = useState<string | null>(reason ? errors[reason] : null);
   const [notice, setNotice] = useState<string | null>(null);
   /** Momento em que "Reenviar código" volta a ficar disponível. */
   const [resendAt, setResendAt] = useState(0);
@@ -89,7 +99,7 @@ export function LoginForm() {
     });
     setLoading(false);
     if (err) {
-      setError(describe(err, 'Não foi possível enviar o código agora. Tente de novo.'));
+      setError(describe(errors, err, 'sendFailed'));
       return false;
     }
     setResendAt(Date.now() + RESEND_SECONDS * 1000);
@@ -108,7 +118,7 @@ export function LoginForm() {
 
   async function resend() {
     setCode('');
-    if (await requestCode()) setNotice('Enviamos um novo código. O anterior deixou de valer.');
+    if (await requestCode()) setNotice(t.auth.code.resent);
     focusCode();
   }
 
@@ -124,10 +134,12 @@ export function LoginForm() {
     if (err) {
       setLoading(false);
       setCode('');
-      setError(describe(err, 'Não foi possível entrar agora. Tente de novo.'));
+      setError(describe(errors, err, 'signInFailed'));
       focusCode();
       return;
     }
+    // O idioma da tela de login passa a ser o do perfil (o dos próximos e-mails da pessoa).
+    await authClient.updateUser({ locale }).catch(() => {});
     router.replace(safeNext(params.get('voltar')));
     router.refresh();
   }
@@ -144,7 +156,7 @@ export function LoginForm() {
       <form className="flex flex-col gap-3" onSubmit={submitEmail}>
         <div>
           <label htmlFor="email" className="mb-1.5 block text-[13px] font-medium">
-            E-mail
+            {t.auth.email.label}
           </label>
           <Input
             id="email"
@@ -153,17 +165,15 @@ export function LoginForm() {
             spellCheck={false}
             autoFocus
             required
-            placeholder="voce@empresa.com"
+            placeholder={t.auth.email.placeholder}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <p className="text-muted-foreground mt-1.5 text-xs">
-            Enviaremos um código de acesso para este e-mail. Não é preciso senha.
-          </p>
+          <p className="text-muted-foreground mt-1.5 text-xs">{t.auth.email.help}</p>
         </div>
         <Button type="submit" size="lg" className="mt-1 w-full gap-3 text-[15px]" disabled={loading}>
           {loading ? <Spinner /> : null}
-          {loading ? 'Enviando…' : 'Enviar código'}
+          {loading ? t.auth.email.sending : t.auth.email.submit}
         </Button>
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </form>
@@ -182,14 +192,19 @@ export function LoginForm() {
         <MailCheck />
         <AlertDescription>
           <p>
-            Se <strong className="text-foreground font-medium break-all">{email.trim()}</strong> tiver acesso
-            à demo, enviamos um código de {OTP_LENGTH} dígitos. Ele vale por {OTP_MINUTES} minutos.
+            {rich(
+              t.auth.code.sent,
+              {
+                email: (chunk) => <strong className="text-foreground font-medium break-all">{chunk}</strong>,
+              },
+              { email: email.trim(), length: OTP_LENGTH, minutes: OTP_MINUTES },
+            )}
           </p>
         </AlertDescription>
       </Alert>
       <div>
         <label htmlFor="otp" className="mb-1.5 block text-[13px] font-medium">
-          Código de acesso
+          {t.auth.code.label}
         </label>
         <InputOTP
           ref={otpRef}
@@ -219,7 +234,7 @@ export function LoginForm() {
         disabled={loading || code.length !== OTP_LENGTH}
       >
         {loading ? <Spinner /> : null}
-        {loading ? 'Entrando…' : 'Entrar'}
+        {loading ? t.auth.code.submitting : t.auth.code.submit}
       </Button>
       {notice && !error ? (
         <p className="text-muted-foreground text-center text-[13px]" role="status">
@@ -230,7 +245,7 @@ export function LoginForm() {
       <div className="flex items-center justify-between gap-2">
         <Button type="button" variant="ghost" className="text-muted-foreground gap-2" onClick={changeEmail}>
           <ArrowLeft className="size-4" />
-          Usar outro e-mail
+          {t.auth.code.changeEmail}
         </Button>
         <Button
           type="button"
@@ -240,7 +255,7 @@ export function LoginForm() {
           onClick={() => void resend()}
         >
           <RotateCw className="size-4" />
-          {cooldown > 0 ? `Reenviar código (${cooldown}s)` : 'Reenviar código'}
+          {cooldown > 0 ? fill(t.auth.code.resendIn, { seconds: cooldown }) : t.auth.code.resend}
         </Button>
       </div>
     </form>

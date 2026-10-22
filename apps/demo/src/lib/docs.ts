@@ -1,53 +1,33 @@
 import { FileCode2, KeyRound, Layers, Lightbulb, Radio, Rocket, type LucideIcon } from 'lucide-react';
 
 import type { ApiRequest } from './galaxie/request';
+import type { Locale } from './i18n/config';
+import type { Dictionary } from './i18n/dictionary';
+
+/** Chave do guia no dicionário: rótulo e descrição em `t.code.docsNav[id]`. */
+export type DocNavId = keyof Dictionary['code']['docsNav'];
 
 export interface DocNav {
+  id: DocNavId;
   href: string;
-  label: string;
-  description: string;
   icon: LucideIcon;
 }
 
-/** Guias da documentação, na ordem da sidebar e da navegação "anterior/próximo". */
+/**
+ * Guias da documentação, na ordem da sidebar e da navegação "anterior/próximo". Os textos ficam no
+ * assunto `code` (vai ao navegador, onde a sidebar desenha): `t.code.docsNav[d.id].label`/`.description`.
+ */
 export const DOCS_NAV: DocNav[] = [
-  {
-    href: '/docs',
-    label: 'Começando',
-    description: 'URL base, primeira chamada e o mapa da API.',
-    icon: Rocket,
-  },
-  {
-    href: '/docs/autenticacao',
-    label: 'Autenticação',
-    description: 'Chave no header, conta, rotação e limites de uso.',
-    icon: KeyRound,
-  },
-  {
-    href: '/docs/conceitos',
-    label: 'Conceitos',
-    description: 'IDs canônicos, locales, cache/ETag, paginação e erros.',
-    icon: Lightbulb,
-  },
-  {
-    href: '/docs/modulos-e-planos',
-    label: 'Módulos e planos',
-    description: 'O que cada plano libera e como a API responde fora dele.',
-    icon: Layers,
-  },
-  {
-    href: '/docs/tempo-real',
-    label: 'Tempo real',
-    description: 'Change feed, SSE e webhooks assinados.',
-    icon: Radio,
-  },
-  {
-    href: '/docs/referencia',
-    label: 'Referência da API',
-    description: 'Todas as rotas do OpenAPI, com parâmetros e respostas.',
-    icon: FileCode2,
-  },
+  { id: 'start', href: '/docs', icon: Rocket },
+  { id: 'auth', href: '/docs/autenticacao', icon: KeyRound },
+  { id: 'concepts', href: '/docs/conceitos', icon: Lightbulb },
+  { id: 'modules', href: '/docs/modulos-e-planos', icon: Layers },
+  { id: 'realtime', href: '/docs/tempo-real', icon: Radio },
+  { id: 'reference', href: '/docs/referencia', icon: FileCode2 },
 ];
+
+/** Guia de um caminho (`/docs/conceitos` → `concepts`). */
+export const docNavByHref = (href: string) => DOCS_NAV.find((d) => d.href === href);
 
 /** IDs reais da base usados nos exemplos (os mesmos das páginas da demo). */
 export const SAMPLE = {
@@ -58,71 +38,90 @@ export const SAMPLE = {
   venue: '01a15fba-ebde-7ef6-85fa-c16a585488ef',
 } as const;
 
-/** Chamadas usadas nos guias (o teste confere rota e parâmetros contra o OpenAPI). */
-export const DOC_REQUESTS = {
-  overview: {
-    method: 'GET',
-    route: '/v1/teams/{id}/overview',
-    params: { id: SAMPLE.team },
-    query: { locale: 'pt-BR', tz: 'America/Sao_Paulo' },
-    description: 'Card do time: posição nas competições, forma, últimos jogos e próximo jogo.',
-  },
-  teamEvents: {
-    method: 'GET',
-    route: '/v1/teams/{id}/events',
-    params: { id: SAMPLE.team },
-    query: { from: '2026-10-01', limit: 5, tz: 'America/Sao_Paulo' },
-    description: 'Jogos do time a partir de uma data.',
-  },
-  event: {
-    method: 'GET',
-    route: '/v1/events/{id}',
-    params: { id: SAMPLE.event },
-    query: { locale: 'pt-BR' },
-    description: 'Evento completo.',
-  },
-  account: {
-    method: 'GET',
-    route: '/v1/account',
-    description: 'Plano, módulos, mercados e a chave em uso.',
-  },
-  usage: {
-    method: 'GET',
-    route: '/v1/account/usage',
-    query: { from: '2026-10-15', to: '2026-10-21' },
-    description: 'Requisições por dia e rota.',
-  },
-  competitionEs: {
-    method: 'GET',
-    route: '/v1/competitions/{id}',
-    params: { id: SAMPLE.competition },
-    query: { locale: 'es-AR', tz: 'America/Argentina/Buenos_Aires' },
-    description: 'A mesma competição com nomes e horários para a Argentina.',
-  },
-  competitions: {
-    method: 'GET',
-    route: '/v1/competitions',
-    query: { sport: 'football', country: 'BR', limit: 50 },
-    description: 'Competições de futebol do Brasil (primeira página).',
-  },
-  whereToWatch: {
-    method: 'GET',
-    route: '/v1/events/{id}/where-to-watch',
-    params: { id: SAMPLE.event },
-    query: { country: 'BR', locale: 'pt-BR' },
-    description: 'Onde assistir o jogo no Brasil.',
-  },
-  semantic: {
-    method: 'GET',
-    route: '/v1/teams/{id}/semantic',
-    params: { id: SAMPLE.team },
-    query: { locale: 'pt-BR' },
-    description: 'Cartão de identidade do time.',
-  },
-  live: {
-    method: 'GET',
-    route: '/v1/events/live',
-    query: { sport: 'football' },
-    description: 'Eventos ao vivo (polling com ETag).',
-  },
-} satisfies Record<string, ApiRequest>;
+/**
+ * `?locale`/`?tz` dos exemplos. A API fala pt-BR e espanhol (não inglês): a tela em espanhol mostra
+ * es-AR com o fuso de Buenos Aires; português e inglês mostram pt-BR (o padrão da API e o mercado dos
+ * IDs de exemplo, todos brasileiros).
+ */
+function sampleLocale(locale: Locale) {
+  return locale === 'es-AR'
+    ? ({ locale: 'es-AR', tz: 'America/Argentina/Buenos_Aires' } as const)
+    : ({ locale: 'pt-BR', tz: 'America/Sao_Paulo' } as const);
+}
+
+/**
+ * Chamadas usadas nos guias, com a descrição no idioma da tela (o teste confere rota e parâmetros
+ * contra o OpenAPI em todos os idiomas). Recebe o que `getI18n()` devolve.
+ */
+export function docRequests({ locale, t }: { locale: Locale; t: Dictionary }) {
+  const text = t.docs.requests;
+  const sample = sampleLocale(locale);
+  return {
+    overview: {
+      method: 'GET',
+      route: '/v1/teams/{id}/overview',
+      params: { id: SAMPLE.team },
+      query: { locale: sample.locale, tz: sample.tz },
+      description: text.overview,
+    },
+    teamEvents: {
+      method: 'GET',
+      route: '/v1/teams/{id}/events',
+      params: { id: SAMPLE.team },
+      query: { from: '2026-10-01', limit: 5, tz: sample.tz },
+      description: text.teamEvents,
+    },
+    event: {
+      method: 'GET',
+      route: '/v1/events/{id}',
+      params: { id: SAMPLE.event },
+      query: { locale: sample.locale },
+      description: text.event,
+    },
+    account: {
+      method: 'GET',
+      route: '/v1/account',
+      description: text.account,
+    },
+    usage: {
+      method: 'GET',
+      route: '/v1/account/usage',
+      query: { from: '2026-10-15', to: '2026-10-21' },
+      description: text.usage,
+    },
+    // Sempre es-AR: é o exemplo de troca de locale e fuso (o guia de conceitos mostra o contraste).
+    competitionEs: {
+      method: 'GET',
+      route: '/v1/competitions/{id}',
+      params: { id: SAMPLE.competition },
+      query: { locale: 'es-AR', tz: 'America/Argentina/Buenos_Aires' },
+      description: text.competitionEs,
+    },
+    competitions: {
+      method: 'GET',
+      route: '/v1/competitions',
+      query: { sport: 'football', country: 'BR', limit: 50 },
+      description: text.competitions,
+    },
+    whereToWatch: {
+      method: 'GET',
+      route: '/v1/events/{id}/where-to-watch',
+      params: { id: SAMPLE.event },
+      query: { country: 'BR', locale: sample.locale },
+      description: text.whereToWatch,
+    },
+    semantic: {
+      method: 'GET',
+      route: '/v1/teams/{id}/semantic',
+      params: { id: SAMPLE.team },
+      query: { locale: sample.locale },
+      description: text.semantic,
+    },
+    live: {
+      method: 'GET',
+      route: '/v1/events/live',
+      query: { sport: 'football' },
+      description: text.live,
+    },
+  } satisfies Record<string, ApiRequest>;
+}

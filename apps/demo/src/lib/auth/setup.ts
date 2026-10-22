@@ -6,7 +6,6 @@ import { getMigrations } from 'better-auth/db/migration';
 
 import { AUTH_SCHEMA, hasDatabase, pool } from './db';
 import { sendInvite } from './invite';
-import { ROLE_LABEL } from './server';
 
 const OWN_TABLES = `
 create table if not exists invite (
@@ -90,5 +89,5 @@ async function ensureFirstAdmin(): Promise<void> {
     userId = created.user.id;
   }
   await sendInvite(userId);
-  console.info(`[demo-auth] primeiro ${ROLE_LABEL.admin} criado para ${email}; convite enviado.`);
+  console.info(`[demo-auth] primeiro admin criado para ${email}; convite enviado.`);
 }

@@ -9,9 +9,9 @@ import {
   eventContextRequest,
   eventRequest,
   h2hRequest,
-  LOCALE,
   lineupsRequest,
   liveEventsRequest,
+  localeQuery,
   personRequest,
   sportCompetitionsRequest,
   squadRequest,
@@ -19,7 +19,6 @@ import {
   teamOverviewRequest,
   teamSemanticRequest,
   timelineRequest,
-  TZ,
   venueRequest,
   whereToWatchRequest,
 } from './api';
@@ -36,8 +35,7 @@ async function clientUrl(call: (c: ReturnType<typeof createGalaxieClient>) => Pr
   const client = createGalaxieClient({
     baseUrl: BASE,
     apiKey: 'chave-de-teste',
-    locale: LOCALE,
-    tz: TZ,
+    ...localeQuery('pt-BR'),
     fetch: async (input) => {
       url = String(input);
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
@@ -56,33 +54,37 @@ function normalize(url: string) {
 
 /** Cada descritor ao lado da chamada do cliente tipado que o fetcher correspondente faz. */
 const PAIRS: [string, ApiRequest, (c: ReturnType<typeof createGalaxieClient>) => Promise<unknown>][] = [
-  ['país', countryCompetitionsRequest('br'), (c) => c.countryCompetitions('BR')],
+  ['país', countryCompetitionsRequest('br', 'pt-BR'), (c) => c.countryCompetitions('BR')],
   [
     'esporte',
-    sportCompetitionsRequest('football'),
+    sportCompetitionsRequest('football', 'pt-BR'),
     (c) => c.competitions({ sport: 'football', tier: 1, limit: 200 }),
   ],
-  ['competição', competitionRequest('brasileirao-serie-a'), (c) => c.competition('brasileirao-serie-a')],
-  ['tabela', standingsRequest(COMPETITION, 2026), (c) => c.standings(COMPETITION, 2026)],
+  [
+    'competição',
+    competitionRequest('brasileirao-serie-a', 'pt-BR'),
+    (c) => c.competition('brasileirao-serie-a'),
+  ],
+  ['tabela', standingsRequest(COMPETITION, 2026, 'pt-BR'), (c) => c.standings(COMPETITION, 2026)],
   [
     'jogos da competição',
-    competitionEventsRequest(COMPETITION, '2026-01-01', '2026-12-31'),
+    competitionEventsRequest(COMPETITION, '2026-01-01', '2026-12-31', 'pt-BR'),
     (c) => c.events({ competition: COMPETITION, from: '2026-01-01', to: '2026-12-31', limit: 200 }),
   ],
-  ['overview', teamOverviewRequest(TEAM), (c) => c.teamOverview(TEAM)],
-  ['semântica', teamSemanticRequest(TEAM), (c) => c.teamSemantic(TEAM)],
-  ['elenco', squadRequest(TEAM), (c) => c.squad(TEAM)],
-  ['evento', eventRequest(EVENT), (c) => c.event(EVENT)],
-  ['evento no mercado', eventRequest(EVENT, 'BR'), (c) => c.event(EVENT, { market: 'BR' })],
-  ['h2h', h2hRequest(EVENT), (c) => c.eventH2h(EVENT, { limit: 10 })],
-  ['contexto', eventContextRequest(EVENT), (c) => c.eventContext(EVENT)],
-  ['onde assistir', whereToWatchRequest(EVENT, 'BR'), (c) => c.whereToWatch(EVENT, 'BR')],
-  ['escalações', lineupsRequest(EVENT), (c) => c.eventLineups(EVENT)],
-  ['ao vivo', liveEventsRequest(), (c) => c.liveEvents({ market: 'BR' })],
-  ['minuto a minuto', timelineRequest(EVENT), (c) => c.eventTimeline(EVENT)],
-  ['pessoa', personRequest(TEAM), (c) => c.person(TEAM)],
-  ['local', venueRequest(TEAM), (c) => c.venue(TEAM)],
-  ['clássico', derbyRequest('choque-rei'), (c) => c.derby('choque-rei')],
+  ['overview', teamOverviewRequest(TEAM, 'pt-BR'), (c) => c.teamOverview(TEAM)],
+  ['semântica', teamSemanticRequest(TEAM, 'pt-BR'), (c) => c.teamSemantic(TEAM)],
+  ['elenco', squadRequest(TEAM, 'pt-BR'), (c) => c.squad(TEAM)],
+  ['evento', eventRequest(EVENT, 'pt-BR'), (c) => c.event(EVENT)],
+  ['evento no mercado', eventRequest(EVENT, 'pt-BR', 'BR'), (c) => c.event(EVENT, { market: 'BR' })],
+  ['h2h', h2hRequest(EVENT, 'pt-BR'), (c) => c.eventH2h(EVENT, { limit: 10 })],
+  ['contexto', eventContextRequest(EVENT, 'pt-BR'), (c) => c.eventContext(EVENT)],
+  ['onde assistir', whereToWatchRequest(EVENT, 'BR', 'pt-BR'), (c) => c.whereToWatch(EVENT, 'BR')],
+  ['escalações', lineupsRequest(EVENT, 'pt-BR'), (c) => c.eventLineups(EVENT)],
+  ['ao vivo', liveEventsRequest('pt-BR'), (c) => c.liveEvents({ market: 'BR' })],
+  ['minuto a minuto', timelineRequest(EVENT, 'pt-BR'), (c) => c.eventTimeline(EVENT)],
+  ['pessoa', personRequest(TEAM, 'pt-BR'), (c) => c.person(TEAM)],
+  ['local', venueRequest(TEAM, 'pt-BR'), (c) => c.venue(TEAM)],
+  ['clássico', derbyRequest('choque-rei', 'pt-BR'), (c) => c.derby('choque-rei')],
 ];
 
 type Parameter = { name: string; in: string };
@@ -105,8 +107,27 @@ describe('descritores das chamadas', () => {
   });
 });
 
+describe('idioma das chamadas', () => {
+  it('pt-BR pede pt-BR no fuso de São Paulo', () => {
+    expect(localeQuery('pt-BR')).toEqual({ locale: 'pt-BR', tz: 'America/Sao_Paulo' });
+  });
+
+  it('espanhol e inglês pedem es-AR (a API não fala inglês)', () => {
+    const es = { locale: 'es-AR', tz: 'America/Argentina/Buenos_Aires' };
+    expect(localeQuery('es-AR')).toEqual(es);
+    expect(localeQuery('en')).toEqual(es);
+    expect(requestUrl(eventRequest(EVENT, 'en'), BASE)).toContain('locale=es-AR');
+  });
+
+  it('descreve a chamada no idioma da demo', () => {
+    expect(eventRequest(EVENT, 'pt-BR').description).toMatch(/^Evento completo/);
+    expect(eventRequest(EVENT, 'en').description).toMatch(/^Full event/);
+    expect(eventRequest(EVENT, 'es-AR').description).toMatch(/^Evento completo: participantes, resultado/);
+  });
+});
+
 describe('exemplos de código', () => {
-  const [curl, ts, py] = requestSnippets(whereToWatchRequest(EVENT, 'BR'), BASE).map((s) => s.code);
+  const [curl, ts, py] = requestSnippets(whereToWatchRequest(EVENT, 'BR', 'pt-BR'), BASE).map((s) => s.code);
 
   it('usam a chave de exemplo, nunca uma real', () => {
     for (const code of [curl, ts, py]) expect(code).toContain('SUA_CHAVE');
@@ -118,5 +139,23 @@ describe('exemplos de código', () => {
     expect(ts).toContain("tz: 'America/Sao_Paulo'");
     expect(py).toContain('"country": "BR"');
     expect(py).toContain(`"${BASE}/v1/events/${EVENT}/where-to-watch"`);
+  });
+
+  it('comentários e chave de exemplo no idioma da tela (sem idioma, pt-BR)', () => {
+    expect(ts).toContain('// Erros seguem a RFC 9457');
+    expect(py).toContain('# 4xx/5xx: corpo em application/problem+json');
+
+    const req = whereToWatchRequest(EVENT, 'BR', 'en');
+    const [enCurl, enTs, enPy] = requestSnippets(req, BASE, 'en').map((s) => s.code);
+    for (const code of [enCurl, enTs, enPy]) expect(code).toContain('YOUR_KEY');
+    expect(enTs).toContain('// Errors follow RFC 9457');
+    expect(enPy).toContain('# 4xx/5xx: body in application/problem+json');
+
+    const [esCurl, esTs, esPy] = requestSnippets(req, BASE, 'es-AR').map((s) => s.code);
+    for (const code of [esCurl, esTs, esPy]) expect(code).toContain('TU_CLAVE');
+    expect(esTs).toContain('// Los errores siguen la RFC 9457');
+    expect(esPy).toContain('# 4xx/5xx: cuerpo en application/problem+json');
+    // O código em si não muda com o idioma: só comentários e a chave de exemplo.
+    expect(esCurl.replace('TU_CLAVE', 'YOUR_KEY')).toBe(enCurl);
   });
 });

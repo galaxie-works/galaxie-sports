@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronsUpDown, LogOut, Users } from 'lucide-react';
+import { ChevronsUpDown, Languages, LogOut, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -18,11 +18,25 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui
 import { Skeleton } from '@/components/ui/skeleton';
 import { authClient } from '@/lib/auth/client';
 import { initials } from '@/lib/format';
-import { topLevelClick } from '@/lib/trail';
+import { useI18n } from '@/lib/i18n/client';
+import type { Locale } from '@/lib/i18n/config';
+import { clearTrail, topLevelClick } from '@/lib/trail';
 
-/** Rodapé da sidebar: quem está logado, atalho para o painel de usuários (admin) e sair. */
+import { LanguageSelect } from './language-select';
+
+/**
+ * Guarda o idioma escolhido no perfil (é o dos próximos e-mails da pessoa) e limpa a trilha, cujos rótulos
+ * estão no idioma anterior.
+ */
+async function rememberLocale(locale: Locale) {
+  clearTrail();
+  await authClient.updateUser({ locale }).catch(() => {});
+}
+
+/** Rodapé da sidebar: quem está logado, idioma, atalho para o painel de usuários (admin) e sair. */
 export function UserMenu() {
   const router = useRouter();
+  const { t } = useI18n();
   const { data, isPending } = authClient.useSession();
 
   // Skeleton de largura fixa: o SidebarMenuSkeleton sorteia a largura (Math.random), o que o Next 16 não
@@ -61,20 +75,32 @@ export function UserMenu() {
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" className="min-w-56">
             <DropdownMenuGroup>
-              <DropdownMenuLabel>{isAdmin ? 'Admin' : 'Convidado'}</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                {isAdmin ? t.shell.userMenu.admin : t.shell.userMenu.guest}
+              </DropdownMenuLabel>
             </DropdownMenuGroup>
             {isAdmin ? (
               <DropdownMenuItem
                 render={<Link href="/ajustes/usuarios" onClick={topLevelClick('/ajustes/usuarios')} />}
               >
                 <Users />
-                Usuários e convites
+                {t.shell.userMenu.users}
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="flex items-center gap-2">
+                <Languages className="size-3.5" aria-hidden />
+                {t.shell.userMenu.language}
+              </DropdownMenuLabel>
+              <div className="px-1.5 pb-1.5">
+                <LanguageSelect className="w-full" onBeforeSwitch={rememberLocale} />
+              </div>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={signOut}>
               <LogOut />
-              Sair
+              {t.shell.userMenu.signOut}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

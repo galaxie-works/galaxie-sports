@@ -3,6 +3,8 @@
  * repassa o corpo em streaming (inclui o SSE de `/v1/stream`). Só `GET /v1/*` passa.
  */
 import { API_URL, apiHeaders } from '@/lib/galaxie/server';
+import { getDictionary } from '@/lib/i18n/dictionary';
+import { getRequestLocale } from '@/lib/i18n/server';
 
 const FORWARD_REQUEST_HEADERS = ['accept', 'accept-language', 'if-none-match', 'last-event-id'];
 const FORWARD_RESPONSE_HEADERS = [
@@ -17,7 +19,8 @@ const FORWARD_RESPONSE_HEADERS = [
 export async function GET(request: Request, ctx: RouteContext<'/api/galaxie/[...path]'>) {
   const { path } = await ctx.params;
   if (path[0] !== 'v1' || path.some((p) => p === '..' || p === '')) {
-    return Response.json({ title: 'Rota não permitida' }, { status: 404 });
+    const t = getDictionary(await getRequestLocale()).common;
+    return Response.json({ title: t.routeNotAllowed }, { status: 404 });
   }
 
   const incoming = new URL(request.url);
@@ -37,10 +40,8 @@ export async function GET(request: Request, ctx: RouteContext<'/api/galaxie/[...
   try {
     upstream = await fetch(target, { headers, signal: request.signal, cache: 'no-store' });
   } catch {
-    return Response.json(
-      { title: 'API indisponível', detail: 'Não foi possível falar com a API Galaxie Sports.' },
-      { status: 502 },
-    );
+    const t = getDictionary(await getRequestLocale()).common;
+    return Response.json({ title: t.apiUnavailable, detail: t.apiUnavailableDetail }, { status: 502 });
   }
 
   const out = new Headers();

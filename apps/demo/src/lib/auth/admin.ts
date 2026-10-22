@@ -5,17 +5,13 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+import { isLocale, type Locale } from '@/lib/i18n/config';
+
 import { pool } from './db';
 import { auth, isAccessExpired, type AuthUser } from './server';
 
+/** Situação do usuário no painel (os rótulos ficam no dicionário `admin.status`). */
 export type UserStatus = 'active' | 'pending' | 'expired' | 'disabled';
-
-export const STATUS_LABEL: Record<UserStatus, string> = {
-  active: 'Ativo',
-  pending: 'Convite pendente',
-  expired: 'Expirado',
-  disabled: 'Desativado',
-};
 
 export interface DemoUser {
   id: string;
@@ -26,6 +22,8 @@ export interface DemoUser {
   company: string | null;
   phone: string | null;
   notes: string | null;
+  /** Idioma preferido (o dos e-mails de convite); null = não definido. */
+  locale: Locale | null;
   accessExpiresAt: string | null;
   createdAt: string;
   status: UserStatus;
@@ -47,6 +45,7 @@ type RawUser = AuthUser & {
   company?: string | null;
   phone?: string | null;
   notes?: string | null;
+  locale?: string | null;
   accessExpiresAt?: Date | string | null;
 };
 
@@ -116,6 +115,7 @@ function toDemoUser(
     company: u.company ?? null,
     phone: u.phone ?? null,
     notes: u.notes ?? null,
+    locale: isLocale(u.locale) ? u.locale : null,
     accessExpiresAt: iso(u.accessExpiresAt),
     createdAt: iso(u.createdAt)!,
     status: statusOf(u, act),

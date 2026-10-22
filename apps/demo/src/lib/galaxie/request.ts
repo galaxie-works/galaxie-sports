@@ -3,6 +3,7 @@
  * TypeScript e Python). Módulo puro: serve tanto às páginas (servidor) quanto ao botão "Ver código"
  * (navegador). Os descritores das páginas ficam ao lado dos fetchers, em `api.ts`.
  */
+import { DEFAULT_LOCALE, type Locale } from '../i18n/config';
 
 export type ApiQueryValue = string | number | boolean;
 
@@ -37,8 +38,35 @@ export const PUBLIC_API_URL = (
   process.env.NEXT_PUBLIC_GALAXIE_DOCS_API_URL || 'https://api.sports.galaxie.works'
 ).replace(/\/+$/, '');
 
-/** Nunca uma chave real nos exemplos. */
-export const API_KEY_PLACEHOLDER = 'SUA_CHAVE';
+/**
+ * Textos dentro dos exemplos gerados (a chave de exemplo e os comentários), no idioma da tela. Ficam
+ * aqui, e não no dicionário, para o módulo seguir puro e leve no navegador.
+ */
+const SNIPPET_TEXT: Record<Locale, { key: string; problem: string; raise: string }> = {
+  'pt-BR': {
+    key: 'SUA_CHAVE',
+    problem: 'Erros seguem a RFC 9457 (application/problem+json)',
+    raise: '4xx/5xx: corpo em application/problem+json',
+  },
+  en: {
+    key: 'YOUR_KEY',
+    problem: 'Errors follow RFC 9457 (application/problem+json)',
+    raise: '4xx/5xx: body in application/problem+json',
+  },
+  'es-AR': {
+    key: 'TU_CLAVE',
+    problem: 'Los errores siguen la RFC 9457 (application/problem+json)',
+    raise: '4xx/5xx: cuerpo en application/problem+json',
+  },
+};
+
+/** Nunca uma chave real nos exemplos: um marcador no idioma da tela (`SUA_CHAVE`, `YOUR_KEY`, `TU_CLAVE`). */
+export function apiKeyPlaceholder(locale: Locale = DEFAULT_LOCALE): string {
+  return SNIPPET_TEXT[locale].key;
+}
+
+/** Marcador da chave em pt-BR (use `apiKeyPlaceholder(locale)` nas telas). */
+export const API_KEY_PLACEHOLDER = apiKeyPlaceholder();
 
 /** Caminho com os parâmetros preenchidos (e codificados). */
 export function requestPath(req: Pick<ApiRequest, 'route' | 'params'>): string {
@@ -79,14 +107,20 @@ export function operationAnchor(method: string, route: string): string {
 const pyString = (s: string) => JSON.stringify(s);
 const tsString = (s: string) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
-/** Os três exemplos da chamada: curl, TypeScript (`fetch`) e Python (`requests`). */
-export function requestSnippets(req: ApiRequest, base = PUBLIC_API_URL): CodeExample[] {
+/**
+ * Os três exemplos da chamada: curl, TypeScript (`fetch`) e Python (`requests`), com a chave de
+ * exemplo e os comentários no idioma da tela (`locale`; sem ele, pt-BR).
+ */
+export function requestSnippets(
+  req: ApiRequest,
+  base = PUBLIC_API_URL,
+  locale: Locale = DEFAULT_LOCALE,
+): CodeExample[] {
   const path = requestPath(req);
   const query = requestQuery(req);
+  const text = SNIPPET_TEXT[locale];
 
-  const curl = [`curl "${requestUrl(req, base)}" \\`, `  -H "x-galaxie-key: ${API_KEY_PLACEHOLDER}"`].join(
-    '\n',
-  );
+  const curl = [`curl "${requestUrl(req, base)}" \\`, `  -H "x-galaxie-key: ${text.key}"`].join('\n');
 
   const tsQuery = query.length
     ? [
@@ -96,14 +130,14 @@ export function requestSnippets(req: ApiRequest, base = PUBLIC_API_URL): CodeExa
       ]
     : [];
   const typescript = [
-    `const GALAXIE_KEY = process.env.GALAXIE_KEY ?? ${tsString(API_KEY_PLACEHOLDER)};`,
+    `const GALAXIE_KEY = process.env.GALAXIE_KEY ?? ${tsString(text.key)};`,
     ``,
     `const url = new URL(${tsString(path)}, ${tsString(base)});`,
     ...tsQuery,
     ``,
     `const res = await fetch(url, { headers: { 'x-galaxie-key': GALAXIE_KEY } });`,
     `if (!res.ok) {`,
-    `  // Erros seguem a RFC 9457 (application/problem+json)`,
+    `  // ${text.problem}`,
     `  const problem = await res.json();`,
     '  throw new Error(`${problem.status} ${problem.code}: ${problem.title}`);',
     `}`,
@@ -115,7 +149,7 @@ export function requestSnippets(req: ApiRequest, base = PUBLIC_API_URL): CodeExa
     ``,
     `import requests`,
     ``,
-    `GALAXIE_KEY = os.environ.get("GALAXIE_KEY", ${pyString(API_KEY_PLACEHOLDER)})`,
+    `GALAXIE_KEY = os.environ.get("GALAXIE_KEY", ${pyString(text.key)})`,
     ``,
     `resp = requests.get(`,
     `    ${pyString(`${base}${path}`)},`,
@@ -125,7 +159,7 @@ export function requestSnippets(req: ApiRequest, base = PUBLIC_API_URL): CodeExa
     `    headers={"x-galaxie-key": GALAXIE_KEY},`,
     `    timeout=10,`,
     `)`,
-    `resp.raise_for_status()  # 4xx/5xx: corpo em application/problem+json`,
+    `resp.raise_for_status()  # ${text.raise}`,
     `data = resp.json()`,
   ].join('\n');
 

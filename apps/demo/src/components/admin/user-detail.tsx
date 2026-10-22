@@ -27,7 +27,7 @@ import {
   updateAccess,
   updateProfile,
   type ActionResult,
-} from '@/app/(app)/ajustes/actions';
+} from '@/app/[locale]/(app)/ajustes/actions';
 import { Badge } from '@/components/reui/badge';
 import {
   Frame,
@@ -60,7 +60,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Field, FieldLabel } from '@/components/ui/field';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
@@ -68,30 +68,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { DemoActivity, DemoSession, DemoUser } from '@/lib/auth/admin';
 import { initials } from '@/lib/format';
+import { useI18n } from '@/lib/i18n/client';
+import type { Locale } from '@/lib/i18n/config';
+import { fill, plural, rich } from '@/lib/i18n/text';
 
-import { ACCESS_PRESETS } from './invite-dialog';
-import {
-  accessLabel,
-  describeAgent,
-  formatDate,
-  formatDateTime,
-  formatIp,
-  relativeTime,
-  RoleBadge,
-  StatusBadge,
-} from './user-badges';
+import { useAccessPresets, useRoles } from './invite-dialog';
+import { LocaleSelect, RoleBadge, StatusBadge, useAdminFormat } from './user-badges';
 
 /** Roda uma ação do servidor com toast e atualiza a página. */
 function useAction() {
   const router = useRouter();
+  const { t } = useI18n();
   const [pending, startTransition] = useTransition();
   const run = (fn: () => Promise<ActionResult>, ok: string, after?: () => void) =>
     startTransition(async () => {
       const res = await fn();
-      if (!res.ok) return void toast.error(res.error ?? 'Não foi possível concluir.');
+      if (!res.ok) return void toast.error(res.error ?? t.admin.feedback.failed);
       if (res.emailSent === false && res.link) {
         void navigator.clipboard.writeText(res.link);
-        toast.warning('E-mail não enviado: link do convite copiado para colar em outro canal.');
+        toast.warning(t.admin.feedback.emailNotSent);
       } else toast.success(ok);
       after?.();
       router.refresh();
@@ -121,6 +116,7 @@ function Row({
 }
 
 function ProfileTab({ user }: { user: DemoUser }) {
+  const { t } = useI18n();
   const { pending, run } = useAction();
   const [form, setForm] = useState({
     name: user.name,
@@ -129,6 +125,8 @@ function ProfileTab({ user }: { user: DemoUser }) {
     phone: user.phone ?? '',
     notes: user.notes ?? '',
   });
+  // Idioma só vai para o servidor quando muda (nulo = não definido, mantém).
+  const [locale, setLocale] = useState<Locale | null>(user.locale);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -136,39 +134,61 @@ function ProfileTab({ user }: { user: DemoUser }) {
     <Frame>
       <FramePanel className="p-0">
         <FrameHeader className="px-4 pt-4">
-          <FrameTitle>Perfil</FrameTitle>
-          <FrameDescription>Quem é a pessoa e de onde ela vem.</FrameDescription>
+          <FrameTitle>{t.admin.profile.title}</FrameTitle>
+          <FrameDescription>{t.admin.profile.description}</FrameDescription>
         </FrameHeader>
         <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
           <Field>
-            <FieldLabel htmlFor="p-name">Nome</FieldLabel>
+            <FieldLabel htmlFor="p-name">{t.admin.fields.name}</FieldLabel>
             <Input id="p-name" value={form.name} onChange={set('name')} />
           </Field>
           <Field>
-            <FieldLabel htmlFor="p-email">E-mail</FieldLabel>
+            <FieldLabel htmlFor="p-email">{t.admin.fields.email}</FieldLabel>
             <Input id="p-email" value={user.email} disabled />
           </Field>
           <Field>
-            <FieldLabel htmlFor="p-job">Cargo</FieldLabel>
+            <FieldLabel htmlFor="p-job">{t.admin.fields.jobTitle}</FieldLabel>
             <Input id="p-job" value={form.jobTitle} onChange={set('jobTitle')} />
           </Field>
           <Field>
-            <FieldLabel htmlFor="p-company">Empresa</FieldLabel>
+            <FieldLabel htmlFor="p-company">{t.admin.fields.company}</FieldLabel>
             <Input id="p-company" value={form.company} onChange={set('company')} />
           </Field>
           <Field>
-            <FieldLabel htmlFor="p-phone">Telefone</FieldLabel>
+            <FieldLabel htmlFor="p-phone">{t.admin.fields.phone}</FieldLabel>
             <Input id="p-phone" type="tel" value={form.phone} onChange={set('phone')} />
           </Field>
+          <Field>
+            <FieldLabel htmlFor="p-locale">{t.admin.fields.language}</FieldLabel>
+            <LocaleSelect
+              id="p-locale"
+              value={locale}
+              onChange={setLocale}
+              placeholder={t.admin.profile.languageUnset}
+            />
+            <FieldDescription>{t.admin.profile.languageHint}</FieldDescription>
+          </Field>
           <Field className="sm:col-span-2">
-            <FieldLabel htmlFor="p-notes">Observações</FieldLabel>
+            <FieldLabel htmlFor="p-notes">{t.admin.fields.notes}</FieldLabel>
             <Textarea id="p-notes" rows={3} value={form.notes} onChange={set('notes')} />
           </Field>
         </div>
         <FrameFooter className="flex-row justify-end">
-          <Button disabled={pending} onClick={() => run(() => updateProfile(user.id, form), 'Perfil salvo')}>
+          <Button
+            disabled={pending}
+            onClick={() =>
+              run(
+                () =>
+                  updateProfile(user.id, {
+                    ...form,
+                    ...(locale !== user.locale ? { locale } : {}),
+                  }),
+                t.admin.profile.saved,
+              )
+            }
+          >
             {pending ? <Spinner /> : null}
-            Salvar perfil
+            {t.admin.profile.save}
           </Button>
         </FrameFooter>
       </FramePanel>
@@ -176,12 +196,11 @@ function ProfileTab({ user }: { user: DemoUser }) {
   );
 }
 
-const ROLES = [
-  { value: 'user', label: 'Convidado' },
-  { value: 'admin', label: 'Admin' },
-];
-
-function AccessTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
+function AccessTab({ user, isSelf, timeZone }: { user: DemoUser; isSelf: boolean; timeZone: string }) {
+  const { t } = useI18n();
+  const { relativeTime } = useAdminFormat(timeZone);
+  const accessPresets = useAccessPresets();
+  const roles = useRoles();
   const { pending, run } = useAction();
   const [role, setRole] = useState<'admin' | 'user'>(user.role);
   const [date, setDate] = useState(user.accessExpiresAt ? user.accessExpiresAt.slice(0, 10) : '');
@@ -193,26 +212,40 @@ function AccessTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
     setDate(new Date(base + Number(days) * 86_400_000).toISOString().slice(0, 10));
   }
 
+  const invite = user.lastInvite;
+  const inviteText = invite
+    ? fill(
+        invite.kind === 'invite'
+          ? invite.delivered
+            ? t.admin.inviteCard.inviteSent
+            : t.admin.inviteCard.inviteGenerated
+          : invite.delivered
+            ? t.admin.inviteCard.legacySent
+            : t.admin.inviteCard.legacyGenerated,
+        { when: relativeTime(invite.at) },
+      )
+    : t.admin.inviteCard.none;
+
   return (
     <div className="flex flex-col gap-6">
       <Frame>
         <FramePanel className="p-0">
           <FrameHeader className="px-4 pt-4">
-            <FrameTitle>Acesso</FrameTitle>
-            <FrameDescription>Papel e por quanto tempo a pessoa pode entrar.</FrameDescription>
+            <FrameTitle>{t.admin.accessTab.title}</FrameTitle>
+            <FrameDescription>{t.admin.accessTab.description}</FrameDescription>
           </FrameHeader>
-          <Row title="Papel" description="Admin gerencia usuários; convidado só navega na demo.">
+          <Row title={t.admin.fields.role} description={t.admin.accessTab.roleHint}>
             <Select
-              items={ROLES}
+              items={roles}
               value={role}
               onValueChange={(v) => setRole(v as 'admin' | 'user')}
               disabled={isSelf}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-label={t.admin.fields.role}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ROLES.map((r) => (
+                {roles.map((r) => (
                   <SelectItem key={r.value} value={r.value}>
                     {r.label}
                   </SelectItem>
@@ -221,22 +254,21 @@ function AccessTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
             </Select>
           </Row>
           <Row
-            title="Válido até"
+            title={t.admin.accessTab.validUntil}
             description={
-              role === 'admin'
-                ? 'Admins não têm prazo.'
-                : 'Depois desta data o login é bloqueado. Vazio = sem prazo.'
+              role === 'admin' ? t.admin.accessTab.validUntilHintAdmin : t.admin.accessTab.validUntilHint
             }
           >
             <div className="flex flex-col gap-2">
               <Input
                 type="date"
+                aria-label={t.admin.accessTab.validUntil}
                 value={role === 'admin' ? '' : date}
                 onChange={(e) => setDate(e.target.value)}
                 disabled={role === 'admin'}
               />
               <div className="flex flex-wrap gap-1.5">
-                {ACCESS_PRESETS.map((p) => (
+                {accessPresets.map((p) => (
                   <Button
                     key={p.value}
                     size="xs"
@@ -244,7 +276,7 @@ function AccessTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
                     disabled={role === 'admin'}
                     onClick={() => extend(p.value)}
                   >
-                    {p.value === 'none' ? p.label : `+${p.label}`}
+                    {p.value === 'none' ? p.label : fill(t.admin.access.extendBy, { days: p.label })}
                   </Button>
                 ))}
               </div>
@@ -261,12 +293,12 @@ function AccessTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
                       accessExpiresAt:
                         role === 'admin' || !date ? null : new Date(`${date}T23:59:59-03:00`).toISOString(),
                     }),
-                  'Acesso atualizado',
+                  t.admin.accessTab.saved,
                 )
               }
             >
               {pending ? <Spinner /> : null}
-              Salvar acesso
+              {t.admin.accessTab.save}
             </Button>
           </FrameFooter>
         </FramePanel>
@@ -275,25 +307,18 @@ function AccessTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
       <Frame>
         <FramePanel className="p-0">
           <FrameHeader className="px-4 pt-4">
-            <FrameTitle>Convite</FrameTitle>
-            <FrameDescription>
-              {user.lastInvite
-                ? `${user.lastInvite.kind === 'invite' ? 'Convite' : 'Link de senha (login antigo)'} ${user.lastInvite.delivered ? 'enviado' : 'gerado (sem e-mail)'} ${relativeTime(user.lastInvite.at)}.`
-                : 'Nenhum convite registrado.'}
-            </FrameDescription>
+            <FrameTitle>{t.admin.inviteCard.title}</FrameTitle>
+            <FrameDescription>{inviteText}</FrameDescription>
           </FrameHeader>
-          <Row
-            title="Reenviar convite"
-            description="O e-mail traz o link da demo e a validade do acesso. Para entrar, a pessoa pede um código de acesso no próprio e-mail."
-          >
+          <Row title={t.admin.inviteCard.resend} description={t.admin.inviteCard.resendHint}>
             <Button
               variant="outline"
               className="w-full"
               disabled={pending}
-              onClick={() => run(() => resendInvite(user.id), 'Convite reenviado por e-mail')}
+              onClick={() => run(() => resendInvite(user.id), t.admin.inviteCard.resent)}
             >
               <KeyRound />
-              Reenviar convite
+              {t.admin.inviteCard.resend}
             </Button>
           </Row>
         </FramePanel>
@@ -302,15 +327,27 @@ function AccessTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
   );
 }
 
-function SessionsTab({ user, sessions }: { user: DemoUser; sessions: DemoSession[] }) {
+function SessionsTab({
+  user,
+  sessions,
+  timeZone,
+}: {
+  user: DemoUser;
+  sessions: DemoSession[];
+  timeZone: string;
+}) {
+  const { locale, t } = useI18n();
+  const { describeAgent, formatDate, formatIp, relativeTime } = useAdminFormat(timeZone);
   const { pending, run } = useAction();
   return (
     <Frame>
       <FramePanel className="p-0">
         <FrameHeader className="px-4 pt-4">
-          <FrameTitle>Sessões ativas</FrameTitle>
+          <FrameTitle>{t.admin.sessions.title}</FrameTitle>
           <FrameDescription>
-            {sessions.length ? `${sessions.length} dispositivo(s) conectado(s)` : 'Nenhuma sessão ativa.'}
+            {sessions.length
+              ? plural(locale, sessions.length, t.admin.sessions.devices)
+              : t.admin.sessions.none}
           </FrameDescription>
         </FrameHeader>
         {sessions.map((s) => (
@@ -319,17 +356,20 @@ function SessionsTab({ user, sessions }: { user: DemoUser; sessions: DemoSession
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-sm font-medium">{describeAgent(s.userAgent)}</span>
               <span className="text-muted-foreground truncate text-xs">
-                {formatIp(s.ipAddress) ?? 'IP desconhecido'} · última atividade {relativeTime(s.updatedAt)} ·
-                expira {formatDate(s.expiresAt)}
+                {fill(t.admin.sessions.details, {
+                  ip: formatIp(s.ipAddress) ?? t.admin.device.unknownIp,
+                  when: relativeTime(s.updatedAt),
+                  date: formatDate(s.expiresAt),
+                })}
               </span>
             </div>
             <Button
               size="sm"
               variant="outline"
               disabled={pending}
-              onClick={() => run(() => revokeSession(user.id, s.token), 'Sessão encerrada')}
+              onClick={() => run(() => revokeSession(user.id, s.token), t.admin.sessions.ended)}
             >
-              Encerrar
+              {t.admin.sessions.end}
             </Button>
           </div>
         ))}
@@ -338,10 +378,10 @@ function SessionsTab({ user, sessions }: { user: DemoUser; sessions: DemoSession
             <Button
               variant="outline"
               disabled={pending}
-              onClick={() => run(() => revokeAllSessions(user.id), 'Sessões encerradas')}
+              onClick={() => run(() => revokeAllSessions(user.id), t.admin.sessions.endedAll)}
             >
               <LogIn />
-              Encerrar todas
+              {t.admin.sessions.endAll}
             </Button>
           </FrameFooter>
         ) : null}
@@ -350,14 +390,16 @@ function SessionsTab({ user, sessions }: { user: DemoUser; sessions: DemoSession
   );
 }
 
-function ActivityTab({ activity }: { activity: DemoActivity[] }) {
+function ActivityTab({ activity, timeZone }: { activity: DemoActivity[]; timeZone: string }) {
+  const { t } = useI18n();
+  const { describeAgent, formatDateTime, formatIp } = useAdminFormat(timeZone);
   if (!activity.length) {
     return (
       <Frame>
         <FramePanel>
           <FrameHeader>
-            <FrameTitle>Atividade</FrameTitle>
-            <FrameDescription>Ainda não há registros: a pessoa não entrou na demo.</FrameDescription>
+            <FrameTitle>{t.admin.activity.title}</FrameTitle>
+            <FrameDescription>{t.admin.activity.empty}</FrameDescription>
           </FrameHeader>
         </FramePanel>
       </Frame>
@@ -367,10 +409,8 @@ function ActivityTab({ activity }: { activity: DemoActivity[] }) {
     <Frame>
       <FramePanel>
         <FrameHeader>
-          <FrameTitle>Atividade</FrameTitle>
-          <FrameDescription>
-            Logins e páginas abertas, do mais recente ao mais antigo (até 100).
-          </FrameDescription>
+          <FrameTitle>{t.admin.activity.title}</FrameTitle>
+          <FrameDescription>{t.admin.activity.description}</FrameDescription>
         </FrameHeader>
         <div className="p-4">
           <Timeline defaultValue={0}>
@@ -380,7 +420,7 @@ function ActivityTab({ activity }: { activity: DemoActivity[] }) {
                   <TimelineDate>{formatDateTime(a.createdAt)}</TimelineDate>
                   <TimelineTitle className="flex items-center gap-2">
                     {a.kind === 'login' ? <LogIn className="size-3.5" /> : <Eye className="size-3.5" />}
-                    {a.kind === 'login' ? 'Entrou na demo' : (a.title ?? a.path)}
+                    {a.kind === 'login' ? t.admin.activity.login : (a.title ?? a.path)}
                   </TimelineTitle>
                 </TimelineHeader>
                 <TimelineIndicator />
@@ -396,13 +436,21 @@ function ActivityTab({ activity }: { activity: DemoActivity[] }) {
                       {/* Trilha de navegação (registros antigos não têm). */}
                       {a.fromPath ? (
                         <>
-                          {' · veio de '}
-                          <Link href={a.fromPath} className="hover:underline">
-                            {a.fromPath}
-                          </Link>
+                          {' · '}
+                          {rich(
+                            t.admin.activity.cameFrom,
+                            {
+                              link: (path) => (
+                                <Link href={a.fromPath!} className="hover:underline">
+                                  {path}
+                                </Link>
+                              ),
+                            },
+                            { path: a.fromPath },
+                          )}
                         </>
                       ) : null}
-                      {a.trailDepth ? ` · passo ${a.trailDepth} da trilha` : null}
+                      {a.trailDepth ? ` · ${fill(t.admin.activity.trailStep, { step: a.trailDepth })}` : null}
                     </>
                   )}
                 </TimelineContent>
@@ -417,67 +465,59 @@ function ActivityTab({ activity }: { activity: DemoActivity[] }) {
 
 function DangerTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
   const router = useRouter();
+  const { t } = useI18n();
+  const d = t.admin.danger;
   const { pending, run } = useAction();
   const disabled = user.status === 'disabled';
   return (
     <Frame>
       <FramePanel className="p-0">
         <FrameHeader className="px-4 pt-4">
-          <FrameTitle>Zona de perigo</FrameTitle>
-          <FrameDescription>Ações que tiram o acesso da pessoa.</FrameDescription>
+          <FrameTitle>{d.title}</FrameTitle>
+          <FrameDescription>{d.description}</FrameDescription>
         </FrameHeader>
         <Row
-          title={disabled ? 'Reativar acesso' : 'Desativar acesso'}
-          description={
-            disabled
-              ? 'A pessoa volta a poder entrar.'
-              : 'Bloqueia o login e encerra as sessões. Dá para reativar.'
-          }
+          title={disabled ? d.reactivateTitle : d.deactivateTitle}
+          description={disabled ? d.reactivateHint : d.deactivateHint}
         >
           <Button
             variant="outline"
             className="w-full"
             disabled={pending || isSelf}
             onClick={() =>
-              run(() => setDisabled(user.id, !disabled), disabled ? 'Acesso reativado' : 'Acesso desativado')
+              run(() => setDisabled(user.id, !disabled), disabled ? d.reactivated : d.deactivated)
             }
           >
             <ShieldCheck />
-            {disabled ? 'Reativar' : 'Desativar'}
+            {disabled ? d.reactivate : d.deactivate}
           </Button>
         </Row>
-        <Row
-          title="Remover usuário"
-          description="Apaga a conta, as sessões e o histórico. Não dá para desfazer."
-        >
+        <Row title={d.removeTitle} description={d.removeHint}>
           <AlertDialog>
             <AlertDialogTrigger
               render={<Button variant="destructive" className="w-full" disabled={pending || isSelf} />}
             >
               <Trash2 />
-              Remover
+              {d.remove}
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Remover {user.name}?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  A conta, as sessões e o histórico de atividade serão apagados. Para só bloquear o acesso,
-                  use “Desativar”.
-                </AlertDialogDescription>
+                <AlertDialogTitle>{fill(d.confirmTitle, { name: user.name })}</AlertDialogTitle>
+                <AlertDialogDescription>{d.confirmDescription}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
                 <AlertDialogAction
                   variant="destructive"
                   onClick={() =>
                     run(
                       () => removeUser(user.id),
-                      'Usuário removido',
+                      d.removed,
                       () => router.replace('/ajustes/usuarios'),
                     )
                   }
                 >
-                  Remover
+                  {d.remove}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -493,14 +533,27 @@ export function UserDetail({
   sessions,
   activity,
   currentUserId,
+  timeZone,
 }: {
   user: DemoUser;
   sessions: DemoSession[];
   activity: DemoActivity[];
   currentUserId?: string;
+  /** Fuso de quem vê (lido no servidor), para as datas baterem entre servidor e hidratação. */
+  timeZone: string;
 }) {
+  const { t } = useI18n();
+  const { accessLabel, formatDate, relativeTime } = useAdminFormat(timeZone);
   const isSelf = currentUserId === user.id;
   const subtitle = [user.email, user.jobTitle, user.company].filter(Boolean).join(' · ');
+  const summary = [
+    accessLabel(user.role, user.accessExpiresAt),
+    fill(t.admin.detail.since, { date: formatDate(user.createdAt) }),
+    user.lastLoginAt ? fill(t.admin.detail.lastSeen, { when: relativeTime(user.lastLoginAt) }) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const tabs = t.admin.detail.tabs;
 
   return (
     <div className="flex flex-col gap-6">
@@ -509,7 +562,7 @@ export function UserDetail({
         className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1.5 text-sm transition-colors"
       >
         <ArrowLeft className="size-4" />
-        Usuários
+        {t.admin.detail.back}
       </Link>
       <div className="flex items-center gap-4">
         <Avatar className="size-14">
@@ -522,10 +575,7 @@ export function UserDetail({
             <RoleBadge role={user.role} />
           </div>
           <span className="text-muted-foreground truncate text-sm">{subtitle}</span>
-          <span className="text-muted-foreground text-xs">
-            {accessLabel(user.role, user.accessExpiresAt)} · desde {formatDate(user.createdAt)}
-            {user.lastLoginAt ? ` · último acesso ${relativeTime(user.lastLoginAt)}` : ''}
-          </span>
+          <span className="text-muted-foreground text-xs">{summary}</span>
         </div>
       </div>
 
@@ -533,15 +583,15 @@ export function UserDetail({
         <TabsList variant="line" className="h-fit shrink-0 md:w-48">
           <TabsTrigger value="perfil">
             <UserRound />
-            Perfil
+            {tabs.profile}
           </TabsTrigger>
           <TabsTrigger value="acesso">
             <KeyRound />
-            Acesso
+            {tabs.access}
           </TabsTrigger>
           <TabsTrigger value="sessoes">
             <Monitor />
-            Sessões
+            {tabs.sessions}
             {sessions.length ? (
               <Badge size="sm" variant="secondary">
                 {sessions.length}
@@ -550,11 +600,11 @@ export function UserDetail({
           </TabsTrigger>
           <TabsTrigger value="atividade">
             <Activity />
-            Atividade
+            {tabs.activity}
           </TabsTrigger>
           <TabsTrigger value="perigo">
             <TriangleAlert />
-            Zona de perigo
+            {tabs.danger}
           </TabsTrigger>
         </TabsList>
         <div className="min-w-0 flex-1">
@@ -562,13 +612,13 @@ export function UserDetail({
             <ProfileTab user={user} />
           </TabsContent>
           <TabsContent value="acesso">
-            <AccessTab user={user} isSelf={isSelf} />
+            <AccessTab user={user} isSelf={isSelf} timeZone={timeZone} />
           </TabsContent>
           <TabsContent value="sessoes">
-            <SessionsTab user={user} sessions={sessions} />
+            <SessionsTab user={user} sessions={sessions} timeZone={timeZone} />
           </TabsContent>
           <TabsContent value="atividade">
-            <ActivityTab activity={activity} />
+            <ActivityTab activity={activity} timeZone={timeZone} />
           </TabsContent>
           <TabsContent value="perigo">
             <DangerTab user={user} isSelf={isSelf} />
@@ -579,7 +629,7 @@ export function UserDetail({
       {user.status === 'pending' ? (
         <p className="text-muted-foreground flex items-center gap-2 text-xs">
           <Copy className="size-3.5" />
-          Enquanto a pessoa não entrar pela primeira vez, o status fica como “Convite pendente”.
+          {t.admin.detail.pendingHint}
         </p>
       ) : null}
     </div>

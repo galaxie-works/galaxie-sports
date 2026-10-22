@@ -1,13 +1,14 @@
 import type { Event } from '@galaxie/contracts';
 
 import { Badge } from '@/components/reui/badge';
-import { STATUS_LABEL } from '@/lib/format';
+import { getT } from '@/lib/i18n/server';
 
 const LIVE = new Set(['starting', 'live', 'break']);
 const PROBLEM = new Set(['postponed', 'cancelled', 'suspended', 'abandoned']);
 
-export function StatusBadge({ event }: { event: Pick<Event, 'status' | 'clock'> }) {
-  const label = STATUS_LABEL[event.status] ?? event.status;
+export async function StatusBadge({ event }: { event: Pick<Event, 'status' | 'clock'> }) {
+  const t = await getT();
+  const label = t.sport.status[event.status] ?? event.status;
   if (LIVE.has(event.status)) {
     const minute = event.clock?.minute;
     return (

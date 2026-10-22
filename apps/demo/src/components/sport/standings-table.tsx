@@ -2,6 +2,7 @@ import type { Standings } from '@galaxie/contracts';
 import Link from 'next/link';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { getT } from '@/lib/i18n/server';
 import { cn } from '@/lib/utils';
 
 import { Crest } from './crest';
@@ -19,7 +20,8 @@ function zoneClass(description: string | null | undefined) {
   return 'bg-muted-foreground';
 }
 
-export function StandingsTable({ rows, highlightTeamId }: { rows: Row[]; highlightTeamId?: string }) {
+export async function StandingsTable({ rows, highlightTeamId }: { rows: Row[]; highlightTeamId?: string }) {
+  const t = (await getT()).sport.standings;
   const zones = [...new Map(rows.filter((r) => r.description).map((r) => [r.description!, r])).keys()];
 
   return (
@@ -28,16 +30,48 @@ export function StandingsTable({ rows, highlightTeamId }: { rows: Row[]; highlig
         <TableHeader>
           <TableRow>
             <TableHead className="w-10 text-right">#</TableHead>
-            <TableHead>Time</TableHead>
-            <TableHead className="text-right">P</TableHead>
-            <TableHead className="text-right">J</TableHead>
-            <TableHead className="hidden text-right sm:table-cell">V</TableHead>
-            <TableHead className="hidden text-right sm:table-cell">E</TableHead>
-            <TableHead className="hidden text-right sm:table-cell">D</TableHead>
-            <TableHead className="hidden text-right md:table-cell">GP</TableHead>
-            <TableHead className="hidden text-right md:table-cell">GC</TableHead>
-            <TableHead className="text-right">SG</TableHead>
-            <TableHead className="hidden lg:table-cell">Últimos</TableHead>
+            <TableHead>{t.team}</TableHead>
+            <TableHead className="text-right">
+              <abbr title={t.pointsTitle} className="no-underline">
+                {t.points}
+              </abbr>
+            </TableHead>
+            <TableHead className="text-right">
+              <abbr title={t.playedTitle} className="no-underline">
+                {t.played}
+              </abbr>
+            </TableHead>
+            <TableHead className="hidden text-right sm:table-cell">
+              <abbr title={t.wonTitle} className="no-underline">
+                {t.won}
+              </abbr>
+            </TableHead>
+            <TableHead className="hidden text-right sm:table-cell">
+              <abbr title={t.drawnTitle} className="no-underline">
+                {t.drawn}
+              </abbr>
+            </TableHead>
+            <TableHead className="hidden text-right sm:table-cell">
+              <abbr title={t.lostTitle} className="no-underline">
+                {t.lost}
+              </abbr>
+            </TableHead>
+            <TableHead className="hidden text-right md:table-cell">
+              <abbr title={t.goalsForTitle} className="no-underline">
+                {t.goalsFor}
+              </abbr>
+            </TableHead>
+            <TableHead className="hidden text-right md:table-cell">
+              <abbr title={t.goalsAgainstTitle} className="no-underline">
+                {t.goalsAgainst}
+              </abbr>
+            </TableHead>
+            <TableHead className="text-right">
+              <abbr title={t.goalDiffTitle} className="no-underline">
+                {t.goalDiff}
+              </abbr>
+            </TableHead>
+            <TableHead className="hidden lg:table-cell">{t.form}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

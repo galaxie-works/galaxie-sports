@@ -4,15 +4,16 @@ import Link from 'next/link';
 
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
+import type { Locale } from '@/lib/i18n/config';
+import { getI18n } from '@/lib/i18n/server';
+import { fill, localized } from '@/lib/i18n/text';
 
 type Participant = Event['participants'][number];
 type Stake = Event['stakes'][number];
 
-const textOf = (text: Record<string, string>) => text['pt-BR'] ?? Object.values(text)[0] ?? '';
-
 /** Frases dos stakes sem repetição (o mesmo texto pode vir de códigos diferentes). */
-function uniqueSentences(stakes: Stake[]): string[] {
-  return [...new Set(stakes.map((s) => textOf(s.text)).filter(Boolean))];
+function uniqueSentences(stakes: Stake[], locale: Locale): string[] {
+  return [...new Set(stakes.map((s) => localized(s.text, locale)).filter(Boolean))];
 }
 
 /** Stake do participante: pelo `team_id`; em respostas antigas, pelo lado. */
@@ -32,9 +33,19 @@ function Sentences({ items }: { items: string[] }) {
   );
 }
 
-function TeamStakes({ p, stakes }: { p: Participant; stakes: Stake[] }) {
+function TeamStakes({
+  p,
+  stakes,
+  locale,
+  fanTagsLabel,
+}: {
+  p: Participant;
+  stakes: Stake[];
+  locale: Locale;
+  fanTagsLabel: string;
+}) {
   const tags = p.fan_tags ?? [];
-  const sentences = uniqueSentences(stakes);
+  const sentences = uniqueSentences(stakes, locale);
   if (!tags.length && !sentences.length && !p.cheer) return null;
   return (
     <div className="flex flex-col gap-2">
@@ -43,10 +54,10 @@ function TeamStakes({ p, stakes }: { p: Participant; stakes: Stake[] }) {
         {p.name}
       </Link>
       {tags.length ? (
-        <div className="flex flex-wrap gap-1.5" aria-label={`Tags do torcedor de ${p.name}`}>
+        <div className="flex flex-wrap gap-1.5" aria-label={fill(fanTagsLabel, { team: p.name })}>
           {tags.map((t) => (
             <Badge key={t.code} variant="primary-light">
-              {textOf(t.text)}
+              {localized(t.text, locale)}
             </Badge>
           ))}
         </div>
@@ -62,9 +73,13 @@ function TeamStakes({ p, stakes }: { p: Participant; stakes: Stake[] }) {
  * stakes daquele time e o grito da torcida, quando a base semântica tem. Stakes que valem para os dois
  * (`team: both`) aparecem uma vez só, ao final.
  */
-export function MatchStakes({ event }: { event: Event }) {
+export async function MatchStakes({ event }: { event: Event }) {
+  const { locale, t } = await getI18n();
   const sides = event.participants.filter((p) => p.side === 'home' || p.side === 'away');
-  const shared = uniqueSentences(event.stakes.filter((s) => s.team === 'both'));
+  const shared = uniqueSentences(
+    event.stakes.filter((s) => s.team === 'both'),
+    locale,
+  );
   const groups = sides.map((p) => ({
     p,
     stakes: event.stakes.filter((s) => s.team !== 'both' && belongsTo(s, p)),
@@ -74,11 +89,11 @@ export function MatchStakes({ event }: { event: Event }) {
   return (
     <div className="flex flex-col gap-4 [&>*+*]:border-t [&>*+*]:pt-4">
       {groups.map(({ p, stakes }) => (
-        <TeamStakes key={p.id} p={p} stakes={stakes} />
+        <TeamStakes key={p.id} p={p} stakes={stakes} locale={locale} fanTagsLabel={t.sport.fanTagsOf} />
       ))}
       {shared.length ? (
         <div className="flex flex-col gap-2">
-          <span className="text-muted-foreground text-xs font-medium">Para os dois times</span>
+          <span className="text-muted-foreground text-xs font-medium">{t.sport.bothTeams}</span>
           <Sentences items={shared} />
         </div>
       ) : null}

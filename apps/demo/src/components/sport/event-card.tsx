@@ -4,7 +4,9 @@ import Link from 'next/link';
 
 import { Badge } from '@/components/reui/badge';
 import { Card } from '@/components/ui/card';
-import { fmtDateTime } from '@/lib/format';
+import type { Locale } from '@/lib/i18n/config';
+import { getFormatters, getI18n } from '@/lib/i18n/server';
+import { fill, localized } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
 
 import { AnimatedIcon } from './animated-sport-icon';
@@ -15,8 +17,6 @@ type Participant = Event['participants'][number];
 
 const STARTED = new Set(['live', 'break', 'finished', 'suspended', 'abandoned']);
 const LIVE = new Set(['live', 'break']);
-
-const textOf = (text: Record<string, string>) => text['pt-BR'] ?? Object.values(text)[0] ?? '';
 
 /** Linha de participante (eventos que não são "mandante × visitante": F1, MMA em card múltiplo etc.). */
 function TeamRow({ p, goals, started }: { p: Participant; goals: number | null; started: boolean }) {
@@ -40,7 +40,7 @@ function TeamRow({ p, goals, started }: { p: Participant; goals: number | null; 
  * Um lado do confronto: escudo grande, nome e a tag do torcedor — a primeira `fan_tag` ("Na briga pelo
  * título") ou, sem tag, o grito da torcida ("Avanti, Palestra!"); sem os dois, nada.
  */
-function TeamSide({ p }: { p: Participant }) {
+function TeamSide({ p, locale }: { p: Participant; locale: Locale }) {
   const lost = p.winner === false;
   const tag = p.fan_tags?.[0];
   return (
@@ -58,7 +58,7 @@ function TeamSide({ p }: { p: Participant }) {
           radius="full"
           className="h-auto min-h-5 max-w-full py-0.5 text-center leading-tight whitespace-normal"
         >
-          {textOf(tag.text)}
+          {localized(tag.text, locale)}
         </Badge>
       ) : p.cheer ? (
         <span className="text-muted-foreground line-clamp-1 text-xs italic">“{p.cheer.text}”</span>
@@ -71,12 +71,13 @@ function TeamSide({ p }: { p: Participant }) {
  * Centro do card: antes do jogo, o "versus" animado (toca no hover/foco do card); com a bola rolando ou
  * encerrado, o placar ocupa o lugar dele — é a informação que importa e não divide espaço com a animação.
  */
-function Center({ event }: { event: Event }) {
+async function Center({ event }: { event: Event }) {
+  const t = (await getI18n()).t.sport;
   const { score } = event;
   if (!STARTED.has(event.status)) {
     return (
       <AnimatedIcon name="versus" className="size-12">
-        <span className="text-muted-foreground m-auto text-sm font-semibold">x</span>
+        <span className="text-muted-foreground m-auto text-sm font-semibold">{t.versus}</span>
       </AnimatedIcon>
     );
   }
@@ -103,11 +104,11 @@ function Center({ event }: { event: Event }) {
       </span>
       {score.penalty ? (
         <span className="text-muted-foreground text-[0.65rem] whitespace-nowrap">
-          pên. {score.penalty.home}–{score.penalty.away}
+          {fill(t.penaltiesShort, { home: score.penalty.home ?? '?', away: score.penalty.away ?? '?' })}
         </span>
       ) : score.aggregate ? (
         <span className="text-muted-foreground text-[0.65rem] whitespace-nowrap">
-          agr. {score.aggregate.home}–{score.aggregate.away}
+          {fill(t.aggregateShort, { home: score.aggregate.home ?? '?', away: score.aggregate.away ?? '?' })}
         </span>
       ) : null}
     </div>
@@ -118,7 +119,14 @@ function Center({ event }: { event: Event }) {
  * Cartão de partida clicável: competição/rodada e estado; escudos grandes lado a lado com o "versus" (ou o
  * placar) no meio e, abaixo de cada um, nome e tag do torcedor; rodapé com data/hora, local e clássico.
  */
-export function EventCard({ event, showCompetition = true }: { event: Event; showCompetition?: boolean }) {
+export async function EventCard({
+  event,
+  showCompetition = true,
+}: {
+  event: Event;
+  showCompetition?: boolean;
+}) {
+  const [{ locale }, f] = await Promise.all([getI18n(), getFormatters()]);
   const home = event.participants.find((p) => p.side === 'home');
   const away = event.participants.find((p) => p.side === 'away');
   const started = STARTED.has(event.status);
@@ -146,11 +154,11 @@ export function EventCard({ event, showCompetition = true }: { event: Event; sho
 
         {home && away ? (
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 px-3">
-            <TeamSide p={home} />
+            <TeamSide p={home} locale={locale} />
             <div className="flex h-16 items-center justify-center">
               <Center event={event} />
             </div>
-            <TeamSide p={away} />
+            <TeamSide p={away} locale={locale} />
           </div>
         ) : (
           <div className="flex flex-col gap-1.5 px-3">
@@ -168,7 +176,7 @@ export function EventCard({ event, showCompetition = true }: { event: Event; sho
         <div className="text-muted-foreground mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 pt-2.5 text-xs">
           <span className="flex items-center gap-1.5 whitespace-nowrap">
             <Calendar className="size-3.5 shrink-0" aria-hidden />
-            {fmtDateTime(event.starts_at)}
+            {f.dateTime(event.starts_at)}
           </span>
           {venue ? (
             <span className="flex min-w-0 items-center gap-1.5">

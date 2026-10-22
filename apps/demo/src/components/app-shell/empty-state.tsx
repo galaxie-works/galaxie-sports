@@ -1,4 +1,5 @@
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import { getT } from '@/lib/i18n/server';
 
 /** Ilustração do exemplo ReUI c-empty-15 (cartões empilhados). */
 function StackedCardsIllustration() {
@@ -18,15 +19,16 @@ function StackedCardsIllustration() {
   );
 }
 
-export function EmptyState({
-  title = 'Nada por aqui ainda',
-  description = 'Ainda não há dados para mostrar. Avisaremos quando houver novidade.',
+export async function EmptyState({
+  title,
+  description,
   children,
 }: {
   title?: string;
   description?: string;
   children?: React.ReactNode;
 }) {
+  const t = (await getT()).shell.empty;
   return (
     <div className="flex items-center justify-center p-4">
       <Empty className="py-12">
@@ -34,8 +36,8 @@ export function EmptyState({
           <EmptyMedia>
             <StackedCardsIllustration />
           </EmptyMedia>
-          <EmptyTitle>{title}</EmptyTitle>
-          <EmptyDescription>{description}</EmptyDescription>
+          <EmptyTitle>{title ?? t.title}</EmptyTitle>
+          <EmptyDescription>{description ?? t.description}</EmptyDescription>
         </EmptyHeader>
         {children}
       </Empty>

@@ -14,37 +14,44 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import type { Dictionary } from './i18n/dictionary';
+
+/** Rótulos ficam nos dicionários (`t.nav.sports[slug]`, `t.nav.countries[code]`, `t.nav.multisport`). */
 export interface NavItem {
   href: string;
-  label: string;
   icon: LucideIcon;
 }
 
+type SportSlug = keyof Dictionary['nav']['sports'] & MirrorSport;
+
 export interface SportNav extends NavItem {
-  slug: MirrorSport;
+  slug: SportSlug;
 }
 
 /** Os 12 esportes do espelho; a ordem prioriza o que tem cobertura hoje. Ícones provisórios até o Figma. */
-export const SPORTS: SportNav[] = [
-  { slug: 'football', label: 'Futebol', icon: Goal },
-  { slug: 'basketball', label: 'Basquete', icon: CircleDot },
-  { slug: 'nba', label: 'NBA', icon: CircleDot },
-  { slug: 'volleyball', label: 'Vôlei', icon: Volleyball },
-  { slug: 'formula-1', label: 'Fórmula 1', icon: CarFront },
-  { slug: 'mma', label: 'MMA', icon: HandFist },
-  { slug: 'american-football', label: 'Futebol americano', icon: Shield },
-  { slug: 'baseball', label: 'Beisebol', icon: Activity },
-  { slug: 'hockey', label: 'Hóquei', icon: Dumbbell },
-  { slug: 'handball', label: 'Handebol', icon: Hand },
-  { slug: 'rugby', label: 'Rúgbi', icon: Trophy },
-  { slug: 'afl', label: 'Futebol australiano', icon: Trophy },
-].map((s) => ({ ...s, href: `/esportes/${s.slug}` })) as SportNav[];
+export const SPORTS: SportNav[] = (
+  [
+    ['football', Goal],
+    ['basketball', CircleDot],
+    ['nba', CircleDot],
+    ['volleyball', Volleyball],
+    ['formula-1', CarFront],
+    ['mma', HandFist],
+    ['american-football', Shield],
+    ['baseball', Activity],
+    ['hockey', Dumbbell],
+    ['handball', Hand],
+    ['rugby', Trophy],
+    ['afl', Trophy],
+  ] as const
+).map(([slug, icon]) => ({ slug, icon, href: `/esportes/${slug}` }));
 
-export const MULTISPORT_NAV: NavItem = { href: '/multiesporte', label: 'Olimpíadas e Pan', icon: Medal };
+export const MULTISPORT_NAV: NavItem = { href: '/multiesporte', icon: Medal };
+
+export type CountryCode = keyof Dictionary['nav']['countries'];
 
 export interface CountryNav {
-  code: string;
-  label: string;
+  code: CountryCode;
   group: 'CONMEBOL' | 'CONCACAF' | 'UEFA';
   href: string;
 }
@@ -52,25 +59,25 @@ export interface CountryNav {
 /** Países com navegação própria (decisão de UI/UX); a lista definitiva virá de `/v1/navigation`. */
 export const COUNTRIES: CountryNav[] = (
   [
-    ['BR', 'Brasil', 'CONMEBOL'],
-    ['AR', 'Argentina', 'CONMEBOL'],
-    ['UY', 'Uruguai', 'CONMEBOL'],
-    ['CL', 'Chile', 'CONMEBOL'],
-    ['CO', 'Colômbia', 'CONMEBOL'],
-    ['PY', 'Paraguai', 'CONMEBOL'],
-    ['PE', 'Peru', 'CONMEBOL'],
-    ['EC', 'Equador', 'CONMEBOL'],
-    ['BO', 'Bolívia', 'CONMEBOL'],
-    ['VE', 'Venezuela', 'CONMEBOL'],
-    ['MX', 'México', 'CONCACAF'],
-    ['GB-ENG', 'Inglaterra', 'UEFA'],
-    ['ES', 'Espanha', 'UEFA'],
-    ['IT', 'Itália', 'UEFA'],
-    ['DE', 'Alemanha', 'UEFA'],
-    ['FR', 'França', 'UEFA'],
-    ['PT', 'Portugal', 'UEFA'],
+    ['BR', 'CONMEBOL'],
+    ['AR', 'CONMEBOL'],
+    ['UY', 'CONMEBOL'],
+    ['CL', 'CONMEBOL'],
+    ['CO', 'CONMEBOL'],
+    ['PY', 'CONMEBOL'],
+    ['PE', 'CONMEBOL'],
+    ['EC', 'CONMEBOL'],
+    ['BO', 'CONMEBOL'],
+    ['VE', 'CONMEBOL'],
+    ['MX', 'CONCACAF'],
+    ['GB-ENG', 'UEFA'],
+    ['ES', 'UEFA'],
+    ['IT', 'UEFA'],
+    ['DE', 'UEFA'],
+    ['FR', 'UEFA'],
+    ['PT', 'UEFA'],
   ] as const
-).map(([code, label, group]) => ({ code, label, group, href: `/paises/${code.toLowerCase()}` }));
+).map(([code, group]) => ({ code, group, href: `/paises/${code.toLowerCase()}` }));
 
 export const sportBySlug = (slug: string) => SPORTS.find((s) => s.slug === slug);
 export const countryByCode = (code: string) =>

@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  API_KEY_PLACEHOLDER,
+  apiKeyPlaceholder,
   operationAnchor,
   PUBLIC_API_URL,
   requestPath,
@@ -28,6 +28,8 @@ import {
   requestUrl,
   type ApiRequest,
 } from '@/lib/galaxie/request';
+import { useI18n } from '@/lib/i18n/client';
+import { fill, plural } from '@/lib/i18n/text';
 
 import { CodeTabs } from './code-tabs';
 
@@ -36,15 +38,18 @@ const SAMPLE_ITEMS = 2;
 const SAMPLE_DEPTH = 6;
 const SAMPLE_STRING = 120;
 
-/** Resposta enxuta: listas cortadas (com a contagem do que ficou de fora) e textos longos encurtados. */
-function trimSample(value: unknown, depth = 0): unknown {
+/**
+ * Resposta enxuta: listas cortadas (com a contagem do que ficou de fora, no texto de `more`) e textos
+ * longos encurtados.
+ */
+function trimSample(value: unknown, more: (count: number) => string, depth = 0): unknown {
   if (Array.isArray(value)) {
-    const head = value.slice(0, SAMPLE_ITEMS).map((v) => trimSample(v, depth + 1));
-    return value.length > SAMPLE_ITEMS ? [...head, `… +${value.length - SAMPLE_ITEMS} itens`] : head;
+    const head = value.slice(0, SAMPLE_ITEMS).map((v) => trimSample(v, more, depth + 1));
+    return value.length > SAMPLE_ITEMS ? [...head, more(value.length - SAMPLE_ITEMS)] : head;
   }
   if (value && typeof value === 'object') {
     if (depth >= SAMPLE_DEPTH) return '{…}';
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, trimSample(v, depth + 1)]));
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, trimSample(v, more, depth + 1)]));
   }
   if (typeof value === 'string' && value.length > SAMPLE_STRING) return `${value.slice(0, SAMPLE_STRING - 1)}…`;
   return value;
@@ -85,6 +90,7 @@ function Row({ name, value, hint }: { name: string; value: string; hint?: string
 }
 
 function ResponseSample({ req, enabled }: { req: ApiRequest; enabled: boolean }) {
+  const { locale, t } = useI18n();
   const { data, isPending, isError } = useQuery({
     queryKey: ['ver-codigo', requestPath(req), requestSearch(req)],
     queryFn: () => fetchLive(req),
@@ -92,7 +98,7 @@ function ResponseSample({ req, enabled }: { req: ApiRequest; enabled: boolean })
   });
 
   if (isError) {
-    return <p className="text-muted-foreground text-xs">Não foi possível ler a resposta agora.</p>;
+    return <p className="text-muted-foreground text-xs">{t.code.sheet.responseError}</p>;
   }
   if (isPending || !data) return <Skeleton className="h-48" />;
 
@@ -110,10 +116,14 @@ function ResponseSample({ req, enabled }: { req: ApiRequest; enabled: boolean })
           {
             label: 'JSON',
             language: 'json',
-            code: JSON.stringify(trimSample(data.body), null, 2),
+            code: JSON.stringify(
+              trimSample(data.body, (count) => plural(locale, count, t.code.sheet.moreItems)),
+              null,
+              2,
+            ),
           },
         ]}
-        title="Resposta resumida (dados reais desta página)"
+        title={t.code.sheet.responseTitle}
         maxLines={18}
       />
     </div>
@@ -126,6 +136,7 @@ function ResponseSample({ req, enabled }: { req: ApiRequest; enabled: boolean })
  * trecho da resposta real.
  */
 export function ApiCodeButton({ request, labeled = false }: { request: ApiRequest; labeled?: boolean }) {
+  const { locale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const path = requestPath(request);
   const query = requestQuery(request);
@@ -136,25 +147,25 @@ export function ApiCodeButton({ request, labeled = false }: { request: ApiReques
       <SheetTrigger
         render={
           labeled ? (
-            <Button variant="outline" size="xs" title="Ver a requisição da API que gera esta página" />
+            <Button variant="outline" size="xs" title={t.code.button.title} />
           ) : (
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label="Ver código"
-              title="Ver código"
+              aria-label={t.code.button.label}
+              title={t.code.button.label}
               className="text-muted-foreground"
             />
           )
         }
       >
         <Code aria-hidden />
-        {labeled ? <span className="hidden sm:inline">Ver código</span> : null}
+        {labeled ? <span className="hidden sm:inline">{t.code.button.label}</span> : null}
       </SheetTrigger>
       <SheetContent className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-2xl">
         <SheetHeader className="border-b">
           <SheetTitle className="flex items-center gap-2">
-            <Code className="text-primary size-4" aria-hidden /> Como obter estes dados
+            <Code className="text-primary size-4" aria-hidden /> {t.code.sheet.title}
           </SheetTitle>
           <SheetDescription>{request.description}</SheetDescription>
         </SheetHeader>
@@ -168,28 +179,28 @@ export function ApiCodeButton({ request, labeled = false }: { request: ApiReques
               <code className="min-w-0 flex-1 truncate font-mono text-xs" title={url}>
                 {path}
               </code>
-              <CopyButton value={url} label="Copiar URL" />
+              <CopyButton value={url} label={t.code.sheet.copyUrl} />
             </div>
             <dl className="divide-y">
-              <Row name="URL base" value={PUBLIC_API_URL} />
+              <Row name={t.code.sheet.baseUrl} value={PUBLIC_API_URL} />
               {Object.entries(request.params ?? {}).map(([k, v]) => (
-                <Row key={k} name={`{${k}}`} value={String(v)} hint="caminho" />
+                <Row key={k} name={`{${k}}`} value={String(v)} hint={t.code.sheet.pathHint} />
               ))}
               {query.map(([k, v]) => (
-                <Row key={k} name={k} value={v} hint="query" />
+                <Row key={k} name={k} value={v} hint={t.code.sheet.queryHint} />
               ))}
-              <Row name="x-galaxie-key" value={API_KEY_PLACEHOLDER} hint="header (sua chave)" />
+              <Row name="x-galaxie-key" value={apiKeyPlaceholder(locale)} hint={t.code.sheet.keyHint} />
             </dl>
             {request.note ? <p className="text-muted-foreground text-xs">{request.note}</p> : null}
           </section>
 
           <section className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">Exemplo</h3>
-            <CodeTabs examples={requestSnippets(request)} />
+            <h3 className="text-sm font-medium">{t.code.sheet.example}</h3>
+            <CodeTabs examples={requestSnippets(request, PUBLIC_API_URL, locale)} />
           </section>
 
           <section className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">Resposta</h3>
+            <h3 className="text-sm font-medium">{t.code.sheet.response}</h3>
             <ResponseSample req={request} enabled={open} />
           </section>
 
@@ -198,7 +209,7 @@ export function ApiCodeButton({ request, labeled = false }: { request: ApiReques
             onClick={() => setOpen(false)}
             className="text-primary flex items-center gap-1.5 text-xs hover:underline"
           >
-            <BookOpen className="size-3.5" aria-hidden /> Ver {request.route} na referência da API
+            <BookOpen className="size-3.5" aria-hidden /> {fill(t.code.sheet.seeInReference, { route: request.route })}
           </Link>
         </div>
       </SheetContent>
