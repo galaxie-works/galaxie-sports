@@ -1,5 +1,5 @@
 import { sql, type SQL } from 'drizzle-orm';
-import type { SearchMatch } from '@galaxie/contracts';
+import { foldSearchText, SEARCH_ACCENTED, SEARCH_PLAIN, type SearchMatch } from '@galaxie/contracts';
 
 /**
  * Casamento da busca global (docs/05 §3.6): sem caixa nem acento, em três níveis — nome inteiro,
@@ -7,19 +7,11 @@ import type { SearchMatch } from '@galaxie/contracts';
  * dobra (`foldSql`) e o JS decide o nível e qual apelido casou (`bestMatch`).
  */
 
-// Pares acentuado → sem acento, nas duas caixas: a dobra não depende da collation do banco.
-const ACCENTED = 'áàâãäåāéèêëēíìîïīóòôõöøōúùûüūçñýÁÀÂÃÄÅĀÉÈÊËĒÍÌÎÏĪÓÒÔÕÖØŌÚÙÛÜŪÇÑÝ';
-const PLAIN = 'aaaaaaaeeeeeiiiiiooooooouuuuucnyAAAAAAAEEEEEIIIIIOOOOOOOUUUUUCNY';
+const ACCENTED = SEARCH_ACCENTED;
+const PLAIN = SEARCH_PLAIN;
 
 /** Texto sem acento e em minúsculas (mesma regra do `foldSql`). */
-export function fold(value: string): string {
-  let out = '';
-  for (const ch of value) {
-    const i = ACCENTED.indexOf(ch);
-    out += i >= 0 ? PLAIN[i] : ch;
-  }
-  return out.toLowerCase().replace(/\s+/g, ' ').trim();
-}
+export const fold = foldSearchText;
 
 // Classe de regex de cada letra com as variantes acentuadas, nas duas caixas: `a` → `[aAáàâ…]`.
 const CLASSES = new Map<string, string>();

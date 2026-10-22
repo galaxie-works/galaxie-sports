@@ -6,6 +6,23 @@ import { EVENT_STATUSES } from './events.js';
 
 // ─── busca global (docs/05 §3.6) ─────────────────────────────────────────────────────────────────
 
+// Pares acentuado → sem acento, nas duas caixas (a API usa os mesmos no `translate` do Postgres).
+export const SEARCH_ACCENTED = 'áàâãäåāéèêëēíìîïīóòôõöøōúùûüūçñýÁÀÂÃÄÅĀÉÈÊËĒÍÌÎÏĪÓÒÔÕÖØŌÚÙÛÜŪÇÑÝ';
+export const SEARCH_PLAIN = 'aaaaaaaeeeeeiiiiiooooooouuuuucnyAAAAAAAEEEEEIIIIIOOOOOOOUUUUUCNY';
+
+/**
+ * Texto como a busca compara: sem acento, em minúsculas e com os espaços normalizados ("  São
+ * Paulo" → "sao paulo"). Clientes podem usar a mesma regra para filtrar listas locais.
+ */
+export function foldSearchText(value: string): string {
+  let out = '';
+  for (const ch of value) {
+    const i = SEARCH_ACCENTED.indexOf(ch);
+    out += i >= 0 ? SEARCH_PLAIN[i] : ch;
+  }
+  return out.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 /** Tipos de resultado da busca, na ordem de exibição sugerida quando o placar empata. */
 export const SEARCH_TYPES = ['team', 'competition', 'event', 'person', 'venue', 'country'] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
@@ -40,16 +57,11 @@ const typeList = z
   });
 
 export const SearchQuery = LocaleQuery.extend({
-  q: z
-    .string()
-    .trim()
-    .min(2)
-    .max(80)
-    .meta({
-      description:
-        'Termo (≥ 2 caracteres), sem diferença de caixa nem de acento: nome, apelido, sigla ou nome anterior.',
-      example: 'verdao',
-    }),
+  q: z.string().trim().min(2).max(80).meta({
+    description:
+      'Termo (≥ 2 caracteres), sem diferença de caixa nem de acento: nome, apelido, sigla ou nome anterior.',
+    example: 'verdao',
+  }),
   types: typeList.optional(),
   sport: z.string().max(40).optional().meta({ description: 'Só times, competições e jogos deste esporte.' }),
   limit: z.coerce
@@ -80,7 +92,8 @@ export const SearchResult = z
     country: z.string().nullable().meta({ description: 'Código do país da entidade.', example: 'BR' }),
     image: AssetUrl.meta({ description: 'Escudo, logo, foto, imagem do estádio ou bandeira.' }),
     detail: z.string().nullable().meta({
-      description: 'Contexto curto: país do time, time atual da pessoa, cidade do estádio, competição do jogo…',
+      description:
+        'Contexto curto: país do time, time atual da pessoa, cidade do estádio, competição do jogo…',
       example: 'Brasil',
     }),
     event: z
@@ -92,7 +105,9 @@ export const SearchResult = z
         participants: z.array(ParticipantRef),
       })
       .nullable()
-      .meta({ description: 'Só nos resultados `event`: jogos ao vivo e dos próximos 14 dias dos times encontrados.' }),
+      .meta({
+        description: 'Só nos resultados `event`: jogos ao vivo e dos próximos 14 dias dos times encontrados.',
+      }),
   })
   .meta({ id: 'SearchResult' });
 export type SearchResult = z.infer<typeof SearchResult>;

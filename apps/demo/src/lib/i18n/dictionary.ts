@@ -8,6 +8,7 @@ import auth from './messages/auth';
 import code from './messages/code';
 import common from './messages/common';
 import docs from './messages/docs';
+import docsUi from './messages/docs-ui';
 import email from './messages/email';
 import media from './messages/media';
 import event from './messages/event';
@@ -25,6 +26,7 @@ export const NAMESPACES = {
   code,
   common,
   docs,
+  docsUi,
   email,
   event,
   live,
@@ -59,6 +61,7 @@ export const CLIENT_NAMESPACES = [
   'auth',
   'code',
   'common',
+  'docsUi',
   'live',
   'media',
   'nav',
