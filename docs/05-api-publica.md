@@ -288,6 +288,31 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 - **`/timeline`** (minuto a minuto, §3.2.1): `core.event_incident` na ordem do fornecedor (`sequence`), com `team` (lado e logo), `player`/`assist` (`id` do `core.person`, ou `null` com o nome do fornecedor; foto, camisa e posição da escalação) e `comments`; mais `kind`, `clock`, `occurred_at`, peso de momento-chave, placar parcial, marcos e disputa de pênaltis. Os campos antigos continuam iguais (mudança aditiva).
 - **`venue.timezone`** (lista e detalhe): fuso IANA do local, quando conhecido — país do local (ou, sem ele, do mandante e da competição) e, nos países com vários fusos (Brasil, México, EUA…), a cidade. Sem certeza → `null`. É só conveniência de exibição: nenhum instante da API depende dele.
 - **`/lineups`** e **`/stats`**: do detalhe da partida (`core.football_fixture.detail`); IDs do fornecedor resolvidos para os nossos via `provider_map` (times e pessoas, com foto). Sem detalhe sincronizado: `available: false` e listas vazias. Outros esportes: `available: false` por ora.
+- **Estatísticas de time no `/stats`** (`teams[].statistics[]`, mudança aditiva): cada item mantém `type` e `value` crus do fornecedor e ganha `code` (código estável), `label` (rótulo no locale da resposta: pt-BR, espanhol e inglês de fallback), `numeric` (`"54%"` → 54, `"0.64"` → 0.64; `null` sem número) e `source`. A normalização fica em `@galaxie/providers` (`normalizeTeamStatistics`) e é a mesma que o agente de resumo pós-jogo lê. Tipos do fornecedor ainda não mapeados vêm com `code: null` e `label` = `type`. Sem "Passes %" mas com passes certos e totais, a API acrescenta `pass_accuracy_pct` com `source: "derived"` (certos ÷ totais, arredondado; `type` repete o código). Códigos:
+
+  | `code` | `type` da api-sports | Rótulo (pt-BR) |
+  |---|---|---|
+  | `possession_pct` | Ball Possession | Posse de bola |
+  | `shots_total` | Total Shots | Chutes |
+  | `shots_on_goal` | Shots on Goal | Chutes no gol |
+  | `shots_off_goal` | Shots off Goal | Chutes para fora |
+  | `shots_blocked` | Blocked Shots | Chutes bloqueados |
+  | `shots_inside_box` | Shots insidebox | Chutes dentro da área |
+  | `shots_outside_box` | Shots outsidebox | Chutes de fora da área |
+  | `xg` | expected_goals | Gols esperados (xG) |
+  | `goals_prevented` | goals_prevented | Gols evitados |
+  | `passes_total` | Total passes | Passes |
+  | `passes_accurate` | Passes accurate | Passes certos |
+  | `pass_accuracy_pct` | Passes % (ou derivada) | Precisão de passe |
+  | `corners` | Corner Kicks | Escanteios |
+  | `free_kicks` | Free Kicks | Tiros livres |
+  | `fouls` | Fouls | Faltas |
+  | `offsides` | Offsides | Impedimentos |
+  | `yellow_cards` | Yellow Cards | Cartões amarelos |
+  | `red_cards` | Red Cards | Cartões vermelhos |
+  | `saves` | Goalkeeper Saves | Defesas |
+
+  Exemplo: `{ "type": "Ball Possession", "value": "54%", "code": "possession_pct", "label": "Posse de bola", "numeric": 54, "source": "provider" }`.
 - **`/h2h?limit=`** (1–50, padrão 10): confrontos **encerrados** entre os dois participantes no `core` (qualquer competição, exceto o próprio evento), do mais recente ao mais antigo; `summary` (`played`, `draws`, `wins`/`goals` por time) considera todo o histórico. Nunca chama o fornecedor.
 - **`/{id}.ics`**: `text/calendar` (RFC 5545) com um `VEVENT`: `UID <id>@galaxie.sports`, `DTSTART`/`DTEND` em UTC (`starts_at` e `ends_at_expected`), `SUMMARY` "Mandante × Visitante · Competição", `LOCATION`, `STATUS` (`CANCELLED` para cancelado/abandonado, `TENTATIVE` para adiado), linhas CRLF dobradas em 75 octetos. O título segue o locale; os horários não dependem de `tz`.
 - **`/context?locale=&kind=scenario|recap`** (módulo `live_intelligence`; `apps/api/src/routes/v1/event-context.ts`): cenário pré-jogo e resumo pós-jogo dos agentes de IA (docs/07 §2.3), lidos de `enrich.event_context` por `readEventContext` (`@galaxie/db`, a mesma leitura dos agentes): a versão vigente por tipo no locale pedido, ignorando as rejeitadas pela revisão editorial — sem fallback entre locales (a copy é por mercado; locale sem texto → `data: []`). Cada item traz `text`, `sentences`, `origin` (`llm` aprovado pelos guardrails ou `fallback` determinístico), `model`, `confidence`, `review_status` (`auto`/`reviewed`), `generated_at` (no `tz`), `fits` (TV/mobile/web) e `sources` (core, regulamento com URL). Sem `kind`, os dois tipos. Evento inexistente → 404; esporte fora do plano → 403. TTL 1 h, purgado por `event.context_published` (tags `event_context:<id>` e `event:<id>`).
@@ -331,7 +356,7 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 |---|---|
 | `GET /v1/teams?sport=&country=&competition=&q=` | Busca de times/seleções |
 | `GET /v1/teams/{id}` | Detalhe do time (estádio, país, cores e gradiente sugerido, IDs externos) |
-| `GET /v1/teams/{id}/overview` | Posição no torneio, forma recente (últimos 5), últimos resultados, próximo jogo + onde assistir |
+| `GET /v1/teams/{id}/overview?season=` | Posição no torneio, forma recente (últimos 5), últimos resultados, próximo jogo + onde assistir; com `season`, o time naquele ano |
 | `GET /v1/teams/{id}/events?from=&to=` | Jogos do time |
 | `GET /v1/teams/{id}/squad?season=` | Elenco e comissão técnica |
 | `GET /v1/teams/{id}/semantic?locale=` | Cartão de identidade: apelidos, mascote, torcida, gritos, estádio, rivais, fatos, dicas de copy do mercado |
@@ -366,6 +391,10 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 - Estádio em evento, time e `/v1/venues/{id}`: o nome curado da base semântica vence o do fornecedor (ex.: "Nubank Parque" no lugar de "Allianz Parque", que a api-sports ainda manda em `/teams`); jogos anteriores à troca também mostram o nome atual ([04 — nomes de estádios](04-modelo-de-dados.md#nomes-de-estádios-e-times-curadoria--fornecedor)).
 - **`colors`** (também em `overview.team`): cores extraídas do escudo espelhado, sem chamada externa ([03 §7.2](03-ingestao-e-economia-de-chamadas.md#72-cores-dos-times-paleta-do-escudo)) — `primary` (cor predominante, `#rrggbb`), `secondary` (segunda cor com matiz distinto, ou `null`), `monochrome` (escudo preto/branco: `primary` vira o cinza neutro `#3a3a3a`) e `gradient`, o **gradiente sugerido** pronto para CSS: `linear-gradient(9deg, #000 0%, <primary> 100%)`. `null` enquanto o escudo não foi espelhado ou não é um PNG decodificável. Exemplo (Palmeiras): `{ "primary": "#006937", "secondary": null, "monochrome": false, "gradient": "linear-gradient(9deg, #000 0%, #006937 100%)" }`.
 - `GET /v1/teams/{id}/overview`: em uma chamada, `team`, `standings` (por competição, a temporada atual ou a mais recente com tabela do time), `competitions` (campanha em cada competição, abaixo), `form` (últimos 5 encerrados, do mais recente ao mais antigo; placar do ponto de vista do time; empate decidido nos pênaltis usa o `winner` do fornecedor), `last_events` (5), `live_event` e `next_event` (próximo `scheduled`/`starting` a partir de 3 h atrás), todos no formato de evento de §3.2 (com stakes). Onde assistir do próximo jogo entra com a issue de onde assistir.
+- **Temporada (`?season=`, overview)**: aditivo — sem o parâmetro, nada muda. Com o ano (`season.year` do banco), o overview mostra o time **naquele ano**: `standings` e `competitions` só das temporadas daquele ano (a campanha de cada competição, sem o corte de 12 meses: campeão, vice, eliminado ou posição final), `form` e `last_events` com os últimos encerrados daquele ano; `live_event` e `next_event` só vêm na temporada corrente (nas demais, `null`). Ano sem jogos do time devolve 200 com as listas vazias; ano fora de 1900–2100 ou não numérico, 400. A resposta sempre traz:
+  - `season`: o ano pedido (`null` sem o parâmetro);
+  - `seasons`: os anos com jogos do time, do mais recente ao mais antigo — `{ year, labels, events, has_incidents, current }`, para o seletor oferecer só anos que existem. `labels` são os rótulos do fornecedor das temporadas daquele ano (`["2020", "2020/21"]`), `has_incidents` diz se algum jogo tem lances, `current` marca a temporada corrente (a mais recente marcada como atual pelo fornecedor; sem nenhuma, a mais recente).
+  - **Anos que cruzam o calendário**: o ano é sempre o `season.year` do banco, o **início** da temporada. Ligas europeias 2025/26 entram em `season=2025`; competições de ano único (Brasileirão 2025) em `season=2025`; temporadas deslocadas (Brasileirão 2020/21, jogado até fevereiro de 2021) ficam no ano de início, junto com o Paulista 2020. Os jogos seguem a temporada a que pertencem, não a data: `season=2020` inclui a final do Brasileirão 2020/21 em 2021.
 - **`competitions`** (overview): a **campanha** do time na temporada atual (ou, sem ela, na mais recente) de cada competição — inclusive copas sem tabela; temporadas que não são a atual só entram se o time jogou nelas nos últimos 12 meses. Ordem: em disputa (`campaign.ongoing`) primeiro, depois a atividade mais recente. Cada item: `competition`, `season`, `group` (tabela do time, quando a fase tem tabela) e `campaign`:
   - `status`: `champion` (venceu a final, ou terminou em 1º uma liga de pontos corridos encerrada cujo regulamento define campeão), `runner_up`, `third_place` (venceu a disputa de 3º), `in_progress` (ainda na disputa), `eliminated`, `league` (liga de pontos corridos em andamento) e `finished_league` (liga encerrada, posição final). Perder a disputa de 3º = `eliminated` com `stage_kind: third_place` e `rank: 4`.
   - `stage_kind`: em `in_progress`, a fase atual — quem venceu a semifinal e ainda não tem a final marcada já aparece `final` ("Na final"); nos demais, a fase em que a campanha se decidiu.

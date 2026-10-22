@@ -17,6 +17,9 @@ export default defineMessages(
     teamSemantic:
       'Cartão de identidade do time: apelidos, mascote, torcida, gritos, estádio, rivais e fatos.',
     squad: 'Elenco atual e comissão técnica (envie ?season=AAAA para outra temporada).',
+    teamOverviewSeason:
+      'O time na temporada {season}: campanha em cada competição, tabela, forma e últimos jogos daquele ano (sem próximo jogo). Os anos com dados vêm em `seasons`.',
+    squadSeason: 'Elenco e comissão técnica registrados para a temporada {season}.',
     event:
       'Evento completo: participantes, placar, estado, importância (com detalhamento), relevância no mercado, clássico e o que está em jogo.',
     related:
@@ -26,6 +29,7 @@ export default defineMessages(
     whereToWatch: 'Onde assistir o evento num país: só opções confirmadas, com meio, confiança e fontes.',
     whereToWatchNote: 'Exige o módulo where_to_watch e o país nos mercados do contrato.',
     lineups: 'Escalações, formação e técnico de cada time.',
+    stats: 'Estatísticas de cada time com código estável, rótulo no idioma e valor numérico.',
     person: 'Jogador, técnico ou piloto: dados pessoais, foto e times (elencos).',
     venue: 'Estádio, circuito ou arena: cidade, capacidade, piso e foto.',
     derby: 'Clássico com história e retrospecto calculado dos jogos na base.',
@@ -52,6 +56,9 @@ export default defineMessages(
       teamSemantic:
         "The team's identity card: nicknames, mascot, fan base, chants, stadium, rivals and facts.",
       squad: 'Current squad and coaching staff (send ?season=YYYY for another season).',
+      teamOverviewSeason:
+        'The team in the {season} season: campaign in each competition, table, form and last matches of that year (no next match). The years with data come in `seasons`.',
+      squadSeason: 'Squad and coaching staff on record for the {season} season.',
       event:
         'Full event: participants, score, status, importance (with breakdown), market relevance, derby and what is at stake.',
       related:
@@ -62,6 +69,7 @@ export default defineMessages(
         'Where to watch the event in a country: confirmed options only, with medium, confidence and sources.',
       whereToWatchNote: 'Requires the where_to_watch module and the country among the contract markets.',
       lineups: "Each team's lineup, formation and coach.",
+      stats: "Each team's stats with a stable code, a localized label and a numeric value.",
       person: 'Player, coach or driver: personal data, photo and teams (squads).',
       venue: 'Stadium, circuit or arena: city, capacity, surface and photo.',
       derby: 'Derby with its history and a record computed from the matches in the database.',
@@ -87,6 +95,9 @@ export default defineMessages(
       teamSemantic:
         'La tarjeta de identidad del equipo: apodos, mascota, hinchada, cantitos, estadio, rivales y datos.',
       squad: 'Plantel actual y cuerpo técnico (mandá ?season=AAAA para otra temporada).',
+      teamOverviewSeason:
+        'El equipo en la temporada {season}: campaña en cada competencia, tabla, racha y últimos partidos de ese año (sin próximo partido). Los años con datos vienen en `seasons`.',
+      squadSeason: 'Plantel y cuerpo técnico registrados para la temporada {season}.',
       event:
         'Evento completo: participantes, resultado, estado, importancia (con detalle), relevancia en el mercado, clásico y lo que está en juego.',
       related:
@@ -97,6 +108,7 @@ export default defineMessages(
         'Dónde ver el evento en un país: solo opciones confirmadas, con medio, confianza y fuentes.',
       whereToWatchNote: 'Requiere el módulo where_to_watch y el país dentro de los mercados del contrato.',
       lineups: 'Formaciones, esquema y técnico de cada equipo.',
+      stats: 'Estadísticas de cada equipo con código estable, etiqueta en el idioma y valor numérico.',
       person: 'Jugador, técnico o piloto: datos personales, foto y equipos (planteles).',
       venue: 'Estadio, circuito o arena: ciudad, capacidad, superficie y foto.',
       derby: 'Clásico con su historia y el historial calculado de los partidos en la base.',

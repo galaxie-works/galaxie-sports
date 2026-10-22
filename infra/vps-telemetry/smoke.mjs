@@ -64,6 +64,24 @@ await check('Time: cores do escudo, estádio curado e campanha', async () => {
   return `cor ${body.team.colors.primary} · ${body.competitions.length} competições`;
 });
 
+await check('Time por temporada (overview ?season=2025)', async () => {
+  const { status, body } = await api(`/v1/teams/${PALMEIRAS}/overview?season=2025`);
+  if (status !== 200) return fail(`status ${status}`);
+  if (body?.season !== 2025 || !Array.isArray(body?.seasons))
+    return fail('sem season/seasons — API anterior ao seletor?');
+  if (!body.seasons.some((s) => s.year === 2025))
+    return fail('2025 fora de seasons (base sem o histórico do time)');
+  const comps = body.competitions ?? [];
+  if (!comps.length) return fail('sem campanha nas competições de 2025');
+  if (comps.some((c) => c.season?.year !== 2025)) return fail('campanha fora da temporada pedida');
+  if (!body.last_events?.length) return fail('sem jogos de 2025');
+  if (body.next_event) return fail('próximo jogo numa temporada passada');
+  // 2025 já acabou: campanha ainda "em disputa" = jogos pendentes sem atualizar na base
+  const open = comps.filter((c) => c.campaign?.ongoing).map((c) => c.competition?.slug);
+  if (open.length) return warn(`campanha de 2025 ainda em disputa: ${open.join(', ')}`);
+  return `${body.seasons.length} temporadas · ${comps.length} competições em 2025 · ${body.last_events.length} jogos`;
+});
+
 await check('Stakes e tags do torcedor (config/rules na imagem da API)', async () => {
   const { status, body } = await api(`/v1/teams/${PALMEIRAS}/overview`);
   if (status !== 200) return fail(`status ${status}`);
@@ -83,6 +101,20 @@ await check('Minuto a minuto (lances do jogo de referência)', async () => {
   if (status !== 200) return fail(`status ${status}`);
   const n = (body?.incidents ?? body?.items ?? []).length;
   return n > 0 ? `${n} lances` : warn('sem lances — base da VPS defasada (sync pendente?)');
+});
+
+await check('Estatísticas do jogo (códigos estáveis e rótulos)', async () => {
+  const { status, body } = await api(`/v1/events/${PAL_FLU_SEMI}/stats`);
+  if (status !== 200) return fail(`status ${status}`);
+  const teams = body?.teams ?? [];
+  if (!body?.available || teams.length !== 2)
+    return warn('sem estatísticas — detalhe da partida não sincronizado?');
+  const possession = teams.map((t) => t.statistics?.find((s) => s.code === 'possession_pct'));
+  // estatística sem `code`/`label`: a imagem da API é anterior à normalização
+  if (possession.some((s) => s?.numeric == null || !s.label))
+    return fail('posse de bola sem code/numeric/label');
+  const coded = teams[0].statistics.filter((s) => s.code).length;
+  return `posse ${possession.map((s) => s.numeric).join('–')} · ${coded} estatísticas com código`;
 });
 
 await check('Resumo pós-jogo (IA)', async () => {

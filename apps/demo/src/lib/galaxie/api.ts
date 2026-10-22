@@ -184,18 +184,24 @@ export async function getCompetitionEvents(competitionId: string, from: string, 
 
 // ─── time ────────────────────────────────────────────────────────────────────────────────────────
 
-export const teamOverviewRequest = (id: string, locale: Locale): ApiRequest => ({
+/** Temporada pedida (`season.year`); sem ela, a atual (ou a mais recente) de cada competição. */
+const seasonQuery = (season?: number) => (season === undefined ? {} : { season });
+
+export const teamOverviewRequest = (id: string, locale: Locale, season?: number): ApiRequest => ({
   method: 'GET',
   route: '/v1/teams/{id}/overview',
   params: { id },
-  query: localeQuery(locale),
-  description: text(locale).teamOverview,
+  query: { ...seasonQuery(season), ...localeQuery(locale) },
+  description:
+    season === undefined
+      ? text(locale).teamOverview
+      : fill(text(locale).teamOverviewSeason, { season: String(season) }),
 });
 
-export async function getTeamOverview(id: string, locale: Locale) {
+export async function getTeamOverview(id: string, locale: Locale, season?: number) {
   'use cache';
   cacheLife('hours');
-  return orNotFound(api.teamOverview(id, localeQuery(locale)));
+  return orNotFound(api.teamOverview(id, { ...seasonQuery(season), ...localeQuery(locale) }));
 }
 
 export const teamSemanticRequest = (id: string, locale: Locale): ApiRequest => ({
@@ -213,18 +219,19 @@ export async function getTeamSemantic(id: string, locale: Locale) {
   return orNull(api.teamSemantic(id, localeQuery(locale)));
 }
 
-export const squadRequest = (id: string, locale: Locale): ApiRequest => ({
+export const squadRequest = (id: string, locale: Locale, season?: number): ApiRequest => ({
   method: 'GET',
   route: '/v1/teams/{id}/squad',
   params: { id },
-  query: localeQuery(locale),
-  description: text(locale).squad,
+  query: { ...seasonQuery(season), ...localeQuery(locale) },
+  description:
+    season === undefined ? text(locale).squad : fill(text(locale).squadSeason, { season: String(season) }),
 });
 
-export async function getSquad(id: string, locale: Locale) {
+export async function getSquad(id: string, locale: Locale, season?: number) {
   'use cache';
   cacheLife('hours');
-  return orNull(api.squad(id, localeQuery(locale)));
+  return orNull(api.squad(id, { ...seasonQuery(season), ...localeQuery(locale) }));
 }
 
 // ─── evento ──────────────────────────────────────────────────────────────────────────────────────
@@ -343,6 +350,21 @@ export async function getLineups(id: string, locale: Locale) {
   'use cache';
   cacheLife('minutes');
   return orNull(api.eventLineups(id, localeQuery(locale)));
+}
+
+export const statsRequest = (id: string, locale: Locale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/events/{id}/stats',
+  params: { id },
+  query: localeQuery(locale),
+  description: text(locale).stats,
+});
+
+/** Estatísticas do jogo (códigos estáveis e rótulo no idioma pedido à API). */
+export async function getStats(id: string, locale: Locale) {
+  'use cache';
+  cacheLife('minutes');
+  return orNull(api.eventStats(id, localeQuery(locale)));
 }
 
 // ─── pessoas e locais ────────────────────────────────────────────────────────────────────────────

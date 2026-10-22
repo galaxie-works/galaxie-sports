@@ -16,6 +16,7 @@ import {
   type Database,
 } from '@galaxie/db';
 import { assetUrl } from '../util.js';
+import { teamStatistics } from './statistics.js';
 import { buildTimelineDto, uuidv7Time } from './timeline.js';
 import { venueTimezone } from './timezone.js';
 
@@ -363,11 +364,15 @@ export async function buildLineups(
 
 const sideRank = (s: string | null) => (s === 'home' ? 0 : s === 'away' ? 1 : 2);
 
-/** Estatísticas por time e por jogador (`detail.statistics` e `detail.players`). */
+/**
+ * Estatísticas por time e por jogador (`detail.statistics` e `detail.players`). As de time ganham código
+ * estável, rótulo no locale e valor numérico (`teamStatistics`), mantendo `type` e `value` crus.
+ */
 export async function buildStats(
   db: Database,
   ev: { id: string; sport: string },
   assetsBaseUrl: string | undefined,
+  locale: string,
 ): Promise<EventStats> {
   const detail = ev.sport === 'football' ? await fixtureDetail(db, ev.id) : null;
   const statistics = Array.isArray(detail?.statistics) ? detail.statistics : [];
@@ -390,10 +395,7 @@ export async function buildStats(
     teams: statistics
       .map((t) => ({
         team: teamRefFrom(refs.team(t.team), t.team, teams),
-        statistics: (t.statistics ?? []).map((s) => ({
-          type: String(s.type ?? ''),
-          value: typeof s.value === 'number' || typeof s.value === 'string' ? s.value : null,
-        })),
+        statistics: teamStatistics(t.statistics, locale),
       }))
       .sort((a, b) => sideRank(a.team.side) - sideRank(b.team.side)),
     players: players

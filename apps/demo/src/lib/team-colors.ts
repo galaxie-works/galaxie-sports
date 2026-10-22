@@ -57,3 +57,17 @@ export function versusColors(
   }
   return [a, b];
 }
+
+/**
+ * Cor do texto sobre a cor do time (pílula das estatísticas): preto sobre cores claras, branco sobre
+ * escuras (luminância relativa WCAG). Cor do tema (`var(--…)`, sem paleta): o texto do primário.
+ */
+export function contrastText(color: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(color)) return 'var(--primary-foreground)';
+  const [r, g, b] = rgb(color).map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+  return luminance > 0.4 ? '#09090b' : '#ffffff';
+}

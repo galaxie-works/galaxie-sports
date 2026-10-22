@@ -86,7 +86,12 @@ describe('OpenAPI', () => {
       required: ['primary', 'secondary', 'monochrome', 'gradient'],
     });
     const overview = doc.components?.schemas?.TeamOverview as { required?: string[] };
-    expect(overview.required).toContain('competitions');
+    expect(overview.required).toEqual(expect.arrayContaining(['competitions', 'season', 'seasons']));
+    expect(doc.components?.schemas?.TeamSeason).toMatchObject({
+      required: ['year', 'labels', 'events', 'has_incidents', 'current'],
+    });
+    const params = (doc.paths?.['/v1/teams/{id}/overview']?.get?.parameters ?? []) as { name: string }[];
+    expect(params.map((p) => p.name)).toContain('season');
     expect(doc.components?.schemas?.TeamCampaign).toMatchObject({
       properties: {
         status: {
@@ -165,6 +170,21 @@ describe('OpenAPI — árbitro e local do evento', () => {
     expect(referee.required).toEqual(['name', 'country']);
     expect(referee.properties?.name?.example).toBe('Wilton Pereira Sampaio');
     expect(referee.properties?.country?.example).toBe('Brazil');
+  });
+});
+
+describe('OpenAPI — estatísticas do evento', () => {
+  it('cada estatística de time traz o type cru, o código estável, o rótulo e o número', () => {
+    const schemas = buildOpenApiDocument().components?.schemas as Record<
+      string,
+      { properties?: Record<string, { enum?: string[]; example?: unknown }>; required?: string[] }
+    >;
+    const stat = schemas.TeamStatistic!;
+    expect(stat.required).toEqual(
+      expect.arrayContaining(['type', 'value', 'code', 'label', 'numeric', 'source']),
+    );
+    expect(stat.properties?.label?.example).toBe('Posse de bola');
+    expect(JSON.stringify(stat.properties?.code)).toContain('pass_accuracy_pct');
   });
 });
 

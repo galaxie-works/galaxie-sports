@@ -193,7 +193,7 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     teams: (query: Omit<TeamsQuery, 'locale'> & LocaleOpts = {}) =>
       v1<Page<TeamSummary>>('/v1/teams', query as Query & LocaleOpts),
     team: (id: string, opts: LocaleOpts = {}) => v1<Team>(`/v1/teams/${seg(id)}`, opts),
-    teamOverview: (id: string, opts: LocaleOpts = {}) =>
+    teamOverview: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
       v1<TeamOverview>(`/v1/teams/${seg(id)}/overview`, opts),
     teamEvents: (
       id: string,

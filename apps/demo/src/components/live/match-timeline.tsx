@@ -155,12 +155,13 @@ function PersonLine({
   );
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <Avatar size="default" className="size-9">
+      <Avatar size="default" className="size-7 @md:size-9">
         {person.photo ? <AvatarImage src={person.photo} alt="" /> : null}
         <AvatarFallback className="text-[0.65rem]">{initials(person.name)}</AvatarFallback>
       </Avatar>
       <div className="flex min-w-0 flex-col leading-tight">
-        <span className="flex min-w-0 items-center gap-1.5 truncate text-sm">
+        {/* sem truncar: na coluna estreita o nome quebra a linha em vez de ser cortado */}
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm">
           {icon}
           {prefix ? <span className="text-muted-foreground">{prefix}</span> : null}
           {name}
@@ -172,7 +173,8 @@ function PersonLine({
 }
 
 function KindIcon({ kind }: { kind: TimelineIncident['kind'] }) {
-  const base = 'flex size-8 shrink-0 items-center justify-center rounded-full border bg-background';
+  const base =
+    'flex size-7 shrink-0 items-center justify-center rounded-full border bg-background @md:size-8';
   switch (kind) {
     case 'goal':
     case 'penalty_goal':
@@ -249,8 +251,8 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
       ? tl.cardReasons[(i.comments ?? '').toLowerCase()]
       : null;
   return (
-    <li className="relative flex gap-3 pb-4">
-      <div className="text-muted-foreground w-12 shrink-0 pt-1.5 text-right text-sm font-semibold tabular-nums">
+    <li className="relative flex gap-2 pb-4 @md:gap-3">
+      <div className="text-muted-foreground w-9 shrink-0 pt-1.5 text-right text-xs font-semibold tabular-nums @md:w-12 @md:text-sm">
         {i.clock.display}
       </div>
       <div className="relative flex flex-col items-center">
@@ -258,7 +260,7 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
       </div>
       <div
         className={cn(
-          'flex min-w-0 flex-1 flex-col gap-2 rounded-lg border px-3 py-2.5',
+          'flex min-w-0 flex-1 flex-col gap-2 rounded-lg border px-2.5 py-2 @md:px-3 @md:py-2.5',
           i.key_moment ? 'border-primary/30 bg-primary/5' : 'bg-card/50',
           decisive && 'border-primary/60 bg-primary/10 ring-primary/30 ring-1',
         )}
@@ -283,15 +285,16 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
           ))}
           {reason ? <span className="text-muted-foreground text-xs">{reason}</span> : null}
           {i.team ? (
-            <span className="text-muted-foreground ml-auto flex items-center gap-1.5 text-xs">
+            <span className="text-muted-foreground ml-auto flex min-w-0 items-center gap-1.5 text-xs">
               <Crest src={i.team.logo} name={i.team.name ?? ''} size="xs" />
-              {i.team.name}
+              {/* coluna estreita (lateral da página): só o escudo */}
+              <span className="hidden truncate @md:inline">{i.team.name}</span>
             </span>
           ) : null}
         </div>
 
         {i.kind === 'substitution' ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 @lg:grid-cols-2">
             <PersonLine
               person={i.player_in}
               prefix={tl.playerIn}
@@ -319,11 +322,11 @@ function MarkerRow({ m, shootout, f }: { m: TimelineMarker; shootout: boolean; f
   const tl = useI18n().t.live.timeline;
   const label = m.kind === 'full_time' && shootout ? tl.fullTimePenalties : (tl.markers[m.kind] ?? m.kind);
   return (
-    <li className="flex items-center gap-3 pb-4">
-      <div className="text-muted-foreground w-12 shrink-0 text-right text-xs tabular-nums">
+    <li className="flex items-center gap-2 pb-4 @md:gap-3">
+      <div className="text-muted-foreground w-9 shrink-0 text-right text-xs tabular-nums @md:w-12">
         {m.kind === 'kickoff' ? "0'" : m.clock.display}
       </div>
-      <div className="flex size-8 shrink-0 items-center justify-center">
+      <div className="flex size-7 shrink-0 items-center justify-center @md:size-8">
         <Flag className="text-muted-foreground size-4" aria-hidden />
       </div>
       <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1">
@@ -348,7 +351,7 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
   const rounds = Math.max(5, ...teams.map((t) => t.kicks.length));
   const first = shootout.first_kicker;
   return (
-    <li className="pb-4 sm:pl-[5.75rem]">
+    <li className="pb-4 @md:pl-[5.75rem]">
       <Card size="sm" className="border-primary/30">
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -370,7 +373,7 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
           <div className="flex flex-col gap-2">
             {teams.map((t) => (
               <div key={t.side} className="flex items-center gap-3">
-                <span className="flex w-32 min-w-0 items-center gap-2 text-sm sm:w-40">
+                <span className="flex w-24 min-w-0 shrink-0 items-center gap-2 text-sm @md:w-40">
                   <Crest src={t.team?.logo ?? null} name={t.team?.name ?? ''} size="xs" />
                   <span className={cn('truncate', shootout.winner_side === t.side && 'font-semibold')}>
                     {t.team?.name ?? (t.side === 'home' ? ts.home : ts.away)}
@@ -501,7 +504,8 @@ export function MatchTimeline({ initial, timeZone }: { initial: EventTimeline; t
   const keyCount = t.incidents.filter((i) => i.key_moment && i.clock.period !== 'penalty_shootout').length;
 
   return (
-    <div className="flex flex-col gap-4">
+    // container: o componente vive na coluna lateral (~360 px) e em largura cheia, e se ajusta à própria largura
+    <div className="@container flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         {t.live ? (
           <Badge variant="destructive-light" radius="full">
@@ -525,19 +529,22 @@ export function MatchTimeline({ initial, timeZone }: { initial: EventTimeline; t
           variant="outline"
           pressed={keyOnly}
           onPressedChange={(pressed) => setKeyOnly(pressed)}
-          className="ml-auto"
+          // ligado: primária índigo (o `aria-pressed` vem do Toggle) e check no lugar do ícone
+          className="aria-pressed:border-primary aria-pressed:bg-primary/15 aria-pressed:text-primary aria-pressed:hover:bg-primary/25 aria-pressed:hover:text-primary ml-auto"
           aria-label={tl.keyOnlyLabel}
         >
-          <Sparkles aria-hidden />
+          {keyOnly ? <Check aria-hidden /> : <Sparkles aria-hidden />}
           {tl.keyOnly}
-          <span className="text-muted-foreground tabular-nums">({keyCount})</span>
+          <span className={cn('tabular-nums', keyOnly ? 'text-primary/70' : 'text-muted-foreground')}>
+            ({keyCount})
+          </span>
         </Toggle>
       </div>
 
       {t.live ? <RefreshTimer state={refresh} sourceLastAt={t.data_freshness.last_valid_at} /> : null}
 
       {items.length ? (
-        <ol className="relative before:absolute before:top-2 before:bottom-6 before:left-[4.75rem] before:w-px before:bg-border">
+        <ol className="relative before:absolute before:top-2 before:bottom-6 before:left-[3.625rem] before:w-px before:bg-border @md:before:left-[4.75rem]">
           {items.map((it) =>
             it.type === 'incident' ? (
               <IncidentRow key={it.key} i={it.incident} f={f} />

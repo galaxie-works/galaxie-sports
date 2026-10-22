@@ -5,6 +5,7 @@ import {
   LocaleQuery,
   SquadQuery,
   TeamEventsQuery,
+  TeamOverviewQuery,
   TeamParams,
   TeamsQuery,
   type Event,
@@ -13,6 +14,7 @@ import {
   type Squad,
   type Team,
   type TeamOverview,
+  type TeamSeason,
   type TeamSummary,
 } from '@galaxie/contracts';
 import {
@@ -240,23 +242,62 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     });
   });
 
+  /**
+   * Anos de temporada com jogos do time (`season.year`, do mais recente ao mais antigo). A corrente é a
+   * mais recente marcada como atual pelo fornecedor; sem nenhuma marcada, a mais recente.
+   */
+  async function teamSeasons(db: Database, teamId: string): Promise<TeamSeason[]> {
+    const rows = await db
+      .select({
+        year: season.year,
+        labels: sql<string[]>`array_agg(distinct ${season.label} order by ${season.label})`,
+        events: sql<number>`count(distinct ${event.id})::int`.mapWith(Number),
+        hasIncidents: sql<boolean>`bool_or(exists (select 1 from core.event_incident i
+                                                     where i.event_id = ${event.id}))`,
+        current: sql<boolean>`bool_or(${season.current})`,
+      })
+      .from(event)
+      .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
+      .innerJoin(season, eq(season.id, event.seasonId))
+      .where(eq(eventParticipant.participantId, teamId))
+      .groupBy(season.year)
+      .orderBy(desc(season.year));
+    const currentYear = rows.find((r) => r.current)?.year ?? rows[0]?.year;
+    return rows.map((r) => ({
+      year: r.year,
+      labels: r.labels,
+      events: r.events,
+      has_incidents: !!r.hasIncidents,
+      current: r.year === currentYear,
+    }));
+  }
+
   // ─── /v1/teams/:id/overview ──────────────────────────────────────────────────────────────────
   app.get('/v1/teams/:id/overview', { config: MODULE }, async (request, reply) => {
     const params = parseInput(TeamParams, request.params);
-    const query = parseInput(LocaleQuery, request.query);
+    const query = parseInput(TeamOverviewQuery, request.query);
     const locale = localeOf(request, query);
     const tz = query.tz ?? 'UTC';
+    const year = query.season;
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.schedule,
-      vary: [locale, tz],
+      vary: [locale, tz, `season:${year ?? ''}`],
       check: sportCheck(request),
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz);
         const db = bctx.db;
         const team = await loadTeam(db, params.id, locale);
+        const seasons = await teamSeasons(db, team.id);
+        // ao vivo e próximo jogo só existem na temporada corrente
+        const upcoming = year === undefined || seasons.find((s) => s.year === year)?.current === true;
+        const inYear =
+          year === undefined
+            ? undefined
+            : inArray(event.seasonId, db.select({ id: season.id }).from(season).where(eq(season.year, year)));
 
-        // posição: temporada atual (ou a mais recente) de cada competição com tabela do time
+        // posição: temporada atual (ou a mais recente) de cada competição com tabela do time; com
+        // `season`, a daquele ano
         const st = await db
           .select({
             s: standing,
@@ -277,7 +318,9 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .innerJoin(competition, eq(competition.id, season.competitionId))
           .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
           .leftJoin(asset, eq(asset.id, competition.logoAssetId))
-          .where(eq(standing.participantId, team.id))
+          .where(
+            and(eq(standing.participantId, team.id), year === undefined ? undefined : eq(season.year, year)),
+          )
           .orderBy(asc(competition.tier), desc(season.current), desc(season.year));
         const seen = new Set<string>();
         const standings: TeamOverview['standings'] = [];
@@ -311,26 +354,28 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             .select({ id: event.id })
             .from(event)
             .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
-            .where(and(eq(eventParticipant.participantId, team.id), inArray(event.status, status)))
+            .where(and(eq(eventParticipant.participantId, team.id), inArray(event.status, status), inYear))
             .orderBy(order === 'asc' ? asc(event.startsAt) : desc(event.startsAt), asc(event.id))
             .limit(limit);
         const [competitions, lastIds, liveIds, nextIds] = await Promise.all([
-          loadTeamCompetitions(bctx, team.id),
+          loadTeamCompetitions(bctx, team.id, year),
           teamEvents(['finished'], 'desc', 5),
-          teamEvents(IN_PLAY, 'desc', 1),
-          db
-            .select({ id: event.id })
-            .from(event)
-            .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
-            .where(
-              and(
-                eq(eventParticipant.participantId, team.id),
-                inArray(event.status, ['scheduled', 'starting']),
-                sql`${event.startsAt} >= ${new Date(bctx.now.getTime() - 3 * 3600_000).toISOString()}::timestamptz`,
-              ),
-            )
-            .orderBy(asc(event.startsAt), asc(event.id))
-            .limit(1),
+          upcoming ? teamEvents(IN_PLAY, 'desc', 1) : [],
+          !upcoming
+            ? []
+            : db
+                .select({ id: event.id })
+                .from(event)
+                .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
+                .where(
+                  and(
+                    eq(eventParticipant.participantId, team.id),
+                    inArray(event.status, ['scheduled', 'starting']),
+                    sql`${event.startsAt} >= ${new Date(bctx.now.getTime() - 3 * 3600_000).toISOString()}::timestamptz`,
+                  ),
+                )
+                .orderBy(asc(event.startsAt), asc(event.id))
+                .limit(1),
         ]);
         const built = await buildEvents(bctx, [
           ...lastIds.map((r) => r.id),
@@ -354,6 +399,8 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         const next = nextIds[0] ? (byId.get(nextIds[0].id) ?? null) : null;
         const body: TeamOverview = {
           team,
+          season: year ?? null,
+          seasons,
           standings,
           competitions,
           form,

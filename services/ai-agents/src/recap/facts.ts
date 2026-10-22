@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { eventIncident, footballFixture, person, type Database } from '@galaxie/db';
+import { teamStatisticValues, type TeamStatisticCode } from '@galaxie/providers';
 import { knockoutStageRules } from '@galaxie/rules';
 import type { AgentLocale } from '../guardrails/index.js';
 import { competitionName, stageName, teamName, type EventCore } from '../context/event-core.js';
@@ -111,16 +112,19 @@ export interface RecapFacts {
   statistics: { home: Record<string, number>; away: Record<string, number> } | null;
 }
 
-/** Estatísticas aproveitadas do espelho (tipo do fornecedor → chave). */
-const STAT_KEYS: Record<string, string> = {
-  'Shots on Goal': 'shots_on_goal',
-  'Total Shots': 'total_shots',
-  'Ball Possession': 'possession_pct',
-  'Corner Kicks': 'corners',
-  'Goalkeeper Saves': 'saves',
-  Fouls: 'fouls',
-  Offsides: 'offsides',
-};
+/**
+ * Estatísticas aproveitadas no resumo, pelos códigos estáveis da normalização compartilhada com a API
+ * (`teamStatisticValues`, @galaxie/providers — os mesmos `code` de `GET /v1/events/{id}/stats`).
+ */
+const RECAP_STATS: readonly TeamStatisticCode[] = [
+  'shots_on_goal',
+  'shots_total',
+  'possession_pct',
+  'corners',
+  'saves',
+  'fouls',
+  'offsides',
+];
 
 export async function loadIncidents(db: Database, eventId: string): Promise<IncidentRow[]> {
   const scorer = alias(person, 'scorer');
@@ -163,16 +167,10 @@ export async function loadStatistics(db: Database, core: EventCore): Promise<Rec
           : index === 0
             ? 'home'
             : 'away';
-    for (const s of e.statistics ?? []) {
-      const key = s.type ? STAT_KEYS[s.type] : undefined;
-      if (!key) continue;
-      const n =
-        typeof s.value === 'number'
-          ? s.value
-          : typeof s.value === 'string'
-            ? Number.parseFloat(s.value)
-            : NaN;
-      if (Number.isFinite(n)) out[side][key] = n;
+    const values = teamStatisticValues(e.statistics);
+    for (const code of RECAP_STATS) {
+      const n = values[code];
+      if (n !== undefined) out[side][code] = n;
     }
   });
   return Object.keys(out.home).length || Object.keys(out.away).length ? out : null;

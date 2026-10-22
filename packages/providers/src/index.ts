@@ -9,6 +9,7 @@ export * from './fake-provider.js';
 export * from './api-sports/football/types.js';
 export * from './api-sports/football/status.js';
 export * from './api-sports/football/round.js';
+export * from './api-sports/football/statistics.js';
 export * from './api-sports/football/normalize.js';
 export * from './api-sports/provider.js';
 export * from './api-sports/sports/status.js';
