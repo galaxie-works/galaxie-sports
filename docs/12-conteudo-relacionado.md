@@ -277,7 +277,15 @@ Flags: `--plan`, `--evento`, `--horas` (padrão 48), `--tier` (padrão 2), `--li
 
 ## 11. Demo
 
-Página do evento (`apps/demo`, `eventos/[id]`): seção **Conteúdo relacionado** no fim da página, em largura total, com cards (miniatura, duração, selo *Short*, canal com selo *Oficial*, tipo e visualizações) e filtro por tipo (abas com a contagem de `counts`). O clique abre o vídeo na própria plataforma. A chave da demo precisa do módulo `related_content` (o tenant da demo é `enterprise`).
+Página do evento (`apps/demo`, `eventos/[id]`): seção **Conteúdo relacionado** no fim da página, em largura total, com cards (miniatura, duração, selo *Short*, canal com selo *Oficial*, tipo e visualizações) e filtro por tipo (abas com a contagem de `counts`). A chave da demo precisa do módulo `related_content` (o tenant da demo é `enterprise`).
+
+O clique abre um **painel lateral 9:16** ([related-player.tsx](../apps/demo/src/components/sport/related-player.tsx), Sheet à direita; tela cheia no mobile) que toca o vídeo:
+
+- **Player oficial**: o YouTube exige o próprio player. Usamos o embed de `youtube-nocookie.com` pela IFrame Player API, com `playsinline=1`, `rel=0` e `modestbranding=1`. Nada de extrair o stream nem de usar outro player. A marca e parte dos controles do YouTube (logo, título, "Assistir no YouTube", sugestões ao pausar) **não podem ser removidas**.
+- **Quadro**: short ocupa o quadro inteiro; vídeo horizontal fica centralizado, com faixa. Título, canal (com selo), tipo e duração ficam no cabeçalho.
+- **Navegação**: "Anterior/Próximo" (e as setas do teclado) percorrem a lista com o filtro de tipo ativo, e o fim do vídeo avança sozinho. Esc fecha e o foco fica preso no painel.
+- **Carregamento**: o iframe e o script da API do YouTube só carregam ao abrir o painel. Antes do clique, nada do YouTube é carregado além das miniaturas.
+- **Futuro**: a fonte do player é escolhida por plataforma (`playerSource`: `youtube` → embed). Vídeo próprio do parceiro (HLS/MP4 licenciado) poderá usar um player nosso, como o Limeplay; isso ainda não foi adicionado.
 
 ## 12. Métricas e riscos
 

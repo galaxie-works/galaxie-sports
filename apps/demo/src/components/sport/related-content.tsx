@@ -5,6 +5,7 @@ import { BadgeCheck, Eye, Play, Smartphone } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
+import { RelatedPlayerSheet } from '@/components/sport/related-player';
 import { cn } from '@/lib/utils';
 
 /** Rótulos dos tipos (a API também manda `content_type_label` no locale pedido). */
@@ -37,15 +38,15 @@ function duration(sec: number | null): string | null {
 
 const compact = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
 
-function VideoCard({ item }: { item: RelatedItem }) {
+function VideoCard({ item, onPlay }: { item: RelatedItem; onPlay: () => void }) {
   const tier = TIER_LABEL[item.channel.source_tier];
   const time = duration(item.duration_seconds);
   return (
-    <a
-      href={item.url}
-      target="_blank"
-      rel="noreferrer"
-      className="group/video hover:bg-accent/50 flex flex-col overflow-hidden rounded-lg border transition-colors"
+    <button
+      type="button"
+      onClick={onPlay}
+      aria-label={`Assistir: ${item.title}`}
+      className="group/video hover:bg-accent/50 focus-visible:ring-ring flex flex-col overflow-hidden rounded-lg border text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
       <div className="bg-muted relative aspect-video overflow-hidden">
         {item.thumbnail_url ? (
@@ -100,13 +101,15 @@ function VideoCard({ item }: { item: RelatedItem }) {
           ) : null}
         </div>
       </div>
-    </a>
+    </button>
   );
 }
 
 /** Vídeos relacionados ao evento com filtro por tipo (abas com a contagem de `counts`). */
 export function RelatedContentGrid({ related }: { related: RelatedContent }) {
   const [type, setType] = useState<string | null>(null);
+  /** Posição do vídeo aberto no painel, dentro da lista filtrada. */
+  const [playing, setPlaying] = useState<number | null>(null);
   const types = useMemo(
     () =>
       Object.entries(related.counts)
@@ -147,10 +150,12 @@ export function RelatedContentGrid({ related }: { related: RelatedContent }) {
         ))}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-        {items.map((item) => (
-          <VideoCard key={item.id} item={item} />
+        {items.map((item, i) => (
+          <VideoCard key={item.id} item={item} onPlay={() => setPlaying(i)} />
         ))}
       </div>
+      {/* O player só é montado ao abrir: nada do YouTube carrega antes do clique. */}
+      <RelatedPlayerSheet items={items} index={playing} onIndexChange={setPlaying} />
     </div>
   );
 }
