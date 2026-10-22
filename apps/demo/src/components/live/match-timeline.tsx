@@ -33,6 +33,7 @@ import { Toggle } from '@/components/ui/toggle';
 import { initials } from '@/lib/format';
 import { fetchTimeline, timelineKey } from '@/lib/galaxie/live';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
+import type { ContentLocale } from '@/lib/i18n/config';
 import { createFormatters, type Formatters } from '@/lib/i18n/format';
 import { fill } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
@@ -474,7 +475,16 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
  * disputa de pênaltis cobrança a cobrança. Ao vivo, o mais novo fica em cima e a lista se atualiza
  * sozinha (SSE + verificação periódica); encerrado, fica na ordem do jogo e não muda mais.
  */
-export function MatchTimeline({ initial, timeZone }: { initial: EventTimeline; timeZone: string }) {
+export function MatchTimeline({
+  initial,
+  timeZone,
+  content,
+}: {
+  initial: EventTimeline;
+  timeZone: string;
+  /** Locale do conteúdo (a voz do país do mandante); sem ele, o do idioma da tela. */
+  content?: ContentLocale;
+}) {
   const { locale, t: dict } = useI18n();
   const tl = dict.live.timeline;
   // fuso vindo do servidor: o HTML do servidor e o da hidratação mostram o mesmo horário
@@ -482,7 +492,7 @@ export function MatchTimeline({ initial, timeZone }: { initial: EventTimeline; t
   const id = initial.event_id;
   const q = useQuery({
     queryKey: timelineKey(id),
-    queryFn: () => fetchTimeline(id, locale),
+    queryFn: () => fetchTimeline(id, content ?? locale),
     initialData: initial,
     initialDataUpdatedAt: Date.parse(initial.generated_at),
     staleTime: initial.live ? 5_000 : Infinity,

@@ -10,6 +10,7 @@ import { Section } from '@/components/sport/section';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { countryCompetitionsRequest, getCountryCompetitions } from '@/lib/galaxie/api';
+import { contentLocale } from '@/lib/i18n/config';
 import { getI18n } from '@/lib/i18n/server';
 import { plural } from '@/lib/i18n/text';
 
@@ -42,12 +43,14 @@ async function Content({ params }: { params: PageProps<'/[locale]/paises/[code]'
   const { code } = await params;
   const { locale, t } = await getI18n();
   const tc = t.pages.country;
-  const data = await getCountryCompetitions(code, locale);
+  // competições na voz do próprio país (Chile em es-CL); em pt-BR, em português
+  const content = contentLocale(locale, code);
+  const data = await getCountryCompetitions(code, content);
   const { country } = data;
   // Países do menu usam o nome do dicionário (o mesmo da sidebar); os demais, o que a API devolve.
   const name = (t.nav.countries as Record<string, string>)[country.code] ?? country.name;
   const sportNames = t.nav.sports as Record<string, string>;
-  const api = countryCompetitionsRequest(code, locale);
+  const api = countryCompetitionsRequest(code, locale, content);
   const totalCompetitions = data.sports.reduce(
     (n, s) => n + s.groups.reduce((m, g) => m + g.competitions.length, 0),
     0,

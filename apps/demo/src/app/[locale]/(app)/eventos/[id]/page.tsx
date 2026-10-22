@@ -21,6 +21,7 @@ import {
   eventContextRequest,
   eventRequest,
   getEvent,
+  getTeamCountry,
   getEventContext,
   getH2h,
   getLineups,
@@ -32,7 +33,9 @@ import {
   relatedRequest,
   whereToWatchRequest,
 } from '@/lib/galaxie/api';
-import { defaultMarket, type Locale } from '@/lib/i18n/config';
+import type { SupportedLocale } from '@galaxie/contracts';
+
+import { apiLocale, contentLocale, defaultMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
@@ -198,12 +201,14 @@ function WhereToWatchCard({
   wtw,
   country,
   locale,
+  content,
   t,
 }: {
   eventId: string;
   wtw: WhereToWatch | null;
   country: string;
   locale: Locale;
+  content: SupportedLocale;
   t: Dictionary;
 }) {
   const tx = t.event.whereToWatch;
@@ -214,7 +219,7 @@ function WhereToWatchCard({
           <Tv className="size-4" aria-hidden /> {tx.title}
         </CardTitle>
         <CardAction>
-          <ApiCodeButton request={whereToWatchRequest(eventId, country, locale)} />
+          <ApiCodeButton request={whereToWatchRequest(eventId, country, locale, content)} />
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">
@@ -305,7 +310,17 @@ function WhereToWatchCard({
 
 // ─── blocos principais ───────────────────────────────────────────────────────────────────────────
 
-function H2hSection({ h2h, locale, t }: { h2h: HeadToHead; locale: Locale; t: Dictionary }) {
+function H2hSection({
+  h2h,
+  locale,
+  content,
+  t,
+}: {
+  h2h: HeadToHead;
+  locale: Locale;
+  content: SupportedLocale;
+  t: Dictionary;
+}) {
   const tx = t.event.h2h;
   if (!h2h.summary.played) return null;
   const [a, b] = h2h.participants;
@@ -322,7 +337,7 @@ function H2hSection({ h2h, locale, t }: { h2h: HeadToHead; locale: Locale; t: Di
     <Section
       title={tx.title}
       description={plural(locale, total, tx.matches)}
-      api={h2hRequest(h2h.event_id, locale)}
+      api={h2hRequest(h2h.event_id, locale, content)}
     >
       <Card size="sm">
         <CardContent className="flex flex-col gap-3">
@@ -364,15 +379,20 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
   const country = typeof query.pais === 'string' ? query.pais.toUpperCase() : defaultMarket(locale);
 
   // relevância no mesmo país do "Onde assistir"
-  const event = await getEvent(id, locale, country);
+  const first = await getEvent(id, locale, country);
+  // tags do torcedor, gritos e contexto na voz do país do mandante (um jogo no Chile sai em es-CL), com a
+  // interface no idioma escolhido; em pt-BR, tudo em português
+  const home = first.participants.find((p) => p.side === 'home');
+  const content = contentLocale(locale, home ? await getTeamCountry(home.id) : null);
+  const event = content === apiLocale(locale) ? first : await getEvent(id, content, country);
   const [context, h2h, wtw, lineups, related, timeline, stats] = await Promise.all([
-    getEventContext(id, locale),
-    getH2h(id, locale),
-    getWhereToWatch(id, country, locale),
-    getLineups(id, locale),
-    getRelated(id, locale),
-    getTimeline(id, locale),
-    getStats(id, locale),
+    getEventContext(id, content),
+    getH2h(id, content),
+    getWhereToWatch(id, country, content),
+    getLineups(id, content),
+    getRelated(id, content),
+    getTimeline(id, content),
+    getStats(id, content),
   ]);
   // minuto a minuto: a partir do apito (ou quando já há lance registrado)
   const showTimeline = !!timeline && (STARTED.has(event.status) || timeline.incidents.length > 0);
@@ -386,7 +406,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
 
   return (
     <>
-      <PageHeader title={title} kind="evento" api={eventRequest(id, locale, country)} />
+      <PageHeader title={title} kind="evento" api={eventRequest(id, locale, country, content)} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         <Scoreboard event={event} t={t} f={f} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -401,10 +421,15 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
               query={query}
               timeZone={f.timeZone}
               locale={locale}
+              content={content}
               t={t}
             />
             {context?.data.length ? (
-              <Section title={tx.title} description={tx.description} api={eventContextRequest(id, locale)}>
+              <Section
+                title={tx.title}
+                description={tx.description}
+                api={eventContextRequest(id, locale, content)}
+              >
                 {context.data.map((c) => (
                   <Card key={c.kind} size="sm">
                     <CardContent className="flex flex-col gap-2 text-sm">
@@ -422,12 +447,19 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
                 ))}
               </Section>
             ) : null}
-            {h2h ? <H2hSection h2h={h2h} locale={locale} t={t} /> : null}
+            {h2h ? <H2hSection h2h={h2h} locale={locale} content={content} t={t} /> : null}
           </div>
           {/* no celular, uma coluna só: placar → sobre o jogo → onde assistir → detalhes da partida → o resto */}
           <div className="flex flex-col gap-6 max-lg:order-first">
             <AboutCard event={event} t={t} />
-            <WhereToWatchCard eventId={event.id} wtw={wtw} country={country} locale={locale} t={t} />
+            <WhereToWatchCard
+              eventId={event.id}
+              wtw={wtw}
+              country={country}
+              locale={locale}
+              content={content}
+              t={t}
+            />
           </div>
         </div>
         {related?.data.length ? (
@@ -435,7 +467,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
             title={t.event.related.title}
             icon={<Clapperboard className="size-4" aria-hidden />}
             description={t.event.related.description}
-            api={relatedRequest(id, locale)}
+            api={relatedRequest(id, locale, content)}
           >
             <RelatedContentGrid related={related} />
           </Section>

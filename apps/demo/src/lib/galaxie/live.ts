@@ -5,7 +5,7 @@
  */
 import type { Event, EventTimeline, Page } from '@galaxie/contracts';
 
-import { apiLocale, apiTimeZone, defaultMarket, type Locale } from '../i18n/config';
+import { apiLocale, apiTimeZone, defaultMarket, type ContentLocale, type Locale } from '../i18n/config';
 
 /** Eventos ao vivo por relevância: compartilhado pela sidebar (contador) e pela página Ao vivo. */
 export const LIVE_EVENTS_KEY = ['live-events'] as const;
@@ -13,7 +13,7 @@ export const timelineKey = (id: string) => ['event-timeline', id] as const;
 export const UPCOMING_KEY = ['upcoming-events'] as const;
 
 async function getJson<T>(
-  locale: Locale,
+  locale: ContentLocale,
   path: string,
   query: Record<string, string | number> = {},
 ): Promise<T> {
@@ -30,7 +30,7 @@ export async function fetchLiveEvents(locale: Locale): Promise<Event[]> {
     .data;
 }
 
-export async function fetchTimeline(id: string, locale: Locale): Promise<EventTimeline> {
+export async function fetchTimeline(id: string, locale: ContentLocale): Promise<EventTimeline> {
   return getJson<EventTimeline>(locale, `/v1/events/${encodeURIComponent(id)}/timeline`);
 }
 

@@ -129,6 +129,13 @@ describe('idioma das chamadas', () => {
     expect(requestUrl(eventRequest(EVENT, 'en'), BASE)).toContain('locale=es-AR');
   });
 
+  it('pede o conteúdo na voz do país e descreve no idioma da tela', () => {
+    const req = teamOverviewRequest(TEAM, 'en', undefined, 'es-CL');
+    expect(requestUrl(req, BASE)).toContain('locale=es-CL');
+    expect(requestUrl(req, BASE)).toContain('tz=America%2FSantiago');
+    expect(req.description).toMatch(/^The team card/);
+  });
+
   it('descreve a chamada no idioma da demo', () => {
     expect(eventRequest(EVENT, 'pt-BR').description).toMatch(/^Evento completo/);
     expect(eventRequest(EVENT, 'en').description).toMatch(/^Full event/);

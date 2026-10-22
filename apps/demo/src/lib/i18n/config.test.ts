@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { apiLocale, isTimeZone, negotiateLocale, resolveLocale } from './config';
+import { apiLocale, apiTimeZone, contentLocale, isTimeZone, negotiateLocale, resolveLocale } from './config';
 import { createFormatters } from './format';
 import { fill, localized, ordinal, plural, rich } from './text';
 
@@ -25,6 +25,26 @@ describe('idioma da requisição', () => {
     expect(apiLocale('pt-BR')).toBe('pt-BR');
     expect(apiLocale('es-AR')).toBe('es-AR');
     expect(apiLocale('en')).toBe('es-AR');
+  });
+
+  it('o conteúdo vem na voz do país do time, com a interface no idioma escolhido', () => {
+    // site em inglês: Boca na voz argentina, Universidad Católica na chilena
+    expect(contentLocale('en', 'AR')).toBe('es-AR');
+    expect(contentLocale('en', 'CL')).toBe('es-CL');
+    expect(contentLocale('es-AR', 'MX')).toBe('es-MX');
+    expect(contentLocale('es-AR', 'uy')).toBe('es-UY');
+    // fora dos mercados em espanhol (ou sem país): o espanhol padrão
+    expect(contentLocale('en', 'BR')).toBe('es-AR');
+    expect(contentLocale('es-AR', null)).toBe('es-AR');
+    // em português, tudo em português
+    expect(contentLocale('pt-BR', 'CL')).toBe('pt-BR');
+  });
+
+  it('o fuso da API acompanha o mercado do conteúdo', () => {
+    expect(apiTimeZone('es-CL')).toBe('America/Santiago');
+    expect(apiTimeZone('es-MX')).toBe('America/Mexico_City');
+    expect(apiTimeZone('en')).toBe('America/Argentina/Buenos_Aires');
+    expect(apiTimeZone('pt-BR')).toBe('America/Sao_Paulo');
   });
 
   it('só aceita fuso IANA válido', () => {

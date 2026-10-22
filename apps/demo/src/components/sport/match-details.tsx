@@ -1,4 +1,4 @@
-import type { EventLineups, EventStats, EventTimeline } from '@galaxie/contracts';
+import type { EventLineups, EventStats, EventTimeline, SupportedLocale } from '@galaxie/contracts';
 import { ChevronRight } from 'lucide-react';
 
 import { ApiCodeButton } from '@/components/docs/api-code-button';
@@ -51,6 +51,7 @@ export function MatchDetails({
   query,
   timeZone,
   locale,
+  content,
   t,
 }: {
   eventId: string;
@@ -65,6 +66,8 @@ export function MatchDetails({
   query: Record<string, string | string[] | undefined>;
   timeZone: string;
   locale: Locale;
+  /** Locale do conteúdo pedido à API (a voz do país do mandante; `contentLocale`). */
+  content: SupportedLocale;
   t: Dictionary;
 }) {
   const tx = t.event.details;
@@ -126,21 +129,24 @@ export function MatchDetails({
 
               {timeline ? (
                 <TabsContent value="minuto" keepMounted className="flex flex-col gap-3">
-                  <PanelIntro text={t.live.timeline.description} api={timelineRequest(eventId, locale)} />
-                  <MatchTimeline initial={timeline} timeZone={timeZone} />
+                  <PanelIntro
+                    text={t.live.timeline.description}
+                    api={timelineRequest(eventId, locale, content)}
+                  />
+                  <MatchTimeline initial={timeline} timeZone={timeZone} content={content} />
                 </TabsContent>
               ) : null}
 
               {stats && hasStats ? (
                 <TabsContent value="estatisticas" keepMounted className="flex flex-col gap-3">
-                  <PanelIntro text={t.event.stats.description} api={statsRequest(eventId, locale)} />
+                  <PanelIntro text={t.event.stats.description} api={statsRequest(eventId, locale, content)} />
                   <MatchStats stats={stats} colors={colors} locale={locale} t={t} />
                 </TabsContent>
               ) : null}
 
               {hasLineups ? (
                 <TabsContent value="escalacao" keepMounted className="flex flex-col gap-3">
-                  <PanelIntro text={tx.lineupsDescription} api={lineupsRequest(eventId, locale)} />
+                  <PanelIntro text={tx.lineupsDescription} api={lineupsRequest(eventId, locale, content)} />
                   <UrlTabs param={LINEUP_PARAM} value={lineupTab} className="gap-3">
                     <TabsList variant="line">
                       {LINEUP_TABS.filter((x) => lineupTabs.has(x)).map((x) => (

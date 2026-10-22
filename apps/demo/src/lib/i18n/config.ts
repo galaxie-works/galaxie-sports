@@ -64,21 +64,62 @@ export function resolveLocale(cookie: string | null | undefined, acceptLanguage:
 }
 
 /**
- * Locale pedido à API. A API fala pt-BR e espanhol (`es-*`), não inglês: com a demo em inglês, os dados
- * (tags do torcedor, resumos, gritos) vêm em espanhol rioplatense; nomes de times e competições já caem
- * no inglês pela cadeia `es → en` do banco.
+ * Locale do conteúdo pedido à API: o idioma da tela (`Locale`) ou já um locale da API (`es-CL`…), quando
+ * a página escolhe a voz do país do time (`contentLocale`).
  */
-export function apiLocale(locale: Locale): SupportedLocale {
-  return locale === 'pt-BR' ? 'pt-BR' : 'es-AR';
+export type ContentLocale = Locale | SupportedLocale;
+
+/**
+ * Locale pedido à API. A API fala pt-BR e espanhol (`es-*`), não inglês: com a demo em inglês, os dados
+ * (tags do torcedor, resumos, gritos) vêm em espanhol; nomes de times e competições já caem no inglês pela
+ * cadeia `es → en` do banco.
+ */
+export function apiLocale(locale: ContentLocale): SupportedLocale {
+  return locale === 'en' ? 'es-AR' : locale;
 }
 
+/** Variante de espanhol de cada mercado da API (a voz local: voseo, "hinchada", "afición"…). */
+const SPANISH_BY_COUNTRY: Record<string, SupportedLocale> = {
+  AR: 'es-AR',
+  MX: 'es-MX',
+  CO: 'es-CO',
+  CL: 'es-CL',
+  PE: 'es-PE',
+  UY: 'es-UY',
+  EC: 'es-EC',
+};
+
+/**
+ * Locale do conteúdo de um time, jogo, clássico ou competição: o contexto vem do país de origem, no
+ * idioma da tela. Em espanhol (e em inglês, que pede espanhol), um time chileno sai na voz do Chile
+ * (`es-CL`) e o Boca na da Argentina; sem país ou fora dos mercados, o espanhol padrão (`es-AR`). Em
+ * pt-BR, tudo sai em português (os perfis hispânicos já trazem a tradução feita a partir do contexto
+ * local).
+ */
+export function contentLocale(locale: Locale, country: string | null | undefined): SupportedLocale {
+  const base = apiLocale(locale);
+  if (base === 'pt-BR') return base;
+  return SPANISH_BY_COUNTRY[(country ?? '').toUpperCase()] ?? base;
+}
+
+const TIME_ZONE_BY_LOCALE: Partial<Record<SupportedLocale, string>> = {
+  'pt-BR': 'America/Sao_Paulo',
+  'es-AR': 'America/Argentina/Buenos_Aires',
+  'es-MX': 'America/Mexico_City',
+  'es-CO': 'America/Bogota',
+  'es-CL': 'America/Santiago',
+  'es-PE': 'America/Lima',
+  'es-UY': 'America/Montevideo',
+  'es-EC': 'America/Guayaquil',
+};
+
 /** Fuso do mercado do locale da API: vai no `?tz` das chamadas (o "hoje" e o "amanhã" da API). */
-export function apiTimeZone(locale: Locale): string {
-  return apiLocale(locale) === 'pt-BR' ? 'America/Sao_Paulo' : 'America/Argentina/Buenos_Aires';
+export function apiTimeZone(locale: ContentLocale): string {
+  return TIME_ZONE_BY_LOCALE[apiLocale(locale)] ?? 'America/Sao_Paulo';
 }
 
 /** Fuso das datas enquanto o navegador ainda não informou o dele (primeiro acesso). */
-export const defaultTimeZone = apiTimeZone;
+export const defaultTimeZone = (locale: Locale) => apiTimeZone(locale);
 
 /** Fuso IANA válido? (o cookie vem do navegador e pode ter qualquer coisa) */
 export function isTimeZone(value: unknown): value is string {

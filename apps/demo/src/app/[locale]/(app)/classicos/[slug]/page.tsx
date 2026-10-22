@@ -11,6 +11,7 @@ import { Section } from '@/components/sport/section';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { derbyRequest, getDerby, getTeamOverview } from '@/lib/galaxie/api';
+import { apiLocale, contentLocale } from '@/lib/i18n/config';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
 
@@ -42,7 +43,10 @@ async function Content({ params }: { params: PageProps<'/[locale]/classicos/[slu
   const { slug } = await params;
   const { locale, t } = await getI18n();
   const td = t.pages.derby;
-  const [derby, f] = await Promise.all([getDerby(slug, locale), getFormatters()]);
+  const [first, f] = await Promise.all([getDerby(slug, locale), getFormatters()]);
+  // história e apelidos na voz do país do clássico (Superclásico em es-AR, Clásico de Chile em es-CL)
+  const content = contentLocale(locale, first.teams[0]?.country);
+  const derby = content === apiLocale(locale) ? first : await getDerby(slug, content);
   const logos = await Promise.all(
     derby.teams.map(async (team) =>
       team.participant_id ? (await getTeamOverview(team.participant_id, locale)).team.logo : null,
@@ -50,7 +54,7 @@ async function Content({ params }: { params: PageProps<'/[locale]/classicos/[slu
   );
   const r = derby.retrospect;
   const winsOf = (s: string) => r.teams.find((team) => team.slug === s);
-  const api = derbyRequest(slug, locale);
+  const api = derbyRequest(slug, locale, content);
 
   return (
     <>
