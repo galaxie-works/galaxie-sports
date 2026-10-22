@@ -38,6 +38,9 @@ RB Bragantino, 10 e 9 pontos acima do Z4, ficam sem "Luta contra o rebaixamento"
 (5 e 4 pontos acima) mantêm a tag. Cruzeiro, Athletico, Bahia e Atlético-MG, no alto da tabela, ficam
 sem "Vitória/Empate garante a permanência" e "Pode se salvar hoje", que valem só perto da zona.
 
+O mesmo corte (`isRelevantForFans` + `fanTagStanding`) vale para os sinais de decisão da importância
+(`decisiveFlagsFromStakes`, docs/06 §3.1): possibilidade distante não soma título, rebaixamento nem vaga.
+
 Exemplos com `n = 2` (ou `n = 1` para empates específicos).
 
 ## Códigos sem zona

@@ -36,6 +36,7 @@ import {
 import { formatInstant, pickList, pickText } from '../i18n.js';
 import { assetUrl } from '../util.js';
 import { pickCheer } from './cheer.js';
+import { importanceBreakdownDto } from './relevance.js';
 import type { RulesRegistry } from './rules-registry.js';
 
 /** Fases de mata-mata (core.stage.kind). */
@@ -557,6 +558,9 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         : null,
       momentum: momentum({ status: e.status, startsAt: e.startsAt }, ctx.now, ctx.tz),
       importance: e.importance,
+      importance_breakdown: importanceBreakdownDto(e.importanceBreakdown),
+      // relevância por mercado: preenchida pela rota (applyRelevance), que conhece o `market`
+      relevance: null,
       participants,
       score: {
         home: e.score?.home ?? null,

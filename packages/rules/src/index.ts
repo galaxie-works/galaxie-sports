@@ -7,7 +7,13 @@
  */
 export type * from './config/types.js';
 export { TIE_BREAKER_IDS, ZONE_KINDS } from './config/types.js';
-export { parseCompetitionRules, knockoutStageRules, deepMerge, RulesConfigError } from './config/parse.js';
+export {
+  parseCompetitionRules,
+  knockoutStageRules,
+  rulesStageKey,
+  deepMerge,
+  RulesConfigError,
+} from './config/parse.js';
 
 export type * from './standings/types.js';
 export {
@@ -59,6 +65,11 @@ export {
   type TeamOutlook,
   type ZoneStatus,
 } from './stakes/league.js';
+export {
+  decisiveFlagsFromStakes,
+  type DecisiveStandings,
+  type StakeDecisiveFlag,
+} from './stakes/decisive.js';
 export {
   isStakeLocale,
   localizeStake,

@@ -19,6 +19,7 @@ describe('scheduleFromEnv', () => {
       'live-run',
       'normalize-football',
       'events-clock',
+      'events-importance',
       'assets-mirror',
       'assets-palette',
       'change-feed-prune',
@@ -41,6 +42,15 @@ describe('scheduleFromEnv', () => {
     const live = jobs.find((j) => j.name === 'live-run')!;
     expect(live).toMatchObject({ cron: '*/5 * * * *', script: 'dist/cli/live-run.js' });
     expect(live.timeoutMs).toBeGreaterThanOrEqual(12 * 3_600_000);
+  });
+
+  it('recalcula a importância (sinais da tabela) de hora em hora para os próximos 7 dias', () => {
+    const job = scheduleFromEnv({}).find((j) => j.name === 'events-importance')!;
+    expect(job).toMatchObject({
+      cron: '20 * * * *',
+      script: 'dist/cli/events-importance.js',
+      args: ['--esporte', 'football', '--proximos-dias', '7'],
+    });
   });
 
   it('perfil agents: só os agentes de IA, rodando no pacote do ai-agents', () => {

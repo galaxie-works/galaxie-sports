@@ -83,6 +83,7 @@ export function buildCatalogRows(
       type: l.league.type.toLowerCase() === 'cup' ? 'cup' : 'league',
       tier: cfg?.tier ?? 3,
       livePriority: cfg?.live_priority ?? 'none',
+      prestige: cfg?.prestige ?? 0,
       logoUrl: l.league.logo,
       seasons: mergeSameYear(l.seasons).map((s) => ({
         year: s.year,

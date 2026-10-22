@@ -71,6 +71,7 @@ const PAIRS: [string, ApiRequest, (c: ReturnType<typeof createGalaxieClient>) =>
   ['semântica', teamSemanticRequest(TEAM), (c) => c.teamSemantic(TEAM)],
   ['elenco', squadRequest(TEAM), (c) => c.squad(TEAM)],
   ['evento', eventRequest(EVENT), (c) => c.event(EVENT)],
+  ['evento no mercado', eventRequest(EVENT, 'BR'), (c) => c.event(EVENT, { market: 'BR' })],
   ['h2h', h2hRequest(EVENT), (c) => c.eventH2h(EVENT, { limit: 10 })],
   ['contexto', eventContextRequest(EVENT), (c) => c.eventContext(EVENT)],
   ['onde assistir', whereToWatchRequest(EVENT, 'BR'), (c) => c.whereToWatch(EVENT, 'BR')],

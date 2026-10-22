@@ -166,6 +166,7 @@ tempo limite, sem sobreposição e registrado em `ops.job_run` (alimenta as mét
 | `live-run` | `*/5 * * * *` | `dist/cli/live-run.js` | LIVE: planeja o orçamento do dia (LIVE = 0 sem jogos relevantes) e roda o poller enquanto houver janela |
 | `normalize-football` | `35 0 * * *` | `dist/cli/normalize-football.js` | 0 (raw → core incremental) |
 | `events-clock` | `* * * * *` | `dist/cli/events-clock.js` | 0 (transições de estado pelo horário previsto) |
+| `events-importance` | `20 * * * *` | `dist/cli/events-importance.js --esporte football --proximos-dias 7` | 0 (sinais da tabela pelo motor de regras e prestígio do catálogo na importância, docs/06 §3.1) |
 | `assets-mirror` | `30 1 * * *` | `dist/cli/mirror-assets.js --descobrir-raw --limite 2000` | 0 (CDN de mídia → S3 interno) |
 | `assets-palette` | `10 3 * * *` | `dist/cli/assets-palette.js --limite 5000` | 0 (lê escudos do S3 e grava as cores dos times) |
 | `quota-status` | `5 * * * *` | `dist/cli/quota.js` | 0 (`/status`) — reconcilia o Governor com o contador do fornecedor |

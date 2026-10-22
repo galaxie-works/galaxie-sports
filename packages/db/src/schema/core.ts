@@ -127,6 +127,11 @@ export const competition = core.table(
     /** 1 = cobertura máxima (live + IA), 2 = completa sem live prioritário, 3 = apenas espelho. */
     tier: smallint('tier').notNull().default(3),
     livePriority: text('live_priority').notNull().default('none'),
+    /**
+     * Prestígio editorial (0–10) somado à importância dos eventos: copas continentais e torneios de
+     * seleções (config/competitions/<esporte>.yaml, campo `prestige`). docs/06 §3.
+     */
+    prestige: smallint('prestige').notNull().default(0),
     logoAssetId: uuid('logo_asset_id').references(() => asset.id),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -366,6 +371,23 @@ export type EventScore = {
 export type EventClock = { minute: number | null; extra: number | null; period: string | null };
 
 /**
+ * Componentes do score de importância (docs/06 §3), gravados junto com `importance`.
+ * `flags` = sinais decisivos que entraram na conta; `stake_flags` = os vindos da tabela (motor de regras),
+ * calculados pelo recálculo periódico e preservados pelo upsert da normalização.
+ */
+export type EventImportanceBreakdown = {
+  tier: number;
+  phase: number;
+  derby: number;
+  decisive: number;
+  prestige: number;
+  /** Perna do confronto de ida e volta (1 = ida, 2 = volta); null em jogo único ou pontos corridos. */
+  leg: 1 | 2 | null;
+  flags: string[];
+  stake_flags: string[];
+};
+
+/**
  * Entidade primária do produto: existe mesmo que ninguém a transmita.
  * Ver docs/04-modelo-de-dados.md §3 (máquina de estados e last-known-good).
  */
@@ -396,6 +418,8 @@ export const event = core.table(
     /** Provedor dono do estado atual (precedência entre provedores, docs/03 §8). */
     sourceProvider: text('source_provider'),
     importance: integer('importance').notNull().default(0),
+    /** Componentes do score de importância (null em eventos gravados antes da revisão de 2026-10). */
+    importanceBreakdown: jsonb('importance_breakdown').$type<EventImportanceBreakdown>(),
     /** Clássico detectado pelos participantes (semantic.derby); some se o clássico sair da base. */
     derbyId: uuid('derby_id').references((): AnyPgColumn => derby.id, { onDelete: 'set null' }),
     createdAt: createdAt(),

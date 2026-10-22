@@ -57,6 +57,15 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 5 * MINUTE,
   },
   {
+    name: 'events-importance',
+    description:
+      'Importância dos jogos dos próximos 7 dias: sinais da tabela (título, rebaixamento, vaga) pelo motor de regras e prestígio do catálogo (sem chamadas ao fornecedor)',
+    cron: '20 * * * *',
+    script: 'dist/cli/events-importance.js',
+    args: ['--esporte', 'football', '--proximos-dias', '7'],
+    timeoutMs: 20 * MINUTE,
+  },
+  {
     name: 'assets-mirror',
     description: 'Espelha logos/bandeiras/fotos do raw para o S3 (CDN de mídia; não consome cota da API)',
     cron: '30 1 * * *',

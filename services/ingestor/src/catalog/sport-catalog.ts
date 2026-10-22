@@ -243,6 +243,7 @@ function competitionFrom(
     type,
     tier: cfg?.tier ?? 3,
     livePriority: cfg?.live_priority ?? 'none',
+    prestige: cfg?.prestige ?? 0,
     logoUrl: logo && isProviderMediaUrl(logo) ? logo : null,
     seasons,
   };

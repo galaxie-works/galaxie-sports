@@ -659,7 +659,10 @@ describe('camada de provedores', () => {
     });
     const e = await eventRow('1492212');
     expect(e.derbyId).toBe(derbyId);
-    expect(e.importance).toBe(40 + 4 + 30);
+    // tier 1 + rodada (4 + reta final pelo total de rodadas conhecido) + clássico 6 × 5
+    expect(e.importanceBreakdown).toMatchObject({ tier: 40, derby: 30, decisive: 0, prestige: 0, flags: [] });
+    expect(e.importanceBreakdown!.phase).toBeGreaterThanOrEqual(4);
+    expect(e.importance).toBe(40 + e.importanceBreakdown!.phase + 30);
   });
 
   it('nome do estádio: o jogo mais recente vence o /teams e o histórico vira nome anterior', async () => {

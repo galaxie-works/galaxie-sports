@@ -180,6 +180,57 @@ export const EventStage = z
   })
   .meta({ id: 'EventStage' });
 
+/** Sinais de jogo decisivo que entram no score de importância (docs/06 §3). */
+export const IMPORTANCE_FLAGS = ['title', 'relegation', 'elimination', 'qualification'] as const;
+
+export const ImportanceBreakdown = z
+  .object({
+    tier: z.number().int().meta({ description: 'Tier da competição: 40 / 25 / 10 (5 se desconhecido).' }),
+    phase: z
+      .number()
+      .int()
+      .meta({ description: 'Fase (final 30 … rodada 4, +até 6 na reta final); jogo de ida × 0,75.' }),
+    derby: z.number().int().meta({ description: 'Clássico: 6 × intensidade (1–5).' }),
+    decisive: z.number().int().meta({
+      description: 'Decisão: título 15, rebaixamento 10, eliminação 8, vaga 6 (teto 20).',
+    }),
+    prestige: z
+      .number()
+      .int()
+      .meta({ description: 'Prestígio da competição (0–10): copas continentais e seleções.' }),
+    flags: z
+      .array(z.enum(IMPORTANCE_FLAGS))
+      .meta({ description: 'Sinais decisivos considerados (mata-mata e tabela).', example: ['elimination'] }),
+  })
+  .meta({
+    id: 'ImportanceBreakdown',
+    description: 'Componentes do `importance` (a soma, limitada a 0–100, é o score global).',
+  });
+export type ImportanceBreakdown = z.infer<typeof ImportanceBreakdown>;
+
+/** Por que o jogo interessa mais a um mercado (docs/06 §3.2). */
+export const RELEVANCE_REASONS = [
+  'team_from_market',
+  'domestic_competition',
+  'continental_competition',
+] as const;
+
+export const EventRelevance = z
+  .object({
+    market: z.string().meta({ description: 'País (ISO 3166-1 alfa-2).', example: 'BR' }),
+    score: z.number().int().min(0).max(100).meta({ description: '`importance` + `bonus`, limitado a 100.' }),
+    bonus: z.number().int().min(0).max(10).meta({
+      description: '+10 participante do país; +5 competição do país ou continental da confederação; teto 10.',
+    }),
+    reasons: z.array(z.enum(RELEVANCE_REASONS)),
+  })
+  .meta({
+    id: 'EventRelevance',
+    description:
+      'Relevância por mercado, calculada na requisição a partir de `market` (ou do mercado do plano).',
+  });
+export type EventRelevance = z.infer<typeof EventRelevance>;
+
 export const Event = z
   .object({
     id: z.uuid(),
@@ -198,6 +249,10 @@ export const Event = z
       .nullable(),
     momentum: z.enum(MOMENTUM_VALUES).nullable(),
     importance: z.number().int().min(0).max(100),
+    importance_breakdown: ImportanceBreakdown.nullable().meta({
+      description: 'Componentes do score global; null em eventos ainda não recalculados.',
+    }),
+    relevance: EventRelevance.nullable().meta({ description: 'null sem mercado (`market`).' }),
     participants: z.array(EventParticipant),
     score: SidePair.extend({
       halftime: SidePair.nullable(),
@@ -254,6 +309,13 @@ const statusList = z
   })
   .meta({ description: 'Lista separada por vírgulas.', example: 'scheduled,live' });
 
+/** Mercado da relevância (ISO 3166-1 alfa-2, qualquer caixa). Sem ele vale o único mercado do plano. */
+const MarketParam = z
+  .string()
+  .regex(/^[A-Za-z]{2}$/, 'use o código ISO de 2 letras do país')
+  .transform((v) => v.toUpperCase())
+  .meta({ description: 'Mercado (país ISO2) da relevância: `relevance` no evento.', example: 'BR' });
+
 export const EventsQuery = LocaleQuery.extend(PaginationQuery.shape).extend({
   date: z
     .string()
@@ -286,18 +348,31 @@ export const EventsQuery = LocaleQuery.extend(PaginationQuery.shape).extend({
     .meta({ description: 'País da competição ou de um participante.', example: 'BR' }),
   status: statusList.optional(),
   importance_min: z.coerce.number().int().min(0).max(100).optional(),
-  order: z
-    .enum(['starts_at', 'importance'])
-    .default('starts_at')
-    .meta({ description: '`starts_at` (crescente) ou `importance` (decrescente, depois horário).' }),
+  market: MarketParam.optional(),
+  relevance_min: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(100)
+    .optional()
+    .meta({ description: 'Relevância mínima no mercado (exige `market` ou mercado do plano).' }),
+  order: z.enum(['starts_at', 'importance', 'relevance']).default('starts_at').meta({
+    description:
+      '`starts_at` (crescente), `importance` ou `relevance` (decrescentes, depois horário; `relevance` exige mercado).',
+  }),
 });
 export type EventsQuery = z.input<typeof EventsQuery>;
 
 export const LiveEventsQuery = LocaleQuery.extend({
   sport: z.string().max(40).optional(),
   competition: z.string().min(1).max(120).optional().meta({ description: 'UUID ou slug da competição.' }),
+  market: MarketParam.optional(),
 });
 export type LiveEventsQuery = z.input<typeof LiveEventsQuery>;
+
+/** Detalhe do evento: locale/fuso e o mercado da relevância. */
+export const EventQuery = LocaleQuery.extend({ market: MarketParam.optional() });
+export type EventQuery = z.input<typeof EventQuery>;
 
 export const EventParams = z.object({
   id: z.uuid().meta({ description: 'ID do evento.' }),

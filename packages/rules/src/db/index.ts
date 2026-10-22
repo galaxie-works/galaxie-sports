@@ -176,3 +176,15 @@ export async function loadSeasonResults(
   }
   return out;
 }
+
+export {
+  computeEventStakes,
+  KNOCKOUT_STAGE_KINDS,
+  LEAGUE_STAGE_KINDS,
+  StakesCache,
+  type EventStakes,
+  type KnockoutContext,
+  type LeagueContext,
+  type StakesEventRef,
+  type StakesOptions,
+} from './stakes.js';

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { importance, PHASE_POINTS, type ImportanceInput } from './importance.js';
+import {
+  importance,
+  isKnockoutStage,
+  knockoutDecisive,
+  PHASE_POINTS,
+  roundProgress,
+  type ImportanceInput,
+} from './importance.js';
 import { STAGE_KINDS } from '../model.js';
 
 describe('importance (tabela de casos)', () => {
@@ -39,6 +46,29 @@ describe('importance (tabela de casos)', () => {
       100,
     ],
     ['amistoso', { tier: 3, stageKind: 'friendly' }, 10],
+    // revisão de 2026-10: perna, prestígio e decisão estrutural do mata-mata
+    [
+      'volta da semifinal da Libertadores (eliminação + prestígio)',
+      { tier: 1, stageKind: 'semi_final', leg: 2, decisive: ['elimination'], prestige: 10 },
+      40 + 22 + 8 + 10,
+    ],
+    [
+      'ida da semifinal da Libertadores: fase × 0,75 e nada decidido',
+      { tier: 1, stageKind: 'semi_final', leg: 1, prestige: 10 },
+      40 + 17 + 10,
+    ],
+    [
+      'final em jogo único da Libertadores (título + prestígio)',
+      { tier: 1, stageKind: 'final', decisive: ['title'], prestige: 10 },
+      40 + 30 + 15 + 10,
+    ],
+    [
+      'reta final do Brasileirão com título e rebaixamento em jogo (teto de 20)',
+      { tier: 1, stageKind: 'regular', roundProgress: 31 / 37, decisive: ['title', 'relegation'] },
+      40 + 9 + 20,
+    ],
+    ['prestígio acima do teto vira 10', { tier: 1, stageKind: 'group', prestige: 40 }, 40 + 6 + 10],
+    ['prestígio negativo vira 0', { tier: 1, stageKind: 'group', prestige: -3 }, 40 + 6],
   ];
 
   it.each(cases)('%s', (_name, input, expected) => {
@@ -53,7 +83,7 @@ describe('importance (tabela de casos)', () => {
         derby: { derbyId: 'd', intensity: 4 },
         decisive: ['qualification'],
       }).breakdown,
-    ).toEqual({ tier: 40, phase: 22, derby: 24, decisive: 6 });
+    ).toEqual({ tier: 40, phase: 22, derby: 24, decisive: 6, prestige: 0 });
   });
 
   it('intensidade fora de 1–5 é limitada', () => {
@@ -64,5 +94,51 @@ describe('importance (tabela de casos)', () => {
 
   it('toda fase canônica tem peso', () => {
     for (const kind of STAGE_KINDS) expect(PHASE_POINTS[kind]).toBeTypeOf('number');
+  });
+});
+
+describe('knockoutDecisive', () => {
+  it('jogo único e volta eliminam; a final vale o título', () => {
+    expect(knockoutDecisive('quarter_final', { legs: 1, leg: null })).toEqual(['elimination']);
+    expect(knockoutDecisive('semi_final', { legs: 2, leg: 2 })).toEqual(['elimination']);
+    expect(knockoutDecisive('final', { legs: 1, leg: null })).toEqual(['title']);
+    expect(knockoutDecisive('final', { legs: 2, leg: 2 })).toEqual(['title']);
+    expect(knockoutDecisive('relegation', { legs: 1, leg: null })).toEqual(['relegation']);
+  });
+
+  it('ida, perna desconhecida, 3º lugar e pontos corridos não decidem', () => {
+    expect(knockoutDecisive('semi_final', { legs: 2, leg: 1 })).toEqual([]);
+    expect(knockoutDecisive('final', { legs: 2, leg: null })).toEqual([]);
+    expect(knockoutDecisive('third_place', { legs: 1, leg: null })).toEqual([]);
+    expect(knockoutDecisive('regular', { legs: 1, leg: null })).toEqual([]);
+    expect(knockoutDecisive(null, { legs: 1, leg: null })).toEqual([]);
+  });
+});
+
+describe('isKnockoutStage', () => {
+  it('rótulo com número de rodada é pontos corridos, mesmo com tipo de mata-mata', () => {
+    expect(isKnockoutStage('semi_final', 'Semi-finals')).toBe(true);
+    expect(isKnockoutStage('qualifying', '2nd Qualifying Round')).toBe(true);
+    expect(isKnockoutStage('qualifying', 'Preliminary Round - 2')).toBe(false);
+    expect(isKnockoutStage('relegation', 'Relegation - 5')).toBe(false);
+    expect(isKnockoutStage('relegation', 'Relegation Play-offs')).toBe(true);
+    expect(isKnockoutStage('knockout_round', '1st Round - 10')).toBe(false);
+    expect(isKnockoutStage('regular', 'Regular Season - 32')).toBe(false);
+    expect(isKnockoutStage('final', null)).toBe(true);
+  });
+});
+
+describe('roundProgress', () => {
+  it('rodada 1 → 0, última → 1', () => {
+    expect(roundProgress(1, 38)).toBe(0);
+    expect(roundProgress(38, 38)).toBe(1);
+    expect(roundProgress(32, 38)).toBeCloseTo(31 / 37);
+  });
+
+  it('sem rodada ou total, ou rodada além do total', () => {
+    expect(roundProgress(null, 38)).toBeNull();
+    expect(roundProgress(5, null)).toBeNull();
+    expect(roundProgress(5, 1)).toBeNull();
+    expect(roundProgress(40, 38)).toBe(1);
   });
 });
