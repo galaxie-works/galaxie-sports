@@ -210,18 +210,20 @@ export async function getSquad(id: string) {
 
 // ─── evento ──────────────────────────────────────────────────────────────────────────────────────
 
-export const eventRequest = (id: string): ApiRequest => ({
+export const eventRequest = (id: string, market?: string): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}',
   params: { id },
-  query: LOCALE_QUERY,
-  description: 'Evento completo: participantes, placar, estado, importância, clássico e o que está em jogo.',
+  query: market ? { market, ...LOCALE_QUERY } : LOCALE_QUERY,
+  description:
+    'Evento completo: participantes, placar, estado, importância (com detalhamento), relevância no mercado, clássico e o que está em jogo.',
 });
 
-export async function getEvent(id: string) {
+/** Evento com a relevância no mercado (país ISO2) pedido. */
+export async function getEvent(id: string, market?: string) {
   'use cache';
   cacheLife('minutes');
-  return orNotFound(api.event(id));
+  return orNotFound(api.event(id, market ? { market } : {}));
 }
 
 export const h2hRequest = (id: string): ApiRequest => ({

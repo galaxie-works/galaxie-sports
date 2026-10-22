@@ -9,11 +9,11 @@ import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
 import { MatchStakes } from '@/components/sport/match-stakes';
+import { RelevanceMeter } from '@/components/sport/relevance-meter';
 import { Section } from '@/components/sport/section';
 import { StatusBadge } from '@/components/sport/status-badge';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtDateLong, fmtTime } from '@/lib/format';
 import {
@@ -184,13 +184,7 @@ function AboutCard({ event }: { event: Event }) {
             <Intensity value={event.derby.intensity} className="ml-auto" />
           </Link>
         ) : null}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Importância editorial</span>
-            <span className="font-semibold tabular-nums">{event.importance}/100</span>
-          </div>
-          <Progress value={event.importance} />
-        </div>
+        <RelevanceMeter event={event} />
         {contexts.length ? (
           <div className="flex flex-wrap gap-1.5">
             {contexts.map((c) => (
@@ -356,7 +350,8 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
   const query = await searchParams;
   const country = typeof query.pais === 'string' ? query.pais.toUpperCase() : 'BR';
 
-  const event = await getEvent(id);
+  // relevância no mesmo país do "Onde assistir"
+  const event = await getEvent(id, country);
   const [context, h2h, wtw, lineups] = await Promise.all([
     getEventContext(id),
     getH2h(id),
@@ -367,7 +362,7 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
 
   return (
     <>
-      <PageHeader title={title} kind="evento" api={eventRequest(id)} />
+      <PageHeader title={title} kind="evento" api={eventRequest(id, country)} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         <Scoreboard event={event} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
