@@ -73,11 +73,11 @@ services:
       retries: 20
     logging: *logging
 
-  # Object storage S3-compatível (assets espelhados). Exposto pelo Traefik só para leitura (GET/HEAD) do bucket.
+  # Object storage S3-compatível (assets espelhados). O RustFS usa ~0,5–1 GB em uso normal: 256m causa OOM. Exposto pelo Traefik só para leitura (GET/HEAD) do bucket.
   s3:
     image: rustfs/rustfs:1.0.2
     restart: unless-stopped
-    mem_limit: 256m
+    mem_limit: 1g
     environment:
       RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
       RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
@@ -281,7 +281,7 @@ services:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-grafana:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    mem_limit: 256m
+    mem_limit: 512m
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD}

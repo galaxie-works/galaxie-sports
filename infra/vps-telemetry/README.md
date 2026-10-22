@@ -10,7 +10,7 @@ entrypoints `web`/`websecure`, certresolver `letsencrypt` por HTTP-01).
 | `/metrics` e `/internal` fora do router da API | mesmo bloqueio que o Caddy fazia |
 | Sem `build:`; `pull_policy: always` com imagens do GHCR | não compilar o monorepo na VPS (2 vCPU compartilhadas) |
 | Sub-rede fixa `172.30.50.0/24` e `TRUST_PROXY=172.30.50.1` | o Traefik chega aos contêineres pelo gateway da rede |
-| `mem_limit` por serviço | a VPS hospeda outras stacks |
+| `mem_limit` por serviço (S3 1g, Grafana 512m: com 256m os dois chegam ao limite) | a VPS hospeda outras stacks |
 | Serviço `demo` com login próprio (convites, papéis, prazo e atividade) | o app de demonstração (metadados em negociação) |
 | Assets públicos: `GET/HEAD` do bucket via Traefik, bucket com leitura anônima só de objetos | logos, bandeiras e fotos na demo e na API |
 | Grafana sem rota pública | acesso por túnel SSH |
