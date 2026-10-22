@@ -290,6 +290,7 @@ O clique abre um **painel lateral 9:16** ([related-player.tsx](../apps/demo/src/
 - **Navegação**: "Anterior/Próximo" (e as setas do teclado) percorrem a lista com o filtro de tipo ativo, e o fim do vídeo avança sozinho. O card do vídeo em reprodução fica marcado ("Tocando").
 - **Teclado e foco**: ao abrir, o foco vai para o painel; Esc fecha e devolve o foco ao card. O foco não fica preso, porque o painel não é modal e o resto do app segue utilizável.
 - **Carregamento**: o iframe e o script da API do YouTube só carregam ao abrir o painel. Antes do clique, nada do YouTube é carregado além das miniaturas.
+- **Autoplay**: o vídeo começa sozinho ao abrir. Quem decide se pode tocar com som é a política de autoplay de cada navegador; o Safari do iPhone e alguns Android recusam som em player embutido. Se o vídeo não estiver tocando com som 1,5 s depois de pronto, o painel toca mudo (autoplay mudo é sempre permitido) e mostra **"Toque para ativar o som"**. O aviso some ao tocar nele ou quando o som é ativado pelos controles do próprio player. Com o autoplay desligado nas configurações do navegador, nada toca sozinho, e isso não tem como ser contornado.
 - **Futuro**: a fonte do player é escolhida por plataforma (`playerSource`: `youtube` → embed). Vídeo próprio do parceiro (HLS/MP4 licenciado) poderá usar um player nosso, como o Limeplay; isso ainda não foi adicionado.
 
 ## 12. Métricas e riscos

@@ -1,7 +1,7 @@
 'use client';
 
 import type { RelatedItem } from '@galaxie/contracts';
-import { BadgeCheck, ChevronLeft, ChevronRight, ExternalLink, XIcon } from 'lucide-react';
+import { BadgeCheck, ChevronLeft, ChevronRight, ExternalLink, VolumeX, XIcon } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
@@ -32,6 +32,11 @@ export function playerSource(item: RelatedItem): PlayerSource | null {
 
 interface YtPlayer {
   destroy(): void;
+  playVideo(): void;
+  mute(): void;
+  unMute(): void;
+  isMuted(): boolean;
+  getPlayerState(): number;
 }
 interface YtNamespace {
   Player: new (
@@ -42,7 +47,10 @@ interface YtNamespace {
       width: string;
       height: string;
       playerVars: Record<string, number | string>;
-      events: { onStateChange?: (e: { data: number }) => void };
+      events: {
+        onReady?: (e: { target: YtPlayer }) => void;
+        onStateChange?: (e: { data: number; target: YtPlayer }) => void;
+      };
     },
   ) => YtPlayer;
 }
@@ -73,10 +81,17 @@ function loadYoutubeApi(): Promise<YtNamespace> {
 }
 
 const YT_ENDED = 0;
+const YT_PLAYING = 1;
+const YT_BUFFERING = 3;
+/** Tempo para o vídeo começar com som antes de cair no autoplay mudo. */
+export const AUTOPLAY_FALLBACK_MS = 1_500;
 
 function YoutubeEmbed({ videoId, title, onEnded }: { videoId: string; title: string; onEnded?: () => void }) {
   const host = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<YtPlayer | null>(null);
   const ended = useRef(onEnded);
+  /** Autoplay com som bloqueado (ex.: Safari do iPhone): tocando mudo, à espera de um toque. */
+  const [mutedFallback, setMutedFallback] = useState(false);
   useEffect(() => {
     ended.current = onEnded;
   }, [onEnded]);
@@ -84,6 +99,7 @@ function YoutubeEmbed({ videoId, title, onEnded }: { videoId: string; title: str
   useEffect(() => {
     let player: YtPlayer | undefined;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     void loadYoutubeApi().then((YT) => {
       if (cancelled || !host.current) return;
       const el = document.createElement('div');
@@ -94,19 +110,75 @@ function YoutubeEmbed({ videoId, title, onEnded }: { videoId: string; title: str
         width: '100%',
         height: '100%',
         playerVars: { autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1 },
-        events: { onStateChange: (e) => e.data === YT_ENDED && ended.current?.() },
+        events: {
+          onReady: ({ target }) => {
+            target.playVideo();
+            // O navegador pode recusar o autoplay com som (a política de autoplay não é nossa):
+            // sem reprodução — ou se o próprio player silenciou — toca mudo e oferece ativar o som.
+            timer = setTimeout(() => {
+              if (cancelled) return;
+              const state = target.getPlayerState();
+              const started = state === YT_PLAYING || state === YT_BUFFERING;
+              if (!started || target.isMuted()) {
+                target.mute();
+                target.playVideo();
+                setMutedFallback(true);
+                // os comandos chegam ao iframe de forma assíncrona: se o play saiu antes do mute valer,
+                // tenta de novo (mudo, o autoplay é sempre permitido)
+                timer = setTimeout(() => {
+                  const s = target.getPlayerState();
+                  if (!cancelled && s !== YT_PLAYING && s !== YT_BUFFERING) target.playVideo();
+                }, 500);
+              }
+            }, AUTOPLAY_FALLBACK_MS);
+          },
+          onStateChange: ({ data }) => {
+            if (data === YT_ENDED) ended.current?.();
+          },
+        },
       });
-      const iframe = host.current.querySelector('iframe');
-      iframe?.setAttribute('title', title);
-      iframe?.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture; fullscreen');
+      playerRef.current = player;
+      host.current.querySelector('iframe')?.setAttribute('title', title);
     });
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
       player?.destroy();
+      playerRef.current = null;
     };
   }, [videoId, title]);
 
-  return <div ref={host} className="size-full [&_iframe]:size-full" />;
+  // som ativado pelos controles do próprio player (o isMuted() do YouTube atualiza com atraso): some o aviso
+  useEffect(() => {
+    if (!mutedFallback) return;
+    const id = setInterval(() => {
+      if (playerRef.current && !playerRef.current.isMuted()) setMutedFallback(false);
+    }, 1_000);
+    return () => clearInterval(id);
+  }, [mutedFallback]);
+
+  const unmute = () => {
+    const p = playerRef.current;
+    if (!p) return;
+    p.unMute();
+    p.playVideo();
+    setMutedFallback(false);
+  };
+
+  return (
+    <div className="relative size-full">
+      <div ref={host} className="size-full [&_iframe]:size-full" />
+      {mutedFallback ? (
+        <button
+          type="button"
+          onClick={unmute}
+          className="bg-background/90 text-foreground hover:bg-background absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg transition-colors"
+        >
+          <VolumeX className="size-3.5" aria-hidden /> Toque para ativar o som
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 // ─── estado do player (no layout: o painel sobrevive à navegação entre páginas) ──────────────────
