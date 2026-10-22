@@ -6,14 +6,15 @@ import {
   type FactSheet,
 } from '../guardrails/index.js';
 import { eventNames, teamName, type EventCore } from '../context/event-core.js';
-import type { RecapFacts, RecapGoal, RecapPlayerEvent, Side } from './facts.js';
+import type { RecapFacts, RecapGoal, RecapNextStage, RecapPlayerEvent, Side } from './facts.js';
 
 /**
  * Agente Resumo pós-jogo (issue #58): o LLM redige 2–4 frases por locale a partir da timeline
  * real; o validador confere nomes, minutos e placares; o fallback monta o resumo direto da timeline.
  */
 
-export const RECAP_PROMPT_VERSION = 'recap@v1';
+// v2: desfecho do mata-mata (agregado, quem passou e para onde) e nome curado do estádio
+export const RECAP_PROMPT_VERSION = 'recap@v2';
 
 /** Fatos citáveis no texto do locale (validador). */
 export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: AgentLocale): FactSheet {
@@ -26,6 +27,7 @@ export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: Agent
   if (facts.halftime) b.score(facts.halftime.home, facts.halftime.away);
   if (facts.penalties) b.score(facts.penalties.home, facts.penalties.away, { result: true });
   if (facts.aggregate) b.score(facts.aggregate.home, facts.aggregate.away, { result: true });
+  if (facts.tie?.first_leg) b.score(facts.tie.first_leg.home, facts.tie.first_leg.away);
   b.number(facts.match.round);
   const goalsBy = { home: 0, away: 0 };
   const perScorer = new Map<string, number>();
@@ -130,7 +132,80 @@ function playersSentence(
   return `${head}: ${joinList(items, pt)}`;
 }
 
-/** Resumo determinístico direto da timeline (máx. 4 frases). */
+const NEXT_STAGE_TEXT: Record<'pt' | 'es', Record<RecapNextStage, string>> = {
+  pt: {
+    final: 'a final',
+    semi_final: 'as semifinais',
+    quarter_final: 'as quartas de final',
+    round_of_16: 'as oitavas de final',
+    round_of_32: 'a fase de 32 avos',
+    round_of_64: 'a fase de 64 avos',
+    next_round: 'a próxima fase',
+  },
+  es: {
+    final: 'la final',
+    semi_final: 'las semifinales',
+    quarter_final: 'los cuartos de final',
+    round_of_16: 'los octavos de final',
+    round_of_32: 'los dieciseisavos de final',
+    round_of_64: 'los treintaidosavos de final',
+    next_round: 'la siguiente fase',
+  },
+};
+
+/** Frase do desfecho do mata-mata (quem passou, agregado e como a vaga saiu); null sem desfecho. */
+export function tieSentence(core: EventCore, facts: RecapFacts, locale: AgentLocale): string | null {
+  const tie = facts.tie;
+  if (!tie) return null;
+  const pt = languageOf(locale) === 'pt';
+  if (tie.leg === 1)
+    return pt
+      ? 'Jogo de ida; a vaga será decidida na volta'
+      : 'Partido de ida; la serie se define en la vuelta';
+  const agg = tie.aggregate;
+  const home = teamName(core.home, locale);
+  const away = teamName(core.away, locale);
+  if (!tie.winner) {
+    return agg
+      ? pt
+        ? `Agregado: ${home} ${agg.home} x ${agg.away} ${away}`
+        : `Global: ${home} ${agg.home}-${agg.away} ${away}`
+      : null;
+  }
+  const winner = teamName(tie.winner === 'home' ? core.home : core.away, locale);
+  const lang = pt ? 'pt' : 'es';
+  let head =
+    tie.outcome === 'title'
+      ? pt
+        ? `${winner} é campeão`
+        : `${winner} es campeón`
+      : tie.outcome === 'third_place'
+        ? pt
+          ? `${winner} ficou com o terceiro lugar`
+          : `${winner} se quedó con el tercer puesto`
+        : pt
+          ? `${winner} se classificou para ${NEXT_STAGE_TEXT[lang][tie.next_stage ?? 'next_round']}`
+          : `${winner} se clasificó a ${NEXT_STAGE_TEXT[lang][tie.next_stage ?? 'next_round']}`;
+  if (tie.legs === 2 && agg) {
+    const w = tie.winner === 'home' ? agg.home : agg.away;
+    const l = tie.winner === 'home' ? agg.away : agg.home;
+    head +=
+      tie.decided_by === 'aggregate'
+        ? pt
+          ? `; venceu o confronto por ${w} x ${l} no agregado`
+          : `; ganó la serie ${w}-${l} en el global`
+        : tie.decided_by === 'away_goals'
+          ? pt
+            ? `; o agregado ficou ${w} x ${l} e a vaga saiu pelos gols fora de casa`
+            : `; la serie quedó ${w}-${l} en el global y se definió por goles de visitante`
+          : pt
+            ? `; o agregado ficou ${w} x ${l} e a vaga foi decidida nos pênaltis`
+            : `; la serie quedó ${w}-${l} en el global y se definió por penales`;
+  }
+  return head;
+}
+
+/** Resumo determinístico direto da timeline (máx. 4 frases); no mata-mata, o desfecho vem primeiro. */
 export function recapFallback(core: EventCore, facts: RecapFacts, locale: AgentLocale): string[] {
   const pt = languageOf(locale) === 'pt';
   const home = teamName(core.home, locale);
@@ -147,7 +222,10 @@ export function recapFallback(core: EventCore, facts: RecapFacts, locale: AgentL
       ? `; nos pênaltis, ${winner} venceu por ${Math.max(p.home, p.away)} x ${Math.min(p.home, p.away)}`
       : `; en los penales, ${winner} ganó ${Math.max(p.home, p.away)}-${Math.min(p.home, p.away)}`;
   }
-  const sentences = [first];
+  const tie = tieSentence(core, facts, locale);
+  // desfecho do confronto primeiro (exceto no jogo de ida, que só ganha a nota depois do placar)
+  const sentences = tie && facts.tie?.leg !== 1 ? [tie, first] : [first];
+  if (tie && facts.tie?.leg === 1) sentences.push(tie);
   const goalLines = [
     goalsSentence(core, facts.goals, 'home', locale),
     goalsSentence(core, facts.goals, 'away', locale),
@@ -173,6 +251,14 @@ export function recapSystemPrompt(): string {
     '- Para cada locale pedido, escreva de 2 a 4 frases curtas (até 600 caracteres no total).',
     '- Escreva no idioma e na variante regional do locale; não traduza literalmente.',
     "- Comece pelo resultado final. Cite autores de gol e minutos exatamente como na timeline (ex.: 45+2').",
+    '- Mata-mata (campo "tie" não nulo): a PRIMEIRA frase é o desfecho do confronto, antes do placar do jogo:',
+    '  quem se classificou e para qual fase (tie.outcome = "advances", fase em tie.next_stage) ou quem foi campeão',
+    '  (tie.outcome = "title"); em ida e volta, cite o agregado (tie.aggregate) e como a vaga saiu',
+    '  (tie.decided_by: aggregate, away_goals, penalties). Ex.: "X se classificou para a final: 2 x 2 no agregado e 5 x 3 nos pênaltis."',
+    '- tie.aggregate e tie.first_leg estão na ótica DESTE jogo (home = mandante deste jogo).',
+    '- Se tie.leg = 1 (jogo de ida) ou tie.winner = null, NÃO diga que alguém se classificou, foi eliminado ou campeão.',
+    '- Perder o jogo e passar no confronto não é contradição: diga as duas coisas com clareza.',
+    '- Estádio: use exatamente match.venue (nome atual); não use nomes antigos.',
     '- Gol contra é creditado ao time beneficiado; diga "contra" (pt) / "en contra" (es) e não chame o jogador de artilheiro.',
     '- Cite times e jogadores exatamente pelos nomes fornecidos. Sem adjetivos de desempenho individual, sem notas e sem opinião.',
   ].join('\n');

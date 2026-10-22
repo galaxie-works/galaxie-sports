@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { AGENT_LOCALES, checkGeneratedText, joinSentences, type AgentLocale } from '../guardrails/index.js';
 import { sampleCore } from '../testing/samples.js';
-import { buildGoals, buildRecapFacts, type IncidentRow } from './facts.js';
+import {
+  buildGoals,
+  buildRecapFacts,
+  buildRecapTie,
+  type IncidentRow,
+  type RecapKnockoutInput,
+} from './facts.js';
 import { recapFactSheet, recapFallback } from './recap.js';
 
 const core = sampleCore({
@@ -219,5 +225,129 @@ describe('resumo determinístico', () => {
       facts: sheet,
     });
     expect(ghost.map((v) => [v.kind, v.value])).toContainEqual(['unknown_name', 'Endrick']);
+  });
+});
+
+describe('mata-mata: agregado, quem passou e para onde', () => {
+  // Semifinal da Libertadores, volta: Palmeiras 0 × 1 Fluminense, pênaltis 5 × 3; ida Fluminense 1 × 2 Palmeiras
+  const semi = sampleCore({
+    status: 'finished',
+    statusDetail: 'PEN',
+    score: {
+      home: 0,
+      away: 1,
+      halftime: { home: 0, away: 0 },
+      extratime: { home: 0, away: 0 },
+      penalty: { home: 5, away: 3 },
+    },
+    stage: {
+      id: 's',
+      kind: 'semi_final',
+      name: { 'pt-BR': 'Semifinal', es: 'Semifinales', en: 'Semi-finals' },
+      providerLabel: 'Semi-finals',
+    },
+    venue: { name: 'Nubank Parque', city: 'São Paulo' },
+    away: { id: 'away-id', side: 'away', name: 'Fluminense', shortName: 'FLU', aliases: [], labels: {} },
+  });
+  const secondLeg: RecapKnockoutInput = {
+    legs: 2,
+    leg: 2,
+    firstLeg: { homeTeamId: 'away-id', awayTeamId: 'home-id', homeGoals: 1, awayGoals: 2 },
+    aggregateBefore: { home: 2, away: 1 },
+    extraTime: false,
+    penalties: true,
+    decidesTitle: false,
+    awayGoals: false,
+  };
+  const goal: IncidentRow = {
+    sequence: 0,
+    minute: 82,
+    extra: null,
+    type: 'goal',
+    detail: 'Normal Goal',
+    participantId: 'away-id',
+    person: 'Hércules',
+    assist: null,
+  };
+  const facts = buildRecapFacts(semi, [goal], null, AGENT_LOCALES, secondLeg)!;
+
+  it('agregado 2 × 2 e Palmeiras na final pelos pênaltis', () => {
+    expect(facts.tie).toEqual({
+      legs: 2,
+      leg: 2,
+      first_leg: { home: 2, away: 1 },
+      aggregate: { home: 2, away: 2 },
+      winner: 'home',
+      decided_by: 'penalties',
+      outcome: 'advances',
+      next_stage: 'final',
+    });
+    expect(facts.aggregate).toEqual({ home: 2, away: 2 });
+    expect(facts.match.venue).toBe('Nubank Parque');
+  });
+
+  it('o resumo determinístico abre com o desfecho do confronto', () => {
+    expect(recapFallback(semi, facts, 'pt-BR')).toEqual([
+      'Palmeiras se classificou para a final; o agregado ficou 2 x 2 e a vaga foi decidida nos pênaltis',
+      'Fim de jogo: Palmeiras 0 x 1 Fluminense; nos pênaltis, Palmeiras venceu por 5 x 3',
+      "Gol do Fluminense: Hércules (82')",
+    ]);
+    expect(recapFallback(semi, facts, 'es-AR')[0]).toBe(
+      'Palmeiras se clasificó a la final; la serie quedó 2-2 en el global y se definió por penales',
+    );
+  });
+
+  it.each(AGENT_LOCALES)('fallback do mata-mata passa nos guardrails (%s)', (locale: AgentLocale) => {
+    const text = joinSentences(recapFallback(semi, facts, locale));
+    expect(checkGeneratedText(text, { locale, facts: recapFactSheet(semi, facts, locale) })).toEqual([]);
+  });
+
+  it('texto bom com agregado, ida e pênaltis não é barrado; agregado inventado é', () => {
+    const sheet = recapFactSheet(semi, facts, 'pt-BR');
+    const good =
+      "O Palmeiras se classificou para a final da Libertadores: perdeu por 0 a 1 para o Fluminense no Nubank Parque, com gol de Hércules aos 82', mas o agregado ficou 2 a 2 e venceu nos pênaltis por 5 a 3. Na ida, tinha vencido por 2 a 1.";
+    expect(checkGeneratedText(good, { locale: 'pt-BR', facts: sheet })).toEqual([]);
+    const bad = checkGeneratedText('O Palmeiras avançou com 3 a 2 no agregado.', {
+      locale: 'pt-BR',
+      facts: sheet,
+    });
+    expect(bad.map((v) => v.kind)).toContain('unknown_score');
+    const oldName = checkGeneratedText('Palmeiras 0 x 1 Fluminense no Allianz Parque.', {
+      locale: 'pt-BR',
+      facts: sheet,
+    });
+    expect(oldName.map((v) => [v.kind, v.value])).toContainEqual(['unknown_name', 'Allianz Parque']);
+  });
+
+  it('vitória no agregado, gol fora, jogo de ida e final em jogo único', () => {
+    const tie = (
+      final: { home: number; away: number },
+      ko: RecapKnockoutInput | null,
+      pen = null,
+      kind = 'semi_final',
+    ) => buildRecapTie({ stage: { ...semi.stage!, kind } }, final, pen, 'regular', ko);
+    expect(tie({ home: 2, away: 0 }, secondLeg)).toMatchObject({
+      aggregate: { home: 4, away: 1 },
+      winner: 'home',
+      decided_by: 'aggregate',
+    });
+    // gol fora (regulamento antigo): 0 × 1 empata o agregado em 2 × 2; o mandante fez 2 gols fora na ida, o visitante 1
+    expect(tie({ home: 0, away: 1 }, { ...secondLeg, awayGoals: true })).toMatchObject({
+      winner: 'home',
+      decided_by: 'away_goals',
+    });
+    const firstLeg: RecapKnockoutInput = { ...secondLeg, leg: 1 };
+    delete firstLeg.aggregateBefore;
+    delete firstLeg.firstLeg;
+    expect(tie({ home: 1, away: 1 }, firstLeg)).toMatchObject({ leg: 1, winner: null, outcome: null });
+    const final = tie(
+      { home: 1, away: 0 },
+      { legs: 1, leg: null, extraTime: true, penalties: true, decidesTitle: true, awayGoals: false },
+      null,
+      'final',
+    );
+    expect(final).toMatchObject({ legs: 1, winner: 'home', outcome: 'title', next_stage: null });
+    // sem contexto do motor de regras e sem agregado do fornecedor: não afirma desfecho
+    expect(tie({ home: 0, away: 1 }, null)).toBeNull();
   });
 });
