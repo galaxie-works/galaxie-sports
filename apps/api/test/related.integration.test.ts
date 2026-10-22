@@ -129,7 +129,7 @@ beforeAll(async () => {
     row('old', { supersededBy: '00000000-0000-7000-8000-000000000001', supersededAt: new Date() }),
   ]);
 
-  // a migração 0011 dá o módulo aos tenants enterprise; upsertTenant usa os módulos do plano
+  // a migração 0012 dá o módulo aos tenants enterprise; upsertTenant usa os módulos do plano
   const ent = await upsertTenant(db, { slug: 'ent', name: 'Ent', plan: 'enterprise' });
   key = (await createApiKey(db, ent.id, { env: 'test' })).key;
   const li = await upsertTenant(db, { slug: 'li', name: 'LI', plan: 'live_intelligence' });

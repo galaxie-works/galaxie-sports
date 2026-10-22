@@ -124,4 +124,20 @@ describe('Agente Resumo (integração)', () => {
     expect(feed).toHaveLength(5);
     expect((await db.select().from(eventContext)).length).toBe(12);
   });
+
+  it('texto determinístico por falha do LLM é regerado na rodada seguinte, sem --forcar', async () => {
+    const down = new FakeLlmClient(() => new Error('openai: 400 Unsupported parameter'));
+    await onEventFinished(db, eventId, down, { force: true, locales: ['pt-BR'] });
+    const [fallback] = await readEventContext(db, eventId, { kinds: ['recap'], locales: ['pt-BR'] });
+    expect(fallback!.content).toMatchObject({ origin: 'fallback' });
+    expect(fallback!.content.run.errors.length).toBeGreaterThan(0);
+
+    const up = new FakeLlmClient(responder(GOOD));
+    const report = await onEventFinished(db, eventId, up, { locales: ['pt-BR'] });
+    expect(report.items[0]).toMatchObject({ action: 'generated', origins: { llm: 1, fallback: 0 } });
+    // com o texto do LLM gravado e os fatos iguais, a rodada seguinte não chama o LLM
+    const again = new FakeLlmClient(responder(GOOD));
+    await onEventFinished(db, eventId, again, { locales: ['pt-BR'] });
+    expect(again.calls).toBe(0);
+  });
 });

@@ -5,15 +5,19 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { MediaDenylist } from '@galaxie/apisports-client';
 import { FakeClock, fakeMediaFetch, fakePng } from '../../test/helpers.js';
+import { encodePng } from '../../test/png.js';
 import { loadMediaDenylist, runAssetMirror } from './asset-mirror.js';
 import { InMemoryAssetStore } from './asset-store.js';
 import { MediaFetcher } from './media-fetcher.js';
 import { InMemoryObjectStore } from './object-store.js';
+import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
+import { runPaletteBackfill } from './palette-backfill.js';
 
 const BR = 'https://media.api-sports.io/flags/br.svg';
 const TEAM = 'https://media.api-sports.io/football/teams/121.png';
 const GONE = 'https://media.api-sports.io/football/players/999999.png';
 const PAULISTAO = 'https://media.api-sports.io/football/leagues/475.png';
+const PAULISTAO_OK = 'https://media.api-sports.io/football/leagues/71.png';
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><rect/></svg>';
 
 function setup(routes: Parameters<typeof fakeMediaFetch>[0], urls: string[]) {
@@ -145,5 +149,84 @@ describe('loadMediaDenylist', () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+/** Escudo 2×2: verde Palmeiras, branco e um pixel transparente. */
+const CREST = encodePng({
+  width: 2,
+  height: 2,
+  colorType: 6,
+  rows: [
+    [0, 105, 55, 255, 255, 255, 255, 255],
+    [0, 105, 55, 255, 0, 0, 0, 0],
+  ],
+});
+const PALMEIRAS_PALETTE = { version: 1, dominant: '#006937', secondary: null, monochrome: false };
+
+describe('cores dos times', () => {
+  it('o espelho grava a paleta no mesmo update só para team_logo em PNG', async () => {
+    const { assets, objects, fetcher, clock } = setup(
+      {
+        [TEAM]: [{ status: 200, body: CREST, headers: { 'content-type': 'image/png' } }],
+        [PAULISTAO_OK]: [{ status: 200, body: CREST, headers: { 'content-type': 'image/png' } }],
+      },
+      [TEAM, PAULISTAO_OK],
+    );
+    await runAssetMirror({ assets, objects, fetcher, clock, delayMs: 0 });
+    expect(assets.byUrl(TEAM)).toMatchObject({ kind: 'team_logo', palette: PALMEIRAS_PALETTE });
+    expect(assets.byUrl(PAULISTAO_OK)).toMatchObject({ kind: 'league_logo', palette: null });
+  });
+
+  it('o backfill lê do storage os escudos sem paleta (sem nenhuma chamada à CDN) e ignora os inválidos', async () => {
+    const OTHER = 'https://media.api-sports.io/football/teams/131.png';
+    const LOST = 'https://media.api-sports.io/football/teams/999.png';
+    const PLACEHOLDER = 'https://media.api-sports.io/football/teams/10034.png';
+    const assets = new InMemoryAssetStore([TEAM, OTHER, LOST, BR, PLACEHOLDER]);
+    const objects = new InMemoryObjectStore();
+    const stored = { sha256: 'x', bytes: 1, width: 2, height: 2, fetchedAt: new Date() };
+    await objects.put('api-sports/football/teams/121.png', CREST, 'image/png', 'x');
+    await objects.put('api-sports/football/teams/131.png', fakePng(2, 2, 8), 'image/png', 'x');
+    await assets.markStored(assets.byUrl(TEAM)!.id, {
+      ...stored,
+      storageKey: 'api-sports/football/teams/121.png',
+    });
+    await assets.markStored(assets.byUrl(OTHER)!.id, {
+      ...stored,
+      storageKey: 'api-sports/football/teams/131.png',
+    });
+    await assets.markStored(assets.byUrl(LOST)!.id, {
+      ...stored,
+      storageKey: 'api-sports/football/teams/999.png',
+    });
+    await assets.markStored(assets.byUrl(BR)!.id, { ...stored, storageKey: 'api-sports/flags/br.svg' });
+    // placeholder genérico do fornecedor ("image not available"): sem cor de time, nunca é candidato
+    await assets.markStored(assets.byUrl(PLACEHOLDER)!.id, {
+      ...stored,
+      sha256: [...PLACEHOLDER_LOGO_SHA256][0]!,
+      storageKey: 'api-sports/football/teams/10034.png',
+    });
+
+    expect(await runPaletteBackfill({ assets, objects, dryRun: true })).toEqual({
+      candidates: 3,
+      saved: 0,
+      monochrome: 0,
+      skipped: 0,
+    });
+    const events: string[] = [];
+    const report = await runPaletteBackfill({
+      assets,
+      objects,
+      onProgress: (e) => events.push(`${e.type} ${e.storageKey}`),
+    });
+    expect(report).toEqual({ candidates: 3, saved: 1, monochrome: 0, skipped: 2 });
+    expect(assets.byUrl(TEAM)!.palette).toEqual(PALMEIRAS_PALETTE);
+    expect(events).toEqual([
+      'saved api-sports/football/teams/121.png',
+      'skipped api-sports/football/teams/131.png',
+      'skipped api-sports/football/teams/999.png',
+    ]);
+    // segunda execução: só os que não decodificaram voltam
+    expect((await runPaletteBackfill({ assets, objects, dryRun: true })).candidates).toBe(2);
   });
 });

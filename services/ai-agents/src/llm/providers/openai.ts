@@ -58,8 +58,16 @@ export interface OpenAiClientOptions {
 
 export const OPENAI_MAX_ALLOWED_DOMAINS = 100;
 
+/** A API recusou `temperature` para o modelo (os modelos de raciocínio não aceitam o parâmetro). */
+function rejectsTemperature(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /unsupported parameter:\s*'?temperature/i.test(message);
+}
+
 export class OpenAiLlmClient implements LlmClient {
   private readonly sdk: OpenAiResponsesApi;
+  /** Modelos que já recusaram `temperature` neste processo: as chamadas seguintes saem sem ele. */
+  private readonly withoutTemperature = new Set<string>();
 
   constructor(private readonly options: OpenAiClientOptions) {
     if (!options.sdk && !options.apiKey)
@@ -86,7 +94,8 @@ export class OpenAiLlmClient implements LlmClient {
       max_output_tokens: req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       store: false,
     };
-    if (req.temperature !== undefined) params.temperature = req.temperature;
+    if (req.temperature !== undefined && !this.withoutTemperature.has(model))
+      params.temperature = req.temperature;
     if (req.webSearch) {
       const country = countryFromPurpose(req.purpose);
       const tool: Record<string, unknown> = {
@@ -126,12 +135,7 @@ export class OpenAiLlmClient implements LlmClient {
     try {
       return await withRetry(
         async () => {
-          let res: ResponsesOutput;
-          try {
-            res = (await this.sdk.responses.create(this.buildParams(req, model))) as ResponsesOutput;
-          } catch (err) {
-            throw classifyProviderError(err, 'openai');
-          }
+          const res = await this.create(this.buildParams(req, model), model);
           const output = res.output ?? [];
           meter.add({
             input: res.usage?.input_tokens,
@@ -181,6 +185,22 @@ export class OpenAiLlmClient implements LlmClient {
       );
     } catch (err) {
       throw withUsage(err, meter.toUsage(cost()));
+    }
+  }
+
+  /** Chama a API; se o modelo recusar `temperature`, repete na hora sem o parâmetro e lembra do modelo. */
+  private async create(params: Record<string, unknown>, model: string): Promise<ResponsesOutput> {
+    try {
+      return (await this.sdk.responses.create(params)) as ResponsesOutput;
+    } catch (err) {
+      if (!('temperature' in params) || !rejectsTemperature(err)) throw classifyProviderError(err, 'openai');
+      this.withoutTemperature.add(model);
+      const { temperature: _dropped, ...rest } = params;
+      try {
+        return (await this.sdk.responses.create(rest)) as ResponsesOutput;
+      } catch (retryErr) {
+        throw classifyProviderError(retryErr, 'openai');
+      }
     }
   }
 }

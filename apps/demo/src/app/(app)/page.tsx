@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { PageHeader } from '@/components/app-shell/page-header';
+import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
@@ -11,7 +12,7 @@ const GROUP_LABEL = {
   UEFA: 'Europa',
 } as const;
 
-function EntryCard({ item, description }: { item: NavItem; description: string }) {
+function EntryCard({ item, description }: { item: NavItem & { slug?: string }; description: string }) {
   const Icon = item.icon;
   return (
     <Link href={item.href} className="group/entry focus-visible:outline-none">
@@ -20,7 +21,13 @@ function EntryCard({ item, description }: { item: NavItem; description: string }
         className="group-hover/entry:bg-accent group-focus-visible/entry:ring-ring h-full transition-colors"
       >
         <CardHeader>
-          <Icon className="text-primary mb-2 size-5" aria-hidden />
+          {item.slug ? (
+            <AnimatedSportIcon slug={item.slug} className="text-primary mb-2 size-7">
+              <Icon />
+            </AnimatedSportIcon>
+          ) : (
+            <Icon className="text-primary mb-2 size-5" aria-hidden />
+          )}
           <CardTitle>{item.label}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>

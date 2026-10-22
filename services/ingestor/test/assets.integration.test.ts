@@ -7,8 +7,10 @@ import { runAssetMirror } from '../src/assets/asset-mirror.js';
 import { PgAssetStore } from '../src/assets/asset-store.js';
 import { MediaFetcher } from '../src/assets/media-fetcher.js';
 import { InMemoryObjectStore, objectStoreFromEnv } from '../src/assets/object-store.js';
+import { runPaletteBackfill } from '../src/assets/palette-backfill.js';
 import { disposableDb } from './db.js';
 import { FakeClock, fakeMediaFetch, fakePng } from './helpers.js';
+import { encodePng } from './png.js';
 
 const testDb = disposableDb();
 let db: Database;
@@ -114,6 +116,36 @@ describe('PgAssetStore', () => {
     const second = await runAssetMirror({ assets: store, objects, fetcher, denylist, clock });
     expect(second).toMatchObject({ pending: 0, stored: 0 });
     expect(media.calls.length).toBe(calls);
+  });
+});
+
+describe('cores dos times (core.asset.palette)', () => {
+  it('backfill grava a paleta dos escudos PNG sem paleta; asset desvinculado perde a paleta', async () => {
+    const store = new PgAssetStore(db);
+    const objects = new InMemoryObjectStore();
+    const crest = encodePng({
+      width: 2,
+      height: 1,
+      colorType: 6,
+      rows: [[0, 105, 55, 255, 255, 255, 255, 255]],
+    });
+    await objects.put('api-sports/football/teams/121.png', crest, 'image/png', 'x');
+
+    // do teste anterior: só o escudo do Palmeiras é team_logo espelhado (o da NBB é logo de liga)
+    expect(await store.paletteCandidates()).toHaveLength(1);
+    expect(await runPaletteBackfill({ assets: store, objects })).toEqual({
+      candidates: 1,
+      saved: 1,
+      monochrome: 0,
+      skipped: 0,
+    });
+    const [row] = await db.select().from(asset).where(eq(asset.sourceUrl, PALMEIRAS));
+    expect(row?.palette).toEqual({ version: 1, dominant: '#006937', secondary: null, monochrome: false });
+    expect(await store.paletteCandidates()).toEqual([]);
+
+    await store.markMissing(row!.id, new Date());
+    const [gone] = await db.select().from(asset).where(eq(asset.sourceUrl, PALMEIRAS));
+    expect(gone).toMatchObject({ storageKey: null, palette: null });
   });
 });
 

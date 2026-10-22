@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_JOBS, envKey, nextRuns, scheduleFromEnv } from './schedule.js';
+import { AGENT_JOBS, DEFAULT_JOBS, envKey, jobsForProfile, nextRuns, scheduleFromEnv } from './schedule.js';
 
 describe('scheduleFromEnv', () => {
   it('usa a agenda padrão quando não há sobrescritas', () => {
@@ -20,6 +20,7 @@ describe('scheduleFromEnv', () => {
       'normalize-football',
       'events-clock',
       'assets-mirror',
+      'assets-palette',
       'change-feed-prune',
       'quota-status',
     ]);
@@ -40,6 +41,15 @@ describe('scheduleFromEnv', () => {
     const live = jobs.find((j) => j.name === 'live-run')!;
     expect(live).toMatchObject({ cron: '*/5 * * * *', script: 'dist/cli/live-run.js' });
     expect(live.timeoutMs).toBeGreaterThanOrEqual(12 * 3_600_000);
+  });
+
+  it('perfil agents: só os agentes de IA, rodando no pacote do ai-agents', () => {
+    const jobs = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_CONTEXT_RUN: 'off' });
+    expect(jobs.map((j) => j.name)).toEqual(['recap-run', 'wtw-run']);
+    expect(jobs.every((j) => j.cwd === '../ai-agents')).toBe(true);
+    expect(jobsForProfile(undefined)).toBe(DEFAULT_JOBS);
+    expect(jobsForProfile(' Agents ')).toBe(AGENT_JOBS);
+    expect(() => jobsForProfile('api')).toThrow(/SCHEDULER_PROFILE inválido/);
   });
 
   it('recusa expressão cron inválida com mensagem legível', () => {

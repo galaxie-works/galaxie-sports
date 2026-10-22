@@ -7,15 +7,18 @@ import {
   TeamEventsQuery,
   TeamParams,
   TeamsQuery,
+  teamGradient,
   type Event,
   type Person,
   type Squad,
   type Team,
   type TeamOverview,
+  type TeamColors,
   type TeamSummary,
 } from '@galaxie/contracts';
 import {
   asset,
+  type AssetPalette,
   competition,
   competitionProfile,
   country,
@@ -54,6 +57,20 @@ export function ageAt(birthDate: string | null, now: Date): number | null {
   return age >= 0 && age < 130 ? age : null;
 }
 
+/**
+ * Paleta do escudo (core.asset.palette, extraída pelo espelho de mídia) → `colors` do Team.
+ * null enquanto o escudo não foi espelhado/decodificado (a paleta é zerada se o escudo sai do storage).
+ */
+export function teamColors(palette: AssetPalette | null): TeamColors | null {
+  if (!palette) return null;
+  return {
+    primary: palette.dominant,
+    secondary: palette.secondary,
+    monochrome: palette.monochrome,
+    gradient: teamGradient(palette.dominant),
+  };
+}
+
 const POSITION_ORDER: Record<string, number> = { goalkeeper: 0, defender: 1, midfielder: 2, attacker: 3 };
 
 /** Rotas de times, elencos e pessoas (docs/05 §3.3). Todas exigem o módulo core_data. */
@@ -64,6 +81,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         p: participant,
         logoKey: asset.storageKey,
         logoUrl: asset.sourceUrl,
+        logoPalette: asset.palette,
       })
       .from(participant)
       .leftJoin(asset, eq(asset.id, participant.logoAssetId))
@@ -123,6 +141,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       venue: v
         ? { id: v.v.id, name: v.v.name, city: v.v.city, image: assetUrl(ctx.assetsBaseUrl, v.key, v.url) }
         : null,
+      colors: teamColors(row.logoPalette),
       external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
     };
   }

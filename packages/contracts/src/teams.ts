@@ -26,12 +26,46 @@ export type TeamsQuery = z.input<typeof TeamsQuery>;
 
 export const TeamParams = z.object({ id: z.uuid().meta({ description: 'ID do participante.' }) });
 
+const HexColor = z.string().regex(/^#[0-9a-f]{6}$/);
+
+/** Gradiente sugerido a partir da cor primária (mesmo ângulo do token de design). */
+export function teamGradient(primary: string): string {
+  return `linear-gradient(9deg, #000 0%, ${primary} 100%)`;
+}
+
+export const TeamColors = z
+  .object({
+    primary: HexColor.meta({ description: 'Cor predominante do escudo.', example: '#006937' }),
+    secondary: HexColor.nullable().meta({
+      description: 'Segunda cor do escudo, com matiz distinto da primária; null quando não há.',
+      example: null,
+    }),
+    monochrome: z.boolean().meta({
+      description:
+        'Escudo preto/branco/cinza: `primary` é um cinza-escuro neutro (#3a3a3a) para o gradiente continuar legível.',
+      example: false,
+    }),
+    gradient: z.string().meta({
+      description: 'CSS pronto para fundos: `linear-gradient(9deg, #000 0%, <primary> 100%)`.',
+      example: 'linear-gradient(9deg, #000 0%, #006937 100%)',
+    }),
+  })
+  .meta({
+    id: 'TeamColors',
+    description:
+      'Cores do time extraídas do escudo espelhado (sem chamada externa) e o gradiente sugerido para a identidade visual.',
+  });
+export type TeamColors = z.infer<typeof TeamColors>;
+
 export const Team = TeamSummary.extend({
   country_ref: CountryRef.nullable(),
   founded: z.number().int().nullable(),
   venue: z
     .object({ id: z.uuid(), name: z.string(), city: z.string().nullable(), image: AssetUrl })
     .nullable(),
+  colors: TeamColors.nullable().meta({
+    description: 'null quando o escudo ainda não foi espelhado ou não é um PNG decodificável.',
+  }),
   external_ids: z.record(z.string(), z.string()).meta({ example: { 'api-sports': '121' } }),
 }).meta({ id: 'Team' });
 export type Team = z.infer<typeof Team>;

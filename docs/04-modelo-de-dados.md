@@ -70,7 +70,7 @@ erDiagram
 | `core.event_incident` | `event_id`, `minute`, `extra`, `type` (goal, card, subst, var, period…), `participant_id`, `person_id`, `detail` | Timeline e "momentos-chave" |
 | `core.standing` | `season_id`, `group`, `participant_id`, `rank`, `points`, `form`, `description`, `source` | Tabelas e grupos; `source = computed` quando calculada localmente ([docs/rules](rules/README.md)) |
 | `core.provider_map` | `entity_type`, `entity_id`, `provider`, `provider_id`, `sport` | Liga nossos IDs aos IDs da api-sports e de outras fontes |
-| `core.asset` | `id`, `kind` (team_logo, league_logo, flag, venue, player, coach…), `source_url`, `storage_key`, `sha256`, `width`, `height`, `fetched_at` | Espelho de mídia |
+| `core.asset` | `id`, `kind` (team_logo, league_logo, flag, venue, player, coach…), `source_url`, `storage_key`, `sha256`, `width`, `height`, `fetched_at`, `palette` (jsonb `{ version, dominant, secondary, monochrome }`, só `team_logo` PNG) | Espelho de mídia; `palette` alimenta o `colors` do Team ([03 §7.2](03-ingestao-e-economia-de-chamadas.md#72-cores-dos-times-paleta-do-escudo)) |
 
 ### 2.2 Tabelas específicas por esporte
 
@@ -285,7 +285,7 @@ create table enrich.event_context (
 );
 ```
 
-Conteúdo relacionado (migration 0011, [12 §6](12-conteudo-relacionado.md#6-modelo-de-dados-enrich)): `enrich.related_content` — um vídeo por evento × plataforma, só metadados e link/embed oficial, classificado por `content_type` (enum `enrich.related_content_type`) e `format` (`short` | `long`), versionado como o onde assistir (`superseded_by`; status `published` | `pending` | `rejected` | `retracted` | `expired`) — e `enrich.related_run`, as execuções do agente com o ledger de cota do YouTube por dia do Pacífico (`quota_day`, `quota_units`).
+Conteúdo relacionado (migration 0012, [12 §6](12-conteudo-relacionado.md#6-modelo-de-dados-enrich)): `enrich.related_content` — um vídeo por evento × plataforma, só metadados e link/embed oficial, classificado por `content_type` (enum `enrich.related_content_type`) e `format` (`short` | `long`), versionado como o onde assistir (`superseded_by`; status `published` | `pending` | `rejected` | `retracted` | `expired`) — e `enrich.related_run`, as execuções do agente com o ledger de cota do YouTube por dia do Pacífico (`quota_day`, `quota_units`).
 
 ## 6. `ops` — operação e cota
 

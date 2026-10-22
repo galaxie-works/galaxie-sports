@@ -6,7 +6,8 @@
  *   node dist/cli/scheduler.js --list        # mostra a agenda efetiva e as próximas execuções
  *   node dist/cli/scheduler.js --run <job>   # executa um job agora (registrado) e sai com o código dele
  *
- * Variáveis: SCHEDULE_<JOB>=<cron>|off · SCHEDULER_RUN_ON_START=job1,job2 · SCHEDULER_TIMEOUT_MINUTES
+ * Variáveis: SCHEDULER_PROFILE=ingestor|agents (conjunto de jobs; `agents` = agentes de IA)
+ *            SCHEDULE_<JOB>=<cron>|off · SCHEDULER_RUN_ON_START=job1,job2 · SCHEDULER_TIMEOUT_MINUTES
  *            SCHEDULER_HEARTBEAT_FILE (padrão /tmp/galaxie-scheduler.heartbeat, usado no healthcheck)
  */
 import { writeFile } from 'node:fs/promises';
@@ -27,7 +28,7 @@ const arg = (flag: string) => {
 
 if (process.argv.includes('--list')) {
   report(
-    'Agenda do ingestor (UTC)',
+    `Agenda do scheduler — perfil ${process.env.SCHEDULER_PROFILE ?? 'ingestor'} (UTC)`,
     jobs.map((j) => ({
       job: j.name,
       cron: j.cron,
