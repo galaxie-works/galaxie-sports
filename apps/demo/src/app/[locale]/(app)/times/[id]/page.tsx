@@ -108,10 +108,21 @@ function TeamBand({ colors }: { colors: TeamColors }) {
   );
 }
 
-function SuggestedGradient({ colors, t }: { colors: TeamColors; t: Dictionary }) {
+/** Gradiente sugerido (cores do escudo). `withLabel` quando aparece sozinho, fora da grade de dados. */
+function SuggestedGradient({
+  colors,
+  t,
+  withLabel = true,
+}: {
+  colors: TeamColors;
+  t: Dictionary;
+  withLabel?: boolean;
+}) {
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-muted-foreground text-xs">{t.team.identity.suggestedGradient}</span>
+    <div className="flex min-w-0 flex-col gap-2">
+      {withLabel ? (
+        <span className="text-muted-foreground text-xs">{t.team.identity.suggestedGradient}</span>
+      ) : null}
       <div className="flex items-center gap-3">
         <span
           className="border-border size-6 shrink-0 rounded-full border"
@@ -166,14 +177,27 @@ function IdentityCard({
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
-        {colors ? <SuggestedGradient colors={colors} t={t} /> : null}
-        {s ? <SemanticIdentity s={s} t={t} locale={locale} /> : null}
+        {s ? (
+          <SemanticIdentity s={s} colors={colors} t={t} locale={locale} />
+        ) : colors ? (
+          <SuggestedGradient colors={colors} t={t} />
+        ) : null}
       </CardContent>
     </Card>
   );
 }
 
-function SemanticIdentity({ s, t, locale }: { s: TeamSemantic; t: Dictionary; locale: Locale }) {
+function SemanticIdentity({
+  s,
+  colors,
+  t,
+  locale,
+}: {
+  s: TeamSemantic;
+  colors: TeamColors | null;
+  t: Dictionary;
+  locale: Locale;
+}) {
   const tx = t.team.identity;
   return (
     <>
@@ -247,6 +271,15 @@ function SemanticIdentity({ s, t, locale }: { s: TeamSemantic; t: Dictionary; lo
                   </span>
                 );
               })}
+            </dd>
+          </div>
+        ) : null}
+        {colors ? (
+          // ao lado das cores do clube: as cores do escudo e o gradiente pronto para uso
+          <div className="min-w-0">
+            <dt className="text-muted-foreground mb-1 text-xs">{tx.suggestedGradient}</dt>
+            <dd>
+              <SuggestedGradient colors={colors} t={t} withLabel={false} />
             </dd>
           </div>
         ) : null}
