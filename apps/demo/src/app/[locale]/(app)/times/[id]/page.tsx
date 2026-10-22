@@ -216,7 +216,7 @@ function SemanticIdentity({ s, t, locale }: { s: TeamSemantic; t: Dictionary; lo
               {s.stadium.nicknames.length ? (
                 <span className="text-muted-foreground"> ({s.stadium.nicknames.join(', ')})</span>
               ) : null}
-              {s.stadium.former_names.length ? (
+              {s.stadium.former_names?.length ? (
                 <span className="text-muted-foreground block text-xs">
                   {fill(t.team.formerNames, {
                     names: s.stadium.former_names
@@ -394,7 +394,8 @@ async function Content({ params }: { params: PageProps<'/[locale]/times/[id]'>['
   const overviewApi = teamOverviewRequest(id, locale);
 
   // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
-  const formerNames = team.former_names.filter((f) => f.origin === 'curated');
+  // API anterior aos nomes curados (sem `former_names`): nada a mostrar em vez de quebrar a página
+  const formerNames = (team.former_names ?? []).filter((f) => f.origin === 'curated');
 
   return (
     <>

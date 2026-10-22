@@ -23,7 +23,7 @@ async function Content({ params }: { params: PageProps<'/[locale]/locais/[id]'>[
   const [venue, f] = await Promise.all([getVenue(id, locale), getFormatters()]);
   const surface = venue.surface ? SURFACE_KEY[venue.surface.toLowerCase()] : undefined;
   // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
-  const formerNames = venue.former_names.filter((n) => n.origin === 'curated');
+  const formerNames = (venue.former_names ?? []).filter((n) => n.origin === 'curated');
   const facts = [
     venue.city ? [tv.city, venue.city] : null,
     venue.capacity
