@@ -47,6 +47,23 @@ async function orNull<T>(p: Promise<T>): Promise<T | null> {
   }
 }
 
+// ─── home "Explorar" ─────────────────────────────────────────────────────────────────────────────
+
+export const exploreSummaryRequest = (locale: Locale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/explore/summary',
+  query: localeQuery(locale),
+  description: text(locale).exploreSummary,
+  note: text(locale).exploreSummaryNote,
+});
+
+/** Resumo da home em uma chamada: contadores e destaques por esporte e por país (a API guarda 60 s). */
+export async function getExploreSummary(locale: Locale) {
+  'use cache';
+  cacheLife('minutes');
+  return api.exploreSummary(localeQuery(locale));
+}
+
 // ─── país ────────────────────────────────────────────────────────────────────────────────────────
 
 export const countryCompetitionsRequest = (code: string, locale: Locale): ApiRequest => ({
