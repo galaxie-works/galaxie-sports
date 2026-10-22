@@ -99,6 +99,7 @@ function fx(o: {
   away: [number, string];
   status: 'NS' | 'FT' | '1H';
   goals?: [number, number];
+  referee?: string | null;
 }): ApiFixture {
   const ts = Date.parse(o.date) / 1000;
   const [gh, ga] = o.goals ?? [null, null];
@@ -106,7 +107,7 @@ function fx(o: {
   return {
     fixture: {
       id: o.id,
-      referee: null,
+      referee: o.referee ?? null,
       timezone: 'UTC',
       date: o.date,
       timestamp: ts,
@@ -275,6 +276,7 @@ async function seed() {
         home: [121, 'Palmeiras'],
         away: [124, 'Fluminense'],
         status: 'NS',
+        referee: 'Wilton Pereira Sampaio, Brazil',
       }),
       fx({
         id: 990010,
@@ -476,6 +478,8 @@ type EventBody = {
   competition_context: string[];
   stakes: { team: string; team_id: string | null; code: string; text: Record<string, string> }[];
   derby: { slug: string; name: string; intensity: number } | null;
+  venue: { id: string; name: string; city: string | null } | null;
+  referee: { name: string; country: string | null } | null;
   data_freshness: { last_valid_at: string | null; is_stale: boolean };
 };
 
@@ -617,6 +621,9 @@ describe('/v1/events/{id}', () => {
       source_url: 'https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras',
     });
     expect(away!.cheer).toBeNull();
+    // árbitro ("Nome, País" do fornecedor) e local com cidade
+    expect(e.referee).toEqual({ name: 'Wilton Pereira Sampaio', country: 'Brazil' });
+    expect(e.venue).toMatchObject({ id: expect.any(String), name: expect.any(String) });
   });
 
   it('localiza fase e stakes (es-AR) e conta momentum no fuso pedido (UTC → D-1)', async () => {
@@ -644,6 +651,7 @@ describe('/v1/events/{id}', () => {
     expect(e.score).toMatchObject({ home: 1, away: 2, aggregate: null });
     expect(e.stakes).toEqual([]);
     expect(e.participants.map((p) => p.fan_tags)).toEqual([[], []]);
+    expect(e.referee).toBeNull();
   });
 
   it('última rodada do Brasileirão: título em jogo, líder e stakes de liga', async () => {

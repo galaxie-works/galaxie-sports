@@ -151,6 +151,17 @@ export const EventStake = z
   .meta({ id: 'EventStake', description: 'Código do motor de regras (docs/rules).' });
 export type EventStake = z.infer<typeof EventStake>;
 
+export const EventReferee = z
+  .object({
+    name: z.string().meta({ example: 'Wilton Pereira Sampaio' }),
+    country: z.string().nullable().meta({
+      description: 'País como o fornecedor escreve (sufixo ", País"); null sem sufixo.',
+      example: 'Brazil',
+    }),
+  })
+  .meta({ id: 'EventReferee', description: 'Árbitro da partida (`fixture.referee` do fornecedor).' });
+export type EventReferee = z.infer<typeof EventReferee>;
+
 export const EventCompetitionRef = z
   .object({
     id: z.uuid(),
@@ -194,7 +205,16 @@ export const Event = z
       penalty: SidePair.nullable(),
       aggregate: SidePair.nullable().meta({ description: 'Agregado do confronto (jogo de volta).' }),
     }),
-    venue: z.object({ id: z.uuid(), name: z.string(), city: z.string().nullable() }).nullable(),
+    venue: z
+      .object({ id: z.uuid(), name: z.string(), city: z.string().nullable() })
+      .nullable()
+      .meta({
+        description: 'Estádio/local (`core.venue`): nome e cidade.',
+        example: { id: '01a15fba-ec17-7000-8000-000000000001', name: 'Allianz Parque', city: 'São Paulo' },
+      }),
+    referee: EventReferee.nullable().meta({
+      description: 'Árbitro principal, quando o fornecedor informa (futebol). null sem escala.',
+    }),
     derby: z
       .object({ slug: z.string(), name: z.string(), intensity: z.number().int().min(1).max(5) })
       .nullable(),

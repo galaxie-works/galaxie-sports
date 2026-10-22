@@ -1,5 +1,5 @@
 import type { Event, EventLineups, HeadToHead, WhereToWatch } from '@galaxie/contracts';
-import { Bot, CalendarClock, ExternalLink, Flame, MapPin, Tv } from 'lucide-react';
+import { Bot, CalendarClock, ExternalLink, Flame, MapPin, Tv, Whistle } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -133,6 +133,13 @@ function Scoreboard({ event }: { event: Event }) {
               {event.venue.name}
               {event.venue.city ? `, ${event.venue.city}` : ''}
             </Link>
+          ) : null}
+          {event.referee ? (
+            <span className="flex items-center gap-1.5" title="Árbitro">
+              <Whistle className="size-3.5" aria-hidden />
+              <span className="sr-only">Árbitro:</span>
+              {event.referee.name}
+            </span>
           ) : null}
         </div>
       </CardContent>

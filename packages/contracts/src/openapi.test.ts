@@ -64,6 +64,7 @@ describe('OpenAPI', () => {
         'EventParticipant',
         'FanTag',
         'FanCheer',
+        'EventReferee',
         'EventContext',
         'EventContextText',
         'EventContextSummary',
@@ -124,6 +125,24 @@ describe('OpenAPI — tags do torcedor', () => {
     const cheer = schemas().FanCheer!;
     expect(cheer.required).toEqual(['text']);
     expect(cheer.properties?.text?.example).toBe('Avanti, Palestra!');
+  });
+});
+
+describe('OpenAPI — árbitro e local do evento', () => {
+  it('Event traz `referee` (nome e país) e `venue` (nome e cidade), ambos anuláveis', () => {
+    const schemas = buildOpenApiDocument().components?.schemas as Record<
+      string,
+      { properties?: Record<string, { example?: unknown; description?: string }>; required?: string[] }
+    >;
+    expect(schemas.Event!.required).toEqual(expect.arrayContaining(['venue', 'referee']));
+    expect(schemas.Event!.properties?.venue?.example).toMatchObject({
+      name: 'Allianz Parque',
+      city: 'São Paulo',
+    });
+    const referee = schemas.EventReferee!;
+    expect(referee.required).toEqual(['name', 'country']);
+    expect(referee.properties?.name?.example).toBe('Wilton Pereira Sampaio');
+    expect(referee.properties?.country?.example).toBe('Brazil');
   });
 });
 

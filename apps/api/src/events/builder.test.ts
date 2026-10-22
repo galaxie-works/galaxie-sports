@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { eventsTtl, goalsOf, groupTies, pairKey, rulesStageKey, type StageMatch } from './builder.js';
+import {
+  eventsTtl,
+  goalsOf,
+  groupTies,
+  pairKey,
+  parseReferee,
+  rulesStageKey,
+  type StageMatch,
+} from './builder.js';
 
 const m = (o: Partial<StageMatch> & Pick<StageMatch, 'id' | 'startsAt'>): StageMatch => ({
   stageId: 's1',
@@ -11,6 +19,18 @@ const m = (o: Partial<StageMatch> & Pick<StageMatch, 'id' | 'startsAt'>): StageM
 });
 
 describe('builder', () => {
+  it('árbitro: separa o país do sufixo ", País"', () => {
+    expect(parseReferee('Wilton Pereira Sampaio, Brazil')).toEqual({
+      name: 'Wilton Pereira Sampaio',
+      country: 'Brazil',
+    });
+    expect(parseReferee('  Raphael  Claus ')).toEqual({ name: 'Raphael Claus', country: null });
+    expect(parseReferee('A. Silva, Jr., Brazil')).toEqual({ name: 'A. Silva, Jr.', country: 'Brazil' });
+    expect(parseReferee('Anderson Daronco,')).toEqual({ name: 'Anderson Daronco', country: null });
+    expect(parseReferee('')).toBeNull();
+    expect(parseReferee(null)).toBeNull();
+  });
+
   it('chave da fase no regulamento (fases numeradas de copa por extenso)', () => {
     expect(rulesStageKey('knockout_round', '1st Round')).toBe('first_round');
     expect(rulesStageKey('knockout_round', '2nd Round')).toBe('second_round');

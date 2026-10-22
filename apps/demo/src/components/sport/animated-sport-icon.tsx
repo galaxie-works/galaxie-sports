@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Animações dos esportes (Lottie, cores já "assadas" para o tema por scripts/bake-lottie-icons.mjs).
- * Cada uma vira um chunk separado: só baixa quando o ícone aparece na tela.
+ * Animações (Lottie, cores já "assadas" para o tema por scripts/bake-lottie-icons.mjs): os esportes e o
+ * "versus" do card de jogo. Cada uma vira um chunk separado: só baixa quando o ícone aparece na tela.
  */
 const ANIMATIONS: Record<string, () => Promise<{ default: unknown }>> = {
   football: () => import('./animated-icons/football.json'),
@@ -22,28 +22,31 @@ const ANIMATIONS: Record<string, () => Promise<{ default: unknown }>> = {
   baseball: () => import('./animated-icons/baseball.json'),
   hockey: () => import('./animated-icons/hockey.json'),
   handball: () => import('./animated-icons/handball.json'),
+  versus: () => import('./animated-icons/versus.json'),
 };
 
-/**
- * Ícone do esporte: parado no primeiro quadro e animado ao passar o mouse (ou focar) no link/cartão que o
- * contém. Antes de carregar, no servidor e em esportes sem animação mostra o ícone estático; com "reduzir
- * movimento" do sistema, fica parado. Usa o player "light" do lottie-web, que não executa expressions.
- */
-export function AnimatedSportIcon({
-  slug,
-  className,
-  children,
-}: {
-  slug: string;
+type AnimatedIconProps = {
   className?: string;
   /** Ícone estático (ex.: Lucide) mostrado antes de a animação carregar. */
   children: React.ReactNode;
-}) {
+};
+
+/** Ícone do esporte (atalho de `AnimatedIcon` pelo slug do esporte). */
+export function AnimatedSportIcon({ slug, ...props }: AnimatedIconProps & { slug: string }) {
+  return <AnimatedIcon name={slug} {...props} />;
+}
+
+/**
+ * Ícone animado: parado no primeiro quadro e animado ao passar o mouse (ou focar) no link/cartão que o
+ * contém. Antes de carregar, no servidor e em nomes sem animação mostra o ícone estático; com "reduzir
+ * movimento" do sistema, fica parado. Usa o player "light" do lottie-web, que não executa expressions.
+ */
+export function AnimatedIcon({ name, className, children }: AnimatedIconProps & { name: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const load = ANIMATIONS[slug];
+    const load = ANIMATIONS[name];
     const container = ref.current;
     if (!load || !container) return;
     let anim: AnimationItem | null = null;
@@ -79,7 +82,7 @@ export function AnimatedSportIcon({
       trigger.removeEventListener('focusin', play);
       anim?.destroy();
     };
-  }, [slug]);
+  }, [name]);
 
   return (
     <span className={cn('relative inline-flex shrink-0', className)} aria-hidden>

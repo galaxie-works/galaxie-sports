@@ -7,6 +7,7 @@ import {
   derby,
   event,
   eventParticipant,
+  footballFixture,
   participant,
   season,
   stage,
@@ -205,6 +206,21 @@ export const DECISIVE_FAMILIES = new Set([
   'can_be_eliminated',
 ]);
 
+/**
+ * Árbitro no formato do fornecedor ("Nome, País" ou só "Nome") → `{ name, country }`. O país é o último
+ * trecho depois da vírgula; vazio ou só espaços → null.
+ */
+export function parseReferee(raw: string | null | undefined): Event['referee'] {
+  const text = raw?.trim().replace(/\s+/g, ' ');
+  if (!text) return null;
+  const i = text.lastIndexOf(',');
+  if (i <= 0) return { name: text, country: null };
+  const name = text.slice(0, i).trim();
+  const country = text.slice(i + 1).trim();
+  if (!name) return { name: country, country: null };
+  return { name, country: country || null };
+}
+
 export interface BuiltEvent {
   dto: Event;
   /** Famílias dos stakes (para filtrar jogos decisivos). */
@@ -234,6 +250,8 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       seasonYear: season.year,
       v: { id: venue.id, name: venue.name, city: venue.city },
       d: { slug: derby.slug, name: derby.name, labels: derby.labels, intensity: derby.intensity },
+      // árbitro: só no espelho do futebol (`core.football_fixture`, 1:1 com o evento)
+      referee: footballFixture.referee,
     })
     .from(event)
     .leftJoin(competition, eq(competition.id, event.competitionId))
@@ -242,6 +260,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     .leftJoin(season, eq(season.id, event.seasonId))
     .leftJoin(venue, eq(venue.id, event.venueId))
     .leftJoin(derby, eq(derby.id, event.derbyId))
+    .leftJoin(footballFixture, eq(footballFixture.eventId, event.id))
     .where(inArray(event.id, ids));
 
   const competitionIds = [...new Set(rows.map((r) => r.c?.id).filter((x): x is string => !!x))];
@@ -536,6 +555,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         aggregate: aggregate ?? pair(e.score?.aggregate),
       },
       venue: r.v?.id ? { id: r.v.id, name: r.v.name, city: r.v.city } : null,
+      referee: parseReferee(r.referee),
       derby: r.d?.slug
         ? {
             slug: r.d.slug,
