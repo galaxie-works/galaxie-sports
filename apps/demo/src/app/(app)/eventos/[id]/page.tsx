@@ -93,10 +93,11 @@ function Scoreboard({ event }: { event: Event }) {
           <Side p={home} align="left" />
           <div className="flex shrink-0 flex-col items-center gap-1">
             {started ? (
+              // Placar ausente (ex.: jogo abandonado sem dado do fornecedor) aparece como "?", não vira 0.
               <span className="text-4xl font-bold tabular-nums sm:text-5xl">
-                {score.home ?? 0}
+                {score.home ?? <span className="text-muted-foreground">?</span>}
                 <span className="text-muted-foreground mx-2">–</span>
-                {score.away ?? 0}
+                {score.away ?? <span className="text-muted-foreground">?</span>}
               </span>
             ) : (
               <span className="text-3xl font-semibold tabular-nums">{fmtTime(event.starts_at)}</span>

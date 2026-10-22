@@ -33,9 +33,12 @@ function groupByRound(events: Event[]): Round[] {
   return [...rounds].map(([name, evs]) => ({ name, events: evs }));
 }
 
-/** Rodada em destaque: a primeira com jogo ainda não encerrado; senão, a última. */
+/** Status que não mudam mais (mesmo conjunto de TERMINAL_STATUSES em @galaxie/providers). */
+const TERMINAL = new Set(['finished', 'postponed', 'cancelled', 'abandoned']);
+
+/** Rodada em destaque: a primeira com jogo ainda por acontecer ou em andamento; senão, a última. */
 function defaultRound(rounds: Round[]) {
-  return rounds.find((r) => r.events.some((e) => e.status !== 'finished')) ?? rounds.at(-1);
+  return rounds.find((r) => r.events.some((e) => !TERMINAL.has(e.status))) ?? rounds.at(-1);
 }
 
 function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {

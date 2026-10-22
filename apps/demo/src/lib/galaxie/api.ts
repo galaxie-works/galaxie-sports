@@ -46,6 +46,24 @@ export async function getCountryCompetitions(code: string) {
   return orNotFound(api.countryCompetitions(code));
 }
 
+// ─── esporte ─────────────────────────────────────────────────────────────────────────────────────
+
+/** Competições catalogadas (tier 1–2) de um esporte; o tier 3 é só espelho e fica de fora da vitrine. */
+export async function getSportCompetitions(sport: string) {
+  'use cache';
+  cacheLife('hours');
+  const all = [];
+  for (const tier of [1, 2]) {
+    let cursor: string | undefined;
+    do {
+      const page = await api.competitions({ sport, tier, limit: 200, cursor });
+      all.push(...page.data);
+      cursor = page.next_cursor ?? undefined;
+    } while (cursor);
+  }
+  return all;
+}
+
 // ─── competição ──────────────────────────────────────────────────────────────────────────────────
 
 export async function getCompetition(idOrSlug: string) {
