@@ -81,6 +81,8 @@ export interface DerbyEntry {
   scope: 'city' | 'state' | 'national' | 'continental' | 'international';
   intensity: number;
   first_match?: string | null;
+  /** Idioma de origin/trivia quando difere do `text_locale` do arquivo. */
+  text_locale?: TextLocale;
   origin?: string | null;
   trivia?: string[];
   sources: string[];

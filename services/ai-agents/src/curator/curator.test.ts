@@ -206,11 +206,13 @@ describe('aplicação e validação (dry-run em memória)', () => {
     const text = appendTeam(null, 'HN', entry);
     expect(parseDocument(text).toJS()).toMatchObject({
       schema_version: 1,
-      text_locale: 'es', // país hispânico: identity sai em espanhol
+      text_locale: 'es', // país hispânico sem variante própria na base: espanhol neutro
       country: 'HN',
       teams: [{ slug: 'olimpia-hn' }],
     });
     expect(parseDocument(appendTeam(null, 'JP', entry)).toJS()).not.toHaveProperty('text_locale');
+    // país com variante própria: o texto do clube sai na voz do país
+    expect(parseDocument(appendTeam(null, 'PY', entry)).toJS()).toMatchObject({ text_locale: 'es-PY' });
   });
 
   it('mesmo estádio com grafias diferentes não vira lacuna', () => {

@@ -346,6 +346,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       nicknames: teamProfile.nicknames,
       rallyingCries: teamProfile.rallyingCries,
       copyHints: teamProfile.copyHints,
+      textLocale: teamProfile.textLocale,
       profileSources: teamProfile.sources,
     })
     .from(eventParticipant)
@@ -377,7 +378,12 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       fan_tags: [],
       // grito da torcida pelo mesmo caminho do apelido (perfil semântico ligado ao participante)
       cheer: pickCheer(
-        { rallyingCries: r.rallyingCries, copyHints: r.copyHints, sources: r.profileSources },
+        {
+          rallyingCries: r.rallyingCries,
+          copyHints: r.copyHints,
+          sources: r.profileSources,
+          textLocale: r.textLocale,
+        },
         locale,
       ),
       _pos: r.position,

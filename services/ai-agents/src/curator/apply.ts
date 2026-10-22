@@ -10,7 +10,7 @@ import {
 } from '@galaxie/knowledge';
 import { unifiedDiff } from './diff.js';
 import {
-  entryLocale,
+  entryTextLocale,
   type AddTeamProposal,
   type CuratorProposal,
   type UpdateStadiumProposal,
@@ -44,8 +44,8 @@ export function appendTeam(source: string | null, countryCode: string, entry: Te
       `# Base semântica — clubes (${countryCode.toUpperCase()}) (schema v1)`,
       '# Arquivo criado pelo Agente Curador Semântico; revise antes de aprovar.',
       'schema_version: 1',
-      // o curador escreve identity em espanhol nos países hispânicos (entryLocale); docs/06 §3.3
-      ...(entryLocale(countryCode).startsWith('es') ? ['text_locale: es'] : []),
+      // o curador escreve identity na voz do país (es-AR, es-PY…, ou es); docs/06 §3.3
+      ...(entryTextLocale(countryCode) !== 'pt-BR' ? [`text_locale: ${entryTextLocale(countryCode)}`] : []),
       `country: ${countryCode.toUpperCase()}`,
       'teams:',
       '',
