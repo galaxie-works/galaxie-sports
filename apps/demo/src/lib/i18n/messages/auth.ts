@@ -4,9 +4,9 @@ import { defineMessages } from '../define';
 export default defineMessages(
   {
     shell: {
-      // Tagline no tom da marca (curto e direto, imagem de espaço, como no galaxie.works).
-      title: 'Esporte de outro universo.',
-      subtitle: 'Ligas, times e jogos na mesma órbita.',
+      // Tagline: o diferencial (a base semântica fala a língua da torcida); o espaço já está no fundo da tela.
+      title: 'Dados que falam como a torcida.',
+      subtitle: 'Clássicos, apelidos e minuto a minuto em 8 mercados.',
       footer: 'Acesso por convite · Galaxie Works',
       logoAlt: 'Galaxie Works',
     },
@@ -45,8 +45,8 @@ export default defineMessages(
   {
     en: {
       shell: {
-        title: 'Sports from another universe.',
-        subtitle: 'Every league, team and match in one orbit.',
+        title: 'Data that talks like the fans.',
+        subtitle: 'Derbies, nicknames and live play across 8 markets.',
         footer: 'Invitation-only access · Galaxie Works',
         logoAlt: 'Galaxie Works',
       },
@@ -84,8 +84,8 @@ export default defineMessages(
     },
     'es-AR': {
       shell: {
-        title: 'Deporte de otro universo.',
-        subtitle: 'Ligas, equipos y partidos en la misma órbita.',
+        title: 'Datos que hablan como la hinchada.',
+        subtitle: 'Clásicos, apodos y minuto a minuto en 8 mercados.',
         footer: 'Acceso por invitación · Galaxie Works',
         logoAlt: 'Galaxie Works',
       },
