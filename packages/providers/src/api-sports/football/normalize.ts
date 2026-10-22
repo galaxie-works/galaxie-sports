@@ -96,7 +96,16 @@ class Collector {
   }
 
   venue(v: NormalizedVenue): string {
-    this.venues.set(v.id, mergeKnown(this.venues.get(v.id), v));
+    const prev = this.venues.get(v.id);
+    const merged = mergeKnown(prev, v);
+    // nome: o visto no jogo mais recente vence; nome sem data (/teams) só vale sem nenhum datado
+    const dated = [prev, v].filter((x): x is NormalizedVenue => !!x?.nameSeenAt);
+    if (dated.length) {
+      const latest = dated.reduce((a, b) => (b.nameSeenAt! >= a.nameSeenAt! ? b : a));
+      merged.name = latest.name;
+      merged.nameSeenAt = latest.nameSeenAt!;
+    }
+    this.venues.set(v.id, merged);
     return v.id;
   }
 
@@ -242,6 +251,7 @@ function addFixture(c: Collector, f: ApiFixture, observedAt: Date): NormalizedEv
           capacity: null,
           surface: null,
           imageUrl: null,
+          nameSeenAt: new Date(f.fixture.timestamp ? f.fixture.timestamp * 1000 : f.fixture.date),
           reference: true,
         })
       : null;
