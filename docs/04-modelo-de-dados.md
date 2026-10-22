@@ -58,7 +58,7 @@ erDiagram
 |---|---|---|
 | `core.sport` | `slug`, `name_i18n` | football, basketball, formula-1, volleyball, olympics… |
 | `core.country` | `iso2`, `name_i18n`, `flag_asset_id`, `confederation`, `ioc_code` | Inclui "World" e confederações; `confederation`, `ioc_code` e os nomes pt-BR/es vêm de `config/geo/confederations.yaml` (`geo:seed`) |
-| `core.competition` | `id`, `sport`, `country_iso2`, `type` (league/cup/tournament/multisport), `tier`, `live_priority` | Liga, copa, GP de F1, evento de MMA, Jogos Olímpicos |
+| `core.competition` | `id`, `sport`, `country_iso2`, `type` (league/cup/tournament/multisport), `tier`, `live_priority`, `prestige` (0–10, importância) | Liga, copa, GP de F1, evento de MMA, Jogos Olímpicos |
 | `core.season` | `competition_id`, `label` ("2026", "2026/27"), `start`, `end`, `current` | |
 | `core.stage` | `season_id`, `kind` (regular, group, round_of_16, quarter, semi, final, race_weekend…), `name_i18n`, `order` | Agrupa o calendário por fase/rodada/fim de semana de corrida |
 | `core.event` | `id` (UUID nosso), `sport`, `stage_id`, `starts_at`, `ends_at_expected`, `status`, `status_detail`, `status_source`, `clock`, `score` (jsonb), `venue_id`, `last_valid_at`, `is_stale`, `source_provider` | **Entidade canônica** — ver §3 |
@@ -107,6 +107,7 @@ Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ric
 | `status_source` | text | `provider` (o fornecedor confirmou) ou `temporal` (inferido pelo horário) |
 | `source_provider` | text null | Provedor dono do estado atual — base da precedência entre provedores ([03 §8](03-ingestao-e-economia-de-chamadas.md)) |
 | `importance` | int | Score 0–100 calculado (§3.3) |
+| `importance_breakdown` | jsonb null | Componentes do score: `{ tier, phase, derby, decisive, prestige, leg, flags, stake_flags }` (§3.3) |
 | `derby_id` | uuid null | Preenchido quando o confronto é um clássico da base semântica |
 
 ### 3.1 Máquina de estados e *last-known-good*
@@ -170,16 +171,18 @@ O *momentum esportivo* (o que está em jogo) é independente: ver `competition_c
 
 ### 3.3 Importância
 
-`importance = tier + fase + clássico × intensidade + decisão`, limitado a 0–100 (função pura `importance()` em `@galaxie/providers`; o ingestor grava o resultado em `core.event.importance`):
+`importance = tier + fase + clássico × intensidade + decisão + prestígio`, limitado a 0–100 (função pura `importance()` em `@galaxie/providers`; o ingestor grava o resultado em `core.event.importance` e os componentes em `core.event.importance_breakdown`). Regras completas, sinais de decisão e a relevância por mercado em [06 §3.1–3.2](06-semantica-e-conteudo.md#31-importância-score-global):
 
 | Componente | Pontos |
 |---|---|
 | Tier da competição | 1 → 40 · 2 → 25 · 3 → 10 · desconhecido → 5 |
 | Fase (`core.stage.kind`) | final 30 · semi 22 · quartas 16 · oitavas 12 · playoff 10 · 3º lugar, 16 avos, rebaixamento 8 · grupos, fase de liga, fase eliminatória 6 · 32 avos 5 · pontos corridos 4 (+ até 6 na reta final) · 64 avos, outra 3 · preliminar 2 · amistoso 0 |
 | Clássico | 6 × intensidade (1–5) da base semântica — `DerbyLookup`; padrão no upsert: `createDerbyLookup` de `@galaxie/knowledge` (pares de `semantic.derby` já semeados, uma consulta por lote) |
-| Decisão | título 15 · rebaixamento 10 · eliminação 8 · vaga 6 (soma limitada a 20) |
+| Jogo de ida (ida e volta) | pontos da fase × 0,75 |
+| Decisão | título 15 · rebaixamento 10 · eliminação 8 · vaga 6 (soma limitada a 20): mata-mata pela perna/final no upsert; tabela pelo motor de regras no recálculo |
+| Prestígio | 0–10 de `core.competition.prestige` (campo `prestige` do catálogo `config/competitions`) |
 
-Todo upsert de evento (normalização do raw, `afterFetch` dos jobs, ao vivo) consulta a base semântica do banco: o evento já é gravado com `derby_id` e a intensidade na importância. Com `derbyLookup: false` (busca desligada), o clássico e a importância já calculados são preservados. Para eventos gravados antes do seed (ou depois de mudar a base), `pnpm --filter @galaxie/ingestor events:importance [--esporte football] [--desde AAAA-MM-DD] [--plan]` recalcula `derby_id` (`assignEventDerbies`) e a importância com a mesma fórmula, só nas linhas que mudaram, e purga o cache desses eventos pelo change feed (tópico interno `event.importance_recomputed`).
+Todo upsert de evento (normalização do raw, `afterFetch` dos jobs, ao vivo) consulta a base semântica do banco: o evento já é gravado com `derby_id` e a intensidade na importância. Com `derbyLookup: false` (busca desligada), o clássico e a importância já calculados são preservados. O upsert preserva os sinais da tabela (`stake_flags`) já gravados. `pnpm --filter @galaxie/ingestor events:importance [--esporte football] [--desde AAAA-MM-DD] [--ate AAAA-MM-DD] [--proximos-dias N] [--horizonte N] [--sem-catalogo] [--plan]` aplica o `prestige` do catálogo, recalcula `derby_id` (`assignEventDerbies`), os sinais da tabela dos jogos em aberto no horizonte (padrão 7 dias) e a importância com a mesma fórmula, só nas linhas que mudaram, e purga o cache desses eventos pelo change feed (tópico interno `event.importance_recomputed`). O scheduler roda o job `events-importance` de hora em hora para os próximos 7 dias.
 
 ### 3.4 Normalização raw → core (futebol, issue #22)
 

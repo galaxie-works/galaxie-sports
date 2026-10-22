@@ -35,8 +35,49 @@ flowchart LR
 ## 3. Como a semântica aparece nos dados
 
 1. **Detecção de clássico**: no upsert de um `core.event` de futebol, se os dois participantes formam um par em `semantic.derby`, o evento recebe `derby_id` e `competition_context` inclui `derby`. Implementação em `packages/knowledge` (casam por `semantic.team_profile.participant_id`): o upsert do ingestor usa `createDerbyLookup(db)` (pares carregados uma vez por lote) e grava `derby_id` e a importância já na escrita; `assignEventDerbies(db, { eventIds })` e `findDerby(db, a, b)` servem ao seed (que recalcula o `derby_id` de todos os eventos) e ao `events:importance` (que também recalcula a importância). `core.event.derby_id` tem FK para `semantic.derby` (`ON DELETE SET NULL`).
-2. **Importância**: `importance = f(tier da competição, fase, clássico × intensidade, decisão de título/rebaixamento, interesse da audiência)`. Usada para ordenar "Meu dia esportivo" e escolher o que a IA ao vivo prioriza.
+2. **Importância** (`core.event.importance`, 0–100, global) e **relevância por mercado** (calculada na requisição): ver §3.1 e §3.2. Usadas para ordenar "Meu dia esportivo" e escolher o que a IA ao vivo prioriza.
 3. **Enriquecimento de card**: `GET /v1/events/{id}` traz `derby: { slug, name, intensity }` e, por participante, `nickname` no locale pedido.
+
+### 3.1 Importância (score global)
+
+`importance = min(100, tier + fase + clássico + decisão + prestígio)`, com o detalhamento gravado em `core.event.importance_breakdown` e exposto na API como `importance_breakdown: { tier, phase, derby, decisive, prestige, flags }`. Fórmula pura em `packages/providers/src/event/importance.ts`.
+
+| Componente | Pontos |
+|---|---|
+| **Tier** da competição (`core.competition.tier`, do catálogo) | 1 → 40 · 2 → 25 · 3 → 10 · desconhecido → 5 |
+| **Fase** (`core.stage.kind`) | final 30 · semi 22 · quartas 16 · oitavas 12 · playoff 10 · 3º lugar/32-avos/playoff de rebaixamento 8 · fase de grupos/liga e 1ª fase de copa 6 · 64-avos 5 · rodada 4 · 128-avos/outra 3 · preliminar 2 · amistoso 0 |
+| ↳ reta final (pontos corridos: `regular` e `league_phase`) | + até 6 pelo progresso da rodada: `round((rodada − 1) / (total − 1) × 6)`; o total vem de `matches_per_team` do regulamento (`config/rules`) ou da maior rodada conhecida da temporada |
+| ↳ jogo de **ida** de confronto de ida e volta | pontos da fase × 0,75 (arredondado): a decisão fica para a volta |
+| **Clássico** (`semantic.derby`) | 6 × intensidade (1–5) |
+| **Decisão** (sinais, teto 20) | título 15 · rebaixamento 10 · eliminação 8 · vaga 6 |
+| **Prestígio** (`core.competition.prestige`, campo `prestige` do catálogo) | 0–10: 10 nas principais copas continentais e torneios de seleções (Libertadores, Champions, Copa do Mundo, Copa América, Eurocopa, Mundial de Clubes); 5 nas secundárias e eliminatórias (Sul-Americana, Europa League, Concachampions, Recopa, Eliminatórias, Liga das Nações da UEFA); 3 nas menores (Conference League, Leagues Cup, Liga das Nações da Concacaf) |
+
+**Sinais de decisão** (`flags`), de duas fontes:
+
+- **Estruturais (mata-mata)**, calculados no upsert da normalização: jogo único e volta valem `elimination`; a final (jogo único ou volta) vale `title` (que já implica a eliminação); ida, disputa de 3º lugar e perna ainda desconhecida não decidem nada; playoff de rebaixamento vale `relegation`. A perna sai dos dados (duas partidas do mesmo par na mesma fase: a mais cedo é a ida) e, com uma só partida conhecida, do regulamento próprio da competição (`config/rules/<slug>.yaml`; sem arquivo, jogo único). Fase com número de rodada no rótulo ("Preliminary Round - 2", "Relegation - 5") é pontos corridos, não mata-mata.
+- **Da tabela (pontos corridos, grupos e fase de liga)**, pelo motor de regras (`computeEventStakes` de `@galaxie/rules/db` + `decisiveFlagsFromStakes`): `in_title_race`, `can_clinch_title`, `clinches_title_with_*` → `title`; `at_risk_of_relegation`, `can_be_relegated`, `relegated_*`, `secures_safety_*`, `can_secure_safety` → `relegation`; `eliminated_*`, `can_be_eliminated`, `at_risk_of_elimination` → `elimination`; `can_qualify_for_<zona>`, `can_clinch_<zona>`, `clinches_<zona>_with_*` → `qualification` (ou o tipo da zona no regulamento: acesso/playoff = vaga, playout = rebaixamento). O que já está resolvido (campeão, rebaixado, eliminado ou classificado matematicamente, salvo) não conta. Os códigos de "possibilidade" (`in_title_race`, `can_qualify_for_*`, `at_risk_of_*`) só aparecem na reta final (jogos restantes ≤ max(3, ¼ da fase)).
+
+**Onde é calculado.** O upsert da normalização (caminho quente, inclusive o ao vivo) grava a parte estrutural — tier, fase, perna, prestígio, clássico e a decisão do mata-mata — e **preserva** os sinais da tabela já gravados (`importance_breakdown.stake_flags`). Os sinais da tabela precisam da classificação, então ficam no recálculo `events:importance` (CLI e job `events-importance` do scheduler, de hora em hora, `--esporte football --proximos-dias 7`): só jogos em aberto que começam entre 6 h atrás e 7 dias à frente passam pelo motor; fora dessa janela os sinais gravados ficam como estão (o jogo encerrado guarda o que estava em jogo antes de começar). O CLI também aplica o `prestige` do catálogo em `core.competition` (sem chamar o fornecedor; o `--plan` já calcula com o YAML novo).
+
+Exemplos (dados locais de 2026-10-22):
+
+| Jogo | Antes | Global | Mercado BR |
+|---|---|---|---|
+| Libertadores, semifinal (volta): Palmeiras × Fluminense | 62 | 80 (40 + 22 + 8 + 10) | 90 |
+| Libertadores, final em jogo único com time brasileiro (fórmula; ainda sem evento no banco) | 70 | 95 (40 + 30 + 15 + 10) | 100 |
+| Brasileirão, rodada 32: Palmeiras × RB Bragantino (título, rebaixamento e vaga em jogo) | 44 | 69 (40 + 9 + 20) | 79 |
+| Champions, fase de liga (rodada 3) | 46 | 58 (40 + 8 + 10) | 58 |
+| Premier League, rodada 8 | 44 | 45 (40 + 5) | 45 |
+
+### 3.2 Relevância por mercado
+
+`importance` é **global**: o mesmo jogo vale o mesmo para todos os clientes. A relevância soma o interesse de um mercado (país ISO2) e é calculada **na requisição**, sem coluna por mercado — o bônus depende só do país dos participantes (`core.participant.country_code`), do país da competição (`core.competition.country_code`) e do escopo continental (`config/geo/competition-scope.yaml` + confederação do país em `config/geo/confederations.yaml`), que cabem numa expressão SQL (ordenação e filtro) e num lookup em lote (resposta). Guardar um score por mercado multiplicaria as escritas por país a cada recálculo sem ganho: o cálculo é barato e sempre coerente com o `importance` atual.
+
+- **+10** quando um participante é do país do mercado;
+- **+5** quando a competição é do país, ou é continental/de seleções da confederação do mercado (ou o lista como convidado em `countries`). Competições globais (FIFA) não contam: valeriam para todos os mercados;
+- bônus total ≤ 10; `relevance.score = min(100, importance + bonus)`.
+
+O mercado vem de `?market=XX` ou, sem ele, do único mercado do plano do tenant (`api.tenant.markets` com exatamente um país); sem mercado, `relevance` é `null`. A API expõe `relevance: { market, score, bonus, reasons }` (`reasons`: `team_from_market`, `domestic_competition`, `continental_competition`), `order=relevance` e `relevance_min` nas listas (docs/05 §3.2). Implementação em `apps/api/src/events/relevance.ts`.
 
 ## 4. Framework de linguagem, badges e momentum
 
