@@ -27,7 +27,13 @@ import { sanitizeText } from '../llm/hygiene.js';
 import type { LlmClient } from '../llm/types.js';
 import { buildGoals, loadIncidents } from '../recap/facts.js';
 import { rightsHoldersFor, type ChannelAllowlist } from './channels.js';
-import { classifyVideos, detectFormat, RULES_CLASSIFIER, type ClassifyFacts } from './classify.js';
+import {
+  aspectRatioOf,
+  classifyVideos,
+  detectFormat,
+  RULES_CLASSIFIER,
+  type ClassifyFacts,
+} from './classify.js';
 import { checkRelevance, decidePublication, rankScore } from './policy.js';
 import { buildRelatedQueries, languagesFor, type RelatedQuery } from './queries.js';
 import {
@@ -425,6 +431,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             sourceTier: c.tier.tier,
             contentType: base.type,
             format,
+            aspectRatio: aspectRatioOf(v),
             durationSeconds: v.durationSeconds,
             publishedAt,
             thumbnailUrl: v.thumbnailUrl,

@@ -1,5 +1,5 @@
 {
-  "id": "5beb0f65-cc07-42d6-b47a-c3364a4355b0",
+  "id": "e7e3ce92-fa13-4c98-9d29-0bd0dc735dee",
   "prevId": "ad65113f-5306-4fa3-aaa5-3f60e4a4ab22",
   "version": "7",
   "dialect": "postgresql",
@@ -3796,6 +3796,12 @@
         },
         "format": {
           "name": "format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aspect_ratio": {
+          "name": "aspect_ratio",
           "type": "text",
           "primaryKey": false,
           "notNull": true

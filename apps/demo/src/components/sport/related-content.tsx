@@ -5,7 +5,7 @@ import { BadgeCheck, Eye, Play, Smartphone } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
-import { RelatedPlayerSheet } from '@/components/sport/related-player';
+import { useRelatedPlayer } from '@/components/sport/related-player';
 import { cn } from '@/lib/utils';
 
 /** Rótulos dos tipos (a API também manda `content_type_label` no locale pedido). */
@@ -38,7 +38,7 @@ function duration(sec: number | null): string | null {
 
 const compact = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
 
-function VideoCard({ item, onPlay }: { item: RelatedItem; onPlay: () => void }) {
+function VideoCard({ item, playing, onPlay }: { item: RelatedItem; playing: boolean; onPlay: () => void }) {
   const tier = TIER_LABEL[item.channel.source_tier];
   const time = duration(item.duration_seconds);
   return (
@@ -46,7 +46,11 @@ function VideoCard({ item, onPlay }: { item: RelatedItem; onPlay: () => void }) 
       type="button"
       onClick={onPlay}
       aria-label={`Assistir: ${item.title}`}
-      className="group/video hover:bg-accent/50 focus-visible:ring-ring flex flex-col overflow-hidden rounded-lg border text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      aria-current={playing || undefined}
+      className={cn(
+        'group/video hover:bg-accent/50 focus-visible:ring-ring flex flex-col overflow-hidden rounded-lg border text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
+        playing && 'border-primary ring-primary/40 ring-2',
+      )}
     >
       <div className="bg-muted relative aspect-video overflow-hidden">
         {item.thumbnail_url ? (
@@ -94,6 +98,14 @@ function VideoCard({ item, onPlay }: { item: RelatedItem; onPlay: () => void }) 
           <Badge variant="primary-light" size="sm">
             {item.content_type_label}
           </Badge>
+          <Badge variant="outline" size="sm" title="Proporção do vídeo">
+            {item.aspect_ratio}
+          </Badge>
+          {playing ? (
+            <Badge variant="success-light" size="sm">
+              <Play aria-hidden /> Tocando
+            </Badge>
+          ) : null}
           {tier ? (
             <Badge variant="outline" size="sm">
               {tier}
@@ -108,8 +120,7 @@ function VideoCard({ item, onPlay }: { item: RelatedItem; onPlay: () => void }) 
 /** Vídeos relacionados ao evento com filtro por tipo (abas com a contagem de `counts`). */
 export function RelatedContentGrid({ related }: { related: RelatedContent }) {
   const [type, setType] = useState<string | null>(null);
-  /** Posição do vídeo aberto no painel, dentro da lista filtrada. */
-  const [playing, setPlaying] = useState<number | null>(null);
+  const player = useRelatedPlayer();
   const types = useMemo(
     () =>
       Object.entries(related.counts)
@@ -151,11 +162,15 @@ export function RelatedContentGrid({ related }: { related: RelatedContent }) {
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {items.map((item, i) => (
-          <VideoCard key={item.id} item={item} onPlay={() => setPlaying(i)} />
+          <VideoCard
+            key={item.id}
+            item={item}
+            playing={player.current?.id === item.id}
+            // o painel (no layout) só monta o player ao abrir: nada do YouTube carrega antes do clique
+            onPlay={() => player.open(items, i)}
+          />
         ))}
       </div>
-      {/* O player só é montado ao abrir: nada do YouTube carrega antes do clique. */}
-      <RelatedPlayerSheet items={items} index={playing} onIndexChange={setPlaying} />
     </div>
   );
 }

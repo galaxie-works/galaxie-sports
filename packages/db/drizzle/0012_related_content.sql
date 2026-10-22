@@ -15,6 +15,7 @@ CREATE TABLE "enrich"."related_content" (
 	"source_tier" text NOT NULL,
 	"content_type" "enrich"."related_content_type" NOT NULL,
 	"format" text NOT NULL,
+	"aspect_ratio" text NOT NULL,
 	"duration_seconds" integer,
 	"published_at" timestamp with time zone NOT NULL,
 	"thumbnail_url" text,

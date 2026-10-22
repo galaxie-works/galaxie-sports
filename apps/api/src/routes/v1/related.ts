@@ -61,6 +61,7 @@ function toItem(row: RelatedContentRow, locale: SupportedLocale, tz: string): Re
     content_type: row.contentType,
     content_type_label: relatedTypeLabel(row.contentType, locale),
     format: row.format,
+    aspect_ratio: row.aspectRatio,
     duration_seconds: row.durationSeconds,
     published_at: formatInstant(row.publishedAt, tz),
     thumbnail_url: row.thumbnailUrl,

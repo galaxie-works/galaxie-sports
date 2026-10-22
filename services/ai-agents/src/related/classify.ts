@@ -3,7 +3,12 @@
  * JSON Schema e guardrails; classificador por regras (título/duração) como fallback e para o que o
  * LLM não cobrir. O LLM não descobre vídeos nem links: só classifica a lista que recebe.
  */
-import { RELATED_CONTENT_TYPES, type RelatedContentType, type RelatedFormat } from '@galaxie/db';
+import {
+  RELATED_CONTENT_TYPES,
+  type RelatedAspectRatio,
+  type RelatedContentType,
+  type RelatedFormat,
+} from '@galaxie/db';
 import {
   detectPromptInjection,
   normalizeText,
@@ -19,12 +24,34 @@ import type { VideoDetail } from './youtube.js';
 export const RULES_CLASSIFIER = 'rules@v1';
 export const RELATED_PROMPT_VERSION = 'related@v1';
 
-/** Vertical curto: ≤ 60 s, ou ≤ 180 s com #shorts (limite dos Shorts desde 2024). */
-export function detectFormat(
-  v: Pick<VideoDetail, 'durationSeconds' | 'title' | 'description' | 'tags'>,
-): RelatedFormat {
+const ASPECTS: { ratio: RelatedAspectRatio; value: number }[] = [
+  { ratio: '16:9', value: 16 / 9 },
+  { ratio: '9:16', value: 9 / 16 },
+  { ratio: '4:3', value: 4 / 3 },
+  { ratio: '1:1', value: 1 },
+];
+
+/** Proporção mais próxima das dimensões do player (comparação em log, simétrica); null sem dimensões. */
+export function aspectFromFrame(width: number | null, height: number | null): RelatedAspectRatio | null {
+  if (!width || !height || width <= 0 || height <= 0) return null;
+  const r = Math.log(width / height);
+  return ASPECTS.reduce((best, a) =>
+    Math.abs(Math.log(a.value) - r) < Math.abs(Math.log(best.value) - r) ? a : best,
+  ).ratio;
+}
+
+type FormatInput = Pick<VideoDetail, 'durationSeconds' | 'title' | 'description' | 'tags'> &
+  Partial<Pick<VideoDetail, 'frameWidth' | 'frameHeight'>>;
+
+/**
+ * Short = vertical e curto (limite dos Shorts: 3 min desde 2024). Com as dimensões do player, vale a
+ * proporção real; sem elas, ≤ 60 s ou ≤ 180 s com #shorts.
+ */
+export function detectFormat(v: FormatInput): RelatedFormat {
   const d = v.durationSeconds;
   if (d === null) return 'long';
+  const aspect = aspectFromFrame(v.frameWidth ?? null, v.frameHeight ?? null);
+  if (aspect) return aspect === '9:16' && d <= 180 ? 'short' : 'long';
   if (d <= 60) return 'short';
   const tagged =
     /#shorts?\b/i.test(`${v.title} ${v.description}`) || v.tags.some((t) => /^#?shorts?$/i.test(t));
@@ -294,4 +321,12 @@ export async function classifyVideos(opts: ClassifyOptions): Promise<ClassifyRes
   }
   for (const v of clean) if (!byId.has(v.id)) byId.set(v.id, rules(v));
   return result;
+}
+
+/** Proporção do vídeo: das dimensões reais do player; sem elas, pelo formato (short → 9:16). */
+export function aspectRatioOf(v: FormatInput): RelatedAspectRatio {
+  return (
+    aspectFromFrame(v.frameWidth ?? null, v.frameHeight ?? null) ??
+    (detectFormat(v) === 'short' ? '9:16' : '16:9')
+  );
 }

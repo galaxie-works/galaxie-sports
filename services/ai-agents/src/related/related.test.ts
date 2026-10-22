@@ -3,7 +3,14 @@ import { Blocklist } from '@galaxie/where-to-watch';
 import type { EventCore, TeamRef } from '../context/event-core.js';
 import { FakeLlmClient } from '../llm/fake.js';
 import { ChannelAllowlist, type ChannelEntry } from './channels.js';
-import { classifyByRules, classifyVideos, detectFormat, RULES_CLASSIFIER } from './classify.js';
+import {
+  aspectFromFrame,
+  aspectRatioOf,
+  classifyByRules,
+  classifyVideos,
+  detectFormat,
+  RULES_CLASSIFIER,
+} from './classify.js';
 import { checkRelevance, decidePublication, rankScore } from './policy.js';
 import { buildRelatedQueries, languagesFor } from './queries.js';
 import { parseIsoDuration, YoutubeClient, YoutubeError, youtubeQuotaDay, type FetchLike } from './youtube.js';
@@ -46,7 +53,9 @@ const core: EventCore = {
   away: team('t2', 'away', 'Fluminense', { 'pt-BR': 'Fluminense' }),
 };
 
-const video = (over: Partial<Parameters<typeof classifyByRules>[0]> = {}) => ({
+const video = (
+  over: Partial<Parameters<typeof classifyByRules>[0]> & { frameWidth?: number; frameHeight?: number } = {},
+) => ({
   title: '',
   description: '',
   tags: [] as string[],
@@ -536,5 +545,24 @@ describe('ajustes da primeira execução real', () => {
     expect(allow.classify(ch(2_000_000), new Set()).tier).toBe('official');
     expect(allow.classify(ch(1_280), new Set()).tier).toBe('unknown');
     expect(allow.classify(ch(null), new Set()).tier).toBe('official');
+  });
+});
+
+describe('proporção do vídeo (aspect_ratio)', () => {
+  it('vem das dimensões do player: 16:9, 9:16, 4:3 e 1:1', () => {
+    expect(aspectFromFrame(1280, 720)).toBe('16:9');
+    expect(aspectFromFrame(1280, 2276)).toBe('9:16');
+    expect(aspectFromFrame(1280, 960)).toBe('4:3');
+    expect(aspectFromFrame(1280, 1280)).toBe('1:1');
+    expect(aspectFromFrame(null, 720)).toBeNull();
+  });
+
+  it('com dimensões, short = vertical e ≤ 3 min; sem elas, cai na duração/#shorts', () => {
+    expect(detectFormat(video({ durationSeconds: 45, frameWidth: 1280, frameHeight: 720 }))).toBe('long');
+    expect(detectFormat(video({ durationSeconds: 170, frameWidth: 1280, frameHeight: 2276 }))).toBe('short');
+    expect(detectFormat(video({ durationSeconds: 600, frameWidth: 1280, frameHeight: 2276 }))).toBe('long');
+    expect(aspectRatioOf(video({ durationSeconds: 600, frameWidth: 1280, frameHeight: 2276 }))).toBe('9:16');
+    expect(aspectRatioOf(video({ durationSeconds: 40 }))).toBe('9:16');
+    expect(aspectRatioOf(video({ durationSeconds: 600 }))).toBe('16:9');
   });
 });

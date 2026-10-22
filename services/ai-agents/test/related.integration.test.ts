@@ -134,6 +134,10 @@ function fakeYoutube(state: { removed: Set<string>; searches: string[] }): Fetch
           },
           contentDetails: { duration: v.duration },
           statistics: { viewCount: String(v.views) },
+          player:
+            v.duration === 'PT41S'
+              ? { embedWidth: '1280', embedHeight: '2276' }
+              : { embedWidth: '1280', embedHeight: '720' },
           status: { privacyStatus: 'public', embeddable: v.embeddable ?? true },
         })),
       });
@@ -241,6 +245,7 @@ describe('Conteúdo relacionado (integração)', () => {
       sourceTier: 'official',
       contentType: 'highlights',
       format: 'long',
+      aspectRatio: '16:9',
       url: 'https://www.youtube.com/watch?v=v-official',
       embedUrl: 'https://www.youtube.com/embed/v-official',
       thumbnailUrl: 'https://i.ytimg.com/vi/v-official/hqdefault.jpg',
@@ -252,6 +257,7 @@ describe('Conteúdo relacionado (integração)', () => {
       sourceTier: 'rights_holder',
       contentType: 'goal',
       format: 'short',
+      aspectRatio: '9:16',
       url: 'https://www.youtube.com/shorts/v-short',
     });
     expect(by.get('v-react')).toMatchObject({

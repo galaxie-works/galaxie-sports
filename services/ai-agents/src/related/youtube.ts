@@ -65,6 +65,9 @@ export interface VideoDetail {
   views: number | null;
   likes: number | null;
   comments: number | null;
+  /** Dimensões do player oficial (`player.embedWidth/embedHeight`): seguem a proporção real do vídeo. */
+  frameWidth: number | null;
+  frameHeight: number | null;
 }
 
 export interface ChannelDetail {
@@ -180,9 +183,11 @@ export class YoutubeClient {
     const out: VideoDetail[] = [];
     for (let i = 0; i < ids.length; i += 50) {
       const body = await this.get('videos', {
-        part: 'snippet,contentDetails,statistics,status',
+        // `player` com maxWidth devolve embedWidth/embedHeight na proporção real do vídeo (sem custo extra)
+        part: 'snippet,contentDetails,statistics,status,player',
         id: ids.slice(i, i + 50).join(','),
         maxResults: '50',
+        maxWidth: '1280',
       });
       for (const raw of Array.isArray(body.items) ? body.items : []) {
         const it = obj(raw);
@@ -190,6 +195,7 @@ export class YoutubeClient {
         const cd = obj(it.contentDetails);
         const st = obj(it.statistics);
         const status = obj(it.status);
+        const player = obj(it.player);
         const id = str(it.id);
         if (!id) continue;
         out.push({
@@ -209,6 +215,8 @@ export class YoutubeClient {
           views: num(st.viewCount),
           likes: num(st.likeCount),
           comments: num(st.commentCount),
+          frameWidth: num(player.embedWidth),
+          frameHeight: num(player.embedHeight),
         });
       }
     }

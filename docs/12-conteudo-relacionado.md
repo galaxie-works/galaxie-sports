@@ -69,14 +69,16 @@ Toda entrada é conferida com `channels.list?forHandle=` antes de entrar (a list
 | `full_match` | Jogo completo | Partido completo | "jogo completo", "partido completo", duração ≥ 80 min |
 | `other` | Outros | Otros | sem sinal claro |
 
-### 4.2 Formato (`format`)
+### 4.2 Proporção (`aspect_ratio`) e formato (`format`)
 
-| Código | Regra |
+**Proporção** é metadado de todo vídeo: `16:9` (horizontal), `9:16` (vertical), `4:3` ou `1:1`, a mais próxima das dimensões reais do player oficial. O `videos.list` com `part=player&maxWidth=1280` devolve `embedWidth`/`embedHeight` na proporção do vídeo, sem custo extra de cota. Sem dimensões, a proporção sai do formato (`short` → `9:16`, `long` → `16:9`). O cliente usa esse campo para montar o quadro, por exemplo o player 9:16 da demo.
+
+| Formato | Regra |
 |---|---|
-| `short` | Vídeo vertical curto: duração ≤ 60 s, ou ≤ 180 s com `#shorts` no título, na descrição ou nas tags (o limite dos Shorts é 3 min desde 2024) |
-| `long` | Todo o resto (vídeo horizontal, de qualquer duração) |
+| `short` | Vertical (`9:16`) e com no máximo 180 s (o limite dos Shorts é 3 min desde 2024). Sem as dimensões do player: duração ≤ 60 s, ou ≤ 180 s com `#shorts` no título, na descrição ou nas tags |
+| `long` | Todo o resto: horizontal de qualquer duração, ou vertical com mais de 3 min |
 
-A API do YouTube não informa a proporção do vídeo; a regra acima é a melhor aproximação disponível e fica registrada em `classified_by`.
+Na primeira execução real, a proporção vinda das dimensões deu 17 vídeos `16:9` e 20 `9:16` entre os publicados.
 
 ## 5. Pipeline
 
@@ -146,6 +148,7 @@ create table enrich.related_content (
   source_tier      text not null,            -- official | rights_holder | media | creator | unknown
   content_type     enrich.related_content_type not null,
   format           text not null,            -- short | long
+  aspect_ratio     text not null,            -- 16:9 | 9:16 | 4:3 | 1:1 (dimensões do player)
   duration_seconds integer,
   published_at     timestamptz not null,
   thumbnail_url    text,                     -- URL da plataforma, nunca do nosso CDN
@@ -218,6 +221,7 @@ Módulo vendável próprio (add-on): incluído no `enterprise` e contratável po
       "content_type": "highlights",
       "content_type_label": "Melhores momentos",
       "format": "long",
+      "aspect_ratio": "16:9",
       "duration_seconds": 612,
       "published_at": "2026-10-21T23:58:00-03:00",
       "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
@@ -279,11 +283,12 @@ Flags: `--plan`, `--evento`, `--horas` (padrão 48), `--tier` (padrão 2), `--li
 
 Página do evento (`apps/demo`, `eventos/[id]`): seção **Conteúdo relacionado** no fim da página, em largura total, com cards (miniatura, duração, selo *Short*, canal com selo *Oficial*, tipo e visualizações) e filtro por tipo (abas com a contagem de `counts`). A chave da demo precisa do módulo `related_content` (o tenant da demo é `enterprise`).
 
-O clique abre um **painel lateral 9:16** ([related-player.tsx](../apps/demo/src/components/sport/related-player.tsx), Sheet à direita; tela cheia no mobile) que toca o vídeo:
+O clique abre um **painel lateral 9:16** ([related-player.tsx](../apps/demo/src/components/sport/related-player.tsx)) que toca o vídeo. O painel é **acoplado, não modal**: fica no layout do app como uma coluna à direita, o conteúdo encolhe e continua clicável (outros cards, filtros, menu), e trocar de página não fecha o painel nem interrompe o vídeo. No mobile ele ocupa a tela.
 
 - **Player oficial**: o YouTube exige o próprio player. Usamos o embed de `youtube-nocookie.com` pela IFrame Player API, com `playsinline=1`, `rel=0` e `modestbranding=1`. Nada de extrair o stream nem de usar outro player. A marca e parte dos controles do YouTube (logo, título, "Assistir no YouTube", sugestões ao pausar) **não podem ser removidas**.
-- **Quadro**: short ocupa o quadro inteiro; vídeo horizontal fica centralizado, com faixa. Título, canal (com selo), tipo e duração ficam no cabeçalho.
-- **Navegação**: "Anterior/Próximo" (e as setas do teclado) percorrem a lista com o filtro de tipo ativo, e o fim do vídeo avança sozinho. Esc fecha e o foco fica preso no painel.
+- **Quadro**: o quadro segue o `aspect_ratio`: vídeo `9:16` ocupa o quadro inteiro, e `16:9` fica centralizado, com faixa. Título, canal (com selo), tipo e duração ficam no cabeçalho.
+- **Navegação**: "Anterior/Próximo" (e as setas do teclado) percorrem a lista com o filtro de tipo ativo, e o fim do vídeo avança sozinho. O card do vídeo em reprodução fica marcado ("Tocando").
+- **Teclado e foco**: ao abrir, o foco vai para o painel; Esc fecha e devolve o foco ao card. O foco não fica preso, porque o painel não é modal e o resto do app segue utilizável.
 - **Carregamento**: o iframe e o script da API do YouTube só carregam ao abrir o painel. Antes do clique, nada do YouTube é carregado além das miniaturas.
 - **Futuro**: a fonte do player é escolhida por plataforma (`playerSource`: `youtube` → embed). Vídeo próprio do parceiro (HLS/MP4 licenciado) poderá usar um player nosso, como o Limeplay; isso ainda não foi adicionado.
 

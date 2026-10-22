@@ -274,6 +274,13 @@ export const relatedContentStatus = enrich.enum('related_content_status', RELATE
 export const RELATED_SOURCE_TIERS = ['official', 'rights_holder', 'media', 'creator', 'unknown'] as const;
 export type RelatedSourceTier = (typeof RELATED_SOURCE_TIERS)[number];
 
+/**
+ * Proporção do quadro do vídeo, das dimensões reais do player da plataforma (a mais próxima destas);
+ * sem dimensões, vem do formato (short → 9:16, long → 16:9).
+ */
+export const RELATED_ASPECT_RATIOS = ['16:9', '9:16', '4:3', '1:1'] as const;
+export type RelatedAspectRatio = (typeof RELATED_ASPECT_RATIOS)[number];
+
 export type RelatedStatistics = {
   views: number | null;
   likes: number | null;
@@ -307,6 +314,8 @@ export const relatedContent = enrich.table(
     sourceTier: text('source_tier').$type<RelatedSourceTier>().notNull(),
     contentType: relatedContentType('content_type').notNull(),
     format: text('format').$type<RelatedFormat>().notNull(),
+    /** 16:9 (horizontal) | 9:16 (vertical) | 4:3 | 1:1 — ver RELATED_ASPECT_RATIOS. */
+    aspectRatio: text('aspect_ratio').$type<RelatedAspectRatio>().notNull(),
     durationSeconds: integer('duration_seconds'),
     publishedAt: timestamp('published_at', { withTimezone: true }).notNull(),
     /** URL da própria plataforma (i.ytimg.com), nunca do nosso CDN. */

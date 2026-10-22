@@ -21,6 +21,8 @@ export type RelatedContentTypeName = (typeof RELATED_CONTENT_TYPES)[number];
 
 export const RELATED_FORMATS = ['short', 'long'] as const;
 export const RELATED_SOURCE_TIERS = ['official', 'rights_holder', 'media', 'creator', 'unknown'] as const;
+/** Proporção do quadro (enrich.related_content.aspect_ratio). */
+export const RELATED_ASPECT_RATIOS = ['16:9', '9:16', '4:3', '1:1'] as const;
 
 const isType = (s: string): s is RelatedContentTypeName =>
   (RELATED_CONTENT_TYPES as readonly string[]).includes(s);
@@ -78,6 +80,12 @@ export const RelatedItem = z
     content_type: z.enum(RELATED_CONTENT_TYPES),
     content_type_label: z.string().meta({ description: 'Rótulo do tipo no locale da resposta.' }),
     format: z.enum(RELATED_FORMATS),
+    aspect_ratio: z.enum(RELATED_ASPECT_RATIOS).meta({
+      description:
+        'Proporção do vídeo, das dimensões reais do player da plataforma: `16:9` (horizontal), `9:16` (vertical), ' +
+        '`4:3` ou `1:1`. Use para montar o quadro (ex.: player 9:16 para vertical).',
+      example: '9:16',
+    }),
     duration_seconds: z.number().int().nullable(),
     published_at: z.string(),
     thumbnail_url: z

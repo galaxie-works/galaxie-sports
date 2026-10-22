@@ -1,12 +1,11 @@
 'use client';
 
 import type { RelatedItem } from '@galaxie/contracts';
-import { BadgeCheck, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { BadgeCheck, ChevronLeft, ChevronRight, ExternalLink, XIcon } from 'lucide-react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 // ─── fonte do player por plataforma ──────────────────────────────────────────────────────────────
@@ -110,6 +109,71 @@ function YoutubeEmbed({ videoId, title, onEnded }: { videoId: string; title: str
   return <div ref={host} className="size-full [&_iframe]:size-full" />;
 }
 
+// ─── estado do player (no layout: o painel sobrevive à navegação entre páginas) ──────────────────
+
+interface PlayerState {
+  items: RelatedItem[];
+  index: number;
+}
+
+interface PlayerApi {
+  /** Vídeo tocando agora (null = painel fechado). */
+  current: RelatedItem | null;
+  /** Abre o painel no vídeo `index` da lista (a lista já filtrada pelo tipo ativo). */
+  open: (items: RelatedItem[], index: number) => void;
+  close: () => void;
+}
+
+const PlayerContext = createContext<PlayerApi | null>(null);
+
+export function useRelatedPlayer(): PlayerApi {
+  const ctx = useContext(PlayerContext);
+  if (!ctx) throw new Error('useRelatedPlayer precisa de <RelatedPlayerProvider> (layout do app).');
+  return ctx;
+}
+
+/**
+ * Provider + painel acoplado. Fica no layout do app como irmão do conteúdo: no desktop o painel ocupa
+ * uma coluna à direita (o conteúdo encolhe e continua clicável — nada de overlay); no mobile ocupa a
+ * tela. Trocar de página não fecha o painel nem interrompe o vídeo.
+ */
+export function RelatedPlayerProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<PlayerState | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
+
+  const open = useCallback((items: RelatedItem[], index: number) => {
+    if (document.activeElement instanceof HTMLElement) opener.current = document.activeElement;
+    setState({ items, index });
+  }, []);
+  const close = useCallback(() => {
+    setState(null);
+    // devolve o foco a quem abriu (se ainda estiver na página)
+    const el = opener.current;
+    opener.current = null;
+    if (el?.isConnected) requestAnimationFrame(() => el.focus());
+  }, []);
+  const setIndex = useCallback((index: number) => setState((s) => (s ? { ...s, index } : s)), []);
+
+  const api = useMemo<PlayerApi>(
+    () => ({ current: state ? (state.items[state.index] ?? null) : null, open, close }),
+    [state, open, close],
+  );
+
+  return (
+    <PlayerContext value={api}>
+      {children}
+      {state ? (
+        <RelatedPlayerPanel
+          items={state.items}
+          index={state.index}
+          onIndexChange={setIndex}
+          onClose={close}
+        />
+      ) : null}
+    </PlayerContext>
+  );
+}
+
 // ─── painel ──────────────────────────────────────────────────────────────────────────────────────
 
 function duration(sec: number | null): string | null {
@@ -127,125 +191,136 @@ const TIER_LABEL: Record<string, string> = {
 };
 
 /**
- * Painel lateral 9:16 que toca o vídeo no player oficial da plataforma. Shorts ocupam o quadro;
- * vídeos horizontais ficam centralizados com faixa. Anterior/próximo percorrem a lista filtrada e o
- * fim do vídeo avança sozinho. Esc fecha e o foco fica preso no painel (Dialog do Base UI).
+ * Painel lateral 9:16 que toca o vídeo no player oficial da plataforma. Vídeo vertical ocupa o quadro;
+ * horizontal fica centralizado com faixa. Anterior/próximo (e as setas) percorrem a lista filtrada e o
+ * fim do vídeo avança sozinho. Esc fecha. Não é modal: o resto do app segue clicável.
  */
-export function RelatedPlayerSheet({
+function RelatedPlayerPanel({
   items,
   index,
   onIndexChange,
+  onClose,
 }: {
   items: RelatedItem[];
-  index: number | null;
-  onIndexChange: (index: number | null) => void;
+  index: number;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
 }) {
-  const item = index !== null ? items[index] : undefined;
-  const source = item ? playerSource(item) : null;
-  const hasPrev = index !== null && index > 0;
-  const hasNext = index !== null && index < items.length - 1;
+  const item = items[index]!;
+  const source = playerSource(item);
+  const hasPrev = index > 0;
+  const hasNext = index < items.length - 1;
   const go = (delta: number) => {
-    if (index === null) return;
     const next = index + delta;
     if (next >= 0 && next < items.length) onIndexChange(next);
   };
+  const closeButton = useRef<HTMLButtonElement>(null);
+  // foco no painel ao abrir (sem prender: Tab sai do painel normalmente)
+  useEffect(() => closeButton.current?.focus(), []);
+  const vertical = item.aspect_ratio === '9:16';
+  const tier = TIER_LABEL[item.channel.source_tier];
+  const time = duration(item.duration_seconds);
 
   return (
-    <Sheet open={!!item} onOpenChange={(open) => !open && onIndexChange(null)}>
-      <SheetContent
-        side="right"
-        className="data-[side=right]:w-full data-[side=right]:sm:max-w-[26rem] gap-0 overflow-y-auto"
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowRight') go(1);
-          if (e.key === 'ArrowLeft') go(-1);
-        }}
+    <aside
+      aria-label="Player de conteúdo relacionado"
+      className="bg-popover text-popover-foreground fixed inset-0 z-50 flex flex-col overflow-y-auto text-sm md:sticky md:top-0 md:z-10 md:h-svh md:w-[26rem] md:shrink-0 md:self-start md:border-l"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+        if (e.key === 'ArrowRight') go(1);
+        if (e.key === 'ArrowLeft') go(-1);
+      }}
+    >
+      <header className="flex items-start gap-2 p-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h2 className="line-clamp-2 text-base leading-snug font-medium">{item.title}</h2>
+          <p className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="flex items-center gap-1">
+              {item.channel.title}
+              {tier ? <BadgeCheck className="text-primary size-3.5" aria-label={tier} /> : null}
+            </span>
+            {time ? <span>· {time}</span> : null}
+          </p>
+          <div className="flex flex-wrap gap-1 pt-1">
+            <Badge variant="primary-light" size="sm">
+              {item.content_type_label}
+            </Badge>
+            <Badge variant="outline" size="sm">
+              {item.aspect_ratio}
+            </Badge>
+            {item.format === 'short' ? (
+              <Badge variant="outline" size="sm">
+                Short
+              </Badge>
+            ) : null}
+            {tier ? (
+              <Badge variant="outline" size="sm">
+                {tier}
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+        <Button
+          ref={closeButton}
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label="Fechar o player"
+        >
+          <XIcon aria-hidden />
+        </Button>
+      </header>
+
+      {/* Quadro 9:16: vídeo vertical ocupa tudo; horizontal fica centralizado com faixa. */}
+      <div className="flex justify-center bg-black">
+        <div
+          className="relative flex aspect-[9/16] max-h-[calc(100dvh-13rem)] w-full max-w-[calc((100dvh-13rem)*9/16)] items-center justify-center"
+          data-aspect={item.aspect_ratio}
+        >
+          {source?.kind === 'youtube' ? (
+            <div className={cn('w-full', vertical ? 'h-full' : 'aspect-video')}>
+              <YoutubeEmbed
+                key={source.videoId}
+                videoId={source.videoId}
+                title={item.title}
+                onEnded={hasNext ? () => go(1) : undefined}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 p-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => go(-1)}
+          disabled={!hasPrev}
+          aria-label="Vídeo anterior"
+        >
+          <ChevronLeft aria-hidden /> Anterior
+        </Button>
+        <span className="text-muted-foreground flex-1 text-center text-xs tabular-nums">
+          {index + 1} de {items.length}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => go(1)}
+          disabled={!hasNext}
+          aria-label="Próximo vídeo"
+        >
+          Próximo <ChevronRight aria-hidden />
+        </Button>
+      </div>
+      <a
+        href={item.url}
+        target="_blank"
+        rel="noreferrer"
+        className="text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 pb-4 text-xs"
       >
-        {item ? (
-          <>
-            <SheetHeader className="pr-12">
-              <SheetTitle className="line-clamp-2 leading-snug">{item.title}</SheetTitle>
-              <SheetDescription className="flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="flex items-center gap-1">
-                  {item.channel.title}
-                  {TIER_LABEL[item.channel.source_tier] ? (
-                    <BadgeCheck
-                      className="text-primary size-3.5"
-                      aria-label={TIER_LABEL[item.channel.source_tier]}
-                    />
-                  ) : null}
-                </span>
-                {duration(item.duration_seconds) ? <span>· {duration(item.duration_seconds)}</span> : null}
-              </SheetDescription>
-              <div className="flex flex-wrap gap-1 pt-1">
-                <Badge variant="primary-light" size="sm">
-                  {item.content_type_label}
-                </Badge>
-                {item.format === 'short' ? (
-                  <Badge variant="outline" size="sm">
-                    Short
-                  </Badge>
-                ) : null}
-                {TIER_LABEL[item.channel.source_tier] ? (
-                  <Badge variant="outline" size="sm">
-                    {TIER_LABEL[item.channel.source_tier]}
-                  </Badge>
-                ) : null}
-              </div>
-            </SheetHeader>
-
-            {/* Quadro 9:16: short ocupa tudo; vídeo horizontal fica centralizado com faixa. */}
-            <div className="flex justify-center bg-black px-0">
-              <div
-                className="relative flex aspect-[9/16] max-h-[calc(100dvh-13rem)] w-full max-w-[calc((100dvh-13rem)*9/16)] items-center justify-center"
-                data-format={item.format}
-              >
-                {source?.kind === 'youtube' ? (
-                  <div className={cn('w-full', item.format === 'short' ? 'h-full' : 'aspect-video')}>
-                    <YoutubeEmbed
-                      key={source.videoId}
-                      videoId={source.videoId}
-                      title={item.title}
-                      onEnded={hasNext ? () => go(1) : undefined}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 p-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => go(-1)}
-                disabled={!hasPrev}
-                aria-label="Vídeo anterior"
-              >
-                <ChevronLeft aria-hidden /> Anterior
-              </Button>
-              <span className="text-muted-foreground flex-1 text-center text-xs tabular-nums">
-                {index! + 1} de {items.length}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => go(1)}
-                disabled={!hasNext}
-                aria-label="Próximo vídeo"
-              >
-                Próximo <ChevronRight aria-hidden />
-              </Button>
-            </div>
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 pb-4 text-xs"
-            >
-              <ExternalLink className="size-3" aria-hidden /> Abrir na plataforma
-            </a>
-          </>
-        ) : null}
-      </SheetContent>
-    </Sheet>
+        <ExternalLink className="size-3" aria-hidden /> Abrir na plataforma
+      </a>
+    </aside>
   );
 }

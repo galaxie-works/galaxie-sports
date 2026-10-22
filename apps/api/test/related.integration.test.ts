@@ -65,6 +65,7 @@ function row(externalId: string, over: Partial<Row> = {}): Row {
     sourceTier: 'official',
     contentType: 'highlights',
     format: 'long',
+    aspectRatio: '16:9',
     durationSeconds: 600,
     publishedAt: new Date('2026-10-22T03:00:00Z'),
     thumbnailUrl: `https://i.ytimg.com/vi/${externalId}/hqdefault.jpg`,
@@ -115,7 +116,13 @@ beforeAll(async () => {
   ]);
   await db.insert(relatedContent).values([
     row('hl', { rankScore: '6.000' }),
-    row('short1', { contentType: 'goal', format: 'short', durationSeconds: 40, rankScore: '5.500' }),
+    row('short1', {
+      contentType: 'goal',
+      format: 'short',
+      aspectRatio: '9:16',
+      durationSeconds: 40,
+      rankScore: '5.500',
+    }),
     row('coletiva', { contentType: 'press_conference', durationSeconds: 1800, rankScore: '4.000' }),
     row('react', {
       contentType: 'fan_reaction',
@@ -175,6 +182,7 @@ describe('GET /v1/events/{id}/related', () => {
       content_type: 'highlights',
       content_type_label: 'Melhores momentos',
       format: 'long',
+      aspect_ratio: '16:9',
       duration_seconds: 600,
       thumbnail_url: 'https://i.ytimg.com/vi/hl/hqdefault.jpg',
       channel: { id: 'UCpal', title: 'Palmeiras', handle: '@palmeiras', source_tier: 'official' },
@@ -193,7 +201,11 @@ describe('GET /v1/events/{id}/related', () => {
     expect(goals.counts.highlights).toBe(1); // contagens antes do filtro
     const shorts = (await get(`/v1/events/${eventId}/related?format=short&locale=es-AR`)).json();
     expect(shorts.data).toHaveLength(1);
-    expect(shorts.data[0]).toMatchObject({ format: 'short', content_type_label: 'Gol' });
+    expect(shorts.data[0]).toMatchObject({
+      format: 'short',
+      aspect_ratio: '9:16',
+      content_type_label: 'Gol',
+    });
     const es = (await get(`/v1/events/${eventId}/related?type=fan_reaction&locale=es-MX`)).json();
     expect(es.data[0].content_type_label).toBe('Reacción de la hinchada');
     expect((await get(`/v1/events/${eventId}/related?limit=2`)).json().data).toHaveLength(2);

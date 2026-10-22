@@ -12,6 +12,7 @@ import {
   relatedContentTag,
   type Database,
   type RelatedContentRow,
+  type RelatedAspectRatio,
   type RelatedContentType,
   type RelatedFormat,
   type RelatedSourceTier,
@@ -31,6 +32,7 @@ export interface RelatedItemInput {
   sourceTier: RelatedSourceTier;
   contentType: RelatedContentType;
   format: RelatedFormat;
+  aspectRatio: RelatedAspectRatio;
   durationSeconds: number | null;
   publishedAt: Date;
   thumbnailUrl: string | null;
@@ -151,6 +153,8 @@ export async function saveRelatedContent(db: Database, input: SaveRelatedInput):
             statistics: item.statistics,
             rankScore: values.rankScore,
             thumbnailUrl: item.thumbnailUrl,
+            // proporção vem das dimensões do player: atualiza sem criar versão nova
+            aspectRatio: item.aspectRatio,
             queries: [...new Set([...prev.queries, ...item.queries])],
             runId: input.runId,
           })
