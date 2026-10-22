@@ -816,6 +816,39 @@ describe('/v1/events/{id} — timeline, escalações, estatísticas, h2h e .ics'
       team: { side: 'away' },
     });
     expect(own).toMatchObject({ type: 'own_goal', minute: 45, extra: 2 });
+
+    // minuto a minuto (docs/05 §3.2.1): tipo canônico, relógio, peso, placar parcial e marcos
+    expect(goal).toMatchObject({
+      kind: 'goal',
+      clock: { period: 'first_half', minute: 12, extra_minute: null, display: "12'" },
+      weight: expect.any(Number),
+      key_moment: true,
+      score_after: { home: 1, away: 0 },
+    });
+    expect(goal.flags).toContain('opener');
+    expect(card).toMatchObject({ kind: 'yellow_card', weight: 30, key_moment: false, score_after: null });
+    expect(own).toMatchObject({
+      kind: 'own_goal',
+      clock: { period: 'first_half', minute: 45, extra_minute: 2, display: "45+2'" },
+    });
+    expect(body).toMatchObject({
+      live: false,
+      venue_timezone: 'America/Sao_Paulo',
+      generated_at: '2026-10-21T15:00:00Z',
+    });
+    expect(body.markers.map((m: { kind: string }) => m.kind).slice(0, 3)).toEqual([
+      'kickoff',
+      'halftime',
+      'second_half',
+    ]);
+    // instantes sempre em UTC (sufixo Z), mesmo pedindo outro fuso
+    const tz = (await get(`/v1/events/${ids.detail}/timeline?tz=America/Sao_Paulo`)).json();
+    for (const at of [
+      tz.generated_at,
+      ...tz.incidents.map((i: { occurred_at: string | null }) => i.occurred_at),
+      ...tz.markers.map((m: { occurred_at: string | null }) => m.occurred_at),
+    ].filter(Boolean))
+      expect(at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
   });
 
   it('escalações do detalhe da partida, com pessoas do core', async () => {
@@ -1228,5 +1261,34 @@ describe('purge pelo change feed', () => {
     await expect
       .poll(async () => (await get(url)).json().importance, { timeout: 5_000, interval: 50 })
       .toBe(99);
+  });
+});
+
+describe('/v1/events/live — ao vivo de verdade', () => {
+  it('descarta o "ao vivo" sem dado fresco depois do fim previsto (relógio dos eventos atrasado)', async () => {
+    // jogo que o relógio pôs em live pelo horário e nunca recebeu dado do fornecedor
+    await db
+      .update(event)
+      .set({
+        status: 'live',
+        statusDetail: 'NS',
+        statusSource: 'temporal',
+        isStale: true,
+        lastValidAt: new Date('2026-10-20T10:00:00Z'),
+        endsAtExpected: new Date('2026-10-21T14:00:00Z'),
+      })
+      .where(eq(event.id, ids.final38!));
+    const overdue = (await get(`/v1/events/live?competition=${ids.serieA}`)).json().data as EventBody[];
+    expect(overdue.map((e) => e.id)).not.toContain(ids.final38);
+
+    // ainda dentro da janela prevista: continua ao vivo (placar vazio, `is_stale`)
+    await db
+      .update(event)
+      .set({ endsAtExpected: new Date('2026-10-21T16:00:00Z') })
+      .where(eq(event.id, ids.final38!));
+    const inWindow = (await get(`/v1/events/live?competition=brasileirao-serie-a&sport=football`)).json()
+      .data as EventBody[];
+    const e = inWindow.find((x) => x.id === ids.final38);
+    expect(e).toMatchObject({ status: 'live', data_freshness: { is_stale: true } });
   });
 });

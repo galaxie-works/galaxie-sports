@@ -261,11 +261,29 @@ export const Event = z
       aggregate: SidePair.nullable().meta({ description: 'Agregado do confronto (jogo de volta).' }),
     }),
     venue: z
-      .object({ id: z.uuid(), name: z.string(), city: z.string().nullable() })
+      .object({
+        id: z.uuid(),
+        name: z.string(),
+        city: z.string().nullable(),
+        timezone: z
+          .string()
+          .nullable()
+          .meta({
+            description:
+              'Fuso IANA do local, quando conhecido (país e cidade do local ou, sem país, do mandante). ' +
+              'Só para exibição: os instantes da API não dependem dele.',
+            example: 'America/Sao_Paulo',
+          }),
+      })
       .nullable()
       .meta({
-        description: 'Estádio/local (`core.venue`): nome e cidade.',
-        example: { id: '01a15fba-ec17-7000-8000-000000000001', name: 'Allianz Parque', city: 'São Paulo' },
+        description: 'Estádio/local (`core.venue`): nome, cidade e fuso.',
+        example: {
+          id: '01a15fba-ec17-7000-8000-000000000001',
+          name: 'Allianz Parque',
+          city: 'São Paulo',
+          timezone: 'America/Sao_Paulo',
+        },
       }),
     referee: EventReferee.nullable().meta({
       description: 'Árbitro principal, quando o fornecedor informa (futebol). null sem escala.',
@@ -399,6 +417,96 @@ const TeamSideRef = z.object({
   logo: AssetUrl,
 });
 
+// ─── minuto a minuto (timeline) ──────────────────────────────────────────────────────────────────
+
+/** Períodos do relógio de jogo (futebol). */
+export const MATCH_PERIODS = [
+  'first_half',
+  'second_half',
+  'extra_time_first',
+  'extra_time_second',
+  'penalty_shootout',
+] as const;
+export type MatchPeriod = (typeof MATCH_PERIODS)[number];
+
+/** Tipo canônico do lance, mais fino que o `type` do fornecedor. */
+export const TIMELINE_KINDS = [
+  'goal',
+  'own_goal',
+  'penalty_goal',
+  'penalty_missed',
+  'yellow_card',
+  'second_yellow',
+  'red_card',
+  'substitution',
+  'var',
+  'shootout_scored',
+  'shootout_missed',
+  'other',
+] as const;
+export type TimelineKind = (typeof TIMELINE_KINDS)[number];
+
+/** Marcos do jogo (início, intervalo, 2º tempo, prorrogação, pênaltis, fim). */
+export const TIMELINE_MARKERS = [
+  'kickoff',
+  'halftime',
+  'second_half',
+  'end_of_regulation',
+  'extra_time',
+  'penalty_shootout',
+  'full_time',
+] as const;
+export type TimelineMarkerKind = (typeof TIMELINE_MARKERS)[number];
+
+export const TIMELINE_FLAGS = ['decisive', 'opener', 'equalizer', 'go_ahead'] as const;
+export type TimelineFlag = (typeof TIMELINE_FLAGS)[number];
+
+/** De onde veio o instante UTC de um lance ou marco. */
+export const OCCURRED_AT_SOURCES = ['provider', 'clock', 'observed'] as const;
+export type OccurredAtSource = (typeof OCCURRED_AT_SOURCES)[number];
+
+export const MatchClock = z
+  .object({
+    period: z.enum(MATCH_PERIODS).nullable(),
+    minute: z.number().int().nullable().meta({ description: 'Minuto do relógio de jogo (1–120).' }),
+    extra_minute: z
+      .number()
+      .int()
+      .nullable()
+      .meta({ description: 'Acréscimo (45+2 → minute 45, extra_minute 2).' }),
+    display: z.string().nullable().meta({ example: "45+2'" }),
+  })
+  .meta({
+    id: 'MatchClock',
+    description:
+      'Relógio de jogo, independente de fuso: período, minuto e acréscimo. A disputa de pênaltis não tem minuto.',
+  });
+export type MatchClock = z.infer<typeof MatchClock>;
+
+const OccurredAt = {
+  occurred_at: z.string().nullable().meta({
+    description:
+      'Instante em UTC (RFC 3339, sufixo `Z`), com precisão de minuto. null quando não dá para derivar.',
+    example: '2026-10-22T01:53:00Z',
+  }),
+  occurred_at_source: z
+    .enum(OCCURRED_AT_SOURCES)
+    .nullable()
+    .meta({
+      description:
+        '`provider`: instante informado pelo fornecedor (início do período); `clock`: início do período + relógio ' +
+        'de jogo; `observed`: primeira observação da Galaxie (limite superior). null sem instante.',
+    }),
+};
+
+export const TimelinePerson = PersonRef.extend({
+  number: z.number().int().nullable().meta({ description: 'Número da camisa (da escalação).' }),
+  position: z.string().nullable().meta({ description: 'G, D, M ou F (da escalação).', example: 'F' }),
+}).meta({ id: 'TimelinePerson' });
+export type TimelinePerson = z.infer<typeof TimelinePerson>;
+
+const ScorePair = z.object({ home: z.number().int(), away: z.number().int() });
+
 export const TimelineIncident = z
   .object({
     sequence: z.number().int(),
@@ -408,14 +516,100 @@ export const TimelineIncident = z
     detail: z.string().nullable().meta({ example: 'Yellow Card' }),
     comments: z.string().nullable(),
     team: TeamSideRef.nullable(),
-    player: PersonRef.nullable(),
-    assist: PersonRef.nullable(),
+    player: TimelinePerson.nullable().meta({
+      description: 'Autor do lance. Na substituição, quem sai (prefira `player_out`/`player_in`).',
+    }),
+    assist: TimelinePerson.nullable().meta({ description: 'Assistência. Na substituição, quem entra.' }),
+    kind: z.enum(TIMELINE_KINDS),
+    clock: MatchClock,
+    ...OccurredAt,
+    weight: z
+      .number()
+      .int()
+      .min(0)
+      .max(100)
+      .meta({
+        description:
+          'Peso do momento: decisivo 100 > pênalti 80 > vermelho 70 > VAR de gol/pênalti/vermelho 65 > gol 60 > ' +
+          'cobrança na disputa 45 > outro VAR 40 > amarelo 30 > substituição 10.',
+      }),
+    key_moment: z.boolean().meta({ description: 'Momento-chave (`weight` ≥ 60).' }),
+    flags: z.array(z.enum(TIMELINE_FLAGS)).meta({
+      description:
+        '`opener` (1º gol), `go_ahead` (põe o time na frente), `equalizer` (empata), `decisive` (gol da vitória ' +
+        'ou cobrança que decide os pênaltis; só com o jogo encerrado).',
+    }),
+    score_after: ScorePair.nullable().meta({
+      description: 'Placar depois do gol (na disputa de pênaltis, o placar da disputa).',
+    }),
+    player_in: TimelinePerson.nullable().meta({ description: 'Substituição: quem entra.' }),
+    player_out: TimelinePerson.nullable().meta({ description: 'Substituição: quem sai.' }),
   })
   .meta({ id: 'TimelineIncident' });
+export type TimelineIncident = z.infer<typeof TimelineIncident>;
+
+export const TimelineMarker = z
+  .object({ kind: z.enum(TIMELINE_MARKERS), clock: MatchClock, ...OccurredAt })
+  .meta({ id: 'TimelineMarker', description: 'Marco do jogo, derivado do estado e do log de estados.' });
+export type TimelineMarker = z.infer<typeof TimelineMarker>;
+
+export const ShootoutKick = z
+  .object({
+    order: z.number().int().meta({ description: 'Ordem da cobrança na disputa (1 = primeira).' }),
+    round: z.number().int().meta({ description: 'Cobrança do time (1–5 e depois as alternadas).' }),
+    sequence: z.number().int().meta({ description: '`sequence` do lance em `incidents`.' }),
+    team: TeamSideRef.nullable(),
+    player: TimelinePerson.nullable(),
+    scored: z.boolean(),
+    score_after: ScorePair,
+    decisive: z.boolean().meta({ description: 'A cobrança que decidiu a disputa (jogo encerrado).' }),
+  })
+  .meta({ id: 'ShootoutKick' });
+export type ShootoutKick = z.infer<typeof ShootoutKick>;
+
+export const PenaltyShootout = z
+  .object({
+    first_kicker: TeamSideRef.nullable().meta({ description: 'Time que bateu primeiro.' }),
+    score: ScorePair,
+    winner_side: z.enum(['home', 'away']).nullable(),
+    kicks: z.array(ShootoutKick),
+  })
+  .meta({ id: 'PenaltyShootout', description: 'Disputa de pênaltis, cobrança a cobrança.' });
+export type PenaltyShootout = z.infer<typeof PenaltyShootout>;
 
 export const EventTimeline = z
-  .object({ event_id: z.uuid(), incidents: z.array(TimelineIncident) })
-  .meta({ id: 'EventTimeline' });
+  .object({
+    event_id: z.uuid(),
+    status: z.enum(EVENT_STATUSES),
+    status_detail: z.string().nullable(),
+    live: z.boolean().meta({ description: 'Em andamento (inclui "começando", intervalo e interrompido).' }),
+    clock: MatchClock.nullable().meta({ description: 'Relógio atual do jogo (null antes do início).' }),
+    score: z.object({ home: z.number().int().nullable(), away: z.number().int().nullable() }),
+    incidents: z.array(TimelineIncident).meta({
+      description:
+        'Na ordem do jogo (`sequence` do fornecedor, crescente). Para "mais novo primeiro", inverta no cliente.',
+    }),
+    markers: z.array(TimelineMarker),
+    shootout: PenaltyShootout.nullable(),
+    venue_timezone: z.string().nullable().meta({
+      description: 'Fuso IANA do local, quando conhecido. Só para exibição: os instantes vêm sempre em UTC.',
+      example: 'America/Sao_Paulo',
+    }),
+    data_freshness: z.object({
+      last_valid_at: z
+        .string()
+        .nullable()
+        .meta({ description: 'Última leitura válida do fornecedor (UTC).' }),
+      is_stale: z.boolean(),
+    }),
+    generated_at: z.string().meta({ description: 'Quando a resposta foi montada (UTC).' }),
+  })
+  .meta({
+    id: 'EventTimeline',
+    description:
+      'Minuto a minuto: lances com peso de momento-chave, marcos do jogo e disputa de pênaltis. Instantes em ' +
+      'UTC; o relógio de jogo vem em campos separados (docs/05 §3.2.1).',
+  });
 export type EventTimeline = z.infer<typeof EventTimeline>;
 
 const LineupPlayer = z.object({

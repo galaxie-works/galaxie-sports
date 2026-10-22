@@ -26,6 +26,7 @@ import {
   eventHead,
   filterConds,
   IN_PLAY,
+  actuallyLiveCond,
   pageEventIds,
   sportScope,
   type EventFilters,
@@ -145,6 +146,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
                 competition: query.competition,
                 status: IN_PLAY,
               }),
+              actuallyLiveCond(bctx.now),
             ),
           )
           .orderBy(desc(event.importance), asc(event.startsAt), asc(event.id))
@@ -274,7 +276,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
 
   detailRoute(
     '/v1/events/:id/timeline',
-    (ev) => buildTimeline(requireDb(ctx), ev.id, ctx.assetsBaseUrl),
+    (ev) => buildTimeline(requireDb(ctx), ev, ctx.assetsBaseUrl, ctx.now()),
     CACHE_TTL.live,
   );
   detailRoute('/v1/events/:id/lineups', (ev) => buildLineups(requireDb(ctx), ev, ctx.assetsBaseUrl), 60);
