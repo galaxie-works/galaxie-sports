@@ -1,6 +1,6 @@
 # Base semântica — clubes de básquet da Argentina (Liga Nacional) envolvidos em clássicos documentados (schema v1)
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-AR # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: AR
 teams:
   # ------------------------------------------------------------------ MAR DEL PLATA

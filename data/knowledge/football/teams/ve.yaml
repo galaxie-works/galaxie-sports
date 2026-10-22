@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-VE # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: VE
 teams:
   - slug: caracas-fc
@@ -28,7 +28,7 @@ teams:
       - "El apodo Rojos del Ávila alude al cerro El Ávila, símbolo de Caracas."
     copy_hints:
       es-VE:
-        cheer: ["¡Vamos Caracas!", "Hoy alentamos a los Rojos del Ávila"]
+        cheer: ["¡Vamos, Rojo!", "¡Vamos, Rojos del Ávila!"]
     sources:
       - "https://es.wikipedia.org/wiki/Caracas_Fútbol_Club"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
@@ -57,10 +57,10 @@ teams:
     rivals:
       - { team: caracas-fc, derby: clasico-venezolano, intensity: 5 }
     identity:
-      - "Fundado en 1974 como San Cristóbal Fútbol Club."
+      - "El Carrusel Aurinegro nació en 1974 como San Cristóbal Fútbol Club."
     copy_hints:
       es-VE:
-        cheer: ["¡Vamos Táchira!", "Hoy alentamos al Carrusel Aurinegro"]
+        cheer: ["¡Vamos, Carrusel!", "¡Vamos, Táchira!"]
     sources:
       - "https://es.wikipedia.org/wiki/Deportivo_Táchira_Fútbol_Club"
       - "https://futboltotal.futbol/teams/deportivo-tachira-fc"

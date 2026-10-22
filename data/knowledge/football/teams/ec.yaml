@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-EC # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: EC
 teams:
   - slug: barcelona-sc
@@ -25,11 +25,11 @@ teams:
     rivals:
       - { team: emelec, derby: clasico-del-astillero, intensity: 5 }
     identity:
-      - "Fundado en 1925 en el barrio del Astillero de Guayaquil por inmigrantes catalanes y guayaquileños."
+      - "El Ídolo nació en 1925 en el barrio del Astillero de Guayaquil, fundado por inmigrantes catalanes y guayaquileños."
       - "Finalista de la Copa Libertadores en 1990 y 1998."
     copy_hints:
       es-EC:
-        cheer: ["¡Vamos Barcelona!", "¡Vamos Toreros!", "Hoy alentamos al Ídolo"]
+        cheer: ["¡Vamos, Ídolo!", "¡De una, Toreros!", "¡Fuerza, Barcelona!"]
     sources:
       - "https://es.wikipedia.org/wiki/Barcelona_Sporting_Club"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
@@ -58,10 +58,10 @@ teams:
     rivals:
       - { team: barcelona-sc, derby: clasico-del-astillero, intensity: 5 }
     identity:
-      - "Fundado por George Capwell, directivo de la Empresa Eléctrica del Ecuador; de ahí el nombre Emelec y el apodo Bombillo."
+      - "Lo fundó George Capwell, directivo de la Empresa Eléctrica del Ecuador; de ahí el nombre Emelec y el apodo el Bombillo."
     copy_hints:
       es-EC:
-        cheer: ["¡Vamos Emelec!", "Hoy alentamos al Bombillo"]
+        cheer: ["¡Vamos, Bombillo!", "¡De una, Emelec!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Sport_Emelec"
       - "https://futboltotal.futbol/teams/emelec"
@@ -90,10 +90,10 @@ teams:
     rivals:
       - { team: aucas, derby: superclasico-de-quito, intensity: 5 }
     identity:
-      - "Primer club ecuatoriano campeón de la Copa Libertadores (2008)."
+      - "La Liga fue el primer club ecuatoriano campeón de la Copa Libertadores (2008)."
     copy_hints:
       es-EC:
-        cheer: ["¡Vamos Liga!", "Hoy alentamos a los Albos"]
+        cheer: ["¡Vamos, Liga!", "¡De una, Albos!"]
     sources:
       - "https://es.wikipedia.org/wiki/Liga_Deportiva_Universitaria_de_Quito"
       - "https://en.wikipedia.org/wiki/Superclásico_de_Quito"
@@ -122,11 +122,11 @@ teams:
       city: Sangolquí
     rivals: []
     identity:
-      - "Campeón de la Copa Sudamericana 2019 y 2022, y finalista de la Copa Libertadores 2016."
-      - "Reconocido por su trabajo en formación de juveniles."
+      - "Los Rayados del Valle son campeones de la Copa Sudamericana 2019 y 2022, y finalistas de la Copa Libertadores 2016."
+      - "Reconocido por su trabajo en la formación de juveniles."
     copy_hints:
       es-EC:
-        cheer: ["¡Vamos Independiente!", "Hoy alentamos a los Rayados"]
+        cheer: ["¡Vamos, Rayados!", "¡De una, Independiente!"]
     sources:
       - "https://es.wikipedia.org/wiki/Independiente_del_Valle"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
@@ -157,7 +157,7 @@ teams:
       - "Club vinculado a las Fuerzas Armadas del Ecuador; el apodo Puros Criollos alude a su tradición de jugar con futbolistas ecuatorianos."
     copy_hints:
       es-EC:
-        cheer: ["¡Vamos Nacional!", "Hoy alentamos a los Puros Criollos"]
+        cheer: ["¡Vamos, Puros Criollos!", "¡De una, Nacional!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_El_Nacional"
       - "https://futboltotal.futbol/teams/el-nacional-ecuador"
@@ -186,10 +186,10 @@ teams:
     rivals:
       - { team: ldu-quito, derby: superclasico-de-quito, intensity: 5 }
     identity:
-      - "Sus colores oficiales son oro y grana; campeón de la Liga ecuatoriana en 2022."
+      - "Sus colores oficiales son oro y grana; el Papá Aucas salió campeón de la liga ecuatoriana en 2022."
     copy_hints:
       es-EC:
-        cheer: ["¡Vamos Aucas!", "Hoy alentamos al Ídolo de Quito"]
+        cheer: ["¡Vamos, Papá Aucas!", "¡De una, Ídolo de Quito!"]
     sources:
       - "https://es.wikipedia.org/wiki/Sociedad_Deportiva_Aucas"
       - "https://futboltotal.futbol/teams/aucas"
@@ -217,10 +217,10 @@ teams:
       city: Quito
     rivals: []
     identity:
-      - "Club histórico de la capital ecuatoriana, de colores azul y grana."
+      - "Los Chullas son un club histórico de la capital ecuatoriana, de colores azul y grana."
     copy_hints:
       es-EC:
-        cheer: ["¡Vamos Quito!", "Hoy alentamos a los Chullas"]
+        cheer: ["¡Vamos, Chullas!", "¡De una, Quito!"]
     sources:
       - "https://es.wikipedia.org/wiki/Sociedad_Deportivo_Quito"
       - "https://futboltotal.futbol/teams/deportivo-quito"
