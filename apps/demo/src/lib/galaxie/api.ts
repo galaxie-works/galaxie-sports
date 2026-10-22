@@ -6,7 +6,7 @@ import { createGalaxieClient, GalaxieApiError } from '@galaxie/contracts';
 import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
 
-import { apiLocale, apiTimeZone, type Locale } from '../i18n/config';
+import { apiLocale, apiTimeZone, defaultMarket, type Locale } from '../i18n/config';
 import { getDictionary } from '../i18n/dictionary';
 import { fill } from '../i18n/text';
 
@@ -244,13 +244,10 @@ export async function getEvent(id: string, locale: Locale, market?: string) {
   return orNotFound(api.event(id, { ...localeQuery(locale), ...(market ? { market } : {}) }));
 }
 
-/** Mercado da relevância no "Ao vivo": Argentina em espanhol, Brasil nos demais (como o Onde assistir). */
-export const liveMarket = (locale: Locale) => (locale === 'es-AR' ? 'AR' : 'BR');
-
 export const liveEventsRequest = (locale: Locale): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/live',
-  query: { market: liveMarket(locale), ...localeQuery(locale) },
+  query: { market: defaultMarket(locale), ...localeQuery(locale) },
   description: text(locale).liveEvents,
   note: text(locale).liveEventsNote,
 });

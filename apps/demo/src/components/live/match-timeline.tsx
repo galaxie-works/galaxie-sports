@@ -30,85 +30,20 @@ import { Crest } from '@/components/sport/crest';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Toggle } from '@/components/ui/toggle';
-import { fmtTime, initials } from '@/lib/format';
+import { initials } from '@/lib/format';
 import { fetchTimeline, timelineKey } from '@/lib/galaxie/live';
+import { useFormatters, useI18n } from '@/lib/i18n/client';
+import { createFormatters, type Formatters } from '@/lib/i18n/format';
+import { fill } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
 
 import { LiveDot } from './live-nav-item';
 import { RefreshTimer } from './refresh-timer';
 import { useLiveRefresh } from './use-live-refresh';
 
-// ─── rótulos ─────────────────────────────────────────────────────────────────────────────────────
+// ─── ordem ───────────────────────────────────────────────────────────────────────────────────────
 
-const KIND_LABEL: Record<TimelineIncident['kind'], string> = {
-  goal: 'Gol',
-  own_goal: 'Gol contra',
-  penalty_goal: 'Gol de pênalti',
-  penalty_missed: 'Pênalti perdido',
-  yellow_card: 'Cartão amarelo',
-  second_yellow: 'Segundo amarelo',
-  red_card: 'Cartão vermelho',
-  substitution: 'Substituição',
-  var: 'VAR',
-  shootout_scored: 'Pênalti convertido',
-  shootout_missed: 'Pênalti perdido',
-  other: 'Lance',
-};
-
-const VAR_LABEL: Record<string, string> = {
-  'goal cancelled': 'Gol anulado',
-  'goal confirmed': 'Gol confirmado',
-  'goal disallowed': 'Gol anulado',
-  'goal disallowed - offside': 'Gol anulado por impedimento',
-  'goal disallowed - foul': 'Gol anulado por falta',
-  'penalty confirmed': 'Pênalti confirmado',
-  'penalty cancelled': 'Pênalti anulado',
-  'penalty awarded': 'Pênalti marcado',
-  'card upgrade': 'Cartão aumentado para vermelho',
-  'card reviewed': 'Cartão revisado',
-  'red card cancelled': 'Vermelho anulado',
-};
-
-const CARD_REASON: Record<string, string> = {
-  foul: 'Falta',
-  argument: 'Reclamação',
-  dissent: 'Reclamação',
-  'time wasting': 'Cera',
-  handball: 'Mão na bola',
-  handling: 'Mão na bola',
-  'violent conduct': 'Conduta violenta',
-  tripping: 'Rasteira',
-  roughing: 'Jogo brusco',
-  'persistent fouling': 'Faltas seguidas',
-  simulation: 'Simulação',
-  'professional foul last man': 'Falta como último homem',
-  'professional handball': 'Mão para impedir gol',
-  'off the ball foul': 'Falta sem bola',
-  'unsportsmanlike conduct': 'Conduta antidesportiva',
-  holding: 'Segurou o adversário',
-  elbowing: 'Cotovelada',
-  'dangerous play': 'Jogo perigoso',
-  'delay of game': 'Retardou o jogo',
-};
-
-const FLAG_LABEL: Record<TimelineIncident['flags'][number], string> = {
-  decisive: 'Decisivo',
-  opener: 'Abre o placar',
-  equalizer: 'Empata',
-  go_ahead: 'Põe na frente',
-};
-
-const POSITION: Record<string, string> = { G: 'Goleiro', D: 'Defensor', M: 'Meio-campista', F: 'Atacante' };
-
-const MARKER_LABEL: Record<TimelineMarker['kind'], string> = {
-  kickoff: 'Bola rolando',
-  halftime: 'Intervalo',
-  second_half: 'Começa o 2º tempo',
-  end_of_regulation: 'Fim do tempo normal',
-  extra_time: 'Começa a prorrogação',
-  penalty_shootout: 'Disputa de pênaltis',
-  full_time: 'Fim de jogo',
-};
+// Rótulos (tipos de lance, VAR, motivos de cartão, marcos…) ficam em `t.live.timeline`.
 
 const PERIOD_RANK: Record<MatchPeriod, number> = {
   first_half: 1,
@@ -123,8 +58,6 @@ const START_MARKERS = new Set<TimelineMarker['kind']>([
   'extra_time',
   'penalty_shootout',
 ]);
-
-const utcTime = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' });
 
 // ─── itens ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -172,16 +105,26 @@ export function timelineItems(t: EventTimeline): Item[] {
 
 // ─── peças ───────────────────────────────────────────────────────────────────────────────────────
 
-function OccurredAt({ at, source }: { at: string | null; source: TimelineMarker['occurred_at_source'] }) {
+function OccurredAt({
+  at,
+  source,
+  f,
+}: {
+  at: string | null;
+  source: TimelineMarker['occurred_at_source'];
+  f: Formatters;
+}) {
+  const { t } = useI18n();
   if (!at) return null;
-  const d = new Date(at);
+  const how = t.live.timeline.occurred;
+  const origin = source === 'observed' ? how.observed : source === 'clock' ? how.clock : how.provider;
   return (
     <time
       dateTime={at}
-      title={`${at} (UTC)${source === 'observed' ? ' · observado pela Galaxie' : source === 'clock' ? ' · início do período + relógio de jogo' : ' · informado pelo fornecedor'}`}
+      title={`${at} (UTC) · ${origin}`}
       className="text-muted-foreground text-[0.7rem] tabular-nums"
     >
-      {fmtTime(at)} · {utcTime.format(d)} UTC
+      {f.time(at)} · {createFormatters(f.locale, 'UTC').time(at)} UTC
     </time>
   );
 }
@@ -195,10 +138,11 @@ function PersonLine({
   prefix?: string;
   icon?: React.ReactNode;
 }) {
+  const { t } = useI18n();
   if (!person) return null;
   const meta = [
     person.number != null ? `#${person.number}` : null,
-    person.position ? (POSITION[person.position] ?? person.position) : null,
+    person.position ? (t.live.timeline.positions[person.position] ?? person.position) : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -293,15 +237,16 @@ function KindIcon({ kind }: { kind: TimelineIncident['kind'] }) {
   }
 }
 
-function IncidentRow({ i }: { i: TimelineIncident }) {
+function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
+  const tl = useI18n().t.live.timeline;
   const decisive = i.flags.includes('decisive');
   const title =
     i.kind === 'var'
-      ? `VAR · ${VAR_LABEL[(i.detail ?? '').toLowerCase()] ?? i.detail ?? 'revisão'}`
-      : KIND_LABEL[i.kind];
+      ? `VAR · ${tl.var[(i.detail ?? '').toLowerCase()] ?? i.detail ?? tl.varReview}`
+      : (tl.kinds[i.kind] ?? i.kind);
   const reason =
     i.kind.endsWith('card') || i.kind === 'second_yellow'
-      ? CARD_REASON[(i.comments ?? '').toLowerCase()]
+      ? tl.cardReasons[(i.comments ?? '').toLowerCase()]
       : null;
   return (
     <li className="relative flex gap-3 pb-4">
@@ -325,10 +270,15 @@ function IncidentRow({ i }: { i: TimelineIncident }) {
               {i.score_after.home}–{i.score_after.away}
             </span>
           ) : null}
-          {i.flags.map((f) => (
-            <Badge key={f} variant={f === 'decisive' ? 'default' : 'primary-light'} radius="full" size="sm">
-              {f === 'decisive' ? <Sparkles aria-hidden /> : null}
-              {FLAG_LABEL[f]}
+          {i.flags.map((flag) => (
+            <Badge
+              key={flag}
+              variant={flag === 'decisive' ? 'default' : 'primary-light'}
+              radius="full"
+              size="sm"
+            >
+              {flag === 'decisive' ? <Sparkles aria-hidden /> : null}
+              {tl.flags[flag] ?? flag}
             </Badge>
           ))}
           {reason ? <span className="text-muted-foreground text-xs">{reason}</span> : null}
@@ -344,30 +294,30 @@ function IncidentRow({ i }: { i: TimelineIncident }) {
           <div className="grid gap-2 sm:grid-cols-2">
             <PersonLine
               person={i.player_in}
-              prefix="Entra"
-              icon={<ArrowUp className="text-success size-3.5 shrink-0" aria-label="Entra" />}
+              prefix={tl.playerIn}
+              icon={<ArrowUp className="text-success size-3.5 shrink-0" aria-label={tl.playerIn} />}
             />
             <PersonLine
               person={i.player_out}
-              prefix="Sai"
-              icon={<ArrowDown className="text-destructive size-3.5 shrink-0" aria-label="Sai" />}
+              prefix={tl.playerOut}
+              icon={<ArrowDown className="text-destructive size-3.5 shrink-0" aria-label={tl.playerOut} />}
             />
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <PersonLine person={i.player} />
-            {i.assist && i.kind !== 'var' ? <PersonLine person={i.assist} prefix="Assistência" /> : null}
+            {i.assist && i.kind !== 'var' ? <PersonLine person={i.assist} prefix={tl.assist} /> : null}
           </div>
         )}
-        <OccurredAt at={i.occurred_at} source={i.occurred_at_source} />
+        <OccurredAt at={i.occurred_at} source={i.occurred_at_source} f={f} />
       </div>
     </li>
   );
 }
 
-function MarkerRow({ m, shootout }: { m: TimelineMarker; shootout: boolean }) {
-  const label =
-    m.kind === 'full_time' && shootout ? 'Fim de jogo · decidido nos pênaltis' : MARKER_LABEL[m.kind];
+function MarkerRow({ m, shootout, f }: { m: TimelineMarker; shootout: boolean; f: Formatters }) {
+  const tl = useI18n().t.live.timeline;
+  const label = m.kind === 'full_time' && shootout ? tl.fullTimePenalties : (tl.markers[m.kind] ?? m.kind);
   return (
     <li className="flex items-center gap-3 pb-4">
       <div className="text-muted-foreground w-12 shrink-0 text-right text-xs tabular-nums">
@@ -380,7 +330,7 @@ function MarkerRow({ m, shootout }: { m: TimelineMarker; shootout: boolean }) {
         <span className="bg-muted text-foreground rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">
           {label}
         </span>
-        <OccurredAt at={m.occurred_at} source={m.occurred_at_source} />
+        <OccurredAt at={m.occurred_at} source={m.occurred_at_source} f={f} />
       </div>
     </li>
   );
@@ -388,6 +338,8 @@ function MarkerRow({ m, shootout }: { m: TimelineMarker; shootout: boolean }) {
 
 /** Disputa de pênaltis: grade ✓/✗ por time e a lista cobrança a cobrança, com o placar corrido. */
 export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
+  const tl = useI18n().t.live.timeline;
+  const ts = tl.shootout;
   const teams = (['home', 'away'] as const).map((side) => ({
     side,
     team: shootout.kicks.find((k) => k.team?.side === side)?.team ?? null,
@@ -401,9 +353,11 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-col">
-              <span className="text-sm font-semibold">Disputa de pênaltis</span>
+              <span className="text-sm font-semibold">{ts.title}</span>
               {first ? (
-                <span className="text-muted-foreground text-xs">{first.name} bateu primeiro</span>
+                <span className="text-muted-foreground text-xs">
+                  {fill(ts.firstKicker, { name: first.name ?? '' })}
+                </span>
               ) : null}
             </div>
             <span className="text-2xl font-bold tabular-nums">
@@ -419,7 +373,7 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
                 <span className="flex w-32 min-w-0 items-center gap-2 text-sm sm:w-40">
                   <Crest src={t.team?.logo ?? null} name={t.team?.name ?? ''} size="xs" />
                   <span className={cn('truncate', shootout.winner_side === t.side && 'font-semibold')}>
-                    {t.team?.name ?? (t.side === 'home' ? 'Mandante' : 'Visitante')}
+                    {t.team?.name ?? (t.side === 'home' ? ts.home : ts.away)}
                   </span>
                 </span>
                 <div className="flex flex-wrap gap-1.5">
@@ -430,13 +384,16 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
                         <span
                           key={r}
                           className="border-muted-foreground/40 size-6 rounded-full border border-dashed"
-                          aria-label="Sem cobrança"
+                          aria-label={ts.noKick}
                         />
                       );
                     return (
                       <span
                         key={r}
-                        title={`${k.player?.name ?? ''} — ${k.scored ? 'converteu' : 'perdeu'}`}
+                        title={fill(ts.kick, {
+                          player: k.player?.name ?? '',
+                          result: k.scored ? ts.scored : ts.missed,
+                        })}
                         className={cn(
                           'flex size-6 items-center justify-center rounded-full',
                           k.scored ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive',
@@ -444,9 +401,9 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
                         )}
                       >
                         {k.scored ? (
-                          <Check className="size-3.5" aria-label="Converteu" />
+                          <Check className="size-3.5" aria-label={ts.scored} />
                         ) : (
-                          <X className="size-3.5" aria-label="Perdeu" />
+                          <X className="size-3.5" aria-label={ts.missed} />
                         )}
                       </span>
                     );
@@ -479,7 +436,7 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
                 {k.decisive ? (
                   <Badge variant="default" radius="full" size="sm">
                     <Sparkles aria-hidden />
-                    Decisivo
+                    {tl.flags.decisive}
                   </Badge>
                 ) : null}
                 <span
@@ -489,9 +446,9 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
                   )}
                 >
                   {k.scored ? (
-                    <Check className="size-3" aria-label="Converteu" />
+                    <Check className="size-3" aria-label={ts.scored} />
                   ) : (
-                    <X className="size-3" aria-label="Perdeu" />
+                    <X className="size-3" aria-label={ts.missed} />
                   )}
                 </span>
                 <span className="w-10 text-right font-semibold tabular-nums">
@@ -514,11 +471,15 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
  * disputa de pênaltis cobrança a cobrança. Ao vivo, o mais novo fica em cima e a lista se atualiza
  * sozinha (SSE + verificação periódica); encerrado, fica na ordem do jogo e não muda mais.
  */
-export function MatchTimeline({ initial }: { initial: EventTimeline }) {
+export function MatchTimeline({ initial, timeZone }: { initial: EventTimeline; timeZone: string }) {
+  const { locale, t: dict } = useI18n();
+  const tl = dict.live.timeline;
+  // fuso vindo do servidor: o HTML do servidor e o da hidratação mostram o mesmo horário
+  const f = useFormatters(timeZone);
   const id = initial.event_id;
   const q = useQuery({
     queryKey: timelineKey(id),
-    queryFn: () => fetchTimeline(id),
+    queryFn: () => fetchTimeline(id, locale),
     initialData: initial,
     initialDataUpdatedAt: Date.parse(initial.generated_at),
     staleTime: initial.live ? 5_000 : Infinity,
@@ -545,11 +506,12 @@ export function MatchTimeline({ initial }: { initial: EventTimeline }) {
         {t.live ? (
           <Badge variant="destructive-light" radius="full">
             <LiveDot on />
-            Ao vivo{t.clock?.display ? ` · ${t.clock.display}` : ''}
+            {tl.live}
+            {t.clock?.display ? ` · ${t.clock.display}` : ''}
           </Badge>
         ) : (
           <Badge variant="secondary" radius="full">
-            Encerrado
+            {tl.finished}
           </Badge>
         )}
         {t.score.home != null && t.score.away != null ? (
@@ -557,19 +519,17 @@ export function MatchTimeline({ initial }: { initial: EventTimeline }) {
             {t.score.home}–{t.score.away}
           </span>
         ) : null}
-        <span className="text-muted-foreground text-xs">
-          {t.live ? 'Mais recente primeiro' : 'Do apito inicial ao final'}
-        </span>
+        <span className="text-muted-foreground text-xs">{t.live ? tl.newestFirst : tl.chronological}</span>
         <Toggle
           size="sm"
           variant="outline"
           pressed={keyOnly}
           onPressedChange={(pressed) => setKeyOnly(pressed)}
           className="ml-auto"
-          aria-label="Mostrar só os momentos-chave"
+          aria-label={tl.keyOnlyLabel}
         >
           <Sparkles aria-hidden />
-          Só os principais
+          {tl.keyOnly}
           <span className="text-muted-foreground tabular-nums">({keyCount})</span>
         </Toggle>
       </div>
@@ -580,20 +540,16 @@ export function MatchTimeline({ initial }: { initial: EventTimeline }) {
         <ol className="relative before:absolute before:top-2 before:bottom-6 before:left-[4.75rem] before:w-px before:bg-border">
           {items.map((it) =>
             it.type === 'incident' ? (
-              <IncidentRow key={it.key} i={it.incident} />
+              <IncidentRow key={it.key} i={it.incident} f={f} />
             ) : it.type === 'marker' ? (
-              <MarkerRow key={it.key} m={it.marker} shootout={!!t.shootout} />
+              <MarkerRow key={it.key} m={it.marker} shootout={!!t.shootout} f={f} />
             ) : (
               <ShootoutBlock key={it.key} shootout={it.shootout} />
             ),
           )}
         </ol>
       ) : (
-        <p className="text-muted-foreground text-sm">
-          {t.live
-            ? 'Nenhum lance ainda. Os lances aparecem aqui assim que acontecem.'
-            : 'Sem lances registrados.'}
-        </p>
+        <p className="text-muted-foreground text-sm">{t.live ? tl.emptyLive : tl.empty}</p>
       )}
     </div>
   );

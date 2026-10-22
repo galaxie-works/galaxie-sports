@@ -90,3 +90,6 @@ export function isTimeZone(value: unknown): value is string {
     return false;
   }
 }
+
+/** País padrão de relevância e "Onde assistir": Argentina em espanhol, Brasil nos demais. */
+export const defaultMarket = (locale: Locale) => (locale === 'es-AR' ? 'AR' : 'BR');

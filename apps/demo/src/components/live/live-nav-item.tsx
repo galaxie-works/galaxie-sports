@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { fetchLiveEvents, LIVE_EVENTS_KEY } from '@/lib/galaxie/live';
+import { useI18n } from '@/lib/i18n/client';
+import { plural } from '@/lib/i18n/text';
 import { topLevelClick } from '@/lib/trail';
 import { cn } from '@/lib/utils';
 
@@ -33,10 +35,11 @@ export function LiveDot({ on, className }: { on: boolean; className?: string }) 
  * com a página Ao vivo (mesma chave); fora dela, confere a cada 30 s.
  */
 export function LiveNavItem({ active }: { active: boolean }) {
+  const { locale, t } = useI18n();
   const hydrated = useHydrated();
   const query = useQuery({
     queryKey: LIVE_EVENTS_KEY,
-    queryFn: fetchLiveEvents,
+    queryFn: () => fetchLiveEvents(locale),
     // na própria página Ao vivo quem agenda as atualizações é ela (o contador mostra esse ritmo)
     refetchInterval: active ? false : 30_000,
     staleTime: 10_000,
@@ -45,7 +48,7 @@ export function LiveNavItem({ active }: { active: boolean }) {
   // o contador só aparece depois da hidratação (a resposta pode chegar antes da sidebar hidratar)
   const data = hydrated ? query.data : undefined;
   const count = data?.length ?? 0;
-  const label = data ? `${count} ${count === 1 ? 'jogo ao vivo' : 'jogos ao vivo'}` : 'Ao vivo';
+  const label = data ? plural(locale, count, t.live.nav.count) : t.live.nav.label;
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -54,7 +57,7 @@ export function LiveNavItem({ active }: { active: boolean }) {
         render={<Link href={LIVE_HREF} onClick={topLevelClick(LIVE_HREF)} />}
       >
         <LiveDot on={count > 0} className="mx-[3px]" />
-        <span>Ao vivo</span>
+        <span>{t.live.nav.label}</span>
       </SidebarMenuButton>
       {data ? (
         <SidebarMenuBadge

@@ -33,7 +33,7 @@ import {
   timelineRequest,
   whereToWatchRequest,
 } from '@/lib/galaxie/api';
-import type { Locale } from '@/lib/i18n/config';
+import { defaultMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
@@ -403,8 +403,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
     getFormatters(),
   ]);
   // Onde assistir começa no mercado do idioma (Argentina em espanhol; Brasil nos demais).
-  const country =
-    typeof query.pais === 'string' ? query.pais.toUpperCase() : locale === 'es-AR' ? 'AR' : 'BR';
+  const country = typeof query.pais === 'string' ? query.pais.toUpperCase() : defaultMarket(locale);
 
   // relevância no mesmo país do "Onde assistir"
   const event = await getEvent(id, locale, country);
@@ -430,11 +429,11 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
           <div className="flex flex-col gap-6 lg:col-span-2">
             {showTimeline && timeline ? (
               <Section
-                title="Minuto a minuto"
-                description="Gols, cartões, substituições, VAR, pênaltis e os marcos do jogo"
-                api={timelineRequest(id)}
+                title={t.live.timeline.title}
+                description={t.live.timeline.description}
+                api={timelineRequest(id, locale)}
               >
-                <MatchTimeline initial={timeline} />
+                <MatchTimeline initial={timeline} timeZone={f.timeZone} />
               </Section>
             ) : null}
             {context?.data.length ? (

@@ -30,6 +30,11 @@ export default defineMessages(
     venue: 'Estádio, circuito ou arena: cidade, capacidade, piso e foto.',
     derby: 'Clássico com história e retrospecto calculado dos jogos na base.',
     requiresModule: 'Exige o módulo {module}.',
+    liveEvents: 'Eventos em andamento agora (ao vivo, intervalo, interrompido), por importância.',
+    liveEventsNote:
+      'Para mudanças em tempo real, assine GET /v1/stream?events=<ids>&topics=score,status,incidents (SSE).',
+    timeline:
+      'Minuto a minuto: lances com peso de momento-chave, placar parcial, marcos do jogo e disputa de pênaltis. Instantes em UTC.',
   },
   {
     en: {
@@ -61,6 +66,11 @@ export default defineMessages(
       venue: 'Stadium, circuit or arena: city, capacity, surface and photo.',
       derby: 'Derby with its history and a record computed from the matches in the database.',
       requiresModule: 'Requires the {module} module.',
+      liveEvents: 'Events in progress right now (live, half-time, interrupted), by importance.',
+      liveEventsNote:
+        'For real-time changes, subscribe to GET /v1/stream?events=<ids>&topics=score,status,incidents (SSE).',
+      timeline:
+        'Play by play: incidents weighted as key moments, running score, match milestones and penalty shootout. Instants in UTC.',
     },
     'es-AR': {
       countryCompetitions:
@@ -91,6 +101,11 @@ export default defineMessages(
       venue: 'Estadio, circuito o arena: ciudad, capacidad, superficie y foto.',
       derby: 'Clásico con su historia y el historial calculado de los partidos en la base.',
       requiresModule: 'Requiere el módulo {module}.',
+      liveEvents: 'Eventos en curso ahora (en vivo, entretiempo, interrumpido), por importancia.',
+      liveEventsNote:
+        'Para cambios en tiempo real, suscribite a GET /v1/stream?events=<ids>&topics=score,status,incidents (SSE).',
+      timeline:
+        'Minuto a minuto: jugadas con peso de momento clave, resultado parcial, momentos del partido y definición por penales. Instantes en UTC.',
     },
   },
 );

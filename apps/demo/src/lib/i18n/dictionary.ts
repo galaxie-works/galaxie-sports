@@ -11,6 +11,7 @@ import docs from './messages/docs';
 import email from './messages/email';
 import media from './messages/media';
 import event from './messages/event';
+import live from './messages/live';
 import nav from './messages/nav';
 import pages from './messages/pages';
 import requests from './messages/requests';
@@ -26,6 +27,7 @@ export const NAMESPACES = {
   docs,
   email,
   event,
+  live,
   media,
   nav,
   pages,
@@ -52,7 +54,17 @@ export const DICTIONARIES = Object.fromEntries(LOCALES.map((l) => [l, build(l)])
 export const getDictionary = (locale: Locale): Dictionary => DICTIONARIES[locale];
 
 /** Assuntos usados por componentes do navegador (vão no payload da página, por isso só estes). */
-export const CLIENT_NAMESPACES = ['admin', 'auth', 'code', 'common', 'media', 'nav', 'shell'] as const;
+export const CLIENT_NAMESPACES = [
+  'admin',
+  'auth',
+  'code',
+  'common',
+  'live',
+  'media',
+  'nav',
+  'shell',
+  'sport',
+] as const;
 export type ClientDictionary = Pick<Dictionary, (typeof CLIENT_NAMESPACES)[number]>;
 
 export function clientDictionary(locale: Locale): ClientDictionary {
