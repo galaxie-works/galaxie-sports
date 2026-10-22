@@ -45,6 +45,7 @@ import {
 } from './where-to-watch.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
 import { RelatedContent, RelatedQuery } from './related.js';
+import { SearchQuery, SearchResponse } from './search.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import { navigationPaths } from './openapi-navigation.js';
 import {
@@ -132,6 +133,10 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
         description: 'Agenda, ao vivo, detalhe, timeline, escalações, estatísticas (docs/05 §3.2).',
       },
       { name: 'Times e pessoas', description: 'Times, elencos e pessoas (docs/05 §3.3).' },
+      {
+        name: 'Busca',
+        description: 'Busca global em times, competições, jogos, pessoas, estádios e países (docs/05 §3.6).',
+      },
       { name: 'Espelho', description: 'Espelho compatível com a api-sports (docs/05 §2).' },
       { name: 'Onde assistir', description: 'Opções de transmissão por evento × país (docs/05 §4).' },
       {
@@ -149,6 +154,16 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
         get: getOp('Esportes disponíveis e cobertura', 'Catálogo', list(Sport), { query: LocaleQuery }),
       },
       '/v1/countries': { get: getOp('Países', 'Catálogo', list(Country), { query: LocaleQuery }) },
+      '/v1/search': {
+        get: {
+          ...getOp('Busca global', 'Busca', SearchResponse, { query: SearchQuery }),
+          description:
+            'Uma chamada para a caixa de busca: times, competições, jogos (ao vivo e próximos 14 dias dos times ' +
+            'encontrados), pessoas, estádios e países. Casa nome, apelidos e nomes da base semântica, siglas e ' +
+            'nomes anteriores, sem diferença de caixa nem de acento ("verdao" acha o Palmeiras pelo apelido ' +
+            'Verdão). Resultados numa lista só, do casamento exato para o trecho.',
+        },
+      },
       '/v1/competitions': {
         get: getOp('Competições (paginado por cursor)', 'Catálogo', page(CompetitionSummary), {
           query: CompetitionsQuery,

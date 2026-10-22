@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { buildOpenApiDocument } from '@galaxie/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { docRequests, DOCS_NAV } from './docs';
+import { DOC_SECTIONS, docGuides, docRequests, DOCS_NAV, docSections } from './docs';
 import { operationAnchor, requestQuery, type ApiRequest } from './galaxie/request';
+import { apiReferenceTags, scalarUrl, tagId } from './openapi-reference';
 import { LOCALES } from './i18n/config';
 import { getDictionary } from './i18n/dictionary';
 
@@ -90,5 +92,63 @@ describe('navegação', () => {
 
   it('âncora da referência é estável', () => {
     expect(operationAnchor('GET', '/v1/teams/{id}/overview')).toBe('get-v1-teams-id-overview');
+  });
+});
+
+describe('seções dos guias', () => {
+  /** `<DocSection id="…" title={text.<chave>.title}>` do arquivo da página. */
+  const sectionsInFile = (href: string) => {
+    const dir = href.replace(/^\/docs\/?/, '');
+    const file = new URL(`../app/[locale]/(app)/docs/${dir ? `${dir}/` : ''}page.tsx`, import.meta.url);
+    const source = readFileSync(file, 'utf8');
+    return [...source.matchAll(/<DocSection\s+id="([^"]+)"\s+title=\{text\.(\w+)\.title\}/g)].map((m) => [
+      m[1]!,
+      m[2]!,
+    ]);
+  };
+
+  it.each(DOCS_NAV.filter((d) => d.id !== 'reference').map((d) => [d.href, d] as const))(
+    '%s: o manifesto (árvore, sumário e busca) bate com a página',
+    (href, doc) => {
+      expect(DOC_SECTIONS[doc.id]?.map(([id, key]) => [id, key])).toEqual(sectionsInFile(href));
+    },
+  );
+
+  it('os títulos saem do dicionário de cada idioma', () => {
+    for (const locale of LOCALES) {
+      const t = getDictionary(locale);
+      for (const guide of docGuides(t)) {
+        expect(guide.label).toBe(t.code.docsNav[guide.id].label);
+        for (const s of guide.sections) expect(s.title, `${locale} ${guide.href}#${s.id}`).not.toBe(s.id);
+      }
+    }
+    expect(docSections('concepts', getDictionary('en')).map((s) => s.id)).toContain('cache');
+  });
+});
+
+describe('referência (OpenAPI → árvore e busca)', () => {
+  const tags = apiReferenceTags(getDictionary('pt-BR'));
+
+  it('cobre todas as operações do documento, cada uma com âncora única', () => {
+    const total = Object.values(spec.paths).reduce((n, item) => n + Object.keys(item).length, 0);
+    const anchors = tags.flatMap((t) => t.operations.map((o) => o.anchor));
+    expect(anchors).toHaveLength(total);
+    expect(new Set(anchors).size).toBe(anchors.length);
+    expect(tags[0]?.name).toBe('Catálogo');
+    expect(tagId('Times e pessoas')).toBe('tag-times-e-pessoas');
+  });
+
+  it('curl com os parâmetros obrigatórios e link do Scalar por operação', () => {
+    const ops = tags.flatMap((t) => t.operations);
+    const search = ops.find((o) => o.route === '/v1/search');
+    expect(search?.tag).toBe('Busca');
+    expect(search?.curl).toContain('/v1/search?q=verdao');
+    expect(search?.curl).toContain('x-galaxie-key: SUA_CHAVE');
+    expect(scalarUrl('Times e pessoas', 'get', '/v1/teams')).toMatch(
+      /\/docs#tag\/times-e-pessoas\/GET\/v1\/teams$/,
+    );
+    expect(ops.find((o) => o.route === '/v1/account/keys/rotate')?.curl.startsWith('curl -X POST ')).toBe(
+      true,
+    );
   });
 });

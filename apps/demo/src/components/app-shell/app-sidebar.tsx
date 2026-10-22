@@ -21,6 +21,7 @@ import {
 import { LIVE_HREF, LiveNavItem } from '@/components/live/live-nav-item';
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
+import { SidebarSearchButton } from '@/components/search/search-button';
 import { DOCS_NAV } from '@/lib/docs';
 import { useI18n } from '@/lib/i18n/client';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
@@ -162,6 +163,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <SidebarSearchButton />
       </SidebarHeader>
 
       <Suspense fallback={<SidebarNav pathname={null} />}>

@@ -1,16 +1,18 @@
 /**
- * Peças das páginas de documentação (Server Components): layout com cabeçalho e navegação
+ * Peças das páginas de documentação (Server Components): layout com cabeçalho, sumário e navegação
  * anterior/próximo, seções com âncora, texto, avisos, tabelas e a linha de um endpoint.
  */
-import { ArrowLeft, ArrowRight, Info, Link2, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info, TriangleAlert } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { PageHeader } from '@/components/app-shell/page-header';
+import { DocToc, HeadingAnchor } from '@/components/docs/doc-toc';
+import { DocsTreeDrawer } from '@/components/docs/docs-tree-drawer';
 import { Alert, AlertDescription, AlertTitle } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { docNavByHref, DOCS_NAV, type DocNavId } from '@/lib/docs';
+import { docNavByHref, DOCS_NAV, docSections, type DocNavId, type DocSectionRef } from '@/lib/docs';
 import { getT } from '@/lib/i18n/server';
 import { fill, rich, type RichTags, type Vars } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
@@ -72,43 +74,61 @@ async function Pager({ href }: { href: string }) {
   );
 }
 
-/** Página de um guia: cabeçalho (entra na trilha como `docs`), título, lead e navegação no fim. */
+/** Página de um guia: cabeçalho (entra na trilha como `docs`), título, lead, sumário e navegação no fim. */
 export async function DocPage({
   href,
   title,
   lead,
   wide = false,
+  toc,
   children,
 }: {
   href: string;
   title: string;
   lead: React.ReactNode;
-  /** Largura total (a referência); os guias ficam numa coluna de leitura. */
+  /** Largura maior (a referência); os guias ficam numa coluna de leitura. */
   wide?: boolean;
+  /** Sumário da página; padrão: as seções do guia (`DOC_SECTIONS`). */
+  toc?: DocSectionRef[];
   children: React.ReactNode;
 }) {
   const t = await getT();
   const nav = docNavByHref(href);
   const label = nav ? t.code.docsNav[nav.id].label : title;
+  const sections = toc ?? (nav ? docSections(nav.id, t) : []);
   return (
     <>
-      <PageHeader title={label} kind="docs" />
-      <article className={cn('flex w-full flex-col gap-10 p-4 md:p-6', wide ? 'max-w-6xl' : 'max-w-4xl')}>
-        <header className="flex flex-col gap-2">
-          <Badge variant="primary-light" radius="full" className="w-fit">
-            {t.docs.badge}
-          </Badge>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <div className="text-muted-foreground text-base leading-relaxed">{lead}</div>
-        </header>
-        {children}
-        <Pager href={href} />
-      </article>
+      <PageHeader title={label} kind="docs">
+        <DocsTreeDrawer className="xl:hidden" />
+      </PageHeader>
+      <div id="top" className="flex w-full justify-center gap-8 px-4 md:px-8">
+        <article
+          className={cn('flex w-full min-w-0 flex-col gap-12 py-6 md:py-10', wide ? 'max-w-5xl' : 'max-w-3xl')}
+        >
+          <header className="flex flex-col gap-3">
+            <Badge variant="primary-light" radius="full" className="w-fit">
+              {t.docs.badge}
+            </Badge>
+            <h1 className="text-3xl font-semibold tracking-tight text-balance">{title}</h1>
+            <div className="text-muted-foreground max-w-prose text-base leading-relaxed">{lead}</div>
+          </header>
+          {children}
+          <Pager href={href} />
+        </article>
+        {/* Sumário só quando sobra espaço ao lado da coluna de leitura (container query da documentação). */}
+        {sections.length ? (
+          <aside className="hidden w-48 shrink-0 @4xl/docs:block">
+            <div className="sticky top-20 max-h-[calc(100svh-6rem)] overflow-y-auto py-10">
+              <DocToc sections={sections} />
+            </div>
+          </aside>
+        ) : null}
+      </div>
     </>
   );
 }
 
-/** Seção com título âncora (`#id`). */
+/** Seção com título âncora (`#id`); o ícone ao lado copia o link. */
 export function DocSection({
   id,
   title,
@@ -119,15 +139,10 @@ export function DocSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="flex scroll-mt-20 flex-col gap-4">
-      <h2 className="group/anchor flex items-center gap-2 text-lg font-semibold tracking-tight">
-        <a href={`#${id}`} className="hover:underline">
-          {title}
-        </a>
-        <Link2
-          className="text-muted-foreground size-4 opacity-0 transition-opacity group-hover/anchor:opacity-100"
-          aria-hidden
-        />
+    <section id={id} className="flex scroll-mt-20 flex-col gap-5 [&>[data-slot=tabs]]:my-1">
+      <h2 className="group/anchor flex items-center gap-2 text-xl font-semibold tracking-tight">
+        <a href={`#${id}`}>{title}</a>
+        <HeadingAnchor id={id} title={title} />
       </h2>
       {children}
     </section>
@@ -224,23 +239,4 @@ export function DocTable({
   );
 }
 
-const METHOD_VARIANT = {
-  GET: 'success-light',
-  POST: 'info-light',
-  PUT: 'warning-light',
-  PATCH: 'warning-light',
-  DELETE: 'destructive-light',
-} as const;
-
-/** Método + rota, como na referência. */
-export function Endpoint({ method, route }: { method: string; route: string }) {
-  const m = method.toUpperCase() as keyof typeof METHOD_VARIANT;
-  return (
-    <span className="inline-flex min-w-0 items-center gap-2">
-      <Badge variant={METHOD_VARIANT[m] ?? 'outline'} size="sm" className="font-mono">
-        {m}
-      </Badge>
-      <code className="truncate font-mono text-xs">{route}</code>
-    </span>
-  );
-}
+export { Endpoint } from './endpoint';

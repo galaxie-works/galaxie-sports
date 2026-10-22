@@ -396,6 +396,10 @@ export default defineMessages(
       errors: 'Erros em application/problem+json',
       tags: {
         catalog: { name: 'Catálogo', description: 'Esportes, países, competições, tabelas e locais.' },
+        search: {
+          name: 'Busca',
+          description: 'Busca global em times, competições, jogos, pessoas, estádios e países.',
+        },
         events: {
           name: 'Eventos',
           description: 'Agenda, ao vivo, detalhe, timeline, escalações e estatísticas.',
@@ -406,6 +410,10 @@ export default defineMessages(
           description: 'Identidade dos times, clássicos, rivais, glossário e microcopy por mercado.',
         },
         whereToWatch: { name: 'Onde assistir', description: 'Opções de transmissão por evento e país.' },
+        related: {
+          name: 'Conteúdo relacionado',
+          description: 'Vídeos diretos por evento, classificados por tipo e formato.',
+        },
         multisport: {
           name: 'Multiesporte',
           description: 'Olimpíadas e Pan-Americano: edições, medalhas, agenda e histórico.',
@@ -803,6 +811,10 @@ export default defineMessages(
         errors: 'Errors as application/problem+json',
         tags: {
           catalog: { name: 'Catalog', description: 'Sports, countries, competitions, standings and venues.' },
+          search: {
+            name: 'Search',
+            description: 'Global search across teams, competitions, matches, people, stadiums and countries.',
+          },
           events: {
             name: 'Events',
             description: 'Schedule, live, detail, timeline, lineups and stats.',
@@ -813,6 +825,10 @@ export default defineMessages(
             description: 'Team identity, derbies, rivals, glossary and microcopy per market.',
           },
           whereToWatch: { name: 'Where to watch', description: 'Broadcast options per event and country.' },
+          related: {
+            name: 'Related content',
+            description: 'Direct videos per event, classified by type and format.',
+          },
           multisport: {
             name: 'Multi-sport',
             description: 'Olympics and Pan American Games: editions, medals, schedule and history.',
@@ -1218,6 +1234,10 @@ export default defineMessages(
         errors: 'Errores en application/problem+json',
         tags: {
           catalog: { name: 'Catálogo', description: 'Deportes, países, competencias, tablas y estadios.' },
+          search: {
+            name: 'Búsqueda',
+            description: 'Búsqueda global en equipos, competencias, partidos, personas, estadios y países.',
+          },
           events: {
             name: 'Eventos',
             description: 'Agenda, en vivo, detalle, timeline, formaciones y estadísticas.',
@@ -1228,6 +1248,10 @@ export default defineMessages(
             description: 'Identidad de los equipos, clásicos, rivales, glosario y microcopy por mercado.',
           },
           whereToWatch: { name: 'Dónde ver', description: 'Opciones de transmisión por evento y país.' },
+          related: {
+            name: 'Contenido relacionado',
+            description: 'Videos directos por evento, clasificados por tipo y formato.',
+          },
           multisport: {
             name: 'Multideporte',
             description: 'Juegos Olímpicos y Panamericanos: ediciones, medallas, agenda e historial.',

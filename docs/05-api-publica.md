@@ -366,6 +366,7 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 | `GET /v1/derbies/{slug}` | Clássico + retrospecto calculado dos eventos do `core` |
 | `GET /v1/glossary?locale=&category=` | Glossário esportivo por mercado ("secar", "hinchar por", "le voy al", "hacer fuerza"…) |
 | `GET /v1/people/{id}` | Jogador/técnico/piloto |
+| `GET /v1/search?q=&types=&sport=&limit=` | Busca global: times, competições, jogos, pessoas, estádios e países por nome e apelido (§3.6) |
 | `GET /v1/copy?locale=&sport=&intent=&tone=&affinity_type=&affinity_source=&momentum=&context=&team=&rival=&minutes=` | Microcopy sugerida (badges, chamadas) respeitando `copy_permission` |
 
 #### 3.3.1 Implementação da semântica (`apps/api/src/routes/v1/semantic.ts` e `copy.ts`)
@@ -432,6 +433,32 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 ### 3.5 Conteúdo relacionado
 
 `GET /v1/events/{id}/related?type=highlights,goal&format=short&limit=20` — módulo `related_content`. Vídeos diretos sobre o evento (link e embed oficial da plataforma, nunca link de busca), classificados por tipo (`highlights`, `goal`, `penalties`, `press_conference`, `interview`, `behind_the_scenes`, `fan_reaction`, `analysis`, `full_match`, `other`) e formato (`short` | `long`), com canal e selo `source_tier` (`official`, `rights_holder`, `media`, `creator`), duração, miniatura da plataforma e visualizações; `counts` traz o total por tipo antes dos filtros. Cache de 1 h purgado por `event.related_content_changed`. Detalhes, fontes e regras de direitos em [12](12-conteudo-relacionado.md).
+
+### 3.6 Busca global (`apps/api/src/routes/v1/search.ts`)
+
+`GET /v1/search?q=&types=&sport=&limit=&locale=` — módulo `core_data`. Uma chamada para a caixa de busca dos clientes (a demo usa no ⌘K):
+
+| Parâmetro | Regra |
+|---|---|
+| `q` | 2 a 80 caracteres, sem diferença de caixa nem de acento (`verdao` = `Verdão`). Com 2 caracteres, só casa no começo de uma palavra (`br` acha Brasil, não Gibraltar). |
+| `types` | Lista separada por vírgula de `team`, `competition`, `event`, `person`, `venue`, `country` (padrão: todos). |
+| `sport` | Só times, competições, jogos e pessoas desse esporte (estádios e países ficam de fora). Sem ele, valem os esportes do plano. |
+| `limit` | Máximo **por tipo**, 1–20 (padrão 5). |
+
+Onde cada tipo procura:
+
+- `team`: nome do fornecedor, `short_name`, `code` e, da base semântica (`semantic.team_profile`), nomes oficial/curto/sigla, `labels` por locale e apelidos; também os nomes anteriores derivados dos jogos.
+- `competition`: nome localizado (`labels` do catálogo e da base semântica), nome do fornecedor, slug, apelidos por locale e apelido do troféu. Traz `slug`.
+- `event`: jogos ao vivo (a mesma regra de `/v1/events/live`) e agendados dos próximos 14 dias dos 8 melhores times encontrados; o jogo herda o casamento do time. `event` traz `starts_at`, `status`, `live`, competição e participantes (casa primeiro).
+- `person`: nome, nome completo (`first_name` + `last_name`) e sobrenome; `detail` é o time do elenco mais recente.
+- `venue`: nome curado (vence o do fornecedor), nome do fornecedor, apelidos e nomes anteriores (curadoria e fornecedor); a cidade não conta como nome.
+- `country`: nome em todos os locales; código ISO e sigla do COI só por inteiro (`bra`).
+
+Resposta: `{ "q": "verdao", "data": [SearchResult…] }`, uma lista só. Cada item tem `type`, `id` (código em `country`), `name` no locale, `match` (`exact` · `prefix` · `contains`), `matched` (o apelido, sigla ou nome anterior que casou; `null` quando foi o próprio nome), `sport`, `country`, `image` (escudo, logo, foto, imagem do estádio ou bandeira) e `detail` (país do time ou da competição, time da pessoa, cidade do estádio, competição do jogo, confederação do país).
+
+Ordem: primeiro o nível do casamento (exato, começo do nome ou de uma palavra, trecho); no empate, a ordem de `types` e a relevância dentro do tipo — times com perfil na base semântica, depois o melhor tier e o número de jogos no último ano; competições por tier e prestígio; pessoas com elenco e foto; estádios curados e por capacidade.
+
+Implementação: o SQL pré-seleciona até 40 candidatos por tipo com um regex `~*` em que cada letra vira uma classe com as variantes acentuadas (sem a extensão `unaccent`; dobrar cada linha com `translate` custava ~10× mais) e ordena pelo nível do casamento; o JS confirma o casamento e escolhe o apelido (`apps/api/src/search/match.ts`). Cache: 24 h (`catalog`) sem jogos; 5 min (`schedule`) quando `types` inclui `event` (o padrão). O smoke test pós-deploy (`infra/vps-telemetry/smoke.mjs`) confere que `verdao` acha o Palmeiras.
 
 ## 4. Onde assistir
 

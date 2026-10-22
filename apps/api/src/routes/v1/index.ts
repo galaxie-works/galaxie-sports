@@ -12,6 +12,7 @@ import { multisportRoutes } from './multisport.js';
 import { semanticRoutes } from './semantic.js';
 import { navigationRoutes } from './navigation.js';
 import { relatedRoutes } from './related.js';
+import { searchRoutes } from './search.js';
 
 /**
  * Rotas /v1. Cada grupo é um módulo próprio:
@@ -37,4 +38,6 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await multisportRoutes(app, ctx);
   // navegação por país e menu de esportes — módulo core_data
   await navigationRoutes(app, ctx);
+  // busca global `/v1/search` (times, competições, jogos, pessoas, estádios, países) — módulo core_data
+  await searchRoutes(app, ctx);
 }

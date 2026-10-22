@@ -1,80 +1,29 @@
-import { buildOpenApiDocument } from '@galaxie/contracts';
 import { ExternalLink, FileJson } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import { C, docLink, docMetadata, DocPage, docText, Endpoint, P } from '@/components/docs/doc-blocks';
+import { HeadingAnchor } from '@/components/docs/doc-toc';
 import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';
 import { operationAnchor, PUBLIC_API_URL } from '@/lib/galaxie/request';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getT } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
+import {
+  groupByTag,
+  openApiDocument,
+  REFERENCE_TAGS,
+  tagId,
+  tagName,
+  type Operation,
+  type Schema,
+} from '@/lib/openapi-reference';
 
 export function generateMetadata(): Promise<Metadata> {
   return docMetadata('reference');
 }
 
 type Text = Dictionary['docs']['reference'];
-
-// ─── leitura do documento OpenAPI (o mesmo que a API serve em /openapi.json) ─────────────────────
-
-interface Schema {
-  $ref?: string;
-  type?: string | string[];
-  items?: Schema;
-  properties?: Record<string, Schema>;
-  enum?: unknown[];
-  description?: string;
-  default?: unknown;
-  example?: unknown;
-  minimum?: number;
-  maximum?: number;
-}
-
-interface Parameter {
-  name: string;
-  in: 'path' | 'query' | 'header';
-  required?: boolean;
-  description?: string;
-  schema?: Schema;
-}
-
-interface Operation {
-  summary?: string;
-  description?: string;
-  tags?: string[];
-  parameters?: Parameter[];
-  requestBody?: { content?: Record<string, { schema?: Schema }> };
-  responses?: Record<string, { description?: string; content?: Record<string, { schema?: Schema }> }>;
-}
-
-type Doc = {
-  info: { version: string };
-  tags?: { name: string; description?: string }[];
-  paths: Record<string, Record<string, Operation>>;
-};
-
-const METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
-
-/**
- * Seções pela tag do OpenAPI (em pt-BR, como a API publica), na ordem da página, com a chave do nome e
- * da descrição traduzidos em `t.docs.reference.tags`. Tags fora daqui vão para o fim, com o nome e a
- * descrição do documento.
- */
-const TAGS: Record<string, keyof Text['tags']> = {
-  Catálogo: 'catalog',
-  Eventos: 'events',
-  'Times e pessoas': 'teams',
-  Semântica: 'semantic',
-  'Onde assistir': 'whereToWatch',
-  Multiesporte: 'multisport',
-  'Tempo real': 'realtime',
-  Espelho: 'mirror',
-  Conta: 'account',
-  Outros: 'other',
-};
-
-const TAG_ORDER = Object.keys(TAGS);
 
 /** Parâmetros comuns a todas as rotas /v1 (descritos no topo, não em cada operação). */
 const COMMON = new Set(['locale', 'tz']);
@@ -109,27 +58,6 @@ function paramHints(schema: Schema | undefined, text: Text): string[] {
   return hints;
 }
 
-function groupByTag(doc: Doc) {
-  const groups = new Map<string, { method: string; route: string; op: Operation }[]>();
-  for (const [route, item] of Object.entries(doc.paths)) {
-    for (const method of METHODS) {
-      const op = item[method];
-      if (!op) continue;
-      const tag = op.tags?.[0] ?? 'Outros';
-      groups.set(tag, [...(groups.get(tag) ?? []), { method, route, op }]);
-    }
-  }
-  const rank = (t: string) => (TAG_ORDER.includes(t) ? TAG_ORDER.indexOf(t) : TAG_ORDER.length);
-  return [...groups].sort(([a], [b]) => rank(a) - rank(b));
-}
-
-const tagId = (tag: string) =>
-  `tag-${tag
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')}`;
-
 function OperationCard({
   method,
   route,
@@ -152,7 +80,10 @@ function OperationCard({
   const ok = responses.filter(([status]) => status.startsWith('2'));
   const others = responses.filter(([status]) => !status.startsWith('2')).map(([status]) => status);
   return (
-    <div id={operationAnchor(method, route)} className="flex scroll-mt-20 flex-col gap-3 rounded-lg border p-4">
+    <div
+      id={operationAnchor(method, route)}
+      className="@container/op flex scroll-mt-20 flex-col gap-3 rounded-lg border p-4"
+    >
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Endpoint method={method} route={route} />
@@ -171,7 +102,7 @@ function OperationCard({
           {params.map((p) => {
             const hints = paramHints(p.schema, text);
             return (
-              <div key={`${p.in}-${p.name}`} className="grid gap-1 px-3 py-2 sm:grid-cols-[12rem_1fr] sm:gap-3">
+              <div key={`${p.in}-${p.name}`} className="grid gap-1 px-3 py-2 @lg/op:grid-cols-[11rem_1fr] @lg/op:gap-3">
                 <dt className="flex flex-wrap items-center gap-1.5">
                   <code className="font-mono">{p.name}</code>
                   <span className="text-muted-foreground">{p.in === 'path' ? text.path : p.in}</span>
@@ -220,17 +151,13 @@ function OperationCard({
 export default async function ReferencePage() {
   const t = await getT();
   const text = t.docs.reference;
-  const doc = buildOpenApiDocument() as unknown as Doc;
+  const doc = openApiDocument();
   const groups = groupByTag(doc);
   const tagInfo = new Map((doc.tags ?? []).map((tag) => [tag.name, tag.description]));
   const total = groups.reduce((n, [, ops]) => n + ops.length, 0);
-  // Nome e descrição da seção no idioma da tela (tag desconhecida: o que o documento traz).
-  const tagName = (tag: string) => {
-    const key = TAGS[tag];
-    return key ? text.tags[key].name : tag;
-  };
+  // Descrição da seção no idioma da tela (tag desconhecida: o que o documento traz).
   const tagDescription = (tag: string) => {
-    const key = TAGS[tag];
+    const key = REFERENCE_TAGS[tag as keyof typeof REFERENCE_TAGS];
     return key ? text.tags[key].description : tagInfo.get(tag)?.replace(/\s*\(docs\/[^)]*\)\.?$/, '.');
   };
 
@@ -239,6 +166,7 @@ export default async function ReferencePage() {
       href="/docs/referencia"
       title={t.code.docsNav.reference.label}
       wide
+      toc={groups.map(([tag]) => ({ id: tagId(tag), title: tagName(tag, t) }))}
       lead={fill(text.lead, { total, version: doc.info.version })}
     >
       <div className="flex flex-col gap-3">
@@ -270,7 +198,7 @@ export default async function ReferencePage() {
               href={`#${tagId(tag)}`}
               className="hover:bg-accent rounded-full border px-3 py-1 text-xs transition-colors"
             >
-              {tagName(tag)} <span className="text-muted-foreground">{ops.length}</span>
+              {tagName(tag, t)} <span className="text-muted-foreground">{ops.length}</span>
             </a>
           ))}
         </nav>
@@ -279,10 +207,13 @@ export default async function ReferencePage() {
       {groups.map(([tag, ops]) => (
         <section key={tag} id={tagId(tag)} className="flex scroll-mt-20 flex-col gap-3">
           <div className="flex flex-col gap-0.5">
-            <h2 className="text-lg font-semibold tracking-tight">{tagName(tag)}</h2>
+            <h2 className="group/anchor flex items-center gap-2 text-xl font-semibold tracking-tight">
+              <a href={`#${tagId(tag)}`}>{tagName(tag, t)}</a>
+              <HeadingAnchor id={tagId(tag)} title={tagName(tag, t)} />
+            </h2>
             {tagDescription(tag) ? <p className="text-muted-foreground text-xs">{tagDescription(tag)}</p> : null}
           </div>
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 @7xl/docs:grid-cols-2">
             {ops.map((o) => (
               <OperationCard key={`${o.method}-${o.route}`} {...o} text={text} />
             ))}

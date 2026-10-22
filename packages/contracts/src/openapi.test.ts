@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CompetitionsQuery } from './catalog.js';
 import { LocaleQuery } from './common.js';
 import { GamesListQuery, MedalHistoryQuery, ScheduleQuery } from './multisport.js';
+import { SearchQuery } from './search.js';
 import { CopyQuery } from './semantic.js';
 import { TeamColors, teamGradient } from './teams.js';
 import { buildOpenApiDocument } from './openapi.js';
@@ -51,6 +52,7 @@ describe('OpenAPI', () => {
         '/v1/navigation',
         '/v1/countries/{code}',
         '/v1/countries/{code}/competitions',
+        '/v1/search',
       ]),
     );
     expect(Object.keys(doc.components?.schemas ?? {})).toEqual(
@@ -240,6 +242,17 @@ describe('schemas de query', () => {
   it('normaliza filtros e aplica limite padrão', () => {
     const q = CompetitionsQuery.parse({ country: 'br', tier: '1', q: '  liber ' });
     expect(q).toMatchObject({ country: 'BR', tier: 1, q: 'liber', limit: 50 });
+  });
+
+  it('busca: termo aparado, tipos validados e limite por tipo', () => {
+    expect(SearchQuery.parse({ q: '  verdão ', types: 'team, event,team' })).toMatchObject({
+      q: 'verdão',
+      types: ['team', 'event'],
+      limit: 5,
+    });
+    expect(SearchQuery.safeParse({ q: 'a' }).success).toBe(false);
+    expect(SearchQuery.safeParse({ q: 'palmeiras', types: 'clube' }).success).toBe(false);
+    expect(SearchQuery.safeParse({ q: 'palmeiras', limit: '21' }).success).toBe(false);
   });
 
   it('rejeita locale e fuso desconhecidos', () => {

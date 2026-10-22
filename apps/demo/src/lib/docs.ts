@@ -29,6 +29,82 @@ export const DOCS_NAV: DocNav[] = [
 /** Guia de um caminho (`/docs/conceitos` → `concepts`). */
 export const docNavByHref = (href: string) => DOCS_NAV.find((d) => d.href === href);
 
+/** Seção de um guia (`<DocSection id title>`): âncora, nó da árvore, linha do sumário e resultado da busca. */
+export interface DocSectionRef {
+  id: string;
+  title: string;
+}
+
+/**
+ * Seções de cada guia, na ordem da página: âncora e a chave do texto em `t.docs[guia]` (o título é
+ * `t.docs[guia][chave].title`, o mesmo que a página usa). O teste confere com os `<DocSection>` de cada
+ * arquivo. A referência não entra: as seções dela são as tags do OpenAPI.
+ */
+export const DOC_SECTIONS: Partial<Record<DocNavId, readonly (readonly [id: string, key: string])[]>> = {
+  start: [
+    ['url-base', 'baseUrl'],
+    ['primeira-chamada', 'firstCall'],
+    ['navegar', 'navigate'],
+    ['mapa', 'map'],
+    ['proximos-passos', 'next'],
+  ],
+  auth: [
+    ['chave', 'key'],
+    ['conta', 'account'],
+    ['rotacao', 'rotation'],
+    ['limites', 'limits'],
+  ],
+  concepts: [
+    ['ids', 'ids'],
+    ['locales', 'locales'],
+    ['cache', 'cache'],
+    ['paginacao', 'pagination'],
+    ['erros', 'errors'],
+    ['versionamento', 'versioning'],
+  ],
+  modules: [
+    ['planos', 'plans'],
+    ['modulos', 'list'],
+    ['fora-do-plano', 'outside'],
+    ['conferir', 'check'],
+  ],
+  realtime: [
+    ['change-feed', 'feed'],
+    ['sse', 'sse'],
+    ['webhooks', 'webhooks'],
+    ['polling', 'polling'],
+  ],
+};
+
+/** Seções de um guia com o título no idioma do dicionário `t`. */
+export function docSections(id: DocNavId, t: Dictionary): DocSectionRef[] {
+  const texts = t.docs[id] as unknown as Record<string, { title?: string } | undefined>;
+  return (DOC_SECTIONS[id] ?? []).map(([anchor, key]) => ({
+    id: anchor,
+    title: texts[key]?.title ?? anchor,
+  }));
+}
+
+/** Guia na árvore e na busca: rótulo, descrição e seções no idioma da tela (dados simples). */
+export interface DocGuideRef {
+  id: DocNavId;
+  href: string;
+  label: string;
+  description: string;
+  sections: DocSectionRef[];
+}
+
+/** Os guias com os textos já resolvidos (o servidor monta e entrega ao navegador). */
+export function docGuides(t: Dictionary): DocGuideRef[] {
+  return DOCS_NAV.map((d) => ({
+    id: d.id,
+    href: d.href,
+    label: t.code.docsNav[d.id].label,
+    description: t.code.docsNav[d.id].description,
+    sections: docSections(d.id, t),
+  }));
+}
+
 /** IDs reais da base usados nos exemplos (os mesmos das páginas da demo). */
 export const SAMPLE = {
   team: '01a15fba-ec17-7d8b-90d7-47b3ccbe967e', // Palmeiras
