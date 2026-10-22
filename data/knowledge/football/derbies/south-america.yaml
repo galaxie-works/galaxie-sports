@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de origin e trivia (docs/06 §3.3)
+text_locale: es # padrão do arquivo; cada clássico declara a voz do seu país em text_locale (docs/06 §3.3)
 region: south-america
 derbies:
   # --- Argentina ---
@@ -11,9 +11,10 @@ derbies:
     scope: national
     intensity: 5
     first_match: 1913-08-24
-    origin: "Ambos clubes nacieron en el barrio porteño de La Boca a comienzos del siglo XX."
+    text_locale: es-AR
+    origin: "Los dos nacieron en el barrio porteño de La Boca, a principios del siglo XX."
     trivia:
-      - "El primer partido oficial, en 1913, lo ganó River 2-1."
+      - "El primer partido oficial, en 1913, lo ganó River 2 a 1."
     sources:
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
     review_status: draft
@@ -26,7 +27,8 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
-    origin: "Ambos clubes son de Avellaneda y sus estadios están a pocas cuadras de distancia."
+    text_locale: es-AR
+    origin: "Los dos son de Avellaneda y sus canchas están a pocas cuadras una de la otra."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_de_Avellaneda"
@@ -40,7 +42,8 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos grandes clubes de Rosario, cuyas hinchadas se identifican como canallas y leprosos."
+    text_locale: es-AR
+    origin: "Enfrenta a los dos grandes de Rosario, cuyas hinchadas se identifican como canallas y leprosos."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_rosarino"
@@ -54,6 +57,7 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
+    text_locale: es-AR
     origin: "Es el clásico de la ciudad de La Plata, capital de la provincia de Buenos Aires."
     trivia: []
     sources:
@@ -68,9 +72,10 @@ derbies:
     scope: city
     intensity: 5
     first_match: 1915-10-24
-    origin: "Rivalidad barrial porteña: durante años las canchas de ambos clubes estuvieron a pocas cuadras de distancia."
+    text_locale: es-AR
+    origin: "Rivalidad barrial porteña: durante años las canchas del Ciclón y del Globo estuvieron a pocas cuadras."
     trivia:
-      - "El primer partido oficial, en 1915, lo ganó San Lorenzo 3-1."
+      - "El primer partido oficial, en 1915, lo ganó San Lorenzo 3 a 1."
       - "José Sanfilippo es el máximo goleador de la historia del clásico."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_Huracán-San_Lorenzo"
@@ -84,7 +89,8 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos clubes más populares de la ciudad de Córdoba."
+    text_locale: es-AR
+    origin: "Enfrenta a los dos clubes más populares de la ciudad de Córdoba: la T y el Pirata."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_cordobés"
@@ -98,7 +104,8 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
-    origin: "Es el clásico de la ciudad de Santa Fe, capital de la provincia homónima."
+    text_locale: es-AR
+    origin: "Es el clásico de la ciudad de Santa Fe, capital de la provincia homónima: Sabaleros contra Tatengues."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_santafesino"
@@ -112,7 +119,8 @@ derbies:
     scope: city
     intensity: 4
     first_match: null
-    origin: "Enfrenta a dos clubes vecinos del sur del Gran Buenos Aires."
+    text_locale: es-AR
+    origin: "Enfrenta a dos clubes vecinos del sur del Gran Buenos Aires: el Granate y el Taladro."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_Sur_(Argentina)"
@@ -127,9 +135,10 @@ derbies:
     scope: national
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos clubes más populares y laureados de Uruguay, ambos de Montevideo."
+    text_locale: es-UY
+    origin: "Enfrenta a los dos clubes más populares y ganadores del Uruguay, los dos de Montevideo."
     trivia:
-      - "Entre ambos suman ocho Copas Libertadores: cinco de Peñarol y tres de Nacional."
+      - "Entre los dos suman ocho Copas Libertadores: cinco del Manya y tres del Bolso."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_uruguayo"
     review_status: draft
@@ -143,7 +152,8 @@ derbies:
     scope: national
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos clubes más populares de Chile, ambos de Santiago."
+    text_locale: es-CL
+    origin: "Enfrenta a los dos clubes más populares de Chile, el Cacique y la U, ambos de Santiago."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_chileno"
@@ -157,6 +167,7 @@ derbies:
     scope: city
     intensity: 4
     first_match: null
+    text_locale: es-CL
     origin: "Enfrenta a los clubes nacidos de las dos grandes universidades de Santiago."
     trivia:
       - "El primer clásico universitario se jugó en 1909, en la era amateur."
@@ -173,7 +184,8 @@ derbies:
     scope: state
     intensity: 4
     first_match: null
-    origin: "Enfrenta a los clubes de Valparaíso y Viña del Mar; se disputa desde 1916."
+    text_locale: es-CL
+    origin: "Enfrenta a los clubes de Valparaíso y Viña del Mar; se juega desde 1916."
     trivia:
       - "Es considerado uno de los clásicos más antiguos del fútbol chileno."
     sources:
@@ -190,7 +202,8 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos clubes de Medellín, que comparten el Estadio Atanasio Girardot."
+    text_locale: es-CO
+    origin: "Enfrenta a los dos clubes de Medellín, el Verdolaga y el Poderoso, que comparten el Estadio Atanasio Girardot."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_paisa"
@@ -204,9 +217,10 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos grandes clubes de Bogotá, que comparten el estadio El Campín."
+    text_locale: es-CO
+    origin: "Enfrenta a los dos grandes de Bogotá, el Embajador y el Cardenal, que comparten el estadio El Campín."
     trivia:
-      - "Es el único clásico regional disputado en todas las temporadas del fútbol profesional colombiano."
+      - "Es el único clásico regional que se ha jugado en todas las temporadas del fútbol profesional colombiano."
       - "La final del Finalización 2017 fue la primera definición de liga entre ambos; la ganó Millonarios."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_bogotano"
@@ -220,7 +234,8 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos grandes clubes de Cali, en el departamento del Valle del Cauca."
+    text_locale: es-CO
+    origin: "Enfrenta a los dos grandes de Cali, la Mechita y el Azucarero, en el departamento del Valle del Cauca."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_vallecaucano"
@@ -235,9 +250,10 @@ derbies:
     scope: national
     intensity: 5
     first_match: 1928-09-23
-    origin: "Enfrenta a los dos clubes más populares del Perú, ambos de Lima."
+    text_locale: es-PE
+    origin: "Enfrenta a los dos clubes más populares del Perú, los Íntimos y los Cremas, ambos de Lima."
     trivia:
-      - "El primer clásico lo ganó la Federación Universitaria 1-0 en el antiguo Estadio Nacional."
+      - "El primer clásico lo ganó la Federación Universitaria 1 a 0 en el antiguo Estadio Nacional."
       - "Ese primer partido es recordado como el clásico de los bastonazos."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_peruano"
@@ -251,7 +267,8 @@ derbies:
     scope: national
     intensity: 4
     first_match: null
-    origin: "Enfrenta a los clubes más representativos de Arequipa y Cusco, en el sur del Perú."
+    text_locale: es-PE
+    origin: "Enfrenta a los clubes más representativos de Arequipa y Cusco, el Dominó y el Rojo Imperial, en el sur del Perú."
     trivia: []
     sources:
       - "https://rsssf.org/tablesc/cienmelgar.html"
@@ -267,7 +284,8 @@ derbies:
     scope: national
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos clubes más populares de Guayaquil; su nombre alude al tradicional barrio del Astillero."
+    text_locale: es-EC
+    origin: "Enfrenta a los dos clubes más populares de Guayaquil, el Ídolo y el Bombillo; su nombre alude al tradicional barrio del Astillero."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_Astillero"
@@ -281,9 +299,10 @@ derbies:
     scope: city
     intensity: 5
     first_match: 1945-02-11
+    text_locale: es-EC
     origin: "La rivalidad nació en un repechaje de ascenso y descenso del torneo de Pichincha en 1945."
     trivia:
-      - "El primer partido terminó 1-1 y ambos equipos fueron admitidos en primera división."
+      - "El primer partido terminó 1 a 1 y los dos equipos fueron admitidos en primera división."
     sources:
       - "https://en.wikipedia.org/wiki/Superclásico_de_Quito"
       - "https://www.primicias.ec/deportes/ligapro/aucas/vivo-aucas-vs-liga-quito-nueva-edicion-clasico-capitalino-fecha-25-ligapro-130329/"
@@ -298,7 +317,8 @@ derbies:
     scope: national
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos clubes más populares de Paraguay, ambos de Asunción."
+    text_locale: es-PY
+    origin: "Enfrenta a los dos clubes más populares del Paraguay, el Decano y el Ciclón, ambos de Asunción."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_paraguayo"
@@ -313,7 +333,8 @@ derbies:
     scope: national
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos clubes más populares de La Paz, que comparten el Estadio Hernando Siles."
+    text_locale: es-BO
+    origin: "Enfrenta a los dos clubes más populares de La Paz, la Academia y el Tigre, que comparten el Estadio Hernando Siles."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_paceño"
@@ -327,7 +348,8 @@ derbies:
     scope: city
     intensity: 4
     first_match: null
-    origin: "Enfrenta a los dos clubes más populares de Santa Cruz de la Sierra."
+    text_locale: es-BO
+    origin: "Enfrenta a los dos clubes más populares de Santa Cruz de la Sierra, la Academia y el Refinero."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_cruceño"
@@ -342,9 +364,10 @@ derbies:
     scope: national
     intensity: 5
     first_match: null
-    origin: "Enfrenta a los dos clubes más laureados del fútbol venezolano."
+    text_locale: es-VE
+    origin: "Enfrenta a los dos clubes más ganadores del fútbol venezolano: los Rojos del Ávila y el Carrusel Aurinegro."
     trivia:
-      - "Se enfrentaron en la final de la liga 2021, ganada por Táchira en penales."
+      - "Se enfrentaron en la final de la liga 2021, que ganó Táchira en penales."
     sources:
       - "https://eldiario.com/2021/12/10/caracas-tachira-clasico-futbol-venezolano-final/"
       - "https://lapatilla.com/2023/11/12/caracas-fc-y-deportivo-tachira-se-mediran-en-otra-edicion-del-clasico-en-la-gran-final-de-la-liga-futve/"

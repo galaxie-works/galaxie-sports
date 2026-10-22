@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-PY # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: PY
 teams:
   - slug: olimpia-py
@@ -25,11 +25,11 @@ teams:
     rivals:
       - { team: cerro-porteno, derby: superclasico-paraguayo, intensity: 5 }
     identity:
-      - "Considerado el decano del fútbol paraguayo, de ahí el apodo El Decano."
-      - "Tres veces campeón de la Copa Libertadores (1979, 1990 y 2002)."
+      - "Le dicen El Decano porque es considerado el decano del fútbol paraguayo."
+      - "El Rey de Copas ganó tres veces la Copa Libertadores (1979, 1990 y 2002)."
     copy_hints:
       es-PY:
-        cheer: ["¡Vamos Olimpia!", "¡Vamos Decano!", "Hoy alentamos al Franjeado"]
+        cheer: ["¡Vamos, Decano!", "¡Dale, Franjeado!", "¡Aguante Olimpia!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Olimpia"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
@@ -58,10 +58,10 @@ teams:
     rivals:
       - { team: olimpia-py, derby: superclasico-paraguayo, intensity: 5 }
     identity:
-      - "Club nacido en el Barrio Obrero de Asunción, de colores azul y grana."
+      - "El Ciclón nació en el Barrio Obrero de Asunción y viste de azul y grana."
     copy_hints:
       es-PY:
-        cheer: ["¡Vamos Cerro!", "¡Vamos Ciclón!", "Hoy alentamos al Azulgrana"]
+        cheer: ["¡Vamos, Ciclón!", "¡Dale, Cerro!", "¡Aguante el Azulgrana!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Cerro_Porteño"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
@@ -89,10 +89,10 @@ teams:
       city: Asunción
     rivals: []
     identity:
-      - "Club del barrio Las Mercedes de Asunción, de franjas verticales blancas y negras."
+      - "El Gumarelo es del barrio Las Mercedes de Asunción y juega con franjas verticales blancas y negras."
     copy_hints:
       es-PY:
-        cheer: ["¡Vamos Libertad!", "¡Vamos Guma!"]
+        cheer: ["¡Vamos, Guma!", "¡Dale, Gumarelo!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Libertad"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
@@ -120,10 +120,10 @@ teams:
       city: Asunción
     rivals: []
     identity:
-      - "Uno de los clubes más antiguos de Paraguay, fundado en 1903."
+      - "La Aurora es uno de los clubes más antiguos del Paraguay, fundado en 1903."
     copy_hints:
       es-PY:
-        cheer: ["¡Vamos Guaraní!", "Hoy alentamos a la Aurora"]
+        cheer: ["¡Vamos, Aurora!", "¡Dale, Legendario!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Guaraní"
       - "https://futboltotal.futbol/teams/club-guarani"

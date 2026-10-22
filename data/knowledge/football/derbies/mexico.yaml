@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de origin e trivia (docs/06 §3.3)
+text_locale: es-MX # idioma de origin e trivia (docs/06 §3.3)
 region: mexico
 derbies:
   - slug: clasico-nacional-mx
@@ -69,7 +69,7 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
-    origin: "Es el clásico de la ciudad de Guadalajara y uno de los más antiguos del fútbol mexicano."
+    origin: "Es el clásico de la ciudad de Guadalajara y uno de los más antiguos del futbol mexicano."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_Tapatío"

@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-CL # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: CL
 teams:
   - slug: colo-colo
@@ -26,11 +26,11 @@ teams:
     rivals:
       - { team: universidad-de-chile, derby: superclasico-chileno, intensity: 5 }
     identity:
-      - "Fundado en 1925 por los hermanos Arellano; su nombre evoca al cacique mapuche Colo-Colo."
-      - "Primer club chileno campeón de la Copa Libertadores (1991)."
+      - "Lo fundaron en 1925 los hermanos Arellano; su nombre evoca al cacique mapuche Colo-Colo."
+      - "El Cacique fue el primer club chileno campeón de la Copa Libertadores (1991)."
     copy_hints:
       es-CL:
-        cheer: ["¡Vamos Colo-Colo!", "¡Vamos Cacique!", "Hoy alentamos al Albo"]
+        cheer: ["¡Vamos, Cacique!", "¡Con todo, Colo-Colo!", "¡Vamos, Albo!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Social_y_Deportivo_Colo-Colo"
       - "https://en.wikipedia.org/wiki/Colo-Colo"
@@ -61,11 +61,11 @@ teams:
       - { team: colo-colo, derby: superclasico-chileno, intensity: 5 }
       - { team: universidad-catolica-cl, derby: clasico-universitario-cl, intensity: 4 }
     identity:
-      - "Su símbolo es el chuncho, un búho que aparece en su escudo."
-      - "Campeón de la Copa Sudamericana 2011."
+      - "Su símbolo es el chuncho, el búho que aparece en el escudo."
+      - "La U salió campeona de la Copa Sudamericana 2011."
     copy_hints:
       es-CL:
-        cheer: ["¡Vamos la U!", "¡Vamos Azul!", "Hoy alentamos al Romántico Viajero"]
+        cheer: ["¡Vamos, la U!", "¡Con todo, Chuncho!", "¡Vamos, Romántico Viajero!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Universidad_de_Chile"
       - "https://futboltotal.futbol/teams/universidad-de-chile"
@@ -94,10 +94,10 @@ teams:
     rivals:
       - { team: universidad-de-chile, derby: clasico-universitario-cl, intensity: 4 }
     identity:
-      - "Su camiseta blanca con franja azul y cruz roja es su sello."
+      - "La camiseta blanca con franja azul y cruz roja es el sello de los Cruzados."
     copy_hints:
       es-CL:
-        cheer: ["¡Vamos la Católica!", "¡Vamos Cruzados!"]
+        cheer: ["¡Vamos, Cruzados!", "¡Con todo, la Católica!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Universidad_Católica"
       - "https://www.fotmob.com/teams/6458"
@@ -126,10 +126,10 @@ teams:
       city: Calama
     rivals: []
     identity:
-      - "Club de la ciudad minera de Calama; finalista de la Copa Libertadores en 1981 y 1982."
+      - "Los Zorros del Desierto son de Calama, ciudad minera; fueron finalistas de la Copa Libertadores en 1981 y 1982."
     copy_hints:
       es-CL:
-        cheer: ["¡Vamos Cobreloa!", "Hoy alentamos a los Zorros del Desierto"]
+        cheer: ["¡Vamos, Loínos!", "¡Con todo, Zorros del Desierto!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_de_Deportes_Cobreloa"
       - "https://futboltotal.futbol/teams/cobreloa"
@@ -158,10 +158,10 @@ teams:
     rivals:
       - { team: santiago-wanderers, derby: clasico-porteno-cl, intensity: 4 }
     identity:
-      - "Fundado en 1909 por jóvenes anglochilenos que tomaron el nombre del Everton inglés."
+      - "Lo fundaron en 1909 jóvenes anglochilenos que tomaron el nombre del Everton inglés."
     copy_hints:
       es-CL:
-        cheer: ["¡Vamos Everton!", "Hoy alentamos al Oro y Cielo"]
+        cheer: ["¡Vamos, Ruleteros!", "¡Con todo, Oro y Cielo!"]
     sources:
       - "https://en.wikipedia.org/wiki/Everton_de_Viña_del_Mar"
       - "https://futboltotal.futbol/teams/everton-de-vina"
@@ -193,7 +193,7 @@ teams:
       - "Fundado en 1892, es uno de los clubes más antiguos de Chile; de ahí el apodo El Decano."
     copy_hints:
       es-CL:
-        cheer: ["¡Vamos Wanderers!", "Hoy alentamos al Decano"]
+        cheer: ["¡Vamos, Caturros!", "¡Con todo, Decano!"]
     sources:
       - "https://en.wikipedia.org/wiki/Santiago_Wanderers"
       - "https://futboltotal.futbol/teams/santiago-wanderers"
@@ -221,10 +221,10 @@ teams:
       city: Santiago
     rivals: []
     identity:
-      - "Fundado por la colectividad palestina en Chile; sus colores son los de la bandera palestina."
+      - "Lo fundó la colectividad palestina en Chile; sus colores son los de la bandera palestina."
     copy_hints:
       es-CL:
-        cheer: ["¡Vamos Palestino!", "Hoy alentamos al Tino-Tino"]
+        cheer: ["¡Vamos, Tino-Tino!", "¡Con todo, Palestino!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Palestino"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
@@ -252,10 +252,10 @@ teams:
       city: Santiago
     rivals: []
     identity:
-      - "Nació en 1897 como Centro Español de Instrucción y Recreación; sus colores aluden a la bandera de España."
+      - "Nació en 1897 como Centro Español de Instrucción y Recreación; los colores de los Hispanos aluden a la bandera de España."
     copy_hints:
       es-CL:
-        cheer: ["¡Vamos Unión!", "Hoy alentamos a la Furia Roja"]
+        cheer: ["¡Vamos, Hispanos!", "¡Con todo, la Furia!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Unión_Española"
       - "https://futboltotal.futbol/teams/colo-colo"
