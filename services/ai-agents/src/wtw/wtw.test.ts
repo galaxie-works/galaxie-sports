@@ -1,10 +1,12 @@
-import { loadWtwConfig, type BroadcastOptionRow } from '@galaxie/where-to-watch';
+import { loadWtwConfig, type BroadcastOptionRow, type BroadcastRightsRow } from '@galaxie/where-to-watch';
 import { describe, expect, it } from 'vitest';
 import { FakeLlmClient } from '../llm/fake.js';
-import { WhereToWatchAgent, toCandidates, wtwPurpose } from './agent.js';
+import { strictSchemaProblems } from '../llm/json-schema.js';
+import { allocationPurpose, rightsPurpose, WhereToWatchAgent } from './agent.js';
 import type { EventInfo } from './event-info.js';
-import { revalidateOptions, verifyCandidates } from './evidence.js';
+import { recheckRightsRow, rowToCandidate, verifyCandidates } from './evidence.js';
 import {
+  CachingPageFetcher,
   contentHash,
   FakePageFetcher,
   htmlToText,
@@ -12,173 +14,322 @@ import {
   isPublicHttpUrl,
   WTW_USER_AGENT,
 } from './fetcher.js';
-import { buildQueries, buildSystemPrompt, buildUserPrompt, localKickoff } from './prompt.js';
-import { dueWindow, marketRelevant } from './scheduler.js';
-import { WTW_OUTPUT_SCHEMA } from './schema.js';
-import { strictSchemaProblems } from '../llm/json-schema.js';
+import { groupKeyOf, jointAllowedDomains, packMarkets, roundKeyOf } from './groups.js';
+import { scaleTable } from './plan.js';
+import {
+  buildAllocationSystemPrompt,
+  buildAllocationUserPrompt,
+  buildRightsSystemPrompt,
+  buildRightsUserPrompt,
+  localKickoff,
+} from './prompt.js';
+import { marketRelevance, priorityOf, wtwPolicyFromEnv } from './relevance.js';
+import { dueWindow } from './scheduler.js';
+import { WTW_ALLOCATION_SCHEMA, WTW_RIGHTS_SCHEMA } from './schema.js';
+import { withinCap } from './spend.js';
 
 const config = loadWtwConfig({ env: {} });
 const br = config.directory('BR');
 const KICKOFF = new Date('2026-10-22T00:30:00Z');
-const info: EventInfo = {
-  id: '0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d10',
+const H = 3_600_000;
+const info = (id: string, home: string, away: string, at = KICKOFF): EventInfo => ({
+  id,
   sport: 'football',
-  startsAt: KICKOFF,
+  startsAt: at,
   status: 'scheduled',
-  competition: {
-    id: 'c',
-    slug: 'conmebol-libertadores',
-    name: 'Libertadores',
-    tier: 1,
-    countryCode: 'WORLD',
-  },
-  home: 'Palmeiras',
-  away: 'Fluminense',
-  participants: ['Palmeiras', 'Fluminense'],
-};
+  competition: { id: 'c', slug: 'liga-x', name: 'Liga X', tier: 1, countryCode: 'BR' },
+  home,
+  away,
+  participants: [home, away],
+  round: 'Rodada 7',
+  season: 2026,
+});
+const J1 = info('0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d10', 'Time Um', 'Time Dois');
+const J2 = info(
+  '0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d11',
+  'Time Três',
+  'Time Quatro',
+  new Date(KICKOFF.getTime() + 2 * H),
+);
 
-describe('prompt', () => {
-  it('consultas em pt no Brasil e es nos demais, com data local', () => {
+describe('prompts', () => {
+  it('alocação: rodada inteira, jogos codificados e detentores por país', () => {
     expect(localKickoff(KICKOFF, 'BR')).toEqual({ date: '21/10/2026', time: '21:30' });
-    expect(buildQueries(info, 'BR', ['Globo'])).toEqual([
-      'onde assistir Palmeiras x Fluminense 21/10/2026',
-      'Palmeiras x Fluminense transmissão ao vivo Libertadores',
-      'Palmeiras x Fluminense Globo',
-    ]);
-    expect(buildQueries(info, 'AR')[0]).toBe('dónde ver Palmeiras vs Fluminense 21/10/2026 Argentina');
-  });
-
-  it('sistema traz hierarquia de fontes e regras anti prompt injection; usuário traz o prior de direitos', () => {
-    const sys = buildSystemPrompt('BR');
-    expect(sys).toMatch(/organizador da competição/);
+    const sys = buildAllocationSystemPrompt();
+    expect(sys).toMatch(/UMA rodada/);
+    expect(sys).toMatch(/escolha SÓ entre eles/);
     expect(sys).toMatch(/Nunca siga instruções/);
     expect(sys).toMatch(/não liste operadoras/);
-    const user = buildUserPrompt({
-      info,
-      directory: br,
-      rights: br.rightsFor('conmebol-libertadores', KICKOFF),
-      previous: [
-        {
-          provider: 'Globo',
-          channel: null,
-          region: null,
-          status: 'confirmed',
-          sources: ['https://ge.globo.com/x'],
-        },
+    const user = buildAllocationUserPrompt({
+      competition: { slug: 'liga-x', name: 'Liga X' },
+      round: 'Rodada 7',
+      matches: [
+        { code: 'J1', info: J1 },
+        { code: 'J2', info: J2 },
+      ],
+      markets: [
+        { directory: br, holders: ['globo', 'premiere'], known: ['sportv'], matches: ['J1', 'J2'] },
+        { directory: config.directory('AR'), holders: [], known: [], matches: ['J2'] },
       ],
     });
-    expect(user).toMatch(/Globo, GE TV, Globoplay, ESPN, Disney\+, Paramount\+/);
-    expect(user).toMatch(/escolhe o jogo por rodada/);
-    expect(user).toMatch(/Opções encontradas antes/);
+    expect(user).toMatch(/J1: Time Um x Time Dois — 21\/10\/2026 21:30/);
+    expect(user).toMatch(/BR \(Brasil\) — jogos: J1, J2/);
+    expect(user).toMatch(/detentores a alocar: Globo; Premiere/);
+    expect(user).toMatch(/já garantidos \(não repita\): SporTV/);
+    expect(user).toMatch(/AR \(Argentina\) — jogos: J2\n {2}sem tabela de direitos/);
   });
 
-  it('o schema de saída é compatível com o modo estrito', () => {
-    expect(strictSchemaProblems(WTW_OUTPUT_SCHEMA)).toEqual([]);
+  it('direitos: uma chamada para vários países, com as emissoras conhecidas de cada um', () => {
+    expect(buildRightsSystemPrompt()).toMatch(/to_confirm/);
+    const user = buildRightsUserPrompt({
+      competition: { slug: 'liga-x', name: 'Liga X' },
+      season: 2026,
+      directories: [br, config.directory('MX')],
+    });
+    expect(user).toMatch(/- BR \(Brasil\): Globo, SporTV/);
+    expect(user).toMatch(/- MX \(México\):/);
+  });
+
+  it('os schemas de saída são compatíveis com o modo estrito', () => {
+    expect(strictSchemaProblems(WTW_ALLOCATION_SCHEMA)).toEqual([]);
+    expect(strictSchemaProblems(WTW_RIGHTS_SCHEMA)).toEqual([]);
   });
 });
 
 describe('agente', () => {
-  it('pede busca na web (research) com a allowlist do país e mapeia a saída', async () => {
+  it('alocação: uma chamada para a rodada; mapeia J1/J2 × país e ignora o que não foi pedido', async () => {
     const llm = new FakeLlmClient([
       {
         data: {
-          options: [
+          assignments: [
             {
-              broadcaster: 'TV Globo',
+              match: 'J1',
+              country: 'BR',
+              broadcaster: 'Emissora A\u0000',
               channel: null,
-              medium: 'free_tv',
-              access_model: 'free',
               region: null,
               watch_url: null,
               evidence: [
                 {
-                  url: 'https://ge.globo.com/agenda',
-                  excerpt: 'Globo transmite',
+                  url: 'https://ge.globo.com/grade',
+                  excerpt: 'J1 na Emissora A',
                   published_at: 'ontem',
                   stance: 'confirms',
                 },
               ],
+            },
+            {
+              match: 'J2',
+              country: 'BR',
+              broadcaster: 'Streaming B',
+              channel: null,
+              region: null,
+              watch_url: null,
+              evidence: [
+                {
+                  url: 'https://ge.globo.com/grade',
+                  excerpt: 'J2 no Streaming B',
+                  published_at: null,
+                  stance: 'confirms',
+                },
+              ],
+            },
+            {
+              match: 'J9',
+              country: 'BR',
+              broadcaster: 'Emissora A',
+              channel: null,
+              region: null,
+              watch_url: null,
+              evidence: [],
+            },
+            {
+              match: 'J1',
+              country: 'CL',
+              broadcaster: 'Emissora A',
+              channel: null,
+              region: null,
+              watch_url: null,
+              evidence: [],
             },
           ],
           notes: null,
         },
       },
     ]);
-    const out = await new WhereToWatchAgent(llm).research({
-      info,
-      directory: br,
-      rights: null,
-      previous: [],
+    const out = await new WhereToWatchAgent(llm).allocate({
+      competition: { slug: 'liga-x', name: 'Liga X' },
+      round: 'Rodada 7',
+      events: [J1, J2],
+      markets: [
+        { directory: br, holders: ['globo'], known: [], matches: ['J1', 'J2'] },
+        { directory: config.directory('AR'), holders: [], known: [], matches: ['J1'] },
+      ],
     });
+    expect(llm.calls).toHaveLength(1);
     const call = llm.calls[0]!;
-    expect(call).toMatchObject({ tier: 'research', webSearch: true, purpose: wtwPurpose(info.id, 'BR') });
+    expect(call).toMatchObject({ tier: 'research', webSearch: true, purpose: 'wtw:alloc:liga-x:Rodada_7' });
+    expect(call.allowedDomains).toContain('globo.com');
     expect(call.allowedDomains).toContain('cbf.com.br');
     expect(call.allowedDomains).not.toContain('livesoccertv.com');
-    expect(out.candidates).toEqual([
+    expect(call.allowedDomains!.length).toBeLessThanOrEqual(100);
+    expect(out.ignored).toBe(2);
+    expect(out.byEvent.get(J1.id)!.get('BR')).toEqual([
       {
-        broadcaster: 'TV Globo',
+        broadcaster: 'Emissora A',
         channel: null,
-        medium: 'free_tv',
-        accessModel: 'free',
         region: null,
         watchUrl: null,
         evidence: [
           {
-            url: 'https://ge.globo.com/agenda',
-            excerpt: 'Globo transmite',
+            url: 'https://ge.globo.com/grade',
+            excerpt: 'J1 na Emissora A',
             publishedAt: null,
             stance: 'confirms',
           },
         ],
       },
     ]);
+    expect(out.byEvent.get(J2.id)!.get('BR')![0]!.broadcaster).toBe('Streaming B');
   });
 
-  it('limita opções/evidências e saneia texto', () => {
-    const many = Array.from({ length: 30 }, (_, i) => ({
-      broadcaster: `Canal ${i}\u0000`,
-      channel: null,
-      medium: null,
-      access_model: null,
-      region: null,
-      watch_url: null,
-      evidence: Array.from({ length: 9 }, () => ({
-        url: 'https://x.example',
-        excerpt: 'e',
-        published_at: null,
-        stance: 'confirms' as const,
-      })),
-    }));
-    const c = toCandidates({ options: many, notes: null });
-    expect(c).toHaveLength(20);
-    expect(c[0]!.evidence).toHaveLength(5);
-    expect(c[0]!.broadcaster).toBe('Canal 0');
+  it('direitos: devolve só os países pedidos, sem negações como evidência', async () => {
+    const llm = new FakeLlmClient([
+      {
+        data: {
+          markets: [
+            {
+              country: 'br',
+              distribution: 'split',
+              notes: null,
+              holders: [
+                {
+                  broadcaster: 'Emissora A',
+                  channels: ['Canal 1'],
+                  kind: 'free_tv',
+                  all_matches: false,
+                  evidence: [
+                    { url: 'https://cbf.com.br/a', excerpt: 'a', published_at: null, stance: 'confirms' },
+                    { url: 'https://cbf.com.br/b', excerpt: 'b', published_at: null, stance: 'denies' },
+                  ],
+                },
+              ],
+            },
+            { country: 'XX', distribution: 'to_confirm', holders: [], notes: null },
+          ],
+          notes: 'ok',
+        },
+      },
+    ]);
+    const out = await new WhereToWatchAgent(llm).researchRights({
+      competition: { slug: 'liga-x', name: 'Liga X' },
+      season: 2026,
+      directories: [br],
+    });
+    expect(llm.calls[0]).toMatchObject({ purpose: 'wtw:rights:liga-x:2026:BR', webSearch: true });
+    expect(out.markets).toEqual([
+      {
+        country: 'BR',
+        distribution: 'split',
+        notes: null,
+        holders: [
+          {
+            broadcaster: 'Emissora A',
+            channels: ['Canal 1'],
+            kind: 'free_tv',
+            allMatches: false,
+            evidence: [{ url: 'https://cbf.com.br/a', excerpt: 'a', publishedAt: null, stance: 'confirms' }],
+          },
+        ],
+      },
+    ]);
+    expect(rightsPurpose('liga-x', 2026, ['BR', 'AR'])).toBe('wtw:rights:liga-x:2026');
+    expect(allocationPurpose('liga-x', 'Rodada 7', ['BR'])).toBe('wtw:alloc:liga-x:Rodada_7:BR');
   });
 });
 
-describe('agendamento por janelas', () => {
-  const at = (h: number) => new Date(KICKOFF.getTime() - h * 3_600_000);
-  it('tier 1 desde T-7d; tier 2 só a partir de T-24h; nada depois do início', () => {
-    expect(dueWindow(KICKOFF, at(24 * 8), 1)).toBeNull();
-    expect(dueWindow(KICKOFF, at(24 * 7 - 1), 1)?.window).toBe('T-7d');
-    expect(dueWindow(KICKOFF, at(24 * 7 - 1), 2)).toBeNull();
-    expect(dueWindow(KICKOFF, at(23), 2)?.window).toBe('T-24h');
-    expect(dueWindow(KICKOFF, at(2.5), 1)).toMatchObject({ window: 'T-3h', mode: 'revalidate' });
-    expect(dueWindow(KICKOFF, at(0.25), 2)).toMatchObject({ window: 'T-30min', mode: 'revalidate' });
-    expect(dueWindow(KICKOFF, at(-0.1), 1)).toBeNull();
-    expect(dueWindow(KICKOFF, at(1), 3)).toBeNull();
+describe('janelas, relevância e grupos', () => {
+  const at = (h: number) => new Date(KICKOFF.getTime() - h * H);
+
+  it('T-7d só direitos; alocação a partir de T-48h do primeiro jogo da rodada; revalidação sem LLM', () => {
+    expect(dueWindow(KICKOFF, at(24 * 8))).toBeNull();
+    expect(dueWindow(KICKOFF, at(24 * 7 - 1))).toMatchObject({ window: 'T-7d', mode: 'rights' });
+    expect(dueWindow(KICKOFF, at(47))).toMatchObject({ window: 'T-48h', mode: 'allocate' });
+    // rodada começou 2 dias antes deste jogo: a alocação já abriu com o primeiro jogo
+    expect(dueWindow(KICKOFF, at(90), new Date(KICKOFF.getTime() - 48 * H))).toMatchObject({
+      window: 'T-48h',
+    });
+    expect(dueWindow(KICKOFF, at(2.5))).toMatchObject({ window: 'T-3h', mode: 'revalidate' });
+    expect(dueWindow(KICKOFF, at(0.25))).toMatchObject({ window: 'T-30min', mode: 'revalidate' });
+    expect(dueWindow(KICKOFF, at(-0.1))).toBeNull();
   });
 
-  it('relevância por mercado: direitos, país da competição ou internacional', () => {
+  it('relevância = importância + bônus do mercado (≤ 10); prioridade cai com a distância', () => {
+    const facts = { importance: 55, participantCountries: ['BR', 'AR'], competitionCountry: 'BR' };
+    expect(marketRelevance(facts, 'BR')).toBe(65);
+    expect(marketRelevance(facts, 'AR')).toBe(65);
+    expect(marketRelevance(facts, 'MX')).toBe(55);
+    expect(marketRelevance({ ...facts, importance: 98 }, 'BR')).toBe(100);
     expect(
-      marketRelevant(config, 'MX', { slug: 'conmebol-libertadores', countryCode: 'WORLD' }, KICKOFF),
-    ).toBe(true);
-    expect(marketRelevant(config, 'BR', { slug: 'premier-league', countryCode: 'GB-ENG' }, KICKOFF)).toBe(
-      true,
-    );
-    expect(marketRelevant(config, 'BR', { slug: 'liga-mx', countryCode: 'MX' }, KICKOFF)).toBe(false);
-    expect(marketRelevant(config, 'MX', { slug: 'liga-mx', countryCode: 'MX' }, KICKOFF)).toBe(true);
-    expect(marketRelevant(config, 'US', { slug: 'liga-mx', countryCode: 'MX' }, KICKOFF)).toBe(false);
+      marketRelevance(
+        { importance: 50, participantCountries: ['GB-ENG'], competitionCountry: 'GB-ENG' },
+        'GB',
+      ),
+    ).toBe(60);
+    expect(priorityOf(60, KICKOFF, KICKOFF)).toBe(60);
+    expect(priorityOf(60, KICKOFF, at(48))).toBe(20);
+  });
+
+  it('política por ambiente: limiar de relevância e teto por mercado', () => {
+    expect(wtwPolicyFromEnv({})).toEqual({ minRelevance: 60, dailyUsdPerMarket: 1 });
+    expect(wtwPolicyFromEnv({ WTW_MIN_RELEVANCE: '70', WTW_DAILY_USD_PER_MARKET: '0.5' })).toEqual({
+      minRelevance: 70,
+      dailyUsdPerMarket: 0.5,
+    });
+    expect(wtwPolicyFromEnv({ WTW_DAILY_USD_PER_MARKET: 'unlimited' }).dailyUsdPerMarket).toBeNull();
+    expect(() => wtwPolicyFromEnv({ WTW_MIN_RELEVANCE: '120' })).toThrow();
+  });
+
+  it('teto diário por mercado: quem estourou sai da chamada; o rateio é pelo número de mercados', () => {
+    const spend = new Map([
+      ['BR', 0.95],
+      ['AR', 0.1],
+    ]);
+    expect(withinCap(spend, ['BR', 'AR'], 0.2, 1)).toEqual({ allowed: ['AR'], blocked: ['BR'] });
+    expect(withinCap(spend, ['BR', 'AR', 'MX', 'CL'], 0.2, 1)).toEqual({
+      allowed: ['BR', 'AR', 'MX', 'CL'],
+      blocked: [],
+    });
+    expect(withinCap(spend, ['BR'], 5, null).allowed).toEqual(['BR']);
+  });
+
+  it('grupo = competição × rodada (ou data); allowlist conjunta ≤ 100; os 8 mercados cabem numa chamada', () => {
+    expect(roundKeyOf('Regular Season - 32', KICKOFF)).toBe('Regular Season - 32');
+    expect(roundKeyOf(null, KICKOFF)).toBe('data:2026-10-22');
+    expect(groupKeyOf('liga-x', 'Rodada 7')).toBe('liga-x|Rodada 7');
+    const all = config.countries.map((c) => config.directory(c));
+    const domains = jointAllowedDomains(all);
+    expect(domains.length).toBeLessThanOrEqual(100);
+    expect(domains).toContain('cbf.com.br');
+    expect(domains).toContain('tycsports.com');
+    expect(packMarkets(all)).toHaveLength(1);
+    expect(packMarkets(all, 30).length).toBeGreaterThan(1);
+  });
+
+  it('escala: o custo novo cresce pouco com os mercados; o antigo é linear', () => {
+    const t = scaleTable({
+      games: [60],
+      markets: [1, 15],
+      searchesPerGame: 1.5,
+      roundsPerDayPerGame: 0.02,
+      usdPerAllocation: 0.15,
+      usdPerRights: 0.25,
+      competitions: 30,
+    });
+    expect(t[0]!.oldUsd).toBeCloseTo(9);
+    expect(t[1]!.oldUsd).toBeCloseTo(135);
+    expect(t[1]!.newUsd).toBeLessThan(2);
+    expect(t[1]!.newPerMarket).toBeLessThan(0.2);
   });
 });
 
@@ -226,7 +377,7 @@ describe('fetcher', () => {
   });
 });
 
-describe('verificação e revalidação das evidências', () => {
+describe('verificação das evidências', () => {
   const NOW = new Date('2026-10-21T12:00:00Z');
 
   it('busca cada URL uma vez, não raspa agregadores e confere a menção à emissora', async () => {
@@ -262,66 +413,81 @@ describe('verificação e revalidação das evidências', () => {
     expect(out.candidates[1]!.evidence[1]).toMatchObject({ accessible: false });
   });
 
-  const row = (over: Partial<BroadcastOptionRow> = {}): BroadcastOptionRow => ({
-    id: 'opt-1',
-    eventId: info.id,
-    countryCode: 'BR',
-    region: null,
-    providerName: 'Globo',
-    broadcasterId: 'globo',
-    channelName: null,
-    medium: 'free_tv',
-    accessModel: 'free',
-    url: null,
-    language: 'pt-BR',
-    status: 'confirmed',
-    confidence: '1.00',
-    evidence: [
-      {
-        url: 'https://ge.globo.com/a',
-        excerpt: 'O jogo passa na TV Globo',
-        fetchedAt: NOW.toISOString(),
-        contentHash: contentHash('O jogo passa na TV Globo'),
-      },
-    ],
-    sourceKind: 'broadcaster',
-    conflict: false,
-    flags: [],
-    firstSeenAt: NOW,
-    lastVerifiedAt: NOW,
-    producedBy: 'agent:wtw@v1',
-    runId: null,
-    createdAt: NOW,
-    supersededBy: null,
-    supersededAt: null,
-    ...over,
-  });
-
-  it('página igual → sem mudança (só renova a verificação)', async () => {
-    const fetcher = new FakePageFetcher({ 'https://ge.globo.com/a': '<p>O jogo passa na TV Globo</p>' });
-    const r = await revalidateOptions([row()], br, fetcher, NOW);
-    expect(r).toMatchObject({ changed: false, fetched: 1 });
-    expect(r.updates).toHaveLength(1);
-  });
-
-  it('página mudou mas ainda cita a emissora e o trecho → sem mudança', async () => {
-    const fetcher = new FakePageFetcher({
-      'https://ge.globo.com/a': '<p>Atualizado. O jogo passa na TV Globo às 21h30</p>',
-    });
-    expect((await revalidateOptions([row()], br, fetcher, NOW)).changed).toBe(false);
-  });
-
-  it('página caiu ou deixou de citar a emissora → mudança (busca completa)', async () => {
-    const gone = await revalidateOptions([row()], br, new FakePageFetcher({}), NOW);
-    expect(gone.changed).toBe(true);
-    const changed = await revalidateOptions(
-      [row()],
+  it('cache por execução: a grade da rodada é buscada uma vez para todos os jogos e mercados', async () => {
+    const inner = new FakePageFetcher({ 'https://ge.globo.com/grade': '<p>Grade da rodada: Globo</p>' });
+    const cached = new CachingPageFetcher(inner);
+    await verifyCandidates(
+      [
+        { broadcaster: 'Globo', evidence: [{ url: 'https://ge.globo.com/grade', excerpt: 'J1' }] },
+        { broadcaster: 'Globo', evidence: [{ url: 'https://ge.globo.com/grade', excerpt: 'J2' }] },
+      ],
       br,
-      new FakePageFetcher({ 'https://ge.globo.com/a': '<p>Jogo terá transmissão do Prime Video</p>' }),
+      cached,
       NOW,
     );
-    expect(changed).toMatchObject({ changed: true });
-    expect(changed.reasons.join(' ')).toMatch(/mudou/);
-    expect((await revalidateOptions([], br, new FakePageFetcher({}), NOW)).changed).toBe(true);
+    await verifyCandidates(
+      [{ broadcaster: 'Globo', evidence: [{ url: 'https://ge.globo.com/grade', excerpt: 'J3' }] }],
+      br,
+      cached,
+      NOW,
+    );
+    expect(inner.requested).toEqual(['https://ge.globo.com/grade']);
+    expect(cached.hits).toBe(1);
+  });
+
+  it('opção salva volta como candidata sem as evidências da tabela de direitos', () => {
+    const row = {
+      providerName: 'Globo',
+      channelName: null,
+      medium: 'free_tv',
+      accessModel: 'free',
+      region: null,
+      url: null,
+      language: 'pt-BR',
+      evidence: [
+        {
+          url: 'https://ge.globo.com/a',
+          excerpt: 'a',
+          fetchedAt: NOW.toISOString(),
+          sourceKind: 'broadcaster',
+        },
+        {
+          url: 'https://www.lance.com.br/direitos',
+          excerpt: 'b',
+          fetchedAt: NOW.toISOString(),
+          sourceKind: 'rights',
+        },
+      ],
+    } as unknown as BroadcastOptionRow;
+    expect(rowToCandidate(row).evidence.map((e) => e.url)).toEqual(['https://ge.globo.com/a']);
+  });
+
+  it('reconfirmação mensal dos direitos: fonte que ainda cita o detentor sustenta; caiu → mudou', async () => {
+    const rights = {
+      countryCode: 'BR',
+      holders: [
+        {
+          broadcasterId: 'globo',
+          name: 'Globo',
+          channels: [],
+          kind: 'free_tv',
+          allMatches: false,
+          status: 'confirmed',
+          confidence: 0.9,
+          evidence: [{ url: 'https://ge.globo.com/direitos', excerpt: 'x', fetchedAt: NOW.toISOString() }],
+          flags: [],
+        },
+      ],
+    } as unknown as BroadcastRightsRow;
+    const ok = await recheckRightsRow(
+      rights,
+      br,
+      new FakePageFetcher({ 'https://ge.globo.com/direitos': '<p>A Globo segue com os direitos</p>' }),
+      NOW,
+    );
+    expect(ok.supported).toBe(true);
+    expect(ok.holders[0]!.evidence[0]!.contentHash).toBe(contentHash('A Globo segue com os direitos'));
+    const gone = await recheckRightsRow(rights, br, new FakePageFetcher({}), NOW);
+    expect(gone).toMatchObject({ supported: false, reasons: ['Globo: fontes não sustentam mais'] });
   });
 });

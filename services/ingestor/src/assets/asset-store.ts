@@ -205,7 +205,8 @@ export class PgAssetStore implements AssetStore {
     const conditions = [isNull(asset.storageKey), sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL}`];
     if (!query.includeMissing) conditions.push(isNull(asset.fetchedAt));
     const q = this.db
-      .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: asset.kind })
+      // só URLs da CDN de mídia (filtro acima): o tipo é sempre um MediaAssetKind
+      .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: sql<MediaAssetKind>`${asset.kind}` })
       .from(asset)
       .where(and(...conditions))
       .orderBy(asc(asset.createdAt), asc(asset.id));
