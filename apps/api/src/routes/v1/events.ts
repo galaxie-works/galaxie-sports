@@ -337,7 +337,9 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             .where(
               and(
                 eq(event.status, 'finished'),
-                ne(event.id, head.id),
+                // o jogo da página entra quando já terminou (senão a barra contradiz o próprio placar);
+                // antes disso o confronto direto é só o histórico anterior
+                ...(head.status === 'finished' ? [] : [ne(event.id, head.id)]),
                 inArray(eventParticipant.participantId, [a, b]),
                 sql`exists (select 1 from core.event_participant x where x.event_id = ${event.id} and x.participant_id = ${a}::uuid)`,
                 sql`exists (select 1 from core.event_participant y where y.event_id = ${event.id} and y.participant_id = ${b}::uuid)`,

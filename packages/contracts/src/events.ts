@@ -680,7 +680,10 @@ export const HeadToHead = z
       draws: z.number().int(),
       teams: z.array(z.object({ id: z.uuid(), wins: z.number().int(), goals: z.number().int() })),
     }),
-    events: z.array(Event).meta({ description: 'Confrontos encerrados, do mais recente ao mais antigo.' }),
+    events: z.array(Event).meta({
+      description:
+        'Confrontos encerrados, do mais recente ao mais antigo. Inclui o próprio evento quando ele já terminou.',
+    }),
   })
   .meta({ id: 'HeadToHead' });
 export type HeadToHead = z.infer<typeof HeadToHead>;

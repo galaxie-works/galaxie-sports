@@ -885,24 +885,26 @@ describe('/v1/events/{id} — timeline, escalações, estatísticas, h2h e .ics'
     });
   });
 
-  it('h2h do core, sem chamar o fornecedor', async () => {
+  it('h2h do core, sem chamar o fornecedor (o jogo da página entra quando já terminou)', async () => {
     const body = (await get(`/v1/events/${ids.detail}/h2h`)).json();
     expect(body.participants.map((p: { name: string }) => p.name)).toEqual(['Palmeiras', 'Corinthians']);
+    // o próprio jogo (4 x 1, encerrado) conta: a barra não pode contradizer o placar da página
     expect(body.summary).toEqual({
-      played: 2,
+      played: 3,
       draws: 1,
       teams: [
-        { id: ids.palmeiras, wins: 1, goals: 1 },
-        { id: ids.corinthians, wins: 0, goals: 0 },
+        { id: ids.palmeiras, wins: 2, goals: 5 },
+        { id: ids.corinthians, wins: 0, goals: 1 },
       ],
     });
-    expect(body.events.map((e: EventBody) => e.starts_at)).toEqual([
+    expect(body.events[0].id).toBe(ids.detail);
+    expect(body.events.slice(1).map((e: EventBody) => e.starts_at)).toEqual([
       '2026-04-12T21:30:00Z',
       '2026-02-08T23:30:00Z',
     ]);
     const limited = (await get(`/v1/events/${ids.detail}/h2h?limit=1`)).json();
     expect(limited.events).toHaveLength(1);
-    expect(limited.summary.played).toBe(2);
+    expect(limited.summary.played).toBe(3);
   });
 
   it('.ics (RFC 5545) em UTC, com CRLF e texto escapado', async () => {
