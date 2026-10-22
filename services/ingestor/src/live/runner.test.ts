@@ -15,7 +15,8 @@ function runnerFor(
   const world = liveWorld({ matches, plan: 'free', start: new Date(start) });
   const runner = new LiveRunner({
     sport: 'football',
-    provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }),
+    // relógio do cenário também no provedor (horário dos erros), senão o teste depende da data real
+    provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }, () => new Date(world.clock.now())),
     store: world.store,
     governor: world.governor,
     clock: world.clock,

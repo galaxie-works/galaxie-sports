@@ -38,7 +38,9 @@ async function simulate(opts: {
   const dailyCalls = [...(opts.dailyCallsAt ?? [])];
   const runner = new LiveRunner({
     sport: 'football',
-    provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }),
+    // Relógio da simulação também no provedor: sem ele, o horário dos erros vem do relógio real e o
+    // teste quebra quando a data real passa das datas fixas do cenário.
+    provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }, () => new Date(world.clock.now())),
     store: world.store,
     governor: world.governor,
     clock: world.clock,

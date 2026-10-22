@@ -138,7 +138,8 @@ describe('ao vivo no Postgres', () => {
     });
     const runner = new LiveRunner({
       sport: 'football',
-      provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }),
+      // relógio do cenário também no provedor (horário dos erros), senão o teste depende da data real
+      provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }, () => new Date(world.clock.now())),
       store,
       governor: world.governor,
       clock: world.clock,

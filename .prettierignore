@@ -8,3 +8,11 @@ data
 config
 scripts
 .claude
+
+# Componentes gerados pelo shadcn/ReUI: mantidos como o registro entrega (facilita atualizar)
+apps/demo/src/components/ui/
+apps/demo/src/components/reui/
+apps/demo/src/components/examples/
+apps/demo/src/hooks/
+apps/demo/next-env.d.ts
+apps/demo/components.json
