@@ -48,7 +48,7 @@ O script constrói `api`, `ingestor` e `demo` no commit (padrão `origin/main`),
 atualiza `compose.yml` e `IMAGE_TAG` (com backup dos dois), sobe a stack mantendo a escala do ingestor e roda os
 passos pós-deploy idempotentes (seed da base semântica, nomes curados de estádios, importância). Depois executa o
 **smoke test** (`smoke.mjs`), que confere cada funcionalidade entregue **com dados**, não só o status 200: glossário, cores
-e campanha do time, stakes e tags do torcedor, minuto a minuto, resumo da IA, conteúdo relacionado, emissoras e a
+e campanha do time, stakes e tags do torcedor, minuto a minuto, resumo da IA, conteúdo relacionado, emissoras, a busca global e a
 proteção do login. `FAIL` (código, imagem ou config quebrados) sai com 1; `WARN` (dado incompleto: sync, cota, IA)
 aparece no relatório. Para rodar só o smoke test:
 
