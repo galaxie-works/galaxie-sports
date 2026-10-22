@@ -71,10 +71,14 @@ docker compose up -d demo
 O acesso é controlado pelo próprio app (Better Auth, tabelas no schema `demo_auth` do mesmo Postgres):
 
 - `BETTER_AUTH_SECRET`: `openssl rand -hex 32`, gerado na VPS.
+- Login sem senha: a pessoa informa o e-mail em `/login` e digita o código de 6 dígitos que chega por
+  e-mail (vale 10 min, até 5 tentativas; novo pedido só depois de 1 min). E-mail sem convite recebe a
+  mesma resposta, sem código. A sessão dura 30 dias e se renova com o uso.
 - `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_NAME`: na primeira subida, sem nenhum admin, o app cria esse usuário e
-  manda o convite (o link para criar a senha vale 72 h).
-- `SMTP_*`: remetente dos convites e das redefinições de senha. Sem SMTP, o convite fica criado e o painel
-  (`/ajustes/usuarios`) mostra o link para o admin copiar; o link também sai no log do contêiner `demo`.
+  manda o convite (link para a tela de login).
+- `SMTP_*`: remetente dos convites e dos códigos de acesso. Sem SMTP, o convite fica criado e o painel
+  (`/ajustes/usuarios`) mostra o link para o admin copiar, mas ninguém consegue entrar: em produção o
+  código nunca vai para o log (em desenvolvimento, sim).
 - Convidados têm prazo de acesso; depois dele o login é bloqueado. Admin não expira.
 
 ## Verificação (de fora da VPS)

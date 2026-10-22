@@ -1,5 +1,5 @@
 import type { Event, EventLineups, HeadToHead, WhereToWatch } from '@galaxie/contracts';
-import { Bot, CalendarClock, Clapperboard, ExternalLink, Flame, MapPin, Sparkles, Tv } from 'lucide-react';
+import { Bot, CalendarClock, Clapperboard, ExternalLink, Flame, MapPin, Tv, Whistle } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -8,20 +8,28 @@ import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
+import { MatchStakes } from '@/components/sport/match-stakes';
 import { RelatedContentGrid } from '@/components/sport/related-content';
+import { RelevanceMeter } from '@/components/sport/relevance-meter';
 import { Section } from '@/components/sport/section';
 import { StatusBadge } from '@/components/sport/status-badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { ApiCodeButton } from '@/components/docs/api-code-button';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtDateLong, fmtTime } from '@/lib/format';
 import {
+  eventContextRequest,
+  eventRequest,
   getEvent,
   getEventContext,
   getH2h,
   getLineups,
   getRelated,
   getWhereToWatch,
+  h2hRequest,
+  lineupsRequest,
+  relatedRequest,
+  whereToWatchRequest,
 } from '@/lib/galaxie/api';
 import { COUNTRIES } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
@@ -141,6 +149,13 @@ function Scoreboard({ event }: { event: Event }) {
               {event.venue.city ? `, ${event.venue.city}` : ''}
             </Link>
           ) : null}
+          {event.referee ? (
+            <span className="flex items-center gap-1.5" title="Árbitro">
+              <Whistle className="size-3.5" aria-hidden />
+              <span className="sr-only">Árbitro:</span>
+              {event.referee.name}
+            </span>
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -172,13 +187,7 @@ function AboutCard({ event }: { event: Event }) {
             <Intensity value={event.derby.intensity} className="ml-auto" />
           </Link>
         ) : null}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Importância editorial</span>
-            <span className="font-semibold tabular-nums">{event.importance}/100</span>
-          </div>
-          <Progress value={event.importance} />
-        </div>
+        <RelevanceMeter event={event} />
         {contexts.length ? (
           <div className="flex flex-wrap gap-1.5">
             {contexts.map((c) => (
@@ -188,16 +197,7 @@ function AboutCard({ event }: { event: Event }) {
             ))}
           </div>
         ) : null}
-        {event.stakes.length ? (
-          <ul className="flex flex-col gap-1.5">
-            {event.stakes.map((s) => (
-              <li key={`${s.team}-${s.code}`} className="flex gap-2">
-                <Sparkles className="text-primary mt-0.5 size-3.5 shrink-0" aria-hidden />
-                {s.text['pt-BR'] ?? Object.values(s.text)[0]}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        <MatchStakes event={event} />
       </CardContent>
     </Card>
   );
@@ -218,6 +218,9 @@ function WhereToWatchCard({
         <CardTitle className="flex items-center gap-2">
           <Tv className="size-4" aria-hidden /> Onde assistir
         </CardTitle>
+        <CardAction>
+          <ApiCodeButton request={whereToWatchRequest(eventId, country)} />
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">
         <div className="flex flex-wrap gap-1">
@@ -281,7 +284,7 @@ function H2hSection({ h2h }: { h2h: HeadToHead }) {
     { label: b?.name ?? '', value: winsOf(b?.id), cls: 'bg-info' },
   ];
   return (
-    <Section title="Confronto direto" description={`${total} jogos na base`}>
+    <Section title="Confronto direto" description={`${total} jogos na base`} api={h2hRequest(h2h.event_id)}>
       <Card size="sm">
         <CardContent className="flex flex-col gap-3">
           <div className="flex h-2 overflow-hidden rounded-full">
@@ -311,7 +314,7 @@ function H2hSection({ h2h }: { h2h: HeadToHead }) {
 function LineupsSection({ lineups }: { lineups: EventLineups }) {
   if (!lineups.available || !lineups.lineups.length) return null;
   return (
-    <Section title="Escalações">
+    <Section title="Escalações" api={lineupsRequest(lineups.event_id)}>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {lineups.lineups.map((l) => (
           <Card key={l.team.id ?? l.team.name} size="sm">
@@ -350,7 +353,8 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
   const query = await searchParams;
   const country = typeof query.pais === 'string' ? query.pais.toUpperCase() : 'BR';
 
-  const event = await getEvent(id);
+  // relevância no mesmo país do "Onde assistir"
+  const event = await getEvent(id, country);
   const [context, h2h, wtw, lineups, related] = await Promise.all([
     getEventContext(id),
     getH2h(id),
@@ -362,7 +366,7 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
 
   return (
     <>
-      <PageHeader title={title} />
+      <PageHeader title={title} kind="evento" api={eventRequest(id, country)} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         <Scoreboard event={event} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -371,6 +375,7 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
               <Section
                 title="Contexto"
                 description="Cenário pré-jogo e resumo gerados a partir dos fatos, com fontes"
+                api={eventContextRequest(id)}
               >
                 {context.data.map((c) => (
                   <Card key={c.kind} size="sm">
@@ -401,6 +406,7 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
             title="Conteúdo relacionado"
             icon={<Clapperboard className="size-4" aria-hidden />}
             description="Links diretos para vídeos do jogo, classificados por tipo — canais oficiais primeiro"
+            api={relatedRequest(id)}
           >
             <RelatedContentGrid related={related} />
           </Section>

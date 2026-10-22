@@ -278,22 +278,22 @@ function AccessTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
             <FrameTitle>Convite</FrameTitle>
             <FrameDescription>
               {user.lastInvite
-                ? `${user.lastInvite.kind === 'invite' ? 'Convite' : 'Link de senha'} ${user.lastInvite.delivered ? 'enviado' : 'gerado (sem e-mail)'} ${relativeTime(user.lastInvite.at)}.`
+                ? `${user.lastInvite.kind === 'invite' ? 'Convite' : 'Link de senha (login antigo)'} ${user.lastInvite.delivered ? 'enviado' : 'gerado (sem e-mail)'} ${relativeTime(user.lastInvite.at)}.`
                 : 'Nenhum convite registrado.'}
             </FrameDescription>
           </FrameHeader>
           <Row
-            title={user.status === 'pending' ? 'Reenviar convite' : 'Enviar link para trocar a senha'}
-            description="Um novo link substitui o anterior e vale por 72 horas."
+            title="Reenviar convite"
+            description="O e-mail traz o link da demo e a validade do acesso. Para entrar, a pessoa pede um código de acesso no próprio e-mail."
           >
             <Button
               variant="outline"
               className="w-full"
               disabled={pending}
-              onClick={() => run(() => resendInvite(user.id), 'Link enviado por e-mail')}
+              onClick={() => run(() => resendInvite(user.id), 'Convite reenviado por e-mail')}
             >
               <KeyRound />
-              {user.status === 'pending' ? 'Reenviar convite' : 'Enviar link'}
+              Reenviar convite
             </Button>
           </Row>
         </FramePanel>
@@ -389,9 +389,21 @@ function ActivityTab({ activity }: { activity: DemoActivity[] }) {
                   {a.kind === 'login' ? (
                     `${describeAgent(a.userAgent)}${formatIp(a.ipAddress) ? ` · ${formatIp(a.ipAddress)}` : ''}`
                   ) : (
-                    <Link href={a.path ?? '/'} className="hover:underline">
-                      {a.path}
-                    </Link>
+                    <>
+                      <Link href={a.path ?? '/'} className="hover:underline">
+                        {a.path}
+                      </Link>
+                      {/* Trilha de navegação (registros antigos não têm). */}
+                      {a.fromPath ? (
+                        <>
+                          {' · veio de '}
+                          <Link href={a.fromPath} className="hover:underline">
+                            {a.fromPath}
+                          </Link>
+                        </>
+                      ) : null}
+                      {a.trailDepth ? ` · passo ${a.trailDepth} da trilha` : null}
+                    </>
                   )}
                 </TimelineContent>
               </TimelineItem>
@@ -567,7 +579,7 @@ export function UserDetail({
       {user.status === 'pending' ? (
         <p className="text-muted-foreground flex items-center gap-2 text-xs">
           <Copy className="size-3.5" />
-          Enquanto a pessoa não criar a senha, o status fica como “Convite pendente”.
+          Enquanto a pessoa não entrar pela primeira vez, o status fica como “Convite pendente”.
         </p>
       ) : null}
     </div>

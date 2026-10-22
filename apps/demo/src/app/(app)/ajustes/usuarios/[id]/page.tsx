@@ -13,18 +13,30 @@ async function Detail({ params }: { params: PageProps<'/ajustes/usuarios/[id]'>[
   const { id } = await params;
   const data = await getDemoUser(id);
   if (!data) notFound();
-  return <UserDetail {...data} />;
+  return (
+    <>
+      {/* O nome da pessoa vira o item da trilha (em vez do genérico "Usuário"). */}
+      <PageHeader title={data.user.name || 'Usuário'} kind="ajustes" />
+      <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+        <UserDetail {...data} />
+      </div>
+    </>
+  );
 }
 
 export default function UserPage({ params }: PageProps<'/ajustes/usuarios/[id]'>) {
   return (
-    <>
-      <PageHeader title="Usuário" />
-      <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-          <Detail params={params} />
-        </Suspense>
-      </div>
-    </>
+    <Suspense
+      fallback={
+        <>
+          <PageHeader title={<Skeleton className="h-4 w-32" />} />
+          <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+            <Skeleton className="h-96 w-full" />
+          </div>
+        </>
+      }
+    >
+      <Detail params={params} />
+    </Suspense>
   );
 }

@@ -30,8 +30,8 @@ import {
   applyObservation,
   canOverride,
   DEFAULT_PRECEDENCE,
-  importance,
   initialState,
+  isKnockoutStage,
   sameState,
   type AssetKind,
   type DerbyLookup,
@@ -45,6 +45,19 @@ import {
 import { createDerbyLookup } from '@galaxie/knowledge';
 import { slugify } from '../catalog/football-catalog.js';
 import { insertLogs, logRows, stateColumns, stateFromRow } from './event-state.js';
+import {
+  competitionRules,
+  derbyIntensityOf,
+  groupTies,
+  importanceFromFacts,
+  maxRounds,
+  pairKey,
+  rulesLegs,
+  sameBreakdown,
+  tieShape,
+  totalRoundsOf,
+  type TieMatch,
+} from './importance-facts.js';
 import {
   assignIds,
   chunks,
@@ -380,16 +393,32 @@ export async function upsertBatchInTx(
       capacity: v.capacity,
       surface: v.surface,
       imageAssetId: assetId(v.imageUrl),
+      nameSeenAt: v.nameSeenAt ?? null,
     });
   for (const reference of [false, true]) {
     const rows = venueRows.filter((r) => r.reference === reference).map(({ reference: _r, ...row }) => row);
     for (const chunk of chunks(rows, 500)) {
       const { set, setWhere } = coalesceUpdate(
         venue,
-        ['name', 'city', 'countryCode', 'capacity', 'surface', 'imageAssetId'],
+        ['city', 'countryCode', 'capacity', 'surface', 'imageAssetId'],
         { touchUpdatedAt: true, fillOnly: reference },
       );
-      await tx.insert(venue).values(chunk).onConflictDoUpdate({ target: venue.id, set, setWhere });
+      // Nome: o do jogo mais recente vence (cada partida traz o nome do dia); o de /teams, sem data,
+      // só substitui um nome também sem data — fica para trás depois de uma venda de naming rights.
+      const name = sql`case
+        when excluded.name_seen_at is not null
+             and (${venue.nameSeenAt} is null or excluded.name_seen_at >= ${venue.nameSeenAt}) then excluded.name
+        when excluded.name_seen_at is null and ${venue.nameSeenAt} is null and ${sql.raw(String(!reference))} then excluded.name
+        else ${venue.name} end`;
+      const seenAt = sql`greatest(${venue.nameSeenAt}, excluded.name_seen_at)`;
+      await tx
+        .insert(venue)
+        .values(chunk)
+        .onConflictDoUpdate({
+          target: venue.id,
+          set: { ...set, name, nameSeenAt: seenAt },
+          setWhere: sql`${setWhere} or (${venue.name}, ${venue.nameSeenAt}) is distinct from (${name}, ${seenAt})`,
+        });
     }
   }
   await linkIds(
@@ -856,44 +885,123 @@ async function upsertEvents(
   const competitionUuids = [
     ...new Set(events.flatMap((e) => refs.competitionIds.get(e.competitionId ?? '') ?? [])),
   ];
-  const tiers = new Map<string, number>();
+  const comps = new Map<string, { tier: number; prestige: number; slug: string }>();
   for (const chunk of chunks(competitionUuids, 500)) {
     const rows = await tx
-      .select({ id: competition.id, tier: competition.tier })
+      .select({
+        id: competition.id,
+        tier: competition.tier,
+        prestige: competition.prestige,
+        slug: competition.slug,
+      })
       .from(competition)
       .where(inArray(competition.id, chunk));
-    for (const r of rows) tiers.set(r.id, r.tier);
+    for (const r of rows) comps.set(r.id, r);
   }
+
+  // ─ importância: fatos estruturais do lote (perna do confronto e total de rodadas) ─
+  const resolved = events.map((e) => {
+    const seasonId = refs.seasonId(e.season);
+    const stageRef = seasonId && e.stageLabel ? refs.stageIds.get(`${seasonId}|${e.stageLabel}`) : undefined;
+    const sides = e.participants.flatMap((p) => refs.participantId(p.participantId) ?? []);
+    const knockout = !!stageRef && sides.length === 2 && isKnockoutStage(stageRef.kind, e.stageLabel);
+    return {
+      e,
+      seasonId,
+      stageRef,
+      sides,
+      knockout,
+      key: mapped.get(e.id) ?? matched.get(e.id) ?? `p:${e.id}`,
+    };
+  });
+  const rounds = maxRounds(
+    [...refs.stageIds.keys()].map((k) => {
+      const i = k.indexOf('|');
+      return { seasonId: k.slice(0, i), label: k.slice(i + 1) };
+    }),
+  );
+  const tieMatches = new Map<string, TieMatch>();
+  const koStages = [...new Set(resolved.flatMap((r) => (r.knockout ? [r.stageRef!.id] : [])))];
+  for (const chunk of chunks(koStages, 200)) {
+    const rows = await tx.execute<{ id: string; stage_id: string; starts_at: string; parts: string[] }>(sql`
+      select e.id, e.stage_id, e.starts_at, array_agg(ep.participant_id::text) as parts
+        from core.event e
+        join core.event_participant ep on ep.event_id = e.id and ep.side in ('home', 'away')
+       where e.stage_id in (${sql.join(
+         chunk.map((id) => sql`${id}::uuid`),
+         sql`, `,
+       )})
+         and e.status <> 'cancelled'
+       group by e.id, e.stage_id, e.starts_at`);
+    for (const r of rows)
+      tieMatches.set(r.id, {
+        key: r.id,
+        stageId: r.stage_id,
+        startsAt: new Date(r.starts_at),
+        participants: r.parts,
+      });
+  }
+  // a versão do lote vale mais que a gravada (horário pode ter mudado; evento novo ainda não existe)
+  for (const r of resolved)
+    if (r.knockout)
+      tieMatches.set(r.key, {
+        key: r.key,
+        stageId: r.stageRef!.id,
+        startsAt: r.e.observation.startsAt,
+        participants: r.sides,
+      });
+  const ties = groupTies([...tieMatches.values()]);
 
   const writes: (typeof event.$inferInsert)[] = [];
   const logs: ReturnType<typeof logRows> = [];
   const links: { providerId: string; entityId: string }[] = [];
   const allowed: AllowedEvent[] = [];
 
-  for (const e of events) {
+  for (const { e, seasonId, stageRef, sides, knockout, key } of resolved) {
     const competitionId = e.competitionId ? (refs.competitionIds.get(e.competitionId) ?? null) : null;
-    const seasonId = refs.seasonId(e.season);
-    const stageRef = seasonId && e.stageLabel ? refs.stageIds.get(`${seasonId}|${e.stageLabel}`) : undefined;
-    const sides = e.participants.flatMap((p) => refs.participantId(p.participantId) ?? []);
+    const comp = competitionId ? comps.get(competitionId) : undefined;
     const derby =
       derbyLookup && sides.length === 2 ? ((await derbyLookup(sides[0]!, sides[1]!)) ?? null) : null;
-    const score = importance({
-      tier: competitionId ? (tiers.get(competitionId) ?? null) : null,
-      stageKind: stageRef?.kind ?? null,
-      derby,
-    }).score;
+
+    const id = mapped.get(e.id) ?? matched.get(e.id);
+    const prev = id ? existing.get(id) : undefined;
+
+    const stageKind = stageRef?.kind ?? null;
+    const rules = await competitionRules(comp?.slug, e.season?.year);
+    const pair = knockout ? pairKey(stageRef!.id, sides) : null;
+    const prevBreakdown = prev?.importanceBreakdown ?? null;
+    // sem busca de clássicos nesta execução, o clássico gravado (e sua intensidade) continua valendo
+    const scoredDerby = derbyLookup
+      ? derby
+      : prev?.derbyId
+        ? { derbyId: prev.derbyId, intensity: derbyIntensityOf(prevBreakdown) ?? 3 }
+        : null;
+    const scored = importanceFromFacts({
+      tier: comp?.tier ?? null,
+      prestige: comp?.prestige ?? 0,
+      stageKind,
+      stageLabel: e.stageLabel,
+      totalRounds: totalRoundsOf(rules, seasonId, stageKind, e.stageLabel, rounds),
+      knockout: pair
+        ? tieShape({ key }, ties.get(pair) ?? [], rulesLegs(rules, stageKind, e.stageLabel))
+        : null,
+      derby: scoredDerby,
+      // sinais da tabela vêm do recálculo periódico (events:importance); o upsert só os preserva
+      stakeFlags: prevBreakdown?.stake_flags ?? [],
+    });
+    // linha antiga (sem detalhamento) e sem busca de clássico: a importância gravada continua valendo
+    const keepPrev = !derbyLookup && !!prev?.derbyId && !prevBreakdown;
     const context = {
       sport: batch.sport,
       competitionId,
       seasonId,
       stageId: stageRef?.id ?? null,
       venueId: refs.venueId(e.venueId),
-      importance: score,
+      importance: keepPrev && prev ? prev.importance : scored.score,
+      importanceBreakdown: keepPrev ? null : scored.breakdown,
       derbyId: derby?.derbyId ?? null,
     };
 
-    const id = mapped.get(e.id) ?? matched.get(e.id);
-    const prev = id ? existing.get(id) : undefined;
     if (!id || !prev) {
       const newId = id ?? uuidv7();
       const step = initialState(e.observation);
@@ -930,7 +1038,6 @@ async function upsertEvents(
       venueId: context.venueId ?? prev.venueId,
       // sem busca de clássicos nesta execução, preserva o clássico (e sua importância) já calculado
       derbyId: derbyLookup ? context.derbyId : prev.derbyId,
-      importance: !derbyLookup && prev.derbyId ? prev.importance : context.importance,
     };
     const sourceProvider = step.ignored ? prev.sourceProvider : batch.provider;
     const contextChanged =
@@ -939,6 +1046,7 @@ async function upsertEvents(
       nextContext.stageId !== prev.stageId ||
       nextContext.venueId !== prev.venueId ||
       nextContext.importance !== prev.importance ||
+      !sameBreakdown(nextContext.importanceBreakdown, prev.importanceBreakdown) ||
       nextContext.derbyId !== prev.derbyId ||
       sourceProvider !== prev.sourceProvider;
     if (!contextChanged && sameState(prevState, step.state)) {
@@ -960,6 +1068,7 @@ async function upsertEvents(
         'stageId',
         'venueId',
         'importance',
+        'importanceBreakdown',
         'derbyId',
         'status',
         'statusDetail',

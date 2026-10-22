@@ -7,14 +7,24 @@ import { type NextRequest, NextResponse } from 'next/server';
 
 import { auth, isAccessExpired } from '@/lib/auth/server';
 
-/** Rotas públicas: login, criação/redefinição de senha e a API do próprio auth. */
-const PUBLIC_PREFIXES = ['/login', '/definir-senha', '/esqueci-senha', '/api/auth'];
+/** Rotas públicas: login e a API do próprio auth. */
+const PUBLIC_PREFIXES = ['/login', '/api/auth'];
+
+/**
+ * Telas do antigo login por senha. Links de convite e de redefinição já enviados por e-mail caem no
+ * login (sem repassar o token da URL antiga, que não vale mais nada).
+ */
+const LEGACY_PASSWORD_PAGES = ['/definir-senha', '/esqueci-senha'];
+
+const matches = (pathname: string, prefixes: string[]) =>
+  prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
-    return NextResponse.next();
+  if (matches(pathname, LEGACY_PASSWORD_PAGES)) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
+  if (matches(pathname, PUBLIC_PREFIXES)) return NextResponse.next();
 
   const session = await auth.api.getSession({ headers: request.headers });
   const isApi = pathname.startsWith('/api/');

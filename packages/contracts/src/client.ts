@@ -156,7 +156,9 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       v1<Page<Event>>('/v1/events', query as Query & LocaleOpts),
     liveEvents: (query: Omit<LiveEventsQuery, 'locale'> & LocaleOpts = {}) =>
       v1<{ data: Event[] }>('/v1/events/live', query as Query & LocaleOpts),
-    event: (id: string, opts: LocaleOpts = {}) => v1<Event>(`/v1/events/${seg(id)}`, opts),
+    /** Evento completo; `market` (ISO2) preenche a relevância por país. */
+    event: (id: string, opts: LocaleOpts & { market?: string } = {}) =>
+      v1<Event>(`/v1/events/${seg(id)}`, opts as Query & LocaleOpts),
     eventTimeline: (id: string, opts: LocaleOpts = {}) =>
       v1<EventTimeline>(`/v1/events/${seg(id)}/timeline`, opts),
     eventLineups: (id: string, opts: LocaleOpts = {}) =>

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import type { FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import type { EventStatus } from '@galaxie/contracts';
@@ -20,7 +20,12 @@ export interface EventFilters {
   country?: string | undefined;
   status?: EventStatus[] | undefined;
   importanceMin?: number | undefined;
+  /** Expressão da relevância no mercado (`relevanceSql`), para `relevance_min` e `order=relevance`. */
+  relevance?: SQL | undefined;
+  relevanceMin?: number | undefined;
 }
+
+export type EventOrder = 'starts_at' | 'importance' | 'relevance';
 
 const StartsCursor = z.object({ s: z.string(), i: z.string().regex(UUID_RE) });
 const ImportanceCursor = StartsCursor.extend({ m: z.number().int() });
@@ -65,33 +70,57 @@ export function filterConds(f: EventFilters): SQL[] {
     );
   if (f.status?.length) conds.push(inArray(event.status, f.status));
   if (f.importanceMin !== undefined) conds.push(gte(event.importance, f.importanceMin));
+  if (f.relevanceMin !== undefined) {
+    if (!f.relevance) throw marketRequired('relevance_min');
+    conds.push(sql`${f.relevance} >= ${f.relevanceMin}`);
+  }
   return conds;
 }
 
-/** Página de IDs de eventos por cursor (`starts_at` crescente ou `importance` decrescente). */
+function marketRequired(param: string) {
+  return problems.invalidParams([
+    { path: param, message: 'exige `market` (ou um único mercado no plano do tenant)' },
+  ]);
+}
+
+/**
+ * Página de IDs de eventos por cursor (`starts_at` crescente; `importance` ou `relevance` decrescentes,
+ * depois horário). `relevance` usa a expressão do mercado em `filters.relevance`.
+ */
 export async function pageEventIds(
   db: Database,
   filters: EventFilters,
-  options: { order: 'starts_at' | 'importance'; limit: number; cursor?: string | undefined },
+  options: { order: EventOrder; limit: number; cursor?: string | undefined },
 ): Promise<{ ids: string[]; nextCursor: string | null }> {
   const conds = filterConds(filters);
+  if (options.order === 'relevance' && !filters.relevance) throw marketRequired('order');
+  // métrica decrescente da ordenação (importância global ou relevância no mercado)
+  const metric: SQL | null =
+    options.order === 'importance'
+      ? sql`${event.importance}`
+      : options.order === 'relevance'
+        ? filters.relevance!
+        : null;
   if (options.cursor) {
-    if (options.order === 'importance') {
+    if (metric) {
       const c = decodeCursor(ImportanceCursor, options.cursor);
       conds.push(
-        sql`(-${event.importance}, ${event.startsAt}, ${event.id}) > (${-c.m}, ${c.s}::timestamptz, ${c.i}::uuid)`,
+        sql`(-(${metric}), ${event.startsAt}, ${event.id}) > (${-c.m}, ${c.s}::timestamptz, ${c.i}::uuid)`,
       );
     } else {
       const c = decodeCursor(StartsCursor, options.cursor);
       conds.push(sql`(${event.startsAt}, ${event.id}) > (${c.s}::timestamptz, ${c.i}::uuid)`);
     }
   }
-  const order =
-    options.order === 'importance'
-      ? [desc(event.importance), asc(event.startsAt), asc(event.id)]
-      : [asc(event.startsAt), asc(event.id)];
+  const order = metric
+    ? [sql`${metric} desc`, asc(event.startsAt), asc(event.id)]
+    : [asc(event.startsAt), asc(event.id)];
   const rows = await db
-    .select({ id: event.id, startsAt: event.startsAt, importance: event.importance })
+    .select({
+      id: event.id,
+      startsAt: event.startsAt,
+      metric: metric ? sql<number>`(${metric})::int` : sql<number>`0`,
+    })
     .from(event)
     .where(and(...conds))
     .orderBy(...order)
@@ -101,8 +130,8 @@ export async function pageEventIds(
   const nextCursor =
     rows.length > options.limit && last
       ? encodeCursor(
-          options.order === 'importance'
-            ? { m: last.importance, s: last.startsAt.toISOString(), i: last.id }
+          metric
+            ? { m: Number(last.metric), s: last.startsAt.toISOString(), i: last.id }
             : { s: last.startsAt.toISOString(), i: last.id },
         )
       : null;

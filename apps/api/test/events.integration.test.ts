@@ -99,6 +99,7 @@ function fx(o: {
   away: [number, string];
   status: 'NS' | 'FT' | '1H';
   goals?: [number, number];
+  referee?: string | null;
 }): ApiFixture {
   const ts = Date.parse(o.date) / 1000;
   const [gh, ga] = o.goals ?? [null, null];
@@ -106,7 +107,7 @@ function fx(o: {
   return {
     fixture: {
       id: o.id,
-      referee: null,
+      referee: o.referee ?? null,
       timezone: 'UTC',
       date: o.date,
       timestamp: ts,
@@ -275,6 +276,7 @@ async function seed() {
         home: [121, 'Palmeiras'],
         away: [124, 'Fluminense'],
         status: 'NS',
+        referee: 'Wilton Pereira Sampaio, Brazil',
       }),
       fx({
         id: 990010,
@@ -341,6 +343,9 @@ async function seed() {
       countryCode: 'BR',
       names: { official: 'Sociedade Esportiva Palmeiras', short: 'Palmeiras' },
       nicknames: ['Verdão', 'Alviverde'],
+      rallyingCries: ['Avanti, Palestra!'],
+      copyHints: { 'pt-BR': { cheer: ['Vai, Verdão!', 'Avanti, Palestra!'] } },
+      sources: ['https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras'],
       sourceFile: 'football/teams/br.yaml',
     },
     {
@@ -457,14 +462,33 @@ type EventBody = {
   status: string;
   starts_at: string;
   importance: number;
+  importance_breakdown: {
+    tier: number;
+    phase: number;
+    derby: number;
+    decisive: number;
+    prestige: number;
+    flags: string[];
+  } | null;
+  relevance: { market: string; score: number; bonus: number; reasons: string[] } | null;
   momentum: string | null;
   stage: { kind: string; leg: number | null; name: string | null } | null;
-  participants: { side: string; id: string; name: string; nickname: string | null; logo: string | null }[];
+  participants: {
+    side: string;
+    id: string;
+    name: string;
+    nickname: string | null;
+    logo: string | null;
+    fan_tags: { code: string; priority: number; text: Record<string, string> }[];
+    cheer?: { text: string; source_url?: string } | null;
+  }[];
   score: { home: number | null; away: number | null; aggregate: { home: number; away: number } | null };
   competition: { slug: string; name: string; nickname: string | null } | null;
   competition_context: string[];
-  stakes: { team: string; code: string; text: Record<string, string> }[];
+  stakes: { team: string; team_id: string | null; code: string; text: Record<string, string> }[];
   derby: { slug: string; name: string; intensity: number } | null;
+  venue: { id: string; name: string; city: string | null } | null;
+  referee: { name: string; country: string | null } | null;
   data_freshness: { last_valid_at: string | null; is_stale: boolean };
 };
 
@@ -537,6 +561,40 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect(seen).toEqual(all.map((e) => e.id));
   });
 
+  it('relevância por mercado: filtro, ordem e paginação (exige mercado)', async () => {
+    expect((await get('/v1/events?from=2026-10-01&order=relevance')).statusCode).toBe(400);
+    expect((await get('/v1/events?from=2026-10-01&relevance_min=50')).statusCode).toBe(400);
+    expect((await get('/v1/events?from=2026-10-01&market=BRA')).statusCode).toBe(400);
+
+    const plain = (await get('/v1/events?from=2026-10-01&limit=50')).json() as { data: EventBody[] };
+    expect(plain.data.every((e) => e.relevance === null)).toBe(true);
+
+    const url = '/v1/events?from=2020-01-01&order=relevance&market=br&limit=200';
+    const all = (await get(url)).json().data as EventBody[];
+    expect(all.length).toBeGreaterThan(3);
+    const rel = all.map((e) => e.relevance!.score);
+    expect([...rel].sort((a, b) => b - a)).toEqual(rel);
+    for (const e of all) {
+      expect(e.relevance).toMatchObject({ market: 'BR' });
+      expect(e.relevance!.score).toBe(Math.min(100, e.importance + e.relevance!.bonus));
+    }
+    // a soma em SQL (ordem) e a do lote (resposta) batem: a ordem é a do score devolvido
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const page: string = `/v1/events?from=2020-01-01&order=relevance&market=BR&limit=3${cursor ? `&cursor=${cursor}` : ''}`;
+      const body = (await get(page)).json() as { data: EventBody[]; next_cursor: string | null };
+      seen.push(...body.data.map((e) => e.id));
+      cursor = body.next_cursor;
+    } while (cursor);
+    expect(seen).toEqual(all.map((e) => e.id));
+
+    const min = (await get('/v1/events?from=2020-01-01&market=BR&relevance_min=60&limit=200')).json()
+      .data as EventBody[];
+    expect(min.every((e) => e.relevance!.score >= 60)).toBe(true);
+    expect(min.length).toBe(all.filter((e) => e.relevance!.score >= 60).length);
+  });
+
   it('ao vivo: só eventos em andamento, com momentum live e TTL curto', async () => {
     const res = await get('/v1/events/live');
     expect(res.statusCode).toBe(200);
@@ -568,19 +626,47 @@ describe('/v1/events/{id}', () => {
       ['away', 'Fluminense', null],
     ]);
     expect(e.participants[0]!.logo).toBe(`https://media.api-sports.io/football/teams/121.png`);
+    const [home, away] = e.participants;
     expect(e.stakes).toEqual([
-      { team: 'home', code: 'advances_with_draw', text: { 'pt-BR': 'Avança com empate' } },
+      {
+        team: 'home',
+        team_id: home!.id,
+        code: 'advances_with_draw',
+        text: { 'pt-BR': 'Avança com empate' },
+      },
       {
         team: 'away',
+        team_id: away!.id,
         code: 'needs_win_by_2',
         text: { 'pt-BR': 'Precisa vencer por 2 gols para avançar direto' },
       },
       {
         team: 'away',
+        team_id: away!.id,
         code: 'win_by_1_goes_to_penalties',
         text: { 'pt-BR': 'Vitória por 1 gol leva a decisão aos pênaltis' },
       },
     ]);
+    // tags do torcedor por participante e grito da base semântica (só quem tem perfil)
+    expect(home!.fan_tags).toEqual([
+      { code: 'advances_with_draw', priority: 34, text: { 'pt-BR': 'Avança com empate' } },
+    ]);
+    expect(away!.fan_tags).toEqual([
+      { code: 'needs_win_by_2', priority: 31, text: { 'pt-BR': 'Precisa vencer por 2 gols' } },
+      {
+        code: 'win_by_1_goes_to_penalties',
+        priority: 36,
+        text: { 'pt-BR': 'Vencer por 1 leva aos pênaltis' },
+      },
+    ]);
+    expect(home!.cheer).toEqual({
+      text: 'Vai, Verdão!',
+      source_url: 'https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras',
+    });
+    expect(away!.cheer).toBeNull();
+    // árbitro ("Nome, País" do fornecedor) e local com cidade
+    expect(e.referee).toEqual({ name: 'Wilton Pereira Sampaio', country: 'Brazil' });
+    expect(e.venue).toMatchObject({ id: expect.any(String), name: expect.any(String) });
   });
 
   it('localiza fase e stakes (es-AR) e conta momentum no fuso pedido (UTC → D-1)', async () => {
@@ -589,9 +675,48 @@ describe('/v1/events/{id}', () => {
     expect(e.stage?.name).toBe('Semifinales · Vuelta');
     expect(e.stakes[0]).toEqual({
       team: 'home',
+      team_id: e.participants[0]!.id,
       code: 'advances_with_draw',
       text: { 'es-AR': 'Avanza con el empate' },
     });
+    expect(e.participants[0]!.fan_tags[0]?.text).toEqual({ 'es-AR': 'Avanza con el empate' });
+    // sem dica de copy em espanhol: cai no grito do clube (rallying_cries), nunca no pt-BR
+    expect(e.participants[0]!.cheer?.text).toBe('Avanti, Palestra!');
+  });
+
+  it('detalhamento da importância e relevância por mercado (docs/06 §3)', async () => {
+    const e = (await get(`/v1/events/${ids.leg2}`)).json() as EventBody;
+    // volta da semifinal: fase cheia + eliminação; o tier vem do catálogo
+    expect(e.importance_breakdown).toMatchObject({
+      phase: 22,
+      decisive: 8,
+      derby: 0,
+      flags: ['elimination'],
+    });
+    const b = e.importance_breakdown!;
+    expect(e.importance).toBe(Math.min(100, b.tier + b.phase + b.derby + b.decisive + b.prestige));
+    expect(e.relevance).toBeNull();
+
+    const br = (await get(`/v1/events/${ids.leg2}?market=br`)).json() as EventBody;
+    expect(br.relevance).toMatchObject({ market: 'BR' });
+    expect(br.relevance!.reasons).toContain('continental_competition');
+    expect(br.relevance!.bonus).toBeGreaterThanOrEqual(5);
+    expect(br.relevance!.score).toBe(Math.min(100, e.importance + br.relevance!.bonus));
+    // Libertadores sem time argentino: só o bônus da confederação
+    const ar = (await get(`/v1/events/${ids.leg2}?market=AR`)).json() as EventBody;
+    expect(ar.relevance).toEqual({
+      market: 'AR',
+      score: e.importance + 5,
+      bonus: 5,
+      reasons: ['continental_competition'],
+    });
+    // outra confederação: sem bônus
+    const de = (await get(`/v1/events/${ids.leg2}?market=DE`)).json() as EventBody;
+    expect(de.relevance).toEqual({ market: 'DE', score: e.importance, bonus: 0, reasons: [] });
+
+    const ida = (await get(`/v1/events/${ids.leg1}`)).json() as EventBody;
+    // ida: fase × 0,75, nada decidido
+    expect(ida.importance_breakdown).toMatchObject({ phase: 17, decisive: 0, flags: [] });
   });
 
   it('ida encerrada: perna 1, sem stakes nem agregado', async () => {
@@ -603,6 +728,8 @@ describe('/v1/events/{id}', () => {
     });
     expect(e.score).toMatchObject({ home: 1, away: 2, aggregate: null });
     expect(e.stakes).toEqual([]);
+    expect(e.participants.map((p) => p.fan_tags)).toEqual([[], []]);
+    expect(e.referee).toBeNull();
   });
 
   it('última rodada do Brasileirão: título em jogo, líder e stakes de liga', async () => {
@@ -616,6 +743,20 @@ describe('/v1/events/{id}', () => {
         'home:qualifies_for_libertadores_group_stage',
       ]),
     );
+    const [home, away] = e.participants;
+    for (const s of e.stakes)
+      expect(s.team_id).toBe(s.team === 'home' ? home!.id : s.team === 'away' ? away!.id : null);
+    expect(home!.fan_tags[0]).toEqual({
+      code: 'clinches_title_with_draw',
+      priority: 12,
+      text: { 'pt-BR': 'Empate dá o título' },
+    });
+    expect(away!.fan_tags[0]?.text['pt-BR']).toBe('Vitória dá o título');
+    for (const p of e.participants) {
+      expect(p.fan_tags.length).toBeLessThanOrEqual(3);
+      const prio = p.fan_tags.map((t) => t.priority);
+      expect(prio).toEqual([...prio].sort((a, b) => a - b));
+    }
   });
 
   it('clássico e participantes com apelido', async () => {
@@ -776,12 +917,31 @@ describe('/v1/teams e /v1/people', () => {
       .set({ palette: { version: 1, dominant: '#006937', secondary: null, monochrome: false } })
       .where(eq(asset.id, palmeiras!.logo!));
 
+    // nomes anteriores derivados dos jogos: variação de caixa do nome atual não conta
+    await db
+      .update(participant)
+      .set({
+        providerFormerNames: [
+          { name: 'PALMEIRAS', from: '2012-01-01', until: '2013-12-31' },
+          { name: 'Palestra Itália', from: '1914-08-26', until: '1942-09-14' },
+        ],
+      })
+      .where(eq(participant.id, ids.palmeiras!));
     const t = (await get(`/v1/teams/${ids.palmeiras}`)).json();
     expect(t).toMatchObject({
       name: 'Palmeiras',
       country_ref: { code: 'BR', name: 'Brasil' },
       external_ids: { 'api-sports': '121' },
       venue: { name: 'Estádio 258' },
+      former_names: [
+        {
+          name: 'Palestra Itália',
+          from: '1914-08-26',
+          until: '1942-09-14',
+          origin: 'provider',
+          confidence: 'low',
+        },
+      ],
       colors: {
         primary: '#006937',
         secondary: null,
@@ -813,6 +973,33 @@ describe('/v1/teams e /v1/people', () => {
       'W 1-0',
       'W 1-0',
     ]);
+    // campanha: em disputa primeiro; copa sem tabela entra com o confronto em andamento
+    expect(o.competitions[0]).toMatchObject({
+      competition: { slug: 'conmebol-libertadores' },
+      season: { year: 2026 },
+      campaign: {
+        status: 'in_progress',
+        stage_kind: 'semi_final',
+        label: { 'pt-BR': 'Nas semifinais' },
+        detail: { 'pt-BR': 'Contra Fluminense (ida: 2–1)' },
+        opponent: { name: 'Fluminense' },
+        decided_by_event_id: null,
+        ongoing: true,
+      },
+    });
+    expect(o.competitions[1]).toMatchObject({
+      competition: { slug: 'brasileirao-serie-a' },
+      season: { year: 2026 },
+      campaign: { status: 'league', ongoing: true },
+    });
+    expect(o.competitions.filter((c: { campaign: { ongoing: boolean } }) => !c.campaign.ongoing)).toEqual(
+      o.competitions.slice(2),
+    );
+    const es = (await get(`/v1/teams/${ids.palmeiras}/overview?locale=es-AR`)).json();
+    expect(es.competitions[0].campaign).toMatchObject({
+      label: { 'es-AR': 'En semifinales' },
+      detail: { 'es-AR': 'Contra Fluminense (ida: 2–1)' },
+    });
     expect(o.last_events).toHaveLength(5);
     expect(o.last_events[0].id).toBe(ids.leg1);
     expect(o.live_event).toBeNull();

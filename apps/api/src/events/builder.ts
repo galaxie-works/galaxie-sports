@@ -7,28 +7,36 @@ import {
   derby,
   event,
   eventParticipant,
+  footballFixture,
   participant,
   season,
   stage,
   standing,
   teamProfile,
   venue,
+  venueDisplay,
   type Database,
   type EventScore,
 } from '@galaxie/db';
 import { isInPlay, momentum } from '@galaxie/providers';
 import {
+  fanTags,
+  fanTagStanding,
   knockoutStageRules,
   knockoutStakes,
   leagueMatchStakes,
   localizeStake,
   type CompetitionRules,
+  type FanTagLocale,
+  type FanTagStanding,
   type Fixture,
   type Stake,
   type StakeLocale,
 } from '@galaxie/rules';
 import { formatInstant, pickList, pickText } from '../i18n.js';
 import { assetUrl } from '../util.js';
+import { pickCheer } from './cheer.js';
+import { importanceBreakdownDto } from './relevance.js';
 import type { RulesRegistry } from './rules-registry.js';
 
 /** Fases de mata-mata (core.stage.kind). */
@@ -202,6 +210,21 @@ export const DECISIVE_FAMILIES = new Set([
   'can_be_eliminated',
 ]);
 
+/**
+ * Árbitro no formato do fornecedor ("Nome, País" ou só "Nome") → `{ name, country }`. O país é o último
+ * trecho depois da vírgula; vazio ou só espaços → null.
+ */
+export function parseReferee(raw: string | null | undefined): Event['referee'] {
+  const text = raw?.trim().replace(/\s+/g, ' ');
+  if (!text) return null;
+  const i = text.lastIndexOf(',');
+  if (i <= 0) return { name: text, country: null };
+  const name = text.slice(0, i).trim();
+  const country = text.slice(i + 1).trim();
+  if (!name) return { name: country, country: null };
+  return { name, country: country || null };
+}
+
 export interface BuiltEvent {
   dto: Event;
   /** Famílias dos stakes (para filtrar jogos decisivos). */
@@ -229,8 +252,10 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       cLogoUrl: asset.sourceUrl,
       st: { id: stage.id, kind: stage.kind, name: stage.name, providerLabel: stage.providerLabel },
       seasonYear: season.year,
-      v: { id: venue.id, name: venue.name, city: venue.city },
+      v: { id: venue.id, name: venue.name, city: venue.city, curated: venue.curated },
       d: { slug: derby.slug, name: derby.name, labels: derby.labels, intensity: derby.intensity },
+      // árbitro: só no espelho do futebol (`core.football_fixture`, 1:1 com o evento)
+      referee: footballFixture.referee,
     })
     .from(event)
     .leftJoin(competition, eq(competition.id, event.competitionId))
@@ -239,6 +264,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     .leftJoin(season, eq(season.id, event.seasonId))
     .leftJoin(venue, eq(venue.id, event.venueId))
     .leftJoin(derby, eq(derby.id, event.derbyId))
+    .leftJoin(footballFixture, eq(footballFixture.eventId, event.id))
     .where(inArray(event.id, ids));
 
   const competitionIds = [...new Set(rows.map((r) => r.c?.id).filter((x): x is string => !!x))];
@@ -265,6 +291,9 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       logoKey: asset.storageKey,
       logoUrl: asset.sourceUrl,
       nicknames: teamProfile.nicknames,
+      rallyingCries: teamProfile.rallyingCries,
+      copyHints: teamProfile.copyHints,
+      profileSources: teamProfile.sources,
     })
     .from(eventParticipant)
     .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
@@ -285,6 +314,13 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       logo: assetUrl(ctx.assetsBaseUrl, r.logoKey, r.logoUrl),
       nickname: r.nicknames?.[0] ?? null,
       winner: typeof winner === 'boolean' ? winner : null,
+      // preenchidas depois dos stakes
+      fan_tags: [],
+      // grito da torcida pelo mesmo caminho do apelido (perfil semântico ligado ao participante)
+      cheer: pickCheer(
+        { rallyingCries: r.rallyingCries, copyHints: r.copyHints, sources: r.profileSources },
+        locale,
+      ),
       _pos: r.position,
     });
     partsBy.set(r.eventId, list);
@@ -362,6 +398,8 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     const rules = rulesOf(r);
     const stageKind = r.st?.kind ?? null;
     const stakes: Stake[] = [];
+    // situação na tabela por lado: filtra as tags do torcedor de mera possibilidade (pontos corridos)
+    const standings: Partial<Record<'home' | 'away', FanTagStanding | null>> = {};
     const contexts = new Set<Event['competition_context'][number]>();
 
     // ── perna e agregado (mata-mata) ──
@@ -440,10 +478,17 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
               inTable.has(m.awayId),
           )
           .map((m) => ({ homeId: m.homeId!, awayId: m.awayId! }));
+        const leagueTable = table.map((s) => ({
+          teamId: s.participantId,
+          points: s.points,
+          played: s.played,
+        }));
+        standings.home = fanTagStanding(leagueTable, rules.league, homeId);
+        standings.away = fanTagStanding(leagueTable, rules.league, awayId);
         try {
           stakes.push(
             ...leagueMatchStakes({
-              table: table.map((s) => ({ teamId: s.participantId, points: s.points, played: s.played })),
+              table: leagueTable,
               league: rules.league,
               points: rules.standings.points,
               homeId,
@@ -472,7 +517,19 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       p && (p.home != null || p.away != null) ? { home: p.home ?? null, away: p.away ?? null } : null;
     const participants = (partsBy.get(id) ?? [])
       .sort((a, b) => sideOrder(a.side) - sideOrder(b.side) || (a._pos ?? 0) - (b._pos ?? 0))
-      .map(({ _pos: _, ...p }) => p);
+      .map(({ _pos: _, ...p }): EventParticipant => ({
+        ...p,
+        // tags do torcedor por lado (stakes `both` valem para os dois), no locale da resposta
+        fan_tags:
+          p.side === 'home' || p.side === 'away'
+            ? fanTags(stakes, p.side, [locale as FanTagLocale], undefined, standings[p.side]).map((t) => ({
+                code: t.code,
+                priority: t.priority,
+                text: t.text as Record<string, string>,
+              }))
+            : [],
+      }));
+    const teamIdOf = (team: Stake['team']) => (team === 'home' ? homeId : team === 'away' ? awayId : null);
 
     const dto: Event = {
       id,
@@ -501,6 +558,9 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         : null,
       momentum: momentum({ status: e.status, startsAt: e.startsAt }, ctx.now, ctx.tz),
       importance: e.importance,
+      importance_breakdown: importanceBreakdownDto(e.importanceBreakdown),
+      // relevância por mercado: preenchida pela rota (applyRelevance), que conhece o `market`
+      relevance: null,
       participants,
       score: {
         home: e.score?.home ?? null,
@@ -510,7 +570,9 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         penalty: pair(e.score?.penalty),
         aggregate: aggregate ?? pair(e.score?.aggregate),
       },
-      venue: r.v?.id ? { id: r.v.id, name: r.v.name, city: r.v.city } : null,
+      // nome curado da base semântica vence o do fornecedor (naming rights)
+      venue: r.v?.id ? { id: r.v.id, ...venueDisplay(r.v) } : null,
+      referee: parseReferee(r.referee),
       derby: r.d?.slug
         ? {
             slug: r.d.slug,
@@ -521,7 +583,12 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       competition_context: [...contexts],
       stakes: stakes.map((s): EventStake => {
         const l = localizeStake(s, [locale as StakeLocale]);
-        return { team: l.team, code: l.code, text: l.text as Record<string, string> };
+        return {
+          team: l.team,
+          team_id: teamIdOf(l.team),
+          code: l.code,
+          text: l.text as Record<string, string>,
+        };
       }),
       data_freshness: {
         last_valid_at: e.lastValidAt ? formatInstant(e.lastValidAt, ctx.tz) : null,

@@ -11,6 +11,11 @@ interface CatalogEntryBase {
   region?: string;
   seasons_strategy?: string;
   live_priority?: 'high' | 'medium' | 'low' | 'none';
+  /**
+   * Prestígio editorial (0–10) somado à importância dos eventos (docs/06 §3): 10 nas principais copas
+   * continentais e torneios de seleções, 5 nas secundárias e eliminatórias. Ausente = 0.
+   */
+  prestige?: number;
   labels?: Record<string, string>;
 }
 

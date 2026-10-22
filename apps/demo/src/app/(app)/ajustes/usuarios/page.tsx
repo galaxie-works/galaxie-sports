@@ -16,7 +16,7 @@ async function Users() {
 export default function UsersPage() {
   return (
     <>
-      <PageHeader title="Usuários e convites" />
+      <PageHeader title="Usuários e convites" kind="ajustes" />
       <div className="mx-auto w-full max-w-6xl p-4 md:p-6">
         {/* Lê a sessão do admin (headers): fica fora do shell estático. */}
         <Suspense fallback={<Skeleton className="h-96 w-full" />}>

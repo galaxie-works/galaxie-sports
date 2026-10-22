@@ -98,6 +98,39 @@ describe('validateKnowledge — regras', () => {
     expect(codes(report.errors)).toContain('duplicate-provider-id');
   });
 
+  it('estádio: nomes anteriores e api_sports_venue_id', async () => {
+    const stadium = (name: string, extra: string) =>
+      `\n    stadium:\n      name: ${name}\n      nicknames: ["Arena"]\n      city: Cidade${extra}`;
+    const ok = await validateFiles({
+      'football/teams/br.yaml': `schema_version: 1\ncountry: BR\nteams:${team(
+        'alfa',
+        stadium(
+          'Nova Arena',
+          '\n      former_names:\n        - { name: Velha Arena, until: 2026-05-03 }\n      api_sports_venue_id: 7',
+        ),
+      )}${team('beta', stadium('Nova Arena', '\n      api_sports_venue_id: 7'))}`,
+    });
+    expect(ok.errors).toEqual([]);
+    expect(ok.warnings).toEqual([]);
+
+    const bad = await validateFiles({
+      'football/teams/br.yaml': `schema_version: 1\ncountry: BR\nteams:${team(
+        'alfa',
+        stadium(
+          'Nova Arena',
+          '\n      former_names:\n        - { name: nova arena, until: 2026-05-03 }\n        - { name: Arena, until: 2020-01-01 }\n      api_sports_venue_id: 7',
+        ),
+      )}${team('beta', stadium('Outra Arena', '\n      api_sports_venue_id: 7'))}${team(
+        'gama',
+        stadium('Arena Gama', '\n      former_names:\n        - { name: Velha, until: 2026-13-01 }'),
+      )}`,
+    });
+    expect(codes(bad.errors)).toEqual(
+      expect.arrayContaining(['stadium-former-name', 'stadium-conflict', 'schema']),
+    );
+    expect(codes(bad.warnings)).toContain('stadium-former-nickname');
+  });
+
   it('barra texto com cara de letra de música', async () => {
     const report = await validateFiles({
       'football/teams/br.yaml': `schema_version: 1\ncountry: BR\nteams:${team('alfa', '\n    rallying_cries: ["Primeiro verso / segundo verso / terceiro verso"]')}`,

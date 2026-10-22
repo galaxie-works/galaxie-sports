@@ -15,6 +15,17 @@ export interface TeamRivalEntry {
   intensity?: number;
 }
 
+/** Estádio do time; o nome atual vence o do fornecedor em toda a API (reconciliação do seed). */
+export interface StadiumEntry {
+  name: string;
+  nicknames?: string[];
+  /** Nomes anteriores (naming rights); `until` = último dia (ISO) em que o nome valeu. */
+  former_names?: { name: string; until: string }[];
+  city?: string;
+  /** ID do estádio na api-sports, só se verificado; sem ele o seed casa por nome + cidade. */
+  api_sports_venue_id?: number | null;
+}
+
 export interface TeamEntry {
   slug: string;
   names: { official: string; short: string; abbreviation?: string };
@@ -30,7 +41,7 @@ export interface TeamEntry {
   fans?: { demonym?: string | null; group_nicknames?: string[] };
   mascot?: string | null;
   rallying_cries?: string[];
-  stadium?: { name: string; nicknames?: string[]; city?: string };
+  stadium?: StadiumEntry;
   rivals?: TeamRivalEntry[];
   identity?: string[];
   copy_hints?: Record<string, { cheer?: string[]; nicknames?: string[] }>;

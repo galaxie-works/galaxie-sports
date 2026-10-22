@@ -61,6 +61,10 @@ describe('OpenAPI', () => {
         'CompetitionContext',
         'Event',
         'EventStake',
+        'EventParticipant',
+        'FanTag',
+        'FanCheer',
+        'EventReferee',
         'EventContext',
         'EventContextText',
         'EventContextSummary',
@@ -79,10 +83,86 @@ describe('OpenAPI', () => {
       properties: { gradient: { example: 'linear-gradient(9deg, #000 0%, #006937 100%)' } },
       required: ['primary', 'secondary', 'monochrome', 'gradient'],
     });
+    const overview = doc.components?.schemas?.TeamOverview as { required?: string[] };
+    expect(overview.required).toContain('competitions');
+    expect(doc.components?.schemas?.TeamCampaign).toMatchObject({
+      properties: {
+        status: {
+          enum: [
+            'champion',
+            'runner_up',
+            'third_place',
+            'in_progress',
+            'eliminated',
+            'league',
+            'finished_league',
+          ],
+        },
+        label: { example: { 'pt-BR': 'Na final' } },
+      },
+      required: expect.arrayContaining(['status', 'stage_kind', 'label', 'detail', 'decided_by_event_id']),
+    });
+    expect(doc.components?.schemas).toHaveProperty('TeamCompetition');
     expect(doc.components?.securitySchemes?.galaxieKey).toMatchObject({
       in: 'header',
       name: 'x-galaxie-key',
     });
+  });
+});
+
+describe('OpenAPI — tags do torcedor', () => {
+  type Schema = {
+    properties?: Record<string, Schema & { $ref?: string }>;
+    required?: string[];
+    example?: unknown;
+    items?: Schema & { $ref?: string };
+    anyOf?: (Schema & { $ref?: string })[];
+  };
+  const schemas = () => buildOpenApiDocument().components?.schemas as Record<string, Schema>;
+
+  it('stake traz o participante (`team_id`, null em `both`)', () => {
+    const stake = schemas().EventStake!;
+    expect(stake.required).toEqual(expect.arrayContaining(['team', 'team_id', 'code', 'text']));
+    expect(stake.properties?.team_id).toBeDefined();
+  });
+
+  it('participante traz `fan_tags` (obrigatório) e `cheer` (opcional)', () => {
+    const p = schemas().EventParticipant!;
+    expect(p.required).toEqual(expect.arrayContaining(['fan_tags']));
+    expect(p.required).not.toContain('cheer');
+    expect(p.properties?.fan_tags?.items?.$ref).toBe('#/components/schemas/FanTag');
+    expect(p.properties?.fan_tags?.example).toEqual([
+      { code: 'in_title_race', priority: 15, text: { 'pt-BR': 'Na briga pelo título' } },
+      {
+        code: 'can_qualify_for_libertadores_group_stage',
+        priority: 43,
+        text: { 'pt-BR': 'De olho na Libertadores' },
+      },
+    ]);
+    const tag = schemas().FanTag!;
+    expect(tag.required).toEqual(expect.arrayContaining(['code', 'priority', 'text']));
+    expect(tag.properties?.text?.example).toEqual({ 'pt-BR': 'Na briga pelo título' });
+    const cheer = schemas().FanCheer!;
+    expect(cheer.required).toEqual(['text']);
+    expect(cheer.properties?.text?.example).toBe('Avanti, Palestra!');
+  });
+});
+
+describe('OpenAPI — árbitro e local do evento', () => {
+  it('Event traz `referee` (nome e país) e `venue` (nome e cidade), ambos anuláveis', () => {
+    const schemas = buildOpenApiDocument().components?.schemas as Record<
+      string,
+      { properties?: Record<string, { example?: unknown; description?: string }>; required?: string[] }
+    >;
+    expect(schemas.Event!.required).toEqual(expect.arrayContaining(['venue', 'referee']));
+    expect(schemas.Event!.properties?.venue?.example).toMatchObject({
+      name: 'Allianz Parque',
+      city: 'São Paulo',
+    });
+    const referee = schemas.EventReferee!;
+    expect(referee.required).toEqual(['name', 'country']);
+    expect(referee.properties?.name?.example).toBe('Wilton Pereira Sampaio');
+    expect(referee.properties?.country?.example).toBe('Brazil');
   });
 });
 

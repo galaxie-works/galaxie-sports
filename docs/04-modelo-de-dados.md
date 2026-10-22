@@ -58,7 +58,7 @@ erDiagram
 |---|---|---|
 | `core.sport` | `slug`, `name_i18n` | football, basketball, formula-1, volleyball, olympics… |
 | `core.country` | `iso2`, `name_i18n`, `flag_asset_id`, `confederation`, `ioc_code` | Inclui "World" e confederações; `confederation`, `ioc_code` e os nomes pt-BR/es vêm de `config/geo/confederations.yaml` (`geo:seed`) |
-| `core.competition` | `id`, `sport`, `country_iso2`, `type` (league/cup/tournament/multisport), `tier`, `live_priority` | Liga, copa, GP de F1, evento de MMA, Jogos Olímpicos |
+| `core.competition` | `id`, `sport`, `country_iso2`, `type` (league/cup/tournament/multisport), `tier`, `live_priority`, `prestige` (0–10, importância) | Liga, copa, GP de F1, evento de MMA, Jogos Olímpicos |
 | `core.season` | `competition_id`, `label` ("2026", "2026/27"), `start`, `end`, `current` | |
 | `core.stage` | `season_id`, `kind` (regular, group, round_of_16, quarter, semi, final, race_weekend…), `name_i18n`, `order` | Agrupa o calendário por fase/rodada/fim de semana de corrida |
 | `core.event` | `id` (UUID nosso), `sport`, `stage_id`, `starts_at`, `ends_at_expected`, `status`, `status_detail`, `status_source`, `clock`, `score` (jsonb), `venue_id`, `last_valid_at`, `is_stale`, `source_provider` | **Entidade canônica** — ver §3 |
@@ -66,7 +66,8 @@ erDiagram
 | `core.event_participant` | `event_id`, `participant_id`, `side` (home/away/lane/grid), `result` | Suporta 2 lados (futebol) ou N (F1, atletismo) |
 | `core.person` | `id`, `name`, `birth_date`, `nationality`, `photo_asset_id` | Jogadores, técnicos, pilotos, lutadores |
 | `core.roster` | `participant_id`, `person_id`, `season_id`, `role`, `number`, `position` | Elenco por temporada; `season_id` nulo = elenco atual (único com `NULLS NOT DISTINCT`) |
-| `core.venue` | `id`, `name`, `city`, `country_iso2`, `capacity`, `surface`, `image_asset_id` | Estádios, circuitos, arenas |
+| `core.venue` | `id`, `name`, `city`, `country_iso2`, `capacity`, `surface`, `image_asset_id`, `name_seen_at`, `curated` (jsonb), `provider_former_names` (jsonb) | Estádios, circuitos, arenas. `name` é o nome do fornecedor (o do jogo mais recente vence o bloco `venue` de `/teams`, que não tem data e fica para trás numa troca de naming rights; `name_seen_at` = início do jogo em que foi visto). `curated` = nome atual, cidade, apelidos e nomes anteriores da base semântica, gravado pela reconciliação do seed — **vence o fornecedor em toda a API** (`venueDisplay` em `@galaxie/db`). `provider_former_names` = nomes anteriores derivados dos jogos (`names:derive`, abaixo) |
+| `core.participant.provider_former_names` | jsonb `[{ name, from, until }]` | Nomes anteriores do time derivados dos jogos do fornecedor (ex.: "Dinamo Moscow" → "Dynamo"); expostos em `former_names` do time |
 | `core.event_incident` | `event_id`, `minute`, `extra`, `type` (goal, card, subst, var, period…), `participant_id`, `person_id`, `detail` | Timeline e "momentos-chave" |
 | `core.standing` | `season_id`, `group`, `participant_id`, `rank`, `points`, `form`, `description`, `source` | Tabelas e grupos; `source = computed` quando calculada localmente ([docs/rules](rules/README.md)) |
 | `core.provider_map` | `entity_type`, `entity_id`, `provider`, `provider_id`, `sport` | Liga nossos IDs aos IDs da api-sports e de outras fontes |
@@ -106,6 +107,7 @@ Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ric
 | `status_source` | text | `provider` (o fornecedor confirmou) ou `temporal` (inferido pelo horário) |
 | `source_provider` | text null | Provedor dono do estado atual — base da precedência entre provedores ([03 §8](03-ingestao-e-economia-de-chamadas.md)) |
 | `importance` | int | Score 0–100 calculado (§3.3) |
+| `importance_breakdown` | jsonb null | Componentes do score: `{ tier, phase, derby, decisive, prestige, leg, flags, stake_flags }` (§3.3) |
 | `derby_id` | uuid null | Preenchido quando o confronto é um clássico da base semântica |
 
 ### 3.1 Máquina de estados e *last-known-good*
@@ -169,16 +171,18 @@ O *momentum esportivo* (o que está em jogo) é independente: ver `competition_c
 
 ### 3.3 Importância
 
-`importance = tier + fase + clássico × intensidade + decisão`, limitado a 0–100 (função pura `importance()` em `@galaxie/providers`; o ingestor grava o resultado em `core.event.importance`):
+`importance = tier + fase + clássico × intensidade + decisão + prestígio`, limitado a 0–100 (função pura `importance()` em `@galaxie/providers`; o ingestor grava o resultado em `core.event.importance` e os componentes em `core.event.importance_breakdown`). Regras completas, sinais de decisão e a relevância por mercado em [06 §3.1–3.2](06-semantica-e-conteudo.md#31-importância-score-global):
 
 | Componente | Pontos |
 |---|---|
 | Tier da competição | 1 → 40 · 2 → 25 · 3 → 10 · desconhecido → 5 |
 | Fase (`core.stage.kind`) | final 30 · semi 22 · quartas 16 · oitavas 12 · playoff 10 · 3º lugar, 16 avos, rebaixamento 8 · grupos, fase de liga, fase eliminatória 6 · 32 avos 5 · pontos corridos 4 (+ até 6 na reta final) · 64 avos, outra 3 · preliminar 2 · amistoso 0 |
 | Clássico | 6 × intensidade (1–5) da base semântica — `DerbyLookup`; padrão no upsert: `createDerbyLookup` de `@galaxie/knowledge` (pares de `semantic.derby` já semeados, uma consulta por lote) |
-| Decisão | título 15 · rebaixamento 10 · eliminação 8 · vaga 6 (soma limitada a 20) |
+| Jogo de ida (ida e volta) | pontos da fase × 0,75 |
+| Decisão | título 15 · rebaixamento 10 · eliminação 8 · vaga 6 (soma limitada a 20): mata-mata pela perna/final no upsert; tabela pelo motor de regras no recálculo |
+| Prestígio | 0–10 de `core.competition.prestige` (campo `prestige` do catálogo `config/competitions`) |
 
-Todo upsert de evento (normalização do raw, `afterFetch` dos jobs, ao vivo) consulta a base semântica do banco: o evento já é gravado com `derby_id` e a intensidade na importância. Com `derbyLookup: false` (busca desligada), o clássico e a importância já calculados são preservados. Para eventos gravados antes do seed (ou depois de mudar a base), `pnpm --filter @galaxie/ingestor events:importance [--esporte football] [--desde AAAA-MM-DD] [--plan]` recalcula `derby_id` (`assignEventDerbies`) e a importância com a mesma fórmula, só nas linhas que mudaram, e purga o cache desses eventos pelo change feed (tópico interno `event.importance_recomputed`).
+Todo upsert de evento (normalização do raw, `afterFetch` dos jobs, ao vivo) consulta a base semântica do banco: o evento já é gravado com `derby_id` e a intensidade na importância. Com `derbyLookup: false` (busca desligada), o clássico e a importância já calculados são preservados. O upsert preserva os sinais da tabela (`stake_flags`) já gravados. `pnpm --filter @galaxie/ingestor events:importance [--esporte football] [--desde AAAA-MM-DD] [--ate AAAA-MM-DD] [--proximos-dias N] [--horizonte N] [--sem-catalogo] [--plan]` aplica o `prestige` do catálogo, recalcula `derby_id` (`assignEventDerbies`), os sinais da tabela dos jogos em aberto no horizonte (padrão 7 dias) e a importância com a mesma fórmula, só nas linhas que mudaram, e purga o cache desses eventos pelo change feed (tópico interno `event.importance_recomputed`). O scheduler roda o job `events-importance` de hora em hora para os próximos 7 dias.
 
 ### 3.4 Normalização raw → core (futebol, issue #22)
 
@@ -285,7 +289,7 @@ create table enrich.event_context (
 );
 ```
 
-Conteúdo relacionado (migration 0012, [12 §6](12-conteudo-relacionado.md#6-modelo-de-dados-enrich)): `enrich.related_content` — um vídeo por evento × plataforma, só metadados e link/embed oficial, classificado por `content_type` (enum `enrich.related_content_type`) e `format` (`short` | `long`), versionado como o onde assistir (`superseded_by`; status `published` | `pending` | `rejected` | `retracted` | `expired`) — e `enrich.related_run`, as execuções do agente com o ledger de cota do YouTube por dia do Pacífico (`quota_day`, `quota_units`).
+Conteúdo relacionado (migration 0014, [12 §6](12-conteudo-relacionado.md#6-modelo-de-dados-enrich)): `enrich.related_content` — um vídeo por evento × plataforma, só metadados e link/embed oficial, classificado por `content_type` (enum `enrich.related_content_type`) , `format` (`short` | `long`) e `aspect_ratio` (`16:9` | `9:16` | `4:3` | `1:1`), versionado como o onde assistir (`superseded_by`; status `published` | `pending` | `rejected` | `retracted` | `expired`) — e `enrich.related_run`, as execuções do agente com o ledger de cota do YouTube por dia do Pacífico (`quota_day`, `quota_units`).
 
 ## 6. `ops` — operação e cota
 
@@ -316,3 +320,16 @@ Regras de autenticação, planos e rate limit: [05 §1.1](05-api-publica.md#11-i
 - Datas em UTC (`timestamptz`); conversão de fuso na API conforme `tz` do cliente.
 - Textos multilíngues em `jsonb` (`{"pt-BR": "...", "es-AR": "..."}`), com *fallback* `es-AR → es` e `pt-BR`.
 - Toda tabela de `enrich` e `semantic` tem `review_status` e fonte.
+
+## Nomes de estádios e times (curadoria × fornecedor)
+
+A api-sports não tem campo de nome anterior; cada partida guarda o nome do estádio e dos times como estavam no dia. Três camadas, da mais forte para a mais fraca:
+
+1. **Curadoria** (`data/knowledge`, `stadium` do time: `name`, `nicknames`, `former_names: [{ name, until }]`, `api_sports_venue_id`). O seed (`pnpm db:seed:semantic`) liga cada estádio às linhas de `core.venue` — pelo `api_sports_venue_id` (via `core.provider_map`) ou, sem ele, entre o estádio-sede do time e os estádios dos jogos em que foi mandante, por nome (atual, apelidos ou anteriores × nome do fornecedor e nomes derivados) e cidade — e grava `core.venue.curated`. Estádio compartilhado (Maracanã, Castelão) recebe os dois perfis em `team_slugs`; nomes diferentes para a mesma linha viram conflito no relatório (fica o primeiro por slug).
+2. **Nome atual do fornecedor**: na normalização, o nome visto no jogo mais recente vence; o de `/teams` (sem data) só substitui outro sem data.
+3. **Histórico do fornecedor** (`pnpm --filter @galaxie/ingestor names:derive`): por estádio/time, os nomes distintos com primeira e última data vistas. Grafias do mesmo nome não contam (caixa, acentos, pontuação, letras que o NFD não decompõe, "Estádio/Stadium/Olímpico/FC", cidade no nome, troca de letras vizinhas como "LSK"/"LKS"); nome visto em menos de 2 jogos é ruído; troca só é aceita com períodos sucessivos, sem sobreposição, sem alternância e na mesma cidade (há IDs reaproveitados para estádios diferentes; o ID 0 nem chega ao core). O padrão A → B → A (casa provisória, nome de torneio, erro pontual) nunca vira troca, porque o período de A engloba o de B. O resto fica de fora e é contado no relatório.
+
+**Jogos anteriores a uma troca de nome usam o nome atual** em toda a API (evento, estádio, time, agentes de IA); os nomes antigos ficam em `former_names` do estádio (`origin: curated | provider`, curadoria primeiro e cobrindo as grafias do fornecedor). Mostrar o nome do dia em jogos antigos é evolução futura.
+
+**Confiança.** Cada item de `former_names` traz `confidence`: `high` (curadoria, confirmado editorialmente) ou `low` (derivado do fornecedor). Os derivados são **pistas**: úteis para busca e para casar nomes (a reconciliação da curadoria os usa como apelidos), mas não são fato confirmado — mesmo com as regras acima passam casos como o Camp Nou com "Estadi Olímpic Lluís Companys" (casa provisória sob o mesmo ID) e "Atlanta Stadium" (nome usado na Copa do Mundo). Por isso nunca substituem o nome atual (a única regra do fornecedor que mexe no nome atual é "o jogo mais recente vence") e a demo só exibe os de confiança `high`.
+

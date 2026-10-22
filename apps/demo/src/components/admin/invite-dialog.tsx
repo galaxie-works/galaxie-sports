@@ -102,7 +102,8 @@ export function InviteDialog() {
         <DialogHeader>
           <DialogTitle>Convidar pessoa</DialogTitle>
           <DialogDescription>
-            A pessoa recebe um e-mail com o link para criar a senha. O link vale por 72 horas.
+            A pessoa recebe um e-mail com o convite e entra com um código de acesso enviado ao e-mail, sem
+            senha.
           </DialogDescription>
         </DialogHeader>
 
@@ -111,8 +112,8 @@ export function InviteDialog() {
             <Alert variant="warning">
               <MailCheck />
               <AlertDescription>
-                Conta criada, mas o e-mail não foi enviado (SMTP não configurado ou falhou). Copie o link e
-                mande por outro canal.
+                Conta criada, mas o e-mail não foi enviado (SMTP não configurado ou falhou). Copie o link da
+                demo e mande por outro canal: a pessoa entra com o código enviado ao e-mail dela.
               </AlertDescription>
             </Alert>
             {link ? (

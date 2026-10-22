@@ -9,7 +9,7 @@ import { Crest } from '@/components/sport/crest';
 import { Section } from '@/components/sport/section';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getCountryCompetitions } from '@/lib/galaxie/api';
+import { countryCompetitionsRequest, getCountryCompetitions } from '@/lib/galaxie/api';
 import { COMPETITION_TYPE_LABEL } from '@/lib/format';
 
 type CompetitionItem = CountryCompetitions['sports'][number]['groups'][number]['competitions'][number];
@@ -41,6 +41,7 @@ async function Content({ params }: { params: PageProps<'/paises/[code]'>['params
   const { code } = await params;
   const data = await getCountryCompetitions(code);
   const { country } = data;
+  const api = countryCompetitionsRequest(code);
   const totalCompetitions = data.sports.reduce(
     (n, s) => n + s.groups.reduce((m, g) => m + g.competitions.length, 0),
     0,
@@ -48,7 +49,7 @@ async function Content({ params }: { params: PageProps<'/paises/[code]'>['params
 
   return (
     <>
-      <PageHeader title={country.name} />
+      <PageHeader title={country.name} kind="país" api={api} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex items-center gap-4">
           <Crest src={country.flag} name={country.name} size="lg" />
@@ -75,7 +76,12 @@ async function Content({ params }: { params: PageProps<'/paises/[code]'>['params
           <div key={s.sport.slug} className="flex flex-col gap-6">
             {data.sports.length > 1 ? <h2 className="text-lg font-semibold">{s.sport.name}</h2> : null}
             {s.groups.map((g) => (
-              <Section key={g.scope} title={g.label} description={`${g.competitions.length} competições`}>
+              <Section
+                key={g.scope}
+                title={g.label}
+                description={`${g.competitions.length} competições`}
+                api={api}
+              >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {g.competitions.map((c) => (
                     <CompetitionCard key={c.id} c={c} />

@@ -152,15 +152,54 @@ export type Standings = z.infer<typeof Standings>;
 
 // ─── venues ──────────────────────────────────────────────────────────────────────────────────────
 
+export const FormerName = z
+  .object({
+    name: z.string().meta({ example: 'Allianz Parque' }),
+    from: z.iso
+      .date()
+      .nullable()
+      .meta({ description: 'Primeiro dia conhecido; null quando a fonte não diz.' }),
+    until: z.iso
+      .date()
+      .meta({ description: 'Último dia em que o nome valeu (ou foi visto).', example: '2026-05-03' }),
+    origin: z.enum(['curated', 'provider']).meta({
+      description:
+        '`curated` = base semântica (revisão editorial, vence o fornecedor); `provider` = derivado dos jogos do fornecedor (nome que cada partida trazia no dia).',
+    }),
+    confidence: z.enum(['high', 'low']).meta({
+      description:
+        '`high` = curadoria confirmada editorialmente; `low` = derivado do fornecedor: **pista** para busca e casamento de nomes, não fato confirmado (pode ser casa provisória ou nome de torneio). Para exibir ao usuário final, use só `high`.',
+      example: 'high',
+    }),
+  })
+  .meta({
+    id: 'FormerName',
+    description:
+      'Nome anterior. Os de origem `provider` (confiança `low`) nunca substituem o nome atual e não devem ser exibidos como fato.',
+  });
+export type FormerName = z.infer<typeof FormerName>;
+
 export const Venue = z
   .object({
     id: z.uuid(),
-    name: z.string(),
+    name: z.string().meta({
+      description:
+        'Nome atual: o da curadoria (base semântica) quando existe, senão o do fornecedor. Jogos anteriores a uma troca de nome também usam o nome atual.',
+      example: 'Nubank Parque',
+    }),
     city: z.string().nullable(),
     country: CountryRef.nullable(),
     capacity: z.number().int().nullable(),
     surface: z.string().nullable(),
     image: AssetUrl,
+    provider_name: z.string().meta({
+      description: 'Nome como o fornecedor de dados manda (pode estar desatualizado).',
+      example: 'Allianz Parque',
+    }),
+    former_names: z.array(FormerName).meta({
+      description:
+        'Nomes anteriores: os da curadoria (`confidence: high`) primeiro e depois as pistas do fornecedor (`low`), cada grupo do mais recente ao mais antigo.',
+    }),
   })
   .meta({ id: 'Venue' });
 export type Venue = z.infer<typeof Venue>;

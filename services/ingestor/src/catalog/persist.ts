@@ -23,6 +23,8 @@ export interface CompetitionRow {
   type: 'league' | 'cup';
   tier: number;
   livePriority: string;
+  /** Prestígio editorial 0–10 (copas continentais, seleções), somado à importância dos eventos. */
+  prestige?: number;
   logoUrl: string | null;
   seasons: {
     year: number;
@@ -224,6 +226,7 @@ export async function upsertCatalog(
           type: c.type,
           tier: c.tier,
           livePriority: c.livePriority,
+          prestige: c.prestige ?? 0,
           logoAssetId: assetId(c.logoUrl),
         },
       })),

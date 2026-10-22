@@ -12,7 +12,15 @@ import { StandingsTable } from '@/components/sport/standings-table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { COMPETITION_TYPE_LABEL } from '@/lib/format';
-import { getCompetition, getCompetitionEvents, getSeasonsWithData, getStandings } from '@/lib/galaxie/api';
+import {
+  competitionEventsRequest,
+  competitionRequest,
+  getCompetition,
+  getCompetitionEvents,
+  getSeasonsWithData,
+  getStandings,
+  standingsRequest,
+} from '@/lib/galaxie/api';
 import { cn } from '@/lib/utils';
 
 /** Quantas temporadas (das mais recentes) a demo verifica e oferece. */
@@ -93,7 +101,7 @@ async function Content({ params, searchParams }: PageProps<'/competicoes/[id]'>)
 
   return (
     <>
-      <PageHeader title={competition.name} />
+      <PageHeader title={competition.name} kind="competição" api={competitionRequest(id)} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Crest src={competition.logo} name={competition.name} size="xl" />
@@ -152,6 +160,7 @@ async function Content({ params, searchParams }: PageProps<'/competicoes/[id]'>)
                   <Section
                     key={g.name ?? 'geral'}
                     title={groups.length > 1 && g.name ? g.name : 'Classificação'}
+                    api={selected ? standingsRequest(competition.id, selected.year) : undefined}
                   >
                     <StandingsTable rows={g.rows} />
                   </Section>
@@ -173,7 +182,13 @@ async function Content({ params, searchParams }: PageProps<'/competicoes/[id]'>)
                   </div>
                 ) : null}
                 {round ? (
-                  <Section title={round.name} description={`${round.events.length} jogos`}>
+                  <Section
+                    title={round.name}
+                    description={`${round.events.length} jogos`}
+                    api={
+                      window ? competitionEventsRequest(competition.id, window.start, window.end) : undefined
+                    }
+                  >
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {round.events.map((e) => (
                         <EventCard key={e.id} event={e} showCompetition={false} />

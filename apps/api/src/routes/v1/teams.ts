@@ -9,6 +9,7 @@ import {
   TeamsQuery,
   teamGradient,
   type Event,
+  type FormerName,
   type Person,
   type Squad,
   type Team,
@@ -30,8 +31,11 @@ import {
   roster,
   season,
   standing,
+  providerFormerName,
+  sameName,
   teamProfile,
   venue,
+  venueDisplay,
   type Database,
 } from '@galaxie/db';
 import { sendCached } from '../../cache/http.js';
@@ -41,8 +45,10 @@ import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl } from '../../events/builder.js';
 import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events/queries.js';
 import { pickText } from '../../i18n.js';
+import { loadTeamCompetitions } from '../../teams/load-campaigns.js';
 import { scheduleWindow } from '../../time.js';
 import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
+import { resolveMarket } from '../../events/relevance.js';
 import { buildCtx, eventPage, localeOf, sportCheck } from './events.js';
 
 const MODULE = { module: 'core_data' } as const;
@@ -113,6 +119,32 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     nicknames: nicknames.get(r.p.id) ?? [],
   });
 
+  /**
+   * Nomes anteriores derivados dos jogos do fornecedor (`names:derive`), sem os que coincidem com o
+   * nome atual ou com os nomes da base semântica (a curadoria vence).
+   */
+  async function teamFormerNames(db: Database, p: TeamRow['p']): Promise<FormerName[]> {
+    const list = p.providerFormerNames ?? [];
+    if (!list.length) return [];
+    const [profile] = await db
+      .select({ names: teamProfile.names, labels: teamProfile.labels })
+      .from(teamProfile)
+      .where(eq(teamProfile.participantId, p.id))
+      .limit(1);
+    const names = (profile?.names ?? {}) as { official?: string; short?: string };
+    const current = [
+      p.name,
+      p.shortName,
+      names.official,
+      names.short,
+      ...Object.values((profile?.labels ?? {}) as Record<string, string>),
+    ].filter((n): n is string => !!n);
+    return list
+      .filter((f) => !current.some((c) => sameName(c, f.name)))
+      .map(providerFormerName)
+      .sort((a, b) => b.until.localeCompare(a.until));
+  }
+
   async function loadTeam(db: Database, id: string, locale: string): Promise<Team> {
     const [row] = await selectTeams(db).where(eq(participant.id, id)).limit(1);
     if (!row) throw problems.notFound('Time');
@@ -139,10 +171,11 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         : null,
       founded: row.p.founded,
       venue: v
-        ? { id: v.v.id, name: v.v.name, city: v.v.city, image: assetUrl(ctx.assetsBaseUrl, v.key, v.url) }
+        ? { id: v.v.id, ...venueDisplay(v.v), image: assetUrl(ctx.assetsBaseUrl, v.key, v.url) }
         : null,
       colors: teamColors(row.logoPalette),
       external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
+      former_names: await teamFormerNames(db, row.p),
     };
   }
 
@@ -295,7 +328,8 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             .where(and(eq(eventParticipant.participantId, team.id), inArray(event.status, status)))
             .orderBy(order === 'asc' ? asc(event.startsAt) : desc(event.startsAt), asc(event.id))
             .limit(limit);
-        const [lastIds, liveIds, nextIds] = await Promise.all([
+        const [competitions, lastIds, liveIds, nextIds] = await Promise.all([
+          loadTeamCompetitions(bctx, team.id),
           teamEvents(['finished'], 'desc', 5),
           teamEvents(IN_PLAY, 'desc', 1),
           db
@@ -335,6 +369,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         const body: TeamOverview = {
           team,
           standings,
+          competitions,
           form,
           last_events: lastEvents,
           live_event: live,
@@ -357,10 +392,11 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     const query = parseInput(TeamEventsQuery, request.query);
     const locale = localeOf(request, query);
     const tz = query.tz ?? 'UTC';
+    const market = resolveMarket(request, query.market);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.schedule,
-      vary: [locale, tz],
+      vary: [locale, tz, `market:${market ?? ''}`],
       check: sportCheck(request),
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz);
@@ -383,8 +419,10 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             country: query.country,
             status: query.status,
             importanceMin: query.importance_min,
+            relevanceMin: query.relevance_min,
           },
           { order: query.order, limit: query.limit, cursor: query.cursor },
+          market,
         );
         return { ...page, tags: [...page.tags, `participant:${p.id}`], meta: { sport: p.sport } };
       },

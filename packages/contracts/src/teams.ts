@@ -1,6 +1,6 @@
 import 'zod-openapi';
 import * as z from 'zod';
-import { CompetitionSummary, ParticipantRef, SeasonRef } from './catalog.js';
+import { CompetitionSummary, FormerName, ParticipantRef, SeasonRef } from './catalog.js';
 import { AssetUrl, CountryRef, LocaleQuery, PaginationQuery } from './common.js';
 import { Event, EventsQuery, TeamSummary } from './events.js';
 
@@ -67,6 +67,10 @@ export const Team = TeamSummary.extend({
     description: 'null quando o escudo ainda não foi espelhado ou não é um PNG decodificável.',
   }),
   external_ids: z.record(z.string(), z.string()).meta({ example: { 'api-sports': '121' } }),
+  former_names: z.array(FormerName).meta({
+    description:
+      'Nomes anteriores do time derivados dos jogos do fornecedor (ex.: "Dinamo Moscow" → "Dynamo"; `origin: provider`, `confidence: low`): pistas para busca e casamento de nomes, não fato confirmado. Variações de caixa e acento não contam e os nomes da base semântica vencem.',
+  }),
 }).meta({ id: 'Team' });
 export type Team = z.infer<typeof Team>;
 
@@ -89,12 +93,82 @@ export const TeamStanding = z
 
 export const FORM_RESULTS = ['W', 'D', 'L'] as const;
 
+/** Situação da campanha do time numa temporada de competição. */
+export const CAMPAIGN_STATUSES = [
+  'champion',
+  'runner_up',
+  'third_place',
+  'in_progress',
+  'eliminated',
+  'league',
+  'finished_league',
+] as const;
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
+
+const LocalizedText = z.record(z.string(), z.string());
+
+export const TeamCampaign = z
+  .object({
+    status: z.enum(CAMPAIGN_STATUSES).meta({
+      description:
+        '`champion` (venceu a final ou terminou em 1º uma liga encerrada), `runner_up`, `third_place`, ' +
+        '`in_progress` (ainda na disputa: `stage_kind` é a fase atual), `eliminated` (`stage_kind` é a fase da ' +
+        'eliminação), `league` (liga de pontos corridos em andamento) e `finished_league` (liga encerrada).',
+      example: 'in_progress',
+    }),
+    stage_kind: z.string().nullable().meta({
+      description: 'Tipo da fase (core.stage.kind): a atual, ou aquela em que a campanha se decidiu.',
+      example: 'final',
+    }),
+    label: LocalizedText.meta({
+      description: 'Rótulo curto no locale da resposta (selo).',
+      example: { 'pt-BR': 'Na final' },
+    }),
+    detail: LocalizedText.nullable().meta({
+      description: 'Confronto decisivo (adversário e placar) ou posição e pontos, no locale da resposta.',
+      example: { 'pt-BR': 'Eliminou Fluminense nas semifinais (2–2 no agregado, 5–3 nos pênaltis)' },
+    }),
+    rank: z
+      .number()
+      .int()
+      .nullable()
+      .meta({ description: 'Posição na tabela da fase (ou 3/4 na disputa de 3º).' }),
+    points: z.number().int().nullable(),
+    opponent: ParticipantRef.nullable().meta({
+      description: 'Adversário do confronto decisivo, do último vencido ou do que está em disputa.',
+    }),
+    decided_by_event_id: z.uuid().nullable().meta({
+      description:
+        'Último jogo encerrado do confronto que decidiu (ou classificou) — null se ainda em disputa.',
+    }),
+    ongoing: z
+      .boolean()
+      .meta({ description: 'A campanha ainda está em disputa (`in_progress` ou `league`).' }),
+  })
+  .meta({ id: 'TeamCampaign' });
+export type TeamCampaign = z.infer<typeof TeamCampaign>;
+
+export const TeamCompetition = z
+  .object({
+    competition: CompetitionSummary.pick({ id: true, slug: true, name: true, logo: true }),
+    season: SeasonRef,
+    group: z.string().nullable().meta({ description: 'Grupo/tabela do time, quando a fase tem tabela.' }),
+    campaign: TeamCampaign,
+  })
+  .meta({ id: 'TeamCompetition' });
+export type TeamCompetition = z.infer<typeof TeamCompetition>;
+
 export const TeamOverview = z
   .object({
     team: Team,
     standings: z
       .array(TeamStanding)
       .meta({ description: 'Posição nas temporadas atuais (ou mais recentes) das competições do time.' }),
+    competitions: z.array(TeamCompetition).meta({
+      description:
+        'Campanha em cada competição (temporada atual ou mais recente, inclusive copas sem tabela), ' +
+        'em disputa primeiro e depois a mais recente.',
+    }),
     form: z
       .array(
         z.object({

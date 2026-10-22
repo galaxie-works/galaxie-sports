@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getVenue } from '@/lib/galaxie/api';
+import { getVenue, venueRequest } from '@/lib/galaxie/api';
 
 const SURFACE_LABEL: Record<string, string> = {
   grass: 'Grama natural',
@@ -13,9 +13,14 @@ const SURFACE_LABEL: Record<string, string> = {
   hybrid: 'Grama híbrida',
 };
 
+/** "2026-05-03" → "03/05/2026" (sem passar por Date, para não depender do fuso). */
+const isoDayToBr = (iso: string) => iso.split('-').reverse().join('/');
+
 async function Content({ params }: { params: PageProps<'/locais/[id]'>['params'] }) {
   const { id } = await params;
   const venue = await getVenue(id);
+  // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
+  const formerNames = venue.former_names.filter((f) => f.origin === 'curated');
   const facts = [
     venue.city ? ['Cidade', venue.city] : null,
     venue.capacity ? ['Capacidade', `${venue.capacity.toLocaleString('pt-BR')} lugares`] : null,
@@ -24,7 +29,7 @@ async function Content({ params }: { params: PageProps<'/locais/[id]'>['params']
 
   return (
     <>
-      <PageHeader title={venue.name} />
+      <PageHeader title={venue.name} kind="local" api={venueRequest(id)} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         {venue.image ? (
           <Card className="py-0">
@@ -43,6 +48,23 @@ async function Content({ params }: { params: PageProps<'/locais/[id]'>['params']
             </Link>
           ) : null}
         </div>
+        {formerNames.length ? (
+          <div className="flex flex-col gap-1">
+            <h2 className="text-muted-foreground text-xs">Nomes anteriores</h2>
+            <ul className="flex flex-col gap-0.5 text-sm">
+              {formerNames.map((f) => (
+                <li key={`${f.name}-${f.until}`}>
+                  <span className="font-medium">{f.name}</span>
+                  <span className="text-muted-foreground">
+                    {' '}
+                    ({f.from ? `${isoDayToBr(f.from)} a ` : 'até '}
+                    {isoDayToBr(f.until)})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {facts.length ? (
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {facts.map(([k, v]) => (

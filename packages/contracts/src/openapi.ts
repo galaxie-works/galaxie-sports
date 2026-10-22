@@ -24,6 +24,7 @@ import {
   Event,
   EventLineups,
   EventParams,
+  EventQuery,
   EventsQuery,
   EventStats,
   EventTimeline,
@@ -185,7 +186,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'Evento completo',
           'Eventos',
           Event,
-          { path: EventParams, query: LocaleQuery },
+          { path: EventParams, query: EventQuery },
           [400, 401, 403, 404, 429],
         ),
       },
@@ -272,7 +273,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       '/v1/teams/{id}/overview': {
         get: getOp(
-          'Card do time: posição, forma, últimos resultados, ao vivo e próximo jogo',
+          'Card do time: campanha nas competições, posição, forma, últimos resultados, ao vivo e próximo jogo',
           'Times e pessoas',
           TeamOverview,
           { path: TeamParams, query: LocaleQuery },

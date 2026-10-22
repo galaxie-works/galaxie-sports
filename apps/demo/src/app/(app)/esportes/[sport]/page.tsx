@@ -13,7 +13,7 @@ import { Section } from '@/components/sport/section';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { COMPETITION_TYPE_LABEL } from '@/lib/format';
-import { getSportCompetitions } from '@/lib/galaxie/api';
+import { getSportCompetitions, sportCompetitionsRequest } from '@/lib/galaxie/api';
 import { COUNTRIES, sportBySlug } from '@/lib/navigation';
 
 const INTERNATIONAL = 'Internacionais';
@@ -53,10 +53,11 @@ async function Content({ params }: { params: PageProps<'/esportes/[sport]'>['par
   if (!sport) notFound();
   const competitions = await getSportCompetitions(sport.slug);
   const groups = groupByCountry(competitions);
+  const api = sportCompetitionsRequest(sport.slug);
 
   return (
     <>
-      <PageHeader title={sport.label} />
+      <PageHeader title={sport.label} kind="esporte" api={api} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{sport.label}</h1>
@@ -80,6 +81,7 @@ async function Content({ params }: { params: PageProps<'/esportes/[sport]'>['par
             title={g.label}
             icon={g.code ? <CountryFlag code={g.code} /> : <Globe className="text-muted-foreground size-4" />}
             description={`${g.items.length} competições`}
+            api={api}
             action={
               g.code && countrySlug(g.code) ? (
                 <Link

@@ -7,7 +7,13 @@
  */
 export type * from './config/types.js';
 export { TIE_BREAKER_IDS, ZONE_KINDS } from './config/types.js';
-export { parseCompetitionRules, knockoutStageRules, deepMerge, RulesConfigError } from './config/parse.js';
+export {
+  parseCompetitionRules,
+  knockoutStageRules,
+  rulesStageKey,
+  deepMerge,
+  RulesConfigError,
+} from './config/parse.js';
 
 export type * from './standings/types.js';
 export {
@@ -60,6 +66,11 @@ export {
   type ZoneStatus,
 } from './stakes/league.js';
 export {
+  decisiveFlagsFromStakes,
+  type DecisiveStandings,
+  type StakeDecisiveFlag,
+} from './stakes/decisive.js';
+export {
   isStakeLocale,
   localizeStake,
   stakeText,
@@ -71,3 +82,21 @@ export {
   type LocalizedStake,
   type StakeLocale,
 } from './stakes/labels.js';
+export {
+  fanTagOf,
+  fanTags,
+  fanTagZoneGroup,
+  fanTagStanding,
+  isRelevantForFans,
+  FAN_TAG_LOCALES,
+  FAN_TAG_RELEGATION_MAX_GAP,
+  FAN_TAG_TITLE_MIN_GAP,
+  FAN_TAG_ZONE_MIN_GAP,
+  FAN_TAG_TIERS,
+  MAX_FAN_TAGS,
+  type FanTag,
+  type FanTagLocale,
+  type FanTagStanding,
+  type FanTagTier,
+  type FanTagZoneGroup,
+} from './stakes/fan-tags.js';

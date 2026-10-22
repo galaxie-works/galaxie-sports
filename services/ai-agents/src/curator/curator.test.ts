@@ -172,7 +172,7 @@ describe('aplicação e validação (dry-run em memória)', () => {
         index: team.index,
         reviewStatus: 'draft',
         yamlStadium: 'Nubank Parque',
-        yamlNicknames: ['Allianz Parque', 'Arena'],
+        yamlNicknames: ['Arena'],
         providerVenue: 'Arena X',
         city: null,
       },
@@ -187,9 +187,9 @@ describe('aplicação e validação (dry-run em memória)', () => {
     const changed = diff.split('\n').filter((l) => /^[+-][^+-]/.test(l));
     expect(changed).toEqual([
       '-      name: Nubank Parque',
-      '-      nicknames: ["Allianz Parque", "Arena"]',
+      '-      nicknames: ["Arena"]',
       '+      name: Arena X',
-      '+      nicknames: ["Nubank Parque", "Allianz Parque", "Arena"]',
+      '+      nicknames: ["Nubank Parque", "Arena"]',
       '+      - "https://x.test/estadio"',
     ]);
   });

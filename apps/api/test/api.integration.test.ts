@@ -206,6 +206,19 @@ async function seed() {
       capacity: 43713,
       surface: 'artificial turf',
       imageAssetId: stadium!.id,
+      // reconciliação da base semântica: o fornecedor ainda diz "Allianz Parque"
+      curated: {
+        name: 'Nubank Parque',
+        city: 'São Paulo',
+        nicknames: ['Arena'],
+        former_names: [{ name: 'Allianz Parque', until: '2026-05-03' }],
+        team_slugs: ['palmeiras'],
+        matched_by: 'provider_id',
+      },
+      providerFormerNames: [
+        { name: 'Allianz Parque', from: '2016-08-31', until: '2025-05-22' },
+        { name: 'Arena Palestra', from: '2010-01-01', until: '2010-07-09' },
+      ],
     })
     .returning();
   ids.venue = v!.id;
@@ -455,12 +468,24 @@ describe('/v1 catálogo', () => {
     const res = await get(`/v1/venues/${ids.venue}`);
     expect(res.json()).toEqual({
       id: ids.venue,
-      name: 'Allianz Parque',
+      name: 'Nubank Parque',
       city: 'São Paulo',
       country: { code: 'BR', name: 'Brasil' },
       capacity: 43713,
       surface: 'artificial turf',
       image: 'https://media.api-sports.io/football/venues/1.png',
+      provider_name: 'Allianz Parque',
+      // curadoria primeiro; o "Allianz Parque" do fornecedor já está coberto por ela
+      former_names: [
+        { name: 'Allianz Parque', from: null, until: '2026-05-03', origin: 'curated', confidence: 'high' },
+        {
+          name: 'Arena Palestra',
+          from: '2010-01-01',
+          until: '2010-07-09',
+          origin: 'provider',
+          confidence: 'low',
+        },
+      ],
     });
     expect((await get('/v1/venues/01a15f83-0f07-78a6-9de5-191d031f73d3')).statusCode).toBe(404);
   });

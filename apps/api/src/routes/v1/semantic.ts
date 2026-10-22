@@ -277,7 +277,12 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const names = p.names as Names;
         const hints = copyHintsFor(p.copyHints, locale);
         const fans = (p.fans ?? {}) as { demonym?: string | null; group_nicknames?: string[] };
-        const stadium = p.stadium as { name: string; nicknames?: string[]; city?: string } | null;
+        const stadium = p.stadium as {
+          name: string;
+          nicknames?: string[];
+          former_names?: { name: string; until: string }[];
+          city?: string;
+        } | null;
         let logo: string | null = null;
         if (p.participantId) {
           const [l] = await db
@@ -307,7 +312,12 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
           fans: { demonym: fans.demonym ?? null, group_nicknames: fans.group_nicknames ?? [] },
           rallying_cries: p.rallyingCries,
           stadium: stadium
-            ? { name: stadium.name, nicknames: stadium.nicknames ?? [], city: stadium.city ?? null }
+            ? {
+                name: stadium.name,
+                nicknames: stadium.nicknames ?? [],
+                former_names: stadium.former_names ?? [],
+                city: stadium.city ?? null,
+              }
             : null,
           rivals: await rivalsOf(db, p, locale, min),
           identity: p.identity,

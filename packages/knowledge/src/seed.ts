@@ -13,6 +13,7 @@ import {
 import { toCopyTemplate } from './copy/library.js';
 import { assignEventDerbies, type Executor } from './derby.js';
 import type { KnowledgeBase } from './load.js';
+import { linkVenues, type VenueLinkResult } from './venues.js';
 
 type Tx = Executor;
 
@@ -31,6 +32,8 @@ export interface SeedResult {
   copyTemplates: EntityStats;
   /** Perfis ligados a core.participant (via provider_map) e competições ligadas a core.competition. */
   linked: { teams: number; competitions: number };
+  /** Estádios do YAML reconciliados com core.venue (nome curado vence o do fornecedor). */
+  venues: VenueLinkResult;
   /** Eventos cujo derby_id mudou após a carga. */
   events: { updated: number };
   loadRunId: string;
@@ -289,6 +292,8 @@ export async function seedSemantic(
 
     // 7. ligações com o core
     const linked = { teams: await linkParticipants(tx), competitions: await linkCompetitions(tx) };
+    // 7b. estádios curados (depende do participant_id ligado acima)
+    const venues = await linkVenues(tx);
 
     // 8. clássicos nos eventos já existentes
     const events = await assignEventDerbies(tx);
@@ -301,11 +306,11 @@ export async function seedSemantic(
         derbies: rows.derbies.length,
         competitions: rows.competitions.length,
         copyTemplates: rows.copy.length,
-        stats: { ...stats, linked, events: { updated: events.updated } },
+        stats: { ...stats, linked, venues, events: { updated: events.updated } },
       })
       .returning({ id: loadRun.id });
 
-    return { ...stats, linked, events: { updated: events.updated }, loadRunId: run!.id };
+    return { ...stats, linked, venues, events: { updated: events.updated }, loadRunId: run!.id };
   });
 }
 

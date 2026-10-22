@@ -5,16 +5,29 @@ import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
+import { CampaignCard } from '@/components/sport/campaign-card';
 import { CopyButton } from '@/components/sport/copy-button';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { FormChips } from '@/components/sport/form-chips';
 import { Intensity } from '@/components/sport/intensity';
 import { Section } from '@/components/sport/section';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ApiCodeButton } from '@/components/docs/api-code-button';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { POSITION_LABEL } from '@/lib/format';
-import { getSquad, getTeamOverview, getTeamSemantic } from '@/lib/galaxie/api';
+import {
+  getSquad,
+  getTeamOverview,
+  getTeamSemantic,
+  squadRequest,
+  teamOverviewRequest,
+  teamSemanticRequest,
+} from '@/lib/galaxie/api';
+import type { ApiRequest } from '@/lib/galaxie/request';
+
+/** "2026-05-03" → "03/05/2026" (sem passar por Date, para não depender do fuso). */
+const isoDayToBr = (iso: string) => iso.split('-').reverse().join('/');
 
 /** Cores do clube como vêm da base semântica (nomes em pt-BR). */
 const COLOR_HEX: Record<string, string> = {
@@ -100,12 +113,23 @@ function SuggestedGradient({ colors }: { colors: TeamColors }) {
   );
 }
 
-function IdentityCard({ s, colors }: { s: TeamSemantic | null; colors: TeamColors | null }) {
+function IdentityCard({
+  s,
+  colors,
+  api,
+}: {
+  s: TeamSemantic | null;
+  colors: TeamColors | null;
+  api: ApiRequest;
+}) {
   if (!s && !colors) return null;
   return (
     <Card>
       <CardHeader>
         <CardTitle>Identidade</CardTitle>
+        <CardAction>
+          <ApiCodeButton request={api} />
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
         {colors ? <SuggestedGradient colors={colors} /> : null}
@@ -156,6 +180,12 @@ function SemanticIdentity({ s }: { s: TeamSemantic }) {
               {s.stadium.name}
               {s.stadium.nicknames.length ? (
                 <span className="text-muted-foreground"> ({s.stadium.nicknames.join(', ')})</span>
+              ) : null}
+              {s.stadium.former_names.length ? (
+                <span className="text-muted-foreground block text-xs">
+                  Antes:{' '}
+                  {s.stadium.former_names.map((f) => `${f.name} (até ${isoDayToBr(f.until)})`).join(', ')}
+                </span>
               ) : null}
             </dd>
           </div>
@@ -239,7 +269,7 @@ function RivalsCard({ s }: { s: TeamSemantic }) {
   );
 }
 
-function SquadSection({ squad }: { squad: Squad }) {
+function SquadSection({ squad, api }: { squad: Squad; api: ApiRequest }) {
   const byPosition = new Map<string, Squad['players']>();
   for (const p of squad.players) {
     const key = p.position ?? 'Outros';
@@ -254,6 +284,7 @@ function SquadSection({ squad }: { squad: Squad }) {
   return (
     <Section
       title="Elenco"
+      api={api}
       description={`${squad.players.length} jogadores${squad.season ? ` · ${squad.season}` : ''}`}
     >
       <div className="flex flex-col gap-5">
@@ -297,10 +328,16 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
   const { team } = overview;
   const nicknames = semantic?.nicknames.length ? semantic.nicknames : team.nicknames;
   const upcoming = [overview.live_event, overview.next_event].filter((e) => e !== null);
+  // API anterior à campanha (sem `competitions`): a seção some em vez de quebrar a página
+  const competitions = overview.competitions ?? [];
+  const overviewApi = teamOverviewRequest(id);
+
+  // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
+  const formerNames = team.former_names.filter((f) => f.origin === 'curated');
 
   return (
     <>
-      <PageHeader title={team.name} />
+      <PageHeader title={team.name} kind="time" api={overviewApi} />
       <div className="relative isolate flex flex-col gap-8 p-4 md:p-6">
         {team.colors ? <TeamBand colors={team.colors} /> : null}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -310,6 +347,11 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
               <h1 className="text-2xl font-semibold tracking-tight">{team.name}</h1>
               {semantic?.official_name && semantic.official_name !== team.name ? (
                 <span className="text-muted-foreground text-sm">{semantic.official_name}</span>
+              ) : null}
+              {formerNames.length ? (
+                <span className="text-muted-foreground text-xs">
+                  Antes: {formerNames.map((f) => `${f.name} (até ${f.until.slice(0, 4)})`).join(', ')}
+                </span>
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -342,7 +384,11 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
             {overview.form.length ? (
-              <Section title="Momento" description="Últimos 5 resultados (clique para abrir a partida)">
+              <Section
+                title="Momento"
+                description="Últimos 5 resultados (clique para abrir a partida)"
+                api={overviewApi}
+              >
                 <FormChips
                   items={overview.form.map((f) => ({
                     result: f.result,
@@ -353,39 +399,22 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
               </Section>
             ) : null}
 
-            {overview.standings.length ? (
-              <Section title="Nas competições">
+            {competitions.length ? (
+              <Section
+                title="Nas competições"
+                description="Campanha na temporada atual (ou mais recente) de cada competição"
+                api={overviewApi}
+              >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {overview.standings.map((s) => (
-                    <Link
-                      key={`${s.competition.id}-${s.season.year}-${s.group}`}
-                      href={`/competicoes/${s.competition.slug}?temporada=${s.season.year}`}
-                      className="group/entry"
-                    >
-                      <Card size="sm" className="group-hover/entry:bg-accent h-full transition-colors">
-                        <CardContent className="flex items-center gap-3">
-                          <Crest src={s.competition.logo} name={s.competition.name} size="md" />
-                          <div className="flex min-w-0 flex-1 flex-col">
-                            <span className="truncate text-sm font-medium">{s.competition.name}</span>
-                            <span className="text-muted-foreground truncate text-xs">
-                              {s.season.label}
-                              {s.group && s.group !== s.competition.name ? ` · ${s.group}` : ''}
-                            </span>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <span className="text-2xl font-semibold tabular-nums">{s.rank}º</span>
-                            <span className="text-muted-foreground text-xs">{s.points} pts</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                  {competitions.map((c) => (
+                    <CampaignCard key={`${c.competition.id}-${c.season.year}`} entry={c} />
                   ))}
                 </div>
               </Section>
             ) : null}
 
             {upcoming.length ? (
-              <Section title="Próximo jogo">
+              <Section title="Próximo jogo" api={overviewApi}>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {upcoming.map((e) => (
                     <EventCard key={e.id} event={e} />
@@ -395,7 +424,7 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
             ) : null}
 
             {overview.last_events.length ? (
-              <Section title="Últimos jogos">
+              <Section title="Últimos jogos" api={overviewApi}>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {overview.last_events.map((e) => (
                     <EventCard key={e.id} event={e} />
@@ -406,12 +435,12 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
           </div>
 
           <div className="flex flex-col gap-6">
-            <IdentityCard s={semantic} colors={team.colors} />
+            <IdentityCard s={semantic} colors={team.colors} api={teamSemanticRequest(id)} />
             {semantic ? <RivalsCard s={semantic} /> : null}
           </div>
         </div>
 
-        {squad ? <SquadSection squad={squad} /> : null}
+        {squad ? <SquadSection squad={squad} api={squadRequest(id)} /> : null}
       </div>
     </>
   );

@@ -18,6 +18,7 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui
 import { Skeleton } from '@/components/ui/skeleton';
 import { authClient } from '@/lib/auth/client';
 import { initials } from '@/lib/format';
+import { topLevelClick } from '@/lib/trail';
 
 /** Rodapé da sidebar: quem está logado, atalho para o painel de usuários (admin) e sair. */
 export function UserMenu() {
@@ -63,7 +64,9 @@ export function UserMenu() {
               <DropdownMenuLabel>{isAdmin ? 'Admin' : 'Convidado'}</DropdownMenuLabel>
             </DropdownMenuGroup>
             {isAdmin ? (
-              <DropdownMenuItem render={<Link href="/ajustes/usuarios" />}>
+              <DropdownMenuItem
+                render={<Link href="/ajustes/usuarios" onClick={topLevelClick('/ajustes/usuarios')} />}
+              >
                 <Users />
                 Usuários e convites
               </DropdownMenuItem>
