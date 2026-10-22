@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getVenue } from '@/lib/galaxie/api';
+import { getVenue, venueRequest } from '@/lib/galaxie/api';
 
 const SURFACE_LABEL: Record<string, string> = {
   grass: 'Grama natural',
@@ -24,7 +24,7 @@ async function Content({ params }: { params: PageProps<'/locais/[id]'>['params']
 
   return (
     <>
-      <PageHeader title={venue.name} kind="local" />
+      <PageHeader title={venue.name} kind="local" api={venueRequest(id)} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         {venue.image ? (
           <Card className="py-0">

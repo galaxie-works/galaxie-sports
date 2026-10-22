@@ -8,7 +8,7 @@ import { Section } from '@/components/sport/section';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { POSITION_LABEL } from '@/lib/format';
-import { getPerson } from '@/lib/galaxie/api';
+import { getPerson, personRequest } from '@/lib/galaxie/api';
 
 const ROLE_LABEL: Record<string, string> = { player: 'Jogador', coach: 'Técnico', staff: 'Comissão' };
 /** Posição no singular (o rótulo do elenco é plural). */
@@ -38,7 +38,7 @@ async function Content({ params }: { params: PageProps<'/pessoas/[id]'>['params'
 
   return (
     <>
-      <PageHeader title={person.name} kind="pessoa" />
+      <PageHeader title={person.name} kind="pessoa" api={personRequest(id)} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex items-center gap-4">
           <Crest src={person.photo} name={person.name} size="xl" round />
@@ -64,7 +64,7 @@ async function Content({ params }: { params: PageProps<'/pessoas/[id]'>['params'
         ) : null}
 
         {person.teams.length ? (
-          <Section title="Times">
+          <Section title="Times" api={personRequest(id)}>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {person.teams.map((t) => (
                 <Link

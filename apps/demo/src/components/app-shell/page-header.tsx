@@ -1,8 +1,10 @@
 import { Suspense } from 'react';
 
+import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import type { ApiRequest } from '@/lib/galaxie/request';
 import type { TrailKind } from '@/lib/trail';
 
 import { TrailCrumbs } from './trail-crumbs';
@@ -11,16 +13,19 @@ import { TrailCrumbs } from './trail-crumbs';
  * Cabeçalho das páginas: a trilha de navegação (o caminho que o usuário percorreu nesta aba) e, no
  * fim dela, o título da página. Com `kind`, a página entra na trilha com o rótulo `label` (ou o
  * próprio `title`, quando é texto). Sem `kind` (esqueleto carregando), só mostra a trilha até aqui.
+ * Com `api`, mostra à direita o botão "Ver código" da chamada principal da página.
  */
 export function PageHeader({
   title,
   label,
   kind,
+  api,
   children,
 }: {
   title: React.ReactNode;
   label?: string;
   kind?: TrailKind;
+  api?: ApiRequest;
   children?: React.ReactNode;
 }) {
   const crumbLabel = label ?? (typeof title === 'string' ? title : undefined);
@@ -42,7 +47,10 @@ export function PageHeader({
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="ml-auto flex items-center gap-2">{children}</div>
+      <div className="ml-auto flex items-center gap-2">
+        {children}
+        {api ? <ApiCodeButton request={api} labeled /> : null}
+      </div>
     </header>
   );
 }

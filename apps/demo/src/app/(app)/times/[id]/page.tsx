@@ -12,10 +12,19 @@ import { EventCard } from '@/components/sport/event-card';
 import { FormChips } from '@/components/sport/form-chips';
 import { Intensity } from '@/components/sport/intensity';
 import { Section } from '@/components/sport/section';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ApiCodeButton } from '@/components/docs/api-code-button';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { POSITION_LABEL } from '@/lib/format';
-import { getSquad, getTeamOverview, getTeamSemantic } from '@/lib/galaxie/api';
+import {
+  getSquad,
+  getTeamOverview,
+  getTeamSemantic,
+  squadRequest,
+  teamOverviewRequest,
+  teamSemanticRequest,
+} from '@/lib/galaxie/api';
+import type { ApiRequest } from '@/lib/galaxie/request';
 
 /** Cores do clube como vêm da base semântica (nomes em pt-BR). */
 const COLOR_HEX: Record<string, string> = {
@@ -101,12 +110,23 @@ function SuggestedGradient({ colors }: { colors: TeamColors }) {
   );
 }
 
-function IdentityCard({ s, colors }: { s: TeamSemantic | null; colors: TeamColors | null }) {
+function IdentityCard({
+  s,
+  colors,
+  api,
+}: {
+  s: TeamSemantic | null;
+  colors: TeamColors | null;
+  api: ApiRequest;
+}) {
   if (!s && !colors) return null;
   return (
     <Card>
       <CardHeader>
         <CardTitle>Identidade</CardTitle>
+        <CardAction>
+          <ApiCodeButton request={api} />
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
         {colors ? <SuggestedGradient colors={colors} /> : null}
@@ -240,7 +260,7 @@ function RivalsCard({ s }: { s: TeamSemantic }) {
   );
 }
 
-function SquadSection({ squad }: { squad: Squad }) {
+function SquadSection({ squad, api }: { squad: Squad; api: ApiRequest }) {
   const byPosition = new Map<string, Squad['players']>();
   for (const p of squad.players) {
     const key = p.position ?? 'Outros';
@@ -255,6 +275,7 @@ function SquadSection({ squad }: { squad: Squad }) {
   return (
     <Section
       title="Elenco"
+      api={api}
       description={`${squad.players.length} jogadores${squad.season ? ` · ${squad.season}` : ''}`}
     >
       <div className="flex flex-col gap-5">
@@ -300,10 +321,11 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
   const upcoming = [overview.live_event, overview.next_event].filter((e) => e !== null);
   // API anterior à campanha (sem `competitions`): a seção some em vez de quebrar a página
   const competitions = overview.competitions ?? [];
+  const overviewApi = teamOverviewRequest(id);
 
   return (
     <>
-      <PageHeader title={team.name} kind="time" />
+      <PageHeader title={team.name} kind="time" api={overviewApi} />
       <div className="relative isolate flex flex-col gap-8 p-4 md:p-6">
         {team.colors ? <TeamBand colors={team.colors} /> : null}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -345,7 +367,11 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
             {overview.form.length ? (
-              <Section title="Momento" description="Últimos 5 resultados (clique para abrir a partida)">
+              <Section
+                title="Momento"
+                description="Últimos 5 resultados (clique para abrir a partida)"
+                api={overviewApi}
+              >
                 <FormChips
                   items={overview.form.map((f) => ({
                     result: f.result,
@@ -360,6 +386,7 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
               <Section
                 title="Nas competições"
                 description="Campanha na temporada atual (ou mais recente) de cada competição"
+                api={overviewApi}
               >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {competitions.map((c) => (
@@ -370,7 +397,7 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
             ) : null}
 
             {upcoming.length ? (
-              <Section title="Próximo jogo">
+              <Section title="Próximo jogo" api={overviewApi}>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {upcoming.map((e) => (
                     <EventCard key={e.id} event={e} />
@@ -380,7 +407,7 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
             ) : null}
 
             {overview.last_events.length ? (
-              <Section title="Últimos jogos">
+              <Section title="Últimos jogos" api={overviewApi}>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {overview.last_events.map((e) => (
                     <EventCard key={e.id} event={e} />
@@ -391,12 +418,12 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
           </div>
 
           <div className="flex flex-col gap-6">
-            <IdentityCard s={semantic} colors={team.colors} />
+            <IdentityCard s={semantic} colors={team.colors} api={teamSemanticRequest(id)} />
             {semantic ? <RivalsCard s={semantic} /> : null}
           </div>
         </div>
 
-        {squad ? <SquadSection squad={squad} /> : null}
+        {squad ? <SquadSection squad={squad} api={squadRequest(id)} /> : null}
       </div>
     </>
   );

@@ -11,11 +11,23 @@ import { Intensity } from '@/components/sport/intensity';
 import { MatchStakes } from '@/components/sport/match-stakes';
 import { Section } from '@/components/sport/section';
 import { StatusBadge } from '@/components/sport/status-badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ApiCodeButton } from '@/components/docs/api-code-button';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtDateLong, fmtTime } from '@/lib/format';
-import { getEvent, getEventContext, getH2h, getLineups, getWhereToWatch } from '@/lib/galaxie/api';
+import {
+  eventContextRequest,
+  eventRequest,
+  getEvent,
+  getEventContext,
+  getH2h,
+  getLineups,
+  getWhereToWatch,
+  h2hRequest,
+  lineupsRequest,
+  whereToWatchRequest,
+} from '@/lib/galaxie/api';
 import { COUNTRIES } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
@@ -209,6 +221,9 @@ function WhereToWatchCard({
         <CardTitle className="flex items-center gap-2">
           <Tv className="size-4" aria-hidden /> Onde assistir
         </CardTitle>
+        <CardAction>
+          <ApiCodeButton request={whereToWatchRequest(eventId, country)} />
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">
         <div className="flex flex-wrap gap-1">
@@ -272,7 +287,7 @@ function H2hSection({ h2h }: { h2h: HeadToHead }) {
     { label: b?.name ?? '', value: winsOf(b?.id), cls: 'bg-info' },
   ];
   return (
-    <Section title="Confronto direto" description={`${total} jogos na base`}>
+    <Section title="Confronto direto" description={`${total} jogos na base`} api={h2hRequest(h2h.event_id)}>
       <Card size="sm">
         <CardContent className="flex flex-col gap-3">
           <div className="flex h-2 overflow-hidden rounded-full">
@@ -302,7 +317,7 @@ function H2hSection({ h2h }: { h2h: HeadToHead }) {
 function LineupsSection({ lineups }: { lineups: EventLineups }) {
   if (!lineups.available || !lineups.lineups.length) return null;
   return (
-    <Section title="Escalações">
+    <Section title="Escalações" api={lineupsRequest(lineups.event_id)}>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {lineups.lineups.map((l) => (
           <Card key={l.team.id ?? l.team.name} size="sm">
@@ -352,7 +367,7 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
 
   return (
     <>
-      <PageHeader title={title} kind="evento" />
+      <PageHeader title={title} kind="evento" api={eventRequest(id)} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         <Scoreboard event={event} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -361,6 +376,7 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
               <Section
                 title="Contexto"
                 description="Cenário pré-jogo e resumo gerados a partir dos fatos, com fontes"
+                api={eventContextRequest(id)}
               >
                 {context.data.map((c) => (
                   <Card key={c.kind} size="sm">
