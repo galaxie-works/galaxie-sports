@@ -34,9 +34,9 @@ describe('textCoverage', () => {
     expect(textCoverage(kb, 'es', 'football/teams/ar.yaml').total).toBe(0);
   });
 
-  it('base real: o Brasileirão inteiro tem tradução es', async () => {
+  it('base real: todo texto livre tem tradução es e pt-BR', async () => {
     const real = await loadKnowledge();
-    expect(textCoverage(real, 'es', 'football/teams/br.yaml').missing).toEqual([]);
-    expect(textCoverage(real, 'es', 'football/derbies/br.yaml').missing).toEqual([]);
+    expect(textCoverage(real, 'es').missing).toEqual([]);
+    expect(textCoverage(real, 'pt-BR').missing).toEqual([]);
   });
 });

@@ -42,6 +42,439 @@ teams:
     colors: [azul, vermelho]
     review_status: draft
 
+  # ── football/teams/ar.yaml ─────────────
+  - slug: huracan
+    identity:
+      - "Seu escudo traz um balão aerostático, origem do apelido Globo."
+      - "A data oficial de fundação é 1908, embora sua origem remonte a 1903, em Pompeya."
+    colors: [branco, vermelho]
+    review_status: draft
+  - slug: velez-sarsfield
+    identity:
+      - "Clube do bairro de Liniers; campeão da Copa Libertadores e da Copa Intercontinental em 1994."
+    colors: [branco, azul]
+    review_status: draft
+  - slug: estudiantes-lp
+    identity:
+      - "Venceu três Copas Libertadores consecutivas (1968, 1969 e 1970) e mais uma em 2009."
+    colors: [vermelho, branco]
+    review_status: draft
+  - slug: gimnasia-lp
+    identity:
+      - "Fundado em 1887, é um dos clubes mais antigos da Argentina."
+    colors: [branco, azul]
+    review_status: draft
+  - slug: rosario-central
+    identity:
+      - "O apelido Canalla nasceu como provocação do rival e foi adotado com orgulho por sua torcida."
+      - "Fundado por trabalhadores da ferrovia Central Argentino."
+    colors: [azul, amarelo]
+    review_status: draft
+  - slug: newells-old-boys
+    identity:
+      - "O apelido Leproso foi adotado com orgulho; segundo a tradição, nasceu de uma partida beneficente para um hospital."
+      - "Seu nome homenageia Isaac Newell, educador inglês radicado em Rosário."
+    colors: [vermelho, preto]
+    review_status: draft
+  - slug: talleres-cordoba
+    identity:
+      - "Fundado por trabalhadores das oficinas ferroviárias de Córdoba."
+    colors: [azul, branco]
+    review_status: draft
+  - slug: belgrano-cordoba
+    identity:
+      - "Clube do bairro Alberdi, em Córdoba."
+    colors: [celeste]
+    review_status: draft
+  - slug: lanus
+    identity:
+      - "Campeão da Copa Sul-Americana em 2013."
+    colors: [grená]
+    review_status: draft
+  - slug: banfield
+    identity:
+      - "Fundado por imigrantes britânicos em 1896; campeão do Apertura 2009."
+    colors: [verde, branco]
+    review_status: draft
+  - slug: argentinos-juniors
+    identity:
+      - "Clube onde Diego Maradona estreou; seu estádio leva o nome dele."
+      - "Campeão da Copa Libertadores de 1985."
+    colors: [vermelho, branco]
+    fans: { demonym: torcedor do Bicho }
+    review_status: draft
+  - slug: colon-santa-fe
+    identity:
+      - "Seu estádio é conhecido como Cementerio de los Elefantes pelos resultados contra os times grandes."
+    colors: [vermelho, preto]
+    review_status: draft
+  - slug: union-santa-fe
+    identity:
+      - "Seu estádio leva o nome da data de fundação do clube."
+    colors: [vermelho, branco]
+    review_status: draft
+  - slug: defensa-y-justicia
+    identity:
+      - "Adotou o verde e amarelo em 1982, cores ligadas à empresa de ônibus El Halcón."
+      - "Campeão da Copa Sul-Americana de 2020."
+    colors: [amarelo, verde]
+    review_status: draft
+  # ── football/teams/bo.yaml ─────────────
+  - slug: bolivar
+    identity:
+      - "O clube com mais títulos de liga da Bolívia."
+    colors: [celeste]
+    review_status: draft
+  - slug: the-strongest
+    identity:
+      - "Fundado em 1908, é um dos clubes mais antigos da Bolívia; seu símbolo é o tigre."
+    colors: [amarelo, preto]
+    review_status: draft
+  - slug: blooming
+    identity:
+      - "Clube de Santa Cruz fundado em 1º de maio de 1946."
+    colors: [celeste, branco]
+    review_status: draft
+  - slug: oriente-petrolero
+    identity:
+      - "Fundado por trabalhadores da petrolífera estatal YPFB, daí o apelido Refinero."
+    colors: [verde, branco]
+    review_status: draft
+  # ── football/teams/cl.yaml ─────────────
+  - slug: colo-colo
+    identity:
+      - "Fundado em 1925 pelos irmãos Arellano; seu nome evoca o cacique mapuche Colo-Colo."
+      - "Primeiro clube chileno campeão da Copa Libertadores (1991)."
+    colors: [branco, preto]
+    review_status: draft
+  - slug: universidad-de-chile
+    identity:
+      - "Seu símbolo é o chuncho, uma coruja que aparece em seu escudo."
+      - "Campeão da Copa Sul-Americana de 2011."
+    colors: [azul, vermelho, branco]
+    review_status: draft
+  - slug: universidad-catolica-cl
+    identity:
+      - "Sua camisa branca com faixa azul e cruz vermelha é sua marca registrada."
+    colors: [branco, azul]
+    review_status: draft
+  - slug: cobreloa
+    identity:
+      - "Clube da cidade mineradora de Calama; finalista da Copa Libertadores em 1981 e 1982."
+    colors: [laranja]
+    review_status: draft
+  - slug: everton-cl
+    identity:
+      - "Fundado em 1909 por jovens anglo-chilenos que adotaram o nome do Everton inglês."
+    colors: [azul, amarelo]
+    review_status: draft
+  - slug: santiago-wanderers
+    identity:
+      - "Fundado em 1892, é um dos clubes mais antigos do Chile; daí o apelido El Decano."
+    colors: [verde, branco]
+    review_status: draft
+  - slug: palestino
+    identity:
+      - "Fundado pela comunidade palestina no Chile; suas cores são as da bandeira palestina."
+    colors: [branco, vermelho, verde, preto]
+    review_status: draft
+  - slug: union-espanola
+    identity:
+      - "Nasceu em 1897 como Centro Español de Instrucción y Recreación; suas cores aludem à bandeira da Espanha."
+    colors: [vermelho, amarelo]
+    review_status: draft
+  # ── football/teams/co.yaml ─────────────
+  - slug: atletico-nacional
+    identity:
+      - "Primeiro clube colombiano campeão da Copa Libertadores (1989); voltou a conquistá-la em 2016."
+    colors: [verde, branco]
+    review_status: draft
+  - slug: millonarios
+    identity:
+      - "Na era do El Dorado (1949-1954), ficou conhecido como Ballet Azul."
+    colors: [azul, branco]
+    review_status: draft
+  - slug: america-de-cali
+    identity:
+      - "Pentacampeão colombiano consecutivo entre 1982 e 1986."
+    colors: [vermelho]
+    review_status: draft
+  - slug: deportivo-cali
+    identity:
+      - "Manda seus jogos em estádio próprio, localizado em Palmira."
+    colors: [verde, branco]
+    review_status: draft
+  - slug: independiente-santa-fe
+    identity:
+      - "Primeiro campeão do futebol profissional colombiano (1948)."
+      - "Campeão da Copa Sul-Americana de 2015."
+    colors: [vermelho, branco]
+    review_status: draft
+  - slug: junior-barranquilla
+    identity:
+      - "Fundado em 1924 com o nome de Juventud Infantil."
+    colors: [vermelho, branco, azul]
+    review_status: draft
+  - slug: independiente-medellin
+    identity:
+      - "Um dos clubes mais antigos da Colômbia, fundado em 1913."
+    colors: [vermelho, azul]
+    review_status: draft
+  - slug: once-caldas
+    identity:
+      - "Nasceu em 1947 como Deportes Caldas e adotou o nome Once Caldas em 1961, após se fundir com o Once Deportivo."
+      - "Campeão da Copa Libertadores de 2004."
+    colors: [branco]
+    review_status: draft
+  - slug: deportes-tolima
+    identity:
+      - "Clube de Ibagué, conhecida como a Cidade Musical da Colômbia."
+    colors: [vinho, ouro]
+    review_status: draft
+  # ── football/teams/ec.yaml ─────────────
+  - slug: barcelona-sc
+    identity:
+      - "Fundado em 1925 no bairro do Astillero, em Guayaquil, por imigrantes catalães e guayaquilenhos."
+      - "Finalista da Copa Libertadores em 1990 e 1998."
+    colors: [amarelo]
+    review_status: draft
+  - slug: emelec
+    identity:
+      - "Fundado por George Capwell, dirigente da Empresa Eléctrica del Ecuador; daí o nome Emelec e o apelido Bombillo."
+    colors: [azul]
+    review_status: draft
+  - slug: ldu-quito
+    identity:
+      - "Primeiro clube equatoriano campeão da Copa Libertadores (2008)."
+    colors: [branco]
+    review_status: draft
+  - slug: independiente-del-valle
+    identity:
+      - "Campeão da Copa Sul-Americana em 2019 e 2022 e finalista da Copa Libertadores de 2016."
+      - "Reconhecido por seu trabalho na formação de jogadores da base."
+    colors: [azul, preto]
+    review_status: draft
+  - slug: el-nacional-ec
+    identity:
+      - "Clube ligado às Forças Armadas do Equador; o apelido Puros Criollos alude à sua tradição de jogar com jogadores equatorianos."
+    colors: [vermelho, azul, branco]
+    review_status: draft
+  - slug: aucas
+    identity:
+      - "Suas cores oficiais são ouro e grená; campeão do Campeonato Equatoriano em 2022."
+    colors: [amarelo, vermelho]
+    review_status: draft
+  - slug: deportivo-quito
+    identity:
+      - "Clube histórico da capital equatoriana, de cores azul e grená."
+    colors: [azul, grená]
+    review_status: draft
+  # ── football/teams/mx.yaml ─────────────
+  - slug: club-america
+    identity:
+      - "Um dos clubes mais vitoriosos do futebol mexicano."
+    mascot: Águia
+    colors: [amarelo, azul]
+    review_status: draft
+  - slug: guadalajara
+    identity:
+      - "Tradição de jogar apenas com jogadores mexicanos."
+      - "O apelido Chivas nasceu como provocação da imprensa e foi adotado com orgulho pelo clube."
+    mascot: Chiva (cabra)
+    colors: [vermelho, branco, azul]
+    review_status: draft
+  - slug: cruz-azul
+    identity:
+      - "Nasceu em Jasso, Hidalgo, ligado à cooperativa cimenteira Cruz Azul."
+    colors: [azul, branco]
+    review_status: draft
+  - slug: pumas-unam
+    identity:
+      - "Equipe da Universidad Nacional Autónoma de México, reconhecida por suas categorias de base."
+    colors: [azul, ouro]
+    review_status: draft
+  - slug: tigres-uanl
+    identity:
+      - "Representa a Universidad Autónoma de Nuevo León; campeão da Concachampions de 2020."
+    colors: [amarelo, azul]
+    review_status: draft
+  - slug: monterrey
+    identity:
+      - "Cinco vezes campeão da Liga dos Campeões da Concacaf."
+    colors: [azul, branco]
+    review_status: draft
+  - slug: toluca
+    identity:
+      - "Clube da capital do Estado do México, conhecido como os Diablos Rojos."
+    colors: [vermelho, branco]
+    review_status: draft
+  - slug: pachuca
+    identity:
+      - "Considerado o berço do futebol no México, introduzido por mineiros ingleses da Cornualha."
+    mascot: Tuzo (roedor)
+    colors: [azul, branco]
+    review_status: draft
+  - slug: club-leon
+    identity:
+      - "Clube do Bajío conhecido como La Fiera; campeão da Concachampions de 2023."
+    colors: [verde, branco]
+    review_status: draft
+  - slug: santos-laguna
+    identity:
+      - "Representa a Comarca Lagunera, entre Coahuila e Durango."
+    colors: [verde, branco]
+    review_status: draft
+  - slug: atlas
+    identity:
+      - "Fundado por jovens de Guadalajara que haviam estudado na Inglaterra."
+      - "Bicampeão da Liga MX no Apertura 2021 e no Clausura 2022."
+    mascot: Raposa
+    colors: [vermelho, preto]
+    review_status: draft
+  - slug: puebla
+    identity:
+      - "Sua camisa branca com faixa azul diagonal deu origem ao apelido La Franja."
+    colors: [azul, branco]
+    review_status: draft
+  - slug: necaxa
+    identity:
+      - "Nasceu na Cidade do México ligado à companhia de energia elétrica; mudou-se para Aguascalientes em 2003."
+    colors: [vermelho, branco]
+    review_status: draft
+  - slug: tijuana
+    identity:
+      - "Seu apelido Xolos homenageia o xoloitzcuintle, cão originário do México; campeão do Apertura 2012."
+    colors: [vermelho, preto]
+    review_status: draft
+  # ── football/teams/pe.yaml ─────────────
+  - slug: alianza-lima
+    identity:
+      - "Fundado em 1901 como Sport Alianza; é um símbolo do distrito de La Victoria."
+    colors: [azul, branco]
+    review_status: draft
+  - slug: universitario
+    identity:
+      - "Fundado em 1924 como Federación Universitaria de Fútbol por estudantes de San Marcos."
+    colors: [creme, vermelho]
+    review_status: draft
+  - slug: sporting-cristal
+    identity:
+      - "Fundado em 1955 no distrito de Rímac, daí o apelido Rimenses."
+      - "Finalista da Copa Libertadores de 1997."
+    colors: [celeste, branco]
+    review_status: draft
+  - slug: melgar
+    identity:
+      - "Um dos clubes mais antigos do Peru; nasceu em 1915 como Juventud Melgar."
+    colors: [vermelho, preto]
+    fans: { demonym: rubro-negro }
+    review_status: draft
+  - slug: cienciano
+    identity:
+      - "Primeiro clube peruano a conquistar um título internacional: a Copa Sul-Americana de 2003."
+    colors: [vermelho, branco]
+    review_status: draft
+  # ── football/teams/py.yaml ─────────────
+  - slug: olimpia-py
+    identity:
+      - "Considerado o decano do futebol paraguaio, daí o apelido El Decano."
+      - "Três vezes campeão da Copa Libertadores (1979, 1990 e 2002)."
+    colors: [branco, preto]
+    review_status: draft
+  - slug: cerro-porteno
+    identity:
+      - "Clube nascido no Barrio Obrero de Assunção, de cores azul e grená."
+    colors: [azul, grená]
+    review_status: draft
+  - slug: libertad-py
+    identity:
+      - "Clube do bairro Las Mercedes, em Assunção, de listras verticais brancas e pretas."
+    colors: [branco, preto]
+    review_status: draft
+  - slug: guarani-py
+    identity:
+      - "Um dos clubes mais antigos do Paraguai, fundado em 1903."
+    colors: [amarelo, preto]
+    review_status: draft
+  # ── football/teams/uy.yaml ─────────────
+  - slug: penarol
+    identity:
+      - "Suas origens remontam ao Central Uruguay Railway Cricket Club (CURCC), fundado em 1891 por trabalhadores ferroviários; a continuidade histórica é contestada pelo rival."
+      - "Cinco vezes campeão da Copa Libertadores."
+    colors: [amarelo, preto]
+    review_status: draft
+  - slug: nacional-uy
+    identity:
+      - "Fundado em 1899 por estudantes uruguaios; reivindica ser o primeiro clube de futebol fundado por criollos no país."
+      - "O Gran Parque Central foi sede de jogos da Copa do Mundo de 1930."
+      - "Três vezes campeão da Copa Libertadores."
+    colors: [branco, azul, vermelho]
+    review_status: draft
+  - slug: defensor-sporting
+    identity:
+      - "Denominação atual após a fusão do Defensor com o Sporting em 1989."
+    colors: [violeta, branco]
+    review_status: draft
+  - slug: danubio
+    identity:
+      - "Sua camisa branca com faixa diagonal preta deu origem ao apelido La Franja."
+    colors: [branco, preto]
+    review_status: draft
+  - slug: liverpool-uy
+    identity:
+      - "Clube do bairro Belvedere, em Montevidéu; campeão uruguaio em 2023."
+    colors: [preto, azul]
+    review_status: draft
+  - slug: montevideo-wanderers
+    identity:
+      - "Um dos clubes históricos do futebol uruguaio, conhecido como Los Bohemios."
+    colors: [branco, preto]
+    review_status: draft
+  # ── football/teams/ve.yaml ─────────────
+  - slug: caracas-fc
+    identity:
+      - "O apelido Rojos del Ávila alude ao morro El Ávila, símbolo de Caracas."
+    colors: [vermelho]
+    review_status: draft
+  - slug: deportivo-tachira
+    identity:
+      - "Fundado em 1974 como San Cristóbal Fútbol Club."
+    colors: [amarelo, preto]
+    review_status: draft
+
+  # ── basketball/teams/ar.yaml ─────────────
+  - slug: basketball-penarol-mar-del-plata
+    identity:
+      - "Joga com camisa de finas listras verticais azuis e brancas; daí o apelido “Milrayitas”."
+      - "Cinco vezes campeão da Liga Nacional (1993-94, 2009-10, 2010-11, 2011-12 e 2013-14) e bicampeão da Liga das Américas."
+    colors: [azul, branco]
+    review_status: draft
+  - slug: basketball-quilmes-mar-del-plata
+    identity:
+      - "Clube de Mar del Plata fundado em 1922, o mesmo ano de seu rival clássico, o Peñarol."
+      - "Disputou muitas temporadas da Liga Nacional; em 2025-26 jogou a La Liga Argentina, a segunda divisão."
+    review_status: draft
+  - slug: basketball-quimsa
+    identity:
+      - "Nasceu em 1989 da fusão de três clubes; seu nome vem de “kimsa”, que significa “três” em quíchua."
+      - "Campeão da Liga Nacional em 2014-15 e 2022-23, e duas vezes da Basketball Champions League Americas."
+    colors: [azul, vermelho]
+    review_status: draft
+  - slug: basketball-olimpico-la-banda
+    identity:
+      - "Subiu para a Liga Nacional como campeão do Torneo Nacional de Ascenso 2007-08."
+    review_status: draft
+  - slug: basketball-atenas-cordoba
+    identity:
+      - "É o clube mais vitorioso da história da Liga Nacional, com nove títulos."
+      - "Desde outubro de 2024 manda seus jogos em seu próprio estádio, ao lado de sua sede no bairro General Bustos."
+    review_status: draft
+  - slug: basketball-instituto-cordoba
+    identity:
+      - "Conquistou sua primeira Liga Nacional na temporada 2021-22."
+    colors: [vermelho, branco]
+    review_status: draft
+
 derbies:
   # ── América do Sul (football/derbies/south-america.yaml) ─────────────────────────────────────────
   - slug: superclasico-argentino
@@ -59,4 +492,120 @@ derbies:
     trivia:
       - "O primeiro jogo oficial, em 1915, foi vencido pelo San Lorenzo por 3 a 1."
       - "José Sanfilippo é o maior artilheiro da história do clássico."
+    review_status: draft
+
+  # ── basketball/derbies/ar.yaml ─────────────
+  - slug: basketball-clasico-marplatense
+    origin: "Rivalidade entre os dois grandes clubes de basquete de Mar del Plata, ambos fundados em 1922."
+    trivia:
+      - "Na temporada 2013-14, o clássico foi disputado pela primeira vez nas quartas de final da Liga Nacional."
+      - "No fim de 2014, o Peñarol somava 77 vitórias contra 35 do Quilmes no retrospecto do confronto."
+    review_status: draft
+  - slug: basketball-clasico-santiagueno
+    origin: "Reúne as duas equipes da província de Santiago del Estero na Liga Nacional: o Quimsa, da capital, e o Olímpico, de La Banda."
+    trivia:
+      - "A vitória mais elástica do clássico na Liga Nacional foi do Olímpico: 87 a 63 no Estadio Ciudad, em maio de 2019."
+    review_status: draft
+  - slug: basketball-clasico-cordobes
+    origin: "Duelo entre os dois clubes da cidade de Córdoba na Liga Nacional: o Atenas, o mais vitorioso da história, e o Instituto."
+    trivia:
+      - "Em dezembro de 2025, no Ángel Sandrín, foi disputado o 34º confronto do retrospecto nacional, com ampla vantagem do Instituto."
+    review_status: draft
+  # ── football/derbies/mexico.yaml ─────────────
+  - slug: clasico-nacional-mx
+    origin: "Reúne os dois clubes mais populares do México, da capital e de Guadalajara."
+    trivia:
+      - "A rivalidade ganhou forma na década de 1960."
+      - "A final do campeonato 1983-84 entre os dois, vencida pelo América, é considerada o jogo mais importante do confronto."
+    review_status: draft
+  - slug: clasico-joven
+    origin: "Rivalidade da Cidade do México cujo nome alude ao fato de ser mais recente que outros clássicos do país."
+    review_status: draft
+  - slug: clasico-capitalino-mx
+    origin: "Reúne dois clubes da Cidade do México: o América e o time da UNAM."
+    review_status: draft
+  - slug: clasico-regio
+    origin: "Reúne os dois clubes da região metropolitana de Monterrey, Nuevo León."
+    trivia:
+      - "Os dois se enfrentaram na final do Apertura 2017, vencida pelo Tigres."
+    review_status: draft
+  - slug: clasico-tapatio
+    origin: "É o clássico da cidade de Guadalajara e um dos mais antigos do futebol mexicano."
+    review_status: draft
+  # ── football/derbies/south-america.yaml ─────────────
+  - slug: clasico-rosarino
+    origin: "Reúne os dois grandes clubes de Rosário, cujas torcidas se identificam como “canallas” e “leprosos”."
+    review_status: draft
+  - slug: clasico-platense
+    origin: "É o clássico da cidade de La Plata, capital da província de Buenos Aires."
+    review_status: draft
+  - slug: clasico-cordobes
+    origin: "Reúne os dois clubes mais populares da cidade de Córdoba."
+    review_status: draft
+  - slug: clasico-santafesino
+    origin: "É o clássico da cidade de Santa Fe, capital da província de mesmo nome."
+    review_status: draft
+  - slug: clasico-del-sur-ar
+    origin: "Reúne dois clubes vizinhos do sul da Grande Buenos Aires."
+    review_status: draft
+  - slug: clasico-uruguayo
+    origin: "Reúne os dois clubes mais populares e vitoriosos do Uruguai, ambos de Montevidéu."
+    trivia:
+      - "Juntos, somam oito títulos da Libertadores: cinco do Peñarol e três do Nacional."
+    review_status: draft
+  - slug: superclasico-chileno
+    origin: "Reúne os dois clubes mais populares do Chile, ambos de Santiago."
+    review_status: draft
+  - slug: clasico-universitario-cl
+    origin: "Reúne os clubes nascidos das duas grandes universidades de Santiago."
+    trivia:
+      - "O primeiro clássico universitário foi disputado em 1909, na era amadora."
+    review_status: draft
+  - slug: clasico-porteno-cl
+    origin: "Reúne os clubes de Valparaíso e Viña del Mar; é disputado desde 1916."
+    trivia:
+      - "É considerado um dos clássicos mais antigos do futebol chileno."
+    review_status: draft
+  - slug: clasico-paisa
+    origin: "Reúne os dois clubes de Medellín, que dividem o Estadio Atanasio Girardot."
+    review_status: draft
+  - slug: clasico-capitalino-co
+    origin: "Reúne os dois grandes clubes de Bogotá, que dividem o estádio El Campín."
+    trivia:
+      - "É o único clássico regional disputado em todas as temporadas do futebol profissional colombiano."
+      - "A final do Finalización 2017 foi a primeira decisão de campeonato entre os dois; o Millonarios foi o campeão."
+    review_status: draft
+  - slug: clasico-vallecaucano
+    origin: "Reúne os dois grandes clubes de Cali, no departamento do Valle del Cauca."
+    review_status: draft
+  - slug: clasico-peruano
+    origin: "Reúne os dois clubes mais populares do Peru, ambos de Lima."
+    trivia:
+      - "O primeiro clássico foi vencido pela Federación Universitaria por 1 a 0 no antigo Estadio Nacional."
+      - "Esse primeiro jogo é lembrado como o “clásico de los bastonazos”."
+    review_status: draft
+  - slug: clasico-del-sur-pe
+    origin: "Reúne os clubes mais representativos de Arequipa e Cusco, no sul do Peru."
+    review_status: draft
+  - slug: clasico-del-astillero
+    origin: "Reúne os dois clubes mais populares de Guayaquil; seu nome alude ao tradicional bairro do Astillero."
+    review_status: draft
+  - slug: superclasico-de-quito
+    origin: "A rivalidade nasceu numa repescagem de acesso e rebaixamento do torneio de Pichincha em 1945."
+    trivia:
+      - "O primeiro jogo terminou 1 a 1 e as duas equipes foram admitidas na primeira divisão."
+    review_status: draft
+  - slug: superclasico-paraguayo
+    origin: "Reúne os dois clubes mais populares do Paraguai, ambos de Assunção."
+    review_status: draft
+  - slug: clasico-paceno
+    origin: "Reúne os dois clubes mais populares de La Paz, que dividem o Estadio Hernando Siles."
+    review_status: draft
+  - slug: clasico-cruceno
+    origin: "Reúne os dois clubes mais populares de Santa Cruz de la Sierra."
+    review_status: draft
+  - slug: clasico-venezolano
+    origin: "Reúne os dois clubes mais vitoriosos do futebol venezuelano."
+    trivia:
+      - "Os dois se enfrentaram na final do campeonato de 2021, vencida pelo Táchira nos pênaltis."
     review_status: draft
