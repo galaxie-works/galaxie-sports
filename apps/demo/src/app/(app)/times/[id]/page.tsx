@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
+import { CampaignCard } from '@/components/sport/campaign-card';
 import { CopyButton } from '@/components/sport/copy-button';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
@@ -297,6 +298,8 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
   const { team } = overview;
   const nicknames = semantic?.nicknames.length ? semantic.nicknames : team.nicknames;
   const upcoming = [overview.live_event, overview.next_event].filter((e) => e !== null);
+  // API anterior à campanha (sem `competitions`): a seção some em vez de quebrar a página
+  const competitions = overview.competitions ?? [];
 
   return (
     <>
@@ -353,32 +356,14 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
               </Section>
             ) : null}
 
-            {overview.standings.length ? (
-              <Section title="Nas competições">
+            {competitions.length ? (
+              <Section
+                title="Nas competições"
+                description="Campanha na temporada atual (ou mais recente) de cada competição"
+              >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {overview.standings.map((s) => (
-                    <Link
-                      key={`${s.competition.id}-${s.season.year}-${s.group}`}
-                      href={`/competicoes/${s.competition.slug}?temporada=${s.season.year}`}
-                      className="group/entry"
-                    >
-                      <Card size="sm" className="group-hover/entry:bg-accent h-full transition-colors">
-                        <CardContent className="flex items-center gap-3">
-                          <Crest src={s.competition.logo} name={s.competition.name} size="md" />
-                          <div className="flex min-w-0 flex-1 flex-col">
-                            <span className="truncate text-sm font-medium">{s.competition.name}</span>
-                            <span className="text-muted-foreground truncate text-xs">
-                              {s.season.label}
-                              {s.group && s.group !== s.competition.name ? ` · ${s.group}` : ''}
-                            </span>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <span className="text-2xl font-semibold tabular-nums">{s.rank}º</span>
-                            <span className="text-muted-foreground text-xs">{s.points} pts</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                  {competitions.map((c) => (
+                    <CampaignCard key={`${c.competition.id}-${c.season.year}`} entry={c} />
                   ))}
                 </div>
               </Section>
