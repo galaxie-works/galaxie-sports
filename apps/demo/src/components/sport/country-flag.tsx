@@ -4,6 +4,8 @@ import type { Navigation } from '@galaxie/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 
+import { useI18n } from '@/lib/i18n/client';
+import { apiLocale } from '@/lib/i18n/config';
 import { cn } from '@/lib/utils';
 
 const noopSubscribe = () => () => {};
@@ -14,10 +16,11 @@ const noopSubscribe = () => () => {};
  * compartilham a mesma resposta.
  */
 function useFlags() {
+  const { locale } = useI18n();
   return useQuery({
     queryKey: ['navigation-flags'],
     queryFn: async () => {
-      const res = await fetch('/api/galaxie/v1/navigation?locale=pt-BR');
+      const res = await fetch(`/api/galaxie/v1/navigation?locale=${apiLocale(locale)}`);
       if (!res.ok) throw new Error(`navigation ${res.status}`);
       const nav = (await res.json()) as Navigation;
       return Object.fromEntries(nav.countries.map((c) => [c.code.toUpperCase(), c.flag])) as Record<

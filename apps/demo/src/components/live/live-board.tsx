@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { Crest } from '@/components/sport/crest';
-import { EventCard } from '@/components/sport/event-card';
+import { EventCardView } from '@/components/sport/event-card-view';
 import { Section } from '@/components/sport/section';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useHydrated } from '@/hooks/use-hydrated';
@@ -20,6 +20,8 @@ import {
   UPCOMING_KEY,
 } from '@/lib/galaxie/live';
 import type { ApiRequest } from '@/lib/galaxie/request';
+import { useFormatters, useI18n } from '@/lib/i18n/client';
+import { plural } from '@/lib/i18n/text';
 import { SPORTS } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
@@ -47,7 +49,7 @@ const byRelevance = (a: Event, b: Event) =>
   a.id.localeCompare(b.id);
 
 /** Agrupa por esporte e competição; grupos e jogos em ordem de relevância (a maior primeiro). */
-export function groupLive(events: Event[]): SportGroup[] {
+export function groupLive(events: Event[], sportLabel: (slug: string) => string): SportGroup[] {
   const sports = new Map<string, Map<string, CompetitionGroup>>();
   for (const e of events) {
     const comps = sports.get(e.sport) ?? new Map<string, CompetitionGroup>();
@@ -68,13 +70,23 @@ export function groupLive(events: Event[]): SportGroup[] {
         );
       return {
         sport,
-        label: nav?.label ?? sport,
+        label: sportLabel(sport),
         icon: nav?.icon ?? null,
         score: Math.max(...competitions.map((c) => c.score)),
         competitions,
       };
     })
     .sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Cartão de jogo no navegador. Só aparece depois da hidratação (os dados vêm daqui), então pode usar o
+ * fuso do próprio navegador.
+ */
+function ClientEventCard({ event }: { event: Event }) {
+  const { locale, t } = useI18n();
+  const f = useFormatters(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return <EventCardView event={event} locale={locale} t={t.sport} f={f} />;
 }
 
 /** Cartão que acende por alguns segundos quando o placar muda. */
@@ -96,15 +108,16 @@ function LiveCard({ event }: { event: Event }) {
         flash && 'ring-primary shadow-primary/30 shadow-lg ring-2',
       )}
     >
-      <EventCard event={event} />
+      <ClientEventCard event={event} />
     </div>
   );
 }
 
 function UpcomingKickoffs() {
+  const { locale, t } = useI18n();
   const { data, isLoading } = useQuery({
     queryKey: UPCOMING_KEY,
-    queryFn: () => fetchUpcoming(6),
+    queryFn: () => fetchUpcoming(locale, 6),
     staleTime: 60_000,
   });
   if (isLoading)
@@ -117,10 +130,10 @@ function UpcomingKickoffs() {
     );
   if (!data?.length) return null;
   return (
-    <Section title="Próximos apitos" icon={<CalendarClock className="size-4" aria-hidden />}>
+    <Section title={t.live.board.upcoming} icon={<CalendarClock className="size-4" aria-hidden />}>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {data.map((e) => (
-          <EventCard key={e.id} event={e} />
+          <ClientEventCard key={e.id} event={e} />
         ))}
       </div>
     </Section>
@@ -132,7 +145,13 @@ function UpcomingKickoffs() {
  * se atualizam sozinhos (SSE do /v1/stream + verificação periódica) e o contador da cadência no topo.
  */
 export function LiveBoard({ api }: { api: ApiRequest }) {
-  const q = useQuery({ queryKey: LIVE_EVENTS_KEY, queryFn: fetchLiveEvents, staleTime: 10_000 });
+  const { locale, t } = useI18n();
+  const tb = t.live.board;
+  const q = useQuery({
+    queryKey: LIVE_EVENTS_KEY,
+    queryFn: () => fetchLiveEvents(locale),
+    staleTime: 10_000,
+  });
   const hydrated = useHydrated();
   const data = hydrated ? q.data : undefined;
   const events = useMemo(() => data ?? [], [data]);
@@ -150,7 +169,14 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
       .sort((a, b) => Date.parse(b) - Date.parse(a));
     return times[0] ?? null;
   }, [events]);
-  const groups = useMemo(() => groupLive(events), [events]);
+  const groups = useMemo(
+    () =>
+      groupLive(events, (slug) => {
+        const nav = SPORTS.find((s) => s.slug === slug);
+        return nav ? t.nav.sports[nav.slug] : slug;
+      }),
+    [events, t],
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -163,26 +189,20 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
           ))}
         </div>
       ) : q.isError && !data ? (
-        <EmptyState
-          title="Não foi possível carregar os jogos ao vivo"
-          description="A API não respondeu. A página tenta de novo sozinha."
-        >
+        <EmptyState title={tb.errorTitle} description={tb.errorDescription}>
           <CircleAlert className="text-muted-foreground mx-auto size-5" aria-hidden />
         </EmptyState>
       ) : !events.length ? (
         <>
-          <Section title="Jogos ao vivo" api={api}>
-            <EmptyState
-              title="Nenhum jogo ao vivo agora"
-              description="Assim que um jogo começar, ele aparece aqui sozinho, com placar e relógio atualizados."
-            />
+          <Section title={tb.liveGames} api={api}>
+            <EmptyState title={tb.emptyTitle} description={tb.emptyDescription} />
           </Section>
           <UpcomingKickoffs />
         </>
       ) : (
         <Section
-          title={`${events.length} ${events.length === 1 ? 'jogo ao vivo' : 'jogos ao vivo'}`}
-          description="Por esporte e competição, do mais relevante para o menos relevante."
+          title={plural(locale, events.length, t.live.nav.count)}
+          description={tb.description}
           api={api}
         >
           <div className="flex flex-col gap-8">
@@ -209,7 +229,7 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
                             {c.competition.name}
                           </Link>
                         ) : (
-                          <span>Sem competição</span>
+                          <span>{tb.noCompetition}</span>
                         )}
                         <span className="tabular-nums">· {c.events.length}</span>
                       </div>

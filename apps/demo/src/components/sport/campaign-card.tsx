@@ -5,17 +5,25 @@ import Link from 'next/link';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { Card, CardContent } from '@/components/ui/card';
+import type { Locale } from '@/lib/i18n/config';
+import { getI18n } from '@/lib/i18n/server';
+import { fill, localized, ordinal } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
-
-/** Texto localizado da API (vem no locale da resposta; pt-BR na demo). */
-const text = (t: Record<string, string> | null) => (t ? (t['pt-BR'] ?? Object.values(t)[0] ?? '') : '');
 
 /** Fases de pontos corridos: a posição e os pontos continuam visíveis como informação secundária. */
 const TABLE_STAGES = new Set(['regular', 'group', 'league_phase']);
 
 /** Selo da campanha: troféu para o campeão, medalha para vice e 3º, selo de fase nos demais. */
-function CampaignMark({ campaign }: { campaign: TeamCompetition['campaign'] }) {
-  const label = text(campaign.label);
+function CampaignMark({
+  campaign,
+  locale,
+  pointsLabel,
+}: {
+  campaign: TeamCompetition['campaign'];
+  locale: Locale;
+  pointsLabel: string;
+}) {
+  const label = localized(campaign.label, locale);
   switch (campaign.status) {
     case 'champion':
       return (
@@ -47,10 +55,10 @@ function CampaignMark({ campaign }: { campaign: TeamCompetition['campaign'] }) {
               campaign.status === 'finished_league' && 'text-muted-foreground',
             )}
           >
-            {campaign.rank}º
+            {ordinal(locale, campaign.rank)}
           </span>
           <span className="text-muted-foreground text-xs">
-            {campaign.points != null ? `${campaign.points} pts` : label}
+            {campaign.points != null ? fill(pointsLabel, { count: campaign.points }) : label}
           </span>
         </div>
       ) : (
@@ -77,7 +85,8 @@ function CampaignMark({ campaign }: { campaign: TeamCompetition['campaign'] }) {
 }
 
 /** Card de "Nas competições": campanha do time na temporada (campeão, na final, eliminado, posição...). */
-export function CampaignCard({ entry }: { entry: TeamCompetition }) {
+export async function CampaignCard({ entry }: { entry: TeamCompetition }) {
+  const { locale, t } = await getI18n();
   const { competition, season, group, campaign } = entry;
   const champion = campaign.status === 'champion';
   const tableInfo =
@@ -86,15 +95,15 @@ export function CampaignCard({ entry }: { entry: TeamCompetition }) {
     campaign.rank != null &&
     campaign.stage_kind != null &&
     TABLE_STAGES.has(campaign.stage_kind)
-      ? `${campaign.rank}º${campaign.points != null ? ` · ${campaign.points} pts` : ''}`
+      ? `${ordinal(locale, campaign.rank)}${campaign.points != null ? ` · ${fill(t.sport.points, { count: campaign.points })}` : ''}`
       : null;
   // liga em andamento: a posição já está no selo; liga encerrada: "Terminou em 2º"
   const detail =
     campaign.status === 'league'
       ? ''
       : campaign.status === 'finished_league'
-        ? text(campaign.label)
-        : text(campaign.detail);
+        ? localized(campaign.label, locale)
+        : localized(campaign.detail, locale);
   return (
     <Link href={`/competicoes/${competition.slug}?temporada=${season.year}`} className="group/entry">
       <Card
@@ -121,7 +130,7 @@ export function CampaignCard({ entry }: { entry: TeamCompetition }) {
             ) : null}
           </div>
           <div className="flex shrink-0 flex-col items-end">
-            <CampaignMark campaign={campaign} />
+            <CampaignMark campaign={campaign} locale={locale} pointsLabel={t.sport.points} />
           </div>
         </CardContent>
       </Card>

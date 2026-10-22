@@ -10,6 +10,9 @@ import { nextCookies } from 'better-auth/next-js';
 import { admin } from 'better-auth/plugins/admin';
 import { emailOTP } from 'better-auth/plugins/email-otp';
 
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, resolveLocale, type Locale } from '@/lib/i18n/config';
+import { getDictionary } from '@/lib/i18n/dictionary';
+
 import { pool } from './db';
 import { sendAccessEmail } from './email';
 
@@ -21,7 +24,27 @@ export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_RESEND_SECONDS = 60;
 const OTP_RESEND_GUARD_MS = 45_000;
 
-export const ROLE_LABEL: Record<string, string> = { admin: 'Admin', user: 'Convidado' };
+/** Idioma de uma requisição ao auth: o cookie da demo ou o `Accept-Language`. */
+export function localeFromHeaders(headers: Headers | null | undefined): Locale {
+  const cookie = headers
+    ?.get('cookie')
+    ?.split(/;\s*/)
+    .find((c) => c.startsWith(`${LOCALE_COOKIE}=`))
+    ?.slice(LOCALE_COOKIE.length + 1);
+  return resolveLocale(cookie, headers?.get('accept-language'));
+}
+
+const authText = (locale: Locale) => getDictionary(locale).auth.errors;
+
+/** Validador (Standard Schema) do campo `locale`: um dos idiomas da demo, ou nulo para limpar. */
+const localeInput = {
+  '~standard': {
+    version: 1 as const,
+    vendor: 'galaxie-demo',
+    validate: (value: unknown) =>
+      value === null || isLocale(value) ? { value } : { issues: [{ message: 'Invalid locale' }] },
+  },
+};
 
 /** Acesso vencido? Admin nunca expira; sem data = sem prazo. */
 export function isAccessExpired(user: { role?: string | null; accessExpiresAt?: Date | string | null }) {
@@ -34,21 +57,24 @@ export function isAccessExpired(user: { role?: string | null; accessExpiresAt?: 
  * e-mail, exista a conta ou não, para a resposta não revelar quem tem acesso.
  */
 const lastOtpRequest = new Map<string, number>();
-function throttleOtpRequest(email: string) {
+function throttleOtpRequest(email: string, locale: Locale) {
   const now = Date.now();
   for (const [key, at] of lastOtpRequest) if (now - at > OTP_RESEND_GUARD_MS) lastOtpRequest.delete(key);
   const last = lastOtpRequest.get(email);
   if (last && now - last < OTP_RESEND_GUARD_MS) {
     throw new APIError('TOO_MANY_REQUESTS', {
       code: 'OTP_RESEND_TOO_SOON',
-      message: 'Aguarde um pouco para pedir outro código.',
+      message: authText(locale).resendTooSoon,
     });
   }
   lastOtpRequest.set(email, now);
 }
 
-/** Envia o código fora do fluxo da requisição: o tempo de resposta não muda se a conta existe ou não. */
-function deliverOtp(email: string, code: string) {
+/**
+ * Envia o código fora do fluxo da requisição: o tempo de resposta não muda se a conta existe ou não. O
+ * e-mail sai no idioma da tela de login (quem pediu o código está olhando para ela).
+ */
+function deliverOtp(email: string, code: string, locale: Locale) {
   void (async () => {
     const { rows } = await pool.query<{ name: string }>('select name from "user" where email = $1', [email]);
     await sendAccessEmail({
@@ -57,6 +83,7 @@ function deliverOtp(email: string, code: string) {
       name: rows[0]?.name ?? '',
       code,
       expiresInMinutes: OTP_MINUTES,
+      locale,
     });
   })().catch((err) => console.error('[demo-auth] falha ao enviar o código de acesso', err));
 }
@@ -76,6 +103,11 @@ export const auth = betterAuth({
       phone: { type: 'string', required: false, input: false },
       notes: { type: 'string', required: false, input: false },
       accessExpiresAt: { type: 'date', required: false, input: false, fieldName: 'access_expires_at' },
+      /**
+       * Idioma preferido (pt-BR, en, es-AR): o dos e-mails. A própria pessoa muda pelo seletor de idioma
+       * (`/update-user`), então aceita entrada, mas só os três valores.
+       */
+      locale: { type: 'string', required: false, validator: { input: localeInput } },
     },
   },
   session: {
@@ -111,13 +143,13 @@ export const auth = betterAuth({
       const email = String((ctx.body as { email?: unknown } | undefined)?.email ?? '')
         .trim()
         .toLowerCase();
-      if (email) throttleOtpRequest(email);
+      if (email) throttleOtpRequest(email, localeFromHeaders(ctx.headers));
     }),
   },
   databaseHooks: {
     session: {
       create: {
-        before: async (session) => {
+        before: async (session, ctx) => {
           const { rows } = await pool.query<{ role: string | null; access_expires_at: Date | null }>(
             'select role, access_expires_at from "user" where id = $1',
             [session.userId],
@@ -126,7 +158,7 @@ export const auth = betterAuth({
           if (user && isAccessExpired({ role: user.role, accessExpiresAt: user.access_expires_at })) {
             throw new APIError('FORBIDDEN', {
               code: 'ACCESS_EXPIRED',
-              message: 'Seu acesso à demo expirou. Fale com quem te convidou para renovar.',
+              message: authText(localeFromHeaders(ctx?.headers)).expired,
             });
           }
           return { data: session };
@@ -148,16 +180,19 @@ export const auth = betterAuth({
       // Só quem já tem conta (convidado) recebe código; e-mail desconhecido recebe a mesma resposta.
       disableSignUp: true,
       storeOTP: 'hashed',
-      async sendVerificationOTP({ email, otp, type }) {
+      async sendVerificationOTP({ email, otp, type }, ctx) {
         // A demo só usa o código para entrar; os outros tipos estão desligados (disabledPaths).
         if (type !== 'sign-in') return;
-        deliverOtp(email, otp);
+        deliverOtp(email, otp, localeFromHeaders(ctx?.headers));
       },
     }),
     admin({
       defaultRole: 'user',
       adminRoles: ['admin'],
-      bannedUserMessage: 'Seu acesso à demo foi desativado. Fale com quem te convidou.',
+      bannedUserMessage: (user) => {
+        const locale = (user as { locale?: unknown }).locale;
+        return authText(isLocale(locale) ? locale : DEFAULT_LOCALE).banned;
+      },
     }),
     // Precisa ser o último: grava os cookies de sessão quando as ações do servidor chamam a API do auth.
     nextCookies(),

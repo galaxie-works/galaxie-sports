@@ -1,0 +1,23 @@
+import type { Metadata } from 'next';
+
+import { PageHeader } from '@/components/app-shell/page-header';
+import { LiveBoard } from '@/components/live/live-board';
+import { liveEventsRequest } from '@/lib/galaxie/api';
+import { getI18n, getT } from '@/lib/i18n/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT()).live.nav.label };
+}
+
+/** Tudo que está em andamento agora. Os dados vêm do navegador (pelo proxy) e se atualizam sozinhos. */
+export default async function LivePage() {
+  const { locale, t } = await getI18n();
+  return (
+    <>
+      <PageHeader title={t.live.nav.label} kind="ao vivo" />
+      <div className="flex flex-col gap-6 p-4 md:p-6">
+        <LiveBoard api={liveEventsRequest(locale)} />
+      </div>
+    </>
+  );
+}

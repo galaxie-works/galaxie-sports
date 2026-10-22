@@ -4,21 +4,27 @@ import { Radio, RefreshCw, Satellite } from 'lucide-react';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useNow } from '@/hooks/use-now';
+import { useI18n } from '@/lib/i18n/client';
+import type { Dictionary } from '@/lib/i18n/dictionary';
+import type { Locale } from '@/lib/i18n/config';
+import { fill, plural } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
 
 import type { LiveRefreshState } from './use-live-refresh';
 
 const secs = (ms: number) => Math.max(0, Math.round(ms / 1000));
 
+type RefreshText = Dictionary['live']['refresh'];
+
 /** Idade legível: segundos, minutos, horas ou dias. */
-export function fmtAge(ms: number): string {
+export function fmtAge(ms: number, locale: Locale, t: RefreshText): string {
   const s = secs(ms);
-  if (s < 90) return `${s} s`;
+  if (s < 90) return fill(t.age.seconds, { n: s });
   const min = Math.round(s / 60);
-  if (min < 90) return `${min} min`;
+  if (min < 90) return fill(t.age.minutes, { n: min });
   const h = Math.round(min / 60);
-  if (h < 48) return `${h} h`;
-  return `${Math.round(h / 24)} dias`;
+  if (h < 48) return fill(t.age.hours, { n: h });
+  return plural(locale, Math.round(h / 24), t.age.days);
 }
 
 /** Anel de progresso até a próxima atualização agendada. */
@@ -45,22 +51,6 @@ function Ring({ progress, active }: { progress: number; active: boolean }) {
   );
 }
 
-const MECHANISM: Record<LiveRefreshState['mechanism'], { label: string; hint: string }> = {
-  sse: {
-    label: 'Tempo real (SSE)',
-    hint: 'Conectado ao /v1/stream: placar, relógio e lances chegam por push. A verificação completa pela REST roda a cada 30 s.',
-  },
-  polling: {
-    label: 'Polling (REST)',
-    hint: 'Sem conexão SSE no momento: a página consulta a REST a cada 15 s e reconecta o stream sozinha.',
-  },
-  idle: {
-    label: 'Aguardando jogos',
-    hint: 'Nenhum jogo ao vivo: a página procura novos apitos a cada 60 s.',
-  },
-  static: { label: 'Encerrado', hint: 'Jogo encerrado: o conteúdo não muda mais.' },
-};
-
 /**
  * Cadência visível da página: "Atualizado há 4 s · próxima atualização em 11 s", o anel até a próxima
  * verificação, o mecanismo real (SSE ou polling) e a cadência da fonte (leituras do fornecedor pelo Live
@@ -76,9 +66,11 @@ export function RefreshTimer({
   sourceLastAt?: string | null;
   className?: string;
 }) {
+  const { locale, t: dict } = useI18n();
+  const t = dict.live.refresh;
   const now = useNow(500);
   const { mechanism, intervalMs, updatedAt, lastSignalAt } = state;
-  const mech = MECHANISM[mechanism];
+  const mech = t.mechanisms[mechanism];
   const elapsed = now != null && updatedAt ? now - updatedAt : null;
   const remaining = elapsed != null && intervalMs != null ? intervalMs - elapsed : null;
   const sourceAge = now != null && sourceLastAt ? now - Date.parse(sourceLastAt) : null;
@@ -97,11 +89,11 @@ export function RefreshTimer({
           active={mechanism === 'sse' || mechanism === 'polling'}
         />
         <span className="text-foreground tabular-nums">
-          {elapsed == null ? 'Atualizando…' : `Atualizado há ${secs(elapsed)} s`}
+          {elapsed == null ? t.updating : fill(t.updatedAgo, { seconds: secs(elapsed) })}
           {remaining != null ? (
             <span className="text-muted-foreground">
               {' · '}
-              {remaining > 0 ? `próxima atualização em ${secs(remaining)} s` : 'atualizando…'}
+              {remaining > 0 ? fill(t.nextIn, { seconds: secs(remaining) }) : t.updatingNow}
             </span>
           ) : null}
         </span>
@@ -116,7 +108,9 @@ export function RefreshTimer({
           )}
           {mech.label}
           {mechanism === 'sse' && lastSignalAt && now != null ? (
-            <span className="tabular-nums">· último sinal há {fmtAge(now - lastSignalAt)}</span>
+            <span className="tabular-nums">
+              {fill(t.lastSignal, { age: fmtAge(now - lastSignalAt, locale, t) })}
+            </span>
           ) : null}
         </TooltipTrigger>
         <TooltipContent className="max-w-72">{mech.hint}</TooltipContent>
@@ -126,14 +120,12 @@ export function RefreshTimer({
         <Tooltip>
           <TooltipTrigger render={<span className="flex cursor-help items-center gap-1.5 tabular-nums" />}>
             <Satellite className="size-3.5" aria-hidden />
-            Fonte: Live Poller, a cada ≥ 15 s
-            {sourceAge != null && sourceAge >= 0 ? ` · última leitura há ${fmtAge(sourceAge)}` : null}
+            {t.source}
+            {sourceAge != null && sourceAge >= 0
+              ? fill(t.sourceLast, { age: fmtAge(sourceAge, locale, t) })
+              : null}
           </TooltipTrigger>
-          <TooltipContent className="max-w-72">
-            O Live Poller da Galaxie lê o fornecedor no máximo a cada 15 s, com o ritmo ajustado ao orçamento
-            de chamadas do dia e à fase do jogo (mais rápido na reta final, pausa no intervalo). A última
-            leitura vem de data_freshness.last_valid_at.
-          </TooltipContent>
+          <TooltipContent className="max-w-72">{t.sourceHint}</TooltipContent>
         </Tooltip>
       ) : null}
     </div>

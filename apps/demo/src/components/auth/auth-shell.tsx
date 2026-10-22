@@ -1,12 +1,15 @@
 'use client';
 
+import { LanguageSelect } from '@/components/app-shell/language-select';
 import SoftBlurIn from '@/components/smoothui/soft-blur-in';
 import { StarfieldBackground } from '@/components/ui/starfield';
+import { useI18n } from '@/lib/i18n/client';
 
 /**
  * Moldura das telas de acesso (login, definir e redefinir senha), igual ao login do app desktop da
  * Galaxie: campo de estrelas em movimento (viagem pelo espaço), brilho sutil, marca com entrada suave e título/subtítulo
  * revelados letra a letra. A demo é só tema escuro, então usa a variante escura do logo e das estrelas.
+ * No rodapé, como no app desktop, o seletor de idioma (a escolha vale para o app todo).
  */
 export function AuthShell({
   title,
@@ -17,6 +20,7 @@ export function AuthShell({
   subtitle: string;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <div className="relative grid min-h-svh place-items-center overflow-hidden px-6">
       <StarfieldBackground className="absolute inset-0" count={500} speed={0.4} />
@@ -28,7 +32,7 @@ export function AuthShell({
           {/* Logo da marca, servido de /public (não passa pelo otimizador). */}
           <img
             src="/brand/galaxie_logo_dark.png"
-            alt="Galaxie Works"
+            alt={t.auth.shell.logoAlt}
             draggable={false}
             className="logo-in mb-5 h-12 w-auto object-contain"
           />
@@ -42,9 +46,10 @@ export function AuthShell({
         <div className="mt-9">{children}</div>
       </div>
 
-      <p className="text-muted-foreground absolute bottom-6 left-1/2 -translate-x-1/2 text-xs">
-        Acesso por convite · Galaxie Works
-      </p>
+      <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3">
+        <LanguageSelect className="h-9" />
+        <p className="text-muted-foreground text-xs whitespace-nowrap">{t.auth.shell.footer}</p>
+      </div>
     </div>
   );
 }

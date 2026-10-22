@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { inviteUser, type InviteInput } from '@/app/(app)/ajustes/actions';
+import { inviteUser, type InviteInput } from '@/app/[locale]/(app)/ajustes/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,29 +22,46 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { useI18n } from '@/lib/i18n/client';
+import type { Locale } from '@/lib/i18n/config';
+import { fill, plural } from '@/lib/i18n/text';
 
-export const ACCESS_PRESETS = [
-  { value: '7', label: '7 dias' },
-  { value: '14', label: '14 dias' },
-  { value: '30', label: '30 dias' },
-  { value: '90', label: '90 dias' },
-  { value: 'none', label: 'Sem prazo' },
-];
+import { LocaleSelect } from './user-badges';
 
-const ROLES = [
-  { value: 'user', label: 'Convidado' },
-  { value: 'admin', label: 'Admin' },
-];
+const ACCESS_DAYS = ['7', '14', '30', '90', 'none'] as const;
+
+/** Prazos de acesso prontos ("7 dias" … "Sem prazo"), no idioma da tela. */
+export function useAccessPresets() {
+  const { locale, t } = useI18n();
+  return ACCESS_DAYS.map((value) => ({
+    value,
+    label: value === 'none' ? t.admin.access.noLimit : plural(locale, Number(value), t.admin.access.days),
+  }));
+}
+
+/** Papéis no idioma da tela. */
+export function useRoles() {
+  const { t } = useI18n();
+  return [
+    { value: 'user', label: t.admin.roles.user },
+    { value: 'admin', label: t.admin.roles.admin },
+  ];
+}
 
 const EMPTY = { name: '', email: '', jobTitle: '', company: '', phone: '', notes: '' };
 
 /** Cadastro do convidado: dados de contato, papel e validade; o convite sai por e-mail. */
 export function InviteDialog() {
   const router = useRouter();
+  const { locale: screenLocale, t } = useI18n();
+  const accessPresets = useAccessPresets();
+  const roles = useRoles();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [role, setRole] = useState<'user' | 'admin'>('user');
   const [days, setDays] = useState('14');
+  // Idioma do convite: por padrão, o da tela de quem convida.
+  const [locale, setLocale] = useState<Locale>(screenLocale);
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -56,6 +73,7 @@ export function InviteDialog() {
     setForm(EMPTY);
     setRole('user');
     setDays('14');
+    setLocale(screenLocale);
     setError(null);
     setLink(null);
   }
@@ -67,16 +85,17 @@ export function InviteDialog() {
       ...form,
       role,
       accessDays: days === 'none' ? null : Number(days),
+      locale,
     };
     startTransition(async () => {
       const res = await inviteUser(input);
       if (!res.ok) {
-        setError(res.error ?? 'Não foi possível convidar.');
+        setError(res.error ?? t.admin.invite.failed);
         return;
       }
       router.refresh();
       if (res.emailSent) {
-        toast.success(`Convite enviado para ${form.email.trim()}`);
+        toast.success(fill(t.admin.invite.sentTo, { email: form.email.trim() }));
         setOpen(false);
         reset();
       } else {
@@ -96,25 +115,19 @@ export function InviteDialog() {
     >
       <DialogTrigger render={<Button />}>
         <UserPlus />
-        Convidar pessoa
+        {t.admin.invite.trigger}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Convidar pessoa</DialogTitle>
-          <DialogDescription>
-            A pessoa recebe um e-mail com o convite e entra com um código de acesso enviado ao e-mail, sem
-            senha.
-          </DialogDescription>
+          <DialogTitle>{t.admin.invite.title}</DialogTitle>
+          <DialogDescription>{t.admin.invite.description}</DialogDescription>
         </DialogHeader>
 
         {link !== null ? (
           <div className="flex flex-col gap-3">
             <Alert variant="warning">
               <MailCheck />
-              <AlertDescription>
-                Conta criada, mas o e-mail não foi enviado (SMTP não configurado ou falhou). Copie o link da
-                demo e mande por outro canal: a pessoa entra com o código enviado ao e-mail dela.
-              </AlertDescription>
+              <AlertDescription>{t.admin.invite.notSent}</AlertDescription>
             </Alert>
             {link ? (
               <div className="flex gap-2">
@@ -128,11 +141,11 @@ export function InviteDialog() {
                   variant="outline"
                   onClick={() => {
                     void navigator.clipboard.writeText(link);
-                    toast.success('Link copiado');
+                    toast.success(t.admin.invite.linkCopied);
                   }}
                 >
                   <Copy />
-                  Copiar
+                  {t.common.copy}
                 </Button>
               </div>
             ) : null}
@@ -143,7 +156,7 @@ export function InviteDialog() {
                   reset();
                 }}
               >
-                Concluir
+                {t.admin.invite.done}
               </Button>
             </DialogFooter>
           </div>
@@ -151,11 +164,11 @@ export function InviteDialog() {
           <form onSubmit={submit} className="flex flex-col gap-4">
             <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="inv-name">Nome</FieldLabel>
+                <FieldLabel htmlFor="inv-name">{t.admin.fields.name}</FieldLabel>
                 <Input id="inv-name" required autoFocus value={form.name} onChange={set('name')} />
               </Field>
               <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="inv-email">E-mail</FieldLabel>
+                <FieldLabel htmlFor="inv-email">{t.admin.fields.email}</FieldLabel>
                 <Input
                   id="inv-email"
                   type="email"
@@ -166,25 +179,25 @@ export function InviteDialog() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="inv-job">Cargo</FieldLabel>
+                <FieldLabel htmlFor="inv-job">{t.admin.fields.jobTitle}</FieldLabel>
                 <Input id="inv-job" value={form.jobTitle} onChange={set('jobTitle')} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="inv-company">Empresa</FieldLabel>
+                <FieldLabel htmlFor="inv-company">{t.admin.fields.company}</FieldLabel>
                 <Input id="inv-company" value={form.company} onChange={set('company')} />
               </Field>
               <Field>
-                <FieldLabel htmlFor="inv-phone">Telefone</FieldLabel>
+                <FieldLabel htmlFor="inv-phone">{t.admin.fields.phone}</FieldLabel>
                 <Input id="inv-phone" type="tel" value={form.phone} onChange={set('phone')} />
               </Field>
               <Field>
-                <FieldLabel>Papel</FieldLabel>
-                <Select items={ROLES} value={role} onValueChange={(v) => setRole(v as 'user' | 'admin')}>
-                  <SelectTrigger className="w-full">
+                <FieldLabel htmlFor="inv-role">{t.admin.fields.role}</FieldLabel>
+                <Select items={roles} value={role} onValueChange={(v) => setRole(v as 'user' | 'admin')}>
+                  <SelectTrigger id="inv-role" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLES.map((r) => (
+                    {roles.map((r) => (
                       <SelectItem key={r.value} value={r.value}>
                         {r.label}
                       </SelectItem>
@@ -192,19 +205,19 @@ export function InviteDialog() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field className="sm:col-span-2">
-                <FieldLabel>Validade do acesso</FieldLabel>
+              <Field>
+                <FieldLabel htmlFor="inv-access">{t.admin.invite.access}</FieldLabel>
                 <Select
-                  items={ACCESS_PRESETS}
+                  items={accessPresets}
                   value={role === 'admin' ? 'none' : days}
                   onValueChange={(v) => setDays(String(v))}
                   disabled={role === 'admin'}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger id="inv-access" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ACCESS_PRESETS.map((p) => (
+                    {accessPresets.map((p) => (
                       <SelectItem key={p.value} value={p.value}>
                         {p.label}
                       </SelectItem>
@@ -212,17 +225,20 @@ export function InviteDialog() {
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  {role === 'admin'
-                    ? 'Admins não têm prazo.'
-                    : 'Depois disso o login é bloqueado; dá para estender no detalhe do usuário.'}
+                  {role === 'admin' ? t.admin.invite.accessHintAdmin : t.admin.invite.accessHint}
                 </FieldDescription>
               </Field>
+              <Field>
+                <FieldLabel htmlFor="inv-locale">{t.admin.invite.language}</FieldLabel>
+                <LocaleSelect id="inv-locale" value={locale} onChange={setLocale} />
+                <FieldDescription>{t.admin.invite.languageHint}</FieldDescription>
+              </Field>
               <Field className="sm:col-span-2">
-                <FieldLabel htmlFor="inv-notes">Observações</FieldLabel>
+                <FieldLabel htmlFor="inv-notes">{t.admin.fields.notes}</FieldLabel>
                 <Textarea
                   id="inv-notes"
                   rows={2}
-                  placeholder="Ex.: reunião de apresentação em 05/11"
+                  placeholder={t.admin.invite.notesPlaceholder}
                   value={form.notes}
                   onChange={set('notes')}
                 />
@@ -236,7 +252,7 @@ export function InviteDialog() {
             <DialogFooter>
               <Button type="submit" disabled={pending}>
                 {pending ? <Spinner /> : <UserPlus />}
-                Enviar convite
+                {t.admin.invite.submit}
               </Button>
             </DialogFooter>
           </form>

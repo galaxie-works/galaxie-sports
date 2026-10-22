@@ -6,27 +6,23 @@ import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
 import { useRelatedPlayer } from '@/components/sport/related-player';
+import { useI18n } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
 
-/** Rótulos dos tipos (a API também manda `content_type_label` no locale pedido). */
-const TYPE_LABEL: Record<string, string> = {
-  highlights: 'Melhores momentos',
-  goal: 'Gols',
-  penalties: 'Pênaltis',
-  press_conference: 'Coletiva',
-  interview: 'Entrevista',
-  behind_the_scenes: 'Bastidores',
-  fan_reaction: 'Reação da torcida',
-  analysis: 'Análise',
-  full_match: 'Jogo completo',
-  other: 'Outros',
-};
-
-const TIER_LABEL: Record<string, string> = {
-  official: 'Oficial',
-  rights_holder: 'Detentor de direitos',
-  media: 'Imprensa',
-};
+/** Ordem dos tipos nas abas (rótulos em `t.media.types`; a API também manda `content_type_label`). */
+const TYPE_ORDER = [
+  'highlights',
+  'goal',
+  'penalties',
+  'press_conference',
+  'interview',
+  'behind_the_scenes',
+  'fan_reaction',
+  'analysis',
+  'full_match',
+  'other',
+];
 
 function duration(sec: number | null): string | null {
   if (sec === null) return null;
@@ -36,16 +32,19 @@ function duration(sec: number | null): string | null {
   return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }
 
-const compact = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
-
 function VideoCard({ item, playing, onPlay }: { item: RelatedItem; playing: boolean; onPlay: () => void }) {
-  const tier = TIER_LABEL[item.channel.source_tier];
+  const { locale, t } = useI18n();
+  const compact = useMemo(
+    () => new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }),
+    [locale],
+  );
+  const tier = t.media.tiers[item.channel.source_tier];
   const time = duration(item.duration_seconds);
   return (
     <button
       type="button"
       onClick={onPlay}
-      aria-label={`Assistir: ${item.title}`}
+      aria-label={fill(t.media.watch, { title: item.title })}
       aria-current={playing || undefined}
       className={cn(
         'group/video hover:bg-accent/50 focus-visible:ring-ring flex flex-col overflow-hidden rounded-lg border text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
@@ -69,7 +68,7 @@ function VideoCard({ item, playing, onPlay }: { item: RelatedItem; playing: bool
         </span>
         {item.format === 'short' ? (
           <Badge variant="invert" size="sm" className="absolute top-2 left-2">
-            <Smartphone aria-hidden /> Short
+            <Smartphone aria-hidden /> {t.media.short}
           </Badge>
         ) : null}
         {time ? (
@@ -98,12 +97,12 @@ function VideoCard({ item, playing, onPlay }: { item: RelatedItem; playing: bool
           <Badge variant="primary-light" size="sm">
             {item.content_type_label}
           </Badge>
-          <Badge variant="outline" size="sm" title="Proporção do vídeo">
+          <Badge variant="outline" size="sm" title={t.media.aspectRatio}>
             {item.aspect_ratio}
           </Badge>
           {playing ? (
             <Badge variant="success-light" size="sm">
-              <Play aria-hidden /> Tocando
+              <Play aria-hidden /> {t.media.playing}
             </Badge>
           ) : null}
           {tier ? (
@@ -119,13 +118,14 @@ function VideoCard({ item, playing, onPlay }: { item: RelatedItem; playing: bool
 
 /** Vídeos relacionados ao evento com filtro por tipo (abas com a contagem de `counts`). */
 export function RelatedContentGrid({ related }: { related: RelatedContent }) {
+  const { t } = useI18n();
   const [type, setType] = useState<string | null>(null);
   const player = useRelatedPlayer();
   const types = useMemo(
     () =>
       Object.entries(related.counts)
         .filter(([, n]) => (n ?? 0) > 0)
-        .sort((a, b) => Object.keys(TYPE_LABEL).indexOf(a[0]) - Object.keys(TYPE_LABEL).indexOf(b[0])),
+        .sort((a, b) => TYPE_ORDER.indexOf(a[0]) - TYPE_ORDER.indexOf(b[0])),
     [related.counts],
   );
   const items = type ? related.data.filter((d) => d.content_type === type) : related.data;
@@ -137,7 +137,7 @@ export function RelatedContentGrid({ related }: { related: RelatedContent }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Filtrar por tipo">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t.media.filterByType}>
         <button
           type="button"
           role="tab"
@@ -145,18 +145,18 @@ export function RelatedContentGrid({ related }: { related: RelatedContent }) {
           className={chip(type === null)}
           onClick={() => setType(null)}
         >
-          Todos <span className="tabular-nums opacity-70">{related.data.length}</span>
+          {t.media.all} <span className="tabular-nums opacity-70">{related.data.length}</span>
         </button>
-        {types.map(([t, n]) => (
+        {types.map(([key, n]) => (
           <button
-            key={t}
+            key={key}
             type="button"
             role="tab"
-            aria-selected={type === t}
-            className={chip(type === t)}
-            onClick={() => setType(t)}
+            aria-selected={type === key}
+            className={chip(type === key)}
+            onClick={() => setType(key)}
           >
-            {TYPE_LABEL[t] ?? t} <span className="tabular-nums opacity-70">{n}</span>
+            {t.media.types[key] ?? key} <span className="tabular-nums opacity-70">{n}</span>
           </button>
         ))}
       </div>

@@ -101,6 +101,11 @@ export function subscribeTrail(listener: () => void) {
 }
 
 export const getTrailSnapshot = (): TrailState => current();
+
+/** Esvazia a trilha (ex.: ao trocar de idioma, os rótulos guardados ficariam no idioma anterior). */
+export function clearTrail() {
+  set({ entries: [], pendingRoot: null });
+}
 export const getTrailServerSnapshot = (): TrailState | null => null;
 
 /** Aplica as regras de uma visita (função pura: a mesma conta serve para desenhar e para gravar). */

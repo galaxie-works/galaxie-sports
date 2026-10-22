@@ -12,6 +12,7 @@ import {
 } from '@/components/reui/code-block/code-block';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { CodeExample } from '@/lib/galaxie/request';
+import { useI18n } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 
 // ─── linguagem preferida: a mesma em todos os blocos, lembrada entre visitas ─────────────────────
@@ -65,6 +66,7 @@ export function CodeTabs({
   maxLines?: number;
   className?: string;
 }) {
+  const { t } = useI18n();
   const choice = useSyncExternalStore(subscribe, readPreferred, () => null);
   const [expanded, setExpanded] = useState(false);
   const current = examples.find((e) => e.label === choice) ?? examples[0];
@@ -80,7 +82,7 @@ export function CodeTabs({
       >
         <CodeBlockHeader className="pl-1.5">
           {tabbed ? (
-            <TabsList variant="line" aria-label="Linguagem do exemplo" className="h-8">
+            <TabsList variant="line" aria-label={t.code.tabs.language} className="h-8">
               {examples.map((e) => (
                 <TabsTrigger key={e.label} value={e.label} className="px-2 text-xs">
                   {e.label}
@@ -91,9 +93,9 @@ export function CodeTabs({
             <CodeBlockLanguage className="ml-1.5">{current.label}</CodeBlockLanguage>
           )}
           {title ? <CodeBlockTitle className="hidden sm:block">{title}</CodeBlockTitle> : null}
-          <CodeBlockCopyButton className="ml-auto" labels={{ copy: 'Copiar código', copied: 'Copiado' }} />
+          <CodeBlockCopyButton className="ml-auto" labels={{ copy: t.code.tabs.copy, copied: t.code.tabs.copied }} />
         </CodeBlockHeader>
-        {maxLines ? <CodeBlockExpandButton>{expanded ? 'Mostrar menos' : 'Mostrar tudo'}</CodeBlockExpandButton> : null}
+        {maxLines ? <CodeBlockExpandButton>{expanded ? t.code.tabs.showLess : t.code.tabs.showAll}</CodeBlockExpandButton> : null}
       </CodeBlock>
     </Tabs>
   );

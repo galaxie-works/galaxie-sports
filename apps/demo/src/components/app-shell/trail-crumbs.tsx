@@ -23,6 +23,7 @@ import {
   type TrailEntry,
   type TrailKind,
 } from '@/lib/trail';
+import { useI18n } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 
 /** Acima disso, o meio da trilha vira um "…" com menu (fica o início, o item anterior e a página). */
@@ -50,6 +51,7 @@ function Crumb({ entry, className }: { entry: TrailEntry; className?: string }) 
  * itens surgem logo depois de montar.
  */
 export function TrailCrumbs({ label, kind }: { label?: string; kind?: TrailKind }) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const path = search ? `${pathname}?${search}` : pathname;
@@ -88,7 +90,7 @@ export function TrailCrumbs({ label, kind }: { label?: string; kind?: TrailKind 
       <BreadcrumbItem className={desktopOnly}>
         <DropdownMenu>
           <DropdownMenuTrigger
-            aria-label="Mostrar o caminho completo"
+            aria-label={t.shell.trail.showFullPath}
             className="hover:text-foreground flex size-5 items-center justify-center rounded-sm transition-colors"
           >
             <MoreHorizontalIcon className="size-4" />

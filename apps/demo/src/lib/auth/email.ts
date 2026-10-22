@@ -5,6 +5,10 @@
  */
 import nodemailer, { type Transporter } from 'nodemailer';
 
+import type { Locale } from '@/lib/i18n/config';
+import { getDictionary } from '@/lib/i18n/dictionary';
+import { fill } from '@/lib/i18n/text';
+
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = Number(process.env.SMTP_PORT ?? 465);
 const SMTP_USER = process.env.SMTP_USER;
@@ -34,6 +38,8 @@ export type AccessEmail =
       url: string;
       /** Fim do acesso; null = sem prazo. */
       accessExpiresAt: Date | null;
+      /** Idioma de quem recebe. */
+      locale: Locale;
     }
   | {
       kind: 'otp';
@@ -41,6 +47,7 @@ export type AccessEmail =
       name: string;
       code: string;
       expiresInMinutes: number;
+      locale: Locale;
     };
 
 export type AccessEmailKind = AccessEmail['kind'];
@@ -48,13 +55,24 @@ export type AccessEmailKind = AccessEmail['kind'];
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-const longDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeZone: 'America/Sao_Paulo' });
+/** Data longa no idioma de quem recebe, no fuso do mercado (o e-mail não sabe o fuso da pessoa). */
+const longDate = (locale: Locale, date: Date) =>
+  new Intl.DateTimeFormat(locale, {
+    dateStyle: 'long',
+    timeZone: locale === 'es-AR' ? 'America/Argentina/Buenos_Aires' : 'America/Sao_Paulo',
+  }).format(date);
 
 const firstName = (name: string) => name.split(/\s+/)[0] || name;
 
+function greetingOf(mail: AccessEmail) {
+  const t = getDictionary(mail.locale).email;
+  const name = firstName(mail.name);
+  return name ? fill(t.greeting, { name }) : t.greetingNoName;
+}
+
 /** Moldura escura comum aos dois e-mails (tabelas e estilos inline, para os clientes de e-mail). */
-function frame(greeting: string, rows: string) {
-  return `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#0b0f14;font-family:Segoe UI,Arial,sans-serif;color:#e6e9ee">
+function frame(locale: Locale, greeting: string, rows: string) {
+  return `<!doctype html><html lang="${locale}"><body style="margin:0;background:#0b0f14;font-family:Segoe UI,Arial,sans-serif;color:#e6e9ee">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#141a21;border:1px solid #232b35;border-radius:12px;padding:32px">
 <tr><td style="font-size:20px;font-weight:600;color:#ffffff">${escapeHtml(greeting)}</td></tr>
@@ -70,35 +88,33 @@ const footnote = (text: string) =>
   paragraph(text, 'padding-top:20px;font-size:13px;line-height:1.5;color:#7d8794');
 
 function renderInvite(mail: Extract<AccessEmail, { kind: 'invite' }>) {
-  const greeting = `Olá, ${firstName(mail.name)}!`;
-  const subject = 'Você foi convidado(a) para a demo da Galaxie Sports';
-  const intro =
-    'Você foi convidado(a) para a demo da Galaxie Sports: metadados esportivos navegáveis, de países e competições até times, clássicos e partidas.';
-  const how =
-    'Para entrar, informe este e-mail na tela de acesso e digite o código de 6 dígitos que enviaremos na hora. Não é preciso criar senha.';
+  const t = getDictionary(mail.locale).email;
+  const greeting = greetingOf(mail);
+  const { subject, intro, how, action, ignore } = t.invite;
   const validity = mail.accessExpiresAt
-    ? `Seu acesso vale até ${longDate.format(mail.accessExpiresAt)}.`
-    : 'Seu acesso não tem data para expirar.';
-  const action = 'Acessar a demo';
-  const text = `${greeting}\n\n${intro}\n\n${how}\n\n${action}: ${mail.url}\n\n${validity} Se você não esperava este e-mail, pode ignorá-lo.\n\nGalaxie Works`;
+    ? fill(t.invite.validUntil, { date: longDate(mail.locale, mail.accessExpiresAt) })
+    : t.invite.noExpiry;
+  const text = `${greeting}\n\n${intro}\n\n${how}\n\n${action}: ${mail.url}\n\n${validity} ${ignore}\n\n${t.signature}`;
   const html = frame(
+    mail.locale,
     greeting,
     `${paragraph(intro)}
 ${paragraph(how)}
 <tr><td style="padding-top:24px"><a href="${escapeHtml(mail.url)}" style="display:inline-block;background:#6c69f2;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 20px;border-radius:8px">${action}</a></td></tr>
-${footnote(`${validity} Se você não esperava este e-mail, pode ignorá-lo.`)}`,
+${footnote(`${validity} ${ignore}`)}`,
   );
   return { subject, text, html };
 }
 
 function renderOtp(mail: Extract<AccessEmail, { kind: 'otp' }>) {
-  const greeting = `Olá, ${firstName(mail.name)}!`;
-  const subject = `${mail.code} é o seu código de acesso · Galaxie Sports`;
-  const intro = 'Use o código abaixo para entrar na demo da Galaxie Sports:';
-  const validity = `O código vale por ${mail.expiresInMinutes} minutos e só pode ser usado uma vez.`;
-  const ignore = 'Se não foi você, ignore este e-mail: ninguém entra sem o código.';
-  const text = `${greeting}\n\n${intro}\n\n${mail.code}\n\n${validity}\n${ignore}\n\nGalaxie Works`;
+  const t = getDictionary(mail.locale).email;
+  const greeting = greetingOf(mail);
+  const subject = fill(t.otp.subject, { code: mail.code });
+  const { intro, ignore } = t.otp;
+  const validity = fill(t.otp.validity, { minutes: mail.expiresInMinutes });
+  const text = `${greeting}\n\n${intro}\n\n${mail.code}\n\n${validity}\n${ignore}\n\n${t.signature}`;
   const html = frame(
+    mail.locale,
     greeting,
     `${paragraph(intro)}
 <tr><td style="padding-top:20px"><div style="display:inline-block;background:#0b0f14;border:1px solid #232b35;border-radius:10px;padding:14px 22px;font-family:Consolas,'SFMono-Regular',Menlo,'Courier New',monospace;font-size:34px;font-weight:700;letter-spacing:10px;color:#ffffff">${escapeHtml(mail.code)}</div></td></tr>
@@ -125,7 +141,7 @@ export async function sendAccessEmail(mail: AccessEmail): Promise<SendResult> {
     } else {
       console.error(`[demo-auth] SMTP não configurado; código de acesso para ${mail.to} não foi entregue.`);
     }
-    return { delivered: false, error: 'SMTP não configurado' };
+    return { delivered: false, error: 'SMTP not configured' };
   }
   try {
     await transport().sendMail({ from: SMTP_FROM, to: mail.to, subject, text, html });

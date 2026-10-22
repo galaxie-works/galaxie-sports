@@ -6,6 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
 
 // ─── fonte do player por plataforma ──────────────────────────────────────────────────────────────
@@ -87,6 +89,7 @@ const YT_BUFFERING = 3;
 export const AUTOPLAY_FALLBACK_MS = 1_500;
 
 function YoutubeEmbed({ videoId, title, onEnded }: { videoId: string; title: string; onEnded?: () => void }) {
+  const { t } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const ended = useRef(onEnded);
@@ -174,7 +177,7 @@ function YoutubeEmbed({ videoId, title, onEnded }: { videoId: string; title: str
           onClick={unmute}
           className="bg-background/90 text-foreground hover:bg-background absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg transition-colors"
         >
-          <VolumeX className="size-3.5" aria-hidden /> Toque para ativar o som
+          <VolumeX className="size-3.5" aria-hidden /> {t.media.player.unmute}
         </button>
       ) : null}
     </div>
@@ -256,12 +259,6 @@ function duration(sec: number | null): string | null {
   return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }
 
-const TIER_LABEL: Record<string, string> = {
-  official: 'Oficial',
-  rights_holder: 'Detentor de direitos',
-  media: 'Imprensa',
-};
-
 /**
  * Painel lateral 9:16 que toca o vídeo no player oficial da plataforma. Vídeo vertical ocupa o quadro;
  * horizontal fica centralizado com faixa. Anterior/próximo (e as setas) percorrem a lista filtrada e o
@@ -278,6 +275,8 @@ function RelatedPlayerPanel({
   onIndexChange: (index: number) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
+  const tp = t.media.player;
   const item = items[index]!;
   const source = playerSource(item);
   const hasPrev = index > 0;
@@ -290,12 +289,12 @@ function RelatedPlayerPanel({
   // foco no painel ao abrir (sem prender: Tab sai do painel normalmente)
   useEffect(() => closeButton.current?.focus(), []);
   const vertical = item.aspect_ratio === '9:16';
-  const tier = TIER_LABEL[item.channel.source_tier];
+  const tier = t.media.tiers[item.channel.source_tier];
   const time = duration(item.duration_seconds);
 
   return (
     <aside
-      aria-label="Player de conteúdo relacionado"
+      aria-label={tp.label}
       className="bg-popover text-popover-foreground fixed inset-0 z-50 flex flex-col overflow-y-auto text-sm md:sticky md:top-0 md:z-10 md:h-svh md:w-[26rem] md:shrink-0 md:self-start md:border-l"
       onKeyDown={(e) => {
         if (e.key === 'Escape') onClose();
@@ -322,7 +321,7 @@ function RelatedPlayerPanel({
             </Badge>
             {item.format === 'short' ? (
               <Badge variant="outline" size="sm">
-                Short
+                {t.media.short}
               </Badge>
             ) : null}
             {tier ? (
@@ -332,13 +331,7 @@ function RelatedPlayerPanel({
             ) : null}
           </div>
         </div>
-        <Button
-          ref={closeButton}
-          variant="ghost"
-          size="icon-sm"
-          onClick={onClose}
-          aria-label="Fechar o player"
-        >
+        <Button ref={closeButton} variant="ghost" size="icon-sm" onClick={onClose} aria-label={tp.close}>
           <XIcon aria-hidden />
         </Button>
       </header>
@@ -368,21 +361,21 @@ function RelatedPlayerPanel({
           size="sm"
           onClick={() => go(-1)}
           disabled={!hasPrev}
-          aria-label="Vídeo anterior"
+          aria-label={tp.previousVideo}
         >
-          <ChevronLeft aria-hidden /> Anterior
+          <ChevronLeft aria-hidden /> {tp.previous}
         </Button>
         <span className="text-muted-foreground flex-1 text-center text-xs tabular-nums">
-          {index + 1} de {items.length}
+          {fill(tp.position, { index: index + 1, total: items.length })}
         </span>
         <Button
           variant="outline"
           size="sm"
           onClick={() => go(1)}
           disabled={!hasNext}
-          aria-label="Próximo vídeo"
+          aria-label={tp.nextVideo}
         >
-          Próximo <ChevronRight aria-hidden />
+          {tp.next} <ChevronRight aria-hidden />
         </Button>
       </div>
       <a
@@ -391,7 +384,7 @@ function RelatedPlayerPanel({
         rel="noreferrer"
         className="text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 pb-4 text-xs"
       >
-        <ExternalLink className="size-3" aria-hidden /> Abrir na plataforma
+        <ExternalLink className="size-3" aria-hidden /> {tp.openOnPlatform}
       </a>
     </aside>
   );

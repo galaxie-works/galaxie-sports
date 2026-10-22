@@ -22,6 +22,7 @@ import { LIVE_HREF, LiveNavItem } from '@/components/live/live-nav-item';
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { DOCS_NAV } from '@/lib/docs';
+import { useI18n } from '@/lib/i18n/client';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
 import { topLevelClick } from '@/lib/trail';
 
@@ -32,13 +33,21 @@ function isActive(pathname: string | null, href: string) {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLink({ item, pathname }: { item: NavItem & { slug?: string }; pathname: string | null }) {
+function NavLink({
+  item,
+  label,
+  pathname,
+}: {
+  item: NavItem & { slug?: string };
+  label: string;
+  pathname: string | null;
+}) {
   const Icon = item.icon;
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={isActive(pathname, item.href)}
-        tooltip={item.label}
+        tooltip={label}
         render={<Link href={item.href} onClick={topLevelClick(item.href)} />}
       >
         {item.slug ? (
@@ -48,7 +57,7 @@ function NavLink({ item, pathname }: { item: NavItem & { slug?: string }; pathna
         ) : (
           <Icon />
         )}
-        <span>{item.label}</span>
+        <span>{label}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
@@ -60,6 +69,7 @@ function CurrentSidebarNav() {
 }
 
 function SidebarNav({ pathname }: { pathname: string | null }) {
+  const { t } = useI18n();
   return (
     <SidebarContent>
       <SidebarGroup>
@@ -71,19 +81,19 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
       </SidebarGroup>
 
       <SidebarGroup>
-        <SidebarGroupLabel>Esportes</SidebarGroupLabel>
+        <SidebarGroupLabel>{t.shell.sidebar.sports}</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             {SPORTS.map((item) => (
-              <NavLink key={item.href} item={item} pathname={pathname} />
+              <NavLink key={item.href} item={item} label={t.nav.sports[item.slug]} pathname={pathname} />
             ))}
-            <NavLink item={MULTISPORT_NAV} pathname={pathname} />
+            <NavLink item={MULTISPORT_NAV} label={t.nav.multisport} pathname={pathname} />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
 
       <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-        <SidebarGroupLabel>Países</SidebarGroupLabel>
+        <SidebarGroupLabel>{t.shell.sidebar.countries}</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             {COUNTRIES.map((c) => (
@@ -93,7 +103,7 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
                   render={<Link href={c.href} onClick={topLevelClick(c.href)} />}
                 >
                   <CountryFlag code={c.code} />
-                  <span>{c.label}</span>
+                  <span>{t.nav.countries[c.code]}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -104,7 +114,7 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
       <SidebarGroup>
         <SidebarGroupLabel className="gap-2">
           <BookOpen aria-hidden />
-          Documentação
+          {t.shell.sidebar.docs}
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
@@ -115,11 +125,11 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
                   {/* Rotas dos guias são irmãs (/docs e /docs/...): ativo só na própria página. */}
                   <SidebarMenuButton
                     isActive={pathname === d.href}
-                    tooltip={d.label}
+                    tooltip={t.code.docsNav[d.id].label}
                     render={<Link href={d.href} onClick={topLevelClick(d.href)} />}
                   >
                     <Icon />
-                    <span>{d.label}</span>
+                    <span>{t.code.docsNav[d.id].label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );

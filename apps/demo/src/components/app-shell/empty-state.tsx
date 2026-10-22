@@ -19,11 +19,11 @@ function StackedCardsIllustration() {
 }
 
 export function EmptyState({
-  title = 'Nada por aqui ainda',
-  description = 'Ainda não há dados para mostrar. Avisaremos quando houver novidade.',
+  title,
+  description,
   children,
 }: {
-  title?: string;
+  title: string;
   description?: string;
   children?: React.ReactNode;
 }) {
@@ -35,7 +35,7 @@ export function EmptyState({
             <StackedCardsIllustration />
           </EmptyMedia>
           <EmptyTitle>{title}</EmptyTitle>
-          <EmptyDescription>{description}</EmptyDescription>
+          {description ? <EmptyDescription>{description}</EmptyDescription> : null}
         </EmptyHeader>
         {children}
       </Empty>

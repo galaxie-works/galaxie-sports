@@ -5,10 +5,13 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/lib/i18n/client';
 
 /** Copia um valor (ex.: o CSS do gradiente sugerido) para a área de transferência. */
-export function CopyButton({ value, label = 'Copiar' }: { value: string; label?: string }) {
+export function CopyButton({ value, label }: { value: string; label?: string }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
+  const text = label ?? t.common.copy;
 
   async function copy() {
     try {
@@ -26,15 +29,15 @@ export function CopyButton({ value, label = 'Copiar' }: { value: string; label?:
         if (!ok) throw new Error('cópia recusada');
       });
       setCopied(true);
-      toast.success('Copiado');
+      toast.success(t.common.copied);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast.error('Não foi possível copiar');
+      toast.error(t.common.copyFailed);
     }
   }
 
   return (
-    <Button variant="ghost" size="icon-xs" onClick={copy} aria-label={label} title={label}>
+    <Button variant="ghost" size="icon-xs" onClick={copy} aria-label={text} title={text}>
       {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
     </Button>
   );

@@ -2,6 +2,8 @@
  * Convite de acesso à demo: um e-mail com o link da tela de login e a validade do acesso. Não há senha
  * nem token no link — para entrar, a pessoa pede um código de acesso no próprio e-mail convidado.
  */
+import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/config';
+
 import { pool } from './db';
 import { sendAccessEmail } from './email';
 
@@ -19,10 +21,12 @@ export interface InviteResult {
 
 /** Manda (ou reenvia) o convite e registra o envio na tabela `invite`. */
 export async function sendInvite(userId: string): Promise<InviteResult> {
-  const { rows } = await pool.query<{ email: string; name: string; access_expires_at: Date | null }>(
-    'select email, name, access_expires_at from "user" where id = $1',
-    [userId],
-  );
+  const { rows } = await pool.query<{
+    email: string;
+    name: string;
+    access_expires_at: Date | null;
+    locale: string | null;
+  }>('select email, name, access_expires_at, locale from "user" where id = $1', [userId]);
   const user = rows[0];
   if (!user) throw new Error('Usuário não encontrado.');
   const url = loginUrl();
@@ -32,6 +36,8 @@ export async function sendInvite(userId: string): Promise<InviteResult> {
     name: user.name,
     url,
     accessExpiresAt: user.access_expires_at,
+    // O convite sai no idioma escolhido para a pessoa (no convite ou depois, por ela mesma).
+    locale: isLocale(user.locale) ? user.locale : DEFAULT_LOCALE,
   });
   await pool.query('insert into invite (user_id, kind, delivered, error) values ($1, $2, $3, $4)', [
     userId,
