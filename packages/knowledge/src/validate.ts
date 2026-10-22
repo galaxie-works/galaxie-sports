@@ -2,9 +2,23 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Ajv, type ErrorObject, type ValidateFunction } from 'ajv';
 import { nameKey } from '@galaxie/db';
-import { lineOf, type FileKind, type KnowledgeBase, type KnowledgeFile } from './load.js';
+import {
+  lineOf,
+  type FileKind,
+  type KnowledgeBase,
+  type KnowledgeFile,
+  type LocatedDerby,
+  type LocatedTeam,
+} from './load.js';
+import { guessLanguage, languageOf } from './language.js';
 import { checkChant, checkProse, type LyricVerdict } from './lyrics.js';
-import { COPY_INTENTS, COPY_LOCALES, COPY_PLACEHOLDERS, type CopyTemplateEntry } from './types.js';
+import {
+  COPY_INTENTS,
+  COPY_LOCALES,
+  COPY_PLACEHOLDERS,
+  REVIEW_STATUSES,
+  type CopyTemplateEntry,
+} from './types.js';
 
 export interface Issue {
   level: 'error' | 'warning';
@@ -25,6 +39,8 @@ export interface ValidationReport {
     competitions: number;
     copyTemplates: number;
     glossaryTerms: number;
+    /** Traduções (time ou clássico × locale) em i18n/<locale>.yaml. */
+    texts: number;
   };
 }
 
@@ -36,6 +52,7 @@ const SCHEMA_BY_KIND: Partial<Record<FileKind, string>> = {
   competitions: 'competitions.schema.json',
   copy: 'copy.schema.json',
   glossary: 'glossary.schema.json',
+  i18n: 'i18n.schema.json',
 };
 
 /** Compila os JSON Schemas de data/knowledge/schemas. */
@@ -203,7 +220,10 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
         lineOf(file, ['region']),
         `region ${data['region']} difere do nome do arquivo`,
       );
-    if ((file.kind === 'copy' || file.kind === 'glossary') && data?.['locale'] !== base)
+    if (
+      (file.kind === 'copy' || file.kind === 'glossary' || file.kind === 'i18n') &&
+      data?.['locale'] !== base
+    )
       add(
         'error',
         'file-name',
@@ -538,6 +558,9 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   // 9. glossário por mercado
   issues.push(...validateGlossary(kb, at));
 
+  // 10. idioma dos textos livres e traduções (i18n/<locale>.yaml)
+  issues.push(...validateTexts(kb, at));
+
   const sortKey = (i: Issue) => `${i.file ?? ''}|${String(i.line ?? 0).padStart(6, '0')}`;
   const sorted = issues.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
   return {
@@ -550,6 +573,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
       competitions: kb.competitions.length,
       copyTemplates: kb.copyTemplates.length,
       glossaryTerms: kb.glossary.length,
+      texts: kb.texts.length,
     },
   };
 }
@@ -707,13 +731,137 @@ function validateGlossary(
   return out;
 }
 
+/**
+ * Textos livres em vários idiomas (docs/06 §3.3): cada texto no idioma declarado (`text_locale` do arquivo
+ * ou locale da tradução) e cada tradução apontando para um item existente, sem repetir o idioma-base,
+ * com os mesmos fatos do original (tradução nunca acrescenta fato) e as mesmas heurísticas de letra.
+ */
+function validateTexts(
+  kb: KnowledgeBase,
+  at: (file: string, path: (string | number)[]) => number | null,
+): Issue[] {
+  const out: Issue[] = [];
+  const add = (level: Issue['level'], code: string, file: string, line: number | null, message: string) =>
+    out.push({ level, code, file, line, message });
+  const checkLanguage = (
+    text: unknown,
+    locale: string,
+    file: string,
+    path: (string | number)[],
+    who: string,
+  ) => {
+    if (typeof text !== 'string') return;
+    const found = guessLanguage(text);
+    if (!found || found === languageOf(locale)) return;
+    const excerpt = text.length > 50 ? `${text.slice(0, 47)}…` : text;
+    add(
+      'warning',
+      'text-language',
+      file,
+      at(file, path),
+      `${who}: "${excerpt}" parece ${found === 'pt' ? 'português' : 'espanhol'}, mas o locale é ${locale}`,
+    );
+  };
+  const prose = (text: unknown, file: string, path: (string | number)[], who: string) => {
+    if (typeof text !== 'string') return;
+    const verdict = checkProse(text);
+    if (verdict) add(verdict.level, 'lyric-like', file, at(file, path), `${who}: ${verdict.reason}`);
+  };
+
+  // idioma do original
+  for (const t of kb.teams)
+    (t.entry.identity ?? []).forEach((s, i) =>
+      checkLanguage(s, t.textLocale, t.file, [t.listKey, t.index, 'identity', i], t.entry.slug),
+    );
+  for (const d of kb.derbies) {
+    checkLanguage(d.entry.origin, d.textLocale, d.file, ['derbies', d.index, 'origin'], d.entry.slug);
+    (d.entry.trivia ?? []).forEach((s, i) =>
+      checkLanguage(s, d.textLocale, d.file, ['derbies', d.index, 'trivia', i], d.entry.slug),
+    );
+  }
+
+  // traduções
+  const teams = new Map(kb.teams.map((t) => [t.entry.slug, t]));
+  const derbies = new Map(kb.derbies.map((d) => [d.entry.slug, d]));
+  const seen = new Set<string>();
+  const rank = (s: unknown) => REVIEW_STATUSES.indexOf(s as (typeof REVIEW_STATUSES)[number]);
+  for (const x of kb.texts) {
+    const base = [x.listKey, x.index];
+    const line = at(x.file, base);
+    const slug = x.entry.slug;
+    const key = `${x.locale}|${x.listKey}|${slug}`;
+    if (seen.has(key)) add('error', 'duplicate-key', x.file, line, `tradução repetida: ${slug}`);
+    seen.add(key);
+    const target = x.listKey === 'teams' ? teams.get(slug) : derbies.get(slug);
+    if (!target) {
+      add(
+        'error',
+        'i18n-unknown-slug',
+        x.file,
+        line,
+        `${x.listKey === 'teams' ? 'time' : 'clássico'} inexistente: ${slug}`,
+      );
+      continue;
+    }
+    if (target.textLocale === x.locale)
+      add(
+        'error',
+        'i18n-redundant',
+        x.file,
+        line,
+        `${slug}: o texto original já está em ${x.locale} (${target.file}) — edite lá`,
+      );
+    if (rank(x.entry.review_status) > rank(target.entry.review_status))
+      add(
+        'warning',
+        'i18n-review',
+        x.file,
+        at(x.file, [...base, 'review_status']),
+        `${slug}: tradução ${x.entry.review_status} com original ${target.entry.review_status} — revise o original primeiro`,
+      );
+    const drift = (field: string, message: string) =>
+      add('warning', 'i18n-drift', x.file, at(x.file, [...base, field]), `${slug}: ${message}`);
+    if (x.listKey === 'teams') {
+      const e = x.entry;
+      const t = (target as LocatedTeam).entry;
+      const original = t.identity ?? [];
+      if (e.identity && e.identity.length !== original.length)
+        drift(
+          'identity',
+          `${e.identity.length} fato(s) traduzido(s) para ${original.length} no original (traduza os mesmos fatos, na mesma ordem)`,
+        );
+      if (e.mascot && !t.mascot) drift('mascot', 'mascote traduzido sem mascote no original');
+      (e.identity ?? []).forEach((s, i) => {
+        prose(s, x.file, [...base, 'identity', i], slug);
+        checkLanguage(s, x.locale, x.file, [...base, 'identity', i], slug);
+      });
+    } else {
+      const e = x.entry;
+      const d = (target as LocatedDerby).entry;
+      if (e.origin && !d.origin) drift('origin', 'origin traduzido sem origin no original');
+      if (e.trivia && e.trivia.length !== (d.trivia ?? []).length)
+        drift(
+          'trivia',
+          `${e.trivia.length} curiosidade(s) traduzida(s) para ${(d.trivia ?? []).length} no original`,
+        );
+      prose(e.origin, x.file, [...base, 'origin'], slug);
+      checkLanguage(e.origin, x.locale, x.file, [...base, 'origin'], slug);
+      (e.trivia ?? []).forEach((s, i) => {
+        prose(s, x.file, [...base, 'trivia', i], slug);
+        checkLanguage(s, x.locale, x.file, [...base, 'trivia', i], slug);
+      });
+    }
+  }
+  return out;
+}
+
 /** Formata o relatório para terminal (pt-BR). */
 export function formatReport(report: ValidationReport): string {
   const line = (i: Issue) =>
     `  ${i.level === 'error' ? '✗' : '!'} ${i.file ?? '-'}${i.line ? `:${i.line}` : ''} [${i.code}] ${i.message}`;
   const c = report.counts;
   return [
-    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário`,
+    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário · ${c.texts} traduções`,
     ...(report.errors.length ? [`Erros (${report.errors.length}):`, ...report.errors.map(line)] : []),
     ...(report.warnings.length ? [`Avisos (${report.warnings.length}):`, ...report.warnings.map(line)] : []),
     report.errors.length

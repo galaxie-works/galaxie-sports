@@ -75,6 +75,11 @@
         "es"
       ]
     },
+    "textLocale": {
+      "type": "string",
+      "enum": ["pt-BR", "es", "es-AR", "es-MX", "es-CO", "es-CL", "es-PE", "es-UY", "es-EC", "es-PY", "es-BO", "es-VE"],
+      "description": "Idioma dos textos livres (identity, mascote, torcida, origin, trivia); es = espanhol neutro da América Latina"
+    },
     "labels": {
       "type": "object",
       "propertyNames": { "$ref": "#/definitions/labelLocale" },

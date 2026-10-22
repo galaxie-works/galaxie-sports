@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.galaxie-sports.local/knowledge/i18n.schema.json",
+  "title": "Textos livres traduzidos por mercado — data/knowledge/i18n/<locale>.yaml (docs/06 §3.3)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "locale"],
+  "anyOf": [{ "required": ["teams"] }, { "required": ["derbies"] }],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "locale": { "$ref": "common.schema.json#/definitions/textLocale" },
+    "teams": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slug", "review_status"],
+        "anyOf": [
+          { "required": ["identity"] },
+          { "required": ["mascot"] },
+          { "required": ["colors"] },
+          { "required": ["fans"] }
+        ],
+        "properties": {
+          "slug": { "$ref": "common.schema.json#/definitions/slug" },
+          "identity": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1, "maxLength": 400 },
+            "description": "Os mesmos fatos do idioma-base, na mesma ordem — tradução, nunca fato novo"
+          },
+          "mascot": { "$ref": "common.schema.json#/definitions/nonEmptyString" },
+          "colors": { "$ref": "common.schema.json#/definitions/stringList" },
+          "fans": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "demonym": { "$ref": "common.schema.json#/definitions/nonEmptyString" },
+              "group_nicknames": { "$ref": "common.schema.json#/definitions/stringList" }
+            }
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240,
+            "description": "Observação editorial (ex.: por que este mercado tem texto próprio)"
+          },
+          "review_status": { "$ref": "common.schema.json#/definitions/reviewStatus" }
+        }
+      }
+    },
+    "derbies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slug", "review_status"],
+        "anyOf": [{ "required": ["origin"] }, { "required": ["trivia"] }],
+        "properties": {
+          "slug": { "$ref": "common.schema.json#/definitions/slug" },
+          "origin": { "type": "string", "minLength": 1, "maxLength": 400 },
+          "trivia": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": { "type": "string", "minLength": 1, "maxLength": 400 }
+          },
+          "note": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "review_status": { "$ref": "common.schema.json#/definitions/reviewStatus" }
+        }
+      }
+    }
+  }
+}

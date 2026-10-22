@@ -18,6 +18,7 @@
     "test": "vitest run --dir src --passWithNoTests",
     "test:integration": "vitest run --dir test",
     "knowledge:validate": "node dist/cli/validate.js",
+    "knowledge:i18n": "node dist/cli/i18n-coverage.js",
     "seed:semantic": "node --env-file-if-exists=../../.env dist/cli/seed-semantic.js",
     "resolve:ids": "node --env-file-if-exists=../../.env dist/cli/resolve-ids.js"
   },

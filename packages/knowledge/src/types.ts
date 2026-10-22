@@ -7,6 +7,28 @@ export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 export const COPY_LOCALES = ['pt-BR', 'es-AR', 'es-MX', 'es-CO', 'es-CL', 'es-PE', 'es-UY', 'es-EC'] as const;
 export type CopyLocale = (typeof COPY_LOCALES)[number];
 
+/**
+ * Locales dos textos livres (identity, mascote, torcida, origin, trivia): o idioma-base de cada arquivo
+ * (`text_locale`, padrão pt-BR) e as traduções de `i18n/<locale>.yaml`. `es` = espanhol neutro da
+ * América Latina; `es-XX` só quando o texto tem voz regional (docs/06 §3.3).
+ */
+export const TEXT_LOCALES = [
+  'pt-BR',
+  'es',
+  'es-AR',
+  'es-MX',
+  'es-CO',
+  'es-CL',
+  'es-PE',
+  'es-UY',
+  'es-EC',
+  'es-PY',
+  'es-BO',
+  'es-VE',
+] as const;
+export type TextLocale = (typeof TEXT_LOCALES)[number];
+export const DEFAULT_TEXT_LOCALE: TextLocale = 'pt-BR';
+
 export type I18nMap = Partial<Record<string, string>>;
 
 export interface TeamRivalEntry {
@@ -123,21 +145,26 @@ export interface CopyTemplateEntry {
 export interface TeamsFile {
   schema_version: 1;
   country: string;
+  /** Idioma dos textos livres do arquivo (padrão pt-BR). */
+  text_locale?: TextLocale;
   teams: TeamEntry[];
 }
 /** `<esporte>/participants/*.yaml`: pilotos, equipes da F1, lutadores... (cada item com `country`). */
 export interface ParticipantsFile {
   schema_version: 1;
   kind: 'driver' | 'constructor' | 'fighter' | 'athlete';
+  text_locale?: TextLocale;
   participants: TeamEntry[];
 }
 export interface NationalTeamsFile {
   schema_version: 1;
+  text_locale?: TextLocale;
   teams: TeamEntry[];
 }
 export interface DerbiesFile {
   schema_version: 1;
   region: string;
+  text_locale?: TextLocale;
   derbies: DerbyEntry[];
 }
 export interface CompetitionsFile {
@@ -183,3 +210,39 @@ export interface CopyFile {
   sport: 'football';
   templates: CopyTemplateEntry[];
 }
+
+/** Textos de um time/participante traduzidos para um locale (`i18n/<locale>.yaml`). */
+export interface TeamTextsEntry {
+  slug: string;
+  identity?: string[];
+  mascot?: string;
+  colors?: string[];
+  fans?: { demonym?: string; group_nicknames?: string[] };
+  /** Observação editorial (ex.: por que o texto tem versão regional). */
+  note?: string;
+  review_status: ReviewStatus;
+}
+
+/** Textos de um clássico traduzidos para um locale. */
+export interface DerbyTextsEntry {
+  slug: string;
+  origin?: string;
+  trivia?: string[];
+  note?: string;
+  review_status: ReviewStatus;
+}
+
+/**
+ * `i18n/<locale>.yaml`: tradução dos textos livres da base para um mercado. Cada campo cai, um a um, na
+ * cadeia `es-XX → es → idioma-base` (docs/06 §3.3).
+ */
+export interface I18nFile {
+  schema_version: 1;
+  locale: TextLocale;
+  teams?: TeamTextsEntry[];
+  derbies?: DerbyTextsEntry[];
+}
+
+/** Textos localizáveis guardados no banco: `{ "<locale>": { identity, mascot, ..., review_status } }`. */
+export type TeamTexts = Omit<TeamTextsEntry, 'slug' | 'note'>;
+export type DerbyTexts = Omit<DerbyTextsEntry, 'slug' | 'note'>;

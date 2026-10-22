@@ -24,6 +24,7 @@
     "db:studio": "pnpm --filter @galaxie/db db:studio",
     "db:seed:semantic": "turbo run build --filter=@galaxie/knowledge --output-logs=errors-only && pnpm --filter @galaxie/knowledge seed:semantic",
     "knowledge:validate": "turbo run build --filter=@galaxie/knowledge --output-logs=errors-only && pnpm --filter @galaxie/knowledge knowledge:validate",
+    "knowledge:i18n": "turbo run build --filter=@galaxie/knowledge --output-logs=errors-only && pnpm --filter @galaxie/knowledge knowledge:i18n",
     "resolve:ids": "turbo run build --filter=@galaxie/knowledge --output-logs=errors-only && pnpm --filter @galaxie/knowledge resolve:ids",
     "snapshot:export": "pnpm --filter @galaxie/ingestor snapshot:export",
     "snapshot:restore": "pnpm --filter @galaxie/ingestor snapshot:import"

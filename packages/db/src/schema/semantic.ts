@@ -21,6 +21,18 @@ export const reviewStatus = semantic.enum('review_status', REVIEW_STATUSES);
 /** Rival declarado no YAML do time (slug do outro time, clássico e intensidade 1–5). */
 export type TeamRival = { team: string; derby: string | null; intensity: number | null };
 
+type ReviewStatusValue = (typeof REVIEW_STATUSES)[number];
+/** Textos de um time traduzidos para um locale (data/knowledge/i18n/<locale>.yaml). */
+export type LocalizedTeamTexts = {
+  identity?: string[];
+  mascot?: string;
+  colors?: string[];
+  fans?: { demonym?: string; group_nicknames?: string[] };
+  review_status: ReviewStatusValue;
+};
+/** Textos de um clássico traduzidos para um locale. */
+export type LocalizedDerbyTexts = { origin?: string; trivia?: string[]; review_status: ReviewStatusValue };
+
 /** Perfil semântico de time/seleção carregado de data/knowledge/football/teams/*.yaml. */
 export const teamProfile = semantic.table(
   'team_profile',
@@ -46,6 +58,10 @@ export const teamProfile = semantic.table(
     stadium: jsonb('stadium'),
     rivals: jsonb('rivals').$type<TeamRival[]>().notNull().default([]),
     identity: jsonb('identity').$type<string[]>().notNull().default([]),
+    /** Idioma dos textos livres do YAML (identity, mascot, colors, fans): pt-BR, es ou es-XX. */
+    textLocale: text('text_locale').notNull().default('pt-BR'),
+    /** Traduções de i18n/<locale>.yaml: `{ "es": { identity, mascot, colors, fans, review_status } }`. */
+    texts: jsonb('texts').$type<Record<string, LocalizedTeamTexts>>().notNull().default({}),
     copyHints: jsonb('copy_hints'),
     worldCupTitles: smallint('world_cup_titles'),
     /** Arquivo e versão de origem no repositório. */
@@ -74,6 +90,10 @@ export const derby = semantic.table('derby', {
   firstMatch: date('first_match'),
   origin: text('origin'),
   trivia: jsonb('trivia').$type<string[]>().notNull().default([]),
+  /** Idioma de origin/trivia no YAML. */
+  textLocale: text('text_locale').notNull().default('pt-BR'),
+  /** Traduções de i18n/<locale>.yaml: `{ "es": { origin, trivia, review_status } }`. */
+  texts: jsonb('texts').$type<Record<string, LocalizedDerbyTexts>>().notNull().default({}),
   sourceFile: text('source_file').notNull(),
   sources: jsonb('sources').$type<string[]>().notNull().default([]),
   reviewStatus: reviewStatus('review_status').notNull().default('draft'),

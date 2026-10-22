@@ -7,18 +7,31 @@ import type {
   CopyFile,
   CopyTemplateEntry,
   DerbyEntry,
+  DerbyTextsEntry,
   ParticipantsFile,
   GlossaryFile,
   GlossaryTermEntry,
+  I18nFile,
   TeamEntry,
+  TeamTextsEntry,
   TeamsFile,
+  TextLocale,
 } from './types.js';
+import { DEFAULT_TEXT_LOCALE, TEXT_LOCALES } from './types.js';
 
 /** data/knowledge na raiz do repositório (vale tanto para src/ quanto para dist/). */
 export const DEFAULT_KNOWLEDGE_DIR = fileURLToPath(new URL('../../../data/knowledge', import.meta.url));
 
 export type FileKind =
-  'teams' | 'national-teams' | 'participants' | 'derbies' | 'competitions' | 'copy' | 'glossary' | 'unknown';
+  | 'teams'
+  | 'national-teams'
+  | 'participants'
+  | 'derbies'
+  | 'competitions'
+  | 'copy'
+  | 'glossary'
+  | 'i18n'
+  | 'unknown';
 
 /**
  * Esportes com pasta própria em data/knowledge (`<esporte>/teams`, `<esporte>/derbies`,
@@ -72,8 +85,14 @@ export type LocatedTeam = Located<TeamEntry> & {
   sport: KnowledgeSport;
   /** Chave da lista no arquivo (`teams` ou `participants`), para localizar linhas. */
   listKey: 'teams' | 'participants';
+  /** Idioma dos textos livres do item (`text_locale` do arquivo, padrão pt-BR). */
+  textLocale: TextLocale;
 };
-export type LocatedDerby = Located<DerbyEntry> & { sport: KnowledgeSport };
+export type LocatedDerby = Located<DerbyEntry> & { sport: KnowledgeSport; textLocale: TextLocale };
+/** Tradução de um item (`i18n/<locale>.yaml`); `listKey` diz se é time ou clássico. */
+export type LocatedTexts =
+  | (Located<TeamTextsEntry> & { locale: TextLocale; listKey: 'teams' })
+  | (Located<DerbyTextsEntry> & { locale: TextLocale; listKey: 'derbies' });
 export type LocatedCopyTemplate = Located<CopyTemplateEntry> & { locale: string; sport: string };
 export type LocatedGlossaryTerm = Located<GlossaryTermEntry> & { locale: string; sport: string };
 
@@ -85,6 +104,8 @@ export interface KnowledgeBase {
   competitions: Located<CompetitionEntry>[];
   copyTemplates: LocatedCopyTemplate[];
   glossary: LocatedGlossaryTerm[];
+  /** Traduções dos textos livres (i18n/<locale>.yaml). */
+  texts: LocatedTexts[];
 }
 
 /** Classifica um arquivo pelo caminho relativo dentro de data/knowledge. */
@@ -97,6 +118,7 @@ export function fileKind(rel: string): FileKind {
   if (/^competitions\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'competitions';
   if (/^copy\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'copy';
   if (/^glossary\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'glossary';
+  if (/^i18n\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'i18n';
   return 'unknown';
 }
 
@@ -173,6 +195,14 @@ export async function loadKnowledge(dir: string = DEFAULT_KNOWLEDGE_DIR): Promis
   return buildKnowledgeBase(dir, files);
 }
 
+/** `text_locale` do topo do arquivo (padrão pt-BR; valor inválido também cai no padrão — o schema acusa). */
+export function textLocaleOf(file: KnowledgeFile): TextLocale {
+  const declared = isObject(file.data) ? file.data['text_locale'] : undefined;
+  return (TEXT_LOCALES as readonly unknown[]).includes(declared)
+    ? (declared as TextLocale)
+    : DEFAULT_TEXT_LOCALE;
+}
+
 export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): KnowledgeBase {
   const kb: KnowledgeBase = {
     dir,
@@ -182,8 +212,10 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
     competitions: [],
     copyTemplates: [],
     glossary: [],
+    texts: [],
   };
   for (const file of files) {
+    const textLocale = textLocaleOf(file);
     switch (file.kind) {
       case 'teams': {
         const country = String((file.data as Partial<TeamsFile> | null)?.country ?? '');
@@ -194,6 +226,7 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
             kind: 'club',
             sport: sportOf(file.rel)!,
             listKey: 'teams',
+            textLocale,
           });
         break;
       }
@@ -205,6 +238,7 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
             kind: 'national_team',
             sport: 'football',
             listKey: 'teams',
+            textLocale,
           });
         break;
       }
@@ -220,12 +254,13 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
             kind,
             sport: sportOf(file.rel)!,
             listKey: 'participants',
+            textLocale,
           });
         break;
       }
       case 'derbies':
         kb.derbies.push(
-          ...items<DerbyEntry>(file, 'derbies').map((d) => ({ ...d, sport: sportOf(file.rel)! })),
+          ...items<DerbyEntry>(file, 'derbies').map((d) => ({ ...d, sport: sportOf(file.rel)!, textLocale })),
         );
         break;
       case 'competitions':
@@ -259,6 +294,14 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
               sport: String(data?.sport ?? ''),
             });
         });
+        break;
+      }
+      case 'i18n': {
+        const locale = String((file.data as Partial<I18nFile> | null)?.locale ?? '') as TextLocale;
+        for (const t of items<TeamTextsEntry>(file, 'teams'))
+          kb.texts.push({ ...t, locale, listKey: 'teams' });
+        for (const d of items<DerbyTextsEntry>(file, 'derbies'))
+          kb.texts.push({ ...d, locale, listKey: 'derbies' });
         break;
       }
       default:

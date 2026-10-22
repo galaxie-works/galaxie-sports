@@ -12,3 +12,5 @@ export * from './resolver/match.js';
 export * from './resolver/sources.js';
 export * from './resolver/yaml-writeback.js';
 export * from './resolver/apply-db.js';
+export * from './language.js';
+export * from './i18n.js';

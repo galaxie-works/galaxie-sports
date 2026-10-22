@@ -1,4 +1,5 @@
 schema_version: 1
+text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: EC
 teams:
   - slug: barcelona-sc
