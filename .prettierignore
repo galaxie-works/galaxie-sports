@@ -18,3 +18,5 @@ apps/demo/next-env.d.ts
 apps/demo/components.json
 apps/demo/src/components/animate-ui/
 apps/demo/src/components/smoothui/
+# Animações geradas por apps/demo/scripts/bake-lottie-icons.mjs (minificadas)
+apps/demo/src/components/sport/animated-icons/
