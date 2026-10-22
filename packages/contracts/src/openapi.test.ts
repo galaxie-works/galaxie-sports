@@ -84,7 +84,12 @@ describe('OpenAPI', () => {
       required: ['primary', 'secondary', 'monochrome', 'gradient'],
     });
     const overview = doc.components?.schemas?.TeamOverview as { required?: string[] };
-    expect(overview.required).toContain('competitions');
+    expect(overview.required).toEqual(expect.arrayContaining(['competitions', 'season', 'seasons']));
+    expect(doc.components?.schemas?.TeamSeason).toMatchObject({
+      required: ['year', 'labels', 'events', 'has_incidents', 'current'],
+    });
+    const params = (doc.paths?.['/v1/teams/{id}/overview']?.get?.parameters ?? []) as { name: string }[];
+    expect(params.map((p) => p.name)).toContain('season');
     expect(doc.components?.schemas?.TeamCampaign).toMatchObject({
       properties: {
         status: {

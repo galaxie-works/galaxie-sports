@@ -1041,6 +1041,47 @@ describe('/v1/teams e /v1/people', () => {
     expect(o.next_event).toMatchObject({ id: ids.leg2, momentum: 'today', stakes: expect.any(Array) });
   });
 
+  it('overview por temporada: campanha, tabela e jogos do ano; próximo jogo só na corrente', async () => {
+    const atual = (await get(`/v1/teams/${ids.palmeiras}/overview`)).json();
+    expect(atual.season).toBeNull();
+    expect(atual.seasons.map((s: { year: number; current: boolean }) => [s.year, s.current])).toEqual([
+      [2026, true],
+      [2024, false],
+    ]);
+    expect(atual.seasons[1]).toMatchObject({ labels: ['2024'], events: expect.any(Number) });
+
+    const res = await get(`/v1/teams/${ids.palmeiras}/overview?season=2024&tz=America/Sao_Paulo`);
+    expect(res.statusCode).toBe(200);
+    const o = res.json();
+    expect(o.season).toBe(2024);
+    expect(o.seasons).toEqual(atual.seasons);
+    expect(o.standings.map((s: { season: { year: number } }) => s.season.year)).toEqual([2024]);
+    expect(o.competitions).toHaveLength(1);
+    expect(o.competitions[0]).toMatchObject({
+      competition: { slug: 'brasileirao-serie-a' },
+      season: { year: 2024 },
+      campaign: { ongoing: false },
+    });
+    // jogos e forma só do Brasileirão 2024 (fixture real recortado), nada de 2026
+    expect(o.last_events.length).toBe(Math.min(5, atual.seasons[1].events));
+    expect(o.last_events.every((e: EventBody) => e.starts_at.startsWith('2024-'))).toBe(true);
+    expect(o.form).toHaveLength(o.last_events.length);
+    expect(o.live_event).toBeNull();
+    expect(o.next_event).toBeNull();
+
+    // temporada corrente explícita: só as competições daquele ano, com o próximo jogo
+    const corrente = (await get(`/v1/teams/${ids.palmeiras}/overview?season=2026`)).json();
+    expect(corrente.competitions.every((c: { season: { year: number } }) => c.season.year === 2026)).toBe(
+      true,
+    );
+    expect(corrente.next_event).toMatchObject({ id: ids.leg2 });
+
+    // ano sem jogos: listas vazias; ano inválido: 400
+    const vazio = (await get(`/v1/teams/${ids.palmeiras}/overview?season=1999`)).json();
+    expect(vazio).toMatchObject({ season: 1999, standings: [], competitions: [], form: [], last_events: [] });
+    expect((await get(`/v1/teams/${ids.palmeiras}/overview?season=dois-mil`)).statusCode).toBe(400);
+  });
+
   it('jogos do time com janela e cursor', async () => {
     const body = (await get(`/v1/teams/${ids.palmeiras}/events?from=2026-10-01&to=2026-10-31`)).json();
     expect(body.data.map((e: EventBody) => e.id)).toEqual([ids.detail, ids.leg1, ids.leg2]);
