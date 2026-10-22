@@ -4,13 +4,9 @@ import Link from 'next/link';
 
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
-import { Section } from '@/components/sport/section';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { initials } from '@/lib/format';
-import { lineupsRequest } from '@/lib/galaxie/api';
-import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { fill } from '@/lib/i18n/text';
 import { pitchRows, shortName, type MarksLookup, type PlayerMarks } from '@/lib/lineup-marks';
@@ -376,178 +372,218 @@ function Pitch({
   );
 }
 
-// ─── banco ───────────────────────────────────────────────────────────────────────────────────────
+// ─── tabelas ─────────────────────────────────────────────────────────────────────────────────────
 
 /** Minuto do relógio ("62'", "90+3'") como número, para ordenar. */
 const minuteOf = (display: string | null | undefined) => (display ? Number.parseInt(display) : Infinity);
 
-/** Reservas de um time: quem entrou primeiro (pelo minuto, com ↑ verde), depois quem ficou no banco. */
-function BenchColumn({
-  lineup,
-  marks,
-  color,
-  tx,
-}: {
-  lineup: Lineup;
-  marks: MarksLookup;
-  color: string;
-  tx: Tx;
-}) {
-  const subs = lineup.substitutes
-    .map((p, i) => ({ p, i, m: marks(p.person) }))
-    .sort((a, b) => minuteOf(a.m?.subIn) - minuteOf(b.m?.subIn) || a.i - b.i);
+function TeamHeading({ lineup, color, formation }: { lineup: Lineup; color: string; formation?: boolean }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
-        <Crest src={lineup.team.logo} name={lineup.team.name ?? ''} size="xs" />
-        <span className="truncate">{lineup.team.name}</span>
-      </div>
-      <ul className="flex flex-col gap-1">
-        {subs.map(({ p, m }) => (
-          <li key={`${p.person.id ?? p.person.name}-${p.number}`}>
-            <PersonLink
-              id={p.person.id}
-              className="hover:bg-accent -mx-1.5 flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors sm:gap-2.5"
-            >
-              <PersonPhoto
-                name={p.person.name}
-                photo={p.person.photo}
-                className="size-7 shrink-0 sm:size-8"
-              />
-              <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm">
-                  <span className="break-words">{p.person.name}</span>
-                  <InlineMarks marks={m} tx={tx} />
-                </span>
-                {m?.subIn ? (
-                  <span className="text-success flex items-center gap-0.5 text-xs font-medium tabular-nums">
-                    <ArrowUp className="size-3" aria-label={fill(tx.marks.subIn, { minute: m.subIn })} />
-                    {m.subIn}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground text-xs">
-                    {fill(tx.benchRole, {
-                      position: p.position ? (tx.positionLong[p.position] ?? p.position) : '',
-                      number: p.number ?? '',
-                    }).trim()}
-                  </span>
-                )}
-              </span>
-            </PersonLink>
-          </li>
-        ))}
-      </ul>
-      {lineup.coach ? (
-        <div className="mt-1 flex items-center gap-2.5 border-t pt-3">
-          <PersonPhoto name={lineup.coach.name} photo={lineup.coach.photo} className="size-8" />
-          <span className="flex min-w-0 flex-col leading-tight">
-            <PersonLink id={lineup.coach.id} className="truncate text-sm hover:underline">
-              {lineup.coach.name}
-            </PersonLink>
-            <span className="text-muted-foreground text-xs">{tx.coachRole}</span>
-          </span>
-        </div>
+    <div className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium">
+      <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
+      <Crest src={lineup.team.logo} name={lineup.team.name ?? ''} size="xs" />
+      <span className="truncate">{lineup.team.name}</span>
+      {formation && lineup.formation ? (
+        <Badge variant="outline" className="ml-auto font-mono tabular-nums">
+          {lineup.formation}
+        </Badge>
       ) : null}
     </div>
   );
 }
 
-// ─── lista ───────────────────────────────────────────────────────────────────────────────────────
+/** Célula do jogador: foto (iniciais de reserva), nome com link e os ícones dos lances. */
+function PlayerCell({
+  player,
+  marks,
+  tx,
+  showSubOut,
+}: {
+  player: LineupPlayer;
+  marks: PlayerMarks | null;
+  tx: Tx;
+  showSubOut: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <PersonPhoto name={player.person.name} photo={player.person.photo} className="size-8 shrink-0" />
+      <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+        <PersonLink id={player.person.id} className="font-medium break-words hover:underline">
+          {player.person.name}
+        </PersonLink>
+        <InlineMarks marks={marks} tx={tx} showSubOut={showSubOut} />
+      </span>
+    </div>
+  );
+}
 
-function LineupList({ lineups, marks, tx }: { lineups: Lineup[]; marks: MarksLookup; tx: Tx }) {
+function PositionCell({ position, tx }: { position: string | null; tx: Tx }) {
+  if (!position) return null;
+  return (
+    <span className="text-muted-foreground text-xs" title={tx.positionLong[position] ?? position}>
+      {tx.position[position] ?? position}
+    </span>
+  );
+}
+
+function TeamTable({ children, heading }: { children: React.ReactNode; heading: React.ReactNode }) {
+  return (
+    <div className="bg-card min-w-0 overflow-hidden rounded-lg border">
+      {heading}
+      {children}
+    </div>
+  );
+}
+
+/** Titulares de cada time: número, foto, nome com cartões, gols, assistências e saída, posição; técnico no rodapé. */
+export function LineupStarters({
+  lineups,
+  colors,
+  marks,
+  t,
+}: {
+  lineups: EventLineups;
+  colors: [string, string];
+  marks: MarksLookup;
+  t: Dictionary;
+}) {
+  const tx = t.event.lineups;
+  const cols = t.event.details.columns;
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-      {lineups.map((l) => (
-        <Card key={l.team.id ?? l.team.name} size="sm">
-          <CardHeader className="flex flex-row items-center gap-2">
-            <Crest src={l.team.logo} name={l.team.name ?? ''} size="xs" />
-            <CardTitle>{l.team.name}</CardTitle>
-            {l.formation ? <Badge variant="outline">{l.formation}</Badge> : null}
-          </CardHeader>
-          <CardContent className="flex flex-col gap-1 text-sm">
-            {l.start_xi.map((p) => (
-              <div key={`${p.person.id}-${p.number}`} className="flex items-center gap-2">
-                <span className="text-muted-foreground w-6 text-right tabular-nums">{p.number}</span>
-                {p.person.id ? (
-                  <Link href={`/pessoas/${p.person.id}`} className="hover:underline">
-                    {p.person.name}
-                  </Link>
-                ) : (
-                  <span>{p.person.name}</span>
-                )}
-                <InlineMarks marks={marks(p.person)} tx={tx} />
-                {p.position ? (
-                  <span className="text-muted-foreground ml-auto text-xs">
-                    {tx.position[p.position] ?? p.position}
-                  </span>
-                ) : null}
-              </div>
-            ))}
-            {l.coach ? (
-              <p className="text-muted-foreground mt-2 text-xs">{fill(tx.coach, { name: l.coach.name })}</p>
-            ) : null}
-          </CardContent>
-        </Card>
+      {lineups.lineups.map((l, i) => (
+        <TeamTable
+          key={l.team.id ?? l.team.name}
+          heading={<TeamHeading lineup={l} color={colors[i] ?? colors[0]} formation />}
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10 text-right">{cols.number}</TableHead>
+                <TableHead>{cols.player}</TableHead>
+                <TableHead className="w-14 text-right">{cols.position}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {l.start_xi.map((p) => (
+                <TableRow key={`${p.person.id ?? p.person.name}-${p.number}`}>
+                  <TableCell className="text-muted-foreground text-right tabular-nums">{p.number}</TableCell>
+                  <TableCell className="whitespace-normal">
+                    <PlayerCell player={p} marks={marks(p.person)} tx={tx} showSubOut />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <PositionCell position={p.position} tx={tx} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {l.coach ? (
+            <div className="flex items-center gap-2.5 border-t px-3 py-2.5">
+              <PersonPhoto name={l.coach.name} photo={l.coach.photo} className="size-8 shrink-0" />
+              <span className="flex min-w-0 flex-col leading-tight">
+                <PersonLink id={l.coach.id} className="truncate text-sm font-medium hover:underline">
+                  {l.coach.name}
+                </PersonLink>
+                <span className="text-muted-foreground text-xs">{tx.coachRole}</span>
+              </span>
+            </div>
+          ) : null}
+        </TeamTable>
       ))}
     </div>
   );
 }
 
-// ─── seção ───────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * Escalações em duas abas: **Campo** (titulares no gramado pelo `grid` da API, com cartões, gols,
- * assistências e substituições do minuto a minuto, e o banco embaixo) e **Lista** (a visão em texto, com
- * os mesmos ícones). Sem `grid` nos titulares, só a lista.
- */
-export function LineupsSection({
+/** Reservas de cada time: quem entrou primeiro (↑ verde com o minuto de entrada), depois quem ficou no banco. */
+export function LineupBench({
   lineups,
-  marks,
   colors,
-  locale,
+  marks,
   t,
 }: {
   lineups: EventLineups;
-  marks: MarksLookup;
-  /** Cor de cada time [mandante, visitante] (`versusColors`). */
   colors: [string, string];
-  locale: Locale;
+  marks: MarksLookup;
   t: Dictionary;
 }) {
   const tx = t.event.lineups;
-  if (!lineups.available || !lineups.lineups.length) return null;
-  const [home, away] = lineups.lineups;
-  const list = <LineupList lineups={lineups.lineups} marks={marks} tx={tx} />;
+  const cols = t.event.details.columns;
   return (
-    <Section title={tx.title} api={lineupsRequest(lineups.event_id, locale)}>
-      {hasPitch(lineups) && home && away ? (
-        <Tabs defaultValue="pitch">
-          <TabsList>
-            <TabsTrigger value="list">{tx.list}</TabsTrigger>
-            <TabsTrigger value="pitch">{tx.pitch}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="list" className="pt-1">
-            {list}
-          </TabsContent>
-          <TabsContent value="pitch" className="pt-1">
-            <Card size="sm">
-              <CardContent className="flex flex-col gap-5">
-                <Pitch home={home} away={away} colors={colors} marks={marks} tx={tx} />
-                <div className="flex flex-col gap-3">
-                  <h3 className="text-sm font-semibold">{tx.bench}</h3>
-                  <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                    <BenchColumn lineup={home} marks={marks} color={colors[0]} tx={tx} />
-                    <BenchColumn lineup={away} marks={marks} color={colors[1]} tx={tx} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      ) : (
-        list
-      )}
-    </Section>
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      {lineups.lineups.map((l, i) => {
+        const subs = l.substitutes
+          .map((p, idx) => ({ p, idx, m: marks(p.person) }))
+          .sort((a, b) => minuteOf(a.m?.subIn) - minuteOf(b.m?.subIn) || a.idx - b.idx);
+        return (
+          <TeamTable
+            key={l.team.id ?? l.team.name}
+            heading={<TeamHeading lineup={l} color={colors[i] ?? colors[0]} />}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10 text-right">{cols.number}</TableHead>
+                  <TableHead>{cols.player}</TableHead>
+                  <TableHead className="w-14 text-right">{cols.position}</TableHead>
+                  <TableHead className="w-16 text-right">{cols.cameOn}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {subs.map(({ p, m }) => (
+                  <TableRow key={`${p.person.id ?? p.person.name}-${p.number}`}>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                      {p.number}
+                    </TableCell>
+                    <TableCell className="whitespace-normal">
+                      <PlayerCell player={p} marks={m} tx={tx} showSubOut />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <PositionCell position={p.position} tx={tx} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {m?.subIn ? (
+                        <span className="text-success inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                          <ArrowUp
+                            className="size-3"
+                            aria-label={fill(tx.marks.subIn, { minute: m.subIn })}
+                          />
+                          {m.subIn}
+                        </span>
+                      ) : (
+                        <span
+                          className="text-muted-foreground"
+                          aria-label={tx.didNotPlay}
+                          title={tx.didNotPlay}
+                        >
+                          –
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TeamTable>
+        );
+      })}
+    </div>
   );
+}
+
+/** Titulares no gramado (`grid` da API), com os ícones dos lances. Só com `hasPitch`. */
+export function LineupPitch({
+  lineups,
+  colors,
+  marks,
+  t,
+}: {
+  lineups: EventLineups;
+  colors: [string, string];
+  marks: MarksLookup;
+  t: Dictionary;
+}) {
+  const [home, away] = lineups.lineups;
+  if (!home || !away) return null;
+  return <Pitch home={home} away={away} colors={colors} marks={marks} tx={t.event.lineups} />;
 }

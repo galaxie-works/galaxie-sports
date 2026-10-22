@@ -18,21 +18,25 @@ export default defineMessages(
       llm: 'IA com guardrails',
       fallback: 'Determinístico',
     },
+    details: {
+      title: 'Detalhes da partida',
+      description: 'Minuto a minuto, estatísticas e escalações',
+      toggle: 'Mostrar ou esconder os detalhes da partida',
+      tabs: { timeline: 'Minuto a minuto', stats: 'Estatísticas', lineups: 'Escalação' },
+      lineupTabs: { starters: 'Titulares', bench: 'Reservas', pitch: 'Campo' },
+      lineupsDescription: 'Titulares, reservas e a escalação em campo, com cartões, gols e substituições',
+      columns: { number: 'Nº', player: 'Jogador', position: 'Pos.', cameOn: 'Entrada' },
+    },
     lineups: {
-      title: 'Escalações',
-      coach: 'Técnico: {name}',
       /** Posição abreviada que vem do fornecedor (G, D, M, F). */
       position: { G: 'GOL', D: 'DEF', M: 'MEI', F: 'ATA' } as Record<string, string>,
-      /** Posição por extenso (banco de reservas). */
+      /** Posição por extenso (dica da posição nas tabelas). */
       positionLong: { G: 'Goleiro', D: 'Zagueiro', M: 'Meio-campista', F: 'Atacante' } as Record<
         string,
         string
       >,
-      list: 'Lista',
-      pitch: 'Campo',
       pitchLabel: 'Escalações em campo: {home} na metade de cima, {away} na de baixo',
-      bench: 'Banco',
-      benchRole: '{position} nº{number}',
+      didNotPlay: 'Não entrou',
       coachRole: 'Técnico',
       marks: {
         goal: 'Gol aos {minute}',
@@ -46,7 +50,6 @@ export default defineMessages(
       },
     },
     stats: {
-      title: 'Estatísticas',
       description:
         'Em destaque, quem leva a melhor em cada linha — em faltas, impedimentos e cartões, o menor número',
       teams: 'Estatísticas dos times',
@@ -156,16 +159,21 @@ export default defineMessages(
         llm: 'AI with guardrails',
         fallback: 'Deterministic',
       },
+      details: {
+        title: 'Match details',
+        description: 'Play-by-play, stats and lineups',
+        toggle: 'Show or hide the match details',
+        tabs: { timeline: 'Play-by-play', stats: 'Stats', lineups: 'Lineups' },
+        lineupTabs: { starters: 'Starting XI', bench: 'Substitutes', pitch: 'Pitch' },
+        lineupsDescription:
+          'Starting XI, substitutes and the lineup on the pitch, with cards, goals and substitutions',
+        columns: { number: 'No.', player: 'Player', position: 'Pos.', cameOn: 'On' },
+      },
       lineups: {
-        title: 'Lineups',
-        coach: 'Coach: {name}',
         position: { G: 'GK', D: 'DF', M: 'MF', F: 'FW' },
         positionLong: { G: 'Goalkeeper', D: 'Defender', M: 'Midfielder', F: 'Forward' },
-        list: 'List',
-        pitch: 'Pitch',
         pitchLabel: 'Lineups on the pitch: {home} in the top half, {away} in the bottom half',
-        bench: 'Bench',
-        benchRole: '{position} #{number}',
+        didNotPlay: 'Did not play',
         coachRole: 'Coach',
         marks: {
           goal: 'Goal at {minute}',
@@ -179,7 +187,6 @@ export default defineMessages(
         },
       },
       stats: {
-        title: 'Stats',
         description:
           'Highlighted: who comes out on top in each row — for fouls, offsides and cards, the lower number',
         teams: 'Team stats',
@@ -287,16 +294,20 @@ export default defineMessages(
         llm: 'IA con guardrails',
         fallback: 'Determinístico',
       },
+      details: {
+        title: 'Detalles del partido',
+        description: 'Minuto a minuto, estadísticas y formaciones',
+        toggle: 'Mostrar u ocultar los detalles del partido',
+        tabs: { timeline: 'Minuto a minuto', stats: 'Estadísticas', lineups: 'Formación' },
+        lineupTabs: { starters: 'Titulares', bench: 'Suplentes', pitch: 'Cancha' },
+        lineupsDescription: 'Titulares, suplentes y la formación en la cancha, con tarjetas, goles y cambios',
+        columns: { number: 'N.º', player: 'Jugador', position: 'Pos.', cameOn: 'Entró' },
+      },
       lineups: {
-        title: 'Formaciones',
-        coach: 'DT: {name}',
         position: { G: 'ARQ', D: 'DEF', M: 'VOL', F: 'DEL' },
         positionLong: { G: 'Arquero', D: 'Defensor', M: 'Mediocampista', F: 'Delantero' },
-        list: 'Lista',
-        pitch: 'Cancha',
         pitchLabel: 'Formaciones en la cancha: {home} en la mitad de arriba, {away} en la de abajo',
-        bench: 'Suplentes',
-        benchRole: '{position} n.º {number}',
+        didNotPlay: 'No entró',
         coachRole: 'DT',
         marks: {
           goal: 'Gol a los {minute}',
@@ -310,7 +321,6 @@ export default defineMessages(
         },
       },
       stats: {
-        title: 'Estadísticas',
         description:
           'Resaltado: quién saca ventaja en cada fila — en faltas, offsides y tarjetas, el número menor',
         teams: 'Estadísticas de los equipos',
