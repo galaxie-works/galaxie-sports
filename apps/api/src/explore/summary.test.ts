@@ -126,6 +126,15 @@ describe('countryActivity', () => {
         score: 95,
         bonus: 10,
         reasons: ['team_from_market', 'continental_competition'],
+        details: [
+          { code: 'team_from_market', points: 10, text: 'Time do país', participant: null },
+          {
+            code: 'continental_competition',
+            points: 5,
+            text: 'Competição da confederação',
+            participant: null,
+          },
+        ],
       },
     });
   });

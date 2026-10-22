@@ -1,16 +1,22 @@
-import type { Event } from '@galaxie/contracts';
+import type { Event, EventRelevance } from '@galaxie/contracts';
 import { Info } from 'lucide-react';
 
+import { RelevanceCountries, type CountryRelevanceRow } from '@/components/sport/relevance-countries';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { relevanceMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
-import { getT } from '@/lib/i18n/server';
+import { getI18n } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
 import { COUNTRIES } from '@/lib/navigation';
 
-/** Nome do mercado na demo (GB = Inglaterra no seletor do Onde assistir). */
+/** País do mercado na navegação da demo (GB = Inglaterra). */
+function marketCountry(code: string) {
+  return COUNTRIES.find((x) => x.code === code || (code === 'GB' && x.code === 'GB-ENG'));
+}
+
 function marketName(code: string, t: Dictionary): string {
-  const c = COUNTRIES.find((x) => x.code === code || (code === 'GB' && x.code === 'GB-ENG'));
+  const c = marketCountry(code);
   return c ? t.nav.countries[c.code] : code;
 }
 
@@ -19,20 +25,19 @@ function Line({ label, value, detail }: { label: string; value: number; detail?:
     <div className="flex w-full items-baseline justify-between gap-4">
       <span>
         {label}
-        {detail ? <span className="opacity-70"> ({detail})</span> : null}
+        {detail ? <span className="text-muted-foreground"> ({detail})</span> : null}
       </span>
       <span className="font-mono tabular-nums">+{value}</span>
     </div>
   );
 }
 
-/** Explicação do score: componentes do global e o bônus do mercado. */
+/** Explicação do score: componentes do global e as regras do bônus de cada país. */
 function Explanation({ event, t }: { event: Event; t: Dictionary }) {
   const tr = t.event.relevance;
   const b = event.importance_breakdown;
-  const r = event.relevance;
   return (
-    <div className="flex w-64 flex-col gap-1.5 py-1">
+    <div className="flex flex-col gap-2 text-xs">
       <span className="font-semibold">{tr.howWeCompute}</span>
       {b ? (
         <div className="flex flex-col gap-0.5">
@@ -45,52 +50,73 @@ function Explanation({ event, t }: { event: Event; t: Dictionary }) {
             detail={b.flags.length ? b.flags.map((f) => tr.flags[f] ?? f).join(', ') : undefined}
           />
           {b.prestige ? <Line label={tr.prestige} value={b.prestige} /> : null}
-          <div className="mt-0.5 flex justify-between border-t border-current/20 pt-0.5 font-semibold">
+          <div className="mt-0.5 flex justify-between border-t pt-0.5 font-semibold">
             <span>{tr.global}</span>
             <span className="font-mono tabular-nums">{event.importance}</span>
           </div>
         </div>
       ) : (
-        <span className="opacity-80">{tr.globalSummary}</span>
+        <span className="text-muted-foreground">{tr.globalSummary}</span>
       )}
-      {r ? (
-        <div className="flex flex-col gap-0.5">
-          <Line
-            label={fill(tr.market, { market: r.market })}
-            value={r.bonus}
-            detail={r.reasons.map((x) => tr.reasons[x] ?? x).join(', ') || tr.noBonus}
-          />
-          <div className="flex justify-between font-semibold">
-            <span>{marketName(r.market, t)}</span>
-            <span className="font-mono tabular-nums">{r.score}</span>
-          </div>
-        </div>
-      ) : null}
-      <span className="opacity-70">{tr.rules}</span>
+      <span className="text-muted-foreground">{tr.rules}</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="font-semibold">{tr.marketRules}</span>
+        <Line label={tr.marketTeam} value={10} />
+        <Line label={tr.marketCompetition} value={5} />
+        <Line label={tr.marketBracket} value={5} />
+        <span className="text-muted-foreground">{tr.marketCap}</span>
+      </div>
     </div>
   );
 }
 
-/** "Relevância do jogo": score global e no mercado escolhido, com a explicação no tooltip. */
+/**
+ * Motivo no idioma da demo: em pt-BR e es-AR vale o texto da API (já no idioma pedido); em inglês a API
+ * responde em espanhol, então o texto sai do dicionário, com o time citado.
+ */
+function reasonText(d: EventRelevance['details'][number], locale: Locale, t: Dictionary): string {
+  if (locale !== 'en') return d.text;
+  const template = t.event.relevance.reasons[d.code];
+  return template ? fill(template, { team: d.participant?.name ?? '' }) : d.text;
+}
+
+function rowsOf(event: Event, locale: Locale, t: Dictionary): CountryRelevanceRow[] {
+  const mine = relevanceMarket(locale);
+  return (event.relevance_by_market ?? []).map((r) => ({
+    market: r.market,
+    flag: marketCountry(r.market)?.code ?? r.market,
+    name: marketName(r.market, t),
+    score: r.score,
+    bonus: r.bonus,
+    reasons: r.details.map((d) => ({ code: d.code, points: d.points, text: reasonText(d, locale, t) })),
+    highlighted: r.market === mine,
+    label: fill(t.event.relevance.marketLabel, { market: marketName(r.market, t) }),
+  }));
+}
+
+/**
+ * "Relevância do jogo": score global e a lista de países (`relevance_by_market`), ordenada pela nota, com
+ * os motivos de cada bônus. O país do idioma aparece destacado; a explicação fica no popover.
+ */
 export async function RelevanceMeter({ event }: { event: Event }) {
-  const t = await getT();
+  const { locale, t } = await getI18n();
   const tr = t.event.relevance;
-  const market = event.relevance;
+  const rows = rowsOf(event, locale, t);
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center gap-1.5 text-xs">
         <span className="text-muted-foreground">{tr.title}</span>
-        <Tooltip>
-          <TooltipTrigger
+        <Popover>
+          <PopoverTrigger
             aria-label={tr.howTo}
             className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-full outline-none focus-visible:ring-2"
           >
             <Info className="size-3.5" aria-hidden />
-          </TooltipTrigger>
-          <TooltipContent side="left" className="items-start text-left">
+          </PopoverTrigger>
+          <PopoverContent side="bottom" align="start" className="w-80 max-w-[calc(100vw-2rem)]">
             <Explanation event={event} t={t} />
-          </TooltipContent>
-        </Tooltip>
+          </PopoverContent>
+        </Popover>
       </div>
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between text-xs">
@@ -99,18 +125,20 @@ export async function RelevanceMeter({ event }: { event: Event }) {
         </div>
         <Progress value={event.importance} aria-label={tr.globalLabel} />
       </div>
-      {market ? (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">
-              {marketName(market.market, t)}
-              {market.bonus ? ` (+${market.bonus})` : ''}
-            </span>
-            <span className="font-semibold tabular-nums">{market.score}/100</span>
+      {rows.length ? (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between gap-2 text-xs">
+            <span className="text-muted-foreground">{tr.byCountry}</span>
+            <span className="text-muted-foreground text-[11px]">{tr.byCountryHint}</span>
           </div>
-          <Progress
-            value={market.score}
-            aria-label={fill(tr.marketLabel, { market: marketName(market.market, t) })}
+          <RelevanceCountries
+            rows={rows}
+            texts={{
+              yourMarket: tr.yourMarket,
+              noBonus: tr.noBonus,
+              showAll: fill(tr.showAll, { count: rows.length }),
+              showLess: tr.showLess,
+            }}
           />
         </div>
       ) : null}

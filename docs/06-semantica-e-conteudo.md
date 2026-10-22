@@ -77,9 +77,18 @@ Exemplos (dados locais de 2026-10-22):
 
 - **+10** quando um participante é do país do mercado;
 - **+5** quando a competição é do país, ou é continental/de seleções da confederação do mercado (ou o lista como convidado em `countries`). Competições globais (FIFA) não contam: valeriam para todos os mercados;
+- **+5** na **semifinal de mata-mata** quando a outra semifinal da mesma fase tem um time do país: o jogo define o adversário dele na final. É exato porque a outra semifinal é o outro lado da chave (a regra só vale com exatamente duas semifinais na fase). Com a outra semi **em aberto**, contam os dois times dela; **decidida**, conta o classificado (`decides_final_opponent`) e, se a temporada tem disputa de 3º lugar, o eliminado (`decides_third_place_opponent`: o jogo define o adversário dele no 3º lugar). Dois times do país do outro lado contam uma vez só. O confronto é decidido pelo agregado das pernas esperadas no regulamento e, no empate, pelos pênaltis da última perna; sem isso, fica em aberto;
 - bônus total ≤ 10; `relevance.score = min(100, importance + bonus)`.
 
-O mercado vem de `?market=XX` ou, sem ele, do único mercado do plano do tenant (`api.tenant.markets` com exatamente um país); sem mercado, `relevance` é `null`. A API expõe `relevance: { market, score, bonus, reasons }` (`reasons`: `team_from_market`, `domestic_competition`, `continental_competition`), `order=relevance` e `relevance_min` nas listas (docs/05 §3.2). Implementação em `apps/api/src/events/relevance.ts`.
+Exemplo — Libertadores 2026, semifinal Palmeiras × Fluminense, com Flamengo × Estudiantes do outro lado e a volta ainda por jogar: no **BR**, time do país (+10), CONMEBOL (+5) e o adversário de Flamengo (+5), bônus 10 pelo teto; na **AR**, CONMEBOL (+5) e "define o adversário de Estudiantes L.P. na final" (+5), bônus 10; no **UY** e nos demais da CONMEBOL, só a confederação (+5); no **MX**, nada.
+
+**Quartas e oitavas ficam de fora** (TODO em `loadBrackets`): a api-sports não informa a chave, e nas quartas o vencedor cruza com um de dois confrontos que só o regulamento conhece. Estender o bônus depende de cadastrar o chaveamento em `config/rules/<competição>.yaml` (quem enfrenta quem na fase seguinte).
+
+O mercado vem de `?market=XX` ou, sem ele, do único mercado do plano do tenant (`api.tenant.markets` com exatamente um país); sem mercado, `relevance` é `null`. A API expõe `relevance: { market, score, bonus, reasons, details }` — `reasons` são os códigos (`team_from_market`, `domestic_competition`, `continental_competition`, `decides_final_opponent`, `decides_third_place_opponent`) e `details` os mesmos motivos com `points` (do motivo isolado; a soma pode passar do teto), `text` no idioma pedido ("Competição da CONMEBOL", "Define o adversário de Estudiantes L.P. na final") e `participant` (o time da outra semifinal citado) — além de `order=relevance` e `relevance_min` nas listas (docs/05 §3.2).
+
+**Vários mercados de uma vez:** o detalhe do evento (`GET /v1/events/{id}`) traz `relevance_by_market`, a mesma conta em todos os **mercados ativos** — `markets` em `config/geo/confederations.yaml` (BR, AR, UY, CL, CO, PY, PE, EC, BO, VE, MX) mais os mercados do plano do tenant —, da maior nota para a menor. Nas listas o campo é `null` (o lote ficaria grande sem uso). A demo usa essa lista no card "Sobre o jogo" (docs/09).
+
+Na ordenação e no filtro em SQL, o bônus da semifinal considera os dois times da outra semifinal mesmo depois de decidida (a expressão não calcula agregado); a `relevance` da resposta é exata. Implementação em `apps/api/src/events/relevance.ts`.
 
 ### 3.3 Textos livres por idioma
 

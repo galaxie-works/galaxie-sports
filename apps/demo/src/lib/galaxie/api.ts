@@ -323,7 +323,7 @@ export const eventRequest = (
   description: text(locale).event,
 });
 
-/** Evento com a relevância no mercado (país ISO2) pedido. */
+/** Evento; a relevância vem em todos os mercados ativos (`relevance_by_market`) e, com `market`, nele. */
 export async function getEvent(id: string, locale: ContentLocale, market?: string) {
   'use cache';
   cacheLife('minutes');

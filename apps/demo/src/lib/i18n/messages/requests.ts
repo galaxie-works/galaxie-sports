@@ -25,7 +25,7 @@ export default defineMessages(
       'O time na temporada {season}: campanha em cada competição, tabela, forma e últimos jogos daquele ano (sem próximo jogo). Os anos com dados vêm em `seasons`.',
     squadSeason: 'Elenco e comissão técnica registrados para a temporada {season}.',
     event:
-      'Evento completo: participantes, placar, estado, importância (com detalhamento), relevância no mercado, clássico e o que está em jogo.',
+      'Evento completo: participantes, placar, estado, importância (com detalhamento), relevância no mercado e em cada país, clássico e o que está em jogo.',
     related:
       'Vídeos relacionados ao jogo: links diretos e embed oficial, por tipo (melhores momentos, gols, coletiva…), formato e proporção (16:9/9:16).',
     h2h: 'Histórico do confronto entre os dois participantes, com o resumo de vitórias e gols.',
@@ -68,7 +68,7 @@ export default defineMessages(
         'The team in the {season} season: campaign in each competition, table, form and last matches of that year (no next match). The years with data come in `seasons`.',
       squadSeason: 'Squad and coaching staff on record for the {season} season.',
       event:
-        'Full event: participants, score, status, importance (with breakdown), market relevance, derby and what is at stake.',
+        'Full event: participants, score, status, importance (with breakdown), market and per-country relevance, derby and what is at stake.',
       related:
         'Videos related to the match: direct links and official embeds, by type (highlights, goals, press conference…), format and aspect ratio (16:9/9:16).',
       h2h: 'Head-to-head history between the two participants, with a summary of wins and goals.',
@@ -111,7 +111,7 @@ export default defineMessages(
         'El equipo en la temporada {season}: campaña en cada competencia, tabla, racha y últimos partidos de ese año (sin próximo partido). Los años con datos vienen en `seasons`.',
       squadSeason: 'Plantel y cuerpo técnico registrados para la temporada {season}.',
       event:
-        'Evento completo: participantes, resultado, estado, importancia (con detalle), relevancia en el mercado, clásico y lo que está en juego.',
+        'Evento completo: participantes, resultado, estado, importancia (con detalle), relevancia en el mercado y en cada país, clásico y lo que está en juego.',
       related:
         'Videos relacionados con el partido: links directos y embed oficial, por tipo (resumen, goles, conferencia de prensa…), formato y relación de aspecto (16:9/9:16).',
       h2h: 'Historial del cruce entre los dos participantes, con el resumen de victorias y goles.',

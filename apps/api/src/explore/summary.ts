@@ -27,7 +27,7 @@ import {
 import type { GeoConfig } from '@galaxie/geo';
 import { buildEvents, type BuildContext } from '../events/builder.js';
 import { actuallyLiveCond, IN_PLAY } from '../events/queries.js';
-import { continentalSlugs, marketBonus } from '../events/relevance.js';
+import { continentalSlugs, marketBonus, reasonDto, type ContinentalEntry } from '../events/relevance.js';
 import { pickText } from '../i18n.js';
 import { teamColors } from '../teams/colors.js';
 import { assetUrl } from '../util.js';
@@ -130,6 +130,7 @@ export interface HighlightPreference {
  * Jogos, ao vivo e o destaque de um país a partir dos jogos da janela. O destaque é o de maior relevância
  * no mercado (bônus de docs/06 §3.2); como a relevância empata muito (toda rodada da liga soma o mesmo
  * bônus), desempata por clubes em destaque envolvidos, jogo da liga principal e, por fim, o mais cedo.
+ * O bônus de semifinal (outro lado da chave) fica de fora: o resumo não carrega as chaves.
  */
 export function countryActivity(
   events: WindowEvent[],
@@ -137,6 +138,7 @@ export function countryActivity(
   window: { from: Date; to: Date },
   continental: ReadonlySet<string>,
   prefer: HighlightPreference = { teams: new Set(), main: null },
+  texts: { locale: string; continental: ContinentalEntry[] } = { locale: 'pt-BR', continental: [] },
 ): CountryActivity {
   let upcoming = 0;
   let live = 0;
@@ -152,14 +154,27 @@ export function countryActivity(
     if (e.live) live += 1;
     if (!isUpcoming(e, window.from, window.to)) continue;
     upcoming += 1;
-    const { bonus, reasons } = marketBonus(
+    const { bonus, reasons, details } = marketBonus(
       code,
       { participantCountries: e.participantCountries, competition: e.competition },
       continental,
     );
+    const comp = e.competition;
+    const vars = {
+      teams: [],
+      continental: comp
+        ? texts.continental.find((c) => c.sport === comp.sport && c.slug === comp.slug)
+        : undefined,
+    };
     const candidate = {
       e,
-      relevance: { market: code, score: Math.min(100, e.importance + bonus), bonus, reasons },
+      relevance: {
+        market: code,
+        score: Math.min(100, e.importance + bonus),
+        bonus,
+        reasons,
+        details: details.map((d) => reasonDto(d, texts.locale, vars)),
+      },
       appeal: appeal(e),
     };
     if (!best || compareHighlight(candidate, best) < 0) best = candidate;
@@ -316,19 +331,23 @@ export async function loadExploreSummary(
     participantCountries: (r.countries ?? []).filter((c): c is string => !!c),
   }));
   const activity = new Map(
-    codes.map((code) => [
-      code,
-      countryActivity(
-        events,
+    codes.map((code) => {
+      const continental = continentalSlugs(geo, code);
+      return [
         code,
-        window,
-        new Set(continentalSlugs(geo, code).map((c) => `${c.sport}|${c.slug}`)),
-        {
-          teams: new Set(teamRows.filter((t) => t.country_code === code).map((t) => t.id)),
-          main: mainBy.get(code) ?? null,
-        },
-      ),
-    ]),
+        countryActivity(
+          events,
+          code,
+          window,
+          new Set(continental.map((c) => `${c.sport}|${c.slug}`)),
+          {
+            teams: new Set(teamRows.filter((t) => t.country_code === code).map((t) => t.id)),
+            main: mainBy.get(code) ?? null,
+          },
+          { locale, continental },
+        ),
+      ] as const;
+    }),
   );
   const highlightIds = [
     ...new Set([...activity.values()].flatMap((a) => (a.highlight ? [a.highlight.id] : []))),
