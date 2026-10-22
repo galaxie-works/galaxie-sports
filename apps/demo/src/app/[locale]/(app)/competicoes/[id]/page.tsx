@@ -20,6 +20,7 @@ import {
   getStandings,
   standingsRequest,
 } from '@/lib/galaxie/api';
+import { apiLocale, contentLocale } from '@/lib/i18n/config';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
@@ -70,14 +71,18 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
   const query = await searchParams;
   const { locale, t } = await getI18n();
   const tc = t.pages.competition;
-  const competition = await getCompetition(id, locale);
+  const first = await getCompetition(id, locale);
+  // nomes, fases e tags na voz do país da competição (Primera División do Chile em es-CL); continentais
+  // (sem país) ficam no espanhol padrão; em pt-BR, tudo em português
+  const content = contentLocale(locale, first.country?.code);
+  const competition = content === apiLocale(locale) ? first : await getCompetition(id, content);
 
   const windows = competition.seasons
     .filter((s) => s.start_date && s.end_date)
     .sort((a, b) => b.year - a.year)
     .slice(0, MAX_SEASONS)
     .map((s) => ({ year: s.year, start: s.start_date!, end: s.end_date! }));
-  const available = await getSeasonsWithData(competition.id, windows, locale);
+  const available = await getSeasonsWithData(competition.id, windows, content);
 
   const requested = Number(query.temporada);
   // Sem escolha explícita: a temporada mais recente com classificação (a mais completa para a demo).
@@ -91,8 +96,8 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
   const [standings, events] =
     selected && window
       ? await Promise.all([
-          selected.hasStandings ? getStandings(competition.id, selected.year, locale) : null,
-          getCompetitionEvents(competition.id, window.start, window.end, locale),
+          selected.hasStandings ? getStandings(competition.id, selected.year, content) : null,
+          getCompetitionEvents(competition.id, window.start, window.end, content),
         ])
       : [null, [] as Event[]];
 
@@ -104,7 +109,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
 
   return (
     <>
-      <PageHeader title={competition.name} kind="competição" api={competitionRequest(id, locale)} />
+      <PageHeader title={competition.name} kind="competição" api={competitionRequest(id, locale, content)} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Crest src={competition.logo} name={competition.name} size="xl" />
@@ -164,7 +169,9 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
                   <Section
                     key={g.name ?? 'geral'}
                     title={groups.length > 1 && g.name ? g.name : tc.standings}
-                    api={selected ? standingsRequest(competition.id, selected.year, locale) : undefined}
+                    api={
+                      selected ? standingsRequest(competition.id, selected.year, locale, content) : undefined
+                    }
                   >
                     <StandingsTable rows={g.rows} />
                   </Section>
@@ -191,7 +198,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
                     description={plural(locale, round.events.length, tc.matchCount)}
                     api={
                       window
-                        ? competitionEventsRequest(competition.id, window.start, window.end, locale)
+                        ? competitionEventsRequest(competition.id, window.start, window.end, locale, content)
                         : undefined
                     }
                   >

@@ -6,7 +6,9 @@ import { createGalaxieClient, GalaxieApiError } from '@galaxie/contracts';
 import { cacheLife } from 'next/cache';
 import { notFound } from 'next/navigation';
 
-import { apiLocale, apiTimeZone, defaultMarket, type Locale } from '../i18n/config';
+import type { SupportedLocale } from '@galaxie/contracts';
+
+import { apiLocale, apiTimeZone, defaultMarket, type ContentLocale, type Locale } from '../i18n/config';
 import { getDictionary } from '../i18n/dictionary';
 import { fill } from '../i18n/text';
 
@@ -17,7 +19,10 @@ import { API_URL } from './server';
  * `locale` e `tz` da API para o idioma da demo (a API não fala inglês: `en` pede `es-AR`). Cada fetcher
  * recebe o idioma, que entra na chave do cache.
  */
-export const localeQuery = (locale: Locale) => ({ locale: apiLocale(locale), tz: apiTimeZone(locale) });
+export const localeQuery = (locale: ContentLocale) => ({
+  locale: apiLocale(locale),
+  tz: apiTimeZone(locale),
+});
 
 /**
  * Descritores das chamadas (botão "Ver código" das seções): cada um fica ao lado do fetcher que faz a
@@ -66,15 +71,19 @@ export async function getExploreSummary(locale: Locale) {
 
 // ─── país ────────────────────────────────────────────────────────────────────────────────────────
 
-export const countryCompetitionsRequest = (code: string, locale: Locale): ApiRequest => ({
+export const countryCompetitionsRequest = (
+  code: string,
+  locale: Locale,
+  content?: SupportedLocale,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/countries/{code}/competitions',
   params: { code: code.toUpperCase() },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).countryCompetitions,
 });
 
-export async function getCountryCompetitions(code: string, locale: Locale) {
+export async function getCountryCompetitions(code: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   return orNotFound(api.countryCompetitions(code, localeQuery(locale)));
@@ -82,16 +91,20 @@ export async function getCountryCompetitions(code: string, locale: Locale) {
 
 // ─── esporte ─────────────────────────────────────────────────────────────────────────────────────
 
-export const sportCompetitionsRequest = (sport: string, locale: Locale): ApiRequest => ({
+export const sportCompetitionsRequest = (
+  sport: string,
+  locale: Locale,
+  content?: SupportedLocale,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/competitions',
-  query: { sport, tier: 1, limit: 200, ...localeQuery(locale) },
+  query: { sport, tier: 1, limit: 200, ...localeQuery(content ?? locale) },
   description: text(locale).sportCompetitions,
   note: text(locale).sportCompetitionsNote,
 });
 
 /** Competições catalogadas (tier 1–2) de um esporte; o tier 3 é só espelho e fica de fora da vitrine. */
-export async function getSportCompetitions(sport: string, locale: Locale) {
+export async function getSportCompetitions(sport: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   const all = [];
@@ -108,29 +121,38 @@ export async function getSportCompetitions(sport: string, locale: Locale) {
 
 // ─── competição ──────────────────────────────────────────────────────────────────────────────────
 
-export const competitionRequest = (idOrSlug: string, locale: Locale): ApiRequest => ({
+export const competitionRequest = (
+  idOrSlug: string,
+  locale: Locale,
+  content?: SupportedLocale,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/competitions/{id}',
   params: { id: idOrSlug },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).competition,
 });
 
-export async function getCompetition(idOrSlug: string, locale: Locale) {
+export async function getCompetition(idOrSlug: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   return orNotFound(api.competition(idOrSlug, localeQuery(locale)));
 }
 
-export const standingsRequest = (competitionId: string, season: number, locale: Locale): ApiRequest => ({
+export const standingsRequest = (
+  competitionId: string,
+  season: number,
+  locale: Locale,
+  content?: SupportedLocale,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/competitions/{id}/seasons/{season}/standings',
   params: { id: competitionId, season },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).standings,
 });
 
-export async function getStandings(competitionId: string, season: number, locale: Locale) {
+export async function getStandings(competitionId: string, season: number, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   return orNull(api.standings(competitionId, season, localeQuery(locale)));
@@ -143,7 +165,11 @@ export interface SeasonWindow {
 }
 
 /** Temporadas que têm classificação ou jogos (na ordem recebida). */
-export async function getSeasonsWithData(competitionId: string, seasons: SeasonWindow[], locale: Locale) {
+export async function getSeasonsWithData(
+  competitionId: string,
+  seasons: SeasonWindow[],
+  locale: ContentLocale,
+) {
   'use cache';
   cacheLife('hours');
   const checks = await Promise.all(
@@ -170,16 +196,22 @@ export const competitionEventsRequest = (
   from: string,
   to: string,
   locale: Locale,
+  content?: SupportedLocale,
 ): ApiRequest => ({
   method: 'GET',
   route: '/v1/events',
-  query: { competition: competitionId, from, to, limit: 200, ...localeQuery(locale) },
+  query: { competition: competitionId, from, to, limit: 200, ...localeQuery(content ?? locale) },
   description: text(locale).competitionEvents,
   note: text(locale).competitionEventsNote,
 });
 
 /** Todos os jogos de uma janela (segue o cursor; a API devolve até 200 por página). */
-export async function getCompetitionEvents(competitionId: string, from: string, to: string, locale: Locale) {
+export async function getCompetitionEvents(
+  competitionId: string,
+  from: string,
+  to: string,
+  locale: ContentLocale,
+) {
   'use cache';
   cacheLife('hours');
   const all = [];
@@ -201,51 +233,76 @@ export async function getCompetitionEvents(competitionId: string, from: string, 
 
 // ─── time ────────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * País do time (ISO2), para a página pedir o conteúdo na voz de lá (`contentLocale`). Não depende do
+ * idioma e quase nunca muda: fica em cache por dias.
+ */
+export async function getTeamCountry(id: string): Promise<string | null> {
+  'use cache';
+  cacheLife('days');
+  try {
+    return (await api.team(id, { locale: 'pt-BR' })).country_ref?.code ?? null;
+  } catch (err) {
+    if (err instanceof GalaxieApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
 /** Temporada pedida (`season.year`); sem ela, a atual (ou a mais recente) de cada competição. */
 const seasonQuery = (season?: number) => (season === undefined ? {} : { season });
 
-export const teamOverviewRequest = (id: string, locale: Locale, season?: number): ApiRequest => ({
+export const teamOverviewRequest = (
+  id: string,
+  locale: Locale,
+  season?: number,
+  content?: SupportedLocale,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/teams/{id}/overview',
   params: { id },
-  query: { ...seasonQuery(season), ...localeQuery(locale) },
+  query: { ...seasonQuery(season), ...localeQuery(content ?? locale) },
   description:
     season === undefined
       ? text(locale).teamOverview
       : fill(text(locale).teamOverviewSeason, { season: String(season) }),
 });
 
-export async function getTeamOverview(id: string, locale: Locale, season?: number) {
+export async function getTeamOverview(id: string, locale: ContentLocale, season?: number) {
   'use cache';
   cacheLife('hours');
   return orNotFound(api.teamOverview(id, { ...seasonQuery(season), ...localeQuery(locale) }));
 }
 
-export const teamSemanticRequest = (id: string, locale: Locale): ApiRequest => ({
+export const teamSemanticRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/teams/{id}/semantic',
   params: { id },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).teamSemantic,
   note: fill(text(locale).requiresModule, { module: 'semantic' }),
 });
 
-export async function getTeamSemantic(id: string, locale: Locale) {
+export async function getTeamSemantic(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   return orNull(api.teamSemantic(id, localeQuery(locale)));
 }
 
-export const squadRequest = (id: string, locale: Locale, season?: number): ApiRequest => ({
+export const squadRequest = (
+  id: string,
+  locale: Locale,
+  season?: number,
+  content?: SupportedLocale,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/teams/{id}/squad',
   params: { id },
-  query: { ...seasonQuery(season), ...localeQuery(locale) },
+  query: { ...seasonQuery(season), ...localeQuery(content ?? locale) },
   description:
     season === undefined ? text(locale).squad : fill(text(locale).squadSeason, { season: String(season) }),
 });
 
-export async function getSquad(id: string, locale: Locale, season?: number) {
+export async function getSquad(id: string, locale: ContentLocale, season?: number) {
   'use cache';
   cacheLife('hours');
   return orNull(api.squad(id, { ...seasonQuery(season), ...localeQuery(locale) }));
@@ -253,98 +310,108 @@ export async function getSquad(id: string, locale: Locale, season?: number) {
 
 // ─── evento ──────────────────────────────────────────────────────────────────────────────────────
 
-export const eventRequest = (id: string, locale: Locale, market?: string): ApiRequest => ({
+export const eventRequest = (
+  id: string,
+  locale: Locale,
+  market?: string,
+  content?: SupportedLocale,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}',
   params: { id },
-  query: market ? { market, ...localeQuery(locale) } : localeQuery(locale),
+  query: market ? { market, ...localeQuery(content ?? locale) } : localeQuery(content ?? locale),
   description: text(locale).event,
 });
 
 /** Evento com a relevância no mercado (país ISO2) pedido. */
-export async function getEvent(id: string, locale: Locale, market?: string) {
+export async function getEvent(id: string, locale: ContentLocale, market?: string) {
   'use cache';
   cacheLife('minutes');
   return orNotFound(api.event(id, { ...localeQuery(locale), ...(market ? { market } : {}) }));
 }
 
-export const liveEventsRequest = (locale: Locale): ApiRequest => ({
+export const liveEventsRequest = (locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/live',
-  query: { market: defaultMarket(locale), ...localeQuery(locale) },
+  query: { market: defaultMarket(locale), ...localeQuery(content ?? locale) },
   description: text(locale).liveEvents,
   note: text(locale).liveEventsNote,
 });
 
-export const timelineRequest = (id: string, locale: Locale): ApiRequest => ({
+export const timelineRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/timeline',
   params: { id },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).timeline,
 });
 
-export async function getTimeline(id: string, locale: Locale) {
+export async function getTimeline(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('seconds');
   return orNull(api.eventTimeline(id, localeQuery(locale)));
 }
 
-export const h2hRequest = (id: string, locale: Locale): ApiRequest => ({
+export const h2hRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/h2h',
   params: { id },
-  query: { limit: 10, ...localeQuery(locale) },
+  query: { limit: 10, ...localeQuery(content ?? locale) },
   description: text(locale).h2h,
 });
 
-export async function getH2h(id: string, locale: Locale) {
+export async function getH2h(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   return orNull(api.eventH2h(id, { limit: 10, ...localeQuery(locale) }));
 }
 
-export const eventContextRequest = (id: string, locale: Locale): ApiRequest => ({
+export const eventContextRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/context',
   params: { id },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).eventContext,
   note: fill(text(locale).requiresModule, { module: 'live_intelligence' }),
 });
 
-export async function getEventContext(id: string, locale: Locale) {
+export async function getEventContext(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('minutes');
   return orNull(api.eventContext(id, localeQuery(locale)));
 }
 
-export const whereToWatchRequest = (id: string, country: string, locale: Locale): ApiRequest => ({
+export const whereToWatchRequest = (
+  id: string,
+  country: string,
+  locale: Locale,
+  content?: SupportedLocale,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/where-to-watch',
   params: { id },
-  query: { country, ...localeQuery(locale) },
+  query: { country, ...localeQuery(content ?? locale) },
   description: text(locale).whereToWatch,
   note: text(locale).whereToWatchNote,
 });
 
-export async function getWhereToWatch(id: string, country: string, locale: Locale) {
+export async function getWhereToWatch(id: string, country: string, locale: ContentLocale) {
   'use cache';
   cacheLife('minutes');
   return orNull(api.whereToWatch(id, country, localeQuery(locale)));
 }
 
-export const relatedRequest = (id: string, locale: Locale): ApiRequest => ({
+export const relatedRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/related',
   params: { id },
-  query: { limit: 50, ...localeQuery(locale) },
+  query: { limit: 50, ...localeQuery(content ?? locale) },
   description: text(locale).related,
   note: fill(text(locale).requiresModule, { module: 'related_content' }),
 });
 
 /** Vídeos relacionados (módulo add-on related_content): sem o módulo (403) a seção só não aparece. */
-export async function getRelated(id: string, locale: Locale) {
+export async function getRelated(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('minutes');
   try {
@@ -355,30 +422,30 @@ export async function getRelated(id: string, locale: Locale) {
   }
 }
 
-export const lineupsRequest = (id: string, locale: Locale): ApiRequest => ({
+export const lineupsRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/lineups',
   params: { id },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).lineups,
 });
 
-export async function getLineups(id: string, locale: Locale) {
+export async function getLineups(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('minutes');
   return orNull(api.eventLineups(id, localeQuery(locale)));
 }
 
-export const statsRequest = (id: string, locale: Locale): ApiRequest => ({
+export const statsRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/stats',
   params: { id },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).stats,
 });
 
 /** Estatísticas do jogo (códigos estáveis e rótulo no idioma pedido à API). */
-export async function getStats(id: string, locale: Locale) {
+export async function getStats(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('minutes');
   return orNull(api.eventStats(id, localeQuery(locale)));
@@ -386,44 +453,44 @@ export async function getStats(id: string, locale: Locale) {
 
 // ─── pessoas e locais ────────────────────────────────────────────────────────────────────────────
 
-export const personRequest = (id: string, locale: Locale): ApiRequest => ({
+export const personRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/people/{id}',
   params: { id },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).person,
 });
 
-export async function getPerson(id: string, locale: Locale) {
+export async function getPerson(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   return orNotFound(api.person(id, localeQuery(locale)));
 }
 
-export const venueRequest = (id: string, locale: Locale): ApiRequest => ({
+export const venueRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/venues/{id}',
   params: { id },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).venue,
 });
 
-export async function getVenue(id: string, locale: Locale) {
+export async function getVenue(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   return orNotFound(api.venue(id, localeQuery(locale)));
 }
 
-export const derbyRequest = (slug: string, locale: Locale): ApiRequest => ({
+export const derbyRequest = (slug: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/derbies/{slug}',
   params: { slug },
-  query: localeQuery(locale),
+  query: localeQuery(content ?? locale),
   description: text(locale).derby,
   note: fill(text(locale).requiresModule, { module: 'semantic' }),
 });
 
-export async function getDerby(slug: string, locale: Locale) {
+export async function getDerby(slug: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   return orNotFound(api.derby(slug, localeQuery(locale)));

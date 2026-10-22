@@ -18,6 +18,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/componen
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   getSquad,
+  getTeamCountry,
   getTeamOverview,
   getTeamSemantic,
   squadRequest,
@@ -25,7 +26,7 @@ import {
   teamSemanticRequest,
 } from '@/lib/galaxie/api';
 import type { ApiRequest } from '@/lib/galaxie/request';
-import type { Locale } from '@/lib/i18n/config';
+import { contentLocale, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { calendarDate } from '@/lib/i18n/format';
 import { getI18n } from '@/lib/i18n/server';
@@ -441,15 +442,18 @@ async function Content({
   searchParams,
 }: Pick<PageProps<'/[locale]/times/[id]'>, 'params' | 'searchParams'>) {
   const [{ id }, query, { locale, t }] = await Promise.all([params, searchParams, getI18n()]);
-  const [latest, semantic] = await Promise.all([getTeamOverview(id, locale), getTeamSemantic(id, locale)]);
+  // grito, torcida, apelidos e tags na voz do país do time (Boca em es-AR, Universidad Católica em
+  // es-CL), com a interface no idioma escolhido
+  const content = contentLocale(locale, await getTeamCountry(id));
+  const [latest, semantic] = await Promise.all([getTeamOverview(id, content), getTeamSemantic(id, content)]);
   // API anterior ao seletor (sem `seasons`): só a temporada atual, sem combobox
   const seasons = latest.seasons ?? [];
   // só anos com jogos do time; a temporada corrente é a visão padrão (sem `?temporada`)
   const past = seasons.find((s) => s.year === seasonParam(query.temporada) && !s.current);
   const year = past?.year;
   const [overview, squad] = await Promise.all([
-    year === undefined ? latest : getTeamOverview(id, locale, year),
-    getSquad(id, locale, year),
+    year === undefined ? latest : getTeamOverview(id, content, year),
+    getSquad(id, content, year),
   ]);
   const { team } = overview;
   const tsx = t.team.season;
@@ -458,7 +462,7 @@ async function Content({
   const upcoming = [overview.live_event, overview.next_event].filter((e) => e !== null);
   // API anterior à campanha (sem `competitions`): a seção some em vez de quebrar a página
   const competitions = overview.competitions ?? [];
-  const overviewApi = teamOverviewRequest(id, locale, year);
+  const overviewApi = teamOverviewRequest(id, locale, year, content);
   const basePath = `/times/${id}`;
   const options: SeasonOption[] = seasons.map((s) => ({
     year: s.year,
@@ -623,7 +627,7 @@ async function Content({
             <IdentityCard
               s={semantic}
               colors={team.colors}
-              api={teamSemanticRequest(id, locale)}
+              api={teamSemanticRequest(id, locale, content)}
               t={t}
               locale={locale}
             />
@@ -634,7 +638,7 @@ async function Content({
         {squad ? (
           <SquadSection
             squad={squad}
-            api={squadRequest(id, locale, year)}
+            api={squadRequest(id, locale, year, content)}
             locale={locale}
             t={t}
             season={label}
