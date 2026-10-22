@@ -13,6 +13,9 @@ export default tseslint.config(
       'docs/**',
       '**/.next/**',
       '**/.turbo/**',
+      // Componentes gerados pelos registries (shadcn, ReUI, Animate UI, SmoothUI): mantidos como vêm
+      'apps/demo/src/components/{ui,reui,examples,animate-ui,smoothui}/**',
+      'apps/demo/src/hooks/**',
     ],
   },
   js.configs.recommended,

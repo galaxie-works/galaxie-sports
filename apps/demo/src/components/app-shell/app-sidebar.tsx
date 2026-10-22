@@ -17,7 +17,10 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar';
+import { CountryFlag } from '@/components/sport/country-flag';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
+
+import { UserMenu } from './user-menu';
 
 function isActive(pathname: string | null, href: string) {
   if (pathname === null) return false;
@@ -67,9 +70,7 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
             {COUNTRIES.map((c) => (
               <SidebarMenuItem key={c.code}>
                 <SidebarMenuButton isActive={isActive(pathname, c.href)} render={<Link href={c.href} />}>
-                  <span className="bg-muted text-muted-foreground flex h-4 min-w-7 items-center justify-center px-1 font-mono text-xs">
-                    {c.code.replace('GB-', '')}
-                  </span>
+                  <CountryFlag code={c.code} />
                   <span>{c.label}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -88,12 +89,16 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/" />}>
-              <div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center text-sm font-bold">
-                G
-              </div>
+              {/* Símbolo da Galaxie (planeta): cabe no slot do ícone e segue visível com a sidebar recolhida. */}
+              <img
+                src="/brand/galaxie-symbol.png"
+                alt=""
+                draggable={false}
+                className="size-8 shrink-0 object-contain"
+              />
               <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate text-sm font-semibold">Galaxie Sports</span>
-                <span className="text-muted-foreground truncate text-xs">Demo da API</span>
+                <span className="text-muted-foreground truncate text-xs">Galactical Sports XP</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -105,9 +110,7 @@ export function AppSidebar() {
       </Suspense>
 
       <SidebarFooter>
-        <p className="text-muted-foreground px-2 text-xs group-data-[collapsible=icon]:hidden">
-          Dados servidos pela API Galaxie Sports.
-        </p>
+        <UserMenu />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

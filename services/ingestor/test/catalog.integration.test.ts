@@ -109,7 +109,11 @@ describe('importRawDirectory', () => {
       paging: { current: 1, total: 1 },
       response: LEAGUES,
     });
-    await writeFile(join(dir, 'football', 'leagues__20261021T141332Z.json'), body);
+    // Carimbo relativo a agora (1 h atrás): o /leagues no raw vale 1 dia, e o teste seguinte depende dele
+    // ainda estar fresco. Com data fixa o teste quebrava 24 h depois de escrito.
+    const stamp = new Date(Math.floor((Date.now() - 3_600_000) / 1000) * 1000);
+    const fileStamp = stamp.toISOString().replace(/[-:]/g, '').replace('.000', '');
+    await writeFile(join(dir, 'football', `leagues__${fileStamp}.json`), body);
     await writeFile(join(dir, 'notas.json'), '{"x":1}');
     try {
       const a = await importRawDirectory(db, dir);
@@ -117,7 +121,7 @@ describe('importRawDirectory', () => {
       expect(a).toMatchObject({ imported: 1, duplicates: 0 });
       expect(b).toMatchObject({ imported: 0, duplicates: 1 });
       const [row] = await db.select().from(apiResponse).where(eq(apiResponse.endpoint, '/leagues'));
-      expect(row?.fetchedAt.toISOString()).toBe('2026-10-21T14:13:32.000Z');
+      expect(row?.fetchedAt.toISOString()).toBe(stamp.toISOString());
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

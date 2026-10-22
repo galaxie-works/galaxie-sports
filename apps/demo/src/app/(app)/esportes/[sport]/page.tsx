@@ -1,4 +1,5 @@
 import type { CompetitionSummary } from '@galaxie/contracts';
+import { Globe } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
@@ -6,6 +7,7 @@ import { Suspense } from 'react';
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
+import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
 import { Section } from '@/components/sport/section';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -76,6 +78,7 @@ async function Content({ params }: { params: PageProps<'/esportes/[sport]'>['par
           <Section
             key={g.code ?? INTERNATIONAL}
             title={g.label}
+            icon={g.code ? <CountryFlag code={g.code} /> : <Globe className="text-muted-foreground size-4" />}
             description={`${g.items.length} competições`}
             action={
               g.code && countrySlug(g.code) ? (
