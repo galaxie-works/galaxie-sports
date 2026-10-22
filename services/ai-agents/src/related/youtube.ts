@@ -136,8 +136,10 @@ export class YoutubeClient {
     if (!res.ok) {
       const err = obj(body.error);
       const reason = str(obj((err.errors as unknown[] | undefined)?.[0]).reason);
+      // a mensagem do Google explica a causa (API desligada, restrição de IP/referer, cota) e não traz a chave
+      const detail = str(err.message)?.slice(0, 300);
       throw new YoutubeError(
-        `YouTube ${path}: HTTP ${res.status}${reason ? ` (${reason})` : ''}`,
+        `YouTube ${path}: HTTP ${res.status}${reason ? ` (${reason})` : ''}${detail ? ` — ${detail}` : ''}`,
         res.status,
         reason,
       );
