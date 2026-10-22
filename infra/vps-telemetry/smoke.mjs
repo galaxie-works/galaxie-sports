@@ -117,6 +117,27 @@ await check('Estatísticas do jogo (códigos estáveis e rótulos)', async () =>
   return `posse ${possession.map((s) => s.numeric).join('–')} · ${coded} estatísticas com código`;
 });
 
+await check('Relevância por país (jogo de referência)', async () => {
+  const { status, body } = await api(`/v1/events/${PAL_FLU_SEMI}?locale=pt-BR`);
+  if (status !== 200) return fail(`status ${status}`);
+  const list = body?.relevance_by_market;
+  // sem a lista: a imagem da API é anterior à relevância por país (ou config/geo sem `markets`)
+  if (!Array.isArray(list) || !list.length) return fail('sem relevance_by_market');
+  const br = list.find((r) => r.market === 'BR');
+  if (!br) return fail('BR fora dos mercados ativos — config/geo `markets` fora da imagem?');
+  if (!br.reasons?.includes('team_from_market'))
+    return fail(`BR sem o bônus de time do país (${(br.reasons ?? []).join(', ') || 'nenhum'})`);
+  const top = list
+    .slice(0, 3)
+    .map((r) => `${r.market} ${r.score}`)
+    .join(' · ');
+  // o bônus da semifinal depende da outra semi (Flamengo × Estudiantes): decidida, a AR pode perdê-lo
+  const ar = list.find((r) => r.market === 'AR');
+  return ar?.reasons?.includes('decides_final_opponent')
+    ? `${list.length} mercados · ${top}`
+    : warn(`${top} · AR sem "define o adversário" (outra semifinal já decidida?)`);
+});
+
 await check('Resumo pós-jogo (IA)', async () => {
   const { status, body } = await api(`/v1/events/${PAL_FLU_SEMI}/context`);
   if (status !== 200) return fail(`status ${status}`);

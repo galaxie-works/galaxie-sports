@@ -375,16 +375,16 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
     getI18n(),
     getFormatters(),
   ]);
-  // Onde assistir começa no mercado do idioma (Argentina em espanhol; Brasil nos demais).
+  // Onde assistir começa no mercado do idioma (Argentina em espanhol; Brasil nos demais). O país dele
+  // não mexe na relevância: o card "Sobre o jogo" mostra todos os países (`relevance_by_market`).
   const country = typeof query.pais === 'string' ? query.pais.toUpperCase() : defaultMarket(locale);
 
-  // relevância no mesmo país do "Onde assistir"
-  const first = await getEvent(id, locale, country);
+  const first = await getEvent(id, locale);
   // tags do torcedor, gritos e contexto na voz do país do mandante (um jogo no Chile sai em es-CL), com a
   // interface no idioma escolhido; em pt-BR, tudo em português
   const home = first.participants.find((p) => p.side === 'home');
   const content = contentLocale(locale, home ? await getTeamCountry(home.id) : null);
-  const event = content === apiLocale(locale) ? first : await getEvent(id, content, country);
+  const event = content === apiLocale(locale) ? first : await getEvent(id, content);
   const [context, h2h, wtw, lineups, related, timeline, stats] = await Promise.all([
     getEventContext(id, content),
     getH2h(id, content),
@@ -406,7 +406,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
 
   return (
     <>
-      <PageHeader title={title} kind="evento" api={eventRequest(id, locale, country, content)} />
+      <PageHeader title={title} kind="evento" api={eventRequest(id, locale, undefined, content)} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         <Scoreboard event={event} t={t} f={f} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

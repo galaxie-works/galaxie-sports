@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { apiLocale, apiTimeZone, contentLocale, isTimeZone, negotiateLocale, resolveLocale } from './config';
+import {
+  apiLocale,
+  apiTimeZone,
+  contentLocale,
+  isTimeZone,
+  negotiateLocale,
+  relevanceMarket,
+  resolveLocale,
+} from './config';
 import { createFormatters } from './format';
 import { fill, localized, ordinal, plural, rich } from './text';
 
@@ -45,6 +53,12 @@ describe('idioma da requisição', () => {
     expect(apiTimeZone('es-MX')).toBe('America/Mexico_City');
     expect(apiTimeZone('en')).toBe('America/Argentina/Buenos_Aires');
     expect(apiTimeZone('pt-BR')).toBe('America/Sao_Paulo');
+  });
+
+  it('país destacado na relevância: o do idioma; inglês, nenhum', () => {
+    expect(relevanceMarket('pt-BR')).toBe('BR');
+    expect(relevanceMarket('es-AR')).toBe('AR');
+    expect(relevanceMarket('en')).toBeNull();
   });
 
   it('só aceita fuso IANA válido', () => {

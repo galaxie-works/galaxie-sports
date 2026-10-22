@@ -132,5 +132,9 @@ export function isTimeZone(value: unknown): value is string {
   }
 }
 
-/** País padrão de relevância e "Onde assistir": Argentina em espanhol, Brasil nos demais. */
+/** País padrão do "Onde assistir" e da agenda ao vivo: Argentina em espanhol, Brasil nos demais. */
 export const defaultMarket = (locale: Locale) => (locale === 'es-AR' ? 'AR' : 'BR');
+
+/** País destacado na relevância por país: o do idioma (pt-BR → Brasil, es-AR → Argentina); inglês, nenhum. */
+export const relevanceMarket = (locale: Locale): string | null =>
+  locale === 'pt-BR' ? 'BR' : locale === 'es-AR' ? 'AR' : null;
