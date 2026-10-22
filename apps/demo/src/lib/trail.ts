@@ -19,6 +19,7 @@ export type TrailKind =
   | 'local'
   | 'esporte'
   | 'explorar'
+  | 'ao vivo'
   | 'docs'
   | 'ajustes';
 

@@ -37,6 +37,7 @@ import { formatInstant, pickList, pickText } from '../i18n.js';
 import { assetUrl } from '../util.js';
 import { pickCheer } from './cheer.js';
 import { importanceBreakdownDto } from './relevance.js';
+import { venueTimezone } from './timezone.js';
 import type { RulesRegistry } from './rules-registry.js';
 
 /** Fases de mata-mata (core.stage.kind). */
@@ -247,12 +248,19 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         slug: competition.slug,
         name: competition.name,
         labels: competition.labels,
+        country: competition.countryCode,
       },
       cLogoKey: asset.storageKey,
       cLogoUrl: asset.sourceUrl,
       st: { id: stage.id, kind: stage.kind, name: stage.name, providerLabel: stage.providerLabel },
       seasonYear: season.year,
-      v: { id: venue.id, name: venue.name, city: venue.city, curated: venue.curated },
+      v: {
+        id: venue.id,
+        name: venue.name,
+        city: venue.city,
+        curated: venue.curated,
+        country: venue.countryCode,
+      },
       d: { slug: derby.slug, name: derby.name, labels: derby.labels, intensity: derby.intensity },
       // árbitro: só no espelho do futebol (`core.football_fixture`, 1:1 com o evento)
       referee: footballFixture.referee,
@@ -288,6 +296,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       position: eventParticipant.position,
       result: eventParticipant.result,
       p: { id: participant.id, name: participant.name, shortName: participant.shortName },
+      country: participant.countryCode,
       logoKey: asset.storageKey,
       logoUrl: asset.sourceUrl,
       nicknames: teamProfile.nicknames,
@@ -302,7 +311,10 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     .where(inArray(eventParticipant.eventId, ids));
   const sideOrder = (s: string) => (s === 'home' ? 0 : s === 'away' ? 1 : 2);
   const partsBy = new Map<string, (EventParticipant & { _pos: number | null })[]>();
+  // país do mandante: fallback do fuso do local quando o local não tem país
+  const homeCountryBy = new Map<string, string | null>();
   for (const r of partRows) {
+    if (r.side === 'home') homeCountryBy.set(r.eventId, r.country);
     const list = partsBy.get(r.eventId) ?? [];
     if (list.some((x) => x.id === r.p.id)) continue;
     const winner = (r.result as { winner?: unknown } | null)?.winner;
@@ -570,8 +582,14 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         penalty: pair(e.score?.penalty),
         aggregate: aggregate ?? pair(e.score?.aggregate),
       },
-      // nome curado da base semântica vence o do fornecedor (naming rights)
-      venue: r.v?.id ? { id: r.v.id, ...venueDisplay(r.v) } : null,
+      // nome curado da base semântica vence o do fornecedor (naming rights); o fuso usa a cidade do core
+      venue: r.v?.id
+        ? {
+            id: r.v.id,
+            ...venueDisplay(r.v),
+            timezone: venueTimezone([r.v.country, homeCountryBy.get(id), r.c?.country], r.v.city),
+          }
+        : null,
       referee: parseReferee(r.referee),
       derby: r.d?.slug
         ? {
