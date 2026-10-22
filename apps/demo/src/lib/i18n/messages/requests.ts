@@ -3,6 +3,10 @@ import { defineMessages } from '../define';
 
 export default defineMessages(
   {
+    exploreSummary:
+      'Vitrine inicial em uma chamada: por esporte e por país, contadores, competições e clubes em destaque, ao vivo e o jogo de maior relevância.',
+    exploreSummaryNote:
+      'Feita para a home: sete consultas em lote na API, sem N+1, e cache de 60 s (os contadores envelhecem até 1 min).',
     countryCompetitions:
       'Competições do país por esporte e escopo: nacionais, continentais, seleção e mundiais.',
     sportCompetitions: 'Competições catalogadas de um esporte, paginadas por cursor.',
@@ -42,6 +46,10 @@ export default defineMessages(
   },
   {
     en: {
+      exploreSummary:
+        'The landing page in one call: per sport and per country, counters, featured competitions and clubs, live games and the most relevant upcoming match.',
+      exploreSummaryNote:
+        'Built for the home page: seven batched queries in the API, no N+1, and a 60 s cache (counters lag at most 1 min).',
       countryCompetitions:
         "The country's competitions by sport and scope: domestic, continental, national team and world.",
       sportCompetitions: "A sport's catalogued competitions, paginated by cursor.",
@@ -81,6 +89,10 @@ export default defineMessages(
         'Play by play: incidents weighted as key moments, running score, match milestones and penalty shootout. Instants in UTC.',
     },
     'es-AR': {
+      exploreSummary:
+        'La vidriera inicial en una llamada: por deporte y por país, contadores, competencias y clubes destacados, en vivo y el partido de mayor relevancia.',
+      exploreSummaryNote:
+        'Pensada para la home: siete consultas en lote en la API, sin N+1, y caché de 60 s (los contadores se atrasan hasta 1 min).',
       countryCompetitions:
         'Competencias del país por deporte y alcance: nacionales, continentales, selección y mundiales.',
       sportCompetitions: 'Competencias catalogadas de un deporte, paginadas por cursor.',

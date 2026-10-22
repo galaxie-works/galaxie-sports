@@ -153,6 +153,21 @@ await check('Busca global: apelido da base semântica, sem acento', async () => 
   return `${hits.length} resultados · Palmeiras por "${pal.matched ?? pal.name}" · ${games} jogos`;
 });
 
+await check('Home Explorar: resumo por esporte e por país', async () => {
+  const { status, body } = await api('/v1/explore/summary?locale=pt-BR');
+  if (status !== 200) return fail(`status ${status}`);
+  const football = body?.sports?.find((s) => s.slug === 'football');
+  const br = body?.countries?.find((c) => c.code === 'BR');
+  if (!football?.competitions || !football.top_competitions?.length)
+    return fail('futebol sem competições no resumo');
+  if (!br?.main_competition) return fail('Brasil sem liga principal (config/geo na imagem da API?)');
+  if (!br.top_teams?.length)
+    return warn('Brasil sem clubes em destaque — base sem jogos dos últimos 12 meses?');
+  if (!br.highlight) return warn('Brasil sem jogo em destaque nos próximos 7 dias');
+  const teams = br.highlight.participants?.map((p) => p.name).join(' x ');
+  return `${football.upcoming} jogos de futebol em 7 dias · destaque BR: ${teams} (${br.highlight.relevance?.score})`;
+});
+
 await check('Demo: login e proteção das páginas', async () => {
   const login = await fetch(`${DEMO}/login`, { redirect: 'manual' });
   if (login.status !== 200) return fail(`/login status ${login.status}`);

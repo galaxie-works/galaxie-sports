@@ -54,6 +54,7 @@ Regras de UI (herdadas do ReUI): reutilizar componentes do registry em vez de re
 | 10 | **Painel de operação** | Cota gasta por API/dia, jobs, frescor dos dados, fila de enriquecimento | Charts, Data Grid (ReUI), Gantt (janelas ao vivo) | `/internal/ops/*` |
 | 11 | **Documentação** | Guias (começando, autenticação, conceitos, módulos e planos, tempo real) e a referência gerada do OpenAPI; botão **Ver código** nas seções (§2.2) | Code block (ReUI, Shiki), Tabs, Sheet | `/openapi.json`, `/docs` da API |
 | 12 | **Menu e página do país** | Esportes e países no menu lateral; por país, competições nacionais, copas continentais, seleção e mundiais (§2.1) | Sidebar, Collapsible, Avatar (bandeiras), Badge | `/v1/navigation`, `/v1/countries/{code}/competitions` |
+| 13 | **Explorar (home)** | Primeira tela depois do login: cards de esporte e de país com metadados reais em grade bento (§2.1.1) | Card, Lottie (ícones animados), Avatar (escudos e logos) | `/v1/explore/summary` |
 
 ### 2.1 Navegação: menu de esportes e páginas de país
 
@@ -81,6 +82,15 @@ A **página do país** chama `GET /v1/countries/{code}/competitions?locale=` (op
 | Mundiais de clubes (`world_clubs`) | Mundial de Clubes, Intercontinental | idem | idem |
 
 O que liga os países é a confederação: Brasil e Argentina veem a **mesma** Libertadores (mesmo `id`), e o clique leva à página da competição (tela 4). Competições internacionais e seus participantes ficam em `config/geo/competition-scope.yaml`; as domésticas saem do país da competição no catálogo (`max_tier=3` mostra também o restante do espelho). Nos outros esportes vale o mesmo modelo (NBB e FIBA AmeriCup para o Brasil no basquete, Superliga e VNL no vôlei) assim que o catálogo do esporte for carregado.
+
+### 2.1.1 Home "Explorar"
+
+A home (`apps/demo/src/app/[locale]/(app)/page.tsx`) é a porta de entrada da demo e sai de **uma chamada**, `GET /v1/explore/summary` ([docs/05 §3.1.2](05-api-publica.md#312-resumo-da-home-explorar-appsapisrcroutesv1explorets)):
+
+- **Faixa de abertura:** esportes, países, jogos nos próximos 7 dias e ao vivo agora.
+- **Esportes (grade bento):** o futebol em destaque (2×2 ou 3×2) e os demais em tamanho padrão. Cada card tem o ícone animado (Lottie, toca no hover), a textura do campo/quadra/pista no matiz do esporte (variações do índigo da marca), competições, participantes, jogos da semana, selo "ao vivo" com ponto pulsando e os logos das competições em destaque. Esporte ainda sem catálogo mostra o espelho compatível (`/mirror/{esporte}`).
+- **Países por confederação:** cabeçalho com o nome da confederação, total de jogos e ao vivo do grupo. O card tem a bandeira esmaecida ao fundo (com máscara), liga principal, clubes de maior peso, contadores e o jogo de maior relevância no mercado do país (link para o jogo). Brasil e Argentina (e grupos com até dois países) ganham o card largo, com o confronto ampliado; o mercado do idioma vai à frente (Argentina em `es-AR`).
+- Hover com elevação e brilho, respeitando `prefers-reduced-motion`; esqueleto com a mesma grade enquanto carrega; 1 coluna no celular. Sem a API, os cards seguem navegáveis, só sem os contadores.
 
 ### 2.2 Documentação e "Ver código"
 

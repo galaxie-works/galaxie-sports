@@ -8,6 +8,7 @@ import {
   derbyRequest,
   eventContextRequest,
   eventRequest,
+  exploreSummaryRequest,
   h2hRequest,
   lineupsRequest,
   liveEventsRequest,
@@ -55,6 +56,7 @@ function normalize(url: string) {
 
 /** Cada descritor ao lado da chamada do cliente tipado que o fetcher correspondente faz. */
 const PAIRS: [string, ApiRequest, (c: ReturnType<typeof createGalaxieClient>) => Promise<unknown>][] = [
+  ['home', exploreSummaryRequest('pt-BR'), (c) => c.exploreSummary()],
   ['país', countryCompetitionsRequest('br', 'pt-BR'), (c) => c.countryCompetitions('BR')],
   [
     'esporte',

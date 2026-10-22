@@ -159,6 +159,7 @@ Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 | `GET /v1/countries/{code}` | País com confederação (código + nome localizado) e bandeira (§3.1.1) |
 | `GET /v1/countries/{code}/competitions?sport=&max_tier=` | Competições do país por esporte e escopo: domésticas, continentais de clubes, seleção, mundiais (§3.1.1) |
 | `GET /v1/navigation` | Menu da demo em uma chamada: 12 esportes (contagens, `has_data`) e países da navegação (§3.1.1) |
+| `GET /v1/explore/summary` | Vitrine inicial em uma chamada: por esporte e por país, contadores, competições e clubes em destaque, ao vivo e o jogo de maior relevância (§3.1.2) |
 | `GET /v1/competitions?sport=&country=&tier=` | Competições com apelidos (semântica) |
 | `GET /v1/competitions/{id}` | Detalhe + temporadas |
 | `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos |
@@ -216,6 +217,47 @@ curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/countries/BR/competition
 ```
 
 (Exemplo resumido: cada item de `competitions` é um objeto completo — `id`, `slug`, `name`, `official_name`, `nicknames`, `tier`, `country`, `logo`, `current_season`, `scope` e `confederations`.)
+
+#### 3.1.2 Resumo da home "Explorar" (`apps/api/src/routes/v1/explore.ts`)
+
+`GET /v1/explore/summary?locale=&tz=` alimenta a primeira tela da demo sem N+1: uma chamada traz, para os 12 esportes e os 17 países da navegação (§3.1.1), tudo o que os cards mostram. São sete consultas em lote mais a montagem dos jogos em destaque (uma vez, para todos os países), nenhuma por esporte ou por país; a montagem fica em `apps/api/src/explore/summary.ts`, com as escolhas em funções puras e testadas.
+
+| Campo | Conteúdo |
+|---|---|
+| `window` | `from`/`to` (UTC) da janela de próximos jogos: 7 dias a partir de agora |
+| `sports[]` | Na ordem do menu: `competitions` (catálogo, tier 1–2), `participants` (times, seleções, pilotos, equipes ou lutadores no banco), `upcoming` (jogos que começam na janela, sem adiados, cancelados e abandonados), `live` (em andamento agora, com a regra de `/v1/events/live`: dado parado além do horário previsto não conta) e `top_competitions` (até 4: primeiro as que tiveram jogos nos últimos 12 meses, depois menor tier, maior `prestige` e mais jogos — `id`, `slug`, `sport`, `name` localizado, `type`, `tier`, `logo`) |
+| `countries[]` | Na ordem do menu, com `name`, `flag` e `confederation`: `competitions` (domésticas catalogadas, todos os esportes), `main_competition` (a liga de futebol do país: só ligas, menor tier, ordem de `featured` em config/geo, depois mais jogos), `top_teams` (até 5 clubes de futebol do país: os da base semântica primeiro, depois a soma de `importance` dos jogos dos últimos 12 meses; com `logo` e `colors` do escudo), `upcoming` e `live` (jogos da competição do país ou com participante do país, o mesmo recorte de `/v1/events?country=`) e `highlight` |
+| `countries[].highlight` | O próximo jogo (na janela) de maior relevância no mercado do país: `Event` completo, como em `/v1/events/{id}`, com `relevance.market` = código do país (bônus de §3.2 e docs/06 §3.2). A relevância empata muito (toda rodada da liga soma o mesmo bônus), então o desempate é: mais clubes de `top_teams` em campo, jogo da `main_competition` e, por fim, o mais cedo. `null` sem jogo do país na janela |
+| `confederations[]` | Seções (CONMEBOL, CONCACAF, UEFA) com os códigos dos países, como em `/v1/navigation` |
+
+Exige `core_data`. Os esportes do plano do tenant limitam os jogos contados e os destaques; o catálogo é o mesmo para todos. Cache de **60 s** (tags `sport`, `competition`, `country`, `asset`): de propósito sem a tag `event`, para um placar não purgar o resumo inteiro, então `upcoming` e `live` envelhecem no máximo um minuto. Em `es-AR`/`es-XX` os nomes seguem a cadeia `es-XX → es → en`; `starts_at` do destaque respeita `?tz`.
+
+```bash
+curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/explore/summary?locale=pt-BR&tz=America/Sao_Paulo"
+```
+
+```json
+{
+  "generated_at": "2026-10-22T19:54:29.317Z",
+  "window": { "from": "2026-10-22T19:54:29.317Z", "to": "2026-10-29T19:54:29.317Z" },
+  "sports": [
+    { "slug": "football", "name": "Futebol", "competitions": 76, "participants": 9094, "upcoming": 378, "live": 3,
+      "top_competitions": ["Liga dos Campeões", "Libertadores", "Copa do Mundo", "Liga Europa"] }
+  ],
+  "countries": [
+    { "code": "BR", "name": "Brasil", "flag": "https://cdn…/flags/br.svg",
+      "confederation": { "code": "CONMEBOL", "name": "CONMEBOL (América do Sul)" },
+      "competitions": 18, "main_competition": "Brasileirão Série A",
+      "top_teams": ["Palmeiras", "Flamengo", "Vasco DA Gama", "Fluminense", "Corinthians"],
+      "upcoming": 51, "live": 1,
+      "highlight": { "participants": ["Santos", "Palmeiras"], "starts_at": "2026-10-28T19:30:00-03:00",
+                     "relevance": { "market": "BR", "score": 97, "bonus": 10, "reasons": ["team_from_market", "domestic_competition"] } } }
+  ],
+  "confederations": [{ "code": "CONMEBOL", "name": "CONMEBOL (América do Sul)", "countries": ["BR", "AR", "…"] }]
+}
+```
+
+(Exemplo resumido: competições e clubes são objetos completos, e `highlight` é o `Event` inteiro.)
 
 ### 3.2 Eventos
 
@@ -712,6 +754,7 @@ Formato RFC 9457 (`application/problem+json`):
 | Recurso | TTL (CDN) | Invalidação ativa |
 |---|---|---|
 | Países, competições, times, venues, navegação (`/v1/navigation`, `/v1/countries/{code}/*`) | 24 h | Na sincronização diária |
+| Resumo da home (`/v1/explore/summary`) | 60 s | Não (contadores de jogos envelhecem até 1 min) |
 | Elencos, tabelas | 1 h | Ao fim de cada rodada |
 | Agenda do dia | 5 min | Mudança de horário/status |
 | Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |
