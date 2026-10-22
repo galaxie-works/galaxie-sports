@@ -226,6 +226,29 @@ export async function getEvent(id: string, market?: string) {
   return orNotFound(api.event(id, market ? { market } : {}));
 }
 
+export const liveEventsRequest = (): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/events/live',
+  query: { market: 'BR', ...LOCALE_QUERY },
+  description: 'Eventos em andamento agora (ao vivo, intervalo, interrompido), por importância.',
+  note: 'Para mudanças em tempo real, assine GET /v1/stream?events=<ids>&topics=score,status,incidents (SSE).',
+});
+
+export const timelineRequest = (id: string): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/events/{id}/timeline',
+  params: { id },
+  query: LOCALE_QUERY,
+  description:
+    'Minuto a minuto: lances com peso de momento-chave, placar parcial, marcos do jogo e disputa de pênaltis. Instantes em UTC.',
+});
+
+export async function getTimeline(id: string) {
+  'use cache';
+  cacheLife('seconds');
+  return orNull(api.eventTimeline(id));
+}
+
 export const h2hRequest = (id: string): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/h2h',
