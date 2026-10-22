@@ -529,12 +529,15 @@ export function MatchTimeline({ initial, timeZone }: { initial: EventTimeline; t
           variant="outline"
           pressed={keyOnly}
           onPressedChange={(pressed) => setKeyOnly(pressed)}
-          className="ml-auto"
+          // ligado: primária índigo (o `aria-pressed` vem do Toggle) e check no lugar do ícone
+          className="aria-pressed:border-primary aria-pressed:bg-primary/15 aria-pressed:text-primary aria-pressed:hover:bg-primary/25 aria-pressed:hover:text-primary ml-auto"
           aria-label={tl.keyOnlyLabel}
         >
-          <Sparkles aria-hidden />
+          {keyOnly ? <Check aria-hidden /> : <Sparkles aria-hidden />}
           {tl.keyOnly}
-          <span className="text-muted-foreground tabular-nums">({keyCount})</span>
+          <span className={cn('tabular-nums', keyOnly ? 'text-primary/70' : 'text-muted-foreground')}>
+            ({keyCount})
+          </span>
         </Toggle>
       </div>
 
