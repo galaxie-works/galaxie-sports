@@ -40,7 +40,7 @@ function EntryCard({ item, description }: { item: NavItem & { slug?: string }; d
 export default function ExplorePage() {
   return (
     <>
-      <PageHeader title="Explorar" />
+      <PageHeader title="Explorar" kind="explorar" />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <section className="flex flex-col gap-3">
           <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Esportes</h2>

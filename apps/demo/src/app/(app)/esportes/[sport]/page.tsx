@@ -56,7 +56,7 @@ async function Content({ params }: { params: PageProps<'/esportes/[sport]'>['par
 
   return (
     <>
-      <PageHeader title={sport.label} />
+      <PageHeader title={sport.label} kind="esporte" />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{sport.label}</h1>

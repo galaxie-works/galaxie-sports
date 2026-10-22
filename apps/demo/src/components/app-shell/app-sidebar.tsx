@@ -20,6 +20,7 @@ import {
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
+import { topLevelClick } from '@/lib/trail';
 
 import { UserMenu } from './user-menu';
 
@@ -35,7 +36,7 @@ function NavLink({ item, pathname }: { item: NavItem & { slug?: string }; pathna
       <SidebarMenuButton
         isActive={isActive(pathname, item.href)}
         tooltip={item.label}
-        render={<Link href={item.href} />}
+        render={<Link href={item.href} onClick={topLevelClick(item.href)} />}
       >
         {item.slug ? (
           <AnimatedSportIcon slug={item.slug} className="size-4">
@@ -76,7 +77,10 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
           <SidebarMenu>
             {COUNTRIES.map((c) => (
               <SidebarMenuItem key={c.code}>
-                <SidebarMenuButton isActive={isActive(pathname, c.href)} render={<Link href={c.href} />}>
+                <SidebarMenuButton
+                  isActive={isActive(pathname, c.href)}
+                  render={<Link href={c.href} onClick={topLevelClick(c.href)} />}
+                >
                   <CountryFlag code={c.code} />
                   <span>{c.label}</span>
                 </SidebarMenuButton>
@@ -95,7 +99,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/" />}>
+            <SidebarMenuButton size="lg" render={<Link href="/" onClick={topLevelClick('/')} />}>
               {/* Símbolo da Galaxie (planeta): cabe no slot do ícone e segue visível com a sidebar recolhida. */}
               <img
                 src="/brand/galaxie-symbol.png"

@@ -57,7 +57,7 @@ async function Content({ params }: { params: PageProps<'/classicos/[slug]'>['par
 
   return (
     <>
-      <PageHeader title={derby.name} />
+      <PageHeader title={derby.name} kind="clássico" />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <Card>
           <CardContent className="flex flex-col items-center gap-5">

@@ -300,7 +300,7 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
 
   return (
     <>
-      <PageHeader title={team.name} />
+      <PageHeader title={team.name} kind="time" />
       <div className="relative isolate flex flex-col gap-8 p-4 md:p-6">
         {team.colors ? <TeamBand colors={team.colors} /> : null}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">

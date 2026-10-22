@@ -1,12 +1,47 @@
+import { Suspense } from 'react';
+
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import type { TrailKind } from '@/lib/trail';
 
-export function PageHeader({ title, children }: { title: React.ReactNode; children?: React.ReactNode }) {
+import { TrailCrumbs } from './trail-crumbs';
+
+/**
+ * Cabeçalho das páginas: a trilha de navegação (o caminho que o usuário percorreu nesta aba) e, no
+ * fim dela, o título da página. Com `kind`, a página entra na trilha com o rótulo `label` (ou o
+ * próprio `title`, quando é texto). Sem `kind` (esqueleto carregando), só mostra a trilha até aqui.
+ */
+export function PageHeader({
+  title,
+  label,
+  kind,
+  children,
+}: {
+  title: React.ReactNode;
+  label?: string;
+  kind?: TrailKind;
+  children?: React.ReactNode;
+}) {
+  const crumbLabel = label ?? (typeof title === 'string' ? title : undefined);
   return (
     <header className="bg-background/80 sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4 backdrop-blur">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 data-vertical:h-4" />
-      <h1 className="truncate text-sm font-semibold">{title}</h1>
+      <Breadcrumb className="min-w-0">
+        <BreadcrumbList className="flex-nowrap">
+          {/* Caminho e query string são dados de URL: atrás de Suspense para não bloquear o prerender. */}
+          <Suspense fallback={null}>
+            <TrailCrumbs label={kind ? crumbLabel : undefined} kind={kind} />
+          </Suspense>
+          <BreadcrumbItem className="min-w-0">
+            {/* O h1 segue sendo o título da página (o ActivityTracker lê `header h1`). */}
+            <h1 className="truncate text-sm">
+              <BreadcrumbPage className="font-semibold">{title}</BreadcrumbPage>
+            </h1>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       <div className="ml-auto flex items-center gap-2">{children}</div>
     </header>
   );

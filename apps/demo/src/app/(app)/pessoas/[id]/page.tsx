@@ -38,7 +38,7 @@ async function Content({ params }: { params: PageProps<'/pessoas/[id]'>['params'
 
   return (
     <>
-      <PageHeader title={person.name} />
+      <PageHeader title={person.name} kind="pessoa" />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex items-center gap-4">
           <Crest src={person.photo} name={person.name} size="xl" round />
