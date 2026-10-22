@@ -4,9 +4,14 @@ import { makeStake, STAKE_FAMILIES, type StakeFamily } from './codes.js';
 import { renderFanTagsMarkdown } from './fan-tags-doc.js';
 import {
   FAN_TAG_LOCALES,
+  FAN_TAG_RELEGATION_MAX_GAP,
+  FAN_TAG_TITLE_MIN_GAP,
+  FAN_TAG_ZONE_MIN_GAP,
   fanTagOf,
   fanTags,
+  fanTagStanding,
   fanTagZoneGroup,
+  isRelevantForFans,
   MAX_FAN_TAGS,
   type FanTagLocale,
 } from './fan-tags.js';
@@ -216,6 +221,113 @@ describe('fanTags (por participante)', () => {
   it('sem stakes ou só códigos informativos → []', () => {
     expect(fanTags([], 'home')).toEqual([]);
     expect(fanTags([makeStake('both', 'extra_time_then_penalties')], 'away')).toEqual([]);
+  });
+});
+
+describe('relevância para o torcedor (Brasileirão 2026, 31 rodadas, faltam 7)', () => {
+  // Tabela antes da rodada 32 (Vasco e Chapecoense com um jogo a menos).
+  const ROWS: [string, number, number][] = [
+    ['flamengo', 67, 31],
+    ['palmeiras', 66, 31],
+    ['athletico', 53, 31],
+    ['cruzeiro', 51, 31],
+    ['fluminense', 51, 31],
+    ['atletico-mg', 50, 31],
+    ['bahia', 49, 31],
+    ['santos', 45, 31],
+    ['sao-paulo', 42, 31],
+    ['bragantino', 41, 31],
+    ['botafogo', 39, 31],
+    ['coritiba', 39, 31],
+    ['vitoria', 37, 31],
+    ['mirassol', 36, 31],
+    ['vasco', 35, 30],
+    ['corinthians', 33, 31],
+    ['internacional', 32, 31],
+    ['gremio', 31, 31],
+    ['remo', 26, 31],
+    ['chapecoense', 18, 30],
+  ];
+  const table = ROWS.map(([teamId, points, played]) => ({ teamId, points, played }));
+  const league = {
+    matchesPerTeam: 38,
+    title: true,
+    zones: [
+      { id: 'libertadores_group_stage', kind: 'qualification' as const, from: 1, to: 4 },
+      { id: 'libertadores_qualifying', kind: 'qualification' as const, from: 5, to: 6 },
+      { id: 'sudamericana', kind: 'qualification' as const, from: 7, to: 12 },
+      { id: 'relegation', kind: 'relegation' as const, from: 17, to: 20 },
+    ],
+  };
+  const standing = (team: string) => fanTagStanding(table, league, team);
+  const tagsOf = (team: string, ...families: [StakeFamily, { zone?: string }?][]) =>
+    fanTags(
+      families.map(([f, params]) => makeStake('home', f, params)),
+      'home',
+      ['pt-BR'],
+      MAX_FAN_TAGS,
+      standing(team),
+    ).map((t) => t.text['pt-BR']);
+
+  it('limites em constantes nomeadas', () => {
+    expect([FAN_TAG_TITLE_MIN_GAP, FAN_TAG_RELEGATION_MAX_GAP, FAN_TAG_ZONE_MIN_GAP]).toEqual([6, 6, 6]);
+  });
+
+  it('situação na tabela: posição, rodadas restantes, líder, zona de rebaixamento e linhas das vagas', () => {
+    expect(standing('sao-paulo')).toEqual({
+      points: 42,
+      rank: 9,
+      remaining: 7,
+      leaderPoints: 67,
+      relegation: { from: 17, points: 32 },
+      zoneLinePoints: { libertadores_group_stage: 51, libertadores_qualifying: 50, sudamericana: 39 },
+    });
+    expect(standing('vasco')?.remaining).toBe(8);
+    expect(standing('fora-da-tabela')).toBeNull();
+    expect(fanTagStanding(table, { ...league, title: false, zones: [] }, 'flamengo')).toMatchObject({
+      leaderPoints: null,
+      relegation: null,
+      zoneLinePoints: {},
+    });
+  });
+
+  it('título: só até max(6, rodadas restantes) do líder — o líder entra', () => {
+    expect(tagsOf('flamengo', ['in_title_race'])).toEqual(['Na briga pelo título']);
+    expect(tagsOf('palmeiras', ['in_title_race'])).toEqual(['Na briga pelo título']);
+    // Cruzeiro: 16 pontos atrás com 7 rodadas
+    expect(tagsOf('cruzeiro', ['in_title_race'])).toEqual([]);
+    // decisivas continuam valendo
+    expect(tagsOf('cruzeiro', ['can_clinch_title'])).toEqual(['Pode ser campeão hoje']);
+  });
+
+  it('rebaixamento: na zona ou até 6 pontos acima do primeiro time dentro dela', () => {
+    expect(tagsOf('sao-paulo', ['at_risk_of_relegation'])).toEqual([]); // 10 acima do Z4
+    expect(tagsOf('bragantino', ['at_risk_of_relegation'])).toEqual([]); // 9 acima
+    expect(tagsOf('vitoria', ['at_risk_of_relegation'])).toEqual(['Luta contra o rebaixamento']); // 5
+    expect(tagsOf('mirassol', ['at_risk_of_relegation'])).toEqual(['Luta contra o rebaixamento']); // 4
+    expect(tagsOf('remo', ['at_risk_of_relegation'])).toEqual(['Luta contra o rebaixamento']); // na zona
+    expect(tagsOf('sao-paulo', ['can_be_relegated'])).toEqual(['Pode ser rebaixado hoje']);
+    expect(tagsOf('bragantino', ['relegated_unless_wins'])).toEqual(['Vencer ou cair']);
+  });
+
+  it('vagas: até max(6, rodadas restantes) do último time dentro da zona', () => {
+    const lib = { zone: 'libertadores_group_stage' };
+    expect(tagsOf('bragantino', ['can_qualify_for_zone', lib])).toEqual([]); // 10 atrás do 4º
+    expect(tagsOf('santos', ['can_qualify_for_zone', lib])).toEqual(['De olho na Libertadores']); // 6
+    expect(tagsOf('bragantino', ['can_qualify_for_zone', { zone: 'sudamericana' }])).toEqual([
+      'De olho na Sul-Americana',
+    ]);
+    // zona fora do regulamento: sem linha, sem filtro
+    expect(tagsOf('bragantino', ['can_qualify_for_zone', { zone: 'copa_regional' }])).toEqual([
+      'Briga por vaga',
+    ]);
+    expect(tagsOf('bragantino', ['can_clinch_zone', lib])).toEqual(['Pode garantir a Libertadores']);
+  });
+
+  it('sem situação na tabela (mata-mata, sem regulamento): nada é filtrado', () => {
+    const stake = makeStake('home', 'in_title_race');
+    expect(isRelevantForFans(stake, null)).toBe(true);
+    expect(fanTags([stake], 'home', ['pt-BR'])).toHaveLength(1);
   });
 });
 

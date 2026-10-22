@@ -1,5 +1,7 @@
+import type { LeagueRules } from '../config/types.js';
 import type { Stake, StakeFamily, StakeSide } from './codes.js';
 import { STAKE_LOCALES, type LabelTemplate } from './labels.js';
+import type { LeagueTeamInput } from './league.js';
 
 /**
  * Tags do torcedor ("fan tags"): rótulos curtos (até ~30 caracteres), escritos do ponto de vista de
@@ -646,20 +648,115 @@ export function fanTagOf(
   return { code: stake.code, priority: FAN_TAG_TIERS[rule.tier] + rule.rank, text };
 }
 
+// ─── relevância para o torcedor (pontos corridos) ────────────────────────────────────────────────
+//
+// Os stakes de mera possibilidade (`in_title_race`, `at_risk_of_relegation`, `can_qualify_for_*`) são
+// matemáticos: com 7 rodadas, o 4º a 16 pontos do líder ainda "briga pelo título" e o 9º a 10 pontos do
+// Z4 ainda "corre risco". Na tag do torcedor isso soa falso, então ela exige proximidade real na tabela.
+// Os stakes e as frases não mudam; as tags decisivas (pode ser campeão hoje, vencer ou cair…) valem sempre.
+
+/** Título: distância máxima (pontos) para o líder = max(este piso, rodadas restantes do time). */
+export const FAN_TAG_TITLE_MIN_GAP = 6;
+/** Rebaixamento: distância máxima (pontos) acima do primeiro time dentro da zona. */
+export const FAN_TAG_RELEGATION_MAX_GAP = 6;
+/** Vaga ("De olho na X"): distância máxima para o último time dentro da zona = max(piso, rodadas restantes). */
+export const FAN_TAG_ZONE_MIN_GAP = 6;
+
+/** Situação do time na tabela, usada para filtrar as tags de mera possibilidade. */
+export interface FanTagStanding {
+  points: number;
+  /** Posição (1 = líder). */
+  rank: number;
+  /** Rodadas que faltam para o time (null se o regulamento não diz quantos jogos há). */
+  remaining: number | null;
+  /** Pontos do líder (null em tabela sem título, ex.: fase de grupos). */
+  leaderPoints: number | null;
+  /** Primeira posição da zona de rebaixamento e os pontos de quem a ocupa (null sem zona). */
+  relegation: { from: number; points: number } | null;
+  /** Zona boa → pontos do último time dentro dela (posição `to`). */
+  zoneLinePoints: Record<string, number>;
+}
+
+/**
+ * Situação de `teamId` na tabela (em ordem de classificação: posição = índice + 1) com as zonas do
+ * regulamento. Time fora da tabela → null (sem filtro).
+ */
+export function fanTagStanding(
+  table: readonly LeagueTeamInput[],
+  league: Pick<LeagueRules, 'matchesPerTeam' | 'title' | 'zones'>,
+  teamId: string,
+): FanTagStanding | null {
+  const i = table.findIndex((t) => t.teamId === teamId);
+  if (i < 0) return null;
+  const team = table[i]!;
+  const pointsAt = (rank: number) => table[rank - 1]?.points;
+  const relegationFrom = Math.min(...league.zones.filter((z) => z.kind === 'relegation').map((z) => z.from));
+  const relegationPoints = Number.isFinite(relegationFrom) ? pointsAt(relegationFrom) : undefined;
+  const zoneLinePoints: Record<string, number> = {};
+  for (const z of league.zones) {
+    if (z.kind === 'relegation' || z.kind === 'relegation_playoff' || z.kind === 'elimination') continue;
+    const p = pointsAt(z.to);
+    if (p !== undefined) zoneLinePoints[z.id] = p;
+  }
+  return {
+    points: team.points,
+    rank: i + 1,
+    remaining: league.matchesPerTeam === null ? null : Math.max(0, league.matchesPerTeam - team.played),
+    leaderPoints: league.title ? (table[0]?.points ?? null) : null,
+    relegation: relegationPoints !== undefined ? { from: relegationFrom, points: relegationPoints } : null,
+    zoneLinePoints,
+  };
+}
+
+/**
+ * O stake de mera possibilidade é relevante para o torcedor? Título: até max(6, rodadas restantes) do
+ * líder. Rebaixamento: dentro da zona ou até 6 pontos acima do primeiro time nela. Vaga: até
+ * max(6, rodadas restantes) do último time dentro da zona. Demais códigos (inclusive os decisivos): sim.
+ */
+export function isRelevantForFans(
+  stake: Pick<Stake, 'family' | 'params'>,
+  standing: FanTagStanding | null | undefined,
+): boolean {
+  if (!standing) return true;
+  const window = (floor: number) => Math.max(floor, standing.remaining ?? 0);
+  switch (stake.family) {
+    case 'in_title_race':
+      return (
+        standing.leaderPoints === null ||
+        standing.leaderPoints - standing.points <= window(FAN_TAG_TITLE_MIN_GAP)
+      );
+    case 'at_risk_of_relegation':
+      return (
+        standing.relegation === null ||
+        standing.rank >= standing.relegation.from ||
+        standing.points - standing.relegation.points <= FAN_TAG_RELEGATION_MAX_GAP
+      );
+    case 'can_qualify_for_zone': {
+      const line = stake.params?.zone ? standing.zoneLinePoints[stake.params.zone] : undefined;
+      return line === undefined || line - standing.points <= window(FAN_TAG_ZONE_MIN_GAP);
+    }
+    default:
+      return true;
+  }
+}
+
 /**
  * Tags do torcedor de um participante (`home` ou `away`) a partir dos stakes da partida: inclui os
- * `both`, funde tags de texto idêntico (fica a mais relevante), ordena por `priority` (empate: ordem dos
- * stakes, que é determinística) e corta em `max`.
+ * `both`, descarta as possibilidades distantes quando há `standing` (ver `isRelevantForFans`), funde
+ * tags de texto idêntico (fica a mais relevante), ordena por `priority` (empate: ordem dos stakes, que
+ * é determinística) e corta em `max`.
  */
 export function fanTags(
   stakes: readonly Pick<Stake, 'team' | 'family' | 'code' | 'params'>[],
   side: Exclude<StakeSide, 'both'>,
   locales: readonly FanTagLocale[] = FAN_TAG_LOCALES,
   max: number = MAX_FAN_TAGS,
+  standing?: FanTagStanding | null,
 ): FanTag[] {
   const byText = new Map<string, FanTag>();
   for (const stake of stakes) {
     if (stake.team !== side && stake.team !== 'both') continue;
+    if (!isRelevantForFans(stake, standing)) continue;
     const tag = fanTagOf(stake, locales);
     if (!tag) continue;
     const key = locales.map((l) => tag.text[l] ?? '').join('\u0000');

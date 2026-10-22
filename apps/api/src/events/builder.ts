@@ -20,12 +20,14 @@ import {
 import { isInPlay, momentum } from '@galaxie/providers';
 import {
   fanTags,
+  fanTagStanding,
   knockoutStageRules,
   knockoutStakes,
   leagueMatchStakes,
   localizeStake,
   type CompetitionRules,
   type FanTagLocale,
+  type FanTagStanding,
   type Fixture,
   type Stake,
   type StakeLocale,
@@ -394,6 +396,8 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     const rules = rulesOf(r);
     const stageKind = r.st?.kind ?? null;
     const stakes: Stake[] = [];
+    // situação na tabela por lado: filtra as tags do torcedor de mera possibilidade (pontos corridos)
+    const standings: Partial<Record<'home' | 'away', FanTagStanding | null>> = {};
     const contexts = new Set<Event['competition_context'][number]>();
 
     // ── perna e agregado (mata-mata) ──
@@ -472,10 +476,17 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
               inTable.has(m.awayId),
           )
           .map((m) => ({ homeId: m.homeId!, awayId: m.awayId! }));
+        const leagueTable = table.map((s) => ({
+          teamId: s.participantId,
+          points: s.points,
+          played: s.played,
+        }));
+        standings.home = fanTagStanding(leagueTable, rules.league, homeId);
+        standings.away = fanTagStanding(leagueTable, rules.league, awayId);
         try {
           stakes.push(
             ...leagueMatchStakes({
-              table: table.map((s) => ({ teamId: s.participantId, points: s.points, played: s.played })),
+              table: leagueTable,
               league: rules.league,
               points: rules.standings.points,
               homeId,
@@ -509,7 +520,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         // tags do torcedor por lado (stakes `both` valem para os dois), no locale da resposta
         fan_tags:
           p.side === 'home' || p.side === 'away'
-            ? fanTags(stakes, p.side, [locale as FanTagLocale]).map((t) => ({
+            ? fanTags(stakes, p.side, [locale as FanTagLocale], undefined, standings[p.side]).map((t) => ({
                 code: t.code,
                 priority: t.priority,
                 text: t.text as Record<string, string>,
