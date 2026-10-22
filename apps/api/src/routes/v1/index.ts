@@ -10,6 +10,7 @@ import { copyRoutes } from './copy.js';
 import { multisportRoutes } from './multisport.js';
 import { semanticRoutes } from './semantic.js';
 import { navigationRoutes } from './navigation.js';
+import { relatedRoutes } from './related.js';
 
 /**
  * Rotas /v1. Cada grupo é um módulo próprio:
@@ -25,6 +26,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await contextRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);
+  // conteúdo relacionado `/v1/events/{id}/related` (#127) — módulo add-on related_content
+  await relatedRoutes(app, ctx);
   await teamRoutes(app, ctx);
   // semântica (#45, #43) e multiesporte (#75, #78) — módulos `semantic` e `multisport`
   await semanticRoutes(app, ctx);

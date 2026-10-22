@@ -16,6 +16,8 @@ export const CACHE_TTL = {
   semantic: 24 * 3600,
   /** Cenário/resumo de IA — purgado ativamente por `event.context_published`. */
   context: 3600,
+  /** Conteúdo relacionado — purgado por `event.related_content_changed`. */
+  related: 3600,
 } as const;
 
 export type CacheResource = keyof typeof CACHE_TTL;

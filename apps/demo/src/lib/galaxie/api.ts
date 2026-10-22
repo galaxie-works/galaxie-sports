@@ -270,6 +270,28 @@ export async function getWhereToWatch(id: string, country: string) {
   return orNull(api.whereToWatch(id, country));
 }
 
+export const relatedRequest = (id: string): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/events/{id}/related',
+  params: { id },
+  query: { limit: 50, ...LOCALE_QUERY },
+  description:
+    'Vídeos relacionados ao jogo: links diretos e embed oficial, por tipo (melhores momentos, gols, coletiva…), formato e proporção (16:9/9:16).',
+  note: 'Exige o módulo related_content.',
+});
+
+/** Vídeos relacionados (módulo add-on related_content): sem o módulo (403) a seção só não aparece. */
+export async function getRelated(id: string) {
+  'use cache';
+  cacheLife('minutes');
+  try {
+    return await orNull(api.eventRelated(id, { limit: 50 }));
+  } catch (err) {
+    if (err instanceof GalaxieApiError && err.status === 403) return null;
+    throw err;
+  }
+}
+
 export const lineupsRequest = (id: string): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/lineups',

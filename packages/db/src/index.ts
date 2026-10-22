@@ -10,3 +10,11 @@ export {
   type EventContextSource,
   type EventContextContentBase,
 } from './event-context.js';
+export {
+  readRelatedContent,
+  relatedContentTag,
+  RELATED_CONTENT_TOPIC,
+  type ReadRelatedOptions,
+  type RelatedContentPage,
+  type RelatedContentRow,
+} from './related-content.js';

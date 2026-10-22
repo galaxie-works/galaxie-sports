@@ -1,5 +1,11 @@
 /** Agentes de IA (docs/07) — camada de LLM independente de provedor + agente Onde Assistir. */
-export const AI_AGENTS = ['live-scheduler', 'where-to-watch', 'match-context', 'kb-curator'] as const;
+export const AI_AGENTS = [
+  'live-scheduler',
+  'where-to-watch',
+  'match-context',
+  'kb-curator',
+  'related-content',
+] as const;
 
 export * from './llm/index.js';
 export * from './wtw/index.js';
@@ -28,3 +34,6 @@ export * from './curator/run.js';
 
 // Avaliação contínua (#60)
 export * from './evaluation/metrics.js';
+
+// Conteúdo relacionado por evento (#127)
+export * from './related/index.js';

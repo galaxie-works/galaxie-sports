@@ -1,5 +1,5 @@
 import type { Event, EventLineups, HeadToHead, WhereToWatch } from '@galaxie/contracts';
-import { Bot, CalendarClock, ExternalLink, Flame, MapPin, Tv, Whistle } from 'lucide-react';
+import { Bot, CalendarClock, Clapperboard, ExternalLink, Flame, MapPin, Tv, Whistle } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -9,6 +9,7 @@ import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
 import { MatchStakes } from '@/components/sport/match-stakes';
+import { RelatedContentGrid } from '@/components/sport/related-content';
 import { RelevanceMeter } from '@/components/sport/relevance-meter';
 import { Section } from '@/components/sport/section';
 import { StatusBadge } from '@/components/sport/status-badge';
@@ -23,9 +24,11 @@ import {
   getEventContext,
   getH2h,
   getLineups,
+  getRelated,
   getWhereToWatch,
   h2hRequest,
   lineupsRequest,
+  relatedRequest,
   whereToWatchRequest,
 } from '@/lib/galaxie/api';
 import { COUNTRIES } from '@/lib/navigation';
@@ -352,11 +355,12 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
 
   // relevância no mesmo país do "Onde assistir"
   const event = await getEvent(id, country);
-  const [context, h2h, wtw, lineups] = await Promise.all([
+  const [context, h2h, wtw, lineups, related] = await Promise.all([
     getEventContext(id),
     getH2h(id),
     getWhereToWatch(id, country),
     getLineups(id),
+    getRelated(id),
   ]);
   const title = event.participants.map((p) => p.name).join(' x ');
 
@@ -397,6 +401,16 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
             <WhereToWatchCard eventId={event.id} wtw={wtw} country={country} />
           </div>
         </div>
+        {related?.data.length ? (
+          <Section
+            title="Conteúdo relacionado"
+            icon={<Clapperboard className="size-4" aria-hidden />}
+            description="Links diretos para vídeos do jogo, classificados por tipo — canais oficiais primeiro"
+            api={relatedRequest(id)}
+          >
+            <RelatedContentGrid related={related} />
+          </Section>
+        ) : null}
       </div>
     </>
   );

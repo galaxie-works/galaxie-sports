@@ -21,7 +21,7 @@ Comandos:
   dlq      [--id <endpoint>] [--limit 50]  Lista entregas na DLQ (status dead).
   replay   --id <endpoint> | --deliveries <ids>   Recoloca entregas da DLQ na fila.
 
-Tópicos: score, status, incidents, where_to_watch, context (ou ${REALTIME_TOPICS.join(', ')}).
+Tópicos: score, status, incidents, where_to_watch, context, related (ou ${REALTIME_TOPICS.join(', ')}).
 Sem --topics, o webhook recebe todos os tópicos do plano do tenant.
 `;
 

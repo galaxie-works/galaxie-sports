@@ -37,6 +37,7 @@ import { EventContext, EventContextQuery } from './event-context.js';
 import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
 import { WhereToWatch, WhereToWatchParams, WhereToWatchQuery } from './where-to-watch.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
+import { RelatedContent, RelatedQuery } from './related.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import { navigationPaths } from './openapi-navigation.js';
 import {
@@ -125,6 +126,10 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       { name: 'Times e pessoas', description: 'Times, elencos e pessoas (docs/05 §3.3).' },
       { name: 'Espelho', description: 'Espelho compatível com a api-sports (docs/05 §2).' },
       { name: 'Onde assistir', description: 'Opções de transmissão por evento × país (docs/05 §4).' },
+      {
+        name: 'Conteúdo relacionado',
+        description: 'Vídeos diretos por evento, classificados por tipo e formato (docs/12).',
+      },
       { name: 'Tempo real', description: 'SSE e webhooks assinados (docs/05 §5).' },
       { name: 'Conta', description: 'Autoatendimento do tenant: chaves e uso (docs/05 §1.2).' },
     ],
@@ -324,6 +329,22 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
             'Só opções publicadas (confiança ≥ 0,7, sem conflito). Sem informação confiável: `status: unknown`, ' +
             '`options: []` e `message` localizada. Exige o módulo `where_to_watch` e o país nos mercados do tenant. ' +
             'Correções editoriais propagam em ≤ 5 min (purge de cache + webhook `where_to_watch.changed`).',
+        },
+      },
+      '/v1/events/{id}/related': {
+        get: {
+          ...getOp(
+            'Conteúdo relacionado: vídeos diretos classificados por tipo',
+            'Conteúdo relacionado',
+            RelatedContent,
+            { path: EventParams, query: RelatedQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Links diretos e embed oficial de vídeos sobre o evento (melhores momentos, gols, pênaltis, coletiva, ' +
+            'bastidores, reação da torcida, análise…), com canal, selo de fonte oficial, formato (short/long) e ' +
+            'duração. Só metadados: nada é rehospedado. Exige o módulo `related_content`. Atualizações chegam ' +
+            'pelo tópico `event.related_content_changed` (SSE/webhook).',
         },
       },
       '/v1/stream': {

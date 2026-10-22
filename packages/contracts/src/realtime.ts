@@ -10,6 +10,7 @@ export const CHANGE_TOPICS = [
   'event.incident_added',
   'where_to_watch.changed',
   'event.context_published',
+  'event.related_content_changed',
 ] as const;
 export type ChangeTopic = (typeof CHANGE_TOPICS)[number];
 
@@ -20,6 +21,7 @@ export const STREAM_TOPICS = {
   incidents: 'event.incident_added',
   where_to_watch: 'where_to_watch.changed',
   context: 'event.context_published',
+  related: 'event.related_content_changed',
 } as const satisfies Record<string, ChangeTopic>;
 export type StreamTopic = keyof typeof STREAM_TOPICS;
 

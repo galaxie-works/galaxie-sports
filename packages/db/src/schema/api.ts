@@ -25,6 +25,8 @@ export const API_MODULES = [
   'semantic',
   'live_intelligence',
   'multisport',
+  /** Add-on: vídeos relacionados por evento (docs/12). */
+  'related_content',
 ] as const;
 export type ApiModule = (typeof API_MODULES)[number];
 
@@ -146,6 +148,7 @@ export const REALTIME_TOPICS = [
   'event.incident_added',
   'where_to_watch.changed',
   'event.context_published',
+  'event.related_content_changed',
 ] as const;
 export type RealtimeTopic = (typeof REALTIME_TOPICS)[number];
 

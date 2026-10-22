@@ -30,7 +30,8 @@
     "curator:run": "node --env-file-if-exists=../../.env dist/cli/curator-run.js",
     "eval:report": "node --env-file-if-exists=../../.env dist/cli/eval-report.js",
     "wtw:run": "node --env-file-if-exists=../../.env dist/cli/wtw-run.js",
-    "wtw:audit": "node --env-file-if-exists=../../.env dist/cli/wtw-audit.js"
+    "wtw:audit": "node --env-file-if-exists=../../.env dist/cli/wtw-audit.js",
+    "related:run": "node --env-file-if-exists=../../.env dist/cli/related-run.js"
   },
   "dependencies": {
     "@galaxie/db": "workspace:*",

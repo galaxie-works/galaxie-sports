@@ -148,6 +148,7 @@ _Serviço agendado que acompanha jogos importantes ao vivo dentro da cota e enri
 | [#57](https://github.com/galaxie-works/galaxie-sports/issues/57) | Agente Cenário pré-jogo (stakes → texto localizado) com validador | feature | P0 | M | [#28](https://github.com/galaxie-works/galaxie-sports/issues/28) |
 | [#58](https://github.com/galaxie-works/galaxie-sports/issues/58) | Agente Resumo pós-jogo | feature | P1 | S | [#55](https://github.com/galaxie-works/galaxie-sports/issues/55) |
 | [#59](https://github.com/galaxie-works/galaxie-sports/issues/59) | Agente Curador Semântico (PRs automáticos) | feature | P2 | M | [#38](https://github.com/galaxie-works/galaxie-sports/issues/38) |
+| [#127](https://github.com/galaxie-works/galaxie-sports/issues/127) | Conteúdo relacionado por evento: vídeos diretos classificados por tipo (YouTube) | feature | P1 | M | [#58](https://github.com/galaxie-works/galaxie-sports/issues/58), [#60](https://github.com/galaxie-works/galaxie-sports/issues/60) |
 | [#60](https://github.com/galaxie-works/galaxie-sports/issues/60) | Guardrails, orçamento de tokens e avaliação contínua da IA | task | P1 | S | [#48](https://github.com/galaxie-works/galaxie-sports/issues/48), [#57](https://github.com/galaxie-works/galaxie-sports/issues/57) |
 
 ### [#61](https://github.com/galaxie-works/galaxie-sports/issues/61) App de demonstração (Next.js + shadcn + ReUI)

@@ -5,7 +5,8 @@
 #
 # Campos:
 #   name                  nome comercial exibido
-#   modules               módulos incluídos (core_data, where_to_watch, semantic, live_intelligence, multisport)
+#   modules               módulos incluídos (core_data, where_to_watch, semantic, live_intelligence, multisport,
+#                         related_content — add-on de vídeos relacionados, docs/12)
 #   markets               países ISO2 incluídos por padrão; [] = todos
 #   sports                esportes incluídos por padrão (slug); [] = todos
 #   rateLimitPerMinute    requisições por minuto, por rota (janela fixa no Valkey)
@@ -42,7 +43,7 @@ plans:
 
   enterprise:
     name: Enterprise
-    modules: [core_data, where_to_watch, semantic, live_intelligence, multisport]
+    modules: [core_data, where_to_watch, semantic, live_intelligence, multisport, related_content]
     markets: []
     sports: []
     rateLimitPerMinute: 3000
