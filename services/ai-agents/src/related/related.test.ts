@@ -391,6 +391,18 @@ describe('política de publicação e ranking', () => {
     expect(decidePublication({ tier, type, confidence: 0.9 })).toEqual({ status, flags: [...flags] });
   });
 
+  it('short de criador fica pendente (costuma ser corte de programa de TV)', () => {
+    expect(
+      decidePublication({ tier: 'creator', type: 'analysis', confidence: 0.9, format: 'short' }),
+    ).toEqual({
+      status: 'pending',
+      flags: ['creator_short'],
+    });
+    expect(
+      decidePublication({ tier: 'creator', type: 'analysis', confidence: 0.9, format: 'long' }).status,
+    ).toBe('published');
+  });
+
   it('confiança baixa e título ofensivo seguram a publicação', () => {
     expect(decidePublication({ tier: 'official', type: 'goal', confidence: 0.3 })).toEqual({
       status: 'pending',
@@ -459,5 +471,70 @@ describe('política de publicação e ranking', () => {
     });
     expect(official).toBeGreaterThan(media);
     expect(media).toBeGreaterThan(creator);
+  });
+});
+
+describe('ajustes da primeira execução real', () => {
+  it('"pós-jogo completo" é análise; tags não decidem o tipo', () => {
+    expect(
+      classifyByRules(
+        video({ title: 'PALMEIRAS X FLUMINENSE: PÓS-JOGO COMPLETO DA SEMIFINAL', durationSeconds: 7200 }),
+      ).type,
+    ).toBe('analysis');
+    expect(
+      classifyByRules(
+        video({ title: 'FELIPE MELO TÁ TORCENDO PRA QUEM?', tags: ['melhores momentos', 'pênaltis'] }),
+      ).type,
+    ).toBe('other');
+  });
+
+  it('classifica em lotes (listas grandes estouram a saída do modelo leve)', async () => {
+    const many = Array.from({ length: 45 }, (_, i) => ({
+      id: `v${i}`,
+      title: `Palmeiras x Fluminense melhores momentos ${i}`,
+      description: '',
+      channelTitle: 'C',
+      durationSeconds: 600,
+      format: 'long' as const,
+      tags: [],
+    }));
+    const llm = new FakeLlmClient((req) => ({
+      data: {
+        videos: [...req.messages[0]!.content.matchAll(/"id":"(v\d+)"/g)].map((m) => ({
+          id: m[1]!,
+          content_type: 'highlights',
+          about_this_event: true,
+          confidence: 0.9,
+        })),
+      },
+    }));
+    const res = await classifyVideos({
+      llm,
+      eventId: 'e',
+      facts: {
+        home: 'Palmeiras',
+        away: 'Fluminense',
+        competition: null,
+        stage: null,
+        kickoff: KICKOFF.toISOString(),
+        score: { home: 0, away: 1, penalties: { home: 5, away: 3 } },
+        scorers: [],
+      },
+      videos: many,
+    });
+    expect(llm.calls).toHaveLength(3);
+    expect([...res.byId.values()].filter((c) => c.classifiedBy.startsWith('llm:'))).toHaveLength(45);
+  });
+
+  it('handle da allowlist com poucos inscritos não ganha selo oficial (handle ocupado por terceiro)', () => {
+    const allow = new ChannelAllowlist({
+      entries: [
+        { handle: '@clube', id: null, kind: 'club', broadcaster: null, country: 'BR', label: 'Clube' },
+      ],
+    });
+    const ch = (subscribers: number | null) => ({ id: 'UC1', title: 'Clube', handle: '@clube', subscribers });
+    expect(allow.classify(ch(2_000_000), new Set()).tier).toBe('official');
+    expect(allow.classify(ch(1_280), new Set()).tier).toBe('unknown');
+    expect(allow.classify(ch(null), new Set()).tier).toBe('official');
   });
 });

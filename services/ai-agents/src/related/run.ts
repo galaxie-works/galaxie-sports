@@ -27,7 +27,7 @@ import { sanitizeText } from '../llm/hygiene.js';
 import type { LlmClient } from '../llm/types.js';
 import { buildGoals, loadIncidents } from '../recap/facts.js';
 import { rightsHoldersFor, type ChannelAllowlist } from './channels.js';
-import { classifyVideos, detectFormat, type ClassifyFacts } from './classify.js';
+import { classifyVideos, detectFormat, RULES_CLASSIFIER, type ClassifyFacts } from './classify.js';
 import { checkRelevance, decidePublication, rankScore } from './policy.js';
 import { buildRelatedQueries, languagesFor, type RelatedQuery } from './queries.js';
 import {
@@ -350,8 +350,14 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           cands.push({ v, tier: verdict, ...(prevById.has(v.id) ? { prev: prevById.get(v.id)! } : {}) });
         }
 
-        // 4. classificação: novos e os que mudaram de título; o resto reaproveita a anterior
-        const toClassify = cands.filter((c) => !c.prev || c.prev.title !== sanitizeText(c.v.title, 300));
+        // 4. classificação: novos, os que mudaram de título e (com LLM) os que só tinham a das regras;
+        //    o resto reaproveita a anterior
+        const toClassify = cands.filter(
+          (c) =>
+            !c.prev ||
+            c.prev.title !== sanitizeText(c.v.title, 300) ||
+            (!!opts.llm && c.prev.classifiedBy === RULES_CLASSIFIER),
+        );
         const cls = await classifyVideos({
           llm: opts.llm,
           eventId: id,
@@ -394,10 +400,16 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           const flags = [...base.flags];
           if (findForbiddenTerms(v.title, locale, { allowPhrases: [core.home.name, core.away.name] }).length)
             flags.push('offensive_title');
-          const decision = base.aboutThisEvent
-            ? decidePublication({ tier: c.tier.tier, type: base.type, confidence: base.confidence, flags })
-            : { status: 'rejected' as const, flags: [...flags, 'not_this_event'] };
           const format = detectFormat(v);
+          const decision = base.aboutThisEvent
+            ? decidePublication({
+                tier: c.tier.tier,
+                type: base.type,
+                confidence: base.confidence,
+                format,
+                flags,
+              })
+            : { status: 'rejected' as const, flags: [...flags, 'not_this_event'] };
           const publishedAt = new Date(v.publishedAt);
           items.push({
             externalId: v.id,

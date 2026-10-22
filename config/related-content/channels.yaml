@@ -10,75 +10,59 @@
 # (config/broadcasters/<iso2>.yaml) entram automaticamente como `broadcasters`.
 #
 # Casamento por handle (snippet.customUrl do channels.list, sem caixa) ou por id do canal
-# (`id: UC...`). Handle que não existe simplesmente nunca casa — confira com
-# `channels.list?forHandle=<handle>` ao incluir uma entrada. A blocklist editorial do Onde
-# Assistir (_policy.yaml + WTW_BLOCKLIST_FILE/WTW_BLOCKLIST) também vale aqui.
+# (`id: UC...`). TODA entrada precisa ser conferida antes de entrar:
+#   GET https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&forHandle=<handle>
+# Handles parecidos com os de clubes costumam ser de terceiros (ex.: canais de torcedor); por isso
+# o código também exige um mínimo de inscritos (ALLOWLIST_MIN_SUBSCRIBERS, 10 mil) para dar o selo.
+# A blocklist editorial do Onde Assistir (_policy.yaml + WTW_BLOCKLIST_FILE/WTW_BLOCKLIST) vale aqui.
+#
+# Conferido na API em 2026-10-22 (título do canal e inscritos entre parênteses).
 # =============================================================================
 schema_version: 1
 updated_at: 2026-10-22
 
 clubs:
   # Brasil
-  - { handle: '@palmeiras', team: Palmeiras, country: BR }
-  - { handle: '@tvpalmeiras', team: Palmeiras, country: BR }
-  - { handle: '@fluminensefc', team: Fluminense, country: BR }
-  - { handle: '@flutv', team: Fluminense, country: BR }
-  - { handle: '@flamengo', team: Flamengo, country: BR }
-  - { handle: '@flatv', team: Flamengo, country: BR }
-  - { handle: '@corinthians', team: Corinthians, country: BR }
-  - { handle: '@corinthianstv', team: Corinthians, country: BR }
-  - { handle: '@saopaulofc', team: São Paulo, country: BR }
-  - { handle: '@santosfc', team: Santos, country: BR }
-  - { handle: '@gremio', team: Grêmio, country: BR }
-  - { handle: '@scinternacional', team: Internacional, country: BR }
-  - { handle: '@tvgalo', team: Atlético-MG, country: BR }
-  - { handle: '@atletico', team: Atlético-MG, country: BR }
-  - { handle: '@cruzeiro', team: Cruzeiro, country: BR }
-  - { handle: '@botafogo', team: Botafogo, country: BR }
-  - { handle: '@vascotv', team: Vasco, country: BR }
-  - { handle: '@ecbahia', team: Bahia, country: BR }
-  - { handle: '@fortalezaec', team: Fortaleza, country: BR }
-  - { handle: '@athleticoparanaense', team: Athletico-PR, country: BR }
-  # Argentina
-  - { handle: '@riverplate', team: River Plate, country: AR }
-  - { handle: '@bocajuniors', team: Boca Juniors, country: AR }
-  - { handle: '@racingclub', team: Racing Club, country: AR }
-  - { handle: '@independiente', team: Independiente, country: AR }
-  - { handle: '@sanlorenzo', team: San Lorenzo, country: AR }
-  - { handle: '@estudiantesdelp', team: Estudiantes, country: AR }
-  # Uruguai, Colômbia, Chile, México
-  - { handle: '@nacional', team: Nacional, country: UY }
-  - { handle: '@penarol', team: Peñarol, country: UY }
-  - { handle: '@atlnacional', team: Atlético Nacional, country: CO }
-  - { handle: '@millonarios', team: Millonarios, country: CO }
-  - { handle: '@colocolo', team: Colo-Colo, country: CL }
-  - { handle: '@clubamerica', team: América, country: MX }
-  - { handle: '@chivas', team: Guadalajara, country: MX }
+  - { handle: '@palmeiras', team: Palmeiras, country: BR } # TV Palmeiras (2,7 mi)
+  - { handle: '@fluminensefc', team: Fluminense, country: BR } # Fluminense Football Club (946 mil)
+  - { handle: '@flamengo', team: Flamengo, country: BR } # Flamengo TV (8,4 mi)
+  - { handle: '@corinthians', team: Corinthians, country: BR } # Corinthians TV (3 mi)
+  - { handle: '@saopaulofc', team: São Paulo, country: BR } # São Paulo FC (2 mi)
+  - { handle: '@santosfc', team: Santos, country: BR } # SantosTV (1,9 mi)
+  - { handle: '@gremio', team: Grêmio, country: BR } # Grêmio FBPA (1,1 mi)
+  - { handle: '@scinternacional', team: Internacional, country: BR } # Sport Club Internacional (473 mil)
+  - { handle: '@atletico', team: Atlético-MG, country: BR } # GaloTV | Atlético (938 mil)
+  - { handle: '@cruzeiro', team: Cruzeiro, country: BR } # TV CRUZEIRO (793 mil)
+  - { handle: '@athleticoparanaense', team: Athletico-PR, country: BR } # Athletico Paranaense (343 mil)
+  # Argentina, Colômbia, México
+  - { handle: '@riverplate', team: River Plate, country: AR } # River Plate (653 mil)
+  - { handle: '@independiente', team: Independiente, country: AR } # Club Atlético Independiente (113 mil)
+  - { handle: '@sanlorenzo', team: San Lorenzo, country: AR } # San Lorenzo (76 mil)
+  - { handle: '@nacionaloficial', team: Atlético Nacional, country: CO } # Atlético Nacional TV (230 mil)
+  - { handle: '@clubamerica', team: América, country: MX } # Club América (1,7 mi)
+  - { handle: '@chivas', team: Guadalajara, country: MX } # Chivas (903 mil)
 
 competitions:
-  - { handle: '@conmebol', competition: conmebol }
-  - { handle: '@conmebollibertadores', competition: conmebol-libertadores }
-  - { handle: '@conmebolsudamericana', competition: conmebol-sudamericana }
-  - { handle: '@cbf', competition: cbf }
-  - { handle: '@cbftv', competition: cbf }
-  - { handle: '@brasileirao', competition: brasileirao-serie-a }
-  - { handle: '@ligaprofesional', competition: liga-profesional-argentina }
-  - { handle: '@ligabbvamx', competition: liga-mx }
-  - { handle: '@uefa', competition: uefa }
-  - { handle: '@uefachampionsleague', competition: uefa-champions-league }
+  - { handle: '@conmebol', competition: conmebol } # CONMEBOL (2,5 mi)
+  - { handle: '@libertadoresbr', competition: conmebol-libertadores } # CONMEBOL Libertadores (1,2 mi)
+  - { handle: '@sudamericana', competition: conmebol-sudamericana } # CONMEBOL Sudamericana (426 mil)
+  - { handle: '@ligaprofesional', competition: liga-profesional-argentina } # Liga Profesional de Fútbol de la AFA (494 mil)
+  - { handle: '@ligabbvamx', competition: liga-mx } # LIGA BBVA MX (1,4 mi)
+  - { handle: '@uefa', competition: uefa } # UEFA (7,3 mi)
 
 # Canais de emissoras além dos domínios youtube.com/@ do dicionário (broadcaster = id do dicionário).
 broadcasters:
-  - { handle: '@ge', broadcaster: globo, country: BR }
-  - { handle: '@sportv', broadcaster: sportv, country: BR }
-  - { handle: '@premiere', broadcaster: premiere, country: BR }
-  - { handle: '@espnbrasil', broadcaster: espn, country: BR }
-  - { handle: '@paramountplusbrasil', broadcaster: paramount_plus, country: BR }
-  - { handle: '@espnfans', broadcaster: espn, country: AR }
-  - { handle: '@espnmx', broadcaster: espn, country: MX }
+  - { handle: '@espnbrasil', broadcaster: espn, country: BR } # ESPN Brasil (8,3 mi)
+  - { handle: '@paramountplusbr', broadcaster: paramount_plus, country: BR } # Paramount+ Brasil (775 mil)
+  - { handle: '@tntsportsbr', broadcaster: tnt_sports, country: BR } # TNT Sports Brasil (13 mi)
+  - { handle: '@espnfans', broadcaster: espn, country: AR } # ESPN Fans (9,4 mi)
+  - { handle: '@tntsportsar', broadcaster: tnt_sports, country: AR } # TNT Sports Argentina (1,6 mi)
+  - { handle: '@tycsports', broadcaster: tyc_sports, country: AR } # TyC Sports (3,5 mi)
+  - { handle: '@espnmx', broadcaster: espn, country: MX } # ESPN MX (264 mil)
 
 media:
-  - { handle: '@lance', country: BR }
-  - { handle: '@uol', country: BR }
-  - { handle: '@olepuntocom', country: AR }
-  - { handle: '@tycsports', country: AR }
+  - { handle: '@lance', country: BR } # Lance! (570 mil)
+  - { handle: '@uol', country: BR } # UOL (5,8 mi)
+  - { handle: '@uolesporte', country: BR } # UOL Esporte (1,9 mi)
+  - { handle: '@jovempanesportes', country: BR } # Jovem Pan Esportes (5,6 mi)
+  - { handle: '@diarioole', country: AR } # Olé (336 mil)

@@ -11,6 +11,7 @@ import {
   UNTRUSTED_DATA_RULE,
   wrapUntrustedContent,
 } from '../guardrails/index.js';
+import { BudgetExceededError } from '../llm/errors.js';
 import { sanitizeText } from '../llm/hygiene.js';
 import type { LlmClient, LlmUsage } from '../llm/types.js';
 import type { VideoDetail } from './youtube.js';
@@ -32,7 +33,8 @@ export function detectFormat(
 
 /** Sinais por tipo, em texto normalizado (sem acento, minúsculo); ordem = prioridade. */
 const RULES: { type: RelatedContentType; re: RegExp }[] = [
-  { type: 'full_match', re: /\b(jogo completo|partida completa|partido completo|full match)\b/ },
+  // "pós-jogo completo" é programa de análise, não o jogo
+  { type: 'full_match', re: /(?<!pos[- ])\b(jogo completo|partida completa|partido completo|full match)\b/ },
   {
     type: 'penalties',
     re: /\b(penaltis|disputa de penaltis|penales|tanda de penales|definicion por penales|penalty shootout|shootout)\b/,
@@ -70,7 +72,8 @@ export interface RuleResult {
 export function classifyByRules(
   v: Pick<VideoDetail, 'title' | 'tags' | 'description' | 'durationSeconds'>,
 ): RuleResult {
-  const title = normalizeText(`${v.title} ${v.tags.join(' ')}`);
+  // só o título: as tags dos canais repetem "melhores momentos", "pênaltis"... em todo vídeo
+  const title = normalizeText(v.title);
   const d = v.durationSeconds ?? 0;
   for (const { type, re } of RULES) {
     if (!re.test(title)) continue;
@@ -214,10 +217,12 @@ export interface ClassifyOptions {
   facts: ClassifyFacts;
   videos: readonly (ClassifyInputVideo & Pick<VideoDetail, 'tags'>)[];
   maxOutputTokens?: number;
+  /** Vídeos por chamada (padrão 20): listas grandes estouram o limite de saída do modelo leve. */
+  batchSize?: number;
 }
 
 /**
- * Classifica a lista: uma chamada ao LLM (tier light) para todos os vídeos limpos; o que o LLM
+ * Classifica a lista em lotes (uma chamada ao LLM tier light por lote de vídeos limpos); o que o LLM
  * omitir, os ids desconhecidos (ignorados), falhas e o orçamento estourado caem nas regras.
  */
 export async function classifyVideos(opts: ClassifyOptions): Promise<ClassifyResult> {
@@ -245,25 +250,31 @@ export async function classifyVideos(opts: ClassifyOptions): Promise<ClassifyRes
     byId.set(v.id, rules(v, ['injection_signal']));
     return false;
   });
-  if (opts.llm && clean.length) {
+  const size = Math.max(1, opts.batchSize ?? 20);
+  for (let i = 0; opts.llm && i < clean.length; i += size) {
+    const batch = clean.slice(i, i + size);
     try {
       result.llmCalls++;
       const res = await opts.llm.generateJson<LlmOutput>({
         tier: 'light',
         system: relatedSystemPrompt(),
-        messages: [{ role: 'user', content: relatedUserPrompt(opts.facts, clean) }],
+        messages: [{ role: 'user', content: relatedUserPrompt(opts.facts, batch) }],
         schema: RELATED_OUTPUT_SCHEMA as unknown as Record<string, unknown>,
         schemaName: RELATED_SCHEMA_NAME,
-        maxOutputTokens: opts.maxOutputTokens ?? 3_000,
+        maxOutputTokens: opts.maxOutputTokens ?? 4_000,
         temperature: 0,
         purpose: `related:event:${opts.eventId}`,
       });
-      result.usage = res.usage;
+      result.usage = {
+        inputTokens: result.usage.inputTokens + res.usage.inputTokens,
+        outputTokens: result.usage.outputTokens + res.usage.outputTokens,
+        costUsd: (result.usage.costUsd ?? 0) + (res.usage.costUsd ?? 0),
+      };
       result.model = res.model;
       result.provider = res.provider;
-      const known = new Set(clean.map((v) => v.id));
+      const known = new Set(batch.map((v) => v.id));
       for (const item of res.data.videos ?? []) {
-        // id que não estava na entrada é ignorado; repetido vale o primeiro
+        // id que não estava no lote é ignorado; repetido vale o primeiro
         if (!known.has(item.id) || byId.has(item.id)) continue;
         if (!(RELATED_CONTENT_TYPES as readonly string[]).includes(item.content_type)) continue;
         const confidence = Math.max(0, Math.min(1, Number(item.confidence) || 0));
@@ -276,7 +287,9 @@ export async function classifyVideos(opts: ClassifyOptions): Promise<ClassifyRes
         });
       }
     } catch (err) {
+      // o lote que falhou cai nas regras; orçamento esgotado não adianta tentar os próximos
       result.error = err instanceof Error ? err.message : String(err);
+      if (err instanceof BudgetExceededError) break;
     }
   }
   for (const v of clean) if (!byId.has(v.id)) byId.set(v.id, rules(v));

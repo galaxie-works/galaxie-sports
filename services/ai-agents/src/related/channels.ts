@@ -106,18 +106,26 @@ export interface AllowlistOptions {
   blocklist?: Blocklist;
   /** Mínimo de inscritos para um canal fora da allowlist virar `creator`. */
   creatorMinSubscribers?: number;
+  /**
+   * Mínimo de inscritos para uma entrada casada só pelo HANDLE valer (handle parecido com o do clube
+   * costuma ser de terceiros). Entrada por id do canal não passa por este piso.
+   */
+  allowlistMinSubscribers?: number;
 }
 
 export const DEFAULT_CREATOR_MIN_SUBSCRIBERS = 100_000;
+export const ALLOWLIST_MIN_SUBSCRIBERS = 10_000;
 
 /** Allowlist resolvida para um evento: quem é detentor de direitos depende da competição e do país. */
 export class ChannelAllowlist {
   private readonly byHandle = new Map<string, ChannelEntry[]>();
   private readonly byId = new Map<string, ChannelEntry[]>();
   readonly creatorMinSubscribers: number;
+  readonly allowlistMinSubscribers: number;
 
   constructor(private readonly options: AllowlistOptions) {
     this.creatorMinSubscribers = options.creatorMinSubscribers ?? DEFAULT_CREATOR_MIN_SUBSCRIBERS;
+    this.allowlistMinSubscribers = options.allowlistMinSubscribers ?? ALLOWLIST_MIN_SUBSCRIBERS;
     for (const e of options.entries) {
       if (e.handle) this.byHandle.set(e.handle, [...(this.byHandle.get(e.handle) ?? []), e]);
       if (e.id) this.byId.set(e.id, [...(this.byId.get(e.id) ?? []), e]);
@@ -128,11 +136,10 @@ export class ChannelAllowlist {
     return this.options.entries.length;
   }
 
-  entriesOf(channel: Pick<ChannelRef, 'id' | 'handle'>): ChannelEntry[] {
-    return [
-      ...(this.byId.get(channel.id) ?? []),
-      ...(channel.handle ? (this.byHandle.get(normHandle(channel.handle)) ?? []) : []),
-    ];
+  entriesOf(channel: Pick<ChannelRef, 'id' | 'handle' | 'subscribers'>): ChannelEntry[] {
+    const byHandle = channel.handle ? (this.byHandle.get(normHandle(channel.handle)) ?? []) : [];
+    const tooSmall = channel.subscribers !== null && channel.subscribers < this.allowlistMinSubscribers;
+    return [...(this.byId.get(channel.id) ?? []), ...(tooSmall ? [] : byHandle)];
   }
 
   /**

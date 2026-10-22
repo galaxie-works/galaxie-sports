@@ -2,7 +2,7 @@
  * Política do Conteúdo relacionado (docs/12 §2 e §5): relevância, direitos e ranking. Código, nunca
  * LLM — o modelo só classifica; quem decide o que aparece é esta tabela.
  */
-import type { RelatedContentType, RelatedSourceTier, RelatedStatus } from '@galaxie/db';
+import type { RelatedContentType, RelatedFormat, RelatedSourceTier, RelatedStatus } from '@galaxie/db';
 import type { EventCore, TeamRef } from '../context/event-core.js';
 import { normalizeText } from '../guardrails/index.js';
 
@@ -93,6 +93,7 @@ export function decidePublication(input: {
   tier: RelatedSourceTier;
   type: RelatedContentType;
   confidence: number;
+  format?: RelatedFormat;
   flags?: readonly string[];
 }): PublishDecision {
   const flags = [...(input.flags ?? [])];
@@ -107,7 +108,13 @@ export function decidePublication(input: {
       status = footage ? 'pending' : 'published';
       break;
     case 'creator':
-      status = footage ? 'rejected' : CREATOR_TYPES.has(input.type) ? 'published' : 'pending';
+      // short de criador costuma ser corte de programa de TV (não é conteúdo próprio): fica para revisão
+      status = footage
+        ? 'rejected'
+        : CREATOR_TYPES.has(input.type) && input.format !== 'short'
+          ? 'published'
+          : 'pending';
+      if (status === 'pending' && input.format === 'short') flags.push('creator_short');
       break;
     default:
       status = footage ? 'rejected' : 'pending';

@@ -46,7 +46,7 @@ Regras de UI (herdadas do ReUI): reutilizar componentes do registry em vez de re
 | 2 | **Ao vivo** | Placar e minuto atualizando via SSE, momentos-chave | Card, Timeline, Badge "AO VIVO" | `/v1/events/live`, `/v1/stream` |
 | 3 | **Radar / agenda** | Agenda infinita por esporte e torneio, agrupada por data/rodada | Filters (ReUI), lista virtualizada | `/v1/events?sport=&competition=` |
 | 4 | **Competição** | Tabela, grupos, chaveamento de mata-mata, "o que está em jogo" | Data Grid (ReUI), Tabs | `/v1/competitions/{id}/context`, `/standings` |
-| 5 | **Evento** | Detalhe: escalações (formação em campo), estatísticas, timeline, h2h, cenário IA, **onde assistir** por país e **conteúdo relacionado** (cards de vídeo com miniatura, canal, tipo, duração e filtro por tipo — [12 §10](12-conteudo-relacionado.md#10-demo)) | Sheet/Drawer, Tabs, Charts | `/v1/events/{id}/*` |
+| 5 | **Evento** | Detalhe: escalações (formação em campo), estatísticas, timeline, h2h, cenário IA, **onde assistir** por país e **conteúdo relacionado** (cards de vídeo com miniatura, canal, tipo, duração e filtro por tipo — [12 §11](12-conteudo-relacionado.md#11-demo)) | Sheet/Drawer, Tabs, Charts | `/v1/events/{id}/*` |
 | 6 | **Time** | Resumo (posição, forma, próximo jogo + onde assistir), elenco, torneios, **cartão semântico** | Card, Data Grid, Badge | `/v1/teams/{id}/overview`, `/semantic` |
 | 7 | **Clássicos** | Clássicos da semana, retrospecto, curiosidades | Cards, Charts | `/v1/derbies/upcoming`, `/v1/derbies/{slug}` |
 | 8 | **Olimpíadas & Pan** | Quadro de medalhas, agenda por modalidade, delegação do país | Data Grid, Filters | `/v1/multisport/*` |

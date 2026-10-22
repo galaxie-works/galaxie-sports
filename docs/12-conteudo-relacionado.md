@@ -50,6 +50,8 @@ No mesmo espírito da allowlist de domínios do Onde Assistir (`services/ai-agen
 
 O casamento é por **handle** (`snippet.customUrl` do `channels.list`, sem caixa) ou por **id do canal** (`UC…`). A blocklist editorial do Onde Assistir (`_policy.yaml` + `WTW_BLOCKLIST_FILE`/`WTW_BLOCKLIST`) também vale aqui: canal bloqueado não aparece, e o nome não é registrado.
 
+Toda entrada é conferida com `channels.list?forHandle=` antes de entrar (a lista atual foi conferida em 2026-10-22). Handles parecidos com os dos clubes costumam ser de terceiros — na conferência, `@vascotv` era um canal de torcedor com 1,3 mil inscritos e `@penarol` tinha 3 —, por isso o código também exige **10 mil inscritos** (`ALLOWLIST_MIN_SUBSCRIBERS`) para uma entrada casada só pelo handle dar o selo; entrada por id do canal não passa por esse piso.
+
 ## 4. Taxonomia
 
 ### 4.1 Tipo de conteúdo (`content_type`)
@@ -99,7 +101,7 @@ flowchart LR
    Todas com `type=video`, `publishedAfter` = início do jogo, `publishedBefore` = início + 7 dias, `videoEmbeddable=true`, `relevanceLanguage` e `regionCode` do locale, `maxResults=25`.
 3. **Detalhe**: um `videos.list` por lote de 50 ids (`snippet,contentDetails,statistics,status`) e um `channels.list` por lote de 50 canais (`snippet,statistics`).
 4. **Relevância (código)**: o título ou a descrição precisa citar **os dois times** (nome, nome curto, apelidos e rótulos da base semântica, sem acento e sem caixa) — ou um deles, se o canal for oficial de um dos dois. Vídeo privado, não incorporável, publicado antes do apito ou fora do ar → descartado.
-5. **Classificação**: o LLM tier `light` recebe os fatos do jogo e os vídeos (título, trecho da descrição, canal, duração) **como dado** (`<dados_externos>`), e devolve `{ id, content_type, about_this_event, confidence }` por vídeo, em JSON Schema estrito. Guardrails:
+5. **Classificação**: o LLM tier `light` recebe os fatos do jogo e os vídeos — em lotes de 20, porque uma lista de ~70 vídeos estourou o limite de saída do modelo leve na primeira execução real — (título, trecho da descrição, canal, duração) **como dado** (`<dados_externos>`), e devolve `{ id, content_type, about_this_event, confidence }` por vídeo, em JSON Schema estrito. Guardrails:
    - id que não estava na entrada é ignorado; vídeo que o LLM omitiu cai no classificador por regras;
    - `about_this_event = false` reprova o vídeo (ex.: jogo de outra temporada com os mesmos times);
    - título com sinal de *prompt injection* (`detectPromptInjection`) não vai ao LLM: é classificado por regras e marcado `injection_signal`;
@@ -111,7 +113,7 @@ flowchart LR
    |---|---|---|
    | `official`, `rights_holder` | `published` | `published` |
    | `media` | `pending` (pode ter imagem licenciada ou não) | `published` |
-   | `creator` (≥ 100 mil inscritos) | `rejected` (`rights_risk`) | `published` só `fan_reaction` e `analysis`; o resto `pending` |
+   | `creator` (≥ 100 mil inscritos) | `rejected` (`rights_risk`) | `published` só `fan_reaction` e `analysis` em vídeo **longo**; short de criador fica `pending` (`creator_short`: na prática são cortes de programas de TV); o resto `pending` |
    | fora da allowlist, abaixo do mínimo | `rejected` (`rights_risk`) | `pending` |
 
    Confiança < 0,5 na classificação → `pending`.
@@ -250,7 +252,19 @@ A cota padrão de um projeto é **10.000 unidades/dia**, zerada à meia-noite do
 
 LLM: uma chamada `light` por evento (todos os vídeos de uma vez), ~3–5 mil tokens de entrada → frações de centavo por evento.
 
-## 9. Operação
+## 9. Primeira execução real (2026-10-22)
+
+Palmeiras 0 (5) x (3) 1 Fluminense, semifinal (volta) da Libertadores, 21/10/2026: 4 consultas em pt (403 unidades), ~84 vídeos candidatos.
+
+| Situação | Vídeos | Exemplos |
+|---|---|---|
+| `published` | 37 | melhores momentos, disputa de pênaltis completa e gol no canal da CONMEBOL Libertadores (`official`); melhores momentos e shorts de gol/pênalti da GE TV e da ESPN Brasil (`rights_holder`); coletivas de Palmeiras e Fluminense (`official`); reações longas de canais de torcida (`creator`) |
+| `pending` | 38 | melhores momentos e jogo completo de canais de imprensa sem direitos confirmados na tabela; coletivas reenviadas por terceiros; shorts de criadores |
+| `rejected` | 9 | gols e pênaltis reenviados por canais fora da allowlist (`rights_risk`) |
+
+Uma segunda rodada no mesmo dia só revalidou (3 unidades) e reclassificou pelo LLM o que tinha caído nas regras. Custo do LLM somando as três rodadas: ~24 mil tokens no tier `light` (US$ 0,005).
+
+## 10. Operação
 
 ```bash
 pnpm --filter @galaxie/ai-agents related:run --plan                 # candidatos e consultas, sem chamar nada
@@ -261,11 +275,11 @@ pnpm --filter @galaxie/ai-agents related:run --evento <id> --forcar # ignora a j
 
 Flags: `--plan`, `--evento`, `--horas` (padrão 48), `--tier` (padrão 2), `--limite`, `--forcar`, `--sem-llm` (só regras). Variáveis: `YOUTUBE_API_KEY` (só no `.env`), `YOUTUBE_DAILY_QUOTA`, `YOUTUBE_QUOTA_RESERVE_PERCENT`, `RELATED_RESEARCH_HOURS`, `RELATED_CREATOR_MIN_SUBSCRIBERS`. Cron sugerido: a cada 30 min das 12h às 06h UTC (pós-jogo das noites latino-americanas); os jogos só gastam busca completa uma vez a cada 12 h.
 
-## 10. Demo
+## 11. Demo
 
 Página do evento (`apps/demo`, `eventos/[id]`): seção **Conteúdo relacionado** com cards (miniatura, duração, selo *Short*, canal com selo *Oficial*, tipo e visualizações) e filtro por tipo (abas com a contagem de `counts`). O clique abre o vídeo na própria plataforma. A chave da demo precisa do módulo `related_content` (o tenant da demo é `enterprise`).
 
-## 11. Métricas e riscos
+## 12. Métricas e riscos
 
 | Métrica | Meta |
 |---|---|
