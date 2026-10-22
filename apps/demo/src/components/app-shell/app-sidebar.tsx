@@ -90,12 +90,16 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/" />}>
-              <div className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center text-sm font-bold">
-                G
-              </div>
+              {/* Símbolo da Galaxie (planeta): cabe no slot do ícone e segue visível com a sidebar recolhida. */}
+              <img
+                src="/brand/galaxie-symbol.png"
+                alt=""
+                draggable={false}
+                className="size-8 shrink-0 object-contain"
+              />
               <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate text-sm font-semibold">Galaxie Sports</span>
-                <span className="text-muted-foreground truncate text-xs">Demo da API</span>
+                <span className="text-muted-foreground truncate text-xs">Galactical Sports XP</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
