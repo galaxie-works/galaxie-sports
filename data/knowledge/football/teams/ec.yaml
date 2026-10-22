@@ -143,8 +143,8 @@ teams:
     founded: 1964-06-01
     city: Quito
     region: Pichincha
-    colors: [rojo, azul, blanco]
-    nicknames: [Puros Criollos, Militares, El Rojo]
+    colors: [rojo, azul, celeste]
+    nicknames: [Puros Criollos, Elenco Militar, Bi-Tri, El Rojo, Máquina Gris]
     fans:
       demonym: null
     rallying_cries: ["¡Vamos Nacional!"]
@@ -161,7 +161,8 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_El_Nacional"
       - "https://futboltotal.futbol/teams/el-nacional-ecuador"
-    review_status: draft
+      - "https://www.eluniverso.com/deportes/campeonato-ecuatoriano/ligapro-el-nacional-uniformes-2021-nota/"
+    review_status: approved
 
   - slug: aucas
     names:

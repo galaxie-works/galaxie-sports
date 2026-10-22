@@ -189,7 +189,8 @@ teams:
     name: Stadio Diego Armando Maradona
     nicknames:
     - Maradona
-    - San Paolo (nome anterior)
+    former_names:
+    - {name: Stadio San Paolo, until: 2020-12-03}
     city: Nápoles
   identity:
   - Fundado em 1926 como Associazione Calcio Napoli; refundado em 2004 (Napoli Soccer, depois SSC Napoli).
@@ -213,7 +214,8 @@ teams:
   - https://en.wikipedia.org/wiki/SSC_Napoli
   - https://pt.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Calcio_Napoli
   - https://es.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Calcio_Napoli
-  review_status: draft
+  - https://en.wikipedia.org/wiki/Stadio_Diego_Armando_Maradona
+  review_status: approved
 - slug: roma
   names:
     official: Associazione Sportiva Roma S.p.A.

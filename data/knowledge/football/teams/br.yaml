@@ -301,7 +301,7 @@ teams:
     nicknames: ["Flu", "Tricolor das Laranjeiras", "Pó de Arroz"]
     fans:
       demonym: tricolor
-    mascot: Cartola
+    mascot: Guerreirinho
     rallying_cries: ["Saudações Tricolores!"]
     stadium:
       name: Maracanã
@@ -312,8 +312,9 @@ teams:
       - { team: vasco-da-gama, derby: classico-dos-gigantes, intensity: 3 }
       - { team: botafogo, derby: classico-vovo, intensity: 3 }
     identity:
-      - "Fundado em 1902 no bairro de Laranjeiras; campeão da Libertadores de 2023."
+      - "Fundado em 21 de julho de 1902 numa reunião no bairro do Flamengo, com sede em Laranjeiras desde outubro daquele ano; campeão da Libertadores de 2023."
       - "O apelido Pó de Arroz, nascido como provocação em 1914, foi ressignificado pela torcida."
+      - "O mascote atual é o Guerreirinho, adotado em 2016; o Cartola segue como figura tradicional do clube."
     copy_hints:
       pt-BR:
         cheer: ["Saudações Tricolores!", "Vamos, Fluzão!"]
@@ -335,8 +336,11 @@ teams:
         cheer: ["¡Vamos, Flu, de una!", "¡Fuerza, Fluminense!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Fluminense_Football_Club"
+      - "https://pt.wikipedia.org/wiki/Hist%C3%B3ria_do_Fluminense_Football_Club"
+      - "https://ge.globo.com/futebol/times/fluminense/noticia/2026/07/21/124-anos-do-fluminense-onde-o-clube-foi-fundado-e-quem-sao-os-20-fundadores.ghtml"
+      - "https://ge.globo.com/futebol/times/fluminense/especial/2024/01/05/c-qual-e-o-mascote-do-fluminense-veja-versoes-e-historia.ghtml"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: botafogo
     names:
@@ -1401,6 +1405,7 @@ teams:
       - { team: guarani-sp, derby: derbi-campineiro, intensity: 5 }
     identity:
       - "Fundada em 1900 em Campinas; o nome vem do bairro da Ponte Preta, batizado por uma ponte ferroviária de madeira pintada de piche."
+      - "O apelido e mascote Macaca surgiu no início do século XX como provocação racista de torcidas rivais; a torcida da Ponte Preta adotou o termo com orgulho e o transformou em símbolo de identidade e de resistência antirracista."
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Macaca!", "Vai, Ponte!"]
@@ -1408,7 +1413,8 @@ teams:
       - "https://pt.wikipedia.org/wiki/Associação_Atlética_Ponte_Preta"
       - "https://pt.wikipedia.org/wiki/Dérbi_Campineiro"
       - "https://github.com/MrPatinhas/cartologia_awken/blob/master/local_dbs/Paulista/paulista_dados_partidas.csv"
-    review_status: draft
+      - "https://www.youtube.com/watch?v=TA56_cAEje4"
+    review_status: approved
 
   - slug: guarani-sp
     names:

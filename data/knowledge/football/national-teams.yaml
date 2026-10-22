@@ -1015,14 +1015,14 @@ teams:
       nicknames:
       - Croacia
       - Vatreni
-      - Los Ardientes
+      - Los Ajedrezados
       cheer:
       - ¡Vamos, Croacia!
   sources:
   - https://en.wikipedia.org/wiki/Croatia_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Croata_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Croacia
-  review_status: draft
+  review_status: approved
 - slug: morocco-nt
   names:
     official: Équipe du Maroc de football
@@ -1046,7 +1046,7 @@ teams:
     city: Rabat
   identity:
   - 4º lugar na Copa do Mundo de 2022, melhor campanha de uma seleção africana até então.
-  - Campeão da Copa Africana de Nações em 1976 e 2025.
+  - Campeão da Copa Africana de Nações em 1976 e 2025; o título de 2025 foi atribuído pela CAF por W.O., depois que o Senegal abandonou o campo na final.
   copy_hints:
     pt-BR:
       nicknames:
@@ -1064,7 +1064,7 @@ teams:
   - https://en.wikipedia.org/wiki/Morocco_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Marroquina_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Marruecos
-  review_status: draft
+  review_status: approved
 - slug: japan-nt
   names:
     official: Japan National Football Team

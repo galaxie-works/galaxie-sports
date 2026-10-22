@@ -88,13 +88,16 @@ teams:
       demonym: cruzado
     rallying_cries: ["¡Vamos la Católica!", "¡Vamos Cruzados!"]
     stadium:
-      name: Estadio San Carlos de Apoquindo
+      name: Claro Arena
       nicknames: [San Carlos]
+      # reinaugurado como Claro Arena em 23/08/2025 (Emol, El Dínamo)
+      former_names:
+        - { name: Estadio San Carlos de Apoquindo, until: 2025-08-22 }
       city: Santiago
     rivals:
       - { team: universidad-de-chile, derby: clasico-universitario-cl, intensity: 4 }
     identity:
-      - "La camiseta blanca con franja azul y cruz roja es el sello de los Cruzados."
+      - "La camiseta blanca con franja azul es el sello de los Cruzados."
     copy_hints:
       es-CL:
         cheer: ["¡Vamos, Cruzados!", "¡Con todo, la Católica!"]
@@ -102,7 +105,9 @@ teams:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Universidad_Católica"
       - "https://www.fotmob.com/teams/6458"
       - "https://futboltotal.futbol/teams/u-catolica"
-    review_status: draft
+      - "https://www.emol.com/noticias/Deportes/2025/08/23/1175879/universidadcatolica-unionespanola-claro-arena-debut.html"
+      - "https://www.eldinamo.cl/deportes/2024/11/28/este-es-el-nombre-del-nuevo-estadio-de-la-uc-la-fecha-en-que-se-inauguraria/"
+    review_status: approved
 
   - slug: cobreloa
     names:

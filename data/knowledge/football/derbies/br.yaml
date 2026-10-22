@@ -258,8 +258,12 @@ derbies:
     origin: null
     trivia:
       - "No primeiro clássico, o Figueirense virou de 0 a 3 para 4 a 3."
-    sources: ["https://www.nsctotal.com.br/?p=7086364", "https://www.nsctotal.com.br/?p=2648032"]
-    review_status: draft
+    sources:
+      - "https://www.nsctotal.com.br/?p=7086364"
+      - "https://www.nsctotal.com.br/?p=2648032"
+      - "https://avai.com.br/classico-462-numeros-na-historia-de-avai-x-figueirense/"
+      - "https://pt.wikipedia.org/wiki/Cl%C3%A1ssico_de_Florian%C3%B3polis"
+    review_status: approved
 
   # ------------------------------------------------------------------ NORDESTE
   - slug: ba-vi
@@ -363,7 +367,7 @@ derbies:
   # --------------------------------------------------------------- INTERESTADUAIS
   - slug: classico-do-povo
     name: Clássico do Povo
-    aliases: ["Clássico das Multidões", "Encontro das Nações", "Corinthians x Flamengo"]
+    aliases: ["Clássico das Multidões", "Corinthians x Flamengo"]
     labels: { pt-BR: "Clássico do Povo", es: "Clásico del Pueblo", en: "People's Derby" }
     teams: [corinthians, flamengo]
     scope: national
@@ -374,4 +378,4 @@ derbies:
     sources:
       - "https://www.metropoles.com/esportes/futebol/com-favoritismo-rubro-negro-corinthians-tenta-surpreender-no-maracana"
       - "https://www.lance.com.br/brasileirao/otimo-classico-das-multidoes-timao-fla-empatam-itaquera.html"
-    review_status: draft
+    review_status: approved

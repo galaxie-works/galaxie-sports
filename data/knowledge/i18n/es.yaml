@@ -50,11 +50,12 @@ teams:
 
   - slug: fluminense
     identity:
-      - "Fundado en 1902 en el barrio de Laranjeiras; campeón de la Copa Libertadores 2023."
+      - "Fundado el 21 de julio de 1902 en una reunión en el barrio de Flamengo, con sede en Laranjeiras desde octubre de ese año; campeón de la Copa Libertadores 2023."
       - "El apodo Pó de Arroz (polvo de arroz), nacido como burla en 1914, fue resignificado por sus aficionados."
-    mascot: Cartola (sombrero de copa)
+      - "Su mascota actual es el Guerreirinho (pequeño guerrero), adoptado en 2016; el Cartola (sombrero de copa) sigue siendo una figura tradicional del club."
+    mascot: "Guerreirinho (pequeño guerrero)"
     colors: [granate, verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: botafogo
     identity:
@@ -264,9 +265,10 @@ teams:
   - slug: ponte-preta
     identity:
       - "Fundada en 1900 en Campinas; el nombre viene del barrio de Ponte Preta («puente negro»), llamado así por un puente ferroviario de madera pintado con brea."
+      - "El apodo y mascota Macaca (mona) surgió a comienzos del siglo XX como una provocación racista de aficionados rivales; los aficionados de la Ponte Preta lo adoptaron con orgullo y lo convirtieron en símbolo de identidad y de resistencia antirracista."
     mascot: Macaca (mona)
     colors: [negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: guarani-sp
     identity:
@@ -436,14 +438,14 @@ teams:
       - "Subcampeona del mundo en 2018; debutó en Copas del Mundo en 1998 y terminó en 3.er lugar."
       - "«Kockasti» (los ajedrezados) remite a la camiseta a cuadros rojos y blancos."
     colors: [rojo, blanco, azul]
-    review_status: draft
+    review_status: approved
 
   - slug: morocco-nt
     identity:
       - "4.º lugar en la Copa del Mundo 2022, la mejor actuación de una selección africana hasta entonces."
-      - "Campeón de la Copa Africana de Naciones en 1976 y 2025."
+      - "Campeón de la Copa Africana de Naciones en 1976 y 2025; el título de 2025 lo otorgó la CAF por incomparecencia, después de que Senegal abandonara el campo en la final."
     colors: [rojo, verde]
-    review_status: draft
+    review_status: approved
 
   - slug: japan-nt
     identity:
@@ -525,8 +527,9 @@ teams:
     identity:
       - "Fundado el 25 de enero de 1890 como Sevilla Foot-ball Club."
       - "«Nervionenses» viene del barrio de Nervión, donde está el estadio."
+      - "«Palanganas» nació como una ironía de los disidentes que fundaron el Betis, pero fue incorporado y hoy los propios sevillistas lo usan con orgullo."
     colors: [blanco, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: real-betis
     identity:
@@ -707,7 +710,7 @@ teams:
       - "El estadio lleva el nombre de Diego Armando Maradona."
     mascot: "'O Ciuccio (el burro)"
     colors: [celeste, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: roma
     identity:
@@ -1063,7 +1066,7 @@ derbies:
   - slug: classico-da-capital-sc
     trivia:
       - "En el primer clásico, Figueirense remontó un 0 a 3 y ganó 4 a 3."
-    review_status: draft
+    review_status: approved
 
   - slug: ba-vi
     origin: "Combinación de los nombres Bahia y Vitória."
@@ -1106,7 +1109,7 @@ derbies:
 
   - slug: classico-do-povo
     origin: "Reúne a los dos clubes con más aficionados de Brasil."
-    review_status: draft
+    review_status: approved
 
   # ── football/derbies/international.yaml ──────────────────────────────────────────────────────────
   - slug: superclasico-de-las-americas

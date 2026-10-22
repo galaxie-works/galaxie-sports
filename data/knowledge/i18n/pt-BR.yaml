@@ -150,9 +150,9 @@ teams:
     review_status: approved
   - slug: universidad-catolica-cl
     identity:
-      - "A camisa branca com faixa azul e cruz vermelha é a marca registrada dos Cruzados."
+      - "A camisa branca com faixa azul é a marca registrada dos Cruzados."
     colors: [branco, azul]
-    review_status: draft
+    review_status: approved
   - slug: cobreloa
     identity:
       - "Os Zorros del Desierto são de Calama, cidade mineradora; foram finalistas da Copa Libertadores em 1981 e 1982."
@@ -252,8 +252,8 @@ teams:
   - slug: el-nacional-ec
     identity:
       - "Clube ligado às Forças Armadas do Equador; o apelido Puros Criollos alude à sua tradição de montar elencos com jogadores equatorianos."
-    colors: [vermelho, azul, branco]
-    review_status: draft
+    colors: ["vermelho", "azul", "celeste"]
+    review_status: approved
   - slug: aucas
     identity:
       - "Suas cores oficiais são ouro e grená; o Papá Aucas foi campeão do Campeonato Equatoriano em 2022."

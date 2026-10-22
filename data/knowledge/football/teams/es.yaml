@@ -211,6 +211,7 @@ teams:
   identity:
   - Fundado em 25 de janeiro de 1890 como Sevilla Foot-ball Club.
   - '"Nervionenses" vem do bairro de Nervión, onde fica o estádio.'
+  - '"Palanganas" (bacias) nasceu como ironia dos dissidentes que fundaram o Betis, mas foi incorporado e hoje é usado com orgulho pelos próprios sevillistas.'
   copy_hints:
     pt-BR:
       nicknames:
@@ -230,7 +231,9 @@ teams:
   - https://en.wikipedia.org/wiki/Sevilla_FC
   - https://pt.wikipedia.org/wiki/Sevilla_F%C3%BAtbol_Club
   - https://es.wikipedia.org/wiki/Sevilla_F%C3%BAtbol_Club
-  review_status: draft
+  - https://www.laliga.com/en-GB/news/why-are-the-sevillistas-sevilla-fc-players-called-palanganas-basin-1
+  - https://www.elconfidencial.com/deportes/futbol/2022-10-11/por-que-a-sevillistas-se-les-llama-palanganas_3504801/
+  review_status: approved
 - slug: real-betis
   names:
     official: Real Betis Balompié, S.A.D.

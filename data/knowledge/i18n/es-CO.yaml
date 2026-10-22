@@ -23,9 +23,10 @@ teams:
 
   - slug: fluminense
     identity:
-      - "Fundado en 1902 en el barrio de Laranjeiras; campeón de la Copa Libertadores 2023."
+      - "Fundado el 21 de julio de 1902 en una reunión en el barrio de Flamengo, con sede en Laranjeiras desde octubre de ese año; campeón de la Copa Libertadores 2023."
       - "El apodo Pó de Arroz (polvo de arroz), nacido como burla en 1914, fue resignificado por la hinchada."
-    review_status: draft
+      - "Su mascota actual es el Guerreirinho (pequeño guerrero), adoptado en 2016; el Cartola (sombrero de copa) sigue siendo una figura tradicional del club."
+    review_status: approved
 
   - slug: atletico-mineiro
     identity:
@@ -39,4 +40,4 @@ derbies:
 
   - slug: classico-do-povo
     origin: "Reúne a las dos hinchadas más grandes de Brasil."
-    review_status: draft
+    review_status: approved
