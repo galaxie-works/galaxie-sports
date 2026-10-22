@@ -67,4 +67,4 @@ ssh "$VPS" "cd $DIR && for p in 'gs:cache:*' 'gs:tag:*'; do \
   docker compose exec -T valkey sh -c \"valkey-cli --scan --pattern '\$p' | xargs -r -n 200 valkey-cli del >/dev/null\"; done"
 
 echo "smoke test"
-ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$ROOT/infra/vps-telemetry/smoke.mjs"
+ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$WT/infra/vps-telemetry/smoke.mjs"
