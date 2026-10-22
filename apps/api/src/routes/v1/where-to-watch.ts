@@ -7,7 +7,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { formatInstant, resolveLocale } from '../../i18n.js';
-import { parseInput } from '../../util.js';
+import { assetUrl, parseInput } from '../../util.js';
 
 const MODULE = { module: 'where_to_watch' } as const;
 
@@ -34,12 +34,14 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
           region: query.region ?? null,
         });
         if (!data) throw problems.notFound('Evento');
+        const logo = (l: { storageKey: string | null; sourceUrl: string | null } | null) =>
+          l ? assetUrl(ctx.assetsBaseUrl, l.storageKey, l.sourceUrl) : null;
         const body: WhereToWatch = {
           event_id: data.eventId,
           country: data.country,
           status: data.status,
           message: data.status === 'unknown' ? unknownMessage(locale) : null,
-          options: data.options.map(({ row, sources }) => ({
+          options: data.options.map(({ row, sources, ...o }) => ({
             id: row.id,
             provider: row.providerName,
             provider_id: row.broadcasterId,
@@ -51,6 +53,15 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
             confidence: Number(row.confidence),
             status: 'confirmed' as const,
             last_verified_at: formatInstant(row.lastVerifiedAt, tz),
+            sources,
+            logo: logo(o.logo),
+          })),
+          to_confirm: data.toConfirm.map(({ row, sources, logo: l }) => ({
+            provider: row.providerName,
+            provider_id: row.broadcasterId,
+            medium: row.medium,
+            access_model: row.accessModel,
+            logo: logo(l),
             sources,
           })),
           updated_at: data.updatedAt ? formatInstant(data.updatedAt, tz) : null,
