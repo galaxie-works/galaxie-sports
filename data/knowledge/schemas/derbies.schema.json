@@ -31,6 +31,10 @@
           "scope": { "enum": ["city", "state", "national", "continental", "international"] },
           "intensity": { "$ref": "common.schema.json#/definitions/intensity" },
           "first_match": { "$ref": "common.schema.json#/definitions/nullableIsoDate" },
+          "text_locale": {
+            "$ref": "common.schema.json#/definitions/textLocale",
+            "description": "Idioma de origin e trivia deste clássico quando difere do topo do arquivo (arquivos com vários países)"
+          },
           "origin": { "type": ["string", "null"], "minLength": 1, "maxLength": 400 },
           "trivia": {
             "type": "array",

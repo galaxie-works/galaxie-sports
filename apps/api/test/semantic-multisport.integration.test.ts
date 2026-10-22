@@ -558,7 +558,12 @@ describe('/v1/teams/{id}/semantic e /rivals', () => {
     // original em espanhol: pt-BR usa a tradução, es-XX fica no original
     const boca = (await get('/v1/teams/boca-juniors/semantic?locale=pt-BR')).json();
     expect(boca.text_locale).toBe('pt-BR');
-    expect(boca.identity[0]).toMatch(/^Fundado no bairro/);
+    expect(boca.identity[0]).toMatch(/La Boca/);
+    // clube hispânico na voz do país em todo mercado de espanhol, com os gritos da torcida
+    const bocaMx = (await get('/v1/teams/boca-juniors/semantic?locale=es-MX')).json();
+    expect(bocaMx).toMatchObject({ text_locale: 'es-AR', copy_hints: { locale: 'es-AR' } });
+    expect(bocaMx.identity[1]).toContain('cancha');
+    expect(bocaMx.copy_hints.cheer).toContain('¡Dale, Bo!');
     const derby = (await get('/v1/derbies/classico-do-povo?locale=es-PE')).json();
     expect(derby).toMatchObject({
       text_locale: 'es-PE',

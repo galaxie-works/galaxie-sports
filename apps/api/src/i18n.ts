@@ -36,6 +36,17 @@ export function resolveLocale(
   return DEFAULT_LOCALE;
 }
 
+/**
+ * Locales das dicas por mercado (`copy_hints`, gritos): o pedido, depois o do próprio clube quando é o mesmo
+ * idioma (o Boca, escrito em es-AR, fala rioplatense também para es-MX), depois o idioma (es-MX → es).
+ * Nunca outro idioma: pt-BR não cai para espanhol.
+ */
+export function hintLocales(locale: string, originLocale?: string | null): string[] {
+  const lang = locale.split('-')[0]!;
+  const origin = originLocale && originLocale.split('-')[0] === lang ? [originLocale] : [];
+  return [...new Set([locale, ...origin, lang])];
+}
+
 /** Cadeia de fallback: es-AR → es → en; pt-BR → pt → en. */
 export function fallbackChain(locale: string): string[] {
   const lang = locale.split('-')[0]!;

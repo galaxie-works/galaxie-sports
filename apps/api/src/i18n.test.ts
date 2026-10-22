@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   fallbackChain,
   formatInstant,
+  hintLocales,
   parseAcceptLanguage,
   pickList,
   pickText,
@@ -41,5 +42,14 @@ describe('fuso', () => {
     expect(formatInstant(d)).toBe('2026-10-22T00:30:00Z');
     expect(formatInstant(d, 'America/Sao_Paulo')).toBe('2026-10-21T21:30:00-03:00');
     expect(formatInstant(d, 'Asia/Kolkata')).toBe('2026-10-22T06:00:00+05:30');
+  });
+});
+
+describe('hintLocales', () => {
+  it('pedido, depois o locale do clube no mesmo idioma, depois o idioma', () => {
+    expect(hintLocales('es-MX', 'es-AR')).toEqual(['es-MX', 'es-AR', 'es']);
+    expect(hintLocales('es-AR', 'es-AR')).toEqual(['es-AR', 'es']);
+    expect(hintLocales('pt-BR', 'es-AR')).toEqual(['pt-BR', 'pt']);
+    expect(hintLocales('es-CL')).toEqual(['es-CL', 'es']);
   });
 });

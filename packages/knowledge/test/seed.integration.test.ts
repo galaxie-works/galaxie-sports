@@ -90,7 +90,10 @@ describe('seedSemantic', () => {
     expect(palmeiras!.texts['es-AR']!.identity![1]).toContain('hinchada');
     expect(palmeiras!.texts['es-AR']).not.toHaveProperty('note'); // observação editorial fica só no YAML
     const [boca] = await db.select().from(teamProfile).where(eq(teamProfile.slug, 'boca-juniors'));
-    expect(boca).toMatchObject({ textLocale: 'es', texts: { 'pt-BR': { colors: ['azul', 'ouro'] } } });
+    expect(boca).toMatchObject({ textLocale: 'es-AR', texts: { 'pt-BR': { colors: ['azul', 'ouro'] } } });
+    // arquivo com vários países: cada clássico na voz do seu
+    const [uruguayo] = await db.select().from(derby).where(eq(derby.slug, 'clasico-uruguayo'));
+    expect(uruguayo!.textLocale).toBe('es-UY');
     const [brazil] = await db.select().from(teamProfile).where(eq(teamProfile.slug, 'brazil-nt'));
     expect(brazil).toMatchObject({ kind: 'national_team', countryCode: 'BR', worldCupTitles: 5 });
     // outros esportes (issue #44): tipo do arquivo de participantes, ainda sem vínculo com o core

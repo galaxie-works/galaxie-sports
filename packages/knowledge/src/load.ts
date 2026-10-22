@@ -260,7 +260,14 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
       }
       case 'derbies':
         kb.derbies.push(
-          ...items<DerbyEntry>(file, 'derbies').map((d) => ({ ...d, sport: sportOf(file.rel)!, textLocale })),
+          ...items<DerbyEntry>(file, 'derbies').map((d) => ({
+            ...d,
+            sport: sportOf(file.rel)!,
+            // arquivo com vários países (south-america): cada clássico pode falar na voz do seu
+            textLocale: (TEXT_LOCALES as readonly unknown[]).includes(d.entry.text_locale)
+              ? d.entry.text_locale!
+              : textLocale,
+          })),
         );
         break;
       case 'competitions':

@@ -299,6 +299,46 @@ describe('validateKnowledge — textos por idioma (docs/06 §3.3)', () => {
     );
   });
 
+  it('clube na voz do país (es-AR) não aceita es neutro por cima; clássico declara a própria voz', async () => {
+    const report = await validateFiles({
+      'football/teams/ar.yaml': `schema_version: 1
+text_locale: es-AR
+country: AR
+teams:${team(
+        'gama',
+        `
+    identity:
+      - "Es local en una de las canchas más lindas del país."`,
+      )}${team('delta')}`,
+      'football/derbies/south-america.yaml': `schema_version: 1
+text_locale: es
+region: south-america
+derbies:
+  - slug: classico-gd
+    name: Clásico GD
+    teams: [gama, delta]
+    scope: city
+    intensity: 3
+    text_locale: es-AR
+    origin: "Los dos nacieron en el mismo barrio."
+    sources: ["https://example.org/gd"]
+    review_status: draft
+`,
+      'i18n/es.yaml': `schema_version: 1
+locale: es
+teams:
+  - slug: gama
+    identity: ["Juega como local en uno de los estadios más bonitos del país."]
+    review_status: draft
+derbies:
+  - slug: classico-gd
+    origin: "Ambos nacieron en el mismo barrio."
+    review_status: draft
+`,
+    });
+    expect(codes(report.errors)).toEqual(['i18n-redundant', 'i18n-redundant']);
+  });
+
   it('tradução sem campo traduzível é erro de schema', async () => {
     const report = await validateFiles({
       'football/teams/br.yaml': br,
