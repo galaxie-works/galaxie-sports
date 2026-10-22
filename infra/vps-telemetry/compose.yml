@@ -174,19 +174,32 @@ services:
     environment:
       GALAXIE_API_URL: http://api:8080
       GALAXIE_DEMO_KEY: ${GALAXIE_DEMO_KEY:-}
+      # Login e usuários da demo (Better Auth): schema demo_auth no mesmo Postgres
+      DEMO_DATABASE_URL: postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?defina BETTER_AUTH_SECRET (openssl rand -hex 32)}
+      BETTER_AUTH_URL: https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}
+      # Primeiro admin: criado na subida se ainda não houver nenhum; recebe o convite por e-mail
+      DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-}
+      DEMO_ADMIN_NAME: ${DEMO_ADMIN_NAME:-}
+      # E-mail de convite e de redefinição de senha (sem SMTP o painel mostra o link para copiar)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     depends_on:
+      postgres:
+        condition: service_healthy
       api:
         condition: service_healthy
     expose:
       - '3000'
-    # Protegida por usuário e senha (basic auth): os metadados são o produto em negociação.
+    # O acesso é controlado pelo próprio app (login por convite, papéis e prazo por usuário).
     labels:
       - traefik.enable=true
       - traefik.http.routers.gsports-demo.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
       - traefik.http.routers.gsports-demo.entrypoints=websecure
       - traefik.http.routers.gsports-demo.tls.certresolver=letsencrypt
-      - traefik.http.routers.gsports-demo.middlewares=gsports-demo-auth
-      - traefik.http.middlewares.gsports-demo-auth.basicauth.users=${DEMO_BASIC_AUTH:?defina DEMO_BASIC_AUTH (htpasswd)}
       - traefik.http.services.gsports-demo.loadbalancer.server.port=3000
     logging: *logging
 

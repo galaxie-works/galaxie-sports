@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/sidebar';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
 
+import { UserMenu } from './user-menu';
+
 function isActive(pathname: string | null, href: string) {
   if (pathname === null) return false;
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
@@ -105,9 +107,7 @@ export function AppSidebar() {
       </Suspense>
 
       <SidebarFooter>
-        <p className="text-muted-foreground px-2 text-xs group-data-[collapsible=icon]:hidden">
-          Dados servidos pela API Galaxie Sports.
-        </p>
+        <UserMenu />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

@@ -11,7 +11,7 @@ entrypoints `web`/`websecure`, certresolver `letsencrypt` por HTTP-01).
 | Sem `build:`; `pull_policy: always` com imagens do GHCR | não compilar o monorepo na VPS (2 vCPU compartilhadas) |
 | Sub-rede fixa `172.30.50.0/24` e `TRUST_PROXY=172.30.50.1` | o Traefik chega aos contêineres pelo gateway da rede |
 | `mem_limit` por serviço | a VPS hospeda outras stacks |
-| Serviço `demo` com basic auth | o app de demonstração (metadados em negociação) |
+| Serviço `demo` com login próprio (convites, papéis, prazo e atividade) | o app de demonstração (metadados em negociação) |
 | Assets públicos: `GET/HEAD` do bucket via Traefik, bucket com leitura anônima só de objetos | logos, bandeiras e fotos na demo e na API |
 | Grafana sem rota pública | acesso por túnel SSH |
 
@@ -65,8 +65,16 @@ docker compose exec api node dist/cli/tenant-create.js --slug demo --name Demo -
 docker compose up -d demo
 ```
 
-Para o basic auth da demo: `htpasswd -nbB <usuário> '<senha>'` e o resultado **entre aspas simples** em
-`DEMO_BASIC_AUTH` (o hash tem `$`).
+### Login da demo
+
+O acesso é controlado pelo próprio app (Better Auth, tabelas no schema `demo_auth` do mesmo Postgres):
+
+- `BETTER_AUTH_SECRET`: `openssl rand -hex 32`, gerado na VPS.
+- `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_NAME`: na primeira subida, sem nenhum admin, o app cria esse usuário e
+  manda o convite (o link para criar a senha vale 72 h).
+- `SMTP_*`: remetente dos convites e das redefinições de senha. Sem SMTP, o convite fica criado e o painel
+  (`/ajustes/usuarios`) mostra o link para o admin copiar; o link também sai no log do contêiner `demo`.
+- Convidados têm prazo de acesso; depois dele o login é bloqueado. Admin não expira.
 
 ## Verificação (de fora da VPS)
 
@@ -74,7 +82,7 @@ Para o basic auth da demo: `htpasswd -nbB <usuário> '<senha>'` e o resultado **
 curl -sS -o /dev/null -w '%{http_code}\n' https://$API_DOMAIN/health        # 200, certificado válido (sem -k)
 curl -sS -o /dev/null -w '%{http_code}\n' https://$API_DOMAIN/metrics       # 404
 curl -sS -o /dev/null -w '%{http_code}\n' https://$API_DOMAIN/internal/x    # 404
-curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/             # 401 sem usuário e senha
+curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/             # 307 → /login (sem sessão)
 curl -sS -o /dev/null -w '%{http_code}\n' https://$ASSETS_DOMAIN/$S3_BUCKET/api-sports/flags/br.svg   # 200
 curl -sS -o /dev/null -w '%{http_code}\n' https://$ASSETS_DOMAIN/$S3_BUCKET/                          # 403/404 (sem listagem)
 ```
