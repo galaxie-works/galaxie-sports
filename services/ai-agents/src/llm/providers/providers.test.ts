@@ -110,6 +110,25 @@ describe('OpenAiLlmClient (Responses API)', () => {
     expect(out.usage.inputTokens).toBe(2_000);
   });
 
+  it('modelo que recusa temperature: repete sem o parâmetro e não o manda mais', async () => {
+    const sdk = fakeSdk([
+      Object.assign(new Error("400 Unsupported parameter: 'temperature' is not supported with this model."), {
+        status: 400,
+      }),
+      openAiOk('{"answer":"ok"}'),
+      openAiOk('{"answer":"ok"}'),
+    ]);
+    const client = new OpenAiLlmClient({
+      models: MODELS,
+      sdk: { responses: { create: sdk.create } },
+      retry: noSleep,
+    });
+    const out = await client.generateJson(req({ webSearch: false, temperature: 0.3 }));
+    expect(out.data).toEqual({ answer: 'ok' });
+    await client.generateJson(req({ webSearch: false, temperature: 0.3 }));
+    expect(sdk.calls.map((c) => c.temperature)).toEqual([0.3, undefined, undefined]);
+  });
+
   it('recusa e resposta incompleta não são retentadas; schema não estrito falha cedo', async () => {
     const refusal = {
       status: 'completed',

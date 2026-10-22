@@ -7,8 +7,10 @@ export interface ScheduledJob {
   description: string;
   /** Expressão cron de 5 campos (UTC). */
   cron: string;
-  /** Script relativo à raiz do pacote do ingestor. */
+  /** Script relativo à raiz do pacote do job (`cwd`). */
   script: string;
+  /** Raiz do pacote do job, relativa à do ingestor (padrão: o próprio ingestor). */
+  cwd?: string;
   args: string[];
   timeoutMs: number;
 }
@@ -90,6 +92,49 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
   },
 ];
 
+/**
+ * Agentes de IA (`services/ai-agents`, docs/07), no perfil `agents` do scheduler: um serviço à parte,
+ * que roda mesmo com o ingestor parado. Sem LLM configurado, resumo e cenário gravam o texto
+ * determinístico e o Onde Assistir só revalida o que já existe.
+ */
+export const AGENT_JOBS: readonly ScheduledJob[] = [
+  {
+    name: 'recap-run',
+    description: 'Resumo pós-jogo (IA) dos encerrados nas últimas 36 h; ≤ 10 min depois do apito final',
+    cron: '*/5 * * * *',
+    script: 'dist/cli/recap-run.js',
+    cwd: '../ai-agents',
+    args: [],
+    timeoutMs: 15 * MINUTE,
+  },
+  {
+    name: 'context-run',
+    description: 'Cenário pré-jogo (motor de regras + IA) dos jogos das próximas 72 h',
+    cron: '10 * * * *',
+    script: 'dist/cli/context-run.js',
+    cwd: '../ai-agents',
+    args: [],
+    timeoutMs: 30 * MINUTE,
+  },
+  {
+    name: 'wtw-run',
+    description: 'Onde Assistir: pesquisas e revalidações devidas (T-7d … T-30min) dos mercados ativos',
+    cron: '*/5 * * * *',
+    script: 'dist/cli/wtw-run.js',
+    cwd: '../ai-agents',
+    args: ['--limite', '10'],
+    timeoutMs: 20 * MINUTE,
+  },
+];
+
+/** Jobs de cada perfil do scheduler (`SCHEDULER_PROFILE`, padrão `ingestor`). */
+export function jobsForProfile(profile: string | undefined): readonly ScheduledJob[] {
+  const name = (profile ?? 'ingestor').trim().toLowerCase() || 'ingestor';
+  if (name === 'ingestor') return DEFAULT_JOBS;
+  if (name === 'agents') return AGENT_JOBS;
+  throw new Error(`SCHEDULER_PROFILE inválido: "${profile}" (use ingestor ou agents).`);
+}
+
 export function envKey(name: string): string {
   return `SCHEDULE_${name.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}`;
 }
@@ -108,7 +153,7 @@ export function assertCron(pattern: string, name: string): void {
 /** Aplica as sobrescritas do ambiente: SCHEDULE_<JOB>=<cron>|off e SCHEDULER_TIMEOUT_MINUTES. */
 export function scheduleFromEnv(
   env: NodeJS.ProcessEnv = process.env,
-  jobs: readonly ScheduledJob[] = DEFAULT_JOBS,
+  jobs: readonly ScheduledJob[] = jobsForProfile(env.SCHEDULER_PROFILE),
 ): ScheduledJob[] {
   const timeoutMinutes = Number(env.SCHEDULER_TIMEOUT_MINUTES);
   const out: ScheduledJob[] = [];

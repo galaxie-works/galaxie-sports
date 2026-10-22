@@ -233,6 +233,34 @@ services:
     stop_grace_period: 40s
     logging: *logging
 
+  # Agentes de IA (docs/07): resumo pós-jogo, cenário pré-jogo e Onde Assistir. Mesma imagem do
+  # ingestor, com o scheduler no perfil `agents`; roda mesmo com o ingestor parado. O gasto com o LLM
+  # tem teto diário em tokens (AI_DAILY_TOKEN_BUDGET), somando todos os agentes (ledger ops.llm_usage).
+  agents:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      <<: *node-env
+      SCHEDULER_PROFILE: agents
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_MODEL_LIGHT: ${AI_MODEL_LIGHT:-}
+      AI_MODEL_STANDARD: ${AI_MODEL_STANDARD:-}
+      AI_MODEL_RESEARCH: ${AI_MODEL_RESEARCH:-}
+      AI_DAILY_TOKEN_BUDGET: ${AI_DAILY_TOKEN_BUDGET:-1000000}
+      WTW_MARKETS: ${WTW_MARKETS:-BR}
+      SCHEDULE_RECAP_RUN: ${SCHEDULE_RECAP_RUN:-*/5 * * * *}
+      SCHEDULE_CONTEXT_RUN: ${SCHEDULE_CONTEXT_RUN:-10 * * * *}
+      SCHEDULE_WTW_RUN: ${SCHEDULE_WTW_RUN:-*/5 * * * *}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 40s
+    logging: *logging
+
   # ── backups ───────────────────────────────────────────────────────────────────────────────────
   # pg_dump diário (BACKUP_TIME, UTC) com retenção no volume `backups` e cópia opcional para S3 externo.
   backup:

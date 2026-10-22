@@ -24,7 +24,8 @@ export class WtwConfigError extends Error {
 
 /** Raiz `config/` do monorepo (mesma profundidade em src/ e dist/). */
 export function defaultConfigRoot(): string {
-  return fileURLToPath(new URL('../../../../config/', import.meta.url));
+  // WTW_CONFIG_DIR: imagens Docker, onde o pacote não fica na árvore do monorepo
+  return process.env.WTW_CONFIG_DIR ?? fileURLToPath(new URL('../../../../config/', import.meta.url));
 }
 
 type Raw = Record<string, unknown>;
