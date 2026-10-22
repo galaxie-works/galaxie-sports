@@ -161,7 +161,7 @@ describe('pontos corridos: sinais da tabela pelo recálculo', () => {
     ['Chapecoense-sc', 18],
   ];
 
-  it('Palmeiras x Bragantino (rodada 32): título + rebaixamento + vaga, teto 20 → 69', async () => {
+  it('Palmeiras x Bragantino (rodada 32): corte realista tira o rebaixamento; título + vaga → 69', async () => {
     await ingest([
       match(9001, 71, 'Regular Season - 32', 'Palmeiras', 'RB Bragantino', '2026-10-24T21:30:00Z'),
     ]);
@@ -206,7 +206,9 @@ describe('pontos corridos: sinais da tabela pelo recálculo', () => {
     expect(done.stakesComputed).toBe(1);
     expect(done.withStakeFlags).toBe(1);
     const e = await eventOf(9001);
-    expect(e.importance_breakdown!.stake_flags).toEqual(expect.arrayContaining(['title', 'relegation']));
+    // Palmeiras a 1 ponto do líder (título) e pode garantir a pré-Libertadores na rodada (código concreto:
+    // vaga); Bragantino a 9 pontos da zona de rebaixamento: o risco de queda não passa no corte realista
+    expect(e.importance_breakdown!.stake_flags).toEqual(['title', 'qualification']);
     expect(e).toMatchObject({ importance: 40 + 9 + 20, importance_breakdown: { decisive: 20 } });
   });
 

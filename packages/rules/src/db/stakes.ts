@@ -5,6 +5,7 @@ import { loadCompetitionRules } from '../config/loader.js';
 import { knockoutStageRules } from '../config/parse.js';
 import type { CompetitionRules } from '../config/types.js';
 import type { Stake } from '../stakes/codes.js';
+import { fanTagStanding, type FanTagStanding } from '../stakes/fan-tags.js';
 import { knockoutStakes } from '../stakes/knockout.js';
 import { leagueMatchStakes, type Fixture, type LeagueTeamInput } from '../stakes/league.js';
 
@@ -64,6 +65,11 @@ export interface LeagueContext {
   teams: number;
   /** Jogos restantes do mandante e do visitante pelo regulamento. */
   remaining: { home: number | null; away: number | null };
+  /**
+   * Situação de cada time na tabela para o corte realista dos stakes de mera possibilidade
+   * (`isRelevantForFans`): usada pelas tags do torcedor e pelos sinais de decisão da importância.
+   */
+  standings: { home: FanTagStanding | null; away: FanTagStanding | null };
 }
 
 export interface EventStakes {
@@ -243,6 +249,10 @@ async function leagueContext(
     })),
     teams: table.length,
     remaining: { home: remaining(homeRow.played), away: remaining(awayRow.played) },
+    standings: {
+      home: fanTagStanding(input, league, core.home.id),
+      away: fanTagStanding(input, league, core.away.id),
+    },
   };
   const matchInput = {
     table: input,

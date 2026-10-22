@@ -157,7 +157,8 @@ async function stakeFlagsFor(
       },
       { cache },
     );
-    out.set(r.id, decisiveFlagsFromStakes(result.stakes, result.rules));
+    // mesmo corte realista das tags do torcedor: possibilidades distantes da tabela não contam
+    out.set(r.id, decisiveFlagsFromStakes(result.stakes, result.rules, result.league?.standings));
   }
   return out;
 }

@@ -65,7 +65,11 @@ export {
   type TeamOutlook,
   type ZoneStatus,
 } from './stakes/league.js';
-export { decisiveFlagsFromStakes, type StakeDecisiveFlag } from './stakes/decisive.js';
+export {
+  decisiveFlagsFromStakes,
+  type DecisiveStandings,
+  type StakeDecisiveFlag,
+} from './stakes/decisive.js';
 export {
   isStakeLocale,
   localizeStake,

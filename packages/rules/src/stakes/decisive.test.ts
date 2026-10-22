@@ -3,6 +3,8 @@ import { loadCompetitionRules } from '../config/loader.js';
 import type { CompetitionRules } from '../config/types.js';
 import { makeStake } from './codes.js';
 import { decisiveFlagsFromStakes } from './decisive.js';
+import { fanTagStanding } from './fan-tags.js';
+import type { LeagueTeamInput } from './league.js';
 
 let BRA: CompetitionRules;
 beforeAll(async () => {
@@ -66,5 +68,72 @@ describe('decisiveFlagsFromStakes', () => {
       makeStake('both', 'decides_title'),
     ];
     expect(decisiveFlagsFromStakes(stakes, null)).toEqual(['title', 'elimination']);
+  });
+});
+
+describe('corte realista (mesma regra das tags do torcedor)', () => {
+  // Brasileirão 2026 antes da rodada 32 (31 jogos, 7 restantes), em ordem de classificação
+  const TABLE: LeagueTeamInput[] = (
+    [
+      ['FLA', 67],
+      ['PAL', 66],
+      ['CAP', 53],
+      ['CRU', 51],
+      ['FLU', 51],
+      ['CAM', 50],
+      ['BAH', 49],
+      ['SAN', 45],
+      ['SAO', 42],
+      ['RBB', 41],
+      ['BOT', 39],
+      ['CFC', 39],
+      ['VIT', 37],
+      ['MIR', 36],
+      ['VAS', 35],
+      ['COR', 33],
+      ['INT', 32],
+      ['GRE', 31],
+      ['REM', 26],
+      ['CHA', 18],
+    ] as const
+  ).map(([teamId, points]) => ({ teamId, points, played: 31 }));
+  const standings = (home: string, away: string) => ({
+    home: fanTagStanding(TABLE, BRA.league!, home),
+    away: fanTagStanding(TABLE, BRA.league!, away),
+  });
+
+  it('Palmeiras x Bragantino: o título conta; risco de queda e vaga distantes, não', () => {
+    const stakes = [
+      makeStake('home', 'in_title_race'),
+      makeStake('away', 'at_risk_of_relegation'),
+      makeStake('away', 'can_qualify_for_zone', { zone: 'libertadores_qualifying' }),
+    ];
+    expect(decisiveFlagsFromStakes(stakes, BRA)).toEqual(['title', 'relegation', 'qualification']);
+    expect(decisiveFlagsFromStakes(stakes, BRA, standings('PAL', 'RBB'))).toEqual(['title']);
+  });
+
+  it('Cruzeiro (16 pontos do líder) fora da briga pelo título; Remo dentro da zona conta', () => {
+    const stakes = [makeStake('home', 'in_title_race'), makeStake('away', 'at_risk_of_relegation')];
+    expect(decisiveFlagsFromStakes(stakes, BRA, standings('CRU', 'REM'))).toEqual(['relegation']);
+  });
+
+  it('códigos concretos contam sempre, mesmo longe na tabela', () => {
+    const stakes = [
+      makeStake('home', 'can_clinch_zone', { zone: 'sudamericana' }),
+      makeStake('away', 'relegated_if_loses'),
+    ];
+    expect(decisiveFlagsFromStakes(stakes, BRA, standings('SAN', 'CHA'))).toEqual([
+      'relegation',
+      'qualification',
+    ]);
+  });
+
+  it('stake dos dois lados conta se for realista para algum deles', () => {
+    expect(
+      decisiveFlagsFromStakes([makeStake('both', 'in_title_race')], BRA, standings('CRU', 'PAL')),
+    ).toEqual(['title']);
+    expect(
+      decisiveFlagsFromStakes([makeStake('both', 'in_title_race')], BRA, standings('CRU', 'SAO')),
+    ).toEqual([]);
   });
 });
