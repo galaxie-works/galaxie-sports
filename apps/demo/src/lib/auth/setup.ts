@@ -29,6 +29,8 @@ create table if not exists activity (
   created_at timestamptz not null default now()
 );
 create index if not exists activity_user_idx on activity (user_id, created_at desc);
+-- Trilha de navegação (aditivo: linhas antigas ficam nulas): de onde veio e a profundidade na trilha.
+alter table activity add column if not exists from_path text, add column if not exists trail_depth integer;
 `;
 
 export async function setupAuthDatabase(): Promise<void> {

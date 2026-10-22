@@ -134,6 +134,9 @@ export interface DemoActivity {
   kind: 'login' | 'page';
   path: string | null;
   title: string | null;
+  /** Trilha de navegação: caminho do item anterior e profundidade (nulos em registros antigos). */
+  fromPath: string | null;
+  trailDepth: number | null;
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string;
@@ -153,11 +156,13 @@ export async function getDemoUser(id: string) {
       kind: 'login' | 'page';
       path: string | null;
       title: string | null;
+      from_path: string | null;
+      trail_depth: number | null;
       ip_address: string | null;
       user_agent: string | null;
       created_at: Date;
     }>(
-      `select id::text, kind, path, title, ip_address, user_agent, created_at
+      `select id::text, kind, path, title, from_path, trail_depth, ip_address, user_agent, created_at
          from activity where user_id = $1 order by created_at desc limit 100`,
       [id],
     ),
@@ -182,6 +187,8 @@ export async function getDemoUser(id: string) {
       kind: r.kind,
       path: r.path,
       title: r.title,
+      fromPath: r.from_path,
+      trailDepth: r.trail_depth,
       ipAddress: r.ip_address,
       userAgent: r.user_agent,
       createdAt: r.created_at.toISOString(),

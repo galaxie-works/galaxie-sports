@@ -93,7 +93,7 @@ async function Content({ params, searchParams }: PageProps<'/competicoes/[id]'>)
 
   return (
     <>
-      <PageHeader title={competition.name} />
+      <PageHeader title={competition.name} kind="competição" />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Crest src={competition.logo} name={competition.name} size="xl" />

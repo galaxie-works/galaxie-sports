@@ -48,7 +48,7 @@ async function Content({ params }: { params: PageProps<'/paises/[code]'>['params
 
   return (
     <>
-      <PageHeader title={country.name} />
+      <PageHeader title={country.name} kind="país" />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex items-center gap-4">
           <Crest src={country.flag} name={country.name} size="lg" />

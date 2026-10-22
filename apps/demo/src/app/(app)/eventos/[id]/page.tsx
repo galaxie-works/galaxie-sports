@@ -353,7 +353,7 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
 
   return (
     <>
-      <PageHeader title={title} />
+      <PageHeader title={title} kind="evento" />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         <Scoreboard event={event} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

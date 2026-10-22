@@ -389,9 +389,21 @@ function ActivityTab({ activity }: { activity: DemoActivity[] }) {
                   {a.kind === 'login' ? (
                     `${describeAgent(a.userAgent)}${formatIp(a.ipAddress) ? ` · ${formatIp(a.ipAddress)}` : ''}`
                   ) : (
-                    <Link href={a.path ?? '/'} className="hover:underline">
-                      {a.path}
-                    </Link>
+                    <>
+                      <Link href={a.path ?? '/'} className="hover:underline">
+                        {a.path}
+                      </Link>
+                      {/* Trilha de navegação (registros antigos não têm). */}
+                      {a.fromPath ? (
+                        <>
+                          {' · veio de '}
+                          <Link href={a.fromPath} className="hover:underline">
+                            {a.fromPath}
+                          </Link>
+                        </>
+                      ) : null}
+                      {a.trailDepth ? ` · passo ${a.trailDepth} da trilha` : null}
+                    </>
                   )}
                 </TimelineContent>
               </TimelineItem>
