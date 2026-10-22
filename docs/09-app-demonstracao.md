@@ -52,7 +52,7 @@ Regras de UI (herdadas do ReUI): reutilizar componentes do registry em vez de re
 | 8 | **Olimpíadas & Pan** | Quadro de medalhas, agenda por modalidade, delegação do país | Data Grid, Filters | `/v1/multisport/*` |
 | 9 | **Seletor de mercado** | Troca de país/locale mostra a localização da copy e do onde assistir | Select, Command | `?locale=`, `?country=` |
 | 10 | **Painel de operação** | Cota gasta por API/dia, jobs, frescor dos dados, fila de enriquecimento | Charts, Data Grid (ReUI), Gantt (janelas ao vivo) | `/internal/ops/*` |
-| 11 | **Explorador da API** | Documentação OpenAPI interativa + playground do espelho `/mirror` | Scalar/Redoc embutido | `/docs` |
+| 11 | **Documentação** | Guias (começando, autenticação, conceitos, módulos e planos, tempo real) e a referência gerada do OpenAPI; botão **Ver código** nas seções (§2.2) | Code block (ReUI, Shiki), Tabs, Sheet | `/openapi.json`, `/docs` da API |
 | 12 | **Menu e página do país** | Esportes e países no menu lateral; por país, competições nacionais, copas continentais, seleção e mundiais (§2.1) | Sidebar, Collapsible, Avatar (bandeiras), Badge | `/v1/navigation`, `/v1/countries/{code}/competitions` |
 
 ### 2.1 Navegação: menu de esportes e páginas de país
@@ -82,6 +82,14 @@ A **página do país** chama `GET /v1/countries/{code}/competitions?locale=` (op
 
 O que liga os países é a confederação: Brasil e Argentina veem a **mesma** Libertadores (mesmo `id`), e o clique leva à página da competição (tela 4). Competições internacionais e seus participantes ficam em `config/geo/competition-scope.yaml`; as domésticas saem do país da competição no catálogo (`max_tier=3` mostra também o restante do espelho). Nos outros esportes vale o mesmo modelo (NBB e FIBA AmeriCup para o Brasil no basquete, Superliga e VNL no vôlei) assim que o catálogo do esporte for carregado.
 
+### 2.2 Documentação e "Ver código"
+
+A seção **Documentação** da sidebar (`/docs/*` na demo) tem cinco guias e a **Referência da API**, uma lista das operações gerada no build a partir de `buildOpenApiDocument()` (`@galaxie/contracts`, o mesmo documento que a API serve em `/openapi.json`). A referência interativa (Scalar, em `/docs` da API) abre em outra aba: a API responde com `X-Frame-Options: DENY` e `frame-ancestors 'none'`, então não pode ser embutida.
+
+Cada seção da demo que mostra dados da API tem o botão **Ver código** (ícone `</>`): um painel com a requisição exata (método, caminho com os IDs da página, query e header), exemplos em curl, TypeScript (`fetch`) e Python (`requests`) com a chave `SUA_CHAVE`, e um trecho da resposta real (lida pelo proxy `/api/galaxie/*`, com listas cortadas). Os descritores das chamadas (`ApiRequest`) ficam ao lado dos fetchers em `apps/demo/src/lib/galaxie/api.ts`; as páginas só passam `api={...}` ao `Section` ou ao `PageHeader`. Um teste confere que cada descritor gera a mesma URL do cliente tipado e que rota e parâmetros existem no OpenAPI.
+
+A URL base mostrada nos exemplos vem de `NEXT_PUBLIC_GALAXIE_DOCS_API_URL` (embutida no build; padrão `https://api.sports.galaxie.works`).
+
 ## 3. Perfis de demonstração
 
 Perfis fictícios para mostrar personalização e `copy_permission`:
@@ -110,7 +118,7 @@ flowchart LR
 ## 5. Ambiente
 
 - `pnpm dev --filter demo` aponta para a API local (Docker Compose) carregada com um **snapshot** do raw → a demo roda **sem gastar nenhuma chamada** do fornecedor.
-- Variáveis: `NEXT_PUBLIC_GALAXIE_API_URL`, `GALAXIE_DEMO_KEY`.
+- Variáveis: `NEXT_PUBLIC_GALAXIE_API_URL`, `GALAXIE_DEMO_KEY` e, opcional, `NEXT_PUBLIC_GALAXIE_DOCS_API_URL` (URL da API nos exemplos da documentação).
 - Deploy da demo: mesma VPS da API (stack Portainer) ou Vercel apontando para a API pública.
 
 ## 6. Pendências

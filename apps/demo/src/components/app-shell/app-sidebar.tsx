@@ -1,5 +1,6 @@
 'use client';
 
+import { BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
@@ -19,6 +20,7 @@ import {
 } from '@/components/ui/sidebar';
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
+import { DOCS_NAV } from '@/lib/docs';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
 import { topLevelClick } from '@/lib/trail';
 
@@ -86,6 +88,33 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupLabel className="gap-2">
+          <BookOpen aria-hidden />
+          Documentação
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {DOCS_NAV.map((d) => {
+              const Icon = d.icon;
+              return (
+                <SidebarMenuItem key={d.href}>
+                  {/* Rotas dos guias são irmãs (/docs e /docs/...): ativo só na própria página. */}
+                  <SidebarMenuButton
+                    isActive={pathname === d.href}
+                    tooltip={d.label}
+                    render={<Link href={d.href} onClick={topLevelClick(d.href)} />}
+                  >
+                    <Icon />
+                    <span>{d.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
