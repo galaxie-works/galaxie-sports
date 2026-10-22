@@ -341,6 +341,9 @@ async function seed() {
       countryCode: 'BR',
       names: { official: 'Sociedade Esportiva Palmeiras', short: 'Palmeiras' },
       nicknames: ['Verdão', 'Alviverde'],
+      rallyingCries: ['Avanti, Palestra!'],
+      copyHints: { 'pt-BR': { cheer: ['Vai, Verdão!', 'Avanti, Palestra!'] } },
+      sources: ['https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras'],
       sourceFile: 'football/teams/br.yaml',
     },
     {
@@ -459,11 +462,19 @@ type EventBody = {
   importance: number;
   momentum: string | null;
   stage: { kind: string; leg: number | null; name: string | null } | null;
-  participants: { side: string; id: string; name: string; nickname: string | null; logo: string | null }[];
+  participants: {
+    side: string;
+    id: string;
+    name: string;
+    nickname: string | null;
+    logo: string | null;
+    fan_tags: { code: string; priority: number; text: Record<string, string> }[];
+    cheer?: { text: string; source_url?: string } | null;
+  }[];
   score: { home: number | null; away: number | null; aggregate: { home: number; away: number } | null };
   competition: { slug: string; name: string; nickname: string | null } | null;
   competition_context: string[];
-  stakes: { team: string; code: string; text: Record<string, string> }[];
+  stakes: { team: string; team_id: string | null; code: string; text: Record<string, string> }[];
   derby: { slug: string; name: string; intensity: number } | null;
   data_freshness: { last_valid_at: string | null; is_stale: boolean };
 };
@@ -568,19 +579,44 @@ describe('/v1/events/{id}', () => {
       ['away', 'Fluminense', null],
     ]);
     expect(e.participants[0]!.logo).toBe(`https://media.api-sports.io/football/teams/121.png`);
+    const [home, away] = e.participants;
     expect(e.stakes).toEqual([
-      { team: 'home', code: 'advances_with_draw', text: { 'pt-BR': 'Avança com empate' } },
+      {
+        team: 'home',
+        team_id: home!.id,
+        code: 'advances_with_draw',
+        text: { 'pt-BR': 'Avança com empate' },
+      },
       {
         team: 'away',
+        team_id: away!.id,
         code: 'needs_win_by_2',
         text: { 'pt-BR': 'Precisa vencer por 2 gols para avançar direto' },
       },
       {
         team: 'away',
+        team_id: away!.id,
         code: 'win_by_1_goes_to_penalties',
         text: { 'pt-BR': 'Vitória por 1 gol leva a decisão aos pênaltis' },
       },
     ]);
+    // tags do torcedor por participante e grito da base semântica (só quem tem perfil)
+    expect(home!.fan_tags).toEqual([
+      { code: 'advances_with_draw', priority: 34, text: { 'pt-BR': 'Avança com empate' } },
+    ]);
+    expect(away!.fan_tags).toEqual([
+      { code: 'needs_win_by_2', priority: 31, text: { 'pt-BR': 'Precisa vencer por 2 gols' } },
+      {
+        code: 'win_by_1_goes_to_penalties',
+        priority: 36,
+        text: { 'pt-BR': 'Vencer por 1 leva aos pênaltis' },
+      },
+    ]);
+    expect(home!.cheer).toEqual({
+      text: 'Vai, Verdão!',
+      source_url: 'https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras',
+    });
+    expect(away!.cheer).toBeNull();
   });
 
   it('localiza fase e stakes (es-AR) e conta momentum no fuso pedido (UTC → D-1)', async () => {
@@ -589,9 +625,13 @@ describe('/v1/events/{id}', () => {
     expect(e.stage?.name).toBe('Semifinales · Vuelta');
     expect(e.stakes[0]).toEqual({
       team: 'home',
+      team_id: e.participants[0]!.id,
       code: 'advances_with_draw',
       text: { 'es-AR': 'Avanza con el empate' },
     });
+    expect(e.participants[0]!.fan_tags[0]?.text).toEqual({ 'es-AR': 'Avanza con el empate' });
+    // sem dica de copy em espanhol: cai no grito do clube (rallying_cries), nunca no pt-BR
+    expect(e.participants[0]!.cheer?.text).toBe('Avanti, Palestra!');
   });
 
   it('ida encerrada: perna 1, sem stakes nem agregado', async () => {
@@ -603,6 +643,7 @@ describe('/v1/events/{id}', () => {
     });
     expect(e.score).toMatchObject({ home: 1, away: 2, aggregate: null });
     expect(e.stakes).toEqual([]);
+    expect(e.participants.map((p) => p.fan_tags)).toEqual([[], []]);
   });
 
   it('última rodada do Brasileirão: título em jogo, líder e stakes de liga', async () => {
@@ -616,6 +657,20 @@ describe('/v1/events/{id}', () => {
         'home:qualifies_for_libertadores_group_stage',
       ]),
     );
+    const [home, away] = e.participants;
+    for (const s of e.stakes)
+      expect(s.team_id).toBe(s.team === 'home' ? home!.id : s.team === 'away' ? away!.id : null);
+    expect(home!.fan_tags[0]).toEqual({
+      code: 'clinches_title_with_draw',
+      priority: 12,
+      text: { 'pt-BR': 'Empate dá o título' },
+    });
+    expect(away!.fan_tags[0]?.text['pt-BR']).toBe('Vitória dá o título');
+    for (const p of e.participants) {
+      expect(p.fan_tags.length).toBeLessThanOrEqual(3);
+      const prio = p.fan_tags.map((t) => t.priority);
+      expect(prio).toEqual([...prio].sort((a, b) => a - b));
+    }
   });
 
   it('clássico e participantes com apelido', async () => {

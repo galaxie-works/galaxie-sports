@@ -18,17 +18,20 @@ import {
 } from '@galaxie/db';
 import { isInPlay, momentum } from '@galaxie/providers';
 import {
+  fanTags,
   knockoutStageRules,
   knockoutStakes,
   leagueMatchStakes,
   localizeStake,
   type CompetitionRules,
+  type FanTagLocale,
   type Fixture,
   type Stake,
   type StakeLocale,
 } from '@galaxie/rules';
 import { formatInstant, pickList, pickText } from '../i18n.js';
 import { assetUrl } from '../util.js';
+import { pickCheer } from './cheer.js';
 import type { RulesRegistry } from './rules-registry.js';
 
 /** Fases de mata-mata (core.stage.kind). */
@@ -265,6 +268,9 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       logoKey: asset.storageKey,
       logoUrl: asset.sourceUrl,
       nicknames: teamProfile.nicknames,
+      rallyingCries: teamProfile.rallyingCries,
+      copyHints: teamProfile.copyHints,
+      profileSources: teamProfile.sources,
     })
     .from(eventParticipant)
     .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
@@ -285,6 +291,13 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       logo: assetUrl(ctx.assetsBaseUrl, r.logoKey, r.logoUrl),
       nickname: r.nicknames?.[0] ?? null,
       winner: typeof winner === 'boolean' ? winner : null,
+      // preenchidas depois dos stakes
+      fan_tags: [],
+      // grito da torcida pelo mesmo caminho do apelido (perfil semântico ligado ao participante)
+      cheer: pickCheer(
+        { rallyingCries: r.rallyingCries, copyHints: r.copyHints, sources: r.profileSources },
+        locale,
+      ),
       _pos: r.position,
     });
     partsBy.set(r.eventId, list);
@@ -472,7 +485,19 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       p && (p.home != null || p.away != null) ? { home: p.home ?? null, away: p.away ?? null } : null;
     const participants = (partsBy.get(id) ?? [])
       .sort((a, b) => sideOrder(a.side) - sideOrder(b.side) || (a._pos ?? 0) - (b._pos ?? 0))
-      .map(({ _pos: _, ...p }) => p);
+      .map(({ _pos: _, ...p }): EventParticipant => ({
+        ...p,
+        // tags do torcedor por lado (stakes `both` valem para os dois), no locale da resposta
+        fan_tags:
+          p.side === 'home' || p.side === 'away'
+            ? fanTags(stakes, p.side, [locale as FanTagLocale]).map((t) => ({
+                code: t.code,
+                priority: t.priority,
+                text: t.text as Record<string, string>,
+              }))
+            : [],
+      }));
+    const teamIdOf = (team: Stake['team']) => (team === 'home' ? homeId : team === 'away' ? awayId : null);
 
     const dto: Event = {
       id,
@@ -521,7 +546,12 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       competition_context: [...contexts],
       stakes: stakes.map((s): EventStake => {
         const l = localizeStake(s, [locale as StakeLocale]);
-        return { team: l.team, code: l.code, text: l.text as Record<string, string> };
+        return {
+          team: l.team,
+          team_id: teamIdOf(l.team),
+          code: l.code,
+          text: l.text as Record<string, string>,
+        };
       }),
       data_freshness: {
         last_valid_at: e.lastValidAt ? formatInstant(e.lastValidAt, ctx.tz) : null,

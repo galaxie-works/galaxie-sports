@@ -71,3 +71,15 @@ export {
   type LocalizedStake,
   type StakeLocale,
 } from './stakes/labels.js';
+export {
+  fanTagOf,
+  fanTags,
+  fanTagZoneGroup,
+  FAN_TAG_LOCALES,
+  FAN_TAG_TIERS,
+  MAX_FAN_TAGS,
+  type FanTag,
+  type FanTagLocale,
+  type FanTagTier,
+  type FanTagZoneGroup,
+} from './stakes/fan-tags.js';

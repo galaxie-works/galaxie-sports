@@ -61,6 +61,9 @@ describe('OpenAPI', () => {
         'CompetitionContext',
         'Event',
         'EventStake',
+        'EventParticipant',
+        'FanTag',
+        'FanCheer',
         'EventContext',
         'EventContextText',
         'EventContextSummary',
@@ -83,6 +86,44 @@ describe('OpenAPI', () => {
       in: 'header',
       name: 'x-galaxie-key',
     });
+  });
+});
+
+describe('OpenAPI — tags do torcedor', () => {
+  type Schema = {
+    properties?: Record<string, Schema & { $ref?: string }>;
+    required?: string[];
+    example?: unknown;
+    items?: Schema & { $ref?: string };
+    anyOf?: (Schema & { $ref?: string })[];
+  };
+  const schemas = () => buildOpenApiDocument().components?.schemas as Record<string, Schema>;
+
+  it('stake traz o participante (`team_id`, null em `both`)', () => {
+    const stake = schemas().EventStake!;
+    expect(stake.required).toEqual(expect.arrayContaining(['team', 'team_id', 'code', 'text']));
+    expect(stake.properties?.team_id).toBeDefined();
+  });
+
+  it('participante traz `fan_tags` (obrigatório) e `cheer` (opcional)', () => {
+    const p = schemas().EventParticipant!;
+    expect(p.required).toEqual(expect.arrayContaining(['fan_tags']));
+    expect(p.required).not.toContain('cheer');
+    expect(p.properties?.fan_tags?.items?.$ref).toBe('#/components/schemas/FanTag');
+    expect(p.properties?.fan_tags?.example).toEqual([
+      { code: 'in_title_race', priority: 15, text: { 'pt-BR': 'Na briga pelo título' } },
+      {
+        code: 'can_qualify_for_libertadores_group_stage',
+        priority: 43,
+        text: { 'pt-BR': 'De olho na Libertadores' },
+      },
+    ]);
+    const tag = schemas().FanTag!;
+    expect(tag.required).toEqual(expect.arrayContaining(['code', 'priority', 'text']));
+    expect(tag.properties?.text?.example).toEqual({ 'pt-BR': 'Na briga pelo título' });
+    const cheer = schemas().FanCheer!;
+    expect(cheer.required).toEqual(['text']);
+    expect(cheer.properties?.text?.example).toBe('Avanti, Palestra!');
   });
 });
 
