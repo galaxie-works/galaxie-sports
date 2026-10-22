@@ -11,7 +11,7 @@ import { Section } from '@/components/sport/section';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtDateTime, fmtShortDate } from '@/lib/format';
-import { getDerby, getTeamOverview } from '@/lib/galaxie/api';
+import { derbyRequest, getDerby, getTeamOverview } from '@/lib/galaxie/api';
 
 const SCOPE_LABEL: Record<string, string> = {
   city: 'Clássico local',
@@ -54,10 +54,11 @@ async function Content({ params }: { params: PageProps<'/classicos/[slug]'>['par
   );
   const r = derby.retrospect;
   const winsOf = (s: string) => r.teams.find((t) => t.slug === s);
+  const api = derbyRequest(slug);
 
   return (
     <>
-      <PageHeader title={derby.name} kind="clássico" />
+      <PageHeader title={derby.name} kind="clássico" api={api} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <Card>
           <CardContent className="flex flex-col items-center gap-5">
@@ -105,7 +106,7 @@ async function Content({ params }: { params: PageProps<'/classicos/[slug]'>['par
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
             {r.last_5.length ? (
-              <Section title="Últimos confrontos">
+              <Section title="Últimos confrontos" api={api}>
                 <Card size="sm">
                   <CardContent className="flex flex-col">
                     {r.last_5.map((m) => (
@@ -116,7 +117,7 @@ async function Content({ params }: { params: PageProps<'/classicos/[slug]'>['par
               </Section>
             ) : null}
             {r.biggest_wins.length ? (
-              <Section title="Maiores goleadas">
+              <Section title="Maiores goleadas" api={api}>
                 <Card size="sm">
                   <CardContent className="flex flex-col">
                     {r.biggest_wins.map((m) => (

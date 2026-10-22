@@ -19,6 +19,7 @@ export type TrailKind =
   | 'local'
   | 'esporte'
   | 'explorar'
+  | 'docs'
   | 'ajustes';
 
 /** O que a página informa ao abrir. */
