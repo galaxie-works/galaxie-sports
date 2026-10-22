@@ -15,7 +15,7 @@
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { planByName } from '@galaxie/apisports-client';
+import { plansFromEnv } from '@galaxie/apisports-client';
 import { closeDb, createDb } from '@galaxie/db';
 import { planSportCatalog, runSportCatalogJob, summarizeSport } from '../bootstrap/sport-catalog-job.js';
 import { loadSportCatalog } from '../catalog/catalog-config.js';
@@ -51,14 +51,16 @@ const catalogPath = (sport: string) => resolve(`../../config/competitions/${spor
 if (values.plan) {
   if (!process.env.DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
   const db = createDb(process.env.DATABASE_URL);
-  const plan = planByName(process.env.APISPORTS_PLAN);
+  const planFor = plansFromEnv(process.env);
   const rows = [];
   for (const sport of sports) {
+    const plan = planFor(sport);
     const p = await planSportCatalog(db, sport, await loadSportCatalog(catalogPath(sport)), { plan, games });
     const reference = p.calls.filter((c) => !c.params);
     const season = p.calls.filter((c) => c.params);
     rows.push({
       esporte: sport,
+      plano: `${plan.name} (${plan.dailyLimit}/dia; temporadas ${plan.seasons ? `${plan.seasons.min}–${plan.seasons.max}` : 'todas'})`,
       'referência (cota)': `${reference.filter((c) => c.source === 'network').length}/${reference.length}`,
       'temporadas (cota)': games
         ? `${season.filter((c) => c.source === 'network').length}/${season.length}`
@@ -69,7 +71,7 @@ if (values.plan) {
   }
   console.table(rows);
   console.log(
-    `Plano ${plan.name}: ${plan.dailyLimit}/dia por API; temporadas ${plan.seasons ? `${plan.seasons.min}–${plan.seasons.max}` : 'todas'}.`,
+    'Plano por API: APISPORTS_PLAN_<ESPORTE> (ex.: APISPORTS_PLAN_FORMULA_1), senão APISPORTS_PLAN.',
   );
   await closeDb(db);
 } else {

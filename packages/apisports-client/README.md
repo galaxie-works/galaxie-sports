@@ -20,16 +20,18 @@ flowchart LR
 ## Uso
 
 ```ts
-import { ApiSportsClient, PgQuotaGovernor, PgRawStore, PlanRules, defaultPolicy, planByName } from '@galaxie/apisports-client';
+import { ApiSportsClient, PgQuotaGovernor, PgRawStore, PlanRules, defaultPolicy, plansFromEnv } from '@galaxie/apisports-client';
 import { createDb } from '@galaxie/db';
 
 const db = createDb(process.env.DATABASE_URL!);
-const plan = planByName(process.env.APISPORTS_PLAN); // free | pro | ultra | mega
+// Plano por API: APISPORTS_PLAN_<ESPORTE> (ex.: APISPORTS_PLAN_FOOTBALL=pro), senão APISPORTS_PLAN (free | pro | ultra | mega)
+const planFor = plansFromEnv(process.env);
 const client = new ApiSportsClient({
   apiKey: process.env.APISPORTS_KEY!,
   store: new PgRawStore(db),
-  governor: new PgQuotaGovernor(db, () => defaultPolicy(plan.dailyLimit, 15)),
-  plan: new PlanRules(plan),
+  governor: new PgQuotaGovernor(db, (api) => defaultPolicy(planFor(api).dailyLimit, 15)),
+  // uma PlanRules e um limitador por minuto por API (a opção `plan` ainda aceita regras únicas para todas)
+  planFor: (sport) => new PlanRules(planFor(sport)),
 });
 
 const { envelope, source } = await client.get({
@@ -52,7 +54,7 @@ const offline = new ApiSportsClient({ apiKey: '', store, governor, offline: true
 | Módulo | Função |
 |---|---|
 | `client.ts` | `get`, `getAllPages` (cada página = 1 requisição), `status`; pedidos idênticos simultâneos (no processo ou entre processos) geram uma única chamada |
-| `plan.ts` | Restrições do plano (free: temporadas 2022–2024, `date` ontem→amanhã, sem `ids`/`last`/`next`, `page ≤ 3`); aprende a nova janela quando o fornecedor a desloca |
+| `plan.ts` | Restrições do plano (free: temporadas 2022–2024, `date` ontem→amanhã, sem `ids`/`last`/`next`, `page ≤ 3`); aprende a nova janela quando o fornecedor a desloca. Plano por API a partir do ambiente: `plansFromEnv`, `planForSport`, `planEnvVar` (`formula-1` → `APISPORTS_PLAN_FORMULA_1`) |
 | `ttl.ts` | Por quanto tempo reutilizar uma resposta do raw (referência 24 h, entidades lentas 7 dias, jogos antigos para sempre, ao vivo 10 s) |
 | `rate-limiter.ts` | Espaçamento por API: 1 chamada a cada 60/perMinute s (6 s no free), sem rajada inicial |
 | `raw-store.ts` | `PgRawStore` / `InMemoryRawStore` — grava todo envelope e só reaproveita respostas HTTP 2xx sem erro no envelope |

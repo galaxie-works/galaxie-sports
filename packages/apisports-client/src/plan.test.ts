@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { PlanViolationError } from './errors.js';
-import { FREE_PLAN, PlanRules, PRO_PLAN } from './plan.js';
+import { API_SPORTS } from './hosts.js';
+import {
+  FREE_PLAN,
+  MEGA_PLAN,
+  planEnvVar,
+  planForSport,
+  PlanRules,
+  plansFromEnv,
+  PRO_PLAN,
+  ULTRA_PLAN,
+} from './plan.js';
 
 const now = new Date('2026-10-21T14:00:00Z');
 
@@ -45,5 +55,46 @@ describe('PlanRules (pro)', () => {
     expect(() =>
       r.validate({ season: '2026', ids: '1-2-3', date: '2020-01-01', page: '10' }, now),
     ).not.toThrow();
+  });
+});
+
+describe('plano por API a partir do ambiente', () => {
+  it('nomeia o override pelo nome da API em maiúsculas, com "-" → "_"', () => {
+    expect(planEnvVar('football')).toBe('APISPORTS_PLAN_FOOTBALL');
+    expect(planEnvVar('formula-1')).toBe('APISPORTS_PLAN_FORMULA_1');
+    expect(planEnvVar('american-football')).toBe('APISPORTS_PLAN_AMERICAN_FOOTBALL');
+  });
+
+  it('sem nenhuma variável, todas as APIs ficam no free', () => {
+    const planFor = plansFromEnv({});
+    for (const sport of API_SPORTS) expect(planFor(sport)).toBe(FREE_PLAN);
+  });
+
+  it('APISPORTS_PLAN vale para todas as APIs sem override', () => {
+    const planFor = plansFromEnv({ APISPORTS_PLAN: 'pro' });
+    expect(planFor('football')).toBe(PRO_PLAN);
+    expect(planFor('formula-1')).toBe(PRO_PLAN);
+  });
+
+  it('o override de uma API prevalece sobre o padrão, nos dois sentidos', () => {
+    const env = { APISPORTS_PLAN: 'free', APISPORTS_PLAN_FOOTBALL: 'pro', APISPORTS_PLAN_NBA: 'Mega' };
+    expect(planForSport(env, 'football')).toBe(PRO_PLAN);
+    expect(planForSport(env, 'nba')).toBe(MEGA_PLAN);
+    expect(planForSport(env, 'basketball')).toBe(FREE_PLAN);
+
+    const paid = { APISPORTS_PLAN: 'ultra', APISPORTS_PLAN_FORMULA_1: 'free' };
+    expect(planForSport(paid, 'formula-1')).toBe(FREE_PLAN);
+    expect(planForSport(paid, 'hockey')).toBe(ULTRA_PLAN);
+  });
+
+  it('override vazio ou só com espaços cai no padrão (stack com ${VAR:-})', () => {
+    const env = { APISPORTS_PLAN: 'pro', APISPORTS_PLAN_FOOTBALL: '', APISPORTS_PLAN_RUGBY: '  ' };
+    expect(planForSport(env, 'football')).toBe(PRO_PLAN);
+    expect(planForSport(env, 'rugby')).toBe(PRO_PLAN);
+    expect(planForSport({ APISPORTS_PLAN_MMA: ' pro ' }, 'mma')).toBe(PRO_PLAN);
+  });
+
+  it('nome desconhecido cai no free (o mais restritivo)', () => {
+    expect(planForSport({ APISPORTS_PLAN_FOOTBALL: 'premium' }, 'football')).toBe(FREE_PLAN);
   });
 });

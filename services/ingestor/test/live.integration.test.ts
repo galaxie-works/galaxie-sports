@@ -138,7 +138,7 @@ describe('ao vivo no Postgres', () => {
     });
     const runner = new LiveRunner({
       sport: 'football',
-      provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }),
+      provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }, () => new Date(world.clock.now())),
       store,
       governor: world.governor,
       clock: world.clock,

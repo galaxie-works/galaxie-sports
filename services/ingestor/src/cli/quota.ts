@@ -1,33 +1,32 @@
 /**
  * Relatório de cota: lê /status das APIs (não consome cota), reconcilia o Governor e imprime o uso do dia.
+ * O plano configurado é por API (APISPORTS_PLAN_<ESPORTE>, senão APISPORTS_PLAN).
  * Uso: pnpm --filter @galaxie/ingestor quota [football basketball ...]
  */
 import {
   API_SPORTS,
   ApiSportsClient,
-  defaultPolicy,
   PgQuotaGovernor,
   PgRawStore,
-  planByName,
+  plansFromEnv,
   PlanRules,
   type ApiSport,
 } from '@galaxie/apisports-client';
 import { closeDb, createDb } from '@galaxie/db';
+import { quotaPolicyFromEnv } from '@galaxie/observability';
 import { report } from '../logger.js';
 
-const { APISPORTS_KEY, DATABASE_URL, APISPORTS_PLAN, QUOTA_RESERVE_PERCENT } = process.env;
+const { APISPORTS_KEY, DATABASE_URL } = process.env;
 if (!APISPORTS_KEY || !DATABASE_URL) throw new Error('Defina APISPORTS_KEY e DATABASE_URL (.env).');
 
-const plan = planByName(APISPORTS_PLAN);
+const planFor = plansFromEnv(process.env);
 const db = createDb(DATABASE_URL);
-const governor = new PgQuotaGovernor(db, () =>
-  defaultPolicy(plan.dailyLimit, Number(QUOTA_RESERVE_PERCENT ?? 15)),
-);
+const governor = new PgQuotaGovernor(db, quotaPolicyFromEnv(process.env));
 const client = new ApiSportsClient({
   apiKey: APISPORTS_KEY,
   store: new PgRawStore(db),
   governor,
-  plan: new PlanRules(plan),
+  planFor: (sport) => new PlanRules(planFor(sport)),
 });
 
 const sports = (process.argv.slice(2).length ? process.argv.slice(2) : API_SPORTS) as ApiSport[];
@@ -37,6 +36,7 @@ for (const sport of sports) {
   const usage = await governor.usage(sport);
   rows.push({
     api: sport,
+    'plano (config)': planFor(sport).name,
     plano: status.plan,
     fornecedor: `${status.used}/${status.limitDay}`,
     ledger: usage.totalUsed,

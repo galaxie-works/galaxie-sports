@@ -167,7 +167,7 @@ export async function runSportCatalogJob(
     if (options.games) {
       const planned = planSeasonCalls(profile, rows, {
         ...options.games,
-        seasonWindow: seasonWindow(client.planRules.current),
+        seasonWindow: seasonWindow(client.planRulesFor(sport).current),
       });
       for (const p of planned) {
         const params = normalizeParams(p.params);

@@ -38,7 +38,8 @@ async function simulate(opts: {
   const dailyCalls = [...(opts.dailyCallsAt ?? [])];
   const runner = new LiveRunner({
     sport: 'football',
-    provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }),
+    // relógio simulado também no provedor: o `fetchedAt` dos erros não pode vir do relógio real
+    provider: new ApiSportsProvider(world.client, { priority: 'LIVE' }, () => new Date(world.clock.now())),
     store: world.store,
     governor: world.governor,
     clock: world.clock,

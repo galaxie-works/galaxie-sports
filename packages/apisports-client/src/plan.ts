@@ -39,7 +39,7 @@ export const MEGA_PLAN: PlanLimits = {
 };
 
 export function planByName(name: string | undefined): PlanLimits {
-  switch ((name ?? 'free').toLowerCase()) {
+  switch ((name ?? 'free').trim().toLowerCase()) {
     case 'pro':
       return PRO_PLAN;
     case 'ultra':
@@ -49,6 +49,31 @@ export function planByName(name: string | undefined): PlanLimits {
     default:
       return FREE_PLAN;
   }
+}
+
+/** Variável do plano padrão (vale para todas as APIs sem override). */
+export const PLAN_ENV = 'APISPORTS_PLAN';
+
+/**
+ * Cada API da api-sports tem assinatura e cota próprias. O override de uma API é
+ * `APISPORTS_PLAN_<ESPORTE>`, com o nome da API em maiúsculas e `-` → `_`
+ * (ex.: `football` → `APISPORTS_PLAN_FOOTBALL`, `formula-1` → `APISPORTS_PLAN_FORMULA_1`).
+ */
+export function planEnvVar(sport: string): string {
+  return `${PLAN_ENV}_${sport.toUpperCase().replace(/-/g, '_')}`;
+}
+
+export type PlanEnv = Readonly<Record<string, string | undefined>>;
+
+/** Plano de uma API: o override `APISPORTS_PLAN_<ESPORTE>` se definido (não vazio), senão `APISPORTS_PLAN`. */
+export function planForSport(env: PlanEnv, sport: string): PlanLimits {
+  const override = env[planEnvVar(sport)]?.trim();
+  return planByName(override ? override : env[PLAN_ENV]);
+}
+
+/** Resolve o plano por API a partir do ambiente (ex.: futebol no pro, demais no free). */
+export function plansFromEnv(env: PlanEnv = process.env): (sport: string) => PlanLimits {
+  return (sport) => planForSport(env, sport);
 }
 
 const DAY_MS = 86_400_000;

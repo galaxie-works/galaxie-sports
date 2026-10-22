@@ -375,6 +375,15 @@ flowchart TB
 
 Implementação: [`packages/apisports-client`](../packages/apisports-client/README.md) (`PgQuotaGovernor`, `ApiSportsClient`). Relatório de cota do dia: `pnpm --filter @galaxie/ingestor quota`.
 
+### 9.1 Plano por API
+
+Cada API da api-sports tem **assinatura e cota próprias** — dá para ter o futebol no Pro e os outros 11 esportes no free. Por isso o plano é configurado **por API**:
+
+- `APISPORTS_PLAN` é o plano padrão de todas as APIs (`free` se ausente);
+- `APISPORTS_PLAN_<ESPORTE>` sobrescreve uma API: nome da API em maiúsculas, com `-` → `_` (`APISPORTS_PLAN_FOOTBALL=pro`, `APISPORTS_PLAN_FORMULA_1=free`, `APISPORTS_PLAN_AMERICAN_FOOTBALL=...`). Vazio = padrão; nome desconhecido = free (o mais restritivo).
+
+O plano de cada API define, só para ela: a **pré-validação** (temporadas, janela de `date`, `ids`/`last`/`next`, `page`), o **limite por minuto** (um token bucket por API: 6 s no free, 200 ms no Pro), o **limite diário** da política do Governor (ingestor, `quota` e métricas) e o fallback de `limit_day` na reconciliação via `/status`. A janela de temporadas aprendida com o erro do fornecedor também fica por API. Configurar o plano errado custa caro nos dois sentidos: um Pro onde a assinatura é free gera chamadas que o fornecedor recusa (gastando cota); um free onde a assinatura é Pro deixa o Pro ocioso. `bootstrap:sports --plan` e `quota` mostram o plano configurado de cada API.
+
 ## 10. Pendências de validação (issue de spike)
 
 Testar com a nossa chave:
