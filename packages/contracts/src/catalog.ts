@@ -166,8 +166,17 @@ export const FormerName = z
       description:
         '`curated` = base semântica (revisão editorial, vence o fornecedor); `provider` = derivado dos jogos do fornecedor (nome que cada partida trazia no dia).',
     }),
+    confidence: z.enum(['high', 'low']).meta({
+      description:
+        '`high` = curadoria confirmada editorialmente; `low` = derivado do fornecedor: **pista** para busca e casamento de nomes, não fato confirmado (pode ser casa provisória ou nome de torneio). Para exibir ao usuário final, use só `high`.',
+      example: 'high',
+    }),
   })
-  .meta({ id: 'FormerName' });
+  .meta({
+    id: 'FormerName',
+    description:
+      'Nome anterior. Os de origem `provider` (confiança `low`) nunca substituem o nome atual e não devem ser exibidos como fato.',
+  });
 export type FormerName = z.infer<typeof FormerName>;
 
 export const Venue = z
@@ -187,9 +196,10 @@ export const Venue = z
       description: 'Nome como o fornecedor de dados manda (pode estar desatualizado).',
       example: 'Allianz Parque',
     }),
-    former_names: z
-      .array(FormerName)
-      .meta({ description: 'Nomes anteriores, do mais recente ao mais antigo.' }),
+    former_names: z.array(FormerName).meta({
+      description:
+        'Nomes anteriores: os da curadoria (`confidence: high`) primeiro e depois as pistas do fornecedor (`low`), cada grupo do mais recente ao mais antigo.',
+    }),
   })
   .meta({ id: 'Venue' });
 export type Venue = z.infer<typeof Venue>;

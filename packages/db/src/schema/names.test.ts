@@ -39,8 +39,14 @@ describe('nomes de estádios', () => {
     };
     expect(venueDisplay(v)).toEqual({ name: 'Nubank Parque', city: 'São Paulo' });
     expect(venueFormerNames(v)).toEqual([
-      { name: 'Allianz Parque', from: null, until: '2026-05-03', origin: 'curated' },
-      { name: 'Palestra Itália', from: '2010-01-01', until: '2010-07-09', origin: 'provider' },
+      { name: 'Allianz Parque', from: null, until: '2026-05-03', origin: 'curated', confidence: 'high' },
+      {
+        name: 'Palestra Itália',
+        from: '2010-01-01',
+        until: '2010-07-09',
+        origin: 'provider',
+        confidence: 'low',
+      },
     ]);
     // sem curadoria vale o fornecedor
     expect(venueDisplay({ ...v, curated: null })).toEqual({

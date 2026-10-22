@@ -243,11 +243,23 @@ export interface FormerName {
   from: string | null;
   until: string;
   origin: 'curated' | 'provider';
+  /**
+   * `high` = curadoria editorial; `low` = derivado dos jogos do fornecedor. Os derivados são pistas
+   * (busca, casamento de nomes), não fato confirmado: casa provisória (Camp Nou × Lluís Companys) e
+   * nome de torneio (Atlanta Stadium na Copa) passam pelas regras. Nunca viram o nome atual.
+   */
+  confidence: 'high' | 'low';
+}
+
+/** Nome anterior derivado do fornecedor no formato da API (sempre `origin: provider`, `confidence: low`). */
+export function providerFormerName(f: ProviderFormerName): FormerName {
+  return { name: f.name, from: f.from, until: f.until, origin: 'provider', confidence: 'low' };
 }
 
 /**
  * Nomes anteriores do estádio: os da curadoria (base semântica) primeiro e, depois, os derivados do
- * fornecedor que a curadoria não cobre (mesmo nome atual ou já listado = a curadoria vence).
+ * fornecedor que a curadoria não cobre (mesmo nome atual ou já listado = a curadoria vence). Cada
+ * grupo vai do mais recente ao mais antigo.
  */
 export function venueFormerNames(v: {
   name: string;
@@ -260,13 +272,15 @@ export function venueFormerNames(v: {
     from: null,
     until: f.until,
     origin: 'curated',
+    confidence: 'high',
   }));
   // nome atual, apelidos e nomes anteriores da curadoria cobrem as grafias do fornecedor
   const taken = [current, ...(v.curated?.nicknames ?? []), ...curated.map((f) => f.name)];
   const provider: FormerName[] = (v.providerFormerNames ?? [])
     .filter((f) => !taken.some((t) => sameName(t, f.name, v.curated?.city)))
-    .map((f) => ({ name: f.name, from: f.from, until: f.until, origin: 'provider' }));
-  return [...curated, ...provider].sort((a, b) => b.until.localeCompare(a.until));
+    .map(providerFormerName);
+  const recentFirst = (a: FormerName, b: FormerName) => b.until.localeCompare(a.until);
+  return [...curated.sort(recentFirst), ...provider.sort(recentFirst)];
 }
 
 export const participant = core.table(

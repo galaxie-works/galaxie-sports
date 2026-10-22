@@ -69,6 +69,33 @@ describe('histórico de nomes do fornecedor', () => {
     expect(formerNamesOf(h)).toBeNull();
   });
 
+  it.each([
+    [
+      'casa provisória com volta ao estádio de origem',
+      [
+        obs('Spotify Camp Nou', '2014-08-24', '2023-05-28', 180, 'Barcelona'),
+        obs('Estadi Olímpic Lluís Companys', '2023-08-20', '2025-10-01', 70, 'Barcelona'),
+        obs('Spotify Camp Nou', '2025-11-22', '2026-10-18', 20, 'Barcelona'),
+      ],
+    ],
+    [
+      'nome de torneio por poucas semanas (A → B → A)',
+      [
+        obs('Mercedes-Benz Stadium', '2018-03-04', '2026-05-30', 120, 'Atlanta'),
+        obs('Atlanta Stadium', '2026-06-15', '2026-07-15', 8, 'Atlanta'),
+        obs('Mercedes-Benz Stadium', '2026-08-01', '2026-10-20', 6, 'Atlanta'),
+      ],
+    ],
+    [
+      'erro pontual do fornecedor no meio do período',
+      [obs('Estádio A', '2020-01-01', '2026-10-01', 90), obs('Estádio B', '2022-03-01', '2022-04-01', 2)],
+    ],
+  ])('A → B → A nunca é troca de nome: %s', (_label, observations) => {
+    const h = deriveNameHistory(observations);
+    expect(h?.status).not.toBe('renamed');
+    expect(formerNamesOf(h)).toBeNull();
+  });
+
   it('outra cidade = ID reaproveitado, não troca de nome', () => {
     const h = deriveNameHistory([
       obs('Khalifa International Stadium', '2022-11-21', '2025-08-24', 30, 'Doha'),

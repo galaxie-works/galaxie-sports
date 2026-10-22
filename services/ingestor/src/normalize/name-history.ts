@@ -95,7 +95,9 @@ export function deriveNameHistory(observations: readonly NameObservation[]): Nam
   if (solid.length === 1) return { status: 'single', current: solid[0]! };
   for (let i = 0; i + 1 < solid.length; i++) {
     const [a, b] = [solid[i]!, solid[i + 1]!];
-    // sobreposição/alternância ou outra cidade = ID reaproveitado para outro lugar
+    // sobreposição/alternância ou outra cidade = ID reaproveitado para outro lugar. A → B → A (casa
+    // provisória, nome de torneio, erro pontual) cai aqui: o grupo de A vai do primeiro ao último jogo
+    // com A e engloba o período de B, então nunca vira troca de nome.
     if (!(a.last < b.first) || (a.city && b.city && a.city !== b.city))
       return { status: 'ambiguous', periods };
   }

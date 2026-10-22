@@ -310,6 +310,9 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
   // API anterior à campanha (sem `competitions`): a seção some em vez de quebrar a página
   const competitions = overview.competitions ?? [];
 
+  // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
+  const formerNames = team.former_names.filter((f) => f.origin === 'curated');
+
   return (
     <>
       <PageHeader title={team.name} kind="time" />
@@ -323,9 +326,9 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
               {semantic?.official_name && semantic.official_name !== team.name ? (
                 <span className="text-muted-foreground text-sm">{semantic.official_name}</span>
               ) : null}
-              {team.former_names.length ? (
+              {formerNames.length ? (
                 <span className="text-muted-foreground text-xs">
-                  Antes: {team.former_names.map((f) => `${f.name} (até ${f.until.slice(0, 4)})`).join(', ')}
+                  Antes: {formerNames.map((f) => `${f.name} (até ${f.until.slice(0, 4)})`).join(', ')}
                 </span>
               ) : null}
             </div>

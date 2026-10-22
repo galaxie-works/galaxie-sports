@@ -19,6 +19,8 @@ const isoDayToBr = (iso: string) => iso.split('-').reverse().join('/');
 async function Content({ params }: { params: PageProps<'/locais/[id]'>['params'] }) {
   const { id } = await params;
   const venue = await getVenue(id);
+  // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
+  const formerNames = venue.former_names.filter((f) => f.origin === 'curated');
   const facts = [
     venue.city ? ['Cidade', venue.city] : null,
     venue.capacity ? ['Capacidade', `${venue.capacity.toLocaleString('pt-BR')} lugares`] : null,
@@ -46,18 +48,17 @@ async function Content({ params }: { params: PageProps<'/locais/[id]'>['params']
             </Link>
           ) : null}
         </div>
-        {venue.former_names.length ? (
+        {formerNames.length ? (
           <div className="flex flex-col gap-1">
             <h2 className="text-muted-foreground text-xs">Nomes anteriores</h2>
             <ul className="flex flex-col gap-0.5 text-sm">
-              {venue.former_names.map((f) => (
+              {formerNames.map((f) => (
                 <li key={`${f.name}-${f.until}`}>
                   <span className="font-medium">{f.name}</span>
                   <span className="text-muted-foreground">
                     {' '}
                     ({f.from ? `${isoDayToBr(f.from)} a ` : 'até '}
-                    {isoDayToBr(f.until)}
-                    {f.origin === 'provider' ? ', segundo o fornecedor' : ''})
+                    {isoDayToBr(f.until)})
                   </span>
                 </li>
               ))}

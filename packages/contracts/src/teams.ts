@@ -69,7 +69,7 @@ export const Team = TeamSummary.extend({
   external_ids: z.record(z.string(), z.string()).meta({ example: { 'api-sports': '121' } }),
   former_names: z.array(FormerName).meta({
     description:
-      'Nomes anteriores do time derivados dos jogos do fornecedor (ex.: "Dinamo Moscow" → "Dynamo"); variações de caixa e acento não contam e os nomes da base semântica vencem.',
+      'Nomes anteriores do time derivados dos jogos do fornecedor (ex.: "Dinamo Moscow" → "Dynamo"; `origin: provider`, `confidence: low`): pistas para busca e casamento de nomes, não fato confirmado. Variações de caixa e acento não contam e os nomes da base semântica vencem.',
   }),
 }).meta({ id: 'Team' });
 export type Team = z.infer<typeof Team>;

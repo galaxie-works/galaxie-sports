@@ -69,6 +69,7 @@ export function stadiumMatches(stadium: StadiumEntry, venue: Omit<VenueRow, 'id'
       nameVariants,
     ),
   );
+  // nomes anteriores derivados do fornecedor só servem de apelido para casar; nunca viram o nome atual
   const provider = [venue.name, ...(venue.provider_former_names ?? []).map((f) => f.name)].flatMap(
     nameVariants,
   );

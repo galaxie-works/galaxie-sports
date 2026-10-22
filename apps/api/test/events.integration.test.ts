@@ -856,7 +856,13 @@ describe('/v1/teams e /v1/people', () => {
       external_ids: { 'api-sports': '121' },
       venue: { name: 'Estádio 258' },
       former_names: [
-        { name: 'Palestra Itália', from: '1914-08-26', until: '1942-09-14', origin: 'provider' },
+        {
+          name: 'Palestra Itália',
+          from: '1914-08-26',
+          until: '1942-09-14',
+          origin: 'provider',
+          confidence: 'low',
+        },
       ],
       colors: {
         primary: '#006937',

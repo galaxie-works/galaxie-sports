@@ -31,6 +31,7 @@ import {
   roster,
   season,
   standing,
+  providerFormerName,
   sameName,
   teamProfile,
   venue,
@@ -139,7 +140,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     ].filter((n): n is string => !!n);
     return list
       .filter((f) => !current.some((c) => sameName(c, f.name)))
-      .map((f) => ({ name: f.name, from: f.from, until: f.until, origin: 'provider' as const }))
+      .map(providerFormerName)
       .sort((a, b) => b.until.localeCompare(a.until));
   }
 
