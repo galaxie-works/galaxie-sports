@@ -43,7 +43,7 @@ function render(kind: AccessEmailKind, name: string, url: string, expiresInHours
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#141a21;border:1px solid #232b35;border-radius:12px;padding:32px">
 <tr><td style="font-size:20px;font-weight:600;color:#ffffff">Olá, ${escapeHtml(first)}!</td></tr>
 <tr><td style="padding-top:12px;font-size:15px;line-height:1.6;color:#b5bcc7">${escapeHtml(intro)}</td></tr>
-<tr><td style="padding-top:24px"><a href="${escapeHtml(url)}" style="display:inline-block;background:#c6f432;color:#1b2508;text-decoration:none;font-weight:600;font-size:15px;padding:12px 20px;border-radius:8px">${action}</a></td></tr>
+<tr><td style="padding-top:24px"><a href="${escapeHtml(url)}" style="display:inline-block;background:#6c69f2;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 20px;border-radius:8px">${action}</a></td></tr>
 <tr><td style="padding-top:20px;font-size:13px;line-height:1.5;color:#7d8794">O link vale por ${expiresInHours} horas. Se você não esperava este e-mail, pode ignorá-lo.</td></tr>
 </table>
 <p style="font-size:12px;color:#5c6672;margin-top:16px">Galaxie Works · Galaxie Sports</p>

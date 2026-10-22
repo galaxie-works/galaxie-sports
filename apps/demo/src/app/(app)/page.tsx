@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { PageHeader } from '@/components/app-shell/page-header';
+import { CountryFlag } from '@/components/sport/country-flag';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
 
@@ -54,9 +55,7 @@ export default function ExplorePage() {
                 <Link key={c.code} href={c.href} className="group/entry focus-visible:outline-none">
                   <Card size="sm" className="group-hover/entry:bg-accent h-full transition-colors">
                     <CardHeader>
-                      <span className="text-muted-foreground font-mono text-xs">
-                        {c.code.replace('GB-', '')}
-                      </span>
+                      <CountryFlag code={c.code} size="lg" className="mb-1" />
                       <CardTitle>{c.label}</CardTitle>
                       <CardDescription>Ligas, copas e seleção</CardDescription>
                     </CardHeader>

@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar';
+import { CountryFlag } from '@/components/sport/country-flag';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
 
 import { UserMenu } from './user-menu';
@@ -69,9 +70,7 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
             {COUNTRIES.map((c) => (
               <SidebarMenuItem key={c.code}>
                 <SidebarMenuButton isActive={isActive(pathname, c.href)} render={<Link href={c.href} />}>
-                  <span className="bg-muted text-muted-foreground flex h-4 min-w-7 items-center justify-center px-1 font-mono text-xs">
-                    {c.code.replace('GB-', '')}
-                  </span>
+                  <CountryFlag code={c.code} />
                   <span>{c.label}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
