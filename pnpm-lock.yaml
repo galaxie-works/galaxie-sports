@@ -335,6 +335,9 @@ importers:
       '@galaxie/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
+      '@galaxie/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@galaxie/rules':
         specifier: workspace:*
         version: link:../../packages/rules
@@ -357,9 +360,6 @@ importers:
       '@galaxie/ingestor':
         specifier: workspace:*
         version: link:../ingestor
-      '@galaxie/providers':
-        specifier: workspace:*
-        version: link:../../packages/providers
       postgres:
         specifier: ^3.4.9
         version: 3.4.9

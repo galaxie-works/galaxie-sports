@@ -345,6 +345,21 @@ export async function getLineups(id: string, locale: Locale) {
   return orNull(api.eventLineups(id, localeQuery(locale)));
 }
 
+export const statsRequest = (id: string, locale: Locale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/events/{id}/stats',
+  params: { id },
+  query: localeQuery(locale),
+  description: text(locale).stats,
+});
+
+/** Estatísticas do jogo (códigos estáveis e rótulo no idioma pedido à API). */
+export async function getStats(id: string, locale: Locale) {
+  'use cache';
+  cacheLife('minutes');
+  return orNull(api.eventStats(id, localeQuery(locale)));
+}
+
 // ─── pessoas e locais ────────────────────────────────────────────────────────────────────────────
 
 export const personRequest = (id: string, locale: Locale): ApiRequest => ({

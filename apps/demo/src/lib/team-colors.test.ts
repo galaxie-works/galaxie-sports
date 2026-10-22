@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FALLBACK_COLORS, lighten, MONOCHROME_COLOR, versusColors } from './team-colors';
+import { contrastText, FALLBACK_COLORS, lighten, MONOCHROME_COLOR, versusColors } from './team-colors';
 
 const palmeiras = { primary: '#01713d', secondary: null, monochrome: false };
 const fluminense = { primary: '#7a1f3d', secondary: '#0b6e3a', monochrome: false };
@@ -31,5 +31,15 @@ describe('versusColors', () => {
   it('sem paleta: cores do tema', () => {
     expect(versusColors(null, undefined)).toEqual([...FALLBACK_COLORS]);
     expect(versusColors(palmeiras, null)).toEqual(['#01713d', FALLBACK_COLORS[1]]);
+  });
+});
+
+describe('contrastText', () => {
+  it('branco sobre cores escuras, preto sobre claras e o texto do tema sem paleta', () => {
+    expect(contrastText('#01713d')).toBe('#ffffff');
+    expect(contrastText('#900028')).toBe('#ffffff');
+    expect(contrastText(MONOCHROME_COLOR)).toBe('#09090b');
+    expect(contrastText('#efac07')).toBe('#09090b');
+    expect(contrastText('var(--primary)')).toBe('var(--primary-foreground)');
   });
 });

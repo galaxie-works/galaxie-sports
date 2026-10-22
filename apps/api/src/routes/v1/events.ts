@@ -249,7 +249,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
   // ─── /v1/events/:id/timeline · lineups · stats ───────────────────────────────────────────────
   const detailRoute = (
     path: string,
-    build: (ev: { id: string; sport: string }) => Promise<unknown>,
+    build: (ev: { id: string; sport: string }, locale: string) => Promise<unknown>,
     liveTtl: number,
   ) =>
     app.get(path, { config: MODULE }, async (request, reply) => {
@@ -266,7 +266,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
           const head = await eventHead(db, params.id);
           const live = IN_PLAY.includes(head.status) || head.status === 'starting';
           return {
-            body: await build(head),
+            body: await build(head, locale),
             tags: [`event:${head.id}`],
             ttl: live ? liveTtl : head.status === 'finished' ? CACHE_TTL.standings : CACHE_TTL.schedule,
             meta: { sport: head.sport },
@@ -281,7 +281,11 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     CACHE_TTL.live,
   );
   detailRoute('/v1/events/:id/lineups', (ev) => buildLineups(requireDb(ctx), ev, ctx.assetsBaseUrl), 60);
-  detailRoute('/v1/events/:id/stats', (ev) => buildStats(requireDb(ctx), ev, ctx.assetsBaseUrl), 30);
+  detailRoute(
+    '/v1/events/:id/stats',
+    (ev, locale) => buildStats(requireDb(ctx), ev, ctx.assetsBaseUrl, locale),
+    30,
+  );
 
   // ─── /v1/events/:id/h2h ──────────────────────────────────────────────────────────────────────
   app.get('/v1/events/:id/h2h', { config: MODULE }, async (request, reply) => {
