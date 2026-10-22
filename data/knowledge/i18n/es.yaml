@@ -1,0 +1,424 @@
+# yaml-language-server: $schema=../schemas/i18n.schema.json
+#
+# Espanhol neutro da América Latina: a tradução-base de todo texto livre escrito em pt-BR.
+# Vocabulário pan-hispânico ("afición", "estadio", "entrenador"); a voz de cada país vai em
+# i18n/es-XX.yaml, só nos campos em que a palavra muda (docs/06 §3.3). Mesmos fatos do original,
+# na mesma ordem — tradução nunca acrescenta fato; glosas entre parênteses só explicam o apelido.
+schema_version: 1
+locale: es
+
+teams:
+  # ── Brasil (football/teams/br.yaml) ──────────────────────────────────────────────────────────────
+  - slug: palmeiras
+    identity:
+      - "Fundado por inmigrantes italianos como Palestra Italia; adoptó el nombre Palmeiras en 1942."
+      - "El apodo Porco (cerdo, en portugués) nació como una burla de los rivales y la propia afición lo adoptó."
+      - "En 2026 el estadio pasó a llamarse Nubank Parque (antes Allianz Parque) por un contrato de naming rights."
+    mascot: Porco (cerdo)
+    colors: [verde, blanco]
+    review_status: draft
+
+  - slug: corinthians
+    identity:
+      - "Fundado en 1910 por obreros en el barrio de Bom Retiro; su nombre homenajea al Corinthian FC, de Londres."
+    mascot: Mosqueteiro (mosquetero)
+    colors: [negro, blanco]
+    review_status: draft
+
+  - slug: sao-paulo
+    identity:
+      - "Su fecha oficial de fundación, el 25 de enero de 1930, coincide con el aniversario de la ciudad de São Paulo."
+    mascot: Santo Paulo (san Pablo)
+    colors: [rojo, blanco, negro]
+    review_status: draft
+
+  - slug: santos
+    identity:
+      - "Es el club en el que Pelé jugó la mayor parte de su carrera."
+    mascot: Baleia (ballena)
+    colors: [negro, blanco]
+    review_status: draft
+
+  - slug: flamengo
+    identity:
+      - "Nació como club de remo en 1895, en Río de Janeiro."
+      - "El Urubu (buitre negro), que los rivales usaban como burla, fue adoptado por la afición en 1969."
+    mascot: Urubu (buitre negro)
+    colors: [rojo, negro]
+    fans: { demonym: flamenguista, group_nicknames: [Nación Rubronegra] }
+    review_status: draft
+
+  - slug: fluminense
+    identity:
+      - "Fundado en 1902 en el barrio de Laranjeiras; campeón de la Copa Libertadores 2023."
+      - "El apodo Pó de Arroz (polvo de arroz), nacido como burla en 1914, fue resignificado por la afición."
+    mascot: Cartola (sombrero de copa)
+    colors: [granate, verde, blanco]
+    review_status: draft
+
+  - slug: botafogo
+    identity:
+      - "Surgió de la fusión, el 8 de diciembre de 1942, del Club de Regatas Botafogo (1894) con el Botafogo Football Club (1904)."
+      - "La Estrella Solitaria del escudo se volvió sinónimo del club."
+    mascot: Biriba (perro)
+    colors: [negro, blanco]
+    review_status: draft
+
+  - slug: vasco-da-gama
+    identity:
+      - "Fundado en 1898 por remeros; su nombre homenajea al navegante Vasco da Gama."
+      - "Campeón carioca de 1923 con los Camisas Negras, un equipo formado en su mayoría por jugadores negros y trabajadores."
+    mascot: Almirante
+    colors: [negro, blanco]
+    review_status: draft
+
+  - slug: atletico-mineiro
+    identity:
+      - "Fundado en 1908 en Belo Horizonte; campeón de la Copa Libertadores 2013, cuando el lema Eu acredito («Yo creo») impulsó a la afición."
+    mascot: Galo (gallo)
+    colors: [negro, blanco]
+    review_status: draft
+
+  - slug: cruzeiro
+    identity:
+      - "Fundado en 1921 como Palestra Italia por inmigrantes italianos; adoptó el nombre Cruzeiro en 1942."
+    mascot: Raposa (zorro)
+    colors: [azul, blanco]
+    fans: { demonym: cruzeirense, group_nicknames: [Nación Azul] }
+    review_status: draft
+
+  - slug: gremio
+    identity:
+      - "Fundado en 1903 en Porto Alegre; conocido como el Inmortal Tricolor."
+    mascot: Mosqueteiro (mosquetero)
+    colors: [azul, negro, blanco]
+    review_status: draft
+
+  - slug: internacional
+    identity:
+      - "Fundado en 1909 en Porto Alegre; apodado el Club del Pueblo."
+    mascot: Saci (personaje del folclore brasileño)
+    colors: [rojo, blanco]
+    review_status: draft
+
+  - slug: athletico-paranaense
+    identity:
+      - "Fundado en 1924 en Curitiba."
+      - "Desde 2024 el nombre institucional del estadio es Estádio Mario Celso Petraglia; el apodo Arena da Baixada sigue en uso y el contrato anterior de naming rights terminó en 2025."
+    mascot: Furacão (huracán)
+    colors: [rojo, negro]
+    review_status: draft
+
+  - slug: coritiba
+    identity:
+      - "Fundado en 1909 por descendientes de alemanes; es el club más antiguo de Paraná."
+    mascot: Vovô Coxa (abuelo Coxa)
+    colors: [verde, blanco]
+    review_status: draft
+
+  - slug: bahia
+    identity:
+      - "Fundado el 1 de enero de 1931 en Salvador; primer campeón de la Taça Brasil, en 1959."
+    mascot: Superman
+    colors: [azul, rojo, blanco]
+    review_status: draft
+
+  - slug: vitoria-ba
+    identity:
+      - "Fundado en 1899, es uno de los clubes de fútbol más antiguos de Brasil."
+    mascot: León
+    colors: [rojo, negro]
+    fans: { demonym: rubronegro }
+    review_status: draft
+
+  - slug: chapecoense
+    identity:
+      - "Fundada en 1973 en Chapecó; declarada campeona de la Copa Sudamericana 2016."
+    mascot: Indio Condá
+    colors: [verde, blanco]
+    review_status: draft
+
+  - slug: mirassol
+    identity:
+      - "Club del interior de São Paulo que debutó en la Serie A en 2025."
+    mascot: León
+    colors: [amarillo, verde]
+    review_status: draft
+
+  - slug: red-bull-bragantino
+    identity:
+      - "Fundado en 1928 como Clube Atlético Bragantino; pasó a llamarse Red Bull Bragantino en 2020."
+    mascot: Toro
+    colors: [blanco, rojo]
+    review_status: draft
+
+  - slug: remo
+    identity:
+      - "Fundado en 1905 en Belém; disputa la Serie A 2026, la primera en la era de los puntos corridos."
+    mascot: León
+    colors: [azul, blanco]
+    review_status: draft
+
+  - slug: sport-recife
+    identity:
+      - "Fundado en 1905 en Recife, por iniciativa de Guilherme de Aquino Fonseca."
+    mascot: León
+    colors: [rojo, negro]
+    fans: { demonym: rubronegro }
+    review_status: draft
+
+  - slug: nautico
+    identity:
+      - "Fundado en 1901 como club de remo a orillas del río Capibaribe."
+    mascot: Timbu (zarigüeya)
+    colors: [rojo, blanco]
+    fans: { demonym: albirrojo }
+    review_status: draft
+
+  - slug: santa-cruz
+    identity:
+      - "Fundado en 1914 en Recife; conocido como Cobra Coral."
+    mascot: Cobra-coral (serpiente de coral)
+    colors: [negro, blanco, rojo]
+    review_status: draft
+
+  - slug: ceara
+    identity:
+      - "Fundado en 1914 en Fortaleza; ganó el primer Clássico-Rei, en 1918."
+    mascot: Vovô (abuelo)
+    colors: [negro, blanco]
+    fans: { demonym: albinegro }
+    review_status: draft
+
+  - slug: fortaleza
+    identity:
+      - "Fundado en 1918; fue finalista de la Copa Sudamericana 2023 y es tricampeón de la Copa do Nordeste."
+    mascot: León
+    colors: [rojo, azul, blanco]
+    review_status: draft
+
+  - slug: paysandu
+    identity:
+      - "Fundado en 1914 en Belém; también juega de local en el Mangueirão (Estadio Olímpico de Pará)."
+    mascot: Lobo
+    colors: [azul, blanco]
+    review_status: draft
+
+  - slug: criciuma
+    identity:
+      - "Fundado en 1947 como Comerciário; campeón de la Copa de Brasil 1991."
+    mascot: Tigre
+    colors: [amarillo, negro, blanco]
+    review_status: draft
+
+  - slug: avai
+    identity:
+      - "Fundado en 1923 en Florianópolis; conocido como el León de la Isla."
+    mascot: León
+    colors: [azul, blanco]
+    review_status: draft
+
+  - slug: figueirense
+    identity:
+      - "Fundado en 1921 en el barrio de Estreito, en Florianópolis."
+    mascot: Furacão (huracán)
+    colors: [negro, blanco]
+    fans: { demonym: albinegro }
+    review_status: draft
+
+  - slug: juventude
+    identity:
+      - "Fundado en 1913 en Caxias do Sul; campeón de la Copa de Brasil 1999."
+    mascot: Periquito
+    colors: [verde, blanco]
+    review_status: draft
+
+  - slug: goias
+    identity:
+      - "Fundado en 1943 en Goiânia; juega de local en la Serrinha."
+    mascot: Periquito
+    colors: [verde, blanco]
+    review_status: draft
+
+  - slug: atletico-goianiense
+    identity:
+      - "Fundado en 1937 en el barrio de Campinas, en Goiânia; apodado el Dragón."
+    mascot: Dragón
+    colors: [rojo, negro]
+    review_status: draft
+
+  - slug: america-mineiro
+    identity:
+      - "Fundado en 1912; el apodo Decacampeão viene de los diez títulos mineros consecutivos (1916–1925)."
+    mascot: Coelho (conejo)
+    colors: [verde, negro, blanco]
+    review_status: draft
+
+  - slug: cuiaba
+    identity:
+      - "Fundado en 2001; juega de local en el Arena Pantanal, construido para la Copa del Mundo 2014."
+    mascot: Dourado (dorado, un pez)
+    colors: [verde, amarillo]
+    review_status: draft
+
+  - slug: ponte-preta
+    identity:
+      - "Fundada en 1900 en Campinas; el nombre viene del barrio de Ponte Preta («puente negro»), bautizado por un puente ferroviario de madera pintado con brea."
+    mascot: Macaca (mona)
+    colors: [negro, blanco]
+    review_status: draft
+
+  - slug: guarani-sp
+    identity:
+      - "Fundado en 1911; su nombre homenajea a la ópera O Guarani, de Carlos Gomes."
+      - "Campeón brasileño de 1978."
+    mascot: Indio
+    colors: [verde, blanco]
+    review_status: draft
+
+derbies:
+  # ── Brasil (football/derbies/br.yaml) ────────────────────────────────────────────────────────────
+  - slug: derby-paulista
+    origin: "Nombre dado por el periodista Thomaz Mazzoni en referencia al Derby de Epsom, una carrera de caballos inglesa."
+    trivia:
+      - "En el primer partido, Palestra Italia ganó 3 a 0, con tres goles de Caetano."
+    review_status: draft
+
+  - slug: choque-rei
+    origin: "Nombre atribuido al periodista Thomaz Mazzoni, de A Gazeta Esportiva, en la década de 1940."
+    trivia:
+      - "El primer enfrentamiento, en el Estadio da Floresta, terminó empatado 2 a 2."
+      - "Un Choque-Rei de 1950 en el Pacaembu fue el primer evento deportivo transmitido en vivo por la televisión brasileña desde un estadio."
+    review_status: draft
+
+  - slug: majestoso
+    origin: "Apodo dado por el periodista Thomaz Mazzoni, de A Gazeta Esportiva."
+    trivia:
+      - "El primer partido, en el Parque São Jorge, terminó Corinthians 2 a 1."
+    review_status: draft
+
+  - slug: san-sao
+    origin: "Nombre creado por el periodista Thomaz Mazzoni, de A Gazeta Esportiva, en 1956."
+    trivia:
+      - "Pelé marcó su gol número 500 en un San-São en la Vila Belmiro, el 2 de septiembre de 1962."
+    review_status: draft
+
+  - slug: classico-alvinegro
+    origin: "El nombre viene del negro y el blanco que usan ambos clubes."
+    trivia:
+      - "En 2002, las bicicletas de Robinho en la final del Brasileirão marcaron la historia del clásico."
+    review_status: draft
+
+  - slug: classico-da-saudade
+    origin: "Remite a la década de 1960, cuando el Santos de Pelé y el Palmeiras de Ademir da Guia dominaban el fútbol paulista."
+    trivia:
+      - "El primer partido fue un amistoso benéfico a favor de las víctimas de la sequía de 1915 en el Nordeste."
+      - "En 1958, por el Torneo Río-São Paulo, Santos ganó 7 a 6 en el Pacaembu."
+    review_status: draft
+
+  - slug: derbi-campineiro
+    trivia:
+      - "El mayor público registrado fue de 38.948 personas, en el Pacaembu, en 1979."
+    review_status: draft
+
+  - slug: fla-flu
+    origin: "Nombre popularizado por el periodista Mário Filho en 1933."
+    trivia:
+      - "La final del Campeonato Carioca de 1963 reunió a 194.603 espectadores en el Maracaná."
+      - "Desde 2012 el Fla-Flu es patrimonio cultural inmaterial de la ciudad de Río de Janeiro."
+    review_status: draft
+
+  - slug: classico-dos-milhoes
+    trivia:
+      - "La mayor goleada del clásico es el 7 a 0 de Vasco en 1931, por el Campeonato Carioca."
+    review_status: draft
+
+  - slug: classico-da-rivalidade
+    origin: "El enfrentamiento empezó a llamarse así a partir de la década de 1960."
+    trivia:
+      - "En el primer partido, Botafogo ganó 1 a 0 en General Severiano."
+    review_status: draft
+
+  - slug: classico-vovo
+    origin: "El nombre refleja que Botafogo y Fluminense son los clubes de fútbol más antiguos entre los grandes de Río («vovô» es abuelo en portugués)."
+    trivia:
+      - "El título carioca de 1907 estuvo en disputa durante 89 años, hasta que se repartió entre los dos clubes en 1996."
+    review_status: draft
+
+  - slug: classico-dos-gigantes
+    origin: "Nombre elegido por los lectores del diario Lance! en una votación que terminó el 17 de mayo de 2006."
+    trivia:
+      - "Es el único clásico carioca que ya se jugó por la Copa Libertadores."
+    review_status: draft
+
+  - slug: classico-da-amizade
+    origin: "Nombre dado por la prensa por la buena relación histórica entre las aficiones."
+    trivia:
+      - "El récord de público es de 149.005 personas, en el Maracaná, en 1968."
+    review_status: draft
+
+  - slug: classico-mineiro
+    trivia:
+      - "En el primer partido, Palestra Italia (hoy Cruzeiro) ganó 3 a 0."
+      - "El récord de público es de 123.351 personas, en el Mineirão, en 1969."
+    review_status: draft
+
+  - slug: gre-nal
+    origin: "Término creado en 1926 por el periodista Ivo dos Santos Martins para abreviar los nombres de los clubes."
+    trivia:
+      - "El primer Gre-Nal terminó Grêmio 10 a 0, con cinco goles de Edgar Booth."
+    review_status: draft
+
+  - slug: atletiba
+    origin: "Combinación de los nombres Atlético y Coritiba."
+    trivia:
+      - "Un Atletiba de 1934 fue el primer partido de fútbol transmitido por radio en Paraná."
+    review_status: draft
+
+  - slug: classico-da-capital-sc
+    trivia:
+      - "En el primer clásico, Figueirense remontó un 0 a 3 y ganó 4 a 3."
+    review_status: draft
+
+  - slug: ba-vi
+    origin: "Combinación de los nombres Bahia y Vitória."
+    trivia:
+      - "El primer Ba-Vi, por el Torneo Início, duró apenas 20 minutos."
+    review_status: draft
+
+  - slug: classico-rei
+    origin: "El diario O POVO llamó al partido Choque-Rei en 1962; el nombre pronto se convirtió en Clássico-Rei."
+    trivia:
+      - "En el primer enfrentamiento, Ceará le ganó 2 a 0 al recién fundado Fortaleza."
+    review_status: draft
+
+  - slug: classico-das-multidoes-recife
+    origin: "Reúne a los dos clubes más populares de la ciudad de Recife."
+    trivia:
+      - "El récord de público es de 76.682 personas, en el Arruda, en 1999."
+    review_status: draft
+
+  - slug: classico-dos-classicos
+    origin: "Antes llamado Fla-Flu pernambucano, recibió su nombre actual en un anuncio del Jornal Pequeno del 18 de agosto de 1945."
+    trivia:
+      - "Es el clásico más antiguo del Nordeste y el tercero más antiguo de Brasil."
+    review_status: draft
+
+  - slug: classico-das-emocoes
+    trivia:
+      - "El partido del centenario, en 2017, otorgó la Taça Gena, homenaje a un exjugador que fue campeón con los dos clubes."
+    review_status: draft
+
+  - slug: re-pa
+    origin: "Combinación de los nombres Remo y Paysandu."
+    trivia:
+      - "En 2016 el clásico fue declarado patrimonio cultural inmaterial de Pará."
+    review_status: draft
+
+  - slug: classico-do-equilibrio
+    origin: "El apodo viene de la competitividad y el equilibrio histórico entre los dos clubes."
+    review_status: draft
+
+  - slug: classico-do-povo
+    origin: "Reúne a las dos aficiones más grandes de Brasil."
+    review_status: draft

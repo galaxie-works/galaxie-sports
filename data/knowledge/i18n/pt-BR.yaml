@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=../schemas/i18n.schema.json
+#
+# Português do Brasil para os textos escritos em espanhol (arquivos com text_locale: es). Mesmos fatos
+# do original, na mesma ordem (docs/06 §3.3).
+schema_version: 1
+locale: pt-BR
+
+teams:
+  # ── Argentina (football/teams/ar.yaml) ───────────────────────────────────────────────────────────
+  - slug: boca-juniors
+    identity:
+      - "Fundado no bairro de La Boca, de tradição genovesa; daí o apelido Xeneize."
+      - "Joga na Bombonera, um dos estádios mais emblemáticos do futebol mundial."
+    colors: [azul, ouro]
+    review_status: draft
+
+  - slug: river-plate
+    identity:
+      - "Nasceu em La Boca em 1901 e depois se mudou para o bairro de Núñez."
+      - "A camisa branca com a faixa vermelha transversal é um de seus símbolos."
+    colors: [branco, vermelho]
+    review_status: draft
+
+  - slug: independiente
+    identity:
+      - "Conhecido como Rei de Copas pelo recorde de 7 Copas Libertadores."
+      - "Adotou o vermelho em 1908; suas primeiras camisas eram brancas."
+    colors: [vermelho]
+    fans: { demonym: torcedor do Rojo }
+    review_status: draft
+
+  - slug: racing-club
+    identity:
+      - "Primeiro clube argentino campeão intercontinental (1967)."
+    colors: [celeste, branco]
+    review_status: draft
+
+  - slug: san-lorenzo
+    identity:
+      - "O nome homenageia o padre Lorenzo Massa, que deu abrigo aos jovens fundadores."
+      - "Ganhou a Copa Libertadores em 2014."
+    colors: [azul, vermelho]
+    review_status: draft
+
+derbies:
+  # ── América do Sul (football/derbies/south-america.yaml) ─────────────────────────────────────────
+  - slug: superclasico-argentino
+    origin: "Os dois clubes nasceram no bairro portenho de La Boca, no começo do século XX."
+    trivia:
+      - "O primeiro jogo oficial, em 1913, foi vencido pelo River por 2 a 1."
+    review_status: draft
+
+  - slug: clasico-de-avellaneda
+    origin: "Os dois clubes são de Avellaneda, e seus estádios ficam a poucas quadras um do outro."
+    review_status: draft
+
+  - slug: clasico-san-lorenzo-huracan
+    origin: "Rivalidade de bairro em Buenos Aires: durante anos os estádios dos dois clubes ficaram a poucas quadras de distância."
+    trivia:
+      - "O primeiro jogo oficial, em 1915, foi vencido pelo San Lorenzo por 3 a 1."
+      - "José Sanfilippo é o maior artilheiro da história do clássico."
+    review_status: draft

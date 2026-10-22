@@ -1,4 +1,5 @@
 schema_version: 1
+text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: AR
 teams:
   - slug: boca-juniors
@@ -29,6 +30,8 @@ teams:
     copy_hints:
       es-AR:
         cheer: ["¡Dale Bo!", "¡Vamos Boca!", "Hoy alentamos al Xeneize"]
+      es:
+        cheer: ["¡Vamos, Boca!", "¡Arriba, Xeneize!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Boca_Juniors"
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
@@ -64,6 +67,8 @@ teams:
     copy_hints:
       es-AR:
         cheer: ["¡Vamos River!", "¡Dale Millo!", "Hoy alentamos a la Banda"]
+      es:
+        cheer: ["¡Vamos, River!", "¡Arriba, Millonario!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_River_Plate"
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
@@ -98,6 +103,8 @@ teams:
     copy_hints:
       es-AR:
         cheer: ["¡Vamos Rojo!", "Hoy alentamos al Rey de Copas"]
+      es:
+        cheer: ["¡Vamos, Rojo!", "¡Arriba, Rey de Copas!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Independiente"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
@@ -130,6 +137,8 @@ teams:
     copy_hints:
       es-AR:
         cheer: ["¡Vamos Racing!", "¡Vamos Academia!"]
+      es:
+        cheer: ["¡Vamos, Racing!", "¡Arriba, Academia!"]
     sources:
       - "https://es.wikipedia.org/wiki/Racing_Club"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
@@ -163,6 +172,8 @@ teams:
     copy_hints:
       es-AR:
         cheer: ["¡Vamos Ciclón!", "Hoy alentamos al Cuervo"]
+      es:
+        cheer: ["¡Vamos, San Lorenzo!", "¡Arriba, Ciclón!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_San_Lorenzo_de_Almagro"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"

@@ -84,6 +84,13 @@ describe('seedSemantic', () => {
       sourceFile: 'data/knowledge/football/teams/br.yaml',
     });
     expect(palmeiras!.rivals).toContainEqual({ team: 'sao-paulo', derby: 'choque-rei', intensity: 4 });
+    // textos livres por idioma (docs/06 §3.3): original em pt-BR, traduções de i18n/<locale>.yaml
+    expect(palmeiras!.textLocale).toBe('pt-BR');
+    expect(palmeiras!.texts['es']).toMatchObject({ mascot: 'Porco (cerdo)', review_status: 'draft' });
+    expect(palmeiras!.texts['es-AR']!.identity![1]).toContain('hinchada');
+    expect(palmeiras!.texts['es-AR']).not.toHaveProperty('note'); // observação editorial fica só no YAML
+    const [boca] = await db.select().from(teamProfile).where(eq(teamProfile.slug, 'boca-juniors'));
+    expect(boca).toMatchObject({ textLocale: 'es', texts: { 'pt-BR': { colors: ['azul', 'ouro'] } } });
     const [brazil] = await db.select().from(teamProfile).where(eq(teamProfile.slug, 'brazil-nt'));
     expect(brazil).toMatchObject({ kind: 'national_team', countryCode: 'BR', worldCupTitles: 5 });
     // outros esportes (issue #44): tipo do arquivo de participantes, ainda sem vínculo com o core

@@ -44,6 +44,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Avanti, Palestra!", "Vai, Verdão!"]
+      es:
+        cheer: ["¡Vamos, Verdão!", "¡Arriba, Palmeiras!"]
+      es-AR:
+        cheer: ["¡Dale, Verdão, que hoy lo ganás!", "¡Aguante, Palmeiras!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Verdão!", "¡Dale, Palmeiras, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Verdão!", "¡Arriba el Palmeiras!"]
+      es-CO:
+        cheer: ["¡Hágale, Verdão!", "¡Vamos, Palmeiras, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Verdão!", "¡Vamos, Palmeiras, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Verdão, con todo!", "¡Ya po, Palmeiras, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Verdão, de una!", "¡Fuerza, Palmeiras!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras"
       - "https://www.lance.com.br/palmeiras/abel-ferreira-explica-como-surgiu-o-grito-motivacional-avanti-palestra.html"
@@ -87,6 +103,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Vai, Corinthians!", "Vai, Timão!"]
+      es:
+        cheer: ["¡Vamos, Timão!", "¡Arriba, Corinthians!"]
+      es-AR:
+        cheer: ["¡Dale, Timão, que hoy lo ganás!", "¡Aguante, Corinthians!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Timão!", "¡Dale, Corinthians, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Timão!", "¡Arriba el Corinthians!"]
+      es-CO:
+        cheer: ["¡Hágale, Timão!", "¡Vamos, Corinthians, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Timão!", "¡Vamos, Corinthians, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Timão, con todo!", "¡Ya po, Corinthians, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Timão, de una!", "¡Fuerza, Corinthians!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Sport_Club_Corinthians_Paulista"
       - "https://www.mktesportivo.com/2026/04/corinthians-define-prazo-para-naming-rights-e-avanca-em-negociacao-com-a-caixa-sobre-a-arena/"
@@ -125,6 +157,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Vamos, São Paulo!", "Vai, Tricolor!"]
+      es:
+        cheer: ["¡Vamos, Tricolor!", "¡Arriba, São Paulo!"]
+      es-AR:
+        cheer: ["¡Dale, Tricolor, que hoy lo ganás!", "¡Aguante, São Paulo!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Tricolor!", "¡Dale, São Paulo, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Tricolor!", "¡Arriba el São Paulo!"]
+      es-CO:
+        cheer: ["¡Hágale, Tricolor!", "¡Vamos, São Paulo, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Tricolor!", "¡Vamos, São Paulo, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Tricolor, con todo!", "¡Ya po, São Paulo, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Tricolor, de una!", "¡Fuerza, São Paulo!"]
     sources:
       - "https://pt.wikipedia.org/wiki/São_Paulo_Futebol_Clube"
       - "https://www.band.com.br/esportes/corinthians-mudar-naming-rights-veja-estadios-serie-a-202603101201"
@@ -161,6 +209,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Peixe!", "Vai, Santos!"]
+      es:
+        cheer: ["¡Vamos, Peixe!", "¡Arriba, Santos!"]
+      es-AR:
+        cheer: ["¡Dale, Peixe, que hoy lo ganás!", "¡Aguante, Santos!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Peixe!", "¡Dale, Santos, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Peixe!", "¡Arriba el Santos!"]
+      es-CO:
+        cheer: ["¡Hágale, Peixe!", "¡Vamos, Santos, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Peixe!", "¡Vamos, Santos, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Peixe, con todo!", "¡Ya po, Santos, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Peixe, de una!", "¡Fuerza, Santos!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Santos_Futebol_Clube"
       - "https://www.opovo.com.br/agencia/jogada10/2026/07/31/santos-foca-nas-obras-da-vila-belmiro-enquanto-aguarda-wtorre.html"
@@ -200,6 +264,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Mengão!", "Vai, Flamengo!"]
+      es:
+        cheer: ["¡Vamos, Mengão!", "¡Arriba, Flamengo!"]
+      es-AR:
+        cheer: ["¡Dale, Mengão, que hoy lo ganás!", "¡Aguante, Flamengo!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Mengão!", "¡Dale, Flamengo, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Mengão!", "¡Arriba el Flamengo!"]
+      es-CO:
+        cheer: ["¡Hágale, Mengão!", "¡Vamos, Flamengo, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Mengão!", "¡Vamos, Flamengo, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Mengão, con todo!", "¡Ya po, Flamengo, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Mengão, de una!", "¡Fuerza, Flamengo!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Clube_de_Regatas_do_Flamengo"
       - "https://pt.wikipedia.org/wiki/Clássico_da_Rivalidade"
@@ -237,6 +317,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Saudações Tricolores!", "Vamos, Fluzão!"]
+      es:
+        cheer: ["¡Vamos, Flu!", "¡Arriba, Fluminense!"]
+      es-AR:
+        cheer: ["¡Dale, Flu, que hoy lo ganás!", "¡Aguante, Fluminense!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Flu!", "¡Dale, Fluminense, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Flu!", "¡Arriba el Fluminense!"]
+      es-CO:
+        cheer: ["¡Hágale, Flu!", "¡Vamos, Fluminense, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Flu!", "¡Vamos, Fluminense, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Flu, con todo!", "¡Ya po, Fluminense, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Flu, de una!", "¡Fuerza, Fluminense!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Fluminense_Football_Club"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
@@ -273,6 +369,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Fogão!", "Vai, Glorioso!"]
+      es:
+        cheer: ["¡Vamos, Fogão!", "¡Arriba, Botafogo!"]
+      es-AR:
+        cheer: ["¡Dale, Fogão, que hoy lo ganás!", "¡Aguante, Botafogo!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Fogão!", "¡Dale, Botafogo, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Fogão!", "¡Arriba el Botafogo!"]
+      es-CO:
+        cheer: ["¡Hágale, Fogão!", "¡Vamos, Botafogo, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Fogão!", "¡Vamos, Botafogo, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Fogão, con todo!", "¡Ya po, Botafogo, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Fogão, de una!", "¡Fuerza, Botafogo!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Botafogo_de_Futebol_e_Regatas"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
@@ -309,6 +421,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Casaca!", "Vamos, Vascão!"]
+      es:
+        cheer: ["¡Vamos, Vascão!", "¡Arriba, Vasco!"]
+      es-AR:
+        cheer: ["¡Dale, Vascão, que hoy lo ganás!", "¡Aguante, Vasco!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Vascão!", "¡Dale, Vasco, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Vascão!", "¡Arriba el Vasco!"]
+      es-CO:
+        cheer: ["¡Hágale, Vascão!", "¡Vamos, Vasco, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Vascão!", "¡Vamos, Vasco, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Vascão, con todo!", "¡Ya po, Vasco, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Vascão, de una!", "¡Fuerza, Vasco!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Club_de_Regatas_Vasco_da_Gama"
       - "https://www.lance.com.br/vasco/casaca-x-caza-conheca-a-origem-dos-canticos-de-vasco-e-sport.html"
@@ -345,6 +473,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Eu acredito!", "Vamos, Galo!"]
+      es:
+        cheer: ["¡Vamos, Galo!", "¡Arriba, Atlético!"]
+      es-AR:
+        cheer: ["¡Dale, Galo, que hoy lo ganás!", "¡Aguante, Atlético!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Galo!", "¡Dale, Atlético, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Galo!", "¡Arriba el Atlético!"]
+      es-CO:
+        cheer: ["¡Hágale, Galo!", "¡Vamos, Atlético, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Galo!", "¡Vamos, Atlético, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Galo, con todo!", "¡Ya po, Atlético, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Galo, de una!", "¡Fuerza, Atlético!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Clube_Atlético_Mineiro"
       - "https://www.correiobraziliense.com.br/esportes/2023/11/6661814-atletico-reacende-mantra-8216eu-acredito-8217-por-sonho-do-brasileirao.html"
@@ -380,6 +524,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Cruzeiro!", "Vai, Raposa!"]
+      es:
+        cheer: ["¡Vamos, Raposa!", "¡Arriba, Cruzeiro!"]
+      es-AR:
+        cheer: ["¡Dale, Raposa, que hoy lo ganás!", "¡Aguante, Cruzeiro!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Raposa!", "¡Dale, Cruzeiro, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy a la Raposa!", "¡Arriba el Cruzeiro!"]
+      es-CO:
+        cheer: ["¡Hágale, Raposa!", "¡Vamos, Cruzeiro, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Raposa!", "¡Vamos, Cruzeiro, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Raposa, con todo!", "¡Ya po, Cruzeiro, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Raposa, de una!", "¡Fuerza, Cruzeiro!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Cruzeiro_Esporte_Clube"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
@@ -413,6 +573,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Imortal!", "Vai, Grêmio!"]
+      es:
+        cheer: ["¡Vamos, Imortal!", "¡Arriba, Grêmio!"]
+      es-AR:
+        cheer: ["¡Dale, Imortal, que hoy lo ganás!", "¡Aguante, Grêmio!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Imortal!", "¡Dale, Grêmio, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Imortal!", "¡Arriba el Grêmio!"]
+      es-CO:
+        cheer: ["¡Hágale, Imortal!", "¡Vamos, Grêmio, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Imortal!", "¡Vamos, Grêmio, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Imortal, con todo!", "¡Ya po, Grêmio, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Imortal, de una!", "¡Fuerza, Grêmio!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Grêmio_Foot-Ball_Porto_Alegrense"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
@@ -446,6 +622,22 @@ teams:
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Inter!", "Vai, Colorado!"]
+      es:
+        cheer: ["¡Vamos, Colorado!", "¡Arriba, Inter!"]
+      es-AR:
+        cheer: ["¡Dale, Colorado, que hoy lo ganás!", "¡Aguante, Inter!"]
+      es-UY:
+        cheer: ["¡Vamo arriba, Colorado!", "¡Dale, Inter, que vos podés!"]
+      es-MX:
+        cheer: ["¡Le voy al Colorado!", "¡Arriba el Inter!"]
+      es-CO:
+        cheer: ["¡Hágale, Colorado!", "¡Vamos, Inter, con toda la barra!"]
+      es-PE:
+        cheer: ["¡Arriba, Colorado!", "¡Vamos, Inter, la barra está contigo!"]
+      es-CL:
+        cheer: ["¡Vamos, Colorado, con todo!", "¡Ya po, Inter, a ganar!"]
+      es-EC:
+        cheer: ["¡Vamos, Colorado, de una!", "¡Fuerza, Inter!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Sport_Club_Internacional"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
