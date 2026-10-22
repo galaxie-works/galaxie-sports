@@ -20,20 +20,23 @@ Rótulos curtos (até ~30 caracteres), do ponto de vista de quem torce para o ti
 Os stakes de mera possibilidade são matemáticos: com 7 rodadas, o 4º a 16 pontos do líder ainda tem
 `in_title_race`. Na tag do torcedor isso soa falso, então, com a tabela (`core.standing`) e o
 regulamento em mãos, três famílias só viram tag com proximidade real. Os `stakes` e suas frases não
-mudam; as tags decisivas (`can_clinch_title`, `clinches_title_with_*`, `relegated_unless_wins`,
-`can_be_relegated`, `can_clinch_zone`…) valem sempre.
+mudam; as tags decisivas de título, queda e vaga (`can_clinch_title`, `clinches_title_with_*`,
+`relegated_unless_wins`, `can_be_relegated`, `can_clinch_zone`…) valem sempre. As de permanência
+seguem o critério do rebaixamento.
 
 | Família | Vira tag quando | Constante |
 |---|---|---|
 | `in_title_race` | distância para o líder ≤ max(6, rodadas restantes do time); o líder entra | `FAN_TAG_TITLE_MIN_GAP` |
 | `at_risk_of_relegation` | o time está na zona de rebaixamento ou até 6 pontos acima do primeiro time dentro dela | `FAN_TAG_RELEGATION_MAX_GAP` |
+| `secures_safety_with_draw`, `secures_safety_with_win`, `can_secure_safety`, `safe_from_relegation` | o mesmo critério do rebaixamento: na zona ou até 6 pontos acima do primeiro time dentro dela (permanência só interessa a quem está perto da zona) | `FAN_TAG_RELEGATION_MAX_GAP` |
 | `can_qualify_for_zone` | distância para o último time dentro da zona ≤ max(6, rodadas restantes do time) | `FAN_TAG_ZONE_MIN_GAP` |
 
 Rodadas restantes = jogos da fase no regulamento (`matchesPerTeam`) − jogos do time. Sem tabela
 (mata-mata, competição sem regulamento) nada é filtrado. Exemplo (Brasileirão 2026, faltando 7
 rodadas): Cruzeiro, 16 pontos atrás do líder, fica sem "Na briga pelo título"; São Paulo e
 RB Bragantino, 10 e 9 pontos acima do Z4, ficam sem "Luta contra o rebaixamento"; Vitória e Mirassol
-(5 e 4 pontos acima) mantêm a tag.
+(5 e 4 pontos acima) mantêm a tag. Cruzeiro, Athletico, Bahia e Atlético-MG, no alto da tabela, ficam
+sem "Vitória/Empate garante a permanência" e "Pode se salvar hoje", que valem só perto da zona.
 
 Exemplos com `n = 2` (ou `n = 1` para empates específicos).
 

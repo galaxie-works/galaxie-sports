@@ -709,8 +709,10 @@ export function fanTagStanding(
 }
 
 /**
- * O stake de mera possibilidade é relevante para o torcedor? Título: até max(6, rodadas restantes) do
- * líder. Rebaixamento: dentro da zona ou até 6 pontos acima do primeiro time nela. Vaga: até
+ * O stake é relevante para o torcedor? Título (`in_title_race`): até max(6, rodadas restantes) do
+ * líder. Rebaixamento e permanência (`at_risk_of_relegation`, `secures_safety_with_*`,
+ * `can_secure_safety`, `safe_from_relegation`): dentro da zona ou até 6 pontos acima do primeiro time
+ * nela — "Vitória garante a permanência" não faz sentido para o 4º colocado. Vaga: até
  * max(6, rodadas restantes) do último time dentro da zona. Demais códigos (inclusive os decisivos): sim.
  */
 export function isRelevantForFans(
@@ -726,6 +728,10 @@ export function isRelevantForFans(
         standing.leaderPoints - standing.points <= window(FAN_TAG_TITLE_MIN_GAP)
       );
     case 'at_risk_of_relegation':
+    case 'secures_safety_with_draw':
+    case 'secures_safety_with_win':
+    case 'can_secure_safety':
+    case 'safe_from_relegation':
       return (
         standing.relegation === null ||
         standing.rank >= standing.relegation.from ||

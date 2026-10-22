@@ -310,6 +310,32 @@ describe('relevância para o torcedor (Brasileirão 2026, 31 rodadas, faltam 7)'
     expect(tagsOf('bragantino', ['relegated_unless_wins'])).toEqual(['Vencer ou cair']);
   });
 
+  it('permanência: mesmo critério do rebaixamento (some no alto da tabela, fica perto da zona)', () => {
+    const safety: StakeFamily[] = [
+      'secures_safety_with_win',
+      'secures_safety_with_draw',
+      'can_secure_safety',
+      'safe_from_relegation',
+    ];
+    for (const team of ['cruzeiro', 'athletico', 'bahia', 'atletico-mg', 'flamengo'])
+      for (const f of safety) expect(tagsOf(team, [f]), `${team} ${f}`).toEqual([]);
+    // Corinthians, 1 ponto acima do Z4, e Grêmio, dentro dele, mantêm
+    expect(tagsOf('corinthians', ['secures_safety_with_win'])).toEqual(['Vitória garante a permanência']);
+    expect(tagsOf('corinthians', ['can_secure_safety'])).toEqual(['Pode se salvar hoje']);
+    expect(tagsOf('vitoria', ['secures_safety_with_draw'])).toEqual(['Empate garante a permanência']);
+    expect(tagsOf('gremio', ['can_secure_safety'])).toEqual(['Pode se salvar hoje']);
+    expect(tagsOf('mirassol', ['safe_from_relegation'])).toEqual(['Livre do rebaixamento']);
+    // no alto, só sobra o que é relevante: Cruzeiro fica com a vaga
+    expect(
+      tagsOf(
+        'cruzeiro',
+        ['secures_safety_with_win'],
+        ['in_title_race'],
+        ['can_qualify_for_zone', { zone: 'libertadores_group_stage' }],
+      ),
+    ).toEqual(['De olho na Libertadores']);
+  });
+
   it('vagas: até max(6, rodadas restantes) do último time dentro da zona', () => {
     const lib = { zone: 'libertadores_group_stage' };
     expect(tagsOf('bragantino', ['can_qualify_for_zone', lib])).toEqual([]); // 10 atrás do 4º
