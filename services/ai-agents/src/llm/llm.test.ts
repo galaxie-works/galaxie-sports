@@ -111,6 +111,19 @@ describe('retry com backoff', () => {
       retryable: true,
     });
     expect(classifyProviderError({ status: 503, message: 'x' }, 'openai')).toMatchObject({ retryable: true });
+    // conta sem crédito não é limite de taxa: não adianta tentar de novo
+    expect(
+      classifyProviderError(
+        { status: 429, code: 'insufficient_quota', message: 'You have no credits remaining.' },
+        'openai',
+      ),
+    ).toMatchObject({ kind: 'quota', retryable: false });
+    expect(
+      classifyProviderError(
+        { status: 400, message: 'Your credit balance is too low to access the API.' },
+        'anthropic',
+      ),
+    ).toMatchObject({ kind: 'quota', retryable: false });
     expect(classifyProviderError({ status: 401, message: 'x' }, 'openai')).toMatchObject({
       retryable: false,
     });
