@@ -161,12 +161,25 @@ export async function readEventContext(
   return readStoredContext<StoredContextContent>(db, eventId, options);
 }
 
-/** Hash dos fatos da geração mais recente por locale (para não regenerar o que não mudou). */
+/**
+ * O texto determinístico saiu porque o LLM falhou (erro de API, orçamento, timeout), não porque
+ * reprovou nos guardrails: vale tentar de novo na próxima rodada, mesmo com os fatos iguais.
+ */
+export function fellBackOnLlmError(content: StoredContextContent): boolean {
+  return content.origin === 'fallback' && content.run.llmCalls > 0 && content.run.errors.length > 0;
+}
+
+/**
+ * Hash dos fatos da geração mais recente por locale (para não regenerar o que não mudou). Fica de
+ * fora o locale cujo texto caiu no determinístico por falha do LLM, para ser regerado.
+ */
 export async function latestFactsHashes(
   db: Database,
   eventId: string,
   kind: ContextKind,
 ): Promise<Map<string, string>> {
   const rows = await readEventContext(db, eventId, { kinds: [kind] });
-  return new Map(rows.map((r) => [r.locale, r.content.factsHash]));
+  return new Map(
+    rows.filter((r) => !fellBackOnLlmError(r.content)).map((r) => [r.locale, r.content.factsHash]),
+  );
 }

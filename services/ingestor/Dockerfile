@@ -12,18 +12,24 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm fetch --frozen-lockfile
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --offline
-RUN pnpm --filter "@galaxie/ingestor..." run build
+RUN pnpm --filter "@galaxie/ingestor..." --filter "@galaxie/ai-agents..." run build
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm --filter @galaxie/ingestor deploy --prod --legacy /out
+    pnpm --filter @galaxie/ingestor deploy --prod --legacy /out && \
+    pnpm --filter @galaxie/ai-agents deploy --prod --legacy /out-agents
 
 FROM ${NODE_IMAGE} AS runtime
 RUN apk add --no-cache tini
-ENV NODE_ENV=production SCHEDULER_HEARTBEAT_FILE=/tmp/galaxie-scheduler.heartbeat
+ENV NODE_ENV=production SCHEDULER_HEARTBEAT_FILE=/tmp/galaxie-scheduler.heartbeat \
+    RULES_CONFIG_DIR=/srv/config/rules WTW_CONFIG_DIR=/srv/config
 # Mesmo layout do repositório: os CLIs resolvem ../../config e ../../data a partir do pacote.
 WORKDIR /srv/services/ingestor
 COPY --from=build /out/package.json ./package.json
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/dist ./dist
+# Agentes de IA: mesmo scheduler, perfil `agents` (SCHEDULER_PROFILE=agents → serviço `agents` da stack)
+COPY --from=build /out-agents/package.json /srv/services/ai-agents/package.json
+COPY --from=build /out-agents/node_modules /srv/services/ai-agents/node_modules
+COPY --from=build /out-agents/dist /srv/services/ai-agents/dist
 COPY --from=build /repo/config /srv/config
 COPY --from=build /repo/data/knowledge /srv/data/knowledge
 USER node

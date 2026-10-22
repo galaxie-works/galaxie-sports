@@ -14,7 +14,10 @@ export const DEFAULT_RULES_SLUG = 'default';
 
 /** `config/rules` na raiz do monorepo (mesma profundidade em src/ e dist/). */
 export function defaultRulesDir(): string {
-  return fileURLToPath(new URL('../../../../config/rules/', import.meta.url));
+  // RULES_CONFIG_DIR: imagens Docker, onde o pacote não fica na árvore do monorepo
+  return (
+    process.env.RULES_CONFIG_DIR ?? fileURLToPath(new URL('../../../../config/rules/', import.meta.url))
+  );
 }
 
 export interface LoadRulesOptions {

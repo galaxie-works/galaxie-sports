@@ -81,8 +81,9 @@ export async function runJob(job: ScheduledJob, options: RunOptions): Promise<Ru
   const outcome = await new Promise<
     Pick<RunResult, 'exitCode' | 'signal' | 'timedOut'> & { spawnError?: Error }
   >((done) => {
-    const child = spawn(process.execPath, [resolve(options.cwd, job.script), ...job.args], {
-      cwd: options.cwd,
+    const cwd = resolve(options.cwd, job.cwd ?? '.');
+    const child = spawn(process.execPath, [resolve(cwd, job.script), ...job.args], {
+      cwd,
       env: { ...(options.env ?? process.env), ...(runId ? { GALAXIE_SCHEDULER_RUN_ID: runId } : {}) },
       stdio: ['ignore', 'inherit', 'inherit'],
     });
