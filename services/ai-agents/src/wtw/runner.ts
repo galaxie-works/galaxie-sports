@@ -201,6 +201,12 @@ export class WtwRunner {
           ),
         );
       }
+      if (res.retryLater) {
+        await this.requeue(group.map((g) => g.run));
+        this.log(
+          `${group[0]!.group}: alocação adiada (${res.reasons.values().next().value ?? ''}) — volta para a fila`,
+        );
+      }
     }
     if (fetcher.hits)
       this.log(`cache de páginas: ${fetcher.size} URLs buscadas, ${fetcher.hits} reaproveitadas`);
@@ -233,6 +239,8 @@ export class WtwRunner {
     notes: string | null;
     calls: number;
     deferred: boolean;
+    /** Falha passageira na alocação: publica os direitos agora e devolve as execuções para a fila. */
+    retryLater?: boolean;
   }> {
     const byEvent: AllocationResult['byEvent'] = new Map();
     const shares = new Map<string, CallShare>();
@@ -281,6 +289,10 @@ export class WtwRunner {
     const round = roundKeyOf(first.info.round, first.info.startsAt);
     let notes: string | null = null;
     let calls = 0;
+    // falha passageira (orçamento, conta sem crédito, limite de taxa, provedor fora): a rodada volta
+    // para a fila em vez de fechar como "feita" só com os direitos — senão nunca mais é alocada
+    let transient: string | null = null;
+    let allocatedAny = false;
     for (const [i, chunk] of chunks.entries()) {
       const ids = new Set(chunk.map((e) => e.id));
       const inChunk = used.filter((c) => ids.has(c.info.id));
@@ -318,6 +330,7 @@ export class WtwRunner {
       calls++;
       try {
         const res = await agent.allocate({ competition: comp, round, events: chunk, markets });
+        allocatedAny = true;
         for (const [ev, perCountry] of res.byEvent) byEvent.set(ev, perCountry);
         notes = res.notes;
         const usage = res.result.usage as UsageWithSearches;
@@ -353,9 +366,21 @@ export class WtwRunner {
           now: this.now(),
         });
         for (const m of marketsHere) reasons.set(m, `alocação falhou: ${message.slice(0, 200)}`);
+        if (isTransient(err)) transient ??= message.slice(0, 200);
       }
     }
-    return { byEvent, shares, reasons, reason: 'alocação por rodada', notes, calls, deferred: false };
+    // os direitos saem agora (como antes); a alocação fica para a próxima rodada do agendador
+    const retryLater = !!transient && !allocatedAny && !manual;
+    return {
+      byEvent,
+      shares,
+      reasons,
+      reason: 'alocação por rodada',
+      notes,
+      calls,
+      deferred: false,
+      retryLater,
+    };
   }
 
   /** Monta as candidatas (alocação + direitos + opções salvas), valida e grava. */
@@ -481,4 +506,12 @@ function countBy<T>(items: T[], key: (t: T) => string): Record<string, number> {
   const out: Record<string, number> = {};
   for (const i of items) out[key(i)] = (out[key(i)] ?? 0) + 1;
   return out;
+}
+
+/** Falhas que passam sozinhas (orçamento do dia, crédito, limite de taxa, provedor): vale tentar de novo. */
+function isTransient(err: unknown): boolean {
+  if (err instanceof BudgetExceededError) return true;
+  return (
+    err instanceof LlmError && ['budget', 'quota', 'rate_limit', 'timeout', 'provider'].includes(err.kind)
+  );
 }
