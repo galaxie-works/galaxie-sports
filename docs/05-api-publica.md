@@ -427,9 +427,11 @@ GET /v1/events/{id}/where-to-watch?country=BR&region=SP&locale=pt-BR
       "confidence": 0.97,
       "status": "confirmed",
       "last_verified_at": "2026-10-21T12:00:00Z",
-      "sources": [ { "publisher": "Organizador da competição", "url": "https://…" } ]
+      "sources": [ { "publisher": "Organizador da competição", "url": "https://…" } ],
+      "logo": "https://assets.…/broadcasters/3f2a….png"
     }
   ],
+  "to_confirm": [],
   "updated_at": "2026-10-21T12:00:00Z"
 }
 ```
@@ -439,6 +441,7 @@ Regras de contrato:
 | Regra | Comportamento |
 |---|---|
 | Sem informação confiável | `status: "unknown"`, `options: []` e `message` localizada ("Não temos as informações de transmissão ainda.") — o evento **continua** existindo |
+| Detentores conhecidos, jogo ainda não alocado | `options: []` e `to_confirm` com os detentores de direitos do país ("canal a confirmar"); some assim que alguma opção for confirmada |
 | Conflito entre fontes ou confiança < limiar | Opção **omitida** (registrada internamente como `omitted`) |
 | Mesma plataforma vinda de várias fontes | Deduplicada; fontes agregadas em `sources` |
 | Correção aceita (inclusão/remoção) | Propagada ao cliente em **≤ 5 min** (purge de cache + SSE + webhook `where_to_watch.changed`). O trigger de `enrich.broadcast_option` publica a mudança no change feed sem depender do writer; purge das tags `where_to_watch:<evento>` e `event:<evento>` em < 1 s (§5, §7.1) |
@@ -449,10 +452,20 @@ Regras de contrato:
 
 - **Rota:** `GET /v1/events/{id}/where-to-watch?country=BR[&region=SP][&locale=][&tz=]` (`apps/api/src/routes/v1/where-to-watch.ts`). Exige o módulo `where_to_watch` e o país em `tenant.markets` (`MARKET_NOT_IN_PLAN`); evento inexistente → 404. `country` é ISO2 (case-insensitive); país fora dos 8 mercados responde `unknown`.
 - **O que sai:** só a versão vigente com `status: confirmed` de cada opção (`enrich.broadcast_option` com `superseded_by` nulo). `pending` (0,5–0,7, emissora desconhecida), `omitted` (conflito) e `retracted` (removida) ficam só internamente. Campos extras em relação ao exemplo acima: `provider_id` (id do dicionário `config/broadcasters/<iso2>.yaml`) e `watch_url`.
+- **Logo e "a confirmar":** cada opção traz `logo` (URL do nosso storage quando já espelhado; senão a origem; `null` sem logo com origem conhecida). `to_confirm` lista os detentores de direitos sem o jogo garantido (status interno `probable`), só quando `options` está vazio.
 - **Região:** com `region`, devolve as nacionais (`region: null`) + as daquela UF/praça; sem `region`, todas (cada uma com seu `region`).
 - **Ordenação:** `free_tv`, `youtube`, `streaming_free`, `pay_tv`, `streaming_svod`, `official_app`, `radio`; depois confiança e nome.
 - **Sem informação confiável:** `status: "unknown"`, `options: []`, `message` no locale (pt-BR: "Não temos as informações de transmissão ainda."; es-*: "Todavía no tenemos la información de transmisión.").
 - **Cache:** TTL 60 s, tags `where_to_watch:<evento>` e `event:<evento>`. Toda mudança visível publica `where_to_watch.changed` no `ops.change_feed` (`entity_type = where_to_watch`, `entity_id = <evento>`, `payload.country`), o que purga Valkey + CDN em segundos (LISTEN/NOTIFY; ≤ 5 s pela varredura) e alimenta SSE/webhook (#34/#35). O teste de integração `apps/api/test/where-to-watch.integration.test.ts` mede a propagação de uma remoção editorial (meta ≤ 5 min; na prática < 1 s).
+
+### 4.1.1 Biblioteca de emissoras — `/v1/broadcasters`
+
+| Rota | O que devolve |
+|---|---|
+| `GET /v1/broadcasters[?country=BR]` | `{data: Broadcaster[]}` — emissoras de TV aberta, TV paga e streaming do onde assistir (filtro por país) |
+| `GET /v1/broadcasters/{id}` | Uma emissora (404 se não existir) |
+
+`Broadcaster`: `id` (o mesmo `provider_id` das opções), `name`, `aliases`, `kind` (`free_tv` · `pay_tv` = TV paga distribuída por cabo/satélite/IPTV · `streaming` · `radio`), `countries`, `channels`, `website`, `markets[]` (`country`, `name`, `medium`, `access_model`, `channels` por país) e `logo` (`url`, `source_url`, `source_page`, `license`) ou `null`. Exige o módulo `where_to_watch`; cache de catálogo (24 h). A biblioteca é sincronizada de `config/broadcasters/<iso2>.yaml` + `_logos.yaml` pelo job `wtw-rights`, e o arquivo do logo é espelhado no nosso storage pelo `assets:mirror` (`broadcasters/<sha256>.png`). Só entram logos com origem e licença verificáveis (arquivos da Wikimedia Commons ligados à emissora pelo Wikidata); uso nominativo, só para identificar a emissora.
 
 ### 4.2 Rotas internas (correção editorial, auditoria e métricas)
 

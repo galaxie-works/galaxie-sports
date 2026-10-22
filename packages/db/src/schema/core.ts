@@ -57,6 +57,7 @@ export const assetKind = core.enum('asset_kind', [
   'driver',
   'circuit',
   'fighter',
+  'broadcaster_logo',
   'other',
 ]);
 

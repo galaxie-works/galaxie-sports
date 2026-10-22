@@ -134,14 +134,24 @@ export class HttpPageFetcher implements PageFetcher {
   }
 }
 
-/** Memoriza resultados por URL dentro de uma execução (cada página é buscada uma vez). */
+/**
+ * Memoriza resultados por URL dentro de uma execução: a grade da rodada buscada para um jogo é
+ * reaproveitada pelos demais jogos e mercados do grupo (cada página é buscada uma vez; o hash do
+ * conteúdo sai do mesmo texto).
+ */
 export class CachingPageFetcher implements PageFetcher {
   private readonly cache = new Map<string, Promise<PageFetchResult>>();
+  hits = 0;
   constructor(private readonly inner: PageFetcher) {}
+
+  get size(): number {
+    return this.cache.size;
+  }
 
   fetch(url: string): Promise<PageFetchResult> {
     let p = this.cache.get(url);
-    if (!p) {
+    if (p) this.hits++;
+    else {
       p = this.inner.fetch(url);
       this.cache.set(url, p);
     }

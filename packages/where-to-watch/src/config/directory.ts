@@ -4,6 +4,7 @@ import type {
   BlockEntry,
   BroadcasterEntry,
   CountryConfig,
+  LogoEntry,
   ResolvedBroadcaster,
   RightsEntry,
   SourceDomains,
@@ -145,6 +146,8 @@ export class WtwConfig {
   constructor(
     countries: CountryConfig[],
     readonly blocklist: Blocklist,
+    /** Logos por id de emissora (config/broadcasters/_logos.yaml). */
+    readonly logos: Map<string, LogoEntry> = new Map(),
   ) {
     for (const c of countries) this.directories.set(c.country, new CountryDirectory(c, blocklist));
   }

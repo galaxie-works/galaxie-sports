@@ -9,10 +9,15 @@
  *    −0,3 fonte com mais de 72 h em competição com escolha por rodada. Limite [0, 1].
  * 5. Publica (`confirmed`) se ≥ 0,7; `pending` entre 0,5 e 0,7; descarta abaixo de 0,5.
  *    Conflito entre fontes primárias → `omitted`.
+ * 6. Candidatas da tabela de direitos (origem `rights`): só valem para detentores da linha efetiva,
+ *    com URLs que estão na própria linha (conferidas aqui, não pelo LLM). Curada = 0,8; pesquisada =
+ *    a confiança validada da pesquisa. Detentor sem o jogo garantido pela regra vira `probable`
+ *    ("canal a confirmar", flag `to_confirm`) — a menos que outra fonte confirme o jogo.
  */
 import type { AccessModel, BroadcastMedium, BroadcastStatus, Evidence, SourceKind } from '@galaxie/db';
 import type { CountryDirectory } from './config/directory.js';
-import type { BroadcasterEntry } from './config/types.js';
+import type { BroadcasterEntry, RightsEntry } from './config/types.js';
+import { NO_MATCH_FACTS, rightsAnswer, type MatchFacts } from './rights.js';
 import { clipExcerpt, hostOf, isHttpUrl, normalizeName, registrableDomain } from './normalize.js';
 
 export const SOURCE_SCORES: Record<SourceKind, number> = {
@@ -22,6 +27,8 @@ export const SOURCE_SCORES: Record<SourceKind, number> = {
   press: 0.7,
   aggregator: 0.4,
   unknown: 0.4,
+  /** Tabela de direitos curada (a pesquisada usa a própria confiança validada). */
+  rights: 0.8,
 };
 
 export const SCORING = {
@@ -64,6 +71,10 @@ export interface Candidate {
   watchUrl?: string | null;
   language?: string | null;
   evidence: CandidateEvidence[];
+  /** agent (padrão) = proposta do LLM/opção salva · rights = derivada da tabela de direitos. */
+  origin?: 'agent' | 'rights';
+  /** Origem rights: detentor sem o jogo garantido ("canal a confirmar"). */
+  toConfirm?: boolean;
 }
 
 export interface ValidationContext {
@@ -71,6 +82,10 @@ export interface ValidationContext {
   competitionSlug: string | null;
   eventStartsAt: Date;
   now: Date;
+  /** Direitos efetivos (curada > pesquisada). Ausente = a linha curada do diretório. */
+  rights?: RightsEntry | null;
+  /** Fatos do jogo para as regras de direitos (time mandante, rodada). */
+  match?: MatchFacts;
   publishThreshold?: number;
   pendingThreshold?: number;
 }
@@ -93,7 +108,7 @@ export interface ValidatedOption {
   region: string | null;
   url: string | null;
   language: string | null;
-  status: Extract<BroadcastStatus, 'confirmed' | 'pending' | 'omitted'>;
+  status: Extract<BroadcastStatus, 'confirmed' | 'probable' | 'pending' | 'omitted'>;
   confidence: number;
   conflict: boolean;
   flags: string[];
@@ -104,7 +119,13 @@ export interface ValidatedOption {
 
 export interface DiscardedOption {
   broadcaster: string;
-  reason: 'blocked' | 'no_accessible_evidence' | 'low_confidence' | 'denied_by_primary' | 'invalid_region';
+  reason:
+    | 'blocked'
+    | 'no_accessible_evidence'
+    | 'low_confidence'
+    | 'denied_by_primary'
+    | 'invalid_region'
+    | 'not_a_rights_holder';
   confidence?: number;
 }
 
@@ -153,6 +174,10 @@ interface Group {
   flags: Set<string>;
   support: Map<string, Evidence & { score: number }>;
   denials: Map<string, Evidence & { score: number }>;
+  /** Alguma candidata `rights` desta chave é só "a confirmar". */
+  toConfirm: boolean;
+  /** Alguma candidata `rights` desta chave tem o jogo garantido pela regra. */
+  rightsDeterministic: boolean;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -164,6 +189,10 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
   const pendingMin = ctx.pendingThreshold ?? SCORING.pendingThreshold;
   const discarded: DiscardedOption[] = [];
   const groups = new Map<string, Group>();
+  const rights =
+    ctx.rights !== undefined ? ctx.rights : dir.rightsFor(ctx.competitionSlug, ctx.eventStartsAt);
+  const answer = rightsAnswer(rights, ctx.match ?? NO_MATCH_FACTS);
+  const rightsUrls = new Set(rights?.sources ?? []);
 
   for (const c of candidates) {
     const name = c.broadcaster.trim();
@@ -183,6 +212,11 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
       continue;
     }
     const entry = resolved?.entry ?? null;
+    const fromRights = c.origin === 'rights';
+    if (fromRights && (!entry || !rights || !rights.holders.includes(entry.id))) {
+      discarded.push({ broadcaster: name, reason: 'not_a_rights_holder' });
+      continue;
+    }
 
     let region = normalizeRegion(c.region, dir.country);
     if (region === undefined) {
@@ -210,12 +244,39 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
         flags: new Set(),
         support: new Map(),
         denials: new Map(),
+        toConfirm: false,
+        rightsDeterministic: false,
       };
       groups.set(key, g);
     }
     if (!entry) g.flags.add('unknown_broadcaster');
     if (!g.watchUrl && isHttpUrl(c.watchUrl) && !dir.isAggregator(c.watchUrl)) g.watchUrl = c.watchUrl;
     const channel = resolved?.channel ?? (c.channel?.trim() || null);
+
+    if (fromRights) {
+      // Evidência = fontes da própria linha de direitos (config ou pesquisa validada), não do LLM.
+      const deterministic = !c.toConfirm && answer.deterministic.includes(entry!.id);
+      if (deterministic) g.rightsDeterministic = true;
+      else g.toConfirm = true;
+      const score =
+        rights!.origin === 'curated' ? SOURCE_SCORES.rights : Math.min(0.9, rights!.confidence ?? 0.7);
+      for (const ev of c.evidence) {
+        if (!rightsUrls.has(ev.url) || !isHttpUrl(ev.url) || dir.blocklist.isBlockedUrl(ev.url)) continue;
+        if (g.support.has(ev.url)) continue;
+        g.support.set(ev.url, {
+          url: ev.url,
+          excerpt: clipExcerpt(ev.excerpt ?? ''),
+          publisher: hostOf(ev.url)!,
+          fetchedAt: ctx.now.toISOString(),
+          sourceKind: 'rights',
+          publishedAt: null,
+          contentHash: null,
+          stance: 'confirms',
+          score,
+        });
+      }
+      continue;
+    }
 
     for (const ev of c.evidence) {
       if (!isHttpUrl(ev.url) || dir.blocklist.isBlockedUrl(ev.url)) continue;
@@ -249,11 +310,15 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
   }
 
   const options: ValidatedOption[] = [];
-  const rights = dir.rightsFor(ctx.competitionSlug, ctx.eventStartsAt);
 
   for (const [key, g] of groups) {
-    const support = [...g.support.values()];
+    const allSupport = [...g.support.values()];
     const denials = [...g.denials.values()];
+    // A tabela só soma confiança quando garante o jogo; "a confirmar" não reforça outra fonte —
+    // vira só o piso (probable) se a fonte não bastar para publicar.
+    const agentSupport = allSupport.filter((e) => e.sourceKind !== 'rights');
+    const onlyRights = agentSupport.length === 0;
+    const support = onlyRights || g.rightsDeterministic ? allSupport : agentSupport;
     if (!support.length) {
       discarded.push({
         broadcaster: g.providerName,
@@ -289,11 +354,15 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
         g.flags.add('rights_mismatch');
       }
     }
-    const domains = new Set(support.map((e) => registrableDomain(hostOf(e.url)!)));
+    const domains = new Set(
+      support.filter((e) => e.sourceKind !== 'rights').map((e) => registrableDomain(hostOf(e.url)!)),
+    );
     if (domains.size >= 2) score.independent = SCORING.independentSources;
     if (rights?.perRoundSelection) {
-      const dated = support.map((e) => (e.publishedAt ? Date.parse(e.publishedAt) : NaN));
-      if (dated.every((t) => Number.isFinite(t))) {
+      const dated = support
+        .filter((e) => e.sourceKind !== 'rights')
+        .map((e) => (e.publishedAt ? Date.parse(e.publishedAt) : NaN));
+      if (dated.length && dated.every((t) => Number.isFinite(t))) {
         const freshest = Math.max(...dated);
         if (ctx.now.getTime() - freshest > SCORING.staleHours * 3600_000) {
           score.stale = SCORING.staleSource;
@@ -301,14 +370,31 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
         }
       }
     }
-    const confidence = round2(
+    let confidence = round2(
       Math.min(1, Math.max(0, score.base + score.rights + score.independent + score.stale)),
     );
+    if (onlyRights || g.rightsDeterministic) g.flags.add('from_rights');
+
+    // Detentor sem o jogo garantido e sem fonte que publique → "canal a confirmar".
+    const toConfirm = g.toConfirm && !g.rightsDeterministic && (onlyRights || confidence < publish);
+    let evidence = [...support, ...denials];
+    if (toConfirm && !onlyRights) {
+      const rightsScore = Math.max(
+        ...allSupport.filter((e) => e.sourceKind === 'rights').map((e) => e.score),
+      );
+      confidence = round2(Math.min(1, rightsScore + score.rights));
+      evidence = [...allSupport, ...denials];
+      g.flags.delete('stale_source');
+      g.flags.delete('excerpt_not_found');
+    }
 
     let status: ValidatedOption['status'];
     if (conflict) {
       status = 'omitted';
       g.flags.add('conflict');
+    } else if (toConfirm && g.entry) {
+      status = 'probable';
+      g.flags.add('to_confirm');
     } else if (confidence < pendingMin) {
       discarded.push({ broadcaster: g.providerName, reason: 'low_confidence', confidence });
       continue;
@@ -332,7 +418,7 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
       conflict,
       flags: [...g.flags].sort(),
       sourceKind: best.sourceKind ?? null,
-      evidence: [...support, ...denials].sort((a, b) => b.score - a.score).map(({ score: _s, ...e }) => e),
+      evidence: evidence.sort((a, b) => b.score - a.score).map(({ score: _s, ...e }) => e),
       score,
     });
   }

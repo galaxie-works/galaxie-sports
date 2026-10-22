@@ -246,6 +246,10 @@ function WhereToWatchCard({
           <ul className="flex flex-col gap-2">
             {wtw.options.map((o) => (
               <li key={o.id} className="flex items-center gap-3 rounded-md border p-2">
+                {o.logo ? (
+                  // logo da biblioteca de emissoras (espelho S3); não passa pelo otimizador do Next
+                  <img src={o.logo} alt="" className="h-6 w-10 shrink-0 object-contain" />
+                ) : null}
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate font-medium">
                     {o.provider}
@@ -266,7 +270,9 @@ function WhereToWatchCard({
           </ul>
         ) : (
           <p className="text-muted-foreground">
-            {wtw?.message ?? 'Sem informação de transmissão para este país.'}
+            {wtw?.to_confirm?.length
+              ? `Canal a confirmar: ${wtw.to_confirm.map((t) => t.provider).join(', ')}.`
+              : (wtw?.message ?? 'Sem informação de transmissão para este país.')}
           </p>
         )}
       </CardContent>

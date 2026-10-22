@@ -11,20 +11,34 @@ import {
   llmUsage,
   participant,
   runMigrations,
+  season,
   sport,
+  stage,
   tenant,
+  wtwResearch,
   wtwRun,
   type Database,
 } from '@galaxie/db';
-import { currentOptions, getPublicWhereToWatch, loadWtwConfig, queueRerun } from '@galaxie/where-to-watch';
+import {
+  Blocklist,
+  currentOptions,
+  currentResearchedRights,
+  getPublicWhereToWatch,
+  parseCountryConfig,
+  queueRerun,
+  ResearchedRightsIndex,
+  WtwConfig,
+} from '@galaxie/where-to-watch';
 import { BudgetedLlmClient, PgTokenBudgetStore, TokenBudget } from '../src/llm/budget.js';
 import { FakeLlmClient } from '../src/llm/fake.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
 import { FakePageFetcher } from '../src/wtw/fetcher.js';
 import { activeMarkets } from '../src/wtw/markets.js';
+import type { WtwPolicy } from '../src/wtw/relevance.js';
+import { planRightsResearch, RightsResearcher } from '../src/wtw/rights-runner.js';
 import { WtwRunner } from '../src/wtw/runner.js';
 import { enqueueRuns, planDueRuns } from '../src/wtw/scheduler.js';
-import type { WtwOutput } from '../src/wtw/schema.js';
+import type { WtwAllocationOutput, WtwAssignment, WtwRightsOutput } from '../src/wtw/schema.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -37,9 +51,109 @@ const testUrl = (() => {
 
 let admin: postgres.Sql;
 let db: Database;
-const config = loadWtwConfig({ env: {} });
 const H = 3_600_000;
-const KICKOFF = new Date('2026-10-28T00:30:00Z');
+const KICKOFF = new Date('2026-11-04T23:00:00Z');
+
+// ─── configuração genérica: dois mercados, emissoras fictícias ──────────────────────────────────
+const sources = {
+  organizers: ['organizador.example'],
+  press: ['imprensa.example'],
+  aggregators: ['guia.example'],
+};
+const rightsSource = 'https://organizador.example/direitos';
+const br = parseCountryConfig(
+  'BR',
+  {
+    country: 'BR',
+    language: 'pt-BR',
+    broadcasters: [
+      {
+        id: 'emissora_a',
+        name: 'Emissora A',
+        medium: 'free_tv',
+        access_model: 'free',
+        domains: ['emissora-a.example'],
+      },
+      {
+        id: 'streaming_b',
+        name: 'Streaming B',
+        medium: 'streaming_svod',
+        access_model: 'subscription',
+        domains: ['streaming-b.example'],
+      },
+      {
+        id: 'canal_c',
+        name: 'Canal C',
+        medium: 'pay_tv',
+        access_model: 'subscription',
+        domains: ['canal-c.example'],
+      },
+    ],
+  },
+  {
+    country: 'BR',
+    rights: [
+      {
+        competition: 'liga-dividida',
+        season: 2026,
+        valid_from: '2026-01-01',
+        valid_to: '2026-12-31',
+        distribution: 'split',
+        holders: ['emissora_a', 'streaming_b'],
+        sources: [rightsSource],
+      },
+      {
+        competition: 'liga-exclusiva',
+        season: 2026,
+        valid_from: '2026-01-01',
+        valid_to: '2026-12-31',
+        distribution: 'exclusive',
+        holders: ['canal_c'],
+        sources: [rightsSource],
+      },
+    ],
+  },
+  sources,
+);
+const mx = parseCountryConfig(
+  'MX',
+  {
+    country: 'MX',
+    broadcasters: [
+      {
+        id: 'emissora_m',
+        name: 'Emissora M',
+        medium: 'free_tv',
+        access_model: 'free',
+        domains: ['emissora-m.example'],
+      },
+      {
+        id: 'streaming_n',
+        name: 'Streaming N',
+        medium: 'streaming_svod',
+        access_model: 'subscription',
+        domains: ['streaming-n.example'],
+      },
+    ],
+  },
+  {
+    country: 'MX',
+    rights: [
+      {
+        competition: 'liga-dividida',
+        season: 2026,
+        valid_from: '2026-01-01',
+        valid_to: '2026-12-31',
+        distribution: 'split',
+        holders: ['emissora_m', 'streaming_n'],
+        sources: [rightsSource],
+      },
+    ],
+  },
+  sources,
+);
+const config = new WtwConfig([br, mx], new Blocklist([]));
+const policy: WtwPolicy = { minRelevance: 60, dailyUsdPerMarket: 1 };
 
 beforeAll(async () => {
   admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
@@ -55,119 +169,123 @@ afterAll(async () => {
   await admin.end();
 });
 
-async function seed(opts: { tier: number; slug: string; countryCode: string | null; startsAt?: Date }) {
+let seq = 0;
+/** Rodada inteira de uma competição: N jogos com times do país e importância informada. */
+async function seedRound(opts: {
+  slug: string;
+  round?: string;
+  games?: number;
+  importance?: number;
+  startsAt?: Date;
+  tier?: number;
+}): Promise<string[]> {
   const [comp] = await db
     .insert(competition)
     .values({
       sport: 'football',
       slug: opts.slug,
       name: opts.slug,
-      type: 'cup',
-      tier: opts.tier,
+      type: 'league',
+      tier: opts.tier ?? 1,
       countryCode: null,
     })
-    .onConflictDoUpdate({ target: [competition.sport, competition.slug], set: { tier: opts.tier } })
+    .onConflictDoUpdate({ target: [competition.sport, competition.slug], set: { tier: opts.tier ?? 1 } })
     .returning();
-  const [home, away] = await db
-    .insert(participant)
-    .values([
-      { sport: 'football', kind: 'club', name: 'Palmeiras' },
-      { sport: 'football', kind: 'club', name: 'Fluminense' },
-    ])
+  const [ssn] = await db
+    .insert(season)
+    .values({ competitionId: comp!.id, label: '2026', year: 2026 })
+    .onConflictDoUpdate({ target: [season.competitionId, season.year], set: { label: '2026' } })
     .returning();
-  const startsAt = opts.startsAt ?? KICKOFF;
-  const [ev] = await db
-    .insert(event)
+  const [stg] = await db
+    .insert(stage)
     .values({
-      sport: 'football',
-      competitionId: comp!.id,
-      startsAt,
-      endsAtExpected: new Date(startsAt.getTime() + 2 * H),
+      seasonId: ssn!.id,
+      kind: 'regular',
+      name: { 'pt-BR': 'Rodada' },
+      providerLabel: opts.round ?? `Rodada ${++seq}`,
     })
     .returning();
-  await db.insert(eventParticipant).values([
-    { eventId: ev!.id, participantId: home!.id, side: 'home' },
-    { eventId: ev!.id, participantId: away!.id, side: 'away' },
-  ]);
-  return ev!.id;
+  const ids: string[] = [];
+  for (let i = 0; i < (opts.games ?? 3); i++) {
+    const [home, away] = await db
+      .insert(participant)
+      .values([
+        { sport: 'football', kind: 'club', name: `Time ${++seq}`, countryCode: null },
+        { sport: 'football', kind: 'club', name: `Time ${++seq}`, countryCode: null },
+      ])
+      .returning();
+    const startsAt = new Date((opts.startsAt ?? KICKOFF).getTime() + i * 2 * H);
+    const [ev] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        competitionId: comp!.id,
+        seasonId: ssn!.id,
+        stageId: stg!.id,
+        startsAt,
+        endsAtExpected: new Date(startsAt.getTime() + 2 * H),
+        importance: opts.importance ?? 70,
+      })
+      .returning();
+    await db.insert(eventParticipant).values([
+      { eventId: ev!.id, participantId: home!.id, side: 'home' },
+      { eventId: ev!.id, participantId: away!.id, side: 'away' },
+    ]);
+    ids.push(ev!.id);
+  }
+  return ids;
 }
 
-const PAGES = {
-  'https://ge.globo.com/agenda/libertadores':
-    '<p>Palmeiras x Fluminense terá transmissão da TV Globo e do sportv.</p>',
-  'https://www.espn.com.br/futebol/agenda':
-    '<p>ESPN e Disney+ transmitem Palmeiras x Fluminense ao vivo.</p>',
+const GRADE_BR = 'https://emissora-a.example/grade-da-rodada';
+const GRADE_MX = 'https://emissora-m.example/programacion';
+const PAGES: Record<string, string> = {
+  [GRADE_BR]: '<p>Grade da rodada: J1 na Emissora A; J2 no Streaming B.</p>',
+  [GRADE_MX]: '<p>Programación: J1 por Emissora M.</p>',
 };
 
-const llmReply = (): WtwOutput => ({
-  options: [
-    {
-      broadcaster: 'TV Globo',
-      channel: null,
-      medium: 'free_tv',
-      access_model: 'free',
-      region: null,
-      watch_url: null,
-      evidence: [
-        {
-          url: 'https://ge.globo.com/agenda/libertadores',
-          excerpt: 'Palmeiras x Fluminense terá transmissão da TV Globo',
-          published_at: null,
-          stance: 'confirms',
-        },
-      ],
-    },
-    {
-      broadcaster: 'Disney Plus',
-      channel: null,
-      medium: 'streaming_svod',
-      access_model: 'subscription',
-      region: null,
-      watch_url: 'https://www.disneyplus.com/pt-br',
-      evidence: [
-        {
-          url: 'https://www.espn.com.br/futebol/agenda',
-          excerpt: 'ESPN e Disney+ transmitem Palmeiras x Fluminense ao vivo',
-          published_at: null,
-          stance: 'confirms',
-        },
-      ],
-    },
-    {
-      // URL inventada: não responde → descartada pelo validador
-      broadcaster: 'SBT',
-      channel: null,
-      medium: 'free_tv',
-      access_model: 'free',
-      region: null,
-      watch_url: null,
-      evidence: [
-        {
-          url: 'https://www.sbt.com.br/nao-existe',
-          excerpt: 'SBT exibe',
-          published_at: null,
-          stance: 'confirms',
-        },
-      ],
-    },
-  ],
-  notes: null,
+const assignment = (match: string, country: string, broadcaster: string, url: string): WtwAssignment => ({
+  match,
+  country,
+  broadcaster,
+  channel: null,
+  region: null,
+  watch_url: null,
+  evidence: [{ url, excerpt: `${match} na ${broadcaster}`, published_at: null, stance: 'confirms' }],
 });
+
+/** Responde a alocação: só os países pedidos na mensagem. */
+const allocationReply = (req: LlmJsonRequest): WtwAllocationOutput => {
+  const msg = req.messages[0]!.content;
+  const out: WtwAssignment[] = [];
+  if (msg.includes('- BR (Brasil)')) {
+    out.push(assignment('J1', 'BR', 'Emissora A', GRADE_BR), assignment('J2', 'BR', 'Streaming B', GRADE_BR));
+  }
+  if (msg.includes('- MX (México)')) out.push(assignment('J1', 'MX', 'Emissora M', GRADE_MX));
+  return { assignments: out, notes: null };
+};
 
 function setup(
   now: Date,
-  pages: Record<string, string | number> = { ...PAGES },
-  dailyLimit: number | null = 1_000_000,
+  opts: { pages?: Record<string, string>; dailyLimit?: number | null; policy?: WtwPolicy } = {},
 ) {
-  const fake = new FakeLlmClient((_req: LlmJsonRequest) => ({
-    data: llmReply(),
-    usage: { inputTokens: 12_000, outputTokens: 800, webSearchCalls: 3 },
+  const fake = new FakeLlmClient((req: LlmJsonRequest) => ({
+    data: allocationReply(req),
+    usage: { inputTokens: 40_000, outputTokens: 3_000, webSearchCalls: 6, costUsd: 0.12 },
   }));
-  const budget = new TokenBudget(new PgTokenBudgetStore(db), { dailyLimit }, () => now);
+  const budget = new TokenBudget(
+    new PgTokenBudgetStore(db),
+    { dailyLimit: opts.dailyLimit ?? 10_000_000 },
+    () => now,
+  );
   const llm = new BudgetedLlmClient(fake, budget);
-  const fetcher = new FakePageFetcher(pages);
-  const runner = new WtwRunner({ db, llm, config, fetcher, now: () => now });
-  return { fake, llm, fetcher, runner };
+  const fetcher = new FakePageFetcher({ ...(opts.pages ?? PAGES) });
+  const runner = new WtwRunner({ db, llm, config, fetcher, policy: opts.policy ?? policy, now: () => now });
+  return { fake, fetcher, runner };
+}
+
+async function plan(now: Date, markets: string[], eventId?: string) {
+  const researched = new ResearchedRightsIndex(await currentResearchedRights(db));
+  return planDueRuns(db, { now, markets, config, researched, ...(eventId ? { eventId } : {}) });
 }
 
 describe('mercados ativos', () => {
@@ -188,120 +306,335 @@ describe('mercados ativos', () => {
   });
 });
 
-describe('agendamento + execução do onde assistir', () => {
-  it('T-7d: tier 1 entra (só mercados relevantes), tier 2 não; idempotente', async () => {
-    const t1 = await seed({ tier: 1, slug: 'conmebol-libertadores', countryCode: null });
-    const t2 = await seed({ tier: 2, slug: 'brasileirao-serie-b', countryCode: null });
+describe('onde assistir por rodada', () => {
+  it('T-7d: só a tabela de direitos (sem LLM) — exclusiva publica, dividida fica "a confirmar"', async () => {
+    const [excl] = await seedRound({ slug: 'liga-exclusiva', games: 1 });
+    const [split] = await seedRound({
+      slug: 'liga-dividida',
+      games: 1,
+      startsAt: new Date(KICKOFF.getTime() + 24 * H),
+    });
+    const [none] = await seedRound({ slug: 'liga-sem-direitos', games: 1 });
     const now = new Date(KICKOFF.getTime() - 6 * 24 * H);
-    const due = await planDueRuns(db, { now, markets: ['BR', 'MX'], config, eventId: t1 });
-    expect(due.map((d) => [d.country, d.window, d.mode])).toEqual([
-      ['BR', 'T-7d', 'full'],
-      ['MX', 'T-7d', 'full'],
+    const due = [
+      ...(await plan(now, ['BR', 'MX'], excl)),
+      ...(await plan(now, ['BR', 'MX'], split)),
+      ...(await plan(now, ['BR', 'MX'], none)),
+    ];
+    // competição sem direitos não entra (fica para a pesquisa por temporada)
+    expect(due.map((d) => [d.country, d.window, d.mode, d.rights.distribution])).toEqual([
+      ['BR', 'T-7d', 'rights', 'exclusive'],
+      ['BR', 'T-7d', 'rights', 'split'],
+      ['MX', 'T-7d', 'rights', 'split'],
     ]);
-    expect(await planDueRuns(db, { now, markets: ['BR'], config, eventId: t2 })).toEqual([]);
-    expect(await enqueueRuns(db, due, now)).toBe(2);
+    expect(await enqueueRuns(db, due, now)).toBe(3);
     expect(await enqueueRuns(db, due, now)).toBe(0);
-    expect(await planDueRuns(db, { now, markets: ['BR', 'MX'], config, eventId: t1 })).toEqual([]);
+
+    const { runner, fake } = setup(now);
+    const out = await runner.runQueued({ limit: 50, maxCalls: 3 });
+    expect(out.filter((o) => o.status === 'done')).toHaveLength(3);
+    expect(fake.calls).toHaveLength(0);
+
+    const pubExcl = await getPublicWhereToWatch(db, { eventId: excl!, country: 'BR' });
+    expect(
+      pubExcl!.options.map((o) => [o.row.broadcasterId, o.row.status, Number(o.row.confidence)]),
+    ).toEqual([['canal_c', 'confirmed', 0.9]]);
+    expect(pubExcl!.options[0]!.row.evidence[0]).toMatchObject({ url: rightsSource, sourceKind: 'rights' });
+    const pubSplit = await getPublicWhereToWatch(db, { eventId: split!, country: 'BR' });
+    expect(pubSplit).toMatchObject({ status: 'unknown', options: [] });
+    expect(pubSplit!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
   });
 
-  it('busca completa: LLM + verificação HTTP + validador → publica com evidência e registra uso', async () => {
-    const eventId = await seed({ tier: 1, slug: 'conmebol-libertadores', countryCode: null });
-    const now = new Date(KICKOFF.getTime() - 20 * H);
-    const { fake, runner, fetcher } = setup(now);
-    await enqueueRuns(db, await planDueRuns(db, { now, markets: ['BR'], config, eventId }), now);
-    const [outcome] = await runner.runQueued({ limit: 5, eventId });
-    expect(outcome).toMatchObject({ status: 'done', mode: 'full', window: 'T-24h' });
+  it('T-48h: UMA chamada para a rodada inteira e os dois mercados; página buscada uma vez; custo rateado', async () => {
+    const ids = await seedRound({ slug: 'liga-dividida', games: 3, round: 'Rodada 20' });
+    const now = new Date(KICKOFF.getTime() - 40 * H);
+    const due = await plan(now, ['BR', 'MX']);
+    const mine = due.filter((d) => ids.includes(d.eventId));
+    expect(mine).toHaveLength(6);
+    expect(new Set(mine.map((d) => [d.window, d.mode, d.group].join(' ')))).toEqual(
+      new Set(['T-48h allocate liga-dividida|Rodada 20']),
+    );
+    await enqueueRuns(db, mine, now);
+
+    const { runner, fake, fetcher } = setup(now);
+    const out = await runner.runQueued({ limit: 1, maxCalls: 1, eventId: ids[0]! });
+    // uma execução reservada traz as irmãs da rodada (outros jogos e mercados)
+    expect(out).toHaveLength(6);
     expect(fake.calls).toHaveLength(1);
-    expect(fake.calls[0]).toMatchObject({
+    const call = fake.calls[0]!;
+    expect(call).toMatchObject({
       tier: 'research',
       webSearch: true,
-      purpose: `wtw:event:${eventId}:BR`,
+      purpose: 'wtw:alloc:liga-dividida:Rodada_20',
     });
-    expect(fetcher.requested).toContain('https://www.sbt.com.br/nao-existe');
+    expect(call.messages[0]!.content).toMatch(/J3:/);
+    expect(call.allowedDomains).toEqual(expect.arrayContaining(['emissora-a.example', 'emissora-m.example']));
+    expect(fetcher.requested.filter((u) => u === GRADE_BR)).toHaveLength(1);
 
-    const pub = await getPublicWhereToWatch(db, { eventId, country: 'BR' });
-    expect(pub!.status).toBe('resolved');
-    // Disney+ sustentado por espn.com.br: mesmo grupo de mídia → fonte primária (0,9) + direitos (0,1)
-    expect(pub!.options.map((o) => [o.row.broadcasterId, Number(o.row.confidence)])).toEqual([
-      ['globo', 1],
-      ['disney_plus', 1],
-    ]);
-    expect(outcome!.stats).toMatchObject({ discarded: { no_accessible_evidence: 1 }, publicChanged: true });
+    const pub1 = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
+    expect(pub1!.options.map((o) => o.row.broadcasterId)).toEqual(['emissora_a']);
+    expect(pub1!.toConfirm).toEqual([]);
+    const pub2 = await getPublicWhereToWatch(db, { eventId: ids[1]!, country: 'BR' });
+    expect(pub2!.options.map((o) => o.row.broadcasterId)).toEqual(['streaming_b']);
+    const pub3 = await getPublicWhereToWatch(db, { eventId: ids[2]!, country: 'BR' });
+    expect(pub3!.options).toEqual([]);
+    expect(pub3!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
+    const mx1 = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'MX' });
+    expect(mx1!.options.map((o) => o.row.broadcasterId)).toEqual(['emissora_m']);
 
-    const [run] = await db.select().from(wtwRun).where(eq(wtwRun.id, outcome!.runId));
-    expect(run).toMatchObject({ status: 'done', inputTokens: 12_000, outputTokens: 800, provider: 'fake' });
+    const [research] = await db.select().from(wtwResearch).where(eq(wtwResearch.kind, 'allocation'));
+    expect(research).toMatchObject({
+      status: 'done',
+      markets: ['BR', 'MX'],
+      inputTokens: 40_000,
+      costUsd: '0.120000',
+    });
+    const runs = await db
+      .select()
+      .from(wtwRun)
+      .where(and(eq(wtwRun.window, 'T-48h'), eq(wtwRun.status, 'done')));
+    const shares = runs.filter((r) => ids.includes(r.eventId));
+    expect(shares.every((r) => r.costUsd === '0.020000' && r.inputTokens === 6_667)).toBe(true);
     const usage = await db.select().from(llmUsage).where(eq(llmUsage.agent, 'wtw'));
-    expect(usage.at(-1)).toMatchObject({ outcome: 'ok', inputTokens: 12_000, webSearches: 3 });
+    expect(usage).toHaveLength(1);
   });
 
-  it('T-3h: revalida sem LLM quando nada mudou; escala para busca completa quando a fonte muda', async () => {
-    const eventId = await seed({ tier: 1, slug: 'conmebol-libertadores', countryCode: null });
-    const t24 = new Date(KICKOFF.getTime() - 20 * H);
-    const first = setup(t24);
-    await enqueueRuns(db, await planDueRuns(db, { now: t24, markets: ['BR'], config, eventId }), t24);
-    await first.runner.runQueued({ limit: 5, eventId });
+  it('relevância abaixo do limiar: nenhuma chamada — detentores "a confirmar"', async () => {
+    const ids = await seedRound({ slug: 'liga-dividida', games: 2, importance: 30 });
+    const now = new Date(KICKOFF.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const { runner, fake } = setup(now);
+    const out = await runner.runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(fake.calls).toHaveLength(0);
+    expect(out[0]!.stats.allocation).toMatch(/relevância abaixo de 60/);
+    const pub = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
+    expect(pub!.toConfirm).toHaveLength(2);
+  });
+
+  it('teto diário por mercado: o mercado que estourou sai da chamada, o outro segue', async () => {
+    // outro dia UTC (o gasto do BR não vaza para os demais testes)
+    const now = new Date(KICKOFF.getTime() - 64 * H);
+    await db.insert(wtwResearch).values({
+      kind: 'allocation',
+      researchKey: 'teste:gasto-br',
+      competitionSlug: 'liga-dividida',
+      markets: ['BR'],
+      status: 'done',
+      costUsd: '0.990000',
+      createdAt: now,
+    });
+    const ids = await seedRound({
+      slug: 'liga-dividida',
+      games: 1,
+      round: 'Rodada 30',
+      startsAt: new Date(KICKOFF.getTime() - 24 * H),
+    });
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR', 'MX'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const { runner, fake } = setup(now);
+    const out = await runner.runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.messages[0]!.content).not.toMatch(/- BR \(Brasil\)/);
+    expect(fake.calls[0]!.purpose).toMatch(/:MX$/);
+    expect(out.find((o) => o.country === 'BR')!.stats.allocation).toMatch(/teto diário/);
+  });
+
+  it('T-3h: revalida sem LLM; fonte que deixou de citar a emissora derruba a opção e volta o "a confirmar"', async () => {
+    const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 40' });
+    const t48 = new Date(KICKOFF.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(t48, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t48,
+    );
+    await setup(t48).runner.runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect((await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' }))!.options).toHaveLength(1);
 
     const t3 = new Date(KICKOFF.getTime() - 2.5 * H);
     const same = setup(t3);
-    await enqueueRuns(db, await planDueRuns(db, { now: t3, markets: ['BR'], config, eventId }), t3);
-    const [r1] = await same.runner.runQueued({ limit: 5, eventId });
-    expect(r1).toMatchObject({ window: 'T-3h', status: 'done', mode: 'revalidate' });
-    expect(same.fake.calls).toHaveLength(0); // zero tokens
-    const opts = await currentOptions(db, eventId, 'BR');
-    expect(
-      opts.filter((o) => o.status === 'confirmed').every((o) => o.lastVerifiedAt.getTime() === t3.getTime()),
-    ).toBe(true);
+    await enqueueRuns(
+      db,
+      (await plan(t3, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t3,
+    );
+    const [r1] = await same.runner.runQueued({ limit: 10, eventId: ids[0]! });
+    expect(r1).toMatchObject({ window: 'T-3h', mode: 'revalidate', status: 'done' });
+    expect(same.fake.calls).toHaveLength(0);
+    expect(r1!.stats).toMatchObject({ inserted: 0 });
 
-    // T-30min: a página da Globo mudou e não cita mais a emissora → busca completa
     const t30 = new Date(KICKOFF.getTime() - 20 * 60_000);
-    const changed = setup(t30, {
-      ...PAGES,
-      'https://ge.globo.com/agenda/libertadores': '<p>Jogo adiado? Confira a agenda.</p>',
-    });
-    await enqueueRuns(db, await planDueRuns(db, { now: t30, markets: ['BR'], config, eventId }), t30);
-    const [r2] = await changed.runner.runQueued({ limit: 5, eventId });
-    expect(r2).toMatchObject({ window: 'T-30min', status: 'done', mode: 'full' });
-    expect(r2!.stats.escalated).toBe('mudança nas fontes salvas');
-    expect(changed.fake.calls).toHaveLength(1);
-    // a página não menciona mais a Globo → evidência rebaixada → pending (sai da API)
-    const pub = await getPublicWhereToWatch(db, { eventId, country: 'BR' });
-    expect(pub!.options.map((o) => o.row.broadcasterId)).toEqual(['disney_plus']);
+    const changed = setup(t30, { pages: { [GRADE_BR]: '<p>Grade em atualização.</p>' } });
+    await enqueueRuns(
+      db,
+      (await plan(t30, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t30,
+    );
+    const [r2] = await changed.runner.runQueued({ limit: 10, eventId: ids[0]! });
+    expect(r2).toMatchObject({ window: 'T-30min', mode: 'revalidate', status: 'done' });
+    expect(changed.fake.calls).toHaveLength(0);
+    const pub = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
+    expect(pub!.options).toEqual([]);
+    expect(pub!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
   });
 
-  it('orçamento esgotado → execução `skipped`, sem chamar o provedor; reexecução manual entra na fila', async () => {
-    const eventId = await seed({ tier: 1, slug: 'conmebol-libertadores', countryCode: null });
-    const now = new Date(KICKOFF.getTime() - 20 * H);
-    const { fake, runner } = setup(now, { ...PAGES }, 10);
+  it('orçamento global esgotado: alocação pulada sem chamar o provedor; os direitos saem mesmo assim', async () => {
+    const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 50' });
+    const now = new Date(KICKOFF.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const { runner, fake } = setup(now, { dailyLimit: 10 });
+    const [o] = await runner.runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(o).toMatchObject({ status: 'done' });
+    expect(o!.stats.allocation).toMatch(/alocação falhou: Orçamento diário/);
+    expect(fake.calls).toHaveLength(0);
+    expect((await currentOptions(db, ids[0]!, 'BR')).every((r) => r.status === 'probable')).toBe(true);
+  });
+
+  it('reexecução manual: alocação só daquele jogo; evento já iniciado é pulado', async () => {
+    const [id] = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 60' });
+    const now = new Date(KICKOFF.getTime() - 5 * 24 * H);
+    const { runner, fake } = setup(now);
     const { runId } = await queueRerun(db, {
-      eventId,
+      eventId: id!,
       country: 'BR',
       actor: 'editor.ana',
       reason: 'teste',
       now,
     });
-    const [outcome] = await runner.runQueued({ limit: 5, eventId });
-    expect(outcome).toMatchObject({ runId, status: 'skipped' });
-    expect(outcome!.error).toMatch(/Orçamento diário/);
-    expect(fake.calls).toHaveLength(0);
-  });
+    const [o] = await runner.runQueued({ limit: 5, eventId: id! });
+    expect(o).toMatchObject({ runId, mode: 'full', status: 'done' });
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.purpose).toMatch(/:BR$/);
 
-  it('evento já iniciado é pulado', async () => {
-    const eventId = await seed({
-      tier: 1,
-      slug: 'conmebol-libertadores',
-      countryCode: null,
+    const [old] = await seedRound({
+      slug: 'liga-dividida',
+      games: 1,
       startsAt: new Date('2026-10-01T00:00:00Z'),
     });
-    const now = new Date('2026-10-02T00:00:00Z');
-    const { runner, fake } = setup(now);
-    await queueRerun(db, { eventId, country: 'BR', actor: 'editor.ana', reason: 'teste', now });
-    const [outcome] = await runner.runQueued({ limit: 5, eventId });
-    expect(outcome).toMatchObject({ status: 'skipped' });
-    expect(fake.calls).toHaveLength(0);
-    const runs = await db
-      .select()
-      .from(wtwRun)
-      .where(and(eq(wtwRun.eventId, eventId), eq(wtwRun.status, 'skipped')));
-    expect(runs).toHaveLength(1);
+    const later = new Date('2026-10-02T00:00:00Z');
+    const s2 = setup(later);
+    await queueRerun(db, { eventId: old!, country: 'BR', actor: 'editor.ana', reason: 'teste', now: later });
+    const [skipped] = await s2.runner.runQueued({ limit: 5, eventId: old! });
+    expect(skipped).toMatchObject({ status: 'skipped' });
+    expect(s2.fake.calls).toHaveLength(0);
+  });
+});
+
+describe('direitos por temporada (nível 1)', () => {
+  it('uma chamada cobre os mercados sem direitos; validador confere cada detentor; o resultado alimenta a agenda', async () => {
+    const [id] = await seedRound({ slug: 'liga-nova', games: 1, importance: 80 });
+    const now = new Date(KICKOFF.getTime() - 10 * 24 * H);
+    const needs = await planRightsResearch(db, { now, config, minRelevance: 60 });
+    const need = needs.find((n) => n.competition.slug === 'liga-nova')!;
+    expect(need.chunks).toEqual([['BR', 'MX']]);
+
+    const reply: WtwRightsOutput = {
+      markets: [
+        {
+          country: 'BR',
+          distribution: 'exclusive',
+          notes: null,
+          holders: [
+            {
+              broadcaster: 'Streaming B',
+              channels: [],
+              kind: 'streaming',
+              all_matches: true,
+              evidence: [
+                {
+                  url: 'https://streaming-b.example/liga-nova',
+                  excerpt: 'Streaming B terá a Liga Nova',
+                  published_at: null,
+                  stance: 'confirms',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          country: 'MX',
+          distribution: 'exclusive',
+          notes: null,
+          holders: [
+            {
+              // URL inventada: não responde → detentor descartado → nada utilizável no MX
+              broadcaster: 'Emissora M',
+              channels: [],
+              kind: 'free_tv',
+              all_matches: true,
+              evidence: [
+                {
+                  url: 'https://emissora-m.example/nao-existe',
+                  excerpt: 'x',
+                  published_at: null,
+                  stance: 'confirms',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      notes: null,
+    };
+    const fake = new FakeLlmClient([
+      { data: reply, usage: { inputTokens: 80_000, outputTokens: 5_000, costUsd: 0.3 } },
+    ]);
+    const fetcher = new FakePageFetcher({
+      'https://streaming-b.example/liga-nova': '<p>O Streaming B terá a Liga Nova.</p>',
+    });
+    const researcher = new RightsResearcher({ db, llm: fake, config, fetcher, policy, now: () => now });
+    const out = await researcher.run([need], { maxCalls: 2 });
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]).toMatchObject({ purpose: 'wtw:rights:liga-nova:2026', webSearch: true });
+    expect(out[0]).toMatchObject({ status: 'done', markets: ['BR', 'MX'], costUsd: 0.3 });
+    expect(out[0]!.byCountry).toMatchObject({
+      BR: { status: 'confirmed', distribution: 'exclusive', holders: ['streaming_b'] },
+      MX: { status: 'pending', distribution: 'to_confirm', holders: [] },
+    });
+    // idempotente no mês: não pesquisa de novo
+    expect(await researcher.run([need], { maxCalls: 2 })).toEqual([]);
+    expect(
+      (await planRightsResearch(db, { now, config, minRelevance: 60 })).find(
+        (n) => n.competition.slug === 'liga-nova',
+      ),
+    ).toBeUndefined();
+
+    // a agenda passa a usar os direitos pesquisados: exclusivo → publica sem LLM
+    const t7 = new Date(KICKOFF.getTime() - 6 * 24 * H);
+    const due = await plan(t7, ['BR', 'MX'], id);
+    expect(due.map((d) => [d.country, d.mode, d.rights.origin])).toEqual([['BR', 'rights', 'research']]);
+    await enqueueRuns(db, due, t7);
+    const s = setup(t7);
+    await s.runner.runQueued({ limit: 5, eventId: id! });
+    const pub = await getPublicWhereToWatch(db, { eventId: id!, country: 'BR' });
+    // pesquisa validada com fonte da própria emissora (0,9) + detentor (0,1)
+    expect(pub!.options.map((o) => [o.row.broadcasterId, Number(o.row.confidence)])).toEqual([
+      ['streaming_b', 1],
+    ]);
+
+    // reconfirmação mensal sem tokens: a fonte sumiu → nova versão pendente, volta para a fila
+    const month = new Date(now.getTime() + 31 * 24 * H);
+    const later = new RightsResearcher({
+      db,
+      llm: fake,
+      config,
+      fetcher: new FakePageFetcher({}),
+      policy,
+      now: () => month,
+    });
+    expect(await later.revalidate()).toMatchObject({ checked: 2, touched: 0, changed: 1 });
+    expect(fake.calls).toHaveLength(1);
+    const rows = await currentResearchedRights(db, { competitions: ['liga-nova'], countries: ['BR'] });
+    expect(rows[0]).toMatchObject({ status: 'pending', flags: ['source_changed'] });
   });
 });

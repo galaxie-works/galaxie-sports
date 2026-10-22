@@ -14,7 +14,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { pkUuidV7 } from './_shared.js';
-import { event } from './core.js';
+import { asset, event } from './core.js';
 
 export const enrich = pgSchema('enrich');
 
@@ -50,6 +50,8 @@ export const SOURCE_KINDS = [
   'aggregator',
   'unknown',
   'editorial',
+  /** Tabela de direitos (curada em config/broadcast-rights ou pesquisada por temporada). */
+  'rights',
 ] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
@@ -118,8 +120,15 @@ export const broadcastOption = enrich.table(
   ],
 );
 
-export const WTW_WINDOWS = ['T-7d', 'T-24h', 'T-3h', 'T-30min', 'manual'] as const;
+/**
+ * Janelas por jogo. T-7d publica a resposta dos direitos (sem LLM); T-48h é a alocação por rodada
+ * (LLM só quando os direitos dividem os jogos); T-3h e T-30min só revalidam. `T-24h` fica para o
+ * histórico do desenho anterior (busca completa por jogo).
+ */
+export const WTW_WINDOWS = ['T-7d', 'T-48h', 'T-24h', 'T-3h', 'T-30min', 'manual'] as const;
 export type WtwWindow = (typeof WTW_WINDOWS)[number];
+export const WTW_RUN_MODES = ['rights', 'allocate', 'revalidate', 'full'] as const;
+export type WtwRunMode = (typeof WTW_RUN_MODES)[number];
 
 /**
  * Execuções do agente Onde Assistir por (evento, país, janela). `run_key` garante idempotência:
@@ -136,8 +145,12 @@ export const wtwRun = enrich.table(
       .references(() => event.id, { onDelete: 'cascade' }),
     countryCode: text('country_code').notNull(),
     window: text('window').$type<WtwWindow>().notNull(),
-    /** full = busca completa · revalidate = refaz o fetch das URLs salvas e só busca se mudou. */
-    mode: text('mode').$type<'full' | 'revalidate'>().notNull(),
+    /**
+     * rights = só a resposta dos direitos (sem LLM) · allocate = alocação por rodada (LLM só se os
+     * direitos dividem os jogos) · revalidate = refaz o fetch das URLs salvas (sem LLM) ·
+     * full = busca aberta (reexecução manual e histórico).
+     */
+    mode: text('mode').$type<WtwRunMode>().notNull(),
     /** queued | running | done | failed | skipped */
     status: text('status').notNull().default('queued'),
     /** scheduler | editorial:<usuario> | cli */
@@ -389,5 +402,147 @@ export const relatedRun = enrich.table(
   (t) => [
     index('related_run_event_idx').on(t.eventId, t.startedAt),
     index('related_run_quota_idx').on(t.quotaDay),
+  ],
+);
+
+/** Tipo da emissora na biblioteca: TV aberta, TV paga (cabo/satélite/IPTV), streaming ou rádio. */
+export const BROADCASTER_KINDS = ['free_tv', 'pay_tv', 'streaming', 'radio'] as const;
+export type BroadcasterKind = (typeof BROADCASTER_KINDS)[number];
+
+/** Dados de uma emissora num país (do dicionário config/broadcasters/<iso2>.yaml). */
+export type BroadcasterMarket = {
+  name: string;
+  medium: BroadcastMedium;
+  accessModel: AccessModel;
+  channels: string[];
+  domains: string[];
+};
+
+/**
+ * Biblioteca de emissoras e plataformas (sincronizada do dicionário por país). O logo é um asset
+ * espelhado no nosso storage; `logo_source_*` guardam a origem e a licença/observação de uso.
+ */
+export const broadcaster = enrich.table('broadcaster', {
+  /** Id canônico do dicionário (ex.: globo, espn). */
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  aliases: text('aliases')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  kind: text('kind').$type<BroadcasterKind>().notNull(),
+  countries: text('countries')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  channels: text('channels')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  website: text('website'),
+  markets: jsonb('markets').$type<Record<string, BroadcasterMarket>>().notNull(),
+  logoAssetId: uuid('logo_asset_id').references(() => asset.id),
+  /** URL do arquivo de origem do logo (site oficial ou Wikimedia Commons). */
+  logoSourceUrl: text('logo_source_url'),
+  /** Página de origem (descrição do arquivo, press kit). */
+  logoSourcePage: text('logo_source_page'),
+  /** Licença ou observação de uso (ex.: domínio público; uso nominativo para identificar a emissora). */
+  logoLicense: text('logo_license'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Regra de distribuição dos jogos entre os detentores (docs/07 §2.2). */
+export const RIGHTS_DISTRIBUTIONS = ['exclusive', 'all_matches', 'split', 'selected', 'to_confirm'] as const;
+export type RightsDistribution = (typeof RIGHTS_DISTRIBUTIONS)[number];
+
+/** Detentor validado de uma pesquisa de direitos. */
+export type RightsHolderRecord = {
+  /** Id do dicionário; null = nome desconhecido (fica fora da publicação). */
+  broadcasterId: string | null;
+  name: string;
+  channels: string[];
+  kind: BroadcasterKind | null;
+  /** Transmite todos os jogos da competição nesse país. */
+  allMatches: boolean;
+  status: 'confirmed' | 'pending';
+  confidence: number;
+  evidence: Evidence[];
+  flags: string[];
+};
+
+/**
+ * Direitos de transmissão pesquisados por temporada (camada abaixo da curada em
+ * config/broadcast-rights, que sempre vence). Versionado como broadcast_option: cada mudança
+ * material vira uma linha nova e a anterior recebe `superseded_by`.
+ */
+export const broadcastRights = enrich.table(
+  'broadcast_rights',
+  {
+    id: pkUuidV7(),
+    competitionSlug: text('competition_slug').notNull(),
+    /** Ano de início da temporada (rótulo da api-sports). */
+    season: integer('season').notNull(),
+    countryCode: text('country_code').notNull(),
+    distribution: text('distribution').$type<RightsDistribution>().notNull(),
+    holders: jsonb('holders').$type<RightsHolderRecord[]>().notNull(),
+    /** confirmed = usável · pending = não usada (revisão) · retracted = lápide. */
+    status: text('status').$type<'confirmed' | 'pending' | 'retracted'>().notNull(),
+    confidence: numeric('confidence', { precision: 3, scale: 2 }).notNull(),
+    notes: text('notes'),
+    flags: text('flags')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** agent:wtw-rights@v1 */
+    producedBy: text('produced_by').notNull(),
+    /** Pesquisa (enrich.wtw_research) que produziu esta versão. */
+    researchId: uuid('research_id'),
+    lastVerifiedAt: timestamp('last_verified_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    supersededBy: uuid('superseded_by'),
+    supersededAt: timestamp('superseded_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('broadcast_rights_current_idx')
+      .on(t.competitionSlug, t.season, t.countryCode)
+      .where(sql`${t.supersededBy} is null`),
+  ],
+);
+
+/**
+ * Chamadas de pesquisa do onde assistir que cobrem vários mercados de uma vez: direitos por
+ * temporada (`rights`) e alocação por rodada (`allocation`). O custo é rateado pelos mercados da
+ * chamada no teto diário por mercado (WTW_DAILY_USD_PER_MARKET).
+ */
+export const wtwResearch = enrich.table(
+  'wtw_research',
+  {
+    id: pkUuidV7(),
+    kind: text('kind').$type<'rights' | 'allocation'>().notNull(),
+    /** Chave idempotente (ex.: rights:<competição>:<temporada>:<mercados>). */
+    researchKey: text('research_key').notNull(),
+    competitionSlug: text('competition_slug').notNull(),
+    season: integer('season'),
+    /** Rodada (rótulo do fornecedor) ou data, na alocação. */
+    round: text('round'),
+    markets: text('markets').array().notNull(),
+    /** running | done | failed | skipped */
+    status: text('status').notNull().default('running'),
+    requestedBy: text('requested_by').notNull().default('scheduler'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    provider: text('provider'),
+    model: text('model'),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    costUsd: numeric('cost_usd', { precision: 12, scale: 6 }),
+    stats: jsonb('stats'),
+    error: text('error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('wtw_research_key_uq').on(t.researchKey),
+    index('wtw_research_created_idx').on(t.createdAt),
   ],
 );
