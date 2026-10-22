@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: 'Entrar' };
 
 export default function LoginPage() {
   return (
-    <AuthShell title="Galaxie Sports" subtitle="Entre para explorar a demonstração">
+    <AuthShell title="Sports from another universe." subtitle="Enter the Galaxie and start exploring.">
       <Suspense>
         <LoginForm />
       </Suspense>
