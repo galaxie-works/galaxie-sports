@@ -285,6 +285,8 @@ create table enrich.event_context (
 );
 ```
 
+Conteúdo relacionado (migration 0011, [12 §6](12-conteudo-relacionado.md#6-modelo-de-dados-enrich)): `enrich.related_content` — um vídeo por evento × plataforma, só metadados e link/embed oficial, classificado por `content_type` (enum `enrich.related_content_type`) e `format` (`short` | `long`), versionado como o onde assistir (`superseded_by`; status `published` | `pending` | `rejected` | `retracted` | `expired`) — e `enrich.related_run`, as execuções do agente com o ledger de cota do YouTube por dia do Pacífico (`quota_day`, `quota_units`).
+
 ## 6. `ops` — operação e cota
 
 | Tabela | Uso |

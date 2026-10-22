@@ -1,0 +1,84 @@
+# =============================================================================
+# Allowlist de canais do Conteúdo relacionado (docs/12 §3.1)
+#
+# O canal define a confiança do vídeo (source_tier):
+#   clubs, competitions → official       (canal do clube, da confederação, da liga)
+#   broadcasters        → rights_holder  (quando a emissora detém os direitos da competição no país,
+#                                         pela tabela config/broadcast-rights/<iso2>.yaml); senão media
+#   media               → media          (imprensa esportiva de referência)
+# Além desta lista, os domínios `youtube.com/@handle` do dicionário de emissoras
+# (config/broadcasters/<iso2>.yaml) entram automaticamente como `broadcasters`.
+#
+# Casamento por handle (snippet.customUrl do channels.list, sem caixa) ou por id do canal
+# (`id: UC...`). Handle que não existe simplesmente nunca casa — confira com
+# `channels.list?forHandle=<handle>` ao incluir uma entrada. A blocklist editorial do Onde
+# Assistir (_policy.yaml + WTW_BLOCKLIST_FILE/WTW_BLOCKLIST) também vale aqui.
+# =============================================================================
+schema_version: 1
+updated_at: 2026-10-22
+
+clubs:
+  # Brasil
+  - { handle: '@palmeiras', team: Palmeiras, country: BR }
+  - { handle: '@tvpalmeiras', team: Palmeiras, country: BR }
+  - { handle: '@fluminensefc', team: Fluminense, country: BR }
+  - { handle: '@flutv', team: Fluminense, country: BR }
+  - { handle: '@flamengo', team: Flamengo, country: BR }
+  - { handle: '@flatv', team: Flamengo, country: BR }
+  - { handle: '@corinthians', team: Corinthians, country: BR }
+  - { handle: '@corinthianstv', team: Corinthians, country: BR }
+  - { handle: '@saopaulofc', team: São Paulo, country: BR }
+  - { handle: '@santosfc', team: Santos, country: BR }
+  - { handle: '@gremio', team: Grêmio, country: BR }
+  - { handle: '@scinternacional', team: Internacional, country: BR }
+  - { handle: '@tvgalo', team: Atlético-MG, country: BR }
+  - { handle: '@atletico', team: Atlético-MG, country: BR }
+  - { handle: '@cruzeiro', team: Cruzeiro, country: BR }
+  - { handle: '@botafogo', team: Botafogo, country: BR }
+  - { handle: '@vascotv', team: Vasco, country: BR }
+  - { handle: '@ecbahia', team: Bahia, country: BR }
+  - { handle: '@fortalezaec', team: Fortaleza, country: BR }
+  - { handle: '@athleticoparanaense', team: Athletico-PR, country: BR }
+  # Argentina
+  - { handle: '@riverplate', team: River Plate, country: AR }
+  - { handle: '@bocajuniors', team: Boca Juniors, country: AR }
+  - { handle: '@racingclub', team: Racing Club, country: AR }
+  - { handle: '@independiente', team: Independiente, country: AR }
+  - { handle: '@sanlorenzo', team: San Lorenzo, country: AR }
+  - { handle: '@estudiantesdelp', team: Estudiantes, country: AR }
+  # Uruguai, Colômbia, Chile, México
+  - { handle: '@nacional', team: Nacional, country: UY }
+  - { handle: '@penarol', team: Peñarol, country: UY }
+  - { handle: '@atlnacional', team: Atlético Nacional, country: CO }
+  - { handle: '@millonarios', team: Millonarios, country: CO }
+  - { handle: '@colocolo', team: Colo-Colo, country: CL }
+  - { handle: '@clubamerica', team: América, country: MX }
+  - { handle: '@chivas', team: Guadalajara, country: MX }
+
+competitions:
+  - { handle: '@conmebol', competition: conmebol }
+  - { handle: '@conmebollibertadores', competition: conmebol-libertadores }
+  - { handle: '@conmebolsudamericana', competition: conmebol-sudamericana }
+  - { handle: '@cbf', competition: cbf }
+  - { handle: '@cbftv', competition: cbf }
+  - { handle: '@brasileirao', competition: brasileirao-serie-a }
+  - { handle: '@ligaprofesional', competition: liga-profesional-argentina }
+  - { handle: '@ligabbvamx', competition: liga-mx }
+  - { handle: '@uefa', competition: uefa }
+  - { handle: '@uefachampionsleague', competition: uefa-champions-league }
+
+# Canais de emissoras além dos domínios youtube.com/@ do dicionário (broadcaster = id do dicionário).
+broadcasters:
+  - { handle: '@ge', broadcaster: globo, country: BR }
+  - { handle: '@sportv', broadcaster: sportv, country: BR }
+  - { handle: '@premiere', broadcaster: premiere, country: BR }
+  - { handle: '@espnbrasil', broadcaster: espn, country: BR }
+  - { handle: '@paramountplusbrasil', broadcaster: paramount_plus, country: BR }
+  - { handle: '@espnfans', broadcaster: espn, country: AR }
+  - { handle: '@espnmx', broadcaster: espn, country: MX }
+
+media:
+  - { handle: '@lance', country: BR }
+  - { handle: '@uol', country: BR }
+  - { handle: '@olepuntocom', country: AR }
+  - { handle: '@tycsports', country: AR }

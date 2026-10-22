@@ -23,6 +23,7 @@ import type {
 } from './events.js';
 import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
 import type { WhereToWatch } from './where-to-watch.js';
+import type { RelatedContent, RelatedContentTypeName } from './related.js';
 import type { Person, Squad, Team, TeamEventsQuery, TeamOverview, TeamsQuery } from './teams.js';
 import type {
   Delegation,
@@ -164,6 +165,15 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     /** Cenário pré-jogo / resumo pós-jogo de IA (módulo live_intelligence). */
     eventContext: (id: string, opts: LocaleOpts & { kind?: 'scenario' | 'recap' } = {}) =>
       v1<EventContext>(`/v1/events/${seg(id)}/context`, opts),
+    /** Vídeos relacionados ao evento, por tipo e formato (módulo related_content). */
+    eventRelated: (
+      id: string,
+      opts: LocaleOpts & { type?: RelatedContentTypeName[]; format?: 'short' | 'long'; limit?: number } = {},
+    ) =>
+      v1<RelatedContent>(`/v1/events/${seg(id)}/related`, {
+        ...opts,
+        ...(opts.type ? { type: opts.type.join(',') } : {}),
+      } as Query & LocaleOpts),
     eventH2h: (id: string, opts: LocaleOpts & { limit?: number } = {}) =>
       v1<HeadToHead>(`/v1/events/${seg(id)}/h2h`, opts),
     /** Arquivo .ics (RFC 5545) do evento, como texto. */

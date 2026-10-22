@@ -238,3 +238,147 @@ export const eventContext = enrich.table(
   },
   (t) => [primaryKey({ columns: [t.eventId, t.locale, t.kind, t.createdAt] })],
 );
+
+// ─── conteúdo relacionado por evento (docs/12) ───────────────────────────────────────────────────
+
+/** Tipo de conteúdo de um vídeo relacionado ao evento (docs/12 §4.1). */
+export const RELATED_CONTENT_TYPES = [
+  'highlights',
+  'goal',
+  'penalties',
+  'press_conference',
+  'interview',
+  'behind_the_scenes',
+  'fan_reaction',
+  'analysis',
+  'full_match',
+  'other',
+] as const;
+export type RelatedContentType = (typeof RELATED_CONTENT_TYPES)[number];
+export const relatedContentType = enrich.enum('related_content_type', RELATED_CONTENT_TYPES);
+
+/** short = vertical curto (Shorts) · long = vídeo horizontal de qualquer duração (docs/12 §4.2). */
+export const RELATED_FORMATS = ['short', 'long'] as const;
+export type RelatedFormat = (typeof RELATED_FORMATS)[number];
+
+/**
+ * published = aparece na API · pending = guardado, não aparece (revisão) · rejected = descartado pela
+ * política (direitos, relevância) · retracted = saiu do ar · expired = sem atualização há 30 dias
+ * (título, miniatura e estatísticas apagados; o id e a classificação ficam).
+ */
+export const RELATED_STATUSES = ['published', 'pending', 'rejected', 'retracted', 'expired'] as const;
+export type RelatedStatus = (typeof RELATED_STATUSES)[number];
+export const relatedContentStatus = enrich.enum('related_content_status', RELATED_STATUSES);
+
+/** Confiança do canal: allowlist (oficial, detentor de direitos, imprensa), criador ou desconhecido. */
+export const RELATED_SOURCE_TIERS = ['official', 'rights_holder', 'media', 'creator', 'unknown'] as const;
+export type RelatedSourceTier = (typeof RELATED_SOURCE_TIERS)[number];
+
+export type RelatedStatistics = {
+  views: number | null;
+  likes: number | null;
+  comments: number | null;
+  fetchedAt: string;
+};
+
+/**
+ * Vídeo relacionado a um evento: só metadados e o link/embed oficial da plataforma (nunca rehospedado).
+ * Versionado como o onde assistir: cada mudança material cria uma linha nova e aposenta a anterior.
+ */
+export const relatedContent = enrich.table(
+  'related_content',
+  {
+    id: pkUuidV7(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => event.id, { onDelete: 'cascade' }),
+    /** youtube (instagram, tiktok no futuro). */
+    provider: text('provider').notNull(),
+    /** Id do vídeo na plataforma. */
+    externalId: text('external_id').notNull(),
+    url: text('url').notNull(),
+    embedUrl: text('embed_url'),
+    title: text('title').notNull(),
+    /** ≤ 200 caracteres, para auditoria da classificação. */
+    descriptionExcerpt: text('description_excerpt'),
+    channelId: text('channel_id').notNull(),
+    channelTitle: text('channel_title').notNull(),
+    channelHandle: text('channel_handle'),
+    sourceTier: text('source_tier').$type<RelatedSourceTier>().notNull(),
+    contentType: relatedContentType('content_type').notNull(),
+    format: text('format').$type<RelatedFormat>().notNull(),
+    durationSeconds: integer('duration_seconds'),
+    publishedAt: timestamp('published_at', { withTimezone: true }).notNull(),
+    /** URL da própria plataforma (i.ytimg.com), nunca do nosso CDN. */
+    thumbnailUrl: text('thumbnail_url'),
+    /** Idioma da consulta que achou o vídeo (pt, es). */
+    language: text('language'),
+    statistics: jsonb('statistics').$type<RelatedStatistics>(),
+    rankScore: numeric('rank_score', { precision: 6, scale: 3 }).notNull(),
+    confidence: numeric('confidence', { precision: 3, scale: 2 }).notNull(),
+    /** llm:<modelo> | rules@v1 */
+    classifiedBy: text('classified_by').notNull(),
+    status: relatedContentStatus('status').notNull(),
+    /** rights_risk, injection_signal, offensive_title, low_confidence... */
+    flags: text('flags')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** Consultas (rótulos) que acharam o vídeo. */
+    queries: text('queries')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    runId: uuid('run_id'),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    supersededBy: uuid('superseded_by'),
+    supersededAt: timestamp('superseded_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('related_content_current_uq')
+      .on(t.eventId, t.provider, t.externalId)
+      .where(sql`${t.supersededBy} is null`),
+    index('related_content_event_idx').on(t.eventId, t.status),
+    index('related_content_checked_idx')
+      .on(t.lastCheckedAt)
+      .where(sql`${t.supersededBy} is null`),
+  ],
+);
+
+/** Execuções do agente de conteúdo relacionado; `quota_units` soma a cota do YouTube por dia do Pacífico. */
+export const relatedRun = enrich.table(
+  'related_run',
+  {
+    id: pkUuidV7(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => event.id, { onDelete: 'cascade' }),
+    /** full = busca completa · revalidate = só videos.list dos ids guardados. */
+    mode: text('mode').$type<'full' | 'revalidate'>().notNull(),
+    /** running | done | failed | skipped */
+    status: text('status').notNull().default('running'),
+    /** Dia da cota do YouTube (zera à meia-noite do Pacífico). */
+    quotaDay: date('quota_day').notNull(),
+    quotaUnits: integer('quota_units').notNull().default(0),
+    searches: integer('searches').notNull().default(0),
+    candidates: integer('candidates').notNull().default(0),
+    published: integer('published').notNull().default(0),
+    provider: text('provider'),
+    model: text('model'),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    costUsd: numeric('cost_usd', { precision: 12, scale: 6 }),
+    stats: jsonb('stats'),
+    error: text('error'),
+    /** cli | scheduler | editorial:<usuario> */
+    requestedBy: text('requested_by').notNull().default('cli'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('related_run_event_idx').on(t.eventId, t.startedAt),
+    index('related_run_quota_idx').on(t.quotaDay),
+  ],
+);

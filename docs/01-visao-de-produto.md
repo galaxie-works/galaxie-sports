@@ -20,7 +20,7 @@ A imagem abaixo mostra o comportamento que queremos internalizar: o torcedor per
 
 ## 2. A proposta
 
-Um serviço único, multiesporte e evergreen (não é um projeto de Copa do Mundo) composto por seis módulos:
+Um serviço único, multiesporte e evergreen (não é um projeto de Copa do Mundo) composto por sete módulos:
 
 | # | Módulo | O que entrega | Diferencial |
 |---|---|---|---|
@@ -30,6 +30,7 @@ Um serviço único, multiesporte e evergreen (não é um projeto de Copa do Mund
 | M4 | **Semantic Knowledge Base** | Clássicos, apelidos, mascotes, gritos de torcida, rivalidades, apelidos de competições e dicas de copy por locale | Pré-cadastrado e versionado — não depende de consulta em tempo real |
 | M5 | **AI Live & Enrichment** | Agendador inteligente de polling ao vivo + agentes de IA para "onde assistir", cenário pré-jogo ("quem precisa de quê"), resumo pós-jogo | IA só enriquece; placar e eventos vêm sempre da fonte de dados |
 | M6 | **Olympics & Pan-Am** | Quadro de medalhas, agenda por modalidade, atletas latino-americanos, histórico | Cobertura de eventos multiesportivos que a api-sports não cobre sozinha |
+| M7 | **Related Content** | Links diretos para vídeos do jogo (melhores momentos, gols, pênaltis, coletiva, bastidores, reação, análise), por tipo e formato (longo × short), com selo de canal oficial — [12](12-conteudo-relacionado.md) | Fatos do core montam a busca; só metadados e embed oficial, nunca rehospedagem |
 
 Tudo é exposto por **uma API própria** ([05-api-publica.md](05-api-publica.md)) e demonstrado por um **app de demonstração** em shadcn/ui + ReUI ([09-app-demonstracao.md](09-app-demonstracao.md)) que consome exclusivamente essa API.
 
@@ -89,6 +90,7 @@ O valor está no que **não** é commodity: confiabilidade do "onde assistir", c
 | **Core Data** | M1 + M2 (agenda, placares, tabelas, times, atletas, assets) | 99,5% · atualização ao vivo ≤ 60 s | Por volume de requisições/mês + número de esportes |
 | **Fan Experience** | Core + M3 (onde assistir) + M4 (semântica) + copy localizada | 99,9% · correção WTW ≤ 5 min | Por mercado (país) ativo |
 | **Live Intelligence** | Fan Experience + M5 (IA ao vivo, cenário, resumos) + M6 | 99,9% · ao vivo ≤ 15 s (plano pago do fornecedor) | Por evento enriquecido + mercados |
+| **Add-on Related Content** | M7 (vídeos relacionados por evento) sobre qualquer pacote; incluído no Enterprise | — | Por evento enriquecido |
 | **Enterprise / White-label** | Tudo + ambiente dedicado, webhooks, suporte 24×7, curadoria editorial dedicada | Contratual | Contrato anual |
 
 > ⚠️ **Licenciamento**: os termos da api-sports **proíbem revender os dados**. O espelho api-sports é a base de **desenvolvimento e demonstração**; para vender, é preciso acordo por escrito com o fornecedor ou plugar a fonte licenciada do próprio cliente na camada de provedores. O valor cobrado está no que é nosso: semântica, onde assistir, IA, normalização multiesporte e localização — ver [11-seguranca-licenciamento-e-compliance.md](11-seguranca-licenciamento-e-compliance.md).

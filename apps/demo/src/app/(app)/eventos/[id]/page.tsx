@@ -1,5 +1,5 @@
 import type { Event, EventLineups, HeadToHead, WhereToWatch } from '@galaxie/contracts';
-import { Bot, CalendarClock, ExternalLink, Flame, MapPin, Sparkles, Tv } from 'lucide-react';
+import { Bot, CalendarClock, Clapperboard, ExternalLink, Flame, MapPin, Sparkles, Tv } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -8,13 +8,21 @@ import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
+import { RelatedContentGrid } from '@/components/sport/related-content';
 import { Section } from '@/components/sport/section';
 import { StatusBadge } from '@/components/sport/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fmtDateLong, fmtTime } from '@/lib/format';
-import { getEvent, getEventContext, getH2h, getLineups, getWhereToWatch } from '@/lib/galaxie/api';
+import {
+  getEvent,
+  getEventContext,
+  getH2h,
+  getLineups,
+  getRelated,
+  getWhereToWatch,
+} from '@/lib/galaxie/api';
 import { COUNTRIES } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
@@ -343,11 +351,12 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
   const country = typeof query.pais === 'string' ? query.pais.toUpperCase() : 'BR';
 
   const event = await getEvent(id);
-  const [context, h2h, wtw, lineups] = await Promise.all([
+  const [context, h2h, wtw, lineups, related] = await Promise.all([
     getEventContext(id),
     getH2h(id),
     getWhereToWatch(id, country),
     getLineups(id),
+    getRelated(id),
   ]);
   const title = event.participants.map((p) => p.name).join(' x ');
 
@@ -377,6 +386,15 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
                     </CardContent>
                   </Card>
                 ))}
+              </Section>
+            ) : null}
+            {related?.data.length ? (
+              <Section
+                title="Conteúdo relacionado"
+                icon={<Clapperboard className="size-4" aria-hidden />}
+                description="Links diretos para vídeos do jogo, classificados por tipo — canais oficiais primeiro"
+              >
+                <RelatedContentGrid related={related} />
               </Section>
             ) : null}
             {lineups ? <LineupsSection lineups={lineups} /> : null}

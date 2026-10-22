@@ -253,6 +253,7 @@ describe('GET /v1/stream (SSE)', () => {
       'event.incident_added',
       'where_to_watch.changed',
       'event.context_published',
+      'event.related_content_changed',
     ]);
     viaQuery.close();
 

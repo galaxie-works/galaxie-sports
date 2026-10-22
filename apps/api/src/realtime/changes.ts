@@ -12,6 +12,7 @@ export const TOPIC_MODULE: Record<ChangeTopic, ApiModule> = {
   'event.incident_added': 'core_data',
   'where_to_watch.changed': 'where_to_watch',
   'event.context_published': 'live_intelligence',
+  'event.related_content_changed': 'related_content',
 };
 
 export function isChangeTopic(topic: string): topic is ChangeTopic {

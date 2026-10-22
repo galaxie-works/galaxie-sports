@@ -161,6 +161,18 @@ export async function getWhereToWatch(id: string, country: string) {
   return orNull(api.whereToWatch(id, country));
 }
 
+/** Vídeos relacionados (módulo add-on related_content): sem o módulo (403) a seção só não aparece. */
+export async function getRelated(id: string) {
+  'use cache';
+  cacheLife('minutes');
+  try {
+    return await orNull(api.eventRelated(id, { limit: 50 }));
+  } catch (err) {
+    if (err instanceof GalaxieApiError && err.status === 403) return null;
+    throw err;
+  }
+}
+
 export async function getLineups(id: string) {
   'use cache';
   cacheLife('minutes');

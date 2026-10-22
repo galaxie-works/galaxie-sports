@@ -231,6 +231,10 @@ pnpm --filter @galaxie/ai-agents curator:run --dry-run [--saida ./tmp/curador] [
 pnpm --filter @galaxie/ai-agents curator:run --open-pr       # agendamento sugerido: segunda, 06:00 UTC
 ```
 
+### 2.5 Agente Conteúdo relacionado
+
+Vídeos diretos por evento (YouTube Data API v3), classificados por tipo e formato: o core monta as consultas (times, competição, autores de gol, apito), a relevância e a política de direitos são código e o LLM tier `light` só **classifica** a lista recebida (JSON Schema, conteúdo como dado, fallback por regras, orçamento compartilhado no agente `related`). Gravação versionada em `enrich.related_content` e `event.related_content_changed` no change feed. CLI `related:run --plan | --evento <id> | --horas 48`. Proposta e implementação em [12](12-conteudo-relacionado.md).
+
 ## 3. Guardrails
 
 | Risco | Mitigação |

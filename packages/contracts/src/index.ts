@@ -4,6 +4,7 @@ export * from './mirror.js';
 export * from './events.js';
 export * from './event-context.js';
 export * from './where-to-watch.js';
+export * from './related.js';
 export * from './realtime.js';
 export * from './account.js';
 export * from './teams.js';
