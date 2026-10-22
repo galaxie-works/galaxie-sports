@@ -67,12 +67,15 @@ export const auth = betterAuth({
   // Sem e-mail e senha: as rotas de senha do Better Auth ficam desligadas. Senhas antigas que ainda
   // estejam no banco deixam de valer.
   user: {
+    // Campos geridos só pelo admin (`input: false`): a rota do próprio usuário (/update-user) recusa
+    // esses campos, então um convidado não estende o próprio prazo nem edita o perfil. As rotas do
+    // plugin admin (create-user e update-user) gravam sem esse filtro.
     additionalFields: {
-      jobTitle: { type: 'string', required: false, fieldName: 'job_title' },
-      company: { type: 'string', required: false },
-      phone: { type: 'string', required: false },
-      notes: { type: 'string', required: false },
-      accessExpiresAt: { type: 'date', required: false, fieldName: 'access_expires_at' },
+      jobTitle: { type: 'string', required: false, input: false, fieldName: 'job_title' },
+      company: { type: 'string', required: false, input: false },
+      phone: { type: 'string', required: false, input: false },
+      notes: { type: 'string', required: false, input: false },
+      accessExpiresAt: { type: 'date', required: false, input: false, fieldName: 'access_expires_at' },
     },
   },
   session: {
