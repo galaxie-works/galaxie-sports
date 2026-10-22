@@ -60,6 +60,7 @@ import type {
   CountryDetail,
   Navigation,
 } from './navigation.js';
+import type { ExploreSummary } from './explore.js';
 
 export interface GalaxieClientOptions {
   /** Ex.: http://localhost:8080 */
@@ -138,6 +139,8 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     competition: (id: string, opts: LocaleOpts = {}) => v1<Competition>(`/v1/competitions/${seg(id)}`, opts),
     /** Menu da navegação: 12 esportes e países com bandeira e confederação. */
     navigation: (opts: LocaleOpts = {}) => v1<Navigation>('/v1/navigation', opts),
+    /** Resumo da home "Explorar": contadores por esporte e por país, destaques e o jogo de maior relevância. */
+    exploreSummary: (opts: LocaleOpts = {}) => v1<ExploreSummary>('/v1/explore/summary', opts),
     country: (code: string, opts: LocaleOpts = {}) => v1<CountryDetail>(`/v1/countries/${seg(code)}`, opts),
     /** Competições do país por esporte e escopo (domésticas, continentais, seleções, mundiais). */
     countryCompetitions: (code: string, query: Omit<CountryCompetitionsQuery, 'locale'> & LocaleOpts = {}) =>

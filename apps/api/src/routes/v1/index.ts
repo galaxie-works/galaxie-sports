@@ -11,6 +11,7 @@ import { copyRoutes } from './copy.js';
 import { multisportRoutes } from './multisport.js';
 import { semanticRoutes } from './semantic.js';
 import { navigationRoutes } from './navigation.js';
+import { exploreRoutes } from './explore.js';
 import { relatedRoutes } from './related.js';
 import { searchRoutes } from './search.js';
 
@@ -40,4 +41,6 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await navigationRoutes(app, ctx);
   // busca global `/v1/search` (times, competições, jogos, pessoas, estádios, países) — módulo core_data
   await searchRoutes(app, ctx);
+  // resumo da home "Explorar" (contadores por esporte e por país) — módulo core_data
+  await exploreRoutes(app, ctx);
 }
