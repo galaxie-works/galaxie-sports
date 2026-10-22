@@ -236,3 +236,18 @@ export function knockoutStageRules(rules: CompetitionRules, stageKind?: string |
   const ko = rules.knockout ?? { default: DEFAULT_STAGE, stages: {} };
   return (stageKind ? ko.stages[stageKind] : undefined) ?? ko.default;
 }
+
+const ORDINAL_KEYS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
+
+/**
+ * Chave da fase no regulamento: igual ao `kind`, exceto as fases numeradas de copa
+ * ("1st Round" → `first_round`), que o YAML nomeia por extenso (ex.: copa-do-brasil).
+ */
+export function rulesStageKey(kind: string, providerLabel: string | null): string {
+  if (kind === 'knockout_round' && providerLabel) {
+    const n = /^(\d+)(st|nd|rd|th)\s+round/i.exec(providerLabel.trim())?.[1];
+    const key = n ? ORDINAL_KEYS[Number(n) - 1] : undefined;
+    if (key) return `${key}_round`;
+  }
+  return kind;
+}
