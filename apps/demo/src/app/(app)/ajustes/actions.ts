@@ -9,12 +9,13 @@ import { headers } from 'next/headers';
 
 import { requireAdmin } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
-import { auth, takeUndeliveredLink } from '@/lib/auth/server';
+import { sendInvite } from '@/lib/auth/invite';
+import { auth } from '@/lib/auth/server';
 
 export interface ActionResult {
   ok: boolean;
   error?: string;
-  /** Link de convite para copiar, só quando o e-mail não pôde ser enviado (ex.: sem SMTP). */
+  /** Link da tela de login para copiar, só quando o e-mail não pôde ser enviado (ex.: sem SMTP). */
   link?: string | null;
   emailSent?: boolean;
   userId?: string;
@@ -50,12 +51,6 @@ function message(err: unknown) {
   return e?.body?.message ?? e?.message ?? 'Não foi possível concluir a ação.';
 }
 
-async function sendAccessLink(userId: string, email: string) {
-  await auth.api.requestPasswordReset({ body: { email, redirectTo: '/definir-senha' } });
-  const link = takeUndeliveredLink(userId);
-  return { emailSent: link === null, link };
-}
-
 export async function inviteUser(input: InviteInput): Promise<ActionResult> {
   await requireAdmin();
   const email = input.email.trim().toLowerCase();
@@ -69,8 +64,7 @@ export async function inviteUser(input: InviteInput): Promise<ActionResult> {
         email,
         name,
         role: input.role,
-        // Senha aleatória só para criar a conta; a pessoa define a dela pelo link do convite.
-        password: crypto.randomUUID() + crypto.randomUUID(),
+        // Sem senha: a pessoa entra com o código enviado ao e-mail.
         data: {
           jobTitle: clean(input.jobTitle),
           company: clean(input.company),
@@ -81,7 +75,7 @@ export async function inviteUser(input: InviteInput): Promise<ActionResult> {
       },
     });
     const userId = created.user.id;
-    const sent = await sendAccessLink(userId, email);
+    const sent = await sendInvite(userId);
     revalidatePath('/ajustes/usuarios');
     return { ok: true, userId, ...sent };
   } catch (err) {
@@ -138,10 +132,10 @@ export async function updateAccess(
 
 export async function resendInvite(userId: string): Promise<ActionResult> {
   await requireAdmin();
-  const { rows } = await pool.query<{ email: string }>('select email from "user" where id = $1', [userId]);
+  const { rows } = await pool.query<{ id: string }>('select id from "user" where id = $1', [userId]);
   if (!rows[0]) return { ok: false, error: 'Usuário não encontrado.' };
   try {
-    const sent = await sendAccessLink(userId, rows[0].email);
+    const sent = await sendInvite(userId);
     revalidatePath(`/ajustes/usuarios/${userId}`);
     revalidatePath('/ajustes/usuarios');
     return { ok: true, ...sent };
