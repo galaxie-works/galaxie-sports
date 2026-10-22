@@ -9,6 +9,7 @@ import {
   TeamsQuery,
   teamGradient,
   type Event,
+  type FormerName,
   type Person,
   type Squad,
   type Team,
@@ -30,8 +31,11 @@ import {
   roster,
   season,
   standing,
+  providerFormerName,
+  sameName,
   teamProfile,
   venue,
+  venueDisplay,
   type Database,
 } from '@galaxie/db';
 import { sendCached } from '../../cache/http.js';
@@ -114,6 +118,32 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     nicknames: nicknames.get(r.p.id) ?? [],
   });
 
+  /**
+   * Nomes anteriores derivados dos jogos do fornecedor (`names:derive`), sem os que coincidem com o
+   * nome atual ou com os nomes da base semântica (a curadoria vence).
+   */
+  async function teamFormerNames(db: Database, p: TeamRow['p']): Promise<FormerName[]> {
+    const list = p.providerFormerNames ?? [];
+    if (!list.length) return [];
+    const [profile] = await db
+      .select({ names: teamProfile.names, labels: teamProfile.labels })
+      .from(teamProfile)
+      .where(eq(teamProfile.participantId, p.id))
+      .limit(1);
+    const names = (profile?.names ?? {}) as { official?: string; short?: string };
+    const current = [
+      p.name,
+      p.shortName,
+      names.official,
+      names.short,
+      ...Object.values((profile?.labels ?? {}) as Record<string, string>),
+    ].filter((n): n is string => !!n);
+    return list
+      .filter((f) => !current.some((c) => sameName(c, f.name)))
+      .map(providerFormerName)
+      .sort((a, b) => b.until.localeCompare(a.until));
+  }
+
   async function loadTeam(db: Database, id: string, locale: string): Promise<Team> {
     const [row] = await selectTeams(db).where(eq(participant.id, id)).limit(1);
     if (!row) throw problems.notFound('Time');
@@ -140,10 +170,11 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         : null,
       founded: row.p.founded,
       venue: v
-        ? { id: v.v.id, name: v.v.name, city: v.v.city, image: assetUrl(ctx.assetsBaseUrl, v.key, v.url) }
+        ? { id: v.v.id, ...venueDisplay(v.v), image: assetUrl(ctx.assetsBaseUrl, v.key, v.url) }
         : null,
       colors: teamColors(row.logoPalette),
       external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
+      former_names: await teamFormerNames(db, row.p),
     };
   }
 

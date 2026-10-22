@@ -218,7 +218,14 @@ export const TeamSemantic = z
     fans: z.object({ demonym: z.string().nullable(), group_nicknames: z.array(z.string()) }),
     rallying_cries: z.array(z.string()).meta({ example: ['Avanti, Palestra!'] }),
     stadium: z
-      .object({ name: z.string(), nicknames: z.array(z.string()), city: z.string().nullable() })
+      .object({
+        name: z.string(),
+        nicknames: z.array(z.string()),
+        former_names: z
+          .array(z.object({ name: z.string(), until: z.iso.date() }))
+          .meta({ example: [{ name: 'Allianz Parque', until: '2026-05-03' }] }),
+        city: z.string().nullable(),
+      })
       .nullable(),
     rivals: z.array(TeamRival),
     identity: z.array(z.string()),

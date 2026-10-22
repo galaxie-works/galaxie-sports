@@ -839,12 +839,31 @@ describe('/v1/teams e /v1/people', () => {
       .set({ palette: { version: 1, dominant: '#006937', secondary: null, monochrome: false } })
       .where(eq(asset.id, palmeiras!.logo!));
 
+    // nomes anteriores derivados dos jogos: variação de caixa do nome atual não conta
+    await db
+      .update(participant)
+      .set({
+        providerFormerNames: [
+          { name: 'PALMEIRAS', from: '2012-01-01', until: '2013-12-31' },
+          { name: 'Palestra Itália', from: '1914-08-26', until: '1942-09-14' },
+        ],
+      })
+      .where(eq(participant.id, ids.palmeiras!));
     const t = (await get(`/v1/teams/${ids.palmeiras}`)).json();
     expect(t).toMatchObject({
       name: 'Palmeiras',
       country_ref: { code: 'BR', name: 'Brasil' },
       external_ids: { 'api-sports': '121' },
       venue: { name: 'Estádio 258' },
+      former_names: [
+        {
+          name: 'Palestra Itália',
+          from: '1914-08-26',
+          until: '1942-09-14',
+          origin: 'provider',
+          confidence: 'low',
+        },
+      ],
       colors: {
         primary: '#006937',
         secondary: null,

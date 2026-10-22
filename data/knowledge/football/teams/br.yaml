@@ -27,8 +27,12 @@ teams:
     rallying_cries: ["Avanti, Palestra!"]
     stadium:
       name: Nubank Parque
-      nicknames: ["Allianz Parque", "Arena"]
+      nicknames: ["Arena"]
+      # Nubank comprou os naming rights e o nome venceu a votação popular em 2026-05-04 (fontes abaixo).
+      former_names:
+        - { name: Allianz Parque, until: 2026-05-03 }
       city: São Paulo
+      api_sports_venue_id: 258 # venue.id dos jogos do Palmeiras no raw /fixtures e /teams
     rivals:
       - { team: corinthians, derby: derby-paulista, intensity: 5 }
       - { team: sao-paulo, derby: choque-rei, intensity: 4 }
@@ -44,6 +48,8 @@ teams:
       - "https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras"
       - "https://www.lance.com.br/palmeiras/abel-ferreira-explica-como-surgiu-o-grito-motivacional-avanti-palestra.html"
       - "https://www.band.com.br/esportes/arena-do-palmeiras-ganhara-nome-do-nubank-em-maio-e-tera-troca-de-letreiro-em-julho-202604101514"
+      - "https://www.band.com.br/esportes/nubank-parque-ganha-votacao-e-batiza-estadio-do-palmeiras-novo-nome-vai-pegar-202605041148"
+      - "https://www.lance.com.br/palmeiras/patrocinadora-define-novo-nome-da-arena-do-palmeiras-apos-votacao-popular.html"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
     review_status: draft
 
@@ -67,6 +73,8 @@ teams:
     rallying_cries: ["Vai, Corinthians!"]
     stadium:
       name: Neo Química Arena
+      # "Arena Corinthians" é o nome que o fornecedor usa (casa pelo apelido).
+      # TODO(f17): former_names com a data em que "Arena Corinthians" deixou de valer (naming rights de 2020) — falta fonte com a data exata.
       nicknames: ["Arena Corinthians", "Itaquerão"]
       city: São Paulo
     rivals:
@@ -104,6 +112,8 @@ teams:
     rallying_cries: ["Vamos, São Paulo!"]
     stadium:
       name: MorumBIS
+      # O fornecedor tem duas linhas: "Estádio Cícero Pompeu de Toledo (Morumbi)" e "MorumBIS" (casam pelos apelidos).
+      # TODO(f17): former_names com a data em que "Morumbi" deixou de ser o nome oficial (naming rights de 2024) — falta fonte com a data exata.
       nicknames: ["Morumbi", "Estádio Cícero Pompeu de Toledo"]
       city: São Paulo
     rivals:

@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Ajv, type ErrorObject, type ValidateFunction } from 'ajv';
+import { nameKey } from '@galaxie/db';
 import { lineOf, type FileKind, type KnowledgeBase, type KnowledgeFile } from './load.js';
 import { checkChant, checkProse, type LyricVerdict } from './lyrics.js';
 import { COPY_INTENTS, COPY_LOCALES, COPY_PLACEHOLDERS, type CopyTemplateEntry } from './types.js';
@@ -301,6 +302,69 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
         `api_sports_league_id ${id} repetido (${prev} e ${c.entry.slug})`,
       );
     else leagueIds.set(id, c.entry.slug);
+  }
+
+  // 4b. estádios: nomes anteriores coerentes e api_sports_venue_id sem conflito
+  const venueOwners = new Map<number, { slug: string; name: string }>();
+  for (const t of kb.teams) {
+    const st = t.entry.stadium;
+    if (!st || typeof st.name !== 'string') continue;
+    const path = [t.listKey, t.index, 'stadium'];
+    const current = nameKey(st.name);
+    const nicknames = new Set((st.nicknames ?? []).map(nameKey));
+    const seen = new Set<string>();
+    (st.former_names ?? []).forEach((f, i) => {
+      const key = nameKey(f.name);
+      const where = at(t.file, [...path, 'former_names', i, 'name']);
+      if (key === current)
+        add(
+          'error',
+          'stadium-former-name',
+          t.file,
+          where,
+          `${t.entry.slug}: nome anterior igual ao atual (${f.name})`,
+        );
+      else if (seen.has(key))
+        add(
+          'error',
+          'stadium-former-name',
+          t.file,
+          where,
+          `${t.entry.slug}: nome anterior repetido (${f.name})`,
+        );
+      else if (nicknames.has(key))
+        add(
+          'warning',
+          'stadium-former-nickname',
+          t.file,
+          where,
+          `${t.entry.slug}: ${f.name} está em nicknames e em former_names (deixe só em former_names)`,
+        );
+      seen.add(key);
+    });
+    const id = st.api_sports_venue_id;
+    if (typeof id !== 'number') continue;
+    const idPath = at(t.file, [...path, 'api_sports_venue_id']);
+    if (t.sport !== 'football') {
+      add(
+        'error',
+        'provider-id-sport',
+        t.file,
+        idPath,
+        `${t.entry.slug}: stadium.api_sports_venue_id só é suportado no futebol`,
+      );
+      continue;
+    }
+    const prev = venueOwners.get(id);
+    if (prev && nameKey(prev.name) !== current)
+      add(
+        'error',
+        'stadium-conflict',
+        t.file,
+        idPath,
+        `api_sports_venue_id ${id} com nomes diferentes (${prev.slug}: ${prev.name}; ${t.entry.slug}: ${st.name})`,
+      );
+    else if (!prev) venueOwners.set(id, { slug: t.entry.slug, name: st.name });
   }
 
   // 5. referências: clássicos ↔ times ↔ rivais

@@ -50,6 +50,10 @@ try {
     `Ligados: ${result.linked.teams} perfil(is) a participantes, ${result.linked.competitions} competição(ões). ` +
       `Eventos com derby_id alterado: ${result.events.updated}. load_run ${result.loadRunId}.`,
   );
+  console.log(
+    `Estádios curados: ${result.venues.curated} linha(s) de core.venue (${result.venues.changed} alterada(s)).`,
+  );
+  for (const c of result.venues.conflicts) console.warn(`Estádio em conflito (ignorado): ${c}`);
 } finally {
   await closeDb(db);
 }

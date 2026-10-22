@@ -26,6 +26,9 @@ import {
 } from '@/lib/galaxie/api';
 import type { ApiRequest } from '@/lib/galaxie/request';
 
+/** "2026-05-03" → "03/05/2026" (sem passar por Date, para não depender do fuso). */
+const isoDayToBr = (iso: string) => iso.split('-').reverse().join('/');
+
 /** Cores do clube como vêm da base semântica (nomes em pt-BR). */
 const COLOR_HEX: Record<string, string> = {
   verde: '#16a34a',
@@ -178,6 +181,12 @@ function SemanticIdentity({ s }: { s: TeamSemantic }) {
               {s.stadium.nicknames.length ? (
                 <span className="text-muted-foreground"> ({s.stadium.nicknames.join(', ')})</span>
               ) : null}
+              {s.stadium.former_names.length ? (
+                <span className="text-muted-foreground block text-xs">
+                  Antes:{' '}
+                  {s.stadium.former_names.map((f) => `${f.name} (até ${isoDayToBr(f.until)})`).join(', ')}
+                </span>
+              ) : null}
             </dd>
           </div>
         ) : null}
@@ -323,6 +332,9 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
   const competitions = overview.competitions ?? [];
   const overviewApi = teamOverviewRequest(id);
 
+  // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
+  const formerNames = team.former_names.filter((f) => f.origin === 'curated');
+
   return (
     <>
       <PageHeader title={team.name} kind="time" api={overviewApi} />
@@ -335,6 +347,11 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
               <h1 className="text-2xl font-semibold tracking-tight">{team.name}</h1>
               {semantic?.official_name && semantic.official_name !== team.name ? (
                 <span className="text-muted-foreground text-sm">{semantic.official_name}</span>
+              ) : null}
+              {formerNames.length ? (
+                <span className="text-muted-foreground text-xs">
+                  Antes: {formerNames.map((f) => `${f.name} (até ${f.until.slice(0, 4)})`).join(', ')}
+                </span>
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">

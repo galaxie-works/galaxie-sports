@@ -14,6 +14,7 @@ import {
   standing,
   teamProfile,
   venue,
+  venueDisplay,
   type Database,
   type EventScore,
 } from '@galaxie/db';
@@ -250,7 +251,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       cLogoUrl: asset.sourceUrl,
       st: { id: stage.id, kind: stage.kind, name: stage.name, providerLabel: stage.providerLabel },
       seasonYear: season.year,
-      v: { id: venue.id, name: venue.name, city: venue.city },
+      v: { id: venue.id, name: venue.name, city: venue.city, curated: venue.curated },
       d: { slug: derby.slug, name: derby.name, labels: derby.labels, intensity: derby.intensity },
       // árbitro: só no espelho do futebol (`core.football_fixture`, 1:1 com o evento)
       referee: footballFixture.referee,
@@ -565,7 +566,8 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         penalty: pair(e.score?.penalty),
         aggregate: aggregate ?? pair(e.score?.aggregate),
       },
-      venue: r.v?.id ? { id: r.v.id, name: r.v.name, city: r.v.city } : null,
+      // nome curado da base semântica vence o do fornecedor (naming rights)
+      venue: r.v?.id ? { id: r.v.id, ...venueDisplay(r.v) } : null,
       referee: parseReferee(r.referee),
       derby: r.d?.slug
         ? {

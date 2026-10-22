@@ -163,7 +163,7 @@ Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 | `GET /v1/competitions/{id}` | Detalhe + temporadas |
 | `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos |
 | `GET /v1/competitions/{id}/context` | O que está em jogo: líder, G4/G6, Z4, mata-mata, chaveamento, próximos confrontos decisivos |
-| `GET /v1/venues/{id}` | Estádio/circuito/arena |
+| `GET /v1/venues/{id}` | Estádio/circuito/arena: nome atual (curadoria vence o fornecedor), `provider_name` (nome cru do fornecedor) e `former_names` (`{ name, from, until, origin, confidence }`: curadoria `high` primeiro, depois pistas do fornecedor `low`) |
 
 Convenções implementadas:
 
@@ -327,7 +327,9 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 
 - `GET /v1/teams`: `{ data, next_cursor }` ordenado por nome; `q` (≥ 2 caracteres) busca em nome, nome curto, código e apelidos/nomes da base semântica; `competition` (UUID ou slug) = times com jogos na competição. Cada item traz `nicknames` da base semântica (vazio sem perfil).
-- `GET /v1/teams/{id}`: resumo + `country_ref` localizado, `founded`, `venue` (estádio da casa, com imagem), `colors` e `external_ids`.
+- `GET /v1/teams/{id}`: resumo + `country_ref` localizado, `founded`, `venue` (estádio da casa, com imagem e nome curado), `colors`, `external_ids` e `former_names` (nomes anteriores do time derivados dos jogos do fornecedor, `origin: provider`, `confidence: low`; variações de grafia não contam e os nomes da base semântica vencem).
+- `former_names` com `confidence: low` (origem `provider`) são **pistas** para busca e casamento de nomes, não fato confirmado editorialmente (podem ser casa provisória ou nome de torneio): nunca substituem o nome atual e não devem ser exibidos ao usuário final como fato. Para exibir, use só `confidence: high` (curadoria).
+- Estádio em evento, time e `/v1/venues/{id}`: o nome curado da base semântica vence o do fornecedor (ex.: "Nubank Parque" no lugar de "Allianz Parque", que a api-sports ainda manda em `/teams`); jogos anteriores à troca também mostram o nome atual ([04 — nomes de estádios](04-modelo-de-dados.md#nomes-de-estádios-e-times-curadoria--fornecedor)).
 - **`colors`** (também em `overview.team`): cores extraídas do escudo espelhado, sem chamada externa ([03 §7.2](03-ingestao-e-economia-de-chamadas.md#72-cores-dos-times-paleta-do-escudo)) — `primary` (cor predominante, `#rrggbb`), `secondary` (segunda cor com matiz distinto, ou `null`), `monochrome` (escudo preto/branco: `primary` vira o cinza neutro `#3a3a3a`) e `gradient`, o **gradiente sugerido** pronto para CSS: `linear-gradient(9deg, #000 0%, <primary> 100%)`. `null` enquanto o escudo não foi espelhado ou não é um PNG decodificável. Exemplo (Palmeiras): `{ "primary": "#006937", "secondary": null, "monochrome": false, "gradient": "linear-gradient(9deg, #000 0%, #006937 100%)" }`.
 - `GET /v1/teams/{id}/overview`: em uma chamada, `team`, `standings` (por competição, a temporada atual ou a mais recente com tabela do time), `competitions` (campanha em cada competição, abaixo), `form` (últimos 5 encerrados, do mais recente ao mais antigo; placar do ponto de vista do time; empate decidido nos pênaltis usa o `winner` do fornecedor), `last_events` (5), `live_event` e `next_event` (próximo `scheduled`/`starting` a partir de 3 h atrás), todos no formato de evento de §3.2 (com stakes). Onde assistir do próximo jogo entra com a issue de onde assistir.
 - **`competitions`** (overview): a **campanha** do time na temporada atual (ou, sem ela, na mais recente) de cada competição — inclusive copas sem tabela; temporadas que não são a atual só entram se o time jogou nelas nos últimos 12 meses. Ordem: em disputa (`campaign.ongoing`) primeiro, depois a atividade mais recente. Cada item: `competition`, `season`, `group` (tabela do time, quando a fase tem tabela) e `campaign`:

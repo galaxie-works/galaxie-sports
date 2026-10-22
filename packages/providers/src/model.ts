@@ -75,6 +75,11 @@ export interface NormalizedVenue {
   surface: string | null;
   imageUrl: string | null;
   /**
+   * Data do jogo em que `name` foi visto (estádio citado numa partida). O bloco `venue` de `/teams`
+   * não tem data e fica para trás numa troca de nome: o nome datado mais recente vence.
+   */
+  nameSeenAt?: Date | null;
+  /**
    * `true` quando a entidade só aparece como referência (time numa partida, jogador numa escalação):
    * preenche lacunas, mas não sobrescreve dados vindos do endpoint próprio da entidade.
    */

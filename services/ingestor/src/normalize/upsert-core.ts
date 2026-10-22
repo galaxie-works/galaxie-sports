@@ -380,16 +380,32 @@ export async function upsertBatchInTx(
       capacity: v.capacity,
       surface: v.surface,
       imageAssetId: assetId(v.imageUrl),
+      nameSeenAt: v.nameSeenAt ?? null,
     });
   for (const reference of [false, true]) {
     const rows = venueRows.filter((r) => r.reference === reference).map(({ reference: _r, ...row }) => row);
     for (const chunk of chunks(rows, 500)) {
       const { set, setWhere } = coalesceUpdate(
         venue,
-        ['name', 'city', 'countryCode', 'capacity', 'surface', 'imageAssetId'],
+        ['city', 'countryCode', 'capacity', 'surface', 'imageAssetId'],
         { touchUpdatedAt: true, fillOnly: reference },
       );
-      await tx.insert(venue).values(chunk).onConflictDoUpdate({ target: venue.id, set, setWhere });
+      // Nome: o do jogo mais recente vence (cada partida traz o nome do dia); o de /teams, sem data,
+      // só substitui um nome também sem data — fica para trás depois de uma venda de naming rights.
+      const name = sql`case
+        when excluded.name_seen_at is not null
+             and (${venue.nameSeenAt} is null or excluded.name_seen_at >= ${venue.nameSeenAt}) then excluded.name
+        when excluded.name_seen_at is null and ${venue.nameSeenAt} is null and ${sql.raw(String(!reference))} then excluded.name
+        else ${venue.name} end`;
+      const seenAt = sql`greatest(${venue.nameSeenAt}, excluded.name_seen_at)`;
+      await tx
+        .insert(venue)
+        .values(chunk)
+        .onConflictDoUpdate({
+          target: venue.id,
+          set: { ...set, name, nameSeenAt: seenAt },
+          setWhere: sql`${setWhere} or (${venue.name}, ${venue.nameSeenAt}) is distinct from (${name}, ${seenAt})`,
+        });
     }
   }
   await linkIds(

@@ -26,6 +26,8 @@ import {
   sport,
   standing,
   venue,
+  venueDisplay,
+  venueFormerNames,
   type Database,
   type I18nText,
 } from '@galaxie/db';
@@ -310,14 +312,17 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .where(eq(venue.id, params.id))
           .limit(1);
         if (!row) throw problems.notFound('Venue');
+        const shown = venueDisplay(row.v);
         const body: Venue = {
           id: row.v.id,
-          name: row.v.name,
-          city: row.v.city,
+          name: shown.name,
+          city: shown.city,
           country: countryRef(row.country?.code ? (row.country as CountryRow) : null, locale),
           capacity: row.v.capacity,
           surface: row.v.surface,
           image: assetUrl(ctx.assetsBaseUrl, row.storageKey, row.sourceUrl),
+          provider_name: row.v.name,
+          former_names: venueFormerNames(row.v),
         };
         return { body, tags: [`venue:${row.v.id}`] };
       },

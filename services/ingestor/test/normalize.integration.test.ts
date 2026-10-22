@@ -42,10 +42,13 @@ import {
   expectedEnd,
   FakeProvider,
   normalizeFixtures,
+  normalizeTeams,
   type ApiFixture,
+  type ApiTeamItem,
   type NormalizedBatch,
 } from '@galaxie/providers';
 import { advanceEventClock, applyProviderFailure } from '../src/normalize/event-state.js';
+import { deriveProviderNames } from '../src/normalize/name-history.js';
 import { ingestProviderResult } from '../src/normalize/ingest.js';
 import { normalizeFootballFromRaw, runNormalizeFootballJob } from '../src/normalize/raw-runner.js';
 import { upsertBatch } from '../src/normalize/upsert-core.js';
@@ -657,5 +660,84 @@ describe('camada de provedores', () => {
     const e = await eventRow('1492212');
     expect(e.derbyId).toBe(derbyId);
     expect(e.importance).toBe(40 + 4 + 30);
+  });
+
+  it('nome do estádio: o jogo mais recente vence o /teams e o histórico vira nome anterior', async () => {
+    const VENUE = 99258;
+    const venueRow = async () =>
+      (
+        await db
+          .select({ name: venue.name, seen: venue.nameSeenAt, former: venue.providerFormerNames })
+          .from(venue)
+          .innerJoin(providerMap, eq(providerMap.entityId, venue.id))
+          .where(and(eq(providerMap.entityType, 'venue'), eq(providerMap.providerId, String(VENUE))))
+      )[0]!;
+    const teams = (name: string) =>
+      normalizeTeams(
+        [
+          {
+            team: {
+              id: 121,
+              name: 'Palmeiras',
+              code: 'PAL',
+              country: 'Brazil',
+              founded: 1914,
+              national: false,
+              logo: null,
+            },
+            venue: {
+              id: VENUE,
+              name,
+              address: null,
+              city: 'São Paulo',
+              capacity: 43713,
+              surface: 'grass',
+              image: null,
+            },
+          } as ApiTeamItem,
+        ],
+        new Date('2026-10-22T12:00:00Z'),
+      );
+    const base = fixture<{ response: ApiFixture[] }>('fixtures-headtohead-121-131.json').response[0]!;
+    const game = (id: number, date: string, name: string): ApiFixture => {
+      const f = structuredClone(base);
+      f.fixture = {
+        ...f.fixture,
+        id,
+        date: `${date}T00:30:00+00:00`,
+        timestamp: Date.parse(`${date}T00:30:00Z`) / 1000,
+        venue: { id: VENUE, name, city: 'São Paulo' },
+      };
+      return f;
+    };
+    // /teams (sem data) diz o nome antigo; os jogos de 2026 já trazem o novo
+    await upsertBatch(db, teams('Allianz Parque'));
+    expect((await venueRow()).name).toBe('Allianz Parque');
+    const observed = new Date('2026-10-22T12:00:00Z');
+    await upsertBatch(
+      db,
+      normalizeFixtures(
+        [
+          game(99001, '2025-05-01', 'Allianz Parque'),
+          game(99002, '2025-05-22', 'Allianz Parque'),
+          game(99003, '2026-10-09', 'Nubank Parque'),
+          game(99004, '2026-10-16', 'Nubank Parque'),
+        ],
+        observed,
+      ),
+    );
+    expect(await venueRow()).toMatchObject({ name: 'Nubank Parque', seen: new Date('2026-10-16T00:30:00Z') });
+    // /teams desatualizado e jogo antigo reprocessado não voltam o nome
+    await upsertBatch(db, teams('Allianz Parque'));
+    await upsertBatch(db, normalizeFixtures([game(99001, '2025-05-01', 'Allianz Parque')], observed));
+    expect((await venueRow()).name).toBe('Nubank Parque');
+
+    const derived = await deriveProviderNames(db);
+    expect(derived.venues.renamed).toBeGreaterThanOrEqual(1);
+    expect((await venueRow()).former).toEqual([
+      { name: 'Allianz Parque', from: '2025-05-01', until: '2025-05-22' },
+    ]);
+    // idempotente
+    expect((await deriveProviderNames(db)).venues.changed).toBe(0);
   });
 });

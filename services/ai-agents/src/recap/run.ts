@@ -12,7 +12,7 @@ import {
 } from '../context/run.js';
 import { factsHash, latestFactsHashes, newRunInfo, saveEventContexts } from '../context/store.js';
 import { writeLocalizedTexts } from '../context/writer.js';
-import { buildRecapFacts, loadIncidents, loadStatistics } from './facts.js';
+import { buildRecapFacts, loadIncidents, loadRecapKnockout, loadStatistics } from './facts.js';
 import {
   RECAP_PROMPT_VERSION,
   recapFactSheet,
@@ -105,6 +105,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         await loadIncidents(db, id),
         await loadStatistics(db, core),
         locales,
+        await loadRecapKnockout(db, core),
       );
       if (!facts) {
         item.reason = 'evento encerrado sem placar';

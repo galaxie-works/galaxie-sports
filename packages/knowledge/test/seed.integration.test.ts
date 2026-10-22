@@ -14,6 +14,7 @@ import {
   providerMap,
   sport,
   teamProfile,
+  venue,
   type Database,
 } from '@galaxie/db';
 import { assignEventDerbies, findDerby } from '../src/derby.js';
@@ -215,6 +216,67 @@ describe('seedSemantic', () => {
     if (paulistaoProfile) expect(paulistaoProfile.competitionId).toBe(paulistao!.id);
   });
 
+  it('liga estádios curados a core.venue: ID do fornecedor, estádio-sede e jogos como mandante', async () => {
+    const addVenue = async (name: string, city: string, apiId?: number) => {
+      const [v] = await db.insert(venue).values({ name, city }).returning();
+      if (apiId)
+        await db.insert(providerMap).values({
+          entityType: 'venue',
+          entityId: v!.id,
+          provider: 'api-sports',
+          sport: 'football',
+          providerId: String(apiId),
+        });
+      return v!.id;
+    };
+    const profileOf = async (slug: string) =>
+      (
+        await db.select({ id: teamProfile.participantId }).from(teamProfile).where(eq(teamProfile.slug, slug))
+      )[0]!.id!;
+    // Palmeiras: ID 258 no YAML; o fornecedor ainda diz "Allianz Parque"
+    const allianz = await addVenue('Allianz Parque', 'São Paulo, São Paulo', 258);
+    // São Paulo: estádio-sede com o nome antigo entre parênteses
+    const morumbi = await addVenue('Estádio Cícero Pompeu de Toledo (Morumbi)', 'São Paulo, São Paulo', 269);
+    await db
+      .update(participant)
+      .set({ homeVenueId: morumbi })
+      .where(eq(participant.id, await profileOf('sao-paulo')));
+    // Corinthians: só aparece como estádio de um jogo em casa ("Arena Corinthians" é apelido no YAML)
+    const arena = await addVenue('Arena Corinthians', 'São Paulo, São Paulo', 229);
+    const home = await addMatch(await profileOf('corinthians'), await profileOf('bahia'));
+    await db.update(event).set({ venueId: arena }).where(eq(event.id, home));
+    // mesmo nome de patrocinador em outro lugar: não liga
+    const munich = await addVenue('Allianz Arena', 'München', 700);
+
+    const result = await seedSemantic(db, kb);
+    expect(result.venues.conflicts).toEqual([]);
+    const curated = new Map(
+      (await db.select({ id: venue.id, curated: venue.curated, name: venue.name }).from(venue)).map((v) => [
+        v.id,
+        v,
+      ]),
+    );
+    expect(curated.get(allianz)).toMatchObject({
+      name: 'Allianz Parque',
+      curated: {
+        name: 'Nubank Parque',
+        city: 'São Paulo',
+        former_names: [{ name: 'Allianz Parque', until: '2026-05-03' }],
+        team_slugs: ['palmeiras'],
+        matched_by: 'provider_id',
+      },
+    });
+    expect(curated.get(morumbi)?.curated).toMatchObject({ name: 'MorumBIS', matched_by: 'name' });
+    expect(curated.get(arena)?.curated).toMatchObject({
+      name: 'Neo Química Arena',
+      team_slugs: ['corinthians'],
+    });
+    expect(curated.get(munich)?.curated).toBeNull();
+
+    // idempotente
+    expect((await seedSemantic(db, kb)).venues.changed).toBe(0);
+  });
+
   it('remove o que saiu do YAML e limpa o derby_id dos eventos', async () => {
     const choqueEvent = (await db.select({ id: event.id, derbyId: event.derbyId }).from(event)).find(
       (e) => e.derbyId !== null,
@@ -233,6 +295,8 @@ describe('seedSemantic', () => {
     expect(result.copyTemplates.removed).toBe(kb.copyTemplates.length - trimmed.copyTemplates.length);
     expect(await db.select().from(teamProfile).where(eq(teamProfile.slug, 'sao-paulo'))).toHaveLength(0);
     expect(await db.select().from(derby).where(eq(derby.slug, 'choque-rei'))).toHaveLength(0);
+    // o estádio do perfil removido perde a curadoria (volta a valer o nome do fornecedor)
+    expect(result.venues.changed).toBe(1);
     // eventos Palmeiras × São Paulo perdem o clássico; Derby Paulista continua
     const events = await db.select({ id: event.id, derbyId: event.derbyId }).from(event);
     const [paulista] = await db.select().from(derby).where(eq(derby.slug, 'derby-paulista'));
