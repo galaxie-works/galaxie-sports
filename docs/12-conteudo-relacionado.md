@@ -277,7 +277,7 @@ Flags: `--plan`, `--evento`, `--horas` (padrão 48), `--tier` (padrão 2), `--li
 
 ## 11. Demo
 
-Página do evento (`apps/demo`, `eventos/[id]`): seção **Conteúdo relacionado** com cards (miniatura, duração, selo *Short*, canal com selo *Oficial*, tipo e visualizações) e filtro por tipo (abas com a contagem de `counts`). O clique abre o vídeo na própria plataforma. A chave da demo precisa do módulo `related_content` (o tenant da demo é `enterprise`).
+Página do evento (`apps/demo`, `eventos/[id]`): seção **Conteúdo relacionado** no fim da página, em largura total, com cards (miniatura, duração, selo *Short*, canal com selo *Oficial*, tipo e visualizações) e filtro por tipo (abas com a contagem de `counts`). O clique abre o vídeo na própria plataforma. A chave da demo precisa do módulo `related_content` (o tenant da demo é `enterprise`).
 
 ## 12. Métricas e riscos
 

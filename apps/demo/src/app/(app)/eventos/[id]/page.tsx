@@ -388,15 +388,6 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
                 ))}
               </Section>
             ) : null}
-            {related?.data.length ? (
-              <Section
-                title="Conteúdo relacionado"
-                icon={<Clapperboard className="size-4" aria-hidden />}
-                description="Links diretos para vídeos do jogo, classificados por tipo — canais oficiais primeiro"
-              >
-                <RelatedContentGrid related={related} />
-              </Section>
-            ) : null}
             {lineups ? <LineupsSection lineups={lineups} /> : null}
             {h2h ? <H2hSection h2h={h2h} /> : null}
           </div>
@@ -405,6 +396,15 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
             <WhereToWatchCard eventId={event.id} wtw={wtw} country={country} />
           </div>
         </div>
+        {related?.data.length ? (
+          <Section
+            title="Conteúdo relacionado"
+            icon={<Clapperboard className="size-4" aria-hidden />}
+            description="Links diretos para vídeos do jogo, classificados por tipo — canais oficiais primeiro"
+          >
+            <RelatedContentGrid related={related} />
+          </Section>
+        ) : null}
       </div>
     </>
   );
