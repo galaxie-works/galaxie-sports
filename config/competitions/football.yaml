@@ -26,6 +26,10 @@
 #                            or split-year (2026 = 2026/27). For national-team
 #                            tournaments the label is the edition year.
 #   live_priority          - polling priority for live fixtures (high|medium|low|none).
+#   prestige               - editorial prestige 0-10 added to the event importance score
+#                            (docs/06 section 3): 10 = top continental club cups and national-team
+#                            tournaments, 5 = secondary continental cups and qualifiers,
+#                            3 = minor international cups. Omitted = 0.
 #   sources                - where the id was verified.
 #
 # Source key (dumps of GET /leagues / fixtures):
@@ -73,6 +77,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 10
     labels: { pt-BR: "Copa Libertadores", es: "Copa Libertadores", en: "Copa Libertadores" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/13.png"]
   - slug: conmebol-sudamericana
@@ -85,6 +90,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 5
     labels: { pt-BR: "Copa Sul-Americana", es: "Copa Sudamericana", en: "Copa Sudamericana" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/11.png"]
   - slug: conmebol-recopa
@@ -97,6 +103,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 5
     labels: { pt-BR: "Recopa Sul-Americana", es: "Recopa Sudamericana", en: "Recopa Sudamericana" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/541.png"]
   # logo served at leagues/475.png is a club crest (Paulista FC/Jundiaí), not the FPF mark - id confirmed by text sources + 2026 fixtures
@@ -440,6 +447,7 @@ competitions:
     region: europe
     seasons_strategy: split-year
     live_priority: high
+    prestige: 10
     labels: { pt-BR: "Liga dos Campeões da UEFA", es: "UEFA Champions League", en: "UEFA Champions League" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/2.png"]
   - slug: uefa-europa-league
@@ -452,6 +460,7 @@ competitions:
     region: europe
     seasons_strategy: split-year
     live_priority: high
+    prestige: 5
     labels: { pt-BR: "Liga Europa da UEFA", es: "UEFA Europa League", en: "UEFA Europa League" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/3.png"]
   # UEFA renamed it 'UEFA Conference League' (2024/25); api-sports name may follow. Id is stable
@@ -465,6 +474,7 @@ competitions:
     region: europe
     seasons_strategy: split-year
     live_priority: high
+    prestige: 3
     labels: { pt-BR: "Liga Conferência da UEFA", es: "UEFA Conference League", en: "UEFA Conference League" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/848.png"]
   # season = edition year (2026)
@@ -478,6 +488,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 10
     labels: { pt-BR: "Copa do Mundo FIFA", es: "Copa Mundial de la FIFA", en: "FIFA World Cup" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/1.png"]
   # validado em 21/10/2026: o /leagues atual tipa o id 15 como Cup
@@ -491,6 +502,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 10
     labels: { pt-BR: "Copa do Mundo de Clubes da FIFA", es: "Mundial de Clubes de la FIFA", en: "FIFA Club World Cup" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/15.png"]
   # season label = World Cup edition year (e.g. 2026 covers matches 2023-2025)
@@ -504,6 +516,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 5
     labels: { pt-BR: "Eliminatórias Sul-Americanas", es: "Eliminatorias Sudamericanas", en: "World Cup Qualifiers - CONMEBOL" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/34.png"]
   # season label = World Cup edition year
@@ -517,6 +530,7 @@ competitions:
     region: north-central-america
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 5
     labels: { pt-BR: "Eliminatórias da CONCACAF", es: "Eliminatorias de la Concacaf", en: "World Cup Qualifiers - CONCACAF" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/31.png"]
   # season label = World Cup edition year
@@ -530,6 +544,7 @@ competitions:
     region: europe
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 5
     labels: { pt-BR: "Eliminatórias Europeias", es: "Eliminatorias de la UEFA", en: "World Cup Qualifiers - UEFA" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/32.png"]
   # season = edition year (2024)
@@ -543,6 +558,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 10
     labels: { pt-BR: "Copa América", es: "Copa América", en: "Copa América" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/9.png"]
   # season = edition year (2024)
@@ -556,6 +572,7 @@ competitions:
     region: europe
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 10
     labels: { pt-BR: "Eurocopa", es: "Eurocopa", en: "UEFA European Championship" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/4.png"]
   # season 2024 = 2024/25 edition (group stage + finals in the following year)
@@ -569,6 +586,7 @@ competitions:
     region: europe
     seasons_strategy: split-year
     live_priority: high
+    prestige: 5
     labels: { pt-BR: "Liga das Nações da UEFA", es: "UEFA Nations League", en: "UEFA Nations League" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/5.png"]
   # scope said 'Nations League' only - CONCACAF edition included for completeness; drop if only UEFA is meant
@@ -582,6 +600,7 @@ competitions:
     region: north-central-america
     seasons_strategy: split-year
     live_priority: medium
+    prestige: 3
     labels: { pt-BR: "Liga das Nações da CONCACAF", es: "Liga de Naciones de la Concacaf", en: "CONCACAF Nations League" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/536.png"]
   # season = Games year (2024, 2028)
@@ -595,6 +614,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
+    prestige: 5
     labels: { pt-BR: "Futebol Olímpico Masculino", es: "Fútbol Olímpico Masculino", en: "Olympic Football Tournament - Men" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/480.png"]
   # season = Games year (2024, 2028)
@@ -864,6 +884,7 @@ competitions:
     region: north-central-america
     seasons_strategy: calendar-year
     live_priority: medium
+    prestige: 5
     labels: { pt-BR: "Copa dos Campeões da CONCACAF", es: "Copa de Campeones de la Concacaf", en: "CONCACAF Champions Cup" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/16.png"]
   - slug: leagues-cup
@@ -876,6 +897,7 @@ competitions:
     region: north-central-america
     seasons_strategy: calendar-year
     live_priority: medium
+    prestige: 3
     labels: { pt-BR: "Leagues Cup", es: "Leagues Cup", en: "Leagues Cup" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/772.png"]
   # season = edition year (2027)
@@ -889,6 +911,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: medium
+    prestige: 5
     labels: { pt-BR: "Copa do Mundo Feminina FIFA", es: "Copa Mundial Femenina de la FIFA", en: "FIFA Women's World Cup" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/8.png"]
   - slug: copa-america-femenina

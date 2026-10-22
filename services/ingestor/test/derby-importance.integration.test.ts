@@ -53,8 +53,9 @@ async function eventOf(fixtureId: number) {
   return rows[0]!;
 }
 
-// competição criada pela normalização: tier padrão 3 (o catálogo é dono do tier)
-const base = importance({ tier: 3, stageKind: 'regular' }).score;
+// competição criada pela normalização: tier padrão 3 (o catálogo é dono do tier); sem regulamento próprio,
+// o total de rodadas é a maior conhecida da temporada (só a 31 existe aqui → reta final completa, +6)
+const base = importance({ tier: 3, stageKind: 'regular', roundProgress: 1 }).score;
 let choqueRei: { id: string; intensity: number };
 
 beforeAll(async () => {
