@@ -32,6 +32,12 @@ COPY --from=build /repo/config/plans.yaml /srv/config/plans.yaml
 # geografia da navegação (/v1/navigation, /v1/countries/{code}/*): confederações e escopo das competições
 COPY --from=build /repo/config/geo /srv/config/geo
 ENV GEO_CONFIG_DIR=/srv/config/geo
+# regulamentos (stakes, tags do torcedor, cenário) e dicionários do onde assistir: os pacotes procuram
+# config/ a partir de si mesmos, o que não vale no node_modules do deploy; os ENV apontam o caminho certo
+COPY --from=build /repo/config/rules /srv/config/rules
+COPY --from=build /repo/config/broadcasters /srv/config/broadcasters
+COPY --from=build /repo/config/broadcast-rights /srv/config/broadcast-rights
+ENV RULES_CONFIG_DIR=/srv/config/rules WTW_CONFIG_DIR=/srv/config
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \

@@ -7,19 +7,16 @@ import {
   TeamEventsQuery,
   TeamParams,
   TeamsQuery,
-  teamGradient,
   type Event,
   type FormerName,
   type Person,
   type Squad,
   type Team,
   type TeamOverview,
-  type TeamColors,
   type TeamSummary,
 } from '@galaxie/contracts';
 import {
   asset,
-  type AssetPalette,
   competition,
   competitionProfile,
   country,
@@ -45,6 +42,7 @@ import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl } from '../../events/builder.js';
 import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events/queries.js';
 import { pickText } from '../../i18n.js';
+import { teamColors } from '../../teams/colors.js';
 import { loadTeamCompetitions } from '../../teams/load-campaigns.js';
 import { scheduleWindow } from '../../time.js';
 import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
@@ -63,19 +61,7 @@ export function ageAt(birthDate: string | null, now: Date): number | null {
   return age >= 0 && age < 130 ? age : null;
 }
 
-/**
- * Paleta do escudo (core.asset.palette, extraída pelo espelho de mídia) → `colors` do Team.
- * null enquanto o escudo não foi espelhado/decodificado (a paleta é zerada se o escudo sai do storage).
- */
-export function teamColors(palette: AssetPalette | null): TeamColors | null {
-  if (!palette) return null;
-  return {
-    primary: palette.dominant,
-    secondary: palette.secondary,
-    monochrome: palette.monochrome,
-    gradient: teamGradient(palette.dominant),
-  };
-}
+export { teamColors } from '../../teams/colors.js';
 
 const POSITION_ORDER: Record<string, number> = { goalkeeper: 0, defender: 1, midfielder: 2, attacker: 3 };
 

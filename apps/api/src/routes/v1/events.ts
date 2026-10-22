@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { teamColors } from '../../teams/colors.js';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
   EventParams,
@@ -304,6 +305,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             side: eventParticipant.side,
             logoKey: asset.storageKey,
             logoUrl: asset.sourceUrl,
+            logoPalette: asset.palette,
           })
           .from(eventParticipant)
           .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
@@ -316,6 +318,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             id: p.id,
             name: p.name,
             logo: assetUrl(ctx.assetsBaseUrl, p.logoKey, p.logoUrl),
+            colors: teamColors(p.logoPalette),
           })),
           summary: { played: 0, draws: 0, teams: parts.map((p) => ({ id: p.id, wins: 0, goals: 0 })) },
           events: [],

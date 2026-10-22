@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import * as z from 'zod';
+import { TeamColors } from './colors.js';
 import { AssetUrl, LocaleQuery, PaginationQuery } from './common.js';
 import { EventContextSummary } from './event-context.js';
 
@@ -117,6 +118,11 @@ export const EventParticipant = z
     short_name: z.string().nullable(),
     logo: AssetUrl,
     nickname: z.string().nullable().meta({ description: 'Primeiro apelido da base semântica.' }),
+    colors: TeamColors.nullable()
+      .optional()
+      .meta({
+        description: 'Cores do escudo (mesmo `colors` do time); null enquanto o escudo não foi espelhado.',
+      }),
     winner: z.boolean().nullable().meta({ description: 'Vencedor da partida, quando encerrada.' }),
     fan_tags: z.array(FanTag).meta({
       description:
@@ -668,7 +674,9 @@ export type EventStats = z.infer<typeof EventStats>;
 export const HeadToHead = z
   .object({
     event_id: z.uuid(),
-    participants: z.array(z.object({ id: z.uuid(), name: z.string(), logo: AssetUrl })),
+    participants: z.array(
+      z.object({ id: z.uuid(), name: z.string(), logo: AssetUrl, colors: TeamColors.nullable().optional() }),
+    ),
     summary: z.object({
       played: z.number().int(),
       draws: z.number().int(),
