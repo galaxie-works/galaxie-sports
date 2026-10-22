@@ -535,6 +535,37 @@ describe('/v1/teams/{id}/semantic e /rivals', () => {
     expect((await get('/v1/teams/nao-existe/semantic')).statusCode).toBe(404);
   });
 
+  it('textos livres no idioma do mercado: variante do país, es neutro e original (docs/06 §3.3)', async () => {
+    const ar = (await get('/v1/teams/palmeiras/semantic?locale=es-AR')).json();
+    expect(ar).toMatchObject({
+      text_locale: 'es-AR',
+      mascot: 'Porco (chancho)',
+      colors: ['verde', 'blanco'],
+    });
+    expect(ar.identity[1]).toContain('hinchada');
+    expect(ar.copy_hints).toMatchObject({
+      locale: 'es-AR',
+      cheer: expect.arrayContaining(['¡Aguante, Palmeiras!']),
+    });
+    const mx = (await get('/v1/teams/palmeiras/semantic?locale=es-MX')).json();
+    expect(mx).toMatchObject({ text_locale: 'es-MX', mascot: 'Porco (puerco)' });
+    expect(mx.identity[1]).toContain('afición');
+    // sem variante própria: cai no es neutro, campo a campo
+    const corinthians = (await get('/v1/teams/corinthians/semantic?locale=es-CL')).json();
+    expect(corinthians).toMatchObject({ text_locale: 'es', mascot: 'Mosqueteiro (mosquetero)' });
+    const br = (await get('/v1/teams/palmeiras/semantic?locale=pt-BR')).json();
+    expect(br).toMatchObject({ text_locale: 'pt-BR', mascot: 'Porco' });
+    // original em espanhol: pt-BR usa a tradução, es-XX fica no original
+    const boca = (await get('/v1/teams/boca-juniors/semantic?locale=pt-BR')).json();
+    expect(boca.text_locale).toBe('pt-BR');
+    expect(boca.identity[0]).toMatch(/^Fundado no bairro/);
+    const derby = (await get('/v1/derbies/classico-do-povo?locale=es-PE')).json();
+    expect(derby).toMatchObject({
+      text_locale: 'es-PE',
+      origin: 'Reúne a las dos hinchadas más grandes de Brasil.',
+    });
+  });
+
   it('rivais ordenados por intensidade, com clássico e reciprocidade', async () => {
     const res = (await get('/v1/teams/palmeiras/rivals')).json();
     expect(res.team.slug).toBe('palmeiras');

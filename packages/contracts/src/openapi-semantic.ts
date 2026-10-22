@@ -70,7 +70,8 @@ export function semanticPaths(): ZodOpenApiPathsObject {
           [400, 401, 403, 404, 429],
         ),
         'Retrospecto (vitórias, empates, gols, maiores goleadas, últimos 5) calculado dos eventos encerrados ' +
-          'no core — nunca consulta o provedor. Pênaltis não mudam o resultado.',
+          'no core — nunca consulta o provedor. Pênaltis não mudam o resultado. `origin` e `trivia` seguem ' +
+          '`es-XX → es → original` (`text_locale`).',
       ),
     },
     '/v1/teams/{id}/semantic': {
@@ -83,7 +84,8 @@ export function semanticPaths(): ZodOpenApiPathsObject {
           [400, 401, 403, 404, 429],
         ),
         'Apelidos, mascote, torcida, gritos, estádio, rivais, fatos e dicas de copy do mercado pedido. ' +
-          '`{id}` aceita o UUID do participante ou o slug do perfil.' +
+          '`{id}` aceita o UUID do participante ou o slug do perfil. Fatos, mascote, cores e torcida seguem ' +
+          '`es-XX → es → original`, campo a campo; `text_locale` diz de onde vieram.' +
           REVIEW_NOTE,
       ),
     },
