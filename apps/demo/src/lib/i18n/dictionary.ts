@@ -16,6 +16,7 @@ import live from './messages/live';
 import nav from './messages/nav';
 import pages from './messages/pages';
 import requests from './messages/requests';
+import search from './messages/search';
 import shell from './messages/shell';
 import sport from './messages/sport';
 import team from './messages/team';
@@ -34,6 +35,7 @@ export const NAMESPACES = {
   nav,
   pages,
   requests,
+  search,
   shell,
   sport,
   team,
@@ -65,6 +67,7 @@ export const CLIENT_NAMESPACES = [
   'live',
   'media',
   'nav',
+  'search',
   'shell',
   'sport',
 ] as const;

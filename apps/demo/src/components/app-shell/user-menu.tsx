@@ -28,7 +28,7 @@ import { LanguageSelect } from './language-select';
  * Guarda o idioma escolhido no perfil (é o dos próximos e-mails da pessoa) e limpa a trilha, cujos rótulos
  * estão no idioma anterior.
  */
-async function rememberLocale(locale: Locale) {
+export async function rememberLocale(locale: Locale) {
   clearTrail();
   await authClient.updateUser({ locale }).catch(() => {});
 }

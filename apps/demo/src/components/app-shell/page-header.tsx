@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 
 import { ApiCodeButton } from '@/components/docs/api-code-button';
+import { HeaderSearchButton } from '@/components/search/search-button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -50,6 +51,8 @@ export function PageHeader({
       <div className="ml-auto flex items-center gap-2">
         {children}
         {api ? <ApiCodeButton request={api} labeled /> : null}
+        {/* No desktop a busca fica no topo da sidebar (e no ⌘K). */}
+        <HeaderSearchButton className="md:hidden" />
       </div>
     </header>
   );
