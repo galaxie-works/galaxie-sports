@@ -1,7 +1,7 @@
 /** Erros da camada de IA (mensagens em português; `kind` orienta retry e métricas). */
 
 export type LlmErrorKind =
-  'config' | 'provider' | 'rate_limit' | 'timeout' | 'schema' | 'refusal' | 'incomplete' | 'budget';
+  'config' | 'provider' | 'rate_limit' | 'quota' | 'timeout' | 'schema' | 'refusal' | 'incomplete' | 'budget';
 
 export class LlmError extends Error {
   constructor(
@@ -39,11 +39,34 @@ export function httpStatusOf(err: unknown): number | undefined {
 }
 
 /** Converte um erro de SDK em LlmError com a decisão de retry. */
+/**
+ * Conta sem crédito no provedor (OpenAI: 429 `insufficient_quota`; Anthropic: "credit balance is too
+ * low"). Diferente do limite de taxa: tentar de novo não adianta até alguém recarregar a conta.
+ */
+function isOutOfCredits(err: unknown, msg: string): boolean {
+  const e = err as { code?: unknown; type?: unknown; error?: { code?: unknown; type?: unknown } } | null;
+  const codes = [e?.code, e?.type, e?.error?.code, e?.error?.type].filter((c) => typeof c === 'string');
+  return (
+    codes.some((c) =>
+      ['insufficient_quota', 'credit_balance_exhausted', 'billing_hard_limit_reached'].includes(c as string),
+    ) ||
+    /no credits remaining|insufficient_quota|credit balance is too low|exceeded your current quota/i.test(msg)
+  );
+}
+
 export function classifyProviderError(err: unknown, provider: string): LlmError {
   if (err instanceof LlmError) return err;
   const status = httpStatusOf(err);
-  const msg = err instanceof Error ? err.message : String(err);
+  const raw = (err as { message?: unknown } | null)?.message;
+  const msg = err instanceof Error ? err.message : typeof raw === 'string' ? raw : String(err);
   const name = (err as { name?: string } | null)?.name ?? '';
+  if ((status === 429 || status === 400 || status === 402) && isOutOfCredits(err, msg))
+    return new LlmError(
+      `${provider}: conta sem crédito (recarregue o saldo no painel do provedor).`,
+      'quota',
+      false,
+      { cause: err },
+    );
   if (status === 429)
     return new LlmError(`${provider}: limite de taxa (429).`, 'rate_limit', true, { cause: err });
   if (status === 408 || /timeout|timed out/i.test(name + msg))
