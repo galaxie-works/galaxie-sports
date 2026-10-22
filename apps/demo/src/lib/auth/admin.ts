@@ -48,12 +48,19 @@ type RawUser = AuthUser & {
   phone?: string | null;
   notes?: string | null;
   accessExpiresAt?: Date | string | null;
-  passwordSetAt?: Date | string | null;
 };
 
-function statusOf(u: RawUser): UserStatus {
+interface ActivitySummary {
+  lastLoginAt: string | null;
+  pageViews: number;
+  /** Tem (ou teve) sessão: vale para quem entrou antes de existir o registro de atividade. */
+  hasSession: boolean;
+}
+
+/** "Convite pendente" = a pessoa nunca entrou: nenhum login registrado e nenhuma sessão. */
+function statusOf(u: RawUser, act: ActivitySummary | undefined): UserStatus {
   if (u.banned) return 'disabled';
-  if (!u.passwordSetAt) return 'pending';
+  if (!act?.lastLoginAt && !act?.hasSession) return 'pending';
   if (isAccessExpired(u)) return 'expired';
   return 'active';
 }
@@ -61,15 +68,26 @@ function statusOf(u: RawUser): UserStatus {
 const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
 
 async function activitySummary(userIds: string[]) {
-  if (!userIds.length) return new Map<string, { lastLoginAt: string | null; pageViews: number }>();
-  const { rows } = await pool.query<{ user_id: string; last_login: Date | null; page_views: number }>(
-    `select user_id,
-            max(created_at) filter (where kind = 'login') as last_login,
-            count(*) filter (where kind = 'page')::int as page_views
-       from activity where user_id = any($1) group by user_id`,
+  if (!userIds.length) return new Map<string, ActivitySummary>();
+  const { rows } = await pool.query<{
+    user_id: string;
+    last_login: Date | null;
+    page_views: number;
+    has_session: boolean;
+  }>(
+    `select u.id as user_id,
+            (select max(a.created_at) from activity a where a.user_id = u.id and a.kind = 'login') as last_login,
+            (select count(*) from activity a where a.user_id = u.id and a.kind = 'page')::int as page_views,
+            exists (select 1 from session s where s."userId" = u.id) as has_session
+       from unnest($1::text[]) as u(id)`,
     [userIds],
   );
-  return new Map(rows.map((r) => [r.user_id, { lastLoginAt: iso(r.last_login), pageViews: r.page_views }]));
+  return new Map(
+    rows.map((r) => [
+      r.user_id,
+      { lastLoginAt: iso(r.last_login), pageViews: r.page_views, hasSession: r.has_session },
+    ]),
+  );
 }
 
 async function lastInvites(userIds: string[]) {
@@ -86,7 +104,7 @@ async function lastInvites(userIds: string[]) {
 
 function toDemoUser(
   u: RawUser,
-  act: { lastLoginAt: string | null; pageViews: number } | undefined,
+  act: ActivitySummary | undefined,
   invite: DemoUser['lastInvite'] | undefined,
 ): DemoUser {
   return {
@@ -100,7 +118,7 @@ function toDemoUser(
     notes: u.notes ?? null,
     accessExpiresAt: iso(u.accessExpiresAt),
     createdAt: iso(u.createdAt)!,
-    status: statusOf(u),
+    status: statusOf(u, act),
     lastLoginAt: act?.lastLoginAt ?? null,
     pageViews: act?.pageViews ?? 0,
     lastInvite: invite ?? null,
