@@ -1,4 +1,4 @@
-/** Página do evento (jogo): placar, contexto, escalações, confronto direto, sobre o jogo e onde assistir. */
+/** Página do evento (jogo): placar, contexto, escalações (lista e campo), estatísticas, confronto direto, sobre o jogo e onde assistir. */
 import { defineMessages } from '../define';
 
 export default defineMessages(
@@ -23,6 +23,48 @@ export default defineMessages(
       coach: 'Técnico: {name}',
       /** Posição abreviada que vem do fornecedor (G, D, M, F). */
       position: { G: 'GOL', D: 'DEF', M: 'MEI', F: 'ATA' } as Record<string, string>,
+      /** Posição por extenso (banco de reservas). */
+      positionLong: { G: 'Goleiro', D: 'Zagueiro', M: 'Meio-campista', F: 'Atacante' } as Record<
+        string,
+        string
+      >,
+      list: 'Lista',
+      pitch: 'Campo',
+      pitchLabel: 'Escalações em campo: {home} na metade de cima, {away} na de baixo',
+      bench: 'Banco',
+      benchRole: '{position} nº{number}',
+      coachRole: 'Técnico',
+      marks: {
+        goal: 'Gol aos {minute}',
+        ownGoal: 'Gol contra aos {minute}',
+        assist: 'Assistência aos {minute}',
+        yellow: 'Cartão amarelo aos {minute}',
+        secondYellow: 'Segundo amarelo aos {minute}',
+        red: 'Cartão vermelho aos {minute}',
+        subOut: 'Substituído aos {minute}',
+        subIn: 'Entrou aos {minute}',
+      },
+    },
+    stats: {
+      title: 'Estatísticas',
+      description:
+        'Em destaque, quem leva a melhor em cada linha — em faltas, impedimentos e cartões, o menor número',
+      teams: 'Estatísticas dos times',
+      /** Rótulo por código estável da API (`code`); sem código no dicionário, vale o `label` da API. */
+      labels: {
+        possession_pct: 'Posse de bola',
+        shots_total: 'Chutes',
+        shots_on_goal: 'Chutes no gol',
+        xg: 'Gols esperados (xG)',
+        passes_total: 'Passes',
+        pass_accuracy_pct: 'Precisão de passe',
+        corners: 'Escanteios',
+        fouls: 'Faltas',
+        offsides: 'Impedimentos',
+        yellow_cards: 'Cartões amarelos',
+        red_cards: 'Cartões vermelhos',
+        saves: 'Defesas',
+      } as Record<string, string>,
     },
     h2h: {
       title: 'Confronto direto',
@@ -118,6 +160,43 @@ export default defineMessages(
         title: 'Lineups',
         coach: 'Coach: {name}',
         position: { G: 'GK', D: 'DF', M: 'MF', F: 'FW' },
+        positionLong: { G: 'Goalkeeper', D: 'Defender', M: 'Midfielder', F: 'Forward' },
+        list: 'List',
+        pitch: 'Pitch',
+        pitchLabel: 'Lineups on the pitch: {home} in the top half, {away} in the bottom half',
+        bench: 'Bench',
+        benchRole: '{position} #{number}',
+        coachRole: 'Coach',
+        marks: {
+          goal: 'Goal at {minute}',
+          ownGoal: 'Own goal at {minute}',
+          assist: 'Assist at {minute}',
+          yellow: 'Yellow card at {minute}',
+          secondYellow: 'Second yellow at {minute}',
+          red: 'Red card at {minute}',
+          subOut: 'Subbed off at {minute}',
+          subIn: 'Came on at {minute}',
+        },
+      },
+      stats: {
+        title: 'Stats',
+        description:
+          'Highlighted: who comes out on top in each row — for fouls, offsides and cards, the lower number',
+        teams: 'Team stats',
+        labels: {
+          possession_pct: 'Possession',
+          shots_total: 'Shots',
+          shots_on_goal: 'Shots on target',
+          xg: 'Expected goals (xG)',
+          passes_total: 'Passes',
+          pass_accuracy_pct: 'Pass accuracy',
+          corners: 'Corners',
+          fouls: 'Fouls',
+          offsides: 'Offsides',
+          yellow_cards: 'Yellow cards',
+          red_cards: 'Red cards',
+          saves: 'Saves',
+        },
       },
       h2h: {
         title: 'Head-to-head',
@@ -212,6 +291,43 @@ export default defineMessages(
         title: 'Formaciones',
         coach: 'DT: {name}',
         position: { G: 'ARQ', D: 'DEF', M: 'VOL', F: 'DEL' },
+        positionLong: { G: 'Arquero', D: 'Defensor', M: 'Mediocampista', F: 'Delantero' },
+        list: 'Lista',
+        pitch: 'Cancha',
+        pitchLabel: 'Formaciones en la cancha: {home} en la mitad de arriba, {away} en la de abajo',
+        bench: 'Suplentes',
+        benchRole: '{position} n.º {number}',
+        coachRole: 'DT',
+        marks: {
+          goal: 'Gol a los {minute}',
+          ownGoal: 'Gol en contra a los {minute}',
+          assist: 'Asistencia a los {minute}',
+          yellow: 'Amarilla a los {minute}',
+          secondYellow: 'Doble amarilla a los {minute}',
+          red: 'Roja a los {minute}',
+          subOut: 'Reemplazado a los {minute}',
+          subIn: 'Entró a los {minute}',
+        },
+      },
+      stats: {
+        title: 'Estadísticas',
+        description:
+          'Resaltado: quién saca ventaja en cada fila — en faltas, offsides y tarjetas, el número menor',
+        teams: 'Estadísticas de los equipos',
+        labels: {
+          possession_pct: 'Posesión',
+          shots_total: 'Remates',
+          shots_on_goal: 'Remates al arco',
+          xg: 'Goles esperados (xG)',
+          passes_total: 'Pases',
+          pass_accuracy_pct: 'Precisión de pases',
+          corners: 'Córners',
+          fouls: 'Faltas',
+          offsides: 'Offsides',
+          yellow_cards: 'Amarillas',
+          red_cards: 'Rojas',
+          saves: 'Atajadas',
+        },
       },
       h2h: {
         title: 'Historial',
