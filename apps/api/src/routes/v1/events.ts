@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
   EventParams,
+  EventQuery,
   EventsQuery,
   H2hQuery,
   LiveEventsQuery,
@@ -18,6 +19,7 @@ import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl, type BuildContext } from '../../events/builder.js';
 import { buildLineups, buildStats, buildTimeline } from '../../events/detail.js';
 import { buildIcs } from '../../events/ics.js';
+import { applyRelevance, relevanceSql, resolveMarket } from '../../events/relevance.js';
 import { eventContextSummary } from './event-context.js';
 import {
   assertWindow,
@@ -27,6 +29,7 @@ import {
   pageEventIds,
   sportScope,
   type EventFilters,
+  type EventOrder,
 } from '../../events/queries.js';
 import { resolveLocale } from '../../i18n.js';
 import { scheduleWindow } from '../../time.js';
@@ -56,14 +59,23 @@ export function buildCtx(ctx: AppContext, locale: SupportedLocale, tz: string): 
   };
 }
 
-/** Lista paginada de eventos (agenda): usada por /v1/events e /v1/teams/{id}/events. */
+/**
+ * Lista paginada de eventos (agenda): usada por /v1/events e /v1/teams/{id}/events. Com `market`, preenche
+ * `relevance` e habilita `relevance_min` / `order=relevance`.
+ */
 export async function eventPage(
   bctx: BuildContext,
   filters: EventFilters,
-  options: { order: 'starts_at' | 'importance'; limit: number; cursor?: string | undefined },
+  options: { order: EventOrder; limit: number; cursor?: string | undefined },
+  market: string | null = null,
 ) {
-  const { ids, nextCursor } = await pageEventIds(bctx.db, filters, options);
+  const { ids, nextCursor } = await pageEventIds(
+    bctx.db,
+    market ? { ...filters, relevance: relevanceSql(market) } : filters,
+    options,
+  );
   const data = (await buildEvents(bctx, ids)).map((b) => b.dto);
+  await applyRelevance(bctx.db, data, market);
   return {
     body: { data, next_cursor: nextCursor },
     tags: ['event', ...data.map((e) => `event:${e.id}`)],
@@ -79,10 +91,11 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     const locale = localeOf(request, query);
     const tz = query.tz ?? 'UTC';
     const sports = sportScope(request, query.sport);
+    const market = resolveMarket(request, query.market);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.schedule,
-      vary: [locale, tz, ...(sports ?? [])],
+      vary: [locale, tz, `market:${market ?? ''}`, ...(sports ?? [])],
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz);
         const win = scheduleWindow(query, tz, bctx.now);
@@ -99,8 +112,10 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             country: query.country,
             status: query.status,
             importanceMin: query.importance_min,
+            relevanceMin: query.relevance_min,
           },
           { order: query.order, limit: query.limit, cursor: query.cursor },
+          market,
         );
       },
     });
@@ -112,10 +127,11 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     const locale = localeOf(request, query);
     const tz = query.tz ?? 'UTC';
     const sports = sportScope(request, query.sport);
+    const market = resolveMarket(request, query.market);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.live,
-      vary: [locale, tz, ...(sports ?? [])],
+      vary: [locale, tz, `market:${market ?? ''}`, ...(sports ?? [])],
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz);
         const rows = await bctx.db
@@ -139,6 +155,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             rows.map((r) => r.id),
           )
         ).map((b) => b.dto);
+        await applyRelevance(bctx.db, data, market);
         return { body: { data }, tags: ['event', ...data.map((e) => `event:${e.id}`)] };
       },
     });
@@ -149,21 +166,28 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     const raw = (request.params as { id?: string }).id ?? '';
     const ics = raw.toLowerCase().endsWith('.ics');
     const params = parseInput(EventParams, { id: ics ? raw.slice(0, -4) : raw });
-    const query = parseInput(LocaleQuery, request.query);
+    const query = parseInput(EventQuery, request.query);
     const locale = localeOf(request, query);
     const tz = query.tz ?? 'UTC';
+    const market = ics ? null : resolveMarket(request, query.market);
     // resumo do cenário/resumo de IA só para quem contratou live_intelligence (a resposta varia por isso)
     const withContext = !ics && !!request.tenant?.modules.includes('live_intelligence');
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: ics ? CACHE_TTL.schedule : CACHE_TTL.standings,
-      vary: [locale, ics ? 'ics' : tz, ...(withContext ? ['context'] : [])],
+      vary: [
+        locale,
+        ics ? 'ics' : tz,
+        ...(market ? [`market:${market}`] : []),
+        ...(withContext ? ['context'] : []),
+      ],
       check: sportCheck(request),
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz);
         const [built] = await buildEvents(bctx, [params.id]);
         if (!built) throw problems.notFound('Evento');
         const e = built.dto;
+        await applyRelevance(bctx.db, [e], market);
         const tags = [`event:${e.id}`, ...(e.competition ? [`competition:${e.competition.id}`] : [])];
         if (!ics) {
           if (withContext) {

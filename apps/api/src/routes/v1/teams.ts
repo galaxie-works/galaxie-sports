@@ -48,6 +48,7 @@ import { pickText } from '../../i18n.js';
 import { loadTeamCompetitions } from '../../teams/load-campaigns.js';
 import { scheduleWindow } from '../../time.js';
 import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
+import { resolveMarket } from '../../events/relevance.js';
 import { buildCtx, eventPage, localeOf, sportCheck } from './events.js';
 
 const MODULE = { module: 'core_data' } as const;
@@ -391,10 +392,11 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     const query = parseInput(TeamEventsQuery, request.query);
     const locale = localeOf(request, query);
     const tz = query.tz ?? 'UTC';
+    const market = resolveMarket(request, query.market);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.schedule,
-      vary: [locale, tz],
+      vary: [locale, tz, `market:${market ?? ''}`],
       check: sportCheck(request),
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz);
@@ -417,8 +419,10 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             country: query.country,
             status: query.status,
             importanceMin: query.importance_min,
+            relevanceMin: query.relevance_min,
           },
           { order: query.order, limit: query.limit, cursor: query.cursor },
+          market,
         );
         return { ...page, tags: [...page.tags, `participant:${p.id}`], meta: { sport: p.sport } };
       },

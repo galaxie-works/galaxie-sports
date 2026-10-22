@@ -462,6 +462,15 @@ type EventBody = {
   status: string;
   starts_at: string;
   importance: number;
+  importance_breakdown: {
+    tier: number;
+    phase: number;
+    derby: number;
+    decisive: number;
+    prestige: number;
+    flags: string[];
+  } | null;
+  relevance: { market: string; score: number; bonus: number; reasons: string[] } | null;
   momentum: string | null;
   stage: { kind: string; leg: number | null; name: string | null } | null;
   participants: {
@@ -552,6 +561,40 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect(seen).toEqual(all.map((e) => e.id));
   });
 
+  it('relevância por mercado: filtro, ordem e paginação (exige mercado)', async () => {
+    expect((await get('/v1/events?from=2026-10-01&order=relevance')).statusCode).toBe(400);
+    expect((await get('/v1/events?from=2026-10-01&relevance_min=50')).statusCode).toBe(400);
+    expect((await get('/v1/events?from=2026-10-01&market=BRA')).statusCode).toBe(400);
+
+    const plain = (await get('/v1/events?from=2026-10-01&limit=50')).json() as { data: EventBody[] };
+    expect(plain.data.every((e) => e.relevance === null)).toBe(true);
+
+    const url = '/v1/events?from=2020-01-01&order=relevance&market=br&limit=200';
+    const all = (await get(url)).json().data as EventBody[];
+    expect(all.length).toBeGreaterThan(3);
+    const rel = all.map((e) => e.relevance!.score);
+    expect([...rel].sort((a, b) => b - a)).toEqual(rel);
+    for (const e of all) {
+      expect(e.relevance).toMatchObject({ market: 'BR' });
+      expect(e.relevance!.score).toBe(Math.min(100, e.importance + e.relevance!.bonus));
+    }
+    // a soma em SQL (ordem) e a do lote (resposta) batem: a ordem é a do score devolvido
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const page: string = `/v1/events?from=2020-01-01&order=relevance&market=BR&limit=3${cursor ? `&cursor=${cursor}` : ''}`;
+      const body = (await get(page)).json() as { data: EventBody[]; next_cursor: string | null };
+      seen.push(...body.data.map((e) => e.id));
+      cursor = body.next_cursor;
+    } while (cursor);
+    expect(seen).toEqual(all.map((e) => e.id));
+
+    const min = (await get('/v1/events?from=2020-01-01&market=BR&relevance_min=60&limit=200')).json()
+      .data as EventBody[];
+    expect(min.every((e) => e.relevance!.score >= 60)).toBe(true);
+    expect(min.length).toBe(all.filter((e) => e.relevance!.score >= 60).length);
+  });
+
   it('ao vivo: só eventos em andamento, com momentum live e TTL curto', async () => {
     const res = await get('/v1/events/live');
     expect(res.statusCode).toBe(200);
@@ -639,6 +682,41 @@ describe('/v1/events/{id}', () => {
     expect(e.participants[0]!.fan_tags[0]?.text).toEqual({ 'es-AR': 'Avanza con el empate' });
     // sem dica de copy em espanhol: cai no grito do clube (rallying_cries), nunca no pt-BR
     expect(e.participants[0]!.cheer?.text).toBe('Avanti, Palestra!');
+  });
+
+  it('detalhamento da importância e relevância por mercado (docs/06 §3)', async () => {
+    const e = (await get(`/v1/events/${ids.leg2}`)).json() as EventBody;
+    // volta da semifinal: fase cheia + eliminação; o tier vem do catálogo
+    expect(e.importance_breakdown).toMatchObject({
+      phase: 22,
+      decisive: 8,
+      derby: 0,
+      flags: ['elimination'],
+    });
+    const b = e.importance_breakdown!;
+    expect(e.importance).toBe(Math.min(100, b.tier + b.phase + b.derby + b.decisive + b.prestige));
+    expect(e.relevance).toBeNull();
+
+    const br = (await get(`/v1/events/${ids.leg2}?market=br`)).json() as EventBody;
+    expect(br.relevance).toMatchObject({ market: 'BR' });
+    expect(br.relevance!.reasons).toContain('continental_competition');
+    expect(br.relevance!.bonus).toBeGreaterThanOrEqual(5);
+    expect(br.relevance!.score).toBe(Math.min(100, e.importance + br.relevance!.bonus));
+    // Libertadores sem time argentino: só o bônus da confederação
+    const ar = (await get(`/v1/events/${ids.leg2}?market=AR`)).json() as EventBody;
+    expect(ar.relevance).toEqual({
+      market: 'AR',
+      score: e.importance + 5,
+      bonus: 5,
+      reasons: ['continental_competition'],
+    });
+    // outra confederação: sem bônus
+    const de = (await get(`/v1/events/${ids.leg2}?market=DE`)).json() as EventBody;
+    expect(de.relevance).toEqual({ market: 'DE', score: e.importance, bonus: 0, reasons: [] });
+
+    const ida = (await get(`/v1/events/${ids.leg1}`)).json() as EventBody;
+    // ida: fase × 0,75, nada decidido
+    expect(ida.importance_breakdown).toMatchObject({ phase: 17, decisive: 0, flags: [] });
   });
 
   it('ida encerrada: perna 1, sem stakes nem agregado', async () => {
