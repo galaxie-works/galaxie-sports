@@ -9,7 +9,7 @@ import {
   type HeadToHead,
   type SupportedLocale,
 } from '@galaxie/contracts';
-import { asset, event, eventParticipant, participant, venue } from '@galaxie/db';
+import { asset, event, eventParticipant, participant, venue, venueDisplay } from '@galaxie/db';
 import { assertSport } from '../../auth/authenticator.js';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
@@ -180,7 +180,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         const head = await eventHead(bctx.db, e.id);
         const [v] = e.venue
           ? await bctx.db
-              .select({ name: venue.name, city: venue.city })
+              .select({ name: venue.name, city: venue.city, curated: venue.curated })
               .from(venue)
               .where(eq(venue.id, e.venue.id))
           : [];
@@ -195,7 +195,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
               summary: e.competition && names.length === 2 ? `${title} · ${e.competition.name}` : title,
               description:
                 [e.competition?.name, e.stage?.name, e.derby?.name].filter(Boolean).join(' · ') || null,
-              location: v ? [v.name, v.city].filter(Boolean).join(', ') : null,
+              location: v ? Object.values(venueDisplay(v)).filter(Boolean).join(', ') : null,
               status:
                 e.status === 'cancelled' || e.status === 'abandoned'
                   ? 'CANCELLED'

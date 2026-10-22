@@ -147,7 +147,25 @@
           "properties": {
             "name": { "$ref": "#/definitions/nonEmptyString" },
             "nicknames": { "$ref": "#/definitions/stringList" },
-            "city": { "$ref": "#/definitions/nonEmptyString" }
+            "former_names": {
+              "type": "array",
+              "description": "Nomes anteriores (naming rights); until = último dia em que o nome valeu",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "until"],
+                "properties": {
+                  "name": { "$ref": "#/definitions/nonEmptyString" },
+                  "until": { "$ref": "#/definitions/isoDate" }
+                }
+              }
+            },
+            "city": { "$ref": "#/definitions/nonEmptyString" },
+            "api_sports_venue_id": {
+              "type": ["integer", "null"],
+              "minimum": 1,
+              "description": "ID do estádio na api-sports (SOMENTE se verificado); sem ele, o seed casa por nome + cidade"
+            }
           }
         },
         "rivals": {

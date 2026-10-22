@@ -219,7 +219,11 @@ export async function findKnowledgeGaps(
     const v = row.homeVenueId ? venueOf.get(row.homeVenueId) : undefined;
     const stadium = entry.entry.stadium;
     if (v && stadium?.name) {
-      const known = [stadium.name, ...(stadium.nicknames ?? [])];
+      const known = [
+        stadium.name,
+        ...(stadium.nicknames ?? []),
+        ...(stadium.former_names ?? []).map((f) => f.name),
+      ];
       if (!known.some((k) => sameVenue(k, v.name)))
         gaps.push({
           kind: 'venue_mismatch',

@@ -15,6 +15,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { createdAt, i18n, pkUuidV7, updatedAt } from './_shared.js';
+import { sameName } from './names.js';
 // Import circular (semantic também importa core) é seguro: a referência só é avaliada sob demanda.
 import { derby } from './semantic.js';
 
@@ -175,17 +176,98 @@ export const stage = core.table(
   (t) => [uniqueIndex('stage_season_label_uq').on(t.seasonId, t.providerLabel)],
 );
 
+/**
+ * Nome curado do estádio, vindo da base semântica (`stadium` do time em data/knowledge) e gravado
+ * pela reconciliação do seed (`pnpm db:seed:semantic`). O nome cru do fornecedor continua em
+ * `venue.name` (a ingestão só escreve lá); quem exibe usa `venueDisplay` para dar prioridade a este.
+ */
+export interface VenueCuration {
+  /** Nome atual/canônico (ex.: "Nubank Parque"). */
+  name: string;
+  city: string | null;
+  nicknames: string[];
+  /** Nomes anteriores; `until` é o último dia (ISO) em que o nome valeu. */
+  former_names: { name: string; until: string }[];
+  /** Perfis da base semântica que descrevem este estádio (estádio compartilhado = mais de um). */
+  team_slugs: string[];
+  /** Como a linha foi ligada: ID do estádio na api-sports (`api_sports_venue_id`) ou nome + cidade. */
+  matched_by: 'provider_id' | 'name';
+}
+
 export const venue = core.table('venue', {
   id: pkUuidV7(),
+  /** Nome como o fornecedor manda (pode estar desatualizado após venda de naming rights). */
   name: text('name').notNull(),
   city: text('city'),
   countryCode: text('country_code').references(() => country.code),
   capacity: integer('capacity'),
   surface: text('surface'),
   imageAssetId: uuid('image_asset_id').references(() => asset.id),
+  /**
+   * Data do jogo (início) em que `name` foi visto. O bloco `venue` de `/teams` não tem data e
+   * fica para trás após uma troca de nome; o nome do jogo mais recente vence (null = só `/teams`).
+   */
+  nameSeenAt: timestamp('name_seen_at', { withTimezone: true }),
+  /** Nome curado da base semântica; null = sem curadoria (vale o do fornecedor). */
+  curated: jsonb('curated').$type<VenueCuration>(),
+  /** Nomes anteriores derivados dos jogos do fornecedor (`pnpm --filter @galaxie/ingestor names:derive`). */
+  providerFormerNames: jsonb('provider_former_names').$type<ProviderFormerName[]>(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+/**
+ * Nome anterior derivado do histórico de jogos do fornecedor: cada jogo grava o nome do estádio/time
+ * como estava no dia. `from`/`until` são a primeira e a última data (ISO) em que o nome apareceu.
+ */
+export interface ProviderFormerName {
+  name: string;
+  from: string;
+  until: string;
+}
+
+/**
+ * Nome e cidade para exibição: a curadoria da base semântica vence o fornecedor. Jogos anteriores
+ * a uma troca de nome também usam o nome atual (os antigos ficam em `curated.former_names`).
+ */
+export function venueDisplay(v: { name: string; city: string | null; curated?: VenueCuration | null }): {
+  name: string;
+  city: string | null;
+} {
+  return { name: v.curated?.name ?? v.name, city: v.curated?.city ?? v.city };
+}
+
+export interface FormerName {
+  name: string;
+  /** Primeiro dia (ISO) em que o nome valeu; null quando a fonte não diz (curadoria). */
+  from: string | null;
+  until: string;
+  origin: 'curated' | 'provider';
+}
+
+/**
+ * Nomes anteriores do estádio: os da curadoria (base semântica) primeiro e, depois, os derivados do
+ * fornecedor que a curadoria não cobre (mesmo nome atual ou já listado = a curadoria vence).
+ */
+export function venueFormerNames(v: {
+  name: string;
+  curated?: VenueCuration | null;
+  providerFormerNames?: ProviderFormerName[] | null;
+}): FormerName[] {
+  const current = venueDisplay({ ...v, city: null }).name;
+  const curated: FormerName[] = (v.curated?.former_names ?? []).map((f) => ({
+    name: f.name,
+    from: null,
+    until: f.until,
+    origin: 'curated',
+  }));
+  // nome atual, apelidos e nomes anteriores da curadoria cobrem as grafias do fornecedor
+  const taken = [current, ...(v.curated?.nicknames ?? []), ...curated.map((f) => f.name)];
+  const provider: FormerName[] = (v.providerFormerNames ?? [])
+    .filter((f) => !taken.some((t) => sameName(t, f.name, v.curated?.city)))
+    .map((f) => ({ name: f.name, from: f.from, until: f.until, origin: 'provider' }));
+  return [...curated, ...provider].sort((a, b) => b.until.localeCompare(a.until));
+}
 
 export const participant = core.table(
   'participant',
@@ -202,6 +284,8 @@ export const participant = core.table(
     founded: integer('founded'),
     homeVenueId: uuid('home_venue_id').references(() => venue.id),
     logoAssetId: uuid('logo_asset_id').references(() => asset.id),
+    /** Nomes anteriores derivados dos jogos do fornecedor (`names:derive`); null = sem troca aceita. */
+    providerFormerNames: jsonb('provider_former_names').$type<ProviderFormerName[]>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

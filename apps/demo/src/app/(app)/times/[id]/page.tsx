@@ -17,6 +17,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { POSITION_LABEL } from '@/lib/format';
 import { getSquad, getTeamOverview, getTeamSemantic } from '@/lib/galaxie/api';
 
+/** "2026-05-03" → "03/05/2026" (sem passar por Date, para não depender do fuso). */
+const isoDayToBr = (iso: string) => iso.split('-').reverse().join('/');
+
 /** Cores do clube como vêm da base semântica (nomes em pt-BR). */
 const COLOR_HEX: Record<string, string> = {
   verde: '#16a34a',
@@ -157,6 +160,12 @@ function SemanticIdentity({ s }: { s: TeamSemantic }) {
               {s.stadium.name}
               {s.stadium.nicknames.length ? (
                 <span className="text-muted-foreground"> ({s.stadium.nicknames.join(', ')})</span>
+              ) : null}
+              {s.stadium.former_names.length ? (
+                <span className="text-muted-foreground block text-xs">
+                  Antes:{' '}
+                  {s.stadium.former_names.map((f) => `${f.name} (até ${isoDayToBr(f.until)})`).join(', ')}
+                </span>
               ) : null}
             </dd>
           </div>
@@ -313,6 +322,11 @@ async function Content({ params }: { params: PageProps<'/times/[id]'>['params'] 
               <h1 className="text-2xl font-semibold tracking-tight">{team.name}</h1>
               {semantic?.official_name && semantic.official_name !== team.name ? (
                 <span className="text-muted-foreground text-sm">{semantic.official_name}</span>
+              ) : null}
+              {team.former_names.length ? (
+                <span className="text-muted-foreground text-xs">
+                  Antes: {team.former_names.map((f) => `${f.name} (até ${f.until.slice(0, 4)})`).join(', ')}
+                </span>
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">

@@ -13,6 +13,9 @@ const SURFACE_LABEL: Record<string, string> = {
   hybrid: 'Grama híbrida',
 };
 
+/** "2026-05-03" → "03/05/2026" (sem passar por Date, para não depender do fuso). */
+const isoDayToBr = (iso: string) => iso.split('-').reverse().join('/');
+
 async function Content({ params }: { params: PageProps<'/locais/[id]'>['params'] }) {
   const { id } = await params;
   const venue = await getVenue(id);
@@ -43,6 +46,24 @@ async function Content({ params }: { params: PageProps<'/locais/[id]'>['params']
             </Link>
           ) : null}
         </div>
+        {venue.former_names.length ? (
+          <div className="flex flex-col gap-1">
+            <h2 className="text-muted-foreground text-xs">Nomes anteriores</h2>
+            <ul className="flex flex-col gap-0.5 text-sm">
+              {venue.former_names.map((f) => (
+                <li key={`${f.name}-${f.until}`}>
+                  <span className="font-medium">{f.name}</span>
+                  <span className="text-muted-foreground">
+                    {' '}
+                    ({f.from ? `${isoDayToBr(f.from)} a ` : 'até '}
+                    {isoDayToBr(f.until)}
+                    {f.origin === 'provider' ? ', segundo o fornecedor' : ''})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {facts.length ? (
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {facts.map(([k, v]) => (

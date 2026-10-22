@@ -66,7 +66,8 @@ erDiagram
 | `core.event_participant` | `event_id`, `participant_id`, `side` (home/away/lane/grid), `result` | Suporta 2 lados (futebol) ou N (F1, atletismo) |
 | `core.person` | `id`, `name`, `birth_date`, `nationality`, `photo_asset_id` | Jogadores, técnicos, pilotos, lutadores |
 | `core.roster` | `participant_id`, `person_id`, `season_id`, `role`, `number`, `position` | Elenco por temporada; `season_id` nulo = elenco atual (único com `NULLS NOT DISTINCT`) |
-| `core.venue` | `id`, `name`, `city`, `country_iso2`, `capacity`, `surface`, `image_asset_id` | Estádios, circuitos, arenas |
+| `core.venue` | `id`, `name`, `city`, `country_iso2`, `capacity`, `surface`, `image_asset_id`, `name_seen_at`, `curated` (jsonb), `provider_former_names` (jsonb) | Estádios, circuitos, arenas. `name` é o nome do fornecedor (o do jogo mais recente vence o bloco `venue` de `/teams`, que não tem data e fica para trás numa troca de naming rights; `name_seen_at` = início do jogo em que foi visto). `curated` = nome atual, cidade, apelidos e nomes anteriores da base semântica, gravado pela reconciliação do seed — **vence o fornecedor em toda a API** (`venueDisplay` em `@galaxie/db`). `provider_former_names` = nomes anteriores derivados dos jogos (`names:derive`, abaixo) |
+| `core.participant.provider_former_names` | jsonb `[{ name, from, until }]` | Nomes anteriores do time derivados dos jogos do fornecedor (ex.: "Dinamo Moscow" → "Dynamo"); expostos em `former_names` do time |
 | `core.event_incident` | `event_id`, `minute`, `extra`, `type` (goal, card, subst, var, period…), `participant_id`, `person_id`, `detail` | Timeline e "momentos-chave" |
 | `core.standing` | `season_id`, `group`, `participant_id`, `rank`, `points`, `form`, `description`, `source` | Tabelas e grupos; `source = computed` quando calculada localmente ([docs/rules](rules/README.md)) |
 | `core.provider_map` | `entity_type`, `entity_id`, `provider`, `provider_id`, `sport` | Liga nossos IDs aos IDs da api-sports e de outras fontes |
@@ -314,3 +315,14 @@ Regras de autenticação, planos e rate limit: [05 §1.1](05-api-publica.md#11-i
 - Datas em UTC (`timestamptz`); conversão de fuso na API conforme `tz` do cliente.
 - Textos multilíngues em `jsonb` (`{"pt-BR": "...", "es-AR": "..."}`), com *fallback* `es-AR → es` e `pt-BR`.
 - Toda tabela de `enrich` e `semantic` tem `review_status` e fonte.
+
+## Nomes de estádios e times (curadoria × fornecedor)
+
+A api-sports não tem campo de nome anterior; cada partida guarda o nome do estádio e dos times como estavam no dia. Três camadas, da mais forte para a mais fraca:
+
+1. **Curadoria** (`data/knowledge`, `stadium` do time: `name`, `nicknames`, `former_names: [{ name, until }]`, `api_sports_venue_id`). O seed (`pnpm db:seed:semantic`) liga cada estádio às linhas de `core.venue` — pelo `api_sports_venue_id` (via `core.provider_map`) ou, sem ele, entre o estádio-sede do time e os estádios dos jogos em que foi mandante, por nome (atual, apelidos ou anteriores × nome do fornecedor e nomes derivados) e cidade — e grava `core.venue.curated`. Estádio compartilhado (Maracanã, Castelão) recebe os dois perfis em `team_slugs`; nomes diferentes para a mesma linha viram conflito no relatório (fica o primeiro por slug).
+2. **Nome atual do fornecedor**: na normalização, o nome visto no jogo mais recente vence; o de `/teams` (sem data) só substitui outro sem data.
+3. **Histórico do fornecedor** (`pnpm --filter @galaxie/ingestor names:derive`): por estádio/time, os nomes distintos com primeira e última data vistas. Grafias do mesmo nome não contam (caixa, acentos, pontuação, letras que o NFD não decompõe, "Estádio/Stadium/Olímpico/FC", cidade no nome, troca de letras vizinhas como "LSK"/"LKS"); nome visto em menos de 2 jogos é ruído; troca só é aceita com períodos sucessivos, sem sobreposição, sem alternância e na mesma cidade (há IDs reaproveitados para estádios diferentes; o ID 0 nem chega ao core). O resto fica de fora e é contado no relatório.
+
+**Jogos anteriores a uma troca de nome usam o nome atual** em toda a API (evento, estádio, time, agentes de IA); os nomes antigos ficam em `former_names` do estádio (`origin: curated | provider`, curadoria primeiro e cobrindo as grafias do fornecedor). Mostrar o nome do dia em jogos antigos é evolução futura.
+

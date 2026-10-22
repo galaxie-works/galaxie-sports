@@ -1,6 +1,6 @@
 import 'zod-openapi';
 import * as z from 'zod';
-import { CompetitionSummary, ParticipantRef, SeasonRef } from './catalog.js';
+import { CompetitionSummary, FormerName, ParticipantRef, SeasonRef } from './catalog.js';
 import { AssetUrl, CountryRef, LocaleQuery, PaginationQuery } from './common.js';
 import { Event, EventsQuery, TeamSummary } from './events.js';
 
@@ -67,6 +67,10 @@ export const Team = TeamSummary.extend({
     description: 'null quando o escudo ainda não foi espelhado ou não é um PNG decodificável.',
   }),
   external_ids: z.record(z.string(), z.string()).meta({ example: { 'api-sports': '121' } }),
+  former_names: z.array(FormerName).meta({
+    description:
+      'Nomes anteriores do time derivados dos jogos do fornecedor (ex.: "Dinamo Moscow" → "Dynamo"); variações de caixa e acento não contam e os nomes da base semântica vencem.',
+  }),
 }).meta({ id: 'Team' });
 export type Team = z.infer<typeof Team>;
 

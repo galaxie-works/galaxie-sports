@@ -10,6 +10,7 @@ import {
   stage,
   teamProfile,
   venue,
+  venueDisplay,
   type Database,
   type EventScore,
   type I18nText,
@@ -119,6 +120,7 @@ export async function loadEventCore(db: Database, eventId: string): Promise<Even
       stageLabel: stage.providerLabel,
       venueName: venue.name,
       venueCity: venue.city,
+      venueCurated: venue.curated,
       derbyName: derby.name,
       derbyLabels: derby.labels,
     })
@@ -188,7 +190,10 @@ export async function loadEventCore(db: Database, eventId: string): Promise<Even
     stage: row.stageId
       ? { id: row.stageId, kind: row.stageKind!, name: row.stageName ?? {}, providerLabel: row.stageLabel }
       : null,
-    venue: row.venueName ? { name: row.venueName, city: row.venueCity } : null,
+    // nome curado da base semântica (ex.: "Nubank Parque") vence o do fornecedor
+    venue: row.venueName
+      ? venueDisplay({ name: row.venueName, city: row.venueCity, curated: row.venueCurated })
+      : null,
     derby: row.derbyName
       ? { name: row.derbyName, labels: (row.derbyLabels ?? {}) as Partial<Record<string, string>> }
       : null,

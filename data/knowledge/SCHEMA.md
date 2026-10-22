@@ -29,8 +29,8 @@ data/knowledge/
 
 | Comando | O que faz |
 |---|---|
-| `pnpm knowledge:validate` | JSON Schema + regras cruzadas: slugs únicos, `team_id`/`api_sports_league_id` únicos, clássicos com times existentes, rivais apontando para times/clássicos existentes (avisa quando a rivalidade não é recíproca ou a intensidade diverge da do clássico), `sources` obrigatórias, locales permitidos, `review_status` válido, heurística contra letra de hino/canção e regras de `copy_permission` nos templates. Roda no CI; erro = merge bloqueado. |
-| `pnpm db:seed:semantic` | Carrega tudo em `semantic.*` (idempotente; remove o que saiu do YAML), liga perfis a `core.participant`/`core.competition` via `provider_map`, recalcula `core.event.derby_id` e registra `semantic.load_run` com o SHA do Git. Depois, `pnpm --filter @galaxie/ingestor events:importance` recalcula a importância dos eventos já gravados (os novos já saem certos do upsert). |
+| `pnpm knowledge:validate` | JSON Schema + regras cruzadas: slugs únicos, `team_id`/`api_sports_league_id` únicos, clássicos com times existentes, rivais apontando para times/clássicos existentes (avisa quando a rivalidade não é recíproca ou a intensidade diverge da do clássico), `sources` obrigatórias, locales permitidos, `review_status` válido, heurística contra letra de hino/canção, nomes anteriores e `api_sports_venue_id` dos estádios e regras de `copy_permission` nos templates. Roda no CI; erro = merge bloqueado. |
+| `pnpm db:seed:semantic` | Carrega tudo em `semantic.*` (idempotente; remove o que saiu do YAML), liga perfis a `core.participant`/`core.competition` via `provider_map`, liga os estádios do YAML a `core.venue` (nome curado, ver abaixo), recalcula `core.event.derby_id` e registra `semantic.load_run` com o SHA do Git. Depois, `pnpm --filter @galaxie/ingestor events:importance` recalcula a importância dos eventos já gravados (os novos já saem certos do upsert). |
 | `pnpm resolve:ids` | Casa slugs com times da api-sports usando só o banco local (raw `/teams?country=`, `/fixtures`, `/leagues` e `core.participant`). `--write` grava no YAML apenas os casos resolvidos sem ambiguidade (só o valor muda; comentários e estilo ficam); `--apply-db` grava `core.provider_map` e `team_profile.participant_id` quando o participante existe; `--json` salva o relatório. |
 
 Os editores com suporte a YAML Language Server podem usar os schemas com `# yaml-language-server: $schema=../../schemas/teams.schema.json`.
@@ -60,9 +60,12 @@ teams:
     mascot: Porco                                # mascote principal (opcional)
     rallying_cries: ["Avanti, Palestra!"]        # gritos/slogans curtos e públicos — NUNCA letra completa de hino/canção
     stadium:
-      name: Allianz Parque
+      name: Nubank Parque                        # nome ATUAL (vence o do fornecedor em toda a API)
       nicknames: [Arena]
+      former_names:                              # opcional: nomes anteriores (naming rights), com fonte em sources
+        - { name: Allianz Parque, until: 2026-05-03 }   # until = último dia em que o nome valeu
       city: São Paulo
+      api_sports_venue_id: 258                   # opcional: SOMENTE se verificado; sem ele o seed casa por nome + cidade
     rivals:                                      # slugs de outros times
       - { team: corinthians, derby: derby-paulista, intensity: 5 }
       - { team: sao-paulo, derby: choque-rei, intensity: 4 }
@@ -80,11 +83,17 @@ teams:
 | Campo | Onde | Uso |
 |---|---|---|
 | `labels: { pt-BR, es, en }` | times e seleções | Nome como é usado em cada mercado (ex.: "Bayern de Munique" / "Bayern Múnich") |
+| `stadium.former_names: [{ name, until }]` | times | Nomes anteriores do estádio; `until` (ISO) = último dia do nome. Erro se repetir o nome atual ou outro anterior; aviso se também estiver em `nicknames` |
+| `stadium.api_sports_venue_id` | times (só futebol) | ID do estádio na api-sports; erro se o mesmo ID tiver nomes diferentes em dois times (estádio compartilhado com o mesmo nome é ok) |
 | `copy_hints.<locale>.nicknames` | times e seleções | Apelidos preferidos naquele mercado (ex.: pt-BR "Merengue", es "Merengues") |
 | `country` | `national-teams.yaml` | ISO2 da seleção |
 | `world_cup_titles` | `national-teams.yaml` | Número de títulos mundiais (somente se verificado) |
 
 Locales válidos em `copy_hints`: `pt-BR`, `es-AR`, `es-MX`, `es-CO`, `es-CL`, `es-PE`, `es-UY`, `es-EC`, `es-PY`, `es-BO`, `es-VE` e `es` (genérico, só para clubes/seleções fora da América Latina).
+
+### Estádios: nome curado × fornecedor
+
+O `stadium` do time é a **curadoria** do nome do estádio. No `pnpm db:seed:semantic`, cada estádio é ligado às linhas de `core.venue` pelo `api_sports_venue_id` ou, sem ele, entre o estádio-sede do time e os estádios dos jogos em que foi mandante, por nome (`name`, `nicknames` ou `former_names` × nome do fornecedor, inclusive o trecho entre parênteses, e nomes anteriores derivados dos jogos) e cidade. A linha ganha `core.venue.curated` sem perder o nome cru (`core.venue.name`); quem sai do YAML perde a curadoria. A API, a demo e os agentes de IA mostram o nome curado — também nos jogos anteriores à troca (os antigos ficam em `former_names` do `GET /v1/venues/{id}`). Datas de troca sem fonte não entram: deixe `# TODO` no YAML.
 
 ## Outros esportes (issue #44)
 
