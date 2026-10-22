@@ -111,6 +111,16 @@ await check('Ao vivo (endpoint)', async () => {
   return status === 200 ? `${(body ?? []).length} jogos ao vivo agora` : fail(`status ${status}`);
 });
 
+await check('Busca global: apelido da base semântica, sem acento', async () => {
+  const { status, body } = await api('/v1/search?q=verdao&locale=pt-BR');
+  if (status !== 200) return fail(`status ${status}`);
+  const hits = Array.isArray(body) ? body : [];
+  const pal = hits.find((r) => r.type === 'team' && r.id === PALMEIRAS);
+  if (!pal) return fail('"verdao" não achou o Palmeiras — apelidos da base semântica fora da base?');
+  const games = hits.filter((r) => r.type === 'event').length;
+  return `${hits.length} resultados · Palmeiras por "${pal.matched ?? pal.name}" · ${games} jogos`;
+});
+
 await check('Demo: login e proteção das páginas', async () => {
   const login = await fetch(`${DEMO}/login`, { redirect: 'manual' });
   if (login.status !== 200) return fail(`/login status ${login.status}`);
