@@ -33,6 +33,10 @@ O workflow [`docker.yml`](../../.github/workflows/docker.yml) publica no push pa
 `prometheus` e `grafana` (o `caddy` não é publicado). Use o **SHA do commit** em `IMAGE_TAG`.
 Com pacotes privados, a VPS precisa de `docker login ghcr.io` com um token só `read:packages`.
 
+**Sem credencial do GitHub na VPS** (alternativa): construir as imagens no commit mergeado em outra máquina, com os
+mesmos nomes/tags, enviar com `docker save … | gzip | ssh root@<vps> 'gunzip | docker load'` e usar
+`PULL_POLICY=missing` no `.env`.
+
 ## Deploy
 
 ```bash

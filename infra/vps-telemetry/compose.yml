@@ -119,7 +119,7 @@ services:
   # Aplica as migrations (idempotente) antes de API e ingestor subirem.
   migrate:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: always
+    pull_policy: ${PULL_POLICY:-always}
     command: ['node', 'node_modules/@galaxie/db/dist/migrate-cli.js']
     environment:
       <<: *node-env
@@ -131,7 +131,7 @@ services:
 
   api:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: always
+    pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
     environment:
@@ -168,7 +168,7 @@ services:
   # App de demonstração (Next.js). Fala com a API pela rede interna; a chave fica só no servidor.
   demo:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-demo:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: always
+    pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
     environment:
@@ -193,7 +193,7 @@ services:
   # Scheduler: roda os CLIs do ingestor em horários fixos (UTC) e registra cada execução em ops.job_run.
   ingestor:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: always
+    pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
     environment:
@@ -224,7 +224,7 @@ services:
   # pg_dump diário (BACKUP_TIME, UTC) com retenção no volume `backups` e cópia opcional para S3 externo.
   backup:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: always
+    pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 256m
     environment:
@@ -252,7 +252,7 @@ services:
   # ── observabilidade (privada: acesso por túnel SSH) ───────────────────────────────────────────
   prometheus:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-prometheus:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: always
+    pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
     environment:
@@ -266,7 +266,7 @@ services:
 
   grafana:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-grafana:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: always
+    pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 256m
     environment:
