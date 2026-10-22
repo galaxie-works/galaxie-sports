@@ -41,6 +41,7 @@ import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl } from '../../events/builder.js';
 import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events/queries.js';
 import { pickText } from '../../i18n.js';
+import { loadTeamCompetitions } from '../../teams/load-campaigns.js';
 import { scheduleWindow } from '../../time.js';
 import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
 import { buildCtx, eventPage, localeOf, sportCheck } from './events.js';
@@ -295,7 +296,8 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             .where(and(eq(eventParticipant.participantId, team.id), inArray(event.status, status)))
             .orderBy(order === 'asc' ? asc(event.startsAt) : desc(event.startsAt), asc(event.id))
             .limit(limit);
-        const [lastIds, liveIds, nextIds] = await Promise.all([
+        const [competitions, lastIds, liveIds, nextIds] = await Promise.all([
+          loadTeamCompetitions(bctx, team.id),
           teamEvents(['finished'], 'desc', 5),
           teamEvents(IN_PLAY, 'desc', 1),
           db
@@ -335,6 +337,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         const body: TeamOverview = {
           team,
           standings,
+          competitions,
           form,
           last_events: lastEvents,
           live_event: live,

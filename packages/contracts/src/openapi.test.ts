@@ -79,6 +79,26 @@ describe('OpenAPI', () => {
       properties: { gradient: { example: 'linear-gradient(9deg, #000 0%, #006937 100%)' } },
       required: ['primary', 'secondary', 'monochrome', 'gradient'],
     });
+    const overview = doc.components?.schemas?.TeamOverview as { required?: string[] };
+    expect(overview.required).toContain('competitions');
+    expect(doc.components?.schemas?.TeamCampaign).toMatchObject({
+      properties: {
+        status: {
+          enum: [
+            'champion',
+            'runner_up',
+            'third_place',
+            'in_progress',
+            'eliminated',
+            'league',
+            'finished_league',
+          ],
+        },
+        label: { example: { 'pt-BR': 'Na final' } },
+      },
+      required: expect.arrayContaining(['status', 'stage_kind', 'label', 'detail', 'decided_by_event_id']),
+    });
+    expect(doc.components?.schemas).toHaveProperty('TeamCompetition');
     expect(doc.components?.securitySchemes?.galaxieKey).toMatchObject({
       in: 'header',
       name: 'x-galaxie-key',

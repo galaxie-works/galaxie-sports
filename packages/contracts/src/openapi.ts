@@ -267,7 +267,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       '/v1/teams/{id}/overview': {
         get: getOp(
-          'Card do time: posição, forma, últimos resultados, ao vivo e próximo jogo',
+          'Card do time: campanha nas competições, posição, forma, últimos resultados, ao vivo e próximo jogo',
           'Times e pessoas',
           TeamOverview,
           { path: TeamParams, query: LocaleQuery },
