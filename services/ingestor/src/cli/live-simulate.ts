@@ -219,7 +219,7 @@ const EXTRAS: Record<number, Extra[]> = {
     },
   ],
 };
-/** Disputa de pênaltis da semifinal: [lado, cobrador, converteu], o visitante bate primeiro. */
+/** Disputa de pênaltis da semifinal (4 x 5, igual a `penalties`): [lado, cobrador, converteu]; o visitante bate primeiro. */
 const SHOOTOUT: [number, ['home' | 'away', string, boolean][]] = [
   9_100_002,
   [
@@ -233,6 +233,9 @@ const SHOOTOUT: [number, ['home' | 'away', string, boolean][]] = [
     ['home', 'Agustín Almendra', true],
     ['away', 'Arthur Cabral', true],
     ['home', 'Santiago Sosa', true],
+    // alternadas: Botafogo converte, Racing perde (4 x 5)
+    ['away', 'Cuiabano', true],
+    ['home', 'Gabriel Rojas', false],
   ],
 ];
 
@@ -266,8 +269,8 @@ function enrich(f: ApiFixture, at: Date): ApiFixture {
   const state = matchState(m, at);
   let penalty = f.score.penalty;
   if (m.fixtureId === SHOOTOUT[0] && (state.short === 'P' || state.short === 'PEN')) {
-    // pênaltis: uma cobrança a cada ~1,2 min de jogo simulado a partir do início da disputa
-    const kicks = state.short === 'PEN' ? SHOOTOUT[1].length : Math.floor(Math.max(0, t - 147) / 1.2);
+    // pênaltis: uma cobrança por minuto de jogo simulado a partir do início da disputa
+    const kicks = state.short === 'PEN' ? SHOOTOUT[1].length : Math.floor(Math.max(0, t - 147));
     let home = 0;
     let away = 0;
     for (const [side, player, scored] of SHOOTOUT[1].slice(0, kicks)) {
