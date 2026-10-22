@@ -4,9 +4,9 @@ import { defineMessages } from '../define';
 export default defineMessages(
   {
     shell: {
-      // Tagline no tom da marca (o inglês curto do galaxie.works), igual nos três idiomas.
-      title: 'Sports from another universe.',
-      subtitle: 'Enter the Galaxie and start exploring.',
+      // Tagline no tom da marca (curto e direto, imagem de espaço, como no galaxie.works).
+      title: 'Esporte de outro universo.',
+      subtitle: 'Ligas, times e jogos na mesma órbita.',
       footer: 'Acesso por convite · Galaxie Works',
       logoAlt: 'Galaxie Works',
     },
@@ -46,7 +46,7 @@ export default defineMessages(
     en: {
       shell: {
         title: 'Sports from another universe.',
-        subtitle: 'Enter the Galaxie and start exploring.',
+        subtitle: 'Every league, team and match in one orbit.',
         footer: 'Invitation-only access · Galaxie Works',
         logoAlt: 'Galaxie Works',
       },
@@ -84,8 +84,8 @@ export default defineMessages(
     },
     'es-AR': {
       shell: {
-        title: 'Sports from another universe.',
-        subtitle: 'Enter the Galaxie and start exploring.',
+        title: 'Deporte de otro universo.',
+        subtitle: 'Ligas, equipos y partidos en la misma órbita.',
         footer: 'Acceso por invitación · Galaxie Works',
         logoAlt: 'Galaxie Works',
       },
