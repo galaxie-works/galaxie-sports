@@ -640,6 +640,60 @@ export const EventLineups = z
   .meta({ id: 'EventLineups' });
 export type EventLineups = z.infer<typeof EventLineups>;
 
+/** Códigos estáveis das estatísticas de time (docs/05 §3.2; iguais a `TEAM_STATISTIC_CODES` de @galaxie/providers). */
+export const TEAM_STATISTIC_CODES = [
+  'possession_pct',
+  'shots_total',
+  'shots_on_goal',
+  'shots_off_goal',
+  'shots_blocked',
+  'shots_inside_box',
+  'shots_outside_box',
+  'xg',
+  'goals_prevented',
+  'passes_total',
+  'passes_accurate',
+  'pass_accuracy_pct',
+  'corners',
+  'free_kicks',
+  'fouls',
+  'offsides',
+  'yellow_cards',
+  'red_cards',
+  'saves',
+] as const;
+export type TeamStatisticCode = (typeof TEAM_STATISTIC_CODES)[number];
+
+export const TeamStatistic = z
+  .object({
+    type: z.string().meta({
+      description:
+        '`type` cru do fornecedor ("Ball Possession", "Shots insidebox"…). Nos derivados, repete o `code`.',
+      example: 'Ball Possession',
+    }),
+    value: z
+      .union([z.number(), z.string(), z.null()])
+      .meta({ description: 'Valor como o fornecedor mandou.', example: '54%' }),
+    code: z.enum(TEAM_STATISTIC_CODES).nullable().meta({
+      description: 'Código estável (null para tipos do fornecedor ainda não mapeados).',
+      example: 'possession_pct',
+    }),
+    label: z.string().meta({
+      description: 'Rótulo no locale da resposta; sem código, o próprio `type`.',
+      example: 'Posse de bola',
+    }),
+    numeric: z.number().nullable().meta({
+      description: 'Valor numérico ("54%" → 54, "0.64" → 0.64); null quando não há número.',
+      example: 54,
+    }),
+    source: z.enum(['provider', 'derived']).meta({
+      description:
+        '`provider`: veio do fornecedor; `derived`: calculada pela Galaxie (ex.: `pass_accuracy_pct` = certos ÷ totais, quando o fornecedor não manda "Passes %").',
+    }),
+  })
+  .meta({ id: 'TeamStatistic' });
+export type TeamStatistic = z.infer<typeof TeamStatistic>;
+
 export const EventStats = z
   .object({
     event_id: z.uuid(),
@@ -647,9 +701,7 @@ export const EventStats = z
     teams: z.array(
       z.object({
         team: TeamSideRef,
-        statistics: z.array(
-          z.object({ type: z.string(), value: z.union([z.number(), z.string(), z.null()]) }),
-        ),
+        statistics: z.array(TeamStatistic),
       }),
     ),
     players: z.array(

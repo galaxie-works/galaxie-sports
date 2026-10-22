@@ -166,6 +166,21 @@ describe('OpenAPI — árbitro e local do evento', () => {
   });
 });
 
+describe('OpenAPI — estatísticas do evento', () => {
+  it('cada estatística de time traz o type cru, o código estável, o rótulo e o número', () => {
+    const schemas = buildOpenApiDocument().components?.schemas as Record<
+      string,
+      { properties?: Record<string, { enum?: string[]; example?: unknown }>; required?: string[] }
+    >;
+    const stat = schemas.TeamStatistic!;
+    expect(stat.required).toEqual(
+      expect.arrayContaining(['type', 'value', 'code', 'label', 'numeric', 'source']),
+    );
+    expect(stat.properties?.label?.example).toBe('Posse de bola');
+    expect(JSON.stringify(stat.properties?.code)).toContain('pass_accuracy_pct');
+  });
+});
+
 describe('OpenAPI — semântica e multiesporte', () => {
   it('publica as rotas de docs/06 §5 e docs/08 §4', () => {
     const doc = buildOpenApiDocument();

@@ -85,6 +85,20 @@ await check('Minuto a minuto (lances do jogo de referência)', async () => {
   return n > 0 ? `${n} lances` : warn('sem lances — base da VPS defasada (sync pendente?)');
 });
 
+await check('Estatísticas do jogo (códigos estáveis e rótulos)', async () => {
+  const { status, body } = await api(`/v1/events/${PAL_FLU_SEMI}/stats`);
+  if (status !== 200) return fail(`status ${status}`);
+  const teams = body?.teams ?? [];
+  if (!body?.available || teams.length !== 2)
+    return warn('sem estatísticas — detalhe da partida não sincronizado?');
+  const possession = teams.map((t) => t.statistics?.find((s) => s.code === 'possession_pct'));
+  // estatística sem `code`/`label`: a imagem da API é anterior à normalização
+  if (possession.some((s) => s?.numeric == null || !s.label))
+    return fail('posse de bola sem code/numeric/label');
+  const coded = teams[0].statistics.filter((s) => s.code).length;
+  return `posse ${possession.map((s) => s.numeric).join('–')} · ${coded} estatísticas com código`;
+});
+
 await check('Resumo pós-jogo (IA)', async () => {
   const { status, body } = await api(`/v1/events/${PAL_FLU_SEMI}/context`);
   if (status !== 200) return fail(`status ${status}`);

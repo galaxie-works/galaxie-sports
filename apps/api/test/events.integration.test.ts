@@ -875,10 +875,25 @@ describe('/v1/events/{id} — timeline, escalações, estatísticas, h2h e .ics'
     expect(body.teams[0]).toMatchObject({
       team: { side: 'home' },
       statistics: expect.arrayContaining([
-        { type: 'Shots on Goal', value: 8 },
-        { type: 'Ball Possession', value: '58%' },
+        expect.objectContaining({ type: 'Shots on Goal', value: 8 }),
+        {
+          type: 'Ball Possession',
+          value: '58%',
+          code: 'possession_pct',
+          label: 'Posse de bola',
+          numeric: 58,
+          source: 'provider',
+        },
       ]),
     });
+    expect(body.teams[0].statistics).toContainEqual(
+      expect.objectContaining({ code: 'shots_on_goal', label: 'Chutes no gol', numeric: 8 }),
+    );
+    // rótulos no locale pedido; type e value continuam crus
+    const es = (await get(`/v1/events/${ids.detail}/stats?locale=es-AR`)).json();
+    expect(es.teams[0].statistics).toContainEqual(
+      expect.objectContaining({ type: 'Ball Possession', code: 'possession_pct', label: 'Posesión' }),
+    );
     expect(body.players[0].players[0]).toMatchObject({
       person: { name: 'Atacante A' },
       statistics: { goals: { total: 2 } },
