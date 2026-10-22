@@ -35,6 +35,7 @@
     "bootstrap:people": "node --env-file-if-exists=../../.env dist/cli/bootstrap-people.js",
     "sync:daily": "node --env-file-if-exists=../../.env dist/cli/sync-daily.js",
     "live:run": "node --env-file-if-exists=../../.env dist/cli/live-run.js",
+    "live:simulate": "node --env-file-if-exists=../../.env dist/cli/live-simulate.js",
     "standings:recompute": "node --env-file-if-exists=../../.env dist/cli/standings-recompute.js",
     "snapshot:export": "node --env-file-if-exists=../../.env dist/cli/snapshot-export.js",
     "snapshot:import": "node --env-file-if-exists=../../.env dist/cli/snapshot-import.js",
