@@ -6,11 +6,15 @@ export {
   loadWtwConfig,
   parseBlocklistEnv,
   parseCountryConfig,
+  parseLogos,
   WtwConfigError,
   type LoadWtwConfigOptions,
 } from './config/loader.js';
 export * from './normalize.js';
 export * from './validator.js';
+export * from './rights.js';
+export * from './rights-research.js';
+export * from './library.js';
 export * from './store.js';
 export * from './editorial.js';
 export * from './public.js';

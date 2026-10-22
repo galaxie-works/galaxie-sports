@@ -2,7 +2,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
-import { ACCESS_MODELS, BROADCAST_MEDIA, type AccessModel, type BroadcastMedium } from '@galaxie/db';
+import {
+  ACCESS_MODELS,
+  BROADCAST_MEDIA,
+  RIGHTS_DISTRIBUTIONS,
+  type AccessModel,
+  type BroadcastMedium,
+  type RightsDistribution,
+} from '@galaxie/db';
 import { normalizeName } from '../normalize.js';
 import { Blocklist, WtwConfig } from './directory.js';
 import {
@@ -10,7 +17,9 @@ import {
   type BlockEntry,
   type BroadcasterEntry,
   type CountryConfig,
+  type LogoEntry,
   type RightsEntry,
+  type RightsRule,
   type SourceDomains,
   type WtwCountry,
 } from './types.js';
@@ -93,6 +102,20 @@ function parseBroadcaster(raw: unknown, where: string): BroadcasterEntry {
   };
 }
 
+function parseRule(raw: unknown, where: string): RightsRule {
+  if (!isObj(raw)) throw new WtwConfigError(`${where}: regra inválida.`);
+  const rule: RightsRule = {
+    holders: strList(raw.holders, `${where}.holders`),
+    homeTeams: strList(raw.home_teams, `${where}.home_teams`),
+    teams: strList(raw.teams, `${where}.teams`),
+    rounds: strList(raw.rounds, `${where}.rounds`),
+  };
+  if (!rule.holders.length) throw new WtwConfigError(`${where}.holders: ao menos um detentor.`);
+  if (!rule.homeTeams.length && !rule.teams.length && !rule.rounds.length)
+    throw new WtwConfigError(`${where}: informe home_teams, teams ou rounds (sem filtro, use all_matches).`);
+  return rule;
+}
+
 function parseRights(raw: unknown, where: string): RightsEntry {
   if (!isObj(raw)) throw new WtwConfigError(`${where}: entrada inválida.`);
   const season = Number(raw.season);
@@ -102,17 +125,75 @@ function parseRights(raw: unknown, where: string): RightsEntry {
   if (validTo < validFrom) throw new WtwConfigError(`${where}: valid_to anterior a valid_from.`);
   const sources = strList(raw.sources, `${where}.sources`);
   if (!sources.length) throw new WtwConfigError(`${where}.sources: cite ao menos uma fonte oficial.`);
+  const distribution = String(raw.distribution ?? 'to_confirm');
+  if (!(RIGHTS_DISTRIBUTIONS as readonly string[]).includes(distribution))
+    throw new WtwConfigError(
+      `${where}.distribution inválida: ${distribution} (use ${RIGHTS_DISTRIBUTIONS.join(', ')}).`,
+    );
+  const holders = strList(raw.holders, `${where}.holders`);
+  const allMatches = strList(raw.all_matches, `${where}.all_matches`);
+  if (raw.rules !== undefined && raw.rules !== null && !Array.isArray(raw.rules))
+    throw new WtwConfigError(`${where}.rules: esperava lista.`);
+  const rules = ((raw.rules as unknown[] | null | undefined) ?? []).map((r, i) =>
+    parseRule(r, `${where}.rules[${i}]`),
+  );
+  const notHolder = [...allMatches, ...rules.flatMap((r) => r.holders)].find((h) => !holders.includes(h));
+  if (notHolder)
+    throw new WtwConfigError(`${where}: "${notHolder}" em all_matches/rules precisa estar em holders.`);
+  if ((distribution === 'exclusive' || distribution === 'all_matches') && !holders.length)
+    throw new WtwConfigError(`${where}: distribution ${distribution} exige holders.`);
   return {
     competition: str(raw.competition, `${where}.competition`),
     season,
     validFrom,
     validTo,
     perRoundSelection: raw.per_round_selection === true,
-    holders: strList(raw.holders, `${where}.holders`),
+    holders,
     uncertainHolders: strList(raw.uncertain_holders, `${where}.uncertain_holders`),
+    distribution: distribution as RightsDistribution,
+    allMatches,
+    rules,
     notes: typeof raw.notes === 'string' ? raw.notes.trim() : null,
     sources,
+    origin: 'curated',
+    confidence: null,
   };
+}
+
+/**
+ * `exclusive` com mais de um detentor só vale se forem plataformas do mesmo grupo de mídia
+ * (ex.: canal pago + streaming do mesmo dono).
+ */
+function assertExclusive(entry: RightsEntry, broadcasters: BroadcasterEntry[], where: string): void {
+  if (entry.distribution !== 'exclusive' || entry.holders.length < 2) return;
+  const groups = new Set(entry.holders.map((h) => broadcasters.find((b) => b.id === h)?.group ?? h));
+  if (groups.size > 1)
+    throw new WtwConfigError(
+      `${where}: distribution exclusive com detentores de grupos diferentes (use all_matches ou split).`,
+    );
+}
+
+/** `_logos.yaml`: `logos: [{ id, url, source_page, license }]` — só logos com origem e licença. */
+export function parseLogos(raw: Raw | null, knownIds: Set<string>): Map<string, LogoEntry> {
+  const out = new Map<string, LogoEntry>();
+  if (!raw) return out;
+  if (!Array.isArray(raw.logos)) throw new WtwConfigError('_logos.yaml: lista "logos" obrigatória.');
+  raw.logos.forEach((l, i) => {
+    const where = `_logos.yaml[${i}]`;
+    if (!isObj(l)) throw new WtwConfigError(`${where}: entrada inválida.`);
+    const id = str(l.id, `${where}.id`);
+    if (!knownIds.has(id)) throw new WtwConfigError(`${where}: emissora "${id}" não existe nos dicionários.`);
+    if (out.has(id)) throw new WtwConfigError(`${where}: logo duplicado para ${id}.`);
+    const url = str(l.url, `${where}.url`);
+    if (!url.startsWith('https://')) throw new WtwConfigError(`${where}.url: use https.`);
+    out.set(id, {
+      id,
+      url,
+      sourcePage: str(l.source_page, `${where}.source_page`),
+      license: str(l.license, `${where}.license`),
+    });
+  });
+  return out;
 }
 
 function readYaml(path: string): Raw {
@@ -166,6 +247,10 @@ export function parseCountryConfig(
       for (const id of [...entry.holders, ...entry.uncertainHolders])
         if (!ids.has(id))
           throw new WtwConfigError(`${rw}[${i}]: detentor "${id}" não existe no dicionário ${where}.`);
+      for (const rule of entry.rules)
+        for (const id of rule.holders)
+          if (!ids.has(id)) throw new WtwConfigError(`${rw}[${i}]: detentor "${id}" não existe.`);
+      assertExclusive(entry, broadcasters, `${rw}[${i}]`);
       const overlap = rights.find(
         (o) =>
           o.competition === entry.competition && o.validFrom <= entry.validTo && entry.validFrom <= o.validTo,
@@ -252,5 +337,9 @@ export function loadWtwConfig(options: LoadWtwConfigOptions = {}): WtwConfig {
   }
   block.push(...parseBlocklistEnv(env.WTW_BLOCKLIST), ...(options.extraBlocklist ?? []));
 
-  return new WtwConfig(countries, new Blocklist(block));
+  const logosPath = join(bDir, '_logos.yaml');
+  const knownIds = new Set(countries.flatMap((c) => c.broadcasters.map((b) => b.id)));
+  const logos = parseLogos(existsSync(logosPath) ? readYaml(logosPath) : null, knownIds);
+
+  return new WtwConfig(countries, new Blocklist(block), logos);
 }

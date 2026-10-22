@@ -1,0 +1,144 @@
+# =============================================================================
+# Logos da biblioteca de emissoras (enrich.broadcaster) — por id do dicionário.
+#
+# Só entram logos com origem verificável: arquivo da Wikimedia Commons ligado à emissora pelo
+# Wikidata (propriedade "logo"), conferido pelo site oficial (P856) ou pela marca no país.
+# `url` é o arquivo (PNG; SVG vira a miniatura PNG da própria Commons) que o Asset Mirror do
+# ingestor espelha no nosso storage; `source_page` é a página do arquivo; `license` é a licença
+# informada pela Commons. Uso nominativo: o logo só identifica a emissora/plataforma ao lado da
+# opção de transmissão — marcas registradas continuam dos titulares.
+#
+# Emissora sem logo verificável fica de fora (sem logo na API) — nada de logo inventado.
+# Pesquisa de 2026-10-22.
+# =============================================================================
+schema_version: 1
+logos:
+  - id: globo
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/TV_Globo_logo_%28April_2025%29.svg/960px-TV_Globo_logo_%28April_2025%29.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:TV_Globo_logo_(April_2025).svg'
+    license: 'Public domain'
+  - id: sportv
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Logotipo_do_SporTV_%282021%29.svg/960px-Logotipo_do_SporTV_%282021%29.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Logotipo_do_SporTV_(2021).svg'
+    license: 'Public domain'
+  - id: premiere
+    url: 'https://upload.wikimedia.org/wikipedia/commons/2/20/Premiere_%282017%29_logo.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Premiere_(2017)_logo.png'
+    license: 'Public domain'
+  - id: ge_tv
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Logo_GE_TV.svg/960px-Logo_GE_TV.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Logo_GE_TV.svg'
+    license: 'Public domain'
+  - id: globoplay
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Globoplay2020_red.svg/960px-Globoplay2020_red.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Globoplay2020_red.svg'
+    license: 'Public domain'
+  - id: sbt
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Sistema_Brasileiro_de_Televis%C3%A3o_logo_%28monochrome_version%29.svg/960px-Sistema_Brasileiro_de_Televis%C3%A3o_logo_%28monochrome_version%29.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Sistema_Brasileiro_de_Televis%C3%A3o_logo_(monochrome_version).svg'
+    license: 'Public domain'
+  - id: band
+    url: 'https://upload.wikimedia.org/wikipedia/commons/9/96/Band_2026_logo.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Band_2026_logo.png'
+    license: 'Public domain'
+  - id: n_sports
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Logotipo_da_N_Sports.svg/960px-Logotipo_da_N_Sports.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Logotipo_da_N_Sports.svg'
+    license: 'Public domain'
+  - id: prime_video
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Prime_Video_logo_%282024%29.svg/960px-Prime_Video_logo_%282024%29.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Prime_Video_logo_(2024).svg'
+    license: 'Public domain'
+  - id: espn
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/ESPN_wordmark.svg/960px-ESPN_wordmark.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:ESPN_wordmark.svg'
+    license: 'Public domain'
+  - id: disney_plus
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Disney%2B_2024.svg/960px-Disney%2B_2024.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Disney%2B_2024.svg'
+    license: 'Public domain'
+  - id: paramount_plus
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Paramount_Plus.svg/960px-Paramount_Plus.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Paramount_Plus.svg'
+    license: 'Public domain'
+  - id: tnt_sports
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/TNT_Sports_%282023%29.svg/960px-TNT_Sports_%282023%29.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:TNT_Sports_(2023).svg'
+    license: 'Public domain'
+  - id: hbo_max
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/HBO_Max_%282025%29.svg/960px-HBO_Max_%282025%29.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:HBO_Max_(2025).svg'
+    license: 'Public domain'
+  - id: espn_premium
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/ESPN_Premium_logo.svg/960px-ESPN_Premium_logo.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:ESPN_Premium_logo.svg'
+    license: 'Public domain'
+  - id: fox_sports
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Fox_Sports_Argentina_2023.svg/960px-Fox_Sports_Argentina_2023.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Fox_Sports_Argentina_2023.svg'
+    license: 'Public domain'
+  - id: tyc_sports
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/TyC_Sports_Logo.svg/960px-TyC_Sports_Logo.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:TyC_Sports_Logo.svg'
+    license: 'Public domain'
+  - id: telefe
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Televisi%C3%B3n_Federal_Logo.svg/960px-Televisi%C3%B3n_Federal_Logo.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Televisi%C3%B3n_Federal_Logo.svg'
+    license: 'Public domain'
+  - id: tv_publica
+    url: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Nuevo_logo_de_la_Televisi%C3%B3n_P%C3%BAblica_%28en_color_y_sin_fondo%29.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Nuevo_logo_de_la_Televisi%C3%B3n_P%C3%BAblica_(en_color_y_sin_fondo).png'
+    license: 'Public domain'
+  - id: fanatiz
+    url: 'https://upload.wikimedia.org/wikipedia/commons/0/0f/Fanatiz_Logo.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Fanatiz_Logo.png'
+    license: 'Public domain'
+  - id: televisa
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Logo_de_Grupo_Televisa.svg/960px-Logo_de_Grupo_Televisa.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Logo_de_Grupo_Televisa.svg'
+    license: 'Public domain'
+  - id: tudn
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/TUDN_Logo.svg/960px-TUDN_Logo.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:TUDN_Logo.svg'
+    license: 'Public domain'
+  - id: vix
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/ViX_Logo.svg/960px-ViX_Logo.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:ViX_Logo.svg'
+    license: 'Public domain'
+  - id: tv_azteca
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Logotipo_de_TV_Azteca.svg/960px-Logotipo_de_TV_Azteca.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Logotipo_de_TV_Azteca.svg'
+    license: 'Public domain'
+  - id: fox
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/FOX_Sports_logo.svg/960px-FOX_Sports_logo.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:FOX_Sports_logo.svg'
+    license: 'Public domain'
+  - id: caracol
+    url: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/CaracolTV2025.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:CaracolTV2025.png'
+    license: 'Public domain'
+  - id: rcn
+    url: 'https://upload.wikimedia.org/wikipedia/commons/a/a3/CanalRCN2023.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:CanalRCN2023.png'
+    license: 'CC BY-SA 4.0 (Creative Commons Attribution-Share Alike 4.0)'
+  - id: win_sports
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Win_Sports_nuevo_logo.svg/960px-Win_Sports_nuevo_logo.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Win_Sports_nuevo_logo.svg'
+    license: 'CC BY 4.0 (Creative Commons Attribution 4.0)'
+  - id: chilevision
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Logotipo_Principal_de_Chilevisi%C3%B3n.svg/960px-Logotipo_Principal_de_Chilevisi%C3%B3n.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Logotipo_Principal_de_Chilevisi%C3%B3n.svg'
+    license: 'CC BY-SA 4.0 (Creative Commons Attribution-Share Alike 4.0)'
+  - id: america_tv
+    url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Am%C3%A9rica_Televisi%C3%B3n.svg/960px-Am%C3%A9rica_Televisi%C3%B3n.svg.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Am%C3%A9rica_Televisi%C3%B3n.svg'
+    license: 'Public domain'
+  - id: canal_5_uy
+    url: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Canal_5_Uruguay.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Canal_5_Uruguay.png'
+    license: 'CC BY-SA 4.0 (Creative Commons Attribution-Share Alike 4.0)'
+  - id: teleamazonas
+    url: 'https://upload.wikimedia.org/wikipedia/commons/e/e0/Teleamazonas_Logo.png'
+    source_page: 'https://commons.wikimedia.org/wiki/File:Teleamazonas_Logo.png'
+    license: 'Public domain'
+# Sem logo verificável: cazetv, record, tnt_sports_premium, fox_one

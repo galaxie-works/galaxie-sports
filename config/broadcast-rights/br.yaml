@@ -11,6 +11,24 @@
 # jogo por rodada → fonte com mais de 72 h perde 0,3.
 # broadcaster: id do dicionário config/broadcasters/br.yaml.
 #
+# Distribuição (resposta determinística, docs/07 §2.2):
+#   distribution: exclusive   → um detentor (ou plataformas do mesmo grupo) com todos os jogos
+#                 all_matches → todos os `holders` com todos os jogos
+#                 split       → dividem os jogos por rodada (a alocação por rodada decide)
+#                 selected    → transmitem jogos escolhidos (nem todo jogo passa)
+#                 to_confirm  → distribuição não conhecida (padrão): detentores "a confirmar"
+#   all_matches: [ids]        → detentores com todos os jogos mesmo numa linha split/selected
+#   rules: [{ holders, home_teams, teams, rounds }] → jogos garantidos por time mandante,
+#          qualquer dos times ou rodada (rótulo do fornecedor, ex.: "Regular Season - 32")
+# Esta tabela é a camada CURADA: sempre vence o que vier da pesquisa por temporada
+# (enrich.broadcast_rights). Só entra fato com fonte; o que não tem fonte fica "a confirmar".
+#
+# TODO(direitos): competições tier ≤ 2 com jogos no BR sem linha aqui (aguardam curadoria ou a
+# pesquisa por temporada): brasileirao-serie-b, brasileirao-serie-c, pernambucano,
+# uefa-europa-league, uefa-conference-league, serie-a-italia, bundesliga, ligue-1, copa-del-rey,
+# dfb-pokal, primeira-liga, eredivisie, efl-championship, mls, saudi-pro-league e as ligas
+# sul-americanas (argentina, colômbia, chile, peru, uruguai, equador, paraguai, bolívia, venezuela).
+#
 # Fonte: docs/research/onde-assistir.md §2.1 (pesquisa de 2026-10-21) — os links de
 # cada linha são os anúncios/reportagens citados lá. Operadoras de TV paga omitidas por
 # política editorial não aparecem aqui.
@@ -24,6 +42,7 @@ rights:
     valid_from: 2026-01-01
     valid_to: 2026-12-31
     per_round_selection: true
+    distribution: split
     holders: [globo, sportv, premiere, ge_tv, record, cazetv, prime_video, globoplay]
     notes: >-
       Globo (aberta, 1 jogo por rodada), SporTV, Premiere (PPV), GE TV (alguns jogos da Libra),
@@ -37,6 +56,7 @@ rights:
     valid_from: 2026-01-01
     valid_to: 2026-12-31
     per_round_selection: false
+    distribution: split
     holders: [globo, sportv, premiere, prime_video, ge_tv, globoplay]
     sources:
       - https://abcdoabc.com.br/copa-do-brasil-confira-toda-as-transmisso
@@ -45,6 +65,7 @@ rights:
     valid_from: 2027-01-01
     valid_to: 2030-12-31
     per_round_selection: false
+    distribution: split
     holders: [globo, sportv, globoplay, prime_video]
     uncertain_holders: [espn, disney_plus]
     notes: Ciclo 2027–30 — Globo (aberta + multiplataforma) e Amazon + ESPN (participação da ESPN incerta).
@@ -55,6 +76,7 @@ rights:
     valid_from: 2026-01-01
     valid_to: 2026-12-31
     per_round_selection: true
+    distribution: split
     holders: [globo, ge_tv, globoplay, espn, disney_plus, paramount_plus]
     notes: Globo (aberta, quartas e quintas) + GE TV; ESPN/Disney+ (pago e streaming); Paramount+ (exclusivos na fase de grupos).
     sources:
@@ -65,6 +87,7 @@ rights:
     valid_from: 2027-01-01
     valid_to: 2030-12-31
     per_round_selection: true
+    distribution: split
     holders: [globo, espn, disney_plus]
     sources:
       - https://www.sportcal.com/media/globo-and-espn-keep-copa-libertadores-and-sudamericana-rights-until-2030/
@@ -73,6 +96,7 @@ rights:
     valid_from: 2026-01-01
     valid_to: 2026-12-31
     per_round_selection: false
+    distribution: split
     holders: [espn, disney_plus, paramount_plus]
     uncertain_holders: [sbt]
     sources:
@@ -82,6 +106,9 @@ rights:
     valid_from: 2026-08-01
     valid_to: 2027-06-30
     per_round_selection: false
+    # "ESPN/Disney+ com os 380 jogos": todos os jogos no grupo (o canal ESPN de cada jogo fica a
+    # confirmar; a opção sai sem canal).
+    distribution: exclusive
     holders: [espn, disney_plus]
     uncertain_holders: [cazetv]
     notes: ESPN/Disney+ com os 380 jogos.
@@ -92,6 +119,8 @@ rights:
     valid_from: 2026-08-01
     valid_to: 2032-06-30
     per_round_selection: false
+    # único detentor no país (a pesquisa não diz se todos os jogos passam: "selected")
+    distribution: selected
     holders: [cazetv]
     notes: CazéTV por 6 temporadas a partir de 2026/27 (anúncio de maio de 2026).
     sources:
@@ -101,6 +130,7 @@ rights:
     valid_from: 2026-07-01
     valid_to: 2027-06-30
     per_round_selection: true
+    distribution: split
     holders: [tnt_sports, hbo_max]
     uncertain_holders: [sbt]
     notes: Warner Bros. Discovery (TNT Sports + HBO Max); SBT em aberto em 2026/27 é incerto.
@@ -111,6 +141,7 @@ rights:
     valid_from: 2027-07-01
     valid_to: 2031-06-30
     per_round_selection: true
+    distribution: split
     holders: [tnt_sports, hbo_max]
     sources:
       - https://tavilatam.com/en/latin-america-champions-league-broadcast-rights-awarded-to-disney-and-paramount-in-spanish-speaking-latin-america-and-to-warner-bros-discovery-in-brazil/
@@ -119,6 +150,9 @@ rights:
     valid_from: 2026-06-11
     valid_to: 2026-07-19
     per_round_selection: false
+    # CazéTV com os 104 jogos; os demais com parte deles
+    distribution: split
+    all_matches: [cazetv]
     holders: [cazetv, globo, sportv, globoplay, sbt, n_sports, ge_tv]
     uncertain_holders: [prime_video]
     notes: CazéTV (104 jogos), Globo/SporTV/Globoplay (~54), SBT + N Sports (32), GE TV (32). Encerrada em 19/07/2026.

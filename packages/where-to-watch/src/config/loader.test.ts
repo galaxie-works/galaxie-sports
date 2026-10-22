@@ -76,6 +76,20 @@ describe('config/broadcasters e config/broadcast-rights do repositório', () => 
     expect(br.rightsFor(null, new Date())).toBeNull();
   });
 
+  it('direitos do BR declaram a distribuição; logos só com origem e licença', () => {
+    const br = config.directory('BR');
+    expect(br.rightsFor('premier-league', new Date('2026-10-24T14:00:00Z'))).toMatchObject({
+      distribution: 'exclusive',
+      holders: ['espn', 'disney_plus'],
+    });
+    expect(br.rightsFor('brasileirao-serie-a', new Date('2026-10-24T14:00:00Z'))?.distribution).toBe('split');
+    expect(config.logos.size).toBeGreaterThan(20);
+    for (const logo of config.logos.values()) {
+      expect(logo.url).toMatch(/^https:\/\/upload\.wikimedia\.org\//);
+      expect(logo.license.length).toBeGreaterThan(3);
+    }
+  });
+
   it('allowlist do agente inclui organizador, emissoras e imprensa, mas não agregadores', () => {
     const domains = config.directory('AR').allowedDomains();
     expect(domains).toContain('conmebol.com');
