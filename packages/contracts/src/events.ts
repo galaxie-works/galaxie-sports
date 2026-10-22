@@ -118,11 +118,9 @@ export const EventParticipant = z
     short_name: z.string().nullable(),
     logo: AssetUrl,
     nickname: z.string().nullable().meta({ description: 'Primeiro apelido da base semântica.' }),
-    colors: TeamColors.nullable()
-      .optional()
-      .meta({
-        description: 'Cores do escudo (mesmo `colors` do time); null enquanto o escudo não foi espelhado.',
-      }),
+    colors: TeamColors.nullable().optional().meta({
+      description: 'Cores do escudo (mesmo `colors` do time); null enquanto o escudo não foi espelhado.',
+    }),
     winner: z.boolean().nullable().meta({ description: 'Vencedor da partida, quando encerrada.' }),
     fan_tags: z.array(FanTag).meta({
       description:
