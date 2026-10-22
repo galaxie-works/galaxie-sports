@@ -17,6 +17,9 @@ export default defineMessages(
     teamSemantic:
       'Cartão de identidade do time: apelidos, mascote, torcida, gritos, estádio, rivais e fatos.',
     squad: 'Elenco atual e comissão técnica (envie ?season=AAAA para outra temporada).',
+    teamOverviewSeason:
+      'O time na temporada {season}: campanha em cada competição, tabela, forma e últimos jogos daquele ano (sem próximo jogo). Os anos com dados vêm em `seasons`.',
+    squadSeason: 'Elenco e comissão técnica registrados para a temporada {season}.',
     event:
       'Evento completo: participantes, placar, estado, importância (com detalhamento), relevância no mercado, clássico e o que está em jogo.',
     related:
@@ -52,6 +55,9 @@ export default defineMessages(
       teamSemantic:
         "The team's identity card: nicknames, mascot, fan base, chants, stadium, rivals and facts.",
       squad: 'Current squad and coaching staff (send ?season=YYYY for another season).',
+      teamOverviewSeason:
+        'The team in the {season} season: campaign in each competition, table, form and last matches of that year (no next match). The years with data come in `seasons`.',
+      squadSeason: 'Squad and coaching staff on record for the {season} season.',
       event:
         'Full event: participants, score, status, importance (with breakdown), market relevance, derby and what is at stake.',
       related:
@@ -87,6 +93,9 @@ export default defineMessages(
       teamSemantic:
         'La tarjeta de identidad del equipo: apodos, mascota, hinchada, cantitos, estadio, rivales y datos.',
       squad: 'Plantel actual y cuerpo técnico (mandá ?season=AAAA para otra temporada).',
+      teamOverviewSeason:
+        'El equipo en la temporada {season}: campaña en cada competencia, tabla, racha y últimos partidos de ese año (sin próximo partido). Los años con datos vienen en `seasons`.',
+      squadSeason: 'Plantel y cuerpo técnico registrados para la temporada {season}.',
       event:
         'Evento completo: participantes, resultado, estado, importancia (con detalle), relevancia en el mercado, clásico y lo que está en juego.',
       related:
