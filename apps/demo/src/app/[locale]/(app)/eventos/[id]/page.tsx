@@ -4,13 +4,11 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
-import { MatchTimeline } from '@/components/live/match-timeline';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
-import { LineupsSection } from '@/components/sport/lineups';
-import { MatchStats } from '@/components/sport/match-stats';
+import { MatchDetails } from '@/components/sport/match-details';
 import { MatchStakes } from '@/components/sport/match-stakes';
 import { RelatedContentGrid } from '@/components/sport/related-content';
 import { RelevanceMeter } from '@/components/sport/relevance-meter';
@@ -32,7 +30,6 @@ import {
   getWhereToWatch,
   h2hRequest,
   relatedRequest,
-  timelineRequest,
   whereToWatchRequest,
 } from '@/lib/galaxie/api';
 import { defaultMarket, type Locale } from '@/lib/i18n/config';
@@ -394,6 +391,18 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
         <Scoreboard event={event} t={t} f={f} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
+            <MatchDetails
+              eventId={id}
+              timeline={showTimeline ? timeline : null}
+              stats={stats}
+              lineups={lineups}
+              marks={lineupMarks(timeline)}
+              colors={colors}
+              query={query}
+              timeZone={f.timeZone}
+              locale={locale}
+              t={t}
+            />
             {context?.data.length ? (
               <Section title={tx.title} description={tx.description} api={eventContextRequest(id, locale)}>
                 {context.data.map((c) => (
@@ -413,30 +422,11 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
                 ))}
               </Section>
             ) : null}
-            {lineups ? (
-              <LineupsSection
-                lineups={lineups}
-                marks={lineupMarks(timeline)}
-                colors={colors}
-                locale={locale}
-                t={t}
-              />
-            ) : null}
-            {stats ? <MatchStats stats={stats} colors={colors} locale={locale} t={t} /> : null}
             {h2h ? <H2hSection h2h={h2h} locale={locale} t={t} /> : null}
           </div>
-          {/* no celular, uma coluna só: placar → sobre o jogo → minuto a minuto → o resto */}
+          {/* no celular, uma coluna só: placar → sobre o jogo → onde assistir → detalhes da partida → o resto */}
           <div className="flex flex-col gap-6 max-lg:order-first">
             <AboutCard event={event} t={t} />
-            {showTimeline && timeline ? (
-              <Section
-                title={t.live.timeline.title}
-                description={t.live.timeline.description}
-                api={timelineRequest(id, locale)}
-              >
-                <MatchTimeline initial={timeline} timeZone={f.timeZone} />
-              </Section>
-            ) : null}
             <WhereToWatchCard eventId={event.id} wtw={wtw} country={country} locale={locale} t={t} />
           </div>
         </div>
