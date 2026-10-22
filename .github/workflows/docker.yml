@@ -94,12 +94,33 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
           push: ${{ env.PUBLISH == 'true' }}
+          # nos PRs a imagem fica no Docker local para a checagem de arquivos abaixo
+          load: ${{ env.PUBLISH != 'true' && (matrix.image == 'api' || matrix.image == 'ingestor') }}
           # Só tags do GHCR: com push ligado o Buildx envia TODAS as tags (uma sem registry iria para o Docker Hub).
           tags: |
             ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:${{ github.sha }}
             ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:staging
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      # Os pacotes leem config/ e data/knowledge a partir de si mesmos e silenciam quando não acham
+      # (lista vazia): sem esta checagem, faltar um diretório na imagem só aparece na produção.
+      - name: Arquivos de config dentro da imagem
+        if: env.PUBLISH != 'true' && (matrix.image == 'api' || matrix.image == 'ingestor')
+        run: |
+          docker run --rm --entrypoint node "ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:${{ github.sha }}" -e '
+            const fs = require("fs");
+            const env = process.env;
+            const need = {
+              api: [env.RULES_CONFIG_DIR + "/default.yaml", env.WTW_CONFIG_DIR + "/broadcasters", env.KNOWLEDGE_DIR + "/glossary",
+                    env.MEDIA_DENYLIST_PATH, env.GEO_CONFIG_DIR, "/srv/config/plans.yaml"],
+              ingestor: [env.RULES_CONFIG_DIR + "/default.yaml", env.WTW_CONFIG_DIR + "/broadcasters",
+                         env.WTW_CONFIG_DIR + "/related-content", "/srv/config/competitions", "/srv/data/knowledge",
+                         "/srv/services/ai-agents/dist/cli/recap-run.js"],
+            }["${{ matrix.image }}"];
+            const missing = need.filter((p) => !p || p.includes("undefined") || !fs.existsSync(p));
+            if (missing.length) { console.error("faltando na imagem:", missing); process.exit(1); }
+            console.log("ok:", need.length, "caminhos");'
 
   stack:
     name: valida stack, alertas e scripts
