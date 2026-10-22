@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar';
+import { LIVE_HREF, LiveNavItem } from '@/components/live/live-nav-item';
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { DOCS_NAV } from '@/lib/docs';
@@ -61,6 +62,14 @@ function CurrentSidebarNav() {
 function SidebarNav({ pathname }: { pathname: string | null }) {
   return (
     <SidebarContent>
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <LiveNavItem active={isActive(pathname, LIVE_HREF)} />
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
       <SidebarGroup>
         <SidebarGroupLabel>Esportes</SidebarGroupLabel>
         <SidebarGroupContent>

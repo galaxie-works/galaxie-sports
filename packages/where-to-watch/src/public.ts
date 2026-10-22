@@ -1,6 +1,7 @@
 /** Leitura pública do onde assistir (GET /v1/events/{id}/where-to-watch, docs/05 §4). */
 import { and, eq, isNull } from 'drizzle-orm';
 import { broadcastOption, event, type Database } from '@galaxie/db';
+import { listBroadcasters } from './library.js';
 import type { BroadcastOptionRow } from './store.js';
 
 /** Mensagem quando não há informação confiável — o evento continua existindo. */
@@ -38,9 +39,16 @@ export interface PublicSource {
   url: string;
 }
 
+/** Logo da emissora (biblioteca): chave no nosso storage e URL de origem. */
+export interface PublicLogo {
+  storageKey: string | null;
+  sourceUrl: string | null;
+}
+
 export interface PublicOption {
   row: BroadcastOptionRow;
   sources: PublicSource[];
+  logo: PublicLogo | null;
 }
 
 export interface PublicWhereToWatch {
@@ -48,6 +56,8 @@ export interface PublicWhereToWatch {
   country: string;
   status: 'resolved' | 'unknown';
   options: PublicOption[];
+  /** Detentores de direitos sem o jogo confirmado ("canal a confirmar", status `probable`). */
+  toConfirm: PublicOption[];
   updatedAt: Date | null;
 }
 
@@ -75,18 +85,30 @@ export async function getPublicWhereToWatch(
     );
 
   const region = params.region?.trim().toUpperCase() || null;
-  const confirmed = rows.filter(
-    (r) => r.status === 'confirmed' && (!region || r.region === null || r.region.toUpperCase() === region),
-  );
-  confirmed.sort(
-    (a, b) =>
-      MEDIUM_ORDER.indexOf(a.medium) - MEDIUM_ORDER.indexOf(b.medium) ||
-      Number(b.confidence) - Number(a.confidence) ||
-      a.providerName.localeCompare(b.providerName) ||
-      (a.region ?? '').localeCompare(b.region ?? ''),
-  );
+  const inRegion = (r: BroadcastOptionRow) =>
+    !region || r.region === null || r.region.toUpperCase() === region;
+  const order = (a: BroadcastOptionRow, b: BroadcastOptionRow) =>
+    MEDIUM_ORDER.indexOf(a.medium) - MEDIUM_ORDER.indexOf(b.medium) ||
+    Number(b.confidence) - Number(a.confidence) ||
+    a.providerName.localeCompare(b.providerName) ||
+    (a.region ?? '').localeCompare(b.region ?? '');
+  const confirmed = rows.filter((r) => r.status === 'confirmed' && inRegion(r)).sort(order);
+  // "a confirmar" só aparece enquanto nenhuma opção estiver confirmada
+  const probable = confirmed.length
+    ? []
+    : rows.filter((r) => r.status === 'probable' && inRegion(r)).sort(order);
 
-  const options = confirmed.map((row) => {
+  const ids = [
+    ...new Set([...confirmed, ...probable].flatMap((r) => (r.broadcasterId ? [r.broadcasterId] : []))),
+  ];
+  const library = new Map((await listBroadcasters(db, { ids })).map((b) => [b.id, b]));
+  const logoOf = (row: BroadcastOptionRow): PublicLogo | null => {
+    const b = row.broadcasterId ? library.get(row.broadcasterId) : undefined;
+    if (!b || (!b.logoStorageKey && !b.logoSourceUrl)) return null;
+    return { storageKey: b.logoStorageKey, sourceUrl: b.logoSourceUrl };
+  };
+
+  const toPublic = (row: BroadcastOptionRow): PublicOption => {
     const seen = new Set<string>();
     const sources: PublicSource[] = [];
     for (const e of row.evidence) {
@@ -94,8 +116,10 @@ export async function getPublicWhereToWatch(
       seen.add(e.url);
       sources.push({ publisher: e.publisher ?? new URL(e.url).hostname, url: e.url });
     }
-    return { row, sources };
-  });
+    return { row, sources, logo: logoOf(row) };
+  };
+  const options = confirmed.map(toPublic);
+  const toConfirm = probable.map(toPublic);
 
   const stamps = rows.flatMap((r) => [r.createdAt.getTime(), r.lastVerifiedAt.getTime()]);
   return {
@@ -103,6 +127,7 @@ export async function getPublicWhereToWatch(
     country,
     status: options.length ? 'resolved' : 'unknown',
     options,
+    toConfirm,
     updatedAt: stamps.length ? new Date(Math.max(...stamps)) : null,
   };
 }

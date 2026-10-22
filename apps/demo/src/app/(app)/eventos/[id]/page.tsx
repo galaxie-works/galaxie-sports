@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
+import { MatchTimeline } from '@/components/live/match-timeline';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
@@ -25,10 +26,12 @@ import {
   getH2h,
   getLineups,
   getRelated,
+  getTimeline,
   getWhereToWatch,
   h2hRequest,
   lineupsRequest,
   relatedRequest,
+  timelineRequest,
   whereToWatchRequest,
 } from '@/lib/galaxie/api';
 import { COUNTRIES } from '@/lib/navigation';
@@ -243,6 +246,10 @@ function WhereToWatchCard({
           <ul className="flex flex-col gap-2">
             {wtw.options.map((o) => (
               <li key={o.id} className="flex items-center gap-3 rounded-md border p-2">
+                {o.logo ? (
+                  // logo da biblioteca de emissoras (espelho S3); não passa pelo otimizador do Next
+                  <img src={o.logo} alt="" className="h-6 w-10 shrink-0 object-contain" />
+                ) : null}
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate font-medium">
                     {o.provider}
@@ -263,7 +270,9 @@ function WhereToWatchCard({
           </ul>
         ) : (
           <p className="text-muted-foreground">
-            {wtw?.message ?? 'Sem informação de transmissão para este país.'}
+            {wtw?.to_confirm?.length
+              ? `Canal a confirmar: ${wtw.to_confirm.map((t) => t.provider).join(', ')}.`
+              : (wtw?.message ?? 'Sem informação de transmissão para este país.')}
           </p>
         )}
       </CardContent>
@@ -355,13 +364,16 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
 
   // relevância no mesmo país do "Onde assistir"
   const event = await getEvent(id, country);
-  const [context, h2h, wtw, lineups, related] = await Promise.all([
+  const [context, h2h, wtw, lineups, related, timeline] = await Promise.all([
     getEventContext(id),
     getH2h(id),
     getWhereToWatch(id, country),
     getLineups(id),
     getRelated(id),
+    getTimeline(id),
   ]);
+  // minuto a minuto: a partir do apito (ou quando já há lance registrado)
+  const showTimeline = !!timeline && (STARTED.has(event.status) || timeline.incidents.length > 0);
   const title = event.participants.map((p) => p.name).join(' x ');
 
   return (
@@ -371,6 +383,15 @@ async function Content({ params, searchParams }: PageProps<'/eventos/[id]'>) {
         <Scoreboard event={event} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
+            {showTimeline && timeline ? (
+              <Section
+                title="Minuto a minuto"
+                description="Gols, cartões, substituições, VAR, pênaltis e os marcos do jogo"
+                api={timelineRequest(id)}
+              >
+                <MatchTimeline initial={timeline} />
+              </Section>
+            ) : null}
             {context?.data.length ? (
               <Section
                 title="Contexto"

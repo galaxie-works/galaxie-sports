@@ -136,11 +136,12 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
   },
   {
     name: 'wtw-run',
-    description: 'Onde Assistir: pesquisas e revalidações devidas (T-7d … T-30min) dos mercados ativos',
+    description:
+      'Onde Assistir: direitos (T-7d), alocação por rodada (T-48h, só quando os direitos dividem os jogos) e revalidações (T-3h, T-30min)',
     cron: '*/5 * * * *',
     script: 'dist/cli/wtw-run.js',
     cwd: '../ai-agents',
-    args: ['--limite', '10'],
+    args: ['--limite', '100', '--chamadas', '2'],
     timeoutMs: 20 * MINUTE,
   },
   {
@@ -153,6 +154,16 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     cwd: '../ai-agents',
     args: [],
     timeoutMs: 20 * MINUTE,
+  },
+  {
+    name: 'wtw-rights',
+    description:
+      'Onde Assistir: biblioteca de emissoras, direitos por temporada (uma pesquisa por competição para a América Latina) e reconfirmação mensal',
+    cron: '40 5 * * *',
+    script: 'dist/cli/wtw-rights.js',
+    cwd: '../ai-agents',
+    args: ['--chamadas', '3'],
+    timeoutMs: 30 * MINUTE,
   },
 ];
 

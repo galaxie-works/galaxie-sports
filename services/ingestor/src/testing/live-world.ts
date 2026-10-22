@@ -203,6 +203,8 @@ export interface LiveWorldOptions {
   /** Integração: Governor e raw sobre o Postgres (padrão: em memória). */
   governor?: (now: () => Date) => QuotaGovernor;
   rawStore?: RawStore;
+  /** Embrulha o `fetch` falso (ex.: a simulação de desenvolvimento acrescenta cartões e substituições). */
+  wrapFetch?: (fetchFn: typeof globalThis.fetch) => typeof globalThis.fetch;
 }
 
 /** Mundo completo: relógio, servidor falso, cliente real com Governor em memória e armazenamento. */
@@ -261,7 +263,7 @@ export function liveWorld(opts: LiveWorldOptions) {
     governor,
     plan: new PlanRules(limits),
     rateLimiter: new RateLimiter(limits.perMinute, clock),
-    fetch: fetchFn,
+    fetch: opts.wrapFetch ? opts.wrapFetch(fetchFn) : fetchFn,
     clock,
   });
 

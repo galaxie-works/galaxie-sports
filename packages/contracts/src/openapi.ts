@@ -35,7 +35,14 @@ import {
 } from './events.js';
 import { EventContext, EventContextQuery } from './event-context.js';
 import { MIRROR_SOURCES, MirrorEnvelope, MirrorParams } from './mirror.js';
-import { WhereToWatch, WhereToWatchParams, WhereToWatchQuery } from './where-to-watch.js';
+import {
+  Broadcaster,
+  BroadcasterParams,
+  BroadcastersQuery,
+  WhereToWatch,
+  WhereToWatchParams,
+  WhereToWatchQuery,
+} from './where-to-watch.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
 import { RelatedContent, RelatedQuery } from './related.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
@@ -346,6 +353,25 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
             'duração. Só metadados: nada é rehospedado. Exige o módulo `related_content`. Atualizações chegam ' +
             'pelo tópico `event.related_content_changed` (SSE/webhook).',
         },
+      },
+      '/v1/broadcasters': {
+        get: {
+          ...getOp('Biblioteca de emissoras e plataformas', 'Onde assistir', list(Broadcaster), {
+            query: BroadcastersQuery,
+          }),
+          description:
+            'Emissoras de TV aberta, TV paga e streaming usadas nas opções do onde assistir, com canais por país e ' +
+            'logo (origem e licença informadas). Exige o módulo `where_to_watch`.',
+        },
+      },
+      '/v1/broadcasters/{id}': {
+        get: getOp(
+          'Emissora ou plataforma',
+          'Onde assistir',
+          Broadcaster,
+          { path: BroadcasterParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
       },
       '/v1/stream': {
         get: {

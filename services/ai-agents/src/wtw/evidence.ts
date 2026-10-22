@@ -1,13 +1,16 @@
 /**
- * Verificação das evidências por HTTP: a URL responde? a página menciona a emissora? — e a
- * revalidação de T-3h/T-30min (fetch + diff das URLs salvas, sem gastar tokens).
+ * Verificação das evidências por HTTP: a URL responde? a página menciona a emissora? Usada na
+ * alocação, na revalidação de T-3h/T-30min (sem tokens) e na pesquisa/reconfirmação de direitos.
+ * O fetcher compartilhado (CachingPageFetcher) busca cada URL uma vez por execução.
  */
-import type { Evidence } from '@galaxie/db';
+import type { RightsHolderRecord } from '@galaxie/db';
 import {
   normalizeName,
   type BroadcastOptionRow,
+  type BroadcastRightsRow,
   type Candidate,
   type CountryDirectory,
+  type RightsCandidate,
 } from '@galaxie/where-to-watch';
 import { contentHash, isPublicHttpUrl, type PageFetcher, type PageFetchResult } from './fetcher.js';
 
@@ -105,7 +108,7 @@ export function rowToCandidate(row: BroadcastOptionRow): Candidate {
     watchUrl: row.url,
     language: row.language,
     evidence: row.evidence
-      .filter((e) => e.stance !== 'denies' && e.sourceKind !== 'editorial')
+      .filter((e) => e.stance !== 'denies' && e.sourceKind !== 'editorial' && e.sourceKind !== 'rights')
       .map((e) => ({
         url: e.url,
         excerpt: e.excerpt,
@@ -115,55 +118,66 @@ export function rowToCandidate(row: BroadcastOptionRow): Candidate {
   };
 }
 
-export interface RevalidationResult {
-  /** Algo mudou (URL caiu, emissora sumiu da página, trecho saiu) → fazer busca completa. */
-  changed: boolean;
-  reasons: string[];
-  /** Evidências com hash/fetchedAt renovados, por opção (quando nada mudou). */
-  updates: { id: string; evidence: Evidence[] }[];
-  fetched: number;
-}
-
-/**
- * Revalida as opções vigentes do agente: busca de novo cada URL salva e compara com o hash da
- * última verificação. Hash igual = nada mudou. Hash diferente só conta como mudança se a emissora
- * ou o trecho sumiram da página. Sem nenhuma URL buscável, conta como mudança (precisa buscar).
- */
-export async function revalidateOptions(
-  rows: BroadcastOptionRow[],
+/** Evidências da pesquisa de direitos verificadas por HTTP (mesmas regras das opções). */
+export async function verifyRightsCandidate(
+  candidate: RightsCandidate,
   directory: CountryDirectory,
   fetcher: PageFetcher,
   now: Date,
-): Promise<RevalidationResult> {
-  const reasons: string[] = [];
-  const updates: RevalidationResult['updates'] = [];
+): Promise<{ candidate: RightsCandidate; fetched: number }> {
   let fetched = 0;
-  for (const row of rows) {
-    const names = mentionNames(directory, row.providerName, row.channelName);
-    let supported = false;
-    const evidence: Evidence[] = [];
-    for (const e of row.evidence) {
-      if (e.stance === 'denies' || !shouldFetch(directory, e.url)) {
-        evidence.push(e);
+  const holders = [];
+  for (const h of candidate.holders) {
+    const names = mentionNames(directory, h.broadcaster, h.channels[0] ?? null);
+    const evidence = [];
+    for (const e of h.evidence) {
+      if (!shouldFetch(directory, e.url)) {
+        evidence.push({ ...e, accessible: null, mentionsBroadcaster: null });
         continue;
       }
       fetched++;
       const r = await fetcher.fetch(e.url);
-      if (!r.ok) {
-        reasons.push(`${row.providerName}: ${e.url} indisponível (${r.error ?? r.status})`);
+      evidence.push({
+        ...e,
+        accessible: r.ok,
+        mentionsBroadcaster: r.ok ? pageMentions(r.text, names) : null,
+        contentHash: r.ok ? contentHash(r.text) : null,
+        fetchedAt: now.toISOString(),
+      });
+    }
+    holders.push({ ...h, evidence });
+  }
+  return { candidate: { ...candidate, holders }, fetched };
+}
+
+/**
+ * Reconfirmação mensal dos direitos pesquisados (sem tokens): cada detentor confirmado continua
+ * com ao menos uma fonte acessível que o menciona? Renova hash e data das evidências.
+ */
+export async function recheckRightsRow(
+  row: BroadcastRightsRow,
+  directory: CountryDirectory,
+  fetcher: PageFetcher,
+  now: Date,
+): Promise<{ supported: boolean; holders: RightsHolderRecord[]; reasons: string[] }> {
+  const reasons: string[] = [];
+  const holders: RightsHolderRecord[] = [];
+  for (const h of row.holders) {
+    const names = mentionNames(directory, h.name, h.channels[0] ?? null);
+    let ok = false;
+    const evidence = [];
+    for (const e of h.evidence) {
+      if (!shouldFetch(directory, e.url)) {
         evidence.push(e);
         continue;
       }
-      const hash = contentHash(r.text);
-      const same = !!e.contentHash && e.contentHash === hash;
-      const still = same || (pageMentions(r.text, names) && excerptStillPresent(r.text, e.excerpt));
-      if (still) supported = true;
-      else reasons.push(`${row.providerName}: ${e.url} mudou`);
-      evidence.push({ ...e, contentHash: hash, fetchedAt: now.toISOString() });
+      const r = await fetcher.fetch(e.url);
+      const hash = r.ok ? contentHash(r.text) : null;
+      if (r.ok && ((e.contentHash && e.contentHash === hash) || pageMentions(r.text, names))) ok = true;
+      evidence.push({ ...e, contentHash: hash ?? e.contentHash ?? null, fetchedAt: now.toISOString() });
     }
-    if (!supported) reasons.push(`${row.providerName}: sem evidência válida`);
-    updates.push({ id: row.id, evidence });
+    if (h.status === 'confirmed' && !ok) reasons.push(`${h.name}: fontes não sustentam mais`);
+    holders.push({ ...h, evidence });
   }
-  const changed = rows.length === 0 || reasons.some((r) => r.endsWith('sem evidência válida'));
-  return { changed, reasons, updates: changed ? [] : updates, fetched };
+  return { supported: reasons.length === 0, holders, reasons };
 }

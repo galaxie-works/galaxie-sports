@@ -1,7 +1,9 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  asset,
   broadcastAudit,
+  broadcastRights,
   broadcastCorrection,
   broadcastOption,
   changeFeed,
@@ -25,7 +27,15 @@ import {
   sampleForAudit,
   validateCandidates,
   WtwError,
+  applyRightsResult,
+  currentResearchedRights,
+  listBroadcasters,
+  ResearchedRightsIndex,
+  rightsAnswer,
+  rightsCandidates,
+  syncBroadcasterLibrary,
   type Candidate,
+  type ValidatedRights,
 } from '../src/index.js';
 import { disposableDb, seedEvent } from './helpers.js';
 
@@ -359,5 +369,106 @@ describe('auditoria amostral e métricas', () => {
     const prom = renderPrometheus(m);
     expect(prom).toMatch(/^galaxie_wtw_coverage_t3h_ratio 0\.5$/m);
     expect(prom).toMatch(/galaxie_wtw_target\{metric="precision"\} 0\.98/);
+  });
+});
+
+describe('direitos pesquisados por temporada', () => {
+  const result = (
+    holders: string[],
+    distribution: ValidatedRights['distribution'] = 'exclusive',
+  ): ValidatedRights => ({
+    country: 'MX',
+    distribution,
+    status: 'confirmed',
+    confidence: 0.9,
+    flags: [],
+    notes: null,
+    discarded: [],
+    holders: holders.map((id) => ({
+      broadcasterId: id,
+      name: id,
+      channels: [],
+      kind: 'pay_tv',
+      allMatches: distribution === 'exclusive',
+      status: 'confirmed' as const,
+      confidence: 0.9,
+      evidence: [{ url: `https://${id}.example/direitos`, excerpt: 'x', fetchedAt: NOW.toISOString() }],
+      flags: [],
+    })),
+  });
+
+  it('versiona só quando muda (detentores/distribuição); sem mudança renova a verificação', async () => {
+    const a = await applyRightsResult(db, {
+      competition: 'liga-x',
+      season: 2026,
+      result: result(['fox']),
+      now: NOW,
+    });
+    expect(a.action).toBe('inserted');
+    const later = new Date(NOW.getTime() + 3_600_000);
+    const b = await applyRightsResult(db, {
+      competition: 'liga-x',
+      season: 2026,
+      result: result(['fox']),
+      now: later,
+    });
+    expect(b).toEqual({ action: 'touched', id: a.id });
+    const c = await applyRightsResult(db, {
+      competition: 'liga-x',
+      season: 2026,
+      result: result(['fox', 'tv_azteca'], 'split'),
+      now: later,
+    });
+    expect(c.action).toBe('inserted');
+    const all = await db.select().from(broadcastRights).where(eq(broadcastRights.competitionSlug, 'liga-x'));
+    expect(all).toHaveLength(2);
+    expect(all.find((r) => r.id === a.id)!.supersededBy).toBe(c.id);
+
+    const index = new ResearchedRightsIndex(await currentResearchedRights(db, { competitions: ['liga-x'] }));
+    const entry = index.get('liga-x', 2026, 'MX')!;
+    expect(entry).toMatchObject({ origin: 'research', distribution: 'split', holders: ['fox', 'tv_azteca'] });
+    expect(index.get('liga-x', 2025, 'MX')).toBeNull();
+  });
+});
+
+describe('biblioteca de emissoras e "canal a confirmar" na API', () => {
+  it('sincroniza a biblioteca a partir do dicionário, registra o logo como asset e expõe na API', async () => {
+    const r1 = await syncBroadcasterLibrary(db, config, NOW);
+    expect(r1.upserted).toBeGreaterThan(30);
+    expect(r1.logosRegistered).toBe(config.logos.size);
+    const r2 = await syncBroadcasterLibrary(db, config, NOW);
+    expect(r2.logosRegistered).toBe(0);
+    const espn = (await listBroadcasters(db, { ids: ['espn'] }))[0]!;
+    expect(espn.countries).toEqual(expect.arrayContaining(['BR', 'AR', 'MX']));
+    expect(espn.kind).toBe('pay_tv');
+    expect(espn.markets.BR!.channels).toContain('ESPN 2');
+    const [logo] = await db.select().from(asset).where(eq(asset.id, espn.logoAssetId!));
+    expect(logo).toMatchObject({ kind: 'broadcaster_logo', storageKey: null });
+    expect((await listBroadcasters(db, { country: 'uy' })).every((b) => b.countries.includes('UY'))).toBe(
+      true,
+    );
+  });
+
+  it('só detentores sem o jogo garantido → `toConfirm` (a lista de opções continua vazia)', async () => {
+    const { eventId } = await seedEvent(db, { startsAt: KICKOFF, slug: 'brasileirao-serie-a' });
+    const rights = br.rightsFor('brasileirao-serie-a', KICKOFF);
+    const answer = rightsAnswer(rights, { home: null, away: null, participants: [], round: null });
+    const options = validateCandidates(rightsCandidates(answer, br), {
+      directory: br,
+      competitionSlug: 'brasileirao-serie-a',
+      eventStartsAt: KICKOFF,
+      now: NOW,
+    }).options;
+    expect(options.every((o) => o.status === 'probable')).toBe(true);
+    await applyAgentResult(db, { eventId, country: 'BR', options, retractMissing: true, now: NOW });
+    const pub = await getPublicWhereToWatch(db, { eventId, country: 'BR' });
+    expect(pub).toMatchObject({ status: 'unknown', options: [] });
+    expect(pub!.toConfirm.map((o) => o.row.broadcasterId)).toEqual(
+      expect.arrayContaining(['globo', 'premiere']),
+    );
+    expect(pub!.toConfirm.find((o) => o.row.broadcasterId === 'globo')!.logo).toMatchObject({
+      storageKey: null,
+      sourceUrl: expect.stringMatching(/^https:\/\/upload\.wikimedia\.org\//),
+    });
   });
 });

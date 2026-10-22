@@ -80,6 +80,15 @@ function Center({ event }: { event: Event }) {
       </AnimatedIcon>
     );
   }
+  // "ao vivo" sem placar: o horário passou mas o fornecedor ainda não confirmou o jogo (nada de "? – ?")
+  if (LIVE.has(event.status) && score.home == null && score.away == null) {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="text-muted-foreground text-2xl font-bold">– –</span>
+        <span className="text-muted-foreground text-[0.65rem] whitespace-nowrap">aguardando placar</span>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-center gap-0.5">
       <span

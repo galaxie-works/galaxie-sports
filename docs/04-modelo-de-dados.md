@@ -273,6 +273,13 @@ create table enrich.broadcast_option (
 --   enrich.broadcast_correction trilha de correções editoriais (add/correct/remove/rerun)
 --   enrich.broadcast_audit      fila de auditoria amostral (veredito humano)
 --   ops.llm_usage               ledger de uso de LLM (orçamento diário de tokens de todos os agentes)
+-- Migration 0015 (onde assistir por rodada):
+--   enrich.broadcaster          biblioteca de emissoras (id do dicionário, tipo, países, canais, site,
+--                               logo → core.asset kind broadcaster_logo, origem e licença do logo)
+--   enrich.broadcast_rights     direitos pesquisados por competição × temporada × país (versionado;
+--                               a tabela curada config/broadcast-rights sempre vence)
+--   enrich.wtw_research         chamadas multi-mercado (direitos por temporada e alocação por rodada),
+--                               com custo rateado por mercado (teto WTW_DAILY_USD_PER_MARKET)
 -- Detalhes: docs/07 §2.2.1 e §3.1.
 
 create table enrich.event_context (

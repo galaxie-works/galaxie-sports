@@ -14,7 +14,12 @@ import {
   sport,
   type Database,
 } from '@galaxie/db';
-import { applyAgentResult, loadWtwConfig, validateCandidates } from '@galaxie/where-to-watch';
+import {
+  applyAgentResult,
+  loadWtwConfig,
+  syncBroadcasterLibrary,
+  validateCandidates,
+} from '@galaxie/where-to-watch';
 import { createApiKey, upsertTenant } from '../src/auth/admin.js';
 import { RecordingCdnPurger } from '../src/cache/purger.js';
 import { buildServer } from '../src/server.js';
@@ -176,6 +181,8 @@ describe('GET /v1/events/{id}/where-to-watch', () => {
       sources: [{ publisher: 'ge.globo.com', url: 'https://ge.globo.com/agenda' }],
     });
     expect(body.options[0].last_verified_at).toMatch(/-03:00$/);
+    expect(body.to_confirm).toEqual([]);
+    expect(body.options[0]).toHaveProperty('logo');
     expect(res.headers['surrogate-key']).toContain(`where_to_watch:${eventId}`);
     expect(res.headers['cache-control']).toContain('s-maxage=60');
   });
@@ -203,6 +210,36 @@ describe('GET /v1/events/{id}/where-to-watch', () => {
     expect(
       (await get(`/v1/events/0192c7e2-0000-7000-8000-000000000000/where-to-watch?country=BR`)).json().code,
     ).toBe('NOT_FOUND');
+  });
+});
+
+describe('GET /v1/broadcasters', () => {
+  it('lista a biblioteca (filtro por país), com logo de origem conhecida e canais por mercado', async () => {
+    await syncBroadcasterLibrary(db, config);
+    const res = await get('/v1/broadcasters?country=br');
+    expect(res.statusCode).toBe(200);
+    const data = res.json().data as {
+      id: string;
+      kind: string;
+      countries: string[];
+      logo: { url: string; source_url: string; license: string | null } | null;
+      markets: { country: string; channels: string[] }[];
+    }[];
+    expect(data.every((b) => b.countries.includes('BR'))).toBe(true);
+    const espn = data.find((b) => b.id === 'espn')!;
+    expect(espn.kind).toBe('pay_tv');
+    expect(espn.logo).toMatchObject({
+      url: expect.stringMatching(/^https:\/\//),
+      license: expect.any(String),
+    });
+    expect(espn.markets.find((m) => m.country === 'BR')!.channels).toContain('ESPN 2');
+    expect(data.some((b) => b.logo === null)).toBe(true);
+  });
+
+  it('detalhe, 404 e plano sem o módulo', async () => {
+    expect((await get('/v1/broadcasters/espn')).json()).toMatchObject({ id: 'espn', name: 'ESPN' });
+    expect((await get('/v1/broadcasters/nao_existe')).json().code).toBe('NOT_FOUND');
+    expect((await get('/v1/broadcasters', keyNoModule)).json().code).toBe('MODULE_NOT_IN_PLAN');
   });
 });
 

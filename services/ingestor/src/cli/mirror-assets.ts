@@ -6,6 +6,8 @@
  *   pnpm --filter @galaxie/ingestor assets:mirror                     # baixa o que falta em core.asset
  *   pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw     # antes, registra toda URL de mídia do raw
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
+ * Também espelha os logos da biblioteca de emissoras (core.asset kind `broadcaster_logo`, registrados
+ * pela sincronização `wtw:rights` a partir de config/broadcasters/_logos.yaml).
  *
  * Variáveis: DATABASE_URL, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY, ASSETS_PUBLIC_BASE_URL.
  */
@@ -16,6 +18,7 @@ import { publicAssetUrl } from '@galaxie/apisports-client';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
 import { PgAssetStore } from '../assets/asset-store.js';
+import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
 
 const { values } = parseArgs({
@@ -64,6 +67,18 @@ try {
       limit: values.limite ? Number(values.limite) : undefined,
     });
     console.log(`A baixar nesta execução: ${report.pending} (nenhuma chamada à API de dados).`);
+    const logos = await runBroadcasterLogoMirror({
+      db,
+      objects: {
+        put: async () => {},
+        head: async () => undefined,
+        get: async () => undefined,
+        delete: async () => {},
+      },
+      dryRun: true,
+      includeMissing: values['retentar-ausentes'],
+    });
+    console.log(`Logos de emissoras a baixar: ${logos.pending}.`);
   } else {
     const objects = objectStoreFromEnv();
     const [run] = await db.insert(jobRun).values({ job: 'assets:mirror', status: 'running' }).returning();
@@ -83,9 +98,16 @@ try {
           if (e.type === 'failed') console.warn(`  falha ${e.asset.sourceUrl}: ${e.reason}`);
         },
       });
+      const logos = await runBroadcasterLogoMirror({
+        db,
+        objects,
+        includeMissing: values['retentar-ausentes'],
+      });
+      for (const f of logos.failures) console.warn(`  logo de emissora ${f.url}: ${f.reason}`);
       objects.close();
       const stats = {
         ...report,
+        broadcasterLogos: { ...logos, failures: logos.failures.slice(0, 20) },
         failures: report.failures.slice(0, 50),
         notFoundUrls: report.notFoundUrls.slice(0, 50),
       };
@@ -100,6 +122,9 @@ try {
         .where(eq(jobRun.id, run!.id));
       console.log(
         `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
+      );
+      console.log(
+        `Logos de emissoras: ${logos.stored} espelhados · 404: ${logos.notFound} · recusados: ${logos.rejected} · falhas: ${logos.failed}`,
       );
       if (ASSETS_PUBLIC_BASE_URL) {
         console.log(`URLs públicas: ${publicAssetUrl('<storage_key>', ASSETS_PUBLIC_BASE_URL)}`);

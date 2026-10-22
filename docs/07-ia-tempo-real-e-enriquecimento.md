@@ -19,7 +19,7 @@ flowchart TB
   subgraph Agendador["Orquestrador (cron + filas BullMQ)"]
     T1[Diário 03:00 UTC<br/>planejamento do dia]
     T2[A cada minuto<br/>janelas ao vivo]
-    T3[Gatilhos por evento<br/>T-7d · T-24h · T-3h · T-30min · FT]
+    T3[Gatilhos por evento<br/>T-7d · T-48h por rodada · T-3h · T-30min · FT]
   end
   T1 --> LS[Live Scheduler]
   T2 --> LS
@@ -94,8 +94,8 @@ Intervalos simulados (relógio e fornecedor falsos, cota contada pelo Governor) 
 | Item | Definição |
 |---|---|
 | Modelo | `claude-sonnet-5-5` com ferramenta de busca web (e *fetch* de páginas) |
-| Gatilhos | T-7d, T-24h, T-3h, T-30min; reexecução sob demanda (correção editorial) |
-| Escopo | `(evento, país)` para mercados ativos; tier 1 sempre, tier 2 a partir de T-24h |
+| Gatilhos | Direitos por temporada (job `wtw-rights`); alocação por rodada em T-48h; T-7d (direitos), T-3h e T-30min (revalidação, sem LLM); reexecução sob demanda (correção editorial) |
+| Escopo | Direitos: `(competição, temporada)` para todos os mercados numa chamada · alocação: `(competição, rodada)` para todos os mercados numa chamada, só onde os direitos dividem os jogos · publicação: `(evento, país)` para mercados ativos, tiers 1 e 2 |
 | Fontes priorizadas | 1) organizador da competição, 2) site/redes oficiais da emissora/plataforma, 3) clubes, 4) imprensa esportiva de referência do país |
 | Saída | Lista JSON de opções (schema em [04](04-modelo-de-dados.md#5-enrich--saídas-de-ia-e-fontes-externas)) com `evidence` (URL + trecho ≤ 200 caracteres) |
 
@@ -112,7 +112,7 @@ Intervalos simulados (relógio e fornecedor falsos, cota contada pelo Governor) 
 5. **Publica** se `confidence ≥ 0,7`; entre 0,5 e 0,7 fica `pending` (não aparece); abaixo de 0,5 descarta. Conflito entre fontes primárias → **omitida** até a próxima checagem.
 6. Diff com o estado anterior → `NOTIFY` → purge de cache + webhook (correção em ≤ 5 min).
 
-Cadência: busca completa em T-7d e T-24h; em T-3h e T-30min apenas **revalida as URLs já salvas** (fetch + diff) e só busca de novo se algo mudou — economia de tokens. Detalhes e schema JSON em [research/onde-assistir.md](research/onde-assistir.md).
+Cadência: **direitos primeiro** (determinístico, sem LLM quando a tabela basta), uma pesquisa de direitos por competição × temporada e uma alocação por **rodada** só onde os direitos dividem os jogos; por jogo, só revalidação sem tokens (§2.2.1). Detalhes e schema JSON em [research/onde-assistir.md](research/onde-assistir.md).
 
 > Agregadores com termos que proíbem reuso **não** são raspados; servem no máximo como pista para encontrar a fonte primária.
 
@@ -123,13 +123,16 @@ Exemplo do resultado esperado (Brasil, semifinal de Libertadores): TV aberta nac
 | Peça | Onde | O que faz |
 |---|---|---|
 | Dicionário de emissoras | `config/broadcasters/<iso2>.yaml` (BR, AR, MX, CO, CL, PE, UY, EC) + `_common.yaml` | Nome canônico, aliases, canais, `medium`, `access_model`, domínios oficiais, grupo de mídia, variantes regionais (afiliadas → UF) e as fontes do país (organizadores, imprensa, agregadores) |
-| Tabela de direitos | `config/broadcast-rights/<iso2>.yaml` | Competição × ciclo (`valid_from`/`valid_to`) → `holders` (+0,1), `uncertain_holders` (neutros), `per_round_selection` (ativa a penalidade de fonte velha) e URLs das fontes. Semeada de [research/onde-assistir.md §2](research/onde-assistir.md) |
+| Tabela de direitos (curada) | `config/broadcast-rights/<iso2>.yaml` | Competição × ciclo (`valid_from`/`valid_to`) → `holders` (+0,1), `uncertain_holders` (neutros), `per_round_selection` (ativa a penalidade de fonte velha), `distribution` (`exclusive` · `all_matches` · `split` · `selected` · `to_confirm`, padrão), `all_matches: [ids]`, `rules: [{holders, home_teams, teams, rounds}]` (jogos garantidos por mandante, time ou rodada) e URLs das fontes. Validada no loader (detentor existe, regra só com detentores da linha, `exclusive` só com plataformas do mesmo grupo). **Sempre vence** a pesquisada. Semeada de [research/onde-assistir.md §2](research/onde-assistir.md) |
+| Direitos pesquisados | `enrich.broadcast_rights` + `packages/where-to-watch/src/rights-research.ts` | Resultado validado da pesquisa por temporada, por competição × temporada × país, versionado (nova versão só quando detentores/distribuição mudam); `rowToRightsEntry` converte para a mesma forma da curada |
+| Resposta dos direitos | `packages/where-to-watch/src/rights.ts` | `rightsAnswer(linha, jogo)` → detentores garantidos (publicação sem LLM) × detentores a alocar; `rightsCandidates` vira candidatas de origem `rights` para o validador |
+| Biblioteca de emissoras | `enrich.broadcaster` + `packages/where-to-watch/src/library.ts`; `config/broadcasters/_logos.yaml`; `services/ingestor/src/assets/broadcaster-logos.ts` | Uma entrada por id (nome, aliases, tipo — TV aberta, TV paga por cabo/satélite/IPTV, streaming —, países, canais, site, dados por mercado) sincronizada do dicionário pelo `wtw-rights`; o logo vira asset `broadcaster_logo` e o `assets:mirror` grava no nosso storage (`broadcasters/<sha256>.png`). Só logos com origem verificável (Wikimedia Commons ligada à emissora pelo Wikidata, conferida pelo site oficial ou pela marca no país) e licença registrada; sem origem, fica sem logo. API: `/v1/broadcasters` ([05 §4.1.1](05-api-publica.md#411-biblioteca-de-emissoras--v1broadcasters)) |
 | Política editorial | `config/broadcasters/_policy.yaml` + `WTW_BLOCKLIST_FILE`/`WTW_BLOCKLIST` | Blocklist aplicada no validador e nas correções. Operadoras omitidas por política não são nomeadas no repositório: a lista efetiva vem de fora do Git |
-| Agente | `services/ai-agents/src/wtw/agent.ts` | Nível `research`, busca na web restrita à allowlist do país (organizadores + emissoras + imprensa; ≤ 100 domínios; agregadores fora), consultas sugeridas em pt (BR) ou es, tabela de direitos e opções anteriores como contexto; saída em JSON Schema estrito (`schema.ts`) com evidência (URL + trecho) e `stance` (confirma/nega) |
+| Agente | `services/ai-agents/src/wtw/agent.ts` | Nível `research`, busca na web restrita à allowlist **conjunta** dos países da chamada (organizadores + emissoras — na alocação, só as detentoras — + imprensa em rodízio; ≤ 100 domínios; agregadores fora). Dois pedidos multi-mercado em JSON Schema estrito (`schema.ts`): `researchRights` (direitos por temporada) e `allocate` (rodada: jogos codificados J1…Jn × país × emissora), sempre com evidência (URL + trecho ≤ 160 caracteres, até 2 por item) |
 | Verificação HTTP | `services/ai-agents/src/wtw/evidence.ts`, `fetcher.ts` | Toda URL de evidência é buscada de novo (http(s) público, sem redirecionar para rede interna, User-Agent genérico `galaxie-sports/0.1`, timeout e limite de tamanho): página fora do ar → evidência descartada; página que não cita a emissora → rebaixada ao nível de agregador. Agregadores nunca são buscados |
 | Validador | `packages/where-to-watch/src/validator.ts` | Regras de §2.2 (função pura). Detalhes abaixo |
 | Versionamento | `packages/where-to-watch/src/store.ts` | Cada mudança material (status, canal, acesso, link, confiança, flags) cria uma versão nova e aposenta a anterior (`superseded_by`/`superseded_at`); sem mudança, só renova `last_verified_at`. Chaves que sumiram viram versão `retracted`. Mudança visível → `where_to_watch.changed` no change feed |
-| Agendamento | `services/ai-agents/src/wtw/scheduler.ts`, `runner.ts` | Janelas abaixo; registros idempotentes em `enrich.wtw_run` (`run_key = evento:país:janela`) |
+| Agendamento | `services/ai-agents/src/wtw/scheduler.ts`, `runner.ts`, `rights-runner.ts`, `plan.ts` | Janelas abaixo; registros idempotentes em `enrich.wtw_run` (`run_key = evento:país:janela`); chamadas multi-mercado em `enrich.wtw_research` (`research_key` único) |
 | Correção editorial | `packages/where-to-watch/src/editorial.ts` + rotas `/internal/where-to-watch/*` ([05 §4.2](05-api-publica.md#42-rotas-internas-correção-editorial-auditoria-e-métricas)) | Inclusão/correção/remoção com trilha (`enrich.broadcast_correction`) e propagação pelo change feed; versões editoriais travam a chave contra o agente |
 | Auditoria e métricas | `packages/where-to-watch/src/audit.ts`, `metrics.ts`; CLI `wtw:audit` | Ver §4 |
 
@@ -141,23 +144,53 @@ Exemplo do resultado esperado (Brasil, semifinal de Libertadores): TV aberta nac
 4. Tipo da fonte por domínio, relativo à opção: site da própria emissora (ou do mesmo grupo de mídia) = primária; organizador = primária; site de **outra** emissora = imprensa; imprensa do país = imprensa; agregador ou domínio desconhecido = 0,4.
 5. Confiança = melhor fonte + 0,1 (detentor na tabela) − 0,2 (emissora fora da tabela, flag `rights_mismatch`) + 0,1 (≥ 2 domínios registráveis distintos) − 0,3 (competição com escolha por rodada e todas as fontes datadas com mais de 72 h, flag `stale_source`); limitada a [0, 1].
 6. ≥ 0,7 → `confirmed`; 0,5–0,7 → `pending`; < 0,5 → descartada. Fonte primária que nega + primária que confirma, ou canais divergentes entre primárias → `omitted` (`conflict = true`). Negação primária sem confirmação primária → descartada.
+7. Candidatas da **tabela de direitos** (origem `rights`): só valem para detentores da linha efetiva (curada > pesquisada), e só com as URLs da própria linha — conferidas em código, não pelo LLM. Curada = 0,8; pesquisada = a confiança validada da pesquisa (≤ 0,9); + 0,1 do detentor. Detentor com o jogo garantido pela regra (`exclusive`, `all_matches`, `all_matches: [ids]` ou regra por time/rodada) → `confirmed` sem LLM. Detentor sem o jogo garantido → `probable` com a flag `to_confirm` ("canal a confirmar", vai em `to_confirm` na API). "A confirmar" nunca reforça outra fonte: se uma fonte do jogo publica o detentor, vale a fonte; se a fonte não basta (< 0,7), fica o piso `probable`.
 
-**Janelas e cadência** (`wtw:run`, cron sugerido a cada 5 min):
+**Pipeline em três níveis** (desde a reestruturação por rodada — antes era uma busca completa por jogo × mercado em T-7d, T-24h e, sem opção confirmada, de novo em T-3h e T-30min):
 
-| Janela | Tiers | Modo |
-|---|---|---|
-| T-7d | 1 | Busca completa |
-| T-24h | 1 e 2 | Busca completa |
-| T-3h | 1 e 2 | Revalidação: refaz o fetch das URLs salvas e compara com o hash da última verificação; hash igual, ou emissora + trecho ainda na página → só renova `last_verified_at` (**zero tokens**). Fonte caiu/mudou ou não há opção confirmada → busca completa |
-| T-30min | 1 e 2 | Igual a T-3h |
-| manual | — | `POST /internal/.../rerun` ou `wtw:run --evento <id> --pais BR --forcar` |
+| Nível | Quando | O que faz | LLM |
+|---|---|---|---|
+| 1. Direitos por temporada | Job `wtw-rights` (diário; só pesquisa o que falta) | Para cada (competição, temporada) com jogos nos próximos 45 dias e relevância ≥ `WTW_MIN_RELEVANCE` em algum mercado sem direitos: **uma** chamada pesquisa os detentores em todos os mercados da América Latina sem linha curada (ou poucas, se a allowlist conjunta passar de 100 domínios — hoje os 8 mercados cabem numa). Saída por país: detentores, canais/serviços, tipo (TV aberta, TV paga, streaming), regra de distribuição (`exclusive`, `all_matches`, `split`, `selected`, `to_confirm`) e fontes. O validador de direitos confere cada detentor (dicionário do país, fonte acessível em domínio permitido que cita a emissora; ≥ 0,7 → confirmado) e grava em `enrich.broadcast_rights` (versionado). A linha curada de `config/broadcast-rights` **sempre vence**. Reconfirmação mensal sem tokens (fetch + hash das fontes); fonte que não sustenta mais → nova versão `pending` (`source_changed`) e nova pesquisa | 1 chamada por competição × temporada |
+| 2. Alocação por rodada | Janela T-48h do **primeiro** jogo da rodada | Só nos mercados cujos direitos **dividem** os jogos (`split`, `selected`, `to_confirm`), com relevância ≥ `WTW_MIN_RELEVANCE` e dentro do teto diário do mercado: **uma** chamada por (competição, rodada) para todos os jogos e mercados, restrita aos detentores conhecidos (até 12 jogos por chamada). Sem divisão, sai 100% dos direitos | 1 chamada por rodada (só com divisão) |
+| 3. Por jogo | T-7d, T-3h, T-30min | T-7d publica a resposta dos direitos; T-3h e T-30min refazem o fetch das URLs salvas (cache por URL na execução), reaplicam os direitos e revalidam — **nunca** chamam o LLM | — |
 
-Vale só a janela mais próxima já aberta (janelas perdidas não são recuperadas). Mercado entra quando há linha na tabela de direitos, a competição é do próprio país ou é internacional. Mercados ativos: `WTW_MARKETS` ou a união dos `markets` dos tenants com o módulo `where_to_watch`. Numa busca completa, as opções já salvas voltam como candidatas (com as evidências antigas rebuscadas) — uma busca que "não achou" não apaga opção boa; ela só cai se a própria fonte não se sustentar.
+**Janelas** (`wtw:run`, cron a cada 5 min; execuções idempotentes em `enrich.wtw_run`, `run_key = evento:país:janela`):
+
+| Janela | Âncora | Modo | O que faz |
+|---|---|---|---|
+| T-7d | início do jogo | `rights` | Resposta determinística: detentor garantido → `confirmed`; demais → "a confirmar" |
+| T-48h | início do **primeiro jogo da rodada** | `allocate` | Agrupa por (competição, rodada do fornecedor — ou data, sem rodada) e faz a alocação acima; quem não precisa (ou não passa no limiar/teto) sai só dos direitos |
+| T-3h | início do jogo | `revalidate` | Fetch + hash das evidências salvas, direitos reaplicados (zero tokens). Fonte que caiu/deixou de citar a emissora derruba a opção e volta o "a confirmar" |
+| T-30min | início do jogo | `revalidate` | Igual a T-3h |
+| manual | — | `full` | `POST /internal/.../rerun` ou `wtw:run --evento <id> --pais BR --forcar`: alocação só daquele jogo (restrita aos detentores; aberta, sem tabela) |
+
+Vale só a janela aberta mais recente (janelas perdidas não são recuperadas). Jogo de competição **sem direitos** (curados ou pesquisados) no mercado não entra na agenda — quem cobre esse buraco é o nível 1. Mercados ativos: `WTW_MARKETS` ou a união dos `markets` dos tenants com o módulo `where_to_watch`. As opções já salvas sempre voltam como candidatas (com as evidências rebuscadas) — uma alocação que "não achou" não apaga opção boa.
+
+**Prioridade e custo** (`services/ai-agents/src/wtw/relevance.ts`, `spend.ts`):
+
+- **Relevância por mercado** = `core.event.importance` + 10 se um participante é do país + 5 se a competição é do país (bônus ≤ 10; teto 100) — a mesma conta da relevância por mercado da API, calculada aqui enquanto ela não é gravada no banco (sem o bônus continental). Só rodadas com algum jogo de relevância ≥ `WTW_MIN_RELEVANCE` (padrão 60) usam LLM; as demais ficam com os detentores "a confirmar".
+- **Fila:** reservada por relevância × proximidade do início (`relevância / (1 + horas/24)`); a reserva de uma execução de alocação traz as irmãs da rodada (outros jogos e mercados). `--chamadas N` limita as chamadas por execução; rodada sem chamada disponível volta para a fila.
+- **Teto por mercado:** cada chamada multi-mercado fica em `enrich.wtw_research` e o custo é rateado igualmente entre os mercados dela; `WTW_DAILY_USD_PER_MARKET` (padrão US$ 1) tira da próxima chamada o mercado que estouraria o teto — um mercado não consome o dia dos outros. O teto global `AI_DAILY_TOKEN_BUDGET` continua valendo. Cada `wtw_run` guarda a sua parte do custo da chamada (`stats.researchId`, `costShareOf`).
+
+**Modelo de custo** (`wtw:run --plan` calcula com a agenda real; US$ por chamada = média das últimas chamadas em `enrich.wtw_research`). Medido em 2026-10-22 com `gpt-6.1-sol`: direitos do Brasileirão 2026 para os 8 mercados = 90 mil tokens de entrada, 10 buscas, **US$ 0,33**; alocação da rodada 32 (10 jogos × BR, MX, CO) = 97 mil tokens, 11 buscas, **US$ 0,36**. Desenho antigo: ≈ 30 mil tokens, **US$ 0,10 por jogo × mercado × janela**.
+
+| Jogos/dia (tier ≤ 2) | Mercados | Antigo (US$/dia) | Novo (US$/dia) | Novo por mercado (US$/dia) |
+|---|---|---|---|---|
+| 56 | 1 | 8,54 | 0,61 | 0,61 |
+| 56 | 8 | 68,29 | 0,70 | 0,09 |
+| 56 | 15 | 128,05 | 1,14 | 0,08 |
+| 100 | 1 | 15,24 | 0,81 | 0,81 |
+| 100 | 8 | 121,95 | 0,97 | 0,12 |
+| 100 | 15 | 228,66 | 1,49 | 0,10 |
+
+Antigo = jogos × mercados × 1,52 buscas por jogo (T-7d no tier 1 + T-24h; sem contar as escaladas de T-3h/T-30min, que no banco de desenvolvimento foram 17 de 24 buscas) × US$ 0,10. Novo = alocações por rodada/dia (0,011 por jogo/dia, medido na agenda de 7 dias dos 8 mercados) × US$ 0,36 × (1 + 5% por mercado extra na chamada) + pesquisas de direitos amortizadas em 30 dias (32 competições × ⌈mercados/8⌉ × US$ 0,33). A pesquisa de direitos é por temporada: depois do primeiro mês, cai para perto de zero (reconfirmação sem tokens). A meta de US$ 0,50–1 por mercado por dia fica com folga — dá para baixar `WTW_MIN_RELEVANCE` e alocar mais rodadas.
 
 ```bash
-pnpm --filter @galaxie/ai-agents wtw:run --plan                     # o que está devido (sem LLM)
-pnpm --filter @galaxie/ai-agents wtw:run [--evento <id>] [--pais BR] [--limite 20]
+pnpm --filter @galaxie/ai-agents wtw:run --plan [--pais BR] [--dias 7] [--detalhes]   # grupos, decisão e custo (sem LLM)
+pnpm --filter @galaxie/ai-agents wtw:run [--evento <id>] [--pais BR] [--limite 100] [--chamadas 2]
 pnpm --filter @galaxie/ai-agents wtw:run --evento <id> --pais BR --forcar
+pnpm --filter @galaxie/ai-agents wtw:rights --plan                     # direitos que faltam pesquisar
+pnpm --filter @galaxie/ai-agents wtw:rights [--competicao <slug>] [--pais BR,AR] [--chamadas 2] [--incluir-curados]
 ```
 
 **Sinal de provedor (Sportmonks TV Stations):** ainda não plugado — entra como mais uma evidência com confiança de agregador (0,4) quando o provedor de produção existir.
