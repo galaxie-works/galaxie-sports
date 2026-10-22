@@ -143,6 +143,17 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     args: ['--limite', '10'],
     timeoutMs: 20 * MINUTE,
   },
+  {
+    name: 'related-run',
+    description:
+      'Conteúdo relacionado (YouTube): vídeos diretos dos jogos encerrados nas últimas 48 h, classificados por tipo',
+    // pós-jogo das noites latino-americanas; cada jogo só gasta busca completa uma vez a cada 12 h
+    cron: '*/30 0-6,12-23 * * *',
+    script: 'dist/cli/related-run.js',
+    cwd: '../ai-agents',
+    args: [],
+    timeoutMs: 20 * MINUTE,
+  },
 ];
 
 /** Jobs de cada perfil do scheduler (`SCHEDULER_PROFILE`, padrão `ingestor`). */
