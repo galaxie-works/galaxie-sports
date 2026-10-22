@@ -1,0 +1,297 @@
+# Stack de staging do Galaxie Sports na VPS "telemetry" (Traefik já em produção, em network_mode: host).
+# Derivada de infra/portainer/stack.yml: sem Caddy (o Traefik faz TLS e roteamento), sem builds (imagens do GHCR),
+# rede com sub-rede fixa (TRUST_PROXY conhecido), limites de memória e o app de demonstração.
+# Passo a passo, verificação e reverso: infra/vps-telemetry/README.md.
+#
+# Validar: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+x-node-env: &node-env
+  NODE_ENV: production
+  APP_ENV: staging
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
+  REDIS_URL: redis://valkey:6379
+  S3_ENDPOINT: http://s3:9000
+  S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+  APISPORTS_PLAN: ${APISPORTS_PLAN:-free}
+  # Plano por API (cada API tem assinatura própria); vazio = APISPORTS_PLAN.
+  APISPORTS_PLAN_FOOTBALL: ${APISPORTS_PLAN_FOOTBALL:-}
+  APISPORTS_PLAN_AFL: ${APISPORTS_PLAN_AFL:-}
+  APISPORTS_PLAN_BASEBALL: ${APISPORTS_PLAN_BASEBALL:-}
+  APISPORTS_PLAN_BASKETBALL: ${APISPORTS_PLAN_BASKETBALL:-}
+  APISPORTS_PLAN_FORMULA_1: ${APISPORTS_PLAN_FORMULA_1:-}
+  APISPORTS_PLAN_HANDBALL: ${APISPORTS_PLAN_HANDBALL:-}
+  APISPORTS_PLAN_HOCKEY: ${APISPORTS_PLAN_HOCKEY:-}
+  APISPORTS_PLAN_MMA: ${APISPORTS_PLAN_MMA:-}
+  APISPORTS_PLAN_NBA: ${APISPORTS_PLAN_NBA:-}
+  APISPORTS_PLAN_AMERICAN_FOOTBALL: ${APISPORTS_PLAN_AMERICAN_FOOTBALL:-}
+  APISPORTS_PLAN_RUGBY: ${APISPORTS_PLAN_RUGBY:-}
+  APISPORTS_PLAN_VOLLEYBALL: ${APISPORTS_PLAN_VOLLEYBALL:-}
+  QUOTA_RESERVE_PERCENT: ${QUOTA_RESERVE_PERCENT:-15}
+  # URL pública dos assets (logos, bandeiras, fotos) servidos pelo Traefik direto do bucket
+  ASSETS_PUBLIC_BASE_URL: https://${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}/${S3_BUCKET:-galaxie-sports-assets}
+
+services:
+  # ── dados ─────────────────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 1g
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-galaxie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
+    shm_size: 256mb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    command: ['valkey-server', '--appendonly', 'yes']
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  # Object storage S3-compatível (assets espelhados). Exposto pelo Traefik só para leitura (GET/HEAD) do bucket.
+  s3:
+    image: rustfs/rustfs:1.0.2
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+      RUSTFS_CONSOLE_ENABLE: 'false'
+    volumes:
+      - s3data:/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gsports-assets.rule=Host(`${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}`) && PathPrefix(`/${S3_BUCKET:-galaxie-sports-assets}/`) && (Method(`GET`) || Method(`HEAD`))
+      - traefik.http.routers.gsports-assets.entrypoints=websecure
+      - traefik.http.routers.gsports-assets.tls.certresolver=letsencrypt
+      - traefik.http.services.gsports-assets.loadbalancer.server.port=9000
+    logging: *logging
+
+  # Cria o bucket e libera leitura anônima só de objetos (s3:GetObject); listar o bucket continua exigindo chave.
+  s3-init:
+    image: amazon/aws-cli:2.38.2
+    depends_on:
+      - s3
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+      AWS_DEFAULT_REGION: us-east-1
+      BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && break; sleep 2; done
+        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$BUCKET"
+        aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket "$$BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$BUCKET/*\"]}]}"
+        echo "bucket $$BUCKET pronto (leitura pública de objetos)"
+    restart: 'no'
+    logging: *logging
+
+  # ── aplicação ─────────────────────────────────────────────────────────────────────────────────
+  # Aplica as migrations (idempotente) antes de API e ingestor subirem.
+  migrate:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    pull_policy: always
+    command: ['node', 'node_modules/@galaxie/db/dist/migrate-cli.js']
+    environment:
+      <<: *node-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+    logging: *logging
+
+  api:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    pull_policy: always
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      <<: *node-env
+      API_PORT: '8080'
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      LIVE_POLL_INTERVAL_SECONDS: ${LIVE_POLL_INTERVAL_SECONDS:-300}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
+      SEMANTIC_MIN_REVIEW_STATUS: ${SEMANTIC_MIN_REVIEW_STATUS:-approved}
+      # Hardening (SECURITY.md): CORS estrito, /internal/admin (chave + allowlist), proxy confiável, HSTS
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      ADMIN_KEY_HASHES: ${ADMIN_KEY_HASHES:-}
+      ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
+      TRUST_PROXY: ${TRUST_PROXY:?defina TRUST_PROXY (gateway da rede da stack)}
+      HSTS_MAX_AGE: ${HSTS_MAX_AGE:-31536000}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+    expose:
+      - '8080'
+    # /metrics e /internal não passam pelo Traefik (equivale ao bloqueio que o Caddy fazia).
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gsports-api.rule=Host(`${API_DOMAIN:?defina API_DOMAIN}`) && !PathPrefix(`/metrics`) && !PathPrefix(`/internal`)
+      - traefik.http.routers.gsports-api.entrypoints=websecure
+      - traefik.http.routers.gsports-api.tls.certresolver=letsencrypt
+      - traefik.http.services.gsports-api.loadbalancer.server.port=8080
+    # Healthcheck vem da imagem (GET /health).
+    logging: *logging
+
+  # App de demonstração (Next.js). Fala com a API pela rede interna; a chave fica só no servidor.
+  demo:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-demo:${IMAGE_TAG:?defina IMAGE_TAG}
+    pull_policy: always
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      GALAXIE_API_URL: http://api:8080
+      GALAXIE_DEMO_KEY: ${GALAXIE_DEMO_KEY:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - '3000'
+    # Protegida por usuário e senha (basic auth): os metadados são o produto em negociação.
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gsports-demo.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
+      - traefik.http.routers.gsports-demo.entrypoints=websecure
+      - traefik.http.routers.gsports-demo.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-demo.middlewares=gsports-demo-auth
+      - traefik.http.middlewares.gsports-demo-auth.basicauth.users=${DEMO_BASIC_AUTH:?defina DEMO_BASIC_AUTH (htpasswd)}
+      - traefik.http.services.gsports-demo.loadbalancer.server.port=3000
+    logging: *logging
+
+  # Scheduler: roda os CLIs do ingestor em horários fixos (UTC) e registra cada execução em ops.job_run.
+  ingestor:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
+    pull_policy: always
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      <<: *node-env
+      APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
+      SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-5 0 * * *}
+      SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-*/5 * * * *}
+      LIVE_FEATURED: ${LIVE_FEATURED:-off}
+      LIVE_MAX_INTERVAL_MINUTES: ${LIVE_MAX_INTERVAL_MINUTES:-15}
+      LIVE_IDLE_EXIT_MINUTES: ${LIVE_IDLE_EXIT_MINUTES:-15}
+      LIVE_PROTECT_DAILY: ${LIVE_PROTECT_DAILY:-}
+      SCHEDULE_NORMALIZE_FOOTBALL: ${SCHEDULE_NORMALIZE_FOOTBALL:-35 0 * * *}
+      SCHEDULE_EVENTS_CLOCK: ${SCHEDULE_EVENTS_CLOCK:-* * * * *}
+      SCHEDULE_ASSETS_MIRROR: ${SCHEDULE_ASSETS_MIRROR:-30 1 * * *}
+      SCHEDULE_CHANGE_FEED_PRUNE: ${SCHEDULE_CHANGE_FEED_PRUNE:-45 2 * * *}
+      CHANGE_FEED_RETENTION_DAYS: ${CHANGE_FEED_RETENTION_DAYS:-7}
+      SCHEDULE_QUOTA_STATUS: ${SCHEDULE_QUOTA_STATUS:-5 * * * *}
+      SCHEDULE_BOOTSTRAP_CATALOG: ${SCHEDULE_BOOTSTRAP_CATALOG:-15 3 * * 1}
+      SCHEDULER_RUN_ON_START: ${SCHEDULER_RUN_ON_START:-}
+      SCHEDULER_TIMEOUT_MINUTES: ${SCHEDULER_TIMEOUT_MINUTES:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 40s
+    logging: *logging
+
+  # ── backups ───────────────────────────────────────────────────────────────────────────────────
+  # pg_dump diário (BACKUP_TIME, UTC) com retenção no volume `backups` e cópia opcional para S3 externo.
+  backup:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${IMAGE_TAG:?defina IMAGE_TAG}
+    pull_policy: always
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGUSER: ${POSTGRES_USER:-galaxie}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
+      BACKUP_TIME: ${BACKUP_TIME:-03:30}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_ON_START: ${BACKUP_ON_START:-true}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-postgres}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-us-east-1}
+    volumes:
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+
+  # ── observabilidade (privada: acesso por túnel SSH) ───────────────────────────────────────────
+  prometheus:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-prometheus:${IMAGE_TAG:?defina IMAGE_TAG}
+    pull_policy: always
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
+    volumes:
+      - promdata:/prometheus
+    depends_on:
+      - api
+    logging: *logging
+
+  grafana:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-grafana:${IMAGE_TAG:?defina IMAGE_TAG}
+    pull_policy: always
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD}
+      GF_SERVER_ROOT_URL: http://localhost:3000
+    volumes:
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
+networks:
+  default:
+    ipam:
+      config:
+        # Sub-rede fixa: o Traefik (rede do host) chega aos contêineres pelo gateway 172.30.50.1 = TRUST_PROXY.
+        - subnet: 172.30.50.0/24
+
+volumes:
+  pgdata:
+  valkeydata:
+  s3data:
+  backups:
+  promdata:
+  grafanadata:
