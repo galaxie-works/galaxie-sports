@@ -244,22 +244,33 @@ Exemplo de evento canônico:
   "status": "scheduled",
   "momentum": "today",
   "participants": [
-    { "side": "home", "id": "…", "name": "Palmeiras", "logo": "https://assets.galaxie.sports/api-sports/football/teams/121.png?v=9879fc79" },
-    { "side": "away", "id": "…", "name": "Fluminense", "logo": "https://assets.galaxie.sports/api-sports/football/teams/124.png?v=1f0c2a7e" }
+    { "side": "home", "id": "0192c7e2-…-palmeiras", "name": "Palmeiras", "logo": "https://assets.galaxie.sports/api-sports/football/teams/121.png?v=9879fc79",
+      "nickname": "Verdão",
+      "fan_tags": [{ "code": "advances_with_draw", "priority": 34, "text": { "pt-BR": "Avança com empate" } }],
+      "cheer": { "text": "Avanti, Palestra!", "source_url": "https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras" } },
+    { "side": "away", "id": "0192c7e2-…-fluminense", "name": "Fluminense", "logo": "https://assets.galaxie.sports/api-sports/football/teams/124.png?v=1f0c2a7e",
+      "nickname": "Tricolor",
+      "fan_tags": [
+        { "code": "needs_win_by_2", "priority": 31, "text": { "pt-BR": "Precisa vencer por 2 gols" } },
+        { "code": "win_by_1_goes_to_penalties", "priority": 36, "text": { "pt-BR": "Vencer por 1 leva aos pênaltis" } }
+      ],
+      "cheer": null }
   ],
   "score": { "home": null, "away": null, "aggregate": { "home": 2, "away": 1 } },
-  "venue": { "name": "…", "city": "São Paulo" },
+  "venue": { "id": "…", "name": "Allianz Parque", "city": "São Paulo" },
+  "referee": { "name": "Wilton Pereira Sampaio", "country": "Brazil" },
   "derby": null,
   "competition_context": ["semifinal", "knockout"],
   "stakes": [
-    { "team": "home", "code": "advances_with_draw", "text": { "pt-BR": "Avança com empate" } },
-    { "team": "away", "code": "needs_win_by_2", "text": { "pt-BR": "Precisa vencer por 2 gols para avançar direto" } }
+    { "team": "home", "team_id": "0192c7e2-…-palmeiras", "code": "advances_with_draw", "text": { "pt-BR": "Avança com empate" } },
+    { "team": "away", "team_id": "0192c7e2-…-fluminense", "code": "needs_win_by_2", "text": { "pt-BR": "Precisa vencer por 2 gols para avançar direto" } },
+    { "team": "away", "team_id": "0192c7e2-…-fluminense", "code": "win_by_1_goes_to_penalties", "text": { "pt-BR": "Vitória por 1 gol leva a decisão aos pênaltis" } }
   ],
   "data_freshness": { "last_valid_at": "2026-10-21T13:00:05Z", "is_stale": false }
 }
 ```
 
-> Os IDs de times acima são ilustrativos; os IDs reais vêm do `provider_map` após o bootstrap. Os códigos de `stakes` e seus textos nos 8 mercados estão catalogados em [docs/rules](rules/README.md#catálogo-de-códigos).
+> Os IDs de times acima são ilustrativos; os IDs reais vêm do `provider_map` após o bootstrap. Os códigos de `stakes` e seus textos nos 8 mercados estão catalogados em [docs/rules](rules/README.md#catálogo-de-códigos); a tabela código → tag do torcedor (`fan_tags`), em [docs/rules/tags-torcedor.md](rules/tags-torcedor.md).
 
 Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `apps/api/src/events/builder.ts`):
 
@@ -267,8 +278,12 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 - **Ao vivo** `GET /v1/events/live`: `{ data }` (até 500) com `status` `live`, `break` ou `suspended`, por importância; TTL 10 s.
 - **Evento**: `competition` com `nickname` (primeiro apelido de `semantic.competition_profile` no locale) e `logo`; `stage.name` localizado (`core.stage.name`) com a perna — `Semifinal · Volta` / `Semifinales · Vuelta`. A perna vem do confronto: duas partidas do mesmo par na mesma fase (a mais antiga é a ida); com regulamento de jogo único, não há perna. `score` traz `halftime`, `extratime`, `penalty` e `aggregate` (só no jogo de volta, com a ida encerrada: ida + placar atual da volta, nos lados da volta). `participants[]` com `logo`, `nickname` (primeiro apelido da base semântica) e `winner`; `clock` e `status_detail` do fornecedor; `importance` gravada pelo ingestor; `momentum` calculado no fuso pedido (docs/04 §3.2).
 - **`derby`**: `{ slug, name (localizado), intensity }` de `core.event.derby_id`.
+- **`venue`** e **`referee`** (lista e detalhe): `venue` = `{ id, name, city }` de `core.venue` (estádio e cidade) ou `null`; `referee` = árbitro principal de `core.football_fixture.referee` (`fixture.referee` da api-sports, "Nome, País"), separado em `{ name, country }` — `country` é o trecho depois da última vírgula, como o fornecedor escreve (ex.: `Brazil`), ou `null` sem sufixo. Sem escala (ou fora do futebol) → `null`.
 - **`competition_context`**: `regular` (pontos corridos/grupos/fase de liga), `knockout`, `semifinal`, `final`, `playoff` (pela fase), `derby`, `lead` (um dos dois é o 1º da tabela), `title`/`relegation` (quando algum stake trata disso).
-- **`stakes`**: só para eventos não encerrados de competições **com regulamento próprio** em `config/rules` (sem arquivo, nada é afirmado). Mata-mata: `knockoutStakes` com as regras da fase (`knockout_round` "1st Round" → `first_round` no YAML); a volta exige a ida encerrada no `core`. Pontos corridos: `leagueMatchStakes` com a tabela de `core.standing` (o grupo que contém os dois times) e os demais jogos da mesma rodada. `text` traz só o locale da resposta. Dados incompatíveis com o regulamento (ex.: mais jogos que o previsto) → `[]`.
+- **`stakes`**: só para eventos não encerrados de competições **com regulamento próprio** em `config/rules` (sem arquivo, nada é afirmado). Mata-mata: `knockoutStakes` com as regras da fase (`knockout_round` "1st Round" → `first_round` no YAML); a volta exige a ida encerrada no `core`. Pontos corridos: `leagueMatchStakes` com a tabela de `core.standing` (o grupo que contém os dois times) e os demais jogos da mesma rodada. `text` traz só o locale da resposta. Dados incompatíveis com o regulamento (ex.: mais jogos que o previsto) → `[]`. Cada stake traz `team_id` (o `participants[].id` do lado em `team`; `null` quando `team` é `both`), para o cliente agrupar por time sem depender do mando.
+- **`participants[].fan_tags`** (tags do torcedor): até 3 rótulos curtos (~30 caracteres), do ponto de vista de quem torce para aquele time, derivados dos `stakes` por uma tabela fixa (`fanTags` em `@galaxie/rules`; tabela completa em [docs/rules/tags-torcedor.md](rules/tags-torcedor.md)) — nada é gerado livremente. Cada item: `code` (o stake de origem), `priority` (menor = mais importante) e `text` no locale da resposta. Stakes `both` valem para os dois participantes; tags de texto idêntico são fundidas (fica a mais relevante); ordem por faixa: título (10–19) > rebaixamento (20–29) > eliminação/classificação no mata-mata (30–39) > vaga continental/acesso (40–49) > demais (50+). Em pontos corridos, as tags de mera possibilidade exigem proximidade real na tabela (`core.standing`): "Na briga pelo título" só até max(6, rodadas restantes) do líder; "Luta contra o rebaixamento" e as tags de permanência ("Vitória garante a permanência", "Pode se salvar hoje", "Livre do rebaixamento") só na zona ou até 6 pontos acima do primeiro time dentro dela; "De olho na X" só até max(6, rodadas restantes) do último time dentro da zona. Os `stakes` continuam matemáticos e as tags decisivas ("Pode ser campeão hoje", "Vencer ou cair") valem sempre ([regras](rules/tags-torcedor.md#relevância-para-o-torcedor-pontos-corridos)). Sem stakes (jogo encerrado, competição sem regulamento) → `[]`. Exemplos: `in_title_race` → "Na briga pelo título" / "En la pelea por el título"; `at_risk_of_relegation` → "Luta contra o rebaixamento"; `can_qualify_for_libertadores_group_stage` → "De olho na Libertadores"; `qualifies_for_sudamericana` → "Garantido na Sul-Americana".
+- **`participants[].cheer`**: grito curto da torcida, da base semântica (`semantic.team_profile`, o mesmo perfil do `nickname`): primeiro `copy_hints.<locale>.cheer` (locale exato e depois o idioma; pt-BR não cai para espanhol), depois `rallying_cries`. Só passa texto aprovado por `checkChant` sem erro nem aviso — letra de hino ou canção nunca é servida. `{ text, source_url? }` (`source_url` = primeira fonte do perfil) ou `null`. Como o `nickname`, não aplica o piso editorial de `SEMANTIC_MIN_REVIEW_STATUS`.
+- **Card personalizado pelo clube do torcedor**: o parceiro que conhece o clube do usuário (perfil, favorito) escolhe o participante pelo `id` e monta o card de chamada da partida com `fan_tags[0]` (ou as três) e, se houver, o `cheer`. Em Palmeiras × RB Bragantino (rodada 32 de 2026), o torcedor do Palmeiras vê "Na briga pelo título" e "Avanti, Palestra!"; o do Bragantino, 9 pontos acima do Z4, não recebe "Luta contra o rebaixamento" (fica com o grito "Vamos, Massa Bruta!"), enquanto o do Vitória, 5 pontos acima, recebe. As frases completas (`stakes` filtrados por `team_id`) servem para o detalhe do card.
 - **`/timeline`**: `core.event_incident` na ordem do fornecedor (`sequence`), com `team` (lado e logo), `player`/`assist` (`id` do `core.person`, ou `null` com o nome do fornecedor) e `comments`.
 - **`/lineups`** e **`/stats`**: do detalhe da partida (`core.football_fixture.detail`); IDs do fornecedor resolvidos para os nossos via `provider_map` (times e pessoas, com foto). Sem detalhe sincronizado: `available: false` e listas vazias. Outros esportes: `available: false` por ora.
 - **`/h2h?limit=`** (1–50, padrão 10): confrontos **encerrados** entre os dois participantes no `core` (qualquer competição, exceto o próprio evento), do mais recente ao mais antigo; `summary` (`played`, `draws`, `wins`/`goals` por time) considera todo o histórico. Nunca chama o fornecedor.

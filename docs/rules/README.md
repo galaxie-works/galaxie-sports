@@ -211,7 +211,7 @@ Pontos corridos, grupos e fase de liga (`leagueMatchStakes`; todos com lado = ti
 | `can_be_eliminated` | `can_be_eliminated` | Pode ser eliminado nesta rodada, dependendo de outros resultados | Pode ser eliminado nesta rodada… |
 | `at_risk_of_elimination` | `at_risk_of_elimination` | Ainda pode terminar na zona de eliminação | Ainda corre risco de eliminação |
 
-Os rótulos dos **8 mercados** (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY, es-EC) estão em [rotulos.md](rotulos.md), gerado a partir de `packages/rules/src/stakes/labels.ts`. Diferenças regionais: prorrogação = *alargue* (AR, UY, CL), *tiempos extra* (MX), *tiempo extra* (CO, EC), *tiempo suplementario* (PE); rodada = *jornada* (MX) e *fecha* (demais).
+Os rótulos dos **8 mercados** (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY, es-EC) estão em [rotulos.md](rotulos.md), gerado a partir de `packages/rules/src/stakes/labels.ts`. As **tags do torcedor** (`fan_tags` da API: rótulos curtos por participante, ordenados por relevância, para cards personalizados pelo clube) estão em [tags-torcedor.md](tags-torcedor.md), gerado a partir de `packages/rules/src/stakes/fan-tags.ts` pelo mesmo comando (`pnpm --filter @galaxie/rules docs:labels`). Diferenças regionais: prorrogação = *alargue* (AR, UY, CL), *tiempos extra* (MX), *tiempo extra* (CO, EC), *tiempo suplementario* (PE); rodada = *jornada* (MX) e *fecha* (demais).
 
 ## 4. Fora do escopo (por ora)
 

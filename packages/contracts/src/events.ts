@@ -75,6 +75,40 @@ export type TeamSummary = z.infer<typeof TeamSummary>;
 
 // ─── evento canônico ─────────────────────────────────────────────────────────────────────────────
 
+export const FanTag = z
+  .object({
+    code: z.string().meta({
+      description: 'Código do stake de origem (o mais relevante, quando vários geram a mesma tag).',
+      example: 'in_title_race',
+    }),
+    priority: z
+      .number()
+      .int()
+      .meta({ description: 'Relevância: menor = mais importante (título < rebaixamento < …).', example: 15 }),
+    text: z.record(z.string(), z.string()).meta({
+      description: 'Rótulo curto (até ~30 caracteres), do ponto de vista do torcedor, no locale da resposta.',
+      example: { 'pt-BR': 'Na briga pelo título' },
+    }),
+  })
+  .meta({
+    id: 'FanTag',
+    description: 'Tag do torcedor derivada dos stakes por tabela fixa (docs/rules/tags-torcedor.md).',
+  });
+export type FanTag = z.infer<typeof FanTag>;
+
+export const FanCheer = z
+  .object({
+    text: z.string().meta({ example: 'Avanti, Palestra!' }),
+    source_url: z.url().optional().meta({
+      description: 'Primeira fonte consultada do perfil semântico do time (o perfil todo, não só o grito).',
+    }),
+  })
+  .meta({
+    id: 'FanCheer',
+    description: 'Grito curto da torcida, da base semântica. Nunca letra de hino ou canção.',
+  });
+export type FanCheer = z.infer<typeof FanCheer>;
+
 export const EventParticipant = z
   .object({
     side: z.string().meta({ example: 'home' }),
@@ -84,6 +118,21 @@ export const EventParticipant = z
     logo: AssetUrl,
     nickname: z.string().nullable().meta({ description: 'Primeiro apelido da base semântica.' }),
     winner: z.boolean().nullable().meta({ description: 'Vencedor da partida, quando encerrada.' }),
+    fan_tags: z.array(FanTag).meta({
+      description:
+        'Até 3 tags do torcedor, por relevância, para cards personalizados pelo clube (vazio sem stakes).',
+      example: [
+        { code: 'in_title_race', priority: 15, text: { 'pt-BR': 'Na briga pelo título' } },
+        {
+          code: 'can_qualify_for_libertadores_group_stage',
+          priority: 43,
+          text: { 'pt-BR': 'De olho na Libertadores' },
+        },
+      ],
+    }),
+    cheer: FanCheer.nullable()
+      .optional()
+      .meta({ description: 'Grito curto da torcida no mercado da resposta; null se a base não tem.' }),
   })
   .meta({ id: 'EventParticipant' });
 export type EventParticipant = z.infer<typeof EventParticipant>;
@@ -91,6 +140,9 @@ export type EventParticipant = z.infer<typeof EventParticipant>;
 export const EventStake = z
   .object({
     team: z.enum(['home', 'away', 'both']),
+    team_id: z.uuid().nullable().meta({
+      description: 'Participante a que o stake se refere (`participants[].id`); null quando `team` é `both`.',
+    }),
     code: z.string().meta({ example: 'needs_win_by_2' }),
     text: z
       .record(z.string(), z.string())
@@ -98,6 +150,17 @@ export const EventStake = z
   })
   .meta({ id: 'EventStake', description: 'Código do motor de regras (docs/rules).' });
 export type EventStake = z.infer<typeof EventStake>;
+
+export const EventReferee = z
+  .object({
+    name: z.string().meta({ example: 'Wilton Pereira Sampaio' }),
+    country: z.string().nullable().meta({
+      description: 'País como o fornecedor escreve (sufixo ", País"); null sem sufixo.',
+      example: 'Brazil',
+    }),
+  })
+  .meta({ id: 'EventReferee', description: 'Árbitro da partida (`fixture.referee` do fornecedor).' });
+export type EventReferee = z.infer<typeof EventReferee>;
 
 export const EventCompetitionRef = z
   .object({
@@ -142,7 +205,16 @@ export const Event = z
       penalty: SidePair.nullable(),
       aggregate: SidePair.nullable().meta({ description: 'Agregado do confronto (jogo de volta).' }),
     }),
-    venue: z.object({ id: z.uuid(), name: z.string(), city: z.string().nullable() }).nullable(),
+    venue: z
+      .object({ id: z.uuid(), name: z.string(), city: z.string().nullable() })
+      .nullable()
+      .meta({
+        description: 'Estádio/local (`core.venue`): nome e cidade.',
+        example: { id: '01a15fba-ec17-7000-8000-000000000001', name: 'Allianz Parque', city: 'São Paulo' },
+      }),
+    referee: EventReferee.nullable().meta({
+      description: 'Árbitro principal, quando o fornecedor informa (futebol). null sem escala.',
+    }),
     derby: z
       .object({ slug: z.string(), name: z.string(), intensity: z.number().int().min(1).max(5) })
       .nullable(),

@@ -32,3 +32,6 @@ Thumbs.db
 
 # resultados locais dos testes de carga (k6 --summary-export)
 tests/load/results/
+
+# Capturas locais da demo (verificação visual)
+apps/demo/.screenshots/

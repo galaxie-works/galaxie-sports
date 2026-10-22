@@ -1,5 +1,5 @@
 import type { Event, EventLineups, HeadToHead, WhereToWatch } from '@galaxie/contracts';
-import { Bot, CalendarClock, ExternalLink, Flame, MapPin, Sparkles, Tv } from 'lucide-react';
+import { Bot, CalendarClock, ExternalLink, Flame, MapPin, Tv, Whistle } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -8,6 +8,7 @@ import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
+import { MatchStakes } from '@/components/sport/match-stakes';
 import { Section } from '@/components/sport/section';
 import { StatusBadge } from '@/components/sport/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -133,6 +134,13 @@ function Scoreboard({ event }: { event: Event }) {
               {event.venue.city ? `, ${event.venue.city}` : ''}
             </Link>
           ) : null}
+          {event.referee ? (
+            <span className="flex items-center gap-1.5" title="Árbitro">
+              <Whistle className="size-3.5" aria-hidden />
+              <span className="sr-only">Árbitro:</span>
+              {event.referee.name}
+            </span>
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -180,16 +188,7 @@ function AboutCard({ event }: { event: Event }) {
             ))}
           </div>
         ) : null}
-        {event.stakes.length ? (
-          <ul className="flex flex-col gap-1.5">
-            {event.stakes.map((s) => (
-              <li key={`${s.team}-${s.code}`} className="flex gap-2">
-                <Sparkles className="text-primary mt-0.5 size-3.5 shrink-0" aria-hidden />
-                {s.text['pt-BR'] ?? Object.values(s.text)[0]}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        <MatchStakes event={event} />
       </CardContent>
     </Card>
   );
