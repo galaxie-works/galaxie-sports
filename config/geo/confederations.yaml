@@ -17,6 +17,9 @@
 #   regions                   - pseudo-países de região usados pelos catálogos dos outros esportes
 #                               (country "South-America" -> código SOUTH-AMERICA) e o bloco
 #                               continental equivalente.
+#   markets                   - mercados ativos (ISO2): a API calcula a relevância por país de cada jogo
+#                               nesses mercados (`relevance_by_market` no detalhe do evento, docs/06 §3.2),
+#                               somados aos mercados dos planos dos tenants.
 #   navigation.countries      - países da navegação da demo, na ordem do menu.
 #   navigation.sports         - os 12 esportes na ordem do menu, com nome localizado (fallback quando
 #                               o banco ainda não tem core.sport).
@@ -24,6 +27,8 @@
 # manual em out/2026); nomes pt-BR/es alinhados com a base de CONs (services/ingestor multisport).
 # =============================================================================
 schema_version: 1
+
+markets: [BR, AR, UY, CL, CO, PY, PE, EC, BO, VE, MX]
 
 navigation:
   countries: [BR, AR, BO, CL, CO, EC, PY, PE, UY, VE, MX, GB-ENG, ES, IT, DE, FR, PT]

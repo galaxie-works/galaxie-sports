@@ -217,16 +217,52 @@ export const RELEVANCE_REASONS = [
   'team_from_market',
   'domestic_competition',
   'continental_competition',
+  'decides_final_opponent',
+  'decides_third_place_opponent',
 ] as const;
+export type RelevanceReasonCode = (typeof RELEVANCE_REASONS)[number];
+
+export const RelevanceReason = z
+  .object({
+    code: z.enum(RELEVANCE_REASONS),
+    points: z.number().int().min(0).max(10).meta({
+      description: 'Pontos do motivo isolado. A soma pode passar do teto; `bonus` é limitado a 10.',
+      example: 5,
+    }),
+    text: z.string().meta({
+      description: 'Motivo no idioma pedido (pt-BR, en, es).',
+      example: 'Define o adversário de Estudiantes L.P. na final',
+    }),
+    participant: z.object({ id: z.uuid(), name: z.string() }).nullable().meta({
+      description: 'Time citado no motivo (`decides_*_opponent`): o da outra semifinal. null nos demais.',
+    }),
+  })
+  .meta({
+    id: 'RelevanceReason',
+    description:
+      '`team_from_market` +10; `domestic_competition` / `continental_competition` +5; ' +
+      '`decides_final_opponent` / `decides_third_place_opponent` +5 (semifinal: a outra semifinal tem um time do país).',
+  });
+export type RelevanceReason = z.infer<typeof RelevanceReason>;
 
 export const EventRelevance = z
   .object({
     market: z.string().meta({ description: 'País (ISO 3166-1 alfa-2).', example: 'BR' }),
     score: z.number().int().min(0).max(100).meta({ description: '`importance` + `bonus`, limitado a 100.' }),
-    bonus: z.number().int().min(0).max(10).meta({
-      description: '+10 participante do país; +5 competição do país ou continental da confederação; teto 10.',
+    bonus: z
+      .number()
+      .int()
+      .min(0)
+      .max(10)
+      .meta({
+        description:
+          '+10 participante do país; +5 competição do país ou continental da confederação; +5 semifinal que ' +
+          'define o adversário de um time do país; teto 10.',
+      }),
+    reasons: z.array(z.enum(RELEVANCE_REASONS)).meta({ description: 'Códigos dos motivos (ver `details`).' }),
+    details: z.array(RelevanceReason).meta({
+      description: 'Os mesmos motivos, com pontos e texto localizado, na ordem de `reasons`.',
     }),
-    reasons: z.array(z.enum(RELEVANCE_REASONS)),
   })
   .meta({
     id: 'EventRelevance',
@@ -257,6 +293,14 @@ export const Event = z
       description: 'Componentes do score global; null em eventos ainda não recalculados.',
     }),
     relevance: EventRelevance.nullable().meta({ description: 'null sem mercado (`market`).' }),
+    relevance_by_market: z
+      .array(EventRelevance)
+      .nullable()
+      .meta({
+        description:
+          'Relevância em todos os mercados ativos (config/geo `markets` + mercados do plano), da maior nota ' +
+          'para a menor. Só no detalhe (`GET /v1/events/{id}`); null nas listas.',
+      }),
     participants: z.array(EventParticipant),
     score: SidePair.extend({
       halftime: SidePair.nullable(),

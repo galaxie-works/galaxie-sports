@@ -61,6 +61,10 @@ describe('config/geo do repositório', () => {
     }
   });
 
+  it('mercados ativos da relevância por país: os 10 da CONMEBOL + México', () => {
+    expect(geo.markets).toEqual(['BR', 'AR', 'UY', 'CL', 'CO', 'PY', 'PE', 'EC', 'BO', 'VE', 'MX']);
+  });
+
   it('navegação: os 12 esportes, um por catálogo de competições, futebol primeiro', () => {
     expect(geo.navigationSports[0]!.slug).toBe('football');
     expect(geo.navigationSports.map((s) => s.slug).sort()).toEqual([...catalogs.keys()].sort());
@@ -162,6 +166,7 @@ describe('parseGeoConfig', () => {
     );
     expect(cfg.scopeEntries('football')[0]).toMatchObject({ countries: [], apiSportsId: null, order: 0 });
     expect(cfg.country('ar')!.ioc).toBeNull();
+    expect(cfg.markets).toEqual([]);
   });
 
   it.each([
@@ -185,6 +190,8 @@ describe('parseGeoConfig', () => {
       geo({ navigation: { countries: ['US'], sports: [{ slug: 'football', name }] } }),
       scope(),
     ],
+    ['mercado fora das confederações', geo({ markets: ['US'] }), scope()],
+    ['mercado repetido', geo({ markets: ['BR', 'BR'] }), scope()],
     [
       'confederação inexistente no escopo',
       geo(),

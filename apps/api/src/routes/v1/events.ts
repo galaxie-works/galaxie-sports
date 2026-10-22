@@ -20,7 +20,13 @@ import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl, type BuildContext } from '../../events/builder.js';
 import { buildLineups, buildStats, buildTimeline } from '../../events/detail.js';
 import { buildIcs } from '../../events/ics.js';
-import { applyRelevance, relevanceSql, resolveMarket } from '../../events/relevance.js';
+import {
+  activeMarkets,
+  applyRelevance,
+  applyRelevanceByMarket,
+  relevanceSql,
+  resolveMarket,
+} from '../../events/relevance.js';
 import { eventContextSummary } from './event-context.js';
 import {
   assertWindow,
@@ -77,7 +83,7 @@ export async function eventPage(
     options,
   );
   const data = (await buildEvents(bctx, ids)).map((b) => b.dto);
-  await applyRelevance(bctx.db, data, market);
+  await applyRelevance(bctx, data, market);
   return {
     body: { data, next_cursor: nextCursor },
     tags: ['event', ...data.map((e) => `event:${e.id}`)],
@@ -158,7 +164,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             rows.map((r) => r.id),
           )
         ).map((b) => b.dto);
-        await applyRelevance(bctx.db, data, market);
+        await applyRelevance(bctx, data, market);
         return { body: { data }, tags: ['event', ...data.map((e) => `event:${e.id}`)] };
       },
     });
@@ -173,6 +179,8 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     const locale = localeOf(request, query);
     const tz = query.tz ?? 'UTC';
     const market = ics ? null : resolveMarket(request, query.market);
+    // relevância em todos os mercados ativos (config/geo + plano do tenant)
+    const markets = ics ? [] : activeMarkets(request);
     // resumo do cenário/resumo de IA só para quem contratou live_intelligence (a resposta varia por isso)
     const withContext = !ics && !!request.tenant?.modules.includes('live_intelligence');
     reply.header('content-language', locale);
@@ -182,6 +190,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         locale,
         ics ? 'ics' : tz,
         ...(market ? [`market:${market}`] : []),
+        ...(markets.length ? [`markets:${markets.join(',')}`] : []),
         ...(withContext ? ['context'] : []),
       ],
       check: sportCheck(request),
@@ -190,7 +199,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         const [built] = await buildEvents(bctx, [params.id]);
         if (!built) throw problems.notFound('Evento');
         const e = built.dto;
-        await applyRelevance(bctx.db, [e], market);
+        if (!ics) await applyRelevanceByMarket(bctx, [e], markets, market);
         const tags = [`event:${e.id}`, ...(e.competition ? [`competition:${e.competition.id}`] : [])];
         if (!ics) {
           if (withContext) {

@@ -574,8 +574,9 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       momentum: momentum({ status: e.status, startsAt: e.startsAt }, ctx.now, ctx.tz),
       importance: e.importance,
       importance_breakdown: importanceBreakdownDto(e.importanceBreakdown),
-      // relevância por mercado: preenchida pela rota (applyRelevance), que conhece o `market`
+      // relevância por mercado: preenchida pela rota (applyRelevance*), que conhece o `market`
       relevance: null,
+      relevance_by_market: null,
       participants,
       score: {
         home: e.score?.home ?? null,

@@ -63,6 +63,8 @@ describe('OpenAPI', () => {
         'CompetitionSummary',
         'CompetitionContext',
         'Event',
+        'EventRelevance',
+        'RelevanceReason',
         'EventStake',
         'EventParticipant',
         'FanTag',

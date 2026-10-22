@@ -65,6 +65,8 @@ function check<T extends z.ZodType>(schema: T, raw: unknown, file: string): z.ou
 export class GeoConfig {
   readonly confederations: GeoConfederation[];
   readonly navigationCountries: string[];
+  /** Mercados ativos da relevância por país, na ordem do arquivo. */
+  readonly markets: string[];
   readonly navigationSports: { slug: string; name: I18nName }[];
   readonly regions: Record<string, string>;
   private readonly countries = new Map<string, GeoCountry>();
@@ -107,6 +109,10 @@ export class GeoConfig {
     if (new Set(geo.navigation.countries).size !== geo.navigation.countries.length)
       throw new GeoConfigError('navegação: país repetido.');
     this.navigationCountries = geo.navigation.countries;
+    for (const code of geo.markets)
+      if (!this.countries.has(code)) throw new GeoConfigError(`markets: país ${code} desconhecido.`);
+    if (new Set(geo.markets).size !== geo.markets.length) throw new GeoConfigError('markets: país repetido.');
+    this.markets = geo.markets;
     if (new Set(geo.navigation.sports.map((s) => s.slug)).size !== geo.navigation.sports.length)
       throw new GeoConfigError('navegação: esporte repetido.');
     this.navigationSports = geo.navigation.sports;

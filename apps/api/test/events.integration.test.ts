@@ -181,6 +181,7 @@ async function seed() {
   await db.insert(sport).values({ slug: 'football', name: { 'pt-BR': 'Futebol', es: 'Fútbol' } });
   await db.insert(country).values([
     { code: 'BR', name: { en: 'Brazil', 'pt-BR': 'Brasil' } },
+    { code: 'AR', name: { en: 'Argentina', 'pt-BR': 'Argentina' } },
     { code: 'WORLD', name: { en: 'World', 'pt-BR': 'Mundo' } },
   ]);
   const [serieA, liberta] = await db
@@ -255,7 +256,7 @@ async function seed() {
   for (const [file, endpoint, at] of real) await insertRaw(endpoint, fixture(file), at);
   await normalizeFootballFromRaw(db);
 
-  // partidas sintéticas: semifinal da Libertadores (ida e volta) e a última rodada do Brasileirão 2026
+  // partidas sintéticas: as duas semifinais da Libertadores (ida e volta) e a última rodada do Brasileirão 2026
   const liber = { id: 13, name: 'CONMEBOL Libertadores', season: 2026, round: 'Semi-finals' };
   const serie = { id: 71, name: 'Serie A', season: 2026, round: 'Regular Season - 38' };
   const batch = normalizeFixtures(
@@ -277,6 +278,24 @@ async function seed() {
         away: [124, 'Fluminense'],
         status: 'NS',
         referee: 'Wilton Pereira Sampaio, Brazil',
+      }),
+      // a outra semifinal (o outro lado da chave): ida encerrada, volta em aberto
+      fx({
+        id: 990003,
+        date: '2026-10-16T00:30:00+00:00',
+        league: liber,
+        home: [450, 'Estudiantes L.P.'],
+        away: [127, 'Flamengo'],
+        status: 'FT',
+        goals: [1, 1],
+      }),
+      fx({
+        id: 990004,
+        date: '2026-10-23T00:30:00+00:00',
+        league: liber,
+        home: [127, 'Flamengo'],
+        away: [450, 'Estudiantes L.P.'],
+        status: 'NS',
       }),
       fx({
         id: 990010,
@@ -300,6 +319,20 @@ async function seed() {
   await upsertBatch(db, batch);
   ids.leg1 = await eventOf(990001);
   ids.leg2 = await eventOf(990002);
+  ids.semiB1 = await eventOf(990003);
+  ids.semiB2 = await eventOf(990004);
+  ids.estudiantes = await participantOf(450);
+  // país dos clubes das semifinais (relevância por mercado)
+  for (const [pid, code] of [
+    [121, 'BR'],
+    [124, 'BR'],
+    [127, 'BR'],
+    [450, 'AR'],
+  ] as const)
+    await db
+      .update(participant)
+      .set({ countryCode: code })
+      .where(eq(participant.id, await participantOf(pid)));
   ids.final38 = await eventOf(990010);
   ids.detail = await eventOf(1492407);
   ids.palmeiras = await participantOf(121);
@@ -457,6 +490,14 @@ afterAll(async () => {
   await admin.end();
 });
 
+type Relevance = {
+  market: string;
+  score: number;
+  bonus: number;
+  reasons: string[];
+  details: { code: string; points: number; text: string; participant: { id: string; name: string } | null }[];
+};
+
 type EventBody = {
   id: string;
   status: string;
@@ -470,7 +511,8 @@ type EventBody = {
     prestige: number;
     flags: string[];
   } | null;
-  relevance: { market: string; score: number; bonus: number; reasons: string[] } | null;
+  relevance: Relevance | null;
+  relevance_by_market: Relevance[] | null;
   momentum: string | null;
   stage: { kind: string; leg: number | null; name: string | null } | null;
   participants: {
@@ -528,7 +570,7 @@ describe('/v1/events — agenda e ao vivo', () => {
 
   it('filtros: competição (slug), status, importância, time e país; ordem por importância', async () => {
     const libs = (await get('/v1/events?competition=conmebol-libertadores&from=2026-10-01')).json();
-    expect(libs.data.map((e: EventBody) => e.id)).toEqual([ids.leg1, ids.leg2]);
+    expect(libs.data.map((e: EventBody) => e.id)).toEqual([ids.leg1, ids.semiB1, ids.leg2, ids.semiB2]);
     const finished = (await get('/v1/events?date=2026-10-21&status=finished,cancelled')).json();
     expect(finished.data.every((e: EventBody) => ['finished', 'cancelled'].includes(e.status))).toBe(true);
     expect(finished.data).toHaveLength(4);
@@ -698,21 +740,73 @@ describe('/v1/events/{id}', () => {
     expect(e.relevance).toBeNull();
 
     const br = (await get(`/v1/events/${ids.leg2}?market=br`)).json() as EventBody;
-    expect(br.relevance).toMatchObject({ market: 'BR' });
-    expect(br.relevance!.reasons).toContain('continental_competition');
-    expect(br.relevance!.bonus).toBeGreaterThanOrEqual(5);
-    expect(br.relevance!.score).toBe(Math.min(100, e.importance + br.relevance!.bonus));
-    // Libertadores sem time argentino: só o bônus da confederação
+    // clássico brasileiro na Libertadores: time do país (+10) já bate o teto
+    expect(br.relevance).toMatchObject({
+      market: 'BR',
+      score: Math.min(100, e.importance + 10),
+      bonus: 10,
+      reasons: ['team_from_market', 'continental_competition', 'decides_final_opponent'],
+    });
+    expect(br.relevance!.details[0]).toEqual({
+      code: 'team_from_market',
+      points: 10,
+      text: 'Time do país: Palmeiras e Fluminense',
+      participant: null,
+    });
+    // Libertadores sem time argentino: confederação (+5) e o adversário do Estudiantes na final (+5)
     const ar = (await get(`/v1/events/${ids.leg2}?market=AR`)).json() as EventBody;
     expect(ar.relevance).toEqual({
       market: 'AR',
-      score: e.importance + 5,
-      bonus: 5,
-      reasons: ['continental_competition'],
+      score: Math.min(100, e.importance + 10),
+      bonus: 10,
+      reasons: ['continental_competition', 'decides_final_opponent'],
+      details: [
+        { code: 'continental_competition', points: 5, text: 'Competição da CONMEBOL', participant: null },
+        {
+          code: 'decides_final_opponent',
+          points: 5,
+          text: 'Define o adversário de Estudiantes L.P. na final',
+          participant: { id: ids.estudiantes, name: 'Estudiantes L.P.' },
+        },
+      ],
     });
     // outra confederação: sem bônus
     const de = (await get(`/v1/events/${ids.leg2}?market=DE`)).json() as EventBody;
-    expect(de.relevance).toEqual({ market: 'DE', score: e.importance, bonus: 0, reasons: [] });
+    expect(de.relevance).toEqual({
+      market: 'DE',
+      score: e.importance,
+      bonus: 0,
+      reasons: [],
+      details: [],
+    });
+
+    // todos os mercados ativos de uma vez, da maior nota para a menor
+    const all = e.relevance_by_market!;
+    expect(all.map((r) => r.market).sort()).toEqual(
+      ['AR', 'BO', 'BR', 'CL', 'CO', 'EC', 'MX', 'PE', 'PY', 'UY', 'VE'].sort(),
+    );
+    expect(all.map((r) => r.score)).toEqual([...all.map((r) => r.score)].sort((a, b) => b - a));
+    expect(all.slice(0, 2).map((r) => r.market)).toEqual(['BR', 'AR']);
+    expect(all.find((r) => r.market === 'UY')!.reasons).toEqual(['continental_competition']);
+    expect(all.find((r) => r.market === 'MX')!.bonus).toBe(0);
+    // espanhol: textos no idioma pedido
+    const es = (await get(`/v1/events/${ids.leg2}?locale=es-AR`)).json() as EventBody;
+    expect(es.relevance_by_market!.find((r) => r.market === 'AR')!.details[1]!.text).toBe(
+      'Define el rival de Estudiantes L.P. en la final',
+    );
+    // nas listas, só a do mercado pedido
+    const list = (await get('/v1/events?from=2026-10-21&to=2026-10-22&market=AR')).json() as {
+      data: EventBody[];
+    };
+    const inList = list.data.find((x) => x.id === ids.leg2)!;
+    expect(inList.relevance_by_market).toBeNull();
+    expect(inList.relevance!.score).toBe(ar.relevance!.score);
+    // ordenação em SQL com a mesma conta
+    const ordered = (
+      await get('/v1/events?from=2026-10-21&to=2026-10-22&market=AR&order=relevance')
+    ).json() as { data: EventBody[] };
+    expect(ordered.data[0]!.id).toBe(ids.leg2);
+    expect(ordered.data[0]!.relevance!.score).toBe(ar.relevance!.score);
 
     const ida = (await get(`/v1/events/${ids.leg1}`)).json() as EventBody;
     // ida: fase × 0,75, nada decidido
@@ -950,7 +1044,12 @@ describe('/v1/teams e /v1/people', () => {
     const byNick = (await get('/v1/teams?q=tim%C3%A3o')).json();
     expect(byNick.data.map((t: { name: string }) => t.name)).toEqual(['Corinthians']);
     const liber = (await get('/v1/teams?competition=conmebol-libertadores')).json();
-    expect(liber.data.map((t: { name: string }) => t.name).sort()).toEqual(['Fluminense', 'Palmeiras']);
+    expect(liber.data.map((t: { name: string }) => t.name).sort()).toEqual([
+      'Estudiantes L.P.',
+      'Flamengo',
+      'Fluminense',
+      'Palmeiras',
+    ]);
     const p1 = (await get('/v1/teams?country=BR&limit=1')).json();
     const p2 = (await get(`/v1/teams?country=BR&limit=1&cursor=${p1.next_cursor}`)).json();
     expect(p1.data[0].id).not.toBe(p2.data[0].id);
@@ -1130,7 +1229,10 @@ describe('/v1/competitions/{id}/context', () => {
       format: 'groups_and_knockout',
     });
     expect(c.bracket).toHaveLength(1);
-    const tie = c.bracket[0].ties[0];
+    expect(c.bracket[0].ties).toHaveLength(2);
+    const tie = c.bracket[0].ties.find((t: { participants: { id: string }[] }) =>
+      t.participants.some((p) => p.id === ids.palmeiras),
+    );
     expect(c.bracket[0].stage).toEqual({ kind: 'semi_final', name: 'Semifinal' });
     expect(tie.legs.map((l: { leg: number; status: string }) => [l.leg, l.status])).toEqual([
       [1, 'finished'],
@@ -1144,7 +1246,7 @@ describe('/v1/competitions/{id}/context', () => {
         { participant_id: expect.any(String), goals: 1 },
       ]),
     );
-    expect(c.decisive_events.map((e: EventBody) => e.id)).toEqual([ids.leg2]);
+    expect(c.decisive_events.map((e: EventBody) => e.id)).toEqual([ids.leg2, ids.semiB2]);
   });
 
   it('pontos corridos: líder, zonas do regulamento e decisão do título', async () => {
