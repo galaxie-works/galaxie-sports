@@ -16,7 +16,7 @@ derbies:
       - "A rivalidade Magic Johnson × Larry Bird reacendeu o clássico nos anos 1980, com finais em 1984, 1985 e 1987."
       - "Em 2010, o Lakers venceu o Celtics no jogo 7 da final, com Kobe Bryant eleito MVP das finais."
     sources: ["https://en.wikipedia.org/wiki/Celtics%E2%80%93Lakers_rivalry"]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-celtics-76ers
     name: Celtics × 76ers
@@ -29,9 +29,9 @@ derbies:
     origin: "Rivalidade da Conferência Leste marcada pelos duelos Bill Russell × Wilt Chamberlain nos anos 1960."
     trivia:
       - "As duas franquias somam 23 séries de playoffs entre si, um dos confrontos mais frequentes da história da NBA."
-      - "Larry Bird e Julius Erving protagonizaram finais do Leste em 1981 e 1985, ambas vencidas pelo Boston."
+      - "Larry Bird e Julius Erving se enfrentaram em quatro finais do Leste (1980, 1981, 1982 e 1985), duas vencidas por cada lado."
     sources: ["https://en.wikipedia.org/wiki/Celtics%E2%80%9376ers_rivalry"]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-bulls-pistons
     name: Bulls × Pistons
@@ -46,4 +46,4 @@ derbies:
       - "O Detroit eliminou o Chicago em 1988, 1989 e 1990; em 1991 os Bulls varreram os Pistons por 4 a 0 e conquistaram seu primeiro título."
       - "As 'Jordan Rules' foram a estratégia defensiva do Detroit para conter Michael Jordan."
     sources: ["https://en.wikipedia.org/wiki/Bulls%E2%80%93Pistons_rivalry"]
-    review_status: draft
+    review_status: approved

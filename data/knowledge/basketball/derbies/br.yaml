@@ -18,7 +18,7 @@ derbies:
       - "https://www.gazetaesportiva.com/?p=2421539"
       - "https://www.gazetaesportiva.com/mais-esportes/basquete/embalado-com-recorde-e-titulo-lider-bauru-faz-classico-com-o-franca/"
       - "https://pt.wikipedia.org/wiki/Franca_Basquetebol_Clube"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-classico-dos-jardins
     name: Clássico dos Jardins
@@ -36,7 +36,7 @@ derbies:
       - "https://dol.com.br/esporte/esporte-brasil/noticia-570968-pinheiros-vence-derbi-da-capital-contra-o-paulistano-pelo-nbb.html"
       - "https://pt.wikipedia.org/wiki/Club_Athletico_Paulistano"
       - "https://pt.wikipedia.org/wiki/Esporte_Clube_Pinheiros"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-classico-dos-milhoes
     name: Clássico dos Milhões
@@ -53,4 +53,4 @@ derbies:
     sources:
       - "https://www.netvasco.com.br/n/347793/basquete-vasco-perde-para-o-urubu-na-estreia-do-nbb-59-a-50"
       - "https://pt.wikipedia.org/wiki/Club_de_Regatas_Vasco_da_Gama_(basquete)"
-    review_status: draft
+    review_status: approved

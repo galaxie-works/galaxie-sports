@@ -58,7 +58,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Manchester_City_Football_Club
   - https://es.wikipedia.org/wiki/Manchester_City_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: manchester-united
   names:
     official: Manchester United Football Club
@@ -112,7 +112,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Manchester_United_Football_Club
   - https://es.wikipedia.org/wiki/Manchester_United_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: liverpool
   names:
     official: Liverpool Football Club
@@ -129,8 +129,7 @@ teams:
   nicknames:
   - The Reds
   mascot: Mighty Red
-  rallying_cries:
-  - You'll Never Walk Alone
+  rallying_cries: []
   stadium:
     name: Anfield
     city: Liverpool
@@ -145,23 +144,19 @@ teams:
       nicknames:
       - Reds
       - Os Vermelhos
-      cheer:
-      - Vai, Liverpool!
-      - You'll Never Walk Alone
+      cheer: ["Vai, Liverpool!"]
     es:
       nicknames:
       - Reds
       - Los Reds
       - Los Rojos
-      cheer:
-      - ¡Vamos, Liverpool!
-      - You'll Never Walk Alone
+      cheer: ["¡Vamos, Liverpool!"]
   sources:
   - https://en.wikipedia.org/wiki/Liverpool_F.C.
   - https://pt.wikipedia.org/wiki/Liverpool_Football_Club
   - https://es.wikipedia.org/wiki/Liverpool_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: arsenal
   names:
     official: The Arsenal Football Club
@@ -191,8 +186,8 @@ teams:
   rivals:
   - {team: tottenham-hotspur, derby: north-london-derby, intensity: 5}
   identity:
-  - Fundado em 1886 como Dial Square por trabalhadores do arsenal real de Woolwich, origem do apelido "Gunners".
-  - Após a temporada 2003-04 ganhou o apelido "The Invincibles" ao terminar a Premier League sem derrotas.
+    - "Fundado em 1886 como Dial Square por trabalhadores do arsenal real de Woolwich, origem do apelido \"Gunners\"."
+    - "O time da temporada 2003-04 ganhou o apelido \"The Invincibles\" ao terminar a Premier League sem derrotas."
   copy_hints:
     pt-BR:
       nicknames:
@@ -211,7 +206,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Arsenal_Football_Club
   - https://es.wikipedia.org/wiki/Arsenal_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: chelsea
   names:
     official: Chelsea Football Club
@@ -256,7 +251,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Chelsea_Football_Club
   - https://es.wikipedia.org/wiki/Chelsea_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: tottenham-hotspur
   names:
     official: Tottenham Hotspur Football Club
@@ -303,7 +298,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Tottenham_Hotspur_Football_Club
   - https://es.wikipedia.org/wiki/Tottenham_Hotspur_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: newcastle-united
   names:
     official: Newcastle United Football Club
@@ -353,7 +348,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Newcastle_United_Football_Club
   - https://es.wikipedia.org/wiki/Newcastle_United_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: aston-villa
   names:
     official: Aston Villa Football Club
@@ -398,7 +393,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Aston_Villa_Football_Club
   - https://es.wikipedia.org/wiki/Aston_Villa_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: everton
   names:
     official: Everton Football Club
@@ -453,7 +448,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Everton_Football_Club
   - https://es.wikipedia.org/wiki/Everton_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: west-ham-united
   names:
     official: West Ham United Football Club
@@ -501,7 +496,7 @@ teams:
   - https://pt.wikipedia.org/wiki/West_Ham_United_Football_Club
   - https://es.wikipedia.org/wiki/West_Ham_United_Football_Club
   - https://community.wappler.io/t/server-side-api-parsing-data-for-frond-end-issue/49002
-  review_status: draft
+  review_status: approved
 - slug: sunderland
   names:
     official: Sunderland Association Football Club
@@ -529,8 +524,8 @@ teams:
   rivals:
   - {team: newcastle-united, derby: tyne-wear-derby, intensity: 5}
   identity:
-  - Fundado em 1879 como Sunderland and District Teachers.
-  - Incluído nesta base como rival do Newcastle no Tyne–Wear derby.
+    - "Fundado em 1879 como Sunderland and District Teachers."
+    - "Manda seus jogos no Stadium of Light desde 1997."
   copy_hints:
     pt-BR:
       nicknames:
@@ -548,4 +543,4 @@ teams:
   - https://en.wikipedia.org/wiki/Sunderland_A.F.C.
   - https://pt.wikipedia.org/wiki/Sunderland_Association_Football_Club
   - https://es.wikipedia.org/wiki/Sunderland_Association_Football_Club
-  review_status: draft
+  review_status: approved

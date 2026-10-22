@@ -250,4 +250,4 @@ Regras do validador: `locale` igual ao nome do arquivo; slug de time/clássico e
 2. **Sem conteúdo ofensivo**: nada de cantos discriminatórios, violência, tragédias como provocação, apelidos pejorativos usados como ofensa. Apelidos que nasceram pejorativos e foram adotados pela torcida (ex.: "Porco") são permitidos com essa nota em `identity`.
 3. **Direitos autorais**: nunca transcrever letras de hinos ou músicas; apenas gritos curtos de domínio público/slogans oficiais.
 4. **Rivalidade em copy** só é usada pela API quando o usuário declarou explicitamente o rival (ver `docs/06-semantica-e-conteudo.md`).
-5. `review_status: draft` até revisão editorial humana; a API expõe o status para o cliente decidir se exibe.
+5. `review_status: draft` até revisão editorial; a API expõe o status para o cliente decidir se exibe. A primeira promoção a `approved` (out/2026) foi feita por revisores de IA no papel de editores nativos de cada mercado — critério e registro em docs/06 §2.

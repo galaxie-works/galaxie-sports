@@ -25,7 +25,7 @@ teams:
     rivals:
       - { team: emelec, derby: clasico-del-astillero, intensity: 5 }
     identity:
-      - "El Ídolo nació en 1925 en el barrio del Astillero de Guayaquil, fundado por inmigrantes catalanes y guayaquileños."
+      - "El Ídolo fue fundado en 1925 en el barrio del Astillero de Guayaquil por inmigrantes catalanes y guayaquileños."
       - "Finalista de la Copa Libertadores en 1990 y 1998."
     copy_hints:
       es-EC:
@@ -33,7 +33,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Barcelona_Sporting_Club"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: emelec
     names:
@@ -58,14 +58,14 @@ teams:
     rivals:
       - { team: barcelona-sc, derby: clasico-del-astillero, intensity: 5 }
     identity:
-      - "Lo fundó George Capwell, directivo de la Empresa Eléctrica del Ecuador; de ahí el nombre Emelec y el apodo el Bombillo."
+      - "Lo fundó George Capwell, directivo de la Empresa Eléctrica del Ecuador; de ahí el nombre Emelec y el apodo de Bombillo."
     copy_hints:
       es-EC:
         cheer: ["¡Vamos, Bombillo!", "¡De una, Emelec!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Sport_Emelec"
       - "https://futboltotal.futbol/teams/emelec"
-    review_status: draft
+    review_status: approved
 
   - slug: ldu-quito
     names:
@@ -98,7 +98,7 @@ teams:
       - "https://es.wikipedia.org/wiki/Liga_Deportiva_Universitaria_de_Quito"
       - "https://en.wikipedia.org/wiki/Superclásico_de_Quito"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: independiente-del-valle
     names:
@@ -123,14 +123,14 @@ teams:
     rivals: []
     identity:
       - "Los Rayados del Valle son campeones de la Copa Sudamericana 2019 y 2022, y finalistas de la Copa Libertadores 2016."
-      - "Reconocido por su trabajo en la formación de juveniles."
+      - "El club es reconocido por su trabajo en la formación de juveniles."
     copy_hints:
       es-EC:
         cheer: ["¡Vamos, Rayados!", "¡De una, Independiente!"]
     sources:
       - "https://es.wikipedia.org/wiki/Independiente_del_Valle"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: el-nacional-ec
     names:
@@ -193,7 +193,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Sociedad_Deportiva_Aucas"
       - "https://futboltotal.futbol/teams/aucas"
-    review_status: draft
+    review_status: approved
 
   - slug: deportivo-quito
     names:
@@ -217,11 +217,11 @@ teams:
       city: Quito
     rivals: []
     identity:
-      - "Los Chullas son un club histórico de la capital ecuatoriana, de colores azul y grana."
+      - "Conocido como los Chullas, es un club histórico de la capital ecuatoriana, de colores azul y grana."
     copy_hints:
       es-EC:
         cheer: ["¡Vamos, Chullas!", "¡De una, Quito!"]
     sources:
       - "https://es.wikipedia.org/wiki/Sociedad_Deportivo_Quito"
       - "https://futboltotal.futbol/teams/deportivo-quito"
-    review_status: draft
+    review_status: approved

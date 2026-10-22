@@ -28,7 +28,7 @@ teams:
       - "https://en.wikipedia.org/wiki/Los_Angeles_Lakers"
       - "https://en.wikipedia.org/wiki/Celtics%E2%80%93Lakers_rivalry"
       - "https://www.mentalfloss.com/article/23115/origins-all-30-nba-team-names"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-boston-celtics
     names:
@@ -52,12 +52,12 @@ teams:
       - { team: basketball-los-angeles-lakers, derby: basketball-lakers-celtics, intensity: 5 }
       - { team: basketball-philadelphia-76ers, derby: basketball-celtics-76ers, intensity: 4 }
     identity:
-      - "Um dos oito times originais da liga em 1946; o nome foi escolhido pelo fundador Walter Brown."
+      - "Um dos times fundadores da liga (então BAA), em 1946; o nome foi escolhido pelo fundador Walter Brown."
       - "O mascote Lucky the Leprechaun homenageia a grande comunidade de origem irlandesa de Boston."
     sources:
       - "https://en.wikipedia.org/wiki/Boston_Celtics"
       - "https://www.mentalfloss.com/article/23115/origins-all-30-nba-team-names"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-philadelphia-76ers
     names:
@@ -84,7 +84,7 @@ teams:
     sources:
       - "https://en.wikipedia.org/wiki/Philadelphia_76ers"
       - "https://www.mentalfloss.com/article/23115/origins-all-30-nba-team-names"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-chicago-bulls
     names:
@@ -111,7 +111,7 @@ teams:
     sources:
       - "https://en.wikipedia.org/wiki/Chicago_Bulls"
       - "https://en.wikipedia.org/wiki/Bulls%E2%80%93Pistons_rivalry"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-detroit-pistons
     names:
@@ -139,4 +139,4 @@ teams:
       - "https://en.wikipedia.org/wiki/Detroit_Pistons"
       - "https://en.wikipedia.org/wiki/Bulls%E2%80%93Pistons_rivalry"
       - "https://www.mentalfloss.com/article/23115/origins-all-30-nba-team-names"
-    review_status: draft
+    review_status: approved

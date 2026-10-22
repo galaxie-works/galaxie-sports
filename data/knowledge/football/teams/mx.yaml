@@ -35,7 +35,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_América"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: guadalajara
     names:
@@ -70,7 +70,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Guadalajara"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: cruz-azul
     names:
@@ -103,7 +103,7 @@ teams:
       - "https://es.wikipedia.org/wiki/Cruz_Azul_Fútbol_Club"
       - "https://www.poresto.com/deportes/2026/7/17/liga-mx-confirma-que-cruz-azul-jugara-en-el-estadio-azteca-para-el-apertura-2026-y-pone-fin-a-la-novela-no-tengo-casa.html"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: pumas-unam
     names:
@@ -136,7 +136,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Universidad_Nacional"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: tigres-uanl
     names:
@@ -169,7 +169,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_de_Fútbol_Tigres_de_la_Universidad_Autónoma_de_Nuevo_León"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: monterrey
     names:
@@ -201,7 +201,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_de_Fútbol_Monterrey"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: toluca
     names:
@@ -232,7 +232,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Deportivo_Toluca_Fútbol_Club"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: pachuca
     names:
@@ -257,7 +257,7 @@ teams:
       city: Pachuca
     rivals: []
     identity:
-      - "Los Tuzos son considerados la cuna del futbol en México, que llegó con mineros ingleses de Cornualles."
+      - "Pachuca es considerada la cuna del futbol en México, deporte que llegó con mineros ingleses de Cornualles."
     copy_hints:
       es-MX:
         cheer: ["¡Vamos, Tuzos!", "¡Le voy al Pachuca!"]
@@ -265,7 +265,7 @@ teams:
       - "https://es.wikipedia.org/wiki/Club_de_Fútbol_Pachuca"
       - "https://en.wikipedia.org/wiki/C.F._Pachuca"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: club-leon
     names:
@@ -289,14 +289,14 @@ teams:
       city: León
     rivals: []
     identity:
-      - "La Fiera es el club del Bajío; campeón de la Concachampions 2023."
+      - "La Fiera es un club del Bajío; fue campeón de la Concachampions 2023."
     copy_hints:
       es-MX:
         cheer: ["¡Vamos, Fiera!", "¡Le voy a los Panzas Verdes!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_León"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: santos-laguna
     names:
@@ -327,7 +327,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Santos_Laguna"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: atlas
     names:
@@ -362,7 +362,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlas"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: puebla
     names:
@@ -386,14 +386,14 @@ teams:
       city: Puebla
     rivals: []
     identity:
-      - "Su camiseta blanca con la franja azul diagonal le dio el apodo La Franja."
+      - "Su playera blanca con la franja azul diagonal le dio el apodo de La Franja."
     copy_hints:
       es-MX:
         cheer: ["¡Vamos, Franja!", "¡Le voy al Puebla!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Puebla"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: necaxa
     names:
@@ -424,7 +424,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Necaxa"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: tijuana
     names:
@@ -449,11 +449,11 @@ teams:
       city: Tijuana
     rivals: []
     identity:
-      - "Su apodo Xolos homenajea al xoloitzcuintle, perro originario de México; campeón del Apertura 2012."
+      - "Su apodo Xolos homenajea al xoloitzcuintle, perro originario de México; el club fue campeón del Apertura 2012."
     copy_hints:
       es-MX:
         cheer: ["¡Vamos, Xolos!", "¡Le voy a los Xolos!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Tijuana"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved

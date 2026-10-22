@@ -162,7 +162,9 @@ describe('aplicação e validação (dry-run em memória)', () => {
   it('troca de estádio edita só os nós necessários (diff mínimo)', () => {
     const file = kb.files.find((f) => f.rel === 'football/teams/br.yaml')!;
     const team = kb.teams.find((t) => t.entry.slug === 'palmeiras')!;
-    const next = updateStadium(file.source, {
+    // o curador nunca altera entrada approved: o teste parte de uma cópia com o Palmeiras em draft
+    const source = file.source.replace(/(slug: palmeiras\n[\s\S]*?review_status: )approved/, '$1draft');
+    const next = updateStadium(source, {
       kind: 'update_stadium',
       gap: {
         kind: 'venue_mismatch',
@@ -183,7 +185,7 @@ describe('aplicação e validação (dry-run em memória)', () => {
       status: 'accepted',
       reasons: [],
     });
-    const diff = unifiedDiff('br.yaml', file.source, next);
+    const diff = unifiedDiff('br.yaml', source, next);
     const changed = diff.split('\n').filter((l) => /^[+-][^+-]/.test(l));
     expect(changed).toEqual([
       '-      name: Nubank Parque',

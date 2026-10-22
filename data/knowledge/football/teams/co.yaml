@@ -32,7 +32,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Atlético_Nacional"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: millonarios
     names:
@@ -64,7 +64,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Millonarios_Fútbol_Club"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: america-de-cali
     names:
@@ -96,7 +96,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/América_de_Cali"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: deportivo-cali
     names:
@@ -128,7 +128,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Asociación_Deportivo_Cali"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: independiente-santa-fe
     names:
@@ -161,7 +161,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Independiente_Santa_Fe"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: junior-barranquilla
     names:
@@ -192,7 +192,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Junior_de_Barranquilla"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: independiente-medellin
     names:
@@ -224,7 +224,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Deportivo_Independiente_Medellín"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: once-caldas
     names:
@@ -256,7 +256,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Once_Caldas"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: deportes-tolima
     names:
@@ -287,4 +287,4 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportes_Tolima"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved

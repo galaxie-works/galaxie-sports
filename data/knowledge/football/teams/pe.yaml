@@ -33,7 +33,7 @@ teams:
       - "https://es.wikipedia.org/wiki/Club_Alianza_Lima"
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_peruano"
       - "https://futboltotal.futbol/teams/emelec"
-    review_status: draft
+    review_status: approved
 
   - slug: universitario
     names:
@@ -66,7 +66,7 @@ teams:
       - "https://es.wikipedia.org/wiki/Club_Universitario_de_Deportes"
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_peruano"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: sporting-cristal
     names:
@@ -98,7 +98,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Sporting_Cristal"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: melgar
     names:
@@ -130,7 +130,7 @@ teams:
     sources:
       - "https://en.wikipedia.org/wiki/FBC_Melgar"
       - "https://futboltotal.futbol/teams/fbc-melgar-peru"
-    review_status: draft
+    review_status: approved
 
   - slug: cienciano
     names:
@@ -162,4 +162,4 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Sportivo_Cienciano"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
-    review_status: draft
+    review_status: approved

@@ -25,7 +25,7 @@ teams:
     rivals:
       - { team: cerro-porteno, derby: superclasico-paraguayo, intensity: 5 }
     identity:
-      - "Le dicen El Decano porque es considerado el decano del fútbol paraguayo."
+      - "Le dicen El Decano porque es el club más antiguo del fútbol paraguayo."
       - "El Rey de Copas ganó tres veces la Copa Libertadores (1979, 1990 y 2002)."
     copy_hints:
       es-PY:
@@ -33,7 +33,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Olimpia"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: cerro-porteno
     names:
@@ -58,14 +58,14 @@ teams:
     rivals:
       - { team: olimpia-py, derby: superclasico-paraguayo, intensity: 5 }
     identity:
-      - "El Ciclón nació en el Barrio Obrero de Asunción y viste de azul y grana."
+      - "El Ciclón tiene su casa en el Barrio Obrero de Asunción y viste de azul y grana."
     copy_hints:
       es-PY:
         cheer: ["¡Vamos, Ciclón!", "¡Dale, Cerro!", "¡Aguante el Azulgrana!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Cerro_Porteño"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: libertad-py
     names:
@@ -96,7 +96,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Libertad"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: guarani-py
     names:
@@ -127,4 +127,4 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Guaraní"
       - "https://futboltotal.futbol/teams/club-guarani"
-    review_status: draft
+    review_status: approved

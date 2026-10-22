@@ -15,7 +15,7 @@ derbies:
     trivia:
       - "No primeiro jogo, o Palestra Itália venceu por 3 a 0, com três gols de Caetano."
     sources: ["https://pt.wikipedia.org/wiki/Derby_Paulista"]
-    review_status: draft
+    review_status: approved
 
   - slug: choque-rei
     name: Choque-Rei
@@ -30,7 +30,7 @@ derbies:
       - "O primeiro confronto, no Estádio da Floresta, terminou empatado em 2 a 2."
       - "Um Choque-Rei de 1950 no Pacaembu foi o primeiro evento esportivo transmitido ao vivo pela TV brasileira a partir de um estádio."
     sources: ["https://pt.wikipedia.org/wiki/Choque-Rei"]
-    review_status: draft
+    review_status: approved
 
   - slug: majestoso
     name: Majestoso
@@ -44,7 +44,7 @@ derbies:
     trivia:
       - "O primeiro jogo, no Parque São Jorge, terminou Corinthians 2 a 1."
     sources: ["https://pt.wikipedia.org/wiki/Majestoso"]
-    review_status: draft
+    review_status: approved
 
   - slug: san-sao
     name: San-São
@@ -58,7 +58,7 @@ derbies:
     trivia:
       - "Pelé marcou seu gol número 500 num San-São na Vila Belmiro, em 2 de setembro de 1962."
     sources: ["https://pt.wikipedia.org/wiki/San-São"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-alvinegro
     name: Clássico Alvinegro
@@ -72,7 +72,7 @@ derbies:
     trivia:
       - "Em 2002, as pedaladas de Robinho na final do Brasileirão marcaram a história do clássico."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_Alvinegro"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-da-saudade
     name: Clássico da Saudade
@@ -87,7 +87,7 @@ derbies:
       - "O primeiro jogo foi um amistoso beneficente em prol das vítimas da seca de 1915 no Nordeste."
       - "Em 1958, pelo Torneio Rio-São Paulo, o Santos venceu por 7 a 6 no Pacaembu."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_da_Saudade"]
-    review_status: draft
+    review_status: approved
 
   - slug: derbi-campineiro
     name: Dérbi Campineiro
@@ -101,7 +101,7 @@ derbies:
     trivia:
       - "O maior público registrado foi de 38.948 pessoas, no Pacaembu, em 1979."
     sources: ["https://pt.wikipedia.org/wiki/Dérbi_Campineiro"]
-    review_status: draft
+    review_status: approved
 
   # -------------------------------------------------------------- RIO DE JANEIRO
   - slug: fla-flu
@@ -117,7 +117,7 @@ derbies:
       - "A final do Carioca de 1963 reuniu 194.603 espectadores no Maracanã."
       - "Desde 2012 o Fla-Flu é patrimônio cultural imaterial da cidade do Rio de Janeiro."
     sources: ["https://pt.wikipedia.org/wiki/Fla-Flu"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-dos-milhoes
     name: Clássico dos Milhões
@@ -131,7 +131,7 @@ derbies:
     trivia:
       - "A maior goleada do clássico é o 7 a 0 do Vasco em 1931, pelo Campeonato Carioca."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_dos_Milhões"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-da-rivalidade
     name: Clássico da Rivalidade
@@ -145,7 +145,7 @@ derbies:
     trivia:
       - "No primeiro jogo, o Botafogo venceu por 1 a 0 em General Severiano."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_da_Rivalidade"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-vovo
     name: Clássico Vovô
@@ -159,7 +159,7 @@ derbies:
     trivia:
       - "O título carioca de 1907 ficou em disputa por 89 anos até ser dividido entre os dois clubes em 1996."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_Vovô"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-dos-gigantes
     name: Clássico dos Gigantes
@@ -173,7 +173,7 @@ derbies:
     trivia:
       - "É o único clássico carioca que já teve jogos válidos pela Copa Libertadores."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_dos_Gigantes"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-da-amizade
     name: Clássico da Amizade
@@ -187,7 +187,7 @@ derbies:
     trivia:
       - "O recorde de público é de 149.005 pessoas, no Maracanã, em 1968."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_da_Amizade"]
-    review_status: draft
+    review_status: approved
 
   # ---------------------------------------------------------------- MINAS GERAIS
   - slug: classico-mineiro
@@ -203,7 +203,7 @@ derbies:
       - "No primeiro jogo, o Palestra Itália (atual Cruzeiro) venceu por 3 a 0."
       - "O recorde de público é de 123.351 pessoas, no Mineirão, em 1969."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_Mineiro"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-das-multidoes-bh
     name: Clássico das Multidões
@@ -216,7 +216,7 @@ derbies:
     origin: null
     trivia: []
     sources: ["https://pt.wikipedia.org/wiki/Clássico_das_Multidões"]
-    review_status: draft
+    review_status: approved
 
   # ---------------------------------------------------------------------- SUL
   - slug: gre-nal
@@ -231,7 +231,7 @@ derbies:
     trivia:
       - "O primeiro Gre-Nal terminou Grêmio 10 a 0, com cinco gols de Edgar Booth."
     sources: ["https://pt.wikipedia.org/wiki/Grenal"]
-    review_status: draft
+    review_status: approved
 
   - slug: atletiba
     name: Atletiba
@@ -245,7 +245,7 @@ derbies:
     trivia:
       - "Um Atletiba de 1934 foi a primeira partida de futebol transmitida por rádio no Paraná."
     sources: ["https://pt.wikipedia.org/wiki/Atletiba"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-da-capital-sc
     name: Clássico da Capital
@@ -274,7 +274,7 @@ derbies:
     trivia:
       - "O primeiro Ba-Vi, pelo Torneio Início, durou apenas 20 minutos."
     sources: ["https://pt.wikipedia.org/wiki/Ba-Vi"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-rei
     name: Clássico-Rei
@@ -288,7 +288,7 @@ derbies:
     trivia:
       - "No primeiro confronto, o Ceará venceu por 2 a 0 o recém-fundado Fortaleza."
     sources: ["https://mais.opovo.com.br/jornal/esportes/2020/12/17/classico-rei-completa-102-anos-nesta-quinta-feira--veja-historico-entre-equipes.html"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-das-multidoes-recife
     name: Clássico das Multidões
@@ -302,7 +302,7 @@ derbies:
     trivia:
       - "O recorde de público é de 76.682 pessoas, no Arruda, em 1999."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_das_Multidões_(Recife)"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-dos-classicos
     name: Clássico dos Clássicos
@@ -316,7 +316,7 @@ derbies:
     trivia:
       - "É o clássico mais antigo do Nordeste e o terceiro mais antigo do Brasil."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_dos_Clássicos"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-das-emocoes
     name: Clássico das Emoções
@@ -330,7 +330,7 @@ derbies:
     trivia:
       - "O jogo do centenário, em 2017, valeu a Taça Gena, homenagem a um ex-jogador campeão pelos dois clubes."
     sources: ["https://pt.wikipedia.org/wiki/Clássico_das_Emoções_(Pernambuco)"]
-    review_status: draft
+    review_status: approved
 
   # ---------------------------------------------------------- NORTE E CENTRO-OESTE
   - slug: re-pa
@@ -345,7 +345,7 @@ derbies:
     trivia:
       - "Em 2016 o clássico foi declarado patrimônio cultural imaterial do Pará."
     sources: ["https://pt.wikipedia.org/wiki/Re-Pa"]
-    review_status: draft
+    review_status: approved
 
   - slug: classico-do-equilibrio
     name: Clássico do Equilíbrio
@@ -358,7 +358,7 @@ derbies:
     origin: "O apelido vem da competitividade e do equilíbrio histórico entre os dois clubes."
     trivia: []
     sources: ["https://www.lance.com.br/lancepedia/goias-atletico-go-quem-venceu-mais.html"]
-    review_status: draft
+    review_status: approved
 
   # --------------------------------------------------------------- INTERESTADUAIS
   - slug: classico-do-povo

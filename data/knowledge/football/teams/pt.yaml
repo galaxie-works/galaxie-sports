@@ -58,7 +58,7 @@ teams:
   - https://en.wikipedia.org/wiki/S.L._Benfica
   - https://pt.wikipedia.org/wiki/Sport_Lisboa_e_Benfica
   - https://es.wikipedia.org/wiki/Sport_Lisboa_e_Benfica
-  review_status: draft
+  review_status: approved
 - slug: porto
   names:
     official: Futebol Clube do Porto
@@ -106,7 +106,7 @@ teams:
   - https://en.wikipedia.org/wiki/FC_Porto
   - https://pt.wikipedia.org/wiki/Futebol_Clube_do_Porto
   - https://es.wikipedia.org/wiki/Futebol_Clube_do_Porto
-  review_status: draft
+  review_status: approved
 - slug: sporting-cp
   names:
     official: Sporting Clube de Portugal
@@ -156,7 +156,7 @@ teams:
   - https://en.wikipedia.org/wiki/Sporting_CP
   - https://pt.wikipedia.org/wiki/Sporting_Clube_de_Portugal
   - https://es.wikipedia.org/wiki/Sporting_Club_de_Portugal
-  review_status: draft
+  review_status: approved
 - slug: braga
   names:
     official: Sporting Clube de Braga
@@ -202,4 +202,4 @@ teams:
   - https://en.wikipedia.org/wiki/S.C._Braga
   - https://pt.wikipedia.org/wiki/Sporting_Clube_de_Braga
   - https://es.wikipedia.org/wiki/Sporting_Clube_de_Braga
-  review_status: draft
+  review_status: approved

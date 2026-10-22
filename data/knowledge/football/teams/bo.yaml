@@ -32,7 +32,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Bolívar"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: the-strongest
     names:
@@ -64,7 +64,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_The_Strongest"
       - "https://futboltotal.futbol/teams/deportivo-tachira-fc"
-    review_status: draft
+    review_status: approved
 
   - slug: blooming
     names:
@@ -96,7 +96,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Blooming"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: oriente-petrolero
     names:
@@ -128,4 +128,4 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Oriente_Petrolero"
       - "https://futboltotal.futbol/teams/oriente-petrolero"
-    review_status: draft
+    review_status: approved

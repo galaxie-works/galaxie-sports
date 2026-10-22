@@ -17,7 +17,7 @@ derbies:
       - "El primer partido oficial, en 1913, lo ganó River 2 a 1."
     sources:
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-de-avellaneda
     name: Clásico de Avellaneda
@@ -32,7 +32,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_de_Avellaneda"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-rosarino
     name: Clásico rosarino
@@ -47,7 +47,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_rosarino"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-platense
     name: Clásico platense
@@ -62,7 +62,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_platense"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-san-lorenzo-huracan
     name: Clásico Huracán-San Lorenzo
@@ -79,7 +79,7 @@ derbies:
       - "José Sanfilippo es el máximo goleador de la historia del clásico."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_Huracán-San_Lorenzo"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-cordobes
     name: Clásico cordobés
@@ -94,7 +94,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_cordobés"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-santafesino
     name: Clásico santafesino
@@ -109,7 +109,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_santafesino"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-del-sur-ar
     name: Clásico del Sur
@@ -124,7 +124,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_Sur_(Argentina)"
-    review_status: draft
+    review_status: approved
 
   # --- Uruguay ---
   - slug: clasico-uruguayo
@@ -141,7 +141,7 @@ derbies:
       - "Entre los dos suman ocho Copas Libertadores: cinco del Manya y tres del Bolso."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_uruguayo"
-    review_status: draft
+    review_status: approved
 
   # --- Chile ---
   - slug: superclasico-chileno
@@ -157,7 +157,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_chileno"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-universitario-cl
     name: Clásico universitario
@@ -174,7 +174,7 @@ derbies:
     sources:
       - "https://es.wikipedia.org/wiki/Clásicos_de_fútbol_de_Chile"
       - "https://www.fotmob.com/en-GB/matches/universidad-de-chile-vs-universidad-catolica/1cjc4q"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-porteno-cl
     name: Clásico porteño
@@ -185,13 +185,13 @@ derbies:
     intensity: 4
     first_match: null
     text_locale: es-CL
-    origin: "Enfrenta a los clubes de Valparaíso y Viña del Mar; se juega desde 1916."
+    origin: "Enfrenta a los clubes de Valparaíso y Viña del Mar, los Caturros y los Ruleteros."
     trivia:
       - "Es considerado uno de los clásicos más antiguos del fútbol chileno."
     sources:
       - "https://en.wikipedia.org/wiki/Santiago_Wanderers"
       - "https://cooperativa.cl/noticias/deportes/futbol/everton/s-wanderers-sale-a-ratificar-su-paternidad-ante-un-necesitado-everton/2010-10-22/173524.html"
-    review_status: draft
+    review_status: approved
 
   # --- Colombia ---
   - slug: clasico-paisa
@@ -207,7 +207,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_paisa"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-capitalino-co
     name: Clásico bogotano
@@ -224,7 +224,7 @@ derbies:
       - "La final del Finalización 2017 fue la primera definición de liga entre ambos; la ganó Millonarios."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_bogotano"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-vallecaucano
     name: Clásico vallecaucano
@@ -239,7 +239,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_vallecaucano"
-    review_status: draft
+    review_status: approved
 
   # --- Perú ---
   - slug: clasico-peruano
@@ -257,7 +257,7 @@ derbies:
       - "Ese primer partido es recordado como el clásico de los bastonazos."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_peruano"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-del-sur-pe
     name: Clásico del Sur
@@ -273,7 +273,7 @@ derbies:
     sources:
       - "https://rsssf.org/tablesc/cienmelgar.html"
       - "https://rpp.pe/futbol/descentralizado/liga-1-melgar-y-cienciano-se-enfrentan-en-el-clasico-del-sur-noticia-1673787"
-    review_status: draft
+    review_status: approved
 
   # --- Ecuador ---
   - slug: clasico-del-astillero
@@ -289,7 +289,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_Astillero"
-    review_status: draft
+    review_status: approved
 
   - slug: superclasico-de-quito
     name: Superclásico capitalino
@@ -306,7 +306,7 @@ derbies:
     sources:
       - "https://en.wikipedia.org/wiki/Superclásico_de_Quito"
       - "https://www.primicias.ec/deportes/ligapro/aucas/vivo-aucas-vs-liga-quito-nueva-edicion-clasico-capitalino-fecha-25-ligapro-130329/"
-    review_status: draft
+    review_status: approved
 
   # --- Paraguay ---
   - slug: superclasico-paraguayo
@@ -322,7 +322,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_paraguayo"
-    review_status: draft
+    review_status: approved
 
   # --- Bolivia ---
   - slug: clasico-paceno
@@ -338,7 +338,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_paceño"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-cruceno
     name: Clásico cruceño
@@ -349,11 +349,11 @@ derbies:
     intensity: 4
     first_match: null
     text_locale: es-BO
-    origin: "Enfrenta a los dos clubes más populares de Santa Cruz de la Sierra, la Academia y el Refinero."
+    origin: "Enfrenta a los dos clubes más populares de Santa Cruz de la Sierra, la Academia cruceña y el Refinero."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_cruceño"
-    review_status: draft
+    review_status: approved
 
   # --- Venezuela ---
   - slug: clasico-venezolano
@@ -367,8 +367,8 @@ derbies:
     text_locale: es-VE
     origin: "Enfrenta a los dos clubes más ganadores del fútbol venezolano: los Rojos del Ávila y el Carrusel Aurinegro."
     trivia:
-      - "Se enfrentaron en la final de la liga 2021, que ganó Táchira en penales."
+      - "Se enfrentaron en la final de la liga 2021, que ganó Táchira."
     sources:
       - "https://eldiario.com/2021/12/10/caracas-tachira-clasico-futbol-venezolano-final/"
       - "https://lapatilla.com/2023/11/12/caracas-fc-y-deportivo-tachira-se-mediran-en-otra-edicion-del-clasico-en-la-gran-final-de-la-liga-futve/"
-    review_status: draft
+    review_status: approved

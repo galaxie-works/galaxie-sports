@@ -32,7 +32,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Caracas_Fútbol_Club"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: deportivo-tachira
     names:
@@ -64,4 +64,4 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Deportivo_Táchira_Fútbol_Club"
       - "https://futboltotal.futbol/teams/deportivo-tachira-fc"
-    review_status: draft
+    review_status: approved

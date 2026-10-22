@@ -18,7 +18,7 @@ derbies:
       - "https://abcdoabc.com.br/superliga-masculina-bb-20-21-sada-cruzeiro-vence-o-minas-no-classico-mineiro/"
       - "https://www.flashscore.com.br/noticias/sada-cruzeiro-e-minas-voltam-a-se-enfrentar-agora-pelo-campeonato-mineiro-de-volei/bkuX6RS0/"
       - "https://jornaldebrasilia.com.br/mais-esportes/sada-cruzeiro-derrota-minas-e-quebra-sequencia-de-vitorias-do-rival/"
-    review_status: draft
+    review_status: approved
 
   - slug: volleyball-minas-praia-clube
     name: Clássico Mineiro (Minas × Praia Clube)
@@ -36,4 +36,4 @@ derbies:
     sources:
       - "https://www.lance.com.br/volei/minas-domina-retrospecto-em-finais-contra-o-praia-clube-confira.html"
       - "https://www.cnnbrasil.com.br/esportes/volei/praia-clube-supreende-domina-minas-e-e-campeao-da-superliga-feminina/"
-    review_status: draft
+    review_status: approved

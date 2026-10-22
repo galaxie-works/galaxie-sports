@@ -35,7 +35,7 @@ teams:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Peñarol"
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_uruguayo"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: nacional-uy
     names:
@@ -70,7 +70,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Nacional_de_Football"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: defensor-sporting
     names:
@@ -94,14 +94,14 @@ teams:
       city: Montevideo
     rivals: []
     identity:
-      - "La Violeta lleva su nombre actual desde la fusión de Defensor con Sporting, en 1989."
+      - "El Violeta lleva su nombre actual desde la fusión de Defensor con Sporting, en 1989."
     copy_hints:
       es-UY:
         cheer: ["¡Vamo, Violeta!", "¡Dale, Defensor!"]
     sources:
       - "https://es.wikipedia.org/wiki/Defensor_Sporting_Club"
       - "https://futboltotal.futbol/teams/defensor-sporting-uruguay"
-    review_status: draft
+    review_status: approved
 
   - slug: danubio
     names:
@@ -132,7 +132,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Danubio_Fútbol_Club"
       - "https://futboltotal.futbol/teams/danubio"
-    review_status: draft
+    review_status: approved
 
   - slug: liverpool-uy
     names:
@@ -163,7 +163,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Liverpool_Fútbol_Club"
       - "https://futboltotal.futbol/teams/liverpool-montevideo"
-    review_status: draft
+    review_status: approved
 
   - slug: montevideo-wanderers
     names:
@@ -194,4 +194,4 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Montevideo_Wanderers_Fútbol_Club"
       - "https://futboltotal.futbol/teams/wanderers"
-    review_status: draft
+    review_status: approved

@@ -27,7 +27,7 @@ derbies:
   - https://pt.wikipedia.org/wiki/Rivalidade_entre_Argentina_e_Brasil_no_futebol
   - https://es.wikipedia.org/wiki/Cl%C3%A1sico_sudamericano
   - https://en.wikipedia.org/wiki/Supercl%C3%A1sico_de_las_Am%C3%A9ricas
-  review_status: draft
+  review_status: approved
 - slug: clasico-del-rio-de-la-plata
   name: Clásico del Río de la Plata
   aliases:
@@ -41,7 +41,7 @@ derbies:
   scope: international
   intensity: 5
   first_match: 1902-07-20
-  origin: Considerado o confronto entre seleções mais disputado da história do futebol.
+  origin: "Considerado o confronto entre seleções com mais partidas disputadas na história do futebol."
   trivia:
   - O primeiro jogo oficial, em Montevidéu, terminou 6–0 para a Argentina.
   - As duas fizeram a final da primeira Copa do Mundo, em 1930, vencida pelo Uruguai.
@@ -49,7 +49,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Argentina%E2%80%93Uruguay_football_rivalry
   - https://pt.wikipedia.org/wiki/Rivalidade_entre_Argentina_e_Uruguai_no_futebol
   - https://es.wikipedia.org/wiki/Cl%C3%A1sico_del_R%C3%ADo_de_la_Plata
-  review_status: draft
+  review_status: approved
 - slug: classico-do-rio-negro
   name: Clássico do Rio Negro
   aliases:
@@ -70,7 +70,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Brazil%E2%80%93Uruguay_football_rivalry
   - https://pt.wikipedia.org/wiki/Rivalidade_entre_Brasil_e_Uruguai_no_futebol
   - https://es.wikipedia.org/wiki/Rivalidad_futbol%C3%ADstica_entre_Brasil_y_Uruguay
-  review_status: draft
+  review_status: approved
 - slug: clasico-del-pacifico
   name: Clásico del Pacífico
   aliases:
@@ -89,7 +89,7 @@ derbies:
   - O primeiro duelo em Eliminatórias de Copa foi para o Mundial de 1974.
   sources:
   - https://en.wikipedia.org/wiki/Chile%E2%80%93Peru_football_rivalry
-  review_status: draft
+  review_status: approved
 - slug: clasico-de-la-concacaf
   name: Clásico de la Concacaf
   aliases:
@@ -109,7 +109,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Mexico%E2%80%93United_States_soccer_rivalry
   - https://es.wikipedia.org/wiki/Rivalidad_futbol%C3%ADstica_entre_Estados_Unidos_y_M%C3%A9xico
   - https://www.clarosports.com/futbol/seleccion-mexicana/mexico-vs-estados-unidos-quien-manda-en-el-clasico-de-concacaf-historial-y-resultados/
-  review_status: draft
+  review_status: approved
 - slug: england-germany
   name: England–Germany
   aliases:
@@ -129,7 +129,7 @@ derbies:
   sources:
   - https://en.wikipedia.org/wiki/England%E2%80%93Germany_football_rivalry
   - https://es.wikipedia.org/wiki/Rivalidad_futbol%C3%ADstica_entre_Alemania_e_Inglaterra
-  review_status: draft
+  review_status: approved
 - slug: germany-netherlands
   name: Germany–Netherlands
   aliases:
@@ -145,7 +145,7 @@ derbies:
   origin: A rivalidade esportiva ganhou força após a final da Copa de 1974, vencida pela Alemanha Ocidental sobre a Holanda.
   sources:
   - https://en.wikipedia.org/wiki/Germany%E2%80%93Netherlands_football_rivalry
-  review_status: draft
+  review_status: approved
 - slug: derbi-iberico
   name: Derbi ibérico
   aliases:
@@ -166,4 +166,4 @@ derbies:
   sources:
   - https://en.wikipedia.org/wiki/Portugal%E2%80%93Spain_football_rivalry
   - https://pt.wikipedia.org/wiki/Rivalidade_entre_Espanha_e_Portugal_no_futebol
-  review_status: draft
+  review_status: approved

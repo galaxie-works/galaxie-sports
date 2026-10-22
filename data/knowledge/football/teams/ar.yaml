@@ -34,7 +34,7 @@ teams:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Boca_Juniors"
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
       - "https://futboltotal.futbol/teams/boca-juniors"
-    review_status: draft
+    review_status: approved
 
   - slug: river-plate
     names:
@@ -64,12 +64,12 @@ teams:
       - "La camiseta blanca con la banda roja cruzada es uno de los símbolos del Millonario."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos, River!", "¡Dale, Millo, que hoy lo ganás!", "¡Aguante la Banda!"]
+        cheer: ["¡Vamos, River!", "¡Dale, Millonario, que hoy lo ganás!", "¡Aguante la Banda!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_River_Plate"
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: independiente
     names:
@@ -102,7 +102,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Independiente"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: racing-club
     names:
@@ -134,7 +134,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Racing_Club"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: san-lorenzo
     names:
@@ -167,7 +167,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_San_Lorenzo_de_Almagro"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: huracan
     names:
@@ -193,14 +193,14 @@ teams:
       - { team: san-lorenzo, derby: clasico-san-lorenzo-huracan, intensity: 5 }
     identity:
       - "El escudo lleva un globo aerostático; de ahí el apodo Globo."
-      - "La fecha oficial de fundación es 1908, aunque el club nació en 1903, en Pompeya."
+      - "La fecha oficial de fundación es 1908, aunque sus orígenes se remontan a 1903, en Pompeya."
     copy_hints:
       es-AR:
         cheer: ["¡Vamos, Globo!", "¡Dale, Quemero!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Huracán"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: velez-sarsfield
     names:
@@ -231,7 +231,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Vélez_Sarsfield"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: estudiantes-lp
     names:
@@ -263,7 +263,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Estudiantes_de_La_Plata"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: gimnasia-lp
     names:
@@ -295,7 +295,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_de_Gimnasia_y_Esgrima_La_Plata"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: rosario-central
     names:
@@ -328,7 +328,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Rosario_Central"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: newells-old-boys
     names:
@@ -361,7 +361,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Newell's_Old_Boys"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: talleres-cordoba
     names:
@@ -393,7 +393,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Talleres"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: belgrano-cordoba
     names:
@@ -425,7 +425,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Belgrano"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: lanus
     names:
@@ -450,14 +450,14 @@ teams:
     rivals:
       - { team: banfield, derby: clasico-del-sur-ar, intensity: 4 }
     identity:
-      - "El Granate salió campeón de la Copa Sudamericana en 2013."
+      - "El Granate salió campeón de la Copa Sudamericana en 2013 y en 2025."
     copy_hints:
       es-AR:
         cheer: ["¡Vamos, Granate!", "¡Dale, Lanús!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Lanús"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: banfield
     names:
@@ -489,7 +489,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Banfield"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: argentinos-juniors
     names:
@@ -517,11 +517,11 @@ teams:
       - "Salió campeón de la Copa Libertadores 1985."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos, Bicho!", "¡Dale, Semillero!"]
+        cheer: ["¡Vamos, Bicho!", "¡Aguante el Bicho!"]
     sources:
       - "https://es.wikipedia.org/wiki/Asociación_Atlética_Argentinos_Juniors"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: colon-santa-fe
     names:
@@ -553,7 +553,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Colón"
       - "https://futboltotal.futbol/teams/colon-santa-fe"
-    review_status: draft
+    review_status: approved
 
   - slug: union-santa-fe
     names:
@@ -585,7 +585,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Unión"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: defensa-y-justicia
     names:
@@ -617,4 +617,4 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Social_y_Deportivo_Defensa_y_Justicia"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved

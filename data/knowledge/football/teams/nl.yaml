@@ -50,7 +50,7 @@ teams:
   - https://en.wikipedia.org/wiki/AFC_Ajax
   - https://pt.wikipedia.org/wiki/Amsterdamsche_Football_Club_Ajax
   - https://es.wikipedia.org/wiki/Ajax_de_%C3%81msterdam
-  review_status: draft
+  review_status: approved
 - slug: psv
   names:
     official: Philips Sport Vereniging
@@ -94,7 +94,7 @@ teams:
   - https://en.wikipedia.org/wiki/PSV_Eindhoven
   - https://pt.wikipedia.org/wiki/PSV_Eindhoven
   - https://es.wikipedia.org/wiki/PSV_Eindhoven
-  review_status: draft
+  review_status: approved
 - slug: feyenoord
   names:
     official: Feyenoord Rotterdam
@@ -145,4 +145,4 @@ teams:
   - https://pt.wikipedia.org/wiki/Feyenoord_Rotterdam
   - https://es.wikipedia.org/wiki/Feyenoord
   - https://rotterdammakeithappen.nl/en/brand-partners/feyenoord
-  review_status: draft
+  review_status: approved

@@ -26,7 +26,7 @@ teams:
     rivals:
       - { team: universidad-de-chile, derby: superclasico-chileno, intensity: 5 }
     identity:
-      - "Lo fundaron en 1925 los hermanos Arellano; su nombre evoca al cacique mapuche Colo-Colo."
+      - "Lo fundó en 1925 un grupo de jugadores encabezado por David Arellano; su nombre evoca al cacique mapuche Colo-Colo."
       - "El Cacique fue el primer club chileno campeón de la Copa Libertadores (1991)."
     copy_hints:
       es-CL:
@@ -35,7 +35,7 @@ teams:
       - "https://es.wikipedia.org/wiki/Club_Social_y_Deportivo_Colo-Colo"
       - "https://en.wikipedia.org/wiki/Colo-Colo"
       - "https://futboltotal.futbol/teams/colo-colo"
-    review_status: draft
+    review_status: approved
 
   - slug: universidad-de-chile
     names:
@@ -69,7 +69,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Universidad_de_Chile"
       - "https://futboltotal.futbol/teams/universidad-de-chile"
-    review_status: draft
+    review_status: approved
 
   - slug: universidad-catolica-cl
     names:
@@ -133,7 +133,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_de_Deportes_Cobreloa"
       - "https://futboltotal.futbol/teams/cobreloa"
-    review_status: draft
+    review_status: approved
 
   - slug: everton-cl
     names:
@@ -165,7 +165,7 @@ teams:
     sources:
       - "https://en.wikipedia.org/wiki/Everton_de_Viña_del_Mar"
       - "https://futboltotal.futbol/teams/everton-de-vina"
-    review_status: draft
+    review_status: approved
 
   - slug: santiago-wanderers
     names:
@@ -197,7 +197,7 @@ teams:
     sources:
       - "https://en.wikipedia.org/wiki/Santiago_Wanderers"
       - "https://futboltotal.futbol/teams/santiago-wanderers"
-    review_status: draft
+    review_status: approved
 
   - slug: palestino
     names:
@@ -228,7 +228,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Palestino"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: union-espanola
     names:
@@ -259,4 +259,4 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Unión_Española"
       - "https://futboltotal.futbol/teams/colo-colo"
-    review_status: draft
+    review_status: approved

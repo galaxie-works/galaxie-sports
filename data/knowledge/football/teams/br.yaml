@@ -47,7 +47,7 @@ teams:
       es:
         cheer: ["¡Vamos, Verdão!", "¡Arriba, Palmeiras!"]
       es-AR:
-        cheer: ["¡Dale, Verdão, que hoy lo ganás!", "¡Aguante, Palmeiras!"]
+        cheer: ["¡Dale, Verdão, que hoy lo ganás!", "¡Aguante Palmeiras!"]
       es-UY:
         cheer: ["¡Vamo arriba, Verdão!", "¡Dale, Palmeiras, que vos podés!"]
       es-MX:
@@ -67,7 +67,7 @@ teams:
       - "https://www.band.com.br/esportes/nubank-parque-ganha-votacao-e-batiza-estadio-do-palmeiras-novo-nome-vai-pegar-202605041148"
       - "https://www.lance.com.br/palmeiras/patrocinadora-define-novo-nome-da-arena-do-palmeiras-apos-votacao-popular.html"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: corinthians
     names:
@@ -106,7 +106,7 @@ teams:
       es:
         cheer: ["¡Vamos, Timão!", "¡Arriba, Corinthians!"]
       es-AR:
-        cheer: ["¡Dale, Timão, que hoy lo ganás!", "¡Aguante, Corinthians!"]
+        cheer: ["¡Dale, Timão, que hoy lo ganás!", "¡Aguante Corinthians!"]
       es-UY:
         cheer: ["¡Vamo arriba, Timão!", "¡Dale, Corinthians, que vos podés!"]
       es-MX:
@@ -123,7 +123,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Sport_Club_Corinthians_Paulista"
       - "https://www.mktesportivo.com/2026/04/corinthians-define-prazo-para-naming-rights-e-avanca-em-negociacao-com-a-caixa-sobre-a-arena/"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: sao-paulo
     names:
@@ -160,11 +160,11 @@ teams:
       es:
         cheer: ["¡Vamos, Tricolor!", "¡Arriba, São Paulo!"]
       es-AR:
-        cheer: ["¡Dale, Tricolor, que hoy lo ganás!", "¡Aguante, São Paulo!"]
+        cheer: ["¡Dale, Tricolor, que hoy lo ganás!", "¡Aguante São Paulo!"]
       es-UY:
         cheer: ["¡Vamo arriba, Tricolor!", "¡Dale, São Paulo, que vos podés!"]
       es-MX:
-        cheer: ["¡Le voy al Tricolor!", "¡Arriba el São Paulo!"]
+        cheer: ["¡Le voy al Tricolor Paulista!", "¡Arriba el São Paulo!"]
       es-CO:
         cheer: ["¡Hágale, Tricolor!", "¡Vamos, São Paulo, con toda la barra!"]
       es-PE:
@@ -177,7 +177,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/São_Paulo_Futebol_Clube"
       - "https://www.band.com.br/esportes/corinthians-mudar-naming-rights-veja-estadios-serie-a-202603101201"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: santos
     names:
@@ -212,7 +212,7 @@ teams:
       es:
         cheer: ["¡Vamos, Peixe!", "¡Arriba, Santos!"]
       es-AR:
-        cheer: ["¡Dale, Peixe, que hoy lo ganás!", "¡Aguante, Santos!"]
+        cheer: ["¡Dale, Peixe, que hoy lo ganás!", "¡Aguante Santos!"]
       es-UY:
         cheer: ["¡Vamo arriba, Peixe!", "¡Dale, Santos, que vos podés!"]
       es-MX:
@@ -229,7 +229,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Santos_Futebol_Clube"
       - "https://www.opovo.com.br/agencia/jogada10/2026/07/31/santos-foca-nas-obras-da-vila-belmiro-enquanto-aguarda-wtorre.html"
       - "https://github.com/lucca-schramm/test/blob/main/brasileirao_a.json"
-    review_status: draft
+    review_status: approved
 
   - slug: flamengo
     names:
@@ -267,7 +267,7 @@ teams:
       es:
         cheer: ["¡Vamos, Mengão!", "¡Arriba, Flamengo!"]
       es-AR:
-        cheer: ["¡Dale, Mengão, que hoy lo ganás!", "¡Aguante, Flamengo!"]
+        cheer: ["¡Dale, Mengão, que hoy lo ganás!", "¡Aguante Flamengo!"]
       es-UY:
         cheer: ["¡Vamo arriba, Mengão!", "¡Dale, Flamengo, que vos podés!"]
       es-MX:
@@ -284,7 +284,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Clube_de_Regatas_do_Flamengo"
       - "https://pt.wikipedia.org/wiki/Clássico_da_Rivalidade"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: fluminense
     names:
@@ -320,7 +320,7 @@ teams:
       es:
         cheer: ["¡Vamos, Flu!", "¡Arriba, Fluminense!"]
       es-AR:
-        cheer: ["¡Dale, Flu, que hoy lo ganás!", "¡Aguante, Fluminense!"]
+        cheer: ["¡Dale, Flu, que hoy lo ganás!", "¡Aguante Fluminense!"]
       es-UY:
         cheer: ["¡Vamo arriba, Flu!", "¡Dale, Fluminense, que vos podés!"]
       es-MX:
@@ -372,7 +372,7 @@ teams:
       es:
         cheer: ["¡Vamos, Fogão!", "¡Arriba, Botafogo!"]
       es-AR:
-        cheer: ["¡Dale, Fogão, que hoy lo ganás!", "¡Aguante, Botafogo!"]
+        cheer: ["¡Dale, Fogão, que hoy lo ganás!", "¡Aguante Botafogo!"]
       es-UY:
         cheer: ["¡Vamo arriba, Fogão!", "¡Dale, Botafogo, que vos podés!"]
       es-MX:
@@ -388,7 +388,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Botafogo_de_Futebol_e_Regatas"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: vasco-da-gama
     names:
@@ -424,7 +424,7 @@ teams:
       es:
         cheer: ["¡Vamos, Vascão!", "¡Arriba, Vasco!"]
       es-AR:
-        cheer: ["¡Dale, Vascão, que hoy lo ganás!", "¡Aguante, Vasco!"]
+        cheer: ["¡Dale, Vascão, que hoy lo ganás!", "¡Aguante Vasco!"]
       es-UY:
         cheer: ["¡Vamo arriba, Vascão!", "¡Dale, Vasco, que vos podés!"]
       es-MX:
@@ -441,7 +441,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Club_de_Regatas_Vasco_da_Gama"
       - "https://www.lance.com.br/vasco/casaca-x-caza-conheca-a-origem-dos-canticos-de-vasco-e-sport.html"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: atletico-mineiro
     names:
@@ -476,11 +476,11 @@ teams:
       es:
         cheer: ["¡Vamos, Galo!", "¡Arriba, Atlético!"]
       es-AR:
-        cheer: ["¡Dale, Galo, que hoy lo ganás!", "¡Aguante, Atlético!"]
+        cheer: ["¡Dale, Galo, que hoy lo ganás!", "¡Aguante Atlético!"]
       es-UY:
         cheer: ["¡Vamo arriba, Galo!", "¡Dale, Atlético, que vos podés!"]
       es-MX:
-        cheer: ["¡Le voy al Galo!", "¡Arriba el Atlético!"]
+        cheer: ["¡Le voy al Galo!", "¡Arriba el Atlético Mineiro!"]
       es-CO:
         cheer: ["¡Hágale, Galo!", "¡Vamos, Atlético, con toda la barra!"]
       es-PE:
@@ -493,7 +493,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Clube_Atlético_Mineiro"
       - "https://www.correiobraziliense.com.br/esportes/2023/11/6661814-atletico-reacende-mantra-8216eu-acredito-8217-por-sonho-do-brasileirao.html"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: cruzeiro
     names:
@@ -527,7 +527,7 @@ teams:
       es:
         cheer: ["¡Vamos, Raposa!", "¡Arriba, Cruzeiro!"]
       es-AR:
-        cheer: ["¡Dale, Raposa, que hoy lo ganás!", "¡Aguante, Cruzeiro!"]
+        cheer: ["¡Dale, Raposa, que hoy lo ganás!", "¡Aguante Cruzeiro!"]
       es-UY:
         cheer: ["¡Vamo arriba, Raposa!", "¡Dale, Cruzeiro, que vos podés!"]
       es-MX:
@@ -543,7 +543,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Cruzeiro_Esporte_Clube"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: gremio
     names:
@@ -574,13 +574,13 @@ teams:
       pt-BR:
         cheer: ["Vamos, Imortal!", "Vai, Grêmio!"]
       es:
-        cheer: ["¡Vamos, Imortal!", "¡Arriba, Grêmio!"]
+        cheer: ["¡Vamos, Inmortal Tricolor!", "¡Arriba, Grêmio!"]
       es-AR:
-        cheer: ["¡Dale, Imortal, que hoy lo ganás!", "¡Aguante, Grêmio!"]
+        cheer: ["¡Dale, Imortal, que hoy lo ganás!", "¡Aguante Grêmio!"]
       es-UY:
         cheer: ["¡Vamo arriba, Imortal!", "¡Dale, Grêmio, que vos podés!"]
       es-MX:
-        cheer: ["¡Le voy al Imortal!", "¡Arriba el Grêmio!"]
+        cheer: ["¡Le voy al Imortal Tricolor!", "¡Arriba el Grêmio!"]
       es-CO:
         cheer: ["¡Hágale, Imortal!", "¡Vamos, Grêmio, con toda la barra!"]
       es-PE:
@@ -592,7 +592,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Grêmio_Foot-Ball_Porto_Alegrense"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: internacional
     names:
@@ -625,7 +625,7 @@ teams:
       es:
         cheer: ["¡Vamos, Colorado!", "¡Arriba, Inter!"]
       es-AR:
-        cheer: ["¡Dale, Colorado, que hoy lo ganás!", "¡Aguante, Inter!"]
+        cheer: ["¡Dale, Colorado, que hoy lo ganás!", "¡Aguante Inter!"]
       es-UY:
         cheer: ["¡Vamo arriba, Colorado!", "¡Dale, Inter, que vos podés!"]
       es-MX:
@@ -641,7 +641,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Sport_Club_Internacional"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: athletico-paranaense
     names:
@@ -668,7 +668,7 @@ teams:
       - { team: coritiba, derby: atletiba, intensity: 5 }
     identity:
       - "Fundado em 1924 em Curitiba."
-      - "Desde 2024 o nome institucional do estádio é Estádio Mario Celso Petraglia; o apelido Arena da Baixada segue em uso e o contrato de naming rights anterior terminou em 2025."
+      - "Desde 2024 o nome oficial do estádio é Estádio Mário Celso Petraglia; o apelido Arena da Baixada segue em uso."
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Furacão!", "Vai, Athletico!"]
@@ -677,7 +677,7 @@ teams:
       - "https://www.bemparana.com.br/esportes/atletico-paranaense/conselho-do-athletico-aprova-por-unanimidade-mudanca-de-nome-para-estadio-mario-celso-petraglia/"
       - "https://www.band.com.br/band-parana/noticias/ligga-confirma-fim-de-contrato-com-o-athletico-202507251433"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: coritiba
     names:
@@ -710,7 +710,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Coritiba_Foot_Ball_Club"
       - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
-    review_status: draft
+    review_status: approved
 
   - slug: bahia
     names:
@@ -744,7 +744,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Esporte_Clube_Bahia"
       - "https://www.band.com.br/esportes/corinthians-mudar-naming-rights-veja-estadios-serie-a-202603101201"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: vitoria-ba
     names:
@@ -777,7 +777,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Esporte_Clube_Vitória"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: chapecoense
     names:
@@ -810,7 +810,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Associação_Chapecoense_de_Futebol"
       - "https://acores.rtp.pt/?p=26655"
       - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
-    review_status: draft
+    review_status: approved
 
   - slug: mirassol
     names:
@@ -843,7 +843,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Mirassol_Futebol_Clube"
       - "https://github.com/lucca-schramm/test/blob/main/brasileirao_a.json"
       - "https://github.com/MrPatinhas/cartologia_awken/blob/master/local_dbs/Paulista/paulista_dados_partidas.csv"
-    review_status: draft
+    review_status: approved
 
   - slug: red-bull-bragantino
     names:
@@ -875,7 +875,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Red_Bull_Bragantino"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: remo
     names:
@@ -910,7 +910,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Clube_do_Remo"
       - "https://diariodopara.com.br/bola/cbf-confirma-clubes-do-brasileirao-2026-serie-d-cresce-e-bate-recorde/"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   # ------------------------------------------------- TRADICIONAIS FORA DA SÉRIE A 2026
   - slug: sport-recife
@@ -946,7 +946,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Sport_Club_do_Recife"
       - "https://www.lance.com.br/vasco/casaca-x-caza-conheca-a-origem-dos-canticos-de-vasco-e-sport.html"
       - "https://github.com/lucca-schramm/test/blob/main/brasileirao_a.json"
-    review_status: draft
+    review_status: approved
 
   - slug: nautico
     names:
@@ -980,7 +980,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Clube_Náutico_Capibaribe"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: santa-cruz
     names:
@@ -1013,7 +1013,7 @@ teams:
         cheer: ["Vamos, Santinha!", "Vai, Cobra Coral!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Santa_Cruz_Futebol_Clube"
-    review_status: draft
+    review_status: approved
 
   - slug: ceara
     names:
@@ -1047,7 +1047,7 @@ teams:
       - "https://pt.wikipedia.org/wiki/Ceará_Sporting_Club"
       - "https://mais.opovo.com.br/jornal/esportes/2020/12/17/classico-rei-completa-102-anos-nesta-quinta-feira--veja-historico-entre-equipes.html"
       - "https://github.com/lucca-schramm/test/blob/main/brasileirao_a.json"
-    review_status: draft
+    review_status: approved
 
   - slug: fortaleza
     names:
@@ -1073,14 +1073,14 @@ teams:
     rivals:
       - { team: ceara, derby: classico-rei, intensity: 5 }
     identity:
-      - "Fundado em 1918; foi finalista da Copa Sul-Americana de 2023 e é tricampeão da Copa do Nordeste."
+      - "Fundado em 1918; foi finalista da Copa Sul-Americana de 2023 e venceu a Copa do Nordeste em 2019, 2022 e 2024."
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Leão!", "Vai, Fortaleza!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Fortaleza_Esporte_Clube"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: paysandu
     names:
@@ -1113,7 +1113,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Paysandu_Sport_Club"
       - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
-    review_status: draft
+    review_status: approved
 
   - slug: criciuma
     names:
@@ -1145,7 +1145,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Criciúma_Esporte_Clube"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: avai
     names:
@@ -1178,7 +1178,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Avaí_Futebol_Clube"
       - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
-    review_status: draft
+    review_status: approved
 
   - slug: figueirense
     names:
@@ -1204,14 +1204,14 @@ teams:
     rivals:
       - { team: avai, derby: classico-da-capital-sc, intensity: 4 }
     identity:
-      - "Fundado em 1921 no bairro do Estreito, em Florianópolis."
+      - "Fundado em 1921 no antigo bairro da Figueira, no Centro de Florianópolis, que deu nome ao clube; mudou-se para o Estreito em 1945."
     copy_hints:
       pt-BR:
         cheer: ["Vamos, Figueira!", "Vai, Furacão!"]
     sources:
       - "https://pt.wikipedia.org/wiki/Figueirense_Futebol_Clube"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: juventude
     names:
@@ -1243,7 +1243,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Esporte_Clube_Juventude"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: goias
     names:
@@ -1276,7 +1276,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Goiás_Esporte_Clube"
       - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
-    review_status: draft
+    review_status: approved
 
   - slug: atletico-goianiense
     names:
@@ -1309,7 +1309,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Atlético_Clube_Goianiense"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: america-mineiro
     names:
@@ -1342,7 +1342,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/América_Futebol_Clube_(Belo_Horizonte)"
       - "https://github.com/mr010bushido/fpp_dashboard/blob/main/data/pre_match/31.csv"
-    review_status: draft
+    review_status: approved
 
   - slug: cuiaba
     names:
@@ -1374,7 +1374,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Cuiabá_Esporte_Clube"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_teams.sql"
-    review_status: draft
+    review_status: approved
 
   - slug: ponte-preta
     names:
@@ -1443,4 +1443,4 @@ teams:
       - "https://pt.wikipedia.org/wiki/Guarani_Futebol_Clube"
       - "https://pt.wikipedia.org/wiki/Dérbi_Campineiro"
       - "https://github.com/MrPatinhas/cartologia_awken/blob/master/local_dbs/Paulista/paulista_dados_partidas.csv"
-    review_status: draft
+    review_status: approved
