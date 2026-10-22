@@ -268,6 +268,42 @@ describe('buildTimelineDto', () => {
     ]);
   });
 
+  it('não toma a primeira observação no meio do jogo como início do período', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        status: 'live',
+        statusDetail: '2H',
+        clock: { minute: 70, extra: null },
+        startsAt: new Date('2026-10-22T00:30:00Z'),
+        // o poller só começou no 2º tempo: starting → 2H não é o início do 2º tempo
+        stateLog: [
+          {
+            from: 'starting',
+            to: 'live',
+            reason: 'provider',
+            statusDetail: '2H',
+            at: new Date('2026-10-22T01:55:00Z'),
+          },
+        ],
+        incidents: [
+          inc({
+            type: 'card',
+            detail: 'Yellow Card',
+            minute: 72,
+            team: PAL,
+            observedAt: new Date('2026-10-22T01:58:30Z'),
+          }),
+        ],
+      }),
+    );
+    expect(t.incidents[0]).toMatchObject({
+      occurred_at: '2026-10-22T01:58:30Z',
+      occurred_at_source: 'observed',
+    });
+    expect(t.markers.find((m) => m.kind === 'second_half')?.occurred_at).toBeNull();
+  });
+
   it('não mostra marcos nem relógio para o "ao vivo" inferido pelo horário, sem dado do fornecedor', () => {
     const t = buildTimelineDto(
       input({

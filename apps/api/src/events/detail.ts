@@ -82,6 +82,7 @@ export async function buildTimeline(
       score: event.score,
       lastValidAt: event.lastValidAt,
       isStale: event.isStale,
+      startsAt: event.startsAt,
       venueCity: venue.city,
       venueCountry: venue.countryCode,
       competitionCountry: competition.countryCode,
@@ -206,6 +207,7 @@ export async function buildTimeline(
         observedAt: uuidv7Time(r.i.id),
       };
     }),
+    startsAt: head.startsAt,
     periods: {
       first: unix(summary?.fixture?.periods?.first),
       second: unix(summary?.fixture?.periods?.second),

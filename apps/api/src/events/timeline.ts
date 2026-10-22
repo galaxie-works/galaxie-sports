@@ -58,6 +58,8 @@ export interface TimelineInput {
   incidents: RawIncident[];
   /** `fixture.periods` do fornecedor (início do 1º e do 2º tempo). */
   periods: { first: Date | null; second: Date | null };
+  /** Horário marcado (o 1º tempo observado só vale perto dele). */
+  startsAt?: Date | null;
   stateLog: StateLogEntry[];
   /** Papel na escalação (para acertar quem entra e quem sai na substituição). */
   lineupRole?: (personId: string | null) => 'starter' | 'sub' | null;
@@ -101,6 +103,8 @@ export const KIND_WEIGHT: Record<TimelineKind, number> = {
 /** VAR sobre gol, pênalti ou vermelho pesa mais que os demais. */
 const VAR_KEY_WEIGHT = 65;
 const DECISIVE_WEIGHT = 100;
+/** Atraso máximo do apito para aceitar o "1H" observado como início do jogo. */
+const FIRST_HALF_GRACE_MS = 30 * 60_000;
 export const KEY_MOMENT_MIN_WEIGHT = 60;
 
 /** Instante UTC com sufixo Z, sem milissegundos (precisão de minuto nos derivados). */
@@ -149,14 +153,23 @@ function kindOf(i: RawIncident): TimelineKind {
 const personKey = (p: TimelinePerson | null) => (p ? (p.id ?? `name:${p.name.toLowerCase()}`) : null);
 
 /** Início de cada período em UTC: do fornecedor (`fixture.periods`) ou observado no log de estados. */
-export function periodAnchors(input: Pick<TimelineInput, 'periods' | 'stateLog'>) {
-  const observed = (detail: string, nth = 0) =>
+export function periodAnchors(input: Pick<TimelineInput, 'periods' | 'stateLog' | 'startsAt'>) {
+  /**
+   * Só vale a transição que é de fato a fronteira do período: o 2º tempo e a prorrogação saindo de um
+   * intervalo observado, os intervalos saindo de bola rolando e o 1º tempo perto do horário marcado. Se o
+   * Live Poller pegou o jogo já no meio (ingestor reiniciado), a primeira observação não é o início.
+   */
+  const observed = (detail: string, from: (EventStatus | null)[], nth = 0) =>
     input.stateLog.filter(
       (l) =>
         (l.to === 'live' || l.to === 'break') &&
         l.reason !== 'temporal' &&
         l.reason !== 'temporal_fallback' &&
-        (l.statusDetail ?? '').toUpperCase() === detail,
+        (l.statusDetail ?? '').toUpperCase() === detail &&
+        from.includes(l.from) &&
+        (detail !== '1H' ||
+          !input.startsAt ||
+          l.at.getTime() <= input.startsAt.getTime() + FIRST_HALF_GRACE_MS),
     )[nth]?.at ?? null;
   const anchor = (provider: Date | null, seen: Date | null) =>
     provider
@@ -165,13 +178,13 @@ export function periodAnchors(input: Pick<TimelineInput, 'periods' | 'stateLog'>
         ? { at: seen, source: 'observed' as const }
         : null;
   return {
-    first_half: anchor(input.periods.first, observed('1H')),
-    second_half: anchor(input.periods.second, observed('2H')),
-    extra_time_first: anchor(null, observed('ET', 0)),
-    extra_time_second: anchor(null, observed('ET', 1)),
-    penalty_shootout: anchor(null, observed('P')),
-    halftime: anchor(null, observed('HT')),
-    end_of_regulation: anchor(null, observed('BT', 0)),
+    first_half: anchor(input.periods.first, observed('1H', [null, 'scheduled', 'starting'])),
+    second_half: anchor(input.periods.second, observed('2H', ['break'])),
+    extra_time_first: anchor(null, observed('ET', ['break'], 0)),
+    extra_time_second: anchor(null, observed('ET', ['break'], 1)),
+    penalty_shootout: anchor(null, observed('P', ['break'])),
+    halftime: anchor(null, observed('HT', ['live'])),
+    end_of_regulation: anchor(null, observed('BT', ['live'], 0)),
   };
 }
 
