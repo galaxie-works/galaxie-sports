@@ -2,7 +2,6 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig } from 'motion/react';
-import { ThemeProvider } from 'next-themes';
 import { useState } from 'react';
 
 import { Toaster } from '@/components/ui/sonner';
@@ -19,16 +18,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }),
   );
 
+  // A demo é só tema escuro (classe `dark` fixa no <html>): sem next-themes, que injeta um <script>
+  // que o React 19 rejeita; o Toaster recebe o tema direto.
   return (
-    <ThemeProvider attribute="class" forcedTheme="dark" disableTransitionOnChange>
-      <QueryClientProvider client={queryClient}>
-        <MotionConfig reducedMotion="user">
-          <TooltipProvider>
-            {children}
-            <Toaster />
-          </TooltipProvider>
-        </MotionConfig>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <MotionConfig reducedMotion="user">
+        <TooltipProvider>
+          {children}
+          <Toaster theme="dark" />
+        </TooltipProvider>
+      </MotionConfig>
+    </QueryClientProvider>
   );
 }

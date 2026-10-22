@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar';
+import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
 
@@ -27,7 +28,7 @@ function isActive(pathname: string | null, href: string) {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLink({ item, pathname }: { item: NavItem; pathname: string | null }) {
+function NavLink({ item, pathname }: { item: NavItem & { slug?: string }; pathname: string | null }) {
   const Icon = item.icon;
   return (
     <SidebarMenuItem>
@@ -36,7 +37,13 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string | null })
         tooltip={item.label}
         render={<Link href={item.href} />}
       >
-        <Icon />
+        {item.slug ? (
+          <AnimatedSportIcon slug={item.slug} className="size-4">
+            <Icon />
+          </AnimatedSportIcon>
+        ) : (
+          <Icon />
+        )}
         <span>{item.label}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
