@@ -117,7 +117,8 @@ export async function CampaignCard({ entry }: { entry: TeamCompetition }) {
         <CardContent className="flex items-center gap-3">
           <Crest src={competition.logo} name={competition.name} size="md" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="truncate text-sm font-medium">{competition.name}</span>
+            {/* duas linhas: ao lado do selo da fase, "Copa do Brasil" não pode virar "Copa do…" */}
+            <span className="line-clamp-2 text-sm font-medium">{competition.name}</span>
             <span className="text-muted-foreground truncate text-xs">
               {season.label}
               {group && group !== competition.name ? ` · ${group}` : ''}

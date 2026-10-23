@@ -84,8 +84,11 @@ export function resultEntry(r: SearchResult): SearchEntry {
   };
 }
 
-/** Ordem dos grupos no empate: o catálogo esportivo (times, competições, jogos) antes do resto. */
-const GROUP_ORDER: SearchType[] = ['team', 'competition', 'event', 'country', 'person', 'venue'];
+/**
+ * Ordem dos grupos no empate: o catálogo esportivo antes do resto, com as competições primeiro (são
+ * poucas e levam a muitas páginas: "liber" mostra a Libertadores antes do Libertad e do Liberec).
+ */
+const GROUP_ORDER: SearchType[] = ['competition', 'team', 'event', 'country', 'person', 'venue'];
 const MATCH_LEVEL = { exact: 0, prefix: 1, contains: 2 } as const;
 /** Pessoas e estádios descem um nível: "boca" mostra o Boca Juniors antes de um jogador chamado Boca. */
 const SECONDARY = new Set<SearchType>(['person', 'venue']);

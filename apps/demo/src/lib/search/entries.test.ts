@@ -44,6 +44,14 @@ describe('busca global — entradas', () => {
     expect(groups[0]![1][0]).toMatchObject({ key: 'team:t', href: '/times/t', label: 'Boca Juniors' });
   });
 
+  it('no empate, competições antes de times ("liber": Libertadores antes do Libertad)', () => {
+    const groups = groupResults([
+      result({ type: 'team', id: 't', name: 'Libertad', match: 'prefix' }),
+      result({ type: 'competition', id: 'c', slug: 'libertadores', name: 'Libertadores', match: 'prefix' }),
+    ]);
+    expect(groups.map(([type]) => type)).toEqual(['competition', 'team']);
+  });
+
   it('documentação: páginas, seções e endpoints, filtrados sem acento', () => {
     const docs = docsEntries(docGuides(getDictionary('pt-BR')), [
       { method: 'get', route: '/v1/search', summary: 'Busca global', tag: 'Busca', anchor: 'get-v1-search' },
