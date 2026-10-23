@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-MX # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: MX
 teams:
   - slug: club-america
@@ -28,14 +28,14 @@ teams:
       - { team: cruz-azul, derby: clasico-joven, intensity: 4 }
       - { team: pumas-unam, derby: clasico-capitalino-mx, intensity: 4 }
     identity:
-      - "Uno de los clubes más laureados del fútbol mexicano."
+      - "Las Águilas son uno de los clubes más ganadores del futbol mexicano."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos América!", "Le voy al América", "¡Arriba las Águilas!"]
+        cheer: ["¡Arriba las Águilas!", "¡Le voy al América!", "¡Vamos, América!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_América"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: guadalajara
     names:
@@ -62,15 +62,15 @@ teams:
       - { team: club-america, derby: clasico-nacional-mx, intensity: 5 }
       - { team: atlas, derby: clasico-tapatio, intensity: 5 }
     identity:
-      - "Tradición de jugar solo con futbolistas mexicanos."
-      - "El apodo Chivas nació como burla de la prensa y fue adoptado con orgullo por el club."
+      - "El Rebaño Sagrado tiene la tradición de jugar solo con futbolistas mexicanos."
+      - "El apodo Chivas nació como burla de la prensa y el club lo adoptó con orgullo."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Chivas!", "Le voy a las Chivas", "¡Arriba el Rebaño!"]
+        cheer: ["¡Arriba las Chivas!", "¡Le voy al Rebaño!", "¡Vamos, Chivas!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Guadalajara"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: cruz-azul
     names:
@@ -95,15 +95,15 @@ teams:
     rivals:
       - { team: club-america, derby: clasico-joven, intensity: 4 }
     identity:
-      - "Nació en Jasso, Hidalgo, ligado a la cooperativa cementera Cruz Azul."
+      - "La Máquina nació en Jasso, Hidalgo, ligada a la cooperativa cementera Cruz Azul."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Cruz Azul!", "Le voy al Cruz Azul", "¡Vamos Máquina!"]
+        cheer: ["¡Vamos, Máquina!", "¡Le voy al Cruz Azul!"]
     sources:
       - "https://es.wikipedia.org/wiki/Cruz_Azul_Fútbol_Club"
       - "https://www.poresto.com/deportes/2026/7/17/liga-mx-confirma-que-cruz-azul-jugara-en-el-estadio-azteca-para-el-apertura-2026-y-pone-fin-a-la-novela-no-tengo-casa.html"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: pumas-unam
     names:
@@ -132,11 +132,11 @@ teams:
       - "Equipo de la Universidad Nacional Autónoma de México, reconocido por su cantera."
     copy_hints:
       es-MX:
-        cheer: ["¡Goya!", "Le voy a los Pumas", "¡Vamos Pumas!"]
+        cheer: ["¡Goya!", "¡Le voy a los Pumas!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Universidad_Nacional"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: tigres-uanl
     names:
@@ -162,14 +162,14 @@ teams:
     rivals:
       - { team: monterrey, derby: clasico-regio, intensity: 5 }
     identity:
-      - "Representa a la Universidad Autónoma de Nuevo León; campeón de la Concachampions 2020."
+      - "Representa a la Universidad Autónoma de Nuevo León; los Felinos fueron campeones de la Concachampions 2020."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Tigres!", "Le voy a Tigres"]
+        cheer: ["¡Vamos, Tigres!", "¡Le voy a los Felinos!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_de_Fútbol_Tigres_de_la_Universidad_Autónoma_de_Nuevo_León"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: monterrey
     names:
@@ -194,14 +194,14 @@ teams:
     rivals:
       - { team: tigres-uanl, derby: clasico-regio, intensity: 5 }
     identity:
-      - "Cinco veces campeón de la Concacaf Liga de Campeones."
+      - "Rayados es cinco veces campeón de la Concachampions."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Rayados!", "Le voy a Rayados"]
+        cheer: ["¡Vamos, Rayados!", "¡Le voy a la Pandilla!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_de_Fútbol_Monterrey"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: toluca
     names:
@@ -228,11 +228,11 @@ teams:
       - "Club de la capital del Estado de México, conocido como los Diablos Rojos."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Toluca!", "Le voy al Toluca"]
+        cheer: ["¡Vamos, Diablos!", "¡Le voy al Toluca!"]
     sources:
       - "https://es.wikipedia.org/wiki/Deportivo_Toluca_Fútbol_Club"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: pachuca
     names:
@@ -257,15 +257,15 @@ teams:
       city: Pachuca
     rivals: []
     identity:
-      - "Considerado la cuna del fútbol en México, introducido por mineros ingleses de Cornualles."
+      - "Pachuca es considerada la cuna del futbol en México, deporte que llegó con mineros ingleses de Cornualles."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Tuzos!", "Le voy al Pachuca"]
+        cheer: ["¡Vamos, Tuzos!", "¡Le voy al Pachuca!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_de_Fútbol_Pachuca"
       - "https://en.wikipedia.org/wiki/C.F._Pachuca"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: club-leon
     names:
@@ -289,14 +289,14 @@ teams:
       city: León
     rivals: []
     identity:
-      - "Club del Bajío conocido como La Fiera; campeón de la Concachampions 2023."
+      - "La Fiera es un club del Bajío; fue campeón de la Concachampions 2023."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos León!", "Le voy a la Fiera"]
+        cheer: ["¡Vamos, Fiera!", "¡Le voy a los Panzas Verdes!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_León"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: santos-laguna
     names:
@@ -320,14 +320,14 @@ teams:
       city: Torreón
     rivals: []
     identity:
-      - "Representa a la Comarca Lagunera, entre Coahuila y Durango."
+      - "Los Guerreros representan a la Comarca Lagunera, entre Coahuila y Durango."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Santos!", "Le voy a los Guerreros"]
+        cheer: ["¡Vamos, Guerreros!", "¡Le voy al Santos!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Santos_Laguna"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: atlas
     names:
@@ -354,15 +354,15 @@ teams:
     rivals:
       - { team: guadalajara, derby: clasico-tapatio, intensity: 5 }
     identity:
-      - "Fundado por jóvenes tapatíos que habían estudiado en Inglaterra."
-      - "Bicampeón de Liga MX en Apertura 2021 y Clausura 2022."
+      - "Lo fundaron jóvenes tapatíos que habían estudiado en Inglaterra."
+      - "Los Rojinegros fueron bicampeones de la Liga MX en el Apertura 2021 y el Clausura 2022."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Atlas!", "Le voy al Atlas", "¡Arriba el Atlas!"]
+        cheer: ["¡Arriba el Atlas!", "¡Le voy a los Rojinegros!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlas"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: puebla
     names:
@@ -386,14 +386,14 @@ teams:
       city: Puebla
     rivals: []
     identity:
-      - "Su camiseta blanca con franja azul diagonal da origen al apodo La Franja."
+      - "Su playera blanca con la franja azul diagonal le dio el apodo de La Franja."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Puebla!", "Le voy a la Franja"]
+        cheer: ["¡Vamos, Franja!", "¡Le voy al Puebla!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Puebla"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: necaxa
     names:
@@ -417,14 +417,14 @@ teams:
       city: Aguascalientes
     rivals: []
     identity:
-      - "Nació en la Ciudad de México ligado a la compañía de luz; se mudó a Aguascalientes en 2003."
+      - "Los Rayos nacieron en la Ciudad de México ligados a la compañía de luz; se mudaron a Aguascalientes en 2003."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Necaxa!", "Le voy a los Rayos"]
+        cheer: ["¡Vamos, Rayos!", "¡Le voy al Necaxa!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Necaxa"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: tijuana
     names:
@@ -449,11 +449,11 @@ teams:
       city: Tijuana
     rivals: []
     identity:
-      - "Su apodo Xolos homenajea al xoloitzcuintle, perro originario de México; campeón del Apertura 2012."
+      - "Su apodo Xolos homenajea al xoloitzcuintle, perro originario de México; el club fue campeón del Apertura 2012."
     copy_hints:
       es-MX:
-        cheer: ["¡Vamos Xolos!", "Le voy a los Xolos"]
+        cheer: ["¡Vamos, Xolos!", "¡Le voy a los Xolos!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Tijuana"
       - "https://futboltotal.futbol/league/liga-mx/clasificacion"
-    review_status: draft
+    review_status: approved

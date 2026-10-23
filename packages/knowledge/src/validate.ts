@@ -803,13 +803,14 @@ function validateTexts(
       );
       continue;
     }
-    if (target.textLocale === x.locale)
+    // texto na voz do país (es-AR) já serve todo mercado em espanhol: um `es` neutro por cima o apagaria
+    if (target.textLocale === x.locale || target.textLocale.split('-')[0] === x.locale)
       add(
         'error',
         'i18n-redundant',
         x.file,
         line,
-        `${slug}: o texto original já está em ${x.locale} (${target.file}) — edite lá`,
+        `${slug}: o texto original já está em ${target.textLocale} (${target.file}) — edite lá`,
       );
     if (rank(x.entry.review_status) > rank(target.entry.review_status))
       add(

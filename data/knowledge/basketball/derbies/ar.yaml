@@ -1,6 +1,6 @@
 # Base semântica — clássicos do básquet argentino (Liga Nacional) (schema v1)
 schema_version: 1
-text_locale: es # idioma de origin e trivia (docs/06 §3.3)
+text_locale: es-AR # idioma de origin e trivia (docs/06 §3.3)
 region: ar
 derbies:
   - slug: basketball-clasico-marplatense
@@ -19,7 +19,7 @@ derbies:
       - "https://lanacion.com.ar/deportes/penarol-repitio-el-triunfo-en-el-clasico-marplatense-ante-quilmes-nid1749354"
       - "https://es.wikipedia.org/wiki/Club_Atlético_Peñarol_(Mar_del_Plata)"
       - "https://es.wikipedia.org/wiki/Club_Atlético_Quilmes_(Mar_del_Plata)"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-clasico-santiagueno
     name: Clásico santiagueño
@@ -36,7 +36,7 @@ derbies:
       - "https://www.diariopanorama.com/noticia/319977/olimpico-logro-triunfo-mas-abultado-historia-clasico"
       - "https://www.baenegocios.com/deportes/Quimsa-le-gano-a-su-escolta-Olimpico-el-clasico-santiagueno-y-sigue-liderando-el-torneo-20240123-0005.html"
       - "https://es.wikipedia.org/wiki/Asociación_Atlética_Quimsa"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-clasico-cordobes
     name: Clásico cordobés
@@ -52,4 +52,4 @@ derbies:
     sources:
       - "https://hoydia.com.ar/deportes/basquet/instituto-y-atenas-cierran-el-ano-en-el-sandrin/"
       - "https://cba24n.com.ar/noche-de-clasico-cordobes-en-la-liga-nacional-de-basquet_a5de57f9ad91dda49891470bc"
-    review_status: draft
+    review_status: approved

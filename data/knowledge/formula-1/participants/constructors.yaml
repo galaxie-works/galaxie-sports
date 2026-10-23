@@ -24,7 +24,7 @@ participants:
       - "Recordista de títulos de construtores, com 16 conquistas."
     sources:
       - "https://en.wikipedia.org/wiki/Scuderia_Ferrari"
-    review_status: draft
+    review_status: approved
 
   - slug: f1-mercedes
     names:
@@ -45,7 +45,7 @@ participants:
       - "Conquistou oito títulos de construtores consecutivos, de 2014 a 2021, um recorde."
     sources:
       - "https://en.wikipedia.org/wiki/Mercedes-AMG_Petronas_F1_Team"
-    review_status: draft
+    review_status: approved
 
   - slug: f1-mclaren
     names:
@@ -65,7 +65,7 @@ participants:
       - "Dez títulos de construtores, os mais recentes em 2024 e 2025."
     sources:
       - "https://en.wikipedia.org/wiki/McLaren"
-    review_status: draft
+    review_status: approved
 
   - slug: f1-alpine
     names:
@@ -86,7 +86,7 @@ participants:
     sources:
       - "https://en.wikipedia.org/wiki/Alpine_F1_Team"
       - "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship"
-    review_status: draft
+    review_status: approved
 
   - slug: f1-audi
     names:
@@ -106,7 +106,7 @@ participants:
       - "O brasileiro Gabriel Bortoleto marcou os primeiros pontos da história da equipe, com o 9º lugar no GP da Austrália de 2026."
     sources:
       - "https://en.wikipedia.org/wiki/Audi_in_Formula_One"
-    review_status: draft
+    review_status: approved
 
   - slug: f1-cadillac
     names:
@@ -127,4 +127,4 @@ participants:
       - "Equipe do mexicano Sergio 'Checo' Pérez e do finlandês Valtteri Bottas em 2026."
     sources:
       - "https://en.wikipedia.org/wiki/Cadillac_in_Formula_One"
-    review_status: draft
+    review_status: approved

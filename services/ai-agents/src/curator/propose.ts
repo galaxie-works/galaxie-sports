@@ -1,4 +1,11 @@
-import { checkChant, checkProse, type KnowledgeBase, type TeamEntry } from '@galaxie/knowledge';
+import {
+  checkChant,
+  checkProse,
+  TEXT_LOCALES,
+  type KnowledgeBase,
+  type TeamEntry,
+  type TextLocale,
+} from '@galaxie/knowledge';
 import {
   detectPromptInjection,
   findForbiddenTerms,
@@ -84,6 +91,17 @@ export function entryLocale(countryCode: string | null): string {
   const cc = (countryCode ?? '').toUpperCase();
   if (LOCALE_BY_COUNTRY[cc]) return LOCALE_BY_COUNTRY[cc]!;
   return HISPANIC.has(cc) ? 'es-AR' : 'pt-BR';
+}
+
+/**
+ * `text_locale` do arquivo de times do país: a variante do próprio país quando a base a conhece (es-AR,
+ * es-PY…), `es` nos demais hispânicos, pt-BR no resto. O texto do clube sai na voz do país (docs/06 §3.3).
+ */
+export function entryTextLocale(countryCode: string | null): TextLocale {
+  const cc = (countryCode ?? '').toUpperCase();
+  const own = `es-${cc}`;
+  if ((TEXT_LOCALES as readonly string[]).includes(own)) return own as TextLocale;
+  return HISPANIC.has(cc) ? 'es' : 'pt-BR';
 }
 
 export function teamsFileFor(countryCode: string): string {
@@ -237,7 +255,12 @@ export async function proposeNewTeam(
     return proposal;
   }
   const locale = entryLocale(gap.countryCode);
-  const language = locale.startsWith('pt') ? 'português (pt-BR)' : 'espanhol';
+  const textLocale = entryTextLocale(gap.countryCode);
+  const language = locale.startsWith('pt')
+    ? 'português (pt-BR)'
+    : textLocale === 'es'
+      ? 'espanhol'
+      : `espanhol como se fala no país do clube (${textLocale}), chamando o clube pelos apelidos que a própria torcida usa`;
   let res;
   try {
     res = await llm.generateJson<Record<string, unknown>>({

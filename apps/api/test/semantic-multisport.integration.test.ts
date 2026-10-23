@@ -375,7 +375,7 @@ beforeAll(async () => {
   const core = await upsertTenant(db, { slug: 'core', name: 'Core', plan: 'core_data' });
   coreOnlyKey = (await createApiKey(db, core.id, { env: 'test' })).key;
 
-  // desenvolvimento local: a base inteira ainda é draft
+  // desenvolvimento local serve também o que ainda é draft (copy e glossário)
   app = buildServer({ db, redis, keyPrefix, semantic: { minReviewStatus: 'draft' } });
   prodApp = buildServer({ db, redis, keyPrefix: `${keyPrefix}prod:` });
   await app.ready();
@@ -409,16 +409,24 @@ describe('módulos e piso editorial', () => {
   });
 
   it('padrão de produção (approved) não serve conteúdo draft; o cliente só endurece o piso', async () => {
-    expect((await get('/v1/derbies', {}, prodApp)).json().data).toEqual([]);
+    // perfis e clássicos revisados chegam à produção
+    const derbies = (await get('/v1/derbies', {}, prodApp)).json().data;
+    expect(derbies.length).toBeGreaterThan(50);
+    expect(new Set(derbies.map((d: { review_status: string }) => d.review_status))).toEqual(
+      new Set(['approved']),
+    );
     const team = await get('/v1/teams/palmeiras/semantic', {}, prodApp);
-    expect(team.statusCode).toBe(404);
-    expect(team.json().detail).toContain('approved');
+    expect(team.statusCode).toBe(200);
+    expect(team.json().review_status).toBe('approved');
+    // o glossário ainda é draft: fica fora da produção
     expect((await get('/v1/glossary?locale=pt-BR', {}, prodApp)).json().data).toEqual([]);
     // pedir draft num servidor approved não afrouxa
-    expect((await get('/v1/derbies?min_review_status=draft', {}, prodApp)).json().data).toEqual([]);
+    expect((await get('/v1/glossary?locale=pt-BR&min_review_status=draft', {}, prodApp)).json().data).toEqual(
+      [],
+    );
     // pedir approved num servidor draft endurece
-    expect((await get('/v1/derbies?min_review_status=approved')).json().data).toEqual([]);
-    expect((await get('/v1/derbies')).json().data.length).toBeGreaterThan(50);
+    expect((await get('/v1/glossary?locale=pt-BR&min_review_status=approved')).json().data).toEqual([]);
+    expect((await get('/v1/glossary?locale=pt-BR')).json().data.length).toBeGreaterThan(0);
   });
 });
 
@@ -522,7 +530,7 @@ describe('/v1/teams/{id}/semantic e /rivals', () => {
       country: 'BR',
       fans: { demonym: 'palmeirense' },
       rallying_cries: expect.arrayContaining(['Avanti, Palestra!']),
-      review_status: 'draft',
+      review_status: 'approved',
     });
     expect(body.nicknames).toEqual(expect.arrayContaining(['Verdão']));
     expect(body.copy_hints.locale).toBe('pt-BR');
@@ -545,7 +553,7 @@ describe('/v1/teams/{id}/semantic e /rivals', () => {
     expect(ar.identity[1]).toContain('hinchada');
     expect(ar.copy_hints).toMatchObject({
       locale: 'es-AR',
-      cheer: expect.arrayContaining(['¡Aguante, Palmeiras!']),
+      cheer: expect.arrayContaining(['¡Aguante Palmeiras!']),
     });
     const mx = (await get('/v1/teams/palmeiras/semantic?locale=es-MX')).json();
     expect(mx).toMatchObject({ text_locale: 'es-MX', mascot: 'Porco (puerco)' });
@@ -558,7 +566,12 @@ describe('/v1/teams/{id}/semantic e /rivals', () => {
     // original em espanhol: pt-BR usa a tradução, es-XX fica no original
     const boca = (await get('/v1/teams/boca-juniors/semantic?locale=pt-BR')).json();
     expect(boca.text_locale).toBe('pt-BR');
-    expect(boca.identity[0]).toMatch(/^Fundado no bairro/);
+    expect(boca.identity[0]).toMatch(/La Boca/);
+    // clube hispânico na voz do país em todo mercado de espanhol, com os gritos da torcida
+    const bocaMx = (await get('/v1/teams/boca-juniors/semantic?locale=es-MX')).json();
+    expect(bocaMx).toMatchObject({ text_locale: 'es-AR', copy_hints: { locale: 'es-AR' } });
+    expect(bocaMx.identity[1]).toContain('cancha');
+    expect(bocaMx.copy_hints.cheer).toContain('¡Dale, Bo!');
     const derby = (await get('/v1/derbies/classico-do-povo?locale=es-PE')).json();
     expect(derby).toMatchObject({
       text_locale: 'es-PE',

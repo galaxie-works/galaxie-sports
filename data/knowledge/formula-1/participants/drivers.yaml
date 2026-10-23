@@ -26,7 +26,7 @@ participants:
     sources:
       - "https://en.wikipedia.org/wiki/Sergio_P%C3%A9rez"
       - "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship"
-    review_status: draft
+    review_status: approved
 
   - slug: f1-franco-colapinto
     names:
@@ -51,7 +51,7 @@ participants:
       - "https://alpinef1.com/drivers/franco-colapinto"
       - "https://www.c5n.com/deportes/el-particular-apodo-que-le-puso-la-prensa-europea-franco-colapinto-n217515"
       - "https://news.agrofy.com.ar/noticia/214482/gaucho-formula-1-respuesta-franco-colapinto-su-nuevo-apodo-y-quien-es-verdadero"
-    review_status: draft
+    review_status: approved
 
   - slug: f1-gabriel-bortoleto
     names:
@@ -72,7 +72,7 @@ participants:
     sources:
       - "https://en.wikipedia.org/wiki/Gabriel_Bortoleto"
       - "https://en.wikipedia.org/wiki/Audi_in_Formula_One"
-    review_status: draft
+    review_status: approved
 
   - slug: f1-fernando-alonso
     names:
@@ -96,4 +96,4 @@ participants:
     sources:
       - "https://es.wikipedia.org/wiki/Fernando_Alonso"
       - "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship"
-    review_status: draft
+    review_status: approved

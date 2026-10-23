@@ -12,49 +12,50 @@ teams:
   - slug: palmeiras
     identity:
       - "Fundado por inmigrantes italianos como Palestra Italia; adoptó el nombre Palmeiras en 1942."
-      - "El apodo Porco (cerdo, en portugués) nació como una burla de los rivales y la propia afición lo adoptó."
+      - "El apodo Porco (cerdo, en portugués) nació como una burla de los rivales y sus propios aficionados lo adoptaron."
       - "En 2026 el estadio pasó a llamarse Nubank Parque (antes Allianz Parque) por un contrato de naming rights."
     mascot: Porco (cerdo)
     colors: [verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: corinthians
     identity:
       - "Fundado en 1910 por obreros en el barrio de Bom Retiro; su nombre homenajea al Corinthian FC, de Londres."
     mascot: Mosqueteiro (mosquetero)
     colors: [negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: sao-paulo
     identity:
       - "Su fecha oficial de fundación, el 25 de enero de 1930, coincide con el aniversario de la ciudad de São Paulo."
     mascot: Santo Paulo (san Pablo)
     colors: [rojo, blanco, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: santos
     identity:
       - "Es el club en el que Pelé jugó la mayor parte de su carrera."
     mascot: Baleia (ballena)
     colors: [negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: flamengo
     identity:
       - "Nació como club de remo en 1895, en Río de Janeiro."
-      - "El Urubu (buitre negro), que los rivales usaban como burla, fue adoptado por la afición en 1969."
+      - "El Urubu (buitre negro), que los rivales usaban como burla, fue adoptado por sus aficionados en 1969."
     mascot: Urubu (buitre negro)
     colors: [rojo, negro]
     fans: { demonym: flamenguista, group_nicknames: [Nación Rubronegra] }
-    review_status: draft
+    review_status: approved
 
   - slug: fluminense
     identity:
-      - "Fundado en 1902 en el barrio de Laranjeiras; campeón de la Copa Libertadores 2023."
-      - "El apodo Pó de Arroz (polvo de arroz), nacido como burla en 1914, fue resignificado por la afición."
-    mascot: Cartola (sombrero de copa)
+      - "Fundado el 21 de julio de 1902 en una reunión en el barrio de Flamengo, con sede en Laranjeiras desde octubre de ese año; campeón de la Copa Libertadores 2023."
+      - "El apodo Pó de Arroz (polvo de arroz), nacido como burla en 1914, fue resignificado por sus aficionados."
+      - "Su mascota actual es el Guerreirinho (pequeño guerrero), adoptado en 2016; el Cartola (sombrero de copa) sigue siendo una figura tradicional del club."
+    mascot: "Guerreirinho (pequeño guerrero)"
     colors: [granate, verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: botafogo
     identity:
@@ -62,7 +63,7 @@ teams:
       - "La Estrella Solitaria del escudo se volvió sinónimo del club."
     mascot: Biriba (perro)
     colors: [negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: vasco-da-gama
     identity:
@@ -70,14 +71,14 @@ teams:
       - "Campeón carioca de 1923 con los Camisas Negras, un equipo formado en su mayoría por jugadores negros y trabajadores."
     mascot: Almirante
     colors: [negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: atletico-mineiro
     identity:
-      - "Fundado en 1908 en Belo Horizonte; campeón de la Copa Libertadores 2013, cuando el lema Eu acredito («Yo creo») impulsó a la afición."
+      - "Fundado en 1908 en Belo Horizonte; campeón de la Copa Libertadores 2013, cuando el lema Eu acredito («Yo creo») impulsó a sus aficionados."
     mascot: Galo (gallo)
     colors: [negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: cruzeiro
     identity:
@@ -85,43 +86,43 @@ teams:
     mascot: Raposa (zorro)
     colors: [azul, blanco]
     fans: { demonym: cruzeirense, group_nicknames: [Nación Azul] }
-    review_status: draft
+    review_status: approved
 
   - slug: gremio
     identity:
       - "Fundado en 1903 en Porto Alegre; conocido como el Inmortal Tricolor."
     mascot: Mosqueteiro (mosquetero)
     colors: [azul, negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: internacional
     identity:
       - "Fundado en 1909 en Porto Alegre; apodado el Club del Pueblo."
     mascot: Saci (personaje del folclore brasileño)
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: athletico-paranaense
     identity:
       - "Fundado en 1924 en Curitiba."
-      - "Desde 2024 el nombre institucional del estadio es Estádio Mario Celso Petraglia; el apodo Arena da Baixada sigue en uso y el contrato anterior de naming rights terminó en 2025."
+      - "Desde 2024 el nombre oficial del estadio es Estádio Mário Celso Petraglia; el apodo Arena da Baixada sigue en uso."
     mascot: Furacão (huracán)
     colors: [rojo, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: coritiba
     identity:
       - "Fundado en 1909 por descendientes de alemanes; es el club más antiguo de Paraná."
     mascot: Vovô Coxa (abuelo Coxa)
     colors: [verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: bahia
     identity:
       - "Fundado el 1 de enero de 1931 en Salvador; primer campeón de la Taça Brasil, en 1959."
     mascot: Superman
     colors: [azul, rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: vitoria-ba
     identity:
@@ -129,35 +130,35 @@ teams:
     mascot: León
     colors: [rojo, negro]
     fans: { demonym: rubronegro }
-    review_status: draft
+    review_status: approved
 
   - slug: chapecoense
     identity:
       - "Fundada en 1973 en Chapecó; declarada campeona de la Copa Sudamericana 2016."
     mascot: Indio Condá
     colors: [verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: mirassol
     identity:
-      - "Club del interior de São Paulo que debutó en la Serie A en 2025."
+      - "Club del interior del estado de São Paulo que debutó en la Serie A en 2025."
     mascot: León
     colors: [amarillo, verde]
-    review_status: draft
+    review_status: approved
 
   - slug: red-bull-bragantino
     identity:
       - "Fundado en 1928 como Clube Atlético Bragantino; pasó a llamarse Red Bull Bragantino en 2020."
     mascot: Toro
     colors: [blanco, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: remo
     identity:
-      - "Fundado en 1905 en Belém; disputa la Serie A 2026, la primera en la era de los puntos corridos."
+      - "Fundado en 1905 en Belém; disputa la Serie A 2026, su primera en la era del formato de todos contra todos."
     mascot: León
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: sport-recife
     identity:
@@ -165,7 +166,7 @@ teams:
     mascot: León
     colors: [rojo, negro]
     fans: { demonym: rubronegro }
-    review_status: draft
+    review_status: approved
 
   - slug: nautico
     identity:
@@ -173,14 +174,14 @@ teams:
     mascot: Timbu (zarigüeya)
     colors: [rojo, blanco]
     fans: { demonym: albirrojo }
-    review_status: draft
+    review_status: approved
 
   - slug: santa-cruz
     identity:
       - "Fundado en 1914 en Recife; conocido como Cobra Coral."
     mascot: Cobra-coral (serpiente de coral)
     colors: [negro, blanco, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: ceara
     identity:
@@ -188,85 +189,86 @@ teams:
     mascot: Vovô (abuelo)
     colors: [negro, blanco]
     fans: { demonym: albinegro }
-    review_status: draft
+    review_status: approved
 
   - slug: fortaleza
     identity:
-      - "Fundado en 1918; fue finalista de la Copa Sudamericana 2023 y es tricampeón de la Copa do Nordeste."
+      - "Fundado en 1918; fue finalista de la Copa Sudamericana 2023 y ganó la Copa do Nordeste en 2019, 2022 y 2024."
     mascot: León
     colors: [rojo, azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: paysandu
     identity:
       - "Fundado en 1914 en Belém; también juega de local en el Mangueirão (Estadio Olímpico de Pará)."
     mascot: Lobo
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: criciuma
     identity:
       - "Fundado en 1947 como Comerciário; campeón de la Copa de Brasil 1991."
     mascot: Tigre
     colors: [amarillo, negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: avai
     identity:
       - "Fundado en 1923 en Florianópolis; conocido como el León de la Isla."
     mascot: León
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: figueirense
     identity:
-      - "Fundado en 1921 en el barrio de Estreito, en Florianópolis."
+      - "Fundado en 1921 en el antiguo barrio de Figueira, en el centro de Florianópolis, que le dio nombre al club; se mudó a Estreito en 1945."
     mascot: Furacão (huracán)
     colors: [negro, blanco]
     fans: { demonym: albinegro }
-    review_status: draft
+    review_status: approved
 
   - slug: juventude
     identity:
       - "Fundado en 1913 en Caxias do Sul; campeón de la Copa de Brasil 1999."
     mascot: Periquito
     colors: [verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: goias
     identity:
       - "Fundado en 1943 en Goiânia; juega de local en la Serrinha."
     mascot: Periquito
     colors: [verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: atletico-goianiense
     identity:
       - "Fundado en 1937 en el barrio de Campinas, en Goiânia; apodado el Dragón."
     mascot: Dragón
     colors: [rojo, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: america-mineiro
     identity:
-      - "Fundado en 1912; el apodo Decacampeão viene de los diez títulos mineros consecutivos (1916–1925)."
+      - "Fundado en 1912; el apodo Decacampeão viene de sus diez títulos consecutivos del Campeonato Mineiro (1916–1925)."
     mascot: Coelho (conejo)
     colors: [verde, negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: cuiaba
     identity:
-      - "Fundado en 2001; juega de local en el Arena Pantanal, construido para la Copa del Mundo 2014."
+      - "Fundado en 2001; juega de local en la Arena Pantanal, construida para la Copa del Mundo 2014."
     mascot: Dourado (dorado, un pez)
     colors: [verde, amarillo]
-    review_status: draft
+    review_status: approved
 
   - slug: ponte-preta
     identity:
-      - "Fundada en 1900 en Campinas; el nombre viene del barrio de Ponte Preta («puente negro»), bautizado por un puente ferroviario de madera pintado con brea."
+      - "Fundada en 1900 en Campinas; el nombre viene del barrio de Ponte Preta («puente negro»), llamado así por un puente ferroviario de madera pintado con brea."
+      - "El apodo y mascota Macaca (mona) surgió a comienzos del siglo XX como una provocación racista de aficionados rivales; los aficionados de la Ponte Preta lo adoptaron con orgullo y lo convirtieron en símbolo de identidad y de resistencia antirracista."
     mascot: Macaca (mona)
     colors: [negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: guarani-sp
     identity:
@@ -274,7 +276,7 @@ teams:
       - "Campeón brasileño de 1978."
     mascot: Indio
     colors: [verde, blanco]
-    review_status: draft
+    review_status: approved
 
   # ── football/national-teams.yaml ─────────────────────────────────────────────────────────────────
   - slug: brazil-nt
@@ -282,93 +284,93 @@ teams:
       - "Única selección pentacampeona del mundo: 1958, 1962, 1970, 1994 y 2002."
       - "Disputó todas las ediciones de la Copa del Mundo desde 1930."
     colors: [amarillo, verde, azul]
-    review_status: draft
+    review_status: approved
 
   - slug: argentina-nt
     identity:
       - "Campeona del mundo en 1978, 1986 y 2022; subcampeona en 2026, tras perder la final ante España."
     colors: [celeste, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: uruguay-nt
     identity:
       - "Campeón del mundo en 1930 (primera Copa, como local) y 1950."
       - "Campeón olímpico en 1924 y 1928, origen del apodo «Celeste Olímpica»."
     colors: [celeste, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: chile-nt
     identity:
       - "Mejor actuación en Copas del Mundo: 3.er lugar en 1962, como anfitrión."
       - "Bicampeón de la Copa América (2015 y Centenario 2016)."
     colors: [rojo, azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: colombia-nt
     identity:
       - "Mejor actuación en Copas del Mundo: cuartos de final en 2014."
       - "Campeona de la Copa América 2001."
     colors: [amarillo, azul, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: peru-nt
     identity:
       - "Campeón de la Copa América en 1939 y 1975."
     colors: [blanco, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: ecuador-nt
     identity:
       - "Debutó en Copas del Mundo en 2002; mejor actuación: octavos de final en 2006."
     colors: [amarillo, azul, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: paraguay-nt
     identity:
       - "Mejor actuación en Copas del Mundo: cuartos de final en 2010."
       - "Campeón de la Copa América en 1953 y 1979."
     colors: [rojo, blanco, azul]
-    review_status: draft
+    review_status: approved
 
   - slug: bolivia-nt
     identity:
       - "Campeona de la Copa América 1963, como local."
       - "Juega de local a gran altitud (La Paz y El Alto)."
     colors: [verde, amarillo, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: venezuela-nt
     identity:
       - "Mejor actuación en la Copa América: 4.º lugar en 2011."
       - "El apodo viene del color vino tinto de la camiseta."
     colors: [vino tinto, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: mexico-nt
     identity:
       - "Mejor actuación en Copas del Mundo: cuartos de final en 1970 y 1986, ambas como local."
     colors: [verde, blanco, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: usa-nt
     identity:
       - "Mejor actuación en Copas del Mundo: 3.er lugar en 1930."
       - "Coanfitrión de la Copa del Mundo 2026 con México y Canadá."
     colors: [blanco, azul, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: canada-nt
     identity:
       - "Mejor actuación en Copas del Mundo: octavos de final en 2026, como coanfitrión."
       - "Campeón de la Copa Oro en 2000."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: costa-rica-nt
     identity:
       - "Mejor actuación en Copas del Mundo: cuartos de final en 2014."
     colors: [rojo, azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: spain-nt
     identity:
@@ -376,14 +378,14 @@ teams:
       - "Tetracampeona de Europa: 1964, 2008, 2012 y 2024."
       - "En España, «La Roja» reemplazó a los antiguos apodos «La Furia» y «La Furia Roja»."
     colors: [rojo, amarillo]
-    review_status: draft
+    review_status: approved
 
   - slug: france-nt
     identity:
       - "Campeona del mundo en 1998 y 2018."
       - "Campeona de Europa en 1984 y 2000."
     colors: [azul, blanco, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: germany-nt
     identity:
@@ -391,14 +393,14 @@ teams:
       - "Campeona de Europa en 1972, 1980 y 1996."
       - "En Alemania al equipo se le llama sobre todo «Nationalmannschaft» o «DFB-Elf»; «Die Mannschaft» lo usa más la prensa extranjera."
     colors: [blanco, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: italy-nt
     identity:
       - "Campeona del mundo en 1934, 1938, 1982 y 2006."
       - "Campeona de Europa en 1968 y 2020."
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: england-nt
     identity:
@@ -406,7 +408,7 @@ teams:
       - "3.er lugar en la Copa del Mundo 2026."
       - "Subcampeona de Europa en 2020 y 2024."
     colors: [blanco, azul marino]
-    review_status: draft
+    review_status: approved
 
   - slug: portugal-nt
     identity:
@@ -414,43 +416,43 @@ teams:
       - "Mejor actuación en Copas del Mundo: 3.er lugar en 1966."
       - "Las «Quinas» son los cinco escudetes de la bandera portuguesa."
     colors: [rojo, verde]
-    review_status: draft
+    review_status: approved
 
   - slug: netherlands-nt
     identity:
       - "Tres veces subcampeona del mundo: 1974, 1978 y 2010."
       - "Campeona de Europa en 1988."
-      - "«Naranja Mecánica» (Clockwork Orange) es el apodo de la generación del fútbol total de los años 1970."
+      - "«Naranja Mecánica» (Clockwork Orange) es el apodo de la generación del fútbol total de los años setenta."
     colors: [naranja]
-    review_status: draft
+    review_status: approved
 
   - slug: belgium-nt
     identity:
       - "Mejor actuación en Copas del Mundo: 3.er lugar en 2018."
       - "El apodo aparece en los tres idiomas oficiales: neerlandés, francés y alemán."
     colors: [rojo, negro, amarillo]
-    review_status: draft
+    review_status: approved
 
   - slug: croatia-nt
     identity:
       - "Subcampeona del mundo en 2018; debutó en Copas del Mundo en 1998 y terminó en 3.er lugar."
       - "«Kockasti» (los ajedrezados) remite a la camiseta a cuadros rojos y blancos."
     colors: [rojo, blanco, azul]
-    review_status: draft
+    review_status: approved
 
   - slug: morocco-nt
     identity:
       - "4.º lugar en la Copa del Mundo 2022, la mejor actuación de una selección africana hasta entonces."
-      - "Campeón de la Copa Africana de Naciones en 1976 y 2025."
+      - "Campeón de la Copa Africana de Naciones en 1976 y 2025; el título de 2025 lo otorgó la CAF por incomparecencia, después de que Senegal abandonara el campo en la final."
     colors: [rojo, verde]
-    review_status: draft
+    review_status: approved
 
   - slug: japan-nt
     identity:
       - "Tetracampeón de la Copa Asiática: 1992, 2000, 2004 y 2011."
       - "Mejor actuación en Copas del Mundo: octavos de final (2002, 2010, 2018 y 2022)."
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   # ── football/teams/de.yaml ───────────────────────────────────────────────────────────────────────
   - slug: bayern-munchen
@@ -458,119 +460,119 @@ teams:
       - "Fundado el 27 de febrero de 1900."
       - "«Mia san mia» (Nosotros somos nosotros, en bávaro) es el lema del club."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: borussia-dortmund
     identity:
       - "Fundado el 19 de diciembre de 1909."
       - "El estadio se conoce históricamente como Westfalenstadion."
     colors: [amarillo, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: bayer-leverkusen
     identity:
       - "Fundado el 1 de julio de 1904 por empleados de la empresa Bayer, origen del apodo «Werkself» (el equipo de la fábrica)."
     mascot: Brian the Lion (león)
     colors: [rojo, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: rb-leipzig
     identity:
       - "Fundado el 19 de mayo de 2009; el nombre oficial «RasenBallsport» significa «deporte de pelota sobre césped»."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: schalke-04
     identity:
       - "Fundado el 4 de mayo de 1904 como Westfalia Schalke."
       - "«Die Knappen» (los mineros) remite a la tradición minera de la región del Ruhr."
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: vfb-stuttgart
     identity:
       - "Fundado el 9 de septiembre de 1893."
     colors: [blanco, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: eintracht-frankfurt
     identity:
       - "Fundado el 8 de marzo de 1899; un águila llamada Attila es la mascota del club."
     colors: [rojo, negro, blanco]
-    review_status: draft
+    review_status: approved
 
   # ── football/teams/es.yaml ───────────────────────────────────────────────────────────────────────
   - slug: real-madrid
     identity:
       - "Fundado el 6 de marzo de 1902 como Madrid Football Club; el título «Real» lo concedió el rey Alfonso XIII en 1920."
-      - "En noviembre de 2025 el club pasó a usar oficialmente la forma corta «Bernabéu» para el estadio."
+      - "El estadio lleva el nombre de Santiago Bernabéu, presidente histórico del club."
     colors: [blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: barcelona
     identity:
       - "Fundado el 29 de noviembre de 1899 como Foot-Ball Club Barcelona."
       - "«Més que un club» (Más que un club) es el lema oficial."
     colors: [azul, granate]
-    review_status: draft
+    review_status: approved
 
   - slug: atletico-madrid
     identity:
       - "Fundado el 26 de abril de 1903 como Athletic Club Sucursal de Madrid, filial del Athletic de Bilbao."
       - "«Colchoneros» remite a las franjas rojas y blancas, parecidas a los colchones de la época."
     colors: [rojo, blanco, azul]
-    review_status: draft
+    review_status: approved
 
   - slug: sevilla
     identity:
       - "Fundado el 25 de enero de 1890 como Sevilla Foot-ball Club."
       - "«Nervionenses» viene del barrio de Nervión, donde está el estadio."
+      - "«Palanganas» nació como una ironía de los disidentes que fundaron el Betis, pero fue incorporado y hoy los propios sevillistas lo usan con orgullo."
     colors: [blanco, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: real-betis
     identity:
       - "Fundado el 12 de septiembre de 1907 como Sevilla Balompié."
-      - "Durante la reconstrucción del Benito Villamarín (iniciada en 2025) juega de local provisionalmente en el Estadio La Cartuja."
+      - "Desde 2025, mientras se reconstruye el Benito Villamarín, juega de local en el Estadio La Cartuja."
     colors: [verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: athletic-club
     identity:
       - "Fundado el 18 de julio de 1898 en Bilbao, en el País Vasco."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: real-sociedad
     identity:
       - "Fundada el 7 de septiembre de 1909 como Sociedad de Foot-Ball de San Sebastián."
       - "«Txuri-Urdin» significa «blanco-azul» en vasco."
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: valencia
     identity:
       - "Fundado el 18 de marzo de 1919 como Valencia Foot-ball Club."
       - "El murciélago del escudo dio origen al apodo «Murciélagos»."
-    mascot: Murciélago
     colors: [blanco, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: villarreal
     identity:
       - "Fundado el 10 de marzo de 1923, en la ciudad de Vila-real (Castellón)."
-      - "El apodo «Submarino Amarillo» viene del uniforme todo amarillo."
+      - "El apodo «Submarino Amarillo» viene del uniforme todo amarillo y de la canción «Yellow Submarine», de los Beatles."
     colors: [amarillo]
-    review_status: draft
+    review_status: approved
 
   # ── football/teams/fr.yaml ───────────────────────────────────────────────────────────────────────
   - slug: paris-saint-germain
     identity:
       - "Fundado el 12 de agosto de 1970."
-      - "«Ici c'est Paris» (Aquí es París) es el eslogan asociado al club y a su afición."
+      - "«Ici c'est Paris» (Aquí es París) es el eslogan asociado al club y a sus aficionados."
     mascot: Germain le Lynx (lince)
     colors: [azul, rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: marseille
     identity:
@@ -578,70 +580,70 @@ teams:
       - "«Droit au but» (Directo al gol) es el lema del club."
       - "«Phocéens» remite a la fundación de Marsella por griegos de Focea."
     colors: [blanco, celeste]
-    review_status: draft
+    review_status: approved
 
   - slug: lyon
     identity:
-      - "Fundado en 1950 (las fuentes difieren sobre el día)."
+      - "Fundado en 1950, a partir de la sección de fútbol del Lyon Olympique Universitaire."
       - "«Gones» es una palabra del dialecto lionés que significa «muchachos»."
     colors: [blanco, azul, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: monaco
     identity:
       - "Fundado el 23 de agosto de 1924; club del Principado de Mónaco que compite en el sistema de ligas de Francia."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: lille
     identity:
-      - "Fundado en 1944 a partir de la fusión de clubes de Lille (las fuentes difieren sobre el día)."
+      - "Fundado en 1944 a partir de la fusión del Olympique Lillois con el SC Fives."
     colors: [rojo, blanco, azul marino]
-    review_status: draft
+    review_status: approved
 
   # ── football/teams/gb-eng.yaml ───────────────────────────────────────────────────────────────────
   - slug: manchester-city
     identity:
       - "Fundado en 1880 como St. Mark's (West Gorton); adoptó el nombre Manchester City el 16 de abril de 1894."
-      - "«Superbia in Proelio» (Orgullo en la Batalla) es el lema del club."
+      - "«Superbia in Proelio» (Orgullo en la batalla) es el lema del club."
     colors: [celeste, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: manchester-united
     identity:
       - "Fundado el 5 de marzo de 1878 como Newton Heath LYR F.C.; pasó a llamarse Manchester United en 1902."
-      - "«Busby Babes» es el apodo histórico de la generación formada por Matt Busby en los años 1950."
+      - "«Busby Babes» es el apodo histórico de la generación formada por Matt Busby en los años cincuenta."
     colors: [rojo, blanco, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: liverpool
     identity:
       - "Fundado el 3 de junio de 1892."
-      - "«You'll Never Walk Alone» aparece en el escudo del club y es el lema asociado a su afición."
+      - "«You'll Never Walk Alone» aparece en el escudo del club y es el lema asociado a sus aficionados."
     colors: [rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: arsenal
     identity:
       - "Fundado en 1886 como Dial Square por trabajadores del arsenal real de Woolwich, origen del apodo «Gunners»."
-      - "Tras la temporada 2003-04 recibió el apodo «The Invincibles» al terminar la Premier League sin derrotas."
+      - "El equipo de la temporada 2003-04 recibió el apodo «The Invincibles» al terminar la Premier League sin derrotas."
     mascot: Gunnersaurus (dinosaurio)
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: chelsea
     identity:
       - "Fundado el 10 de marzo de 1905; juega de local en Stamford Bridge desde su fundación."
     mascot: Stamford the Lion (león)
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: tottenham-hotspur
     identity:
       - "Fundado el 5 de septiembre de 1882 como Hotspur F.C."
       - "«Audere est Facere» (Atreverse es hacer) es el lema del club."
     colors: [blanco, azul marino]
-    review_status: draft
+    review_status: approved
 
   - slug: newcastle-united
     identity:
@@ -649,14 +651,14 @@ teams:
       - "«Magpies» (urracas) viene de las franjas blanquinegras de la camiseta."
     mascot: Monty Magpie (urraca)
     colors: [negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: aston-villa
     identity:
       - "Fundado el 21 de noviembre de 1874 en Aston, Birmingham."
     mascot: Hercules the Lion (león)
     colors: [granate, celeste]
-    review_status: draft
+    review_status: approved
 
   - slug: everton
     identity:
@@ -664,43 +666,43 @@ teams:
       - "«Nil Satis Nisi Optimum» (Nada salvo lo mejor basta) es el lema del club."
     mascot: Changy the Elephant (elefante)
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: west-ham-united
     identity:
       - "Fundado el 29 de junio de 1895 como Thames Ironworks; pasó a ser West Ham United el 5 de julio de 1900."
       - "Los martillos del escudo y el apodo «Irons» recuerdan el origen obrero en el astillero Thames Ironworks."
     colors: [granate, celeste]
-    review_status: draft
+    review_status: approved
 
   - slug: sunderland
     identity:
       - "Fundado en 1879 como Sunderland and District Teachers."
-      - "Incluido en esta base como rival del Newcastle en el Tyne–Wear derby."
+      - "Juega de local en el Stadium of Light desde 1997."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   # ── football/teams/it.yaml ───────────────────────────────────────────────────────────────────────
   - slug: juventus
     identity:
-      - "Fecha de fundación convenida el 1 de noviembre de 1897, como Sport-Club Juventus."
+      - "Fecha de fundación fijada por convención el 1 de noviembre de 1897, como Sport-Club Juventus."
       - "«Fino alla fine» (Hasta el final) es el lema adoptado por el club."
     colors: [blanco, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: inter
     identity:
       - "Fundado el 9 de marzo de 1908 como Football Club Internazionale, por disidentes del Milan."
       - "Comparte el San Siro (Giuseppe Meazza) con el Milan."
     colors: [negro, azul]
-    review_status: draft
+    review_status: approved
 
   - slug: milan
     identity:
-      - "Fundado en diciembre de 1899 como Milan Foot-Ball and Cricket Club (las fuentes difieren entre los días 16 y 18)."
+      - "Fundado en diciembre de 1899 como Milan Foot-Ball and Cricket Club."
       - "El diablo rojo y negro («Il Diavolo») es el símbolo del club."
     colors: [rojo, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: napoli
     identity:
@@ -708,41 +710,41 @@ teams:
       - "El estadio lleva el nombre de Diego Armando Maradona."
     mascot: "'O Ciuccio (el burro)"
     colors: [celeste, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: roma
     identity:
       - "Fundada el 7 de junio de 1927."
       - "La loba capitolina, símbolo de Roma, está en el escudo del club."
     colors: [granate, amarillo]
-    review_status: draft
+    review_status: approved
 
   - slug: lazio
     identity:
       - "Fundada el 9 de enero de 1900 como Società Podistica Lazio."
       - "Comparte el Stadio Olimpico con la Roma."
     colors: [celeste, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: atalanta
     identity:
       - "Fundada el 17 de octubre de 1907; el nombre homenajea a la heroína Atalanta de la mitología griega, origen del apodo «La Dea»."
     colors: [negro, azul]
-    review_status: draft
+    review_status: approved
 
   - slug: fiorentina
     identity:
       - "Fundada el 29 de agosto de 1926 como Associazione Calcio Fiorentina; refundada en 2002 (Florentia Viola, luego ACF Fiorentina)."
       - "El lirio («giglio») de Florencia está en el escudo y da origen al apodo «Gigliati»."
     colors: [morado, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: torino
     identity:
       - "Fundado el 3 de diciembre de 1906 como Foot-Ball Club Torino."
-      - "Incluido en esta base como rival de la Juventus en el Derby della Mole."
+      - "El apodo «Granata» viene del color granate del uniforme."
     colors: [granate]
-    review_status: draft
+    review_status: approved
 
   # ── football/teams/nl.yaml ───────────────────────────────────────────────────────────────────────
   - slug: ajax
@@ -751,20 +753,20 @@ teams:
       - "El estadio homenajea a Johan Cruyff."
     mascot: Lucky Lynx (lince)
     colors: [blanco, rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: psv
     identity:
       - "Fundado el 31 de agosto de 1913 como club deportivo de la empresa Philips, origen del apodo «Lampen» (lámparas)."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: feyenoord
     identity:
       - "Fundado el 19 de julio de 1908 como Wilhelmina."
       - "«Geen woorden maar daden» (No palabras, sino hechos) es el lema del club."
     colors: [rojo, blanco, negro]
-    review_status: draft
+    review_status: approved
 
   # ── football/teams/pt.yaml ───────────────────────────────────────────────────────────────────────
   - slug: benfica
@@ -772,68 +774,68 @@ teams:
       - "Fundado el 28 de febrero de 1904 como Sport Lisboa."
       - "El águila Vitória sobrevuela el estadio antes de los partidos de local."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: porto
     identity:
       - "Fundado el 28 de septiembre de 1893 como Foot-Ball Club do Porto."
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: sporting-cp
     identity:
       - "Fundado el 1 de julio de 1906; el nombre de fundación es Sporting Club de Portugal."
     colors: [verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: braga
     identity:
       - "Fundado el 19 de enero de 1921."
       - "El apodo «Arsenalistas» viene del uniforme rojo y blanco parecido al del Arsenal inglés, cambio atribuido al entrenador húngaro József Szabó."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   # ── basketball/teams/br.yaml ─────────────────────────────────────────────────────────────────────
   - slug: basketball-franca
     identity:
-      - "El club ayudó a que Franca fuera conocida como la «Capital del Básquetbol» brasileño."
+      - "El club ayudó a que Franca fuera conocida como la «Capital del Básquetbol» de Brasil."
       - "Campeón del NBB durante varias temporadas seguidas a partir de 2021-22."
     mascot: Touro (toro)
     colors: [azul, rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-bauru
     identity:
       - "Campeón de la Liga de las Américas en 2015 y del NBB 2016-17."
       - "La mascota Dunk es un dragón, como el apodo del equipo."
     colors: [verde, blanco, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-paulistano
     identity:
       - "Club polideportivo fundado en 1900 en el Jardim América, en São Paulo."
       - "Campeón del NBB en la temporada 2017-18."
     colors: [rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-pinheiros
     identity:
       - "Fundado en 1899 como Sport Club Germania; cambió de nombre durante la Segunda Guerra Mundial."
       - "Campeón de la Liga de las Américas de la FIBA en 2013."
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-flamengo
     identity:
       - "Máximo campeón del NBB, con siete títulos entre 2009 y 2020-21."
       - "Bicampeón de la Copa Intercontinental de la FIBA (2014 y 2022)."
     colors: [rojo, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-vasco
     identity:
       - "Bicampeón brasileño (2000 y 2001) y de la Liga Sudamericana (1999 y 2000)."
     colors: [negro, blanco]
-    review_status: draft
+    review_status: approved
 
   # ── basketball/teams/us.yaml ─────────────────────────────────────────────────────────────────────
   - slug: basketball-los-angeles-lakers
@@ -841,34 +843,34 @@ teams:
       - "La franquicia nació en 1946 como Detroit Gems y adoptó el nombre Lakers en Minneapolis, la ciudad de la «Tierra de los 10 mil lagos»."
       - "El apodo «Showtime» marcó el juego de contraataque veloz del equipo en la década de 1980."
     colors: [morado, dorado, negro]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-boston-celtics
     identity:
-      - "Uno de los ocho equipos originales de la liga en 1946; el nombre lo eligió el fundador Walter Brown."
+      - "Uno de los equipos fundadores de la liga (entonces BAA), en 1946; el nombre lo eligió el fundador Walter Brown."
       - "La mascota Lucky the Leprechaun rinde homenaje a la gran comunidad de origen irlandés de Boston."
     colors: [verde, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-philadelphia-76ers
     identity:
       - "Fundado en 1946 como Syracuse Nationals; se mudó a Filadelfia en 1963."
       - "El nombre 76ers recuerda la firma de la Declaración de Independencia de EE. UU., en 1776, en Filadelfia."
     colors: [azul, rojo, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-chicago-bulls
     identity:
       - "Conquistó seis títulos de la NBA en la década de 1990 (1991–1993 y 1996–1998)."
     colors: [rojo, negro, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-detroit-pistons
     identity:
       - "Nació en Fort Wayne como Zollner Pistons, nombre ligado a la fábrica de pistones del dueño; se mudó a Detroit en 1957."
       - "«Bad Boys» es el apodo del equipo físico y defensivo de finales de la década de 1980, bicampeón de la NBA en 1989 y 1990."
     colors: [azul, rojo]
-    review_status: draft
+    review_status: approved
 
   # ── formula-1/participants/constructors.yaml ─────────────────────────────────────────────────────
   - slug: f1-ferrari
@@ -877,63 +879,63 @@ teams:
       - "El apodo Cavallino Rampante viene del caballo encabritado de su emblema; el rojo sigue la tradición del rosso corsa italiano."
       - "Tiene el récord de títulos de constructores, con 16 conquistas."
     colors: [rojo]
-    review_status: draft
+    review_status: approved
 
   - slug: f1-mercedes
     identity:
       - "Los monoplazas corren con el tradicional color plateado de Mercedes-Benz, origen del apodo «Flechas de Plata»."
       - "Conquistó ocho títulos de constructores consecutivos, de 2014 a 2021, un récord."
     colors: [plateado]
-    review_status: draft
+    review_status: approved
 
   - slug: f1-mclaren
     identity:
       - "Fundada en 1963 por el neozelandés Bruce McLaren."
       - "Diez títulos de constructores, los más recientes en 2024 y 2025."
-    review_status: draft
+    review_status: approved
 
   - slug: f1-alpine
     identity:
       - "Escudería de Enstone que sucedió a Renault en 2021; la misma estructura ya corrió como Toleman, Benetton, Renault y Lotus."
       - "Escudería del argentino Franco Colapinto en la temporada 2026."
-    review_status: draft
+    review_status: approved
 
   - slug: f1-audi
     identity:
       - "Debutó en la Fórmula 1 en 2026, tras la compra de Sauber, con base principal en Hinwil, en Suiza."
       - "El brasileño Gabriel Bortoleto sumó los primeros puntos de la historia de la escudería, con el 9.º lugar en el GP de Australia de 2026."
-    review_status: draft
+    review_status: approved
 
   - slug: f1-cadillac
     identity:
       - "Debutó en 2026 como la 11.ª escudería de la parrilla, con sede en Fishers, Indiana."
       - "Escudería del mexicano Sergio «Checo» Pérez y del finlandés Valtteri Bottas en 2026."
-    review_status: draft
+    review_status: approved
 
   # ── formula-1/participants/drivers.yaml ──────────────────────────────────────────────────────────
   - slug: f1-sergio-perez
     identity:
       - "Nacido en Guadalajara, debutó en la Fórmula 1 en 2011 con Sauber."
       - "Ganó seis Grandes Premios; en 2026 corre para Cadillac."
-    review_status: draft
+    review_status: approved
 
   - slug: f1-franco-colapinto
     identity:
       - "Nacido en Pilar, en la provincia de Buenos Aires; debutó en la Fórmula 1 con Williams en 2024 y corre para Alpine en 2026."
       - "El apodo «Il Gaucho» surgió en la Sky Sport F1 italiana después del GP de Singapur de 2025."
-    review_status: draft
+    review_status: approved
 
   - slug: f1-gabriel-bortoleto
     identity:
       - "Campeón de la Fórmula 3 en 2023 y de la Fórmula 2 en 2024; debutó en la F1 con Sauber en 2025."
       - "En 2026 corre para Audi y sumó los primeros puntos de la historia de la escudería, en el GP de Australia."
-    review_status: draft
+    review_status: approved
 
   - slug: f1-fernando-alonso
     identity:
       - "Bicampeón mundial de Fórmula 1 (2005 y 2006) con Renault."
       - "Corre para Aston Martin desde 2023."
-    review_status: draft
+    review_status: approved
 
   # ── volleyball/teams/br.yaml ─────────────────────────────────────────────────────────────────────
   - slug: volleyball-sada-cruzeiro
@@ -942,25 +944,25 @@ teams:
       - "Pentacampeón mundial de clubes de la FIVB (2013, 2015, 2016, 2021 y 2024)."
     mascot: Raposa (zorro)
     colors: [azul, blanco]
-    review_status: draft
+    review_status: approved
 
   - slug: volleyball-minas-masculino
     identity:
       - "Equipo masculino del Minas Tênis Clube en la Superliga masculina."
       - "Tetracampeón de la Superliga masculina (1999-00, 2000-01, 2001-02 y 2006-07)."
-    review_status: draft
+    review_status: approved
 
   - slug: volleyball-minas-feminino
     identity:
       - "Equipo femenino del Minas Tênis Clube en la Superliga femenina; desde 2022-23 juega como Gerdau/Minas."
       - "Hexacampeón de la Superliga femenina (1992-93, 2001-02, 2018-19, 2020-21, 2021-22 y 2023-24)."
-    review_status: draft
+    review_status: approved
 
   - slug: volleyball-praia-clube-feminino
     identity:
       - "Equipo femenino del Praia Clube, de Uberlândia, en la Superliga femenina."
       - "Tricampeón de la Superliga femenina (2017-18, 2022-23 y 2025-26)."
-    review_status: draft
+    review_status: approved
 
 derbies:
   # ── Brasil (football/derbies/br.yaml) ────────────────────────────────────────────────────────────
@@ -968,146 +970,146 @@ derbies:
     origin: "Nombre dado por el periodista Thomaz Mazzoni en referencia al Derby de Epsom, una carrera de caballos inglesa."
     trivia:
       - "En el primer partido, Palestra Italia ganó 3 a 0, con tres goles de Caetano."
-    review_status: draft
+    review_status: approved
 
   - slug: choque-rei
     origin: "Nombre atribuido al periodista Thomaz Mazzoni, de A Gazeta Esportiva, en la década de 1940."
     trivia:
       - "El primer enfrentamiento, en el Estadio da Floresta, terminó empatado 2 a 2."
       - "Un Choque-Rei de 1950 en el Pacaembu fue el primer evento deportivo transmitido en vivo por la televisión brasileña desde un estadio."
-    review_status: draft
+    review_status: approved
 
   - slug: majestoso
     origin: "Apodo dado por el periodista Thomaz Mazzoni, de A Gazeta Esportiva."
     trivia:
-      - "El primer partido, en el Parque São Jorge, terminó Corinthians 2 a 1."
-    review_status: draft
+      - "El primer partido, en el Parque São Jorge, terminó 2 a 1 a favor de Corinthians."
+    review_status: approved
 
   - slug: san-sao
     origin: "Nombre creado por el periodista Thomaz Mazzoni, de A Gazeta Esportiva, en 1956."
     trivia:
       - "Pelé marcó su gol número 500 en un San-São en la Vila Belmiro, el 2 de septiembre de 1962."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-alvinegro
     origin: "El nombre viene del negro y el blanco que usan ambos clubes."
     trivia:
       - "En 2002, las bicicletas de Robinho en la final del Brasileirão marcaron la historia del clásico."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-da-saudade
     origin: "Remite a la década de 1960, cuando el Santos de Pelé y el Palmeiras de Ademir da Guia dominaban el fútbol paulista."
     trivia:
       - "El primer partido fue un amistoso benéfico a favor de las víctimas de la sequía de 1915 en el Nordeste."
       - "En 1958, por el Torneo Río-São Paulo, Santos ganó 7 a 6 en el Pacaembu."
-    review_status: draft
+    review_status: approved
 
   - slug: derbi-campineiro
     trivia:
       - "El mayor público registrado fue de 38.948 personas, en el Pacaembu, en 1979."
-    review_status: draft
+    review_status: approved
 
   - slug: fla-flu
     origin: "Nombre popularizado por el periodista Mário Filho en 1933."
     trivia:
       - "La final del Campeonato Carioca de 1963 reunió a 194.603 espectadores en el Maracaná."
       - "Desde 2012 el Fla-Flu es patrimonio cultural inmaterial de la ciudad de Río de Janeiro."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-dos-milhoes
     trivia:
       - "La mayor goleada del clásico es el 7 a 0 de Vasco en 1931, por el Campeonato Carioca."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-da-rivalidade
     origin: "El enfrentamiento empezó a llamarse así a partir de la década de 1960."
     trivia:
       - "En el primer partido, Botafogo ganó 1 a 0 en General Severiano."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-vovo
     origin: "El nombre refleja que Botafogo y Fluminense son los clubes de fútbol más antiguos entre los grandes de Río («vovô» es abuelo en portugués)."
     trivia:
       - "El título carioca de 1907 estuvo en disputa durante 89 años, hasta que se repartió entre los dos clubes en 1996."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-dos-gigantes
     origin: "Nombre elegido por los lectores del diario Lance! en una votación que terminó el 17 de mayo de 2006."
     trivia:
-      - "Es el único clásico carioca que ya se jugó por la Copa Libertadores."
-    review_status: draft
+      - "Es el único clásico carioca que se ha disputado en la Copa Libertadores."
+    review_status: approved
 
   - slug: classico-da-amizade
-    origin: "Nombre dado por la prensa por la buena relación histórica entre las aficiones."
+    origin: "Nombre dado por la prensa debido a la buena relación histórica entre los aficionados de ambos clubes."
     trivia:
       - "El récord de público es de 149.005 personas, en el Maracaná, en 1968."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-mineiro
     trivia:
       - "En el primer partido, Palestra Italia (hoy Cruzeiro) ganó 3 a 0."
       - "El récord de público es de 123.351 personas, en el Mineirão, en 1969."
-    review_status: draft
+    review_status: approved
 
   - slug: gre-nal
     origin: "Término creado en 1926 por el periodista Ivo dos Santos Martins para abreviar los nombres de los clubes."
     trivia:
-      - "El primer Gre-Nal terminó Grêmio 10 a 0, con cinco goles de Edgar Booth."
-    review_status: draft
+      - "El primer Gre-Nal terminó 10 a 0 a favor de Grêmio, con cinco goles de Edgar Booth."
+    review_status: approved
 
   - slug: atletiba
     origin: "Combinación de los nombres Atlético y Coritiba."
     trivia:
       - "Un Atletiba de 1934 fue el primer partido de fútbol transmitido por radio en Paraná."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-da-capital-sc
     trivia:
       - "En el primer clásico, Figueirense remontó un 0 a 3 y ganó 4 a 3."
-    review_status: draft
+    review_status: approved
 
   - slug: ba-vi
     origin: "Combinación de los nombres Bahia y Vitória."
     trivia:
-      - "El primer Ba-Vi, por el Torneo Início, duró apenas 20 minutos."
-    review_status: draft
+      - "El primer Ba-Vi, por el Torneo Inicio, duró apenas 20 minutos."
+    review_status: approved
 
   - slug: classico-rei
     origin: "El diario O POVO llamó al partido Choque-Rei en 1962; el nombre pronto se convirtió en Clássico-Rei."
     trivia:
       - "En el primer enfrentamiento, Ceará le ganó 2 a 0 al recién fundado Fortaleza."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-das-multidoes-recife
     origin: "Reúne a los dos clubes más populares de la ciudad de Recife."
     trivia:
       - "El récord de público es de 76.682 personas, en el Arruda, en 1999."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-dos-classicos
     origin: "Antes llamado Fla-Flu pernambucano, recibió su nombre actual en un anuncio del Jornal Pequeno del 18 de agosto de 1945."
     trivia:
       - "Es el clásico más antiguo del Nordeste y el tercero más antiguo de Brasil."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-das-emocoes
     trivia:
-      - "El partido del centenario, en 2017, otorgó la Taça Gena, homenaje a un exjugador que fue campeón con los dos clubes."
-    review_status: draft
+      - "En el partido del centenario, en 2017, se disputó la Taça Gena, homenaje a un exjugador que fue campeón con los dos clubes."
+    review_status: approved
 
   - slug: re-pa
     origin: "Combinación de los nombres Remo y Paysandu."
     trivia:
       - "En 2016 el clásico fue declarado patrimonio cultural inmaterial de Pará."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-do-equilibrio
     origin: "El apodo viene de la competitividad y el equilibrio histórico entre los dos clubes."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-do-povo
-    origin: "Reúne a las dos aficiones más grandes de Brasil."
-    review_status: draft
+    origin: "Reúne a los dos clubes con más aficionados de Brasil."
+    review_status: approved
 
   # ── football/derbies/international.yaml ──────────────────────────────────────────────────────────
   - slug: superclasico-de-las-americas
@@ -1116,73 +1118,73 @@ derbies:
       - "El primer partido entre las selecciones fue en 1914."
       - "«Superclásico de las Américas» también fue el nombre de un torneo amistoso entre ambas, disputado a partir de 2011, sucesor de la Copa Roca."
       - "El primer enfrentamiento en Copas del Mundo fue en 1974."
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-del-rio-de-la-plata
-    origin: "Considerado el enfrentamiento entre selecciones más disputado de la historia del fútbol."
+    origin: "Considerado el enfrentamiento entre selecciones con más partidos disputados en la historia del fútbol."
     trivia:
       - "El primer partido oficial, en Montevideo, terminó 6–0 a favor de Argentina."
       - "Ambas jugaron la final de la primera Copa del Mundo, en 1930, que ganó Uruguay."
-    review_status: draft
+    review_status: approved
 
   - slug: classico-do-rio-negro
     origin: "Rivalidad entre selecciones vecinas que suman siete títulos mundiales."
     trivia:
       - "El primer partido oficial fue en el Sudamericano de 1916: Uruguay 2–1."
       - "El 16 de julio de 1950, Uruguay venció a Brasil por 2–1 en el Maracaná, en el partido decisivo de la Copa, episodio conocido como Maracanazo."
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-del-pacifico
     origin: "Rivalidad histórica entre las selecciones de Chile y Perú, vecinos en la costa del Pacífico."
     trivia:
       - "El primer enfrentamiento fue en el Sudamericano de 1935, en Lima: Perú 1–0."
       - "El primer duelo en Eliminatorias mundialistas fue rumbo al Mundial de 1974."
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-de-la-concacaf
-    origin: "El apodo «Clásico de la Concacaf» surgió en los años 1990, cuando ambos se consolidaron como las principales fuerzas de la Concacaf."
+    origin: "El apodo «Clásico de la Concacaf» surgió en los años noventa, cuando ambos se consolidaron como las principales fuerzas de la Concacaf."
     trivia:
       - "El primer partido fue en 1934, en Italia, por un cupo en la Copa del Mundo de ese año: Estados Unidos 4–2."
-    review_status: draft
+    review_status: approved
 
   - slug: england-germany
     origin: "Rivalidad marcada por partidos decisivos como la final de la Copa del Mundo de 1966 y las semifinales de la Copa del Mundo de 1990 y de la Euro 1996."
     trivia:
       - "El primer partido internacional oficial fue un amistoso en Berlín."
       - "También se enfrentaron en los octavos de final de la Copa del Mundo de 2010 y de la Euro 2020."
-    review_status: draft
+    review_status: approved
 
   - slug: germany-netherlands
     origin: "La rivalidad deportiva tomó fuerza tras la final de la Copa del Mundo de 1974, ganada por Alemania Occidental ante Holanda."
-    review_status: draft
+    review_status: approved
 
   - slug: derbi-iberico
     origin: "Una de las rivalidades entre selecciones más antiguas, iniciada en el primer amistoso internacional de Portugal, en Madrid."
     trivia:
       - "España ganó el primer partido 3–1."
       - "La primera victoria portuguesa llegó en 1947: 4–1."
-    review_status: draft
+    review_status: approved
 
   # ── basketball/derbies/br.yaml ───────────────────────────────────────────────────────────────────
   - slug: basketball-franca-bauru
-    origin: "Duelo entre dos polos del básquetbol del interior de São Paulo, tratado por la prensa como clásico del NBB."
+    origin: "Duelo entre dos polos del básquetbol del interior del estado de São Paulo, tratado por la prensa como clásico del NBB."
     trivia:
       - "En marzo de 2017, Franca ganó el clásico por 92 a 85 en tiempo extra, en el Pedrocão, ante más de 4 mil aficionados."
       - "Franca señala a Bauru como su mayor rival actual."
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-classico-dos-jardins
     origin: "Los dos clubes tienen sede en los Jardins, en São Paulo: el Paulistano en el Jardim América y el Pinheiros en el Jardim Europa."
     trivia:
       - "En octubre de 2018, el Paulistano venció al Pinheiros por 92 a 88 en el «clásico de los Jardins» y llegó a la final del Campeonato Paulista."
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-classico-dos-milhoes
     origin: "El nombre del gran clásico carioca del fútbol también se usa en los duelos entre Flamengo y Vasco en el NBB."
     trivia:
       - "El primer Clássico dos Milhões del NBB, en enero de 2017, lo ganó Vasco."
       - "En la apertura del NBB 2024-25, Flamengo ganó por 59 a 50 y llegó a ocho victorias en nueve partidos del clásico en la liga."
-    review_status: draft
+    review_status: approved
 
   # ── basketball/derbies/nba.yaml ──────────────────────────────────────────────────────────────────
   - slug: basketball-lakers-celtics
@@ -1191,21 +1193,21 @@ derbies:
       - "Es el duelo más repetido en finales de la NBA: 12 series por el título, 9 ganadas por Boston y 3 por Los Ángeles."
       - "La rivalidad Magic Johnson × Larry Bird reavivó el clásico en la década de 1980, con finales en 1984, 1985 y 1987."
       - "En 2010, los Lakers vencieron a los Celtics en el séptimo partido de la final, con Kobe Bryant elegido MVP de las finales."
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-celtics-76ers
     origin: "Rivalidad de la Conferencia Este marcada por los duelos Bill Russell × Wilt Chamberlain en la década de 1960."
     trivia:
       - "Las dos franquicias suman 23 series de playoffs entre sí, uno de los enfrentamientos más frecuentes de la historia de la NBA."
-      - "Larry Bird y Julius Erving protagonizaron finales del Este en 1981 y 1985, ambas ganadas por Boston."
-    review_status: draft
+      - "Larry Bird y Julius Erving se enfrentaron en cuatro finales del Este (1980, 1981, 1982 y 1985), dos ganadas por cada lado."
+    review_status: approved
 
   - slug: basketball-bulls-pistons
     origin: "Cobró fuerza entre 1988 y 1991, cuando los «Bad Boys» de Detroit y el Chicago de Michael Jordan se cruzaron en cuatro playoffs seguidos."
     trivia:
       - "Detroit eliminó a Chicago en 1988, 1989 y 1990; en 1991 los Bulls barrieron a los Pistons por 4 a 0 y conquistaron su primer título."
       - "Las «Jordan Rules» fueron la estrategia defensiva de Detroit para contener a Michael Jordan."
-    review_status: draft
+    review_status: approved
 
   # ── football/derbies/europe.yaml ─────────────────────────────────────────────────────────────────
   - slug: el-clasico
@@ -1213,129 +1215,129 @@ derbies:
     trivia:
       - "El primer enfrentamiento fue en 1902."
       - "En 2025-26, un Clásico definió matemáticamente el título de LaLiga para el Barcelona."
-    review_status: draft
+    review_status: approved
 
   - slug: derbi-madrileno
     origin: "Nombre de los partidos entre Real Madrid y Atlético de Madrid, los dos grandes clubes de la capital española."
-    review_status: draft
+    review_status: approved
 
   - slug: derbi-sevillano
-    origin: "Clásico municipal de Sevilla entre Sevilla y Real Betis, también llamado «El Gran Derbi»."
+    origin: "Clásico de la ciudad de Sevilla entre el Sevilla y el Real Betis, también llamado «El Gran Derbi»."
     trivia:
       - "El primer derbi terminó con victoria del Sevilla por 4–3."
       - "El primer partido oficial fue el 19 de febrero de 1928, por la Copa del Rey."
-    review_status: draft
+    review_status: approved
 
   - slug: derbi-vasco
     origin: "Clásico entre los dos mayores clubes del País Vasco, Athletic Club (Bilbao) y Real Sociedad (San Sebastián)."
     trivia:
       - "Se disputó por primera vez en abril de 1909."
       - "Ambos se enfrentaron en la final de la Copa del Rey de 2020."
-    review_status: draft
+    review_status: approved
 
   - slug: derby-della-madonnina
     origin: "El nombre rinde homenaje a la estatua de la Madonnina en lo alto del Duomo de Milán."
     trivia:
       - "El primer derbi fue la final de la Chiasso Cup de 1908, en Suiza; el Milan ganó por 2–1."
       - "Ambos clubes comparten el estadio San Siro."
-    review_status: draft
+    review_status: approved
 
   - slug: derby-ditalia
     origin: "Término acuñado en 1967 por el periodista italiano Gianni Brera para el enfrentamiento entre Inter y Juventus."
-    review_status: draft
+    review_status: approved
 
   - slug: derby-della-capitale
-    origin: "Clásico municipal de Roma entre Lazio y Roma, que comparten el Stadio Olimpico."
+    origin: "Clásico de la ciudad de Roma entre la Lazio y la Roma, que comparten el Stadio Olimpico."
     trivia:
       - "El primer derbi terminó 1–0 a favor de la Roma."
       - "La Lazio ganó su primer derbi el 23 de octubre de 1932."
-    review_status: draft
+    review_status: approved
 
   - slug: derby-della-mole
     origin: "El nombre viene de la Mole Antonelliana, símbolo arquitectónico de Turín."
     trivia:
-      - "Es el derbi municipal más antiguo que aún se disputa en el fútbol italiano."
+      - "Es el derbi local más antiguo que aún se disputa en el fútbol italiano."
       - "Fue el primer partido oficial de la historia del Torino."
-    review_status: draft
+    review_status: approved
 
   - slug: der-klassiker
     origin: "Nombre que se da a los partidos entre Bayern de Múnich y Borussia Dortmund, dos de los clubes más ganadores de Alemania."
     trivia:
       - "El primer partido terminó 2–0 a favor del Dortmund, en Múnich."
       - "Ambos disputaron la final de la Liga de Campeones de 2013."
-    review_status: draft
+    review_status: approved
 
   - slug: revierderby
     origin: "El nombre viene de «Revier», forma corta de «Bergbaurevier» (región minera), como se llama al Ruhr."
     trivia:
       - "En el primer encuentro, el Schalke ganó por 4–2."
-    review_status: draft
+    review_status: approved
 
   - slug: le-classique
-    origin: "La mayor rivalidad del fútbol francés, entre Paris Saint-Germain y Olympique de Marseille."
+    origin: "La mayor rivalidad del fútbol francés, entre el Paris Saint-Germain y el Olympique de Marsella."
     trivia:
-      - "El primer encuentro fue en el Stade Vélodrome, con victoria del Marseille por 4–2."
+      - "El primer encuentro fue en el Stade Vélodrome, con victoria del Marsella por 4–2."
       - "La primera victoria del PSG en Marsella no llegó hasta el 8 de diciembre de 1979."
-    review_status: draft
+    review_status: approved
 
   - slug: choc-des-olympiques
-    origin: "Rivalidad entre los dos grandes clubes franceses con «Olympique» en el nombre, Lyon y Marseille."
+    origin: "Rivalidad entre los dos grandes clubes franceses con «Olympique» en el nombre, Lyon y Marsella."
     trivia:
       - "El primer encuentro terminó 1–1."
-      - "La prensa francesa popularizó el apodo «Olympico», en referencia a El Clásico."
-    review_status: draft
+      - "La cadena Canal+ popularizó el apodo «Olympico», en referencia a El Clásico."
+    review_status: approved
 
   - slug: north-london-derby
     origin: "La rivalidad comenzó en 1913, cuando el Arsenal se mudó de Woolwich al norte de Londres."
     trivia:
       - "El primer encuentro, en 1887, fue un amistoso, cuando el Arsenal todavía se llamaba Royal Arsenal."
       - "El primer partido de liga fue el 4 de diciembre de 1909, con victoria del Arsenal por 1–0."
-    review_status: draft
+    review_status: approved
 
   - slug: merseyside-derby
-    origin: "Clásico de la ciudad de Liverpool entre Everton y Liverpool, el derbi de élite más antiguo de Inglaterra."
+    origin: "Clásico de la ciudad de Liverpool entre Everton y Liverpool, el derbi más longevo de la élite inglesa."
     trivia:
       - "Se disputa sin interrupción en primera división desde la temporada 1962-63."
       - "Anfield y Goodison Park estaban a menos de una milla, separados por Stanley Park."
-    review_status: draft
+    review_status: approved
 
   - slug: manchester-derby
     origin: "Clásico entre Manchester City y Manchester United, disputado desde 1881."
     trivia:
       - "El primer partido reunió a St. Mark's (futuro City) y Newton Heath (futuro United)."
       - "El primer derbi con iluminación artificial fue el 26 de febrero de 1889."
-    review_status: draft
+    review_status: approved
 
   - slug: north-west-derby
     origin: "Rivalidad entre Liverpool y Manchester United, considerada por jugadores y aficionados más grande incluso que los derbis locales de cada club."
     trivia:
       - "El primer encuentro fue un partido de desempate (test match) de la Football League en 1894."
-    review_status: draft
+    review_status: approved
 
   - slug: tyne-wear-derby
-    origin: "Derbi del noreste de Inglaterra entre Newcastle United y Sunderland, ciudades casi contiguas."
+    origin: "Derbi del noreste de Inglaterra entre Newcastle United y Sunderland, ciudades vecinas."
     trivia:
       - "El primer encuentro fue en 1883."
-    review_status: draft
+    review_status: approved
 
   - slug: o-classico
     origin: "Nombre que se da a los partidos entre Benfica y Porto, los dos clubes portugueses más ganadores en competiciones europeas."
     trivia:
-      - "El primer partido fue una exhibición ganada por el Benfica por 8–2."
+      - "El primer partido fue una exhibición que el Benfica ganó 8–2."
       - "A pesar de los siete títulos europeos que suman entre ambos, nunca se enfrentaron en una competición europea."
-    review_status: draft
+    review_status: approved
 
   - slug: derby-de-lisboa
     origin: "La rivalidad nació en 1907, cuando ocho jugadores del Benfica se pasaron al Sporting antes del primer derbi."
     trivia:
       - "Se considera el mayor derbi del fútbol portugués."
-    review_status: draft
+    review_status: approved
 
   - slug: de-klassieker
     origin: "Clásico entre Ajax (Ámsterdam) y Feyenoord (Róterdam), los dos mayores clubes de las dos mayores ciudades de los Países Bajos."
     trivia:
       - "El primer encuentro fue en Róterdam."
-    review_status: draft
+    review_status: approved
 
   # ── volleyball/derbies/br.yaml ───────────────────────────────────────────────────────────────────
   - slug: volleyball-classico-mineiro-masculino
@@ -1343,12 +1345,12 @@ derbies:
     trivia:
       - "Según Flashscore, Sada Cruzeiro y Minas jugaron 12 finales seguidas del Campeonato Mineiro masculino, todas ganadas por el Cruzeiro."
       - "En 2013, el Sada Cruzeiro venció al Minas por 3 a 2 en Contagem y cortó una racha de nueve victorias del rival."
-    review_status: draft
+    review_status: approved
 
   - slug: volleyball-minas-praia-clube
-    origin: "Rivalidad entre Belo Horizonte y Uberlândia que se convirtió en la final más frecuente de la Superliga femenina; la prensa llama a la definición «final pão de queijo»."
+    origin: "Rivalidad entre Belo Horizonte y Uberlândia que se convirtió en la final más frecuente de la Superliga femenina; la prensa la llama «final pão de queijo» (pan de queso)."
     trivia:
       - "El clásico definió la Superliga femenina en cinco temporadas seguidas, de 2018-19 a 2023-24 (la de 2019-20 fue cancelada)."
       - "Hasta abril de 2026, los equipos habían disputado 31 finales desde 2013, con 21 títulos del Minas y 10 del Praia."
       - "En la final de 2025-26, en el Ibirapuera, el Praia Clube ganó por 3 a 0 y conquistó su tercer título de la Superliga."
-    review_status: draft
+    review_status: approved

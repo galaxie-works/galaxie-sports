@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de origin e trivia (docs/06 §3.3)
+text_locale: es-MX # idioma de origin e trivia (docs/06 §3.3)
 region: mexico
 derbies:
   - slug: clasico-nacional-mx
@@ -12,11 +12,11 @@ derbies:
     first_match: null
     origin: "Enfrenta a los dos clubes más populares de México, de la capital y de Guadalajara."
     trivia:
-      - "La rivalidad tomó forma en la década de 1960."
-      - "La final de liga 1983-84 entre ambos, ganada por el América, es considerada su partido más importante."
+      - "La rivalidad tomó forma a finales de la década de 1950."
+      - "La final de liga 1983-84, la primera entre ambos y ganada por el América, es una de las más recordadas."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_mexicano"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-joven
     name: Clásico Joven
@@ -30,7 +30,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_Joven"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-capitalino-mx
     name: Clásico Capitalino
@@ -44,7 +44,7 @@ derbies:
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_Capitalino"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-regio
     name: Clásico Regio
@@ -59,7 +59,7 @@ derbies:
       - "Se enfrentaron en la final del Apertura 2017, ganada por Tigres."
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_Regiomontano"
-    review_status: draft
+    review_status: approved
 
   - slug: clasico-tapatio
     name: Clásico Tapatío
@@ -69,8 +69,8 @@ derbies:
     scope: city
     intensity: 5
     first_match: null
-    origin: "Es el clásico de la ciudad de Guadalajara y uno de los más antiguos del fútbol mexicano."
+    origin: "Es el clásico de la ciudad de Guadalajara y uno de los más antiguos del futbol mexicano."
     trivia: []
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_Tapatío"
-    review_status: draft
+    review_status: approved

@@ -41,7 +41,7 @@ Os editores com suporte a YAML Language Server podem usar os schemas com `# yaml
 
 ```yaml
 schema_version: 1
-text_locale: pt-BR             # opcional: idioma dos textos livres (identity, mascot, colors, fans); padrão pt-BR, `es` nos países hispânicos
+text_locale: pt-BR             # opcional: idioma dos textos livres (identity, mascot, colors, fans); padrão pt-BR; nos países hispânicos a voz do país (es-AR, es-UY, es-MX…)
 country: BR                    # ISO 3166-1 alpha-2 (Inglaterra = GB-ENG)
 teams:
   - slug: palmeiras            # kebab-case, único globalmente; prefixe com país se houver ambiguidade (ex.: nacional-uy)
@@ -207,7 +207,7 @@ Tradução dos **textos livres** para um mercado (docs/06 §3.3). Cada arquivo d
 
 ```yaml
 schema_version: 1
-text_locale: es        # idioma de identity, mascot, colors e fans (ou origin e trivia); padrão pt-BR
+text_locale: es-AR     # idioma de identity, mascot, colors e fans (ou origin e trivia); padrão pt-BR
 country: AR
 teams: [...]
 ```
@@ -234,6 +234,7 @@ derbies:
     review_status: draft
 ```
 
+- **Clube hispânico fala como o seu país.** O YAML do clube já vem na voz do país (`es-AR`, `es-UY`, `es-CL`…), com os apelidos que a torcida usa, e esse texto vale para todo mercado em espanhol — por isso não existe `es` neutro para ele (erro `i18n-redundant`). Os gritos ficam em `copy_hints.<locale do clube>.cheer` e também servem aos outros mercados em espanhol. Em `football/derbies/south-america.yaml`, que mistura países, cada clássico declara a voz em `text_locale` no próprio item.
 - **Campo a campo.** A API escolhe cada campo pela cadeia `es-XX → es → original`; uma variante só precisa trazer o que muda (o `es-AR` acima deixa as cores no `es`).
 - **`es` neutro primeiro.** Todo texto em português ganha a versão `es` (vocabulário pan-hispânico: *afición*, *estadio*, *entrenador*); `es-XX` só quando a palavra muda no país — torcida (*hinchada*, *barra*, *porra*), estádio (*cancha*), o bicho ou objeto de um apelido (*chancho*, *puerco*, *marrano*), gíria (*cargada*, *talla*, *vacilón*). Fato puro (data, fundador, título) fica só no `es`. Gritos em segunda pessoa (voseo, *le voy al*) vão em `copy_hints.<locale>.cheer` do próprio time.
 - **Tradução não cria fato.** Glosas entre parênteses só explicam o apelido; o validador avisa quando a quantidade de fatos ou de curiosidades difere da do original (`i18n-drift`).
@@ -249,4 +250,4 @@ Regras do validador: `locale` igual ao nome do arquivo; slug de time/clássico e
 2. **Sem conteúdo ofensivo**: nada de cantos discriminatórios, violência, tragédias como provocação, apelidos pejorativos usados como ofensa. Apelidos que nasceram pejorativos e foram adotados pela torcida (ex.: "Porco") são permitidos com essa nota em `identity`.
 3. **Direitos autorais**: nunca transcrever letras de hinos ou músicas; apenas gritos curtos de domínio público/slogans oficiais.
 4. **Rivalidade em copy** só é usada pela API quando o usuário declarou explicitamente o rival (ver `docs/06-semantica-e-conteudo.md`).
-5. `review_status: draft` até revisão editorial humana; a API expõe o status para o cliente decidir se exibe.
+5. `review_status: draft` até revisão editorial; a API expõe o status para o cliente decidir se exibe. A primeira promoção a `approved` (out/2026) foi feita por revisores de IA no papel de editores nativos de cada mercado — critério e registro em docs/06 §2.

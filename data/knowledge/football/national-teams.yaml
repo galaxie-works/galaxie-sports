@@ -53,7 +53,7 @@ teams:
   - https://en.wikipedia.org/wiki/Brazil_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Brasileira_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Brasil
-  review_status: draft
+  review_status: approved
 - slug: argentina-nt
   names:
     official: Selección Argentina de Fútbol
@@ -95,7 +95,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Argentina_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Argentina
   - https://www.nbcnewyork.com/world-cup/spain-argentina-final-messi-yamal-score/6527556/
-  review_status: draft
+  review_status: approved
 - slug: uruguay-nt
   names:
     official: Selección Uruguaya de Fútbol
@@ -144,7 +144,7 @@ teams:
   - https://en.wikipedia.org/wiki/Uruguay_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Uruguaia_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Uruguay
-  review_status: draft
+  review_status: approved
 - slug: chile-nt
   names:
     official: Selección de Fútbol de Chile
@@ -191,7 +191,7 @@ teams:
   - https://en.wikipedia.org/wiki/Chile_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Chilena_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Chile
-  review_status: draft
+  review_status: approved
 - slug: colombia-nt
   names:
     official: Selección Colombia
@@ -238,7 +238,7 @@ teams:
   - https://en.wikipedia.org/wiki/Colombia_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Colombiana_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Colombia
-  review_status: draft
+  review_status: approved
 - slug: peru-nt
   names:
     official: Selección Peruana de Fútbol
@@ -288,7 +288,7 @@ teams:
   - https://en.wikipedia.org/wiki/Peru_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Peruana_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_del_Per%C3%BA
-  review_status: draft
+  review_status: approved
 - slug: ecuador-nt
   names:
     official: Selección de Fútbol de Ecuador
@@ -331,7 +331,7 @@ teams:
   - https://en.wikipedia.org/wiki/Ecuador_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Equatoriana_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Ecuador
-  review_status: draft
+  review_status: approved
 - slug: paraguay-nt
   names:
     official: Selección Paraguaya de Fútbol
@@ -374,7 +374,7 @@ teams:
   - https://en.wikipedia.org/wiki/Paraguay_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Paraguaia_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Paraguay
-  review_status: draft
+  review_status: approved
 - slug: bolivia-nt
   names:
     official: Selección de Fútbol de Bolivia
@@ -411,7 +411,7 @@ teams:
   - https://en.wikipedia.org/wiki/Bolivia_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Boliviana_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Bolivia
-  review_status: draft
+  review_status: approved
 - slug: venezuela-nt
   names:
     official: Selección de Fútbol de Venezuela
@@ -447,7 +447,7 @@ teams:
   - https://en.wikipedia.org/wiki/Venezuela_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Venezuelana_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Venezuela
-  review_status: draft
+  review_status: approved
 - slug: mexico-nt
   names:
     official: Selección de Fútbol de México
@@ -494,7 +494,7 @@ teams:
   - https://en.wikipedia.org/wiki/Mexico_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Mexicana_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_M%C3%A9xico
-  review_status: draft
+  review_status: approved
 - slug: usa-nt
   names:
     official: United States Men's National Soccer Team
@@ -539,7 +539,7 @@ teams:
   - https://en.wikipedia.org/wiki/United_States_men's_national_soccer_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_de_Futebol_dos_Estados_Unidos
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_los_Estados_Unidos
-  review_status: draft
+  review_status: approved
 - slug: canada-nt
   names:
     official: Canada Men's National Soccer Team
@@ -578,7 +578,7 @@ teams:
   - https://en.wikipedia.org/wiki/Canada_men's_national_soccer_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Canadense_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Canad%C3%A1
-  review_status: draft
+  review_status: approved
 - slug: costa-rica-nt
   names:
     official: Selección de Fútbol de Costa Rica
@@ -623,7 +623,7 @@ teams:
   - https://en.wikipedia.org/wiki/Costa_Rica_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Costarriquenha_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Costa_Rica
-  review_status: draft
+  review_status: approved
 - slug: spain-nt
   names:
     official: Selección Española de Fútbol
@@ -667,7 +667,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Espanhola_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Espa%C3%B1a
   - https://www.nbcnewyork.com/world-cup/spain-argentina-final-messi-yamal-score/6527556/
-  review_status: draft
+  review_status: approved
 - slug: france-nt
   names:
     official: Équipe de France de football
@@ -712,7 +712,7 @@ teams:
   - https://en.wikipedia.org/wiki/France_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Francesa_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Francia
-  review_status: draft
+  review_status: approved
 - slug: germany-nt
   names:
     official: Deutsche Fußballnationalmannschaft
@@ -759,7 +759,7 @@ teams:
   - https://en.wikipedia.org/wiki/Germany_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Alem%C3%A3_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Alemania
-  review_status: draft
+  review_status: approved
 - slug: italy-nt
   names:
     official: Nazionale di calcio dell'Italia
@@ -801,7 +801,7 @@ teams:
   - https://en.wikipedia.org/wiki/Italy_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Italiana_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Italia
-  review_status: draft
+  review_status: approved
 - slug: england-nt
   names:
     official: England National Football Team
@@ -848,7 +848,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Inglesa_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Inglaterra
   - https://blog.wego.com/who-won-the-fifa-world-cup/
-  review_status: draft
+  review_status: approved
 - slug: portugal-nt
   names:
     official: Seleção Portuguesa de Futebol
@@ -890,7 +890,7 @@ teams:
   - https://en.wikipedia.org/wiki/Portugal_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Portuguesa_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Portugal
-  review_status: draft
+  review_status: approved
 - slug: netherlands-nt
   names:
     official: Nederlands voetbalelftal
@@ -934,7 +934,7 @@ teams:
   - https://en.wikipedia.org/wiki/Netherlands_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Neerlandesa_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_los_Pa%C3%ADses_Bajos
-  review_status: draft
+  review_status: approved
 - slug: belgium-nt
   names:
     official: Belgian National Football Team
@@ -980,7 +980,7 @@ teams:
   - https://en.wikipedia.org/wiki/Belgium_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Belga_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_B%C3%A9lgica
-  review_status: draft
+  review_status: approved
 - slug: croatia-nt
   names:
     official: Hrvatska nogometna reprezentacija
@@ -1015,14 +1015,14 @@ teams:
       nicknames:
       - Croacia
       - Vatreni
-      - Los Ardientes
+      - Los Ajedrezados
       cheer:
       - ¡Vamos, Croacia!
   sources:
   - https://en.wikipedia.org/wiki/Croatia_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Croata_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Croacia
-  review_status: draft
+  review_status: approved
 - slug: morocco-nt
   names:
     official: Équipe du Maroc de football
@@ -1046,7 +1046,7 @@ teams:
     city: Rabat
   identity:
   - 4º lugar na Copa do Mundo de 2022, melhor campanha de uma seleção africana até então.
-  - Campeão da Copa Africana de Nações em 1976 e 2025.
+  - Campeão da Copa Africana de Nações em 1976 e 2025; o título de 2025 foi atribuído pela CAF por W.O., depois que o Senegal abandonou o campo na final.
   copy_hints:
     pt-BR:
       nicknames:
@@ -1064,7 +1064,7 @@ teams:
   - https://en.wikipedia.org/wiki/Morocco_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Marroquina_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Marruecos
-  review_status: draft
+  review_status: approved
 - slug: japan-nt
   names:
     official: Japan National Football Team
@@ -1102,4 +1102,4 @@ teams:
   - https://en.wikipedia.org/wiki/Japan_national_football_team
   - https://pt.wikipedia.org/wiki/Sele%C3%A7%C3%A3o_Japonesa_de_Futebol
   - https://es.wikipedia.org/wiki/Selecci%C3%B3n_de_f%C3%BAtbol_de_Jap%C3%B3n
-  review_status: draft
+  review_status: approved

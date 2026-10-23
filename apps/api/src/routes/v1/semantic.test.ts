@@ -42,6 +42,13 @@ describe('copyHintsFor', () => {
     expect(copyHintsFor({ es: {} }, 'pt-BR')).toEqual({ locale: null, cheer: [], nicknames: [] });
     expect(copyHintsFor(null, 'es-MX').locale).toBeNull();
   });
+
+  it('clube hispânico fala na voz do país em todo mercado de espanhol, antes do es neutro', () => {
+    const boca = { 'es-AR': { cheer: ['¡Dale, Bo!'] }, es: { cheer: ['¡Vamos, Boca!'] } };
+    expect(copyHintsFor(boca, 'es-MX', 'es-AR')).toMatchObject({ locale: 'es-AR', cheer: ['¡Dale, Bo!'] });
+    expect(copyHintsFor(boca, 'es-MX')).toMatchObject({ locale: 'es' }); // sem text_locale: idioma
+    expect(copyHintsFor(boca, 'pt-BR', 'es-AR').locale).toBeNull(); // nunca outro idioma
+  });
 });
 
 describe('textos livres por locale (docs/06 §3.3)', () => {

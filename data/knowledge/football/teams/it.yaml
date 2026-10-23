@@ -61,7 +61,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Juventus_Football_Club
   - https://es.wikipedia.org/wiki/Juventus_de_Tur%C3%ADn
   - https://www.goal.com/es/noticias/fino-alla-fine-uno-de-los-lemas-de-la-juventus/9ot1vbs5qd4u1bmlfq6h63248
-  review_status: draft
+  review_status: approved
 - slug: inter
   names:
     official: Football Club Internazionale Milano S.p.A.
@@ -112,7 +112,7 @@ teams:
   - https://en.wikipedia.org/wiki/Inter_Milan
   - https://pt.wikipedia.org/wiki/Football_Club_Internazionale_Milano
   - https://es.wikipedia.org/wiki/Inter_de_Mil%C3%A1n
-  review_status: draft
+  review_status: approved
 - slug: milan
   names:
     official: Associazione Calcio Milan S.p.A.
@@ -141,8 +141,8 @@ teams:
   rivals:
   - {team: inter, derby: derby-della-madonnina, intensity: 5}
   identity:
-  - Fundado em dezembro de 1899 como Milan Foot-Ball and Cricket Club (as fontes divergem entre os dias 16 e 18).
-  - O diabo vermelho e preto ("Il Diavolo") é o símbolo do clube.
+    - "Fundado em dezembro de 1899 como Milan Foot-Ball and Cricket Club."
+    - "O diabo vermelho e preto (\"Il Diavolo\") é o símbolo do clube."
   copy_hints:
     pt-BR:
       nicknames:
@@ -163,7 +163,7 @@ teams:
   - https://en.wikipedia.org/wiki/AC_Milan
   - https://pt.wikipedia.org/wiki/Associazione_Calcio_Milan
   - https://es.wikipedia.org/wiki/Associazione_Calcio_Milan
-  review_status: draft
+  review_status: approved
 - slug: napoli
   names:
     official: Società Sportiva Calcio Napoli S.p.A.
@@ -189,7 +189,8 @@ teams:
     name: Stadio Diego Armando Maradona
     nicknames:
     - Maradona
-    - San Paolo (nome anterior)
+    former_names:
+    - {name: Stadio San Paolo, until: 2020-12-03}
     city: Nápoles
   identity:
   - Fundado em 1926 como Associazione Calcio Napoli; refundado em 2004 (Napoli Soccer, depois SSC Napoli).
@@ -213,7 +214,8 @@ teams:
   - https://en.wikipedia.org/wiki/SSC_Napoli
   - https://pt.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Calcio_Napoli
   - https://es.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Calcio_Napoli
-  review_status: draft
+  - https://en.wikipedia.org/wiki/Stadio_Diego_Armando_Maradona
+  review_status: approved
 - slug: roma
   names:
     official: Associazione Sportiva Roma S.p.A.
@@ -265,7 +267,7 @@ teams:
   - https://en.wikipedia.org/wiki/AS_Roma
   - https://pt.wikipedia.org/wiki/Associazione_Sportiva_Roma
   - https://es.wikipedia.org/wiki/Associazione_Sportiva_Roma
-  review_status: draft
+  review_status: approved
 - slug: lazio
   names:
     official: Società Sportiva Lazio S.p.A.
@@ -316,7 +318,7 @@ teams:
   - https://en.wikipedia.org/wiki/SS_Lazio
   - https://pt.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Lazio
   - https://es.wikipedia.org/wiki/Societ%C3%A0_Sportiva_Lazio
-  review_status: draft
+  review_status: approved
 - slug: atalanta
   names:
     official: Atalanta Bergamasca Calcio S.p.A.
@@ -361,7 +363,7 @@ teams:
   - https://en.wikipedia.org/wiki/Atalanta_BC
   - https://pt.wikipedia.org/wiki/Atalanta_Bergamasca_Calcio
   - https://es.wikipedia.org/wiki/Atalanta_Bergamasca_Calcio
-  review_status: draft
+  review_status: approved
 - slug: fiorentina
   names:
     official: ACF Fiorentina S.p.A.
@@ -409,7 +411,7 @@ teams:
   - https://en.wikipedia.org/wiki/ACF_Fiorentina
   - https://pt.wikipedia.org/wiki/Associazione_Calcio_Firenze_Fiorentina
   - https://es.wikipedia.org/wiki/ACF_Fiorentina
-  review_status: draft
+  review_status: approved
 - slug: torino
   names:
     official: Torino Football Club S.p.A.
@@ -434,8 +436,8 @@ teams:
   rivals:
   - {team: juventus, derby: derby-della-mole, intensity: 4}
   identity:
-  - Fundado em 3 de dezembro de 1906 como Foot-Ball Club Torino.
-  - Incluído nesta base como rival da Juventus no Derby della Mole.
+    - "Fundado em 3 de dezembro de 1906 como Foot-Ball Club Torino."
+    - "O apelido \"Granata\" vem da cor grená do uniforme."
   copy_hints:
     pt-BR:
       nicknames:
@@ -455,4 +457,4 @@ teams:
   - https://en.wikipedia.org/wiki/Torino_FC
   - https://pt.wikipedia.org/wiki/Torino_Football_Club
   - https://es.wikipedia.org/wiki/Torino_Football_Club
-  review_status: draft
+  review_status: approved

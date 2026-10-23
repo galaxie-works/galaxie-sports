@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-AR # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: AR
 teams:
   - slug: boca-juniors
@@ -25,18 +25,16 @@ teams:
     rivals:
       - { team: river-plate, derby: superclasico-argentino, intensity: 5 }
     identity:
-      - "Fundado en el barrio de La Boca, de tradición genovesa; de ahí el apodo Xeneize."
-      - "Juega en La Bombonera, uno de los estadios más emblemáticos del fútbol mundial."
+      - "Nació en el barrio de La Boca, de tradición genovesa; de ahí el apodo Xeneize."
+      - "Es local en La Bombonera, una de las canchas más emblemáticas del fútbol mundial."
     copy_hints:
       es-AR:
-        cheer: ["¡Dale Bo!", "¡Vamos Boca!", "Hoy alentamos al Xeneize"]
-      es:
-        cheer: ["¡Vamos, Boca!", "¡Arriba, Xeneize!"]
+        cheer: ["¡Dale, Bo!", "¡Vamos, Xeneize, que hoy lo ganás!", "¡Aguante Boca!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Boca_Juniors"
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
       - "https://futboltotal.futbol/teams/boca-juniors"
-    review_status: draft
+    review_status: approved
 
   - slug: river-plate
     names:
@@ -62,18 +60,16 @@ teams:
     rivals:
       - { team: boca-juniors, derby: superclasico-argentino, intensity: 5 }
     identity:
-      - "Nació en La Boca en 1901 y luego se trasladó al barrio de Núñez."
-      - "Su camiseta blanca con la banda roja cruzada es uno de sus símbolos."
+      - "Nació en La Boca en 1901 y después se mudó al barrio de Núñez."
+      - "La camiseta blanca con la banda roja cruzada es uno de los símbolos del Millonario."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos River!", "¡Dale Millo!", "Hoy alentamos a la Banda"]
-      es:
-        cheer: ["¡Vamos, River!", "¡Arriba, Millonario!"]
+        cheer: ["¡Vamos, River!", "¡Dale, Millonario, que hoy lo ganás!", "¡Aguante la Banda!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_River_Plate"
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: independiente
     names:
@@ -98,17 +94,15 @@ teams:
     rivals:
       - { team: racing-club, derby: clasico-de-avellaneda, intensity: 5 }
     identity:
-      - "Conocido como Rey de Copas por su récord de 7 Copas Libertadores."
-      - "Adoptó el color rojo en 1908; sus primeras camisetas fueron blancas."
+      - "Le dicen Rey de Copas por su récord de 7 Copas Libertadores."
+      - "El Rojo adoptó ese color en 1908; sus primeras camisetas eran blancas."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Rojo!", "Hoy alentamos al Rey de Copas"]
-      es:
-        cheer: ["¡Vamos, Rojo!", "¡Arriba, Rey de Copas!"]
+        cheer: ["¡Vamos, Rojo!", "¡Dale, Rey de Copas!", "¡Aguante el Rojo!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Independiente"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: racing-club
     names:
@@ -133,16 +127,14 @@ teams:
     rivals:
       - { team: independiente, derby: clasico-de-avellaneda, intensity: 5 }
     identity:
-      - "Primer club argentino campeón intercontinental (1967)."
+      - "La Academia fue el primer club argentino campeón intercontinental (1967)."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Racing!", "¡Vamos Academia!"]
-      es:
-        cheer: ["¡Vamos, Racing!", "¡Arriba, Academia!"]
+        cheer: ["¡Vamos, Academia!", "¡Dale, Racing, que hoy lo ganás!", "¡Aguante la Academia!"]
     sources:
       - "https://es.wikipedia.org/wiki/Racing_Club"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: san-lorenzo
     names:
@@ -167,17 +159,15 @@ teams:
     rivals:
       - { team: huracan, derby: clasico-san-lorenzo-huracan, intensity: 5 }
     identity:
-      - "Su nombre homenajea al sacerdote Lorenzo Massa, que dio refugio a los jóvenes fundadores."
-      - "Ganó la Copa Libertadores en 2014."
+      - "Su nombre homenajea al cura Lorenzo Massa, que les dio refugio a los pibes que fundaron el club."
+      - "El Ciclón ganó la Copa Libertadores en 2014."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Ciclón!", "Hoy alentamos al Cuervo"]
-      es:
-        cheer: ["¡Vamos, San Lorenzo!", "¡Arriba, Ciclón!"]
+        cheer: ["¡Vamos, Ciclón!", "¡Dale, Cuervo!", "¡Aguante San Lorenzo!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_San_Lorenzo_de_Almagro"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: huracan
     names:
@@ -202,15 +192,15 @@ teams:
     rivals:
       - { team: san-lorenzo, derby: clasico-san-lorenzo-huracan, intensity: 5 }
     identity:
-      - "Su escudo lleva un globo aerostático, origen del apodo Globo."
-      - "Fecha oficial de fundación 1908, aunque su origen se remonta a 1903 en Pompeya."
+      - "El escudo lleva un globo aerostático; de ahí el apodo Globo."
+      - "La fecha oficial de fundación es 1908, aunque sus orígenes se remontan a 1903, en Pompeya."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Globo!", "Hoy alentamos al Quemero"]
+        cheer: ["¡Vamos, Globo!", "¡Dale, Quemero!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Huracán"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: velez-sarsfield
     names:
@@ -234,14 +224,14 @@ teams:
       city: Buenos Aires
     rivals: []
     identity:
-      - "Club del barrio de Liniers; campeón de la Copa Libertadores y la Intercontinental en 1994."
+      - "El Fortín es el club del barrio de Liniers; en 1994 salió campeón de la Copa Libertadores y de la Intercontinental."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Vélez!", "Hoy alentamos al Fortín"]
+        cheer: ["¡Vamos, Fortín!", "¡Dale, Vélez!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Vélez_Sarsfield"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: estudiantes-lp
     names:
@@ -266,14 +256,14 @@ teams:
     rivals:
       - { team: gimnasia-lp, derby: clasico-platense, intensity: 5 }
     identity:
-      - "Ganó tres Copas Libertadores consecutivas (1968, 1969 y 1970) y una más en 2009."
+      - "El Pincha ganó tres Copas Libertadores seguidas (1968, 1969 y 1970) y una más en 2009."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Pincha!", "Hoy alentamos al León"]
+        cheer: ["¡Vamos, Pincha!", "¡Dale, León!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Estudiantes_de_La_Plata"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: gimnasia-lp
     names:
@@ -298,14 +288,14 @@ teams:
     rivals:
       - { team: estudiantes-lp, derby: clasico-platense, intensity: 5 }
     identity:
-      - "Fundado en 1887, es uno de los clubes más antiguos de Argentina."
+      - "El Lobo se fundó en 1887 y es uno de los clubes más antiguos de la Argentina."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Lobo!", "Hoy alentamos al Tripero"]
+        cheer: ["¡Vamos, Lobo!", "¡Dale, Tripero!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_de_Gimnasia_y_Esgrima_La_Plata"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: rosario-central
     names:
@@ -330,15 +320,15 @@ teams:
     rivals:
       - { team: newells-old-boys, derby: clasico-rosarino, intensity: 5 }
     identity:
-      - "El apodo Canalla nació como burla de su rival y fue adoptado con orgullo por su hinchada."
-      - "Fundado por trabajadores del ferrocarril Central Argentino."
+      - "El apodo Canalla nació como una cargada del rival y la hinchada lo adoptó con orgullo."
+      - "Lo fundaron trabajadores del ferrocarril Central Argentino."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Central!", "Hoy alentamos al Canalla"]
+        cheer: ["¡Vamos, Canalla!", "¡Dale, Central!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Rosario_Central"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: newells-old-boys
     names:
@@ -363,15 +353,15 @@ teams:
     rivals:
       - { team: rosario-central, derby: clasico-rosarino, intensity: 5 }
     identity:
-      - "El apodo Leproso se adoptó con orgullo; según la tradición, nació de un partido benéfico para un hospital."
-      - "Su nombre homenajea a Isaac Newell, educador inglés radicado en Rosario."
+      - "La Lepra adoptó con orgullo el apodo Leproso; según la tradición, nació de un partido a beneficio de un hospital."
+      - "Su nombre homenajea a Isaac Newell, un educador inglés radicado en Rosario."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Newell's!", "Hoy alentamos a la Lepra"]
+        cheer: ["¡Vamos, Lepra!", "¡Dale, Newell's!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Newell's_Old_Boys"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: talleres-cordoba
     names:
@@ -396,14 +386,14 @@ teams:
     rivals:
       - { team: belgrano-cordoba, derby: clasico-cordobes, intensity: 5 }
     identity:
-      - "Fundado por trabajadores de los talleres ferroviarios de Córdoba."
+      - "A la T la fundaron trabajadores de los talleres ferroviarios de Córdoba."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Talleres!", "Hoy alentamos a la T"]
+        cheer: ["¡Vamos, Matador!", "¡Dale, Talleres!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Talleres"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: belgrano-cordoba
     names:
@@ -428,14 +418,14 @@ teams:
     rivals:
       - { team: talleres-cordoba, derby: clasico-cordobes, intensity: 5 }
     identity:
-      - "Club del barrio Alberdi de Córdoba."
+      - "El Pirata es el club del barrio Alberdi, en Córdoba."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Pirata!", "Hoy alentamos al Celeste"]
+        cheer: ["¡Vamos, Pirata!", "¡Dale, Celeste!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Belgrano"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: lanus
     names:
@@ -460,14 +450,14 @@ teams:
     rivals:
       - { team: banfield, derby: clasico-del-sur-ar, intensity: 4 }
     identity:
-      - "Campeón de la Copa Sudamericana en 2013."
+      - "El Granate salió campeón de la Copa Sudamericana en 2013 y en 2025."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Granate!", "Hoy alentamos a Lanús"]
+        cheer: ["¡Vamos, Granate!", "¡Dale, Lanús!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Lanús"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: banfield
     names:
@@ -492,14 +482,14 @@ teams:
     rivals:
       - { team: lanus, derby: clasico-del-sur-ar, intensity: 4 }
     identity:
-      - "Fundado por inmigrantes británicos en 1896; campeón del Apertura 2009."
+      - "Al Taladro lo fundaron inmigrantes británicos en 1896; salió campeón del Apertura 2009."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Taladro!", "Hoy alentamos a Banfield"]
+        cheer: ["¡Vamos, Taladro!", "¡Dale, Banfield!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Banfield"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: argentinos-juniors
     names:
@@ -523,15 +513,15 @@ teams:
       city: Buenos Aires
     rivals: []
     identity:
-      - "Club donde debutó Diego Maradona; su estadio lleva su nombre."
-      - "Campeón de la Copa Libertadores 1985."
+      - "En el Bicho debutó Diego Maradona, y la cancha lleva su nombre."
+      - "Salió campeón de la Copa Libertadores 1985."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Bicho!", "Hoy alentamos al Semillero del Mundo"]
+        cheer: ["¡Vamos, Bicho!", "¡Aguante el Bicho!"]
     sources:
       - "https://es.wikipedia.org/wiki/Asociación_Atlética_Argentinos_Juniors"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: colon-santa-fe
     names:
@@ -556,14 +546,14 @@ teams:
     rivals:
       - { team: union-santa-fe, derby: clasico-santafesino, intensity: 5 }
     identity:
-      - "Su estadio es conocido como Cementerio de los Elefantes por los resultados ante equipos grandes."
+      - "A la cancha del Sabalero le dicen Cementerio de los Elefantes por los resultados ante los equipos grandes."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Colón!", "Hoy alentamos al Sabalero"]
+        cheer: ["¡Vamos, Sabalero!", "¡Dale, Colón!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Colón"
       - "https://futboltotal.futbol/teams/colon-santa-fe"
-    review_status: draft
+    review_status: approved
 
   - slug: union-santa-fe
     names:
@@ -588,14 +578,14 @@ teams:
     rivals:
       - { team: colon-santa-fe, derby: clasico-santafesino, intensity: 5 }
     identity:
-      - "Su estadio lleva el nombre de la fecha de fundación del club."
+      - "La cancha del Tatengue lleva el nombre de la fecha de fundación del club."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Unión!", "Hoy alentamos al Tatengue"]
+        cheer: ["¡Vamos, Tatengue!", "¡Dale, Unión!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Unión"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: defensa-y-justicia
     names:
@@ -619,12 +609,12 @@ teams:
       city: Florencio Varela
     rivals: []
     identity:
-      - "Adoptó el verde y amarillo en 1982, colores ligados a la empresa de colectivos El Halcón."
-      - "Campeón de la Copa Sudamericana 2020."
+      - "El Halcón adoptó el verde y amarillo en 1982, colores ligados a la empresa de colectivos El Halcón."
+      - "Salió campeón de la Copa Sudamericana 2020."
     copy_hints:
       es-AR:
-        cheer: ["¡Vamos Halcón!", "Hoy alentamos al Defe"]
+        cheer: ["¡Vamos, Halcón!", "¡Dale, Defe!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Social_y_Deportivo_Defensa_y_Justicia"
       - "https://futboltotal.futbol/league/liga-profesional-argentina/clasificacion"
-    review_status: draft
+    review_status: approved

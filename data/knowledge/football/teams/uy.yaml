@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-UY # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: UY
 teams:
   - slug: penarol
@@ -18,7 +18,7 @@ teams:
     fans:
       demonym: carbonero
       group_nicknames: [manyas]
-    rallying_cries: ["¡Vamos Peñarol!", "¡Vamos Manya!"]
+    rallying_cries: ["¡Vamo arriba Peñarol!", "¡Vamos Peñarol!", "¡Vamos Manya!"]
     stadium:
       name: Estadio Campeón del Siglo
       nicknames: [Campeón del Siglo]
@@ -26,16 +26,16 @@ teams:
     rivals:
       - { team: nacional-uy, derby: clasico-uruguayo, intensity: 5 }
     identity:
-      - "Sus orígenes se remontan al Central Uruguay Railway Cricket Club (CURCC), fundado en 1891 por trabajadores ferroviarios; la continuidad histórica es debatida por su rival."
-      - "Cinco veces campeón de la Copa Libertadores."
+      - "Sus orígenes se remontan al Central Uruguay Railway Cricket Club (CURCC), fundado en 1891 por trabajadores ferroviarios; el clásico rival discute esa continuidad histórica."
+      - "El Manya es cinco veces campeón de la Copa Libertadores."
     copy_hints:
       es-UY:
-        cheer: ["¡Vamos Peñarol!", "¡Vamos Manya!", "Hoy alentamos al Carbonero"]
+        cheer: ["¡Vamo arriba Peñarol!", "¡Dale, Manya!", "¡Vamos, Carbonero!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Peñarol"
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_uruguayo"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: nacional-uy
     names:
@@ -61,16 +61,16 @@ teams:
     rivals:
       - { team: penarol, derby: clasico-uruguayo, intensity: 5 }
     identity:
-      - "Fundado en 1899 por estudiantes uruguayos; se reivindica como el primer club de fútbol fundado por criollos en el país."
+      - "Lo fundaron estudiantes uruguayos en 1899; el Bolso se reivindica como el primer club de fútbol fundado por criollos en el país."
       - "El Gran Parque Central fue sede de partidos del Mundial de 1930."
-      - "Tres veces campeón de la Copa Libertadores."
+      - "El Tricolor es tres veces campeón de la Copa Libertadores."
     copy_hints:
       es-UY:
-        cheer: ["¡Vamos Nacional!", "¡Vamos Bolso!", "Hoy alentamos al Tricolor"]
+        cheer: ["¡Vamo Nacional!", "¡Dale, Bolso!", "¡Vamos, Tricolor!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Nacional_de_Football"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: defensor-sporting
     names:
@@ -94,14 +94,14 @@ teams:
       city: Montevideo
     rivals: []
     identity:
-      - "Actual denominación tras la fusión de Defensor con Sporting en 1989."
+      - "El Violeta lleva su nombre actual desde la fusión de Defensor con Sporting, en 1989."
     copy_hints:
       es-UY:
-        cheer: ["¡Vamos Defensor!", "Hoy alentamos a la Violeta"]
+        cheer: ["¡Vamo, Violeta!", "¡Dale, Defensor!"]
     sources:
       - "https://es.wikipedia.org/wiki/Defensor_Sporting_Club"
       - "https://futboltotal.futbol/teams/defensor-sporting-uruguay"
-    review_status: draft
+    review_status: approved
 
   - slug: danubio
     names:
@@ -125,14 +125,14 @@ teams:
       city: Montevideo
     rivals: []
     identity:
-      - "Su camiseta blanca con franja diagonal negra da origen al apodo La Franja."
+      - "La camiseta blanca con la franja diagonal negra le dio el apodo La Franja."
     copy_hints:
       es-UY:
-        cheer: ["¡Vamos Danubio!", "Hoy alentamos a la Franja"]
+        cheer: ["¡Vamo, Franja!", "¡Dale, Danubio!"]
     sources:
       - "https://es.wikipedia.org/wiki/Danubio_Fútbol_Club"
       - "https://futboltotal.futbol/teams/danubio"
-    review_status: draft
+    review_status: approved
 
   - slug: liverpool-uy
     names:
@@ -156,14 +156,14 @@ teams:
       city: Montevideo
     rivals: []
     identity:
-      - "Club del barrio Belvedere de Montevideo; campeón uruguayo en 2023."
+      - "El Negriazul es el club del barrio Belvedere, en Montevideo; salió campeón uruguayo en 2023."
     copy_hints:
       es-UY:
-        cheer: ["¡Vamos Liverpool!", "Hoy alentamos al Negriazul"]
+        cheer: ["¡Vamo, Negriazul!", "¡Dale, Liverpool!"]
     sources:
       - "https://es.wikipedia.org/wiki/Liverpool_Fútbol_Club"
       - "https://futboltotal.futbol/teams/liverpool-montevideo"
-    review_status: draft
+    review_status: approved
 
   - slug: montevideo-wanderers
     names:
@@ -187,11 +187,11 @@ teams:
       city: Montevideo
     rivals: []
     identity:
-      - "Uno de los clubes históricos del fútbol uruguayo, conocido como Los Bohemios."
+      - "Uno de los clubes históricos del fútbol uruguayo; le dicen los Bohemios."
     copy_hints:
       es-UY:
-        cheer: ["¡Vamos Wanderers!", "Hoy alentamos al Bohemio"]
+        cheer: ["¡Vamo, Bohemio!", "¡Dale, Wanderers!"]
     sources:
       - "https://es.wikipedia.org/wiki/Montevideo_Wanderers_Fútbol_Club"
       - "https://futboltotal.futbol/teams/wanderers"
-    review_status: draft
+    review_status: approved

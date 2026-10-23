@@ -34,7 +34,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Sada_Cruzeiro_Vôlei"
       - "https://abcdoabc.com.br/superliga-masculina-bb-20-21-sada-cruzeiro-vence-o-minas-no-classico-mineiro/"
-    review_status: draft
+    review_status: approved
 
   - slug: volleyball-minas-masculino
     names:
@@ -57,7 +57,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Minas_Tênis_Clube"
       - "https://www.flashscore.com.br/noticias/sada-cruzeiro-e-minas-voltam-a-se-enfrentar-agora-pelo-campeonato-mineiro-de-volei/bkuX6RS0/"
-    review_status: draft
+    review_status: approved
 
   # ------------------------------------------------------------------ SUPERLIGA FEMININA
   - slug: volleyball-minas-feminino
@@ -84,7 +84,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Minas_Tênis_Clube_(voleibol_feminino)"
       - "https://www.lance.com.br/volei/minas-domina-retrospecto-em-finais-contra-o-praia-clube-confira.html"
-    review_status: draft
+    review_status: approved
 
   - slug: volleyball-praia-clube-feminino
     names:
@@ -107,4 +107,4 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Praia_Clube"
       - "https://www.cnnbrasil.com.br/esportes/volei/praia-clube-supreende-domina-minas-e-e-campeao-da-superliga-feminina/"
-    review_status: draft
+    review_status: approved

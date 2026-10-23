@@ -30,7 +30,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Franca_Basquetebol_Clube"
       - "https://www.gazetaesportiva.com/mais-esportes/basquete/embalado-com-recorde-e-titulo-lider-bauru-faz-classico-com-o-franca/"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-bauru
     names:
@@ -59,7 +59,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Associação_Bauru_Basketball_Team"
       - "https://www.gazetaesportiva.com/?p=2421539"
-    review_status: draft
+    review_status: approved
 
   # ------------------------------------------------------------------ CAPITAL PAULISTA
   - slug: basketball-paulistano
@@ -87,7 +87,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Club_Athletico_Paulistano"
       - "https://www.gazetaesportiva.com/?p=2645579"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-pinheiros
     names:
@@ -113,7 +113,7 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Esporte_Clube_Pinheiros"
       - "https://dol.com.br/esporte/esporte-brasil/noticia-554389-paulistano-vence-classico-e-toma-o-3-lugar-do-pinheiros-no-nbb.html"
-    review_status: draft
+    review_status: approved
 
   # ------------------------------------------------------------------ RIO DE JANEIRO
   - slug: basketball-flamengo
@@ -141,7 +141,7 @@ teams:
     sources:
       - "https://en.wikipedia.org/wiki/Flamengo_Basketball"
       - "https://www.netvasco.com.br/n/347793/basquete-vasco-perde-para-o-urubu-na-estreia-do-nbb-59-a-50"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-vasco
     names:
@@ -167,4 +167,4 @@ teams:
     sources:
       - "https://pt.wikipedia.org/wiki/Club_de_Regatas_Vasco_da_Gama_(basquete)"
       - "https://www.netvasco.com.br/n/347793/basquete-vasco-perde-para-o-urubu-na-estreia-do-nbb-59-a-50"
-    review_status: draft
+    review_status: approved

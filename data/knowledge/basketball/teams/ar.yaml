@@ -1,6 +1,6 @@
 # Base semântica — clubes de básquet da Argentina (Liga Nacional) envolvidos em clássicos documentados (schema v1)
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-AR # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: AR
 teams:
   # ------------------------------------------------------------------ MAR DEL PLATA
@@ -32,7 +32,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Peñarol_(Mar_del_Plata)"
       - "https://lanacion.com.ar/deportes/penarol-repitio-el-triunfo-en-el-clasico-marplatense-ante-quilmes-nid1749354"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-quilmes-mar-del-plata
     names:
@@ -55,7 +55,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Atlético_Quilmes_(Mar_del_Plata)"
       - "https://lanacion.com.ar/deportes/penarol-repitio-el-triunfo-en-el-clasico-marplatense-ante-quilmes-nid1749354"
-    review_status: draft
+    review_status: approved
 
   # ------------------------------------------------------------------ SANTIAGO DEL ESTERO
   - slug: basketball-quimsa
@@ -85,7 +85,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Asociación_Atlética_Quimsa"
       - "https://www.baenegocios.com/deportes/Quimsa-le-gano-a-su-escolta-Olimpico-el-clasico-santiagueno-y-sigue-liderando-el-torneo-20240123-0005.html"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-olimpico-la-banda
     names:
@@ -110,7 +110,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Club_Ciclista_Olímpico"
       - "https://www.diariopanorama.com/noticia/319977/olimpico-logro-triunfo-mas-abultado-historia-clasico"
-    review_status: draft
+    review_status: approved
 
   # ------------------------------------------------------------------ CÓRDOBA
   - slug: basketball-atenas-cordoba
@@ -137,7 +137,7 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Asociación_Deportiva_Atenas"
       - "https://hoydia.com.ar/deportes/basquet/instituto-y-atenas-cierran-el-ano-en-el-sandrin/"
-    review_status: draft
+    review_status: approved
 
   - slug: basketball-instituto-cordoba
     names:
@@ -166,4 +166,4 @@ teams:
     sources:
       - "https://es.wikipedia.org/wiki/Instituto_Atlético_Central_Córdoba_(baloncesto)"
       - "https://cba24n.com.ar/noche-de-clasico-cordobes-en-la-liga-nacional-de-basquet_a5de57f9ad91dda49891470bc"
-    review_status: draft
+    review_status: approved

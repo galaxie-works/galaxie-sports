@@ -56,7 +56,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Paris_Saint-Germain_Football_Club
   - https://es.wikipedia.org/wiki/Paris_Saint-Germain_Football_Club
   - https://www.psg.fr/en/content/icp-la-maison-london
-  review_status: draft
+  review_status: approved
 - slug: marseille
   names:
     official: Olympique de Marseille
@@ -75,7 +75,6 @@ teams:
   - L'OM
   - Les Phocéens
   - Les Olympiens
-  mascot: Nino
   rallying_cries:
   - Droit au but
   stadium:
@@ -109,7 +108,7 @@ teams:
   - https://en.wikipedia.org/wiki/Olympique_de_Marseille
   - https://pt.wikipedia.org/wiki/Olympique_de_Marseille
   - https://es.wikipedia.org/wiki/Olympique_de_Marsella
-  review_status: draft
+  review_status: approved
 - slug: lyon
   names:
     official: Olympique Lyonnais
@@ -137,8 +136,8 @@ teams:
   rivals:
   - {team: marseille, derby: choc-des-olympiques, intensity: 3}
   identity:
-  - Fundado em 1950 (as fontes divergem sobre o dia).
-  - '"Gones" é uma palavra do dialeto lionês para "garotos".'
+    - "Fundado em 1950, a partir da seção de futebol do Lyon Olympique Universitaire."
+    - "\"Gones\" é uma palavra do dialeto lionês para \"garotos\"."
   copy_hints:
     pt-BR:
       nicknames:
@@ -158,7 +157,7 @@ teams:
   - https://en.wikipedia.org/wiki/Olympique_Lyonnais
   - https://pt.wikipedia.org/wiki/Olympique_Lyonnais
   - https://es.wikipedia.org/wiki/Olympique_de_Lyon
-  review_status: draft
+  review_status: approved
 - slug: monaco
   names:
     official: Association Sportive de Monaco Football Club
@@ -202,7 +201,7 @@ teams:
   - https://en.wikipedia.org/wiki/AS_Monaco_FC
   - https://pt.wikipedia.org/wiki/Association_Sportive_de_Monaco_Football_Club
   - https://es.wikipedia.org/wiki/Association_Sportive_Monaco_Football_Club
-  review_status: draft
+  review_status: approved
 - slug: lille
   names:
     official: Lille Olympique Sporting Club
@@ -228,7 +227,7 @@ teams:
     - Pierre-Mauroy
     city: Villeneuve-d'Ascq
   identity:
-  - Fundado em 1944 a partir da fusão de clubes de Lille (as fontes divergem sobre o dia).
+    - "Fundado em 1944 a partir da fusão do Olympique Lillois com o SC Fives."
   copy_hints:
     pt-BR:
       nicknames:
@@ -248,4 +247,4 @@ teams:
   - https://en.wikipedia.org/wiki/Lille_OSC
   - https://pt.wikipedia.org/wiki/Lille_Olympique_Sporting_Club
   - https://es.wikipedia.org/wiki/Lille_Olympique_Sporting_Club
-  review_status: draft
+  review_status: approved

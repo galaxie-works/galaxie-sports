@@ -9,34 +9,35 @@ teams:
   - slug: palmeiras
     identity:
       - "Fundado por inmigrantes italianos como Palestra Italia; adoptó el nombre Palmeiras en 1942."
-      - "El apodo Porco (chancho, en portugués) nació como un vacilón de los rivales y la hinchada lo adoptó con orgullo."
+      - "El apodo Porco («chancho» en portugués) nació como una burla de los rivales y la propia hinchada lo adoptó."
       - "En 2026 el estadio pasó a llamarse Nubank Parque (antes Allianz Parque) por un contrato de naming rights."
     mascot: Porco (chancho)
-    review_status: draft
+    review_status: approved
 
   - slug: flamengo
     identity:
       - "Nació como club de remo en 1895, en Río de Janeiro."
       - "El Urubu (un gallinazo), que los rivales usaban para vacilarlos, fue adoptado por la hinchada en 1969."
     mascot: Urubu (gallinazo)
-    review_status: draft
+    review_status: approved
 
   - slug: fluminense
     identity:
-      - "Fundado en 1902 en el barrio de Laranjeiras; campeón de la Copa Libertadores 2023."
-      - "El apodo Pó de Arroz (polvo de arroz), nacido como vacilón en 1914, fue resignificado por la hinchada."
-    review_status: draft
+      - "Fundado el 21 de julio de 1902 en una reunión en el barrio de Flamengo, con sede en Laranjeiras desde octubre de ese año; campeón de la Copa Libertadores 2023."
+      - "El apodo Pó de Arroz (polvo de arroz), que nació como burla en 1914, fue resignificado por la hinchada."
+      - "Su mascota actual es el Guerreirinho (pequeño guerrero), adoptado en 2016; el Cartola (sombrero de copa) sigue siendo una figura tradicional del club."
+    review_status: approved
 
   - slug: atletico-mineiro
     identity:
       - "Fundado en 1908 en Belo Horizonte; campeón de la Copa Libertadores 2013, cuando el lema Eu acredito («Yo creo») levantó a toda la barra."
-    review_status: draft
+    review_status: approved
 
 derbies:
   - slug: classico-da-amizade
-    origin: "Nombre dado por la prensa por la buena relación histórica entre las dos hinchadas."
-    review_status: draft
+    origin: "Nombre que le puso la prensa por la buena relación histórica entre las dos hinchadas."
+    review_status: approved
 
   - slug: classico-do-povo
     origin: "Reúne a las dos hinchadas más grandes de Brasil."
-    review_status: draft
+    review_status: approved

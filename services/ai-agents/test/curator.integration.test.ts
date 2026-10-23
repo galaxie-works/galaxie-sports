@@ -101,7 +101,8 @@ describe('Agente Curador (integração, dry-run)', () => {
     const result = await runCurator(db, kb, { llm, now: NOW });
     expect(result.proposals.map((p) => [p.kind, p.status])).toEqual([
       ['add_team', 'accepted'],
-      ['update_stadium', 'accepted'],
+      // Palmeiras é approved: a troca de estádio fica só no relatório, para a revisão editorial
+      ['update_stadium', 'needs_review'],
     ]);
     expect(result.changes.validation).toEqual([]);
     const files = await writeDryRun(out, result);
@@ -113,7 +114,7 @@ describe('Agente Curador (integração, dry-run)', () => {
     ]);
     const diff = readFileSync(join(out, 'changes.diff'), 'utf8');
     expect(diff).toContain('+  - slug: exemplo-fc');
-    expect(diff).toContain('+      name: Arena Nova Exemplo');
+    expect(diff).not.toContain('Arena Nova Exemplo');
     expect(diff).toMatch(/\+\s+review_status: draft/);
     expect(readFileSync(join(out, 'report.md'), 'utf8')).toContain('Revisão editorial obrigatória');
     // dry-run: o repositório não muda

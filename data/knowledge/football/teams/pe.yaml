@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-PE # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: PE
 teams:
   - slug: alianza-lima
@@ -25,15 +25,15 @@ teams:
     rivals:
       - { team: universitario, derby: clasico-peruano, intensity: 5 }
     identity:
-      - "Fundado en 1901 como Sport Alianza; es un símbolo del distrito de La Victoria."
+      - "Los Íntimos nacieron en 1901 como Sport Alianza y son un símbolo del distrito de La Victoria."
     copy_hints:
       es-PE:
-        cheer: ["¡Arriba Alianza!", "¡Vamos Alianza!", "Hoy alentamos a los Íntimos"]
+        cheer: ["¡Arriba Alianza!", "¡Vamos, Íntimos!", "¡Dale, Blanquiazul!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Alianza_Lima"
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_peruano"
       - "https://futboltotal.futbol/teams/emelec"
-    review_status: draft
+    review_status: approved
 
   - slug: universitario
     names:
@@ -58,15 +58,15 @@ teams:
     rivals:
       - { team: alianza-lima, derby: clasico-peruano, intensity: 5 }
     identity:
-      - "Fundado en 1924 como Federación Universitaria de Fútbol por estudiantes de San Marcos."
+      - "La U nació en 1924 como Federación Universitaria de Fútbol, fundada por estudiantes de San Marcos."
     copy_hints:
       es-PE:
-        cheer: ["¡Y dale U!", "¡Vamos la U!", "Hoy alentamos a los Cremas"]
+        cheer: ["¡Y dale U!", "¡Vamos, Cremas!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Universitario_de_Deportes"
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_peruano"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: sporting-cristal
     names:
@@ -90,15 +90,15 @@ teams:
       city: Lima
     rivals: []
     identity:
-      - "Fundado en 1955 en el distrito del Rímac, de ahí el apodo Rimenses."
-      - "Finalista de la Copa Libertadores 1997."
+      - "Nació en 1955 en el distrito del Rímac; de ahí el apodo Rimenses."
+      - "Los Celestes fueron finalistas de la Copa Libertadores 1997."
     copy_hints:
       es-PE:
-        cheer: ["¡Vamos Cristal!", "Hoy alentamos a los Celestes"]
+        cheer: ["¡Arriba Cristal!", "¡Vamos, Celestes!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Sporting_Cristal"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: melgar
     names:
@@ -123,14 +123,14 @@ teams:
     rivals:
       - { team: cienciano, derby: clasico-del-sur-pe, intensity: 4 }
     identity:
-      - "Uno de los clubes más antiguos del Perú; nació en 1915 como Juventud Melgar."
+      - "El Dominó es uno de los clubes más antiguos del Perú; nació en 1915 como Juventud Melgar."
     copy_hints:
       es-PE:
-        cheer: ["¡Vamos Melgar!", "Hoy alentamos al Dominó"]
+        cheer: ["¡Arriba Melgar!", "¡Vamos, Dominó!"]
     sources:
       - "https://en.wikipedia.org/wiki/FBC_Melgar"
       - "https://futboltotal.futbol/teams/fbc-melgar-peru"
-    review_status: draft
+    review_status: approved
 
   - slug: cienciano
     names:
@@ -155,11 +155,11 @@ teams:
     rivals:
       - { team: melgar, derby: clasico-del-sur-pe, intensity: 4 }
     identity:
-      - "Primer club peruano en ganar un título internacional: la Copa Sudamericana 2003."
+      - "El Rojo Imperial fue el primer club peruano en ganar un título internacional: la Copa Sudamericana 2003."
     copy_hints:
       es-PE:
-        cheer: ["¡Vamos Cienciano!", "Hoy alentamos al Rojo Imperial"]
+        cheer: ["¡Arriba Cienciano!", "¡Vamos, Rojo Imperial!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Sportivo_Cienciano"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
-    review_status: draft
+    review_status: approved

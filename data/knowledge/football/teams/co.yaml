@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-CO # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: CO
 teams:
   - slug: atletico-nacional
@@ -25,14 +25,14 @@ teams:
     rivals:
       - { team: independiente-medellin, derby: clasico-paisa, intensity: 5 }
     identity:
-      - "Primer club colombiano campeón de la Copa Libertadores (1989); volvió a ganarla en 2016."
+      - "El Verdolaga fue el primer club colombiano campeón de la Copa Libertadores (1989) y volvió a ganarla en 2016."
     copy_hints:
       es-CO:
-        cheer: ["¡Vamos Nacional!", "Hoy hacemos fuerza por el Verde", "¡Vamos Verdolaga!"]
+        cheer: ["¡Hágale, Verde!", "¡Vamos, Verdolaga!", "Hoy hacemos fuerza por el Verde"]
     sources:
       - "https://es.wikipedia.org/wiki/Atlético_Nacional"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: millonarios
     names:
@@ -57,14 +57,14 @@ teams:
     rivals:
       - { team: independiente-santa-fe, derby: clasico-capitalino-co, intensity: 5 }
     identity:
-      - "En la era de El Dorado (1949-1954) fue conocido como el Ballet Azul."
+      - "En la época de El Dorado (1949-1954) al Embajador lo conocían como el Ballet Azul."
     copy_hints:
       es-CO:
-        cheer: ["¡Vamos Millos!", "Hoy hacemos fuerza por el Embajador"]
+        cheer: ["¡Vamos, Millos!", "¡Hágale, Embajador!", "Hoy hacemos fuerza por el Embajador"]
     sources:
       - "https://es.wikipedia.org/wiki/Millonarios_Fútbol_Club"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: america-de-cali
     names:
@@ -89,14 +89,14 @@ teams:
     rivals:
       - { team: deportivo-cali, derby: clasico-vallecaucano, intensity: 5 }
     identity:
-      - "Pentacampeón colombiano consecutivo entre 1982 y 1986."
+      - "La Mechita fue pentacampeona colombiana de manera consecutiva entre 1982 y 1986."
     copy_hints:
       es-CO:
-        cheer: ["¡Vamos América!", "Hoy hacemos fuerza por la Mechita"]
+        cheer: ["¡Vamos, Mechita!", "¡Hágale, América!", "Hoy hacemos fuerza por la Mechita"]
     sources:
       - "https://es.wikipedia.org/wiki/América_de_Cali"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: deportivo-cali
     names:
@@ -121,14 +121,14 @@ teams:
     rivals:
       - { team: america-de-cali, derby: clasico-vallecaucano, intensity: 5 }
     identity:
-      - "Juega como local en su estadio propio, ubicado en Palmira."
+      - "El Azucarero juega de local en su estadio propio, ubicado en Palmira."
     copy_hints:
       es-CO:
-        cheer: ["¡Vamos Cali!", "Hoy hacemos fuerza por el Verdiblanco"]
+        cheer: ["¡Vamos, Cali!", "¡Hágale, Azucarero!", "Hoy hacemos fuerza por el Verdiblanco"]
     sources:
       - "https://es.wikipedia.org/wiki/Asociación_Deportivo_Cali"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: independiente-santa-fe
     names:
@@ -153,15 +153,15 @@ teams:
     rivals:
       - { team: millonarios, derby: clasico-capitalino-co, intensity: 5 }
     identity:
-      - "Primer campeón del fútbol profesional colombiano (1948)."
+      - "El Cardenal fue el primer campeón del fútbol profesional colombiano (1948)."
       - "Campeón de la Copa Sudamericana 2015."
     copy_hints:
       es-CO:
-        cheer: ["¡Vamos Santa Fe!", "Hoy hacemos fuerza por el Cardenal"]
+        cheer: ["¡Vamos, Santa Fe!", "¡Hágale, León!", "Hoy hacemos fuerza por el Cardenal"]
     sources:
       - "https://es.wikipedia.org/wiki/Independiente_Santa_Fe"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: junior-barranquilla
     names:
@@ -185,14 +185,14 @@ teams:
       city: Barranquilla
     rivals: []
     identity:
-      - "Fundado en 1924 con el nombre de Juventud Infantil."
+      - "El Tiburón nació en 1924 con el nombre de Juventud Infantil."
     copy_hints:
       es-CO:
-        cheer: ["¡Vamos Junior!", "Hoy hacemos fuerza por el Tiburón"]
+        cheer: ["¡Vamos, Junior!", "¡Hágale, Tiburón!", "Hoy hacemos fuerza por el Tiburón"]
     sources:
       - "https://es.wikipedia.org/wiki/Junior_de_Barranquilla"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: independiente-medellin
     names:
@@ -217,14 +217,14 @@ teams:
     rivals:
       - { team: atletico-nacional, derby: clasico-paisa, intensity: 5 }
     identity:
-      - "Uno de los clubes más antiguos de Colombia, fundado en 1913."
+      - "El Poderoso de la Montaña es uno de los clubes más antiguos de Colombia, fundado en 1913."
     copy_hints:
       es-CO:
-        cheer: ["¡Vamos Medellín!", "Hoy hacemos fuerza por el Poderoso"]
+        cheer: ["¡Vamos, Poderoso!", "¡Hágale, DIM!", "Hoy hacemos fuerza por el Poderoso"]
     sources:
       - "https://es.wikipedia.org/wiki/Deportivo_Independiente_Medellín"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: once-caldas
     names:
@@ -248,15 +248,15 @@ teams:
       city: Manizales
     rivals: []
     identity:
-      - "Nació en 1947 como Deportes Caldas y adoptó el nombre Once Caldas en 1961 tras fusionarse con Once Deportivo."
-      - "Campeón de la Copa Libertadores 2004."
+      - "Nació en 1947 como Deportes Caldas y en 1961 adoptó el nombre Once Caldas, tras fusionarse con Once Deportivo."
+      - "El Blanco Blanco fue campeón de la Copa Libertadores 2004."
     copy_hints:
       es-CO:
-        cheer: ["¡Vamos Once Caldas!", "Hoy hacemos fuerza por el Blanco Blanco"]
+        cheer: ["¡Vamos, Once Caldas!", "¡Hágale, Blanco Blanco!", "Hoy hacemos fuerza por el Blanco Blanco"]
     sources:
       - "https://es.wikipedia.org/wiki/Once_Caldas"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: deportes-tolima
     names:
@@ -280,11 +280,11 @@ teams:
       city: Ibagué
     rivals: []
     identity:
-      - "Club de Ibagué, conocida como la Ciudad Musical de Colombia."
+      - "El Vinotinto y Oro es de Ibagué, conocida como la Ciudad Musical de Colombia."
     copy_hints:
       es-CO:
-        cheer: ["¡Vamos Tolima!", "Hoy hacemos fuerza por el Vinotinto y Oro"]
+        cheer: ["¡Vamos, Tolima!", "¡Hágale, Pijao!", "Hoy hacemos fuerza por el Vinotinto y Oro"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportes_Tolima"
       - "https://futboltotal.futbol/league/primera-a/clasificacion"
-    review_status: draft
+    review_status: approved

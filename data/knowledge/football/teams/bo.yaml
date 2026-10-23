@@ -1,5 +1,5 @@
 schema_version: 1
-text_locale: es # idioma de identity, mascot, colors e fans (docs/06 §3.3)
+text_locale: es-BO # idioma de identity, mascot, colors e fans (docs/06 §3.3)
 country: BO
 teams:
   - slug: bolivar
@@ -25,14 +25,14 @@ teams:
     rivals:
       - { team: the-strongest, derby: clasico-paceno, intensity: 5 }
     identity:
-      - "El club con más títulos de liga en Bolivia."
+      - "La Academia es el club con más títulos de liga en Bolivia."
     copy_hints:
       es-BO:
-        cheer: ["¡Vamos Bolívar!", "Hoy alentamos a la Academia"]
+        cheer: ["¡Vamos, Academia!", "¡Fuerza, Celeste!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Bolívar"
       - "https://futboltotal.futbol/league/conmebol-libertadores/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: the-strongest
     names:
@@ -60,11 +60,11 @@ teams:
       - "Fundado en 1908, es uno de los clubes más antiguos de Bolivia; su símbolo es el tigre."
     copy_hints:
       es-BO:
-        cheer: ["¡Vamos Tigre!", "Hoy alentamos al Gualdinegro"]
+        cheer: ["¡Vamos, Tigre!", "¡Fuerza, Gualdinegro!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_The_Strongest"
       - "https://futboltotal.futbol/teams/deportivo-tachira-fc"
-    review_status: draft
+    review_status: approved
 
   - slug: blooming
     names:
@@ -89,14 +89,14 @@ teams:
     rivals:
       - { team: oriente-petrolero, derby: clasico-cruceno, intensity: 4 }
     identity:
-      - "Club cruceño fundado el 1 de mayo de 1946."
+      - "La Academia cruceña nació el 1 de mayo de 1946."
     copy_hints:
       es-BO:
-        cheer: ["¡Vamos Blooming!", "Hoy alentamos a la Academia cruceña"]
+        cheer: ["¡Vamos, Blooming!", "¡Fuerza, Academia!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Blooming"
       - "https://futboltotal.futbol/league/conmebol-sudamericana/clasificacion"
-    review_status: draft
+    review_status: approved
 
   - slug: oriente-petrolero
     names:
@@ -121,11 +121,11 @@ teams:
     rivals:
       - { team: blooming, derby: clasico-cruceno, intensity: 4 }
     identity:
-      - "Fundado por trabajadores de la petrolera estatal YPFB, de ahí el apodo Refinero."
+      - "Lo fundaron trabajadores de la petrolera estatal YPFB; de ahí el apodo Refinero."
     copy_hints:
       es-BO:
-        cheer: ["¡Vamos Oriente!", "Hoy alentamos al Refinero"]
+        cheer: ["¡Vamos, Refinero!", "¡Fuerza, Oriente!"]
     sources:
       - "https://es.wikipedia.org/wiki/Club_Deportivo_Oriente_Petrolero"
       - "https://futboltotal.futbol/teams/oriente-petrolero"
-    review_status: draft
+    review_status: approved

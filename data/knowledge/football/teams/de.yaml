@@ -53,7 +53,7 @@ teams:
   - https://en.wikipedia.org/wiki/FC_Bayern_Munich
   - https://pt.wikipedia.org/wiki/FC_Bayern_M%C3%BCnchen
   - https://es.wikipedia.org/wiki/Bayern_de_M%C3%BAnich
-  review_status: draft
+  review_status: approved
 - slug: borussia-dortmund
   names:
     official: Ballspielverein Borussia 09 e. V. Dortmund
@@ -105,7 +105,7 @@ teams:
   - https://en.wikipedia.org/wiki/Borussia_Dortmund
   - https://pt.wikipedia.org/wiki/Borussia_Dortmund
   - https://es.wikipedia.org/wiki/Borussia_Dortmund
-  review_status: draft
+  review_status: approved
 - slug: bayer-leverkusen
   names:
     official: Bayer 04 Leverkusen Fußball GmbH
@@ -146,7 +146,7 @@ teams:
   - https://en.wikipedia.org/wiki/Bayer_04_Leverkusen
   - https://pt.wikipedia.org/wiki/Bayer_04_Leverkusen
   - https://es.wikipedia.org/wiki/Bayer_Leverkusen
-  review_status: draft
+  review_status: approved
 - slug: rb-leipzig
   names:
     official: RasenBallsport Leipzig e. V.
@@ -188,7 +188,7 @@ teams:
   - https://en.wikipedia.org/wiki/RB_Leipzig
   - https://pt.wikipedia.org/wiki/RasenBallsport_Leipzig
   - https://es.wikipedia.org/wiki/RasenBallsport_Leipzig
-  review_status: draft
+  review_status: approved
 - slug: schalke-04
   names:
     official: Fußballclub Gelsenkirchen-Schalke 04 e. V.
@@ -237,7 +237,7 @@ teams:
   - https://en.wikipedia.org/wiki/FC_Schalke_04
   - https://pt.wikipedia.org/wiki/FC_Schalke_04
   - https://es.wikipedia.org/wiki/FC_Schalke_04
-  review_status: draft
+  review_status: approved
 - slug: vfb-stuttgart
   names:
     official: Verein für Bewegungsspiele Stuttgart 1893 e. V.
@@ -281,7 +281,7 @@ teams:
   - https://en.wikipedia.org/wiki/VfB_Stuttgart
   - https://pt.wikipedia.org/wiki/VfB_Stuttgart
   - https://es.wikipedia.org/wiki/VfB_Stuttgart
-  review_status: draft
+  review_status: approved
 - slug: eintracht-frankfurt
   names:
     official: Eintracht Frankfurt e. V.
@@ -327,4 +327,4 @@ teams:
   - https://en.wikipedia.org/wiki/Eintracht_Frankfurt
   - https://pt.wikipedia.org/wiki/Eintracht_Frankfurt
   - https://es.wikipedia.org/wiki/Eintracht_Fr%C3%A1ncfort
-  review_status: draft
+  review_status: approved

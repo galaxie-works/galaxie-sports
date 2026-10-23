@@ -37,8 +37,8 @@ teams:
   - {team: barcelona, derby: el-clasico, intensity: 5}
   - {team: atletico-madrid, derby: derbi-madrileno, intensity: 5}
   identity:
-  - Fundado em 6 de março de 1902 como Madrid Football Club; o título "Real" foi concedido pelo rei Afonso XIII em 1920.
-  - Em novembro de 2025 o clube passou a usar oficialmente a forma curta "Bernabéu" para o estádio.
+    - "Fundado em 6 de março de 1902 como Madrid Football Club; o título \"Real\" foi concedido pelo rei Afonso XIII em 1920."
+    - "O estádio leva o nome de Santiago Bernabéu, presidente histórico do clube."
   copy_hints:
     pt-BR:
       nicknames:
@@ -61,7 +61,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Real_Madrid_Club_de_F%C3%BAtbol
   - https://es.wikipedia.org/wiki/Real_Madrid_Club_de_F%C3%BAtbol
   - https://www.football-espana.net/2025/11/12/real-madrid-make-new-stadium-name-official-with-new-branding
-  review_status: draft
+  review_status: approved
 - slug: barcelona
   names:
     official: Futbol Club Barcelona
@@ -121,7 +121,7 @@ teams:
   - https://en.wikipedia.org/wiki/FC_Barcelona
   - https://pt.wikipedia.org/wiki/Futbol_Club_Barcelona
   - https://es.wikipedia.org/wiki/F%C3%BAtbol_Club_Barcelona
-  review_status: draft
+  review_status: approved
 - slug: atletico-madrid
   names:
     official: Club Atlético de Madrid, S.A.D.
@@ -178,7 +178,7 @@ teams:
   - https://en.wikipedia.org/wiki/Atl%C3%A9tico_Madrid
   - https://pt.wikipedia.org/wiki/Club_Atl%C3%A9tico_de_Madrid
   - https://es.wikipedia.org/wiki/Club_Atl%C3%A9tico_de_Madrid
-  review_status: draft
+  review_status: approved
 - slug: sevilla
   names:
     official: Sevilla Fútbol Club, S.A.D.
@@ -211,6 +211,7 @@ teams:
   identity:
   - Fundado em 25 de janeiro de 1890 como Sevilla Foot-ball Club.
   - '"Nervionenses" vem do bairro de Nervión, onde fica o estádio.'
+  - '"Palanganas" (bacias) nasceu como ironia dos dissidentes que fundaram o Betis, mas foi incorporado e hoje é usado com orgulho pelos próprios sevillistas.'
   copy_hints:
     pt-BR:
       nicknames:
@@ -230,7 +231,9 @@ teams:
   - https://en.wikipedia.org/wiki/Sevilla_FC
   - https://pt.wikipedia.org/wiki/Sevilla_F%C3%BAtbol_Club
   - https://es.wikipedia.org/wiki/Sevilla_F%C3%BAtbol_Club
-  review_status: draft
+  - https://www.laliga.com/en-GB/news/why-are-the-sevillistas-sevilla-fc-players-called-palanganas-basin-1
+  - https://www.elconfidencial.com/deportes/futbol/2022-10-11/por-que-a-sevillistas-se-les-llama-palanganas_3504801/
+  review_status: approved
 - slug: real-betis
   names:
     official: Real Betis Balompié, S.A.D.
@@ -252,7 +255,6 @@ teams:
   - El Glorioso
   fans:
     demonym: bético
-  mascot: Palmerín
   rallying_cries:
   - ¡Viva er Betis manque pierda!
   stadium:
@@ -263,8 +265,8 @@ teams:
   rivals:
   - {team: sevilla, derby: derbi-sevillano, intensity: 5}
   identity:
-  - Fundado em 12 de setembro de 1907 como Sevilla Balompié.
-  - Durante a reconstrução do Benito Villamarín (iniciada em 2025) manda jogos provisoriamente no Estadio La Cartuja.
+    - "Fundado em 12 de setembro de 1907 como Sevilla Balompié."
+    - "Desde 2025, enquanto o Benito Villamarín é reconstruído, manda seus jogos no Estadio La Cartuja."
   copy_hints:
     pt-BR:
       nicknames:
@@ -285,7 +287,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Real_Betis_Balompi%C3%A9
   - https://es.wikipedia.org/wiki/Real_Betis_Balompi%C3%A9
   - https://stadiumdb.com/news/2025/11/spain_betis_facing_longer_exile_villamarin_rebuild_slipping_away_from_original_plan
-  review_status: draft
+  review_status: approved
 - slug: athletic-club
   names:
     official: Athletic Club
@@ -336,7 +338,7 @@ teams:
   - https://pt.wikipedia.org/wiki/Athletic_Club
   - https://es.wikipedia.org/wiki/Athletic_Club
   - https://stadiumdb.com/stadiums/esp/estadio_san_mames
-  review_status: draft
+  review_status: approved
 - slug: real-sociedad
   names:
     official: Real Sociedad de Fútbol, S.A.D.
@@ -382,7 +384,7 @@ teams:
   - https://en.wikipedia.org/wiki/Real_Sociedad
   - https://pt.wikipedia.org/wiki/Real_Sociedad_de_F%C3%BAtbol
   - https://es.wikipedia.org/wiki/Real_Sociedad_de_F%C3%BAtbol
-  review_status: draft
+  review_status: approved
 - slug: valencia
   names:
     official: Valencia Club de Fútbol, S.A.D.
@@ -403,7 +405,6 @@ teams:
   - Murciélagos
   fans:
     demonym: valencianista
-  mascot: Morcego
   rallying_cries:
   - Amunt Valencia!
   stadium:
@@ -432,7 +433,7 @@ teams:
   - https://en.wikipedia.org/wiki/Valencia_CF
   - https://pt.wikipedia.org/wiki/Valencia_Club_de_F%C3%BAtbol
   - https://es.wikipedia.org/wiki/Valencia_Club_de_F%C3%BAtbol
-  review_status: draft
+  review_status: approved
 - slug: villarreal
   names:
     official: Villarreal Club de Fútbol, S.A.D.
@@ -455,8 +456,8 @@ teams:
     - La Cerámica
     city: Vila-real
   identity:
-  - Fundado em 10 de março de 1923, na cidade de Vila-real (Castellón).
-  - O apelido "Submarino Amarillo" vem do uniforme todo amarelo.
+    - "Fundado em 10 de março de 1923, na cidade de Vila-real (Castellón)."
+    - "O apelido \"Submarino Amarillo\" vem do uniforme todo amarelo e da canção \"Yellow Submarine\", dos Beatles."
   copy_hints:
     pt-BR:
       nicknames:
@@ -475,4 +476,4 @@ teams:
   - https://en.wikipedia.org/wiki/Villarreal_CF
   - https://pt.wikipedia.org/wiki/Villarreal_Club_de_F%C3%BAtbol
   - https://es.wikipedia.org/wiki/Villarreal_Club_de_F%C3%BAtbol
-  review_status: draft
+  review_status: approved

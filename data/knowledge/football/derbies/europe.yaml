@@ -24,7 +24,7 @@ derbies:
   - https://en.wikipedia.org/wiki/El_Cl%C3%A1sico
   - https://pt.wikipedia.org/wiki/El_Cl%C3%A1sico
   - https://es.wikipedia.org/wiki/El_Cl%C3%A1sico
-  review_status: draft
+  review_status: approved
 - slug: derbi-madrileno
   name: Derbi madrileño
   aliases:
@@ -42,7 +42,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Madrid_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_de_Madrid
   - https://es.wikipedia.org/wiki/Derbi_madrile%C3%B1o
-  review_status: draft
+  review_status: approved
 - slug: derbi-sevillano
   name: Derbi sevillano
   aliases:
@@ -64,7 +64,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Seville_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_da_Andaluzia
   - https://es.wikipedia.org/wiki/Derbi_sevillano
-  review_status: draft
+  review_status: approved
 - slug: derbi-vasco
   name: Derbi vasco
   aliases:
@@ -85,7 +85,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Basque_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_basco
   - https://es.wikipedia.org/wiki/Derbi_vasco
-  review_status: draft
+  review_status: approved
 - slug: derby-della-madonnina
   name: Derby della Madonnina
   aliases:
@@ -106,7 +106,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Derby_della_Madonnina
   - https://pt.wikipedia.org/wiki/Derby_della_Madonnina
   - https://es.wikipedia.org/wiki/Derbi_de_Mil%C3%A1n
-  review_status: draft
+  review_status: approved
 - slug: derby-ditalia
   name: Derby d'Italia
   aliases:
@@ -124,7 +124,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Derby_d'Italia
   - https://pt.wikipedia.org/wiki/Derby_d'Italia
   - https://es.wikipedia.org/wiki/Derbi_de_Italia
-  review_status: draft
+  review_status: approved
 - slug: derby-della-capitale
   name: Derby della Capitale
   aliases:
@@ -147,7 +147,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Derby_della_Capitale
   - https://pt.wikipedia.org/wiki/Derby_della_Capitale
   - https://es.wikipedia.org/wiki/Derbi_de_Roma
-  review_status: draft
+  review_status: approved
 - slug: derby-della-mole
   name: Derby della Mole
   aliases:
@@ -169,7 +169,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Derby_della_Mole
   - https://pt.wikipedia.org/wiki/Derby_della_Mole
   - https://es.wikipedia.org/wiki/Derbi_de_Tur%C3%ADn
-  review_status: draft
+  review_status: approved
 - slug: der-klassiker
   name: Der Klassiker
   aliases:
@@ -191,7 +191,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Der_Klassiker
   - https://pt.wikipedia.org/wiki/Der_Klassiker
   - https://es.wikipedia.org/wiki/Der_Klassiker
-  review_status: draft
+  review_status: approved
 - slug: revierderby
   name: Revierderby
   aliases:
@@ -212,7 +212,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Revierderby
   - https://pt.wikipedia.org/wiki/Revierderby
   - https://es.wikipedia.org/wiki/Derbi_del_Ruhr
-  review_status: draft
+  review_status: approved
 - slug: le-classique
   name: Le Classique
   aliases:
@@ -235,7 +235,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Le_Classique
   - https://pt.wikipedia.org/wiki/Le_Classique
   - https://es.wikipedia.org/wiki/Le_Classique
-  review_status: draft
+  review_status: approved
 - slug: choc-des-olympiques
   name: Choc des Olympiques
   aliases:
@@ -250,13 +250,13 @@ derbies:
   first_match: 1945-09-23
   origin: Rivalidade entre os dois grandes clubes franceses com "Olympique" no nome, Lyon e Marseille.
   trivia:
-  - O primeiro encontro terminou 1–1.
-  - A imprensa francesa popularizou o apelido "Olympico", em referência a El Clásico.
+    - "O primeiro encontro terminou 1–1."
+    - "A emissora Canal+ popularizou o apelido \"Olympico\", em referência a El Clásico."
   sources:
   - https://en.wikipedia.org/wiki/Choc_des_Olympiques
   - https://pt.wikipedia.org/wiki/Choc_des_Olympiques
   - https://es.wikipedia.org/wiki/Choc_des_Olympiques
-  review_status: draft
+  review_status: approved
 - slug: north-london-derby
   name: North London Derby
   aliases:
@@ -277,7 +277,7 @@ derbies:
   - https://en.wikipedia.org/wiki/North_London_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_do_norte_de_Londres
   - https://es.wikipedia.org/wiki/Derbi_del_Norte_de_Londres
-  review_status: draft
+  review_status: approved
 - slug: merseyside-derby
   name: Merseyside Derby
   aliases:
@@ -290,7 +290,7 @@ derbies:
   scope: city
   intensity: 5
   first_match: 1894-10-13
-  origin: Clássico da cidade de Liverpool entre Everton e Liverpool, o dérbi de elite mais antigo da Inglaterra.
+  origin: "Clássico da cidade de Liverpool entre Everton e Liverpool, o dérbi mais longevo da elite inglesa."
   trivia:
   - É disputado sem interrupção na primeira divisão desde a temporada 1962-63.
   - Anfield e Goodison Park ficavam a menos de uma milha, separados pelo Stanley Park.
@@ -298,7 +298,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Merseyside_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_do_Merseyside
   - https://es.wikipedia.org/wiki/Derbi_de_Merseyside
-  review_status: draft
+  review_status: approved
 - slug: manchester-derby
   name: Manchester Derby
   aliases:
@@ -319,7 +319,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Manchester_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_de_Manchester
   - https://es.wikipedia.org/wiki/Derbi_de_M%C3%A1nchester
-  review_status: draft
+  review_status: approved
 - slug: north-west-derby
   name: North West Derby
   aliases:
@@ -340,7 +340,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Liverpool_F.C.%E2%80%93Manchester_United_F.C._rivalry
   - https://pt.wikipedia.org/wiki/North_West_Derby
   - https://es.wikipedia.org/wiki/Derbi_del_Noroeste_de_Inglaterra
-  review_status: draft
+  review_status: approved
 - slug: tyne-wear-derby
   name: Tyne–Wear Derby
   aliases:
@@ -354,14 +354,14 @@ derbies:
   scope: state
   intensity: 5
   first_match: null
-  origin: Dérbi do nordeste da Inglaterra entre Newcastle United e Sunderland, cidades quase contíguas.
+  origin: "Dérbi do nordeste da Inglaterra entre Newcastle United e Sunderland, cidades vizinhas."
   trivia:
   - O primeiro encontro foi em 1883.
   sources:
   - https://en.wikipedia.org/wiki/Tyne%E2%80%93Wear_derby
   - https://pt.wikipedia.org/wiki/Derby_de_Tyne-Wear
   - https://es.wikipedia.org/wiki/Derbi_de_Tyne_%26_Wear
-  review_status: draft
+  review_status: approved
 - slug: o-classico
   name: O Clássico
   aliases:
@@ -382,7 +382,7 @@ derbies:
   - https://en.wikipedia.org/wiki/O_Cl%C3%A1ssico
   - https://pt.wikipedia.org/wiki/FC_Porto_vs._SL_Benfica
   - https://es.wikipedia.org/wiki/O_Cl%C3%A1ssico
-  review_status: draft
+  review_status: approved
 - slug: derby-de-lisboa
   name: Derby de Lisboa
   aliases:
@@ -404,7 +404,7 @@ derbies:
   - https://en.wikipedia.org/wiki/Derby_de_Lisboa
   - https://pt.wikipedia.org/wiki/Sporting_CP_vs._SL_Benfica
   - https://es.wikipedia.org/wiki/Derby_da_Capital
-  review_status: draft
+  review_status: approved
 - slug: de-klassieker
   name: De Klassieker
   aliases:
@@ -424,4 +424,4 @@ derbies:
   - https://en.wikipedia.org/wiki/De_Klassieker
   - https://pt.wikipedia.org/wiki/De_Klassieker
   - https://es.wikipedia.org/wiki/De_Klassieker
-  review_status: draft
+  review_status: approved

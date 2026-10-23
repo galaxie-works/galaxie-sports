@@ -40,6 +40,17 @@ describe('pickCheer', () => {
     ).toBe('Vai, Verdão!');
   });
 
+  it('gritos do clube no locale dele valem para outro mercado do mesmo idioma', () => {
+    const penarol = {
+      rallyingCries: ['¡Vamos Peñarol!'],
+      copyHints: { 'es-UY': { cheer: ['¡Vamo arriba Peñarol!'] } },
+      sources: [],
+      textLocale: 'es-UY',
+    };
+    expect(pickCheer(penarol, 'es-CO')?.text).toBe('¡Vamo arriba Peñarol!');
+    expect(pickCheer(penarol, 'pt-BR')?.text).toBe('¡Vamos Peñarol!');
+  });
+
   it('sem perfil ou sem grito → null', () => {
     expect(pickCheer(null, 'pt-BR')).toBeNull();
     expect(pickCheer({ rallyingCries: [], copyHints: {}, sources: ['https://x'] }, 'pt-BR')).toBeNull();

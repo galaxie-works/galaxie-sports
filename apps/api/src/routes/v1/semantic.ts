@@ -38,7 +38,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext, type ReviewStatus } from '../../context.js';
 import { ProblemError, problems } from '../../errors.js';
-import { formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
+import { formatInstant, hintLocales, pickList, pickText, resolveLocale } from '../../i18n.js';
 import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
 
@@ -78,13 +78,17 @@ export function profileName(p: Pick<ProfileRow, 'labels' | 'names'>, locale: str
   return pickText(p.labels as Record<string, string> | null, locale, names.short)!;
 }
 
-/** Dicas de copy do mercado: locale exato e depois o idioma (es-AR → es); pt-BR não cai para espanhol. */
+/**
+ * Dicas de copy do mercado: locale exato, depois o do clube quando é o mesmo idioma (gritos do Boca em
+ * es-AR também para es-MX) e por fim o idioma (es-MX → es); pt-BR não cai para espanhol.
+ */
 export function copyHintsFor(
   hints: unknown,
   locale: string,
+  originLocale?: string | null,
 ): { locale: string | null; cheer: string[]; nicknames: string[] } {
   const rec = (hints ?? {}) as CopyHints;
-  for (const l of [locale, locale.split('-')[0]!]) {
+  for (const l of hintLocales(locale, originLocale)) {
     const h = rec[l];
     if (h) return { locale: l, cheer: h.cheer ?? [], nicknames: h.nicknames ?? [] };
   }
@@ -372,7 +376,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         if (!p) throw problems.notFound('Perfil semântico do time');
         if (!meetsReview(p.reviewStatus, min)) throw notPublished('Perfil semântico do time', min);
         const names = p.names as Names;
-        const hints = copyHintsFor(p.copyHints, locale);
+        const hints = copyHintsFor(p.copyHints, locale, p.textLocale);
         const texts = teamTexts(p, locale, min);
         const stadium = p.stadium as {
           name: string;
@@ -769,5 +773,10 @@ async function rivalsOf(
 
 /** Lista localizada de apelidos do perfil, preferindo os do mercado (usada pela copy). */
 export function nicknamesFor(p: ProfileRow, locale: string): string[] {
-  return [...new Set([...copyHintsFor(p.copyHints, locale).nicknames, ...pickList(p.nicknames, locale)])];
+  return [
+    ...new Set([
+      ...copyHintsFor(p.copyHints, locale, p.textLocale).nicknames,
+      ...pickList(p.nicknames, locale),
+    ]),
+  ];
 }
