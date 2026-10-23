@@ -18,6 +18,10 @@ import {
   derbyTeam,
   event,
   participant,
+  personSeasonStat,
+  personSidelined,
+  personTransfer,
+  personTrophy,
   providerMap,
   publishChange,
   runMigrations,
@@ -372,7 +376,7 @@ async function seed() {
   await db.insert(teamProfile).values([
     {
       slug: 'palmeiras',
-      participantId: ids.palmeiras,
+      participantId: ids.palmeiras!,
       countryCode: 'BR',
       names: { official: 'Sociedade Esportiva Palmeiras', short: 'Palmeiras' },
       nicknames: ['Verdão', 'Alviverde'],
@@ -1272,6 +1276,76 @@ describe('/v1/teams e /v1/people', () => {
     const empty = (await get(`/v1/people/${striker.person.id}/overview?season=2019`)).json();
     expect(empty).toMatchObject({ season: 2019, totals: null, stats: [], recent_matches: [] });
     expect((await get('/v1/people/01a15f83-0f07-78a6-9de5-191d031f73d3/overview')).statusCode).toBe(404);
+  });
+
+  it('perfil com os dados completos do fornecedor: total da temporada, transferências, títulos e afastamentos', async () => {
+    const squad = (await get(`/v1/teams/${ids.palmeiras}/squad?season=2026`)).json();
+    const striker = squad.players.find(
+      (p: { person: { name: string } }) => p.person.name === 'Atacante A',
+    ) as { person: { id: string } };
+    const personId = striker.person.id;
+    const [corinthians] = await db
+      .select({ id: providerMap.entityId })
+      .from(providerMap)
+      .where(and(eq(providerMap.entityType, 'participant'), eq(providerMap.providerId, '131')));
+    // o total do Brasileirão 2026 do fornecedor (30 jogos) passa a soma das partidas (1 jogo)
+    await db.insert(personSeasonStat).values({
+      personId,
+      participantId: ids.palmeiras!,
+      seasonId: ids.serieA2026!,
+      position: 'Attacker',
+      number: 9,
+      appearances: 30,
+      lineups: 27,
+      minutes: 2500,
+      goals: 14,
+      assists: 5,
+      yellowCards: 2,
+      redCards: 0,
+      rating: '7.35',
+      stats: {},
+    });
+    await db.insert(personTransfer).values({
+      personId,
+      date: '2025-01-10',
+      type: 'Loan',
+      fromParticipantId: corinthians!.id,
+      toParticipantId: ids.palmeiras!,
+      fromName: 'Corinthians',
+      toName: 'Palmeiras',
+    });
+    await db.insert(personTrophy).values([
+      { personId, league: 'Serie A', country: 'Brazil', season: '2025', place: 'Winner' },
+      { personId, league: 'Serie A', country: 'Brazil', season: null, place: 'Winner' },
+    ]);
+    await db.insert(personSidelined).values({
+      personId,
+      type: 'Hamstring Injury',
+      startDate: '2026-03-01',
+      endDate: '2026-03-20',
+    });
+    const body = (await get(`/v1/people/${personId}/overview?season=2026`)).json();
+    expect(body.stats).toHaveLength(1);
+    expect(body.stats[0]).toMatchObject({ source: 'provider', appearances: 30, goals: 14, rating: 7.35 });
+    expect(body.totals).toMatchObject({ appearances: 30, goals: 14 });
+    expect(body.seasons[0]).toEqual({ year: 2026, appearances: 30, goals: 14 });
+    expect(body.transfers).toEqual([
+      {
+        date: '2025-01-10',
+        type: 'Loan',
+        from: { id: corinthians!.id, name: 'Corinthians', logo: expect.any(String) },
+        to: { id: ids.palmeiras, name: 'Palmeiras', logo: expect.any(String) },
+      },
+    ]);
+    // a linha-resumo (temporada nula) do fornecedor fica de fora
+    expect(body.trophies).toEqual([
+      { league: 'Serie A', country: 'Brazil', season: '2025', place: 'Winner' },
+    ]);
+    expect(body.sidelined).toEqual([{ type: 'Hamstring Injury', start: '2026-03-01', end: '2026-03-20' }]);
+    // o elenco da temporada também usa o total do fornecedor
+    const squad2 = (await get(`/v1/teams/${ids.palmeiras}/squad?season=2026&locale=en`)).json();
+    const again = squad2.players.find((p: { person: { id: string } }) => p.person.id === personId);
+    expect(again.stats).toMatchObject({ appearances: 30, starts: 27, goals: 14 });
   });
 });
 

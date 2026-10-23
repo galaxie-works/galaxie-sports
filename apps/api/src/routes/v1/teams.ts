@@ -54,6 +54,7 @@ import {
   providerIds,
   teamSeasonCoaches,
   teamSeasonPlayers,
+  teamSeasonProviderRows,
 } from '../../people/queries.js';
 import { positionName } from '../../people/stats.js';
 import { scheduleWindow } from '../../time.js';
@@ -532,6 +533,19 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             assists: (prev?.assists ?? 0) + l.assists,
           });
         }
+        // o total do fornecedor (`players?league&season`) vale quando passa a soma das partidas: cobre
+        // competições sem detalhe de partida e temporadas antigas sem `fixtures/players`
+        const provider = year === undefined ? [] : await teamSeasonProviderRows(db, p.id, year);
+        for (const r of provider) {
+          if (r.appearances <= (statsOf.get(r.personId)?.appearances ?? 0)) continue;
+          statsOf.set(r.personId, {
+            appearances: r.appearances,
+            starts: r.lineups,
+            minutes: r.minutes,
+            goals: r.goals,
+            assists: r.assists,
+          });
+        }
         const coachStats = new Map<string, NonNullable<SquadMember['stats']>>();
         for (const c of coachGames) {
           const personId = people.get(c.pid);
@@ -539,7 +553,10 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             coachStats.set(personId, { appearances: c.games, starts: 0, minutes: 0, goals: 0, assists: 0 });
         }
         // com jogos no ano, quem não entrou em campo tem zero (e não "sem dado")
-        const zero = lines.length ? { appearances: 0, starts: 0, minutes: 0, goals: 0, assists: 0 } : null;
+        const zero =
+          lines.length || provider.length
+            ? { appearances: 0, starts: 0, minutes: 0, goals: 0, assists: 0 }
+            : null;
 
         type Entry = { personId: string; role: string; number: number | null; position: string | null };
         const entries = new Map<string, Entry>();

@@ -68,6 +68,8 @@ export async function loadPerson(
     first_name: row.p.firstName,
     last_name: row.p.lastName,
     birth_date: row.p.birthDate,
+    birth_place: row.p.birthPlace,
+    birth_country: row.p.birthCountry,
     age: ageAt(row.p.birthDate, now),
     nationality: row.p.nationality,
     height_cm: row.p.heightCm,

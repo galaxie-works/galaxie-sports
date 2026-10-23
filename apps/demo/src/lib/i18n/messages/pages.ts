@@ -102,7 +102,7 @@ export default defineMessages(
       minutesPerGoal: '1 gol a cada {minutes} min',
       perMatch: '{value} por jogo',
       statsTitle: 'Estatísticas da temporada',
-      statsDescription: 'Por competição, somadas das partidas · {season}',
+      statsDescription: 'Por competição · {season}',
       table: {
         competition: 'Competição',
         apps: 'J',
@@ -154,6 +154,23 @@ export default defineMessages(
       mediaMirrored: 'Foto servida pelo espelho de mídia da Galaxie.',
       mediaOrigin: 'Foto da fonte original: o espelho ainda não a copiou.',
       mediaEmpty: 'Sem foto na base.',
+      birthPlace: 'Local de nascimento',
+      sourceMatches: 'partidas',
+      sourceMatchesHint: 'O fornecedor ainda não tem o total desta temporada: números somados das partidas.',
+      trophiesTitle: 'Títulos',
+      trophiesDescription: 'Conquistas e colocações por temporada',
+      wins: { one: '{count} título', other: '{count} títulos' },
+      places: {
+        Winner: 'Campeão',
+        '2nd Place': 'Vice',
+        '3rd Place': '3º lugar',
+        '4th Place': '4º lugar',
+      } as Record<string, string>,
+      showMore: 'e mais {count}',
+      sidelinedTitle: 'Afastamentos',
+      sidelinedDescription: 'Lesões e suspensões mais recentes',
+      sidelinedRange: '{from} a {to}',
+      sidelinedOngoing: 'desde {from}',
       emptyStats: {
         title: 'Sem números em {season}',
         description:
@@ -309,7 +326,7 @@ export default defineMessages(
         minutesPerGoal: '1 goal every {minutes} min',
         perMatch: '{value} per match',
         statsTitle: 'Season stats',
-        statsDescription: 'By competition, added up from the matches · {season}',
+        statsDescription: 'By competition · {season}',
         table: {
           competition: 'Competition',
           apps: 'MP',
@@ -361,6 +378,24 @@ export default defineMessages(
         mediaMirrored: 'Photo served by the Galaxie media mirror.',
         mediaOrigin: 'Photo from the original source: the mirror hasn’t copied it yet.',
         mediaEmpty: 'No photo in the database.',
+        birthPlace: 'Place of birth',
+        sourceMatches: 'matches',
+        sourceMatchesHint:
+          'The source doesn’t have this season’s total yet: numbers added up from the matches.',
+        trophiesTitle: 'Honours',
+        trophiesDescription: 'Titles and placings by season',
+        wins: { one: '{count} title', other: '{count} titles' },
+        places: {
+          Winner: 'Winner',
+          '2nd Place': 'Runner-up',
+          '3rd Place': 'Third place',
+          '4th Place': 'Fourth place',
+        },
+        showMore: 'and {count} more',
+        sidelinedTitle: 'Time out',
+        sidelinedDescription: 'Latest injuries and suspensions',
+        sidelinedRange: '{from} to {to}',
+        sidelinedOngoing: 'since {from}',
         emptyStats: {
           title: 'No numbers in {season}',
           description:
@@ -515,7 +550,7 @@ export default defineMessages(
         minutesPerGoal: '1 gol cada {minutes} min',
         perMatch: '{value} por partido',
         statsTitle: 'Estadísticas de la temporada',
-        statsDescription: 'Por competición, sumadas de los partidos · {season}',
+        statsDescription: 'Por competición · {season}',
         table: {
           competition: 'Competición',
           apps: 'PJ',
@@ -567,6 +602,24 @@ export default defineMessages(
         mediaMirrored: 'Foto servida por el espejo de medios de Galaxie.',
         mediaOrigin: 'Foto de la fuente original: el espejo todavía no la copió.',
         mediaEmpty: 'Sin foto en la base.',
+        birthPlace: 'Lugar de nacimiento',
+        sourceMatches: 'partidos',
+        sourceMatchesHint:
+          'La fuente todavía no tiene el total de esta temporada: números sumados de los partidos.',
+        trophiesTitle: 'Títulos',
+        trophiesDescription: 'Conquistas y posiciones por temporada',
+        wins: { one: '{count} título', other: '{count} títulos' },
+        places: {
+          Winner: 'Campeón',
+          '2nd Place': 'Subcampeón',
+          '3rd Place': 'Tercer puesto',
+          '4th Place': 'Cuarto puesto',
+        },
+        showMore: 'y {count} más',
+        sidelinedTitle: 'Bajas',
+        sidelinedDescription: 'Lesiones y suspensiones más recientes',
+        sidelinedRange: '{from} a {to}',
+        sidelinedOngoing: 'desde {from}',
         emptyStats: {
           title: 'Sin números en {season}',
           description:

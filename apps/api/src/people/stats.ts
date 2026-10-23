@@ -109,3 +109,63 @@ export function mostCommon<T>(values: (T | null | undefined)[]): T | null {
   }
   return best;
 }
+
+/** Linha de `core.person_season_stat` (`players?league&season`), só os números usados aqui. */
+export interface ProviderSeasonRow {
+  appearances: number | null;
+  lineups: number | null;
+  minutes: number | null;
+  goals: number | null;
+  assists: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+  /** `numeric` do Postgres chega como texto. */
+  rating: string | number | null;
+}
+
+/** Números de uma competição na temporada como o fornecedor os soma (`players?league&season`). */
+export function providerNumbers(r: ProviderSeasonRow): SummedNumbers {
+  const rating = r.rating == null ? null : Number(r.rating);
+  return {
+    appearances: r.appearances ?? 0,
+    starts: r.lineups ?? 0,
+    minutes: r.minutes ?? 0,
+    goals: r.goals ?? 0,
+    assists: r.assists ?? 0,
+    yellow_cards: r.yellowCards ?? 0,
+    red_cards: r.redCards ?? 0,
+    rating: rating !== null && Number.isFinite(rating) && rating > 0 ? Math.round(rating * 100) / 100 : null,
+  };
+}
+
+/** Soma várias competições; a nota é a média ponderada pelos jogos das que têm nota. */
+export function addNumbers(list: SummedNumbers[]): SummedNumbers {
+  const rated = list.filter((s) => s.rating !== null && s.appearances > 0);
+  const weight = rated.reduce((a, s) => a + s.appearances, 0);
+  return {
+    appearances: list.reduce((a, s) => a + s.appearances, 0),
+    starts: list.reduce((a, s) => a + s.starts, 0),
+    minutes: list.reduce((a, s) => a + s.minutes, 0),
+    goals: list.reduce((a, s) => a + s.goals, 0),
+    assists: list.reduce((a, s) => a + s.assists, 0),
+    yellow_cards: list.reduce((a, s) => a + s.yellow_cards, 0),
+    red_cards: list.reduce((a, s) => a + s.red_cards, 0),
+    rating: weight
+      ? Math.round((rated.reduce((a, s) => a + s.rating! * s.appearances, 0) / weight) * 100) / 100
+      : null,
+  };
+}
+
+/**
+ * Números de uma competição: os do fornecedor (cobrem jogos sem detalhe de partida) ou, se ele ainda não
+ * tem a temporada ou ficou para trás, a soma das partidas.
+ */
+export function pickNumbers(
+  provider: SummedNumbers | null,
+  matches: SummedNumbers | null,
+): { numbers: SummedNumbers; source: 'provider' | 'matches' } | null {
+  if (provider && provider.appearances >= (matches?.appearances ?? 0) && provider.appearances > 0)
+    return { numbers: provider, source: 'provider' };
+  if (matches && matches.appearances > 0) return { numbers: matches, source: 'matches' };
+  return null;
+}

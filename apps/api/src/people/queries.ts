@@ -1,5 +1,14 @@
-import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
-import { country, providerMap, type Database } from '@galaxie/db';
+import { and, desc, eq, inArray, isNotNull, sql, type SQL } from 'drizzle-orm';
+import {
+  country,
+  personSeasonStat,
+  personSidelined,
+  personTransfer,
+  personTrophy,
+  providerMap,
+  season,
+  type Database,
+} from '@galaxie/db';
 import { pickText } from '../i18n.js';
 import type { FixturePlayerStat } from './stats.js';
 
@@ -295,4 +304,86 @@ export async function nationalityResolver(
     for (const n of Object.values(names)) if (n && !byName.has(plain(n))) byName.set(plain(n), ref);
   }
   return (nationality) => (nationality ? (byName.get(plain(nationality)) ?? null) : null);
+}
+
+/** Números da pessoa por time e temporada de competição (`core.person_season_stat`), com o ano e a competição. */
+export async function personSeasonRows(db: Database, personId: string) {
+  return db
+    .select({
+      participantId: personSeasonStat.participantId,
+      competitionId: season.competitionId,
+      year: season.year,
+      label: season.label,
+      position: personSeasonStat.position,
+      number: personSeasonStat.number,
+      appearances: personSeasonStat.appearances,
+      lineups: personSeasonStat.lineups,
+      minutes: personSeasonStat.minutes,
+      goals: personSeasonStat.goals,
+      assists: personSeasonStat.assists,
+      yellowCards: personSeasonStat.yellowCards,
+      redCards: personSeasonStat.redCards,
+      rating: personSeasonStat.rating,
+    })
+    .from(personSeasonStat)
+    .innerJoin(season, eq(season.id, personSeasonStat.seasonId))
+    .where(eq(personSeasonStat.personId, personId));
+}
+export type PersonSeasonRow = Awaited<ReturnType<typeof personSeasonRows>>[number];
+
+/** Números do fornecedor dos jogadores de um time num ano, somados por pessoa (todas as competições). */
+export async function teamSeasonProviderRows(db: Database, teamId: string, year: number) {
+  return db
+    .select({
+      personId: personSeasonStat.personId,
+      appearances: sql<number>`coalesce(sum(${personSeasonStat.appearances}), 0)::int`,
+      lineups: sql<number>`coalesce(sum(${personSeasonStat.lineups}), 0)::int`,
+      minutes: sql<number>`coalesce(sum(${personSeasonStat.minutes}), 0)::int`,
+      goals: sql<number>`coalesce(sum(${personSeasonStat.goals}), 0)::int`,
+      assists: sql<number>`coalesce(sum(${personSeasonStat.assists}), 0)::int`,
+    })
+    .from(personSeasonStat)
+    .innerJoin(season, eq(season.id, personSeasonStat.seasonId))
+    .where(and(eq(personSeasonStat.participantId, teamId), eq(season.year, year)))
+    .groupBy(personSeasonStat.personId);
+}
+
+/** Transferências normalizadas (`core.person_transfer`), da mais recente à mais antiga. */
+export async function personTransferRows(db: Database, personId: string) {
+  return db
+    .select({
+      date: personTransfer.date,
+      type: personTransfer.type,
+      fromId: personTransfer.fromParticipantId,
+      toId: personTransfer.toParticipantId,
+      fromName: personTransfer.fromName,
+      toName: personTransfer.toName,
+    })
+    .from(personTransfer)
+    .where(eq(personTransfer.personId, personId))
+    .orderBy(sql`${personTransfer.date} desc nulls last`);
+}
+
+/** Títulos por temporada (`core.person_trophy`, sem a linha-resumo de temporada nula). */
+export async function personTrophyRows(db: Database, personId: string) {
+  return db
+    .select({
+      league: personTrophy.league,
+      country: personTrophy.country,
+      season: personTrophy.season,
+      place: personTrophy.place,
+    })
+    .from(personTrophy)
+    .where(and(eq(personTrophy.personId, personId), isNotNull(personTrophy.season)))
+    .orderBy(desc(personTrophy.season), personTrophy.league);
+}
+
+/** Afastamentos (lesões, suspensões), do mais recente ao mais antigo. */
+export async function personSidelinedRows(db: Database, personId: string, limit: number) {
+  return db
+    .select({ type: personSidelined.type, start: personSidelined.startDate, end: personSidelined.endDate })
+    .from(personSidelined)
+    .where(eq(personSidelined.personId, personId))
+    .orderBy(sql`${personSidelined.startDate} desc nulls last`)
+    .limit(limit);
 }

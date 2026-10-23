@@ -20,12 +20,25 @@ import {
   coreIds,
   incidentTeams,
   nationalityResolver,
+  personSeasonRows,
+  personSidelinedRows,
+  personTransferRows,
+  personTrophyRows,
   playerLines,
   playerTransfers,
   providerIds,
   type PlayerLine,
 } from './queries.js';
-import { matchNumbers, mostCommon, sumNumbers, type MatchNumbers } from './stats.js';
+import {
+  addNumbers,
+  matchNumbers,
+  mostCommon,
+  pickNumbers,
+  providerNumbers,
+  sumNumbers,
+  type MatchNumbers,
+  type SummedNumbers,
+} from './stats.js';
 
 /** Jogos recentes no perfil. */
 const RECENT_MATCHES = 10;
@@ -112,10 +125,18 @@ async function photoAsset(db: Database, id: string) {
 
 const isoDate = (v: string | null | undefined) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
 
+/** Afastamentos mostrados no perfil. */
+const SIDELINED = 10;
+
 /**
  * Perfil do jogador (`GET /v1/people/{id}/overview`): pessoa, time atual com as cores do escudo, números da
- * temporada por competição, carreira por clube, transferências e últimos jogos — tudo do core e do `raw`,
- * sem chamar o fornecedor. As partidas vêm dos times que ele defendeu (elencos e transferências).
+ * temporada por competição, carreira por clube, transferências, títulos, afastamentos e últimos jogos — tudo
+ * do core e do `raw`, sem chamar o fornecedor.
+ *
+ * Os números vêm de duas fontes: o total da temporada do fornecedor (`core.person_season_stat`, de
+ * `players?league&season`) e a soma das estatísticas por partida (`detail.players`). Por competição vale o
+ * do fornecedor; a soma das partidas cobre as temporadas que ele ainda não trouxe. As partidas vêm dos times
+ * da pessoa (elencos, números por temporada, transferências e lances).
  */
 export async function loadPersonOverview(
   bctx: BuildContext,
@@ -124,21 +145,42 @@ export async function loadPersonOverview(
 ): Promise<{ body: PersonOverview; teamIds: string[]; eventIds: string[] }> {
   const { db, assetsBaseUrl, locale } = bctx;
   const person = await loadPerson(db, assetsBaseUrl, bctx.now, id);
-  const [nationality, photo] = await Promise.all([nationalityResolver(db, locale), photoAsset(db, id)]);
+  const [nationality, photo, seasonRows, transferRows, trophies, sidelined] = await Promise.all([
+    nationalityResolver(db, locale),
+    photoAsset(db, id),
+    personSeasonRows(db, id),
+    personTransferRows(db, id),
+    personTrophyRows(db, id),
+    personSidelinedRows(db, id, SIDELINED),
+  ]);
   const pid = person.external_ids['api-sports'] ?? null;
   const rosterTeamIds = [...new Set(person.teams.map((t) => t.team.id))];
-  const rosterPids = await providerIds(db, 'participant', rosterTeamIds);
 
-  // transferências: as listas `transfers?team` dos clubes do elenco; os clubes delas também viram candidatos
-  const transfers = pid ? await playerTransfers(db, pid, [...rosterPids.values()]) : [];
-  const transferPids = transfers.flatMap((t) =>
-    [t.teams?.in?.id, t.teams?.out?.id].filter((x): x is number => typeof x === 'number').map(String),
+  // transferências: as normalizadas (`person_transfer`); sem elas, as listas `transfers?team` do raw
+  const rawTransfers =
+    pid && !transferRows.length
+      ? await playerTransfers(db, pid, [...(await providerIds(db, 'participant', rosterTeamIds)).values()])
+      : [];
+  const rawTransferTeams = await coreIds(
+    db,
+    'participant',
+    rawTransfers.flatMap((t) =>
+      [t.teams?.in?.id, t.teams?.out?.id].filter((x): x is number => typeof x === 'number').map(String),
+    ),
   );
-  const [transferTeams, incidents] = await Promise.all([
-    coreIds(db, 'participant', transferPids),
-    incidentTeams(db, person.id),
-  ]);
-  const candidates = [...new Set([...rosterTeamIds, ...transferTeams.values(), ...incidents])];
+  const transferTeamIds = [
+    ...transferRows.flatMap((t) => [t.fromId, t.toId]).filter((x): x is string => !!x),
+    ...rawTransferTeams.values(),
+  ];
+  const incidents = await incidentTeams(db, person.id);
+  const candidates = [
+    ...new Set([
+      ...rosterTeamIds,
+      ...seasonRows.map((r) => r.participantId),
+      ...transferTeamIds,
+      ...incidents,
+    ]),
+  ];
 
   // técnico: pelo elenco ou pela foto (`coachs/`). Os IDs de técnico e de jogador da api-sports são
   // espaços diferentes, mas o core os grava na mesma pessoa: um técnico com o ID de um jogador herdaria os
@@ -154,7 +196,7 @@ export async function loadPersonOverview(
   let isCoach = raw.length > 0 || coachHint;
   if (!isCoach && pid) {
     raw = await playerLines(db, pid, candidates);
-    if (!raw.length) {
+    if (!raw.length && !seasonRows.length) {
       raw = await coached();
       isCoach = raw.length > 0;
     }
@@ -170,52 +212,79 @@ export async function loadPersonOverview(
     n: isCoach ? { ...matchNumbers(null), played: true } : matchNumbers(l.stat),
     teamId: lineTeams.get(l.team_pid) ?? null,
   }));
+  // os números do fornecedor são de jogador: num técnico (IDs colididos) seriam de outra pessoa
+  const providerRows = isCoach ? [] : seasonRows;
 
-  // anos: com jogos (entrou em campo) ou com inscrição no elenco
-  const byYear = new Map<number, Line[]>();
-  for (const l of lines) if (l.year !== null) byYear.set(l.year, [...(byYear.get(l.year) ?? []), l]);
-  const years = new Set<number>([...byYear.keys()]);
+  // números por ano, competição e time: o do fornecedor ou a soma das partidas
+  type Group = {
+    year: number;
+    label: string;
+    competitionId: string;
+    teamId: string;
+    lines: Line[];
+    provider: SummedNumbers | null;
+  };
+  const groups = new Map<string, Group>();
+  const group = (y: number, label: string, competitionId: string, teamId: string) => {
+    const key = `${y}|${competitionId}|${teamId}`;
+    const g = groups.get(key) ?? { year: y, label, competitionId, teamId, lines: [], provider: null };
+    groups.set(key, g);
+    return g;
+  };
+  for (const l of lines)
+    if (l.year !== null && l.competition_id && l.teamId)
+      group(l.year, l.season_label ?? String(l.year), l.competition_id, l.teamId).lines.push(l);
+  for (const r of providerRows)
+    group(r.year, r.label, r.competitionId, r.participantId).provider = providerNumbers(r);
+  const merged = [...groups.values()]
+    .map((g) => ({
+      g,
+      pick: pickNumbers(g.provider, g.lines.length ? sumNumbers(g.lines.map((l) => l.n)) : null),
+    }))
+    .filter((x): x is { g: Group; pick: NonNullable<ReturnType<typeof pickNumbers>> } => x.pick !== null);
+
+  // anos: com jogos ou com inscrição no elenco
+  const years = new Set<number>([
+    ...merged.map((m) => m.g.year),
+    ...lines.map((l) => l.year).filter((y): y is number => y !== null),
+    ...providerRows.map((r) => r.year),
+  ]);
   for (const t of person.teams) if (t.season !== null) years.add(t.season);
+  const yearTotals = (y: number) =>
+    addNumbers(merged.filter((m) => m.g.year === y).map((m) => m.pick.numbers));
   const seasons = [...years]
     .sort((a, b) => b - a)
     .map((y) => {
-      const s = sumNumbers((byYear.get(y) ?? []).map((l) => l.n));
+      const s = yearTotals(y);
       return { year: y, appearances: s.appearances, goals: s.goals };
     });
   const shown = year ?? seasons.find((s) => s.appearances > 0)?.year ?? seasons[0]?.year ?? null;
-  const inYear = shown === null ? [] : (byYear.get(shown) ?? []);
+  const inYear = shown === null ? [] : lines.filter((l) => l.year === shown);
 
   const teams = await participantRefs(db, assetsBaseUrl, [
     ...candidates,
     ...lines.map((l) => l.teamId).filter((x): x is string => !!x),
   ]);
+  const shownGroups = merged.filter((m) => m.g.year === shown);
   const comps = await competitionRefs(
     db,
     assetsBaseUrl,
     locale,
-    inYear.map((l) => l.competition_id).filter((x): x is string => !!x),
+    shownGroups.map((m) => m.g.competitionId),
   );
 
   // números da temporada por competição (e time, se ele trocou de clube no ano)
-  const groups = new Map<string, Line[]>();
-  for (const l of inYear) {
-    if (!l.competition_id || !l.teamId) continue;
-    const key = `${l.competition_id}|${l.teamId}`;
-    groups.set(key, [...(groups.get(key) ?? []), l]);
-  }
   const stats: PersonSeasonStats[] = [];
-  for (const group of groups.values()) {
-    const first = group[0]!;
-    const comp = comps.get(first.competition_id!);
-    const team = teams.get(first.teamId!);
+  for (const { g, pick } of shownGroups) {
+    const comp = comps.get(g.competitionId);
+    const team = teams.get(g.teamId);
     if (!comp || !team) continue;
-    const sum = sumNumbers(group.map((l) => l.n));
-    if (!sum.appearances) continue;
     stats.push({
-      ...sum,
+      ...pick.numbers,
       competition: comp.ref,
-      season: { year: first.year!, label: first.season_label ?? String(first.year) },
+      season: { year: g.year, label: g.label },
       team: team.ref,
+      source: pick.source,
     });
   }
   stats.sort(
@@ -223,31 +292,29 @@ export async function loadPersonOverview(
       (comps.get(a.competition.id)?.tier ?? 9) - (comps.get(b.competition.id)?.tier ?? 9) ||
       b.appearances - a.appearances,
   );
-  const totalsSum = sumNumbers(inYear.map((l) => l.n));
+  const totalsSum = addNumbers(stats);
   const totals = totalsSum.appearances ? totalsSum : null;
 
   // carreira: por clube, os anos com jogo ou inscrição
   const current = person.teams.filter((t) => t.season === null);
-  const careerYears = new Map<string, { years: Set<number>; lines: Line[] }>();
-  for (const l of lines) {
-    if (!l.teamId || l.year === null || !l.n.played) continue;
-    const c = careerYears.get(l.teamId) ?? { years: new Set(), lines: [] };
-    c.years.add(l.year);
-    c.lines.push(l);
-    careerYears.set(l.teamId, c);
+  const careerOf = new Map<string, { years: Set<number>; numbers: SummedNumbers[] }>();
+  const careerEntry = (teamId: string) => {
+    const c = careerOf.get(teamId) ?? { years: new Set<number>(), numbers: [] };
+    careerOf.set(teamId, c);
+    return c;
+  };
+  for (const { g, pick } of merged) {
+    const c = careerEntry(g.teamId);
+    c.years.add(g.year);
+    c.numbers.push(pick.numbers);
   }
-  for (const t of person.teams) {
-    if (t.season === null) continue;
-    const c = careerYears.get(t.team.id) ?? { years: new Set(), lines: [] };
-    c.years.add(t.season);
-    careerYears.set(t.team.id, c);
-  }
+  for (const t of person.teams) if (t.season !== null) careerEntry(t.team.id).years.add(t.season);
   const career: PersonOverview['career'] = [];
-  for (const [teamId, c] of careerYears) {
+  for (const [teamId, c] of careerOf) {
     const team = teams.get(teamId) ?? null;
     if (!team || !c.years.size) continue;
     const ys = [...c.years].sort((a, b) => a - b);
-    const sum = sumNumbers(c.lines.map((l) => l.n));
+    const sum = addNumbers(c.numbers);
     career.push({
       team: team.ref,
       from: ys[0]!,
@@ -266,9 +333,14 @@ export async function loadPersonOverview(
   }
   career.sort((a, b) => Number(b.current) - Number(a.current) || b.to - a.to || b.from - a.from);
 
-  // time atual: o do elenco atual; sem ele, o do jogo mais recente
+  // time atual: o do elenco atual; sem ele, o do jogo mais recente ou o da temporada mais recente
   const currentRoster = current.find((t) => t.role === 'player') ?? current[0] ?? null;
-  const currentTeamId = currentRoster?.team.id ?? lines.find((l) => l.n.played && l.teamId)?.teamId ?? null;
+  const latestProvider = [...providerRows].sort((a, b) => b.year - a.year)[0];
+  const currentTeamId =
+    currentRoster?.team.id ??
+    lines.find((l) => l.n.played && l.teamId)?.teamId ??
+    latestProvider?.participantId ??
+    null;
   const currentTeam = currentTeamId ? (teams.get(currentTeamId) ?? null) : null;
   const latestRoster = currentRoster ?? person.teams[0] ?? null;
 
@@ -296,41 +368,68 @@ export async function loadPersonOverview(
     });
   }
 
-  const transferTeam = (
-    t: { id?: number | null; name?: string | null; logo?: string | null } | null | undefined,
+  const knownTeam = (
+    teamId: string | null,
+    name: string | null | undefined,
+    logo: string | null | undefined,
   ) => {
-    const teamId = t?.id != null ? (transferTeams.get(String(t.id)) ?? null) : null;
     const known = teamId ? teams.get(teamId) : undefined;
     return {
       id: known ? teamId : null,
-      name: known?.ref.name ?? t?.name ?? '',
-      logo: known?.ref.logo ?? t?.logo ?? null,
+      name: known?.ref.name ?? name ?? '',
+      logo: known?.ref.logo ?? logo ?? null,
     };
   };
+  const transfers: PersonOverview['transfers'] = transferRows.length
+    ? transferRows.map((t) => ({
+        date: t.date,
+        type: t.type && t.type !== 'N/A' ? t.type : null,
+        from: knownTeam(t.fromId, t.fromName, null),
+        to: knownTeam(t.toId, t.toName, null),
+      }))
+    : rawTransfers
+        .filter((t) => t.teams?.in || t.teams?.out)
+        .map((t) => ({
+          date: isoDate(t.date),
+          type: t.type && t.type !== 'N/A' ? t.type : null,
+          from: knownTeam(
+            t.teams?.out?.id != null ? (rawTransferTeams.get(String(t.teams.out.id)) ?? null) : null,
+            t.teams?.out?.name,
+            t.teams?.out?.logo,
+          ),
+          to: knownTeam(
+            t.teams?.in?.id != null ? (rawTransferTeams.get(String(t.teams.in.id)) ?? null) : null,
+            t.teams?.in?.name,
+            t.teams?.in?.logo,
+          ),
+        }));
 
   const playerLinesOnly = lines.filter((l) => l.n.played);
   const body: PersonOverview = {
     person,
     nationality_ref: nationality(person.nationality),
-    role: latestRoster?.role ?? (isCoach ? 'coach' : playerLinesOnly.length ? 'player' : null),
+    role:
+      latestRoster?.role ??
+      (isCoach ? 'coach' : playerLinesOnly.length || providerRows.length ? 'player' : null),
     position:
       latestRoster?.position ??
+      latestProvider?.position ??
       (isCoach ? null : mostCommon(playerLinesOnly.slice(0, 40).map((l) => l.n.position))),
-    number: latestRoster?.number ?? playerLinesOnly.find((l) => l.n.number !== null)?.n.number ?? null,
+    number:
+      latestRoster?.number ??
+      playerLinesOnly.find((l) => l.n.number !== null)?.n.number ??
+      latestProvider?.number ??
+      null,
     current_team: currentTeam ? { ...currentTeam.ref, colors: teamColors(currentTeam.palette) } : null,
     season: shown ?? null,
     seasons,
     totals,
     stats,
     career,
-    transfers: transfers
-      .filter((t) => t.teams?.in || t.teams?.out)
-      .map((t) => ({
-        date: isoDate(t.date),
-        type: t.type && t.type !== 'N/A' ? t.type : null,
-        from: transferTeam(t.teams?.out),
-        to: transferTeam(t.teams?.in),
-      })),
+    transfers,
+    // títulos e afastamentos são de jogador: num técnico com ID colidido seriam de outra pessoa
+    trophies: isCoach ? [] : trophies.map((t) => ({ ...t, season: t.season! })),
+    sidelined: isCoach ? [] : sidelined,
     media: person.photo
       ? [{ kind: 'photo', url: person.photo, mirrored: !!(photo?.storageKey && assetsBaseUrl) }]
       : [],

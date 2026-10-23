@@ -1,5 +1,17 @@
 import type { PersonMatch, PersonOverview, PersonSeasonStats } from '@galaxie/contracts';
-import { ArrowRight, Calendar, Flag, History, ImageIcon, Ruler, UserRound, Weight } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  Calendar,
+  Flag,
+  History,
+  ImageIcon,
+  MapPin,
+  Ruler,
+  Trophy,
+  UserRound,
+  Weight,
+} from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -229,6 +241,11 @@ function StatsTable({
                   >
                     <Crest src={s.competition.logo} name={s.competition.name} size="xs" />
                     <span className="truncate font-medium">{s.competition.name}</span>
+                    {s.source === 'matches' ? (
+                      <Badge variant="outline" radius="full" size="sm" title={t.sourceMatchesHint}>
+                        {t.sourceMatches}
+                      </Badge>
+                    ) : null}
                     {teams.size > 1 ? (
                       <span className="text-muted-foreground flex items-center gap-1 text-xs">
                         <Crest src={s.team.logo} name={s.team.name} size="xs" />
@@ -491,6 +508,86 @@ function SeasonsCard({
   );
 }
 
+/** Títulos mostrados antes do "e mais N". */
+const TROPHIES = 12;
+
+function TrophiesCard({ o, t, locale }: { o: PersonOverview; t: T; locale: Locale }) {
+  // API anterior aos perfis completos: sem `trophies`
+  const trophies = o.trophies ?? [];
+  if (!trophies.length) return null;
+  const wins = trophies.filter((x) => x.place === 'Winner').length;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t.trophiesTitle}</CardTitle>
+        <CardDescription>{wins ? plural(locale, wins, t.wins) : t.trophiesDescription}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {trophies.slice(0, TROPHIES).map((x) => (
+          <div
+            key={`${x.league}-${x.country}-${x.season}-${x.place}`}
+            className="flex items-center gap-2.5 text-sm"
+          >
+            <Trophy
+              className={cn(
+                'size-4 shrink-0',
+                x.place === 'Winner' ? 'text-yellow-400' : 'text-muted-foreground',
+              )}
+              aria-hidden
+            />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate font-medium">{x.league}</span>
+              <span className="text-muted-foreground text-xs">
+                {[x.season, x.country].filter(Boolean).join(' · ')}
+              </span>
+            </div>
+            {x.place ? (
+              <Badge variant={x.place === 'Winner' ? 'warning-light' : 'outline'} radius="full" size="sm">
+                {t.places[x.place] ?? x.place}
+              </Badge>
+            ) : null}
+          </div>
+        ))}
+        {trophies.length > TROPHIES ? (
+          <p className="text-muted-foreground text-xs">
+            {fill(t.showMore, { count: trophies.length - TROPHIES })}
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SidelinedCard({ o, t, f }: { o: PersonOverview; t: T; f: Formatters }) {
+  const list = o.sidelined ?? [];
+  if (!list.length) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t.sidelinedTitle}</CardTitle>
+        <CardDescription>{t.sidelinedDescription}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2.5">
+        {list.map((x) => (
+          <div key={`${x.type}-${x.start}`} className="flex items-start gap-2.5 text-sm">
+            <Activity className="text-destructive mt-0.5 size-4 shrink-0" aria-hidden />
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate font-medium">{x.type}</span>
+              {x.start ? (
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {x.end
+                    ? fill(t.sidelinedRange, { from: f.calendarDate(x.start), to: f.calendarDate(x.end) })
+                    : fill(t.sidelinedOngoing, { from: f.calendarDate(x.start) })}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function MediaCard({ o, t }: { o: PersonOverview; t: T }) {
   const photo = o.media.find((m) => m.kind === 'photo');
   return (
@@ -578,6 +675,8 @@ async function Content({
     .slice(0, 5)
     .map(({ m, r }) => ({ result: r!.result, eventId: m.event.id, score: r!.score }));
   const nothing = !o.seasons.length && !o.career.length;
+  // API anterior aos perfis completos: sem `birth_place`
+  const birthPlace = [person.birth_place, person.birth_country].filter(Boolean).join(', ');
 
   return (
     <>
@@ -679,11 +778,12 @@ async function Content({
 
         {person.birth_date ||
         age ||
+        birthPlace ||
         o.nationality_ref ||
         person.nationality ||
         person.height_cm ||
         person.weight_kg ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
             {person.birth_date || age ? (
               <Fact icon={Calendar} label={person.birth_date ? t.birth : t.age}>
                 {person.birth_date
@@ -691,6 +791,11 @@ async function Content({
                     ? fill(t.birthWithAge, { date: f.calendarDate(person.birth_date), age })
                     : f.calendarDate(person.birth_date)
                   : age}
+              </Fact>
+            ) : null}
+            {birthPlace ? (
+              <Fact icon={MapPin} label={t.birthPlace}>
+                {birthPlace}
               </Fact>
             ) : null}
             {o.nationality_ref || person.nationality ? (
@@ -751,7 +856,9 @@ async function Content({
               <div className="flex min-w-0 flex-col gap-6">
                 <CareerCard o={o} t={t} locale={locale} />
                 <SeasonsCard o={o} t={t} locale={locale} basePath={basePath} latest={latest.season} />
+                <TrophiesCard o={o} t={t} locale={locale} />
                 <TransfersCard o={o} t={t} f={f} />
+                <SidelinedCard o={o} t={t} f={f} />
                 <MediaCard o={o} t={t} />
               </div>
             </div>

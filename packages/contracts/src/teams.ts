@@ -271,6 +271,8 @@ export const Person = z
     first_name: z.string().nullable(),
     last_name: z.string().nullable(),
     birth_date: z.iso.date().nullable(),
+    birth_place: z.string().nullable().meta({ description: 'Cidade de nascimento.', example: 'São Paulo' }),
+    birth_country: z.string().nullable().meta({ description: 'País de nascimento.', example: 'Brazil' }),
     age: z.number().int().nullable(),
     nationality: z.string().nullable(),
     height_cm: z.number().int().nullable(),
@@ -320,6 +322,11 @@ export const PersonSeasonStats = PersonNumbers.extend({
   competition: CompetitionSummary.pick({ id: true, slug: true, name: true, logo: true }),
   season: SeasonRef,
   team: ParticipantRef,
+  source: z.enum(['provider', 'matches']).meta({
+    description:
+      '`provider`: o total da temporada do fornecedor (`players?league&season`, cobre jogos sem detalhe); ' +
+      '`matches`: a soma das estatísticas por partida, quando o fornecedor ainda não tem a temporada.',
+  }),
 }).meta({ id: 'PersonSeasonStats' });
 export type PersonSeasonStats = z.infer<typeof PersonSeasonStats>;
 
@@ -400,6 +407,27 @@ export const PersonOverview = z
         }),
       )
       .meta({ description: 'Transferências do fornecedor (`transfers`), da mais recente à mais antiga.' }),
+    trophies: z
+      .array(
+        z.object({
+          league: z.string().meta({ example: 'Copa Libertadores' }),
+          country: z.string().nullable().meta({ example: 'World' }),
+          season: z.string().meta({ example: '2021' }),
+          place: z.string().nullable().meta({ description: 'Como o fornecedor escreve.', example: 'Winner' }),
+        }),
+      )
+      .meta({
+        description: 'Títulos e colocações por temporada (`trophies`), do mais recente ao mais antigo.',
+      }),
+    sidelined: z
+      .array(
+        z.object({
+          type: z.string().meta({ example: 'Hamstring Injury' }),
+          start: z.iso.date().nullable(),
+          end: z.iso.date().nullable(),
+        }),
+      )
+      .meta({ description: 'Afastamentos mais recentes (lesões, suspensões), até 10.' }),
     media: z
       .array(
         z.object({
