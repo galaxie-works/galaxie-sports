@@ -197,6 +197,7 @@ function StakesWidget({ t, locale }: { t: Text['stakes']; locale: Locale }) {
 /** Confronto direto: retrospecto, gols e os duelos mais recentes entre os dois times. */
 function H2HWidget({ t, locale }: { t: Text['h2h']; locale: Locale }) {
   const H2H = showcase(locale).h2h;
+  const all = H2H.allTime;
   const nf = new Intl.NumberFormat(locale);
   const date = new Intl.DateTimeFormat(locale, {
     day: 'numeric',
@@ -221,12 +222,33 @@ function H2HWidget({ t, locale }: { t: Text['h2h']; locale: Locale }) {
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium">{team.name}</span>
               <span className="text-muted-foreground block truncate text-xs">
-                {fill(t.goals, { n: nf.format(team.goals) })}
+                {all
+                  ? fill(t.goalsAllTime, { n: nf.format((i === 0 ? all.home : all.away).goals) })
+                  : fill(t.goals, { n: nf.format(team.goals) })}
               </span>
             </span>
           </div>
         ))}
       </div>
+      {all ? (
+        // histórico geral curado em destaque; a barra abaixo é só o recorte da nossa base
+        <div className="-mb-1">
+          <p className="text-sm font-medium tabular-nums">
+            {fill(t.allTime, {
+              a: nf.format(all.home.wins),
+              b: nf.format(all.away.wins),
+              matches: nf.format(all.matches),
+              draws: nf.format(all.draws),
+            })}
+          </p>
+          <p className="text-muted-foreground text-[11px]">
+            {fill(t.allTimeNote, {
+              date: date.format(new Date(all.asOf)),
+              source: all.sources.join(', '),
+            })}
+          </p>
+        </div>
+      ) : null}
       <div>
         <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-hidden>
           {segments.map((s) => (
@@ -235,7 +257,13 @@ function H2HWidget({ t, locale }: { t: Text['h2h']; locale: Locale }) {
         </div>
         <div className="text-muted-foreground mt-2 flex justify-between gap-2 text-xs tabular-nums">
           <span>{plural(locale, H2H.home.wins, t.wins)}</span>
-          <span>{fill(t.record, { matches: nf.format(H2H.played), draws: nf.format(H2H.draws) })}</span>
+          <span className="text-center">
+            {fill(t.ourData, {
+              matches: nf.format(H2H.played),
+              year: H2H.since,
+              draws: nf.format(H2H.draws),
+            })}
+          </span>
           <span>{plural(locale, H2H.away.wins, t.wins)}</span>
         </div>
       </div>
