@@ -236,6 +236,11 @@ export default defineMessages(
           label: 'Normalização do futebol',
           description: 'Transforma o bruto do fornecedor nos dados da API. Não gasta cota.',
         },
+        'normalize-sports': {
+          label: 'Normalização dos outros esportes',
+          description:
+            'Transforma em jogos e placares o que o sync diário trouxe dos outros esportes e avança o relógio dos jogos. Não gasta cota.',
+        },
         'events-clock': {
           label: 'Relógio dos jogos',
           description: 'Muda o status dos jogos pelo horário (agendado, ao vivo, encerrado).',
@@ -726,6 +731,11 @@ export default defineMessages(
             label: 'Football normalization',
             description: 'Turns raw provider data into API data. Uses no quota.',
           },
+          'normalize-sports': {
+            label: 'Other sports normalization',
+            description:
+              'Turns what the daily sync brought for the other sports into matches and scores, then advances the match clock. Uses no quota.',
+          },
           'events-clock': {
             label: 'Match clock',
             description: 'Moves match status by kick-off time (scheduled, live, finished).',
@@ -1214,6 +1224,11 @@ export default defineMessages(
           'normalize-football': {
             label: 'Normalización del fútbol',
             description: 'Transforma lo crudo del proveedor en los datos de la API. No gasta cuota.',
+          },
+          'normalize-sports': {
+            label: 'Normalización de los otros deportes',
+            description:
+              'Convierte en partidos y marcadores lo que el sync diario trajo de los otros deportes y avanza el reloj de los partidos. No gasta cuota.',
           },
           'events-clock': {
             label: 'Reloj de los partidos',
