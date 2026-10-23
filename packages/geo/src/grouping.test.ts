@@ -26,12 +26,12 @@ describe('groupCompetitions', () => {
     expect(out[1]!.groups).toHaveLength(1);
   });
 
-  it('ordena por tier, depois posição editorial, depois nome', () => {
+  it('domésticas: posição editorial antes do tier (divisões, depois copas), depois tier e nome', () => {
     const [football] = groupCompetitions(
       [
         c('football', 'domestic', 'Paulistão', 1),
-        c('football', 'domestic', 'Série B', 2, 2),
-        c('football', 'domestic', 'Copa do Brasil', 1, 1),
+        c('football', 'domestic', 'Série B', 2, 1),
+        c('football', 'domestic', 'Copa do Brasil', 1, 2),
         c('football', 'domestic', 'Carioca', 1),
         c('football', 'domestic', 'Brasileirão', 1, 0),
         c('football', 'domestic', 'Série C', 2),
@@ -40,10 +40,10 @@ describe('groupCompetitions', () => {
     );
     expect(football!.groups[0]!.competitions.map((x) => x.name)).toEqual([
       'Brasileirão',
+      'Série B',
       'Copa do Brasil',
       'Carioca',
       'Paulistão',
-      'Série B',
       'Série C',
     ]);
   });

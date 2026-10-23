@@ -25,17 +25,20 @@ export interface SportGroups<T> {
   groups: ScopeGroup<T>[];
 }
 
-/** Ordem dentro do grupo: tier, posição editorial e nome. */
+/**
+ * Ordem dentro do grupo. Nas domésticas (nacionais e regionais), a posição editorial vem antes do tier:
+ * as divisões em ordem (Série A, B, C, D) e depois as copas nacionais, mesmo a Série B sendo tier 2 e a
+ * Copa do Brasil tier 1. Nas internacionais, tier, posição no arquivo de escopo e nome.
+ */
 export function compareCompetitions(
   a: GroupableCompetition,
   b: GroupableCompetition,
   locale = 'pt-BR',
 ): number {
-  return (
-    a.tier - b.tier ||
-    (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||
-    a.name.localeCompare(b.name, locale)
-  );
+  const byOrder = (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER);
+  const byName = a.name.localeCompare(b.name, locale);
+  if (a.scope === 'domestic' || a.scope === 'regional') return byOrder || a.tier - b.tier || byName;
+  return a.tier - b.tier || byOrder || byName;
 }
 
 /**

@@ -84,7 +84,10 @@ export const ScopeFile = z.strictObject({
     z.strictObject({
       competitions: z.array(ScopeEntry).default([]),
       excluded: z.array(Slug).default([]),
-      /** Domésticas em destaque: vêm primeiro no grupo do país (dentro do mesmo tier), nesta ordem. */
+      /**
+       * Domésticas nacionais em destaque: vêm primeiro no grupo do país, nesta ordem e antes do tier (as
+       * divisões em ordem, depois as copas nacionais). A primeira de cada país é a liga principal.
+       */
       featured: z.array(Slug).default([]),
       /**
        * Domésticas estaduais ou regionais (Carioca, Copa do Nordeste): grupo próprio na página do país,

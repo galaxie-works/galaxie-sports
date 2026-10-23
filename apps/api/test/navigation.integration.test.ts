@@ -333,12 +333,12 @@ describe('GET /v1/countries/{code}/competitions', () => {
       ['world_clubs', 'Mundiais de clubes'],
       ['regional', 'Estaduais e regionais'],
     ]);
-    // nacionais em ordem de divisão (`featured`); estaduais num grupo próprio, na ordem da lista
-    // `regional` (Paulista antes do Carioca); tier 3 fica de fora
+    // nacionais: as divisões em ordem e depois as copas (`featured`, antes do tier); estaduais num grupo
+    // próprio, na ordem da lista `regional` (Paulista antes do Carioca); tier 3 fica de fora
     expect(slugsOf(body, 'football', 'domestic')).toEqual([
       'brasileirao-serie-a',
-      'copa-do-brasil',
       'brasileirao-serie-b',
+      'copa-do-brasil',
     ]);
     expect(slugsOf(body, 'football', 'regional')).toEqual(['paulista-a1', 'carioca']);
     expect(slugsOf(body, 'football', 'continental_clubs')).toEqual([

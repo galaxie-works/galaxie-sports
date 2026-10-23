@@ -96,20 +96,22 @@ describe('config/geo do repositório', () => {
     expect(unclassified).toEqual([]);
   });
 
-  it('nível: Série A e D nacionais (na ordem de divisão), Carioca e Copa do Nordeste regionais', () => {
+  it('nível: Série A e D nacionais (divisões antes das copas), Carioca e Copa do Nordeste regionais', () => {
     expect(geo.competitionLevel('football', 'brasileirao-serie-a', 'BR')).toBe('national');
     expect(geo.competitionLevel('football', 'brasileirao-serie-d', 'BR')).toBe('national');
     expect(geo.competitionLevel('football', 'carioca', 'BR')).toBe('regional');
     expect(geo.competitionLevel('football', 'copa-do-nordeste', 'BR')).toBe('regional');
     expect(geo.competitionLevel('football', 'conmebol-libertadores', 'WORLD')).toBeNull();
     expect(geo.competitionLevel('football', 'conmebol-libertadores', null)).toBeNull();
-    const divisions = [
+    const nationals = [
       'brasileirao-serie-a',
       'brasileirao-serie-b',
       'brasileirao-serie-c',
       'brasileirao-serie-d',
+      'copa-do-brasil',
+      'supercopa-do-brasil',
     ];
-    const order = divisions.map((slug) => geo.featuredOrder('football', slug)!);
+    const order = nationals.map((slug) => geo.featuredOrder('football', slug)!);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
   });
 

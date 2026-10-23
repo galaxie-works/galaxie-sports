@@ -264,15 +264,15 @@ Os épicos do backlog de navegação, um PR cada. A ordem e as decisões de prod
 
 | Antes (celular) | Depois (celular) |
 | --- | --- |
-| ![Antes: 40 nacionais misturadas](img/antes-celular-pais-nacionais.jpg) | ![Depois: 7 nacionais em ordem de divisão](img/depois-celular-pais-nacionais.jpg) |
+| ![Antes: 40 nacionais misturadas](img/antes-celular-pais-nacionais.jpg) | ![Depois: divisões em ordem e depois as copas](img/depois-celular-pais-nacionais.jpg) |
 
-**Decisão de produto:** as divisões de acesso (Série B, C e D) ficam **junto das nacionais**, em ordem de divisão. Os estaduais e as copas regionais vão para um grupo próprio, no fim.
+**Decisão de produto:** as divisões de acesso (Série B, C e D, e as equivalentes de outros países) ficam **junto das nacionais**, em ordem de divisão: Série A, B, C, D e depois as copas nacionais. Os estaduais e as copas regionais vão para um grupo próprio, no fim.
 
 **Correção:**
 
 - **Configuração:** uma lista `regional` por esporte em `config/geo/competition-scope.yaml`, ao lado do `featured`. No Brasil, os 27 estaduais, o Paulistão A2 e as copas regionais (Nordeste, Verde, Norte, Sul-Sudeste, Centro-Oeste). Os grandes estaduais vêm primeiro.
 - **API:**
-  - Na página do país (`/v1/countries/{code}/competitions`), o novo escopo `regional` vira o grupo "Estaduais e regionais". O grupo doméstico fica só com as nacionais, na ordem do `featured`: Série A, Copa do Brasil, Série B, C, D, Supercopa e Feminino A1.
+  - Na página do país (`/v1/countries/{code}/competitions`), o novo escopo `regional` vira o grupo "Estaduais e regionais". O grupo doméstico fica só com as nacionais, na ordem do `featured`, que agora vem antes do tier: Série A, B, C, D, Copa do Brasil, Supercopa e Feminino A1. Na Argentina, Uruguai, Chile, Colômbia e México, a segunda divisão entra logo depois da primeira.
   - O catálogo (`/v1/competitions` e o detalhe) ganha `level` (`national`, `regional` ou `null` nas internacionais) e `order` (posição editorial no país). Os dois campos são aditivos.
 - **Demo:**
   - Na página do país, a ordem dos grupos fica Nacionais → Copas continentais → Mundiais → Seleção → Estaduais e regionais.

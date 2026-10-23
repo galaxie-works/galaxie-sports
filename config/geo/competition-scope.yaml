@@ -19,8 +19,9 @@
 #                     e Caribe, UEFA = Europa).
 #   countries       - países participantes além (ou em vez) das confederações: convidados
 #                     (Copa América) ou recortes (Leagues Cup = México e EUA).
-#   featured        - domésticas em destaque: vêm primeiro no grupo do país (dentro do mesmo tier),
-#                     nesta ordem (ex.: Brasileirão Série A, Copa do Brasil e Séries B, C e D).
+#   featured        - domésticas nacionais em destaque: vêm primeiro no grupo do país, nesta ordem e antes
+#                     do tier — as divisões em ordem, depois as copas nacionais (Série A, B, C, D, Copa do
+#                     Brasil). A primeira de cada país é a liga principal.
 #   regional        - domésticas estaduais ou regionais (Carioca, Copa do Nordeste): saem das nacionais e
 #                     formam o grupo "Estaduais e regionais" da página do país, nesta ordem (dentro do
 #                     mesmo tier); na API, `level: regional`. As demais domésticas são `national`.
@@ -71,20 +72,27 @@ sports:
     featured:
       [
         brasileirao-serie-a,
-        copa-do-brasil,
         brasileirao-serie-b,
         brasileirao-serie-c,
         brasileirao-serie-d,
+        copa-do-brasil,
         supercopa-do-brasil,
         brasileirao-feminino,
         argentina-liga-profesional,
-        copa-argentina,
         argentina-copa-de-la-liga,
+        argentina-primera-nacional,
+        copa-argentina,
         uruguay-primera,
         uruguay-primera-clausura,
+        uruguay-segunda-division,
+        chile-primera-division,
+        chile-primera-b,
+        colombia-primera-a,
+        colombia-primera-b,
         paraguay-primera-apertura,
         paraguay-primera-clausura,
         liga-mx,
+        liga-de-expansion-mx,
         premier-league,
         fa-cup,
         efl-championship,
