@@ -133,8 +133,7 @@ await runCli(async () => {
     const idleMin = num(values['ocioso-min'] ?? env.LIVE_IDLE_EXIT_MINUTES, '--ocioso-min');
     const protectDaily = num(values['proteger-daily'] ?? env.LIVE_PROTECT_DAILY, '--proteger-daily');
     const minPriority = (values['prioridade-min'] || env.LIVE_MIN_PRIORITY?.trim() || undefined) as
-      | LiveSchedulerOptions['minPriority']
-      | undefined;
+      LiveSchedulerOptions['minPriority'] | undefined;
     if (minPriority && !['high', 'medium', 'low'].includes(minPriority))
       throw new Error('--prioridade-min deve ser high, medium ou low.');
     return {
