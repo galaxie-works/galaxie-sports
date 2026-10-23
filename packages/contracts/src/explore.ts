@@ -94,6 +94,11 @@ export const ExploreCountry = z
         `Próximo jogo de maior relevância no mercado do país (\`relevance.market\` = código do país), nos ` +
         `próximos ${EXPLORE_WINDOW_DAYS} dias; empate vai para o mais cedo.`,
     }),
+    announced: z.array(Event).meta({
+      description:
+        'Até 2 jogos anunciados oficialmente e ainda não publicados pelo fornecedor (`provisional` preenchido) ' +
+        'que envolvem o país, nos próximos 90 dias, do mais cedo ao mais tarde; sem o `highlight`.',
+    }),
   })
   .meta({ id: 'ExploreCountry' });
 export type ExploreCountry = z.infer<typeof ExploreCountry>;

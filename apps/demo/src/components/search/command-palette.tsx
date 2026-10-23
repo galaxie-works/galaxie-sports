@@ -203,16 +203,20 @@ function EntryMedia({ entry }: { entry: SearchEntry }) {
 /** Data do jogo no idioma da tela e no fuso do navegador (a paleta só desenha no navegador). */
 function useEventDate() {
   const { locale } = useI18n();
-  return useMemo(
-    () => createFormatters(locale, Intl.DateTimeFormat().resolvedOptions().timeZone).dateTime,
-    [locale],
-  );
+  return useMemo(() => createFormatters(locale, Intl.DateTimeFormat().resolvedOptions().timeZone), [locale]);
 }
 
 function EntryItem({ entry, onSelect }: { entry: SearchEntry; onSelect: (e: SearchEntry) => void }) {
-  const T = useI18n().t.search;
-  const eventDate = useEventDate();
-  const startsAt = entry.event && !entry.event.live ? eventDate(entry.event.startsAt) : null;
+  const { t } = useI18n();
+  const T = t.search;
+  const f = useEventDate();
+  // provisório: só a data (o horário pode ainda não ter sido anunciado)
+  const startsAt =
+    entry.event && !entry.event.live
+      ? entry.event.provisional
+        ? `${f.date(entry.event.startsAt)} · ${t.sport.provisional.badge}`
+        : f.dateTime(entry.event.startsAt)
+      : null;
   return (
     <CommandItem value={entry.key} onSelect={() => onSelect(entry)} className="gap-2.5 py-2">
       <EntryMedia entry={entry} />

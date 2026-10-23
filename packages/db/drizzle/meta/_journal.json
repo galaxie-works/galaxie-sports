@@ -148,6 +148,13 @@
       "when": 1792727867984,
       "tag": "0020_equestrian",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792729510843,
+      "tag": "0021_jogos_provisorios",
+      "breakpoints": true
     }
   ]
 }

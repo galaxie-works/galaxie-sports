@@ -9,6 +9,7 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { fill, plural } from '@/lib/i18n/text';
 import type { CountryNav } from '@/lib/navigation';
+import { kickoffText } from '@/lib/provisional';
 import { cn } from '@/lib/utils';
 
 import { LeagueLogo, LivePill, Stat } from './sport-card';
@@ -70,11 +71,21 @@ function HighlightLine({
         <Crest src={away?.logo} name={teamName(away)} size="xs" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-xs font-semibold">
-          {teamName(home)} {t.sport.versus} {teamName(away)}
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-xs font-semibold">
+            {teamName(home)} {t.sport.versus} {teamName(away)}
+          </span>
+          {event.provisional ? (
+            <span
+              title={t.sport.provisional.hint}
+              className="bg-info/15 text-info shrink-0 rounded-full px-1.5 text-[10px] leading-4 font-medium"
+            >
+              {t.sport.provisional.badge}
+            </span>
+          ) : null}
         </span>
         <span className="text-muted-foreground truncate text-[11px]">
-          {f.dateTime(event.starts_at)}
+          {kickoffText(event, f, t.sport)}
           {event.competition ? ` · ${event.competition.name}` : ''}
         </span>
       </span>
@@ -136,7 +147,7 @@ function HighlightPanel({
               <span className="line-clamp-1">{event.competition.name}</span>
             </span>
           ) : null}
-          <span className="font-medium">{f.dateTime(event.starts_at)}</span>
+          <span className="font-medium">{kickoffText(event, f, t.sport)}</span>
         </span>
         <span className="bg-muted/60 h-1 overflow-hidden rounded-full" aria-hidden>
           <span className="bg-primary block h-full rounded-full" style={{ width: `${score}%` }} />
@@ -237,6 +248,15 @@ export function CountryCard({
     </div>
   ) : null;
 
+  const announced = data?.announced.length ? (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <SectionLabel>{te.announced}</SectionLabel>
+      {data.announced.map((e) => (
+        <HighlightLine key={e.id} event={e} t={t} f={f} countryName={name} />
+      ))}
+    </div>
+  ) : null;
+
   const counts = data ? (
     <div className={cn('grid grid-cols-2 gap-3', wide && 'max-w-xs')}>
       <Stat
@@ -280,6 +300,7 @@ export function CountryCard({
             {league}
             {counts}
             {crests}
+            {announced}
           </div>
           {data?.highlight ? (
             <HighlightPanel event={data.highlight} t={t} f={f} countryName={name} />
@@ -308,6 +329,7 @@ export function CountryCard({
               <NoHighlight text={te.noHighlight} />
             )}
           </div>
+          {announced}
         </div>
       )}
     </article>

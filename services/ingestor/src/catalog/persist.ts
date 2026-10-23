@@ -264,9 +264,12 @@ export async function upsertCatalog(
           target: [season.competitionId, season.year],
           set: {
             label: sql`excluded.label`,
-            // API sem datas de temporada (F1, MMA, NBA) não apaga a janela que a normalização preencheu
+            // API sem datas de temporada (F1, MMA, NBA) não apaga a janela que a normalização preencheu; jogo
+            // provisório (anunciado, ainda sem o fornecedor) depois do fim informado mantém a temporada aberta
             startDate: sql`coalesce(excluded.start_date, ${season.startDate})`,
-            endDate: sql`coalesce(excluded.end_date, ${season.endDate})`,
+            endDate: sql`greatest(coalesce(excluded.end_date, ${season.endDate}), (
+              select max((e.starts_at at time zone 'UTC')::date) from core.event e
+               where e.season_id = ${season.id} and e.is_provisional))`,
             current: sql`excluded.current`,
             coverage: sql`excluded.coverage`,
             updatedAt: sql`now()`,

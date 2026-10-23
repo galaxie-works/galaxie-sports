@@ -12,6 +12,7 @@ import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { fill, localized } from '@/lib/i18n/text';
+import { kickoffText } from '@/lib/provisional';
 import { cn } from '@/lib/utils';
 
 import { AnimatedIcon } from './animated-sport-icon';
@@ -40,6 +41,16 @@ export function StatusBadgeView({ event, t }: { event: Pick<Event, 'status' | 'c
   if (PROBLEM.has(event.status)) return <Badge variant="warning-light">{label}</Badge>;
   if (event.status === 'finished') return <Badge variant="secondary">{label}</Badge>;
   return <Badge variant="outline">{label}</Badge>;
+}
+
+/** Selo do jogo provisório (anunciado, ainda sem o fornecedor), com a explicação no `title`. */
+export function ProvisionalBadgeView({ event, t }: { event: Pick<Event, 'provisional'>; t: SportText }) {
+  if (!event.provisional) return null;
+  return (
+    <Badge variant="info-light" radius="full" title={t.provisional.hint}>
+      {t.provisional.badge}
+    </Badge>
+  );
 }
 
 /** Linha de participante (eventos que não são "mandante × visitante": F1, MMA em card múltiplo etc.). */
@@ -200,7 +211,8 @@ export function EventCardView({
             </>
           ) : null}
           {event.stage?.name ? <span className="truncate">{event.stage.name}</span> : null}
-          <span className="ml-auto shrink-0">
+          <span className="ml-auto flex shrink-0 items-center gap-1">
+            <ProvisionalBadgeView event={event} t={t} />
             <StatusBadgeView event={event} t={t} />
           </span>
         </div>
@@ -231,7 +243,7 @@ export function EventCardView({
         <div className="text-muted-foreground mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 pt-2.5 text-xs">
           <span className="flex items-center gap-1.5 whitespace-nowrap">
             <Calendar className="size-3.5 shrink-0" aria-hidden />
-            {f.dateTime(event.starts_at)}
+            {kickoffText(event, f, t)}
           </span>
           {venue ? (
             <span className="flex min-w-0 items-center gap-1.5">

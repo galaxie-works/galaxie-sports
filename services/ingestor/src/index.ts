@@ -7,6 +7,9 @@ export * from './normalize/raw-runner.js';
 export * from './normalize/ingest.js';
 export * from './normalize/importance.js';
 export * from './normalize/name-history.js';
+export * from './provisional/config.js';
+export * from './provisional/match.js';
+export * from './provisional/sync.js';
 export * from './ops/change-feed-retention.js';
 export { uuidv7 } from './normalize/uuid.js';
 

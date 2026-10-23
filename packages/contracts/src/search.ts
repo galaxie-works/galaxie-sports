@@ -101,12 +101,16 @@ export const SearchResult = z
         starts_at: z.iso.datetime({ offset: true }),
         status: z.enum(EVENT_STATUSES),
         live: z.boolean().meta({ description: 'Em andamento agora (mesma regra de `/v1/events/live`).' }),
+        provisional: z.boolean().meta({
+          description: 'Jogo provisório: anunciado oficialmente e ainda não publicado pelo fornecedor.',
+        }),
         competition: z.string().nullable(),
         participants: z.array(ParticipantRef),
       })
       .nullable()
       .meta({
-        description: 'Só nos resultados `event`: jogos ao vivo e dos próximos 14 dias dos times encontrados.',
+        description:
+          'Só nos resultados `event`: jogos ao vivo e dos próximos 14 dias dos times encontrados (provisórios: 90 dias).',
       }),
   })
   .meta({ id: 'SearchResult' });

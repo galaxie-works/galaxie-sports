@@ -15,6 +15,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { createdAt, i18n, pkUuidV7, updatedAt } from './_shared.js';
 import { sameName } from './names.js';
 // Import circular (semantic também importa core) é seguro: a referência só é avaliada sob demanda.
@@ -489,6 +490,33 @@ export type EventImportanceBreakdown = {
   stake_flags: string[];
 };
 
+/** Fonte citada por um jogo provisório (comunicado oficial, página de ingressos...). */
+export type EventProvisionalSource = { name: string; url: string; checkedAt: string | null };
+
+/**
+ * Jogo provisório (`config/fixtures/provisional.yaml`): anunciado oficialmente e ainda não publicado pelo
+ * fornecedor. Continua gravado depois da junção com o oficial (`mergedAt`), como registro e para a CLI não
+ * recriar o jogo; quem diz se o evento ainda é provisório é `core.event.is_provisional`.
+ */
+export type EventProvisional = {
+  /** Chave estável da curadoria (única entre os eventos). */
+  key: string;
+  /** curated (YAML revisado por gente) | agent (proposto por agente, depois de revisado). */
+  origin: 'curated' | 'agent';
+  /** Quem anunciou data e local (ex.: "Conmebol"). */
+  announcedBy: string | null;
+  /** `false`: só a data é oficial; `starts_at` guarda o meio-dia no fuso do local. */
+  timeConfirmed: boolean;
+  sources: EventProvisionalSource[];
+  /** Observação editorial livre, por idioma. */
+  note: Record<string, string> | null;
+  /** Quando o fornecedor publicou o jogo e o evento virou oficial (ISO 8601). */
+  mergedAt?: string | null;
+  /** Provedor e ID do jogo oficial que assumiu o evento. */
+  mergedProvider?: string | null;
+  mergedProviderEventId?: string | null;
+};
+
 /**
  * Entidade primária do produto: existe mesmo que ninguém a transmita.
  * Ver docs/04-modelo-de-dados.md §3 (máquina de estados e last-known-good).
@@ -524,6 +552,10 @@ export const event = core.table(
     importanceBreakdown: jsonb('importance_breakdown').$type<EventImportanceBreakdown>(),
     /** Clássico detectado pelos participantes (semantic.derby); some se o clássico sair da base. */
     derbyId: uuid('derby_id').references((): AnyPgColumn => derby.id, { onDelete: 'set null' }),
+    /** Jogo anunciado que o fornecedor ainda não publicou; vira `false` na junção com o oficial. */
+    isProvisional: boolean('is_provisional').notNull().default(false),
+    /** Dados da curadoria do jogo provisório (fica depois da junção, com `mergedAt`). */
+    provisional: jsonb('provisional').$type<EventProvisional>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -532,6 +564,10 @@ export const event = core.table(
     index('event_status_idx').on(t.status),
     index('event_competition_starts_idx').on(t.competitionId, t.startsAt),
     index('event_sport_starts_idx').on(t.sport, t.startsAt),
+    uniqueIndex('event_provisional_key_uq').on(sql`(${t.provisional}->>'key')`),
+    index('event_provisional_idx')
+      .on(t.competitionId, t.seasonId)
+      .where(sql`${t.isProvisional}`),
   ],
 );
 

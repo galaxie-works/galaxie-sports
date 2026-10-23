@@ -19,6 +19,11 @@ export interface EventInfo {
   /** Ano de início da temporada (chave dos direitos pesquisados). */
   season?: number | null;
   importance?: number;
+  /**
+   * `false` em jogo provisório sem horário anunciado: só a data é oficial (`startsAt` guarda o meio-dia
+   * local, que não deve ir ao prompt como horário).
+   */
+  timeConfirmed?: boolean;
 }
 
 /** Carrega vários eventos de uma vez (rodada inteira), na ordem de início. */
@@ -66,6 +71,7 @@ export async function loadEventInfos(db: Database, eventIds: string[]): Promise<
       round: row.round,
       season: row.seasonYear ?? row.e.startsAt.getUTCFullYear(),
       importance: row.e.importance,
+      timeConfirmed: !(row.e.isProvisional && row.e.provisional?.timeConfirmed === false),
     });
   }
   return out;

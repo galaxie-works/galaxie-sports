@@ -335,6 +335,33 @@ export const EventRelevance = z
   });
 export type EventRelevance = z.infer<typeof EventRelevance>;
 
+export const EventProvisional = z
+  .object({
+    announced_by: z.string().nullable().meta({
+      description: 'Quem anunciou data e local (organizador, federação).',
+      example: 'Conmebol',
+    }),
+    time_confirmed: z.boolean().meta({
+      description:
+        'false: só a data é oficial. `starts_at` traz o meio-dia no fuso do local (mesmo dia nas Américas) ' +
+        'e `status_detail` é `TBD`; mostre "horário a confirmar".',
+    }),
+    sources: z
+      .array(z.object({ name: z.string(), url: z.string(), checked_at: z.string().nullable() }))
+      .meta({ description: 'Fontes conferidas pela curadoria (a oficial primeiro).' }),
+    note: z.string().nullable().meta({
+      description: 'Observação editorial no idioma pedido (ex.: regulamento do jogo único).',
+      example: 'Jogo único; empate leva à prorrogação de 30 minutos e, depois, aos pênaltis.',
+    }),
+  })
+  .meta({
+    id: 'EventProvisional',
+    description:
+      'Jogo anunciado oficialmente que o fornecedor de dados ainda não publicou. Quando ele publicar, o mesmo ' +
+      'evento (mesmo `id`) vira oficial e este campo passa a null.',
+  });
+export type EventProvisional = z.infer<typeof EventProvisional>;
+
 export const Event = z
   .object({
     id: z.uuid(),
@@ -421,6 +448,9 @@ export const Event = z
     competition_context: z.array(z.enum(COMPETITION_CONTEXTS)),
     stakes: z.array(EventStake).meta({ description: 'Vazio em eventos encerrados ou sem regulamento.' }),
     data_freshness: z.object({ last_valid_at: z.string().nullable(), is_stale: z.boolean() }),
+    provisional: EventProvisional.nullable().meta({
+      description: 'Preenchido só em jogo provisório (anunciado e ainda não publicado pelo fornecedor).',
+    }),
     context: EventContextSummary.optional(),
   })
   .meta({ id: 'Event', description: 'Evento canônico (docs/05 §3.2).' });

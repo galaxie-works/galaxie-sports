@@ -201,6 +201,14 @@ Todo upsert de evento (normalização do raw, `afterFetch` dos jobs, ao vivo) co
 - **Classificação**: `standings` → `core.standing` com `source = 'provider'`.
 - **Tipo do participante**: times vindos de partidas entram como `club` e não sobrescrevem `national_team` informado por `teams`.
 
+### 3.4.1 Jogo provisório (anunciado, ainda sem o fornecedor)
+
+A api-sports só publica uma partida quando o registro oficial dela fecha, às vezes dias depois do anúncio (a final da Libertadores 2026 foi anunciada para 28/11 no Centenário antes de existir no fornecedor). O **jogo provisório** cobre esse intervalo:
+
+- **Curadoria versionada**: `config/fixtures/provisional.yaml` (schema zod em `services/ingestor/src/provisional/config.ts`, testado contra o arquivo do repositório): competição, temporada, fase **com o rótulo que o fornecedor vai usar** (`Final`), mandante e visitante pelo ID da api-sports (ou `winner_of` um confronto, resolvido pelos jogos encerrados), data, horário opcional, fuso, estádio, quem anunciou, fontes e `status` (`announced` | `cancelled`).
+- **Gravação**: `pnpm --filter @galaxie/ingestor provisional:sync [--plan] [--chave …]` cria ou atualiza o `core.event` (idempotente, sem chamadas ao fornecedor) com `is_provisional = true`, `provisional` (jsonb: chave, quem anunciou, `timeConfirmed`, fontes, observação), `source_provider = 'galaxie-curated'` e **nenhum `provider_map`**. Sem horário, `starts_at` guarda o meio-dia no fuso do local (mesmo dia em todas as Américas) e `status_detail = 'TBD'`. A temporada passa a terminar no mínimo na data do jogo (o catálogo do fornecedor não a encolhe enquanto houver provisório aberto). Clássico e importância saem pelo mesmo recálculo do `events:importance`. Jogo que o fornecedor já publicou não vira provisório.
+- **Junção**: na normalização (`upsertEvents`), um jogo do fornecedor ainda sem evento procura o provisório da **mesma competição e temporada**, com os **mesmos participantes** (qualquer mando) e data a **até 2 dias** (`matchProvisional`). O jogo oficial assume o evento: mesmo `event.id` (URLs, onde assistir, contexto e relevância ficam), ganha o `provider_map`, `is_provisional` vira `false` e `provisional` ganha `mergedAt`/`mergedProvider`/`mergedProviderEventId`. O casamento entre provedores (±3 h) ignora provisórios. Vale para qualquer caminho de carga (sync diário, bootstrap, raw importado de snapshot), porque todos passam por `upsertBatch`.
+
 ### 3.5 Normalização raw → core dos demais esportes (issues #25 e #16)
 
 `pnpm --filter @galaxie/ingestor normalize:sports [--esporte basketball ...] [--tudo] [--relogio] [--detalhe]` faz o mesmo que o futebol (§3.4) para as 11 outras APIs, com um job e um cursor por esporte (`ops.job_run` `normalize:<esporte>`, `ops.sync_cursor` `normalize:core`/`<esporte>`). Normalizadores puros em `@galaxie/providers` (`api-sports/sports/*`), mesmo upsert idempotente do futebol.
