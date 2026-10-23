@@ -20,8 +20,21 @@ function zoneClass(description: string | null | undefined) {
   return 'bg-muted-foreground';
 }
 
-export async function StandingsTable({ rows, highlightTeamId }: { rows: Row[]; highlightTeamId?: string }) {
-  const t = (await getT()).sport.standings;
+/** Esportes em que a tabela conta sets (pró/contra/saldo) e não há empate. */
+const SET_SPORTS = new Set(['volleyball']);
+
+export async function StandingsTable({
+  rows,
+  highlightTeamId,
+  sport,
+}: {
+  rows: Row[];
+  highlightTeamId?: string;
+  sport?: string;
+}) {
+  const standings = (await getT()).sport.standings;
+  const sets = sport != null && SET_SPORTS.has(sport);
+  const t = sets ? { ...standings, ...standings.sets } : standings;
   const zones = [...new Map(rows.filter((r) => r.description).map((r) => [r.description!, r])).keys()];
 
   return (
@@ -46,11 +59,13 @@ export async function StandingsTable({ rows, highlightTeamId }: { rows: Row[]; h
                 {t.won}
               </abbr>
             </TableHead>
-            <TableHead className="hidden text-right sm:table-cell">
-              <abbr title={t.drawnTitle} className="no-underline">
-                {t.drawn}
-              </abbr>
-            </TableHead>
+            {sets ? null : (
+              <TableHead className="hidden text-right sm:table-cell">
+                <abbr title={t.drawnTitle} className="no-underline">
+                  {t.drawn}
+                </abbr>
+              </TableHead>
+            )}
             <TableHead className="hidden text-right sm:table-cell">
               <abbr title={t.lostTitle} className="no-underline">
                 {t.lost}
@@ -99,7 +114,9 @@ export async function StandingsTable({ rows, highlightTeamId }: { rows: Row[]; h
               <TableCell className="text-right font-semibold tabular-nums">{r.points}</TableCell>
               <TableCell className="text-right tabular-nums">{r.played}</TableCell>
               <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.won}</TableCell>
-              <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.drawn}</TableCell>
+              {sets ? null : (
+                <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.drawn}</TableCell>
+              )}
               <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.lost}</TableCell>
               <TableCell className="hidden text-right tabular-nums md:table-cell">{r.goals_for}</TableCell>
               <TableCell className="hidden text-right tabular-nums md:table-cell">

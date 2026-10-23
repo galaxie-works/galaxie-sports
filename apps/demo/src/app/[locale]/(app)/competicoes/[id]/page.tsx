@@ -187,7 +187,11 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
                       selected ? standingsRequest(competition.id, selected.year, locale, content) : undefined
                     }
                   >
-                    {championship ? <ChampionshipTable group={g} /> : <StandingsTable rows={g.rows} />}
+                    {championship ? (
+                      <ChampionshipTable group={g} />
+                    ) : (
+                      <StandingsTable rows={g.rows} sport={competition.sport} />
+                    )}
                   </Section>
                 ))}
               </TabsContent>

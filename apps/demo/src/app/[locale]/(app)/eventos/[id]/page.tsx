@@ -10,6 +10,7 @@ import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
 import { MatchDetails } from '@/components/sport/match-details';
 import { MatchStakes } from '@/components/sport/match-stakes';
+import { PeriodScores } from '@/components/sport/period-scores';
 import { isRaceEvent, RaceClassification, RaceScoreboard, raceTitle } from '@/components/sport/race';
 import { RelatedContentGrid } from '@/components/sport/related-content';
 import { RelevanceMeter } from '@/components/sport/relevance-meter';
@@ -129,6 +130,16 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
           </div>
           <Side p={away} align="right" />
         </div>
+
+        {started && score.periods?.length ? (
+          <div className="flex justify-center overflow-x-auto">
+            <PeriodScores
+              periods={score.periods}
+              home={home?.short_name ?? home?.name ?? ''}
+              away={away?.short_name ?? away?.name ?? ''}
+            />
+          </div>
+        ) : null}
 
         <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm">
           <span className="flex items-center gap-1.5">
@@ -395,8 +406,11 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
     getTimeline(id, content),
     getStats(id, content),
   ]);
-  // minuto a minuto: a partir do apito (ou quando já há lance registrado)
-  const showTimeline = !!timeline && (STARTED.has(event.status) || timeline.incidents.length > 0);
+  // minuto a minuto: a partir do apito (ou quando já há lance registrado); os marcos sem lance (início,
+  // intervalo, 2º tempo) são do futebol: nos outros esportes, só com lances do fornecedor
+  const showTimeline =
+    !!timeline &&
+    (timeline.incidents.length > 0 || (event.sport === 'football' && STARTED.has(event.status)));
   // corrida (F1): vários pilotos no grid; o título é o GP e a sessão, não "A x B x C…"
   const race = isRaceEvent(event);
   const title = race ? raceTitle(event) : event.participants.map((p) => p.name).join(` ${t.sport.versus} `);
