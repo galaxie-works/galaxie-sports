@@ -105,7 +105,11 @@ Fonte de endpoints: respostas capturadas e SDK (spec oficial não arquivada); po
 Observação: o objeto `game` vem aninhado (`{"game":{"id":...}}`), o placar traz `goals/behinds/psgoals`, e o `timestamp` vem como string.
 
 ### 1.2 Temporadas no Free
-Assumido 2022–2024 (não testado especificamente para AFL).
+2024 confirmada em 23/10/2026 (`games` e `standings` de `league=1&season=2024`). Observado na resposta:
+- `games/quarters` só aceita `id` (no free, sem `ids`): `league` devolve "The League field do not exist". Os quartos vêm **acumulados** (o 4º é o placar final).
+- O `games` da temporada traz 72 jogos `CANC` às 14h UTC de quinta-feira nas rodadas 16–24: o calendário provisório, ao lado dos jogos de verdade com outro `id`. A normalização descarta o cancelado quando um dos times joga na mesma rodada.
+- As finais vêm como `round` "Post Season"/"Postseason", e a 1ª e a 2ª semana repetem `week: 26`; a normalização separa as quatro semanas pela data.
+- A rodada de abertura é `week: 0`.
 
 ### 1.3 Mídia
 `afl/leagues/{id}.png`, `afl/teams/{id}.png`. Não há fotos de jogadores.

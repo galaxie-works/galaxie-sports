@@ -2,6 +2,7 @@ import type { Standings } from '@galaxie/contracts';
 import Link from 'next/link';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { aflPercentage } from '@/lib/afl';
 import { getT } from '@/lib/i18n/server';
 import { rugbyBonusPoints } from '@/lib/rugby-standings';
 import { winPct } from '@/lib/standings';
@@ -46,6 +47,7 @@ export async function StandingsTable({
   const runs = sport != null && RUN_SPORTS.has(sport);
   const byPct = runs || (sport != null && PCT_SPORTS.has(sport));
   const rugby = sport === 'rugby';
+  const afl = sport === 'afl';
   const t = sets
     ? { ...standings, ...standings.sets }
     : byPoints
@@ -56,7 +58,9 @@ export async function StandingsTable({
           ? { ...standings, ...standings.byPoints, ...standings.byPct }
           : rugby
             ? { ...standings, ...standings.rugby }
-            : standings;
+            : afl
+              ? { ...standings, ...standings.afl }
+              : standings;
   const noDraws = sets || byPoints || runs;
   const bonus = rugby ? rugbyBonusPoints(rows) : null;
   const zones = [...new Map(rows.filter((r) => r.description).map((r) => [r.description!, r])).keys()];
@@ -159,7 +163,11 @@ export async function StandingsTable({
                 {r.goals_against}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {r.goal_diff > 0 ? `+${r.goal_diff}` : r.goal_diff}
+                {afl
+                  ? (aflPercentage(r.goals_for, r.goals_against)?.toFixed(1) ?? '–')
+                  : r.goal_diff > 0
+                    ? `+${r.goal_diff}`
+                    : r.goal_diff}
               </TableCell>
               <TableCell className="hidden lg:table-cell">
                 <FormChips items={formFromString(r.form)} />

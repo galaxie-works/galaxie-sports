@@ -1,5 +1,6 @@
 import type { Event } from '@galaxie/contracts';
 
+import { goalsBehinds } from '@/lib/afl';
 import { getT } from '@/lib/i18n/server';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +24,10 @@ export async function PeriodScores({
   periods: Period[];
   home: string;
   away: string;
-  /** Rótulo por esporte quando o mesmo tipo de parcial muda de nome (tempos: gols no handebol, pontos no rúgbi). */
+  /**
+   * Rótulo por esporte quando o mesmo tipo de parcial muda de nome (tempos: gols no handebol, pontos no rúgbi;
+   * quartos da AFL com gols.behinds).
+   */
   sport?: string;
 }) {
   const tx = (await getT()).event.scoreboard.periods;
@@ -43,6 +47,11 @@ export async function PeriodScores({
         )}
       >
         {mine ?? '–'}
+        {p.goals_behinds && goalsBehinds(p.goals_behinds[side]) ? (
+          <span className="text-muted-foreground ml-1 font-normal">
+            ({goalsBehinds(p.goals_behinds[side])})
+          </span>
+        ) : null}
       </td>
     );
   };

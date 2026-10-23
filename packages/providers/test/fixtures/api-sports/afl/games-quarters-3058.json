@@ -1,0 +1,85 @@
+{
+  "get": "games/quarters",
+  "errors": [],
+  "results": 1,
+  "response": [
+    {
+      "game": {
+        "id": 3058
+      },
+      "quarters": [
+        {
+          "teams": {
+            "away": {
+              "id": 2,
+              "goals": 4,
+              "points": 27,
+              "behinds": 3
+            },
+            "home": {
+              "id": 14,
+              "goals": 3,
+              "points": 19,
+              "behinds": 1
+            }
+          },
+          "quarter": 1
+        },
+        {
+          "teams": {
+            "away": {
+              "id": 2,
+              "goals": 11,
+              "points": 73,
+              "behinds": 7
+            },
+            "home": {
+              "id": 14,
+              "goals": 4,
+              "points": 27,
+              "behinds": 3
+            }
+          },
+          "quarter": 2
+        },
+        {
+          "teams": {
+            "away": {
+              "id": 2,
+              "goals": 16,
+              "points": 107,
+              "behinds": 11
+            },
+            "home": {
+              "id": 14,
+              "goals": 5,
+              "points": 34,
+              "behinds": 4
+            }
+          },
+          "quarter": 3
+        },
+        {
+          "teams": {
+            "away": {
+              "id": 2,
+              "goals": 18,
+              "points": 120,
+              "behinds": 12
+            },
+            "home": {
+              "id": 14,
+              "goals": 9,
+              "points": 60,
+              "behinds": 6
+            }
+          },
+          "quarter": 4
+        }
+      ]
+    }
+  ],
+  "parameters": {
+    "id": "3058"
+  }
+}

@@ -118,6 +118,16 @@ export default defineMessages(
         bonus: 'PB',
         bonusTitle: 'Pontos de bônus (4+ tries ou derrota por até 7 pontos)',
       },
+      /** AFL: pontos marcados e sofridos e a porcentagem (pró ÷ contra × 100) no lugar do saldo. */
+      afl: {
+        pointsTitle: 'Pontos (4 por vitória e 2 por empate)',
+        goalsFor: 'PP',
+        goalsAgainst: 'PC',
+        goalDiff: '%',
+        goalsForTitle: 'Pontos pró',
+        goalsAgainstTitle: 'Pontos contra',
+        goalDiffTitle: 'Porcentagem (pontos pró ÷ pontos contra × 100)',
+      },
     },
   },
   {
@@ -232,6 +242,15 @@ export default defineMessages(
           bonus: 'BP',
           bonusTitle: 'Bonus points (4+ tries or losing by 7 or less)',
         },
+        afl: {
+          pointsTitle: 'Premiership points (4 per win, 2 per draw)',
+          goalsFor: 'PF',
+          goalsAgainst: 'PA',
+          goalDiff: '%',
+          goalsForTitle: 'Points for',
+          goalsAgainstTitle: 'Points against',
+          goalDiffTitle: 'Percentage (points for ÷ points against × 100)',
+        },
       },
     },
     'es-AR': {
@@ -344,6 +363,15 @@ export default defineMessages(
           goalDiffTitle: 'Diferencia de puntos',
           bonus: 'PB',
           bonusTitle: 'Puntos bonus (4+ tries o derrota por 7 o menos)',
+        },
+        afl: {
+          pointsTitle: 'Puntos (4 por victoria y 2 por empate)',
+          goalsFor: 'PF',
+          goalsAgainst: 'PC',
+          goalDiff: '%',
+          goalsForTitle: 'Puntos a favor',
+          goalsAgainstTitle: 'Puntos en contra',
+          goalDiffTitle: 'Porcentaje (puntos a favor ÷ puntos en contra × 100)',
         },
       },
     },

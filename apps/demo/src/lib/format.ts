@@ -5,6 +5,8 @@
 export const initials = (name: string) =>
   name
     .split(/\s+/)
+    // pontuação no começo da palavra não vira inicial: "AFL (futebol australiano)" → "AF", não "A("
+    .map((w) => w.replace(/^[^\p{L}\p{N}]+/u, ''))
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0]!.toUpperCase())
