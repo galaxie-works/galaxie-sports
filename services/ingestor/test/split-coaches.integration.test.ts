@@ -99,6 +99,16 @@ describe('separar técnicos e jogadores com o mesmo id da api-sports', () => {
     await lineupGame(1, { id: 500, name: 'Técnico Puro' }, [{ id: 700, name: 'Jogador Só' }]);
     await lineupGame(2, { id: 600, name: 'Técnico X' }, [{ id: 600, name: 'Jogador X' }]);
 
+    // prévia: mesmas contagens, nada gravado
+    expect(await splitCoachIds(db, { dryRun: true })).toEqual({
+      coachIds: 2,
+      renamed: 1,
+      split: 1,
+      rostersMoved: 1,
+    });
+    expect(await providerIdOf(pure)).toEqual(['500']);
+    expect(await entityOf('coach:600')).toEqual([]);
+
     expect(await splitCoachIds(db)).toEqual({ coachIds: 2, renamed: 1, split: 1, rostersMoved: 1 });
 
     // só técnico: a mesma pessoa, agora coach:500

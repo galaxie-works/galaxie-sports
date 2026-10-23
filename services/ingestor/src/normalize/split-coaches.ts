@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db';
+import type { Tx } from './sql-helpers.js';
 
 export interface SplitCoachesReport {
   /** Ids de técnico da api-sports vistos (escalações, `coachs`, elencos de técnico). */
@@ -23,9 +24,28 @@ export interface SplitCoachesReport {
  *
  * Idempotente: quem já tem `coach:<id>` fica de fora. O perfil completo do técnico chega reprocessando
  * `/coachs`, `/trophies` e `/sidelined` (`normalize:football --tudo --endpoints ...`).
+ * `dryRun` faz tudo numa transação desfeita no fim: só conta.
  */
-export async function splitCoachIds(db: Database): Promise<SplitCoachesReport> {
-  return db.transaction(async (tx) => {
+export async function splitCoachIds(
+  db: Database,
+  options: { dryRun?: boolean } = {},
+): Promise<SplitCoachesReport> {
+  let report: SplitCoachesReport | undefined;
+  try {
+    await db.transaction(async (tx) => {
+      report = await splitInTx(tx);
+      if (options.dryRun) throw DRY_RUN;
+    });
+  } catch (err) {
+    if (err !== DRY_RUN) throw err;
+  }
+  return report!;
+}
+
+const DRY_RUN = new Error('dry-run: transação desfeita');
+
+async function splitInTx(tx: Tx): Promise<SplitCoachesReport> {
+  {
     await tx.execute(sql`
       create temp table coach_src on commit drop as
       select pid, max(name) as name from (
@@ -62,23 +82,31 @@ export async function splitCoachIds(db: Database): Promise<SplitCoachesReport> {
         lateral jsonb_array_elements(coalesce(l->'startXI', '[]'::jsonb) || coalesce(l->'substitutes', '[]'::jsonb)) p
       where f.detail is not null and p->'player'->>'id' is not null
     `);
+    // sinais de jogador em conjuntos (uma varredura por tabela, sem subconsulta correlacionada por técnico)
+    await tx.execute(sql`
+      create temp table player_person on commit drop as
+      select person_id from core.roster where role = 'player'
+      union select person_id from core.event_incident where person_id is not null
+      union select assist_person_id from core.event_incident where assist_person_id is not null
+      union select person_id from core.person_season_stat
+      union select person_id from core.person_transfer
+    `);
+    await tx.execute(sql`create index on player_person (person_id)`);
+    await tx.execute(sql`create index on lineup_player (pid)`);
+    await tx.execute(sql`analyze player_person`);
+    await tx.execute(sql`analyze lineup_player`);
     await tx.execute(sql`
       create temp table coach_fix on commit drop as
       select c.pid, c.name, m.entity_id as person_id,
-        (exists (select 1 from lineup_player lp where lp.pid = c.pid)
-          or exists (select 1 from core.roster r where r.person_id = m.entity_id and r.role = 'player')
-          or exists (select 1 from core.event_incident i where i.person_id = m.entity_id or i.assist_person_id = m.entity_id)
-          or exists (select 1 from core.person_season_stat s where s.person_id = m.entity_id)
-          or exists (select 1 from core.person_transfer t where t.person_id = m.entity_id)
-        ) as player
+        (lp.pid is not null or pp.person_id is not null) as player
       from coach_src c
       join core.provider_map m on m.provider = 'api-sports' and m.sport = 'football'
         and m.entity_type = 'person' and m.provider_id = c.pid
-      where not exists (
-        select 1 from core.provider_map k
-        where k.provider = 'api-sports' and k.sport = 'football' and k.entity_type = 'person'
-          and k.provider_id = 'coach:' || c.pid
-      )
+      left join (select distinct pid from lineup_player) lp on lp.pid = c.pid
+      left join (select distinct person_id from player_person) pp on pp.person_id = m.entity_id
+      left join core.provider_map k on k.provider = 'api-sports' and k.sport = 'football'
+        and k.entity_type = 'person' and k.provider_id = 'coach:' || c.pid
+      where k.entity_id is null
     `);
     const [{ n: coachIds } = { n: 0 }] = await tx.execute<{ n: number }>(
       sql`select count(*)::int as n from coach_src`,
@@ -125,5 +153,5 @@ export async function splitCoachIds(db: Database): Promise<SplitCoachesReport> {
       sql`select count(*)::int as n from coach_new`,
     );
     return { coachIds, renamed: renamed.length, split, rostersMoved: moved.length };
-  });
+  }
 }
