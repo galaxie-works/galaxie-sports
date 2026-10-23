@@ -480,11 +480,12 @@ describe('biblioteca de emissoras e "canal a confirmar" na API', () => {
       toConfirm: [],
       fromRights: [],
     });
-    // AR: curadoria só com incertos (holders: []) → os incertos
+    // AR: os detentores da curadoria (ou os incertos, quando a linha só tem eles)
+    const arRights = config.directory('AR').rightsFor('conmebol-libertadores', KICKOFF)!;
     const ar = await getPublicWhereToWatch(db, { eventId, country: 'AR' }, config);
     expect(ar).toMatchObject({ status: 'unknown', options: [], toConfirm: [] });
     expect(ar!.fromRights.map((o) => o.broadcasterId).sort()).toEqual(
-      [...config.directory('AR').rightsFor('conmebol-libertadores', KICKOFF)!.uncertainHolders].sort(),
+      [...(arRights.holders.length ? arRights.holders : arRights.uncertainHolders)].sort(),
     );
     expect(ar!.fromRights[0]!.sources[0]!.url).toMatch(/^https:\/\//);
     // UY: curadoria com detentores → os detentores
