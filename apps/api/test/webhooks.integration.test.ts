@@ -272,11 +272,17 @@ describe('webhooks assinados', () => {
       .set({ score: { home: 2, away: 2 } })
       .where(eq(event.id, id));
     await worker.tick();
+    // O worker roda em segundo plano: uma rodada entre o cadastro (ativo) e a desativação pode enfileirar a
+    // entrega do evento recém-criado. O que importa é que nada seja enviado: a linha, se existir, vira `dead`.
+    const deliveries = () => db.select().from(webhookDelivery).where(eq(webhookDelivery.endpointId, ep.id));
+    await expect
+      .poll(async () => (await deliveries()).filter((d) => d.status === 'pending'), { timeout: 5_000 })
+      .toHaveLength(0);
     await new Promise((r) => setTimeout(r, 300));
     expect(hits('/off')).toHaveLength(0);
-    expect(await db.select().from(webhookDelivery).where(eq(webhookDelivery.endpointId, ep.id))).toHaveLength(
-      0,
-    );
+    for (const d of await deliveries()) {
+      expect(d).toMatchObject({ status: 'dead', lastError: 'endpoint desativado' });
+    }
 
     await expect(
       createWebhookEndpoint(db, { tenantSlug: 'portal', url: 'http://cliente.example/hook' }),

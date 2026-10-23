@@ -152,9 +152,44 @@ describe('perfil completo do jogador', () => {
     ).toEqual(['coach:276']);
   });
 
-  it('o despacho por endpoint cobre transfers, trophies e sidelined', () => {
-    for (const endpoint of ['/transfers', '/trophies', '/sidelined']) {
+  it('o despacho por endpoint cobre transfers, trophies, sidelined e players/profiles', () => {
+    for (const endpoint of ['/transfers', '/trophies', '/sidelined', '/players/profiles']) {
       expect(normalizeFootballEnvelope(endpoint, { response: [] }, FETCHED)).toMatchObject({ items: 0 });
     }
+  });
+
+  it('players/profiles: bio completa sem estatísticas (nenhum elenco nem número de temporada)', () => {
+    const r = normalizeFootballEnvelope(
+      '/players/profiles',
+      {
+        response: [
+          {
+            player: {
+              id: 306728,
+              name: 'J. Valencia',
+              firstname: 'Jhon Alexander',
+              lastname: 'Valencia Hinestroza',
+              age: 24,
+              birth: { date: '2002-04-04', place: 'Envigado', country: 'Colombia' },
+              nationality: 'Colombia',
+              height: '178 cm',
+              weight: '72 kg',
+              photo: 'https://media.api-sports.io/football/players/306728.png',
+            },
+          },
+        ],
+      },
+      FETCHED,
+    )!;
+    expect(r.batch.persons[0]).toMatchObject({
+      id: '306728',
+      firstName: 'Jhon Alexander',
+      birthDate: '2002-04-04',
+      birthPlace: 'Envigado',
+      nationality: 'Colombia',
+      heightCm: 178,
+    });
+    expect(r.batch.rosters).toEqual([]);
+    expect(r.batch.personSeasonStats).toEqual([]);
   });
 });
