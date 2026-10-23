@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { ApiRequest } from '@/lib/galaxie/request';
 import { getFormatters, getT } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
+import { participantHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 import { Crest } from './crest';
@@ -269,7 +270,7 @@ export async function CareerSection({ career, api }: { career: RaceCareer; api?:
             {career.teammates.slice(0, 16).map((m) => (
               <Link
                 key={m.id}
-                href={`/times/${m.id}`}
+                href={participantHref(m, 'driver')}
                 className="hover:bg-accent flex items-center gap-2 rounded-full border py-1 pr-3 pl-1 transition-colors"
                 title={m.seasons.join(', ')}
               >
