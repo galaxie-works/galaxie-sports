@@ -27,6 +27,8 @@ const SET_SPORTS = new Set(['volleyball']);
 const POINT_SPORTS = new Set(['basketball', 'nba']);
 /** Futebol americano: pontos pró/contra como no basquete, mas com empate e aproveitamento (PCT) no lugar dos pontos. */
 const PCT_SPORTS = new Set(['american-football']);
+/** Beisebol: aproveitamento (PCT) como no futebol americano, mas sem empate e com corridas pró/contra. */
+const RUN_SPORTS = new Set(['baseball']);
 
 export async function StandingsTable({
   rows,
@@ -40,14 +42,18 @@ export async function StandingsTable({
   const standings = (await getT()).sport.standings;
   const sets = sport != null && SET_SPORTS.has(sport);
   const byPoints = sport != null && POINT_SPORTS.has(sport);
-  const byPct = sport != null && PCT_SPORTS.has(sport);
+  const runs = sport != null && RUN_SPORTS.has(sport);
+  const byPct = runs || (sport != null && PCT_SPORTS.has(sport));
   const t = sets
     ? { ...standings, ...standings.sets }
     : byPoints
       ? { ...standings, ...standings.byPoints }
-      : byPct
-        ? { ...standings, ...standings.byPoints, ...standings.byPct }
-        : standings;
+      : runs
+        ? { ...standings, ...standings.runs }
+        : byPct
+          ? { ...standings, ...standings.byPoints, ...standings.byPct }
+          : standings;
+  const noDraws = sets || byPoints || runs;
   const zones = [...new Map(rows.filter((r) => r.description).map((r) => [r.description!, r])).keys()];
 
   return (
@@ -72,7 +78,7 @@ export async function StandingsTable({
                 {t.won}
               </abbr>
             </TableHead>
-            {sets || byPoints ? null : (
+            {noDraws ? null : (
               <TableHead className="hidden text-right sm:table-cell">
                 <abbr title={t.drawnTitle} className="no-underline">
                   {t.drawn}
@@ -129,7 +135,7 @@ export async function StandingsTable({
               </TableCell>
               <TableCell className="text-right tabular-nums">{r.played}</TableCell>
               <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.won}</TableCell>
-              {sets || byPoints ? null : (
+              {noDraws ? null : (
                 <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.drawn}</TableCell>
               )}
               <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.lost}</TableCell>

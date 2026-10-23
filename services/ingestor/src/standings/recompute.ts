@@ -12,9 +12,13 @@ import { competition, event, publishChange, season, stage, standing, type Databa
 import { computeStandings, type MatchResult } from '@galaxie/rules';
 import { loadCompetitionRules } from '@galaxie/rules/config';
 import { loadSeasonResults, writeComputedStandings } from '@galaxie/rules/db';
+import { regularSeasonCutoff, winPctTables } from './win-pct.js';
 
 /** Fases que entram na tabela (pontos corridos, fase de liga, grupos). */
 export const TABLE_STAGE_KINDS = ['regular', 'league_phase', 'group'] as const;
+
+/** Esportes com tabela calculada localmente: futebol pelo regulamento; beisebol por aproveitamento. */
+const COMPUTED_SPORTS = ['football', 'baseball'];
 
 export type StandingsOutcome =
   | 'written'
@@ -44,7 +48,7 @@ export interface RecomputeOptions {
 }
 
 /**
- * Temporadas com resultado novo: eventos de futebol encerrados atualizados desde `since` e que
+ * Temporadas com resultado novo: eventos encerrados (futebol e beisebol) atualizados desde `since` e que
  * começaram nos últimos dias (temporada atual — reprocessar o histórico não dispara recálculo).
  */
 export async function seasonsWithNewResults(db: Database, since: Date, recentDays = 10): Promise<string[]> {
@@ -53,7 +57,7 @@ export async function seasonsWithNewResults(db: Database, since: Date, recentDay
     .from(event)
     .where(
       and(
-        eq(event.sport, 'football'),
+        inArray(event.sport, COMPUTED_SPORTS),
         eq(event.status, 'finished'),
         isNotNull(event.seasonId),
         gte(event.updatedAt, since),
@@ -74,6 +78,8 @@ export async function recomputeSeasonStandings(
       year: season.year,
       slug: competition.slug,
       sport: competition.sport,
+      type: competition.type,
+      countryCode: competition.countryCode,
       competitionId: competition.id,
     })
     .from(season)
@@ -88,7 +94,13 @@ export async function recomputeSeasonStandings(
     rows: 0,
     ...extra,
   });
-  if (!info || info.sport !== 'football') return report('not_football');
+  if (!info || !COMPUTED_SPORTS.includes(info.sport)) return report('not_football');
+  if (info.sport === 'baseball') {
+    // só ligas nacionais: torneio internacional (Clássico Mundial, Jogos Centro-Americanos) tem grupos e
+    // super-rodada que o fornecedor não divide, então não dá para montar a tabela
+    if (info.type !== 'league' || !/^[A-Z]{2}$/.test(info.countryCode ?? '')) return report('no_groups');
+    return recomputeWinPct(db, seasonId, info.competitionId, report, options);
+  }
 
   let rules;
   try {
@@ -175,6 +187,62 @@ export async function recomputeSeasonStandings(
     });
   }
   return report('written', { results: matches.length, rows });
+}
+
+/**
+ * Beisebol: tabela única por aproveitamento com os jogos da fase regular (sem fase ou fase de tabela; os
+ * playoffs ficam de fora). Tabela do fornecedor mais nova que o último resultado prevalece, como no futebol.
+ */
+async function recomputeWinPct(
+  db: Database,
+  seasonId: string,
+  competitionId: string,
+  report: (outcome: StandingsOutcome, extra?: Partial<SeasonStandingsReport>) => SeasonStandingsReport,
+  options: RecomputeOptions,
+): Promise<SeasonStandingsReport> {
+  const [provider] = await db
+    .select({ at: sql<string | null>`max(${standing.updatedAt})` })
+    .from(standing)
+    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'provider')));
+  const [latest] = await db
+    .select({ at: sql<string | null>`max(${event.updatedAt})` })
+    .from(event)
+    .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
+  if (provider?.at && latest?.at && new Date(provider.at) >= new Date(latest.at)) {
+    return report('provider_fresh');
+  }
+
+  const playoffs = await db
+    .select({ id: event.id })
+    .from(event)
+    .innerJoin(stage, eq(stage.id, event.stageId))
+    .where(and(eq(event.seasonId, seasonId), sql`${stage.kind} not in ('regular', 'league_phase', 'group')`));
+  const skip = new Set(playoffs.map((e) => e.id));
+  const regular = (await loadSeasonResults(db, seasonId)).filter((m) => !skip.has(m.id!));
+  const cutoff = regularSeasonCutoff(regular);
+  const matches = cutoff ? regular.filter((m) => m.playedAt! <= cutoff) : regular;
+  if (!matches.length) return report('no_results');
+
+  const tables = winPctTables(matches);
+  const rows = await writeComputedStandings(db, seasonId, tables, { mode: 'replace' });
+  if (options.publish !== false && rows > 0) {
+    await publishChange(db, {
+      topic: 'standings',
+      entityType: 'season',
+      entityId: seasonId,
+      payload: {
+        source: 'computed',
+        rows,
+        groups: tables.map((t) => t.group),
+        tags: [`competition:${competitionId}`, 'standing'],
+      },
+    });
+  }
+  return report('written', {
+    results: matches.length,
+    rows,
+    ...(cutoff ? { detail: `fase regular até ${cutoff.slice(0, 10)}` } : {}),
+  });
 }
 
 /** Recalcula as temporadas informadas (ou as que têm resultado novo desde `since`). */
