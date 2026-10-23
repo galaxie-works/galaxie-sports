@@ -111,9 +111,15 @@ importers:
       '@galaxie/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@galaxie/runtime-config':
         specifier: workspace:*
         version: link:../../packages/runtime-config
+      '@galaxie/widgets':
+        specifier: workspace:*
+        version: link:../../packages/widgets
       '@tanstack/react-query':
         specifier: ^5.104.5
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
@@ -181,9 +187,6 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
     devDependencies:
-      '@galaxie/db':
-        specifier: workspace:*
-        version: link:../../packages/db
       '@galaxie/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge

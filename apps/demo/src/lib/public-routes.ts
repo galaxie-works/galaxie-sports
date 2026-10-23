@@ -20,6 +20,12 @@ export const PUBLIC_FILES = ['/robots.txt', '/sitemap.xml', '/icon.png', '/apple
 /** Login e a API do próprio auth: públicos com tudo o que vem abaixo deles. */
 const PUBLIC_PREFIXES = ['/login', '/api/auth'];
 
+/**
+ * Registry dos widgets do Builder (`/r/<id>.json`): o CLI do shadcn baixa sem sessão. Só o formato exato
+ * (um segmento terminado em `.json`); o conteúdo não tem segredo (ver `app/r/[id]/route.ts`).
+ */
+const REGISTRY_ITEM = /^\/r\/[^/]+\.json$/;
+
 const includes = (list: readonly string[], pathname: string) => list.includes(pathname);
 
 /** O caminho abre sem sessão? (as páginas públicas só no endereço exato: `/sobre/x` exige login) */
@@ -27,6 +33,7 @@ export function isPublicPath(pathname: string): boolean {
   return (
     PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
     includes(PUBLIC_PAGES, pathname) ||
-    includes(PUBLIC_FILES, pathname)
+    includes(PUBLIC_FILES, pathname) ||
+    REGISTRY_ITEM.test(pathname)
   );
 }

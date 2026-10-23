@@ -111,6 +111,21 @@ A URL base mostrada nos exemplos vem de `NEXT_PUBLIC_GALAXIE_DOCS_API_URL` (embu
 - **Estatísticas:** de `/stats` (códigos estáveis da API, docs/05 §3.2), mandante | rótulo | visitante, na ordem posse, chutes, chutes no gol, xG, passes, precisão de passe, escanteios, faltas, impedimentos, cartões e defesas, com barra fina de proporção. O melhor valor de cada linha vai em pílula com a cor do time (`versusColors`, que trata escudo monocromático e cores parecidas); em **faltas, impedimentos e cartões, menor é melhor** e o destaque vai para o menor (`lib/match-stats.ts`). Empate não destaca. Sem estatística, a aba não aparece.
 - **Simulação para desenvolvimento:** `SIM_DATABASE_URL=postgres://…/galaxie_sim pnpm --filter @galaxie/ingestor live:simulate [--velocidade 3] [--intervalo 15]` roda o mundo falso dos testes (`services/ingestor/src/testing/live-world.ts`) num banco separado (o nome precisa começar com `galaxie_sim`; nunca em produção): quatro jogos com roteiro relativo a agora, com cartões, substituições, VAR, prorrogação e pênaltis, lidos pelo Live Poller real. Depois, suba a API apontando para esse banco, crie um tenant (`pnpm --filter @galaxie/api tenant:create --slug demo-sim`) e rode a demo com `GALAXIE_API_URL` e `GALAXIE_DEMO_KEY` dessa API.
 
+### 2.4 Painel do cliente e Galaxie Sports Builder
+
+A operadora cliente entra na demo, monta um widget com a identidade dela e instala no app dela como um componente shadcn.
+
+- **Papel `client`** (Better Auth, `lib/auth/roles.ts`), ao lado de `admin` e `user`. O cliente fica ligado a um **tenant da API** (`api.tenant.id`, gravado no usuário como `tenant_id`, que só o admin define). Em **Ajustes → Usuários**, o admin convida com o papel **Cliente** e escolhe o tenant; no detalhe do usuário dá para trocar o papel e o tenant. O cliente navega na demo como um convidado, não abre Ajustes (o proxy responde 403 na API e volta para a home nas páginas) e, no painel, só vê o próprio tenant: o tenant sai sempre da sessão, nunca do navegador. O admin também abre o painel e escolhe qual tenant acompanhar (cookie `galaxie-tenant`, conferido a cada leitura).
+- **`/cliente` (visão geral):** plano, situação, módulos, esportes, mercados, limite por minuto, cota diária e o uso consolidado dos últimos 30 dias (`api.usage_daily`, lido direto do Postgres, como a revisão e a operação fazem).
+- **`/cliente/chaves`:** chaves publicáveis (`createPublishableKey`/`listPublishableKeys`/`revokePublishableKey` de `@galaxie/db`). Os domínios passam pela mesma regra que a API usa para conferir o `Origin` (`normalizeAllowedOrigin`: `https://app.exemplo.com`, `https://*.exemplo.com`, `http://localhost:3000`). A chave (`gs_pk_live_…`) aparece **uma vez**, com botão de copiar e a variável `NEXT_PUBLIC_GALAXIE_PUBLISHABLE_KEY`; a lista mostra só o prefixo. Revogar vale na API em até 60 s.
+- **`/cliente/builder`:** o catálogo de `@galaxie/widgets` (placar, jogos do dia, classificação, onde assistir) e os widgets salvos, com versão, editar e arquivar. No editor (`/cliente/builder/novo?tipo=…` e `/cliente/builder/<id>`):
+  - **tema:** temas prontos (`DEFAULT_THEMES`), cores com seletor e campo hexadecimal, raio (slider), fonte, densidade e modo claro/escuro (trocar o modo troca os neutros e mantém a cor da marca);
+  - **conteúdo:** idioma do widget (`pt-BR`, `es`, `en`), mercado (os do plano; sem restrição, a lista padrão) e a entidade padrão (jogo ou competição, conforme o tipo), com a mesma busca da paleta (`/v1/search`);
+  - **pré-visualização ao vivo:** os componentes reais do pacote com dados reais pelo proxy `/api/galaxie/*`, que injeta a chave interna da demo no servidor (nenhuma chave vai ao navegador). Sem entidade escolhida, os dados de exemplo do pacote (`createPreviewFetch`);
+  - **salvar** grava uma nova versão (`saveWidget`); o servidor valida tudo de novo (`lib/builder/config.ts`);
+  - **instalação:** `npx shadcn@latest add https://sports.galaxie.works/r/<id>.json`, o uso no código (`import { GalaxieMatchCard } from '@/components/galaxie/<nome>'`) e a variável da chave publicável.
+- **Rota pública `/r/<id>.json`** (`app/r/[id]/route.ts`): o registry-item do widget salvo (`buildRegistryItem` de `@galaxie/widgets/registry`), com tema, idioma, mercado e entidade padrão. Abre sem sessão porque o CLI do shadcn baixa direto; não tem segredo (o id é um UUID v7 opaco e a chave publicável não vai no JSON). Widget arquivado ou inexistente responde 404. Está em `lib/public-routes.ts` e no smoke (`infra/vps-telemetry/smoke.mjs`).
+
 ## 3. Perfis de demonstração
 
 Perfis fictícios para mostrar personalização e `copy_permission`:
@@ -139,7 +154,7 @@ flowchart LR
 ## 5. Ambiente
 
 - `pnpm dev --filter demo` aponta para a API local (Docker Compose) carregada com um **snapshot** do raw → a demo roda **sem gastar nenhuma chamada** do fornecedor.
-- Variáveis: `NEXT_PUBLIC_GALAXIE_API_URL`, `GALAXIE_DEMO_KEY` e, opcional, `NEXT_PUBLIC_GALAXIE_DOCS_API_URL` (URL da API nos exemplos da documentação).
+- Variáveis: `NEXT_PUBLIC_GALAXIE_API_URL`, `GALAXIE_DEMO_KEY` e, opcionais, `NEXT_PUBLIC_GALAXIE_DOCS_API_URL` (URL da API nos exemplos da documentação e no componente instalado pelo registry) e `NEXT_PUBLIC_GALAXIE_REGISTRY_URL` (domínio do comando `npx shadcn add`; padrão `https://sports.galaxie.works`).
 - Deploy da demo: mesma VPS da API (stack Portainer) ou Vercel apontando para a API pública.
 
 ## 6. Pendências

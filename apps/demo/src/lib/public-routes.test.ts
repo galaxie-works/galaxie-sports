@@ -13,6 +13,7 @@ describe('rotas públicas', () => {
     '/sitemap.xml',
     '/icon.png',
     '/apple-icon.png',
+    '/r/01a16029-9283-77d0-b2e5-1d89336b2dbc.json',
   ])('%s abre sem sessão', (path) => expect(isPublicPath(path)).toBe(true));
 
   it.each([
@@ -27,6 +28,12 @@ describe('rotas públicas', () => {
     '/termos-de-uso',
     '/privacidade.json',
     '/loginx',
+    '/cliente',
+    '/cliente/builder',
+    '/api/cliente/x',
+    '/r',
+    '/r/abc',
+    '/r/a/b.json',
   ])('%s exige login', (path) => expect(isPublicPath(path)).toBe(false));
 
   it('a raiz sem sessão mostra uma página pública', () => {

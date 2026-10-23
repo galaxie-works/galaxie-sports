@@ -1,7 +1,8 @@
 /**
  * Porta de entrada da demo: toda página e toda leitura da API exigem sessão válida, com acesso dentro
- * do prazo; a área /ajustes (e /api/ajustes) exige admin. As exceções (login, apresentação, termos,
- * privacidade, robots.txt e sitemap) estão em `lib/public-routes.ts`; sem sessão, a raiz mostra a
+ * do prazo; a área /ajustes (e /api/ajustes) exige admin e o painel do cliente (/cliente e /api/cliente)
+ * exige o papel `client` ou admin (`lib/auth/roles.ts`). As exceções (login, apresentação, termos,
+ * privacidade, robots.txt, sitemap e o registry dos widgets) estão em `lib/public-routes.ts`; sem sessão, a raiz mostra a
  * apresentação em vez de redirecionar para o login. Roda em Node (Next 16), então valida a sessão no banco antes de
  * qualquer conteúdo renderizar.
  *
@@ -11,14 +12,12 @@
  */
 import { type NextRequest, NextResponse } from 'next/server';
 
+import { matchesPrefix, routeAccess } from '@/lib/auth/roles';
 import { auth, isAccessExpired } from '@/lib/auth/server';
 import { COOKIE_MAX_AGE, LOCALE_COOKIE, isLocale, resolveLocale } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { SMOKE_HEADER } from '@/lib/ops/smoke';
 import { LANDING_PAGE, isPublicPath } from '@/lib/public-routes';
-
-/** Área de admin: páginas de ajustes e as rotas de API delas. */
-const ADMIN_PREFIXES = ['/ajustes', '/api/ajustes'];
 
 /**
  * Rota que o smoke test do deploy lê sem sessão, assinando com o segredo do próprio contêiner. O proxy só
@@ -31,9 +30,6 @@ const SMOKE_ROUTE = '/api/ajustes/operacao';
  * login (sem repassar o token da URL antiga, que não vale mais nada).
  */
 const LEGACY_PASSWORD_PAGES = ['/definir-senha', '/esqueci-senha'];
-
-const matches = (pathname: string, prefixes: string[]) =>
-  prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 /** Páginas passam pelo segmento de idioma; API, arquivos e rotas internas do Next, não. */
 const isPage = (pathname: string) =>
@@ -61,7 +57,7 @@ function render(request: NextRequest, pathname = request.nextUrl.pathname) {
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (matches(pathname, LEGACY_PASSWORD_PAGES)) {
+  if (matchesPrefix(pathname, LEGACY_PASSWORD_PAGES)) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
   if (isPublicPath(pathname)) return render(request);
@@ -81,7 +77,7 @@ export async function proxy(request: NextRequest) {
 
   if (!session) return pathname === '/' ? render(request, LANDING_PAGE) : deny();
   if (isAccessExpired(session.user)) return deny('expirado');
-  if (matches(pathname, ADMIN_PREFIXES) && session.user.role !== 'admin') {
+  if (routeAccess(pathname, session.user.role) === 'deny') {
     return isApi
       ? NextResponse.json({ title: t!.forbidden }, { status: 403 })
       : NextResponse.redirect(new URL('/', request.url));
