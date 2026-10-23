@@ -119,13 +119,18 @@ export function MatchDetails({
         <CollapsibleContent keepMounted>
           <FramePanel>
             <UrlTabs param={DETAIL_PARAM} value={tab} className="gap-4">
-              <TabsList className="max-w-full overflow-x-auto">
-                {DETAIL_TABS.filter((x) => tabs.has(x)).map((x) => (
-                  <TabsTrigger key={x} value={x}>
-                    {labels[x]}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+              {/* uma aba só (ex.: jogo ao vivo sem escalação nem estatísticas): sem barra de abas */}
+              {tabs.size > 1 ? (
+                // rola só na horizontal e sem barra visível: no Windows o overflow-x sozinho mostrava
+                // as setinhas de rolagem vertical ao lado das abas
+                <TabsList className="max-w-full overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {DETAIL_TABS.filter((x) => tabs.has(x)).map((x) => (
+                    <TabsTrigger key={x} value={x}>
+                      {labels[x]}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              ) : null}
 
               {timeline ? (
                 <TabsContent value="minuto" keepMounted className="flex flex-col gap-3">
