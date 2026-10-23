@@ -53,6 +53,16 @@ export const RelatedQuery = LocaleQuery.extend({
     .optional()
     .meta({ description: '`short` (vertical curto) ou `long`. Padrão: os dois.' }),
   limit: z.coerce.number().int().min(1).max(50).default(20),
+  country: z
+    .string()
+    .regex(/^[A-Za-z]{2}$/, 'use o código ISO 3166-1 alpha-2 (ex.: AR)')
+    .transform((s) => s.toUpperCase())
+    .optional()
+    .meta({
+      description:
+        'País do público (ISO 3166-1 alpha-2): só vídeos no idioma do país, os do próprio país primeiro (AR → es-AR antes de es-MX; nunca vídeo em português). Sem país, o mercado único do plano; sem nenhum, todos.',
+      example: 'AR',
+    }),
 });
 export type RelatedQuery = z.input<typeof RelatedQuery>;
 

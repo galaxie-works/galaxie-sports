@@ -13,6 +13,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { eventHead } from '../../events/queries.js';
+import { resolveMarket } from '../../events/relevance.js';
 import { formatInstant, resolveLocale } from '../../i18n.js';
 import { parseInput } from '../../util.js';
 
@@ -45,6 +46,36 @@ export const RELATED_TYPE_LABELS: Record<'pt' | 'es', Record<RelatedContentTypeN
     other: 'Otros',
   },
 };
+
+const PT_COUNTRIES = new Set(['BR', 'PT']);
+const ES_COUNTRIES = new Set([
+  'AR',
+  'MX',
+  'CO',
+  'CL',
+  'PE',
+  'UY',
+  'EC',
+  'PY',
+  'BO',
+  'VE',
+  'ES',
+  'CR',
+  'GT',
+  'HN',
+  'SV',
+  'PA',
+  'DO',
+  'CU',
+  'NI',
+  'PR',
+]);
+
+/** Idioma dos vídeos para o público do país; null (sem filtro) fora dos países lusófonos e hispânicos. */
+export function relatedLanguageOf(country: string): 'pt' | 'es' | null {
+  const c = country.toUpperCase();
+  return PT_COUNTRIES.has(c) ? 'pt' : ES_COUNTRIES.has(c) ? 'es' : null;
+}
 
 export function relatedTypeLabel(type: RelatedContentTypeName, locale: SupportedLocale): string {
   return RELATED_TYPE_LABELS[locale.startsWith('pt') ? 'pt' : 'es'][type];
@@ -86,10 +117,13 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
     const query = parseInput(RelatedQuery, request.query);
     const locale = resolveLocale(query.locale, request.headers['accept-language']);
     const tz = query.tz ?? 'UTC';
+    // público: o país pedido ou o mercado único do plano; vídeos no idioma dele, os do próprio país primeiro
+    const country = resolveMarket(request, query.country);
+    const language = country ? relatedLanguageOf(country) : null;
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.related,
-      vary: [locale, tz],
+      vary: [locale, tz, country ?? '*'],
       check: (meta) => {
         if (request.tenant && meta.sport) assertSport(request.tenant, meta.sport);
       },
@@ -99,6 +133,7 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const page = await readRelatedContent(db, head.id, {
           ...(query.type?.length ? { types: query.type } : {}),
           ...(query.format ? { format: query.format } : {}),
+          ...(language ? { language, region: country! } : {}),
           limit: query.limit,
         });
         const body: RelatedContent = {

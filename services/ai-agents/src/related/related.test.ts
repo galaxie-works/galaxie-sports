@@ -145,7 +145,7 @@ describe('YouTube Data API', () => {
           items: [
             {
               id: 'UC1',
-              snippet: { title: 'Canal', customUrl: '@Palmeiras' },
+              snippet: { title: 'Canal', customUrl: '@Palmeiras', country: 'br' },
               statistics: { subscriberCount: '9000000' },
             },
           ],
@@ -163,7 +163,7 @@ describe('YouTube Data API', () => {
     });
     expect(v!.thumbnailUrl).toBe('https://i.ytimg.com/vi/v1/hqdefault.jpg');
     expect(await yt.channels(['UC1', 'UC1'])).toEqual([
-      { id: 'UC1', title: 'Canal', handle: '@palmeiras', subscribers: 9_000_000 },
+      { id: 'UC1', title: 'Canal', handle: '@palmeiras', subscribers: 9_000_000, country: 'BR' },
     ]);
     expect(yt.units).toBe(2);
   });

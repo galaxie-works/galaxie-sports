@@ -62,6 +62,51 @@ export function languagesFor(teamCountries: readonly (string | null)[]): Languag
   return out;
 }
 
+/** Idioma dos vídeos de um país (pt para BR/PT, es para os hispânicos); null fora dos dois. */
+export function languageOfCountry(country: string): RelatedLanguage | null {
+  const c = country.toUpperCase();
+  if (PT_COUNTRIES.has(c)) return 'pt';
+  if (ES_COUNTRIES.has(c)) return 'es';
+  return null;
+}
+
+const LOCALE_OF: Record<string, AgentLocale> = { MX: 'es-MX', CO: 'es-CO', CL: 'es-CL' };
+
+/**
+ * Idiomas das consultas pelos mercados em que o jogo é relevante (relevância ≥ `min`), do mais
+ * relevante para o menos: `regionCode` é o mercado mais relevante daquele idioma. Sem mercado
+ * relevante, null (quem chama cai no país dos times).
+ */
+export function languagesForMarkets(
+  relevance: Readonly<Record<string, number>>,
+  min: number,
+): LanguagePlan[] | null {
+  const ranked = Object.entries(relevance)
+    .filter(([, r]) => r >= min)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const out: LanguagePlan[] = [];
+  for (const [market] of ranked) {
+    const language = languageOfCountry(market);
+    if (!language || out.some((p) => p.language === language)) continue;
+    out.push(
+      language === 'pt'
+        ? { language, locale: 'pt-BR', regionCode: market }
+        : { language, locale: LOCALE_OF[market] ?? 'es-AR', regionCode: market },
+    );
+  }
+  return out.length ? out : null;
+}
+
+/**
+ * Teto de buscas por jogo: alterna os idiomas na ordem dos rótulos (highlights de todos, depois shorts…),
+ * para o corte nunca deixar um mercado sem o resumo do jogo.
+ */
+export function capQueries(queries: readonly RelatedQuery[], max: number): RelatedQuery[] {
+  if (max <= 0) return [];
+  const ordered = ORDER.flatMap((label) => queries.filter((q) => q.label === label));
+  return ordered.slice(0, max);
+}
+
 export interface QueryFacts {
   core: EventCore;
   /** Autores de gol do core (sem repetição, na ordem da timeline). */

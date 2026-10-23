@@ -84,7 +84,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'recap-run', service: 'agents', cron: '*/5 * * * *', runNow: true },
   { name: 'context-run', service: 'agents', cron: '10 * * * *', runNow: true },
   { name: 'wtw-run', service: 'agents', cron: '*/5 * * * *', runNow: false },
-  { name: 'related-run', service: 'agents', cron: '*/30 0-6,12-23 * * *', runNow: false },
+  { name: 'related-run', service: 'agents', cron: '*/3 * * * *', runNow: false },
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
 ];
 
@@ -270,6 +270,21 @@ export const SETTINGS: readonly SettingDef[] = [
   agents('related', { key: 'YOUTUBE_DAILY_QUOTA', type: 'int', min: 0, max: 1_000_000, default: '10000' }),
   agents('related', { key: 'YOUTUBE_QUOTA_RESERVE_PERCENT', type: 'int', min: 0, max: 90, default: '10' }),
   agents('related', { key: 'RELATED_RESEARCH_HOURS', type: 'int', min: 1, max: 168, default: '12' }),
+  // fila e orçamento dos vídeos (services/ai-agents/src/related/priority.ts)
+  agents('related', {
+    key: 'RELATED_MARKETS',
+    type: 'markets',
+    options: WTW_MARKET_CODES,
+    allowEmpty: true,
+    default: null,
+  }),
+  agents('related', { key: 'RELATED_MIN_RELEVANCE', type: 'int', min: 0, max: 100, default: '50' }),
+  agents('related', { key: 'RELATED_MAX_VIDEOS', type: 'int', min: 1, max: 50, default: '12' }),
+  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_EVENT', type: 'int', min: 1, max: 16, default: '4' }),
+  agents('related', { key: 'RELATED_HIGH_RELEVANCE', type: 'int', min: 0, max: 100, default: '85' }),
+  agents('related', { key: 'RELATED_HIGH_RESERVE_PERCENT', type: 'int', min: 0, max: 90, default: '30' }),
+  agents('related', { key: 'RELATED_LOOKBACK_HOURS', type: 'int', min: 1, max: 168, default: '24' }),
+  agents('related', { key: 'RELATED_SECOND_SEARCH_MINUTES', type: 'int', min: 0, max: 720, default: '30' }),
   agents('related', {
     key: 'RELATED_CREATOR_MIN_SUBSCRIBERS',
     type: 'int',

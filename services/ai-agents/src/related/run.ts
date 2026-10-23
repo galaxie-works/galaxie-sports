@@ -4,7 +4,7 @@
  * relevância e política em código, classificação pelo LLM `light` (fallback por regras) e gravação
  * versionada em enrich.related_content.
  */
-import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import {
   competition,
   event,
@@ -34,8 +34,26 @@ import {
   RULES_CLASSIFIER,
   type ClassifyFacts,
 } from './classify.js';
+import { marketRelevance } from '../wtw/relevance.js';
 import { checkRelevance, decidePublication, rankScore } from './policy.js';
-import { buildRelatedQueries, languagesFor, type RelatedQuery } from './queries.js';
+import {
+  availableUnits,
+  capPublished,
+  EMPTY_SEARCHES_TO_STOP,
+  fullSearchDue,
+  rankRelatedCandidates,
+  relatedPolicyFromEnv,
+  videoLocale,
+  type RankableCandidate,
+  type RelatedPolicy,
+} from './priority.js';
+import {
+  buildRelatedQueries,
+  capQueries,
+  languagesFor,
+  languagesForMarkets,
+  type RelatedQuery,
+} from './queries.js';
 import {
   currentRelatedRows,
   expireStaleRelated,
@@ -72,6 +90,8 @@ export interface RelatedRunOptions {
   researchHours?: number;
   maxSearchesPerLanguage?: number;
   requestedBy?: string;
+  /** Mercados, relevância mínima, reserva, teto de buscas e de vídeos (padrão: `relatedPolicyFromEnv`). */
+  policy?: RelatedPolicy;
 }
 
 export interface RelatedRunItem {
@@ -80,6 +100,8 @@ export interface RelatedRunItem {
   startsAt: string;
   action: 'searched' | 'revalidated' | 'planned' | 'skipped' | 'error';
   mode?: 'full' | 'revalidate';
+  /** Maior relevância do jogo nos mercados ativos. */
+  relevance?: number;
   reason?: string;
   queries?: string[];
   units?: number;
@@ -103,27 +125,86 @@ export interface RelatedRunReport {
   expired: number;
 }
 
-export async function relatedCandidates(
+export interface RelatedCandidate extends RankableCandidate {
+  /** Relevância (0–100) do jogo em cada mercado ativo. */
+  byMarket: Record<string, number>;
+  fullRuns: number;
+  lastFull: Date | null;
+}
+
+/** Fatos dos jogos (relevância por mercado e histórico de buscas), pela janela ou por ids. */
+async function candidateFacts(
   db: Database,
-  opts: { now: Date; lookbackHours: number; maxTier: number; limit: number },
-): Promise<string[]> {
-  const since = new Date(opts.now.getTime() - opts.lookbackHours * 3_600_000);
-  const rows = await db
-    .select({ id: event.id })
-    .from(event)
-    .innerJoin(competition, eq(competition.id, event.competitionId))
-    .where(
-      and(
+  opts: { ids?: string[]; now: Date; lookbackHours: number; maxTier: number; markets: string[] },
+): Promise<RelatedCandidate[]> {
+  const conds = opts.ids
+    ? [inArray(event.id, opts.ids)]
+    : [
         eq(event.sport, 'football'),
         eq(event.status, 'finished'),
-        gte(event.startsAt, since),
+        gte(event.startsAt, new Date(opts.now.getTime() - opts.lookbackHours * 3_600_000)),
         lte(event.startsAt, opts.now),
         lte(competition.tier, opts.maxTier),
-      ),
-    )
-    .orderBy(competition.tier, desc(event.importance), desc(event.startsAt), desc(event.id))
-    .limit(opts.limit);
-  return rows.map((r) => r.id);
+      ];
+  const rows = await db
+    .select({
+      id: event.id,
+      startsAt: event.startsAt,
+      importance: event.importance,
+      sport: competition.sport,
+      slug: competition.slug,
+      countryCode: competition.countryCode,
+      participantCountries: sql<(string | null)[]>`coalesce((
+        select array_agg(p.country_code) from core.event_participant ep
+          join core.participant p on p.id = ep.participant_id
+         where ep.event_id = ${event.id}), '{}')`,
+      fullRuns: sql<number>`(select count(*)::int from enrich.related_run r
+         where r.event_id = ${event.id} and r.mode = 'full' and r.status = 'done')`,
+      lastFull: sql<Date | null>`(select max(r.started_at) from enrich.related_run r
+         where r.event_id = ${event.id} and r.mode = 'full' and r.status = 'done')`,
+    })
+    .from(event)
+    .innerJoin(competition, eq(competition.id, event.competitionId))
+    .where(and(...conds));
+  return rows.map((r) => {
+    const byMarket = Object.fromEntries(
+      opts.markets.map((m) => [
+        m,
+        marketRelevance(
+          {
+            importance: Number(r.importance ?? 0),
+            participantCountries: r.participantCountries ?? [],
+            competitionCountry: r.countryCode,
+            competition: { sport: r.sport, slug: r.slug },
+          },
+          m,
+        ),
+      ]),
+    );
+    const fullRuns = Number(r.fullRuns ?? 0);
+    return {
+      id: r.id,
+      startsAt: r.startsAt,
+      relevance: Math.max(0, ...Object.values(byMarket)),
+      byMarket,
+      fullRuns,
+      lastFull: r.lastFull ? new Date(r.lastFull) : null,
+      firstSearchPending: fullRuns === 0,
+    };
+  });
+}
+
+/**
+ * Fila do agente: jogos encerrados na janela, com relevância ≥ mínima nos mercados ativos, na ordem de
+ * `rankRelatedCandidates` (primeira busca pendente → relevância → mais recente). Antes era tier e
+ * importância global, e a Champions de dois dias atrás passava na frente da semifinal da Libertadores.
+ */
+export async function relatedCandidates(
+  db: Database,
+  opts: { now: Date; lookbackHours: number; maxTier: number; limit: number; policy: RelatedPolicy },
+): Promise<RelatedCandidate[]> {
+  const facts = await candidateFacts(db, { ...opts, markets: opts.policy.markets });
+  return rankRelatedCandidates(facts, opts.policy.minRelevance).slice(0, opts.limit);
 }
 
 async function teamCountries(db: Database, core: EventCore): Promise<(string | null)[]> {
@@ -187,16 +268,27 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
     if (!opts.youtube) throw new Error('Cliente do YouTube ausente (YOUTUBE_API_KEY).');
     report.expired = (await expireStaleRelated(db, { now })).rows;
   }
-  const ids = opts.eventId
-    ? [opts.eventId]
+  const policy = opts.policy ?? relatedPolicyFromEnv();
+  const candidates = opts.eventId
+    ? await candidateFacts(db, {
+        ids: [opts.eventId],
+        now,
+        lookbackHours: 0,
+        maxTier: 99,
+        markets: policy.markets,
+      })
     : await relatedCandidates(db, {
         now,
-        lookbackHours: opts.lookbackHours ?? 48,
+        lookbackHours: opts.lookbackHours ?? policy.lookbackHours,
         maxTier: opts.maxTier ?? 2,
         limit: opts.limit ?? 20,
+        policy,
       });
+  const byId = new Map(candidates.map((c) => [c.id, c]));
+  const ids = opts.eventId ? [opts.eventId] : candidates.map((c) => c.id);
 
   for (const id of ids) {
+    const cand = byId.get(id);
     const core = await loadEventCore(db, id);
     if (!core) {
       report.items.push({
@@ -213,6 +305,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       label: eventMatchLabel(core),
       startsAt: core.startsAt.toISOString(),
       action: 'skipped',
+      ...(cand ? { relevance: cand.relevance } : {}),
     };
     report.items.push(item);
     try {
@@ -221,10 +314,18 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
         continue;
       }
       const current = await currentRelatedRows(db, id);
-      const last = opts.force ? null : await lastFullRun(db, id);
       const researchMs = (opts.researchHours ?? DEFAULT_RESEARCH_HOURS) * 3_600_000;
       const mode: 'full' | 'revalidate' =
-        last && now.getTime() - last.getTime() < researchMs ? 'revalidate' : 'full';
+        opts.force ||
+        fullSearchDue({
+          fullRuns: cand?.fullRuns ?? 0,
+          lastFull: cand?.lastFull ?? (await lastFullRun(db, id)),
+          now,
+          researchMs,
+          secondSearchMs: policy.secondSearchMinutes * 60_000,
+        })
+          ? 'full'
+          : 'revalidate';
       item.mode = mode;
       const alive = current.filter((r) => r.status !== 'retracted' && r.status !== 'expired');
       if (mode === 'revalidate' && !alive.length) {
@@ -240,20 +341,34 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       const scorers = [
         ...new Set(goals.filter((g) => g.type !== 'own_goal' && g.scorer).map((g) => g.scorer!)),
       ];
+      // idiomas dos mercados em que o jogo é relevante (Flamengo x Estudiantes → pt-BR e es-AR);
+      // sem mercado relevante (ex.: --evento), o país dos times
+      const languages =
+        (cand ? languagesForMarkets(cand.byMarket, policy.minRelevance) : null) ??
+        languagesFor(await teamCountries(db, core));
       let queries: RelatedQuery[] =
         mode === 'full'
-          ? buildRelatedQueries({
-              core,
-              scorers,
-              languages: languagesFor(await teamCountries(db, core)),
-              ...(opts.maxSearchesPerLanguage !== undefined
-                ? { maxPerLanguage: opts.maxSearchesPerLanguage }
-                : {}),
-            })
+          ? capQueries(
+              buildRelatedQueries({
+                core,
+                scorers,
+                languages,
+                ...(opts.maxSearchesPerLanguage !== undefined
+                  ? { maxPerLanguage: opts.maxSearchesPerLanguage }
+                  : {}),
+              }),
+              policy.maxSearchesPerEvent,
+            )
           : [];
 
-      // cota: corta consultas que não cabem no saldo do dia (videos/channels custam 1 por lote)
-      const available = quotaLimit - (unitsUsedBefore + report.unitsSpent);
+      // cota: corta consultas que não cabem no saldo do dia (videos/channels custam 1 por lote); os
+      // jogos de relevância baixa não tocam a fatia reservada aos grandes
+      const available = availableUnits({
+        quotaLimit,
+        used: unitsUsedBefore + report.unitsSpent,
+        relevance: cand?.relevance ?? 100,
+        policy,
+      });
       const fixed = YOUTUBE_UNITS.videos * 2 + YOUTUBE_UNITS.channels * 2;
       const fit = Math.max(0, Math.floor((available - fixed) / YOUTUBE_UNITS.search));
       if (mode === 'full' && fit < queries.length) queries = queries.slice(0, fit);
@@ -283,18 +398,34 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       };
       try {
         // 1. descoberta
-        const found = new Map<string, { labels: Set<string>; language: string }>();
+        const found = new Map<string, { labels: Set<string>; language: string; region: string | null }>();
         let searches = 0;
+        let emptyInARow = 0;
         for (const q of queries) {
+          // parada antecipada: buscas seguidas sem nada (jogo sem cobertura no YouTube) ou candidatos de
+          // sobra para o teto de vídeos — o resto das buscas não vale a cota
+          if (emptyInARow >= EMPTY_SEARCHES_TO_STOP) {
+            stats.stoppedEarly = 'empty_searches';
+            break;
+          }
+          if (found.size >= policy.maxVideos * 3) {
+            stats.stoppedEarly = 'enough_candidates';
+            break;
+          }
           try {
             const hits = await yt.search(q.params);
             searches++;
+            emptyInARow = hits.length ? 0 : emptyInARow + 1;
             (stats.queries as Record<string, unknown>)[`${q.language}:${q.label}`] = {
               q: q.params.q,
               hits: hits.length,
             };
             for (const h of hits) {
-              const f = found.get(h.videoId) ?? { labels: new Set<string>(), language: q.language };
+              const f = found.get(h.videoId) ?? {
+                labels: new Set<string>(),
+                language: q.language,
+                region: q.params.regionCode ?? null,
+              };
               f.labels.add(`${q.language}:${q.label}`);
               found.set(h.videoId, f);
             }
@@ -400,9 +531,13 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             classifiedBy: c.prev!.classifiedBy,
             flags: prevFlags,
           };
-          const language =
-            found.get(v.id)?.language ?? c.prev?.language ?? v.defaultLanguage?.slice(0, 2) ?? null;
-          const locale = language === 'es' ? 'es-AR' : 'pt-BR';
+          // idioma e país do vídeo (es-AR, pt-BR…): o país do canal quando fala o idioma, senão o da busca
+          const language = videoLocale({
+            language: v.defaultLanguage?.slice(0, 2) ?? found.get(v.id)?.language ?? c.prev?.language ?? null,
+            channelCountry: ch?.country ?? null,
+            queryRegion: found.get(v.id)?.region ?? c.prev?.language?.slice(3) ?? null,
+          });
+          const locale = language?.startsWith('es') ? 'es-AR' : 'pt-BR';
           const flags = [...base.flags];
           if (findForbiddenTerms(v.title, locale, { allowPhrases: [core.home.name, core.away.name] }).length)
             flags.push('offensive_title');
@@ -457,6 +592,8 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           });
         }
 
+        // teto de vídeos por jogo e idioma: o excedente fica fora da vitrine (pending + over_limit)
+        capPublished(items, policy.maxVideos);
         const saved = await saveRelatedContent(db, {
           eventId: id,
           provider: 'youtube',

@@ -84,7 +84,7 @@ Na primeira execução real, a proporção vinda das dimensões deu 17 vídeos `
 
 ```mermaid
 flowchart LR
-  C[core.event finished<br/>últimas 48 h, tier ≤ 2] --> Q[Consultas a partir dos fatos<br/>times, competição, fase,<br/>placar, autores de gol]
+  C[core.event finished<br/>últimas 24 h, tier ≤ 2,<br/>relevância nos mercados] --> Q[Consultas a partir dos fatos<br/>times, competição, fase,<br/>placar, autores de gol]
   Q --> S[search.list<br/>publishedAfter = apito<br/>videoDuration=short para shorts<br/>relevanceLanguage por locale]
   S --> V[videos.list + channels.list<br/>duração, status, estatísticas,<br/>handle e inscritos]
   V --> R[Relevância determinística<br/>cita os times? público e incorporável?]
@@ -94,8 +94,11 @@ flowchart LR
   DB --> CF[change feed<br/>event.related_content_changed]
 ```
 
-1. **Candidatos**: futebol `finished` com início nas últimas 48 h (`--horas`), competição tier ≤ 2, ordenados por tier e importância; ou um evento (`--evento`).
-2. **Consultas** (`buildRelatedQueries`), por idioma do mercado (`pt` se algum time é do Brasil; `es` para os demais mercados hispânicos; ambos em competição internacional com times dos dois idiomas):
+1. **Candidatos** (`related/priority.ts`): futebol `finished` com início nas últimas `RELATED_LOOKBACK_HOURS` (padrão 24; `--horas`), competição tier ≤ 2 e relevância ≥ `RELATED_MIN_RELEVANCE` (padrão 50) em algum mercado ativo (`RELATED_MARKETS`, senão `WTW_MARKETS`; a mesma conta do Onde Assistir: importância + bônus do país + audiência da competição no mercado). Ordem: primeira busca pendente (jogo que acabou de terminar) → relevância → mais recente; ou um evento (`--evento`). Antes a ordem era tier e importância global, e a Champions de dois dias antes gastou a cota da semifinal da Libertadores (22–23/10/2026).
+   - **Orçamento**: no máximo `RELATED_MAX_SEARCHES_PER_EVENT` buscas por jogo (padrão 4, alternando os idiomas: o resumo de cada mercado vem primeiro); parada antecipada depois de 2 buscas seguidas sem resultado ou com candidatos de sobra; `RELATED_HIGH_RESERVE_PERCENT` (padrão 30%) da cota útil só para jogos com relevância ≥ `RELATED_HIGH_RELEVANCE` (padrão 85).
+   - **Tempo**: o job roda a cada 3 min; a primeira busca sai logo depois do apito e a segunda `RELATED_SECOND_SEARCH_MINUTES` (padrão 30) depois da primeira, para pegar os melhores momentos publicados mais tarde; depois, uma a cada `RELATED_RESEARCH_HOURS`.
+   - **Teto de vídeos**: `RELATED_MAX_VIDEOS` (padrão 12) publicados por jogo e idioma, pelo ranking; o excedente fica `pending` com `over_limit`.
+2. **Consultas** (`buildRelatedQueries`), nos idiomas dos mercados em que o jogo é relevante (`languagesForMarkets`: `pt` para BR, `es` para os hispânicos, com `regionCode` do mercado mais relevante do idioma); sem mercado relevante (ex.: `--evento`), pelo país dos times. **Localização**: cada vídeo grava `language` como `es-AR`/`pt-BR` (país do canal quando ele fala o idioma, senão o da busca), e a API filtra por `?country=` (só o idioma do país, os do próprio país primeiro; nunca vídeo em português para a Argentina):
    - `highlights`: `Palmeiras x Fluminense melhores momentos Libertadores` (`order=relevance`);
    - `shorts`: `Palmeiras Fluminense #shorts`, com `videoDuration=short`;
    - `postgame`: `Palmeiras Fluminense coletiva|bastidores|torcida|análise`;
@@ -277,7 +280,7 @@ pnpm --filter @galaxie/ai-agents related:run --horas 48 --limite 20 # rodada do 
 pnpm --filter @galaxie/ai-agents related:run --evento <id> --forcar # ignora a janela de revalidação
 ```
 
-Flags: `--plan`, `--evento`, `--horas` (padrão 48), `--tier` (padrão 2), `--limite`, `--forcar`, `--sem-llm` (só regras). Variáveis: `YOUTUBE_API_KEY` (só no `.env`), `YOUTUBE_DAILY_QUOTA`, `YOUTUBE_QUOTA_RESERVE_PERCENT`, `RELATED_RESEARCH_HOURS`, `RELATED_CREATOR_MIN_SUBSCRIBERS`. Cron sugerido: a cada 30 min das 12h às 06h UTC (pós-jogo das noites latino-americanas); os jogos só gastam busca completa uma vez a cada 12 h.
+Flags: `--plan`, `--evento`, `--horas` (padrão 48), `--tier` (padrão 2), `--limite`, `--forcar`, `--sem-llm` (só regras). Variáveis (editáveis no painel de Operação): `YOUTUBE_API_KEY` (só no `.env`), `YOUTUBE_DAILY_QUOTA`, `YOUTUBE_QUOTA_RESERVE_PERCENT`, `RELATED_RESEARCH_HOURS`, `RELATED_CREATOR_MIN_SUBSCRIBERS`, `RELATED_MARKETS`, `RELATED_MIN_RELEVANCE`, `RELATED_MAX_VIDEOS`, `RELATED_MAX_SEARCHES_PER_EVENT`, `RELATED_HIGH_RELEVANCE`, `RELATED_HIGH_RESERVE_PERCENT`, `RELATED_LOOKBACK_HOURS`, `RELATED_SECOND_SEARCH_MINUTES`. Cron padrão: a cada 3 min o dia todo (execução sem jogo novo não chama o YouTube), para os vídeos aparecerem em até ~5 min do apito.
 
 ## 11. Demo
 

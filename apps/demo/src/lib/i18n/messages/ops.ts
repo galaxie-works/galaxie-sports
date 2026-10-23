@@ -432,6 +432,48 @@ export default defineMessages(
         description: 'Parte da cota que a busca de vídeos nunca gasta.',
         unit: '%',
       },
+      RELATED_MARKETS: {
+        label: 'Mercados dos vídeos',
+        description:
+          'Países cuja relevância decide quais jogos ganham vídeos e em que idioma buscar. Vazio usa os mercados do Onde Assistir.',
+      },
+      RELATED_MIN_RELEVANCE: {
+        label: 'Relevância mínima para buscar vídeos',
+        description: 'Jogos abaixo disso, em todos os mercados, não gastam a cota do YouTube.',
+      },
+      RELATED_MAX_VIDEOS: {
+        label: 'Máximo de vídeos por jogo',
+        description:
+          'Vídeos publicados por jogo e idioma. Menos vídeos também reduz o consumo da cota do YouTube.',
+        unit: 'vídeos',
+      },
+      RELATED_MAX_SEARCHES_PER_EVENT: {
+        label: 'Buscas por jogo',
+        description:
+          'Cada busca gasta 100 unidades da cota do YouTube; o resumo do jogo vem sempre primeiro.',
+        unit: 'buscas',
+      },
+      RELATED_HIGH_RELEVANCE: {
+        label: 'Relevância de jogo grande',
+        description:
+          'A partir desta relevância o jogo pode usar a parte da cota reservada aos jogos grandes.',
+      },
+      RELATED_HIGH_RESERVE_PERCENT: {
+        label: 'Cota reservada aos jogos grandes',
+        description: 'Parte da cota diária que só os jogos de relevância alta podem gastar.',
+        unit: '%',
+      },
+      RELATED_LOOKBACK_HOURS: {
+        label: 'Janela de jogos encerrados',
+        description: 'Só jogos encerrados nas últimas horas entram na fila de vídeos.',
+        unit: 'h',
+      },
+      RELATED_SECOND_SEARCH_MINUTES: {
+        label: 'Segunda busca após',
+        description:
+          'Os melhores momentos costumam sair depois do apito: uma segunda busca roda este tempo depois da primeira. 0 desliga.',
+        unit: 'min',
+      },
       RELATED_RESEARCH_HOURS: {
         label: 'Nova busca completa a cada',
         description: 'Entre uma busca completa e outra do mesmo jogo, só revalida os vídeos.',
@@ -863,6 +905,46 @@ export default defineMessages(
           label: 'YouTube quota reserve',
           description: 'Share of the quota the video search never spends.',
           unit: '%',
+        },
+        RELATED_MARKETS: {
+          label: 'Video markets',
+          description:
+            'Countries whose relevance decides which matches get videos and which language to search. Empty uses the Where to Watch markets.',
+        },
+        RELATED_MIN_RELEVANCE: {
+          label: 'Minimum relevance to search videos',
+          description: 'Matches below this in every market do not spend YouTube quota.',
+        },
+        RELATED_MAX_VIDEOS: {
+          label: 'Maximum videos per match',
+          description:
+            'Videos published per match and language. Fewer videos also reduces YouTube quota use.',
+          unit: 'videos',
+        },
+        RELATED_MAX_SEARCHES_PER_EVENT: {
+          label: 'Searches per match',
+          description: 'Each search costs 100 YouTube quota units; the match highlights always come first.',
+          unit: 'searches',
+        },
+        RELATED_HIGH_RELEVANCE: {
+          label: 'Big match relevance',
+          description: 'From this relevance on, the match may use the quota reserved for big matches.',
+        },
+        RELATED_HIGH_RESERVE_PERCENT: {
+          label: 'Quota reserved for big matches',
+          description: 'Share of the daily quota only high-relevance matches can spend.',
+          unit: '%',
+        },
+        RELATED_LOOKBACK_HOURS: {
+          label: 'Finished matches window',
+          description: 'Only matches finished in the last hours enter the video queue.',
+          unit: 'h',
+        },
+        RELATED_SECOND_SEARCH_MINUTES: {
+          label: 'Second search after',
+          description:
+            'Highlights are often published after full time: a second search runs this long after the first. 0 turns it off.',
+          unit: 'min',
         },
         RELATED_RESEARCH_HOURS: {
           label: 'Full search every',
@@ -1307,6 +1389,48 @@ export default defineMessages(
           label: 'Reserva de la cuota de YouTube',
           description: 'Parte de la cuota que la búsqueda de videos nunca gasta.',
           unit: '%',
+        },
+        RELATED_MARKETS: {
+          label: 'Mercados de los videos',
+          description:
+            'Países cuya relevancia decide qué partidos tienen videos y en qué idioma buscar. Vacío usa los mercados de Dónde ver.',
+        },
+        RELATED_MIN_RELEVANCE: {
+          label: 'Relevancia mínima para buscar videos',
+          description: 'Los partidos por debajo de esto en todos los mercados no gastan la cuota de YouTube.',
+        },
+        RELATED_MAX_VIDEOS: {
+          label: 'Máximo de videos por partido',
+          description:
+            'Videos publicados por partido e idioma. Menos videos también reduce el consumo de la cuota de YouTube.',
+          unit: 'videos',
+        },
+        RELATED_MAX_SEARCHES_PER_EVENT: {
+          label: 'Búsquedas por partido',
+          description:
+            'Cada búsqueda gasta 100 unidades de la cuota de YouTube; el resumen del partido siempre va primero.',
+          unit: 'búsquedas',
+        },
+        RELATED_HIGH_RELEVANCE: {
+          label: 'Relevancia de partido grande',
+          description:
+            'Desde esta relevancia el partido puede usar la parte de la cuota reservada a los partidos grandes.',
+        },
+        RELATED_HIGH_RESERVE_PERCENT: {
+          label: 'Cuota reservada a los partidos grandes',
+          description: 'Parte de la cuota diaria que solo los partidos de relevancia alta pueden gastar.',
+          unit: '%',
+        },
+        RELATED_LOOKBACK_HOURS: {
+          label: 'Ventana de partidos terminados',
+          description: 'Solo los partidos terminados en las últimas horas entran en la fila de videos.',
+          unit: 'h',
+        },
+        RELATED_SECOND_SEARCH_MINUTES: {
+          label: 'Segunda búsqueda después de',
+          description:
+            'Los resúmenes suelen salir después del final: una segunda búsqueda corre este tiempo después de la primera. 0 la apaga.',
+          unit: 'min',
         },
         RELATED_RESEARCH_HOURS: {
           label: 'Nueva búsqueda completa cada',
