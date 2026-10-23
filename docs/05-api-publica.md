@@ -100,7 +100,7 @@ O Galaxie Sports Builder gera widgets que a operadora instala no app dela como c
 | Revogação | `revoked_at`; vale em até 60 s (cache da verificação por instância, positivo e negativo). Chave revogada, inexistente ou de tenant suspenso → 401 `INVALID_KEY` |
 | Uso | `last_used_at` atualizado no máximo a cada 5 min; as requisições entram nos contadores de uso do tenant (§1.2) |
 
-**Tabelas** (migration `0027_builder_widgets`): `ops.widget` (tipo, nome, `version` que sobe a cada salvamento, `config` jsonb com tema, locale, mercado e recorte padrão, `archived_at`) e `ops.publishable_key`. Os helpers ficam em `@galaxie/db` (`packages/db/src/widgets.ts`): `listWidgets`, `getWidget`, `saveWidget`, `archiveWidget`, `createPublishableKey`, `listPublishableKeys`, `revokePublishableKey` e `verifyPublishableKey`.
+**Tabelas** (migration `0028_builder_widgets`): `ops.widget` (tipo, nome, `version` que sobe a cada salvamento, `config` jsonb com tema, locale, mercado e recorte padrão, `archived_at`) e `ops.publishable_key`. Os helpers ficam em `@galaxie/db` (`packages/db/src/widgets.ts`): `listWidgets`, `getWidget`, `saveWidget`, `archiveWidget`, `createPublishableKey`, `listPublishableKeys`, `revokePublishableKey` e `verifyPublishableKey`.
 
 ```ts
 const { id, key } = await createPublishableKey(db, {
@@ -462,6 +462,8 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 | `GET /v1/teams/{id}/overview?season=` | Posição no torneio, forma recente (últimos 5), últimos resultados, próximo jogo + onde assistir; com `season`, o time naquele ano |
 | `GET /v1/teams/{id}/events?from=&to=` | Jogos do time |
 | `GET /v1/teams/{id}/squad?season=` | Elenco e comissão técnica |
+| `GET /v1/teams/{id}/career` | F1: carreira do piloto ou do construtor (temporada a temporada, títulos, vitórias, poles, pódios, voltas mais rápidas, primeira e última corrida, equipes e companheiros) |
+| `GET /v1/teams/{id}/photos?role=&season=` | Fotos de licença livre (Wikimedia Commons), cada uma com `credit` (autor, licença, links e a linha pronta) |
 | `GET /v1/teams/{id}/semantic?locale=` | Cartão de identidade: apelidos, mascote, torcida, gritos, estádio, rivais, fatos, dicas de copy do mercado |
 | `GET /v1/teams/{id}/rivals?locale=` | Rivais e clássicos do time (segmentação/CRM) |
 | `GET /v1/derbies?country=&team=` | Clássicos |
@@ -506,6 +508,8 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
   - `rank`/`points`: posição e pontos na fase de tabela (grupo, liga); `opponent`: adversário do confronto decisivo, do último vencido ou do que está em disputa; `decided_by_event_id`: último jogo do confronto que decidiu (ou classificou), `null` enquanto em disputa.
   - Regras (`apps/api/src/teams/campaign.ts`, funções puras): as fases do time são ordenadas por profundidade (`qualifying` < `regular`/`group`/`league_phase` < `playoff` < `knockout_round` < `round_of_128` … `semi_final` < `third_place` < `final`; no mesmo tipo, `core.stage.order`) e vale a mais profunda. Em mata-mata, o confronto (`groupTies`/`goalsOf` do montador de eventos) é decidido pelo **agregado por participante** (os mandos se invertem na volta), depois pelo regulamento (`tieOutcome` de `@galaxie/rules`: gol fora — na prorrogação só se `away_goals_in_extra_time` — e vantagem do empate em jogo único), depois pelos pênaltis (`score.penalty`) e, por fim, pelo `winner` do fornecedor; sem como decidir, segue `in_progress`. Em fase de tabela: com jogo pendente do time = em disputa; se a temporada já tem fase mais profunda sem o time = eliminado; liga pura (sem fases de confronto e `format: league` no regulamento, ou competição `league` sem regulamento) encerrada (nenhum jogo pendente na temporada) = `champion` (1º) ou `finished_league`.
 - `GET /v1/teams/{id}/events`: mesmos filtros, ordenação e cursor da agenda (§3.2), sem janela padrão (sem `from`/`to`, todo o histórico em ordem crescente).
+- `GET /v1/teams/{id}/career` (só F1, piloto ou construtor): calculado do core (F1DB + api-sports). Corrida = sessão `Race` (sprint fora); pole = 1º na classificação do GP; volta mais rápida = o piloto do `fastest_lap` da corrida; pódio só com chegada numérica. `seasons` traz a posição e os pontos do campeonato, as equipes (ou os pilotos, no construtor) e o `car` da temporada quando há foto no acervo. 404 fora da F1.
+- `GET /v1/teams/{id}/photos`: acervo de fotos de licença livre ([runbook](runbooks/fotos-commons.md)). Retrato primeiro, depois ação e carros por temporada. **Exibir a foto exige o crédito** (`credit.text` ou os campos separados, com os links): é a condição das licenças CC BY e CC BY-SA.
 - `GET /v1/teams/{id}/squad?season=`: sem `season`, o elenco atual (`core.roster.season_id` nulo); com o ano, os elencos de temporadas daquele ano. `players`, `coaches`, `staff`, ordenados por posição (goleiro → atacante), número e nome; pessoa com `age` calculada.
 - `GET /v1/people/{id}`: dados de `core.person`, foto, `age`, `teams` (elencos, atual primeiro) e `external_ids`.
 - Cache: times e pessoas 24 h, elenco 1 h, overview/jogos até 5 min (10 s se houver jogo ao vivo ou começando); tags `participant:<id>`, `person:<id>`, `roster`, `event`.

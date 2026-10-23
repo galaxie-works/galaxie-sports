@@ -77,6 +77,7 @@ export class GeoConfig {
   private readonly scopes = new Map<string, ScopeEntry[]>();
   private readonly excluded = new Map<string, Set<string>>();
   private readonly featured = new Map<string, Map<string, number>>();
+  private readonly regional = new Map<string, Map<string, number>>();
 
   constructor(geo: GeoFile, scope: ScopeFile, audience?: AudienceFile) {
     this.confederations = geo.confederations.map((c) => ({
@@ -149,6 +150,15 @@ export class GeoConfig {
       if (new Set(def.featured).size !== def.featured.length)
         throw new GeoConfigError(`${sport}: competição repetida em featured.`);
       this.featured.set(sport, new Map(def.featured.map((slug, i) => [slug, i])));
+      if (new Set(def.regional).size !== def.regional.length)
+        throw new GeoConfigError(`${sport}: competição repetida em regional.`);
+      for (const slug of def.regional) {
+        if (seen.has(slug))
+          throw new GeoConfigError(`${sport}/${slug}: internacional e regional ao mesmo tempo.`);
+        if (this.featured.get(sport)!.has(slug))
+          throw new GeoConfigError(`${sport}/${slug}: em featured (nacional) e em regional ao mesmo tempo.`);
+      }
+      this.regional.set(sport, new Map(def.regional.map((slug, i) => [slug, i])));
     }
 
     for (const market of Object.keys(audience?.markets ?? {}))
@@ -165,6 +175,35 @@ export class GeoConfig {
   /** Slugs em destaque do esporte (validação). */
   featuredSlugs(sport: string): string[] {
     return [...(this.featured.get(sport)?.keys() ?? [])];
+  }
+
+  /** Doméstica estadual ou regional (lista `regional` do esporte)? As outras domésticas são nacionais. */
+  isRegional(sport: string, slug: string): boolean {
+    return this.regional.get(sport)?.has(slug) ?? false;
+  }
+
+  /**
+   * Nível de uma competição: `regional` (lista `regional`), `national` (as demais com país) ou null nas
+   * internacionais (sem país ou `WORLD`).
+   */
+  competitionLevel(sport: string, slug: string, countryCode: string | null): 'national' | 'regional' | null {
+    if (!countryCode || countryCode.toUpperCase() === 'WORLD') return null;
+    return this.isRegional(sport, slug) ? 'regional' : 'national';
+  }
+
+  /** Posição editorial de uma doméstica no país: na lista `regional` ou na `featured`; null fora delas. */
+  domesticOrder(sport: string, slug: string): number | null {
+    return this.isRegional(sport, slug) ? this.regionalOrder(sport, slug) : this.featuredOrder(sport, slug);
+  }
+
+  /** Posição de uma competição regional na lista `regional` do esporte; null fora dela. */
+  regionalOrder(sport: string, slug: string): number | null {
+    return this.regional.get(sport)?.get(slug) ?? null;
+  }
+
+  /** Slugs regionais do esporte (validação). */
+  regionalSlugs(sport: string): string[] {
+    return [...(this.regional.get(sport)?.keys() ?? [])];
   }
 
   /** País membro (código em qualquer caixa); undefined fora das confederações. */

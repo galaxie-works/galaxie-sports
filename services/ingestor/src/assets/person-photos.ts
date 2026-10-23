@@ -13,6 +13,8 @@ export const PLACEHOLDER_PHOTO_SHA256: ReadonlySet<string> = new Set([
   '2ff7d52a628fce5d954c58480dde4e47396db4bb405b7b7d6a6567134bf86422', // silhueta cinza no círculo (jogadores)
   '575e4487e3942dd820fe682e8b81f9c59b0b0d60265433ce5bd1884db4004035', // silhueta "NO PHOTO YET" (técnicos)
   'b602abdd01273f6dd29855a6aed585747243148768da4a5a54e3cebd9989fd36', // escudo-contorno cinza (técnicos)
+  '72f0bbb253ab54961cd5d66148e55aceb3e6bc9823da43e57a6e0812e5427430', // câmera "image not available" (técnicos)
+  '3fe4a6e5dc9c01c791aba5add0303a5c73635b63106d42fcec36bff1d2159bb5', // silhueta no círculo, outra versão (jogadores)
 ]);
 
 export function isPlaceholderPhoto(
@@ -39,6 +41,13 @@ export function coachPhotoUrl(providerId: string): string {
  * `last_at` é o último jogo em que entrou em campo (o técnico, o último em que foi o técnico da escalação).
  * Técnicos têm o id `coach:<id>` em core.provider_map (`coachPersonId`); os demais ids numéricos são jogadores.
  */
+/**
+ * As consultas de prioridade varrem todas as escalações e pessoas. Em paralelo, o Postgres pede segmentos de
+ * memória compartilhada (`/dev/shm`) que um contêiner com o padrão de 64 MB não tem (erro 53100); em série
+ * levam alguns segundos a mais e cabem em qualquer `shm_size`.
+ */
+const SERIAL = sql`set local max_parallel_workers_per_gather = 0`;
+
 function personPriority(since: Date): SQL {
   return sql`
     with lineup as materialized (
@@ -103,6 +112,7 @@ export async function registerPlayerPhotos(
   options: { since: Date },
 ): Promise<PhotoRegistrationReport> {
   return db.transaction(async (tx) => {
+    await tx.execute(SERIAL);
     await tx.execute(sql`
       create temp table photo_candidate on commit drop as
       ${personPriority(options.since)}
@@ -152,7 +162,9 @@ export async function pendingPersonPhotoIds(
   db: Database,
   options: { since: Date; includeMissing?: boolean | undefined; limit?: number | undefined },
 ): Promise<string[]> {
-  const rows = await db.execute<{ id: string }>(sql`
+  const rows = await db.transaction(async (tx) => {
+    await tx.execute(SERIAL);
+    return tx.execute<{ id: string }>(sql`
     ${personPriority(options.since)}
     select a.id
     from core.asset a
@@ -164,5 +176,6 @@ export async function pendingPersonPhotoIds(
     order by min(coalesce(pr.tier, 3)), max(pr.last_at) desc nulls last, a.created_at, a.id
     ${options.limit ? sql`limit ${options.limit}` : sql``}
   `);
+  });
   return rows.map((r) => r.id);
 }

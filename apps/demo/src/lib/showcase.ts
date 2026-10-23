@@ -61,8 +61,19 @@ export interface Showcase {
     stakes: { team: Side | 'both'; key: StakeKey; warn?: boolean }[];
   };
   h2h: {
+    /** Recorte da base: só os confrontos que temos, desde `since`. */
     played: number;
+    since: number;
     draws: number;
+    /** Histórico geral curado (base semântica, `all_time`), quando há número confiável. */
+    allTime?: {
+      matches: number;
+      draws: number;
+      home: { wins: number; goals: number };
+      away: { wins: number; goals: number };
+      asOf: string;
+      sources: string[];
+    };
     home: ShowcaseTeam & { wins: number; goals: number };
     away: ShowcaseTeam & { wins: number; goals: number };
     /** Mais recentes primeiro; `home` diz qual dos dois times jogou em casa. */
@@ -154,7 +165,16 @@ const BRAZIL: Showcase = {
   },
   h2h: {
     played: 34,
+    since: 2010,
     draws: 5,
+    allTime: {
+      matches: 126,
+      draws: 20,
+      home: { wins: 66, goals: 210 },
+      away: { wins: 40, goals: 168 },
+      asOf: '2026-10-14',
+      sources: ['palmeiras.com.br', 'pt.wikipedia.org'],
+    },
     home: { ...TEAMS.palmeiras, wins: 14, goals: 42 },
     away: { ...TEAMS.fluminense, wins: 15, goals: 35 },
     meetings: [
@@ -241,6 +261,7 @@ const ARGENTINA: Showcase = {
   },
   h2h: {
     played: 6,
+    since: 2025,
     draws: 3,
     home: { ...TEAMS.flamengo, wins: 2, goals: 4 },
     away: { ...TEAMS.estudiantes, wins: 1, goals: 3 },

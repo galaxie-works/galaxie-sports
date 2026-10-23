@@ -1,0 +1,167 @@
+# Acervo de fotos da F1 (Wikimedia Commons, licenças livres)
+
+Fotos de pilotos e de carros (construtor numa temporada) vindas da [Wikimedia Commons](https://commons.wikimedia.org), só com licença que permite uso comercial. O esquema é o do [acervo de logos](acervo-de-logos.md):
+
+- manifesto versionado com curadoria;
+- etapas mapear → prévia → importar;
+- binários no nosso storage, com a nossa nomenclatura.
+
+A diferença é que **toda foto sai com o crédito**: na API (campo `credit`) e na demo (legenda com autor, licença e link). Por isso as fotos não viram o `logo` do participante, que aparece em lugares sem espaço para o crédito.
+
+Prioridade do pedido (23/10/2026):
+
+1. as temporadas do Senna (1984–1994): ele, os companheiros de equipe e os carros que pilotou;
+2. os campeões;
+3. os pilotos com mais corridas.
+
+## Licenças
+
+| Licença | Entra? | Obrigação |
+|---|---|---|
+| Domínio público, CC0 | Sim | Nenhuma (o crédito sai mesmo assim) |
+| CC BY (2.0, 2.5, 3.0, 4.0) | Sim | Atribuição: autor, licença com link e indicação da fonte |
+| CC BY-SA (2.0, 2.5, 3.0, 4.0) | Sim | Atribuição e **compartilhar igual**: obra derivada (recorte, edição, montagem) tem de sair com a mesma licença. **Não recortamos nem editamos**: a Commons redimensiona a miniatura (1600 px) e o navegador só ajusta o tamanho |
+| CC BY-NC, CC BY-ND, "fair use", GFDL sem CC, sem licença clara | **Não** | — |
+
+- **Onde a licença é lida:** no `extmetadata` da API da Commons (`License`, `LicenseShortName`, `LicenseUrl`, `Artist`, `Credit`, `AttributionRequired`, `NonFree`), no mapeamento e de novo na importação. CC BY sem autor identificável fica de fora, porque não daria para cumprir a atribuição.
+- **Direito de imagem e de marca:** a licença da foto cobre o direito autoral do fotógrafo, não o direito de imagem da pessoa nem as marcas e os patrocínios que aparecem nos carros. O uso é editorial (perfil e histórico esportivo). Nada de uso publicitário nem sugestão de endosso.
+
+## Como escolhe (regras primeiro; IA só ordena)
+
+1. **Identidade.** O piloto é achado no Wikidata pelo nome e **conferido** pela data de nascimento do F1DB e pela ocupação de piloto. O Wikidata dá a foto principal (P18) e a categoria da Commons (P373).
+   - Com o Wikidata atrasado (`maxlag`), a identidade sai da categoria da Commons com o nome do piloto, conferida pelas categorias-mãe ("Formula One drivers…") e pelo ano em "<ano> births".
+   - Carro: a categoria do chassi do F1DB ("McLaren MP4/4") e as subcategorias dela (por piloto), sem motores, miniaturas, arte e afins.
+2. **Candidatas.** Entram:
+   - a categoria do piloto;
+   - a de retratos ("Portrait photographs of …");
+   - as de cada temporada da carreira ("<piloto> in <ano>"), que dão o ano da foto.
+3. **Regras eliminatórias** (`select.ts`):
+   - licença aceita;
+   - foto (JPEG/PNG);
+   - resolução mínima de 640 × 480;
+   - título sem cara de não-foto (assinatura, gráfico, estátua, túmulo, mural...);
+   - época certa, entre a estreia e a última temporada (±1);
+   - uma versão por foto: original ou recorte.
+4. **Ordem.**
+   - No mapeamento (`--mapear`, dev) valem só as regras: foto do Wikidata, retrato, temporada, época e resolução.
+   - O passo do Gemini é separado (`assets-commons-ordenar`, na VPS, onde a chave funciona). O Gemini (visão) classifica as 12 melhores pelas regras em retrato, ação, carro ou outro, descarta o que não é foto real e dá a nota.
+   - O Gemini **não acrescenta** nada e não identifica pessoas pelo rosto.
+   - O alvo ordenado guarda o modelo e a data (`ranking` no manifesto). Nem o mapeamento por regras nem uma nova ordenação o refazem sem `--refazer`. Se o Gemini falhar, o alvo fica como estava.
+5. **Escolha.**
+   - Piloto: 1 retrato e até 6 de ação, no máximo 2 por temporada.
+   - Carro: até 3 fotos.
+
+## Comandos
+
+```bash
+# 1. mapear: busca, regras, ordem e grava config/assets/commons/f1.yaml + f1.cobertura.md (não grava no banco)
+pnpm --filter @galaxie/ingestor assets:commons --mapear --escopo senna      # senna | campeoes | mais-corridas [--limite 30]
+# 2. prévia da importação (confere a licença de novo; não baixa nem grava)
+pnpm --filter @galaxie/ingestor assets:commons --plan
+# 3. importar: baixa a miniatura, grava no storage e liga ao piloto/construtor (idempotente)
+pnpm --filter @galaxie/ingestor assets:commons
+```
+
+- **Opções:**
+  - `--so driver/ayrton-senna,car/mclaren/1988`: só esses alvos;
+  - `--manifesto <arquivo>`;
+  - `--refazer`: refaz também os alvos já ordenados pelo Gemini.
+- **Ordem do Gemini** (VPS, ver "Produção"): `assets-commons-ordenar --plan` mostra os alvos a ordenar sem chamar nada. Sem `--plan`, ordena e grava o manifesto em `--saida`. Opções: `--so`, `--limite <n>`, `--refazer`; ambiente: `GEMINI_API_KEY` e `GEMINI_MODEL_VISION`.
+- **Pré-requisito:** o F1DB no core e no raw, com as tabelas de equipes e chassis (`f1db:import`; a `--previa` já grava o raw).
+- **Etiqueta da Wikimedia:**
+  - User-Agent com o projeto e a URL do repositório, sem e-mail;
+  - uma requisição por segundo;
+  - `maxlag=5`, esperando quando o servidor está atrasado (no Wikidata, 3 tentativas e cai na Commons);
+  - backoff em 429/5xx.
+  - Uma varredura do escopo `senna` faz cerca de 330 requisições.
+
+## Manifesto e curadoria
+
+`config/assets/commons/f1.yaml` é versionado. Cada alvo (`driver/<id do F1DB>`, `car/<construtor>/<ano>`) tem o item do Wikidata, a categoria e as fotos, cada uma com:
+
+- arquivo, papel (`portrait`, `action`, `car`) e temporada;
+- licença com link, autor e link, crédito, `share_alike`;
+- data, dimensões e quem escolheu (`rules`, `gemini`, `manual`).
+
+| `match` | Quer dizer |
+|---|---|
+| `auto` | Escolhida pelas regras (e pela ordem do Gemini, se houver) |
+| `manual` | Curadoria: a foto fica, mesmo que a varredura não a escolha. Para acrescentar uma foto à mão, copie um item, troque `file`, `page_url` e os campos da licença e marque `match: manual`; a importação confere a licença de novo |
+| `rejected` | Curadoria: a foto sai e não volta nas próximas varreduras |
+
+`config/assets/commons/f1.cobertura.md` mostra, por alvo, as fotos e licenças e, na última varredura, candidatas, aceitas e os motivos de recusa mais comuns.
+
+## Onde aparece
+
+- **API:**
+  - `GET /v1/teams/{id}/photos` (`role`, `season`): fotos com `credit` (autor, licença, links e `text`, a linha pronta);
+  - `GET /v1/teams/{id}/career`: o `portrait` e o `car` de cada temporada, com o mesmo crédito.
+- **Demo:**
+  - galeria e retrato na página do piloto ou da equipe;
+  - foto do carro na tabela de temporadas da carreira;
+  - "o carro do vencedor" na página do GP.
+  - Sempre com a legenda de crédito.
+- **Banco:**
+  - `core.asset` (`origin = commons`, `acervo = commons-f1`, `source_url = commons://<arquivo>`);
+  - `core.asset_credit`: autor, licença, página, data e dimensões originais;
+  - `core.participant_photo`: participante, papel, temporada e ordem.
+  - Storage: `commons/f1/{drivers|cars}/<id do participante>.<sha256[0:12]>.{jpg|png}`.
+
+## Produção (VPS)
+
+Depois do deploy (migration `0027_fotos_commons`) e com o F1DB já carregado. Os passos com IA usam o serviço `agents`, que é a mesma imagem do ingestor com as chaves de IA. O volume `galaxie-commons` guarda o manifesto ordenado e as biografias entre uma execução e outra.
+
+```bash
+ssh root@145.223.94.149
+cd /docker/galaxie-sports
+# 0. volume de trabalho do usuário do container (só na primeira vez)
+docker compose run --rm --no-deps --user root -v galaxie-commons:/data/commons --entrypoint chown agents \
+  -R 1000:1000 /data/commons
+# 1. o raw do F1DB com as tabelas de equipes e chassis (prévia: grava só o raw)
+docker compose run --rm --no-deps -v galaxie-f1db:/data/f1db -e F1DB_DIR=/data/f1db \
+  -e NODE_OPTIONS=--max-old-space-size=384 ingestor node dist/cli/f1db-import.js --previa
+# 2. ordem do Gemini: prévia (alvos a ordenar, sem chamar nada) e execução (idempotente; continua de onde parou)
+docker compose run --rm --no-deps -v galaxie-commons:/data/commons agents \
+  node dist/cli/assets-commons-ordenar.js --plan --saida /data/commons/f1.yaml
+docker compose run --rm --no-deps -v galaxie-commons:/data/commons agents \
+  node dist/cli/assets-commons-ordenar.js --saida /data/commons/f1.yaml
+# 3. prévia das fotos do manifesto ordenado (confere licenças; não grava)
+docker compose run --rm --no-deps -v galaxie-commons:/data/commons ingestor \
+  node dist/cli/assets-commons.js --plan --manifesto /data/commons/f1.yaml
+# 4. importa (baixa da Commons, grava no storage e liga aos pilotos/construtores; idempotente)
+docker compose run --rm --no-deps -v galaxie-commons:/data/commons ingestor \
+  node dist/cli/assets-commons.js --manifesto /data/commons/f1.yaml
+# 5. limpa o cache de respostas da API (mesmo passo do deploy)
+for p in 'gs:cache:*' 'gs:tag:*'; do docker compose exec -T valkey sh -c "valkey-cli --scan --pattern '$p' | xargs -r -n 200 valkey-cli del >/dev/null"; done
+# 6. traz o manifesto ordenado para o repositório (PR), para o git ficar igual à produção
+docker compose run --rm --no-deps -v galaxie-commons:/data/commons --entrypoint cat agents /data/commons/f1.yaml > /tmp/f1.yaml
+```
+
+- **Sem o passo 2**, os passos 3 e 4 com o manifesto do repositório (sem `--manifesto`) importam a escolha só pelas regras.
+- **Reverter:** `delete from core.participant_photo where asset_id in (select id from core.asset where origin = 'commons')`. Os assets ficam; reimportar religa.
+
+### Biografias (Gemini com fontes)
+
+1. **Na VPS, gerar as propostas.** O passo não grava no banco nem no YAML. Piloto com proposta aceita não é pesquisado de novo; para pesquisar de novo, use `--refazer`.
+
+   ```bash
+   docker compose run --rm --no-deps -e AI_PROVIDER=gemini -v galaxie-commons:/data/commons agents \
+     node ../ai-agents/dist/cli/f1-bio.js --plan --saida /data/commons/f1bio
+   docker compose run --rm --no-deps -e AI_PROVIDER=gemini -v galaxie-commons:/data/commons agents \
+     node ../ai-agents/dist/cli/f1-bio.js --saida /data/commons/f1bio
+   docker compose run --rm --no-deps -v galaxie-commons:/data/commons --entrypoint cat agents \
+     /data/commons/f1bio/proposals.json > /tmp/f1bio-proposals.json
+   ```
+2. **No dev, aplicar e abrir o PR.** Os perfis entram como `draft` em `data/knowledge/formula-1/participants/drivers.yaml`. Perfil aprovado nunca é sobrescrito, e aplicar de novo não muda nada.
+
+   ```bash
+   pnpm --filter @galaxie/ai-agents f1:bio --aplicar f1bio-proposals.json --plan
+   pnpm --filter @galaxie/ai-agents f1:bio --aplicar f1bio-proposals.json
+   ```
+3. **Depois do merge e do deploy,** o seed leva os perfis ao painel de revisão (Ajustes → Revisão semântica) para aprovação.
+
+Regra das biografias: toda frase precisa de uma fonte vinda da busca do Gemini (grounding). Frase sem fonte, ou com fonte que não veio da busca, é descartada, e o relatório (`report.md`) mostra o motivo.
+
+## Créditos
+
+Cada foto tem o próprio autor e a própria licença, no manifesto, no `core.asset_credit` e em toda resposta da API. A fonte é sempre a Wikimedia Commons, com o link da página do arquivo.

@@ -19,8 +19,12 @@
 #                     e Caribe, UEFA = Europa).
 #   countries       - países participantes além (ou em vez) das confederações: convidados
 #                     (Copa América) ou recortes (Leagues Cup = México e EUA).
-#   featured        - domésticas em destaque: vêm primeiro no grupo do país (dentro do mesmo tier),
-#                     nesta ordem (ex.: Brasileirão e Copa do Brasil antes dos estaduais).
+#   featured        - domésticas nacionais em destaque: vêm primeiro no grupo do país, nesta ordem e antes
+#                     do tier — as divisões em ordem, depois as copas nacionais (Série A, B, C, D, Copa do
+#                     Brasil). A primeira de cada país é a liga principal.
+#   regional        - domésticas estaduais ou regionais (Carioca, Copa do Nordeste): saem das nacionais e
+#                     formam o grupo "Estaduais e regionais" da página do país, nesta ordem (dentro do
+#                     mesmo tier); na API, `level: regional`. As demais domésticas são `national`.
 #   excluded        - competições internacionais do catálogo que NÃO entram na navegação por país
 #                     (amistosos de clubes, F1 e MMA, que não têm recorte por país). O teste exige
 #                     que toda competição internacional do catálogo esteja mapeada ou excluída.
@@ -68,20 +72,27 @@ sports:
     featured:
       [
         brasileirao-serie-a,
-        copa-do-brasil,
         brasileirao-serie-b,
         brasileirao-serie-c,
         brasileirao-serie-d,
+        copa-do-brasil,
         supercopa-do-brasil,
-        copa-do-nordeste,
+        brasileirao-feminino,
         argentina-liga-profesional,
-        copa-argentina,
         argentina-copa-de-la-liga,
+        argentina-primera-nacional,
+        copa-argentina,
         uruguay-primera,
         uruguay-primera-clausura,
+        uruguay-segunda-division,
+        chile-primera-division,
+        chile-primera-b,
+        colombia-primera-a,
+        colombia-primera-b,
         paraguay-primera-apertura,
         paraguay-primera-clausura,
         liga-mx,
+        liga-de-expansion-mx,
         premier-league,
         fa-cup,
         efl-championship,
@@ -93,6 +104,43 @@ sports:
         dfb-pokal,
         ligue-1,
         coupe-de-france,
+      ]
+    regional:
+      [
+        # Brasil: os estaduais de tier 1 pelo peso, depois as copas regionais e os demais estaduais
+        paulista-a1,
+        carioca,
+        mineiro,
+        gaucho,
+        paranaense,
+        baiano,
+        pernambucano,
+        cearense,
+        goiano,
+        catarinense,
+        copa-do-nordeste,
+        copa-verde,
+        copa-sul-sudeste,
+        copa-centro-oeste,
+        copa-norte,
+        paulista-a2,
+        acreano,
+        alagoano,
+        amapaense,
+        amazonense,
+        brasiliense,
+        capixaba,
+        maranhense,
+        matogrossense,
+        paraense,
+        paraibano,
+        piauiense,
+        potiguar,
+        rondoniense,
+        roraimense,
+        sergipano,
+        sul-matogrossense,
+        tocantinense,
       ]
 
   basketball:

@@ -11,6 +11,7 @@ import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { ChampionshipCard } from '@/components/sport/race';
+import { CareerSection, PhotoGallery, PortraitCard } from '@/components/sport/race-career';
 import { FormChips } from '@/components/sport/form-chips';
 import { Intensity } from '@/components/sport/intensity';
 import { SeasonSelect, type SeasonOption } from '@/components/sport/season-select';
@@ -20,7 +21,13 @@ import { Section } from '@/components/sport/section';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { squadRequest, teamOverviewRequest, teamSemanticRequest } from '@/lib/galaxie/api';
+import {
+  squadRequest,
+  teamCareerRequest,
+  teamOverviewRequest,
+  teamPhotosRequest,
+  teamSemanticRequest,
+} from '@/lib/galaxie/api';
 import type { ApiRequest } from '@/lib/galaxie/request';
 import { contentLocale, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
@@ -372,6 +379,11 @@ export async function TeamContent({ params, searchParams, source }: PageContentP
     source.getSquad(id, content, squadYear),
   ]);
   const { team } = overview;
+  // F1: carreira (piloto ou construtor) e fotos de licença livre, com crédito
+  const racing = team.sport === 'formula-1' && (team.kind === 'driver' || team.kind === 'constructor');
+  const [career, photos] = racing
+    ? await Promise.all([source.getTeamCareer(id, content), source.getTeamPhotos(id)])
+    : [null, null];
   const tsx = t.team.season;
   const label = past ? seasonLabel(past) : undefined;
   const nicknames = semantic?.nicknames.length ? semantic.nicknames : team.nicknames;
@@ -483,6 +495,10 @@ export async function TeamContent({ params, searchParams, source }: PageContentP
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
+            {career ? <CareerSection career={career} api={teamCareerRequest(id, locale, content)} /> : null}
+            {photos?.photos.length ? (
+              <PhotoGallery photos={photos.photos} api={teamPhotosRequest(id, locale)} />
+            ) : null}
             {overview.form.length ? (
               <Section
                 title={t.team.form.title}
@@ -545,6 +561,9 @@ export async function TeamContent({ params, searchParams, source }: PageContentP
           </div>
 
           <div className="flex flex-col gap-6">
+            <PortraitCard
+              photo={career?.portrait ?? photos?.photos.find((p) => p.role === 'portrait') ?? null}
+            />
             <ChampionshipCard standings={overview.standings} />
             <IdentityCard
               s={semantic}

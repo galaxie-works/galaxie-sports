@@ -45,6 +45,7 @@ export default defineMessages(
         continental_clubs: 'Copas continentais de clubes',
         national_teams: 'Seleção',
         world_clubs: 'Mundiais de clubes',
+        regional: 'Estaduais e regionais',
       } as Record<string, string>,
     },
     person: {
@@ -279,6 +280,7 @@ export default defineMessages(
           continental_clubs: 'Continental club competitions',
           national_teams: 'National team',
           world_clubs: 'Club world championships',
+          regional: 'State and regional competitions',
         },
       },
       person: {
@@ -511,6 +513,7 @@ export default defineMessages(
           continental_clubs: 'Copas continentales de clubes',
           national_teams: 'Selección',
           world_clubs: 'Mundiales de clubes',
+          regional: 'Competiciones regionales',
         },
       },
       person: {
