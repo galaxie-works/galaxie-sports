@@ -183,8 +183,22 @@ export function parseMeasure(value: string | number | null | undefined): number 
   return Number.isFinite(n) ? n : null;
 }
 
-function isoDate(value: string | null | undefined): string | null {
-  return value && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null;
+/**
+ * `YYYY-MM-DD` válido, ou `null`. A api-sports às vezes troca dia e mês nas datas de nascimento
+ * (`1978-23-11`): com o mês acima de 12 e o dia até 12, a data é invertida. Fora isso, data
+ * impossível vira `null`, porque derrubaria o lote inteiro no Postgres.
+ */
+export function isoDate(value: string | null | undefined): string | null {
+  const m = value ? /^(\d{4})-(\d{2})-(\d{2})/.exec(value) : null;
+  if (!m) return null;
+  const [, y, a, b] = m as unknown as [string, string, string, string];
+  const valid = (month: string, day: string) => {
+    const d = new Date(Date.UTC(Number(y), Number(month) - 1, Number(day)));
+    return d.getUTCMonth() === Number(month) - 1 && d.getUTCDate() === Number(day);
+  };
+  if (valid(a, b)) return `${y}-${a}-${b}`;
+  if (Number(a) > 12 && valid(b, a)) return `${y}-${b}-${a}`;
+  return null;
 }
 
 export function incidentType(e: Pick<ApiFixtureEvent, 'type' | 'detail'>): string {

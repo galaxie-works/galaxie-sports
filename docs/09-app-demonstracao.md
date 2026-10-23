@@ -142,6 +142,18 @@ flowchart LR
 - Variáveis: `NEXT_PUBLIC_GALAXIE_API_URL`, `GALAXIE_DEMO_KEY` e, opcional, `NEXT_PUBLIC_GALAXIE_DOCS_API_URL` (URL da API nos exemplos da documentação).
 - Deploy da demo: mesma VPS da API (stack Portainer) ou Vercel apontando para a API pública.
 
+### 2.4 Página pública e exemplo navegável
+
+A apresentação (`/sobre`, e a raiz para quem não tem sessão) é pública e estática. Os exemplos dela vêm de uma amostra fixa (`apps/demo/src/lib/showcase.ts`): Palmeiras em pt-BR e em inglês, Flamengo x Estudiantes em espanhol.
+
+O **exemplo navegável** (`/exemplo/jogo`, `/time`, `/campeonato` e `/jogador`) é a página do app de verdade, aberta sem login. Os dados vêm de uma **cópia gravada** (`src/lib/example/snapshot.json`), sem nenhuma chamada à API:
+
+- As páginas de jogo, time, campeonato e pessoa recebem uma fonte de dados (`src/lib/galaxie/source.ts`): a API no app logado e a cópia no exemplo.
+- No exemplo ficam de fora o onde assistir, o conteúdo relacionado, os botões "Ver código" e a busca. Link para fora da cópia avisa que a página é da demo completa.
+- As imagens são servidas pelo próprio site (`public/exemplo/img`), e a cópia não leva ids nem endereços dos fornecedores.
+
+Para regravar a cópia (outros jogos ou dados mais novos): suba a demo com `SHOWCASE_RECORD=<pasta>` no `next dev`, entre e abra as oito páginas (ids em `src/lib/example/pages.ts`) nos três idiomas. Depois rode `node apps/demo/scripts/example-snapshot.mjs <pasta>`.
+
 ## 6. Pendências
 
 - [ ] Receber a lista de bibliotecas de componentes adicionais e atualizar §1/§2.

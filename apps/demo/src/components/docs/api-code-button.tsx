@@ -30,6 +30,7 @@ import {
 } from '@/lib/galaxie/request';
 import { useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
+import { useInExample } from '@/components/example/example-provider';
 
 import { CodeTabs } from './code-tabs';
 
@@ -51,7 +52,8 @@ function trimSample(value: unknown, more: (count: number) => string, depth = 0):
     if (depth >= SAMPLE_DEPTH) return '{…}';
     return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, trimSample(v, more, depth + 1)]));
   }
-  if (typeof value === 'string' && value.length > SAMPLE_STRING) return `${value.slice(0, SAMPLE_STRING - 1)}…`;
+  if (typeof value === 'string' && value.length > SAMPLE_STRING)
+    return `${value.slice(0, SAMPLE_STRING - 1)}…`;
   return value;
 }
 
@@ -135,7 +137,12 @@ function ResponseSample({ req, enabled }: { req: ApiRequest; enabled: boolean })
  * (método, caminho com os IDs da página, query e headers), os exemplos em curl/TypeScript/Python e um
  * trecho da resposta real.
  */
-export function ApiCodeButton({ request, labeled = false }: { request: ApiRequest; labeled?: boolean }) {
+/** Botão "Ver código" da chamada; some no exemplo público, que não mostra como a API funciona. */
+export function ApiCodeButton(props: { request: ApiRequest; labeled?: boolean }) {
+  return useInExample() ? null : <ApiCodeButtonInner {...props} />;
+}
+
+function ApiCodeButtonInner({ request, labeled = false }: { request: ApiRequest; labeled?: boolean }) {
   const { locale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const path = requestPath(request);
@@ -209,7 +216,8 @@ export function ApiCodeButton({ request, labeled = false }: { request: ApiReques
             onClick={() => setOpen(false)}
             className="text-primary flex items-center gap-1.5 text-xs hover:underline"
           >
-            <BookOpen className="size-3.5" aria-hidden /> {fill(t.code.sheet.seeInReference, { route: request.route })}
+            <BookOpen className="size-3.5" aria-hidden />{' '}
+            {fill(t.code.sheet.seeInReference, { route: request.route })}
           </Link>
         </div>
       </SheetContent>

@@ -13,6 +13,8 @@ describe('rotas públicas', () => {
     '/sitemap.xml',
     '/icon.png',
     '/apple-icon.png',
+    '/exemplo/jogo',
+    '/exemplo/img/abc.png',
   ])('%s abre sem sessão', (path) => expect(isPublicPath(path)).toBe(true));
 
   it.each([
@@ -27,6 +29,9 @@ describe('rotas públicas', () => {
     '/termos-de-uso',
     '/privacidade.json',
     '/loginx',
+    '/exemplo',
+    '/exemplo/x',
+    '/exemplo/jogo/1',
   ])('%s exige login', (path) => expect(isPublicPath(path)).toBe(false));
 
   it('a raiz sem sessão mostra uma página pública', () => {
