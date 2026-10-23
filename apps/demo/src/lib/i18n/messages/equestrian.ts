@@ -40,6 +40,7 @@ export default defineMessages(
       description: 'Atletas com histórico verificado e mais vitórias nos últimos dois anos.',
       featured: 'Destaque',
       results: '{n} resultados',
+      empty: 'Nenhum atleta em destaque na base ainda.',
       wins: '{n} vitórias',
     },
     recent: {
@@ -47,6 +48,7 @@ export default defineMessages(
       description: 'Classificações mais recentes da base com conjuntos da região.',
       entries: '{n} conjuntos na base',
       latam: '{n} da região',
+      empty: 'Nenhuma prova recente com sul-americanos na base ainda.',
       full: 'Classificação completa',
       partial: 'Classificação parcial',
     },
@@ -54,6 +56,7 @@ export default defineMessages(
       title: 'Campeonatos com rodadas documentadas',
       description: 'Etapas lidas nos documentos oficiais, separadas da classificação final.',
       rounds: '{n} observações',
+      empty: 'Nenhum campeonato com rodadas documentadas na base ainda.',
     },
     rankings: {
       title: 'Rankings observados',
@@ -274,6 +277,7 @@ export default defineMessages(
         description: 'Athletes with a verified history and the most wins in the last two years.',
         featured: 'Featured',
         results: '{n} results',
+        empty: 'No featured athletes in the dataset yet.',
         wins: '{n} wins',
       },
       recent: {
@@ -281,6 +285,7 @@ export default defineMessages(
         description: 'Latest classifications in the dataset with combinations from the region.',
         entries: '{n} combinations in the dataset',
         latam: '{n} from the region',
+        empty: 'No recent competition with South Americans in the dataset yet.',
         full: 'Full standings',
         partial: 'Partial standings',
       },
@@ -288,6 +293,7 @@ export default defineMessages(
         title: 'Championships with documented rounds',
         description: 'Stages read from official documents, kept apart from the final classification.',
         rounds: '{n} observations',
+        empty: 'No championship with documented rounds in the dataset yet.',
       },
       rankings: {
         title: 'Observed rankings',
@@ -510,6 +516,7 @@ export default defineMessages(
         description: 'Atletas con historial verificado y más victorias en los últimos dos años.',
         featured: 'Destacado',
         results: '{n} resultados',
+        empty: 'Todavía no hay atletas destacados en la base.',
         wins: '{n} victorias',
       },
       recent: {
@@ -517,6 +524,7 @@ export default defineMessages(
         description: 'Clasificaciones más recientes de la base con binomios de la región.',
         entries: '{n} binomios en la base',
         latam: '{n} de la región',
+        empty: 'Todavía no hay pruebas recientes con sudamericanos en la base.',
         full: 'Clasificación completa',
         partial: 'Clasificación parcial',
       },
@@ -524,6 +532,7 @@ export default defineMessages(
         title: 'Campeonatos con rondas documentadas',
         description: 'Etapas leídas en los documentos oficiales, separadas de la clasificación final.',
         rounds: '{n} observaciones',
+        empty: 'Todavía no hay campeonatos con rondas documentadas en la base.',
       },
       rankings: {
         title: 'Rankings observados',

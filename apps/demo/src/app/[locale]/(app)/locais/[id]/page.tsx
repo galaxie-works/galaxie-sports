@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -16,6 +17,16 @@ const SURFACE_KEY: Record<string, 'grass' | 'artificial' | 'hybrid'> = {
   artificial: 'artificial',
   hybrid: 'hybrid',
 };
+
+/** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
+export async function generateMetadata({ params }: PageProps<'/[locale]/locais/[id]'>): Promise<Metadata> {
+  const [{ id }, { locale }] = await Promise.all([params, getI18n()]);
+  try {
+    return { title: (await getVenue(id, locale)).name };
+  } catch {
+    return {};
+  }
+}
 
 async function Content({ params }: { params: PageProps<'/[locale]/locais/[id]'>['params'] }) {
   const { id } = await params;

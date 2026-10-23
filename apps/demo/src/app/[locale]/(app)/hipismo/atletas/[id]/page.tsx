@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -22,6 +23,18 @@ import {
 import { getFormatters, getI18n } from '@/lib/i18n/server';
 import { equestrianParent } from '@/lib/navigation';
 import { fill } from '@/lib/i18n/text';
+
+/** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
+export async function generateMetadata({
+  params,
+}: PageProps<'/[locale]/hipismo/atletas/[id]'>): Promise<Metadata> {
+  const [{ id }, { locale }] = await Promise.all([params, getI18n()]);
+  try {
+    return { title: (await getEquestrianAthlete(id, locale)).name };
+  } catch {
+    return {};
+  }
+}
 
 type Props = PageProps<'/[locale]/hipismo/atletas/[id]'>;
 

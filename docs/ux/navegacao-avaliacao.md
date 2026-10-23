@@ -125,7 +125,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 **Correção:** `generateMetadata` com o nome da página ("Cruzeiro x Remo · Galaxie Sports", "Brasileirão Série A · Galaxie Sports"…). Os dados vêm das mesmas funções cacheadas que a página usa.
 
-**Falta (📝):** local, clássico e as páginas internas do hipismo, no mesmo padrão.
+**Falta (📝):** local, clássico e as páginas internas do hipismo, no mesmo padrão. ✅ Feito no item 23.
 
 ### 9. Piloto e lutador usam a página de time 📝
 
@@ -146,7 +146,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 **Proposta:** mostrar no card do esporte a temporada com dados (a mesma que a competição vai abrir) e chamar a aba de "Corridas" quando a competição tem sessões.
 
-### 11. Seções vazias sem aviso (hipismo) 📝
+### 11. Seções vazias sem aviso (hipismo) ✅ (item 23)
 
 **Onde:** `/hipismo` na base de dev, que não tem dados de hipismo. "Destaques", "Provas recentes" e "Campeonatos" aparecem só com o título, sem conteúdo nem explicação. Parece que a página está quebrada ou carregando.
 
@@ -234,8 +234,8 @@ Depois da primeira entrega, o pedido foi olhar o celular e a organização das l
 
 - **Países no Explorar:** os 17 cards de país ainda somam uns 3.000 px. Proposta: no celular, uma lista compacta (bandeira, nome, liga principal e jogo em destaque) e o card rico só a partir do tablet.
 - **Estaduais separados das nacionais:** ✅ feito no item 20.
-- **Fileira de abas e de rodadas:** no celular rolam na horizontal sem indicar que há mais. Proposta: um degradê na borda direita.
-- **Página do jogo no celular:** o card "Sobre o jogo" (relevância por país, com 11 países) vem antes do contexto e dos detalhes. Proposta: no celular, recolher a relevância por país num "Ver por país".
+- **Fileira de abas e de rodadas:** ✅ resolvido pelo #207 (`ScrollRow`: bordas esmaecidas e setas quando há mais).
+- **Página do jogo no celular:** ✅ feito no item 23.
 
 ### 19. Ao vivo: a liga não dizia de que país é ✅
 
@@ -284,6 +284,17 @@ Os épicos do backlog de navegação, um PR cada. A ordem e as decisões de prod
 | ![Grupo regional](img/depois-celular-pais-regionais.jpg) | ![Página do esporte](img/depois-celular-futebol-brasil-divisoes.jpg) |
 
 No celular, a Libertadores fica a 943 px do topo do Brasil (antes do #200 ficava a 3.540 px).
+
+### 23. Polimento: vazios, títulos de aba e relevância no celular (E6) ✅
+
+- **Hipismo sem dados:** "Destaques", "Provas recentes" e "Campeonatos" mostravam só o título, e parecia página quebrada. Agora cada seção vazia explica, numa linha discreta, que ainda não há dado na base (três idiomas).
+- **Títulos de aba que faltavam:** local, clássico e as páginas internas do hipismo (atleta, cavalo, prova, campeonato) passam a ter o nome no título ("Mineirão · Galaxie Sports", "Choque-Rei · Galaxie Sports"), no mesmo padrão de competição, jogo e time.
+- **Relevância por país no celular:** o card "Sobre o jogo" vem antes do contexto. No celular, ele mostra só o país do idioma, e os outros 10 ficam atrás de "Ver todos os 11 países". É só CSS, sem piscar na hidratação; no desktop nada muda.
+- **Fileiras roláveis:** já resolvido pelo #207 (`ScrollRow`).
+
+| Hipismo com seções vazias explicadas | Celular: relevância recolhida |
+| --- | --- |
+| ![Hipismo](img/depois-hipismo-secoes-vazias.jpg) | ![Relevância](img/depois-celular-relevancia-recolhida.jpg) |
 
 ## Proposta maior: trilha hierárquica fixa 📝
 
