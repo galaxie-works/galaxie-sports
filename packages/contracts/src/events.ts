@@ -1,7 +1,7 @@
 import 'zod-openapi';
 import * as z from 'zod';
 import { TeamColors } from './colors.js';
-import { AssetUrl, LocaleQuery, PaginationQuery } from './common.js';
+import { AssetUrl, CountryRef, LocaleQuery, PaginationQuery } from './common.js';
 import { EventContextSummary } from './event-context.js';
 
 /** Estados canônicos do evento (docs/04 §3). */
@@ -250,6 +250,15 @@ export const EventCompetitionRef = z
     name: z.string().meta({ example: 'Libertadores' }),
     nickname: z.string().nullable().meta({ example: 'Glória Eterna' }),
     logo: AssetUrl,
+    country: CountryRef.extend({ flag: AssetUrl })
+      .nullable()
+      .optional()
+      .meta({
+        description:
+          'País da competição, com a bandeira (para "Liga Leumit" e "First NL" dizerem de onde são). `WORLD` nas ' +
+          'internacionais (sem bandeira); null sem país no catálogo. Ausente nos blocos que não trazem o país.',
+        example: { code: 'BR', name: 'Brasil', flag: 'https://assets.galaxie.sports/flags/br.svg' },
+      }),
   })
   .meta({ id: 'EventCompetitionRef' });
 

@@ -5,6 +5,7 @@ import {
   asset,
   competition,
   competitionProfile,
+  country,
   derby,
   event,
   eventParticipant,
@@ -331,6 +332,33 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     : [];
   const profileBy = new Map(profiles.map((p) => [p.competitionId!, p]));
 
+  // país de cada competição, com a bandeira: "Liga Leumit" e "First NL" sozinhas não dizem de onde são
+  const countryCodes = [...new Set(rows.map((r) => r.c?.country).filter((x): x is string => !!x))];
+  const countryRows = countryCodes.length
+    ? await db
+        .select({
+          code: country.code,
+          name: country.name,
+          flagKey: asset.storageKey,
+          flagUrl: asset.sourceUrl,
+        })
+        .from(country)
+        .leftJoin(asset, eq(asset.id, country.flagAssetId))
+        .where(inArray(country.code, countryCodes))
+    : [];
+  const countryBy = new Map(countryRows.map((c) => [c.code, c]));
+  const competitionCountry = (code: string | null) => {
+    const c = code ? countryBy.get(code) : undefined;
+    return c
+      ? {
+          code: c.code,
+          name: pickText(c.name as Record<string, string>, locale, c.code)!,
+          // WORLD não tem bandeira (a origem é uma URL quebrada, `flags/ .svg`)
+          flag: c.code === 'WORLD' ? null : assetUrl(ctx.assetsBaseUrl, c.flagKey, c.flagUrl),
+        }
+      : null;
+  };
+
   // participantes
   const partRows = await db
     .select({
@@ -634,6 +662,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
             name: pickText(labels, locale, r.c.name)!,
             nickname: pickList(profile?.nicknames, locale)[0] ?? null,
             logo: assetUrl(ctx.assetsBaseUrl, r.cLogoKey, r.cLogoUrl),
+            country: competitionCountry(r.c.country),
           }
         : null,
       stage: r.st?.id
