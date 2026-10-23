@@ -5,15 +5,25 @@ import {
   normalizeMediaUrl,
   type MediaAssetKind,
 } from '@galaxie/apisports-client';
-import { apiResponse, asset, person, type AssetPalette, type Database } from '@galaxie/db';
+import {
+  apiResponse,
+  asset,
+  competition,
+  participant,
+  person,
+  type AssetPalette,
+  type Database,
+} from '@galaxie/db';
 import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
 import { pendingPersonPhotoIds, PERSON_PHOTO_KINDS } from './person-photos.js';
+import { LOGO_KIND_VALUES, LOGO_KINDS, MISSING_ASSET } from './placeholder-logos.js';
 
 /**
  * Estado de um asset em core.asset:
  * - pendente:   storage_key nulo e fetched_at nulo;
  * - espelhado:  storage_key preenchido (sha256, bytes, dimensões e fetched_at junto);
- * - ausente:    storage_key nulo e fetched_at preenchido — 404 na CDN, bloqueado ou foto genérica de pessoa;
+ * - ausente:    storage_key nulo e fetched_at preenchido — 404 na CDN, bloqueado ou imagem genérica (foto de
+ *               pessoa ou logo de time/competição);
  *               não é tentado de novo (a não ser com `includeMissing`).
  */
 export interface MirrorAsset {
@@ -50,6 +60,24 @@ export interface PendingQuery {
 export interface MissingOptions {
   /** Desliga a foto das pessoas que usam o asset: a pessoa passa a não ter foto. */
   detachPeople?: boolean;
+  /** Desliga o logo dos times (core.participant) e competições que usam o asset: passam a não ter logo. */
+  detachLogos?: boolean;
+}
+
+export interface LogoCleanupOptions {
+  /** Hashes dos logos genéricos. Padrão PLACEHOLDER_LOGO_SHA256. */
+  placeholders?: ReadonlySet<string> | undefined;
+  /** Só conta, sem mudar nada. */
+  dryRun?: boolean | undefined;
+}
+
+/** Resultado de `cleanupLogos`. */
+export interface LogoCleanup {
+  /** Logos genéricos que estavam no storage e viraram ausentes. */
+  placeholders: number;
+  /** Times e competições desligados de um logo ausente (genérico, 404 ou bloqueado). */
+  participants: number;
+  competitions: number;
 }
 
 export interface AssetCounts {
@@ -65,6 +93,11 @@ export interface AssetStore {
   markMissing(id: string, at: Date, options?: MissingOptions): Promise<void>;
   /** Desvincula do storage assets já espelhados que entraram na lista de bloqueio. Retorna quantos. */
   unlink(urls: string[], at: Date): Promise<number>;
+  /**
+   * Limpeza idempotente dos logos: os já espelhados com hash de imagem genérica viram ausentes, e times e
+   * competições ligados a qualquer logo ausente perdem o vínculo. `dryRun` só conta.
+   */
+  cleanupLogos(at: Date, options?: LogoCleanupOptions): Promise<LogoCleanup>;
   /** Registra URLs novas (idempotente). Retorna quantas eram novas. */
   register(urls: string[]): Promise<number>;
   counts(): Promise<AssetCounts>;
@@ -89,6 +122,8 @@ export class InMemoryAssetStore implements AssetStore {
   readonly rows: MemoryAssetRow[] = [];
   /** Assets cujas pessoas perderam a foto (`detachPeople`). */
   readonly detached = new Set<string>();
+  /** Assets cujos times e competições perderam o logo (`detachLogos`). */
+  readonly detachedLogos = new Set<string>();
   private seq = 0;
 
   constructor(urls: string[] = []) {
@@ -138,6 +173,7 @@ export class InMemoryAssetStore implements AssetStore {
 
   async markMissing(id: string, at: Date, options: MissingOptions = {}): Promise<void> {
     if (options.detachPeople) this.detached.add(id);
+    if (options.detachLogos) this.detachedLogos.add(id);
     Object.assign(
       this.rows.find((r) => r.id === id)!,
       {
@@ -163,6 +199,20 @@ export class InMemoryAssetStore implements AssetStore {
       }
     }
     return n;
+  }
+
+  async cleanupLogos(at: Date, options: LogoCleanupOptions = {}): Promise<LogoCleanup> {
+    const placeholders = options.placeholders ?? PLACEHOLDER_LOGO_SHA256;
+    const generic = this.rows.filter(
+      (r) => LOGO_KINDS.has(r.kind) && r.storageKey && placeholders.has(r.sha256 ?? ''),
+    );
+    if (!options.dryRun) for (const r of generic) await this.markMissing(r.id, at);
+    // sem tabelas de times e competições na memória: conta os logos ausentes que seriam desligados
+    const missing = this.rows.filter(
+      (r) => LOGO_KINDS.has(r.kind) && ((!r.storageKey && r.fetchedAt) || generic.includes(r)),
+    );
+    if (!options.dryRun) for (const r of missing) this.detachedLogos.add(r.id);
+    return { placeholders: generic.length, participants: missing.length, competitions: 0 };
   }
 
   async register(urls: string[]): Promise<number> {
@@ -265,6 +315,59 @@ export class PgAssetStore implements AssetStore {
           .set({ photoAssetId: null, updatedAt: sql`now()` })
           .where(eq(person.photoAssetId, id));
       }
+      if (options.detachLogos) {
+        await tx
+          .update(participant)
+          .set({ logoAssetId: null, updatedAt: sql`now()` })
+          .where(eq(participant.logoAssetId, id));
+        await tx
+          .update(competition)
+          .set({ logoAssetId: null, updatedAt: sql`now()` })
+          .where(eq(competition.logoAssetId, id));
+      }
+    });
+  }
+
+  async cleanupLogos(at: Date, options: LogoCleanupOptions = {}): Promise<LogoCleanup> {
+    const placeholders = [...(options.placeholders ?? PLACEHOLDER_LOGO_SHA256)];
+    const logoKinds = inArray(asset.kind, [...LOGO_KIND_VALUES]);
+    const generic = and(logoKinds, isNotNull(asset.storageKey), inArray(asset.sha256, placeholders));
+    // no dry run os genéricos ainda estão no storage: contam como ausentes para a prévia dos desligados
+    const missingLogo = (dryRun: boolean) =>
+      this.db
+        .select({ id: asset.id })
+        .from(asset)
+        .where(and(logoKinds, dryRun ? or(MISSING_ASSET, generic) : MISSING_ASSET));
+    if (options.dryRun) {
+      const [row] = await this.db.execute<{
+        placeholders: number;
+        participants: number;
+        competitions: number;
+      }>(sql`
+        select
+          (select count(*)::int from ${asset} where ${generic}) as placeholders,
+          (select count(*)::int from ${participant} where ${participant.logoAssetId} in (${missingLogo(true)})) as participants,
+          (select count(*)::int from ${competition} where ${competition.logoAssetId} in (${missingLogo(true)})) as competitions
+      `);
+      return row ?? { placeholders: 0, participants: 0, competitions: 0 };
+    }
+    return this.db.transaction(async (tx) => {
+      const stored = await tx
+        .update(asset)
+        .set({ ...UNLINKED, fetchedAt: at })
+        .where(generic)
+        .returning({ id: asset.id });
+      const parts = await tx
+        .update(participant)
+        .set({ logoAssetId: null, updatedAt: sql`now()` })
+        .where(inArray(participant.logoAssetId, missingLogo(false)))
+        .returning({ id: participant.id });
+      const comps = await tx
+        .update(competition)
+        .set({ logoAssetId: null, updatedAt: sql`now()` })
+        .where(inArray(competition.logoAssetId, missingLogo(false)))
+        .returning({ id: competition.id });
+      return { placeholders: stored.length, participants: parts.length, competitions: comps.length };
     });
   }
 

@@ -6,10 +6,15 @@
  *   pnpm --filter @galaxie/ingestor assets:mirror                     # baixa o que falta em core.asset
  *   pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw     # antes, registra toda URL de mídia do raw
  *   pnpm --filter @galaxie/ingestor assets:mirror --fotos             # só fotos de pessoas, escalados recentes primeiro
+ *   pnpm --filter @galaxie/ingestor assets:mirror --so-limpeza        # só a limpeza dos logos genéricos (com --plan: prévia)
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
  *           --desde-dias N (com --fotos: janela dos "escalados recentes", padrão 365)
  * `--fotos` antes liga cada jogador sem foto à URL `football/players/{id}.png` (sai do id, sem cota) e, no fim,
  * aponta hashes repetidos que podem ser imagens genéricas ainda fora de PLACEHOLDER_PHOTO_SHA256.
+ * Logos de time e competição que vêm como imagem genérica ("image not available", PLACEHOLDER_LOGO_SHA256) não vão
+ * para o bucket: o asset fica ausente e o time ou a competição perde o logo (a demo mostra as iniciais). Toda
+ * execução começa por uma limpeza idempotente: genéricos gravados antes disso viram ausentes, e times e
+ * competições ligados a logos ausentes (genéricos, 404, bloqueados) perdem o vínculo; `--plan` mostra a prévia.
  * Também espelha os logos da biblioteca de emissoras (core.asset kind `broadcaster_logo`, registrados
  * pela sincronização `wtw:rights` a partir de config/broadcasters/_logos.yaml).
  *
@@ -21,7 +26,7 @@ import { eq, sql } from 'drizzle-orm';
 import { publicAssetUrl } from '@galaxie/apisports-client';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
-import { PgAssetStore } from '../assets/asset-store.js';
+import { PgAssetStore, type LogoCleanup } from '../assets/asset-store.js';
 import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
 import { PLACEHOLDER_PHOTO_SHA256, registerPlayerPhotos } from '../assets/person-photos.js';
@@ -32,6 +37,7 @@ const { values } = parseArgs({
     'descobrir-raw': { type: 'boolean', default: false },
     'retentar-ausentes': { type: 'boolean', default: false },
     fotos: { type: 'boolean', default: false },
+    'so-limpeza': { type: 'boolean', default: false },
     'desde-dias': { type: 'string', default: '365' },
     limite: { type: 'string' },
     concorrencia: { type: 'string', default: '3' },
@@ -70,7 +76,10 @@ try {
     `core.asset: ${before.total} · espelhados: ${before.stored} · ausentes (404/bloqueados): ${before.missing} · pendentes: ${before.pending}`,
   );
 
-  if (values.plan) {
+  if (values['so-limpeza']) {
+    const cleanup = await assets.cleanupLogos(new Date(), { dryRun: values.plan });
+    console.log(logoCleanupLine(cleanup, values.plan ? 'a limpar' : 'limpos'));
+  } else if (values.plan) {
     const report = await runAssetMirror({
       assets,
       objects: {
@@ -86,6 +95,7 @@ try {
       limit: values.limite ? Number(values.limite) : undefined,
     });
     console.log(`A baixar nesta execução: ${report.pending} (nenhuma chamada à API de dados).`);
+    console.log(logoCleanupLine(report.logoCleanup, 'a limpar'));
     const logos = await runBroadcasterLogoMirror({
       db,
       objects: {
@@ -141,8 +151,9 @@ try {
         })
         .where(eq(jobRun.id, run!.id));
       console.log(
-        `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · fotos genéricas: ${report.placeholders} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
+        `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · fotos genéricas: ${report.placeholders} · logos genéricos: ${report.placeholderLogos} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
       );
+      console.log(logoCleanupLine(report.logoCleanup, 'limpos'));
       if (personPhotos) await warnRepeatedPhotos();
       console.log(
         `Logos de emissoras: ${logos.stored} espelhados · 404: ${logos.notFound} · recusados: ${logos.rejected} · falhas: ${logos.failed}`,
@@ -161,6 +172,10 @@ try {
   }
 } finally {
   await closeDb(db);
+}
+
+function logoCleanupLine(c: LogoCleanup, verb: string): string {
+  return `Logos genéricos já gravados ${verb}: ${c.placeholders} · times sem logo: ${c.participants} · competições sem logo: ${c.competitions}`;
 }
 
 /** Hash de foto de pessoa repetido em muitas pessoas costuma ser imagem genérica ainda não catalogada. */

@@ -2,6 +2,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { initials } from '@/lib/format';
 
 const SIZES = { xs: 'size-5', sm: 'size-7', md: 'size-10', lg: 'size-16', xl: 'size-24' } as const;
+/** Iniciais proporcionais ao tamanho: sem logo (ou logo genérico do fornecedor), elas ocupam o lugar do escudo. */
+const INITIALS = {
+  xs: 'text-[9px]',
+  sm: 'text-[11px]',
+  md: 'text-sm',
+  lg: 'text-xl',
+  xl: 'text-3xl',
+} as const;
 
 /** Escudo, logo de competição, bandeira ou foto, com as iniciais como reserva. */
 export function Crest({
@@ -26,7 +34,9 @@ export function Crest({
           className={round ? 'object-cover' : 'rounded-none object-contain'}
         />
       ) : null}
-      <AvatarFallback className={round ? '' : 'rounded-md'}>{initials(name)}</AvatarFallback>
+      <AvatarFallback className={`${INITIALS[size]} font-medium ${round ? '' : 'rounded-md'}`}>
+        {initials(name)}
+      </AvatarFallback>
     </Avatar>
   );
 }

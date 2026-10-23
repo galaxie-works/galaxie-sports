@@ -31,7 +31,12 @@ import {
   teamProfile,
   type Database,
 } from '@galaxie/db';
-import { normalizeFootballFromRaw, upsertBatch } from '@galaxie/ingestor';
+import {
+  normalizeFootballFromRaw,
+  PgAssetStore,
+  PLACEHOLDER_LOGO_SHA256,
+  upsertBatch,
+} from '@galaxie/ingestor';
 import { normalizeFixtures, type ApiFixture } from '@galaxie/providers';
 import { createApiKey, upsertTenant } from '../src/auth/admin.js';
 import { rebuildFromCore } from '../src/routes/mirror-rebuild.js';
@@ -1105,6 +1110,39 @@ describe('/v1/teams e /v1/people', () => {
     // sem paleta (escudo ainda não espelhado) → colors null
     expect((await get(`/v1/teams/${ids.corinthians}`)).json().colors).toBeNull();
     expect((await get('/v1/teams/01a15f83-0f07-78a6-9de5-191d031f73d3')).statusCode).toBe(404);
+  });
+
+  it('logo genérico do fornecedor vira "sem logo": time, lista, busca e jogo devolvem null, sem a URL de origem', async () => {
+    const [estudiantes] = await db
+      .select({ logo: participant.logoAssetId })
+      .from(participant)
+      .where(eq(participant.id, ids.estudiantes!));
+    // o espelho antigo gravou o "image not available" no storage como se fosse o escudo
+    const [notAvailable] = PLACEHOLDER_LOGO_SHA256;
+    await db
+      .update(asset)
+      .set({ storageKey: 'api-sports/football/teams/450.png', sha256: notAvailable!, fetchedAt: new Date() })
+      .where(eq(asset.id, estudiantes!.logo!));
+    // (numa URL que o teste não lê depois, para o cache de resposta não guardar o antes)
+    expect((await get('/v1/teams?q=estudiantes&limit=5')).json().data[0].logo).toBe(
+      `${ASSETS}/api-sports/football/teams/450.png`,
+    );
+
+    expect((await new PgAssetStore(db).cleanupLogos(new Date())).participants).toBe(1);
+    const team = await get(`/v1/teams/${ids.estudiantes}`);
+    expect(team.json()).toMatchObject({ name: 'Estudiantes L.P.', logo: null });
+    expect(team.body).not.toContain('teams/450.png');
+    const list = (await get('/v1/teams?q=estudiantes')).json();
+    expect(list.data.map((t: { logo: string | null }) => t.logo)).toEqual([null]);
+    const search = await get('/v1/search?q=estudiantes&types=team');
+    expect(search.json().data.find((r: { id: string }) => r.id === ids.estudiantes)).toMatchObject({
+      image: null,
+    });
+    expect(search.body).not.toContain('teams/450.png');
+    const game = await get(`/v1/events/${ids.semiB1}`);
+    const side = game.json().participants.find((p: { id: string }) => p.id === ids.estudiantes);
+    expect(side).toMatchObject({ logo: null });
+    expect(game.body).not.toContain('teams/450.png');
   });
 
   it('overview: posição, forma (últimos 5), últimos jogos e próximo jogo em uma chamada', async () => {

@@ -11,6 +11,7 @@ import {
   type Database,
   type I18nText,
 } from '@galaxie/db';
+import { LOGO_KINDS, MISSING_ASSET } from '../assets/placeholder-logos.js';
 
 // ─── formato intermediário (comum aos 12 esportes) ───────────────────────────────────────────────
 
@@ -190,10 +191,11 @@ export async function upsertCatalog(
     const assetIds = new Map<string, string>();
     for (const chunk of chunks([...new Set(assetRows.map((a) => a.sourceUrl))], 500)) {
       const found = await tx
-        .select({ id: asset.id, url: asset.sourceUrl })
+        .select({ id: asset.id, url: asset.sourceUrl, kind: asset.kind, missing: MISSING_ASSET })
         .from(asset)
         .where(inArray(asset.sourceUrl, chunk));
-      for (const f of found) assetIds.set(f.url, f.id);
+      // logo já sabidamente 404 ou genérico não é religado: o time ou a competição continua sem logo
+      for (const f of found) if (!(f.missing && LOGO_KINDS.has(f.kind))) assetIds.set(f.url, f.id);
     }
     const assetId = (url: string | null) => (url ? (assetIds.get(url) ?? null) : null);
 

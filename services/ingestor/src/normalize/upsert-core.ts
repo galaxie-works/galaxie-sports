@@ -47,7 +47,7 @@ import {
   type StageKind,
 } from '@galaxie/providers';
 import { createDerbyLookup } from '@galaxie/knowledge';
-import { PERSON_PHOTO_KINDS } from '../assets/person-photos.js';
+import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from '../assets/placeholder-logos.js';
 import { slugify } from '../catalog/football-catalog.js';
 import { insertLogs, logRows, stateColumns, stateFromRow } from './event-state.js';
 import {
@@ -184,9 +184,6 @@ export function addStats(a: UpsertStats, b: UpsertStats): UpsertStats {
 /** Tolerância para reconhecer o mesmo evento descrito por outro provedor. */
 const CROSS_PROVIDER_MATCH_MS = 3 * 3_600_000;
 
-/** Asset já tentado pelo Asset Mirror e sem arquivo (404, bloqueado ou foto genérica). */
-const MISSING_ASSET = sql<boolean>`(${asset.storageKey} is null and ${asset.fetchedAt} is not null)`;
-
 // ─── referências (países, assets) ────────────────────────────────────────────────────────────────
 
 class Refs {
@@ -210,7 +207,8 @@ class Refs {
 
   /**
    * Registra URLs de mídia em `core.asset` (baixadas depois pelo Asset Mirror) e devolve url → id.
-   * Foto de pessoa já baixada que deu 404 ou imagem genérica fica de fora: a pessoa continua sem foto.
+   * Foto de pessoa ou logo de time/competição já baixado que deu 404 ou imagem genérica fica de fora: a entidade
+   * continua sem foto/logo.
    */
   async assets(items: { kind: AssetKind; url: string | null }[]): Promise<Map<string, string>> {
     const rows = dedupeBy(
@@ -232,7 +230,8 @@ class Refs {
             chunk.map((r) => r.url),
           ),
         );
-      for (const f of found) if (!(f.missing && PERSON_PHOTO_KINDS.has(f.kind))) ids.set(f.url, f.id);
+      for (const f of found)
+        if (!(f.missing && DETACHED_WHEN_MISSING_KINDS.has(f.kind))) ids.set(f.url, f.id);
     }
     return ids;
   }

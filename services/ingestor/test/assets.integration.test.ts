@@ -5,20 +5,29 @@ import { MediaDenylist, publicAssetUrl } from '@galaxie/apisports-client';
 import {
   apiResponse,
   asset,
+  competition,
   event,
   eventIncident,
   footballFixture,
+  participant,
   person,
   providerMap,
   sport,
   type Database,
 } from '@galaxie/db';
-import { normalizePlayers, type ApiPlayerItem } from '@galaxie/providers';
+import {
+  emptyBatch,
+  normalizePlayers,
+  type ApiPlayerItem,
+  type NormalizedParticipant,
+} from '@galaxie/providers';
 import { runAssetMirror } from '../src/assets/asset-mirror.js';
 import { PgAssetStore } from '../src/assets/asset-store.js';
 import { MediaFetcher } from '../src/assets/media-fetcher.js';
 import { InMemoryObjectStore, objectStoreFromEnv } from '../src/assets/object-store.js';
 import { pendingPersonPhotoIds, playerPhotoUrl, registerPlayerPhotos } from '../src/assets/person-photos.js';
+import { PLACEHOLDER_LOGO_SHA256 } from '../src/assets/palette.js';
+import { upsertCatalog, type CatalogRows } from '../src/catalog/persist.js';
 import { runPaletteBackfill } from '../src/assets/palette-backfill.js';
 import { disposableDb } from './db.js';
 import { FakeClock, fakeMediaFetch, fakePng } from './helpers.js';
@@ -279,6 +288,138 @@ describe('cores dos times (core.asset.palette)', () => {
     await store.markMissing(row!.id, new Date());
     const [gone] = await db.select().from(asset).where(eq(asset.sourceUrl, PALMEIRAS));
     expect(gone).toMatchObject({ storageKey: null, palette: null });
+  });
+});
+
+describe('logos genéricos ("image not available")', () => {
+  const media = (path: string) => `https://media.api-sports.io/volley/${path}.png`;
+  const SUPERLIGA = media('leagues/97');
+  const PRAIA = media('teams/1999');
+  const GONE = media('teams/2001');
+  const SESI = media('teams/2000');
+  const [NOT_AVAILABLE] = PLACEHOLDER_LOGO_SHA256;
+
+  const team = (providerId: string, name: string, logoUrl: string) =>
+    ({ providerId, kind: 'club', name, shortName: null, code: null, countryCode: 'BR', logoUrl }) as const;
+  const catalog: CatalogRows = {
+    countries: [{ code: 'BR', name: { en: 'Brazil' }, flagUrl: null }],
+    competitions: [
+      {
+        providerId: '97',
+        slug: 'superliga-feminina',
+        name: 'Superliga Women',
+        labels: null,
+        countryCode: 'BR',
+        type: 'league',
+        tier: 1,
+        livePriority: 'none',
+        logoUrl: SUPERLIGA,
+        seasons: [],
+      },
+    ],
+    participants: [
+      team('1999', 'Praia Clube', PRAIA),
+      team('2000', 'Sesi Bauru', SESI),
+      team('2001', 'Sumido', GONE),
+    ],
+  };
+
+  const logoOf = async (name: string) =>
+    (
+      await db.select({ logo: participant.logoAssetId }).from(participant).where(eq(participant.name, name))
+    )[0]!.logo;
+  const leagueLogo = async () =>
+    (
+      await db
+        .select({ logo: competition.logoAssetId })
+        .from(competition)
+        .where(eq(competition.slug, 'superliga-feminina'))
+    )[0]!.logo;
+  const assetOf = async (url: string) => (await db.select().from(asset).where(eq(asset.sourceUrl, url)))[0]!;
+
+  it('a limpeza desliga times e ligas dos genéricos já gravados e dos logos 404; a normalização não religa', async () => {
+    await upsertCatalog(db, 'volleyball', catalog);
+    expect(await logoOf('Praia Clube')).not.toBeNull();
+    expect(await leagueLogo()).not.toBeNull();
+
+    // estado deixado pelo espelho antigo: genéricos no storage e 404 ainda ligado ao time
+    const store = new PgAssetStore(db);
+    const markStored = (url: string, sha256: string) =>
+      db
+        .update(asset)
+        .set({ storageKey: `api-sports${new URL(url).pathname}`, sha256, bytes: 1, fetchedAt: new Date(0) })
+        .where(eq(asset.sourceUrl, url));
+    await markStored(SUPERLIGA, NOT_AVAILABLE!);
+    await markStored(PRAIA, NOT_AVAILABLE!);
+    await markStored(SESI, 'escudo-de-verdade');
+    await store.markMissing((await assetOf(GONE)).id, new Date(0));
+    // foto de pessoa com o mesmo hash não é logo: não entra na limpeza
+    await db.insert(asset).values({
+      kind: 'player',
+      sourceUrl: 'https://media.api-sports.io/volley/players/1.png',
+      storageKey: 'api-sports/volley/players/1.png',
+      sha256: NOT_AVAILABLE!,
+    });
+
+    const at = new Date('2026-10-23T12:00:00Z');
+    const preview = { placeholders: 2, participants: 2, competitions: 1 };
+    expect(await store.cleanupLogos(at, { dryRun: true })).toEqual(preview);
+    expect((await assetOf(PRAIA)).storageKey).not.toBeNull();
+    expect(await logoOf('Praia Clube')).not.toBeNull();
+
+    expect(await store.cleanupLogos(at)).toEqual(preview);
+    expect(await assetOf(PRAIA)).toMatchObject({ storageKey: null, sha256: null, fetchedAt: at });
+    expect(await assetOf(SUPERLIGA)).toMatchObject({ storageKey: null, sha256: null, fetchedAt: at });
+    expect(await logoOf('Praia Clube')).toBeNull();
+    expect(await logoOf('Sumido')).toBeNull();
+    expect(await leagueLogo()).toBeNull();
+    expect(await logoOf('Sesi Bauru')).toBe((await assetOf(SESI)).id);
+    expect((await assetOf('https://media.api-sports.io/volley/players/1.png')).storageKey).not.toBeNull();
+    // idempotente
+    expect(await store.cleanupLogos(at)).toEqual({ placeholders: 0, participants: 0, competitions: 0 });
+
+    // o catálogo e a normalização não religam os logos ausentes, mas seguem ligando os outros
+    await upsertCatalog(db, 'volleyball', catalog);
+    const batch = emptyBatch('api-sports', 'volleyball', new Date());
+    const club = (id: string, name: string, logoUrl: string): NormalizedParticipant => ({
+      id,
+      kind: 'club',
+      name,
+      shortName: null,
+      code: null,
+      countryName: null,
+      countryCode: 'BR',
+      founded: null,
+      venueId: null,
+      logoUrl,
+    });
+    batch.participants.push(
+      club('1999', 'Praia Clube', PRAIA),
+      club('3000', 'Novo', GONE),
+      club('3001', 'Outro', SESI),
+    );
+    batch.competitions.push({
+      id: '98',
+      name: 'Superliga B',
+      type: 'league',
+      countryName: null,
+      countryCode: 'BR',
+      logoUrl: SUPERLIGA,
+      seasons: [],
+    });
+    await upsertBatch(db, batch);
+    expect(await logoOf('Praia Clube')).toBeNull();
+    expect(await logoOf('Sumido')).toBeNull();
+    expect(await logoOf('Novo')).toBeNull();
+    expect(await logoOf('Outro')).toBe((await assetOf(SESI)).id);
+    expect(await leagueLogo()).toBeNull();
+    const [b] = await db.select().from(competition).where(eq(competition.name, 'Superliga B'));
+    expect(b!.logoAssetId).toBeNull();
+
+    // espelho: logo que vira 404 ou genérico desliga times e competições na hora
+    await store.markMissing((await assetOf(SESI)).id, new Date(), { detachLogos: true });
+    expect(await logoOf('Sesi Bauru')).toBeNull();
+    expect(await logoOf('Outro')).toBeNull();
   });
 });
 
