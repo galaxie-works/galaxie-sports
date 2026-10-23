@@ -12,6 +12,7 @@ import { MediaFetcher } from './media-fetcher.js';
 import { InMemoryObjectStore } from './object-store.js';
 import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
 import { runPaletteBackfill } from './palette-backfill.js';
+import { isPlaceholderPhoto, PLACEHOLDER_PHOTO_SHA256, playerPhotoUrl } from './person-photos.js';
 
 const BR = 'https://media.api-sports.io/flags/br.svg';
 const TEAM = 'https://media.api-sports.io/football/teams/121.png';
@@ -228,5 +229,62 @@ describe('cores dos times', () => {
     ]);
     // segunda execução: só os que não decodificaram voltam
     expect((await runPaletteBackfill({ assets, objects, dryRun: true })).candidates).toBe(2);
+  });
+});
+
+describe('fotos de pessoas', () => {
+  const MESSI = 'https://media.api-sports.io/football/players/154.png';
+  const NO_PHOTO = 'https://media.api-sports.io/football/players/400000.png';
+  const GONE_COACH = 'https://media.api-sports.io/football/coachs/7.png';
+
+  it('imagem genérica vira "sem foto": não vai para o storage e a pessoa perde o vínculo', async () => {
+    const real = fakePng(150, 150, 10);
+    const silhouette = fakePng(150, 150, 20);
+    const { clock, assets, objects, fetcher } = setup(
+      {
+        [MESSI]: [{ status: 200, body: real, headers: { 'content-type': 'image/png' } }],
+        [NO_PHOTO]: [{ status: 200, body: silhouette, headers: { 'content-type': 'image/png' } }],
+        [GONE_COACH]: [{ status: 404 }],
+        [TEAM]: [{ status: 200, body: silhouette, headers: { 'content-type': 'image/png' } }],
+      },
+      [MESSI, NO_PHOTO, GONE_COACH, TEAM],
+    );
+    const placeholderPhotos = new Set([createHash('sha256').update(silhouette).digest('hex')]);
+
+    const report = await runAssetMirror({ assets, objects, fetcher, clock, placeholderPhotos });
+    expect(report).toMatchObject({ pending: 4, stored: 2, placeholders: 1, notFound: 1 });
+    expect(assets.byUrl(MESSI)).toMatchObject({ storageKey: 'api-sports/football/players/154.png' });
+    expect(assets.byUrl(NO_PHOTO)).toMatchObject({ storageKey: null, sha256: null });
+    expect(assets.byUrl(NO_PHOTO)!.fetchedAt).toBeInstanceOf(Date);
+    expect(await objects.head('api-sports/football/players/400000.png')).toBeUndefined();
+    // o mesmo hash num escudo não é foto de pessoa: espelha normalmente
+    expect(assets.byUrl(TEAM)).toMatchObject({ storageKey: 'api-sports/football/teams/121.png' });
+    // 404 de foto de pessoa também desliga a foto; a genérica e o 404 não são tentados de novo
+    expect([...assets.detached].sort()).toEqual(
+      [assets.byUrl(NO_PHOTO)!.id, assets.byUrl(GONE_COACH)!.id].sort(),
+    );
+    expect((await runAssetMirror({ assets, objects, fetcher, clock, placeholderPhotos })).pending).toBe(0);
+  });
+
+  it('com personPhotos só entram fotos de jogadores e técnicos', async () => {
+    const { clock, assets, objects, fetcher } = setup({}, [BR, TEAM, MESSI, GONE_COACH]);
+    const report = await runAssetMirror({
+      assets,
+      objects,
+      fetcher,
+      clock,
+      dryRun: true,
+      personPhotos: { since: new Date(0) },
+    });
+    expect(report.pending).toBe(2);
+  });
+
+  it('os hashes catalogados valem só para fotos de pessoa', () => {
+    const [silhouette] = PLACEHOLDER_PHOTO_SHA256;
+    expect(isPlaceholderPhoto('player', silhouette!)).toBe(true);
+    expect(isPlaceholderPhoto('coach', silhouette!)).toBe(true);
+    expect(isPlaceholderPhoto('team_logo', silhouette!)).toBe(false);
+    expect(isPlaceholderPhoto('player', 'outro')).toBe(false);
+    expect(playerPhotoUrl('154')).toBe(MESSI);
   });
 });

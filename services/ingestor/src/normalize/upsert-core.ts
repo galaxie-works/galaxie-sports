@@ -43,6 +43,7 @@ import {
   type StageKind,
 } from '@galaxie/providers';
 import { createDerbyLookup } from '@galaxie/knowledge';
+import { PERSON_PHOTO_KINDS } from '../assets/person-photos.js';
 import { slugify } from '../catalog/football-catalog.js';
 import { insertLogs, logRows, stateColumns, stateFromRow } from './event-state.js';
 import {
@@ -166,6 +167,9 @@ export function addStats(a: UpsertStats, b: UpsertStats): UpsertStats {
 /** Tolerância para reconhecer o mesmo evento descrito por outro provedor. */
 const CROSS_PROVIDER_MATCH_MS = 3 * 3_600_000;
 
+/** Asset já tentado pelo Asset Mirror e sem arquivo (404, bloqueado ou foto genérica). */
+const MISSING_ASSET = sql<boolean>`(${asset.storageKey} is null and ${asset.fetchedAt} is not null)`;
+
 // ─── referências (países, assets) ────────────────────────────────────────────────────────────────
 
 class Refs {
@@ -187,7 +191,10 @@ class Refs {
     return null;
   }
 
-  /** Registra URLs de mídia em `core.asset` (baixadas depois pelo Asset Mirror) e devolve url → id. */
+  /**
+   * Registra URLs de mídia em `core.asset` (baixadas depois pelo Asset Mirror) e devolve url → id.
+   * Foto de pessoa já baixada que deu 404 ou imagem genérica fica de fora: a pessoa continua sem foto.
+   */
   async assets(items: { kind: AssetKind; url: string | null }[]): Promise<Map<string, string>> {
     const rows = dedupeBy(
       items.filter((i): i is { kind: AssetKind; url: string } => !!i.url),
@@ -200,7 +207,7 @@ class Refs {
         .values(chunk.map((r) => ({ kind: r.kind, sourceUrl: r.url })))
         .onConflictDoNothing();
       const found = await this.tx
-        .select({ id: asset.id, url: asset.sourceUrl })
+        .select({ id: asset.id, url: asset.sourceUrl, kind: asset.kind, missing: MISSING_ASSET })
         .from(asset)
         .where(
           inArray(
@@ -208,7 +215,7 @@ class Refs {
             chunk.map((r) => r.url),
           ),
         );
-      for (const f of found) ids.set(f.url, f.id);
+      for (const f of found) if (!(f.missing && PERSON_PHOTO_KINDS.has(f.kind))) ids.set(f.url, f.id);
     }
     return ids;
   }

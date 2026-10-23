@@ -5,15 +5,16 @@ import {
   normalizeMediaUrl,
   type MediaAssetKind,
 } from '@galaxie/apisports-client';
-import { apiResponse, asset, type AssetPalette, type Database } from '@galaxie/db';
+import { apiResponse, asset, person, type AssetPalette, type Database } from '@galaxie/db';
 import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
+import { pendingPersonPhotoIds, PERSON_PHOTO_KINDS } from './person-photos.js';
 
 /**
  * Estado de um asset em core.asset:
  * - pendente:   storage_key nulo e fetched_at nulo;
  * - espelhado:  storage_key preenchido (sha256, bytes, dimensões e fetched_at junto);
- * - ausente:    storage_key nulo e fetched_at preenchido — 404 na CDN ou bloqueado; não é tentado de novo
- *               (a não ser com `includeMissing`).
+ * - ausente:    storage_key nulo e fetched_at preenchido — 404 na CDN, bloqueado ou foto genérica de pessoa;
+ *               não é tentado de novo (a não ser com `includeMissing`).
  */
 export interface MirrorAsset {
   id: string;
@@ -42,6 +43,13 @@ export interface PendingQuery {
   limit?: number | undefined;
   /** Inclui os marcados como ausentes (404/bloqueados) para nova tentativa. */
   includeMissing?: boolean | undefined;
+  /** Só fotos de pessoas, das escaladas desde `since` para o resto (ver person-photos.ts). */
+  personPhotos?: { since: Date } | undefined;
+}
+
+export interface MissingOptions {
+  /** Desliga a foto das pessoas que usam o asset: a pessoa passa a não ter foto. */
+  detachPeople?: boolean;
 }
 
 export interface AssetCounts {
@@ -54,7 +62,7 @@ export interface AssetCounts {
 export interface AssetStore {
   pending(query?: PendingQuery): Promise<MirrorAsset[]>;
   markStored(id: string, info: StoredInfo): Promise<void>;
-  markMissing(id: string, at: Date): Promise<void>;
+  markMissing(id: string, at: Date, options?: MissingOptions): Promise<void>;
   /** Desvincula do storage assets já espelhados que entraram na lista de bloqueio. Retorna quantos. */
   unlink(urls: string[], at: Date): Promise<number>;
   /** Registra URLs novas (idempotente). Retorna quantas eram novas. */
@@ -79,6 +87,8 @@ export interface MemoryAssetRow extends MirrorAsset {
 
 export class InMemoryAssetStore implements AssetStore {
   readonly rows: MemoryAssetRow[] = [];
+  /** Assets cujas pessoas perderam a foto (`detachPeople`). */
+  readonly detached = new Set<string>();
   private seq = 0;
 
   constructor(urls: string[] = []) {
@@ -108,7 +118,11 @@ export class InMemoryAssetStore implements AssetStore {
 
   async pending(query: PendingQuery = {}): Promise<MirrorAsset[]> {
     const rows = this.rows.filter(
-      (r) => isProviderMediaUrl(r.sourceUrl) && !r.storageKey && (query.includeMissing || !r.fetchedAt),
+      (r) =>
+        isProviderMediaUrl(r.sourceUrl) &&
+        !r.storageKey &&
+        (query.includeMissing || !r.fetchedAt) &&
+        (!query.personPhotos || PERSON_PHOTO_KINDS.has(r.kind)),
     );
     return rows
       .slice(0, query.limit ?? rows.length)
@@ -122,7 +136,8 @@ export class InMemoryAssetStore implements AssetStore {
     );
   }
 
-  async markMissing(id: string, at: Date): Promise<void> {
+  async markMissing(id: string, at: Date, options: MissingOptions = {}): Promise<void> {
+    if (options.detachPeople) this.detached.add(id);
     Object.assign(
       this.rows.find((r) => r.id === id)!,
       {
@@ -202,6 +217,7 @@ export class PgAssetStore implements AssetStore {
   constructor(private readonly db: Database) {}
 
   async pending(query: PendingQuery = {}): Promise<MirrorAsset[]> {
+    if (query.personPhotos) return this.pendingPersonPhotos(query, query.personPhotos.since);
     const conditions = [isNull(asset.storageKey), sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL}`];
     if (!query.includeMissing) conditions.push(isNull(asset.fetchedAt));
     const q = this.db
@@ -217,11 +233,39 @@ export class PgAssetStore implements AssetStore {
     await this.db.update(asset).set(info).where(eq(asset.id, id));
   }
 
-  async markMissing(id: string, at: Date): Promise<void> {
-    await this.db
-      .update(asset)
-      .set({ ...UNLINKED, fetchedAt: at })
-      .where(eq(asset.id, id));
+  private async pendingPersonPhotos(query: PendingQuery, since: Date): Promise<MirrorAsset[]> {
+    const ids = await pendingPersonPhotoIds(this.db, {
+      since,
+      includeMissing: query.includeMissing,
+      limit: query.limit,
+    });
+    const rows: MirrorAsset[] = [];
+    for (let i = 0; i < ids.length; i += 1000) {
+      const chunk = ids.slice(i, i + 1000);
+      rows.push(
+        ...(await this.db
+          .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: sql<MediaAssetKind>`${asset.kind}` })
+          .from(asset)
+          .where(and(inArray(asset.id, chunk), sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL}`))),
+      );
+    }
+    const order = new Map(ids.map((id, i) => [id, i]));
+    return rows.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+  }
+
+  async markMissing(id: string, at: Date, options: MissingOptions = {}): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(asset)
+        .set({ ...UNLINKED, fetchedAt: at })
+        .where(eq(asset.id, id));
+      if (options.detachPeople) {
+        await tx
+          .update(person)
+          .set({ photoAssetId: null, updatedAt: sql`now()` })
+          .where(eq(person.photoAssetId, id));
+      }
+    });
   }
 
   async unlink(urls: string[], at: Date): Promise<number> {

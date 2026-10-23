@@ -288,6 +288,7 @@ O caminho de produção é o worker `services/ingestor` (issue #18), que grava n
 pnpm --filter @galaxie/ingestor assets:mirror --plan            # quantos faltam (nenhum download)
 pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw   # registra toda URL de mídia do raw e espelha
 pnpm --filter @galaxie/ingestor assets:mirror --limite 500 --concorrencia 3 --pausa-ms 250
+pnpm --filter @galaxie/ingestor assets:mirror --fotos           # só fotos de pessoas, escalados recentes primeiro
 ```
 
 | Aspecto | Comportamento |
@@ -299,6 +300,8 @@ pnpm --filter @galaxie/ingestor assets:mirror --limite 500 --concorrencia 3 --pa
 | Idempotência | A segunda execução não baixa nada: só entram assets com `storage_key` e `fetched_at` nulos. Falhas transitórias continuam pendentes |
 | Lista de bloqueio | `config/assets/denylist.yaml` (também lida pelo script PowerShell): o logo da liga 475 (Paulistão) não é baixado, e se já tiver sido é desvinculado (`storage_key` nulo) |
 | Execução | Registrada em `ops.job_run` (`assets:mirror`) com contagens, 404 e falhas |
+| Fotos de pessoas (`--fotos`) | Antes de baixar, liga cada jogador sem foto à URL `football/players/{id}.png`, que sai do id da api-sports (sem cota). Só entra quem jogou (escalação, lance ou elenco) e nunca foi técnico, porque técnicos e jogadores dividem o espaço de ids. O espelho baixa só fotos de pessoas: primeiro os escalados nos últimos 365 dias (`--desde-dias`), do jogo mais recente para o mais antigo, depois os elencos atuais e por fim o resto |
+| Foto genérica | A CDN responde 200 com uma silhueta quando a pessoa não tem foto. Os hashes ficam em `PLACEHOLDER_PHOTO_SHA256` (`services/ingestor/src/assets/person-photos.ts`). Uma foto genérica ou um 404 de foto de pessoa deixa o asset "ausente", fora do bucket, e desliga `core.person.photo_asset_id`: a API devolve `photo: null`. O normalizador não religa esses assets. Ao fim, `--fotos` avisa de hashes repetidos em 20 fotos ou mais, que podem ser imagens genéricas novas |
 | Cores dos times | Ao gravar um `team_logo` em PNG, o mesmo update preenche `core.asset.palette` (`{ version, dominant, secondary, monochrome }`) — ver §7.2 |
 
 ### 7.2 Cores dos times (paleta do escudo)

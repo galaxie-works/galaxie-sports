@@ -5,7 +5,11 @@
  *   pnpm --filter @galaxie/ingestor assets:mirror --plan              # quantos faltam, sem baixar
  *   pnpm --filter @galaxie/ingestor assets:mirror                     # baixa o que falta em core.asset
  *   pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw     # antes, registra toda URL de mídia do raw
+ *   pnpm --filter @galaxie/ingestor assets:mirror --fotos             # só fotos de pessoas, escalados recentes primeiro
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
+ *           --desde-dias N (com --fotos: janela dos "escalados recentes", padrão 365)
+ * `--fotos` antes liga cada jogador sem foto à URL `football/players/{id}.png` (sai do id, sem cota) e, no fim,
+ * aponta hashes repetidos que podem ser imagens genéricas ainda fora de PLACEHOLDER_PHOTO_SHA256.
  * Também espelha os logos da biblioteca de emissoras (core.asset kind `broadcaster_logo`, registrados
  * pela sincronização `wtw:rights` a partir de config/broadcasters/_logos.yaml).
  *
@@ -13,19 +17,22 @@
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { publicAssetUrl } from '@galaxie/apisports-client';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
 import { PgAssetStore } from '../assets/asset-store.js';
 import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
+import { PLACEHOLDER_PHOTO_SHA256, registerPlayerPhotos } from '../assets/person-photos.js';
 
 const { values } = parseArgs({
   options: {
     plan: { type: 'boolean', default: false },
     'descobrir-raw': { type: 'boolean', default: false },
     'retentar-ausentes': { type: 'boolean', default: false },
+    fotos: { type: 'boolean', default: false },
+    'desde-dias': { type: 'string', default: '365' },
     limite: { type: 'string' },
     concorrencia: { type: 'string', default: '3' },
     'pausa-ms': { type: 'string', default: '250' },
@@ -39,12 +46,23 @@ if (!DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
 const db = createDb(DATABASE_URL);
 const assets = new PgAssetStore(db);
 const denylist = await loadMediaDenylist(values.denylist);
+const personPhotos = values.fotos
+  ? { since: new Date(Date.now() - Number(values['desde-dias']) * 86_400_000) }
+  : undefined;
 
 try {
   if (values['descobrir-raw']) {
     const urls = await assets.discoverFromRaw();
     const added = await assets.register(urls.filter((u) => !denylist.has(u)));
     console.log(`URLs de mídia no raw: ${urls.length} · novas em core.asset: ${added}`);
+  }
+
+  if (personPhotos && !values.plan) {
+    const r = await registerPlayerPhotos(db, personPhotos);
+    console.log(
+      `Fotos de jogador ligadas pelo id: escalados recentes ${r.linked[0]} · elenco atual ${r.linked[1]} · resto ${r.linked[2]}` +
+        ` · assets novos ${r.registered} · já sabidamente sem foto ${r.skippedMissing}`,
+    );
   }
 
   const before = await assets.counts();
@@ -64,6 +82,7 @@ try {
       denylist,
       dryRun: true,
       includeMissing: values['retentar-ausentes'],
+      personPhotos,
       limit: values.limite ? Number(values.limite) : undefined,
     });
     console.log(`A baixar nesta execução: ${report.pending} (nenhuma chamada à API de dados).`);
@@ -91,6 +110,7 @@ try {
         concurrency: Number(values.concorrencia),
         delayMs: Number(values['pausa-ms']),
         includeMissing: values['retentar-ausentes'],
+        personPhotos,
         limit: values.limite ? Number(values.limite) : undefined,
         onProgress: (e) => {
           if (e.type === 'aborted') console.warn(e.reason);
@@ -121,8 +141,9 @@ try {
         })
         .where(eq(jobRun.id, run!.id));
       console.log(
-        `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
+        `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · fotos genéricas: ${report.placeholders} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
       );
+      if (personPhotos) await warnRepeatedPhotos();
       console.log(
         `Logos de emissoras: ${logos.stored} espelhados · 404: ${logos.notFound} · recusados: ${logos.rejected} · falhas: ${logos.failed}`,
       );
@@ -140,4 +161,19 @@ try {
   }
 } finally {
   await closeDb(db);
+}
+
+/** Hash de foto de pessoa repetido em muitas pessoas costuma ser imagem genérica ainda não catalogada. */
+async function warnRepeatedPhotos(): Promise<void> {
+  const rows = await db.execute<{ sha256: string; n: number; url: string }>(sql`
+    select sha256, count(*)::int as n, min(source_url) as url
+    from core.asset
+    where kind in ('player', 'coach') and sha256 is not null
+    group by 1
+    having count(*) >= 20
+    order by 2 desc
+  `);
+  for (const r of rows.filter((r) => !PLACEHOLDER_PHOTO_SHA256.has(r.sha256))) {
+    console.warn(`  hash repetido em ${r.n} fotos (ex.: ${r.url}): ${r.sha256} — imagem genérica?`);
+  }
 }
