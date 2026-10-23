@@ -40,7 +40,7 @@ const SERVICES: RuntimeService[] = ['ingestor', 'agents', 'api', 'demo'];
 const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
 const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 
-/** Tabelas do painel ainda não criadas (migration 0017 pendente). */
+/** Tabelas do painel ainda não criadas (migration 0018 pendente). */
 export class OpsUnavailableError extends Error {}
 
 async function query<T extends object>(sql: string, params: unknown[] = []): Promise<T[]> {
