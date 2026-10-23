@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getT } from '@/lib/i18n/server';
+import { winPct } from '@/lib/standings';
 import { cn } from '@/lib/utils';
 
 import { Crest } from './crest';
@@ -24,6 +25,8 @@ function zoneClass(description: string | null | undefined) {
 const SET_SPORTS = new Set(['volleyball']);
 /** Esportes sem empate e com placar em pontos: a tabela troca gols por pontos e esconde a coluna E. */
 const POINT_SPORTS = new Set(['basketball', 'nba']);
+/** Futebol americano: pontos pró/contra como no basquete, mas com empate e aproveitamento (PCT) no lugar dos pontos. */
+const PCT_SPORTS = new Set(['american-football']);
 
 export async function StandingsTable({
   rows,
@@ -37,11 +40,14 @@ export async function StandingsTable({
   const standings = (await getT()).sport.standings;
   const sets = sport != null && SET_SPORTS.has(sport);
   const byPoints = sport != null && POINT_SPORTS.has(sport);
+  const byPct = sport != null && PCT_SPORTS.has(sport);
   const t = sets
     ? { ...standings, ...standings.sets }
     : byPoints
       ? { ...standings, ...standings.byPoints }
-      : standings;
+      : byPct
+        ? { ...standings, ...standings.byPoints, ...standings.byPct }
+        : standings;
   const zones = [...new Map(rows.filter((r) => r.description).map((r) => [r.description!, r])).keys()];
 
   return (
@@ -118,7 +124,9 @@ export async function StandingsTable({
                   <span className="truncate">{r.participant.name}</span>
                 </Link>
               </TableCell>
-              <TableCell className="text-right font-semibold tabular-nums">{r.points}</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums">
+                {byPct ? winPct(r.won, r.drawn, r.played) : r.points}
+              </TableCell>
               <TableCell className="text-right tabular-nums">{r.played}</TableCell>
               <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.won}</TableCell>
               {sets || byPoints ? null : (

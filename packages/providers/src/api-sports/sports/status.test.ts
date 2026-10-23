@@ -39,6 +39,10 @@ describe('mapSportStatus', () => {
 
   it('usa o texto longo quando o código curto falta (NFL "Final/OT", F1, NBA v2)', () => {
     expect(mapSportStatus('american-football', { short: null, long: 'Final/OT' })).toBe('finished');
+    expect(mapSportStatus('american-football', { short: null, long: 'Final/2OT' })).toBe('finished');
+    expect(mapSportStatus('american-football', { short: null, long: 'Final/8OT' })).toBe('finished');
+    expect(mapSportStatus('american-football', { short: null, long: 'Forfeit' })).toBe('finished');
+    expect(mapSportStatus('american-football', { short: null, long: 'Postponed' })).toBe('postponed');
     expect(mapSportStatus('formula-1', { long: 'Completed' })).toBe('finished');
     expect(mapSportStatus('formula-1', { long: 'Live' })).toBe('live');
     expect(mapSportStatus('formula-1', { long: 'Scheduled' })).toBe('scheduled');

@@ -292,13 +292,44 @@ const NFL_POSTSEASON: Readonly<Record<string, { kind: StageKind; pt: string; es:
   'pro bowl': { kind: 'friendly', pt: 'Pro Bowl', es: 'Pro Bowl', n: 0 },
 };
 
-/** NFL: `stage` (Pre Season, Regular Season, Post Season) + `week` ("Week 3", "Wild Card"...). */
+/** NCAA: a divisão vem em `stage`; a ordem segue FBS, FCS e Divisões II/III. */
+const NCAA_DIVISIONS: readonly { test: RegExp; pt: string; es: string }[] = [
+  { test: /^FBS\b/i, pt: 'FBS', es: 'FBS' },
+  { test: /^FCS\b/i, pt: 'FCS', es: 'FCS' },
+  { test: /division\s+II/i, pt: 'Divisões II/III', es: 'Divisiones II/III' },
+];
+
+/**
+ * NFL: `stage` (Pre Season, Regular Season, Post Season) + `week` ("Week 3", "Wild Card"...).
+ * NCAA: `stage` é a divisão ("FBS (Division I-A)") + `week` ("1"…"16", "Bowls").
+ */
 export function nflStage(stageRaw: unknown, weekRaw: unknown): StageSpec | null {
   const stage = str(stageRaw);
   const week = str(weekRaw);
   if (!stage && !week) return null;
   const label = [stage, week].filter(Boolean).join(' - ');
   const n = week ? (/(\d+)/.exec(week)?.[1] ?? null) : null;
+  const division = NCAA_DIVISIONS.findIndex((d) => d.test.test(stage ?? ''));
+  if (division >= 0) {
+    const d = NCAA_DIVISIONS[division]!;
+    if (n == null)
+      return {
+        label,
+        kind: 'playoff',
+        name: {
+          'pt-BR': `${d.pt} · ${week ?? 'Pós-temporada'}`,
+          es: `${d.es} · ${week ?? 'Postemporada'}`,
+          en: label,
+        },
+        order: 4000 + division,
+      };
+    return {
+      label,
+      kind: 'regular',
+      name: { 'pt-BR': `${d.pt} · Semana ${n}`, es: `${d.es} · Semana ${n}`, en: label },
+      order: 2000 + division * 100 + Number(n),
+    };
+  }
   const weekName = (pt: string, es: string) =>
     n != null ? { pt: `${pt} · Semana ${n}`, es: `${es} · Semana ${n}` } : { pt, es };
   if (/pre\s*season/i.test(stage ?? '')) {
@@ -638,7 +669,7 @@ function addGame(c: SportCollector, raw: unknown, observedAt: Date): NormalizedE
     v.score.periods?.ot != null ||
     v.score.periods?.extra != null ||
     v.score.periods?.so != null ||
-    /over\s*time|extra|\/ot/i.test(String(v.status.long ?? ''));
+    /over\s*time|extra|\/\d*ot/i.test(String(v.status.long ?? ''));
   const observation: ValidObservation = {
     kind: 'valid',
     observedAt,
@@ -727,6 +758,44 @@ export function normalizeSportTeams(
 /** Total de um contador que vem como número (AFL) ou `{ total }` (v1 clássico). */
 const total = (v: unknown): number | null => (isObj(v) ? int(v.total) : int(v));
 
+const NFL_CONFERENCES: Readonly<Record<string, string>> = {
+  'american football conference': 'AFC',
+  'national football conference': 'NFC',
+};
+
+/**
+ * A NCAA 2024 devolve `points.for` e `points.against` trocados na resposta inteira (Alabama 9–4 com
+ * saldo −213, Tulsa 3–9 com +210). Com campanha e saldo apontando para lados opostos em mais de 2/3
+ * dos times, a resposta está invertida.
+ */
+export function pointsSwapped(rows: Obj[]): boolean {
+  let agree = 0;
+  let disagree = 0;
+  for (const r of rows) {
+    const record = (int(r.won) ?? 0) - (int(r.lost) ?? 0);
+    const p = obj(r.points);
+    const diff = (int(p.for) ?? 0) - (int(p.against) ?? 0);
+    if (record === 0 || diff === 0) continue;
+    if (Math.sign(record) === Math.sign(diff)) agree += 1;
+    else disagree += 1;
+  }
+  return disagree >= 5 && disagree > 2 * agree;
+}
+
+/**
+ * Grupo da classificação do futebol americano: a divisão sozinha se repete entre conferências (NFL 2022
+ * devolve "East" na AFC e na NFC; a NCAA tem "East"/"West" em várias conferências e "Main" quando não há
+ * divisão). NFL → "AFC East"; NCAA → "Big Ten · East" ou só "Big Ten".
+ */
+export function americanFootballGroup(conferenceRaw: unknown, divisionRaw: unknown): string {
+  const conference = str(conferenceRaw);
+  const division = str(divisionRaw);
+  const nfl = conference ? NFL_CONFERENCES[conference.toLowerCase()] : undefined;
+  if (nfl) return !division || division.startsWith(nfl) ? (division ?? nfl) : `${nfl} ${division}`;
+  if (!conference) return division ?? '';
+  return !division || /^main$/i.test(division) ? conference : `${conference} · ${division}`;
+}
+
 export function normalizeSportStandings(
   sport: ApiSportsOtherSport,
   items: unknown[],
@@ -737,6 +806,7 @@ export function normalizeSportStandings(
   const rows = items.flatMap((i) => (Array.isArray(i) ? i : [i])).map(obj);
   // mais de uma fase na mesma resposta (ex.: temporada regular + playoffs): a fase entra no grupo
   const stages = new Set(rows.map((r) => str(r.stage)).filter(Boolean));
+  const swapPoints = sport === 'american-football' && pointsSwapped(rows);
   for (const row of rows) {
     const participantId = c.team(row.team);
     if (!participantId) continue;
@@ -775,14 +845,15 @@ export function normalizeSportStandings(
       const year = seasonYear(league.season) ?? seasonYear(params.season);
       if (year == null) continue;
       competition = leagueSpec(sport, league, obj(league.country), year, league.season);
-      group = str(row.division) ?? str(row.conference) ?? '';
+      group = americanFootballGroup(row.conference, row.division);
       rank = int(row.position);
       won = int(row.won) ?? 0;
       lost = int(row.lost) ?? 0;
       drawn = int(row.ties) ?? 0;
       points = won;
-      goalsFor = int(obj(row.points).for) ?? 0;
-      goalsAgainst = int(obj(row.points).against) ?? 0;
+      const pf = int(obj(row.points).for) ?? 0;
+      const pa = int(obj(row.points).against) ?? 0;
+      [goalsFor, goalsAgainst] = swapPoints ? [pa, pf] : [pf, pa];
       form = str(row.streak);
     } else {
       const league = obj(row.league);

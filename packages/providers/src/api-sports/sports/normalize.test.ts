@@ -3,6 +3,7 @@ import { loadSportFixture } from '../../../test/load-fixture.js';
 import { EXPECTED_DURATION_MIN } from '../../event/status.js';
 import type { NormalizedEvent } from '../../model.js';
 import {
+  americanFootballGroup,
   f1SessionMinutes,
   mmaCategoryStage,
   nbaStage,
@@ -17,6 +18,7 @@ import {
   normalizeSportGames,
   normalizeSportStandings,
   normalizeSportTeams,
+  pointsSwapped,
   roundStage,
   seasonYear,
 } from './normalize.js';
@@ -304,9 +306,53 @@ describe('fases', () => {
       name: { 'pt-BR': 'Semana 18' },
     });
     expect(nflStage(null, null)).toBeNull();
+    // NCAA: a divisão distingue as semanas; "Bowls" é a pós-temporada da divisão
+    expect(nflStage('FBS (Division I-A)', '3')).toMatchObject({
+      kind: 'regular',
+      name: { 'pt-BR': 'FBS · Semana 3', en: 'FBS (Division I-A) - 3' },
+      order: 2003,
+    });
+    expect(nflStage('All Division II/III', '3')).toMatchObject({
+      name: { 'pt-BR': 'Divisões II/III · Semana 3' },
+      order: 2203,
+    });
+    expect(nflStage('FCS (Division I-AA)', 'Bowls')).toMatchObject({
+      kind: 'playoff',
+      name: { 'pt-BR': 'FCS · Bowls', es: 'FCS · Bowls' },
+    });
     expect(nbaStage(2)?.kind).toBe('regular');
     expect(nbaStage(1)?.kind).toBe('friendly');
     expect(nbaStage(null)).toBeNull();
+  });
+
+  it('americanFootballGroup separa as divisões por conferência', () => {
+    expect(americanFootballGroup('American Football Conference', 'East')).toBe('AFC East');
+    expect(americanFootballGroup('National Football Conference', 'NFC West')).toBe('NFC West');
+    expect(americanFootballGroup('Big Ten', 'East')).toBe('Big Ten · East');
+    expect(americanFootballGroup('Southeastern Conference', 'Main')).toBe('Southeastern Conference');
+    expect(americanFootballGroup(null, 'East')).toBe('East');
+    expect(americanFootballGroup(null, null)).toBe('');
+  });
+
+  it('pointsSwapped reconhece pontos feitos/contra trocados na resposta', () => {
+    const row = (won: number, lost: number, pf: number, pa: number) => ({
+      won,
+      lost,
+      points: { for: pf, against: pa },
+    });
+    const right = [row(13, 4, 525, 368), row(4, 13, 289, 417), row(12, 5, 518, 361), row(3, 14, 258, 435)];
+    const swapped = [
+      row(12, 2, 217, 435),
+      row(3, 9, 510, 300),
+      row(9, 4, 226, 439),
+      row(4, 8, 400, 280),
+      row(10, 3, 250, 380),
+      row(8, 8, 300, 300),
+    ];
+    expect(pointsSwapped(right)).toBe(false);
+    expect(pointsSwapped(swapped)).toBe(true);
+    // poucos times: não arrisca
+    expect(pointsSwapped(swapped.slice(0, 2))).toBe(false);
   });
 
   it('seasonYear aceita número, texto e temporada cruzada', () => {

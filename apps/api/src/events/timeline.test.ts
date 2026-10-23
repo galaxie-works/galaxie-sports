@@ -347,6 +347,7 @@ describe('buildTimelineDto', () => {
     const t = buildTimelineDto(input({ ...basketball, sport: 'basketball' }));
     expect(t.markers).toEqual([]);
     expect(t.score).toEqual({ home: 86, away: 73 });
+    expect(buildTimelineDto(input({ ...basketball, sport: 'american-football' })).markers).toEqual([]);
   });
 
   it('conta a prorrogação quando há lance nela', () => {

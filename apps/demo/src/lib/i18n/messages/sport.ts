@@ -85,6 +85,13 @@ export default defineMessages(
         goalDiffTitle: 'Saldo de pontos',
         pointsTitle: 'Vitórias (a tabela é por vitórias)',
       },
+      /** Futebol americano: aproveitamento (PCT) no lugar dos pontos; o empate existe e conta meia vitória. */
+      byPct: {
+        points: 'PCT',
+        pointsTitle: 'Aproveitamento: (vitórias + ½ empate) ÷ jogos',
+        drawn: 'E',
+        drawnTitle: 'Empates',
+      },
     },
   },
   {
@@ -170,6 +177,12 @@ export default defineMessages(
           goalDiffTitle: 'Point difference',
           pointsTitle: 'Wins (the table is ranked by wins)',
         },
+        byPct: {
+          points: 'PCT',
+          pointsTitle: 'Winning percentage: (wins + ½ tie) ÷ games',
+          drawn: 'T',
+          drawnTitle: 'Ties',
+        },
       },
     },
     'es-AR': {
@@ -253,6 +266,12 @@ export default defineMessages(
           goalsAgainstTitle: 'Puntos en contra',
           goalDiffTitle: 'Diferencia de puntos',
           pointsTitle: 'Victorias (la tabla es por victorias)',
+        },
+        byPct: {
+          points: 'PCT',
+          pointsTitle: 'Porcentaje de victorias: (ganados + ½ empate) ÷ partidos',
+          drawn: 'E',
+          drawnTitle: 'Empatados',
         },
       },
     },

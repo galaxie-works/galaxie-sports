@@ -86,6 +86,16 @@ describe('builder', () => {
         so: { home: null, away: null },
       })?.map((p) => p.code),
     ).toEqual(['p1', 'p2', 'p3', 'ot']);
+    // futebol americano (Final/OT): quartos e a prorrogação no fim
+    expect(
+      scorePeriods({
+        ot: { home: 6, away: 0 },
+        q4: { home: 7, away: 10 },
+        q1: { home: 3, away: 7 },
+        q3: { home: 7, away: 0 },
+        q2: { home: 0, away: 0 },
+      })?.map((p) => p.code),
+    ).toEqual(['q1', 'q2', 'q3', 'q4', 'ot']);
     expect(scorePeriods(null)).toBeNull();
     expect(scorePeriods({ s1: { home: null, away: null } })).toBeNull();
   });
