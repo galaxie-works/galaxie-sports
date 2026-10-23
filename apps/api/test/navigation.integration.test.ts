@@ -315,7 +315,7 @@ describe('GET /v1/countries/{code}', () => {
 });
 
 describe('GET /v1/countries/{code}/competitions', () => {
-  it('Brasil: domésticas em destaque, Libertadores/Sul-Americana/Recopa, seleção e mundiais', async () => {
+  it('Brasil: nacionais em destaque, Libertadores/Sul-Americana/Recopa, seleção, mundiais e estaduais', async () => {
     const res = await get('/v1/countries/BR/competitions?locale=pt-BR');
     expect(res.statusCode).toBe(200);
     expect(res.headers['cache-control']).toContain('s-maxage=86400');
@@ -331,15 +331,16 @@ describe('GET /v1/countries/{code}/competitions', () => {
       ['continental_clubs', 'Copas continentais de clubes'],
       ['national_teams', 'Seleção'],
       ['world_clubs', 'Mundiais de clubes'],
+      ['regional', 'Estaduais e regionais'],
     ]);
-    // tier 1 em destaque (Brasileirão, Copa do Brasil), depois estaduais por nome; tier 3 fica de fora
+    // nacionais em ordem de divisão (`featured`); estaduais num grupo próprio, na ordem da lista
+    // `regional` (Paulista antes do Carioca); tier 3 fica de fora
     expect(slugsOf(body, 'football', 'domestic')).toEqual([
       'brasileirao-serie-a',
       'copa-do-brasil',
-      'carioca',
-      'paulista-a1',
       'brasileirao-serie-b',
     ]);
+    expect(slugsOf(body, 'football', 'regional')).toEqual(['paulista-a1', 'carioca']);
     expect(slugsOf(body, 'football', 'continental_clubs')).toEqual([
       'conmebol-libertadores',
       'conmebol-sudamericana',
@@ -370,9 +371,12 @@ describe('GET /v1/countries/{code}/competitions', () => {
     expect(football.groups[0]!.competitions[0]).toMatchObject({
       name: 'Brasileirão Série A',
       scope: 'domestic',
+      level: 'national',
       confederations: [],
       country: { code: 'BR', name: 'Brasil' },
     });
+    expect(football.groups[4]!.competitions[0]).toMatchObject({ scope: 'regional', level: 'regional' });
+    expect(lib.level).toBeNull();
     expect(slugsOf(body, 'basketball', 'domestic')).toEqual(['nbb']);
     expect(slugsOf(body, 'basketball', 'national_teams')).toEqual(['fiba-americup']);
     expect(slugsOf(body, 'basketball', 'continental_clubs')).toEqual([]);
