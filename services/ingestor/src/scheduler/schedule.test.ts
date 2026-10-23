@@ -47,6 +47,7 @@ describe('scheduleFromEnv', () => {
     const jobs = scheduleFromEnv({});
     const daily = jobs.find((j) => j.name === 'sync-daily')!;
     expect(daily.cron).toBe('5 0 * * *');
+    expect(daily.args).toContain('--outros-esportes');
     expect(nextRuns(daily, 1, new Date('2026-10-21T23:59:00Z'))[0]!.toISOString()).toBe(
       '2026-10-22T00:05:00.000Z',
     );

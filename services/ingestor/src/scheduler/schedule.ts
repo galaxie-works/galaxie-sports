@@ -25,10 +25,10 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
   {
     name: 'sync-daily',
     description:
-      'Sync diário do futebol (DAILY): agenda D-1/D0/D+1, lesões, detalhe dos encerrados, rodízio; idempotente no dia',
+      'Sync diário (DAILY): futebol (agenda D-1/D0/D+1, lesões, detalhe dos encerrados, rodízio) e a agenda D-1/D0/D+1 das outras 11 APIs; idempotente no dia',
     cron: '5 0 * * *',
     script: 'dist/cli/sync-daily.js',
-    args: [],
+    args: ['--outros-esportes'],
     timeoutMs: 120 * MINUTE,
   },
   {
