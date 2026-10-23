@@ -91,3 +91,41 @@ export function plainName(v: string | null | undefined): string {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
+
+/** Tabelas com uma linha por temporada (`year`). */
+const SEASON_TABLES: readonly F1dbTableName[] = [
+  'race',
+  'season_driver',
+  'season_constructor',
+  'season_driver_standing',
+  'season_constructor_standing',
+];
+
+/**
+ * Recorte do release pelas temporadas `from`–`to`: corridas, resultados (`race_data`) e campeonatos desses anos;
+ * os cadastros (pilotos, construtores, circuitos, países, GPs) vão inteiros. A normalização e o upsert por
+ * recorte mantêm o lote pequeno (o release inteiro num lote só passa de 1 GB de heap).
+ */
+export function sliceF1dbSeasons(tables: F1dbTables, from: number, to: number): F1dbTables {
+  const inRange = (r: F1dbRow) => {
+    const y = int(r.year);
+    return y != null && y >= from && y <= to;
+  };
+  const out: F1dbTables = {};
+  for (const name of F1DB_TABLES) {
+    if (!Object.hasOwn(tables, name) || name === 'race_data') continue;
+    out[name] = SEASON_TABLES.includes(name) ? rowsOf(tables, name).filter(inRange) : rowsOf(tables, name);
+  }
+  if (Object.hasOwn(tables, 'race_data')) {
+    const races = new Set(rowsOf(out, 'race').map((r) => str(r.id)));
+    out.race_data = rowsOf(tables, 'race_data').filter((r) => races.has(str(r.race_id)));
+  }
+  return out;
+}
+
+/** Primeira e última temporada com corrida no release. */
+export function f1dbSeasonRange(tables: F1dbTables): { from: number; to: number } | null {
+  const years = rowsOf(tables, 'race').flatMap((r) => int(r.year) ?? []);
+  if (!years.length) return null;
+  return { from: Math.min(...years), to: Math.max(...years) };
+}

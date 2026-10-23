@@ -19,6 +19,28 @@ export function dedupeBy<T>(items: readonly T[], key: (item: T) => string): T[] 
   return [...map.values()];
 }
 
+/**
+ * Junta os itens com a mesma chave sem perder campo: o primeiro vence e os nulos dele são preenchidos pelos
+ * seguintes (`fill`). Para quando dois IDs do provedor caem na mesma entidade (a mesma equipe com dois nomes
+ * no F1DB, IDs reapontados): `dedupeBy` não pega, porque a chave do lote é o ID do provedor.
+ */
+export function mergeBy<T>(items: readonly T[], key: (item: T) => string, merge: (a: T, b: T) => T): T[] {
+  const map = new Map<string, T>();
+  for (const item of items) {
+    const k = key(item);
+    const prev = map.get(k);
+    map.set(k, prev === undefined ? item : merge(prev, item));
+  }
+  return [...map.values()];
+}
+
+/** `a` com os campos nulos (ou ausentes) preenchidos por `b`. */
+export function fillNulls<T extends object>(a: T, b: T): T {
+  const out = { ...a } as Record<string, unknown>;
+  for (const [k, v] of Object.entries(b)) if (out[k] == null && v != null) out[k] = v;
+  return out as T;
+}
+
 function columnsOf(table: PgTable, keys: readonly string[]): [string, PgColumn][] {
   const cols = getTableColumns(table) as Record<string, PgColumn>;
   return keys.map((k) => {
