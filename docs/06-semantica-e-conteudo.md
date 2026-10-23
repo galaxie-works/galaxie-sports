@@ -34,6 +34,25 @@ flowchart LR
 - **Fontes obrigatórias**: todo fato tem pelo menos uma URL em `sources`.
 - **Atualização**: mudanças de nome de estádio (naming rights), novos clássicos (acessos/rebaixamentos) e novos mascotes entram por PR — o agente curador abre PRs automaticamente ao detectar mudanças.
 
+### 2.1 Revisão pelo painel (Ajustes → Revisão)
+
+O dono do produto revisa a base na demo (`/ajustes/revisao`, só admin), sem editar YAML: lista filtrável por tipo (perfil, clássico, competição, copy, glossário, tradução), esporte, país/mercado, idioma e status, com contagem por status; detalhe com o conteúdo legível, o original ao lado nas traduções, a prévia do que a API serviria se aprovado, **se o item é servido hoje** (com o piso editorial que a API relata em `ops.runtime_env` ao iniciar) e em cada piso que o cliente pode pedir, e o histórico. Ações: **aprovar**, **voltar para rascunho** e **sugerir edição** (comentário obrigatório e, opcionalmente, valores propostos campo a campo).
+
+**Desenho escolhido: camada de decisões no banco (opção "a").** O YAML continua sendo a fonte do *conteúdo*; o status passa a ter uma segunda fonte, que vence a do YAML enquanto o conteúdo for o mesmo que foi revisado:
+
+| Tabela | Quem escreve | O que guarda |
+|---|---|---|
+| `semantic.review_item` | o seed, a cada carga | catálogo de tudo o que pode ser revisado: id (`team:palmeiras`, `copy:pt-BR.cheer-3`, `glossary:pt-BR.torcer`, `translation:team:palmeiras:es`...), tipo, esporte, mercado, idioma, arquivo, status do YAML, conteúdo legível (e o original, nas traduções) e o `review_hash` (sha256 do conteúdo sem o `review_status`) |
+| `semantic.review_decision` | só o painel (o seed lê, nunca escreve) | decisão vigente por item: status, `review_hash` do conteúdo revisado, sugestão em aberto, quem e quando |
+| `semantic.review_log` | só o painel | auditoria de toda ação: quem, quando, ação, status de/para, comentário e edição proposta |
+
+- **Status efetivo** = o da decisão, se o `review_hash` dela for igual ao do conteúdo atual; senão, o do YAML. O seed aplica as decisões válidas em `team_profile`, `derby`, `competition_profile`, `copy_template` e nas traduções (`texts.<locale>.review_status`) antes de gravar; por isso **o próximo deploy não desfaz uma aprovação** feita no painel, mesmo com o YAML dizendo `draft`.
+- **Conteúdo que mudou** depois da decisão (alguém editou o YAML): a decisão fica *desatualizada* (o painel mostra "conteúdo mudou") e volta a valer o status do YAML. Aprovar um texto nunca aprova outro. Se o YAML voltar ao conteúdo revisado, a decisão volta a valer.
+- **Vale para qualquer piso.** A produção hoje serve aprovados e rascunhos (`SEMANTIC_MIN_REVIEW_STATUS=draft` na VPS, decisão do produto); o cliente pode endurecer com `?min_review_status=reviewed|approved`. O status decidido no painel é o que a API compara com o piso efetivo, então aprovar faz o item aparecer também para quem pede `approved`, e voltar para rascunho o tira de quem pede `reviewed` ou `approved` (quem aceita rascunho continua recebendo).
+- **Na hora, sem deploy**: a ação grava, na mesma transação, a decisão, a auditoria, o status nas tabelas que a API lê e um aviso em `ops.change_feed` (`topic: semantic.review`, entidade `team_profile`/`derby`/`competition_profile`/`copy_template`/`glossary`). O consumidor do change feed da API purga o cache pelas tags (`team_profile:<slug>`, `derby:<id>`, `glossary`...). O glossário a API lê direto do YAML; ela aplica as decisões por cima (`applyGlossaryDecisions`).
+- **Sugestão de edição**: o item fica "precisa de revisão" (`needs_review` no painel; para a API é `draft`, servido só a quem aceita rascunho) e a sugestão fica guardada na decisão e na auditoria. A edição proposta **não vira texto oficial sozinha**: ela entra no YAML por PR (curador ou desenvolvedor) e só é servida quando esse novo conteúdo for aprovado. Aprovar ou voltar para rascunho encerra a sugestão em aberto (o histórico continua com ela).
+- **Por que não abrir PR no GitHub a cada clique (opção "b")**: a decisão só valeria depois do merge e do deploy, e o painel dependeria de um token do GitHub. A exportação periódica das decisões para o YAML (opção "c") pode vir depois por cima desta camada, sem mudar o desenho: o `review_hash` ignora o `review_status`, então escrever `approved` no YAML não invalida a decisão.
+
 ## 3. Como a semântica aparece nos dados
 
 1. **Detecção de clássico**: no upsert de um `core.event` de futebol, se os dois participantes formam um par em `semantic.derby`, o evento recebe `derby_id` e `competition_context` inclui `derby`. Implementação em `packages/knowledge` (casam por `semantic.team_profile.participant_id`): o upsert do ingestor usa `createDerbyLookup(db)` (pares carregados uma vez por lote) e grava `derby_id` e a importância já na escrita; `assignEventDerbies(db, { eventIds })` e `findDerby(db, a, b)` servem ao seed (que recalcula o `derby_id` de todos os eventos) e ao `events:importance` (que também recalcula a importância). `core.event.derby_id` tem FK para `semantic.derby` (`ON DELETE SET NULL`).

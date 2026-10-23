@@ -54,6 +54,10 @@ try {
     `Estádios curados: ${result.venues.curated} linha(s) de core.venue (${result.venues.changed} alterada(s)).`,
   );
   for (const c of result.venues.conflicts) console.warn(`Estádio em conflito (ignorado): ${c}`);
+  console.log(
+    `Revisão: ${result.review.items} item(ns) no catálogo, ${result.review.decided} decisão(ões) do painel ` +
+      `aplicada(s), ${result.review.stale} desatualizada(s) (o YAML mudou depois da decisão).`,
+  );
 } finally {
   await closeDb(db);
 }

@@ -22,6 +22,13 @@ const mediaDenylist = loadDenylist();
 
 const db = process.env.DATABASE_URL ? createDb(process.env.DATABASE_URL) : undefined;
 
+const REVIEW_STATUSES: ReviewStatus[] = ['draft', 'reviewed', 'approved'];
+const minReviewStatus = process.env.SEMANTIC_MIN_REVIEW_STATUS as ReviewStatus | undefined;
+if (minReviewStatus && !REVIEW_STATUSES.includes(minReviewStatus))
+  throw new Error(
+    `SEMANTIC_MIN_REVIEW_STATUS inválido: ${minReviewStatus} (use draft, reviewed ou approved)`,
+  );
+
 /**
  * Painel de Ajustes → Operação: as flags que a API lê (intervalo do ao vivo, planos e reserva nas
  * métricas) valem do banco na partida (banco > env > padrão; mudanças exigem reiniciar a API). O env do
@@ -32,7 +39,15 @@ if (db) {
     const containerEnv = { ...process.env };
     const { env, applied } = applyOverrides(containerEnv, await readRuntimeOverrides(db));
     for (const key of applied) process.env[key] = env[key];
-    await reportRuntimeEnv(db, 'api', envReport('api', containerEnv));
+    await reportRuntimeEnv(db, 'api', [
+      ...envReport('api', containerEnv),
+      // piso editorial efetivo: a revisão semântica (Ajustes → Revisão) mostra se o item é servido hoje
+      {
+        key: 'SEMANTIC_MIN_REVIEW_STATUS',
+        value: minReviewStatus ?? 'approved',
+        configured: Boolean(minReviewStatus),
+      },
+    ]);
   } catch (err) {
     console.warn('configuração do painel indisponível na partida; seguindo com o env', err);
   }
@@ -44,12 +59,6 @@ redis?.on('error', () => {}); // reconexão automática; falhas de cache/rate li
 
 const port = Number(process.env.API_PORT ?? 8080);
 const hardening = hardeningFromEnv();
-const REVIEW_STATUSES: ReviewStatus[] = ['draft', 'reviewed', 'approved'];
-const minReviewStatus = process.env.SEMANTIC_MIN_REVIEW_STATUS as ReviewStatus | undefined;
-if (minReviewStatus && !REVIEW_STATUSES.includes(minReviewStatus))
-  throw new Error(
-    `SEMANTIC_MIN_REVIEW_STATUS inválido: ${minReviewStatus} (use draft, reviewed ou approved)`,
-  );
 const app = buildServer({
   ...hardening,
   ...(db ? { db } : {}),

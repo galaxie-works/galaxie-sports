@@ -29,11 +29,17 @@ import {
   event,
   eventParticipant,
   participant,
+  reviewDecision,
   teamProfile,
   type Database,
   type EventScore,
 } from '@galaxie/db';
-import { loadGlossary, type LocatedGlossaryTerm } from '@galaxie/knowledge';
+import {
+  applyGlossaryDecisions,
+  loadGlossary,
+  type LocatedGlossaryTerm,
+  type ReviewDecisionRef,
+} from '@galaxie/knowledge';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext, type ReviewStatus } from '../../context.js';
@@ -475,7 +481,8 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
       ttl: CACHE_TTL.semantic,
       vary: [locale, min],
       load: async () => {
-        const all = await glossary();
+        // o glossário vem do YAML; o status aprovado pelo painel de revisão vale por cima (docs/06 §2.1)
+        const all = applyGlossaryDecisions(await glossary(), ctx.db ? await glossaryDecisions(ctx.db) : []);
         // glossário é por mercado: locale exato e depois o idioma (es-AR → es); nunca outro idioma
         let sourceLocale: string | null = null;
         let terms: LocatedGlossaryTerm[] = [];
@@ -506,6 +513,18 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
       },
     });
   });
+}
+
+/** Decisões do painel de revisão sobre termos do glossário. */
+function glossaryDecisions(db: Database): Promise<ReviewDecisionRef[]> {
+  return db
+    .select({
+      itemId: reviewDecision.itemId,
+      status: reviewDecision.status,
+      reviewHash: reviewDecision.reviewHash,
+    })
+    .from(reviewDecision)
+    .where(sql`${reviewDecision.itemId} like 'glossary:%'`);
 }
 
 // ─── clássicos: carga e montagem ─────────────────────────────────────────────────────────────────

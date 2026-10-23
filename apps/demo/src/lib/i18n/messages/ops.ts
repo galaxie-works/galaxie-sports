@@ -21,7 +21,7 @@ export default defineMessages(
       generatedAt: 'Atualizado {when}',
       refresh: 'Atualizar',
     },
-    nav: { users: 'Usuários', operations: 'Operação', label: 'Seções dos ajustes' },
+    nav: { users: 'Usuários', operations: 'Operação', review: 'Revisão', label: 'Seções dos ajustes' },
     tabs: {
       status: 'Status',
       live: 'Ao vivo',
@@ -538,7 +538,7 @@ export default defineMessages(
         generatedAt: 'Updated {when}',
         refresh: 'Refresh',
       },
-      nav: { users: 'Users', operations: 'Operations', label: 'Settings sections' },
+      nav: { users: 'Users', operations: 'Operations', review: 'Review', label: 'Settings sections' },
       tabs: {
         status: 'Status',
         live: 'Live',
@@ -1027,7 +1027,7 @@ export default defineMessages(
         generatedAt: 'Actualizado {when}',
         refresh: 'Actualizar',
       },
-      nav: { users: 'Usuarios', operations: 'Operación', label: 'Secciones de ajustes' },
+      nav: { users: 'Usuarios', operations: 'Operación', review: 'Revisión', label: 'Secciones de ajustes' },
       tabs: {
         status: 'Estado',
         live: 'En vivo',

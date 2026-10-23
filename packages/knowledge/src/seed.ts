@@ -6,6 +6,8 @@ import {
   derby,
   derbyTeam,
   loadRun,
+  reviewDecision,
+  reviewItem,
   teamProfile,
   type Database,
   type LocalizedDerbyTexts,
@@ -15,6 +17,14 @@ import {
 import { toCopyTemplate } from './copy/library.js';
 import { assignEventDerbies, type Executor } from './derby.js';
 import type { KnowledgeBase } from './load.js';
+import {
+  buildReviewItems,
+  decidedStatuses,
+  effectiveReviewStatus,
+  reviewItemId,
+  type ReviewItem,
+} from './review.js';
+import type { ReviewStatus } from './types.js';
 import { linkVenues, type VenueLinkResult } from './venues.js';
 
 type Tx = Executor;
@@ -38,6 +48,11 @@ export interface SeedResult {
   venues: VenueLinkResult;
   /** Eventos cujo derby_id mudou após a carga. */
   events: { updated: number };
+  /**
+   * Revisão pelo painel: itens no catálogo semantic.review_item, decisões aplicadas (valem sobre o YAML)
+   * e decisões desatualizadas (o conteúdo mudou depois delas; volta a valer o status do YAML).
+   */
+  review: { items: number; decided: number; stale: number };
   loadRunId: string;
 }
 
@@ -60,9 +75,12 @@ function chunks<T>(list: T[]): T[][] {
   return out;
 }
 
-/** Monta as linhas de semantic.* a partir da base carregada (sem tocar no banco). */
-export function buildSeedRows(kb: KnowledgeBase) {
-  const texts = textsBySlug(kb);
+/**
+ * Monta as linhas de semantic.* a partir da base carregada (sem tocar no banco). `decided` traz o status
+ * das decisões do painel que ainda valem (por id de item, ver `decidedStatuses`); elas vencem o YAML.
+ */
+export function buildSeedRows(kb: KnowledgeBase, decided: ReadonlyMap<string, ReviewStatus> = new Map()) {
+  const texts = textsBySlug(kb, decided);
   const teams = kb.teams.map(({ entry: t, file, countryCode, kind, textLocale }) => {
     const row = {
       slug: t.slug,
@@ -92,7 +110,7 @@ export function buildSeedRows(kb: KnowledgeBase) {
       worldCupTitles: t.world_cup_titles ?? null,
       sourceFile: `data/knowledge/${file}`,
       sources: t.sources ?? [],
-      reviewStatus: t.review_status ?? 'draft',
+      reviewStatus: decided.get(reviewItemId('team', t.slug)) ?? t.review_status ?? 'draft',
     };
     return { ...row, contentHash: contentHash(row) };
   });
@@ -111,7 +129,7 @@ export function buildSeedRows(kb: KnowledgeBase) {
       texts: (texts.derbies.get(d.slug) ?? {}) as Record<string, LocalizedDerbyTexts>,
       sourceFile: `data/knowledge/${file}`,
       sources: d.sources ?? [],
-      reviewStatus: d.review_status ?? 'draft',
+      reviewStatus: decided.get(reviewItemId('derby', d.slug)) ?? d.review_status ?? 'draft',
     };
     return { ...row, contentHash: contentHash({ ...row, teams: d.teams }) };
   });
@@ -127,7 +145,7 @@ export function buildSeedRows(kb: KnowledgeBase) {
       trophyNickname: c.trophy_nickname ?? null,
       sourceFile: `data/knowledge/${file}`,
       sources: c.sources ?? [],
-      reviewStatus: c.review_status ?? 'draft',
+      reviewStatus: decided.get(reviewItemId('competition', c.slug)) ?? c.review_status ?? 'draft',
     };
     return { ...row, contentHash: contentHash(row) };
   });
@@ -146,7 +164,7 @@ export function buildSeedRows(kb: KnowledgeBase) {
       confidence: t.confidence,
       template: t.template,
       sourceFile: `data/knowledge/${located.file}`,
-      reviewStatus: t.reviewStatus,
+      reviewStatus: decided.get(reviewItemId('copy', t.key)) ?? t.reviewStatus,
     };
     return { ...row, contentHash: contentHash(row) };
   });
@@ -154,14 +172,16 @@ export function buildSeedRows(kb: KnowledgeBase) {
 }
 
 /** Traduções de i18n/<locale>.yaml agrupadas por slug: `{ "<locale>": { ...campos, review_status } }`. */
-function textsBySlug(kb: KnowledgeBase) {
+function textsBySlug(kb: KnowledgeBase, decided: ReadonlyMap<string, ReviewStatus>) {
   const teams = new Map<string, Record<string, unknown>>();
   const derbies = new Map<string, Record<string, unknown>>();
   for (const x of kb.texts) {
     const { slug, note: _note, ...fields } = x.entry;
     const target = x.listKey === 'teams' ? teams : derbies;
     if (!target.has(slug)) target.set(slug, {});
-    target.get(slug)![x.locale] = fields;
+    const id = reviewItemId('translation', `${x.listKey === 'teams' ? 'team' : 'derby'}:${slug}`, x.locale);
+    const status = decided.get(id);
+    target.get(slug)![x.locale] = status ? { ...fields, review_status: status } : fields;
   }
   return { teams, derbies };
 }
@@ -201,8 +221,25 @@ export async function seedSemantic(
   kb: KnowledgeBase,
   options: { gitSha?: string | null } = {},
 ): Promise<SeedResult> {
-  const rows = buildSeedRows(kb);
+  const items = buildReviewItems(kb);
   return db.transaction(async (tx) => {
+    // 0. decisões do painel: valem sobre o status do YAML enquanto o conteúdo for o mesmo que foi revisado
+    const decisions = await tx
+      .select({
+        itemId: reviewDecision.itemId,
+        status: reviewDecision.status,
+        reviewHash: reviewDecision.reviewHash,
+      })
+      .from(reviewDecision);
+    const decided = decidedStatuses(items, decisions);
+    const byId = new Map(decisions.map((d) => [d.itemId, d]));
+    const review = {
+      items: items.length,
+      decided: decided.size,
+      stale: items.filter((i) => effectiveReviewStatus(i, byId.get(i.id)).stale).length,
+    };
+    const rows = buildSeedRows(kb, decided);
+
     const stats = {
       teams: emptyStats(rows.teams.length),
       derbies: emptyStats(rows.derbies.length),
@@ -310,6 +347,9 @@ export async function seedSemantic(
 
     for (const s of Object.values(stats)) s.unchanged = s.total - s.inserted - s.updated;
 
+    // 6b. catálogo da revisão (o painel lê daqui)
+    await syncReviewItems(tx, items);
+
     // 7. ligações com o core
     const linked = { teams: await linkParticipants(tx), competitions: await linkCompetitions(tx) };
     // 7b. estádios curados (depende do participant_id ligado acima)
@@ -326,12 +366,45 @@ export async function seedSemantic(
         derbies: rows.derbies.length,
         competitions: rows.competitions.length,
         copyTemplates: rows.copy.length,
-        stats: { ...stats, linked, venues, events: { updated: events.updated } },
+        stats: { ...stats, linked, venues, events: { updated: events.updated }, review },
       })
       .returning({ id: loadRun.id });
 
-    return { ...stats, linked, venues, events: { updated: events.updated }, loadRunId: run!.id };
+    return { ...stats, linked, venues, events: { updated: events.updated }, review, loadRunId: run!.id };
   });
+}
+
+/** Reescreve semantic.review_item com os itens do YAML (só as linhas que mudaram) e tira os que saíram. */
+async function syncReviewItems(tx: Tx, items: ReviewItem[]) {
+  const values = items.map((i) => ({
+    id: i.id,
+    kind: i.kind,
+    key: i.key,
+    locale: i.locale,
+    sport: i.sport,
+    market: i.market,
+    title: i.title,
+    sourceFile: i.sourceFile,
+    yamlStatus: i.yamlStatus,
+    reviewHash: i.reviewHash,
+    content: i.content,
+    original: i.original,
+    originalLocale: i.originalLocale,
+    parentKind: i.parentKind,
+  }));
+  for (const batch of chunks(values))
+    await tx
+      .insert(reviewItem)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: reviewItem.id,
+        set: { ...excludedSet(reviewItem, ['id', 'updatedAt']), updatedAt: sql`now()` },
+        setWhere: sql`(${reviewItem.reviewHash}, ${reviewItem.yamlStatus}, ${reviewItem.title}, ${reviewItem.sourceFile}, ${reviewItem.market})
+          is distinct from (excluded.review_hash, excluded.yaml_status, excluded.title, excluded.source_file, excluded.market)`,
+      });
+  await tx
+    .delete(reviewItem)
+    .where(notInArray(reviewItem.id, values.length ? values.map((v) => v.id) : ['\u0000']));
 }
 
 async function removeMissing(tx: Tx, kind: 'team' | 'derby' | 'competition' | 'copy', keep: string[]) {
