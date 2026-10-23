@@ -74,6 +74,7 @@ export default defineMessages(
       mainLeague: 'Liga principal',
       topTeams: 'Clubes de maior peso',
       highlight: 'Jogo em destaque',
+      announced: 'Jogos anunciados',
       relevance: 'Relevância {score}',
       relevanceHint: 'Relevância no mercado {country}: importância do jogo mais o bônus do país (0 a 100).',
       noHighlight: 'Sem jogos nos próximos 7 dias',
@@ -158,6 +159,7 @@ export default defineMessages(
         mainLeague: 'Top league',
         topTeams: 'Biggest clubs',
         highlight: 'Featured match',
+        announced: 'Announced matches',
         relevance: 'Relevance {score}',
         relevanceHint:
           'Relevance in the {country} market: match importance plus the country bonus (0 to 100).',
@@ -243,6 +245,7 @@ export default defineMessages(
         mainLeague: 'Liga principal',
         topTeams: 'Clubes de más peso',
         highlight: 'Partido destacado',
+        announced: 'Partidos anunciados',
         relevance: 'Relevancia {score}',
         relevanceHint:
           'Relevancia en el mercado {country}: importancia del partido más el bono del país (0 a 100).',

@@ -32,7 +32,13 @@ export interface SearchEntry {
   /** Link de topo (sidebar): a trilha de navegação recomeça nele. */
   topLevel?: boolean;
   /** Jogo: início (ISO), ao vivo e os escudos. */
-  event?: { startsAt: string; live: boolean; crests: { name: string; logo: string | null }[] };
+  event?: {
+    startsAt: string;
+    live: boolean;
+    /** Jogo provisório: anunciado, ainda sem o fornecedor (a data vale; o horário pode não valer). */
+    provisional: boolean;
+    crests: { name: string; logo: string | null }[];
+  };
   /** Endpoint: método HTTP. */
   method?: string;
 }
@@ -70,6 +76,7 @@ export function resultEntry(r: SearchResult): SearchEntry {
           event: {
             startsAt: r.event.starts_at,
             live: r.event.live,
+            provisional: r.event.provisional,
             crests: r.event.participants.map((p) => ({ name: p.name, logo: p.logo })),
           },
         }

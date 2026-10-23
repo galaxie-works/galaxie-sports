@@ -80,6 +80,17 @@ describe('prompts', () => {
     expect(user).toMatch(/AR \(Argentina\) — jogos: J2\n {2}sem tabela de direitos/);
   });
 
+  it('jogo provisório sem horário: o prompt leva só a data, não o meio-dia guardado', () => {
+    const user = buildAllocationUserPrompt({
+      competition: { slug: 'liga-x', name: 'Liga X' },
+      round: 'Final',
+      matches: [{ code: 'J1', info: { ...J1, timeConfirmed: false } }],
+      markets: [{ directory: br, holders: ['globo'], known: [], matches: ['J1'] }],
+    });
+    expect(user).toMatch(/J1: Time Um x Time Dois — 21\/10\/2026, horário a confirmar/);
+    expect(user).not.toMatch(/21:30/);
+  });
+
   it('direitos: uma chamada para vários países, com as emissoras conhecidas de cada um', () => {
     expect(buildRightsSystemPrompt()).toMatch(/to_confirm/);
     const user = buildRightsUserPrompt({

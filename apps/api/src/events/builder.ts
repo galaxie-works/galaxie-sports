@@ -665,6 +665,19 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         last_valid_at: e.lastValidAt ? formatInstant(e.lastValidAt, ctx.tz) : null,
         is_stale: e.isStale,
       },
+      provisional:
+        e.isProvisional && e.provisional
+          ? {
+              announced_by: e.provisional.announcedBy,
+              time_confirmed: e.provisional.timeConfirmed,
+              sources: e.provisional.sources.map((s) => ({
+                name: s.name,
+                url: s.url,
+                checked_at: s.checkedAt,
+              })),
+              note: pickText(e.provisional.note, locale),
+            }
+          : null,
     };
     out.push({ dto, stakeFamilies: stakes.map((s) => s.family) });
   }

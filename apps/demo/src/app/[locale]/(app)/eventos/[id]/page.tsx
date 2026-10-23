@@ -1,11 +1,22 @@
 import type { Event, HeadToHead, WhereToWatch } from '@galaxie/contracts';
-import { Bot, CalendarClock, Clapperboard, ExternalLink, Flame, MapPin, Tv, Whistle } from 'lucide-react';
+import {
+  BadgeInfo,
+  Bot,
+  CalendarClock,
+  Clapperboard,
+  ExternalLink,
+  Flame,
+  MapPin,
+  Tv,
+  Whistle,
+} from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
+import { ProvisionalBadgeView } from '@/components/sport/event-card-view';
 import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
 import { MatchDetails } from '@/components/sport/match-details';
@@ -44,6 +55,7 @@ import type { Formatters } from '@/lib/i18n/format';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
 import { lineupMarks } from '@/lib/lineup-marks';
+import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
 import { COUNTRIES } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
@@ -85,6 +97,7 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
   const home = event.participants.find((p) => p.side === 'home') ?? event.participants[0];
   const away = event.participants.find((p) => p.side === 'away') ?? event.participants[1];
   const started = STARTED.has(event.status);
+  const tbc = timeToBeConfirmed(event);
   const { score } = event;
 
   return (
@@ -101,6 +114,7 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
             </Link>
           ) : null}
           {event.stage?.name ? <span>· {event.stage.name}</span> : null}
+          <ProvisionalBadgeView event={event} t={t.sport} />
           <StatusBadge event={event} />
         </div>
 
@@ -114,6 +128,8 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
                 <span className="text-muted-foreground mx-2">–</span>
                 {score.away ?? <span className="text-muted-foreground">?</span>}
               </span>
+            ) : tbc ? (
+              <span className="text-muted-foreground text-xl font-semibold">{t.sport.provisional.tbc}</span>
             ) : (
               <span className="text-3xl font-semibold tabular-nums">{f.time(event.starts_at)}</span>
             )}
@@ -145,7 +161,9 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
         <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm">
           <span className="flex items-center gap-1.5">
             <CalendarClock className="size-3.5" aria-hidden />
-            {fill(tx.dateAtTime, { date: f.dateLong(event.starts_at), time: f.time(event.starts_at) })}
+            {tbc
+              ? `${f.dateLong(event.starts_at)} · ${t.sport.provisional.timeTbc}`
+              : fill(tx.dateAtTime, { date: f.dateLong(event.starts_at), time: f.time(event.starts_at) })}
           </span>
           {event.venue ? (
             <Link href={`/locais/${event.venue.id}`} className="flex items-center gap-1.5 hover:underline">
@@ -162,8 +180,48 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
             </span>
           ) : null}
         </div>
+
+        {event.provisional ? <ProvisionalNotice provisional={event.provisional} t={t} /> : null}
       </CardContent>
     </Card>
+  );
+}
+
+/** Aviso do jogo provisório: quem anunciou, o que falta confirmar, a observação e as fontes. */
+function ProvisionalNotice({
+  provisional,
+  t,
+}: {
+  provisional: NonNullable<Event['provisional']>;
+  t: Dictionary;
+}) {
+  const tx = t.sport.provisional;
+  return (
+    <div className="border-info/20 bg-info/5 flex gap-3 rounded-lg border px-4 py-3 text-sm">
+      <BadgeInfo className="text-info mt-0.5 size-4 shrink-0" aria-hidden />
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="font-medium">{announcementText(provisional, t.sport)}</span>
+        {provisional.note ? <span className="text-muted-foreground">{provisional.note}</span> : null}
+        <span className="text-muted-foreground text-xs">{tx.hint}</span>
+        {provisional.sources.length ? (
+          <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <span>{tx.sources}:</span>
+            {provisional.sources.map((s) => (
+              <a
+                key={s.url}
+                href={s.url}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-foreground inline-flex items-center gap-1 underline-offset-2 hover:underline"
+              >
+                {s.name}
+                <ExternalLink className="size-3" aria-hidden />
+              </a>
+            ))}
+          </span>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

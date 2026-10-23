@@ -4,7 +4,7 @@
  * esporte ou por país). As escolhas (destaques, liga principal, jogo do país) são funções puras, testadas
  * à parte; o carregamento só junta as linhas do banco.
  */
-import { and, count, eq, gte, inArray, lt, lte, notInArray, or, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, lt, lte, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import {
   EXPLORE_WINDOW_DAYS,
   type Event,
@@ -49,6 +49,9 @@ export const TOP_TEAMS = 5;
 export const MAIN_SPORT = 'football';
 /** Jogos que não contam como "próximos". */
 const NOT_UPCOMING = new Set(['postponed', 'cancelled', 'abandoned', 'finished']);
+/** Jogos anunciados (provisórios) de cada país: até quantos e com quanta antecedência. */
+export const ANNOUNCED_PER_COUNTRY = 2;
+export const ANNOUNCED_DAYS = 90;
 
 // ─── escolhas (funções puras) ────────────────────────────────────────────────────────────────────
 
@@ -162,33 +165,64 @@ export function countryActivity(
     if (e.live) live += 1;
     if (!isUpcoming(e, window.from, window.to)) continue;
     upcoming += 1;
-    const { bonus, reasons, details } = marketBonus(
-      code,
-      { participantCountries: e.participantCountries, competition: e.competition },
-      continental,
-      audienceOf(audience, code, e.competition, e.importance),
-    );
-    const comp = e.competition;
-    const vars = {
-      teams: [],
-      continental: comp
-        ? texts.continental.find((c) => c.sport === comp.sport && c.slug === comp.slug)
-        : undefined,
-    };
     const candidate = {
       e,
-      relevance: {
-        market: code,
-        score: Math.min(100, e.importance + bonus),
-        bonus,
-        reasons,
-        details: details.map((d) => reasonDto(d, texts.locale, vars)),
-      },
+      relevance: marketRelevance(e, code, continental, texts, audience),
       appeal: appeal(e),
     };
     if (!best || compareHighlight(candidate, best) < 0) best = candidate;
   }
   return { upcoming, live, highlight: best ? { id: best.e.id, relevance: best.relevance } : null };
+}
+
+/** Relevância do jogo no mercado do país (bônus de docs/06 §3.2 e audiência, sem o da outra semifinal). */
+function marketRelevance(
+  e: WindowEvent,
+  code: string,
+  continental: ReadonlySet<string>,
+  texts: { locale: string; continental: ContinentalEntry[] },
+  audience: MarketAudience | null | undefined,
+): EventRelevance {
+  const { bonus, reasons, details } = marketBonus(
+    code,
+    { participantCountries: e.participantCountries, competition: e.competition },
+    continental,
+    audienceOf(audience, code, e.competition, e.importance),
+  );
+  const comp = e.competition;
+  const vars = {
+    teams: [],
+    continental: comp
+      ? texts.continental.find((c) => c.sport === comp.sport && c.slug === comp.slug)
+      : undefined,
+  };
+  return {
+    market: code,
+    score: Math.min(100, e.importance + bonus),
+    bonus,
+    reasons,
+    details: details.map((d) => reasonDto(d, texts.locale, vars)),
+  };
+}
+
+/**
+ * Jogos anunciados (provisórios: oficiais, ainda sem o fornecedor) que envolvem o país, do mais cedo ao
+ * mais tarde, sem o destaque da janela (que já aparece no card).
+ */
+export function countryAnnounced(
+  provisional: WindowEvent[],
+  code: string,
+  now: Date,
+  continental: ReadonlySet<string>,
+  exclude: string | null,
+  texts: { locale: string; continental: ContinentalEntry[] } = { locale: 'pt-BR', continental: [] },
+  audience?: MarketAudience | null,
+): { id: string; relevance: EventRelevance }[] {
+  return provisional
+    .filter((e) => e.id !== exclude && involves(e, code) && !NOT_UPCOMING.has(e.status) && e.startsAt >= now)
+    .sort((a, b) => +a.startsAt - +b.startsAt || a.id.localeCompare(b.id))
+    .slice(0, ANNOUNCED_PER_COUNTRY)
+    .map((e) => ({ id: e.id, relevance: marketRelevance(e, code, continental, texts, audience) }));
 }
 
 function compareHighlight(
@@ -232,80 +266,96 @@ export async function loadExploreSummary(
   const recentTo = new Date(now.getTime() + 30 * DAY_MS);
   const codes = geo.navigationCountries;
   const inPlan = sports ? inArray(event.sport, sports) : undefined;
+  // jogos com o país da competição e dos participantes (uma linha por jogo)
+  const eventRows = (where: SQL | undefined) =>
+    db
+      .select({
+        id: event.id,
+        sport: event.sport,
+        status: event.status,
+        startsAt: event.startsAt,
+        importance: event.importance,
+        live: sql<boolean>`${actuallyLiveCond(now)}`,
+        compSport: competition.sport,
+        compSlug: competition.slug,
+        compCountry: competition.countryCode,
+        participantIds: sql<(string | null)[]>`array_agg(${participant.id})`,
+        countries: sql<(string | null)[]>`array_agg(${participant.countryCode})`,
+      })
+      .from(event)
+      .leftJoin(competition, eq(competition.id, event.competitionId))
+      .leftJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
+      .leftJoin(participant, eq(participant.id, eventParticipant.participantId))
+      .where(and(where, inPlan))
+      .groupBy(event.id, competition.id);
 
-  const [sportRows, participantCounts, catalogRows, recentRows, countryRows, windowRows, teamRows] =
-    await Promise.all([
-      db
-        .select({ slug: sport.slug, name: sport.name })
-        .from(sport)
-        .where(notInArray(sport.slug, [...OFF_CATALOG_SPORTS])),
-      db.select({ sport: participant.sport, n: count() }).from(participant).groupBy(participant.sport),
-      db
-        .select({
-          id: competition.id,
-          sport: competition.sport,
-          slug: competition.slug,
-          name: competition.name,
-          labels: competition.labels,
-          profileLabels: competitionProfile.labels,
-          type: competition.type,
-          tier: competition.tier,
-          prestige: competition.prestige,
-          countryCode: competition.countryCode,
-          logoKey: asset.storageKey,
-          logoUrl: asset.sourceUrl,
-        })
-        .from(competition)
-        .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
-        .leftJoin(asset, eq(asset.id, competition.logoAssetId))
-        .where(lte(competition.tier, 2)),
-      db
-        .select({ id: event.competitionId, n: count() })
-        .from(event)
-        .where(and(gte(event.startsAt, recentFrom), lt(event.startsAt, recentTo)))
-        .groupBy(event.competitionId),
-      db
-        .select({
-          code: country.code,
-          name: country.name,
-          confederation: country.confederation,
-          storageKey: asset.storageKey,
-          sourceUrl: asset.sourceUrl,
-        })
-        .from(country)
-        .leftJoin(asset, eq(asset.id, country.flagAssetId))
-        .where(inArray(country.code, codes)),
-      // jogos da janela e os em andamento, com o país da competição e dos participantes (uma linha por jogo)
-      db
-        .select({
-          id: event.id,
-          sport: event.sport,
-          status: event.status,
-          startsAt: event.startsAt,
-          importance: event.importance,
-          live: sql<boolean>`${actuallyLiveCond(now)}`,
-          compSport: competition.sport,
-          compSlug: competition.slug,
-          compCountry: competition.countryCode,
-          participantIds: sql<(string | null)[]>`array_agg(${participant.id})`,
-          countries: sql<(string | null)[]>`array_agg(${participant.countryCode})`,
-        })
-        .from(event)
-        .leftJoin(competition, eq(competition.id, event.competitionId))
-        .leftJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
-        .leftJoin(participant, eq(participant.id, eventParticipant.participantId))
-        .where(
-          and(
-            or(
-              and(gte(event.startsAt, window.from), lt(event.startsAt, window.to)),
-              inArray(event.status, IN_PLAY),
-            ),
-            inPlan,
-          ),
-        )
-        .groupBy(event.id, competition.id),
-      topTeams(bctx, codes, now, recentFrom),
-    ]);
+  const [
+    sportRows,
+    participantCounts,
+    catalogRows,
+    recentRows,
+    countryRows,
+    windowRows,
+    teamRows,
+    provisionalRows,
+  ] = await Promise.all([
+    db
+      .select({ slug: sport.slug, name: sport.name })
+      .from(sport)
+      .where(notInArray(sport.slug, [...OFF_CATALOG_SPORTS])),
+    db.select({ sport: participant.sport, n: count() }).from(participant).groupBy(participant.sport),
+    db
+      .select({
+        id: competition.id,
+        sport: competition.sport,
+        slug: competition.slug,
+        name: competition.name,
+        labels: competition.labels,
+        profileLabels: competitionProfile.labels,
+        type: competition.type,
+        tier: competition.tier,
+        prestige: competition.prestige,
+        countryCode: competition.countryCode,
+        logoKey: asset.storageKey,
+        logoUrl: asset.sourceUrl,
+      })
+      .from(competition)
+      .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
+      .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+      .where(lte(competition.tier, 2)),
+    db
+      .select({ id: event.competitionId, n: count() })
+      .from(event)
+      .where(and(gte(event.startsAt, recentFrom), lt(event.startsAt, recentTo)))
+      .groupBy(event.competitionId),
+    db
+      .select({
+        code: country.code,
+        name: country.name,
+        confederation: country.confederation,
+        storageKey: asset.storageKey,
+        sourceUrl: asset.sourceUrl,
+      })
+      .from(country)
+      .leftJoin(asset, eq(asset.id, country.flagAssetId))
+      .where(inArray(country.code, codes)),
+    // jogos da janela e os em andamento
+    eventRows(
+      or(
+        and(gte(event.startsAt, window.from), lt(event.startsAt, window.to)),
+        inArray(event.status, IN_PLAY),
+      ),
+    ),
+    topTeams(bctx, codes, now, recentFrom),
+    // anunciados: provisórios dos próximos meses (o fornecedor ainda não publicou)
+    eventRows(
+      and(
+        eq(event.isProvisional, true),
+        gte(event.startsAt, now),
+        lt(event.startsAt, new Date(now.getTime() + ANNOUNCED_DAYS * DAY_MS)),
+      ),
+    ),
+  ]);
 
   // ── catálogo: destaques por esporte, liga principal e contagem por país
   const recent = new Map(recentRows.map((r) => [r.id, Number(r.n)]));
@@ -331,7 +381,7 @@ export async function loadExploreSummary(
   );
 
   // ── jogos: ao vivo e próximos por esporte e por país, e o destaque de cada país
-  const events: WindowEvent[] = windowRows.map((r) => ({
+  const windowEvent = (r: (typeof windowRows)[number]): WindowEvent => ({
     id: r.id,
     sport: r.sport,
     status: r.status,
@@ -341,7 +391,9 @@ export async function loadExploreSummary(
     competition: r.compSlug ? { sport: r.compSport!, slug: r.compSlug, countryCode: r.compCountry } : null,
     participantIds: (r.participantIds ?? []).filter((id): id is string => !!id),
     participantCountries: (r.countries ?? []).filter((c): c is string => !!c),
-  }));
+  });
+  const events = windowRows.map(windowEvent);
+  const provisional = provisionalRows.map(windowEvent);
   const activity = new Map(
     codes.map((code) => {
       const continental = continentalSlugs(geo, code);
@@ -362,8 +414,28 @@ export async function loadExploreSummary(
       ] as const;
     }),
   );
+  const announced = new Map(
+    codes.map((code) => {
+      const continental = continentalSlugs(geo, code);
+      return [
+        code,
+        countryAnnounced(
+          provisional,
+          code,
+          now,
+          new Set(continental.map((c) => `${c.sport}|${c.slug}`)),
+          activity.get(code)?.highlight?.id ?? null,
+          { locale, continental },
+          geo.audience,
+        ),
+      ] as const;
+    }),
+  );
   const highlightIds = [
-    ...new Set([...activity.values()].flatMap((a) => (a.highlight ? [a.highlight.id] : []))),
+    ...new Set([
+      ...[...activity.values()].flatMap((a) => (a.highlight ? [a.highlight.id] : [])),
+      ...[...announced.values()].flatMap((list) => list.map((a) => a.id)),
+    ]),
   ];
   const built = highlightIds.length ? await buildEvents(bctx, highlightIds) : [];
   const dtoBy = new Map(built.map((b) => [b.dto.id, b.dto]));
@@ -432,6 +504,10 @@ export async function loadExploreSummary(
       upcoming: act.upcoming,
       live: act.live,
       highlight,
+      announced: (announced.get(code) ?? []).flatMap((a) => {
+        const d = dtoBy.get(a.id);
+        return d ? [{ ...structuredClone(d), relevance: a.relevance }] : [];
+      }),
     };
   });
   const confederations: ExploreSummary['confederations'] = [];

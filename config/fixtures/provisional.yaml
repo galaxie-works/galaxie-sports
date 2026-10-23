@@ -1,0 +1,57 @@
+# =============================================================================
+# Galaxie Sports - jogos provisórios (curadoria)
+#
+# Jogo anunciado oficialmente (organizador, federação, página de ingressos) que o fornecedor ainda não
+# publicou: a api-sports só lança a partida quando o registro dela fecha, às vezes dias depois do anúncio.
+# `pnpm --filter @galaxie/ingestor provisional:sync` grava cada entrada em core.event (marcada como
+# provisória, sem provider_map do fornecedor). Quando a normalização recebe o jogo oficial da mesma
+# competição e temporada, com os mesmos participantes e data a até 2 dias, ela assume o evento: mesmo
+# event.id, ganha o provider_map e deixa de ser provisório. A entrada pode ficar aqui depois disso: a CLI
+# reconhece o jogo já oficial e não mexe nele.
+#
+# CAMPOS
+#   key            - chave estável e única (vira core.event.provisional.key). Não mude depois de gravar.
+#   sport          - esporte (slug de core.sport).
+#   competition    - slug da competição (config/competitions/<esporte>.yaml).
+#   season         - ano da temporada (season.year).
+#   stage          - fase exatamente como o fornecedor vai publicar (league.round da api-sports), para o
+#                    jogo oficial cair na mesma core.stage. Ex.: "Final", "Semi-finals".
+#   home / away    - { team: <ID do time na api-sports>, name: <nome, só para conferência> } ou
+#                    { winner_of: { stage: <fase>, teams: [<ID>, <ID>] } }: o classificado do confronto,
+#                    lido dos jogos já encerrados no core (sem classificado, a entrada fica pendente).
+#   date           - data local do jogo (AAAA-MM-DD), no fuso `timezone`.
+#   time           - horário local (HH:MM) ou null = "a confirmar" (o evento guarda meio-dia local e
+#                    status_detail TBD, o código da api-sports para horário a definir).
+#   timezone       - fuso IANA do local.
+#   venue          - { id: <ID do estádio na api-sports>, name, city } ou null.
+#   announced_by   - quem anunciou data e local.
+#   status         - announced (vale) | cancelled (cancela o provisório, se ainda não for oficial).
+#   sources        - fontes conferidas (a oficial primeiro), com a data da conferência.
+#   note           - observação editorial por idioma (pt-BR, en, es), opcional.
+# =============================================================================
+schema_version: 1
+fixtures:
+  - key: football-conmebol-libertadores-2026-final
+    sport: football
+    competition: conmebol-libertadores
+    season: 2026
+    stage: Final
+    home: { team: 121, name: Palmeiras }
+    away: { team: 450, name: Estudiantes L.P. }
+    date: '2026-11-28'
+    time: null
+    timezone: America/Montevideo
+    venue: { id: 1624, name: Estadio Centenario, city: Montevideo }
+    announced_by: Conmebol
+    status: announced
+    sources:
+      - name: Conmebol (ingressos da final)
+        url: https://gol.conmebol.com/libertadores/en/ticketing/montevideo2026
+        checked_at: '2026-10-23'
+      - name: Wikipedia (Final da Copa Libertadores 2026)
+        url: https://es.wikipedia.org/wiki/Anexo:Final_de_la_Copa_Libertadores_2026
+        checked_at: '2026-10-23'
+    note:
+      pt-BR: Jogo único; empate leva à prorrogação de 30 minutos e, depois, aos pênaltis.
+      en: Single match; a draw goes to 30 minutes of extra time and then to penalties.
+      es: Partido único; si hay empate, prórroga de 30 minutos y después penales.

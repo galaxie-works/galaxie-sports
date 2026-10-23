@@ -49,6 +49,7 @@ import {
 import { createDerbyLookup } from '@galaxie/knowledge';
 import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from '../assets/placeholder-logos.js';
 import { slugify } from '../catalog/football-catalog.js';
+import { matchProvisional, PROVISIONAL_MATCH_MS, type ProvisionalCandidate } from '../provisional/match.js';
 import { insertLogs, logRows, stateColumns, stateFromRow } from './event-state.js';
 import {
   competitionRules,
@@ -100,6 +101,8 @@ export interface UpsertStats {
     updated: number;
     unchanged: number;
     matchedAcrossProviders: number;
+    /** Jogos provisórios (curadoria) assumidos pelo jogo oficial deste lote. */
+    provisionalMerged: number;
     skippedByPrecedence: number;
     ignored: Record<string, number>;
     transitions: number;
@@ -130,6 +133,7 @@ export function emptyStats(): UpsertStats {
       updated: 0,
       unchanged: 0,
       matchedAcrossProviders: 0,
+      provisionalMerged: 0,
       skippedByPrecedence: 0,
       ignored: {},
       transitions: 0,
@@ -162,6 +166,7 @@ export function addStats(a: UpsertStats, b: UpsertStats): UpsertStats {
       updated: a.events.updated + b.events.updated,
       unchanged: a.events.unchanged + b.events.unchanged,
       matchedAcrossProviders: a.events.matchedAcrossProviders + b.events.matchedAcrossProviders,
+      provisionalMerged: a.events.provisionalMerged + b.events.provisionalMerged,
       skippedByPrecedence: a.events.skippedByPrecedence + b.events.skippedByPrecedence,
       ignored,
       transitions: a.events.transitions + b.events.transitions,
@@ -999,6 +1004,7 @@ async function matchAcrossProviders(
     from core.event e
     join core.event_participant ep on ep.event_id = e.id
     where e.sport = ${scope.sport}
+      and not e.is_provisional -- provisório tem regra própria (mesma competição e temporada)
       and e.starts_at between ${from.toISOString()}::timestamptz and ${to.toISOString()}::timestamptz
       and ep.participant_id in (${sql.join(
         allParticipants.map((p) => sql`${p}::uuid`),
@@ -1019,6 +1025,50 @@ async function matchAcrossProviders(
     if (hit) out.set(c.providerId, hit.id);
   }
   return out;
+}
+
+/**
+ * Jogos provisórios (curadoria) que o lote publica: mesma competição e temporada, mesmos participantes
+ * (qualquer mando) e data a até 2 dias (`matchProvisional`). O jogo oficial assume o evento.
+ */
+async function matchProvisionalEvents(
+  tx: Executor,
+  sport: string,
+  candidates: ProvisionalCandidate[],
+): Promise<Map<string, string>> {
+  const usable = candidates.filter((c) => c.competitionId && c.seasonId && c.participants.length >= 2);
+  if (!usable.length) return new Map();
+  const times = usable.map((c) => c.startsAt.getTime());
+  const from = new Date(Math.min(...times) - PROVISIONAL_MATCH_MS);
+  const to = new Date(Math.max(...times) + PROVISIONAL_MATCH_MS);
+  const rows = await tx.execute<{
+    id: string;
+    competition_id: string | null;
+    season_id: string | null;
+    starts_at: string;
+    parts: string[];
+  }>(sql`
+    select e.id, e.competition_id, e.season_id, e.starts_at,
+           array_agg(ep.participant_id::text order by ep.participant_id) as parts
+      from core.event e
+      join core.event_participant ep on ep.event_id = e.id
+     where e.is_provisional and e.sport = ${sport}
+       and e.competition_id in (${sql.join(
+         [...new Set(usable.map((c) => c.competitionId!))].map((id) => sql`${id}::uuid`),
+         sql`, `,
+       )})
+       and e.starts_at between ${from.toISOString()}::timestamptz and ${to.toISOString()}::timestamptz
+     group by e.id`);
+  return matchProvisional(
+    usable,
+    rows.map((r) => ({
+      id: r.id,
+      competitionId: r.competition_id,
+      seasonId: r.season_id,
+      startsAt: new Date(r.starts_at),
+      participants: r.parts,
+    })),
+  );
 }
 
 async function upsertEvents(
@@ -1051,6 +1101,21 @@ async function upsertEvents(
     })),
   );
   stats.events.matchedAcrossProviders = matched.size;
+  // jogo provisório da curadoria: o oficial assume o evento (mesmo id; URLs, onde assistir e contexto ficam)
+  const provisional = await matchProvisionalEvents(
+    tx,
+    batch.sport,
+    unmapped
+      .filter((e) => !matched.has(e.id))
+      .map((e) => ({
+        providerId: e.id,
+        competitionId: e.competitionId ? (refs.competitionIds.get(e.competitionId) ?? null) : null,
+        seasonId: refs.seasonId(e.season),
+        startsAt: e.observation.startsAt,
+        participants: e.participants.flatMap((p) => refs.participantId(p.participantId) ?? []),
+      })),
+  );
+  for (const [providerId, eventId] of provisional) matched.set(providerId, eventId);
 
   const existingIds = [...mapped.values(), ...matched.values()];
   const existing = new Map<string, typeof event.$inferSelect>();
@@ -1264,6 +1329,25 @@ async function upsertEvents(
   }
   await linkIds(tx, scope, 'event', links);
   await insertLogs(tx, logs);
+
+  // provisório assumido: vira oficial, a curadoria fica (registro e para o provisional:sync não recriar)
+  for (const a of allowed) {
+    if (!a.canonical || !a.stateApplied || !existing.get(a.id)?.isProvisional) continue;
+    const merged = {
+      mergedAt: batch.observedAt.toISOString(),
+      mergedProvider: batch.provider,
+      mergedProviderEventId: a.source.id,
+    };
+    await tx
+      .update(event)
+      .set({
+        isProvisional: false,
+        provisional: sql`coalesce(${event.provisional}, '{}'::jsonb) || ${JSON.stringify(merged)}::jsonb`,
+        updatedAt: sql`now()`,
+      })
+      .where(and(eq(event.id, a.id), eq(event.isProvisional, true)));
+    stats.events.provisionalMerged += 1;
+  }
   return allowed;
 }
 

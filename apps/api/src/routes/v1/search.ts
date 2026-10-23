@@ -35,6 +35,8 @@ const CANDIDATES = 40;
 const EVENT_TEAMS = 8;
 /** Janela dos próximos jogos. */
 const UPCOMING_DAYS = 14;
+/** Jogo provisório (anunciado, ainda sem o fornecedor) entra na busca com mais antecedência. */
+const PROVISIONAL_DAYS = 90;
 
 type Text = Record<string, string> | null;
 interface Hit {
@@ -391,12 +393,14 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
     if (!teamsById.size) return [];
     const ids = [...teamsById.keys()];
     const until = new Date(now.getTime() + UPCOMING_DAYS * 86_400_000).toISOString();
+    const provisionalUntil = new Date(now.getTime() + PROVISIONAL_DAYS * 86_400_000).toISOString();
     const rows = await db.execute<{
       id: string;
       sport: string;
       starts_at: Date | string;
       status: EventStatus;
       live: boolean;
+      is_provisional: boolean;
       competition: string | null;
       competition_labels: Text;
     }>(sql`
@@ -405,6 +409,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
                IN_PLAY.map((s) => sql`${s}`),
                sql`, `,
              )}) and ${actuallyLiveCond(now)}) as live,
+             event.is_provisional,
              c.name as competition, c.labels as competition_labels
         from core.event
         left join core.competition c on c.id = event.competition_id
@@ -416,7 +421,8 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
            sql`, `,
          )}) and ${actuallyLiveCond(now)})
               or (event.status = 'scheduled' and event.starts_at >= ${now.toISOString()}::timestamptz - interval '3 hours'
-                  and event.starts_at < ${until}::timestamptz))
+                  and event.starts_at < (case when event.is_provisional then ${provisionalUntil}::timestamptz
+                                              else ${until}::timestamptz end)))
        order by live desc, event.starts_at, event.id
        limit ${CANDIDATES}`);
     if (!rows.length) return [];
@@ -469,6 +475,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
             starts_at: new Date(r.starts_at).toISOString(),
             status: r.status,
             live: r.live,
+            provisional: r.is_provisional,
             competition,
             participants: ps.map((p) => ({
               id: p.id,

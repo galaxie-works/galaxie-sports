@@ -167,7 +167,11 @@ export function buildAllocationUserPrompt(input: AllocationPromptInput): string 
   ];
   for (const m of matches) {
     const { date, time } = localKickoff(m.info.startsAt, ref);
-    lines.push(`- ${m.code}: ${matchLabel(m.info)} — ${date} ${time} (${m.info.startsAt.toISOString()})`);
+    lines.push(
+      m.info.timeConfirmed === false
+        ? `- ${m.code}: ${matchLabel(m.info)} — ${date}, horário a confirmar (data oficial; jogo anunciado)`
+        : `- ${m.code}: ${matchLabel(m.info)} — ${date} ${time} (${m.info.startsAt.toISOString()})`,
+    );
   }
   lines.push('', 'Países:');
   for (const mk of markets) {
