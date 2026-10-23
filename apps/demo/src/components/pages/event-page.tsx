@@ -52,8 +52,7 @@ import { fill, plural } from '@/lib/i18n/text';
 import { lineupMarks } from '@/lib/lineup-marks';
 import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
-import { COUNTRIES, eventCompetitionHref, eventParents, participantHref, sportParent } from '@/lib/navigation';
-import type { TrailVisit } from '@/lib/trail';
+import { COUNTRIES, eventCompetitionHref, eventParents, participantHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
