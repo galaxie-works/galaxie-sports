@@ -21,5 +21,11 @@ export const COMPANY = {
  */
 export const CONTACT_EMAIL = 'PREENCHER-email-de-contato@galaxie.works';
 
-/** Logo usado no Open Graph e no JSON-LD (servido de /public, fora do proxy). */
+/** Logo usado no JSON-LD (servido de /public, fora do proxy). */
 export const LOGO_PATH = '/brand/galaxie_logo_dark.png';
+
+/** Imagem de preview ao compartilhar o link (Open Graph, 1200×630): logo, céu estrelado e o produto. */
+export const SHARE_IMAGE = { url: '/brand/og-galaxie-sports.png', width: 1200, height: 630 } as const;
+
+/** Ícone para a tela inicial do iOS (180×180, fundo opaco); o favicon é o `app/favicon.ico`. */
+export const APPLE_TOUCH_ICON = '/brand/apple-touch-icon.png';

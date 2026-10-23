@@ -4,7 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { LOCALES } from '@/lib/i18n/config';
 import { clientDictionary } from '@/lib/i18n/dictionary';
 import { getLocale, getT } from '@/lib/i18n/server';
-import { SITE_NAME, SITE_URL } from '@/lib/site';
+import { APPLE_TOUCH_ICON, SITE_NAME, SITE_URL } from '@/lib/site';
 
 import { Providers } from '../providers';
 import '../globals.css';
@@ -32,6 +32,8 @@ export async function generateMetadata(): Promise<Metadata> {
     applicationName: SITE_NAME,
     title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
     description: t.shell.meta.description,
+    // Símbolo da Galaxie: o favicon.ico (app/) o Next já anuncia; aqui, o ícone da tela inicial do iOS.
+    icons: { apple: APPLE_TOUCH_ICON },
   };
 }
 

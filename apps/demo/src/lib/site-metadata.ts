@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import type { Locale } from './i18n/config';
-import { LOGO_PATH, SITE_NAME } from './site';
+import { SHARE_IMAGE, SITE_NAME } from './site';
 
 /** Locale do Open Graph (`pt_BR`), a partir do idioma da tela. */
 const OG_LOCALE: Record<Locale, string> = { 'pt-BR': 'pt_BR', en: 'en_US', 'es-AR': 'es_AR' };
@@ -34,8 +34,8 @@ export function publicPageMetadata({
       title: plainTitle,
       description,
       locale: OG_LOCALE[locale],
-      images: [{ url: LOGO_PATH, alt: SITE_NAME }],
+      images: [{ ...SHARE_IMAGE, alt: SITE_NAME }],
     },
-    twitter: { card: 'summary', title: plainTitle, description },
+    twitter: { card: 'summary_large_image', title: plainTitle, description, images: [SHARE_IMAGE.url] },
   };
 }
