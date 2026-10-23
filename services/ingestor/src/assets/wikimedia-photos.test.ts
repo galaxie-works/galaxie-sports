@@ -2,11 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   birthDateQuery,
   countriesMatch,
-  fetchCommonsInfo,
-  isFreeLicense,
   matchCandidates,
   namesMatch,
-  parseCommonsInfo,
+  peoplePhotoKey,
   wikidataPeople,
   type PhotoCandidate,
   type WikidataPerson,
@@ -107,65 +105,9 @@ describe('fotos do Wikidata e do Commons', () => {
     expect(birthDateQuery(['1975-02-11'])).toContain('"1975-02-11T00:00:00Z"^^xsd:dateTime');
   });
 
-  it('licença livre: CC0, CC BY, CC BY-SA e domínio público; NC e ND ficam de fora', () => {
-    for (const ok of ['CC BY-SA 4.0', 'CC BY 2.0', 'CC0', 'Public domain', 'PD-self', 'CC BY-SA 3.0 de']) {
-      expect(isFreeLicense(ok), ok).toBe(true);
-    }
-    for (const no of ['CC BY-NC 2.0', 'CC BY-ND 4.0', 'GFDL', 'Fair use', ''])
-      expect(isFreeLicense(no), no).toBe(false);
-  });
-
-  it('Commons: lê miniatura, licença, autor (sem HTML) e página; descarta licença não livre', async () => {
-    const body = {
-      query: {
-        pages: {
-          '1': {
-            title: 'File:Pedro Emanuel 2011.jpg',
-            imageinfo: [
-              {
-                thumburl: 'https://upload.wikimedia.org/thumb/pedro.jpg/400px-pedro.jpg',
-                descriptionurl: 'https://commons.wikimedia.org/wiki/File:Pedro_Emanuel_2011.jpg',
-                mime: 'image/jpeg',
-                extmetadata: {
-                  LicenseShortName: { value: 'CC BY-SA 3.0' },
-                  LicenseUrl: { value: 'https://creativecommons.org/licenses/by-sa/3.0' },
-                  Artist: {
-                    value: '<a href="//commons.wikimedia.org/wiki/User:Fulano">Fulano &amp; Cia</a>',
-                  },
-                },
-              },
-            ],
-          },
-          '2': {
-            title: 'File:Outro.jpg',
-            imageinfo: [
-              { thumburl: 'https://x/y.jpg', extmetadata: { LicenseShortName: { value: 'CC BY-NC 2.0' } } },
-            ],
-          },
-        },
-      },
-    };
-    expect(parseCommonsInfo(body)).toEqual([
-      {
-        file: 'Pedro Emanuel 2011.jpg',
-        thumbUrl: 'https://upload.wikimedia.org/thumb/pedro.jpg/400px-pedro.jpg',
-        descriptionUrl: 'https://commons.wikimedia.org/wiki/File:Pedro_Emanuel_2011.jpg',
-        license: 'CC BY-SA 3.0',
-        licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
-        author: 'Fulano & Cia',
-        mime: 'image/jpeg',
-      },
-    ]);
-
-    const calls: string[] = [];
-    const fake = (async (input: string | URL) => {
-      calls.push(String(input));
-      return new Response(JSON.stringify(body), { status: 200 });
-    }) as typeof fetch;
-    const files = Array.from({ length: 51 }, (_, i) => `F${i}.jpg`);
-    const images = await fetchCommonsInfo(files, { fetch: fake, sleep: async () => {} });
-    expect(calls).toHaveLength(2);
-    expect(new URL(calls[0]!).searchParams.get('titles')!.split('|')).toHaveLength(50);
-    expect(images.get('Pedro Emanuel 2011.jpg')?.license).toBe('CC BY-SA 3.0');
+  it('chave no bucket: commons/people/<pessoa>.<sha>.<ext>; tipo desconhecido fica de fora', () => {
+    expect(peoplePhotoKey('p1', 'a'.repeat(64), 'image/jpeg')).toBe('commons/people/p1.aaaaaaaaaaaa.jpg');
+    expect(peoplePhotoKey('p1', 'a'.repeat(64), 'image/png')).toBe('commons/people/p1.aaaaaaaaaaaa.png');
+    expect(peoplePhotoKey('p1', 'a'.repeat(64), 'image/svg+xml')).toBeNull();
   });
 });

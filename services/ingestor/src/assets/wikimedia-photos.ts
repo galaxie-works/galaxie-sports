@@ -1,19 +1,19 @@
 import { createHash } from 'node:crypto';
 import { sql } from 'drizzle-orm';
-import { asset, type Database } from '@galaxie/db';
+import { asset, assetCredit, type Database } from '@galaxie/db';
 import type { SparqlBinding, SparqlClient } from '../multisport/wikidata/sparql-client.js';
-import type { PgAssetStore } from './asset-store.js';
+import type { WikimediaClient } from './commons/client.js';
+import { commonsSourceUrl } from './commons/import.js';
+import { readLicense } from './commons/license.js';
 import { imageInfo } from './image-info.js';
 import type { ObjectStore } from './object-store.js';
 
 /**
- * Fotos de pessoas do futebol vindas do Wikidata (P18) e do Wikimedia Commons, para quem a api-sports não tem foto.
- * Casamento: mesma data de nascimento (P569), nome compatível e nacionalidade compatível (P27). Só entram imagens
- * com licença livre (CC0, CC BY, CC BY-SA, domínio público); licença, autor e página da imagem ficam no asset.
+ * Fotos de pessoas do futebol vindas do Wikidata (P18) e da Wikimedia Commons, para quem a api-sports não tem foto.
+ * Casamento: mesma data de nascimento (P569), nome compatível e nacionalidade compatível (P27). A licença segue a
+ * regra do acervo da Commons (`readLicense`: domínio público, CC0, CC BY e CC BY-SA). O asset fica com
+ * `origin = commons` e o crédito em `core.asset_credit`, como as fotos da F1.
  */
-
-/** User-Agent genérico exigido pelas políticas do Wikidata e do Commons — sem e-mail nem dado pessoal. */
-export const WIKIMEDIA_USER_AGENT = 'galaxie-sports/0.1 (https://sports.galaxie.works)';
 
 /** Ocupações aceitas: jogador de futebol (Q937857) e técnico de futebol (Q628099). */
 const OCCUPATIONS = ['wd:Q937857', 'wd:Q628099'];
@@ -40,16 +40,6 @@ export interface WikidataPerson {
 export interface PhotoMatch {
   candidate: PhotoCandidate;
   person: WikidataPerson;
-}
-
-export interface CommonsImage {
-  file: string;
-  thumbUrl: string;
-  descriptionUrl: string;
-  license: string;
-  licenseUrl: string | null;
-  author: string | null;
-  mime: string | null;
 }
 
 // ─── funções puras ───────────────────────────────────────────────────────────────────────────────
@@ -171,64 +161,6 @@ export function matchCandidates(candidates: PhotoCandidate[], people: WikidataPe
   return out.filter((m) => taken.get(m.person.qid) === 1);
 }
 
-/** Licença livre aceita: CC0, CC BY, CC BY-SA (qualquer versão) ou domínio público. NC e ND ficam de fora. */
-export function isFreeLicense(shortName: string): boolean {
-  const s = shortName.trim();
-  if (/\b(NC|ND)\b/i.test(s)) return false;
-  return /^(CC0|CC[ -]BY(-SA)?\b|Public domain|PD\b|PD-)/i.test(s);
-}
-
-function stripHtml(s: string): string {
-  return s
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-interface CommonsApiPage {
-  title?: string;
-  imageinfo?: {
-    thumburl?: string;
-    url?: string;
-    descriptionurl?: string;
-    mime?: string;
-    extmetadata?: Record<string, { value?: string } | undefined>;
-  }[];
-}
-
-/** Lê a resposta de `prop=imageinfo&iiprop=url|mime|extmetadata` do Commons; só imagens com licença livre. */
-export function parseCommonsInfo(body: {
-  query?: {
-    normalized?: { from: string; to: string }[];
-    pages?: Record<string, CommonsApiPage> | CommonsApiPage[];
-  };
-}): CommonsImage[] {
-  const pages = body.query?.pages ? Object.values(body.query.pages) : [];
-  const out: CommonsImage[] = [];
-  for (const p of pages) {
-    const info = p.imageinfo?.[0];
-    const meta = info?.extmetadata ?? {};
-    const license = meta.LicenseShortName?.value ? stripHtml(meta.LicenseShortName.value) : '';
-    if (!p.title || !info || !license || !isFreeLicense(license)) continue;
-    const author = meta.Artist?.value ? stripHtml(meta.Artist.value) : null;
-    out.push({
-      file: p.title.replace(/^File:/, ''),
-      thumbUrl: info.thumburl ?? info.url ?? '',
-      descriptionUrl:
-        info.descriptionurl ?? `https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title)}`,
-      license,
-      licenseUrl: meta.LicenseUrl?.value ?? null,
-      author: author || null,
-      mime: info.mime ?? null,
-    });
-  }
-  return out.filter((i) => i.thumbUrl);
-}
-
 // ─── banco, Wikidata e Commons ───────────────────────────────────────────────────────────────────
 
 /**
@@ -312,88 +244,133 @@ export async function findWikidataPeople(
   return people;
 }
 
-/** Licença, autor e miniatura das imagens no Commons, 50 por requisição. */
-export async function fetchCommonsInfo(
-  files: string[],
-  options: { fetch?: typeof fetch; width?: number; sleep?: (ms: number) => Promise<void> } = {},
-): Promise<Map<string, CommonsImage>> {
-  const fetchFn = options.fetch ?? fetch;
-  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const out = new Map<string, CommonsImage>();
-  const unique = [...new Set(files)];
-  for (let i = 0; i < unique.length; i += 50) {
-    const titles = unique.slice(i, i + 50).map((f) => `File:${f}`);
-    const url = new URL('https://commons.wikimedia.org/w/api.php');
-    url.search = new URLSearchParams({
-      action: 'query',
-      format: 'json',
-      prop: 'imageinfo',
-      iiprop: 'url|mime|extmetadata',
-      iiurlwidth: String(options.width ?? 400),
-      iiextmetadatafilter: 'LicenseShortName|LicenseUrl|Artist',
-      titles: titles.join('|'),
-    }).toString();
-    const res = await fetchFn(url, { headers: { 'User-Agent': WIKIMEDIA_USER_AGENT } });
-    if (!res.ok) throw new Error(`Commons respondeu ${res.status}`);
-    for (const img of parseCommonsInfo((await res.json()) as Parameters<typeof parseCommonsInfo>[0])) {
-      out.set(img.file, img);
-    }
-    await sleep(500);
-  }
-  return out;
+/** Largura da miniatura baixada da Commons: o bastante para o rosto num card ou perfil. */
+export const PEOPLE_THUMB_WIDTH = 800;
+const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png' };
+
+/** Chave no bucket: `commons/people/<pessoa>.<sha256[0:12]>.<ext>` (o prefixo `commons/` é o do acervo). */
+export function peoplePhotoKey(personId: string, sha256: string, contentType: string): string | null {
+  const ext = EXT[contentType];
+  return ext ? `commons/people/${personId}.${sha256.slice(0, 12)}.${ext}` : null;
 }
 
-export interface WikimediaSaveReport {
+export interface PeoplePhotosReport {
   linked: number;
-  /** Casados no Wikidata cuja imagem não tem licença livre (ou sumiu do Commons). */
+  /** Casados no Wikidata cuja imagem não passou na regra de licença (ou sumiu da Commons). */
   notFree: number;
   /** Pessoas que ganharam foto por outra via enquanto a busca rodava. */
   skipped: number;
+  bytes: number;
 }
 
-/** Registra as fotos (origin wikimedia, com licença e autor), liga as pessoas sem foto e guarda o QID. */
-export async function saveWikimediaPhotos(
+const fileTitle = (image: string) => `File:${image.replace(/_/g, ' ')}`;
+
+/**
+ * Baixa a miniatura de cada foto casada, grava no bucket e em `core.asset` (`origin = commons`, fonte
+ * `commons://File:…`), registra o crédito em `core.asset_credit`, liga a pessoa (só se ainda não tiver foto) e
+ * guarda o QID em `core.provider_map` (`wikidata`/`football`/`person`).
+ */
+export async function importPeoplePhotos(
   db: Database,
+  store: ObjectStore,
+  client: WikimediaClient,
   matches: PhotoMatch[],
-  images: Map<string, CommonsImage>,
-): Promise<WikimediaSaveReport> {
-  const report: WikimediaSaveReport = { linked: 0, notFree: 0, skipped: 0 };
+  options: { thumbWidth?: number } = {},
+): Promise<PeoplePhotosReport> {
+  const report: PeoplePhotosReport = { linked: 0, notFree: 0, skipped: 0, bytes: 0 };
+  const titles = [...new Set(matches.map((m) => fileTitle(m.person.image)))];
+  const infos = titles.length ? await client.imageInfo(titles, options.thumbWidth ?? PEOPLE_THUMB_WIDTH) : [];
+  const byTitle = new Map(infos.map((i) => [i.title, i]));
   for (const m of matches) {
-    const img = images.get(m.person.image);
-    if (!img) {
+    const title = fileTitle(m.person.image);
+    const info = byTitle.get(title);
+    const license = info ? readLicense(info.extmetadata) : null;
+    if (!info || !license?.ok) {
       report.notFree += 1;
       continue;
     }
+    const [current] = await db.execute<{ photo: string | null }>(
+      sql`select photo_asset_id as photo from core.person where id = ${m.candidate.personId}`,
+    );
+    if (!current || current.photo) {
+      report.skipped += 1;
+      continue;
+    }
+    const sourceUrl = commonsSourceUrl(title);
+    const [existing] = await db.execute<{ id: string; storage_key: string | null }>(
+      sql`select id, storage_key from core.asset where source_url = ${sourceUrl}`,
+    );
+    let file: { body: Uint8Array; sha: string; key: string; meta: ReturnType<typeof imageInfo> } | null =
+      null;
+    if (!existing?.storage_key) {
+      const { body, contentType } = await client.download(info.thumbUrl);
+      const meta = imageInfo(body, contentType ?? info.mime);
+      const sha = createHash('sha256').update(body).digest('hex');
+      const key = peoplePhotoKey(m.candidate.personId, sha, meta.contentType);
+      if (!key) {
+        report.notFree += 1;
+        continue;
+      }
+      await store.put(key, body, meta.contentType, sha);
+      file = { body, sha, key, meta };
+      report.bytes += body.byteLength;
+    }
     await db.transaction(async (tx) => {
-      const [current] = await tx.execute<{ photo: string | null }>(sql`
-        select photo_asset_id as photo from core.person where id = ${m.candidate.personId} for update
-      `);
-      if (!current || current.photo) {
+      const [locked] = await tx.execute<{ photo: string | null }>(
+        sql`select photo_asset_id as photo from core.person where id = ${m.candidate.personId} for update`,
+      );
+      if (!locked || locked.photo) {
         report.skipped += 1;
         return;
       }
+      let assetId = existing?.id ?? null;
+      if (file) {
+        const values = {
+          storageKey: file.key,
+          sha256: file.sha,
+          width: file.meta.width,
+          height: file.meta.height,
+          bytes: file.body.byteLength,
+          fetchedAt: new Date(),
+          origin: 'commons' as const,
+        };
+        const [row] = await tx
+          .insert(asset)
+          .values({
+            kind: m.candidate.providerId.startsWith('coach:') ? 'coach' : 'player',
+            sourceUrl,
+            ...values,
+          })
+          .onConflictDoUpdate({ target: asset.sourceUrl, set: values })
+          .returning({ id: asset.id });
+        assetId = row!.id;
+      }
+      const credit = license.value;
+      const creditValues = {
+        author: credit.author,
+        authorUrl: credit.authorUrl,
+        license: credit.license,
+        licenseUrl: credit.licenseUrl,
+        credit: credit.credit,
+        attributionRequired: credit.attributionRequired,
+        shareAlike: credit.shareAlike,
+        dateTaken: credit.dateTaken,
+        originalWidth: info.width,
+        originalHeight: info.height,
+      };
       await tx
-        .insert(asset)
+        .insert(assetCredit)
         .values({
-          kind: m.candidate.providerId.startsWith('coach:') ? 'coach' : 'player',
-          sourceUrl: img.thumbUrl,
-          origin: 'wikimedia',
-          license: img.license,
-          licenseUrl: img.licenseUrl,
-          author: img.author,
-          attributionUrl: img.descriptionUrl,
+          assetId: assetId!,
+          source: 'wikimedia-commons',
+          title,
+          pageUrl: info.pageUrl,
+          ...creditValues,
         })
-        .onConflictDoNothing();
-      const linked = await tx.execute<{ id: string }>(sql`
-        update core.person p set photo_asset_id = a.id, updated_at = now()
-        from core.asset a
-        where a.source_url = ${img.thumbUrl} and p.id = ${m.candidate.personId} and p.photo_asset_id is null
-        returning p.id
-      `);
-      if (!linked.length) {
-        report.skipped += 1;
-        return;
-      }
+        .onConflictDoUpdate({ target: assetCredit.assetId, set: creditValues });
+      await tx.execute(
+        sql`update core.person set photo_asset_id = ${assetId}, updated_at = now() where id = ${m.candidate.personId}`,
+      );
       await tx.execute(sql`
         insert into core.provider_map (entity_type, entity_id, provider, sport, provider_id)
         values ('person', ${m.candidate.personId}, 'wikidata', 'football', ${m.person.qid})
@@ -401,49 +378,6 @@ export async function saveWikimediaPhotos(
       `);
       report.linked += 1;
     });
-  }
-  return report;
-}
-
-/** Baixa as fotos do Commons ainda não espelhadas para o bucket (`wikimedia/people/<sha256>.<ext>`). */
-export async function mirrorWikimediaPhotos(
-  db: Database,
-  assets: PgAssetStore,
-  objects: ObjectStore,
-  options: { fetch?: typeof fetch; delayMs?: number; sleep?: (ms: number) => Promise<void> } = {},
-): Promise<{ stored: number; failed: number; bytes: number }> {
-  const fetchFn = options.fetch ?? fetch;
-  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const pending = await db.execute<{ id: string; source_url: string }>(sql`
-    select id, source_url from core.asset
-    where origin = 'wikimedia' and storage_key is null and fetched_at is null
-    order by created_at
-  `);
-  const report = { stored: 0, failed: 0, bytes: 0 };
-  for (const a of pending) {
-    try {
-      const res = await fetchFn(a.source_url, { headers: { 'User-Agent': WIKIMEDIA_USER_AGENT } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = new Uint8Array(await res.arrayBuffer());
-      const sha256 = createHash('sha256').update(body).digest('hex');
-      const info = imageInfo(body, res.headers.get('content-type') ?? undefined);
-      const ext = info.contentType?.split('/')[1]?.replace('jpeg', 'jpg') ?? 'img';
-      const key = `wikimedia/people/${sha256}.${ext}`;
-      await objects.put(key, body, info.contentType, sha256);
-      await assets.markStored(a.id, {
-        storageKey: key,
-        sha256,
-        bytes: body.length,
-        width: info.width,
-        height: info.height,
-        fetchedAt: new Date(),
-      });
-      report.stored += 1;
-      report.bytes += body.length;
-    } catch {
-      report.failed += 1;
-    }
-    await sleep(options.delayMs ?? 400);
   }
   return report;
 }
