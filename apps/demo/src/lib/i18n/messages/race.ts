@@ -19,6 +19,8 @@ export default defineMessages(
     lapsDistance: '{laps} voltas · {distance}',
     lapsOnly: '{laps} voltas',
     sessions: { one: '{count} sessão', other: '{count} sessões' },
+    source: 'Histórico da Fórmula 1',
+    sourceAdapted: 'dados adaptados',
     championship: {
       drivers: 'Pilotos',
       constructors: 'Construtores',
@@ -48,6 +50,8 @@ export default defineMessages(
       lapsDistance: '{laps} laps · {distance}',
       lapsOnly: '{laps} laps',
       sessions: { one: '{count} session', other: '{count} sessions' },
+      source: 'Formula 1 history',
+      sourceAdapted: 'adapted data',
       championship: {
         drivers: 'Drivers',
         constructors: 'Constructors',
@@ -76,6 +80,8 @@ export default defineMessages(
       lapsDistance: '{laps} vueltas · {distance}',
       lapsOnly: '{laps} vueltas',
       sessions: { one: '{count} sesión', other: '{count} sesiones' },
+      source: 'Historial de la Fórmula 1',
+      sourceAdapted: 'datos adaptados',
       championship: {
         drivers: 'Pilotos',
         constructors: 'Constructores',

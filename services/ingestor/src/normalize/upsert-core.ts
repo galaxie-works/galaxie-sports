@@ -36,6 +36,7 @@ import {
   DEFAULT_PRECEDENCE,
   initialState,
   isKnockoutStage,
+  raceSessionKey,
   sameState,
   type AssetKind,
   type DerbyLookup,
@@ -1038,6 +1039,49 @@ async function matchAcrossProviders(
   return out;
 }
 
+const text = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null);
+
+/**
+ * Sessões de corrida (F1) descritas por outra fonte: a lista de sessões não traz pilotos (eles chegam depois,
+ * pelos complementos), então o casamento é pelo tipo da sessão no espelho (`summary.type`: corrida, sprint,
+ * TL2, Q1...) e pelo horário (±3 h). Só vale para eventos ainda sem vínculo deste provedor.
+ */
+async function matchRaceSessions(
+  tx: Executor,
+  scope: ProviderScope,
+  candidates: { providerId: string; startsAt: Date; session: string | null }[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const usable = candidates.filter((c) => c.session);
+  if (!usable.length) return out;
+  const times = usable.map((c) => c.startsAt.getTime());
+  const from = new Date(Math.min(...times) - CROSS_PROVIDER_MATCH_MS);
+  const to = new Date(Math.max(...times) + CROSS_PROVIDER_MATCH_MS);
+  const rows = await tx.execute<{ id: string; starts_at: string; type: string | null }>(sql`
+    select e.id, e.starts_at, sd.summary->>'type' as type
+      from core.event e
+      join core.sport_event_detail sd on sd.event_id = e.id and sd.kind = 'race'
+     where e.sport = ${scope.sport}
+       and e.starts_at between ${from.toISOString()}::timestamptz and ${to.toISOString()}::timestamptz
+       and not exists (
+         select 1 from core.provider_map pm
+          where pm.entity_type = 'event' and pm.entity_id = e.id and pm.provider = ${scope.provider}
+       )`);
+  const taken = new Set<string>();
+  for (const c of usable) {
+    const hits = rows.filter(
+      (r) =>
+        !taken.has(r.id) &&
+        raceSessionKey(r.type) === c.session &&
+        Math.abs(new Date(r.starts_at).getTime() - c.startsAt.getTime()) <= CROSS_PROVIDER_MATCH_MS,
+    );
+    if (hits.length !== 1) continue;
+    out.set(c.providerId, hits[0]!.id);
+    taken.add(hits[0]!.id);
+  }
+  return out;
+}
+
 /**
  * Jogos provisórios (curadoria) que o lote publica: mesma competição e temporada, mesmos participantes
  * (qualquer mando) e data a até 2 dias (`matchProvisional`). O jogo oficial assume o evento.
@@ -1127,6 +1171,20 @@ async function upsertEvents(
       })),
   );
   for (const [providerId, eventId] of provisional) matched.set(providerId, eventId);
+  // sessão de corrida (F1) sem participantes na lista: casa com a mesma sessão já gravada por outra fonte
+  const sessions = await matchRaceSessions(
+    tx,
+    scope,
+    unmapped
+      .filter((e) => !matched.has(e.id) && e.sportEvent?.kind === 'race')
+      .map((e) => ({
+        providerId: e.id,
+        startsAt: e.observation.startsAt,
+        session: raceSessionKey(text(e.sportEvent!.summary.type)),
+      })),
+  );
+  for (const [providerId, eventId] of sessions) matched.set(providerId, eventId);
+  stats.events.matchedAcrossProviders += sessions.size;
 
   const existingIds = [...mapped.values(), ...matched.values()];
   const existing = new Map<string, typeof event.$inferSelect>();

@@ -48,6 +48,7 @@
     "assets:acervo": "node --env-file-if-exists=../../.env dist/cli/assets-acervo.js",
     "geo:seed": "node --env-file-if-exists=../../.env dist/cli/geo-seed.js",
     "equestrian:import": "node --env-file-if-exists=../../.env dist/cli/equestrian-import.js",
+    "f1db:import": "node --env-file-if-exists=../../.env dist/cli/f1db-import.js",
     "provisional:sync": "node --env-file-if-exists=../../.env dist/cli/provisional-sync.js",
     "assets:official-logos": "node --env-file-if-exists=../../.env dist/cli/official-logos.js"
   },
