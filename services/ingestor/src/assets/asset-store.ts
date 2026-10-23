@@ -55,6 +55,13 @@ export interface PendingQuery {
   includeMissing?: boolean | undefined;
   /** Só fotos de pessoas, das escaladas desde `since` para o resto (ver person-photos.ts). */
   personPhotos?: { since: Date } | undefined;
+  /** Só URLs cujo caminho começa assim (ex.: `/volley/` = mídia da API de vôlei). */
+  pathPrefix?: string | undefined;
+}
+
+/** `/volley` ou `volley/` → `/volley/`. */
+export function mediaPathPrefix(prefix: string): string {
+  return `/${prefix.replace(/^\/+|\/+$/g, '')}/`;
 }
 
 export interface MissingOptions {
@@ -157,7 +164,8 @@ export class InMemoryAssetStore implements AssetStore {
         isProviderMediaUrl(r.sourceUrl) &&
         !r.storageKey &&
         (query.includeMissing || !r.fetchedAt) &&
-        (!query.personPhotos || PERSON_PHOTO_KINDS.has(r.kind)),
+        (!query.personPhotos || PERSON_PHOTO_KINDS.has(r.kind)) &&
+        (!query.pathPrefix || new URL(r.sourceUrl).pathname.startsWith(mediaPathPrefix(query.pathPrefix))),
     );
     return rows
       .slice(0, query.limit ?? rows.length)
@@ -270,6 +278,10 @@ export class PgAssetStore implements AssetStore {
     if (query.personPhotos) return this.pendingPersonPhotos(query, query.personPhotos.since);
     const conditions = [isNull(asset.storageKey), sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL}`];
     if (!query.includeMissing) conditions.push(isNull(asset.fetchedAt));
+    if (query.pathPrefix) {
+      const path = mediaPathPrefix(query.pathPrefix).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      conditions.push(sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL.replace(/\/$/, '') + path}`);
+    }
     const q = this.db
       // só URLs da CDN de mídia (filtro acima): o tipo é sempre um MediaAssetKind
       .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: sql<MediaAssetKind>`${asset.kind}` })
