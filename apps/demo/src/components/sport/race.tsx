@@ -14,7 +14,7 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getT } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
-import { eventCompetitionHref } from '@/lib/navigation';
+import { eventCompetitionHref, participantHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 import { Crest } from './crest';
@@ -40,7 +40,7 @@ const PODIUM = ['bg-amber-400', 'bg-zinc-300', 'bg-orange-400'];
 function PodiumStep({ p, place }: { p: Participant; place: number }) {
   return (
     <Link
-      href={`/times/${p.id}`}
+      href={participantHref(p, 'driver')}
       className={cn(
         'group/podium flex min-w-0 flex-1 flex-col items-center gap-1.5 text-center',
         place === 1 ? 'sm:order-2' : place === 2 ? 'sm:order-1 sm:pt-6' : 'sm:order-3 sm:pt-10',
@@ -197,7 +197,10 @@ export async function RaceClassification({ event }: { event: Event }) {
             <TableRow key={p.id}>
               <TableCell className="text-right font-semibold tabular-nums">{p.position ?? '–'}</TableCell>
               <TableCell>
-                <Link href={`/times/${p.id}`} className="flex items-center gap-2 font-medium hover:underline">
+                <Link
+                  href={participantHref(p, 'driver')}
+                  className="flex items-center gap-2 font-medium hover:underline"
+                >
                   <Crest src={p.logo} name={p.name} size="sm" round />
                   <span className="truncate">{p.name}</span>
                   {p.id === fastest ? (
@@ -313,7 +316,7 @@ export async function ChampionshipTable({ group }: { group: StandingsGroup }) {
               <TableCell className="text-right tabular-nums">{r.rank}</TableCell>
               <TableCell>
                 <Link
-                  href={`/times/${r.participant.id}`}
+                  href={participantHref(r.participant, drivers ? 'driver' : null)}
                   className="flex items-center gap-2 font-medium hover:underline"
                 >
                   <Crest src={r.participant.logo} name={r.participant.name} size="sm" round={drivers} />

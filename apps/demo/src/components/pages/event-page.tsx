@@ -52,7 +52,8 @@ import { fill, plural } from '@/lib/i18n/text';
 import { lineupMarks } from '@/lib/lineup-marks';
 import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
-import { COUNTRIES, eventCompetitionHref, eventParents } from '@/lib/navigation';
+import { COUNTRIES, eventCompetitionHref, eventParents, participantHref, sportParent } from '@/lib/navigation';
+import type { TrailVisit } from '@/lib/trail';
 import { cn } from '@/lib/utils';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
@@ -96,7 +97,7 @@ function Side({
   if (!p) return <div className="flex-1" />;
   return (
     <Link
-      href={`/times/${p.id}`}
+      href={participantHref(p, fighter ? 'fighter' : null)}
       className={cn(
         'group/side flex flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:text-left',
         align === 'right' && 'sm:flex-row-reverse sm:text-right',

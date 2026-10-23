@@ -127,7 +127,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 **Falta (📝):** local, clássico e as páginas internas do hipismo, no mesmo padrão. ✅ Feito no item 23.
 
-### 9. Piloto e lutador usam a página de time 📝
+### 9. Piloto e lutador usam a página de time ✅ (item 24)
 
 **Onde:** `/times/{id}` de um piloto de F1 ou de um lutador. A página abre, mas mostra o card "Elenco · Sem elenco nem escalações registrados", que é um beco sem saída e não faz sentido para um piloto.
 
@@ -297,6 +297,25 @@ No celular, a Libertadores fica a 943 px do topo do Brasil (antes do #200 ficava
 | Hipismo com seções vazias explicadas | Celular: relevância recolhida |
 | --- | --- |
 | ![Hipismo](img/depois-hipismo-secoes-vazias.jpg) | ![Relevância](img/depois-celular-relevancia-recolhida.jpg) |
+
+### 24. Rotas próprias para piloto e lutador (E2) ✅
+
+**Onde:** pilotos de F1 e lutadores de MMA abriam em `/times/{id}`, a página de clube, com um card "Elenco · sem elenco nem escalações" vazio e "Últimos jogos" no lugar de corridas e lutas.
+
+**Decisão de produto:** rotas `/pilotos/{slug}` e `/lutadores/{slug}`, com redirecionamento a partir de `/times/{id}`.
+
+**Correção:**
+
+- **Rotas novas:** `/pilotos/max-verstappen-<id>` e `/lutadores/fernando-padilla-<id>`. O participante não tem slug no banco, então o slug é o nome mais o id no fim (`participantHref` e `idFromSlug`), sem migração. Um slug sem id dá "não encontrado".
+- **Redirecionamento:** `/times/{id}` de piloto ou lutador redireciona (308) para a rota certa, mantendo a query (`?temporada=`). Assim, links antigos e os da busca na F1 continuam funcionando.
+- **Links diretos onde o contexto diz o tipo:** grid e pódio da corrida, tabela de pilotos do campeonato, companheiros de equipe no perfil do piloto e os lados de uma luta. Equipes de F1 (construtores) seguem em `/times`. Na busca, participante de MMA vai direto para `/lutadores`.
+- **Página:** o card "Elenco" só aparece para clube e seleção. "Últimos jogos" vira "Últimas corridas" ou "Últimas lutas". O perfil do piloto (carreira, títulos, fotos) é o do #222.
+
+| Piloto (`/pilotos/max-verstappen-…`) | Lutador (`/lutadores/fernando-padilla-…`) |
+| --- | --- |
+| ![Piloto](img/depois-pagina-piloto.jpg) | ![Lutador](img/depois-pagina-lutador.jpg) |
+
+**Fica como proposta (📝):** cartel (V-D-E), categoria e método e round de cada luta no topo do lutador. A API ainda não expõe isso por lutador, e na base de dev as lutas encerradas aparecem como "Aguardando resultado".
 
 ## Proposta maior: trilha hierárquica fixa 📝
 
