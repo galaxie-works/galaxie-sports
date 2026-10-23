@@ -49,6 +49,18 @@ export default defineMessages(
         recap:
           'Palmeiras se classificou para a final da Copa Libertadores, com 2 a 2 no agregado e vitória por 5 a 3 nos pênaltis. Hércules marcou para o Fluminense aos 82’, com assistência de Wesley.',
       },
+      profile: {
+        tag: 'Perfil em destaque',
+        title: 'Cada jogador, temporada a temporada',
+        open: 'Ver o perfil completo',
+        appearances: 'Jogos',
+        goals: 'Gols',
+        assists: 'Assistências',
+        rating: 'Nota média',
+        form: 'Nota nos últimos {n} jogos',
+        recent: 'Últimos jogos',
+        number: 'camisa {n}',
+      },
       stakes: {
         tag: 'O que está em jogo',
         title: 'O contexto de cada rodada',
@@ -274,6 +286,18 @@ export default defineMessages(
           recap:
             'Palmeiras reached the Copa Libertadores final: 2–2 on aggregate and a 5–3 win on penalties. Hércules scored for Fluminense in the 82nd minute, assisted by Wesley.',
         },
+        profile: {
+          tag: 'Featured profile',
+          title: 'Every player, season by season',
+          open: 'See the full profile',
+          appearances: 'Matches',
+          goals: 'Goals',
+          assists: 'Assists',
+          rating: 'Avg. rating',
+          form: 'Rating in the last {n} matches',
+          recent: 'Latest matches',
+          number: 'no. {n}',
+        },
         stakes: {
           tag: 'What is at stake',
           title: 'The context of every round',
@@ -497,6 +521,18 @@ export default defineMessages(
           recapLabel: 'Escenario previo generado por IA',
           recap:
             'Flamengo y Estudiantes L.P. necesitan ganar para avanzar directo en la Copa Libertadores. Si empatan, la clasificación se define por penales.',
+        },
+        profile: {
+          tag: 'Perfil destacado',
+          title: 'Cada jugador, temporada a temporada',
+          open: 'Ver el perfil completo',
+          appearances: 'Partidos',
+          goals: 'Goles',
+          assists: 'Asistencias',
+          rating: 'Puntaje promedio',
+          form: 'Puntaje en los últimos {n} partidos',
+          recent: 'Últimos partidos',
+          number: 'camiseta {n}',
         },
         stakes: {
           tag: 'Lo que está en juego',

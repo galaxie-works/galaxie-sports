@@ -22,6 +22,7 @@ import { showcase, ZONES, type TimelineEntry } from '@/lib/showcase';
 import { cn } from '@/lib/utils';
 
 import { ExampleDialog } from './example-dialog';
+import { FeaturedProfile } from './featured-profile';
 import { Cell, Chip, Flag, TeamMark } from './parts';
 
 type Text = Dictionary['landing']['bento'];
@@ -436,7 +437,18 @@ function ScheduleWidget({ locale }: { locale: Locale }) {
  * Grade do que a API entrega: exemplos reais (amostra em `lib/showcase.ts`) desenhados no estilo do
  * app. Estática: nada aqui chama a API.
  */
-export function Bento({ t, app, locale }: { t: Text; app: AppText; locale: Locale }) {
+export function Bento({
+  t,
+  app,
+  positions,
+  locale,
+}: {
+  t: Text;
+  app: AppText;
+  /** Posição do jogador no idioma da página (`t.pages.person.positions`). */
+  positions: Record<string, string>;
+  locale: Locale;
+}) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
       <Cell
@@ -457,22 +469,36 @@ export function Bento({ t, app, locale }: { t: Text; app: AppText; locale: Local
       >
         <StakesWidget t={t.stakes} locale={locale} />
       </Cell>
-      <Cell tag={t.h2h.tag} title={t.h2h.title} body={t.h2h.body} hue={20} className="lg:col-span-2">
+      <Cell
+        tag={t.h2h.tag}
+        title={t.h2h.title}
+        body={t.h2h.body}
+        hue={20}
+        className="lg:col-span-2 lg:row-span-2"
+      >
         <H2HWidget t={t.h2h} locale={locale} />
+      </Cell>
+      <Cell
+        tag={t.profile.tag}
+        title={t.profile.title}
+        hue={262}
+        className="md:col-span-2 lg:col-span-4 lg:row-span-2"
+      >
+        <FeaturedProfile t={t.profile} app={app} positions={positions} locale={locale} />
       </Cell>
       <Cell
         tag={t.relevance.tag}
         title={t.relevance.title}
         body={t.relevance.body}
         hue={248}
-        className="lg:col-span-3"
+        className="lg:col-span-2"
       >
         <RelevanceWidget t={t.relevance} locale={locale} />
       </Cell>
-      <Cell tag={t.stats.tag} title={t.stats.title} hue={262} className="lg:col-span-3">
+      <Cell tag={t.stats.tag} title={t.stats.title} hue={262} className="lg:col-span-2">
         <StatsWidget t={t.stats} locale={locale} />
       </Cell>
-      <Cell tag={t.watch.tag} title={t.watch.title} body={t.watch.body} hue={292} className="lg:col-span-3">
+      <Cell tag={t.watch.tag} title={t.watch.title} body={t.watch.body} hue={292} className="lg:col-span-2">
         <WatchWidget t={t.watch} locale={locale} />
       </Cell>
       <Cell
@@ -480,7 +506,7 @@ export function Bento({ t, app, locale }: { t: Text; app: AppText; locale: Local
         title={t.schedule.title}
         body={t.schedule.body}
         hue={238}
-        className="lg:col-span-3"
+        className="lg:col-span-2"
       >
         <ScheduleWidget locale={locale} />
       </Cell>
