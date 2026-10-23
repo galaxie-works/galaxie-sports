@@ -158,9 +158,84 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 - **Trilha no celular:** mostra só o item anterior, truncado ("Fórm… › Campeonato Mundial…"). Proposta: no celular, trocar por um botão "‹ Fórmula 1" (voltar ao pai) e deixar o título da página na linha de baixo.
 - **Esqueleto das páginas de topo:** durante o carregamento, mostra por um instante a trilha anterior antes de começar a nova. Proposta: passar o tipo da página também ao esqueleto.
-- **Grupo "World"** na página do esporte vem da API sem tradução. Proposta: rótulo do dicionário ("Internacional"), como já acontece com as competições sem país.
+- **Grupo "World"** na página do esporte vinha da API sem tradução. ✅ Corrigido na segunda rodada (item 13): agora entra em "Internacionais".
 - **Idioma do conteúdo:** com a interface em inglês, as sessões da F1 aparecem em espanhol ("Carrera", "Clasificación"), porque o conteúdo segue a voz do país. Não é navegação, mas confunde quem acabou de trocar o idioma. Vale revisar a regra do idioma do conteúdo para corridas.
 - **Busca (⌘K):** abre e leva aos resultados sem problema. Não entra na trilha como pai, o que é o esperado.
+
+## Segunda rodada: celular, ordem e organização
+
+Depois da primeira entrega, o pedido foi olhar o celular e a organização das listas. O exemplo: no Explorar, o Brasil abre "uma montanha de campeonatos" e fica difícil achar a Libertadores, que o Brasil disputa. Medi a altura das páginas no celular (375 px) antes e depois.
+
+| Página (celular) | Antes | Depois |
+| --- | --- | --- |
+| País: Brasil | 12.900 px; Libertadores a 3.540 px do topo | 1.950 px (só o futebol); Libertadores a 900 px |
+| Esporte: Futebol | 13.200 px; Libertadores e Champions no fim, depois dos 17 países | 8.900 px; Champions, Libertadores e Copa do Mundo no topo |
+| Explorar | 9.500 px | 6.100 px |
+
+### 13. País: uma montanha de campeonatos, Libertadores escondida ✅
+
+**Onde:** `/paises/{código}`. O Brasil tinha 142 competições de 7 esportes numa página só. No futebol vinham primeiro as 40 nacionais (Série A, Copa do Brasil, 27 estaduais, divisões de acesso, copas regionais) e só depois as continentais.
+
+| Antes (celular) | Depois (celular) |
+| --- | --- |
+| ![Antes: 40 nacionais antes da Libertadores](img/antes-celular-pais-brasil.jpg) | ![Depois: abas por esporte e "ver mais"](img/depois-celular-pais-brasil.jpg) |
+
+**Correção:**
+
+- **Um esporte por vez**, em abas com a contagem (Futebol 58, Basquete 16…), na URL (`?esporte=basketball`). O futebol abre por padrão. O "Ver país" da página do esporte já abre na aba daquele esporte.
+- **Clubes juntos, seleção no fim:** nacionais → copas continentais → mundiais de clubes → seleção.
+- **Cada grupo mostra as 6 primeiras** competições (na ordem de importância da API) e esconde o resto atrás de "Ver mais 34", que abre na própria página.
+
+![Depois: Libertadores logo depois das nacionais](img/depois-celular-pais-libertadores.jpg)
+
+![Depois no desktop](img/depois-desktop-pais-brasil.jpg)
+
+### 14. Esporte: as internacionais ficavam no fim ✅
+
+**Onde:** `/esportes/{esporte}`. Os grupos seguiam a ordem do menu de países, e "World" (Champions, Libertadores, Copa do Mundo) caía no fim, depois de 20 países. Dentro de cada grupo a ordem era alfabética: a Conference League vinha antes da Champions.
+
+| Antes | Depois |
+| --- | --- |
+| ![Antes: Brasil primeiro, 40 cards](img/antes-celular-futebol.jpg) | ![Depois: Internacionais com os destaques primeiro](img/depois-celular-futebol.jpg) |
+
+**Correção:**
+
+- O grupo **Internacionais** vem primeiro, e "World" entra nele com o rótulo traduzido.
+- Dentro de cada grupo, os **destaques da API** vêm na frente: os mesmos do "Em destaque" do Explorar e a liga principal de cada país. Depois vêm tier e nome.
+- Cada grupo mostra 6 competições, com "Ver mais" para o resto.
+
+### 15. Explorar no celular: um esporte por tela ✅
+
+**Onde:** home, no celular. Cada esporte era um card de largura inteira, com três contadores e logos: 12 esportes ocupavam quase 3.000 px antes de chegar aos países.
+
+**Correção:** esportes em **duas colunas** no celular. O card compacto mostra só o número de competições e os logos; o futebol (destaque) continua com a linha inteira. Do tablet para cima nada muda.
+
+| Antes | Depois |
+| --- | --- |
+| ![Antes: um esporte por tela](img/antes-celular-explorar.jpg) | ![Depois: esportes em duas colunas](img/depois-celular-explorar.jpg) |
+
+### 16. Busca: "liber" mostrava o Libertad antes da Libertadores ✅
+
+**Onde:** na busca (⌘K e lupa no celular). No empate de casamento, os grupos vinham na ordem times → competições, então os times Libertad (Paraguai e Equador), Slovan Liberec e Libéria apareciam antes da Libertadores.
+
+| Antes | Depois |
+| --- | --- |
+| ![Antes: times primeiro](img/antes-busca-liber.jpg) | ![Depois: competições primeiro](img/depois-busca-liber.jpg) |
+
+**Correção:** no empate, **competições antes de times**. São poucas e levam a muitas páginas. Os casamentos exatos continuam vencendo: "flamengo" mostra o time.
+
+### 17. Campanha do time: nome cortado no celular ✅
+
+**Onde:** o card "Nas competições" do time. Ao lado do selo da fase ("Eliminado nos 16 avos de final"), "Copa do Brasil" virava "Copa do …".
+
+**Correção:** o nome passa a ocupar até duas linhas, em vez de ser cortado numa linha só.
+
+### 18. Ainda no celular: propostas 📝
+
+- **Países no Explorar:** os 17 cards de país ainda somam uns 3.000 px. Proposta: no celular, uma lista compacta (bandeira, nome, liga principal e jogo em destaque) e o card rico só a partir do tablet.
+- **Estaduais separados das nacionais:** a API não diz o que é estadual ou regional. A ordem da API já põe Série A e Copa do Brasil na frente, mas na página do esporte a Copa do Brasil depende de "Ver mais". Proposta para a API: um campo `level` (`national` / `regional`) ou a ordem de importância também em `/v1/competitions`. Aí a demo separa "Nacionais" de "Estaduais e regionais".
+- **Fileira de abas e de rodadas:** no celular rolam na horizontal sem indicar que há mais. Proposta: um degradê na borda direita.
+- **Página do jogo no celular:** o card "Sobre o jogo" (relevância por país, com 11 países) vem antes do contexto e dos detalhes. Proposta: no celular, recolher a relevância por país num "Ver por país".
 
 ## Proposta maior: trilha hierárquica fixa 📝
 
@@ -197,3 +272,16 @@ O código já está preparado: os `parents` de cada página são essa hierarquia
 - Jogo, time, jogador, local, clássico, país e hipismo: `parents` e links de país seguros.
 - Títulos de aba (`generateMetadata`) em esporte, competição, jogo, time, jogador e país.
 - Testes: `lib/trail.test.ts` (páginas de topo e pais) e `lib/navigation.test.ts`.
+
+Segunda rodada:
+
+- `ShowMore` (`components/sport/show-more.tsx`): grade com os N primeiros e "Ver mais N".
+- País:
+  - abas por esporte com `UrlTabs` (`?esporte=`);
+  - grupos na ordem `SCOPE_ORDER`.
+- Esporte:
+  - Internacionais primeiro, com "World" incluído;
+  - destaques do `/v1/explore/summary` na frente.
+- Explorar: `SPORT_GRID` em duas colunas no celular, com o card compacto.
+- Busca: `GROUP_ORDER` com competições antes de times (teste em `lib/search/entries.test.ts`).
+- Campanha: `line-clamp-2` no nome da competição.

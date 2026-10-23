@@ -11,14 +11,15 @@ import { Badge } from '@/components/reui/badge';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
 import { Section } from '@/components/sport/section';
+import { ShowMore } from '@/components/sport/show-more';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getSportCompetitions, sportCompetitionsRequest } from '@/lib/galaxie/api';
+import { getExploreSummary, getSportCompetitions, sportCompetitionsRequest } from '@/lib/galaxie/api';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
-import { COUNTRIES, sportBySlug } from '@/lib/navigation';
+import { COUNTRIES, countryHref, sportBySlug } from '@/lib/navigation';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
 export async function generateMetadata({
@@ -33,14 +34,21 @@ export async function generateMetadata({
 const INTERNATIONAL = 'international';
 
 /**
- * Países da navegação primeiro (na ordem do menu), depois internacionais e o resto em ordem alfabética.
+ * Internacionais primeiro (Libertadores, Champions, Copa do Mundo), depois os países da navegação (na
+ * ordem do menu) e o resto em ordem alfabética. Dentro do grupo, os destaques (`featured`) na frente.
  * Países do menu usam o nome do dicionário (o mesmo da sidebar); os demais, o que a API devolve.
  */
-function groupByCountry(competitions: CompetitionSummary[], t: Dictionary, locale: Locale) {
+function groupByCountry(
+  competitions: CompetitionSummary[],
+  t: Dictionary,
+  locale: Locale,
+  featured: Map<string, number>,
+) {
   const countryNames = t.nav.countries as Record<string, string>;
   const groups = new Map<string, { label: string; code: string | null; items: CompetitionSummary[] }>();
   for (const c of competitions) {
-    const code = c.country?.code ?? null;
+    // "World" (mundiais, F1) não é país: entra no grupo internacional
+    const code = c.country && countryHref(c.country.code) ? c.country.code : null;
     const key = code ?? INTERNATIONAL;
     const label = code
       ? (countryNames[code === 'GB' ? 'GB-ENG' : code] ?? c.country?.name ?? code)
@@ -61,11 +69,16 @@ function groupByCountry(competitions: CompetitionSummary[], t: Dictionary, local
     ) as [string, number][],
   );
   const rank = (g: { code: string | null }) =>
-    g.code && navOrder.has(g.code) ? navOrder.get(g.code)! : g.code === null ? 100 : 200;
+    g.code === null ? -1 : navOrder.has(g.code) ? navOrder.get(g.code)! : 200;
   return [...groups.values()]
     .map((g) => ({
       ...g,
-      items: g.items.sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, locale)),
+      items: g.items.sort(
+        (a, b) =>
+          (featured.get(a.slug) ?? Infinity) - (featured.get(b.slug) ?? Infinity) ||
+          a.tier - b.tier ||
+          a.name.localeCompare(b.name, locale),
+      ),
     }))
     .sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label, locale));
 }
@@ -77,8 +90,22 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
   const { locale, t } = await getI18n();
   const ts = t.pages.sport;
   const label = t.nav.sports[sport.slug];
-  const competitions = await getSportCompetitions(sport.slug, locale);
-  const groups = groupByCountry(competitions, t, locale);
+  const [competitions, summary] = await Promise.all([
+    getSportCompetitions(sport.slug, locale),
+    // sem o resumo, só perde a ordem por destaque (a lista segue por tier e nome)
+    getExploreSummary(locale).catch(() => null),
+  ]);
+  // destaques da API primeiro em cada grupo (Champions e Libertadores antes da Conference League; a liga
+  // principal de cada país antes dos estaduais); a ordem alfabética tirava os dois do que aparece
+  const featured = new Map<string, number>([
+    ...(summary?.countries ?? []).flatMap((c) =>
+      c.main_competition ? [[c.main_competition.slug, 0] as const] : [],
+    ),
+    ...(summary?.sports.find((x) => x.slug === sport.slug)?.top_competitions ?? []).map(
+      (c, i) => [c.slug, i] as const,
+    ),
+  ]);
+  const groups = groupByCountry(competitions, t, locale, featured);
   const api = sportCompetitionsRequest(sport.slug, locale);
 
   return (
@@ -111,7 +138,7 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
             action={
               g.code && countrySlug(g.code) ? (
                 <Link
-                  href={`/paises/${countrySlug(g.code)}`}
+                  href={`/paises/${countrySlug(g.code)}?esporte=${sport.slug}`}
                   className="text-primary text-xs hover:underline"
                 >
                   {ts.seeCountry}
@@ -119,8 +146,9 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
               ) : null
             }
           >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {g.items.map((c) => (
+            <ShowMore
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              items={g.items.map((c) => (
                 <Link
                   key={c.id}
                   href={`/competicoes/${c.slug}`}
@@ -142,7 +170,7 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
                   </Card>
                 </Link>
               ))}
-            </div>
+            />
           </Section>
         ))}
       </div>

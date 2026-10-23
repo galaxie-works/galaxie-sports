@@ -179,7 +179,14 @@ export function SportCard({
         </h3>
         {hasData ? (
           <>
-            <div className={cn('grid grid-cols-3 gap-2', featured && 'max-w-lg gap-4')}>
+            {/* no celular o card tem meia largura: só o número de competições, sem a grade de contadores */}
+            {featured ? null : (
+              <p className="text-muted-foreground text-xs sm:hidden">
+                <span className="text-foreground font-semibold tabular-nums">{stats[0]?.value}</span>{' '}
+                {stats[0]?.label}
+              </p>
+            )}
+            <div className={cn('grid grid-cols-3 gap-2', featured ? 'max-w-lg gap-4' : 'max-sm:hidden')}>
               {stats.map((s) => (
                 <Stat key={s.label} {...s} locale={locale} size={featured ? 'lg' : 'md'} />
               ))}
