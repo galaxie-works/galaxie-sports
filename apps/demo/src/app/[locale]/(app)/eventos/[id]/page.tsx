@@ -9,6 +9,7 @@ import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
 import { MatchDetails } from '@/components/sport/match-details';
+import { MarketTabs } from '@/components/sport/market-tabs';
 import { MatchStakes } from '@/components/sport/match-stakes';
 import { isRaceEvent, RaceClassification, RaceScoreboard, raceTitle } from '@/components/sport/race';
 import { RelatedContentGrid } from '@/components/sport/related-content';
@@ -224,22 +225,15 @@ function WhereToWatchCard({
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">
-        <div className="flex flex-wrap gap-1">
-          {WTW_MARKETS.map((m) => (
-            <Link
-              key={m.code}
-              href={`/eventos/${eventId}?pais=${m.code}`}
-              scroll={false}
-              title={t.nav.countries[m.nav]}
-              className={cn(
-                'rounded-full border px-2 py-0.5 font-mono text-xs transition-colors',
-                m.code === country ? 'bg-foreground text-background border-transparent' : 'hover:bg-accent',
-              )}
-            >
-              {m.code}
-            </Link>
-          ))}
-        </div>
+        <MarketTabs
+          eventId={eventId}
+          active={country}
+          markets={WTW_MARKETS.map((m) => ({
+            code: m.code,
+            flag: m.nav,
+            name: t.nav.countries[m.nav] ?? m.code,
+          }))}
+        />
         {wtw?.options.length ? (
           <ul className="flex flex-col gap-2">
             {wtw.options.map((o) => (
