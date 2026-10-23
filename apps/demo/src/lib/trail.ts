@@ -136,6 +136,23 @@ export function applyVisit(trail: TrailState, visit: TrailVisit, parents: TrailV
 }
 
 /**
+ * De onde a pessoa veio, para o "← Voltar para {origem}": a página anterior no caminho desta aba, quando
+ * ela não é um dos pais (a trilha já leva aos pais) nem a própria página. Ex.: um jogo aberto pelo Ao
+ * vivo tem origem "Ao vivo"; aberto pela competição, não tem (a competição já está na trilha).
+ */
+export function originOf(
+  trail: TrailState,
+  visit: TrailVisit,
+  parents: TrailVisit[] = [],
+): TrailEntry | null {
+  const previous = applyVisit(trail, visit, parents).at(-2);
+  if (!previous) return null;
+  const target = pathnameOf(previous.path);
+  if (target === pathnameOf(visit.path) || parents.some((p) => pathnameOf(p.path) === target)) return null;
+  return previous;
+}
+
+/**
  * Itens anteriores à página atual, para quando o rótulo dela ainda não chegou (esqueleto carregando):
  * se a página já está na trilha, o que vem antes dela; senão, a trilha toda.
  */

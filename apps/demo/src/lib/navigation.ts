@@ -122,6 +122,34 @@ export function eventCompetitionHref(event: {
   return `/competicoes/${event.competition.slug}?${query}`;
 }
 
+/**
+ * Hierarquia de um jogo: esporte › competição (na temporada do jogo) › rodada (os jogos dela) ›
+ * jogo. A rodada só entra quando o jogo tem fase.
+ */
+export function eventParents(
+  event: {
+    sport: string;
+    competition: { slug: string; name: string } | null;
+    stage: { name: string | null } | null;
+    starts_at: string;
+  },
+  t: Dictionary,
+): TrailVisit[] {
+  const parents: TrailVisit[] = [];
+  const sport = sportParent(event.sport, t);
+  if (sport) parents.push(sport);
+  if (!event.competition) return parents;
+  const season = new URLSearchParams({ data: event.starts_at.slice(0, 10) });
+  parents.push({
+    path: `/competicoes/${event.competition.slug}?${season}`,
+    label: event.competition.name,
+    kind: 'competição',
+  });
+  if (event.stage?.name)
+    parents.push({ path: eventCompetitionHref(event)!, label: event.stage.name, kind: 'competição' });
+  return parents;
+}
+
 /** Pai das páginas internas do hipismo (atleta, cavalo, prova, campeonato). */
 export function equestrianParent(t: Dictionary): TrailVisit {
   return { path: EQUESTRIAN_NAV.href, label: t.equestrian.title, kind: 'esporte' };

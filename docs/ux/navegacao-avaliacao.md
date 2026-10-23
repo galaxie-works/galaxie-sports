@@ -285,19 +285,25 @@ Os épicos do backlog de navegação, um PR cada. A ordem e as decisões de prod
 
 No celular, a Libertadores fica a 943 px do topo do Brasil (antes do #200 ficava a 3.540 px).
 
-## Proposta maior: trilha hierárquica fixa 📝
+### 22. Trilha hierárquica: a mesma página mostrava trilhas diferentes conforme o caminho (E4) ✅
 
-A causa de boa parte dos problemas é a trilha contar o **histórico** da aba, e não **onde a página fica**. A correção deste PR resolve os casos sem histórico, porque a trilha passa a começar pelos pais. Mesmo assim, a mesma página ainda mostra trilhas diferentes conforme o caminho:
+**Onde:** no cabeçalho de todas as páginas. A trilha contava o **histórico** da aba, e não **onde a página fica**. O mesmo jogo aparecia como "Ao vivo › Cruzeiro x Remo" ou como "Brasil › Brasileirão › Cruzeiro x Remo". Isso ajudava a voltar, mas não ensinava a estrutura do site. No celular, a trilha mostrava só o item anterior, cortado ("Fórm… › Campeonato Mundial…").
 
-- "Ao vivo › Cruzeiro x Remo";
-- "Brasil › Brasileirão › Cruzeiro x Remo".
+**Decisão de produto:** a trilha é sempre a hierarquia, mais um "← Voltar para {origem}" quando a pessoa veio de outro lugar.
 
-Isso é útil para voltar, mas não ensina a estrutura do site. Proposta para discutir:
+**Correção:**
 
-- **Trilha sempre hierárquica** (Futebol › Brasileirão Série A › Rodada 32 › Cruzeiro x Remo).
-- **Botão "voltar para …"** separado, com a origem real da visita (Ao vivo, Brasil, busca).
+- **A trilha é a hierarquia** (os `parents` de cada página), igual venha a pessoa de onde vier. No jogo: Futebol › Campeonato › **Rodada** › jogo. A rodada é item novo e leva aos jogos dela, na temporada do jogo.
+- **"← Voltar para {origem}"** aparece quando a página anterior nesta aba não é um dos pais: jogo aberto pelo Ao vivo, time aberto pela tabela, país aberto pelo Explorar. Vindo da própria competição, o botão não aparece, porque seria redundante.
+- **Celular:** "‹ {pai mais próximo}" numa linha e o título embaixo, legíveis, em vez da trilha cortada.
+- **Esqueleto:** enquanto a página carrega, não aparece trilha nenhuma, e a trilha antiga deixa de piscar.
+- O histórico da aba continua guardado (`lib/trail.ts`). Ele dá a origem e alimenta a medição de atividade, que segue com a origem real e a profundidade.
 
-O código já está preparado: os `parents` de cada página são essa hierarquia.
+| Desktop: jogo aberto pelo Ao vivo | Celular: "‹ pai" e título |
+| --- | --- |
+| ![Trilha hierárquica com origem](img/depois-trilha-hierarquica-origem.jpg) | ![Celular](img/depois-celular-trilha-pai.jpg) |
+
+**Achado no caminho:** na rota estática `/ao-vivo`, alcançada pela reescrita do proxy (`/ao-vivo` → `/pt-BR/ao-vivo`), o menu tinha erro de hidratação: o HTML pré-renderizado e o navegador viam caminhos diferentes (está na documentação do `usePathname` no Next 16). A sidebar agora lê o caminho só depois de hidratar. No servidor de dev, sair do Ao vivo ainda deixa o menu sem item aceso até recarregar. É uma corrida do streaming de dev: o build de produção (`next start`) foi testado e funciona.
 
 ## O que mudou no código
 
