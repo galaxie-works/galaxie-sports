@@ -450,7 +450,12 @@ function H2hSection({
   return (
     <Section
       title={tx.title}
-      description={plural(locale, total, tx.matches, { year: h2h.summary.since ?? '' })}
+      description={
+        // sem o ano do primeiro jogo (cópia gravada antiga do exemplo), a frase sai sem ele
+        h2h.summary.since == null
+          ? plural(locale, total, tx.matchesAnyYear)
+          : plural(locale, total, tx.matches, { year: h2h.summary.since })
+      }
       api={h2hRequest(h2h.event_id, locale, content)}
     >
       <Card size="sm">
