@@ -64,34 +64,44 @@ export function MatchStats({
   const away = stats.teams.find((x) => x.team.side === 'away') ?? stats.teams[1]!;
   const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
   const [homeColor, awayColor] = colors;
+  // Em tela larga, duas colunas ocupam a área toda sem afastar demais o número do rótulo; a segunda
+  // coluna repete o cabeçalho dos escudos só quando fica ao lado da primeira.
+  const half = Math.ceil(rows.length / 2);
+  const columns = rows.length > 4 ? [rows.slice(0, half), rows.slice(half)] : [rows];
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-1">
-      <div className="grid grid-cols-[4.5rem_1fr_4.5rem] items-center pb-2">
-        <span className="flex justify-center" title={home.team.name ?? ''}>
-          <Crest src={home.team.logo} name={home.team.name ?? ''} size="sm" />
-        </span>
-        <span className="text-muted-foreground text-center text-xs font-medium tracking-wide uppercase">
-          {tx.teams}
-        </span>
-        <span className="flex justify-center" title={away.team.name ?? ''}>
-          <Crest src={away.team.logo} name={away.team.name ?? ''} size="sm" />
-        </span>
-      </div>
-      {rows.map((row) => (
-        <div key={row.code} className="flex flex-col gap-1.5 py-1.5">
-          <div className="grid grid-cols-[4.5rem_1fr_4.5rem] items-center">
-            <Value row={row} side="home" color={homeColor} format={nf.format} />
-            <span className="text-center text-sm">{tx.labels[row.code] ?? row.label}</span>
-            <Value row={row} side="away" color={awayColor} format={nf.format} />
+    <div className={cn('grid w-full gap-x-12 gap-y-1', columns.length > 1 && 'lg:grid-cols-2')}>
+      {columns.map((column, i) => (
+        <div key={i} className="flex flex-col gap-1">
+          <div
+            className={cn('grid grid-cols-[4.5rem_1fr_4.5rem] items-center pb-2', i > 0 && 'hidden lg:grid')}
+          >
+            <span className="flex justify-center" title={home.team.name ?? ''}>
+              <Crest src={home.team.logo} name={home.team.name ?? ''} size="sm" />
+            </span>
+            <span className="text-muted-foreground text-center text-xs font-medium tracking-wide uppercase">
+              {tx.teams}
+            </span>
+            <span className="flex justify-center" title={away.team.name ?? ''}>
+              <Crest src={away.team.logo} name={away.team.name ?? ''} size="sm" />
+            </span>
           </div>
-          {row.share != null ? (
-            <div className="mx-4 flex h-1 gap-0.5 overflow-hidden rounded-full opacity-70" aria-hidden>
-              <div style={{ width: `${row.share * 100}%`, backgroundColor: homeColor }} />
-              <div className="flex-1" style={{ backgroundColor: awayColor }} />
+          {column.map((row) => (
+            <div key={row.code} className="flex flex-col gap-1.5 py-1.5">
+              <div className="grid grid-cols-[4.5rem_1fr_4.5rem] items-center">
+                <Value row={row} side="home" color={homeColor} format={nf.format} />
+                <span className="text-center text-sm">{tx.labels[row.code] ?? row.label}</span>
+                <Value row={row} side="away" color={awayColor} format={nf.format} />
+              </div>
+              {row.share != null ? (
+                <div className="mx-4 flex h-1 gap-0.5 overflow-hidden rounded-full opacity-70" aria-hidden>
+                  <div style={{ width: `${row.share * 100}%`, backgroundColor: homeColor }} />
+                  <div className="flex-1" style={{ backgroundColor: awayColor }} />
+                </div>
+              ) : (
+                <div className="bg-muted mx-4 h-1 rounded-full" aria-hidden />
+              )}
             </div>
-          ) : (
-            <div className="bg-muted mx-4 h-1 rounded-full" aria-hidden />
-          )}
+          ))}
         </div>
       ))}
     </div>
