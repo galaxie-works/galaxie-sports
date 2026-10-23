@@ -37,6 +37,7 @@ const MODULES = [
       'GET /v1/events/{id}',
       'GET /v1/teams/{id}/overview',
       'GET /v1/people/{id}',
+      'GET /v1/people/{id}/overview',
       'GET /v1/stream',
       'GET /mirror/{sport}/{endpoint}',
     ],

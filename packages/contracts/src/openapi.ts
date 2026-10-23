@@ -50,6 +50,8 @@ import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import { navigationPaths } from './openapi-navigation.js';
 import {
   Person,
+  PersonOverview,
+  PersonOverviewQuery,
   Squad,
   SquadQuery,
   Team,
@@ -314,7 +316,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       '/v1/teams/{id}/squad': {
         get: getOp(
-          'Elenco e comissão técnica',
+          'Elenco e comissão técnica (atual ou de uma temporada, com jogos e gols)',
           'Times e pessoas',
           Squad,
           { path: TeamParams, query: SquadQuery },
@@ -327,6 +329,15 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'Times e pessoas',
           Person,
           { path: TeamParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/people/{id}/overview': {
+        get: getOp(
+          'Perfil do jogador: time atual, números da temporada por competição, carreira, transferências e últimos jogos',
+          'Times e pessoas',
+          PersonOverview,
+          { path: TeamParams, query: PersonOverviewQuery },
           [400, 401, 403, 404, 429],
         ),
       },

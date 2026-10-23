@@ -82,6 +82,35 @@ await check('Time por temporada (overview ?season=2025)', async () => {
   return `${body.seasons.length} temporadas · ${comps.length} competições em 2025 · ${body.last_events.length} jogos`;
 });
 
+// artilheiro do elenco de 2025: vira o jogador de referência do perfil
+let scorer = null;
+await check('Elenco por temporada (squad ?season=2025, com jogos e gols)', async () => {
+  const { status, body } = await api(`/v1/teams/${PALMEIRAS}/squad?season=2025`);
+  if (status !== 200) return fail(`status ${status}`);
+  if (body?.season !== 2025) return fail('season diferente da pedida');
+  const players = body?.players ?? [];
+  if (!players.length) return fail('elenco de 2025 vazio');
+  if (!players.some((p) => p.stats !== undefined))
+    return fail('sem stats — API anterior ao elenco por temporada?');
+  const played = players.filter((p) => (p.stats?.appearances ?? 0) > 0);
+  if (!played.length)
+    return warn('ninguém com jogos em 2025 — detalhe das partidas (fixtures/players) ausente?');
+  scorer = [...played].sort((a, b) => (b.stats.goals ?? 0) - (a.stats.goals ?? 0))[0];
+  const flags = players.filter((p) => p.person?.nationality_ref).length;
+  return `${players.length} jogadores · ${played.length} com jogos · ${body.coaches?.length ?? 0} técnicos · ${flags} com bandeira`;
+});
+
+await check('Perfil do jogador (people/{id}/overview)', async () => {
+  if (!scorer) return warn('sem jogador de referência (elenco de 2025 sem jogos)');
+  const { status, body } = await api(`/v1/people/${scorer.person.id}/overview?season=2025`);
+  if (status !== 200) return fail(`status ${status}`);
+  if (!Array.isArray(body?.seasons) || !Array.isArray(body?.career)) return fail('sem seasons/career');
+  if (!body.stats?.length || !body.totals) return fail(`sem números de 2025 para ${scorer.person.name}`);
+  if (!body.recent_matches?.length) return fail('sem últimos jogos');
+  if (!body.current_team) return warn('sem time atual');
+  return `${scorer.person.name}: ${body.totals.appearances} jogos · ${body.totals.goals} gols em ${body.stats.length} competições · ${body.career.length} clubes`;
+});
+
 await check('Stakes e tags do torcedor (config/rules na imagem da API)', async () => {
   const { status, body } = await api(`/v1/teams/${PALMEIRAS}/overview`);
   if (status !== 200) return fail(`status ${status}`);

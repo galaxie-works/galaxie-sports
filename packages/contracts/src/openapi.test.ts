@@ -43,6 +43,7 @@ describe('OpenAPI', () => {
         '/v1/teams/{id}/events',
         '/v1/teams/{id}/squad',
         '/v1/people/{id}',
+        '/v1/people/{id}/overview',
         '/mirror/{sport}/{endpoint}',
         '/v1/events/{id}/where-to-watch',
         '/v1/account',
