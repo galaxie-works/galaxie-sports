@@ -1,4 +1,4 @@
-import type { Squad, TeamColors, TeamSeason, TeamSemantic } from '@galaxie/contracts';
+import type { TeamColors, TeamSeason, TeamSemantic } from '@galaxie/contracts';
 import { Calendar, History, MapPin, Megaphone, Quote, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
@@ -12,6 +12,8 @@ import { EventCard } from '@/components/sport/event-card';
 import { FormChips } from '@/components/sport/form-chips';
 import { Intensity } from '@/components/sport/intensity';
 import { SeasonSelect, type SeasonOption } from '@/components/sport/season-select';
+import { SquadCard } from '@/components/sport/squad-card';
+import { TeamBand } from '@/components/sport/team-band';
 import { Section } from '@/components/sport/section';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -100,26 +102,6 @@ function Fact({ icon: Icon, children }: { icon: typeof MapPin; children: React.R
       <Icon className="size-3.5" aria-hidden />
       {children}
     </span>
-  );
-}
-
-/**
- * Faixa no topo da página com o gradiente sugerido do time (API `colors.gradient`), esmaecendo para o
- * fundo escuro. Fica atrás do hero (o contêiner tem `isolate`); um véu escuro mantém o texto legível.
- */
-function TeamBand({ colors }: { colors: TeamColors }) {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80"
-      style={{
-        maskImage: 'linear-gradient(to bottom, #000 35%, transparent)',
-        WebkitMaskImage: 'linear-gradient(to bottom, #000 35%, transparent)',
-      }}
-    >
-      <div className="absolute inset-0" style={{ background: colors.gradient }} />
-      <div className="absolute inset-0 bg-black/25" />
-    </div>
   );
 }
 
@@ -361,82 +343,6 @@ function RivalsCard({ s, t }: { s: TeamSemantic; t: Dictionary }) {
   );
 }
 
-function SquadSection({
-  squad,
-  api,
-  locale,
-  t,
-  season,
-}: {
-  squad: Squad;
-  api: ApiRequest;
-  locale: Locale;
-  t: Dictionary;
-  /** Rótulo da temporada anterior escolhida (sem ela, o elenco atual). */
-  season?: string;
-}) {
-  const tx = t.team.squad;
-  // agrupa pela posição do fornecedor (chave em inglês); o rótulo sai do dicionário
-  const byPosition = new Map<string, Squad['players']>();
-  for (const p of squad.players) {
-    const key = p.position ?? '';
-    byPosition.set(key, [...(byPosition.get(key) ?? []), p]);
-  }
-  const people = [
-    ...[...byPosition].map(
-      ([position, members]) =>
-        [
-          position || 'others',
-          position ? (t.sport.positions[position] ?? position) : tx.others,
-          members,
-        ] as const,
-    ),
-    ...(squad.coaches.length ? [['staff', tx.staff, squad.coaches] as const] : []),
-  ];
-  if (!people.length) {
-    // temporada anterior sem elenco na base: avisa em vez de sumir com a seção
-    return season ? (
-      <Section title={tx.title} api={api}>
-        <p className="text-muted-foreground text-sm">{fill(tx.unavailable, { season })}</p>
-      </Section>
-    ) : null;
-  }
-
-  return (
-    <Section
-      title={tx.title}
-      api={api}
-      description={`${plural(locale, squad.players.length, tx.players)}${season ? ` · ${season}` : ''}`}
-    >
-      <div className="flex flex-col gap-5">
-        {people.map(([key, label, members]) => (
-          <div key={key} className="flex flex-col gap-2">
-            <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</h3>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-              {members.map((m) => (
-                <Link
-                  key={m.person.id}
-                  href={`/pessoas/${m.person.id}`}
-                  className="hover:bg-accent flex items-center gap-2 rounded-md border p-2 transition-colors"
-                >
-                  <Crest src={m.person.photo} name={m.person.name} size="md" round />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-medium">{m.person.name}</span>
-                    <span className="text-muted-foreground text-xs">
-                      {m.number ? `#${m.number}` : ''}
-                      {m.person.age ? ` · ${plural(locale, m.person.age, tx.age)}` : ''}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
 async function Content({
   params,
   searchParams,
@@ -451,9 +357,11 @@ async function Content({
   // só anos com jogos do time; a temporada corrente é a visão padrão (sem `?temporada`)
   const past = seasons.find((s) => s.year === seasonParam(query.temporada) && !s.current);
   const year = past?.year;
+  // o elenco sempre de um ano (o escolhido ou o corrente), para vir com jogos e gols
+  const squadYear = year ?? seasons.find((s) => s.current)?.year;
   const [overview, squad] = await Promise.all([
     year === undefined ? latest : getTeamOverview(id, content, year),
-    getSquad(id, content, year),
+    getSquad(id, content, squadYear),
   ]);
   const { team } = overview;
   const tsx = t.team.season;
@@ -632,18 +540,21 @@ async function Content({
               locale={locale}
             />
             {semantic ? <RivalsCard s={semantic} t={t} /> : null}
+            {squad ? (
+              <SquadCard
+                squad={squad}
+                api={squadRequest(id, locale, squadYear, content)}
+                locale={locale}
+                t={t}
+                season={
+                  label ??
+                  (squadYear !== undefined ? options.find((o) => o.year === squadYear)?.label : undefined)
+                }
+                seasonYear={year}
+              />
+            ) : null}
           </div>
         </div>
-
-        {squad ? (
-          <SquadSection
-            squad={squad}
-            api={squadRequest(id, locale, year, content)}
-            locale={locale}
-            t={t}
-            season={label}
-          />
-        ) : null}
       </div>
     </>
   );

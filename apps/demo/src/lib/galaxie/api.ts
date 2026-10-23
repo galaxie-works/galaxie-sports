@@ -467,6 +467,29 @@ export async function getPerson(id: string, locale: ContentLocale) {
   return orNotFound(api.person(id, localeQuery(locale)));
 }
 
+export const personOverviewRequest = (
+  id: string,
+  locale: Locale,
+  season?: number,
+  content?: SupportedLocale,
+): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/people/{id}/overview',
+  params: { id },
+  query: { ...seasonQuery(season), ...localeQuery(content ?? locale) },
+  description:
+    season === undefined
+      ? text(locale).personOverview
+      : fill(text(locale).personOverviewSeason, { season: String(season) }),
+});
+
+/** Perfil do jogador; sem `season`, a temporada mais recente com jogos. */
+export async function getPersonOverview(id: string, locale: ContentLocale, season?: number) {
+  'use cache';
+  cacheLife('hours');
+  return orNotFound(api.personOverview(id, { ...seasonQuery(season), ...localeQuery(locale) }));
+}
+
 export const venueRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/venues/{id}',
