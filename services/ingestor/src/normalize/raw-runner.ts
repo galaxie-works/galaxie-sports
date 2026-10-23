@@ -11,10 +11,12 @@ import {
   NORMALIZABLE_SPORT_ENDPOINTS,
   normalizeFootballEnvelope,
   normalizeSportEnvelope,
+  seasonTeamsFromGames,
   SPORT_SUPPLEMENT_ENDPOINTS,
   type ApiSportsOtherSport,
   type EnvelopeLike,
   type NormalizedBatch,
+  type SportStandingsContext,
 } from '@galaxie/providers';
 import { linkNbaLogos } from '../catalog/nba-logos.js';
 import { SPORTS } from '../catalog/persist.js';
@@ -82,7 +84,10 @@ type EnvelopeNormalizer = (
   envelope: EnvelopeLike,
   observedAt: Date,
   params: Record<string, string>,
-) => { batch: NormalizedBatch; items: number } | null;
+) =>
+  | { batch: NormalizedBatch; items: number }
+  | null
+  | Promise<{ batch: NormalizedBatch; items: number } | null>;
 
 /**
  * Lê do raw a última resposta bem-sucedida de cada requisição do esporte, normaliza e grava no core.
@@ -128,7 +133,7 @@ async function normalizeFromRaw(
       items: 0,
     };
     try {
-      const normalized = normalize(
+      const normalized = await normalize(
         row.endpoint,
         (raw?.body ?? { response: [] }) as EnvelopeLike,
         new Date(row.fetched_at),
@@ -173,12 +178,48 @@ export async function normalizeSportFromRaw(
   return normalizeFromRaw(
     db,
     sport,
-    (endpoint, envelope, observedAt, params) =>
-      normalizeSportEnvelope(sport, endpoint, envelope, observedAt, params),
+    async (endpoint, envelope, observedAt, params) =>
+      normalizeSportEnvelope(
+        sport,
+        endpoint,
+        envelope,
+        observedAt,
+        params,
+        endpoint === '/standings' ? await standingsContext(db, sport, params) : {},
+      ),
     NORMALIZABLE_SPORT_ENDPOINTS[sport],
     options,
     (endpoint) => (SPORT_SUPPLEMENT_ENDPOINTS.has(endpoint) ? 1 : 0),
   );
+}
+
+/**
+ * Times dos jogos da mesma liga e temporada no raw, para a tabela recuperar o time que o fornecedor manda
+ * como placeholder (`id: 0`): o Utah Mammoth na NHL 2024/25.
+ */
+async function standingsContext(
+  db: Database,
+  sport: string,
+  params: Record<string, string>,
+): Promise<SportStandingsContext> {
+  if (!params.league || !params.season) return {};
+  const [games] = await db
+    .select({ body: apiResponse.body })
+    .from(apiResponse)
+    .where(
+      and(
+        eq(apiResponse.provider, 'api-sports'),
+        eq(apiResponse.sport, sport),
+        eq(apiResponse.endpoint, '/games'),
+        sql`${apiResponse.params}->>'league' = ${params.league}`,
+        sql`${apiResponse.params}->>'season' = ${params.season}`,
+        sql`${apiResponse.statusCode} between 200 and 299`,
+      ),
+    )
+    .orderBy(sql`${apiResponse.fetchedAt} desc`)
+    .limit(1);
+  const response = (games?.body as { response?: unknown } | undefined)?.response;
+  return Array.isArray(response) ? { teamsByName: seasonTeamsFromGames(response) } : {};
 }
 
 const CURSOR_ENDPOINT = 'normalize:core';

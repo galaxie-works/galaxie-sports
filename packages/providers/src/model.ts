@@ -285,6 +285,9 @@ export interface NormalizedStanding {
   won: number;
   drawn: number;
   lost: number;
+  /** Das vitórias/derrotas, quantas foram na prorrogação ou nos pênaltis (hóquei); ausente nos outros esportes. */
+  otWon?: number | null;
+  otLost?: number | null;
   goalsFor: number;
   goalsAgainst: number;
   form: string | null;

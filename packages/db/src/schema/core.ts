@@ -666,6 +666,9 @@ export const standing = core.table(
     won: integer('won').notNull().default(0),
     drawn: integer('drawn').notNull().default(0),
     lost: integer('lost').notNull().default(0),
+    /** Das vitórias/derrotas, quantas foram na prorrogação ou nos pênaltis (hóquei); null nos outros esportes. */
+    otWon: integer('ot_won'),
+    otLost: integer('ot_lost'),
     goalsFor: integer('goals_for').notNull().default(0),
     goalsAgainst: integer('goals_against').notNull().default(0),
     form: text('form'),

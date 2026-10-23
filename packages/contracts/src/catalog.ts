@@ -127,6 +127,14 @@ export const StandingRow = z
     won: z.number().int(),
     drawn: z.number().int(),
     lost: z.number().int(),
+    ot_won: z.number().int().nullable().meta({
+      description:
+        'Das vitórias (`won`), quantas foram na prorrogação ou nos pênaltis (hóquei); null nos outros esportes.',
+    }),
+    ot_lost: z.number().int().nullable().meta({
+      description:
+        'Das derrotas (`lost`), quantas foram na prorrogação ou nos pênaltis (hóquei); null nos outros esportes.',
+    }),
     goals_for: z.number().int(),
     goals_against: z.number().int(),
     goal_diff: z.number().int(),

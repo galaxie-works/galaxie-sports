@@ -30,6 +30,7 @@ import {
   normalizeSportTeams,
   pointsSwapped,
   roundStage,
+  seasonTeamsFromGames,
   seasonYear,
 } from './normalize.js';
 import { API_SPORTS_OTHER_SPORTS, type ApiSportsOtherSport } from './status.js';
@@ -572,10 +573,15 @@ describe('classificação', () => {
     });
   });
 
-  it('hóquei soma vitórias e derrotas na prorrogação; handebol tem empates e pontos', () => {
-    const h = standings('hockey', 'standings-57-2024.json').standings[0]!;
-    expect(h).toMatchObject({ won: 43 + 13, lost: 22 + 4, points: 116, played: 82 });
+  it('hóquei soma vitórias e derrotas na prorrogação e guarda quantas foram nela; handebol tem empates e pontos', () => {
+    const games = loadSportFixture('hockey', 'games-57-2024.json').response;
+    const nhl = loadSportFixture('hockey', 'standings-57-2024.json');
+    const h = normalizeSportStandings('hockey', nhl.response, FETCHED, nhl.parameters, {
+      teamsByName: seasonTeamsFromGames(games),
+    }).standings[0]!;
+    expect(h).toMatchObject({ won: 43 + 13, lost: 22 + 4, otWon: 13, otLost: 4, points: 116, played: 82 });
     const hb = standings('handball', 'standings-39-2024.json').standings[0]!;
+    expect(hb.otWon).toBeUndefined();
     expect(hb).toMatchObject({
       group: 'Bundesliga - Regular Season',
       won: 27,
@@ -598,6 +604,31 @@ describe('classificação', () => {
     const sra = standings('rugby', 'standings-41-2024.json');
     expect(sra.standings).toEqual([]);
     expect(sra.participants.map((p) => p.id)).not.toContain('0');
+  });
+
+  it('hóquei: o Utah vem como placeholder "id 0" na tabela da NHL 2024/25 e volta pelo nome dos jogos; pré-temporada sai', () => {
+    const env = loadSportFixture('hockey', 'standings-57-2024.json');
+    const teams = seasonTeamsFromGames(loadSportFixture('hockey', 'games-57-2024.json').response);
+    expect(teams.get('utah mammoth')).toEqual({
+      id: '2483',
+      logo: 'https://media.api-sports.io/hockey/teams/2483.png',
+    });
+
+    const nhl = normalizeSportStandings('hockey', env.response, FETCHED, env.parameters, {
+      teamsByName: teams,
+    });
+    // a pré-temporada sai e o grupo fica sem o nome da fase
+    expect(nhl.standings.map((s) => [s.participantId, s.group, s.rank, s.points])).toEqual([
+      ['704', 'Western Conference', 1, 116],
+      ['702', 'Western Conference', 2, 110],
+      ['681', 'Western Conference', 3, 106],
+      ['2483', 'Western Conference', 11, 89],
+    ]);
+    expect(nhl.participants.find((p) => p.id === '2483')?.logoUrl).toBe(
+      'https://media.api-sports.io/hockey/teams/2483.png',
+    );
+    // sem os jogos da temporada, o grupo com placeholder continua descartado
+    expect(standings('hockey', 'standings-57-2024.json').standings).toEqual([]);
   });
 
   it('AFL (sem liga na linha), NFL (divisões) e NBA v2 (conferências)', () => {

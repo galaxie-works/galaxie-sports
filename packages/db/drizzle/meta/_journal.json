@@ -169,6 +169,13 @@
       "when": 1792740628584,
       "tag": "0023_acervo_logos",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792759745485,
+      "tag": "0024_standing_prorrogacao",
+      "breakpoints": true
     }
   ]
 }

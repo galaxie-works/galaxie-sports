@@ -3,9 +3,9 @@
 # Mesmo schema de config/competitions/football.yaml. Consumido por
 #   pnpm --filter @galaxie/ingestor bootstrap:sports hockey
 #
-# TIERS (prioridade latino-americana, docs/03 §6)
+# TIERS (prioridade latino-americana, docs/03 §6; no hóquei, NHL e seleções primeiro)
 #   tier 1 - competições prioritárias: temporadas inteiras no bootstrap (--jogos) e live.
-#   tier 2 - espelhadas com tratamento leve; histórico conforme a cota.
+#   tier 2 - espelhadas com tratamento leve; histórico conforme a cota (--jogos --tier 2).
 #   tier 3 - todo o resto do /leagues entra automaticamente (sem precisar estar aqui).
 #
 # CAMPOS
@@ -13,17 +13,32 @@
 #                           type em minúsculas); a conferência do bootstrap aponta diferenças.
 #   api_sports_id         - ID da liga nesta API (o mesmo número pode existir em outra API;
 #                           o mapeamento em core.provider_map é sempre por esporte).
-#   verify                - false = ID e nome conferidos no /leagues capturado (snapshot 2025/2026,
-#                           ver docs/research/api-sports-outros-esportes.md); confirme na primeira execução autenticada.
-#   seasons_strategy      - calendar-year (2026 = 2026) ou split-year (2026 = 2026/27).
-# Sem ligas latino-americanas; interesse vem dos Jogos Olímpicos de Inverno.
-# Há relato de que games?date sem season é recusado: se confirmado, no free só há histórico.
+#   verify                - false = ID e nome conferidos no /leagues (primeiro bootstrap autenticado, 23/10/2026).
+#   seasons_strategy      - calendar-year (2024 = 2024), split-year (2024 = 2024/25: NHL e ligas europeias
+#                           começam em setembro/outubro e terminam em abril/junho) ou tournament-year
+#                           (rótulo = ano em que termina: o torneio olímpico "2022" começa nas eliminatórias
+#                           de nov/2019 e o Mundial Sub-20 "2024" começa em dez/2023).
+# No free (2022–2024) cada competição entra com a temporada mais recente da janela: 2024/25 nas ligas,
+# 2024 nos Mundiais e nos torneios do Euro Hockey Tour e 2022 (Pequim) nos Jogos Olímpicos de Inverno.
+# Não há ligas latino-americanas no /leagues; o interesse vem da NHL, dos Olímpicos e dos Mundiais.
 # =============================================================================
 schema_version: 1
 sport: hockey
 competitions:
-
-  # ---------------------------------------------------------------- tier 1
+  # ---------------------------------------------------------------- tier 1 - NHL, Olimpíadas e Mundiais de seleções
+  - slug: nhl
+    name: "NHL"
+    country: "USA"
+    type: league
+    api_sports_id: 57
+    verify: false
+    tier: 1
+    region: north-america
+    seasons_strategy: split-year
+    live_priority: high
+    prestige: 10
+    labels: { pt-BR: "NHL", es: "NHL", en: "National Hockey League" }
+    sources: ["/leagues 23/10/2026"]
   - slug: olympics-ice-hockey
     name: "Olympic Games"
     country: "World"
@@ -32,10 +47,11 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: medium
-    labels: { pt-BR: "Hóquei no gelo masculino — Jogos Olímpicos de Inverno", es: "Hockey sobre hielo masculino — Juegos Olímpicos de Invierno" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    prestige: 10
+    labels: { pt-BR: "Hóquei no gelo masculino — Jogos Olímpicos de Inverno", es: "Hockey sobre hielo masculino — Juegos Olímpicos de Invierno", en: "Olympic Games — Men's ice hockey" }
+    sources: ["/leagues 23/10/2026"]
   - slug: olympics-ice-hockey-women
     name: "Olympic Games Women"
     country: "World"
@@ -44,21 +60,404 @@ competitions:
     verify: false
     tier: 1
     region: world
+    seasons_strategy: tournament-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Hóquei no gelo feminino — Jogos Olímpicos de Inverno", es: "Hockey sobre hielo femenino — Juegos Olímpicos de Invierno", en: "Olympic Games — Women's ice hockey" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: iihf-world-championship
+    name: "World Championship"
+    country: "World"
+    type: cup
+    api_sports_id: 111
+    verify: false
+    tier: 1
+    region: world
     seasons_strategy: calendar-year
     live_priority: medium
-    labels: { pt-BR: "Hóquei no gelo feminino — Jogos Olímpicos de Inverno", es: "Hockey sobre hielo femenino — Juegos Olímpicos de Invierno" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    prestige: 10
+    labels: { pt-BR: "Mundial de Hóquei no Gelo (IIHF)", es: "Mundial de Hockey sobre Hielo (IIHF)", en: "IIHF World Championship" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: iihf-world-championship-women
+    name: "WCH Women"
+    country: "World"
+    type: cup
+    api_sports_id: 177
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    prestige: 5
+    labels: { pt-BR: "Mundial Feminino de Hóquei no Gelo (IIHF)", es: "Mundial Femenino de Hockey sobre Hielo (IIHF)", en: "IIHF Women's World Championship" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: iihf-world-junior-championship
+    name: "WCH U20"
+    country: "World"
+    type: cup
+    api_sports_id: 153
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: tournament-year
+    live_priority: medium
+    prestige: 5
+    labels: { pt-BR: "Mundial Sub-20 de Hóquei no Gelo (IIHF)", es: "Mundial Sub-20 de Hockey sobre Hielo (IIHF)", en: "IIHF World Junior Championship" }
+    sources: ["/leagues 23/10/2026"]
 
-  # ---------------------------------------------------------------- tier 2
-  - slug: nhl
-    name: "NHL"
+  # ---------------------------------------------------------------- tier 1 - principais ligas da Europa
+  - slug: champions-hockey-league
+    name: "Champions League"
+    country: "Europe"
+    type: cup
+    api_sports_id: 146
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Champions Hockey League", es: "Champions Hockey League", en: "Champions Hockey League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: khl
+    name: "KHL"
+    country: "Russia"
+    type: league
+    api_sports_id: 35
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "KHL (Rússia)", es: "KHL de Rusia", en: "Kontinental Hockey League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: shl
+    name: "SHL"
+    country: "Sweden"
+    type: league
+    api_sports_id: 47
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "SHL (Suécia)", es: "SHL de Suecia", en: "Swedish Hockey League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: liiga
+    name: "Liiga"
+    country: "Finland"
+    type: league
+    api_sports_id: 16
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liiga (Finlândia)", es: "Liiga de Finlandia", en: "Liiga" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: national-league-switzerland
+    name: "National League"
+    country: "Switzerland"
+    type: league
+    api_sports_id: 51
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "National League (Suíça)", es: "National League de Suiza", en: "National League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: del
+    name: "DEL"
+    country: "Germany"
+    type: league
+    api_sports_id: 19
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "DEL (Alemanha)", es: "DEL de Alemania", en: "Deutsche Eishockey Liga" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: extraliga-czech
+    name: "Extraliga"
+    country: "Czech-Republic"
+    type: league
+    api_sports_id: 10
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Extraliga (República Tcheca)", es: "Extraliga de Chequia", en: "Czech Extraliga" }
+    sources: ["/leagues 23/10/2026"]
+
+  # ---------------------------------------------------------------- tier 2 - América do Norte
+  - slug: ahl
+    name: "AHL"
     country: "USA"
     type: league
-    api_sports_id: 57
+    api_sports_id: 58
     verify: false
     tier: 2
     region: north-america
     seasons_strategy: split-year
     live_priority: low
-    labels: { en: "National Hockey League" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    labels: { pt-BR: "AHL", es: "AHL", en: "American Hockey League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: pwhl
+    name: "PWHL Women"
+    country: "USA"
+    type: league
+    api_sports_id: 261
+    verify: false
+    tier: 2
+    region: north-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "PWHL (liga feminina)", es: "PWHL (liga femenina)", en: "Professional Women's Hockey League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: memorial-cup
+    name: "Memorial Cup"
+    country: "Canada"
+    type: cup
+    api_sports_id: 7
+    verify: false
+    tier: 2
+    region: north-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Memorial Cup", es: "Memorial Cup", en: "Memorial Cup" }
+    sources: ["/leagues 23/10/2026"]
+
+  # ---------------------------------------------------------------- tier 2 - outras ligas e torneios da Europa
+  - slug: extraliga-slovakia
+    name: "Extraliga"
+    country: "Slovakia"
+    type: league
+    api_sports_id: 91
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Extraliga (Eslováquia)", es: "Extraliga de Eslovaquia", en: "Slovak Extraliga" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: ice-hockey-league
+    name: "ICE Hockey League"
+    country: "Austria"
+    type: league
+    api_sports_id: 70
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "ICE Hockey League (Áustria)", es: "ICE Hockey League de Austria", en: "ICE Hockey League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: elite-ice-hockey-league
+    name: "Elite League"
+    country: "United-Kingdom"
+    type: league
+    api_sports_id: 55
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Elite League (Reino Unido)", es: "Elite League del Reino Unido", en: "Elite Ice Hockey League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: ligue-magnus
+    name: "Ligue Magnus"
+    country: "France"
+    type: league
+    api_sports_id: 18
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Ligue Magnus (França)", es: "Ligue Magnus de Francia", en: "Ligue Magnus" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: metal-ligaen
+    name: "Metal Ligaen"
+    country: "Denmark"
+    type: league
+    api_sports_id: 12
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Metal Ligaen (Dinamarca)", es: "Metal Ligaen de Dinamarca", en: "Metal Ligaen" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: fjordkraft-ligaen
+    name: "Fjordkraft-ligaen"
+    country: "Norway"
+    type: league
+    api_sports_id: 86
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Fjordkraft-ligaen (Noruega)", es: "Fjordkraft-ligaen de Noruega", en: "Fjordkraft-ligaen" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: polska-hokej-liga
+    name: "Polish Hockey League"
+    country: "Poland"
+    type: league
+    api_sports_id: 32
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Polonesa de Hóquei", es: "Liga Polaca de Hockey", en: "Polska Hokej Liga" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: lnhh-spain
+    name: "LNHH"
+    country: "Spain"
+    type: league
+    api_sports_id: 46
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Nacional de Hóquei no Gelo (Espanha)", es: "Liga Nacional de Hockey Hielo", en: "Spanish Ice Hockey League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: optibet-hokeja-liga
+    name: "Optibet Hokeja Liga"
+    country: "Latvia"
+    type: league
+    api_sports_id: 26
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Letã de Hóquei", es: "Liga Letona de Hockey", en: "Latvian Hockey Higher League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: hockey-allsvenskan
+    name: "Hockey Allsvenskan"
+    country: "Sweden"
+    type: league
+    api_sports_id: 49
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "HockeyAllsvenskan (Suécia, 2ª divisão)", es: "HockeyAllsvenskan (Suecia, 2ª división)", en: "HockeyAllsvenskan" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: del-2
+    name: "DEL 2"
+    country: "Germany"
+    type: league
+    api_sports_id: 20
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "DEL 2 (Alemanha, 2ª divisão)", es: "DEL 2 (Alemania, 2ª división)", en: "DEL2" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: swiss-league
+    name: "Swiss League"
+    country: "Switzerland"
+    type: league
+    api_sports_id: 52
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Swiss League (Suíça, 2ª divisão)", es: "Swiss League (Suiza, 2ª división)", en: "Swiss League" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: continental-cup
+    name: "Continental Cup"
+    country: "Europe"
+    type: cup
+    api_sports_id: 142
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Copa Continental (IIHF)", es: "Copa Continental (IIHF)", en: "IIHF Continental Cup" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: karjala-cup
+    name: "Karjala Cup"
+    country: "Europe"
+    type: cup
+    api_sports_id: 144
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Karjala Cup (Euro Hockey Tour)", es: "Karjala Cup (Euro Hockey Tour)", en: "Karjala Cup" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: channel-one-cup
+    name: "Channel One Cup"
+    country: "Europe"
+    type: cup
+    api_sports_id: 145
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Channel One Cup (Euro Hockey Tour)", es: "Channel One Cup (Euro Hockey Tour)", en: "Channel One Cup" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: beijer-hockey-games
+    name: "Beijer Hockey Games"
+    country: "Europe"
+    type: cup
+    api_sports_id: 149
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Beijer Hockey Games (Euro Hockey Tour)", es: "Beijer Hockey Games (Euro Hockey Tour)", en: "Beijer Hockey Games" }
+    sources: ["/leagues 23/10/2026"]
+
+  # ---------------------------------------------------------------- tier 2 - seleções de base e amistosos
+  - slug: iihf-u18-world-championship
+    name: "WCH U18"
+    country: "World"
+    type: cup
+    api_sports_id: 154
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Mundial Sub-18 de Hóquei no Gelo (IIHF)", es: "Mundial Sub-18 de Hockey sobre Hielo (IIHF)", en: "IIHF U18 World Championship" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: hlinka-gretzky-cup
+    name: "Hlinka-Gretzky Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 152
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa Hlinka-Gretzky (Sub-18)", es: "Copa Hlinka-Gretzky (Sub-18)", en: "Hlinka Gretzky Cup" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: friendly-international-hockey
+    name: "Friendly International"
+    country: "World"
+    type: league
+    api_sports_id: 150
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Amistosos de seleções", es: "Amistosos internacionales", en: "International friendlies" }
+    sources: ["/leagues 23/10/2026"]
