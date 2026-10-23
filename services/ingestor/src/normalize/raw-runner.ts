@@ -247,7 +247,9 @@ async function runNormalizeJob(
     const errors = result.rows.filter((r) => r.outcome === 'error');
     // com erro, o cursor para antes da primeira resposta que falhou (será tentada de novo; o upsert é idempotente)
     const next = errors.length ? Math.min(...errors.map((e) => e.id)) - 1 : result.lastRawId;
-    if (next != null) await writeNormalizeCursor(db, Math.max(afterId, next), provider, sport);
+    // com filtro de endpoints o cursor não anda: pularia respostas dos outros endpoints
+    if (next != null && !options.endpoints)
+      await writeNormalizeCursor(db, Math.max(afterId, next), provider, sport);
     await db
       .update(jobRun)
       .set({

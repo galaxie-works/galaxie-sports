@@ -231,6 +231,7 @@ describe('normalização raw → core (futebol)', () => {
       ['/fixtures', 'ok'], // dia (14:13:54)
       ['/fixtures/headtohead', 'ok'],
       ['/players/squads', 'ok'],
+      ['/transfers', 'empty'], // agora normalizado (perfil completo); a resposta do fixture vem vazia
       ['/teams', 'ok'],
       ['/coachs', 'ok'],
       ['/standings', 'ok'],

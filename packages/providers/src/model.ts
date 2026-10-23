@@ -116,6 +116,9 @@ export interface NormalizedPerson {
   nationality: string | null;
   heightCm: number | null;
   weightKg: number | null;
+  /** Local e país de nascimento; ausente = o endpoint não informa (não apaga o conhecido). */
+  birthPlace?: string | null;
+  birthCountry?: string | null;
   photoUrl: string | null;
   photoKind: 'player' | 'coach';
   /**
@@ -214,6 +217,56 @@ export interface NormalizedRoster {
   validTo: string | null;
 }
 
+/** Estatísticas de uma pessoa por time e temporada de competição (players?league&season). */
+export interface NormalizedPersonSeasonStat {
+  personId: string;
+  participantId: string;
+  season: SeasonRef;
+  position: string | null;
+  number: number | null;
+  captain: boolean | null;
+  appearances: number | null;
+  lineups: number | null;
+  minutes: number | null;
+  rating: number | null;
+  goals: number | null;
+  assists: number | null;
+  conceded: number | null;
+  saves: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+  /** O bloco `statistics[]` inteiro do fornecedor. */
+  stats: Record<string, unknown>;
+}
+
+/** Transferência de uma pessoa; times fora da base ficam só com o nome. */
+export interface NormalizedTransfer {
+  personId: string;
+  date: string | null;
+  type: string | null;
+  fromParticipantId: string | null;
+  toParticipantId: string | null;
+  fromName: string | null;
+  toName: string | null;
+}
+
+/** Título de uma pessoa. `personId` é o id do fornecedor; a pessoa precisa já existir no core. */
+export interface NormalizedTrophy {
+  personId: string;
+  league: string;
+  country: string | null;
+  season: string | null;
+  place: string | null;
+}
+
+/** Afastamento (lesão, suspensão) de uma pessoa que já existe no core. */
+export interface NormalizedSidelined {
+  personId: string;
+  type: string;
+  startDate: string | null;
+  endDate: string | null;
+}
+
 /** Fotografia do elenco atual de um participante: o que não estiver nela sai do elenco atual. */
 export interface RosterSnapshot {
   participantId: string;
@@ -253,6 +306,10 @@ export interface NormalizedBatch {
   standings: NormalizedStanding[];
   /** Complementos de eventos já conhecidos (resultados, grid de largada). */
   eventSupplements: NormalizedEventSupplement[];
+  personSeasonStats: NormalizedPersonSeasonStat[];
+  transfers: NormalizedTransfer[];
+  trophies: NormalizedTrophy[];
+  sidelined: NormalizedSidelined[];
 }
 
 export function emptyBatch(provider: string, sport: string, observedAt: Date): NormalizedBatch {
@@ -270,6 +327,10 @@ export function emptyBatch(provider: string, sport: string, observedAt: Date): N
     rosterSnapshots: [],
     standings: [],
     eventSupplements: [],
+    personSeasonStats: [],
+    transfers: [],
+    trophies: [],
+    sidelined: [],
   };
 }
 
@@ -292,6 +353,10 @@ export function mergeBatches(batches: NormalizedBatch[]): NormalizedBatch | null
     out.rosterSnapshots.push(...b.rosterSnapshots);
     out.standings.push(...b.standings);
     out.eventSupplements.push(...b.eventSupplements);
+    out.personSeasonStats.push(...b.personSeasonStats);
+    out.transfers.push(...b.transfers);
+    out.trophies.push(...b.trophies);
+    out.sidelined.push(...b.sidelined);
   }
   return out;
 }

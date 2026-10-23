@@ -4,7 +4,8 @@
  *   pnpm --filter @galaxie/ingestor bootstrap:people --plan
  *   pnpm --filter @galaxie/ingestor bootstrap:people --sem-live
  * Opções: --tier-times 2 · --tier-pessoas 1 · --sem-classicos · --estatisticas-jogadores (players?league&season
- *         paginado, tier 1) · --temporadas-tier1 N · --max-chamadas N · --forcar · --por-dia N
+ *         paginado) · --tier-estatisticas 1 · --so-estatisticas (só essas fases) · --temporadas-tier1 N
+ *         · --temporadas-tier2 N · --max-chamadas N · --forcar · --por-dia N
  */
 import { resolve } from 'node:path';
 import { closeDb } from '@galaxie/db';
@@ -21,7 +22,10 @@ await runCli(async () => {
     'tier-pessoas': { type: 'string' },
     'sem-classicos': { type: 'boolean', default: false },
     'estatisticas-jogadores': { type: 'boolean', default: false },
+    'tier-estatisticas': { type: 'string' },
+    'so-estatisticas': { type: 'boolean', default: false },
     'temporadas-tier1': { type: 'string' },
+    'temporadas-tier2': { type: 'string' },
   });
   const ctx = jobContextFromEnv();
   try {
@@ -35,8 +39,13 @@ await runCli(async () => {
       teamMaxTier: intOption(values['tier-times'], 'tier-times'),
       personMaxTier: intOption(values['tier-pessoas'], 'tier-pessoas'),
       derbies: !values['sem-classicos'],
-      playerStats: values['estatisticas-jogadores'],
-      seasons: { tier1Seasons: intOption(values['temporadas-tier1'], 'temporadas-tier1') },
+      playerStats: values['estatisticas-jogadores'] || values['so-estatisticas'],
+      playerStatsMaxTier: intOption(values['tier-estatisticas'], 'tier-estatisticas'),
+      onlyPlayerStats: values['so-estatisticas'],
+      seasons: {
+        tier1Seasons: intOption(values['temporadas-tier1'], 'temporadas-tier1'),
+        tier2Seasons: intOption(values['temporadas-tier2'], 'temporadas-tier2'),
+      },
     });
     await planOrRun(ctx, spec, values);
     if (unresolved.length) {

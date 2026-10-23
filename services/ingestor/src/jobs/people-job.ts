@@ -33,8 +33,12 @@ export interface PeopleOptions {
   personMaxTier?: number | undefined;
   /** Inclui h2h dos clássicos da base semântica (padrão true). */
   derbies?: boolean | undefined;
-  /** Estatísticas por temporada (players?league&season, 20 por página) das competições tier 1. */
+  /** Estatísticas por temporada (players?league&season, 20 por página): bio completa + números da temporada. */
   playerStats?: boolean | undefined;
+  /** Tiers cujas competições recebem as estatísticas de jogadores (padrão 1). */
+  playerStatsMaxTier?: number | undefined;
+  /** Só as fases de estatísticas de jogadores (sem times, pessoas e clássicos). */
+  onlyPlayerStats?: boolean | undefined;
   /** Profundidade de temporadas para as estatísticas de jogadores (mesmas regras do bootstrap:seasons). */
   seasons?: SeasonsOptions | undefined;
 }
@@ -191,26 +195,28 @@ export function peopleJob(
 ): JobSpec {
   const teamMaxTier = opts.teamMaxTier ?? 2;
   const personMaxTier = opts.personMaxTier ?? 1;
-  const phases: JobSpec['phases'] = [
-    {
-      name: 'times (squads · coachs · transfers)',
-      build: async () => buildTeamRequests(await teamTargets(catalog, raw, teamMaxTier)),
-    },
-    {
-      name: 'pessoas (trophies · sidelined)',
-      build: async () => {
-        const teams = await teamTargets(catalog, raw, personMaxTier);
-        return buildPersonPhase(await peopleOfTeams(raw, new Set(teams.map((t) => t.teamId))), cursors);
-      },
-    },
-  ];
-  if (opts.derbies ?? true) {
+  const phases: JobSpec['phases'] = opts.onlyPlayerStats
+    ? []
+    : [
+        {
+          name: 'times (squads · coachs · transfers)',
+          build: async () => buildTeamRequests(await teamTargets(catalog, raw, teamMaxTier)),
+        },
+        {
+          name: 'pessoas (trophies · sidelined)',
+          build: async () => {
+            const teams = await teamTargets(catalog, raw, personMaxTier);
+            return buildPersonPhase(await peopleOfTeams(raw, new Set(teams.map((t) => t.teamId))), cursors);
+          },
+        },
+      ];
+  if ((opts.derbies ?? true) && !opts.onlyPlayerStats) {
     phases.push({ name: 'h2h dos clássicos', build: async () => buildDerbyRequests(await derbyPairs()) });
   }
   if (opts.playerStats) {
     const seasonsOf = async () => {
       const out: { league: number; season: number }[] = [];
-      for (const c of await catalog.competitions(1)) {
+      for (const c of await catalog.competitions(opts.playerStatsMaxTier ?? 1)) {
         for (const s of selectSeasons(c, plan.current, now(), opts.seasons ?? {})) {
           if (covers(s.coverage, 'players')) out.push({ league: c.leagueId, season: s.year });
         }
