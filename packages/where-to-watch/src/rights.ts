@@ -82,10 +82,20 @@ export function rightsCandidates(
   return out.filter((c): c is Candidate => c !== null);
 }
 
-/** Direitos efetivos: a linha curada (config) sempre vence a pesquisada (banco). */
+/**
+ * Direitos efetivos: a linha curada (config) vence a pesquisada (banco) — desde que a curadoria afirme
+ * algum detentor. Linha curada só com detentores incertos (`holders: []`) é uma lacuna, não uma
+ * decisão: aí vale a pesquisada, se ela tiver detentores.
+ */
 export function effectiveRights(
   curated: RightsEntry | null,
   researched: RightsEntry | null | undefined,
 ): RightsEntry | null {
+  if (curated && !curated.holders.length && researched?.holders.length) return researched;
   return curated ?? researched ?? null;
+}
+
+/** A linha curada decide o mercado (afirma ao menos um detentor)? */
+export function curatedDecides(curated: RightsEntry | null | undefined): boolean {
+  return !!curated && curated.holders.length > 0;
 }
