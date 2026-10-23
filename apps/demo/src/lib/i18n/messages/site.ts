@@ -27,12 +27,6 @@ export default defineMessages(
       terms: 'Termos de uso',
       privacy: 'Privacidade',
     },
-    company: {
-      title: 'A empresa',
-      body: 'A Galaxie Sports é um produto da Galaxie Works, empresa de tecnologia que cria soluções de software e dados para empresas.',
-      site: 'Site da empresa',
-      contact: 'Contato',
-    },
     footer: {
       product: 'Galaxie Sports é um produto da Galaxie Works.',
     },
@@ -123,12 +117,6 @@ export default defineMessages(
         terms: 'Terms of use',
         privacy: 'Privacy',
       },
-      company: {
-        title: 'The company',
-        body: 'Galaxie Sports is a product of Galaxie Works, a technology company that builds software and data solutions for businesses.',
-        site: 'Company website',
-        contact: 'Contact',
-      },
       footer: {
         product: 'Galaxie Sports is a product of Galaxie Works.',
       },
@@ -217,12 +205,6 @@ export default defineMessages(
         skip: 'Ir al contenido',
         terms: 'Términos de uso',
         privacy: 'Privacidad',
-      },
-      company: {
-        title: 'La empresa',
-        body: 'Galaxie Sports es un producto de Galaxie Works, empresa de tecnología que crea soluciones de software y datos para empresas.',
-        site: 'Sitio de la empresa',
-        contact: 'Contacto',
       },
       footer: {
         product: 'Galaxie Sports es un producto de Galaxie Works.',

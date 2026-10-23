@@ -5,6 +5,8 @@
  * apresentação no lugar de redirecionar, para que robôs e filtros web encontrem conteúdo no domínio.
  */
 
+import { EXAMPLE_PAGES } from './example/pages';
+
 /** Páginas públicas com conteúdo (entram no sitemap). A primeira é a apresentação. */
 export const PUBLIC_PAGES = ['/sobre', '/termos', '/privacidade'] as const;
 
@@ -20,6 +22,13 @@ export const PUBLIC_FILES = ['/robots.txt', '/sitemap.xml', '/icon.png', '/apple
 /** Login e a API do próprio auth: públicos com tudo o que vem abaixo deles. */
 const PUBLIC_PREFIXES = ['/login', '/api/auth'];
 
+/**
+ * Exemplo público (cópia gravada das páginas do app, sem a API): só as quatro páginas e as imagens
+ * dele. Outro endereço em /exemplo cai na regra geral (login).
+ */
+const EXAMPLE_PATHS = EXAMPLE_PAGES.map((p) => `/exemplo/${p}`);
+const EXAMPLE_IMAGES = '/exemplo/img/';
+
 const includes = (list: readonly string[], pathname: string) => list.includes(pathname);
 
 /** O caminho abre sem sessão? (as páginas públicas só no endereço exato: `/sobre/x` exige login) */
@@ -27,6 +36,8 @@ export function isPublicPath(pathname: string): boolean {
   return (
     PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
     includes(PUBLIC_PAGES, pathname) ||
-    includes(PUBLIC_FILES, pathname)
+    includes(PUBLIC_FILES, pathname) ||
+    includes(EXAMPLE_PATHS, pathname) ||
+    pathname.startsWith(EXAMPLE_IMAGES)
   );
 }

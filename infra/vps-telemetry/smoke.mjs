@@ -230,6 +230,7 @@ await check('Demo: páginas públicas e proteção do resto', async () => {
     '/sitemap.xml',
     '/flags/br.svg',
     '/crests/palmeiras.png',
+    '/exemplo/jogo',
   ]) {
     const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
     if (res.status !== 200) return fail(`${path} sem sessão: status ${res.status} (esperado 200)`);

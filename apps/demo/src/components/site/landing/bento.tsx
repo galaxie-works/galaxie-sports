@@ -1,8 +1,8 @@
 import {
   ArrowLeftRight,
   Check,
-  Flame,
   Goal,
+  Maximize2,
   MonitorPlay,
   Play,
   RectangleVertical,
@@ -14,27 +14,33 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import { buttonVariants } from '@/components/ui/button';
 import type { Locale } from '@/lib/i18n/config';
 import { apiLocale } from '@/lib/i18n/config';
 import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
-import { fill } from '@/lib/i18n/text';
-import { DERBY, ROUND, SEMI, type TimelineEntry } from '@/lib/showcase';
+import { fill, plural } from '@/lib/i18n/text';
+import { showcase, ZONES, type TimelineEntry } from '@/lib/showcase';
 import { cn } from '@/lib/utils';
 
+import { ExampleDialog } from './example-dialog';
 import { Cell, Chip, Flag, TeamMark } from './parts';
 
 type Text = Dictionary['landing']['bento'];
+type AppText = Dictionary['landing']['app'];
 
 const regionName = (locale: Locale) => new Intl.DisplayNames([locale], { type: 'region' });
 
 /** Placar e minuto a minuto da semifinal, com o resumo gerado por IA. */
-function TimelineWidget({ t, locale }: { t: Text['timeline']; locale: Locale }) {
+function TimelineWidget({ t, app, locale }: { t: Text['timeline']; app: AppText; locale: Locale }) {
+  const SEMI = showcase(locale).semi;
   const nf = new Intl.NumberFormat(locale);
   const icon: Record<TimelineEntry['kind'], LucideIcon> = {
     goal: Goal,
     yellow: RectangleVertical,
+    red: RectangleVertical,
     sub: ArrowLeftRight,
     decisive: Target,
+    decisiveMiss: Target,
   };
   const team = (side: 'home' | 'away') => (side === 'home' ? SEMI.home : SEMI.away);
   return (
@@ -69,7 +75,7 @@ function TimelineWidget({ t, locale }: { t: Text['timeline']; locale: Locale }) 
       <ol className="flex flex-col">
         {SEMI.timeline.map((entry, i) => {
           const Icon = icon[entry.kind];
-          const label = { goal: t.goal, yellow: t.yellow, sub: t.sub, decisive: t.decisive }[entry.kind];
+          const label = t[entry.kind];
           const who =
             entry.kind === 'sub'
               ? fill(t.subDetail, { in: entry.in, out: entry.out })
@@ -86,11 +92,17 @@ function TimelineWidget({ t, locale }: { t: Text['timeline']; locale: Locale }) 
                   'grid size-7 shrink-0 place-items-center rounded-full ring-1 ring-white/10',
                   entry.kind === 'goal' || entry.kind === 'decisive'
                     ? 'bg-primary/20 text-primary'
-                    : 'bg-background/60',
+                    : entry.kind === 'decisiveMiss'
+                      ? 'bg-live/15 text-live'
+                      : 'bg-background/60',
                 )}
               >
                 <Icon
-                  className={cn('size-3.5', entry.kind === 'yellow' && 'fill-amber-300 text-amber-300')}
+                  className={cn(
+                    'size-3.5',
+                    entry.kind === 'yellow' && 'fill-amber-300 text-amber-300',
+                    entry.kind === 'red' && 'fill-red-500 text-red-500',
+                  )}
                   aria-hidden
                 />
               </span>
@@ -111,28 +123,56 @@ function TimelineWidget({ t, locale }: { t: Text['timeline']; locale: Locale }) 
         </p>
         <p className="mt-1.5 text-sm leading-relaxed text-pretty">{t.recap}</p>
       </div>
+
+      <ExampleDialog
+        src="/exemplo/jogo"
+        title={fill(app.title, { home: SEMI.home.name, away: SEMI.away.name })}
+        description={app.description}
+        closeLabel={app.close}
+        fullScreenLabel={app.fullScreen}
+        triggerClassName={cn(buttonVariants({ size: 'lg' }), 'h-11 w-full text-base')}
+      >
+        <Maximize2 className="size-4" aria-hidden />
+        {app.open}
+      </ExampleDialog>
     </div>
   );
 }
 
-/** O que está em jogo para cada time na rodada. */
-function StakesWidget({ t }: { t: Text['stakes'] }) {
-  const groups = [
-    {
-      team: ROUND.home,
-      items: [t.list.titleRace, t.list.sudamericana, t.list.groupStage],
-      warn: [] as string[],
-    },
-    { team: ROUND.away, items: [t.list.groupStage], warn: [t.list.relegation] },
-  ];
+/** O que está em jogo para cada time (e para os dois) no próximo jogo. */
+function StakesWidget({ t, locale }: { t: Text['stakes']; locale: Locale }) {
+  const ROUND = showcase(locale).round;
+  const groups = (['home', 'away', 'both'] as const)
+    .map((side) => {
+      const rows = ROUND.stakes.filter((s) => s.team === side);
+      return {
+        side,
+        team: side === 'both' ? null : ROUND[side],
+        items: rows.filter((s) => !s.warn).map((s) => t.list[s.key]),
+        warn: rows.filter((s) => s.warn).map((s) => t.list[s.key]),
+      };
+    })
+    .filter((g) => g.items.length || g.warn.length);
   return (
     <div className="flex flex-col gap-3">
       <p className="text-muted-foreground text-xs">{fill(t.stage, { competition: ROUND.competition })}</p>
-      {groups.map(({ team, items, warn }) => (
-        <div key={team.name} className="bg-background/50 rounded-xl p-3 ring-1 ring-white/10">
+      {groups.map(({ side, team, items, warn }) => (
+        <div key={side} className="bg-background/50 rounded-xl p-3 ring-1 ring-white/10">
           <p className="flex items-center gap-2 text-sm font-medium">
-            <TeamMark team={team} size="sm" />
-            <span className="truncate">{team.name}</span>
+            {team ? (
+              <>
+                <TeamMark team={team} size="sm" />
+                <span className="truncate">{team.name}</span>
+              </>
+            ) : (
+              <>
+                <span className="flex -space-x-2">
+                  <TeamMark team={ROUND.home} size="sm" />
+                  <TeamMark team={ROUND.away} size="sm" />
+                </span>
+                <span className="truncate">{t.both}</span>
+              </>
+            )}
           </p>
           <ul className="mt-2.5 flex flex-col gap-1.5 text-sm">
             {items.map((item) => (
@@ -154,63 +194,95 @@ function StakesWidget({ t }: { t: Text['stakes'] }) {
   );
 }
 
-/** Clássico com intensidade, apelidos e retrospecto. */
-function DerbyWidget({ t, locale }: { t: Text['derby']; locale: Locale }) {
+/** Confronto direto: retrospecto, gols e os duelos mais recentes entre os dois times. */
+function H2HWidget({ t, locale }: { t: Text['h2h']; locale: Locale }) {
+  const H2H = showcase(locale).h2h;
   const nf = new Intl.NumberFormat(locale);
-  const total = DERBY.matches;
+  const date = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
   const segments = [
-    { key: 'home', value: DERBY.home.wins, color: DERBY.home.color },
-    { key: 'draws', value: DERBY.draws, color: 'oklch(0.45 0.02 280)' },
-    { key: 'away', value: DERBY.away.wins, color: DERBY.away.color },
+    { key: 'home', value: H2H.home.wins, color: H2H.home.color },
+    { key: 'draws', value: H2H.draws, color: 'oklch(0.45 0.02 280)' },
+    { key: 'away', value: H2H.away.wins, color: H2H.away.color },
   ];
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <p className="text-lg font-semibold">{t.name}</p>
-        <p className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
-          <span className="flex" aria-hidden>
-            {Array.from({ length: 5 }, (_, i) => (
-              <Flame
-                key={i}
-                className={cn(
-                  'size-3.5',
-                  i < DERBY.intensity ? 'fill-orange-400 text-orange-400' : 'text-white/20',
-                )}
-              />
-            ))}
-          </span>
-          {fill(t.meta, { n: nf.format(DERBY.intensity) })}
-        </p>
-      </div>
-      <div className="flex flex-col gap-2.5">
-        {[DERBY.home, DERBY.away].map((team) => (
-          <div key={team.name} className="flex min-w-0 items-center gap-2.5">
+      <div className="grid grid-cols-2 gap-3">
+        {[H2H.home, H2H.away].map((team, i) => (
+          <div
+            key={team.name}
+            className={cn('flex min-w-0 items-center gap-2.5', i === 1 && 'flex-row-reverse text-right')}
+          >
             <TeamMark team={team} />
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium">{team.name}</span>
-              <span className="text-muted-foreground block truncate text-xs">{team.nickname}</span>
+              <span className="text-muted-foreground block truncate text-xs">
+                {fill(t.goals, { n: nf.format(team.goals) })}
+              </span>
             </span>
           </div>
         ))}
       </div>
       <div>
-        <div className="flex h-2.5 overflow-hidden rounded-full" aria-hidden>
+        <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-hidden>
           {segments.map((s) => (
-            <span key={s.key} style={{ width: `${(s.value / total) * 100}%`, background: s.color }} />
+            <span key={s.key} style={{ width: `${(s.value / H2H.played) * 100}%`, background: s.color }} />
           ))}
         </div>
         <div className="text-muted-foreground mt-2 flex justify-between gap-2 text-xs tabular-nums">
-          <span>{fill(t.wins, { n: nf.format(DERBY.home.wins) })}</span>
-          <span>{fill(t.record, { matches: nf.format(DERBY.matches), draws: nf.format(DERBY.draws) })}</span>
-          <span>{fill(t.wins, { n: nf.format(DERBY.away.wins) })}</span>
+          <span>{plural(locale, H2H.home.wins, t.wins)}</span>
+          <span>{fill(t.record, { matches: nf.format(H2H.played), draws: nf.format(H2H.draws) })}</span>
+          <span>{plural(locale, H2H.away.wins, t.wins)}</span>
         </div>
       </div>
+      <ul className="flex flex-col gap-1.5">
+        {H2H.meetings.map((m) => {
+          const home = m.home === 'home' ? H2H.home : H2H.away;
+          const away = m.home === 'home' ? H2H.away : H2H.home;
+          const stage =
+            m.stage === 'round' || m.stage === 'groupRound'
+              ? fill(t[m.stage], { n: nf.format(m.round ?? 0) })
+              : t[m.stage];
+          return (
+            <li
+              key={m.date}
+              className="bg-background/50 flex items-center gap-3 rounded-lg px-3 py-2 ring-1 ring-white/5"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-medium">{stage}</span>
+                <span className="text-muted-foreground block truncate text-[11px]">
+                  {m.competition} · {date.format(new Date(m.date))}
+                </span>
+              </span>
+              <span className="flex items-center gap-1.5 text-sm font-semibold tabular-nums">
+                <TeamMark team={home} size="sm" />
+                {nf.format(m.score[0])}–{nf.format(m.score[1])}
+                <TeamMark team={away} size="sm" />
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {H2H.meetings[0]?.penalties ? (
+        <p className="text-muted-foreground -mt-2 text-[11px]">
+          {fill(t.penalties, {
+            score: `${nf.format(H2H.meetings[0].penalties[0])}–${nf.format(H2H.meetings[0].penalties[1])}`,
+          })}
+          {' · '}
+          {H2H.meetings[0].competition}
+        </p>
+      ) : null}
     </div>
   );
 }
 
 /** Nota de relevância do jogo em cada mercado, com o motivo. */
 function RelevanceWidget({ t, locale }: { t: Text['relevance']; locale: Locale }) {
+  const SEMI = showcase(locale).semi;
   const nf = new Intl.NumberFormat(locale);
   const regions = regionName(locale);
   return (
@@ -229,7 +301,7 @@ function RelevanceWidget({ t, locale }: { t: Text['relevance']; locale: Locale }
               </span>
               <span className="w-8 text-right font-medium tabular-nums">{nf.format(row.score)}</span>
             </div>
-            {'reason' in row ? (
+            {row.reason ? (
               <p className="text-muted-foreground mt-1 pl-[1.875rem] text-xs">{t[row.reason]}</p>
             ) : null}
           </li>
@@ -241,6 +313,7 @@ function RelevanceWidget({ t, locale }: { t: Text['relevance']; locale: Locale }
 
 /** Estatísticas lado a lado, com barras nas cores dos times. */
 function StatsWidget({ t, locale }: { t: Text['stats']; locale: Locale }) {
+  const SEMI = showcase(locale).semi;
   const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
   return (
     <div className="flex flex-col gap-3">
@@ -282,7 +355,7 @@ function StatsWidget({ t, locale }: { t: Text['stats']; locale: Locale }) {
   );
 }
 
-const MEDIUM_ICONS: Record<(typeof ROUND.watch)[number]['medium'], LucideIcon> = {
+const MEDIUM_ICONS: Record<ReturnType<typeof showcase>['round']['watch'][number]['medium'], LucideIcon> = {
   free_tv: Tv,
   pay_tv: TvMinimal,
   streaming: MonitorPlay,
@@ -291,12 +364,13 @@ const MEDIUM_ICONS: Record<(typeof ROUND.watch)[number]['medium'], LucideIcon> =
 
 /** Onde assistir no Brasil, por tipo de mídia (sem nomes de canais na página pública). */
 function WatchWidget({ t, locale }: { t: Text['watch']; locale: Locale }) {
+  const { round: ROUND, market } = showcase(locale);
   const nf = new Intl.NumberFormat(locale);
   return (
     <div className="flex flex-col gap-3">
       <p className="text-muted-foreground flex items-center gap-2 text-xs">
-        <Flag code="BR" />
-        {regionName(locale).of('BR')} · {ROUND.home.name} × {ROUND.away.name}
+        <Flag code={market} />
+        {regionName(locale).of(market)} · {ROUND.home.name} × {ROUND.away.name}
       </p>
       <ul className="grid grid-cols-2 gap-2">
         {ROUND.watch.map(({ medium, count }) => {
@@ -315,19 +389,17 @@ function WatchWidget({ t, locale }: { t: Text['watch']; locale: Locale }) {
           );
         })}
       </ul>
-      <Chip tone="warn" className="self-start">
-        {t.toConfirm}
-      </Chip>
     </div>
   );
 }
 
 /** O mesmo jogo no horário de cada mercado. */
 function ScheduleWidget({ locale }: { locale: Locale }) {
+  const ROUND = showcase(locale).round;
   const start = new Date(ROUND.startsAt);
   return (
     <ul className="flex flex-col gap-2">
-      {ROUND.zones.map((z, i) => {
+      {ZONES.map((z) => {
         const time = new Intl.DateTimeFormat(locale, {
           timeZone: z.timeZone,
           hour: 'numeric',
@@ -345,7 +417,7 @@ function ScheduleWidget({ locale }: { locale: Locale }) {
             key={z.timeZone}
             className={cn(
               'flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 ring-white/10',
-              i === 0 ? 'bg-primary/15 ring-primary/30' : 'bg-background/50',
+              z.market === showcase(locale).market ? 'bg-primary/15 ring-primary/30' : 'bg-background/50',
             )}
           >
             <Flag code={z.market} />
@@ -408,6 +480,7 @@ function JsonView({ value }: { value: unknown }) {
 
 /** Trecho real da resposta de `/v1/events/{id}` (tags do torcedor e o que está em jogo). */
 function ApiWidget({ locale }: { locale: Locale }) {
+  const ROUND = showcase(locale).round;
   const content = apiLocale(locale);
   const s = getDictionary(content === 'pt-BR' ? 'pt-BR' : 'es-AR').landing.bento.stakes;
   const sample = {
@@ -416,10 +489,16 @@ function ApiWidget({ locale }: { locale: Locale }) {
       {
         name: ROUND.home.name,
         nickname: ROUND.home.nickname,
-        fan_tags: [{ code: 'in_title_race', text: { [content]: s.tags.a } }],
+        fan_tags: [{ code: ROUND.api.tagCode, text: { [content]: s.tags.a } }],
       },
     ],
-    stakes: [{ team: 'away', code: 'at_risk_of_relegation', text: { [content]: s.list.relegation } }],
+    stakes: [
+      {
+        team: ROUND.api.stakeTeam,
+        code: ROUND.api.stakeCode,
+        text: { [content]: s.list[ROUND.api.stakeKey] },
+      },
+    ],
   };
   return (
     <div className="overflow-hidden rounded-xl bg-[#07070c] ring-1 ring-white/10">
@@ -438,7 +517,7 @@ function ApiWidget({ locale }: { locale: Locale }) {
  * Grade do que a API entrega: exemplos reais (amostra em `lib/showcase.ts`) desenhados no estilo do
  * app. Estática: nada aqui chama a API.
  */
-export function Bento({ t, locale }: { t: Text; locale: Locale }) {
+export function Bento({ t, app, locale }: { t: Text; app: AppText; locale: Locale }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
       <Cell
@@ -448,7 +527,7 @@ export function Bento({ t, locale }: { t: Text; locale: Locale }) {
         hue={279}
         className="md:col-span-2 lg:col-span-4 lg:row-span-2"
       >
-        <TimelineWidget t={t.timeline} locale={locale} />
+        <TimelineWidget t={t.timeline} app={app} locale={locale} />
       </Cell>
       <Cell
         tag={t.stakes.tag}
@@ -457,10 +536,10 @@ export function Bento({ t, locale }: { t: Text; locale: Locale }) {
         hue={300}
         className="lg:col-span-2"
       >
-        <StakesWidget t={t.stakes} />
+        <StakesWidget t={t.stakes} locale={locale} />
       </Cell>
-      <Cell tag={t.derby.tag} title={t.derby.title} hue={20} className="lg:col-span-2">
-        <DerbyWidget t={t.derby} locale={locale} />
+      <Cell tag={t.h2h.tag} title={t.h2h.title} body={t.h2h.body} hue={20} className="lg:col-span-2">
+        <H2HWidget t={t.h2h} locale={locale} />
       </Cell>
       <Cell
         tag={t.relevance.tag}
