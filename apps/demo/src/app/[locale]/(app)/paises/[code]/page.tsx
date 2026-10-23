@@ -1,5 +1,7 @@
 import type { CountryCompetitions } from '@galaxie/contracts';
+import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
@@ -13,8 +15,21 @@ import { countryCompetitionsRequest, getCountryCompetitions } from '@/lib/galaxi
 import { contentLocale } from '@/lib/i18n/config';
 import { getI18n } from '@/lib/i18n/server';
 import { plural } from '@/lib/i18n/text';
+import { countryHref } from '@/lib/navigation';
 
 type CompetitionItem = CountryCompetitions['sports'][number]['groups'][number]['competitions'][number];
+
+/** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
+export async function generateMetadata({ params }: PageProps<'/[locale]/paises/[code]'>): Promise<Metadata> {
+  const [{ code }, { locale, t }] = await Promise.all([params, getI18n()]);
+  if (!countryHref(code)) return {};
+  try {
+    const { country } = await getCountryCompetitions(code, locale);
+    return { title: (t.nav.countries as Record<string, string>)[country.code] ?? country.name };
+  } catch {
+    return {};
+  }
+}
 
 function CompetitionCard({ c, typeLabel }: { c: CompetitionItem; typeLabel: string }) {
   const alias = c.nicknames.find((n) => n !== c.name);
@@ -41,6 +56,8 @@ function CompetitionCard({ c, typeLabel }: { c: CompetitionItem; typeLabel: stri
 
 async function Content({ params }: { params: PageProps<'/[locale]/paises/[code]'>['params'] }) {
   const { code } = await params;
+  // código que não é de país (ex.: "world", de um link antigo): "não encontrado" em vez de erro da API
+  if (!countryHref(code)) notFound();
   const { locale, t } = await getI18n();
   const tc = t.pages.country;
   // competições na voz do próprio país (Chile em es-CL); em pt-BR, em português

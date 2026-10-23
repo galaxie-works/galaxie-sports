@@ -1,5 +1,6 @@
 import type { CompetitionSummary } from '@galaxie/contracts';
 import { Globe } from 'lucide-react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
@@ -18,6 +19,15 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
 import { COUNTRIES, sportBySlug } from '@/lib/navigation';
+
+/** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
+export async function generateMetadata({
+  params,
+}: PageProps<'/[locale]/esportes/[sport]'>): Promise<Metadata> {
+  const [{ sport: slug }, { t }] = await Promise.all([params, getI18n()]);
+  const sport = sportBySlug(slug);
+  return sport ? { title: t.nav.sports[sport.slug] } : {};
+}
 
 /** Chave do grupo das competições sem país (o rótulo vem do dicionário). */
 const INTERNATIONAL = 'international';

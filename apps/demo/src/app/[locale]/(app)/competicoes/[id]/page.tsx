@@ -1,4 +1,5 @@
 import type { Event } from '@galaxie/contracts';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -8,11 +9,13 @@ import { Badge } from '@/components/reui/badge';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
+import { FilterChip } from '@/components/sport/filter-chip';
 import { ChampionshipTable, championshipOrder } from '@/components/sport/race';
 import { Section } from '@/components/sport/section';
 import { StandingsTable } from '@/components/sport/standings-table';
+import { UrlTabs } from '@/components/sport/url-tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   competitionEventsRequest,
   competitionRequest,
@@ -25,7 +28,19 @@ import {
 import { apiLocale, contentLocale } from '@/lib/i18n/config';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
-import { cn } from '@/lib/utils';
+import { countryHref, sportParent } from '@/lib/navigation';
+
+/** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
+export async function generateMetadata({
+  params,
+}: PageProps<'/[locale]/competicoes/[id]'>): Promise<Metadata> {
+  const [{ id }, { locale }] = await Promise.all([params, getI18n()]);
+  try {
+    return { title: (await getCompetition(id, locale)).name };
+  } catch {
+    return {};
+  }
+}
 
 /** Quantas temporadas (das mais recentes) a demo verifica e oferece. */
 const MAX_SEASONS = 6;
@@ -53,20 +68,8 @@ function defaultRound(rounds: Round[]) {
   return rounds.find((r) => r.events.some((e) => !TERMINAL.has(e.status))) ?? rounds.at(-1);
 }
 
-function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      scroll={false}
-      className={cn(
-        'rounded-full border px-3 py-1 text-xs whitespace-nowrap transition-colors',
-        active ? 'bg-foreground text-background border-transparent' : 'hover:bg-accent',
-      )}
-    >
-      {children}
-    </Link>
-  );
-}
+/** Aba na URL (`?aba=jogos`): o link do jogo de volta para a competição abre direto nos jogos. */
+const TAB_PARAM = 'aba';
 
 async function Content({ params, searchParams }: PageProps<'/[locale]/competicoes/[id]'>) {
   const { id } = await params;
@@ -86,7 +89,10 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
     .map((s) => ({ year: s.year, start: s.start_date!, end: s.end_date! }));
   const available = await getSeasonsWithData(competition.id, windows, content);
 
-  const requested = Number(query.temporada);
+  // `?data=` (link vindo de um jogo): a temporada que contém a data do jogo
+  const date = typeof query.data === 'string' ? query.data : null;
+  const dated = date ? windows.find((w) => w.start <= date && date <= w.end)?.year : undefined;
+  const requested = Number(query.temporada) || dated;
   // Sem escolha explícita: a temporada mais recente com classificação (a mais completa para a demo).
   const selected =
     available.find((s) => s.year === requested) ??
@@ -115,10 +121,18 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
   ).filter((g) => g.rows.length > 0);
   const base = `/competicoes/${competition.slug}`;
   const seasonQuery = selected ? `temporada=${selected.year}` : '';
+  const tab = query[TAB_PARAM] === 'jogos' || !groups.length ? 'jogos' : 'classificacao';
+  const sport = sportParent(competition.sport, t);
+  const country = competition.country ? countryHref(competition.country.code) : null;
 
   return (
     <>
-      <PageHeader title={competition.name} kind="competição" api={competitionRequest(id, locale, content)} />
+      <PageHeader
+        title={competition.name}
+        kind="competição"
+        parents={sport ? [sport] : undefined}
+        api={competitionRequest(id, locale, content)}
+      />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Crest src={competition.logo} name={competition.name} size="xl" />
@@ -126,14 +140,16 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
             <h1 className="text-2xl font-semibold tracking-tight">{competition.name}</h1>
             <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
               <Badge variant="outline">{t.sport.competitionType[competition.type] ?? competition.type}</Badge>
-              {competition.country ? (
-                <Link
-                  href={`/paises/${competition.country.code.toLowerCase()}`}
-                  className="inline-flex items-center gap-1.5 hover:underline"
-                >
+              {competition.country && country ? (
+                <Link href={country} className="inline-flex items-center gap-1.5 hover:underline">
                   <CountryFlag code={competition.country.code} />
                   {competition.country.name}
                 </Link>
+              ) : competition.country ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <CountryFlag code={competition.country.code} />
+                  {competition.country.name}
+                </span>
               ) : null}
               {competition.official_name && competition.official_name !== competition.name ? (
                 <span>· {fill(tc.officialName, { name: competition.official_name })}</span>
@@ -163,13 +179,18 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
                 {tc.season}
               </span>
               {available.map((s) => (
-                <Chip key={s.year} href={`${base}?temporada=${s.year}`} active={s.year === selected?.year}>
+                <FilterChip
+                  key={s.year}
+                  href={`${base}?temporada=${s.year}`}
+                  active={s.year === selected?.year}
+                  keep={[TAB_PARAM]}
+                >
                   {competition.seasons.find((x) => x.year === s.year)?.label ?? s.year}
-                </Chip>
+                </FilterChip>
               ))}
             </div>
 
-            <Tabs key={selected?.year} defaultValue={groups.length ? 'classificacao' : 'jogos'}>
+            <UrlTabs key={selected?.year} param={TAB_PARAM} value={tab}>
               <TabsList>
                 <TabsTrigger value="classificacao" disabled={!groups.length}>
                   {tc.standings}
@@ -210,13 +231,13 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
                     aria-label={tc.rounds}
                   >
                     {rounds.map((r) => (
-                      <Chip
+                      <FilterChip
                         key={r.name}
-                        href={`${base}?${seasonQuery}&rodada=${encodeURIComponent(r.name)}`}
+                        href={`${base}?${seasonQuery}&${TAB_PARAM}=jogos&rodada=${encodeURIComponent(r.name)}`}
                         active={r.name === round?.name}
                       >
                         {r.name}
-                      </Chip>
+                      </FilterChip>
                     ))}
                   </div>
                 ) : null}
@@ -244,7 +265,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
                   <EmptyState title={tc.noMatches} />
                 )}
               </TabsContent>
-            </Tabs>
+            </UrlTabs>
           </>
         )}
       </div>

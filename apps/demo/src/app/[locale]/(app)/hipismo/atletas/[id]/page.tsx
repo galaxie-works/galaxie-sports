@@ -20,6 +20,7 @@ import {
   type ResultFilters,
 } from '@/lib/galaxie/equestrian';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
+import { equestrianParent } from '@/lib/navigation';
 import { fill } from '@/lib/i18n/text';
 
 type Props = PageProps<'/[locale]/hipismo/atletas/[id]'>;
@@ -72,7 +73,7 @@ async function Content({ params, searchParams }: Props) {
 
   return (
     <>
-      <PageHeader title={a.name} kind="pessoa" api={api} />
+      <PageHeader title={a.name} kind="pessoa" parents={[equestrianParent(t)]} api={api} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-wrap items-center gap-4">
           <Crest src={null} name={a.name} size="xl" round />

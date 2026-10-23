@@ -54,6 +54,30 @@ describe('trilha de navegação', () => {
     expect(entries.at(-1)?.depth).toBe(MAX_TRAIL + 3);
   });
 
+  it('página de topo começa trilha nova mesmo sem clique na sidebar', () => {
+    const entries = applyVisit(
+      { entries: walk(portugal, liga, porto), pendingRoot: null },
+      { path: '/ao-vivo', label: 'Ao vivo', kind: 'ao vivo' },
+    );
+    expect(labels(entries)).toEqual(['Ao vivo']);
+  });
+
+  it('trilha vazia (link direto, aba nova) começa pelos pais da página', () => {
+    const futebol = { path: '/esportes/football', label: 'Futebol', kind: 'esporte' } as const;
+    const entries = applyVisit({ entries: [], pendingRoot: null }, evento, [futebol, liga]);
+    expect(labels(entries)).toEqual(['Futebol', 'Primeira Liga', 'FC Porto x Benfica']);
+    expect(entries.map((e) => e.depth)).toEqual([1, 2, 3]);
+  });
+
+  it('com caminho percorrido, os pais não entram: vale o caminho de quem navegou', () => {
+    const futebol = { path: '/esportes/football', label: 'Futebol', kind: 'esporte' } as const;
+    const entries = applyVisit({ entries: walk(portugal, porto), pendingRoot: null }, evento, [
+      futebol,
+      liga,
+    ]);
+    expect(labels(entries)).toEqual(['Portugal', 'FC Porto', 'FC Porto x Benfica']);
+  });
+
   it('esqueleto carregando mostra o caminho até a página', () => {
     const trail: TrailState = { entries: walk(portugal, liga, porto), pendingRoot: null };
     expect(labels(ancestorsOf(trail, '/eventos/1'))).toEqual(['Portugal', 'Primeira Liga', 'FC Porto']);

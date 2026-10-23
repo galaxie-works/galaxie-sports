@@ -14,6 +14,7 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getT } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
+import { eventCompetitionHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 import { Crest } from './crest';
@@ -81,7 +82,7 @@ export function RaceScoreboard({ event, t, f }: { event: Event; t: Dictionary; f
         <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-2 text-sm">
           {event.competition ? (
             <Link
-              href={`/competicoes/${event.competition.slug}`}
+              href={eventCompetitionHref(event)!}
               className="text-foreground flex items-center gap-2 hover:underline"
             >
               <Crest src={event.competition.logo} name={event.competition.name} size="xs" />

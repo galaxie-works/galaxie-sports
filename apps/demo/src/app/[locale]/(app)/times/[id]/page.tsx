@@ -1,5 +1,6 @@
 import type { TeamColors, TeamSeason, TeamSemantic } from '@galaxie/contracts';
 import { Calendar, History, MapPin, Megaphone, Quote, Users } from 'lucide-react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -35,6 +36,17 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import { calendarDate } from '@/lib/i18n/format';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
+import { countryHref, sportParent } from '@/lib/navigation';
+
+/** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
+export async function generateMetadata({ params }: PageProps<'/[locale]/times/[id]'>): Promise<Metadata> {
+  const [{ id }, { locale }] = await Promise.all([params, getI18n()]);
+  try {
+    return { title: (await getTeamOverview(id, locale)).team.name };
+  } catch {
+    return {};
+  }
+}
 
 /** `?temporada=2025` da URL (o primeiro valor, se repetido); fora de um ano inteiro, nada. */
 function seasonParam(raw: string | string[] | undefined): number | undefined {
@@ -387,6 +399,8 @@ async function Content({
   // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
   // API anterior aos nomes curados (sem `former_names`): nada a mostrar em vez de quebrar a página
   const formerNames = (team.former_names ?? []).filter((f) => f.origin === 'curated');
+  const sport = sportParent(team.sport, t);
+  const country = team.country_ref ? countryHref(team.country_ref.code) : null;
 
   return (
     <>
@@ -394,6 +408,7 @@ async function Content({
         title={team.name}
         label={label ? `${team.name} · ${label}` : undefined}
         kind="time"
+        parents={sport ? [sport] : undefined}
         api={overviewApi}
       />
       <div className="relative isolate flex flex-col gap-8 p-4 md:p-6">
@@ -442,8 +457,8 @@ async function Content({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              {team.country_ref ? (
-                <Link href={`/paises/${team.country_ref.code.toLowerCase()}`} className="hover:underline">
+              {team.country_ref && country ? (
+                <Link href={country} className="hover:underline">
                   {/* bandeira do país no lugar do ícone de mapa */}
                   <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
                     <CountryFlag code={team.country_ref.code} />

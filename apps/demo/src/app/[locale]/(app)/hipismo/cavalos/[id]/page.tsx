@@ -17,6 +17,7 @@ import {
   getEquestrianResults,
 } from '@/lib/galaxie/equestrian';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
+import { equestrianParent } from '@/lib/navigation';
 import { fill } from '@/lib/i18n/text';
 
 type Props = PageProps<'/[locale]/hipismo/cavalos/[id]'>;
@@ -56,7 +57,7 @@ async function Content({ params, searchParams }: Props) {
 
   return (
     <>
-      <PageHeader title={h.name} kind="pessoa" api={api} />
+      <PageHeader title={h.name} kind="pessoa" parents={[equestrianParent(t)]} api={api} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-col gap-2">
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
