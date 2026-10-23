@@ -85,6 +85,7 @@ Valores de `match`:
 | `unmatched` | Nenhum candidato razoável no país |
 | `manual` | Curadoria: escreva `target_id` e `match: manual`. A próxima varredura mantém |
 | `rejected` | Curadoria: não tem par. A próxima varredura mantém |
+| `duplicate` | Outro logo do pacote já cobre o mesmo time: vale o da liga nacional |
 
 `config/assets/acervo/<id>.cobertura.md` traz, por país, quantos logos foram ligados, quantos estão ambíguos e quantos ficaram sem par. Os países da navegação (BR, AR, MX, CO, CL, PE, UY, EC, PY, BO, VE) vêm primeiro, depois as grandes ligas europeias.
 
@@ -94,18 +95,59 @@ Na importação:
 - um arquivo diferente do manifesto (hash) é ignorado e mantém o vínculo que já existe;
 - um alvo que não existe no banco é ignorado.
 
-## Produção (VPS)
+## Base organizada por competição (conversor)
 
-Depois do deploy com a migration `0023`, copie o pacote para a VPS, fora do repositório, e rode no contêiner do ingestor:
+Uma base no formato `<País> - <Competição>/svg|png|webp/Escudo - <Time>.<ext>` (é o caso do acervo `galaxie-proprio`) entra pelo conversor. Ele grava o pacote no layout acima, sem banco e sem rede:
 
 ```bash
-docker compose exec -T ingestor node dist/cli/assets-acervo.js --pasta /caminho/do/pacote --plan
-docker compose exec -T ingestor node dist/cli/assets-acervo.js --pasta /caminho/do/pacote
+pnpm --filter @galaxie/ingestor assets:acervo --converter "<origem>" --pasta ../../data/assets/acervo-galaxie-proprio \
+  --acervo galaxie-proprio --nome "Acervo próprio Galaxie" --autor "Wagner / Galaxie Works" \
+  --licenca "Base própria; uso de marcas de clubes sujeito a licenciamento" --revisao 2026-10-23
 ```
 
-- O manifesto versionado tem os `target_id` do banco onde foi gerado. Em outro banco, os alvos que não existirem são ignorados.
-- Para mapear contra o banco de produção, rode `--mapear` lá e traga o manifesto e o relatório gerados para o repositório.
-- Depois, ligue a flag no painel. Para voltar, desligue: vale em até 15 s.
+- **Arquivos:** SVG de preferência, senão o maior PNG; o maior PNG vai junto para a paleta, e o WebP fica de fora.
+- **Seleções e bandeiras:** "Escudo - Seleção - <País>" vira escudo de seleção; "Bandeira - <País>" não é escudo e fica de fora.
+- **Entrada não confiável:** o conversor lê só SVG e PNG, confere a assinatura do PNG e o tamanho (até 5 MB) e recusa SVG com conteúdo ativo (`svg-safety.ts`). Nesse caso o escudo cai no PNG. Os arquivos são gravados com nomes saneados, nunca com o nome original.
+- **Repetidos:** o mesmo arquivo em mais de uma pasta entra uma vez só, de preferência na pasta da liga nacional.
+- **Grupos:** cada pasta vira um grupo no `acervo.yaml`, com o país e as ligas da api-sports dela (`FOLDER_LEAGUES` em `convert-folders.ts`). O mapeamento usa esse grupo.
+
+Com grupos, o mapeamento segue três caminhos, do mais forte para o mais fraco:
+
+1. **Seleção:** o país do nome ("Seleção - País de Gales") aponta a seleção principal daquele país, a que tem o nome do país. Base, feminino e clube cadastrado como seleção ficam de fora.
+2. **Competição:** casa entre os times que têm jogos nas ligas do grupo. É uma lista fechada, então aceita nome traduzido ("Bayern de Munique" × "Bayern München") quando o vencedor fica bem à frente do segundo: confiança ≥ 0,8 com folga 0,1, ou ≥ 0,6 com folga 0,25 e uma palavra com o mesmo começo. Isso impede "Konyaspor" × "Alanyaspor".
+3. **País:** se o time não está na competição (subiu de divisão, ou o banco ainda não tem a temporada), casa no país com o limiar alto (0,9).
+
+Quando dois logos caem no mesmo time:
+
+- o da liga nacional vence o do torneio internacional, e o outro fica `duplicate`;
+- se um vence com folga de 0,1 (por exemplo "Independiente" × "Independiente Rivadavia"), fica ele;
+- senão, os dois vão para a curadoria.
+
+## Produção (VPS)
+
+O contêiner do ingestor roda como `node`, com o repositório em `/srv`, o que inclui o `config` versionado em `/srv/config`. O manifesto e o relatório da produção vão para `/tmp` do contêiner, partindo da cópia versionada, para manter a curadoria (`rejected`/`manual`). Depois do deploy com a migration `0023`:
+
+```bash
+# 1. no computador com a base: gerar o pacote (ou reaproveitar o gerado no dev)
+pnpm --filter @galaxie/ingestor assets:acervo --converter "C:\Users\consa\Downloads\Escudos" \
+  --pasta ../../data/assets/acervo-galaxie-proprio --acervo galaxie-proprio --nome "Acervo próprio Galaxie" \
+  --autor "Wagner / Galaxie Works" --licenca "Base própria; uso de marcas de clubes sujeito a licenciamento" --revisao 2026-10-23
+tar -C data/assets -czf acervo-galaxie-proprio.tgz acervo-galaxie-proprio
+scp acervo-galaxie-proprio.tgz <vps>:/tmp/
+
+# 2. na VPS, no diretório do compose (fora do repositório)
+mkdir -p /tmp/acervo && tar -C /tmp/acervo -xzf /tmp/acervo-galaxie-proprio.tgz
+docker compose cp /tmp/acervo/acervo-galaxie-proprio ingestor:/tmp/acervo-galaxie-proprio
+docker compose exec -T ingestor cp /srv/config/assets/acervo/galaxie-proprio.yaml /tmp/galaxie-proprio.yaml
+docker compose exec -T ingestor node dist/cli/assets-acervo.js --acervo exemplo --desvincular        # tira o acervo de exemplo
+docker compose exec -T ingestor node dist/cli/assets-acervo.js --pasta /tmp/acervo-galaxie-proprio --manifesto /tmp/galaxie-proprio.yaml --mapear
+docker compose exec -T ingestor node dist/cli/assets-acervo.js --pasta /tmp/acervo-galaxie-proprio --manifesto /tmp/galaxie-proprio.yaml --plan
+docker compose exec -T ingestor node dist/cli/assets-acervo.js --pasta /tmp/acervo-galaxie-proprio --manifesto /tmp/galaxie-proprio.yaml
+docker compose cp ingestor:/tmp/galaxie-proprio.cobertura.md ./galaxie-proprio.cobertura.producao.md
+```
+
+- O `--mapear` da produção casa contra o banco de produção, porque os ids diferem dos do dev. Ele mantém as decisões de curadoria do manifesto versionado. Uma segunda importação não regrava nada.
+- A flag `ASSETS_CUSTOM_LOGOS` continua desligada: com ela desligada, a API fica exatamente como antes. Quem liga é a operação, no painel, quando houver licença para as marcas. Para voltar, desligue: vale em até 15 s.
 
 ## Acervo de exemplo
 
@@ -121,7 +163,8 @@ Não use em produção. No dev (NAS) ele foi importado com `assets:acervo --past
 
 | Acervo | Autor | Licença | Situação |
 | --- | --- | --- | --- |
-| `exemplo` | Galaxie Works | Próprio (gerado para testes e demonstração) | Só dev e testes |
+| `exemplo` | Galaxie Works | Próprio (gerado para testes e demonstração) | Só dev e testes; desvincular na produção |
+| `galaxie-proprio` | Wagner / Galaxie Works | Base própria; uso de marcas de clubes sujeito a licenciamento | Importado com a flag desligada até haver licença |
 
 Todo acervo importado entra nesta tabela com o autor e a licença do `acervo.yaml`.
 

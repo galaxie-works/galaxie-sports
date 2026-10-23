@@ -273,6 +273,23 @@ await check('Demo: páginas públicas sem termos internos', async () => {
   return found.length ? fail(found.slice(0, 5).join(' · ')) : true;
 });
 
+await check('Builder: registry público dos widgets e painel do cliente protegido', async () => {
+  // id bem formado que não existe: a rota é pública (sem redirecionar para o login) e responde 404 em JSON
+  const missing = '00000000-0000-7000-8000-000000000000';
+  const res = await fetch(`${DEMO}/r/${missing}.json`, { redirect: 'manual' });
+  if (res.status === 307 || res.status === 302)
+    return fail('/r/<id>.json redireciona para o login (rota não é pública)');
+  if (res.status !== 404)
+    return fail(`/r/<id inexistente>.json deveria responder 404 (status ${res.status})`);
+  if (!res.headers.get('content-type')?.includes('application/json')) return fail('404 do registry sem JSON');
+  for (const path of ['/cliente', '/cliente/builder']) {
+    const page = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
+    if (page.status !== 307 && page.status !== 302)
+      return fail(`${path} sem sessão deveria redirecionar para o login (status ${page.status})`);
+  }
+  return true;
+});
+
 await check('Painel de Operação: configuração protegida e sem segredos', async () => {
   const url = `${DEMO}/api/ajustes/operacao`;
   const anon = await fetch(url, { redirect: 'manual' });

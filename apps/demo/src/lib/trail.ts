@@ -24,7 +24,8 @@ export type TrailKind =
   | 'explorar'
   | 'ao vivo'
   | 'docs'
-  | 'ajustes';
+  | 'ajustes'
+  | 'cliente';
 
 /** O que a página informa ao abrir. */
 export interface TrailVisit {
@@ -50,7 +51,14 @@ export interface TrailState {
  * de um desses tipos (usuário dentro de Ajustes, atletas dentro de Hipismo) informa os pais (`parents`),
  * que entram antes dela na trilha nova.
  */
-export const ROOT_KINDS: readonly TrailKind[] = ['explorar', 'ao vivo', 'esporte', 'ajustes', 'docs'];
+export const ROOT_KINDS: readonly TrailKind[] = [
+  'explorar',
+  'ao vivo',
+  'esporte',
+  'ajustes',
+  'cliente',
+  'docs',
+];
 
 export const MAX_TRAIL = 6;
 const STORAGE_KEY = 'galaxie:trilha';
