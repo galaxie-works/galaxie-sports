@@ -245,6 +245,41 @@ describe('agente', () => {
       },
     ]);
     expect(rightsPurpose('liga-x', 2026, ['BR', 'AR'])).toBe('wtw:rights:liga-x:2026');
+
+    // provedor que garante as fontes da busca (Gemini em dois passos): URL de fora da lista não passa
+    const grounded = new FakeLlmClient([
+      {
+        data: {
+          markets: [
+            {
+              country: 'BR',
+              distribution: 'split',
+              notes: null,
+              holders: [
+                {
+                  broadcaster: 'Emissora A',
+                  channels: [],
+                  kind: 'free_tv',
+                  all_matches: false,
+                  evidence: [
+                    { url: 'https://cbf.com.br/a/', excerpt: 'a', published_at: null, stance: 'confirms' },
+                    { url: 'https://inventada.com/x', excerpt: 'x', published_at: null, stance: 'confirms' },
+                  ],
+                },
+              ],
+            },
+          ],
+          notes: null,
+        },
+        groundedUrls: ['https://CBF.com.br/a#topo'],
+      },
+    ]);
+    const g = await new WhereToWatchAgent(grounded).researchRights({
+      competition: { slug: 'liga-x', name: 'Liga X' },
+      season: 2026,
+      directories: [br],
+    });
+    expect(g.markets[0]!.holders[0]!.evidence.map((e) => e.url)).toEqual(['https://cbf.com.br/a/']);
     expect(allocationPurpose('liga-x', 'Rodada 7', ['BR'])).toBe('wtw:alloc:liga-x:Rodada_7:BR');
   });
 });
