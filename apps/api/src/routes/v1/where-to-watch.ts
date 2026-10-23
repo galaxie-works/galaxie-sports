@@ -28,11 +28,11 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
       vary: [locale, tz],
       load: async () => {
         const db = requireDb(ctx);
-        const data = await getPublicWhereToWatch(db, {
-          eventId: params.id,
-          country: query.country,
-          region: query.region ?? null,
-        });
+        const data = await getPublicWhereToWatch(
+          db,
+          { eventId: params.id, country: query.country, region: query.region ?? null },
+          ctx.wtwConfig?.() ?? null,
+        );
         if (!data) throw problems.notFound('Evento');
         const logo = (l: { storageKey: string | null; sourceUrl: string | null } | null) =>
           l ? assetUrl(ctx.assetsBaseUrl, l.storageKey, l.sourceUrl) : null;
@@ -56,14 +56,25 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
             sources,
             logo: logo(o.logo),
           })),
-          to_confirm: data.toConfirm.map(({ row, sources, logo: l }) => ({
-            provider: row.providerName,
-            provider_id: row.broadcasterId,
-            medium: row.medium,
-            access_model: row.accessModel,
-            logo: logo(l),
-            sources,
-          })),
+          to_confirm: [
+            ...data.toConfirm.map(({ row, sources, logo: l }) => ({
+              provider: row.providerName,
+              provider_id: row.broadcasterId,
+              medium: row.medium,
+              access_model: row.accessModel,
+              logo: logo(l),
+              sources,
+            })),
+            // país sem nenhuma opção gravada: os detentores da curadoria/pesquisa, "a confirmar"
+            ...data.fromRights.map((r) => ({
+              provider: r.providerName,
+              provider_id: r.broadcasterId,
+              medium: r.medium,
+              access_model: r.accessModel,
+              logo: logo(r.logo),
+              sources: r.sources,
+            })),
+          ],
           updated_at: data.updatedAt ? formatInstant(data.updatedAt, tz) : null,
         };
         return { body, tags: [wtwTag(params.id), `event:${params.id}`] };

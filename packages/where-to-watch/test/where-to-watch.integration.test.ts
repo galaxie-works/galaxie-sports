@@ -471,4 +471,26 @@ describe('biblioteca de emissoras e "canal a confirmar" na API', () => {
       sourceUrl: expect.stringMatching(/^https:\/\/upload\.wikimedia\.org\//),
     });
   });
+
+  it('país sem nenhuma opção gravada: detentores dos direitos "a confirmar" (incertos, se só houver eles)', async () => {
+    const { eventId } = await seedEvent(db, { startsAt: KICKOFF, slug: 'conmebol-libertadores' });
+    // sem configuração: o comportamento antigo (nada)
+    expect(await getPublicWhereToWatch(db, { eventId, country: 'AR' })).toMatchObject({
+      status: 'unknown',
+      toConfirm: [],
+      fromRights: [],
+    });
+    // AR: curadoria só com incertos (holders: []) → os incertos
+    const ar = await getPublicWhereToWatch(db, { eventId, country: 'AR' }, config);
+    expect(ar).toMatchObject({ status: 'unknown', options: [], toConfirm: [] });
+    expect(ar!.fromRights.map((o) => o.broadcasterId).sort()).toEqual(
+      [...config.directory('AR').rightsFor('conmebol-libertadores', KICKOFF)!.uncertainHolders].sort(),
+    );
+    expect(ar!.fromRights[0]!.sources[0]!.url).toMatch(/^https:\/\//);
+    // UY: curadoria com detentores → os detentores
+    const uy = await getPublicWhereToWatch(db, { eventId, country: 'UY' }, config);
+    expect(uy!.fromRights.map((o) => o.broadcasterId).sort()).toEqual(['disney_plus', 'espn']);
+    // país fora da configuração: nada
+    expect((await getPublicWhereToWatch(db, { eventId, country: 'DE' }, config))!.fromRights).toEqual([]);
+  });
 });
