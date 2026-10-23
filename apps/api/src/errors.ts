@@ -42,6 +42,22 @@ export const problems = {
     new ProblemError(403, 'MODULE_NOT_IN_PLAN', `Plano não inclui o esporte ${sport}`),
   marketNotInPlan: (market: string) =>
     new ProblemError(403, 'MARKET_NOT_IN_PLAN', `Plano não inclui o mercado ${market}`),
+  originNotAllowed: (origin: string | undefined) =>
+    new ProblemError(
+      403,
+      'ORIGIN_NOT_ALLOWED',
+      'Origem não autorizada para esta chave publicável',
+      origin
+        ? `A origem ${origin} não está entre as origens permitidas da chave.`
+        : 'Requisição sem Origin nem Referer: a chave publicável só vale a partir de uma página autorizada.',
+    ),
+  publishableKeyNotAllowed: () =>
+    new ProblemError(
+      403,
+      'PUBLISHABLE_KEY_NOT_ALLOWED',
+      'Rota não disponível para chave publicável',
+      'A chave publicável só faz leituras (GET) da API /v1. Use a chave secreta no seu backend.',
+    ),
   notFound: (what = 'Recurso') => new ProblemError(404, 'NOT_FOUND', `${what} não encontrado`),
   conflict: (detail: string) => new ProblemError(409, 'CONFLICT', 'Conflito com o estado atual', detail),
   rateLimited: (retryAfterSec: number) =>

@@ -10,6 +10,10 @@ export interface TenantContext {
   slug: string;
   plan: ApiPlan;
   keyId: string;
+  /** `secret` = `x-galaxie-key` (backend); `publishable` = `x-galaxie-publishable-key` (navegador). */
+  keyKind: 'secret' | 'publishable';
+  /** Chave publicável presa a um widget (null/ausente = qualquer). */
+  widgetId?: string | null;
   /** Módulos efetivos: os do tenant, restritos pelos escopos da chave. */
   modules: ApiModule[];
   /** Países contratados; vazio = todos. */
@@ -80,6 +84,7 @@ export class Authenticator {
       slug: record.tenant.slug,
       plan: record.tenant.plan,
       keyId: record.keyId,
+      keyKind: 'secret',
       modules,
       markets: record.tenant.markets,
       sports: record.tenant.sports,

@@ -118,6 +118,10 @@ describe('OpenAPI', () => {
       in: 'header',
       name: 'x-galaxie-key',
     });
+    expect(doc.components?.securitySchemes?.galaxiePublishableKey).toMatchObject({
+      in: 'header',
+      name: 'x-galaxie-publishable-key',
+    });
   });
 });
 

@@ -11,7 +11,7 @@ Especificação formal: OpenAPI 3.1 gerada a partir dos schemas Zod de `packages
 
 | Item | Regra |
 |---|---|
-| Autenticação | Header `x-galaxie-key: <chave do tenant>` (chaves rotacionáveis, escopos por módulo) |
+| Autenticação | Header `x-galaxie-key: <chave do tenant>` (chaves rotacionáveis, escopos por módulo); no navegador, `x-galaxie-publishable-key` só para leitura (§1.3) |
 | Tenant | Cada cliente tem plano (Core Data, Fan Experience, Live Intelligence, Enterprise), mercados ativos e esportes contratados |
 | Rate limit | Por tenant e por rota; headers `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset` |
 | Locale | `Accept-Language` ou `?locale=` (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY, es-EC) |
@@ -83,6 +83,64 @@ curl -X POST http://localhost:8080/internal/admin/tenants \
 Revogação, suspensão e mudança de plano valem em até 60 s (cache do autenticador por instância).
 
 **Contadores de uso** — toda requisição autenticada incrementa um `Map` em memória (tenant × dia UTC × padrão de rota; sem I/O na requisição). A cada 1 s (`USAGE_FLUSH_MS`) o buffer agregado vira **um** pipeline de `HINCRBY` no Valkey (`<prefixo>usage:<dia>:<tenant>`, campo = rota; set `<prefixo>usage:<dia>:tenants`; TTL 4 dias). A cada 60 s (`USAGE_PERSIST_MS`) uma instância (trava `SET NX`) consolida ontem e hoje em `api.usage_daily` com `greatest(...)` — idempotente e sem regredir se o Valkey for reiniciado. As consultas combinam o consolidado com os contadores vivos. Em queda abrupta da instância perde-se no máximo o último segundo. A 10k req/s isso dá ~1 round-trip/s por instância.
+
+### 1.3 Chave publicável (widgets no navegador)
+
+O Galaxie Sports Builder gera widgets que a operadora instala no app dela como componente shadcn. Esses widgets chamam a API **do navegador do torcedor**, e a chave secreta (`x-galaxie-key`) não pode ir para lá: quem abre o DevTools leva a chave e o plano inteiro. Para isso existe a **chave publicável**, que é pública por definição e por isso alcança pouco.
+
+| Item | Regra |
+|---|---|
+| Formato | `gs_pk_live_<32 bytes em base64url>`; o banco guarda só o **sha256** (`ops.publishable_key.key_hash`) e um prefixo visível (`gs_pk_live_AbCd1234`) para a lista. A chave completa é exibida uma única vez, na criação |
+| Header | `x-galaxie-publishable-key` (nunca por query string). Se a requisição trouxer também `x-galaxie-key`, vale a secreta |
+| Alcance | Só `GET`/`HEAD` em rotas `/v1/*` que exigem módulo, com os módulos, mercados e esportes do tenant. Escrita, `/v1/account/*`, `/v1/stream` (SSE), `/mirror` e `/internal/*` → 403 `PUBLISHABLE_KEY_NOT_ALLOWED` |
+| Origens | `allowed_origins` da chave: origem exata (`https://app.exemplo.com`, `http://localhost:3000`) ou curinga de subdomínio (`https://*.exemplo.com`, que aceita `app.exemplo.com` e `a.b.exemplo.com`, mas não `exemplo.com`). Esquema e porta precisam bater. A API confere o `Origin` (ou, sem ele, a origem do `Referer`); fora da lista ou sem nenhum dos dois → 403 `ORIGIN_NOT_ALLOWED` |
+| Widget | `widget_id` opcional prende a chave a um widget: a chave só alcança os módulos daquele tipo (`WIDGET_KIND_MODULES`: `match_card` e `where_to_watch` → `core_data` + `where_to_watch`; `live_list` e `standings` → `core_data`) e deixa de valer quando o widget é arquivado |
+| Rate limit | Próprio, por **chave × IP** (todas as rotas somadas), janela de 60 s, padrão 60 req (`PUBLISHABLE_RATE_LIMIT_PER_MINUTE`), nunca acima de `rate_limit_per_minute` do tenant. Não consome o limite tenant × rota da chave secreta. Mesmos headers `x-ratelimit-*` e 429 `RATE_LIMITED` |
+| CORS | A resposta só leva `Access-Control-Allow-Origin` (a própria origem, sem credenciais) quando a origem bateu com a chave usada. O preflight (`OPTIONS`, que chega sem chave) é respondido com `GET, HEAD` para as origens de alguma chave ativa; vale também sem `CORS_ORIGINS` |
+| Revogação | `revoked_at`; vale em até 60 s (cache da verificação por instância, positivo e negativo). Chave revogada, inexistente ou de tenant suspenso → 401 `INVALID_KEY` |
+| Uso | `last_used_at` atualizado no máximo a cada 5 min; as requisições entram nos contadores de uso do tenant (§1.2) |
+
+**Tabelas** (migration `0027_builder_widgets`): `ops.widget` (tipo, nome, `version` que sobe a cada salvamento, `config` jsonb com tema, locale, mercado e recorte padrão, `archived_at`) e `ops.publishable_key`. Os helpers ficam em `@galaxie/db` (`packages/db/src/widgets.ts`): `listWidgets`, `getWidget`, `saveWidget`, `archiveWidget`, `createPublishableKey`, `listPublishableKeys`, `revokePublishableKey` e `verifyPublishableKey`.
+
+```ts
+const { id, key } = await createPublishableKey(db, {
+  tenantId,
+  name: 'App da Operadora Exemplo',
+  allowedOrigins: ['https://app.exemplo.com', 'https://*.exemplo.com'],
+});
+// key = gs_pk_live_... — mostre uma vez; depois só o prefixo aparece em listPublishableKeys
+```
+
+```http
+GET /v1/events?sport=football&date=2026-10-23
+Origin: https://app.exemplo.com
+x-galaxie-publishable-key: gs_pk_live_...
+```
+
+**O que a chave publicável não protege.** O `Origin` é confiável dentro de um navegador, mas qualquer script fora dele pode forjá-lo. A lista de origens impede que outro site use a chave da operadora nas páginas dele; não impede alguém de copiar a chave e chamar a API de um servidor. O que limita esse abuso é o alcance (só leitura, só o contrato do tenant) e o rate limit por IP. Se isso não basta para a operadora, a alternativa é o proxy abaixo.
+
+**Alternativa: proxy pelo backend da operadora.** Em vez de chamar a Galaxie direto, o widget aponta a URL base para uma rota do próprio app da operadora, que repassa a requisição com a chave **secreta** guardada no servidor (o widget então não envia chave nenhuma):
+
+```ts
+// app/api/galaxie/[...path]/route.ts (Next.js) no app da Operadora Exemplo
+export async function GET(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  if (path[0] !== 'v1') return new Response('Not found', { status: 404 });
+  const url = new URL(req.url);
+  const res = await fetch(`https://api.galaxie.sports/${path.join('/')}${url.search}`, {
+    headers: {
+      'x-galaxie-key': process.env.GALAXIE_API_KEY!,
+      'accept-language': req.headers.get('accept-language') ?? 'pt-BR',
+    },
+  });
+  return new Response(res.body, {
+    status: res.status,
+    headers: { 'content-type': res.headers.get('content-type') ?? 'application/json', 'cache-control': res.headers.get('cache-control') ?? 'no-store' },
+  });
+}
+```
+
+Com o proxy, a chave nunca sai do servidor, não há CORS (mesma origem) e a operadora aplica a autenticação e o rate limit dela própria. O custo é o tráfego passar pelo backend dela e consumir o limite tenant × rota da chave secreta (todos os torcedores atrás do mesmo IP do servidor), então vale cachear as respostas no proxy respeitando o `Cache-Control` da API. Restrinja o proxy a `GET` em `/v1/*`, como faz a chave publicável, para ele não virar uma porta aberta para a conta.
 
 ## 2. Espelho compatível — `/mirror`
 
@@ -745,6 +803,8 @@ Formato RFC 9457 (`application/problem+json`):
 | 400 `INVALID_PARAMS` | Parâmetro inválido |
 | 401 `INVALID_KEY` | Chave ausente/inválida |
 | 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
+| 403 `ORIGIN_NOT_ALLOWED` | Chave publicável usada de uma origem fora da lista dela (ou sem `Origin`/`Referer`), §1.3 |
+| 403 `PUBLISHABLE_KEY_NOT_ALLOWED` | Chave publicável em rota que ela não alcança (escrita, `/v1/account`, SSE, espelho), §1.3 |
 | 404 `NOT_FOUND` | Entidade inexistente |
 | 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente; rotas internas de correção quando a versão corrigida não é mais a vigente) |
 | 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
