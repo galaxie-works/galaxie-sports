@@ -155,12 +155,17 @@ jobs:
         run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh
 
   backup-restore:
-    name: backup e restore ponta a ponta
+    name: backup e restore ponta a ponta (Postgres ${{ matrix.postgres }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      # Servidor e cliente do backup na mesma versão: 17 é produção, 18 é o alvo do upgrade (issue #201).
+      matrix:
+        postgres: [17, 18]
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:${{ matrix.postgres }}-alpine
         env:
           POSTGRES_USER: galaxie
           POSTGRES_PASSWORD: galaxie
@@ -195,7 +200,7 @@ jobs:
       - run: pnpm --filter "@galaxie/db..." run build
 
       - name: Imagem de backup
-        run: docker build -t "$BACKUP_IMAGE" infra/backup
+        run: docker build --build-arg "POSTGRES_IMAGE=postgres:${{ matrix.postgres }}-alpine" -t "$BACKUP_IMAGE" infra/backup
 
       - name: Banco descartável migrado
         run: |

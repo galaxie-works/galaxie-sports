@@ -11,11 +11,19 @@ concurrency:
 
 jobs:
   checks:
+    name: checks (Postgres ${{ matrix.postgres }}, Valkey ${{ matrix.valkey }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      # 17/8 é o que roda em produção; 18/9 é o alvo do upgrade (issue #201). Ao migrar, sai a linha 17/8.
+      matrix:
+        include:
+          - { postgres: 17, valkey: 8 }
+          - { postgres: 18, valkey: 9 }
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:${{ matrix.postgres }}-alpine
         env:
           POSTGRES_USER: galaxie
           POSTGRES_PASSWORD: galaxie
@@ -28,7 +36,7 @@ jobs:
           --health-timeout 5s
           --health-retries 20
       valkey:
-        image: valkey/valkey:8-alpine
+        image: valkey/valkey:${{ matrix.valkey }}-alpine
         ports:
           - 6379:6379
         options: >-
