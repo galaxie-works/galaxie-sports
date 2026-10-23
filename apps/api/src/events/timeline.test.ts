@@ -350,6 +350,25 @@ describe('buildTimelineDto', () => {
     expect(buildTimelineDto(input({ ...basketball, sport: 'american-football' })).markers).toEqual([]);
   });
 
+  it('rúgbi: tempos de 40 minutos e prorrogação de 2 × 10', () => {
+    const t = buildTimelineDto(
+      input({
+        sport: 'rugby',
+        statusDetail: 'AET',
+        score: { home: 25, away: 19, extratime: { home: 6, away: 0 } },
+        incidents: [],
+      }),
+    );
+    expect(t.markers.map((m) => [m.kind, m.clock.minute])).toEqual([
+      ['kickoff', 0],
+      ['halftime', 40],
+      ['second_half', 41],
+      ['end_of_regulation', 80],
+      ['extra_time', 81],
+      ['full_time', 100],
+    ]);
+  });
+
   it('conta a prorrogação quando há lance nela', () => {
     seq = 0;
     const t = buildTimelineDto(
