@@ -1,0 +1,17 @@
+# Acervo de exemplo: escudos genéricos gerados pela Galaxie (forma de escudo, faixa e iniciais), sem
+# imagens de terceiros. Serve para testar e demonstrar o fluxo do acervo customizado de logos ponta a
+# ponta (assets:acervo + flag ASSETS_CUSTOM_LOGOS). Não use em produção.
+acervo:
+  id: exemplo
+  name: Acervo de exemplo Galaxie
+  author: Galaxie Works
+  license: Próprio (gerado para testes e demonstração)
+  revision: '2026-10-23'
+names:
+  teams/br/america: América
+  teams/br/clube-ficticio: Clube Fictício da Galáxia
+  teams/ar/boca-juniors: Boca Juniors
+  teams/ar/river-plate: River Plate
+  teams/mx/america: Club América
+  teams/es/real-madrid: Real Madrid
+  competitions/br/serie-a: Serie A

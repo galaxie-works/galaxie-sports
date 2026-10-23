@@ -13,6 +13,7 @@ import {
 } from '@galaxie/db';
 import { loadStageMatches, type BuildContext } from '../events/builder.js';
 import { pickText } from '../i18n.js';
+import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import {
   computeCampaign,
@@ -86,7 +87,7 @@ export async function loadTeamCompetitions(
     .from(season)
     .innerJoin(competition, eq(competition.id, season.competitionId))
     .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
-    .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+    .leftJoin(asset, eq(asset.id, competitionLogoId(bctx.customLogos)))
     .where(and(inArray(season.id, candidateIds), year === undefined ? undefined : eq(season.year, year)));
 
   // por competição: a temporada atual ou, sem ela, a mais recente; antigas (sem jogo há 12 meses) saem.
@@ -213,7 +214,7 @@ export async function loadTeamCompetitions(
           logoUrl: asset.sourceUrl,
         })
         .from(participant)
-        .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+        .leftJoin(asset, eq(asset.id, teamLogoId(bctx.customLogos)))
         .where(inArray(participant.id, opponentIds))
     : [];
   const opponentBy = new Map(opponents.map((o) => [o.id, o]));

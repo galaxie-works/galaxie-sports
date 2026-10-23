@@ -1,7 +1,7 @@
 import 'zod-openapi';
 import * as z from 'zod';
 import { CompetitionSummary, FormerName, ParticipantRef, SeasonRef } from './catalog.js';
-import { AssetUrl, CountryRef, LocaleQuery, PaginationQuery } from './common.js';
+import { AssetUrl, CountryRef, LocaleQuery, LogoSource, PaginationQuery } from './common.js';
 import { TeamColors } from './colors.js';
 import { Event, EventsQuery, TeamSummary } from './events.js';
 
@@ -30,6 +30,7 @@ export const TeamParams = z.object({ id: z.uuid().meta({ description: 'ID do par
 export { TeamColors, teamGradient } from './colors.js';
 
 export const Team = TeamSummary.extend({
+  logo_source: LogoSource,
   country_ref: CountryRef.nullable(),
   founded: z.number().int().nullable(),
   venue: z

@@ -36,6 +36,7 @@ import {
 } from '../events/relevance.js';
 import { pickText } from '../i18n.js';
 import { teamColors } from '../teams/colors.js';
+import { competitionLogoId, logoIdSql } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import { OFF_CATALOG_SPORTS } from '../off-catalog.js';
 
@@ -321,7 +322,7 @@ export async function loadExploreSummary(
       })
       .from(competition)
       .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
-      .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+      .leftJoin(asset, eq(asset.id, competitionLogoId(bctx.customLogos)))
       .where(lte(competition.tier, 2)),
     db
       .select({ id: event.competitionId, n: count() })
@@ -535,7 +536,7 @@ async function topTeams(bctx: BuildContext, codes: string[], now: Date, from: Da
   const rows = await bctx.db.execute<TeamRow>(sql`
     select r.id::text as id, r.country_code, r.name, r.short_name,
            a.storage_key, a.source_url, a.palette
-      from (select p.id, p.country_code, p.name, p.short_name, p.logo_asset_id,
+      from (select p.id, p.country_code, p.name, p.short_name, ${logoIdSql('p', bctx.customLogos)} as logo_asset_id,
                    row_number() over (
                      partition by p.country_code
                      order by exists (select 1 from semantic.team_profile tp where tp.participant_id = p.id) desc,

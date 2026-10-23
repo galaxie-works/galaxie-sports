@@ -23,6 +23,7 @@ import {
   matchRank,
   stringsOf,
 } from '../../search/match.js';
+import { logoIdSql } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
 import { localeOf } from './events.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
@@ -119,7 +120,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
         left join lateral (
           select t.slug, t.names, t.labels, t.nicknames from semantic.team_profile t
            where t.participant_id = p.id order by t.slug limit 1) tp on true
-        left join core.asset a on a.id = p.logo_asset_id
+        left join core.asset a on a.id = ${logoIdSql('p', ctx.logos.enabled())}
         left join core.country c on c.code = p.country_code
        where ${matchesSql(sql`p.name`, aliases, term)}
          and p.sport not in (${sql.join(
@@ -204,7 +205,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
         left join lateral (
           select x.labels, x.nicknames, x.trophy_nickname from semantic.competition_profile x
            where x.competition_id = c.id order by x.slug limit 1) cp on true
-        left join core.asset a on a.id = c.logo_asset_id
+        left join core.asset a on a.id = ${logoIdSql('c', ctx.logos.enabled())}
         left join core.country co on co.code = c.country_code
        where ${matchesSql(sql`c.name`, aliases, term)}
          ${sports ? sql`and ${inList(sql`c.sport`, sports)}` : sql``}
@@ -440,7 +441,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
              a.storage_key as logo_key, a.source_url as logo_url
         from core.event_participant ep
         join core.participant p on p.id = ep.participant_id
-        left join core.asset a on a.id = p.logo_asset_id
+        left join core.asset a on a.id = ${logoIdSql('p', ctx.logos.enabled())}
        where ${inList(
          sql`ep.event_id`,
          rows.map((r) => r.id),

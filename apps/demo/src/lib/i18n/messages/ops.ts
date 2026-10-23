@@ -30,6 +30,7 @@ export default defineMessages(
       wtw: 'Onde Assistir',
       related: 'Conteúdo relacionado',
       provider: 'Fornecedor',
+      assets: 'Logos',
       history: 'Histórico',
     },
     sections: {
@@ -54,6 +55,11 @@ export default defineMessages(
       provider: {
         title: 'Fornecedor (planos e cota)',
         description: 'Plano contratado de cada API da api-sports e a reserva da cota diária.',
+      },
+      assets: {
+        title: 'Acervo customizado de logos',
+        description:
+          'Escudos de alta qualidade importados de um acervo próprio (assets:acervo), por cima dos logos do fornecedor.',
       },
       credentials: {
         title: 'Credenciais e infraestrutura',
@@ -495,6 +501,11 @@ export default defineMessages(
         description: 'Parte da cota que nenhum job usa, para emergências.',
         unit: '%',
       },
+      ASSETS_CUSTOM_LOGOS: {
+        label: 'Usar o acervo customizado de logos',
+        description:
+          'Ligado, a API mostra o escudo do acervo em tudo que tiver mapeamento (times, jogos, busca, classificação). Desligado, volta na hora para os logos do fornecedor, sem apagar nada.',
+      },
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
@@ -531,6 +542,7 @@ export default defineMessages(
         wtw: 'Where to Watch',
         related: 'Related content',
         provider: 'Provider',
+        assets: 'Logos',
         history: 'History',
       },
       sections: {
@@ -555,6 +567,11 @@ export default defineMessages(
         provider: {
           title: 'Provider (plans and quota)',
           description: 'Subscribed plan for each api-sports API and the daily quota reserve.',
+        },
+        assets: {
+          title: 'Custom logo collection',
+          description:
+            "High-quality crests imported from our own collection (assets:acervo), layered over the provider's logos.",
         },
         credentials: {
           title: 'Credentials and infrastructure',
@@ -969,6 +986,11 @@ export default defineMessages(
           description: 'Share of the quota no job uses, kept for emergencies.',
           unit: '%',
         },
+        ASSETS_CUSTOM_LOGOS: {
+          label: 'Use the custom logo collection',
+          description:
+            "On, the API serves the collection's crest wherever there is a mapping (teams, matches, search, standings). Off, it goes straight back to the provider's logos, deleting nothing.",
+        },
         APISPORTS_KEY: { label: 'api-sports key' },
         OPENAI_API_KEY: { label: 'OpenAI key' },
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
@@ -1004,6 +1026,7 @@ export default defineMessages(
         wtw: 'Dónde ver',
         related: 'Contenido relacionado',
         provider: 'Proveedor',
+        assets: 'Logos',
         history: 'Historial',
       },
       sections: {
@@ -1028,6 +1051,11 @@ export default defineMessages(
         provider: {
           title: 'Proveedor (planes y cuota)',
           description: 'Plan contratado de cada API de api-sports y la reserva de la cuota diaria.',
+        },
+        assets: {
+          title: 'Acervo propio de escudos',
+          description:
+            'Escudos de alta calidad importados de un acervo propio (assets:acervo), por encima de los logos del proveedor.',
         },
         credentials: {
           title: 'Credenciales e infraestructura',
@@ -1455,6 +1483,11 @@ export default defineMessages(
           label: 'Reserva de la cuota diaria',
           description: 'Parte de la cuota que ningún job usa, para emergencias.',
           unit: '%',
+        },
+        ASSETS_CUSTOM_LOGOS: {
+          label: 'Usar el acervo propio de escudos',
+          description:
+            'Encendido, la API muestra el escudo del acervo en todo lo que tenga mapeo (equipos, partidos, búsqueda, tablas). Apagado, vuelve al instante a los logos del proveedor, sin borrar nada.',
         },
         APISPORTS_KEY: { label: 'Clave de api-sports' },
         OPENAI_API_KEY: { label: 'Clave de OpenAI' },

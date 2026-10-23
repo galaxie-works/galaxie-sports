@@ -30,6 +30,7 @@ import {
 } from '../../events/builder.js';
 import { IN_PLAY } from '../../events/queries.js';
 import { formatInstant, pickList, pickText } from '../../i18n.js';
+import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
 import { buildCtx, localeOf, sportCheck } from './events.js';
 
@@ -92,7 +93,7 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
             nicknames: competitionProfile.nicknames,
           })
           .from(competition)
-          .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+          .leftJoin(asset, eq(asset.id, competitionLogoId(ctx.logos.enabled())))
           .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
           .where(UUID_RE.test(params.id) ? eq(competition.id, params.id) : eq(competition.slug, params.id))
           .orderBy(sql`(${competition.sport} = 'football') desc`)
@@ -138,7 +139,7 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
             })
             .from(standing)
             .innerJoin(participant, eq(participant.id, standing.participantId))
-            .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+            .leftJoin(asset, eq(asset.id, teamLogoId(ctx.logos.enabled())))
             .where(eq(standing.seasonId, s.id))
             .orderBy(asc(standing.group), asc(standing.rank));
           const byGroup = new Map<string, typeof rows>();
@@ -204,7 +205,7 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
                   url: asset.sourceUrl,
                 })
                 .from(participant)
-                .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+                .leftJoin(asset, eq(asset.id, teamLogoId(ctx.logos.enabled())))
                 .where(inArray(participant.id, ids))
             : [];
           const partBy = new Map(parts.map((p) => [p.id, ref(p)]));

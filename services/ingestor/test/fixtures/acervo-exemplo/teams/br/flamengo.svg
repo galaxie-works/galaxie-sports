@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Acervo de exemplo da Galaxie Sports: escudo genérico gerado, sem relação com marcas reais. -->
+  <path d="M256 24 L456 88 L456 248 C456 372 372 448 256 492 C140 448 56 372 56 248 L56 88 Z" fill="#c8102e" stroke="#1a1a1a" stroke-width="10"/>
+  <path d="M56 300 L456 140 L456 220 L80 370 Z" fill="#111111"/>
+  <text x="256" y="268" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="112" font-weight="700" fill="#ffffff" stroke="#1a1a1a" stroke-width="3">FLA</text>
+</svg>

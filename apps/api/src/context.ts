@@ -1,4 +1,5 @@
 import type { AdminGuard } from './admin/guard.js';
+import type { CustomLogos } from './assets/custom-logos.js';
 import type { MediaDenylist } from '@galaxie/apisports-client';
 import type { ApiModule, Database } from '@galaxie/db';
 import type { WtwConfig } from '@galaxie/where-to-watch';
@@ -29,6 +30,8 @@ export interface AppContext {
   cache: ResponseCache;
   /** ASSETS_PUBLIC_BASE_URL — base pública do nosso storage de assets. */
   assetsBaseUrl: string | undefined;
+  /** Flag ASSETS_CUSTOM_LOGOS: logo do acervo customizado no lugar do logo do fornecedor (assets/custom-logos.ts). */
+  logos: CustomLogos;
   /** Guard das rotas internas (/internal/...): ADMIN_KEY_HASHES + ADMIN_IP_ALLOWLIST; ausente → 503. */
   adminGuard?: AdminGuard | undefined;
   /** Dicionários/política do onde assistir (carregados sob demanda de config/). */

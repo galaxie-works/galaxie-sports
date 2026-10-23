@@ -1,0 +1,114 @@
+# Manifesto do acervo customizado de logos — gerado por `assets:acervo --mapear`.
+# Curadoria: escreva target_id e match: manual (ou match: rejected) — a próxima varredura mantém.
+schema_version: 1
+acervo:
+  id: exemplo
+  name: Acervo de exemplo Galaxie
+  author: Galaxie Works
+  license: Próprio (gerado para testes e demonstração)
+  revision: 2026-10-23
+generated_at: 2026-10-23T05:26:27.645Z
+logos:
+  - key: teams/ar/boca-juniors
+    kind: team
+    country: AR
+    name: Boca Juniors
+    file: teams/ar/boca-juniors.svg
+    sha256: 3884d1257355dc857a29a98de0cf5bdb10243499afc8fc8eb3fdc1f007624b50
+    target_id: 01a15fba-f502-7216-9b60-c64a9bd52098
+    target_name: Boca Juniors
+    match: auto
+    confidence: 1
+  - key: teams/ar/river-plate
+    kind: team
+    country: AR
+    name: River Plate
+    file: teams/ar/river-plate.svg
+    sha256: 0cb98f8758825844475a087089a4fb0418d15fab23f5fb1dfc6e645b0c7e537e
+    target_id: 01a15fc2-a0d1-7805-9ff7-4bad344dd82d
+    target_name: River Plate
+    match: auto
+    confidence: 1
+  - key: competitions/br/serie-a
+    kind: competition
+    country: BR
+    name: Serie A
+    file: competitions/br/serie-a.svg
+    sha256: 580fe48d8ce865ccb9d4a7688c56fc4087c7e0f1632714d105a82e9eaa9c4409
+    target_id: 01a15fba-af59-76bd-acc9-e458185511a8
+    target_name: Serie A
+    match: auto
+    confidence: 1
+  - key: teams/br/america
+    kind: team
+    country: BR
+    name: América
+    file: teams/br/america.svg
+    sha256: d5681c3dd6e82498ad82d1d2fa94a43d48e85b72b216614dfdbe710aac9d7df5
+    target_id: null
+    match: ambiguous
+    confidence: 0.951
+    candidates:
+      - id: 01a15fba-ff9a-7bee-883d-284a6a4fd7cc
+        name: America Mineiro
+        confidence: 0.951
+      - id: 01a15fba-ff9d-724f-8843-ae29dafb8dac
+        name: América SE
+        confidence: 0.87
+      - id: 01a15fba-ff9d-76c3-b394-c33b4c899d85
+        name: América de Pedrinhas
+        confidence: 0.85
+      - id: 01a15fba-ff9c-7151-aa65-0f45a9dddb6e
+        name: Sul América
+        confidence: 0.85
+      - id: 01a15fba-ffa0-79a4-b126-9ce41c894de5
+        name: America GO
+        confidence: 0.75
+  - key: teams/br/clube-ficticio
+    kind: team
+    country: BR
+    name: Clube Fictício da Galáxia
+    file: teams/br/clube-ficticio.svg
+    sha256: 72cc030962dea634d41a50db944769f55dc873cf7845b981026a77dba8d2ef2e
+    target_id: null
+    match: unmatched
+  - key: teams/br/flamengo
+    kind: team
+    country: BR
+    name: Flamengo
+    file: teams/br/flamengo.svg
+    sha256: 9b26e1cb746804b4238e3e05b23d8e060ea4d571ace6ee79cca9adbbb8c940b9
+    target_id: 01a15fba-ec17-75ee-a3bf-38fb2e3e70cc
+    target_name: Flamengo
+    match: auto
+    confidence: 1
+  - key: teams/br/palmeiras
+    kind: team
+    country: BR
+    name: Palmeiras
+    file: teams/br/palmeiras.svg
+    sha256: a73e9d8b3f74b352113cdac21bf386ac3f70adc19642d9b515273535d18419fb
+    target_id: 01a15fba-ec17-7d8b-90d7-47b3ccbe967e
+    target_name: Palmeiras
+    match: auto
+    confidence: 1
+  - key: teams/es/real-madrid
+    kind: team
+    country: ES
+    name: Real Madrid
+    file: teams/es/real-madrid.svg
+    sha256: aaf91073f66884ba093933e13a8072d8c32bc3828ba5be8b4dff7c1ffba9395e
+    target_id: 01a15fba-f504-748d-9ea3-7926a572cdb9
+    target_name: Real Madrid
+    match: auto
+    confidence: 1
+  - key: teams/mx/america
+    kind: team
+    country: MX
+    name: Club América
+    file: teams/mx/america.svg
+    sha256: 1af7916ae9dabe42309d254444c58092c2c5c256fbaf111d09c54d59f12645aa
+    target_id: 01a163b8-94ef-79f8-a8c7-9834d5494125
+    target_name: Club America
+    match: auto
+    confidence: 1

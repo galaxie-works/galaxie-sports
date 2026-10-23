@@ -1,6 +1,6 @@
 import 'zod-openapi';
 import * as z from 'zod';
-import { AssetUrl, CountryRef, LocaleQuery, PaginationQuery } from './common.js';
+import { AssetUrl, CountryRef, LocaleQuery, LogoSource, PaginationQuery } from './common.js';
 
 // ─── esportes ────────────────────────────────────────────────────────────────────────────────────
 
@@ -70,6 +70,7 @@ export const CompetitionSummary = z
 export type CompetitionSummary = z.infer<typeof CompetitionSummary>;
 
 export const Competition = CompetitionSummary.extend({
+  logo_source: LogoSource,
   trophy_nickname: z.string().nullable(),
   external_ids: z
     .record(z.string(), z.string())

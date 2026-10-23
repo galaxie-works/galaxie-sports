@@ -12,6 +12,7 @@ import { buildEvents } from '../events/builder.js';
 import type { BuildContext } from '../events/builder.js';
 import { pickText } from '../i18n.js';
 import { teamColors } from '../teams/colors.js';
+import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import { loadPerson } from './person.js';
 import {
@@ -45,7 +46,12 @@ const RECENT_MATCHES = 10;
 
 type Line = PlayerLine & { n: MatchNumbers; teamId: string | null };
 
-async function participantRefs(db: Database, assetsBaseUrl: string | undefined, ids: string[]) {
+async function participantRefs(
+  db: Database,
+  assetsBaseUrl: string | undefined,
+  customLogos: boolean,
+  ids: string[],
+) {
   if (!ids.length) return new Map<string, ReturnType<typeof toRef>>();
   const rows = await db
     .select({
@@ -57,7 +63,7 @@ async function participantRefs(db: Database, assetsBaseUrl: string | undefined, 
       palette: asset.palette,
     })
     .from(participant)
-    .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+    .leftJoin(asset, eq(asset.id, teamLogoId(customLogos)))
     .where(inArray(participant.id, [...new Set(ids)]));
   function toRef(r: (typeof rows)[number]) {
     return {
@@ -76,6 +82,7 @@ async function participantRefs(db: Database, assetsBaseUrl: string | undefined, 
 async function competitionRefs(
   db: Database,
   assetsBaseUrl: string | undefined,
+  customLogos: boolean,
   locale: string,
   ids: string[],
 ) {
@@ -93,7 +100,7 @@ async function competitionRefs(
     })
     .from(competition)
     .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
-    .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+    .leftJoin(asset, eq(asset.id, competitionLogoId(customLogos)))
     .where(inArray(competition.id, [...new Set(ids)]));
   const out = new Map<string, { ref: PersonSeasonStats['competition']; tier: number }>();
   for (const r of rows) {
@@ -143,8 +150,8 @@ export async function loadPersonOverview(
   id: string,
   year: number | undefined,
 ): Promise<{ body: PersonOverview; teamIds: string[]; eventIds: string[] }> {
-  const { db, assetsBaseUrl, locale } = bctx;
-  const person = await loadPerson(db, assetsBaseUrl, bctx.now, id);
+  const { db, assetsBaseUrl, customLogos, locale } = bctx;
+  const person = await loadPerson(db, assetsBaseUrl, bctx.now, id, customLogos);
   const [nationality, photo, seasonRows, transferRows, trophies, sidelined] = await Promise.all([
     nationalityResolver(db, locale),
     photoAsset(db, id),
@@ -261,7 +268,7 @@ export async function loadPersonOverview(
   const shown = year ?? seasons.find((s) => s.appearances > 0)?.year ?? seasons[0]?.year ?? null;
   const inYear = shown === null ? [] : lines.filter((l) => l.year === shown);
 
-  const teams = await participantRefs(db, assetsBaseUrl, [
+  const teams = await participantRefs(db, assetsBaseUrl, customLogos, [
     ...candidates,
     ...lines.map((l) => l.teamId).filter((x): x is string => !!x),
   ]);
@@ -269,6 +276,7 @@ export async function loadPersonOverview(
   const comps = await competitionRefs(
     db,
     assetsBaseUrl,
+    customLogos,
     locale,
     shownGroups.map((m) => m.g.competitionId),
   );

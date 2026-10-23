@@ -31,7 +31,7 @@ import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 import { displayValue, formatDuration, settingText } from './format';
 import { SettingRow, useOpsAction } from './setting-row';
 
-const TABS = ['status', 'live', 'schedule', 'ai', 'wtw', 'related', 'provider', 'history'] as const;
+const TABS = ['status', 'live', 'schedule', 'ai', 'wtw', 'related', 'provider', 'assets', 'history'] as const;
 type Tab = (typeof TABS)[number];
 
 interface Ctx {
@@ -77,7 +77,7 @@ export function OpsPanel({ snapshot, timeZone }: Ctx) {
         <TabsContent value="status" className="mt-4">
           <StatusTab snapshot={snapshot} timeZone={timeZone} />
         </TabsContent>
-        {(['live', 'ai', 'wtw', 'related'] as const).map((s) => (
+        {(['live', 'ai', 'wtw', 'related', 'assets'] as const).map((s) => (
           <TabsContent key={s} value={s} className="mt-4">
             <SectionCard section={s} snapshot={snapshot} timeZone={timeZone} />
           </TabsContent>

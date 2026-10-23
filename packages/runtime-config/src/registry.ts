@@ -15,6 +15,7 @@ export const SETTING_SECTIONS = [
   'wtw',
   'related',
   'provider',
+  'assets',
   'credentials',
 ] as const;
 export type SettingSection = (typeof SETTING_SECTIONS)[number];
@@ -324,6 +325,19 @@ export const SETTINGS: readonly SettingDef[] = [
     min: 0,
     max: 50,
     default: '15',
+  },
+
+  // ── Logos ───────────────────────────────────────────────────────────────────────────────────
+  {
+    // acervo customizado (assets:acervo): ligado, a API serve o logo do acervo onde houver mapeamento
+    key: 'ASSETS_CUSTOM_LOGOS',
+    section: 'assets',
+    type: 'enum',
+    options: ['off', 'on'],
+    services: ['api'],
+    apply: 'refresh',
+    default: 'off',
+    critical: true,
   },
 
   // ── Credenciais (só "configurado ou não") ───────────────────────────────────────────────────

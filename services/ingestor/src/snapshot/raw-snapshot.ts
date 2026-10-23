@@ -183,7 +183,10 @@ export async function exportRawSnapshot(
         .unsafe(
           `select kind, source_url, storage_key, sha256, width, height, bytes,
                   to_char(fetched_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as fetched_at
-             from core.asset order by source_url`,
+             from core.asset
+            -- o acervo customizado tem manifesto próprio (config/assets/acervo) e volta com assets:acervo
+            where origin = 'provider'
+            order by source_url`,
         )
         .cursor(1000);
       for await (const rows of assetCursor) {

@@ -14,6 +14,7 @@ import {
 } from '@galaxie/db';
 import { F1_DRIVER_PREFIX } from '@galaxie/providers';
 import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 
 const PROVIDER = 'api-sports';
@@ -154,6 +155,7 @@ export async function loadRaceTeams(
   sport: string,
   results: unknown[],
   assetsBaseUrl: string | undefined,
+  customLogos = false,
 ): Promise<RaceTeams> {
   const ids = [...new Set(results.map((r) => text(obj(obj(r).team).id)).filter((x): x is string => !!x))];
   const map = await providerIds(db, sport, ids);
@@ -161,7 +163,7 @@ export async function loadRaceTeams(
   const rows = await db
     .select({ id: participant.id, name: participant.name, key: asset.storageKey, url: asset.sourceUrl })
     .from(participant)
-    .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+    .leftJoin(asset, eq(asset.id, teamLogoId(customLogos)))
     .where(inArray(participant.id, [...new Set(map.values())]));
   const byId = new Map(rows.map((r) => [r.id, r]));
   const out: RaceTeams = new Map();

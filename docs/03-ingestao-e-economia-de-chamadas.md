@@ -324,6 +324,10 @@ pnpm --filter @galaxie/ingestor assets:palette --limite 500 --verbose
 ```
 
 O backfill registra a execução em `ops.job_run` (`assets:palette`) e roda agendado logo depois do espelho (job `assets-palette`). O campo `version` da paleta permite recalcular quando o algoritmo mudar (basta zerar `palette`).
+
+### 7.3 Acervo customizado de logos (opcional)
+
+Escudos em alta de um acervo licenciado, por cima dos logos do fornecedor. `assets:acervo` mapeia o pacote para os nossos times e competições, espelha em `acervo/<id>/...` com `core.asset.origin = acervo` e liga como `custom_logo_asset_id`; o `logo_asset_id` do fornecedor nunca é tocado. A API só usa esses logos com a flag `ASSETS_CUSTOM_LOGOS` ligada no painel de Operação, que desliga na hora e sem deploy. Manifesto, curadoria, relatório de cobertura e créditos: [runbooks/acervo-de-logos.md](runbooks/acervo-de-logos.md).
 **Reescrita de URLs para o nosso CDN** — funções puras em `@galaxie/apisports-client` (`media.ts`), para a API:
 
 - `rewriteMediaUrl(url, { publicBaseUrl: ASSETS_PUBLIC_BASE_URL, denylist })` → `https://<cdn>/api-sports/football/teams/121.png`; URL bloqueada → `null`; URL fora da CDN da api-sports (ex.: Wikimedia na NBA) volta intacta. `rewriteMediaUrls(envelope, ...)` aplica em um JSON inteiro.

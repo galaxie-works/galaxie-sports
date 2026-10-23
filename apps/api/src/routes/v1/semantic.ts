@@ -39,6 +39,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext, type ReviewStatus } from '../../context.js';
 import { ProblemError, problems } from '../../errors.js';
 import { formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
+import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
 
 const MODULE = { module: 'semantic' } as const;
@@ -384,7 +385,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
           const [l] = await db
             .select({ storageKey: asset.storageKey, sourceUrl: asset.sourceUrl })
             .from(participant)
-            .innerJoin(asset, eq(asset.id, participant.logoAssetId))
+            .innerJoin(asset, eq(asset.id, teamLogoId(ctx.logos.enabled())))
             .where(eq(participant.id, p.participantId))
             .limit(1);
           logo = assetUrl(ctx.assetsBaseUrl, l?.storageKey, l?.sourceUrl);

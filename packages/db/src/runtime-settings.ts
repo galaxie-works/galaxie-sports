@@ -13,6 +13,34 @@ export async function readRuntimeOverrides(db: Pick<Database, 'select'>): Promis
   return new Map(rows.map((r) => [r.key, r.value]));
 }
 
+export interface RuntimeSettingState {
+  /** Sobrescrita gravada (sem validar); null = sem sobrescrita. */
+  value: string | null;
+  /** Última mudança registrada no histórico (gravação ou volta ao padrão); null = nunca mudou. */
+  changedAt: Date | null;
+}
+
+/**
+ * Sobrescrita de uma chave e quando ela mudou pela última vez. A API usa o instante da mudança como
+ * versão da flag na chave do cache: duas instâncias que leem o mesmo banco chegam à mesma versão.
+ */
+export async function readRuntimeSettingState(
+  db: Pick<Database, 'select'>,
+  key: string,
+): Promise<RuntimeSettingState> {
+  const [row] = await db
+    .select({
+      value: sql<
+        string | null
+      >`(select ${runtimeSetting.value} from ${runtimeSetting} where ${runtimeSetting.key} = ${key})`,
+      changedAt: sql<
+        string | null
+      >`(select max(${runtimeSettingLog.changedAt}) from ${runtimeSettingLog} where ${runtimeSettingLog.key} = ${key})`,
+    })
+    .from(sql`(select 1) as one`);
+  return { value: row?.value ?? null, changedAt: row?.changedAt ? new Date(row.changedAt) : null };
+}
+
 export interface RuntimeSettingWrite {
   key: string;
   /** `null` = voltar ao padrão (apaga a sobrescrita). */

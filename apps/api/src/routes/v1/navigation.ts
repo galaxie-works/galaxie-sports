@@ -29,6 +29,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { pickList, pickText, resolveLocale } from '../../i18n.js';
+import { competitionLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 
@@ -258,7 +259,7 @@ export async function navigationRoutes(
       })
       .from(competition)
       .leftJoin(country, eq(country.code, competition.countryCode))
-      .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+      .leftJoin(asset, eq(asset.id, competitionLogoId(ctx.logos.enabled())))
       .$dynamic();
   }
   type Row = Awaited<ReturnType<ReturnType<typeof selectCompetitions>['execute']>>[number];
