@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
+import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { ChampionshipTable, championshipOrder } from '@/components/sport/race';
@@ -126,7 +127,11 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
             <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
               <Badge variant="outline">{t.sport.competitionType[competition.type] ?? competition.type}</Badge>
               {competition.country ? (
-                <Link href={`/paises/${competition.country.code.toLowerCase()}`} className="hover:underline">
+                <Link
+                  href={`/paises/${competition.country.code.toLowerCase()}`}
+                  className="inline-flex items-center gap-1.5 hover:underline"
+                >
+                  <CountryFlag code={competition.country.code} />
                   {competition.country.name}
                 </Link>
               ) : null}

@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { CampaignCard } from '@/components/sport/campaign-card';
 import { CopyButton } from '@/components/sport/copy-button';
+import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { ChampionshipCard } from '@/components/sport/race';
@@ -443,9 +444,11 @@ async function Content({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               {team.country_ref ? (
                 <Link href={`/paises/${team.country_ref.code.toLowerCase()}`} className="hover:underline">
-                  <Fact icon={MapPin}>
+                  {/* bandeira do país no lugar do ícone de mapa */}
+                  <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                    <CountryFlag code={team.country_ref.code} />
                     {[semantic?.city, semantic?.region, team.country_ref.name].filter(Boolean).join(', ')}
-                  </Fact>
+                  </span>
                 </Link>
               ) : null}
               {team.founded ? (
