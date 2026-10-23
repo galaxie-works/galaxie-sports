@@ -73,6 +73,13 @@ describe('temporada do carro no heading do piloto', () => {
     });
   });
 
+  it('a foto da curadoria vence a regra (Senna: Phoenix 1991)', () => {
+    const phoenix = { url: 'https://cdn/phoenix.jpg', season: 1991, role: 'action' } as Photo;
+    const shots = heroPhotos({ ...senna, portrait: null, highlight: phoenix });
+    expect(shots.car).toBe(phoenix);
+    expect(shots.season?.year).toBe(1991);
+  });
+
   it('anos de carreira', () => {
     expect(careerSpan(senna)).toEqual({ from: 1984, to: 1993 });
     expect(careerSpan(career([season(2026, { races: 0 })]))).toBeNull();
