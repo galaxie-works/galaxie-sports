@@ -1249,6 +1249,14 @@ describe('/v1/teams e /v1/people', () => {
     ) as { person: { id: string } };
     const res = await get(`/v1/people/${striker.person.id}/overview`);
     expect(res.statusCode).toBe(200);
+    // os jogos embutidos entram nas tags: o change feed derruba o perfil quando o placar muda
+    expect(String(res.headers['surrogate-key']).split(' ')).toEqual(
+      expect.arrayContaining([
+        `person:${striker.person.id}`,
+        `participant:${ids.palmeiras}`,
+        `event:${ids.detail}`,
+      ]),
+    );
     const body = res.json();
     expect(body).toMatchObject({
       person: { id: striker.person.id, name: 'Atacante A' },

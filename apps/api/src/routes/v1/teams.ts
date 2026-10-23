@@ -668,14 +668,22 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       ttl: CACHE_TTL.standings,
       vary: [locale, tz],
       load: async () => {
-        const { body, teamIds } = await loadPersonOverview(
-          buildCtx(ctx, locale, tz),
-          params.id,
-          query.season,
-        );
+        const bctx = buildCtx(ctx, locale, tz);
+        const { body, teamIds, eventIds } = await loadPersonOverview(bctx, params.id, query.season);
+        // os jogos embutidos seguem o change feed (placar, status, correções) e o TTL curto do ao vivo
         return {
           body,
-          tags: [`person:${body.person.id}`, 'roster', ...teamIds.map((t) => `participant:${t}`)],
+          tags: [
+            `person:${body.person.id}`,
+            'roster',
+            ...teamIds.map((t) => `participant:${t}`),
+            ...eventIds.map((e) => `event:${e}`),
+          ],
+          ttl: eventsTtl(
+            body.recent_matches.map((m) => m.event),
+            bctx.now,
+            CACHE_TTL.standings,
+          ),
         };
       },
     });
