@@ -10,6 +10,7 @@ import {
   mmaCardPlacement,
   mmaFightResult,
   mmaWeightClass,
+  nbaCupFinalIds,
   nbaStage,
   nflStage,
   NORMALIZABLE_SPORT_ENDPOINTS,
@@ -18,6 +19,7 @@ import {
   normalizeF1Standings,
   normalizeMmaFights,
   normalizeMmaResults,
+  normalizeNbaPlayers,
   normalizeSportEnvelope,
   normalizeSportGames,
   normalizeSportStandings,
@@ -225,10 +227,12 @@ describe('jogos dos esportes coletivos (respostas reais recortadas)', () => {
   });
 
   it('NBA v2: liga em texto, visitantes = away, logos da Wikimedia fora dos assets', () => {
-    const b = games('nba', 'games-date-2026-05-17.json');
+    const env = loadSportFixture('nba', 'games-date-2026-05-17.json');
+    const b = normalizeSportGames('nba', env.response, new Date('2026-05-17T12:00:00Z'));
+    // sem datas de temporada na API: a janela vem dos jogos
     expect(b.competitions[0]).toMatchObject({
       id: 'standard',
-      seasons: [{ year: 2025, label: '2025/26', startDate: null, endDate: null }],
+      seasons: [{ year: 2025, label: '2025/26', startDate: '2026-05-17', endDate: '2026-05-17' }],
     });
     const e = b.events[0]!;
     expect(e.observation).toMatchObject({ status: 'scheduled', statusDetail: 'Scheduled' });
@@ -264,6 +268,72 @@ describe('jogos dos esportes coletivos (respostas reais recortadas)', () => {
       away: 55,
       periods: { q1: { home: 28, away: 30 }, q2: { home: 29, away: 25 } },
     });
+  });
+
+  const nbaGame = (gid: number, start: string, stage: number, city: string, points: number | null = 100) => ({
+    id: gid,
+    league: 'standard',
+    season: 2024,
+    date: { start },
+    stage,
+    arena: { city },
+    status: points == null ? { short: 1, long: 'Scheduled' } : { short: 3, long: 'Finished' },
+    periods: { current: points == null ? 0 : 4, total: 4, endOfPeriod: false },
+    teams: { visitors: { id: 2, name: 'Boston Celtics' }, home: { id: 17, name: 'Los Angeles Lakers' } },
+    scores: { visitors: { linescore: [], points }, home: { linescore: [], points: points && points + 1 } },
+  });
+
+  it('NBA v2: final da NBA Cup em fase própria; semifinais em Las Vegas seguem na temporada regular', () => {
+    const items = [
+      nbaGame(1, '2024-12-14T22:00:00.000Z', 2, 'Las Vegas'),
+      nbaGame(2, '2024-12-15T01:30:00.000Z', 2, 'Las Vegas'),
+      nbaGame(3, '2024-12-18T01:30:00.000Z', 2, 'Las Vegas'),
+      nbaGame(4, '2024-12-18T00:30:00.000Z', 2, 'Boston'),
+      nbaGame(5, '2024-10-10T00:30:00.000Z', 1, 'Las Vegas'),
+    ];
+    expect([...nbaCupFinalIds(items)]).toEqual(['3']);
+    const b = normalizeSportGames('nba', items, FETCHED);
+    expect(byId(b.events, '3').stageLabel).toBe('nba-cup-final');
+    expect(byId(b.events, '1').stageLabel).toBe('stage-2');
+    expect(byId(b.events, '5').stageLabel).toBe('stage-1');
+    expect(b.stages.find((s) => s.providerLabel === 'nba-cup-final')).toMatchObject({ kind: 'final' });
+    expect(b.competitions[0]!.seasons[0]).toMatchObject({ startDate: '2024-10-10', endDate: '2024-12-18' });
+  });
+
+  it('NBA v2: prorrogações com as chaves ot, ot2 (como os outros esportes) e duração maior', () => {
+    const g = {
+      ...nbaGame(20, '2025-01-10T00:30:00.000Z', 2, 'Boston'),
+      scores: {
+        visitors: { linescore: ['30', '25', '20', '25', '10', '8'], points: 118 },
+        home: { linescore: ['28', '29', '22', '21', '10', '12'], points: 122 },
+      },
+    };
+    const e = normalizeSportGames('nba', [g], FETCHED).events[0]!;
+    expect(Object.keys(e.observation.score?.periods ?? {})).toEqual(['q1', 'q2', 'q3', 'q4', 'ot', 'ot2']);
+    expect(e.observation.score?.periods?.ot2).toEqual({ home: 12, away: 8 });
+    const regular = normalizeSportGames(
+      'nba',
+      [nbaGame(21, '2025-01-10T00:30:00.000Z', 2, 'Boston')],
+      FETCHED,
+    );
+    expect(duration(e)).toBeGreaterThan(duration(regular.events[0]!));
+  });
+
+  it('NBA v2: jogo de playoff "se necessário" que não aconteceu vira cancelado', () => {
+    const items = [
+      nbaGame(10, '2025-05-15T04:00:00.000Z', 3, 'Indianapolis', null),
+      nbaGame(11, '2026-10-21T23:00:00.000Z', 3, 'Indianapolis', null),
+      nbaGame(12, '2025-01-10T00:30:00.000Z', 2, 'Boston', null),
+    ];
+    const b = normalizeSportGames('nba', items, FETCHED);
+    expect(byId(b.events, '10').observation).toMatchObject({
+      status: 'cancelled',
+      statusDetail: 'Not necessary',
+    });
+    // ainda não passou um dia do horário: segue agendado
+    expect(byId(b.events, '11').observation.status).toBe('scheduled');
+    // temporada regular: adiado sem placar é tratado pelo fornecedor (Postponed), não por esta regra
+    expect(byId(b.events, '12').observation.status).toBe('scheduled');
   });
 
   it('código desconhecido vira status null (a máquina descarta) e item sem id é ignorado', () => {
@@ -421,7 +491,7 @@ describe('classificação', () => {
     // o fornecedor às vezes devolve total = 0: soma casa + fora
     expect(nba.standings[0]).toMatchObject({
       season: { competitionId: 'standard', year: 2024 },
-      group: 'east',
+      group: 'Eastern Conference',
       rank: 2,
       won: 61,
       lost: 21,
@@ -759,5 +829,59 @@ describe('despacho por endpoint', () => {
 
   it('todos os esportes têm duração esperada', () => {
     for (const sport of API_SPORTS_OTHER_SPORTS) expect(EXPECTED_DURATION_MIN[sport]).toBeGreaterThan(0);
+  });
+});
+
+describe('elenco da NBA v2', () => {
+  const player = (pid: number, standard: Record<string, unknown> | null) => ({
+    id: pid,
+    firstname: 'Jalen',
+    lastname: 'Brunson',
+    birth: { date: '1996-08-31', country: 'USA' },
+    nba: { start: 2018, pro: 6 },
+    height: { feets: '6', inches: '2', meters: '1.88' },
+    weight: { pounds: '190', kilograms: '86.2' },
+    college: 'Villanova',
+    leagues: standard ? { standard } : { vegas: { jersey: 1, active: false, pos: 'G' } },
+  });
+
+  it('players?team&season vira pessoa e elenco da temporada; sem inscrição na liga principal fica fora', () => {
+    const b = normalizeNbaPlayers(
+      [player(1, { jersey: 11, active: true, pos: 'G' }), player(2, null)],
+      FETCHED,
+      { team: '24', season: '2024' },
+    );
+    expect(b.persons).toEqual([
+      expect.objectContaining({
+        id: '1',
+        name: 'Jalen Brunson',
+        birthDate: '1996-08-31',
+        nationality: 'USA',
+        heightCm: 188,
+        weightKg: 86,
+        photoUrl: null,
+      }),
+    ]);
+    expect(b.rosters).toEqual([
+      {
+        participantId: '24',
+        personId: '1',
+        season: { competitionId: 'standard', year: 2024 },
+        role: 'player',
+        number: 11,
+        position: 'G',
+        validFrom: null,
+        validTo: null,
+      },
+    ]);
+    expect(b.competitions[0]).toMatchObject({ id: 'standard', seasons: [{ year: 2024, label: '2024/25' }] });
+  });
+
+  it('sem time ou temporada nos parâmetros não grava nada; o despacho só aceita /players na NBA', () => {
+    expect(normalizeNbaPlayers([player(1, { jersey: 1, pos: 'C' })], FETCHED, {}).persons).toEqual([]);
+    expect(
+      normalizeSportEnvelope('nba', '/players', { response: [] }, FETCHED, { team: '1', season: '2024' }),
+    ).toMatchObject({ items: 0 });
+    expect(normalizeSportEnvelope('basketball', '/players', { response: [] }, FETCHED)).toBeNull();
   });
 });

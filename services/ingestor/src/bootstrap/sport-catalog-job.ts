@@ -14,6 +14,7 @@ import {
 import { jobRun, type Database } from '@galaxie/db';
 import { eq } from 'drizzle-orm';
 import type { SportCatalogCompetition } from '../catalog/catalog-config.js';
+import { linkNbaLogos } from '../catalog/nba-logos.js';
 import { upsertCatalog, type CatalogRows, type UpsertStats } from '../catalog/persist.js';
 import {
   checkSportCatalog,
@@ -175,6 +176,8 @@ export async function runSportCatalogJob(
     const now = options.now ?? new Date();
     const rows: CatalogRows = profile.build(responses, { catalog, today: now });
     const stats = await upsertCatalog(db, sport, rows);
+    // o catálogo regrava logo_asset_id: os logos da NBA v2 voltam do api-basketball
+    if (sport === 'nba') await linkNbaLogos(db);
     const check = checkSportCatalog(catalog, rows);
 
     if (options.games) {
