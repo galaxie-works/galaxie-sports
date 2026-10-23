@@ -37,6 +37,7 @@ import {
   venueDisplay,
   type Database,
 } from '@galaxie/db';
+import { coachPersonId } from '@galaxie/providers';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
@@ -557,7 +558,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           : [[], []];
         const people = await coreIds(db, 'person', [
           ...lines.map((l) => l.pid),
-          ...coachGames.map((c) => c.pid),
+          ...coachGames.map((c) => coachPersonId(c.pid)),
         ]);
         const statsOf = new Map<string, NonNullable<SquadMember['stats']>>();
         for (const l of lines) {
@@ -587,7 +588,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         }
         const coachStats = new Map<string, NonNullable<SquadMember['stats']>>();
         for (const c of coachGames) {
-          const personId = people.get(c.pid);
+          const personId = people.get(coachPersonId(c.pid));
           if (personId)
             coachStats.set(personId, { appearances: c.games, starts: 0, minutes: 0, goals: 0, assists: 0 });
         }

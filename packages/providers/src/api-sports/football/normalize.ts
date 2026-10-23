@@ -15,6 +15,7 @@ import {
   type NormalizedVenue,
   type SeasonRef,
 } from '../../model.js';
+import { coachPersonId } from './person-ids.js';
 import { parseRound } from './round.js';
 import { EXTRA_TIME_CODES, mapFootballStatus } from './status.js';
 import type {
@@ -140,7 +141,7 @@ class Collector {
   person(ref: ApiPersonRef | null | undefined, kind: 'player' | 'coach'): string | null {
     if (!ref || ref.id == null || !ref.name) return null;
     return this.fullPerson({
-      id: String(ref.id),
+      id: kind === 'coach' ? coachPersonId(ref.id) : String(ref.id),
       name: ref.name,
       firstName: null,
       lastName: null,
@@ -392,7 +393,7 @@ export function normalizeCoaches(
   for (const coach of items) {
     if (coach?.id == null || !coach.name) continue;
     const personId = c.fullPerson({
-      id: String(coach.id),
+      id: coachPersonId(coach.id),
       name: coach.name,
       firstName: coach.firstname,
       lastName: coach.lastname,
@@ -522,19 +523,21 @@ export function normalizeTransfers(items: ApiTransferItem[], observedAt: Date): 
 }
 
 /**
- * Lista por pessoa de trophies/sidelined: `players=a-b` traz `{ id, <campo> }` por pessoa e `player=a` traz a
- * lista direto. Só jogadores: técnicos e jogadores dividem o espaço de ids em core.provider_map.
+ * Lista por pessoa de trophies/sidelined: `players=a-b` (ou `coachs=a-b`) traz `{ id, <campo> }` por pessoa e
+ * `player=a` (ou `coach=a`) traz a lista direto. Os técnicos levam o prefixo de `coachPersonId`.
  */
 function perPerson<T>(items: unknown[], field: string, params: Record<string, string>): [string, T[]][] {
-  if (params.coach || params.coachs) return [];
+  const coach = !!(params.coach || params.coachs);
+  const personId = (id: string | number) => (coach ? coachPersonId(id) : String(id));
   const out: [string, T[]][] = [];
   const flat: T[] = [];
   for (const it of items as Record<string, unknown>[]) {
     if (it && typeof it.id === 'number' && Array.isArray(it[field]))
-      out.push([String(it.id), it[field] as T[]]);
+      out.push([personId(it.id), it[field] as T[]]);
     else flat.push(it as T);
   }
-  if (flat.length && params.player) out.push([params.player, flat]);
+  const single = params.coach ?? params.player;
+  if (flat.length && single) out.push([personId(single), flat]);
   return out;
 }
 

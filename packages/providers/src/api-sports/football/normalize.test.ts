@@ -160,9 +160,10 @@ describe('normalizeFixtures — detalhe (fixtures?id)', () => {
   it('detalhe guarda escalações, estatísticas e jogadores; pessoas vêm de todas as partes', () => {
     expect(Object.keys(e.footballFixture!.detail!)).toEqual(['events', 'lineups', 'statistics', 'players']);
     expect(batch.persons.map((p) => p.id).sort()).toEqual(
-      ['800001', '800002', '900001', '900002', '900003', '900011', '900012', '900013'].sort(),
+      // técnicos com o prefixo coach: (ids da api-sports separados dos jogadores)
+      ['coach:800001', 'coach:800002', '900001', '900002', '900003', '900011', '900012', '900013'].sort(),
     );
-    expect(batch.persons.find((p) => p.id === '800001')).toMatchObject({
+    expect(batch.persons.find((p) => p.id === 'coach:800001')).toMatchObject({
       name: 'Técnico A',
       photoKind: 'coach',
     });
@@ -234,7 +235,7 @@ describe('outros endpoints', () => {
     expect(b.rosters).toEqual([
       {
         participantId: '121',
-        personId: '800001',
+        personId: 'coach:800001',
         season: null,
         role: 'coach',
         number: null,

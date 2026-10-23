@@ -11,6 +11,8 @@ import type { ApiPlayerItem, ApiTransferItem } from './types.js';
 
 const FETCHED = new Date('2026-10-22T14:00:00Z');
 
+const single276 = () => [{ type: 'Suspended', start: '2025-01-01', end: '2025-01-10' }];
+
 describe('perfil completo do jogador', () => {
   it('players: local e país de nascimento e uma linha de estatística por time e temporada', () => {
     const items = loadFootballFixture<{ response: ApiPlayerItem[] }>('players-team-121-2024.json').response;
@@ -108,7 +110,7 @@ describe('perfil completo do jogador', () => {
     expect(b.participants.map((p) => p.id).sort()).toEqual(['121', '3942']);
   });
 
-  it('trophies e sidelined: aceitam players=a-b e player=a; técnicos ficam de fora', () => {
+  it('trophies e sidelined: aceitam players=a-b e player=a; técnicos levam o prefixo coach:', () => {
     const multi = [
       {
         id: 276,
@@ -128,7 +130,9 @@ describe('perfil completo do jogador', () => {
     expect(normalizeTrophies(single, FETCHED, { player: '276' }).trophies).toEqual([
       { personId: '276', league: 'La Liga', country: 'Spain', season: '2015/2016', place: 'Winner' },
     ]);
-    expect(normalizeTrophies(multi, FETCHED, { coachs: '276-1947' }).trophies).toEqual([]);
+    expect(normalizeTrophies(multi, FETCHED, { coachs: '276-1947' }).trophies.map((t) => t.personId)).toEqual(
+      ['coach:276', 'coach:276'],
+    );
 
     const sidelined = [
       {
@@ -143,7 +147,9 @@ describe('perfil completo do jogador', () => {
       { personId: '276', type: 'Thigh Injury', startDate: '2025-09-19', endDate: null },
       { personId: '276', type: 'Thigh Injury', startDate: '2025-04-18', endDate: '2025-05-22' },
     ]);
-    expect(normalizeSidelined(sidelined, FETCHED, { coach: '276' }).sidelined).toEqual([]);
+    expect(
+      normalizeSidelined(single276(), FETCHED, { coach: '276' }).sidelined.map((r) => r.personId),
+    ).toEqual(['coach:276']);
   });
 
   it('o despacho por endpoint cobre transfers, trophies e sidelined', () => {
