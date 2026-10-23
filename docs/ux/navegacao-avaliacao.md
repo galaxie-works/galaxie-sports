@@ -125,9 +125,9 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 **Correção:** `generateMetadata` com o nome da página ("Cruzeiro x Remo · Galaxie Sports", "Brasileirão Série A · Galaxie Sports"…). Os dados vêm das mesmas funções cacheadas que a página usa.
 
-**Falta (📝):** local, clássico e as páginas internas do hipismo, no mesmo padrão.
+**Falta (📝):** local, clássico e as páginas internas do hipismo, no mesmo padrão. ✅ Feito no item 23.
 
-### 9. Piloto e lutador usam a página de time 📝
+### 9. Piloto e lutador usam a página de time ✅ (item 24)
 
 **Onde:** `/times/{id}` de um piloto de F1 ou de um lutador. A página abre, mas mostra o card "Elenco · Sem elenco nem escalações registrados", que é um beco sem saída e não faz sentido para um piloto.
 
@@ -138,7 +138,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 - Esconder o card de elenco quando o participante não é um time (`team.kind !== 'team'`).
 - A médio prazo, uma rota própria (`/pilotos/{id}`, `/lutadores/{id}`) com campeonato, equipe e corridas ou lutas. Mantém `/times/{id}` redirecionando.
 
-### 10. Temporada divergente na F1 📝
+### 10. Temporada divergente na F1 ✅ (item 25)
 
 **Onde:** na página da Fórmula 1 e no campeonato. O card do esporte mostra "2026" (temporada corrente do catálogo), mas o campeonato abre em 2024, a única temporada com dados. A aba de corridas se chama "Jogos".
 
@@ -146,7 +146,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 **Proposta:** mostrar no card do esporte a temporada com dados (a mesma que a competição vai abrir) e chamar a aba de "Corridas" quando a competição tem sessões.
 
-### 11. Seções vazias sem aviso (hipismo) 📝
+### 11. Seções vazias sem aviso (hipismo) ✅ (item 23)
 
 **Onde:** `/hipismo` na base de dev, que não tem dados de hipismo. "Destaques", "Provas recentes" e "Campeonatos" aparecem só com o título, sem conteúdo nem explicação. Parece que a página está quebrada ou carregando.
 
@@ -159,7 +159,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 - **Trilha no celular:** mostra só o item anterior, truncado ("Fórm… › Campeonato Mundial…"). Proposta: no celular, trocar por um botão "‹ Fórmula 1" (voltar ao pai) e deixar o título da página na linha de baixo.
 - **Esqueleto das páginas de topo:** durante o carregamento, mostra por um instante a trilha anterior antes de começar a nova. Proposta: passar o tipo da página também ao esqueleto.
 - **Grupo "World"** na página do esporte vinha da API sem tradução. ✅ Corrigido na segunda rodada (item 13): agora entra em "Internacionais".
-- **Idioma do conteúdo:** com a interface em inglês, as sessões da F1 aparecem em espanhol ("Carrera", "Clasificación"), porque o conteúdo segue a voz do país. Não é navegação, mas confunde quem acabou de trocar o idioma. Vale revisar a regra do idioma do conteúdo para corridas.
+- **Idioma do conteúdo:** com a interface em inglês, as sessões da F1 aparecem em espanhol ("Carrera", "Clasificación"), porque o conteúdo segue a voz do país. Não é navegação, mas confunde quem acabou de trocar o idioma. Vale revisar a regra do idioma do conteúdo para corridas. ✅ Corrigido no item 25.
 - **Busca (⌘K):** abre e leva aos resultados sem problema. Não entra na trilha como pai, o que é o esperado.
 
 ## Segunda rodada: celular, ordem e organização
@@ -232,10 +232,10 @@ Depois da primeira entrega, o pedido foi olhar o celular e a organização das l
 
 ### 18. Ainda no celular: propostas 📝
 
-- **Países no Explorar:** os 17 cards de país ainda somam uns 3.000 px. Proposta: no celular, uma lista compacta (bandeira, nome, liga principal e jogo em destaque) e o card rico só a partir do tablet.
+- **Países no Explorar:** ✅ feito no item 21.
 - **Estaduais separados das nacionais:** ✅ feito no item 20.
-- **Fileira de abas e de rodadas:** no celular rolam na horizontal sem indicar que há mais. Proposta: um degradê na borda direita.
-- **Página do jogo no celular:** o card "Sobre o jogo" (relevância por país, com 11 países) vem antes do contexto e dos detalhes. Proposta: no celular, recolher a relevância por país num "Ver por país".
+- **Fileira de abas e de rodadas:** ✅ resolvido pelo #207 (`ScrollRow`: bordas esmaecidas e setas quando há mais).
+- **Página do jogo no celular:** ✅ feito no item 23.
 
 ### 19. Ao vivo: a liga não dizia de que país é ✅
 
@@ -284,20 +284,85 @@ Os épicos do backlog de navegação, um PR cada. A ordem e as decisões de prod
 | ![Grupo regional](img/depois-celular-pais-regionais.jpg) | ![Página do esporte](img/depois-celular-futebol-brasil-divisoes.jpg) |
 
 No celular, a Libertadores fica a 943 px do topo do Brasil (antes do #200 ficava a 3.540 px).
+### 21. Explorar no celular: países numa linha (E3) ✅
+
+**Onde:** home, no celular. Os 17 cards de país (bandeira, liga principal, clubes de maior peso e jogo em destaque) somavam uns 3.000 px, mesmo depois de os esportes irem para duas colunas no #200.
+### 23. Polimento: vazios, títulos de aba e relevância no celular (E6) ✅
+
+- **Hipismo sem dados:** "Destaques", "Provas recentes" e "Campeonatos" mostravam só o título, e parecia página quebrada. Agora cada seção vazia explica, numa linha discreta, que ainda não há dado na base (três idiomas).
+- **Títulos de aba que faltavam:** local, clássico e as páginas internas do hipismo (atleta, cavalo, prova, campeonato) passam a ter o nome no título ("Mineirão · Galaxie Sports", "Choque-Rei · Galaxie Sports"), no mesmo padrão de competição, jogo e time.
+- **Relevância por país no celular:** o card "Sobre o jogo" vem antes do contexto. No celular, ele mostra só o país do idioma, e os outros 10 ficam atrás de "Ver todos os 11 países". É só CSS, sem piscar na hidratação; no desktop nada muda.
+- **Fileiras roláveis:** já resolvido pelo #207 (`ScrollRow`).
+
+| Hipismo com seções vazias explicadas | Celular: relevância recolhida |
+| --- | --- |
+| ![Hipismo](img/depois-hipismo-secoes-vazias.jpg) | ![Relevância](img/depois-celular-relevancia-recolhida.jpg) |
+
+### 24. Rotas próprias para piloto e lutador (E2) ✅
+
+**Onde:** pilotos de F1 e lutadores de MMA abriam em `/times/{id}`, a página de clube, com um card "Elenco · sem elenco nem escalações" vazio e "Últimos jogos" no lugar de corridas e lutas.
+
+**Decisão de produto:** rotas `/pilotos/{slug}` e `/lutadores/{slug}`, com redirecionamento a partir de `/times/{id}`.
+
+**Correção:**
+
+- **Rotas novas:** `/pilotos/max-verstappen-<id>` e `/lutadores/fernando-padilla-<id>`. O participante não tem slug no banco, então o slug é o nome mais o id no fim (`participantHref` e `idFromSlug`), sem migração. Um slug sem id dá "não encontrado".
+- **Redirecionamento:** `/times/{id}` de piloto ou lutador redireciona (308) para a rota certa, mantendo a query (`?temporada=`). Assim, links antigos e os da busca na F1 continuam funcionando.
+- **Links diretos onde o contexto diz o tipo:** grid e pódio da corrida, tabela de pilotos do campeonato, companheiros de equipe no perfil do piloto e os lados de uma luta. Equipes de F1 (construtores) seguem em `/times`. Na busca, participante de MMA vai direto para `/lutadores`.
+- **Página:** o card "Elenco" só aparece para clube e seleção. "Últimos jogos" vira "Últimas corridas" ou "Últimas lutas". O perfil do piloto (carreira, títulos, fotos) é o do #222.
+
+| Piloto (`/pilotos/max-verstappen-…`) | Lutador (`/lutadores/fernando-padilla-…`) |
+| --- | --- |
+| ![Piloto](img/depois-pagina-piloto.jpg) | ![Lutador](img/depois-pagina-lutador.jpg) |
+
+**Fica como proposta (📝):** cartel (V-D-E), categoria e método e round de cada luta no topo do lutador. A API ainda não expõe isso por lutador, e na base de dev as lutas encerradas aparecem como "Aguardando resultado".
+### 25. Fórmula 1: temporada, aba de corridas e nomes das sessões (E5) ✅
+
+**Onde:** campeonato e GPs da F1 (itens 10 e 12).
+
+- **Temporada:** o campeonato agora abre em 2026, a temporada com dados. Isso veio da carga histórica da F1 (#214), e não precisou de mudança na navegação.
+- **Aba:** quando a competição tem sessões, a aba se chama "Corridas" ("Races", "Carreras"), não "Jogos".
+- **Nome das sessões:** vinha do conteúdo, na voz do país ("Carrera", "Clasificación"), mesmo com a interface em inglês ou português. Agora sai do tipo da sessão, no idioma da interface: "Treino livre 1", "Classificação · Q3", "Classificação sprint", "Sprint", "Corrida". Vale no card, no placar, no título da página e na aba do navegador. Se o tipo for desconhecido, o nome do conteúdo continua.
+
+| Campeonato (inglês) | GP (inglês) |
+| --- | --- |
+| ![Depois: aba Races e sessões em inglês](img/depois-f1-corridas-en.jpg) | ![Depois: sessão Race](img/depois-f1-sessao-en.jpg) |
+
+**Falta (📝):** o card lateral do GP ainda se chama "Sobre a partida".
 
 ## Proposta maior: trilha hierárquica fixa 📝
 
-A causa de boa parte dos problemas é a trilha contar o **histórico** da aba, e não **onde a página fica**. A correção deste PR resolve os casos sem histórico, porque a trilha passa a começar pelos pais. Mesmo assim, a mesma página ainda mostra trilhas diferentes conforme o caminho:
+**Correção:**
 
-- "Ao vivo › Cruzeiro x Remo";
-- "Brasil › Brasileirão › Cruzeiro x Remo".
+- No celular, cada país vira **uma linha de 64 px**: bandeira, nome, liga principal, jogos em 7 dias e o selo "ao vivo" quando há jogo. A linha leva à página do país.
+- As confederações viram blocos recolhíveis (`<details>` nativo, sem JS). A **América do Sul vem aberta**; CONCACAF e UEFA ficam recolhidas, com a contagem de países e de jogos visível.
+- Do tablet para cima nada muda: os cards completos continuam.
 
-Isso é útil para voltar, mas não ensina a estrutura do site. Proposta para discutir:
+Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
 
-- **Trilha sempre hierárquica** (Futebol › Brasileirão Série A › Rodada 32 › Cruzeiro x Remo).
-- **Botão "voltar para …"** separado, com a origem real da visita (Ao vivo, Brasil, busca).
+| América do Sul aberta | CONCACAF e UEFA recolhidas |
+| --- | --- |
+| ![Países numa linha](img/depois-celular-explorar-paises.jpg) | ![Confederações recolhidas](img/depois-celular-explorar-confederacoes.jpg) |
 
-O código já está preparado: os `parents` de cada página são essa hierarquia.
+### 22. Trilha hierárquica: a mesma página mostrava trilhas diferentes conforme o caminho (E4) ✅
+
+**Onde:** no cabeçalho de todas as páginas. A trilha contava o **histórico** da aba, e não **onde a página fica**. O mesmo jogo aparecia como "Ao vivo › Cruzeiro x Remo" ou como "Brasil › Brasileirão › Cruzeiro x Remo". Isso ajudava a voltar, mas não ensinava a estrutura do site. No celular, a trilha mostrava só o item anterior, cortado ("Fórm… › Campeonato Mundial…").
+
+**Decisão de produto:** a trilha é sempre a hierarquia, mais um "← Voltar para {origem}" quando a pessoa veio de outro lugar.
+
+**Correção:**
+
+- **A trilha é a hierarquia** (os `parents` de cada página), igual venha a pessoa de onde vier. No jogo: Futebol › Campeonato › **Rodada** › jogo. A rodada é item novo e leva aos jogos dela, na temporada do jogo.
+- **"← Voltar para {origem}"** aparece quando a página anterior nesta aba não é um dos pais: jogo aberto pelo Ao vivo, time aberto pela tabela, país aberto pelo Explorar. Vindo da própria competição, o botão não aparece, porque seria redundante.
+- **Celular:** "‹ {pai mais próximo}" numa linha e o título embaixo, legíveis, em vez da trilha cortada.
+- **Esqueleto:** enquanto a página carrega, não aparece trilha nenhuma, e a trilha antiga deixa de piscar.
+- O histórico da aba continua guardado (`lib/trail.ts`). Ele dá a origem e alimenta a medição de atividade, que segue com a origem real e a profundidade.
+
+| Desktop: jogo aberto pelo Ao vivo | Celular: "‹ pai" e título |
+| --- | --- |
+| ![Trilha hierárquica com origem](img/depois-trilha-hierarquica-origem.jpg) | ![Celular](img/depois-celular-trilha-pai.jpg) |
+
+**Achado no caminho:** na rota estática `/ao-vivo`, alcançada pela reescrita do proxy (`/ao-vivo` → `/pt-BR/ao-vivo`), o menu tinha erro de hidratação: o HTML pré-renderizado e o navegador viam caminhos diferentes (está na documentação do `usePathname` no Next 16). A sidebar agora lê o caminho só depois de hidratar. No servidor de dev, sair do Ao vivo ainda deixa o menu sem item aceso até recarregar. É uma corrida do streaming de dev: o build de produção (`next start`) foi testado e funciona.
 
 ## O que mudou no código
 
@@ -333,3 +398,8 @@ Segunda rodada:
 - Explorar: `SPORT_GRID` em duas colunas no celular, com o card compacto.
 - Busca: `GROUP_ORDER` com competições antes de times (teste em `lib/search/entries.test.ts`).
 - Campanha: `line-clamp-2` no nome da competição.
+
+Fórmula 1 (item 25):
+
+- `lib/race-session.ts`: `sessionLabel` traduz o tipo da sessão (teste em `lib/race-session.test.ts`).
+- `raceTitle(event, t.sport)` em jogo, card e placar; aba "Corridas" na competição.

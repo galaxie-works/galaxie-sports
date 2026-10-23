@@ -2,6 +2,7 @@ import type { TeamColors, TeamSeason, TeamSemantic } from '@galaxie/contracts';
 import { Calendar, History, MapPin, Megaphone, Quote, Users } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { permanentRedirect } from 'next/navigation';
 
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
@@ -34,7 +35,7 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import { calendarDate } from '@/lib/i18n/format';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
-import { countryHref, sportParent } from '@/lib/navigation';
+import { countryHref, isIndividualKind, participantHref, sportParent } from '@/lib/navigation';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
 export async function teamMetadata(id: string, source: DataSource): Promise<Metadata> {
@@ -358,7 +359,15 @@ function RivalsCard({ s, t }: { s: TeamSemantic; t: Dictionary }) {
   );
 }
 
-export async function TeamContent({ params, searchParams, source }: PageContentProps) {
+export async function TeamContent({
+  params,
+  searchParams,
+  source,
+  redirectIndividuals = false,
+}: PageContentProps & {
+  /** Rota /times: piloto e lutador vão para /pilotos e /lutadores (links antigos e da busca). */
+  redirectIndividuals?: boolean;
+}) {
   const [{ id }, query, { locale, t }] = await Promise.all([params, searchParams, getI18n()]);
   // grito, torcida, apelidos e tags na voz do país do time (Boca em es-AR, Universidad Católica em
   // es-CL), com a interface no idioma escolhido
@@ -379,6 +388,12 @@ export async function TeamContent({ params, searchParams, source }: PageContentP
     source.getSquad(id, content, squadYear),
   ]);
   const { team } = overview;
+  if (redirectIndividuals && isIndividualKind(team.kind)) {
+    const qs = new URLSearchParams(
+      Object.entries(query).flatMap(([k, v]) => (typeof v === 'string' ? [[k, v]] : [])),
+    ).toString();
+    permanentRedirect(`${participantHref(team, team.kind)}${qs ? `?${qs}` : ''}`);
+  }
   // F1: carreira (piloto ou construtor) e fotos de licença livre, com crédito
   const racing = team.sport === 'formula-1' && (team.kind === 'driver' || team.kind === 'constructor');
   const [career, photos] = racing
@@ -391,7 +406,7 @@ export async function TeamContent({ params, searchParams, source }: PageContentP
   // API anterior à campanha (sem `competitions`): a seção some em vez de quebrar a página
   const competitions = overview.competitions ?? [];
   const overviewApi = teamOverviewRequest(id, locale, year, content);
-  const basePath = `/times/${id}`;
+  const basePath = participantHref(team, team.kind);
   const options: SeasonOption[] = seasons.map((s) => ({
     year: s.year,
     label: seasonLabel(s),
@@ -547,7 +562,13 @@ export async function TeamContent({ params, searchParams, source }: PageContentP
 
             {overview.last_events.length ? (
               <Section
-                title={t.team.lastMatches}
+                title={
+                  team.kind === 'fighter'
+                    ? t.team.lastFights
+                    : team.kind === 'driver'
+                      ? t.team.lastRaces
+                      : t.team.lastMatches
+                }
                 description={label ? fill(t.team.lastMatchesSeason, { season: label }) : undefined}
                 api={overviewApi}
               >
@@ -573,8 +594,8 @@ export async function TeamContent({ params, searchParams, source }: PageContentP
               locale={locale}
             />
             {semantic ? <RivalsCard s={semantic} t={t} /> : null}
-            {/* lutador (MMA) não tem elenco */}
-            {squad && team.kind !== 'fighter' ? (
+            {/* elenco é de clube e seleção: piloto e lutador ficavam com um card vazio */}
+            {squad && (team.kind === 'club' || team.kind === 'national_team') ? (
               <SquadCard
                 squad={squad}
                 api={squadRequest(id, locale, squadYear, content)}

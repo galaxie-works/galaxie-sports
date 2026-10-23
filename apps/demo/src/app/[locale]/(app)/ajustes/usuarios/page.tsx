@@ -15,8 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function Users() {
   // Fuso de quem vê (cookie): a tabela formata as datas nele, igual no servidor e na hidratação.
-  const [users, timeZone] = await Promise.all([listDemoUsers(), getTimeZone()]);
-  return <UsersTable users={users} timeZone={timeZone} />;
+  const [{ users, tenants }, timeZone] = await Promise.all([listDemoUsers(), getTimeZone()]);
+  return <UsersTable users={users} tenants={tenants} timeZone={timeZone} />;
 }
 
 export default async function UsersPage() {

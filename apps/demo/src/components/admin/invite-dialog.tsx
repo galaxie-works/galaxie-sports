@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import type { Role } from '@/lib/auth/roles';
+import type { TenantOption } from '@/lib/client/tenants';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import { fill, plural } from '@/lib/i18n/text';
@@ -40,25 +42,75 @@ export function useAccessPresets() {
 }
 
 /** Papéis no idioma da tela. */
-export function useRoles() {
+export function useRoles(): { value: Role; label: string }[] {
   const { t } = useI18n();
   return [
     { value: 'user', label: t.admin.roles.user },
+    { value: 'client', label: t.admin.roles.client },
     { value: 'admin', label: t.admin.roles.admin },
   ];
+}
+
+/**
+ * Tenant da API do usuário cliente (obrigatório no papel `client`). Sem tenants no banco, explica onde
+ * criar um.
+ */
+export function TenantSelect({
+  id,
+  tenants,
+  value,
+  onChange,
+  disabled,
+}: {
+  id?: string;
+  tenants: TenantOption[];
+  value: string | null;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+}) {
+  const { t } = useI18n();
+  const items = tenants.map((x) => ({
+    value: x.id,
+    label: x.status === 'suspended' ? `${x.name} · ${t.admin.tenant.suspended}` : x.name,
+  }));
+  return (
+    <Select items={items} value={value} onValueChange={(v) => v && onChange(String(v))} disabled={disabled}>
+      <SelectTrigger id={id} className="w-full">
+        <SelectValue>
+          {(v: string | null) =>
+            v ? (
+              (items.find((i) => i.value === v)?.label ?? t.admin.tenant.missing)
+            ) : (
+              <span className="text-muted-foreground">
+                {tenants.length ? t.admin.tenant.placeholder : t.admin.tenant.none}
+              </span>
+            )
+          }
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((i) => (
+          <SelectItem key={i.value} value={i.value}>
+            {i.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 }
 
 const EMPTY = { name: '', email: '', jobTitle: '', company: '', phone: '', notes: '' };
 
 /** Cadastro do convidado: dados de contato, papel e validade; o convite sai por e-mail. */
-export function InviteDialog() {
+export function InviteDialog({ tenants }: { tenants: TenantOption[] }) {
   const router = useRouter();
   const { locale: screenLocale, t } = useI18n();
   const accessPresets = useAccessPresets();
   const roles = useRoles();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
-  const [role, setRole] = useState<'user' | 'admin'>('user');
+  const [role, setRole] = useState<Role>('user');
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [days, setDays] = useState('14');
   // Idioma do convite: por padrão, o da tela de quem convida.
   const [locale, setLocale] = useState<Locale>(screenLocale);
@@ -72,6 +124,7 @@ export function InviteDialog() {
   function reset() {
     setForm(EMPTY);
     setRole('user');
+    setTenantId(null);
     setDays('14');
     setLocale(screenLocale);
     setError(null);
@@ -84,6 +137,7 @@ export function InviteDialog() {
     const input: InviteInput = {
       ...form,
       role,
+      tenantId: role === 'client' ? tenantId : null,
       accessDays: days === 'none' ? null : Number(days),
       locale,
     };
@@ -192,7 +246,7 @@ export function InviteDialog() {
               </Field>
               <Field>
                 <FieldLabel htmlFor="inv-role">{t.admin.fields.role}</FieldLabel>
-                <Select items={roles} value={role} onValueChange={(v) => setRole(v as 'user' | 'admin')}>
+                <Select items={roles} value={role} onValueChange={(v) => setRole(v as Role)}>
                   <SelectTrigger id="inv-role" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -205,6 +259,13 @@ export function InviteDialog() {
                   </SelectContent>
                 </Select>
               </Field>
+              {role === 'client' ? (
+                <Field className="sm:col-span-2">
+                  <FieldLabel htmlFor="inv-tenant">{t.admin.tenant.label}</FieldLabel>
+                  <TenantSelect id="inv-tenant" tenants={tenants} value={tenantId} onChange={setTenantId} />
+                  <FieldDescription>{t.admin.tenant.hint}</FieldDescription>
+                </Field>
+              ) : null}
               <Field>
                 <FieldLabel htmlFor="inv-access">{t.admin.invite.access}</FieldLabel>
                 <Select
@@ -250,7 +311,7 @@ export function InviteDialog() {
               </Alert>
             ) : null}
             <DialogFooter>
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" disabled={pending || (role === 'client' && !tenantId)}>
                 {pending ? <Spinner /> : <UserPlus />}
                 {t.admin.invite.submit}
               </Button>

@@ -8,6 +8,12 @@
  *   pnpm --filter @galaxie/ingestor assets:acervo --pasta <dir>            # importa (idempotente)
  *   pnpm --filter @galaxie/ingestor assets:acervo --acervo <id> --desvincular [--plan]
  *
+ * Base organizada por competição ("<País> - <Competição>/svg|png/Escudo - <Time>"): converta antes para o
+ * layout de pacote (convert-folders.ts) — sem banco, sem rede:
+ *
+ *   pnpm --filter @galaxie/ingestor assets:acervo --converter <origem> --pasta <saída> \
+ *     --acervo <id> --nome "<nome>" --autor "<autor>" --licenca "<licença>" [--revisao <AAAA-MM-DD>]
+ *
  * O manifesto fica em config/assets/acervo/<id>.yaml (versionado; curadoria à mão) e o relatório em
  * config/assets/acervo/<id>.cobertura.md. A pasta do pacote nunca entra no git. Ver
  * docs/runbooks/acervo-de-logos.md.
@@ -19,8 +25,15 @@ import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { eq } from 'drizzle-orm';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
-import { detachAcervo, importAcervo, loadCountries, loadTargets } from '../assets/acervo/import.js';
-import { ACERVO_ID_RE, readManifest, writeManifest } from '../assets/acervo/manifest.js';
+import { convertFolders } from '../assets/acervo/convert-folders.js';
+import {
+  detachAcervo,
+  importAcervo,
+  loadCountries,
+  loadLeagueCompetitions,
+  loadTargets,
+} from '../assets/acervo/import.js';
+import { ACERVO_ID_RE, readManifest, validateAcervoInfo, writeManifest } from '../assets/acervo/manifest.js';
 import { planManifest } from '../assets/acervo/plan.js';
 import { coverage, renderReport } from '../assets/acervo/report.js';
 import { scanAcervo } from '../assets/acervo/scan.js';
@@ -36,8 +49,33 @@ const { values } = parseArgs({
     desvincular: { type: 'boolean', default: false },
     lote: { type: 'string' },
     verbose: { type: 'boolean', default: false },
+    converter: { type: 'string' },
+    nome: { type: 'string' },
+    autor: { type: 'string' },
+    licenca: { type: 'string' },
+    revisao: { type: 'string' },
   },
 });
+
+if (values.converter) {
+  if (!values.pasta) throw new Error('--converter precisa de --pasta <saída>.');
+  const report = convertFolders({
+    source: resolve(values.converter),
+    out: resolve(values.pasta),
+    info: validateAcervoInfo({
+      id: values.acervo,
+      name: values.nome,
+      author: values.autor,
+      license: values.licenca,
+      revision: values.revisao ?? new Date().toISOString().slice(0, 10),
+    }),
+  });
+  console.log(
+    `Pacote em ${resolve(values.pasta)}: ${report.folders} pastas · ${report.logos} escudos (${report.svg} SVG, ${report.pngOnly} só PNG, ${report.national} seleções) · ${report.duplicates.length} cópias idênticas · ${report.flags.length} bandeiras e ${report.ignored.length} arquivos ignorados · ${report.rejected.length} SVG recusados`,
+  );
+  for (const r of report.rejected) console.warn(`  SVG recusado ${r.file}: ${r.reason}`);
+  if (!values.mapear) process.exit(0);
+}
 
 const { DATABASE_URL } = process.env;
 if (!DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
@@ -64,12 +102,20 @@ try {
   } else if (values.mapear) {
     if (!scan) throw new Error('--mapear precisa de --pasta.');
     const previous = existsSync(manifestPath) ? readManifest(manifestPath) : undefined;
-    const [targets, countries] = await Promise.all([loadTargets(db), loadCountries(db)]);
-    const { manifest, unknownCountries } = planManifest(scan, targets, countries, previous, new Date());
+    const [targets, countries, leagueCompetitions] = await Promise.all([
+      loadTargets(db),
+      loadCountries(db),
+      loadLeagueCompetitions(db),
+    ]);
+    const { manifest, unknownCountries } = planManifest(scan, targets, countries, previous, new Date(), {
+      leagueCompetitions,
+    });
     mkdirSync(dirname(manifestPath), { recursive: true });
     writeManifest(manifestPath, manifest);
     writeFileSync(reportPath, renderReport(manifest, unknownCountries), 'utf8');
     if (scan.ignored.length) console.warn(`Ignorados (fora do layout): ${scan.ignored.length}`);
+    for (const [file, reason] of Object.entries(scan.rejected))
+      console.warn(`  SVG recusado ${file}: ${reason}`);
     console.log(`Manifesto: ${manifestPath}\nRelatório: ${reportPath}`);
     for (const c of coverage(manifest.logos).slice(0, 20))
       console.log(

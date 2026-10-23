@@ -26,6 +26,10 @@ export const ERROR_CODES = [
   'INVALID_KEY',
   'MODULE_NOT_IN_PLAN',
   'MARKET_NOT_IN_PLAN',
+  /** Chave publicável usada de uma origem fora de `allowed_origins` (ou sem Origin/Referer). */
+  'ORIGIN_NOT_ALLOWED',
+  /** Chave publicável em rota que ela não alcança (escrita, conta, admin, SSE, espelho). */
+  'PUBLISHABLE_KEY_NOT_ALLOWED',
   'NOT_FOUND',
   'CONFLICT',
   'RATE_LIMITED',

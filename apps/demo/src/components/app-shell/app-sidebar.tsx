@@ -19,12 +19,16 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { CLIENT_NAV } from '@/components/client/client-nav';
 import { LIVE_HREF, LiveNavItem } from '@/components/live/live-nav-item';
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { SidebarSearchButton } from '@/components/search/search-button';
 import { getActiveSection, getActiveSectionServer, subscribeActiveSection } from '@/lib/active-section';
+import { authClient } from '@/lib/auth/client';
+import { canAccessClientPanel } from '@/lib/auth/roles';
 import { DOCS_NAV } from '@/lib/docs';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { useI18n } from '@/lib/i18n/client';
 import { COUNTRIES, EQUESTRIAN_NAV, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
 import { topLevelClick } from '@/lib/trail';
@@ -72,9 +76,16 @@ function NavLink({
 
 const EXPLORE_NAV: NavItem = { href: '/', icon: Compass };
 
-/** O caminho atual é dado de URL (runtime): fica atrás de Suspense para não bloquear o prerender. */
+/**
+ * O caminho atual é dado de URL (runtime): fica atrás de Suspense para não bloquear o prerender. E só é
+ * lido depois de hidratar: numa rota estática alcançada pela reescrita do proxy (`/ao-vivo` →
+ * `/pt-BR/ao-vivo`), o HTML prerenderizado e o navegador veem caminhos diferentes, e o erro de
+ * hidratação deixava o menu travado no fallback (nenhum item aceso até recarregar).
+ */
 function CurrentSidebarNav() {
-  const pathname = usePathname();
+  const routePathname = usePathname();
+  const hydrated = useHydrated();
+  const pathname = hydrated ? routePathname : null;
   const section = useSyncExternalStore(subscribeActiveSection, getActiveSection, getActiveSectionServer);
   const { isMobile, setOpenMobile } = useSidebar();
   // No celular o menu é uma gaveta por cima da página: fecha quando a navegação acontece. A gaveta
@@ -88,10 +99,40 @@ function CurrentSidebarNav() {
   return <SidebarNav pathname={pathname} section={section} />;
 }
 
+/** Painel do cliente (cliente e admin): visão geral, chaves publicáveis e o Builder. */
+function ClientNavGroup({ pathname }: { pathname: string | null }) {
+  const { t } = useI18n();
+  const { data } = authClient.useSession();
+  if (!canAccessClientPanel(data?.user.role)) return null;
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>{t.shell.sidebar.client}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {CLIENT_NAV.map(({ id, href, icon: Icon }) => (
+            <SidebarMenuItem key={id}>
+              <SidebarMenuButton
+                // a visão geral só acende nela mesma (as outras áreas são filhas de /cliente)
+                isActive={href === '/cliente' ? pathname === href : isActive(pathname, href)}
+                tooltip={t.client.nav[id]}
+                render={<Link href={href} onClick={topLevelClick(href)} />}
+              >
+                <Icon />
+                <span>{t.client.nav[id]}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 function SidebarNav({ pathname, section = null }: { pathname: string | null; section?: string | null }) {
   const { t } = useI18n();
   return (
     <SidebarContent>
+      <ClientNavGroup pathname={pathname} />
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>

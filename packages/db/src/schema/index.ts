@@ -8,3 +8,4 @@ export * from './ops.js';
 export * from './multisport.js';
 export * from './equestrian.js';
 export * from './api.js';
+export * from './widgets.js';

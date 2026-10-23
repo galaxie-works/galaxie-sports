@@ -13,6 +13,15 @@ export default defineMessages(
     roles: {
       admin: 'Admin',
       user: 'Convidado',
+      client: 'Cliente',
+    },
+    tenant: {
+      label: 'Tenant da API',
+      hint: 'O cliente vê só o plano, as chaves e os widgets deste tenant.',
+      placeholder: 'Escolha o tenant',
+      none: 'Nenhum tenant na API',
+      missing: 'Tenant removido',
+      suspended: 'suspenso',
     },
     status: {
       active: 'Ativo',
@@ -134,7 +143,7 @@ export default defineMessages(
     accessTab: {
       title: 'Acesso',
       description: 'Papel e por quanto tempo a pessoa pode entrar.',
-      roleHint: 'Admin gerencia usuários; convidado só navega na demo.',
+      roleHint: 'Admin gerencia usuários; convidado só navega na demo; cliente tem o painel do tenant dele.',
       validUntil: 'Válido até',
       validUntilHintAdmin: 'Admins não têm prazo.',
       validUntilHint: 'Depois desta data o login é bloqueado. Vazio = sem prazo.',
@@ -198,6 +207,8 @@ export default defineMessages(
       notFound: 'Usuário não encontrado.',
       selfDisable: 'Você não pode desativar a sua própria conta.',
       selfRemove: 'Você não pode remover a sua própria conta.',
+      invalidRole: 'Papel inválido.',
+      tenantRequired: 'Escolha o tenant da API do cliente.',
     },
   },
   {
@@ -212,6 +223,15 @@ export default defineMessages(
       roles: {
         admin: 'Admin',
         user: 'Guest',
+        client: 'Client',
+      },
+      tenant: {
+        label: 'API tenant',
+        hint: "The client only sees this tenant's plan, keys and widgets.",
+        placeholder: 'Pick the tenant',
+        none: 'No tenant in the API',
+        missing: 'Tenant removed',
+        suspended: 'suspended',
       },
       status: {
         active: 'Active',
@@ -333,7 +353,7 @@ export default defineMessages(
       accessTab: {
         title: 'Access',
         description: 'Role and how long they can sign in.',
-        roleHint: 'Admins manage users; guests only browse the demo.',
+        roleHint: 'Admins manage users; guests only browse the demo; clients get their tenant panel.',
         validUntil: 'Valid until',
         validUntilHintAdmin: "Admins don't have an end date.",
         validUntilHint: 'After this date, sign-in is blocked. Leave empty for no end date.',
@@ -397,6 +417,8 @@ export default defineMessages(
         notFound: 'User not found.',
         selfDisable: "You can't disable your own account.",
         selfRemove: "You can't remove your own account.",
+        invalidRole: 'Invalid role.',
+        tenantRequired: "Pick the client's API tenant.",
       },
     },
     'es-AR': {
@@ -410,6 +432,15 @@ export default defineMessages(
       roles: {
         admin: 'Admin',
         user: 'Invitado',
+        client: 'Cliente',
+      },
+      tenant: {
+        label: 'Tenant de la API',
+        hint: 'El cliente ve solo el plan, las claves y los widgets de este tenant.',
+        placeholder: 'Elegí el tenant',
+        none: 'No hay tenants en la API',
+        missing: 'Tenant eliminado',
+        suspended: 'suspendido',
       },
       status: {
         active: 'Activo',
@@ -533,7 +564,8 @@ export default defineMessages(
       accessTab: {
         title: 'Acceso',
         description: 'Rol y por cuánto tiempo puede entrar la persona.',
-        roleHint: 'El admin gestiona usuarios; el invitado solo navega la demo.',
+        roleHint:
+          'El admin gestiona usuarios; el invitado solo navega la demo; el cliente tiene el panel de su tenant.',
         validUntil: 'Válido hasta',
         validUntilHintAdmin: 'Los admins no tienen vencimiento.',
         validUntilHint: 'Después de esta fecha se bloquea el ingreso. Vacío = sin vencimiento.',
@@ -597,6 +629,8 @@ export default defineMessages(
         notFound: 'Usuario no encontrado.',
         selfDisable: 'No podés desactivar tu propia cuenta.',
         selfRemove: 'No podés eliminar tu propia cuenta.',
+        invalidRole: 'Rol inválido.',
+        tenantRequired: 'Elegí el tenant de la API del cliente.',
       },
     },
   },

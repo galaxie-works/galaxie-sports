@@ -10,7 +10,9 @@ import { headers } from 'next/headers';
 import { requireAdmin } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
 import { sendInvite } from '@/lib/auth/invite';
+import { isRole, needsTenant, type Role } from '@/lib/auth/roles';
 import { auth } from '@/lib/auth/server';
+import { tenantExists } from '@/lib/client/tenants';
 import { isLocale, type Locale } from '@/lib/i18n/config';
 import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
@@ -36,7 +38,9 @@ export interface ProfileInput {
 
 export interface InviteInput extends ProfileInput {
   email: string;
-  role: 'admin' | 'user';
+  role: Role;
+  /** Tenant da API: obrigatório no papel `client`, ignorado nos outros. */
+  tenantId?: string | null;
   /** Dias de acesso a partir de hoje; null = sem prazo. */
   accessDays: number | null;
   /** Idioma do convite (e dos próximos e-mails da pessoa). */
@@ -70,12 +74,25 @@ const fail = async (key: keyof Dictionary['admin']['errors']): Promise<ActionRes
   error: (await texts()).errors[key],
 });
 
+/** Tenant que fica gravado no usuário: o do cliente (conferido no banco) ou nenhum. */
+async function tenantFor(
+  role: Role,
+  tenantId: string | null | undefined,
+): Promise<{ tenantId: string | null } | { error: 'tenantRequired' }> {
+  if (!needsTenant(role)) return { tenantId: null };
+  if (!tenantId || !(await tenantExists(tenantId))) return { error: 'tenantRequired' as const };
+  return { tenantId };
+}
+
 export async function inviteUser(input: InviteInput): Promise<ActionResult> {
   await requireAdmin();
   const email = input.email.trim().toLowerCase();
   const name = input.name.trim();
   if (!name) return fail('nameRequired');
   if (!EMAIL_RE.test(email)) return fail('invalidEmail');
+  if (!isRole(input.role)) return fail('invalidRole');
+  const tenant = await tenantFor(input.role, input.tenantId);
+  if ('error' in tenant) return fail(tenant.error);
   try {
     const created = await auth.api.createUser({
       headers: await headers(),
@@ -91,6 +108,7 @@ export async function inviteUser(input: InviteInput): Promise<ActionResult> {
           notes: clean(input.notes),
           accessExpiresAt: input.role === 'admin' ? null : expiryFromDays(input.accessDays),
           locale: isLocale(input.locale) ? input.locale : null,
+          tenantId: tenant.tenantId,
         },
       },
     });
@@ -131,16 +149,25 @@ export async function updateProfile(userId: string, input: ProfileInput): Promis
 
 export async function updateAccess(
   userId: string,
-  input: { role: 'admin' | 'user'; accessExpiresAt: string | null },
+  input: { role: Role; accessExpiresAt: string | null; tenantId?: string | null },
 ): Promise<ActionResult> {
   const me = await requireAdmin();
+  if (!isRole(input.role)) return fail('invalidRole');
   if (userId === me.id && input.role !== 'admin') return fail('selfDemote');
+  const tenant = await tenantFor(input.role, input.tenantId);
+  if ('error' in tenant) return fail(tenant.error);
   try {
     const h = await headers();
     await auth.api.setRole({ headers: h, body: { userId, role: input.role } });
     await auth.api.adminUpdateUser({
       headers: h,
-      body: { userId, data: { accessExpiresAt: input.role === 'admin' ? null : input.accessExpiresAt } },
+      body: {
+        userId,
+        data: {
+          accessExpiresAt: input.role === 'admin' ? null : input.accessExpiresAt,
+          tenantId: tenant.tenantId,
+        },
+      },
     });
     revalidatePath(`/ajustes/usuarios/${userId}`);
     revalidatePath('/ajustes/usuarios');

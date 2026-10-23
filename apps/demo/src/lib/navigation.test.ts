@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { getDictionary } from './i18n/dictionary';
-import { countryHref, eventCompetitionHref, sportParent } from './navigation';
+import { countryHref, eventCompetitionHref, idFromSlug, participantHref, sportParent } from './navigation';
 
 describe('links de navegação', () => {
   it('país só ganha link com código de país (ISO2 ou extensão como GB-ENG)', () => {
@@ -28,5 +28,26 @@ describe('links de navegação', () => {
       kind: 'esporte',
     });
     expect(sportParent('curling', getDictionary('pt-BR'))).toBeNull();
+  });
+});
+
+describe('rotas de piloto e lutador', () => {
+  const max = { id: '01a16675-379b-7b21-bf12-33042e33ebad', name: 'Max Verstappen' };
+
+  it('piloto e lutador ganham slug com o id no fim; os demais ficam em /times', () => {
+    expect(participantHref(max, 'driver')).toBe(
+      '/pilotos/max-verstappen-01a16675-379b-7b21-bf12-33042e33ebad',
+    );
+    expect(participantHref({ id: max.id, name: 'José Aldo' }, 'fighter')).toBe(
+      '/lutadores/jose-aldo-01a16675-379b-7b21-bf12-33042e33ebad',
+    );
+    expect(participantHref(max, 'club')).toBe('/times/01a16675-379b-7b21-bf12-33042e33ebad');
+    expect(participantHref(max)).toBe('/times/01a16675-379b-7b21-bf12-33042e33ebad');
+  });
+
+  it('o id sai do fim do slug (ou do id puro)', () => {
+    expect(idFromSlug('max-verstappen-01a16675-379b-7b21-bf12-33042e33ebad')).toBe(max.id);
+    expect(idFromSlug(max.id)).toBe(max.id);
+    expect(idFromSlug('max-verstappen')).toBeNull();
   });
 });
