@@ -97,7 +97,10 @@ async function main(): Promise<void> {
               .map((h) => `${h.broadcasterId ?? h.name}${h.status === 'confirmed' ? '' : '?'}`)
               .join(', '),
             pedidos: cand.holders.map((h) => h.broadcaster).join(', '),
-            descartados: v.discarded.length,
+            descartados: v.discarded.map((d) => `${d.broadcaster}: ${d.reason}`).join('; '),
+            fontes: [
+              ...new Set(cand.holders.flatMap((h) => h.evidence.map((e) => new URL(e.url).hostname))),
+            ].join(' '),
           });
         }
         console.table(rows);

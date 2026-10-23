@@ -3,7 +3,7 @@ import { llmSettingsFromEnv, rightsLlmEnv } from '../config.js';
 import { createLlmClient } from '../factory.js';
 import { GEMINI_GROUNDING_USD_PER_QUERY } from '../pricing.js';
 import type { LlmJsonRequest } from '../types.js';
-import { GEMINI_API_BASE, GeminiLlmClient, type FetchLike } from './gemini.js';
+import { GEMINI_API_BASE, GeminiLlmClient, NO_RECITATION_NOTE, type FetchLike } from './gemini.js';
 
 const SCHEMA = {
   type: 'object',
@@ -89,7 +89,7 @@ describe('GeminiLlmClient (API Interactions + Grounding with Google Search)', ()
     expect(f.calls[0]!.headers['x-goog-api-key']).toBe('k');
     expect(f.calls[0]!.body).toMatchObject({
       model: 'gemini-3.8-flash',
-      system_instruction: 'sistema\n\nextra',
+      system_instruction: `sistema\n\nextra\n\n${NO_RECITATION_NOTE}`,
       input: 'pergunta',
       tools: [{ type: 'google_search' }],
       response_format: { type: 'text', mime_type: 'application/json', schema: SCHEMA },

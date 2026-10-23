@@ -21,6 +21,14 @@ export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta
 /** Host dos links de redirecionamento das citações do grounding. */
 const GROUNDING_REDIRECT_HOST = 'vertexaisearch.cloud.google.com';
 const MAX_REDIRECTS_RESOLVED = 30;
+export const GEMINI_THINKING_LEVEL = 'low';
+/**
+ * O Gemini bloqueia a resposta que reproduz texto de página protegido ("Request blocked due to
+ * copyright/recitation content"). Os trechos de evidência não precisam ser literais: o verificador
+ * confere a página (acessível, de domínio permitido, citando a emissora), não o trecho.
+ */
+export const NO_RECITATION_NOTE =
+  'Não copie texto literal das páginas da web (direitos autorais): nos campos de trecho/citação, escreva uma paráfrase curta com suas palavras, citando a URL da fonte.';
 
 /** Subconjunto da resposta da Interactions API que usamos (robusto a campos novos). */
 interface InteractionOutput {
@@ -89,10 +97,14 @@ export class GeminiLlmClient implements LlmClient {
             .join('\n\n');
     const body: Record<string, unknown> = {
       model,
-      system_instruction: system,
+      system_instruction: [system, NO_RECITATION_NOTE].filter(Boolean).join('\n\n'),
       input,
       response_format: { type: 'text', mime_type: 'application/json', schema: req.schema },
-      generation_config: { max_output_tokens: req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS },
+      // o raciocínio conta no limite de saída: `low` evita a resposta incompleta em pesquisas longas
+      generation_config: {
+        max_output_tokens: req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+        thinking_level: GEMINI_THINKING_LEVEL,
+      },
       store: false,
     };
     if (req.webSearch) body.tools = [{ type: 'google_search' }];
