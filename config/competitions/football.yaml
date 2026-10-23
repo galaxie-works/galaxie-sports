@@ -1001,6 +1001,844 @@ competitions:
     labels: { pt-BR: "Sul-Americano Sub-20", es: "Sudamericano Sub-20", en: "South American U-20 Championship" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://media.api-sports.io/football/leagues/773.png"]
 
+  # ---------------------------------------------------------------- tier 2: países da navegação
+  # Ids conferidos no GET /leagues do raw local (22/10/2026). Antes eram tier 3 (fora do catálogo) e sem jogos.
+  # live_priority low: o ao vivo só consulta alta/média; entram pelo sync diário e pelos clássicos.
+
+  # América do Sul e México: segundas divisões, copas nacionais, supercopas e femininos principais
+  - slug: argentina-trofeo-de-campeones
+    name: "Trofeo de Campeones de la Superliga"
+    country: "Argentina"
+    type: cup
+    api_sports_id: 517
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Trofeo de Campeones (Argentina)", es: "Trofeo de Campeones", en: "Trofeo de Campeones (Argentina)" }
+    sources: ["GET /leagues?id=517 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/517.png"]
+  - slug: argentina-supercopa
+    name: "Super Copa"
+    country: "Argentina"
+    type: cup
+    api_sports_id: 810
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa Argentina", es: "Supercopa Argentina", en: "Supercopa Argentina" }
+    sources: ["GET /leagues?id=810 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/810.png"]
+  - slug: bolivia-nacional-b
+    name: "Nacional B"
+    country: "Bolivia"
+    type: league
+    api_sports_id: 710
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Nacional B (Bolívia)", es: "Nacional B (Bolivia)", en: "Bolivian Nacional B" }
+    sources: ["GET /leagues?id=710 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/710.png"]
+  - slug: chile-primera-b
+    name: "Primera B"
+    country: "Chile"
+    type: league
+    api_sports_id: 266
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Primera B do Chile", es: "Primera B de Chile", en: "Chilean Primera B" }
+    sources: ["GET /leagues?id=266 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/266.png"]
+  - slug: chile-supercopa
+    name: "Super Cup"
+    country: "Chile"
+    type: cup
+    api_sports_id: 527
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa do Chile", es: "Supercopa de Chile", en: "Chilean Super Cup" }
+    sources: ["GET /leagues?id=527 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/527.png"]
+  - slug: chile-copa-de-la-liga
+    name: "Copa De La Liga"
+    country: "Chile"
+    type: cup
+    api_sports_id: 1220
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa da Liga do Chile", es: "Copa de la Liga de Chile", en: "Chilean League Cup" }
+    sources: ["GET /leagues?id=1220 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/1220.png"]
+  - slug: colombia-primera-b
+    name: "Primera B"
+    country: "Colombia"
+    type: league
+    api_sports_id: 240
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Primera B da Colômbia", es: "Primera B de Colombia", en: "Colombian Primera B" }
+    sources: ["GET /leagues?id=240 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/240.png"]
+  - slug: copa-colombia
+    name: "Copa Colombia"
+    country: "Colombia"
+    type: cup
+    api_sports_id: 241
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa Colômbia", es: "Copa Colombia", en: "Copa Colombia" }
+    sources: ["GET /leagues?id=241 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/241.png"]
+  - slug: colombia-liga-femenina
+    name: "Liga Femenina"
+    country: "Colombia"
+    type: league
+    api_sports_id: 712
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Liga Feminina da Colômbia", es: "Liga Femenina de Colombia", en: "Colombian Women's League" }
+    sources: ["GET /leagues?id=712 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/712.png"]
+  - slug: colombia-superliga
+    name: "Superliga"
+    country: "Colombia"
+    type: cup
+    api_sports_id: 713
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Superliga da Colômbia", es: "Superliga de Colombia", en: "Colombian Superliga" }
+    sources: ["GET /leagues?id=713 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/713.png"]
+  - slug: ecuador-liga-pro-serie-b
+    name: "Liga Pro Serie B"
+    country: "Ecuador"
+    type: league
+    api_sports_id: 243
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Série B do Equador", es: "LigaPro Serie B", en: "Ecuadorian Serie B" }
+    sources: ["GET /leagues?id=243 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/243.png"]
+  - slug: copa-ecuador
+    name: "Copa Ecuador"
+    country: "Ecuador"
+    type: cup
+    api_sports_id: 917
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa do Equador", es: "Copa Ecuador", en: "Copa Ecuador" }
+    sources: ["GET /leagues?id=917 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/917.png"]
+  - slug: ecuador-supercopa
+    name: "Supercopa de Ecuador"
+    country: "Ecuador"
+    type: cup
+    api_sports_id: 853
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa do Equador", es: "Supercopa de Ecuador", en: "Ecuadorian Super Cup" }
+    sources: ["GET /leagues?id=853 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/853.png"]
+  - slug: liga-de-expansion-mx
+    name: "Liga de Expansión MX"
+    country: "Mexico"
+    type: league
+    api_sports_id: 263
+    verify: false
+    tier: 2
+    region: north-central-america
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga de Expansão MX", es: "Liga de Expansión MX", en: "Liga de Expansión MX" }
+    sources: ["GET /leagues?id=263 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/263.png"]
+  - slug: mexico-campeon-de-campeones
+    name: "Campeón de Campeones"
+    country: "Mexico"
+    type: cup
+    api_sports_id: 857
+    verify: false
+    tier: 2
+    region: north-central-america
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Campeão dos Campeões (México)", es: "Campeón de Campeones", en: "Campeón de Campeones" }
+    sources: ["GET /leagues?id=857 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/857.png"]
+  - slug: peru-segunda-division
+    name: "Segunda División"
+    country: "Peru"
+    type: league
+    api_sports_id: 282
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Segunda Divisão do Peru", es: "Liga 2 de Perú", en: "Peruvian Liga 2" }
+    sources: ["GET /leagues?id=282 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/282.png"]
+  - slug: peru-liga-femenina
+    name: "Liga Women"
+    country: "Peru"
+    type: league
+    api_sports_id: 1229
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Liga Feminina do Peru", es: "Liga Femenina de Perú", en: "Peruvian Women's League" }
+    sources: ["GET /leagues?id=1229 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/1229.png"]
+  - slug: copa-peru
+    name: "Copa Perú"
+    country: "Peru"
+    type: cup
+    api_sports_id: 503
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa Peru", es: "Copa Perú", en: "Copa Perú" }
+    sources: ["GET /leagues?id=503 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/503.png"]
+  - slug: peru-copa-de-la-liga
+    name: "Copa De La Liga"
+    country: "Peru"
+    type: cup
+    api_sports_id: 1232
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa da Liga do Peru", es: "Copa de la Liga de Perú", en: "Peruvian League Cup" }
+    sources: ["GET /leagues?id=1232 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/1232.png"]
+  - slug: paraguay-division-intermedia
+    name: "Division Intermedia"
+    country: "Paraguay"
+    type: league
+    api_sports_id: 251
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Divisão Intermediária do Paraguai", es: "División Intermedia", en: "Paraguayan División Intermedia" }
+    sources: ["GET /leagues?id=251 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/251.png"]
+  - slug: copa-paraguay
+    name: "Copa Paraguay"
+    country: "Paraguay"
+    type: cup
+    api_sports_id: 501
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa Paraguai", es: "Copa Paraguay", en: "Copa Paraguay" }
+    sources: ["GET /leagues?id=501 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/501.png"]
+  - slug: paraguay-supercopa
+    name: "Supercopa"
+    country: "Paraguay"
+    type: cup
+    api_sports_id: 961
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa do Paraguai", es: "Supercopa de Paraguay", en: "Paraguayan Super Cup" }
+    sources: ["GET /leagues?id=961 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/961.png"]
+  - slug: uruguay-segunda-division
+    name: "Segunda División"
+    country: "Uruguay"
+    type: league
+    api_sports_id: 269
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Segunda Divisão do Uruguai", es: "Segunda División de Uruguay", en: "Uruguayan Segunda División" }
+    sources: ["GET /leagues?id=269 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/269.png"]
+  - slug: uruguay-supercopa
+    name: "Super Copa"
+    country: "Uruguay"
+    type: cup
+    api_sports_id: 842
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa Uruguaia", es: "Supercopa Uruguaya", en: "Uruguayan Super Cup" }
+    sources: ["GET /leagues?id=842 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/842.png"]
+  - slug: uruguay-copa-de-la-liga
+    name: "Copa De La Liga Auf"
+    country: "Uruguay"
+    type: cup
+    api_sports_id: 1212
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa da Liga AUF", es: "Copa de la Liga AUF", en: "AUF League Cup" }
+    sources: ["GET /leagues?id=1212 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/1212.png"]
+  - slug: venezuela-segunda-division
+    name: "Segunda División"
+    country: "Venezuela"
+    type: league
+    api_sports_id: 300
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Segunda Divisão da Venezuela", es: "Segunda División de Venezuela", en: "Venezuelan Segunda División" }
+    sources: ["GET /leagues?id=300 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/300.png"]
+  - slug: venezuela-supercopa
+    name: "Supercopa"
+    country: "Venezuela"
+    type: cup
+    api_sports_id: 1181
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa da Venezuela", es: "Supercopa de Venezuela", en: "Venezuelan Super Cup" }
+    sources: ["GET /leagues?id=1181 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/1181.png"]
+
+  # Brasil: estaduais que faltavam, Paulista A2 e copas regionais
+  - slug: alagoano
+    name: "Alagoano"
+    country: "Brazil"
+    type: cup
+    api_sports_id: 77
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Alagoano", es: "Campeonato Alagoano", en: "Alagoano State Championship" }
+    sources: ["GET /leagues?id=77 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/77.png"]
+  - slug: acreano
+    name: "Acreano"
+    country: "Brazil"
+    type: league
+    api_sports_id: 520
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Acreano", es: "Campeonato Acreano", en: "Acreano State Championship" }
+    sources: ["GET /leagues?id=520 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/520.png"]
+  - slug: amapaense
+    name: "Amapaense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 521
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Amapaense", es: "Campeonato Amapaense", en: "Amapaense State Championship" }
+    sources: ["GET /leagues?id=521 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/521.png"]
+  - slug: amazonense
+    name: "Amazonense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 522
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Amazonense", es: "Campeonato Amazonense", en: "Amazonense State Championship" }
+    sources: ["GET /leagues?id=522 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/522.png"]
+  - slug: paraibano
+    name: "Paraibano"
+    country: "Brazil"
+    type: league
+    api_sports_id: 603
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Paraibano", es: "Campeonato Paraibano", en: "Paraibano State Championship" }
+    sources: ["GET /leagues?id=603 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/603.png"]
+  - slug: roraimense
+    name: "Roraimense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 607
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Roraimense", es: "Campeonato Roraimense", en: "Roraimense State Championship" }
+    sources: ["GET /leagues?id=607 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/607.png"]
+  - slug: maranhense
+    name: "Maranhense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 608
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Maranhense", es: "Campeonato Maranhense", en: "Maranhense State Championship" }
+    sources: ["GET /leagues?id=608 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/608.png"]
+  - slug: brasiliense
+    name: "Brasiliense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 610
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Brasiliense", es: "Campeonato Brasiliense", en: "Brasiliense Championship" }
+    sources: ["GET /leagues?id=610 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/610.png"]
+  - slug: capixaba
+    name: "Capixaba"
+    country: "Brazil"
+    type: league
+    api_sports_id: 611
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Capixaba", es: "Campeonato Capixaba", en: "Capixaba State Championship" }
+    sources: ["GET /leagues?id=611 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/611.png"]
+  - slug: rondoniense
+    name: "Rondoniense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 615
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Rondoniense", es: "Campeonato Rondoniense", en: "Rondoniense State Championship" }
+    sources: ["GET /leagues?id=615 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/615.png"]
+  - slug: potiguar
+    name: "Potiguar"
+    country: "Brazil"
+    type: league
+    api_sports_id: 616
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Potiguar", es: "Campeonato Potiguar", en: "Potiguar State Championship" }
+    sources: ["GET /leagues?id=616 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/616.png"]
+  - slug: piauiense
+    name: "Piauiense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 621
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Piauiense", es: "Campeonato Piauiense", en: "Piauiense State Championship" }
+    sources: ["GET /leagues?id=621 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/621.png"]
+  - slug: sul-matogrossense
+    name: "Sul-Matogrossense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 623
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Sul-Mato-Grossense", es: "Campeonato Sul-Mato-Grossense", en: "Sul-Mato-Grossense State Championship" }
+    sources: ["GET /leagues?id=623 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/623.png"]
+  - slug: sergipano
+    name: "Sergipano"
+    country: "Brazil"
+    type: league
+    api_sports_id: 626
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Sergipano", es: "Campeonato Sergipano", en: "Sergipano State Championship" }
+    sources: ["GET /leagues?id=626 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/626.png"]
+  - slug: paraense
+    name: "Paraense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 627
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Paraense", es: "Campeonato Paraense", en: "Paraense State Championship" }
+    sources: ["GET /leagues?id=627 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/627.png"]
+  - slug: matogrossense
+    name: "Matogrossense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 630
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Mato-Grossense", es: "Campeonato Mato-Grossense", en: "Mato-Grossense State Championship" }
+    sources: ["GET /leagues?id=630 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/630.png"]
+  - slug: tocantinense
+    name: "Tocantinense"
+    country: "Brazil"
+    type: league
+    api_sports_id: 631
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Campeonato Tocantinense", es: "Campeonato Tocantinense", en: "Tocantinense State Championship" }
+    sources: ["GET /leagues?id=631 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/631.png"]
+  - slug: paulista-a2
+    name: "Paulista - A2"
+    country: "Brazil"
+    type: league
+    api_sports_id: 476
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Paulistão A2", es: "Paulista A2", en: "Paulista A2" }
+    sources: ["GET /leagues?id=476 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/476.png"]
+  - slug: copa-verde
+    name: "Copa Verde"
+    country: "Brazil"
+    type: cup
+    api_sports_id: 843
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa Verde", es: "Copa Verde", en: "Copa Verde" }
+    sources: ["GET /leagues?id=843 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/843.png"]
+  - slug: copa-norte
+    name: "Copa Norte"
+    country: "Brazil"
+    type: cup
+    api_sports_id: 1223
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa Norte", es: "Copa Norte", en: "Copa Norte" }
+    sources: ["GET /leagues?id=1223 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/1223.png"]
+  - slug: copa-sul-sudeste
+    name: "Copa Sul-Sudeste"
+    country: "Brazil"
+    type: cup
+    api_sports_id: 1224
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa Sul-Sudeste", es: "Copa Sul-Sudeste", en: "Copa Sul-Sudeste" }
+    sources: ["GET /leagues?id=1224 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/1224.png"]
+  - slug: copa-centro-oeste
+    name: "Copa Centro-Oeste"
+    country: "Brazil"
+    type: cup
+    api_sports_id: 1225
+    verify: false
+    tier: 2
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa Centro-Oeste", es: "Copa Centro-Oeste", en: "Copa Centro-Oeste" }
+    sources: ["GET /leagues?id=1225 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/1225.png"]
+
+  # Europa: segundas divisões, copas da liga, supercopas e femininos principais
+  - slug: 2-bundesliga
+    name: "2. Bundesliga"
+    country: "Germany"
+    type: league
+    api_sports_id: 79
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "2. Bundesliga", es: "2. Bundesliga", en: "2. Bundesliga" }
+    sources: ["GET /leagues?id=79 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/79.png"]
+  - slug: dfl-supercup
+    name: "Super Cup"
+    country: "Germany"
+    type: cup
+    api_sports_id: 529
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa da Alemanha", es: "Supercopa de Alemania", en: "DFL-Supercup" }
+    sources: ["GET /leagues?id=529 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/529.png"]
+  - slug: frauen-bundesliga
+    name: "Frauen Bundesliga"
+    country: "Germany"
+    type: league
+    api_sports_id: 82
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Bundesliga Feminina", es: "Bundesliga Femenina", en: "Frauen-Bundesliga" }
+    sources: ["GET /leagues?id=82 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/82.png"]
+  - slug: laliga-hypermotion
+    name: "Segunda División"
+    country: "Spain"
+    type: league
+    api_sports_id: 141
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Segunda Divisão Espanhola", es: "LaLiga Hypermotion", en: "Spanish Segunda División" }
+    sources: ["GET /leagues?id=141 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/141.png"]
+  - slug: supercopa-de-espana
+    name: "Super Cup"
+    country: "Spain"
+    type: cup
+    api_sports_id: 556
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa da Espanha", es: "Supercopa de España", en: "Spanish Super Cup" }
+    sources: ["GET /leagues?id=556 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/556.png"]
+  - slug: liga-f
+    name: "Primera División Femenina"
+    country: "Spain"
+    type: league
+    api_sports_id: 142
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga F (Espanha)", es: "Liga F", en: "Liga F" }
+    sources: ["GET /leagues?id=142 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/142.png"]
+  - slug: ligue-2
+    name: "Ligue 2"
+    country: "France"
+    type: league
+    api_sports_id: 62
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Ligue 2", es: "Ligue 2", en: "Ligue 2" }
+    sources: ["GET /leagues?id=62 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/62.png"]
+  - slug: trophee-des-champions
+    name: "Trophée des Champions"
+    country: "France"
+    type: cup
+    api_sports_id: 526
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa da França", es: "Supercopa de Francia", en: "Trophée des Champions" }
+    sources: ["GET /leagues?id=526 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/526.png"]
+  - slug: premiere-ligue
+    name: "Feminine Division 1"
+    country: "France"
+    type: league
+    api_sports_id: 64
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Francesa Feminina", es: "Liga Francesa Femenina", en: "Première Ligue" }
+    sources: ["GET /leagues?id=64 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/64.png"]
+  - slug: efl-cup
+    name: "League Cup"
+    country: "England"
+    type: cup
+    api_sports_id: 48
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Copa da Liga Inglesa", es: "Copa de la Liga de Inglaterra", en: "EFL Cup" }
+    sources: ["GET /leagues?id=48 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/48.png"]
+  - slug: community-shield
+    name: "Community Shield"
+    country: "England"
+    type: cup
+    api_sports_id: 528
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa da Inglaterra", es: "Community Shield", en: "Community Shield" }
+    sources: ["GET /leagues?id=528 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/528.png"]
+  - slug: womens-super-league
+    name: "FA WSL"
+    country: "England"
+    type: league
+    api_sports_id: 44
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Superliga Feminina Inglesa", es: "Superliga Femenina de Inglaterra", en: "Women's Super League" }
+    sources: ["GET /leagues?id=44 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/44.png"]
+  - slug: serie-b-italia
+    name: "Serie B"
+    country: "Italy"
+    type: league
+    api_sports_id: 136
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Série B Italiana", es: "Serie B de Italia", en: "Italian Serie B" }
+    sources: ["GET /leagues?id=136 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/136.png"]
+  - slug: supercoppa-italiana
+    name: "Super Cup"
+    country: "Italy"
+    type: cup
+    api_sports_id: 547
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Supercopa da Itália", es: "Supercopa de Italia", en: "Supercoppa Italiana" }
+    sources: ["GET /leagues?id=547 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/547.png"]
+  - slug: serie-a-femminile
+    name: "Serie A Women"
+    country: "Italy"
+    type: league
+    api_sports_id: 139
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Série A Feminina Italiana", es: "Serie A Femenina de Italia", en: "Serie A Women" }
+    sources: ["GET /leagues?id=139 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/139.png"]
+  - slug: liga-portugal-2
+    name: "Segunda Liga"
+    country: "Portugal"
+    type: league
+    api_sports_id: 95
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Portugal 2", es: "Liga Portugal 2", en: "Liga Portugal 2" }
+    sources: ["GET /leagues?id=95 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/95.png"]
+  - slug: taca-de-portugal
+    name: "Taça de Portugal"
+    country: "Portugal"
+    type: cup
+    api_sports_id: 96
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Taça de Portugal", es: "Copa de Portugal", en: "Taça de Portugal" }
+    sources: ["GET /leagues?id=96 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/96.png"]
+  - slug: taca-da-liga
+    name: "Taça da Liga"
+    country: "Portugal"
+    type: cup
+    api_sports_id: 97
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Taça da Liga", es: "Copa de la Liga de Portugal", en: "Portuguese League Cup" }
+    sources: ["GET /leagues?id=97 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/97.png"]
+  - slug: supertaca-candido-de-oliveira
+    name: "Super Cup"
+    country: "Portugal"
+    type: cup
+    api_sports_id: 550
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Supertaça de Portugal", es: "Supercopa de Portugal", en: "Portuguese Super Cup" }
+    sources: ["GET /leagues?id=550 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/550.png"]
+  - slug: liga-bpi
+    name: "1a Divisão - Women"
+    country: "Portugal"
+    type: league
+    api_sports_id: 948
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Feminina Portuguesa", es: "Liga Femenina de Portugal", en: "Portuguese Women's League" }
+    sources: ["GET /leagues?id=948 (raw local, 2026-10-22)", "https://media.api-sports.io/football/leagues/948.png"]
+
 notes:
   - "Ids are stable across seasons in api-sports; names are not (sponsor/rebrand changes). The bootstrap must key on api_sports_id and only use name+country+type for entries with verify:true. Log (do not fail) when the returned name differs from the catalog name."
   - "Argentina: the format changes almost every year. 2020-2024 used Liga Profesional (id 128) plus a separate Copa de la Liga Profesional (id 1032). From 2025 the season is Apertura + Clausura (zones + playoffs) and no separate Copa de la Liga is played; both tournaments are expected under id 128 with the tournament in the round name, and id 1032 should have no new seasons (mirrored for history only). Copa Argentina (130) is unaffected. Verify the 2026 round naming at bootstrap via GET /fixtures/rounds?league=128&season=2026."
