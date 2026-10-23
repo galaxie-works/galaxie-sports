@@ -167,83 +167,112 @@ export async function RaceClassification({ event }: { event: Event }) {
   const race = event.session?.type === 'race' || event.session?.type === 'sprint';
   const fastest = event.session?.fastest_lap?.participant_id;
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-10 text-right">{tx.position}</TableHead>
-          <TableHead>{tx.driver}</TableHead>
-          <TableHead className="hidden md:table-cell">{tx.team}</TableHead>
-          <TableHead className="text-right">{tx.time}</TableHead>
-          <TableHead className="hidden text-right sm:table-cell">{tx.laps}</TableHead>
-          {race ? (
-            <>
-              <TableHead className="text-right">
-                <abbr title={tx.gridTitle} className="no-underline">
-                  {tx.grid}
-                </abbr>
-              </TableHead>
-              <TableHead className="hidden text-right sm:table-cell">
-                <abbr title={tx.pitsTitle} className="no-underline">
-                  {tx.pits}
-                </abbr>
-              </TableHead>
-            </>
-          ) : null}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((p) => (
-          <TableRow key={p.id}>
-            <TableCell className="text-right font-semibold tabular-nums">{p.position ?? '–'}</TableCell>
-            <TableCell>
-              <Link href={`/times/${p.id}`} className="flex items-center gap-2 font-medium hover:underline">
-                <Crest src={p.logo} name={p.name} size="sm" round />
-                <span className="truncate">{p.name}</span>
-                {p.id === fastest ? (
-                  <Badge variant="info-light" radius="full" title={tx.fastestLap}>
-                    <Timer aria-hidden />
-                  </Badge>
-                ) : null}
-              </Link>
-            </TableCell>
-            <TableCell className="hidden md:table-cell">
-              {p.result?.team ? (
-                p.result.team.id ? (
-                  <Link
-                    href={`/times/${p.result.team.id}`}
-                    className="text-muted-foreground flex items-center gap-2 hover:underline"
-                  >
-                    <Crest src={p.result.team.logo} name={p.result.team.name} size="xs" />
-                    <span className="truncate">{p.result.team.name}</span>
-                  </Link>
-                ) : (
-                  <span className="text-muted-foreground">{p.result.team.name}</span>
-                )
-              ) : null}
-            </TableCell>
-            <TableCell className="text-right font-mono text-sm tabular-nums">
-              {p.result?.time ?? '–'}
-            </TableCell>
-            <TableCell className="hidden text-right tabular-nums sm:table-cell">
-              {p.result?.laps ?? '–'}
-            </TableCell>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-10 text-right">{tx.position}</TableHead>
+            <TableHead>{tx.driver}</TableHead>
+            <TableHead className="hidden md:table-cell">{tx.team}</TableHead>
+            <TableHead className="text-right">{tx.time}</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">{tx.laps}</TableHead>
             {race ? (
               <>
-                <TableCell className="text-right tabular-nums">
-                  <span className="inline-flex items-center gap-1.5">
-                    <GridDelta grid={p.result?.grid ?? null} position={p.position ?? null} />
-                    {p.result?.grid || '–'}
-                  </span>
-                </TableCell>
-                <TableCell className="hidden text-right tabular-nums sm:table-cell">
-                  {p.result?.pits ?? '–'}
-                </TableCell>
+                <TableHead className="text-right">
+                  <abbr title={tx.gridTitle} className="no-underline">
+                    {tx.grid}
+                  </abbr>
+                </TableHead>
+                <TableHead className="hidden text-right sm:table-cell">
+                  <abbr title={tx.pitsTitle} className="no-underline">
+                    {tx.pits}
+                  </abbr>
+                </TableHead>
               </>
             ) : null}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {rows.map((p) => (
+            <TableRow key={p.id}>
+              <TableCell className="text-right font-semibold tabular-nums">{p.position ?? '–'}</TableCell>
+              <TableCell>
+                <Link href={`/times/${p.id}`} className="flex items-center gap-2 font-medium hover:underline">
+                  <Crest src={p.logo} name={p.name} size="sm" round />
+                  <span className="truncate">{p.name}</span>
+                  {p.id === fastest ? (
+                    <Badge variant="info-light" radius="full" title={tx.fastestLap}>
+                      <Timer aria-hidden />
+                    </Badge>
+                  ) : null}
+                </Link>
+              </TableCell>
+              <TableCell className="hidden md:table-cell">
+                {p.result?.team ? (
+                  p.result.team.id ? (
+                    <Link
+                      href={`/times/${p.result.team.id}`}
+                      className="text-muted-foreground flex items-center gap-2 hover:underline"
+                    >
+                      <Crest src={p.result.team.logo} name={p.result.team.name} size="xs" />
+                      <span className="truncate">{p.result.team.name}</span>
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">{p.result.team.name}</span>
+                  )
+                ) : null}
+              </TableCell>
+              <TableCell className="text-right font-mono text-sm tabular-nums">
+                {p.result?.time ?? '–'}
+              </TableCell>
+              <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                {p.result?.laps ?? '–'}
+              </TableCell>
+              {race ? (
+                <>
+                  <TableCell className="text-right tabular-nums">
+                    <span className="inline-flex items-center gap-1.5">
+                      <GridDelta grid={p.result?.grid ?? null} position={p.position ?? null} />
+                      {p.result?.grid || '–'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                    {p.result?.pits ?? '–'}
+                  </TableCell>
+                </>
+              ) : null}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <RaceSourceNote className="px-2 pt-3" />
+    </>
+  );
+}
+
+/**
+ * Crédito exigido pela licença do histórico da F1 (F1DB, CC BY 4.0): fonte, licença e aviso de adaptação.
+ * Aparece onde os dados da F1 são exibidos (classificação da sessão e campeonato).
+ */
+export async function RaceSourceNote({ className }: { className?: string }) {
+  const tx = (await getT()).race;
+  return (
+    <p className={cn('text-muted-foreground text-xs', className)}>
+      {tx.source}:{' '}
+      <a href="https://github.com/f1db/f1db" target="_blank" rel="noreferrer" className="underline">
+        F1DB
+      </a>{' '}
+      ·{' '}
+      <a
+        href="https://creativecommons.org/licenses/by/4.0/"
+        target="_blank"
+        rel="noreferrer license"
+        className="underline"
+      >
+        CC BY 4.0
+      </a>{' '}
+      · {tx.sourceAdapted}
+    </p>
   );
 }
 
@@ -258,44 +287,47 @@ export async function ChampionshipTable({ group }: { group: StandingsGroup }) {
   const tx = (await getT()).race.championship;
   const drivers = group.name === 'drivers';
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-10 text-right">#</TableHead>
-          <TableHead>{drivers ? tx.drivers : tx.constructors}</TableHead>
-          {drivers ? (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-10 text-right">#</TableHead>
+            <TableHead>{drivers ? tx.drivers : tx.constructors}</TableHead>
+            {drivers ? (
+              <TableHead className="text-right">
+                <abbr title={tx.wins} className="no-underline">
+                  {tx.winsShort}
+                </abbr>
+              </TableHead>
+            ) : null}
             <TableHead className="text-right">
-              <abbr title={tx.wins} className="no-underline">
-                {tx.winsShort}
+              <abbr title={tx.points} className="no-underline">
+                {tx.pointsShort}
               </abbr>
             </TableHead>
-          ) : null}
-          <TableHead className="text-right">
-            <abbr title={tx.points} className="no-underline">
-              {tx.pointsShort}
-            </abbr>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {group.rows.map((r) => (
-          <TableRow key={r.participant.id}>
-            <TableCell className="text-right tabular-nums">{r.rank}</TableCell>
-            <TableCell>
-              <Link
-                href={`/times/${r.participant.id}`}
-                className="flex items-center gap-2 font-medium hover:underline"
-              >
-                <Crest src={r.participant.logo} name={r.participant.name} size="sm" round={drivers} />
-                <span className="truncate">{r.participant.name}</span>
-              </Link>
-            </TableCell>
-            {drivers ? <TableCell className="text-right tabular-nums">{r.won}</TableCell> : null}
-            <TableCell className="text-right font-semibold tabular-nums">{r.points}</TableCell>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {group.rows.map((r) => (
+            <TableRow key={r.participant.id}>
+              <TableCell className="text-right tabular-nums">{r.rank}</TableCell>
+              <TableCell>
+                <Link
+                  href={`/times/${r.participant.id}`}
+                  className="flex items-center gap-2 font-medium hover:underline"
+                >
+                  <Crest src={r.participant.logo} name={r.participant.name} size="sm" round={drivers} />
+                  <span className="truncate">{r.participant.name}</span>
+                </Link>
+              </TableCell>
+              {drivers ? <TableCell className="text-right tabular-nums">{r.won}</TableCell> : null}
+              <TableCell className="text-right font-semibold tabular-nums">{r.points}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <RaceSourceNote className="px-2 pt-3" />
+    </>
   );
 }
 
@@ -328,6 +360,7 @@ export async function ChampionshipCard({ standings }: { standings: TeamStanding[
             </div>
           </Link>
         ))}
+        <RaceSourceNote />
       </CardContent>
     </Card>
   );

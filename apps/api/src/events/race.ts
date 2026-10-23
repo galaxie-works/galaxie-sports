@@ -17,7 +17,8 @@ import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 
-const PROVIDER = 'api-sports';
+/** Fontes da F1: a api-sports (temporada atual, ao vivo) e o F1DB (histórico desde 1950, CC BY 4.0). */
+export const RACE_PROVIDERS = ['api-sports', 'f1db'];
 
 type SessionType = EventSession['type'];
 
@@ -130,7 +131,7 @@ export async function loadRaceSessions(
   return out;
 }
 
-/** IDs do fornecedor → participantes nossos (mesmo esporte). */
+/** IDs do fornecedor → participantes nossos (mesmo esporte; os IDs das duas fontes não colidem). */
 async function providerIds(db: Database, sport: string, ids: string[]): Promise<Map<string, string>> {
   if (!ids.length) return new Map();
   const rows = await db
@@ -138,7 +139,7 @@ async function providerIds(db: Database, sport: string, ids: string[]): Promise<
     .from(providerMap)
     .where(
       and(
-        eq(providerMap.provider, PROVIDER),
+        inArray(providerMap.provider, RACE_PROVIDERS),
         eq(providerMap.sport, sport),
         eq(providerMap.entityType, 'participant'),
         inArray(providerMap.providerId, [...new Set(ids)]),
@@ -196,13 +197,31 @@ export function raceResult(raw: unknown, teams: RaceTeams): ParticipantResult | 
 }
 
 /**
+ * IDs de fornecedor de um construtor nas fontes da F1. Pode haver mais de um por fonte: o F1DB separa fases de
+ * uma equipe que a api-sports mantém numa só (RB 2024–25 e Racing Bulls 2026).
+ */
+export async function constructorProviderIds(db: Database, participantId: string): Promise<string[]> {
+  const rows = await db
+    .select({ providerId: providerMap.providerId })
+    .from(providerMap)
+    .where(
+      and(
+        eq(providerMap.entityType, 'participant'),
+        eq(providerMap.entityId, participantId),
+        inArray(providerMap.provider, RACE_PROVIDERS),
+      ),
+    );
+  return rows.map((r) => r.providerId);
+}
+
+/**
  * Sessões de uma equipe (construtor): ela não corre, os pilotos dela sim. O vínculo é a equipe no resultado de
- * cada piloto (`result.team.id`, ID do fornecedor), dentro do esporte para não varrer os outros.
+ * cada piloto (`result.team.id`, ID do fornecedor de cada fonte), dentro do esporte para não varrer os outros.
  */
 export function constructorEvents(
   db: Database,
   sport: string,
-  teamProviderId: string,
+  teamProviderIds: string[],
   where: SQL | undefined,
   order: 'asc' | 'desc',
   limit: number,
@@ -215,7 +234,7 @@ export function constructorEvents(
       and(
         eq(event.sport, sport),
         eq(eventParticipant.side, 'grid'),
-        sql`${eventParticipant.result} -> 'team' ->> 'id' = ${teamProviderId}`,
+        inArray(sql<string>`${eventParticipant.result} -> 'team' ->> 'id'`, teamProviderIds),
         where,
       ),
     )

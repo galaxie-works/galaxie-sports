@@ -15,3 +15,8 @@ export * from './api-sports/football/person-ids.js';
 export * from './api-sports/provider.js';
 export * from './api-sports/sports/status.js';
 export * from './api-sports/sports/normalize.js';
+export * from './event/race-session.js';
+export * from './f1db/tables.js';
+export * from './f1db/schedule.js';
+export * from './f1db/match.js';
+export * from './f1db/normalize.js';

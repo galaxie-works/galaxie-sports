@@ -83,17 +83,17 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
   const content = contentLocale(locale, first.country?.code);
   const competition = content === apiLocale(locale) ? first : await getCompetition(id, content);
 
-  const windows = competition.seasons
+  const allWindows = competition.seasons
     .filter((s) => s.start_date && s.end_date)
     .sort((a, b) => b.year - a.year)
-    .slice(0, MAX_SEASONS)
     .map((s) => ({ year: s.year, start: s.start_date!, end: s.end_date! }));
-  const available = await getSeasonsWithData(competition.id, windows, content);
-
   // `?data=` (link vindo de um jogo): a temporada que contém a data do jogo
   const date = typeof query.data === 'string' ? query.data : null;
-  const dated = date ? windows.find((w) => w.start <= date && date <= w.end)?.year : undefined;
+  const dated = date ? allWindows.find((w) => w.start <= date && date <= w.end)?.year : undefined;
   const requested = Number(query.temporada) || dated;
+  // as mais recentes e, se pedida, uma temporada antiga (ex.: F1 de 1988, a partir do card de campeonato)
+  const windows = allWindows.filter((w, i) => i < MAX_SEASONS || w.year === requested);
+  const available = await getSeasonsWithData(competition.id, windows, content);
   // Sem escolha explícita: a temporada mais recente com classificação (a mais completa para a demo).
   const selected =
     available.find((s) => s.year === requested) ??

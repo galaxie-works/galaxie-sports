@@ -30,10 +30,17 @@ type SportText = Dictionary['sport'];
 /**
  * Encerrado sem placar: o relógio fechou o jogo pelo horário, mas o resultado ainda não chegou do fornecedor
  * (esportes sem ao vivo recebem o placar no sync do dia seguinte). Mostra "aguardando resultado", nunca "? – ?".
+ * Sessão de corrida (F1) não tem placar: o resultado é a classificação dos pilotos.
  */
 export function awaitingResult(
-  event: Pick<Event, 'status'> & { score?: Pick<Event['score'], 'home' | 'away'> },
+  event: Pick<Event, 'status'> & {
+    score?: Pick<Event['score'], 'home' | 'away'>;
+    session?: Event['session'];
+    participants?: Pick<Event['participants'][number], 'position'>[];
+  },
 ) {
+  if (event.session)
+    return event.status === 'finished' && !(event.participants ?? []).some((p) => p.position != null);
   return (
     event.status === 'finished' && event.score != null && event.score.home == null && event.score.away == null
   );
@@ -44,7 +51,7 @@ export function StatusBadgeView({
   event,
   t,
 }: {
-  event: Pick<Event, 'status' | 'clock'> & { score?: Pick<Event['score'], 'home' | 'away'> };
+  event: Pick<Event, 'status' | 'clock'> & Parameters<typeof awaitingResult>[0];
   t: SportText;
 }) {
   const label = t.status[event.status] ?? event.status;

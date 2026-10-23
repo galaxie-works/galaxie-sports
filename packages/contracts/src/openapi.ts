@@ -126,7 +126,12 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       version: options.version ?? '0.1.0',
       description:
         'API de dados esportivos para a América Latina: espelho compatível (`/mirror`) e API canônica (`/v1`). ' +
-        'Autentique com o header `x-galaxie-key`. Erros seguem a RFC 9457.',
+        'Autentique com o header `x-galaxie-key`. Erros seguem a RFC 9457.\n\n' +
+        '**Fontes e atribuição.** Histórico da Fórmula 1 (temporadas, GPs, sessões, resultados, grid, pit stops e ' +
+        'campeonatos desde 1950): [F1DB](https://github.com/f1db/f1db), licenciado sob ' +
+        '[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); os dados foram adaptados ao modelo da Galaxie ' +
+        '(normalização, casamento com outras fontes e horários estimados antes de 2024). Ao redistribuir esses ' +
+        'dados, mantenha este crédito.',
     },
     ...(options.serverUrl ? { servers: [{ url: options.serverUrl }] } : {}),
     security: [{ galaxieKey: [] }],
