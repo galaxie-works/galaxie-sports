@@ -48,8 +48,8 @@ O script constrói `api`, `ingestor` e `demo` no commit (padrão `origin/main`),
 atualiza `compose.yml` e `IMAGE_TAG` (com backup dos dois), sobe a stack mantendo a escala do ingestor e roda os
 passos pós-deploy idempotentes (seed da base semântica, nomes curados de estádios, importância). Depois executa o
 **smoke test** (`smoke.mjs`), que confere cada funcionalidade entregue **com dados**, não só o status 200: glossário, cores
-e campanha do time, o time numa temporada passada (`?season=2025`), stakes e tags do torcedor, minuto a minuto, resumo da IA, conteúdo relacionado, emissoras, a busca global, o resumo da home Explorar e a
-proteção do login. `FAIL` (código, imagem ou config quebrados) sai com 1; `WARN` (dado incompleto: sync, cota, IA)
+e campanha do time, o time numa temporada passada (`?season=2025`), stakes e tags do torcedor, minuto a minuto, resumo da IA, conteúdo relacionado, emissoras, a busca global, o resumo da home Explorar, a
+rota do painel de Operação (protegida e sem valor de credencial) e a proteção do login. `FAIL` (código, imagem ou config quebrados) sai com 1; `WARN` (dado incompleto: sync, cota, IA)
 aparece no relatório. Para rodar só o smoke test:
 
 ```bash
@@ -60,6 +60,20 @@ Os pacotes leem `config/` e `data/knowledge` a partir de si mesmos e **silenciam
 um diretório fora da imagem não dá erro, só some a funcionalidade. Por isso as imagens levam `config/` inteiro (e a API a
 base semântica), com `RULES_CONFIG_DIR`, `WTW_CONFIG_DIR`, `GEO_CONFIG_DIR`, `KNOWLEDGE_DIR` e `MEDIA_DENYLIST_PATH`, e o
 CI confere os caminhos dentro das imagens de `api` e `ingestor` em todo PR.
+
+## Painel de Operação (flags sem editar o `.env`)
+
+Ajustes → Operação, na demo (só admin), mostra e altera as flags da operação: agenda dos jobs, ao vivo
+(`LIVE_FEATURED` e afins), IA e orçamento, Onde Assistir, conteúdo relacionado e planos da api-sports. O `.env` vira o
+**padrão de fábrica**: o painel grava em `ops.runtime_setting` (com histórico em `ops.runtime_setting_log`) e vale a
+precedência **banco > env > padrão do código** (registro em `packages/runtime-config`).
+
+- Os schedulers (`ingestor` e `agents`) releem a cada 30 s (`SCHEDULER_REFRESH_SECONDS`): reprogramam as agendas
+  mudadas e entregam o env efetivo a cada job, que lê os valores no começo da execução. O ao vivo relê `LIVE_*` a cada
+  minuto. Nada disso reinicia contêiner; só `LIVE_POLL_INTERVAL_SECONDS` (lido pela API) espera a API reiniciar.
+- Cada contêiner relata o próprio env em `ops.runtime_env` (segredos só como "configurado"), que também é o sinal de
+  vida mostrado no painel. "Rodar agora" entra em `ops.job_request` e o scheduler do perfil executa.
+- Para voltar tudo ao `.env`: "Voltar ao padrão" em cada flag, ou `delete from ops.runtime_setting;` no banco.
 
 ## Deploy (primeira vez)
 
