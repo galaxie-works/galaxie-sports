@@ -9,9 +9,9 @@
  *   pnpm --filter @galaxie/ingestor assets:mirror --so-limpeza        # só a limpeza dos logos genéricos (com --plan: prévia)
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
  *           --desde-dias N (com --fotos: janela dos "escalados recentes", padrão 365)
+ *           --caminho volley    só a mídia de um esporte (pasta na CDN: football, basketball, volley...)
  * `--fotos` antes liga cada jogador sem foto à URL `football/players/{id}.png` (sai do id, sem cota) e, no fim,
  * aponta hashes repetidos que podem ser imagens genéricas ainda fora de PLACEHOLDER_PHOTO_SHA256.
- *           --caminho volley    só a mídia de um esporte (pasta na CDN: football, basketball, volley...)
  * Logos de time e competição que vêm como imagem genérica ("image not available", PLACEHOLDER_LOGO_SHA256) não vão
  * para o bucket: o asset fica ausente e o time ou a competição perde o logo (a demo mostra as iniciais). Toda
  * execução começa por uma limpeza idempotente: genéricos gravados antes disso viram ausentes, e times e
