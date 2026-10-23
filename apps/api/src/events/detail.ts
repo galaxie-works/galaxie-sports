@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { EventLineups, EventStats, EventTimeline, TimelinePerson } from '@galaxie/contracts';
+import { coachPersonId } from '@galaxie/providers';
 import {
   asset,
   competition,
@@ -260,15 +261,19 @@ interface PlayersItem {
   players?: { player?: ApiRef; statistics?: Record<string, unknown>[] }[];
 }
 
-/** Resolve IDs do fornecedor (times e pessoas) para os nossos, com nome e foto das pessoas. */
+/**
+ * Resolve IDs do fornecedor (times, jogadores e técnicos) para os nossos, com nome e foto das pessoas.
+ * Técnicos têm espaço de ids próprio na api-sports: no core levam o prefixo `coach:` (`coachPersonId`).
+ */
 async function resolveProviderRefs(
   db: Database,
   sport: string,
   teamIds: number[],
-  personIds: number[],
+  playerIds: number[],
   assetsBaseUrl: string | undefined,
+  coachIds: number[] = [],
 ) {
-  const lookup = async (entityType: string, ids: number[]) => {
+  const lookup = async (entityType: string, ids: (number | string)[]) => {
     if (!ids.length) return new Map<string, string>();
     const rows = await db
       .select({ providerId: providerMap.providerId, entityId: providerMap.entityId })
@@ -284,7 +289,7 @@ async function resolveProviderRefs(
     return new Map(rows.map((r) => [r.providerId, r.entityId]));
   };
   const teams = await lookup('participant', teamIds);
-  const persons = await lookup('person', personIds);
+  const persons = await lookup('person', [...playerIds, ...coachIds.map(coachPersonId)]);
   const personIdsOurs = [...new Set(persons.values())];
   const personRows = personIdsOurs.length
     ? await db
@@ -296,18 +301,23 @@ async function resolveProviderRefs(
   const personInfo = new Map(
     personRows.map((p) => [p.id, { name: p.name, photo: assetUrl(assetsBaseUrl, p.key, p.url) }]),
   );
+  const personRef = (
+    ref: ApiRef | null | undefined,
+    providerId: (id: number) => string,
+  ): PersonRef | null => {
+    if (!ref?.name && ref?.id == null) return null;
+    const ours = ref?.id != null ? persons.get(providerId(ref.id)) : undefined;
+    const info = ours ? personInfo.get(ours) : undefined;
+    return {
+      id: ours ?? null,
+      name: info?.name ?? ref?.name ?? '',
+      photo: info?.photo ?? ref?.photo ?? null,
+    };
+  };
   return {
     team: (ref: ApiRef | undefined) => (ref?.id != null ? (teams.get(String(ref.id)) ?? null) : null),
-    person: (ref: ApiRef | null | undefined): PersonRef | null => {
-      if (!ref?.name && ref?.id == null) return null;
-      const ours = ref?.id != null ? persons.get(String(ref.id)) : undefined;
-      const info = ours ? personInfo.get(ours) : undefined;
-      return {
-        id: ours ?? null,
-        name: info?.name ?? ref?.name ?? '',
-        photo: info?.photo ?? ref?.photo ?? null,
-      };
-    },
+    person: (ref: ApiRef | null | undefined) => personRef(ref, String),
+    coach: (ref: ApiRef | null | undefined) => personRef(ref, coachPersonId),
   };
 }
 
@@ -345,10 +355,9 @@ export async function buildLineups(
     db,
     ev.sport,
     lineups.map((l) => l.team?.id).filter((x): x is number => typeof x === 'number'),
-    [...players.map((p) => p.player?.id), ...lineups.map((l) => l.coach?.id)].filter(
-      (x): x is number => typeof x === 'number',
-    ),
+    players.map((p) => p.player?.id).filter((x): x is number => typeof x === 'number'),
     assetsBaseUrl,
+    lineups.map((l) => l.coach?.id).filter((x): x is number => typeof x === 'number'),
   );
   const player = (p: NonNullable<LineupItem['startXI']>[number]) => ({
     person: refs.person(p.player) ?? { id: null, name: '' },
@@ -363,7 +372,7 @@ export async function buildLineups(
       .map((l) => ({
         team: teamRefFrom(refs.team(l.team), l.team, teams),
         formation: l.formation ?? null,
-        coach: refs.person(l.coach),
+        coach: refs.coach(l.coach),
         start_xi: (l.startXI ?? []).map(player),
         substitutes: (l.substitutes ?? []).map(player),
       }))

@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { Person } from '@galaxie/contracts';
 import { asset, participant, person, providerMap, roster, season, type Database } from '@galaxie/db';
+import { apiSportsPersonId } from '@galaxie/providers';
 import { problems } from '../errors.js';
 import { teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
@@ -89,6 +90,12 @@ export async function loadPerson(
       position: t.r.position,
       season: t.seasonYear ?? null,
     })),
-    external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
+    // o id da api-sports sai sem o prefixo `coach:` do core (técnicos e jogadores têm espaços separados)
+    external_ids: Object.fromEntries(
+      ids.map((i) => [
+        i.provider,
+        i.provider === 'api-sports' ? apiSportsPersonId(i.providerId) : i.providerId,
+      ]),
+    ),
   };
 }

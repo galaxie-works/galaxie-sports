@@ -25,7 +25,12 @@ import { runAssetMirror } from '../src/assets/asset-mirror.js';
 import { PgAssetStore } from '../src/assets/asset-store.js';
 import { MediaFetcher } from '../src/assets/media-fetcher.js';
 import { InMemoryObjectStore, objectStoreFromEnv } from '../src/assets/object-store.js';
-import { pendingPersonPhotoIds, playerPhotoUrl, registerPlayerPhotos } from '../src/assets/person-photos.js';
+import {
+  coachPhotoUrl,
+  pendingPersonPhotoIds,
+  playerPhotoUrl,
+  registerPlayerPhotos,
+} from '../src/assets/person-photos.js';
 import { PLACEHOLDER_LOGO_SHA256 } from '../src/assets/palette.js';
 import { upsertCatalog, type CatalogRows } from '../src/catalog/persist.js';
 import { runPaletteBackfill } from '../src/assets/palette-backfill.js';
@@ -186,17 +191,18 @@ describe('fotos de pessoas', () => {
   const photoOf = async (id: string) =>
     (await db.select({ photo: person.photoAssetId }).from(person).where(eq(person.id, id)))[0]!.photo;
 
-  it('liga pela URL do id quem jogou, fora técnicos e fotos já sabidamente genéricas; prioriza os escalados recentes', async () => {
+  it('liga pela URL do id: jogador (numérico) e técnico (coach:); pula as genéricas; prioriza os escalados recentes', async () => {
     await db
       .insert(sport)
       .values({ slug: 'football', name: { 'pt-BR': 'Futebol' } })
       .onConflictDoNothing();
     const recent = await player('10');
     const old = await player('11');
-    const coach = await player('12');
+    const sameIdPlayer = await player('12');
+    const coach = await player('coach:12');
     const withPhoto = await player('13', 'https://media.api-sports.io/football/players/13.png');
     const scorer = await player('14');
-    const nobody = await player('15');
+    const transferOnly = await player('15');
     const knownPlaceholder = await player('16');
     await db.insert(asset).values({ kind: 'player', sourceUrl: playerPhotoUrl('16'), fetchedAt: new Date() });
     await fixture(10, [10, 12, 16]);
@@ -207,15 +213,23 @@ describe('fotos de pessoas', () => {
 
     const since = new Date(Date.now() - 365 * DAY);
     const first = await registerPlayerPhotos(db, { since });
-    expect(first).toEqual({ linked: [1, 0, 2], registered: 3, skippedMissing: 1 });
+    // escalados recentes: 10, 12 (jogador) e coach:12 (técnico da escalação de 3 dias atrás); resto: 11, 14, 15
+    expect(first).toEqual({ linked: [3, 0, 3], registered: 6, skippedMissing: 1 });
     const recentPhoto = await photoOf(recent);
-    expect(recentPhoto).not.toBeNull();
     const [row] = await db.select().from(asset).where(eq(asset.id, recentPhoto!));
     expect(row).toMatchObject({ kind: 'player', sourceUrl: playerPhotoUrl('10') });
-    expect(await photoOf(old)).not.toBeNull();
-    expect(await photoOf(scorer)).not.toBeNull();
-    expect(await photoOf(coach)).toBeNull();
-    expect(await photoOf(nobody)).toBeNull();
+    const [coachRow] = await db
+      .select()
+      .from(asset)
+      .where(eq(asset.id, (await photoOf(coach))!));
+    expect(coachRow).toMatchObject({ kind: 'coach', sourceUrl: coachPhotoUrl('12') });
+    const [sameIdRow] = await db
+      .select()
+      .from(asset)
+      .where(eq(asset.id, (await photoOf(sameIdPlayer))!));
+    expect(sameIdRow).toMatchObject({ kind: 'player', sourceUrl: playerPhotoUrl('12') });
+    // quem só aparece em transferências também é jogador
+    expect(await photoOf(transferOnly)).not.toBeNull();
     expect(await photoOf(knownPlaceholder)).toBeNull();
 
     expect(await registerPlayerPhotos(db, { since })).toEqual({
@@ -224,13 +238,14 @@ describe('fotos de pessoas', () => {
       skippedMissing: 1,
     });
 
-    // espelho: escalados recentes do jogo mais novo para o mais velho; depois o resto, sem jogo por último
-    expect(await pendingPersonPhotoIds(db, { since })).toEqual([
-      await photoOf(withPhoto),
-      recentPhoto,
-      await photoOf(old),
-      await photoOf(scorer),
-    ]);
+    // espelho: escalados recentes primeiro (o jogo mais novo antes), depois o resto (sem jogo por último)
+    const order = await pendingPersonPhotoIds(db, { since });
+    const ids = async (...people: string[]) => Promise.all(people.map(photoOf));
+    expect(order).toHaveLength(7);
+    expect(new Set(order.slice(0, 2))).toEqual(new Set(await ids(withPhoto, coach)));
+    expect(new Set(order.slice(2, 4))).toEqual(new Set(await ids(recent, sameIdPlayer)));
+    expect(order[4]).toBe(await photoOf(old));
+    expect(new Set(order.slice(5))).toEqual(new Set(await ids(scorer, transferOnly)));
 
     // a foto genérica desliga a pessoa e o registro não a religa
     await new PgAssetStore(db).markMissing(recentPhoto!, new Date(), { detachPeople: true });

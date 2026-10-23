@@ -43,6 +43,7 @@
     "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
     "mma": "node --env-file-if-exists=../../.env dist/cli/mma.js",
     "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js",
+    "pessoas:separar-tecnicos": "node --env-file-if-exists=../../.env dist/cli/split-coaches.js",
     "assets:palette": "node --env-file-if-exists=../../.env dist/cli/assets-palette.js",
     "assets:acervo": "node --env-file-if-exists=../../.env dist/cli/assets-acervo.js",
     "geo:seed": "node --env-file-if-exists=../../.env dist/cli/geo-seed.js",

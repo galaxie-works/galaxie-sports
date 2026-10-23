@@ -28,11 +28,16 @@ export function playerPhotoUrl(providerId: string): string {
   return `https://media.api-sports.io/football/players/${providerId}.png`;
 }
 
+/** URL da foto de técnico na CDN de mídia (id da api-sports, sem o prefixo `coach:`). */
+export function coachPhotoUrl(providerId: string): string {
+  return `https://media.api-sports.io/football/coachs/${providerId}.png`;
+}
+
 /**
  * Prioridade de cada pessoa do futebol (api-sports), para registrar e espelhar as fotos na ordem em que
  * aparecem na demo: 0 = escalada desde `since`; 1 = no elenco de uma temporada atual; 2 = o resto.
- * `last_at` é o último jogo em que entrou em campo. `coach` marca quem foi técnico: técnicos e jogadores
- * dividem o espaço de ids em core.provider_map, então a URL de jogador não vale para eles.
+ * `last_at` é o último jogo em que entrou em campo (o técnico, o último em que foi o técnico da escalação).
+ * Técnicos têm o id `coach:<id>` em core.provider_map (`coachPersonId`); os demais ids numéricos são jogadores.
  */
 function personPriority(since: Date): SQL {
   return sql`
@@ -48,47 +53,38 @@ function personPriority(since: Date): SQL {
       group by 1
     ),
     lineup_coach as materialized (
-      select distinct l->'coach'->>'id' as provider_id
-      from core.football_fixture f,
+      select 'coach:' || (l->'coach'->>'id') as provider_id, max(e.starts_at) as last_at
+      from core.football_fixture f
+      join core.event e on e.id = f.event_id,
         lateral jsonb_array_elements(
           case when jsonb_typeof(f.detail->'lineups') = 'array' then f.detail->'lineups' else '[]'::jsonb end
         ) l
       where f.detail is not null and l->'coach'->>'id' is not null
-    ),
-    roster_role as materialized (
-      select r.person_id,
-        bool_or(r.role = 'coach') as coach,
-        bool_or(r.role = 'player' and s.current) as current_player,
-        bool_or(r.role = 'player') as player
-      from core.roster r
-      left join core.season s on s.id = r.season_id
       group by 1
     ),
-    incident as materialized (
-      select person_id from core.event_incident where person_id is not null
-      union
-      select assist_person_id from core.event_incident where assist_person_id is not null
+    current_roster as materialized (
+      select distinct r.person_id
+      from core.roster r
+      join core.season s on s.id = r.season_id
+      where s.current
     ),
     priority as (
-      select m.entity_id as person_id, m.provider_id, lu.last_at,
+      select m.entity_id as person_id, m.provider_id, coalesce(lu.last_at, lc.last_at) as last_at,
         case
-          when lu.last_at >= ${since.toISOString()}::timestamptz then 0
-          when coalesce(rr.current_player, false) then 1
+          when coalesce(lu.last_at, lc.last_at) >= ${since.toISOString()}::timestamptz then 0
+          when cr.person_id is not null then 1
           else 2
-        end as tier,
-        (lc.provider_id is not null or coalesce(rr.coach, false)) as coach,
-        (lu.provider_id is not null or coalesce(rr.player, false) or i.person_id is not null) as player
+        end as tier
       from core.provider_map m
       left join lineup lu on lu.provider_id = m.provider_id
       left join lineup_coach lc on lc.provider_id = m.provider_id
-      left join roster_role rr on rr.person_id = m.entity_id
-      left join incident i on i.person_id = m.entity_id
+      left join current_roster cr on cr.person_id = m.entity_id
       where m.provider = 'api-sports' and m.sport = 'football' and m.entity_type = 'person'
     )`;
 }
 
 export interface PhotoRegistrationReport {
-  /** Pessoas sem foto que receberam a URL de jogador, por prioridade (0, 1, 2). */
+  /** Pessoas sem foto que receberam a URL do id (jogador ou técnico), por prioridade (0, 1, 2). */
   linked: [number, number, number];
   /** Assets novos em core.asset. */
   registered: number;
@@ -97,10 +93,10 @@ export interface PhotoRegistrationReport {
 }
 
 /**
- * Registra a foto das pessoas do futebol que ainda não têm uma, a partir do id da api-sports
- * (`football/players/{id}.png`), e liga a pessoa ao asset. Só para quem jogou (escalação, lance ou
- * elenco) e nunca foi técnico. Não liga asset já marcado como ausente (404 ou placeholder).
- * Idempotente: a segunda execução não registra nem liga nada.
+ * Registra a foto das pessoas do futebol que ainda não têm uma, a partir do id da api-sports, e liga a pessoa
+ * ao asset: `football/players/{id}.png` para jogadores (inclusive quem só aparece em transferências) e
+ * `football/coachs/{id}.png` para técnicos (`coach:<id>`). Não liga asset já marcado como ausente (404 ou
+ * foto genérica). Idempotente: a segunda execução não registra nem liga nada.
  */
 export async function registerPlayerPhotos(
   db: Database,
@@ -111,14 +107,18 @@ export async function registerPlayerPhotos(
       create temp table photo_candidate on commit drop as
       ${personPriority(options.since)}
       select pr.person_id, pr.tier,
-        'https://media.api-sports.io/football/players/' || pr.provider_id || '.png' as url
+        case when pr.provider_id like 'coach:%' then 'coach' else 'player' end::core.asset_kind as kind,
+        case when pr.provider_id like 'coach:%'
+          then 'https://media.api-sports.io/football/coachs/' || substr(pr.provider_id, 7) || '.png'
+          else 'https://media.api-sports.io/football/players/' || pr.provider_id || '.png'
+        end as url
       from priority pr
       join core.person p on p.id = pr.person_id
-      where p.photo_asset_id is null and pr.provider_id ~ '^[0-9]+$' and pr.player and not pr.coach
+      where p.photo_asset_id is null and pr.provider_id ~ '^(coach:)?[0-9]+$'
     `);
     const registered = await tx.execute<{ id: string }>(sql`
       insert into core.asset (kind, source_url)
-      select distinct 'player'::core.asset_kind, url from photo_candidate
+      select distinct kind, url from photo_candidate
       on conflict (source_url) do nothing
       returning id
     `);

@@ -1,4 +1,5 @@
 import { eq, inArray } from 'drizzle-orm';
+import { apiSportsPersonId, isCoachPersonId } from '@galaxie/providers';
 import type { PersonMatch, PersonOverview, PersonSeasonStats } from '@galaxie/contracts';
 import {
   asset,
@@ -160,12 +161,15 @@ export async function loadPersonOverview(
     personTrophyRows(db, id),
     personSidelinedRows(db, id, SIDELINED),
   ]);
-  const pid = person.external_ids['api-sports'] ?? null;
+  // técnico ou jogador: o id do core diz (`coach:<id>` = técnico); `pid` é o id da api-sports, sem prefixo
+  const corePid = (await providerIds(db, 'person', [person.id])).get(person.id) ?? null;
+  const coachId = !!corePid && isCoachPersonId(corePid);
+  const pid = corePid ? apiSportsPersonId(corePid) : null;
   const rosterTeamIds = [...new Set(person.teams.map((t) => t.team.id))];
 
   // transferências: as normalizadas (`person_transfer`); sem elas, as listas `transfers?team` do raw
   const rawTransfers =
-    pid && !transferRows.length
+    pid && !coachId && !transferRows.length
       ? await playerTransfers(db, pid, [...(await providerIds(db, 'participant', rosterTeamIds)).values()])
       : [];
   const rawTransferTeams = await coreIds(
@@ -189,11 +193,12 @@ export async function loadPersonOverview(
     ]),
   ];
 
-  // técnico: pelo elenco ou pela foto (`coachs/`). Os IDs de técnico e de jogador da api-sports são
-  // espaços diferentes, mas o core os grava na mesma pessoa: um técnico com o ID de um jogador herdaria os
-  // jogos dele, então para quem tem cara de técnico as escalações vêm primeiro.
+  // técnico: pelo id do core (`coach:<id>`). Sem ele (base antiga, antes de `pessoas:separar-tecnicos`),
+  // pelo elenco ou pela foto (`coachs/`).
   const coachHint =
-    (person.teams.length > 0 && person.teams.every((t) => t.role !== 'player')) || photo?.kind === 'coach';
+    coachId ||
+    (person.teams.length > 0 && person.teams.every((t) => t.role !== 'player')) ||
+    photo?.kind === 'coach';
   const coached = async () => {
     if (!pid) return [];
     const career = await coreIds(db, 'participant', await coachCareerTeams(db, pid));
@@ -201,7 +206,7 @@ export async function loadPersonOverview(
   };
   let raw = coachHint ? await coached() : [];
   let isCoach = raw.length > 0 || coachHint;
-  if (!isCoach && pid) {
+  if (!isCoach && !coachId && pid) {
     raw = await playerLines(db, pid, candidates);
     if (!raw.length && !seasonRows.length) {
       raw = await coached();

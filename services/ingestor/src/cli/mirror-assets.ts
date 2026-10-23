@@ -68,7 +68,7 @@ try {
   if (personPhotos && !values.plan) {
     const r = await registerPlayerPhotos(db, personPhotos);
     console.log(
-      `Fotos de jogador ligadas pelo id: escalados recentes ${r.linked[0]} · elenco atual ${r.linked[1]} · resto ${r.linked[2]}` +
+      `Fotos ligadas pelo id (jogadores e técnicos): escalados recentes ${r.linked[0]} · elenco atual ${r.linked[1]} · resto ${r.linked[2]}` +
         ` · assets novos ${r.registered} · já sabidamente sem foto ${r.skippedMissing}`,
     );
   }
