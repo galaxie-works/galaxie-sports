@@ -21,6 +21,9 @@ export default defineMessages(
     sessions: { one: '{count} sessão', other: '{count} sessões' },
     source: 'Histórico da Fórmula 1',
     sourceAdapted: 'dados adaptados',
+    hero: {
+      titles: { one: '{count} título mundial', other: '{count} títulos mundiais' },
+    },
     career: {
       title: 'Carreira na F1',
       description: 'Temporada a temporada: posição no campeonato, vitórias, poles e pódios',
@@ -84,6 +87,9 @@ export default defineMessages(
       sessions: { one: '{count} session', other: '{count} sessions' },
       source: 'Formula 1 history',
       sourceAdapted: 'adapted data',
+      hero: {
+        titles: { one: '{count} world title', other: '{count} world titles' },
+      },
       career: {
         title: 'F1 career',
         description: 'Season by season: championship position, wins, poles and podiums',
@@ -146,6 +152,9 @@ export default defineMessages(
       sessions: { one: '{count} sesión', other: '{count} sesiones' },
       source: 'Historial de la Fórmula 1',
       sourceAdapted: 'datos adaptados',
+      hero: {
+        titles: { one: '{count} título mundial', other: '{count} títulos mundiales' },
+      },
       career: {
         title: 'Carrera en la F1',
         description: 'Temporada por temporada: posición en el campeonato, victorias, poles y podios',

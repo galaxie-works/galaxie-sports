@@ -174,8 +174,9 @@ export async function loadRaceCareer(
     if (!s) seasons.set(y, (s = emptySeason(y)));
     return s;
   };
-  const seasonTeams = new Map<number, Map<string, { id: string; name: string; logo: string | null }>>();
-  const addTeam = (y: number, t: { id: string; name: string; logo: string | null }) => {
+  type SeasonTeam = CareerSeason['teams'][number];
+  const seasonTeams = new Map<number, Map<string, SeasonTeam>>();
+  const addTeam = (y: number, t: SeasonTeam) => {
     const m = seasonTeams.get(y) ?? new Map();
     m.set(t.id, t);
     seasonTeams.set(y, m);

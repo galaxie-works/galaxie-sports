@@ -22,7 +22,7 @@ describe('sessões da F1', () => {
 
 describe('resultado do piloto', () => {
   const teams = new Map([
-    ['1', { id: '01a16671-2a0c-73ff-a4a0-a5ce0bb85308', name: 'Red Bull Racing', logo: null }],
+    ['1', { id: '01a16671-2a0c-73ff-a4a0-a5ce0bb85308', name: 'Red Bull Racing', logo: null, colors: null }],
   ]);
 
   it('troca o ID da equipe do fornecedor pelo participante nosso', () => {
