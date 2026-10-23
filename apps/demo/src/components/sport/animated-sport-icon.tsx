@@ -40,7 +40,8 @@ export function AnimatedSportIcon({ slug, ...props }: AnimatedIconProps & { slug
 /**
  * Ícone animado: parado no primeiro quadro e animado ao passar o mouse (ou focar) no link/cartão que o
  * contém. Antes de carregar, no servidor e em nomes sem animação mostra o ícone estático; com "reduzir
- * movimento" do sistema, fica parado. Usa o player "light" do lottie-web, que não executa expressions.
+ * movimento" do sistema, fica no estático e nem baixa a animação. O player e o JSON só são baixados
+ * quando o ícone chega perto da tela. Usa o player "light" do lottie-web, que não executa expressions.
  */
 export function AnimatedIcon({ name, className, children }: AnimatedIconProps & { name: string }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -50,35 +51,49 @@ export function AnimatedIcon({ name, className, children }: AnimatedIconProps & 
     const load = ANIMATIONS[name];
     const container = ref.current;
     if (!load || !container) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (reduce.matches) return;
     let anim: AnimationItem | null = null;
     let cancelled = false;
     const trigger = container.closest<HTMLElement>('a,button,[data-anim-trigger]') ?? container;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
     const play = () => {
       if (!anim || reduce.matches) return;
       anim.goToAndPlay(0, true);
     };
 
-    void Promise.all([import('lottie-web/build/player/lottie_light'), load()]).then(([lottie, data]) => {
-      if (cancelled) return;
-      anim = lottie.default.loadAnimation({
-        container,
-        renderer: 'svg',
-        loop: false,
-        autoplay: false,
-        animationData: data.default,
-        rendererSettings: { preserveAspectRatio: 'xMidYMid meet' },
+    const start = () =>
+      void Promise.all([import('lottie-web/build/player/lottie_light'), load()]).then(([lottie, data]) => {
+        if (cancelled) return;
+        anim = lottie.default.loadAnimation({
+          container,
+          renderer: 'svg',
+          loop: false,
+          autoplay: false,
+          animationData: data.default,
+          rendererSettings: { preserveAspectRatio: 'xMidYMid meet' },
+        });
+        anim.addEventListener('DOMLoaded', () => {
+          anim?.goToAndStop(0, true);
+          setReady(true);
+        });
       });
-      anim.addEventListener('DOMLoaded', () => {
-        anim?.goToAndStop(0, true);
-        setReady(true);
-      });
-    });
+
+    // Só carrega quando o ícone entra (ou está para entrar) na tela.
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        observer.disconnect();
+        start();
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(container);
 
     trigger.addEventListener('pointerenter', play);
     trigger.addEventListener('focusin', play);
     return () => {
       cancelled = true;
+      observer.disconnect();
       trigger.removeEventListener('pointerenter', play);
       trigger.removeEventListener('focusin', play);
       anim?.destroy();
