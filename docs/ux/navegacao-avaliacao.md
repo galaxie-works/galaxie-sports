@@ -371,8 +371,8 @@ Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
 
 **Correção:**
 
-- **Fundo:** o carro da temporada mais marcante cobre o heading, esmaecido para o texto ler nos dois temas: da esquerda para a direita no desktop, de baixo para cima no celular, com o carro numa faixa no topo.
-- **Qual carro:** curadoria, quando houver (ainda não há dado de curadoria). Depois, a temporada de título com mais vitórias, a de mais vitórias e, por fim, o último carro com foto. Uma temporada sem foto é pulada, então o heading melhora sozinho quando o acervo ganha fotos. Senna: McLaren de 1988.
+- **Fundo:** uma foto do carro cobre o heading, esmaecido para o texto ler nos dois temas: da esquerda para a direita no desktop, de baixo para cima no celular, com o carro numa faixa no topo.
+- **Qual foto de fundo:** primeiro a curadoria, em `config/assets/commons/destaques.yaml` (id do piloto no F1DB → arquivo da Commons já no acervo). O Senna tem a de Phoenix 1991, com o #1 de campeão, escolhida pelo Wagner. Sem curadoria vale a regra: carro da temporada de título com mais vitórias, depois a de mais vitórias, depois o último carro com foto. Temporada sem foto é pulada, então o heading melhora sozinho quando o acervo ganha fotos.
 - **Frente:** retrato em destaque, nome, bandeira e país, anos de carreira, títulos mundiais (com os anos) e o seletor de temporada.
 - **Crédito:** o heading não mostra crédito. O carro e o retrato dele entram primeiro na galeria da mesma página, com autor, Commons e licença, então a atribuição continua na página. O carro entra mesmo quando não estava na galeria do piloto.
 - **Sem foto:** sem foto do carro, o fundo é a cor da equipe daquele ano (`colors` novo nas equipes da carreira, aditivo na API). Sem cor e sem foto, o heading fica compacto. Sem retrato, as iniciais.

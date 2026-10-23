@@ -50,7 +50,7 @@ export async function DriverHero({
         <img
           src={car.url!}
           alt=""
-          className="motion-safe:animate-in motion-safe:fade-in absolute inset-x-0 top-0 -z-20 h-56 w-full object-cover md:inset-0 md:h-full motion-safe:duration-700"
+          className="motion-safe:animate-in motion-safe:fade-in absolute inset-x-0 top-0 -z-20 h-64 w-full object-cover object-[50%_65%] md:inset-0 md:h-full motion-safe:duration-700"
         />
       ) : colors ? (
         <div aria-hidden className="absolute inset-0 -z-20" style={{ background: colors.gradient }} />
@@ -59,13 +59,13 @@ export async function DriverHero({
           direita no desktop */}
       <div
         aria-hidden
-        className="from-background via-background/85 to-background/10 md:from-background md:via-background/80 md:to-background/0 absolute inset-0 -z-10 bg-gradient-to-t from-45% via-70% md:bg-gradient-to-r md:from-20% md:via-50% md:to-90%"
+        className="from-background via-background/85 to-background/10 md:from-background md:via-background/70 md:to-background/0 absolute inset-0 -z-10 bg-gradient-to-t from-35% via-55% md:bg-gradient-to-r md:from-15% md:via-40% md:to-75%"
       />
 
       <div
         className={cn(
           'flex flex-col gap-4 p-4 sm:flex-row sm:items-end md:p-6',
-          car && 'pt-28',
+          car && 'pt-44',
           colors && 'pt-16',
         )}
       >

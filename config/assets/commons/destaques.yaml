@@ -1,0 +1,12 @@
+# Curadoria da foto de fundo do heading do piloto (/pilotos/{slug}).
+#
+# Chave: id do piloto no F1DB. Valor: o arquivo da Commons (o mesmo `file` do acervo f1.yaml), que precisa estar
+# importado como foto do piloto (retrato ou ação) ou do carro de uma equipe dele. Sem entrada aqui, vale a regra
+# automática: carro da temporada de título com mais vitórias → mais vitórias → a mais recente.
+#
+# A foto entra na galeria da página com o crédito da licença (o heading não mostra crédito). Prefira CC BY ou
+# domínio público: o heading recorta a foto no navegador (cover), e CC BY-SA pede que obra derivada saia com a
+# mesma licença.
+drivers:
+  # Phoenix 1991, com o #1 de campeão (pedido do Wagner, 23/10/2026)
+  ayrton-senna: 'File:Ayrton Senna 1991 USA 3 cropped.jpg'

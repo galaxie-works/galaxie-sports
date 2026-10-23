@@ -142,6 +142,10 @@ export const RaceCareer = z
       .array(CareerSeason)
       .meta({ description: 'Temporada a temporada, da mais recente à primeira.' }),
     portrait: Photo.nullable(),
+    highlight: Photo.nullable().optional().meta({
+      description:
+        'Piloto: foto de destaque escolhida pela curadoria (fundo do heading), entre as fotos dele e as dos carros que pilotou. null sem curadoria.',
+    }),
   })
   .meta({ id: 'RaceCareer' });
 export type RaceCareer = z.infer<typeof RaceCareer>;

@@ -13,6 +13,7 @@ import type { Database } from '@galaxie/db';
 import { constructorProviderIds, loadRaceTeams, RACE_PROVIDERS, type RaceTeams } from '../events/race.js';
 import { pickText } from '../i18n.js';
 import { assetUrl } from '../util.js';
+import { photoHighlights } from './highlights.js';
 import { loadPhotos } from './photos.js';
 
 type SessionRow = {
@@ -229,6 +230,13 @@ export async function loadRaceCareer(
   const photoOwners = [...new Set([participant.id, ...[...constructorsOf.values()].flat()])];
   const photos = await loadPhotos(db, photoOwners, assetsBaseUrl);
   const portrait = (photos.get(participant.id) ?? []).find((p) => p.role === 'portrait') ?? null;
+  // foto de fundo do heading escolhida pela curadoria (por id do F1DB), entre as do piloto e as dos carros dele
+  const highlightFile = constructor
+    ? undefined
+    : [...(keysOf.get(participant.id) ?? [])].map((k) => photoHighlights().get(k)).find(Boolean);
+  const highlight = highlightFile
+    ? ([...photos.values()].flat().find((p) => p.credit.title === highlightFile) ?? null)
+    : null;
   for (const [year, owners] of constructorsOf) {
     let car: Photo | null = null;
     for (const o of owners)
@@ -312,5 +320,6 @@ export async function loadRaceCareer(
     })),
     seasons: list,
     portrait,
+    highlight,
   };
 }
