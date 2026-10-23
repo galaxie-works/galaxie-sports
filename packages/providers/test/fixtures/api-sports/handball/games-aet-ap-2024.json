@@ -1,0 +1,160 @@
+{
+  "get": "games",
+  "errors": [],
+  "results": 3,
+  "response": [
+    {
+      "id": 157176,
+      "date": "2024-01-26T16:45:00+00:00",
+      "time": "16:45",
+      "week": "Semi-finals",
+      "teams": {
+        "away": {
+          "id": 2672,
+          "logo": "https://media.api-sports.io/handball/teams/2672.png",
+          "name": "Sweden"
+        },
+        "home": {
+          "id": 2662,
+          "logo": "https://media.api-sports.io/handball/teams/2662.png",
+          "name": "France"
+        }
+      },
+      "league": {
+        "id": 177,
+        "logo": "https://media.api-sports.io/handball/leagues/177.png",
+        "name": "European Championship",
+        "type": "Cup",
+        "season": 2024
+      },
+      "scores": {
+        "away": 30,
+        "home": 34
+      },
+      "status": {
+        "long": "After Extra Time",
+        "short": "AET"
+      },
+      "country": {
+        "id": 40,
+        "code": null,
+        "flag": null,
+        "name": "Europe"
+      },
+      "periods": {
+        "first": {
+          "away": 11,
+          "home": 17
+        },
+        "second": {
+          "away": 16,
+          "home": 10
+        }
+      },
+      "timezone": "UTC",
+      "timestamp": 1706287500
+    },
+    {
+      "id": 157205,
+      "date": "2024-01-28T16:45:00+00:00",
+      "time": "16:45",
+      "week": "Final",
+      "teams": {
+        "away": {
+          "id": 2660,
+          "logo": "https://media.api-sports.io/handball/teams/2660.png",
+          "name": "Denmark"
+        },
+        "home": {
+          "id": 2662,
+          "logo": "https://media.api-sports.io/handball/teams/2662.png",
+          "name": "France"
+        }
+      },
+      "league": {
+        "id": 177,
+        "logo": "https://media.api-sports.io/handball/leagues/177.png",
+        "name": "European Championship",
+        "type": "Cup",
+        "season": 2024
+      },
+      "scores": {
+        "away": 31,
+        "home": 33
+      },
+      "status": {
+        "long": "After Extra Time",
+        "short": "AET"
+      },
+      "country": {
+        "id": 40,
+        "code": null,
+        "flag": null,
+        "name": "Europe"
+      },
+      "periods": {
+        "first": {
+          "away": 14,
+          "home": 14
+        },
+        "second": {
+          "away": 13,
+          "home": 13
+        }
+      },
+      "timezone": "UTC",
+      "timestamp": 1706460300
+    },
+    {
+      "id": 175399,
+      "date": "2025-03-30T14:00:00+00:00",
+      "time": "14:00",
+      "week": "European League Women - Quarter-finals",
+      "teams": {
+        "away": {
+          "id": 995,
+          "logo": "https://media.api-sports.io/handball/teams/995.png",
+          "name": "Bera Bera W"
+        },
+        "home": {
+          "id": 356,
+          "logo": "https://media.api-sports.io/handball/teams/356.png",
+          "name": "Blomberg-Lippe W"
+        }
+      },
+      "league": {
+        "id": 146,
+        "logo": "https://media.api-sports.io/handball/leagues/146.png",
+        "name": "EHF European League Women",
+        "type": "League",
+        "season": 2024
+      },
+      "scores": {
+        "away": 26,
+        "home": 24
+      },
+      "status": {
+        "long": "After Penalties",
+        "short": "AP"
+      },
+      "country": {
+        "id": 40,
+        "code": null,
+        "flag": null,
+        "name": "Europe"
+      },
+      "periods": {
+        "first": {
+          "away": 10,
+          "home": 11
+        },
+        "second": {
+          "away": 12,
+          "home": 8
+        }
+      },
+      "timezone": "UTC",
+      "timestamp": 1743343200
+    }
+  ]
+}

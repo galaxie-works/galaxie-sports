@@ -144,6 +144,8 @@ describe('jogos dos esportes coletivos (respostas reais recortadas)', () => {
     expect(h.observation.score).toEqual({
       home: 28,
       away: 32,
+      halftime: { home: 15, away: 15 },
+      extratime: null,
       periods: { h1: { home: 15, away: 15 }, h2: { home: 13, away: 17 } },
     });
     expect(duration(h)).toBe(105);
@@ -154,6 +156,31 @@ describe('jogos dos esportes coletivos (respostas reais recortadas)', () => {
     expect(duration(final)).toBe(110 + 25);
     expect(final.stageLabel).toBe('Final');
     expect(duration(byId(r.events, '45917'))).toBe(110);
+  });
+
+  it('handebol: intervalo e prorrogação (AET, pela diferença) como no futebol; o AP fica só com os dois tempos', () => {
+    const b = games('handball', 'games-aet-ap-2024.json');
+    const final = byId(b.events, '157205');
+    expect(final.observation).toMatchObject({ status: 'finished', statusDetail: 'AET' });
+    expect(final.observation.score).toEqual({
+      home: 33,
+      away: 31,
+      halftime: { home: 14, away: 14 },
+      extratime: { home: 6, away: 4 },
+      periods: { h1: { home: 14, away: 14 }, h2: { home: 13, away: 13 }, ot: { home: 6, away: 4 } },
+    });
+    expect(final.stageLabel).toBe('Final');
+    expect(duration(final)).toBe(105 + 25);
+    expect(byId(b.events, '157176').observation.score?.periods?.ot).toEqual({ home: 7, away: 3 });
+    const ap = byId(b.events, '175399');
+    expect(ap.observation).toMatchObject({ status: 'finished', statusDetail: 'AP' });
+    expect(ap.observation.score).toEqual({
+      home: 24,
+      away: 26,
+      halftime: { home: 11, away: 10 },
+      extratime: null,
+      periods: { h1: { home: 11, away: 10 }, h2: { home: 8, away: 12 } },
+    });
   });
 
   it('AFL: id aninhado em game, placar com goals/behinds e rodada da temporada regular', () => {

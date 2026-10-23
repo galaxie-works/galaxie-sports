@@ -103,6 +103,53 @@ describe('perfis por esporte', () => {
     expect(check[0]!.currentSeason).toBe(2026);
   });
 
+  it('handebol: tournament-year rotula a temporada pelo ano em que o torneio termina', () => {
+    const league = (id: number, name: string, seasons: [number, string, string][]) => ({
+      id,
+      name,
+      type: 'Cup',
+      logo: null,
+      country: { id: 0, name: 'World', code: null, flag: null },
+      seasons: seasons.map(([season, start, end]) => ({ season, start, end, current: false })),
+    });
+    const rows = SPORT_PROFILES.handball.build(
+      new Map<string, unknown>([
+        ['/countries', []],
+        [
+          '/leagues',
+          [
+            league(153, 'World Championship', [
+              [2023, '2021-11-03', '2025-02-02'],
+              [2025, '2025-10-29', '2027-01-19'],
+            ]),
+            league(163, 'Super Globe', [[2023, '2023-11-07', '2023-11-12']]),
+          ],
+        ],
+      ]),
+      {
+        catalog: [
+          {
+            slug: 'world-championship-handball',
+            name: 'World Championship',
+            country: 'World',
+            type: 'cup',
+            api_sports_id: 153,
+            tier: 1,
+            seasons_strategy: 'tournament-year',
+          },
+        ],
+        today: TODAY,
+      },
+    );
+    const [wc, globe] = rows.competitions;
+    expect(wc!.seasons.map((s) => [s.year, s.label, s.providerKey])).toEqual([
+      [2023, '2025', '2023'],
+      [2025, '2027', '2025'],
+    ]);
+    // sem a estratégia no YAML, segue a regra das datas
+    expect(globe!.seasons.map((s) => s.label)).toEqual(['2023']);
+  });
+
   it('AFL sem país usa Austrália', () => {
     const rows = SPORT_PROFILES.afl.build(
       new Map([
@@ -380,6 +427,26 @@ describe('temporadas inteiras (--jogos)', () => {
       { league: '26', season: '2026-2027' },
       { league: '192', season: '2024' },
       { league: '414', season: '2023' },
+    ]);
+  });
+
+  it('com janela, latestSeasons pega a temporada mais recente de cada competição dentro dela', () => {
+    const calls = planSeasonCalls(SPORT_PROFILES.basketball, rows, {
+      seasonWindow: { min: 2022, max: 2024 },
+      latestSeasons: 1,
+    });
+    expect(calls.map((c) => [c.competition, c.params])).toEqual([
+      ['nbb', { league: '26', season: '2024-2025' }],
+      ['olympics-basketball', { league: '192', season: '2024' }],
+    ]);
+    const estimated = estimateSeasonCalls(SPORT_PROFILES.basketball, BASKETBALL_CATALOG, {
+      seasonWindow: { min: 2022, max: 2024 },
+      latestSeasons: 1,
+      currentYear: 2026,
+    });
+    expect(estimated.map((c) => c.params)).toEqual([
+      { league: '26', season: '2024-2025' },
+      { league: '192', season: '2024' },
     ]);
   });
 

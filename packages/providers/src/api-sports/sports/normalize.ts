@@ -470,8 +470,37 @@ function classicScore(sport: ApiSportsOtherSport, g: Obj): EventScore {
           ['s5', side('fifth')],
         ]),
       };
+    case 'handball': {
+      // só os dois tempos vêm em `periods`; num AET o placar final inclui a prorrogação, que sai da diferença.
+      // Num AP a diferença mistura prorrogação e tiros de 7 m (e no mata-mata em dois jogos é só a disputa),
+      // então fica de fora.
+      const home = int(scores.home);
+      const away = int(scores.away);
+      const h1 = side('first');
+      const h2 = side('second');
+      let ot: ScorePair | null = null;
+      if (String(obj(g.status).short ?? '').toUpperCase() === 'AET' && home != null && away != null) {
+        const rest = (total: number, k: 'home' | 'away') =>
+          h1?.[k] != null && h2?.[k] != null ? total - h1[k] - h2[k] : null;
+        const extra = { home: rest(home, 'home'), away: rest(away, 'away') };
+        if (extra.home != null && extra.away != null && extra.home >= 0 && extra.away >= 0)
+          ot = extra.home + extra.away > 0 ? extra : null;
+      }
+      // `halftime`/`extratime` com o mesmo sentido do futebol (placar no intervalo; gols só da prorrogação)
+      return {
+        home,
+        away,
+        ...(h1 ? { halftime: h1 } : {}),
+        extratime: ot,
+        periods: periods([
+          ['h1', h1],
+          ['h2', h2],
+          ['ot', ot],
+        ]),
+      };
+    }
     default:
-      // handebol e rúgbi: dois tempos (+ prorrogações no rúgbi)
+      // rúgbi: dois tempos e prorrogações
       return {
         home: int(scores.home),
         away: int(scores.away),

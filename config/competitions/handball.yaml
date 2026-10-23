@@ -5,7 +5,7 @@
 #
 # TIERS (prioridade latino-americana, docs/03 §6)
 #   tier 1 - competições prioritárias: temporadas inteiras no bootstrap (--jogos) e live.
-#   tier 2 - espelhadas com tratamento leve; histórico conforme a cota.
+#   tier 2 - espelhadas com tratamento leve; histórico conforme a cota (--jogos --tier 2).
 #   tier 3 - todo o resto do /leagues entra automaticamente (sem precisar estar aqui).
 #
 # CAMPOS
@@ -13,16 +13,21 @@
 #                           type em minúsculas); a conferência do bootstrap aponta diferenças.
 #   api_sports_id         - ID da liga nesta API (o mesmo número pode existir em outra API;
 #                           o mapeamento em core.provider_map é sempre por esporte).
-#   verify                - false = ID e nome conferidos no /leagues capturado (snapshot 2025/2026,
-#                           ver docs/research/api-sports-outros-esportes.md); confirme na primeira execução autenticada.
-#   seasons_strategy      - calendar-year (2026 = 2026) ou split-year (2026 = 2026/27).
+#   verify                - false = ID e nome conferidos no /leagues (primeiro bootstrap autenticado, 23/10/2026).
+#   seasons_strategy      - calendar-year (2026 = 2026), split-year (2024 = 2024/25) ou tournament-year
+#                           (rótulo = ano em que a temporada termina; ver as seleções abaixo).
 # Não há ligas nacionais latino-americanas no /leagues: só torneios de seleções e de clubes continentais.
+# Nas seleções, a chave da temporada nem sempre é o ano do torneio (conferido nas datas do /leagues), por isso
+# elas usam tournament-year (a chave continua a do fornecedor; só o rótulo muda):
+#   Mundial masculino "2023" vai das eliminatórias de nov/2021 ao Mundial de jan/2025;
+#   Mundial feminino "2024" é o de dez/2025; Euro feminina "2023" é a de dez/2024;
+#   Olímpicos femininos "2023" é Paris 2024; Sul e Centro-Americano feminino "2025" é o de nov/2024.
 # =============================================================================
 schema_version: 1
 sport: handball
 competitions:
 
-  # ---------------------------------------------------------------- tier 1
+  # ---------------------------------------------------------------- tier 1 - seleções
   - slug: olympics-handball
     name: "Olympic Games"
     country: "World"
@@ -31,11 +36,11 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: high
-    labels: { pt-BR: "Handebol masculino — Jogos Olímpicos", es: "Balonmano masculino — Juegos Olímpicos" }
+    prestige: 10
+    labels: { pt-BR: "Handebol masculino — Jogos Olímpicos", es: "Balonmano masculino — Juegos Olímpicos", en: "Olympic Games — Men's Handball" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
-  # temporada 2023 provavelmente é Paris 2024 — confira antes de mapear a edição
   - slug: olympics-handball-women
     name: "Olympic Games Women"
     country: "World"
@@ -44,9 +49,36 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: high
-    labels: { pt-BR: "Handebol feminino — Jogos Olímpicos", es: "Balonmano femenino — Juegos Olímpicos" }
+    prestige: 10
+    labels: { pt-BR: "Handebol feminino — Jogos Olímpicos", es: "Balonmano femenino — Juegos Olímpicos", en: "Olympic Games — Women's Handball" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: world-championship-handball
+    name: "World Championship"
+    country: "World"
+    type: cup
+    api_sports_id: 153
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: tournament-year
+    live_priority: high
+    prestige: 10
+    labels: { pt-BR: "Mundial de Handebol (masculino)", es: "Mundial de Balonmano (masculino)", en: "IHF Men's World Championship" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: world-championship-handball-women
+    name: "World Championship Women"
+    country: "World"
+    type: cup
+    api_sports_id: 154
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: tournament-year
+    live_priority: high
+    prestige: 10
+    labels: { pt-BR: "Mundial de Handebol (feminino)", es: "Mundial de Balonmano (femenino)", en: "IHF Women's World Championship" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: pan-american-games-handball
     name: "Pan American Games"
@@ -56,9 +88,10 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: high
-    labels: { pt-BR: "Handebol masculino — Jogos Pan-Americanos", es: "Balonmano masculino — Juegos Panamericanos" }
+    prestige: 10
+    labels: { pt-BR: "Handebol masculino — Jogos Pan-Americanos", es: "Balonmano masculino — Juegos Panamericanos", en: "Pan American Games — Men's Handball" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: pan-american-games-handball-women
     name: "Pan American Games Women"
@@ -68,9 +101,10 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: high
-    labels: { pt-BR: "Handebol feminino — Jogos Pan-Americanos", es: "Balonmano femenino — Juegos Panamericanos" }
+    prestige: 10
+    labels: { pt-BR: "Handebol feminino — Jogos Pan-Americanos", es: "Balonmano femenino — Juegos Panamericanos", en: "Pan American Games — Women's Handball" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: south-central-american-championship-handball
     name: "South and Central American Championship"
@@ -80,9 +114,10 @@ competitions:
     verify: false
     tier: 1
     region: south-america
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: medium
-    labels: { pt-BR: "Campeonato Sul e Centro-Americano de Handebol (masculino)", es: "Campeonato Sur y Centroamericano de Balonmano (masculino)" }
+    prestige: 5
+    labels: { pt-BR: "Campeonato Sul e Centro-Americano de Handebol (masculino)", es: "Campeonato Sur y Centroamericano de Balonmano (masculino)", en: "South and Central American Men's Handball Championship" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: south-central-american-championship-handball-women
     name: "South and Central American Championship Women"
@@ -92,12 +127,329 @@ competitions:
     verify: false
     tier: 1
     region: south-america
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: medium
-    labels: { pt-BR: "Campeonato Sul e Centro-Americano de Handebol (feminino)", es: "Campeonato Sur y Centroamericano de Balonmano (femenino)" }
+    prestige: 5
+    labels: { pt-BR: "Campeonato Sul e Centro-Americano de Handebol (feminino)", es: "Campeonato Sur y Centroamericano de Balonmano (femenino)", en: "South and Central American Women's Handball Championship" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: ehf-euro
+    name: "European Championship"
+    country: "Europe"
+    type: cup
+    api_sports_id: 177
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: tournament-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Euro de Handebol (masculino)", es: "Europeo de Balonmano (masculino)", en: "EHF EURO (Men)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: ehf-euro-women
+    name: "European Championship Women"
+    country: "Europe"
+    type: cup
+    api_sports_id: 133
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: tournament-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Euro de Handebol (feminino)", es: "Europeo de Balonmano (femenino)", en: "EHF EURO (Women)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+
+  # ---------------------------------------------------------------- tier 1 - clubes (Europa)
+  - slug: ehf-champions-league
+    name: "Champions League"
+    country: "Europe"
+    type: cup
+    api_sports_id: 131
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Liga dos Campeões de Handebol", es: "Liga de Campeones de Balonmano", en: "EHF Champions League" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: ehf-champions-league-women
+    name: "Champions League Women"
+    country: "Europe"
+    type: cup
+    api_sports_id: 132
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Liga dos Campeões de Handebol (feminino)", es: "Liga de Campeones de Balonmano (femenino)", en: "EHF Champions League Women" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: ehf-european-league
+    name: "EHF European League"
+    country: "Europe"
+    type: league
+    api_sports_id: 145
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    prestige: 5
+    labels: { pt-BR: "Liga Europeia de Handebol", es: "Liga Europea de Balonmano", en: "EHF European League" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: handball-bundesliga
+    name: "Bundesliga"
+    country: "Germany"
+    type: league
+    api_sports_id: 39
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Bundesliga de Handebol", es: "Bundesliga de Balonmano", en: "Handball-Bundesliga" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: liga-asobal
+    name: "Liga ASOBAL"
+    country: "Spain"
+    type: league
+    api_sports_id: 103
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: starligue
+    name: "Starligue"
+    country: "France"
+    type: league
+    api_sports_id: 34
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Liqui Moly Starligue", es: "Liqui Moly Starligue", en: "Liqui Moly Starligue" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: herre-handbold-ligaen
+    name: "Herre Handbold Ligaen"
+    country: "Denmark"
+    type: league
+    api_sports_id: 23
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Dinamarquesa de Handebol", es: "Liga Danesa de Balonmano", en: "Danish Men's Handball League" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: nb-i-handball
+    name: "NB I"
+    country: "Hungary"
+    type: league
+    api_sports_id: 49
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Húngara de Handebol (NB I)", es: "Liga Húngara de Balonmano (NB I)", en: "Hungarian Handball League (NB I)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: superliga-handball-poland
+    name: "Superliga"
+    country: "Poland"
+    type: league
+    api_sports_id: 78
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Superliga Polonesa de Handebol", es: "Superliga Polaca de Balonmano", en: "Polish Handball Superliga" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: rema-1000-ligaen
+    name: "REMA 1000-ligaen"
+    country: "Norway"
+    type: league
+    api_sports_id: 75
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: handbollsligan
+    name: "Handbollsligan"
+    country: "Sweden"
+    type: league
+    api_sports_id: 113
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: andebol-1
+    name: "Andebol 1"
+    country: "Portugal"
+    type: league
+    api_sports_id: 84
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Andebol 1 (Portugal)", es: "Andebol 1 (Portugal)", en: "Andebol 1 (Portugal)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
 
   # ---------------------------------------------------------------- tier 2
+  - slug: super-globe-handball
+    name: "Super Globe"
+    country: "World"
+    type: cup
+    api_sports_id: 163
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    prestige: 5
+    labels: { pt-BR: "Super Globe (Mundial de Clubes de Handebol)", es: "Super Globe (Mundial de Clubes de Balonmano)", en: "IHF Super Globe" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: ehf-european-league-women
+    name: "EHF European League Women"
+    country: "Europe"
+    type: league
+    api_sports_id: 146
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Europeia de Handebol (feminino)", es: "Liga Europea de Balonmano (femenino)", en: "EHF European League Women" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: handball-bundesliga-women
+    name: "1. Bundesliga Women"
+    country: "Germany"
+    type: league
+    api_sports_id: 42
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Bundesliga de Handebol (feminino)", es: "Bundesliga de Balonmano (femenino)", en: "Handball-Bundesliga Women" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: dhb-pokal
+    name: "DHB Pokal"
+    country: "Germany"
+    type: cup
+    api_sports_id: 41
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Copa da Alemanha de Handebol (DHB-Pokal)", es: "Copa de Alemania de Balonmano (DHB-Pokal)", en: "DHB-Pokal" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: copa-del-rey-handball
+    name: "Copa del Rey"
+    country: "Spain"
+    type: cup
+    api_sports_id: 107
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Copa do Rei de Handebol", es: "Copa del Rey de Balonmano", en: "Copa del Rey (Handball)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: coupe-de-france-handball
+    name: "Coupe de France"
+    country: "France"
+    type: cup
+    api_sports_id: 32
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Copa da França de Handebol", es: "Copa de Francia de Balonmano", en: "Coupe de France (Handball)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: division-1-women-handball-france
+    name: "Division 1 Women"
+    country: "France"
+    type: league
+    api_sports_id: 29
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Francesa de Handebol (feminino)", es: "Liga Francesa de Balonmano (femenino)", en: "French Women's Handball League" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: kvindeligaen
+    name: "Bambusa Kvindeligaen Women"
+    country: "Denmark"
+    type: league
+    api_sports_id: 25
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Liga Dinamarquesa de Handebol (feminino)", es: "Liga Danesa de Balonmano (femenino)", en: "Danish Women's Handball League" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: mol-liga-women
+    name: "MOL Liga Women"
+    country: "Europe"
+    type: league
+    api_sports_id: 140
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: rema-1000-ligaen-women
+    name: "REMA 1000-ligaen women"
+    country: "Norway"
+    type: league
+    api_sports_id: 76
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: friendly-international-handball
+    name: "Friendly International"
+    country: "World"
+    type: league
+    api_sports_id: 196
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Amistosos de seleções (masculino)", es: "Amistosos de selecciones (masculino)", en: "International Friendlies (Men)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  - slug: friendly-international-handball-women
+    name: "Friendly International Women"
+    country: "World"
+    type: league
+    api_sports_id: 197
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Amistosos de seleções (feminino)", es: "Amistosos de selecciones (femenino)", en: "International Friendlies (Women)" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+  # sem temporada na janela do plano free (só até 2018): ficam no catálogo para o histórico pago
   - slug: pan-american-championship-handball
     name: "Pan American Championship"
     country: "World"
@@ -141,40 +493,4 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: low
-    sources: ["docs/research/api-sports-outros-esportes.md"]
-  - slug: world-championship-handball
-    name: "World Championship"
-    country: "World"
-    type: cup
-    api_sports_id: 153
-    verify: false
-    tier: 2
-    region: world
-    seasons_strategy: calendar-year
-    live_priority: medium
-    labels: { pt-BR: "Mundial de Handebol (masculino)" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
-  - slug: world-championship-handball-women
-    name: "World Championship Women"
-    country: "World"
-    type: cup
-    api_sports_id: 154
-    verify: false
-    tier: 2
-    region: world
-    seasons_strategy: calendar-year
-    live_priority: medium
-    labels: { pt-BR: "Mundial de Handebol (feminino)" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
-  - slug: super-globe-handball
-    name: "Super Globe"
-    country: "World"
-    type: cup
-    api_sports_id: 163
-    verify: false
-    tier: 2
-    region: world
-    seasons_strategy: calendar-year
-    live_priority: low
-    labels: { pt-BR: "Super Globe (Mundial de Clubes de Handebol)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]

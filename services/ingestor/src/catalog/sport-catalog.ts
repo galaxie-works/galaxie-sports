@@ -183,10 +183,15 @@ export function parseLeagues(response: unknown): ParsedLeague[] {
   return [...byId.values()];
 }
 
-/** "2024-2025" → "2024/25"; ano simples usa as datas (como no futebol). */
-function labelFor(s: ParsedSeason): string {
+/**
+ * "2024-2025" → "2024/25"; ano simples usa as datas (como no futebol). Com `seasons_strategy: tournament-year`
+ * no YAML, o rótulo é o ano em que a temporada termina: torneios de seleções cuja chave inclui as
+ * eliminatórias (handebol: o Mundial "2023" vai de nov/2021 ao torneio de jan/2025 → "2025").
+ */
+function labelFor(s: ParsedSeason, strategy?: string): string {
   const m = /^(\d{4})-(\d{4})$/.exec(s.key);
   if (m) return `${m[1]}/${m[2]!.slice(2)}`;
+  if (strategy === 'tournament-year' && s.end) return s.end.slice(0, 4);
   return seasonLabel({ year: s.year, start: s.start, end: s.end });
 }
 
@@ -196,7 +201,7 @@ function isWithin(today: Date, start: string | null, end: string | null): boolea
   return start <= d && d <= end;
 }
 
-function seasonRows(seasons: ParsedSeason[], today: Date): CompetitionRow['seasons'] {
+function seasonRows(seasons: ParsedSeason[], today: Date, strategy?: string): CompetitionRow['seasons'] {
   // chave do fornecedor por ano (prefere a forma "2024-2025" quando as duas aparecem)
   const keyByYear = new Map<number, ParsedSeason>();
   for (const s of seasons) {
@@ -218,7 +223,7 @@ function seasonRows(seasons: ParsedSeason[], today: Date): CompetitionRow['seaso
       const parsed = keyByYear.get(s.year)!;
       return {
         year: s.year,
-        label: labelFor({ ...parsed, start: s.start, end: s.end }),
+        label: labelFor({ ...parsed, start: s.start, end: s.end }, strategy),
         startDate: s.start,
         endDate: s.end,
         current: s.current,
@@ -276,7 +281,7 @@ export function buildLeagueCatalog(
       l.type,
       l.country ?? fallbackCountry,
       l.logo,
-      seasonRows(l.seasons, ctx.today),
+      seasonRows(l.seasons, ctx.today, cfgs.get(l.id)?.seasons_strategy),
       cfgs.get(l.id),
     ),
   );

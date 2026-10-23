@@ -149,6 +149,12 @@ sports:
     competitions:
       - { slug: pan-american-club-championship-handball, scope: continental_clubs, confederations: [CONMEBOL, CONCACAF] }
       - { slug: pan-american-club-championship-handball-women, scope: continental_clubs, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: ehf-champions-league, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: ehf-champions-league-women, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: ehf-european-league, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: ehf-european-league-women, scope: continental_clubs, confederations: [UEFA] }
+      # liga feminina conjunta da República Tcheca e da Eslováquia
+      - { slug: mol-liga-women, scope: continental_clubs, countries: [CZ, SK] }
       - { slug: olympics-handball, scope: national_teams, confederations: [FIFA] }
       - { slug: olympics-handball-women, scope: national_teams, confederations: [FIFA] }
       - { slug: world-championship-handball, scope: national_teams, confederations: [FIFA] }
@@ -159,6 +165,10 @@ sports:
       - { slug: south-central-american-championship-handball-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
       - { slug: pan-american-championship-handball, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
       - { slug: pan-american-championship-handball-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: ehf-euro, scope: national_teams, confederations: [UEFA] }
+      - { slug: ehf-euro-women, scope: national_teams, confederations: [UEFA] }
+      - { slug: friendly-international-handball, scope: national_teams, confederations: [FIFA] }
+      - { slug: friendly-international-handball-women, scope: national_teams, confederations: [FIFA] }
       - { slug: super-globe-handball, scope: world_clubs, confederations: [FIFA] }
 
   hockey:
