@@ -159,6 +159,7 @@ O retrospecto que a API calcula (`retrospect`) usa só os jogos que estão na ba
 - **Nunca estimar nem somar parciais.** Só totais publicados; sem número confiável, sem `all_time`.
 - **Fontes divergentes = sem `all_time`**, a não ser que a diferença seja só atualização (a mais nova contém a mais antiga) ou um critério explícito (pênaltis contados como vitória, uma competição não reconhecida). Fonte única com números completos é aceita.
 - O validador confere: mesmos times do clássico, `vitórias + empates = jogos`, gols dos dois lados ou de nenhum, `as_of` não futuro (erros `all-time-*`).
+- **Revisão no painel:** cada histórico geral é um item próprio do tipo "Histórico geral" (`all-time:derby:<slug>` e `all-time:pair:<slug>`), com decisão independente da do clássico; o conteúdo revisável do clássico não inclui o `all_time`, então acrescentar um histórico não invalida a decisão já tomada sobre o clássico.
 
 ## `<esporte>/head-to-head/<region>.yaml`
 

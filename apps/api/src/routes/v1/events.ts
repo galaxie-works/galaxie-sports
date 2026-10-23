@@ -481,7 +481,8 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         }
         return {
           body,
-          tags: [`event:${head.id}`, 'event'],
+          // o histórico geral vem da base semântica: decisão do painel sobre clássico ou par purga aqui
+          tags: [`event:${head.id}`, 'event', 'derby', 'head_to_head'],
           ttl: CACHE_TTL.standings,
           meta: { sport: head.sport },
         };

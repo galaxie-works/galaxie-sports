@@ -3,7 +3,15 @@
  * a leitura dos filtros da URL. Desenho da persistência em docs/06 §2.1.
  */
 
-export const REVIEW_KINDS = ['team', 'derby', 'competition', 'copy', 'glossary', 'translation'] as const;
+export const REVIEW_KINDS = [
+  'team',
+  'derby',
+  'all-time',
+  'competition',
+  'copy',
+  'glossary',
+  'translation',
+] as const;
 export type ReviewKind = (typeof REVIEW_KINDS)[number];
 
 /**

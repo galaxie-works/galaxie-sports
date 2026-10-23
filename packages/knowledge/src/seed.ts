@@ -128,7 +128,14 @@ export function buildSeedRows(kb: KnowledgeBase, decided: ReadonlyMap<string, Re
       firstMatch: d.first_match ?? null,
       origin: d.origin ?? null,
       trivia: d.trivia ?? [],
-      allTime: d.all_time ?? null,
+      // o histórico geral tem decisão própria no painel (item `all-time`)
+      allTime: d.all_time
+        ? {
+            ...d.all_time,
+            review_status:
+              decided.get(reviewItemId('all-time', `derby:${d.slug}`)) ?? d.all_time.review_status,
+          }
+        : null,
       textLocale,
       texts: (texts.derbies.get(d.slug) ?? {}) as Record<string, LocalizedDerbyTexts>,
       sourceFile: `data/knowledge/${file}`,
@@ -138,13 +145,15 @@ export function buildSeedRows(kb: KnowledgeBase, decided: ReadonlyMap<string, Re
     return { ...row, contentHash: contentHash({ ...row, teams: d.teams }) };
   });
   const pairs = kb.headToHead.map(({ entry: p, file, sport }) => {
+    const reviewStatus =
+      decided.get(reviewItemId('all-time', `pair:${p.slug}`)) ?? p.all_time.review_status ?? 'draft';
     const row = {
       slug: p.slug,
       sport,
       teams: [...p.teams].sort() as [string, string],
-      allTime: p.all_time,
+      allTime: { ...p.all_time, review_status: reviewStatus },
       sourceFile: `data/knowledge/${file}`,
-      reviewStatus: p.all_time.review_status ?? 'draft',
+      reviewStatus,
     };
     return { ...row, contentHash: contentHash(row) };
   });

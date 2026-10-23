@@ -57,7 +57,15 @@ describe('catálogo da revisão', () => {
   it('o seed grava semantic.review_item com tudo o que pode ser revisado', async () => {
     const rows = await db.select({ id: reviewItem.id, kind: reviewItem.kind }).from(reviewItem);
     const kinds = new Set(rows.map((r) => r.kind));
-    expect([...kinds].sort()).toEqual(['competition', 'copy', 'derby', 'glossary', 'team', 'translation']);
+    expect([...kinds].sort()).toEqual([
+      'all-time',
+      'competition',
+      'copy',
+      'derby',
+      'glossary',
+      'team',
+      'translation',
+    ]);
     const [p] = await db.select().from(reviewItem).where(eq(reviewItem.id, 'team:palmeiras'));
     expect(p).toMatchObject({ kind: 'team', market: 'BR', sport: 'football', title: 'Palmeiras' });
     expect(p!.content).toHaveProperty('nicknames');

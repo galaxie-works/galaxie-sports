@@ -221,6 +221,25 @@ describe('outros tipos', () => {
     expect(change.rowCount).toBeGreaterThan(0);
   });
 
+  it('histórico geral: do clássico grava no all_time dele; o do par, na lista de confrontos', async () => {
+    expect((await post('all-time:derby:choque-rei', { action: 'approve' })).status).toBe(200);
+    const derby = (
+      await sql.query(`select all_time->>'review_status' as s from semantic.derby where slug = 'choque-rei'`)
+    ).rows[0];
+    expect(derby.s).toBe('approved');
+    expect((await post('all-time:pair:palmeiras-fluminense', { action: 'approve' })).status).toBe(200);
+    const pair = (
+      await sql.query(
+        `select review_status, all_time->>'review_status' as s from semantic.head_to_head where slug = 'palmeiras-fluminense'`,
+      )
+    ).rows[0];
+    expect(pair).toEqual({ review_status: 'approved', s: 'approved' });
+    const change = await sql.query(
+      `select 1 from ops.change_feed where entity_type = 'head_to_head' and entity_id = 'palmeiras-fluminense'`,
+    );
+    expect(change.rowCount).toBeGreaterThan(0);
+  });
+
   it('item inexistente → 404', async () => {
     expect((await getItem('team:nao-existe')).status).toBe(404);
     expect((await post('team:nao-existe', { action: 'approve' })).status).toBe(404);
