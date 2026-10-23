@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/app-shell/empty-state';
+import { CompetitionCountry } from '@/components/sport/competition-country';
 import { Crest } from '@/components/sport/crest';
 import { EventCardView } from '@/components/sport/event-card-view';
 import { Section } from '@/components/sport/section';
@@ -220,6 +221,17 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
                   {g.competitions.map((c) => (
                     <div key={c.key} className="flex flex-col gap-2">
                       <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                        {/* o país antes da liga: "Croácia · First NL", "Israel · Liga Leumit" */}
+                        {c.competition?.country ? (
+                          <>
+                            <CompetitionCountry
+                              country={c.competition.country}
+                              label
+                              className="text-foreground font-medium"
+                            />
+                            <span aria-hidden>·</span>
+                          </>
+                        ) : null}
                         {c.competition ? (
                           <Link
                             href={`/competicoes/${c.competition.slug}`}

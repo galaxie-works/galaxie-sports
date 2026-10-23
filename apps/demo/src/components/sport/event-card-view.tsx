@@ -16,6 +16,7 @@ import { kickoffText } from '@/lib/provisional';
 import { cn } from '@/lib/utils';
 
 import { AnimatedIcon } from './animated-sport-icon';
+import { CompetitionCountry } from './competition-country';
 import { Crest } from './crest';
 
 type Participant = Event['participants'][number];
@@ -244,6 +245,7 @@ export function EventCardView({
         <div className="text-muted-foreground flex items-center gap-2 px-3 text-xs">
           {showCompetition && event.competition ? (
             <>
+              <CompetitionCountry country={event.competition.country} />
               <Crest src={event.competition.logo} name={event.competition.name} size="xs" />
               <span className="truncate">{event.competition.nickname ?? event.competition.name}</span>
               {event.stage?.name ? <span aria-hidden>·</span> : null}

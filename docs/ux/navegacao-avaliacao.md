@@ -237,6 +237,23 @@ Depois da primeira entrega, o pedido foi olhar o celular e a organização das l
 - **Fileira de abas e de rodadas:** no celular rolam na horizontal sem indicar que há mais. Proposta: um degradê na borda direita.
 - **Página do jogo no celular:** o card "Sobre o jogo" (relevância por país, com 11 países) vem antes do contexto e dos detalhes. Proposta: no celular, recolher a relevância por país num "Ver por país".
 
+### 19. Ao vivo: a liga não dizia de que país é ✅
+
+**Onde:** nos grupos do Ao vivo e nos cards de jogo em todas as listas. Os grupos traziam só o logo e o nome da liga: "First NL", "Iraqi League", "Liga Leumit" e até um "League" sozinho. Quem não conhece a liga não sabia de onde ela era.
+
+![Antes: ligas sem país](img/antes-ao-vivo-liga-sem-pais.jpg)
+
+**Correção:**
+
+- A API passa a mandar o país da competição junto com o jogo (`competition.country`, com código, nome no idioma pedido e bandeira). Vale para qualquer país, não só os 17 do menu. É uma mudança aditiva no contrato `EventCompetitionRef`.
+- O grupo do Ao vivo mostra a **bandeira e o nome do país antes da liga** ("Colômbia · Campeonato Colombiano").
+- O card de jogo mostra a bandeira ao lado do logo da liga.
+- As competições internacionais (`WORLD`) ficam sem bandeira: Champions e Libertadores dizem por si de onde são.
+
+| Desktop | Celular |
+| --- | --- |
+| ![Depois: país antes da liga](img/depois-ao-vivo-bandeira-liga.jpg) | ![Depois no celular](img/depois-celular-ao-vivo-bandeira-liga.jpg) |
+
 ## Proposta maior: trilha hierárquica fixa 📝
 
 A causa de boa parte dos problemas é a trilha contar o **histórico** da aba, e não **onde a página fica**. A correção deste PR resolve os casos sem histórico, porque a trilha passa a começar pelos pais. Mesmo assim, a mesma página ainda mostra trilhas diferentes conforme o caminho:
