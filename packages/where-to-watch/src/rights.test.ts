@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { Blocklist, CountryDirectory } from './config/directory.js';
 import { parseCountryConfig, parseLogos, WtwConfigError } from './config/loader.js';
 import type { RightsEntry } from './config/types.js';
-import { effectiveRights, rightsAnswer, rightsCandidates, type MatchFacts } from './rights.js';
+import {
+  curatedDecides,
+  effectiveRights,
+  rightsAnswer,
+  rightsCandidates,
+  type MatchFacts,
+} from './rights.js';
 import { rowToRightsEntry, validateRightsResearch, type BroadcastRightsRow } from './rights-research.js';
 import { validateCandidates } from './validator.js';
 
@@ -176,12 +182,32 @@ describe('resposta determinística dos direitos', () => {
     expect(rightsAnswer(null, match)).toMatchObject({ deterministic: [], needsAllocation: false });
   });
 
-  it('a curada vence a pesquisada', () => {
-    const a = { origin: 'curated' } as RightsEntry;
-    const b = { origin: 'research' } as RightsEntry;
+  it('a curada vence a pesquisada quando afirma algum detentor', () => {
+    const a = { origin: 'curated', holders: ['emissora_a'], uncertainHolders: [] } as unknown as RightsEntry;
+    const b = { origin: 'research', holders: ['emissora_b'], uncertainHolders: [] } as unknown as RightsEntry;
     expect(effectiveRights(a, b)).toBe(a);
     expect(effectiveRights(null, b)).toBe(b);
     expect(effectiveRights(null, undefined)).toBeNull();
+    expect(curatedDecides(a)).toBe(true);
+  });
+
+  it('curada só com detentores incertos é lacuna: vale a pesquisada com detentores', () => {
+    const lacuna = {
+      origin: 'curated',
+      holders: [],
+      uncertainHolders: ['emissora_a', 'emissora_b'],
+    } as unknown as RightsEntry;
+    const pesquisada = {
+      origin: 'research',
+      holders: ['emissora_b'],
+      uncertainHolders: [],
+    } as unknown as RightsEntry;
+    const vazia = { origin: 'research', holders: [], uncertainHolders: [] } as unknown as RightsEntry;
+    expect(curatedDecides(lacuna)).toBe(false);
+    expect(effectiveRights(lacuna, pesquisada)).toBe(pesquisada);
+    // pesquisa sem detentor não derruba a curadoria (que ao menos lista os incertos)
+    expect(effectiveRights(lacuna, vazia)).toBe(lacuna);
+    expect(effectiveRights(lacuna, undefined)).toBe(lacuna);
   });
 });
 

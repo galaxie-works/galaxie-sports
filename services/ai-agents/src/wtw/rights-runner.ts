@@ -16,6 +16,7 @@ import {
   type BroadcastRightsRow,
   type CountryDirectory,
   type WtwConfig,
+  curatedDecides,
 } from '@galaxie/where-to-watch';
 import { BudgetExceededError, LlmError } from '../llm/errors.js';
 import type { UsageWithSearches } from '../llm/budget.js';
@@ -83,7 +84,9 @@ export async function planRightsResearch(db: Database, opts: PlanRightsOptions):
     const first = evs[0]!;
     const lacking = markets.filter((m) => {
       const dir = opts.config.directory(m);
-      if (!opts.includeCurated && evs.some((e) => dir.rightsFor(e.slug, e.startsAt))) return false;
+      // curadoria só com detentores incertos não bloqueia a pesquisa (é lacuna, não decisão)
+      if (!opts.includeCurated && evs.some((e) => curatedDecides(dir.rightsFor(e.slug, e.startsAt))))
+        return false;
       return !researchedRecently(byKey.get(`${first.slug}|${first.season}|${m}`), opts.now);
     });
     if (!lacking.length) continue;
