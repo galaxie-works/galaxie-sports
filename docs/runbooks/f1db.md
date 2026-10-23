@@ -30,6 +30,10 @@ e normaliza no core como segunda fonte da F1, ao lado da api-sports. Estudo e de
 3. **Pelo nome**, só com candidato único: pilotos, construtores e circuitos da era da api-sports (2010 em diante),
    primeiro com nome exato. Um construtor recente que o F1DB separa (RB → Racing Bulls) vira a mesma equipe.
 
+Quando dois IDs do F1DB caem na mesma entidade (RB e Racing Bulls, ou vínculos reapontados por outra
+sincronização), o upsert junta as duas linhas numa só, sem perder campo: a primeira vence e os nulos dela são
+preenchidos pela outra. A prévia lista esses casos em **"Mesma entidade para mais de um ID do F1DB"**.
+
 **Precedência** (estudo §4.1 e §6.4):
 
 - A api-sports é dona dos eventos que já são dela: estado, pilotos e o espelho dela. O F1DB nunca assume uma sessão
@@ -49,8 +53,22 @@ pnpm --filter @galaxie/ingestor f1db:import --from-raw <sha256> [--previa]   # r
 
 - O release vai para `F1DB_DIR` (padrão `~/.galaxie/f1db`), fora do repositório, em `<versão>/f1db-sqlite.zip` e
   `<versão>/f1db.db`. O sha256 do zip é conferido com o publicado no release.
-- A prévia grava só o raw (cópia fiel do release, idempotente) e imprime: corridas e sessões casadas, pares feitos pelo
-  nome, entidades sem par e conflitos recusados. Confira a lista **"Casados pelo nome"** antes de gravar.
+- **O que a prévia grava:** só o raw, ou seja, as páginas do release em `raw.api_response` (provider `f1db`, endpoint
+  `sqlite/<tabela>`). É uma cópia fiel e idempotente: o mesmo release não grava de novo. Casamento, `provider_map` e
+  core rodam numa transação desfeita no fim.
+- **O que a prévia imprime:**
+  - corridas e sessões casadas;
+  - pares feitos pelo nome;
+  - entidades sem par e conflitos recusados;
+  - entidades com mais de um ID do F1DB;
+  - o pico de memória.
+
+  Confira **"Casados pelo nome"** e **"Mesma entidade para mais de um ID do F1DB"** antes de gravar.
+- **Memória:**
+  - o release vai para o raw em fluxo, uma página por vez;
+  - a normalização e o upsert andam de 10 em 10 temporadas.
+
+  Na base de dev o pico foi de cerca de 300 MB de RSS com heap de 256 MB (antes, estourava com 400 MB).
 - Reimportar o mesmo release não cria nem muda nada. O instante da observação é o da primeira gravação do raw.
 
 ## Carga em produção (VPS)
@@ -67,15 +85,34 @@ ssh root@145.223.94.149
 cd /docker/galaxie-sports
 # 1. backup do banco antes (o mesmo serviço do dump diário)
 docker compose exec -T backup backup.sh
-# 2. prévia: baixa o release para o volume f1db e mostra o casamento, sem gravar no core
-docker compose run --rm --no-deps -v galaxie-f1db:/data/f1db -e F1DB_DIR=/data/f1db ingestor \
-  node dist/cli/f1db-import.js --previa
-# 3. conferida a prévia (pares pelo nome, nenhum conflito inesperado), grava
-docker compose run --rm --no-deps -v galaxie-f1db:/data/f1db -e F1DB_DIR=/data/f1db ingestor \
-  node dist/cli/f1db-import.js
-# 4. limpa o cache de respostas da API (mesmo passo do deploy)
+# 2. o volume do release tem de ser do usuário do container (uid 1000); só na primeira vez
+docker compose run --rm --no-deps --user root -v galaxie-f1db:/data/f1db --entrypoint chown ingestor \
+  -R 1000:1000 /data/f1db
+# 3. prévia: baixa o release para o volume f1db e mostra o casamento, sem gravar no core
+docker compose run --rm --no-deps -v galaxie-f1db:/data/f1db -e F1DB_DIR=/data/f1db \
+  -e NODE_OPTIONS=--max-old-space-size=384 ingestor node dist/cli/f1db-import.js --previa
+# 4. conferida a prévia (pares pelo nome, entidades com mais de um ID, nenhum conflito inesperado), grava
+docker compose run --rm --no-deps -v galaxie-f1db:/data/f1db -e F1DB_DIR=/data/f1db \
+  -e NODE_OPTIONS=--max-old-space-size=384 ingestor node dist/cli/f1db-import.js
+# 5. limpa o cache de respostas da API (mesmo passo do deploy)
 for p in 'gs:cache:*' 'gs:tag:*'; do docker compose exec -T valkey sh -c "valkey-cli --scan --pattern '$p' | xargs -r -n 200 valkey-cli del >/dev/null"; done
 ```
+
+Limites do container do ingestor:
+
+- **Memória:** o `mem_limit` é de 512m. Com o release em fluxo e o upsert por temporadas, a carga cabe nesse limite.
+  - O `NODE_OPTIONS=--max-old-space-size=384` dos passos 3 e 4 deixa margem para a memória fora do heap.
+  - Use o override de memória abaixo se a linha "memória: pico de … MB" passar de uns 450 MB, ou se o processo
+    morrer com `JavaScript heap out of memory` ou com o código 137. Foi o que a carga de 23/10/2026 precisou, antes
+    desta versão.
+
+    ```bash
+    printf 'services:\n  ingestor:\n    mem_limit: 3g\n' > /tmp/f1db-mem.yml
+    docker compose -f compose.yml -f /tmp/f1db-mem.yml run --rm --no-deps -v galaxie-f1db:/data/f1db \
+      -e F1DB_DIR=/data/f1db -e NODE_OPTIONS=--max-old-space-size=2560 ingestor node dist/cli/f1db-import.js --previa
+    ```
+- **Volume `galaxie-f1db`:** nasce como root. Sem o `chown 1000:1000` do passo 2, o download do release falha por falta de
+  permissão de escrita.
 
 Conferência rápida depois da carga:
 
@@ -94,7 +131,7 @@ O F1DB publica um release depois de cada GP. Para trocar a versão:
 1. Atualize `F1DB_RELEASE` em `services/ingestor/src/f1db/release.ts`: versão e sha256 do `f1db-sqlite.zip`, tirado
    do `checksums_sha256.txt` do release.
 2. Abra um PR e rode a prévia na base de dev.
-3. Depois do deploy, rode os passos 2 e 3 acima. O release novo vira outro pacote no raw. Sessões novas entram e as
+3. Depois do deploy, rode os passos 3 e 4 acima. O release novo vira outro pacote no raw. Sessões novas entram e as
    existentes só atualizam o que mudou.
 
 ## Atribuição (CC BY 4.0)
