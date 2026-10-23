@@ -232,7 +232,7 @@ Depois da primeira entrega, o pedido foi olhar o celular e a organização das l
 
 ### 18. Ainda no celular: propostas 📝
 
-- **Países no Explorar:** os 17 cards de país ainda somam uns 3.000 px. Proposta: no celular, uma lista compacta (bandeira, nome, liga principal e jogo em destaque) e o card rico só a partir do tablet.
+- **Países no Explorar:** ✅ feito no item 21.
 - **Estaduais separados das nacionais:** ✅ feito no item 20.
 - **Fileira de abas e de rodadas:** no celular rolam na horizontal sem indicar que há mais. Proposta: um degradê na borda direita.
 - **Página do jogo no celular:** o card "Sobre o jogo" (relevância por país, com 11 países) vem antes do contexto e dos detalhes. Proposta: no celular, recolher a relevância por país num "Ver por país".
@@ -284,6 +284,21 @@ Os épicos do backlog de navegação, um PR cada. A ordem e as decisões de prod
 | ![Grupo regional](img/depois-celular-pais-regionais.jpg) | ![Página do esporte](img/depois-celular-futebol-brasil-divisoes.jpg) |
 
 No celular, a Libertadores fica a 943 px do topo do Brasil (antes do #200 ficava a 3.540 px).
+### 21. Explorar no celular: países numa linha (E3) ✅
+
+**Onde:** home, no celular. Os 17 cards de país (bandeira, liga principal, clubes de maior peso e jogo em destaque) somavam uns 3.000 px, mesmo depois de os esportes irem para duas colunas no #200.
+
+**Correção:**
+
+- No celular, cada país vira **uma linha de 64 px**: bandeira, nome, liga principal, jogos em 7 dias e o selo "ao vivo" quando há jogo. A linha leva à página do país.
+- As confederações viram blocos recolhíveis (`<details>` nativo, sem JS). A **América do Sul vem aberta**; CONCACAF e UEFA ficam recolhidas, com a contagem de países e de jogos visível.
+- Do tablet para cima nada muda: os cards completos continuam.
+
+Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
+
+| América do Sul aberta | CONCACAF e UEFA recolhidas |
+| --- | --- |
+| ![Países numa linha](img/depois-celular-explorar-paises.jpg) | ![Confederações recolhidas](img/depois-celular-explorar-confederacoes.jpg) |
 
 ### 22. Trilha hierárquica: a mesma página mostrava trilhas diferentes conforme o caminho (E4) ✅
 
