@@ -18,14 +18,17 @@ export async function PeriodScores({
   periods,
   home,
   away,
+  sport,
 }: {
   periods: Period[];
   home: string;
   away: string;
+  /** Rótulo por esporte quando o mesmo tipo de parcial muda de nome (tempos: gols no handebol, pontos no rúgbi). */
+  sport?: string;
 }) {
   const tx = (await getT()).event.scoreboard.periods;
   const kind = /^[a-z]+/.exec(periods[0]!.code)?.[0] ?? '';
-  const title = tx.title[kind] ?? tx.title.default!;
+  const title = tx.title[`${sport}.${kind}`] ?? tx.title[kind] ?? tx.title.default!;
   const cell = (p: Period, side: 'home' | 'away') => {
     const mine = p[side];
     const other = p[side === 'home' ? 'away' : 'home'];

@@ -475,6 +475,21 @@ describe('classificação', () => {
     });
   });
 
+  it('rúgbi: pontos com bônus (Rugby Championship 2024) e tabela com placeholder "id 0" descartada', () => {
+    const rc = standings('rugby', 'standings-85-2024.json').standings;
+    expect(rc.map((r) => [r.participantId, r.rank, r.points, r.won, r.drawn, r.lost])).toEqual([
+      ['467', 1, 24, 5, 0, 1],
+      ['465', 2, 16, 3, 0, 3],
+      ['460', 3, 14, 3, 0, 3],
+      ['461', 4, 5, 1, 0, 5],
+    ]);
+    expect(rc[2]).toMatchObject({ goalsFor: 170, goalsAgainst: 195, played: 6 });
+    // a Súper Rugby Américas 2024 vem com os times de 2022, três deles como "id 0"
+    const sra = standings('rugby', 'standings-41-2024.json');
+    expect(sra.standings).toEqual([]);
+    expect(sra.participants.map((p) => p.id)).not.toContain('0');
+  });
+
   it('AFL (sem liga na linha), NFL (divisões) e NBA v2 (conferências)', () => {
     const afl = standings('afl', 'standings-1-2024.json');
     expect(afl.standings[0]).toMatchObject({

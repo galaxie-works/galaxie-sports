@@ -85,12 +85,21 @@ const REGIONS = new Set([
   'north-central-america',
 ]);
 
+/** Nações do Reino Unido: o rúgbi devolve "GB" para as três; o futebol (e config/geo) usa GB-ENG etc. */
+const UK_NATIONS: Record<string, string> = {
+  england: 'GB-ENG',
+  scotland: 'GB-SCT',
+  wales: 'GB-WLS',
+  'northern-ireland': 'GB-NIR',
+};
+
 /** Mesmo critério do futebol (ISO2 ou "WORLD"), tolerando código em branco e regiões com código. */
 export function sportCountryCode(c: ProviderCountry): string {
   const slug = slugify(c.name);
   if (slug === 'world') return 'WORLD';
   const code = c.code?.trim();
   if (REGIONS.has(slug) || !code) return slug.toUpperCase();
+  if (code.toUpperCase() === 'GB' && UK_NATIONS[slug]) return UK_NATIONS[slug];
   return code.toUpperCase();
 }
 
@@ -237,6 +246,12 @@ function configById(catalog: SportCatalogCompetition[]): Map<string, SportCatalo
   return new Map(catalog.filter((c) => c.api_sports_id != null).map((c) => [String(c.api_sports_id), c]));
 }
 
+/** País da competição: o do fornecedor, salvo quando o YAML marca esse país como errado (`provider_country`). */
+function leagueCountry(country: ProviderCountry, cfg: SportCatalogCompetition | undefined): ProviderCountry {
+  if (!cfg?.provider_country || country.name !== cfg.provider_country) return country;
+  return cfg.country === 'World' ? WORLD : { name: cfg.country, code: null, flag: null };
+}
+
 function competitionFrom(
   providerId: string,
   name: string,
@@ -274,19 +289,21 @@ export function buildLeagueCatalog(
     .filter(isObj)
     .filter((c) => str(c.name))
     .map((c): ProviderCountry => ({ name: String(c.name), code: str(c.code), flag: str(c.flag) }));
+  const countryOf = (l: (typeof leagues)[number]) =>
+    leagueCountry(l.country ?? fallbackCountry, cfgs.get(l.id));
   const competitions = leagues.map((l) =>
     competitionFrom(
       l.id,
       l.name,
       l.type,
-      l.country ?? fallbackCountry,
+      countryOf(l),
       l.logo,
       seasonRows(l.seasons, ctx.today, cfgs.get(l.id)?.seasons_strategy),
       cfgs.get(l.id),
     ),
   );
   return {
-    countries: countryRows([...providerCountries, ...leagues.map((l) => l.country ?? fallbackCountry)]),
+    countries: countryRows([...providerCountries, ...leagues.map(countryOf)]),
     competitions,
   };
 }

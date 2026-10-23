@@ -86,6 +86,8 @@ const PERIOD_BASE: Record<Exclude<MatchPeriod, 'penalty_shootout'>, number> = {
 const FOOTBALL_HALVES = { half: 45, extra: 15 };
 const HALVES: Readonly<Record<string, { half: number; extra: number }>> = {
   handball: { half: 30, extra: 5 },
+  // rúgbi XV: 2 × 40 e prorrogação de 2 × 10 (o fornecedor não separa o rúgbi de 7)
+  rugby: { half: 40, extra: 10 },
 };
 const PERIOD_RANK: Record<MatchPeriod, number> = {
   first_half: 1,

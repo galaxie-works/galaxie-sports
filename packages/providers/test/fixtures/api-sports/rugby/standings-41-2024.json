@@ -1,0 +1,295 @@
+{
+  "get": "standings",
+  "errors": [],
+  "results": 1,
+  "response": [
+    [
+      {
+        "form": "WWWWW",
+        "team": {
+          "id": 0,
+          "logo": "https://media.api-sports.io/rugby/teams/0.png",
+          "name": "Jaguares"
+        },
+        "games": {
+          "win": {
+            "total": 10,
+            "percentage": "100.00"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "played": 10
+        },
+        "goals": {
+          "for": 571,
+          "against": 137
+        },
+        "group": {
+          "name": "Regular Season"
+        },
+        "stage": "Super Liga Americana",
+        "league": {
+          "id": 41,
+          "logo": "https://media.api-sports.io/rugby/leagues/41.png",
+          "name": "Super Liga Americana",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 50,
+        "country": {
+          "id": 20,
+          "code": "ZA",
+          "flag": "https://media.api-sports.io/flags/za.svg",
+          "name": "South-Africa"
+        },
+        "position": 1,
+        "description": null
+      },
+      {
+        "form": "LLWWW",
+        "team": {
+          "id": 309,
+          "logo": "https://media.api-sports.io/rugby/teams/309.png",
+          "name": "Penarol"
+        },
+        "games": {
+          "win": {
+            "total": 7,
+            "percentage": "70.00"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "30.00"
+          },
+          "played": 10
+        },
+        "goals": {
+          "for": 279,
+          "against": 210
+        },
+        "group": {
+          "name": "Regular Season"
+        },
+        "stage": "Super Liga Americana",
+        "league": {
+          "id": 41,
+          "logo": "https://media.api-sports.io/rugby/leagues/41.png",
+          "name": "Super Liga Americana",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 31,
+        "country": {
+          "id": 20,
+          "code": "ZA",
+          "flag": "https://media.api-sports.io/flags/za.svg",
+          "name": "South-Africa"
+        },
+        "position": 2,
+        "description": null
+      },
+      {
+        "form": "LWLLW",
+        "team": {
+          "id": 310,
+          "logo": "https://media.api-sports.io/rugby/teams/310.png",
+          "name": "Selknam"
+        },
+        "games": {
+          "win": {
+            "total": 5,
+            "percentage": "50.00"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 5,
+            "percentage": "50.00"
+          },
+          "played": 10
+        },
+        "goals": {
+          "for": 278,
+          "against": 270
+        },
+        "group": {
+          "name": "Regular Season"
+        },
+        "stage": "Super Liga Americana",
+        "league": {
+          "id": 41,
+          "logo": "https://media.api-sports.io/rugby/leagues/41.png",
+          "name": "Super Liga Americana",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 26,
+        "country": {
+          "id": 20,
+          "code": "ZA",
+          "flag": "https://media.api-sports.io/flags/za.svg",
+          "name": "South-Africa"
+        },
+        "position": 3,
+        "description": null
+      },
+      {
+        "form": "WLWWL",
+        "team": {
+          "id": 0,
+          "logo": "https://media.api-sports.io/rugby/teams/0.png",
+          "name": "Olimpia Lions"
+        },
+        "games": {
+          "win": {
+            "total": 5,
+            "percentage": "50.00"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 5,
+            "percentage": "50.00"
+          },
+          "played": 10
+        },
+        "goals": {
+          "for": 253,
+          "against": 324
+        },
+        "group": {
+          "name": "Regular Season"
+        },
+        "stage": "Super Liga Americana",
+        "league": {
+          "id": 41,
+          "logo": "https://media.api-sports.io/rugby/leagues/41.png",
+          "name": "Super Liga Americana",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 23,
+        "country": {
+          "id": 20,
+          "code": "ZA",
+          "flag": "https://media.api-sports.io/flags/za.svg",
+          "name": "South-Africa"
+        },
+        "position": 4,
+        "description": null
+      },
+      {
+        "form": "WWLLL",
+        "team": {
+          "id": 560,
+          "logo": "https://media.api-sports.io/rugby/teams/560.png",
+          "name": "Cobras"
+        },
+        "games": {
+          "win": {
+            "total": 3,
+            "percentage": "30.00"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 7,
+            "percentage": "70.00"
+          },
+          "played": 10
+        },
+        "goals": {
+          "for": 154,
+          "against": 332
+        },
+        "group": {
+          "name": "Regular Season"
+        },
+        "stage": "Super Liga Americana",
+        "league": {
+          "id": 41,
+          "logo": "https://media.api-sports.io/rugby/leagues/41.png",
+          "name": "Super Liga Americana",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 14,
+        "country": {
+          "id": 20,
+          "code": "ZA",
+          "flag": "https://media.api-sports.io/flags/za.svg",
+          "name": "South-Africa"
+        },
+        "position": 5,
+        "description": null
+      },
+      {
+        "form": "LLLLL",
+        "team": {
+          "id": 0,
+          "logo": "https://media.api-sports.io/rugby/teams/0.png",
+          "name": "Cafeteros Pro"
+        },
+        "games": {
+          "win": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 10,
+            "percentage": "100.00"
+          },
+          "played": 10
+        },
+        "goals": {
+          "for": 167,
+          "against": 429
+        },
+        "group": {
+          "name": "Regular Season"
+        },
+        "stage": "Super Liga Americana",
+        "league": {
+          "id": 41,
+          "logo": "https://media.api-sports.io/rugby/leagues/41.png",
+          "name": "Super Liga Americana",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 5,
+        "country": {
+          "id": 20,
+          "code": "ZA",
+          "flag": "https://media.api-sports.io/flags/za.svg",
+          "name": "South-Africa"
+        },
+        "position": 6,
+        "description": null
+      }
+    ]
+  ],
+  "parameters": {
+    "league": "41",
+    "season": "2024"
+  }
+}

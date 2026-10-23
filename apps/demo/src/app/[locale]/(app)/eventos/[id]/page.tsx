@@ -177,6 +177,7 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
               periods={score.periods}
               home={home?.short_name ?? home?.name ?? ''}
               away={away?.short_name ?? away?.name ?? ''}
+              sport={event.sport}
             />
           </div>
         ) : null}

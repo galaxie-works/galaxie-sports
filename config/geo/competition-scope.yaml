@@ -178,16 +178,39 @@ sports:
 
   rugby:
     competitions:
+      # Súper Rugby Américas: franquias da Argentina, Uruguai, Chile, Brasil, Paraguai e EUA
+      - { slug: super-rugby-americas, scope: continental_clubs, countries: [AR, UY, CL, BR, PY, US] }
       # franquias de Nova Zelândia, Austrália e Fiji (Pacífico)
       - { slug: super-rugby, scope: continental_clubs, countries: [NZ, AU, FJ] }
+      # Irlanda, País de Gales, Escócia, Itália e África do Sul
+      - { slug: united-rugby-championship, scope: continental_clubs, countries: [IE, GB-WLS, GB-SCT, IT, ZA] }
+      - { slug: european-rugby-champions-cup, scope: continental_clubs, confederations: [UEFA], countries: [ZA] }
+      - { slug: european-rugby-challenge-cup, scope: continental_clubs, confederations: [UEFA], countries: [ZA] }
+      - { slug: rugby-championship, scope: national_teams, countries: [AR, AU, NZ, ZA] }
+      - { slug: friendly-international-rugby, scope: national_teams, confederations: [FIFA] }
+      - { slug: friendly-international-rugby-women, scope: national_teams, confederations: [FIFA] }
       - { slug: rugby-world-cup, scope: national_teams, confederations: [FIFA] }
       - { slug: rugby-world-cup-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: world-rugby-u20-championship, scope: national_teams, confederations: [FIFA] }
       - { slug: rugby-sevens-world-cup, scope: national_teams, confederations: [FIFA] }
       - { slug: rugby-sevens-world-cup-women, scope: national_teams, confederations: [FIFA] }
       - { slug: olympics-rugby-sevens, scope: national_teams, confederations: [FIFA] }
       - { slug: olympics-rugby-sevens-women, scope: national_teams, confederations: [FIFA] }
       - { slug: pan-american-games-rugby-sevens, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
       - { slug: pan-american-games-rugby-sevens-women, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
+      - { slug: svns-australia, scope: national_teams, confederations: [FIFA] }
+      - { slug: svns-canada, scope: national_teams, confederations: [FIFA] }
+      - { slug: svns-usa, scope: national_teams, confederations: [FIFA] }
+      - { slug: svns-hong-kong, scope: national_teams, confederations: [FIFA] }
+      - { slug: svns-singapore, scope: national_teams, confederations: [FIFA] }
+      - { slug: svns-spain, scope: national_teams, confederations: [FIFA] }
+      - { slug: svns-dubai, scope: national_teams, confederations: [FIFA] }
+      - { slug: svns-south-africa, scope: national_teams, confederations: [FIFA] }
+      - { slug: six-nations, scope: national_teams, confederations: [UEFA] }
+      - { slug: six-nations-women, scope: national_teams, confederations: [UEFA] }
+      - { slug: rugby-europe-championship, scope: national_teams, confederations: [UEFA] }
+      - { slug: wxv-1-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: pacific-nations-cup, scope: national_teams, countries: [FJ, JP, WS, TO, US, CA] }
       - { slug: americas-rugby-championship, scope: national_teams, confederations: [CONMEBOL, CONCACAF] }
       - { slug: americas-pacific-challenge, scope: national_teams, confederations: [CONMEBOL, CONCACAF, OFC] }
 

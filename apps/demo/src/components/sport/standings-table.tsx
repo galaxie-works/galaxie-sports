@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getT } from '@/lib/i18n/server';
+import { rugbyBonusPoints } from '@/lib/rugby-standings';
 import { winPct } from '@/lib/standings';
 import { cn } from '@/lib/utils';
 
@@ -44,6 +45,7 @@ export async function StandingsTable({
   const byPoints = sport != null && POINT_SPORTS.has(sport);
   const runs = sport != null && RUN_SPORTS.has(sport);
   const byPct = runs || (sport != null && PCT_SPORTS.has(sport));
+  const rugby = sport === 'rugby';
   const t = sets
     ? { ...standings, ...standings.sets }
     : byPoints
@@ -52,8 +54,11 @@ export async function StandingsTable({
         ? { ...standings, ...standings.runs }
         : byPct
           ? { ...standings, ...standings.byPoints, ...standings.byPct }
-          : standings;
+          : rugby
+            ? { ...standings, ...standings.rugby }
+            : standings;
   const noDraws = sets || byPoints || runs;
+  const bonus = rugby ? rugbyBonusPoints(rows) : null;
   const zones = [...new Map(rows.filter((r) => r.description).map((r) => [r.description!, r])).keys()];
 
   return (
@@ -90,6 +95,13 @@ export async function StandingsTable({
                 {t.lost}
               </abbr>
             </TableHead>
+            {bonus ? (
+              <TableHead className="hidden text-right sm:table-cell">
+                <abbr title={standings.rugby.bonusTitle} className="no-underline">
+                  {standings.rugby.bonus}
+                </abbr>
+              </TableHead>
+            ) : null}
             <TableHead className="hidden text-right md:table-cell">
               <abbr title={t.goalsForTitle} className="no-underline">
                 {t.goalsFor}
@@ -109,7 +121,7 @@ export async function StandingsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((r) => (
+          {rows.map((r, i) => (
             <TableRow
               key={r.participant.id}
               className={cn(r.participant.id === highlightTeamId && 'bg-primary/10 hover:bg-primary/15')}
@@ -139,6 +151,9 @@ export async function StandingsTable({
                 <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.drawn}</TableCell>
               )}
               <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.lost}</TableCell>
+              {bonus ? (
+                <TableCell className="hidden text-right tabular-nums sm:table-cell">{bonus[i]}</TableCell>
+              ) : null}
               <TableCell className="hidden text-right tabular-nums md:table-cell">{r.goals_for}</TableCell>
               <TableCell className="hidden text-right tabular-nums md:table-cell">
                 {r.goals_against}
