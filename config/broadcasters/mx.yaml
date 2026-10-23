@@ -93,8 +93,27 @@ broadcasters:
     medium: streaming_svod
     access_model: subscription
     domains: [paramountplus.com]
+  # Liga MX Femenil (Apertura 2026): os clubes da FOX transmitem como mandante pela Tubi ("FOX en Tubi").
+  - id: tubi
+    name: Tubi
+    aliases: ['Tubi TV', 'FOX en Tubi', 'Fox en Tubi']
+    medium: streaming_free
+    access_model: free
+    domains: [tubitv.com]
+  # Canal oficial da Liga BBVA MX Femenil ("FutFem Donde Sea"), gratuito.
+  - id: liga_femenil_youtube
+    name: YouTube Liga BBVA MX Femenil
+    aliases:
+      - 'YouTube de la Liga Femenil'
+      - 'Canal de YouTube de la Liga MX Femenil'
+      - 'Liga BBVA MX Femenil (YouTube)'
+      - 'LIGA FEMENIL BBVA'
+      - 'FutFem Donde Sea'
+    medium: youtube
+    access_model: free
+    domains: [youtube.com/@ligabbvamxfemenil, ligafemenil.mx]
 sources:
-  organizers: [ligamx.net, fmf.mx]
+  organizers: [ligamx.net, fmf.mx, ligafemenil.mx]
   press:
     - record.com.mx
     - mediotiempo.com
@@ -105,3 +124,6 @@ sources:
     - expansion.mx
     - poresto.com
     - ejecentral.com.mx
+    - sopitas.com
+    - chilango.com
+    - cronica.com.mx

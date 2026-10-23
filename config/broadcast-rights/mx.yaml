@@ -22,6 +22,49 @@ rights:
       - https://www.excelsior.com.mx/deportes/liga-mx-donde-ver-partidos-apertura-2026
       - https://www.publimetro.com.mx/deportes/2026/07/16/donde-ver-todos-los-partidos-del-apertura-2026-en-la-liga-mx/
       - https://www.infobae.com/mexico/deportes/2026/07/10/estos-son-los-canales-que-transmitirian-a-los-equipos-de-la-liga-mx-durante-el-apertura-2026/
+  - competition: liga-mx-femenil
+    season: 2026
+    valid_from: 2026-07-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    distribution: split
+    holders: [tubi, fox, fox_one, liga_femenil_youtube, televisa, tudn, vix, espn, disney_plus]
+    # por clube mandante (nomes do core); o restante dos detentores fica para a alocação por rodada
+    rules:
+      - holders: [tubi]
+        home_teams:
+          - Atlas W
+          - Guadalajara W
+          - Juárez W
+          - León W
+          - Necaxa W
+          - Pachuca W
+          - Querétaro W
+          - Santos Laguna W
+          - Tigres UANL W
+          - Tijuana W
+      - holders: [liga_femenil_youtube]
+        home_teams:
+          - América W
+          - Atlante W
+          - Atlético San Luis W
+          - Cruz Azul W
+          - Monterrey W
+          - Puebla W
+          - Pumas UNAM W
+          - Toluca W
+      - holders: [espn]
+        home_teams: [Atlético San Luis W]
+    notes: >-
+      Apertura 2026 — por clube mandante: FOX en Tubi (Atlas, Chivas, Juárez, León, Necaxa, Pachuca,
+      Querétaro, Santos, Tigres, Tijuana); Televisa + YouTube da Liga (América, Cruz Azul, Monterrey,
+      Toluca, Pumas); YouTube da Liga (Atlante, Puebla); ESPN/Disney+ + YouTube (San Luis). Fox One, Canal 9
+      e ViX aparecem em jogos avulsos.
+    sources:
+      - https://www.sopitas.com/deportes/liga-femenil-donde-ver-partidos-local-de-cada-equipo/amp/
+      - https://www.chilango.com/noticias/liga-femenil-calendario-apertura-2026/
+      - https://www.infobae.com/mexico/deportes/2026/07/29/liga-mx-femenil-calendario-y-donde-ver-toda-la-jornada-1-del-apertura-2026/
+      - https://www.cronica.com.mx/deportes/2026/10/02/liga-mx-femenil-partidos-y-horarios-de-la-jornada-10-del-apertura-2026-este-viernes-2-de-octubre/
   - competition: premier-league
     season: 2026
     valid_from: 2026-08-01
