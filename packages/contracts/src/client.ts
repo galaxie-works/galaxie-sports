@@ -25,7 +25,15 @@ import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
 import type { Broadcaster, WhereToWatch } from './where-to-watch.js';
 import type { RelatedContent, RelatedContentTypeName } from './related.js';
 import type { SearchQuery, SearchResponse } from './search.js';
-import type { Person, Squad, Team, TeamEventsQuery, TeamOverview, TeamsQuery } from './teams.js';
+import type {
+  Person,
+  PersonOverview,
+  Squad,
+  Team,
+  TeamEventsQuery,
+  TeamOverview,
+  TeamsQuery,
+} from './teams.js';
 import type {
   Delegation,
   GamesDetail,
@@ -205,6 +213,8 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     squad: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
       v1<Squad>(`/v1/teams/${seg(id)}/squad`, opts),
     person: (id: string, opts: LocaleOpts = {}) => v1<Person>(`/v1/people/${seg(id)}`, opts),
+    personOverview: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
+      v1<PersonOverview>(`/v1/people/${seg(id)}/overview`, opts),
     // ─── semântica (docs/06 §5) ───
     derbies: (query: Q<DerbiesQuery> = {}) => v1<{ data: DerbySummary[] }>('/v1/derbies', toQuery(query)),
     upcomingDerbies: (query: Q<UpcomingDerbiesQuery> = {}) =>

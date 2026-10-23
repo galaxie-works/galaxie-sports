@@ -62,13 +62,17 @@ export interface ScheduledJobDef {
   name: string;
   service: 'ingestor' | 'agents';
   cron: string;
-  /** Seguro para "rodar agora" no painel: não gasta cota do fornecedor nem dispara gasto grande de IA. */
+  /**
+   * Seguro para "rodar agora" no painel: não gasta cota do fornecedor nem dispara gasto grande de IA
+   * (exceção: a reconciliação do ao vivo, o botão de pânico, que gasta poucas chamadas e com teto).
+   */
   runNow: boolean;
 }
 
 export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'sync-daily', service: 'ingestor', cron: '5 0 * * *', runNow: false },
   { name: 'live-run', service: 'ingestor', cron: '*/5 * * * *', runNow: false },
+  { name: 'live-reconcile', service: 'ingestor', cron: '*/10 * * * *', runNow: true },
   { name: 'normalize-football', service: 'ingestor', cron: '35 0 * * *', runNow: true },
   { name: 'events-clock', service: 'ingestor', cron: '* * * * *', runNow: true },
   { name: 'events-importance', service: 'ingestor', cron: '20 * * * *', runNow: true },
@@ -169,6 +173,7 @@ export const SETTINGS: readonly SettingDef[] = [
   }),
   live({ key: 'LIVE_MAX_INTERVAL_MINUTES', type: 'number', min: 1, max: 60, default: '15' }),
   live({ key: 'LIVE_IDLE_EXIT_MINUTES', type: 'int', min: 1, max: 240, default: '15' }),
+  live({ key: 'LIVE_MIN_PRIORITY', type: 'enum', options: ['high', 'medium', 'low'], default: 'medium' }),
   live({ key: 'LIVE_PROTECT_DAILY', type: 'int', min: 0, max: 150_000, default: null, allowEmpty: true }),
   {
     key: 'LIVE_POLL_INTERVAL_SECONDS',

@@ -23,7 +23,8 @@ export default defineMessages(
     squad: 'Elenco atual e comissão técnica (envie ?season=AAAA para outra temporada).',
     teamOverviewSeason:
       'O time na temporada {season}: campanha em cada competição, tabela, forma e últimos jogos daquele ano (sem próximo jogo). Os anos com dados vêm em `seasons`.',
-    squadSeason: 'Elenco e comissão técnica registrados para a temporada {season}.',
+    squadSeason:
+      'Elenco da temporada {season}: inscritos e quem entrou em campo, com jogos e gols das escalações.',
     event:
       'Evento completo: participantes, placar, estado, importância (com detalhamento), relevância no mercado e em cada país, clássico e o que está em jogo.',
     related:
@@ -35,6 +36,9 @@ export default defineMessages(
     lineups: 'Escalações, formação e técnico de cada time.',
     stats: 'Estatísticas de cada time com código estável, rótulo no idioma e valor numérico.',
     person: 'Jogador, técnico ou piloto: dados pessoais, foto e times (elencos).',
+    personOverview:
+      'Perfil do jogador: time atual, números por competição, carreira, transferências e últimos jogos.',
+    personOverviewSeason: 'Perfil do jogador com os números e os jogos da temporada {season}.',
     venue: 'Estádio, circuito ou arena: cidade, capacidade, piso e foto.',
     derby: 'Clássico com história e retrospecto calculado dos jogos na base.',
     requiresModule: 'Exige o módulo {module}.',
@@ -66,7 +70,8 @@ export default defineMessages(
       squad: 'Current squad and coaching staff (send ?season=YYYY for another season).',
       teamOverviewSeason:
         'The team in the {season} season: campaign in each competition, table, form and last matches of that year (no next match). The years with data come in `seasons`.',
-      squadSeason: 'Squad and coaching staff on record for the {season} season.',
+      squadSeason:
+        'Squad for the {season} season: registered players and everyone who played, with matches and goals from the lineups.',
       event:
         'Full event: participants, score, status, importance (with breakdown), market and per-country relevance, derby and what is at stake.',
       related:
@@ -79,6 +84,9 @@ export default defineMessages(
       lineups: "Each team's lineup, formation and coach.",
       stats: "Each team's stats with a stable code, a localized label and a numeric value.",
       person: 'Player, coach or driver: personal data, photo and teams (squads).',
+      personOverview:
+        'Player profile: current team, numbers by competition, career, transfers and latest matches.',
+      personOverviewSeason: 'Player profile with the numbers and matches of the {season} season.',
       venue: 'Stadium, circuit or arena: city, capacity, surface and photo.',
       derby: 'Derby with its history and a record computed from the matches in the database.',
       requiresModule: 'Requires the {module} module.',
@@ -109,7 +117,8 @@ export default defineMessages(
       squad: 'Plantel actual y cuerpo técnico (mandá ?season=AAAA para otra temporada).',
       teamOverviewSeason:
         'El equipo en la temporada {season}: campaña en cada competencia, tabla, racha y últimos partidos de ese año (sin próximo partido). Los años con datos vienen en `seasons`.',
-      squadSeason: 'Plantel y cuerpo técnico registrados para la temporada {season}.',
+      squadSeason:
+        'Plantel de la temporada {season}: inscriptos y quienes jugaron, con partidos y goles de las formaciones.',
       event:
         'Evento completo: participantes, resultado, estado, importancia (con detalle), relevancia en el mercado y en cada país, clásico y lo que está en juego.',
       related:
@@ -122,6 +131,9 @@ export default defineMessages(
       lineups: 'Formaciones, esquema y técnico de cada equipo.',
       stats: 'Estadísticas de cada equipo con código estable, etiqueta en el idioma y valor numérico.',
       person: 'Jugador, técnico o piloto: datos personales, foto y equipos (planteles).',
+      personOverview:
+        'Perfil del jugador: equipo actual, números por competición, carrera, transferencias y últimos partidos.',
+      personOverviewSeason: 'Perfil del jugador con los números y los partidos de la temporada {season}.',
       venue: 'Estadio, circuito o arena: ciudad, capacidad, superficie y foto.',
       derby: 'Clásico con su historia y el historial calculado de los partidos en la base.',
       requiresModule: 'Requiere el módulo {module}.',

@@ -49,20 +49,27 @@ export interface LivePollerOptions {
   jobId?: string | undefined;
   /** Publica também mudanças só de relógio (padrão: false — o minuto muda a cada tick). */
   publishClock?: boolean | undefined;
-  /** Tentativas de confirmar o resultado de um jogo que saiu do live. */
+  /** Tentativas de confirmar o resultado de um jogo que saiu do live (espaçadas por `FINALIZE_BACKOFF_MS`). */
   maxFinalizeAttempts?: number | undefined;
   /** O detalhe confirmou um jogo encerrado (ex.: marcar o cursor do detalhe para o sync diário não repetir). */
   onDetailFetched?: ((providerEventId: string, at: Date) => void | Promise<void>) | undefined;
 }
 
-function spent(result: ProviderResult): number {
+export function spent(result: ProviderResult): number {
   if (result.status !== 'error') return result.source === 'network' ? 1 : 0;
   // bloqueios locais (cota do Governor, plano) não saem para a rede
   return result.error.kind === 'quota' || result.error.kind === 'plan' ? 0 : 1;
 }
 
+/**
+ * Espera antes de cada nova tentativa de confirmar o resultado. O jogo sai do `live` antes de o detalhe
+ * virar FT/AET/PEN (na disputa de pênaltis, minutos antes): três tentativas seguidas no mesmo minuto
+ * desistiam cedo demais e o jogo ficava "ao vivo" para sempre.
+ */
+export const FINALIZE_BACKOFF_MS = [0, 60_000, 2 * 60_000, 5 * 60_000, 10 * 60_000, 20 * 60_000, 30 * 60_000];
+
 export class LivePoller {
-  private readonly finalizeAttempts = new Map<string, number>();
+  private readonly finalizeAttempts = new Map<string, { attempts: number; nextAt: number }>();
 
   constructor(
     private readonly provider: SportsDataProvider,
@@ -130,19 +137,23 @@ export class LivePoller {
     // confirmação do resultado de quem saiu do live (1 chamada por jogo, reservada no orçamento)
     const finalized: string[] = [];
     let budget = input.finalizeBudget;
+    const maxAttempts = this.options.maxFinalizeAttempts ?? FINALIZE_BACKOFF_MS.length;
     for (const id of vanished) {
       if (budget <= 0) break;
-      const attempts = this.finalizeAttempts.get(id) ?? 0;
-      if (attempts >= (this.options.maxFinalizeAttempts ?? 3)) continue;
-      this.finalizeAttempts.set(id, attempts + 1);
+      const state = this.finalizeAttempts.get(id) ?? { attempts: 0, nextAt: 0 };
+      if (state.attempts >= maxAttempts || input.now.getTime() < state.nextAt) continue;
+      const attempts = state.attempts + 1;
+      const wait = FINALIZE_BACKOFF_MS[Math.min(attempts, FINALIZE_BACKOFF_MS.length - 1)]!;
+      this.finalizeAttempts.set(id, { attempts, nextAt: input.now.getTime() + wait });
       budget -= 1;
       const detail = await this.provider.getEventDetail(sport, id, this.callOptions());
       calls += spent(detail);
       if (detail.status !== 'ok') continue;
       await this.store.applyBatch(detail.batch);
-      finalized.push(id);
       const ev = detail.batch.events.find((e) => e.id === id);
-      if (ev?.observation.status === 'finished') await this.options.onDetailFetched?.(id, detail.fetchedAt);
+      if (ev?.observation.status !== 'finished') continue;
+      finalized.push(id);
+      await this.options.onDetailFetched?.(id, detail.fetchedAt);
     }
 
     // detalhe ao vivo do jogo em destaque (escalações, estatísticas) — só quando o plano permite

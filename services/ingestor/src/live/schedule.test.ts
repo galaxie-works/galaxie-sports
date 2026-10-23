@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   availableForLive,
   decideTick,
+  isRelevant,
   matchWindow,
   mergeWindows,
   planLiveDay,
@@ -349,5 +350,25 @@ describe('decisão do tick', () => {
       reason: 'budget',
       active: true,
     });
+  });
+});
+
+describe('isRelevant', () => {
+  const c = (livePriority: LiveCandidate['livePriority'], derby = false) =>
+    ({ livePriority, derby }) as LiveCandidate;
+
+  it('padrão: alta e média, ou clássico em qualquer competição', () => {
+    expect([c('high'), c('medium'), c('low'), c('none'), c('none', true)].map((x) => isRelevant(x))).toEqual([
+      true,
+      true,
+      false,
+      false,
+      true,
+    ]);
+  });
+
+  it('LIVE_MIN_PRIORITY=low põe as ligas menores no ao vivo (nunca as sem prioridade)', () => {
+    expect([c('low'), c('none')].map((x) => isRelevant(x, 'low'))).toEqual([true, false]);
+    expect(isRelevant(c('medium'), 'high')).toBe(false);
   });
 });

@@ -591,7 +591,11 @@ export const eventIncident = core.table(
     sequence: integer('sequence').notNull(),
     data: jsonb('data'),
   },
-  (t) => [uniqueIndex('event_incident_seq_uq').on(t.eventId, t.sequence)],
+  (t) => [
+    uniqueIndex('event_incident_seq_uq').on(t.eventId, t.sequence),
+    // perfil do jogador: os times em que ele marcou, levou cartão ou foi substituído
+    index('event_incident_person_idx').on(t.personId),
+  ],
 );
 
 export const standing = core.table(

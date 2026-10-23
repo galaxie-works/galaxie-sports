@@ -89,7 +89,7 @@ pnpm --filter @galaxie/ingestor equestrian:import --from-raw <sha256 do pacote> 
   - Cada atleta ganha um `core.participant` (`sport = equestrian`, `kind = athlete`) e uma linha em `core.provider_map` (`fei`), criados uma única vez.
 - **Auditoria:** cada carga registra `equestrian.import_run` com fonte, licença, sha256, versão do schema do pacote e contagens.
 
-## 4. Modelo de dados (schema `equestrian`, migration `0019_equestrian`)
+## 4. Modelo de dados (schema `equestrian`, migration `0020_equestrian`)
 
 Regras que o modelo garante:
 1. **Classificação geral e rodada são registros distintos.** `result` guarda a classificação geral. `round` guarda observações de etapa, que podem ser eliminação ou não largada.

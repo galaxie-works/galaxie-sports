@@ -13,6 +13,7 @@ import {
   lineupsRequest,
   liveEventsRequest,
   localeQuery,
+  personOverviewRequest,
   personRequest,
   sportCompetitionsRequest,
   squadRequest,
@@ -93,6 +94,12 @@ const PAIRS: [string, ApiRequest, (c: ReturnType<typeof createGalaxieClient>) =>
   ['ao vivo', liveEventsRequest('pt-BR'), (c) => c.liveEvents({ market: 'BR' })],
   ['minuto a minuto', timelineRequest(EVENT, 'pt-BR'), (c) => c.eventTimeline(EVENT)],
   ['pessoa', personRequest(TEAM, 'pt-BR'), (c) => c.person(TEAM)],
+  ['perfil', personOverviewRequest(TEAM, 'pt-BR'), (c) => c.personOverview(TEAM)],
+  [
+    'perfil na temporada',
+    personOverviewRequest(TEAM, 'pt-BR', 2025),
+    (c) => c.personOverview(TEAM, { season: 2025 }),
+  ],
   ['local', venueRequest(TEAM, 'pt-BR'), (c) => c.venue(TEAM)],
   ['clássico', derbyRequest('choque-rei', 'pt-BR'), (c) => c.derby('choque-rei')],
 ];

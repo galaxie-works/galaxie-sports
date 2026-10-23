@@ -41,6 +41,15 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 20 * 60 * MINUTE,
   },
   {
+    name: 'live-reconcile',
+    description:
+      'Reconciliação do ao vivo (LIVE): confirma pelo detalhe os jogos que o core ainda dá como em andamento (rede de segurança do live-run)',
+    cron: '*/10 * * * *',
+    script: 'dist/cli/live-reconcile.js',
+    args: [],
+    timeoutMs: 15 * MINUTE,
+  },
+  {
     name: 'normalize-football',
     description: 'Normalização incremental raw → core do futebol (sem chamadas ao fornecedor)',
     cron: '35 0 * * *',
