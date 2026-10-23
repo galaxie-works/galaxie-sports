@@ -710,8 +710,8 @@ export function normalizeFootballEnvelope(
       return { batch: normalizeSquads(response as ApiSquadItem[], observedAt), items };
     case '/coachs':
       return { batch: normalizeCoaches(response as ApiCoachItem[], observedAt, params), items };
-    case '/players':
     // players/profiles?player: o mesmo item de players, só com a bio (sem statistics)
+    case '/players':
     case '/players/profiles':
       return { batch: normalizePlayers(response as ApiPlayerItem[], observedAt), items };
     case '/standings':
