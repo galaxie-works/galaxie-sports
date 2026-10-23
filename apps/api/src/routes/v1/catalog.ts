@@ -38,7 +38,15 @@ import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
 import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
-import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
+import {
+  assetUrl,
+  decodeCursor,
+  encodeCursor,
+  likeEscape,
+  logoSource,
+  parseInput,
+  UUID_RE,
+} from '../../util.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 
 const MODULE = { module: 'core_data' } as const;
@@ -212,7 +220,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .where(and(eq(providerMap.entityType, 'competition'), eq(providerMap.entityId, row.c.id)));
         const body: Competition = {
           ...summary!,
-          logo_source: row.logoOrigin ?? null,
+          logo_source: logoSource(row.logoOrigin),
           trophy_nickname: profile?.trophy ?? null,
           external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
           seasons: seasons.map((s) => ({

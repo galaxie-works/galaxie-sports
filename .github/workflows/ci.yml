@@ -79,6 +79,16 @@ jobs:
             exit 1
           fi
 
+      # Cada suíte cria um banco descartável e aplica todas as migrations numa transação só, e as suítes rodam em
+      # paralelo: com o padrão (64), a tabela de locks compartilhada estoura ("out of shared memory").
+      - name: Postgres com mais locks por transação
+        run: |
+          id=$(docker ps -qf "ancestor=postgres:17-alpine")
+          docker exec "$id" psql -U galaxie -d galaxie_sports -c "ALTER SYSTEM SET max_locks_per_transaction = 256"
+          docker restart "$id"
+          until docker exec "$id" pg_isready -U galaxie -d galaxie_sports; do sleep 1; done
+          docker exec "$id" psql -U galaxie -d galaxie_sports -tAc "SHOW max_locks_per_transaction"
+
       - name: Testes de integração (Postgres)
         run: pnpm test:integration
 
@@ -103,8 +113,17 @@ jobs:
           tar -xzf "$tarball" gitleaks
           rm -f "$tarball" "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
 
-      - name: Varredura de segredos (histórico completo)
-        run: ./gitleaks git . --config .gitleaks.toml --redact --no-banner --verbose
+      # Varre só o histórico que este evento traz: no PR, os commits dele (base..head); no push, o
+      # histórico do commit enviado. Sem isso, o `git .` com fetch-depth 0 alcança todas as branches
+      # remotas e um achado numa branch de trabalho derruba o CI de todos os PRs.
+      - name: Varredura de segredos (commits do PR ou histórico do commit enviado)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "$HEAD_SHA" ]; then range="$BASE_SHA..$HEAD_SHA"; else range="$GITHUB_SHA"; fi
+          echo "intervalo: $range"
+          ./gitleaks git . --config .gitleaks.toml --redact --no-banner --verbose --log-opts="$range"
 
   audit:
     name: Auditoria de dependências (informativa)

@@ -1,0 +1,1787 @@
+# Acervo de fotos da F1 (Wikimedia Commons, licenças livres) — gerado por `assets:commons --mapear`.
+# Curadoria: `match: manual` mantém a foto; `match: rejected` tira para sempre. Ver docs/runbooks/fotos-commons.md.
+schema_version: 1
+acervo:
+  id: commons-f1
+  name: Fotos da Fórmula 1 — Wikimedia Commons (licenças livres)
+  source: https://commons.wikimedia.org
+  revision: 2026-10-23
+generated_at: 2026-10-23T18:40:16.016Z
+entries:
+  - target: car/lotus/1985
+    kind: car
+    f1db_id: lotus
+    name: Lotus 1985
+    season: 1985
+    wikidata: null
+    category: Lotus 97T
+    photos:
+      - file: File:Lotus 97T at Goodwood 2014 001.jpg
+        role: car
+        season: 1985
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Lotus_97T_at_Goodwood_2014_001.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Nic Redhead
+        author_url: https://www.flickr.com/photos/somethingness/
+        credit: Flickr
+        attribution_required: true
+        share_alike: true
+        date: 2014-06-29 13:37:46
+        width: 4527
+        height: 2814
+      - file: File:1985 Ayrton Senna's Lotus 97T F1 Turbo JPS (14387310227).jpg
+        role: car
+        season: 1985
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1985_Ayrton_Senna%27s_Lotus_97T_F1_Turbo_JPS_(14387310227).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: big-ashb
+        author_url: https://www.flickr.com/people/26673904@N00
+        credit: 1985 Ayrton Senna's Lotus 97T F1 Turbo JPS
+        attribution_required: true
+        share_alike: false
+        date: 2014-06-26 17:27
+        width: 5184
+        height: 3456
+      - file: File:Donington Historic Festival (8720619336).jpg
+        role: car
+        season: 1985
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Donington_Historic_Festival_(8720619336).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Mathew Bedworth
+        author_url: https://www.flickr.com/people/70762468@N04
+        credit: Donington Historic Festival
+        attribution_required: true
+        share_alike: false
+        date: 2013-05-05 08:42
+        width: 5184
+        height: 3456
+  - target: car/lotus/1986
+    kind: car
+    f1db_id: lotus
+    name: Lotus 1986
+    season: 1986
+    wikidata: null
+    category: Lotus 98T
+    photos:
+      - file: File:F1 LOTUS 98T AYRTON SENNA RETROMOBILE 2026 (55139143517).jpg
+        role: car
+        season: 1986
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:F1_LOTUS_98T_AYRTON_SENNA_RETROMOBILE_2026_(55139143517).jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Eric Salard from Le Chateau d'Oleron, FRANCE
+        author_url: https://www.flickr.com/people/16103393@N05
+        credit: F1 LOTUS 98T AYRTON SENNA RETROMOBILE 2026
+        attribution_required: true
+        share_alike: true
+        date: 2026-02-01 12:53
+        width: 4288
+        height: 2848
+      - file: File:Lotus 98T (1986) (55082305398).jpg
+        role: car
+        season: 1986
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Lotus_98T_(1986)_(55082305398).jpg
+        license: CC0
+        license_url: http://creativecommons.org/publicdomain/zero/1.0/deed.en
+        author: Charles from Port Chester, New York
+        author_url: https://www.flickr.com/people/43494963@N03
+        credit: Lotus 98T (1986)
+        attribution_required: false
+        share_alike: false
+        date: 2026-01-30 08:29
+        width: 5710
+        height: 3762
+      - file: File:Lotus-Renault 98T (19817502639).jpg
+        role: car
+        season: 1986
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Lotus-Renault_98T_(19817502639).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Neil
+        author_url: https://www.flickr.com/people/86507786@N00
+        credit: Lotus-Renault 98T
+        attribution_required: true
+        share_alike: false
+        date: 2015-06-26 10:44
+        width: 3935
+        height: 2210
+  - target: car/lotus/1987
+    kind: car
+    f1db_id: lotus
+    name: Lotus 1987
+    season: 1987
+    wikidata: null
+    category: Lotus 99T
+    photos:
+      - file: File:Lotus 99T front-right 2012 Autosport International.jpg
+        role: car
+        season: 1987
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Lotus_99T_front-right_2012_Autosport_International.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Tony Hisgett
+        author_url: https://www.flickr.com/people/37804979@N00
+        credit: "Flickr: Senna - Lotus 99T Honda"
+        attribution_required: true
+        share_alike: false
+        date: 2012-01-15 13:51:26
+        width: 4468
+        height: 3156
+      - file: File:Cockpit of Lotus 99T Formula One car..jpg
+        role: car
+        season: 1987
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Cockpit_of_Lotus_99T_Formula_One_car..jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Norbert Neutron
+        author_url: https://commons.wikimedia.org/w/index.php?title=User:Norbert_Neutron&action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2015-10-17
+        width: 2368
+        height: 4208
+      - file: File:Ayrton Senna (50775771127).jpg
+        role: car
+        season: 1987
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_(50775771127).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Chris Monahan
+        author_url: https://www.flickr.com/people/96521181@N07
+        credit: Ayrton Senna
+        attribution_required: true
+        share_alike: true
+        date: 2019-07-16 18:00
+        width: 3024
+        height: 4032
+  - target: car/mclaren/1988
+    kind: car
+    f1db_id: mclaren
+    name: McLaren 1988
+    season: 1988
+    wikidata: null
+    category: McLaren MP4/4
+    photos:
+      - file: File:McLaren MP4-4 front-left 2012 Autosport International.jpg
+        role: car
+        season: 1988
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:McLaren_MP4-4_front-left_2012_Autosport_International.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Tony Hisgett
+        author_url: https://www.flickr.com/people/37804979@N00
+        credit: "Flickr: Senna - McLaren MP4/4 Honda"
+        attribution_required: true
+        share_alike: false
+        date: 2012-01-15 13:52:15
+        width: 4364
+        height: 2736
+      - file: File:McLaren MP4-4 (1988).jpg
+        role: car
+        season: 1988
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:McLaren_MP4-4_(1988).jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Yannick Leclercq
+        author_url: https://commons.wikimedia.org/wiki/User:Y.Leclercq
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2019-02-05 18:45:21
+        width: 4824
+        height: 3216
+      - file: File:1988 Mclaren MP4 4 Honda (49379465513).jpg
+        role: car
+        season: 1988
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1988_Mclaren_MP4_4_Honda_(49379465513).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: David Merrett from Daventry, England
+        author_url: https://www.flickr.com/people/14265068@N00
+        credit: 1988 Mclaren MP4/4 Honda
+        attribution_required: true
+        share_alike: false
+        date: 2020-01-11 13:05
+        width: 4529
+        height: 4000
+  - target: car/mclaren/1989
+    kind: car
+    f1db_id: mclaren
+    name: McLaren 1989
+    season: 1989
+    wikidata: null
+    category: McLaren MP4/5
+    photos:
+      - file: File:Autosport International The Racing Car Show NEC Birmingham 2011 DSC 3400 (5377168635).jpg
+        role: car
+        season: 1989
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Autosport_International_The_Racing_Car_Show_NEC_Birmingham_2011_DSC_3400_(5377168635).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Tony Harrison
+        author_url: https://www.flickr.com/people/88589821@N00
+        credit: Autosport International The Racing Car Show NEC Birmingham 2011 DSC_3400
+        attribution_required: true
+        share_alike: true
+        date: 2011-01-15 09:43
+        width: 4288
+        height: 2848
+      - file: File:Mc Laren Honda, Ayrton Senna (53277026926).jpg
+        role: car
+        season: 1989
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Mc_Laren_Honda,_Ayrton_Senna_(53277026926).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Thomas Vogt from Paderborn, Deutschland
+        author_url: https://www.flickr.com/people/66451944@N03
+        credit: Mc Laren Honda, Ayrton Senna
+        attribution_required: true
+        share_alike: false
+        date: 2023-10-01 13:12
+        width: 4032
+        height: 3024
+      - file: File:Mike gascoyne engineering David Coulthard at his Autosport test.JPG
+        role: car
+        season: 1989
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Mike_gascoyne_engineering_David_Coulthard_at_his_Autosport_test.JPG
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Witherspoony
+        author_url: https://commons.wikimedia.org/wiki/User:Witherspoony
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: "1990"
+        width: 3788
+        height: 2908
+  - target: car/mclaren/1990
+    kind: car
+    f1db_id: mclaren
+    name: McLaren 1990
+    season: 1990
+    wikidata: null
+    category: McLaren MP4/5B
+    photos:
+      - file: File:Legend (36449956846).jpg
+        role: car
+        season: 1990
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Legend_(36449956846).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Rob Oo from NL
+        author_url: https://www.flickr.com/people/105105658@N03
+        credit: Legend
+        attribution_required: true
+        share_alike: false
+        date: 2017-07-26 10:29
+        width: 5367
+        height: 3018
+      - file: File:McLaren MP4-5B Ayrton Senna Honda RACING Gallery 24-5-2026.jpg
+        role: car
+        season: 1990
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:McLaren_MP4-5B_Ayrton_Senna_Honda_RACING_Gallery_24-5-2026.jpg
+        license: CC BY 4.0
+        license_url: https://creativecommons.org/licenses/by/4.0
+        author: BWard 1997
+        author_url: https://commons.wikimedia.org/wiki/User:BWard_1997
+        credit: Own work
+        attribution_required: true
+        share_alike: false
+        date: 2026-05-24 16:40:17
+        width: 4032
+        height: 2268
+      - file: File:McLaren MP4-5B (Japan 2013).jpg
+        role: car
+        season: 1990
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:McLaren_MP4-5B_(Japan_2013).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Norimasa Hayashida
+        author_url: null
+        credit: https://www.flickr.com/photos/nhayashida/10311976395/in/set-72157636691519286
+        attribution_required: true
+        share_alike: false
+        date: 2013-10-11 11:53:43
+        width: 3849
+        height: 2887
+  - target: car/mclaren/1991
+    kind: car
+    f1db_id: mclaren
+    name: McLaren 1991
+    season: 1991
+    wikidata: null
+    category: McLaren MP4/6
+    photos:
+      - file: File:Ayrton Senna 1991 USA 3 cropped.jpg
+        role: car
+        season: 1991
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_1991_USA_3_cropped.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: "Ayrton_Senna_1991_USA_3.jpg: Stuart Seeger from College Station, Texas, USA derivative work: Karpouzi"
+        author_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_1991_USA_3.jpg
+        credit: "This file was derived from: Ayrton Senna 1991 USA 3.jpg:"
+        attribution_required: true
+        share_alike: false
+        date: 2012-09-28 07:20
+        width: 3127
+        height: 1905
+      - file: File:McLaren MP4-6 - Flickr - andrewbasterfield.jpg
+        role: car
+        season: 1991
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:McLaren_MP4-6_-_Flickr_-_andrewbasterfield.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Andrew Basterfield
+        author_url: https://www.flickr.com/people/47724267@N07
+        credit: McLaren MP4/6
+        attribution_required: true
+        share_alike: true
+        date: 2011-07-01 16:02
+        width: 4752
+        height: 3168
+      - file: File:-1992-07-12 Honda Marlboro McLaren MP4-6 driven by Ayrtonn Senna, British Grand Prix, Silverstone, England.JPG
+        role: car
+        season: 1991
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:-1992-07-12_Honda_Marlboro_McLaren_MP4-6_driven_by_Ayrtonn_Senna,_British_Grand_Prix,_Silverstone,_England.JPG
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: "Kolforn (Kolforn) I'd appreciate if you could mail me (Kolforn@gmail.com) if you want to use this picture out of the Wikimedia project scope. This file is licensed under the Creative Commons Attribution-Share Alike 4.0 International license. You are free: to share – to copy, distribute and transmit the work to remix – to adapt the work Under the following conditions: attribution – You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use. share alike – If you remix, transform, or build upon the material, you must distribute your contributions under the same or compatible license as the original.https://creativecommons.org/licenses/by-sa/4.0CC BY-SA 4.0 Creative Commons Attribution-Share Alike 4.0 truetrue"
+        author_url: https://commons.wikimedia.org/wiki/File:Flag-globe-2.gif
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: tirada a 12 de Julho de 1992
+        width: 2968
+        height: 4419
+  - target: car/mclaren/1992
+    kind: car
+    f1db_id: mclaren
+    name: McLaren 1992
+    season: 1992
+    wikidata: null
+    category: null
+    note: sem categoria do chassi na Commons
+    photos: []
+  - target: car/mclaren/1993
+    kind: car
+    f1db_id: mclaren
+    name: McLaren 1993
+    season: 1993
+    wikidata: null
+    category: McLaren MP4/8
+    photos:
+      - file: File:McLaren MP4-8 front-right 2012 Autosport International.jpg
+        role: car
+        season: 1993
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:McLaren_MP4-8_front-right_2012_Autosport_International.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Tony Hisgett
+        author_url: https://www.flickr.com/people/37804979@N00
+        credit: "Flickr: Senna - McLaren MP4/8 Ford Cosworth HB"
+        attribution_required: true
+        share_alike: false
+        date: 2012-01-15 13:53:46
+        width: 4068
+        height: 3452
+      - file: File:McLaren MP4-8 front nose 2012 Autosport International.jpg
+        role: car
+        season: 1993
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:McLaren_MP4-8_front_nose_2012_Autosport_International.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Tony Hisgett
+        author_url: https://www.flickr.com/people/37804979@N00
+        credit: "Flickr: Senna - McLaren MP4/8 Ford Cosworth HB 2"
+        attribution_required: true
+        share_alike: false
+        date: 2012-01-15 13:54:00
+        width: 4484
+        height: 3368
+      - file: File:Donington Historic Festival (8720620142).jpg
+        role: car
+        season: 1993
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Donington_Historic_Festival_(8720620142).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Mathew Bedworth
+        author_url: https://www.flickr.com/people/70762468@N04
+        credit: Donington Historic Festival
+        attribution_required: true
+        share_alike: false
+        date: 2013-05-05 08:42
+        width: 5184
+        height: 3456
+  - target: car/toleman/1984
+    kind: car
+    f1db_id: toleman
+    name: Toleman 1984
+    season: 1984
+    wikidata: null
+    category: Toleman TG183B
+    photos:
+      - file: File:Toleman TG183B front-left 2012 Autosport International.jpg
+        role: car
+        season: 1984
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Toleman_TG183B_front-left_2012_Autosport_International.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Tony Hisgett
+        author_url: https://www.flickr.com/people/37804979@N00
+        credit: "Flickr: Senna - Toleman TG183B-Hart 415T"
+        attribution_required: true
+        share_alike: false
+        date: 2012-01-15 13:49:25
+        width: 4584
+        height: 3256
+      - file: File:Toleman TG183B left 2012 Autosport International.jpg
+        role: car
+        season: 1984
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Toleman_TG183B_left_2012_Autosport_International.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Tony Hisgett
+        author_url: https://www.flickr.com/people/37804979@N00
+        credit: "Flickr: Senna - Toleman TG183B-Hart 415T 2"
+        attribution_required: true
+        share_alike: false
+        date: 2012-01-15 13:49:06
+        width: 5048
+        height: 2868
+      - file: File:Toleman TG184 front-right 2012 Autosport International.jpg
+        role: car
+        season: 1984
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Toleman_TG184_front-right_2012_Autosport_International.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Tony Hisgett
+        author_url: https://www.flickr.com/people/37804979@N00
+        credit: "Flickr: Senna - Toleman TG184-Hart 415T"
+        attribution_required: true
+        share_alike: false
+        date: 2012-01-15 13:49:29
+        width: 4168
+        height: 3044
+  - target: car/williams/1994
+    kind: car
+    f1db_id: williams
+    name: Williams 1994
+    season: 1994
+    wikidata: null
+    category: Williams FW16
+    photos:
+      - file: File:Silverstone Sponsor Driving Day - Martini May 2015 (19163314670).jpg
+        role: car
+        season: 1994
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Silverstone_Sponsor_Driving_Day_-_Martini_May_2015_(19163314670).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: United Autosports
+        author_url: https://www.flickr.com/people/48092258@N06
+        credit: Silverstone Sponsor Driving Day - Martini May 2015
+        attribution_required: true
+        share_alike: true
+        date: 2015-05-27 12:55
+        width: 5472
+        height: 3648
+      - file: File:ASF24 05 - Williams.jpg
+        role: car
+        season: 1994
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:ASF24_05_-_Williams.jpg
+        license: CC BY 4.0
+        license_url: https://creativecommons.org/licenses/by/4.0
+        author: Herranderssvensson
+        author_url: https://commons.wikimedia.org/wiki/User:Herranderssvensson
+        credit: Own work
+        attribution_required: true
+        share_alike: false
+        date: 2024-09-18 16:18:00
+        width: 4354
+        height: 2728
+      - file: File:F1 1994 Williams FW16 Damon Hill (55407239935).jpg
+        role: car
+        season: 1994
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:F1_1994_Williams_FW16_Damon_Hill_(55407239935).jpg
+        license: CC BY 4.0
+        license_url: https://creativecommons.org/licenses/by/4.0
+        author: Tony Hisgett
+        author_url: https://www.flickr.com/photos/37804979@N00/
+        credit: F1 1994 Williams FW16 Damon Hill
+        attribution_required: true
+        share_alike: false
+        date: 2026-07-16
+        width: 6242
+        height: 3327
+  - target: driver/alain-prost
+    kind: driver
+    f1db_id: alain-prost
+    name: Alain Prost
+    wikidata: null
+    category: Alain Prost
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos:
+      - file: File:Anefo 933-1302 Huub Rothengatter, Alain Prost, Niki Lauda 29.10.1984.jpg
+        role: action
+        season: 1984
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Anefo_933-1302_Huub_Rothengatter,_Alain_Prost,_Niki_Lauda_29.10.1984.jpg
+        license: CC0
+        license_url: http://creativecommons.org/publicdomain/zero/1.0/deed.en
+        author: Anefo / Croes, R.C.
+        author_url: null
+        credit: Gahetna in het nationnal archief 933-1302
+        attribution_required: false
+        share_alike: false
+        date: 1984-10-29
+        width: 3673
+        height: 2445
+      - file: File:Prost at 1981 Dutch Grand Prix.jpg
+        role: action
+        season: 1981
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Prost_at_1981_Dutch_Grand_Prix.jpg
+        license: CC BY-SA 3.0 nl
+        license_url: https://creativecommons.org/licenses/by-sa/3.0/nl/deed.en
+        author: Hans van Dijk for Anefo / neg. stroken, 1945-1989, 2.24.01.05, item number 931-6508
+        author_url: https://commons.wikimedia.org/wiki/Category:Hans_van_Dijk
+        credit: http://proxy.handle.net/10648/ad027bea-d0b4-102d-bcf8-003048976d84
+        attribution_required: true
+        share_alike: true
+        date: 1981-08-30
+        width: 3664
+        height: 2436
+      - file: File:Prost and Jones at 1981 Dutch Grand Prix.jpg
+        role: action
+        season: 1981
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Prost_and_Jones_at_1981_Dutch_Grand_Prix.jpg
+        license: CC BY-SA 3.0 nl
+        license_url: https://creativecommons.org/licenses/by-sa/3.0/nl/deed.en
+        author: Hans van Dijk for Anefo for Anefo
+        author_url: https://commons.wikimedia.org/wiki/Category:Hans_van_Dijk
+        credit: De Franse autocoureur Alain Prost, in Renault nummer 15 (latere winnaar van de Grand Prix van Nederland), met achter hem de Australiër Alan Jones in een Williams-Ford nummer 1, tijdens de Grand Prix Formule 1 op Zandvoort
+        attribution_required: true
+        share_alike: true
+        date: 1981-08-30
+        width: 3664
+        height: 2436
+      - file: File:Persconferentie autocoureurs Lauda en Prost op Schiphol in behalen van resp. 1e , Bestanddeelnr 933-1304.jpg
+        role: action
+        season: 1984
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Persconferentie_autocoureurs_Lauda_en_Prost_op_Schiphol_in_behalen_van_resp._1e_,_Bestanddeelnr_933-1304.jpg
+        license: CC0
+        license_url: http://creativecommons.org/publicdomain/zero/1.0/deed.en
+        author: Rob Croes / Anefo
+        author_url: null
+        credit: http://proxy.handle.net/10648/ad3f0e2a-d0b4-102d-bcf8-003048976d84
+        attribution_required: false
+        share_alike: false
+        date: 1984-10-29
+        width: 2445
+        height: 3664
+      - file: File:Piquet and Prost at 1983 Dutch Grand Prix.jpg
+        role: action
+        season: 1983
+        rank: 4
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Piquet_and_Prost_at_1983_Dutch_Grand_Prix.jpg
+        license: CC BY-SA 3.0 nl
+        license_url: https://creativecommons.org/licenses/by-sa/3.0/nl/deed.en
+        author: Anefo / Antonisse, Marcel / neg. stroken, 1945-1989, 2.24.01.05, item number 932-6775
+        author_url: null
+        credit: http://proxy.handle.net/10648/ad2ce326-d0b4-102d-bcf8-003048976d84
+        attribution_required: true
+        share_alike: true
+        date: 1983-08-28
+        width: 3569
+        height: 2435
+      - file: File:Mansell and Senna at Silverstone cropped.jpg
+        role: action
+        season: 1991
+        rank: 5
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Mansell_and_Senna_at_Silverstone_cropped.jpg
+        license: Public domain
+        license_url: null
+        author: Stavros1
+        author_url: https://en.wikipedia.org/wiki/User:Stavros1
+        credit: Image:Mansell and Senna at Silverstone.jpg
+        attribution_required: false
+        share_alike: false
+        date: Taken on 14 July 1991
+        width: 2472
+        height: 984
+  - target: driver/ayrton-senna
+    kind: driver
+    f1db_id: ayrton-senna
+    name: Ayrton Senna
+    wikidata: null
+    category: Ayrton Senna
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos:
+      - file: File:Ayrton Senna in the paddock before the 1993 British Grand Prix (33686752075) (cropped).jpg
+        role: portrait
+        season: 1993
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_in_the_paddock_before_the_1993_British_Grand_Prix_(33686752075)_(cropped).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee from London, UK
+        author_url: https://www.flickr.com/people/62983535@N06
+        credit: Ayrton Senna in the paddock before the 1993 British Grand Prix
+        attribution_required: true
+        share_alike: true
+        date: 2008-01-07 12:34
+        width: 927
+        height: 1186
+      - file: File:Ayrton Senna 1989 Belgian GP podium (cropped).jpg
+        role: action
+        season: 1989
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_1989_Belgian_GP_podium_(cropped).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: madagascarica from Verneuil Grand, France
+        author_url: https://www.flickr.com/people/37974559@N08
+        credit: img043
+        attribution_required: true
+        share_alike: false
+        date: 1989-08-27 14:16
+        width: 744
+        height: 1079
+      - file: File:Senna 1992 Monaco cropped.jpg
+        role: action
+        season: 1992
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Senna_1992_Monaco_cropped.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: "Instituto Ayrton Senna derivative work: Karpouzi"
+        author_url: https://www.flickr.com/people/49703787@N05
+        credit: "This file was derived from: Senna 1992 Monaco.jpg"
+        attribution_required: true
+        share_alike: false
+        date: 2013-10-10 03:50
+        width: 1057
+        height: 821
+      - file: File:Ayrton Senna Imola 1989 (cropped).jpg
+        role: action
+        season: 1989
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_Imola_1989_(cropped).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Gabriele
+        author_url: https://www.flickr.com/people/gabriele/
+        credit: '"a tribute to Ayrton Senna #4"'
+        attribution_required: true
+        share_alike: false
+        date: 1989-04-23
+        width: 548
+        height: 730
+      - file: File:Ayrton Senna 9.jpg
+        role: action
+        season: 1988
+        rank: 4
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_9.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Instituto Ayrton Senna
+        author_url: https://www.flickr.com/people/institutoayrtonsenna/
+        credit: Flickr
+        attribution_required: true
+        share_alike: false
+        date: 2010-05-14 13:47:04
+        width: 1002
+        height: 691
+      - file: File:Ayrton Senna 1991 USA 3 cropped.jpg
+        role: action
+        season: 1991
+        rank: 5
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_1991_USA_3_cropped.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: "Ayrton_Senna_1991_USA_3.jpg: Stuart Seeger from College Station, Texas, USA derivative work: Karpouzi"
+        author_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_1991_USA_3.jpg
+        credit: "This file was derived from: Ayrton Senna 1991 USA 3.jpg:"
+        attribution_required: true
+        share_alike: false
+        date: 2012-09-28 07:20
+        width: 3127
+        height: 1905
+      - file: File:Ayrton Senna McLaren MP4-6 1991 United States.jpg
+        role: action
+        season: 1991
+        rank: 6
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Ayrton_Senna_McLaren_MP4-6_1991_United_States.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: wileynorwichphoto
+        author_url: https://www.flickr.com/people/76879045@N02
+        credit: "Flickr: Senna @ USGP 1991"
+        attribution_required: true
+        share_alike: false
+        date: 1991-03
+        width: 3980
+        height: 2678
+  - target: driver/damon-hill
+    kind: driver
+    f1db_id: damon-hill
+    name: Damon Hill
+    wikidata: Q10505
+    category: Damon Hill
+    photos:
+      - file: File:Damon Hill in the paddock before the 1993 British Grand Prix (32873541593) (cropped).jpg
+        role: portrait
+        season: 1993
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Damon_Hill_in_the_paddock_before_the_1993_British_Grand_Prix_(32873541593)_(cropped).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: "Original: Martin Lee from London, UK / Derivative work: Danyele"
+        author_url: https://www.flickr.com/people/62983535@N06
+        credit: Damon Hill in the paddock before the 1993 British Grand Prix (original photo)
+        attribution_required: true
+        share_alike: true
+        date: 1993-07
+        width: 1200
+        height: 1600
+      - file: File:-1992-07-12 Damon Hill, Brabham Judd BT60B, Woodcote, 1992 British Grand Prix, Silverstone, England.JPG
+        role: action
+        season: 1992
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:-1992-07-12_Damon_Hill,_Brabham_Judd_BT60B,_Woodcote,_1992_British_Grand_Prix,_Silverstone,_England.JPG
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: "Kolforn (Kolforn) I'd appreciate if you could mail me (Kolforn@gmail.com) if you want to use this picture out of the Wikimedia project scope. This file is licensed under the Creative Commons Attribution-Share Alike 4.0 International license. You are free: to share – to copy, distribute and transmit the work to remix – to adapt the work Under the following conditions: attribution – You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use. share alike – If you remix, transform, or build upon the material, you must distribute your contributions under the same or compatible license as the original.https://creativecommons.org/licenses/by-sa/4.0CC BY-SA 4.0 Creative Commons Attribution-Share Alike 4.0 truetrue"
+        author_url: https://commons.wikimedia.org/wiki/File:Flag-globe-2.gif
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: tirada a 12 de Julho de 1992
+        width: 4229
+        height: 2836
+      - file: File:1992 Martin Brundle Racing Suit and Helmet, 1997 Damon Hill Helmet and 2000 Michael Schumacher Helmet (49254927491).jpg
+        role: action
+        season: 1997
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1992_Martin_Brundle_Racing_Suit_and_Helmet,_1997_Damon_Hill_Helmet_and_2000_Michael_Schumacher_Helmet_(49254927491).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: David Merrett from Daventry, England
+        author_url: https://www.flickr.com/people/14265068@N00
+        credit: 1992 Martin Brundle Racing Suit and Helmet, 1997 Damon Hill Helmet and 2000 Michael Schumacher Helmet
+        attribution_required: true
+        share_alike: false
+        date: 2019-12-12 14:17
+        width: 3712
+        height: 5584
+      - file: File:Damon Hill at the Atlassian Williams Racing Fan Zone of 2026 (028A8250).jpg
+        role: action
+        season: 2026
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Damon_Hill_at_the_Atlassian_Williams_Racing_Fan_Zone_of_2026_(028A8250).jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Yu Chu Chin
+        author_url: https://commons.wikimedia.org/wiki/User:Pangalau
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2026-03-06
+        width: 3593
+        height: 5389
+      - file: File:Damon Hill 1995-2.jpg
+        role: action
+        season: 1995
+        rank: 4
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Damon_Hill_1995-2.jpg
+        license: CC BY-SA 3.0
+        license_url: http://creativecommons.org/licenses/by-sa/3.0/
+        author: Rick Dikeman
+        author_url: https://commons.wikimedia.org/w/index.php?title=User:Rick_Dikeman&action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: "1995"
+        width: 3467
+        height: 2255
+      - file: File:Damon Hill - Williams FW17 braking for Copse at the 1995 British Grand Prix, Silverstone (49728319597).jpg
+        role: action
+        season: 1995
+        rank: 5
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Damon_Hill_-_Williams_FW17_braking_for_Copse_at_the_1995_British_Grand_Prix,_Silverstone_(49728319597).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee from London, UK
+        author_url: https://www.flickr.com/people/62983535@N06
+        credit: Damon Hill - Williams FW17 braking for Copse at the 1995 British Grand Prix, Silverstone
+        attribution_required: true
+        share_alike: true
+        date: 2020-04-01 17:18
+        width: 2541
+        height: 1417
+      - file: File:Hockenheim93-start-2.png
+        role: action
+        season: 1993
+        rank: 6
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Hockenheim93-start-2.png
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Landmensch
+        author_url: https://commons.wikimedia.org/wiki/User:Landmensch
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: "1993"
+        width: 2500
+        height: 1686
+  - target: driver/david-coulthard
+    kind: driver
+    f1db_id: david-coulthard
+    name: David Coulthard
+    wikidata: Q172832
+    category: David Coulthard
+    photos:
+      - file: File:David Coulthard at the 2025 Adelaide Grand Final Parade - 12.jpg
+        role: portrait
+        season: 2025
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:David_Coulthard_at_the_2025_Adelaide_Grand_Final_Parade_-_12.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Yu Chu Chin
+        author_url: https://commons.wikimedia.org/wiki/User:Pangalau
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2025-11-26
+        width: 4398
+        height: 6597
+      - file: File:Alonso Chasing Coulthard.jpg
+        role: action
+        season: 2008
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Alonso_Chasing_Coulthard.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Mark McArdle
+        author_url: https://www.flickr.com/photos/12169388@N05
+        credit: originally posted to Flickr as Alonso Chasing Coulthard
+        attribution_required: true
+        share_alike: true
+        date: 2008-06-06 13:08:50
+        width: 4372
+        height: 2906
+      - file: File:David Coulthard 2008.jpg
+        role: action
+        season: 2008
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:David_Coulthard_2008.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Mark McArdle from Canada
+        author_url: https://www.flickr.com/people/12169388@N05
+        credit: DC
+        attribution_required: true
+        share_alike: true
+        date: 2008-06-08 10:37
+        width: 4372
+        height: 2906
+      - file: File:David Coulthard 2007 British GP 001.jpg
+        role: action
+        season: 2007
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:David_Coulthard_2007_British_GP_001.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Rob Snell
+        author_url: https://www.flickr.com/photos/robnaldo/
+        credit: Flickr
+        attribution_required: true
+        share_alike: false
+        date: 2007-07-07 11:00:25
+        width: 3872
+        height: 2592
+      - file: File:David Coulthard - 2007 Race of Champions.jpg
+        role: action
+        season: 2007
+        rank: 4
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:David_Coulthard_-_2007_Race_of_Champions.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: christianb_7
+        author_url: https://www.flickr.com/people/christianb/
+        credit: https://www.flickr.com/photos/christianb/2121787435/
+        attribution_required: true
+        share_alike: true
+        date: 2007-12-16
+        width: 3504
+        height: 2336
+      - file: File:Formel1 Rennwagen 'RedBul-Racing' Hockenheim 2006 001.JPG
+        role: action
+        season: 2006
+        rank: 5
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Formel1_Rennwagen_%27RedBul-Racing%27_Hockenheim_2006_001.JPG
+        license: CC BY-SA 2.5
+        license_url: https://creativecommons.org/licenses/by-sa/2.5
+        author: Andreas Fink (andreas-fink@gmx.de)
+        author_url: null
+        credit: selbst fotografiert self-made
+        attribution_required: true
+        share_alike: true
+        date: 2006-07-30
+        width: 3456
+        height: 2304
+      - file: File:David Coulthard 2006 US GP 002.jpg
+        role: action
+        season: 2006
+        rank: 6
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:David_Coulthard_2006_US_GP_002.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Ryosuke Yagi
+        author_url: https://www.flickr.com/photos/compose-r/
+        credit: Flickr
+        attribution_required: true
+        share_alike: false
+        date: 2006-06-30 14:30:17
+        width: 3264
+        height: 2448
+  - target: driver/elio-de-angelis
+    kind: driver
+    f1db_id: elio-de-angelis
+    name: Elio de Angelis
+    wikidata: null
+    category: Elio de Angelis
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos:
+      - file: File:Elio De Angelis Lotus 1980 Monaco GP.jpg
+        role: action
+        season: 1980
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Elio_De_Angelis_Lotus_1980_Monaco_GP.jpg
+        license: CC BY 4.0
+        license_url: https://creativecommons.org/licenses/by/4.0
+        author: Carlomarzetti
+        author_url: https://commons.wikimedia.org/w/index.php?title=User:Carlomarzetti&action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: false
+        date: Taken on 17 May 1980
+        width: 2554
+        height: 3824
+      - file: File:Anefo 932-2371 Elio de Angelis 03.07.1982.jpg
+        role: action
+        season: 1982
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Anefo_932-2371_Elio_de_Angelis_03.07.1982.jpg
+        license: CC0
+        license_url: http://creativecommons.org/publicdomain/zero/1.0/deed.en
+        author: Hans van Dijk for Anefo
+        author_url: https://commons.wikimedia.org/wiki/Category:Hans_van_Dijk
+        credit: Ga het na in het Nationaal Archief
+        attribution_required: false
+        share_alike: false
+        date: 1982-07-03
+        width: 2442
+        height: 3473
+      - file: File:Elio de Angelis - Shadow DN9B at Druids Bend at the 1979 Race of Champions (50140833091).jpg
+        role: action
+        season: 1979
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Elio_de_Angelis_-_Shadow_DN9B_at_Druids_Bend_at_the_1979_Race_of_Champions_(50140833091).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee from London, UK
+        author_url: https://www.flickr.com/people/62983535@N06
+        credit: Elio de Angelis - Shadow DN9B at Druids Bend at the 1979 Race of Champions
+        attribution_required: true
+        share_alike: true
+        date: 2008-01-07 11:34
+        width: 2302
+        height: 1593
+      - file: File:Elio de Angelis - BMW M1 Procar at the supporting race for the 1979 British GP, Silverstone.jpg
+        role: action
+        season: 1979
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Elio_de_Angelis_-_BMW_M1_Procar_at_the_supporting_race_for_the_1979_British_GP,_Silverstone.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee
+        author_url: null
+        credit: https://www.flickr.com/photos/kartingnord/49984755018/
+        attribution_required: true
+        share_alike: true
+        date: 2020-05-18 11:01:05
+        width: 1784
+        height: 803
+      - file: File:Elio De Angelis Silverstone.JPG
+        role: action
+        season: 1981
+        rank: 4
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Elio_De_Angelis_Silverstone.JPG
+        license: CC BY-SA 3.0
+        license_url: http://creativecommons.org/licenses/by-sa/3.0/
+        author: w:User:Peterhanna
+        author_url: https://en.wikipedia.org/wiki/User:Peterhanna
+        credit: "wiki anglaise; was/is here: w:File:Elio De Angelis Silverstone 81.JPG"
+        attribution_required: true
+        share_alike: true
+        date: 1981; uploaded 2006-08-08
+        width: 1531
+        height: 966
+      - file: File:Lotus 95T Elio De Angelis Detroit Grand Prix 1984a.jpeg
+        role: action
+        season: 1984
+        rank: 5
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Lotus_95T_Elio_De_Angelis_Detroit_Grand_Prix_1984a.jpeg
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Plaskowski
+        author_url: https://en.wikipedia.org/wiki/User:Plaskowski
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: "1984"
+        width: 1186
+        height: 794
+  - target: driver/gerhard-berger
+    kind: driver
+    f1db_id: gerhard-berger
+    name: Gerhard Berger
+    wikidata: null
+    category: Gerhard Berger
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos:
+      - file: File:Gerhard Berger 1991USA (cropped).jpg
+        role: action
+        season: 1991
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Gerhard_Berger_1991USA_(cropped).jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: StuSeeger
+        author_url: null
+        credit: https://www.flickr.com/photos/stuseeger/202557639/
+        attribution_required: true
+        share_alike: false
+        date: "1991"
+        width: 2427
+        height: 3283
+      - file: File:1985 European GP Berger.jpg
+        role: action
+        season: 1985
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1985_European_GP_Berger.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Jerry Lewis-Evans
+        author_url: null
+        credit: https://www.flickr.com/photos/figsbury/9350356003/in/album-72157634767569482/
+        attribution_required: true
+        share_alike: true
+        date: 1985-10-04
+        width: 3248
+        height: 2136
+      - file: File:Gerhard Berger 1990 helmet front 2015 Honda F1 Exposition.jpg
+        role: action
+        season: 1990
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Gerhard_Berger_1990_helmet_front_2015_Honda_F1_Exposition.jpg
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Morio
+        author_url: https://commons.wikimedia.org/wiki/User:Morio
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2015-03-14
+        width: 2560
+        height: 2560
+      - file: File:Gerhard Berger 1990 helmet front-left 2015 Honda F1 Exposition.jpg
+        role: action
+        season: 1990
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Gerhard_Berger_1990_helmet_front-left_2015_Honda_F1_Exposition.jpg
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Morio
+        author_url: https://commons.wikimedia.org/wiki/User:Morio
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2015-03-14
+        width: 2560
+        height: 2560
+      - file: File:Gerhard Berger 1991 helmet front 2015 Honda F1 Exposition.jpg
+        role: action
+        season: 1991
+        rank: 4
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Gerhard_Berger_1991_helmet_front_2015_Honda_F1_Exposition.jpg
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Morio
+        author_url: https://commons.wikimedia.org/wiki/User:Morio
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2015-03-14
+        width: 2560
+        height: 2560
+      - file: File:Gerhard Berger - Ferrari 412T2 braking for Copse at the 1995 British Grand Prix, Silverstone (49727457918).jpg
+        role: action
+        season: 1995
+        rank: 5
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Gerhard_Berger_-_Ferrari_412T2_braking_for_Copse_at_the_1995_British_Grand_Prix,_Silverstone_(49727457918).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee from London, UK
+        author_url: https://www.flickr.com/people/62983535@N06
+        credit: Gerhard Berger - Ferrari 412T2 braking for Copse at the 1995 British Grand Prix, Silverstone
+        attribution_required: true
+        share_alike: true
+        date: 2020-04-01 16:57
+        width: 2531
+        height: 1471
+  - target: driver/johnny-cecotto
+    kind: driver
+    f1db_id: johnny-cecotto
+    name: Johnny Cecotto
+    wikidata: null
+    category: Johnny Cecotto
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos: []
+  - target: driver/johnny-dumfries
+    kind: driver
+    f1db_id: johnny-dumfries
+    name: Johnny Dumfries
+    wikidata: null
+    category: Johnny Dumfries
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos: []
+  - target: driver/michael-andretti
+    kind: driver
+    f1db_id: michael-andretti
+    name: Michael Andretti
+    wikidata: Q171519
+    category: Michael Andretti
+    photos:
+      - file: File:MIchael Andretti in the paddock before the 1993 British Grand Prix (33557348031).jpg
+        role: action
+        season: 1993
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:MIchael_Andretti_in_the_paddock_before_the_1993_British_Grand_Prix_(33557348031).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee from London, UK
+        author_url: https://www.flickr.com/people/62983535@N06
+        credit: MIchael Andretti in the paddock before the 1993 British Grand Prix
+        attribution_required: true
+        share_alike: true
+        date: 2008-01-07 12:34
+        width: 1896
+        height: 1264
+  - target: driver/mika-hakkinen
+    kind: driver
+    f1db_id: mika-hakkinen
+    name: Mika Häkkinen
+    wikidata: Q172842
+    category: Mika Häkkinen
+    photos:
+      - file: File:Mika Häkkinen at the 2026 Adelaide Motorsport Festival (028A7498).jpg
+        role: portrait
+        season: 2026
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Mika_H%C3%A4kkinen_at_the_2026_Adelaide_Motorsport_Festival_(028A7498).jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Yu Chu Chin
+        author_url: https://commons.wikimedia.org/wiki/User:Pangalau
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2026-03-01
+        width: 3871
+        height: 5808
+      - file: File:Mika Häkkinen 2000 United States Grand Prix.jpg
+        role: action
+        season: 2000
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Mika_H%C3%A4kkinen_2000_United_States_Grand_Prix.jpg
+        license: CC BY-SA 3.0
+        license_url: http://creativecommons.org/licenses/by-sa/3.0/
+        author: Rick Dikeman
+        author_url: https://commons.wikimedia.org/wiki/User:RickDikeman
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: "2000"
+        width: 3090
+        height: 2048
+      - file: File:Hockenheim94-mika-1.png
+        role: action
+        season: 1994
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Hockenheim94-mika-1.png
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Landmensch
+        author_url: https://commons.wikimedia.org/wiki/User:Landmensch
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: "1994"
+        width: 2500
+        height: 1670
+      - file: File:Häkkinen British GP 92.jpg
+        role: action
+        season: 1992
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:H%C3%A4kkinen_British_GP_92.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee
+        author_url: null
+        credit: https://www.flickr.com/photos/kartingnord/14184151132/
+        attribution_required: true
+        share_alike: true
+        date: 1992-07-10
+        width: 2464
+        height: 1510
+      - file: File:Mika Hakkinen in the paddock before the 1993 British Grand Prix (32873463093).jpg
+        role: action
+        season: 1993
+        rank: 4
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Mika_Hakkinen_in_the_paddock_before_the_1993_British_Grand_Prix_(32873463093).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee from London, UK
+        author_url: https://www.flickr.com/people/62983535@N06
+        credit: Mika Hakkinen in the paddock before the 1993 British Grand Prix
+        attribution_required: true
+        share_alike: true
+        date: 2008-01-07 12:34
+        width: 1972
+        height: 1315
+      - file: File:Hakkinen france 2000.jpg
+        role: action
+        season: 2000
+        rank: 5
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Hakkinen_france_2000.jpg
+        license: CC BY 4.0
+        license_url: https://creativecommons.org/licenses/by/4.0
+        author: F1Kiwi
+        author_url: https://commons.wikimedia.org/w/index.php?title=User:F1Kiwi&action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: false
+        date: 2025-03-25
+        width: 1741
+        height: 820
+      - file: File:Heinz-Harald Frentzen, Mika Häkkinen - Imola 1996.jpg
+        role: action
+        season: 1996
+        rank: 6
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Heinz-Harald_Frentzen,_Mika_H%C3%A4kkinen_-_Imola_1996.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Restu20
+        author_url: https://commons.wikimedia.org/wiki/User:Restu20
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 1996-05-03
+        width: 1698
+        height: 1146
+  - target: driver/nigel-mansell
+    kind: driver
+    f1db_id: nigel-mansell
+    name: Nigel Mansell
+    wikidata: Q10501
+    category: Nigel Mansell
+    photos:
+      - file: File:NigelMansell.jpg
+        role: portrait
+        season: 1991
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:NigelMansell.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Stuart Seeger
+        author_url: https://www.flickr.com/people/stuseeger/
+        credit: https://www.flickr.com/photos/stuseeger/202558636/
+        attribution_required: true
+        share_alike: false
+        date: "1991"
+        width: 2768
+        height: 4152
+      - file: File:-1992-07-12 Nigel Mansell, Williams FW14B, Woodcote, 1992 British Grand Prix, Silverstone, England (1).JPG
+        role: action
+        season: 1992
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:-1992-07-12_Nigel_Mansell,_Williams_FW14B,_Woodcote,_1992_British_Grand_Prix,_Silverstone,_England_(1).JPG
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: "Kolforn (Kolforn) I'd appreciate if you could mail me (Kolforn@gmail.com) if you want to use this picture out of the Wikimedia project scope. This file is licensed under the Creative Commons Attribution-Share Alike 4.0 International license. You are free: to share – to copy, distribute and transmit the work to remix – to adapt the work Under the following conditions: attribution – You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use. share alike – If you remix, transform, or build upon the material, you must distribute your contributions under the same or compatible license as the original.https://creativecommons.org/licenses/by-sa/4.0CC BY-SA 4.0 Creative Commons Attribution-Share Alike 4.0 truetrue"
+        author_url: https://commons.wikimedia.org/wiki/File:Flag-globe-2.gif
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: tirada a 12 de Julho de 1992
+        width: 4678
+        height: 3087
+      - file: File:-1992-07-12 Nigel Mansell, Williams FW14B, Woodcote, 1992 British Grand Prix, Silverstone, England.JPG
+        role: action
+        season: 1992
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:-1992-07-12_Nigel_Mansell,_Williams_FW14B,_Woodcote,_1992_British_Grand_Prix,_Silverstone,_England.JPG
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: "Kolforn (Kolforn) I'd appreciate if you could mail me (Kolforn@gmail.com) if you want to use this picture out of the Wikimedia project scope. This file is licensed under the Creative Commons Attribution-Share Alike 4.0 International license. You are free: to share – to copy, distribute and transmit the work to remix – to adapt the work Under the following conditions: attribution – You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use. share alike – If you remix, transform, or build upon the material, you must distribute your contributions under the same or compatible license as the original.https://creativecommons.org/licenses/by-sa/4.0CC BY-SA 4.0 Creative Commons Attribution-Share Alike 4.0 truetrue"
+        author_url: https://commons.wikimedia.org/wiki/File:Flag-globe-2.gif
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: tirada a 12 de Julho de 1992
+        width: 4665
+        height: 3012
+      - file: File:Mechanic working on Nigel Mansell's car 1991 Phoenix.jpg
+        role: action
+        season: 1991
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Mechanic_working_on_Nigel_Mansell%27s_car_1991_Phoenix.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Stuart Seeger
+        author_url: null
+        credit: https://www.flickr.com/photos/stuseeger/3094179111/in/album-72157611842567339/
+        attribution_required: true
+        share_alike: false
+        date: 1991-03-09
+        width: 2658
+        height: 3987
+      - file: File:Nigel Mansell 1991 United States.jpg
+        role: action
+        season: 1991
+        rank: 4
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Nigel_Mansell_1991_United_States.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: wileynorwichphoto
+        author_url: https://www.flickr.com/people/76879045@N02
+        credit: "Flickr: Nigel Mansell - Williams 1991"
+        attribution_required: true
+        share_alike: false
+        date: Taken on 10 March 1991
+        width: 3936
+        height: 2616
+      - file: File:1985 European GP Nigel Mansell02.jpg
+        role: action
+        season: 1985
+        rank: 5
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1985_European_GP_Nigel_Mansell02.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Jerry Lewis-Evans
+        author_url: null
+        credit: https://www.flickr.com/photos/figsbury/9350241055/in/album-72157634767569482/
+        attribution_required: true
+        share_alike: true
+        date: 1985-10-04
+        width: 3256
+        height: 2136
+      - file: File:1985 European GP Nigel Mansell03.jpg
+        role: action
+        season: 1985
+        rank: 6
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1985_European_GP_Nigel_Mansell03.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Jerry Lewis-Evans
+        author_url: null
+        credit: https://www.flickr.com/photos/figsbury/9350336529/in/album-72157634767569482/
+        attribution_required: true
+        share_alike: true
+        date: 1985-10-04
+        width: 3256
+        height: 1569
+  - target: driver/pierluigi-martini
+    kind: driver
+    f1db_id: pierluigi-martini
+    name: Pierluigi Martini
+    wikidata: null
+    category: Pierluigi Martini
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos:
+      - file: File:1985 European GP Martini.jpg
+        role: action
+        season: 1985
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1985_European_GP_Martini.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Jerry Lewis-Evans
+        author_url: null
+        credit: https://www.flickr.com/photos/figsbury/9353142148/in/album-72157634767569482/
+        attribution_required: true
+        share_alike: true
+        date: 1985-10-04
+        width: 3256
+        height: 2136
+      - file: File:Hockenheim93-start-4.png
+        role: action
+        season: 1993
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Hockenheim93-start-4.png
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Landmensch
+        author_url: https://commons.wikimedia.org/wiki/User:Landmensch
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: "1993"
+        width: 2500
+        height: 1665
+      - file: File:1989 Belgian GP race start 09.jpg
+        role: action
+        season: 1989
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1989_Belgian_GP_race_start_09.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: madagascarica from Verneuil Grand, France
+        author_url: https://www.flickr.com/people/37974559@N08
+        credit: img042
+        attribution_required: true
+        share_alike: false
+        date: 1989-08-27 14:16
+        width: 1800
+        height: 1237
+      - file: File:1989 Belgian GP race start 08.jpg
+        role: action
+        season: 1989
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1989_Belgian_GP_race_start_08.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: madagascarica from Verneuil Grand, France
+        author_url: https://www.flickr.com/people/37974559@N08
+        credit: img072
+        attribution_required: true
+        share_alike: false
+        date: 1989-08-27 14:15
+        width: 1800
+        height: 1241
+  - target: driver/satoru-nakajima
+    kind: driver
+    f1db_id: satoru-nakajima
+    name: Satoru Nakajima
+    wikidata: null
+    category: Satoru Nakajima
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos: []
+  - target: driver/stefan-johansson
+    kind: driver
+    f1db_id: stefan-johansson
+    name: Stefan Johansson
+    wikidata: null
+    category: Stefan Johansson
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos:
+      - file: File:1983 Race of Champions, Johansson.jpg
+        role: action
+        season: 1983
+        rank: 0
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1983_Race_of_Champions,_Johansson.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee
+        author_url: null
+        credit: https://www.flickr.com/photos/kartingnord/51633970849/
+        attribution_required: true
+        share_alike: true
+        date: 1983-04-10
+        width: 2112
+        height: 1536
+      - file: File:Toleman TG184 Johansson.jpg
+        role: action
+        season: 1985
+        rank: 1
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Toleman_TG184_Johansson.jpg
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Uploader's father, digitized and altered by Mr.choppers
+        author_url: https://commons.wikimedia.org/wiki/User:Mr.choppers
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: Early spring 1985
+        width: 2505
+        height: 1875
+      - file: File:1989 Belgian GP race start 08.jpg
+        role: action
+        season: 1989
+        rank: 2
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1989_Belgian_GP_race_start_08.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: madagascarica from Verneuil Grand, France
+        author_url: https://www.flickr.com/people/37974559@N08
+        credit: img072
+        attribution_required: true
+        share_alike: false
+        date: 1989-08-27 14:15
+        width: 1800
+        height: 1241
+      - file: File:1989 Belgian GP race start 07.jpg
+        role: action
+        season: 1989
+        rank: 3
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1989_Belgian_GP_race_start_07.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: madagascarica from Verneuil Grand, France
+        author_url: https://www.flickr.com/people/37974559@N08
+        credit: img019
+        attribution_required: true
+        share_alike: false
+        date: 1989-08-27 14:16
+        width: 1799
+        height: 1243
+      - file: File:Johanson at 1986 Italian Grand Prix.jpg
+        role: action
+        season: 1986
+        rank: 4
+        match: auto
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Johanson_at_1986_Italian_Grand_Prix.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Luigi Rosa from Pavia, Italy
+        author_url: https://www.flickr.com/people/30571787@N00
+        credit: F1 GP Monza 1986 - Johanson Uploaded by Sporti
+        attribution_required: true
+        share_alike: true
+        date: 1986-09-01 00:00
+        width: 1600
+        height: 1019

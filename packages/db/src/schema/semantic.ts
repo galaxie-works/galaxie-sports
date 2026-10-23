@@ -55,6 +55,8 @@ export const teamProfile = semantic.table(
     countryCode: text('country_code').notNull(),
     /** api_sports.team_id do YAML (somente quando verificado); liga o perfil ao participante. */
     apiSportsTeamId: integer('api_sports_team_id'),
+    /** F1: id do piloto ou construtor no F1DB (`f1db.id` do YAML); liga o perfil ao participante. */
+    f1dbId: text('f1db_id'),
     names: jsonb('names').notNull(),
     labels: i18n('labels'),
     city: text('city'),

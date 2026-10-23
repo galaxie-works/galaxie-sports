@@ -50,6 +50,8 @@
     "equestrian:import": "node --env-file-if-exists=../../.env dist/cli/equestrian-import.js",
     "f1db:import": "node --env-file-if-exists=../../.env dist/cli/f1db-import.js",
     "provisional:sync": "node --env-file-if-exists=../../.env dist/cli/provisional-sync.js",
+    "assets:commons": "node --env-file-if-exists=../../.env dist/cli/assets-commons.js",
+    "assets:commons:ordenar": "node --env-file-if-exists=../../.env dist/cli/assets-commons-ordenar.js",
     "assets:official-logos": "node --env-file-if-exists=../../.env dist/cli/official-logos.js"
   },
   "dependencies": {

@@ -11,6 +11,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "Sergio Perez", country: "Mexico" }
+    f1db: { id: sergio-perez }
     country: MX
     city: Guadalajara
     region: Jalisco
@@ -37,6 +38,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "Franco Colapinto", country: "Argentina" }
+    f1db: { id: franco-colapinto }
     country: AR
     city: Pilar
     region: Buenos Aires
@@ -62,6 +64,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "Gabriel Bortoleto", country: "Brazil" }
+    f1db: { id: gabriel-bortoleto }
     country: BR
     city: Osasco
     region: SP
@@ -83,6 +86,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "Fernando Alonso", country: "Spain" }
+    f1db: { id: fernando-alonso }
     country: ES
     city: Oviedo
     region: Astúrias

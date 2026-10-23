@@ -70,6 +70,7 @@ import type {
   Navigation,
 } from './navigation.js';
 import type { ExploreSummary } from './explore.js';
+import type { RaceCareer, TeamPhotos, TeamPhotosQuery } from './racing.js';
 
 export interface GalaxieClientOptions {
   /** Ex.: http://localhost:8080 */
@@ -221,6 +222,11 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     ) => v1<Page<Event>>(`/v1/teams/${seg(id)}/events`, query as Query & LocaleOpts),
     squad: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
       v1<Squad>(`/v1/teams/${seg(id)}/squad`, opts),
+    /** Fotos (acervo de licenças livres da Commons), cada uma com o crédito. */
+    teamPhotos: (id: string, query: Q<TeamPhotosQuery> = {}) =>
+      v1<TeamPhotos>(`/v1/teams/${seg(id)}/photos`, toQuery(query)),
+    /** Carreira na F1 (piloto ou construtor). */
+    teamCareer: (id: string, opts: LocaleOpts = {}) => v1<RaceCareer>(`/v1/teams/${seg(id)}/career`, opts),
     person: (id: string, opts: LocaleOpts = {}) => v1<Person>(`/v1/people/${seg(id)}`, opts),
     personOverview: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
       v1<PersonOverview>(`/v1/people/${seg(id)}/overview`, opts),

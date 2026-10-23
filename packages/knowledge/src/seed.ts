@@ -90,6 +90,7 @@ export function buildSeedRows(kb: KnowledgeBase, decided: ReadonlyMap<string, Re
       kind,
       countryCode,
       apiSportsTeamId: t.api_sports?.team_id ?? null,
+      f1dbId: t.f1db?.id ?? null,
       names: t.names,
       labels: t.labels ?? null,
       city: t.city ?? null,
@@ -504,7 +505,24 @@ export async function linkParticipants(tx: Tx | Database): Promise<number> {
       from target
      where target.slug = tp.slug and tp.participant_id is distinct from target.participant_id
     returning tp.slug`);
-  return rows.length;
+  // Fórmula 1: pelo id do F1DB (piloto `driver-<id>`, construtor `<id>`), quando o F1DB já foi importado
+  const f1 = await tx.execute<{ slug: string }>(sql`
+    with target as (
+      select tp.slug,
+             (select pm.entity_id from core.provider_map pm
+               where pm.provider = 'f1db' and pm.sport = 'formula-1' and pm.entity_type = 'participant'
+                 and pm.provider_id = case when tp.kind = 'driver' then 'driver-' || tp.f1db_id else tp.f1db_id end
+               limit 1) as participant_id
+        from semantic.team_profile tp
+       where tp.f1db_id is not null
+    )
+    update semantic.team_profile tp
+       set participant_id = target.participant_id, updated_at = now()
+      from target
+     where target.slug = tp.slug and target.participant_id is not null
+       and tp.participant_id is distinct from target.participant_id
+    returning tp.slug`);
+  return rows.length + f1.length;
 }
 
 /** Liga competition_profile.competition_id pela liga da api-sports (provider_map) ou, sem ID, pelo slug do catálogo. */
