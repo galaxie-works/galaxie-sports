@@ -17,7 +17,7 @@ export default defineMessages(
       signOut: 'Sair',
     },
     trail: {
-      showFullPath: 'Mostrar o caminho completo',
+      backTo: 'Voltar para {label}',
     },
     empty: {
       title: 'Nada por aqui ainda',
@@ -48,7 +48,7 @@ export default defineMessages(
         signOut: 'Sign out',
       },
       trail: {
-        showFullPath: 'Show the full path',
+        backTo: 'Back to {label}',
       },
       empty: {
         title: 'Nothing here yet',
@@ -78,7 +78,7 @@ export default defineMessages(
         signOut: 'Cerrar sesión',
       },
       trail: {
-        showFullPath: 'Mostrar el recorrido completo',
+        backTo: 'Volver a {label}',
       },
       empty: {
         title: 'Todavía no hay nada acá',

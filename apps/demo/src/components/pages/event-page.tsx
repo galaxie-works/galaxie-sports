@@ -52,8 +52,7 @@ import { fill, plural } from '@/lib/i18n/text';
 import { lineupMarks } from '@/lib/lineup-marks';
 import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
-import { COUNTRIES, eventCompetitionHref, sportParent } from '@/lib/navigation';
-import type { TrailVisit } from '@/lib/trail';
+import { COUNTRIES, eventCompetitionHref, eventParents } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
@@ -566,14 +565,8 @@ export async function EventContent({ params, searchParams, source }: PageContent
     event.participants.find((p) => p.side === 'away')?.colors,
   );
   const tx = t.event.context;
-  // pais na hierarquia (esporte → competição): a trilha de quem chega por link direto
-  const competitionHref = eventCompetitionHref(event);
-  const parents = [
-    sportParent(event.sport, t),
-    event.competition && competitionHref
-      ? { path: competitionHref, label: event.competition.name, kind: 'competição' as const }
-      : null,
-  ].filter((p): p is TrailVisit => p !== null);
+  // a trilha: esporte › competição › rodada
+  const parents = eventParents(event, t);
 
   return (
     <>

@@ -2,55 +2,41 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { Fragment, useEffect, useMemo, useSyncExternalStore } from 'react';
 
-import { MoreHorizontalIcon } from 'lucide-react';
+import { ArrowLeft, ChevronLeft } from 'lucide-react';
 
-import { BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { Button } from '@/components/ui/button';
 import {
-  ancestorsOf,
-  applyVisit,
   getTrailServerSnapshot,
   getTrailSnapshot,
+  originOf,
   subscribeTrail,
   visitTrail,
-  type TrailEntry,
   type TrailKind,
   type TrailVisit,
 } from '@/lib/trail';
 import { useI18n } from '@/lib/i18n/client';
-import { cn } from '@/lib/utils';
-
-/** Acima disso, o meio da trilha vira um "…" com menu (fica o início, o item anterior e a página). */
-const MAX_VISIBLE_ANCESTORS = 3;
-
-function Crumb({ entry, className }: { entry: TrailEntry; className?: string }) {
-  return (
-    <>
-      <BreadcrumbItem className={cn('min-w-0', className)}>
-        <BreadcrumbLink render={<Link href={entry.path} />} className="max-w-40 truncate" title={entry.label}>
-          {entry.label}
-        </BreadcrumbLink>
-      </BreadcrumbItem>
-      <BreadcrumbSeparator className={className} />
-    </>
-  );
-}
+import { fill } from '@/lib/i18n/text';
 
 /**
- * Itens da trilha antes da página atual (o título da página é o último item, desenhado pelo
- * PageHeader). Também registra a página na trilha quando ela informa rótulo e tipo; sem rótulo
- * (esqueleto carregando), só mostra o caminho até aqui. `parents` (esporte, competição…) entram quando
- * a trilha começaria nesta página (link direto, aba nova, troca de idioma).
+ * Navegação do cabeçalho, antes do título da página (desenhado pelo PageHeader):
  *
- * A trilha vive no sessionStorage: no servidor e na hidratação não aparece nada (o HTML bate), e os
- * itens surgem logo depois de montar.
+ * - a trilha é a **hierarquia** da página (`parents`: Futebol › Brasileirão Série A › Rodada 32), igual
+ *   venha a pessoa de onde vier;
+ * - quando ela veio de outro lugar (Ao vivo, busca, país), um "← Voltar para {origem}" leva de volta;
+ * - no celular, só "‹ {pai mais próximo}" (ou a origem, numa página sem pais), com o título embaixo.
+ *
+ * Também registra a página no caminho desta aba (sessionStorage), que dá a origem e a medição de
+ * atividade. O caminho só existe no navegador: no servidor e na hidratação a origem não aparece (o HTML
+ * bate) e surge logo depois de montar; a hierarquia vem do servidor e aparece desde o início.
  */
 export function TrailCrumbs({
   label,
@@ -74,51 +60,57 @@ export function TrailCrumbs({
     if (label && kind) visitTrail({ path, label, kind }, parents);
   }, [path, label, kind, parents]);
 
-  if (!trail) return null;
-  // A mesma conta que a visita vai gravar: desenha já o estado final, sem piscar a trilha anterior.
-  const ancestors =
-    label && kind ? applyVisit(trail, { path, label, kind }, parents).slice(0, -1) : ancestorsOf(trail, path);
-  if (!ancestors.length) return null;
+  // Esqueleto carregando (sem rótulo): nada, para não piscar o caminho anterior.
+  if (!label || !kind) return null;
+  const origin = trail ? originOf(trail, { path, label, kind }, parents) : null;
+  const up = parents.at(-1) ?? origin;
+  if (!up && !origin) return null;
 
-  const parent = ancestors.at(-1)!;
-  // No celular, só o item anterior e a página atual.
-  const desktopOnly = 'hidden md:inline-flex';
-
-  if (ancestors.length <= MAX_VISIBLE_ANCESTORS) {
-    return (
-      <>
-        {ancestors.slice(0, -1).map((e) => (
-          <Crumb key={e.path} entry={e} className={desktopOnly} />
-        ))}
-        <Crumb entry={parent} />
-      </>
-    );
-  }
-
-  const [first, ...rest] = ancestors;
-  const middle = rest.slice(0, -1);
   return (
     <>
-      <Crumb entry={first!} className={desktopOnly} />
-      <BreadcrumbItem className={desktopOnly}>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label={t.shell.trail.showFullPath}
-            className="hover:text-foreground flex size-5 items-center justify-center rounded-sm transition-colors"
+      {up ? (
+        <Link
+          href={up.path}
+          className="text-muted-foreground hover:text-foreground flex min-w-0 items-center gap-0.5 text-xs md:hidden"
+        >
+          <ChevronLeft className="size-3.5 shrink-0" aria-hidden />
+          <span className="truncate">{up.label}</span>
+        </Link>
+      ) : null}
+      <div className="hidden min-w-0 items-center gap-2 md:flex">
+        {origin ? (
+          <Button
+            variant="ghost"
+            size="xs"
+            nativeButton={false}
+            className="text-muted-foreground shrink-0"
+            render={<Link href={origin.path} />}
           >
-            <MoreHorizontalIcon className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-auto max-w-72">
-            {middle.map((e) => (
-              <DropdownMenuItem key={e.path} render={<Link href={e.path} />}>
-                <span className="truncate">{e.label}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </BreadcrumbItem>
-      <BreadcrumbSeparator className={desktopOnly} />
-      <Crumb entry={parent} />
+            <ArrowLeft aria-hidden />
+            {fill(t.shell.trail.backTo, { label: origin.label })}
+          </Button>
+        ) : null}
+        {parents.length ? (
+          <Breadcrumb className="min-w-0">
+            <BreadcrumbList className="flex-nowrap">
+              {parents.map((p, i) => (
+                <Fragment key={`${i}:${p.path}`}>
+                  <BreadcrumbItem className="min-w-0">
+                    <BreadcrumbLink
+                      render={<Link href={p.path} />}
+                      className="max-w-48 truncate"
+                      title={p.label}
+                    >
+                      {p.label}
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                </Fragment>
+              ))}
+            </BreadcrumbList>
+          </Breadcrumb>
+        ) : null}
+      </div>
     </>
   );
 }
