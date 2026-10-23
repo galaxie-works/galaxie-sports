@@ -88,6 +88,25 @@ broadcasters:
     medium: streaming_svod
     access_model: subscription
     domains: [fanatiz.com]
+  # Acervo oficial de logos (2026-10-23): emissoras do acervo com país e site oficial conferidos.
+  - id: el_trece
+    name: El Trece
+    aliases: ['Canal 13 Argentina', 'eltrece', 'El Trece TV']
+    medium: free_tv
+    access_model: free
+    domains: [eltrecetv.com.ar]
+  - id: america_ar
+    name: América
+    aliases: ['América TV Argentina', 'América 2']
+    medium: free_tv
+    access_model: free
+    domains: [americatv.com.ar]
+  - id: el_nueve
+    name: El Nueve
+    aliases: ['Canal 9 Argentina', 'elnueve']
+    medium: free_tv
+    access_model: free
+    domains: [elnueve.com.ar]
 sources:
   organizers: [afa.com.ar, ligaprofesional.ar]
   press:

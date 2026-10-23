@@ -308,8 +308,9 @@ function WhereToWatchCard({
             {wtw.options.map((o) => (
               <li key={o.id} className="flex items-center gap-3 rounded-md border p-2">
                 {o.logo ? (
-                  // logo da biblioteca de emissoras (espelho S3); não passa pelo otimizador do Next
-                  <img src={o.logo} alt="" className="h-6 w-10 shrink-0 object-contain" />
+                  // logo da biblioteca de emissoras (espelho S3; a versão escura do acervo oficial, já
+                  // que a demo é só tema escuro); não passa pelo otimizador do Next
+                  <img src={o.logo_dark ?? o.logo} alt="" className="h-9 w-12 shrink-0 object-contain" />
                 ) : null}
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate font-medium">
@@ -346,9 +347,9 @@ function WhereToWatchCard({
                   className="flex items-center gap-3 rounded-md border border-dashed p-2"
                 >
                   {c.logo ? (
-                    <img src={c.logo} alt="" className="h-6 w-10 shrink-0 object-contain" />
+                    <img src={c.logo_dark ?? c.logo} alt="" className="h-9 w-12 shrink-0 object-contain" />
                   ) : (
-                    <Tv className="text-muted-foreground size-5 w-10 shrink-0" aria-hidden />
+                    <Tv className="text-muted-foreground size-5 w-12 shrink-0" aria-hidden />
                   )}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate font-medium">{c.provider}</span>

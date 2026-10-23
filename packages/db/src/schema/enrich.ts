@@ -418,6 +418,13 @@ export type BroadcasterMarket = {
   domains: string[];
 };
 
+/** Logo de um canal da emissora (acervo oficial): nome do canal e os assets das versões clara e escura. */
+export type BroadcasterChannelLogo = {
+  name: string;
+  assetId: string | null;
+  darkAssetId: string | null;
+};
+
 /**
  * Biblioteca de emissoras e plataformas (sincronizada do dicionário por país). O logo é um asset
  * espelhado no nosso storage; `logo_source_*` guardam a origem e a licença/observação de uso.
@@ -448,6 +455,10 @@ export const broadcaster = enrich.table('broadcaster', {
   logoSourcePage: text('logo_source_page'),
   /** Licença ou observação de uso (ex.: domínio público; uso nominativo para identificar a emissora). */
   logoLicense: text('logo_license'),
+  /** Versão do logo para fundo escuro (acervo oficial); null = usar `logo_asset_id`. */
+  logoDarkAssetId: uuid('logo_dark_asset_id').references(() => asset.id),
+  /** Logos dos canais (acervo oficial), pela chave normalizada do nome do canal ("espn2"). */
+  channelLogos: jsonb('channel_logos').$type<Record<string, BroadcasterChannelLogo>>().notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

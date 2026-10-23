@@ -11,6 +11,12 @@ import {
   type RightsDistribution,
 } from '@galaxie/db';
 import { normalizeName } from '../normalize.js';
+import {
+  OFFICIAL_LOGO_STATUSES,
+  type OfficialLogoEntry,
+  type OfficialLogoManifest,
+  type OfficialLogoStatus,
+} from '../official-logos.js';
 import { Blocklist, WtwConfig } from './directory.js';
 import {
   WTW_COUNTRIES,
@@ -196,6 +202,84 @@ export function parseLogos(raw: Raw | null, knownIds: Set<string>): Map<string, 
   return out;
 }
 
+const NODE_ID = /^\d+:\d+$/;
+
+function nodeId(v: unknown, where: string): string {
+  const id = str(v, where);
+  if (!NODE_ID.test(id)) throw new WtwConfigError(`${where}: id de nó do Figma inválido (${id}).`);
+  return id;
+}
+
+function optStr(v: unknown, where: string): string | null {
+  if (v === undefined || v === null) return null;
+  return str(v, where);
+}
+
+/**
+ * `_official_logos.yaml`: acervo oficial de logos (Figma). `logos: [{ node, name, letter, hd, light,
+ * dark, broadcaster, channel, status, curated, note }]`; emissora referida precisa existir nos
+ * dicionários; um único logo principal por emissora e um por canal.
+ */
+export function parseOfficialLogos(raw: Raw | null, knownIds: Set<string>): OfficialLogoManifest | null {
+  if (!raw) return null;
+  const file = '_official_logos.yaml';
+  const src = isObj(raw.source) ? raw.source : null;
+  if (!src) throw new WtwConfigError(`${file}: bloco "source" obrigatório.`);
+  if (!Array.isArray(raw.logos)) throw new WtwConfigError(`${file}: lista "logos" obrigatória.`);
+  const excluded = strList(raw.excluded_nodes, `${file}.excluded_nodes`);
+  for (const n of excluded) nodeId(n, `${file}.excluded_nodes`);
+  const seen = new Set<string>();
+  const slots = new Set<string>();
+  const logos = raw.logos.map((l, i): OfficialLogoEntry => {
+    const where = `${file}[${i}]`;
+    if (!isObj(l)) throw new WtwConfigError(`${where}: entrada inválida.`);
+    const node = nodeId(l.node, `${where}.node`);
+    if (seen.has(node)) throw new WtwConfigError(`${where}: nó ${node} repetido.`);
+    seen.add(node);
+    const status = str(l.status, `${where}.status`) as OfficialLogoStatus;
+    if (!OFFICIAL_LOGO_STATUSES.includes(status))
+      throw new WtwConfigError(`${where}.status inválido: ${status} (use ${OFFICIAL_LOGO_STATUSES.join(', ')}).`);
+    const broadcaster = optStr(l.broadcaster, `${where}.broadcaster`);
+    const channel = optStr(l.channel, `${where}.channel`);
+    if (status === 'unmapped' ? broadcaster !== null : broadcaster === null)
+      throw new WtwConfigError(`${where}: status ${status} ${status === 'unmapped' ? 'sem' : 'exige'} broadcaster.`);
+    if (broadcaster && !knownIds.has(broadcaster))
+      throw new WtwConfigError(`${where}: emissora "${broadcaster}" não existe nos dicionários.`);
+    if (status === 'channel' && !channel) throw new WtwConfigError(`${where}: status channel exige channel.`);
+    if (status === 'primary' && channel) throw new WtwConfigError(`${where}: logo principal não tem channel.`);
+    if (status === 'primary' || status === 'channel') {
+      const slot = `${broadcaster}|${channel ? normalizeName(channel) : ''}`;
+      if (slots.has(slot))
+        throw new WtwConfigError(`${where}: ${broadcaster} já tem ${channel ? `logo do canal ${channel}` : 'logo principal'}.`);
+      slots.add(slot);
+    }
+    if (l.hd !== undefined && typeof l.hd !== 'boolean') throw new WtwConfigError(`${where}.hd: use true/false.`);
+    return {
+      node,
+      name: str(l.name, `${where}.name`),
+      letter: str(l.letter, `${where}.letter`),
+      hd: l.hd === true,
+      light: nodeId(l.light, `${where}.light`),
+      dark: l.dark === undefined || l.dark === null ? null : nodeId(l.dark, `${where}.dark`),
+      broadcaster,
+      channel,
+      status,
+      curated: l.curated === true,
+      note: optStr(l.note, `${where}.note`),
+    };
+  });
+  return {
+    source: {
+      description: str(src.description, `${file}.source.description`),
+      fileKey: str(src.figma_file, `${file}.source.figma_file`),
+      node: nodeId(src.node, `${file}.source.node`),
+      importedAt: day(src.imported_at, `${file}.source.imported_at`),
+    },
+    excludedNodes: excluded,
+    logos,
+  };
+}
+
 function readYaml(path: string): Raw {
   const raw = parse(readFileSync(path, 'utf8')) as unknown;
   if (!isObj(raw)) throw new WtwConfigError(`${path}: YAML vazio ou inválido.`);
@@ -340,6 +424,8 @@ export function loadWtwConfig(options: LoadWtwConfigOptions = {}): WtwConfig {
   const logosPath = join(bDir, '_logos.yaml');
   const knownIds = new Set(countries.flatMap((c) => c.broadcasters.map((b) => b.id)));
   const logos = parseLogos(existsSync(logosPath) ? readYaml(logosPath) : null, knownIds);
+  const officialPath = join(bDir, '_official_logos.yaml');
+  const official = parseOfficialLogos(existsSync(officialPath) ? readYaml(officialPath) : null, knownIds);
 
-  return new WtwConfig(countries, new Blocklist(block), logos);
+  return new WtwConfig(countries, new Blocklist(block), logos, official);
 }

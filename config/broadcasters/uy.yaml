@@ -36,6 +36,26 @@ broadcasters:
     medium: streaming_svod
     access_model: subscription
     domains: [paramountplus.com]
+  # Acervo oficial de logos (2026-10-23): emissoras do acervo com país e site oficial conferidos.
+  - id: canal_10_uy
+    name: Canal 10
+    aliases: ['Canal 10 Uruguay', 'Saeta TV', 'Saeta Canal 10']
+    medium: free_tv
+    access_model: free
+    domains: [canal10.com.uy]
+  - id: vtv
+    name: VTV
+    aliases: ['VTV Uruguay']
+    channels: ['VTV Plus']
+    medium: pay_tv
+    access_model: subscription
+    domains: [vtv.com.uy]
+  - id: teledoce
+    name: Teledoce
+    aliases: ['Canal 12 Uruguay', 'Teledoce Uruguay']
+    medium: free_tv
+    access_model: free
+    domains: [teledoce.com]
 sources:
   organizers: [auf.org.uy]
   press:
