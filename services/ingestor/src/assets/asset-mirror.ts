@@ -9,12 +9,13 @@ import {
   type Clock,
   type MediaDenylistEntry,
 } from '@galaxie/apisports-client';
-import type { AssetStore, MirrorAsset } from './asset-store.js';
+import type { AssetStore, LogoCleanup, MirrorAsset } from './asset-store.js';
 import { imageInfo } from './image-info.js';
 import { MediaFetcher } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
 import { paletteFromPng, PLACEHOLDER_LOGO_SHA256 } from './palette.js';
 import { isPlaceholderPhoto, PERSON_PHOTO_KINDS } from './person-photos.js';
+import { isPlaceholderLogo, LOGO_KINDS } from './placeholder-logos.js';
 
 /** Lê config/assets/denylist.yaml (`denylist: [{ url, reason }]`). */
 export async function loadMediaDenylist(path: string): Promise<MediaDenylist> {
@@ -40,6 +41,8 @@ export interface AssetMirrorOptions {
   personPhotos?: { since: Date } | undefined;
   /** Hashes das fotos genéricas de pessoa. Padrão PLACEHOLDER_PHOTO_SHA256. */
   placeholderPhotos?: ReadonlySet<string>;
+  /** Hashes dos logos genéricos de time e competição. Padrão PLACEHOLDER_LOGO_SHA256. */
+  placeholderLogos?: ReadonlySet<string>;
   /** Interrompe a execução depois de N assets seguidos que esgotaram as tentativas por 429. Padrão 5. */
   abortAfterRateLimited?: number;
   /** Só lista o que seria baixado. */
@@ -62,6 +65,10 @@ export interface MirrorReport {
   denied: number;
   /** Fotos de pessoa que vieram como imagem genérica: viram "sem foto" e não vão para o storage. */
   placeholders: number;
+  /** Logos de time e competição que vieram como imagem genérica: viram "sem logo" e não vão para o storage. */
+  placeholderLogos: number;
+  /** Limpeza do início da execução: logos genéricos já gravados e entidades presas a logos ausentes. */
+  logoCleanup: LogoCleanup;
   failed: number;
   /** Já espelhados que entraram na lista de bloqueio e foram desvinculados. */
   unlinked: number;
@@ -74,8 +81,9 @@ export interface MirrorReport {
 /**
  * Asset Mirror (issue #18): pega os assets de core.asset ainda não espelhados, baixa da CDN de mídia
  * (não consome cota da API de dados), grava no bucket S3 e preenche storage_key, sha256, bytes,
- * dimensões e fetched_at. Foto de pessoa que vem como imagem genérica (ou 404) vira "sem foto": o asset fica
- * ausente e as pessoas perdem o vínculo. Idempotente: uma segunda execução não baixa nada (404 e bloqueados ficam
+ * dimensões e fetched_at. Foto de pessoa ou logo de time/competição que vem como imagem genérica (ou 404) vira
+ * "sem foto"/"sem logo": o asset fica ausente e as entidades perdem o vínculo. Antes da fila, a limpeza desliga
+ * os logos genéricos gravados por execuções antigas (`cleanupLogos`). Idempotente: uma segunda execução não baixa nada (404 e bloqueados ficam
  * marcados como ausentes; falhas transitórias continuam pendentes para a próxima vez).
  */
 export async function runAssetMirror(options: AssetMirrorOptions): Promise<MirrorReport> {
@@ -93,6 +101,8 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     notFound: 0,
     denied: 0,
     placeholders: 0,
+    placeholderLogos: 0,
+    logoCleanup: { placeholders: 0, participants: 0, competitions: 0 },
     failed: 0,
     unlinked: 0,
     bytes: 0,
@@ -102,6 +112,10 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
   };
 
   if (!options.dryRun) report.unlinked = await options.assets.unlink(denylist.urls, new Date(clock.now()));
+  report.logoCleanup = await options.assets.cleanupLogos(new Date(clock.now()), {
+    placeholders: options.placeholderLogos,
+    dryRun: options.dryRun,
+  });
 
   const queue = await options.assets.pending({
     limit: options.limit,
@@ -140,6 +154,12 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
         emit({ type: 'placeholder', asset: item, sha256 });
         return;
       }
+      if (isPlaceholderLogo(item.kind, sha256, options.placeholderLogos)) {
+        await options.assets.markMissing(item.id, new Date(clock.now()), { detachLogos: true });
+        report.placeholderLogos += 1;
+        emit({ type: 'placeholder', asset: item, sha256 });
+        return;
+      }
       const info = imageInfo(res.body, res.contentType);
       await options.objects.put(key, res.body, info.contentType, sha256);
       await options.assets.markStored(item.id, {
@@ -161,6 +181,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
       consecutiveRateLimited = 0;
       await options.assets.markMissing(item.id, new Date(clock.now()), {
         detachPeople: PERSON_PHOTO_KINDS.has(item.kind),
+        detachLogos: LOGO_KINDS.has(item.kind),
       });
       report.notFound += 1;
       report.notFoundUrls.push(url);

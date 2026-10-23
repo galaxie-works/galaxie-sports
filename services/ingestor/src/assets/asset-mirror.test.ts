@@ -13,6 +13,7 @@ import { InMemoryObjectStore } from './object-store.js';
 import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
 import { runPaletteBackfill } from './palette-backfill.js';
 import { isPlaceholderPhoto, PLACEHOLDER_PHOTO_SHA256, playerPhotoUrl } from './person-photos.js';
+import { isPlaceholderLogo } from './placeholder-logos.js';
 
 const BR = 'https://media.api-sports.io/flags/br.svg';
 const TEAM = 'https://media.api-sports.io/football/teams/121.png';
@@ -286,5 +287,97 @@ describe('fotos de pessoas', () => {
     expect(isPlaceholderPhoto('team_logo', silhouette!)).toBe(false);
     expect(isPlaceholderPhoto('player', 'outro')).toBe(false);
     expect(playerPhotoUrl('154')).toBe(MESSI);
+  });
+});
+
+describe('logos genéricos', () => {
+  const PRAIA = 'https://media.api-sports.io/volley/teams/1999.png';
+  const SUPERLIGA = 'https://media.api-sports.io/volley/leagues/97.png';
+  const GONE_LEAGUE = 'https://media.api-sports.io/volley/leagues/9999.png';
+  const PLAYER = 'https://media.api-sports.io/football/players/154.png';
+
+  it('"image not available" vira "sem logo": não vai para o storage e times e ligas perdem o vínculo', async () => {
+    const real = fakePng(150, 150, 30);
+    const notAvailable = fakePng(150, 150, 50);
+    const { clock, assets, objects, fetcher } = setup(
+      {
+        [TEAM]: [{ status: 200, body: real, headers: { 'content-type': 'image/png' } }],
+        [PRAIA]: [{ status: 200, body: notAvailable, headers: { 'content-type': 'image/png' } }],
+        [SUPERLIGA]: [{ status: 200, body: notAvailable, headers: { 'content-type': 'image/png' } }],
+        [GONE_LEAGUE]: [{ status: 404 }],
+        [PLAYER]: [{ status: 200, body: notAvailable, headers: { 'content-type': 'image/png' } }],
+      },
+      [TEAM, PRAIA, SUPERLIGA, GONE_LEAGUE, PLAYER],
+    );
+    const placeholderLogos = new Set([createHash('sha256').update(notAvailable).digest('hex')]);
+
+    const report = await runAssetMirror({ assets, objects, fetcher, clock, placeholderLogos });
+    expect(report).toMatchObject({
+      pending: 5,
+      stored: 2,
+      placeholderLogos: 2,
+      placeholders: 0,
+      notFound: 1,
+    });
+    expect(assets.byUrl(TEAM)).toMatchObject({ storageKey: 'api-sports/football/teams/121.png' });
+    for (const url of [PRAIA, SUPERLIGA]) {
+      expect(assets.byUrl(url)).toMatchObject({ storageKey: null, sha256: null, palette: null });
+      expect(assets.byUrl(url)!.fetchedAt).toBeInstanceOf(Date);
+    }
+    expect(await objects.head('api-sports/volley/teams/1999.png')).toBeUndefined();
+    expect(await objects.head('api-sports/volley/leagues/97.png')).toBeUndefined();
+    // o mesmo hash numa foto de pessoa não é logo: espelha normalmente
+    expect(assets.byUrl(PLAYER)).toMatchObject({ storageKey: 'api-sports/football/players/154.png' });
+    // 404 de logo também desliga; os genéricos e o 404 não são tentados de novo
+    expect([...assets.detachedLogos].sort()).toEqual(
+      [assets.byUrl(PRAIA)!.id, assets.byUrl(SUPERLIGA)!.id, assets.byUrl(GONE_LEAGUE)!.id].sort(),
+    );
+    expect(assets.detached.size).toBe(0);
+    expect((await runAssetMirror({ assets, objects, fetcher, clock, placeholderLogos })).pending).toBe(0);
+  });
+
+  it('a limpeza do início marca como ausentes os logos genéricos gravados antes; --plan só conta', async () => {
+    const { clock, assets, objects, fetcher } = setup({}, [TEAM, PRAIA, PLAYER]);
+    const [notAvailable] = PLACEHOLDER_LOGO_SHA256;
+    const stored = { bytes: 1, width: 2, height: 2, fetchedAt: new Date(0) };
+    await assets.markStored(assets.byUrl(TEAM)!.id, {
+      ...stored,
+      sha256: 'escudo',
+      storageKey: 'api-sports/football/teams/121.png',
+    });
+    await assets.markStored(assets.byUrl(PRAIA)!.id, {
+      ...stored,
+      sha256: notAvailable!,
+      storageKey: 'api-sports/volley/teams/1999.png',
+    });
+    // foto de pessoa com o hash do logo genérico não é logo: fica onde está
+    await assets.markStored(assets.byUrl(PLAYER)!.id, {
+      ...stored,
+      sha256: notAvailable!,
+      storageKey: 'api-sports/football/players/154.png',
+    });
+
+    const plan = await runAssetMirror({ assets, objects, fetcher, clock, dryRun: true });
+    expect(plan.logoCleanup).toEqual({ placeholders: 1, participants: 1, competitions: 0 });
+    expect(assets.byUrl(PRAIA)!.storageKey).toBe('api-sports/volley/teams/1999.png');
+
+    const report = await runAssetMirror({ assets, objects, fetcher, clock });
+    expect(report.logoCleanup.placeholders).toBe(1);
+    expect(report.pending).toBe(0);
+    expect(assets.byUrl(PRAIA)).toMatchObject({ storageKey: null, sha256: null });
+    expect(assets.byUrl(PRAIA)!.fetchedAt).toBeInstanceOf(Date);
+    expect([...assets.detachedLogos]).toEqual([assets.byUrl(PRAIA)!.id]);
+    expect(assets.byUrl(TEAM)!.storageKey).toBe('api-sports/football/teams/121.png');
+    expect(assets.byUrl(PLAYER)!.storageKey).toBe('api-sports/football/players/154.png');
+    expect((await runAssetMirror({ assets, objects, fetcher, clock })).logoCleanup.placeholders).toBe(0);
+  });
+
+  it('os hashes catalogados valem só para logos de time e de competição', () => {
+    const [notAvailable] = PLACEHOLDER_LOGO_SHA256;
+    expect(isPlaceholderLogo('team_logo', notAvailable!)).toBe(true);
+    expect(isPlaceholderLogo('league_logo', notAvailable!)).toBe(true);
+    expect(isPlaceholderLogo('player', notAvailable!)).toBe(false);
+    expect(isPlaceholderLogo('venue', notAvailable!)).toBe(false);
+    expect(isPlaceholderLogo('team_logo', 'outro')).toBe(false);
   });
 });
