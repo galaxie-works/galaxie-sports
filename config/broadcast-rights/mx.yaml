@@ -13,11 +13,20 @@ rights:
     valid_from: 2026-07-01
     valid_to: 2026-12-31
     per_round_selection: false
-    holders: [televisa, tudn, vix, tv_azteca, fox, prime_video, espn, disney_plus]
+    holders: [televisa, tudn, vix, tv_azteca, fox, fox_one, prime_video, espn, disney_plus]
+    # por clube mandante (nomes do core), só onde as fontes concordam; os demais ficam para a alocação
+    rules:
+      - holders: [vix]
+        home_teams: [Club America, Atlas, Cruz Azul, Monterrey, U.N.A.M. - Pumas]
+      - holders: [fox, fox_one]
+        home_teams: [Leon, CF Pachuca, Club Queretaro, Club Tijuana]
+      - holders: [prime_video]
+        home_teams: [Guadalajara Chivas]
     notes: >-
-      Apertura 2026 — direitos por clube mandante: TUDN/Televisa/ViX (América, Atlas, Cruz Azul, Monterrey…),
-      TV Azteca, FOX (~9 clubes), Prime Video (Chivas, exclusivo), ESPN/Disney+/ViX (Atlético San Luis).
-      Fontes divergem em Tigres, Toluca e Puebla.
+      Apertura 2026 — direitos por clube mandante: Canal 5/TUDN/ViX (América, Atlas, Cruz Azul, Monterrey,
+      Pumas), FOX + Fox One (León, Pachuca, Querétaro, Tijuana), Prime Video (Chivas, exclusivo); TV Azteca,
+      FOX e ESPN/Disney+ nos demais. Fontes divergem em Atlante, Juárez, Necaxa, Puebla, Santos, San Luis,
+      Tigres e Toluca.
     sources:
       - https://www.excelsior.com.mx/deportes/liga-mx-donde-ver-partidos-apertura-2026
       - https://www.publimetro.com.mx/deportes/2026/07/16/donde-ver-todos-los-partidos-del-apertura-2026-en-la-liga-mx/
