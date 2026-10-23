@@ -218,12 +218,23 @@ await check('Home Explorar: resumo por esporte e por país', async () => {
   return `${football.upcoming} jogos de futebol em 7 dias · destaque BR: ${teams} (${br.highlight.relevance?.score})`;
 });
 
-await check('Demo: login e proteção das páginas', async () => {
-  const login = await fetch(`${DEMO}/login`, { redirect: 'manual' });
-  if (login.status !== 200) return fail(`/login status ${login.status}`);
-  const home = await fetch(`${DEMO}/`, { redirect: 'manual' });
-  if (home.status !== 307 && home.status !== 302)
-    return fail(`/ sem sessão deveria redirecionar (status ${home.status})`);
+await check('Demo: páginas públicas e proteção do resto', async () => {
+  // públicas: abrem sem sessão (a raiz mostra a apresentação, para filtros web e buscadores)
+  for (const path of ['/login', '/', '/sobre', '/termos', '/privacidade', '/robots.txt', '/sitemap.xml']) {
+    const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
+    if (res.status !== 200) return fail(`${path} sem sessão: status ${res.status} (esperado 200)`);
+  }
+  const about = await (await fetch(`${DEMO}/sobre`)).text();
+  if (!about.includes('application/ld+json') || !about.includes('og:title'))
+    return fail('/sobre sem JSON-LD ou Open Graph');
+  // o resto continua exigindo login
+  for (const path of ['/times', '/docs', '/ajustes', '/sobre/x']) {
+    const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
+    if (res.status !== 307 && res.status !== 302)
+      return fail(`${path} sem sessão deveria redirecionar para o login (status ${res.status})`);
+  }
+  const api = await fetch(`${DEMO}/api/galaxie/v1/sports`, { redirect: 'manual' });
+  if (api.status !== 401) return fail(`API da demo sem sessão deveria responder 401 (status ${api.status})`);
   return true;
 });
 

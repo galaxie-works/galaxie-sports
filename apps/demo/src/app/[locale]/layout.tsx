@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { LOCALES } from '@/lib/i18n/config';
 import { clientDictionary } from '@/lib/i18n/dictionary';
 import { getLocale, getT } from '@/lib/i18n/server';
+import { SITE_NAME, SITE_URL } from '@/lib/site';
 
 import { Providers } from '../providers';
 import '../globals.css';
@@ -26,7 +27,10 @@ export function generateStaticParams() {
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
-    title: { default: 'Galaxie Sports', template: '%s · Galaxie Sports' },
+    // Endereço público: completa as URLs relativas do Open Graph e do canônico das páginas públicas.
+    metadataBase: new URL(SITE_URL),
+    applicationName: SITE_NAME,
+    title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
     description: t.shell.meta.description,
   };
 }

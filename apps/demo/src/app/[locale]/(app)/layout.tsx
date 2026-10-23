@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
 import { ActivityTracker } from '@/components/app-shell/activity-tracker';
@@ -9,6 +10,9 @@ import { docGuides } from '@/lib/docs';
 import { getT } from '@/lib/i18n/server';
 import { apiReferenceTags } from '@/lib/openapi-reference';
 import type { ApiOperationSummary } from '@/lib/search/entries';
+
+/** A área logada fica fora do índice dos buscadores (só as páginas públicas entram). */
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function AppLayout({ children }: LayoutProps<'/[locale]'>) {
   const t = await getT();

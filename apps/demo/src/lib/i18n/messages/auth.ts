@@ -10,6 +10,11 @@ export default defineMessages(
       footer: 'Acesso por convite · Galaxie Works',
       logoAlt: 'Galaxie Works',
     },
+    about: {
+      text: 'Galaxie Sports é a API de dados esportivos da Galaxie Works para operadoras de TV e streaming da América Latina. <more>Conheça a plataforma</more>',
+      terms: 'Termos de uso',
+      privacy: 'Privacidade',
+    },
     meta: {
       title: 'Entrar',
     },
@@ -50,6 +55,11 @@ export default defineMessages(
         footer: 'Invitation-only access · Galaxie Works',
         logoAlt: 'Galaxie Works',
       },
+      about: {
+        text: 'Galaxie Sports is the Galaxie Works sports data API for TV and streaming operators in Latin America. <more>Learn about the platform</more>',
+        terms: 'Terms of use',
+        privacy: 'Privacy',
+      },
       meta: {
         title: 'Sign in',
       },
@@ -88,6 +98,11 @@ export default defineMessages(
         subtitle: 'Clásicos, apodos y minuto a minuto en 8 mercados.',
         footer: 'Acceso por invitación · Galaxie Works',
         logoAlt: 'Galaxie Works',
+      },
+      about: {
+        text: 'Galaxie Sports es la API de datos deportivos de Galaxie Works para operadores de TV y streaming de América Latina. <more>Conocé la plataforma</more>',
+        terms: 'Términos de uso',
+        privacy: 'Privacidad',
       },
       meta: {
         title: 'Ingresar',

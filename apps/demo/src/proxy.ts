@@ -1,6 +1,8 @@
 /**
  * Porta de entrada da demo: toda página e toda leitura da API exigem sessão válida, com acesso dentro
- * do prazo; a área /ajustes (e /api/ajustes) exige admin. Roda em Node (Next 16), então valida a sessão no banco antes de
+ * do prazo; a área /ajustes (e /api/ajustes) exige admin. As exceções (login, apresentação, termos,
+ * privacidade, robots.txt e sitemap) estão em `lib/public-routes.ts`; sem sessão, a raiz mostra a
+ * apresentação em vez de redirecionar para o login. Roda em Node (Next 16), então valida a sessão no banco antes de
  * qualquer conteúdo renderizar.
  *
  * Também escolhe o idioma: cookie `galaxie-idioma` ou, no primeiro acesso, o `Accept-Language`. As
@@ -13,9 +15,7 @@ import { auth, isAccessExpired } from '@/lib/auth/server';
 import { COOKIE_MAX_AGE, LOCALE_COOKIE, isLocale, resolveLocale } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { SMOKE_HEADER } from '@/lib/ops/smoke';
-
-/** Rotas públicas: login e a API do próprio auth. */
-const PUBLIC_PREFIXES = ['/login', '/api/auth'];
+import { LANDING_PAGE, isPublicPath } from '@/lib/public-routes';
 
 /** Área de admin: páginas de ajustes e as rotas de API delas. */
 const ADMIN_PREFIXES = ['/ajustes', '/api/ajustes'];
@@ -42,9 +42,12 @@ const isPage = (pathname: string) =>
 const localeOf = (request: NextRequest) =>
   resolveLocale(request.cookies.get(LOCALE_COOKIE)?.value, request.headers.get('accept-language'));
 
-/** Segue para a página no idioma da pessoa (e grava o cookie no primeiro acesso). */
-function render(request: NextRequest) {
-  const { pathname, search } = request.nextUrl;
+/**
+ * Segue para a página no idioma da pessoa (e grava o cookie no primeiro acesso). `page` troca a página
+ * mostrada sem mudar a URL (a raiz sem sessão mostra a apresentação).
+ */
+function render(request: NextRequest, pathname = request.nextUrl.pathname) {
+  const { search } = request.nextUrl;
   if (!isPage(pathname)) return NextResponse.next();
   const cookie = request.cookies.get(LOCALE_COOKIE)?.value;
   const locale = localeOf(request);
@@ -61,7 +64,7 @@ export async function proxy(request: NextRequest) {
   if (matches(pathname, LEGACY_PASSWORD_PAGES)) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
-  if (matches(pathname, PUBLIC_PREFIXES)) return render(request);
+  if (isPublicPath(pathname)) return render(request);
 
   if (pathname === SMOKE_ROUTE && request.headers.has(SMOKE_HEADER)) return NextResponse.next();
 
@@ -76,7 +79,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   };
 
-  if (!session) return deny();
+  if (!session) return pathname === '/' ? render(request, LANDING_PAGE) : deny();
   if (isAccessExpired(session.user)) return deny('expirado');
   if (matches(pathname, ADMIN_PREFIXES) && session.user.role !== 'admin') {
     return isApi
