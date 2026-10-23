@@ -156,6 +156,7 @@ const LONG_STATUS: Readonly<Record<string, EventStatus>> = {
   finished: 'finished',
   final: 'finished',
   'final/ot': 'finished',
+  forfeit: 'finished', // NCAA: resultado por W.O.
   'game finished': 'finished',
   'after over time': 'finished',
   'after extra time': 'finished',
@@ -191,6 +192,8 @@ export function mapSportStatus(sport: ApiSportsOtherSport, status: SportStatusIn
   }
   const long = status.long?.trim().toLowerCase();
   if (long && LONG_STATUS[long]) return LONG_STATUS[long];
+  // NCAA: "Final/2OT" … "Final/8OT" (prorrogações múltiplas)
+  if (long && /^final\/\d+ot$/.test(long)) return 'finished';
   // NBA v2: 1 = agendado, 2 = em andamento, 3 = encerrado (quando o texto não ajuda)
   if (sport === 'nba') return ({ '1': 'scheduled', '2': 'live', '3': 'finished' } as const)[short] ?? null;
   return null;

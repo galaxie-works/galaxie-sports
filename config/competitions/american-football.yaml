@@ -17,22 +17,36 @@
 #                           ver docs/research/api-sports-outros-esportes.md); confirme na primeira execução autenticada.
 #   seasons_strategy      - calendar-year (2026 = 2026) ou split-year (2026 = 2026/27).
 # Sem competições latino-americanas; interesse em jogos da NFL no Brasil e no México e na temporada regular/playoffs.
-# NCAA (id 2) entra como tier 3. Há relato de que games?date sem season é recusado no free.
+# NFL (id 1) é tier 1; NCAA (id 2) é tier 2. Há relato de que games?date sem season é recusado no free.
 # =============================================================================
 schema_version: 1
 sport: american-football
 competitions:
 
-  # ---------------------------------------------------------------- tier 2
+  # ---------------------------------------------------------------- tier 1
   - slug: nfl
     name: "NFL"
     country: "USA"
     type: league
     api_sports_id: 1
     verify: false
-    tier: 2
+    tier: 1
     region: north-america
     seasons_strategy: split-year
     live_priority: medium
     labels: { pt-BR: "NFL", es: "NFL", en: "National Football League" }
+    sources: ["docs/research/api-sports-outros-esportes.md"]
+
+  # ---------------------------------------------------------------- tier 2
+  - slug: ncaa-football
+    name: "NCAA"
+    country: "USA"
+    type: league
+    api_sports_id: 2
+    verify: false
+    tier: 2
+    region: north-america
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "NCAA (futebol americano universitário)", es: "NCAA (fútbol americano universitario)", en: "NCAA Football" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
