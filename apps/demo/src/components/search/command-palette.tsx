@@ -11,6 +11,7 @@ import {
   MapPin,
   Radio,
   SearchX,
+  SlidersHorizontal,
   Users,
   X,
   type LucideIcon,
@@ -94,6 +95,7 @@ function useApiSearch(term: string, locale: Locale) {
 const ACTION_ICONS: Record<string, LucideIcon> = {
   '/ao-vivo': Radio,
   '/ajustes/usuarios': Users,
+  '/ajustes/operacao': SlidersHorizontal,
   '/docs': BookOpen,
 };
 
@@ -116,7 +118,12 @@ function actionEntries(T: Texts, locale: Locale, isAdmin: boolean, docsDescripti
   return [
     action('/ao-vivo', T.live, T.liveDescription),
     action('/docs', T.docsHome, docsDescription),
-    ...(isAdmin ? [action('/ajustes/usuarios', T.users, T.usersDescription)] : []),
+    ...(isAdmin
+      ? [
+          action('/ajustes/usuarios', T.users, T.usersDescription),
+          action('/ajustes/operacao', T.operations, T.operationsDescription),
+        ]
+      : []),
     ...LANGUAGES.filter((l) => l.value !== locale).map((l) => ({
       ...action(
         `${LANGUAGE_ACTION}${l.value}`,
