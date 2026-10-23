@@ -15,6 +15,7 @@ export * from './equestrian.js';
 export * from './navigation.js';
 export * from './search.js';
 export * from './explore.js';
+export * from './racing.js';
 export { buildOpenApiDocument, type OpenApiOptions } from './openapi.js';
 export {
   createGalaxieClient,

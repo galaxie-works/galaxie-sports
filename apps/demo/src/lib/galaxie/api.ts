@@ -302,6 +302,36 @@ export const squadRequest = (
     season === undefined ? text(locale).squad : fill(text(locale).squadSeason, { season: String(season) }),
 });
 
+export const teamCareerRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/teams/{id}/career',
+  params: { id },
+  query: localeQuery(content ?? locale),
+  description: text(locale).teamCareer,
+});
+
+export async function getTeamCareer(id: string, locale: ContentLocale) {
+  'use cache';
+  cacheLife('hours');
+  return orNull(api.teamCareer(id, localeQuery(locale)));
+}
+
+export const teamPhotosRequest = (id: string, locale: Locale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/teams/{id}/photos',
+  params: { id },
+  query: {},
+  description: text(locale).teamPhotos,
+});
+
+export async function getTeamPhotos(id: string, role?: 'portrait' | 'action' | 'car', season?: number) {
+  'use cache';
+  cacheLife('hours');
+  return orNull(
+    api.teamPhotos(id, { ...(role ? { role } : {}), ...(season !== undefined ? { season } : {}) }),
+  );
+}
+
 export async function getSquad(id: string, locale: ContentLocale, season?: number) {
   'use cache';
   cacheLife('hours');
