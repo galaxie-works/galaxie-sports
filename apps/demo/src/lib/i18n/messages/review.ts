@@ -10,7 +10,7 @@ export default defineMessages(
     page: {
       title: 'Revisão semântica',
       description:
-        'Perfis, clássicos, competições, copy, glossário e traduções da base semântica. A produção serve só o que está aprovado; a decisão vale na hora e o próximo deploy não a desfaz.',
+        'Perfis, clássicos, competições, copy, glossário e traduções da base semântica. A decisão vale na hora para todo cliente da API, qualquer que seja o piso editorial dele, e o próximo deploy não a desfaz.',
       unavailableTitle: 'Revisão indisponível',
       unavailableDescription:
         'As tabelas da revisão ainda não existem neste banco. Rode as migrations e o seed da base semântica.',
@@ -87,13 +87,14 @@ export default defineMessages(
       send: 'Registrar sugestão',
       cancel: 'Cancelar',
       confirmApprove: 'Aprovar este item?',
-      confirmApproveDescription: 'Ele passa a ser servido pela API agora, sem novo deploy.',
+      confirmApproveDescription:
+        'Ele vale como aprovado na API agora, sem novo deploy, inclusive para quem só aceita itens aprovados.',
       confirmDraft: 'Voltar este item para rascunho?',
-      confirmDraftDescription: 'A API deixa de servi-lo agora.',
+      confirmDraftDescription: 'Quem pede só itens revisados ou aprovados deixa de recebê-lo agora.',
       done: {
-        approve: 'Aprovado: a API já serve este item.',
-        draft: 'Voltou para rascunho: a API deixou de servir este item.',
-        suggest: 'Sugestão registrada: o item fica como "precisa de revisão".',
+        approve: 'Aprovado: já vale na API, para qualquer piso.',
+        draft: 'Voltou para rascunho: quem pede só itens aprovados deixou de recebê-lo.',
+        suggest: 'Sugestão registrada: o item fica como "precisa de revisão" (rascunho para a API).',
       },
       unchanged: 'Nada mudou: o item já estava assim.',
     },
@@ -105,6 +106,19 @@ export default defineMessages(
       invalidJson: '{field}: JSON inválido.',
       invalidNumber: '{field}: número inválido.',
       failed: 'Não foi possível concluir. Tente de novo.',
+    },
+    serving: {
+      title: 'Na API agora',
+      floor: 'Piso da produção: {floor}',
+      reportedAt: 'relatado pela API {when}',
+      served: 'Servido hoje',
+      notServed: 'Não servido hoje',
+      unknownFloor: 'A API ainda não relatou o piso editorial (ela relata ao iniciar).',
+      byFloor: 'Por piso pedido pelo cliente (?min_review_status=)',
+      yes: 'servido',
+      no: 'não servido',
+      hint: 'O cliente só endurece o piso: pode pedir {floors}. A API serve tudo com status igual ou acima do piso.',
+      banner: 'Piso editorial da API: {floor}. Clientes podem endurecer com ?min_review_status=.',
     },
     log: {
       approve: 'aprovou',
@@ -119,7 +133,7 @@ export default defineMessages(
       page: {
         title: 'Semantic review',
         description:
-          'Profiles, derbies, competitions, copy, glossary and translations of the semantic base. Production serves only approved items; a decision takes effect at once and the next deploy does not undo it.',
+          'Profiles, derbies, competitions, copy, glossary and translations of the semantic base. A decision takes effect at once for every API client, whatever their editorial floor, and the next deploy does not undo it.',
         unavailableTitle: 'Review unavailable',
         unavailableDescription:
           'The review tables do not exist in this database yet. Run the migrations and the semantic base seed.',
@@ -197,13 +211,15 @@ export default defineMessages(
         send: 'Record suggestion',
         cancel: 'Cancel',
         confirmApprove: 'Approve this item?',
-        confirmApproveDescription: 'The API starts serving it now, with no new deploy.',
+        confirmApproveDescription:
+          'It counts as approved in the API now, with no new deploy, including for clients that accept only approved items.',
         confirmDraft: 'Send this item back to draft?',
-        confirmDraftDescription: 'The API stops serving it now.',
+        confirmDraftDescription:
+          'Clients that ask only for reviewed or approved items stop receiving it now.',
         done: {
-          approve: 'Approved: the API now serves this item.',
-          draft: 'Back to draft: the API no longer serves this item.',
-          suggest: 'Suggestion recorded: the item is now "needs review".',
+          approve: 'Approved: it already counts in the API, for any floor.',
+          draft: 'Back to draft: clients that ask only for approved items no longer receive it.',
+          suggest: 'Suggestion recorded: the item is now "needs review" (draft for the API).',
         },
         unchanged: 'Nothing changed: the item was already like this.',
       },
@@ -215,6 +231,19 @@ export default defineMessages(
         invalidJson: '{field}: invalid JSON.',
         invalidNumber: '{field}: invalid number.',
         failed: 'Could not complete. Try again.',
+      },
+      serving: {
+        title: 'In the API now',
+        floor: 'Production floor: {floor}',
+        reportedAt: 'reported by the API {when}',
+        served: 'Served today',
+        notServed: 'Not served today',
+        unknownFloor: 'The API has not reported its editorial floor yet (it reports on startup).',
+        byFloor: 'By floor requested by the client (?min_review_status=)',
+        yes: 'served',
+        no: 'not served',
+        hint: 'Clients can only raise the floor: they may ask for {floors}. The API serves everything at or above the floor.',
+        banner: 'API editorial floor: {floor}. Clients can raise it with ?min_review_status=.',
       },
       log: {
         approve: 'approved',
@@ -228,7 +257,7 @@ export default defineMessages(
       page: {
         title: 'Revisión semántica',
         description:
-          'Perfiles, clásicos, competiciones, copy, glosario y traducciones de la base semántica. Producción sirve solo lo aprobado; la decisión rige al instante y el próximo deploy no la deshace.',
+          'Perfiles, clásicos, competiciones, copy, glosario y traducciones de la base semántica. La decisión rige al instante para todo cliente de la API, sea cual sea su piso editorial, y el próximo deploy no la deshace.',
         unavailableTitle: 'Revisión no disponible',
         unavailableDescription:
           'Las tablas de la revisión todavía no existen en esta base. Corré las migrations y el seed de la base semántica.',
@@ -307,13 +336,14 @@ export default defineMessages(
         send: 'Registrar sugerencia',
         cancel: 'Cancelar',
         confirmApprove: '¿Aprobar este ítem?',
-        confirmApproveDescription: 'La API empieza a servirlo ahora, sin nuevo deploy.',
+        confirmApproveDescription:
+          'Vale como aprobado en la API ahora, sin nuevo deploy, incluso para quien acepta solo ítems aprobados.',
         confirmDraft: '¿Volver este ítem a borrador?',
-        confirmDraftDescription: 'La API deja de servirlo ahora.',
+        confirmDraftDescription: 'Quien pide solo ítems revisados o aprobados deja de recibirlo ahora.',
         done: {
-          approve: 'Aprobado: la API ya sirve este ítem.',
-          draft: 'Volvió a borrador: la API dejó de servir este ítem.',
-          suggest: 'Sugerencia registrada: el ítem queda como "necesita revisión".',
+          approve: 'Aprobado: ya vale en la API, para cualquier piso.',
+          draft: 'Volvió a borrador: quien pide solo ítems aprobados dejó de recibirlo.',
+          suggest: 'Sugerencia registrada: el ítem queda como "necesita revisión" (borrador para la API).',
         },
         unchanged: 'Nada cambió: el ítem ya estaba así.',
       },
@@ -325,6 +355,19 @@ export default defineMessages(
         invalidJson: '{field}: JSON inválido.',
         invalidNumber: '{field}: número inválido.',
         failed: 'No se pudo completar. Probá de nuevo.',
+      },
+      serving: {
+        title: 'En la API ahora',
+        floor: 'Piso de producción: {floor}',
+        reportedAt: 'informado por la API {when}',
+        served: 'Se sirve hoy',
+        notServed: 'No se sirve hoy',
+        unknownFloor: 'La API todavía no informó el piso editorial (lo informa al iniciar).',
+        byFloor: 'Por piso pedido por el cliente (?min_review_status=)',
+        yes: 'se sirve',
+        no: 'no se sirve',
+        hint: 'El cliente solo endurece el piso: puede pedir {floors}. La API sirve todo con estado igual o superior al piso.',
+        banner: 'Piso editorial de la API: {floor}. Los clientes pueden endurecerlo con ?min_review_status=.',
       },
       log: {
         approve: 'aprobó',

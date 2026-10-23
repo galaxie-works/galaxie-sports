@@ -175,6 +175,23 @@ describe('revisão de um perfil', () => {
   });
 });
 
+describe('piso editorial da API', () => {
+  it('sem relato da API o piso fica desconhecido; com relato, o detalhe e a lista trazem o piso', async () => {
+    expect((await (await getItem('team:palmeiras')).json()).data.serving).toEqual({
+      floor: null,
+      reportedAt: null,
+    });
+    await sql.query(
+      `insert into ops.runtime_env (service, key, value, configured, reported_at)
+       values ('api', 'SEMANTIC_MIN_REVIEW_STATUS', 'draft', true, now())`,
+    );
+    const detail = (await (await getItem('team:palmeiras')).json()).data;
+    expect(detail.serving.floor).toBe('draft');
+    expect(detail.serving.reportedAt).toEqual(expect.any(String));
+    expect((await (await getList('')).json()).data.serving.floor).toBe('draft');
+  });
+});
+
 describe('outros tipos', () => {
   it('tradução: aprovação grava o status dentro de texts do perfil, com o original no detalhe', async () => {
     const id = 'translation:team:palmeiras:es';

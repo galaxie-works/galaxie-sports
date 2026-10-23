@@ -25,6 +25,7 @@ import {
   type ReviewLogEntry,
   type ReviewState,
   type ReviewSuggestion,
+  type ServingFloor,
 } from './types';
 
 /** Tabelas da revisão ainda não criadas (migration 0025 pendente). */
@@ -159,6 +160,20 @@ export async function listReviewItems(filters: ReviewFilters): Promise<ReviewLis
       locales: locales.map((r) => r.v),
     },
   };
+}
+
+/** Piso editorial que a API relatou na partida (o mesmo `ops.runtime_env` do painel de Operação). */
+export async function readServingFloor(): Promise<ServingFloor> {
+  const [row] = await pool
+    .query<{ value: string | null; reported_at: Date }>(
+      `select value, reported_at from ops.runtime_env
+        where service = 'api' and key = 'SEMANTIC_MIN_REVIEW_STATUS'`,
+    )
+    .then((r) => r.rows)
+    .catch(() => []);
+  const floor =
+    row?.value === 'draft' || row?.value === 'reviewed' || row?.value === 'approved' ? row.value : null;
+  return { floor, reportedAt: floor ? iso(row!.reported_at) : null };
 }
 
 export async function getReviewItem(id: string): Promise<ReviewDetail | null> {

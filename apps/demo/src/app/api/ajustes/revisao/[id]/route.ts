@@ -1,12 +1,18 @@
 /**
  * Um item da revisão semântica (admin). GET: conteúdo, original da tradução, prévia do que a API
- * serviria e histórico. POST `{ action, comment?, fields? }`: aprovar (`approve`), voltar para rascunho
+ * serviria, histórico e o piso editorial da API (`serving`, para dizer se o item é servido hoje). POST `{ action, comment?, fields? }`: aprovar (`approve`), voltar para rascunho
  * (`draft`) ou sugerir edição (`suggest`, com comentário obrigatório e edição proposta opcional). Cada
  * ação fica na auditoria com quem fez e quando, e a API reflete a decisão na hora (docs/06 §2.1).
  */
 import { requireAdminApi } from '@/lib/review/guard';
 import { previewFor } from '@/lib/review/preview';
-import { ReviewInputError, ReviewUnavailableError, decideReview, getReviewItem } from '@/lib/review/store';
+import {
+  ReviewInputError,
+  ReviewUnavailableError,
+  decideReview,
+  getReviewItem,
+  readServingFloor,
+} from '@/lib/review/store';
 import { REVIEW_ACTIONS, type ReviewAction } from '@/lib/review/types';
 
 const NO_STORE = { 'cache-control': 'no-store' };
@@ -30,9 +36,9 @@ export async function GET(request: Request, { params }: Ctx) {
   if (actor instanceof Response) return actor;
   const { id } = await params;
   try {
-    const item = await getReviewItem(decodeURIComponent(id));
+    const [item, serving] = await Promise.all([getReviewItem(decodeURIComponent(id)), readServingFloor()]);
     if (!item) return Response.json({ code: 'not_found' }, { status: 404, headers: NO_STORE });
-    return Response.json({ data: { ...item, preview: previewFor(item) } }, { headers: NO_STORE });
+    return Response.json({ data: { ...item, preview: previewFor(item), serving } }, { headers: NO_STORE });
   } catch (err) {
     return failure(err);
   }

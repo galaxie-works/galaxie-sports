@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { fieldText, parseProposedField, previewFor } from './preview';
-import { filtersQuery, parseFilters } from './types';
+import { filtersQuery, floorsFrom, parseFilters, servedAt } from './types';
 
 describe('filtros da URL', () => {
   it('lê só valores conhecidos e normaliza mercado e página', () => {
@@ -120,5 +120,21 @@ describe('edição proposta campo a campo', () => {
     expect(fieldText(null)).toBe('');
     for (const v of [['a', 'b'], { x: [1] }, 'texto', 3])
       expect(parseProposedField(v, fieldText(v))).toBeUndefined();
+  });
+});
+
+describe('servido hoje', () => {
+  it('a API serve status igual ou acima do piso; sugestão em aberto conta como rascunho', () => {
+    expect(servedAt('draft', 'draft')).toBe(true);
+    expect(servedAt('needs_review', 'draft')).toBe(true);
+    expect(servedAt('needs_review', 'reviewed')).toBe(false);
+    expect(servedAt('reviewed', 'approved')).toBe(false);
+    expect(servedAt('approved', 'approved')).toBe(true);
+  });
+
+  it('o cliente só endurece: pisos possíveis a partir do piso do servidor', () => {
+    expect(floorsFrom('draft')).toEqual(['draft', 'reviewed', 'approved']);
+    expect(floorsFrom('approved')).toEqual(['approved']);
+    expect(floorsFrom(null)).toEqual(['draft', 'reviewed', 'approved']);
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, FilePenLine, Undo2 } from 'lucide-react';
+import { Check, FilePenLine, Undo2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -26,7 +26,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 import { fieldText, parseProposedField, type ReviewPreview } from '@/lib/review/preview';
-import { itemSegment, type ReviewAction, type ReviewDetail as Detail } from '@/lib/review/types';
+import {
+  REVIEW_STATUSES,
+  floorsFrom,
+  itemSegment,
+  servedAt,
+  type ReviewAction,
+  type ReviewDetail as Detail,
+  type ServingFloor,
+} from '@/lib/review/types';
 
 import { STATE_BADGE, marketLabel, sportLabel } from './labels';
 
@@ -286,13 +294,76 @@ function SuggestForm({ item, onDone }: { item: Detail; onDone: () => void }) {
   );
 }
 
+/** Se o item é servido hoje com o piso que a API relatou, e em cada piso que o cliente pode pedir. */
+function ServingCard({ item, serving, timeZone }: { item: Detail; serving: ServingFloor; timeZone: string }) {
+  const { t } = useI18n();
+  const T = t.review.serving;
+  const f = useFormatters(timeZone);
+  const floors = floorsFrom(serving.floor);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{T.title}</CardTitle>
+        <CardDescription>
+          {serving.floor ? (
+            <>
+              {fill(T.floor, { floor: serving.floor })}
+              {serving.reportedAt
+                ? ` · ${fill(T.reportedAt, { when: f.relative(serving.reportedAt) })}`
+                : null}
+            </>
+          ) : (
+            T.unknownFloor
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm">
+        {serving.floor ? (
+          servedAt(item.state, serving.floor) ? (
+            <Badge variant="success-light" size="lg" className="w-fit">
+              <Check />
+              {T.served}
+            </Badge>
+          ) : (
+            <Badge variant="destructive-light" size="lg" className="w-fit">
+              <X />
+              {T.notServed}
+            </Badge>
+          )
+        ) : null}
+        <div>
+          <p className="text-muted-foreground mb-1.5 text-xs">{T.byFloor}</p>
+          <ul className="flex flex-wrap gap-1.5">
+            {REVIEW_STATUSES.map((floor) => {
+              const served = servedAt(item.state, floor);
+              return (
+                <li key={floor}>
+                  <Badge
+                    variant={served ? 'success-outline' : 'outline'}
+                    className={floors.includes(floor) ? '' : 'opacity-50'}
+                  >
+                    <span className="font-mono">{floor}</span>
+                    {served ? T.yes : T.no}
+                  </Badge>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <p className="text-muted-foreground text-xs">{fill(T.hint, { floors: floors.join(', ') })}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 interface Props {
   item: Detail;
   preview: ReviewPreview;
+  serving: ServingFloor;
   timeZone: string;
 }
 
-export function ReviewDetail({ item, preview, timeZone }: Props) {
+export function ReviewDetail({ item, preview, serving, timeZone }: Props) {
   const { t } = useI18n();
   const T = t.review;
   const f = useFormatters(timeZone);
@@ -419,6 +490,7 @@ export function ReviewDetail({ item, preview, timeZone }: Props) {
           </CardContent>
         </Card>
         <div className="flex flex-col gap-4">
+          <ServingCard item={item} serving={serving} timeZone={timeZone} />
           <Card>
             <CardHeader>
               <CardTitle>{T.detail.preview}</CardTitle>

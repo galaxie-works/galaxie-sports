@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { requireAdmin } from '@/lib/auth/admin';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 import { previewFor } from '@/lib/review/preview';
-import { ReviewUnavailableError, getReviewItem } from '@/lib/review/store';
+import { ReviewUnavailableError, getReviewItem, readServingFloor } from '@/lib/review/store';
 import { filtersQuery, parseFilters } from '@/lib/review/types';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,7 +30,7 @@ async function Detail({ params, searchParams }: Pick<Props, 'params' | 'searchPa
   const listHref = `/ajustes/revisao${filtersQuery(parseFilters(new URLSearchParams(lista)))}`;
   const parents = [{ path: listHref, label: t.review.page.title, kind: 'ajustes' as const }];
   try {
-    const item = await getReviewItem(decodeURIComponent(id));
+    const [item, serving] = await Promise.all([getReviewItem(decodeURIComponent(id)), readServingFloor()]);
     if (!item) notFound();
     return (
       <>
@@ -46,7 +46,7 @@ async function Detail({ params, searchParams }: Pick<Props, 'params' | 'searchPa
             <ArrowLeft />
             {t.review.detail.back}
           </Button>
-          <ReviewDetail item={item} preview={previewFor(item)} timeZone={timeZone} />
+          <ReviewDetail item={item} preview={previewFor(item)} serving={serving} timeZone={timeZone} />
         </div>
       </>
     );

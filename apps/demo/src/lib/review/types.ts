@@ -127,6 +127,31 @@ export function filtersQuery(filters: Partial<ReviewFilters>): string {
  */
 export const itemSegment = (id: string) => encodeURIComponent(id).replace(/\./g, '%2E');
 
+export const REVIEW_STATUSES = ['draft', 'reviewed', 'approved'] as const;
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
+
+/** Piso editorial da API (SEMANTIC_MIN_REVIEW_STATUS), como ela relata em ops.runtime_env na partida. */
+export interface ServingFloor {
+  /** null = a API ainda não relatou (versão antiga ou nunca iniciou com este banco). */
+  floor: ReviewStatus | null;
+  reportedAt: string | null;
+}
+
+/** Status que a API enxerga para uma situação do painel (sugestão em aberto = rascunho). */
+export const servedStatus = (state: ReviewState): ReviewStatus =>
+  state === 'needs_review' ? 'draft' : state;
+
+/**
+ * A API serve o item com este piso? Ela serve tudo com status ≥ ao piso efetivo: o maior entre o do
+ * servidor e o `?min_review_status=` do cliente (o cliente só endurece).
+ */
+export const servedAt = (state: ReviewState, floor: ReviewStatus) =>
+  REVIEW_STATUSES.indexOf(servedStatus(state)) >= REVIEW_STATUSES.indexOf(floor);
+
+/** Pisos que o cliente pode pedir com o piso do servidor (o dele e os mais rígidos). */
+export const floorsFrom = (floor: ReviewStatus | null): readonly ReviewStatus[] =>
+  REVIEW_STATUSES.slice(floor ? REVIEW_STATUSES.indexOf(floor) : 0);
+
 /** Status servido pela API para cada ação do painel. */
 export const STATUS_OF_ACTION: Record<ReviewAction, 'approved' | 'draft'> = {
   approve: 'approved',
