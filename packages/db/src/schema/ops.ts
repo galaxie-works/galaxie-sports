@@ -1,5 +1,6 @@
 import {
   bigserial,
+  boolean,
   date,
   index,
   integer,
@@ -9,6 +10,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import { pkUuidV7 } from './_shared.js';
 
@@ -136,4 +138,88 @@ export const changeFeed = ops.table(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('change_feed_created_idx').on(t.createdAt)],
+);
+
+/**
+ * Configuração da operação em tempo de execução (painel Ajustes → Operação). Precedência: esta tabela >
+ * env do contêiner > padrão do código (`@galaxie/runtime-config`). Valores sempre em texto, já
+ * validados pelo tipo da flag; segredos nunca entram aqui.
+ */
+export const runtimeSetting = ops.table('runtime_setting', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  /** Tipo da flag no registro quando foi gravada (cron, enum, int, number, markets, text). */
+  valueType: text('value_type').notNull(),
+  /** Quem mudou (e-mail do admin da demo). */
+  updatedBy: text('updated_by').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Histórico das mudanças do painel: uma linha por gravação ou volta ao padrão. */
+export const runtimeSettingLog = ops.table(
+  'runtime_setting_log',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    key: text('key').notNull(),
+    /** set (gravou) | reset (voltou ao padrão: apagou a sobrescrita). */
+    action: text('action').notNull(),
+    oldValue: text('old_value'),
+    newValue: text('new_value'),
+    changedBy: text('changed_by').notNull(),
+    changedAt: timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('runtime_setting_log_changed_idx').on(t.changedAt),
+    index('runtime_setting_log_key_idx').on(t.key, t.changedAt),
+  ],
+);
+
+/**
+ * O que cada contêiner tem no próprio env para as flags do registro (o painel roda em outro contêiner
+ * e não enxerga esse env). Segredos só como `configured`; `value` fica nulo. `reported_at` é atualizado
+ * a cada releitura do scheduler e serve de sinal de vida.
+ */
+export const runtimeEnv = ops.table(
+  'runtime_env',
+  {
+    service: text('service').notNull(),
+    key: text('key').notNull(),
+    value: text('value'),
+    configured: boolean('configured').notNull(),
+    reportedAt: timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.service, t.key] })],
+);
+
+/** Pedidos de "rodar agora" do painel; o scheduler do perfil do job pega, executa e fecha. */
+export const jobRequest = ops.table(
+  'job_request',
+  {
+    id: pkUuidV7(),
+    job: text('job').notNull(),
+    requestedBy: text('requested_by').notNull(),
+    requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+    /** pending | running | done | error | skipped | expired */
+    status: text('status').notNull().default('pending'),
+    pickedAt: timestamp('picked_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    /** ops.job_run.id da execução (quando houve). */
+    runId: uuid('run_id'),
+    detail: text('detail'),
+  },
+  (t) => [index('job_request_status_idx').on(t.status, t.requestedAt)],
+);
+
+/** Resultado das checagens feitas por um serviço (ex.: crédito da conta de IA, pelo scheduler dos agentes). */
+export const runtimeCheck = ops.table(
+  'runtime_check',
+  {
+    service: text('service').notNull(),
+    name: text('name').notNull(),
+    /** pass | warn | fail */
+    status: text('status').notNull(),
+    detail: text('detail'),
+    checkedAt: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.service, t.name] })],
 );

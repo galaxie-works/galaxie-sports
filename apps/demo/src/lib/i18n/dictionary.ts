@@ -14,6 +14,7 @@ import media from './messages/media';
 import event from './messages/event';
 import live from './messages/live';
 import nav from './messages/nav';
+import ops from './messages/ops';
 import pages from './messages/pages';
 import requests from './messages/requests';
 import search from './messages/search';
@@ -33,6 +34,7 @@ export const NAMESPACES = {
   live,
   media,
   nav,
+  ops,
   pages,
   requests,
   search,
@@ -67,6 +69,7 @@ export const CLIENT_NAMESPACES = [
   'live',
   'media',
   'nav',
+  'ops',
   'search',
   'shell',
   'sport',

@@ -40,13 +40,16 @@ export class PgRunRecorder implements RunRecorder {
   }
 }
 
+/** De onde veio a execução: agenda, CLI `--run`, SCHEDULER_RUN_ON_START ou o painel de Operação. */
+export type RunTrigger = 'schedule' | 'manual' | 'start' | 'panel';
+
 export interface RunOptions {
   /** Raiz do pacote do ingestor (onde fica dist/). Os CLIs resolvem caminhos relativos a ela. */
   cwd: string;
   env?: NodeJS.ProcessEnv;
   recorder?: RunRecorder | undefined;
   logger: Logger;
-  trigger: 'schedule' | 'manual' | 'start';
+  trigger: RunTrigger;
   /** Tempo para o processo encerrar depois do SIGTERM antes do SIGKILL. */
   killGraceMs?: number;
   /** Encerramento do scheduler: repassa SIGTERM ao filho (ex.: o ao vivo termina o tick e sai). */

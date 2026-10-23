@@ -9,67 +9,63 @@
  * Variáveis: SCHEDULER_PROFILE=ingestor|agents (conjunto de jobs; `agents` = agentes de IA)
  *            SCHEDULE_<JOB>=<cron>|off · SCHEDULER_RUN_ON_START=job1,job2 · SCHEDULER_TIMEOUT_MINUTES
  *            SCHEDULER_HEARTBEAT_FILE (padrão /tmp/galaxie-scheduler.heartbeat, usado no healthcheck)
+ *            SCHEDULER_REFRESH_SECONDS (padrão 30): releitura da configuração do painel e dos pedidos
+ *
+ * O painel de Ajustes → Operação sobrescreve as flags pelo banco (ops.runtime_setting): banco > env >
+ * padrão. As agendas mudadas são reprogramadas sem reinício e cada job recebe o env efetivo.
  */
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { Cron } from 'croner';
 import { closeDb, createDb, type Database } from '@galaxie/db';
 import { logger, report } from '../logger.js';
-import { PgRunRecorder, runJob, type RunResult } from '../scheduler/runner.js';
-import { nextRuns, scheduleFromEnv } from '../scheduler/schedule.js';
+import { checkAiCredit } from '../scheduler/ai-credit.js';
+import { PgRunRecorder, runJob } from '../scheduler/runner.js';
+import { jobsForProfile } from '../scheduler/schedule.js';
+import { describeSchedule, SchedulerService, type SchedulerProfile } from '../scheduler/service.js';
 
 const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
 const log = logger.child({ component: 'scheduler' });
-const jobs = scheduleFromEnv();
+const profile = (process.env.SCHEDULER_PROFILE?.trim().toLowerCase() || 'ingestor') as SchedulerProfile;
+const definitions = jobsForProfile(profile);
 const arg = (flag: string) => {
   const i = process.argv.indexOf(flag);
   return i >= 0 ? (process.argv[i + 1] ?? '') : undefined;
 };
-
-if (process.argv.includes('--list')) {
-  report(
-    `Agenda do scheduler — perfil ${process.env.SCHEDULER_PROFILE ?? 'ingestor'} (UTC)`,
-    jobs.map((j) => ({
-      job: j.name,
-      cron: j.cron,
-      script: j.script,
-      next: nextRuns(j, 2).map((d) => d.toISOString()),
-      description: j.description,
-    })),
-  );
-  process.exit(0);
-}
 
 const db: Database | undefined = process.env.DATABASE_URL
   ? createDb(process.env.DATABASE_URL, { max: 2 })
   : undefined;
 if (!db) log.warn('DATABASE_URL não definida: as execuções não serão registradas em ops.job_run');
 const recorder = db ? new PgRunRecorder(db) : undefined;
-const running = new Set<Promise<RunResult>>();
 /** Abortado no encerramento: os jobs em andamento recebem SIGTERM (o ao vivo fecha o tick e sai). */
 const shutdownController = new AbortController();
 
-function execute(name: string, trigger: 'schedule' | 'manual' | 'start'): Promise<RunResult> {
-  const job = jobs.find((j) => j.name === name);
-  if (!job)
-    throw new Error(
-      `Job desconhecido ou desligado: "${name}". Disponíveis: ${jobs.map((j) => j.name).join(', ')}`,
-    );
-  const run = runJob(job, {
-    cwd: packageRoot,
-    recorder,
-    logger: log,
-    trigger,
-    signal: shutdownController.signal,
-  });
-  running.add(run);
-  void run.finally(() => running.delete(run));
-  return run;
+const service = new SchedulerService({
+  profile,
+  jobs: definitions,
+  env: process.env,
+  db,
+  log,
+  refreshMs: Number(process.env.SCHEDULER_REFRESH_SECONDS ?? 30) * 1000 || 30_000,
+  creditCheck: profile === 'agents' ? (env) => checkAiCredit(env) : undefined,
+  run: (job, { trigger, env }) =>
+    runJob(job, { cwd: packageRoot, env, recorder, logger: log, trigger, signal: shutdownController.signal }),
+});
+
+if (process.argv.includes('--list') || arg('--run') !== undefined) {
+  // a agenda e o env efetivos já com a configuração do painel (banco > env > padrão)
+  await service.refresh();
+}
+
+if (process.argv.includes('--list')) {
+  report(`Agenda do scheduler — perfil ${profile} (UTC)`, describeSchedule(service.schedule));
+  if (db) await closeDb(db);
+  process.exit(0);
 }
 
 const manual = arg('--run');
 if (manual !== undefined) {
-  const result = await execute(manual, 'manual');
+  const result = await service.execute(manual, 'manual');
   if (db) await closeDb(db);
   process.exit(result.status === 'ok' ? 0 : 1);
 }
@@ -83,47 +79,30 @@ const beat = () =>
 await beat();
 const heartbeat = setInterval(() => void beat(), 30_000);
 
-const crons = jobs.map(
-  (job) =>
-    new Cron(
-      job.cron,
-      {
-        name: job.name,
-        timezone: 'UTC',
-        mode: '5-part',
-        // não sobrepõe execuções do mesmo job
-        protect: () =>
-          log.warn({ job: job.name }, 'execução anterior ainda em andamento; pulando este horário'),
-        catch: (err: unknown) => log.error({ err, job: job.name }, 'erro no agendamento'),
-      },
-      async () => {
-        await execute(job.name, 'schedule');
-      },
-    ),
-);
-log.info(
-  { jobs: jobs.map((j) => ({ job: j.name, cron: j.cron, next: nextRuns(j, 1)[0]?.toISOString() })) },
-  'scheduler iniciado',
-);
+await service.start();
 
 for (const name of (process.env.SCHEDULER_RUN_ON_START ?? '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean)) {
-  void execute(name, 'start').catch((err: unknown) =>
-    log.error({ err, job: name }, 'falha no job de partida'),
-  );
+  try {
+    void service
+      .execute(name, 'start')
+      .catch((err: unknown) => log.error({ err, job: name }, 'falha no job de partida'));
+  } catch (err) {
+    log.error({ err, job: name }, 'falha no job de partida');
+  }
 }
 
 let stopping = false;
 async function shutdown(signal: string) {
   if (stopping) return;
   stopping = true;
-  log.info({ signal, running: running.size }, 'encerrando scheduler; aguardando jobs em andamento');
-  for (const c of crons) c.stop();
+  const running = service.stop();
+  log.info({ signal, running: running.length }, 'encerrando scheduler; aguardando jobs em andamento');
   clearInterval(heartbeat);
   shutdownController.abort();
-  await Promise.race([Promise.allSettled([...running]), new Promise((r) => setTimeout(r, 25_000))]);
+  await Promise.race([Promise.allSettled(running), new Promise((r) => setTimeout(r, 25_000))]);
   if (db) await closeDb(db);
   process.exit(0);
 }

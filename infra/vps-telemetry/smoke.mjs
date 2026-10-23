@@ -198,6 +198,50 @@ await check('Demo: login e proteção das páginas', async () => {
   return true;
 });
 
+await check('Painel de Operação: configuração protegida e sem segredos', async () => {
+  const url = `${DEMO}/api/ajustes/operacao`;
+  const anon = await fetch(url, { redirect: 'manual' });
+  if (anon.status !== 401) return fail(`sem sessão deveria responder 401 (status ${anon.status})`);
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret) return warn('sem BETTER_AUTH_SECRET no contêiner: conteúdo não conferido');
+  // mesma assinatura de apps/demo/src/lib/ops/smoke.ts (o smoke roda no contêiner da demo)
+  const { createHmac } = await import('node:crypto');
+  const unix = Math.floor(Date.now() / 1000);
+  const mac = createHmac('sha256', secret).update(`ops-smoke:${unix}`).digest('hex');
+  const res = await fetch(url, { headers: { 'x-galaxie-smoke': `${unix}.${mac}` } });
+  if (res.status !== 200) return fail(`status ${res.status}`);
+  const text = await res.text();
+  // nenhum segredo do próprio contêiner aparece na resposta (nem a senha do banco dentro da URL)
+  const dbPassword = (() => {
+    try {
+      return decodeURIComponent(new URL(process.env.DEMO_DATABASE_URL ?? '').password);
+    } catch {
+      return '';
+    }
+  })();
+  for (const [name, value] of [
+    ['BETTER_AUTH_SECRET', secret],
+    ['GALAXIE_DEMO_KEY', KEY],
+    ['SMTP_PASSWORD', process.env.SMTP_PASSWORD],
+    ['senha do banco', dbPassword],
+  ])
+    // só valores longos: um segredo curto (ex.: senha do banco local) bate com qualquer texto
+    if (value && value.length >= 12 && text.includes(value)) return fail(`${name} exposto na resposta`);
+  const data = JSON.parse(text).data;
+  const settings = data?.settings ?? [];
+  if (settings.length < 40) return fail(`só ${settings.length} flags no painel`);
+  const credential = /(_KEY|_SECRET|_PASSWORD|_TOKEN|_HASHES|SMTP_HOST|SMTP_USER)$/;
+  const leaked = settings.filter(
+    (s) => credential.test(s.key) && (s.value !== null || s.envValue !== null || s.override !== null),
+  );
+  if (leaked.length) return fail(`credenciais com valor: ${leaked.map((s) => s.key).join(', ')}`);
+  const live = settings.find((s) => s.key === 'LIVE_FEATURED');
+  const down = (data.services ?? []).filter((s) => ['ingestor', 'agents'].includes(s.service) && !s.alive);
+  const summary = `${settings.length} flags · LIVE_FEATURED=${live?.value} (${live?.source})`;
+  // o ingestor pode estar com escala 0 de propósito (ingestão em outro ambiente): só avisa
+  return down.length ? warn(`${summary} · sem sinal de ${down.map((s) => s.service).join(', ')}`) : summary;
+});
+
 const width = Math.max(...results.map((r) => r.name.length));
 for (const r of results) console.log(`${r.level.padEnd(4)}  ${r.name.padEnd(width)}  ${r.detail}`);
 const fails = results.filter((r) => r.level === 'FAIL').length;

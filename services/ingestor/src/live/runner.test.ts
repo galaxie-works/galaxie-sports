@@ -116,4 +116,41 @@ describe('LiveRunner', () => {
     await r3.runner.plan();
     expect(relaxed).not.toHaveBeenCalled();
   });
+
+  it('relê a configuração durante a execução: destaque ligado no meio passa a valer no próximo plano', async () => {
+    let featured: 'off' | 'on' = 'off';
+    const load = vi.fn(async () => ({ featured, protectDaily: undefined }));
+    const { runner } = runnerFor(
+      wednesdayNight(),
+      '2026-10-21T16:50:00Z',
+      { idleExitMs: null, featured: 'off', protectDaily: 30, until: new Date('2026-10-21T17:20:00Z') },
+      { refresh: { everyMs: MIN, load } },
+    );
+    await runner.refreshOptions();
+    expect(runner.settings).toMatchObject({ featured: 'off' });
+    // LIVE_PROTECT_DAILY apagado no painel: volta ao comportamento padrão (sem piso fixo)
+    expect(runner.settings.protectDaily).toBeUndefined();
+    expect((await runner.plan()).plan.featured).toBe(false);
+
+    featured = 'on';
+    await runner.refreshOptions(); // antes do intervalo: não relê
+    expect(load).toHaveBeenCalledTimes(1);
+    const summary = await runner.run(undefined);
+    expect(load.mock.calls.length).toBeGreaterThan(1);
+    expect(runner.settings.featured).toBe('on');
+    expect([...summary.plans.values()].some((p) => p.featured)).toBe(true);
+  });
+
+  it('falha ao reler a configuração mantém a atual', async () => {
+    const { runner } = runnerFor(
+      wednesdayNight(),
+      '2026-10-21T16:50:00Z',
+      { featured: 'auto' },
+      {
+        refresh: { everyMs: MIN, load: async () => Promise.reject(new Error('banco fora')) },
+      },
+    );
+    await runner.refreshOptions();
+    expect(runner.settings.featured).toBe('auto');
+  });
 });

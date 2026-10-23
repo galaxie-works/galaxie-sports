@@ -1,6 +1,6 @@
 /**
  * Porta de entrada da demo: toda página e toda leitura da API exigem sessão válida, com acesso dentro
- * do prazo; a área /ajustes exige admin. Roda em Node (Next 16), então valida a sessão no banco antes de
+ * do prazo; a área /ajustes (e /api/ajustes) exige admin. Roda em Node (Next 16), então valida a sessão no banco antes de
  * qualquer conteúdo renderizar.
  *
  * Também escolhe o idioma: cookie `galaxie-idioma` ou, no primeiro acesso, o `Accept-Language`. As
@@ -12,9 +12,19 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { auth, isAccessExpired } from '@/lib/auth/server';
 import { COOKIE_MAX_AGE, LOCALE_COOKIE, isLocale, resolveLocale } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
+import { SMOKE_HEADER } from '@/lib/ops/smoke';
 
 /** Rotas públicas: login e a API do próprio auth. */
 const PUBLIC_PREFIXES = ['/login', '/api/auth'];
+
+/** Área de admin: páginas de ajustes e as rotas de API delas. */
+const ADMIN_PREFIXES = ['/ajustes', '/api/ajustes'];
+
+/**
+ * Rota que o smoke test do deploy lê sem sessão, assinando com o segredo do próprio contêiner. O proxy só
+ * deixa passar; quem confere a assinatura é a rota (lib/ops/smoke.ts), e sem ela responde 401.
+ */
+const SMOKE_ROUTE = '/api/ajustes/operacao';
 
 /**
  * Telas do antigo login por senha. Links de convite e de redefinição já enviados por e-mail caem no
@@ -53,6 +63,8 @@ export async function proxy(request: NextRequest) {
   }
   if (matches(pathname, PUBLIC_PREFIXES)) return render(request);
 
+  if (pathname === SMOKE_ROUTE && request.headers.has(SMOKE_HEADER)) return NextResponse.next();
+
   const session = await auth.api.getSession({ headers: request.headers });
   const isApi = pathname.startsWith('/api/');
   const t = isApi ? getDictionary(localeOf(request)).common : null;
@@ -66,7 +78,7 @@ export async function proxy(request: NextRequest) {
 
   if (!session) return deny();
   if (isAccessExpired(session.user)) return deny('expirado');
-  if (pathname.startsWith('/ajustes') && session.user.role !== 'admin') {
+  if (matches(pathname, ADMIN_PREFIXES) && session.user.role !== 'admin') {
     return isApi
       ? NextResponse.json({ title: t!.forbidden }, { status: 403 })
       : NextResponse.redirect(new URL('/', request.url));

@@ -6,12 +6,14 @@
  *   pnpm --filter @galaxie/ingestor live:run --continuo           # fica no ar indefinidamente
  * Opções: --esporte football · --destaque off|auto|on (detalhe do jogo principal a cada tick) · --intervalo-max-min 15
  *         · --proteger-daily N · --ocioso-min 15 · --sem-confirmar-final · --sem-publicar · --sem-tabelas
- * Variáveis: LIVE_FEATURED, LIVE_MAX_INTERVAL_MINUTES, LIVE_IDLE_EXIT_MINUTES, LIVE_PROTECT_DAILY.
+ * Variáveis: LIVE_FEATURED, LIVE_MAX_INTERVAL_MINUTES, LIVE_IDLE_EXIT_MINUTES, LIVE_PROTECT_DAILY. O painel
+ * de Operação sobrescreve essas variáveis pelo banco; o processo relê a cada minuto, sem reiniciar.
  * SIGTERM/SIGINT encerram com elegância (termina o tick em andamento, registra ops.job_run, fecha o banco).
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { closeDb } from '@galaxie/db';
+import { closeDb, readRuntimeOverrides } from '@galaxie/db';
+import { applyOverrides, runtimeBaseEnv } from '@galaxie/runtime-config';
 import { ApiSportsProvider } from '@galaxie/providers';
 import { contextFromEnv } from '../context.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
@@ -19,6 +21,7 @@ import { PgJobRunStore } from '../jobs/runtime/job-run-store.js';
 import { LiveRunner } from '../live/runner.js';
 import {
   decideTick,
+  DEFAULT_LIVE_OPTIONS,
   planLiveDay,
   utcDayBounds,
   windowEnd,
@@ -32,6 +35,8 @@ import { recomputeStandings } from '../standings/recompute.js';
 import { runCli } from './job-cli.js';
 
 const rulesDir = resolve('../../config/rules');
+/** Env do contêiner sem as sobrescritas que o scheduler aplicou na partida. */
+const baseEnv = runtimeBaseEnv(process.env);
 const log = logger.child({ component: 'live' });
 
 function num(value: string | undefined, flag: string): number | undefined {
@@ -114,21 +119,32 @@ await runCli(async () => {
     },
     strict: true,
   });
-  const env = process.env;
-  const featured = values.destaque ?? env.LIVE_FEATURED ?? 'off';
-  if (!['off', 'auto', 'on'].includes(featured)) throw new Error('--destaque deve ser off, auto ou on.');
   if (!['hoje', 'amanha'].includes(values.dia)) throw new Error('--dia deve ser hoje ou amanha.');
-  const maxIntervalMin = num(
-    values['intervalo-max-min'] ?? env.LIVE_MAX_INTERVAL_MINUTES,
-    '--intervalo-max-min',
-  );
-  const idleMin = num(values['ocioso-min'] ?? env.LIVE_IDLE_EXIT_MINUTES, '--ocioso-min');
-  const protectDaily = num(values['proteger-daily'] ?? env.LIVE_PROTECT_DAILY, '--proteger-daily');
+  // as opções da linha de comando vencem; o resto vem do env (que o scheduler já entrega com o painel)
+  const settingsFrom = (env: NodeJS.ProcessEnv) => {
+    const featured = values.destaque ?? env.LIVE_FEATURED?.trim() ?? 'off';
+    if (!['off', 'auto', 'on'].includes(featured)) throw new Error('--destaque deve ser off, auto ou on.');
+    const maxIntervalMin = num(
+      values['intervalo-max-min'] ?? env.LIVE_MAX_INTERVAL_MINUTES,
+      '--intervalo-max-min',
+    );
+    const idleMin = num(values['ocioso-min'] ?? env.LIVE_IDLE_EXIT_MINUTES, '--ocioso-min');
+    const protectDaily = num(values['proteger-daily'] ?? env.LIVE_PROTECT_DAILY, '--proteger-daily');
+    return {
+      featured: featured as LiveSchedulerOptions['featured'],
+      maxIntervalMs:
+        maxIntervalMin !== undefined ? maxIntervalMin * 60_000 : DEFAULT_LIVE_OPTIONS.maxIntervalMs,
+      protectDaily,
+      idleExitMs: values.continuo ? null : (idleMin ?? 15) * 60_000,
+    };
+  };
+  const initial = settingsFrom(process.env);
+  const { featured } = initial;
   const options: Partial<LiveSchedulerOptions> = {
-    featured: featured as LiveSchedulerOptions['featured'],
+    featured,
     finalize: !values['sem-confirmar-final'],
-    ...(maxIntervalMin !== undefined ? { maxIntervalMs: maxIntervalMin * 60_000 } : {}),
-    ...(protectDaily !== undefined ? { protectDaily } : {}),
+    maxIntervalMs: initial.maxIntervalMs,
+    ...(initial.protectDaily !== undefined ? { protectDaily: initial.protectDaily } : {}),
   };
   const sport = values.esporte;
   const ctx = contextFromEnv();
@@ -201,9 +217,14 @@ await runCli(async () => {
       governor: ctx.governor,
       log,
       jobId,
-      options: {
-        ...options,
-        idleExitMs: values.continuo ? null : (idleMin ?? 15) * 60_000,
+      options: { ...options, idleExitMs: initial.idleExitMs },
+      // painel de Operação: relê LIVE_* do banco a cada minuto (banco > env do contêiner > padrão)
+      refresh: {
+        everyMs: 60_000,
+        load: async () => {
+          const { env } = applyOverrides(baseEnv, await readRuntimeOverrides(ctx.db));
+          return settingsFrom(env);
+        },
       },
       hooks: {
         onPlan: async (plan) => {

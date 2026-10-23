@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronsUpDown, Languages, LogOut, Users } from 'lucide-react';
+import { ChevronsUpDown, Languages, LogOut, SlidersHorizontal, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -85,6 +85,14 @@ export function UserMenu() {
               >
                 <Users />
                 {t.shell.userMenu.users}
+              </DropdownMenuItem>
+            ) : null}
+            {isAdmin ? (
+              <DropdownMenuItem
+                render={<Link href="/ajustes/operacao" onClick={topLevelClick('/ajustes/operacao')} />}
+              >
+                <SlidersHorizontal />
+                {t.shell.userMenu.operations}
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuSeparator />
