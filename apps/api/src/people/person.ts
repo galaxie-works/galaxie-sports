@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { Person } from '@galaxie/contracts';
 import { asset, participant, person, providerMap, roster, season, type Database } from '@galaxie/db';
 import { problems } from '../errors.js';
+import { teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 
 /** Idade completa em anos numa data (UTC). */
@@ -36,6 +37,7 @@ export async function loadPerson(
   assetsBaseUrl: string | undefined,
   now: Date,
   id: string,
+  customLogos = false,
 ): Promise<Person> {
   const [row] = await db
     .select({ p: person, key: asset.storageKey, url: asset.sourceUrl })
@@ -54,7 +56,7 @@ export async function loadPerson(
     })
     .from(roster)
     .innerJoin(participant, eq(participant.id, roster.participantId))
-    .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+    .leftJoin(asset, eq(asset.id, teamLogoId(customLogos)))
     .leftJoin(season, eq(season.id, roster.seasonId))
     .where(eq(roster.personId, row.p.id))
     .orderBy(sql`${season.year} desc nulls first`, asc(participant.name));

@@ -42,6 +42,7 @@ import {
 } from '../../events/queries.js';
 import { formatInstant, pickText, resolveLocale } from '../../i18n.js';
 import { scheduleWindow } from '../../time.js';
+import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
 
 const MODULE = { module: 'core_data' } as const;
@@ -64,6 +65,7 @@ export function buildCtx(ctx: AppContext, locale: SupportedLocale, tz: string): 
     tz,
     now: ctx.now(),
     assetsBaseUrl: ctx.assetsBaseUrl,
+    customLogos: ctx.logos.enabled(),
     rules: ctx.rules,
   };
 }
@@ -287,13 +289,17 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
 
   detailRoute(
     '/v1/events/:id/timeline',
-    (ev) => buildTimeline(requireDb(ctx), ev, ctx.assetsBaseUrl, ctx.now()),
+    (ev) => buildTimeline(requireDb(ctx), ev, ctx.assetsBaseUrl, ctx.now(), ctx.logos.enabled()),
     CACHE_TTL.live,
   );
-  detailRoute('/v1/events/:id/lineups', (ev) => buildLineups(requireDb(ctx), ev, ctx.assetsBaseUrl), 60);
+  detailRoute(
+    '/v1/events/:id/lineups',
+    (ev) => buildLineups(requireDb(ctx), ev, ctx.assetsBaseUrl, ctx.logos.enabled()),
+    60,
+  );
   detailRoute(
     '/v1/events/:id/stats',
-    (ev, locale) => buildStats(requireDb(ctx), ev, ctx.assetsBaseUrl, locale),
+    (ev, locale) => buildStats(requireDb(ctx), ev, ctx.assetsBaseUrl, locale, ctx.logos.enabled()),
     30,
   );
 
@@ -380,7 +386,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
           })
           .from(eventParticipant)
           .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
-          .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+          .leftJoin(asset, eq(asset.id, teamLogoId(ctx.logos.enabled())))
           .where(eq(eventParticipant.eventId, head.id))
           .orderBy(
             sql`case ${eventParticipant.side} when 'home' then 0 when 'corner_red' then 0 when 'away' then 1 when 'corner_blue' then 1 else 2 end`,

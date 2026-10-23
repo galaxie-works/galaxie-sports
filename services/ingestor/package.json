@@ -44,6 +44,7 @@
     "mma": "node --env-file-if-exists=../../.env dist/cli/mma.js",
     "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js",
     "assets:palette": "node --env-file-if-exists=../../.env dist/cli/assets-palette.js",
+    "assets:acervo": "node --env-file-if-exists=../../.env dist/cli/assets-acervo.js",
     "geo:seed": "node --env-file-if-exists=../../.env dist/cli/geo-seed.js",
     "equestrian:import": "node --env-file-if-exists=../../.env dist/cli/equestrian-import.js",
     "provisional:sync": "node --env-file-if-exists=../../.env dist/cli/provisional-sync.js",

@@ -12,6 +12,12 @@ import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.
 import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
 import type { AppContext, SemanticConfig } from './context.js';
+import {
+  DbCustomLogos,
+  StaticCustomLogos,
+  VariantResponseCache,
+  type CustomLogos,
+} from './assets/custom-logos.js';
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
 import { RulesRegistry } from './events/rules-registry.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
@@ -45,6 +51,11 @@ export interface ServerOptions {
   changeFeed?: boolean | ChangeFeedOptions;
   /** ASSETS_PUBLIC_BASE_URL. */
   assetsBaseUrl?: string;
+  /**
+   * Flag ASSETS_CUSTOM_LOGOS (acervo customizado de logos): `true` relê do banco a cada 15 s (requer db);
+   * um `CustomLogos` fixo nos testes. Ausente = desligada.
+   */
+  customLogos?: boolean | CustomLogos;
   /** URL pública anunciada no OpenAPI. */
   publicUrl?: string;
   /** Configuração do onde assistir (padrão: carregada de config/ na primeira rota interna que usar). */
@@ -94,9 +105,24 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   registerObservability(app, { db: options.db });
   const prefix = options.keyPrefix ?? 'gs:';
 
-  const cache =
+  const baseCache =
     options.cache ??
     (options.redis ? new RedisResponseCache(options.redis, prefix) : new MemoryResponseCache());
+  const logos: CustomLogos =
+    typeof options.customLogos === 'object'
+      ? options.customLogos
+      : options.customLogos && options.db
+        ? new DbCustomLogos(options.db, {
+            onError: (err) =>
+              app.log.warn({ err }, 'flag ASSETS_CUSTOM_LOGOS indisponível; mantendo a última'),
+          })
+        : new StaticCustomLogos(false);
+  if (logos instanceof DbCustomLogos) {
+    app.addHook('onReady', async () => logos.start());
+    app.addHook('onClose', async () => logos.stop());
+  }
+  // a versão da flag dos logos entra na chave: trocar a flag não serve resposta velha
+  const cache = new VariantResponseCache(baseCache, logos);
   const limiter =
     options.rateLimiter ??
     (options.redis ? new RedisRateLimiter(options.redis, prefix) : new MemoryRateLimiter());
@@ -109,6 +135,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     db: options.db,
     cache,
     assetsBaseUrl: options.assetsBaseUrl,
+    logos,
     adminGuard,
     wtwConfig: () => (wtwConfig ??= loadWtwConfig()),
     rules: new RulesRegistry(options.rulesDir),

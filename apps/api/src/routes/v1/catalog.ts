@@ -36,6 +36,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
+import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 
@@ -192,6 +193,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .where(and(eq(providerMap.entityType, 'competition'), eq(providerMap.entityId, row.c.id)));
         const body: Competition = {
           ...summary!,
+          logo_source: row.logoOrigin ?? null,
           trophy_nickname: profile?.trophy ?? null,
           external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
           seasons: seasons.map((s) => ({
@@ -247,7 +249,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           })
           .from(standing)
           .innerJoin(participant, eq(participant.id, standing.participantId))
-          .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+          .leftJoin(asset, eq(asset.id, teamLogoId(ctx.logos.enabled())))
           .where(eq(standing.seasonId, s.id))
           .orderBy(asc(standing.group), asc(standing.rank));
 
@@ -340,10 +342,11 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         country: { code: country.code, name: country.name },
         logoKey: asset.storageKey,
         logoUrl: asset.sourceUrl,
+        logoOrigin: asset.origin,
       })
       .from(competition)
       .leftJoin(country, eq(country.code, competition.countryCode))
-      .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+      .leftJoin(asset, eq(asset.id, competitionLogoId(ctx.logos.enabled())))
       .$dynamic();
   }
 

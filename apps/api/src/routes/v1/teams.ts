@@ -59,6 +59,7 @@ import {
 } from '../../people/queries.js';
 import { positionName } from '../../people/stats.js';
 import { scheduleWindow } from '../../time.js';
+import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
 import { resolveMarket } from '../../events/relevance.js';
 import { buildCtx, eventPage, localeOf, sportCheck } from './events.js';
@@ -80,9 +81,10 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         logoKey: asset.storageKey,
         logoUrl: asset.sourceUrl,
         logoPalette: asset.palette,
+        logoOrigin: asset.origin,
       })
       .from(participant)
-      .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+      .leftJoin(asset, eq(asset.id, teamLogoId(ctx.logos.enabled())))
       .$dynamic();
   }
   type TeamRow = Awaited<ReturnType<ReturnType<typeof selectTeams>['execute']>>[number];
@@ -158,6 +160,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       .where(and(eq(providerMap.entityType, 'participant'), eq(providerMap.entityId, id)));
     return {
       ...toSummary(row, nick),
+      logo_source: row.logoOrigin ?? null,
       country_ref: c
         ? { code: c.code, name: pickText(c.name as Record<string, string>, locale, c.code)! }
         : null,
@@ -321,7 +324,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .innerJoin(season, eq(season.id, standing.seasonId))
           .innerJoin(competition, eq(competition.id, season.competitionId))
           .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
-          .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+          .leftJoin(asset, eq(asset.id, competitionLogoId(ctx.logos.enabled())))
           .where(
             and(eq(standing.participantId, team.id), year === undefined ? undefined : eq(season.year, year)),
           )
@@ -675,7 +678,13 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       ttl: CACHE_TTL.catalog,
       vary: [locale],
       load: async () => {
-        const body = await loadPerson(requireDb(ctx), ctx.assetsBaseUrl, ctx.now(), params.id);
+        const body = await loadPerson(
+          requireDb(ctx),
+          ctx.assetsBaseUrl,
+          ctx.now(),
+          params.id,
+          ctx.logos.enabled(),
+        );
         return {
           body,
           tags: [`person:${body.id}`, 'roster', ...body.teams.map((t) => `participant:${t.team.id}`)],

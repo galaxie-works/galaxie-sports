@@ -63,6 +63,15 @@ export const assetKind = core.enum('asset_kind', [
   'other',
 ]);
 
+/**
+ * De onde veio a imagem: `provider` = a fonte dos dados (api-sports, Wikidata, emissoras…), espelhada
+ * pelo `assets:mirror`; `acervo` = acervo customizado de logos importado pelo `assets:acervo`, que só
+ * aparece na API com a flag ASSETS_CUSTOM_LOGOS ligada (docs/runbooks/acervo-de-logos.md).
+ */
+export const ASSET_ORIGINS = ['provider', 'acervo'] as const;
+export type AssetOrigin = (typeof ASSET_ORIGINS)[number];
+export const assetOrigin = core.enum('asset_origin', ASSET_ORIGINS);
+
 // ─── catálogo ────────────────────────────────────────────────────────────────────────────────────
 
 export const sport = core.table('sport', {
@@ -99,6 +108,9 @@ export const asset = core.table(
     fetchedAt: timestamp('fetched_at', { withTimezone: true }),
     /** Só para team_logo em PNG; preenchido no espelho ou pelo backfill `assets:palette`. */
     palette: jsonb('palette').$type<AssetPalette>(),
+    origin: assetOrigin('origin').notNull().default('provider'),
+    /** Id do acervo (manifesto em config/assets/acervo/<id>.yaml) quando origin = acervo. */
+    acervo: text('acervo'),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('asset_source_url_uq').on(t.sourceUrl)],
@@ -136,6 +148,8 @@ export const competition = core.table(
      */
     prestige: smallint('prestige').notNull().default(0),
     logoAssetId: uuid('logo_asset_id').references(() => asset.id),
+    /** Logo do acervo customizado (assets:acervo); vale no lugar do logo_asset_id com ASSETS_CUSTOM_LOGOS=on. */
+    customLogoAssetId: uuid('custom_logo_asset_id').references(() => asset.id),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -306,6 +320,8 @@ export const participant = core.table(
     founded: integer('founded'),
     homeVenueId: uuid('home_venue_id').references(() => venue.id),
     logoAssetId: uuid('logo_asset_id').references(() => asset.id),
+    /** Escudo do acervo customizado (assets:acervo); vale no lugar do logo_asset_id com ASSETS_CUSTOM_LOGOS=on. */
+    customLogoAssetId: uuid('custom_logo_asset_id').references(() => asset.id),
     /** Nomes anteriores derivados dos jogos do fornecedor (`names:derive`); null = sem troca aceita. */
     providerFormerNames: jsonb('provider_former_names').$type<ProviderFormerName[]>(),
     createdAt: createdAt(),

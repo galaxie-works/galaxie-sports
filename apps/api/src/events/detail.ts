@@ -15,6 +15,7 @@ import {
   venue,
   type Database,
 } from '@galaxie/db';
+import { teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import { teamStatistics } from './statistics.js';
 import { buildTimelineDto, uuidv7Time } from './timeline.js';
@@ -26,7 +27,12 @@ type TeamRef = { id: string | null; name: string | null; side: string | null; lo
 type PersonRef = { id: string | null; name: string; photo?: string | null };
 
 /** Participantes do evento com lado e logo, indexados pelo nosso ID. */
-async function eventTeams(db: Database, eventId: string, assetsBaseUrl: string | undefined) {
+async function eventTeams(
+  db: Database,
+  eventId: string,
+  assetsBaseUrl: string | undefined,
+  customLogos: boolean,
+) {
   const rows = await db
     .select({
       id: participant.id,
@@ -37,7 +43,7 @@ async function eventTeams(db: Database, eventId: string, assetsBaseUrl: string |
     })
     .from(eventParticipant)
     .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
-    .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+    .leftJoin(asset, eq(asset.id, teamLogoId(customLogos)))
     .where(eq(eventParticipant.eventId, eventId));
   return new Map(
     rows.map((r): [string, TeamRef] => [
@@ -71,6 +77,7 @@ export async function buildTimeline(
   ev: { id: string; sport: string },
   assetsBaseUrl: string | undefined,
   now: Date,
+  customLogos = false,
 ): Promise<EventTimeline> {
   const eventId = ev.id;
   const homeTeam = alias(participant, 'home_team');
@@ -100,7 +107,7 @@ export async function buildTimeline(
     .limit(1);
   if (!head) throw new Error(`evento ${eventId} sumiu durante a montagem da timeline`);
 
-  const teams = await eventTeams(db, eventId, assetsBaseUrl);
+  const teams = await eventTeams(db, eventId, assetsBaseUrl, customLogos);
   const player = alias(person, 'player');
   const assist = alias(person, 'assist');
   const playerPhoto = alias(asset, 'player_photo');
@@ -327,11 +334,12 @@ export async function buildLineups(
   db: Database,
   ev: { id: string; sport: string },
   assetsBaseUrl: string | undefined,
+  customLogos = false,
 ): Promise<EventLineups> {
   const detail = ev.sport === 'football' ? await fixtureDetail(db, ev.id) : null;
   const lineups = Array.isArray(detail?.lineups) ? detail.lineups : [];
   if (!lineups.length) return { event_id: ev.id, available: false, lineups: [] };
-  const teams = await eventTeams(db, ev.id, assetsBaseUrl);
+  const teams = await eventTeams(db, ev.id, assetsBaseUrl, customLogos);
   const players = lineups.flatMap((l) => [...(l.startXI ?? []), ...(l.substitutes ?? [])]);
   const refs = await resolveProviderRefs(
     db,
@@ -374,13 +382,14 @@ export async function buildStats(
   ev: { id: string; sport: string },
   assetsBaseUrl: string | undefined,
   locale: string,
+  customLogos = false,
 ): Promise<EventStats> {
   const detail = ev.sport === 'football' ? await fixtureDetail(db, ev.id) : null;
   const statistics = Array.isArray(detail?.statistics) ? detail.statistics : [];
   const players = Array.isArray(detail?.players) ? detail.players : [];
   if (!statistics.length && !players.length)
     return { event_id: ev.id, available: false, teams: [], players: [] };
-  const teams = await eventTeams(db, ev.id, assetsBaseUrl);
+  const teams = await eventTeams(db, ev.id, assetsBaseUrl, customLogos);
   const refs = await resolveProviderRefs(
     db,
     ev.sport,

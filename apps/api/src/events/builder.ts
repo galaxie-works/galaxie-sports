@@ -35,6 +35,7 @@ import {
   type StakeLocale,
 } from '@galaxie/rules';
 import { formatInstant, pickList, pickText } from '../i18n.js';
+import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import { pickCheer } from './cheer.js';
 import { loadFights } from './fight.js';
@@ -80,6 +81,8 @@ export interface BuildContext {
   tz: string;
   now: Date;
   assetsBaseUrl: string | undefined;
+  /** Flag ASSETS_CUSTOM_LOGOS lida no começo da requisição: logo do acervo onde houver. */
+  customLogos: boolean;
   rules: RulesRegistry;
 }
 
@@ -306,7 +309,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     })
     .from(event)
     .leftJoin(competition, eq(competition.id, event.competitionId))
-    .leftJoin(asset, eq(asset.id, competition.logoAssetId))
+    .leftJoin(asset, eq(asset.id, competitionLogoId(ctx.customLogos)))
     .leftJoin(stage, eq(stage.id, event.stageId))
     .leftJoin(season, eq(season.id, event.seasonId))
     .leftJoin(venue, eq(venue.id, event.venueId))
@@ -346,7 +349,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     })
     .from(eventParticipant)
     .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
-    .leftJoin(asset, eq(asset.id, participant.logoAssetId))
+    .leftJoin(asset, eq(asset.id, teamLogoId(ctx.customLogos)))
     .leftJoin(teamProfile, eq(teamProfile.participantId, participant.id))
     .where(inArray(eventParticipant.eventId, ids));
   // MMA: canto vermelho antes do azul, como o mandante antes do visitante
@@ -385,7 +388,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
   const sessions = await loadRaceSessions(db, ids, locale);
   const gridResults = partRows.filter((r) => r.side === 'grid').map((r) => r.result);
   const raceTeams = gridResults.length
-    ? await loadRaceTeams(db, 'formula-1', gridResults, ctx.assetsBaseUrl)
+    ? await loadRaceTeams(db, 'formula-1', gridResults, ctx.assetsBaseUrl, ctx.customLogos)
     : new Map();
   const sideId = (eventId: string, side: 'home' | 'away') =>
     partsBy.get(eventId)?.find((p) => p.side === side)?.id ?? null;

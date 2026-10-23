@@ -162,6 +162,13 @@
       "when": 1792739828656,
       "tag": "0022_logos_acervo_oficial",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792740628584,
+      "tag": "0023_acervo_logos",
+      "breakpoints": true
     }
   ]
 }

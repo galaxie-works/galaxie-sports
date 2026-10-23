@@ -97,6 +97,13 @@ export const AssetUrl = z
   .nullable()
   .meta({ description: 'URL no nosso storage quando o asset já foi espelhado; senão, a URL de origem.' });
 
+export const LogoSource = z.enum(['provider', 'acervo']).nullable().meta({
+  id: 'LogoSource',
+  description:
+    'De onde vem o `logo`: `provider` = o fornecedor de dados; `acervo` = acervo customizado de logos em alta (ligado pela operação). null quando não há logo.',
+});
+export type LogoSource = z.infer<typeof LogoSource>;
+
 export const CountryRef = z
   .object({ code: z.string().meta({ example: 'BR' }), name: z.string().meta({ example: 'Brasil' }) })
   .meta({ id: 'CountryRef' });

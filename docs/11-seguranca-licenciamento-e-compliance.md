@@ -12,6 +12,7 @@
 | Termos | Regidos pela lei francesa; última atualização em 21/05/2025; o fornecedor pode alterar o free sem aviso |
 | Múltiplas contas/chaves para burlar limites | **Proibido** neste projeto. A economia vem do desenho (raw, cache, chamadas de alto rendimento), não de contornar regras |
 | Imagens (logos, escudos, fotos) | Espelhadas para desempenho; escudos e marcas pertencem a clubes/ligas. Uso comercial final deve ser validado juridicamente com o cliente |
+| Acervo customizado de logos | Só pacotes com licença que cubra o uso comercial (TV/streaming). Autor, licença e revisão ficam no manifesto versionado e nos créditos do [runbook](runbooks/acervo-de-logos.md#créditos-e-licenças-dos-acervos); cada asset registra a origem (`core.asset.origin`) e a flag `ASSETS_CUSTOM_LOGOS` desliga tudo na hora sem apagar nada. O football-logos.cc foi avaliado e **não** importado: os termos do site proíbem uso comercial |
 | Atribuição | Manter registro da origem de cada dado (`raw.api_response`, `core.provider_map`) |
 
 ## 2. Conteúdo gerado por IA e fontes externas
