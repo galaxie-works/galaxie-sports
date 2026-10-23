@@ -5,9 +5,10 @@
  *   pnpm --filter @galaxie/ingestor live:run                      # roda enquanto houver janela; sai ocioso (o scheduler reinicia)
  *   pnpm --filter @galaxie/ingestor live:run --continuo           # fica no ar indefinidamente
  * Opções: --esporte football · --destaque off|auto|on (detalhe do jogo principal a cada tick) · --intervalo-max-min 15
- *         · --proteger-daily N · --ocioso-min 15 · --sem-confirmar-final · --sem-publicar · --sem-tabelas
- * Variáveis: LIVE_FEATURED, LIVE_MAX_INTERVAL_MINUTES, LIVE_IDLE_EXIT_MINUTES, LIVE_PROTECT_DAILY. O painel
- * de Operação sobrescreve essas variáveis pelo banco; o processo relê a cada minuto, sem reiniciar.
+ *         · --proteger-daily N · --ocioso-min 15 · --prioridade-min high|medium|low · --sem-confirmar-final
+ *         · --sem-publicar · --sem-tabelas
+ * Variáveis: LIVE_FEATURED, LIVE_MAX_INTERVAL_MINUTES, LIVE_IDLE_EXIT_MINUTES, LIVE_PROTECT_DAILY, LIVE_MIN_PRIORITY.
+ * O painel de Operação sobrescreve essas variáveis pelo banco; o processo relê a cada minuto, sem reiniciar.
  * SIGTERM/SIGINT encerram com elegância (termina o tick em andamento, registra ops.job_run, fecha o banco).
  */
 import { resolve } from 'node:path';
@@ -113,6 +114,7 @@ await runCli(async () => {
       'intervalo-max-min': { type: 'string' },
       'proteger-daily': { type: 'string' },
       'ocioso-min': { type: 'string' },
+      'prioridade-min': { type: 'string' },
       'sem-confirmar-final': { type: 'boolean', default: false },
       'sem-publicar': { type: 'boolean', default: false },
       'sem-tabelas': { type: 'boolean', default: false },
@@ -130,12 +132,18 @@ await runCli(async () => {
     );
     const idleMin = num(values['ocioso-min'] ?? env.LIVE_IDLE_EXIT_MINUTES, '--ocioso-min');
     const protectDaily = num(values['proteger-daily'] ?? env.LIVE_PROTECT_DAILY, '--proteger-daily');
+    const minPriority = (values['prioridade-min'] || env.LIVE_MIN_PRIORITY?.trim() || undefined) as
+      | LiveSchedulerOptions['minPriority']
+      | undefined;
+    if (minPriority && !['high', 'medium', 'low'].includes(minPriority))
+      throw new Error('--prioridade-min deve ser high, medium ou low.');
     return {
       featured: featured as LiveSchedulerOptions['featured'],
       maxIntervalMs:
         maxIntervalMin !== undefined ? maxIntervalMin * 60_000 : DEFAULT_LIVE_OPTIONS.maxIntervalMs,
       protectDaily,
       idleExitMs: values.continuo ? null : (idleMin ?? 15) * 60_000,
+      ...(minPriority ? { minPriority } : {}),
     };
   };
   const initial = settingsFrom(process.env);
@@ -145,6 +153,7 @@ await runCli(async () => {
     finalize: !values['sem-confirmar-final'],
     maxIntervalMs: initial.maxIntervalMs,
     ...(initial.protectDaily !== undefined ? { protectDaily: initial.protectDaily } : {}),
+    ...(initial.minPriority ? { minPriority: initial.minPriority } : {}),
   };
   const sport = values.esporte;
   const ctx = contextFromEnv();

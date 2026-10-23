@@ -27,6 +27,7 @@ describe('scheduleFromEnv', () => {
     });
     expect(jobs.map((j) => j.name)).toEqual([
       'live-run',
+      'live-reconcile',
       'normalize-football',
       'events-clock',
       'events-importance',
