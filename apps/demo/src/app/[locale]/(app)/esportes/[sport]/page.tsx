@@ -35,7 +35,8 @@ const INTERNATIONAL = 'international';
 
 /**
  * Internacionais primeiro (Libertadores, Champions, Copa do Mundo), depois os países da navegação (na
- * ordem do menu) e o resto em ordem alfabética. Dentro do grupo, os destaques (`featured`) na frente.
+ * ordem do menu) e o resto em ordem alfabética. Dentro do grupo, os destaques (`featured`) na frente e
+ * as nacionais antes das estaduais e regionais (`level`).
  * Países do menu usam o nome do dicionário (o mesmo da sidebar); os demais, o que a API devolve.
  */
 function groupByCountry(
@@ -76,6 +77,9 @@ function groupByCountry(
       items: g.items.sort(
         (a, b) =>
           (featured.get(a.slug) ?? Infinity) - (featured.get(b.slug) ?? Infinity) ||
+          // nacionais (Série A a D, Copa do Brasil) antes dos estaduais e regionais, na ordem editorial da API
+          Number(a.level === 'regional') - Number(b.level === 'regional') ||
+          (a.order ?? Infinity) - (b.order ?? Infinity) ||
           a.tier - b.tier ||
           a.name.localeCompare(b.name, locale),
       ),

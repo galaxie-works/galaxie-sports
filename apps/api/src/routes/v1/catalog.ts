@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, ilike, inArray, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { loadGeoConfig, type GeoConfig } from '@galaxie/geo';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import {
@@ -62,6 +63,24 @@ function localeOf(request: FastifyRequest, query: { locale?: z.infer<typeof Loca
 
 /** Rotas do catálogo (docs/05 §3.1). Todas exigem o módulo core_data. */
 export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
+  // nível nacional/regional e posição editorial das domésticas (config/geo); sem a config, os campos saem
+  // null em vez de quebrar
+  let geo: GeoConfig | null | undefined;
+  const geoConfig = () => {
+    if (geo === undefined) {
+      try {
+        geo = loadGeoConfig();
+      } catch (err) {
+        app.log.warn({ err }, 'config/geo indisponível: competições sem `level` e `order`');
+        geo = null;
+      }
+    }
+    return geo;
+  };
+  const levelOf = (sport: string, slug: string, countryCode: string | null | undefined) =>
+    geoConfig()?.competitionLevel(sport, slug, countryCode ?? null) ?? null;
+  const orderOf = (sport: string, slug: string, countryCode: string | null | undefined) =>
+    levelOf(sport, slug, countryCode) ? (geoConfig()?.domesticOrder(sport, slug) ?? null) : null;
   const countryRef = (c: CountryRow, locale: string) =>
     c ? { code: c.code, name: pickText(c.name as Record<string, string>, locale, c.code)! } : null;
 
@@ -413,6 +432,8 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         type: r.c.type,
         tier: r.c.tier,
         country: countryRef(r.country?.code ? (r.country as CountryRow) : null, locale),
+        level: levelOf(r.c.sport, r.c.slug, r.country?.code),
+        order: orderOf(r.c.sport, r.c.slug, r.country?.code),
         logo: assetUrl(ctx.assetsBaseUrl, r.logoKey, r.logoUrl),
         current_season: cur ? { year: cur.year, label: cur.label } : null,
       };

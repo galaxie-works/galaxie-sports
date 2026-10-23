@@ -6,7 +6,14 @@ import { AssetUrl, LocaleQuery } from './common.js';
 // ─── navegação por país (docs/05 §3.1.1, docs/09 §2.1) ───────────────────────────────────────────
 
 /** Escopo de uma competição na página do país. */
-export const COMPETITION_SCOPES = ['domestic', 'continental_clubs', 'national_teams', 'world_clubs'] as const;
+/** `regional` = estaduais e copas regionais do país (Carioca, Copa do Nordeste), depois das nacionais. */
+export const COMPETITION_SCOPES = [
+  'domestic',
+  'continental_clubs',
+  'national_teams',
+  'world_clubs',
+  'regional',
+] as const;
 export type CompetitionScope = (typeof COMPETITION_SCOPES)[number];
 
 export const CountryParams = z.object({

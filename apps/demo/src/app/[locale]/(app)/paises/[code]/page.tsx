@@ -26,10 +26,11 @@ type CompetitionItem = CountryCompetitions['sports'][number]['groups'][number]['
 const SPORT_PARAM = 'esporte';
 
 /**
- * Ordem dos grupos: as competições de clubes juntas (nacionais, continentais, mundiais) e a seleção no fim.
- * A Libertadores fica logo depois das nacionais, que mostram só as primeiras (o resto atrás de "ver mais").
+ * Ordem dos grupos: as competições de clubes juntas (nacionais, continentais, mundiais), a seleção e, no
+ * fim, os estaduais e regionais. As nacionais (Série A a D, Copa do Brasil) ficam curtas e a Libertadores
+ * logo depois delas.
  */
-const SCOPE_ORDER = ['domestic', 'continental_clubs', 'world_clubs', 'national_teams'];
+const SCOPE_ORDER = ['domestic', 'continental_clubs', 'world_clubs', 'national_teams', 'regional'];
 const scopeRank = (scope: string) => {
   const i = SCOPE_ORDER.indexOf(scope);
   return i < 0 ? SCOPE_ORDER.length : i;

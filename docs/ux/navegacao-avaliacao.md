@@ -233,7 +233,7 @@ Depois da primeira entrega, o pedido foi olhar o celular e a organização das l
 ### 18. Ainda no celular: propostas 📝
 
 - **Países no Explorar:** os 17 cards de país ainda somam uns 3.000 px. Proposta: no celular, uma lista compacta (bandeira, nome, liga principal e jogo em destaque) e o card rico só a partir do tablet.
-- **Estaduais separados das nacionais:** a API não diz o que é estadual ou regional. A ordem da API já põe Série A e Copa do Brasil na frente, mas na página do esporte a Copa do Brasil depende de "Ver mais". Proposta para a API: um campo `level` (`national` / `regional`) ou a ordem de importância também em `/v1/competitions`. Aí a demo separa "Nacionais" de "Estaduais e regionais".
+- **Estaduais separados das nacionais:** ✅ feito no item 20.
 - **Fileira de abas e de rodadas:** no celular rolam na horizontal sem indicar que há mais. Proposta: um degradê na borda direita.
 - **Página do jogo no celular:** o card "Sobre o jogo" (relevância por país, com 11 países) vem antes do contexto e dos detalhes. Proposta: no celular, recolher a relevância por país num "Ver por país".
 
@@ -253,6 +253,37 @@ Depois da primeira entrega, o pedido foi olhar o celular e a organização das l
 | Desktop | Celular |
 | --- | --- |
 | ![Depois: país antes da liga](img/depois-ao-vivo-bandeira-liga.jpg) | ![Depois no celular](img/depois-celular-ao-vivo-bandeira-liga.jpg) |
+
+## Terceira rodada: backlog de navegação
+
+Os épicos do backlog de navegação, um PR cada. A ordem e as decisões de produto estão no próprio backlog.
+
+### 20. Nacionais × estaduais e regionais (E1) ✅
+
+**Onde:** página do país e página do esporte. A API não dizia o que é estadual. O Brasil mostrava 40 "competições nacionais" misturadas (Série A, Copa do Brasil, 27 estaduais, divisões de acesso, copas regionais). A Série B, de tier 2, ficava atrás dos estaduais de tier 1. Na página do Futebol, a Copa do Brasil caía entre os estaduais por ordem alfabética.
+
+| Antes (celular) | Depois (celular) |
+| --- | --- |
+| ![Antes: 40 nacionais misturadas](img/antes-celular-pais-nacionais.jpg) | ![Depois: divisões em ordem e depois as copas](img/depois-celular-pais-nacionais.jpg) |
+
+**Decisão de produto:** as divisões de acesso (Série B, C e D, e as equivalentes de outros países) ficam **junto das nacionais**, em ordem de divisão: Série A, B, C, D e depois as copas nacionais. Os estaduais e as copas regionais vão para um grupo próprio, no fim.
+
+**Correção:**
+
+- **Configuração:** uma lista `regional` por esporte em `config/geo/competition-scope.yaml`, ao lado do `featured`. No Brasil, os 27 estaduais, o Paulistão A2 e as copas regionais (Nordeste, Verde, Norte, Sul-Sudeste, Centro-Oeste). Os grandes estaduais vêm primeiro.
+- **API:**
+  - Na página do país (`/v1/countries/{code}/competitions`), o novo escopo `regional` vira o grupo "Estaduais e regionais". O grupo doméstico fica só com as nacionais, na ordem do `featured`, que agora vem antes do tier: Série A, B, C, D, Copa do Brasil, Supercopa e Feminino A1. Na Argentina, Uruguai, Chile, Colômbia e México, a segunda divisão entra logo depois da primeira.
+  - O catálogo (`/v1/competitions` e o detalhe) ganha `level` (`national`, `regional` ou `null` nas internacionais) e `order` (posição editorial no país). Os dois campos são aditivos.
+- **Demo:**
+  - Na página do país, a ordem dos grupos fica Nacionais → Copas continentais → Mundiais → Seleção → Estaduais e regionais.
+  - Na página do esporte, dentro do país, as nacionais vêm antes das regionais, na ordem editorial da API.
+- **Teste:** toda doméstica do Brasil de tier 1 ou 2 precisa estar no `featured` (nacional) ou no `regional`. Uma competição nova sem nível quebra o teste em vez de voltar a misturar.
+
+| Estaduais e regionais no fim do Brasil | Futebol: Brasil em ordem de divisão |
+| --- | --- |
+| ![Grupo regional](img/depois-celular-pais-regionais.jpg) | ![Página do esporte](img/depois-celular-futebol-brasil-divisoes.jpg) |
+
+No celular, a Libertadores fica a 943 px do topo do Brasil (antes do #200 ficava a 3.540 px).
 
 ## Proposta maior: trilha hierárquica fixa 📝
 

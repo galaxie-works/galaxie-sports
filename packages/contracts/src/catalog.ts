@@ -63,6 +63,27 @@ export const CompetitionSummary = z
     type: z.enum(COMPETITION_TYPES),
     tier: z.number().int().min(1).max(3).meta({ description: '1 = cobertura máxima; 3 = apenas espelho.' }),
     country: CountryRef.nullable(),
+    level: z
+      .enum(['national', 'regional'])
+      .nullable()
+      .optional()
+      .meta({
+        description:
+          'Nível da doméstica: `national` (Série A a D, Copa do Brasil) ou `regional` (estaduais, Copa do ' +
+          'Nordeste); null nas internacionais. Ausente nos blocos que não trazem o nível.',
+        example: 'national',
+      }),
+    order: z
+      .number()
+      .int()
+      .nullable()
+      .optional()
+      .meta({
+        description:
+          'Posição editorial da doméstica no país, dentro do nível (Série A 0, Copa do Brasil 1, Série B 2…; ' +
+          'Paulista 0, Carioca 1… nas regionais); null sem posição (ordem por tier e nome).',
+        example: 0,
+      }),
     logo: AssetUrl,
     current_season: SeasonRef.nullable(),
   })
