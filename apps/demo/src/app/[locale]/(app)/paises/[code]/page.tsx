@@ -121,7 +121,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/paises/[co
           <UrlTabs param={SPORT_PARAM} value={selected} className="gap-6">
             {data.sports.length > 1 ? (
               // muitos esportes não cabem no celular: a fileira rola na horizontal
-              <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 py-0.5 md:mx-0 md:px-0">
+              <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 py-0.5 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <TabsList>
                   {data.sports.map((s) => (
                     <TabsTrigger key={s.sport.slug} value={s.sport.slug}>
