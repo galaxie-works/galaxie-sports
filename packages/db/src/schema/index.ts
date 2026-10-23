@@ -6,4 +6,5 @@ export * from './semantic.js';
 export * from './enrich.js';
 export * from './ops.js';
 export * from './multisport.js';
+export * from './equestrian.js';
 export * from './api.js';

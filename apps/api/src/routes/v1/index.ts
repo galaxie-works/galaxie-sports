@@ -14,6 +14,7 @@ import { navigationRoutes } from './navigation.js';
 import { exploreRoutes } from './explore.js';
 import { relatedRoutes } from './related.js';
 import { searchRoutes } from './search.js';
+import { equestrianRoutes } from './equestrian.js';
 
 /**
  * Rotas /v1. Cada grupo é um módulo próprio:
@@ -37,6 +38,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await semanticRoutes(app, ctx);
   await copyRoutes(app, ctx);
   await multisportRoutes(app, ctx);
+  // hipismo /v1/equestrian (issue 140) — módulo core_data
+  await equestrianRoutes(app, ctx);
   // navegação por país e menu de esportes — módulo core_data
   await navigationRoutes(app, ctx);
   // busca global `/v1/search` (times, competições, jogos, pessoas, estádios, países) — módulo core_data

@@ -24,7 +24,7 @@ import { CountryFlag } from '@/components/sport/country-flag';
 import { SidebarSearchButton } from '@/components/search/search-button';
 import { DOCS_NAV } from '@/lib/docs';
 import { useI18n } from '@/lib/i18n/client';
-import { COUNTRIES, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
+import { COUNTRIES, EQUESTRIAN_NAV, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
 import { topLevelClick } from '@/lib/trail';
 
 import { UserMenu } from './user-menu';
@@ -88,6 +88,7 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
             {SPORTS.map((item) => (
               <NavLink key={item.href} item={item} label={t.nav.sports[item.slug]} pathname={pathname} />
             ))}
+            <NavLink item={EQUESTRIAN_NAV} label={t.nav.equestrian} pathname={pathname} />
             <NavLink item={MULTISPORT_NAV} label={t.nav.multisport} pathname={pathname} />
           </SidebarMenu>
         </SidebarGroupContent>

@@ -18,6 +18,7 @@ export default defineMessages(
       afl: 'Futebol australiano',
     },
     multisport: 'Olimpíadas e Pan',
+    equestrian: 'Hipismo',
     countries: {
       BR: 'Brasil',
       AR: 'Argentina',
@@ -101,6 +102,7 @@ export default defineMessages(
         afl: 'Australian football',
       },
       multisport: 'Olympics and Pan Am',
+      equestrian: 'Equestrian',
       countries: {
         BR: 'Brazil',
         AR: 'Argentina',
@@ -184,6 +186,7 @@ export default defineMessages(
         afl: 'Fútbol australiano',
       },
       multisport: 'Olímpicos y Panamericanos',
+      equestrian: 'Hípica',
       countries: {
         BR: 'Brasil',
         AR: 'Argentina',

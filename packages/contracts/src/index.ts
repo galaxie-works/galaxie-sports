@@ -11,6 +11,7 @@ export * from './teams.js';
 export * from './context.js';
 export * from './semantic.js';
 export * from './multisport.js';
+export * from './equestrian.js';
 export * from './navigation.js';
 export * from './search.js';
 export * from './explore.js';
