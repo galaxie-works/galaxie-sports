@@ -15,7 +15,7 @@ import {
   type Database,
 } from '@galaxie/db';
 import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
-import { pendingPersonPhotoIds, PERSON_PHOTO_KINDS } from './person-photos.js';
+import { pendingPersonPhotoIds, PERSON_PHOTO_KINDS, PLACEHOLDER_PHOTO_SHA256 } from './person-photos.js';
 import { LOGO_KIND_VALUES, LOGO_KINDS, MISSING_ASSET } from './placeholder-logos.js';
 
 /**
@@ -105,6 +105,11 @@ export interface AssetStore {
    * competições ligados a qualquer logo ausente perdem o vínculo. `dryRun` só conta.
    */
   cleanupLogos(at: Date, options?: LogoCleanupOptions): Promise<LogoCleanup>;
+  /**
+   * Fotos de pessoa já gravadas cujo hash entrou na lista de genéricas: viram ausentes e as pessoas ficam sem
+   * foto (como na hora do download). Retorna quantas.
+   */
+  cleanupPhotos(at: Date, options?: LogoCleanupOptions): Promise<number>;
   /** Registra URLs novas (idempotente). Retorna quantas eram novas. */
   register(urls: string[]): Promise<number>;
   counts(): Promise<AssetCounts>;
@@ -207,6 +212,15 @@ export class InMemoryAssetStore implements AssetStore {
       }
     }
     return n;
+  }
+
+  async cleanupPhotos(at: Date, options: LogoCleanupOptions = {}): Promise<number> {
+    const placeholders = options.placeholders ?? PLACEHOLDER_PHOTO_SHA256;
+    const generic = this.rows.filter(
+      (r) => PERSON_PHOTO_KINDS.has(r.kind) && r.storageKey && placeholders.has(r.sha256 ?? ''),
+    );
+    if (!options.dryRun) for (const r of generic) await this.markMissing(r.id, at, { detachPeople: true });
+    return generic.length;
   }
 
   async cleanupLogos(at: Date, options: LogoCleanupOptions = {}): Promise<LogoCleanup> {
@@ -337,6 +351,41 @@ export class PgAssetStore implements AssetStore {
           .set({ logoAssetId: null, updatedAt: sql`now()` })
           .where(eq(competition.logoAssetId, id));
       }
+    });
+  }
+
+  async cleanupPhotos(at: Date, options: LogoCleanupOptions = {}): Promise<number> {
+    const placeholders = [...(options.placeholders ?? PLACEHOLDER_PHOTO_SHA256)];
+    const generic = and(
+      inArray(asset.kind, ['player', 'coach']),
+      isNotNull(asset.storageKey),
+      inArray(asset.sha256, placeholders),
+    );
+    if (options.dryRun) {
+      const [row] = await this.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(asset)
+        .where(generic);
+      return row?.n ?? 0;
+    }
+    return this.db.transaction(async (tx) => {
+      const ids = await tx
+        .update(asset)
+        .set({ ...UNLINKED, fetchedAt: at })
+        .where(generic)
+        .returning({ id: asset.id });
+      if (ids.length) {
+        await tx
+          .update(person)
+          .set({ photoAssetId: null, updatedAt: sql`now()` })
+          .where(
+            inArray(
+              person.photoAssetId,
+              ids.map((r) => r.id),
+            ),
+          );
+      }
+      return ids.length;
     });
   }
 

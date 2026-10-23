@@ -1,17 +1,22 @@
 /**
  * Importa o F1DB (histórico da Fórmula 1 desde 1950, CC BY 4.0) como segunda fonte da F1.
  *   pnpm --filter @galaxie/ingestor f1db:import --previa          # baixa o release fixado, casa e mostra o que mudaria
+ *                                                                 # (grava só o raw; o core é desfeito no fim)
  *   pnpm --filter @galaxie/ingestor f1db:import                   # grava
  *   pnpm --filter @galaxie/ingestor f1db:import --dir /dados/f1db # onde guardar o release (padrão: F1DB_DIR ou ~/.galaxie/f1db)
  *   pnpm --filter @galaxie/ingestor f1db:import --from-raw <sha256> [--previa]  # renormaliza só a partir do raw
  *   pnpm --filter @galaxie/ingestor f1db:import --reprocessar      # reaplica o mesmo release (normalizador mudou)
  * O release vai para o raw store (páginas por tabela); a normalização lê do raw e casa com a F1 da api-sports
  * pelo `provider_map`. Reimportar o mesmo release não duplica nada.
+ *
+ * O que a prévia grava: só o raw (`raw.api_response`, provider `f1db`): as páginas do release, cópia fiel e
+ * idempotente (o mesmo release não grava de novo). Casamento, `provider_map` e core rodam numa transação desfeita
+ * no fim.
  */
 import { closeDb, createDb } from '@galaxie/db';
 import { F1DB_LICENSE, F1DB_SOURCE_URL } from '@galaxie/providers';
 import { importF1db } from '../f1db/import.js';
-import { loadF1dbRaw, readF1dbPackage, storeF1dbRaw } from '../f1db/package-raw.js';
+import { loadF1dbRaw, storeF1dbRelease } from '../f1db/package-raw.js';
 import { ensureRelease, F1DB_RELEASE, f1dbDir } from '../f1db/release.js';
 import { parseArgs } from '../multisport/cli-args.js';
 
@@ -37,12 +42,13 @@ try {
       F1DB_RELEASE,
       (m) => console.log(m),
     );
-    const pkg = await readF1dbPackage(dbPath, F1DB_RELEASE.version);
-    sha = pkg.sha256;
-    release = pkg.release;
-    // o raw é a cópia fiel do release: fica mesmo na prévia (idempotente)
-    const pages = await storeF1dbRaw(db, pkg);
-    console.log(`raw: ${pages} página(s) nova(s) do F1DB ${release} (${sha.slice(0, 12)})`);
+    // o raw é a cópia fiel do release: fica mesmo na prévia (idempotente). Gravado em fluxo, página a página.
+    const stored = await storeF1dbRelease(db, dbPath, F1DB_RELEASE.version);
+    sha = stored.sha256;
+    release = F1DB_RELEASE.version;
+    console.log(
+      `raw: ${stored.inserted} página(s) nova(s) do F1DB ${release} (${sha.slice(0, 12)})${dryRun ? ' · a prévia grava só o raw' : ''}`,
+    );
   }
 
   const raw = await loadF1dbRaw(db, sha);
@@ -55,7 +61,7 @@ try {
   });
 
   console.log(
-    `\nF1DB ${raw.release ?? release} · ${F1DB_LICENSE} · ${F1DB_SOURCE_URL}${dryRun ? ' · PRÉVIA (nada gravado)' : ''}`,
+    `\nF1DB ${raw.release ?? release} · ${F1DB_LICENSE} · ${F1DB_SOURCE_URL}${dryRun ? ' · PRÉVIA (core e provider_map desfeitos; só o raw fica)' : ''}`,
   );
   console.table({
     'corridas casadas (GP coberto pela api-sports)': result.match.racesMatched,
@@ -87,6 +93,13 @@ try {
     if (unmatched.venues.length) console.log(`  circuitos: ${unmatched.venues.join(', ')}`);
   }
   if (conflicts.length) console.log(`\nConflitos (par recusado):\n  ${conflicts.join('\n  ')}`);
+  if (result.shared.length)
+    console.log(
+      `\nMesma entidade para mais de um ID do F1DB (entram como uma só; confira):\n  ${result.shared
+        .map((e) => `${e.name} (${e.entityId}): ${e.f1dbIds.join(', ')}`)
+        .join('\n  ')}`,
+    );
+  console.log(`\nmemória: pico de ${Math.round(process.resourceUsage().maxRSS / 1024)} MB (RSS)`);
 } finally {
   await closeDb(db);
 }

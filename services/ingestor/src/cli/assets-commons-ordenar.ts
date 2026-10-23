@@ -1,0 +1,97 @@
+/**
+ * Ordem do Gemini para o acervo de fotos da F1 (passo da VPS, onde a chave funciona) — docs/runbooks/fotos-commons.md.
+ *   node dist/cli/assets-commons-ordenar.js --plan                          # prévia: alvos a ordenar, sem chamar nada
+ *   node dist/cli/assets-commons-ordenar.js --saida /data/commons/f1.yaml   # ordena e grava o manifesto
+ * Para cada alvo do manifesto ainda sem a ordem do Gemini: busca as candidatas na Commons, aplica as regras e
+ * manda as 12 melhores ao Gemini (visão), que classifica (retrato, ação, carro), descarta o que não é foto real
+ * e dá a nota. A licença, a resolução, a época e a categoria continuam decididas pelas regras; a IA não
+ * acrescenta foto. Curadoria (`manual`, `rejected`) fica.
+ *
+ * Idempotente: o alvo ordenado guarda o modelo e a data (`ranking`) e não é refeito sem --refazer; se o Gemini
+ * falhar, o alvo fica como estava e volta na próxima execução. O manifesto de --saida (se já existir) é a base,
+ * então rodar de novo continua de onde parou.
+ *
+ * Opções: --manifesto <arquivo> (entrada; padrão: o do repositório), --saida <arquivo> (padrão: a entrada),
+ * --so driver/ayrton-senna,car/mclaren/1988, --limite <n> (alvos por execução), --refazer.
+ * Ambiente: GEMINI_API_KEY e GEMINI_MODEL_VISION (padrão: o leve da camada de IA).
+ */
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { closeDb, createDb } from '@galaxie/db';
+import { WikimediaClient } from '../assets/commons/client.js';
+import { GEMINI_VISION_DEFAULT_MODEL, geminiRanker } from '../assets/commons/gemini.js';
+import { loadF1dbForCommons, targetsByKey } from '../assets/commons/load.js';
+import { readManifest, writeManifest } from '../assets/commons/manifest.js';
+import { AI_POOL, coverageReport, isRanked, mapCommons, writeReport } from '../assets/commons/map.js';
+import { listArg, parseArgs } from '../multisport/cli-args.js';
+
+const url = process.env.DATABASE_URL;
+if (!url) throw new Error('Defina DATABASE_URL (.env).');
+const args = parseArgs(process.argv.slice(2));
+const root = join(import.meta.dirname, '..', '..', '..', '..');
+const input = String(args.get('manifesto') ?? join(root, 'config', 'assets', 'commons', 'f1.yaml'));
+const output = String(args.get('saida') ?? input);
+const only = listArg(args, 'so');
+const limit = args.has('limite') ? Number(args.get('limite')) : Number.POSITIVE_INFINITY;
+const redo = args.has('refazer');
+const plan = args.has('plan');
+const model = process.env.GEMINI_MODEL_VISION?.trim() || GEMINI_VISION_DEFAULT_MODEL;
+const log = (m: string) => console.log(m);
+
+// a saída de uma execução anterior é a base: continua de onde parou
+const base = (output !== input && existsSync(output) ? readManifest(output) : null) ?? readManifest(input);
+if (!base) throw new Error(`Manifesto não encontrado: ${input} (rode assets:commons --mapear).`);
+const pending = base.entries
+  .filter((e) => !only || only.includes(e.target))
+  .filter((e) => redo || !isRanked(e))
+  .slice(0, limit);
+
+if (plan) {
+  console.table(
+    base.entries
+      .filter((e) => !only || only.includes(e.target))
+      .map((e) => ({
+        alvo: e.target,
+        fotos: e.photos.filter((p) => p.match !== 'rejected').length,
+        ordem: e.ranking ? `Gemini (${e.ranking.model}, ${e.ranking.at})` : 'regras',
+        agora: pending.includes(e) ? 'ordenar' : '—',
+      })),
+  );
+  console.log(
+    `PRÉVIA (nada chamado, nada gravado): ${pending.length} alvo(s) a ordenar com ${model}, ` +
+      `1 chamada ao Gemini por alvo com até ${AI_POOL} miniaturas; base ${existsSync(output) ? output : input}`,
+  );
+} else {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) throw new Error('Defina GEMINI_API_KEY: este passo só existe para a ordem do Gemini.');
+  const db = createDb(url, { max: 2 });
+  const client = new WikimediaClient({ log });
+  try {
+    const { tables, release } = await loadF1dbForCommons(db);
+    const targets = targetsByKey(
+      tables,
+      pending.map((e) => e.target),
+    );
+    console.log(`${targets.length} alvo(s) a ordenar; F1DB ${release ?? '?'}; Gemini ${model}`);
+    const { manifest, stats } = await mapCommons(client, targets, base, {
+      revision: new Date().toISOString().slice(0, 10),
+      ranker: geminiRanker({ apiKey, model }),
+      redo,
+      log,
+    });
+    writeManifest(output, manifest);
+    writeReport(output.replace(/\.yaml$/, '.cobertura.md'), coverageReport(manifest, stats));
+    console.table(
+      stats.map((s) => ({
+        alvo: s.key,
+        candidatas: s.candidates,
+        aceitas: s.eligible,
+        escolhidas: s.chosen,
+        ordem: s.ranking,
+      })),
+    );
+    console.log(`manifesto: ${output} · ${client.requests} requisições à Wikimedia`);
+  } finally {
+    await closeDb(db);
+  }
+}

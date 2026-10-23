@@ -4,7 +4,7 @@ import { matchF1db } from './match.js';
 import { normalizeF1db } from './normalize.js';
 import { sessionStart } from './schedule.js';
 import type { CoreF1Snapshot, CoreRaceEvent } from './match.js';
-import type { F1dbRow, F1dbTables } from './tables.js';
+import { f1dbSeasonRange, sliceF1dbSeasons, type F1dbRow, type F1dbTables } from './tables.js';
 
 const result = (
   raceId: number,
@@ -562,5 +562,31 @@ describe('sessionStart', () => {
       longitude: 7.4,
     });
     expect(r?.startsAt.toISOString().slice(0, 10)).toBe('1988-05-12');
+  });
+});
+
+describe('recorte do release por temporadas', () => {
+  const release: F1dbTables = {
+    driver: [{ id: 'ayrton-senna' }, { id: 'max-verstappen' }],
+    constructor: [{ id: 'mclaren' }, { id: 'red-bull' }],
+    race: [
+      { id: 470, year: 1988 },
+      { id: 1100, year: 2024 },
+    ],
+    race_data: [result(470, 1, 'ayrton-senna', 'mclaren'), result(1100, 1, 'max-verstappen', 'red-bull')],
+    season_driver_standing: [
+      { year: 1988, position_number: 1, driver_id: 'ayrton-senna' },
+      { year: 2024, position_number: 1, driver_id: 'max-verstappen' },
+    ],
+  };
+
+  it('corridas, resultados e campeonatos só dos anos pedidos; cadastros inteiros', () => {
+    const s = sliceF1dbSeasons(release, 1980, 1989);
+    expect(s.race).toEqual([{ id: 470, year: 1988 }]);
+    expect(s.race_data!.map((r) => r.race_id)).toEqual([470]);
+    expect(s.season_driver_standing!.map((r) => r.year)).toEqual([1988]);
+    expect(s.driver).toHaveLength(2);
+    expect(Object.hasOwn(s, 'constructor') && s.constructor).toHaveLength(2);
+    expect(f1dbSeasonRange(release)).toEqual({ from: 1988, to: 2024 });
   });
 });

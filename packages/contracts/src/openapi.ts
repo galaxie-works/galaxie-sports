@@ -44,6 +44,7 @@ import {
   WhereToWatchParams,
   WhereToWatchQuery,
 } from './where-to-watch.js';
+import { RaceCareer, TeamPhotos, TeamPhotosQuery } from './racing.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
 import { RelatedContent, RelatedQuery } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
@@ -339,6 +340,24 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'Times e pessoas',
           page(Event),
           { path: TeamParams, query: TeamEventsQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/teams/{id}/photos': {
+        get: getOp(
+          'Fotos do piloto ou da equipe (acervo de licenças livres da Wikimedia Commons), cada uma com o crédito obrigatório',
+          'Times e pessoas',
+          TeamPhotos,
+          { path: TeamParams, query: TeamPhotosQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/teams/{id}/career': {
+        get: getOp(
+          'Carreira na Fórmula 1 (piloto ou construtor): temporada a temporada, títulos, vitórias, poles, pódios, voltas mais rápidas, primeira e última corrida, equipes e companheiros',
+          'Times e pessoas',
+          RaceCareer,
+          { path: TeamParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
       },

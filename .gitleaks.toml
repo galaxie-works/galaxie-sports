@@ -15,3 +15,10 @@ regexes = ['''copyTemplate\.key''']
 description = "Senha fictícia da stack de teste local no README do Portainer (sequência hex 0-f)"
 regexTarget = "match"
 regexes = ['''=0123456789abcdef$''']
+
+[[allowlists]]
+description = "Chaves do acervo de fotos da Commons (car/lotus/1985, driver/ayrton-senna): slugs, não segredos"
+# Só a linha inteira "key: <slug>/<slug>". Sem `paths` de propósito: no gitleaks 8.28 um `paths` pula o arquivo
+# todo (mesmo com condition = "AND"), e um segredo real no acervo passaria despercebido.
+regexTarget = "line"
+regexes = ['''^\s*-?\s*key:\s*[a-z][a-z0-9-]*(/[a-z0-9-]+)+\s*$''']

@@ -48,6 +48,11 @@ const SCOPE_LABELS: Record<CompetitionScope, I18n> = {
   },
   national_teams: { 'pt-BR': 'Seleção', es: 'Selección', en: 'National team' },
   world_clubs: { 'pt-BR': 'Mundiais de clubes', es: 'Mundiales de clubes', en: 'Club world competitions' },
+  regional: {
+    'pt-BR': 'Estaduais e regionais',
+    es: 'Competiciones regionales',
+    en: 'State and regional competitions',
+  },
 };
 
 export interface NavigationRoutesOptions {
@@ -335,12 +340,21 @@ export async function navigationRoutes(
       all.map((a) => a.row),
       locale,
     );
-    return all.map(({ row, entry }, i) => ({
-      ...summaries[i]!,
-      scope: entry ? entry.scope : 'domestic',
-      confederations: entry ? entry.confederations : [],
-      order: entry ? entry.order : g.featuredOrder(row.c.sport, row.c.slug),
-    }));
+    return all.map(({ row, entry }, i) => {
+      // estaduais e regionais num grupo próprio, depois das nacionais (lista `regional` do escopo)
+      const regional = !entry && g.isRegional(row.c.sport, row.c.slug);
+      return {
+        ...summaries[i]!,
+        level: entry ? null : regional ? ('regional' as const) : ('national' as const),
+        scope: entry ? entry.scope : regional ? 'regional' : 'domestic',
+        confederations: entry ? entry.confederations : [],
+        order: entry
+          ? entry.order
+          : regional
+            ? g.regionalOrder(row.c.sport, row.c.slug)
+            : g.featuredOrder(row.c.sport, row.c.slug),
+      };
+    });
   }
 
   /** Resumo da competição (mesmo formato de /v1/competitions). */

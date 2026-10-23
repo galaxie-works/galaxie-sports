@@ -70,7 +70,9 @@ import {
   chunks,
   coalesceUpdate,
   dedupeBy,
+  fillNulls,
   linkIds,
+  mergeBy,
   replaceUpdate,
   resolveIds,
   type Executor,
@@ -447,8 +449,14 @@ export async function upsertBatchInTx(
       imageAssetId: assetId(v.imageUrl),
       nameSeenAt: v.nameSeenAt ?? null,
     });
+  // dois IDs do provedor no mesmo local viram uma linha só (a de fonte própria primeiro)
+  const venueMerged = mergeBy(
+    [...venueRows].sort((a, b) => Number(a.reference) - Number(b.reference)),
+    (r) => r.id!,
+    (a, b) => ({ ...fillNulls(a, b), reference: a.reference && b.reference }),
+  );
   for (const reference of [false, true]) {
-    const rows = venueRows.filter((r) => r.reference === reference).map(({ reference: _r, ...row }) => row);
+    const rows = venueMerged.filter((r) => r.reference === reference).map(({ reference: _r, ...row }) => row);
     for (const chunk of chunks(rows, 500)) {
       const { set, setWhere } = coalesceUpdate(
         venue,
@@ -479,7 +487,7 @@ export async function upsertBatchInTx(
     'venue',
     [...venueIds.created].map((pid) => ({ providerId: pid, entityId: venueIds.ids.get(pid)! })),
   );
-  stats.venues = venueRows.length;
+  stats.venues = venueMerged.length;
   const venueId = (pid: string | null) => (pid ? (venueIds.ids.get(pid) ?? null) : null);
 
   // ─ participantes ─
@@ -518,9 +526,22 @@ export async function upsertBatchInTx(
     'homeVenueId',
     'logoAssetId',
   ];
+  // dois IDs do provedor na mesma entidade (a mesma equipe com dois nomes no F1DB) viram uma linha só: o
+  // Postgres recusa a mesma chave duas vezes no mesmo insert. Tipo conhecido e fonte própria primeiro.
+  const participantMerged = mergeBy(
+    [...participantRows].sort(
+      (a, b) => Number(b.known) - Number(a.known) || Number(a.reference) - Number(b.reference),
+    ),
+    (r) => r.row.id!,
+    (a, b) => ({
+      known: a.known || b.known,
+      reference: a.reference && b.reference,
+      row: fillNulls(a.row, b.row),
+    }),
+  );
   for (const known of [true, false])
     for (const reference of [false, true]) {
-      const rows = participantRows
+      const rows = participantMerged
         .filter((r) => r.known === known && r.reference === reference)
         .map((r) => r.row);
       for (const chunk of chunks(rows, 500)) {
@@ -541,7 +562,7 @@ export async function upsertBatchInTx(
     'participant',
     [...participantIds.created].map((pid) => ({ providerId: pid, entityId: participantIds.ids.get(pid)! })),
   );
-  stats.participants = participantRows.length;
+  stats.participants = participantMerged.length;
   const participantId = (pid: string | null) => (pid ? (participantIds.ids.get(pid) ?? null) : null);
 
   // ─ pessoas ─

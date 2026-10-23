@@ -11,6 +11,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "Scuderia Ferrari", country: "Italy" }
+    f1db: { id: ferrari }
     founded: null
     country: IT
     city: Maranello
@@ -35,6 +36,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "Mercedes-AMG Petronas", country: "Germany" }
+    f1db: { id: mercedes }
     founded: null
     country: DE
     city: Brackley
@@ -56,6 +58,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "McLaren Racing", country: "United Kingdom" }
+    f1db: { id: mclaren }
     founded: null
     country: GB
     city: Woking
@@ -76,6 +79,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "Alpine F1 Team", country: "France" }
+    f1db: { id: alpine }
     founded: null
     country: FR
     city: Enstone
@@ -97,6 +101,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "Audi", country: "Germany" }
+    f1db: { id: audi }
     founded: null
     country: DE
     city: Hinwil
@@ -117,6 +122,7 @@ participants:
     api_sports:
       team_id: null
       match: { name: "Cadillac", country: "USA" }
+    f1db: { id: cadillac }
     founded: null
     country: US
     city: Fishers
