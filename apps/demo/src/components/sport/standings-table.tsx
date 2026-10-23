@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { aflPercentage } from '@/lib/afl';
+import { hockeySplit } from '@/lib/hockey-standings';
 import { getT } from '@/lib/i18n/server';
 import { rugbyBonusPoints } from '@/lib/rugby-standings';
 import { winPct } from '@/lib/standings';
@@ -48,6 +49,8 @@ export async function StandingsTable({
   const byPct = runs || (sport != null && PCT_SPORTS.has(sport));
   const rugby = sport === 'rugby';
   const afl = sport === 'afl';
+  // hóquei: V · VP · DP · D quando o fornecedor separa a prorrogação; empate só em amistoso e torneio curto
+  const ot = sport === 'hockey' ? hockeySplit(rows) : null;
   const t = sets
     ? { ...standings, ...standings.sets }
     : byPoints
@@ -60,8 +63,10 @@ export async function StandingsTable({
             ? { ...standings, ...standings.rugby }
             : afl
               ? { ...standings, ...standings.afl }
-              : standings;
-  const noDraws = sets || byPoints || runs;
+              : ot
+                ? { ...standings, ...standings.hockey }
+                : standings;
+  const noDraws = sets || byPoints || runs || (sport === 'hockey' && rows.every((r) => r.drawn === 0));
   const bonus = rugby ? rugbyBonusPoints(rows) : null;
   const zones = [...new Map(rows.filter((r) => r.description).map((r) => [r.description!, r])).keys()];
 
@@ -87,6 +92,20 @@ export async function StandingsTable({
                 {t.won}
               </abbr>
             </TableHead>
+            {ot ? (
+              <>
+                <TableHead className="hidden text-right sm:table-cell">
+                  <abbr title={standings.hockey.otWonTitle} className="no-underline">
+                    {standings.hockey.otWon}
+                  </abbr>
+                </TableHead>
+                <TableHead className="hidden text-right sm:table-cell">
+                  <abbr title={standings.hockey.otLostTitle} className="no-underline">
+                    {standings.hockey.otLost}
+                  </abbr>
+                </TableHead>
+              </>
+            ) : null}
             {noDraws ? null : (
               <TableHead className="hidden text-right sm:table-cell">
                 <abbr title={t.drawnTitle} className="no-underline">
@@ -150,11 +169,25 @@ export async function StandingsTable({
                 {byPct ? winPct(r.won, r.drawn, r.played) : r.points}
               </TableCell>
               <TableCell className="text-right tabular-nums">{r.played}</TableCell>
-              <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.won}</TableCell>
+              <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                {ot ? ot[i]!.won : r.won}
+              </TableCell>
+              {ot ? (
+                <>
+                  <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                    {ot[i]!.otWon}
+                  </TableCell>
+                  <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                    {ot[i]!.otLost}
+                  </TableCell>
+                </>
+              ) : null}
               {noDraws ? null : (
                 <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.drawn}</TableCell>
               )}
-              <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.lost}</TableCell>
+              <TableCell className="hidden text-right tabular-nums sm:table-cell">
+                {ot ? ot[i]!.lost : r.lost}
+              </TableCell>
               {bonus ? (
                 <TableCell className="hidden text-right tabular-nums sm:table-cell">{bonus[i]}</TableCell>
               ) : null}

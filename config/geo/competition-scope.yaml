@@ -173,8 +173,20 @@ sports:
 
   hockey:
     competitions:
+      - { slug: champions-hockey-league, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: continental-cup, scope: continental_clubs, confederations: [UEFA] }
       - { slug: olympics-ice-hockey, scope: national_teams, confederations: [FIFA] }
       - { slug: olympics-ice-hockey-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: iihf-world-championship, scope: national_teams, confederations: [FIFA] }
+      - { slug: iihf-world-championship-women, scope: national_teams, confederations: [FIFA] }
+      - { slug: iihf-world-junior-championship, scope: national_teams, confederations: [FIFA] }
+      - { slug: iihf-u18-world-championship, scope: national_teams, confederations: [FIFA] }
+      - { slug: hlinka-gretzky-cup, scope: national_teams, confederations: [FIFA] }
+      - { slug: friendly-international-hockey, scope: national_teams, confederations: [FIFA] }
+      # Euro Hockey Tour (Finlândia, Suécia, Tchéquia e Suíça) e a Channel One Cup
+      - { slug: karjala-cup, scope: national_teams, confederations: [UEFA] }
+      - { slug: beijer-hockey-games, scope: national_teams, confederations: [UEFA] }
+      - { slug: channel-one-cup, scope: national_teams, confederations: [UEFA] }
 
   rugby:
     competitions:

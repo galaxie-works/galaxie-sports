@@ -4,7 +4,6 @@ import {
   Award,
   CarFront,
   CircleDot,
-  Dumbbell,
   Goal,
   Hand,
   HandFist,
@@ -14,6 +13,8 @@ import {
   Volleyball,
   type LucideIcon,
 } from 'lucide-react';
+
+import { HockeyStick } from '../components/icons/hockey-stick';
 
 import type { Dictionary } from './i18n/dictionary';
 
@@ -40,7 +41,7 @@ export const SPORTS: SportNav[] = (
     ['mma', HandFist],
     ['american-football', Shield],
     ['baseball', Activity],
-    ['hockey', Dumbbell],
+    ['hockey', HockeyStick],
     ['handball', Hand],
     ['rugby', Trophy],
     ['afl', Trophy],

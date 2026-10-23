@@ -240,7 +240,7 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
       basketball: 4,
       'formula-1': 12,
       handball: 1,
-      hockey: 5,
+      hockey: 6,
       mma: 6,
       nba: 2,
       rugby: 3,
@@ -249,7 +249,7 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
     const details = await db.execute<{ n: number }>(
       sql`select count(*)::int as n from core.sport_event_detail`,
     );
-    expect(Number(details[0]!.n)).toBe(55);
+    expect(Number(details[0]!.n)).toBe(56);
   });
 
   it('AFL: quartos da grande final no espelho do jogo, grande final como fase', async () => {
@@ -376,7 +376,7 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
       basketball: 3,
       'formula-1': 6,
       handball: 3,
-      hockey: 6,
+      hockey: 4,
       nba: 3,
       rugby: 3,
       volleyball: 3,
@@ -386,6 +386,27 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
       join core.season se on se.id = s.season_id join core.competition c on c.id = se.competition_id
       where c.sport = 'american-football'`);
     expect(nfl.map((r) => r.group)).toEqual(['AFC East']);
+  });
+
+  it('hóquei: o Utah ("id 0" na tabela da NHL) volta pelo nome dos jogos no raw; prorrogação à parte', async () => {
+    const rows = await db.execute<{
+      pid: string;
+      group: string;
+      won: number;
+      ot_won: number;
+      ot_lost: number;
+    }>(sql`
+      select pm.provider_id as pid, s."group", s.won, s.ot_won, s.ot_lost from core.standing s
+      join core.season se on se.id = s.season_id join core.competition c on c.id = se.competition_id
+      join core.provider_map pm on pm.entity_id = s.participant_id and pm.entity_type = 'participant'
+        and pm.sport = 'hockey'
+      where c.sport = 'hockey' order by s.rank`);
+    expect(rows.map((r) => [r.pid, r.group, r.won, r.ot_won, r.ot_lost])).toEqual([
+      ['704', 'Western Conference', 56, 13, 4],
+      ['702', 'Western Conference', 50, 4, 10],
+      ['681', 'Western Conference', 50, 9, 6],
+      ['2483', 'Western Conference', 38, 8, 13],
+    ]);
   });
 
   it('reprocessar o raw inteiro de novo gera exatamente o mesmo estado', async () => {

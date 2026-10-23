@@ -271,6 +271,8 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
             won: r.st.won,
             drawn: r.st.drawn,
             lost: r.st.lost,
+            ot_won: r.st.otWon,
+            ot_lost: r.st.otLost,
             goals_for: r.st.goalsFor,
             goals_against: r.st.goalsAgainst,
             goal_diff: r.st.goalsFor - r.st.goalsAgainst,

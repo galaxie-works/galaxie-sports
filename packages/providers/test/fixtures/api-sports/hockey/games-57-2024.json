@@ -5,7 +5,7 @@
     "season": "2024"
   },
   "errors": [],
-  "results": 5,
+  "results": 6,
   "paging": {
     "current": 1,
     "total": 1
@@ -260,6 +260,56 @@
         "penalties": null
       },
       "events": true
+    },
+    {
+      "id": 370295,
+      "date": "2024-09-22T23:00:00+00:00",
+      "time": "23:00",
+      "week": null,
+      "teams": {
+        "away": {
+          "id": 698,
+          "logo": "https://media.api-sports.io/hockey/teams/698.png",
+          "name": "St. Louis Blues"
+        },
+        "home": {
+          "id": 2483,
+          "logo": "https://media.api-sports.io/hockey/teams/2483.png",
+          "name": "Utah Mammoth"
+        }
+      },
+      "timer": null,
+      "events": true,
+      "league": {
+        "id": 57,
+        "logo": "https://media.api-sports.io/hockey/leagues/57.png",
+        "name": "NHL",
+        "type": "League",
+        "season": 2024
+      },
+      "scores": {
+        "away": 3,
+        "home": 5
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "country": {
+        "id": 31,
+        "code": "US",
+        "flag": "https://media.api-sports.io/flags/us.svg",
+        "name": "USA"
+      },
+      "periods": {
+        "first": "0-1",
+        "third": "3-1",
+        "second": "2-1",
+        "overtime": null,
+        "penalties": null
+      },
+      "timezone": "UTC",
+      "timestamp": 1727046000
     }
   ]
 }

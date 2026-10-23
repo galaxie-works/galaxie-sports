@@ -1051,17 +1051,60 @@ export function americanFootballGroup(conferenceRaw: unknown, divisionRaw: unkno
   return !division || /^main$/i.test(division) ? conference : `${conference} · ${division}`;
 }
 
+/** Time dos jogos da mesma liga e temporada, pelo nome em minúsculas (ver `SportStandingsContext`). */
+export interface SeasonTeam {
+  id: string;
+  logo: string | null;
+}
+
+/**
+ * Contexto opcional da tabela: os times dos jogos da mesma liga e temporada. Na tabela da NHL 2024/25 o
+ * Utah Mammoth vem com `id: 0` (o placeholder), mas nos jogos tem id próprio; pelo nome, a linha volta a
+ * ser dele e a tabela fica inteira.
+ */
+export interface SportStandingsContext {
+  teamsByName?: ReadonlyMap<string, SeasonTeam>;
+}
+
+/** Times de uma resposta de `/games` (mandante e visitante), pelo nome em minúsculas. */
+export function seasonTeamsFromGames(items: unknown[]): Map<string, SeasonTeam> {
+  const teams = new Map<string, SeasonTeam>();
+  for (const g of items.map(obj)) {
+    const t = obj(g.teams);
+    for (const side of [obj(t.home), obj(t.away)]) {
+      const pid = teamId(side.id);
+      const name = str(side.name)?.toLowerCase();
+      if (pid && name && !teams.has(name)) teams.set(name, { id: pid, logo: str(side.logo) });
+    }
+  }
+  return teams;
+}
+
+/** Troca o placeholder (`id: 0`) pelo time dos jogos com o mesmo nome; sem par, a linha fica como está. */
+function resolvePlaceholderTeam(row: Obj, teams: ReadonlyMap<string, SeasonTeam> | undefined): Obj {
+  if (!teams || !isObj(row.team) || id(row.team.id) !== '0') return row;
+  const found = teams.get(str(row.team.name)?.toLowerCase() ?? '');
+  return found ? { ...row, team: { ...row.team, id: found.id, logo: found.logo } } : row;
+}
+
 export function normalizeSportStandings(
   sport: ApiSportsOtherSport,
   items: unknown[],
   observedAt: Date,
   params: Record<string, string> = {},
+  context: SportStandingsContext = {},
 ): NormalizedBatch {
   const c = new SportCollector(sport, observedAt);
-  const groups = items.map((i) => (Array.isArray(i) ? i : [i]).map(obj));
+  const groups = items.map((i) =>
+    (Array.isArray(i) ? i : [i]).map((r) => resolvePlaceholderTeam(obj(r), context.teamsByName)),
+  );
   // grupo com placeholder (time `id: 0`) está incompleto ou é de outra temporada (Súper Rugby Américas 2024
   // vem com os times de 2022): uma tabela parcial engana mais do que nenhuma
-  const rows = groups.filter((g) => !g.some((r) => isObj(r.team) && id(r.team.id) === '0')).flat();
+  const rows = groups
+    .filter((g) => !g.some((r) => isObj(r.team) && id(r.team.id) === '0'))
+    .flat()
+    // a pré-temporada (NHL) não é tabela da competição: só confunde os grupos da temporada regular
+    .filter((r) => !/pre-?season/i.test(str(r.stage) ?? ''));
   // mais de uma fase na mesma resposta (ex.: temporada regular + playoffs): a fase entra no grupo
   const stages = new Set(rows.map((r) => str(r.stage)).filter(Boolean));
   const swapPoints = sport === 'american-football' && pointsSwapped(rows);
@@ -1075,6 +1118,8 @@ export function normalizeSportStandings(
     let won: number;
     let drawn: number;
     let lost: number;
+    let otWon: number | null = null;
+    let otLost: number | null = null;
     let points: number | null;
     let goalsFor: number;
     let goalsAgainst: number;
@@ -1129,10 +1174,14 @@ export function normalizeSportStandings(
       group = (stages.size > 1 ? [stage, groupName] : [groupName ?? stage]).filter(Boolean).join(' · ');
       rank = int(row.position);
       const games = obj(row.games);
-      // hóquei separa vitórias/derrotas na prorrogação
-      won = (total(games.win) ?? 0) + (total(games.win_overtime) ?? 0);
+      // hóquei separa vitórias/derrotas na prorrogação (ou nos pênaltis): entram no total e ficam à parte
+      if (sport === 'hockey') {
+        otWon = total(games.win_overtime) ?? 0;
+        otLost = total(games.lose_overtime) ?? 0;
+      }
+      won = (total(games.win) ?? 0) + (otWon ?? 0);
       drawn = total(games.draw) ?? total(games.drawn) ?? 0;
-      lost = (total(games.lose) ?? total(games.lost) ?? 0) + (total(games.lose_overtime) ?? 0);
+      lost = (total(games.lose) ?? total(games.lost) ?? 0) + (otLost ?? 0);
       // sem pontos numéricos (basquete, beisebol) a tabela é por vitórias
       points = int(row.points) ?? int(row.pts) ?? won;
       const gf = isObj(row.goals) ? row.goals : isObj(row.points) ? row.points : obj(row.scores);
@@ -1153,6 +1202,7 @@ export function normalizeSportStandings(
       won,
       drawn,
       lost,
+      ...(otWon != null ? { otWon, otLost } : {}),
       goalsFor,
       goalsAgainst,
       form,
@@ -1822,6 +1872,7 @@ export function normalizeSportEnvelope(
   envelope: { response: unknown },
   observedAt: Date,
   params: Record<string, string> = {},
+  context: SportStandingsContext = {},
 ): { batch: NormalizedBatch; items: number } | null {
   if (!NORMALIZABLE_SPORT_ENDPOINTS[sport].includes(endpoint)) return null;
   const response = Array.isArray(envelope.response) ? (envelope.response as unknown[]) : [];
@@ -1833,7 +1884,7 @@ export function normalizeSportEnvelope(
     case '/teams':
       return { batch: normalizeSportTeams(sport, response, observedAt), items };
     case '/standings':
-      return { batch: normalizeSportStandings(sport, response, observedAt, params), items };
+      return { batch: normalizeSportStandings(sport, response, observedAt, params, context), items };
     case '/players':
       return sport === 'nba' ? { batch: normalizeNbaPlayers(response, observedAt, params), items } : null;
     case '/races':
