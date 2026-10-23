@@ -208,7 +208,8 @@ export async function CompetitionContent({ params, searchParams, source }: PageC
                 <TabsTrigger value="classificacao" disabled={!groups.length}>
                   {tc.standings}
                 </TabsTrigger>
-                <TabsTrigger value="jogos">{tc.matches}</TabsTrigger>
+                {/* F1: a aba das sessões se chama "Corridas" (a URL segue `?aba=jogos`) */}
+                <TabsTrigger value="jogos">{sessions ? tc.races : tc.matches}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="classificacao" className="flex flex-col gap-6 pt-4">

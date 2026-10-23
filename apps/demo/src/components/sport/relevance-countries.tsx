@@ -25,12 +25,21 @@ export interface CountryRelevanceRow {
 /** Quantos países aparecem antes do "ver todos" (o destacado entra sempre). */
 const VISIBLE = 4;
 
-function Row({ row, texts }: { row: CountryRelevanceRow; texts: { yourMarket: string; noBonus: string } }) {
+function Row({
+  row,
+  texts,
+  className,
+}: {
+  row: CountryRelevanceRow;
+  texts: { yourMarket: string; noBonus: string };
+  className?: string;
+}) {
   return (
     <li
       className={cn(
         '-mx-2 flex flex-col gap-1 rounded-md px-2 py-1.5',
         row.highlighted && 'bg-primary/5 ring-primary/25 ring-1',
+        className,
       )}
     >
       <div className="flex items-center gap-2 text-xs">
@@ -77,7 +86,9 @@ function Row({ row, texts }: { row: CountryRelevanceRow; texts: { yourMarket: st
 
 /**
  * Lista da relevância por país, da maior nota para a menor: os primeiros (e o país do idioma) à vista,
- * o resto atrás do "ver todos". Independente do país escolhido no "Onde assistir".
+ * o resto atrás do "ver todos". Independente do país escolhido no "Onde assistir". No celular o card vem
+ * antes do contexto e dos detalhes do jogo: só o país do idioma fica à vista (CSS, sem piscar na
+ * hidratação) e os outros também vão para o "ver todos".
  */
 export function RelevanceCountries({
   rows,
@@ -89,23 +100,34 @@ export function RelevanceCountries({
   const [open, setOpen] = useState(false);
   const shown = rows.filter((r, i) => i < VISIBLE || r.highlighted);
   const rest = rows.filter((r) => !shown.includes(r));
+  // no celular, os primeiros que não são o país do idioma também ficam atrás do "ver todos"
+  const mobileOnly = shown.filter((r) => !r.highlighted);
+  const collapsible = rest.length > 0 || mobileOnly.length > 0;
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-1">
       <ul className="flex flex-col gap-1">
         {shown.map((r) => (
-          <Row key={r.market} row={r} texts={texts} />
+          <Row key={r.market} row={r} texts={texts} className={r.highlighted ? undefined : 'max-md:hidden'} />
         ))}
       </ul>
-      {rest.length ? (
+      {collapsible ? (
         <>
           <CollapsibleContent>
             <ul className="flex flex-col gap-1">
+              {mobileOnly.map((r) => (
+                <Row key={r.market} row={r} texts={texts} className="md:hidden" />
+              ))}
               {rest.map((r) => (
                 <Row key={r.market} row={r} texts={texts} />
               ))}
             </ul>
           </CollapsibleContent>
-          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex items-center gap-1 self-start rounded-sm text-xs outline-none focus-visible:ring-2">
+          <CollapsibleTrigger
+            className={cn(
+              'text-muted-foreground hover:text-foreground focus-visible:ring-ring flex items-center gap-1 self-start rounded-sm text-xs outline-none focus-visible:ring-2',
+              !rest.length && 'md:hidden',
+            )}
+          >
             {open ? texts.showLess : texts.showAll}
             <ChevronDown className={cn('size-3.5 transition-transform', open && 'rotate-180')} aria-hidden />
           </CollapsibleTrigger>

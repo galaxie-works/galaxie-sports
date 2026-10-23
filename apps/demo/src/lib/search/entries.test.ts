@@ -31,6 +31,10 @@ describe('busca global — entradas', () => {
     expect(resultHref(result({ type: 'venue', id: 'v1' }))).toBe('/locais/v1');
     expect(resultHref(result({ type: 'person', id: 'p1' }))).toBe('/pessoas/p1');
     expect(resultHref(result({ type: 'event', id: 'e1' }))).toBe('/eventos/e1');
+    // participante de MMA é lutador: rota própria, com o nome no slug
+    expect(
+      resultHref(result({ id: 'a1b2c3d4-0000-4000-8000-000000000000', name: 'José Aldo', sport: 'mma' })),
+    ).toBe('/lutadores/jose-aldo-a1b2c3d4-0000-4000-8000-000000000000');
   });
 
   it('agrupa por tipo; pessoas e estádios descem um nível no empate', () => {

@@ -52,8 +52,7 @@ import { fill, plural } from '@/lib/i18n/text';
 import { lineupMarks } from '@/lib/lineup-marks';
 import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
-import { COUNTRIES, eventCompetitionHref, sportParent } from '@/lib/navigation';
-import type { TrailVisit } from '@/lib/trail';
+import { COUNTRIES, eventCompetitionHref, eventParents, participantHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
@@ -61,7 +60,7 @@ export async function eventMetadata(id: string, source: DataSource): Promise<Met
   const { locale, t } = await getI18n();
   try {
     const event = await source.getEvent(id, locale);
-    if (isRaceEvent(event)) return { title: raceTitle(event) };
+    if (isRaceEvent(event)) return { title: raceTitle(event, t.sport) };
     return { title: event.participants.map((p) => p.name).join(` ${t.sport.versus} `) };
   } catch {
     return {};
@@ -97,7 +96,7 @@ function Side({
   if (!p) return <div className="flex-1" />;
   return (
     <Link
-      href={`/times/${p.id}`}
+      href={participantHref(p, fighter ? 'fighter' : null)}
       className={cn(
         'group/side flex flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:text-left',
         align === 'right' && 'sm:flex-row-reverse sm:text-right',
@@ -559,21 +558,17 @@ export async function EventContent({ params, searchParams, source }: PageContent
     ? ((await source.getTeamPhotos(winnerTeam, 'car', Number(event.starts_at.slice(0, 4))))?.photos[0] ??
       null)
     : null;
-  const title = race ? raceTitle(event) : event.participants.map((p) => p.name).join(` ${t.sport.versus} `);
+  const title = race
+    ? raceTitle(event, t.sport)
+    : event.participants.map((p) => p.name).join(` ${t.sport.versus} `);
   // cor de cada time (escudo) no campo e nas estatísticas, tratando escudo monocromático e cores parecidas
   const colors = versusColors(
     event.participants.find((p) => p.side === 'home')?.colors,
     event.participants.find((p) => p.side === 'away')?.colors,
   );
   const tx = t.event.context;
-  // pais na hierarquia (esporte → competição): a trilha de quem chega por link direto
-  const competitionHref = eventCompetitionHref(event);
-  const parents = [
-    sportParent(event.sport, t),
-    event.competition && competitionHref
-      ? { path: competitionHref, label: event.competition.name, kind: 'competição' as const }
-      : null,
-  ].filter((p): p is TrailVisit => p !== null);
+  // a trilha: esporte › competição › rodada
+  const parents = eventParents(event, t);
 
   return (
     <>

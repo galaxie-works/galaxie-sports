@@ -122,7 +122,70 @@ export function eventCompetitionHref(event: {
   return `/competicoes/${event.competition.slug}?${query}`;
 }
 
+/**
+ * Hierarquia de um jogo: esporte › competição (na temporada do jogo) › rodada (os jogos dela) ›
+ * jogo. A rodada só entra quando o jogo tem fase.
+ */
+export function eventParents(
+  event: {
+    sport: string;
+    competition: { slug: string; name: string } | null;
+    stage: { name: string | null } | null;
+    starts_at: string;
+  },
+  t: Dictionary,
+): TrailVisit[] {
+  const parents: TrailVisit[] = [];
+  const sport = sportParent(event.sport, t);
+  if (sport) parents.push(sport);
+  if (!event.competition) return parents;
+  const season = new URLSearchParams({ data: event.starts_at.slice(0, 10) });
+  parents.push({
+    path: `/competicoes/${event.competition.slug}?${season}`,
+    label: event.competition.name,
+    kind: 'competição',
+  });
+  if (event.stage?.name)
+    parents.push({ path: eventCompetitionHref(event)!, label: event.stage.name, kind: 'competição' });
+  return parents;
+}
+
 /** Pai das páginas internas do hipismo (atleta, cavalo, prova, campeonato). */
 export function equestrianParent(t: Dictionary): TrailVisit {
   return { path: EQUESTRIAN_NAV.href, label: t.equestrian.title, kind: 'esporte' };
+}
+
+/** Piloto e lutador têm rota própria (`/pilotos`, `/lutadores`); os demais participantes ficam em /times. */
+const INDIVIDUAL_ROUTES: Partial<Record<string, string>> = { driver: '/pilotos', fighter: '/lutadores' };
+
+const UUID_AT_END = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+/** Nome em slug de URL ("Max Verstappen" → "max-verstappen"), sem acento. */
+export function slugify(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Página de um participante: `/pilotos/max-verstappen-<id>` e `/lutadores/<nome>-<id>` (o id no fim
+ * resolve sem depender de slug no banco), `/times/<id>` para os demais. Sem `kind`, /times, que
+ * redireciona piloto e lutador para a rota certa.
+ */
+export function participantHref(p: { id: string; name: string }, kind?: string | null): string {
+  const route = kind ? INDIVIDUAL_ROUTES[kind] : undefined;
+  if (!route) return `/times/${p.id}`;
+  const slug = slugify(p.name);
+  return `${route}/${slug ? `${slug}-` : ''}${p.id}`;
+}
+
+/** Piloto ou lutador (rota própria)? */
+export const isIndividualKind = (kind: string | null | undefined) => !!kind && !!INDIVIDUAL_ROUTES[kind];
+
+/** Id do participante no fim do slug (`max-verstappen-<uuid>` ou só `<uuid>`); null se não houver. */
+export function idFromSlug(slug: string): string | null {
+  return UUID_AT_END.exec(decodeURIComponent(slug))?.[1]?.toLowerCase() ?? null;
 }

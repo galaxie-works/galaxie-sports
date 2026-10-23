@@ -343,3 +343,60 @@ function NoHighlight({ text }: { text: string }) {
     </span>
   );
 }
+
+/**
+ * País numa linha, para o celular: bandeira, nome, liga principal e jogos da semana (com o selo "ao vivo").
+ * Os 17 cards completos somavam uns 3.000 px; a linha leva à mesma página do país.
+ */
+export function CountryRow({
+  country,
+  name,
+  data,
+  t,
+  locale,
+}: {
+  country: CountryNav;
+  name: string;
+  data: ExploreCountry | undefined;
+  t: Dictionary;
+  locale: Locale;
+}) {
+  const te = t.nav.explore;
+  const main = data?.main_competition ?? null;
+  return (
+    <li>
+      <Link
+        href={country.href}
+        className="hover:bg-accent focus-visible:ring-ring flex min-h-14 items-center gap-3 px-3 py-2.5 transition-colors outline-none focus-visible:ring-2"
+      >
+        {data?.flag ? (
+          <img
+            src={data.flag}
+            alt=""
+            draggable={false}
+            className="h-6 w-9 shrink-0 rounded-[3px] object-cover shadow-sm ring-1 ring-white/15"
+          />
+        ) : (
+          <span className="bg-muted h-6 w-9 shrink-0 rounded-[3px]" aria-hidden />
+        )}
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-semibold">{name}</span>
+          {main ? (
+            <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+              <LeagueLogo competition={main} size="xs" />
+              <span className="truncate">{main.name}</span>
+            </span>
+          ) : null}
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          <LivePill count={data?.live ?? 0} t={te} />
+          {data ? (
+            <span className="text-muted-foreground text-[11px] tabular-nums">
+              {plural(locale, data.upcoming, te.upcomingCount)}
+            </span>
+          ) : null}
+        </span>
+      </Link>
+    </li>
+  );
+}
