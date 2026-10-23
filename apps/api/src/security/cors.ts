@@ -10,9 +10,28 @@ export interface CorsOptions {
   maxAgeSec?: number;
 }
 
+/**
+ * CORS das chaves publicáveis: cada chave libera só as próprias origens. O preflight chega sem
+ * chave, então ele é respondido para as origens de alguma chave ativa; a resposta real só leva
+ * `Access-Control-Allow-Origin` quando a origem bateu com a chave usada (`request.publishableOrigin`).
+ */
+export interface PublishableCors {
+  isRegisteredOrigin(origin: string): Promise<boolean>;
+}
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    /** Origem já conferida contra a chave publicável desta requisição. */
+    publishableOrigin?: string;
+  }
+}
+
 const ALLOWED_METHODS = ['GET', 'HEAD', 'POST'];
+/** Chave publicável: só leitura. */
+const PUBLISHABLE_METHODS = ['GET', 'HEAD'];
 const ALLOWED_HEADERS = [
   'x-galaxie-key',
+  'x-galaxie-publishable-key',
   'content-type',
   'accept-language',
   'if-none-match',
@@ -48,7 +67,11 @@ export function normalizeOrigin(origin: string): string | null {
  * `Access-Control-Allow-Origin`; nunca com credenciais; rotas `/internal/*` nunca recebem CORS.
  * Preflight (`OPTIONS`) responde 204 — com os headers CORS só se a origem e o método forem aceitos.
  */
-export function registerCors(app: FastifyInstance, options: CorsOptions): void {
+export function registerCors(
+  app: FastifyInstance,
+  options: CorsOptions,
+  publishable?: PublishableCors,
+): void {
   const any = options.origins.includes('*');
   const allowed = new Set(
     options.origins
@@ -70,7 +93,11 @@ export function registerCors(app: FastifyInstance, options: CorsOptions): void {
 
   app.addHook('onSend', async (request, reply, payload) => {
     reply.header('vary', mergeVary(reply.getHeader('vary'), 'Origin'));
-    const origin = allowOrigin(request.headers.origin, request.url);
+    if (reply.hasHeader('access-control-allow-origin')) return payload; // preflight publicável
+    const origin =
+      request.publishableOrigin && request.publishableOrigin === request.headers.origin
+        ? request.publishableOrigin
+        : allowOrigin(request.headers.origin, request.url);
     if (!origin) return payload;
     reply
       .header('access-control-allow-origin', origin)
@@ -90,6 +117,22 @@ export function registerCors(app: FastifyInstance, options: CorsOptions): void {
   // Preflight para qualquer rota pública (rotas internas caem no 404).
   app.options('/*', { config: { public: true } }, async (request, reply) => {
     if (request.url.startsWith('/internal/')) return reply.callNotFound();
+    const origin = request.headers.origin;
+    const method = String(request.headers['access-control-request-method'] ?? '').toUpperCase();
+    if (
+      publishable &&
+      origin &&
+      !allowOrigin(origin, request.url) &&
+      request.url.startsWith('/v1/') &&
+      PUBLISHABLE_METHODS.includes(method) &&
+      (await publishable.isRegisteredOrigin(origin))
+    ) {
+      reply
+        .header('access-control-allow-origin', origin)
+        .header('access-control-allow-methods', PUBLISHABLE_METHODS.join(', '))
+        .header('access-control-allow-headers', ALLOWED_HEADERS.join(', '))
+        .header('access-control-max-age', maxAge);
+    }
     return reply.code(204).send();
   });
 }

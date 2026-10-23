@@ -1,13 +1,14 @@
 /**
  * Autenticação da demo (Better Auth): só código de acesso por e-mail (OTP), sem senha e sem cadastro
- * aberto — quem entra foi convidado por um admin. Papéis: `admin` (gerencia usuários) e `user`
- * (convidado, só navega na demo). O convite é um e-mail com o link da tela de login; lá a pessoa pede o
+ * aberto — quem entra foi convidado por um admin. Papéis (`roles.ts`): `admin` (gerencia usuários),
+ * `user` (convidado, só navega na demo) e `client` (operadora cliente, ligada a um tenant da API). O convite é um e-mail com o link da tela de login; lá a pessoa pede o
  * código e entra.
  */
 import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
 import { admin } from 'better-auth/plugins/admin';
+import { adminAc, userAc } from 'better-auth/plugins/admin/access';
 import { emailOTP } from 'better-auth/plugins/email-otp';
 
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, resolveLocale, type Locale } from '@/lib/i18n/config';
@@ -104,6 +105,11 @@ export const auth = betterAuth({
       notes: { type: 'string', required: false, input: false },
       accessExpiresAt: { type: 'date', required: false, input: false, fieldName: 'access_expires_at' },
       /**
+       * Tenant da API (`api.tenant.id`) do usuário com papel `client`; nulo nos outros papéis. Só o admin
+       * define (no convite ou no acesso): é o que limita o painel do cliente aos dados de um tenant.
+       */
+      tenantId: { type: 'string', required: false, input: false, fieldName: 'tenant_id' },
+      /**
        * Idioma preferido (pt-BR, en, es-AR): o dos e-mails. A própria pessoa muda pelo seletor de idioma
        * (`/update-user`), então aceita entrada, mas só os três valores.
        */
@@ -189,6 +195,9 @@ export const auth = betterAuth({
     admin({
       defaultRole: 'user',
       adminRoles: ['admin'],
+      // Papéis aceitos (outro valor é recusado ao criar ou mudar papel). O cliente tem as permissões do
+      // convidado no plugin: nada de gerenciar usuários; o painel dele é guardado pelo proxy e pelas ações.
+      roles: { admin: adminAc, user: userAc, client: userAc },
       bannedUserMessage: (user) => {
         const locale = (user as { locale?: unknown }).locale;
         return authText(isLocale(locale) ? locale : DEFAULT_LOCALE).banned;

@@ -5,9 +5,11 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+import { listTenantOptions, type TenantOption } from '@/lib/client/tenants';
 import { isLocale, type Locale } from '@/lib/i18n/config';
 
 import { pool } from './db';
+import { roleOf, type Role } from './roles';
 import { auth, isAccessExpired, type AuthUser } from './server';
 
 /** Situação do usuário no painel (os rótulos ficam no dicionário `admin.status`). */
@@ -17,7 +19,9 @@ export interface DemoUser {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'user';
+  role: Role;
+  /** Tenant da API (só no papel `client`); `name` nulo = tenant que não existe mais. */
+  tenant: { id: string; name: string | null } | null;
   jobTitle: string | null;
   company: string | null;
   phone: string | null;
@@ -47,6 +51,7 @@ type RawUser = AuthUser & {
   notes?: string | null;
   locale?: string | null;
   accessExpiresAt?: Date | string | null;
+  tenantId?: string | null;
 };
 
 interface ActivitySummary {
@@ -105,12 +110,16 @@ function toDemoUser(
   u: RawUser,
   act: ActivitySummary | undefined,
   invite: DemoUser['lastInvite'] | undefined,
+  tenants: TenantOption[],
 ): DemoUser {
+  const role = roleOf(u.role);
+  const tenantId = role === 'client' ? (u.tenantId ?? null) : null;
   return {
     id: u.id,
     name: u.name,
     email: u.email,
-    role: u.role === 'admin' ? 'admin' : 'user',
+    role,
+    tenant: tenantId ? { id: tenantId, name: tenants.find((t) => t.id === tenantId)?.name ?? null } : null,
     jobTitle: u.jobTitle ?? null,
     company: u.company ?? null,
     phone: u.phone ?? null,
@@ -125,7 +134,7 @@ function toDemoUser(
   };
 }
 
-export async function listDemoUsers(): Promise<DemoUser[]> {
+export async function listDemoUsers(): Promise<{ users: DemoUser[]; tenants: TenantOption[] }> {
   await requireAdmin();
   const res = await auth.api.listUsers({
     headers: await headers(),
@@ -133,8 +142,15 @@ export async function listDemoUsers(): Promise<DemoUser[]> {
   });
   const users = res.users as RawUser[];
   const ids = users.map((u) => u.id);
-  const [acts, invites] = await Promise.all([activitySummary(ids), lastInvites(ids)]);
-  return users.map((u) => toDemoUser(u, acts.get(u.id), invites.get(u.id)));
+  const [acts, invites, tenants] = await Promise.all([
+    activitySummary(ids),
+    lastInvites(ids),
+    listTenantOptions(),
+  ]);
+  return {
+    users: users.map((u) => toDemoUser(u, acts.get(u.id), invites.get(u.id), tenants)),
+    tenants,
+  };
 }
 
 export interface DemoSession {
@@ -165,9 +181,10 @@ export async function getDemoUser(id: string) {
   const h = await headers();
   const user = (await auth.api.getUser({ headers: h, query: { id } }).catch(() => null)) as RawUser | null;
   if (!user) return null;
-  const [acts, invites, sessionsRes, activity] = await Promise.all([
+  const [acts, invites, tenants, sessionsRes, activity] = await Promise.all([
     activitySummary([id]),
     lastInvites([id]),
+    listTenantOptions(),
     auth.api.listUserSessions({ headers: h, body: { userId: id } }),
     pool.query<{
       id: string;
@@ -198,7 +215,8 @@ export async function getDemoUser(id: string) {
     }));
   return {
     currentUserId: me.id,
-    user: toDemoUser(user, acts.get(id), invites.get(id)),
+    user: toDemoUser(user, acts.get(id), invites.get(id), tenants),
+    tenants,
     sessions,
     activity: activity.rows.map<DemoActivity>((r) => ({
       id: r.id,

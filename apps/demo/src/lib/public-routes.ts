@@ -29,6 +29,12 @@ const PUBLIC_PREFIXES = ['/login', '/api/auth'];
 const EXAMPLE_PATHS = EXAMPLE_PAGES.map((p) => `/exemplo/${p}`);
 const EXAMPLE_IMAGES = '/exemplo/img/';
 
+/**
+ * Registry dos widgets do Builder (`/r/<id>.json`): o CLI do shadcn baixa sem sessão. Só o formato exato
+ * (um segmento terminado em `.json`); o conteúdo não tem segredo (ver `app/r/[id]/route.ts`).
+ */
+const REGISTRY_ITEM = /^\/r\/[^/]+\.json$/;
+
 const includes = (list: readonly string[], pathname: string) => list.includes(pathname);
 
 /** O caminho abre sem sessão? (as páginas públicas só no endereço exato: `/sobre/x` exige login) */
@@ -38,6 +44,7 @@ export function isPublicPath(pathname: string): boolean {
     includes(PUBLIC_PAGES, pathname) ||
     includes(PUBLIC_FILES, pathname) ||
     includes(EXAMPLE_PATHS, pathname) ||
-    pathname.startsWith(EXAMPLE_IMAGES)
+    pathname.startsWith(EXAMPLE_IMAGES) ||
+    REGISTRY_ITEM.test(pathname)
   );
 }

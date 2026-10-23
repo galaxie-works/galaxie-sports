@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronsUpDown, Languages, LogOut, SlidersHorizontal, Users } from 'lucide-react';
+import { Blocks, ChevronsUpDown, Languages, LogOut, SlidersHorizontal, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -17,6 +17,7 @@ import {
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { authClient } from '@/lib/auth/client';
+import { canAccessClientPanel } from '@/lib/auth/roles';
 import { initials } from '@/lib/format';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
@@ -52,6 +53,7 @@ export function UserMenu() {
   if (!data) return null;
   const { user } = data;
   const isAdmin = user.role === 'admin';
+  const isClient = user.role === 'client';
 
   async function signOut() {
     await authClient.signOut();
@@ -76,9 +78,19 @@ export function UserMenu() {
           <DropdownMenuContent side="top" align="start" className="min-w-56">
             <DropdownMenuGroup>
               <DropdownMenuLabel>
-                {isAdmin ? t.shell.userMenu.admin : t.shell.userMenu.guest}
+                {isAdmin
+                  ? t.shell.userMenu.admin
+                  : isClient
+                    ? t.shell.userMenu.client
+                    : t.shell.userMenu.guest}
               </DropdownMenuLabel>
             </DropdownMenuGroup>
+            {canAccessClientPanel(user.role) ? (
+              <DropdownMenuItem render={<Link href="/cliente" onClick={topLevelClick('/cliente')} />}>
+                <Blocks />
+                {t.shell.userMenu.clientPanel}
+              </DropdownMenuItem>
+            ) : null}
             {isAdmin ? (
               <DropdownMenuItem
                 render={<Link href="/ajustes/usuarios" onClick={topLevelClick('/ajustes/usuarios')} />}

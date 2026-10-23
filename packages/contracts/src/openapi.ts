@@ -127,7 +127,9 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       version: options.version ?? '0.1.0',
       description:
         'API de dados esportivos para a América Latina: espelho compatível (`/mirror`) e API canônica (`/v1`). ' +
-        'Autentique com o header `x-galaxie-key`. Erros seguem a RFC 9457.\n\n' +
+        'Autentique com o header `x-galaxie-key`. Erros seguem a RFC 9457. ' +
+        'Widgets no navegador usam a chave publicável (`x-galaxie-publishable-key`): só GET em `/v1`, ' +
+        'só das origens cadastradas na chave e com rate limit próprio (docs/05 §1.3).\n\n' +
         '**Fontes e atribuição.** Histórico da Fórmula 1 (temporadas, GPs, sessões, resultados, grid, pit stops e ' +
         'campeonatos desde 1950): [F1DB](https://github.com/f1db/f1db), licenciado sob ' +
         '[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); os dados foram adaptados ao modelo da Galaxie ' +
@@ -504,6 +506,12 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
     components: {
       securitySchemes: {
         galaxieKey: { type: 'apiKey', in: 'header', name: 'x-galaxie-key' },
+        galaxiePublishableKey: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-galaxie-publishable-key',
+          description: 'Chave publicável (gs_pk_live_...): leitura de /v1 a partir das origens permitidas.',
+        },
       },
       schemas: { Event, EventContext, TeamSummary, Team, Person },
     },
