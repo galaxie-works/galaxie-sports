@@ -71,6 +71,8 @@ export interface MirrorReport {
   placeholderLogos: number;
   /** Limpeza do início da execução: logos genéricos já gravados e entidades presas a logos ausentes. */
   logoCleanup: LogoCleanup;
+  /** Fotos genéricas que já estavam no storage (hash catalogado depois) e viraram "sem foto". */
+  photoCleanup: number;
   failed: number;
   /** Já espelhados que entraram na lista de bloqueio e foram desvinculados. */
   unlinked: number;
@@ -105,6 +107,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     placeholders: 0,
     placeholderLogos: 0,
     logoCleanup: { placeholders: 0, participants: 0, competitions: 0 },
+    photoCleanup: 0,
     failed: 0,
     unlinked: 0,
     bytes: 0,
@@ -116,6 +119,10 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
   if (!options.dryRun) report.unlinked = await options.assets.unlink(denylist.urls, new Date(clock.now()));
   report.logoCleanup = await options.assets.cleanupLogos(new Date(clock.now()), {
     placeholders: options.placeholderLogos,
+    dryRun: options.dryRun,
+  });
+  report.photoCleanup = await options.assets.cleanupPhotos(new Date(clock.now()), {
+    placeholders: options.placeholderPhotos,
     dryRun: options.dryRun,
   });
 
