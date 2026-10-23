@@ -160,6 +160,7 @@ export class WhereToWatchAgent {
       purpose: rightsPurpose(input.competition.slug, input.season, countries),
     });
     const { data, ...meta } = result;
+    const grounded = groundedFilter(result.groundedUrls);
     const wanted = new Set<string>(countries);
     const seen = new Set<string>();
     const markets: RightsCandidate[] = [];
@@ -180,8 +181,8 @@ export class WhereToWatchAgent {
           kind: h.kind,
           allMatches: h.all_matches,
           evidence: h.evidence
+            .filter((e) => e.stance !== 'denies' && grounded(e.url))
             .slice(0, WTW_MAX_EVIDENCE)
-            .filter((e) => e.stance !== 'denies')
             .map(toEvidence),
         })),
       });
@@ -193,4 +194,25 @@ export class WhereToWatchAgent {
       result: meta,
     };
   }
+}
+
+/** URL comparável (sem fragmento, barra final e caixa do host). */
+function normalizeUrl(url: string): string {
+  try {
+    const u = new URL(url.trim());
+    u.hash = '';
+    return `${u.protocol}//${u.host.toLowerCase()}${u.pathname.replace(/\/+$/, '')}${u.search}`;
+  } catch {
+    return url.trim();
+  }
+}
+
+/**
+ * Com `groundedUrls` (Gemini em dois passos), só passam evidências cujas URLs vieram da busca do
+ * provedor — nenhuma URL escrita pelo modelo chega ao validador. Sem a lista, tudo passa.
+ */
+export function groundedFilter(urls: readonly string[] | undefined): (url: string) => boolean {
+  if (!urls) return () => true;
+  const allowed = new Set(urls.map(normalizeUrl));
+  return (url) => allowed.has(normalizeUrl(url));
 }

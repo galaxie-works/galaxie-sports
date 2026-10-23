@@ -12,6 +12,8 @@ export interface FakeResponse {
   citations?: LlmCitation[];
   usage?: Partial<UsageWithSearches>;
   model?: string;
+  /** Simula o provedor que garante as URLs da busca (Gemini em dois passos). */
+  groundedUrls?: string[];
 }
 
 export type FakeReply = FakeResponse | Error;
@@ -63,6 +65,7 @@ export class FakeLlmClient implements LlmClient {
       usage,
       provider: 'fake',
       model: reply.model ?? req.model ?? `fake-${req.tier}`,
+      ...(reply.groundedUrls ? { groundedUrls: reply.groundedUrls } : {}),
     };
   }
 }

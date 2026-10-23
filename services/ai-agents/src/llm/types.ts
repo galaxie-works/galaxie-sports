@@ -53,6 +53,11 @@ export interface LlmResult<T> {
   usage: LlmUsage;
   provider: 'openai' | 'anthropic' | 'gemini' | 'fake';
   model: string;
+  /**
+   * URLs que vieram da busca do provedor (grounding), quando ele as garante: o pedido em dois passos do
+   * Gemini. Quem consome evidências descarta qualquer URL fora desta lista. Ausente = sem garantia.
+   */
+  groundedUrls?: string[];
 }
 
 export interface LlmClient {
