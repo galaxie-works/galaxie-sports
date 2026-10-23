@@ -3,6 +3,7 @@
  * Fontes oficiais conferidas em 2026-10-21:
  * - https://developers.openai.com/api/docs/pricing
  * - https://platform.claude.com/docs/en/about-claude/pricing
+ * - https://ai.google.dev/gemini-api/docs/pricing (Gemini, conferida em 2026-10-23)
  * É uma ESTIMATIVA para orçamento e métricas — a fatura do provedor é a fonte da verdade.
  */
 import type { LlmUsage } from './types.js';
@@ -39,10 +40,22 @@ export const MODEL_PRICES: Record<string, ModelPrice> = {
   'claude-sonnet-5': { input: 2, cachedInput: 0.2, output: 10 },
   'claude-sonnet-4-6': { input: 3, cachedInput: 0.3, output: 15 },
   'claude-haiku-4-5': { input: 1, cachedInput: 0.1, output: 5 },
+  // Gemini — preços até 31/12/2026 (o 3.8/3.6 Flash dobra em 01/01/2027; o 4 Argon em 01/12/2026)
+  'gemini-4-argon': { input: 2, output: 10 },
+  'gemini-3.8-flash': { input: 0.75, output: 3.75 },
+  'gemini-3.6-flash': { input: 0.75, output: 3.75 },
+  'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
+  'gemini-3.1-pro-preview': { input: 2, output: 12 },
+  'gemini-3.1-flash-lite': { input: 0.25, output: 1.5 },
 };
 
-/** US$ por chamada da ferramenta de busca (US$ 10 por 1.000 nos dois provedores). */
+/** US$ por chamada da ferramenta de busca (US$ 10 por 1.000 na OpenAI e na Anthropic). */
 export const WEB_SEARCH_USD_PER_CALL = 0.01;
+/**
+ * Grounding with Google Search nos modelos Gemini 3+: US$ 14 por 1.000 consultas (uma requisição pode
+ * fazer várias). As 5.000 consultas grátis por mês ficam fora da estimativa (custo conservador).
+ */
+export const GEMINI_GROUNDING_USD_PER_QUERY = 0.014;
 
 /** Preço do modelo (aceita snapshots datados, ex.: `gpt-6-luna-2026-05-18`). */
 export function priceFor(model: string): ModelPrice | undefined {
@@ -58,6 +71,7 @@ export function estimateCostUsd(
   model: string,
   usage: Pick<LlmUsage, 'inputTokens' | 'outputTokens'> & { cachedInputTokens?: number },
   webSearches = 0,
+  usdPerSearch = WEB_SEARCH_USD_PER_CALL,
 ): number | undefined {
   const p = priceFor(model);
   if (!p) return undefined;
@@ -67,6 +81,6 @@ export function estimateCostUsd(
       cached * (p.cachedInput ?? p.input) +
       usage.outputTokens * p.output) /
       1_000_000 +
-    webSearches * WEB_SEARCH_USD_PER_CALL;
+    webSearches * usdPerSearch;
   return Math.round(cost * 1_000_000) / 1_000_000;
 }
