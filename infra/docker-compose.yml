@@ -68,7 +68,7 @@ services:
   #   docker compose -f infra/docker-compose.yml --profile load run --rm k6 run /scripts/catalog-browse.js
   # A API roda no host (pnpm --filter @galaxie/api start); o container a alcança por host.docker.internal.
   k6:
-    image: grafana/k6:1.3.0
+    image: grafana/k6:2.3.0
     profiles: ['load']
     environment:
       BASE_URL: ${LOAD_BASE_URL:-http://host.docker.internal:8080}
