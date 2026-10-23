@@ -264,8 +264,9 @@ export async function upsertCatalog(
           target: [season.competitionId, season.year],
           set: {
             label: sql`excluded.label`,
-            startDate: sql`excluded.start_date`,
-            endDate: sql`excluded.end_date`,
+            // API sem datas de temporada (F1, MMA, NBA) não apaga a janela que a normalização preencheu
+            startDate: sql`coalesce(excluded.start_date, ${season.startDate})`,
+            endDate: sql`coalesce(excluded.end_date, ${season.endDate})`,
             current: sql`excluded.current`,
             coverage: sql`excluded.coverage`,
             updatedAt: sql`now()`,

@@ -37,6 +37,7 @@ import {
 import { formatInstant, pickList, pickText } from '../i18n.js';
 import { assetUrl } from '../util.js';
 import { pickCheer } from './cheer.js';
+import { loadRaceSessions, loadRaceTeams, raceResult } from './race.js';
 import { importanceBreakdownDto } from './relevance.js';
 import { venueTimezone } from './timezone.js';
 import type { RulesRegistry } from './rules-registry.js';
@@ -312,7 +313,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     .leftJoin(teamProfile, eq(teamProfile.participantId, participant.id))
     .where(inArray(eventParticipant.eventId, ids));
   const sideOrder = (s: string) => (s === 'home' ? 0 : s === 'away' ? 1 : 2);
-  const partsBy = new Map<string, (EventParticipant & { _pos: number | null })[]>();
+  const partsBy = new Map<string, (EventParticipant & { _pos: number | null; _result: unknown })[]>();
   // país do mandante: fallback do fuso do local quando o local não tem país
   const homeCountryBy = new Map<string, string | null>();
   for (const r of partRows) {
@@ -337,9 +338,16 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         locale,
       ),
       _pos: r.position,
+      _result: r.result,
     });
     partsBy.set(r.eventId, list);
   }
+  // corridas (F1): sessão do fim de semana e equipe de cada piloto no resultado
+  const sessions = await loadRaceSessions(db, ids, locale);
+  const gridResults = partRows.filter((r) => r.side === 'grid').map((r) => r.result);
+  const raceTeams = gridResults.length
+    ? await loadRaceTeams(db, 'formula-1', gridResults, ctx.assetsBaseUrl)
+    : new Map();
   const sideId = (eventId: string, side: 'home' | 'away') =>
     partsBy.get(eventId)?.find((p) => p.side === side)?.id ?? null;
 
@@ -531,9 +539,12 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     const pair = (p: Pair | null | undefined): Pair | null =>
       p && (p.home != null || p.away != null) ? { home: p.home ?? null, away: p.away ?? null } : null;
     const participants = (partsBy.get(id) ?? [])
-      .sort((a, b) => sideOrder(a.side) - sideOrder(b.side) || (a._pos ?? 0) - (b._pos ?? 0))
-      .map(({ _pos: _, ...p }): EventParticipant => ({
+      // sem posição (abandono, sem resultado) vai para o fim
+      .sort((a, b) => sideOrder(a.side) - sideOrder(b.side) || (a._pos ?? 999) - (b._pos ?? 999))
+      .map(({ _pos, _result, ...p }): EventParticipant => ({
         ...p,
+        // vários participantes (F1): posição e resultado; mandante × visitante segue sem os campos
+        ...(p.side === 'grid' ? { position: _pos, result: raceResult(_result, raceTeams) } : {}),
         // tags do torcedor por lado (stakes `both` valem para os dois), no locale da resposta
         fan_tags:
           p.side === 'home' || p.side === 'away'
@@ -578,6 +589,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       relevance: null,
       relevance_by_market: null,
       participants,
+      ...(sessions.has(id) ? { session: sessions.get(id)! } : {}),
       score: {
         home: e.score?.home ?? null,
         away: e.score?.away ?? null,

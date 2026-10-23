@@ -42,6 +42,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl } from '../../events/builder.js';
+import { constructorEvents } from '../../events/race.js';
 import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events/queries.js';
 import { pickText } from '../../i18n.js';
 import { teamColors } from '../../teams/colors.js';
@@ -352,14 +353,27 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           });
         }
 
+        // construtor (F1): as sessões dos pilotos da equipe
+        const constructorId = team.kind === 'constructor' ? team.external_ids['api-sports'] : undefined;
         const teamEvents = (status: Event['status'][], order: 'asc' | 'desc', limit: number) =>
-          db
-            .select({ id: event.id })
-            .from(event)
-            .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
-            .where(and(eq(eventParticipant.participantId, team.id), inArray(event.status, status), inYear))
-            .orderBy(order === 'asc' ? asc(event.startsAt) : desc(event.startsAt), asc(event.id))
-            .limit(limit);
+          constructorId
+            ? constructorEvents(
+                db,
+                team.sport,
+                constructorId,
+                and(inArray(event.status, status), inYear),
+                order,
+                limit,
+              )
+            : db
+                .select({ id: event.id })
+                .from(event)
+                .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
+                .where(
+                  and(eq(eventParticipant.participantId, team.id), inArray(event.status, status), inYear),
+                )
+                .orderBy(order === 'asc' ? asc(event.startsAt) : desc(event.startsAt), asc(event.id))
+                .limit(limit);
         const [competitions, lastIds, liveIds, nextIds] = await Promise.all([
           loadTeamCompetitions(bctx, team.id, year),
           teamEvents(['finished'], 'desc', 5),

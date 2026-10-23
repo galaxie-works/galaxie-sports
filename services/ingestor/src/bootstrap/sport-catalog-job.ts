@@ -1,5 +1,6 @@
 import {
   ApiSportsError,
+  FOREVER,
   normalizeParams,
   PgRawStore,
   PlanViolationError,
@@ -22,6 +23,7 @@ import {
   type OtherSport,
   type PlannedSeasonCall,
   type ReferenceResponses,
+  type SeasonCall,
   type SportCatalogCheck,
 } from '../catalog/sport-catalog.js';
 
@@ -35,6 +37,8 @@ export interface SportCallResult {
 export interface SeasonGamesConfig {
   maxTier: number;
   latestSeasons: number;
+  /** Só estas temporadas (`--temporada`); vazio = todas as da janela. */
+  seasons?: readonly number[];
   /** Também busca a classificação de cada temporada (padrão no CLI; `--sem-tabelas` desliga). */
   standings?: boolean;
 }
@@ -87,11 +91,20 @@ export async function planSportCatalog(
         currentYear: now.getUTCFullYear(),
       });
     }
-    for (const p of planned) {
+    const closedBefore = now.getUTCFullYear() - 1;
+    // os detalhes entram no fim da fila: depois de todas as temporadas e tabelas
+    const queue: SeasonCall[] = [...planned];
+    for (let i = 0; i < queue.length; i++) {
+      const p = queue[i]!;
       const params = normalizeParams(p.params);
       const hash = requestHash('api-sports', sport, p.endpoint, params);
-      const fresh = await store.findFresh(hash, ttlFor(p.endpoint, params, now), now);
+      const final = p.final ?? (i < planned.length && planned[i]!.season < closedBefore);
+      const fresh = await store.findFresh(hash, final ? FOREVER : ttlFor(p.endpoint, params, now), now);
       calls.push({ endpoint: p.endpoint, params, source: fresh ? 'cache' : 'network' });
+      // os detalhes (F1: uma chamada por sessão) só aparecem quando a temporada já está no raw
+      const any = fresh ?? (await store.findFresh(hash, Number.POSITIVE_INFINITY, now));
+      if (any && i < planned.length && planned[i]!.kind === 'season' && profile.detailCalls)
+        queue.push(...profile.detailCalls((any.body as Envelope).response, now));
     }
   }
   return { sport, calls, estimated };
@@ -169,15 +182,29 @@ export async function runSportCatalogJob(
         ...options.games,
         seasonWindow: seasonWindow(client.planRulesFor(sport).current),
       });
-      for (const p of planned) {
+      // temporada encerrada não muda: o que já está no raw vale (retomar no dia seguinte não gasta de novo)
+      const closedBefore = now.getUTCFullYear() - 1;
+      // os detalhes (F1: uma chamada por sessão) entram no fim da fila: depois de todas as temporadas e tabelas
+      const queue: SeasonCall[] = planned.map((p) => ({ ...p, final: p.final ?? p.season < closedBefore }));
+      for (let i = 0; i < queue.length; i++) {
+        const p = queue[i]!;
         const params = normalizeParams(p.params);
         if (quotaDenied) {
           calls.push({ endpoint: p.endpoint, params, source: 'deferred', detail: 'cota do dia esgotada' });
           continue;
         }
         try {
-          const res = await client.get({ sport, endpoint: p.endpoint, params, priority: 'BOOTSTRAP', jobId });
+          const res = await client.get({
+            sport,
+            endpoint: p.endpoint,
+            params,
+            priority: 'BOOTSTRAP',
+            jobId,
+            ...(p.final ? { maxAgeMs: FOREVER } : {}),
+          });
           calls.push({ endpoint: p.endpoint, params, source: res.source });
+          if (i < planned.length && planned[i]!.kind === 'season' && profile.detailCalls)
+            queue.push(...profile.detailCalls(res.envelope.response, now));
         } catch (err) {
           if (err instanceof QuotaExceededError) {
             quotaDenied = true;

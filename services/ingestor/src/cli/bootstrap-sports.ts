@@ -12,6 +12,7 @@
  *     --sem-tabelas     com --jogos, não busca a classificação
  *     --tier N          competições até o tier N entram no --jogos (padrão 1)
  *     --temporadas N    sem janela de plano (planos pagos), quantas temporadas recentes buscar (padrão 3)
+ *     --temporada AAAA  com --jogos, só esta temporada (repita para várias), ex.: a mais recente do plano free
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -31,6 +32,7 @@ const { values, positionals } = parseArgs({
     'sem-tabelas': { type: 'boolean', default: false },
     tier: { type: 'string', default: '1' },
     temporadas: { type: 'string', default: '3' },
+    temporada: { type: 'string', multiple: true, default: [] },
   },
 });
 
@@ -43,6 +45,7 @@ const games = values.jogos
   ? {
       maxTier: Number(values.tier),
       latestSeasons: Number(values.temporadas),
+      seasons: (values.temporada ?? []).map(Number),
       standings: !values['sem-tabelas'],
     }
   : undefined;

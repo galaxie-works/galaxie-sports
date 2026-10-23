@@ -10,6 +10,7 @@ import { EventCard } from '@/components/sport/event-card';
 import { Intensity } from '@/components/sport/intensity';
 import { MatchDetails } from '@/components/sport/match-details';
 import { MatchStakes } from '@/components/sport/match-stakes';
+import { isRaceEvent, RaceClassification, RaceScoreboard, raceTitle } from '@/components/sport/race';
 import { RelatedContentGrid } from '@/components/sport/related-content';
 import { RelevanceMeter } from '@/components/sport/relevance-meter';
 import { Section } from '@/components/sport/section';
@@ -396,7 +397,9 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
   ]);
   // minuto a minuto: a partir do apito (ou quando já há lance registrado)
   const showTimeline = !!timeline && (STARTED.has(event.status) || timeline.incidents.length > 0);
-  const title = event.participants.map((p) => p.name).join(` ${t.sport.versus} `);
+  // corrida (F1): vários pilotos no grid; o título é o GP e a sessão, não "A x B x C…"
+  const race = isRaceEvent(event);
+  const title = race ? raceTitle(event) : event.participants.map((p) => p.name).join(` ${t.sport.versus} `);
   // cor de cada time (escudo) no campo e nas estatísticas, tratando escudo monocromático e cores parecidas
   const colors = versusColors(
     event.participants.find((p) => p.side === 'home')?.colors,
@@ -408,9 +411,18 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
     <>
       <PageHeader title={title} kind="evento" api={eventRequest(id, locale, undefined, content)} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
-        <Scoreboard event={event} t={t} f={f} />
+        {race ? <RaceScoreboard event={event} t={t} f={f} /> : <Scoreboard event={event} t={t} f={f} />}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
+            {race ? (
+              <Section
+                title={t.race.classification}
+                description={t.race.classificationDescription}
+                api={eventRequest(id, locale, undefined, content)}
+              >
+                <RaceClassification event={event} />
+              </Section>
+            ) : null}
             {/* contexto (cenário e resumo) sempre acima dos detalhes da partida */}
             {context?.data.length ? (
               <Section
@@ -435,19 +447,22 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
                 ))}
               </Section>
             ) : null}
-            <MatchDetails
-              eventId={id}
-              timeline={showTimeline ? timeline : null}
-              stats={stats}
-              lineups={lineups}
-              marks={lineupMarks(timeline)}
-              colors={colors}
-              query={query}
-              timeZone={f.timeZone}
-              locale={locale}
-              content={content}
-              t={t}
-            />
+            {/* corrida: a classificação acima substitui os detalhes da partida (linha do tempo é do futebol) */}
+            {race ? null : (
+              <MatchDetails
+                eventId={id}
+                timeline={showTimeline ? timeline : null}
+                stats={stats}
+                lineups={lineups}
+                marks={lineupMarks(timeline)}
+                colors={colors}
+                query={query}
+                timeZone={f.timeZone}
+                locale={locale}
+                content={content}
+                t={t}
+              />
+            )}
             {h2h ? <H2hSection h2h={h2h} locale={locale} content={content} t={t} /> : null}
           </div>
           {/* no celular, uma coluna só: placar → sobre o jogo → onde assistir → contexto → detalhes da partida → o resto */}

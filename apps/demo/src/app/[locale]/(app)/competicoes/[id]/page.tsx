@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
+import { ChampionshipTable, championshipOrder } from '@/components/sport/race';
 import { Section } from '@/components/sport/section';
 import { StandingsTable } from '@/components/sport/standings-table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -103,7 +104,14 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
 
   const rounds = groupByRound(events, tc.matches);
   const round = rounds.find((r) => r.name === query.rodada) ?? defaultRound(rounds);
-  const groups = (standings?.groups ?? []).filter((g) => g.rows.length > 0);
+  // F1: campeonatos de pilotos e de construtores no lugar da tabela de pontos corridos; GPs com sessões
+  const championship = (standings?.groups ?? []).some(
+    (g) => g.name === 'drivers' || g.name === 'constructors',
+  );
+  const sessions = events.some((e) => !!e.session);
+  const groups = (
+    championship ? championshipOrder(standings?.groups ?? []) : (standings?.groups ?? [])
+  ).filter((g) => g.rows.length > 0);
   const base = `/competicoes/${competition.slug}`;
   const seasonQuery = selected ? `temporada=${selected.year}` : '';
 
@@ -168,12 +176,18 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
                 {groups.map((g) => (
                   <Section
                     key={g.name ?? 'geral'}
-                    title={groups.length > 1 && g.name ? g.name : tc.standings}
+                    title={
+                      championship && g.name
+                        ? (t.race.championship[g.name] ?? g.name)
+                        : groups.length > 1 && g.name
+                          ? g.name
+                          : tc.standings
+                    }
                     api={
                       selected ? standingsRequest(competition.id, selected.year, locale, content) : undefined
                     }
                   >
-                    <StandingsTable rows={g.rows} />
+                    {championship ? <ChampionshipTable group={g} /> : <StandingsTable rows={g.rows} />}
                   </Section>
                 ))}
               </TabsContent>
@@ -195,7 +209,11 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
                 {round ? (
                   <Section
                     title={round.name}
-                    description={plural(locale, round.events.length, tc.matchCount)}
+                    description={plural(
+                      locale,
+                      round.events.length,
+                      sessions ? t.race.sessions : tc.matchCount,
+                    )}
                     api={
                       window
                         ? competitionEventsRequest(competition.id, window.start, window.end, locale, content)

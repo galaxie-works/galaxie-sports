@@ -17,6 +17,7 @@ import live from './messages/live';
 import nav from './messages/nav';
 import ops from './messages/ops';
 import pages from './messages/pages';
+import race from './messages/race';
 import requests from './messages/requests';
 import search from './messages/search';
 import shell from './messages/shell';
@@ -38,6 +39,7 @@ export const NAMESPACES = {
   nav,
   ops,
   pages,
+  race,
   requests,
   search,
   shell,

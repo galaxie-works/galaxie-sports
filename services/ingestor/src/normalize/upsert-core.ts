@@ -365,6 +365,27 @@ export async function upsertBatchInTx(
       .onConflictDoNothing();
   }
   if (missingSeasons.length) await loadSeasons();
+  // temporada que já existia sem datas (catálogo de API sem datas de temporada, ex.: F1): a janela vem dos
+  // eventos e só cresce; as que não mudam nem são tocadas
+  for (const s of seasonValues) {
+    const id = seasonIds.get(`${s.competitionId}|${s.year}`);
+    if (!id || (!s.startDate && !s.endDate) || missingSeasons.includes(s)) continue;
+    const start = s.startDate ?? s.endDate!;
+    const end = s.endDate ?? s.startDate!;
+    await tx
+      .update(season)
+      .set({
+        startDate: sql`least(${season.startDate}, ${start}::date)`,
+        endDate: sql`greatest(${season.endDate}, ${end}::date)`,
+        updatedAt: sql`now()`,
+      })
+      .where(
+        and(
+          eq(season.id, id),
+          sql`(${season.startDate} is null or ${season.startDate} > ${start}::date or ${season.endDate} is null or ${season.endDate} < ${end}::date)`,
+        ),
+      );
+  }
   stats.seasonsCreated = missingSeasons.length;
   const seasonId = (ref: SeasonRef | null) => {
     if (!ref) return null;

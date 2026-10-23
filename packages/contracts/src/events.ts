@@ -110,6 +110,50 @@ export const FanCheer = z
   });
 export type FanCheer = z.infer<typeof FanCheer>;
 
+/** Resultado de um participante em evento de vários participantes (F1: sessão de treino, classificação ou corrida). */
+export const ParticipantResult = z
+  .object({
+    time: z
+      .string()
+      .nullable()
+      .meta({ description: 'Tempo total (vencedor) ou volta de referência.', example: '1:31:44.742' }),
+    gap: z
+      .string()
+      .nullable()
+      .meta({ description: 'Diferença para o líder, como o fornecedor manda.', example: '+22.457' }),
+    laps: z.number().int().nullable().meta({ example: 57 }),
+    grid: z.number().int().nullable().meta({ description: 'Posição de largada.', example: 1 }),
+    pits: z.number().int().nullable().meta({ description: 'Paradas nos boxes.', example: 2 }),
+    team: z
+      .object({ id: z.uuid().nullable(), name: z.string(), logo: AssetUrl })
+      .nullable()
+      .meta({ description: 'Equipe do piloto na sessão (construtor); `id` é o participante da equipe.' }),
+  })
+  .meta({ id: 'ParticipantResult' });
+export type ParticipantResult = z.infer<typeof ParticipantResult>;
+
+export const EVENT_SESSION_TYPES = ['practice', 'qualifying', 'sprint_qualifying', 'sprint', 'race'] as const;
+
+/** Sessão de um fim de semana de corrida (F1): o Grande Prêmio é a fase (`stage`), a sessão é o evento. */
+export const EventSession = z
+  .object({
+    type: z.enum(EVENT_SESSION_TYPES),
+    number: z
+      .number()
+      .int()
+      .nullable()
+      .meta({ description: 'Treino 1/2/3 ou Q1/Q2/Q3; null em sessão única.' }),
+    name: z.string().meta({ description: 'Nome da sessão no locale da resposta.', example: 'Corrida' }),
+    laps: z.number().int().nullable().meta({ example: 57 }),
+    distance: z.string().nullable().meta({ example: '308.5 Kms' }),
+    fastest_lap: z
+      .object({ participant_id: z.uuid().nullable(), time: z.string().nullable() })
+      .nullable()
+      .meta({ description: 'Volta mais rápida da sessão (piloto e tempo).' }),
+  })
+  .meta({ id: 'EventSession' });
+export type EventSession = z.infer<typeof EventSession>;
+
 export const EventParticipant = z
   .object({
     side: z.string().meta({ example: 'home' }),
@@ -137,6 +181,12 @@ export const EventParticipant = z
     cheer: FanCheer.nullable()
       .optional()
       .meta({ description: 'Grito curto da torcida no mercado da resposta; null se a base não tem.' }),
+    position: z.number().int().nullable().optional().meta({
+      description:
+        'Posição final em eventos de vários participantes (lado `grid`, ex.: F1); ausente em mandante × visitante.',
+      example: 1,
+    }),
+    result: ParticipantResult.nullable().optional(),
   })
   .meta({ id: 'EventParticipant' });
 export type EventParticipant = z.infer<typeof EventParticipant>;
@@ -302,6 +352,9 @@ export const Event = z
           'para a menor. Só no detalhe (`GET /v1/events/{id}`); null nas listas.',
       }),
     participants: z.array(EventParticipant),
+    session: EventSession.nullable()
+      .optional()
+      .meta({ description: 'Sessão do fim de semana de corrida (F1); ausente nos outros esportes.' }),
     score: SidePair.extend({
       halftime: SidePair.nullable(),
       extratime: SidePair.nullable(),

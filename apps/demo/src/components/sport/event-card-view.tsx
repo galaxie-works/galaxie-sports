@@ -60,6 +60,31 @@ function TeamRow({ p, goals, started }: { p: Participant; goals: number | null; 
   );
 }
 
+/** Sessão de corrida (F1): nome da sessão e o top 3 com o tempo; antes da largada, só a sessão. */
+function RaceRows({ event }: { event: Event }) {
+  const top = event.participants
+    .filter((p) => p.side === 'grid' && p.position != null)
+    .sort((a, b) => a.position! - b.position!)
+    .slice(0, 3);
+  return (
+    <div className="flex flex-col gap-1.5 px-3">
+      <span className="text-sm font-semibold">{event.session?.name}</span>
+      {top.map((p) => (
+        <div key={p.id} className="flex items-center gap-2">
+          <span className="text-muted-foreground w-4 text-right text-xs font-semibold tabular-nums">
+            {p.position}
+          </span>
+          <Crest src={p.logo} name={p.name} size="xs" round />
+          <span className="flex-1 truncate text-sm">{p.name}</span>
+          {p.result?.time ? (
+            <span className="text-muted-foreground font-mono text-xs tabular-nums">{p.result.time}</span>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Um lado do confronto: escudo grande, nome e a tag do torcedor — a primeira `fan_tag` ("Na briga pelo
  * título") ou, sem tag, o grito da torcida ("Avanti, Palestra!"); sem os dois, nada.
@@ -180,7 +205,9 @@ export function EventCardView({
           </span>
         </div>
 
-        {home && away ? (
+        {event.session ? (
+          <RaceRows event={event} />
+        ) : home && away ? (
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 px-3">
             <TeamSide p={home} locale={locale} />
             <div className="flex h-16 items-center justify-center">
