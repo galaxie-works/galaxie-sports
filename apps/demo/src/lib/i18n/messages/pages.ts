@@ -68,6 +68,10 @@ export default defineMessages(
         Defender: 'Defensor',
         Midfielder: 'Meio-campista',
         Attacker: 'Atacante',
+        // basquete (NBA)
+        Guard: 'Armador',
+        Forward: 'Ala',
+        Center: 'Pivô',
       } as Record<string, string>,
       season: {
         label: 'Temporada',
@@ -292,6 +296,9 @@ export default defineMessages(
           Defender: 'Defender',
           Midfielder: 'Midfielder',
           Attacker: 'Forward',
+          Guard: 'Guard',
+          Forward: 'Forward',
+          Center: 'Center',
         },
         season: {
           label: 'Season',
@@ -516,6 +523,9 @@ export default defineMessages(
           Defender: 'Defensor',
           Midfielder: 'Mediocampista',
           Attacker: 'Delantero',
+          Guard: 'Base',
+          Forward: 'Alero',
+          Center: 'Pivote',
         },
         season: {
           label: 'Temporada',

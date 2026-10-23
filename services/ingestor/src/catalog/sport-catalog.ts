@@ -425,6 +425,28 @@ function buildMma(responses: ReferenceResponses, ctx: BuildContext): CatalogRows
   return { countries: countryRows([WORLD]), competitions: [competition] };
 }
 
+/**
+ * NBA: elenco de cada franquia na temporada (`players?team&season`, uma chamada por time). Os times saem dos
+ * jogos da temporada regular da liga principal (as 30 franquias; convidados da pré-temporada ficam fora).
+ */
+export function nbaPlayerCalls(games: unknown, now: Date): SeasonCall[] {
+  const teams = new Map<string, number>();
+  for (const g of (Array.isArray(games) ? games : []).filter(isObj)) {
+    if (g.league !== 'standard' || Number(g.stage) !== 2 || !isObj(g.teams)) continue;
+    const season = Number(g.season);
+    for (const side of [g.teams.home, g.teams.visitors])
+      if (isObj(side) && side.id != null && Number.isInteger(season)) teams.set(String(side.id), season);
+  }
+  return [...teams.entries()]
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([team, season]) => ({
+      endpoint: '/players',
+      params: { team, season: String(season) },
+      // temporada encerrada (a próxima já começou): o elenco não muda mais
+      final: season < now.getUTCFullYear() - 1,
+    }));
+}
+
 const USA: ProviderCountry = { name: 'USA', code: 'US', flag: 'https://media.api-sports.io/flags/us.svg' };
 
 function buildNba(responses: ReferenceResponses, ctx: BuildContext): CatalogRows {
@@ -545,6 +567,7 @@ export const SPORT_PROFILES: Record<OtherSport, SportProfile> = {
     build: buildNba,
     seasonCall: games,
     standingsCalls: standings,
+    detailCalls: nbaPlayerCalls,
   },
 };
 

@@ -567,7 +567,8 @@ function gameView(sport: ApiSportsOtherSport, raw: unknown): GameView | null {
     const vl = Array.isArray(v.linescore) ? v.linescore : [];
     const quarters: [string, ScorePair | null][] = [];
     for (let i = 0; i < Math.max(hl.length, vl.length); i++)
-      quarters.push([i < 4 ? `q${i + 1}` : `ot${i - 3}`, pair(hl[i], vl[i])]);
+      // prorrogações: ot, ot2, ot3… (mesmas chaves dos outros esportes)
+      quarters.push([i < 4 ? `q${i + 1}` : i === 4 ? 'ot' : `ot${i - 3}`, pair(hl[i], vl[i])]);
     const status = obj(g.status);
     const per = obj(g.periods);
     const current = int(per.current);
@@ -646,11 +647,75 @@ function winnerOf(score: EventScore, finished: boolean): { home: boolean | null;
   return { home: score.home > score.away, away: score.away > score.home };
 }
 
-function addGame(c: SportCollector, raw: unknown, observedAt: Date): NormalizedEvent | null {
+/** Conferências da NBA v2 (`east`/`west`) com o nome que o api-basketball usa para a mesma tabela. */
+const NBA_CONFERENCES: Readonly<Record<string, string>> = {
+  east: 'Eastern Conference',
+  west: 'Western Conference',
+};
+
+/** Final da NBA Cup: fase própria, fora da tabela da temporada regular (as semifinais contam, a final não). */
+const NBA_CUP_FINAL_STAGE: StageSpec = {
+  label: 'nba-cup-final',
+  kind: 'final',
+  name: { 'pt-BR': 'Final da NBA Cup', es: 'Final de la NBA Cup', en: 'NBA Cup Final' },
+  order: 2500,
+};
+const NBA_CUP_CITY = 'las vegas';
+const NBA_CUP_SEMI_GAP_MS = 36 * 3_600_000;
+
+/**
+ * NBA v2: a final da NBA Cup vem como jogo da temporada regular (`stage: 2`), sem marca própria. As semifinais
+ * e a final são em Las Vegas, mas as duas semifinais caem no mesmo dia e a final, dias depois: a final é o jogo
+ * da temporada regular em Las Vegas sem outro jogo assim a menos de 36 h.
+ */
+export function nbaCupFinalIds(items: unknown[]): Set<string> {
+  const vegas = items.flatMap((raw) => {
+    const g = obj(raw);
+    const gid = id(g.id);
+    const at = instant(null, obj(g.date).start);
+    const city = (str(obj(g.arena).city) ?? '').toLowerCase();
+    return gid && at && int(g.stage) === 2 && city === NBA_CUP_CITY ? [{ id: gid, at: at.getTime() }] : [];
+  });
+  return new Set(
+    vegas
+      .filter((g) => !vegas.some((o) => o.id !== g.id && Math.abs(o.at - g.at) < NBA_CUP_SEMI_GAP_MS))
+      .map((g) => g.id),
+  );
+}
+
+const NBA_UNPLAYED_AFTER_MS = 86_400_000;
+
+/**
+ * NBA v2: jogo de play-in/playoff "se necessário" que não aconteceu (série decidida antes) fica `Scheduled`
+ * para sempre. Passado um dia do horário sem placar, ele não vai acontecer: vira cancelado.
+ */
+function nbaNotNecessary(
+  raw: unknown,
+  v: GameView,
+  status: ReturnType<typeof mapSportStatus>,
+  observedAt: Date,
+): boolean {
+  return (
+    (int(obj(raw).stage) ?? 0) >= 3 &&
+    (status === 'scheduled' || status === 'starting') &&
+    v.score.home == null &&
+    v.score.away == null &&
+    observedAt.getTime() - v.startsAt.getTime() > NBA_UNPLAYED_AFTER_MS
+  );
+}
+
+function addGame(
+  c: SportCollector,
+  raw: unknown,
+  observedAt: Date,
+  cupFinals?: ReadonlySet<string>,
+): NormalizedEvent | null {
   const v = gameView(c.sport, raw);
   if (!v) return null;
   const season = c.competition(v.competition);
-  const stageLabel = c.stage(season, v.stage);
+  // a NBA v2 não tem datas de temporada: a janela vem dos jogos (como na F1)
+  if (c.sport === 'nba') c.seasonDate(season, v.startsAt.toISOString().slice(0, 10));
+  const stageLabel = c.stage(season, cupFinals?.has(v.id) ? NBA_CUP_FINAL_STAGE : v.stage);
   const statusInput = { short: str(v.status.short), long: str(v.status.long) };
   let status = mapSportStatus(c.sport, statusInput);
   const nbaStatus = obj(obj(raw).status);
@@ -660,8 +725,11 @@ function addGame(c: SportCollector, raw: unknown, observedAt: Date): NormalizedE
     (nbaStatus.halftime === true || obj(obj(raw).periods).endOfPeriod === true)
   )
     status = 'break';
-  const detail =
-    c.sport === 'nba'
+  const notNecessary = c.sport === 'nba' && nbaNotNecessary(raw, v, status, observedAt);
+  if (notNecessary) status = 'cancelled';
+  const detail = notNecessary
+    ? 'Not necessary'
+    : c.sport === 'nba'
       ? (str(v.status.long) ?? sportStatusDetail(statusInput))
       : sportStatusDetail(statusInput);
   const short = String(v.status.short ?? '').toUpperCase();
@@ -715,11 +783,84 @@ export function normalizeSportGames(
 ): NormalizedBatch {
   const c = new SportCollector(sport, observedAt);
   const byId = new Map<string, NormalizedEvent>();
+  const cupFinals = sport === 'nba' ? nbaCupFinalIds(items) : undefined;
   for (const item of items) {
-    const e = addGame(c, item, observedAt);
+    const e = addGame(c, item, observedAt, cupFinals);
     if (e) byId.set(e.id, e);
   }
   c.batch.events = [...byId.values()];
+  return c.done();
+}
+
+// ─── elencos da NBA ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * NBA v2 `players?team&season` → pessoas e elenco do time na temporada da NBA (`standard`). A resposta não
+ * repete o time: ele vem do parâmetro `team` e é resolvido pelo `provider_map` na gravação. Só entra quem
+ * tem inscrição na liga principal (`leagues.standard`: número e posição); sem foto (a API não tem).
+ */
+/**
+ * Posição principal no inglês por extenso que o futebol também usa (Goalkeeper, Defender…): "G-F" e "SG" →
+ * Guard, "PF" e "F-C" → Forward, "C" → Center; "NA" ou vazio → sem posição.
+ */
+export function nbaPosition(pos: unknown): string | null {
+  const main = (str(pos) ?? '').toUpperCase().split('-')[0]!;
+  if (main === 'C') return 'Center';
+  if (/^[PS]?G$/.test(main)) return 'Guard';
+  if (/^[PS]?F$/.test(main)) return 'Forward';
+  return null;
+}
+
+export function normalizeNbaPlayers(
+  items: unknown[],
+  observedAt: Date,
+  params: Record<string, string> = {},
+): NormalizedBatch {
+  const c = new SportCollector('nba', observedAt);
+  const team = id(params.team);
+  const year = seasonYear(params.season);
+  if (!team || year == null) return c.done();
+  const season = c.competition({
+    id: 'standard',
+    name: 'NBA standard',
+    countryName: 'USA',
+    countryCode: 'US',
+    year,
+    label: `${year}/${String(year + 1).slice(2)}`,
+  });
+  for (const raw of items) {
+    const p = obj(raw);
+    const pid = id(p.id);
+    const standard = obj(obj(p.leagues).standard);
+    const name = [str(p.firstname), str(p.lastname)].filter(Boolean).join(' ');
+    if (!pid || !name || !Object.keys(standard).length) continue;
+    const meters = num(obj(p.height).meters);
+    const kg = num(obj(p.weight).kilograms);
+    const birth = obj(p.birth);
+    c.batch.persons.push({
+      id: pid,
+      name,
+      firstName: str(p.firstname),
+      lastName: str(p.lastname),
+      birthDate: str(birth.date),
+      nationality: str(birth.country),
+      heightCm: meters ? Math.round(meters * 100) : null,
+      weightKg: kg ? Math.round(kg) : null,
+      birthCountry: str(birth.country),
+      photoUrl: null,
+      photoKind: 'player',
+    });
+    c.batch.rosters.push({
+      participantId: team,
+      personId: pid,
+      season,
+      role: 'player',
+      number: int(standard.jersey),
+      position: nbaPosition(standard.pos),
+      validFrom: null,
+      validTo: null,
+    });
+  }
   return c.done();
 }
 
@@ -832,7 +973,7 @@ export function normalizeSportStandings(
       const conf = obj(row.conference);
       const win = obj(row.win);
       const loss = obj(row.loss);
-      group = str(conf.name) ?? '';
+      group = NBA_CONFERENCES[(str(conf.name) ?? '').toLowerCase()] ?? str(conf.name) ?? '';
       rank = int(conf.rank);
       // o total às vezes vem zerado: soma casa + fora
       won = int(win.total) || (int(win.home) ?? 0) + (int(win.away) ?? 0);
@@ -1465,7 +1606,7 @@ export const NORMALIZABLE_SPORT_ENDPOINTS: Readonly<Record<ApiSportsOtherSport, 
   rugby: GAME_SPORTS,
   volleyball: GAME_SPORTS,
   'american-football': GAME_SPORTS,
-  nba: ['/games', '/standings', '/teams'],
+  nba: ['/games', '/standings', '/teams', '/players'],
   'formula-1': [
     '/races',
     '/rankings/races',
@@ -1508,6 +1649,8 @@ export function normalizeSportEnvelope(
       return { batch: normalizeSportTeams(sport, response, observedAt), items };
     case '/standings':
       return { batch: normalizeSportStandings(sport, response, observedAt, params), items };
+    case '/players':
+      return sport === 'nba' ? { batch: normalizeNbaPlayers(response, observedAt, params), items } : null;
     case '/races':
       return { batch: normalizeF1Races(response, observedAt), items };
     case '/rankings/races':

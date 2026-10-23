@@ -741,9 +741,16 @@ export async function upsertBatchInTx(
   await upsertSupplements(tx, batch, scope, stats, participantId);
 
   // ─ elencos ─
+  // time citado só pelo elenco (NBA v2: players?team&season não repete o time): vem do provider_map
+  const rosterTeams = await resolveIds(
+    tx,
+    scope,
+    'participant',
+    batch.rosters.map((r) => r.participantId).filter((pid) => !participantIds.ids.has(pid)),
+  );
   const rosterRows = dedupeBy(
     batch.rosters.flatMap((r) => {
-      const pid = participantId(r.participantId);
+      const pid = participantId(r.participantId) ?? rosterTeams.get(r.participantId) ?? null;
       const person = personId(r.personId);
       if (!pid || !person) return [];
       const sid = r.season ? seasonId(r.season) : null;

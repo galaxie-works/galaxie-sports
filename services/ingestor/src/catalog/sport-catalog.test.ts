@@ -5,6 +5,7 @@ import {
   estimateSeasonCalls,
   F1_CHAMPIONSHIP_ID,
   MMA_ALL_FIGHTS_ID,
+  nbaPlayerCalls,
   OTHER_SPORTS,
   parseLeagues,
   planSeasonCalls,
@@ -345,6 +346,26 @@ describe('perfis por esporte', () => {
       { league: 'standard', season: '2023' },
       { league: 'standard', season: '2024' },
     ]);
+  });
+
+  it('NBA: um elenco por franquia da temporada regular (players?team&season), encerrada = final', () => {
+    const game = (stage: number, home: number, visitors: number, league = 'standard') => ({
+      league,
+      season: 2024,
+      stage,
+      teams: { home: { id: home }, visitors: { id: visitors } },
+    });
+    const calls = nbaPlayerCalls(
+      [game(2, 2, 1), game(2, 1, 41), game(1, 2, 99), game(2, 7, 8, 'vegas')],
+      TODAY,
+    );
+    expect(calls).toEqual([
+      { endpoint: '/players', params: { team: '1', season: '2024' }, final: true },
+      { endpoint: '/players', params: { team: '2', season: '2024' }, final: true },
+      { endpoint: '/players', params: { team: '41', season: '2024' }, final: true },
+    ]);
+    expect(SPORT_PROFILES.nba.detailCalls).toBe(nbaPlayerCalls);
+    expect(nbaPlayerCalls(null, TODAY)).toEqual([]);
   });
 });
 

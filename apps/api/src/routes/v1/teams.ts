@@ -70,7 +70,16 @@ const TeamCursor = z.object({ n: z.string(), i: z.string().regex(UUID_RE) });
 export { ageAt } from '../../people/person.js';
 export { teamColors } from '../../teams/colors.js';
 
-const POSITION_ORDER: Record<string, number> = { goalkeeper: 0, defender: 1, midfielder: 2, attacker: 3 };
+// futebol e basquete (NBA): os dois nunca se misturam num elenco
+const POSITION_ORDER: Record<string, number> = {
+  goalkeeper: 0,
+  defender: 1,
+  midfielder: 2,
+  attacker: 3,
+  guard: 0,
+  forward: 1,
+  center: 2,
+};
 
 /** Rotas de times, elencos e pessoas (docs/05 §3.3). Todas exigem o módulo core_data. */
 export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {

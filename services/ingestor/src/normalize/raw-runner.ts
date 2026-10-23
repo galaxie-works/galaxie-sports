@@ -16,7 +16,9 @@ import {
   type EnvelopeLike,
   type NormalizedBatch,
 } from '@galaxie/providers';
+import { linkNbaLogos } from '../catalog/nba-logos.js';
 import { SPORTS } from '../catalog/persist.js';
+import { recomputeNbaStandings } from '../standings/nba.js';
 import { addStats, emptyStats, upsertBatch, type UpsertOptions, type UpsertStats } from './upsert-core.js';
 
 export interface NormalizeRawOptions extends UpsertOptions {
@@ -300,6 +302,11 @@ export async function runNormalizeSportsJob(
   const out: { sport: ApiSportsOtherSport; result: NormalizeRawResult }[] = [];
   for (const sport of options.sports ?? API_SPORTS_OTHER_SPORTS) {
     const result = await runNormalizeJob(db, sport, (o) => normalizeSportFromRaw(db, sport, o), options);
+    // NBA: a tabela do fornecedor vem defasada (a dos jogos a substitui) e os logos vêm do api-basketball
+    if (sport === 'nba' && result.rows.length) {
+      await recomputeNbaStandings(db);
+      await linkNbaLogos(db);
+    }
     out.push({ sport, result });
   }
   return out;
