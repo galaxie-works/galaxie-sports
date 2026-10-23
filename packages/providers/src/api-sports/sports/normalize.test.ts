@@ -18,6 +18,7 @@ import {
   normalizeSportGames,
   normalizeSportStandings,
   normalizeSportTeams,
+  pointsSwapped,
   roundStage,
   seasonYear,
 } from './normalize.js';
@@ -331,6 +332,27 @@ describe('fases', () => {
     expect(americanFootballGroup('Southeastern Conference', 'Main')).toBe('Southeastern Conference');
     expect(americanFootballGroup(null, 'East')).toBe('East');
     expect(americanFootballGroup(null, null)).toBe('');
+  });
+
+  it('pointsSwapped reconhece pontos feitos/contra trocados na resposta', () => {
+    const row = (won: number, lost: number, pf: number, pa: number) => ({
+      won,
+      lost,
+      points: { for: pf, against: pa },
+    });
+    const right = [row(13, 4, 525, 368), row(4, 13, 289, 417), row(12, 5, 518, 361), row(3, 14, 258, 435)];
+    const swapped = [
+      row(12, 2, 217, 435),
+      row(3, 9, 510, 300),
+      row(9, 4, 226, 439),
+      row(4, 8, 400, 280),
+      row(10, 3, 250, 380),
+      row(8, 8, 300, 300),
+    ];
+    expect(pointsSwapped(right)).toBe(false);
+    expect(pointsSwapped(swapped)).toBe(true);
+    // poucos times: não arrisca
+    expect(pointsSwapped(swapped.slice(0, 2))).toBe(false);
   });
 
   it('seasonYear aceita número, texto e temporada cruzada', () => {
