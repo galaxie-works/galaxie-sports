@@ -116,6 +116,11 @@ export interface LiveSchedulerOptions {
   graceMs: number;
   /** Teto absoluto da janela (minutos depois do horário oficial), contra jogos "presos" em andamento. */
   hardCapMin: number;
+  /**
+   * Menor `live_priority` acompanhada (padrão: medium). Com cota folgada, `low` põe no ao vivo as ligas
+   * menores que o relógio já marca como em andamento — sem isso elas ficam "ao vivo" sem placar.
+   */
+  minPriority: Exclude<LivePriority, 'none'>;
 }
 
 export const DEFAULT_LIVE_OPTIONS: LiveSchedulerOptions = {
@@ -127,6 +132,7 @@ export const DEFAULT_LIVE_OPTIONS: LiveSchedulerOptions = {
   halftimeSkipMs: 10 * MIN,
   graceMs: 10 * MIN,
   hardCapMin: 240,
+  minPriority: 'medium',
 };
 
 export function liveOptions(partial: Partial<LiveSchedulerOptions> = {}): LiveSchedulerOptions {
@@ -137,9 +143,14 @@ export function liveOptions(partial: Partial<LiveSchedulerOptions> = {}): LiveSc
 
 // ─── relevância e prioridade ─────────────────────────────────────────────────────────────────────
 
-/** `live_priority` alta/média, ou clássico em qualquer competição. */
-export function isRelevant(c: LiveCandidate): boolean {
-  return c.livePriority === 'high' || c.livePriority === 'medium' || c.derby;
+const PRIORITY_RANK: Record<LivePriority, number> = { high: 3, medium: 2, low: 1, none: 0 };
+
+/** `live_priority` a partir de `minPriority` (padrão: alta/média), ou clássico em qualquer competição. */
+export function isRelevant(
+  c: LiveCandidate,
+  minPriority: LiveSchedulerOptions['minPriority'] = 'medium',
+): boolean {
+  return PRIORITY_RANK[c.livePriority] >= PRIORITY_RANK[minPriority] || c.derby;
 }
 
 export function isTerminal(status: EventStatus): boolean {
@@ -486,7 +497,7 @@ export function planLiveDay(input: PlanInput): LiveDayPlan {
   for (const c of input.candidates) {
     const exclude = (reason: ExcludedMatch['reason']) =>
       excluded.push({ eventId: c.eventId, label: c.label, reason });
-    if (!isRelevant(c)) {
+    if (!isRelevant(c, options.minPriority)) {
       exclude('not_relevant');
       continue;
     }

@@ -132,6 +132,40 @@ describe('LivePoller', () => {
     expect(store.state('9102')!.status).toBe('live');
   });
 
+  it('detalhe ainda sem o apito final: tenta de novo com espera, sem desistir no mesmo minuto', async () => {
+    const { store, provider, poller, tracked, finishedIds } = setup([match]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    const tick = async (now: Date) =>
+      poller.tick({ now, leagues: ['71'], tracked: await tracked(now), finalizeBudget: 2 });
+    const details = () => provider.calls.filter((c) => c.method === 'getEventDetail').length;
+
+    provider.willReturn('listLive', batchAt([match], at(100)));
+    await tick(at(100));
+
+    // saiu do live, mas o detalhe ainda diz 2º tempo (a fonte atrasa o FT)
+    provider
+      .willReturn('listLive', batchAt([], at(101)))
+      .willReturn('getEventDetail', batchAt([match], at(100), true));
+    const r1 = await tick(at(101));
+    expect(r1).toMatchObject({ vanished: ['9101'], finalized: [] });
+    expect(store.state('9101')!.status).toBe('live');
+
+    // 30 s depois: ainda na espera, nenhuma chamada de detalhe
+    provider.willReturn('listLive', batchAt([], at(101.5)));
+    await tick(at(101.5));
+    expect(details()).toBe(1);
+
+    // depois da espera: o detalhe confirma o encerramento
+    provider
+      .willReturn('listLive', batchAt([], at(102.5)))
+      .willReturn('getEventDetail', batchAt([match], at(111), true));
+    const r2 = await tick(at(102.5));
+    expect(details()).toBe(2);
+    expect(r2.finalized).toEqual(['9101']);
+    expect(store.state('9101')).toMatchObject({ status: 'finished', statusDetail: 'FT' });
+    expect(finishedIds).toEqual(['9101']);
+  });
+
   it('sem orçamento de confirmação, o jogo que sumiu fica para o próximo tick', async () => {
     const { provider, poller, tracked } = setup([match]);
     const t1 = new Date(kick + 100 * MIN);
