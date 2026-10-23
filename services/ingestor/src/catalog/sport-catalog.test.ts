@@ -20,6 +20,11 @@ describe('países', () => {
     expect(sportCountryCode({ name: 'Asia', code: 'AS' })).toBe('ASIA');
     expect(sportCountryCode({ name: 'South-America', code: null })).toBe('SOUTH-AMERICA');
     expect(sportCountryCode({ name: 'Dominican-Republic', code: 'do' })).toBe('DO');
+    // o rúgbi devolve "GB" para Inglaterra, Escócia e País de Gales
+    expect(sportCountryCode({ name: 'England', code: 'GB' })).toBe('GB-ENG');
+    expect(sportCountryCode({ name: 'Wales', code: 'GB' })).toBe('GB-WLS');
+    expect(sportCountryCode({ name: 'Scotland', code: 'GB-SCT' })).toBe('GB-SCT');
+    expect(sportCountryCode({ name: 'United-Kingdom', code: 'GB' })).toBe('GB');
   });
 });
 
@@ -149,6 +154,43 @@ describe('perfis por esporte', () => {
     ]);
     // sem a estratégia no YAML, segue a regra das datas
     expect(globe!.seasons.map((s) => s.label)).toEqual(['2023']);
+  });
+
+  it('rúgbi: provider_country corrige o país errado do fornecedor e a conferência fica ok', () => {
+    const league = (id: number, name: string, country: string, code: string | null) => ({
+      id,
+      name,
+      type: 'League',
+      logo: null,
+      country: { id: 0, name: country, code, flag: null },
+      seasons: [{ season: 2024, start: '2024-02-16', end: '2024-06-15', current: false }],
+    });
+    const catalog = [
+      {
+        slug: 'super-rugby-americas',
+        name: 'Super Liga Americana',
+        country: 'World',
+        provider_country: 'South-Africa',
+        type: 'league' as const,
+        api_sports_id: 41,
+        tier: 1,
+      },
+    ];
+    const build = (country: string, code: string | null) =>
+      SPORT_PROFILES.rugby.build(
+        new Map<string, unknown>([
+          ['/countries', []],
+          ['/leagues', [league(41, 'Super Liga Americana', country, code)]],
+        ]),
+        { catalog, today: TODAY },
+      );
+    const rows = build('South-Africa', 'ZA');
+    expect(rows.competitions[0]!.countryCode).toBe('WORLD');
+    expect(checkSportCatalog(catalog, rows).map((c) => c.status)).toEqual(['ok']);
+    // se o fornecedor corrigir para outro país, vale o dele e a conferência aponta a diferença
+    const fixed = build('Argentina', 'AR');
+    expect(fixed.competitions[0]!.countryCode).toBe('AR');
+    expect(checkSportCatalog(catalog, fixed)[0]!.status).toBe('mismatch');
   });
 
   it('AFL sem país usa Austrália', () => {

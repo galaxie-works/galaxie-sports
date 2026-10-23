@@ -5,6 +5,11 @@ interface CatalogEntryBase {
   slug: string;
   name: string;
   country: string;
+  /**
+   * País que o fornecedor devolve quando está errado: se o /leagues trouxer este país, vale `country`
+   * (a Súper Rugby Américas vem como "South-Africa" no rúgbi).
+   */
+  provider_country?: string;
   type: 'league' | 'cup';
   verify?: boolean;
   tier: number;

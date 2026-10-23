@@ -39,6 +39,8 @@ describe('config/competitions/<esporte>.yaml', () => {
         .map((c) => c.api_sports_id);
     expect(await tier1('basketball')).toEqual(expect.arrayContaining([26, 18]));
     expect(await tier1('volleyball')).toEqual(expect.arrayContaining([25, 24, 4, 183, 184]));
+    // rúgbi: Pumas (Rugby Championship e test matches) e Súper Rugby Américas
+    expect(await tier1('rugby')).toEqual(expect.arrayContaining([85, 84, 41, 1]));
     expect(await tier1('nba')).toEqual(['standard']);
     expect(await tier1('formula-1')).toEqual(['world-championship']);
   });

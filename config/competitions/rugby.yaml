@@ -3,26 +3,72 @@
 # Mesmo schema de config/competitions/football.yaml. Consumido por
 #   pnpm --filter @galaxie/ingestor bootstrap:sports rugby
 #
-# TIERS (prioridade latino-americana, docs/03 §6)
+# TIERS (prioridade latino-americana, docs/03 §6; no rúgbi, a Argentina primeiro)
 #   tier 1 - competições prioritárias: temporadas inteiras no bootstrap (--jogos) e live.
-#   tier 2 - espelhadas com tratamento leve; histórico conforme a cota.
+#   tier 2 - espelhadas com tratamento leve; histórico conforme a cota (--jogos --tier 2).
 #   tier 3 - todo o resto do /leagues entra automaticamente (sem precisar estar aqui).
 #
 # CAMPOS
 #   name / country / type - exatamente como a API devolve (league.name, country.name,
 #                           type em minúsculas); a conferência do bootstrap aponta diferenças.
+#   provider_country      - quando o país do fornecedor está errado: se o /leagues devolver este país,
+#                           vale o `country` daqui (a Súper Rugby Américas vem como "South-Africa").
 #   api_sports_id         - ID da liga nesta API (o mesmo número pode existir em outra API;
 #                           o mapeamento em core.provider_map é sempre por esporte).
-#   verify                - false = ID e nome conferidos no /leagues capturado (snapshot 2025/2026,
-#                           ver docs/research/api-sports-outros-esportes.md); confirme na primeira execução autenticada.
-#   seasons_strategy      - calendar-year (2026 = 2026) ou split-year (2026 = 2026/27).
-# Super Rugby Americas e ligas do Uruguai, Chile e Brasil não aparecem no snapshot; resolver com /leagues?search=.
+#   verify                - false = ID e nome conferidos no /leagues (primeiro bootstrap autenticado, 23/10/2026).
+#   seasons_strategy      - calendar-year (2024 = 2024), split-year (2024 = 2024/25: ligas europeias,
+#                           Champions Cup e Challenge Cup começam em setembro/dezembro e terminam em junho) ou
+#                           tournament-year (rótulo = ano em que termina: a Copa do Mundo "2023" começa em
+#                           nov/2022 no fornecedor e sairia "2023/24").
+# No free (2022–2024) as seleções têm a última edição dentro da janela: Copa do Mundo 2023, Copa do Mundo
+# feminina 2022, Pan-Americano de 7 2023. O Circuito Mundial de 7 (SVNS) é uma competição por etapa; a
+# chave "2024" de Dubai e da Cidade do Cabo já é a etapa de nov./dez. de 2024 (temporada 2024/25).
+# Ligas do Uruguai, Chile e Brasil não existem no /leagues; a Súper Rugby Américas é o "Super Liga Americana".
 # =============================================================================
 schema_version: 1
 sport: rugby
 competitions:
 
-  # ---------------------------------------------------------------- tier 1
+  # ---------------------------------------------------------------- tier 1 - Argentina e principais
+  - slug: rugby-championship
+    name: "Rugby Championship"
+    country: "World"
+    type: league
+    api_sports_id: 85
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    prestige: 10
+    labels: { pt-BR: "Rugby Championship", es: "Rugby Championship", en: "The Rugby Championship" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: friendly-international-rugby
+    name: "Friendly International"
+    country: "World"
+    type: league
+    api_sports_id: 84
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: high
+    labels: { pt-BR: "Test matches (amistosos de seleções)", es: "Test matches (amistosos internacionales)", en: "Test matches" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: super-rugby-americas
+    name: "Super Liga Americana"
+    country: "World"
+    provider_country: "South-Africa"
+    type: league
+    api_sports_id: 41
+    verify: false
+    tier: 1
+    region: south-america
+    seasons_strategy: calendar-year
+    live_priority: high
+    prestige: 5
+    labels: { pt-BR: "Súper Rugby Américas", es: "Súper Rugby Américas", en: "Super Rugby Americas" }
+    sources: ["/leagues 23/10/2026"]
   - slug: top-12-argentina
     name: "Top 12"
     country: "Argentina"
@@ -33,8 +79,21 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { es: "Top 12 de la URBA", pt-BR: "Top 12 (Argentina)" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    labels: { pt-BR: "Top 12 (Argentina)", es: "Top 12 de la URBA", en: "URBA Top 12" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: rugby-world-cup
+    name: "World Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 69
+    verify: false
+    tier: 1
+    region: world
+    seasons_strategy: tournament-year
+    live_priority: high
+    prestige: 10
+    labels: { pt-BR: "Copa do Mundo de Rúgbi", es: "Copa del Mundo de Rugby", en: "Rugby World Cup" }
+    sources: ["/leagues 23/10/2026"]
   - slug: olympics-rugby-sevens
     name: "Olympic Games 7's"
     country: "World"
@@ -45,8 +104,9 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Rúgbi de 7 masculino — Jogos Olímpicos", es: "Rugby 7 masculino — Juegos Olímpicos" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    prestige: 10
+    labels: { pt-BR: "Rúgbi de 7 masculino — Jogos Olímpicos", es: "Rugby 7 masculino — Juegos Olímpicos", en: "Olympic Games — Men's Rugby Sevens" }
+    sources: ["/leagues 23/10/2026"]
   - slug: olympics-rugby-sevens-women
     name: "Olympic Games 7's Women"
     country: "World"
@@ -57,8 +117,9 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Rúgbi de 7 feminino — Jogos Olímpicos", es: "Rugby 7 femenino — Juegos Olímpicos" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    prestige: 10
+    labels: { pt-BR: "Rúgbi de 7 feminino — Jogos Olímpicos", es: "Rugby 7 femenino — Juegos Olímpicos", en: "Olympic Games — Women's Rugby Sevens" }
+    sources: ["/leagues 23/10/2026"]
   - slug: pan-american-games-rugby-sevens
     name: "Pan American Games 7's"
     country: "World"
@@ -69,8 +130,9 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Rúgbi de 7 masculino — Jogos Pan-Americanos", es: "Rugby 7 masculino — Juegos Panamericanos" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    prestige: 5
+    labels: { pt-BR: "Rúgbi de 7 masculino — Jogos Pan-Americanos", es: "Rugby 7 masculino — Juegos Panamericanos", en: "Pan American Games — Men's Rugby Sevens" }
+    sources: ["/leagues 23/10/2026"]
   - slug: pan-american-games-rugby-sevens-women
     name: "Pan American Games 7's Women"
     country: "World"
@@ -81,89 +143,147 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Rúgbi de 7 feminino — Jogos Pan-Americanos", es: "Rugby 7 femenino — Juegos Panamericanos" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
-
-  # ---------------------------------------------------------------- tier 2
-  - slug: rugby-world-cup
-    name: "World Cup"
+    prestige: 5
+    labels: { pt-BR: "Rúgbi de 7 feminino — Jogos Pan-Americanos", es: "Rugby 7 femenino — Juegos Panamericanos", en: "Pan American Games — Women's Rugby Sevens" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: world-rugby-u20-championship
+    name: "World Championship U20"
     country: "World"
     type: cup
-    api_sports_id: 69
+    api_sports_id: 102
     verify: false
-    tier: 2
-    region: world
-    seasons_strategy: calendar-year
-    live_priority: high
-    labels: { pt-BR: "Copa do Mundo de Rúgbi", es: "Copa del Mundo de Rugby" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
-  - slug: rugby-world-cup-women
-    name: "World Cup Women"
-    country: "World"
-    type: cup
-    api_sports_id: 70
-    verify: false
-    tier: 2
+    tier: 1
     region: world
     seasons_strategy: calendar-year
     live_priority: medium
-    sources: ["docs/research/api-sports-outros-esportes.md"]
-  - slug: rugby-sevens-world-cup
-    name: "Sevens World Cup"
-    country: "World"
-    type: cup
-    api_sports_id: 86
-    verify: false
-    tier: 2
-    region: world
-    seasons_strategy: calendar-year
-    live_priority: medium
-    sources: ["docs/research/api-sports-outros-esportes.md"]
-  - slug: rugby-sevens-world-cup-women
-    name: "Sevens World Cup Women"
-    country: "World"
-    type: cup
-    api_sports_id: 87
-    verify: false
-    tier: 2
-    region: world
-    seasons_strategy: calendar-year
-    live_priority: medium
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    prestige: 5
+    labels: { pt-BR: "Mundial Sub-20 de Rúgbi", es: "Mundial M20 de Rugby", en: "World Rugby U20 Championship" }
+    sources: ["/leagues 23/10/2026"]
   - slug: super-rugby
     name: "Super Rugby"
     country: "World"
     type: league
     api_sports_id: 71
     verify: false
-    tier: 2
+    tier: 1
     region: world
     seasons_strategy: calendar-year
-    live_priority: low
-    sources: ["docs/research/api-sports-outros-esportes.md"]
-  - slug: americas-rugby-championship
-    name: "Americas Championship"
+    live_priority: medium
+    labels: { pt-BR: "Super Rugby Pacific", es: "Super Rugby Pacific", en: "Super Rugby Pacific" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: six-nations
+    name: "Six Nations"
+    country: "Europe"
+    type: cup
+    api_sports_id: 51
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: calendar-year
+    live_priority: high
+    prestige: 10
+    labels: { pt-BR: "Seis Nações", es: "Seis Naciones", en: "Six Nations" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: united-rugby-championship
+    name: "United Rugby Championship"
     country: "World"
     type: cup
-    api_sports_id: 100
+    api_sports_id: 76
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "United Rugby Championship", es: "United Rugby Championship", en: "United Rugby Championship" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: top-14
+    name: "Top 14"
+    country: "France"
+    type: league
+    api_sports_id: 16
+    verify: false
+    tier: 1
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Top 14 (França)", es: "Top 14 de Francia", en: "Top 14" }
+    sources: ["/leagues 23/10/2026"]
+
+  # ---------------------------------------------------------------- tier 2 - clubes
+  - slug: premiership-rugby
+    name: "Premiership Rugby"
+    country: "England"
+    type: league
+    api_sports_id: 13
     verify: false
     tier: 2
-    region: world
-    seasons_strategy: calendar-year
+    region: europe
+    seasons_strategy: split-year
     live_priority: low
-    labels: { es: "Americas Rugby Championship" }
-    sources: ["docs/research/api-sports-outros-esportes.md"]
-  - slug: americas-pacific-challenge
-    name: "Americas Pacific Challenge"
-    country: "World"
+    labels: { pt-BR: "Premiership Rugby (Inglaterra)", es: "Premiership Rugby de Inglaterra", en: "Premiership Rugby" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: european-rugby-champions-cup
+    name: "European Rugby Champions Cup"
+    country: "Europe"
     type: cup
-    api_sports_id: 92
+    api_sports_id: 54
     verify: false
     tier: 2
-    region: world
-    seasons_strategy: calendar-year
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Champions Cup (Copa Europeia de Rúgbi)", es: "Champions Cup (Copa de Europa de Rugby)", en: "Investec Champions Cup" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: european-rugby-challenge-cup
+    name: "Challenge Cup"
+    country: "Europe"
+    type: cup
+    api_sports_id: 52
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
     live_priority: low
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    prestige: 5
+    labels: { pt-BR: "Challenge Cup (Europa)", es: "Challenge Cup (Europa)", en: "EPCR Challenge Cup" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: pro-d2
+    name: "Pro D2"
+    country: "France"
+    type: league
+    api_sports_id: 17
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Pro D2 (França)", es: "Pro D2 de Francia", en: "Pro D2" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: top10-italy
+    name: "Top10"
+    country: "Italy"
+    type: league
+    api_sports_id: 26
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Top10 (Itália)", es: "Top10 de Italia", en: "Top10 (Italy)" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: division-de-honor-spain
+    name: "Division de Honor"
+    country: "Spain"
+    type: league
+    api_sports_id: 42
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "División de Honor (Espanha)", es: "División de Honor de España", en: "División de Honor (Spain)" }
+    sources: ["/leagues 23/10/2026"]
   - slug: major-league-rugby
     name: "Major League Rugby"
     country: "USA"
@@ -174,4 +294,259 @@ competitions:
     region: north-america
     seasons_strategy: calendar-year
     live_priority: low
-    sources: ["docs/research/api-sports-outros-esportes.md"]
+    labels: { pt-BR: "Major League Rugby (EUA)", es: "Major League Rugby (EE. UU.)", en: "Major League Rugby" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: bunnings-npc
+    name: "Bunnings NPC"
+    country: "New-Zealand"
+    type: league
+    api_sports_id: 80
+    verify: false
+    tier: 2
+    region: oceania
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "NPC (Nova Zelândia)", es: "NPC de Nueva Zelanda", en: "Bunnings NPC" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: currie-cup
+    name: "Currie Cup"
+    country: "South-Africa"
+    type: cup
+    api_sports_id: 37
+    verify: false
+    tier: 2
+    region: africa
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Currie Cup (África do Sul)", es: "Currie Cup de Sudáfrica", en: "Currie Cup" }
+    sources: ["/leagues 23/10/2026"]
+
+  # ---------------------------------------------------------------- tier 2 - seleções
+  - slug: pacific-nations-cup
+    name: "Pacific Nations Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 90
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    prestige: 5
+    labels: { pt-BR: "Pacific Nations Cup", es: "Pacific Nations Cup", en: "Pacific Nations Cup" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: rugby-europe-championship
+    name: "Rugby Europe Championship"
+    country: "Europe"
+    type: cup
+    api_sports_id: 58
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: calendar-year
+    live_priority: low
+    prestige: 5
+    labels: { pt-BR: "Rugby Europe Championship", es: "Rugby Europe Championship", en: "Rugby Europe Championship" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: rugby-world-cup-women
+    name: "World Cup Women"
+    country: "World"
+    type: cup
+    api_sports_id: 70
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Copa do Mundo de Rúgbi feminina", es: "Copa del Mundo de Rugby femenina", en: "Women's Rugby World Cup" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: six-nations-women
+    name: "Six Nations Women"
+    country: "Europe"
+    type: cup
+    api_sports_id: 55
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: calendar-year
+    live_priority: low
+    prestige: 5
+    labels: { pt-BR: "Seis Nações feminino", es: "Seis Naciones femenino", en: "Women's Six Nations" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: wxv-1-women
+    name: "WXV 1 Women"
+    country: "World"
+    type: league
+    api_sports_id: 141
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    prestige: 5
+    labels: { pt-BR: "WXV 1 (feminino)", es: "WXV 1 (femenino)", en: "WXV 1" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: friendly-international-rugby-women
+    name: "Friendly International Women"
+    country: "World"
+    type: league
+    api_sports_id: 97
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Test matches femininos", es: "Test matches femeninos", en: "Women's test matches" }
+    sources: ["/leagues 23/10/2026"]
+
+  # ---------------------------------------------------------------- tier 2 - Circuito Mundial de 7 (masculino)
+  - slug: svns-australia
+    name: "Seven's World Series - Australia"
+    country: "World"
+    type: cup
+    api_sports_id: 110
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Circuito Mundial de 7 — Perth", es: "Circuito Mundial de Seven — Perth", en: "SVNS — Perth" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: svns-canada
+    name: "Seven's World Series - Canada"
+    country: "World"
+    type: cup
+    api_sports_id: 119
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Circuito Mundial de 7 — Vancouver", es: "Circuito Mundial de Seven — Vancouver", en: "SVNS — Vancouver" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: svns-usa
+    name: "Seven's World Series - USA"
+    country: "World"
+    type: cup
+    api_sports_id: 114
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Circuito Mundial de 7 — Los Angeles", es: "Circuito Mundial de Seven — Los Ángeles", en: "SVNS — Los Angeles" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: svns-hong-kong
+    name: "Seven's World Series - Hong Kong"
+    country: "World"
+    type: cup
+    api_sports_id: 115
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Circuito Mundial de 7 — Hong Kong", es: "Circuito Mundial de Seven — Hong Kong", en: "SVNS — Hong Kong" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: svns-singapore
+    name: "Seven's World Series - Singapore"
+    country: "World"
+    type: cup
+    api_sports_id: 120
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Circuito Mundial de 7 — Singapura", es: "Circuito Mundial de Seven — Singapur", en: "SVNS — Singapore" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: svns-spain
+    name: "Seven's World Series - Spain"
+    country: "World"
+    type: cup
+    api_sports_id: 130
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Circuito Mundial de 7 — Grande Final de Madri", es: "Circuito Mundial de Seven — Gran Final de Madrid", en: "SVNS — Madrid Grand Final" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: svns-dubai
+    name: "Seven's World Series - Dubai"
+    country: "World"
+    type: cup
+    api_sports_id: 111
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Circuito Mundial de 7 — Dubai", es: "Circuito Mundial de Seven — Dubái", en: "SVNS — Dubai" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: svns-south-africa
+    name: "Seven's World Series - South Africa"
+    country: "World"
+    type: cup
+    api_sports_id: 112
+    verify: false
+    tier: 2
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    labels: { pt-BR: "Circuito Mundial de 7 — Cidade do Cabo", es: "Circuito Mundial de Seven — Ciudad del Cabo", en: "SVNS — Cape Town" }
+    sources: ["/leagues 23/10/2026"]
+
+  # ---------------------------------------------------------------- tier 3 - fora da carga do free
+  # A Copa do Mundo de 7 tem a edição de 2022 na janela, mas não coube na cota do primeiro dia; as copas
+  # das Américas não têm temporada na janela. Ficam com slug e rótulos estáveis para quando entrarem.
+  - slug: rugby-sevens-world-cup
+    name: "Sevens World Cup"
+    country: "World"
+    type: cup
+    api_sports_id: 86
+    verify: false
+    tier: 3
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Copa do Mundo de Rúgbi de 7", es: "Copa del Mundo de Rugby 7", en: "Rugby World Cup Sevens" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: rugby-sevens-world-cup-women
+    name: "Sevens World Cup Women"
+    country: "World"
+    type: cup
+    api_sports_id: 87
+    verify: false
+    tier: 3
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: medium
+    prestige: 10
+    labels: { pt-BR: "Copa do Mundo de Rúgbi de 7 feminina", es: "Copa del Mundo de Rugby 7 femenina", en: "Women's Rugby World Cup Sevens" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: americas-rugby-championship
+    name: "Americas Championship"
+    country: "World"
+    type: cup
+    api_sports_id: 100
+    verify: false
+    tier: 3
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    labels: { pt-BR: "Americas Rugby Championship", es: "Americas Rugby Championship", en: "Americas Rugby Championship" }
+    sources: ["/leagues 23/10/2026"]
+  - slug: americas-pacific-challenge
+    name: "Americas Pacific Challenge"
+    country: "World"
+    type: cup
+    api_sports_id: 92
+    verify: false
+    tier: 3
+    region: world
+    seasons_strategy: calendar-year
+    live_priority: low
+    sources: ["/leagues 23/10/2026"]
