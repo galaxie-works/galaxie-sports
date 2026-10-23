@@ -1343,7 +1343,7 @@ describe('/v1/teams e /v1/people', () => {
     ]);
     expect(body.sidelined).toEqual([{ type: 'Hamstring Injury', start: '2026-03-01', end: '2026-03-20' }]);
     // o elenco da temporada também usa o total do fornecedor
-    const squad2 = (await get(`/v1/teams/${ids.palmeiras}/squad?season=2026&locale=en`)).json();
+    const squad2 = (await get(`/v1/teams/${ids.palmeiras}/squad?season=2026&locale=es-AR`)).json();
     const again = squad2.players.find((p: { person: { id: string } }) => p.person.id === personId);
     expect(again.stats).toMatchObject({ appearances: 30, starts: 27, goals: 14 });
   });
