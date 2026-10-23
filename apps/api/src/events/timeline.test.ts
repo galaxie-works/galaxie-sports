@@ -341,6 +341,14 @@ describe('buildTimelineDto', () => {
     ]);
   });
 
+  it('fora do futebol não inventa apito, intervalo e 90 minutos', () => {
+    const basketball = { statusDetail: 'FT', score: { home: 86, away: 73 } };
+    expect(buildTimelineDto(input(basketball)).markers.map((m) => m.kind)).toContain('full_time');
+    const t = buildTimelineDto(input({ ...basketball, sport: 'basketball' }));
+    expect(t.markers).toEqual([]);
+    expect(t.score).toEqual({ home: 86, away: 73 });
+  });
+
   it('conta a prorrogação quando há lance nela', () => {
     seq = 0;
     const t = buildTimelineDto(

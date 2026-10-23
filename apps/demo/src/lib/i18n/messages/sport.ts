@@ -64,6 +64,16 @@ export default defineMessages(
         goalsAgainstTitle: 'Sets perdidos',
         goalDiffTitle: 'Saldo de sets',
       },
+      /** Basquete e NBA: placar em pontos, tabela por vitórias e sem empate. */
+      byPoints: {
+        goalsFor: 'PP',
+        goalsAgainst: 'PC',
+        goalDiff: 'SP',
+        goalsForTitle: 'Pontos pró',
+        goalsAgainstTitle: 'Pontos contra',
+        goalDiffTitle: 'Saldo de pontos',
+        pointsTitle: 'Vitórias (a tabela é por vitórias)',
+      },
     },
   },
   {
@@ -128,6 +138,16 @@ export default defineMessages(
           goalsAgainstTitle: 'Sets lost',
           goalDiffTitle: 'Set difference',
         },
+        /** Basquete e NBA: placar em pontos, tabela por vitórias e sem empate. */
+        byPoints: {
+          goalsFor: 'PF',
+          goalsAgainst: 'PA',
+          goalDiff: 'PD',
+          goalsForTitle: 'Points for',
+          goalsAgainstTitle: 'Points against',
+          goalDiffTitle: 'Point difference',
+          pointsTitle: 'Wins (the table is ranked by wins)',
+        },
       },
     },
     'es-AR': {
@@ -190,6 +210,16 @@ export default defineMessages(
           goalsForTitle: 'Sets ganados',
           goalsAgainstTitle: 'Sets perdidos',
           goalDiffTitle: 'Diferencia de sets',
+        },
+        /** Basquete e NBA: placar em pontos, tabela por vitórias e sem empate. */
+        byPoints: {
+          goalsFor: 'PF',
+          goalsAgainst: 'PC',
+          goalDiff: 'DP',
+          goalsForTitle: 'Puntos a favor',
+          goalsAgainstTitle: 'Puntos en contra',
+          goalDiffTitle: 'Diferencia de puntos',
+          pointsTitle: 'Victorias (la tabla es por victorias)',
         },
       },
     },
