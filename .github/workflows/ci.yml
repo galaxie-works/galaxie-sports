@@ -91,7 +91,7 @@ jobs:
       # paralelo: com o padrão (64), a tabela de locks compartilhada estoura ("out of shared memory").
       - name: Postgres com mais locks por transação
         run: |
-          id=$(docker ps -qf "ancestor=postgres:17-alpine")
+          id="${{ job.services.postgres.id }}" # vale para todas as versões da matriz
           docker exec "$id" psql -U galaxie -d galaxie_sports -c "ALTER SYSTEM SET max_locks_per_transaction = 256"
           docker restart "$id"
           until docker exec "$id" pg_isready -U galaxie -d galaxie_sports; do sleep 1; done
