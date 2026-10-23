@@ -585,8 +585,9 @@ export function checkSportCatalog(
 export interface SeasonGamesOptions {
   /** Inclui competições até este tier (padrão 1). */
   maxTier?: number;
-  /** Janela de temporadas aceita pelo plano (free: 2022–2024); sem janela, usa as `latestSeasons` mais recentes. */
+  /** Janela de temporadas aceita pelo plano (free: 2022–2024). */
   seasonWindow?: { min: number; max: number } | undefined;
+  /** Quantas temporadas mais recentes buscar, dentro da janela quando houver (padrão 3). */
   latestSeasons?: number;
   /** Só estas temporadas (ex.: `--temporada 2024`), ainda dentro da janela do plano. */
   seasons?: readonly number[] | undefined;
@@ -615,12 +616,15 @@ export function planSeasonCalls(
   for (const c of rows.competitions) {
     if (c.tier > maxTier) continue;
     const window = options.seasonWindow;
+    // janela do plano → as `latestSeasons` mais recentes → só as pedidas (mesma ordem da estimativa)
     const only = options.seasons;
-    const seasons = (
-      window
-        ? c.seasons.filter((s) => s.year >= window.min && s.year <= window.max)
-        : [...c.seasons].sort((a, b) => b.year - a.year).slice(0, options.latestSeasons ?? 3)
-    ).filter((s) => !only?.length || only.includes(s.year));
+    const inWindow = window
+      ? c.seasons.filter((s) => s.year >= window.min && s.year <= window.max)
+      : c.seasons;
+    const seasons = [...inWindow]
+      .sort((a, b) => b.year - a.year)
+      .slice(0, options.latestSeasons ?? 3)
+      .filter((s) => !only?.length || only.includes(s.year));
     for (const s of seasons.sort((a, b) => a.year - b.year)) {
       const key = s.providerKey ?? String(s.year);
       out.push({
@@ -647,10 +651,9 @@ export function estimateSeasonCalls(
   options: SeasonGamesOptions & { currentYear: number },
 ): PlannedSeasonCall[] {
   const maxTier = options.maxTier ?? 1;
-  const window = options.seasonWindow ?? {
-    min: options.currentYear - (options.latestSeasons ?? 3) + 1,
-    max: options.currentYear,
-  };
+  const latest = options.latestSeasons ?? 3;
+  const max = options.seasonWindow?.max ?? options.currentYear;
+  const window = { min: Math.max(options.seasonWindow?.min ?? -Infinity, max - latest + 1), max };
   const out: PlannedSeasonCall[] = [];
   for (const c of catalog) {
     if (c.api_sports_id == null || c.tier > maxTier) continue;

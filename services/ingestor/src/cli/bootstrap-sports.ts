@@ -11,7 +11,8 @@
  *                       e a classificação de cada temporada (standings?league&season; F1 rankings/drivers e /teams)
  *     --sem-tabelas     com --jogos, não busca a classificação
  *     --tier N          competições até o tier N entram no --jogos (padrão 1)
- *     --temporadas N    sem janela de plano (planos pagos), quantas temporadas recentes buscar (padrão 3)
+ *     --temporadas N    quantas temporadas recentes buscar, dentro da janela do plano quando houver (padrão 3;
+ *                       no free, --temporadas 1 traz só a mais recente permitida)
  *     --temporada AAAA  com --jogos, só esta temporada (repita para várias), ex.: a mais recente do plano free
  */
 import { resolve } from 'node:path';

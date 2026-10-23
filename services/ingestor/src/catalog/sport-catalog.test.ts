@@ -316,6 +316,23 @@ describe('temporadas inteiras (--jogos)', () => {
     ]);
   });
 
+  it('latestSeasons dentro da janela traz só a temporada mais recente permitida', () => {
+    const calls = planSeasonCalls(SPORT_PROFILES.basketball, rows, {
+      seasonWindow: { min: 2022, max: 2024 },
+      latestSeasons: 1,
+    });
+    expect(calls.map((c) => [c.competition, c.params])).toEqual([
+      ['nbb', { league: '26', season: '2024-2025' }],
+      ['olympics-basketball', { league: '192', season: '2024' }],
+    ]);
+    const estimated = estimateSeasonCalls(SPORT_PROFILES.basketball, BASKETBALL_CATALOG, {
+      seasonWindow: { min: 2022, max: 2024 },
+      latestSeasons: 1,
+      currentYear: 2026,
+    });
+    expect(estimated.map((c) => c.season)).toEqual([2024, 2024]);
+  });
+
   it('com standings, a classificação de cada temporada vem logo depois dos jogos', () => {
     const calls = planSeasonCalls(SPORT_PROFILES.basketball, rows, {
       seasonWindow: { min: 2024, max: 2024 },
