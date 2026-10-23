@@ -11,6 +11,8 @@ describe('rotas públicas', () => {
     '/api/auth/get-session',
     '/robots.txt',
     '/sitemap.xml',
+    '/icon.png',
+    '/apple-icon.png',
   ])('%s abre sem sessão', (path) => expect(isPublicPath(path)).toBe(true));
 
   it.each([

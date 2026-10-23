@@ -11,8 +11,11 @@ export const PUBLIC_PAGES = ['/sobre', '/termos', '/privacidade'] as const;
 /** Página que a raiz mostra para quem não tem sessão. */
 export const LANDING_PAGE = PUBLIC_PAGES[0];
 
-/** Arquivos para robôs (buscadores e filtros web). */
-export const ROBOTS_FILES = ['/robots.txt', '/sitemap.xml'] as const;
+/**
+ * Arquivos abertos: os dos robôs (buscadores e filtros web) e os ícones da aba e da tela inicial
+ * (`app/icon.png`, `app/apple-icon.png`; o `favicon.ico` já fica fora do proxy pelo matcher).
+ */
+export const PUBLIC_FILES = ['/robots.txt', '/sitemap.xml', '/icon.png', '/apple-icon.png'] as const;
 
 /** Login e a API do próprio auth: públicos com tudo o que vem abaixo deles. */
 const PUBLIC_PREFIXES = ['/login', '/api/auth'];
@@ -24,6 +27,6 @@ export function isPublicPath(pathname: string): boolean {
   return (
     PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
     includes(PUBLIC_PAGES, pathname) ||
-    includes(ROBOTS_FILES, pathname)
+    includes(PUBLIC_FILES, pathname)
   );
 }
