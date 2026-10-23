@@ -99,15 +99,15 @@ async function competitionRefs(
   return out;
 }
 
-/** Tipo da foto da pessoa no espelho (`player` ou `coach`). */
-async function photoKind(db: Database, id: string): Promise<string | null> {
+/** Foto da pessoa no espelho: tipo (`player` ou `coach`) e se já está no nosso storage. */
+async function photoAsset(db: Database, id: string) {
   const [row] = await db
-    .select({ kind: asset.kind })
+    .select({ kind: asset.kind, storageKey: asset.storageKey })
     .from(personTable)
     .innerJoin(asset, eq(asset.id, personTable.photoAssetId))
     .where(eq(personTable.id, id))
     .limit(1);
-  return row?.kind ?? null;
+  return row ?? null;
 }
 
 const isoDate = (v: string | null | undefined) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
@@ -124,7 +124,7 @@ export async function loadPersonOverview(
 ): Promise<{ body: PersonOverview; teamIds: string[]; eventIds: string[] }> {
   const { db, assetsBaseUrl, locale } = bctx;
   const person = await loadPerson(db, assetsBaseUrl, bctx.now, id);
-  const nationality = await nationalityResolver(db, locale);
+  const [nationality, photo] = await Promise.all([nationalityResolver(db, locale), photoAsset(db, id)]);
   const pid = person.external_ids['api-sports'] ?? null;
   const rosterTeamIds = [...new Set(person.teams.map((t) => t.team.id))];
   const rosterPids = await providerIds(db, 'participant', rosterTeamIds);
@@ -144,8 +144,7 @@ export async function loadPersonOverview(
   // espaços diferentes, mas o core os grava na mesma pessoa: um técnico com o ID de um jogador herdaria os
   // jogos dele, então para quem tem cara de técnico as escalações vêm primeiro.
   const coachHint =
-    (person.teams.length > 0 && person.teams.every((t) => t.role !== 'player')) ||
-    (await photoKind(db, person.id)) === 'coach';
+    (person.teams.length > 0 && person.teams.every((t) => t.role !== 'player')) || photo?.kind === 'coach';
   const coached = async () => {
     if (!pid) return [];
     const career = await coreIds(db, 'participant', await coachCareerTeams(db, pid));
@@ -332,6 +331,9 @@ export async function loadPersonOverview(
         from: transferTeam(t.teams?.out),
         to: transferTeam(t.teams?.in),
       })),
+    media: person.photo
+      ? [{ kind: 'photo', url: person.photo, mirrored: !!(photo?.storageKey && assetsBaseUrl) }]
+      : [],
     recent_matches: recentMatches,
   };
   return { body, teamIds: [...teams.keys()], eventIds: recentMatches.map((m) => m.event.id) };

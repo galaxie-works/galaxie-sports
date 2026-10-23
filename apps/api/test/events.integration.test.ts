@@ -1258,6 +1258,8 @@ describe('/v1/teams e /v1/people', () => {
       ],
       transfers: [],
     });
+    // foto ainda não espelhada: a URL de origem, marcada como tal
+    expect(body.media).toEqual([{ kind: 'photo', url: expect.stringContaining('900001'), mirrored: false }]);
     expect(body.stats).toHaveLength(1);
     expect(body.stats[0]).toMatchObject({
       competition: { id: ids.serieA },

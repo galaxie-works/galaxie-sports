@@ -26,7 +26,6 @@ import {
   event,
   eventParticipant,
   participant,
-  person,
   providerMap,
   roster,
   season,

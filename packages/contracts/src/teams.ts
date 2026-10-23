@@ -400,6 +400,18 @@ export const PersonOverview = z
         }),
       )
       .meta({ description: 'Transferências do fornecedor (`transfers`), da mais recente à mais antiga.' }),
+    media: z
+      .array(
+        z.object({
+          kind: z.enum(['photo']),
+          url: z.url(),
+          mirrored: z.boolean().meta({
+            description:
+              'Servida pelo nosso storage (espelho de mídia); false = URL de origem, ainda não copiada.',
+          }),
+        }),
+      )
+      .meta({ description: 'Imagens da pessoa no espelho de mídia (hoje, a foto).' }),
     recent_matches: z.array(PersonMatch).meta({
       description:
         'Últimos jogos da temporada em que entrou em campo (até 10), do mais recente ao mais antigo.',
