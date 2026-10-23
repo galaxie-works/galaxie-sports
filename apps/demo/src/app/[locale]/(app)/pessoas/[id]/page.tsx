@@ -12,6 +12,7 @@ import {
   UserRound,
   Weight,
 } from 'lucide-react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -39,6 +40,16 @@ import { fill, plural } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
 
 type T = Dictionary['pages']['person'];
+
+/** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
+export async function generateMetadata({ params }: PageProps<'/[locale]/pessoas/[id]'>): Promise<Metadata> {
+  const [{ id }, { locale }] = await Promise.all([params, getI18n()]);
+  try {
+    return { title: (await getPersonOverview(id, locale)).person.name };
+  } catch {
+    return {};
+  }
+}
 
 /** `?temporada=2025` da URL (o primeiro valor, se repetido); fora de um ano inteiro, nada. */
 function seasonParam(raw: string | string[] | undefined): number | undefined {
@@ -684,6 +695,11 @@ async function Content({
         title={person.name}
         label={year !== undefined ? `${person.name} · ${year}` : undefined}
         kind="pessoa"
+        parents={
+          o.current_team
+            ? [{ path: `/times/${o.current_team.id}`, label: o.current_team.name, kind: 'time' }]
+            : undefined
+        }
         api={api}
       />
       <div className="relative isolate flex flex-col gap-8 p-4 md:p-6">

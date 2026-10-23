@@ -14,6 +14,7 @@ import { derbyRequest, getDerby, getTeamOverview } from '@/lib/galaxie/api';
 import { apiLocale, contentLocale } from '@/lib/i18n/config';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
+import { sportParent } from '@/lib/navigation';
 
 type Match = Derby['retrospect']['last_5'][number];
 
@@ -55,10 +56,12 @@ async function Content({ params }: { params: PageProps<'/[locale]/classicos/[slu
   const r = derby.retrospect;
   const winsOf = (s: string) => r.teams.find((team) => team.slug === s);
   const api = derbyRequest(slug, locale, content);
+  // os clássicos da base semântica são de futebol
+  const sport = sportParent('football', t);
 
   return (
     <>
-      <PageHeader title={derby.name} kind="clássico" api={api} />
+      <PageHeader title={derby.name} kind="clássico" parents={sport ? [sport] : undefined} api={api} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <Card>
           <CardContent className="flex flex-col items-center gap-5">

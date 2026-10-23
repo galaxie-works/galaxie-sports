@@ -14,6 +14,7 @@ import { equestrianChampionshipRequest, getEquestrianChampionship } from '@/lib/
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
+import { equestrianParent } from '@/lib/navigation';
 import { fill } from '@/lib/i18n/text';
 
 type Props = PageProps<'/[locale]/hipismo/campeonatos/[key]'>;
@@ -116,7 +117,7 @@ async function Content({ params, searchParams }: Props) {
 
   return (
     <>
-      <PageHeader title={c.name} kind="competição" api={api} />
+      <PageHeader title={c.name} kind="competição" parents={[equestrianParent(t)]} api={api} />
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{c.name}</h1>

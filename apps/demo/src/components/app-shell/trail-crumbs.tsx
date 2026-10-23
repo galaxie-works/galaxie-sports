@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import { MoreHorizontalIcon } from 'lucide-react';
 
@@ -22,6 +22,7 @@ import {
   visitTrail,
   type TrailEntry,
   type TrailKind,
+  type TrailVisit,
 } from '@/lib/trail';
 import { useI18n } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
@@ -45,26 +46,38 @@ function Crumb({ entry, className }: { entry: TrailEntry; className?: string }) 
 /**
  * Itens da trilha antes da página atual (o título da página é o último item, desenhado pelo
  * PageHeader). Também registra a página na trilha quando ela informa rótulo e tipo; sem rótulo
- * (esqueleto carregando), só mostra o caminho até aqui.
+ * (esqueleto carregando), só mostra o caminho até aqui. `parents` (esporte, competição…) entram quando
+ * a trilha começaria nesta página (link direto, aba nova, troca de idioma).
  *
  * A trilha vive no sessionStorage: no servidor e na hidratação não aparece nada (o HTML bate), e os
  * itens surgem logo depois de montar.
  */
-export function TrailCrumbs({ label, kind }: { label?: string; kind?: TrailKind }) {
+export function TrailCrumbs({
+  label,
+  kind,
+  parents: parentsProp,
+}: {
+  label?: string;
+  kind?: TrailKind;
+  parents?: TrailVisit[];
+}) {
   const { t } = useI18n();
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const path = search ? `${pathname}?${search}` : pathname;
   const trail = useSyncExternalStore(subscribeTrail, getTrailSnapshot, getTrailServerSnapshot);
+  // Vem do servidor a cada render (array novo): a chave estável evita registrar a visita de novo.
+  const parentsKey = JSON.stringify(parentsProp ?? []);
+  const parents = useMemo(() => JSON.parse(parentsKey) as TrailVisit[], [parentsKey]);
 
   useEffect(() => {
-    if (label && kind) visitTrail({ path, label, kind });
-  }, [path, label, kind]);
+    if (label && kind) visitTrail({ path, label, kind }, parents);
+  }, [path, label, kind, parents]);
 
   if (!trail) return null;
   // A mesma conta que a visita vai gravar: desenha já o estado final, sem piscar a trilha anterior.
   const ancestors =
-    label && kind ? applyVisit(trail, { path, label, kind }).slice(0, -1) : ancestorsOf(trail, path);
+    label && kind ? applyVisit(trail, { path, label, kind }, parents).slice(0, -1) : ancestorsOf(trail, path);
   if (!ancestors.length) return null;
 
   const parent = ancestors.at(-1)!;

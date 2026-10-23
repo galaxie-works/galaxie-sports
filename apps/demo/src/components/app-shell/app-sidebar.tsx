@@ -1,9 +1,9 @@
 'use client';
 
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Compass } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import {
   Sidebar,
@@ -17,11 +17,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { LIVE_HREF, LiveNavItem } from '@/components/live/live-nav-item';
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { SidebarSearchButton } from '@/components/search/search-button';
+import { getActiveSection, getActiveSectionServer, subscribeActiveSection } from '@/lib/active-section';
 import { DOCS_NAV } from '@/lib/docs';
 import { useI18n } from '@/lib/i18n/client';
 import { COUNTRIES, EQUESTRIAN_NAV, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
@@ -29,8 +31,10 @@ import { topLevelClick } from '@/lib/trail';
 
 import { UserMenu } from './user-menu';
 
-function isActive(pathname: string | null, href: string) {
+/** Ativo pelo caminho da URL ou, numa página fora do menu (jogo, time…), pelo pai de topo dela. */
+function isActive(pathname: string | null, href: string, section: string | null = null) {
   if (pathname === null) return false;
+  if (section === href) return true;
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -38,16 +42,18 @@ function NavLink({
   item,
   label,
   pathname,
+  section,
 }: {
   item: NavItem & { slug?: string };
   label: string;
   pathname: string | null;
+  section: string | null;
 }) {
   const Icon = item.icon;
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        isActive={isActive(pathname, item.href)}
+        isActive={isActive(pathname, item.href, section)}
         tooltip={label}
         render={<Link href={item.href} onClick={topLevelClick(item.href)} />}
       >
@@ -64,18 +70,32 @@ function NavLink({
   );
 }
 
+const EXPLORE_NAV: NavItem = { href: '/', icon: Compass };
+
 /** O caminho atual é dado de URL (runtime): fica atrás de Suspense para não bloquear o prerender. */
 function CurrentSidebarNav() {
-  return <SidebarNav pathname={usePathname()} />;
+  const pathname = usePathname();
+  const section = useSyncExternalStore(subscribeActiveSection, getActiveSection, getActiveSectionServer);
+  const { isMobile, setOpenMobile } = useSidebar();
+  // No celular o menu é uma gaveta por cima da página: fecha quando a navegação acontece. A gaveta
+  // monta este componente ao abrir, então compara com o caminho de quando abriu (não fecha ao montar).
+  const openedAt = useRef(pathname);
+  useEffect(() => {
+    if (openedAt.current === pathname) return;
+    openedAt.current = pathname;
+    if (isMobile) setOpenMobile(false);
+  }, [pathname, isMobile, setOpenMobile]);
+  return <SidebarNav pathname={pathname} section={section} />;
 }
 
-function SidebarNav({ pathname }: { pathname: string | null }) {
+function SidebarNav({ pathname, section = null }: { pathname: string | null; section?: string | null }) {
   const { t } = useI18n();
   return (
     <SidebarContent>
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
+            <NavLink item={EXPLORE_NAV} label={t.nav.explore.title} pathname={pathname} section={section} />
             <LiveNavItem active={isActive(pathname, LIVE_HREF)} />
           </SidebarMenu>
         </SidebarGroupContent>
@@ -86,10 +106,16 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
         <SidebarGroupContent>
           <SidebarMenu>
             {SPORTS.map((item) => (
-              <NavLink key={item.href} item={item} label={t.nav.sports[item.slug]} pathname={pathname} />
+              <NavLink
+                key={item.href}
+                item={item}
+                label={t.nav.sports[item.slug]}
+                pathname={pathname}
+                section={section}
+              />
             ))}
-            <NavLink item={EQUESTRIAN_NAV} label={t.nav.equestrian} pathname={pathname} />
-            <NavLink item={MULTISPORT_NAV} label={t.nav.multisport} pathname={pathname} />
+            <NavLink item={EQUESTRIAN_NAV} label={t.nav.equestrian} pathname={pathname} section={section} />
+            <NavLink item={MULTISPORT_NAV} label={t.nav.multisport} pathname={pathname} section={section} />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -101,7 +127,7 @@ function SidebarNav({ pathname }: { pathname: string | null }) {
             {COUNTRIES.map((c) => (
               <SidebarMenuItem key={c.code}>
                 <SidebarMenuButton
-                  isActive={isActive(pathname, c.href)}
+                  isActive={isActive(pathname, c.href, section)}
                   render={<Link href={c.href} onClick={topLevelClick(c.href)} />}
                 >
                   <CountryFlag code={c.code} />

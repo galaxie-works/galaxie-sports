@@ -17,6 +17,7 @@ import {
 import { HockeyStick } from '../components/icons/hockey-stick';
 
 import type { Dictionary } from './i18n/dictionary';
+import type { TrailVisit } from './trail';
 
 /** Rótulos ficam nos dicionários (`t.nav.sports[slug]`, `t.nav.countries[code]`, `t.nav.multisport`). */
 export interface NavItem {
@@ -91,3 +92,37 @@ export const COUNTRIES: CountryNav[] = (
 export const sportBySlug = (slug: string) => SPORTS.find((s) => s.slug === slug);
 export const countryByCode = (code: string) =>
   COUNTRIES.find((c) => c.code.toLowerCase() === code.toLowerCase());
+
+/**
+ * Página de país para um código da API, ou null quando o código não é de país (a API devolve "World"
+ * para campeonatos mundiais e responde 400 a `/paises/world`): aí o nome aparece sem link.
+ */
+export function countryHref(code: string | null | undefined): string | null {
+  return code && /^[A-Za-z]{2}(-[A-Za-z]{3})?$/.test(code) ? `/paises/${code.toLowerCase()}` : null;
+}
+
+/** Pai de topo de uma página de esporte (competição, time, jogo): o item do menu daquele esporte. */
+export function sportParent(slug: string, t: Dictionary): TrailVisit | null {
+  const sport = sportBySlug(slug);
+  return sport ? { path: sport.href, label: t.nav.sports[sport.slug], kind: 'esporte' } : null;
+}
+
+/**
+ * Link da competição a partir de um jogo: abre na aba de jogos, na rodada e na temporada do jogo (a
+ * data do jogo escolhe a temporada), para "voltar à competição" cair onde o jogo está.
+ */
+export function eventCompetitionHref(event: {
+  competition: { slug: string } | null;
+  stage: { name: string | null } | null;
+  starts_at: string;
+}): string | null {
+  if (!event.competition) return null;
+  const query = new URLSearchParams({ aba: 'jogos', data: event.starts_at.slice(0, 10) });
+  if (event.stage?.name) query.set('rodada', event.stage.name);
+  return `/competicoes/${event.competition.slug}?${query}`;
+}
+
+/** Pai das páginas internas do hipismo (atleta, cavalo, prova, campeonato). */
+export function equestrianParent(t: Dictionary): TrailVisit {
+  return { path: EQUESTRIAN_NAV.href, label: t.equestrian.title, kind: 'esporte' };
+}

@@ -10,6 +10,7 @@ import {
   Tv,
   Whistle,
 } from 'lucide-react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -60,8 +61,21 @@ import { fill, plural } from '@/lib/i18n/text';
 import { lineupMarks } from '@/lib/lineup-marks';
 import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
-import { COUNTRIES } from '@/lib/navigation';
+import { COUNTRIES, eventCompetitionHref, sportParent } from '@/lib/navigation';
+import type { TrailVisit } from '@/lib/trail';
 import { cn } from '@/lib/utils';
+
+/** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
+export async function generateMetadata({ params }: PageProps<'/[locale]/eventos/[id]'>): Promise<Metadata> {
+  const [{ id }, { locale, t }] = await Promise.all([params, getI18n()]);
+  try {
+    const event = await getEvent(id, locale);
+    if (isRaceEvent(event)) return { title: raceTitle(event) };
+    return { title: event.participants.map((p) => p.name).join(` ${t.sport.versus} `) };
+  } catch {
+    return {};
+  }
+}
 
 const STARTED = new Set(['live', 'break', 'finished', 'suspended', 'abandoned']);
 
@@ -119,7 +133,7 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
         <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-2 text-sm">
           {event.competition ? (
             <Link
-              href={`/competicoes/${event.competition.slug}`}
+              href={eventCompetitionHref(event)!}
               className="text-foreground flex items-center gap-2 hover:underline"
             >
               <Crest src={event.competition.logo} name={event.competition.name} size="xs" />
@@ -512,10 +526,23 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
     event.participants.find((p) => p.side === 'away')?.colors,
   );
   const tx = t.event.context;
+  // pais na hierarquia (esporte → competição): a trilha de quem chega por link direto
+  const competitionHref = eventCompetitionHref(event);
+  const parents = [
+    sportParent(event.sport, t),
+    event.competition && competitionHref
+      ? { path: competitionHref, label: event.competition.name, kind: 'competição' as const }
+      : null,
+  ].filter((p): p is TrailVisit => p !== null);
 
   return (
     <>
-      <PageHeader title={title} kind="evento" api={eventRequest(id, locale, undefined, content)} />
+      <PageHeader
+        title={title}
+        kind="evento"
+        parents={parents}
+        api={eventRequest(id, locale, undefined, content)}
+      />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         {race ? <RaceScoreboard event={event} t={t} f={f} /> : <Scoreboard event={event} t={t} f={f} />}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

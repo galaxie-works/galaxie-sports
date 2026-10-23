@@ -14,6 +14,7 @@ import {
   type AthleteFilters,
 } from '@/lib/galaxie/equestrian';
 import { getI18n } from '@/lib/i18n/server';
+import { equestrianParent } from '@/lib/navigation';
 import { fill } from '@/lib/i18n/text';
 
 type Props = PageProps<'/[locale]/hipismo/atletas'>;
@@ -129,7 +130,7 @@ export default async function EquestrianAthletesPage(props: Props) {
   const { t } = await getI18n();
   return (
     <>
-      <PageHeader title={`${t.equestrian.title} · ${t.equestrian.athletes.title}`} kind="esporte" />
+      <PageHeader title={t.equestrian.athletes.title} kind="esporte" parents={[equestrianParent(t)]} />
       <Suspense
         fallback={
           <div className="grid grid-cols-2 gap-3 p-4 md:p-6 lg:grid-cols-4">

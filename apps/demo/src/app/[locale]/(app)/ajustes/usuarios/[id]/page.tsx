@@ -19,8 +19,12 @@ async function Detail({ params }: { params: PageProps<'/[locale]/ajustes/usuario
   if (!data) notFound();
   return (
     <>
-      {/* O nome da pessoa vira o item da trilha (em vez do genérico "Usuário"). */}
-      <PageHeader title={data.user.name || t.admin.detail.fallbackName} kind="ajustes" />
+      {/* O nome da pessoa vira o item da trilha (em vez do genérico "Usuário"); a lista é o pai. */}
+      <PageHeader
+        title={data.user.name || t.admin.detail.fallbackName}
+        kind="ajustes"
+        parents={[{ path: '/ajustes/usuarios', label: t.admin.page.title, kind: 'ajustes' }]}
+      />
       <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
         <UserDetail {...data} timeZone={timeZone} />
       </div>

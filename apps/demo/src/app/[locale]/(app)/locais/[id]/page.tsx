@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getVenue, venueRequest } from '@/lib/galaxie/api';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
+import { countryHref } from '@/lib/navigation';
 
 /** Gramado como vem da API (texto livre do provedor) → chave do dicionário. */
 const SURFACE_KEY: Record<string, 'grass' | 'artificial' | 'hybrid'> = {
@@ -22,6 +23,7 @@ async function Content({ params }: { params: PageProps<'/[locale]/locais/[id]'>[
   const tv = t.pages.venue;
   const [venue, f] = await Promise.all([getVenue(id, locale), getFormatters()]);
   const surface = venue.surface ? SURFACE_KEY[venue.surface.toLowerCase()] : undefined;
+  const country = venue.country ? countryHref(venue.country.code) : null;
   // só nomes anteriores confirmados pela curadoria; os derivados do fornecedor são pistas e ficam fora da tela
   const formerNames = (venue.former_names ?? []).filter((n) => n.origin === 'curated');
   const facts = [
@@ -34,7 +36,14 @@ async function Content({ params }: { params: PageProps<'/[locale]/locais/[id]'>[
 
   return (
     <>
-      <PageHeader title={venue.name} kind="local" api={venueRequest(id, locale)} />
+      <PageHeader
+        title={venue.name}
+        kind="local"
+        parents={
+          country && venue.country ? [{ path: country, label: venue.country.name, kind: 'país' }] : undefined
+        }
+        api={venueRequest(id, locale)}
+      />
       <div className="flex flex-col gap-6 p-4 md:p-6">
         {venue.image ? (
           <Card className="py-0">
@@ -44,13 +53,12 @@ async function Content({ params }: { params: PageProps<'/[locale]/locais/[id]'>[
         ) : null}
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{venue.name}</h1>
-          {venue.country ? (
-            <Link
-              href={`/paises/${venue.country.code.toLowerCase()}`}
-              className="text-muted-foreground text-sm hover:underline"
-            >
+          {venue.country && country ? (
+            <Link href={country} className="text-muted-foreground text-sm hover:underline">
               {venue.country.name}
             </Link>
+          ) : venue.country ? (
+            <span className="text-muted-foreground text-sm">{venue.country.name}</span>
           ) : null}
         </div>
         {formerNames.length ? (

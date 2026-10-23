@@ -3,10 +3,13 @@
  * sessionStorage (cada aba tem a sua). Sem storage (modo privado, bloqueado), vale só em memória.
  *
  * Regras de uma visita:
- * 1. Página que já está na trilha: corta a trilha de volta até ela (clique num item, Voltar/Avançar).
+ * 1. Destino de topo clicado na sidebar (esportes, países, Explorar, ajustes) ou página de topo
+ *    (ROOT_KINDS, mesmo aberta por outro caminho): começa trilha nova.
+ * 2. Página que já está na trilha: corta a trilha de volta até ela (clique num item, Voltar/Avançar).
  *    Mudança só de query string (ex.: temporada) cai aqui e substitui o último item.
- * 2. Destino de topo clicado na sidebar (esportes, países, Explorar, ajustes): começa trilha nova.
- * 3. Senão: acrescenta no fim. A trilha guarda no máximo MAX_TRAIL itens (descarta os mais antigos).
+ * 3. Trilha vazia (link direto, aba nova, troca de idioma): começa pelos pais da página (esporte,
+ *    competição…), para sempre haver por onde subir.
+ * 4. Senão: acrescenta no fim. A trilha guarda no máximo MAX_TRAIL itens (descarta os mais antigos).
  */
 
 export type TrailKind =
@@ -41,6 +44,13 @@ export interface TrailState {
   /** Destino de topo clicado na sidebar que ainda não abriu (regra 2). */
   pendingRoot: string | null;
 }
+
+/**
+ * Páginas de topo: abrem sempre uma trilha nova (Ao vivo nunca é "filho" de um piloto). Página interna
+ * de um desses tipos (usuário dentro de Ajustes, atletas dentro de Hipismo) informa os pais (`parents`),
+ * que entram antes dela na trilha nova.
+ */
+export const ROOT_KINDS: readonly TrailKind[] = ['explorar', 'ao vivo', 'esporte', 'ajustes', 'docs'];
 
 export const MAX_TRAIL = 6;
 const STORAGE_KEY = 'galaxie:trilha';
@@ -108,12 +118,19 @@ export function clearTrail() {
 }
 export const getTrailServerSnapshot = (): TrailState | null => null;
 
-/** Aplica as regras de uma visita (função pura: a mesma conta serve para desenhar e para gravar). */
-export function applyVisit(trail: TrailState, visit: TrailVisit): TrailEntry[] {
+/**
+ * Aplica as regras de uma visita (função pura: a mesma conta serve para desenhar e para gravar).
+ * `parents` são os pais da página na hierarquia (esporte, competição…), do mais alto ao mais próximo.
+ */
+export function applyVisit(trail: TrailState, visit: TrailVisit, parents: TrailVisit[] = []): TrailEntry[] {
   const target = pathnameOf(visit.path);
-  if (trail.pendingRoot !== null && pathnameOf(trail.pendingRoot) === target) return [{ ...visit, depth: 1 }];
+  const fresh = () =>
+    [...parents, visit].map((v, i) => ({ path: v.path, label: v.label, kind: v.kind, depth: i + 1 }));
+  if (trail.pendingRoot !== null && pathnameOf(trail.pendingRoot) === target) return fresh();
+  if (ROOT_KINDS.includes(visit.kind)) return fresh();
   const index = trail.entries.findIndex((e) => pathnameOf(e.path) === target);
   if (index >= 0) return [...trail.entries.slice(0, index), { ...visit, depth: trail.entries[index]!.depth }];
+  if (!trail.entries.length) return fresh();
   const depth = (trail.entries.at(-1)?.depth ?? 0) + 1;
   return [...trail.entries, { ...visit, depth }].slice(-MAX_TRAIL);
 }
@@ -130,9 +147,9 @@ export function ancestorsOf(trail: TrailState, path: string): TrailEntry[] {
 }
 
 /** Registra a página atual na trilha (idempotente: repetir a mesma visita não muda nada). */
-export function visitTrail(visit: TrailVisit) {
+export function visitTrail(visit: TrailVisit, parents: TrailVisit[] = []) {
   const trail = current();
-  const entries = applyVisit(trail, visit);
+  const entries = applyVisit(trail, visit, parents);
   const last = trail.entries.at(-1);
   const unchanged =
     trail.pendingRoot === null &&
