@@ -22,6 +22,8 @@ function zoneClass(description: string | null | undefined) {
 
 /** Esportes em que a tabela conta sets (pró/contra/saldo) e não há empate. */
 const SET_SPORTS = new Set(['volleyball']);
+/** Esportes sem empate e com placar em pontos: a tabela troca gols por pontos e esconde a coluna E. */
+const POINT_SPORTS = new Set(['basketball', 'nba']);
 
 export async function StandingsTable({
   rows,
@@ -34,7 +36,12 @@ export async function StandingsTable({
 }) {
   const standings = (await getT()).sport.standings;
   const sets = sport != null && SET_SPORTS.has(sport);
-  const t = sets ? { ...standings, ...standings.sets } : standings;
+  const byPoints = sport != null && POINT_SPORTS.has(sport);
+  const t = sets
+    ? { ...standings, ...standings.sets }
+    : byPoints
+      ? { ...standings, ...standings.byPoints }
+      : standings;
   const zones = [...new Map(rows.filter((r) => r.description).map((r) => [r.description!, r])).keys()];
 
   return (
@@ -59,7 +66,7 @@ export async function StandingsTable({
                 {t.won}
               </abbr>
             </TableHead>
-            {sets ? null : (
+            {sets || byPoints ? null : (
               <TableHead className="hidden text-right sm:table-cell">
                 <abbr title={t.drawnTitle} className="no-underline">
                   {t.drawn}
@@ -114,7 +121,7 @@ export async function StandingsTable({
               <TableCell className="text-right font-semibold tabular-nums">{r.points}</TableCell>
               <TableCell className="text-right tabular-nums">{r.played}</TableCell>
               <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.won}</TableCell>
-              {sets ? null : (
+              {sets || byPoints ? null : (
                 <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.drawn}</TableCell>
               )}
               <TableCell className="hidden text-right tabular-nums sm:table-cell">{r.lost}</TableCell>

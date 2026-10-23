@@ -46,7 +46,10 @@ export interface StateLogEntry {
 
 export interface TimelineInput {
   eventId: string;
-  /** Esporte do evento: define a duração dos tempos nos marcos (padrão: futebol). */
+  /**
+   * Esporte do evento: define a duração dos tempos nos marcos (padrão: futebol). Esportes sem dois tempos
+   * (basquete, vôlei…) ficam sem marcos: apito, intervalo e 90' seriam inventados.
+   */
   sport?: string;
   status: EventStatus;
   statusDetail: string | null;
@@ -453,7 +456,8 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
     display: clockDisplay(minute, extra),
   });
 
-  const { half, extra: extraHalf } = HALVES[input.sport ?? ''] ?? FOOTBALL_HALVES;
+  const halves = (input.sport ?? 'football') === 'football' ? FOOTBALL_HALVES : HALVES[input.sport!];
+  const { half, extra: extraHalf } = halves ?? FOOTBALL_HALVES;
   const markers: TimelineMarker[] = [];
   if (started && phase >= 1) markers.push(marker('kickoff', c('first_half', 0), anchors.first_half));
   if (phase >= 2)
@@ -501,7 +505,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
     clock: started ? currentClock(input.status, input.statusDetail, input.clock) : null,
     score: { home: score.home ?? null, away: score.away ?? null },
     incidents,
-    markers,
+    markers: halves ? markers : [],
     shootout,
     venue_timezone: input.venueTimezone,
     data_freshness: {

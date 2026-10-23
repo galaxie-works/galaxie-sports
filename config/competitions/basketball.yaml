@@ -15,9 +15,14 @@
 #                           o mapeamento em core.provider_map é sempre por esporte).
 #   verify                - false = ID e nome conferidos no /leagues capturado (snapshot 2025/2026,
 #                           ver docs/research/api-sports-outros-esportes.md); confirme na primeira execução autenticada.
-#   seasons_strategy      - calendar-year (2026 = 2026) ou split-year (2026 = 2026/27).
+#   seasons_strategy      - calendar-year (2026 = 2026), split-year (2026 = 2026/27) ou tournament-year
+#                           (rótulo = ano em que a temporada termina).
 # No basquete, split-year também indica a chave do parâmetro season: "2024-2025".
 # Ligas com chave de um ano só (ex.: Euroleague "2024") usam o ano de início.
+# Os torneios de seleções usam tournament-year: a chave do fornecedor inclui as eliminatórias (conferido nas
+# datas do /leagues em 23/10/2026). Olimpíadas "2024" vão de ago/2023 a ago/2024, Copa do Mundo "2023" de
+# fev/2020 a set/2023 e AmeriCup "2023" de fev/2023 à AmeriCup de set/2025. Só o rótulo muda; a chave continua
+# a do fornecedor.
 # =============================================================================
 schema_version: 1
 sport: basketball
@@ -68,7 +73,7 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: medium
     labels: { pt-BR: "Copa América de Basquete (AmeriCup)", es: "FIBA AmeriCup", en: "FIBA AmeriCup" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
@@ -80,7 +85,7 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: high
     labels: { pt-BR: "Copa do Mundo de Basquete", es: "Copa Mundial de Baloncesto", en: "FIBA Basketball World Cup" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
@@ -92,7 +97,7 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: high
     labels: { pt-BR: "Basquete masculino — Jogos Olímpicos", es: "Básquetbol masculino — Juegos Olímpicos", en: "Olympic Games — men's basketball" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
@@ -104,7 +109,7 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: high
     labels: { pt-BR: "Basquete feminino — Jogos Olímpicos", es: "Básquetbol femenino — Juegos Olímpicos", en: "Olympic Games — women's basketball" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
@@ -116,7 +121,7 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: high
     labels: { pt-BR: "Basquete masculino — Jogos Pan-Americanos", es: "Básquetbol masculino — Juegos Panamericanos", en: "Pan American Games — men's basketball" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
@@ -128,7 +133,7 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: high
     labels: { pt-BR: "Basquete feminino — Jogos Pan-Americanos", es: "Básquetbol femenino — Juegos Panamericanos", en: "Pan American Games — women's basketball" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
@@ -341,7 +346,7 @@ competitions:
     verify: false
     tier: 2
     region: south-america
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: low
     labels: { es: "Campeonato Sudamericano de Básquetbol" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
@@ -353,7 +358,7 @@ competitions:
     verify: false
     tier: 2
     region: south-america
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: low
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: fiba-americup-women
@@ -364,7 +369,7 @@ competitions:
     verify: false
     tier: 2
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: medium
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: fiba-world-cup-women
@@ -375,7 +380,7 @@ competitions:
     verify: false
     tier: 2
     region: world
-    seasons_strategy: calendar-year
+    seasons_strategy: tournament-year
     live_priority: medium
     sources: ["docs/research/api-sports-outros-esportes.md"]
   # a NBA tem API própria (nba.yaml, com live); aqui só o espelho da API de basquete
