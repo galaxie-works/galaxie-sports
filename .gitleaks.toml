@@ -15,3 +15,8 @@ regexes = ['''copyTemplate\.key''']
 description = "Senha fictícia da stack de teste local no README do Portainer (sequência hex 0-f)"
 regexTarget = "match"
 regexes = ['''=0123456789abcdef$''']
+
+[[allowlists]]
+description = "Chaves de evento do hipismo nos testes (identificadores como athens_2004_jumping, não segredos)"
+regexTarget = "line"
+regexes = ['''event_key: '[a-z0-9_]+',?$''']
