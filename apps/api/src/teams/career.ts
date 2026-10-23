@@ -229,6 +229,9 @@ export async function loadRaceCareer(
   const photoOwners = [...new Set([participant.id, ...[...constructorsOf.values()].flat()])];
   const photos = await loadPhotos(db, photoOwners, assetsBaseUrl);
   const portrait = (photos.get(participant.id) ?? []).find((p) => p.role === 'portrait') ?? null;
+  const highlightCar = constructor
+    ? null
+    : ((photos.get(participant.id) ?? []).find((p) => p.role === 'highlight_car') ?? null);
   for (const [year, owners] of constructorsOf) {
     let car: Photo | null = null;
     for (const o of owners)
@@ -312,5 +315,6 @@ export async function loadRaceCareer(
     })),
     seasons: list,
     portrait,
+    highlight: highlightCar?.season != null ? { season: highlightCar.season, car: highlightCar } : null,
   };
 }

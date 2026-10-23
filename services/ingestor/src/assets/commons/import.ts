@@ -5,6 +5,8 @@
  * 3. grava no nosso storage com a nossa nomenclatura (`commons/f1/{drivers|cars}/<id do participante>.<hash>`);
  * 4. registra `core.asset` (origin `commons`), o crédito (`core.asset_credit`) e o vínculo com o piloto ou o
  *    construtor (`core.participant_photo`). O logo do participante não muda.
+ * 5. carro de destaque do piloto (`highlight_car` no manifesto): a primeira foto daquele carro também vira
+ *    vínculo do piloto, com o papel `highlight_car` e a temporada (heading da página do piloto).
  * Idempotente: o mesmo manifesto não regrava nada; foto que saiu do manifesto (ou foi rejeitada) sai do
  * participante (o asset fica).
  */
@@ -43,6 +45,8 @@ export interface ImportReport {
   unchanged: number;
   linked: number;
   unlinked: number;
+  /** Pilotos com o carro de destaque vinculado (na prévia: que seriam vinculados). */
+  highlights: number;
   skipped: { key: string; file?: string; reason: string }[];
 }
 
@@ -78,6 +82,7 @@ export async function importCommons(
     unchanged: 0,
     linked: 0,
     unlinked: 0,
+    highlights: 0,
     skipped: [],
   };
   for (const entry of manifest.entries) {
@@ -250,5 +255,59 @@ export async function importCommons(
       .returning({ id: participantPhoto.assetId });
     report.unlinked += stale.length;
   }
+  await linkHighlights(db, manifest, report, opts);
   return report;
+}
+
+/** Carro de destaque de cada piloto: a primeira foto (não rejeitada) do alvo do carro, já no storage. */
+async function linkHighlights(
+  db: Database,
+  manifest: CommonsManifest,
+  report: ImportReport,
+  opts: { plan?: boolean; only?: Set<string> },
+): Promise<void> {
+  const byTarget = new Map(manifest.entries.map((e) => [e.target, e]));
+  for (const entry of manifest.entries) {
+    if (entry.kind !== 'driver') continue;
+    const h = entry.highlight_car ?? null;
+    if (opts.only && !opts.only.has(entry.target) && !(h && opts.only.has(h.target))) continue;
+    const photo = h ? byTarget.get(h.target)?.photos.find((p) => p.match !== 'rejected') : undefined;
+    if (opts.plan) {
+      if (photo) report.highlights += 1;
+      continue;
+    }
+    const participantId = await participantOf(db, entry);
+    if (!participantId) continue;
+    const [row] = photo
+      ? await db
+          .select({ id: asset.id })
+          .from(asset)
+          .where(and(eq(asset.sourceUrl, commonsSourceUrl(photo.file)), sql`${asset.storageKey} is not null`))
+          .limit(1)
+      : [];
+    const assetId = row?.id ?? null;
+    if (assetId && h && photo) {
+      const selectedBy = h.match === 'manual' ? 'manual' : photo.selected_by;
+      await db
+        .insert(participantPhoto)
+        .values({ participantId, assetId, role: 'highlight_car', seasonYear: h.season, rank: 0, selectedBy })
+        .onConflictDoUpdate({
+          target: [participantPhoto.participantId, participantPhoto.assetId, participantPhoto.role],
+          set: { seasonYear: h.season, rank: 0, selectedBy },
+        });
+      report.highlights += 1;
+    }
+    // destaque antigo (outro carro, ou o carro ficou sem foto) sai
+    const stale = await db
+      .delete(participantPhoto)
+      .where(
+        and(
+          eq(participantPhoto.participantId, participantId),
+          eq(participantPhoto.role, 'highlight_car'),
+          assetId ? sql`${participantPhoto.assetId} <> ${assetId}::uuid` : sql`true`,
+        ),
+      )
+      .returning({ id: participantPhoto.assetId });
+    report.unlinked += stale.length;
+  }
 }

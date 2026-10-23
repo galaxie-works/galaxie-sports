@@ -5,7 +5,7 @@ import { AssetUrl, LocaleQuery } from './common.js';
 
 // ─── fotos com crédito (acervo de licenças livres) ───────────────────────────────────────────────
 
-export const PHOTO_ROLES = ['portrait', 'action', 'car'] as const;
+export const PHOTO_ROLES = ['portrait', 'action', 'car', 'highlight_car'] as const;
 
 export const PhotoCredit = z
   .object({
@@ -33,9 +33,10 @@ export const Photo = z
     url: AssetUrl,
     width: z.number().int().nullable(),
     height: z.number().int().nullable(),
-    role: z
-      .enum(PHOTO_ROLES)
-      .meta({ description: 'portrait = retrato; action = em corrida ou no pódio; car = o carro.' }),
+    role: z.enum(PHOTO_ROLES).meta({
+      description:
+        'portrait = retrato; action = em corrida ou no pódio; car = o carro; highlight_car = o carro de destaque do piloto (temporada mais marcante).',
+    }),
     season: z
       .number()
       .int()
@@ -142,6 +143,10 @@ export const RaceCareer = z
       .array(CareerSeason)
       .meta({ description: 'Temporada a temporada, da mais recente à primeira.' }),
     portrait: Photo.nullable(),
+    highlight: z.object({ season: z.number().int(), car: Photo }).nullable().meta({
+      description:
+        'Piloto: carro de destaque (a temporada de título com mais vitórias ou, sem título, a de mais vitórias; curadoria no acervo). Para o topo da página, com o retrato na frente.',
+    }),
   })
   .meta({ id: 'RaceCareer' });
 export type RaceCareer = z.infer<typeof RaceCareer>;

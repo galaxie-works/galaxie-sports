@@ -37,6 +37,7 @@ const senna: DriverTarget = {
   name: 'Ayrton Senna',
   dateOfBirth: '1960-03-21',
   seasons: [1984, 1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994],
+  highlight: { target: 'car/mclaren/1988', year: 1988, reason: 'título de 1988', entrant: 'mclaren' },
 };
 
 describe('licença da Commons', () => {

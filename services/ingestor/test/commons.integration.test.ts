@@ -4,7 +4,7 @@
  * rejeitada na curadoria e recusa a que perdeu a licença livre. A Commons é falsa (fetch injetado).
  */
 import { deflateSync } from 'node:zlib';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   asset,
@@ -237,5 +237,85 @@ describe('importação do acervo de fotos', () => {
     // nenhuma foto válida no manifesto: o retrato sai também
     const links = await db.select().from(participantPhoto).where(eq(participantPhoto.participantId, sennaId));
     expect(links).toEqual([]);
+  });
+});
+
+describe('carro de destaque do piloto', () => {
+  const licenses = { 'File:Senna retrato.jpg': 'cc-by-2.0', 'File:MP4-4 Suzuka 1988.jpg': 'cc-by-sa-2.0' };
+  const store = new InMemoryObjectStore();
+  const car = (photos: ManifestPhoto[]) => ({
+    target: 'car/mclaren/1988',
+    kind: 'car' as const,
+    f1db_id: 'mclaren',
+    name: 'McLaren 1988',
+    season: 1988,
+    wikidata: null,
+    category: 'McLaren MP4/4',
+    photos,
+  });
+  const withHighlight = (carPhotos: ManifestPhoto[], highlight: boolean): CommonsManifest => {
+    const m = manifest([photo('File:Senna retrato.jpg', 'portrait')]);
+    m.entries[0]!.highlight_car = highlight
+      ? { target: 'car/mclaren/1988', season: 1988, reason: 'título de 1988', match: 'auto' }
+      : null;
+    m.entries.push(car(carPhotos));
+    return m;
+  };
+  const highlightOf = () =>
+    db
+      .select({
+        role: participantPhoto.role,
+        season: participantPhoto.seasonYear,
+        assetId: participantPhoto.assetId,
+      })
+      .from(participantPhoto)
+      .where(and(eq(participantPhoto.participantId, sennaId), eq(participantPhoto.role, 'highlight_car')));
+
+  beforeAll(async () => {
+    const [mclaren] = await db
+      .insert(participant)
+      .values({ sport: 'formula-1', kind: 'constructor', name: 'McLaren' })
+      .returning({ id: participant.id });
+    await db.insert(providerMap).values({
+      entityType: 'participant',
+      entityId: mclaren!.id,
+      provider: 'f1db',
+      sport: 'formula-1',
+      providerId: 'mclaren',
+    });
+  });
+
+  it('a primeira foto do carro de destaque também fica no piloto, com a temporada', async () => {
+    const plan = await importCommons(
+      db,
+      new InMemoryObjectStore(),
+      client(licenses),
+      withHighlight([photo('File:MP4-4 Suzuka 1988.jpg', 'car', { rank: 0 })], true),
+      { plan: true },
+    );
+    expect(plan.highlights).toBe(1);
+    const r = await importCommons(
+      db,
+      store,
+      client(licenses),
+      withHighlight([photo('File:MP4-4 Suzuka 1988.jpg', 'car', { rank: 0 })], true),
+    );
+    expect(r.highlights).toBe(1);
+    const [carAsset] = await db
+      .select({ id: asset.id })
+      .from(asset)
+      .where(eq(asset.sourceUrl, 'commons://File:MP4-4 Suzuka 1988.jpg'));
+    expect(await highlightOf()).toEqual([{ role: 'highlight_car', season: 1988, assetId: carAsset!.id }]);
+  });
+
+  it('sem destaque no manifesto, o vínculo sai', async () => {
+    const r = await importCommons(
+      db,
+      store,
+      client(licenses),
+      withHighlight([photo('File:MP4-4 Suzuka 1988.jpg', 'car', { rank: 0 })], false),
+    );
+    expect(r.highlights).toBe(0);
+    expect(await highlightOf()).toEqual([]);
   });
 });

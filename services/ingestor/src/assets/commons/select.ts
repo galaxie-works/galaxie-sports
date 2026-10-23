@@ -19,7 +19,7 @@ export const MIN_LONG_SIDE = 640;
 export const MIN_SHORT_SIDE = 480;
 const PHOTO_MIME = new Set(['image/jpeg', 'image/png']);
 const NOT_A_PHOTO =
-  /\b(signature|logo|chart|graph|diagram|accumulation|map|statue|grave|tomb|mural|graffiti|painting|drawing|poster|stamp|coin|card|cartão|toy|lego|model|replica|wax|figure|cake)\b/i;
+  /\b(signature|logo|chart|graph|diagram|accumulation|map|statue|grave|tomb|mural|graffiti|painting|drawing|poster|stamp|coin|card|cartão|toy|lego|model|replica|wax|figure|cake|diecast|die cast|miniature)\b/i;
 
 export type PhotoRole = 'portrait' | 'action' | 'car';
 
@@ -87,6 +87,12 @@ export function eligible(d: Discovery): { ok: Eligible[]; rejected: Rejection[] 
       reject(`resolução baixa (${f.width}×${f.height})`);
       continue;
     }
+    // carro de destaque: foto que cita outro piloto da temporada (e não o do destaque) é de outro carro ou do
+    // companheiro; sem foto boa, o alvo fica sem foto
+    if (c.other) {
+      reject('cita outro piloto da temporada');
+      continue;
+    }
     const verdict = readLicense(f.extmetadata);
     if (!verdict.ok) {
       reject(verdict.reason);
@@ -103,6 +109,8 @@ export function eligible(d: Discovery): { ok: Eligible[]; rejected: Rejection[] 
     let ruleScore = 0;
     if (c.wikidataImage) ruleScore += 3;
     if (c.portraitCategory) ruleScore += 2;
+    // carro de destaque: a foto do carro com o piloto vale mais que a do carro com o companheiro
+    if (c.featured) ruleScore += 3;
     if (c.season != null) ruleScore += 1;
     // época da carreira (o retrato de 2015 de um piloto dos anos 1980 vale menos)
     if (year != null && year >= window.from && year <= window.to) ruleScore += 2;

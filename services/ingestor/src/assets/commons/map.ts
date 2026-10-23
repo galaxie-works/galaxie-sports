@@ -51,6 +51,19 @@ export interface MapOptions {
 /** Alvo já ordenado pelo Gemini (só sai do manifesto com `redo`). */
 export const isRanked = (e: ManifestEntry | undefined) => !!e?.ranking;
 
+/**
+ * Manifesto novo (entrada) com os alvos já ordenados de uma execução anterior: o alvo ordenado fica como estava,
+ * com o carro de destaque da entrada (curadoria nova); alvos novos e não ordenados vêm da entrada.
+ */
+export function mergeRanked(entries: ManifestEntry[], previous: ManifestEntry[]): ManifestEntry[] {
+  const before = new Map(previous.map((e) => [e.target, e]));
+  return entries.map((e) => {
+    const p = before.get(e.target);
+    if (!p || !isRanked(p)) return e;
+    return e.highlight_car !== undefined ? { ...p, highlight_car: e.highlight_car } : p;
+  });
+}
+
 const subjectOf = (t: CommonsTarget) =>
   t.kind === 'driver' ? t.name : `${t.chassis.join(' / ')} (${t.year})`;
 

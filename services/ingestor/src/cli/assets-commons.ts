@@ -79,6 +79,7 @@ try {
       'já no storage': report.unchanged,
       vinculadas: report.linked,
       desvinculadas: report.unlinked,
+      'carro de destaque (pilotos)': report.highlights,
     });
     if (report.skipped.length)
       console.log(

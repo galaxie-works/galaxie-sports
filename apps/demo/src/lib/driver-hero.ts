@@ -20,7 +20,7 @@ export function heroSeason(career: RaceCareer, curated?: number | null): CareerS
 }
 
 /**
- * Fotos do heading: o carro da temporada marcante (quando há) e o retrato. O heading não mostra crédito: as duas
+ * Fotos do heading: o carro de destaque do acervo (ou o da temporada marcante, quando há) e o retrato. O heading não mostra crédito: as duas
  * entram na galeria da página, com o crédito da licença.
  */
 export function heroPhotos(career: RaceCareer): {
@@ -28,10 +28,14 @@ export function heroPhotos(career: RaceCareer): {
   car: Photo | null;
   portrait: Photo | null;
 } {
-  const season = heroSeason(career);
+  // carro de destaque do acervo (`highlight`, curadoria): a temporada e a foto dele, de preferência com o piloto
+  const highlight = career.highlight?.car.url ? career.highlight : null;
+  const season = heroSeason(career, highlight?.season);
+  const car =
+    highlight && season?.year === highlight.season ? highlight.car : season?.car?.url ? season.car : null;
   return {
     season,
-    car: season?.car?.url ? season.car : null,
+    car,
     portrait: career.portrait?.url ? career.portrait : null,
   };
 }

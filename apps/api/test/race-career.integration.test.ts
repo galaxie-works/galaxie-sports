@@ -6,11 +6,14 @@ import { randomBytes } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  asset,
+  assetCredit,
   closeDb,
   competition,
   createDb,
   event,
   participant,
+  participantPhoto,
   runMigrations,
   season,
   sport,
@@ -81,12 +84,55 @@ beforeAll(async () => {
     kind: 'race',
     summary: { type: 'Race' },
   });
+  // carro de destaque (acervo da Commons): McLaren 1988, com crédito
+  const [car] = await db
+    .insert(asset)
+    .values({
+      kind: 'car',
+      sourceUrl: 'commons://File:MP4-4 Suzuka 1988.jpg',
+      storageKey: 'commons/f1/cars/mclaren.abc.jpg',
+      width: 1600,
+      height: 1067,
+      origin: 'commons',
+      acervo: 'commons-f1',
+    })
+    .returning({ id: asset.id });
+  await db.insert(assetCredit).values({
+    assetId: car!.id,
+    source: 'Wikimedia Commons',
+    title: 'File:MP4-4 Suzuka 1988.jpg',
+    pageUrl: 'https://commons.wikimedia.org/wiki/File:MP4-4_Suzuka_1988.jpg',
+    author: 'Fotógrafo',
+    license: 'CC BY-SA 2.0',
+  });
+  await db.insert(participantPhoto).values({
+    participantId: driverId,
+    assetId: car!.id,
+    role: 'highlight_car',
+    seasonYear: 1988,
+    rank: 0,
+    selectedBy: 'rules',
+  });
 }, 120_000);
 
 afterAll(async () => {
   await closeDb(db);
   await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
   await admin.end();
+});
+
+describe('carreira na F1: carro de destaque', () => {
+  it('o carro de destaque vem com a temporada e o crédito', async () => {
+    const career = await loadRaceCareer(db, { id: driverId, kind: 'driver' }, 'pt-BR', 'https://assets.test');
+    expect(career.highlight).toMatchObject({
+      season: 1988,
+      car: {
+        url: 'https://assets.test/commons/f1/cars/mclaren.abc.jpg',
+        role: 'highlight_car',
+        credit: { author: 'Fotógrafo', license: 'CC BY-SA 2.0' },
+      },
+    });
+  });
 });
 
 describe('carreira na F1: títulos', () => {
