@@ -14,6 +14,18 @@ derbies:
     origin: "Nome dado pelo jornalista Thomaz Mazzoni em referência ao Derby de Epsom, corrida de cavalos inglesa."
     trivia:
       - "No primeiro jogo, o Palestra Itália venceu por 3 a 0, com três gols de Caetano."
+    all_time:
+      matches: 391
+      draws: 120
+      teams:
+        - { team: palmeiras, wins: 138 }
+        - { team: corinthians, wins: 133 }
+      basis: all
+      as_of: 2026-10-11
+      sources:
+        - "https://pt.wikipedia.org/wiki/Derby_Paulista"
+        - "https://www.ogol.com.br/xray.php?equipa_id=2248&equipa_vs_equipa_id=2234"
+      review_status: draft
     sources: ["https://pt.wikipedia.org/wiki/Derby_Paulista"]
     review_status: approved
 
@@ -29,6 +41,18 @@ derbies:
     trivia:
       - "O primeiro confronto, no Estádio da Floresta, terminou empatado em 2 a 2."
       - "Um Choque-Rei de 1950 no Pacaembu foi o primeiro evento esportivo transmitido ao vivo pela TV brasileira a partir de um estádio."
+    all_time:
+      matches: 356
+      draws: 116
+      teams:
+        - { team: palmeiras, wins: 124, goals: 468 }
+        - { team: sao-paulo, wins: 116, goals: 448 }
+      basis: all
+      as_of: 2026-09-12
+      sources:
+        - "https://pt.wikipedia.org/wiki/Choque-Rei"
+        - "https://www.ogol.com.br/xray.php?equipa_id=2248&equipa_vs_equipa_id=2256"
+      review_status: draft
     sources: ["https://pt.wikipedia.org/wiki/Choque-Rei"]
     review_status: approved
 
@@ -86,6 +110,18 @@ derbies:
     trivia:
       - "O primeiro jogo foi um amistoso beneficente em prol das vítimas da seca de 1915 no Nordeste."
       - "Em 1958, pelo Torneio Rio-São Paulo, o Santos venceu por 7 a 6 no Pacaembu."
+    all_time:
+      matches: 359
+      draws: 94
+      teams:
+        - { team: palmeiras, wins: 156, goals: 597 }
+        - { team: santos, wins: 109, goals: 490 }
+      basis: all
+      as_of: 2026-09-02
+      sources:
+        - "https://pt.wikipedia.org/wiki/Cl%C3%A1ssico_da_Saudade"
+        - "https://www.palmeiras.com.br/noticias/palmeiras-x-santos-informacoes-estatisticas-e-curiosidades-12/"
+      review_status: draft
     sources: ["https://pt.wikipedia.org/wiki/Clássico_da_Saudade"]
     review_status: approved
 
@@ -230,6 +266,18 @@ derbies:
     origin: "Termo criado em 1926 pelo jornalista Ivo dos Santos Martins para abreviar os nomes dos clubes."
     trivia:
       - "O primeiro Gre-Nal terminou Grêmio 10 a 0, com cinco gols de Edgar Booth."
+    all_time:
+      matches: 455
+      draws: 145
+      teams:
+        - { team: gremio, wins: 144, goals: 590 }
+        - { team: internacional, wins: 166, goals: 617 }
+      basis: all
+      as_of: 2026-10-11
+      sources:
+        - "https://pt.wikipedia.org/wiki/Grenal"
+        - "https://en.wikipedia.org/wiki/Grenal"
+      review_status: draft
     sources: ["https://pt.wikipedia.org/wiki/Grenal"]
     review_status: approved
 
@@ -277,6 +325,17 @@ derbies:
     origin: "Junção dos nomes Bahia e Vitória."
     trivia:
       - "O primeiro Ba-Vi, pelo Torneio Início, durou apenas 20 minutos."
+    all_time:
+      matches: 508
+      draws: 155
+      teams:
+        - { team: bahia, wins: 199, goals: 692 }
+        - { team: vitoria-ba, wins: 154, goals: 595 }
+      basis: all
+      as_of: 2026-08-23
+      sources:
+        - "https://pt.wikipedia.org/wiki/Ba-Vi"
+      review_status: draft
     sources: ["https://pt.wikipedia.org/wiki/Ba-Vi"]
     review_status: approved
 
@@ -348,6 +407,18 @@ derbies:
     origin: "Junção dos nomes Remo e Paysandu."
     trivia:
       - "Em 2016 o clássico foi declarado patrimônio cultural imaterial do Pará."
+    all_time:
+      matches: 783
+      draws: 267
+      teams:
+        - { team: remo, wins: 270, goals: 989 }
+        - { team: paysandu, wins: 246, goals: 989 }
+      basis: all
+      as_of: 2026-03-08
+      sources:
+        - "https://pt.wikipedia.org/wiki/Re-Pa"
+        - "https://en.wikipedia.org/wiki/Re-Pa"
+      review_status: draft
     sources: ["https://pt.wikipedia.org/wiki/Re-Pa"]
     review_status: approved
 
@@ -375,6 +446,18 @@ derbies:
     first_match: null
     origin: "Reúne as duas maiores torcidas do Brasil."
     trivia: []
+    all_time:
+      matches: 159
+      draws: 35
+      teams:
+        - { team: corinthians, wins: 57, goals: 223 }
+        - { team: flamengo, wins: 67, goals: 244 }
+      basis: all
+      as_of: 2026-09-13
+      sources:
+        - "https://pt.wikipedia.org/wiki/Encontro_das_Na%C3%A7%C3%B5es"
+        - "https://www.corinthians.com.br/noticias/corinthians-x-flamengo-10-curiosidades-22"
+      review_status: draft
     sources:
       - "https://www.metropoles.com/esportes/futebol/com-favoritismo-rubro-negro-corinthians-tenta-surpreender-no-maracana"
       - "https://www.lance.com.br/brasileirao/otimo-classico-das-multidoes-timao-fla-empatam-itaquera.html"

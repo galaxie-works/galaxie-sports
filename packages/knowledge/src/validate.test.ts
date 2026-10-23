@@ -92,6 +92,81 @@ describe('validateKnowledge — regras', () => {
     expect(codes(report.warnings)).toContain('rival-not-symmetric');
   });
 
+  it('all_time: aceita o histórico geral coerente e barra soma, times, gols de um lado só e data futura', async () => {
+    const teams = `schema_version: 1\ncountry: BR\nteams:${team('alfa', `\n    rivals:\n      - { team: beta, derby: classico-ab, intensity: 3 }`)}${team('beta', `\n    rivals:\n      - { team: alfa, derby: classico-ab, intensity: 3 }`)}`;
+    const derbyWith = (allTime: string) =>
+      `schema_version: 1\nregion: br\nderbies:\n  - slug: classico-ab\n    name: AB\n    teams: [alfa, beta]\n    scope: city\n    intensity: 3\n    all_time:\n${allTime}\n    sources: ["https://example.org/ab"]\n    review_status: draft\n`;
+    const block = (o: { matches?: number; a?: string; b?: string; asOf?: string } = {}) =>
+      [
+        `      matches: ${o.matches ?? 10}`,
+        '      draws: 2',
+        '      teams:',
+        `        - ${o.a ?? '{ team: alfa, wins: 5, goals: 15 }'}`,
+        `        - ${o.b ?? '{ team: beta, wins: 3, goals: 9 }'}`,
+        '      basis: all',
+        `      as_of: ${o.asOf ?? '2025-11-01'}`,
+        '      sources: ["https://example.org/ab-historico"]',
+        '      review_status: draft',
+      ].join('\n');
+    const ok = await validateFiles({
+      'football/teams/br.yaml': teams,
+      'football/derbies/br.yaml': derbyWith(block()),
+    });
+    expect(ok.errors).toEqual([]);
+    const bad = await validateFiles({
+      'football/teams/br.yaml': teams,
+      'football/derbies/br.yaml': derbyWith(
+        block({
+          matches: 11,
+          a: '{ team: alfa, wins: 5, goals: 15 }',
+          b: '{ team: gama, wins: 3 }',
+          asOf: '2999-01-01',
+        }),
+      ),
+    });
+    expect(codes(bad.errors)).toEqual(
+      expect.arrayContaining(['all-time-sum', 'all-time-teams', 'all-time-goals', 'all-time-future']),
+    );
+    const noSources = await validateFiles({
+      'football/teams/br.yaml': teams,
+      'football/derbies/br.yaml': derbyWith(block().replace(/\n {6}sources:.*$/m, '')),
+    });
+    expect(codes(noSources.errors)).toContain('schema');
+  });
+
+  it('head-to-head: par curado fora dos clássicos; repetir um clássico ou time inexistente é erro', async () => {
+    const teams = `schema_version: 1\ncountry: BR\nteams:${team('alfa', `\n    rivals:\n      - { team: beta, derby: classico-ab, intensity: 3 }`)}${team('beta', `\n    rivals:\n      - { team: alfa, derby: classico-ab, intensity: 3 }`)}${team('gama')}`;
+    const derbies = `schema_version: 1\nregion: br\nderbies:\n  - slug: classico-ab\n    name: AB\n    teams: [alfa, beta]\n    scope: city\n    intensity: 3\n    sources: ["https://example.org/ab"]\n    review_status: draft\n`;
+    const pair = (slug: string, a: string, b: string) =>
+      [
+        `  - slug: ${slug}`,
+        `    teams: [${a}, ${b}]`,
+        '    all_time:',
+        '      matches: 3',
+        '      draws: 1',
+        '      teams:',
+        `        - { team: ${a}, wins: 1, goals: 4 }`,
+        `        - { team: ${b}, wins: 1, goals: 4 }`,
+        '      basis: all',
+        '      as_of: 2025-11-01',
+        '      sources: ["https://example.org/par"]',
+        '      review_status: draft',
+      ].join('\n');
+    const ok = await validateFiles({
+      'football/teams/br.yaml': teams,
+      'football/derbies/br.yaml': derbies,
+      'football/head-to-head/br.yaml': `schema_version: 1\nregion: br\npairs:\n${pair('alfa-gama', 'alfa', 'gama')}\n`,
+    });
+    expect(ok.errors).toEqual([]);
+    expect(ok.counts.headToHead).toBe(1);
+    const bad = await validateFiles({
+      'football/teams/br.yaml': teams,
+      'football/derbies/br.yaml': derbies,
+      'football/head-to-head/br.yaml': `schema_version: 1\nregion: br\npairs:\n${pair('alfa-beta', 'alfa', 'beta')}\n${pair('alfa-omega', 'alfa', 'omega')}\n`,
+    });
+    expect(codes(bad.errors)).toEqual(expect.arrayContaining(['head-to-head-is-derby', 'unknown-team']));
+  });
+
   it('team_id repetido é erro', async () => {
     const report = await validateFiles({
       'football/teams/br.yaml': `schema_version: 1\ncountry: BR\nteams:${team('alfa').replace('team_id: null', 'team_id: 10')}${team('beta').replace('team_id: null', 'team_id: 10')}`,

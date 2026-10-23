@@ -29,6 +29,7 @@ import {
   resolveMarket,
 } from '../../events/relevance.js';
 import { eventContextSummary } from './event-context.js';
+import { effectiveMinReview, pairAllTime } from './semantic.js';
 import {
   assertWindow,
   eventHead,
@@ -399,7 +400,14 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             logo: assetUrl(ctx.assetsBaseUrl, p.logoKey, p.logoUrl),
             colors: teamColors(p.logoPalette),
           })),
-          summary: { played: 0, draws: 0, teams: parts.map((p) => ({ id: p.id, wins: 0, goals: 0 })) },
+          summary: {
+            scope: 'database',
+            since: null,
+            played: 0,
+            draws: 0,
+            teams: parts.map((p) => ({ id: p.id, wins: 0, goals: 0 })),
+          },
+          all_time: null,
           events: [],
         };
         if (parts.length === 2) {
@@ -407,6 +415,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
           const history = await db
             .select({
               id: event.id,
+              startsAt: event.startsAt,
               score: event.score,
               participantId: eventParticipant.participantId,
               side: eventParticipant.side,
@@ -430,8 +439,10 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
           const goals = new Map<string, Map<string, number>>();
           // lutas (MMA) não têm placar: o vencedor vale como 1 × 0
           const winners = new Map<string, Map<string, boolean>>();
+          const startedAt = new Map<string, Date>();
           for (const h of history) {
             if (!goals.has(h.id)) {
+              startedAt.set(h.id, h.startsAt);
               goals.set(h.id, new Map());
               winners.set(h.id, new Map());
               order.push(h.id);
@@ -442,11 +453,13 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             if (typeof w === 'boolean') winners.get(h.id)!.set(h.participantId, w);
           }
           const stats = new Map(body.summary.teams.map((t) => [t.id, t]));
+          const counted: string[] = [];
           for (const id of order) {
             const g = goals.get(id)!;
             const w = winners.get(id)!;
             if (head.sport === 'mma' && w.has(a) && w.has(b)) {
               body.summary.played += 1;
+              counted.push(id);
               if (w.get(a) === w.get(b)) body.summary.draws += 1;
               else stats.get(w.get(a) ? a : b)!.wins += 1;
               continue;
@@ -455,11 +468,15 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             const gb = g.get(b);
             if (ga === undefined || gb === undefined) continue;
             body.summary.played += 1;
+            counted.push(id);
             stats.get(a)!.goals += ga;
             stats.get(b)!.goals += gb;
             if (ga === gb) body.summary.draws += 1;
             else stats.get(ga > gb ? a : b)!.wins += 1;
           }
+          const oldest = counted.at(-1);
+          if (oldest) body.summary.since = Number(formatInstant(startedAt.get(oldest)!, tz).slice(0, 4));
+          body.all_time = await pairAllTime(db, a, b, locale, effectiveMinReview(ctx, undefined));
           body.events = (await buildEvents(bctx, order.slice(0, query.limit))).map((x) => x.dto);
         }
         return {

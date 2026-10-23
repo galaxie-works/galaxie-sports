@@ -29,6 +29,7 @@ import { isRaceEvent, RaceClassification, RaceScoreboard, raceTitle } from '@/co
 import { RelatedContentGrid } from '@/components/sport/related-content';
 import { RelevanceMeter } from '@/components/sport/relevance-meter';
 import { Section } from '@/components/sport/section';
+import { SourceNote } from '@/components/sport/source-note';
 import { StatusBadge } from '@/components/sport/status-badge';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -432,14 +433,18 @@ function H2hSection({
   locale,
   content,
   t,
+  f,
 }: {
   h2h: HeadToHead;
   locale: Locale;
   content: SupportedLocale;
   t: Dictionary;
+  f: Formatters;
 }) {
   const tx = t.event.h2h;
   if (!h2h.summary.played) return null;
+  const all = h2h.all_time;
+  const allWinsOf = (id?: string) => all?.teams.find((t) => t.id === id)?.wins ?? 0;
   const [a, b] = h2h.participants;
   const winsOf = (id?: string) => h2h.summary.teams.find((t) => t.id === id)?.wins ?? 0;
   const total = h2h.summary.played;
@@ -453,11 +458,40 @@ function H2hSection({
   return (
     <Section
       title={tx.title}
-      description={plural(locale, total, tx.matches)}
+      description={plural(locale, total, tx.matches, { year: h2h.summary.since ?? '' })}
       api={h2hRequest(h2h.event_id, locale, content)}
     >
       <Card size="sm">
         <CardContent className="flex flex-col gap-3">
+          {all ? (
+            // histórico geral curado em destaque; as barras abaixo são só o recorte da base
+            <div className="flex flex-col gap-1 border-b pb-3">
+              <span className="text-xs font-medium">
+                {all.derby ? fill(tx.allTime, { derby: all.derby.name }) : tx.allTimePair}
+              </span>
+              <div className="flex items-baseline justify-between gap-2 text-sm tabular-nums">
+                <span>
+                  <span className="text-lg font-semibold">{allWinsOf(a?.id)}</span> {a?.name}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {fill(tx.allTimeRecord, {
+                    matches: plural(locale, all.matches, t.pages.derby.matches),
+                    draws: plural(locale, all.draws, t.pages.derby.draws),
+                  })}
+                  {all.basis === 'official' ? ` (${tx.officialOnly})` : null}
+                </span>
+                <span>
+                  {b?.name} <span className="text-lg font-semibold">{allWinsOf(b?.id)}</span>
+                </span>
+              </div>
+              <span className="text-muted-foreground text-xs">
+                <SourceNote template={tx.allTimeNote} date={f.calendarDate(all.as_of)} urls={all.sources} />
+              </span>
+            </div>
+          ) : null}
+          {all && h2h.summary.since !== null ? (
+            <span className="text-xs font-medium">{fill(tx.ourData, { year: h2h.summary.since })}</span>
+          ) : null}
           <div className="flex h-2 overflow-hidden rounded-full">
             {bars.map((x) => (
               <div key={x.label} style={{ width: `${(x.value / total) * 100}%`, backgroundColor: x.color }} />
@@ -606,7 +640,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
                 t={t}
               />
             )}
-            {h2h ? <H2hSection h2h={h2h} locale={locale} content={content} t={t} /> : null}
+            {h2h ? <H2hSection h2h={h2h} locale={locale} content={content} t={t} f={f} /> : null}
           </div>
           {/* no celular, uma coluna só: placar → sobre o jogo → onde assistir → contexto → detalhes da partida → o resto */}
           <div className="flex flex-col gap-6 max-lg:order-first">

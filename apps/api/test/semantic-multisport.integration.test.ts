@@ -9,7 +9,9 @@ import {
   competition,
   country,
   createDb,
+  derby,
   event,
+  headToHead,
   eventParticipant,
   games,
   medal,
@@ -145,6 +147,17 @@ async function seedCore() {
   ids.palmeiras = await addClub('Palmeiras', 121);
   ids.corinthians = await addClub('Corinthians', 131);
   ids.saoPaulo = await addClub('Sao Paulo', 126);
+  ids.fluminense = await addClub('Fluminense', 124);
+  // Palmeiras × Fluminense não é clássico: o histórico geral vem da lista curada (head-to-head)
+  ids.palmeirasFluminense = await addMatch(
+    ids.palmeiras!,
+    ids.fluminense!,
+    new Date('2025-03-01T22:00:00Z'),
+    {
+      home: 2,
+      away: 1,
+    },
+  );
 
   // Derby Paulista: Palmeiras 2 × 1 Corinthians (2024), Corinthians 0 × 4 Palmeiras (2023),
   // 1 × 1 (2022), Corinthians 2 × 0 Palmeiras (2021), 1 × 1 com pênaltis 4 × 3 (2020)
@@ -363,6 +376,41 @@ beforeAll(async () => {
   await seedCore();
   // seed semântico depois dos eventos: liga perfis a participantes e preenche core.event.derby_id
   await seedSemantic(db, await loadKnowledge());
+  // histórico geral fixo (não depende do que a base curada tiver no momento)
+  await db
+    .update(derby)
+    .set({
+      allTime: {
+        matches: 100,
+        draws: 30,
+        teams: [
+          { team: 'palmeiras', wins: 40, goals: 150 },
+          { team: 'corinthians', wins: 30, goals: 120 },
+        ],
+        basis: 'all',
+        as_of: '2025-11-01',
+        sources: ['https://example.org/derby'],
+        review_status: 'draft',
+      },
+    })
+    .where(eq(derby.slug, 'derby-paulista'));
+  await db
+    .update(headToHead)
+    .set({
+      allTime: {
+        matches: 12,
+        draws: 2,
+        teams: [
+          { team: 'palmeiras', wins: 6, goals: 20 },
+          { team: 'fluminense', wins: 4, goals: 15 },
+        ],
+        basis: 'all',
+        as_of: '2025-11-01',
+        sources: ['https://example.org/pal-flu'],
+        review_status: 'draft',
+      },
+    })
+    .where(eq(headToHead.slug, 'palmeiras-fluminense'));
   await seedMultisportData();
 
   const t = await upsertTenant(db, {
@@ -508,6 +556,54 @@ describe('/v1/derbies', () => {
     });
     expect(r.last_match_at).toBe('2024-05-10T19:00:00-03:00');
     expect(r.first_match_at).toBe('2020-08-08T19:00:00-03:00');
+  });
+
+  it('/{slug}: recorte da base com o ano e histórico geral curado à parte', async () => {
+    const body = (await get('/v1/derbies/derby-paulista?tz=UTC')).json();
+    expect(body.retrospect).toMatchObject({ scope: 'database', since: 2020, matches: 5 });
+    expect(body.all_time).toEqual({
+      matches: 100,
+      draws: 30,
+      teams: [
+        { slug: 'palmeiras', wins: 40, goals: 150 },
+        { slug: 'corinthians', wins: 30, goals: 120 },
+      ],
+      basis: 'all',
+      as_of: '2025-11-01',
+      sources: ['https://example.org/derby'],
+      review_status: 'draft',
+    });
+    // piso de produção (approved): rascunho do histórico não sai
+    expect((await get('/v1/derbies/derby-paulista?tz=UTC', {}, prodApp)).json().all_time).toBeNull();
+  });
+
+  it('h2h do jogo: recorte com o ano e o histórico geral do clássico por participante', async () => {
+    const body = (await get(`/v1/events/${ids.m2024}/h2h`)).json();
+    expect(body.summary).toMatchObject({ scope: 'database', since: 2020, played: 5 });
+    expect(body.all_time).toMatchObject({
+      derby: { slug: 'derby-paulista' },
+      matches: 100,
+      draws: 30,
+      teams: [
+        { id: ids.palmeiras, wins: 40, goals: 150 },
+        { id: ids.corinthians, wins: 30, goals: 120 },
+      ],
+    });
+    // par que não é clássico: histórico geral da lista curada, sem clássico de origem
+    const pf = (await get(`/v1/events/${ids.palmeirasFluminense}/h2h`)).json();
+    expect(pf.summary).toMatchObject({ since: 2025, played: 1 });
+    expect(pf.all_time).toMatchObject({
+      derby: null,
+      matches: 12,
+      teams: [
+        { id: ids.palmeiras, wins: 6, goals: 20 },
+        { id: ids.fluminense, wins: 4, goals: 15 },
+      ],
+    });
+    // Choque-Rei ainda sem jogo encerrado na base: recorte vazio, sem ano
+    const none = (await get(`/v1/events/${ids.choque}/h2h`)).json();
+    expect(none.summary).toMatchObject({ played: 0, since: null });
+    expect((await get(`/v1/events/${ids.m2024}/h2h`, {}, prodApp)).json().all_time).toBeNull();
   });
 
   it('/{slug}: clássico sem participantes ligados tem retrospecto indisponível; inexistente → 404', async () => {

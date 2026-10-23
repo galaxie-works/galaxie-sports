@@ -32,6 +32,16 @@ export type LocalizedTeamTexts = {
 };
 /** Textos de um clássico traduzidos para um locale. */
 export type LocalizedDerbyTexts = { origin?: string; trivia?: string[]; review_status: ReviewStatusValue };
+/** Retrospecto histórico geral curado (bloco `all_time` do YAML), separado do calculado dos jogos da base. */
+export type DerbyAllTime = {
+  matches: number;
+  draws: number;
+  teams: { team: string; wins: number; goals?: number | null }[];
+  basis: 'all' | 'official';
+  as_of: string;
+  sources: string[];
+  review_status: ReviewStatusValue;
+};
 
 /** Perfil semântico de time/seleção carregado de data/knowledge/football/teams/*.yaml. */
 export const teamProfile = semantic.table(
@@ -90,6 +100,7 @@ export const derby = semantic.table('derby', {
   firstMatch: date('first_match'),
   origin: text('origin'),
   trivia: jsonb('trivia').$type<string[]>().notNull().default([]),
+  allTime: jsonb('all_time').$type<DerbyAllTime>(),
   /** Idioma de origin/trivia no YAML. */
   textLocale: text('text_locale').notNull().default('pt-BR'),
   /** Traduções de i18n/<locale>.yaml: `{ "es": { origin, trivia, review_status } }`. */
@@ -100,6 +111,23 @@ export const derby = semantic.table('derby', {
   contentHash: text('content_hash'),
   updatedAt: updatedAt(),
 });
+
+/** Par relevante que não é clássico, com histórico geral curado (data/knowledge/<esporte>/head-to-head). */
+export const headToHead = semantic.table(
+  'head_to_head',
+  {
+    slug: text('slug').primaryKey(),
+    sport: text('sport').notNull(),
+    /** Os dois slugs de team_profile, em ordem alfabética. */
+    teams: jsonb('teams').$type<[string, string]>().notNull(),
+    allTime: jsonb('all_time').$type<DerbyAllTime>().notNull(),
+    sourceFile: text('source_file').notNull(),
+    reviewStatus: reviewStatus('review_status').notNull().default('draft'),
+    contentHash: text('content_hash'),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('head_to_head_teams_idx').using('gin', t.teams)],
+);
 
 export const derbyTeam = semantic.table(
   'derby_team',

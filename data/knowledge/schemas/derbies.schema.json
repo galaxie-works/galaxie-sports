@@ -41,6 +41,7 @@
             "maxItems": 3,
             "items": { "type": "string", "minLength": 1, "maxLength": 400 }
           },
+          "all_time": { "$ref": "common.schema.json#/definitions/allTime" },
           "sources": { "$ref": "common.schema.json#/definitions/sources" },
           "review_status": { "$ref": "common.schema.json#/definitions/reviewStatus" }
         }

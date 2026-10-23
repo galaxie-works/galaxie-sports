@@ -1,0 +1,103 @@
+# Base semântica — confrontos relevantes que não são clássicos (schema v1, ver data/knowledge/SCHEMA.md)
+# Só o retrospecto histórico geral curado. Par que é clássico guarda o seu no all_time do clássico.
+schema_version: 1
+region: br
+pairs:
+  - slug: palmeiras-fluminense
+    teams: [palmeiras, fluminense]
+    all_time:
+      matches: 126
+      draws: 20
+      teams:
+        - { team: palmeiras, wins: 66, goals: 210 }
+        - { team: fluminense, wins: 40, goals: 168 }
+      basis: all
+      as_of: 2026-10-14
+      sources:
+        - "https://www.palmeiras.com.br/noticias/palmeiras-x-fluminense-informacoes-estatisticas-e-curiosidades-7/"
+        - "https://pt.wikipedia.org/wiki/Confrontos_entre_Fluminense_e_Palmeiras_no_futebol"
+      review_status: draft
+  - slug: flamengo-sao-paulo
+    teams: [flamengo, sao-paulo]
+    all_time:
+      matches: 154
+      draws: 45
+      teams:
+        - { team: flamengo, wins: 49 }
+        - { team: sao-paulo, wins: 60 }
+      basis: all
+      as_of: 2026-07-26
+      sources:
+        - "https://pt.wikipedia.org/wiki/Confrontos_entre_Flamengo_e_São_Paulo_no_futebol"
+        - "https://www.flamengo.com.br/noticias/futebol/sao-paulo-x-flamengo--relacionados--retrospecto-e-mais-informacoes-sobre-o-confronto"
+      review_status: draft
+  - slug: corinthians-fluminense
+    teams: [corinthians, fluminense]
+    all_time:
+      matches: 127
+      draws: 36
+      teams:
+        - { team: corinthians, wins: 45 }
+        - { team: fluminense, wins: 46 }
+      basis: all
+      as_of: 2026-09-20
+      sources:
+        - "https://pt.wikipedia.org/wiki/Clássico_Silvio_Santos"
+        - "https://www.corinthians.com.br/noticias/fluminense-x-corinthians-dez-curiosidades"
+      review_status: draft
+  - slug: flamengo-gremio
+    teams: [flamengo, gremio]
+    all_time:
+      matches: 126
+      draws: 40
+      teams:
+        - { team: flamengo, wins: 44 }
+        - { team: gremio, wins: 42 }
+      basis: all
+      as_of: 2025-08-31
+      sources:
+        - "https://www.flamengo.com.br/noticias/futebol/gremio-x-flamengo--retrospecto--arbitragem-e-outras-informacoes-sobre-o-confronto-pelo-brasileirao"
+        - "https://www.flamengo.com.br/noticias/futebol/flamengo-x-gremio--retrospecto--arbitragem-e-mais-informacoes-sobre-o-confronto-pelo-brasileirao"
+      review_status: draft
+  - slug: flamengo-palmeiras
+    teams: [flamengo, palmeiras]
+    all_time:
+      matches: 134
+      draws: 38
+      teams:
+        - { team: flamengo, wins: 47, goals: 197 }
+        - { team: palmeiras, wins: 49, goals: 209 }
+      basis: all
+      as_of: 2025-11-29
+      sources:
+        - "https://www.flamengo.com.br/noticias/futebol/flamengo-x-palmeiras--retrospecto--arbitragem-e-outras-informacoes-sobre-o-duelo-pelo-brasileirao"
+        - "https://www.palmeiras.com.br/noticias/flamengo-x-palmeiras-informacoes-estatisticas-e-curiosidades-7/"
+      review_status: draft
+  - slug: flamengo-internacional
+    teams: [flamengo, internacional]
+    all_time:
+      matches: 116
+      draws: 36
+      teams:
+        - { team: flamengo, wins: 41 }
+        - { team: internacional, wins: 39 }
+      basis: all
+      as_of: 2026-07-29
+      sources:
+        - "https://pt.wikipedia.org/wiki/Confrontos_entre_Flamengo_e_Internacional_no_futebol"
+        - "https://www.flamengo.com.br/noticias/futebol/flamengo-x-internacional--retrospecto--arbitragem-e-outras-informacoes-sobre-o-duelo-pelo-brasileiro"
+      review_status: draft
+  - slug: corinthians-internacional
+    teams: [corinthians, internacional]
+    all_time:
+      matches: 104
+      draws: 42
+      teams:
+        - { team: corinthians, wins: 34 }
+        - { team: internacional, wins: 28 }
+      basis: all
+      as_of: 2026-10-07
+      sources:
+        - "https://pt.wikipedia.org/wiki/Confrontos_entre_Corinthians_e_Internacional_no_futebol"
+        - "https://www.corinthians.com.br/noticias/corinthians-x-internacional-10-curiosidades-do-confronto"
+      review_status: draft

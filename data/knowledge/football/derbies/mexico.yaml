@@ -14,6 +14,18 @@ derbies:
     trivia:
       - "La rivalidad tomó forma a finales de la década de 1950."
       - "La final de liga 1983-84, la primera entre ambos y ganada por el América, es una de las más recordadas."
+    all_time:
+      matches: 223
+      draws: 71
+      teams:
+        - { team: club-america, wins: 82, goals: 279 }
+        - { team: guadalajara, wins: 70, goals: 265 }
+      basis: official
+      as_of: 2026-09-19
+      sources:
+        - "https://es.wikipedia.org/wiki/Cl%C3%A1sico_del_f%C3%BAtbol_mexicano"
+        - "https://www.rsssf.org/tablesa/americachivas.html"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_fútbol_mexicano"
     review_status: approved
@@ -28,6 +40,18 @@ derbies:
     first_match: null
     origin: "Rivalidad de la Ciudad de México cuyo nombre alude a que es más reciente que otros clásicos del país."
     trivia: []
+    all_time:
+      matches: 207
+      draws: 70
+      teams:
+        - { team: club-america, wins: 74, goals: 302 }
+        - { team: cruz-azul, wins: 63, goals: 269 }
+      basis: all
+      as_of: 2026-10-01
+      sources:
+        - "https://es.wikipedia.org/wiki/Cl%C3%A1sico_Joven"
+        - "https://www.rsssf.org/tablesa/americacruzazul.html"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_Joven"
     review_status: approved
@@ -42,6 +66,18 @@ derbies:
     first_match: null
     origin: "Enfrenta a dos clubes de la Ciudad de México: el América y el equipo de la UNAM."
     trivia: []
+    all_time:
+      matches: 170
+      draws: 67
+      teams:
+        - { team: club-america, wins: 62, goals: 229 }
+        - { team: pumas-unam, wins: 41, goals: 192 }
+      basis: official
+      as_of: 2026-05-10
+      sources:
+        - "https://es.wikipedia.org/wiki/Cl%C3%A1sico_Capitalino_(M%C3%A9xico)"
+        - "https://www.rsssf.org/tablesa/americapumas.html"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_Capitalino"
     review_status: approved

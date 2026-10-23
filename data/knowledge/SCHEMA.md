@@ -10,7 +10,8 @@ data/knowledge/
 ├── football/
 │   ├── teams/<iso2>.yaml           # um arquivo por país (br, ar, uy, cl, co, pe, ec, py, bo, ve, mx, gb-eng, es, it, de, fr, pt, nl...)
 │   ├── national-teams.yaml         # seleções
-│   └── derbies/<region>.yaml       # clássicos/dérbis (br, south-america, mexico, europe, international)
+│   ├── derbies/<region>.yaml       # clássicos/dérbis (br, south-america, mexico, europe, international)
+│   └── head-to-head/<region>.yaml  # confrontos relevantes que não são clássicos (só o histórico geral)
 ├── basketball/                     # NBA, NBB e Liga Nacional argentina (a NBA fica aqui, não em "nba")
 │   ├── teams/<iso2>.yaml           # us, br, ar
 │   └── derbies/<region>.yaml       # nba, br, ar
@@ -137,8 +138,39 @@ derbies:
     origin: "Nome atribuído ao jornalista Thomaz Mazzoni."   # 1 frase, fato verificável
     trivia:                                      # 0–3 fatos curtos, verificáveis
       - "..."
+    all_time:                                    # opcional: retrospecto histórico geral curado
+      matches: 356
+      draws: 116
+      teams:                                     # os mesmos 2 slugs de `teams`
+        - { team: palmeiras, wins: 124, goals: 468 }
+        - { team: sao-paulo, wins: 116, goals: 448 }   # goals: null se a fonte não publica (basquete/vôlei: sempre)
+      basis: all                                 # all = inclui amistosos | official = só jogos oficiais
+      as_of: 2026-09-12                          # último jogo contado pela fonte
+      sources: ["https://..."]
+      review_status: draft
     sources: ["https://..."]
     review_status: draft
+```
+
+### Histórico geral × recorte da base
+
+O retrospecto que a API calcula (`retrospect`) usa só os jogos que estão na base (cobertura do fornecedor, em geral os últimos anos) e diz isso: `scope: database` e `since` (ano do primeiro jogo). O `all_time` é o retrospecto **desde o primeiro jogo**, copiado de fontes públicas (Wikipédia, sites dos clubes, RSSSF, 11v11…), com revisão própria (`review_status`) e exposto separado (`all_time` em `/v1/derbies/{slug}` e em `/v1/events/{id}/h2h`).
+
+- **Nunca estimar nem somar parciais.** Só totais publicados; sem número confiável, sem `all_time`.
+- **Fontes divergentes = sem `all_time`**, a não ser que a diferença seja só atualização (a mais nova contém a mais antiga) ou um critério explícito (pênaltis contados como vitória, uma competição não reconhecida). Fonte única com números completos é aceita.
+- O validador confere: mesmos times do clássico, `vitórias + empates = jogos`, gols dos dois lados ou de nenhum, `as_of` não futuro (erros `all-time-*`).
+
+## `<esporte>/head-to-head/<region>.yaml`
+
+Par relevante que **não** é clássico (ex.: Palmeiras × Fluminense, finalistas frequentes) e merece o histórico geral no confronto direto do jogo. Mesmo bloco `all_time`, sem nome, intensidade ou história. Par que já é clássico é erro (`head-to-head-is-derby`): use o `all_time` do clássico.
+
+```yaml
+schema_version: 1
+region: br
+pairs:
+  - slug: palmeiras-fluminense
+    teams: [palmeiras, fluminense]
+    all_time: { ... }                            # mesmo formato do clássico
 ```
 
 ## `competitions/football.yaml`

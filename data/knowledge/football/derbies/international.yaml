@@ -66,6 +66,18 @@ derbies:
   trivia:
   - 'O primeiro jogo oficial foi no Sul-Americano de 1916: Uruguai 2–1.'
   - Em 16 de julho de 1950, o Uruguai venceu o Brasil por 2–1 no Maracanã, no jogo decisivo da Copa, episódio conhecido como Maracanazo.
+  all_time:
+    matches: 81
+    draws: 22
+    teams:
+      - { team: brazil-nt, wins: 38, goals: 143 }
+      - { team: uruguay-nt, wins: 21, goals: 101 }
+    basis: all
+    as_of: 2024-11-19
+    sources:
+      - "https://en.wikipedia.org/wiki/Brazil%E2%80%93Uruguay_football_rivalry"
+      - "https://www.11v11.com/teams/brazil/tab/opposingTeams/opposition/Uruguay/"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Brazil%E2%80%93Uruguay_football_rivalry
   - https://pt.wikipedia.org/wiki/Rivalidade_entre_Brasil_e_Uruguai_no_futebol
@@ -126,6 +138,20 @@ derbies:
   trivia:
   - O primeiro jogo internacional oficial foi um amistoso em Berlim.
   - Também se enfrentaram nas oitavas de final da Copa de 2010 e da Euro 2020.
+  all_time:
+    matches: 35
+    draws: 8
+    teams:
+      - { team: england-nt, wins: 14, goals: 57 }
+      - { team: germany-nt, wins: 13, goals: 46 }
+    basis: all
+    as_of: 2022-09-26
+    sources:
+      - "https://en.wikipedia.org/wiki/England_national_football_team_all-time_record"
+      - "https://en.wikipedia.org/wiki/England%E2%80%93Germany_football_rivalry"
+      - "https://en.wikipedia.org/wiki/Germany_national_football_team_records_and_statistics"
+      - "https://www.11v11.com/teams/england/tab/opposingTeams/opposition/Germany/"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/England%E2%80%93Germany_football_rivalry
   - https://es.wikipedia.org/wiki/Rivalidad_futbol%C3%ADstica_entre_Alemania_e_Inglaterra
@@ -143,6 +169,18 @@ derbies:
   intensity: 4
   first_match: null
   origin: A rivalidade esportiva ganhou força após a final da Copa de 1974, vencida pela Alemanha Ocidental sobre a Holanda.
+  all_time:
+    matches: 49
+    draws: 19
+    teams:
+      - { team: germany-nt, wins: 18 }
+      - { team: netherlands-nt, wins: 12 }
+    basis: all
+    as_of: 2026-09-24
+    sources:
+      - "https://www.11v11.com/teams/germany/tab/opposingTeams/opposition/Netherlands/"
+      - "https://en.wikipedia.org/wiki/Germany%E2%80%93Netherlands_football_rivalry"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Germany%E2%80%93Netherlands_football_rivalry
   review_status: approved
@@ -163,6 +201,19 @@ derbies:
   trivia:
   - A Espanha venceu o primeiro jogo por 3–1.
   - 'A primeira vitória portuguesa veio em 1947: 4–1.'
+  all_time:
+    matches: 42
+    draws: 18
+    teams:
+      - { team: spain-nt, wins: 18 }
+      - { team: portugal-nt, wins: 6 }
+    basis: all
+    as_of: 2026-07-06
+    sources:
+      - "https://en.wikipedia.org/wiki/Portugal%E2%80%93Spain_football_rivalry"
+      - "https://en.wikipedia.org/wiki/Spain_national_football_team_all-time_record"
+      - "https://www.11v11.com/teams/spain/tab/opposingTeams/opposition/Portugal/"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Portugal%E2%80%93Spain_football_rivalry
   - https://pt.wikipedia.org/wiki/Rivalidade_entre_Espanha_e_Portugal_no_futebol

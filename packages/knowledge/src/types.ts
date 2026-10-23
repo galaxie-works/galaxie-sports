@@ -85,6 +85,19 @@ export interface DerbyEntry {
   text_locale?: TextLocale;
   origin?: string | null;
   trivia?: string[];
+  /** Retrospecto histórico geral, curado de fontes públicas (o da base é calculado na API). */
+  all_time?: DerbyAllTimeEntry;
+  sources: string[];
+  review_status: ReviewStatus;
+}
+
+export interface DerbyAllTimeEntry {
+  matches: number;
+  draws: number;
+  teams: { team: string; wins: number; goals?: number | null }[];
+  /** all = todos os jogos (inclui amistosos); official = só oficiais. */
+  basis: 'all' | 'official';
+  as_of: string;
   sources: string[];
   review_status: ReviewStatus;
 }
@@ -163,6 +176,19 @@ export interface NationalTeamsFile {
   text_locale?: TextLocale;
   teams: TeamEntry[];
 }
+/** Par relevante que não é clássico, com o retrospecto histórico geral curado. */
+export interface HeadToHeadEntry {
+  slug: string;
+  teams: [string, string];
+  all_time: DerbyAllTimeEntry;
+}
+
+export interface HeadToHeadFile {
+  schema_version: 1;
+  region: string;
+  pairs: HeadToHeadEntry[];
+}
+
 export interface DerbiesFile {
   schema_version: 1;
   region: string;
