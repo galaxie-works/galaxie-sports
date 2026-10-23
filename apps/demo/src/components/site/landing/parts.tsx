@@ -154,7 +154,8 @@ export function Cell({
           <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed text-pretty">{body}</p>
         ) : null}
       </header>
-      <div className="min-w-0">{children}</div>
+      {/* Conteúdo ocupa a altura que sobra: o cartão esticado pela grade leva o rodapé para baixo. */}
+      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
     </article>
   );
 }

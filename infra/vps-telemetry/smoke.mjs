@@ -249,6 +249,30 @@ await check('Demo: páginas públicas e proteção do resto', async () => {
   return true;
 });
 
+await check('Demo: páginas públicas sem termos internos', async () => {
+  // o que só existe no app logado e na operação: fornecedor de dados, provedores de IA, chaves de flag
+  // do painel (MAIÚSCULAS_COM_SUBLINHADO, ex.: LIVE_FEATURED) e endereços da rede interna
+  const internal = [
+    /api-?sports/i,
+    /api-football/i,
+    /openai/i,
+    /anthropic/i,
+    /gemini/i,
+    /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/,
+    /192\.168\.|\blocalhost\b|\bapi:8080\b/,
+  ];
+  const found = [];
+  for (const path of ['/sobre', '/exemplo/jogo'])
+    for (const lang of ['pt-BR', 'en', 'es-AR']) {
+      const html = await (await fetch(`${DEMO}${path}`, { headers: { 'accept-language': lang } })).text();
+      for (const re of internal) {
+        const hit = html.match(re);
+        if (hit) found.push(`${path} (${lang}): ${hit[0]}`);
+      }
+    }
+  return found.length ? fail(found.slice(0, 5).join(' · ')) : true;
+});
+
 await check('Painel de Operação: configuração protegida e sem segredos', async () => {
   const url = `${DEMO}/api/ajustes/operacao`;
   const anon = await fetch(url, { redirect: 'manual' });

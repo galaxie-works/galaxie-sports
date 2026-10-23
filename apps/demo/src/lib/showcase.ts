@@ -59,8 +59,6 @@ export interface Showcase {
     away: ShowcaseTeam;
     watch: { medium: Medium; count: number }[];
     stakes: { team: Side | 'both'; key: StakeKey; warn?: boolean }[];
-    /** Trecho da resposta da API: códigos reais da tag do torcedor e do que está em jogo. */
-    api: { tagCode: string; stakeTeam: Side | 'both'; stakeCode: string; stakeKey: StakeKey };
   };
   h2h: {
     played: number;
@@ -153,7 +151,6 @@ const BRAZIL: Showcase = {
       { team: 'away', key: 's3' },
       { team: 'away', key: 's4', warn: true },
     ],
-    api: { tagCode: 'in_title_race', stakeTeam: 'away', stakeCode: 'at_risk_of_relegation', stakeKey: 's4' },
   },
   h2h: {
     played: 34,
@@ -241,7 +238,6 @@ const ARGENTINA: Showcase = {
       { team: 'both', key: 's4' },
       { team: 'both', key: 's5' },
     ],
-    api: { tagCode: 'decides_title', stakeTeam: 'both', stakeCode: 'decides_title', stakeKey: 's5' },
   },
   h2h: {
     played: 6,

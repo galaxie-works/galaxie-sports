@@ -76,7 +76,7 @@ export default async function AboutPage() {
       <section aria-labelledby="recursos" className="pt-24">
         <SectionHeading id="recursos" eyebrow={l.bento.eyebrow} title={l.bento.title} lead={l.bento.lead} />
         <div className="mt-10">
-          <Bento t={l.bento} app={l.app} locale={locale} />
+          <Bento t={l.bento} app={l.app} positions={t.pages.person.positions} locale={locale} />
         </div>
       </section>
 

@@ -1,6 +1,8 @@
 import { ExampleProvider } from '@/components/example/example-provider';
 import { buttonVariants } from '@/components/ui/button';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { I18nProvider } from '@/lib/i18n/client';
+import { clientDictionary, EXAMPLE_NAMESPACES } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
 import { LOGO_PATH } from '@/lib/site';
@@ -30,24 +32,26 @@ export default async function ExampleLayout({ children }: LayoutProps<'/[locale]
     new Date(SNAPSHOT_DATE),
   );
   return (
-    <SidebarProvider className="flex-col [&_[data-sidebar=trigger]]:hidden [&_[data-sidebar=trigger]+[data-slot=separator]]:hidden">
-      <ExampleProvider flags={FLAGS} locked={e.locked} signIn={e.signIn}>
-        <div className="bg-primary/10 border-primary/20 flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2 text-sm">
-          <a href="/sobre" target="_top" className="shrink-0" aria-label={e.back}>
-            <img src={LOGO_PATH} alt="" width={88} height={24} className="h-5 w-auto object-contain" />
-          </a>
-          <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-semibold">
-            {e.badge}
-          </span>
-          <span className="text-muted-foreground min-w-0 flex-1 text-xs sm:text-sm">
-            {fill(e.note, { date })}
-          </span>
-          <a href="/login" target="_top" className={cn(buttonVariants({ size: 'sm' }), 'shrink-0')}>
-            {e.signIn}
-          </a>
-        </div>
-        <div className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
-      </ExampleProvider>
-    </SidebarProvider>
+    <I18nProvider locale={locale} messages={clientDictionary(locale, EXAMPLE_NAMESPACES)}>
+      <SidebarProvider className="flex-col [&_[data-sidebar=trigger]]:hidden [&_[data-sidebar=trigger]+[data-slot=separator]]:hidden">
+        <ExampleProvider flags={FLAGS} locked={e.locked} signIn={e.signIn}>
+          <div className="bg-primary/10 border-primary/20 flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2 text-sm">
+            <a href="/sobre" target="_top" className="shrink-0" aria-label={e.back}>
+              <img src={LOGO_PATH} alt="" width={88} height={24} className="h-5 w-auto object-contain" />
+            </a>
+            <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-semibold">
+              {e.badge}
+            </span>
+            <span className="text-muted-foreground min-w-0 flex-1 text-xs sm:text-sm">
+              {fill(e.note, { date })}
+            </span>
+            <a href="/login" target="_top" className={cn(buttonVariants({ size: 'sm' }), 'shrink-0')}>
+              {e.signIn}
+            </a>
+          </div>
+          <div className="flex min-h-0 w-full flex-1 flex-col">{children}</div>
+        </ExampleProvider>
+      </SidebarProvider>
+    </I18nProvider>
   );
 }

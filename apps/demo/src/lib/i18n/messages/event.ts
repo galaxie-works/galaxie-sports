@@ -108,6 +108,10 @@ export default defineMessages(
         one: '{count} jogo desde {year} na nossa base',
         other: '{count} jogos desde {year} na nossa base',
       },
+      matchesAnyYear: {
+        one: '{count} jogo na nossa base',
+        other: '{count} jogos na nossa base',
+      },
       allTime: 'Histórico geral do {derby}',
       allTimePair: 'Histórico geral do confronto',
       allTimeNote: 'até {date} · fonte: {source}',
@@ -299,6 +303,10 @@ export default defineMessages(
           one: '{count} match since {year} in our database',
           other: '{count} matches since {year} in our database',
         },
+        matchesAnyYear: {
+          one: '{count} match in our database',
+          other: '{count} matches in our database',
+        },
         allTime: '{derby}: all-time record',
         allTimePair: 'All-time head-to-head record',
         allTimeNote: 'through {date} · source: {source}',
@@ -487,6 +495,10 @@ export default defineMessages(
         matches: {
           one: '{count} partido desde {year} en nuestra base',
           other: '{count} partidos desde {year} en nuestra base',
+        },
+        matchesAnyYear: {
+          one: '{count} partido en nuestra base',
+          other: '{count} partidos en nuestra base',
         },
         allTime: 'Historial general del {derby}',
         allTimePair: 'Historial general del enfrentamiento',
