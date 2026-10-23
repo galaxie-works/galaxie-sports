@@ -18,7 +18,8 @@
 #   seasons_strategy      - calendar-year (2026 = 2026) ou split-year (2026 = 2026/27).
 # Na NBA v2 as ligas são texto (/leagues: standard, vegas, utah, sacramento, orlando, africa) e
 # as temporadas vêm só de /seasons (2024 = 2024/25). Logos dos times apontam para a Wikimedia
-# (licença própria) e não entram no Asset Mirror.
+# (licença própria) e não entram no Asset Mirror: times e ligas usam o logo já espelhado do mesmo
+# time/liga do api-basketball (services/ingestor/src/catalog/nba-logos.ts).
 # =============================================================================
 schema_version: 1
 sport: nba
