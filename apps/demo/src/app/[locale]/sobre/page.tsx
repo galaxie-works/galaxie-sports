@@ -1,28 +1,18 @@
-import { CalendarDays, ChartColumn, Quote, Radio, Trophy, Tv, type LucideIcon } from 'lucide-react';
-import type { Metadata } from 'next';
+import { KeyRound, Mail, UserPlus } from 'lucide-react';
+import type { Metadata, Viewport } from 'next';
 
+import { Bento } from '@/components/site/landing/bento';
+import { Hero, Numbers } from '@/components/site/landing/hero';
+import { MarketsGrid } from '@/components/site/landing/markets';
+import { SectionHeading } from '@/components/site/landing/parts';
+import { SportsGrid } from '@/components/site/landing/sports';
 import { PublicShell } from '@/components/site/public-shell';
 import { buttonVariants } from '@/components/ui/button';
-import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
-import { rich } from '@/lib/i18n/text';
 import { LANDING_PAGE } from '@/lib/public-routes';
 import { COMPANY, CONTACT_EMAIL, LOGO_PATH, SITE_NAME, SITE_URL } from '@/lib/site';
 import { publicPageMetadata } from '@/lib/site-metadata';
-
-type Feature = keyof Dictionary['site']['features']['items'];
-
-const FEATURE_ICONS: Record<Feature, LucideIcon> = {
-  schedule: CalendarDays,
-  results: Trophy,
-  live: Radio,
-  stats: ChartColumn,
-  whereToWatch: Tv,
-  context: Quote,
-};
-
-/** Mercados da API: o Brasil e os sete países de língua espanhola com voz própria. */
-const MARKETS = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'];
+import { cn } from '@/lib/utils';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale, t } = await getI18n();
@@ -34,21 +24,20 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-const mail = (chunk: string) => (
-  <a href={`mailto:${CONTACT_EMAIL}`} className="text-foreground underline underline-offset-4">
-    {chunk}
-  </a>
-);
+/** Barra do navegador no tom do fundo da página. */
+export const viewport: Viewport = { themeColor: '#0a0a0f', colorScheme: 'dark' };
+
+const STEP_ICONS = { invite: UserPlus, login: Mail, api: KeyRound } as const;
 
 /**
  * Apresentação pública da Galaxie Sports (também é o que a raiz mostra para quem não tem sessão).
- * Estática por idioma: texto real e indexável para buscadores e filtros web, com JSON-LD da empresa e
- * do site.
+ * Estática por idioma: texto real e indexável para buscadores e filtros web, exemplos reais da base em
+ * `lib/showcase.ts` e JSON-LD da empresa e do site.
  */
 export default async function AboutPage() {
   const { locale, t } = await getI18n();
+  const l = t.landing;
   const s = t.site;
-  const regions = new Intl.DisplayNames([locale], { type: 'region' });
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -74,124 +63,122 @@ export default async function AboutPage() {
   };
 
   return (
-    <PublicShell>
+    <PublicShell onLanding>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
 
-      <section className="py-14 sm:py-24">
-        <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase">{s.hero.eyebrow}</p>
-        <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          {s.hero.title}
-        </h1>
-        <p className="text-muted-foreground mt-6 max-w-2xl text-lg leading-relaxed">{s.hero.lead}</p>
-        <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
-          <a href="/login" className={buttonVariants({ size: 'lg' })}>
-            {s.hero.cta}
-          </a>
-          <span className="text-muted-foreground text-sm">{s.hero.invite}</span>
+      <Hero t={l} locale={locale} />
+      <Numbers t={l.stats} locale={locale} />
+
+      <section aria-labelledby="recursos" className="pt-24">
+        <SectionHeading id="recursos" eyebrow={l.bento.eyebrow} title={l.bento.title} lead={l.bento.lead} />
+        <div className="mt-10">
+          <Bento t={l.bento} locale={locale} />
         </div>
       </section>
 
-      <section className="py-10" aria-labelledby="recursos">
-        <h2 id="recursos" className="text-2xl font-semibold tracking-tight">
-          {s.features.title}
-        </h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(Object.keys(FEATURE_ICONS) as Feature[]).map((key) => {
-            const Icon = FEATURE_ICONS[key];
-            const item = s.features.items[key];
-            return (
-              <article key={key} className="bg-card/60 rounded-xl border p-5 backdrop-blur-sm">
-                <Icon className="text-muted-foreground size-5" aria-hidden />
-                <h3 className="mt-3 font-medium">{item.title}</h3>
-                <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">{item.body}</p>
-              </article>
-            );
-          })}
+      <section aria-labelledby="esportes" className="pt-24">
+        <SectionHeading
+          id="esportes"
+          eyebrow={l.sports.eyebrow}
+          title={l.sports.title}
+          lead={l.sports.lead}
+        />
+        <div className="mt-10">
+          <SportsGrid t={l.sports} />
         </div>
       </section>
 
-      <div className="grid gap-10 py-10 lg:grid-cols-2">
-        <section aria-labelledby="esportes">
-          <h2 id="esportes" className="text-2xl font-semibold tracking-tight">
-            {s.sports.title}
-          </h2>
-          <p className="text-muted-foreground mt-2">{s.sports.lead}</p>
-          <ul className="mt-5 flex flex-wrap gap-2">
-            {Object.entries(s.sports.items).map(([key, name]) => (
-              <li key={key} className="bg-card/60 rounded-full border px-3 py-1 text-sm">
-                {name}
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section aria-labelledby="mercados">
-          <h2 id="mercados" className="text-2xl font-semibold tracking-tight">
-            {s.markets.title}
-          </h2>
-          <p className="text-muted-foreground mt-2">{s.markets.lead}</p>
-          <ul className="mt-5 flex flex-wrap gap-2">
-            {MARKETS.map((code) => (
-              <li key={code} className="bg-card/60 rounded-full border px-3 py-1 text-sm">
-                {regions.of(code)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+      <section aria-labelledby="mercados" className="pt-24">
+        <SectionHeading
+          id="mercados"
+          eyebrow={l.markets.eyebrow}
+          title={l.markets.title}
+          lead={l.markets.lead}
+        />
+        <div className="mt-10">
+          <MarketsGrid t={l.markets} locale={locale} />
+        </div>
+      </section>
 
-      <div className="grid gap-10 py-10 lg:grid-cols-2">
-        <section aria-labelledby="publico">
-          <h2 id="publico" className="text-2xl font-semibold tracking-tight">
-            {s.audience.title}
-          </h2>
-          <p className="text-muted-foreground mt-3 leading-relaxed">{s.audience.body}</p>
-        </section>
-        <section aria-labelledby="acesso">
-          <h2 id="acesso" className="text-2xl font-semibold tracking-tight">
-            {s.access.title}
-          </h2>
-          <ol className="mt-4 space-y-3">
-            {Object.values(s.access.steps).map((step, i) => (
-              <li key={i} className="text-muted-foreground flex gap-3 leading-relaxed">
-                <span className="text-foreground bg-card grid size-6 shrink-0 place-items-center rounded-full border text-xs font-medium">
-                  {i + 1}
-                </span>
-                <span>{step}</span>
-              </li>
-            ))}
+      <section aria-labelledby="acesso" className="grid gap-10 pt-24 lg:grid-cols-[1fr_1.2fr]">
+        <SectionHeading
+          id="acesso"
+          eyebrow={l.audience.eyebrow}
+          title={l.audience.title}
+          lead={l.audience.body}
+        />
+        <div>
+          <h3 className="text-lg font-semibold">{l.access.title}</h3>
+          <ol className="mt-4 grid gap-3">
+            {(Object.keys(STEP_ICONS) as (keyof typeof STEP_ICONS)[]).map((key, i) => {
+              const Icon = STEP_ICONS[key];
+              const step = l.access.steps[key];
+              return (
+                <li key={key} className="bg-card/60 flex gap-4 rounded-2xl border p-5 backdrop-blur-sm">
+                  <span className="bg-primary/15 text-primary grid size-10 shrink-0 place-items-center rounded-xl">
+                    <Icon className="size-5" aria-hidden />
+                  </span>
+                  <span>
+                    <span className="text-muted-foreground text-xs tabular-nums">{`0${i + 1}`}</span>
+                    <span className="block font-medium">{step.title}</span>
+                    <span className="text-muted-foreground mt-1 block text-sm leading-relaxed">
+                      {step.body}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
           </ol>
-          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <a href="/login" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
-              {s.nav.signIn}
-            </a>
-            <span className="text-muted-foreground text-sm">
-              {rich(s.access.noAccess, { email: mail }, { email: CONTACT_EMAIL })}
-            </span>
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
 
-      <section className="py-10" aria-labelledby="empresa">
-        <div className="bg-card/60 rounded-xl border p-6 backdrop-blur-sm">
-          <h2 id="empresa" className="text-2xl font-semibold tracking-tight">
-            {s.company.title}
+      <section className="pt-24" aria-labelledby="cta">
+        <div className="explore-card relative overflow-hidden rounded-3xl border px-6 py-12 text-center sm:px-12 sm:py-16">
+          <h2 id="cta" className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+            {l.cta.title}
           </h2>
-          <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">{s.company.body}</p>
-          <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
+          <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-lg text-pretty">{l.cta.body}</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <a href="/login" className={cn(buttonVariants({ size: 'lg' }), 'h-11 px-5 text-base')}>
+              {l.cta.signIn}
+            </a>
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-11 px-5 text-base')}
+            >
+              {l.cta.contact}
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section className="pt-16" aria-labelledby="empresa">
+        <div className="grid gap-6 rounded-2xl border p-6 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div>
+            <h2 id="empresa" className="text-lg font-semibold">
+              {s.company.title}
+            </h2>
+            <p className="text-muted-foreground mt-1.5 max-w-2xl text-sm leading-relaxed">{s.company.body}</p>
+          </div>
+          <dl className="grid gap-3 text-sm sm:text-right">
             <div>
-              <dt className="text-muted-foreground">{s.company.site}</dt>
-              <dd className="mt-1">
-                <a href={COMPANY.url} className="underline underline-offset-4">
+              <dt className="text-muted-foreground text-xs">{s.company.site}</dt>
+              <dd>
+                <a href={COMPANY.url} className="underline-offset-4 hover:underline">
                   {COMPANY.url.replace('https://', '')}
                 </a>
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{s.company.contact}</dt>
-              <dd className="mt-1 break-all">{mail(CONTACT_EMAIL)}</dd>
+              <dt className="text-muted-foreground text-xs">{s.company.contact}</dt>
+              <dd>
+                <a href={`mailto:${CONTACT_EMAIL}`} className="underline-offset-4 hover:underline">
+                  {CONTACT_EMAIL}
+                </a>
+              </dd>
             </div>
           </dl>
         </div>
