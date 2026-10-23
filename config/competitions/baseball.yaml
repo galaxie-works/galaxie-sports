@@ -91,7 +91,8 @@ competitions:
     verify: false
     tier: 1
     region: world
-    seasons_strategy: calendar-year
+    # a edição "2023" do fornecedor começa nas eliminatórias de set/2022 → rótulo pelo ano em que termina
+    seasons_strategy: tournament-year
     live_priority: high
     labels: { es: "Clásico Mundial de Béisbol", pt-BR: "Clássico Mundial de Beisebol" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
