@@ -33,6 +33,7 @@
     "bootstrap:seasons": "node --env-file-if-exists=../../.env dist/cli/bootstrap-seasons.js",
     "bootstrap:details": "node --env-file-if-exists=../../.env dist/cli/bootstrap-details.js",
     "bootstrap:people": "node --env-file-if-exists=../../.env dist/cli/bootstrap-people.js",
+    "bootstrap:perfis": "node --env-file-if-exists=../../.env dist/cli/bootstrap-profiles.js",
     "sync:daily": "node --env-file-if-exists=../../.env dist/cli/sync-daily.js",
     "live:run": "node --env-file-if-exists=../../.env dist/cli/live-run.js",
     "live:reconcile": "node --env-file-if-exists=../../.env dist/cli/live-reconcile.js",
