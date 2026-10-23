@@ -36,6 +36,31 @@ broadcasters:
     medium: streaming_svod
     access_model: subscription
     domains: [paramountplus.com]
+  # Acervo oficial de logos (2026-10-23): emissoras do acervo com país e site oficial conferidos.
+  - id: latina
+    name: Latina
+    aliases: ['Latina Televisión', 'Latina TV']
+    medium: free_tv
+    access_model: free
+    domains: [latina.pe]
+  - id: atv
+    name: ATV
+    aliases: ['ATV Perú', 'Andina de Televisión']
+    medium: free_tv
+    access_model: free
+    domains: [atv.pe]
+  - id: panamericana
+    name: Panamericana
+    aliases: ['Panamericana Televisión', 'Panamericana TV']
+    medium: free_tv
+    access_model: free
+    domains: [panamericana.pe]
+  - id: tv_peru
+    name: TV Perú
+    aliases: ['TV Peru', 'TVPerú', 'Canal 7 Perú']
+    medium: free_tv
+    access_model: free
+    domains: [tvperu.gob.pe]
 sources:
   organizers: [liga1.pe, fpf.org.pe]
   press:

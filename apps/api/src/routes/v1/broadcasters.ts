@@ -12,7 +12,10 @@ const MODULE = { module: 'where_to_watch' } as const;
 
 /** Linha da biblioteca → contrato público (logo pelo nosso storage quando já espelhado). */
 export function broadcasterDto(row: BroadcasterRow, assetsBaseUrl: string | undefined): Broadcaster {
-  const url = assetUrl(assetsBaseUrl, row.logoStorageKey, row.logoSourceUrl);
+  // acervo oficial: só no nosso storage (a origem `acervo-oficial://` não é URL pública)
+  const httpSource = row.logoSourceUrl?.startsWith('http') ? row.logoSourceUrl : null;
+  const url = assetUrl(assetsBaseUrl, row.logoStorageKey, httpSource);
+  const stored = (key: string | null) => (key ? assetUrl(assetsBaseUrl, key, null) : null);
   return {
     id: row.id,
     name: row.name,
@@ -23,8 +26,18 @@ export function broadcasterDto(row: BroadcasterRow, assetsBaseUrl: string | unde
     website: row.website,
     logo:
       url && row.logoSourceUrl
-        ? { url, source_url: row.logoSourceUrl, source_page: row.logoSourcePage, license: row.logoLicense }
+        ? {
+            url,
+            dark_url: stored(row.logoDarkStorageKey),
+            source_url: row.logoSourceUrl,
+            source_page: row.logoSourcePage,
+            license: row.logoLicense,
+          }
         : null,
+    channel_logos: Object.values(row.channelLogoKeys).flatMap((c) => {
+      const channelUrl = stored(c.storageKey);
+      return channelUrl ? [{ channel: c.name, url: channelUrl, dark_url: stored(c.darkStorageKey) }] : [];
+    }),
     markets: Object.entries(row.markets).map(([country, m]) => ({
       country,
       name: m.name,

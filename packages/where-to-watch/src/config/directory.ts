@@ -10,6 +10,7 @@ import type {
   SourceDomains,
   WtwCountry,
 } from './types.js';
+import type { OfficialLogoManifest } from '../official-logos.js';
 
 /** Limite de domínios aceito pelas ferramentas de busca dos provedores de LLM. */
 export const MAX_ALLOWED_DOMAINS = 100;
@@ -148,6 +149,8 @@ export class WtwConfig {
     readonly blocklist: Blocklist,
     /** Logos por id de emissora (config/broadcasters/_logos.yaml). */
     readonly logos: Map<string, LogoEntry> = new Map(),
+    /** Acervo oficial de logos (config/broadcasters/_official_logos.yaml); precede `logos`. */
+    readonly officialLogos: OfficialLogoManifest | null = null,
   ) {
     for (const c of countries) this.directories.set(c.country, new CountryDirectory(c, blocklist));
   }

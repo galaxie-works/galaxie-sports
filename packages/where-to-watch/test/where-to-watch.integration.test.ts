@@ -34,6 +34,10 @@ import {
   rightsAnswer,
   rightsCandidates,
   syncBroadcasterLibrary,
+  channelKey,
+  OFFICIAL_LOGO_LICENSE,
+  officialLogosByBroadcaster,
+  officialLogoSourceUrl,
   type Candidate,
   type ValidatedRights,
 } from '../src/index.js';
@@ -493,5 +497,66 @@ describe('biblioteca de emissoras e "canal a confirmar" na API', () => {
     expect(uy!.fromRights.map((o) => o.broadcasterId).sort()).toEqual(['disney_plus', 'espn']);
     // país fora da configuração: nada
     expect((await getPublicWhereToWatch(db, { eventId, country: 'DE' }, config))!.fromRights).toEqual([]);
+  });
+
+  it('acervo oficial: logo já no storage vence o da Commons, com versão escura e logo do canal', async () => {
+    const official = officialLogosByBroadcaster(config.officialLogos).get('espn')!;
+    const espn2 = official.channels.find((c) => c.channel === 'ESPN 2')!;
+    expect(official.primary).not.toBeNull();
+    const nodes = [official.primary!.light, official.primary!.dark!, espn2.light, espn2.dark!];
+    await db.insert(asset).values(
+      nodes.map((n, i) => ({
+        kind: 'broadcaster_logo' as const,
+        sourceUrl: officialLogoSourceUrl(n),
+        storageKey: `broadcasters/oficial${i}.svg`,
+        fetchedAt: NOW,
+      })),
+    );
+    const r = await syncBroadcasterLibrary(db, config, NOW);
+    expect(r.officialLogos).toBe(1);
+    expect(r.channelLogos).toBe(1);
+    const [row] = await listBroadcasters(db, { ids: ['espn'] });
+    expect(row).toMatchObject({
+      logoStorageKey: 'broadcasters/oficial0.svg',
+      logoDarkStorageKey: 'broadcasters/oficial1.svg',
+      logoSourceUrl: officialLogoSourceUrl(official.primary!.light),
+      logoLicense: OFFICIAL_LOGO_LICENSE,
+    });
+    expect(row!.channelLogoKeys[channelKey('ESPN 2')]).toEqual({
+      name: 'ESPN 2',
+      storageKey: 'broadcasters/oficial2.svg',
+      darkStorageKey: 'broadcasters/oficial3.svg',
+    });
+
+    // a opção no canal ESPN 2 mostra o logo do canal; sem canal, o da emissora (nunca a origem acervo-oficial://)
+    const { eventId } = await seedEvent(db, { startsAt: KICKOFF });
+    const base = {
+      eventId,
+      country: 'BR',
+      broadcasterId: 'espn',
+      medium: 'pay_tv' as const,
+      accessModel: 'subscription' as const,
+      evidence: [{ url: 'https://www.espn.com.br/jogo', excerpt: 'Ao vivo na ESPN' }],
+      actor: 'editor.ana',
+      reason: 'grade oficial',
+      blocklist: config.blocklist,
+    };
+    await addOption(db, { ...base, providerName: 'ESPN', channel: 'ESPN 2' });
+    await addOption(db, {
+      ...base,
+      providerName: 'Disney+',
+      broadcasterId: 'disney_plus',
+      medium: 'streaming_svod',
+    });
+    const pub = await getPublicWhereToWatch(db, { eventId, country: 'BR' });
+    expect(pub!.options.find((o) => o.row.broadcasterId === 'espn')!.logo).toEqual({
+      storageKey: 'broadcasters/oficial2.svg',
+      darkStorageKey: 'broadcasters/oficial3.svg',
+      sourceUrl: null,
+    });
+    expect(pub!.options.find((o) => o.row.broadcasterId === 'disney_plus')!.logo).toMatchObject({
+      darkStorageKey: null,
+      sourceUrl: expect.stringMatching(/^https:\/\//),
+    });
   });
 });

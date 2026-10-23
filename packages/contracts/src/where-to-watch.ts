@@ -47,10 +47,14 @@ export const WhereToWatchOption = z
     status: z.literal('confirmed'),
     last_verified_at: z.string(),
     sources: z.array(WhereToWatchSource),
-    logo: z
+    logo: z.string().nullable().meta({
+      description:
+        'Logo da emissora (biblioteca `/v1/broadcasters`) — o do canal quando o acervo oficial tem um; null = sem logo com origem.',
+    }),
+    logo_dark: z
       .string()
       .nullable()
-      .meta({ description: 'Logo da emissora (biblioteca `/v1/broadcasters`); null = sem logo com origem.' }),
+      .meta({ description: 'Versão do logo para fundo escuro (acervo oficial); null = usar `logo`.' }),
   })
   .meta({ id: 'WhereToWatchOption' });
 export type WhereToWatchOption = z.infer<typeof WhereToWatchOption>;
@@ -63,6 +67,7 @@ export const WhereToWatchToConfirm = z
     medium: z.enum(BROADCAST_MEDIA),
     access_model: z.enum(ACCESS_MODELS),
     logo: z.string().nullable(),
+    logo_dark: z.string().nullable(),
     sources: z.array(WhereToWatchSource),
   })
   .meta({ id: 'WhereToWatchToConfirm' });
@@ -93,11 +98,25 @@ export const BroadcasterLogo = z
     url: z
       .string()
       .meta({ description: 'Logo servido pelo nosso storage (ou a origem, se ainda não espelhado).' }),
-    source_url: z.string(),
+    dark_url: z
+      .string()
+      .nullable()
+      .meta({ description: 'Versão para fundo escuro (acervo oficial); null = usar `url`.' }),
+    source_url: z.string().meta({
+      description: 'Origem do arquivo (URL, ou `acervo-oficial://<nó>` para o acervo oficial de logos).',
+    }),
     source_page: z.string().nullable(),
     license: z.string().nullable().meta({ description: 'Licença/observação de uso informada pela origem.' }),
   })
   .meta({ id: 'BroadcasterLogo' });
+
+export const BroadcasterChannelLogo = z
+  .object({
+    channel: z.string().meta({ example: 'ESPN 2' }),
+    url: z.string(),
+    dark_url: z.string().nullable(),
+  })
+  .meta({ id: 'BroadcasterChannelLogo', description: 'Logo de um canal da emissora (acervo oficial).' });
 
 export const BroadcasterMarket = z
   .object({
@@ -121,6 +140,7 @@ export const Broadcaster = z
     channels: z.array(z.string()),
     website: z.string().nullable(),
     logo: BroadcasterLogo.nullable(),
+    channel_logos: z.array(BroadcasterChannelLogo),
     markets: z.array(BroadcasterMarket),
   })
   .meta({ id: 'Broadcaster', description: 'Emissora ou plataforma da biblioteca do onde assistir.' });

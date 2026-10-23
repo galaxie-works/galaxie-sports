@@ -155,6 +155,13 @@
       "when": 1792729510843,
       "tag": "0021_jogos_provisorios",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792739828656,
+      "tag": "0022_logos_acervo_oficial",
+      "breakpoints": true
     }
   ]
 }

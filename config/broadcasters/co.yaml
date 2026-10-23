@@ -48,6 +48,13 @@ broadcasters:
     medium: streaming_svod
     access_model: subscription
     domains: [paramountplus.com]
+  # Acervo oficial de logos (2026-10-23): emissoras do acervo com país e site oficial conferidos.
+  - id: senal_colombia
+    name: Señal Colombia
+    aliases: ['Senal Colombia', 'Señal Colombia TV']
+    medium: free_tv
+    access_model: free
+    domains: [senalcolombia.tv]
 sources:
   organizers: [dimayor.com.co, fcf.com.co]
   press:

@@ -4,6 +4,8 @@ import { broadcastOption, competition, event, season, type Database } from '@gal
 import type { WtwConfig } from './config/directory.js';
 import type { AccessModel, BroadcastMedium } from '@galaxie/db';
 import { listBroadcasters } from './library.js';
+import { isHttpUrl } from './normalize.js';
+import { channelKey } from './official-logos.js';
 import { currentResearchedRights, ResearchedRightsIndex } from './rights-research.js';
 import { effectiveRights } from './rights.js';
 import type { BroadcastOptionRow } from './store.js';
@@ -43,9 +45,13 @@ export interface PublicSource {
   url: string;
 }
 
-/** Logo da emissora (biblioteca): chave no nosso storage e URL de origem. */
+/**
+ * Logo da emissora (biblioteca) — o do canal da opção quando o acervo oficial tem um: chave no nosso
+ * storage, versão para fundo escuro e URL de origem (só http; o acervo oficial não tem URL pública).
+ */
 export interface PublicLogo {
   storageKey: string | null;
+  darkStorageKey: string | null;
   sourceUrl: string | null;
 }
 
@@ -166,10 +172,17 @@ export async function getPublicWhereToWatch(
     ]),
   ];
   const library = new Map((await listBroadcasters(db, { ids })).map((b) => [b.id, b]));
-  const logoOf = (row: Pick<BroadcastOptionRow, 'broadcasterId'>): PublicLogo | null => {
+  const logoOf = (
+    row: Pick<BroadcastOptionRow, 'broadcasterId'> & { channelName?: string | null },
+  ): PublicLogo | null => {
     const b = row.broadcasterId ? library.get(row.broadcasterId) : undefined;
-    if (!b || (!b.logoStorageKey && !b.logoSourceUrl)) return null;
-    return { storageKey: b.logoStorageKey, sourceUrl: b.logoSourceUrl };
+    if (!b) return null;
+    const channel = row.channelName ? b.channelLogoKeys[channelKey(row.channelName)] : undefined;
+    if (channel?.storageKey)
+      return { storageKey: channel.storageKey, darkStorageKey: channel.darkStorageKey, sourceUrl: null };
+    const sourceUrl = isHttpUrl(b.logoSourceUrl) ? b.logoSourceUrl : null;
+    if (!b.logoStorageKey && !sourceUrl) return null;
+    return { storageKey: b.logoStorageKey, darkStorageKey: b.logoDarkStorageKey, sourceUrl };
   };
 
   const toPublic = (row: BroadcastOptionRow): PublicOption => {

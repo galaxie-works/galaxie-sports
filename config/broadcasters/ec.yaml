@@ -36,6 +36,31 @@ broadcasters:
     medium: streaming_svod
     access_model: subscription
     domains: [paramountplus.com]
+  # Acervo oficial de logos (2026-10-23): emissoras do acervo com país e site oficial conferidos.
+  - id: ecuavisa
+    name: Ecuavisa
+    aliases: ['Ecuavisa TV']
+    medium: free_tv
+    access_model: free
+    domains: [ecuavisa.com]
+  - id: ecdf
+    name: El Canal del Fútbol
+    aliases: ['ECDF', 'El Canal del Futbol', 'Canal del Fútbol']
+    medium: pay_tv
+    access_model: subscription
+    domains: [elcanaldelfutbol.com]
+  - id: tc_television
+    name: TC Televisión
+    aliases: ['TC', 'TC Television', 'TC Mi Canal']
+    medium: free_tv
+    access_model: free
+    domains: [tctelevision.com]
+  - id: gama_tv
+    name: Gama TV
+    aliases: ['GamaTV', 'Gamavisión']
+    medium: free_tv
+    access_model: free
+    domains: [gamatv.com.ec]
 sources:
   organizers: [ligapro.ec, fef.ec]
   press:

@@ -1,0 +1,3521 @@
+# =============================================================================
+# Acervo oficial de logos de canais — fonte principal dos logos da biblioteca de emissoras
+# (enrich.broadcaster). Gerado por `assets:official-logos --plan` (services/ingestor).
+#
+# source: acervo oficial de logos (Figma); `node` de cada logo é o frame do componente e
+# `light`/`dark` são os símbolos das versões clara e escura — os ids servem para reimportar.
+# Os arquivos não ficam no git: o importador sobe os SVGs no bucket (broadcasters/<sha>.svg) e
+# registra core.asset com `acervo-oficial://<nó>`; a sincronização da biblioteca os liga.
+#
+# status: primary (logo principal da emissora) · channel (logo de um canal da emissora; `channel`
+# usa a grafia do dicionário) · variant (versão HD de um logo já ligado) · unmapped (sem emissora
+# na biblioteca — curadoria). Para fixar um mapeamento à mão: preencha broadcaster/channel/status e
+# marque `curated: true` (o --plan não recalcula). `excluded_nodes`: componentes deixados fora da
+# biblioteca por decisão da curadoria (marca própria de operadora) — só o id do nó.
+# Relatório: docs/research/logos-acervo-oficial.md.
+# =============================================================================
+schema_version: 1
+source:
+  description: 'acervo oficial de logos (Figma)'
+  figma_file: 'T485uIyLhqfIBXtwvUcQJZ'
+  node: '335:3346'
+  imported_at: '2026-10-23'
+excluded_nodes:
+  - '335:10146'
+  - '335:11223'
+  - '335:11228'
+  - '335:11234'
+  - '335:11239'
+  - '335:11244'
+  - '335:11249'
+  - '335:11254'
+  - '335:11259'
+  - '335:11264'
+  - '338:3709'
+  - '338:4040'
+  - '338:4057'
+  - '338:4063'
+  - '335:24579'
+  - '335:24584'
+logos:
+  - node: '335:3356'
+    name: 'A la Cocina HD'
+    letter: 'A'
+    hd: true
+    light: '335:3357'
+    dark: '335:3387'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3417'
+    name: 'A&E'
+    letter: 'A'
+    hd: false
+    light: '335:3418'
+    dark: '335:3421'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3424'
+    name: 'A&E HD'
+    letter: 'A'
+    hd: true
+    light: '335:3425'
+    dark: '335:3433'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3441'
+    name: 'A24'
+    letter: 'A'
+    hd: false
+    light: '335:3442'
+    dark: '335:3448'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3454'
+    name: 'A24 HD'
+    letter: 'A'
+    hd: true
+    light: '335:3455'
+    dark: '335:3461'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3467'
+    name: 'A3 Cine'
+    letter: 'A'
+    hd: false
+    light: '335:3468'
+    dark: '335:3483'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3498'
+    name: 'A3 Cine HD'
+    letter: 'A'
+    hd: true
+    light: '335:3499'
+    dark: '335:3514'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3529'
+    name: 'A3 Series'
+    letter: 'A'
+    hd: false
+    light: '335:3530'
+    dark: '335:3543'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3557'
+    name: 'A3 Series HD'
+    letter: 'A'
+    hd: true
+    light: '335:3558'
+    dark: '335:3571'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3584'
+    name: 'AMC'
+    letter: 'A'
+    hd: false
+    light: '335:3585'
+    dark: '335:3590'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3595'
+    name: 'AMC HD'
+    letter: 'A'
+    hd: true
+    light: '335:3596'
+    dark: '335:3601'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3606'
+    name: 'América'
+    letter: 'A'
+    hd: false
+    light: '335:3607'
+    dark: '335:3624'
+    broadcaster: 'america_ar'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:3641'
+    name: 'América HD'
+    letter: 'A'
+    hd: true
+    light: '335:3642'
+    dark: '335:3659'
+    broadcaster: 'america_ar'
+    channel: null
+    status: 'variant'
+  - node: '335:3676'
+    name: 'América TV'
+    letter: 'A'
+    hd: false
+    light: '335:3677'
+    dark: '335:3680'
+    broadcaster: 'america_tv'
+    channel: null
+    status: 'primary'
+  - node: '335:3683'
+    name: 'América TV HD'
+    letter: 'A'
+    hd: true
+    light: '335:3684'
+    dark: '335:3687'
+    broadcaster: 'america_tv'
+    channel: null
+    status: 'variant'
+  - node: '335:3690'
+    name: 'Animal Planet'
+    letter: 'A'
+    hd: false
+    light: '335:3691'
+    dark: '335:3695'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3700'
+    name: 'Animal Planet HD'
+    letter: 'A'
+    hd: true
+    light: '335:3701'
+    dark: '335:3705'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3709'
+    name: 'Antena 3'
+    letter: 'A'
+    hd: false
+    light: '335:3710'
+    dark: '335:3747'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3784'
+    name: 'Antena 3 HD'
+    letter: 'A'
+    hd: true
+    light: '335:3785'
+    dark: '335:3799'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3813'
+    name: 'Aspen'
+    letter: 'A'
+    hd: false
+    light: '335:3814'
+    dark: '335:3850'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3886'
+    name: 'ATV'
+    letter: 'A'
+    hd: false
+    light: '335:3887'
+    dark: '335:3890'
+    broadcaster: 'atv'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:3893'
+    name: 'ATV +'
+    letter: 'A'
+    hd: false
+    light: '335:3894'
+    dark: '335:3898'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3902'
+    name: 'ATV HD'
+    letter: 'A'
+    hd: true
+    light: '335:3903'
+    dark: '335:3906'
+    broadcaster: 'atv'
+    channel: null
+    status: 'variant'
+  - node: '335:3909'
+    name: 'AXN'
+    letter: 'A'
+    hd: false
+    light: '335:3910'
+    dark: '335:3918'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3927'
+    name: 'AXN HD'
+    letter: 'A'
+    hd: true
+    light: '335:3928'
+    dark: '335:3939'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:3953'
+    name: 'Baby TV HD'
+    letter: 'B'
+    hd: true
+    light: '335:3954'
+    dark: '335:4539'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5124'
+    name: 'BBC'
+    letter: 'B'
+    hd: false
+    light: '335:5125'
+    dark: '335:5145'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5165'
+    name: 'Bloomberg TV'
+    letter: 'B'
+    hd: false
+    light: '335:5166'
+    dark: '335:5177'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5188'
+    name: 'Boomerang'
+    letter: 'B'
+    hd: false
+    light: '335:5189'
+    dark: '335:5232'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5279'
+    name: 'C5N'
+    letter: 'C'
+    hd: false
+    light: '335:5280'
+    dark: '335:5290'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5300'
+    name: 'C5N HD'
+    letter: 'C'
+    hd: true
+    light: '335:5301'
+    dark: '335:5311'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5321'
+    name: 'Cablenoticias'
+    letter: 'C'
+    hd: false
+    light: '335:5322'
+    dark: '335:5338'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5354'
+    name: 'Canal (á) HD'
+    letter: 'C'
+    hd: true
+    light: '335:5355'
+    dark: '335:5357'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5359'
+    name: 'Canal 1'
+    letter: 'C'
+    hd: false
+    light: '335:5360'
+    dark: '335:5368'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5376'
+    name: 'Canal 1 HD'
+    letter: 'C'
+    hd: true
+    light: '335:5377'
+    dark: '335:5385'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5393'
+    name: 'Canal 4'
+    letter: 'C'
+    hd: false
+    light: '335:5394'
+    dark: '335:5434'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5452'
+    name: 'Canal 4 HD'
+    letter: 'C'
+    hd: true
+    light: '335:5453'
+    dark: '335:5493'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5512'
+    name: 'Canal 7 Jujuy'
+    letter: 'C'
+    hd: false
+    light: '335:5513'
+    dark: '335:5532'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5551'
+    name: 'Canal 9 Televida'
+    letter: 'C'
+    hd: false
+    light: '335:5552'
+    dark: '335:5563'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5574'
+    name: 'Canal 10'
+    letter: 'C'
+    hd: false
+    light: '335:5575'
+    dark: '335:5577'
+    broadcaster: 'canal_10_uy'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:5579'
+    name: 'Canal 10 HD'
+    letter: 'C'
+    hd: true
+    light: '335:5580'
+    dark: '335:5582'
+    broadcaster: 'canal_10_uy'
+    channel: null
+    status: 'variant'
+  - node: '335:5584'
+    name: 'Canal 13'
+    letter: 'C'
+    hd: false
+    light: '335:5585'
+    dark: '335:5588'
+    broadcaster: 'canal_13'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:5591'
+    name: 'Canal 13 HD'
+    letter: 'C'
+    hd: true
+    light: '335:5592'
+    dark: '335:5595'
+    broadcaster: 'canal_13'
+    channel: null
+    status: 'variant'
+  - node: '335:5598'
+    name: 'Canal 13 Telediario'
+    letter: 'C'
+    hd: false
+    light: '335:5599'
+    dark: '335:5611'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:5623'
+    name: 'Canal 26'
+    letter: 'C'
+    hd: false
+    light: '335:5624'
+    dark: '335:6752'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:7881'
+    name: 'Canal 26 HD'
+    letter: 'C'
+    hd: true
+    light: '335:7882'
+    dark: '335:9014'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10151'
+    name: 'Canal Capital'
+    letter: 'C'
+    hd: false
+    light: '335:10152'
+    dark: '335:10170'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10188'
+    name: 'Canal Congreso'
+    letter: 'C'
+    hd: false
+    light: '335:10189'
+    dark: '335:10191'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10193'
+    name: 'Canal de Diputados'
+    letter: 'C'
+    hd: false
+    light: '335:10194'
+    dark: '335:10196'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10198'
+    name: 'Canal de la Ciudad'
+    letter: 'C'
+    hd: false
+    light: '335:10199'
+    dark: '335:10201'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10203'
+    name: 'Canal Institucional'
+    letter: 'C'
+    hd: false
+    light: '335:10204'
+    dark: '335:10208'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10212'
+    name: 'Canal Institucional HD'
+    letter: 'C'
+    hd: true
+    light: '335:10213'
+    dark: '335:10217'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10222'
+    name: 'Canal Luz'
+    letter: 'C'
+    hd: false
+    light: '335:10223'
+    dark: '335:10235'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10247'
+    name: 'Canal Rural'
+    letter: 'C'
+    hd: false
+    light: '335:10248'
+    dark: '335:10300'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10352'
+    name: 'Canal TRO'
+    letter: 'C'
+    hd: false
+    light: '335:10353'
+    dark: '335:10355'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10357'
+    name: 'Canela TV'
+    letter: 'C'
+    hd: false
+    light: '335:10358'
+    dark: '335:10360'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10362'
+    name: 'Caracol HD'
+    letter: 'C'
+    hd: true
+    light: '335:10363'
+    dark: '335:10373'
+    broadcaster: 'caracol'
+    channel: null
+    status: 'variant'
+    curated: true
+  - node: '335:10383'
+    name: 'Caracol Internacional'
+    letter: 'C'
+    hd: false
+    light: '335:10384'
+    dark: '335:10409'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10434'
+    name: 'Caracol Radio'
+    letter: 'C'
+    hd: false
+    light: '335:10435'
+    dark: '335:10451'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10467'
+    name: 'Caracol Televisión'
+    letter: 'C'
+    hd: false
+    light: '335:10468'
+    dark: '335:10495'
+    broadcaster: 'caracol'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'curadoria: a versão sem o selo HD é o logo principal'
+  - node: '335:10523'
+    name: 'Cartoon Network'
+    letter: 'C'
+    hd: false
+    light: '335:10524'
+    dark: '335:10542'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10560'
+    name: 'Cartoon Network HD'
+    letter: 'C'
+    hd: true
+    light: '335:10561'
+    dark: '335:10579'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10597'
+    name: 'CDO'
+    letter: 'C'
+    hd: false
+    light: '335:10598'
+    dark: '335:10600'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10602'
+    name: 'CDO HD'
+    letter: 'C'
+    hd: true
+    light: '335:10603'
+    dark: '335:10605'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10607'
+    name: 'Chilevisión'
+    letter: 'C'
+    hd: false
+    light: '335:10608'
+    dark: '335:10615'
+    broadcaster: 'chilevision'
+    channel: null
+    status: 'primary'
+  - node: '335:10622'
+    name: 'Chilevisión HD'
+    letter: 'C'
+    hd: true
+    light: '335:10623'
+    dark: '335:10630'
+    broadcaster: 'chilevision'
+    channel: null
+    status: 'variant'
+  - node: '335:10637'
+    name: 'Cine Latino'
+    letter: 'C'
+    hd: false
+    light: '335:10638'
+    dark: '335:10657'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10676'
+    name: 'Cine AR'
+    letter: 'C'
+    hd: false
+    light: '335:10677'
+    dark: '335:10689'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10702'
+    name: 'Cinecanal'
+    letter: 'C'
+    hd: false
+    light: '335:10703'
+    dark: '335:10717'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10731'
+    name: 'Cinecanal HD'
+    letter: 'C'
+    hd: true
+    light: '335:10732'
+    dark: '335:10746'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10760'
+    name: 'Cinemax'
+    letter: 'C'
+    hd: false
+    light: '335:10761'
+    dark: '335:10765'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10769'
+    name: 'Cinemax HD'
+    letter: 'C'
+    hd: true
+    light: '335:10770'
+    dark: '335:10774'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10778'
+    name: 'Citytv'
+    letter: 'C'
+    hd: false
+    light: '335:10779'
+    dark: '335:10783'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10787'
+    name: 'Ciudad Magazine'
+    letter: 'C'
+    hd: false
+    light: '335:10788'
+    dark: '335:10817'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10846'
+    name: 'Ciudad Magazine HD'
+    letter: 'C'
+    hd: true
+    light: '335:10847'
+    dark: '335:10876'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10905'
+    name: 'CNN Chile'
+    letter: 'C'
+    hd: false
+    light: '335:10906'
+    dark: '335:10916'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10927'
+    name: 'CNN Chile HD'
+    letter: 'C'
+    hd: true
+    light: '335:10928'
+    dark: '335:10938'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10948'
+    name: 'CNN en Español'
+    letter: 'C'
+    hd: false
+    light: '335:10949'
+    dark: '335:10956'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10963'
+    name: 'CNN Internacional'
+    letter: 'C'
+    hd: false
+    light: '335:10964'
+    dark: '335:10969'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:10974'
+    name: 'Comedy Central'
+    letter: 'C'
+    hd: false
+    light: '335:10975'
+    dark: '335:10992'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11009'
+    name: 'Comedy Central HD'
+    letter: 'C'
+    hd: true
+    light: '335:11010'
+    dark: '335:11027'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11044'
+    name: 'Construir TV'
+    letter: 'C'
+    hd: false
+    light: '335:11045'
+    dark: '335:11062'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11079'
+    name: 'Cristovisión'
+    letter: 'C'
+    hd: false
+    light: '335:11080'
+    dark: '335:11084'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11088'
+    name: 'Crónica'
+    letter: 'C'
+    hd: false
+    light: '335:11089'
+    dark: '335:11095'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '336:55098'
+    name: 'Combate'
+    letter: 'C'
+    hd: false
+    light: '336:55099'
+    dark: '336:55109'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11105'
+    name: 'De Película'
+    letter: 'D'
+    hd: false
+    light: '335:11106'
+    dark: '335:11129'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11152'
+    name: 'Deportiva 1300'
+    letter: 'D'
+    hd: false
+    light: '335:11153'
+    dark: '335:11155'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11157'
+    name: 'Deportv'
+    letter: 'D'
+    hd: false
+    light: '335:11158'
+    dark: '335:11168'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11178'
+    name: 'Deportv HD'
+    letter: 'D'
+    hd: true
+    light: '335:11179'
+    dark: '335:11189'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11199'
+    name: 'DHE'
+    letter: 'D'
+    hd: false
+    light: '335:11200'
+    dark: '335:11207'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11211'
+    name: 'DHE HD'
+    letter: 'D'
+    hd: true
+    light: '335:11212'
+    dark: '335:11219'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11269'
+    name: 'Discovery Channel'
+    letter: 'D'
+    hd: false
+    light: '335:11270'
+    dark: '335:11366'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11463'
+    name: 'Discovery Channel HD'
+    letter: 'D'
+    hd: true
+    light: '335:11464'
+    dark: '335:11512'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11560'
+    name: 'Discovery Home & Health'
+    letter: 'D'
+    hd: false
+    light: '335:11561'
+    dark: '335:11566'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11571'
+    name: 'Discovery Home & Health HD'
+    letter: 'D'
+    hd: true
+    light: '335:11572'
+    dark: '335:11586'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11600'
+    name: 'Discovery Kids'
+    letter: 'D'
+    hd: false
+    light: '335:11601'
+    dark: '335:11608'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11615'
+    name: 'Discovery Kids HD'
+    letter: 'D'
+    hd: true
+    light: '335:11616'
+    dark: '335:11626'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11636'
+    name: 'Discovery Theater HD'
+    letter: 'D'
+    hd: true
+    light: '335:11637'
+    dark: '335:11650'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11663'
+    name: 'Discovery Turbo'
+    letter: 'D'
+    hd: false
+    light: '335:11664'
+    dark: '335:11668'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11672'
+    name: 'Discovery World HD'
+    letter: 'D'
+    hd: true
+    light: '335:11673'
+    dark: '335:11695'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11718'
+    name: 'Disney Channel'
+    letter: 'D'
+    hd: false
+    light: '335:11719'
+    dark: '335:11748'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11777'
+    name: 'Disney Channel HD'
+    letter: 'D'
+    hd: true
+    light: '335:11778'
+    dark: '335:11807'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11836'
+    name: 'Disney Junior'
+    letter: 'D'
+    hd: false
+    light: '335:11837'
+    dark: '335:11865'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11893'
+    name: 'Disney Junior HD'
+    letter: 'D'
+    hd: true
+    light: '335:11894'
+    dark: '335:11922'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11950'
+    name: 'Disney XD'
+    letter: 'D'
+    hd: false
+    light: '335:11951'
+    dark: '335:11963'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:11975'
+    name: 'Disney XD HD'
+    letter: 'D'
+    hd: true
+    light: '335:11976'
+    dark: '335:11991'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:12006'
+    name: 'DW'
+    letter: 'D'
+    hd: false
+    light: '335:12007'
+    dark: '335:12015'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '337:3673'
+    name: 'Disney+'
+    letter: 'D'
+    hd: false
+    light: '337:3674'
+    dark: '337:3682'
+    broadcaster: 'disney_plus'
+    channel: null
+    status: 'primary'
+  - node: '335:12027'
+    name: 'E!'
+    letter: 'E'
+    hd: false
+    light: '335:12028'
+    dark: '335:12034'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:12040'
+    name: 'E! HD'
+    letter: 'E'
+    hd: true
+    light: '335:12041'
+    dark: '335:13865'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:13903'
+    name: 'Ecuador TV'
+    letter: 'E'
+    hd: false
+    light: '335:13904'
+    dark: '335:13919'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:13934'
+    name: 'Ecuavisa'
+    letter: 'E'
+    hd: false
+    light: '335:13935'
+    dark: '335:13948'
+    broadcaster: 'ecuavisa'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:13961'
+    name: 'Ecuavisa HD'
+    letter: 'E'
+    hd: true
+    light: '335:13962'
+    dark: '335:13975'
+    broadcaster: 'ecuavisa'
+    channel: null
+    status: 'variant'
+  - node: '335:13988'
+    name: 'El Canal del Fútbol'
+    letter: 'E'
+    hd: false
+    light: '335:13989'
+    dark: '335:14008'
+    broadcaster: 'ecdf'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:14027'
+    name: 'El Doce'
+    letter: 'E'
+    hd: false
+    light: '335:14028'
+    dark: '335:14030'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:14032'
+    name: 'El Doce HD'
+    letter: 'E'
+    hd: true
+    light: '335:14033'
+    dark: '335:14035'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:14038'
+    name: 'El Gourmet'
+    letter: 'E'
+    hd: false
+    light: '335:14039'
+    dark: '335:14044'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:14049'
+    name: 'El Gourmet HD'
+    letter: 'E'
+    hd: true
+    light: '335:14050'
+    dark: '335:14055'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:14060'
+    name: 'El Nueve'
+    letter: 'E'
+    hd: false
+    light: '335:14061'
+    dark: '335:15265'
+    broadcaster: 'el_nueve'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:16469'
+    name: 'El Nueve HD'
+    letter: 'E'
+    hd: true
+    light: '335:16470'
+    dark: '335:17674'
+    broadcaster: 'el_nueve'
+    channel: null
+    status: 'variant'
+  - node: '335:18878'
+    name: 'El Siete'
+    letter: 'E'
+    hd: false
+    light: '335:18879'
+    dark: '335:18898'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:18917'
+    name: 'El Tiempo'
+    letter: 'E'
+    hd: false
+    light: '335:18918'
+    dark: '335:18952'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:18986'
+    name: 'El Trece'
+    letter: 'E'
+    hd: false
+    light: '335:18987'
+    dark: '335:19134'
+    broadcaster: 'el_trece'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:19281'
+    name: 'El Trece HD'
+    letter: 'E'
+    hd: true
+    light: '335:19282'
+    dark: '335:19429'
+    broadcaster: 'el_trece'
+    channel: null
+    status: 'variant'
+  - node: '335:19577'
+    name: 'El Trece Internacional'
+    letter: 'E'
+    hd: false
+    light: '335:19578'
+    dark: '335:19725'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:19872'
+    name: 'El Tres'
+    letter: 'E'
+    hd: false
+    light: '335:19873'
+    dark: '335:19877'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:19881'
+    name: 'Encuentro'
+    letter: 'E'
+    hd: false
+    light: '335:19882'
+    dark: '335:19899'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:19916'
+    name: 'Encuentro Internacional'
+    letter: 'E'
+    hd: false
+    light: '335:19917'
+    dark: '335:19947'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:19977'
+    name: 'Encuentro Internacional HD'
+    letter: 'E'
+    hd: true
+    light: '335:19978'
+    dark: '335:20008'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:20038'
+    name: 'Enlace'
+    letter: 'E'
+    hd: false
+    light: '335:20039'
+    dark: '335:20090'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:20141'
+    name: 'ESPN'
+    letter: 'E'
+    hd: false
+    light: '335:20142'
+    dark: '335:20145'
+    broadcaster: 'espn'
+    channel: null
+    status: 'primary'
+  - node: '335:20148'
+    name: 'ESPN HD'
+    letter: 'E'
+    hd: true
+    light: '335:20149'
+    dark: '335:20161'
+    broadcaster: 'espn'
+    channel: null
+    status: 'variant'
+  - node: '335:20174'
+    name: 'ESPN 2'
+    letter: 'E'
+    hd: false
+    light: '335:20175'
+    dark: '335:20186'
+    broadcaster: 'espn'
+    channel: 'ESPN 2'
+    status: 'channel'
+  - node: '335:20197'
+    name: 'ESPN 2 HD'
+    letter: 'E'
+    hd: true
+    light: '335:20198'
+    dark: '335:20211'
+    broadcaster: 'espn'
+    channel: 'ESPN 2'
+    status: 'variant'
+  - node: '335:20224'
+    name: 'ESPN 3'
+    letter: 'E'
+    hd: false
+    light: '335:20225'
+    dark: '335:20238'
+    broadcaster: 'espn'
+    channel: 'ESPN 3'
+    status: 'channel'
+  - node: '335:20251'
+    name: 'ESPN 3 HD'
+    letter: 'E'
+    hd: true
+    light: '335:20252'
+    dark: '335:20266'
+    broadcaster: 'espn'
+    channel: 'ESPN 3'
+    status: 'variant'
+  - node: '335:20280'
+    name: 'ESPN Extra HD'
+    letter: 'E'
+    hd: true
+    light: '335:20281'
+    dark: '335:20300'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:20319'
+    name: 'Europa Europa HD'
+    letter: 'E'
+    hd: true
+    light: '335:20320'
+    dark: '335:20323'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:20326'
+    name: 'EWTN'
+    letter: 'E'
+    hd: false
+    light: '335:20327'
+    dark: '335:20352'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:20381'
+    name: 'Film & Arts'
+    letter: 'F'
+    hd: false
+    light: '335:20382'
+    dark: '335:20416'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:20450'
+    name: 'Food Network'
+    letter: 'F'
+    hd: false
+    light: '335:20451'
+    dark: '335:20469'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:20473'
+    name: 'Food Network HD'
+    letter: 'F'
+    hd: true
+    light: '335:20474'
+    dark: '335:20492'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:20495'
+    name: 'Fox Sports'
+    letter: 'F'
+    hd: false
+    light: '335:20496'
+    dark: '335:20513'
+    broadcaster: 'fox_sports'
+    channel: null
+    status: 'primary'
+  - node: '335:20530'
+    name: 'Fox Sports HD'
+    letter: 'F'
+    hd: true
+    light: '335:20531'
+    dark: '335:20606'
+    broadcaster: 'fox_sports'
+    channel: null
+    status: 'variant'
+  - node: '335:20680'
+    name: 'Fox Sports 2'
+    letter: 'F'
+    hd: false
+    light: '335:20681'
+    dark: '335:20699'
+    broadcaster: 'fox_sports'
+    channel: 'Fox Sports 2'
+    status: 'channel'
+  - node: '335:20717'
+    name: 'Fox Sports 2 HD'
+    letter: 'F'
+    hd: true
+    light: '335:20718'
+    dark: '335:20798'
+    broadcaster: 'fox_sports'
+    channel: 'Fox Sports 2'
+    status: 'variant'
+  - node: '335:20878'
+    name: 'Fox Sports 3'
+    letter: 'F'
+    hd: false
+    light: '335:20879'
+    dark: '335:20898'
+    broadcaster: 'fox_sports'
+    channel: 'Fox Sports 3'
+    status: 'channel'
+  - node: '335:20918'
+    name: 'Fox Sports 3 HD'
+    letter: 'F'
+    hd: true
+    light: '335:20919'
+    dark: '335:20997'
+    broadcaster: 'fox_sports'
+    channel: 'Fox Sports 3'
+    status: 'variant'
+  - node: '335:21075'
+    name: 'FOX Sports Premium'
+    letter: 'F'
+    hd: false
+    light: '335:21076'
+    dark: '335:21090'
+    broadcaster: 'fox'
+    channel: 'Fox Sports Premium'
+    status: 'channel'
+    curated: true
+    note: 'curadoria: canal da FOX (México)'
+  - node: '335:21104'
+    name: 'FOX Sports Premium HD'
+    letter: 'F'
+    hd: true
+    light: '335:21105'
+    dark: '335:21119'
+    broadcaster: 'fox'
+    channel: null
+    status: 'primary'
+  - node: '335:21133'
+    name: 'Fútbol Boliviano'
+    letter: 'F'
+    hd: false
+    light: '335:21134'
+    dark: '335:21136'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21138'
+    name: 'FX'
+    letter: 'F'
+    hd: false
+    light: '335:21139'
+    dark: '335:21142'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21145'
+    name: 'FX HD'
+    letter: 'F'
+    hd: true
+    light: '335:21146'
+    dark: '335:21158'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21170'
+    name: 'FX Movies'
+    letter: 'F'
+    hd: false
+    light: '335:21171'
+    dark: '335:21175'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21179'
+    name: 'FX Movies HD'
+    letter: 'F'
+    hd: true
+    light: '335:21180'
+    dark: '335:21184'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21192'
+    name: 'Gama TV'
+    letter: 'G'
+    hd: false
+    light: '335:21193'
+    dark: '335:21196'
+    broadcaster: 'gama_tv'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:21199'
+    name: 'Garage TV HD'
+    letter: 'G'
+    hd: true
+    light: '335:21200'
+    dark: '335:21202'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21204'
+    name: 'Glitz'
+    letter: 'G'
+    hd: false
+    light: '335:21205'
+    dark: '335:21209'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21213'
+    name: 'Global'
+    letter: 'G'
+    hd: false
+    light: '335:21214'
+    dark: '335:21230'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21246'
+    name: 'Global HD'
+    letter: 'G'
+    hd: true
+    light: '335:21247'
+    dark: '335:21263'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21279'
+    name: 'Globo'
+    letter: 'G'
+    hd: false
+    light: '335:21280'
+    dark: '335:21283'
+    broadcaster: 'globo'
+    channel: null
+    status: 'primary'
+  - node: '335:21286'
+    name: 'Golden'
+    letter: 'G'
+    hd: false
+    light: '335:21287'
+    dark: '335:21306'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21325'
+    name: 'Golden Edge'
+    letter: 'G'
+    hd: false
+    light: '335:21326'
+    dark: '335:21341'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21357'
+    name: 'Golden HD'
+    letter: 'G'
+    hd: true
+    light: '335:21358'
+    dark: '335:21370'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21382'
+    name: 'Golf Channel'
+    letter: 'G'
+    hd: false
+    light: '335:21383'
+    dark: '335:21539'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:21695'
+    name: 'Golf Channel HD'
+    letter: 'G'
+    hd: true
+    light: '335:21696'
+    dark: '335:21856'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22016'
+    name: 'GolTV'
+    letter: 'G'
+    hd: false
+    light: '335:22017'
+    dark: '335:22023'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22029'
+    name: 'GolTV HD'
+    letter: 'G'
+    hd: true
+    light: '335:22030'
+    dark: '335:22036'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22046'
+    name: 'HBO'
+    letter: 'H'
+    hd: false
+    light: '335:22047'
+    dark: '335:22051'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22055'
+    name: 'HBO HD'
+    letter: 'H'
+    hd: true
+    light: '335:22056'
+    dark: '335:22060'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22064'
+    name: 'HBO 2'
+    letter: 'H'
+    hd: false
+    light: '335:22065'
+    dark: '335:22071'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22077'
+    name: 'HBO 2 HD'
+    letter: 'H'
+    hd: true
+    light: '335:22078'
+    dark: '335:22084'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22090'
+    name: 'HBO Family'
+    letter: 'H'
+    hd: false
+    light: '335:22091'
+    dark: '335:22109'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22127'
+    name: 'HBO Family HD'
+    letter: 'H'
+    hd: true
+    light: '335:22128'
+    dark: '335:22146'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22164'
+    name: 'HBO Max'
+    letter: 'H'
+    hd: false
+    light: '335:22165'
+    dark: '335:22175'
+    broadcaster: 'hbo_max'
+    channel: null
+    status: 'primary'
+  - node: '335:22185'
+    name: 'HBO Mundi'
+    letter: 'H'
+    hd: false
+    light: '335:22186'
+    dark: '335:22192'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22199'
+    name: 'HBO +'
+    letter: 'H'
+    hd: false
+    light: '335:22200'
+    dark: '335:22204'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22208'
+    name: 'HBO + HD'
+    letter: 'H'
+    hd: true
+    light: '335:22209'
+    dark: '335:22213'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22217'
+    name: 'HBO Pop'
+    letter: 'H'
+    hd: false
+    light: '335:22218'
+    dark: '335:22224'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22230'
+    name: 'HBO Signature'
+    letter: 'H'
+    hd: false
+    light: '335:22231'
+    dark: '335:22247'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22263'
+    name: 'HBO Signature HD'
+    letter: 'H'
+    hd: true
+    light: '335:22264'
+    dark: '335:22280'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22296'
+    name: 'HBO Xtreme'
+    letter: 'H'
+    hd: false
+    light: '335:22297'
+    dark: '335:22306'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22315'
+    name: 'HBO Xtreme HD'
+    letter: 'H'
+    hd: true
+    light: '335:22316'
+    dark: '335:22325'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22334'
+    name: 'HGTV HD'
+    letter: 'H'
+    hd: true
+    light: '335:22335'
+    dark: '335:22341'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22348'
+    name: 'History'
+    letter: 'H'
+    hd: false
+    light: '335:22349'
+    dark: '335:22364'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22379'
+    name: 'History 2'
+    letter: 'H'
+    hd: false
+    light: '335:22380'
+    dark: '335:22404'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22428'
+    name: 'History HD'
+    letter: 'H'
+    hd: true
+    light: '335:22429'
+    dark: '335:22677'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22925'
+    name: 'History 2 HD'
+    letter: 'H'
+    hd: true
+    light: '335:22926'
+    dark: '335:22950'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:22974'
+    name: 'Hola TV'
+    letter: 'H'
+    hd: false
+    light: '335:22975'
+    dark: '335:22988'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23001'
+    name: 'Hola TV HD'
+    letter: 'H'
+    hd: true
+    light: '335:23002'
+    dark: '335:23015'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23028'
+    name: 'HTV'
+    letter: 'H'
+    hd: false
+    light: '335:23029'
+    dark: '335:23036'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23043'
+    name: 'Hustler TV'
+    letter: 'H'
+    hd: false
+    light: '335:23044'
+    dark: '335:23116'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23163'
+    name: 'I Sat'
+    letter: 'I'
+    hd: false
+    light: '335:23164'
+    dark: '335:23172'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23180'
+    name: 'Infomerciales'
+    letter: 'I'
+    hd: false
+    light: '335:23181'
+    dark: '335:23183'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23185'
+    name: 'Información Periodística HD'
+    letter: 'I'
+    hd: true
+    light: '335:23186'
+    dark: '335:23221'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23256'
+    name: 'INTI'
+    letter: 'I'
+    hd: false
+    light: '335:23257'
+    dark: '335:23264'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23271'
+    name: 'INTI HD'
+    letter: 'I'
+    hd: true
+    light: '335:23272'
+    dark: '335:23279'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23286'
+    name: 'Investigation Discovery'
+    letter: 'I'
+    hd: false
+    light: '335:23287'
+    dark: '335:23293'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23299'
+    name: 'Investigation Discovery HD'
+    letter: 'I'
+    hd: true
+    light: '335:23300'
+    dark: '335:23306'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23312'
+    name: 'IVC'
+    letter: 'I'
+    hd: false
+    light: '335:23313'
+    dark: '335:23319'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23326'
+    name: 'IVC HD'
+    letter: 'I'
+    hd: true
+    light: '335:23327'
+    dark: '335:23333'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23343'
+    name: 'La FM'
+    letter: 'L'
+    hd: false
+    light: '335:23344'
+    dark: '335:23353'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23362'
+    name: 'La Nación +'
+    letter: 'L'
+    hd: false
+    light: '335:23363'
+    dark: '335:23368'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23373'
+    name: 'La Nación + HD'
+    letter: 'L'
+    hd: true
+    light: '335:23374'
+    dark: '335:23379'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23384'
+    name: 'La Red'
+    letter: 'L'
+    hd: false
+    light: '335:23385'
+    dark: '335:23394'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23403'
+    name: 'La Red HD'
+    letter: 'L'
+    hd: true
+    light: '335:23404'
+    dark: '335:23413'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23422'
+    name: 'La W Radio'
+    letter: 'L'
+    hd: false
+    light: '335:23423'
+    dark: '335:23445'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23467'
+    name: 'Las Estrellas'
+    letter: 'L'
+    hd: false
+    light: '335:23468'
+    dark: '335:23490'
+    broadcaster: 'televisa'
+    channel: 'Las Estrellas'
+    status: 'channel'
+  - node: '335:23512'
+    name: 'Latina'
+    letter: 'L'
+    hd: false
+    light: '335:23513'
+    dark: '335:23524'
+    broadcaster: 'latina'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:23536'
+    name: 'Latina HD'
+    letter: 'L'
+    hd: true
+    light: '335:23537'
+    dark: '335:23548'
+    broadcaster: 'latina'
+    channel: null
+    status: 'variant'
+  - node: '335:23559'
+    name: 'Lifetime'
+    letter: 'L'
+    hd: false
+    light: '335:23560'
+    dark: '335:23571'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23582'
+    name: 'Lifetime HD'
+    letter: 'L'
+    hd: true
+    light: '335:23583'
+    dark: '335:23594'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23608'
+    name: 'Más Chic'
+    letter: 'M'
+    hd: false
+    light: '335:23609'
+    dark: '335:23621'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23633'
+    name: 'Max Prime'
+    letter: 'M'
+    hd: false
+    light: '335:23634'
+    dark: '335:23644'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23654'
+    name: 'Mega'
+    letter: 'M'
+    hd: false
+    light: '335:23655'
+    dark: '335:23663'
+    broadcaster: 'mega'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:23671'
+    name: 'Mega HD'
+    letter: 'M'
+    hd: true
+    light: '335:23672'
+    dark: '335:23680'
+    broadcaster: 'mega'
+    channel: null
+    status: 'variant'
+  - node: '335:23688'
+    name: 'MLB Extra Innings'
+    letter: 'M'
+    hd: false
+    light: '335:23689'
+    dark: '335:23738'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23788'
+    name: 'MTV'
+    letter: 'M'
+    hd: false
+    light: '335:23789'
+    dark: '335:23794'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23799'
+    name: 'MTV HD'
+    letter: 'M'
+    hd: true
+    light: '335:23800'
+    dark: '335:23808'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23816'
+    name: 'Music Top HD'
+    letter: 'M'
+    hd: true
+    light: '335:23817'
+    dark: '335:23819'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23825'
+    name: 'Nat Geo Kids'
+    letter: 'N'
+    hd: false
+    light: '335:23826'
+    dark: '335:23839'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23852'
+    name: 'Nat Geo Wild'
+    letter: 'N'
+    hd: false
+    light: '335:23853'
+    dark: '335:23878'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23903'
+    name: 'Nat Geo Wild HD'
+    letter: 'N'
+    hd: true
+    light: '335:23904'
+    dark: '335:23929'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23954'
+    name: 'National Geographic'
+    letter: 'N'
+    hd: false
+    light: '335:23955'
+    dark: '335:23976'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:23997'
+    name: 'National Geographic HD'
+    letter: 'N'
+    hd: true
+    light: '335:23998'
+    dark: '335:24019'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24040'
+    name: 'NBA League Pass'
+    letter: 'N'
+    hd: false
+    light: '335:24041'
+    dark: '335:24052'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24063'
+    name: 'NBA TV'
+    letter: 'N'
+    hd: false
+    light: '335:24064'
+    dark: '335:24072'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24080'
+    name: 'NBA TV HD'
+    letter: 'N'
+    hd: true
+    light: '335:24081'
+    dark: '335:24089'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24098'
+    name: 'Net TV'
+    letter: 'N'
+    hd: false
+    light: '335:24099'
+    dark: '335:24101'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24103'
+    name: 'Net TV HD'
+    letter: 'N'
+    hd: true
+    light: '335:24104'
+    dark: '335:24106'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24108'
+    name: 'NFL Sunday Ticket'
+    letter: 'N'
+    hd: false
+    light: '335:24109'
+    dark: '335:24245'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24381'
+    name: 'NHK'
+    letter: 'N'
+    hd: false
+    light: '335:24382'
+    dark: '335:24393'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24404'
+    name: 'Nick Jr.'
+    letter: 'N'
+    hd: false
+    light: '335:24405'
+    dark: '335:24415'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24425'
+    name: 'Nick Jr. HD'
+    letter: 'N'
+    hd: true
+    light: '335:24426'
+    dark: '335:24435'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24444'
+    name: 'Nickelodeon'
+    letter: 'N'
+    hd: false
+    light: '335:24445'
+    dark: '335:24459'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24473'
+    name: 'Nickelodeon HD'
+    letter: 'N'
+    hd: true
+    light: '335:24474'
+    dark: '335:24498'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24523'
+    name: 'NTN 24'
+    letter: 'N'
+    hd: false
+    light: '335:24524'
+    dark: '335:24550'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24589'
+    name: 'Orbe 21'
+    letter: 'O'
+    hd: false
+    light: '335:24590'
+    dark: '335:24593'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24596'
+    name: 'Oromar TV'
+    letter: 'O'
+    hd: false
+    light: '335:24597'
+    dark: '335:24622'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24651'
+    name: 'Paka Paka'
+    letter: 'P'
+    hd: false
+    light: '335:24652'
+    dark: '335:24663'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24674'
+    name: 'Panamericana'
+    letter: 'P'
+    hd: false
+    light: '335:24675'
+    dark: '335:24680'
+    broadcaster: 'panamericana'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:24685'
+    name: 'Panamericana HD'
+    letter: 'P'
+    hd: true
+    light: '335:24686'
+    dark: '335:24691'
+    broadcaster: 'panamericana'
+    channel: null
+    status: 'variant'
+  - node: '335:24696'
+    name: 'Paramount Channel'
+    letter: 'P'
+    hd: false
+    light: '335:24697'
+    dark: '335:24735'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24773'
+    name: 'Paramount Channel HD'
+    letter: 'P'
+    hd: true
+    light: '335:24774'
+    dark: '335:24812'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24850'
+    name: 'Pasiones'
+    letter: 'P'
+    hd: false
+    light: '335:24851'
+    dark: '335:24855'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24859'
+    name: 'Pasiones HD'
+    letter: 'P'
+    hd: true
+    light: '335:24860'
+    dark: '335:24864'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24868'
+    name: 'Playboy TV'
+    letter: 'P'
+    hd: false
+    light: '335:24869'
+    dark: '335:24876'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24884'
+    name: 'Portal Series HD'
+    letter: 'P'
+    hd: true
+    light: '335:24885'
+    dark: '335:24898'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24911'
+    name: 'PX Sports HD'
+    letter: 'P'
+    hd: true
+    light: '335:24912'
+    dark: '335:24922'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '336:54202'
+    name: 'Prime Video'
+    letter: 'P'
+    hd: false
+    light: '336:54203'
+    dark: '336:54213'
+    broadcaster: 'prime_video'
+    channel: null
+    status: 'primary'
+  - node: '336:54248'
+    name: 'Paramount+'
+    letter: 'P'
+    hd: false
+    light: '336:54249'
+    dark: '336:54251'
+    broadcaster: 'paramount_plus'
+    channel: null
+    status: 'primary'
+  - node: '336:55027'
+    name: 'Premiere'
+    letter: 'P'
+    hd: false
+    light: '336:55028'
+    dark: '336:55030'
+    broadcaster: 'premiere'
+    channel: null
+    status: 'primary'
+  - node: '335:24933'
+    name: 'Quiero Música'
+    letter: 'Q'
+    hd: false
+    light: '335:24934'
+    dark: '335:24936'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24938'
+    name: 'Quiero Música HD'
+    letter: 'Q'
+    hd: true
+    light: '335:24939'
+    dark: '335:24941'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24947'
+    name: 'Radio del Plata'
+    letter: 'R'
+    hd: false
+    light: '335:24948'
+    dark: '335:24950'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24952'
+    name: 'Radio Disney'
+    letter: 'R'
+    hd: false
+    light: '335:24953'
+    dark: '335:24955'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24957'
+    name: 'Radio France Internationale'
+    letter: 'R'
+    hd: false
+    light: '335:24958'
+    dark: '335:24965'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:24972'
+    name: 'Radio Latina'
+    letter: 'R'
+    hd: false
+    light: '335:24973'
+    dark: '335:25020'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25067'
+    name: 'Radio Nacional'
+    letter: 'R'
+    hd: false
+    light: '335:25068'
+    dark: '335:25098'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25128'
+    name: 'Radio Oxígeno'
+    letter: 'R'
+    hd: false
+    light: '335:25129'
+    dark: '335:25131'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25133'
+    name: 'Radio Studio 92'
+    letter: 'R'
+    hd: false
+    light: '335:25134'
+    dark: '335:25136'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25138'
+    name: 'RAI Italia'
+    letter: 'R'
+    hd: false
+    light: '335:25139'
+    dark: '335:25143'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25148'
+    name: 'RCN'
+    letter: 'R'
+    hd: false
+    light: '335:25149'
+    dark: '335:25156'
+    broadcaster: 'rcn'
+    channel: null
+    status: 'primary'
+  - node: '335:25163'
+    name: 'RCN HD'
+    letter: 'R'
+    hd: true
+    light: '335:25164'
+    dark: '335:25171'
+    broadcaster: 'rcn'
+    channel: null
+    status: 'variant'
+  - node: '335:25178'
+    name: 'RCN Nuestra Tele'
+    letter: 'R'
+    hd: false
+    light: '335:25179'
+    dark: '335:25184'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25189'
+    name: 'RCN Radio'
+    letter: 'R'
+    hd: false
+    light: '335:25190'
+    dark: '335:25196'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25202'
+    name: 'RTP Internacional'
+    letter: 'R'
+    hd: false
+    light: '335:25203'
+    dark: '335:25226'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25249'
+    name: 'RTS'
+    letter: 'R'
+    hd: false
+    light: '335:25250'
+    dark: '335:25253'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25256'
+    name: 'RTU'
+    letter: 'R'
+    hd: false
+    light: '335:25257'
+    dark: '335:25262'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25271'
+    name: 'Señal Colombia'
+    letter: 'S'
+    hd: false
+    light: '335:25272'
+    dark: '335:25304'
+    broadcaster: 'senal_colombia'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:25336'
+    name: 'Señal Colombia HD'
+    letter: 'S'
+    hd: true
+    light: '335:25337'
+    dark: '335:25369'
+    broadcaster: 'senal_colombia'
+    channel: null
+    status: 'variant'
+  - node: '335:25401'
+    name: 'Señal Institucional'
+    letter: 'S'
+    hd: false
+    light: '335:25402'
+    dark: '335:25429'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25456'
+    name: 'Señal Institucional HD'
+    letter: 'S'
+    hd: true
+    light: '335:25457'
+    dark: '335:25484'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25511'
+    name: 'Smithsonian HD'
+    letter: 'S'
+    hd: true
+    light: '335:25512'
+    dark: '335:25534'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25556'
+    name: 'Sony Channel'
+    letter: 'S'
+    hd: false
+    light: '335:25557'
+    dark: '335:25573'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25589'
+    name: 'Sony Channel HD'
+    letter: 'S'
+    hd: true
+    light: '335:25590'
+    dark: '335:25606'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25622'
+    name: 'Space'
+    letter: 'S'
+    hd: false
+    light: '335:25623'
+    dark: '335:25630'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25638'
+    name: 'Space HD'
+    letter: 'S'
+    hd: true
+    light: '335:25639'
+    dark: '335:25647'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25655'
+    name: 'Star +'
+    letter: 'S'
+    hd: false
+    light: '335:25656'
+    dark: '335:25662'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25668'
+    name: 'Star Action'
+    letter: 'S'
+    hd: false
+    light: '335:25669'
+    dark: '335:25681'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25693'
+    name: 'Star Action HD'
+    letter: 'S'
+    hd: true
+    light: '335:25694'
+    dark: '335:25706'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25718'
+    name: 'Star Channel'
+    letter: 'S'
+    hd: false
+    light: '335:25719'
+    dark: '335:25734'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25747'
+    name: 'Star Channel HD'
+    letter: 'S'
+    hd: true
+    light: '335:25748'
+    dark: '335:25763'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25776'
+    name: 'Star Cinema'
+    letter: 'S'
+    hd: false
+    light: '335:25777'
+    dark: '335:25789'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25801'
+    name: 'Star Cinema HD'
+    letter: 'S'
+    hd: true
+    light: '335:25802'
+    dark: '335:25814'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25827'
+    name: 'Star Classics'
+    letter: 'S'
+    hd: false
+    light: '335:25828'
+    dark: '335:25842'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25856'
+    name: 'Star Comedy'
+    letter: 'S'
+    hd: false
+    light: '335:25857'
+    dark: '335:25869'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25881'
+    name: 'Star Comedy HD'
+    letter: 'S'
+    hd: true
+    light: '335:25882'
+    dark: '335:25894'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25906'
+    name: 'Star Fun'
+    letter: 'S'
+    hd: false
+    light: '335:25907'
+    dark: '335:25916'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25925'
+    name: 'Star Fun HD'
+    letter: 'S'
+    hd: true
+    light: '335:25926'
+    dark: '335:25935'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25944'
+    name: 'Star Hits'
+    letter: 'S'
+    hd: false
+    light: '335:25945'
+    dark: '335:25955'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25965'
+    name: 'Star Hits HD'
+    letter: 'S'
+    hd: true
+    light: '335:25966'
+    dark: '335:25976'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:25986'
+    name: 'Star Life'
+    letter: 'S'
+    hd: false
+    light: '335:25987'
+    dark: '335:25997'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26008'
+    name: 'Star Life HD'
+    letter: 'S'
+    hd: true
+    light: '335:26009'
+    dark: '335:26019'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26029'
+    name: 'Star Series'
+    letter: 'S'
+    hd: false
+    light: '335:26030'
+    dark: '335:26042'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26054'
+    name: 'Star Series HD'
+    letter: 'S'
+    hd: true
+    light: '335:26055'
+    dark: '335:26067'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26079'
+    name: 'Stingray'
+    letter: 'S'
+    hd: false
+    light: '335:26080'
+    dark: '335:26099'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26118'
+    name: 'Studio Universal'
+    letter: 'S'
+    hd: false
+    light: '335:26119'
+    dark: '335:26131'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26143'
+    name: 'Studio Universal HD'
+    letter: 'S'
+    hd: true
+    light: '335:26144'
+    dark: '335:26158'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26172'
+    name: 'Sun Channel'
+    letter: 'S'
+    hd: false
+    light: '335:26173'
+    dark: '335:26203'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26233'
+    name: 'SyFy'
+    letter: 'S'
+    hd: false
+    light: '335:26234'
+    dark: '335:26243'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26253'
+    name: 'SyFy HD'
+    letter: 'S'
+    hd: true
+    light: '335:26254'
+    dark: '335:26271'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26292'
+    name: 'TBS'
+    letter: 'T'
+    hd: false
+    light: '335:26293'
+    dark: '335:26298'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26303'
+    name: 'TC'
+    letter: 'T'
+    hd: false
+    light: '335:26304'
+    dark: '335:26323'
+    broadcaster: 'tc_television'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:26342'
+    name: 'TC HD'
+    letter: 'T'
+    hd: true
+    light: '335:26343'
+    dark: '335:26361'
+    broadcaster: 'tc_television'
+    channel: null
+    status: 'variant'
+  - node: '335:26368'
+    name: 'TCM'
+    letter: 'T'
+    hd: false
+    light: '335:26369'
+    dark: '335:26388'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26407'
+    name: 'Tele Amazonas'
+    letter: 'T'
+    hd: false
+    light: '335:26408'
+    dark: '335:26426'
+    broadcaster: 'teleamazonas'
+    channel: null
+    status: 'primary'
+  - node: '335:26444'
+    name: 'Tele Antioquia'
+    letter: 'T'
+    hd: false
+    light: '335:26445'
+    dark: '335:26449'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26453'
+    name: 'Tele Antioquia HD'
+    letter: 'T'
+    hd: true
+    light: '335:26454'
+    dark: '335:26458'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26462'
+    name: 'Tele Medellín'
+    letter: 'T'
+    hd: false
+    light: '335:26463'
+    dark: '335:26512'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26562'
+    name: 'Telecafé'
+    letter: 'T'
+    hd: false
+    light: '335:26563'
+    dark: '335:26566'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26569'
+    name: 'Telecaribe'
+    letter: 'T'
+    hd: false
+    light: '335:26570'
+    dark: '335:26585'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26600'
+    name: 'Telecaribe HD'
+    letter: 'T'
+    hd: true
+    light: '335:26601'
+    dark: '335:26616'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26631'
+    name: 'Teledoce'
+    letter: 'T'
+    hd: false
+    light: '335:26632'
+    dark: '335:26634'
+    broadcaster: 'teledoce'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:26636'
+    name: 'Teledoce HD'
+    letter: 'T'
+    hd: true
+    light: '335:26637'
+    dark: '335:26639'
+    broadcaster: 'teledoce'
+    channel: null
+    status: 'variant'
+  - node: '335:26641'
+    name: 'Telefe'
+    letter: 'T'
+    hd: false
+    light: '335:26642'
+    dark: '335:26653'
+    broadcaster: 'telefe'
+    channel: null
+    status: 'primary'
+  - node: '335:26664'
+    name: 'Telefe HD'
+    letter: 'T'
+    hd: true
+    light: '335:26665'
+    dark: '335:26679'
+    broadcaster: 'telefe'
+    channel: null
+    status: 'variant'
+  - node: '335:26688'
+    name: 'Telefe Internacional'
+    letter: 'T'
+    hd: false
+    light: '335:26689'
+    dark: '335:26700'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26712'
+    name: 'Teleislas'
+    letter: 'T'
+    hd: false
+    light: '335:26713'
+    dark: '335:26715'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26717'
+    name: 'Telemax'
+    letter: 'T'
+    hd: false
+    light: '335:26718'
+    dark: '335:26720'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26722'
+    name: 'Telemundo'
+    letter: 'T'
+    hd: false
+    light: '335:26723'
+    dark: '335:26737'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26751'
+    name: 'Telepacífico'
+    letter: 'T'
+    hd: false
+    light: '335:26752'
+    dark: '335:26791'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26830'
+    name: 'Telepacífico HD'
+    letter: 'T'
+    hd: true
+    light: '335:26831'
+    dark: '335:26870'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26909'
+    name: 'Telerama'
+    letter: 'T'
+    hd: false
+    light: '335:26910'
+    dark: '335:26933'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26956'
+    name: 'Teletrak HD'
+    letter: 'T'
+    hd: true
+    light: '335:26957'
+    dark: '335:26975'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:26993'
+    name: 'Televicentro'
+    letter: 'T'
+    hd: false
+    light: '335:26994'
+    dark: '335:27091'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27189'
+    name: 'Tierra Mía HD'
+    letter: 'T'
+    hd: true
+    light: '335:27190'
+    dark: '335:27222'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27254'
+    name: 'TIGO Sports'
+    letter: 'T'
+    hd: false
+    light: '335:27255'
+    dark: '335:27260'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27265'
+    name: 'TL Novelas'
+    letter: 'T'
+    hd: false
+    light: '335:27266'
+    dark: '335:27282'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27298'
+    name: 'TLC'
+    letter: 'T'
+    hd: false
+    light: '335:27299'
+    dark: '335:27312'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27319'
+    name: 'TLC HD'
+    letter: 'T'
+    hd: true
+    light: '335:27320'
+    dark: '335:27334'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27348'
+    name: 'TN'
+    letter: 'T'
+    hd: false
+    light: '335:27349'
+    dark: '335:27353'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27357'
+    name: 'TN HD'
+    letter: 'T'
+    hd: true
+    light: '335:27358'
+    dark: '335:27362'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27366'
+    name: 'TNT'
+    letter: 'T'
+    hd: false
+    light: '335:27367'
+    dark: '335:27374'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+    note: 'conflito: "TNT Sports" já é o logo principal de TNT Sports'
+  - node: '335:27382'
+    name: 'TNT HD'
+    letter: 'T'
+    hd: true
+    light: '335:27383'
+    dark: '335:27390'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+    note: 'conflito: "TNT Sports" já é o logo principal de TNT Sports'
+  - node: '335:27397'
+    name: 'TNT Series'
+    letter: 'T'
+    hd: false
+    light: '335:27398'
+    dark: '335:27410'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27422'
+    name: 'TNT Series HD'
+    letter: 'T'
+    hd: true
+    light: '335:27423'
+    dark: '335:27435'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27447'
+    name: 'TNT Sports'
+    letter: 'T'
+    hd: false
+    light: '335:27448'
+    dark: '335:27456'
+    broadcaster: 'tnt_sports'
+    channel: null
+    status: 'primary'
+  - node: '335:27464'
+    name: 'TNT Sports HD'
+    letter: 'T'
+    hd: true
+    light: '335:27465'
+    dark: '335:27473'
+    broadcaster: 'tnt_sports'
+    channel: null
+    status: 'variant'
+  - node: '335:27481'
+    name: 'TNT Sports 2'
+    letter: 'T'
+    hd: false
+    light: '335:27482'
+    dark: '335:27489'
+    broadcaster: 'tnt_sports'
+    channel: 'TNT Sports 2'
+    status: 'channel'
+  - node: '335:27496'
+    name: 'TNT Sports 3'
+    letter: 'T'
+    hd: false
+    light: '335:27497'
+    dark: '335:27504'
+    broadcaster: 'tnt_sports'
+    channel: 'TNT Sports 3'
+    status: 'channel'
+  - node: '335:27511'
+    name: 'TNT Sports 3 HD'
+    letter: 'T'
+    hd: true
+    light: '335:27512'
+    dark: '335:27519'
+    broadcaster: 'tnt_sports'
+    channel: 'TNT Sports 3'
+    status: 'variant'
+  - node: '335:27527'
+    name: 'TNU'
+    letter: 'T'
+    hd: false
+    light: '335:27528'
+    dark: '335:27530'
+    broadcaster: 'canal_5_uy'
+    channel: null
+    status: 'primary'
+  - node: '335:27532'
+    name: 'Trece'
+    letter: 'T'
+    hd: false
+    light: '335:27533'
+    dark: '335:27536'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27539'
+    name: 'Tru TV'
+    letter: 'T'
+    hd: false
+    light: '335:27540'
+    dark: '335:27548'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27556'
+    name: 'TV + HD'
+    letter: 'T'
+    hd: true
+    light: '335:27557'
+    dark: '335:27561'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27565'
+    name: 'TV Agro'
+    letter: 'T'
+    hd: false
+    light: '335:27566'
+    dark: '335:27580'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27591'
+    name: 'TV Chile'
+    letter: 'T'
+    hd: false
+    light: '335:27592'
+    dark: '335:27600'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27608'
+    name: 'TV Ciudad HD'
+    letter: 'T'
+    hd: true
+    light: '335:27609'
+    dark: '335:27625'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27641'
+    name: 'TV Cortos HD'
+    letter: 'T'
+    hd: true
+    light: '335:27642'
+    dark: '335:27654'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27667'
+    name: 'TV Familia'
+    letter: 'T'
+    hd: false
+    light: '335:27668'
+    dark: '335:27682'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27696'
+    name: 'TV Perú'
+    letter: 'T'
+    hd: false
+    light: '335:27697'
+    dark: '335:27704'
+    broadcaster: 'tv_peru'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:27711'
+    name: 'TV Perú HD'
+    letter: 'T'
+    hd: true
+    light: '335:27712'
+    dark: '335:27719'
+    broadcaster: 'tv_peru'
+    channel: null
+    status: 'variant'
+  - node: '335:27726'
+    name: 'TV Perú Noticias HD'
+    letter: 'T'
+    hd: true
+    light: '335:27727'
+    dark: '335:27743'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27758'
+    name: 'TV Pública'
+    letter: 'T'
+    hd: false
+    light: '335:27759'
+    dark: '335:27765'
+    broadcaster: 'tv_publica'
+    channel: null
+    status: 'primary'
+  - node: '335:27773'
+    name: 'TV Pública HD'
+    letter: 'T'
+    hd: true
+    light: '335:27774'
+    dark: '335:27780'
+    broadcaster: 'tv_publica'
+    channel: null
+    status: 'variant'
+  - node: '335:27788'
+    name: 'TVN'
+    letter: 'T'
+    hd: false
+    light: '335:27789'
+    dark: '335:27792'
+    broadcaster: 'tvn'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:27795'
+    name: 'TVN HD'
+    letter: 'T'
+    hd: true
+    light: '335:27796'
+    dark: '335:27799'
+    broadcaster: 'tvn'
+    channel: null
+    status: 'variant'
+  - node: '335:27803'
+    name: 'TyC Sports'
+    letter: 'T'
+    hd: false
+    light: '335:27804'
+    dark: '335:27815'
+    broadcaster: 'tyc_sports'
+    channel: null
+    status: 'primary'
+  - node: '335:27826'
+    name: 'TyC Sports HD'
+    letter: 'T'
+    hd: true
+    light: '335:27827'
+    dark: '335:27841'
+    broadcaster: 'tyc_sports'
+    channel: null
+    status: 'variant'
+  - node: '335:27858'
+    name: 'UCL'
+    letter: 'U'
+    hd: false
+    light: '335:27859'
+    dark: '335:27880'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27901'
+    name: 'Unión Radio'
+    letter: 'U'
+    hd: false
+    light: '335:27902'
+    dark: '335:27916'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27930'
+    name: 'Universal Channel'
+    letter: 'U'
+    hd: false
+    light: '335:27931'
+    dark: '335:27935'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27940'
+    name: 'Universal Channel HD'
+    letter: 'U'
+    hd: true
+    light: '335:27941'
+    dark: '335:27945'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27950'
+    name: 'Univisión'
+    letter: 'U'
+    hd: false
+    light: '335:27951'
+    dark: '335:27967'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:27986'
+    name: 'Ve Plus HD'
+    letter: 'V'
+    hd: true
+    light: '335:27987'
+    dark: '335:27995'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28003'
+    name: 'Veinticuatro Horas'
+    letter: 'V'
+    hd: false
+    light: '335:28004'
+    dark: '335:28006'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28008'
+    name: 'Veinticuatro Horas HD'
+    letter: 'V'
+    hd: true
+    light: '335:28009'
+    dark: '335:28011'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28013'
+    name: 'Venus'
+    letter: 'V'
+    hd: false
+    light: '335:28014'
+    dark: '335:28024'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28034'
+    name: 'Volver'
+    letter: 'V'
+    hd: false
+    light: '335:28035'
+    dark: '335:28042'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28049'
+    name: 'VTV'
+    letter: 'V'
+    hd: false
+    light: '335:28050'
+    dark: '335:28057'
+    broadcaster: 'vtv'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'emissora nova na biblioteca (acervo oficial)'
+  - node: '335:28064'
+    name: 'VTV HD'
+    letter: 'V'
+    hd: true
+    light: '335:28065'
+    dark: '335:28072'
+    broadcaster: 'vtv'
+    channel: null
+    status: 'variant'
+  - node: '335:28079'
+    name: 'VTV Plus'
+    letter: 'V'
+    hd: false
+    light: '335:28080'
+    dark: '335:28090'
+    broadcaster: 'vtv'
+    channel: 'VTV Plus'
+    status: 'channel'
+  - node: '335:28101'
+    name: 'VTV Plus HD'
+    letter: 'V'
+    hd: true
+    light: '335:28102'
+    dark: '335:28112'
+    broadcaster: 'vtv'
+    channel: 'VTV Plus'
+    status: 'variant'
+  - node: '335:28125'
+    name: 'Warner Channel'
+    letter: 'W'
+    hd: false
+    light: '335:28126'
+    dark: '335:28166'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28206'
+    name: 'Warner Channel HD'
+    letter: 'W'
+    hd: true
+    light: '335:28207'
+    dark: '335:28248'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28289'
+    name: 'Willax HD'
+    letter: 'W'
+    hd: true
+    light: '335:28290'
+    dark: '335:28324'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28358'
+    name: 'Win Sports'
+    letter: 'W'
+    hd: false
+    light: '335:28359'
+    dark: '335:28373'
+    broadcaster: 'win_sports'
+    channel: null
+    status: 'primary'
+  - node: '335:28387'
+    name: 'Win Sports HD'
+    letter: 'W'
+    hd: true
+    light: '335:28388'
+    dark: '335:28402'
+    broadcaster: 'win_sports'
+    channel: null
+    status: 'variant'
+  - node: '335:28419'
+    name: 'XSTY'
+    letter: 'X'
+    hd: false
+    light: '335:28420'
+    dark: '335:28425'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28433'
+    name: 'Zee TV'
+    letter: 'Z'
+    hd: false
+    light: '335:28434'
+    dark: '335:28438'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'
+  - node: '335:28441'
+    name: 'ZooMoo'
+    letter: 'Z'
+    hd: false
+    light: '335:28442'
+    dark: '335:28445'
+    broadcaster: null
+    channel: null
+    status: 'unmapped'

@@ -287,7 +287,9 @@ create table enrich.broadcast_option (
 --   ops.llm_usage               ledger de uso de LLM (orçamento diário de tokens de todos os agentes)
 -- Migration 0015 (onde assistir por rodada):
 --   enrich.broadcaster          biblioteca de emissoras (id do dicionário, tipo, países, canais, site,
---                               logo → core.asset kind broadcaster_logo, origem e licença do logo)
+--                               logo → core.asset kind broadcaster_logo, origem e licença do logo;
+--                               migration 0022: logo_dark_asset_id e channel_logos — versão escura
+--                               e logos dos canais, do acervo oficial de logos)
 --   enrich.broadcast_rights     direitos pesquisados por competição × temporada × país (versionado;
 --                               a tabela curada config/broadcast-rights sempre vence)
 --   enrich.wtw_research         chamadas multi-mercado (direitos por temporada e alocação por rodada),

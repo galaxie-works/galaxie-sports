@@ -36,6 +36,8 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
         if (!data) throw problems.notFound('Evento');
         const logo = (l: { storageKey: string | null; sourceUrl: string | null } | null) =>
           l ? assetUrl(ctx.assetsBaseUrl, l.storageKey, l.sourceUrl) : null;
+        const logoDark = (l: { darkStorageKey: string | null } | null) =>
+          l?.darkStorageKey ? assetUrl(ctx.assetsBaseUrl, l.darkStorageKey, null) : null;
         const body: WhereToWatch = {
           event_id: data.eventId,
           country: data.country,
@@ -55,6 +57,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
             last_verified_at: formatInstant(row.lastVerifiedAt, tz),
             sources,
             logo: logo(o.logo),
+            logo_dark: logoDark(o.logo),
           })),
           to_confirm: [
             ...data.toConfirm.map(({ row, sources, logo: l }) => ({
@@ -63,6 +66,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
               medium: row.medium,
               access_model: row.accessModel,
               logo: logo(l),
+              logo_dark: logoDark(l),
               sources,
             })),
             // país sem nenhuma opção gravada: os detentores da curadoria/pesquisa, "a confirmar"
@@ -72,6 +76,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
               medium: r.medium,
               access_model: r.accessModel,
               logo: logo(r.logo),
+              logo_dark: logoDark(r.logo),
               sources: r.sources,
             })),
           ],
