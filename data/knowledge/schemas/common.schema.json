@@ -197,6 +197,13 @@
             }
           }
         },
+        "f1db": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id"],
+          "description": "Fórmula 1: id do piloto ou do construtor no F1DB (ex.: ayrton-senna). Liga o perfil ao participante pelo provider_map.",
+          "properties": { "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" } }
+        },
         "founded": { "$ref": "#/definitions/nullableIsoDate" },
         "country": { "$ref": "#/definitions/countryCode" },
         "city": { "$ref": "#/definitions/nonEmptyString" },

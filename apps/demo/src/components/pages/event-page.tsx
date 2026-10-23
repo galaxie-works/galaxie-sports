@@ -25,6 +25,7 @@ import { MarketTabs } from '@/components/sport/market-tabs';
 import { MatchStakes } from '@/components/sport/match-stakes';
 import { PeriodScores } from '@/components/sport/period-scores';
 import { isRaceEvent, RaceClassification, RaceScoreboard, raceTitle } from '@/components/sport/race';
+import { PhotoFigure } from '@/components/sport/race-career';
 import { RelatedContentGrid } from '@/components/sport/related-content';
 import { RelevanceMeter } from '@/components/sport/relevance-meter';
 import { Section } from '@/components/sport/section';
@@ -550,6 +551,14 @@ export async function EventContent({ params, searchParams, source }: PageContent
     (timeline.incidents.length > 0 || (event.sport === 'football' && STARTED.has(event.status)));
   // corrida (F1): vários pilotos no grid; o título é o GP e a sessão, não "A x B x C…"
   const race = isRaceEvent(event);
+  // F1: o carro do vencedor naquela temporada (acervo de fotos de licença livre), com o crédito
+  const winnerTeam = race
+    ? event.participants.find((p) => p.side === 'grid' && p.position === 1)?.result?.team?.id
+    : null;
+  const winnerCar = winnerTeam
+    ? ((await source.getTeamPhotos(winnerTeam, 'car', Number(event.starts_at.slice(0, 4))))?.photos[0] ??
+      null)
+    : null;
   const title = race ? raceTitle(event) : event.participants.map((p) => p.name).join(` ${t.sport.versus} `);
   // cor de cada time (escudo) no campo e nas estatísticas, tratando escudo monocromático e cores parecidas
   const colors = versusColors(
@@ -585,6 +594,11 @@ export async function EventContent({ params, searchParams, source }: PageContent
                 api={eventRequest(id, locale, undefined, content)}
               >
                 <RaceClassification event={event} />
+              </Section>
+            ) : null}
+            {winnerCar ? (
+              <Section title={t.race.gallery.carOfWinner!}>
+                <PhotoFigure photo={winnerCar} imgClassName="max-h-96" />
               </Section>
             ) : null}
             {/* contexto (cenário e resumo) sempre acima dos detalhes da partida */}

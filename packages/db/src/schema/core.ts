@@ -60,15 +60,19 @@ export const assetKind = core.enum('asset_kind', [
   'circuit',
   'fighter',
   'broadcaster_logo',
+  /** Foto de carro (construtor numa temporada), do acervo de fotos da Wikimedia Commons. */
+  'car',
   'other',
 ]);
 
 /**
  * De onde veio a imagem: `provider` = a fonte dos dados (api-sports, Wikidata, emissoras…), espelhada
  * pelo `assets:mirror`; `acervo` = acervo customizado de logos importado pelo `assets:acervo`, que só
- * aparece na API com a flag ASSETS_CUSTOM_LOGOS ligada (docs/runbooks/acervo-de-logos.md).
+ * aparece na API com a flag ASSETS_CUSTOM_LOGOS ligada (docs/runbooks/acervo-de-logos.md); `commons` =
+ * foto de licença livre da Wikimedia Commons (`assets:commons`), sempre servida com o crédito de
+ * `core.asset_credit` (docs/runbooks/fotos-commons.md).
  */
-export const ASSET_ORIGINS = ['provider', 'acervo'] as const;
+export const ASSET_ORIGINS = ['provider', 'acervo', 'commons'] as const;
 export type AssetOrigin = (typeof ASSET_ORIGINS)[number];
 export const assetOrigin = core.enum('asset_origin', ASSET_ORIGINS);
 
@@ -115,6 +119,37 @@ export const asset = core.table(
   },
   (t) => [uniqueIndex('asset_source_url_uq').on(t.sourceUrl)],
 );
+
+/**
+ * Crédito de uma imagem de licença livre (Wikimedia Commons): autor, licença e página de origem, lidos da API
+ * da Commons (`extmetadata`) na importação. Toda resposta que publica a imagem leva estes campos.
+ */
+export const assetCredit = core.table('asset_credit', {
+  assetId: uuid('asset_id')
+    .primaryKey()
+    .references(() => asset.id, { onDelete: 'cascade' }),
+  /** wikimedia-commons */
+  source: text('source').notNull(),
+  /** Título do arquivo na Commons (`File:…`). */
+  title: text('title').notNull(),
+  pageUrl: text('page_url').notNull(),
+  /** Autor em texto (sem HTML) e o link dele, quando houver. */
+  author: text('author'),
+  authorUrl: text('author_url'),
+  /** Nome curto da licença ("CC BY-SA 4.0", "Public domain") e o link do texto da licença. */
+  license: text('license').notNull(),
+  licenseUrl: text('license_url'),
+  /** Linha de crédito pedida pelo autor (`Credit`), quando houver. */
+  credit: text('credit'),
+  attributionRequired: boolean('attribution_required').notNull().default(true),
+  /** CC BY-SA: obras derivadas (recorte, edição) têm de sair com a mesma licença; só redimensionamos. */
+  shareAlike: boolean('share_alike').notNull().default(false),
+  /** Data da foto como a Commons informa (texto livre: "1988-07-10", "1990"). */
+  dateTaken: text('date_taken'),
+  originalWidth: integer('original_width'),
+  originalHeight: integer('original_height'),
+  retrievedAt: timestamp('retrieved_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const country = core.table('country', {
   /** ISO 3166-1 alpha-2, com extensões da api-sports (ex.: GB-ENG); "WORLD" para competições internacionais. */
@@ -330,6 +365,35 @@ export const participant = core.table(
   (t) => [
     index('participant_sport_country_idx').on(t.sport, t.countryCode),
     index('participant_name_idx').on(t.name),
+  ],
+);
+
+/**
+ * Fotos de um participante (piloto, construtor) vindas do acervo de fotos (`assets:commons`): retrato, ação
+ * e carro por temporada. Só aparecem na API com o crédito (`asset_credit`); o logo do participante não muda.
+ */
+export const participantPhoto = core.table(
+  'participant_photo',
+  {
+    participantId: uuid('participant_id')
+      .notNull()
+      .references(() => participant.id, { onDelete: 'cascade' }),
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => asset.id, { onDelete: 'cascade' }),
+    /** portrait | action | car */
+    role: text('role').notNull(),
+    /** Temporada da foto (carro do construtor num ano; ação do piloto); null = sem ano. */
+    seasonYear: smallint('season_year'),
+    /** Ordem na galeria (0 = principal). */
+    rank: smallint('rank').notNull().default(0),
+    /** Quem escolheu: rules (só regras) | gemini (regras + ranqueamento) | manual (curadoria). */
+    selectedBy: text('selected_by').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.participantId, t.assetId, t.role] }),
+    index('participant_photo_role_idx').on(t.participantId, t.role, t.seasonYear),
   ],
 );
 

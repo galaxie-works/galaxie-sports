@@ -14,6 +14,15 @@ export function assetUrl(
   return sourceUrl ?? null;
 }
 
+/**
+ * Origem do logo publicada (`logo_source`): o acervo de logos ou o fornecedor. Fotos da Commons
+ * (`origin = commons`) nunca são logo; se um dia forem, contam como fornecedor, sem mudar o contrato.
+ */
+export function logoSource(origin: string | null | undefined): 'provider' | 'acervo' | null {
+  if (origin == null) return null;
+  return origin === 'acervo' ? 'acervo' : 'provider';
+}
+
 /** Valida query/params com um schema Zod; erro → 400 INVALID_PARAMS. */
 export function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
   const r = schema.safeParse(input);

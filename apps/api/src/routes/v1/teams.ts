@@ -8,13 +8,16 @@ import {
   TeamEventsQuery,
   TeamOverviewQuery,
   TeamParams,
+  TeamPhotosQuery,
   TeamsQuery,
+  type RaceCareer,
   type Event,
   type FormerName,
   type Squad,
   type SquadMember,
   type Team,
   type TeamOverview,
+  type TeamPhotos,
   type TeamSeason,
   type TeamSummary,
 } from '@galaxie/contracts';
@@ -47,7 +50,9 @@ import { constructorEvents, constructorProviderIds } from '../../events/race.js'
 import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events/queries.js';
 import { pickText } from '../../i18n.js';
 import { teamColors } from '../../teams/colors.js';
+import { loadRaceCareer } from '../../teams/career.js';
 import { loadTeamCompetitions } from '../../teams/load-campaigns.js';
+import { loadPhotos } from '../../teams/photos.js';
 import { ageAt, loadPerson, selectPeople } from '../../people/person.js';
 import { loadPersonOverview } from '../../people/overview.js';
 import {
@@ -61,7 +66,15 @@ import {
 import { positionName } from '../../people/stats.js';
 import { scheduleWindow } from '../../time.js';
 import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
-import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
+import {
+  assetUrl,
+  decodeCursor,
+  encodeCursor,
+  likeEscape,
+  logoSource,
+  parseInput,
+  UUID_RE,
+} from '../../util.js';
 import { resolveMarket } from '../../events/relevance.js';
 import { buildCtx, eventPage, localeOf, sportCheck } from './events.js';
 
@@ -170,7 +183,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       .where(and(eq(providerMap.entityType, 'participant'), eq(providerMap.entityId, id)));
     return {
       ...toSummary(row, nick),
-      logo_source: row.logoOrigin ?? null,
+      logo_source: logoSource(row.logoOrigin),
       country_ref: c
         ? { code: c.code, name: pickText(c.name as Record<string, string>, locale, c.code)! }
         : null,
@@ -506,6 +519,60 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
   });
 
   // ─── /v1/teams/:id/squad ─────────────────────────────────────────────────────────────────────
+  // ─── /v1/teams/:id/photos ───────────────────────────────────────────────────────────────────
+  // acervo de fotos de licenças livres (Wikimedia Commons), sempre com o crédito
+  app.get('/v1/teams/:id/photos', { config: MODULE }, async (request, reply) => {
+    const params = parseInput(TeamParams, request.params);
+    const query = parseInput(TeamPhotosQuery, request.query);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.catalog,
+      vary: [query.role ?? '', String(query.season ?? '')],
+      check: sportCheck(request),
+      load: async () => {
+        const db = requireDb(ctx);
+        const [p] = await db
+          .select({ id: participant.id })
+          .from(participant)
+          .where(eq(participant.id, params.id))
+          .limit(1);
+        if (!p) throw problems.notFound('Time');
+        const photos = await loadPhotos(db, [p.id], ctx.assetsBaseUrl, {
+          role: query.role,
+          season: query.season,
+        });
+        const body: TeamPhotos = { photos: photos.get(p.id) ?? [] };
+        return { body, tags: [`team:${p.id}`] };
+      },
+    });
+  });
+
+  // ─── /v1/teams/:id/career ───────────────────────────────────────────────────────────────────
+  // carreira na F1 (piloto ou construtor), do core
+  app.get('/v1/teams/:id/career', { config: MODULE }, async (request, reply) => {
+    const params = parseInput(TeamParams, request.params);
+    const query = parseInput(LocaleQuery, request.query);
+    const locale = localeOf(request, query);
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.standings,
+      vary: [locale],
+      check: sportCheck(request),
+      load: async () => {
+        const db = requireDb(ctx);
+        const [p] = await db
+          .select({ id: participant.id, sport: participant.sport, kind: participant.kind })
+          .from(participant)
+          .where(eq(participant.id, params.id))
+          .limit(1);
+        if (!p) throw problems.notFound('Time');
+        if (p.sport !== 'formula-1' || (p.kind !== 'driver' && p.kind !== 'constructor'))
+          throw problems.notFound('Carreira na F1');
+        const body: RaceCareer = await loadRaceCareer(db, p, locale, ctx.assetsBaseUrl);
+        return { body, tags: [`team:${p.id}`] };
+      },
+    });
+  });
+
   app.get('/v1/teams/:id/squad', { config: MODULE }, async (request, reply) => {
     const params = parseInput(TeamParams, request.params);
     const query = parseInput(SquadQuery, request.query);
