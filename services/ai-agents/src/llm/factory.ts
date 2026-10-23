@@ -8,6 +8,7 @@ import {
 } from './budget.js';
 import { llmSettingsFromEnv, type LlmSettings } from './config.js';
 import { AnthropicLlmClient } from './providers/anthropic.js';
+import { GeminiLlmClient } from './providers/gemini.js';
 import { OpenAiLlmClient } from './providers/openai.js';
 import type { LlmClient } from './types.js';
 
@@ -26,7 +27,7 @@ export interface LlmRuntime {
   budget: TokenBudget;
 }
 
-/** Cria o cliente do provedor escolhido por AI_PROVIDER, já com orçamento diário e registro de uso. */
+/** Cria o cliente do provedor escolhido por AI_PROVIDER (openai, anthropic ou gemini), já com orçamento diário e registro de uso. */
 export function createLlmClient(options: CreateLlmClientOptions = {}): LlmRuntime {
   const settings = llmSettingsFromEnv(options.env ?? process.env);
   const common = {
@@ -36,7 +37,11 @@ export function createLlmClient(options: CreateLlmClientOptions = {}): LlmRuntim
     ...(settings.apiKey ? { apiKey: settings.apiKey } : {}),
   };
   const raw: LlmClient =
-    settings.provider === 'anthropic' ? new AnthropicLlmClient(common) : new OpenAiLlmClient(common);
+    settings.provider === 'anthropic'
+      ? new AnthropicLlmClient(common)
+      : settings.provider === 'gemini'
+        ? new GeminiLlmClient(common)
+        : new OpenAiLlmClient(common);
   const budget = new TokenBudget(
     options.db ? new PgTokenBudgetStore(options.db) : new MemoryTokenBudgetStore(),
     {

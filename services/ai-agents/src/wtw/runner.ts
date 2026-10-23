@@ -148,6 +148,7 @@ export class WtwRunner {
                 importance: info!.importance ?? 0,
                 participantCountries: info!.participantCountries ?? [],
                 competitionCountry: info!.competition?.countryCode ?? null,
+                competition: info!.competition ? { sport: info!.sport, slug: info!.competition.slug } : null,
               },
               run.countryCode,
             );

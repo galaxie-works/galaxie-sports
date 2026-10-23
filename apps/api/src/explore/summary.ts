@@ -24,10 +24,16 @@ import {
   sport,
   type AssetPalette,
 } from '@galaxie/db';
-import type { GeoConfig } from '@galaxie/geo';
+import type { GeoConfig, MarketAudience } from '@galaxie/geo';
 import { buildEvents, type BuildContext } from '../events/builder.js';
 import { actuallyLiveCond, IN_PLAY } from '../events/queries.js';
-import { continentalSlugs, marketBonus, reasonDto, type ContinentalEntry } from '../events/relevance.js';
+import {
+  audienceOf,
+  continentalSlugs,
+  marketBonus,
+  reasonDto,
+  type ContinentalEntry,
+} from '../events/relevance.js';
 import { pickText } from '../i18n.js';
 import { teamColors } from '../teams/colors.js';
 import { assetUrl } from '../util.js';
@@ -140,6 +146,7 @@ export function countryActivity(
   continental: ReadonlySet<string>,
   prefer: HighlightPreference = { teams: new Set(), main: null },
   texts: { locale: string; continental: ContinentalEntry[] } = { locale: 'pt-BR', continental: [] },
+  audience?: MarketAudience | null,
 ): CountryActivity {
   let upcoming = 0;
   let live = 0;
@@ -159,6 +166,7 @@ export function countryActivity(
       code,
       { participantCountries: e.participantCountries, competition: e.competition },
       continental,
+      audienceOf(audience, code, e.competition, e.importance),
     );
     const comp = e.competition;
     const vars = {
@@ -349,6 +357,7 @@ export async function loadExploreSummary(
             main: mainBy.get(code) ?? null,
           },
           { locale, continental },
+          geo.audience,
         ),
       ] as const;
     }),

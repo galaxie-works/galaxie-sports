@@ -85,7 +85,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'context-run', service: 'agents', cron: '10 * * * *', runNow: true },
   { name: 'wtw-run', service: 'agents', cron: '*/5 * * * *', runNow: false },
   { name: 'related-run', service: 'agents', cron: '*/30 0-6,12-23 * * *', runNow: false },
-  { name: 'wtw-rights', service: 'agents', cron: '40 5 * * *', runNow: false },
+  { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
 ];
 
 /** Checagem da conta de IA, feita pelo scheduler dos agentes (o painel pede pela mesma fila do "rodar agora"). */
@@ -132,13 +132,13 @@ export function planKey(api: string): string {
 /** Mercados do Onde Assistir (ISO 3166-1 alfa-2; o mesmo de WTW_COUNTRIES). */
 export const WTW_MARKET_CODES = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as const;
 
-export const AI_PROVIDERS = ['openai', 'anthropic'] as const;
+export const AI_PROVIDERS = ['openai', 'anthropic', 'gemini'] as const;
 
 /** Modelos padrão por nível e provedor (espelho de DEFAULT_MODELS em services/ai-agents). */
 export const AI_DEFAULT_MODELS = {
-  light: { openai: 'gpt-6-luna', anthropic: 'claude-haiku-5-5' },
-  standard: { openai: 'gpt-6.1-sol', anthropic: 'claude-sonnet-5-5' },
-  research: { openai: 'gpt-6.1-sol', anthropic: 'claude-sonnet-5-5' },
+  light: { openai: 'gpt-6-luna', anthropic: 'claude-haiku-5-5', gemini: 'gemini-3.5-flash-lite' },
+  standard: { openai: 'gpt-6.1-sol', anthropic: 'claude-sonnet-5-5', gemini: 'gemini-3.8-flash' },
+  research: { openai: 'gpt-6.1-sol', anthropic: 'claude-sonnet-5-5', gemini: 'gemini-3.8-flash' },
 } as const;
 
 const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,80}$/;
@@ -247,6 +247,15 @@ export const SETTINGS: readonly SettingDef[] = [
     default: null,
   }),
   agents('wtw', { key: 'WTW_MIN_RELEVANCE', type: 'number', min: 0, max: 100, default: '60' }),
+  // pesquisa de direitos por temporada com outro provedor (vazio = o AI_PROVIDER dos demais agentes)
+  agents('wtw', {
+    key: 'AI_RIGHTS_PROVIDER',
+    type: 'enum',
+    options: AI_PROVIDERS,
+    allowEmpty: true,
+    default: null,
+  }),
+  agents('wtw', { key: 'AI_RIGHTS_MODEL', type: 'text', pattern: MODEL_ID, allowEmpty: true, default: null }),
   agents('wtw', {
     key: 'WTW_DAILY_USD_PER_MARKET',
     type: 'number',
@@ -306,6 +315,7 @@ export const SETTINGS: readonly SettingDef[] = [
   secret('APISPORTS_KEY', 'provider', ['ingestor']),
   secret('OPENAI_API_KEY', 'ai', ['agents']),
   secret('ANTHROPIC_API_KEY', 'ai', ['agents']),
+  secret('GEMINI_API_KEY', 'ai', ['agents']),
   secret('YOUTUBE_API_KEY', 'related', ['agents']),
   secret('S3_ACCESS_KEY', 'credentials', ['ingestor']),
   secret('S3_SECRET_KEY', 'credentials', ['ingestor']),

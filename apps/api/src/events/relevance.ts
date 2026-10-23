@@ -10,7 +10,11 @@
  *   +5  competição do país, ou continental/de seleções da confederação do mercado (FIFA/global não conta);
  *   +5  semifinal de mata-mata cuja outra semifinal tem um time do país: o jogo define o adversário dele
  *       na final (ou, decidida a outra semi e com disputa de 3º lugar, o adversário de quem caiu);
- *   bônus total ≤ 10; score = min(100, importance + bônus).
+ *   bônus do país ≤ 10;
+ *   + audiência da competição no mercado (config/geo/market-audience.yaml, 0–40): a liga nacional no
+ *     próprio país e as grandes europeias, que a importância global não diferencia por país. Vale inteira
+ *     até importância 44 e proporcional acima (`audienceFor`), para o jogo grande não empatar no teto;
+ *   score = min(100, importance + bônus), com bônus = bônus do país + audiência.
  * O detalhe do evento traz a conta em todos os mercados ativos (`relevance_by_market`).
  */
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
@@ -23,7 +27,14 @@ import type {
   RelevanceReasonCode,
 } from '@galaxie/contracts';
 import { competition, event, participant, season, stage, type EventImportanceBreakdown } from '@galaxie/db';
-import { GLOBAL_CONFEDERATION, loadGeoConfig, type GeoConfig } from '@galaxie/geo';
+import {
+  AUDIENCE_FULL_UNTIL,
+  audienceFor,
+  GLOBAL_CONFEDERATION,
+  loadGeoConfig,
+  type GeoConfig,
+  type MarketAudience,
+} from '@galaxie/geo';
 import { knockoutStageRules } from '@galaxie/rules';
 import {
   goalsOf,
@@ -144,11 +155,26 @@ export interface MarketReason {
   teams: BracketTeam[];
 }
 
-/** Bônus de mercado (função pura). `details` traz os pontos de cada motivo; `bonus` respeita o teto. */
+/** Pontos de audiência da competição no mercado para um jogo dessa importância (0 sem config/geo). */
+export function audienceOf(
+  audience: MarketAudience | null | undefined,
+  market: string,
+  competition: { sport: string; slug: string } | null | undefined,
+  importance: number,
+): number {
+  if (!audience || !competition) return 0;
+  return audienceFor(audience.points(market, competition.sport, competition.slug), importance);
+}
+
+/**
+ * Bônus de mercado (função pura). `details` traz os pontos de cada motivo; o bônus do país respeita o
+ * teto de 10 e a audiência (`audience`, pontos de config/geo/market-audience.yaml) soma por fora.
+ */
 export function marketBonus(
   market: string,
   facts: MarketFacts,
   continental: ReadonlySet<string>,
+  audience = 0,
 ): { bonus: number; reasons: EventRelevance['reasons']; details: MarketReason[] } {
   const details: MarketReason[] = [];
   if (facts.participantCountries.some((c) => inMarket(c, market)))
@@ -165,10 +191,12 @@ export function marketBonus(
     details.push({ code: 'decides_final_opponent', points: OPPONENT_BONUS, teams: toFinal });
   else if (rivals.length)
     details.push({ code: 'decides_third_place_opponent', points: OPPONENT_BONUS, teams: rivals });
-  const bonus = Math.min(
-    MAX_MARKET_BONUS,
-    details.reduce((sum, d) => sum + d.points, 0),
-  );
+  const bonus =
+    Math.min(
+      MAX_MARKET_BONUS,
+      details.reduce((sum, d) => sum + d.points, 0),
+    ) + audience;
+  if (audience > 0) details.push({ code: 'market_audience', points: audience, teams: [] });
   return { bonus, reasons: details.map((d) => d.code), details };
 }
 
@@ -202,6 +230,7 @@ const REASON_TEXTS: Record<Lang, ReasonDict> = {
           : 'Competição da confederação',
     decides_final_opponent: (v) => `Define o adversário de ${v.rivals} na final`,
     decides_third_place_opponent: (v) => `Define o adversário de ${v.rivals} na disputa do 3º lugar`,
+    market_audience: () => 'Audiência da competição no país',
   },
   es: {
     and: 'y',
@@ -216,6 +245,7 @@ const REASON_TEXTS: Record<Lang, ReasonDict> = {
           : 'Competición de la confederación',
     decides_final_opponent: (v) => `Define el rival de ${v.rivals} en la final`,
     decides_third_place_opponent: (v) => `Define el rival de ${v.rivals} en el partido por el 3.er puesto`,
+    market_audience: () => 'Audiencia de la competición en el país',
   },
   en: {
     and: 'and',
@@ -230,6 +260,7 @@ const REASON_TEXTS: Record<Lang, ReasonDict> = {
           : 'Confederation competition',
     decides_final_opponent: (v) => `Decides the final opponent of ${v.rivals}`,
     decides_third_place_opponent: (v) => `Decides the third-place opponent of ${v.rivals}`,
+    market_audience: () => 'Competition audience in the country',
   },
 };
 
@@ -419,6 +450,7 @@ function relevanceOf(
   facts: RelevanceFacts,
   continental: ContinentalEntry[],
   locale: string,
+  geo: GeoConfig | null,
 ): EventRelevance {
   const comp = e.competition ? facts.compOf.get(e.competition.id) : undefined;
   const { bonus, reasons, details } = marketBonus(
@@ -429,6 +461,7 @@ function relevanceOf(
       bracket: facts.brackets.get(e.id),
     },
     new Set(continental.map((c) => `${c.sport}|${c.slug}`)),
+    audienceOf(geo?.audience, market, comp, e.importance),
   );
   const vars = {
     teams: e.participants.filter((p) => inMarket(facts.countryOf.get(p.id), market)).map((p) => p.name),
@@ -453,7 +486,7 @@ export async function applyRelevance(
   if (!market || !events.length) return;
   const facts = await loadFacts(ctx, events);
   const continental = continentalSlugs(geo, market);
-  for (const e of events) e.relevance = relevanceOf(e, market, facts, continental, ctx.locale);
+  for (const e of events) e.relevance = relevanceOf(e, market, facts, continental, ctx.locale, geo);
 }
 
 /**
@@ -473,16 +506,16 @@ export async function applyRelevanceByMarket(
     [...new Set([...markets, ...(market ? [market] : [])])].map((m) => [m, continentalSlugs(geo, m)]),
   );
   for (const e of events) {
-    if (market) e.relevance = relevanceOf(e, market, facts, continental.get(market)!, ctx.locale);
+    if (market) e.relevance = relevanceOf(e, market, facts, continental.get(market)!, ctx.locale, geo);
     e.relevance_by_market = markets
-      .map((m, i) => ({ r: relevanceOf(e, m, facts, continental.get(m)!, ctx.locale), i }))
+      .map((m, i) => ({ r: relevanceOf(e, m, facts, continental.get(m)!, ctx.locale, geo), i }))
       .sort((a, b) => b.r.score - a.r.score || a.i - b.i)
       .map(({ r }) => r);
   }
 }
 
 /**
- * Mesma conta em SQL (ordenação `order=relevance` e filtro `relevance_min`). O bônus da semifinal aqui
+ * Mesma conta em SQL (ordenação `order=relevance` e filtro `relevance_min`), com a audiência do mercado. O bônus da semifinal aqui
  * considera os dois times da outra semifinal mesmo depois de decidida; a resposta (`relevance`) é exata.
  */
 export function relevanceSql(market: string, geo: GeoConfig | null = marketGeo()): SQL {
@@ -494,7 +527,16 @@ export function relevanceSql(market: string, geo: GeoConfig | null = marketGeo()
         sql`, `,
       )})`
     : sql``;
-  return sql`least(100, ${event.importance} + least(${MAX_MARKET_BONUS},
+  const audience = geo?.audience.entries(market) ?? [];
+  const audienceSql = audience.length
+    ? sql` + coalesce((select least(pts, round(pts * greatest(0, 100 - ${event.importance}) / ${
+        100 - AUDIENCE_FULL_UNTIL
+      }::numeric))::int from (select case ${sql.join(
+        audience.map((a) => sql`when c.sport = ${a.sport} and c.slug = ${a.slug} then ${a.points}::int`),
+        sql` `,
+      )} end as pts from core.competition c where c.id = ${event.competitionId}) a), 0)`
+    : sql``;
+  return sql`least(100, ${event.importance}${audienceSql} + least(${MAX_MARKET_BONUS},
     (case when exists (select 1 from core.event_participant ep
                          join core.participant p on p.id = ep.participant_id
                         where ep.event_id = ${event.id}

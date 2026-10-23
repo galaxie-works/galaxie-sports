@@ -113,9 +113,10 @@ jobs:
             const env = process.env;
             const need = {
               api: [env.RULES_CONFIG_DIR + "/default.yaml", env.WTW_CONFIG_DIR + "/broadcasters", env.KNOWLEDGE_DIR + "/glossary",
-                    env.MEDIA_DENYLIST_PATH, env.GEO_CONFIG_DIR, "/srv/config/plans.yaml"],
+                    env.MEDIA_DENYLIST_PATH, env.GEO_CONFIG_DIR + "/market-audience.yaml", "/srv/config/plans.yaml"],
               ingestor: [env.RULES_CONFIG_DIR + "/default.yaml", env.WTW_CONFIG_DIR + "/broadcasters",
                          env.WTW_CONFIG_DIR + "/related-content", "/srv/config/competitions", "/srv/data/knowledge",
+                         env.GEO_CONFIG_DIR + "/market-audience.yaml",
                          "/srv/services/ai-agents/dist/cli/recap-run.js"],
             }["${{ matrix.image }}"];
             const missing = need.filter((p) => !p || p.includes("undefined") || !fs.existsSync(p));

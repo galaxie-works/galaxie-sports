@@ -413,6 +413,15 @@ export default defineMessages(
         description: 'Gasto máximo de IA por país, por dia.',
         unit: 'US$',
       },
+      AI_RIGHTS_PROVIDER: {
+        label: 'Provedor da pesquisa de direitos',
+        description:
+          'Quem pesquisa os direitos de cada competição por temporada. Vazio usa o provedor dos demais agentes; gemini usa a busca do Google.',
+      },
+      AI_RIGHTS_MODEL: {
+        label: 'Modelo da pesquisa de direitos',
+        description: 'Vazio usa o modelo de pesquisa padrão do provedor escolhido.',
+      },
       YOUTUBE_DAILY_QUOTA: {
         label: 'Cota diária do YouTube',
         description: 'Unidades por dia do projeto no YouTube (zera à meia-noite do Pacífico).',
@@ -446,6 +455,7 @@ export default defineMessages(
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
+      GEMINI_API_KEY: { label: 'Chave do Gemini' },
       YOUTUBE_API_KEY: { label: 'Chave do YouTube' },
       S3_ACCESS_KEY: { label: 'Armazenamento: chave de acesso' },
       S3_SECRET_KEY: { label: 'Armazenamento: segredo' },
@@ -835,6 +845,15 @@ export default defineMessages(
           description: 'Maximum AI spend per country, per day.',
           unit: 'US$',
         },
+        AI_RIGHTS_PROVIDER: {
+          label: 'Rights research provider',
+          description:
+            "Who researches each competition's season rights. Empty uses the other agents' provider; gemini uses Google Search.",
+        },
+        AI_RIGHTS_MODEL: {
+          label: 'Rights research model',
+          description: "Empty uses the chosen provider's default research model.",
+        },
         YOUTUBE_DAILY_QUOTA: {
           label: 'YouTube daily quota',
           description: "The project's units per day on YouTube (resets at Pacific midnight).",
@@ -869,6 +888,7 @@ export default defineMessages(
         APISPORTS_KEY: { label: 'api-sports key' },
         OPENAI_API_KEY: { label: 'OpenAI key' },
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
+        GEMINI_API_KEY: { label: 'Gemini key' },
         YOUTUBE_API_KEY: { label: 'YouTube key' },
         S3_ACCESS_KEY: { label: 'Storage: access key' },
         S3_SECRET_KEY: { label: 'Storage: secret' },
@@ -1269,6 +1289,15 @@ export default defineMessages(
           description: 'Gasto máximo de IA por país, por día.',
           unit: 'US$',
         },
+        AI_RIGHTS_PROVIDER: {
+          label: 'Proveedor de la búsqueda de derechos',
+          description:
+            'Quién busca los derechos de cada competencia por temporada. Vacío usa el proveedor de los demás agentes; gemini usa la búsqueda de Google.',
+        },
+        AI_RIGHTS_MODEL: {
+          label: 'Modelo de la búsqueda de derechos',
+          description: 'Vacío usa el modelo de búsqueda por defecto del proveedor elegido.',
+        },
         YOUTUBE_DAILY_QUOTA: {
           label: 'Cuota diaria de YouTube',
           description: 'Unidades por día del proyecto en YouTube (se reinicia a la medianoche del Pacífico).',
@@ -1303,6 +1332,7 @@ export default defineMessages(
         APISPORTS_KEY: { label: 'Clave de api-sports' },
         OPENAI_API_KEY: { label: 'Clave de OpenAI' },
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },
+        GEMINI_API_KEY: { label: 'Clave de Gemini' },
         YOUTUBE_API_KEY: { label: 'Clave de YouTube' },
         S3_ACCESS_KEY: { label: 'Almacenamiento: clave de acceso' },
         S3_SECRET_KEY: { label: 'Almacenamiento: secreto' },

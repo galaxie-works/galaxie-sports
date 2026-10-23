@@ -1,0 +1,113 @@
+# =============================================================================
+# Galaxie Sports - audiência das competições por mercado (relevância por país, docs/06 §3.2).
+# Consumido pela API (`relevance`, `relevance_by_market`, `order=relevance`) e pelo Onde Assistir
+# (services/ai-agents: limiar WTW_MIN_RELEVANCE da alocação e da pesquisa de direitos).
+# Validado por packages/geo (Zod + testes de calibração).
+#
+# Por que existe: a importância (0–100) é global e o bônus do país (time do país +10, competição do
+# país/continental +5, semifinal +5) vai só até +10. Sem este arquivo, a rodada da liga nacional no
+# próprio país fica em ~55–60 (a Liga MX no México saía com 59, abaixo do limiar 60) e as grandes
+# europeias em ~45 em toda a América Latina, embora sejam o que o público desses países mais vê.
+#
+# relevância = min(100, importância + min(10, bônus do país) + audiência efetiva)
+# A audiência vale inteira até importância 44 (rodada comum de tier 1) e, acima disso, só a fração
+# proporcional do que falta até 100 (`audienceFor` em packages/geo): o jogo grande já está perto do
+# topo, e a audiência inteira o empataria no teto com a rodada comum (o clássico da liga empataria
+# com a semifinal da Libertadores).
+#
+# CAMPOS
+#   common                      - pontos por competição em TODOS os mercados (por esporte).
+#   markets.<ISO2>.<esporte>    - pontos no mercado; substituem os de `common` para a mesma competição.
+# Pontos: inteiros de 0 a 40 (MAX_AUDIENCE). Slugs de config/competitions/<esporte>.yaml.
+#
+# CALIBRAÇÃO (tier 1 = 40 pontos de importância; tier 2 = 25; rodada de pontos corridos = 4–10)
+#   35  liga nacional de 1ª divisão no próprio país → rodada comum fica em 89–100 (perto do topo).
+#   25  liga nacional de 2ª linha com audiência própria (Série B no Brasil, Liga MX Femenil no México)
+#       → rodada comum em 64–70, acima do limiar 60.
+#   20  Premier League e LaLiga (as europeias mais vistas na região) → 64–70 em todo mercado.
+#   16  Serie A, Bundesliga, Ligue 1 e Champions League → 60–66: o mínimo que põe a 1ª rodada (44) no
+#       limiar (fase de liga da Champions: 72–78).
+#   10–15  liga de um vizinho com audiência no país (Liga Profesional no Uruguai e no Paraguai).
+#   35/25  Libertadores e Sul-Americana nos mercados da CONMEBOL (fase de grupos da Libertadores com time
+#          do país: 94).
+# Fora daqui (abaixo do limiar sem jogo decisivo): Eredivisie, Primeira Liga, EFL Championship, Saudi
+# Pro League e MLS — ficam "a confirmar" sem gastar LLM. Estaduais do Brasil também ficam de fora por
+# enquanto (custo: são muitas rodadas); a final e os mata-matas passam pelo próprio peso da fase.
+# Revisão: out/2026.
+# =============================================================================
+schema_version: 1
+
+common:
+  football:
+    premier-league: 20
+    laliga: 20
+    serie-a-italia: 16
+    bundesliga: 16
+    ligue-1: 16
+    uefa-champions-league: 16
+
+markets:
+  BR:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      brasileirao-serie-a: 35
+      copa-do-brasil: 35
+      brasileirao-serie-b: 25
+  AR:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      argentina-liga-profesional: 35
+      argentina-copa-de-la-liga: 35
+      copa-argentina: 30
+  UY:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      uruguay-primera: 35
+      uruguay-primera-clausura: 35
+      argentina-liga-profesional: 15
+  CL:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      chile-primera-division: 35
+  CO:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      colombia-primera-a: 35
+  PY:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      paraguay-primera-apertura: 35
+      paraguay-primera-clausura: 35
+      argentina-liga-profesional: 10
+  PE:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      peru-liga-1: 35
+  EC:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      ecuador-ligapro-serie-a: 35
+  BO:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      bolivia-primera-division: 35
+  VE:
+    football:
+      conmebol-libertadores: 35
+      conmebol-sudamericana: 25
+      venezuela-primera-division: 35
+  MX:
+    football:
+      liga-mx: 35
+      liga-mx-femenil: 25
+      concacaf-champions-cup: 15
+      leagues-cup: 15

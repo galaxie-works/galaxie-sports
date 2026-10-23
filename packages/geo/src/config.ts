@@ -1,9 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import type * as z from 'zod';
+import { MarketAudience } from './audience.js';
 import {
+  AudienceFile,
   GeoFile,
   GLOBAL_CONFEDERATION,
   ScopeFile,
@@ -69,12 +71,14 @@ export class GeoConfig {
   readonly markets: string[];
   readonly navigationSports: { slug: string; name: I18nName }[];
   readonly regions: Record<string, string>;
+  /** Audiência das competições por mercado (config/geo/market-audience.yaml). */
+  readonly audience: MarketAudience;
   private readonly countries = new Map<string, GeoCountry>();
   private readonly scopes = new Map<string, ScopeEntry[]>();
   private readonly excluded = new Map<string, Set<string>>();
   private readonly featured = new Map<string, Map<string, number>>();
 
-  constructor(geo: GeoFile, scope: ScopeFile) {
+  constructor(geo: GeoFile, scope: ScopeFile, audience?: AudienceFile) {
     this.confederations = geo.confederations.map((c) => ({
       code: c.code,
       name: c.name,
@@ -146,6 +150,11 @@ export class GeoConfig {
         throw new GeoConfigError(`${sport}: competição repetida em featured.`);
       this.featured.set(sport, new Map(def.featured.map((slug, i) => [slug, i])));
     }
+
+    for (const market of Object.keys(audience?.markets ?? {}))
+      if (!this.countries.has(market) && !this.allCountries().some((c) => c.code.startsWith(`${market}-`)))
+        throw new GeoConfigError(`market-audience.yaml: mercado ${market} desconhecido.`);
+    this.audience = new MarketAudience(audience);
   }
 
   /** Posição de uma competição doméstica na lista `featured` do esporte; null fora dela. */
@@ -202,16 +211,18 @@ export class GeoConfig {
   }
 }
 
-/** Valida os dois arquivos já interpretados do YAML. */
-export function parseGeoConfig(geoRaw: unknown, scopeRaw: unknown): GeoConfig {
+/** Valida os arquivos já interpretados do YAML (sem o de audiência, nenhuma competição soma pontos). */
+export function parseGeoConfig(geoRaw: unknown, scopeRaw: unknown, audienceRaw?: unknown): GeoConfig {
   return new GeoConfig(
     check(GeoFile, geoRaw, 'confederations.yaml'),
     check(ScopeFile, scopeRaw, 'competition-scope.yaml'),
+    audienceRaw === undefined ? undefined : check(AudienceFile, audienceRaw, 'market-audience.yaml'),
   );
 }
 
 /** Lê e valida config/geo (padrão: a pasta do monorepo ou `GEO_CONFIG_DIR`). */
 export function loadGeoConfig(dir = defaultGeoDir()): GeoConfig {
   const read = (file: string) => parse(readFileSync(join(dir, file), 'utf8')) as unknown;
-  return parseGeoConfig(read('confederations.yaml'), read('competition-scope.yaml'));
+  const audience = existsSync(join(dir, 'market-audience.yaml')) ? read('market-audience.yaml') : undefined;
+  return parseGeoConfig(read('confederations.yaml'), read('competition-scope.yaml'), audience);
 }

@@ -1,7 +1,9 @@
+export { AUDIENCE_FULL_UNTIL, audienceFor, MarketAudience, type AudienceEntry } from './audience.js';
 export {
   COMPETITION_SCOPES,
   GLOBAL_CONFEDERATION,
   INTERNATIONAL_SCOPES,
+  MAX_AUDIENCE,
   type CompetitionScope,
   type I18nName,
   type InternationalScope,

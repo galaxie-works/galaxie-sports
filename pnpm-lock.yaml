@@ -344,6 +344,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/geo':
+        specifier: workspace:*
+        version: link:../../packages/geo
       '@galaxie/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge

@@ -132,6 +132,7 @@ export async function forecast(
               importance: e.importance,
               participantCountries: e.participantCountries,
               competitionCountry: e.countryCode,
+              competition: { sport: e.sport, slug: e.slug },
             },
             m,
           ),

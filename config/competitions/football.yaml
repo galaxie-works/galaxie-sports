@@ -728,7 +728,8 @@ competitions:
     live_priority: low
     labels: { pt-BR: "Campeonato Venezuelano (Liga FUTVE)", es: "Liga FUTVE", en: "Venezuelan Primera División" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/299.png"]
-  # scope marked it with '?' - kept in tier 2, low live priority
+  # tier 2; medium live priority: Mexico is an active market and the league has free national
+  # coverage (Tubi, the league's YouTube channel, Televisa) - low left it out of the live plan.
   - slug: liga-mx-femenil
     name: "Liga MX Femenil"
     country: "Mexico"
@@ -738,7 +739,7 @@ competitions:
     tier: 2
     region: north-central-america
     seasons_strategy: split-year
-    live_priority: low
+    live_priority: medium
     labels: { pt-BR: "Liga MX Feminina", es: "Liga MX Femenil", en: "Liga MX Femenil" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/673.png"]
   - slug: argentina-primera-nacional

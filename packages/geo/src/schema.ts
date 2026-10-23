@@ -81,3 +81,19 @@ export const ScopeFile = z.strictObject({
   ),
 });
 export type ScopeFile = z.output<typeof ScopeFile>;
+
+/** Teto dos pontos de audiência de uma competição num mercado (config/geo/market-audience.yaml). */
+export const MAX_AUDIENCE = 40;
+
+const AudiencePoints = z.number().int().min(0).max(MAX_AUDIENCE);
+/** Pontos por competição, por esporte. */
+const AudienceBySport = z.record(Slug, z.record(Slug, AudiencePoints));
+
+export const AudienceFile = z.strictObject({
+  schema_version: z.literal(1),
+  /** Pontos em todos os mercados. */
+  common: AudienceBySport.default({}),
+  /** Pontos por mercado (ISO2); substituem os de `common` para a mesma competição. */
+  markets: z.record(z.string().regex(/^[A-Z]{2}$/, 'mercado ISO2'), AudienceBySport).default({}),
+});
+export type AudienceFile = z.output<typeof AudienceFile>;

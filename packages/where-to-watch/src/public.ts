@@ -1,7 +1,11 @@
 /** Leitura pública do onde assistir (GET /v1/events/{id}/where-to-watch, docs/05 §4). */
 import { and, eq, isNull } from 'drizzle-orm';
-import { broadcastOption, event, type Database } from '@galaxie/db';
+import { broadcastOption, competition, event, season, type Database } from '@galaxie/db';
+import type { WtwConfig } from './config/directory.js';
+import type { AccessModel, BroadcastMedium } from '@galaxie/db';
 import { listBroadcasters } from './library.js';
+import { currentResearchedRights, ResearchedRightsIndex } from './rights-research.js';
+import { effectiveRights } from './rights.js';
 import type { BroadcastOptionRow } from './store.js';
 
 /** Mensagem quando não há informação confiável — o evento continua existindo. */
@@ -58,7 +62,58 @@ export interface PublicWhereToWatch {
   options: PublicOption[];
   /** Detentores de direitos sem o jogo confirmado ("canal a confirmar", status `probable`). */
   toConfirm: PublicOption[];
+  /**
+   * Sem nenhuma opção gravada (o jogo ainda não passou por nenhuma janela no país — mercado novo,
+   * jogo distante): os detentores dos direitos efetivos, ou os incertos quando só eles existem,
+   * "a confirmar". Nunca "sem informações" quando a curadoria ou a pesquisa sabem quem pode passar.
+   */
+  fromRights: PublicRightsOption[];
   updatedAt: Date | null;
+}
+
+/** Detentor de direitos sem opção gravada: entra em `to_confirm` com as fontes da linha de direitos. */
+export interface PublicRightsOption {
+  providerName: string;
+  broadcasterId: string;
+  medium: BroadcastMedium;
+  accessModel: AccessModel;
+  sources: PublicSource[];
+  logo: PublicLogo | null;
+}
+
+/** Detentores dos direitos efetivos do evento no país (curadoria vence; incertos se não há certos). */
+async function rightsToConfirm(
+  db: Database,
+  config: WtwConfig,
+  eventId: string,
+  country: string,
+): Promise<Omit<PublicRightsOption, 'logo'>[]> {
+  if (!config.has(country)) return [];
+  const [ev] = await db
+    .select({ slug: competition.slug, startsAt: event.startsAt, year: season.year })
+    .from(event)
+    .innerJoin(competition, eq(competition.id, event.competitionId))
+    .leftJoin(season, eq(season.id, event.seasonId))
+    .where(eq(event.id, eventId));
+  if (!ev) return [];
+  const year = ev.year ?? ev.startsAt.getUTCFullYear();
+  const researched = new ResearchedRightsIndex(
+    await currentResearchedRights(db, { competitions: [ev.slug], countries: [country] }),
+  );
+  const directory = config.directory(country);
+  const entry = effectiveRights(
+    directory.rightsFor(ev.slug, ev.startsAt),
+    researched.get(ev.slug, year, country),
+  );
+  if (!entry) return [];
+  const ids = entry.holders.length ? entry.holders : entry.uncertainHolders;
+  const sources = entry.sources.map((url) => ({ publisher: new URL(url).hostname, url }));
+  return ids.flatMap((id) => {
+    const b = directory.byIdOrNull(id);
+    return b
+      ? [{ providerName: b.name, broadcasterId: b.id, medium: b.medium, accessModel: b.accessModel, sources }]
+      : [];
+  });
 }
 
 /**
@@ -69,6 +124,8 @@ export interface PublicWhereToWatch {
 export async function getPublicWhereToWatch(
   db: Database,
   params: { eventId: string; country: string; region?: string | null },
+  /** Com a configuração, o país sem nenhuma opção gravada mostra os detentores dos direitos. */
+  config?: WtwConfig | null,
 ): Promise<PublicWhereToWatch | null> {
   const [ev] = await db.select({ id: event.id }).from(event).where(eq(event.id, params.eventId));
   if (!ev) return null;
@@ -98,11 +155,18 @@ export async function getPublicWhereToWatch(
     ? []
     : rows.filter((r) => r.status === 'probable' && inRegion(r)).sort(order);
 
+  const fallback =
+    config && !confirmed.length && !probable.length
+      ? await rightsToConfirm(db, config, params.eventId, country)
+      : [];
   const ids = [
-    ...new Set([...confirmed, ...probable].flatMap((r) => (r.broadcasterId ? [r.broadcasterId] : []))),
+    ...new Set([
+      ...[...confirmed, ...probable].flatMap((r) => (r.broadcasterId ? [r.broadcasterId] : [])),
+      ...fallback.map((f) => f.broadcasterId),
+    ]),
   ];
   const library = new Map((await listBroadcasters(db, { ids })).map((b) => [b.id, b]));
-  const logoOf = (row: BroadcastOptionRow): PublicLogo | null => {
+  const logoOf = (row: Pick<BroadcastOptionRow, 'broadcasterId'>): PublicLogo | null => {
     const b = row.broadcasterId ? library.get(row.broadcasterId) : undefined;
     if (!b || (!b.logoStorageKey && !b.logoSourceUrl)) return null;
     return { storageKey: b.logoStorageKey, sourceUrl: b.logoSourceUrl };
@@ -128,6 +192,7 @@ export async function getPublicWhereToWatch(
     status: options.length ? 'resolved' : 'unknown',
     options,
     toConfirm,
+    fromRights: fallback.map((f) => ({ ...f, logo: logoOf(f) })),
     updatedAt: stamps.length ? new Date(Math.max(...stamps)) : null,
   };
 }

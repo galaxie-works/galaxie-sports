@@ -22,9 +22,16 @@ rights:
     valid_from: 2026-01-01
     valid_to: 2026-12-31
     per_round_selection: false
-    holders: []
-    uncertain_holders: [fox_sports, disney_plus, espn]
+    distribution: split
+    holders: [fox_sports, disney_plus, espn, telefe]
+    # Fox Sports + Disney+ nos mata-matas; Telefe (aberta) com um jogo por rodada na fase de grupos
+    uncertain_holders: [paramount_plus]
+    notes: >-
+      Fox Sports (2 e 3), ESPN e Disney+ na TV paga e no streaming; Telefe na TV aberta (um jogo por
+      rodada na fase de grupos, também no YouTube e no Pluto TV). Semifinais: Fox Sports e Disney+.
     sources:
+      - https://www.c5n.com/deportes/copa-libertadores-que-partidos-boca-se-podran-ver-tv-abierta-n232996
+      - https://www.elgrafico.com.ar/articulo/conmebol-libertadores/93540/copa-libertadores-dias-horarios-y-tv-de-las-semifinales
       - https://unanimodeportes.com/deportes/futbol/copa-libertadores/donde-ver-jornada-6/
   - competition: conmebol-sudamericana
     season: 2026

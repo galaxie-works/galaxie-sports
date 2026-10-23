@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
+import { audienceFor } from './audience.js';
 import { GeoConfigError, loadGeoConfig, parseGeoConfig } from './config.js';
 
 const competitionsDir = fileURLToPath(new URL('../../../config/competitions/', import.meta.url));
@@ -133,6 +134,48 @@ describe('config/geo do repositório', () => {
     expect(geo.isExcluded('formula-1', 'formula-1-world-championship')).toBe(true);
     expect(geo.internationalFor('BR', 'formula-1')).toEqual([]);
   });
+
+  it('audiência: toda competição existe no catálogo e todo mercado está entre os ativos', () => {
+    for (const market of geo.audience.markets()) expect(geo.markets, market).toContain(market);
+    for (const market of geo.markets)
+      for (const e of geo.audience.entries(market)) {
+        const slugs = new Set((catalogs.get(e.sport) ?? []).map((c) => c.slug));
+        expect(slugs.has(e.slug), `${market} ${e.sport}/${e.slug}`).toBe(true);
+      }
+  });
+
+  it('audiência: a liga nacional de 1ª divisão pesa no próprio país (35), não nos vizinhos', () => {
+    const top: Record<string, string> = {
+      BR: 'brasileirao-serie-a',
+      AR: 'argentina-liga-profesional',
+      UY: 'uruguay-primera',
+      CL: 'chile-primera-division',
+      CO: 'colombia-primera-a',
+      PY: 'paraguay-primera-clausura',
+      PE: 'peru-liga-1',
+      EC: 'ecuador-ligapro-serie-a',
+      BO: 'bolivia-primera-division',
+      VE: 'venezuela-primera-division',
+      MX: 'liga-mx',
+    };
+    for (const market of geo.markets) {
+      expect(geo.audience.points(market, 'football', top[market]), market).toBe(35);
+      const country = (catalogs.get('football') ?? []).find((c) => c.slug === top[market])!.country;
+      expect(country, market).not.toBe('World');
+    }
+    expect(geo.audience.points('MX', 'football', 'brasileirao-serie-a')).toBe(0);
+    expect(geo.audience.points('BR', 'football', 'liga-mx')).toBe(0);
+    expect(geo.audience.points('MX', 'football', 'liga-mx-femenil')).toBe(25);
+  });
+
+  it('audiência: Premier League e LaLiga (20) e as outras grandes europeias (16) em todo mercado', () => {
+    for (const market of geo.markets) {
+      expect(geo.audience.points(market, 'football', 'premier-league'), market).toBe(20);
+      expect(geo.audience.points(market, 'football', 'laliga'), market).toBe(20);
+      for (const slug of ['serie-a-italia', 'bundesliga', 'ligue-1', 'uefa-champions-league'])
+        expect(geo.audience.points(market, 'football', slug), `${market} ${slug}`).toBe(16);
+    }
+  });
 });
 
 describe('parseGeoConfig', () => {
@@ -222,5 +265,39 @@ describe('parseGeoConfig', () => {
     ],
   ])('rejeita %s', (_label, g, s) => {
     expect(() => parseGeoConfig(g, s)).toThrow(GeoConfigError);
+  });
+
+  it('audiência: o mercado sobrescreve `common`; sem arquivo, nenhuma competição soma', () => {
+    const cfg = parseGeoConfig(geo(), scope(), {
+      schema_version: 1,
+      common: { football: { 'liga-a': 20, 'liga-b': 15 } },
+      markets: { AR: { football: { 'liga-a': 5, 'liga-c': 35 } }, GB: { football: { 'liga-b': 0 } } },
+    });
+    expect(cfg.audience.points('AR', 'football', 'liga-a')).toBe(5);
+    expect(cfg.audience.points('AR', 'football', 'liga-b')).toBe(15);
+    expect(cfg.audience.points('AR', 'football', 'liga-c')).toBe(35);
+    expect(cfg.audience.points('BR', 'football', 'liga-a')).toBe(20);
+    expect(cfg.audience.points('BR', 'football', 'liga-c')).toBe(0);
+    expect(cfg.audience.points('BR', 'basketball', 'liga-a')).toBe(0);
+    expect(cfg.audience.points('GB', 'football', 'liga-b')).toBe(0);
+    expect(cfg.audience.entries('GB')).toEqual([{ sport: 'football', slug: 'liga-a', points: 20 }]);
+    expect(parseGeoConfig(geo(), scope()).audience.points('BR', 'football', 'liga-a')).toBe(0);
+  });
+
+  it('audiência efetiva: inteira até importância 44, proporcional acima (sem empatar no teto)', () => {
+    expect(audienceFor(35, 29)).toBe(35);
+    expect(audienceFor(35, 44)).toBe(35);
+    expect(audienceFor(35, 70)).toBe(19);
+    expect(audienceFor(35, 88)).toBe(8);
+    expect(audienceFor(35, 100)).toBe(0);
+    expect(audienceFor(0, 10)).toBe(0);
+  });
+
+  it.each([
+    ['mercado desconhecido', { schema_version: 1, markets: { US: { football: { a: 10 } } } }],
+    ['pontos acima do teto', { schema_version: 1, common: { football: { a: 41 } } }],
+    ['pontos fracionados', { schema_version: 1, common: { football: { a: 7.5 } } }],
+  ])('audiência: rejeita %s', (_label, a) => {
+    expect(() => parseGeoConfig(geo(), scope(), a)).toThrow(GeoConfigError);
   });
 });

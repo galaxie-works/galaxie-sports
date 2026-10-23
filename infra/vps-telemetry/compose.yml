@@ -249,6 +249,10 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-openai}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # pesquisa de direitos por temporada com outro provedor (vazio = AI_PROVIDER)
+      AI_RIGHTS_PROVIDER: ${AI_RIGHTS_PROVIDER:-}
+      AI_RIGHTS_MODEL: ${AI_RIGHTS_MODEL:-}
       AI_MODEL_LIGHT: ${AI_MODEL_LIGHT:-}
       AI_MODEL_STANDARD: ${AI_MODEL_STANDARD:-}
       AI_MODEL_RESEARCH: ${AI_MODEL_RESEARCH:-}
@@ -262,7 +266,7 @@ services:
       # Conteúdo relacionado: sem chave, o job falha rápido e nada é gravado
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
       SCHEDULE_RELATED_RUN: ${SCHEDULE_RELATED_RUN:-*/30 0-6,12-23 * * *}
-      SCHEDULE_WTW_RIGHTS: ${SCHEDULE_WTW_RIGHTS:-40 5 * * *}
+      SCHEDULE_WTW_RIGHTS: ${SCHEDULE_WTW_RIGHTS:-40 5,17 * * *}
     depends_on:
       migrate:
         condition: service_completed_successfully

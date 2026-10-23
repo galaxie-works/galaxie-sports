@@ -32,10 +32,12 @@
     "wtw:run": "node --env-file-if-exists=../../.env dist/cli/wtw-run.js",
     "wtw:audit": "node --env-file-if-exists=../../.env dist/cli/wtw-audit.js",
     "related:run": "node --env-file-if-exists=../../.env dist/cli/related-run.js",
-    "wtw:rights": "node --env-file-if-exists=../../.env dist/cli/wtw-rights.js"
+    "wtw:rights": "node --env-file-if-exists=../../.env dist/cli/wtw-rights.js",
+    "wtw:rights:compare": "node --env-file-if-exists=../../.env dist/cli/wtw-rights-compare.js"
   },
   "dependencies": {
     "@galaxie/db": "workspace:*",
+    "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",

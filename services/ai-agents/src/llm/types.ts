@@ -1,5 +1,5 @@
 /**
- * Contrato da camada de IA — independente de provedor (OpenAI ou Anthropic, escolhido por AI_PROVIDER).
+ * Contrato da camada de IA — independente de provedor (OpenAI, Anthropic ou Gemini, escolhido por AI_PROVIDER).
  * Todo agente depende só desta interface; as implementações ficam em ./providers e os testes usam um cliente falso.
  */
 
@@ -51,7 +51,7 @@ export interface LlmResult<T> {
   data: T;
   citations: LlmCitation[];
   usage: LlmUsage;
-  provider: 'openai' | 'anthropic' | 'fake';
+  provider: 'openai' | 'anthropic' | 'gemini' | 'fake';
   model: string;
 }
 

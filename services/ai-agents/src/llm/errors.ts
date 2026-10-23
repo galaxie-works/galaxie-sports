@@ -50,7 +50,9 @@ function isOutOfCredits(err: unknown, msg: string): boolean {
     codes.some((c) =>
       ['insufficient_quota', 'credit_balance_exhausted', 'billing_hard_limit_reached'].includes(c as string),
     ) ||
-    /no credits remaining|insufficient_quota|credit balance is too low|exceeded your current quota/i.test(msg)
+    /no credits remaining|insufficient_quota|credit balance is too low|exceeded your current quota|prepayment credits are depleted/i.test(
+      msg,
+    )
   );
 }
 

@@ -1,4 +1,5 @@
 import { loadWtwConfig, type BroadcastOptionRow, type BroadcastRightsRow } from '@galaxie/where-to-watch';
+import { importance } from '@galaxie/providers';
 import { describe, expect, it } from 'vitest';
 import { FakeLlmClient } from '../llm/fake.js';
 import { strictSchemaProblems } from '../llm/json-schema.js';
@@ -278,6 +279,29 @@ describe('janelas, relevância e grupos', () => {
     ).toBe(60);
     expect(priorityOf(60, KICKOFF, KICKOFF)).toBe(60);
     expect(priorityOf(60, KICKOFF, at(48))).toBe(20);
+  });
+
+  it('calibração: liga nacional perto do topo no próprio país, Femenil e grandes europeias acima do limiar', () => {
+    const regular = (tier: number) => importance({ tier, stageKind: 'regular', roundProgress: 0 }).score;
+    const game = (slug: string, tier: number, country: string | null, teams: string[]) => ({
+      importance: regular(tier),
+      participantCountries: teams,
+      competitionCountry: country,
+      competition: { sport: 'football', slug },
+    });
+    // antes: 44 + 10 = 54 (59 na reta final), abaixo do limiar 60 no próprio México
+    expect(marketRelevance(game('liga-mx', 1, 'MX', ['MX', 'MX']), 'MX')).toBe(89);
+    expect(marketRelevance(game('liga-mx-femenil', 2, 'MX', ['MX', 'MX']), 'MX')).toBe(64);
+    expect(marketRelevance(game('liga-mx-femenil', 2, 'MX', ['MX', 'MX']), 'BR')).toBe(29);
+    for (const m of ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC']) {
+      expect(marketRelevance(game('premier-league', 1, 'GB-ENG', ['GB-ENG']), m), m).toBe(64);
+      expect(marketRelevance(game('bundesliga', 1, 'DE', ['DE']), m), m).toBe(60);
+      expect(marketRelevance(game('eredivisie', 2, 'NL', ['NL']), m), m).toBeLessThan(60);
+    }
+    expect(marketRelevance(game('colombia-primera-a', 1, 'CO', ['CO']), 'CO')).toBe(89);
+    expect(marketRelevance(game('colombia-primera-a', 1, 'CO', ['CO']), 'MX')).toBe(44);
+    // sem config/geo: só o bônus do país
+    expect(marketRelevance(game('liga-mx', 1, 'MX', ['MX', 'MX']), 'MX', null)).toBe(54);
   });
 
   it('política por ambiente: limiar de relevância e teto por mercado', () => {

@@ -65,6 +65,7 @@ function Explanation({ event, t }: { event: Event; t: Dictionary }) {
         <Line label={tr.marketCompetition} value={5} />
         <Line label={tr.marketBracket} value={5} />
         <span className="text-muted-foreground">{tr.marketCap}</span>
+        <span className="text-muted-foreground">{tr.marketAudience}</span>
       </div>
     </div>
   );

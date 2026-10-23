@@ -5,11 +5,13 @@
  *   pnpm --filter @galaxie/ai-agents wtw:rights --competicao brasileirao-serie-a --incluir-curados
  * Opções: --chamadas N (pesquisas por execução, padrão 2), --dias N (horizonte de jogos, padrão 45),
  * --pais BR,AR (restringe os mercados; padrão: todos os configurados — a chamada cobre a região).
- * Requer DATABASE_URL; para pesquisar, AI_PROVIDER + OPENAI_API_KEY/ANTHROPIC_API_KEY.
+ * Requer DATABASE_URL; para pesquisar, AI_PROVIDER + OPENAI_API_KEY/ANTHROPIC_API_KEY — ou só para esta
+ * pesquisa AI_RIGHTS_PROVIDER=gemini + GEMINI_API_KEY (AI_RIGHTS_MODEL troca o modelo).
  */
 import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '@galaxie/db';
 import { loadWtwConfig, syncBroadcasterLibrary } from '@galaxie/where-to-watch';
+import { rightsLlmEnv } from '../llm/config.js';
 import { createLlmClient } from '../llm/factory.js';
 import type { LlmClient } from '../llm/types.js';
 import { HttpPageFetcher } from '../wtw/fetcher.js';
@@ -72,7 +74,9 @@ async function main(): Promise<void> {
     );
     let llm: LlmClient | undefined;
     try {
-      llm = createLlmClient({ db }).client;
+      const rt = createLlmClient({ db, env: rightsLlmEnv(process.env) });
+      llm = rt.client;
+      console.log(`Pesquisa de direitos: ${rt.settings.provider} · ${rt.settings.models.research}`);
     } catch (err) {
       console.log(`Sem LLM (${err instanceof Error ? err.message : String(err)}): só reconfirmação.`);
     }

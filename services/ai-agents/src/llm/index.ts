@@ -9,6 +9,7 @@ export * from './hygiene.js';
 export * from './budget.js';
 export { FakeLlmClient, type FakeHandler, type FakeReply, type FakeResponse } from './fake.js';
 export { OpenAiLlmClient, type OpenAiClientOptions, type OpenAiResponsesApi } from './providers/openai.js';
+export { GeminiLlmClient, type GeminiClientOptions } from './providers/gemini.js';
 export {
   AnthropicLlmClient,
   type AnthropicClientOptions,

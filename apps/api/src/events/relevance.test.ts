@@ -1,14 +1,18 @@
+import { PgDialect } from 'drizzle-orm/pg-core';
 import type { FastifyRequest } from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { loadGeoConfig } from '@galaxie/geo';
+import { importance } from '@galaxie/providers';
 import type { StageMatch } from './builder.js';
 import {
   activeMarkets,
+  audienceOf,
   continentalSlugs,
   importanceBreakdownDto,
   inMarket,
   marketBonus,
   reasonDto,
+  relevanceSql,
   resolveMarket,
   tieOutcome,
   type BracketTeam,
@@ -169,6 +173,109 @@ describe('marketBonus — semifinal define o adversário', () => {
     const br = marketBonus('BR', facts, continental('BR'));
     const teams = { teams: ['Palmeiras', 'Fluminense'], continental: undefined };
     expect(reasonDto(br.details[0]!, 'pt-BR', teams).text).toBe('Time do país: Palmeiras e Fluminense');
+  });
+});
+
+describe('calibração por mercado (config/geo/market-audience.yaml)', () => {
+  const comp = (slug: string, countryCode: string) => ({ sport: 'football', slug, countryCode });
+  const mx = comp('liga-mx', 'MX');
+  const femenil = comp('liga-mx-femenil', 'MX');
+  /** Rodada comum de pontos corridos: 1ª rodada (progresso 0) e reta final (progresso 0,8). */
+  const regular = (tier: number, progress: number) =>
+    importance({ tier, stageKind: 'regular', roundProgress: progress }).score;
+  const score = (
+    market: string,
+    imp: number,
+    competition: ReturnType<typeof comp>,
+    participantCountries: string[],
+  ) => {
+    const { bonus } = marketBonus(
+      market,
+      { participantCountries, competition },
+      continental(market),
+      audienceOf(geo.audience, market, competition, imp),
+    );
+    return Math.min(100, imp + bonus);
+  };
+
+  it('Liga MX no México fica perto do topo (85–100), não mais em 59', () => {
+    for (const p of [0, 0.8]) {
+      const s = score('MX', regular(1, p), mx, ['MX', 'MX']);
+      expect(s).toBeGreaterThanOrEqual(85);
+    }
+    const r = marketBonus(
+      'MX',
+      { participantCountries: ['MX', 'MX'], competition: mx },
+      continental('MX'),
+      audienceOf(geo.audience, 'MX', mx, regular(1, 0)),
+    );
+    expect(r).toMatchObject({
+      bonus: 45,
+      reasons: ['team_from_market', 'domestic_competition', 'market_audience'],
+    });
+    expect(reasonDto(r.details.at(-1)!, 'es-MX', { teams: [], continental: undefined })).toMatchObject({
+      code: 'market_audience',
+      points: 35,
+      text: 'Audiencia de la competición en el país',
+    });
+  });
+
+  it('Liga MX Femenil passa do limiar 60 no México; fora dele, não', () => {
+    expect(score('MX', regular(2, 0), femenil, ['MX', 'MX'])).toBeGreaterThanOrEqual(60);
+    expect(score('BR', regular(2, 0), femenil, ['MX', 'MX'])).toBeLessThan(60);
+  });
+
+  it('a liga nacional fica acima de 85 no próprio país nos 8 mercados do Onde Assistir', () => {
+    const leagues: [string, string][] = [
+      ['BR', 'brasileirao-serie-a'],
+      ['AR', 'argentina-liga-profesional'],
+      ['MX', 'liga-mx'],
+      ['CO', 'colombia-primera-a'],
+      ['CL', 'chile-primera-division'],
+      ['PE', 'peru-liga-1'],
+      ['UY', 'uruguay-primera'],
+      ['EC', 'ecuador-ligapro-serie-a'],
+    ];
+    for (const [market, slug] of leagues) {
+      const c = comp(slug, market);
+      expect(
+        score(market, regular(1, 0), c, [market, market]),
+        `${slug} em ${market}`,
+      ).toBeGreaterThanOrEqual(85);
+      // no vizinho, sem audiência: a liga dos outros não passa à frente da própria
+      const other = market === 'BR' ? 'MX' : 'BR';
+      expect(score(other, regular(1, 0), c, [market, market]), `${slug} em ${other}`).toBeLessThan(60);
+    }
+  });
+
+  it('grandes europeias acima do limiar 60 em toda a América Latina', () => {
+    const big = [
+      comp('premier-league', 'GB-ENG'),
+      comp('laliga', 'ES'),
+      comp('serie-a-italia', 'IT'),
+      comp('bundesliga', 'DE'),
+      comp('ligue-1', 'FR'),
+    ];
+    for (const market of ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'])
+      for (const c of big)
+        expect(
+          score(market, regular(1, 0), c, ['XX', 'XX']),
+          `${c.slug} em ${market}`,
+        ).toBeGreaterThanOrEqual(60);
+    // a liga do país continua à frente da Premier League
+    expect(score('MX', regular(1, 0), mx, ['MX', 'MX'])).toBeGreaterThan(
+      score('MX', regular(1, 0), big[0]!, ['GB-ENG', 'GB-ENG']),
+    );
+  });
+
+  it('a expressão SQL (order=relevance, relevance_min) soma a mesma audiência', () => {
+    const q = new PgDialect().sqlToQuery(relevanceSql('MX', geo));
+    expect(q.sql).toContain('from (select case when c.sport =');
+    // o divisor vai literal: parâmetro com ".0" colado ($1.0) é SQL inválido
+    expect(q.sql).not.toMatch(/\$\d+\.0/);
+    const pairs = q.params.flatMap((v, i) => (v === 'liga-mx' ? [q.params[i + 1]] : []));
+    expect(pairs).toEqual([35]);
+    expect(new PgDialect().sqlToQuery(relevanceSql('MX', null)).sql).not.toContain('case when c.sport');
   });
 });
 

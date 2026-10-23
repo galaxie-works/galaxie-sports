@@ -168,10 +168,12 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     name: 'wtw-rights',
     description:
       'Onde Assistir: biblioteca de emissoras, direitos por temporada (uma pesquisa por competição para a América Latina) e reconfirmação mensal',
-    cron: '40 5 * * *',
+    // duas vezes por dia, até 4 pesquisas cada (~45 mil tokens e US$ 0,15 em média; até 120 mil e
+    // US$ 0,40 com os 8 mercados): uma fila de ~20 competições zera em 2–3 dias; sem fila, custo zero
+    cron: '40 5,17 * * *',
     script: 'dist/cli/wtw-rights.js',
     cwd: '../ai-agents',
-    args: ['--chamadas', '3'],
+    args: ['--chamadas', '4'],
     timeoutMs: 30 * MINUTE,
   },
 ];
