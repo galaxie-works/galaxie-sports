@@ -7,7 +7,7 @@ import type { Locale } from './config';
 export interface Formatters {
   locale: Locale;
   timeZone: string;
-  /** "sáb., 24 de out., 16:00" */
+  /** "sáb., 24 de out. de 2026, 16:00" */
   dateTime: (iso: string) => string;
   /** "sábado, 24 de outubro de 2026" */
   dateLong: (iso: string) => string;
@@ -17,7 +17,7 @@ export interface Formatters {
   shortDate: (iso: string) => string;
   /** "24 de out. de 2026" (instante, no fuso) */
   date: (iso: string) => string;
-  /** "24 de out., 16:00" */
+  /** "24 de out. de 2026, 16:00" */
   dayTime: (iso: string) => string;
   /** Data de calendário sem hora (`2026-10-24`, ex.: nascimento): "24/10/2026", sem efeito de fuso. */
   calendarDate: (ymd: string) => string;
@@ -66,12 +66,20 @@ export function createFormatters(locale: Locale, timeZone: string): Formatters {
   const formatters: Formatters = {
     locale,
     timeZone,
-    dateTime: dtf({ weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    // Com o ano: no confronto direto e na campanha os cards misturam temporadas.
+    dateTime: dtf({
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
     dateLong: dtf({ weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
     time: dtf({ hour: '2-digit', minute: '2-digit' }),
     shortDate: dtf({ day: '2-digit', month: '2-digit', year: '2-digit' }),
     date: dtf({ day: '2-digit', month: 'short', year: 'numeric' }),
-    dayTime: dtf({ day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    dayTime: dtf({ day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
     calendarDate: (ymd) => calendar.format(new Date(`${ymd.slice(0, 10)}T12:00:00Z`)),
     number: (n) => numberFmt.format(n),
     relative: (iso, now = Date.now()) => {
