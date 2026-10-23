@@ -14,6 +14,7 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getT } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
+import { sessionLabel } from '@/lib/race-session';
 import { eventCompetitionHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
@@ -31,9 +32,9 @@ export const classified = (event: Event) =>
     .filter((p) => p.side === 'grid' && p.position != null)
     .sort((a, b) => a.position! - b.position!);
 
-/** Título da página do evento: "Bahrain Grand Prix · Corrida". */
-export const raceTitle = (event: Event) =>
-  [event.stage?.name, event.session?.name].filter(Boolean).join(' · ');
+/** Título da página do evento: "Bahrain Grand Prix · Corrida" (a sessão no idioma da tela). */
+export const raceTitle = (event: Event, t: Dictionary['sport']) =>
+  [event.stage?.name, sessionLabel(event.session, t)].filter(Boolean).join(' · ');
 
 const PODIUM = ['bg-amber-400', 'bg-zinc-300', 'bg-orange-400'];
 
@@ -93,7 +94,7 @@ export function RaceScoreboard({ event, t, f }: { event: Event; t: Dictionary; f
           <StatusBadge event={event} />
         </div>
         <div className="flex flex-col items-center gap-1 text-center">
-          <span className="text-2xl font-semibold tracking-tight">{session?.name}</span>
+          <span className="text-2xl font-semibold tracking-tight">{sessionLabel(session, t.sport)}</span>
           {session?.laps ? (
             <span className="text-muted-foreground text-sm">
               {session.distance
