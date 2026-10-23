@@ -113,8 +113,17 @@ jobs:
           tar -xzf "$tarball" gitleaks
           rm -f "$tarball" "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
 
-      - name: Varredura de segredos (histórico completo)
-        run: ./gitleaks git . --config .gitleaks.toml --redact --no-banner --verbose
+      # Varre só o histórico que este evento traz: no PR, os commits dele (base..head); no push, o
+      # histórico do commit enviado. Sem isso, o `git .` com fetch-depth 0 alcança todas as branches
+      # remotas e um achado numa branch de trabalho derruba o CI de todos os PRs.
+      - name: Varredura de segredos (commits do PR ou histórico do commit enviado)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "$HEAD_SHA" ]; then range="$BASE_SHA..$HEAD_SHA"; else range="$GITHUB_SHA"; fi
+          echo "intervalo: $range"
+          ./gitleaks git . --config .gitleaks.toml --redact --no-banner --verbose --log-opts="$range"
 
   audit:
     name: Auditoria de dependências (informativa)
