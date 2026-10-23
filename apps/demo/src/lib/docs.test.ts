@@ -59,6 +59,7 @@ describe('exemplos dos guias', () => {
       ['get', '/v1/teams/{id}/semantic'],
       ['get', '/v1/teams/{id}/rivals'],
       ['get', '/v1/people/{id}'],
+      ['get', '/v1/people/{id}/overview'],
       ['get', '/v1/derbies'],
       ['get', '/v1/glossary'],
       ['get', '/v1/copy'],

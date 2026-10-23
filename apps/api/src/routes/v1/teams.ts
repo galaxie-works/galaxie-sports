@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import * as z from 'zod';
 import {
   LocaleQuery,
+  PersonOverviewQuery,
   SquadQuery,
   TeamEventsQuery,
   TeamOverviewQuery,
@@ -10,8 +11,8 @@ import {
   TeamsQuery,
   type Event,
   type FormerName,
-  type Person,
   type Squad,
+  type SquadMember,
   type Team,
   type TeamOverview,
   type TeamSeason,
@@ -46,6 +47,16 @@ import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events
 import { pickText } from '../../i18n.js';
 import { teamColors } from '../../teams/colors.js';
 import { loadTeamCompetitions } from '../../teams/load-campaigns.js';
+import { ageAt, loadPerson, selectPeople } from '../../people/person.js';
+import { loadPersonOverview } from '../../people/overview.js';
+import {
+  coreIds,
+  nationalityResolver,
+  providerIds,
+  teamSeasonCoaches,
+  teamSeasonPlayers,
+} from '../../people/queries.js';
+import { positionName } from '../../people/stats.js';
 import { scheduleWindow } from '../../time.js';
 import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
 import { resolveMarket } from '../../events/relevance.js';
@@ -54,15 +65,7 @@ import { buildCtx, eventPage, localeOf, sportCheck } from './events.js';
 const MODULE = { module: 'core_data' } as const;
 const TeamCursor = z.object({ n: z.string(), i: z.string().regex(UUID_RE) });
 
-/** Idade completa em anos numa data (UTC). */
-export function ageAt(birthDate: string | null, now: Date): number | null {
-  if (!birthDate) return null;
-  const [y, m, d] = birthDate.split('-').map(Number) as [number, number, number];
-  let age = now.getUTCFullYear() - y;
-  if (now.getUTCMonth() + 1 < m || (now.getUTCMonth() + 1 === m && now.getUTCDate() < d)) age -= 1;
-  return age >= 0 && age < 130 ? age : null;
-}
-
+export { ageAt } from '../../people/person.js';
 export { teamColors } from '../../teams/colors.js';
 
 const POSITION_ORDER: Record<string, number> = { goalkeeper: 0, defender: 1, midfielder: 2, attacker: 3 };
@@ -467,6 +470,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     const params = parseInput(TeamParams, request.params);
     const query = parseInput(SquadQuery, request.query);
     const locale = localeOf(request, query);
+    const year = query.season;
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.standings,
@@ -481,70 +485,139 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .where(eq(participant.id, params.id))
           .limit(1);
         if (!p) throw problems.notFound('Time');
+        // na temporada corrente, o elenco atual (players/squads) também conta: contratações sem jogo ainda
+        const current =
+          year !== undefined && (await teamSeasons(db, p.id)).find((s) => s.current)?.year === year;
         const rows = await db
-          .select({
-            r: roster,
-            person: {
-              id: person.id,
-              name: person.name,
-              nationality: person.nationality,
-              birthDate: person.birthDate,
-            },
-            photoKey: asset.storageKey,
-            photoUrl: asset.sourceUrl,
-          })
+          .select({ r: roster, seasonYear: season.year })
           .from(roster)
-          .innerJoin(person, eq(person.id, roster.personId))
-          .leftJoin(asset, eq(asset.id, person.photoAssetId))
+          .leftJoin(season, eq(season.id, roster.seasonId))
           .where(
             and(
               eq(roster.participantId, p.id),
-              query.season
-                ? inArray(
-                    roster.seasonId,
-                    db.select({ id: season.id }).from(season).where(eq(season.year, query.season)),
-                  )
-                : isNull(roster.seasonId),
+              year === undefined
+                ? isNull(roster.seasonId)
+                : current
+                  ? or(isNull(roster.seasonId), eq(season.year, year))
+                  : eq(season.year, year),
             ),
-          );
-        const member = (r: (typeof rows)[number]) => ({
-          person: {
-            id: r.person.id,
-            name: r.person.name,
-            photo: assetUrl(ctx.assetsBaseUrl, r.photoKey, r.photoUrl),
-            nationality: r.person.nationality,
-            birth_date: r.person.birthDate,
-            age: ageAt(r.person.birthDate, now),
-          },
-          number: r.r.number,
-          position: r.r.position,
-        });
-        const seen = new Set<string>();
-        const unique = rows.filter((r) => {
-          const k = `${r.r.role}|${r.person.id}`;
-          if (seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        });
+          )
+          // a inscrição da temporada vem antes da do elenco atual (número e posição daquele ano)
+          .orderBy(sql`${roster.seasonId} is null`);
+
+        // quem entrou em campo pelo time no ano (escalações), com os números somados das partidas
+        const teamPid =
+          year !== undefined && p.sport === 'football'
+            ? (await providerIds(db, 'participant', [p.id])).get(p.id)
+            : undefined;
+        const [lines, coachGames] = teamPid
+          ? await Promise.all([
+              teamSeasonPlayers(db, p.id, teamPid, year!),
+              teamSeasonCoaches(db, p.id, teamPid, year!),
+            ])
+          : [[], []];
+        const people = await coreIds(db, 'person', [
+          ...lines.map((l) => l.pid),
+          ...coachGames.map((c) => c.pid),
+        ]);
+        const statsOf = new Map<string, NonNullable<SquadMember['stats']>>();
+        for (const l of lines) {
+          const personId = people.get(l.pid);
+          if (!personId) continue;
+          const prev = statsOf.get(personId);
+          statsOf.set(personId, {
+            appearances: (prev?.appearances ?? 0) + l.apps,
+            starts: (prev?.starts ?? 0) + l.starts,
+            minutes: (prev?.minutes ?? 0) + l.minutes,
+            goals: (prev?.goals ?? 0) + l.goals,
+            assists: (prev?.assists ?? 0) + l.assists,
+          });
+        }
+        const coachStats = new Map<string, NonNullable<SquadMember['stats']>>();
+        for (const c of coachGames) {
+          const personId = people.get(c.pid);
+          if (personId)
+            coachStats.set(personId, { appearances: c.games, starts: 0, minutes: 0, goals: 0, assists: 0 });
+        }
+        // com jogos no ano, quem não entrou em campo tem zero (e não "sem dado")
+        const zero = lines.length ? { appearances: 0, starts: 0, minutes: 0, goals: 0, assists: 0 } : null;
+
+        type Entry = { personId: string; role: string; number: number | null; position: string | null };
+        const entries = new Map<string, Entry>();
+        for (const { r } of rows) {
+          const k = `${r.role}|${r.personId}`;
+          if (!entries.has(k))
+            entries.set(k, { personId: r.personId, role: r.role, number: r.number, position: r.position });
+        }
+        for (const l of lines) {
+          const personId = people.get(l.pid);
+          if (!personId || l.apps === 0 || entries.has(`player|${personId}`)) continue;
+          entries.set(`player|${personId}`, {
+            personId,
+            role: 'player',
+            number: l.number,
+            position: positionName(l.position),
+          });
+        }
+        for (const [personId, s] of coachStats) {
+          if (s.appearances > 0 && !entries.has(`coach|${personId}`))
+            entries.set(`coach|${personId}`, { personId, role: 'coach', number: null, position: null });
+        }
+
+        const [persons, nationality] = await Promise.all([
+          selectPeople(
+            db,
+            [...entries.values()].map((e) => e.personId),
+          ),
+          nationalityResolver(db, locale),
+        ]);
+        const personById = new Map(persons.map((x) => [x.id, x]));
+        const member = (e: Entry): SquadMember | null => {
+          const x = personById.get(e.personId);
+          if (!x) return null;
+          return {
+            person: {
+              id: x.id,
+              name: x.name,
+              photo: assetUrl(ctx.assetsBaseUrl, x.photoKey, x.photoUrl),
+              nationality: x.nationality,
+              nationality_ref: nationality(x.nationality),
+              birth_date: x.birthDate,
+              age: ageAt(x.birthDate, now),
+            },
+            number: e.number,
+            position: e.position,
+            stats:
+              year === undefined
+                ? null
+                : ((e.role === 'coach' ? coachStats : statsOf).get(e.personId) ??
+                  (e.role === 'player' ? zero : null)),
+          };
+        };
         const byRole = (role: string) =>
-          unique
-            .filter((r) => r.r.role === role)
+          [...entries.values()]
+            .filter((e) => e.role === role)
+            .map(member)
+            .filter((m): m is SquadMember => m !== null)
             .sort(
               (a, b) =>
-                (POSITION_ORDER[(a.r.position ?? '').toLowerCase()] ?? 9) -
-                  (POSITION_ORDER[(b.r.position ?? '').toLowerCase()] ?? 9) ||
-                (a.r.number ?? 999) - (b.r.number ?? 999) ||
+                (POSITION_ORDER[(a.position ?? '').toLowerCase()] ?? 9) -
+                  (POSITION_ORDER[(b.position ?? '').toLowerCase()] ?? 9) ||
+                (a.number ?? 999) - (b.number ?? 999) ||
                 a.person.name.localeCompare(b.person.name),
-            )
-            .map(member);
+            );
         const body: Squad = {
           team_id: p.id,
-          season: query.season ?? null,
+          season: year ?? null,
           players: byRole('player'),
           coaches: byRole('coach'),
           staff: byRole('staff'),
         };
-        return { body, tags: [`participant:${p.id}`, 'roster'], meta: { sport: p.sport } };
+        return {
+          body,
+          tags: [`participant:${p.id}`, 'roster', ...(year === undefined ? [] : ['event'])],
+          meta: { sport: p.sport },
+        };
       },
     });
   });
@@ -559,60 +632,34 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       ttl: CACHE_TTL.catalog,
       vary: [locale],
       load: async () => {
-        const db = requireDb(ctx);
-        const [row] = await db
-          .select({ p: person, key: asset.storageKey, url: asset.sourceUrl })
-          .from(person)
-          .leftJoin(asset, eq(asset.id, person.photoAssetId))
-          .where(eq(person.id, params.id))
-          .limit(1);
-        if (!row) throw problems.notFound('Pessoa');
-        const teams = await db
-          .select({
-            r: roster,
-            team: { id: participant.id, name: participant.name, shortName: participant.shortName },
-            logoKey: asset.storageKey,
-            logoUrl: asset.sourceUrl,
-            seasonYear: season.year,
-          })
-          .from(roster)
-          .innerJoin(participant, eq(participant.id, roster.participantId))
-          .leftJoin(asset, eq(asset.id, participant.logoAssetId))
-          .leftJoin(season, eq(season.id, roster.seasonId))
-          .where(eq(roster.personId, row.p.id))
-          .orderBy(sql`${season.year} desc nulls first`, asc(participant.name));
-        const ids = await db
-          .select({ provider: providerMap.provider, providerId: providerMap.providerId })
-          .from(providerMap)
-          .where(and(eq(providerMap.entityType, 'person'), eq(providerMap.entityId, row.p.id)));
-        const body: Person = {
-          id: row.p.id,
-          name: row.p.name,
-          first_name: row.p.firstName,
-          last_name: row.p.lastName,
-          birth_date: row.p.birthDate,
-          age: ageAt(row.p.birthDate, ctx.now()),
-          nationality: row.p.nationality,
-          height_cm: row.p.heightCm,
-          weight_kg: row.p.weightKg,
-          photo: assetUrl(ctx.assetsBaseUrl, row.key, row.url),
-          teams: teams.map((t) => ({
-            team: {
-              id: t.team.id,
-              name: t.team.name,
-              short_name: t.team.shortName,
-              logo: assetUrl(ctx.assetsBaseUrl, t.logoKey, t.logoUrl),
-            },
-            role: t.r.role,
-            number: t.r.number,
-            position: t.r.position,
-            season: t.seasonYear ?? null,
-          })),
-          external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
-        };
+        const body = await loadPerson(requireDb(ctx), ctx.assetsBaseUrl, ctx.now(), params.id);
         return {
           body,
-          tags: [`person:${row.p.id}`, 'roster', ...teams.map((t) => `participant:${t.team.id}`)],
+          tags: [`person:${body.id}`, 'roster', ...body.teams.map((t) => `participant:${t.team.id}`)],
+        };
+      },
+    });
+  });
+
+  // ─── /v1/people/:id/overview ─────────────────────────────────────────────────────────────────
+  app.get('/v1/people/:id/overview', { config: MODULE }, async (request, reply) => {
+    const params = parseInput(TeamParams, request.params);
+    const query = parseInput(PersonOverviewQuery, request.query);
+    const locale = localeOf(request, query);
+    const tz = query.tz ?? 'UTC';
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.standings,
+      vary: [locale, tz],
+      load: async () => {
+        const { body, teamIds } = await loadPersonOverview(
+          buildCtx(ctx, locale, tz),
+          params.id,
+          query.season,
+        );
+        return {
+          body,
+          tags: [`person:${body.person.id}`, 'roster', ...teamIds.map((t) => `participant:${t}`)],
         };
       },
     });

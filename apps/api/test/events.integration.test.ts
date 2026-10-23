@@ -1218,6 +1218,59 @@ describe('/v1/teams e /v1/people', () => {
     const past = (await get(`/v1/teams/${ids.palmeiras}/squad?season=1999`)).json();
     expect(past.players).toEqual([]);
   });
+
+  it('elenco da temporada: inscritos + quem entrou em campo, com jogos e gols das partidas', async () => {
+    type Member = { person: { id: string; name: string }; position: string | null; stats: unknown };
+    const squad = (await get(`/v1/teams/${ids.palmeiras}/squad?season=2026`)).json();
+    expect(squad.season).toBe(2026);
+    // 2026 é a temporada corrente: o elenco atual (4 goleiros) entra, com zero jogos
+    const keepers = squad.players.filter((p: Member) => p.position === 'Goalkeeper');
+    expect(keepers).toHaveLength(4);
+    expect(keepers[0].stats).toEqual({ appearances: 0, starts: 0, minutes: 0, goals: 0, assists: 0 });
+    // o atacante do clássico de 2026 não está no elenco atual, mas jogou: entra pelas estatísticas da partida
+    const striker = squad.players.find((p: Member) => p.person.name === 'Atacante A');
+    expect(striker).toMatchObject({
+      stats: { appearances: 1, starts: 0, minutes: 90, goals: 2, assists: 0 },
+      person: { nationality_ref: null },
+    });
+    // sem `season`, o elenco atual sem números
+    const now = (await get(`/v1/teams/${ids.palmeiras}/squad`)).json();
+    expect(now.players.every((p: Member) => p.stats === null)).toBe(true);
+  });
+
+  it('perfil do jogador: números por competição, carreira e últimos jogos', async () => {
+    const squad = (await get(`/v1/teams/${ids.palmeiras}/squad?season=2026`)).json();
+    const striker = squad.players.find(
+      (p: { person: { name: string } }) => p.person.name === 'Atacante A',
+    ) as { person: { id: string } };
+    const res = await get(`/v1/people/${striker.person.id}/overview`);
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body).toMatchObject({
+      person: { id: striker.person.id, name: 'Atacante A' },
+      role: 'player',
+      current_team: { id: ids.palmeiras },
+      season: 2026,
+      seasons: [{ year: 2026, appearances: 1, goals: 2 }],
+      totals: { appearances: 1, minutes: 90, goals: 2, rating: 8.4 },
+      career: [
+        { team: { id: ids.palmeiras }, from: 2026, to: 2026, appearances: 1, goals: 2, current: false },
+      ],
+      transfers: [],
+    });
+    expect(body.stats).toHaveLength(1);
+    expect(body.stats[0]).toMatchObject({
+      competition: { id: ids.serieA },
+      season: { year: 2026 },
+      goals: 2,
+    });
+    expect(body.recent_matches).toHaveLength(1);
+    expect(body.recent_matches[0]).toMatchObject({ event: { id: ids.detail }, minutes: 90, goals: 2 });
+    // ano sem jogos: a temporada pedida, sem números
+    const empty = (await get(`/v1/people/${striker.person.id}/overview?season=2019`)).json();
+    expect(empty).toMatchObject({ season: 2019, totals: null, stats: [], recent_matches: [] });
+    expect((await get('/v1/people/01a15f83-0f07-78a6-9de5-191d031f73d3/overview')).statusCode).toBe(404);
+  });
 });
 
 describe('/v1/competitions/{id}/context', () => {
