@@ -285,6 +285,29 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
     }
   }
 
+  // 3b. F1DB: só na Fórmula 1 e um perfil por piloto/construtor
+  const f1dbIds = new Map<string, string>();
+  for (const t of kb.teams) {
+    const id = t.entry.f1db?.id;
+    if (!id) continue;
+    const idPath = at(t.file, [t.listKey, t.index, 'f1db', 'id']);
+    if (t.sport !== 'formula-1') {
+      add('error', 'provider-id-sport', t.file, idPath, `${t.entry.slug}: f1db só vale na Fórmula 1`);
+      continue;
+    }
+    const key = `${t.kind}:${id}`;
+    const prev = f1dbIds.get(key);
+    if (prev)
+      add(
+        'error',
+        'duplicate-provider-id',
+        t.file,
+        idPath,
+        `${t.entry.slug}: f1db.id ${id} já está em ${prev}`,
+      );
+    else f1dbIds.set(key, t.entry.slug);
+  }
+
   // 4. IDs da api-sports únicos (por esporte: cada API tem os seus IDs)
   const teamIds = new Map<string, string>();
   for (const t of kb.teams) {

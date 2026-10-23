@@ -22,6 +22,10 @@ export const F1DB_TABLES = [
   'season_constructor',
   'season_driver_standing',
   'season_constructor_standing',
+  // acervo de fotos (assets:commons): pilotos por equipe e chassi de cada temporada
+  'season_entrant_driver',
+  'season_entrant_chassis',
+  'chassis',
 ] as const;
 export type F1dbTableName = (typeof F1DB_TABLES)[number];
 

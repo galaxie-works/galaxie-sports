@@ -1,0 +1,242 @@
+/**
+ * Cliente da API do MediaWiki (Wikimedia Commons e Wikidata) seguindo a etiqueta da Wikimedia:
+ * - User-Agent que identifica o projeto e o repositório, sem e-mail nem dado de pessoa;
+ * - requisições em série, com intervalo mínimo entre elas;
+ * - `maxlag=5` em toda leitura: com o servidor atrasado, espera o `Retry-After` e tenta de novo;
+ * - 429/5xx com backoff exponencial.
+ * https://www.mediawiki.org/wiki/API:Etiquette · https://meta.wikimedia.org/wiki/User-Agent_policy
+ */
+
+import type { ExtMetadata } from './license.js';
+
+export const WIKIMEDIA_USER_AGENT =
+  'GalaxieSports/1.0 (https://github.com/galaxie-works/galaxie-sports; acervo de fotos da F1)';
+export const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
+export const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
+
+export interface WikimediaClientOptions {
+  fetch?: typeof globalThis.fetch;
+  userAgent?: string;
+  /** Intervalo mínimo entre requisições (ms). Padrão 1 s. */
+  minIntervalMs?: number;
+  maxRetries?: number;
+  /** Tentativas quando o servidor responde `maxlag` (padrão 10, com espera crescente). */
+  maxLagRetries?: number;
+  /** No Wikidata, o atraso inclui o do query service e dura mais: desiste antes (padrão 3) e cai na Commons. */
+  wikidataMaxLagRetries?: number;
+  sleep?: (ms: number) => Promise<void>;
+  log?: (msg: string) => void;
+}
+
+export class WikimediaError extends Error {
+  constructor(
+    message: string,
+    readonly status: number | null,
+  ) {
+    super(message);
+    this.name = 'WikimediaError';
+  }
+}
+
+type Json = Record<string, unknown>;
+
+export class WikimediaClient {
+  private readonly fetchFn: typeof globalThis.fetch;
+  private readonly sleep: (ms: number) => Promise<void>;
+  private last = 0;
+  /** Requisições feitas (para o relatório). */
+  requests = 0;
+
+  constructor(private readonly options: WikimediaClientOptions = {}) {
+    this.fetchFn = options.fetch ?? ((url, init) => fetch(url, init));
+    this.sleep = options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  }
+
+  /** GET na API (`action=query` etc.) com `format=json`, `formatversion=2` e `maxlag=5`. */
+  async get(api: string, params: Record<string, string | number>): Promise<Json> {
+    const url = new URL(api);
+    for (const [k, v] of Object.entries({ ...params, format: 'json', formatversion: 2, maxlag: 5 }))
+      url.searchParams.set(k, String(v));
+    const maxRetries = this.options.maxRetries ?? 5;
+    for (let attempt = 0; ; attempt++) {
+      const wait = this.last + (this.options.minIntervalMs ?? 1000) - Date.now();
+      if (wait > 0) await this.sleep(wait);
+      this.last = Date.now();
+      this.requests += 1;
+      const res = await this.fetchFn(url, {
+        headers: { 'user-agent': this.options.userAgent ?? WIKIMEDIA_USER_AGENT, accept: 'application/json' },
+      });
+      const retryAfter = Number(res.headers.get('retry-after')) || 0;
+      if (res.status === 429 || res.status >= 500) {
+        if (attempt >= maxRetries)
+          throw new WikimediaError(`Wikimedia: HTTP ${res.status} em ${api}`, res.status);
+        await this.sleep(Math.max(retryAfter * 1000, 2 ** attempt * 1000));
+        continue;
+      }
+      if (!res.ok) throw new WikimediaError(`Wikimedia: HTTP ${res.status} em ${api}`, res.status);
+      const body = (await res.json()) as Json;
+      const error = body.error as { code?: string; info?: string } | undefined;
+      if (error?.code === 'maxlag') {
+        // o Wikidata soma o atraso do query service: espera mais a cada vez (5, 10, 15... até 60 s)
+        if (
+          attempt >=
+          (api === WIKIDATA_API
+            ? (this.options.wikidataMaxLagRetries ?? 3)
+            : (this.options.maxLagRetries ?? 10))
+        )
+          throw new WikimediaError('Wikimedia: servidor atrasado (maxlag)', 200);
+        const wait = Math.min(60, Math.max(retryAfter || 5, 5 * (attempt + 1)));
+        this.options.log?.(`maxlag: esperando ${wait} s`);
+        await this.sleep(wait * 1000);
+        continue;
+      }
+      if (error) throw new WikimediaError(`Wikimedia: ${error.code}: ${error.info}`, 200);
+      return body;
+    }
+  }
+
+  /** Baixa um arquivo (miniatura da Commons) com o mesmo User-Agent e o mesmo ritmo. */
+  async download(url: string): Promise<{ body: Uint8Array; contentType: string | null }> {
+    const maxRetries = this.options.maxRetries ?? 5;
+    for (let attempt = 0; ; attempt++) {
+      const wait = this.last + (this.options.minIntervalMs ?? 1000) - Date.now();
+      if (wait > 0) await this.sleep(wait);
+      this.last = Date.now();
+      this.requests += 1;
+      const res = await this.fetchFn(url, {
+        headers: { 'user-agent': this.options.userAgent ?? WIKIMEDIA_USER_AGENT, accept: 'image/*' },
+      });
+      if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+        const retryAfter = Number(res.headers.get('retry-after')) || 0;
+        await this.sleep(Math.max(retryAfter * 1000, 2 ** attempt * 1000));
+        continue;
+      }
+      if (!res.ok) throw new WikimediaError(`Wikimedia: HTTP ${res.status} ao baixar ${url}`, res.status);
+      return { body: new Uint8Array(await res.arrayBuffer()), contentType: res.headers.get('content-type') };
+    }
+  }
+
+  // ─── Wikidata ─────────────────────────────────────────────────────────────────────────────────
+
+  /** Itens do Wikidata pelo nome (rótulo e apelidos), em inglês. */
+  async searchItems(name: string, limit = 7): Promise<string[]> {
+    const body = await this.get(WIKIDATA_API, {
+      action: 'wbsearchentities',
+      search: name,
+      language: 'en',
+      type: 'item',
+      limit,
+    });
+    return ((body.search as { id: string }[] | undefined) ?? []).map((s) => s.id);
+  }
+
+  /** Afirmações (claims) dos itens, só as propriedades pedidas. */
+  async claims(ids: string[], props: string[]): Promise<Map<string, Record<string, unknown[]>>> {
+    const out = new Map<string, Record<string, unknown[]>>();
+    for (let i = 0; i < ids.length; i += 50) {
+      const body = await this.get(WIKIDATA_API, {
+        action: 'wbgetentities',
+        ids: ids.slice(i, i + 50).join('|'),
+        props: 'claims',
+      });
+      const entities = (body.entities ?? {}) as Record<string, { claims?: Record<string, unknown[]> }>;
+      for (const [id, e] of Object.entries(entities)) {
+        const claims: Record<string, unknown[]> = {};
+        for (const p of props) claims[p] = e.claims?.[p] ?? [];
+        out.set(id, claims);
+      }
+    }
+    return out;
+  }
+
+  // ─── Commons ──────────────────────────────────────────────────────────────────────────────────
+
+  /** Arquivos de uma categoria da Commons (namespace 6), em ordem da API. */
+  async categoryFiles(category: string, limit = 100): Promise<string[]> {
+    const body = await this.get(COMMONS_API, {
+      action: 'query',
+      list: 'categorymembers',
+      cmtitle: category.startsWith('Category:') ? category : `Category:${category}`,
+      cmtype: 'file',
+      cmlimit: Math.min(limit, 500),
+    });
+    const query = body.query as { categorymembers?: { title: string }[] } | undefined;
+    return (query?.categorymembers ?? []).map((m) => m.title);
+  }
+
+  /** A categoria existe? (o nome do chassi nem sempre tem categoria própria) */
+  async categoryExists(category: string): Promise<boolean> {
+    const title = category.startsWith('Category:') ? category : `Category:${category}`;
+    const body = await this.get(COMMONS_API, { action: 'query', titles: title });
+    const pages = ((body.query as { pages?: { missing?: boolean }[] } | undefined)?.pages ?? []) as {
+      missing?: boolean;
+    }[];
+    return pages.length > 0 && !pages[0]!.missing;
+  }
+
+  /** Dimensões, tipo, URL da miniatura e `extmetadata` (licença, autor, data) dos arquivos. */
+  async imageInfo(titles: string[], thumbWidth: number): Promise<CommonsFile[]> {
+    const out: CommonsFile[] = [];
+    for (let i = 0; i < titles.length; i += 50) {
+      const body = await this.get(COMMONS_API, {
+        action: 'query',
+        titles: titles.slice(i, i + 50).join('|'),
+        prop: 'imageinfo|categories',
+        iiprop: 'url|size|mime|extmetadata',
+        iiurlwidth: thumbWidth,
+        iiextmetadatalanguage: 'en',
+        cllimit: 'max',
+        clshow: '!hidden',
+      });
+      const pages = ((body.query as { pages?: unknown[] } | undefined)?.pages ?? []) as CommonsPage[];
+      for (const p of pages) {
+        const info = p.imageinfo?.[0];
+        if (!info) continue;
+        out.push({
+          title: p.title,
+          pageUrl: info.descriptionurl,
+          url: info.url,
+          thumbUrl: info.thumburl ?? info.url,
+          thumbWidth: info.thumbwidth ?? info.width,
+          thumbHeight: info.thumbheight ?? info.height,
+          width: info.width,
+          height: info.height,
+          mime: info.mime,
+          extmetadata: info.extmetadata ?? {},
+          categories: (p.categories ?? []).map((c) => c.title.replace(/^Category:/, '')),
+        });
+      }
+    }
+    return out;
+  }
+}
+
+interface CommonsPage {
+  title: string;
+  imageinfo?: {
+    url: string;
+    descriptionurl: string;
+    thumburl?: string;
+    thumbwidth?: number;
+    thumbheight?: number;
+    width: number;
+    height: number;
+    mime: string;
+    extmetadata?: Record<string, { value?: unknown }>;
+  }[];
+  categories?: { title: string }[];
+}
+
+export interface CommonsFile {
+  title: string;
+  pageUrl: string;
+  url: string;
+  thumbUrl: string;
+  thumbWidth: number;
+  thumbHeight: number;
+  width: number;
+  height: number;
+  mime: string;
+  extmetadata: ExtMetadata;
+  categories: string[];
+}
