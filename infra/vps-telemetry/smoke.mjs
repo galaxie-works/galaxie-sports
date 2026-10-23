@@ -220,7 +220,17 @@ await check('Home Explorar: resumo por esporte e por país', async () => {
 
 await check('Demo: páginas públicas e proteção do resto', async () => {
   // públicas: abrem sem sessão (a raiz mostra a apresentação, para filtros web e buscadores)
-  for (const path of ['/login', '/', '/sobre', '/termos', '/privacidade', '/robots.txt', '/sitemap.xml']) {
+  for (const path of [
+    '/login',
+    '/',
+    '/sobre',
+    '/termos',
+    '/privacidade',
+    '/robots.txt',
+    '/sitemap.xml',
+    '/flags/br.svg',
+    '/crests/palmeiras.png',
+  ]) {
     const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
     if (res.status !== 200) return fail(`${path} sem sessão: status ${res.status} (esperado 200)`);
   }

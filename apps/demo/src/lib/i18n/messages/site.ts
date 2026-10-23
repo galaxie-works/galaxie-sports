@@ -1,6 +1,6 @@
 /**
- * Páginas públicas: apresentação (/sobre, e a raiz para quem não tem sessão), termos de uso e política
- * de privacidade. Texto real e indexável: é o que filtros web corporativos e buscadores leem para
+ * Páginas públicas: moldura (cabeçalho, rodapé, empresa), metadados, termos de uso e política de
+ * privacidade. O conteúdo da apresentação fica em `landing.ts`. Texto real e indexável: é o que filtros web corporativos e buscadores leem para
  * classificar o domínio. Só no servidor (não vai ao navegador).
  */
 import { defineMessages } from '../define';
@@ -17,81 +17,15 @@ export default defineMessages(
       logoAlt: 'Galaxie Works',
       signIn: 'Entrar',
       about: 'Sobre',
+      features: 'Recursos',
+      sports: 'Esportes',
+      markets: 'Mercados',
+      access: 'Acesso',
+      menu: 'Seções da página',
+      legal: 'Institucional',
+      skip: 'Ir para o conteúdo',
       terms: 'Termos de uso',
       privacy: 'Privacidade',
-    },
-    hero: {
-      eyebrow: 'API B2B de dados esportivos',
-      title: 'Dados esportivos para operadoras de TV e streaming da América Latina.',
-      lead: 'A Galaxie Sports entrega, numa única API, a agenda, os resultados, o ao vivo, as estatísticas e onde assistir de cada jogo, com o contexto editorial que a torcida reconhece: clássicos, apelidos e o que está em jogo.',
-      cta: 'Entrar na demo',
-      invite: 'Acesso só por convite.',
-    },
-    features: {
-      title: 'O que a API entrega',
-      items: {
-        schedule: {
-          title: 'Agenda',
-          body: 'Jogos dos próximos dias por esporte, competição, país e time, no fuso de cada mercado.',
-        },
-        results: {
-          title: 'Resultados e tabelas',
-          body: 'Placares finais, classificação e a campanha de cada time nas competições da temporada.',
-        },
-        live: {
-          title: 'Ao vivo',
-          body: 'Placar e minuto a minuto durante a partida: gols, cartões, substituições e outros lances.',
-        },
-        stats: {
-          title: 'Estatísticas',
-          body: 'Números do jogo, do time e do jogador, com códigos estáveis para grafismo e guias de programação.',
-        },
-        whereToWatch: {
-          title: 'Onde assistir',
-          body: 'Em que canal ou plataforma cada jogo passa, país a país.',
-        },
-        context: {
-          title: 'Contexto editorial',
-          body: 'Clássicos, apelidos, rivalidades e o que está em jogo em cada partida, na voz de cada país, com enriquecimento por inteligência artificial.',
-        },
-      },
-    },
-    sports: {
-      title: 'Esportes cobertos',
-      lead: 'Do futebol ao automobilismo, no mesmo formato de dados.',
-      items: {
-        football: 'Futebol',
-        basketball: 'Basquete',
-        nba: 'NBA',
-        volleyball: 'Vôlei',
-        handball: 'Handebol',
-        hockey: 'Hóquei no gelo',
-        rugby: 'Rúgbi',
-        americanFootball: 'Futebol americano',
-        baseball: 'Beisebol',
-        afl: 'Futebol australiano (AFL)',
-        mma: 'MMA',
-        formula1: 'Fórmula 1',
-        equestrian: 'Hipismo',
-      },
-    },
-    markets: {
-      title: 'Mercados',
-      lead: 'Conteúdo em português e espanhol, com a voz e o fuso de cada país.',
-    },
-    audience: {
-      title: 'Para quem é',
-      body: 'Para operadoras de TV por assinatura, plataformas de streaming e equipes de produto, grafismo e programação que precisam de dados esportivos confiáveis em português e espanhol. É um serviço B2B: não há venda ao público final.',
-    },
-    access: {
-      title: 'Como funciona o acesso',
-      steps: {
-        invite: 'O acesso é só por convite: a Galaxie Works libera cada pessoa pelo e-mail corporativo.',
-        login:
-          'Para entrar na demo, a pessoa informa o e-mail e recebe um código de uso único. Não há senha nem cadastro aberto.',
-        api: 'A integração com a API usa uma chave por cliente, com os módulos do plano contratado.',
-      },
-      noAccess: 'Ainda não tem acesso? Escreva para <email>{email}</email>.',
     },
     company: {
       title: 'A empresa',
@@ -179,81 +113,15 @@ export default defineMessages(
         logoAlt: 'Galaxie Works',
         signIn: 'Sign in',
         about: 'About',
+        features: 'Features',
+        sports: 'Sports',
+        markets: 'Markets',
+        access: 'Access',
+        menu: 'Page sections',
+        legal: 'Company',
+        skip: 'Skip to content',
         terms: 'Terms of use',
         privacy: 'Privacy',
-      },
-      hero: {
-        eyebrow: 'B2B sports data API',
-        title: 'Sports data for TV and streaming operators in Latin America.',
-        lead: 'Galaxie Sports delivers, through a single API, the schedule, results, live data, statistics and where to watch for every match, with the editorial context fans recognize: derbies, nicknames and what is at stake.',
-        cta: 'Sign in to the demo',
-        invite: 'Invitation-only access.',
-      },
-      features: {
-        title: 'What the API delivers',
-        items: {
-          schedule: {
-            title: 'Schedule',
-            body: 'Upcoming matches by sport, competition, country and team, in each market’s time zone.',
-          },
-          results: {
-            title: 'Results and standings',
-            body: 'Final scores, standings and each team’s run in the season’s competitions.',
-          },
-          live: {
-            title: 'Live',
-            body: 'Score and play-by-play during the match: goals, cards, substitutions and other incidents.',
-          },
-          stats: {
-            title: 'Statistics',
-            body: 'Match, team and player numbers, with stable codes for on-air graphics and program guides.',
-          },
-          whereToWatch: {
-            title: 'Where to watch',
-            body: 'Which channel or platform carries each match, country by country.',
-          },
-          context: {
-            title: 'Editorial context',
-            body: 'Derbies, nicknames, rivalries and what is at stake in each match, in each country’s voice, enriched with artificial intelligence.',
-          },
-        },
-      },
-      sports: {
-        title: 'Sports covered',
-        lead: 'From football to motorsport, in the same data format.',
-        items: {
-          football: 'Football (soccer)',
-          basketball: 'Basketball',
-          nba: 'NBA',
-          volleyball: 'Volleyball',
-          handball: 'Handball',
-          hockey: 'Ice hockey',
-          rugby: 'Rugby',
-          americanFootball: 'American football',
-          baseball: 'Baseball',
-          afl: 'Australian football (AFL)',
-          mma: 'MMA',
-          formula1: 'Formula 1',
-          equestrian: 'Equestrian',
-        },
-      },
-      markets: {
-        title: 'Markets',
-        lead: 'Content in Portuguese and Spanish, with each country’s voice and time zone.',
-      },
-      audience: {
-        title: 'Who it is for',
-        body: 'For pay-TV operators, streaming platforms and the product, graphics and programming teams that need reliable sports data in Portuguese and Spanish. It is a B2B service: there are no sales to end consumers.',
-      },
-      access: {
-        title: 'How access works',
-        steps: {
-          invite: 'Access is by invitation only: Galaxie Works enables each person by their corporate email.',
-          login:
-            'To sign in to the demo, the person enters their email and receives a one-time code. There is no password and no open sign-up.',
-          api: 'API integration uses one key per customer, with the modules of the contracted plan.',
-        },
-        noAccess: 'No access yet? Write to <email>{email}</email>.',
       },
       company: {
         title: 'The company',
@@ -340,82 +208,15 @@ export default defineMessages(
         logoAlt: 'Galaxie Works',
         signIn: 'Ingresar',
         about: 'Acerca de',
+        features: 'Recursos',
+        sports: 'Deportes',
+        markets: 'Mercados',
+        access: 'Acceso',
+        menu: 'Secciones de la página',
+        legal: 'Institucional',
+        skip: 'Ir al contenido',
         terms: 'Términos de uso',
         privacy: 'Privacidad',
-      },
-      hero: {
-        eyebrow: 'API B2B de datos deportivos',
-        title: 'Datos deportivos para operadores de TV y streaming de América Latina.',
-        lead: 'Galaxie Sports entrega, en una sola API, la agenda, los resultados, el en vivo, las estadísticas y dónde ver cada partido, con el contexto editorial que la hinchada reconoce: clásicos, apodos y lo que está en juego.',
-        cta: 'Ingresar a la demo',
-        invite: 'Acceso solo por invitación.',
-      },
-      features: {
-        title: 'Qué entrega la API',
-        items: {
-          schedule: {
-            title: 'Agenda',
-            body: 'Partidos de los próximos días por deporte, competición, país y equipo, en el huso horario de cada mercado.',
-          },
-          results: {
-            title: 'Resultados y tablas',
-            body: 'Marcadores finales, posiciones y la campaña de cada equipo en las competiciones de la temporada.',
-          },
-          live: {
-            title: 'En vivo',
-            body: 'Marcador y minuto a minuto durante el partido: goles, tarjetas, cambios y otras jugadas.',
-          },
-          stats: {
-            title: 'Estadísticas',
-            body: 'Números del partido, del equipo y del jugador, con códigos estables para gráfica en pantalla y guías de programación.',
-          },
-          whereToWatch: {
-            title: 'Dónde ver',
-            body: 'En qué canal o plataforma se transmite cada partido, país por país.',
-          },
-          context: {
-            title: 'Contexto editorial',
-            body: 'Clásicos, apodos, rivalidades y lo que está en juego en cada partido, con la voz de cada país, enriquecido con inteligencia artificial.',
-          },
-        },
-      },
-      sports: {
-        title: 'Deportes cubiertos',
-        lead: 'Del fútbol al automovilismo, en el mismo formato de datos.',
-        items: {
-          football: 'Fútbol',
-          basketball: 'Básquet',
-          nba: 'NBA',
-          volleyball: 'Vóley',
-          handball: 'Handball',
-          hockey: 'Hockey sobre hielo',
-          rugby: 'Rugby',
-          americanFootball: 'Fútbol americano',
-          baseball: 'Béisbol',
-          afl: 'Fútbol australiano (AFL)',
-          mma: 'MMA',
-          formula1: 'Fórmula 1',
-          equestrian: 'Hípica',
-        },
-      },
-      markets: {
-        title: 'Mercados',
-        lead: 'Contenido en portugués y español, con la voz y el huso horario de cada país.',
-      },
-      audience: {
-        title: 'Para quién es',
-        body: 'Para operadores de TV paga, plataformas de streaming y equipos de producto, gráfica y programación que necesitan datos deportivos confiables en portugués y español. Es un servicio B2B: no hay venta al público final.',
-      },
-      access: {
-        title: 'Cómo funciona el acceso',
-        steps: {
-          invite:
-            'El acceso es solo por invitación: Galaxie Works habilita a cada persona por su e-mail corporativo.',
-          login:
-            'Para ingresar a la demo, la persona escribe su e-mail y recibe un código de un solo uso. No hay contraseña ni registro abierto.',
-          api: 'La integración con la API usa una clave por cliente, con los módulos del plan contratado.',
-        },
-        noAccess: '¿Todavía sin acceso? Escribinos a <email>{email}</email>.',
       },
       company: {
         title: 'La empresa',
