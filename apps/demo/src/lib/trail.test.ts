@@ -62,6 +62,16 @@ describe('trilha de navegação', () => {
     expect(labels(entries)).toEqual(['Ao vivo']);
   });
 
+  it('página interna de um tipo de topo mantém o pai que informa (usuário dentro de Ajustes)', () => {
+    const usuarios = { path: '/ajustes/usuarios', label: 'Usuários', kind: 'ajustes' } as const;
+    const entries = applyVisit(
+      { entries: walk(usuarios), pendingRoot: null },
+      { path: '/ajustes/usuarios/1', label: 'Ana', kind: 'ajustes' },
+      [usuarios],
+    );
+    expect(labels(entries)).toEqual(['Usuários', 'Ana']);
+  });
+
   it('trilha vazia (link direto, aba nova) começa pelos pais da página', () => {
     const futebol = { path: '/esportes/football', label: 'Futebol', kind: 'esporte' } as const;
     const entries = applyVisit({ entries: [], pendingRoot: null }, evento, [futebol, liga]);

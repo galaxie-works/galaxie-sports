@@ -45,7 +45,11 @@ export interface TrailState {
   pendingRoot: string | null;
 }
 
-/** Páginas de topo: abrem sempre uma trilha nova (Ao vivo nunca é "filho" de um piloto). */
+/**
+ * Páginas de topo: abrem sempre uma trilha nova (Ao vivo nunca é "filho" de um piloto). Página interna
+ * de um desses tipos (usuário dentro de Ajustes, atletas dentro de Hipismo) informa os pais (`parents`),
+ * que entram antes dela na trilha nova.
+ */
 export const ROOT_KINDS: readonly TrailKind[] = ['explorar', 'ao vivo', 'esporte', 'ajustes', 'docs'];
 
 export const MAX_TRAIL = 6;
