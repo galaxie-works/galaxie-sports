@@ -46,6 +46,8 @@ export interface StateLogEntry {
 
 export interface TimelineInput {
   eventId: string;
+  /** Esporte do evento: define a duração dos tempos nos marcos (padrão: futebol). */
+  sport?: string;
   status: EventStatus;
   statusDetail: string | null;
   clock: { minute: number | null; extra: number | null } | null;
@@ -76,6 +78,11 @@ const PERIOD_BASE: Record<Exclude<MatchPeriod, 'penalty_shootout'>, number> = {
   second_half: 45,
   extra_time_first: 90,
   extra_time_second: 105,
+};
+/** Minutos de cada tempo e de cada metade da prorrogação nos marcos, por esporte (padrão: futebol). */
+const FOOTBALL_HALVES = { half: 45, extra: 15 };
+const HALVES: Readonly<Record<string, { half: number; extra: number }>> = {
+  handball: { half: 30, extra: 5 },
 };
 const PERIOD_RANK: Record<MatchPeriod, number> = {
   first_half: 1,
@@ -446,18 +453,23 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
     display: clockDisplay(minute, extra),
   });
 
+  const { half, extra: extraHalf } = HALVES[input.sport ?? ''] ?? FOOTBALL_HALVES;
   const markers: TimelineMarker[] = [];
   if (started && phase >= 1) markers.push(marker('kickoff', c('first_half', 0), anchors.first_half));
   if (phase >= 2)
-    markers.push(marker('halftime', c('first_half', 45, maxExtra('first_half')), anchors.halftime));
-  if (phase >= 3) markers.push(marker('second_half', c('second_half', 46), anchors.second_half));
-  const goesBeyond90 = extraTimeStarted || phase >= 5 || code === 'BT';
-  if (goesBeyond90)
+    markers.push(marker('halftime', c('first_half', half, maxExtra('first_half')), anchors.halftime));
+  if (phase >= 3) markers.push(marker('second_half', c('second_half', half + 1), anchors.second_half));
+  const goesBeyondRegulation = extraTimeStarted || phase >= 5 || code === 'BT';
+  if (goesBeyondRegulation)
     markers.push(
-      marker('end_of_regulation', c('second_half', 90, maxExtra('second_half')), anchors.end_of_regulation),
+      marker(
+        'end_of_regulation',
+        c('second_half', 2 * half, maxExtra('second_half')),
+        anchors.end_of_regulation,
+      ),
     );
   if (extraTimeStarted && phase >= 4)
-    markers.push(marker('extra_time', c('extra_time_first', 91), anchors.extra_time_first));
+    markers.push(marker('extra_time', c('extra_time_first', 2 * half + 1), anchors.extra_time_first));
   if (phase >= 5 || kicks.length)
     markers.push(marker('penalty_shootout', c('penalty_shootout', null), anchors.penalty_shootout));
   if (finished) {
@@ -466,7 +478,12 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
       : extraTimeStarted
         ? 'extra_time_second'
         : 'second_half';
-    const lastMinute = lastPeriod === 'penalty_shootout' ? null : lastPeriod === 'second_half' ? 90 : 120;
+    const lastMinute =
+      lastPeriod === 'penalty_shootout'
+        ? null
+        : lastPeriod === 'second_half'
+          ? 2 * half
+          : 2 * (half + extraHalf);
     markers.push(
       marker(
         'full_time',

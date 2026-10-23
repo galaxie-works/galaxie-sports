@@ -182,6 +182,7 @@ export async function buildTimeline(
 
   return buildTimelineDto({
     eventId,
+    sport: ev.sport,
     status: head.status,
     statusDetail: head.statusDetail,
     clock: head.clock ? { minute: head.clock.minute ?? null, extra: head.clock.extra ?? null } : null,

@@ -322,6 +322,25 @@ describe('buildTimelineDto', () => {
     expect(t.data_freshness.is_stale).toBe(true);
   });
 
+  it('handebol: marcos com tempos de 30 minutos e prorrogação de 2 × 5', () => {
+    const t = buildTimelineDto(
+      input({
+        sport: 'handball',
+        statusDetail: 'AET',
+        score: { home: 33, away: 31, extratime: { home: 6, away: 4 } },
+        incidents: [],
+      }),
+    );
+    expect(t.markers.map((m) => [m.kind, m.clock.minute])).toEqual([
+      ['kickoff', 0],
+      ['halftime', 30],
+      ['second_half', 31],
+      ['end_of_regulation', 60],
+      ['extra_time', 61],
+      ['full_time', 70],
+    ]);
+  });
+
   it('conta a prorrogação quando há lance nela', () => {
     seq = 0;
     const t = buildTimelineDto(
