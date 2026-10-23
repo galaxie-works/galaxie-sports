@@ -9,7 +9,8 @@
  *   vira `core.stage` (`race_weekend`) da temporada do campeonato sintético; `rankings/races` e
  *   `rankings/startinggrid` completam o evento com os N pilotos (lado `grid`, posição e resultado).
  * - MMA: cada luta de `fights` vira evento com os dois cantos (`corner_red` = `first`, `corner_blue` =
- *   `second`, na ordem do fornecedor) na fase da categoria de peso; `fights/results` soma o desfecho ao espelho.
+ *   `second`, na ordem do fornecedor) na fase do card (`fight_card`, a noite de lutas); a categoria de peso fica
+ *   no espelho; `fights/results` soma o desfecho (método, round, tempo) ao espelho.
  * - Classificação (`standings`; F1 `rankings/drivers` e `rankings/teams`) → `core.standing`.
  * - Times (`teams`) → `core.participant`.
  *
@@ -1065,8 +1066,8 @@ const MMA_WEIGHTS: Readonly<Record<string, { pt: string; es: string; order: numb
   'open weight': { pt: 'Peso aberto', es: 'Peso abierto', order: 12 },
 };
 
-/** Categoria de peso → fase (`core.stage`) da temporada: "Women's Flyweight" → "Peso-mosca feminino". */
-export function mmaCategoryStage(category: unknown): StageSpec | null {
+/** Categoria de peso traduzida: "Women's Flyweight" → "Peso-mosca feminino" (ordem: da mais leve à mais pesada). */
+export function mmaWeightClass(category: unknown): { code: string; name: I18nText; order: number } | null {
   const raw = str(category);
   if (!raw) return null;
   const women = /^women'?s\s+/i.test(raw);
@@ -1074,12 +1075,136 @@ export function mmaCategoryStage(category: unknown): StageSpec | null {
   const w = MMA_WEIGHTS[base];
   const pt = w ? `${w.pt}${women ? ' feminino' : ''}` : raw;
   const es = w ? `${w.es}${women ? ' femenino' : ''}` : raw;
-  return {
-    label: `category-${raw}`,
-    kind: 'other',
-    name: { 'pt-BR': pt, es, en: raw },
-    order: 2000 + (w?.order ?? 50) + (women ? 20 : 0),
-  };
+  return { code: raw, name: { 'pt-BR': pt, es, en: raw }, order: (w?.order ?? 50) + (women ? 20 : 0) };
+}
+
+/**
+ * Texto do fornecedor com UTF-8 lido como Latin-1 ("JirÃ­ ProchÃ¡zka", "UFC 306 â\u0080\u0093 Noche UFC") →
+ * texto correto. Só reinterpreta quando os bytes formam UTF-8 válido; o resto passa intacto.
+ */
+export function fixMojibake(text: string): string {
+  if (!/[Â-ô][\u0080-¿]/.test(text)) return text;
+  const codes = Array.from(text, (ch) => ch.codePointAt(0)!);
+  if (codes.some((c) => c > 0xff)) return text;
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(codes));
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * Dia do card: nas lutas observadas (2022–2024) nenhuma começa entre 07:00 e 08:00 UTC — os cards nas Américas vão
+ * até ~06:00 UTC do dia seguinte e os da Ásia e da Europa começam depois das 08:00 —, então `data(início − 7 h)` é o
+ * mesmo para todas as lutas da noite, inclusive quando o card atravessa a meia-noite UTC e chega em respostas
+ * `fights?date=` diferentes. Os eventos numerados (Abu Dhabi começa às 06:00 UTC) usam o número.
+ */
+const MMA_CARD_DAY_SHIFT_MS = 7 * 3_600_000;
+
+function mmaOrganization(slug: string): string {
+  if (/\bUFC\b/i.test(slug)) return 'ufc';
+  const prefix = (slug.split(':')[0] ?? slug).trim().toLowerCase();
+  return prefix.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'mma';
+}
+
+/**
+ * Rótulo (chave de idempotência) do card de uma luta: o número do evento ("UFC 308: …" → `card-ufc-308`, que não
+ * muda quando a luta principal é trocada) ou, sem número (Fight Night, TUF), organização + dia da noite de lutas.
+ */
+export function mmaCardLabel(slug: unknown, startsAt: Date): string {
+  const text = fixMojibake(str(slug) ?? '');
+  const numbered = /\bUFC\s+(\d{2,4})\b/i.exec(text);
+  if (numbered) return `card-ufc-${numbered[1]}`;
+  const day = new Date(startsAt.getTime() - MMA_CARD_DAY_SHIFT_MS).toISOString().slice(0, 10);
+  return `card-${mmaOrganization(text)}-${day}`;
+}
+
+const isCancelledFight = (f: Obj) => str(obj(f.status).short) === 'CANC';
+
+/**
+ * Cards (fases `fight_card`) das lutas: o nome é o `slug` mais frequente entre as lutas não canceladas (lutas
+ * remarcadas carregam o nome antigo do card, com a luta principal original); empate → o da luta mais tardia.
+ */
+function mmaCardStages(fights: Obj[]): Map<string, StageSpec> {
+  const groups = new Map<string, { slugs: Map<string, { n: number; last: number }>; first: number }>();
+  for (const f of fights) {
+    const startsAt = instant(f.timestamp, f.date);
+    const slug = str(f.slug);
+    if (!startsAt || !slug) continue;
+    const label = mmaCardLabel(slug, startsAt);
+    const g = groups.get(label) ?? { slugs: new Map(), first: startsAt.getTime() };
+    g.first = Math.min(g.first, startsAt.getTime());
+    // lutas canceladas só contam para o nome quando o card inteiro foi cancelado
+    const weight = isCancelledFight(f) ? 0.001 : 1;
+    const s = g.slugs.get(slug) ?? { n: 0, last: 0 };
+    s.n += weight;
+    s.last = Math.max(s.last, startsAt.getTime());
+    g.slugs.set(slug, s);
+    groups.set(label, g);
+  }
+  const out = new Map<string, StageSpec>();
+  for (const [label, g] of groups) {
+    const [slug] = [...g.slugs].sort((a, b) => b[1].n - a[1].n || b[1].last - a[1].last)[0]!;
+    const name = fixMojibake(slug);
+    out.set(label, {
+      label,
+      kind: 'fight_card',
+      name: { 'pt-BR': name, es: name, en: name },
+      // dia da noite de lutas (dias desde 1970): os cards ficam em ordem cronológica na temporada
+      order: Math.floor((g.first - MMA_CARD_DAY_SHIFT_MS) / 86_400_000),
+    });
+  }
+  return out;
+}
+
+/** Segmento do card: card principal, preliminares e preliminares iniciais (o primeiro bloco de horário). */
+export type MmaCardSegment = 'main_card' | 'prelims' | 'early_prelims';
+
+export interface MmaFightPlacement {
+  segment: MmaCardSegment;
+  /** Luta principal da noite: a do card principal cujos dois sobrenomes estão no nome do card. */
+  mainEvent: boolean;
+}
+
+const foldName = (s: string) =>
+  fixMojibake(s)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+
+/**
+ * Posição de cada luta no card a partir dos itens de `fights` (o espelho de `sport_event_detail.summary`):
+ * `is_main` marca o card principal; as demais saem em blocos de horário — o último bloco antes do principal são
+ * as preliminares e os anteriores, as preliminares iniciais.
+ */
+export function mmaCardPlacement(
+  cardName: string,
+  fights: readonly Record<string, unknown>[],
+): Map<string, MmaFightPlacement> {
+  const items = fights.map(obj).filter((f) => id(f.id));
+  const startOf = (f: Obj) => instant(f.timestamp, f.date)?.getTime() ?? 0;
+  const prelimBlocks = [...new Set(items.filter((f) => f.is_main !== true).map(startOf))].sort((a, b) => b - a);
+  const card = foldName(cardName.split(':').slice(1).join(':'));
+  const surname = (f: Obj, key: 'first' | 'second') =>
+    foldName(str(obj(obj(f.fighters)[key]).name) ?? '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .at(-1);
+  const headliner = card
+    ? items.find((f) => {
+        if (f.is_main !== true || isCancelledFight(f)) return false;
+        const a = surname(f, 'first');
+        const b = surname(f, 'second');
+        return !!a && !!b && card.includes(a) && card.includes(b);
+      })
+    : undefined;
+  const out = new Map<string, MmaFightPlacement>();
+  for (const f of items) {
+    const segment: MmaCardSegment =
+      f.is_main === true ? 'main_card' : prelimBlocks.indexOf(startOf(f)) === 0 ? 'prelims' : 'early_prelims';
+    out.set(id(f.id)!, { segment, mainEvent: f === headliner });
+  }
+  return out;
 }
 
 /** Minutos por luta no bloco do card (3 rounds de 5 min + intervalos, apresentação e decisão). */
@@ -1104,6 +1229,7 @@ export function normalizeMmaFights(
     b.main ||= f.is_main === true;
     blocks.set(blockKey(f), b);
   }
+  const cards = mmaCardStages(fights);
   const byId = new Map<string, NormalizedEvent>();
   for (const f of fights) {
     const fid = id(f.id);
@@ -1117,7 +1243,7 @@ export function normalizeMmaFights(
       countryName: 'World',
       year,
     });
-    const stageLabel = c.stage(season, mmaCategoryStage(f.category));
+    const stageLabel = c.stage(season, cards.get(mmaCardLabel(f.slug, startsAt)) ?? null);
     const status = obj(f.status);
     const statusInput = { short: str(status.short), long: str(status.long) };
     const mapped = mapSportStatus('mma', statusInput);
@@ -1130,7 +1256,7 @@ export function normalizeMmaFights(
     ] as const) {
       const ref = obj(fighters[key]);
       const pid = id(ref.id);
-      const name = str(ref.name);
+      const name = str(ref.name) && fixMojibake(str(ref.name)!);
       if (!pid || !name) continue;
       c.participant({
         id: pid,
@@ -1179,6 +1305,70 @@ export function normalizeMmaFights(
   }
   c.batch.events = [...byId.values()];
   return c.done();
+}
+
+/** Método da vitória (código estável da API Galaxie). */
+export const MMA_METHODS = [
+  'ko',
+  'submission',
+  'decision_unanimous',
+  'decision_split',
+  'decision_majority',
+  'disqualification',
+  'draw',
+  'no_contest',
+  'other',
+] as const;
+export type MmaMethod = (typeof MMA_METHODS)[number];
+
+const MMA_METHOD_CODES: Readonly<Record<string, MmaMethod>> = {
+  ko: 'ko',
+  tko: 'ko',
+  'ko/tko': 'ko',
+  sub: 'submission',
+  submission: 'submission',
+  points: 'decision_unanimous',
+  dec: 'decision_unanimous',
+  'u dec': 'decision_unanimous',
+  's dec': 'decision_split',
+  'm dec': 'decision_majority',
+  dq: 'disqualification',
+  draw: 'draw',
+  nc: 'no_contest',
+  'no contest': 'no_contest',
+  overturned: 'no_contest',
+};
+
+export interface MmaFightResult {
+  method: MmaMethod;
+  /** Como o fornecedor escreve (`won_type`: KO, SUB, Points, S Dec...). */
+  methodRaw: string | null;
+  /** Golpe ou finalização ("Punches", "Rear Naked Choke"). */
+  detail: string | null;
+  round: number | null;
+  /** Tempo no round em que acabou ("3:29"). */
+  time: string | null;
+  /** Cartões dos juízes ("29-28", nas decisões). */
+  scorecards: string[];
+}
+
+/** Item de `fights/results` (guardado em `sport_event_detail.detail.result`) → desfecho canônico. */
+export function mmaFightResult(raw: unknown): MmaFightResult | null {
+  const r = obj(raw);
+  const wonType = str(r.won_type);
+  if (!wonType) return null;
+  const scorecards = (Array.isArray(r.score) ? r.score : [])
+    .flatMap((s) => (typeof s === 'string' ? s.split('|') : []))
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return {
+    method: MMA_METHOD_CODES[wonType.toLowerCase()] ?? 'other',
+    methodRaw: wonType,
+    detail: str(r.ko_type) ?? str(r.sub_type) ?? str(r.target),
+    round: int(r.round),
+    time: str(r.minute),
+    scorecards,
+  };
 }
 
 /** `fights/results` (por `id`, `ids` ou `date`) → desfecho (método, round, tempo) somado ao espelho da luta. */

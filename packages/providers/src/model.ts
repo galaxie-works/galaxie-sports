@@ -31,6 +31,8 @@ export const STAGE_KINDS = [
   'friendly',
   /** Fim de semana de Grande Prêmio (F1): agrupa treinos, classificação, sprint e corrida. */
   'race_weekend',
+  /** Card de MMA (noite de lutas de uma organização): agrupa o card principal e as preliminares. */
+  'fight_card',
   'other',
 ] as const;
 export type StageKind = (typeof STAGE_KINDS)[number];

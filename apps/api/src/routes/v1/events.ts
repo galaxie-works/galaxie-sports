@@ -11,7 +11,7 @@ import {
   type HeadToHead,
   type SupportedLocale,
 } from '@galaxie/contracts';
-import { asset, event, eventParticipant, participant, venue, venueDisplay } from '@galaxie/db';
+import { asset, event, eventParticipant, participant, stage, venue, venueDisplay } from '@galaxie/db';
 import { assertSport } from '../../auth/authenticator.js';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
@@ -19,6 +19,7 @@ import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl, type BuildContext } from '../../events/builder.js';
 import { buildLineups, buildStats, buildTimeline } from '../../events/detail.js';
+import { fightRank } from '../../events/fight.js';
 import { buildIcs } from '../../events/ics.js';
 import {
   activeMarkets,
@@ -39,7 +40,7 @@ import {
   type EventFilters,
   type EventOrder,
 } from '../../events/queries.js';
-import { resolveLocale } from '../../i18n.js';
+import { formatInstant, pickText, resolveLocale } from '../../i18n.js';
 import { scheduleWindow } from '../../time.js';
 import { assetUrl, parseInput } from '../../util.js';
 
@@ -296,6 +297,58 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     30,
   );
 
+  // ─── /v1/events/:id/card (MMA) ───────────────────────────────────────────────────────────────
+  app.get('/v1/events/:id/card', { config: MODULE }, async (request, reply) => {
+    const params = parseInput(EventParams, request.params);
+    const query = parseInput(LocaleQuery, request.query);
+    const locale = localeOf(request, query);
+    const tz = query.tz ?? 'UTC';
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.standings,
+      vary: [locale, tz],
+      check: sportCheck(request),
+      load: async () => {
+        const bctx = buildCtx(ctx, locale, tz);
+        const db = bctx.db;
+        const head = await eventHead(db, params.id);
+        const [card] =
+          head.sport === 'mma'
+            ? await db
+                .select({ id: stage.id, name: stage.name, label: stage.providerLabel })
+                .from(event)
+                .innerJoin(stage, eq(stage.id, event.stageId))
+                .where(and(eq(event.id, head.id), eq(stage.kind, 'fight_card')))
+            : [];
+        if (!card) throw problems.notFound('Card');
+        const rows = await db
+          .select({ id: event.id, startsAt: event.startsAt })
+          .from(event)
+          .where(eq(event.stageId, card.id))
+          .orderBy(desc(event.startsAt), desc(event.id));
+        const fights = (await buildEvents(bctx, rows.map((r) => r.id)))
+          .map((b) => b.dto)
+          // ordem de exibição; dentro do segmento, o bloco mais tardio primeiro (a ordem da consulta)
+          .sort((a, b) => fightRank(a.fight) - fightRank(b.fight));
+        const times = rows.map((r) => r.startsAt.getTime());
+        return {
+          body: {
+            card: {
+              id: card.id,
+              name: pickText(card.name as Record<string, string>, locale, card.label ?? '')!,
+              starts_at: formatInstant(new Date(Math.min(...times)), tz),
+              ends_at: formatInstant(new Date(Math.max(...times)), tz),
+            },
+            fights,
+          },
+          tags: ['event', `event:${head.id}`, ...fights.map((f) => `event:${f.id}`)],
+          ttl: eventsTtl(fights, bctx.now, CACHE_TTL.standings),
+          meta: { sport: head.sport },
+        };
+      },
+    });
+  });
+
   // ─── /v1/events/:id/h2h ──────────────────────────────────────────────────────────────────────
   app.get('/v1/events/:id/h2h', { config: MODULE }, async (request, reply) => {
     const params = parseInput(EventParams, request.params);
@@ -324,7 +377,9 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
           .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
           .leftJoin(asset, eq(asset.id, participant.logoAssetId))
           .where(eq(eventParticipant.eventId, head.id))
-          .orderBy(sql`case ${eventParticipant.side} when 'home' then 0 when 'away' then 1 else 2 end`);
+          .orderBy(
+            sql`case ${eventParticipant.side} when 'home' then 0 when 'corner_red' then 0 when 'away' then 1 when 'corner_blue' then 1 else 2 end`,
+          );
         const body: HeadToHead = {
           event_id: head.id,
           participants: parts.map((p) => ({
@@ -344,6 +399,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
               score: event.score,
               participantId: eventParticipant.participantId,
               side: eventParticipant.side,
+              result: eventParticipant.result,
             })
             .from(event)
             .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
@@ -361,17 +417,29 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
             .orderBy(desc(event.startsAt), asc(event.id));
           const order: string[] = [];
           const goals = new Map<string, Map<string, number>>();
+          // lutas (MMA) não têm placar: o vencedor vale como 1 × 0
+          const winners = new Map<string, Map<string, boolean>>();
           for (const h of history) {
             if (!goals.has(h.id)) {
               goals.set(h.id, new Map());
+              winners.set(h.id, new Map());
               order.push(h.id);
             }
             const g = h.side === 'home' ? h.score?.home : h.side === 'away' ? h.score?.away : null;
             if (g != null) goals.get(h.id)!.set(h.participantId, g);
+            const w = (h.result as { winner?: unknown } | null)?.winner;
+            if (typeof w === 'boolean') winners.get(h.id)!.set(h.participantId, w);
           }
           const stats = new Map(body.summary.teams.map((t) => [t.id, t]));
           for (const id of order) {
             const g = goals.get(id)!;
+            const w = winners.get(id)!;
+            if (head.sport === 'mma' && w.has(a) && w.has(b)) {
+              body.summary.played += 1;
+              if (w.get(a) === w.get(b)) body.summary.draws += 1;
+              else stats.get(w.get(a) ? a : b)!.wins += 1;
+              continue;
+            }
             const ga = g.get(a);
             const gb = g.get(b);
             if (ga === undefined || gb === undefined) continue;

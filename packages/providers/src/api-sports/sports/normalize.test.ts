@@ -4,7 +4,11 @@ import { EXPECTED_DURATION_MIN } from '../../event/status.js';
 import type { NormalizedEvent } from '../../model.js';
 import {
   f1SessionMinutes,
-  mmaCategoryStage,
+  fixMojibake,
+  mmaCardLabel,
+  mmaCardPlacement,
+  mmaFightResult,
+  mmaWeightClass,
   nbaStage,
   nflStage,
   NORMALIZABLE_SPORT_ENDPOINTS,
@@ -482,13 +486,13 @@ describe('MMA', () => {
   const env = loadSportFixture('mma', 'fights-2024.json');
   const b = normalizeMmaFights(env.response, FETCHED, env.parameters);
 
-  it('lutas viram eventos com os dois cantos na fase da categoria de peso', () => {
+  it('lutas viram eventos com os dois cantos na fase do card (a noite de lutas)', () => {
     const f = byId(b.events, '1097');
     expect(f.season).toEqual({ competitionId: 'all-fights', year: 2024 });
-    expect(f.stageLabel).toBe('category-Bantamweight');
-    expect(b.stages.find((s) => s.providerLabel === 'category-Bantamweight')).toMatchObject({
-      kind: 'other',
-      name: { 'pt-BR': 'Peso-galo', es: 'Peso gallo' },
+    expect(f.stageLabel).toBe('card-ufc-2024-01-13');
+    expect(b.stages.find((s) => s.providerLabel === 'card-ufc-2024-01-13')).toMatchObject({
+      kind: 'fight_card',
+      name: { 'pt-BR': 'UFC Fight Night: Ankalaev vs. Walker 2', en: 'UFC Fight Night: Ankalaev vs. Walker 2' },
     });
     expect(f.participants).toEqual([
       { participantId: '2554', side: 'corner_red', position: null, result: { winner: false } },
@@ -523,11 +527,129 @@ describe('MMA', () => {
     ]);
   });
 
+  it('o card atravessa a meia-noite UTC sem se partir e fica em ordem cronológica', () => {
+    // 1104 (01:30 UTC do dia 14) é da mesma noite que 1097 (13:00 UTC do dia 13)
+    expect(byId(b.events, '1104').stageLabel).toBe('card-ufc-2024-01-13');
+    expect(mmaCardLabel('UFC Fight Night: Thompson vs. Holland', new Date('2022-12-04T06:00:00Z'))).toBe(
+      'card-ufc-2022-12-03',
+    );
+    // eventos numerados: o número (Abu Dhabi começa às 06:00 UTC; a luta principal pode mudar de nome)
+    expect(byId(b.events, '1121').stageLabel).toBe('card-ufc-297');
+    expect(mmaCardLabel('UFC 308: Topuria vs. Holloway', new Date('2024-10-26T06:00:00Z'))).toBe('card-ufc-308');
+    expect(mmaCardLabel('UFC 306 â Riyadh Season Noche UFC', new Date('2024-09-14T16:00:00Z'))).toBe(
+      'card-ufc-306',
+    );
+    expect(mmaCardLabel('The Ultimate Fighter 31 Semifinal', new Date('2024-06-01T22:00:00Z'))).toBe(
+      'card-the-ultimate-fighter-31-semifinal-2024-06-01',
+    );
+    const order = (label: string) => b.stages.find((s) => s.providerLabel === label)!.order;
+    expect(order('card-ufc-2024-01-13')).toBeLessThan(order('card-ufc-297'));
+  });
+
+  it('nome do card: o slug mais frequente entre as lutas não canceladas', () => {
+    const fight = (fid: number, slug: string, short: string) => ({
+      id: fid,
+      date: '2024-06-29T22:00:00+00:00',
+      slug,
+      is_main: true,
+      category: 'Lightweight',
+      status: { short, long: short },
+      fighters: { first: { id: fid * 10, name: 'A' }, second: { id: fid * 10 + 1, name: 'B' } },
+    });
+    const r = normalizeMmaFights(
+      [
+        fight(1, 'UFC 303: McGregor vs. Chandler', 'CANC'),
+        fight(2, 'UFC 303: McGregor vs. Chandler', 'CANC'),
+        fight(3, 'UFC 303: Pereira vs. ProchÃ¡zka 2', 'FT'),
+      ],
+      FETCHED,
+      { season: '2024' },
+    );
+    expect(r.stages).toHaveLength(1);
+    expect(r.stages[0]!.name.en).toBe('UFC 303: Pereira vs. Procházka 2');
+  });
+
+  it('corrige o texto em UTF-8 lido como Latin-1 do fornecedor', () => {
+    expect(fixMojibake('JirÃ­ ProchÃ¡zka')).toBe('Jirí Procházka');
+    expect(fixMojibake('UFC 306 â Riyadh Season Noche UFC: OâMalley')).toBe(
+      'UFC 306 – Riyadh Season Noche UFC: O’Malley',
+    );
+    expect(fixMojibake('Gaston Bolaños')).toBe('Gaston Bolaños');
+    expect(fixMojibake('Ã')).toBe('Ã');
+    const r = normalizeMmaFights(
+      [
+        {
+          id: 9,
+          date: '2024-06-29T22:00:00+00:00',
+          slug: 'UFC 303',
+          status: { short: 'NS' },
+          fighters: { first: { id: 1, name: 'JirÃ­ ProchÃ¡zka' }, second: { id: 2, name: 'Alex Pereira' } },
+        },
+      ],
+      FETCHED,
+    );
+    expect(r.participants.find((p) => p.id === '1')?.name).toBe('Jirí Procházka');
+  });
+
+  it('card principal, preliminares e preliminares iniciais; luta principal pelos sobrenomes', () => {
+    const at = (fid: number, date: string, main: boolean, a: string, z: string, short = 'FT') => ({
+      id: fid,
+      date,
+      is_main: main,
+      status: { short },
+      fighters: { first: { name: a }, second: { name: z } },
+    });
+    const p = mmaCardPlacement('UFC 300: Pereira vs. Hill', [
+      at(1, '2024-04-13T14:00:00+00:00', false, 'Cody Garbrandt', 'Deiveson Figueiredo'),
+      at(2, '2024-04-13T16:00:00+00:00', false, 'Diego Lopes', 'Sodiq Yusuff'),
+      at(3, '2024-04-13T18:00:00+00:00', true, 'Arman Tsarukyan', 'Charles Oliveira'),
+      at(4, '2024-04-13T18:00:00+00:00', true, 'Jamahal Hill', 'Alex Pereira'),
+    ]);
+    expect(Object.fromEntries(p)).toEqual({
+      '1': { segment: 'early_prelims', mainEvent: false },
+      '2': { segment: 'prelims', mainEvent: false },
+      '3': { segment: 'main_card', mainEvent: false },
+      '4': { segment: 'main_card', mainEvent: true },
+    });
+    // acentos e caixa não atrapalham; card sem nome de luta principal → nenhuma
+    expect(
+      mmaCardPlacement('UFC 303: Pereira vs. Procházka 2', [
+        at(5, '2024-06-30T03:30:00+00:00', true, 'JirÃ­ ProchÃ¡zka', 'Alex Pereira'),
+      ]).get('5')?.mainEvent,
+    ).toBe(true);
+    expect(mmaCardPlacement('UFC 310', [at(6, '2024-12-07T19:00:00+00:00', true, 'A B', 'C D')]).get('6')).toEqual({
+      segment: 'main_card',
+      mainEvent: false,
+    });
+  });
+
+  it('desfecho canônico: método, golpe, round, tempo e cartões', () => {
+    const res = loadSportFixture('mma', 'fights-results-1097.json');
+    expect(mmaFightResult(res.response[0])).toEqual({
+      method: 'ko',
+      methodRaw: 'KO',
+      detail: 'Punches',
+      round: 2,
+      time: '3:29',
+      scorecards: [],
+    });
+    expect(
+      mmaFightResult({ won_type: 'Points', round: 5, minute: '5:00', score: ['47-48|47-48|46-49'] }),
+    ).toMatchObject({ method: 'decision_unanimous', scorecards: ['47-48', '47-48', '46-49'], detail: null });
+    expect(mmaFightResult({ won_type: 'S Dec' })?.method).toBe('decision_split');
+    expect(mmaFightResult({ won_type: 'SUB', sub_type: 'Rear Naked Choke' })).toMatchObject({
+      method: 'submission',
+      detail: 'Rear Naked Choke',
+    });
+    expect(mmaFightResult({ won_type: 'Something new' })?.method).toBe('other');
+    expect(mmaFightResult({})).toBeNull();
+  });
+
   it('categorias femininas e desconhecidas', () => {
-    expect(mmaCategoryStage("Women's Strawweight")?.name).toMatchObject({ 'pt-BR': 'Peso-palha feminino' });
-    expect(mmaCategoryStage('Catch Weight')?.name).toMatchObject({ es: 'Peso pactado' });
-    expect(mmaCategoryStage('Bare Knuckle')?.name).toMatchObject({ 'pt-BR': 'Bare Knuckle' });
-    expect(mmaCategoryStage('')).toBeNull();
+    expect(mmaWeightClass("Women's Strawweight")?.name).toMatchObject({ 'pt-BR': 'Peso-palha feminino' });
+    expect(mmaWeightClass('Catch Weight')?.name).toMatchObject({ es: 'Peso pactado' });
+    expect(mmaWeightClass('Bare Knuckle')).toMatchObject({ code: 'Bare Knuckle', name: { 'pt-BR': 'Bare Knuckle' } });
+    expect(mmaWeightClass('')).toBeNull();
   });
 });
 
