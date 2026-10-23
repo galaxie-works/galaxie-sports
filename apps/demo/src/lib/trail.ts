@@ -24,7 +24,8 @@ export type TrailKind =
   | 'explorar'
   | 'ao vivo'
   | 'docs'
-  | 'ajustes';
+  | 'ajustes'
+  | 'cliente';
 
 /** O que a página informa ao abrir. */
 export interface TrailVisit {
@@ -50,7 +51,14 @@ export interface TrailState {
  * de um desses tipos (usuário dentro de Ajustes, atletas dentro de Hipismo) informa os pais (`parents`),
  * que entram antes dela na trilha nova.
  */
-export const ROOT_KINDS: readonly TrailKind[] = ['explorar', 'ao vivo', 'esporte', 'ajustes', 'docs'];
+export const ROOT_KINDS: readonly TrailKind[] = [
+  'explorar',
+  'ao vivo',
+  'esporte',
+  'ajustes',
+  'cliente',
+  'docs',
+];
 
 export const MAX_TRAIL = 6;
 const STORAGE_KEY = 'galaxie:trilha';
@@ -133,6 +141,23 @@ export function applyVisit(trail: TrailState, visit: TrailVisit, parents: TrailV
   if (!trail.entries.length) return fresh();
   const depth = (trail.entries.at(-1)?.depth ?? 0) + 1;
   return [...trail.entries, { ...visit, depth }].slice(-MAX_TRAIL);
+}
+
+/**
+ * De onde a pessoa veio, para o "← Voltar para {origem}": a página anterior no caminho desta aba, quando
+ * ela não é um dos pais (a trilha já leva aos pais) nem a própria página. Ex.: um jogo aberto pelo Ao
+ * vivo tem origem "Ao vivo"; aberto pela competição, não tem (a competição já está na trilha).
+ */
+export function originOf(
+  trail: TrailState,
+  visit: TrailVisit,
+  parents: TrailVisit[] = [],
+): TrailEntry | null {
+  const previous = applyVisit(trail, visit, parents).at(-2);
+  if (!previous) return null;
+  const target = pathnameOf(previous.path);
+  if (target === pathnameOf(visit.path) || parents.some((p) => pathnameOf(p.path) === target)) return null;
+  return previous;
 }
 
 /**

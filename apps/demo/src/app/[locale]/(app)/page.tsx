@@ -1,8 +1,9 @@
 import type { ExploreSummary } from '@galaxie/contracts';
+import { ChevronDown } from 'lucide-react';
 import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
-import { CountryCard } from '@/components/explore/country-card';
+import { CountryCard, CountryRow } from '@/components/explore/country-card';
 import { ExploreSkeleton } from '@/components/explore/explore-skeleton';
 import { CONFEDERATIONS, COUNTRY_GRID, FEATURED_SPORT_SPAN, SPORT_GRID } from '@/components/explore/layout';
 import { LivePill, MultisportCard, SportCard } from '@/components/explore/sport-card';
@@ -92,21 +93,48 @@ async function Content() {
             const data = countries.map((c) => countryData.get(c.code));
             const upcoming = data.reduce((n, d) => n + (d?.upcoming ?? 0), 0);
             const live = data.reduce((n, d) => n + (d?.live ?? 0), 0);
+            const header = (
+              <>
+                <h3 className="flex items-center gap-3">
+                  <span className="bg-primary h-6 w-1 rounded-full" aria-hidden />
+                  <span className="text-lg font-bold tracking-[0.14em]">{group}</span>
+                  <span className="text-muted-foreground text-sm font-medium">{t.nav.groups[group]}</span>
+                </h3>
+                <span className="text-muted-foreground flex items-center gap-3 text-xs">
+                  {plural(locale, countries.length, te.countriesCount)}
+                  {summary ? ` · ${plural(locale, upcoming, te.upcomingCount)}` : null}
+                  <LivePill count={live} t={te} />
+                </span>
+              </>
+            );
             return (
               <div key={group} className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b pb-2.5">
-                  <h3 className="flex items-center gap-3">
-                    <span className="bg-primary h-6 w-1 rounded-full" aria-hidden />
-                    <span className="text-lg font-bold tracking-[0.14em]">{group}</span>
-                    <span className="text-muted-foreground text-sm font-medium">{t.nav.groups[group]}</span>
-                  </h3>
-                  <span className="text-muted-foreground flex items-center gap-3 text-xs">
-                    {plural(locale, countries.length, te.countriesCount)}
-                    {summary ? ` · ${plural(locale, upcoming, te.upcomingCount)}` : null}
-                    <LivePill count={live} t={te} />
-                  </span>
+                {/* celular: uma linha por país, e só a América do Sul aberta (as outras, um toque) */}
+                <details className="group/conf sm:hidden" open={group === CONFEDERATIONS[0]}>
+                  <summary className="flex cursor-pointer list-none flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b pb-2.5 [&::-webkit-details-marker]:hidden">
+                    {header}
+                    <ChevronDown
+                      className="text-muted-foreground size-4 transition-transform group-open/conf:rotate-180"
+                      aria-hidden
+                    />
+                  </summary>
+                  <ul className="explore-card mt-3 divide-y overflow-hidden rounded-xl border">
+                    {countries.map((c) => (
+                      <CountryRow
+                        key={c.code}
+                        country={c}
+                        name={t.nav.countries[c.code]}
+                        data={countryData.get(c.code)}
+                        t={t}
+                        locale={locale}
+                      />
+                    ))}
+                  </ul>
+                </details>
+                <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b pb-2.5 max-sm:hidden">
+                  {header}
                 </div>
-                <div className={COUNTRY_GRID}>
+                <div className={cn(COUNTRY_GRID, 'max-sm:hidden')}>
                   {countryLayout(
                     countries.map((c) => c.code),
                     defaultMarket(locale),

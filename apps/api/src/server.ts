@@ -6,7 +6,21 @@ import { loadWtwConfig, type WtwConfig } from '@galaxie/where-to-watch';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
 import { adminRoutes } from './admin/routes.js';
-import { assertModule, Authenticator, type AuthenticatorOptions } from './auth/authenticator.js';
+import {
+  assertModule,
+  Authenticator,
+  type AuthenticatorOptions,
+  type TenantContext,
+} from './auth/authenticator.js';
+import {
+  assertPublishableRoute,
+  PgPublishableStore,
+  PublishableAuthenticator,
+  publishableKeyFrom,
+  requestOrigin,
+  type PublishableAuthenticatorOptions,
+  type PublishableStore,
+} from './auth/publishable.js';
 import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
 import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.js';
 import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
@@ -42,6 +56,14 @@ export interface ServerOptions {
   logger?: boolean;
   tenantStore?: TenantStore;
   authenticator?: AuthenticatorOptions;
+  /** Chaves publicáveis (`x-galaxie-publishable-key`); padrão: Postgres, quando há db. */
+  publishableStore?: PublishableStore;
+  publishableAuthenticator?: PublishableAuthenticatorOptions;
+  /**
+   * Rate limit da chave publicável, por chave × IP (todas as rotas somadas), por janela.
+   * Padrão 60 (PUBLISHABLE_RATE_LIMIT_PER_MINUTE); nunca acima do limite do tenant.
+   */
+  publishableRateLimitPerMinute?: number;
   cache?: ResponseCache;
   rateLimiter?: RateLimiter;
   /** Janela do rate limit (ms). Padrão 60 s; o limite vem do tenant (rate_limit_per_minute). */
@@ -129,6 +151,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const windowMs = options.rateLimitWindowMs ?? 60_000;
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
   const authenticator = store ? new Authenticator(store, options.authenticator) : undefined;
+  const publishableStore =
+    options.publishableStore ?? (options.db ? new PgPublishableStore(options.db) : undefined);
+  const publishable = publishableStore
+    ? new PublishableAuthenticator(publishableStore, options.publishableAuthenticator)
+    : undefined;
+  const publishableLimit = options.publishableRateLimitPerMinute ?? 60;
   let wtwConfig = options.wtwConfig;
   const adminGuard = options.admin?.keyHashes.length ? new AdminGuard(options.admin) : undefined;
   const ctx: AppContext = {
@@ -157,22 +185,41 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   registerErrorHandling(app);
   registerSecurityHeaders(app, options.security);
-  if (options.cors?.origins.length) registerCors(app, options.cors);
+  if (options.cors?.origins.length || publishable)
+    registerCors(app, options.cors ?? { origins: [] }, publishable);
   app.decorateRequest('tenant', null);
 
   // Autenticação, módulo do plano, uso e rate limit — rotas com `config.module` ou `config.authenticated`.
+  // A chave secreta (`x-galaxie-key`) tem precedência; sem ela, vale a publicável, só para leitura.
   app.addHook('onRequest', async (request, reply) => {
     const module = request.routeOptions.config?.module;
     if (!module && !request.routeOptions.config?.authenticated) return;
-    if (!authenticator) throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
-    const tenant = await authenticator.authenticate(apiKeyFrom(request));
+    const secretKey = apiKeyFrom(request);
+    const pk = secretKey ? undefined : publishableKeyFrom(request);
+    let tenant: TenantContext;
+    if (pk) {
+      assertPublishableRoute(request);
+      if (!publishable) throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
+      const origin = requestOrigin(request);
+      tenant = await publishable.authenticate(pk, origin);
+      if (origin) request.publishableOrigin = origin;
+    } else {
+      if (!authenticator)
+        throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
+      tenant = await authenticator.authenticate(secretKey);
+    }
     request.tenant = tenant;
     if (module) assertModule(tenant, module);
 
     const route = `${request.method} ${request.routeOptions.url ?? request.url}`;
     usage?.record(tenant.tenantId, route);
+    // publicável: limite próprio por chave × IP (o tráfego vem de muitos torcedores, não do backend)
+    const [limitKey, limit] =
+      tenant.keyKind === 'publishable'
+        ? [`pk:${tenant.keyId}:${request.ip}`, Math.min(publishableLimit, tenant.rateLimitPerMinute)]
+        : [`${tenant.tenantId}:${route}`, tenant.rateLimitPerMinute];
     try {
-      const r = await limiter.hit(`${tenant.tenantId}:${route}`, tenant.rateLimitPerMinute, windowMs);
+      const r = await limiter.hit(limitKey, limit, windowMs);
       const resetSec = Math.ceil(r.resetMs / 1000);
       reply
         .header('x-ratelimit-limit', String(r.limit))

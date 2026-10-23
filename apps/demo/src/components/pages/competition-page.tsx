@@ -9,6 +9,7 @@ import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { FilterChip } from '@/components/sport/filter-chip';
+import { SeasonSelect } from '@/components/sport/season-select';
 import { ScrollRow } from '@/components/sport/scroll-row';
 import { ChampionshipTable, championshipOrder } from '@/components/sport/race';
 import { Section } from '@/components/sport/section';
@@ -181,6 +182,25 @@ export async function CompetitionContent({ params, searchParams, source }: PageC
                   {competition.seasons.find((x) => x.year === s.year)?.label ?? s.year}
                 </FilterChip>
               ))}
+              {allWindows.length > windows.length ? (
+                // temporadas antigas (F1 desde 1950): todas no seletor, só a escolhida é conferida na API
+                <SeasonSelect
+                  options={allWindows.map((w) => ({
+                    year: w.year,
+                    label: competition.seasons.find((x) => x.year === w.year)?.label ?? String(w.year),
+                    hint: '',
+                    current: false,
+                  }))}
+                  value={selected?.year ?? allWindows[0]!.year}
+                  basePath={base}
+                  texts={{
+                    label: t.team.season.label,
+                    search: t.team.season.search,
+                    empty: t.team.season.empty,
+                    current: t.team.season.current,
+                  }}
+                />
+              ) : null}
             </div>
 
             <UrlTabs key={selected?.year} param={TAB_PARAM} value={tab}>
@@ -188,7 +208,8 @@ export async function CompetitionContent({ params, searchParams, source }: PageC
                 <TabsTrigger value="classificacao" disabled={!groups.length}>
                   {tc.standings}
                 </TabsTrigger>
-                <TabsTrigger value="jogos">{tc.matches}</TabsTrigger>
+                {/* F1: a aba das sessões se chama "Corridas" (a URL segue `?aba=jogos`) */}
+                <TabsTrigger value="jogos">{sessions ? tc.races : tc.matches}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="classificacao" className="flex flex-col gap-6 pt-4">
