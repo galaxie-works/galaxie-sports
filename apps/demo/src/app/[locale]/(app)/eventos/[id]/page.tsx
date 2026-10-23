@@ -16,7 +16,7 @@ import { Suspense } from 'react';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
-import { ProvisionalBadgeView } from '@/components/sport/event-card-view';
+import { awaitingResult, ProvisionalBadgeView } from '@/components/sport/event-card-view';
 import { EventCard } from '@/components/sport/event-card';
 import { FightCardSection, fightResultText } from '@/components/sport/fight-card';
 import { Intensity } from '@/components/sport/intensity';
@@ -145,6 +145,8 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
                   <span className="text-muted-foreground">{t.event.fight.resultPending}</span>
                 )}
               </span>
+            ) : awaitingResult(event) ? (
+              <span className="text-muted-foreground text-xl font-semibold">{t.sport.awaitingResult}</span>
             ) : started ? (
               // Placar ausente (ex.: jogo abandonado sem dado do fornecedor) aparece como "?", não vira 0.
               <span className="text-4xl font-bold tabular-nums sm:text-5xl">
