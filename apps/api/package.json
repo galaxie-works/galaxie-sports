@@ -28,18 +28,19 @@
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
-    "@galaxie/providers": "workspace:*",
-    "@galaxie/rules": "workspace:*",
+    "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
     "@galaxie/observability": "workspace:*",
+    "@galaxie/providers": "workspace:*",
+    "@galaxie/rules": "workspace:*",
+    "@galaxie/runtime-config": "workspace:*",
+    "@galaxie/where-to-watch": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.7",
     "ioredis": "^5.11.1",
     "postgres": "^3.4.9",
     "yaml": "^2.9.1",
-    "zod": "^4.6.7",
-    "@galaxie/where-to-watch": "workspace:*",
-    "@galaxie/geo": "workspace:*"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@galaxie/ingestor": "workspace:*"

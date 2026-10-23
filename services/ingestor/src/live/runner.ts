@@ -79,6 +79,15 @@ export interface LiveHooks {
   onDetailFetched?(providerEventId: string, at: Date): void | Promise<void>;
 }
 
+/**
+ * Releitura da configuração durante a execução (painel de Operação): a cada `everyMs`, `load` devolve as
+ * opções efetivas; o que mudou passa a valer a partir do próximo plano/tick, sem reiniciar o processo.
+ */
+export interface LiveOptionsRefresh {
+  everyMs: number;
+  load(): Promise<Partial<LiveRunnerOptions>>;
+}
+
 export interface LiveRunnerDeps {
   sport: string;
   provider: SportsDataProvider;
@@ -91,6 +100,7 @@ export interface LiveRunnerDeps {
   hooks?: LiveHooks;
   options?: Partial<LiveRunnerOptions>;
   jobId?: string | undefined;
+  refresh?: LiveOptionsRefresh | undefined;
 }
 
 export type LiveStopReason = 'idle' | 'aborted' | 'until' | 'max_ticks';
@@ -121,6 +131,7 @@ export class LiveRunner {
   private backoffUntil: Date | null = null;
   private consecutiveFailures = 0;
   private order: { key: string; ids: string[] } | null = null;
+  private lastRefreshAt = -Infinity;
 
   constructor(private readonly deps: LiveRunnerDeps) {
     this.clock = deps.clock ?? systemLiveClock;
@@ -158,6 +169,36 @@ export class LiveRunner {
       } else this.halftimeSeenAt.delete(c.eventId);
     }
     return all;
+  }
+
+  /** Aplica a configuração relida (quando chega a hora); falha na leitura mantém a atual. */
+  async refreshOptions(): Promise<void> {
+    const refresh = this.deps.refresh;
+    if (!refresh) return;
+    const nowMs = this.clock.now();
+    if (nowMs - this.lastRefreshAt < refresh.everyMs) return;
+    this.lastRefreshAt = nowMs;
+    let next: Partial<LiveRunnerOptions>;
+    try {
+      next = await refresh.load();
+    } catch (err) {
+      this.log.warn({ err }, 'não foi possível reler a configuração do ao vivo; mantendo a atual');
+      return;
+    }
+    const opts = this.options as unknown as Record<string, unknown>;
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+    // chave presente com `undefined` = voltou a não ter valor (ex.: LIVE_PROTECT_DAILY apagado)
+    for (const [k, v] of Object.entries(next)) {
+      if (opts[k] === v) continue;
+      changes[k] = { from: opts[k], to: v ?? null };
+      if (v === undefined) delete opts[k];
+      else opts[k] = v;
+    }
+    if (Object.keys(changes).length) {
+      // o plano muda junto (ex.: destaque liga o detalhe do jogo principal e dobra o custo do tick)
+      this.sentPlans.clear();
+      this.log.info({ changes }, 'configuração do ao vivo atualizada');
+    }
   }
 
   /** Refaz o plano do dia em `now` e registra o orçamento no Governor quando ele muda. */
@@ -264,8 +305,10 @@ export class LiveRunner {
       gaps: [],
     };
     const opts = this.options;
+    // com releitura de configuração, nenhuma espera passa do intervalo dela
+    const refreshCap = this.deps.refresh?.everyMs ?? Infinity;
     const sleepUntil = async (until: Date, cap = Infinity) => {
-      const ms = Math.min(until.getTime() - this.clock.now(), cap);
+      const ms = Math.min(until.getTime() - this.clock.now(), cap, refreshCap);
       await this.clock.sleep(Math.max(1_000, ms), signal);
     };
 
@@ -284,6 +327,7 @@ export class LiveRunner {
         break;
       }
 
+      await this.refreshOptions();
       const { plan, candidates } = await this.plan(now);
       summary.plans.set(plan.day, plan);
       const decision = decideTick(plan, now, this.lastTickAt, opts, { halftimeSeenAt: this.halftimeSeenAt });

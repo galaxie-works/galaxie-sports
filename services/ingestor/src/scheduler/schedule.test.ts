@@ -1,4 +1,14 @@
+import { planByName } from '@galaxie/apisports-client';
+import {
+  API_PLAN_DAILY_LIMITS,
+  API_PLANS,
+  SCHEDULED_JOBS,
+  scheduleKey,
+  settingDef,
+} from '@galaxie/runtime-config';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_LIVE_OPTIONS } from '../live/schedule.js';
+import { DEFAULT_CHANGE_FEED_RETENTION_DAYS } from '../ops/change-feed-retention.js';
 import { AGENT_JOBS, DEFAULT_JOBS, envKey, jobsForProfile, nextRuns, scheduleFromEnv } from './schedule.js';
 
 describe('scheduleFromEnv', () => {
@@ -78,5 +88,29 @@ describe('scheduleFromEnv', () => {
       '2026-10-21T15:05:00.000Z',
       '2026-10-21T16:05:00.000Z',
     ]);
+  });
+});
+
+describe('registro do painel de Operação (@galaxie/runtime-config)', () => {
+  it('cada job agendado tem a mesma agenda padrão e o mesmo perfil no registro', () => {
+    const fromCode = [
+      ...DEFAULT_JOBS.map((j) => ({ name: j.name, service: 'ingestor', cron: j.cron })),
+      ...AGENT_JOBS.map((j) => ({ name: j.name, service: 'agents', cron: j.cron })),
+    ];
+    expect(SCHEDULED_JOBS.map(({ name, service, cron }) => ({ name, service, cron }))).toEqual(fromCode);
+    for (const j of fromCode) expect(scheduleKey(j.name)).toBe(envKey(j.name));
+  });
+
+  it('padrões do ao vivo e da retenção batem com o código', () => {
+    expect(settingDef('LIVE_MAX_INTERVAL_MINUTES')?.default).toBe(
+      String(DEFAULT_LIVE_OPTIONS.maxIntervalMs / 60_000),
+    );
+    expect(settingDef('CHANGE_FEED_RETENTION_DAYS')?.default).toBe(
+      String(DEFAULT_CHANGE_FEED_RETENTION_DAYS),
+    );
+  });
+
+  it('planos da api-sports e a cota diária de cada um', () => {
+    for (const plan of API_PLANS) expect(API_PLAN_DAILY_LIMITS[plan]).toBe(planByName(plan).dailyLimit);
   });
 });

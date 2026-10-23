@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { Redis } from 'ioredis';
 import { parse } from 'yaml';
 import { MediaDenylist, type MediaDenylistEntry } from '@galaxie/apisports-client';
-import { closeDb, createDb } from '@galaxie/db';
+import { closeDb, createDb, readRuntimeOverrides, reportRuntimeEnv } from '@galaxie/db';
+import { applyOverrides, envReport } from '@galaxie/runtime-config';
 import { hardeningFromEnv } from './config.js';
 import type { ReviewStatus } from './context.js';
 import { buildServer } from './server.js';
@@ -20,6 +21,22 @@ function loadDenylist(): MediaDenylist | undefined {
 const mediaDenylist = loadDenylist();
 
 const db = process.env.DATABASE_URL ? createDb(process.env.DATABASE_URL) : undefined;
+
+/**
+ * Painel de Ajustes → Operação: as flags que a API lê (intervalo do ao vivo, planos e reserva nas
+ * métricas) valem do banco na partida (banco > env > padrão; mudanças exigem reiniciar a API). O env do
+ * contêiner vai para ops.runtime_env, com segredos só como configurado/não configurado.
+ */
+if (db) {
+  try {
+    const containerEnv = { ...process.env };
+    const { env, applied } = applyOverrides(containerEnv, await readRuntimeOverrides(db));
+    for (const key of applied) process.env[key] = env[key];
+    await reportRuntimeEnv(db, 'api', envReport('api', containerEnv));
+  } catch (err) {
+    console.warn('configuração do painel indisponível na partida; seguindo com o env', err);
+  }
+}
 const redis = process.env.REDIS_URL
   ? new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false })
   : undefined;

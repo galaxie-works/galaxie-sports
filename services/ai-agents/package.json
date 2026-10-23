@@ -49,6 +49,7 @@
   "devDependencies": {
     "@galaxie/ingestor": "workspace:*",
     "@galaxie/providers": "workspace:*",
+    "@galaxie/runtime-config": "workspace:*",
     "postgres": "^3.4.9"
   }
 }
