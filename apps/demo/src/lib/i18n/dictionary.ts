@@ -21,6 +21,7 @@ import race from './messages/race';
 import requests from './messages/requests';
 import search from './messages/search';
 import shell from './messages/shell';
+import site from './messages/site';
 import sport from './messages/sport';
 import team from './messages/team';
 
@@ -43,6 +44,7 @@ export const NAMESPACES = {
   requests,
   search,
   shell,
+  site,
   sport,
   team,
 };
