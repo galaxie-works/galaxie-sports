@@ -25,7 +25,7 @@ describe('config/competitions/<esporte>.yaml', () => {
       expect(['league', 'cup']).toContain(c.type);
       expect([1, 2, 3]).toContain(c.tier);
       expect(['high', 'medium', 'low', 'none']).toContain(c.live_priority);
-      expect(['calendar-year', 'split-year']).toContain(c.seasons_strategy);
+      expect(['calendar-year', 'split-year', 'tournament-year']).toContain(c.seasons_strategy);
       expect(c.api_sports_id, c.slug).not.toBeNull();
       expect(ids.has(String(c.api_sports_id)), `ID repetido: ${c.api_sports_id}`).toBe(false);
       ids.add(String(c.api_sports_id));
