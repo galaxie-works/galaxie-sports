@@ -1166,11 +1166,7 @@ export interface MmaFightPlacement {
   mainEvent: boolean;
 }
 
-const foldName = (s: string) =>
-  fixMojibake(s)
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
+const foldName = (s: string) => fixMojibake(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /**
  * Posição de cada luta no card a partir dos itens de `fights` (o espelho de `sport_event_detail.summary`):
@@ -1183,7 +1179,9 @@ export function mmaCardPlacement(
 ): Map<string, MmaFightPlacement> {
   const items = fights.map(obj).filter((f) => id(f.id));
   const startOf = (f: Obj) => instant(f.timestamp, f.date)?.getTime() ?? 0;
-  const prelimBlocks = [...new Set(items.filter((f) => f.is_main !== true).map(startOf))].sort((a, b) => b - a);
+  const prelimBlocks = [...new Set(items.filter((f) => f.is_main !== true).map(startOf))].sort(
+    (a, b) => b - a,
+  );
   const card = foldName(cardName.split(':').slice(1).join(':'));
   const surname = (f: Obj, key: 'first' | 'second') =>
     foldName(str(obj(obj(f.fighters)[key]).name) ?? '')

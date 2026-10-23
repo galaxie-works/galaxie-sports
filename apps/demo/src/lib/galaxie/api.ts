@@ -366,6 +366,21 @@ export async function getH2h(id: string, locale: ContentLocale) {
   return orNull(api.eventH2h(id, { limit: 10, ...localeQuery(locale) }));
 }
 
+export const eventCardRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/events/{id}/card',
+  params: { id },
+  query: localeQuery(content ?? locale),
+  description: text(locale).eventCard,
+});
+
+/** Card de MMA da luta (null fora do MMA). */
+export async function getEventCard(id: string, locale: ContentLocale) {
+  'use cache';
+  cacheLife('hours');
+  return orNull(api.eventCard(id, localeQuery(locale)));
+}
+
 export const eventContextRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/context',

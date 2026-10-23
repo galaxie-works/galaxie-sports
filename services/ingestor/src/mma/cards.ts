@@ -73,7 +73,10 @@ export async function regroupMmaCards(db: Database): Promise<MmaRegroupStats> {
     for (const p of fighters) {
       const fixed = fixMojibake(p.name);
       if (fixed === p.name) continue;
-      await tx.update(participant).set({ name: fixed, updatedAt: new Date() }).where(eq(participant.id, p.id));
+      await tx
+        .update(participant)
+        .set({ name: fixed, updatedAt: new Date() })
+        .where(eq(participant.id, p.id));
       stats.renamed += 1;
     }
 
@@ -88,7 +91,12 @@ export async function regroupMmaCards(db: Database): Promise<MmaRegroupStats> {
         and(
           or(like(stage.providerLabel, 'category-%'), eq(stage.kind, 'fight_card')),
           inArray(stage.seasonId, mmaSeasons),
-          notExists(tx.select({ one: sql`1` }).from(event).where(eq(event.stageId, stage.id))),
+          notExists(
+            tx
+              .select({ one: sql`1` })
+              .from(event)
+              .where(eq(event.stageId, stage.id)),
+          ),
         ),
       )
       .returning({ id: stage.id });

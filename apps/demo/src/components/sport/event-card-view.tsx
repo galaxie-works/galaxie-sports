@@ -3,7 +3,7 @@
  * (servidor) e a página Ao vivo (navegador) desenham o mesmo cartão.
  */
 import type { Event } from '@galaxie/contracts';
-import { Calendar, Flame, MapPin } from 'lucide-react';
+import { Calendar, Check, Flame, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 import { Badge } from '@/components/reui/badge';
@@ -54,17 +54,37 @@ export function ProvisionalBadgeView({ event, t }: { event: Pick<Event, 'provisi
 }
 
 /** Linha de participante (eventos que não são "mandante × visitante": F1, MMA em card múltiplo etc.). */
-function TeamRow({ p, goals, started }: { p: Participant; goals: number | null; started: boolean }) {
+function TeamRow({
+  p,
+  goals,
+  started,
+  fighter = false,
+}: {
+  p: Participant;
+  goals: number | null;
+  started: boolean;
+  /** Lutador (MMA): foto redonda e, sem placar, o vencedor marcado. */
+  fighter?: boolean;
+}) {
   const lost = p.winner === false;
   return (
     <div className="flex items-center gap-2">
-      <Crest src={p.logo} name={p.name} size="xs" />
-      <span className={cn('flex-1 truncate text-sm', lost && 'text-muted-foreground')}>{p.name}</span>
+      <Crest src={p.logo} name={p.name} size="xs" round={fighter} />
+      <span
+        className={cn(
+          'flex-1 truncate text-sm',
+          lost && 'text-muted-foreground',
+          fighter && p.winner && 'font-semibold',
+        )}
+      >
+        {p.name}
+      </span>
       {started ? (
         <span
           className={cn('w-5 text-right text-sm font-semibold tabular-nums', lost && 'text-muted-foreground')}
         >
-          {goals ?? '–'}
+          {goals ??
+            (fighter && p.winner ? <Check className="text-success ml-auto size-4" aria-hidden /> : '–')}
         </span>
       ) : null}
     </div>
@@ -235,6 +255,7 @@ export function EventCardView({
                 p={p}
                 goals={p.side === 'home' ? event.score.home : p.side === 'away' ? event.score.away : null}
                 started={started}
+                fighter={event.sport === 'mma'}
               />
             ))}
           </div>

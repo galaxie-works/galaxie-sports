@@ -18,6 +18,7 @@ import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { ProvisionalBadgeView } from '@/components/sport/event-card-view';
 import { EventCard } from '@/components/sport/event-card';
+import { FightCardSection, fightResultText } from '@/components/sport/fight-card';
 import { Intensity } from '@/components/sport/intensity';
 import { MatchDetails } from '@/components/sport/match-details';
 import { MarketTabs } from '@/components/sport/market-tabs';
@@ -36,6 +37,7 @@ import {
   eventRequest,
   getEvent,
   getTeamCountry,
+  getEventCard,
   getEventContext,
   getH2h,
   getLineups,
@@ -73,7 +75,16 @@ const pair = (p: { home: number | null; away: number | null }) => ({
 
 // ─── placar ──────────────────────────────────────────────────────────────────────────────────────
 
-function Side({ p, align }: { p: Event['participants'][number] | undefined; align: 'left' | 'right' }) {
+function Side({
+  p,
+  align,
+  fighter = false,
+}: {
+  p: Event['participants'][number] | undefined;
+  align: 'left' | 'right';
+  /** Lutador (MMA): foto redonda e o perdedor esmaecido depois da luta. */
+  fighter?: boolean;
+}) {
   if (!p) return <div className="flex-1" />;
   return (
     <Link
@@ -81,9 +92,10 @@ function Side({ p, align }: { p: Event['participants'][number] | undefined; alig
       className={cn(
         'group/side flex flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:text-left',
         align === 'right' && 'sm:flex-row-reverse sm:text-right',
+        fighter && p.winner === false && 'opacity-60',
       )}
     >
-      <Crest src={p.logo} name={p.name} size="lg" />
+      <Crest src={p.logo} name={p.name} size="lg" round={fighter} />
       <div className="flex flex-col">
         <span className="text-lg font-semibold group-hover/side:underline">{p.name}</span>
         {p.nickname ? <span className="text-muted-foreground text-sm">{p.nickname}</span> : null}
@@ -98,7 +110,7 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
   const away = event.participants.find((p) => p.side === 'away') ?? event.participants[1];
   const started = STARTED.has(event.status);
   const tbc = timeToBeConfirmed(event);
-  const { score } = event;
+  const { score, fight } = event;
 
   return (
     <Card>
@@ -114,14 +126,25 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
             </Link>
           ) : null}
           {event.stage?.name ? <span>· {event.stage.name}</span> : null}
+          {fight?.weight_class ? <span>· {fight.weight_class.name}</span> : null}
+          {fight?.main_event ? <Badge variant="primary-light">{t.event.fight.mainEvent}</Badge> : null}
           <ProvisionalBadgeView event={event} t={t.sport} />
           <StatusBadge event={event} />
         </div>
 
         <div className="flex items-center gap-4">
-          <Side p={home} align="left" />
+          <Side p={home} align="left" fighter={!!fight} />
           <div className="flex shrink-0 flex-col items-center gap-1">
-            {started ? (
+            {fight && started ? (
+              // luta: sem placar — o desfecho (método, golpe, round e tempo) no lugar dele
+              <span className="max-w-48 text-center text-sm font-medium sm:max-w-64 sm:text-base">
+                {fight.result ? (
+                  fightResultText(fight.result, t)
+                ) : (
+                  <span className="text-muted-foreground">{t.event.fight.resultPending}</span>
+                )}
+              </span>
+            ) : started ? (
               // Placar ausente (ex.: jogo abandonado sem dado do fornecedor) aparece como "?", não vira 0.
               <span className="text-4xl font-bold tabular-nums sm:text-5xl">
                 {score.home ?? <span className="text-muted-foreground">?</span>}
@@ -145,7 +168,7 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
               </span>
             ) : null}
           </div>
-          <Side p={away} align="right" />
+          <Side p={away} align="right" fighter={!!fight} />
         </div>
 
         {started && score.periods?.length ? (
@@ -449,7 +472,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
   const home = first.participants.find((p) => p.side === 'home');
   const content = contentLocale(locale, home ? await getTeamCountry(home.id) : null);
   const event = content === apiLocale(locale) ? first : await getEvent(id, content);
-  const [context, h2h, wtw, lineups, related, timeline, stats] = await Promise.all([
+  const [context, h2h, wtw, lineups, related, timeline, stats, fightCard] = await Promise.all([
     getEventContext(id, content),
     getH2h(id, content),
     getWhereToWatch(id, country, content),
@@ -457,6 +480,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
     getRelated(id, content),
     getTimeline(id, content),
     getStats(id, content),
+    first.sport === 'mma' ? getEventCard(id, content) : null,
   ]);
   // minuto a minuto: a partir do apito (ou quando já há lance registrado); os marcos sem lance (início,
   // intervalo, 2º tempo) são do futebol: nos outros esportes, só com lances do fornecedor
@@ -512,6 +536,16 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
                   </Card>
                 ))}
               </Section>
+            ) : null}
+            {fightCard ? (
+              <FightCardSection
+                card={fightCard}
+                currentId={id}
+                locale={locale}
+                content={content}
+                t={t}
+                f={f}
+              />
             ) : null}
             {/* corrida: a classificação acima substitui os detalhes da partida (linha do tempo é do futebol) */}
             {race ? null : (

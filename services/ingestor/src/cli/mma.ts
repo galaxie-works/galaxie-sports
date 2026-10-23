@@ -38,7 +38,8 @@ async function latestYear(db: ReturnType<typeof createDb>): Promise<number> {
     .from(event)
     .innerJoin(season, eq(season.id, event.seasonId))
     .where(eq(event.sport, 'mma'));
-  if (!row?.year) throw new Error('Nenhuma luta de MMA no core: rode bootstrap:sports mma --jogos e normalize:sports mma.');
+  if (!row?.year)
+    throw new Error('Nenhuma luta de MMA no core: rode bootstrap:sports mma --jogos e normalize:sports mma.');
   return Number(row.year);
 }
 
@@ -64,7 +65,9 @@ if (values.cards) {
       'preliminares iniciais': count((c) => c.segment === 'early_prelims'),
     });
     console.table(
-      queue.slice(0, 10).map((c) => ({ luta: c.fightId, card: c.cardName, segmento: c.segment, principal: c.mainEvent })),
+      queue
+        .slice(0, 10)
+        .map((c) => ({ luta: c.fightId, card: c.cardName, segmento: c.segment, principal: c.mainEvent })),
     );
   } finally {
     await closeDb(db);

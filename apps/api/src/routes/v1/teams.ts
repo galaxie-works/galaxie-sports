@@ -412,7 +412,9 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             form.push({
               event_id: e.id,
               result: mine.winner === true ? 'W' : other.winner === true ? 'L' : 'D',
-              score: r ? [r.method_name, r.round != null ? `R${r.round}` : null].filter(Boolean).join(' · ') : '',
+              score: r
+                ? [r.method_name, r.round != null ? `R${r.round}` : null].filter(Boolean).join(' · ')
+                : '',
             });
             continue;
           }

@@ -492,7 +492,10 @@ describe('MMA', () => {
     expect(f.stageLabel).toBe('card-ufc-2024-01-13');
     expect(b.stages.find((s) => s.providerLabel === 'card-ufc-2024-01-13')).toMatchObject({
       kind: 'fight_card',
-      name: { 'pt-BR': 'UFC Fight Night: Ankalaev vs. Walker 2', en: 'UFC Fight Night: Ankalaev vs. Walker 2' },
+      name: {
+        'pt-BR': 'UFC Fight Night: Ankalaev vs. Walker 2',
+        en: 'UFC Fight Night: Ankalaev vs. Walker 2',
+      },
     });
     expect(f.participants).toEqual([
       { participantId: '2554', side: 'corner_red', position: null, result: { winner: false } },
@@ -535,7 +538,9 @@ describe('MMA', () => {
     );
     // eventos numerados: o número (Abu Dhabi começa às 06:00 UTC; a luta principal pode mudar de nome)
     expect(byId(b.events, '1121').stageLabel).toBe('card-ufc-297');
-    expect(mmaCardLabel('UFC 308: Topuria vs. Holloway', new Date('2024-10-26T06:00:00Z'))).toBe('card-ufc-308');
+    expect(mmaCardLabel('UFC 308: Topuria vs. Holloway', new Date('2024-10-26T06:00:00Z'))).toBe(
+      'card-ufc-308',
+    );
     expect(mmaCardLabel('UFC 306 â Riyadh Season Noche UFC', new Date('2024-09-14T16:00:00Z'))).toBe(
       'card-ufc-306',
     );
@@ -617,7 +622,9 @@ describe('MMA', () => {
         at(5, '2024-06-30T03:30:00+00:00', true, 'JirÃ­ ProchÃ¡zka', 'Alex Pereira'),
       ]).get('5')?.mainEvent,
     ).toBe(true);
-    expect(mmaCardPlacement('UFC 310', [at(6, '2024-12-07T19:00:00+00:00', true, 'A B', 'C D')]).get('6')).toEqual({
+    expect(
+      mmaCardPlacement('UFC 310', [at(6, '2024-12-07T19:00:00+00:00', true, 'A B', 'C D')]).get('6'),
+    ).toEqual({
       segment: 'main_card',
       mainEvent: false,
     });
@@ -648,7 +655,10 @@ describe('MMA', () => {
   it('categorias femininas e desconhecidas', () => {
     expect(mmaWeightClass("Women's Strawweight")?.name).toMatchObject({ 'pt-BR': 'Peso-palha feminino' });
     expect(mmaWeightClass('Catch Weight')?.name).toMatchObject({ es: 'Peso pactado' });
-    expect(mmaWeightClass('Bare Knuckle')).toMatchObject({ code: 'Bare Knuckle', name: { 'pt-BR': 'Bare Knuckle' } });
+    expect(mmaWeightClass('Bare Knuckle')).toMatchObject({
+      code: 'Bare Knuckle',
+      name: { 'pt-BR': 'Bare Knuckle' },
+    });
     expect(mmaWeightClass('')).toBeNull();
   });
 });

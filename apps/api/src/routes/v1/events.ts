@@ -326,7 +326,12 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
           .from(event)
           .where(eq(event.stageId, card.id))
           .orderBy(desc(event.startsAt), desc(event.id));
-        const fights = (await buildEvents(bctx, rows.map((r) => r.id)))
+        const fights = (
+          await buildEvents(
+            bctx,
+            rows.map((r) => r.id),
+          )
+        )
           .map((b) => b.dto)
           // ordem de exibição; dentro do segmento, o bloco mais tardio primeiro (a ordem da consulta)
           .sort((a, b) => fightRank(a.fight) - fightRank(b.fight));

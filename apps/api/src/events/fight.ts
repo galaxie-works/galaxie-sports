@@ -51,7 +51,9 @@ export async function loadFights(
     })
     .from(sportEventDetail)
     .innerJoin(event, eq(event.id, sportEventDetail.eventId))
-    .where(stageIds.length ? or(inArray(event.stageId, stageIds), inArray(event.id, ids)) : inArray(event.id, ids));
+    .where(
+      stageIds.length ? or(inArray(event.stageId, stageIds), inArray(event.id, ids)) : inArray(event.id, ids),
+    );
   const byStage = new Map<string, Record<string, unknown>[]>();
   const byEvent = new Map(rows.map((r) => [r.eventId, r]));
   for (const r of rows) {
@@ -73,10 +75,13 @@ export async function loadFights(
     const weight = mmaWeightClass(summary.category);
     const result = mmaFightResult((mirror.detail as { result?: unknown } | null)?.result);
     out.set(s.id, {
-      card: s.stageId && s.stageName ? { id: s.stageId, name: pickText(s.stageName, locale, cardName)! } : null,
+      card:
+        s.stageId && s.stageName ? { id: s.stageId, name: pickText(s.stageName, locale, cardName)! } : null,
       segment: p?.segment ?? 'main_card',
       main_event: p?.mainEvent ?? false,
-      weight_class: weight ? { code: weight.code, name: pickText(weight.name as Record<string, string>, locale, weight.code)! } : null,
+      weight_class: weight
+        ? { code: weight.code, name: pickText(weight.name as Record<string, string>, locale, weight.code)! }
+        : null,
       result: result
         ? {
             method: result.method,

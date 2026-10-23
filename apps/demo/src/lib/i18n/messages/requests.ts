@@ -29,6 +29,7 @@ export default defineMessages(
       'Evento completo: participantes, placar, estado, importância (com detalhamento), relevância no mercado e em cada país, clássico e o que está em jogo.',
     related:
       'Vídeos relacionados ao jogo: links diretos e embed oficial, por tipo (melhores momentos, gols, coletiva…), formato e proporção (16:9/9:16).',
+    eventCard: 'Card de MMA da luta: todas as lutas da noite, do card principal às preliminares iniciais.',
     h2h: 'Histórico do confronto entre os dois participantes, com o resumo de vitórias e gols.',
     eventContext: 'Cenário pré-jogo e resumo pós-jogo gerados a partir dos fatos, com fontes.',
     whereToWatch: 'Onde assistir o evento num país: só opções confirmadas, com meio, confiança e fontes.',
@@ -76,6 +77,7 @@ export default defineMessages(
         'Full event: participants, score, status, importance (with breakdown), market and per-country relevance, derby and what is at stake.',
       related:
         'Videos related to the match: direct links and official embeds, by type (highlights, goals, press conference…), format and aspect ratio (16:9/9:16).',
+      eventCard: 'MMA fight card: every fight of the night, from the main card to the early prelims.',
       h2h: 'Head-to-head history between the two participants, with a summary of wins and goals.',
       eventContext: 'Pre-match scenario and post-match recap generated from the facts, with sources.',
       whereToWatch:
@@ -123,6 +125,8 @@ export default defineMessages(
         'Evento completo: participantes, resultado, estado, importancia (con detalle), relevancia en el mercado y en cada país, clásico y lo que está en juego.',
       related:
         'Videos relacionados con el partido: links directos y embed oficial, por tipo (resumen, goles, conferencia de prensa…), formato y relación de aspecto (16:9/9:16).',
+      eventCard:
+        'Cartelera de MMA de la pelea: todas las peleas de la noche, de la principal a las preliminares iniciales.',
       h2h: 'Historial del cruce entre los dos participantes, con el resumen de victorias y goles.',
       eventContext: 'Previa y resumen del partido generados a partir de los hechos, con fuentes.',
       whereToWatch:

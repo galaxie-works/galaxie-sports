@@ -398,7 +398,7 @@ async function Content({
       <div className="relative isolate flex flex-col gap-8 p-4 md:p-6">
         {team.colors ? <TeamBand colors={team.colors} /> : null}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Crest src={team.logo} name={team.name} size="xl" />
+          <Crest src={team.logo} name={team.name} size="xl" round={team.kind === 'fighter'} />
           <div className="flex flex-col gap-2">
             <div className="flex flex-col">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -542,7 +542,8 @@ async function Content({
               locale={locale}
             />
             {semantic ? <RivalsCard s={semantic} t={t} /> : null}
-            {squad ? (
+            {/* lutador (MMA) não tem elenco */}
+            {squad && team.kind !== 'fighter' ? (
               <SquadCard
                 squad={squad}
                 api={squadRequest(id, locale, squadYear, content)}

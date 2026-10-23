@@ -381,7 +381,9 @@ export const EventFight = z
   .object({
     card: z
       .object({
-        id: z.uuid().meta({ description: 'Fase (`core.stage`, tipo `fight_card`) que agrupa a noite de lutas.' }),
+        id: z
+          .uuid()
+          .meta({ description: 'Fase (`core.stage`, tipo `fight_card`) que agrupa a noite de lutas.' }),
         name: z.string().meta({ example: 'UFC 300: Pereira vs. Hill' }),
       })
       .nullable(),
@@ -403,7 +405,9 @@ export const EventFight = z
         detail: z.string().nullable().meta({ description: 'Golpe ou finalização.', example: 'Punches' }),
         round: z.number().int().nullable(),
         time: z.string().nullable().meta({ description: 'Tempo no round em que acabou.', example: '3:29' }),
-        scorecards: z.array(z.string()).meta({ description: 'Cartões dos juízes (decisões).', example: ['29-28'] }),
+        scorecards: z
+          .array(z.string())
+          .meta({ description: 'Cartões dos juízes (decisões).', example: ['29-28'] }),
       })
       .nullable()
       .meta({ description: 'Desfecho; null antes da luta ou enquanto o desfecho não chegou do fornecedor.' }),
@@ -501,9 +505,9 @@ export const Event = z
       description: 'Preenchido só em jogo provisório (anunciado e ainda não publicado pelo fornecedor).',
     }),
     context: EventContextSummary.optional(),
-    fight: EventFight.nullable()
-      .optional()
-      .meta({ description: 'Só no MMA (`sport: mma`): card, segmento, categoria de peso e desfecho da luta.' }),
+    fight: EventFight.nullable().optional().meta({
+      description: 'Só no MMA (`sport: mma`): card, segmento, categoria de peso e desfecho da luta.',
+    }),
   })
   .meta({ id: 'Event', description: 'Evento canônico (docs/05 §3.2).' });
 export type Event = z.infer<typeof Event>;

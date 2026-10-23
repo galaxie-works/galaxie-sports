@@ -42,7 +42,10 @@ const numberedEvent = (cardName: string) => /^UFC \d+/i.test(cardName);
  * Lutas encerradas que ainda não têm o desfecho no raw, na ordem de busca. Canceladas e não realizadas ficam de
  * fora (o fornecedor não tem desfecho para elas).
  */
-export function prioritizeMmaResults(fights: MmaFightRow[], known: ReadonlySet<string>): MmaResultCandidate[] {
+export function prioritizeMmaResults(
+  fights: MmaFightRow[],
+  known: ReadonlySet<string>,
+): MmaResultCandidate[] {
   const byCard = new Map<string, MmaFightRow[]>();
   for (const f of fights) {
     const key = f.cardId ?? `fight:${f.fightId}`;
@@ -135,7 +138,10 @@ export async function runMmaResultsJob(
 ): Promise<MmaResultsJobResult> {
   const queue = prioritizeMmaResults(await loadMmaFights(db, options.year), await knownMmaResults(db));
   const todo = queue.slice(0, options.limit ?? queue.length);
-  const [run] = await db.insert(jobRun).values({ job: 'bootstrap:mma-results', status: 'running' }).returning();
+  const [run] = await db
+    .insert(jobRun)
+    .values({ job: 'bootstrap:mma-results', status: 'running' })
+    .returning();
   const jobId = `job-run:${run!.id}`;
   const out: MmaResultsJobResult = { planned: todo.length, spent: 0, cached: 0, deferred: 0, errors: [] };
   try {
