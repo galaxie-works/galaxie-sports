@@ -48,6 +48,7 @@ import { RelatedContent, RelatedQuery } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import { navigationPaths } from './openapi-navigation.js';
+import { equestrianPaths } from './openapi-equestrian.js';
 import {
   Person,
   Squad,
@@ -145,11 +146,18 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       { name: 'Tempo real', description: 'SSE e webhooks assinados (docs/05 §5).' },
       { name: 'Conta', description: 'Autoatendimento do tenant: chaves e uso (docs/05 §1.2).' },
+      {
+        name: 'Hipismo',
+        description:
+          'Atletas, cavalos, provas, classificações, rodadas documentadas e rankings observados (docs/13). ' +
+          'Fora da oferta comercial enquanto o licenciamento com a FEI e as federações não é concluído.',
+      },
     ],
     paths: {
       ...semanticPaths(),
       ...multisportPaths(),
       ...navigationPaths(),
+      ...equestrianPaths(),
       '/v1/sports': {
         get: getOp('Esportes disponíveis e cobertura', 'Catálogo', list(Sport), { query: LocaleQuery }),
       },

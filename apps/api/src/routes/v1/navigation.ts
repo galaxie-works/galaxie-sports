@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, lte, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, lte, notInArray, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import {
   CountryCompetitionsQuery,
@@ -30,6 +30,7 @@ import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { pickList, pickText, resolveLocale } from '../../i18n.js';
 import { assetUrl, parseInput } from '../../util.js';
+import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 
 const MODULE = { module: 'core_data' } as const;
 const MIRRORED = new Set<string>(MIRROR_SPORTS);
@@ -90,7 +91,10 @@ export async function navigationRoutes(
         const db = requireDb(ctx);
         const g = geoConfig();
         const [sportRows, compCounts, eventCounts, countryRows] = await Promise.all([
-          db.select({ slug: sport.slug, name: sport.name }).from(sport),
+          db
+            .select({ slug: sport.slug, name: sport.name })
+            .from(sport)
+            .where(notInArray(sport.slug, [...OFF_CATALOG_SPORTS])),
           db.select({ sport: competition.sport, n: count() }).from(competition).groupBy(competition.sport),
           db.select({ sport: event.sport, n: count() }).from(event).groupBy(event.sport),
           db
@@ -181,7 +185,10 @@ export async function navigationRoutes(
         const g = geoConfig();
         const detail = await countryDetail(db, g, params.code, locale);
         const items = await countryCompetitions(db, g, params.code, query.sport, query.max_tier, locale);
-        const sportRows = await db.select({ slug: sport.slug, name: sport.name }).from(sport);
+        const sportRows = await db
+          .select({ slug: sport.slug, name: sport.name })
+          .from(sport)
+          .where(notInArray(sport.slug, [...OFF_CATALOG_SPORTS]));
         const sportName = new Map(sportRows.map((s) => [s.slug, s.name as I18n]));
         const navName = new Map(g.navigationSports.map((s) => [s.slug, s.name as I18n]));
         const grouped = groupCompetitions(

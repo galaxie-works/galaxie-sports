@@ -22,6 +22,7 @@ const ANIMATIONS: Record<string, () => Promise<{ default: unknown }>> = {
   baseball: () => import('./animated-icons/baseball.json'),
   hockey: () => import('./animated-icons/hockey.json'),
   handball: () => import('./animated-icons/handball.json'),
+  equestrian: () => import('./animated-icons/equestrian.json'),
   versus: () => import('./animated-icons/versus.json'),
 };
 

@@ -10,6 +10,7 @@ import common from './messages/common';
 import docs from './messages/docs';
 import docsUi from './messages/docs-ui';
 import email from './messages/email';
+import equestrian from './messages/equestrian';
 import media from './messages/media';
 import event from './messages/event';
 import live from './messages/live';
@@ -30,6 +31,7 @@ export const NAMESPACES = {
   docs,
   docsUi,
   email,
+  equestrian,
   event,
   live,
   media,

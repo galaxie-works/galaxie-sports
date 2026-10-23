@@ -134,6 +134,13 @@
       "when": 1792720673264,
       "tag": "0018_runtime_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792725912335,
+      "tag": "0019_equestrian",
+      "breakpoints": true
     }
   ]
 }

@@ -31,6 +31,7 @@ const MAP = {
   'baseball.json': ['baseball'],
   'ice-hockey.json': ['hockey'],
   'ball.json': ['handball'],
+  'horse.json': ['equestrian'],
   // "versus" entre os escudos do card de jogo (~40–48 px): traço um pouco mais fino que o da sidebar
   'versus.json': { out: ['versus'], stroke: 1.6 },
 };
@@ -43,8 +44,9 @@ const STROKE_FACTOR = 2.25; // padrão: 16 → 36 numa tela de 500 (~1,5 px a 20
 function kind(expr) {
   const m = /effect\('([^']+)'\)/.exec(expr);
   if (!m) return null;
-  if (m[1] === 'Base Color') return 'base';
-  if (m[1] === 'Highlight') return 'highlight';
+  // A família usa "Base Color"/"Highlight"; alguns arquivos (ex.: horse.json) usam "color"/"highlight".
+  if (m[1] === 'Base Color' || m[1] === 'color') return 'base';
+  if (m[1] === 'Highlight' || m[1] === 'highlight') return 'highlight';
   if (m[1].startsWith('Stroke width')) return 'stroke';
   return null;
 }

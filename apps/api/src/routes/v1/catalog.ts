@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import {
@@ -37,6 +37,7 @@ import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
 import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput, UUID_RE } from '../../util.js';
+import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 
 const MODULE = { module: 'core_data' } as const;
 const MIRRORED = new Set<string>(MIRROR_SPORTS);
@@ -69,6 +70,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .select({ slug: sport.slug, name: sport.name, competitions: count(competition.id) })
           .from(sport)
           .leftJoin(competition, eq(competition.sport, sport.slug))
+          .where(notInArray(sport.slug, [...OFF_CATALOG_SPORTS]))
           .groupBy(sport.slug)
           .orderBy(asc(sport.slug));
         const data: Sport[] = rows.map((r) => ({

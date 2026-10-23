@@ -1,6 +1,7 @@
 import type { MirrorSport } from '@galaxie/contracts';
 import {
   Activity,
+  Award,
   CarFront,
   CircleDot,
   Dumbbell,
@@ -47,6 +48,13 @@ export const SPORTS: SportNav[] = (
 ).map(([slug, icon]) => ({ slug, icon, href: `/esportes/${slug}` }));
 
 export const MULTISPORT_NAV: NavItem = { href: '/multiesporte', icon: Medal };
+
+/** Hipismo: esporte próprio (fora do espelho da api-sports), com ícone animado `equestrian` (docs/13). */
+export const EQUESTRIAN_NAV: NavItem & { slug: string } = {
+  href: '/hipismo',
+  icon: Award,
+  slug: 'equestrian',
+};
 
 export type CountryCode = keyof Dictionary['nav']['countries'];
 

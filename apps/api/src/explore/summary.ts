@@ -4,7 +4,7 @@
  * esporte ou por país). As escolhas (destaques, liga principal, jogo do país) são funções puras, testadas
  * à parte; o carregamento só junta as linhas do banco.
  */
-import { and, count, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, lt, lte, notInArray, or, sql } from 'drizzle-orm';
 import {
   EXPLORE_WINDOW_DAYS,
   type Event,
@@ -31,6 +31,7 @@ import { continentalSlugs, marketBonus, reasonDto, type ContinentalEntry } from 
 import { pickText } from '../i18n.js';
 import { teamColors } from '../teams/colors.js';
 import { assetUrl } from '../util.js';
+import { OFF_CATALOG_SPORTS } from '../off-catalog.js';
 
 type I18n = Record<string, string>;
 
@@ -226,7 +227,10 @@ export async function loadExploreSummary(
 
   const [sportRows, participantCounts, catalogRows, recentRows, countryRows, windowRows, teamRows] =
     await Promise.all([
-      db.select({ slug: sport.slug, name: sport.name }).from(sport),
+      db
+        .select({ slug: sport.slug, name: sport.name })
+        .from(sport)
+        .where(notInArray(sport.slug, [...OFF_CATALOG_SPORTS])),
       db.select({ sport: participant.sport, n: count() }).from(participant).groupBy(participant.sport),
       db
         .select({

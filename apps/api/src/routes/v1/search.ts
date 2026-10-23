@@ -25,6 +25,7 @@ import {
 } from '../../search/match.js';
 import { assetUrl, parseInput } from '../../util.js';
 import { localeOf } from './events.js';
+import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 
 const MODULE = { module: 'core_data' } as const;
 
@@ -119,6 +120,10 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
         left join core.asset a on a.id = p.logo_asset_id
         left join core.country c on c.code = p.country_code
        where ${matchesSql(sql`p.name`, aliases, term)}
+         and p.sport not in (${sql.join(
+           OFF_CATALOG_SPORTS.map((s) => sql`${s}`),
+           sql`, `,
+         )})
          ${sports ? sql`and ${inList(sql`p.sport`, sports)}` : sql``}
        order by ${rankSql(sql`p.name`, aliases, term)}, tp.slug is null, length(p.name), p.name, p.id
        limit ${CANDIDATES}`);
