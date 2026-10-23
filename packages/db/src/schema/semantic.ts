@@ -170,3 +170,76 @@ export const loadRun = semantic.table('load_run', {
   stats: jsonb('stats'),
   loadedAt: timestamp('loaded_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ─── revisão editorial pelo painel (docs/06 §2.1) ──────────────────────────────────────────────────
+
+/** Sugestão de edição guardada pelo painel: comentário e, opcionalmente, valores propostos por campo. */
+export type ReviewSuggestion = { comment: string; fields: Record<string, unknown> | null };
+
+/**
+ * Catálogo do que pode ser revisado (perfis, clássicos, competições, copy, glossário e traduções),
+ * reescrito pelo seed a cada carga a partir do YAML. O painel lista e mostra o conteúdo daqui.
+ */
+export const reviewItem = semantic.table(
+  'review_item',
+  {
+    /** `<tipo>:<chave>` (ex.: `team:palmeiras`, `translation:team:palmeiras:es`). */
+    id: text('id').primaryKey(),
+    /** team | derby | competition | copy | glossary | translation */
+    kind: text('kind').notNull(),
+    key: text('key').notNull(),
+    locale: text('locale'),
+    sport: text('sport').notNull(),
+    /** País/mercado (ISO2 maiúsculo; INT = clássico entre países). */
+    market: text('market'),
+    title: text('title').notNull(),
+    sourceFile: text('source_file').notNull(),
+    /** Status escrito no YAML (o efetivo depende de semantic.review_decision). */
+    yamlStatus: reviewStatus('yaml_status').notNull(),
+    /** sha256 do conteúdo revisável; a decisão só vale enquanto for igual ao dela. */
+    reviewHash: text('review_hash').notNull(),
+    content: jsonb('content').$type<Record<string, unknown>>().notNull(),
+    /** Traduções: campos do original no idioma-base. */
+    original: jsonb('original').$type<Record<string, unknown>>(),
+    originalLocale: text('original_locale'),
+    /** Traduções: team | derby. */
+    parentKind: text('parent_kind'),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('review_item_filter_idx').on(t.kind, t.sport, t.market)],
+);
+
+/**
+ * Decisão de revisão vigente por item, gravada só pelo painel (o seed lê, nunca escreve). É a fonte da
+ * verdade do status enquanto `review_hash` bater com o do conteúdo atual do YAML.
+ */
+export const reviewDecision = semantic.table('review_decision', {
+  itemId: text('item_id').primaryKey(),
+  status: reviewStatus('status').notNull(),
+  reviewHash: text('review_hash').notNull(),
+  /** Sugestão de edição em aberto (o item fica "precisa de revisão" e não é servido). */
+  suggestion: jsonb('suggestion').$type<ReviewSuggestion>(),
+  decidedBy: text('decided_by').notNull(),
+  decidedById: text('decided_by_id'),
+  decidedAt: timestamp('decided_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Auditoria das ações do painel: quem, quando, o quê (status de/para, comentário e edição proposta). */
+export const reviewLog = semantic.table(
+  'review_log',
+  {
+    id: pkUuidV7(),
+    itemId: text('item_id').notNull(),
+    /** approve | draft | suggest */
+    action: text('action').notNull(),
+    fromStatus: text('from_status'),
+    toStatus: reviewStatus('to_status').notNull(),
+    reviewHash: text('review_hash').notNull(),
+    comment: text('comment'),
+    proposed: jsonb('proposed').$type<Record<string, unknown>>(),
+    actor: text('actor').notNull(),
+    actorId: text('actor_id'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('review_log_item_idx').on(t.itemId, t.createdAt)],
+);
