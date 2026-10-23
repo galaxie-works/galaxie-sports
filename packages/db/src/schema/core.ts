@@ -4,6 +4,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgSchema,
   primaryKey,
   smallint,
@@ -324,6 +325,9 @@ export const person = core.table('person', {
   nationality: text('nationality'),
   heightCm: integer('height_cm'),
   weightKg: integer('weight_kg'),
+  /** Local e país de nascimento (`players`: birth.place / birth.country). */
+  birthPlace: text('birth_place'),
+  birthCountry: text('birth_country'),
   photoAssetId: uuid('photo_asset_id').references(() => asset.id),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -352,6 +356,103 @@ export const roster = core.table(
     unique('roster_uq').on(t.participantId, t.personId, t.role, t.seasonId).nullsNotDistinct(),
     index('roster_person_idx').on(t.personId),
   ],
+);
+
+/**
+ * Estatísticas de uma pessoa por time e temporada de competição (`players?league&season`). As colunas são
+ * os números mais usados; `stats` guarda o bloco `statistics[]` inteiro do fornecedor (chutes, passes,
+ * desarmes, duelos, dribles, faltas, pênaltis, substituições).
+ */
+export const personSeasonStat = core.table(
+  'person_season_stat',
+  {
+    personId: uuid('person_id')
+      .notNull()
+      .references(() => person.id),
+    participantId: uuid('participant_id')
+      .notNull()
+      .references(() => participant.id),
+    seasonId: uuid('season_id')
+      .notNull()
+      .references(() => season.id),
+    position: text('position'),
+    number: integer('number'),
+    captain: boolean('captain'),
+    appearances: integer('appearances'),
+    lineups: integer('lineups'),
+    minutes: integer('minutes'),
+    rating: numeric('rating', { precision: 4, scale: 2 }),
+    goals: integer('goals'),
+    assists: integer('assists'),
+    conceded: integer('conceded'),
+    saves: integer('saves'),
+    yellowCards: integer('yellow_cards'),
+    redCards: integer('red_cards'),
+    stats: jsonb('stats').$type<Record<string, unknown>>().notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.personId, t.participantId, t.seasonId] }),
+    index('person_season_stat_season_idx').on(t.seasonId),
+  ],
+);
+
+/** Transferências de uma pessoa (`transfers?team`/`transfers?player`). Times fora da base ficam nulos. */
+export const personTransfer = core.table(
+  'person_transfer',
+  {
+    id: pkUuidV7(),
+    personId: uuid('person_id')
+      .notNull()
+      .references(() => person.id),
+    date: date('date'),
+    /** Como veio do fornecedor: "Loan", "Free", "€ 2.5M", "N/A"... */
+    type: text('type'),
+    fromParticipantId: uuid('from_participant_id').references(() => participant.id),
+    toParticipantId: uuid('to_participant_id').references(() => participant.id),
+    /** Nomes como vieram, para quando o time não está na base. */
+    fromName: text('from_name'),
+    toName: text('to_name'),
+  },
+  (t) => [
+    unique('person_transfer_uq')
+      .on(t.personId, t.date, t.fromParticipantId, t.toParticipantId, t.type)
+      .nullsNotDistinct(),
+  ],
+);
+
+/** Títulos de uma pessoa (`trophies?players`). `season` nulo é a linha-resumo do fornecedor. */
+export const personTrophy = core.table(
+  'person_trophy',
+  {
+    id: pkUuidV7(),
+    personId: uuid('person_id')
+      .notNull()
+      .references(() => person.id),
+    league: text('league').notNull(),
+    country: text('country'),
+    season: text('season'),
+    /** "Winner", "2nd Place"... */
+    place: text('place'),
+  },
+  (t) => [
+    unique('person_trophy_uq').on(t.personId, t.league, t.country, t.season, t.place).nullsNotDistinct(),
+  ],
+);
+
+/** Afastamentos de uma pessoa (`sidelined?players`): lesões, suspensões, doenças. */
+export const personSidelined = core.table(
+  'person_sidelined',
+  {
+    id: pkUuidV7(),
+    personId: uuid('person_id')
+      .notNull()
+      .references(() => person.id),
+    type: text('type').notNull(),
+    startDate: date('start_date'),
+    endDate: date('end_date'),
+  },
+  (t) => [unique('person_sidelined_uq').on(t.personId, t.type, t.startDate).nullsNotDistinct()],
 );
 
 // ─── evento canônico ─────────────────────────────────────────────────────────────────────────────

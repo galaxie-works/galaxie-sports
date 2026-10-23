@@ -120,6 +120,13 @@
       "when": 1792694103949,
       "tag": "0016_semantic_texts",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792720645767,
+      "tag": "0017_perfis_jogadores",
+      "breakpoints": true
     }
   ]
 }

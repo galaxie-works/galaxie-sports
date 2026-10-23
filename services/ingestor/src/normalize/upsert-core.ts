@@ -18,6 +18,10 @@ import {
   footballFixture,
   participant,
   person,
+  personSeasonStat,
+  personSidelined,
+  personTransfer,
+  personTrophy,
   roster,
   season,
   sportEventDetail,
@@ -103,6 +107,11 @@ export interface UpsertStats {
   incidents: number;
   rosters: number;
   standings: number;
+  /** Perfil completo: estatísticas por temporada, transferências, títulos e afastamentos. */
+  seasonStats: number;
+  transfers: number;
+  trophies: number;
+  sidelined: number;
   assets: number;
   /** Complementos aplicados (resultados/grid da F1, desfecho do MMA) e os que não acharam o evento. */
   supplements: { applied: number; missingEvent: number };
@@ -128,6 +137,10 @@ export function emptyStats(): UpsertStats {
     incidents: 0,
     rosters: 0,
     standings: 0,
+    seasonStats: 0,
+    transfers: 0,
+    trophies: 0,
+    sidelined: 0,
     assets: 0,
     supplements: { applied: 0, missingEvent: 0 },
   };
@@ -156,6 +169,10 @@ export function addStats(a: UpsertStats, b: UpsertStats): UpsertStats {
     incidents: a.incidents + b.incidents,
     rosters: a.rosters + b.rosters,
     standings: a.standings + b.standings,
+    seasonStats: a.seasonStats + b.seasonStats,
+    transfers: a.transfers + b.transfers,
+    trophies: a.trophies + b.trophies,
+    sidelined: a.sidelined + b.sidelined,
     assets: a.assets + b.assets,
     supplements: {
       applied: a.supplements.applied + b.supplements.applied,
@@ -262,6 +279,7 @@ export async function upsertBatchInTx(
     ...batch.events.flatMap((e) => (e.competitionId ? [e.competitionId] : [])),
     ...batch.standings.map((s) => s.season.competitionId),
     ...batch.rosters.flatMap((r) => (r.season ? [r.season.competitionId] : [])),
+    ...batch.personSeasonStats.map((r) => r.season.competitionId),
     ...batch.stages.map((s) => s.season.competitionId),
   ]);
   const competitionIds = await resolveIds(tx, scope, 'competition', [...competitionRefs]);
@@ -316,6 +334,7 @@ export async function upsertBatchInTx(
   for (const e of batch.events) if (e.season) addSeason(e.season);
   for (const s of batch.standings) addSeason(s.season);
   for (const r of batch.rosters) if (r.season) addSeason(r.season);
+  for (const r of batch.personSeasonStats) addSeason(r.season);
   for (const s of batch.stages) addSeason(s.season);
 
   const seasonIds = new Map<string, string>();
@@ -517,6 +536,8 @@ export async function upsertBatchInTx(
     nationality: p.nationality,
     heightCm: p.heightCm,
     weightKg: p.weightKg,
+    birthPlace: p.birthPlace ?? null,
+    birthCountry: p.birthCountry ?? null,
     photoAssetId: assetId(p.photoUrl),
   }));
   for (const reference of [false, true]) {
@@ -524,7 +545,18 @@ export async function upsertBatchInTx(
     for (const chunk of chunks(rows, 500)) {
       const { set, setWhere } = coalesceUpdate(
         person,
-        ['name', 'firstName', 'lastName', 'birthDate', 'nationality', 'heightCm', 'weightKg', 'photoAssetId'],
+        [
+          'name',
+          'firstName',
+          'lastName',
+          'birthDate',
+          'nationality',
+          'heightCm',
+          'weightKg',
+          'birthPlace',
+          'birthCountry',
+          'photoAssetId',
+        ],
         { touchUpdatedAt: true, fillOnly: reference },
       );
       await tx.insert(person).values(chunk).onConflictDoUpdate({ target: person.id, set, setWhere });
@@ -789,7 +821,125 @@ export async function upsertBatchInTx(
   }
   stats.standings = standingRows.length;
 
+  await upsertPersonProfiles(tx, batch, scope, stats, { personId, participantId, seasonId });
+
   return stats;
+}
+
+// ─── perfil completo das pessoas ─────────────────────────────────────────────────────────────────
+
+/**
+ * Estatísticas por temporada (substituem as anteriores), transferências, títulos e afastamentos (só somam).
+ * Títulos e afastamentos citam a pessoa pelo id do fornecedor: entram só as que já estão no core.
+ */
+async function upsertPersonProfiles(
+  tx: Tx,
+  batch: NormalizedBatch,
+  scope: ProviderScope,
+  stats: UpsertStats,
+  refs: {
+    personId: (pid: string | null) => string | null;
+    participantId: (pid: string | null) => string | null;
+    seasonId: (ref: SeasonRef | null) => string | null;
+  },
+): Promise<void> {
+  const statRows = dedupeBy(
+    batch.personSeasonStats.flatMap((r) => {
+      const personId = refs.personId(r.personId);
+      const participantId = refs.participantId(r.participantId);
+      const seasonId = refs.seasonId(r.season);
+      if (!personId || !participantId || !seasonId) return [];
+      const { personId: _p, participantId: _t, season: _s, rating, ...values } = r;
+      return [
+        { personId, participantId, seasonId, ...values, rating: rating == null ? null : String(rating) },
+      ];
+    }),
+    (r) => `${r.personId}|${r.participantId}|${r.seasonId}`,
+  );
+  for (const chunk of chunks(statRows, 500)) {
+    const { set, setWhere } = replaceUpdate(
+      personSeasonStat,
+      [
+        'position',
+        'number',
+        'captain',
+        'appearances',
+        'lineups',
+        'minutes',
+        'rating',
+        'goals',
+        'assists',
+        'conceded',
+        'saves',
+        'yellowCards',
+        'redCards',
+        'stats',
+      ],
+      { touchUpdatedAt: true },
+    );
+    await tx
+      .insert(personSeasonStat)
+      .values(chunk)
+      .onConflictDoUpdate({
+        target: [personSeasonStat.personId, personSeasonStat.participantId, personSeasonStat.seasonId],
+        set,
+        setWhere,
+      });
+  }
+  stats.seasonStats = statRows.length;
+
+  const transferRows = batch.transfers.flatMap((t) => {
+    const personId = refs.personId(t.personId);
+    if (!personId) return [];
+    return [
+      {
+        personId,
+        date: t.date,
+        type: t.type,
+        fromParticipantId: refs.participantId(t.fromParticipantId),
+        toParticipantId: refs.participantId(t.toParticipantId),
+        fromName: t.fromName,
+        toName: t.toName,
+      },
+    ];
+  });
+  for (const chunk of chunks(transferRows, 500)) {
+    await tx.insert(personTransfer).values(chunk).onConflictDoNothing();
+  }
+  stats.transfers = transferRows.length;
+
+  const cited = [...new Set([...batch.trophies, ...batch.sidelined].map((r) => r.personId))];
+  const known = cited.length ? await resolveIds(tx, scope, 'person', cited) : new Map<string, string>();
+  const trophyRows = batch.trophies.flatMap((t) => {
+    const personId = known.get(t.personId);
+    return personId
+      ? [{ personId, league: t.league, country: t.country, season: t.season, place: t.place }]
+      : [];
+  });
+  for (const chunk of chunks(trophyRows, 500)) {
+    await tx.insert(personTrophy).values(chunk).onConflictDoNothing();
+  }
+  stats.trophies = trophyRows.length;
+
+  const sidelinedRows = dedupeBy(
+    batch.sidelined.flatMap((r) => {
+      const personId = known.get(r.personId);
+      return personId ? [{ personId, type: r.type, startDate: r.startDate, endDate: r.endDate }] : [];
+    }),
+    (r) => `${r.personId}|${r.type}|${r.startDate}`,
+  );
+  for (const chunk of chunks(sidelinedRows, 500)) {
+    const { set, setWhere } = coalesceUpdate(personSidelined, ['endDate']);
+    await tx
+      .insert(personSidelined)
+      .values(chunk)
+      .onConflictDoUpdate({
+        target: [personSidelined.personId, personSidelined.type, personSidelined.startDate],
+        set,
+        setWhere,
+      });
+  }
+  stats.sidelined = sidelinedRows.length;
 }
 
 // ─── eventos ─────────────────────────────────────────────────────────────────────────────────────

@@ -162,9 +162,55 @@ export interface ApiPlayerItem {
       logo?: string | null;
       season: number | null;
     };
-    games: { number?: number | null; position: string | null };
+    games: {
+      number?: number | null;
+      position: string | null;
+      appearences?: number | null;
+      lineups?: number | null;
+      minutes?: number | null;
+      rating?: string | null;
+      captain?: boolean | null;
+    };
+    goals?: {
+      total?: number | null;
+      conceded?: number | null;
+      assists?: number | null;
+      saves?: number | null;
+    };
+    cards?: { yellow?: number | null; yellowred?: number | null; red?: number | null };
+    [block: string]: unknown;
   }[];
 }
+
+/** transfers?team / transfers?player */
+export interface ApiTransferItem {
+  player: { id: number | null; name: string | null } | null;
+  update?: string | null;
+  transfers: {
+    date: string | null;
+    type: string | null;
+    teams: { in: ApiTeamRef | null; out: ApiTeamRef | null } | null;
+  }[];
+}
+
+export interface ApiTrophy {
+  league: string | null;
+  country: string | null;
+  season: string | null;
+  place: string | null;
+}
+
+/** trophies?players=a-b (com `id` e `trophies`) ou trophies?player=a (a lista direto). */
+export type ApiTrophyItem = { id: number; trophies: ApiTrophy[] } | ApiTrophy;
+
+export interface ApiSidelinedEntry {
+  type: string | null;
+  start: string | null;
+  end: string | null;
+}
+
+/** sidelined?players=a-b (com `id` e `sidelined`) ou sidelined?player=a (a lista direto). */
+export type ApiSidelinedItem = { id: number; sidelined: ApiSidelinedEntry[] } | ApiSidelinedEntry;
 
 export interface ApiStandingRow {
   rank: number;

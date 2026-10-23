@@ -308,7 +308,7 @@ describe('despacho por endpoint', () => {
   });
 
   it('endpoints sem normalização devolvem null; envelope vazio devolve 0 itens', () => {
-    expect(normalizeFootballEnvelope('/transfers', { response: [] }, FETCHED)).toBeNull();
+    expect(normalizeFootballEnvelope('/odds', { response: [] }, FETCHED)).toBeNull();
     expect(normalizeFootballEnvelope('/fixtures', { response: [] }, FETCHED)).toMatchObject({ items: 0 });
   });
 

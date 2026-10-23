@@ -97,4 +97,17 @@ describe('plano por API a partir do ambiente', () => {
   it('nome desconhecido cai no free (o mais restritivo)', () => {
     expect(planForSport({ APISPORTS_PLAN_FOOTBALL: 'premium' }, 'football')).toBe(FREE_PLAN);
   });
+
+  it('APISPORTS_PER_MINUTE só baixa o limite por minuto, sem mexer na cota do dia', () => {
+    const env = {
+      APISPORTS_PLAN: 'ultra',
+      APISPORTS_PER_MINUTE_FOOTBALL: '200',
+      APISPORTS_PER_MINUTE: '9000',
+    };
+    expect(planForSport(env, 'football')).toEqual({ ...ULTRA_PLAN, perMinute: 200 });
+    // acima do plano ou inválido: vale o plano
+    expect(planForSport(env, 'hockey')).toBe(ULTRA_PLAN);
+    expect(planForSport({ APISPORTS_PLAN: 'pro', APISPORTS_PER_MINUTE: 'x' }, 'mma')).toBe(PRO_PLAN);
+    expect(planForSport({ APISPORTS_PLAN: 'pro', APISPORTS_PER_MINUTE: '120' }, 'mma').perMinute).toBe(120);
+  });
 });

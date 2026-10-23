@@ -24,10 +24,15 @@ import type {
   ApiPersonRef,
   ApiPlayerItem,
   ApiScorePair,
+  ApiSidelinedEntry,
+  ApiSidelinedItem,
   ApiSquadItem,
   ApiStandingsItem,
   ApiTeamItem,
   ApiTeamRef,
+  ApiTransferItem,
+  ApiTrophy,
+  ApiTrophyItem,
 } from './types.js';
 
 export const API_SPORTS_PROVIDER = 'api-sports';
@@ -434,6 +439,8 @@ export function normalizePlayers(items: ApiPlayerItem[], observedAt: Date): Norm
       nationality: player.nationality,
       heightCm: parseMeasure(player.height),
       weightKg: parseMeasure(player.weight),
+      birthPlace: player.birth?.place ?? null,
+      birthCountry: player.birth?.country ?? null,
       photoUrl: player.photo,
       photoKind: 'player',
     });
@@ -460,6 +467,120 @@ export function normalizePlayers(items: ApiPlayerItem[], observedAt: Date): Norm
         validFrom: null,
         validTo: null,
       });
+      const { team: _team, league: _league, ...stats } = s;
+      const rating = s.games?.rating != null ? Number(s.games.rating) : NaN;
+      c.batch.personSeasonStats.push({
+        personId,
+        participantId: teamId,
+        season,
+        position: s.games?.position ?? null,
+        number: s.games?.number ?? null,
+        captain: s.games?.captain ?? null,
+        appearances: s.games?.appearences ?? null,
+        lineups: s.games?.lineups ?? null,
+        minutes: s.games?.minutes ?? null,
+        rating: Number.isFinite(rating) ? Math.round(rating * 100) / 100 : null,
+        goals: s.goals?.total ?? null,
+        assists: s.goals?.assists ?? null,
+        conceded: s.goals?.conceded ?? null,
+        saves: s.goals?.saves ?? null,
+        yellowCards: s.cards?.yellow ?? null,
+        redCards: s.cards?.red ?? null,
+        stats,
+      });
+    }
+  }
+  return c.done();
+}
+
+/** transfers?team / transfers?player: histórico de transferências; times desconhecidos entram como referência. */
+export function normalizeTransfers(items: ApiTransferItem[], observedAt: Date): NormalizedBatch {
+  const c = new Collector(observedAt);
+  const seen = new Set<string>();
+  for (const item of items) {
+    const personId = c.person(item.player, 'player');
+    if (!personId) continue;
+    for (const t of item.transfers ?? []) {
+      const fromParticipantId = c.team(t.teams?.out);
+      const toParticipantId = c.team(t.teams?.in);
+      const date = isoDate(t.date);
+      const key = [personId, date, fromParticipantId, toParticipantId, t.type].join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      c.batch.transfers.push({
+        personId,
+        date,
+        type: t.type ?? null,
+        fromParticipantId,
+        toParticipantId,
+        fromName: t.teams?.out?.name ?? null,
+        toName: t.teams?.in?.name ?? null,
+      });
+    }
+  }
+  return c.done();
+}
+
+/**
+ * Lista por pessoa de trophies/sidelined: `players=a-b` traz `{ id, <campo> }` por pessoa e `player=a` traz a
+ * lista direto. Só jogadores: técnicos e jogadores dividem o espaço de ids em core.provider_map.
+ */
+function perPerson<T>(items: unknown[], field: string, params: Record<string, string>): [string, T[]][] {
+  if (params.coach || params.coachs) return [];
+  const out: [string, T[]][] = [];
+  const flat: T[] = [];
+  for (const it of items as Record<string, unknown>[]) {
+    if (it && typeof it.id === 'number' && Array.isArray(it[field]))
+      out.push([String(it.id), it[field] as T[]]);
+    else flat.push(it as T);
+  }
+  if (flat.length && params.player) out.push([params.player, flat]);
+  return out;
+}
+
+/** trophies?players / trophies?player: títulos de jogadores já conhecidos. */
+export function normalizeTrophies(
+  items: ApiTrophyItem[],
+  observedAt: Date,
+  params: Record<string, string> = {},
+): NormalizedBatch {
+  const c = new Collector(observedAt);
+  const seen = new Set<string>();
+  for (const [personId, trophies] of perPerson<ApiTrophy>(items, 'trophies', params)) {
+    for (const t of trophies) {
+      if (!t?.league) continue;
+      const row = {
+        personId,
+        league: t.league,
+        country: t.country ?? null,
+        season: t.season ?? null,
+        place: t.place ?? null,
+      };
+      const key = [row.personId, row.league, row.country, row.season, row.place].join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      c.batch.trophies.push(row);
+    }
+  }
+  return c.done();
+}
+
+/** sidelined?players / sidelined?player: afastamentos de jogadores já conhecidos. */
+export function normalizeSidelined(
+  items: ApiSidelinedItem[],
+  observedAt: Date,
+  params: Record<string, string> = {},
+): NormalizedBatch {
+  const c = new Collector(observedAt);
+  const seen = new Set<string>();
+  for (const [personId, entries] of perPerson<ApiSidelinedEntry>(items, 'sidelined', params)) {
+    for (const e of entries) {
+      if (!e?.type) continue;
+      const row = { personId, type: e.type, startDate: isoDate(e.start), endDate: isoDate(e.end) };
+      const key = [row.personId, row.type, row.startDate].join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      c.batch.sidelined.push(row);
     }
   }
   return c.done();
@@ -539,6 +660,9 @@ export const NORMALIZABLE_FOOTBALL_ENDPOINTS = [
   '/coachs',
   '/players',
   '/standings',
+  '/transfers',
+  '/trophies',
+  '/sidelined',
 ] as const;
 
 export interface EnvelopeLike {
@@ -548,7 +672,7 @@ export interface EnvelopeLike {
 
 /**
  * Normaliza um envelope pelo endpoint de origem. Devolve `null` para endpoints que não alimentam
- * o core (ex.: /odds, /transfers) e o número de itens da resposta para distinguir vazio de cheio.
+ * o core (ex.: /odds, /injuries) e o número de itens da resposta para distinguir vazio de cheio.
  */
 export function normalizeFootballEnvelope(
   endpoint: string,
@@ -572,6 +696,12 @@ export function normalizeFootballEnvelope(
       return { batch: normalizePlayers(response as ApiPlayerItem[], observedAt), items };
     case '/standings':
       return { batch: normalizeStandings(response as ApiStandingsItem[], observedAt), items };
+    case '/transfers':
+      return { batch: normalizeTransfers(response as ApiTransferItem[], observedAt), items };
+    case '/trophies':
+      return { batch: normalizeTrophies(response as ApiTrophyItem[], observedAt, params), items };
+    case '/sidelined':
+      return { batch: normalizeSidelined(response as ApiSidelinedItem[], observedAt, params), items };
     default:
       return null;
   }

@@ -3,6 +3,8 @@
  *   pnpm --filter @galaxie/ingestor normalize:football            # incremental (desde o último cursor)
  *   pnpm --filter @galaxie/ingestor normalize:football --tudo     # reprocessa todo o raw
  *   pnpm --filter @galaxie/ingestor normalize:football --relogio  # depois, avança o relógio dos eventos
+ *   pnpm --filter @galaxie/ingestor normalize:football --tudo --endpoints /players,/transfers
+ *     # reprocessa só esses endpoints (sem mexer no cursor incremental)
  */
 import { closeDb, createDb } from '@galaxie/db';
 import { advanceEventClock } from '../normalize/event-state.js';
@@ -12,10 +14,13 @@ const url = process.env.DATABASE_URL;
 if (!url) throw new Error('Defina DATABASE_URL (.env).');
 
 const full = process.argv.includes('--tudo');
+const endpointsArg = process.argv[process.argv.indexOf('--endpoints') + 1];
+const endpoints = process.argv.includes('--endpoints') && endpointsArg ? endpointsArg.split(',') : undefined;
 const db = createDb(url);
 const started = Date.now();
 const result = await runNormalizeFootballJob(db, {
   full,
+  ...(endpoints ? { endpoints } : {}),
   onRow: (r) =>
     console.log(
       `raw ${r.id} ${r.endpoint} ${JSON.stringify(r.params)} → ${r.outcome} (${r.items} itens)${r.error ? `: ${r.error}` : ''}`,
@@ -38,6 +43,10 @@ console.table({
   transições: s.events.transitions,
   incidentes: s.incidents,
   elencos: s.rosters,
+  estatísticas_temporada: s.seasonStats,
+  transferências: s.transfers,
+  títulos: s.trophies,
+  afastamentos: s.sidelined,
   classificação: s.standings,
   assets: s.assets,
 });

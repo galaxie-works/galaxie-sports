@@ -65,10 +65,21 @@ export function planEnvVar(sport: string): string {
 
 export type PlanEnv = Readonly<Record<string, string | undefined>>;
 
-/** Plano de uma API: o override `APISPORTS_PLAN_<ESPORTE>` se definido (não vazio), senão `APISPORTS_PLAN`. */
+/**
+ * Plano de uma API: o override `APISPORTS_PLAN_<ESPORTE>` se definido (não vazio), senão `APISPORTS_PLAN`.
+ * `APISPORTS_PER_MINUTE_<ESPORTE>` (ou `APISPORTS_PER_MINUTE`) só baixa o limite por minuto do plano: deixa
+ * folga para outro processo que usa a mesma chave (ex.: o ao vivo da VPS durante uma carga local).
+ */
 export function planForSport(env: PlanEnv, sport: string): PlanLimits {
   const override = env[planEnvVar(sport)]?.trim();
-  return planByName(override ? override : env[PLAN_ENV]);
+  const plan = planByName(override ? override : env[PLAN_ENV]);
+  const suffix = sport.toUpperCase().replace(/-/g, '_');
+  const cap = Number(
+    env[`APISPORTS_PER_MINUTE_${suffix}`]?.trim() || env.APISPORTS_PER_MINUTE?.trim() || NaN,
+  );
+  return Number.isFinite(cap) && cap > 0 && cap < plan.perMinute
+    ? { ...plan, perMinute: Math.floor(cap) }
+    : plan;
 }
 
 /** Resolve o plano por API a partir do ambiente (ex.: futebol no pro, demais no free). */
