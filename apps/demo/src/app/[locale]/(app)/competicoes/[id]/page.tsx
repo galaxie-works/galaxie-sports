@@ -10,6 +10,7 @@ import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { FilterChip } from '@/components/sport/filter-chip';
+import { ScrollRow } from '@/components/sport/scroll-row';
 import { ChampionshipTable, championshipOrder } from '@/components/sport/race';
 import { Section } from '@/components/sport/section';
 import { StandingsTable } from '@/components/sport/standings-table';
@@ -224,11 +225,12 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
 
               <TabsContent value="jogos" className="flex flex-col gap-4 pt-4">
                 {rounds.length > 1 ? (
-                  // contain: a largura dos chips (45 cards de MMA, nomes longos) não alarga a página; a fileira rola
-                  <div
-                    className="flex gap-2 overflow-x-auto pb-1 [contain:inline-size]"
-                    role="group"
-                    aria-label={tc.rounds}
+                  // a largura dos chips (45 cards de MMA, 24 GPs) não alarga a página: a fileira rola, sem barra nativa
+                  <ScrollRow
+                    className="gap-2 py-0.5"
+                    label={tc.rounds}
+                    previous={t.common.scrollPrevious}
+                    next={t.common.scrollNext}
                   >
                     {rounds.map((r) => (
                       <FilterChip
@@ -239,7 +241,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
                         {r.name}
                       </FilterChip>
                     ))}
-                  </div>
+                  </ScrollRow>
                 ) : null}
                 {round ? (
                   <Section
