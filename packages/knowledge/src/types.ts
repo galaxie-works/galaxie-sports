@@ -53,6 +53,8 @@ export interface TeamEntry {
   names: { official: string; short: string; abbreviation?: string };
   labels?: I18nMap;
   api_sports: { team_id: number | null; match: { name: string; country: string } };
+  /** Fórmula 1: piloto ou construtor no F1DB; liga o perfil ao participante (seed, `linkParticipants`). */
+  f1db?: { id: string };
   founded?: string | null;
   /** Obrigatório em national-teams.yaml; nos arquivos por país vem do topo do arquivo. */
   country?: string;

@@ -3,11 +3,22 @@
  * uma entidade só), cria o histórico que falta, não duplica na reimportação e uma sessão da api-sports que chega
  * depois assume o evento que o F1DB criou.
  */
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { sport, type Database } from '@galaxie/db';
-import { normalizeF1RaceRanking, normalizeF1Races, type F1dbRow, type F1dbTables } from '@galaxie/providers';
+import { country, sport, type Database } from '@galaxie/db';
+import {
+  F1DB_TABLES,
+  normalizeF1RaceRanking,
+  normalizeF1Races,
+  type F1dbRow,
+  type F1dbTables,
+} from '@galaxie/providers';
 import { importF1db } from '../src/f1db/import.js';
+import { loadF1dbRaw, storeF1dbRelease } from '../src/f1db/package-raw.js';
 import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { disposableDb } from './db.js';
 
@@ -253,6 +264,56 @@ describe('importação do F1DB', () => {
     expect(await count(sql`select count(*) as n from core.event where sport = 'formula-1'`)).toBe(4);
   });
 
+  it('dois IDs do F1DB na mesma entidade entram como uma linha só e a prévia avisa', async () => {
+    // "Red Bull Racing" como outro construtor do F1DB (como RB → Racing Bulls): casa com a mesma equipe da
+    // api-sports pelo nome exato, e os dois caem no mesmo lote pelos campeonatos de 2025 e 2026. O país (lacuna
+    // da equipe) faz o upsert mexer na linha: sem juntar, o Postgres recusa a mesma linha duas vezes no insert
+    await db
+      .insert(country)
+      .values({ code: 'AT', name: { en: 'Austria' } })
+      .onConflictDoNothing();
+    const t = tables();
+    t.country!.push({ id: 'austria', alpha2_code: 'AT', name: 'Austria' });
+    t.constructor!.find((c) => c.id === 'red-bull')!.country_id = 'austria';
+    t.constructor!.push({
+      id: 'red-bull-racing',
+      name: 'Red Bull Racing',
+      full_name: 'Red Bull Racing',
+      country_id: 'austria',
+    });
+    t.season_constructor!.push(
+      { year: 2025, constructor_id: 'red-bull' },
+      { year: 2026, constructor_id: 'red-bull-racing' },
+    );
+    t.season_constructor_standing!.push(
+      { year: 2025, position_number: 1, constructor_id: 'red-bull', points: 500 },
+      { year: 2026, position_number: 1, constructor_id: 'red-bull-racing', points: 400 },
+    );
+    const redBull = await entityOf('api-sports', 'participant', '1');
+    const before = await count(sql`select count(*) as n from core.provider_map`);
+    const preview = await importF1db(db, { tables: t, release: 'v-test', observedAt: F1DB_AT, dryRun: true });
+    expect(preview.shared).toEqual([
+      { entityId: redBull, name: 'Red Bull Racing', f1dbIds: ['red-bull', 'red-bull-racing'] },
+    ]);
+    expect(await count(sql`select count(*) as n from core.provider_map`)).toBe(before);
+
+    const r = await importF1db(db, { tables: t, release: 'v-test', observedAt: F1DB_AT });
+    expect(r.shared).toHaveLength(1);
+    expect(await entityOf('f1db', 'participant', 'red-bull-racing')).toBe(redBull);
+    const standings = await db.execute<{ year: number; points: number }>(sql`
+      select se.year, s.points from core.standing s join core.season se on se.id = s.season_id
+       where s.group = 'constructors' and s.participant_id = ${redBull}::uuid order by se.year`);
+    expect(standings.map((s) => [Number(s.year), Number(s.points)])).toEqual([
+      [2025, 500],
+      [2026, 400],
+    ]);
+    // o nome continua o da api-sports (o F1DB só preenche lacunas de equipe casada)
+    const name = await db.execute<{ name: string }>(
+      sql`select name from core.participant where id = ${redBull}::uuid`,
+    );
+    expect(name[0]!.name).toBe('Red Bull Racing');
+  });
+
   it('sessão da api-sports que chega depois assume o evento criado pelo F1DB', async () => {
     const f1dbEvent = await entityOf('f1db', 'event', 'race-1166-race');
     const stats = await upsertBatch(
@@ -271,5 +332,33 @@ describe('importação do F1DB', () => {
         from core.event e where e.id = ${f1dbEvent}::uuid`);
     // a api-sports vira dona do estado; os pilotos do F1DB ficam até ela mandar a classificação
     expect(e[0]).toMatchObject({ source_provider: 'api-sports', n: '2' });
+  });
+});
+
+describe('raw do release', () => {
+  it('grava o SQLite no raw em fluxo, sem as colunas nulas, e não grava de novo', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'f1db-'));
+    const path = join(dir, 'f1db.db');
+    const sqlite = new DatabaseSync(path);
+    for (const table of F1DB_TABLES)
+      sqlite.exec(`CREATE TABLE "${table}" (id TEXT, year INTEGER, note TEXT)`);
+    const insert = sqlite.prepare('INSERT INTO "race" (id, year, note) VALUES (?, ?, ?)');
+    insert.run('470', 1988, 'Suzuka');
+    insert.run('1100', 2024, null);
+    sqlite.close();
+    try {
+      const first = await storeF1dbRelease(db, path, 'v-raw');
+      expect(first.inserted).toBe(F1DB_TABLES.length);
+      expect((await storeF1dbRelease(db, path, 'v-raw')).inserted).toBe(0);
+      const raw = await loadF1dbRaw(db, first.sha256);
+      expect(raw.release).toBe('v-raw');
+      expect(raw.tables.race).toEqual([
+        { id: '470', year: 1988, note: 'Suzuka' },
+        { id: '1100', year: 2024 },
+      ]);
+      expect(raw.tables.driver).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

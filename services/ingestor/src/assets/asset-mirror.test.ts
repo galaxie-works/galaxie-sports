@@ -297,6 +297,33 @@ describe('fotos de pessoas', () => {
     expect(report.pending).toBe(2);
   });
 
+  it('foto genérica gravada antes de o hash entrar na lista vira "sem foto" na execução seguinte', async () => {
+    const silhouette = fakePng(150, 150, 30);
+    const { clock, assets, objects, fetcher } = setup(
+      { [MESSI]: [{ status: 200, body: silhouette, headers: { 'content-type': 'image/png' } }] },
+      [MESSI, TEAM],
+    );
+    // primeira execução: o hash ainda não é conhecido, a silhueta vai para o storage
+    expect(
+      await runAssetMirror({ assets, objects, fetcher, clock, placeholderPhotos: new Set() }),
+    ).toMatchObject({
+      stored: 1,
+      photoCleanup: 0,
+    });
+    expect(assets.byUrl(MESSI)!.storageKey).not.toBeNull();
+    // o hash entra na lista: a próxima execução desliga a foto e a pessoa, sem baixar nada
+    const placeholderPhotos = new Set([createHash('sha256').update(silhouette).digest('hex')]);
+    const again = await runAssetMirror({ assets, objects, fetcher, clock, placeholderPhotos });
+    expect(again).toMatchObject({ photoCleanup: 1 });
+    expect(assets.byUrl(MESSI)).toMatchObject({ storageKey: null, sha256: null });
+    expect(assets.detached.has(assets.byUrl(MESSI)!.id)).toBe(true);
+    // a prévia só conta
+    expect(
+      (await runAssetMirror({ assets, objects, fetcher, clock, placeholderPhotos, dryRun: true }))
+        .photoCleanup,
+    ).toBe(0);
+  });
+
   it('os hashes catalogados valem só para fotos de pessoa', () => {
     const [silhouette] = PLACEHOLDER_PHOTO_SHA256;
     expect(isPlaceholderPhoto('player', silhouette!)).toBe(true);
@@ -374,11 +401,13 @@ describe('logos genéricos', () => {
       storageKey: 'api-sports/football/players/154.png',
     });
 
-    const plan = await runAssetMirror({ assets, objects, fetcher, clock, dryRun: true });
+    // a foto de pessoa com o mesmo hash fica de fora da limpeza de logos (a de fotos tem lista própria)
+    const placeholderPhotos = new Set<string>();
+    const plan = await runAssetMirror({ assets, objects, fetcher, clock, dryRun: true, placeholderPhotos });
     expect(plan.logoCleanup).toEqual({ placeholders: 1, participants: 1, competitions: 0 });
     expect(assets.byUrl(PRAIA)!.storageKey).toBe('api-sports/volley/teams/1999.png');
 
-    const report = await runAssetMirror({ assets, objects, fetcher, clock });
+    const report = await runAssetMirror({ assets, objects, fetcher, clock, placeholderPhotos });
     expect(report.logoCleanup.placeholders).toBe(1);
     expect(report.pending).toBe(0);
     expect(assets.byUrl(PRAIA)).toMatchObject({ storageKey: null, sha256: null });
