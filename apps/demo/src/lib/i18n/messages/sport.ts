@@ -19,6 +19,10 @@ export default defineMessages(
       Defender: 'Defensores',
       Midfielder: 'Meio-campistas',
       Attacker: 'Atacantes',
+      // basquete (NBA)
+      Guard: 'Armadores',
+      Forward: 'Alas',
+      Center: 'Pivôs',
     } as Record<string, string>,
     competitionType: {
       league: 'Liga',
@@ -112,6 +116,9 @@ export default defineMessages(
         Defender: 'Defenders',
         Midfielder: 'Midfielders',
         Attacker: 'Forwards',
+        Guard: 'Guards',
+        Forward: 'Forwards',
+        Center: 'Centers',
       },
       competitionType: {
         league: 'League',
@@ -202,6 +209,9 @@ export default defineMessages(
         Defender: 'Defensores',
         Midfielder: 'Mediocampistas',
         Attacker: 'Delanteros',
+        Guard: 'Bases',
+        Forward: 'Aleros',
+        Center: 'Pivotes',
       },
       competitionType: {
         league: 'Liga',

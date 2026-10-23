@@ -11,7 +11,8 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import { fill, plural } from '@/lib/i18n/text';
 
 /** Ordem dos grupos: as posições do fornecedor (chave em inglês), depois quem veio sem posição. */
-const POSITIONS = ['Goalkeeper', 'Defender', 'Midfielder', 'Attacker'];
+// futebol e basquete (NBA: posição principal)
+const POSITIONS = ['Goalkeeper', 'Defender', 'Midfielder', 'Attacker', 'Guard', 'Forward', 'Center'];
 
 function MemberRow({ m, href, locale, t }: { m: SquadMember; href: string; locale: Locale; t: Dictionary }) {
   const tx = t.team.squad;

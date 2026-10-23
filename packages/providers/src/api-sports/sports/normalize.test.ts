@@ -19,6 +19,7 @@ import {
   normalizeF1Standings,
   normalizeMmaFights,
   normalizeMmaResults,
+  nbaPosition,
   normalizeNbaPlayers,
   normalizeSportEnvelope,
   normalizeSportGames,
@@ -869,12 +870,33 @@ describe('elenco da NBA v2', () => {
         season: { competitionId: 'standard', year: 2024 },
         role: 'player',
         number: 11,
-        position: 'G',
+        position: 'Guard',
         validFrom: null,
         validTo: null,
       },
     ]);
     expect(b.competitions[0]).toMatchObject({ id: 'standard', seasons: [{ year: 2024, label: '2024/25' }] });
+    const hybrid = normalizeNbaPlayers([player(3, { jersey: 2, pos: 'F-C' })], FETCHED, {
+      team: '24',
+      season: '2024',
+    });
+    expect(hybrid.rosters[0]?.position).toBe('Forward');
+    expect(['G', 'SG', 'PG', 'G-F', 'F', 'SF', 'PF', 'F-C', 'C', 'C-F', 'NA', null].map(nbaPosition)).toEqual(
+      [
+        'Guard',
+        'Guard',
+        'Guard',
+        'Guard',
+        'Forward',
+        'Forward',
+        'Forward',
+        'Forward',
+        'Center',
+        'Center',
+        null,
+        null,
+      ],
+    );
   });
 
   it('sem time ou temporada nos parâmetros não grava nada; o despacho só aceita /players na NBA', () => {

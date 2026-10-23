@@ -799,6 +799,18 @@ export function normalizeSportGames(
  * repete o time: ele vem do parâmetro `team` e é resolvido pelo `provider_map` na gravação. Só entra quem
  * tem inscrição na liga principal (`leagues.standard`: número e posição); sem foto (a API não tem).
  */
+/**
+ * Posição principal no inglês por extenso que o futebol também usa (Goalkeeper, Defender…): "G-F" e "SG" →
+ * Guard, "PF" e "F-C" → Forward, "C" → Center; "NA" ou vazio → sem posição.
+ */
+export function nbaPosition(pos: unknown): string | null {
+  const main = (str(pos) ?? '').toUpperCase().split('-')[0]!;
+  if (main === 'C') return 'Center';
+  if (/^[PS]?G$/.test(main)) return 'Guard';
+  if (/^[PS]?F$/.test(main)) return 'Forward';
+  return null;
+}
+
 export function normalizeNbaPlayers(
   items: unknown[],
   observedAt: Date,
@@ -844,7 +856,7 @@ export function normalizeNbaPlayers(
       season,
       role: 'player',
       number: int(standard.jersey),
-      position: str(standard.pos),
+      position: nbaPosition(standard.pos),
       validFrom: null,
       validTo: null,
     });
