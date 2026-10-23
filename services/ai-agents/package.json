@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@galaxie/db": "workspace:*",
+    "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",

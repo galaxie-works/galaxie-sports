@@ -269,14 +269,16 @@ export const RELEVANCE_REASONS = [
   'continental_competition',
   'decides_final_opponent',
   'decides_third_place_opponent',
+  'market_audience',
 ] as const;
 export type RelevanceReasonCode = (typeof RELEVANCE_REASONS)[number];
 
 export const RelevanceReason = z
   .object({
     code: z.enum(RELEVANCE_REASONS),
-    points: z.number().int().min(0).max(10).meta({
-      description: 'Pontos do motivo isolado. A soma pode passar do teto; `bonus` é limitado a 10.',
+    points: z.number().int().min(0).max(40).meta({
+      description:
+        'Pontos do motivo isolado. A soma dos motivos do país pode passar do teto de 10; a audiência soma por fora.',
       example: 5,
     }),
     text: z.string().meta({
@@ -291,7 +293,8 @@ export const RelevanceReason = z
     id: 'RelevanceReason',
     description:
       '`team_from_market` +10; `domestic_competition` / `continental_competition` +5; ' +
-      '`decides_final_opponent` / `decides_third_place_opponent` +5 (semifinal: a outra semifinal tem um time do país).',
+      '`decides_final_opponent` / `decides_third_place_opponent` +5 (semifinal: a outra semifinal tem um time do país); ' +
+      '`market_audience` 0–40, audiência da competição no país (liga nacional, grandes europeias).',
   });
 export type RelevanceReason = z.infer<typeof RelevanceReason>;
 
@@ -303,11 +306,11 @@ export const EventRelevance = z
       .number()
       .int()
       .min(0)
-      .max(10)
+      .max(50)
       .meta({
         description:
           '+10 participante do país; +5 competição do país ou continental da confederação; +5 semifinal que ' +
-          'define o adversário de um time do país; teto 10.',
+          'define o adversário de um time do país (teto 10); mais a audiência da competição no país (0–40).',
       }),
     reasons: z.array(z.enum(RELEVANCE_REASONS)).meta({ description: 'Códigos dos motivos (ver `details`).' }),
     details: z.array(RelevanceReason).meta({

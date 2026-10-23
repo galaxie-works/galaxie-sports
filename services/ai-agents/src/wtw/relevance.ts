@@ -1,12 +1,14 @@
 /**
  * Relevância por mercado e prioridade do onde assistir (docs/07 §2.2).
  *
- * Adaptador: a relevância por mercado (importância + até +10 quando times/competição são do
- * mercado) é calculada pela API na requisição (apps/api/src/events/relevance.ts) e não fica gravada
- * no banco. Até existir um cálculo compartilhado, usamos a mesma conta aqui: `core.event.importance`
- * + 10 se um participante é do país do mercado, + 5 se a competição é do país; bônus total ≤ 10;
- * teto 100. (O bônus continental da API não entra — só muda copas continentais sem time do país.)
+ * Adaptador: a relevância por mercado é calculada pela API na requisição
+ * (apps/api/src/events/relevance.ts) e não fica gravada no banco. Até existir um cálculo
+ * compartilhado, usamos a mesma conta aqui: `core.event.importance` + 10 se um participante é do país
+ * do mercado, + 5 se a competição é do país (bônus do país ≤ 10) + a audiência da competição no
+ * mercado (config/geo/market-audience.yaml, a mesma da API); teto 100. (O bônus continental e o da
+ * semifinal da API não entram — só mudam copas continentais sem time do país.)
  */
+import { loadGeoConfig, type MarketAudience } from '@galaxie/geo';
 
 export const TEAM_BONUS = 10;
 export const COMPETITION_BONUS = 5;
@@ -25,14 +27,38 @@ export interface RelevanceFacts {
   importance: number;
   participantCountries: readonly (string | null)[];
   competitionCountry: string | null;
+  /** Esporte e slug da competição (audiência no mercado). */
+  competition?: { sport: string; slug: string } | null;
+}
+
+let defaultAudience: MarketAudience | null | undefined;
+
+/** Audiência de config/geo (`GEO_CONFIG_DIR`), carregada uma vez; sem a pasta, nenhuma competição soma. */
+export function marketAudience(): MarketAudience | null {
+  if (defaultAudience === undefined) {
+    try {
+      defaultAudience = loadGeoConfig().audience;
+    } catch (err) {
+      console.warn(
+        `config/geo indisponível (${err instanceof Error ? err.message : String(err)}): relevância sem audiência.`,
+      );
+      defaultAudience = null;
+    }
+  }
+  return defaultAudience;
 }
 
 /** Relevância (0–100) do jogo para o mercado. */
-export function marketRelevance(facts: RelevanceFacts, market: string): number {
+export function marketRelevance(
+  facts: RelevanceFacts,
+  market: string,
+  audience: MarketAudience | null = marketAudience(),
+): number {
   let bonus = 0;
   if (facts.participantCountries.some((c) => inMarket(c, market))) bonus += TEAM_BONUS;
   if (inMarket(facts.competitionCountry, market)) bonus += COMPETITION_BONUS;
-  return Math.min(100, Math.max(0, facts.importance) + Math.min(MAX_MARKET_BONUS, bonus));
+  const points = audience?.points(market, facts.competition?.sport, facts.competition?.slug) ?? 0;
+  return Math.min(100, Math.max(0, facts.importance) + Math.min(MAX_MARKET_BONUS, bonus) + points);
 }
 
 /** Prioridade = relevância × proximidade do início (1 no apito; 1/3 a 48 h). */

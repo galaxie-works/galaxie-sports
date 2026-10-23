@@ -534,6 +534,52 @@ describe('onde assistir por rodada', () => {
 });
 
 describe('direitos por temporada (nível 1)', () => {
+  it('liga curada no próprio país ainda é pesquisada nos vizinhos; liga sem audiência fica de fora', async () => {
+    // slugs reais: a audiência vem de config/geo/market-audience.yaml (liga-mx = 35 no México)
+    await seedRound({ slug: 'liga-mx', games: 2, importance: 30 });
+    await seedRound({ slug: 'eredivisie', games: 2, importance: 30 });
+    const mxCurated = parseCountryConfig(
+      'MX',
+      {
+        country: 'MX',
+        broadcasters: [
+          {
+            id: 'emissora_m',
+            name: 'Emissora M',
+            medium: 'free_tv',
+            access_model: 'free',
+            domains: ['emissora-m.example'],
+          },
+        ],
+      },
+      {
+        country: 'MX',
+        rights: [
+          {
+            competition: 'liga-mx',
+            season: 2026,
+            valid_from: '2026-01-01',
+            valid_to: '2026-12-31',
+            distribution: 'split',
+            holders: ['emissora_m'],
+            sources: [rightsSource],
+          },
+        ],
+      },
+      sources,
+    );
+    const cfg = new WtwConfig([br, mxCurated], new Blocklist([]));
+    const now = new Date(KICKOFF.getTime() - 10 * 24 * H);
+    const needs = await planRightsResearch(db, { now, config: cfg, minRelevance: 60 });
+    // 30 de importância + 35 de audiência no México passa do limiar; a chamada cobre só quem não tem direitos
+    expect(needs.find((n) => n.competition.slug === 'liga-mx')).toMatchObject({
+      chunks: [['BR']],
+      maxRelevance: 65,
+    });
+    // Eredivisie: sem audiência em nenhum mercado, fica abaixo do limiar (30) e não gasta pesquisa
+    expect(needs.find((n) => n.competition.slug === 'eredivisie')).toBeUndefined();
+  });
+
   it('uma chamada cobre os mercados sem direitos; validador confere cada detentor; o resultado alimenta a agenda', async () => {
     const [id] = await seedRound({ slug: 'liga-nova', games: 1, importance: 80 });
     const now = new Date(KICKOFF.getTime() - 10 * 24 * H);

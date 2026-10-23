@@ -94,6 +94,7 @@ export interface UpcomingEvent {
   id: string;
   startsAt: Date;
   tier: number;
+  sport: string;
   slug: string;
   name: string;
   countryCode: string | null;
@@ -120,6 +121,7 @@ export async function loadUpcomingEvents(
       id: event.id,
       startsAt: event.startsAt,
       tier: competition.tier,
+      sport: competition.sport,
       slug: competition.slug,
       name: competition.name,
       countryCode: competition.countryCode,
@@ -141,6 +143,7 @@ export async function loadUpcomingEvents(
     id: r.id,
     startsAt: r.startsAt,
     tier: r.tier,
+    sport: r.sport,
     slug: r.slug,
     name: r.name,
     countryCode: r.countryCode,
@@ -209,6 +212,7 @@ export async function planDueRuns(db: Database, opts: PlanOptions): Promise<DueR
           importance: e.importance,
           participantCountries: e.participantCountries,
           competitionCountry: e.countryCode,
+          competition: { sport: e.sport, slug: e.slug },
         },
         country,
       );
