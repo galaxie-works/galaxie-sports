@@ -1,13 +1,13 @@
-# Fórmula 1 — enriquecimento com o jolpica-f1
+# Fórmula 1 — enriquecimento com o jolpica-f1 e outras fontes abertas
 
 > **Resumo**
-> 1. **Uso comercial: não sem licença escrita.** A API e os dumps gratuitos do jolpica são CC BY-NC-SA 4.0 (não comercial e "compartilha igual"). Uma API B2B paga é uso comercial: precisamos de autorização por escrito em admin@jolpi.ca. O projeto já prevê um nível pago ("Supporter") com dados licenciados para uso comercial, mas não publicou preço nem termos.
-> 2. **Ganho principal:** histórico completo de 1950 a 2026 (77 temporadas, 1.172 GPs, 26.247 resultados, 881 pilotos), a **temporada atual inteira** (o plano free da api-sports só libera 2022–2024), voltas piloto a piloto desde 1996 e pit stops desde 2011.
-> 3. **O que não muda:** ao vivo, treinos livres e imagens continuam vindo da api-sports. O jolpica só publica o resultado horas depois da corrida e não tem fotos.
-> 4. **Plano B sem negociação:** o F1DB (CC BY 4.0, uso comercial permitido com atribuição) cobre histórico, grid, resultados, pit stops e classificações, mas não tem volta a volta.
-> 5. **Primeiro passo:** mandar hoje o e-mail de licença (rascunho na §2.4). Em paralelo, fazer uma prova interna, sem expor a clientes, que carrega resultados e campeonatos de 1950–2026 (~1.000 chamadas, cerca de 2 h). Volta a volta fica para uma fase seguinte.
+> 1. **Licença:** o **F1DB é seguro** (CC BY 4.0: uso comercial com atribuição). O **jolpica** e o **OpenF1** são CC BY-NC-SA 4.0: só com licença escrita. **Timing oficial** (FastF1, live timing, raspagem do formula1.com, API do Fantasy) é **proibido** sem acordo com a Formula One. Os termos do formula1.com restringem o conteúdo a uso pessoal e não comercial, e o grupo detém o direito exclusivo de comercializar o campeonato.
+> 2. **Ganho principal:** histórico completo de 1950 até hoje (77 temporadas, ~1.170 GPs, incluindo treinos, grid, pit stops e campeonatos) e a **temporada atual inteira**, que o plano free da api-sports não libera. Volta a volta só existe no jolpica (1996+, depois da licença) ou na Sportradar (paga, ao vivo).
+> 3. **Combinação sem duplicar (§6.4):** o F1DB cuida do histórico e do resultado oficial pós-corrida. A api-sports continua com o ao vivo e as imagens. O jolpica entra com volta a volta depois da licença. O `f1-circuits` (MIT) traz o traçado dos circuitos.
+> 4. **Primeiro passo:** provider `f1db`, que carrega o release (zip de ~6 MB, sem rate limit) e leva a base de 182 para ~2.500 eventos sem mudar o contrato da API. No mesmo dia, mandar o e-mail de licença ao jolpica (rascunho na §2.4).
+> 5. **Fora de cogitação:** FastF1/OpenF1/live timing, os datasets derivados do formula1.com ou do Ergast (Kaggle, HuggingFace, formula1-datasets), o f1api.dev e o scraper da Apify (§6.2).
 
-Pesquisa feita em 2026-10-23. Fontes: repositório [jolpica/jolpica-f1](https://github.com/jolpica/jolpica-f1) (README, `TERMS.md`, `docs/`, discussões e issues), o OpenAPI publicado em `https://api.jolpi.ca/docs/schema/` (versão `20261021203116-1a1a058`) e 24 chamadas reais à API (§5).
+Pesquisa feita em 2026-10-23. Fontes: repositório [jolpica/jolpica-f1](https://github.com/jolpica/jolpica-f1) (README, `TERMS.md`, `docs/`, discussões e issues), o OpenAPI publicado em `https://api.jolpi.ca/docs/schema/` (versão `20261021203116-1a1a058`), 24 chamadas reais à API (§5) e a lista [subinium/awesome-f1](https://github.com/subinium/awesome-f1) (§6).
 
 ---
 
@@ -110,9 +110,7 @@ Os filtros se combinam na rota (`/drivers/senna/results/`, `/circuits/interlagos
 
 ### 2.5 Se a resposta for não (ou não vier)
 
-- **F1DB** ([f1db/f1db](https://github.com/f1db/f1db)) está sob **CC BY 4.0**, que permite uso comercial com atribuição. Cobre 1950 até hoje: calendário, classificação, grid, resultados, voltas mais rápidas, **pit stops**, piloto do dia e campeonatos, com releases logo depois de cada GP (JSON, CSV, SQL e SQLite). **Não tem volta a volta.** Antes de usar, confirmar uma inconsistência: o README linka o texto CC BY-SA na versão "plaintext" e o CC BY no resto.
-- **api-sports paga** (Pro): libera a temporada atual e 2012 em diante, mas não tem volta a volta nem histórico antes de 2012.
-- **OpenF1 e FastF1** (timing desde 2018/2023, telemetria): são boas referências de produto, mas vêm do timing oficial, que não tem licença comercial clara. Precisariam de um estudo à parte.
+Perdemos só o volta a volta. O histórico, a temporada atual e os pit stops vêm do **F1DB** (CC BY 4.0, §6.1), que passa a ser a fonte principal da fase 1 de qualquer forma. Para o volta a volta, a alternativa comercial é a Sportradar (§6.1).
 
 ---
 
@@ -196,6 +194,8 @@ Também alimenta o **enriquecimento de IA**: o resumo de uma corrida pode citar 
 
 ### 4.3 Volume para carregar o histórico (API Ergast)
 
+> Com a combinação da §6.4, a fase 1 sai de **um download do release do F1DB** (~6 MB zipado), sem chamadas. As contas abaixo valem para o jolpica e, na prática, só para o volta a volta (fase 3).
+
 Considerando 450 req/h efetivas (abaixo dos 500/h):
 
 | Bloco | Chamadas | Observação |
@@ -236,13 +236,16 @@ O rodapé diz que o site usa OpenF1 e FastF1. Não cita licença nem termos e n�
 
 ### 4.5 Fases (do menor passo que já entrega valor)
 
-| Fase | Escopo | Chamadas | Entrega |
-|---|---|---|---|
-| **0. Licença** (sem código) | E-mail da §2.4, negociação e revisão jurídica. Em paralelo, abrir o F1DB como plano B | 0 | Sinal verde ou troca de fonte |
-| **1. Histórico e temporada atual** | Provider `jolpica` (cliente, raw, normalize), casamento de IDs e precedência por campo. Carrega corridas, classificações, sprints, resultados e campeonato final de 1950–2026. **Sem mudar o contrato da API.** Prova interna pode começar antes da licença, sem expor a clientes | ~1.000 (1 tarde) | De 182 para ~2.500 eventos. Temporada atual completa. Demo navega por qualquer ano |
-| **2. Carreira, circuito e recordes** | Views `driver_career` e `venue_history`, campeonato por rodada, endpoints `career`/`history`/`records`, perfil do piloto e página do circuito na demo, fatos para a IA | ~2.300 (ou 0, calculando) | Perfil do piloto, histórico do circuito, gráfico do campeonato |
-| **3. Volta a volta e pit stops** | Tabelas `race_lap`/`race_pit_stop`, `/laps` e `/pit-stops`, gráfico de posição por volta | ~6.900 (2 noites) ou o dump | Gráfico de posição por volta, estratégia de paradas |
-| **4. Alpha e rotina** | TL e classificação da sprint pela alpha quando estabilizar; token com limite maior; webhook "resultado oficial publicado" para clientes | ~80 por GP | Paridade de sessões e aviso pós-corrida |
+As fases combinam as fontes da §6, cada uma dona de um tipo de dado (tabela da §6.4). O casamento de IDs e a precedência por campo da §4.1 valem igual para o F1DB: ele também usa slugs (`max-verstappen`, `interlagos`). O trabalho de casamento é feito uma vez e reaproveitado pelo jolpica, que usa slugs parecidos (`max_verstappen`).
+
+| Fase | Fonte | Escopo | Custo de coleta | Entrega |
+|---|---|---|---|---|
+| **0. Licenças** (sem código) | — | E-mail ao jolpica (§2.4). Revisão jurídica da atribuição do F1DB e do `f1-circuits`. Cotação da Sportradar, só para saber o preço do volta a volta ao vivo | 0 | Saber o que dá para usar |
+| **1. Histórico e temporada atual** | **F1DB** (CC BY 4.0) | Provider `f1db`: baixa o release (zip PostgreSQL ou JSON, ~6 MB), normaliza para os modelos atuais e faz o casamento de IDs. Corridas, TL, classificação, sprint, grid, resultados, voltas mais rápidas, pit stops, piloto do dia e campeonatos de 1950 até hoje. Atribuição "Data: F1DB (CC BY 4.0)" na doc e nas respostas da API. **Sem mudar o contrato** | 1 download por release (~3–4 h depois da corrida) | De 182 para ~2.500 eventos. Temporada atual completa. Demo navega por qualquer ano |
+| **2. Carreira, circuito e recordes** | F1DB + **f1-circuits** (MIT) | Views `driver_career` e `venue_history`, campeonato por rodada, endpoints `career`/`history`/`records`, traçado do circuito (GeoJSON) na página do circuito, fatos para a IA | 0 (agregações) | Perfil do piloto, histórico e mapa do circuito, gráfico do campeonato |
+| **3. Volta a volta** | **jolpica** (só com licença) ou Sportradar | Tabela `race_lap`, endpoint `/laps` e gráfico de posição por volta. Os pit stops já vêm do F1DB | ~6.500 chamadas (2 noites) ou o dump Supporter | Gráfico de posição por volta, ritmo e consistência (como o f1archive.pro) |
+| **4. Ao vivo e sessões** | api-sports (plano pago) ou Sportradar | Temporada atual ao vivo fora da janela D−1..D+1 e voltas ao vivo. **Nunca pelo live timing oficial** | Contrato | Paridade com o ao vivo dos outros esportes |
+| **5. Extras (opcionais)** | Pneus (fia-doc), clima | Só depois de o jurídico liberar os documentos da FIA e de contratar uma API de clima comercial (§6.3) | — | Estratégia de pneus, clima por sessão |
 
 ---
 
@@ -266,3 +269,84 @@ Foram 24 chamadas a `https://api.jolpi.ca`, espaçadas em ~1,2 s, com `User-Agen
 | `/data/dumps/download/` | Dumps CSV e SQL de ~14,6 MB. O mais recente (Supporter) é de 13/10/2026 e o gratuito de 09/10/2026 (`delay_days: 14`) |
 
 Os arquivos brutos ficaram fora do repositório (scratchpad da sessão). Nada foi gravado no banco.
+
+Conferência cruzada: no F1DB, a 1ª parada de Singapura 2026 (`pit-stops.yml`) é de Hamilton, na volta 18, com 24,048 s. É o mesmo valor que o jolpica devolveu.
+
+---
+
+## 6. Outras fontes (lista awesome-f1)
+
+Revisei a lista [subinium/awesome-f1](https://github.com/subinium/awesome-f1) (atualizada em 27/09/2026) e deixei de fora livros, cursos, mídia, simuladores e apps sem dado próprio. Cada fonte recebe um rótulo:
+
+- ✅ **seguro**: a licença permite uso comercial, com atribuição;
+- ⚠️ **incerto**: depende de contrato ou de parecer jurídico;
+- ⛔ **proibido**: a licença ou os termos vetam o uso comercial, ou o dado vem de raspagem ou de timing oficial sem licença.
+
+**Princípio:** o timing, a telemetria e o conteúdo do formula1.com são da Formula One. Os termos do formula1.com dizem que o conteúdo é "for your personal, non-commercial use only", vetam "distribute, copy, extract or commercially exploit" sem consentimento escrito e afirmam que o grupo tem "the exclusive right to commercialise the FIA Formula One World Championship in all media". Quando um projeto aberto redistribui esse dado sob MIT, Apache ou CC, isso **não** nos dá direito, porque o projeto não é dono do dado. Resultado e classificação são fatos, e é nesse terreno que as bases abertas (F1DB, jolpica) atuam.
+
+### 6.1 Fontes que valem a pena
+
+| Fonte | O que oferece | API ou dump | Atualização | Licença e uso comercial | Rate limit | Esforço |
+|---|---|---|---|---|---|---|
+| **[F1DB](https://github.com/f1db/f1db)** | Base histórica completa de 1950 até hoje. Pilotos, construtores com chassi, motores, pneus e 78 circuitos com layouts e **640 SVGs de traçado**. Por corrida: TL1–3 e warm-up, Q1/Q2/Q3, sprint, grid, resultado, voltas mais rápidas, **pit stops (desde 2003)**, piloto do dia (recente) e campeonatos rodada a rodada | **Dump** a cada release no GitHub: CSV, JSON, SQL (PostgreSQL, MySQL, SQLite) e SQLite; zip de ~6 MB. O release v2026.17.0 saiu em 11/10/2026 às 17:18 UTC | Pós-corrida: o release de Singapura saiu ~3–4 h depois da bandeirada | ✅ **CC BY 4.0** (`LICENSE`): uso comercial com atribuição e sem ShareAlike. Pontos a confirmar: o README linka o texto CC BY-SA na versão "plaintext" (provável erro) e falta saber se os SVGs seguem a mesma licença | Nenhum (download de release) | **Baixo/médio**: um loader do dump SQL e um normalize; IDs em slug (`max-verstappen`) |
+| **[jolpica-f1](https://github.com/jolpica/jolpica-f1)** | Tudo da §1, com destaque para o **volta a volta desde 1996** | API (Ergast e alpha) + dump | Pós-corrida, algumas horas depois | ⚠️ CC BY-NC-SA 4.0; uso comercial só com licença escrita (§2) | 4 req/s, 500 req/h | Médio |
+| **api-sports F1** (atual) | Sessões, resultado por sessão, grid, voltas mais rápidas, pit stops, ao vivo (`status`, volta atual) e imagens | API | Ao vivo e pós-corrida | ✅ Contrato comercial da api-sports (free hoje: 2022–2024 + janela D−1..D+1) | 100 req/dia (free) | Já integrado |
+| **[Sportradar Racing (F1)](https://developer.sportradar.com/racing/docs/f1-ig-overview)** | Calendário, **volta a volta ao vivo** com ordem por volta em corrida e sprint (TL e classificação ao vivo desde 2025), campeonatos, perfis, circuitos e probabilidades de vitória | API REST por polling (JSON/XML) | Ao vivo | ✅ Comercial por contrato (trial dá histórico e replay). Preço sob consulta | Por contrato | Médio a alto, e caro |
+| **[f1-circuits](https://github.com/bacinger/f1-circuits)** | Traçado de 35+ circuitos em **GeoJSON**, com coordenadas, extensão e altitude | Dump (GitHub) | Manual | ✅ MIT (código e dados). O repositório se declara não oficial. Parte da altitude veio de um artigo do formula1.com (só um número por circuito; risco baixo, mas citar) | — | **Baixo**: um mapa na página do circuito |
+| **[fia-doc](https://github.com/harningle/fia-doc)** | Parser dos PDFs oficiais da FIA: lista de inscritos, **compostos de pneu**, classificações, tempos de volta e pit stops | Biblioteca (o código é Apache-2.0); o dado vem dos PDFs da FIA | Pós-sessão | ⚠️ O código é livre, mas os documentos são da FIA. É preciso parecer jurídico ou acordo com a FIA para revender o dado extraído | Respeitar o site da FIA | Médio a alto (PDFs mudam) |
+| **[Motorsport Stats](https://motorsportstats.com/)** | Repositório de resultados desde 1911; alimenta o portal de resultados da FIA | API sob assinatura ("common data delivery platform") | In-session e pós-sessão | ⚠️ Comercial por contrato; cobertura de F1 e preço precisam de contato | Contrato | Médio |
+| **[SportsDataIO Motorsport](https://sportsdata.io/motorsports-api)** | API multissérie | API | — | ⚠️ Comercial; **não confirmei** se cobre F1 nem com que profundidade | Contrato | Médio |
+| **[TheSportsDB](https://www.thesportsdb.com/)** | Metadados e **imagens** (artes, emblemas) | API (free + Patreon) | Comunidade | ⚠️ Os dados exigem citar a fonte e **"cannot resell our API in any way without specific permission"**. Imagens só com a flag Creative Commons conhecida; logos de terceiros exigem permissão do dono | Plano | Baixo, mas com risco de licença |
+
+### 6.2 Fontes descartadas (proibidas ou sem valor comercial)
+
+| Fonte | Motivo |
+|---|---|
+| **[OpenF1](https://openf1.org/)** (telemetria, posições, rádio, stints, clima, race control; 2023+; ao vivo por €9,90/mês) | ⛔ CC BY-NC-SA 4.0 ("other use cases… contact the team for licensing") **e** o dado vem do live timing oficial. Mesmo com licença do OpenF1, faltaria o direito da Formula One. Limites: 3 req/s e 30 req/min no free, o dobro no plano pago |
+| **[FastF1](https://github.com/theOehrly/Fast-F1)**, **LiveF1**, **undercut-f1**, **f1-dash**, **MultiViewer**, **f1_sensor** | ⛔ O código é MIT, mas todos leem o live timing oficial da Formula One. Uso pessoal sim; revenda não |
+| **TracingInsights** (archive e HuggingFace) | ⛔ O repositório diz Apache-2.0, mas a telemetria vem do FastF1 (Formula One) e o "RaceData" é espelho do Ergast/jolpica (não comercial). A licença declarada não cobre o dado |
+| **Kaggle** (Rohan Rao, jtrotman), **RelBench rel-f1** | ⛔/⚠️ Derivados do Ergast/jolpica: herdam a restrição não comercial. O F1DB cobre o mesmo dado com licença limpa |
+| **[formula1-datasets](https://github.com/toUpperCase78/formula1-datasets)** | ⛔ GPL-3.0 no repositório, mas o dado vem do formula1.com e dos jogos da EA ("obtained from Formula 1 Official Web Site") |
+| **[f1api.dev](https://f1api.dev/)** | ⛔ Termos: "you must not charge for any application or service that uses this API". Não cita a fonte |
+| **Apify F1 Data Extractor** | ⛔ Raspagem do formula1.com, vetada pelos termos do site |
+| **API do F1 Fantasy** (Postman, cheat sheet) | ⛔ API não documentada da Formula One; uso não autorizado |
+| **F1 Live Timing, Results, Drivers e Teams** (formula1.com), sites de equipes | ⛔ Conteúdo oficial; só como referência humana, nunca ingestão |
+| **TUMFTM racetrack-database** | ✅ LGPL-3.0, mas tem só 20+ pistas com linha central e de corrida. Pouco valor para o produto; o f1-circuits resolve melhor |
+| **FIA F1 Archives e documentos**, **Pirelli Press Area** | ⚠️ Fontes oficiais em PDF (classificações, pneus, clima). Servem para conferência humana; ingestão só com o parecer citado no fia-doc |
+| Dashboards e sites (F1 Cosmos, Pitwall, BigData F1, 4mula1stats, f1archive.pro…) | Referência de produto, não fonte. Nenhum oferece API licenciável |
+
+### 6.3 Clima, imagens e logos
+
+- **Clima:** na lista, só o OpenF1 e o FastF1 têm clima por sessão, e os dois são ⛔. A saída limpa é uma API de clima comercial, contratada fora da lista, com consulta pela lat/long do circuito (o F1DB e o jolpica têm as coordenadas). Ela dá o clima da cidade, não o da pista; isso é um ganho para a IA e para a página do evento.
+- **Imagens e logos:** nenhuma fonte da lista resolve com licença limpa. Continuamos com a api-sports (Asset Mirror) e o acervo de logos já estudado em `docs/research/licenciamento-imagens.md` e `docs/research/logos-acervo-oficial.md`. O traçado vem do f1-circuits (GeoJSON, MIT) ou dos SVGs do F1DB, que precisam de confirmação de licença.
+
+### 6.4 Quem vence em cada tipo de dado
+
+| Tipo de dado | Dono | Reserva | Nunca |
+|---|---|---|---|
+| Calendário e horário das sessões | api-sports (temporada na janela) | **F1DB** (temporada inteira e histórico) | formula1.com |
+| Ao vivo (status, volta atual) | **api-sports** | Sportradar (se contratada) | live timing, OpenF1, FastF1 |
+| Resultado oficial (corrida, sprint, classificação, TL) | **F1DB** | api-sports em 2022–2024 (conferência de divergências); jolpica após licença | formula1.com, f1api.dev |
+| Grid de largada e voltas mais rápidas | **F1DB** | api-sports | — |
+| Pit stops | **F1DB** (2003+) | jolpica (2011+, após licença) | OpenF1 |
+| Campeonatos (rodada a rodada, histórico) | **F1DB** | jolpica | — |
+| Volta a volta (tempo e posição) | **jolpica** (1996+, só com licença) | Sportradar (ao vivo, pago) | FastF1, OpenF1, TracingInsights |
+| Pneus e stints | — (nada seguro hoje) | fia-doc após parecer; Sportradar | OpenF1, FastF1 |
+| Piloto (bio, número, nacionalidade) | **F1DB** | jolpica | — |
+| Circuito (local, coordenadas, traçado) | **F1DB** (dados e SVG) + **f1-circuits** (GeoJSON) | jolpica | — |
+| Fotos e logos | **api-sports** + acervo próprio | TheSportsDB por imagem, com licença conhecida | formula1.com, sites de equipes |
+| Clima | API de clima comercial (fora da lista) | — | OpenF1, FastF1 |
+
+### 6.5 Tabela comparativa resumida
+
+| | api-sports (free) | jolpica-f1 | F1DB | OpenF1 | Sportradar |
+|---|---|---|---|---|---|
+| Histórico | 2022–2024 (free) / 2012+ (pago) | 1950+ | 1950+ | 2023+ | Por contrato |
+| Temporada atual | Janela D−1..D+1 | Sim | Sim (release pós-GP) | Sim | Sim |
+| Ao vivo | Sim | Não | Não | Pago (€9,90/mês) | Sim |
+| Treinos livres | Sim | Só alpha | Sim | Sim | Sim (2025+) |
+| Volta a volta | Não | 1996+ | Não | 2023+ (com telemetria) | Sim (ao vivo) |
+| Pit stops | Sim | 2011+ | 2003+ | Sim | Não confirmado |
+| Imagens | Sim | Não | SVG de circuito | Foto via formula1.com | Perfis |
+| Acesso | API, 100 req/dia | API 500 req/h + dump | Dump (~6 MB) | API 30 req/min | API |
+| **Uso comercial** | ✅ contrato | ⚠️ só com licença | ✅ CC BY 4.0 | ⛔ | ✅ contrato |
