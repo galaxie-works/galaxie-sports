@@ -1,0 +1,201 @@
+{
+  "get": "standings",
+  "errors": [],
+  "results": 1,
+  "response": [
+    [
+      {
+        "form": "WLWWW",
+        "team": {
+          "id": 467,
+          "logo": "https://media.api-sports.io/rugby/teams/467.png",
+          "name": "South Africa"
+        },
+        "games": {
+          "win": {
+            "total": 5,
+            "percentage": "83.33"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 1,
+            "percentage": "16.67"
+          },
+          "played": 6
+        },
+        "goals": {
+          "for": 188,
+          "against": 94
+        },
+        "group": {
+          "name": null
+        },
+        "stage": null,
+        "league": {
+          "id": 85,
+          "logo": "https://media.api-sports.io/rugby/leagues/85.png",
+          "name": "Rugby Championship",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 24,
+        "country": {
+          "id": 26,
+          "code": null,
+          "flag": null,
+          "name": "World"
+        },
+        "position": 1,
+        "description": null
+      },
+      {
+        "form": "WWLLW",
+        "team": {
+          "id": 465,
+          "logo": "https://media.api-sports.io/rugby/teams/465.png",
+          "name": "New Zealand"
+        },
+        "games": {
+          "win": {
+            "total": 3,
+            "percentage": "50.00"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "50.00"
+          },
+          "played": 6
+        },
+        "goals": {
+          "for": 175,
+          "against": 138
+        },
+        "group": {
+          "name": null
+        },
+        "stage": null,
+        "league": {
+          "id": 85,
+          "logo": "https://media.api-sports.io/rugby/leagues/85.png",
+          "name": "Rugby Championship",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 16,
+        "country": {
+          "id": 26,
+          "code": null,
+          "flag": null,
+          "name": "World"
+        },
+        "position": 2,
+        "description": null
+      },
+      {
+        "form": "LWWLL",
+        "team": {
+          "id": 460,
+          "logo": "https://media.api-sports.io/rugby/teams/460.png",
+          "name": "Argentina"
+        },
+        "games": {
+          "win": {
+            "total": 3,
+            "percentage": "50.00"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 3,
+            "percentage": "50.00"
+          },
+          "played": 6
+        },
+        "goals": {
+          "for": 170,
+          "against": 195
+        },
+        "group": {
+          "name": null
+        },
+        "stage": null,
+        "league": {
+          "id": 85,
+          "logo": "https://media.api-sports.io/rugby/leagues/85.png",
+          "name": "Rugby Championship",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 14,
+        "country": {
+          "id": 26,
+          "code": null,
+          "flag": null,
+          "name": "World"
+        },
+        "position": 3,
+        "description": null
+      },
+      {
+        "form": "LLLWL",
+        "team": {
+          "id": 461,
+          "logo": "https://media.api-sports.io/rugby/teams/461.png",
+          "name": "Australia"
+        },
+        "games": {
+          "win": {
+            "total": 1,
+            "percentage": "16.67"
+          },
+          "draw": {
+            "total": 0,
+            "percentage": "0.00"
+          },
+          "lose": {
+            "total": 5,
+            "percentage": "83.33"
+          },
+          "played": 6
+        },
+        "goals": {
+          "for": 107,
+          "against": 213
+        },
+        "group": {
+          "name": null
+        },
+        "stage": null,
+        "league": {
+          "id": 85,
+          "logo": "https://media.api-sports.io/rugby/leagues/85.png",
+          "name": "Rugby Championship",
+          "type": "League",
+          "season": 2024
+        },
+        "points": 5,
+        "country": {
+          "id": 26,
+          "code": null,
+          "flag": null,
+          "name": "World"
+        },
+        "position": 4,
+        "description": null
+      }
+    ]
+  ],
+  "parameters": {
+    "league": "85",
+    "season": "2024"
+  }
+}

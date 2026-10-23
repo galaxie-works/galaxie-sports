@@ -71,6 +71,12 @@ const int = (v: unknown): number | null => {
 };
 const id = (v: unknown): string | null => (v == null ? null : str(v));
 
+/** Time de verdade: o fornecedor usa `id: 0` (logo `teams/0.png`) como placeholder de time desconhecido. */
+const teamId = (v: unknown): string | null => {
+  const pid = id(v);
+  return pid === '0' ? null : pid;
+};
+
 /** Primeiro ano de "2024", 2024 ou "2024-2025". */
 export function seasonYear(v: unknown): number | null {
   const m = /^(\d{4})/.exec(String(v ?? ''));
@@ -217,7 +223,7 @@ class SportCollector {
   /** Time citado num jogo ou numa tabela: só preenche lacunas do cadastro (`teams`). */
   team(ref: unknown): string | null {
     const t = obj(ref);
-    const pid = id(t.id);
+    const pid = teamId(t.id);
     const name = str(t.name);
     if (!pid || !name) return null;
     return this.participant({
@@ -875,7 +881,7 @@ export function normalizeSportTeams(
   const c = new SportCollector(sport, observedAt);
   for (const raw of items) {
     const t = obj(raw);
-    const pid = id(t.id);
+    const pid = teamId(t.id);
     const name = str(t.name);
     if (!pid || !name) continue;
     const country = obj(t.country);
@@ -945,7 +951,10 @@ export function normalizeSportStandings(
   params: Record<string, string> = {},
 ): NormalizedBatch {
   const c = new SportCollector(sport, observedAt);
-  const rows = items.flatMap((i) => (Array.isArray(i) ? i : [i])).map(obj);
+  const groups = items.map((i) => (Array.isArray(i) ? i : [i]).map(obj));
+  // grupo com placeholder (time `id: 0`) está incompleto ou é de outra temporada (Súper Rugby Américas 2024
+  // vem com os times de 2022): uma tabela parcial engana mais do que nenhuma
+  const rows = groups.filter((g) => !g.some((r) => isObj(r.team) && id(r.team.id) === '0')).flat();
   // mais de uma fase na mesma resposta (ex.: temporada regular + playoffs): a fase entra no grupo
   const stages = new Set(rows.map((r) => str(r.stage)).filter(Boolean));
   const swapPoints = sport === 'american-football' && pointsSwapped(rows);
