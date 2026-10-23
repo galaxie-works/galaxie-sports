@@ -179,6 +179,14 @@ class SportCollector {
     return { competitionId: c.id, year: c.year };
   }
 
+  /** Amplia a janela da temporada com a data de um evento (APIs sem datas de temporada, ex.: F1). */
+  seasonDate(season: SeasonRef, day: string): void {
+    const s = this.competitions.get(season.competitionId)?.seasons.find((x) => x.year === season.year);
+    if (!s) return;
+    if (!s.startDate || day < s.startDate) s.startDate = day;
+    if (!s.endDate || day > s.endDate) s.endDate = day;
+  }
+
   stage(season: SeasonRef, spec: StageSpec | null): string | null {
     if (!spec) return null;
     const key = `${season.competitionId}|${season.year}|${spec.label}`;
@@ -870,6 +878,8 @@ export function normalizeF1Races(items: unknown[], observedAt: Date): Normalized
     const year = int(r.season) ?? (startsAt ? startsAt.getUTCFullYear() : null);
     if (!rid || !startsAt || year == null) continue;
     const season = f1Season(c, year);
+    // a API não tem datas de temporada: a janela sai do calendário (primeiro treino → última corrida)
+    c.seasonDate(season, startsAt.toISOString().slice(0, 10));
     const gp = obj(r.competition);
     const gpId = id(gp.id);
     const gpName = str(gp.name);

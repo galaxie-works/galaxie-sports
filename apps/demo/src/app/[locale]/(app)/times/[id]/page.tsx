@@ -9,6 +9,7 @@ import { CampaignCard } from '@/components/sport/campaign-card';
 import { CopyButton } from '@/components/sport/copy-button';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
+import { ChampionshipCard } from '@/components/sport/race';
 import { FormChips } from '@/components/sport/form-chips';
 import { Intensity } from '@/components/sport/intensity';
 import { SeasonSelect, type SeasonOption } from '@/components/sport/season-select';
@@ -532,6 +533,7 @@ async function Content({
           </div>
 
           <div className="flex flex-col gap-6">
+            <ChampionshipCard standings={overview.standings} />
             <IdentityCard
               s={semantic}
               colors={team.colors}

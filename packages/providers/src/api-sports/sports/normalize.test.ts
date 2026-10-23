@@ -378,6 +378,15 @@ describe('Fórmula 1', () => {
     expect(race.sportEvent).toMatchObject({ kind: 'race', providerEventId: '1857' });
   });
 
+  it('a janela da temporada sai do calendário (a API não tem datas de temporada)', () => {
+    const days = b.events.map((e) => e.observation.startsAt.toISOString().slice(0, 10)).sort();
+    expect(b.competitions[0]!.seasons[0]).toMatchObject({
+      year: 2024,
+      startDate: days[0],
+      endDate: days.at(-1),
+    });
+  });
+
   it('resultado e grid completam o evento com N pilotos sem passar pela máquina de estados', () => {
     const results = loadSportFixture('formula-1', 'rankings-races-1967.json');
     const r = normalizeF1RaceRanking('results', results.response, FETCHED, results.parameters);

@@ -41,6 +41,8 @@ export interface BuildContext {
 export interface SeasonCall {
   endpoint: string;
   params: Params;
+  /** Resposta que não muda mais (sessão encerrada há dias): o que já está no raw vale para sempre. */
+  final?: boolean;
 }
 
 export interface SportProfile {
@@ -54,6 +56,11 @@ export interface SportProfile {
   seasonCall(competitionProviderId: string, seasonKey: string): SeasonCall;
   /** Classificação da temporada (`standings`; F1 `rankings/drivers` e `rankings/teams`; MMA não tem). */
   standingsCalls(competitionProviderId: string, seasonKey: string): SeasonCall[];
+  /**
+   * Chamadas por item da temporada, montadas da resposta de `seasonCall` (F1: resultado de cada sessão em
+   * `rankings/races?race=`). Vêm depois de todas as temporadas e tabelas, na ordem de prioridade devolvida.
+   */
+  detailCalls?(seasonResponse: unknown, now: Date): SeasonCall[];
 }
 
 // ─── países ──────────────────────────────────────────────────────────────────────────────────────
@@ -360,6 +367,37 @@ function buildF1(responses: ReferenceResponses, ctx: BuildContext): CatalogRows 
   return { countries: countryRows([WORLD]), competitions: [competition], participants, venues };
 }
 
+/**
+ * Prioridade das sessões no `rankings/races?race=` (cada sessão é uma chamada): corrida e sprint primeiro,
+ * depois a classificação que define o grid, e os treinos por último. Se a cota acabar, o resto fica para o dia seguinte.
+ */
+const F1_SESSION_PRIORITY: readonly RegExp[] = [
+  /^race$/,
+  /^sprint$/,
+  /^3rd qualifying$/,
+  /^3rd sprint shootout$/,
+  /qualifying|shootout/,
+  /practice/,
+];
+const F1_FINAL_AFTER_MS = 3 * 86_400_000;
+
+/** Resultado de cada sessão encerrada da temporada (`races?season` → `rankings/races?race=`). */
+export function f1ResultCalls(races: unknown, now: Date): SeasonCall[] {
+  const sessions = (Array.isArray(races) ? races : []).filter(isObj).flatMap((r) => {
+    const type = (str(r.type) ?? '').toLowerCase();
+    const priority = F1_SESSION_PRIORITY.findIndex((re) => re.test(type));
+    const date = Date.parse(String(r.date ?? ''));
+    if (r.id == null || str(r.status) !== 'Completed' || priority < 0 || Number.isNaN(date)) return [];
+    return [{ id: String(r.id), priority, date }];
+  });
+  sessions.sort((a, b) => a.priority - b.priority || a.date - b.date);
+  return sessions.map((s) => ({
+    endpoint: '/rankings/races',
+    params: { race: s.id },
+    final: now.getTime() - s.date > F1_FINAL_AFTER_MS,
+  }));
+}
+
 function buildMma(responses: ReferenceResponses, ctx: BuildContext): CatalogRows {
   const cfg = configById(ctx.catalog).get(MMA_ALL_FIGHTS_ID);
   const competition = competitionFrom(
@@ -476,6 +514,8 @@ export const SPORT_PROFILES: Record<OtherSport, SportProfile> = {
       { endpoint: '/rankings/drivers', params: { season } },
       { endpoint: '/rankings/teams', params: { season } },
     ],
+    // o grid de largada já vem em `grid` no resultado da corrida: `rankings/startinggrid` não gasta cota
+    detailCalls: f1ResultCalls,
   },
   mma: {
     sport: 'mma',
@@ -548,6 +588,8 @@ export interface SeasonGamesOptions {
   /** Janela de temporadas aceita pelo plano (free: 2022–2024); sem janela, usa as `latestSeasons` mais recentes. */
   seasonWindow?: { min: number; max: number } | undefined;
   latestSeasons?: number;
+  /** Só estas temporadas (ex.: `--temporada 2024`), ainda dentro da janela do plano. */
+  seasons?: readonly number[] | undefined;
   /** Também busca a classificação de cada temporada (`standings`; F1 rankings). */
   standings?: boolean | undefined;
 }
@@ -555,6 +597,8 @@ export interface SeasonGamesOptions {
 export interface PlannedSeasonCall extends SeasonCall {
   competition: string;
   season: number;
+  /** `season` = a chamada da temporada inteira (dela saem os `detailCalls`); `standings` = classificação. */
+  kind: 'season' | 'standings';
 }
 
 /**
@@ -571,15 +615,23 @@ export function planSeasonCalls(
   for (const c of rows.competitions) {
     if (c.tier > maxTier) continue;
     const window = options.seasonWindow;
-    const seasons = window
-      ? c.seasons.filter((s) => s.year >= window.min && s.year <= window.max)
-      : [...c.seasons].sort((a, b) => b.year - a.year).slice(0, options.latestSeasons ?? 3);
+    const only = options.seasons;
+    const seasons = (
+      window
+        ? c.seasons.filter((s) => s.year >= window.min && s.year <= window.max)
+        : [...c.seasons].sort((a, b) => b.year - a.year).slice(0, options.latestSeasons ?? 3)
+    ).filter((s) => !only?.length || only.includes(s.year));
     for (const s of seasons.sort((a, b) => a.year - b.year)) {
       const key = s.providerKey ?? String(s.year);
-      out.push({ competition: c.slug, season: s.year, ...profile.seasonCall(c.providerId, key) });
+      out.push({
+        competition: c.slug,
+        season: s.year,
+        kind: 'season',
+        ...profile.seasonCall(c.providerId, key),
+      });
       if (options.standings)
         for (const call of profile.standingsCalls(c.providerId, key))
-          out.push({ competition: c.slug, season: s.year, ...call });
+          out.push({ competition: c.slug, season: s.year, kind: 'standings', ...call });
     }
   }
   return out;
@@ -603,14 +655,20 @@ export function estimateSeasonCalls(
   for (const c of catalog) {
     if (c.api_sports_id == null || c.tier > maxTier) continue;
     for (let year = window.min; year <= window.max; year++) {
+      if (options.seasons?.length && !options.seasons.includes(year)) continue;
       const key =
         c.seasons_strategy === 'split-year' && profile.sport === 'basketball'
           ? `${year}-${year + 1}`
           : String(year);
-      out.push({ competition: c.slug, season: year, ...profile.seasonCall(String(c.api_sports_id), key) });
+      out.push({
+        competition: c.slug,
+        season: year,
+        kind: 'season',
+        ...profile.seasonCall(String(c.api_sports_id), key),
+      });
       if (options.standings)
         for (const call of profile.standingsCalls(String(c.api_sports_id), key))
-          out.push({ competition: c.slug, season: year, ...call });
+          out.push({ competition: c.slug, season: year, kind: 'standings', ...call });
     }
   }
   return out;

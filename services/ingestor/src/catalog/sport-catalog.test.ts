@@ -197,6 +197,46 @@ describe('perfis por esporte', () => {
       ['/races', { season: '2023' }],
       ['/races', { season: '2024' }],
     ]);
+    // `--temporada 2024`: só a mais recente da janela, com as tabelas logo depois
+    const latest = planSeasonCalls(SPORT_PROFILES['formula-1'], rows, {
+      seasonWindow: { min: 2022, max: 2024 },
+      seasons: [2024],
+      standings: true,
+    });
+    expect(latest.map((g) => [g.kind, g.endpoint, g.params])).toEqual([
+      ['season', '/races', { season: '2024' }],
+      ['standings', '/rankings/drivers', { season: '2024' }],
+      ['standings', '/rankings/teams', { season: '2024' }],
+    ]);
+  });
+
+  it('F1: resultado de cada sessão encerrada, corrida e sprint antes de classificação e treinos', () => {
+    const now = new Date('2026-10-23T00:00:00Z');
+    const session = (id: number, type: string, date: string, status = 'Completed') => ({
+      id,
+      type,
+      date,
+      status,
+    });
+    const calls = SPORT_PROFILES['formula-1'].detailCalls!(
+      [
+        session(1, '1st Practice', '2024-03-01T11:30:00+00:00'),
+        session(2, '3rd Qualifying', '2024-03-01T16:48:00+00:00'),
+        session(3, '1st Qualifying', '2024-03-01T16:00:00+00:00'),
+        session(4, 'Race', '2024-03-02T15:00:00+00:00'),
+        session(5, 'Sprint', '2024-04-20T03:30:00+00:00'),
+        session(6, 'Race', '2026-10-20T15:00:00+00:00'),
+        session(7, 'Race', '2026-10-25T15:00:00+00:00', 'Scheduled'),
+        session(8, '1st Sprint Shootout', '2024-04-19T10:30:00+00:00'),
+      ],
+      now,
+    );
+    expect(calls.map((c) => c.params.race)).toEqual(['4', '6', '5', '2', '3', '8', '1']);
+    expect(calls.every((c) => c.endpoint === '/rankings/races')).toBe(true);
+    // sessão de dias atrás não muda mais; a de 3 dias atrás ainda pode ter punição
+    expect(calls.find((c) => c.params.race === '4')!.final).toBe(true);
+    expect(calls.find((c) => c.params.race === '6')!.final).toBe(false);
+    expect(SPORT_PROFILES['formula-1'].detailCalls!(null, now)).toEqual([]);
   });
 
   it('MMA: competição sintética com lutas por temporada', () => {
