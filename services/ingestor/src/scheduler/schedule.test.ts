@@ -29,6 +29,7 @@ describe('scheduleFromEnv', () => {
       'live-run',
       'live-reconcile',
       'normalize-football',
+      'normalize-sports',
       'events-clock',
       'events-importance',
       'assets-mirror',

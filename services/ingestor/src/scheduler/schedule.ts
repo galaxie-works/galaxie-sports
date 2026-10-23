@@ -58,6 +58,15 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 60 * MINUTE,
   },
   {
+    name: 'normalize-sports',
+    description:
+      'Normalização incremental raw → core das outras 11 APIs (agenda e placares do sync diário), depois o relógio dos eventos; sem chamadas ao fornecedor',
+    cron: '15 * * * *',
+    script: 'dist/cli/normalize-sports.js',
+    args: ['--relogio'],
+    timeoutMs: 30 * MINUTE,
+  },
+  {
     name: 'events-clock',
     description: 'Relógio dos eventos (scheduled → starting → live → finished pelo horário previsto)',
     cron: '* * * * *',

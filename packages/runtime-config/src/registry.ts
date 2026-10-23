@@ -75,6 +75,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'live-run', service: 'ingestor', cron: '*/5 * * * *', runNow: false },
   { name: 'live-reconcile', service: 'ingestor', cron: '*/10 * * * *', runNow: true },
   { name: 'normalize-football', service: 'ingestor', cron: '35 0 * * *', runNow: true },
+  { name: 'normalize-sports', service: 'ingestor', cron: '15 * * * *', runNow: true },
   { name: 'events-clock', service: 'ingestor', cron: '* * * * *', runNow: true },
   { name: 'events-importance', service: 'ingestor', cron: '20 * * * *', runNow: true },
   { name: 'assets-mirror', service: 'ingestor', cron: '30 1 * * *', runNow: false },
