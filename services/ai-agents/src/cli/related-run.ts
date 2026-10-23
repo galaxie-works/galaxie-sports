@@ -1,6 +1,10 @@
 /**
  * Agente de Conteúdo relacionado (docs/12): `pnpm --filter @galaxie/ai-agents related:run [--plan] [--evento <id>]`.
- * Candidatos: futebol encerrado nas últimas `--horas` (padrão 48), tier ≤ `--tier` (padrão 2).
+ * Candidatos: futebol encerrado nas últimas `--horas` (padrão RELATED_LOOKBACK_HOURS = 24), tier ≤ `--tier`
+ * (padrão 2), com relevância ≥ RELATED_MIN_RELEVANCE nos mercados (RELATED_MARKETS, senão WTW_MARKETS), na
+ * ordem: primeira busca pendente → relevância → mais recente. Teto de buscas e de vídeos por jogo, reserva
+ * de cota para os jogos grandes e segunda busca RELATED_SECOND_SEARCH_MINUTES depois da primeira
+ * (`related/priority.ts`).
  * Flags: --limite <n> (padrão 20) · --forcar (busca completa mesmo dentro da janela de revalidação) ·
  * --sem-llm (só o classificador por regras). Cota do YouTube: YOUTUBE_DAILY_QUOTA − reserva.
  */
@@ -52,6 +56,7 @@ function printReport(report: RelatedRunReport, plan: boolean): void {
     evento: i.eventId,
     jogo: i.label,
     inicio: i.startsAt.slice(0, 16).replace('T', ' '),
+    relevancia: i.relevance ?? '',
     acao: ACTION_LABEL[i.action] ?? i.action,
     consultas: i.queries?.join(' ') ?? '',
     unidades: i.units ?? '',

@@ -76,6 +76,8 @@ export interface ChannelDetail {
   /** `snippet.customUrl` (ex.: "@canal"), em minúsculas. */
   handle: string | null;
   subscribers: number | null;
+  /** `snippet.country` (ISO 3166-1, quando o canal declara): localiza o vídeo por país. */
+  country?: string | null;
 }
 
 /** Duração ISO 8601 (`PT1H2M3S`, `P0D`) → segundos; null se não reconhecida. */
@@ -245,6 +247,7 @@ export class YoutubeClient {
           title: str(sn.title) ?? '',
           handle: handle ? (handle.startsWith('@') ? handle : `@${handle}`).toLowerCase() : null,
           subscribers: st.hiddenSubscriberCount === true ? null : num(st.subscriberCount),
+          country: str(sn.country)?.toUpperCase() ?? null,
         });
       }
     }

@@ -242,4 +242,26 @@ describe('GET /v1/events/{id}/related', () => {
       .toEqual(['bast']);
     expect(cdn.purged.flat()).toContain(relatedContentTag(eventId));
   });
+
+  it('localizado por país: só o idioma do público, o próprio país primeiro, nunca vídeo em português para AR', async () => {
+    await db
+      .insert(relatedContent)
+      .values([
+        row('an-br', { contentType: 'analysis', language: 'pt-BR', rankScore: '9.000' }),
+        row('an-mx', { contentType: 'analysis', language: 'es-MX', rankScore: '8.000' }),
+        row('an-ar', { contentType: 'analysis', language: 'es-AR', rankScore: '1.000' }),
+        row('an-xx', { contentType: 'analysis', language: null, rankScore: '9.500' }),
+      ]);
+    const ids = async (qs: string) =>
+      (await get(`/v1/events/${eventId}/related?type=analysis&${qs}`))
+        .json()
+        .data.map((d: { external_id: string }) => d.external_id);
+    // a Argentina vê os argentinos primeiro, depois o mesmo idioma de outro país; nada em português
+    expect(await ids('country=ar')).toEqual(['an-ar', 'an-mx']);
+    expect(await ids('country=BR')).toEqual(['an-br']);
+    // fora dos países lusófonos e hispânicos, sem filtro; sem país, todos (como antes)
+    expect(await ids('country=US')).toEqual(['an-xx', 'an-br', 'an-mx', 'an-ar']);
+    expect(await ids('')).toEqual(['an-xx', 'an-br', 'an-mx', 'an-ar']);
+    expect((await get(`/v1/events/${eventId}/related?country=ARG`)).statusCode).toBe(400);
+  });
 });

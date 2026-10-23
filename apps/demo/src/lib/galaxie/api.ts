@@ -401,21 +401,31 @@ export async function getWhereToWatch(id: string, country: string, locale: Conte
   return orNull(api.whereToWatch(id, country, localeQuery(locale)));
 }
 
-export const relatedRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
+export const relatedRequest = (
+  id: string,
+  locale: Locale,
+  content?: SupportedLocale,
+  country?: string,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/{id}/related',
   params: { id },
-  query: { limit: 50, ...localeQuery(content ?? locale) },
+  query: { limit: 50, ...(country ? { country } : {}), ...localeQuery(content ?? locale) },
   description: text(locale).related,
   note: fill(text(locale).requiresModule, { module: 'related_content' }),
 });
 
-/** Vídeos relacionados (módulo add-on related_content): sem o módulo (403) a seção só não aparece. */
-export async function getRelated(id: string, locale: ContentLocale) {
+/**
+ * Vídeos relacionados (módulo add-on related_content), localizados pelo país escolhido no Onde Assistir:
+ * sem o módulo (403) a seção só não aparece.
+ */
+export async function getRelated(id: string, locale: ContentLocale, country?: string) {
   'use cache';
   cacheLife('minutes');
   try {
-    return await orNull(api.eventRelated(id, { limit: 50, ...localeQuery(locale) }));
+    return await orNull(
+      api.eventRelated(id, { limit: 50, ...(country ? { country } : {}), ...localeQuery(locale) }),
+    );
   } catch (err) {
     if (err instanceof GalaxieApiError && err.status === 403) return null;
     throw err;

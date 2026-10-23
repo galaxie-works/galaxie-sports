@@ -17,6 +17,7 @@ import { loadWtwConfig } from '@galaxie/where-to-watch';
 import { FakeLlmClient } from '../src/llm/fake.js';
 import { broadcasterChannelsFrom, ChannelAllowlist, loadChannelEntries } from '../src/related/channels.js';
 import { runRelatedAgent, type RelatedRunOptions } from '../src/related/run.js';
+import { relatedPolicyFromEnv } from '../src/related/priority.js';
 import { expireStaleRelated } from '../src/related/store.js';
 import { YoutubeClient, type FetchLike } from '../src/related/youtube.js';
 import { detailFixture, disposableDb, idOf, ingest, seedCatalog } from './helpers.js';
@@ -201,6 +202,9 @@ beforeAll(async () => {
       entries: [...loadChannelEntries(), ...broadcasterChannelsFrom(wtw)],
       blocklist: wtw.blocklist,
     }),
+    // fila e orçamento sem a segunda busca e sem reserva: estes testes cobrem busca, revalidação e corte
+    // pela cota; a política nova tem testes próprios (related/priority.test.ts)
+    policy: { ...relatedPolicyFromEnv({}), secondSearchMinutes: 0, highReservePercent: 0 },
   };
   state = { removed: new Set(), searches: [] };
 }, 120_000);

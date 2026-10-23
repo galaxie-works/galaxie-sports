@@ -186,7 +186,13 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     /** Vídeos relacionados ao evento, por tipo e formato (módulo related_content). */
     eventRelated: (
       id: string,
-      opts: LocaleOpts & { type?: RelatedContentTypeName[]; format?: 'short' | 'long'; limit?: number } = {},
+      opts: LocaleOpts & {
+        type?: RelatedContentTypeName[];
+        format?: 'short' | 'long';
+        limit?: number;
+        /** País do público (vídeos localizados). */
+        country?: string;
+      } = {},
     ) =>
       v1<RelatedContent>(`/v1/events/${seg(id)}/related`, {
         ...opts,

@@ -156,9 +156,10 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
   {
     name: 'related-run',
     description:
-      'Conteúdo relacionado (YouTube): vídeos diretos dos jogos encerrados nas últimas 48 h, classificados por tipo',
-    // pós-jogo das noites latino-americanas; cada jogo só gasta busca completa uma vez a cada 12 h
-    cron: '*/30 0-6,12-23 * * *',
+      'Conteúdo relacionado (YouTube): vídeos dos jogos encerrados nas últimas 24 h, por relevância nos mercados e localizados por país',
+    // a cada 3 min o dia todo: o jogo que acabou entra na fila na frente (vídeos em até ~5 min do apito);
+    // execução sem jogo novo não chama o YouTube
+    cron: '*/3 * * * *',
     script: 'dist/cli/related-run.js',
     cwd: '../ai-agents',
     args: [],

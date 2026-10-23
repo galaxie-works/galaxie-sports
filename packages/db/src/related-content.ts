@@ -21,6 +21,12 @@ export interface ReadRelatedOptions {
   /** Padrão: só `published` (o que a API mostra). */
   statuses?: readonly RelatedStatus[];
   limit?: number;
+  /**
+   * Localização: só vídeos deste idioma (`pt`, `es`), com os do país `region` primeiro (es-AR antes de
+   * es-MX). Vídeo sem idioma conhecido fica de fora — melhor nada do que o vídeo do país errado.
+   */
+  language?: string;
+  region?: string;
 }
 
 export interface RelatedContentPage {
@@ -46,14 +52,24 @@ export async function readRelatedContent(
     isNull(relatedContent.supersededBy),
     inArray(relatedContent.status, [...statuses]),
   ];
+  if (options.language) {
+    const lang = options.language.slice(0, 2).toLowerCase();
+    base.push(sql`split_part(${relatedContent.language}, '-', 1) = ${lang}`);
+  }
   const filters = [...base];
   if (options.types?.length) filters.push(inArray(relatedContent.contentType, [...options.types]));
   if (options.format) filters.push(eq(relatedContent.format, options.format));
+  const region = options.language && options.region ? options.region.toUpperCase() : null;
   const rows = await db
     .select()
     .from(relatedContent)
     .where(and(...filters))
-    .orderBy(desc(relatedContent.rankScore), desc(relatedContent.publishedAt), relatedContent.id)
+    .orderBy(
+      ...(region ? [sql`(split_part(${relatedContent.language}, '-', 2) = ${region}) desc`] : []),
+      desc(relatedContent.rankScore),
+      desc(relatedContent.publishedAt),
+      relatedContent.id,
+    )
     .limit(options.limit ?? 50);
   const agg = await db
     .select({

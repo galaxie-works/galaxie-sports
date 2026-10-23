@@ -455,7 +455,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
     getH2h(id, content),
     getWhereToWatch(id, country, content),
     getLineups(id, content),
-    getRelated(id, content),
+    getRelated(id, content, country),
     getTimeline(id, content),
     getStats(id, content),
   ]);
@@ -550,7 +550,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
             title={t.event.related.title}
             icon={<Clapperboard className="size-4" aria-hidden />}
             description={t.event.related.description}
-            api={relatedRequest(id, locale, content)}
+            api={relatedRequest(id, locale, content, country)}
           >
             <RelatedContentGrid related={related} />
           </Section>
