@@ -26,9 +26,28 @@ const PROBLEM = new Set(['postponed', 'cancelled', 'suspended', 'abandoned']);
 
 type SportText = Dictionary['sport'];
 
+/**
+ * Encerrado sem placar: o relógio fechou o jogo pelo horário, mas o resultado ainda não chegou do fornecedor
+ * (esportes sem ao vivo recebem o placar no sync do dia seguinte). Mostra "aguardando resultado", nunca "? – ?".
+ */
+export function awaitingResult(
+  event: Pick<Event, 'status'> & { score?: Pick<Event['score'], 'home' | 'away'> },
+) {
+  return (
+    event.status === 'finished' && event.score != null && event.score.home == null && event.score.away == null
+  );
+}
+
 /** Estado do jogo (minuto ao vivo, encerrado, adiado…). Síncrono: serve ao servidor e ao navegador. */
-export function StatusBadgeView({ event, t }: { event: Pick<Event, 'status' | 'clock'>; t: SportText }) {
+export function StatusBadgeView({
+  event,
+  t,
+}: {
+  event: Pick<Event, 'status' | 'clock'> & { score?: Pick<Event['score'], 'home' | 'away'> };
+  t: SportText;
+}) {
   const label = t.status[event.status] ?? event.status;
+  if (awaitingResult(event)) return <Badge variant="outline">{t.awaitingResult}</Badge>;
   if (LIVE.has(event.status) || event.status === 'starting') {
     const minute = event.clock?.minute;
     return (
@@ -160,8 +179,8 @@ function Center({ event, t }: { event: Event; t: SportText }) {
       </AnimatedIcon>
     );
   }
-  // "ao vivo" sem placar: o horário passou mas o fornecedor ainda não confirmou o jogo (nada de "? – ?")
-  if (LIVE.has(event.status) && score.home == null && score.away == null) {
+  // sem placar (ao vivo ou encerrado pelo relógio): o fornecedor ainda não confirmou o jogo (nada de "? – ?")
+  if ((LIVE.has(event.status) || event.status === 'finished') && score.home == null && score.away == null) {
     return (
       <div className="flex flex-col items-center gap-0.5">
         <span className="text-muted-foreground text-2xl font-bold">– –</span>

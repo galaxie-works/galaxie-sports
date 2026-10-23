@@ -30,6 +30,7 @@ export default defineMessages(
     } as Record<string, string>,
     versus: 'x',
     awaitingScore: 'aguardando placar',
+    awaitingResult: 'Aguardando resultado',
     provisional: {
       badge: 'Provisório',
       hint: 'Jogo anunciado oficialmente que o fornecedor de dados ainda não publicou. Quando ele publicar, este mesmo jogo vira oficial.',
@@ -169,6 +170,7 @@ export default defineMessages(
       },
       versus: 'vs',
       awaitingScore: 'awaiting score',
+      awaitingResult: 'Awaiting result',
       provisional: {
         badge: 'Provisional',
         hint: 'Officially announced match that the data provider has not published yet. Once it does, this same match becomes official.',
@@ -301,6 +303,7 @@ export default defineMessages(
       },
       versus: 'vs.',
       awaitingScore: 'esperando el resultado',
+      awaitingResult: 'Esperando resultado',
       provisional: {
         badge: 'Provisorio',
         hint: 'Partido anunciado oficialmente que el proveedor de datos todavía no publicó. Cuando lo publique, este mismo partido pasa a ser oficial.',
