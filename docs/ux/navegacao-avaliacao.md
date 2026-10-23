@@ -284,53 +284,10 @@ Os épicos do backlog de navegação, um PR cada. A ordem e as decisões de prod
 | ![Grupo regional](img/depois-celular-pais-regionais.jpg) | ![Página do esporte](img/depois-celular-futebol-brasil-divisoes.jpg) |
 
 No celular, a Libertadores fica a 943 px do topo do Brasil (antes do #200 ficava a 3.540 px).
+
 ### 21. Explorar no celular: países numa linha (E3) ✅
 
 **Onde:** home, no celular. Os 17 cards de país (bandeira, liga principal, clubes de maior peso e jogo em destaque) somavam uns 3.000 px, mesmo depois de os esportes irem para duas colunas no #200.
-### 23. Polimento: vazios, títulos de aba e relevância no celular (E6) ✅
-
-- **Hipismo sem dados:** "Destaques", "Provas recentes" e "Campeonatos" mostravam só o título, e parecia página quebrada. Agora cada seção vazia explica, numa linha discreta, que ainda não há dado na base (três idiomas).
-- **Títulos de aba que faltavam:** local, clássico e as páginas internas do hipismo (atleta, cavalo, prova, campeonato) passam a ter o nome no título ("Mineirão · Galaxie Sports", "Choque-Rei · Galaxie Sports"), no mesmo padrão de competição, jogo e time.
-- **Relevância por país no celular:** o card "Sobre o jogo" vem antes do contexto. No celular, ele mostra só o país do idioma, e os outros 10 ficam atrás de "Ver todos os 11 países". É só CSS, sem piscar na hidratação; no desktop nada muda.
-- **Fileiras roláveis:** já resolvido pelo #207 (`ScrollRow`).
-
-| Hipismo com seções vazias explicadas | Celular: relevância recolhida |
-| --- | --- |
-| ![Hipismo](img/depois-hipismo-secoes-vazias.jpg) | ![Relevância](img/depois-celular-relevancia-recolhida.jpg) |
-
-### 24. Rotas próprias para piloto e lutador (E2) ✅
-
-**Onde:** pilotos de F1 e lutadores de MMA abriam em `/times/{id}`, a página de clube, com um card "Elenco · sem elenco nem escalações" vazio e "Últimos jogos" no lugar de corridas e lutas.
-
-**Decisão de produto:** rotas `/pilotos/{slug}` e `/lutadores/{slug}`, com redirecionamento a partir de `/times/{id}`.
-
-**Correção:**
-
-- **Rotas novas:** `/pilotos/max-verstappen-<id>` e `/lutadores/fernando-padilla-<id>`. O participante não tem slug no banco, então o slug é o nome mais o id no fim (`participantHref` e `idFromSlug`), sem migração. Um slug sem id dá "não encontrado".
-- **Redirecionamento:** `/times/{id}` de piloto ou lutador redireciona (308) para a rota certa, mantendo a query (`?temporada=`). Assim, links antigos e os da busca na F1 continuam funcionando.
-- **Links diretos onde o contexto diz o tipo:** grid e pódio da corrida, tabela de pilotos do campeonato, companheiros de equipe no perfil do piloto e os lados de uma luta. Equipes de F1 (construtores) seguem em `/times`. Na busca, participante de MMA vai direto para `/lutadores`.
-- **Página:** o card "Elenco" só aparece para clube e seleção. "Últimos jogos" vira "Últimas corridas" ou "Últimas lutas". O perfil do piloto (carreira, títulos, fotos) é o do #222.
-
-| Piloto (`/pilotos/max-verstappen-…`) | Lutador (`/lutadores/fernando-padilla-…`) |
-| --- | --- |
-| ![Piloto](img/depois-pagina-piloto.jpg) | ![Lutador](img/depois-pagina-lutador.jpg) |
-
-**Fica como proposta (📝):** cartel (V-D-E), categoria e método e round de cada luta no topo do lutador. A API ainda não expõe isso por lutador, e na base de dev as lutas encerradas aparecem como "Aguardando resultado".
-### 25. Fórmula 1: temporada, aba de corridas e nomes das sessões (E5) ✅
-
-**Onde:** campeonato e GPs da F1 (itens 10 e 12).
-
-- **Temporada:** o campeonato agora abre em 2026, a temporada com dados. Isso veio da carga histórica da F1 (#214), e não precisou de mudança na navegação.
-- **Aba:** quando a competição tem sessões, a aba se chama "Corridas" ("Races", "Carreras"), não "Jogos".
-- **Nome das sessões:** vinha do conteúdo, na voz do país ("Carrera", "Clasificación"), mesmo com a interface em inglês ou português. Agora sai do tipo da sessão, no idioma da interface: "Treino livre 1", "Classificação · Q3", "Classificação sprint", "Sprint", "Corrida". Vale no card, no placar, no título da página e na aba do navegador. Se o tipo for desconhecido, o nome do conteúdo continua.
-
-| Campeonato (inglês) | GP (inglês) |
-| --- | --- |
-| ![Depois: aba Races e sessões em inglês](img/depois-f1-corridas-en.jpg) | ![Depois: sessão Race](img/depois-f1-sessao-en.jpg) |
-
-**Falta (📝):** o card lateral do GP ainda se chama "Sobre a partida".
-
-## Proposta maior: trilha hierárquica fixa 📝
 
 **Correção:**
 
@@ -363,6 +320,89 @@ Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
 | ![Trilha hierárquica com origem](img/depois-trilha-hierarquica-origem.jpg) | ![Celular](img/depois-celular-trilha-pai.jpg) |
 
 **Achado no caminho:** na rota estática `/ao-vivo`, alcançada pela reescrita do proxy (`/ao-vivo` → `/pt-BR/ao-vivo`), o menu tinha erro de hidratação: o HTML pré-renderizado e o navegador viam caminhos diferentes (está na documentação do `usePathname` no Next 16). A sidebar agora lê o caminho só depois de hidratar. No servidor de dev, sair do Ao vivo ainda deixa o menu sem item aceso até recarregar. É uma corrida do streaming de dev: o build de produção (`next start`) foi testado e funciona.
+
+### 23. Polimento: vazios, títulos de aba e relevância no celular (E6) ✅
+
+- **Hipismo sem dados:** "Destaques", "Provas recentes" e "Campeonatos" mostravam só o título, e parecia página quebrada. Agora cada seção vazia explica, numa linha discreta, que ainda não há dado na base (três idiomas).
+- **Títulos de aba que faltavam:** local, clássico e as páginas internas do hipismo (atleta, cavalo, prova, campeonato) passam a ter o nome no título ("Mineirão · Galaxie Sports", "Choque-Rei · Galaxie Sports"), no mesmo padrão de competição, jogo e time.
+- **Relevância por país no celular:** o card "Sobre o jogo" vem antes do contexto. No celular, ele mostra só o país do idioma, e os outros 10 ficam atrás de "Ver todos os 11 países". É só CSS, sem piscar na hidratação; no desktop nada muda.
+- **Fileiras roláveis:** já resolvido pelo #207 (`ScrollRow`).
+
+| Hipismo com seções vazias explicadas | Celular: relevância recolhida |
+| --- | --- |
+| ![Hipismo](img/depois-hipismo-secoes-vazias.jpg) | ![Relevância](img/depois-celular-relevancia-recolhida.jpg) |
+
+### 24. Rotas próprias para piloto e lutador (E2) ✅
+
+**Onde:** pilotos de F1 e lutadores de MMA abriam em `/times/{id}`, a página de clube, com um card "Elenco · sem elenco nem escalações" vazio e "Últimos jogos" no lugar de corridas e lutas.
+
+**Decisão de produto:** rotas `/pilotos/{slug}` e `/lutadores/{slug}`, com redirecionamento a partir de `/times/{id}`.
+
+**Correção:**
+
+- **Rotas novas:** `/pilotos/max-verstappen-<id>` e `/lutadores/fernando-padilla-<id>`. O participante não tem slug no banco, então o slug é o nome mais o id no fim (`participantHref` e `idFromSlug`), sem migração. Um slug sem id dá "não encontrado".
+- **Redirecionamento:** `/times/{id}` de piloto ou lutador redireciona (308) para a rota certa, mantendo a query (`?temporada=`). Assim, links antigos e os da busca na F1 continuam funcionando.
+- **Links diretos onde o contexto diz o tipo:** grid e pódio da corrida, tabela de pilotos do campeonato, companheiros de equipe no perfil do piloto e os lados de uma luta. Equipes de F1 (construtores) seguem em `/times`. Na busca, participante de MMA vai direto para `/lutadores`.
+- **Página:** o card "Elenco" só aparece para clube e seleção. "Últimos jogos" vira "Últimas corridas" ou "Últimas lutas". O perfil do piloto (carreira, títulos, fotos) é o do #222.
+
+| Piloto (`/pilotos/max-verstappen-…`) | Lutador (`/lutadores/fernando-padilla-…`) |
+| --- | --- |
+| ![Piloto](img/depois-pagina-piloto.jpg) | ![Lutador](img/depois-pagina-lutador.jpg) |
+
+**Fica como proposta (📝):** cartel (V-D-E), categoria e método e round de cada luta no topo do lutador. A API ainda não expõe isso por lutador, e na base de dev as lutas encerradas aparecem como "Aguardando resultado".
+
+### 25. Fórmula 1: temporada, aba de corridas e nomes das sessões (E5) ✅
+
+**Onde:** campeonato e GPs da F1 (itens 10 e 12).
+
+- **Temporada:** o campeonato agora abre em 2026, a temporada com dados. Isso veio da carga histórica da F1 (#214), e não precisou de mudança na navegação.
+- **Aba:** quando a competição tem sessões, a aba se chama "Corridas" ("Races", "Carreras"), não "Jogos".
+- **Nome das sessões:** vinha do conteúdo, na voz do país ("Carrera", "Clasificación"), mesmo com a interface em inglês ou português. Agora sai do tipo da sessão, no idioma da interface: "Treino livre 1", "Classificação · Q3", "Classificação sprint", "Sprint", "Corrida". Vale no card, no placar, no título da página e na aba do navegador. Se o tipo for desconhecido, o nome do conteúdo continua.
+
+| Campeonato (inglês) | GP (inglês) |
+| --- | --- |
+| ![Depois: aba Races e sessões em inglês](img/depois-f1-corridas-en.jpg) | ![Depois: sessão Race](img/depois-f1-sessao-en.jpg) |
+
+**Falta (📝):** o card lateral do GP ainda se chama "Sobre a partida".
+
+### 26. Heading de destaque na página do piloto ✅
+
+**Onde:** `/pilotos/{slug}`. O topo era o mesmo de um time: escudo pequeno e nome. O retrato ficava num card lateral.
+
+**Correção:**
+
+- **Fundo:** o carro da temporada mais marcante cobre o heading, esmaecido para o texto ler nos dois temas: da esquerda para a direita no desktop, de baixo para cima no celular, com o carro numa faixa no topo.
+- **Qual carro:** curadoria, quando houver (ainda não há dado de curadoria). Depois, a temporada de título com mais vitórias, a de mais vitórias e, por fim, o último carro com foto. Uma temporada sem foto é pulada, então o heading melhora sozinho quando o acervo ganha fotos. Senna: McLaren de 1988.
+- **Frente:** retrato em destaque, nome, bandeira e país, anos de carreira, títulos mundiais (com os anos) e o seletor de temporada.
+- **Crédito:** o heading não mostra crédito. O carro e o retrato dele entram primeiro na galeria da mesma página, com autor, Commons e licença, então a atribuição continua na página. O carro entra mesmo quando não estava na galeria do piloto.
+- **Sem foto:** sem foto do carro, o fundo é a cor da equipe daquele ano (`colors` novo nas equipes da carreira, aditivo na API). Sem cor e sem foto, o heading fica compacto. Sem retrato, as iniciais.
+- Respeita `prefers-reduced-motion`: o fundo só aparece com transição quando o sistema permite.
+
+| Senna (escuro) | Senna (claro) | Senna (celular) |
+| --- | --- | --- |
+| ![Senna](img/depois-piloto-heading-escuro.jpg) | ![Senna claro](img/depois-piloto-heading-claro.jpg) | ![Senna celular](img/depois-celular-piloto-heading.jpg) |
+
+| Galeria: carro e retrato do heading, com crédito | Sem foto | Sem foto (celular) |
+| --- | --- | --- |
+| ![Galeria](img/depois-piloto-galeria-creditos.jpg) | ![Sem foto](img/depois-piloto-sem-foto.jpg) | ![Sem foto celular](img/depois-celular-piloto-sem-foto.jpg) |
+
+Com a cor da equipe (simulada, porque em dev os escudos da F1 ainda não têm paleta):
+
+![Cor da equipe](img/depois-piloto-cor-equipe-simulada.jpg)
+
+## Proposta maior: trilha hierárquica fixa 📝
+
+**Correção:**
+
+- No celular, cada país vira **uma linha de 64 px**: bandeira, nome, liga principal, jogos em 7 dias e o selo "ao vivo" quando há jogo. A linha leva à página do país.
+- As confederações viram blocos recolhíveis (`<details>` nativo, sem JS). A **América do Sul vem aberta**; CONCACAF e UEFA ficam recolhidas, com a contagem de países e de jogos visível.
+- Do tablet para cima nada muda: os cards completos continuam.
+
+Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
+
+| América do Sul aberta | CONCACAF e UEFA recolhidas |
+| --- | --- |
+| ![Países numa linha](img/depois-celular-explorar-paises.jpg) | ![Confederações recolhidas](img/depois-celular-explorar-confederacoes.jpg) |
 
 ## O que mudou no código
 

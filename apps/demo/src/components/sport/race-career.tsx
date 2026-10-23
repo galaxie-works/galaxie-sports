@@ -95,10 +95,26 @@ export function PhotoFigure({
   );
 }
 
-/** Galeria do piloto ou da equipe (retrato, ação e carros), com crédito em cada foto. */
-export async function PhotoGallery({ photos, api }: { photos: Photo[]; api?: ApiRequest }) {
+/**
+ * Galeria do piloto ou da equipe (retrato, ação e carros), com crédito em cada foto. `pinned` são as fotos que a
+ * página mostra sem crédito (o carro e o retrato do heading do piloto): entram primeiro, para a atribuição da
+ * licença continuar na página.
+ */
+export async function PhotoGallery({
+  photos,
+  pinned = [],
+  api,
+}: {
+  photos: Photo[];
+  pinned?: Photo[];
+  api?: ApiRequest;
+}) {
   const tx = (await getT()).race.gallery;
-  const shown = photos.filter((p) => p.role !== 'portrait').slice(0, 9);
+  const pinnedUrls = new Set(pinned.map((p) => p.url));
+  const shown = [
+    ...pinned,
+    ...photos.filter((p) => p.role !== 'portrait' && !pinnedUrls.has(p.url)).slice(0, 9 - pinned.length),
+  ];
   if (!shown.length) return null;
   return (
     <Section title={tx.title!} description={tx.description} api={api}>
@@ -108,9 +124,11 @@ export async function PhotoGallery({ photos, api }: { photos: Photo[]; api?: Api
             key={p.url}
             photo={p}
             caption={
-              p.role === 'car' && p.season
-                ? fill(tx.car!, { season: p.season })
-                : (p.season?.toString() ?? undefined)
+              p.role === 'portrait'
+                ? tx.portrait
+                : p.role === 'car' && p.season
+                  ? fill(tx.car!, { season: p.season })
+                  : (p.season?.toString() ?? undefined)
             }
             imgClassName="aspect-[4/3]"
           />

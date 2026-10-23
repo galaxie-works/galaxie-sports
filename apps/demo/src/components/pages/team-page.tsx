@@ -1,4 +1,4 @@
-import type { TeamColors, TeamSeason, TeamSemantic } from '@galaxie/contracts';
+import type { Photo, TeamColors, TeamSeason, TeamSemantic } from '@galaxie/contracts';
 import { Calendar, History, MapPin, Megaphone, Quote, Users } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/reui/badge';
 import { CampaignCard } from '@/components/sport/campaign-card';
 import { CopyButton } from '@/components/sport/copy-button';
 import { CountryFlag } from '@/components/sport/country-flag';
+import { DriverHero } from '@/components/sport/driver-hero';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { ChampionshipCard } from '@/components/sport/race';
@@ -35,6 +36,7 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import { calendarDate } from '@/lib/i18n/format';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
+import { heroPhotos } from '@/lib/driver-hero';
 import { countryHref, isIndividualKind, participantHref, sportParent } from '@/lib/navigation';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
@@ -423,6 +425,36 @@ export async function TeamContent({
   const sport = sportParent(team.sport, t);
   const country = team.country_ref ? countryHref(team.country_ref.code) : null;
 
+  // F1: o piloto ganha o heading com o carro da temporada mais marcante (no lugar do escudo e do retrato lateral)
+  const hero = team.kind === 'driver' && career && career.totals.races > 0;
+  // o heading não leva crédito: o carro e o retrato dele vão para a galeria, com o crédito da licença
+  const heroShots = hero ? heroPhotos(career) : null;
+  const heroPinned = [heroShots?.car, heroShots?.portrait].filter((p): p is Photo => !!p);
+  const seasonControls =
+    (options.length && shownYear !== undefined) || label ? (
+      <>
+        {options.length && shownYear !== undefined ? (
+          <SeasonSelect
+            options={options}
+            value={shownYear}
+            basePath={basePath}
+            texts={{ label: tsx.label, search: tsx.search, empty: tsx.empty, current: tsx.current }}
+          />
+        ) : null}
+        {label ? (
+          <span className="flex items-center gap-2">
+            <Badge variant="warning-light" size="lg" radius="full">
+              <History aria-hidden />
+              {fill(tsx.badge, { season: label })}
+            </Badge>
+            <Link href={basePath} scroll={false} className="text-muted-foreground text-xs hover:underline">
+              {tsx.backToCurrent}
+            </Link>
+          </span>
+        ) : null}
+      </>
+    ) : null;
+
   return (
     <>
       <PageHeader
@@ -433,86 +465,86 @@ export async function TeamContent({
         api={overviewApi}
       />
       <div className="relative isolate flex flex-col gap-8 p-4 md:p-6">
-        {team.colors ? <TeamBand colors={team.colors} /> : null}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Crest src={team.logo} name={team.name} size="xl" round={team.kind === 'fighter'} />
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-col">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <h1 className="text-2xl font-semibold tracking-tight">{team.name}</h1>
-                {options.length && shownYear !== undefined ? (
-                  <SeasonSelect
-                    options={options}
-                    value={shownYear}
-                    basePath={basePath}
-                    texts={{ label: tsx.label, search: tsx.search, empty: tsx.empty, current: tsx.current }}
-                  />
-                ) : null}
-                {label ? (
-                  <span className="flex items-center gap-2">
-                    <Badge variant="warning-light" size="lg" radius="full">
-                      <History aria-hidden />
-                      {fill(tsx.badge, { season: label })}
-                    </Badge>
-                    <Link
-                      href={basePath}
-                      scroll={false}
-                      className="text-muted-foreground text-xs hover:underline"
-                    >
-                      {tsx.backToCurrent}
-                    </Link>
-                  </span>
-                ) : null}
-              </div>
-              {semantic?.official_name && semantic.official_name !== team.name ? (
-                <span className="text-muted-foreground text-sm">{semantic.official_name}</span>
-              ) : null}
-              {formerNames.length ? (
-                <span className="text-muted-foreground text-xs">
-                  {fill(t.team.formerNames, {
-                    names: formerNames
-                      .map((n) => fill(t.team.formerName, { name: n.name, until: n.until.slice(0, 4) }))
-                      .join(', '),
-                  })}
-                </span>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              {team.country_ref && country ? (
-                <Link href={country} className="hover:underline">
-                  {/* bandeira do país no lugar do ícone de mapa */}
-                  <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
-                    <CountryFlag code={team.country_ref.code} />
-                    {[semantic?.city, semantic?.region, team.country_ref.name].filter(Boolean).join(', ')}
-                  </span>
-                </Link>
-              ) : null}
-              {team.founded ? (
-                <Fact icon={Calendar}>{fill(t.team.founded, { year: team.founded })}</Fact>
-              ) : null}
-              {team.venue ? (
-                <Link href={`/locais/${team.venue.id}`} className="hover:underline">
-                  <Fact icon={Users}>{team.venue.name}</Fact>
-                </Link>
-              ) : null}
-            </div>
-            {nicknames.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {nicknames.map((n) => (
-                  <Badge key={n} variant="primary-light" radius="full">
-                    {n}
-                  </Badge>
-                ))}
-              </div>
+        {hero ? (
+          <DriverHero
+            name={team.name}
+            career={career!}
+            country={
+              team.country_ref
+                ? { code: team.country_ref.code, name: team.country_ref.name, href: country }
+                : null
+            }
+          >
+            {seasonControls ? (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">{seasonControls}</div>
             ) : null}
-          </div>
-        </div>
+          </DriverHero>
+        ) : (
+          <>
+            {team.colors ? <TeamBand colors={team.colors} /> : null}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <Crest src={team.logo} name={team.name} size="xl" round={team.kind === 'fighter'} />
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-col">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <h1 className="text-2xl font-semibold tracking-tight">{team.name}</h1>
+                    {seasonControls}
+                  </div>
+                  {semantic?.official_name && semantic.official_name !== team.name ? (
+                    <span className="text-muted-foreground text-sm">{semantic.official_name}</span>
+                  ) : null}
+                  {formerNames.length ? (
+                    <span className="text-muted-foreground text-xs">
+                      {fill(t.team.formerNames, {
+                        names: formerNames
+                          .map((n) => fill(t.team.formerName, { name: n.name, until: n.until.slice(0, 4) }))
+                          .join(', '),
+                      })}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  {team.country_ref && country ? (
+                    <Link href={country} className="hover:underline">
+                      {/* bandeira do país no lugar do ícone de mapa */}
+                      <span className="text-muted-foreground flex items-center gap-1.5 text-sm">
+                        <CountryFlag code={team.country_ref.code} />
+                        {[semantic?.city, semantic?.region, team.country_ref.name].filter(Boolean).join(', ')}
+                      </span>
+                    </Link>
+                  ) : null}
+                  {team.founded ? (
+                    <Fact icon={Calendar}>{fill(t.team.founded, { year: team.founded })}</Fact>
+                  ) : null}
+                  {team.venue ? (
+                    <Link href={`/locais/${team.venue.id}`} className="hover:underline">
+                      <Fact icon={Users}>{team.venue.name}</Fact>
+                    </Link>
+                  ) : null}
+                </div>
+                {nicknames.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {nicknames.map((n) => (
+                      <Badge key={n} variant="primary-light" radius="full">
+                        {n}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
             {career ? <CareerSection career={career} api={teamCareerRequest(id, locale, content)} /> : null}
-            {photos?.photos.length ? (
-              <PhotoGallery photos={photos.photos} api={teamPhotosRequest(id, locale)} />
+            {photos?.photos.length || heroPinned.length ? (
+              <PhotoGallery
+                photos={photos?.photos ?? []}
+                pinned={heroPinned}
+                api={teamPhotosRequest(id, locale)}
+              />
             ) : null}
             {overview.form.length ? (
               <Section
@@ -582,9 +614,11 @@ export async function TeamContent({
           </div>
 
           <div className="flex flex-col gap-6">
-            <PortraitCard
-              photo={career?.portrait ?? photos?.photos.find((p) => p.role === 'portrait') ?? null}
-            />
+            {hero ? null : (
+              <PortraitCard
+                photo={career?.portrait ?? photos?.photos.find((p) => p.role === 'portrait') ?? null}
+              />
+            )}
             <ChampionshipCard standings={overview.standings} />
             <IdentityCard
               s={semantic}

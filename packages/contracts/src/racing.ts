@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import * as z from 'zod';
+import { TeamColors } from './colors.js';
 import { AssetUrl, LocaleQuery } from './common.js';
 
 // ─── fotos com crédito (acervo de licenças livres) ───────────────────────────────────────────────
@@ -60,7 +61,15 @@ export type TeamPhotos = z.infer<typeof TeamPhotos>;
 
 // ─── carreira na F1 (piloto ou construtor) ───────────────────────────────────────────────────────
 
-const ParticipantLink = z.object({ id: z.uuid(), name: z.string(), logo: AssetUrl });
+const ParticipantLink = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  logo: AssetUrl,
+  colors: TeamColors.nullable().optional().meta({
+    description:
+      'Cores do escudo da equipe (mesmo `colors` do time); null enquanto o escudo não foi espelhado.',
+  }),
+});
 
 const RaceRef = z.object({
   event_id: z.uuid(),

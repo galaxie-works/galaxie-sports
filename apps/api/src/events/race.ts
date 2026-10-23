@@ -2,7 +2,7 @@
  * Eventos de corrida (F1): a sessão do fim de semana (treino, classificação, sprint, corrida) vem do espelho
  * `core.sport_event_detail` (`kind = race`), e o resultado de cada piloto de `event_participant.result`.
  */
-import type { EventSession, ParticipantResult, SupportedLocale } from '@galaxie/contracts';
+import type { EventSession, ParticipantResult, SupportedLocale, TeamColors } from '@galaxie/contracts';
 import {
   asset,
   event,
@@ -15,6 +15,7 @@ import {
 import { F1_DRIVER_PREFIX } from '@galaxie/providers';
 import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { teamLogoId } from '../assets/custom-logos.js';
+import { teamColors } from '../teams/colors.js';
 import { assetUrl } from '../util.js';
 
 /** Fontes da F1: a api-sports (temporada atual, ao vivo) e o F1DB (histórico desde 1950, CC BY 4.0). */
@@ -148,7 +149,10 @@ async function providerIds(db: Database, sport: string, ids: string[]): Promise<
   return new Map(rows.map((r) => [r.providerId, r.entityId]));
 }
 
-export type RaceTeams = Map<string, { id: string; name: string; logo: string | null }>;
+export type RaceTeams = Map<
+  string,
+  { id: string; name: string; logo: string | null; colors: TeamColors | null }
+>;
 
 /** Equipes (construtores) citadas nos resultados, pelo ID do fornecedor, com o escudo do nosso cadastro. */
 export async function loadRaceTeams(
@@ -162,7 +166,13 @@ export async function loadRaceTeams(
   const map = await providerIds(db, sport, ids);
   if (!map.size) return new Map();
   const rows = await db
-    .select({ id: participant.id, name: participant.name, key: asset.storageKey, url: asset.sourceUrl })
+    .select({
+      id: participant.id,
+      name: participant.name,
+      key: asset.storageKey,
+      url: asset.sourceUrl,
+      palette: asset.palette,
+    })
     .from(participant)
     .leftJoin(asset, eq(asset.id, teamLogoId(customLogos)))
     .where(inArray(participant.id, [...new Set(map.values())]));
@@ -170,7 +180,13 @@ export async function loadRaceTeams(
   const out: RaceTeams = new Map();
   for (const [providerId, id] of map) {
     const r = byId.get(id);
-    if (r) out.set(providerId, { id, name: r.name, logo: assetUrl(assetsBaseUrl, r.key, r.url) });
+    if (r)
+      out.set(providerId, {
+        id,
+        name: r.name,
+        logo: assetUrl(assetsBaseUrl, r.key, r.url),
+        colors: teamColors(r.palette),
+      });
   }
   return out;
 }
