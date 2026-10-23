@@ -11,7 +11,7 @@
 ## Resumo executivo
 
 1. **Um escudo tem duas camadas de direito:** a **marca** (sinal distintivo) e o **direito autoral** (o desenho como obra artística). No Brasil há uma terceira proteção, específica do esporte: o **art. 87 da Lei Pelé**, ainda vigente, dá a clubes e entidades a propriedade exclusiva da denominação e dos símbolos **"sem necessidade de registro"**. Isso vale mesmo para clubes pequenos que nunca registraram marca no INPI. Uma licença formal precisa cobrir as duas camadas e vir de quem tem os direitos: o clube, a liga ou um intermediário autorizado.
-2. **O acervo do football-logos.cc não pode ser usado comercialmente pelos próprios termos.** A página `/license/` restringe o uso a fins "informativos, editoriais e de fãs" e proíbe produtos comerciais e branding. O autor também declara que **não é dono dos escudos**. Uma licença dele cobriria no máximo **o trabalho de vetorização e restauração**, nunca a marca nem a obra original do clube. Vale pedir (rascunho na [§5](#5-o-autor-do-football-logoscc)), mas isso **não tira o risco principal**, que é o dos titulares. **Recomendação: manter a flag desligada nos feeds de clientes pagantes até haver licença.**
+2. **O acervo do football-logos.cc não pode ser usado comercialmente pelos próprios termos.** A página [`/license/`](https://football-logos.cc/license/) (acesso em 2026-10-23) restringe o uso a fins "informativos, editoriais e de fãs" e proíbe produtos comerciais, merchandising, branding e material promocional. O repositório no GitHub só tem 231 colagens de prévia, uma por país; os ~5.300 escudos individuais ficam só no CDN do site e seguem esses termos. O autor também declara que **não é dono dos escudos**. Uma licença dele cobriria no máximo **o trabalho de vetorização e restauração**, nunca a marca nem a obra original do clube. Vale pedir (rascunho na [§5](#5-o-autor-do-football-logoscc)), mas isso **não tira o risco principal**, que é o dos titulares. **Recomendação: manter a flag desligada nos feeds de clientes pagantes até haver licença.**
 3. **Nenhum fornecedor de dados licencia escudos para redistribuição B2B de prateleira.**
    - A **api-sports** e a **Sportmonks** entregam logos "só para identificação" e passam a responsabilidade ao cliente.
    - O **Sportradar Images API** entrega logos e headshots com fonte e copyright por imagem (AP, Getty, Reuters, USA Today), mas é "media use only", tem preço sob consulta e foco nas ligas dos EUA.
@@ -263,13 +263,21 @@
 - **Repositório** [github.com/Leo4815162342/football-logos](https://github.com/Leo4815162342/football-logos):
   - Não tem arquivo `LICENSE` nem declaração de licença. Sem licença, **todos os direitos ficam reservados por padrão**.
   - O README só descreve o acervo: "High Quality Football Logo Collection | SVG & PNG | 5300+ Logos". [oficial]
+  - **O repositório não contém os escudos individuais.** A árvore do Git tem 235 arquivos. Em `logos/` estão **231 colagens de prévia em PNG**, uma por país, como `logos/brazil-1200x630.png`, conferidas pela API do GitHub em 2026-10-23. [oficial]
+  - Os **~5.300 escudos individuais** ficam só no CDN do site, `assets.football-logos.cc`. As URLs seguem o padrão `logos/{país}/{tamanho}/{slug}.{hash}.png`, com tamanhos de 64×64 a 3000×3000, além de SVG. Exemplo: [Flamengo 256×256](https://assets.football-logos.cc/logos/brazil/256x256/flamengo.9c3055f2.png).
+  - A página de cada país diz "Available as free SVG vectors and high-resolution transparent PNG files". **"Free" aqui quer dizer gratuito para baixar, não liberado para uso comercial.** [oficial + inferência]
+  - **Consequência** [inferência]: o acervo que usamos vem do CDN do site, que é regido pela página `/license/`. Não vem de um repositório com licença aberta.
 - **Rodapé do site** [football-logos.cc](https://football-logos.cc/):
   - "All logos are sourced, normalized, restored, and vectorized by Leo4815162342."
   - Contato: e-mail `info [at] football-logos.cc`, X [@Leo4815162342](https://x.com/Leo4815162342) e LinkedIn.
   - O rodapé lista "Official Shirt Partners", ou seja, o projeto tem parceiros comerciais. [oficial]
-- **Página legal** [football-logos.cc/license/](https://football-logos.cc/license/) [oficial]:
-  - Os logos são apresentados "strictly for informational, editorial, and fan-based purposes": pesquisa, projetos de fãs e design não comercial.
-  - **Proibido:** produtos comerciais ou merchandising, branding ou material promocional, e sugerir afiliação ou endosso.
+- **Página de termos** [football-logos.cc/license/](https://football-logos.cc/license/) (link "Legal" no rodapé; acesso em **2026-10-23**) [oficial]:
+  - **Permitido:** os logos são apresentados "strictly for informational, editorial, and fan-based purposes". Isso cobre pesquisa, projetos de fãs e design **não comercial**.
+  - **Proibido:**
+    1. produtos comerciais ou merchandising;
+    2. branding ou material promocional;
+    3. sugerir afiliação com o dono do logo ou endosso dele.
+  - **Para nós** [inferência]: uma API B2B paga e a exibição em telas de TV de operadoras se enquadram em "produto comercial". O mesmo vale para usar os escudos em material de venda ou demo comercial.
   - Os logos "are the intellectual property of their respective clubs, leagues, or associations"; o site não reivindica propriedade nem autoria dos logos.
   - Pedidos de remoção vão por X; o site promete remover "upon verified request".
   - **Não há** licença comercial, preço nem contato comercial.
@@ -288,15 +296,20 @@
 >
 > I'm [nome], [cargo] at Galaxie Sports, a B2B sports data API for TV and streaming platforms in Latin America. We've been evaluating football-logos.cc: the consistency and quality of your vectorization stand out, especially on large TV screens.
 >
-> Your legal page limits use to informational, editorial and fan purposes, so we want to ask before going any further. Would you consider a **commercial license for your normalization and vectorization work**? It would let us:
+> Your legal page limits use to informational, editorial and fan purposes, and rules out commercial products. Our use would be commercial, so we want to ask before going any further: would you grant us a **commercial license for your normalization and vectorization work**?
 >
-> - store the files on our own servers and CDN;
-> - serve them through our API to a limited number of business customers, which display them in program guides, scoreboards and apps.
+> Our use would look like this:
+>
+> - **B2B API:** we would store the PNG and SVG files on our own servers and CDN and serve them through our API to a limited number of paying business customers (TV operators and streaming platforms). We would not offer the files as a public download.
+> - **TV screens:** those customers would show the crests next to match data in program guides (EPG), scoreboards, match pages and apps, on TVs, set-top boxes and mobile.
+> - **No merchandising**, and no use of the crests in our own branding or advertising.
+>
+> The individual files are only on your CDN, so we'd also like to receive them through a channel you approve rather than downloading them from the site.
 >
 > We understand that the crests themselves are the property of the clubs, leagues and federations. **Clearing those trademark rights would remain our responsibility**, and we would never suggest any affiliation with you or with the rights holders.
 >
 > A few questions:
-> 1. Do you offer commercial licenses, and on what terms (flat fee, annual fee, per logo)?
+> 1. Do you offer commercial licenses, and on what terms (flat fee, annual fee, per logo, per customer)? We would start with the Latin American and main European competitions, roughly [N] crests.
 > 2. Which files did you redraw yourself, and which came from official sources? Would you share that information per file?
 > 3. Is there a way to receive updates (new crests, redesigns) in a structured form?
 > 4. What attribution would you like, and where?
@@ -307,7 +320,11 @@
 > Best regards,
 > [nome] · [cargo] · Galaxie Sports · [site] · [contato]
 
-**Resumo em pt-BR:** pedimos licença comercial **do trabalho de vetorização**, com armazenamento no nosso CDN e entrega a clientes B2B. Deixamos claro que a liberação das marcas é responsabilidade nossa. Perguntamos sobre preço, procedência de cada arquivo, atualizações, atribuição e remoção rápida.
+**Resumo em pt-BR:**
+- Reconhecemos que os termos dele proíbem uso comercial e pedimos **licença comercial do trabalho de vetorização**.
+- Explicamos o uso: guardar os arquivos no nosso CDN e servir por **API B2B** a operadoras pagantes, que os exibem em **telas de TV**, guias de programação, placares e apps. Não haverá merchandising nem uso em branding.
+- Pedimos para receber os arquivos por um canal aprovado por ele, já que os escudos só existem no CDN do site.
+- Deixamos claro que a liberação das marcas é responsabilidade nossa. Perguntamos sobre preço, procedência de cada arquivo, atualizações, atribuição e remoção rápida.
 
 **Antes de enviar** [recomendação]:
 - Decidir se a flag fica desligada nos feeds pagantes até a resposta. Isso reduz a exposição e é coerente com o que a mensagem diz.
@@ -448,7 +465,9 @@
 **football-logos.cc**
 - Repositório: https://github.com/Leo4815162342/football-logos
 - Site: https://football-logos.cc/
-- Página legal: https://football-logos.cc/license/
+- Página legal (termos): https://football-logos.cc/license/
+- Página de país, com as URLs do CDN `assets.football-logos.cc`: https://football-logos.cc/brazil/
+- Árvore do repositório (API do GitHub): https://api.github.com/repos/Leo4815162342/football-logos/git/trees/HEAD?recursive=1
 
 **Fornecedores de dados**
 - Sportradar Images FAQ: https://developer.sportradar.com/images-and-editorials/reference/images-faqs
