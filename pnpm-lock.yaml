@@ -62,6 +62,9 @@ importers:
       '@galaxie/rules':
         specifier: workspace:*
         version: link:../../packages/rules
+      '@galaxie/runtime-config':
+        specifier: workspace:*
+        version: link:../../packages/runtime-config
       '@galaxie/where-to-watch':
         specifier: workspace:*
         version: link:../../packages/where-to-watch
@@ -108,6 +111,9 @@ importers:
       '@galaxie/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@galaxie/runtime-config':
+        specifier: workspace:*
+        version: link:../../packages/runtime-config
       '@tanstack/react-query':
         specifier: ^5.104.5
         version: 5.104.5(@types/react@19.3.0)(react@19.3.0)
@@ -308,6 +314,12 @@ importers:
         specifier: ^3.4.9
         version: 3.4.9
 
+  packages/runtime-config:
+    dependencies:
+      croner:
+        specifier: ^10.0.1
+        version: 10.0.1
+
   packages/where-to-watch:
     dependencies:
       '@galaxie/db':
@@ -360,6 +372,9 @@ importers:
       '@galaxie/ingestor':
         specifier: workspace:*
         version: link:../ingestor
+      '@galaxie/runtime-config':
+        specifier: workspace:*
+        version: link:../../packages/runtime-config
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -390,6 +405,9 @@ importers:
       '@galaxie/rules':
         specifier: workspace:*
         version: link:../../packages/rules
+      '@galaxie/runtime-config':
+        specifier: workspace:*
+        version: link:../../packages/runtime-config
       croner:
         specifier: ^10.0.1
         version: 10.0.1
