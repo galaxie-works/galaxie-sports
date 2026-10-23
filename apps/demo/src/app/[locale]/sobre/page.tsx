@@ -1,6 +1,7 @@
 import { KeyRound, Mail, UserPlus } from 'lucide-react';
 import type { Metadata, Viewport } from 'next';
 
+import { AppPages } from '@/components/site/landing/app-pages';
 import { Bento } from '@/components/site/landing/bento';
 import { Hero, Numbers } from '@/components/site/landing/hero';
 import { MarketsGrid } from '@/components/site/landing/markets';
@@ -75,7 +76,14 @@ export default async function AboutPage() {
       <section aria-labelledby="recursos" className="pt-24">
         <SectionHeading id="recursos" eyebrow={l.bento.eyebrow} title={l.bento.title} lead={l.bento.lead} />
         <div className="mt-10">
-          <Bento t={l.bento} locale={locale} />
+          <Bento t={l.bento} app={l.app} positions={t.pages.person.positions} locale={locale} />
+        </div>
+      </section>
+
+      <section aria-labelledby="paginas" className="pt-24">
+        <SectionHeading id="paginas" eyebrow={l.app.eyebrow} title={l.app.sectionTitle} lead={l.app.lead} />
+        <div className="mt-10">
+          <AppPages t={l.app} />
         </div>
       </section>
 
@@ -152,35 +160,6 @@ export default async function AboutPage() {
               {l.cta.contact}
             </a>
           </div>
-        </div>
-      </section>
-
-      <section className="pt-16" aria-labelledby="empresa">
-        <div className="grid gap-6 rounded-2xl border p-6 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div>
-            <h2 id="empresa" className="text-lg font-semibold">
-              {s.company.title}
-            </h2>
-            <p className="text-muted-foreground mt-1.5 max-w-2xl text-sm leading-relaxed">{s.company.body}</p>
-          </div>
-          <dl className="grid gap-3 text-sm sm:text-right">
-            <div>
-              <dt className="text-muted-foreground text-xs">{s.company.site}</dt>
-              <dd>
-                <a href={COMPANY.url} className="underline-offset-4 hover:underline">
-                  {COMPANY.url.replace('https://', '')}
-                </a>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground text-xs">{s.company.contact}</dt>
-              <dd>
-                <a href={`mailto:${CONTACT_EMAIL}`} className="underline-offset-4 hover:underline">
-                  {CONTACT_EMAIL}
-                </a>
-              </dd>
-            </div>
-          </dl>
         </div>
       </section>
     </PublicShell>

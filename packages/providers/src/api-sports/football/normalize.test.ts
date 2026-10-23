@@ -10,6 +10,7 @@ import {
   normalizeSquads,
   normalizeStandings,
   normalizeTeams,
+  isoDate,
   parseMeasure,
 } from './normalize.js';
 import type { NormalizedEvent } from '../../model.js';
@@ -322,6 +323,18 @@ describe('despacho por endpoint', () => {
 });
 
 describe('utilidades', () => {
+  it('isoDate: aceita só datas reais e desfaz dia e mês trocados', () => {
+    expect(isoDate('1999-03-03')).toBe('1999-03-03');
+    expect(isoDate('2025-11-17T07:14:24+00:00')).toBe('2025-11-17');
+    expect(isoDate('1978-23-11')).toBe('1978-11-23');
+    expect(isoDate('1975-13-12')).toBe('1975-12-13');
+    expect(isoDate('2023-02-30')).toBeNull();
+    expect(isoDate('1980-00-10')).toBeNull();
+    expect(isoDate('1980-31-31')).toBeNull();
+    expect(isoDate('10/03/1999')).toBeNull();
+    expect(isoDate(null)).toBeNull();
+  });
+
   it('parseMeasure', () => {
     expect(parseMeasure('180 cm')).toBe(180);
     expect(parseMeasure(null)).toBeNull();

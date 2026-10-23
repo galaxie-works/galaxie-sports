@@ -13,6 +13,8 @@ describe('rotas públicas', () => {
     '/sitemap.xml',
     '/icon.png',
     '/apple-icon.png',
+    '/exemplo/jogo',
+    '/exemplo/img/abc.png',
     '/r/01a16029-9283-77d0-b2e5-1d89336b2dbc.json',
   ])('%s abre sem sessão', (path) => expect(isPublicPath(path)).toBe(true));
 
@@ -28,6 +30,9 @@ describe('rotas públicas', () => {
     '/termos-de-uso',
     '/privacidade.json',
     '/loginx',
+    '/exemplo',
+    '/exemplo/x',
+    '/exemplo/jogo/1',
     '/cliente',
     '/cliente/builder',
     '/api/cliente/x',

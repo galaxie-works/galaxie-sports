@@ -43,7 +43,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl } from '../../events/builder.js';
-import { constructorEvents } from '../../events/race.js';
+import { constructorEvents, constructorProviderIds } from '../../events/race.js';
 import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events/queries.js';
 import { pickText } from '../../i18n.js';
 import { teamColors } from '../../teams/colors.js';
@@ -366,14 +366,14 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           });
         }
 
-        // construtor (F1): as sessões dos pilotos da equipe
-        const constructorId = team.kind === 'constructor' ? team.external_ids['api-sports'] : undefined;
+        // construtor (F1): as sessões dos pilotos da equipe, por todos os IDs dela nas duas fontes
+        const constructorIds = team.kind === 'constructor' ? await constructorProviderIds(db, team.id) : [];
         const teamEvents = (status: Event['status'][], order: 'asc' | 'desc', limit: number) =>
-          constructorId
+          constructorIds.length
             ? constructorEvents(
                 db,
                 team.sport,
-                constructorId,
+                constructorIds,
                 and(inArray(event.status, status), inYear),
                 order,
                 limit,

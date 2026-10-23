@@ -88,9 +88,33 @@ export const CLIENT_NAMESPACES = [
   'shell',
   'sport',
 ] as const;
-export type ClientDictionary = Pick<Dictionary, (typeof CLIENT_NAMESPACES)[number]>;
+type ClientNamespace = (typeof CLIENT_NAMESPACES)[number];
+export type ClientDictionary = Pick<Dictionary, ClientNamespace>;
 
-export function clientDictionary(locale: Locale): ClientDictionary {
+/**
+ * Páginas públicas (apresentação, login, termos e privacidade): só o que os componentes delas usam. Os
+ * textos do app logado (operação, administração, código) não vão no HTML de quem não entrou.
+ */
+export const PUBLIC_NAMESPACES = ['auth', 'common', 'shell'] as const satisfies readonly ClientNamespace[];
+
+/** Exemplo público: as páginas de jogo, time, campeonato e jogador, sem busca, código e operação. */
+export const EXAMPLE_NAMESPACES = [
+  'common',
+  'live',
+  'media',
+  'nav',
+  'shell',
+  'sport',
+] as const satisfies readonly ClientNamespace[];
+
+/**
+ * Assuntos do dicionário para o navegador. Com uma lista menor, o tipo continua o do app inteiro: quem
+ * monta a árvore garante que os componentes dela só leem os assuntos enviados.
+ */
+export function clientDictionary(
+  locale: Locale,
+  namespaces: readonly ClientNamespace[] = CLIENT_NAMESPACES,
+): ClientDictionary {
   const dict = DICTIONARIES[locale];
-  return Object.fromEntries(CLIENT_NAMESPACES.map((ns) => [ns, dict[ns]])) as ClientDictionary;
+  return Object.fromEntries(namespaces.map((ns) => [ns, dict[ns]])) as ClientDictionary;
 }

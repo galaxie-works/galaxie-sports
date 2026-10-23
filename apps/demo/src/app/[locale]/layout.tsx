@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 
 import { LOCALES } from '@/lib/i18n/config';
-import { clientDictionary } from '@/lib/i18n/dictionary';
+import { clientDictionary, PUBLIC_NAMESPACES } from '@/lib/i18n/dictionary';
 import { getLocale, getT } from '@/lib/i18n/server';
 import { SITE_NAME, SITE_URL } from '@/lib/site';
 
@@ -44,7 +44,8 @@ export default async function RootLayout({ children }: LayoutProps<'/[locale]'>)
       suppressHydrationWarning
     >
       <body className="min-h-full">
-        <Providers locale={locale} messages={clientDictionary(locale)}>
+        {/* Só os textos das páginas públicas; o app e o exemplo completam com os deles. */}
+        <Providers locale={locale} messages={clientDictionary(locale, PUBLIC_NAMESPACES)}>
           {children}
         </Providers>
       </body>

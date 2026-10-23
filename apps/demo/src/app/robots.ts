@@ -11,7 +11,16 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
-      allow: ['/$', ...PUBLIC_PAGES, '/login', '/brand/', '/flags/', '/crests/', '/_next/static/'],
+      allow: [
+        '/$',
+        ...PUBLIC_PAGES,
+        '/login',
+        '/brand/',
+        '/flags/',
+        '/crests/',
+        '/showcase/',
+        '/_next/static/',
+      ],
       disallow: '/',
     },
     sitemap: `${SITE_URL}/sitemap.xml`,

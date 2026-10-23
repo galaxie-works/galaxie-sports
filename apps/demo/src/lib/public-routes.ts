@@ -5,6 +5,8 @@
  * apresentação no lugar de redirecionar, para que robôs e filtros web encontrem conteúdo no domínio.
  */
 
+import { EXAMPLE_PAGES } from './example/pages';
+
 /** Páginas públicas com conteúdo (entram no sitemap). A primeira é a apresentação. */
 export const PUBLIC_PAGES = ['/sobre', '/termos', '/privacidade'] as const;
 
@@ -21,6 +23,13 @@ export const PUBLIC_FILES = ['/robots.txt', '/sitemap.xml', '/icon.png', '/apple
 const PUBLIC_PREFIXES = ['/login', '/api/auth'];
 
 /**
+ * Exemplo público (cópia gravada das páginas do app, sem a API): só as quatro páginas e as imagens
+ * dele. Outro endereço em /exemplo cai na regra geral (login).
+ */
+const EXAMPLE_PATHS = EXAMPLE_PAGES.map((p) => `/exemplo/${p}`);
+const EXAMPLE_IMAGES = '/exemplo/img/';
+
+/**
  * Registry dos widgets do Builder (`/r/<id>.json`): o CLI do shadcn baixa sem sessão. Só o formato exato
  * (um segmento terminado em `.json`); o conteúdo não tem segredo (ver `app/r/[id]/route.ts`).
  */
@@ -34,6 +43,8 @@ export function isPublicPath(pathname: string): boolean {
     PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
     includes(PUBLIC_PAGES, pathname) ||
     includes(PUBLIC_FILES, pathname) ||
+    includes(EXAMPLE_PATHS, pathname) ||
+    pathname.startsWith(EXAMPLE_IMAGES) ||
     REGISTRY_ITEM.test(pathname)
   );
 }

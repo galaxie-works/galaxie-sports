@@ -230,6 +230,7 @@ await check('Demo: páginas públicas e proteção do resto', async () => {
     '/sitemap.xml',
     '/flags/br.svg',
     '/crests/palmeiras.png',
+    '/exemplo/jogo',
   ]) {
     const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
     if (res.status !== 200) return fail(`${path} sem sessão: status ${res.status} (esperado 200)`);
@@ -246,6 +247,30 @@ await check('Demo: páginas públicas e proteção do resto', async () => {
   const api = await fetch(`${DEMO}/api/galaxie/v1/sports`, { redirect: 'manual' });
   if (api.status !== 401) return fail(`API da demo sem sessão deveria responder 401 (status ${api.status})`);
   return true;
+});
+
+await check('Demo: páginas públicas sem termos internos', async () => {
+  // o que só existe no app logado e na operação: fornecedor de dados, provedores de IA, chaves de flag
+  // do painel (MAIÚSCULAS_COM_SUBLINHADO, ex.: LIVE_FEATURED) e endereços da rede interna
+  const internal = [
+    /api-?sports/i,
+    /api-football/i,
+    /openai/i,
+    /anthropic/i,
+    /gemini/i,
+    /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/,
+    /192\.168\.|\blocalhost\b|\bapi:8080\b/,
+  ];
+  const found = [];
+  for (const path of ['/sobre', '/exemplo/jogo'])
+    for (const lang of ['pt-BR', 'en', 'es-AR']) {
+      const html = await (await fetch(`${DEMO}${path}`, { headers: { 'accept-language': lang } })).text();
+      for (const re of internal) {
+        const hit = html.match(re);
+        if (hit) found.push(`${path} (${lang}): ${hit[0]}`);
+      }
+    }
+  return found.length ? fail(found.slice(0, 5).join(' · ')) : true;
 });
 
 await check('Builder: registry público dos widgets e painel do cliente protegido', async () => {

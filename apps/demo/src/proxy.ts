@@ -86,6 +86,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Tudo, menos arquivos estáticos do Next, a marca, as bandeiras e os escudos da apresentação e o favicon.
-  matcher: ['/((?!_next/static|_next/image|brand/|flags/|crests/|favicon.ico).*)'],
+  // Tudo, menos arquivos estáticos do Next, a marca, as imagens da apresentação (bandeiras, escudos e
+  // capturas do app) e o favicon.
+  matcher: ['/((?!_next/static|_next/image|brand/|flags/|crests/|showcase/|favicon.ico).*)'],
 };
