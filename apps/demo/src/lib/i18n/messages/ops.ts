@@ -414,13 +414,14 @@ export default defineMessages(
         unit: 'US$',
       },
       AI_RIGHTS_PROVIDER: {
-        label: 'Provedor da pesquisa de direitos',
+        label: 'Fonte do Onde Assistir (IA)',
         description:
-          'Quem pesquisa os direitos de cada competição por temporada. Vazio usa o provedor dos demais agentes; gemini usa a busca do Google.',
+          'IA que descobre quais canais e plataformas transmitem cada competição em cada país, a base do Onde Assistir. Vazio usa o provedor dos demais agentes; Gemini pesquisa com a busca do Google.',
       },
       AI_RIGHTS_MODEL: {
-        label: 'Modelo da pesquisa de direitos',
-        description: 'Vazio usa o modelo de pesquisa padrão do provedor escolhido.',
+        label: 'Modelo da fonte do Onde Assistir',
+        description:
+          'Modelo da IA que pesquisa os canais do Onde Assistir. Vazio usa o padrão do provedor escolhido.',
       },
       YOUTUBE_DAILY_QUOTA: {
         label: 'Cota diária do YouTube',
@@ -846,13 +847,14 @@ export default defineMessages(
           unit: 'US$',
         },
         AI_RIGHTS_PROVIDER: {
-          label: 'Rights research provider',
+          label: 'Where to Watch source (AI)',
           description:
-            "Who researches each competition's season rights. Empty uses the other agents' provider; gemini uses Google Search.",
+            "AI that finds which channels and platforms carry each competition in each country — the basis of Where to Watch. Empty uses the other agents' provider; Gemini researches with Google Search.",
         },
         AI_RIGHTS_MODEL: {
-          label: 'Rights research model',
-          description: "Empty uses the chosen provider's default research model.",
+          label: 'Where to Watch source model',
+          description:
+            "Model of the AI that researches Where to Watch channels. Empty uses the chosen provider's default.",
         },
         YOUTUBE_DAILY_QUOTA: {
           label: 'YouTube daily quota',
@@ -1290,13 +1292,14 @@ export default defineMessages(
           unit: 'US$',
         },
         AI_RIGHTS_PROVIDER: {
-          label: 'Proveedor de la búsqueda de derechos',
+          label: 'Fuente de Dónde ver (IA)',
           description:
-            'Quién busca los derechos de cada competencia por temporada. Vacío usa el proveedor de los demás agentes; gemini usa la búsqueda de Google.',
+            'IA que descubre qué canales y plataformas transmiten cada competencia en cada país, la base de Dónde ver. Vacío usa el proveedor de los demás agentes; Gemini busca con Google.',
         },
         AI_RIGHTS_MODEL: {
-          label: 'Modelo de la búsqueda de derechos',
-          description: 'Vacío usa el modelo de búsqueda por defecto del proveedor elegido.',
+          label: 'Modelo de la fuente de Dónde ver',
+          description:
+            'Modelo de la IA que busca los canales de Dónde ver. Vacío usa el predeterminado del proveedor elegido.',
         },
         YOUTUBE_DAILY_QUOTA: {
           label: 'Cuota diaria de YouTube',
