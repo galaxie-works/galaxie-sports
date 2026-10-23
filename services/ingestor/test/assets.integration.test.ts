@@ -2,15 +2,28 @@ import { createHash, randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MediaDenylist, publicAssetUrl } from '@galaxie/apisports-client';
-import { apiResponse, asset, type Database } from '@galaxie/db';
+import {
+  apiResponse,
+  asset,
+  event,
+  eventIncident,
+  footballFixture,
+  person,
+  providerMap,
+  sport,
+  type Database,
+} from '@galaxie/db';
+import { normalizePlayers, type ApiPlayerItem } from '@galaxie/providers';
 import { runAssetMirror } from '../src/assets/asset-mirror.js';
 import { PgAssetStore } from '../src/assets/asset-store.js';
 import { MediaFetcher } from '../src/assets/media-fetcher.js';
 import { InMemoryObjectStore, objectStoreFromEnv } from '../src/assets/object-store.js';
+import { pendingPersonPhotoIds, playerPhotoUrl, registerPlayerPhotos } from '../src/assets/person-photos.js';
 import { runPaletteBackfill } from '../src/assets/palette-backfill.js';
 import { disposableDb } from './db.js';
 import { FakeClock, fakeMediaFetch, fakePng } from './helpers.js';
 import { encodePng } from './png.js';
+import { upsertBatch } from '../src/normalize/upsert-core.js';
 
 const testDb = disposableDb();
 let db: Database;
@@ -116,6 +129,126 @@ describe('PgAssetStore', () => {
     const second = await runAssetMirror({ assets: store, objects, fetcher, denylist, clock });
     expect(second).toMatchObject({ pending: 0, stored: 0 });
     expect(media.calls.length).toBe(calls);
+  });
+});
+
+describe('fotos de pessoas', () => {
+  const DAY = 86_400_000;
+  let fixtureSeq = 0;
+
+  async function player(providerId: string, photoUrl?: string): Promise<string> {
+    const photo = photoUrl
+      ? (await db.insert(asset).values({ kind: 'player', sourceUrl: photoUrl }).returning())[0]!.id
+      : null;
+    const [p] = await db
+      .insert(person)
+      .values({ name: `Jogador ${providerId}`, photoAssetId: photo })
+      .returning();
+    await db.insert(providerMap).values({
+      entityType: 'person',
+      entityId: p!.id,
+      provider: 'api-sports',
+      sport: 'football',
+      providerId,
+    });
+    return p!.id;
+  }
+
+  async function fixture(daysAgo: number, players: number[], coach?: number): Promise<string> {
+    const startsAt = new Date(Date.now() - daysAgo * DAY);
+    const [e] = await db
+      .insert(event)
+      .values({ sport: 'football', startsAt, endsAtExpected: new Date(startsAt.getTime() + 2 * 3_600_000) })
+      .returning();
+    const lineup = {
+      coach: coach ? { id: coach, name: 'Técnico' } : null,
+      startXI: players.slice(0, 1).map((id) => ({ player: { id, name: `J${id}` } })),
+      substitutes: players.slice(1).map((id) => ({ player: { id, name: `J${id}` } })),
+    };
+    await db.insert(footballFixture).values({
+      eventId: e!.id,
+      providerFixtureId: 900_000 + ++fixtureSeq,
+      summary: {},
+      detail: { lineups: [lineup], events: [], players: [], statistics: [] },
+    });
+    return e!.id;
+  }
+
+  const photoOf = async (id: string) =>
+    (await db.select({ photo: person.photoAssetId }).from(person).where(eq(person.id, id)))[0]!.photo;
+
+  it('liga pela URL do id quem jogou, fora técnicos e fotos já sabidamente genéricas; prioriza os escalados recentes', async () => {
+    await db
+      .insert(sport)
+      .values({ slug: 'football', name: { 'pt-BR': 'Futebol' } })
+      .onConflictDoNothing();
+    const recent = await player('10');
+    const old = await player('11');
+    const coach = await player('12');
+    const withPhoto = await player('13', 'https://media.api-sports.io/football/players/13.png');
+    const scorer = await player('14');
+    const nobody = await player('15');
+    const knownPlaceholder = await player('16');
+    await db.insert(asset).values({ kind: 'player', sourceUrl: playerPhotoUrl('16'), fetchedAt: new Date() });
+    await fixture(10, [10, 12, 16]);
+    await fixture(3, [13], 12);
+    await fixture(400, [11]);
+    const goal = await fixture(400, []);
+    await db.insert(eventIncident).values({ eventId: goal, type: 'Goal', sequence: 1, personId: scorer });
+
+    const since = new Date(Date.now() - 365 * DAY);
+    const first = await registerPlayerPhotos(db, { since });
+    expect(first).toEqual({ linked: [1, 0, 2], registered: 3, skippedMissing: 1 });
+    const recentPhoto = await photoOf(recent);
+    expect(recentPhoto).not.toBeNull();
+    const [row] = await db.select().from(asset).where(eq(asset.id, recentPhoto!));
+    expect(row).toMatchObject({ kind: 'player', sourceUrl: playerPhotoUrl('10') });
+    expect(await photoOf(old)).not.toBeNull();
+    expect(await photoOf(scorer)).not.toBeNull();
+    expect(await photoOf(coach)).toBeNull();
+    expect(await photoOf(nobody)).toBeNull();
+    expect(await photoOf(knownPlaceholder)).toBeNull();
+
+    expect(await registerPlayerPhotos(db, { since })).toEqual({
+      linked: [0, 0, 0],
+      registered: 0,
+      skippedMissing: 1,
+    });
+
+    // espelho: escalados recentes do jogo mais novo para o mais velho; depois o resto, sem jogo por último
+    expect(await pendingPersonPhotoIds(db, { since })).toEqual([
+      await photoOf(withPhoto),
+      recentPhoto,
+      await photoOf(old),
+      await photoOf(scorer),
+    ]);
+
+    // a foto genérica desliga a pessoa e o registro não a religa
+    await new PgAssetStore(db).markMissing(recentPhoto!, new Date(), { detachPeople: true });
+    expect(await photoOf(recent)).toBeNull();
+    expect(await registerPlayerPhotos(db, { since })).toEqual({
+      linked: [0, 0, 0],
+      registered: 0,
+      skippedMissing: 2,
+    });
+    expect(await pendingPersonPhotoIds(db, { since })).not.toContain(recentPhoto);
+  });
+
+  it('o normalizador não religa a foto de pessoa já sabidamente genérica, mas segue ligando as outras', async () => {
+    const generic = playerPhotoUrl('20');
+    await db.insert(asset).values({ kind: 'player', sourceUrl: generic, fetchedAt: new Date() });
+    const profile = (id: number, photo: string) =>
+      ({ player: { id, name: `Perfil ${id}`, photo }, statistics: [] }) as unknown as ApiPlayerItem;
+    await upsertBatch(
+      db,
+      normalizePlayers([profile(20, generic), profile(21, playerPhotoUrl('21'))], new Date()),
+    );
+    const photoByProvider = async (providerId: string) => {
+      const [m] = await db.select().from(providerMap).where(eq(providerMap.providerId, providerId));
+      return photoOf(m!.entityId);
+    };
+    expect(await photoByProvider('20')).toBeNull();
+    expect(await photoByProvider('21')).not.toBeNull();
   });
 });
 

@@ -14,6 +14,7 @@ import { imageInfo } from './image-info.js';
 import { MediaFetcher } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
 import { paletteFromPng, PLACEHOLDER_LOGO_SHA256 } from './palette.js';
+import { isPlaceholderPhoto, PERSON_PHOTO_KINDS } from './person-photos.js';
 
 /** Lê config/assets/denylist.yaml (`denylist: [{ url, reason }]`). */
 export async function loadMediaDenylist(path: string): Promise<MediaDenylist> {
@@ -35,6 +36,10 @@ export interface AssetMirrorOptions {
   limit?: number | undefined;
   /** Tenta de novo os marcados como ausentes (404/bloqueados). */
   includeMissing?: boolean;
+  /** Só fotos de pessoas, na ordem de prioridade (escaladas desde `since` primeiro). */
+  personPhotos?: { since: Date } | undefined;
+  /** Hashes das fotos genéricas de pessoa. Padrão PLACEHOLDER_PHOTO_SHA256. */
+  placeholderPhotos?: ReadonlySet<string>;
   /** Interrompe a execução depois de N assets seguidos que esgotaram as tentativas por 429. Padrão 5. */
   abortAfterRateLimited?: number;
   /** Só lista o que seria baixado. */
@@ -45,6 +50,7 @@ export interface AssetMirrorOptions {
 export type MirrorEvent =
   | { type: 'stored'; asset: MirrorAsset; storageKey: string; bytes: number }
   | { type: 'not_found'; asset: MirrorAsset; httpStatus: number }
+  | { type: 'placeholder'; asset: MirrorAsset; sha256: string }
   | { type: 'denied'; asset: MirrorAsset; reason: string }
   | { type: 'failed'; asset: MirrorAsset; reason: string }
   | { type: 'aborted'; reason: string };
@@ -54,6 +60,8 @@ export interface MirrorReport {
   stored: number;
   notFound: number;
   denied: number;
+  /** Fotos de pessoa que vieram como imagem genérica: viram "sem foto" e não vão para o storage. */
+  placeholders: number;
   failed: number;
   /** Já espelhados que entraram na lista de bloqueio e foram desvinculados. */
   unlinked: number;
@@ -66,7 +74,8 @@ export interface MirrorReport {
 /**
  * Asset Mirror (issue #18): pega os assets de core.asset ainda não espelhados, baixa da CDN de mídia
  * (não consome cota da API de dados), grava no bucket S3 e preenche storage_key, sha256, bytes,
- * dimensões e fetched_at. Idempotente: uma segunda execução não baixa nada (404 e bloqueados ficam
+ * dimensões e fetched_at. Foto de pessoa que vem como imagem genérica (ou 404) vira "sem foto": o asset fica
+ * ausente e as pessoas perdem o vínculo. Idempotente: uma segunda execução não baixa nada (404 e bloqueados ficam
  * marcados como ausentes; falhas transitórias continuam pendentes para a próxima vez).
  */
 export async function runAssetMirror(options: AssetMirrorOptions): Promise<MirrorReport> {
@@ -83,6 +92,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     stored: 0,
     notFound: 0,
     denied: 0,
+    placeholders: 0,
     failed: 0,
     unlinked: 0,
     bytes: 0,
@@ -96,6 +106,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
   const queue = await options.assets.pending({
     limit: options.limit,
     includeMissing: options.includeMissing,
+    personPhotos: options.personPhotos,
   });
   report.pending = queue.length;
   if (options.dryRun) return report;
@@ -123,6 +134,12 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     if (res.status === 'ok') {
       consecutiveRateLimited = 0;
       const sha256 = createHash('sha256').update(res.body).digest('hex');
+      if (isPlaceholderPhoto(item.kind, sha256, options.placeholderPhotos)) {
+        await options.assets.markMissing(item.id, new Date(clock.now()), { detachPeople: true });
+        report.placeholders += 1;
+        emit({ type: 'placeholder', asset: item, sha256 });
+        return;
+      }
       const info = imageInfo(res.body, res.contentType);
       await options.objects.put(key, res.body, info.contentType, sha256);
       await options.assets.markStored(item.id, {
@@ -142,7 +159,9 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
       emit({ type: 'stored', asset: item, storageKey: key, bytes: res.body.length });
     } else if (res.status === 'not_found') {
       consecutiveRateLimited = 0;
-      await options.assets.markMissing(item.id, new Date(clock.now()));
+      await options.assets.markMissing(item.id, new Date(clock.now()), {
+        detachPeople: PERSON_PHOTO_KINDS.has(item.kind),
+      });
       report.notFound += 1;
       report.notFoundUrls.push(url);
       emit({ type: 'not_found', asset: item, httpStatus: res.httpStatus });
