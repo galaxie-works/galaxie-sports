@@ -16,8 +16,7 @@ import {
 
 import { buttonVariants } from '@/components/ui/button';
 import type { Locale } from '@/lib/i18n/config';
-import { apiLocale } from '@/lib/i18n/config';
-import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
+import type { Dictionary } from '@/lib/i18n/dictionary';
 import { fill, plural } from '@/lib/i18n/text';
 import { showcase, ZONES, type TimelineEntry } from '@/lib/showcase';
 import { cn } from '@/lib/utils';
@@ -433,86 +432,6 @@ function ScheduleWidget({ locale }: { locale: Locale }) {
   );
 }
 
-const METHOD = 'GET';
-
-/** JSON numa linha, com espaço depois de `:` e `,` (`{ "a": 1, "b": [2, 3] }`). */
-function inlineJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(inlineJson).join(', ')}]`;
-  if (value && typeof value === 'object')
-    return `{ ${Object.entries(value)
-      .map(([k, v]) => `${JSON.stringify(k)}: ${inlineJson(v)}`)
-      .join(', ')} }`;
-  return JSON.stringify(value);
-}
-
-/** Indenta só o necessário: o que cabe em `width` colunas fica numa linha. */
-function compactJson(value: unknown, indent = '', width = 80): string {
-  const flat = inlineJson(value);
-  if (indent.length + flat.length <= width || !value || typeof value !== 'object') return flat;
-  const next = `${indent}  `;
-  if (Array.isArray(value))
-    return `[\n${value.map((v) => next + compactJson(v, next, width)).join(',\n')}\n${indent}]`;
-  return `{\n${Object.entries(value)
-    .map(([k, v]) => `${next}${JSON.stringify(k)}: ${compactJson(v, next, width)}`)
-    .join(',\n')}\n${indent}}`;
-}
-
-/** Colore o JSON do exemplo (chaves, textos e números), sem biblioteca. */
-function JsonView({ value }: { value: unknown }) {
-  const json = compactJson(value);
-  // índices ímpares: os trechos capturados (textos entre aspas e números)
-  const parts = json.split(/("(?:[^"\\]|\\.)*"|\b\d+(?:\.\d+)?\b)/g);
-  return (
-    <code>
-      {parts.map((part, i) => {
-        if (i % 2 === 0) return part;
-        const isKey = part.startsWith('"') && (parts[i + 1] ?? '').startsWith(':');
-        const cls = isKey ? 'text-sky-300' : part.startsWith('"') ? 'text-emerald-300' : 'text-amber-300';
-        return (
-          <span key={i} className={cls}>
-            {part}
-          </span>
-        );
-      })}
-    </code>
-  );
-}
-
-/** Trecho real da resposta de `/v1/events/{id}` (tags do torcedor e o que está em jogo). */
-function ApiWidget({ locale }: { locale: Locale }) {
-  const ROUND = showcase(locale).round;
-  const content = apiLocale(locale);
-  const s = getDictionary(content === 'pt-BR' ? 'pt-BR' : 'es-AR').landing.bento.stakes;
-  const sample = {
-    competition: { name: ROUND.competition },
-    participants: [
-      {
-        name: ROUND.home.name,
-        nickname: ROUND.home.nickname,
-        fan_tags: [{ code: ROUND.api.tagCode, text: { [content]: s.tags.a } }],
-      },
-    ],
-    stakes: [
-      {
-        team: ROUND.api.stakeTeam,
-        code: ROUND.api.stakeCode,
-        text: { [content]: s.list[ROUND.api.stakeKey] },
-      },
-    ],
-  };
-  return (
-    <div className="overflow-hidden rounded-xl bg-[#07070c] ring-1 ring-white/10">
-      <p className="border-b border-white/10 px-4 py-2 font-mono text-xs">
-        <span className="text-emerald-300">{METHOD}</span>{' '}
-        <span className="text-muted-foreground">{`/v1/events/{id}?locale=${content}`}</span>
-      </p>
-      <pre translate="no" className="overflow-x-auto px-4 py-3 font-mono text-[12px] leading-relaxed">
-        <JsonView value={sample} />
-      </pre>
-    </div>
-  );
-}
-
 /**
  * Grade do que a API entrega: exemplos reais (amostra em `lib/showcase.ts`) desenhados no estilo do
  * app. Estática: nada aqui chama a API.
@@ -564,15 +483,6 @@ export function Bento({ t, app, locale }: { t: Text; app: AppText; locale: Local
         className="lg:col-span-3"
       >
         <ScheduleWidget locale={locale} />
-      </Cell>
-      <Cell
-        tag={t.api.tag}
-        title={t.api.title}
-        body={t.api.body}
-        hue={268}
-        className="md:col-span-2 lg:col-span-6 lg:grid lg:grid-cols-[1fr_1.6fr] lg:items-center lg:gap-10"
-      >
-        <ApiWidget locale={locale} />
       </Cell>
     </div>
   );

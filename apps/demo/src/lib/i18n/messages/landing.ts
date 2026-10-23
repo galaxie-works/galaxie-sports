@@ -113,11 +113,6 @@ export default defineMessages(
         title: 'No fuso de cada mercado',
         body: 'O mesmo jogo, no horário local de quem assiste.',
       },
-      api: {
-        tag: 'API REST',
-        title: 'Pronta para integrar',
-        body: 'JSON estável, especificação OpenAPI e uma chave por cliente.',
-      },
     },
     app: {
       open: 'Explorar a página do jogo',
@@ -343,11 +338,6 @@ export default defineMessages(
           title: 'In each market’s time zone',
           body: 'The same match, at the viewer’s local time.',
         },
-        api: {
-          tag: 'REST API',
-          title: 'Ready to integrate',
-          body: 'Stable JSON, an OpenAPI specification and one key per customer.',
-        },
       },
       app: {
         open: 'Explore the match page',
@@ -571,11 +561,6 @@ export default defineMessages(
           tag: 'Agenda',
           title: 'En el huso horario de cada mercado',
           body: 'El mismo partido, en la hora local de quien mira.',
-        },
-        api: {
-          tag: 'API REST',
-          title: 'Lista para integrar',
-          body: 'JSON estable, especificación OpenAPI y una clave por cliente.',
         },
       },
       app: {
