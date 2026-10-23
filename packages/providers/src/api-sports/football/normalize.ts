@@ -676,6 +676,7 @@ export const NORMALIZABLE_FOOTBALL_ENDPOINTS = [
   '/players/squads',
   '/coachs',
   '/players',
+  '/players/profiles',
   '/standings',
   '/transfers',
   '/trophies',
@@ -710,6 +711,8 @@ export function normalizeFootballEnvelope(
     case '/coachs':
       return { batch: normalizeCoaches(response as ApiCoachItem[], observedAt, params), items };
     case '/players':
+    // players/profiles?player: o mesmo item de players, só com a bio (sem statistics)
+    case '/players/profiles':
       return { batch: normalizePlayers(response as ApiPlayerItem[], observedAt), items };
     case '/standings':
       return { batch: normalizeStandings(response as ApiStandingsItem[], observedAt), items };
