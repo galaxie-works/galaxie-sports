@@ -3,6 +3,9 @@ import { loadSportFixture } from '../../../test/load-fixture.js';
 import { EXPECTED_DURATION_MIN } from '../../event/status.js';
 import type { NormalizedEvent } from '../../model.js';
 import {
+  aflPlaceholderIds,
+  aflQuarters,
+  aflStages,
   americanFootballGroup,
   f1SessionMinutes,
   fixMojibake,
@@ -38,6 +41,9 @@ function games(sport: ApiSportsOtherSport, file: string) {
   const env = loadSportFixture(sport, file);
   return normalizeSportGames(sport, env.response, FETCHED);
 }
+
+const gameEvents = (sport: ApiSportsOtherSport, items: unknown[]) =>
+  normalizeSportGames(sport, items, FETCHED).events;
 const byId = (events: NormalizedEvent[], id: string) => events.find((e) => e.id === id)!;
 const duration = (e: NormalizedEvent) =>
   (e.observation.endsAtExpected.getTime() - e.observation.startsAt.getTime()) / MIN;
@@ -202,14 +208,118 @@ describe('jogos dos esportes coletivos (respostas reais recortadas)', () => {
       away: 64,
       breakdown: { home: { goals: 12, behinds: 14 }, away: { goals: 9, behinds: 10 } },
     });
-    expect(ft.stageLabel).toBe('Regular Season - 0');
+    expect(ft.stageLabel).toBe('Opening Round');
+    expect(b.stages.find((s) => s.providerLabel === 'Opening Round')).toMatchObject({
+      kind: 'regular',
+      name: { 'pt-BR': 'Rodada de abertura', es: 'Ronda de apertura' },
+    });
     expect(duration(ft)).toBe(165);
+    // as 9 finais de 2024 no recorte: semana pela data, grande final por último
+    expect(byId(b.events, '3058').stageLabel).toBe('Grand Final');
+    expect(byId(b.events, '3054').stageLabel).toBe('Semi Finals');
     const canc = byId(b.events, '2871');
     expect(canc.observation.status).toBe('cancelled');
     expect(canc.participants.map((p) => p.result)).toEqual([
       { score: 0, winner: null },
       { score: 0, winner: null },
     ]);
+  });
+
+  it('AFL: calendário provisório cancelado sai e as finais vão para a semana certa', () => {
+    const g = (
+      id: number,
+      week: number,
+      home: number,
+      away: number,
+      date: string,
+      short = 'FT',
+      round = 'Regular Season',
+    ) => ({
+      game: { id },
+      league: { id: 1, season: 2024 },
+      date,
+      round,
+      week,
+      status: { short },
+      teams: { home: { id: home }, away: { id: away } },
+    });
+    const items = [
+      g(2883, 17, 6, 8, '2024-07-04T14:00:00+00:00', 'CANC'),
+      g(3036, 17, 6, 8, '2024-07-06T06:35:00+00:00'),
+      // mesmo resto de calendário com outro adversário (o Port Adelaide joga na rodada 17)
+      g(2978, 17, 11, 18, '2024-07-06T03:45:00+00:00', 'CANC'),
+      g(3034, 17, 11, 17, '2024-07-06T03:45:00+00:00'),
+      // cancelado sem jogo dos times na rodada: fica
+      g(2871, 16, 1, 7, '2024-06-27T14:00:00+00:00', 'CANC'),
+    ];
+    expect([...aflPlaceholderIds(items)].sort()).toEqual(['2883', '2978']);
+    expect(gameEvents('afl', items).map((e) => e.id)).toEqual(['3036', '3034', '2871']);
+
+    const finals = [
+      g(3050, 26, 11, 6, '2024-09-05T09:40:00+00:00', 'FT', 'Post Season'),
+      g(3053, 26, 2, 4, '2024-09-07T09:30:00+00:00', 'FT', 'Post Season'),
+      g(3054, 26, 11, 7, '2024-09-13T09:40:00+00:00', 'FT', 'Postseason'),
+      g(3056, 27, 14, 11, '2024-09-20T09:40:00+00:00', 'FT', 'Postseason'),
+      g(3058, 28, 14, 2, '2024-09-28T04:30:00+00:00', 'FT', 'Postseason'),
+    ];
+    // a temporada inteira no lote (com jogo da fase regular): a semana sai da data
+    const stages = aflStages([g(3034, 17, 11, 17, '2024-07-06T03:45:00+00:00'), ...finals]);
+    expect(finals.map((f) => stages.get(String(f.game.id))?.label)).toEqual([
+      'Finals Week 1',
+      'Finals Week 1',
+      'Semi Finals',
+      'Preliminary Finals',
+      'Grand Final',
+    ]);
+    expect(stages.get('3058')).toMatchObject({
+      kind: 'final',
+      name: { 'pt-BR': 'Grande final', es: 'Gran final' },
+    });
+    // lote parcial (games?date=): a grande final sozinha não vira 1ª semana; sem fase, o upsert mantém a conhecida
+    const partial = [finals[4]!];
+    expect(aflStages(partial).get('3058')).toBeNull();
+    expect(gameEvents('afl', partial)[0]!.stageLabel).toBeNull();
+  });
+
+  it('AFL: quartos acumulados do fornecedor viram o que cada time fez no quarto', () => {
+    const env = loadSportFixture('afl', 'games-quarters-3058.json');
+    const out = normalizeSportEnvelope('afl', '/games/quarters', env, FETCHED)!;
+    expect(out.batch.eventSupplements).toHaveLength(1);
+    const [s] = out.batch.eventSupplements;
+    expect(s).toMatchObject({ eventId: '3058', participants: [] });
+    // Grande final de 2024: Sydney 9.6 (60) × Brisbane 18.12 (120)
+    const q = aflQuarters(s!.detail!.quarters);
+    expect(q.map((x) => [x.code, x.home.points, x.away.points])).toEqual([
+      ['q1', 19, 27],
+      ['q2', 8, 46],
+      ['q3', 7, 34],
+      ['q4', 26, 13],
+    ]);
+    expect(q.reduce((n, x) => n + x.home.goals!, 0)).toBe(9);
+    expect(q.reduce((n, x) => n + x.away.behinds!, 0)).toBe(12);
+    expect(q[1]!.away).toEqual({ goals: 7, behinds: 4, points: 46 });
+    // já por quarto (a sequência diminui) e prorrogação
+    expect(
+      aflQuarters([
+        {
+          quarter: 2,
+          teams: { home: { goals: 1, behinds: 0, points: 6 }, away: { goals: 0, behinds: 1, points: 1 } },
+        },
+        {
+          quarter: 1,
+          teams: { home: { goals: 2, behinds: 1, points: 13 }, away: { goals: 1, behinds: 1, points: 7 } },
+        },
+        {
+          quarter: 5,
+          teams: { home: { goals: 0, behinds: 0, points: 0 }, away: { goals: 1, behinds: 0, points: 6 } },
+        },
+      ]).map((x) => [x.code, x.home.points, x.away.points]),
+    ).toEqual([
+      ['q1', 13, 7],
+      ['q2', 6, 1],
+      ['ot', 0, 6],
+    ]);
+    expect(aflQuarters(null)).toEqual([]);
   });
 
   it('NFL: jogo aninhado, "Final/OT" sem código curto, semanas e pós-temporada', () => {

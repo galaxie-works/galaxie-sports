@@ -55,6 +55,18 @@ export const PARTICIPANT_KINDS = [
 
 const SidePair = z.object({ home: z.number().int().nullable(), away: z.number().int().nullable() });
 
+const GoalsBehinds = z.object({
+  goals: z.number().int().nullable().meta({ description: 'Gols (6 pontos cada).' }),
+  behinds: z.number().int().nullable().meta({ description: 'Behinds (1 ponto cada).' }),
+});
+
+/** Placar da AFL por lado: gols e behinds (pontos = 6 × gols + behinds; escrito "12.14 (86)"). */
+export const SideGoalsBehinds = z.object({ home: GoalsBehinds, away: GoalsBehinds }).meta({
+  id: 'SideGoalsBehinds',
+  example: { home: { goals: 12, behinds: 14 }, away: { goals: 9, behinds: 10 } },
+});
+export type SideGoalsBehinds = z.infer<typeof SideGoalsBehinds>;
+
 /** Parcial de um período do jogo (set, quarto, tempo, período, entrada). */
 export const ScorePeriod = SidePair.extend({
   code: z.string().meta({
@@ -62,6 +74,10 @@ export const ScorePeriod = SidePair.extend({
       'Período: sets do vôlei `s1`–`s5`; quartos `q1`–`q4`; tempos `h1`/`h2`; períodos do hóquei `p1`–`p3`; ' +
       'entradas do beisebol `i1`–`i9` e `extra`; prorrogações `ot`/`ot2`; shootout `so`.',
     example: 's1',
+  }),
+  goals_behinds: SideGoalsBehinds.optional().meta({
+    description:
+      'Futebol australiano (AFL): gols e behinds de cada time no quarto. Ausente nos outros esportes.',
   }),
 }).meta({ id: 'ScorePeriod' });
 export type ScorePeriod = z.infer<typeof ScorePeriod>;
@@ -466,6 +482,11 @@ export const Event = z
             { code: 's2', home: 23, away: 25 },
           ],
         }),
+      goals_behinds: SideGoalsBehinds.optional().meta({
+        description:
+          'Futebol australiano (AFL): gols e behinds do placar final (`home`/`away` são os pontos). Na AFL, ' +
+          '`periods` traz os pontos de cada quarto (`q1`–`q4`), não o placar acumulado. Ausente nos outros esportes.',
+      }),
     }),
     venue: z
       .object({

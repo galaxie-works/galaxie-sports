@@ -178,6 +178,7 @@ beforeAll(async () => {
   await insertRaw('formula-1', '/rankings/teams', 'rankings-teams-2024.json', '2026-10-21T10:03:00Z');
   await insertRaw('mma', '/fights/results', 'fights-results-1097.json', '2026-10-21T10:00:00Z');
   await insertRaw('mma', '/fights', 'fights-2024.json', '2026-10-21T10:05:00Z');
+  await insertRaw('afl', '/games/quarters', 'games-quarters-3058.json', '2026-10-21T10:00:00Z');
   await insertRaw('basketball', '/games', 'games-12-2024-2025.json', '2026-10-21T11:00:00Z');
   await insertRaw('basketball', '/standings', 'standings-12-2024-2025.json', '2026-10-21T11:01:00Z');
   await insertRaw('nba', '/games', 'games-date-2026-05-17.json', '2026-10-21T11:02:00Z');
@@ -222,6 +223,9 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
     expect(f1.stats.competitionsCreated).toBe(0); // reusa a competição sintética do catálogo
     const mma = results.find((r) => r.sport === 'mma')!.result;
     expect(mma.stats.supplements).toEqual({ applied: 1, missingEvent: 0 });
+    const afl = results.find((r) => r.sport === 'afl')!.result;
+    expect(afl.rows.map((r) => r.endpoint)).toEqual(['/games', '/standings', '/games/quarters']);
+    expect(afl.stats.supplements).toEqual({ applied: 1, missingEvent: 0 });
     first = await snapshot();
   });
 
@@ -230,7 +234,7 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
       sql`select sport, count(*)::int as n from core.event group by sport order by sport`,
     );
     expect(Object.fromEntries(rows.map((r) => [r.sport, Number(r.n)]))).toEqual({
-      afl: 2,
+      afl: 11,
       'american-football': 3,
       baseball: 5,
       basketball: 4,
@@ -245,7 +249,25 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
     const details = await db.execute<{ n: number }>(
       sql`select count(*)::int as n from core.sport_event_detail`,
     );
-    expect(Number(details[0]!.n)).toBe(46);
+    expect(Number(details[0]!.n)).toBe(55);
+  });
+
+  it('AFL: quartos da grande final no espelho do jogo, grande final como fase', async () => {
+    const gf = await entityId('afl', 'event', '3058');
+    const [d] = await db.select().from(sportEventDetail).where(eq(sportEventDetail.eventId, gf));
+    expect((d!.detail as { quarters: unknown[] }).quarters).toHaveLength(4);
+    const [e] = await db.execute<{ score: unknown; kind: string; label: string }>(sql`
+      select e.score, s.kind, s.provider_label as label from core.event e join core.stage s on s.id = e.stage_id
+      where e.id = ${gf}`);
+    expect(e).toMatchObject({
+      kind: 'final',
+      label: 'Grand Final',
+      score: {
+        home: 60,
+        away: 120,
+        breakdown: { home: { goals: 9, behinds: 6 }, away: { goals: 18, behinds: 12 } },
+      },
+    });
   });
 
   it('basquete: estado, placar com parciais, fim previsto e mandante/visitante', async () => {

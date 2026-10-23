@@ -37,6 +37,7 @@ import {
 import { formatInstant, pickList, pickText } from '../i18n.js';
 import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
+import { aflGoalsBehinds, loadAflQuarters } from './afl.js';
 import { pickCheer } from './cheer.js';
 import { loadFights } from './fight.js';
 import { loadRaceSessions, loadRaceTeams, raceResult } from './race.js';
@@ -386,6 +387,9 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
   }
   // corridas (F1): sessão do fim de semana e equipe de cada piloto no resultado
   const sessions = await loadRaceSessions(db, ids, locale);
+  // AFL: placar por quarto (games/quarters) no lugar dos parciais, que o /games não traz
+  const aflIds = rows.filter((r) => r.e.sport === 'afl').map((r) => r.e.id);
+  const aflQuarters = await loadAflQuarters(db, aflIds);
   const gridResults = partRows.filter((r) => r.side === 'grid').map((r) => r.result);
   const raceTeams = gridResults.length
     ? await loadRaceTeams(db, 'formula-1', gridResults, ctx.assetsBaseUrl, ctx.customLogos)
@@ -472,6 +476,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     const r = rowBy.get(id);
     if (!r) continue;
     const e = r.e;
+    const goalsBehinds = e.sport === 'afl' ? aflGoalsBehinds(e.score) : null;
     const homeId = sideId(id, 'home');
     const awayId = sideId(id, 'away');
     const rules = rulesOf(r);
@@ -653,7 +658,8 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         extratime: pair(e.score?.extratime),
         penalty: pair(e.score?.penalty),
         aggregate: aggregate ?? pair(e.score?.aggregate),
-        periods: scorePeriods(e.score?.periods),
+        periods: aflQuarters.get(id) ?? scorePeriods(e.score?.periods),
+        ...(goalsBehinds ? { goals_behinds: goalsBehinds } : {}),
       },
       // nome curado da base semântica vence o do fornecedor (naming rights); o fuso usa a cidade do core
       venue: r.v?.id

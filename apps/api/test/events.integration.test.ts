@@ -38,7 +38,7 @@ import {
   PLACEHOLDER_LOGO_SHA256,
   upsertBatch,
 } from '@galaxie/ingestor';
-import { normalizeFixtures, type ApiFixture } from '@galaxie/providers';
+import { normalizeFixtures, normalizeSportEnvelope, type ApiFixture } from '@galaxie/providers';
 import { createApiKey, upsertTenant } from '../src/auth/admin.js';
 import { rebuildFromCore } from '../src/routes/mirror-rebuild.js';
 import { buildServer } from '../src/server.js';
@@ -901,6 +901,91 @@ describe('/v1/events/{id}', () => {
     expect(list.json().data).toEqual([]);
     const other = await app.inject({ url: '/v1/events?sport=football', headers: { 'x-galaxie-key': k } });
     expect(other.statusCode).toBe(403);
+  });
+});
+
+describe('/v1/events/{id} — futebol australiano (AFL)', () => {
+  it('placar em gols.behinds e por quarto (games/quarters acumulado → pontos de cada quarto)', async () => {
+    await db
+      .insert(sport)
+      .values({ slug: 'afl', name: { 'pt-BR': 'Futebol australiano', es: 'Fútbol australiano' } })
+      .onConflictDoNothing();
+    await db
+      .insert(country)
+      .values({ code: 'AU', name: { en: 'Australia', 'pt-BR': 'Austrália' } })
+      .onConflictDoNothing();
+    const at = new Date('2026-10-21T14:00:00Z');
+    const games = JSON.parse(
+      readFileSync(
+        new URL(
+          '../../../packages/providers/test/fixtures/api-sports/afl/games-1-2024.json',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    ) as { response: unknown[] };
+    await upsertBatch(db, normalizeSportEnvelope('afl', '/games', games, at)!.batch);
+    // Sydney 12.14 (86) × Melbourne 9.10 (64), acumulado por quarto como o fornecedor manda
+    const cum = (q: number, h: [number, number], a: [number, number]) => ({
+      quarter: q,
+      teams: {
+        home: { id: 14, goals: h[0], behinds: h[1], points: 6 * h[0] + h[1] },
+        away: { id: 9, goals: a[0], behinds: a[1], points: 6 * a[0] + a[1] },
+      },
+    });
+    const quarters = {
+      response: [
+        {
+          game: { id: 2952 },
+          quarters: [
+            cum(1, [3, 4], [2, 1]),
+            cum(2, [6, 8], [5, 4]),
+            cum(3, [9, 11], [7, 8]),
+            cum(4, [12, 14], [9, 10]),
+          ],
+        },
+      ],
+    };
+    await upsertBatch(db, normalizeSportEnvelope('afl', '/games/quarters', quarters, at)!.batch);
+    const [m] = await db
+      .select({ id: providerMap.entityId })
+      .from(providerMap)
+      .where(
+        and(
+          eq(providerMap.sport, 'afl'),
+          eq(providerMap.entityType, 'event'),
+          eq(providerMap.providerId, '2952'),
+        ),
+      );
+
+    const body = (await get(`/v1/events/${m!.id}`)).json() as {
+      sport: string;
+      score: {
+        home: number;
+        away: number;
+        goals_behinds?: unknown;
+        periods: { code: string; home: number; away: number; goals_behinds?: unknown }[];
+      };
+    };
+    expect(body.sport).toBe('afl');
+    expect(body.score).toMatchObject({
+      home: 86,
+      away: 64,
+      goals_behinds: { home: { goals: 12, behinds: 14 }, away: { goals: 9, behinds: 10 } },
+    });
+    expect(body.score.periods.map((p) => [p.code, p.home, p.away])).toEqual([
+      ['q1', 22, 13],
+      ['q2', 22, 21],
+      ['q3', 21, 16],
+      ['q4', 21, 14],
+    ]);
+    expect(body.score.periods[3]!.goals_behinds).toEqual({
+      home: { goals: 3, behinds: 3 },
+      away: { goals: 2, behinds: 2 },
+    });
+    // futebol não ganha o campo
+    const football = (await get(`/v1/events/${ids.leg1}`)).json() as { score: Record<string, unknown> };
+    expect(football.score).not.toHaveProperty('goals_behinds');
   });
 });
 

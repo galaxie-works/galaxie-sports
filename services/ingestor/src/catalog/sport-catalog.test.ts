@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BASKETBALL_CATALOG, BASKETBALL_COUNTRIES, BASKETBALL_LEAGUES } from '../../test/fixtures.js';
 import {
+  aflQuarterCalls,
   checkSportCatalog,
   estimateSeasonCalls,
   F1_CHAMPIONSHIP_ID,
@@ -408,6 +409,30 @@ describe('perfis por esporte', () => {
     ]);
     expect(SPORT_PROFILES.nba.detailCalls).toBe(nbaPlayerCalls);
     expect(nbaPlayerCalls(null, TODAY)).toEqual([]);
+  });
+});
+
+describe('AFL: placar por quarto', () => {
+  it('uma chamada de games/quarters por jogo encerrado, do mais recente para o mais antigo', () => {
+    const game = (id: number, date: string, short: string) => ({ game: { id }, date, status: { short } });
+    const calls = aflQuarterCalls(
+      [
+        game(2952, '2024-03-07T08:30:00+00:00', 'FT'),
+        game(2871, '2024-06-27T14:00:00+00:00', 'CANC'),
+        game(3058, '2024-09-28T04:30:00+00:00', 'FT'),
+        game(9999, '2026-10-20T09:00:00+00:00', 'FT'),
+        game(9998, '2026-10-24T09:00:00+00:00', 'NS'),
+      ],
+      TODAY,
+    );
+    expect(calls).toEqual([
+      // encerrado há menos de 2 dias: pode ser corrigido, então não é definitivo
+      { endpoint: '/games/quarters', params: { id: '9999' }, final: false },
+      { endpoint: '/games/quarters', params: { id: '3058' }, final: true },
+      { endpoint: '/games/quarters', params: { id: '2952' }, final: true },
+    ]);
+    expect(SPORT_PROFILES.afl.detailCalls).toBe(aflQuarterCalls);
+    expect(aflQuarterCalls(undefined, TODAY)).toEqual([]);
   });
 });
 

@@ -464,6 +464,31 @@ export function nbaPlayerCalls(games: unknown, now: Date): SeasonCall[] {
     }));
 }
 
+/** Jogo encerrado há mais que isso: o placar por quarto não muda mais. */
+const AFL_FINAL_AFTER_MS = 2 * 86_400_000;
+const AFL_FINISHED = new Set(['FT', 'AET']);
+
+/**
+ * AFL: placar por quarto de cada jogo encerrado (`games/quarters?id=`, uma chamada por jogo: o free não
+ * aceita `ids` e o endpoint não filtra por liga). Do jogo mais recente para o mais antigo: com a cota do
+ * dia curta, a reta final e as finais entram primeiro e o bootstrap do dia seguinte continua de onde parou.
+ */
+export function aflQuarterCalls(games: unknown, now: Date): SeasonCall[] {
+  const played = (Array.isArray(games) ? games : []).filter(isObj).flatMap((g) => {
+    const gid = isObj(g.game) ? g.game.id : null;
+    const date = Date.parse(String(g.date ?? ''));
+    const short = isObj(g.status) ? str(g.status.short) : null;
+    if (gid == null || Number.isNaN(date) || !short || !AFL_FINISHED.has(short)) return [];
+    return [{ id: String(gid), date }];
+  });
+  played.sort((a, b) => b.date - a.date || Number(b.id) - Number(a.id));
+  return played.map((g) => ({
+    endpoint: '/games/quarters',
+    params: { id: g.id },
+    final: now.getTime() - g.date > AFL_FINAL_AFTER_MS,
+  }));
+}
+
 const USA: ProviderCountry = { name: 'USA', code: 'US', flag: 'https://media.api-sports.io/flags/us.svg' };
 
 function buildNba(responses: ReferenceResponses, ctx: BuildContext): CatalogRows {
@@ -546,6 +571,7 @@ export const SPORT_PROFILES: Record<OtherSport, SportProfile> = {
       }),
     seasonCall: games,
     standingsCalls: standings,
+    detailCalls: aflQuarterCalls,
   },
   'american-football': {
     sport: 'american-football',

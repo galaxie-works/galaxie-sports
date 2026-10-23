@@ -231,13 +231,14 @@ Prioridade latino-americana: basquete (NBB, Liga A argentina, NBA), vôlei (Supe
 - **IDs no escopo do esporte**: `core.provider_map (provider, sport, entity_type, provider_id)` — o ID 192 do basquete e o 192 do vôlei são competições diferentes.
 - **Catálogo YAML por esporte**: `config/competitions/<esporte>.yaml`, mesmo schema do `football.yaml` (slug, nome/país/tipo como o fornecedor devolve, `api_sports_id`, tier, `live_priority`, labels). Tier 1 = prioridade LatAm (NBB 26, Liga A 18, BCLA 299, AmeriCup, Olímpicos e Pan; Superliga 25/24, LVA 4, VNL 183/184; LMB, LMP, LIDOM, LVBP, Série do Caribe, WBC; Top 12; F1; MMA; NBA `standard`). O resto do `/leagues` entra como tier 3. Os nomes foram conferidos contra o `/leagues` capturado (0 divergências); o job repete a conferência a cada execução.
 - **Temporadas inteiras (`--jogos`)**: `games?league&season` (F1 `races?season`, MMA `fights?season`, NBA `games?league=standard&season`) das competições até `--tier` (padrão 1), dentro da janela do plano (free: 2022–2024; planos pagos: as `--temporadas` mais recentes). No basquete a chave vem do `/leagues` (`season=2024-2025`). Junto, a **classificação de cada temporada** (`standings?league&season`; F1 `rankings/drivers?season` e `rankings/teams?season`; MMA não tem) — `--sem-tabelas` desliga. Só grava no raw; `normalize:sports` leva ao core (abaixo).
+- **Placar por quarto da AFL**: o `games` da AFL só traz o total (gols, behinds e pontos). Os quartos vêm de `games/quarters?id=`, uma chamada por jogo encerrado: o free recusa `ids`, `date` só aceita ontem–amanhã e o endpoint não aceita `league`/`season` ("The League field do not exist"). Com `--jogos`, o bootstrap enfileira essas chamadas depois da temporada e da tabela, do jogo mais recente para o mais antigo (finais primeiro). Uma temporada tem ~216 jogos, então leva 3 dias no free: o que não cabe fica adiado, e rodar o mesmo comando no dia seguinte continua de onde parou (jogo de temporada encerrada não expira no raw). O fornecedor manda os quartos acumulados; a normalização guarda o item em `sport_event_detail.detail.quarters` e a API devolve os pontos de cada quarto em `score.periods`, com gols e behinds em `goals_behinds`.
 - `--plan` mostra, por esporte, quantas chamadas sairiam do raw e quantas gastariam cota. Sem `/leagues` no raw, estima as temporadas pelo YAML × janela do plano — um limite superior (ex.: Olímpicos só têm 2024 na janela); depois do primeiro catálogo, o plano usa as temporadas reais.
 
 Custo no plano free (janela 2022–2024). A classificação dobra as chamadas de temporada (F1: 2 rankings por temporada; MMA: nenhuma):
 
 | API | Referência | `--jogos` tier 1 (só jogos) | + tabelas | Total tier 1 com tabelas | `--jogos --tier 2` (só jogos) |
 |---|---:|---:|---:|---:|---:|
-| AFL | 5 | 0 | 0 | 5 | 3 |
+| AFL | 5 | 0 | 0 | 5 | 3 (+ 1 por jogo com `games/quarters`) |
 | Beisebol | 6 | 18 | 18 | 42 | 35 |
 | Basquete | 6 | 16 | 16 | 38 | 76 |
 | Fórmula 1 | 5 | 3 | 6 | 14 | 3 |

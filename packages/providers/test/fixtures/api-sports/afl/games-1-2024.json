@@ -5,7 +5,7 @@
     "season": "2024"
   },
   "errors": [],
-  "results": 2,
+  "results": 11,
   "paging": {
     "current": 1,
     "total": 1
@@ -108,6 +108,447 @@
           "psbehinds": 0
         }
       }
+    },
+    {
+      "date": "2024-09-05T09:40:00+00:00",
+      "game": {
+        "id": 3050
+      },
+      "time": "09:40",
+      "week": 26,
+      "round": "Post Season",
+      "teams": {
+        "away": {
+          "id": 7,
+          "logo": "https://media.api-sports.io/afl/teams/7.png",
+          "name": "Geelong Cats"
+        },
+        "home": {
+          "id": 11,
+          "logo": "https://media.api-sports.io/afl/teams/11.png",
+          "name": "Port Adelaide Power"
+        }
+      },
+      "venue": "Adelaide Oval",
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "scores": {
+        "away": {
+          "goals": 20,
+          "score": 138,
+          "behinds": 18,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "home": {
+          "goals": 7,
+          "score": 54,
+          "behinds": 12,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "timezone": "UTC",
+      "timestamp": "1725529200",
+      "attendance": null
+    },
+    {
+      "date": "2024-09-06T09:40:00+00:00",
+      "game": {
+        "id": 3051
+      },
+      "time": "09:40",
+      "week": 26,
+      "round": "Post Season",
+      "teams": {
+        "away": {
+          "id": 8,
+          "logo": "https://media.api-sports.io/afl/teams/8.png",
+          "name": "Hawthorn Hawks"
+        },
+        "home": {
+          "id": 16,
+          "logo": "https://media.api-sports.io/afl/teams/16.png",
+          "name": "Western Bulldogs"
+        }
+      },
+      "venue": "Melbourne Cricket Ground",
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "scores": {
+        "away": {
+          "goals": 14,
+          "score": 99,
+          "behinds": 15,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "home": {
+          "goals": 9,
+          "score": 62,
+          "behinds": 8,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "timezone": "UTC",
+      "timestamp": "1725615600",
+      "attendance": null
+    },
+    {
+      "date": "2024-09-07T05:20:00+00:00",
+      "game": {
+        "id": 3052
+      },
+      "time": "05:20",
+      "week": 26,
+      "round": "Post Season",
+      "teams": {
+        "away": {
+          "id": 18,
+          "logo": "https://media.api-sports.io/afl/teams/18.png",
+          "name": "Greater Western Sydney Giants"
+        },
+        "home": {
+          "id": 14,
+          "logo": "https://media.api-sports.io/afl/teams/14.png",
+          "name": "Sydney Swans"
+        }
+      },
+      "venue": "Sydney Cricket Ground",
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "scores": {
+        "away": {
+          "goals": 12,
+          "score": 82,
+          "behinds": 10,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "home": {
+          "goals": 13,
+          "score": 88,
+          "behinds": 10,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "timezone": "UTC",
+      "timestamp": "1725686400",
+      "attendance": null
+    },
+    {
+      "date": "2024-09-07T09:30:00+00:00",
+      "game": {
+        "id": 3053
+      },
+      "time": "09:30",
+      "week": 26,
+      "round": "Post Season",
+      "teams": {
+        "away": {
+          "id": 3,
+          "logo": "https://media.api-sports.io/afl/teams/3.png",
+          "name": "Carlton Blues"
+        },
+        "home": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/afl/teams/2.png",
+          "name": "Brisbane Lions"
+        }
+      },
+      "venue": "Gabba",
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "scores": {
+        "away": {
+          "goals": 11,
+          "score": 71,
+          "behinds": 5,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "home": {
+          "goals": 14,
+          "score": 99,
+          "behinds": 15,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "timezone": "UTC",
+      "timestamp": "1725701400",
+      "attendance": null
+    },
+    {
+      "date": "2024-09-13T09:40:00+00:00",
+      "game": {
+        "id": 3054
+      },
+      "time": "09:40",
+      "week": 26,
+      "round": "Postseason",
+      "teams": {
+        "away": {
+          "id": 8,
+          "logo": "https://media.api-sports.io/afl/teams/8.png",
+          "name": "Hawthorn Hawks"
+        },
+        "home": {
+          "id": 11,
+          "logo": "https://media.api-sports.io/afl/teams/11.png",
+          "name": "Port Adelaide Power"
+        }
+      },
+      "venue": "Adelaide Oval",
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "scores": {
+        "away": {
+          "goals": 11,
+          "score": 72,
+          "behinds": 6,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "home": {
+          "goals": 11,
+          "score": 75,
+          "behinds": 9,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "timezone": "UTC",
+      "timestamp": "1726220400",
+      "attendance": null
+    },
+    {
+      "date": "2024-09-14T09:30:00+00:00",
+      "game": {
+        "id": 3055
+      },
+      "time": "09:30",
+      "week": 26,
+      "round": "Postseason",
+      "teams": {
+        "away": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/afl/teams/2.png",
+          "name": "Brisbane Lions"
+        },
+        "home": {
+          "id": 18,
+          "logo": "https://media.api-sports.io/afl/teams/18.png",
+          "name": "Greater Western Sydney Giants"
+        }
+      },
+      "venue": "Engie Stadium",
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "scores": {
+        "away": {
+          "goals": 15,
+          "score": 105,
+          "behinds": 15,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "home": {
+          "goals": 15,
+          "score": 100,
+          "behinds": 10,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "timezone": "UTC",
+      "timestamp": "1726306200",
+      "attendance": null
+    },
+    {
+      "date": "2024-09-20T09:40:00+00:00",
+      "game": {
+        "id": 3056
+      },
+      "time": "09:40",
+      "week": 27,
+      "round": "Postseason",
+      "teams": {
+        "away": {
+          "id": 11,
+          "logo": "https://media.api-sports.io/afl/teams/11.png",
+          "name": "Port Adelaide Power"
+        },
+        "home": {
+          "id": 14,
+          "logo": "https://media.api-sports.io/afl/teams/14.png",
+          "name": "Sydney Swans"
+        }
+      },
+      "venue": "Sydney Cricket Ground",
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "scores": {
+        "away": {
+          "goals": 8,
+          "score": 59,
+          "behinds": 11,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "home": {
+          "goals": 14,
+          "score": 95,
+          "behinds": 11,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "timezone": "UTC",
+      "timestamp": "1726825200",
+      "attendance": null
+    },
+    {
+      "date": "2024-09-21T07:15:00+00:00",
+      "game": {
+        "id": 3057
+      },
+      "time": "07:15",
+      "week": 27,
+      "round": "Postseason",
+      "teams": {
+        "away": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/afl/teams/2.png",
+          "name": "Brisbane Lions"
+        },
+        "home": {
+          "id": 7,
+          "logo": "https://media.api-sports.io/afl/teams/7.png",
+          "name": "Geelong Cats"
+        }
+      },
+      "venue": "Melbourne Cricket Ground",
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "scores": {
+        "away": {
+          "goals": 14,
+          "score": 95,
+          "behinds": 11,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "home": {
+          "goals": 12,
+          "score": 85,
+          "behinds": 13,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "timezone": "UTC",
+      "timestamp": "1726902900",
+      "attendance": null
+    },
+    {
+      "date": "2024-09-28T04:30:00+00:00",
+      "game": {
+        "id": 3058
+      },
+      "time": "04:30",
+      "week": 28,
+      "round": "Postseason",
+      "teams": {
+        "away": {
+          "id": 2,
+          "logo": "https://media.api-sports.io/afl/teams/2.png",
+          "name": "Brisbane Lions"
+        },
+        "home": {
+          "id": 14,
+          "logo": "https://media.api-sports.io/afl/teams/14.png",
+          "name": "Sydney Swans"
+        }
+      },
+      "venue": "Melbourne Cricket Ground",
+      "league": {
+        "id": 1,
+        "season": 2024
+      },
+      "scores": {
+        "away": {
+          "goals": 18,
+          "score": 120,
+          "behinds": 12,
+          "psgoals": 0,
+          "psbehinds": 0
+        },
+        "home": {
+          "goals": 9,
+          "score": 60,
+          "behinds": 6,
+          "psgoals": 0,
+          "psbehinds": 0
+        }
+      },
+      "status": {
+        "long": "Finished",
+        "short": "FT"
+      },
+      "timezone": "UTC",
+      "timestamp": "1727497800",
+      "attendance": null
     }
   ]
 }

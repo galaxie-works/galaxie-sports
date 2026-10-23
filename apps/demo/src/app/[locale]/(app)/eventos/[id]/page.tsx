@@ -51,6 +51,7 @@ import {
 } from '@/lib/galaxie/api';
 import type { SupportedLocale } from '@galaxie/contracts';
 
+import { goalsBehinds } from '@/lib/afl';
 import { apiLocale, contentLocale, defaultMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
@@ -166,6 +167,17 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
               <span className="text-muted-foreground text-xs">
                 {fill(tx.aggregate, pair(score.aggregate))}
               </span>
+            ) : null}
+            {started && score.goals_behinds ? (
+              <abbr
+                title={tx.goalsBehindsTitle}
+                className="text-muted-foreground text-xs tabular-nums no-underline"
+              >
+                {fill(tx.goalsBehinds, {
+                  home: goalsBehinds(score.goals_behinds.home) ?? '?',
+                  away: goalsBehinds(score.goals_behinds.away) ?? '?',
+                })}
+              </abbr>
             ) : null}
           </div>
           <Side p={away} align="right" fighter={!!fight} />

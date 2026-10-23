@@ -710,18 +710,118 @@ function nbaNotNecessary(
   );
 }
 
+// ─── AFL: rodada de abertura, finais e calendário provisório ─────────────────────────────────────
+
+const AFL_OPENING_ROUND: StageSpec = {
+  label: 'Opening Round',
+  kind: 'regular',
+  name: { 'pt-BR': 'Rodada de abertura', es: 'Ronda de apertura', en: 'Opening Round' },
+  order: 2000,
+};
+
+/** As quatro semanas de finais da AFL (o fornecedor só diz "Post Season" e repete a `week` entre elas). */
+const AFL_FINALS: readonly StageSpec[] = [
+  {
+    label: 'Finals Week 1',
+    kind: 'knockout_round',
+    name: {
+      'pt-BR': 'Finais de qualificação e eliminação',
+      es: 'Finales de calificación y eliminación',
+      en: 'Qualifying and Elimination Finals',
+    },
+    order: 5001,
+  },
+  {
+    label: 'Semi Finals',
+    kind: 'quarter_final',
+    name: { 'pt-BR': 'Semifinais', es: 'Semifinales', en: 'Semi-Finals' },
+    order: 10000,
+  },
+  {
+    label: 'Preliminary Finals',
+    kind: 'semi_final',
+    name: { 'pt-BR': 'Finais preliminares', es: 'Finales preliminares', en: 'Preliminary Finals' },
+    order: 11000,
+  },
+  {
+    label: 'Grand Final',
+    kind: 'final',
+    name: { 'pt-BR': 'Grande final', es: 'Gran final', en: 'Grand Final' },
+    order: 13000,
+  },
+];
+
+/** Jogos de finais a mais de 4 dias do anterior abrem a semana seguinte. */
+const AFL_FINALS_WEEK_GAP_MS = 4 * 86_400_000;
+
+/**
+ * Fases da AFL que o fornecedor não separa: a rodada 0 é a rodada de abertura, e os jogos de "Post Season"
+ * vão para a semana de finais pela data (as semanas 1 e 2 vêm com a mesma `week`). A contagem das semanas
+ * só vale com a temporada inteira no lote (há jogos da fase regular): num lote parcial (`games?date=`) a
+ * grande final sozinha pareceria a 1ª semana, então a fase fica `null` e o upsert mantém a já conhecida.
+ */
+export function aflStages(items: unknown[]): Map<string, StageSpec | null> {
+  const out = new Map<string, StageSpec | null>();
+  const finals = new Map<string, { id: string; at: number }[]>();
+  const seasonLists = new Set<string>();
+  for (const raw of items) {
+    const g = obj(raw);
+    const gid = id(obj(g.game).id);
+    const at = instant(g.timestamp, g.date);
+    if (!gid || !at) continue;
+    const round = str(g.round) ?? '';
+    const season = String(obj(g.league).season ?? '');
+    if (/post\s*season/i.test(round)) {
+      finals.set(season, [...(finals.get(season) ?? []), { id: gid, at: at.getTime() }]);
+    } else if (/regular/i.test(round)) {
+      seasonLists.add(season);
+      if (str(g.week) === '0') out.set(gid, AFL_OPENING_ROUND);
+    }
+  }
+  for (const [season, games] of finals) {
+    games.sort((a, b) => a.at - b.at);
+    let week = 0;
+    games.forEach((g, i) => {
+      if (i > 0 && g.at - games[i - 1]!.at > AFL_FINALS_WEEK_GAP_MS) week += 1;
+      out.set(g.id, seasonLists.has(season) ? AFL_FINALS[Math.min(week, AFL_FINALS.length - 1)]! : null);
+    });
+  }
+  return out;
+}
+
+/**
+ * AFL: o fornecedor guarda o calendário provisório de parte da temporada como jogos cancelados (todos no
+ * mesmo horário de quinta-feira), ao lado dos jogos de verdade. Jogo cancelado em que um dos times joga na
+ * mesma rodada é esse resto de calendário e não entra.
+ */
+export function aflPlaceholderIds(items: unknown[]): Set<string> {
+  const key = (g: Obj, team: unknown) => `${String(obj(g.league).season)}|${String(g.week)}|${String(team)}`;
+  const playing = new Set<string>();
+  const cancelled: { id: string; keys: string[] }[] = [];
+  for (const raw of items) {
+    const g = obj(raw);
+    const gid = id(obj(g.game).id);
+    const teams = [obj(obj(g.teams).home).id, obj(obj(g.teams).away).id].filter((t) => t != null);
+    if (!gid || g.week == null) continue;
+    const keys = teams.map((t) => key(g, t));
+    if (String(obj(g.status).short ?? '').toUpperCase() === 'CANC') cancelled.push({ id: gid, keys });
+    else for (const k of keys) playing.add(k);
+  }
+  return new Set(cancelled.filter((c) => c.keys.some((k) => playing.has(k))).map((c) => c.id));
+}
+
 function addGame(
   c: SportCollector,
   raw: unknown,
   observedAt: Date,
-  cupFinals?: ReadonlySet<string>,
+  stages?: ReadonlyMap<string, StageSpec | null>,
 ): NormalizedEvent | null {
   const v = gameView(c.sport, raw);
   if (!v) return null;
   const season = c.competition(v.competition);
   // a NBA v2 não tem datas de temporada: a janela vem dos jogos (como na F1)
   if (c.sport === 'nba') c.seasonDate(season, v.startsAt.toISOString().slice(0, 10));
-  const stageLabel = c.stage(season, cupFinals?.has(v.id) ? NBA_CUP_FINAL_STAGE : v.stage);
+  const stageLabel = c.stage(season, stages?.has(v.id) ? (stages.get(v.id) ?? null) : v.stage);
   const statusInput = { short: str(v.status.short), long: str(v.status.long) };
   let status = mapSportStatus(c.sport, statusInput);
   const nbaStatus = obj(obj(raw).status);
@@ -789,9 +889,16 @@ export function normalizeSportGames(
 ): NormalizedBatch {
   const c = new SportCollector(sport, observedAt);
   const byId = new Map<string, NormalizedEvent>();
-  const cupFinals = sport === 'nba' ? nbaCupFinalIds(items) : undefined;
+  const stages =
+    sport === 'nba'
+      ? new Map([...nbaCupFinalIds(items)].map((gid) => [gid, NBA_CUP_FINAL_STAGE]))
+      : sport === 'afl'
+        ? aflStages(items)
+        : undefined;
+  const placeholders = sport === 'afl' ? aflPlaceholderIds(items) : undefined;
   for (const item of items) {
-    const e = addGame(c, item, observedAt, cupFinals);
+    if (placeholders?.has(id(obj(obj(item).game).id) ?? '')) continue;
+    const e = addGame(c, item, observedAt, stages);
     if (e) byId.set(e.id, e);
   }
   c.batch.events = [...byId.values()];
@@ -1601,13 +1708,81 @@ export function normalizeMmaResults(items: unknown[], observedAt: Date): Normali
   return c.done();
 }
 
+// ─── quartos da AFL ──────────────────────────────────────────────────────────────────────────────
+
+/** Gols (6 pontos), behinds (1 ponto) e pontos de um time num quarto da AFL. */
+export interface AflScoreLine {
+  goals: number | null;
+  behinds: number | null;
+  points: number | null;
+}
+
+/** O que cada time fez num quarto (`q1`–`q4`; prorrogações `ot`, `ot2`). */
+export interface AflQuarter {
+  code: string;
+  home: AflScoreLine;
+  away: AflScoreLine;
+}
+
+/** `games/quarters?id=` (AFL) → os quartos do fornecedor somados ao espelho do jogo (`detail.quarters`). */
+export function normalizeAflQuarters(items: unknown[], observedAt: Date): NormalizedBatch {
+  const c = new SportCollector('afl', observedAt);
+  for (const raw of items) {
+    const row = obj(raw);
+    const gid = id(obj(row.game).id);
+    if (gid && Array.isArray(row.quarters) && row.quarters.length)
+      c.supplement(gid).detail = { quarters: row.quarters };
+  }
+  return c.done();
+}
+
+const aflLine = (v: unknown): AflScoreLine => {
+  const s = obj(v);
+  return { goals: int(s.goals), behinds: int(s.behinds), points: int(s.points) };
+};
+
+const minus = (a: number | null, b: number | null): number | null => (a == null || b == null ? null : a - b);
+
+/**
+ * Quartos do fornecedor → o que cada time fez em cada quarto. O fornecedor acumula (o 4º quarto é o placar
+ * final, como no placar do estádio); uma sequência que diminui já veio por quarto e fica como está.
+ */
+export function aflQuarters(raw: unknown): AflQuarter[] {
+  const rows = (Array.isArray(raw) ? raw : [])
+    .map(obj)
+    .map((q) => ({ n: int(q.quarter), home: aflLine(obj(q.teams).home), away: aflLine(obj(q.teams).away) }))
+    .filter((q): q is { n: number; home: AflScoreLine; away: AflScoreLine } => q.n != null && q.n > 0)
+    .sort((a, b) => a.n - b.n);
+  const cumulative = rows.every(
+    (q, i) =>
+      i === 0 ||
+      (['home', 'away'] as const).every((side) => (q[side].points ?? 0) >= (rows[i - 1]![side].points ?? 0)),
+  );
+  return rows.map((q, i) => {
+    const prev = cumulative && i > 0 ? rows[i - 1]! : null;
+    const diff = (side: 'home' | 'away'): AflScoreLine =>
+      prev
+        ? {
+            goals: minus(q[side].goals, prev[side].goals),
+            behinds: minus(q[side].behinds, prev[side].behinds),
+            points: minus(q[side].points, prev[side].points),
+          }
+        : q[side];
+    return {
+      code: q.n <= 4 ? `q${q.n}` : q.n === 5 ? 'ot' : `ot${q.n - 4}`,
+      home: diff('home'),
+      away: diff('away'),
+    };
+  });
+}
+
 // ─── despacho por endpoint ───────────────────────────────────────────────────────────────────────
 
 const GAME_SPORTS = ['/games', '/games/h2h', '/standings', '/teams'] as const;
 
 /** Endpoints de cada API que viram core (o resto fica só no raw, para o espelho). */
 export const NORMALIZABLE_SPORT_ENDPOINTS: Readonly<Record<ApiSportsOtherSport, readonly string[]>> = {
-  afl: GAME_SPORTS,
+  afl: [...GAME_SPORTS, '/games/quarters'],
   baseball: GAME_SPORTS,
   basketball: GAME_SPORTS,
   handball: GAME_SPORTS,
@@ -1634,6 +1809,7 @@ export const SPORT_SUPPLEMENT_ENDPOINTS: ReadonlySet<string> = new Set([
   '/rankings/races',
   '/rankings/startinggrid',
   '/fights/results',
+  '/games/quarters',
 ]);
 
 /**
@@ -1674,6 +1850,8 @@ export function normalizeSportEnvelope(
       return { batch: normalizeMmaFights(response, observedAt, params), items };
     case '/fights/results':
       return { batch: normalizeMmaResults(response, observedAt), items };
+    case '/games/quarters':
+      return { batch: normalizeAflQuarters(response, observedAt), items };
     default:
       return null;
   }

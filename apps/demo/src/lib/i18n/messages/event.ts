@@ -8,6 +8,8 @@ export default defineMessages(
       halftime: 'Intervalo {home}–{away}',
       penalties: 'Pênaltis {home}–{away}',
       aggregate: 'Agregado {home}–{away}',
+      goalsBehinds: 'Gols.behinds {home} – {away}',
+      goalsBehindsTitle: 'Futebol australiano: gol vale 6 pontos e behind, 1',
       referee: 'Árbitro',
       periods: {
         title: {
@@ -15,6 +17,7 @@ export default defineMessages(
           q: 'Pontos por quarto',
           h: 'Gols por tempo',
           'rugby.h': 'Pontos por tempo',
+          'afl.q': 'Pontos por quarto (gols.behinds)',
           p: 'Gols por período',
           i: 'Corridas por entrada',
           default: 'Parciais',
@@ -192,6 +195,8 @@ export default defineMessages(
         halftime: 'Half-time {home}–{away}',
         penalties: 'Penalties {home}–{away}',
         aggregate: 'Aggregate {home}–{away}',
+        goalsBehinds: 'Goals.behinds {home} – {away}',
+        goalsBehindsTitle: 'Australian football: a goal is worth 6 points and a behind 1',
         referee: 'Referee',
         periods: {
           title: {
@@ -199,6 +204,7 @@ export default defineMessages(
             q: 'Points by quarter',
             h: 'Goals by half',
             'rugby.h': 'Points by half',
+            'afl.q': 'Points by quarter (goals.behinds)',
             p: 'Goals by period',
             i: 'Runs by inning',
             default: 'Partials',
@@ -370,6 +376,8 @@ export default defineMessages(
         halftime: 'Entretiempo {home}–{away}',
         penalties: 'Penales {home}–{away}',
         aggregate: 'Global {home}–{away}',
+        goalsBehinds: 'Goles.behinds {home} – {away}',
+        goalsBehindsTitle: 'Fútbol australiano: el gol vale 6 puntos y el behind, 1',
         referee: 'Árbitro',
         periods: {
           title: {
@@ -377,6 +385,7 @@ export default defineMessages(
             q: 'Puntos por cuarto',
             h: 'Goles por tiempo',
             'rugby.h': 'Puntos por tiempo',
+            'afl.q': 'Puntos por cuarto (goles.behinds)',
             p: 'Goles por período',
             i: 'Carreras por entrada',
             default: 'Parciales',
