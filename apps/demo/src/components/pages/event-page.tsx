@@ -61,7 +61,7 @@ export async function eventMetadata(id: string, source: DataSource): Promise<Met
   const { locale, t } = await getI18n();
   try {
     const event = await source.getEvent(id, locale);
-    if (isRaceEvent(event)) return { title: raceTitle(event) };
+    if (isRaceEvent(event)) return { title: raceTitle(event, t.sport) };
     return { title: event.participants.map((p) => p.name).join(` ${t.sport.versus} `) };
   } catch {
     return {};
@@ -559,7 +559,9 @@ export async function EventContent({ params, searchParams, source }: PageContent
     ? ((await source.getTeamPhotos(winnerTeam, 'car', Number(event.starts_at.slice(0, 4))))?.photos[0] ??
       null)
     : null;
-  const title = race ? raceTitle(event) : event.participants.map((p) => p.name).join(` ${t.sport.versus} `);
+  const title = race
+    ? raceTitle(event, t.sport)
+    : event.participants.map((p) => p.name).join(` ${t.sport.versus} `);
   // cor de cada time (escudo) no campo e nas estatísticas, tratando escudo monocromático e cores parecidas
   const colors = versusColors(
     event.participants.find((p) => p.side === 'home')?.colors,

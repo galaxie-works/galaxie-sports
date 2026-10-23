@@ -13,6 +13,7 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { fill, localized } from '@/lib/i18n/text';
 import { kickoffText } from '@/lib/provisional';
+import { sessionLabel } from '@/lib/race-session';
 import { cn } from '@/lib/utils';
 
 import { AnimatedIcon } from './animated-sport-icon';
@@ -119,14 +120,14 @@ function TeamRow({
 }
 
 /** Sessão de corrida (F1): nome da sessão e o top 3 com o tempo; antes da largada, só a sessão. */
-function RaceRows({ event }: { event: Event }) {
+function RaceRows({ event, t }: { event: Event; t: SportText }) {
   const top = event.participants
     .filter((p) => p.side === 'grid' && p.position != null)
     .sort((a, b) => a.position! - b.position!)
     .slice(0, 3);
   return (
     <div className="flex flex-col gap-1.5 px-3">
-      <span className="text-sm font-semibold">{event.session?.name}</span>
+      <span className="text-sm font-semibold">{sessionLabel(event.session, t)}</span>
       {top.map((p) => (
         <div key={p.id} className="flex items-center gap-2">
           <span className="text-muted-foreground w-4 text-right text-xs font-semibold tabular-nums">
@@ -266,7 +267,7 @@ export function EventCardView({
         </div>
 
         {event.session ? (
-          <RaceRows event={event} />
+          <RaceRows event={event} t={t} />
         ) : home && away ? (
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 px-3">
             <TeamSide p={home} locale={locale} />

@@ -138,7 +138,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 - Esconder o card de elenco quando o participante não é um time (`team.kind !== 'team'`).
 - A médio prazo, uma rota própria (`/pilotos/{id}`, `/lutadores/{id}`) com campeonato, equipe e corridas ou lutas. Mantém `/times/{id}` redirecionando.
 
-### 10. Temporada divergente na F1 📝
+### 10. Temporada divergente na F1 ✅ (item 25)
 
 **Onde:** na página da Fórmula 1 e no campeonato. O card do esporte mostra "2026" (temporada corrente do catálogo), mas o campeonato abre em 2024, a única temporada com dados. A aba de corridas se chama "Jogos".
 
@@ -159,7 +159,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 - **Trilha no celular:** mostra só o item anterior, truncado ("Fórm… › Campeonato Mundial…"). Proposta: no celular, trocar por um botão "‹ Fórmula 1" (voltar ao pai) e deixar o título da página na linha de baixo.
 - **Esqueleto das páginas de topo:** durante o carregamento, mostra por um instante a trilha anterior antes de começar a nova. Proposta: passar o tipo da página também ao esqueleto.
 - **Grupo "World"** na página do esporte vinha da API sem tradução. ✅ Corrigido na segunda rodada (item 13): agora entra em "Internacionais".
-- **Idioma do conteúdo:** com a interface em inglês, as sessões da F1 aparecem em espanhol ("Carrera", "Clasificación"), porque o conteúdo segue a voz do país. Não é navegação, mas confunde quem acabou de trocar o idioma. Vale revisar a regra do idioma do conteúdo para corridas.
+- **Idioma do conteúdo:** com a interface em inglês, as sessões da F1 aparecem em espanhol ("Carrera", "Clasificación"), porque o conteúdo segue a voz do país. Não é navegação, mas confunde quem acabou de trocar o idioma. Vale revisar a regra do idioma do conteúdo para corridas. ✅ Corrigido no item 25.
 - **Busca (⌘K):** abre e leva aos resultados sem problema. Não entra na trilha como pai, o que é o esperado.
 
 ## Segunda rodada: celular, ordem e organização
@@ -316,6 +316,19 @@ No celular, a Libertadores fica a 943 px do topo do Brasil (antes do #200 ficava
 | ![Piloto](img/depois-pagina-piloto.jpg) | ![Lutador](img/depois-pagina-lutador.jpg) |
 
 **Fica como proposta (📝):** cartel (V-D-E), categoria e método e round de cada luta no topo do lutador. A API ainda não expõe isso por lutador, e na base de dev as lutas encerradas aparecem como "Aguardando resultado".
+### 25. Fórmula 1: temporada, aba de corridas e nomes das sessões (E5) ✅
+
+**Onde:** campeonato e GPs da F1 (itens 10 e 12).
+
+- **Temporada:** o campeonato agora abre em 2026, a temporada com dados. Isso veio da carga histórica da F1 (#214), e não precisou de mudança na navegação.
+- **Aba:** quando a competição tem sessões, a aba se chama "Corridas" ("Races", "Carreras"), não "Jogos".
+- **Nome das sessões:** vinha do conteúdo, na voz do país ("Carrera", "Clasificación"), mesmo com a interface em inglês ou português. Agora sai do tipo da sessão, no idioma da interface: "Treino livre 1", "Classificação · Q3", "Classificação sprint", "Sprint", "Corrida". Vale no card, no placar, no título da página e na aba do navegador. Se o tipo for desconhecido, o nome do conteúdo continua.
+
+| Campeonato (inglês) | GP (inglês) |
+| --- | --- |
+| ![Depois: aba Races e sessões em inglês](img/depois-f1-corridas-en.jpg) | ![Depois: sessão Race](img/depois-f1-sessao-en.jpg) |
+
+**Falta (📝):** o card lateral do GP ainda se chama "Sobre a partida".
 
 ## Proposta maior: trilha hierárquica fixa 📝
 
@@ -385,3 +398,8 @@ Segunda rodada:
 - Explorar: `SPORT_GRID` em duas colunas no celular, com o card compacto.
 - Busca: `GROUP_ORDER` com competições antes de times (teste em `lib/search/entries.test.ts`).
 - Campanha: `line-clamp-2` no nome da competição.
+
+Fórmula 1 (item 25):
+
+- `lib/race-session.ts`: `sessionLabel` traduz o tipo da sessão (teste em `lib/race-session.test.ts`).
+- `raceTitle(event, t.sport)` em jogo, card e placar; aba "Corridas" na competição.
