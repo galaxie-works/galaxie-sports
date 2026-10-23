@@ -8,7 +8,7 @@
  * mercado (config/geo/market-audience.yaml, a mesma da API); teto 100. (O bônus continental e o da
  * semifinal da API não entram — só mudam copas continentais sem time do país.)
  */
-import { loadGeoConfig, type MarketAudience } from '@galaxie/geo';
+import { audienceFor, loadGeoConfig, type MarketAudience } from '@galaxie/geo';
 
 export const TEAM_BONUS = 10;
 export const COMPETITION_BONUS = 5;
@@ -57,8 +57,12 @@ export function marketRelevance(
   let bonus = 0;
   if (facts.participantCountries.some((c) => inMarket(c, market))) bonus += TEAM_BONUS;
   if (inMarket(facts.competitionCountry, market)) bonus += COMPETITION_BONUS;
-  const points = audience?.points(market, facts.competition?.sport, facts.competition?.slug) ?? 0;
-  return Math.min(100, Math.max(0, facts.importance) + Math.min(MAX_MARKET_BONUS, bonus) + points);
+  const importance = Math.max(0, facts.importance);
+  const points = audienceFor(
+    audience?.points(market, facts.competition?.sport, facts.competition?.slug) ?? 0,
+    importance,
+  );
+  return Math.min(100, importance + Math.min(MAX_MARKET_BONUS, bonus) + points);
 }
 
 /** Prioridade = relevância × proximidade do início (1 no apito; 1/3 a 48 h). */

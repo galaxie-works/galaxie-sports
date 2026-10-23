@@ -1,5 +1,19 @@
 import type { AudienceFile } from './schema.js';
 
+/**
+ * Importância até a qual a audiência vale inteira: a rodada comum de uma competição tier 1 (40 do tier +
+ * 4 da fase). Acima disso ela preenche só a distância proporcional até 100 — o jogo grande já está
+ * perto do topo, e somar a audiência inteira o empataria no teto com a rodada comum.
+ */
+export const AUDIENCE_FULL_UNTIL = 44;
+
+/** Pontos de audiência que valem para um jogo com essa importância (inteiros, ≤ `points`). */
+export function audienceFor(points: number, importance: number): number {
+  if (points <= 0) return 0;
+  const room = Math.max(0, 100 - importance);
+  return Math.min(points, Math.round((points * room) / (100 - AUDIENCE_FULL_UNTIL)));
+}
+
 /** Competição com audiência num mercado (lista para a expressão SQL da API). */
 export interface AudienceEntry {
   sport: string;

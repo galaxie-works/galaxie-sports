@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
+import { audienceFor } from './audience.js';
 import { GeoConfigError, loadGeoConfig, parseGeoConfig } from './config.js';
 
 const competitionsDir = fileURLToPath(new URL('../../../config/competitions/', import.meta.url));
@@ -281,6 +282,15 @@ describe('parseGeoConfig', () => {
     expect(cfg.audience.points('GB', 'football', 'liga-b')).toBe(0);
     expect(cfg.audience.entries('GB')).toEqual([{ sport: 'football', slug: 'liga-a', points: 20 }]);
     expect(parseGeoConfig(geo(), scope()).audience.points('BR', 'football', 'liga-a')).toBe(0);
+  });
+
+  it('audiência efetiva: inteira até importância 44, proporcional acima (sem empatar no teto)', () => {
+    expect(audienceFor(35, 29)).toBe(35);
+    expect(audienceFor(35, 44)).toBe(35);
+    expect(audienceFor(35, 70)).toBe(19);
+    expect(audienceFor(35, 88)).toBe(8);
+    expect(audienceFor(35, 100)).toBe(0);
+    expect(audienceFor(0, 10)).toBe(0);
   });
 
   it.each([

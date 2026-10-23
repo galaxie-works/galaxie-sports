@@ -193,7 +193,7 @@ describe('calibração por mercado (config/geo/market-audience.yaml)', () => {
       market,
       { participantCountries, competition },
       continental(market),
-      audienceOf(geo.audience, market, competition),
+      audienceOf(geo.audience, market, competition, imp),
     );
     return Math.min(100, imp + bonus);
   };
@@ -207,7 +207,7 @@ describe('calibração por mercado (config/geo/market-audience.yaml)', () => {
       'MX',
       { participantCountries: ['MX', 'MX'], competition: mx },
       continental('MX'),
-      audienceOf(geo.audience, 'MX', mx),
+      audienceOf(geo.audience, 'MX', mx, regular(1, 0)),
     );
     expect(r).toMatchObject({
       bonus: 45,
@@ -270,7 +270,9 @@ describe('calibração por mercado (config/geo/market-audience.yaml)', () => {
 
   it('a expressão SQL (order=relevance, relevance_min) soma a mesma audiência', () => {
     const q = new PgDialect().sqlToQuery(relevanceSql('MX', geo));
-    expect(q.sql).toContain('coalesce((select case when c.sport =');
+    expect(q.sql).toContain('from (select case when c.sport =');
+    // o divisor vai literal: parâmetro com ".0" colado ($1.0) é SQL inválido
+    expect(q.sql).not.toMatch(/\$\d+\.0/);
     const pairs = q.params.flatMap((v, i) => (v === 'liga-mx' ? [q.params[i + 1]] : []));
     expect(pairs).toEqual([35]);
     expect(new PgDialect().sqlToQuery(relevanceSql('MX', null)).sql).not.toContain('case when c.sport');

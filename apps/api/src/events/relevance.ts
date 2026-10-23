@@ -12,7 +12,8 @@
  *       na final (ou, decidida a outra semi e com disputa de 3º lugar, o adversário de quem caiu);
  *   bônus do país ≤ 10;
  *   + audiência da competição no mercado (config/geo/market-audience.yaml, 0–40): a liga nacional no
- *     próprio país e as grandes europeias, que a importância global não diferencia por país;
+ *     próprio país e as grandes europeias, que a importância global não diferencia por país. Vale inteira
+ *     até importância 44 e proporcional acima (`audienceFor`), para o jogo grande não empatar no teto;
  *   score = min(100, importance + bônus), com bônus = bônus do país + audiência.
  * O detalhe do evento traz a conta em todos os mercados ativos (`relevance_by_market`).
  */
@@ -26,7 +27,14 @@ import type {
   RelevanceReasonCode,
 } from '@galaxie/contracts';
 import { competition, event, participant, season, stage, type EventImportanceBreakdown } from '@galaxie/db';
-import { GLOBAL_CONFEDERATION, loadGeoConfig, type GeoConfig, type MarketAudience } from '@galaxie/geo';
+import {
+  AUDIENCE_FULL_UNTIL,
+  audienceFor,
+  GLOBAL_CONFEDERATION,
+  loadGeoConfig,
+  type GeoConfig,
+  type MarketAudience,
+} from '@galaxie/geo';
 import { knockoutStageRules } from '@galaxie/rules';
 import {
   goalsOf,
@@ -147,13 +155,15 @@ export interface MarketReason {
   teams: BracketTeam[];
 }
 
-/** Pontos de audiência da competição no mercado (0 sem config/geo ou sem competição). */
+/** Pontos de audiência da competição no mercado para um jogo dessa importância (0 sem config/geo). */
 export function audienceOf(
   audience: MarketAudience | null | undefined,
   market: string,
   competition: { sport: string; slug: string } | null | undefined,
+  importance: number,
 ): number {
-  return audience && competition ? audience.points(market, competition.sport, competition.slug) : 0;
+  if (!audience || !competition) return 0;
+  return audienceFor(audience.points(market, competition.sport, competition.slug), importance);
 }
 
 /**
@@ -451,7 +461,7 @@ function relevanceOf(
       bracket: facts.brackets.get(e.id),
     },
     new Set(continental.map((c) => `${c.sport}|${c.slug}`)),
-    audienceOf(geo?.audience, market, comp),
+    audienceOf(geo?.audience, market, comp, e.importance),
   );
   const vars = {
     teams: e.participants.filter((p) => inMarket(facts.countryOf.get(p.id), market)).map((p) => p.name),
@@ -519,10 +529,12 @@ export function relevanceSql(market: string, geo: GeoConfig | null = marketGeo()
     : sql``;
   const audience = geo?.audience.entries(market) ?? [];
   const audienceSql = audience.length
-    ? sql` + coalesce((select case ${sql.join(
-        audience.map((a) => sql`when c.sport = ${a.sport} and c.slug = ${a.slug} then ${a.points}`),
+    ? sql` + coalesce((select least(pts, round(pts * greatest(0, 100 - ${event.importance}) / ${
+        100 - AUDIENCE_FULL_UNTIL
+      }::numeric))::int from (select case ${sql.join(
+        audience.map((a) => sql`when c.sport = ${a.sport} and c.slug = ${a.slug} then ${a.points}::int`),
         sql` `,
-      )} end from core.competition c where c.id = ${event.competitionId}), 0)`
+      )} end as pts from core.competition c where c.id = ${event.competitionId}) a), 0)`
     : sql``;
   return sql`least(100, ${event.importance}${audienceSql} + least(${MAX_MARKET_BONUS},
     (case when exists (select 1 from core.event_participant ep

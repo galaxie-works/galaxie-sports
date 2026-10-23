@@ -31,6 +31,7 @@ import {
   teamProfile,
   type Database,
 } from '@galaxie/db';
+import { audienceFor } from '@galaxie/geo';
 import {
   normalizeFootballFromRaw,
   PgAssetStore,
@@ -749,12 +750,15 @@ describe('/v1/events/{id}', () => {
     expect(e.relevance).toBeNull();
 
     const br = (await get(`/v1/events/${ids.leg2}?market=br`)).json() as EventBody;
-    // clássico brasileiro na Libertadores: time do país (+10) já bate o teto
+    // audiência da Libertadores nos mercados da CONMEBOL (35, proporcional ao que falta até 100)
+    const aud = audienceFor(35, e.importance);
+    expect(aud).toBeGreaterThan(0);
+    // clássico brasileiro na Libertadores: time do país (+10) já bate o teto do bônus do país
     expect(br.relevance).toMatchObject({
       market: 'BR',
-      score: Math.min(100, e.importance + 10),
-      bonus: 10,
-      reasons: ['team_from_market', 'continental_competition', 'decides_final_opponent'],
+      score: Math.min(100, e.importance + 10 + aud),
+      bonus: 10 + aud,
+      reasons: ['team_from_market', 'continental_competition', 'decides_final_opponent', 'market_audience'],
     });
     expect(br.relevance!.details[0]).toEqual({
       code: 'team_from_market',
@@ -766,9 +770,9 @@ describe('/v1/events/{id}', () => {
     const ar = (await get(`/v1/events/${ids.leg2}?market=AR`)).json() as EventBody;
     expect(ar.relevance).toEqual({
       market: 'AR',
-      score: Math.min(100, e.importance + 10),
-      bonus: 10,
-      reasons: ['continental_competition', 'decides_final_opponent'],
+      score: Math.min(100, e.importance + 10 + aud),
+      bonus: 10 + aud,
+      reasons: ['continental_competition', 'decides_final_opponent', 'market_audience'],
       details: [
         { code: 'continental_competition', points: 5, text: 'Competição da CONMEBOL', participant: null },
         {
@@ -777,6 +781,7 @@ describe('/v1/events/{id}', () => {
           text: 'Define o adversário de Estudiantes L.P. na final',
           participant: { id: ids.estudiantes, name: 'Estudiantes L.P.' },
         },
+        { code: 'market_audience', points: aud, text: 'Audiência da competição no país', participant: null },
       ],
     });
     // outra confederação: sem bônus
@@ -796,7 +801,10 @@ describe('/v1/events/{id}', () => {
     );
     expect(all.map((r) => r.score)).toEqual([...all.map((r) => r.score)].sort((a, b) => b - a));
     expect(all.slice(0, 2).map((r) => r.market)).toEqual(['BR', 'AR']);
-    expect(all.find((r) => r.market === 'UY')!.reasons).toEqual(['continental_competition']);
+    expect(all.find((r) => r.market === 'UY')!.reasons).toEqual([
+      'continental_competition',
+      'market_audience',
+    ]);
     expect(all.find((r) => r.market === 'MX')!.bonus).toBe(0);
     // espanhol: textos no idioma pedido
     const es = (await get(`/v1/events/${ids.leg2}?locale=es-AR`)).json() as EventBody;

@@ -348,11 +348,12 @@ describe('GET /v1/explore/summary', () => {
       logo: `${ASSETS}/football/teams/121.png`,
       colors: { primary: '#006437', monochrome: false },
     });
-    // Libertadores: 88 + 10 de bônus (participante do país e competição continental do mercado)
+    // Libertadores: 88 + 10 de bônus do país + 8 de audiência (35 proporcional ao que falta até 100); o
+    // clássico do Brasileirão (70) fica em 99: 70 + 10 + 19
     expect(br.highlight).toMatchObject({
       id: ids.lib,
       competition: { slug: 'conmebol-libertadores' },
-      relevance: { market: 'BR', score: 98, bonus: 10 },
+      relevance: { market: 'BR', score: 100, bonus: 18 },
     });
     expect(br.highlight!.starts_at).toMatch(/-03:00$/);
 

@@ -1,4 +1,4 @@
-export { MarketAudience, type AudienceEntry } from './audience.js';
+export { AUDIENCE_FULL_UNTIL, audienceFor, MarketAudience, type AudienceEntry } from './audience.js';
 export {
   COMPETITION_SCOPES,
   GLOBAL_CONFEDERATION,

@@ -166,7 +166,7 @@ export function countryActivity(
       code,
       { participantCountries: e.participantCountries, competition: e.competition },
       continental,
-      audienceOf(audience, code, e.competition),
+      audienceOf(audience, code, e.competition, e.importance),
     );
     const comp = e.competition;
     const vars = {
