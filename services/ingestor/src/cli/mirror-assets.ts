@@ -9,6 +9,7 @@
  *   pnpm --filter @galaxie/ingestor assets:mirror --so-limpeza        # só a limpeza dos logos genéricos (com --plan: prévia)
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
  *           --desde-dias N (com --fotos: janela dos "escalados recentes", padrão 365)
+ *           --caminho volley    só a mídia de um esporte (pasta na CDN: football, basketball, volley...)
  * `--fotos` antes liga cada jogador sem foto à URL `football/players/{id}.png` (sai do id, sem cota) e, no fim,
  * aponta hashes repetidos que podem ser imagens genéricas ainda fora de PLACEHOLDER_PHOTO_SHA256.
  * Logos de time e competição que vêm como imagem genérica ("image not available", PLACEHOLDER_LOGO_SHA256) não vão
@@ -42,6 +43,7 @@ const { values } = parseArgs({
     limite: { type: 'string' },
     concorrencia: { type: 'string', default: '3' },
     'pausa-ms': { type: 'string', default: '250' },
+    caminho: { type: 'string' },
     denylist: { type: 'string', default: resolve('../../config/assets/denylist.yaml') },
   },
 });
@@ -93,6 +95,7 @@ try {
       includeMissing: values['retentar-ausentes'],
       personPhotos,
       limit: values.limite ? Number(values.limite) : undefined,
+      pathPrefix: values.caminho,
     });
     console.log(`A baixar nesta execução: ${report.pending} (nenhuma chamada à API de dados).`);
     console.log(logoCleanupLine(report.logoCleanup, 'a limpar'));
@@ -122,6 +125,7 @@ try {
         includeMissing: values['retentar-ausentes'],
         personPhotos,
         limit: values.limite ? Number(values.limite) : undefined,
+        pathPrefix: values.caminho,
         onProgress: (e) => {
           if (e.type === 'aborted') console.warn(e.reason);
           else if (++done % 100 === 0) console.log(`  ${done} processados...`);

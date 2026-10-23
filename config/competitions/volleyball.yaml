@@ -94,7 +94,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Vôlei masculino — Jogos Pan-Americanos", es: "Voleibol masculino — Juegos Panamericanos" }
+    labels: { pt-BR: "Vôlei masculino — Jogos Pan-Americanos", es: "Voleibol masculino — Juegos Panamericanos", en: "Pan American Games volleyball (men's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: pan-american-games-volleyball-women
     name: "Pan American Games Women"
@@ -106,7 +106,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Vôlei feminino — Jogos Pan-Americanos", es: "Voleibol femenino — Juegos Panamericanos" }
+    labels: { pt-BR: "Vôlei feminino — Jogos Pan-Americanos", es: "Voleibol femenino — Juegos Panamericanos", en: "Pan American Games volleyball (women's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   # rótulos de temporada suspeitos (2019/2023 para Tóquio/Paris) — valide antes de mapear edições
   - slug: olympics-volleyball
@@ -119,7 +119,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Vôlei masculino — Jogos Olímpicos", es: "Voleibol masculino — Juegos Olímpicos" }
+    labels: { pt-BR: "Vôlei masculino — Jogos Olímpicos", es: "Voleibol masculino — Juegos Olímpicos", en: "Olympic volleyball (men's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: olympics-volleyball-women
     name: "Olympic Games Women"
@@ -131,7 +131,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Vôlei feminino — Jogos Olímpicos", es: "Voleibol femenino — Juegos Olímpicos" }
+    labels: { pt-BR: "Vôlei feminino — Jogos Olímpicos", es: "Voleibol femenino — Juegos Olímpicos", en: "Olympic volleyball (women's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
 
   # ---------------------------------------------------------------- tier 2
@@ -145,7 +145,7 @@ competitions:
     region: south-america
     seasons_strategy: split-year
     live_priority: medium
-    labels: { es: "Liga Femenina de Voleibol Argentino" }
+    labels: { pt-BR: "Liga Argentina de Vôlei (feminina)", es: "Liga Femenina de Voleibol Argentino", en: "Argentine Volleyball League (women's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: copa-aclav
     name: "Copa ACLAV"
@@ -157,6 +157,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: low
+    labels: { pt-BR: "Copa ACLAV (Argentina)", es: "Copa ACLAV" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: copa-master-voley
     name: "Copa Master"
@@ -168,6 +169,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: low
+    labels: { pt-BR: "Copa Master (Argentina)", es: "Copa Máster" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: peru-lnsv
     name: "LNSV"
@@ -179,7 +181,7 @@ competitions:
     region: south-america
     seasons_strategy: split-year
     live_priority: low
-    labels: { es: "Liga Nacional Superior de Voleibol (masculina)" }
+    labels: { pt-BR: "Liga Peruana de Vôlei (masculina)", es: "Liga Nacional Superior de Voleibol (masculina)", en: "Peruvian Volleyball League (men's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: peru-lnsv-women
     name: "LNSV Women"
@@ -191,7 +193,7 @@ competitions:
     region: south-america
     seasons_strategy: split-year
     live_priority: medium
-    labels: { es: "Liga Nacional Superior de Voleibol (femenina)" }
+    labels: { pt-BR: "Liga Peruana de Vôlei (feminina)", es: "Liga Nacional Superior de Voleibol (femenina)", en: "Peruvian Volleyball League (women's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: pan-american-cup-volleyball
     name: "Pan-American Cup"
@@ -203,7 +205,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: medium
-    labels: { pt-BR: "Copa Pan-Americana de Vôlei (masculina)", es: "Copa Panamericana de Voleibol (masculina)" }
+    labels: { pt-BR: "Copa Pan-Americana de Vôlei (masculina)", es: "Copa Panamericana de Voleibol (masculina)", en: "Pan-American Volleyball Cup (men's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: pan-american-cup-volleyball-women
     name: "Pan-American Cup Women"
@@ -215,7 +217,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: medium
-    labels: { pt-BR: "Copa Pan-Americana de Vôlei (feminina)", es: "Copa Panamericana de Voleibol (femenina)" }
+    labels: { pt-BR: "Copa Pan-Americana de Vôlei (feminina)", es: "Copa Panamericana de Voleibol (femenina)", en: "Pan-American Volleyball Cup (women's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: club-world-championship-volleyball
     name: "Club World Championship"
@@ -227,7 +229,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: medium
-    labels: { pt-BR: "Mundial de Clubes de Vôlei (masculino)" }
+    labels: { pt-BR: "Mundial de Clubes de Vôlei (masculino)", es: "Mundial de Clubes de Voleibol (masculino)", en: "Volleyball Club World Championship (men's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: club-world-championship-volleyball-women
     name: "Club World Championship Women"
@@ -239,7 +241,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: medium
-    labels: { pt-BR: "Mundial de Clubes de Vôlei (feminino)" }
+    labels: { pt-BR: "Mundial de Clubes de Vôlei (feminino)", es: "Mundial de Clubes de Voleibol (femenino)", en: "Volleyball Club World Championship (women's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: world-championship-volleyball
     name: "World Championship"
@@ -251,7 +253,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: medium
-    labels: { pt-BR: "Campeonato Mundial de Vôlei (masculino)" }
+    labels: { pt-BR: "Campeonato Mundial de Vôlei (masculino)", es: "Campeonato Mundial de Voleibol (masculino)", en: "Volleyball World Championship (men's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: world-championship-volleyball-women
     name: "World Championship Women"
@@ -263,7 +265,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: medium
-    labels: { pt-BR: "Campeonato Mundial de Vôlei (feminino)" }
+    labels: { pt-BR: "Campeonato Mundial de Vôlei (feminino)", es: "Campeonato Mundial de Voleibol (femenino)", en: "Volleyball World Championship (women's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: world-cup-volleyball
     name: "World Cup"
@@ -275,6 +277,7 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: low
+    labels: { pt-BR: "Copa do Mundo de Vôlei (masculina)", es: "Copa del Mundo de Voleibol (masculina)", en: "Volleyball World Cup (men's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: world-cup-volleyball-women
     name: "World Cup Women"
@@ -286,7 +289,132 @@ competitions:
     region: world
     seasons_strategy: calendar-year
     live_priority: low
+    labels: { pt-BR: "Copa do Mundo de Vôlei (feminina)", es: "Copa del Mundo de Voleibol (femenina)", en: "Volleyball World Cup (women's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
 
+  # ---------------------------------------------------------------- tier 2: principais ligas europeias
+  - slug: superlega
+    name: "SuperLega"
+    country: "Italy"
+    type: league
+    api_sports_id: 97
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "SuperLega Italiana (masculina)", es: "SuperLega de Italia (masculina)", en: "Italian SuperLega (men's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+  - slug: serie-a1-femminile
+    name: "Serie A1 Women"
+    country: "Italy"
+    type: league
+    api_sports_id: 89
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Série A1 Italiana (feminina)", es: "Serie A1 de Italia (femenina)", en: "Italian Serie A1 (women's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+  - slug: plusliga
+    name: "PlusLiga"
+    country: "Poland"
+    type: league
+    api_sports_id: 113
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "PlusLiga Polonesa (masculina)", es: "PlusLiga de Polonia (masculina)", en: "Polish PlusLiga (men's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+  - slug: tauron-liga
+    name: "TAURON Liga Women"
+    country: "Poland"
+    type: league
+    api_sports_id: 120
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Tauron Liga Polonesa (feminina)", es: "Tauron Liga de Polonia (femenina)", en: "Polish Tauron Liga (women's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+  - slug: efeler-ligi
+    name: "Efeler Ligi"
+    country: "Turkey"
+    type: league
+    api_sports_id: 172
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Efeler Ligi Turca (masculina)", es: "Efeler Ligi de Turquía (masculina)", en: "Turkish Efeler Ligi (men's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+  - slug: sultanlar-ligi
+    name: "Sultanlar Ligi Women"
+    country: "Turkey"
+    type: league
+    api_sports_id: 174
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Sultanlar Ligi Turca (feminina)", es: "Sultanlar Ligi de Turquía (femenina)", en: "Turkish Sultanlar Ligi (women's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+  - slug: russia-superleague-volleyball
+    name: "Superleague"
+    country: "Russia"
+    type: league
+    api_sports_id: 132
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Superliga Russa (masculina)", es: "Superliga de Rusia (masculina)", en: "Russian Superleague (men's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+  - slug: russia-superleague-volleyball-women
+    name: "Superleague Women"
+    country: "Russia"
+    type: league
+    api_sports_id: 133
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: low
+    labels: { pt-BR: "Superliga Russa (feminina)", es: "Superliga de Rusia (femenina)", en: "Russian Superleague (women's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+  - slug: cev-champions-league
+    name: "Champions League"
+    country: "Europe"
+    type: cup
+    api_sports_id: 248
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Liga dos Campeões da CEV (masculina)", es: "Liga de Campeones CEV (masculina)", en: "CEV Champions League (men's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+  - slug: cev-champions-league-women
+    name: "Champions League Women"
+    country: "Europe"
+    type: cup
+    api_sports_id: 251
+    verify: false
+    tier: 2
+    region: europe
+    seasons_strategy: split-year
+    live_priority: medium
+    labels: { pt-BR: "Liga dos Campeões da CEV (feminina)", es: "Liga de Campeones CEV (femenina)", en: "CEV Champions League (women's)" }
+    sources: ["/leagues do fornecedor (bootstrap de 23/10/2026)"]
+
 notes:
+  - "Nas ligas de calendário dividido a chave da temporada varia: SuperLiga 2024 = 2024/25 (out–mai), mas LVA 2024 = 2023/24 (nov–abr). O rótulo vem das datas."
+  - "Champions League Women (251) só tem 2025 e 2026 no fornecedor: fora da janela do plano free (2022–2024)."
   - "Sul-Americano de Clubes não foi encontrado no snapshot do /leagues; resolver com /leagues?search= quando houver chave."

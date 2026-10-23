@@ -55,6 +55,15 @@ export default defineMessages(
       goalsForTitle: 'Gols pró',
       goalsAgainstTitle: 'Gols contra',
       goalDiffTitle: 'Saldo de gols',
+      /** Vôlei: a tabela conta sets, não gols (e não há empate). */
+      sets: {
+        goalsFor: 'SV',
+        goalsAgainst: 'SP',
+        goalDiff: 'SS',
+        goalsForTitle: 'Sets vencidos',
+        goalsAgainstTitle: 'Sets perdidos',
+        goalDiffTitle: 'Saldo de sets',
+      },
     },
   },
   {
@@ -111,6 +120,14 @@ export default defineMessages(
         goalsForTitle: 'Goals for',
         goalsAgainstTitle: 'Goals against',
         goalDiffTitle: 'Goal difference',
+        sets: {
+          goalsFor: 'SW',
+          goalsAgainst: 'SL',
+          goalDiff: 'SD',
+          goalsForTitle: 'Sets won',
+          goalsAgainstTitle: 'Sets lost',
+          goalDiffTitle: 'Set difference',
+        },
       },
     },
     'es-AR': {
@@ -166,6 +183,14 @@ export default defineMessages(
         goalsForTitle: 'Goles a favor',
         goalsAgainstTitle: 'Goles en contra',
         goalDiffTitle: 'Diferencia de gol',
+        sets: {
+          goalsFor: 'SG',
+          goalsAgainst: 'SP',
+          goalDiff: 'DS',
+          goalsForTitle: 'Sets ganados',
+          goalsAgainstTitle: 'Sets perdidos',
+          goalDiffTitle: 'Diferencia de sets',
+        },
       },
     },
   },

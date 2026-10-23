@@ -43,6 +43,8 @@ export interface AssetMirrorOptions {
   placeholderPhotos?: ReadonlySet<string>;
   /** Hashes dos logos genéricos de time e competição. Padrão PLACEHOLDER_LOGO_SHA256. */
   placeholderLogos?: ReadonlySet<string>;
+  /** Só a mídia sob este caminho da CDN (ex.: `/volley/`). */
+  pathPrefix?: string | undefined;
   /** Interrompe a execução depois de N assets seguidos que esgotaram as tentativas por 429. Padrão 5. */
   abortAfterRateLimited?: number;
   /** Só lista o que seria baixado. */
@@ -121,6 +123,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     limit: options.limit,
     includeMissing: options.includeMissing,
     personPhotos: options.personPhotos,
+    pathPrefix: options.pathPrefix,
   });
   report.pending = queue.length;
   if (options.dryRun) return report;

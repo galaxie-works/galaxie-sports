@@ -55,6 +55,17 @@ export const PARTICIPANT_KINDS = [
 
 const SidePair = z.object({ home: z.number().int().nullable(), away: z.number().int().nullable() });
 
+/** Parcial de um período do jogo (set, quarto, tempo, período, entrada). */
+export const ScorePeriod = SidePair.extend({
+  code: z.string().meta({
+    description:
+      'Período: sets do vôlei `s1`–`s5`; quartos `q1`–`q4`; tempos `h1`/`h2`; períodos do hóquei `p1`–`p3`; ' +
+      'entradas do beisebol `i1`–`i9` e `extra`; prorrogações `ot`/`ot2`; shootout `so`.',
+    example: 's1',
+  }),
+}).meta({ id: 'ScorePeriod' });
+export type ScorePeriod = z.infer<typeof ScorePeriod>;
+
 // ─── times (resumo) ──────────────────────────────────────────────────────────────────────────────
 
 export const TeamSummary = z
@@ -360,6 +371,18 @@ export const Event = z
       extratime: SidePair.nullable(),
       penalty: SidePair.nullable(),
       aggregate: SidePair.nullable().meta({ description: 'Agregado do confronto (jogo de volta).' }),
+      periods: z
+        .array(ScorePeriod)
+        .nullable()
+        .meta({
+          description:
+            'Parciais na ordem do jogo, nos esportes além do futebol. No vôlei, `home`/`away` do placar são os ' +
+            'sets vencidos e cada item de `periods` traz os pontos de um set. null sem parciais (e no futebol).',
+          example: [
+            { code: 's1', home: 25, away: 21 },
+            { code: 's2', home: 23, away: 25 },
+          ],
+        }),
     }),
     venue: z
       .object({

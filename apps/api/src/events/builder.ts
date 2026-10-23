@@ -1,6 +1,6 @@
 import { eq, inArray } from 'drizzle-orm';
 import { teamColors } from '../teams/colors.js';
-import type { Event, EventParticipant, EventStake, SupportedLocale } from '@galaxie/contracts';
+import type { Event, EventParticipant, EventStake, ScorePeriod, SupportedLocale } from '@galaxie/contracts';
 import {
   asset,
   competition,
@@ -101,6 +101,30 @@ export function pairKey(a: string | null, b: string | null): string | null {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
 
+// ordem de jogo dos parciais: o jsonb não guarda a ordem das chaves (ordena por tamanho e texto)
+const PERIOD_ORDER = [
+  ...['s1', 's2', 's3', 's4', 's5'],
+  ...['q1', 'q2', 'q3', 'q4', 'h1', 'h2', 'p1', 'p2', 'p3'],
+  ...Array.from({ length: 9 }, (_, i) => `i${i + 1}`),
+  ...['extra', 'ot', 'ot2', 'so'],
+];
+
+/** `score.periods` do core (objeto) → lista na ordem do jogo, sem os períodos não disputados. */
+export function scorePeriods(
+  periods: Record<string, { home: number | null; away: number | null }> | null | undefined,
+): ScorePeriod[] | null {
+  if (!periods) return null;
+  const rank = (code: string) => {
+    const i = PERIOD_ORDER.indexOf(code);
+    return i < 0 ? PERIOD_ORDER.length : i;
+  };
+  const list = Object.entries(periods)
+    .filter(([, p]) => p && (p.home != null || p.away != null))
+    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+    .map(([code, p]) => ({ code, home: p.home ?? null, away: p.away ?? null }));
+  return list.length ? list : null;
+}
+
 /** Gols de cada participante numa partida (null se não houver placar). */
 export function goalsOf(m: StageMatch): Map<string, number> | null {
   if (!m.homeId || !m.awayId || m.score?.home == null || m.score.away == null) return null;
@@ -154,6 +178,18 @@ export async function loadStageMatches(db: Database, stageIds: string[]): Promis
     byId.set(r.id, m);
   }
   return [...byId.values()];
+}
+
+/** Esportes em que o placar conta sets: o mata-mata é série, sem ida/volta nem agregado. */
+const SERIES_SPORTS = new Set(['volleyball']);
+
+/**
+ * Pernas do confronto: as do regulamento ou, sem ele, 2 quando o par tem dois jogos na fase. No vôlei, dois
+ * jogos do mesmo par são uma série (melhor de 3), não ida e volta: sets não se somam num agregado.
+ */
+export function tieLegs(sport: string, ruleLegs: number | undefined, tieSize: number): number {
+  if (SERIES_SPORTS.has(sport)) return 1;
+  return ruleLegs ?? (tieSize === 2 ? 2 : 1);
 }
 
 const LEG_NAMES: Record<string, [string, string]> = {
@@ -435,7 +471,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       const stageRules = rules
         ? knockoutStageRules(rules, rulesStageKey(stageKind, r.st.providerLabel))
         : null;
-      const legs = stageRules?.legs ?? (tie.length === 2 ? 2 : 1);
+      const legs = tieLegs(e.sport, stageRules?.legs, tie.length);
       if (legs === 2 && tie.length === 2) {
         leg = tie[0]!.id === id ? 1 : tie[1]!.id === id ? 2 : null;
         firstLeg = tie[0];
@@ -597,6 +633,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         extratime: pair(e.score?.extratime),
         penalty: pair(e.score?.penalty),
         aggregate: aggregate ?? pair(e.score?.aggregate),
+        periods: scorePeriods(e.score?.periods),
       },
       // nome curado da base semântica vence o do fornecedor (naming rights); o fuso usa a cidade do core
       venue: r.v?.id

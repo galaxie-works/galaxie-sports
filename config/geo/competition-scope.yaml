@@ -128,6 +128,8 @@ sports:
       - { slug: world-cup-volleyball-women, scope: national_teams, confederations: [FIFA] }
       - { slug: club-world-championship-volleyball, scope: world_clubs, confederations: [FIFA] }
       - { slug: club-world-championship-volleyball-women, scope: world_clubs, confederations: [FIFA] }
+      - { slug: cev-champions-league, scope: continental_clubs, confederations: [UEFA] }
+      - { slug: cev-champions-league-women, scope: continental_clubs, confederations: [UEFA] }
     featured: [superliga-masculina, superliga-feminina, lva]
 
   baseball:

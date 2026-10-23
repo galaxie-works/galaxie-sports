@@ -129,6 +129,23 @@ describe('runAssetMirror', () => {
     expect(retry).toMatchObject({ pending: 1, stored: 1 });
   });
 
+  it('--caminho restringe à mídia de um esporte', async () => {
+    const VOLLEY = 'https://media.api-sports.io/volley/teams/172.png';
+    const { clock, assets, objects, fetcher } = setup({ [VOLLEY]: [{ status: 200, body: fakePng(5, 5) }] }, [
+      TEAM,
+      VOLLEY,
+      BR,
+    ]);
+    expect(
+      await runAssetMirror({ assets, objects, fetcher, clock, dryRun: true, pathPrefix: 'volley' }),
+    ).toMatchObject({ pending: 1 });
+    expect(await runAssetMirror({ assets, objects, fetcher, clock, pathPrefix: '/volley/' })).toMatchObject({
+      pending: 1,
+      stored: 1,
+    });
+    expect((await assets.pending()).map((a) => a.sourceUrl)).toEqual([TEAM, BR]);
+  });
+
   it('ignora URLs fora da CDN registradas em core.asset', async () => {
     const { clock, assets, objects, fetcher } = setup({}, ['https://upload.wikimedia.org/logo.svg']);
     expect(await runAssetMirror({ assets, objects, fetcher, clock })).toMatchObject({ pending: 0 });

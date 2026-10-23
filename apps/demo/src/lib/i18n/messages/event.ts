@@ -9,6 +9,17 @@ export default defineMessages(
       penalties: 'Pênaltis {home}–{away}',
       aggregate: 'Agregado {home}–{away}',
       referee: 'Árbitro',
+      periods: {
+        title: {
+          s: 'Pontos por set',
+          q: 'Pontos por quarto',
+          h: 'Gols por tempo',
+          p: 'Gols por período',
+          i: 'Corridas por entrada',
+          default: 'Parciais',
+        } as Record<string, string>,
+        short: { ot: 'Pr', ot2: '2Pr', so: 'Pên', extra: 'Ext' } as Record<string, string>,
+      },
     },
     context: {
       title: 'Contexto',
@@ -160,6 +171,17 @@ export default defineMessages(
         penalties: 'Penalties {home}–{away}',
         aggregate: 'Aggregate {home}–{away}',
         referee: 'Referee',
+        periods: {
+          title: {
+            s: 'Points by set',
+            q: 'Points by quarter',
+            h: 'Goals by half',
+            p: 'Goals by period',
+            i: 'Runs by inning',
+            default: 'Partials',
+          },
+          short: { ot: 'OT', ot2: '2OT', so: 'SO', extra: 'Ex' },
+        },
       },
       context: {
         title: 'Context',
@@ -305,6 +327,17 @@ export default defineMessages(
         penalties: 'Penales {home}–{away}',
         aggregate: 'Global {home}–{away}',
         referee: 'Árbitro',
+        periods: {
+          title: {
+            s: 'Puntos por set',
+            q: 'Puntos por cuarto',
+            h: 'Goles por tiempo',
+            p: 'Goles por período',
+            i: 'Carreras por entrada',
+            default: 'Parciales',
+          },
+          short: { ot: 'Supl', ot2: '2Supl', so: 'Pen', extra: 'Ext' },
+        },
       },
       context: {
         title: 'Contexto',
