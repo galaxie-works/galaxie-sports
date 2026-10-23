@@ -327,7 +327,7 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
     expect(rb).toMatchObject({ kind: 'constructor', name: 'Red Bull Racing' });
   });
 
-  it('MMA: lutas com os dois cantos, categoria como fase e desfecho no espelho', async () => {
+  it('MMA: lutas com os dois cantos, card como fase e desfecho no espelho', async () => {
     const fight = await eventRow('mma', '1097');
     const parts = await db.select().from(eventParticipant).where(eq(eventParticipant.eventId, fight.id));
     expect(parts.map((p) => [p.side, p.result]).sort()).toEqual([
@@ -335,8 +335,8 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
       ['corner_red', { winner: false }],
     ]);
     const [st] = await db.select().from(stage).where(eq(stage.id, fight.stageId!));
-    expect(st).toMatchObject({ kind: 'other', providerLabel: 'category-Bantamweight' });
-    expect(st!.name).toMatchObject({ 'pt-BR': 'Peso-galo' });
+    expect(st).toMatchObject({ kind: 'fight_card', providerLabel: 'card-ufc-2024-01-13' });
+    expect(st!.name).toMatchObject({ 'pt-BR': 'UFC Fight Night: Ankalaev vs. Walker 2' });
     const [d] = await db.select().from(sportEventDetail).where(eq(sportEventDetail.eventId, fight.id));
     expect(d!.detail).toMatchObject({ result: { won_type: 'KO', round: 2 } });
     expect(d!.summary).toMatchObject({ slug: 'UFC Fight Night: Ankalaev vs. Walker 2' });

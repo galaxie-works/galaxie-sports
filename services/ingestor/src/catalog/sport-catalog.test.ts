@@ -292,6 +292,11 @@ describe('perfis por esporte', () => {
       today: TODAY,
     });
     expect(rows.competitions[0]).toMatchObject({ providerId: MMA_ALL_FIGHTS_ID, tier: 3, type: 'cup' });
+    // ano civil com datas: a janela da temporada acha as lutas (página da competição)
+    expect(rows.competitions[0]!.seasons.find((x) => x.year === 2024)).toMatchObject({
+      startDate: '2024-01-01',
+      endDate: '2024-12-31',
+    });
     const games = planSeasonCalls(SPORT_PROFILES.mma, rows, { maxTier: 3, latestSeasons: 2 });
     expect(games.map((g) => g.params)).toEqual([{ season: '2025' }, { season: '2026' }]);
   });

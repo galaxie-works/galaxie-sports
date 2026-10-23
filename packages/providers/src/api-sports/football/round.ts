@@ -20,6 +20,7 @@ const PHASE_RANK: Readonly<Record<StageKind, number>> = {
   third_place: 12,
   final: 13,
   race_weekend: 2,
+  fight_card: 2,
 };
 
 export interface ParsedRound {

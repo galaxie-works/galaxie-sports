@@ -17,6 +17,7 @@ import type {
   EventsQuery,
   EventStats,
   EventTimeline,
+  EventFightCard,
   HeadToHead,
   LiveEventsQuery,
   TeamSummary,
@@ -198,6 +199,8 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
         ...opts,
         ...(opts.type ? { type: opts.type.join(',') } : {}),
       } as Query & LocaleOpts),
+    /** Card de MMA da luta (a noite de lutas). */
+    eventCard: (id: string, opts: LocaleOpts = {}) => v1<EventFightCard>(`/v1/events/${seg(id)}/card`, opts),
     eventH2h: (id: string, opts: LocaleOpts & { limit?: number } = {}) =>
       v1<HeadToHead>(`/v1/events/${seg(id)}/h2h`, opts),
     /** Arquivo .ics (RFC 5545) do evento, como texto. */

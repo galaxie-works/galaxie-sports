@@ -301,14 +301,22 @@ function yearsFrom(response: unknown): number[] {
   return [...new Set(years)].sort((a, b) => a - b);
 }
 
-/** Temporadas de APIs que só expõem /seasons (lista de anos): a mais recente é a corrente. */
-function syntheticSeasons(years: number[], strategy: string | undefined): CompetitionRow['seasons'] {
+/**
+ * Temporadas de APIs que só expõem /seasons (lista de anos): a mais recente é a corrente. Com `calendarDates`,
+ * uma temporada de ano civil vai de 1º/jan a 31/dez (MMA: a demo e a API acham as lutas pela janela da temporada).
+ */
+function syntheticSeasons(
+  years: number[],
+  strategy: string | undefined,
+  calendarDates = false,
+): CompetitionRow['seasons'] {
   const latest = years.at(-1);
+  const dated = calendarDates && strategy !== 'split-year';
   return years.map((year) => ({
     year,
     label: strategy === 'split-year' ? `${year}/${String(year + 1).slice(2)}` : String(year),
-    startDate: null,
-    endDate: null,
+    startDate: dated ? `${year}-01-01` : null,
+    endDate: dated ? `${year}-12-31` : null,
     current: year === latest,
     coverage: null,
     providerKey: String(year),
@@ -411,7 +419,7 @@ function buildMma(responses: ReferenceResponses, ctx: BuildContext): CatalogRows
     'cup',
     countryFromConfig(cfg?.country, WORLD),
     null,
-    syntheticSeasons(yearsFrom(responses.get('/seasons')), cfg?.seasons_strategy),
+    syntheticSeasons(yearsFrom(responses.get('/seasons')), cfg?.seasons_strategy, true),
     cfg,
   );
   return { countries: countryRows([WORLD]), competitions: [competition] };

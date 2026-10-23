@@ -405,7 +405,20 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         for (const e of lastEvents) {
           const mine = e.participants.find((p) => p.id === team.id);
           const other = e.participants.find((p) => p.id !== team.id);
-          if (!mine || !other || e.score.home == null || e.score.away == null) continue;
+          if (!mine || !other) continue;
+          // lutas (MMA): sem placar, o resultado é o vencedor e o "placar" é o método e o round
+          if (e.fight && e.status === 'finished' && (mine.winner != null || other.winner != null)) {
+            const r = e.fight.result;
+            form.push({
+              event_id: e.id,
+              result: mine.winner === true ? 'W' : other.winner === true ? 'L' : 'D',
+              score: r
+                ? [r.method_name, r.round != null ? `R${r.round}` : null].filter(Boolean).join(' · ')
+                : '',
+            });
+            continue;
+          }
+          if (e.score.home == null || e.score.away == null) continue;
           const gf = mine.side === 'home' ? e.score.home : e.score.away;
           const ga = mine.side === 'home' ? e.score.away : e.score.home;
           const result =

@@ -362,6 +362,59 @@ export const EventProvisional = z
   });
 export type EventProvisional = z.infer<typeof EventProvisional>;
 
+/** Segmento da luta no card de MMA: card principal, preliminares e preliminares iniciais. */
+export const FIGHT_CARD_SEGMENTS = ['main_card', 'prelims', 'early_prelims'] as const;
+/** Método da vitória no MMA (`other` = valor novo do fornecedor, ver `method_name`). */
+export const FIGHT_METHODS = [
+  'ko',
+  'submission',
+  'decision_unanimous',
+  'decision_split',
+  'decision_majority',
+  'disqualification',
+  'draw',
+  'no_contest',
+  'other',
+] as const;
+
+export const EventFight = z
+  .object({
+    card: z
+      .object({
+        id: z
+          .uuid()
+          .meta({ description: 'Fase (`core.stage`, tipo `fight_card`) que agrupa a noite de lutas.' }),
+        name: z.string().meta({ example: 'UFC 300: Pereira vs. Hill' }),
+      })
+      .nullable(),
+    segment: z.enum(FIGHT_CARD_SEGMENTS).meta({
+      description:
+        '`main_card` (card principal), `prelims` (preliminares) ou `early_prelims` (preliminares iniciais).',
+    }),
+    main_event: z.boolean().meta({ description: 'Luta principal da noite (a que dá nome ao card).' }),
+    weight_class: z
+      .object({
+        code: z.string().meta({ example: "Women's Strawweight" }),
+        name: z.string().meta({ example: 'Peso-palha feminino' }),
+      })
+      .nullable(),
+    result: z
+      .object({
+        method: z.enum(FIGHT_METHODS),
+        method_name: z.string().meta({ example: 'Nocaute' }),
+        detail: z.string().nullable().meta({ description: 'Golpe ou finalização.', example: 'Punches' }),
+        round: z.number().int().nullable(),
+        time: z.string().nullable().meta({ description: 'Tempo no round em que acabou.', example: '3:29' }),
+        scorecards: z
+          .array(z.string())
+          .meta({ description: 'Cartões dos juízes (decisões).', example: ['29-28'] }),
+      })
+      .nullable()
+      .meta({ description: 'Desfecho; null antes da luta ou enquanto o desfecho não chegou do fornecedor.' }),
+  })
+  .meta({ id: 'EventFight', description: 'Luta de MMA: card, segmento, categoria de peso e desfecho.' });
+export type EventFight = z.infer<typeof EventFight>;
+
 export const Event = z
   .object({
     id: z.uuid(),
@@ -452,6 +505,9 @@ export const Event = z
       description: 'Preenchido só em jogo provisório (anunciado e ainda não publicado pelo fornecedor).',
     }),
     context: EventContextSummary.optional(),
+    fight: EventFight.nullable().optional().meta({
+      description: 'Só no MMA (`sport: mma`): card, segmento, categoria de peso e desfecho da luta.',
+    }),
   })
   .meta({ id: 'Event', description: 'Evento canônico (docs/05 §3.2).' });
 export type Event = z.infer<typeof Event>;
@@ -873,6 +929,23 @@ export const EventStats = z
   })
   .meta({ id: 'EventStats' });
 export type EventStats = z.infer<typeof EventStats>;
+
+export const EventFightCard = z
+  .object({
+    card: z.object({
+      id: z.uuid(),
+      name: z.string().meta({ example: 'UFC 300: Pereira vs. Hill' }),
+      starts_at: z.string().meta({ description: 'Primeira luta da noite (ISO 8601 no fuso `tz`).' }),
+      ends_at: z.string().meta({ description: 'Última luta da noite (ISO 8601 no fuso `tz`).' }),
+    }),
+    fights: z.array(Event).meta({
+      description:
+        'Todas as lutas do card: luta principal primeiro, depois o card principal, as preliminares e as ' +
+        'preliminares iniciais (cada uma com `fight.segment`). Inclui as canceladas.',
+    }),
+  })
+  .meta({ id: 'EventFightCard', description: 'Card de MMA (a noite de lutas) de uma luta.' });
+export type EventFightCard = z.infer<typeof EventFightCard>;
 
 export const HeadToHead = z
   .object({

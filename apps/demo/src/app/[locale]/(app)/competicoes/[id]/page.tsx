@@ -203,7 +203,12 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/competicoe
 
               <TabsContent value="jogos" className="flex flex-col gap-4 pt-4">
                 {rounds.length > 1 ? (
-                  <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label={tc.rounds}>
+                  // contain: a largura dos chips (45 cards de MMA, nomes longos) não alarga a página; a fileira rola
+                  <div
+                    className="flex gap-2 overflow-x-auto pb-1 [contain:inline-size]"
+                    role="group"
+                    aria-label={tc.rounds}
+                  >
                     {rounds.map((r) => (
                       <Chip
                         key={r.name}

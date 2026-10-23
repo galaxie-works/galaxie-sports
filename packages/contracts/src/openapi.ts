@@ -29,6 +29,7 @@ import {
   EventStats,
   EventTimeline,
   H2hQuery,
+  EventFightCard,
   HeadToHead,
   LiveEventsQuery,
   TeamSummary,
@@ -273,6 +274,20 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           { path: EventParams, query: H2hQuery },
           [400, 401, 403, 404, 429],
         ),
+      },
+      '/v1/events/{id}/card': {
+        get: {
+          ...getOp(
+            'Card de MMA da luta: card principal e preliminares',
+            'Eventos',
+            EventFightCard,
+            { path: EventParams, query: LocaleQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'A noite de lutas (fase `fight_card`) a que a luta pertence, com todas as lutas em ordem de exibição. ' +
+            'Só para eventos de MMA; os demais esportes respondem 404.',
+        },
       },
       '/v1/events/{id}.ics': {
         get: {

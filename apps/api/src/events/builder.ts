@@ -37,6 +37,7 @@ import {
 import { formatInstant, pickList, pickText } from '../i18n.js';
 import { assetUrl } from '../util.js';
 import { pickCheer } from './cheer.js';
+import { loadFights } from './fight.js';
 import { loadRaceSessions, loadRaceTeams, raceResult } from './race.js';
 import { importanceBreakdownDto } from './relevance.js';
 import { venueTimezone } from './timezone.js';
@@ -348,7 +349,9 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     .leftJoin(asset, eq(asset.id, participant.logoAssetId))
     .leftJoin(teamProfile, eq(teamProfile.participantId, participant.id))
     .where(inArray(eventParticipant.eventId, ids));
-  const sideOrder = (s: string) => (s === 'home' ? 0 : s === 'away' ? 1 : 2);
+  // MMA: canto vermelho antes do azul, como o mandante antes do visitante
+  const sideOrder = (s: string) =>
+    s === 'home' || s === 'corner_red' ? 0 : s === 'away' || s === 'corner_blue' ? 1 : 2;
   const partsBy = new Map<string, (EventParticipant & { _pos: number | null; _result: unknown })[]>();
   // país do mandante: fallback do fuso do local quando o local não tem país
   const homeCountryBy = new Map<string, string | null>();
@@ -444,6 +447,20 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
   }
   for (const groups of tablesBySeason.values())
     for (const g of groups.values()) g.sort((a, b) => a.rank - b.rank || b.points - a.points);
+
+  // MMA: card, segmento, categoria de peso e desfecho da luta
+  const mmaRows = rows.filter((r) => r.e.sport === 'mma');
+  const fights = mmaRows.length
+    ? await loadFights(
+        db,
+        mmaRows.map((r) => ({
+          id: r.e.id,
+          stageId: r.st?.id ?? null,
+          stageName: (r.st?.name as Record<string, string> | null) ?? null,
+        })),
+        locale,
+      )
+    : null;
 
   const lang = locale.split('-')[0]!;
   const out: BuiltEvent[] = [];
@@ -678,6 +695,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
               note: pickText(e.provisional.note, locale),
             }
           : null,
+      ...(fights ? { fight: fights.get(id) ?? null } : {}),
     };
     out.push({ dto, stakeFamilies: stakes.map((s) => s.family) });
   }
