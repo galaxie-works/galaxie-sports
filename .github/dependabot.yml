@@ -15,6 +15,10 @@ updates:
     labels: [dependencies]
     commit-message:
       prefix: 'chore(deps)'
+    ignore:
+      # Os tipos acompanham o Node do runtime (.nvmrc, engines e imagens): o major sobe junto com o Node.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       dev-dependencies:
         dependency-type: development
@@ -54,6 +58,10 @@ updates:
     labels: [dependencies, infra]
     commit-message:
       prefix: 'chore(docker)'
+    ignore:
+      # O cliente do backup acompanha o servidor; major do Postgres só com o plano de dump/restore (issue #201).
+      - dependency-name: 'postgres'
+        update-types: ['version-update:semver-major']
     groups:
       docker-images:
         patterns: ['*']
@@ -72,6 +80,12 @@ updates:
     labels: [dependencies, infra]
     commit-message:
       prefix: 'chore(docker)'
+    ignore:
+      # Major de banco e de cache exige dump/restore planejado em dev, staging e produção (issue #201).
+      - dependency-name: 'postgres'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'valkey/valkey'
+        update-types: ['version-update:semver-major']
     groups:
       compose-images:
         patterns: ['*']
