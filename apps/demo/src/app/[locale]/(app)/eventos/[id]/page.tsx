@@ -411,19 +411,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
         <Scoreboard event={event} t={t} f={f} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
-            <MatchDetails
-              eventId={id}
-              timeline={showTimeline ? timeline : null}
-              stats={stats}
-              lineups={lineups}
-              marks={lineupMarks(timeline)}
-              colors={colors}
-              query={query}
-              timeZone={f.timeZone}
-              locale={locale}
-              content={content}
-              t={t}
-            />
+            {/* contexto (cenário e resumo) sempre acima dos detalhes da partida */}
             {context?.data.length ? (
               <Section
                 title={tx.title}
@@ -447,9 +435,22 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/eventos/[i
                 ))}
               </Section>
             ) : null}
+            <MatchDetails
+              eventId={id}
+              timeline={showTimeline ? timeline : null}
+              stats={stats}
+              lineups={lineups}
+              marks={lineupMarks(timeline)}
+              colors={colors}
+              query={query}
+              timeZone={f.timeZone}
+              locale={locale}
+              content={content}
+              t={t}
+            />
             {h2h ? <H2hSection h2h={h2h} locale={locale} content={content} t={t} /> : null}
           </div>
-          {/* no celular, uma coluna só: placar → sobre o jogo → onde assistir → detalhes da partida → o resto */}
+          {/* no celular, uma coluna só: placar → sobre o jogo → onde assistir → contexto → detalhes da partida → o resto */}
           <div className="flex flex-col gap-6 max-lg:order-first">
             <AboutCard event={event} t={t} />
             <WhereToWatchCard
