@@ -1,7 +1,16 @@
 import * as z from 'zod';
 
-/** Escopos de uma competição na página de um país (docs/09 §2.1). */
-export const COMPETITION_SCOPES = ['domestic', 'continental_clubs', 'national_teams', 'world_clubs'] as const;
+/**
+ * Escopos de uma competição na página de um país (docs/09 §2.1). `regional` = doméstica estadual ou de
+ * região do país (estaduais, Copa do Nordeste), separada das nacionais (lista `regional` do escopo).
+ */
+export const COMPETITION_SCOPES = [
+  'domestic',
+  'continental_clubs',
+  'national_teams',
+  'world_clubs',
+  'regional',
+] as const;
 export type CompetitionScope = (typeof COMPETITION_SCOPES)[number];
 
 /** Escopos declarados em config/geo/competition-scope.yaml (o doméstico vem do país da competição). */
@@ -77,6 +86,11 @@ export const ScopeFile = z.strictObject({
       excluded: z.array(Slug).default([]),
       /** Domésticas em destaque: vêm primeiro no grupo do país (dentro do mesmo tier), nesta ordem. */
       featured: z.array(Slug).default([]),
+      /**
+       * Domésticas estaduais ou regionais (Carioca, Copa do Nordeste): grupo próprio na página do país,
+       * depois das nacionais, nesta ordem (dentro do mesmo tier). As demais domésticas são nacionais.
+       */
+      regional: z.array(Slug).default([]),
     }),
   ),
 });

@@ -82,7 +82,35 @@ describe('config/geo do repositório', () => {
       }
       for (const slug of geo.featuredSlugs(sport))
         expect(slugs.has(slug), `featured ${sport}/${slug}`).toBe(true);
+      for (const slug of geo.regionalSlugs(sport))
+        expect(slugs.has(slug), `regional ${sport}/${slug}`).toBe(true);
     }
+  });
+
+  it('toda doméstica do Brasil no catálogo é nacional (featured) ou regional, sem cair na mistura', () => {
+    // uma competição nova sem nível voltaria a misturar estaduais com as nacionais na página do país
+    const unclassified = (catalogs.get('football') ?? [])
+      .filter((c) => c.country === 'Brazil' && c.tier <= 2)
+      .filter((c) => geo.featuredOrder('football', c.slug) === null && !geo.isRegional('football', c.slug))
+      .map((c) => c.slug);
+    expect(unclassified).toEqual([]);
+  });
+
+  it('nível: Série A e D nacionais (na ordem de divisão), Carioca e Copa do Nordeste regionais', () => {
+    expect(geo.competitionLevel('football', 'brasileirao-serie-a', 'BR')).toBe('national');
+    expect(geo.competitionLevel('football', 'brasileirao-serie-d', 'BR')).toBe('national');
+    expect(geo.competitionLevel('football', 'carioca', 'BR')).toBe('regional');
+    expect(geo.competitionLevel('football', 'copa-do-nordeste', 'BR')).toBe('regional');
+    expect(geo.competitionLevel('football', 'conmebol-libertadores', 'WORLD')).toBeNull();
+    expect(geo.competitionLevel('football', 'conmebol-libertadores', null)).toBeNull();
+    const divisions = [
+      'brasileirao-serie-a',
+      'brasileirao-serie-b',
+      'brasileirao-serie-c',
+      'brasileirao-serie-d',
+    ];
+    const order = divisions.map((slug) => geo.featuredOrder('football', slug)!);
+    expect([...order].sort((x, y) => x - y)).toEqual(order);
   });
 
   it('toda competição internacional do catálogo está mapeada ou excluída', () => {

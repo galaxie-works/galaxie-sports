@@ -20,7 +20,10 @@
 #   countries       - países participantes além (ou em vez) das confederações: convidados
 #                     (Copa América) ou recortes (Leagues Cup = México e EUA).
 #   featured        - domésticas em destaque: vêm primeiro no grupo do país (dentro do mesmo tier),
-#                     nesta ordem (ex.: Brasileirão e Copa do Brasil antes dos estaduais).
+#                     nesta ordem (ex.: Brasileirão Série A, Copa do Brasil e Séries B, C e D).
+#   regional        - domésticas estaduais ou regionais (Carioca, Copa do Nordeste): saem das nacionais e
+#                     formam o grupo "Estaduais e regionais" da página do país, nesta ordem (dentro do
+#                     mesmo tier); na API, `level: regional`. As demais domésticas são `national`.
 #   excluded        - competições internacionais do catálogo que NÃO entram na navegação por país
 #                     (amistosos de clubes, F1 e MMA, que não têm recorte por país). O teste exige
 #                     que toda competição internacional do catálogo esteja mapeada ou excluída.
@@ -73,7 +76,7 @@ sports:
         brasileirao-serie-c,
         brasileirao-serie-d,
         supercopa-do-brasil,
-        copa-do-nordeste,
+        brasileirao-feminino,
         argentina-liga-profesional,
         copa-argentina,
         argentina-copa-de-la-liga,
@@ -93,6 +96,43 @@ sports:
         dfb-pokal,
         ligue-1,
         coupe-de-france,
+      ]
+    regional:
+      [
+        # Brasil: os estaduais de tier 1 pelo peso, depois as copas regionais e os demais estaduais
+        paulista-a1,
+        carioca,
+        mineiro,
+        gaucho,
+        paranaense,
+        baiano,
+        pernambucano,
+        cearense,
+        goiano,
+        catarinense,
+        copa-do-nordeste,
+        copa-verde,
+        copa-sul-sudeste,
+        copa-centro-oeste,
+        copa-norte,
+        paulista-a2,
+        acreano,
+        alagoano,
+        amapaense,
+        amazonense,
+        brasiliense,
+        capixaba,
+        maranhense,
+        matogrossense,
+        paraense,
+        paraibano,
+        piauiense,
+        potiguar,
+        rondoniense,
+        roraimense,
+        sergipano,
+        sul-matogrossense,
+        tocantinense,
       ]
 
   basketball:
