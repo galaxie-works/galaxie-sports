@@ -67,12 +67,14 @@ import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { DemoActivity, DemoSession, DemoUser } from '@/lib/auth/admin';
+import type { Role } from '@/lib/auth/roles';
+import type { TenantOption } from '@/lib/client/tenants';
 import { initials } from '@/lib/format';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import { fill, plural, rich } from '@/lib/i18n/text';
 
-import { useAccessPresets, useRoles } from './invite-dialog';
+import { TenantSelect, useAccessPresets, useRoles } from './invite-dialog';
 import { LocaleSelect, RoleBadge, StatusBadge, useAdminFormat } from './user-badges';
 
 /** Roda uma ação do servidor com toast e atualiza a página. */
@@ -196,13 +198,24 @@ function ProfileTab({ user }: { user: DemoUser }) {
   );
 }
 
-function AccessTab({ user, isSelf, timeZone }: { user: DemoUser; isSelf: boolean; timeZone: string }) {
+function AccessTab({
+  user,
+  tenants,
+  isSelf,
+  timeZone,
+}: {
+  user: DemoUser;
+  tenants: TenantOption[];
+  isSelf: boolean;
+  timeZone: string;
+}) {
   const { t } = useI18n();
   const { relativeTime } = useAdminFormat(timeZone);
   const accessPresets = useAccessPresets();
   const roles = useRoles();
   const { pending, run } = useAction();
-  const [role, setRole] = useState<'admin' | 'user'>(user.role);
+  const [role, setRole] = useState<Role>(user.role);
+  const [tenantId, setTenantId] = useState<string | null>(user.tenant?.id ?? null);
   const [date, setDate] = useState(user.accessExpiresAt ? user.accessExpiresAt.slice(0, 10) : '');
 
   /** Estende a partir de hoje ou da data atual, o que for mais tarde. */
@@ -235,12 +248,7 @@ function AccessTab({ user, isSelf, timeZone }: { user: DemoUser; isSelf: boolean
             <FrameDescription>{t.admin.accessTab.description}</FrameDescription>
           </FrameHeader>
           <Row title={t.admin.fields.role} description={t.admin.accessTab.roleHint}>
-            <Select
-              items={roles}
-              value={role}
-              onValueChange={(v) => setRole(v as 'admin' | 'user')}
-              disabled={isSelf}
-            >
+            <Select items={roles} value={role} onValueChange={(v) => setRole(v as Role)} disabled={isSelf}>
               <SelectTrigger className="w-full" aria-label={t.admin.fields.role}>
                 <SelectValue />
               </SelectTrigger>
@@ -253,6 +261,11 @@ function AccessTab({ user, isSelf, timeZone }: { user: DemoUser; isSelf: boolean
               </SelectContent>
             </Select>
           </Row>
+          {role === 'client' ? (
+            <Row title={t.admin.tenant.label} description={t.admin.tenant.hint}>
+              <TenantSelect tenants={tenants} value={tenantId} onChange={setTenantId} />
+            </Row>
+          ) : null}
           <Row
             title={t.admin.accessTab.validUntil}
             description={
@@ -284,12 +297,13 @@ function AccessTab({ user, isSelf, timeZone }: { user: DemoUser; isSelf: boolean
           </Row>
           <FrameFooter className="flex-row justify-end">
             <Button
-              disabled={pending}
+              disabled={pending || (role === 'client' && !tenantId)}
               onClick={() =>
                 run(
                   () =>
                     updateAccess(user.id, {
                       role,
+                      tenantId: role === 'client' ? tenantId : null,
                       accessExpiresAt:
                         role === 'admin' || !date ? null : new Date(`${date}T23:59:59-03:00`).toISOString(),
                     }),
@@ -530,12 +544,14 @@ function DangerTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
 
 export function UserDetail({
   user,
+  tenants,
   sessions,
   activity,
   currentUserId,
   timeZone,
 }: {
   user: DemoUser;
+  tenants: TenantOption[];
   sessions: DemoSession[];
   activity: DemoActivity[];
   currentUserId?: string;
@@ -612,7 +628,7 @@ export function UserDetail({
             <ProfileTab user={user} />
           </TabsContent>
           <TabsContent value="acesso">
-            <AccessTab user={user} isSelf={isSelf} timeZone={timeZone} />
+            <AccessTab user={user} tenants={tenants} isSelf={isSelf} timeZone={timeZone} />
           </TabsContent>
           <TabsContent value="sessoes">
             <SessionsTab user={user} sessions={sessions} timeZone={timeZone} />

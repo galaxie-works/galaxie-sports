@@ -28,6 +28,8 @@ export default defineMessages(
     formerNames: 'Antes: {names}',
     formerName: '{name} (até {until})',
     lastMatches: 'Últimos jogos',
+    lastFights: 'Últimas lutas',
+    lastRaces: 'Últimas corridas',
     lastMatchesSeason: 'Os últimos jogos de {season}',
     identity: {
       title: 'Identidade',
@@ -114,6 +116,8 @@ export default defineMessages(
       formerNames: 'Formerly: {names}',
       formerName: '{name} (until {until})',
       lastMatches: 'Recent matches',
+      lastFights: 'Recent fights',
+      lastRaces: 'Recent races',
       lastMatchesSeason: 'The last matches of {season}',
       identity: {
         title: 'Identity',
@@ -198,6 +202,8 @@ export default defineMessages(
       formerNames: 'Antes: {names}',
       formerName: '{name} (hasta {until})',
       lastMatches: 'Últimos partidos',
+      lastFights: 'Últimas peleas',
+      lastRaces: 'Últimas carreras',
       lastMatchesSeason: 'Los últimos partidos de {season}',
       identity: {
         title: 'Identidad',

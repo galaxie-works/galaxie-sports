@@ -1,11 +1,19 @@
 /**
- * Mapeamento conservador dos logos do acervo para os nossos times e competições (função pura). Casa
- * só dentro do mesmo país, pela melhor similaridade entre o nome do logo e os nomes do alvo (nome,
- * nome curto e, para times, apelidos da base semântica), com o normalizador da base semântica
- * (acentos, "FC", "CF", "Club"...). Na dúvida não mapeia: dois candidatos próximos viram `ambiguous`
- * para a curadoria, e nada abaixo do limiar automático é ligado.
+ * Mapeamento conservador dos logos do acervo para os nossos times e competições (função pura), pela
+ * melhor similaridade entre o nome do logo e os nomes do alvo (nome, nome curto e, para times, nomes e
+ * apelidos da base semântica), com o normalizador da base semântica (acentos, "FC", "CF", "Club"...).
+ * Três caminhos, do mais forte para o mais fraco:
+ *
+ * 1. seleção: o país do logo ("Seleção - País de Gales") aponta a seleção principal daquele país;
+ * 2. competição: quando o pacote diz de que competição é a pasta, casa entre os times que jogam nela
+ *    (lista fechada de 20 a 40 times: aceita nome traduzido, "Bayern de Munique" × "Bayern München",
+ *    desde que o vencedor fique bem à frente do segundo);
+ * 3. país: o resto casa dentro do mesmo país, com limiar alto.
+ *
+ * Na dúvida não mapeia: dois candidatos próximos viram `ambiguous` para a curadoria, e nada abaixo do
+ * limiar é ligado.
  */
-import { isSecondaryTeam, nameSimilarity, stateSuffix } from '@galaxie/knowledge';
+import { coreTokens, isSecondaryTeam, nameSimilarity, stateSuffix } from '@galaxie/knowledge';
 import type { AcervoCandidate, AcervoKind, MatchStatus } from './manifest.js';
 
 export interface MatchTarget {
@@ -17,6 +25,12 @@ export interface MatchTarget {
   name: string;
   /** Variantes com peso: nome e nome curto pesam 1; apelidos, menos. */
   names: { value: string; weight: number }[];
+  /** Seleção (participant.kind = national_team). */
+  national?: boolean;
+  /** Seleção principal: o nome é o do país ("France", não "France Aizenay" nem "France U21"). */
+  mainNational?: boolean;
+  /** Competições (ids) em que o time tem jogos no banco. */
+  competitions?: ReadonlySet<string>;
 }
 
 export interface MatchInput {
@@ -24,6 +38,11 @@ export interface MatchInput {
   kind: AcervoKind;
   country: string;
   name: string;
+  /** Escudo de seleção; `nationalCountry` é o país dela (resolvido do nome). */
+  national?: boolean;
+  nationalCountry?: string | null;
+  /** Competições (ids) da pasta do pacote: restringe os candidatos aos times que jogam nelas. */
+  competitionIds?: readonly string[];
 }
 
 export interface MatchResult {
@@ -41,6 +60,22 @@ export interface MatchOptions {
   margin?: number;
   /** Abaixo disto o candidato nem aparece (padrão 0,75). */
   floor?: number;
+}
+
+/** Limiares dentro da lista fechada de uma competição: forte (≥ 0,8, folga 0,1) ou bem destacado (≥ 0,6, folga 0,25). */
+const POOL_STRONG = { score: 0.8, margin: 0.1 };
+const POOL_CLEAR = { score: 0.6, margin: 0.25 };
+const POOL_FLOOR = 0.5;
+
+/**
+ * Os dois nomes têm uma palavra com o mesmo começo (3 letras): "Bayern de Munique" × "Bayern München",
+ * "Copenhague" × "FC Copenhagen". Exigido na faixa de confiança baixa, onde nomes parecidos só no
+ * sufixo ("Konyaspor" × "Alanyaspor") não podem ligar.
+ */
+export function shareWordStart(a: string, b: string): boolean {
+  const ta = coreTokens(a).filter((t) => t.length >= 3);
+  const tb = coreTokens(b).filter((t) => t.length >= 3);
+  return ta.some((x) => tb.some((y) => x.slice(0, 3) === y.slice(0, 3)));
 }
 
 const international = (c: string | null) => c === null || c === 'WORLD';
@@ -72,28 +107,102 @@ export function scoreTarget(logo: MatchInput, target: MatchTarget): number {
   return Math.max(0, Math.min(1, Math.round(score * 1000) / 1000));
 }
 
-export function matchLogo(logo: MatchInput, targets: MatchTarget[], options: MatchOptions = {}): MatchResult {
-  const auto = options.auto ?? 0.9;
-  const margin = options.margin ?? 0.1;
-  const floor = options.floor ?? 0.75;
-  const secondaryLogo = isSecondaryTeam(logo.name);
-  const ranked = targets
-    .filter((t) => t.kind === logo.kind && sameCountry(logo.country, t.country))
-    // base, feminino e time B só casam com logo que também seja de base, feminino ou B
-    .filter((t) => logo.kind !== 'team' || isSecondaryTeam(t.name) === secondaryLogo)
+const view = (ranked: { t: MatchTarget; s: number }[]) =>
+  ranked.slice(0, 5).map(({ t, s }) => ({ id: t.id, name: t.name, confidence: s }));
+
+const auto = (t: MatchTarget, s: number): MatchResult => ({
+  status: 'auto',
+  targetId: t.id,
+  targetName: t.name,
+  confidence: s,
+  candidates: [],
+});
+
+const rank = (logo: MatchInput, targets: MatchTarget[], floor: number) =>
+  targets
     .map((t) => ({ t, s: scoreTarget(logo, t) }))
     .filter((x) => x.s >= floor)
     .sort((x, y) => y.s - x.s || x.t.name.localeCompare(y.t.name) || x.t.id.localeCompare(y.t.id));
-  const candidates = ranked.slice(0, 5).map(({ t, s }) => ({ id: t.id, name: t.name, confidence: s }));
-  const [first, second] = ranked;
-  if (!first) return { status: 'unmatched', targetId: null, targetName: null, confidence: null, candidates };
-  if (first.s >= auto && (!second || first.s - second.s >= margin - 1e-9))
+
+export function matchLogo(logo: MatchInput, targets: MatchTarget[], options: MatchOptions = {}): MatchResult {
+  const minAuto = options.auto ?? 0.9;
+  const margin = options.margin ?? 0.1;
+  const floor = options.floor ?? 0.75;
+  const secondaryLogo = isSecondaryTeam(logo.name);
+  const national = logo.kind === 'team' && !!logo.national;
+  const eligible = targets.filter(
+    (t) =>
+      t.kind === logo.kind &&
+      // clube só casa com clube e seleção com seleção; base, feminino e B só com logo do mesmo tipo
+      (logo.kind !== 'team' || (!!t.national === national && isSecondaryTeam(t.name) === secondaryLogo)),
+  );
+  const none: MatchResult = {
+    status: 'unmatched',
+    targetId: null,
+    targetName: null,
+    confidence: null,
+    candidates: [],
+  };
+
+  // 1. seleção: a seleção principal do país do escudo
+  if (national) {
+    if (!logo.nationalCountry) return none;
+    const all = eligible.filter((t) => t.country === logo.nationalCountry);
+    // mais de uma "seleção" no cadastro do país (clubes cadastrados como seleção): vale a principal
+    const main = all.filter((t) => t.mainNational);
+    const list = main.length ? main : all;
+    if (list.length === 1) return auto(list[0]!, 1);
+    if (!list.length) return none;
+    const ranked = rank(logo, list, 0);
     return {
-      status: 'auto',
-      targetId: first.t.id,
-      targetName: first.t.name,
-      confidence: first.s,
-      candidates: [],
+      status: 'ambiguous',
+      targetId: null,
+      targetName: null,
+      confidence: ranked[0]?.s ?? null,
+      candidates: view(ranked),
     };
-  return { status: 'ambiguous', targetId: null, targetName: null, confidence: first.s, candidates };
+  }
+
+  // 2. competição: lista fechada dos times que jogam nela
+  if (logo.competitionIds?.length) {
+    const wanted = new Set(logo.competitionIds);
+    const pool = eligible.filter((t) => [...(t.competitions ?? [])].some((c) => wanted.has(c)));
+    const ranked = rank(logo, pool, POOL_FLOOR);
+    const [first, second] = ranked;
+    if (first) {
+      const gap = first.s - (second?.s ?? 0);
+      if (
+        (first.s >= POOL_STRONG.score && gap >= POOL_STRONG.margin - 1e-9) ||
+        (first.s >= POOL_CLEAR.score &&
+          gap >= POOL_CLEAR.margin - 1e-9 &&
+          first.t.names.some((n) => shareWordStart(logo.name, n.value)))
+      )
+        return auto(first.t, first.s);
+      return {
+        status: 'ambiguous',
+        targetId: null,
+        targetName: null,
+        confidence: first.s,
+        candidates: view(ranked),
+      };
+    }
+    // nenhum candidato na competição (time que subiu, temporada que o banco ainda não tem): tenta o país
+  }
+
+  // 3. país: limiar alto
+  const ranked = rank(
+    logo,
+    eligible.filter((t) => sameCountry(logo.country, t.country)),
+    floor,
+  );
+  const [first, second] = ranked;
+  if (!first) return none;
+  if (first.s >= minAuto && (!second || first.s - second.s >= margin - 1e-9)) return auto(first.t, first.s);
+  return {
+    status: 'ambiguous',
+    targetId: null,
+    targetName: null,
+    confidence: first.s,
+    candidates: view(ranked),
+  };
 }

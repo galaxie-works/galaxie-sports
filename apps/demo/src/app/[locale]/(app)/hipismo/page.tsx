@@ -25,6 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type T = Dictionary['equestrian'];
 
+/** Seção sem dado ainda: uma linha que explica, em vez de só o título (parecia página quebrada). */
+function SectionEmpty({ text }: { text: string }) {
+  return <p className="text-muted-foreground rounded-lg border border-dashed px-4 py-3 text-sm">{text}</p>;
+}
+
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <Card size="sm">
@@ -90,11 +95,15 @@ async function Content() {
         icon={<Award className="size-4" />}
         api={api}
       >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {o.highlights.map((a) => (
-            <AthleteCard key={a.id} a={a} t={te} featured={featuredIds.has(a.id)} />
-          ))}
-        </div>
+        {o.highlights.length ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {o.highlights.map((a) => (
+              <AthleteCard key={a.id} a={a} t={te} featured={featuredIds.has(a.id)} />
+            ))}
+          </div>
+        ) : (
+          <SectionEmpty text={te.highlights.empty} />
+        )}
       </Section>
 
       <Section
@@ -109,7 +118,8 @@ async function Content() {
       </Section>
 
       <Section title={te.recent.title} description={te.recent.description} api={api}>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {o.recent_competitions.length ? null : <SectionEmpty text={te.recent.empty} />}
+        <div className="grid grid-cols-1 gap-3 empty:hidden md:grid-cols-2">
           {o.recent_competitions.map((c) => (
             <Link key={c.id} href={`/hipismo/provas/${c.id}`} className="group/entry">
               <Card size="sm" className="group-hover/entry:bg-accent h-full transition-colors">
@@ -144,7 +154,8 @@ async function Content() {
         icon={<BookOpenCheck className="size-4" />}
         api={api}
       >
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {o.championships.length ? null : <SectionEmpty text={te.championships.empty} />}
+        <div className="grid grid-cols-1 gap-3 empty:hidden md:grid-cols-2">
           {o.championships.map((c) => (
             <Link key={c.key} href={`/hipismo/campeonatos/${c.key}`} className="group/entry">
               <Card size="sm" className="group-hover/entry:bg-accent h-full transition-colors">

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import type { Derby } from '@galaxie/contracts';
 import { BookOpen, CalendarDays, Lightbulb } from 'lucide-react';
 import Link from 'next/link';
@@ -39,6 +40,18 @@ function MatchRow({ m, date }: { m: Match; date: string }) {
       ) : null}
     </Link>
   );
+}
+
+/** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
+export async function generateMetadata({
+  params,
+}: PageProps<'/[locale]/classicos/[slug]'>): Promise<Metadata> {
+  const [{ slug }, { locale }] = await Promise.all([params, getI18n()]);
+  try {
+    return { title: (await getDerby(slug, locale)).name };
+  } catch {
+    return {};
+  }
 }
 
 async function Content({ params }: { params: PageProps<'/[locale]/classicos/[slug]'>['params'] }) {

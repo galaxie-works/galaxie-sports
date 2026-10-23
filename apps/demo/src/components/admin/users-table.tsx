@@ -29,6 +29,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { DemoUser, UserStatus } from '@/lib/auth/admin';
+import type { TenantOption } from '@/lib/client/tenants';
 import { initials } from '@/lib/format';
 import { useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
@@ -140,8 +141,17 @@ function useColumns(timeZone: string): ColumnDef<DataGridFeatures, DemoUser>[] {
         id: 'role',
         accessorFn: (u) => u.role,
         header: ({ column }) => <DataGridColumnHeader column={column} title={c.role} />,
-        cell: ({ row }) => <RoleBadge role={row.original.role} />,
-        size: 120,
+        cell: ({ row }) => (
+          <div className="flex min-w-0 flex-col items-start gap-0.5">
+            <RoleBadge role={row.original.role} />
+            {row.original.tenant ? (
+              <span className="text-muted-foreground max-w-full truncate text-xs">
+                {row.original.tenant.name ?? t.admin.tenant.missing}
+              </span>
+            ) : null}
+          </div>
+        ),
+        size: 140,
       },
       {
         id: 'status',
@@ -195,7 +205,15 @@ function useColumns(timeZone: string): ColumnDef<DataGridFeatures, DemoUser>[] {
   );
 }
 
-export function UsersTable({ users, timeZone }: { users: DemoUser[]; timeZone: string }) {
+export function UsersTable({
+  users,
+  tenants,
+  timeZone,
+}: {
+  users: DemoUser[];
+  tenants: TenantOption[];
+  timeZone: string;
+}) {
   const router = useRouter();
   const { locale, t } = useI18n();
   const columns = useColumns(timeZone);
@@ -204,6 +222,7 @@ export function UsersTable({ users, timeZone }: { users: DemoUser[]; timeZone: s
     { value: 'all', label: t.admin.table.allRoles },
     { value: 'admin', label: t.admin.roles.admin },
     { value: 'user', label: t.admin.roles.user },
+    { value: 'client', label: t.admin.roles.client },
   ];
   const statusFilter = [
     { value: 'all', label: t.admin.table.allStatuses },
@@ -244,7 +263,7 @@ export function UsersTable({ users, timeZone }: { users: DemoUser[]; timeZone: s
               {plural(locale, pending, t.admin.table.pendingInvites)}
             </FrameDescription>
           </div>
-          <InviteDialog />
+          <InviteDialog tenants={tenants} />
         </FrameHeader>
 
         <div className="flex flex-wrap items-center gap-2 px-4 pb-3">

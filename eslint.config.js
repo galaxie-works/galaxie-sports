@@ -16,6 +16,8 @@ export default tseslint.config(
       // Componentes gerados pelos registries (shadcn, ReUI, Animate UI, SmoothUI): mantidos como vêm
       'apps/demo/src/components/{ui,reui,examples,animate-ui,smoothui}/**',
       'apps/demo/src/hooks/**',
+      // Fontes dos widgets embutidos como texto (packages/widgets/scripts/embed-sources.mjs)
+      'packages/widgets/src/registry/sources.generated.ts',
     ],
   },
   js.configs.recommended,

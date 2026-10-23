@@ -5,6 +5,7 @@
 import { foldSearchText, type SearchResult, type SearchType } from '@galaxie/contracts';
 
 import type { DocGuideRef } from '../docs';
+import { participantHref } from '../navigation';
 
 /** Operação da referência, só o que a busca precisa (vem do servidor: o OpenAPI não vai ao navegador). */
 export interface ApiOperationSummary {
@@ -43,11 +44,16 @@ export interface SearchEntry {
   method?: string;
 }
 
-/** Página da demo de um resultado da API. */
-export function resultHref(r: Pick<SearchResult, 'type' | 'id' | 'slug'>): string {
+/**
+ * Página da demo de um resultado da API. Participante de MMA é lutador (`/lutadores`); na F1 pode ser
+ * piloto ou equipe, então vai para /times, que redireciona o piloto.
+ */
+export function resultHref(
+  r: Pick<SearchResult, 'type' | 'id' | 'slug'> & Partial<Pick<SearchResult, 'sport' | 'name'>>,
+): string {
   switch (r.type) {
     case 'team':
-      return `/times/${r.id}`;
+      return participantHref({ id: r.id, name: r.name ?? '' }, r.sport === 'mma' ? 'fighter' : null);
     case 'competition':
       return `/competicoes/${r.slug ?? r.id}`;
     case 'event':

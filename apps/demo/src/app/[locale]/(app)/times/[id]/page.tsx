@@ -8,10 +8,11 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/times/[i
   return teamMetadata((await params).id, apiSource);
 }
 
+/** Time (clube, seleção, equipe de F1). Piloto e lutador redirecionam para /pilotos e /lutadores. */
 export default function TeamPage({ params, searchParams }: PageProps<'/[locale]/times/[id]'>) {
   return (
     <Suspense fallback={<TeamFallback />}>
-      <TeamContent params={params} searchParams={searchParams} source={apiSource} />
+      <TeamContent params={params} searchParams={searchParams} source={apiSource} redirectIndividuals />
     </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 /**
  * Importação de um acervo customizado de logos: espelha no storage os logos com vínculo no manifesto
- * (`acervo/<id>/<arquivo>`), grava core.asset com `origin = acervo` (paleta incluída) e liga o asset em
+ * (com a nossa nomenclatura, `acervoStorageKey`), grava core.asset com `origin = acervo` (paleta incluída) e liga o asset em
  * `custom_logo_asset_id` do time ou da competição — o logo do fornecedor (`logo_asset_id`) nunca é
  * tocado. Idempotente: o mesmo manifesto roda de novo sem regravar nada; logo que perdeu o vínculo no
  * manifesto sai do time (o asset fica, sem apagar nada). A API só mostra esses logos com a flag
@@ -10,7 +10,18 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
-import { asset, competition, country, participant, teamProfile, type Database } from '@galaxie/db';
+import { normalizeName } from '@galaxie/knowledge';
+import {
+  asset,
+  competition,
+  country,
+  event,
+  eventParticipant,
+  participant,
+  providerMap,
+  teamProfile,
+  type Database,
+} from '@galaxie/db';
 import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
 import { paletteFromPng, type AssetPalette } from '../palette.js';
@@ -18,6 +29,7 @@ import type { AcervoLogo, AcervoManifest } from './manifest.js';
 import type { MatchTarget } from './match.js';
 import type { CountryRow } from './plan.js';
 import { paletteFromSvg } from './svg-palette.js';
+import { unsafeSvgReason } from './svg-safety.js';
 
 /** Rastro interno no asset (nunca publicado): o acervo e o arquivo do pacote, único por arquivo. */
 export const acervoSourceUrl = (id: string, file: string) => `acervo://${id}/${file}`;
@@ -40,11 +52,16 @@ export function acervoStorageKey(
   return `acervo/football/${kind === 'team' ? 'teams' : 'leagues'}/${targetId}.${sha256.slice(0, 12)}.${ext}`;
 }
 
-/** Times (clubes e seleções) e competições do futebol, com nomes e apelidos da base semântica. */
+/**
+ * Times (clubes e seleções) e competições do futebol, com nomes e apelidos da base semântica, as
+ * competições em que cada time tem jogos e, nas seleções, os nomes do país em todos os idiomas
+ * ("País de Gales" acha a seleção "Wales").
+ */
 export async function loadTargets(db: Database): Promise<MatchTarget[]> {
   const teams = await db
     .select({
       id: participant.id,
+      kind: participant.kind,
       name: participant.name,
       shortName: participant.shortName,
       country: participant.countryCode,
@@ -64,6 +81,18 @@ export async function loadTargets(db: Database): Promise<MatchTarget[]> {
     })
     .from(competition)
     .where(eq(competition.sport, 'football'));
+  const played = await db
+    .selectDistinct({ participantId: eventParticipant.participantId, competitionId: event.competitionId })
+    .from(eventParticipant)
+    .innerJoin(event, eq(event.id, eventParticipant.eventId))
+    .where(and(eq(event.sport, 'football'), isNotNull(event.competitionId)));
+  const competitionsOf = new Map<string, Set<string>>();
+  for (const r of played) {
+    const set = competitionsOf.get(r.participantId) ?? new Set<string>();
+    set.add(r.competitionId!);
+    competitionsOf.set(r.participantId, set);
+  }
+  const countryNames = new Map((await loadCountries(db)).map((c) => [c.code, c.names]));
 
   const out: MatchTarget[] = [];
   const byId = new Map<string, MatchTarget>();
@@ -76,7 +105,14 @@ export async function loadTargets(db: Database): Promise<MatchTarget[]> {
         country: t.country,
         name: t.name,
         names: [{ value: t.name, weight: 1 }],
+        competitions: competitionsOf.get(t.id) ?? new Set(),
       };
+      if (t.kind === 'national_team') {
+        target.national = true;
+        const names = countryNames.get(t.country ?? '') ?? [];
+        target.mainNational = names.some((v) => normalizeName(v) === normalizeName(t.name));
+        for (const v of names) target.names.push({ value: v, weight: 0.98 });
+      }
       if (t.shortName) target.names.push({ value: t.shortName, weight: 1 });
       byId.set(t.id, target);
       out.push(target);
@@ -99,6 +135,21 @@ export async function loadTargets(db: Database): Promise<MatchTarget[]> {
     out.push(target);
   }
   return out;
+}
+
+/** Liga da api-sports → id da competição no nosso cadastro (futebol). */
+export async function loadLeagueCompetitions(db: Database): Promise<Map<number, string>> {
+  const rows = await db
+    .select({ providerId: providerMap.providerId, entityId: providerMap.entityId })
+    .from(providerMap)
+    .where(
+      and(
+        eq(providerMap.provider, 'api-sports'),
+        eq(providerMap.sport, 'football'),
+        eq(providerMap.entityType, 'competition'),
+      ),
+    );
+  return new Map(rows.map((r) => [Number(r.providerId), r.entityId]));
 }
 
 export async function loadCountries(db: Database): Promise<CountryRow[]> {
@@ -203,6 +254,14 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
         continue;
       }
       const info = imageInfo(body);
+      const unsafe = info.contentType === 'image/svg+xml' ? unsafeSvgReason(body) : null;
+      if (unsafe) {
+        report.linked -= 1;
+        report.skipped += 1;
+        keep.add(`${logo.kind}:${logo.target_id}`);
+        emit({ type: 'skipped', key: logo.key, reason: `SVG recusado: ${unsafe}` });
+        continue;
+      }
       const storageKey = acervoStorageKey(logo.kind, logo.target_id, hash, info.contentType);
       if (!storageKey) {
         report.linked -= 1;

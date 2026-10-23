@@ -28,6 +28,14 @@ export default defineMessages(
       league: 'Liga',
       cup: 'Copa',
     } as Record<string, string>,
+    /** Nome da sessão de corrida (F1) pelo tipo: a API só tem português e espanhol. */
+    sessions: {
+      practice: 'Treino livre {n}',
+      qualifying: 'Classificação',
+      sprint_qualifying: 'Classificação sprint',
+      sprint: 'Sprint',
+      race: 'Corrida',
+    } as Record<string, string>,
     versus: 'x',
     awaitingScore: 'aguardando placar',
     awaitingResult: 'Aguardando resultado',
@@ -168,6 +176,13 @@ export default defineMessages(
         league: 'League',
         cup: 'Cup',
       },
+      sessions: {
+        practice: 'Practice {n}',
+        qualifying: 'Qualifying',
+        sprint_qualifying: 'Sprint qualifying',
+        sprint: 'Sprint',
+        race: 'Race',
+      },
       versus: 'vs',
       awaitingScore: 'awaiting score',
       awaitingResult: 'Awaiting result',
@@ -300,6 +315,13 @@ export default defineMessages(
       competitionType: {
         league: 'Liga',
         cup: 'Copa',
+      },
+      sessions: {
+        practice: 'Práctica libre {n}',
+        qualifying: 'Clasificación',
+        sprint_qualifying: 'Clasificación sprint',
+        sprint: 'Sprint',
+        race: 'Carrera',
       },
       versus: 'vs.',
       awaitingScore: 'esperando el resultado',

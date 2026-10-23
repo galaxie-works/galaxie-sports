@@ -5,6 +5,7 @@
 import { LOCALES, type Locale } from './config';
 import admin from './messages/admin';
 import auth from './messages/auth';
+import client from './messages/client';
 import code from './messages/code';
 import common from './messages/common';
 import docs from './messages/docs';
@@ -30,6 +31,7 @@ import team from './messages/team';
 export const NAMESPACES = {
   admin,
   auth,
+  client,
   code,
   common,
   docs,
@@ -73,6 +75,7 @@ export const getDictionary = (locale: Locale): Dictionary => DICTIONARIES[locale
 export const CLIENT_NAMESPACES = [
   'admin',
   'auth',
+  'client',
   'code',
   'common',
   'docsUi',

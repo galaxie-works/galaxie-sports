@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ancestorsOf, applyVisit, MAX_TRAIL, type TrailEntry, type TrailState } from './trail';
+import { ancestorsOf, applyVisit, MAX_TRAIL, originOf, type TrailEntry, type TrailState } from './trail';
 
 const portugal = { path: '/paises/pt', label: 'Portugal', kind: 'país' } as const;
 const liga = { path: '/competicoes/94', label: 'Primeira Liga', kind: 'competição' } as const;
@@ -86,6 +86,25 @@ describe('trilha de navegação', () => {
       liga,
     ]);
     expect(labels(entries)).toEqual(['Portugal', 'FC Porto', 'FC Porto x Benfica']);
+  });
+
+  it('origem: o jogo aberto pelo Ao vivo volta para o Ao vivo', () => {
+    const aoVivo = { path: '/ao-vivo', label: 'Ao vivo', kind: 'ao vivo' } as const;
+    const trail: TrailState = { entries: walk(aoVivo), pendingRoot: null };
+    expect(originOf(trail, evento, [portugal, liga])?.label).toBe('Ao vivo');
+  });
+
+  it('origem: vindo de um pai (a competição), não há botão — a trilha já leva a ele', () => {
+    const trail: TrailState = {
+      entries: walk(portugal, { ...liga, path: '/competicoes/94?aba=jogos' }),
+      pendingRoot: null,
+    };
+    expect(originOf(trail, evento, [portugal, liga])).toBeNull();
+  });
+
+  it('origem: link direto (sem caminho) não tem origem', () => {
+    expect(originOf({ entries: [], pendingRoot: null }, evento, [portugal, liga])).toBeNull();
+    expect(originOf({ entries: [], pendingRoot: null }, evento)).toBeNull();
   });
 
   it('esqueleto carregando mostra o caminho até a página', () => {

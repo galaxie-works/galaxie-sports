@@ -19,8 +19,10 @@ export type AcervoKind = 'team' | 'competition';
  * - rejected: curadoria disse que não tem par; nunca é remapeado;
  * - ambiguous: candidatos próximos demais — fica sem vínculo até a curadoria escolher;
  * - unmatched: nenhum candidato razoável no país.
+ * - duplicate: outro logo do pacote já cobre o mesmo alvo (o mesmo time na liga nacional e num torneio
+ *   internacional: vale o da liga nacional).
  */
-export const MATCH_STATUSES = ['auto', 'manual', 'rejected', 'ambiguous', 'unmatched'] as const;
+export const MATCH_STATUSES = ['auto', 'manual', 'rejected', 'ambiguous', 'unmatched', 'duplicate'] as const;
 export type MatchStatus = (typeof MATCH_STATUSES)[number];
 
 export interface AcervoCandidate {
@@ -35,7 +37,11 @@ export interface AcervoLogo {
   kind: AcervoKind;
   /** Código do país (ISO 3166-1 alfa-2 ou extensão da api-sports, ex.: GB-ENG); WORLD para torneios internacionais. */
   country: string;
+  /** Pasta de competição do pacote ("Brasil - Campeonato Brasileiro Série A"), quando houver. */
+  group?: string | undefined;
   name: string;
+  /** Escudo de seleção. */
+  national?: boolean | undefined;
   /** Arquivo servido (SVG de preferência; senão o maior PNG), relativo à pasta do pacote. */
   file: string;
   /** PNG do mesmo logo, quando houver: fonte da paleta de cores (mais fiel que ler as cores do SVG). */
@@ -46,7 +52,7 @@ export interface AcervoLogo {
   target_name?: string | undefined;
   match: MatchStatus;
   confidence?: number | undefined;
-  /** Só em `ambiguous`: os candidatos, para a curadoria escolher. */
+  /** Em `ambiguous` (e `duplicate`): os candidatos, para a curadoria escolher. */
   candidates?: AcervoCandidate[] | undefined;
 }
 
@@ -72,7 +78,9 @@ export interface AcervoManifest {
 
 export const ACERVO_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
 
-export function validateAcervoInfo(info: Partial<AcervoInfo> | undefined): AcervoInfo {
+export function validateAcervoInfo(
+  info: { [K in keyof AcervoInfo]?: AcervoInfo[K] | undefined } | undefined,
+): AcervoInfo {
   if (!info?.id || !ACERVO_ID_RE.test(info.id)) throw new Error(`id de acervo inválido: ${info?.id}`);
   for (const k of ['name', 'author', 'license', 'revision'] as const)
     if (!info[k]?.toString().trim())
