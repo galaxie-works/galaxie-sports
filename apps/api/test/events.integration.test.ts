@@ -1101,6 +1101,8 @@ describe('/v1/events/{id} — timeline, escalações, estatísticas, h2h e .ics'
     expect(body.participants.map((p: { name: string }) => p.name)).toEqual(['Palmeiras', 'Corinthians']);
     // o próprio jogo (4 x 1, encerrado) conta: a barra não pode contradizer o placar da página
     expect(body.summary).toEqual({
+      scope: 'database',
+      since: 2026,
       played: 3,
       draws: 1,
       teams: [

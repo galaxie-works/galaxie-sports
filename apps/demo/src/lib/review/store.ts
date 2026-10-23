@@ -275,6 +275,28 @@ async function applyLive(
       );
       return d ? { entityType: 'derby', entityId: d.k } : null;
     }
+    case 'all-time': {
+      // histórico geral: `derby:<slug>` fica no clássico; `pair:<slug>`, na lista de confrontos
+      const [owner, slug] = [row.key.slice(0, row.key.indexOf(':')), row.key.slice(row.key.indexOf(':') + 1)];
+      if (owner === 'derby') {
+        const d = await one(
+          `update semantic.derby set all_time = jsonb_set(all_time, '{review_status}', to_jsonb($2::text)),
+                updated_at = now()
+            where slug = $1 and all_time is not null returning id::text as k`,
+          [slug, status],
+        );
+        return d ? { entityType: 'derby', entityId: d.k } : null;
+      }
+      await one(
+        `update semantic.head_to_head
+            set review_status = $2::text::semantic.review_status,
+                all_time = jsonb_set(all_time, '{review_status}', to_jsonb($2::text)),
+                updated_at = now()
+          where slug = $1 returning slug as k`,
+        [slug, status],
+      );
+      return { entityType: 'head_to_head', entityId: slug };
+    }
     case 'competition':
       await one(
         `update semantic.competition_profile set review_status = $2, updated_at = now()

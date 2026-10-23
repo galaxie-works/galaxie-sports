@@ -104,7 +104,16 @@ export default defineMessages(
     },
     h2h: {
       title: 'Confronto direto',
-      matches: { one: '{count} jogo na base', other: '{count} jogos na base' },
+      matches: {
+        one: '{count} jogo desde {year} na nossa base',
+        other: '{count} jogos desde {year} na nossa base',
+      },
+      allTime: 'Histórico geral do {derby}',
+      allTimePair: 'Histórico geral do confronto',
+      allTimeNote: 'até {date} · fonte: {source}',
+      officialOnly: 'só jogos oficiais',
+      allTimeRecord: '{matches} · {draws}',
+      ourData: 'Na nossa base, desde {year}',
       draws: 'Empates',
     },
     about: {
@@ -286,7 +295,16 @@ export default defineMessages(
       },
       h2h: {
         title: 'Head-to-head',
-        matches: { one: '{count} match on record', other: '{count} matches on record' },
+        matches: {
+          one: '{count} match since {year} in our database',
+          other: '{count} matches since {year} in our database',
+        },
+        allTime: '{derby}: all-time record',
+        allTimePair: 'All-time head-to-head record',
+        allTimeNote: 'through {date} · source: {source}',
+        officialOnly: 'official matches only',
+        allTimeRecord: '{matches} · {draws}',
+        ourData: 'In our database since {year}',
         draws: 'Draws',
       },
       about: {
@@ -466,7 +484,16 @@ export default defineMessages(
       },
       h2h: {
         title: 'Historial',
-        matches: { one: '{count} partido en la base', other: '{count} partidos en la base' },
+        matches: {
+          one: '{count} partido desde {year} en nuestra base',
+          other: '{count} partidos desde {year} en nuestra base',
+        },
+        allTime: 'Historial general del {derby}',
+        allTimePair: 'Historial general del enfrentamiento',
+        allTimeNote: 'hasta el {date} · fuente: {source}',
+        officialOnly: 'solo partidos oficiales',
+        allTimeRecord: '{matches} · {draws}',
+        ourData: 'En nuestra base, desde {year}',
         draws: 'Empates',
       },
       about: {

@@ -41,7 +41,8 @@ export default defineMessages(
       'Perfil do jogador: time atual, números por competição, carreira, transferências e últimos jogos.',
     personOverviewSeason: 'Perfil do jogador com os números e os jogos da temporada {season}.',
     venue: 'Estádio, circuito ou arena: cidade, capacidade, piso e foto.',
-    derby: 'Clássico com história e retrospecto calculado dos jogos na base.',
+    derby:
+      'Clássico com história, histórico geral curado (com fonte e data) e o recorte calculado dos jogos da nossa base.',
     requiresModule: 'Exige o módulo {module}.',
     liveEvents: 'Eventos em andamento agora (ao vivo, intervalo, interrompido), por importância.',
     liveEventsNote:
@@ -90,7 +91,8 @@ export default defineMessages(
         'Player profile: current team, numbers by competition, career, transfers and latest matches.',
       personOverviewSeason: 'Player profile with the numbers and matches of the {season} season.',
       venue: 'Stadium, circuit or arena: city, capacity, surface and photo.',
-      derby: 'Derby with its history and a record computed from the matches in the database.',
+      derby:
+        'Derby with its history, a curated all-time record (with source and date) and the record computed from the matches in our database.',
       requiresModule: 'Requires the {module} module.',
       liveEvents: 'Events in progress right now (live, half-time, interrupted), by importance.',
       liveEventsNote:
@@ -139,7 +141,8 @@ export default defineMessages(
         'Perfil del jugador: equipo actual, números por competición, carrera, transferencias y últimos partidos.',
       personOverviewSeason: 'Perfil del jugador con los números y los partidos de la temporada {season}.',
       venue: 'Estadio, circuito o arena: ciudad, capacidad, superficie y foto.',
-      derby: 'Clásico con su historia y el historial calculado de los partidos en la base.',
+      derby:
+        'Clásico con su historia, el historial general curado (con fuente y fecha) y el historial calculado de los partidos de nuestra base.',
       requiresModule: 'Requiere el módulo {module}.',
       liveEvents: 'Eventos en curso ahora (en vivo, entretiempo, interrumpido), por importancia.',
       liveEventsNote:

@@ -8,6 +8,7 @@ import type {
   CopyTemplateEntry,
   DerbyEntry,
   DerbyTextsEntry,
+  HeadToHeadEntry,
   ParticipantsFile,
   GlossaryFile,
   GlossaryTermEntry,
@@ -27,6 +28,7 @@ export type FileKind =
   | 'national-teams'
   | 'participants'
   | 'derbies'
+  | 'head-to-head'
   | 'competitions'
   | 'copy'
   | 'glossary'
@@ -89,6 +91,7 @@ export type LocatedTeam = Located<TeamEntry> & {
   textLocale: TextLocale;
 };
 export type LocatedDerby = Located<DerbyEntry> & { sport: KnowledgeSport; textLocale: TextLocale };
+export type LocatedHeadToHead = Located<HeadToHeadEntry> & { sport: KnowledgeSport };
 /** Tradução de um item (`i18n/<locale>.yaml`); `listKey` diz se é time ou clássico. */
 export type LocatedTexts =
   | (Located<TeamTextsEntry> & { locale: TextLocale; listKey: 'teams' })
@@ -101,6 +104,8 @@ export interface KnowledgeBase {
   files: KnowledgeFile[];
   teams: LocatedTeam[];
   derbies: LocatedDerby[];
+  /** Pares que não são clássicos, com histórico geral curado (`<esporte>/head-to-head`). */
+  headToHead: LocatedHeadToHead[];
   competitions: Located<CompetitionEntry>[];
   copyTemplates: LocatedCopyTemplate[];
   glossary: LocatedGlossaryTerm[];
@@ -115,6 +120,7 @@ export function fileKind(rel: string): FileKind {
   if (rel === 'football/national-teams.yaml') return 'national-teams';
   if (sport && /^[a-z0-9-]+\/participants\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'participants';
   if (sport && /^[a-z0-9-]+\/derbies\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'derbies';
+  if (sport && /^[a-z0-9-]+\/head-to-head\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'head-to-head';
   if (/^competitions\/[a-z0-9-]+\.ya?ml$/.test(rel)) return 'competitions';
   if (/^copy\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'copy';
   if (/^glossary\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'glossary';
@@ -209,6 +215,7 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
     files,
     teams: [],
     derbies: [],
+    headToHead: [],
     competitions: [],
     copyTemplates: [],
     glossary: [],
@@ -268,6 +275,11 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
               ? d.entry.text_locale!
               : textLocale,
           })),
+        );
+        break;
+      case 'head-to-head':
+        kb.headToHead.push(
+          ...items<HeadToHeadEntry>(file, 'pairs').map((p) => ({ ...p, sport: sportOf(file.rel)! })),
         );
         break;
       case 'competitions':

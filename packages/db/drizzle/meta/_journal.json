@@ -183,6 +183,13 @@
       "when": 1792769467131,
       "tag": "0025_revisao_semantica",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792772764246,
+      "tag": "0026_historico_geral",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AppContext } from '../../context.js';
 import { MemoryResponseCache } from '../../cache/store.js';
 import {
+  allTimeOf,
   copyHintsFor,
   derbyTexts,
   effectiveMinReview,
@@ -159,7 +160,14 @@ describe('retrospect', () => {
       'a',
       'b',
     );
-    expect(r).toMatchObject({ matches: 4, draws: 1, available: true, source: 'core' });
+    expect(r).toMatchObject({
+      matches: 4,
+      draws: 1,
+      available: true,
+      source: 'core',
+      scope: 'database',
+      since: 2021,
+    });
     expect(r.teams).toEqual([
       { slug: 'a', wins: 2, goals: 7 },
       { slug: 'b', wins: 1, goals: 6 },
@@ -184,6 +192,60 @@ describe('retrospect', () => {
       last_5: [],
       first_match_at: null,
       last_match_at: null,
+      scope: 'database',
+      since: null,
     });
+  });
+
+  it('since segue o fuso pedido (virada de ano)', () => {
+    const r = retrospect(
+      [match('2014-01-01T01:00:00Z', ['a', 1], ['b', 0])],
+      true,
+      'a',
+      'b',
+      'America/Sao_Paulo',
+    );
+    expect(r.since).toBe(2013);
+  });
+});
+
+describe('allTimeOf', () => {
+  const raw = {
+    matches: 126,
+    draws: 20,
+    teams: [
+      { team: 'palmeiras', wins: 66, goals: 208 },
+      { team: 'fluminense', wins: 40, goals: 166 },
+    ],
+    basis: 'all' as const,
+    as_of: '2025-11-01',
+    sources: ['https://pt.wikipedia.org/wiki/Confrontos_entre_Fluminense_e_Palmeiras_no_futebol'],
+    review_status: 'draft' as const,
+  };
+
+  it('converte para o formato da API (team → slug, gols ausentes → null)', () => {
+    const r = allTimeOf(
+      {
+        ...raw,
+        teams: [
+          { team: 'a', wins: 1 },
+          { team: 'b', wins: 2, goals: null },
+        ],
+        matches: 3,
+        draws: 0,
+      },
+      'draft',
+    );
+    expect(r!.teams).toEqual([
+      { slug: 'a', wins: 1, goals: null },
+      { slug: 'b', wins: 2, goals: null },
+    ]);
+    expect(allTimeOf(raw, 'draft')).toMatchObject({ matches: 126, as_of: '2025-11-01', basis: 'all' });
+  });
+
+  it('respeita o status mínimo e a ausência do bloco', () => {
+    expect(allTimeOf(raw, 'approved')).toBeNull();
+    expect(allTimeOf({ ...raw, review_status: 'approved' }, 'approved')).not.toBeNull();
+    expect(allTimeOf(null, 'draft')).toBeNull();
   });
 });

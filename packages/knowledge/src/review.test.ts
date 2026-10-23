@@ -25,7 +25,15 @@ beforeAll(async () => {
 describe('buildReviewItems', () => {
   it('cobre perfis, clássicos, competições, copy, glossário e traduções, com ids únicos', () => {
     const kinds = new Set(items.map((i) => i.kind));
-    expect([...kinds].sort()).toEqual(['competition', 'copy', 'derby', 'glossary', 'team', 'translation']);
+    expect([...kinds].sort()).toEqual([
+      'all-time',
+      'competition',
+      'copy',
+      'derby',
+      'glossary',
+      'team',
+      'translation',
+    ]);
     expect(new Set(items.map((i) => i.id)).size).toBe(items.length);
     expect(items.filter((i) => i.kind === 'team')).toHaveLength(kb.teams.length);
     expect(items.filter((i) => i.kind === 'translation')).toHaveLength(kb.texts.length);
@@ -114,6 +122,29 @@ describe('decisões', () => {
     expect(buildSeedRows(kb).teams.find((t) => t.slug === 'palmeiras')!.reviewStatus).toBe(
       yamlOf('palmeiras'),
     );
+  });
+
+  it('histórico geral: item próprio por clássico e por par; o clássico não muda de hash por ele', () => {
+    const pair = byId('all-time:pair:palmeiras-fluminense');
+    expect(pair).toMatchObject({ kind: 'all-time', market: 'BR', locale: null, yamlStatus: 'draft' });
+    expect(pair.content).toMatchObject({ teams: ['palmeiras', 'fluminense'] });
+    expect((pair.content.all_time as Record<string, unknown>).review_status).toBeUndefined();
+    const all = byId('all-time:derby:choque-rei');
+    expect(all).toMatchObject({ title: 'Choque-Rei', yamlStatus: 'draft' });
+    expect(byId('derby:choque-rei').content.all_time).toBeUndefined();
+    const decided = decidedStatuses(items, [
+      { itemId: all.id, status: 'approved', reviewHash: all.reviewHash },
+      { itemId: pair.id, status: 'approved', reviewHash: pair.reviewHash },
+    ]);
+    const rows = buildSeedRows(kb, decided);
+    const derby = rows.derbies.find((d) => d.slug === 'choque-rei')!;
+    expect(derby.allTime!.review_status).toBe('approved');
+    expect(derby.reviewStatus).toBe('approved');
+    const row = rows.pairs.find((p) => p.slug === 'palmeiras-fluminense')!;
+    expect(row).toMatchObject({ reviewStatus: 'approved', allTime: { review_status: 'approved' } });
+    const yaml = buildSeedRows(kb);
+    expect(yaml.pairs.find((p) => p.slug === 'palmeiras-fluminense')!.reviewStatus).toBe('draft');
+    expect(yaml.derbies.find((d) => d.slug === 'choque-rei')!.allTime!.review_status).toBe('draft');
   });
 
   it('applyGlossaryDecisions troca o status só do termo decidido sobre o mesmo conteúdo', () => {

@@ -8,6 +8,7 @@ import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { Intensity } from '@/components/sport/intensity';
 import { Section } from '@/components/sport/section';
+import { SourceNote } from '@/components/sport/source-note';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { derbyRequest, getDerby, getTeamOverview } from '@/lib/galaxie/api';
@@ -54,7 +55,11 @@ async function Content({ params }: { params: PageProps<'/[locale]/classicos/[slu
     ),
   );
   const r = derby.retrospect;
-  const winsOf = (s: string) => r.teams.find((team) => team.slug === s);
+  const all = derby.all_time;
+  // em destaque, o histórico geral curado; sem ele, o recorte da base (sempre com o ano de início)
+  const statsOf = (s: string) => (all ?? r).teams.find((team) => team.slug === s);
+  const ourData = r.available && r.matches > 0 && r.since !== null;
+  const nameOf = (s: string) => derby.teams.find((team) => team.slug === s)?.name ?? s;
   const api = derbyRequest(slug, locale, content);
   // os clássicos da base semântica são de futebol
   const sport = sportParent('football', t);
@@ -77,17 +82,19 @@ async function Content({ params }: { params: PageProps<'/[locale]/classicos/[slu
             </div>
             <div className="flex w-full max-w-2xl items-center justify-between gap-4">
               {derby.teams.map((team, i) => {
-                const stats = winsOf(team.slug);
+                const stats = statsOf(team.slug);
                 const body = (
                   <div className="flex flex-col items-center gap-2 text-center">
                     <Crest src={logos[i]} name={team.name} size="lg" />
                     <span className="font-semibold">{team.name}</span>
-                    {r.available && stats ? (
+                    {(all || ourData) && stats ? (
                       <span className="text-muted-foreground text-xs">
-                        {fill(td.teamStats, {
-                          wins: plural(locale, stats.wins, td.wins),
-                          goals: plural(locale, stats.goals, td.goals),
-                        })}
+                        {stats.goals === null
+                          ? plural(locale, stats.wins, td.wins)
+                          : fill(td.teamStats, {
+                              wins: plural(locale, stats.wins, td.wins),
+                              goals: plural(locale, stats.goals, td.goals),
+                            })}
                       </span>
                     ) : null}
                   </div>
@@ -107,12 +114,36 @@ async function Content({ params }: { params: PageProps<'/[locale]/classicos/[slu
                 );
               })}
             </div>
-            {r.available ? (
-              <p className="text-muted-foreground text-sm">
+            {all ? (
+              <div className="flex flex-col items-center gap-0.5 text-center">
+                <p className="text-sm font-medium">
+                  {td.allTime}:{' '}
+                  {fill(td.record, {
+                    matches: plural(locale, all.matches, td.matches),
+                    draws: plural(locale, all.draws, td.draws),
+                  })}
+                  {all.basis === 'official' ? ` (${td.officialOnly})` : null}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  <SourceNote template={td.allTimeNote} date={f.calendarDate(all.as_of)} urls={all.sources} />
+                </p>
+              </div>
+            ) : null}
+            {ourData ? (
+              <p className="text-muted-foreground text-center text-xs">
+                {fill(td.ourData, { year: r.since! })}:{' '}
                 {fill(td.record, {
                   matches: plural(locale, r.matches, td.matches),
                   draws: plural(locale, r.draws, td.draws),
                 })}
+                {all
+                  ? ` · ${fill(td.ourDataWins, {
+                      home: nameOf(r.teams[0]!.slug),
+                      a: r.teams[0]!.wins,
+                      b: r.teams[1]!.wins,
+                      away: nameOf(r.teams[1]!.slug),
+                    })}`
+                  : null}
               </p>
             ) : null}
           </CardContent>

@@ -15,7 +15,15 @@ import type { ReviewStatus } from './types.js';
  *   e aplica as decisões válidas nas tabelas servidas pela API.
  */
 
-export const REVIEW_KINDS = ['team', 'derby', 'competition', 'copy', 'glossary', 'translation'] as const;
+export const REVIEW_KINDS = [
+  'team',
+  'derby',
+  'all-time',
+  'competition',
+  'copy',
+  'glossary',
+  'translation',
+] as const;
 export type ReviewKind = (typeof REVIEW_KINDS)[number];
 
 /** Item revisável da base, como vai para `semantic.review_item`. */
@@ -110,7 +118,8 @@ export function buildReviewItems(kb: KnowledgeBase): ReviewItem[] {
     });
   }
   for (const d of kb.derbies) {
-    const content = reviewContent(d.entry);
+    // o histórico geral é revisado à parte (item `all-time`): o clássico não muda de hash por causa dele
+    const content = reviewContent(d.entry, ['all_time']);
     const countries = [
       ...new Set(d.entry.teams.map((s) => teams.get(s)?.countryCode.toUpperCase()).filter(Boolean)),
     ];
@@ -124,6 +133,42 @@ export function buildReviewItems(kb: KnowledgeBase): ReviewItem[] {
       title: d.entry.name,
       sourceFile: `data/knowledge/${d.file}`,
       yamlStatus: statusOf(d.entry.review_status),
+      reviewHash: reviewHash(content),
+      content,
+      original: null,
+      originalLocale: null,
+      parentKind: null,
+    });
+  }
+  // histórico geral curado, um item por clássico (`derby:<slug>`) e por par da lista (`pair:<slug>`);
+  // o status fica dentro do bloco all_time
+  const allTimeOwners = [
+    ...kb.derbies
+      .filter((d) => d.entry.all_time)
+      .map((d) => ({ key: `derby:${d.entry.slug}`, title: d.entry.name, pair: d.entry.teams, ...d })),
+    ...kb.headToHead.map((p) => ({
+      key: `pair:${p.entry.slug}`,
+      title: p.entry.teams.map((s) => teams.get(s)?.entry.names?.short ?? s).join(' × '),
+      pair: p.entry.teams,
+      ...p,
+    })),
+  ];
+  for (const o of allTimeOwners) {
+    const { review_status: status, ...allTime } = o.entry.all_time!;
+    const content = { teams: o.pair, all_time: allTime };
+    const countries = [
+      ...new Set(o.pair.map((s) => teams.get(s)?.countryCode.toUpperCase()).filter(Boolean)),
+    ];
+    items.push({
+      id: reviewItemId('all-time', o.key),
+      kind: 'all-time',
+      key: o.key,
+      locale: null,
+      sport: o.sport,
+      market: countries.length === 1 ? countries[0]! : 'INT',
+      title: o.title,
+      sourceFile: `data/knowledge/${o.file}`,
+      yamlStatus: statusOf(status),
       reviewHash: reviewHash(content),
       content,
       original: null,

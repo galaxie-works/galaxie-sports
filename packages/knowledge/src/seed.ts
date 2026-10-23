@@ -5,6 +5,7 @@ import {
   copyTemplate,
   derby,
   derbyTeam,
+  headToHead,
   loadRun,
   reviewDecision,
   reviewItem,
@@ -40,6 +41,8 @@ export interface EntityStats {
 export interface SeedResult {
   teams: EntityStats;
   derbies: EntityStats;
+  /** Pares que não são clássicos, com histórico geral curado. */
+  headToHead: EntityStats;
   competitions: EntityStats;
   copyTemplates: EntityStats;
   /** Perfis ligados a core.participant (via provider_map) e competições ligadas a core.competition. */
@@ -125,6 +128,14 @@ export function buildSeedRows(kb: KnowledgeBase, decided: ReadonlyMap<string, Re
       firstMatch: d.first_match ?? null,
       origin: d.origin ?? null,
       trivia: d.trivia ?? [],
+      // o histórico geral tem decisão própria no painel (item `all-time`)
+      allTime: d.all_time
+        ? {
+            ...d.all_time,
+            review_status:
+              decided.get(reviewItemId('all-time', `derby:${d.slug}`)) ?? d.all_time.review_status,
+          }
+        : null,
       textLocale,
       texts: (texts.derbies.get(d.slug) ?? {}) as Record<string, LocalizedDerbyTexts>,
       sourceFile: `data/knowledge/${file}`,
@@ -132,6 +143,19 @@ export function buildSeedRows(kb: KnowledgeBase, decided: ReadonlyMap<string, Re
       reviewStatus: decided.get(reviewItemId('derby', d.slug)) ?? d.review_status ?? 'draft',
     };
     return { ...row, contentHash: contentHash({ ...row, teams: d.teams }) };
+  });
+  const pairs = kb.headToHead.map(({ entry: p, file, sport }) => {
+    const reviewStatus =
+      decided.get(reviewItemId('all-time', `pair:${p.slug}`)) ?? p.all_time.review_status ?? 'draft';
+    const row = {
+      slug: p.slug,
+      sport,
+      teams: [...p.teams].sort() as [string, string],
+      allTime: { ...p.all_time, review_status: reviewStatus },
+      sourceFile: `data/knowledge/${file}`,
+      reviewStatus,
+    };
+    return { ...row, contentHash: contentHash(row) };
   });
   const derbyTeams = kb.derbies.flatMap(({ entry: d }) =>
     d.teams.map((teamSlug) => ({ derbySlug: d.slug, teamSlug })),
@@ -168,7 +192,7 @@ export function buildSeedRows(kb: KnowledgeBase, decided: ReadonlyMap<string, Re
     };
     return { ...row, contentHash: contentHash(row) };
   });
-  return { teams, derbies, derbyTeams, competitions, copy };
+  return { teams, derbies, derbyTeams, pairs, competitions, copy };
 }
 
 /** Traduções de i18n/<locale>.yaml agrupadas por slug: `{ "<locale>": { ...campos, review_status } }`. */
@@ -243,6 +267,7 @@ export async function seedSemantic(
     const stats = {
       teams: emptyStats(rows.teams.length),
       derbies: emptyStats(rows.derbies.length),
+      headToHead: emptyStats(rows.pairs.length),
       competitions: emptyStats(rows.competitions.length),
       copyTemplates: emptyStats(rows.copy.length),
     };
@@ -299,6 +324,25 @@ export async function seedSemantic(
       tx,
       'team',
       rows.teams.map((t) => t.slug),
+    );
+
+    // 4b. pares que não são clássicos (só dependem dos slugs, sem chave estrangeira)
+    for (const batch of chunks(rows.pairs)) {
+      const returned = await tx
+        .insert(headToHead)
+        .values(batch)
+        .onConflictDoUpdate({
+          target: headToHead.slug,
+          set: { ...excludedSet(headToHead, ['slug', 'updatedAt']), updatedAt: sql`now()` },
+          setWhere: sql`${headToHead.contentHash} is distinct from excluded.content_hash`,
+        })
+        .returning({ inserted: sql<boolean>`(xmax = 0)` });
+      tally(stats.headToHead, returned);
+    }
+    stats.headToHead.removed = await removeMissing(
+      tx,
+      'head-to-head',
+      rows.pairs.map((p) => p.slug),
     );
 
     // 5. competições
@@ -407,7 +451,11 @@ async function syncReviewItems(tx: Tx, items: ReviewItem[]) {
     .where(notInArray(reviewItem.id, values.length ? values.map((v) => v.id) : ['\u0000']));
 }
 
-async function removeMissing(tx: Tx, kind: 'team' | 'derby' | 'competition' | 'copy', keep: string[]) {
+async function removeMissing(
+  tx: Tx,
+  kind: 'team' | 'derby' | 'head-to-head' | 'competition' | 'copy',
+  keep: string[],
+) {
   const keepList = keep.length ? keep : ['\u0000'];
   const removed =
     kind === 'team'
@@ -417,15 +465,20 @@ async function removeMissing(tx: Tx, kind: 'team' | 'derby' | 'competition' | 'c
           .returning({ k: teamProfile.slug })
       : kind === 'derby'
         ? await tx.delete(derby).where(notInArray(derby.slug, keepList)).returning({ k: derby.slug })
-        : kind === 'competition'
+        : kind === 'head-to-head'
           ? await tx
-              .delete(competitionProfile)
-              .where(notInArray(competitionProfile.slug, keepList))
-              .returning({ k: competitionProfile.slug })
-          : await tx
-              .delete(copyTemplate)
-              .where(notInArray(copyTemplate.key, keepList))
-              .returning({ k: copyTemplate.key });
+              .delete(headToHead)
+              .where(notInArray(headToHead.slug, keepList))
+              .returning({ k: headToHead.slug })
+          : kind === 'competition'
+            ? await tx
+                .delete(competitionProfile)
+                .where(notInArray(competitionProfile.slug, keepList))
+                .returning({ k: competitionProfile.slug })
+            : await tx
+                .delete(copyTemplate)
+                .where(notInArray(copyTemplate.key, keepList))
+                .returning({ k: copyTemplate.key });
   return removed.length;
 }
 

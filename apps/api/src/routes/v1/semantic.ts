@@ -9,10 +9,12 @@ import {
   SemanticTeamParams,
   UpcomingDerbiesQuery,
   type Derby,
+  type DerbyAllTime,
   type DerbyMatch,
   type DerbyRetrospect,
   type DerbySummary,
   type Glossary,
+  type HeadToHead,
   type GlossaryTerm,
   type SemanticTeamRef,
   type SupportedLocale,
@@ -28,10 +30,12 @@ import {
   derbyTeam,
   event,
   eventParticipant,
+  headToHead as curatedPair,
   participant,
   reviewDecision,
   teamProfile,
   type Database,
+  type DerbyAllTime as DerbyAllTimeRow,
   type EventScore,
 } from '@galaxie/db';
 import {
@@ -359,6 +363,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
           text_locale: texts.textLocale,
           sources: row.sources,
           next_event: next,
+          all_time: allTimeOf(row.allTime, min),
           retrospect: retrospect(matches, resolved, a!.slug, b!.slug, tz),
         };
         return { body, tags: [`derby:${row.id}`, 'event', 'team_profile'] };
@@ -720,6 +725,8 @@ export function retrospect(
   return {
     available,
     source: 'core',
+    scope: 'database',
+    since: first ? Number(formatInstant(new Date(first.startsAtMs), tz).slice(0, 4)) : null,
     matches: matches.length,
     draws: matches.filter((m) => !m.winner).length,
     teams: [slugA, slugB].map((slug) => ({
@@ -732,6 +739,86 @@ export function retrospect(
     first_match_at: first ? formatInstant(new Date(first.startsAtMs), tz) : null,
     last_match_at: last ? formatInstant(new Date(last.startsAtMs), tz) : null,
   };
+}
+
+/** Histórico geral curado do YAML, no formato da API; omitido abaixo do status pedido. */
+export function allTimeOf(raw: DerbyAllTimeRow | null, min: ReviewStatus): DerbyAllTime | null {
+  if (!raw || !meetsReview(raw.review_status, min)) return null;
+  return {
+    matches: raw.matches,
+    draws: raw.draws,
+    teams: raw.teams.map((t) => ({ slug: t.team, wins: t.wins, goals: t.goals ?? null })),
+    basis: raw.basis,
+    as_of: raw.as_of,
+    sources: raw.sources,
+    review_status: raw.review_status,
+  };
+}
+
+/**
+ * Histórico geral curado do par de participantes (para o confronto direto do jogo): o `all_time` do
+ * clássico que os dois formam ou, sem clássico, o da lista curada de confrontos.
+ */
+export async function pairAllTime(
+  db: Database,
+  a: string,
+  b: string,
+  locale: string,
+  min: ReviewStatus,
+): Promise<HeadToHead['all_time']> {
+  const rows = await db
+    .select({ d: derby, slug: teamProfile.slug, pid: teamProfile.participantId })
+    .from(derby)
+    .innerJoin(derbyTeam, eq(derbyTeam.derbyId, derby.id))
+    .innerJoin(teamProfile, eq(teamProfile.slug, derbyTeam.teamSlug))
+    .where(and(inArray(teamProfile.participantId, [a, b]), inArray(derby.reviewStatus, statusesFrom(min))));
+  const byDerby = new Map<string, { d: typeof derby.$inferSelect; pids: Map<string, string> }>();
+  for (const r of rows) {
+    const entry = byDerby.get(r.d.id) ?? { d: r.d, pids: new Map<string, string>() };
+    if (r.pid) entry.pids.set(r.slug, r.pid);
+    byDerby.set(r.d.id, entry);
+  }
+  // times por participante, na ordem pedida; null se algum lado não está ligado ao core
+  const byParticipant = (all: DerbyAllTime, pids: Map<string, string>) => {
+    const teams = all.teams.map((t) => ({ id: pids.get(t.slug), wins: t.wins, goals: t.goals }));
+    if (new Set(pids.values()).size !== 2 || teams.some((t) => !t.id)) return null;
+    const { teams: _t, ...rest } = all;
+    const ordered = [a, b].map((id) => teams.find((t) => t.id === id)!) as {
+      id: string;
+      wins: number;
+      goals: number | null;
+    }[];
+    return { ...rest, teams: ordered };
+  };
+  for (const { d, pids } of byDerby.values()) {
+    const all = allTimeOf(d.allTime, min);
+    const out = all && byParticipant(all, pids);
+    if (out)
+      return {
+        derby: { slug: d.slug, name: pickText(d.labels as Record<string, string> | null, locale, d.name)! },
+        ...out,
+      };
+  }
+  // par que não é clássico: lista curada de confrontos relevantes
+  const profiles = await db
+    .select({ slug: teamProfile.slug, pid: teamProfile.participantId })
+    .from(teamProfile)
+    .where(inArray(teamProfile.participantId, [a, b]));
+  const pids = new Map(profiles.flatMap((p) => (p.pid ? [[p.slug, p.pid] as const] : [])));
+  if (new Set(pids.values()).size !== 2) return null;
+  const [pair] = await db
+    .select()
+    .from(curatedPair)
+    .where(
+      and(
+        sql`${curatedPair.teams} @> ${JSON.stringify([...pids.keys()])}::jsonb`,
+        inArray(curatedPair.reviewStatus, statusesFrom(min)),
+      ),
+    )
+    .limit(1);
+  const all = pair ? allTimeOf(pair.allTime, min) : null;
+  const out = all && byParticipant(all, pids);
+  return out ? { derby: null, ...out } : null;
 }
 
 // ─── rivais ──────────────────────────────────────────────────────────────────────────────────────

@@ -984,10 +984,52 @@ export const HeadToHead = z
       z.object({ id: z.uuid(), name: z.string(), logo: AssetUrl, colors: TeamColors.nullable().optional() }),
     ),
     summary: z.object({
+      scope: z.literal('database').meta({
+        description:
+          'Recorte: só os confrontos que estão na base Galaxie (em geral os últimos anos). Não é o histórico ' +
+          'geral; esse vem em `all_time` quando o par é um clássico com número curado.',
+      }),
+      since: z.number().int().nullable().meta({
+        description: 'Ano do confronto mais antigo do recorte; null sem confrontos.',
+        example: 2013,
+      }),
       played: z.number().int(),
       draws: z.number().int(),
       teams: z.array(z.object({ id: z.uuid(), wins: z.number().int(), goals: z.number().int() })),
     }),
+    all_time: z
+      .object({
+        derby: z
+          .object({ slug: z.string(), name: z.string() })
+          .nullable()
+          .meta({ description: 'Clássico de onde vem o número; null quando o par não é clássico.' }),
+        matches: z.number().int(),
+        draws: z.number().int(),
+        teams: z.array(
+          z.object({
+            id: z.uuid(),
+            wins: z.number().int(),
+            goals: z
+              .number()
+              .int()
+              .nullable()
+              .meta({ description: 'null quando a fonte não publica os gols.' }),
+          }),
+        ),
+        basis: z.enum(['all', 'official']).meta({
+          description: '`all` = todos os jogos (inclui amistosos); `official` = só jogos oficiais.',
+        }),
+        as_of: z.iso.date().meta({ description: 'Data de referência dos números.' }),
+        sources: z.array(z.string()),
+        review_status: z.enum(['draft', 'reviewed', 'approved']),
+      })
+      .nullable()
+      .meta({
+        description:
+          'Retrospecto histórico geral curado (base semântica) do par: o `all_time` do clássico ' +
+          '(`/v1/derbies/{slug}`) ou de um confronto relevante que não é clássico. Times por participante; ' +
+          'null sem número confiável.',
+      }),
     events: z.array(Event).meta({
       description:
         'Confrontos encerrados, do mais recente ao mais antigo. Inclui o próprio evento quando ele já terminou.',

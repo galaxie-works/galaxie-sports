@@ -18,6 +18,7 @@ import {
   COPY_PLACEHOLDERS,
   REVIEW_STATUSES,
   type CopyTemplateEntry,
+  type DerbyAllTimeEntry,
 } from './types.js';
 
 export interface Issue {
@@ -36,6 +37,10 @@ export interface ValidationReport {
     files: number;
     teams: number;
     derbies: number;
+    /** Clássicos com `all_time` (histórico geral curado). */
+    derbiesWithAllTime: number;
+    /** Pares que não são clássicos, com histórico geral curado. */
+    headToHead: number;
     competitions: number;
     copyTemplates: number;
     glossaryTerms: number;
@@ -49,6 +54,7 @@ const SCHEMA_BY_KIND: Partial<Record<FileKind, string>> = {
   'national-teams': 'national-teams.schema.json',
   participants: 'participants.schema.json',
   derbies: 'derbies.schema.json',
+  'head-to-head': 'head-to-head.schema.json',
   competitions: 'competitions.schema.json',
   copy: 'copy.schema.json',
   glossary: 'glossary.schema.json',
@@ -390,6 +396,78 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   // 5. referências: clássicos ↔ times ↔ rivais
   const teams = new Map(kb.teams.map((t) => [t.entry.slug, t]));
   const derbies = new Map(kb.derbies.map((d) => [d.entry.slug, d]));
+  /** Histórico geral curado: mesmos times do par, soma que fecha, gols dos dois lados ou de nenhum. */
+  const checkAllTime = (
+    who: string,
+    pair: string[],
+    allTime: DerbyAllTimeEntry | undefined,
+    file: string,
+    path: (string | number)[],
+  ) => {
+    if (!allTime || !Array.isArray(allTime.teams)) return;
+    const where = at(file, path);
+    const sides = allTime.teams.map((t) => t.team);
+    if ([...pair].sort().join() !== [...sides].sort().join())
+      add(
+        'error',
+        'all-time-teams',
+        file,
+        where,
+        `${who}: all_time.teams (${sides.join(' × ')}) difere de teams (${pair.join(' × ')})`,
+      );
+    const wins = allTime.teams.reduce((n, t) => n + t.wins, 0);
+    if (wins + allTime.draws !== allTime.matches)
+      add(
+        'error',
+        'all-time-sum',
+        file,
+        where,
+        `${who}: vitórias (${wins}) + empates (${allTime.draws}) ≠ jogos (${allTime.matches})`,
+      );
+    if (new Set(allTime.teams.map((t) => t.goals == null)).size > 1)
+      add(
+        'error',
+        'all-time-goals',
+        file,
+        where,
+        `${who}: all_time com gols de um lado só (os dois ou nenhum)`,
+      );
+    if (typeof allTime.as_of === 'string' && allTime.as_of > new Date().toISOString().slice(0, 10))
+      add('error', 'all-time-future', file, where, `${who}: as_of no futuro`);
+  };
+  // pares que não são clássicos: times existentes, do mesmo esporte, slug único e sem repetir um clássico
+  const derbyPairs = new Map(kb.derbies.map((d) => [[...d.entry.teams].sort().join('|'), d.entry.slug]));
+  const pairSlugs = new Set<string>();
+  for (const p of kb.headToHead) {
+    const list = Array.isArray(p.entry.teams) ? p.entry.teams : [];
+    const who = `confronto ${p.entry.slug}`;
+    if (pairSlugs.has(p.entry.slug))
+      add('error', 'duplicate-slug', p.file, at(p.file, ['pairs', p.index, 'slug']), `${who}: slug repetido`);
+    pairSlugs.add(p.entry.slug);
+    list.forEach((slug, i) => {
+      const team = teams.get(slug);
+      const line = at(p.file, ['pairs', p.index, 'teams', i]);
+      if (!team) add('error', 'unknown-team', p.file, line, `${who}: time inexistente ${slug}`);
+      else if (team.sport !== p.sport)
+        add(
+          'error',
+          'head-to-head-cross-sport',
+          p.file,
+          line,
+          `${who} (${p.sport}): ${slug} é de ${team.sport}`,
+        );
+    });
+    const derbySlug = derbyPairs.get([...list].sort().join('|'));
+    if (derbySlug)
+      add(
+        'error',
+        'head-to-head-is-derby',
+        p.file,
+        at(p.file, ['pairs', p.index, 'slug']),
+        `${who}: o par já é o clássico ${derbySlug} (use o all_time do clássico)`,
+      );
+    checkAllTime(who, list, p.entry.all_time, p.file, ['pairs', p.index, 'all_time']);
+  }
   for (const d of kb.derbies) {
     const list = Array.isArray(d.entry.teams) ? d.entry.teams : [];
     list.forEach((slug, i) => {
@@ -413,6 +491,11 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
           `clássico ${d.entry.slug} (${d.sport}): ${slug} é de ${team.sport}`,
         );
     });
+    checkAllTime(`clássico ${d.entry.slug}`, list, d.entry.all_time, d.file, [
+      'derbies',
+      d.index,
+      'all_time',
+    ]);
     const [a, b] = list;
     if (a && b && teams.has(a) && teams.has(b)) {
       const rivalsOf = (s: string) => (teams.get(s)!.entry.rivals ?? []).map((r) => r.team);
@@ -498,6 +581,26 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
           unknown,
         ],
     ),
+    ...kb.headToHead.map(
+      (p) =>
+        [p.file, p.entry.slug, ['pairs', p.index, 'all_time', 'sources'], p.entry.all_time?.sources] as [
+          string,
+          string,
+          (string | number)[],
+          unknown,
+        ],
+    ),
+    ...kb.derbies
+      .filter((d) => d.entry.all_time)
+      .map(
+        (d) =>
+          [d.file, d.entry.slug, ['derbies', d.index, 'all_time', 'sources'], d.entry.all_time!.sources] as [
+            string,
+            string,
+            (string | number)[],
+            unknown,
+          ],
+      ),
     ...kb.competitions.map(
       (c) =>
         [c.file, c.entry.slug, ['competitions', c.index, 'sources'], c.entry.sources] as [
@@ -570,6 +673,8 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
       files: kb.files.length,
       teams: kb.teams.length,
       derbies: kb.derbies.length,
+      derbiesWithAllTime: kb.derbies.filter((d) => d.entry.all_time).length,
+      headToHead: kb.headToHead.length,
       competitions: kb.competitions.length,
       copyTemplates: kb.copyTemplates.length,
       glossaryTerms: kb.glossary.length,
@@ -862,7 +967,7 @@ export function formatReport(report: ValidationReport): string {
     `  ${i.level === 'error' ? '✗' : '!'} ${i.file ?? '-'}${i.line ? `:${i.line}` : ''} [${i.code}] ${i.message}`;
   const c = report.counts;
   return [
-    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário · ${c.texts} traduções`,
+    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos (${c.derbiesWithAllTime} com histórico geral) · ${c.headToHead} outros confrontos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário · ${c.texts} traduções`,
     ...(report.errors.length ? [`Erros (${report.errors.length}):`, ...report.errors.map(line)] : []),
     ...(report.warnings.length ? [`Avisos (${report.warnings.length}):`, ...report.warnings.map(line)] : []),
     report.errors.length

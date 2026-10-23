@@ -1,0 +1,61 @@
+# Base semântica — confrontos relevantes que não são clássicos, América do Sul fora do Brasil (schema v1)
+# Só o retrospecto histórico geral curado. Par que é clássico guarda o seu no all_time do clássico.
+schema_version: 1
+region: south-america
+pairs:
+  - slug: guarani-py-olimpia-py
+    teams: [guarani-py, olimpia-py]
+    all_time:
+      matches: 333
+      draws: 83
+      teams:
+        - { team: guarani-py, wins: 97 }
+        - { team: olimpia-py, wins: 153 }
+      basis: official
+      as_of: 2026-03-21
+      sources:
+        - "https://es.wikipedia.org/wiki/Cl%C3%A1sico_m%C3%A1s_A%C3%B1ejo"
+        - "https://www.abc.com.py/deportes/futbol/2026/01/25/olimpia-y-guarani-debutan-protagonizando-el-clasico-mas-anejo/"
+      review_status: draft
+  - slug: barcelona-sc-ldu-quito
+    teams: [barcelona-sc, ldu-quito]
+    all_time:
+      matches: 241
+      draws: 65
+      teams:
+        - { team: barcelona-sc, wins: 89, goals: 289 }
+        - { team: ldu-quito, wins: 87, goals: 283 }
+      basis: official
+      as_of: 2026-10-11
+      sources:
+        - "https://es.wikipedia.org/wiki/Rivalidad_entre_Barcelona_Sporting_Club_y_Liga_Deportiva_Universitaria"
+        - "https://es.wikipedia.org/wiki/Anexo:Historial_de_Liga_Deportiva_Universitaria_en_competiciones_nacionales"
+      review_status: draft
+  - slug: independiente-del-valle-ldu-quito
+    teams: [independiente-del-valle, ldu-quito]
+    all_time:
+      matches: 57
+      draws: 18
+      teams:
+        - { team: independiente-del-valle, wins: 12, goals: 61 }
+        - { team: ldu-quito, wins: 27, goals: 88 }
+      basis: official
+      as_of: 2026-04-19
+      sources:
+        - "https://es.wikipedia.org/wiki/Anexo:Historial_de_Liga_Deportiva_Universitaria_en_competiciones_nacionales"
+        - "https://www.ogol.com.br/xray.php?equipa_id=2361&equipa_vs_equipa_id=23001"
+      review_status: draft
+  - slug: atletico-nacional-millonarios
+    teams: [atletico-nacional, millonarios]
+    all_time:
+      matches: 303
+      draws: 102
+      teams:
+        - { team: atletico-nacional, wins: 86 }
+        - { team: millonarios, wins: 115 }
+      basis: official
+      as_of: 2026-09-24
+      sources:
+        - "https://es.wikipedia.org/wiki/Rivalidad_entre_Atl%C3%A9tico_Nacional_y_Millonarios"
+        - "https://en.wikipedia.org/wiki/Atl%C3%A9tico_Nacional%E2%80%93Millonarios_F.C._rivalry"
+      review_status: draft

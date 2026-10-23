@@ -118,6 +118,16 @@ export const DerbyRetrospect = z
       .boolean()
       .meta({ description: 'false quando os dois times ainda não estão ligados a participantes do core.' }),
     source: z.literal('core').meta({ description: 'Calculado dos eventos encerrados em core.event.' }),
+    scope: z.literal('database').meta({
+      description:
+        'Recorte: só os jogos que estão na base Galaxie (cobertura do fornecedor, em geral os últimos anos). ' +
+        'Não é o histórico geral do confronto; esse vem em `all_time`.',
+    }),
+    since: z
+      .number()
+      .int()
+      .nullable()
+      .meta({ description: 'Ano do primeiro jogo do recorte; null sem jogos.', example: 2013 }),
     matches: z.number().int(),
     draws: z.number().int(),
     teams: z.array(
@@ -138,6 +148,34 @@ export const DerbyRetrospect = z
   })
   .meta({ id: 'DerbyRetrospect' });
 export type DerbyRetrospect = z.infer<typeof DerbyRetrospect>;
+
+export const DerbyAllTime = z
+  .object({
+    matches: z.number().int().meta({ example: 126 }),
+    draws: z.number().int().meta({ example: 20 }),
+    teams: z.array(
+      z.object({
+        slug: z.string(),
+        wins: z.number().int(),
+        goals: z.number().int().nullable().meta({ description: 'null quando a fonte não publica os gols.' }),
+      }),
+    ),
+    basis: z
+      .enum(['all', 'official'])
+      .meta({ description: '`all` = todos os jogos (inclui amistosos); `official` = só jogos oficiais.' }),
+    as_of: z.iso
+      .date()
+      .meta({ description: 'Data de referência dos números (último jogo contado pela fonte).' }),
+    sources: z.array(z.string()).min(1),
+    review_status: ReviewStatusField,
+  })
+  .meta({
+    id: 'DerbyAllTime',
+    description:
+      'Retrospecto histórico geral, curado de fontes públicas e revisado na base semântica. Não é ' +
+      'calculado dos jogos da base: para isso, veja `retrospect`.',
+  });
+export type DerbyAllTime = z.infer<typeof DerbyAllTime>;
 
 export const DerbyUpcomingEvent = z
   .object({
@@ -166,6 +204,10 @@ export const Derby = DerbySummary.extend({
   text_locale: TextLocaleField,
   sources: z.array(z.string()),
   next_event: DerbyUpcomingEvent.nullable(),
+  all_time: DerbyAllTime.nullable().meta({
+    description:
+      'Histórico geral curado; null quando não há número confiável ou está abaixo do status pedido.',
+  }),
   retrospect: DerbyRetrospect,
 }).meta({ id: 'Derby' });
 export type Derby = z.infer<typeof Derby>;

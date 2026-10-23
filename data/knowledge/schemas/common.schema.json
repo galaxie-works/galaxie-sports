@@ -36,6 +36,77 @@
       "items": { "$ref": "#/definitions/url" },
       "description": "Todo fato precisa de pelo menos uma URL consultada"
     },
+    "allTime": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Retrospecto histórico geral, curado de fontes públicas (não é calculado dos jogos da base). Sem número confiável ou com fontes divergentes: omitir.",
+      "required": [
+        "matches",
+        "draws",
+        "teams",
+        "basis",
+        "as_of",
+        "sources",
+        "review_status"
+      ],
+      "properties": {
+        "matches": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "draws": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "teams": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "team",
+              "wins"
+            ],
+            "properties": {
+              "team": {
+                "$ref": "#/definitions/slug"
+              },
+              "wins": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "goals": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "description": "Gols marcados no confronto; null quando a fonte não publica (basquete e vôlei: sempre null)"
+              }
+            }
+          }
+        },
+        "basis": {
+          "enum": [
+            "all",
+            "official"
+          ],
+          "description": "all = todos os jogos (inclui amistosos); official = só jogos oficiais"
+        },
+        "as_of": {
+          "$ref": "#/definitions/isoDate",
+          "description": "Data de referência: último jogo contado pela fonte (ou a atualização da página)"
+        },
+        "sources": {
+          "$ref": "#/definitions/sources"
+        },
+        "review_status": {
+          "$ref": "#/definitions/reviewStatus"
+        }
+      }
+    },
     "reviewStatus": {
       "type": "string",
       "enum": ["draft", "reviewed", "approved"]

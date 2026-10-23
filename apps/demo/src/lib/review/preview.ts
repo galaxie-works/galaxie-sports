@@ -3,7 +3,7 @@
  * vem deste item, com os nomes de campo do contrato (`@galaxie/contracts`). Puro: o servidor e os
  * testes usam o mesmo cálculo.
  */
-import type { CopySuggestion, Derby, GlossaryTerm, TeamSemantic } from '@galaxie/contracts';
+import type { CopySuggestion, Derby, DerbyAllTime, GlossaryTerm, TeamSemantic } from '@galaxie/contracts';
 
 import type { ReviewDetail } from './types';
 
@@ -70,6 +70,28 @@ function derbyBody(c: Rec, locale: string | null) {
   } satisfies Partial<Record<keyof Derby, unknown>>;
 }
 
+/** Histórico geral (`all_time` do YAML) no formato da API, como sai depois de aprovado. */
+function allTimeBody(raw: unknown) {
+  const a = rec(raw);
+  if (!Object.keys(a).length) return null;
+  return {
+    matches: Number(a.matches ?? 0),
+    draws: Number(a.draws ?? 0),
+    teams: (Array.isArray(a.teams) ? a.teams : []).map((t) => {
+      const team = rec(t);
+      return {
+        slug: String(team.team ?? ''),
+        wins: Number(team.wins ?? 0),
+        goals: team.goals == null ? null : Number(team.goals),
+      };
+    }),
+    basis: a.basis === 'official' ? 'official' : 'all',
+    as_of: String(a.as_of ?? ''),
+    sources: list(a.sources),
+    review_status: 'approved',
+  } satisfies DerbyAllTime;
+}
+
 export function previewFor(
   item: Pick<ReviewDetail, 'kind' | 'key' | 'locale' | 'market' | 'content' | 'parentKind'>,
 ): ReviewPreview {
@@ -79,6 +101,14 @@ export function previewFor(
       return { endpoint: `GET /v1/teams/${item.key}/semantic`, body: teamBody(c, item.locale, item.market) };
     case 'derby':
       return { endpoint: `GET /v1/derbies/${item.key}`, body: derbyBody(c, item.locale) };
+    case 'all-time': {
+      // clássico: sai em /v1/derbies; par da lista: no confronto direto de um jogo entre os dois
+      const slug = item.key.slice(item.key.indexOf(':') + 1);
+      const endpoint = item.key.startsWith('derby:')
+        ? `GET /v1/derbies/${slug} → all_time`
+        : 'GET /v1/events/{id}/h2h → all_time';
+      return { endpoint, body: { all_time: allTimeBody(c.all_time) } };
+    }
     case 'competition': {
       const labels = rec(c.labels);
       const nick = rec(c.nicknames);

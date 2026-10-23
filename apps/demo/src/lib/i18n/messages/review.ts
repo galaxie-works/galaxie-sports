@@ -20,6 +20,7 @@ export default defineMessages(
     kinds: {
       team: 'Perfil',
       derby: 'Clássico',
+      'all-time': 'Histórico geral',
       competition: 'Competição',
       copy: 'Copy',
       glossary: 'Glossário',
@@ -143,6 +144,7 @@ export default defineMessages(
       kinds: {
         team: 'Profile',
         derby: 'Derby',
+        'all-time': 'All-time record',
         competition: 'Competition',
         copy: 'Copy',
         glossary: 'Glossary',
@@ -267,6 +269,7 @@ export default defineMessages(
       kinds: {
         team: 'Perfil',
         derby: 'Clásico',
+        'all-time': 'Historial general',
         competition: 'Competición',
         copy: 'Copy',
         glossary: 'Glosario',

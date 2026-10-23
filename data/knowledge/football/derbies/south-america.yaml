@@ -15,6 +15,18 @@ derbies:
     origin: "Los dos nacieron en el barrio porteño de La Boca, a principios del siglo XX."
     trivia:
       - "El primer partido oficial, en 1913, lo ganó River 2 a 1."
+    all_time:
+      matches: 266
+      draws: 84
+      teams:
+        - { team: boca-juniors, wins: 94, goals: 342 }
+        - { team: river-plate, wins: 88, goals: 323 }
+      basis: official
+      as_of: 2026-04-19
+      sources:
+        - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
+        - "https://en.wikipedia.org/wiki/Superclásico"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_argentino"
     review_status: approved
@@ -30,6 +42,18 @@ derbies:
     text_locale: es-AR
     origin: "Los dos son de Avellaneda y sus canchas están a pocas cuadras una de la otra."
     trivia: []
+    all_time:
+      matches: 240
+      draws: 79
+      teams:
+        - { team: independiente, wins: 90, goals: 348 }
+        - { team: racing-club, wins: 71, goals: 301 }
+      basis: official
+      as_of: 2026-10-18
+      sources:
+        - "https://es.wikipedia.org/wiki/Clásico_de_Avellaneda"
+        - "https://en.wikipedia.org/wiki/Avellaneda_derby"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_de_Avellaneda"
     review_status: approved
@@ -60,6 +84,18 @@ derbies:
     text_locale: es-AR
     origin: "Es el clásico de la ciudad de La Plata, capital de la provincia de Buenos Aires."
     trivia: []
+    all_time:
+      matches: 193
+      draws: 72
+      teams:
+        - { team: estudiantes-lp, wins: 70, goals: 279 }
+        - { team: gimnasia-lp, wins: 51, goals: 223 }
+      basis: official
+      as_of: 2026-08-15
+      sources:
+        - "https://es.wikipedia.org/wiki/Clásico_platense"
+        - "https://en.wikipedia.org/wiki/La_Plata_derby"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_platense"
     review_status: approved
@@ -107,6 +143,18 @@ derbies:
     text_locale: es-AR
     origin: "Es el clásico de la ciudad de Santa Fe, capital de la provincia homónima: Sabaleros contra Tatengues."
     trivia: []
+    all_time:
+      matches: 159
+      draws: 54
+      teams:
+        - { team: colon-santa-fe, wins: 48, goals: 188 }
+        - { team: union-santa-fe, wins: 57, goals: 212 }
+      basis: official
+      as_of: 2023-10-01
+      sources:
+        - "https://es.wikipedia.org/wiki/Clásico_santafesino"
+        - "https://en.wikipedia.org/wiki/Santa_Fe_derby"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_santafesino"
     review_status: approved
@@ -122,6 +170,17 @@ derbies:
     text_locale: es-AR
     origin: "Enfrenta a dos clubes vecinos del sur del Gran Buenos Aires: el Granate y el Taladro."
     trivia: []
+    all_time:
+      matches: 135
+      draws: 40
+      teams:
+        - { team: lanus, wins: 42 }
+        - { team: banfield, wins: 53 }
+      basis: official
+      as_of: 2026-04-13
+      sources:
+        - "https://es.wikipedia.org/wiki/Clásico_del_Sur_(Argentina)"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_del_Sur_(Argentina)"
     review_status: approved
@@ -155,6 +214,18 @@ derbies:
     text_locale: es-CL
     origin: "Enfrenta a los dos clubes más populares de Chile, el Cacique y la U, ambos de Santiago."
     trivia: []
+    all_time:
+      matches: 249
+      draws: 71
+      teams:
+        - { team: colo-colo, wins: 112 }
+        - { team: universidad-de-chile, wins: 66 }
+      basis: official
+      as_of: 2026-08-23
+      sources:
+        - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_chileno"
+        - "https://en.wikipedia.org/wiki/Chilean_Superclásico"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_chileno"
     review_status: approved
@@ -188,6 +259,17 @@ derbies:
     origin: "Enfrenta a los clubes de Valparaíso y Viña del Mar, los Caturros y los Ruleteros."
     trivia:
       - "Es considerado uno de los clásicos más antiguos del fútbol chileno."
+    all_time:
+      matches: 157
+      draws: 43
+      teams:
+        - { team: santiago-wanderers, wins: 50, goals: 218 }
+        - { team: everton-cl, wins: 64, goals: 238 }
+      basis: official
+      as_of: 2022-08-24
+      sources:
+        - "https://es.wikipedia.org/wiki/Clásico_porteño"
+      review_status: draft
     sources:
       - "https://en.wikipedia.org/wiki/Santiago_Wanderers"
       - "https://cooperativa.cl/noticias/deportes/futbol/everton/s-wanderers-sale-a-ratificar-su-paternidad-ante-un-necesitado-everton/2010-10-22/173524.html"
@@ -205,6 +287,18 @@ derbies:
     text_locale: es-CO
     origin: "Enfrenta a los dos clubes de Medellín, el Verdolaga y el Poderoso, que comparten el Estadio Atanasio Girardot."
     trivia: []
+    all_time:
+      matches: 347
+      draws: 110
+      teams:
+        - { team: atletico-nacional, wins: 140, goals: 475 }
+        - { team: independiente-medellin, wins: 97, goals: 404 }
+      basis: official
+      as_of: 2026-10-14
+      sources:
+        - "https://es.wikipedia.org/wiki/Cl%C3%A1sico_paisa"
+        - "https://www.ogol.com.br/estatisticas/independiente-medellin-atletico-nacional/t2296-t2298"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_paisa"
     review_status: approved
@@ -222,6 +316,17 @@ derbies:
     trivia:
       - "Es el único clásico regional que se ha jugado en todas las temporadas del fútbol profesional colombiano."
       - "La final del Finalización 2017 fue la primera definición de liga entre ambos; la ganó Millonarios."
+    all_time:
+      matches: 347
+      draws: 118
+      teams:
+        - { team: millonarios, wins: 135, goals: 508 }
+        - { team: independiente-santa-fe, wins: 94, goals: 420 }
+      basis: official
+      as_of: 2026-09-02
+      sources:
+        - "https://es.wikipedia.org/wiki/Cl%C3%A1sico_bogotano"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_bogotano"
     review_status: approved
@@ -237,6 +342,17 @@ derbies:
     text_locale: es-CO
     origin: "Enfrenta a los dos grandes de Cali, la Mechita y el Azucarero, en el departamento del Valle del Cauca."
     trivia: []
+    all_time:
+      matches: 346
+      draws: 111
+      teams:
+        - { team: america-de-cali, wins: 108, goals: 424 }
+        - { team: deportivo-cali, wins: 127, goals: 434 }
+      basis: official
+      as_of: 2026-04-25
+      sources:
+        - "https://es.wikipedia.org/wiki/Cl%C3%A1sico_vallecaucano"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Clásico_vallecaucano"
     review_status: approved
@@ -270,6 +386,17 @@ derbies:
     text_locale: es-PE
     origin: "Enfrenta a los clubes más representativos de Arequipa y Cusco, el Dominó y el Rojo Imperial, en el sur del Perú."
     trivia: []
+    all_time:
+      matches: 144
+      draws: 35
+      teams:
+        - { team: melgar, wins: 70, goals: 204 }
+        - { team: cienciano, wins: 39, goals: 148 }
+      basis: official
+      as_of: 2026-07-17
+      sources:
+        - "https://es.wikipedia.org/wiki/Cl%C3%A1sico_del_Sur_Peruano"
+      review_status: draft
     sources:
       - "https://rsssf.org/tablesc/cienmelgar.html"
       - "https://rpp.pe/futbol/descentralizado/liga-1-melgar-y-cienciano-se-enfrentan-en-el-clasico-del-sur-noticia-1673787"
@@ -303,6 +430,17 @@ derbies:
     origin: "La rivalidad nació en un repechaje de ascenso y descenso del torneo de Pichincha en 1945."
     trivia:
       - "El primer partido terminó 1 a 1 y los dos equipos fueron admitidos en primera división."
+    all_time:
+      matches: 186
+      draws: 47
+      teams:
+        - { team: ldu-quito, wins: 94, goals: 307 }
+        - { team: aucas, wins: 45, goals: 217 }
+      basis: official
+      as_of: 2026-10-17
+      sources:
+        - "https://es.wikipedia.org/wiki/Supercl%C3%A1sico_de_Quito"
+      review_status: draft
     sources:
       - "https://en.wikipedia.org/wiki/Superclásico_de_Quito"
       - "https://www.primicias.ec/deportes/ligapro/aucas/vivo-aucas-vs-liga-quito-nueva-edicion-clasico-capitalino-fecha-25-ligapro-130329/"
@@ -320,6 +458,18 @@ derbies:
     text_locale: es-PY
     origin: "Enfrenta a los dos clubes más populares del Paraguay, el Decano y el Ciclón, ambos de Asunción."
     trivia: []
+    all_time:
+      matches: 374
+      draws: 117
+      teams:
+        - { team: olimpia-py, wins: 133 }
+        - { team: cerro-porteno, wins: 124 }
+      basis: official
+      as_of: 2026-08-23
+      sources:
+        - "https://es.wikipedia.org/wiki/Supercl%C3%A1sico_del_f%C3%BAtbol_paraguayo"
+        - "https://en.wikipedia.org/wiki/Paraguayan_Supercl%C3%A1sico"
+      review_status: draft
     sources:
       - "https://es.wikipedia.org/wiki/Superclásico_del_fútbol_paraguayo"
     review_status: approved
@@ -368,6 +518,18 @@ derbies:
     origin: "Enfrenta a los dos clubes más ganadores del fútbol venezolano: los Rojos del Ávila y el Carrusel Aurinegro."
     trivia:
       - "Se enfrentaron en la final de la liga 2021, que ganó Táchira."
+    all_time:
+      matches: 133
+      draws: 54
+      teams:
+        - { team: caracas-fc, wins: 39, goals: 145 }
+        - { team: deportivo-tachira, wins: 40, goals: 149 }
+      basis: official
+      as_of: 2026-08-30
+      sources:
+        - "https://es.wikipedia.org/wiki/Cl%C3%A1sico_del_f%C3%BAtbol_venezolano"
+        - "https://www.ogol.com.br/estatisticas/caracas-fc-deportivo-tachira/t2402-t2409"
+      review_status: draft
     sources:
       - "https://eldiario.com/2021/12/10/caracas-tachira-clasico-futbol-venezolano-final/"
       - "https://lapatilla.com/2023/11/12/caracas-fc-y-deportivo-tachira-se-mediran-en-otra-edicion-del-clasico-en-la-gran-final-de-la-liga-futve/"

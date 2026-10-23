@@ -20,6 +20,18 @@ derbies:
   trivia:
   - O primeiro confronto foi em 1902.
   - Em 2025-26, um Clásico definiu matematicamente o título da LaLiga para o Barcelona.
+  all_time:
+    matches: 263
+    draws: 52
+    teams:
+      - { team: real-madrid, wins: 106, goals: 443 }
+      - { team: barcelona, wins: 105, goals: 438 }
+    basis: official
+    as_of: 2026-05-10
+    sources:
+      - "https://es.wikipedia.org/wiki/El_Cl%C3%A1sico"
+      - "https://en.wikipedia.org/wiki/El_Cl%C3%A1sico"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/El_Cl%C3%A1sico
   - https://pt.wikipedia.org/wiki/El_Cl%C3%A1sico
@@ -38,6 +50,18 @@ derbies:
   intensity: 5
   first_match: null
   origin: Nome dos jogos entre Real Madrid e Atlético de Madrid, os dois grandes clubes da capital espanhola.
+  all_time:
+    matches: 244
+    draws: 63
+    teams:
+      - { team: real-madrid, wins: 119, goals: 403 }
+      - { team: atletico-madrid, wins: 62, goals: 311 }
+    basis: official
+    as_of: 2026-09-20
+    sources:
+      - "https://en.wikipedia.org/wiki/Madrid_derby"
+      - "https://es.wikipedia.org/wiki/Derbi_madrile%C3%B1o"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Madrid_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_de_Madrid
@@ -60,6 +84,18 @@ derbies:
   trivia:
   - O primeiro dérbi terminou com vitória do Sevilla por 4–3.
   - O primeiro jogo oficial foi em 19 de fevereiro de 1928, pela Copa del Rey.
+  all_time:
+    matches: 145
+    draws: 37
+    teams:
+      - { team: sevilla, wins: 66, goals: 218 }
+      - { team: real-betis, wins: 42, goals: 169 }
+    basis: official
+    as_of: 2026-03-01
+    sources:
+      - "https://es.wikipedia.org/wiki/Derbi_sevillano"
+      - "https://it.wikipedia.org/wiki/Derbi_sevillano"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Seville_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_da_Andaluzia
@@ -102,6 +138,18 @@ derbies:
   trivia:
   - O primeiro dérbi foi a final da Chiasso Cup de 1908, na Suíça; o Milan venceu por 2–1.
   - Os dois clubes dividem o estádio San Siro.
+  all_time:
+    matches: 246
+    draws: 71
+    teams:
+      - { team: inter, wins: 91, goals: 341 }
+      - { team: milan, wins: 84, goals: 324 }
+    basis: official
+    as_of: 2026-03-08
+    sources:
+      - "https://en.wikipedia.org/wiki/Derby_della_Madonnina"
+      - "https://it.wikipedia.org/wiki/Derby_di_Milano"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Derby_della_Madonnina
   - https://pt.wikipedia.org/wiki/Derby_della_Madonnina
@@ -120,6 +168,18 @@ derbies:
   intensity: 5
   first_match: null
   origin: Termo cunhado em 1967 pelo jornalista italiano Gianni Brera para o confronto entre Inter e Juventus.
+  all_time:
+    matches: 255
+    draws: 63
+    teams:
+      - { team: inter, wins: 78, goals: 318 }
+      - { team: juventus, wins: 114, goals: 364 }
+    basis: official
+    as_of: 2026-02-14
+    sources:
+      - "https://en.wikipedia.org/wiki/Derby_d%27Italia"
+      - "https://it.wikipedia.org/wiki/Derby_d%27Italia"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Derby_d'Italia
   - https://pt.wikipedia.org/wiki/Derby_d'Italia
@@ -143,6 +203,18 @@ derbies:
   trivia:
   - O primeiro dérbi terminou 1–0 para a Roma.
   - A Lazio venceu seu primeiro dérbi em 23 de outubro de 1932.
+  all_time:
+    matches: 187
+    draws: 65
+    teams:
+      - { team: roma, wins: 71, goals: 231 }
+      - { team: lazio, wins: 51, goals: 181 }
+    basis: official
+    as_of: 2026-05-17
+    sources:
+      - "https://en.wikipedia.org/wiki/Derby_della_Capitale"
+      - "https://it.wikipedia.org/wiki/Derby_di_Roma"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Derby_della_Capitale
   - https://pt.wikipedia.org/wiki/Derby_della_Capitale
@@ -165,6 +237,18 @@ derbies:
   trivia:
   - É o mais antigo dérbi municipal ainda disputado no futebol italiano.
   - Foi o primeiro jogo oficial da história do Torino.
+  all_time:
+    matches: 212
+    draws: 62
+    teams:
+      - { team: juventus, wins: 94, goals: 316 }
+      - { team: torino, wins: 56, goals: 247 }
+    basis: official
+    as_of: 2026-05-24
+    sources:
+      - "https://it.wikipedia.org/wiki/Derby_di_Torino"
+      - "https://en.wikipedia.org/wiki/Derby_della_Mole"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Derby_della_Mole
   - https://pt.wikipedia.org/wiki/Derby_della_Mole
@@ -187,6 +271,18 @@ derbies:
   trivia:
   - O primeiro jogo terminou 2–0 para o Dortmund, em Munique.
   - Os dois decidiram a final da Liga dos Campeões de 2013.
+  all_time:
+    matches: 140
+    draws: 37
+    teams:
+      - { team: bayern-munchen, wins: 70, goals: 275 }
+      - { team: borussia-dortmund, wins: 33, goals: 175 }
+    basis: official
+    as_of: 2026-08-22
+    sources:
+      - "https://en.wikipedia.org/wiki/Der_Klassiker"
+      - "https://de.wikipedia.org/wiki/Liste_der_Pflichtspiele_zwischen_dem_FC_Bayern_M%C3%BCnchen_und_Borussia_Dortmund"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Der_Klassiker
   - https://pt.wikipedia.org/wiki/Der_Klassiker
@@ -208,6 +304,18 @@ derbies:
   origin: O nome vem de "Revier", forma curta de "Bergbaurevier" (região mineira), como é chamado o Ruhr.
   trivia:
   - No primeiro encontro o Schalke venceu por 4–2.
+  all_time:
+    matches: 160
+    draws: 44
+    teams:
+      - { team: borussia-dortmund, wins: 56, goals: 252 }
+      - { team: schalke-04, wins: 60, goals: 296 }
+    basis: official
+    as_of: 2023-03-11
+    sources:
+      - "https://de.wikipedia.org/wiki/Revierderby"
+      - "https://en.wikipedia.org/wiki/Revierderby"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Revierderby
   - https://pt.wikipedia.org/wiki/Revierderby
@@ -231,6 +339,18 @@ derbies:
   trivia:
   - O primeiro encontro foi no Stade Vélodrome, com vitória do Marseille por 4–2.
   - A primeira vitória do PSG em Marselha veio só em 8 de dezembro de 1979.
+  all_time:
+    matches: 113
+    draws: 24
+    teams:
+      - { team: paris-saint-germain, wins: 54, goals: 173 }
+      - { team: marseille, wins: 35, goals: 126 }
+    basis: official
+    as_of: 2026-09-20
+    sources:
+      - "https://en.wikipedia.org/wiki/Le_Classique"
+      - "https://www.psg.fr/content/les-chiffres-cles-paris-marseille"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Le_Classique
   - https://pt.wikipedia.org/wiki/Le_Classique
@@ -273,6 +393,18 @@ derbies:
   trivia:
   - O primeiro encontro, em 1887, foi um amistoso, quando o Arsenal ainda se chamava Royal Arsenal.
   - O primeiro jogo pela liga foi em 4 de dezembro de 1909, vitória do Arsenal por 1–0.
+  all_time:
+    matches: 199
+    draws: 52
+    teams:
+      - { team: arsenal, wins: 86, goals: 311 }
+      - { team: tottenham-hotspur, wins: 61, goals: 263 }
+    basis: official
+    as_of: 2026-02-22
+    sources:
+      - "https://en.wikipedia.org/wiki/North_London_derby"
+      - "https://it.wikipedia.org/wiki/Derby_del_Nord_di_Londra"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/North_London_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_do_norte_de_Londres
@@ -294,6 +426,18 @@ derbies:
   trivia:
   - É disputado sem interrupção na primeira divisão desde a temporada 1962-63.
   - Anfield e Goodison Park ficavam a menos de uma milha, separados pelo Stanley Park.
+  all_time:
+    matches: 248
+    draws: 78
+    teams:
+      - { team: liverpool, wins: 102, goals: 350 }
+      - { team: everton, wins: 68, goals: 273 }
+    basis: official
+    as_of: 2026-04-19
+    sources:
+      - "https://en.wikipedia.org/wiki/Merseyside_derby"
+      - "https://it.wikipedia.org/wiki/Derby_del_Merseyside"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Merseyside_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_do_Merseyside
@@ -315,6 +459,18 @@ derbies:
   trivia:
   - O primeiro jogo reuniu St. Mark's (futuro City) e Newton Heath (futuro United).
   - O primeiro dérbi com iluminação artificial foi em 26 de fevereiro de 1889.
+  all_time:
+    matches: 199
+    draws: 55
+    teams:
+      - { team: manchester-city, wins: 63, goals: 279 }
+      - { team: manchester-united, wins: 81, goals: 280 }
+    basis: official
+    as_of: 2026-09-13
+    sources:
+      - "https://en.wikipedia.org/wiki/Manchester_derby"
+      - "https://de.wikipedia.org/wiki/Manchester_Derby"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Manchester_derby
   - https://pt.wikipedia.org/wiki/D%C3%A9rbi_de_Manchester
@@ -336,6 +492,18 @@ derbies:
   origin: Rivalidade entre Liverpool e Manchester United, considerada por jogadores e torcedores maior até que os dérbis locais de cada clube.
   trivia:
   - O primeiro encontro foi um jogo-desempate (test match) da Football League em 1894.
+  all_time:
+    matches: 218
+    draws: 61
+    teams:
+      - { team: liverpool, wins: 72 }
+      - { team: manchester-united, wins: 85 }
+    basis: official
+    as_of: 2026-05-03
+    sources:
+      - "https://en.wikipedia.org/wiki/Liverpool_F.C.%E2%80%93Manchester_United_F.C._rivalry"
+      - "https://pt.wikipedia.org/wiki/North_West_Derby"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Liverpool_F.C.%E2%80%93Manchester_United_F.C._rivalry
   - https://pt.wikipedia.org/wiki/North_West_Derby
@@ -357,6 +525,18 @@ derbies:
   origin: "Dérbi do nordeste da Inglaterra entre Newcastle United e Sunderland, cidades vizinhas."
   trivia:
   - O primeiro encontro foi em 1883.
+  all_time:
+    matches: 159
+    draws: 50
+    teams:
+      - { team: newcastle-united, wins: 54, goals: 228 }
+      - { team: sunderland, wins: 55, goals: 235 }
+    basis: official
+    as_of: 2026-03-22
+    sources:
+      - "https://en.wikipedia.org/wiki/Tyne%E2%80%93Wear_derby"
+      - "https://it.wikipedia.org/wiki/Derby_del_Tyne_and_Wear"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Tyne%E2%80%93Wear_derby
   - https://pt.wikipedia.org/wiki/Derby_de_Tyne-Wear
@@ -378,6 +558,18 @@ derbies:
   trivia:
   - O primeiro jogo foi uma exibição vencida pelo Benfica por 8–2.
   - Apesar dos sete títulos europeus somados, nunca se enfrentaram em competição europeia.
+  all_time:
+    matches: 261
+    draws: 64
+    teams:
+      - { team: benfica, wins: 93, goals: 401 }
+      - { team: porto, wins: 104, goals: 380 }
+    basis: official
+    as_of: 2026-09-20
+    sources:
+      - "https://en.wikipedia.org/wiki/O_Cl%C3%A1ssico"
+      - "https://pt.wikipedia.org/wiki/FC_Porto_vs._SL_Benfica"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/O_Cl%C3%A1ssico
   - https://pt.wikipedia.org/wiki/FC_Porto_vs._SL_Benfica
@@ -400,6 +592,18 @@ derbies:
   origin: A rivalidade nasceu em 1907, quando oito jogadores do Benfica se transferiram para o Sporting antes do primeiro dérbi.
   trivia:
   - É considerado o maior dérbi do futebol português.
+  all_time:
+    matches: 327
+    draws: 71
+    teams:
+      - { team: benfica, wins: 140, goals: 548 }
+      - { team: sporting-cp, wins: 116, goals: 498 }
+    basis: official
+    as_of: 2026-04-19
+    sources:
+      - "https://en.wikipedia.org/wiki/Derby_de_Lisboa"
+      - "https://it.wikipedia.org/wiki/Derby_de_Lisboa"
+    review_status: draft
   sources:
   - https://en.wikipedia.org/wiki/Derby_de_Lisboa
   - https://pt.wikipedia.org/wiki/Sporting_CP_vs._SL_Benfica
