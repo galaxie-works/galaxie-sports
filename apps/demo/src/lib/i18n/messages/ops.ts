@@ -96,6 +96,7 @@ export default defineMessages(
       off: 'Desligado',
       auto: 'Automático',
       on: 'Ligado',
+      priorities: { high: 'Só alta', medium: 'Média e alta', low: 'Baixa, média e alta' },
       plans: {
         free: 'Free · 100/dia',
         pro: 'Pro · 7.500/dia',
@@ -219,6 +220,11 @@ export default defineMessages(
         'live-run': {
           label: 'Ao vivo',
           description: 'Acompanha os jogos em andamento enquanto houver janela.',
+        },
+        'live-reconcile': {
+          label: 'Reconciliação do ao vivo',
+          description:
+            'Confirma na fonte os jogos ainda dados como em andamento e corrige status, placar e encerramento. Botão de pânico: gasta até 60 chamadas.',
         },
         'normalize-football': {
           label: 'Normalização do futebol',
@@ -345,6 +351,11 @@ export default defineMessages(
         description:
           'Sem jogo nos próximos minutos, o processo do ao vivo sai e o agendador o reinicia na próxima janela.',
         unit: 'min',
+      },
+      LIVE_MIN_PRIORITY: {
+        label: 'Ligas acompanhadas ao vivo',
+        description:
+          'Menor prioridade de liga que o ao vivo acompanha. Com cota folgada, incluir as baixas evita jogos marcados como ao vivo sem placar.',
       },
       LIVE_PROTECT_DAILY: {
         label: 'Chamadas reservadas ao sync diário',
@@ -523,6 +534,7 @@ export default defineMessages(
         off: 'Off',
         auto: 'Automatic',
         on: 'On',
+        priorities: { high: 'High only', medium: 'Medium and high', low: 'Low, medium and high' },
         plans: {
           free: 'Free · 100/day',
           pro: 'Pro · 7,500/day',
@@ -635,6 +647,11 @@ export default defineMessages(
               "Yesterday's, today's and tomorrow's matches, injuries and finished match details. Uses daily quota.",
           },
           'live-run': { label: 'Live', description: 'Follows ongoing matches while there is a window.' },
+          'live-reconcile': {
+            label: 'Live reconciliation',
+            description:
+              'Checks with the source the matches still shown as in play and fixes status, score and full time. Panic button: spends up to 60 calls.',
+          },
           'normalize-football': {
             label: 'Football normalization',
             description: 'Turns raw provider data into API data. Uses no quota.',
@@ -755,6 +772,11 @@ export default defineMessages(
           description:
             'With no match in the next minutes, the live process exits and the scheduler restarts it in the next window.',
           unit: 'min',
+        },
+        LIVE_MIN_PRIORITY: {
+          label: 'Leagues followed live',
+          description:
+            'Lowest league priority live follows. With spare quota, including low avoids matches marked live with no score.',
         },
         LIVE_PROTECT_DAILY: {
           label: 'Calls reserved for the daily sync',
@@ -939,6 +961,7 @@ export default defineMessages(
         off: 'Apagado',
         auto: 'Automático',
         on: 'Encendido',
+        priorities: { high: 'Solo alta', medium: 'Media y alta', low: 'Baja, media y alta' },
         plans: {
           free: 'Free · 100/día',
           pro: 'Pro · 7.500/día',
@@ -1051,6 +1074,11 @@ export default defineMessages(
               'Partidos de ayer, hoy y mañana, lesiones y detalle de los terminados. Gasta cuota del día.',
           },
           'live-run': { label: 'En vivo', description: 'Sigue los partidos en curso mientras haya ventana.' },
+          'live-reconcile': {
+            label: 'Reconciliación del en vivo',
+            description:
+              'Confirma en la fuente los partidos que siguen en curso y corrige estado, marcador y final. Botón de pánico: gasta hasta 60 llamadas.',
+          },
           'normalize-football': {
             label: 'Normalización del fútbol',
             description: 'Transforma lo crudo del proveedor en los datos de la API. No gasta cuota.',
@@ -1175,6 +1203,11 @@ export default defineMessages(
           description:
             'Sin partidos en los próximos minutos, el proceso del en vivo sale y el programador lo reinicia en la próxima ventana.',
           unit: 'min',
+        },
+        LIVE_MIN_PRIORITY: {
+          label: 'Ligas seguidas en vivo',
+          description:
+            'Menor prioridad de liga que sigue el en vivo. Con cuota holgada, incluir las bajas evita partidos marcados en vivo sin marcador.',
         },
         LIVE_PROTECT_DAILY: {
           label: 'Llamadas reservadas al sync diario',

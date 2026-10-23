@@ -25,9 +25,11 @@ export function settingText(t: T, def: SettingDef): { label: string; description
   };
 }
 
-/** Rótulo de um valor de enum (destaque do ao vivo e planos têm nome próprio). */
+/** Rótulo de um valor de enum (destaque e prioridade do ao vivo e planos têm nome próprio). */
 export function optionLabel(t: T, def: SettingDef, option: string): string {
   if (def.key === 'LIVE_FEATURED') return t.values[option as 'off' | 'auto' | 'on'] ?? option;
+  if (def.key === 'LIVE_MIN_PRIORITY')
+    return t.values.priorities[option as keyof T['values']['priorities']] ?? option;
   if (def.key.startsWith('APISPORTS_PLAN'))
     return t.values.plans[option as keyof T['values']['plans']] ?? option;
   if (def.key === 'AI_PROVIDER')
