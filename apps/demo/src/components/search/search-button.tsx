@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
+import { useInExample } from '@/components/example/example-provider';
 
 import { useSearch, useShortcutLabel } from './search-provider';
 
@@ -41,7 +42,12 @@ export function SidebarSearchButton() {
 }
 
 /** Lupa no cabeçalho das páginas, para o celular (a sidebar fica numa gaveta). */
-export function HeaderSearchButton({ className }: { className?: string }) {
+/** Lupa do cabeçalho (celular); some no exemplo público, onde não há busca. */
+export function HeaderSearchButton(props: { className?: string }) {
+  return useInExample() ? null : <HeaderSearchButtonInner {...props} />;
+}
+
+function HeaderSearchButtonInner({ className }: { className?: string }) {
   const T = useI18n().t.search;
   const { setOpen } = useSearch();
   return (

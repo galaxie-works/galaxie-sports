@@ -1,10 +1,10 @@
-import { ArrowRight, Flame } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 import { buttonVariants } from '@/components/ui/button';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { fill } from '@/lib/i18n/text';
-import { DERBY, HEADLINE, ROUND, SEMI } from '@/lib/showcase';
+import { HEADLINE, showcase } from '@/lib/showcase';
 import { cn } from '@/lib/utils';
 
 import { Chip, Flag, TeamMark } from './parts';
@@ -13,8 +13,9 @@ type Text = Dictionary['landing'];
 
 /** Cartão do próximo jogo (amostra real): times, horário no Brasil e as tags do torcedor. */
 function MatchPreview({ t, locale }: { t: Text['bento']; locale: Locale }) {
+  const { round: ROUND, semi: SEMI, timeZone, market, finalist } = showcase(locale);
   const when = new Intl.DateTimeFormat(locale, {
-    timeZone: 'America/Sao_Paulo',
+    timeZone,
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -22,7 +23,7 @@ function MatchPreview({ t, locale }: { t: Text['bento']; locale: Locale }) {
     minute: '2-digit',
     hourCycle: locale === 'en' ? 'h12' : 'h23',
   }).format(new Date(ROUND.startsAt));
-  const brScore = SEMI.relevance.find((r) => r.market === 'BR')?.score ?? 0;
+  const score = SEMI.relevance.find((r) => r.market === market)?.score ?? 0;
   return (
     <div className="relative mx-auto w-full max-w-md lg:mx-0">
       <div className="bg-card/80 relative rounded-3xl border p-5 shadow-[0_30px_80px_-30px_oklch(0.55_0.2_279/0.6)] backdrop-blur-md sm:p-6">
@@ -52,26 +53,19 @@ function MatchPreview({ t, locale }: { t: Text['bento']; locale: Locale }) {
                 <Chip tone="brand">{tag}</Chip>
               </li>
             ))}
-            <li>
-              <Chip tone="warn">{t.stakes.list.relegation}</Chip>
-            </li>
           </ul>
         </div>
       </div>
 
-      {/* Selos flutuantes: relevância no Brasil e o clássico da rodada. */}
+      {/* Selos flutuantes: relevância no mercado da página e o finalista da Libertadores. */}
       <div className="bg-card/90 absolute -top-5 right-4 flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm shadow-lg backdrop-blur-md sm:-right-6">
-        <Flag code="BR" />
+        <Flag code={market} />
         <span className="text-muted-foreground text-xs">{t.relevance.tag}</span>
-        <span className="font-semibold tabular-nums">{new Intl.NumberFormat(locale).format(brScore)}</span>
+        <span className="font-semibold tabular-nums">{new Intl.NumberFormat(locale).format(score)}</span>
       </div>
       <div className="bg-card/90 absolute -bottom-6 left-4 flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm shadow-lg backdrop-blur-md sm:-left-8">
-        <span className="flex" aria-hidden>
-          {Array.from({ length: DERBY.intensity }, (_, i) => (
-            <Flame key={i} className="size-3.5 fill-orange-400 text-orange-400" />
-          ))}
-        </span>
-        <span className="font-medium">{t.derby.name}</span>
+        <TeamMark team={finalist} size="sm" />
+        <span className="font-medium">{t.h2h.badge}</span>
       </div>
     </div>
   );
