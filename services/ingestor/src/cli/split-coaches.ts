@@ -3,7 +3,7 @@
  *   pnpm --filter @galaxie/ingestor pessoas:separar-tecnicos --plan   # prévia: conta e desfaz
  *   pnpm --filter @galaxie/ingestor pessoas:separar-tecnicos
  * Depois, reprocessar o perfil dos técnicos:
- *   pnpm --filter @galaxie/ingestor normalize:football --tudo --endpoints /coachs,/trophies,/sidelined
+ *   pnpm --filter @galaxie/ingestor normalize:football --tudo --endpoints /coachs,/trophies,/sidelined,/players,/players/squads
  */
 import { closeDb, createDb } from '@galaxie/db';
 import { splitCoachIds } from '../normalize/split-coaches.js';

@@ -23,7 +23,7 @@ export interface SplitCoachesReport {
  *   nas escalações ou em `coachs`, e leva os elencos de técnico e a foto `coachs/` da antiga.
  *
  * Idempotente: quem já tem `coach:<id>` fica de fora. O perfil completo do técnico chega reprocessando
- * `/coachs`, `/trophies` e `/sidelined` (`normalize:football --tudo --endpoints ...`).
+ * `/coachs`, `/trophies`, `/sidelined`, `/players` e `/players/squads` (`normalize:football --tudo --endpoints ...`).
  * `dryRun` faz tudo numa transação desfeita no fim: só conta.
  */
 export async function splitCoachIds(
