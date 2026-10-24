@@ -37,3 +37,6 @@ export * from './evaluation/metrics.js';
 
 // Conteúdo relacionado por evento (#127)
 export * from './related/index.js';
+
+// Grade de canais e ofertas das operadoras e streamings (onde assistir)
+export * from './lineups/index.js';

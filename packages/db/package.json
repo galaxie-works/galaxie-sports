@@ -18,6 +18,10 @@
     "./widgets": {
       "types": "./dist/widgets.d.ts",
       "default": "./dist/widgets.js"
+    },
+    "./lineups": {
+      "types": "./dist/lineups.d.ts",
+      "default": "./dist/lineups.js"
     }
   },
   "files": [
