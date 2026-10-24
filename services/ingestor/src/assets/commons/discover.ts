@@ -19,6 +19,13 @@ const SKIP_SUBCATEGORY =
   /\b(engine|engines|model|models|toy|toys|scale|lego|in art|art\b|painting|drawing|monument|memorial|statue|grave|signature|logo|film|video game|museum shop|stamp|coin|helmet replica)\b/i;
 const MAX_FILES_PER_TARGET = 120;
 
+/** Texto comparável: sem acento, minúsculo ("Räikkönen" → "raikkonen"). */
+const plain = (v: string) =>
+  v
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+
 export interface Candidate {
   file: CommonsFile;
   /** Ano da temporada quando a categoria diz ("Ayrton Senna in 1988", carro de 1988). */
@@ -27,6 +34,10 @@ export interface Candidate {
   wikidataImage: boolean;
   /** Veio da categoria de retratos. */
   portraitCategory: boolean;
+  /** Carro de destaque: a foto cita o piloto (título ou categoria), então é o carro com ele. */
+  featured?: boolean;
+  /** Carro de destaque: a foto cita outro piloto da temporada (e não o do destaque). */
+  other?: boolean;
 }
 
 export interface Discovery {
@@ -75,9 +86,10 @@ export async function findDriverItem(
 const DRIVER_PARENT = /\b(formula one|formula 1|f1) drivers\b|\bracing drivers\b|\bracecar drivers\b/i;
 
 /**
- * Sem o Wikidata (atrasado ou fora): a categoria da Commons com o nome exato do piloto (ou "<nome> (racing
- * driver)"), conferida pelas categorias-mãe de piloto e pelo ano de nascimento ("1960 births"). Sem o item do
- * Wikidata, não há foto principal (P18).
+ * Sem a API do Wikidata (atrasada ou fora): a categoria da Commons com o nome exato do piloto (ou "<nome>
+ * (racing driver)"), conferida pelas categorias-mãe de piloto e pelo ano de nascimento ("1960 births"). A foto
+ * principal (P18) vem pelo `Special:EntityData` (cache, sem `maxlag`): item da categoria → tema principal (P301) →
+ * a pessoa, cuja data de nascimento tem de bater com a do F1DB; senão, sem P18.
  */
 export async function findDriverCategory(
   client: WikimediaClient,
@@ -87,12 +99,17 @@ export async function findDriverCategory(
     const body = await client.get('https://commons.wikimedia.org/w/api.php', {
       action: 'query',
       titles: `Category:${name}`,
-      prop: 'categories',
+      prop: 'categories|pageprops',
+      ppprop: 'wikibase_item',
       cllimit: 'max',
     });
     const page = ((
       body.query as {
-        pages?: { missing?: boolean; categories?: { title: string }[] }[];
+        pages?: {
+          missing?: boolean;
+          categories?: { title: string }[];
+          pageprops?: { wikibase_item?: string };
+        }[];
       }
     )?.pages ?? [])[0];
     if (!page || page.missing) continue;
@@ -101,10 +118,32 @@ export async function findDriverCategory(
     // "1960 births" tem de bater com o ano de nascimento do F1DB (homônimos ficam de fora)
     const born = parents.map((t) => /Category:(\d{4}) births$/.exec(t)?.[1]).find(Boolean);
     if (!born || born !== target.dateOfBirth?.slice(0, 4)) continue;
-    // o `wikibase_item` da página é o item da categoria, não o da pessoa: não entra no manifesto
-    return { id: null, image: [], category: name };
+    const person = await personOfCategory(client, page.pageprops?.wikibase_item, target);
+    return { id: person?.id ?? null, image: person?.image ?? [], category: name };
   }
   return null;
+}
+
+/** A pessoa do item da categoria (P301), conferida pela data de nascimento completa do F1DB. */
+async function personOfCategory(
+  client: WikimediaClient,
+  categoryItem: string | undefined,
+  target: DriverTarget,
+): Promise<{ id: string; image: string[] } | null> {
+  if (!categoryItem || !target.dateOfBirth) return null;
+  try {
+    const cat = await client.entityClaims(categoryItem, ['P301']);
+    const id = itemIds(cat?.P301)[0];
+    if (!id) return null;
+    const c = await client.entityClaims(id, ['P18', 'P569']);
+    const births = values(c?.P569).map((v) => String((v as { time?: string }).time ?? '').slice(1, 11));
+    if (!births.includes(target.dateOfBirth)) return null;
+    return { id, image: values(c?.P18).map((v) => `File:${String(v)}`) };
+  } catch (err) {
+    // sem o EntityData, fica a categoria (já conferida) sem a foto principal
+    if (err instanceof WikimediaError) return null;
+    throw err;
+  }
 }
 
 async function filesWithSubcategories(
@@ -195,6 +234,54 @@ export async function discoverDriver(
   };
 }
 
+/**
+ * Categorias da Commons do chassi quando o nome do F1DB não é exatamente o da Commons: busca no espaço de
+ * categorias e aceita só as que trazem o construtor e o mesmo chassi, com fronteira (312T casa com "Ferrari 312 T",
+ * não com "Ferrari 312 T3"). As mais curtas primeiro (a do carro antes das "… of <piloto>"), no máximo 4.
+ */
+export async function chassisCategories(
+  client: WikimediaClient,
+  constructorName: string,
+  chassisFullName: string,
+): Promise<string[]> {
+  const spaced = (v: string) =>
+    plain(v)
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  const maker = spaced(constructorName).split(' ')[0];
+  const model = spaced(chassisFullName.replace(constructorName, '')).replace(/ /g, '');
+  if (!maker || !model) return [];
+  const pattern = new RegExp(`(?<![a-z0-9])${[...model].join('\\s?')}(?![a-z0-9])`);
+  // o nome do F1DB e o mesmo sem espaços no modelo ("Vanwall VW 5" → "Vanwall VW5")
+  const queries = [
+    ...new Set([
+      chassisFullName,
+      `${constructorName} ${chassisFullName.replace(constructorName, '').replace(/\s+/g, '')}`,
+    ]),
+  ];
+  const titles: string[] = [];
+  for (const q of queries) {
+    const body = await client.get('https://commons.wikimedia.org/w/api.php', {
+      action: 'query',
+      list: 'search',
+      srnamespace: 14,
+      srsearch: q,
+      srlimit: 20,
+    });
+    for (const r of (body.query as { search?: { title: string }[] } | undefined)?.search ?? []) {
+      const t = r.title.replace(/^Category:/, '');
+      if (!titles.includes(t)) titles.push(t);
+    }
+  }
+  return titles
+    .filter((t) => {
+      const n = spaced(t);
+      return n.split(' ').includes(maker) && pattern.test(n) && !SKIP_SUBCATEGORY.test(t);
+    })
+    .sort((a, b) => a.length - b.length)
+    .slice(0, 4);
+}
+
 export async function discoverCar(
   client: WikimediaClient,
   target: CarTarget,
@@ -203,9 +290,21 @@ export async function discoverCar(
   const sources: { title: string; from: string }[] = [];
   let category: string | null = null;
   for (const chassis of target.chassis) {
-    if (!(await client.categoryExists(chassis))) continue;
-    category ??= chassis;
-    sources.push(...(await filesWithSubcategories(client, chassis, () => true)));
+    // o nome do F1DB nem sempre é o da Commons ("Mercedes F1 W11" → "Mercedes-AMG F1 W11 EQ Performance"):
+    // sem a categoria exata, as que trazem o construtor e o mesmo chassi
+    const exact = (await client.categoryExists(chassis))
+      ? await filesWithSubcategories(client, chassis, () => true)
+      : [];
+    if (exact.length) {
+      category ??= chassis;
+      sources.push(...exact);
+      continue;
+    }
+    // categoria exata vazia (redirecionamento da Commons) ou inexistente: as do mesmo chassi com outro nome
+    for (const cat of await chassisCategories(client, target.constructorName, chassis)) {
+      category ??= cat;
+      sources.push(...(await filesWithSubcategories(client, cat, () => true)));
+    }
   }
   if (!sources.length)
     return {
@@ -215,7 +314,20 @@ export async function discoverCar(
       candidates: [],
       note: 'sem categoria do chassi na Commons',
     };
-  const titles = [...new Set(sources.map((s) => s.title))].slice(0, MAX_FILES_PER_TARGET);
+  // carro de destaque: as fotos que citam o piloto vêm primeiro (e não ficam de fora do limite)
+  const surname = target.driver ? plain(target.driver.lastName) : null;
+  const cites = (text: string) => !!surname && plain(text).includes(surname);
+  const featured = new Set(sources.filter((s) => cites(s.title) || cites(s.from)).map((s) => s.title));
+  const others = (target.others ?? []).map((o) => plain(o).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const citesOther = (text: string) => others.some((o) => new RegExp(`\\b${o}\\b`).test(plain(text)));
+  const other = new Set(
+    sources
+      .filter((s) => !featured.has(s.title) && (citesOther(s.title) || citesOther(s.from)))
+      .map((s) => s.title),
+  );
+  const titles = [
+    ...new Set([...sources.filter((s) => featured.has(s.title)), ...sources].map((s) => s.title)),
+  ].slice(0, MAX_FILES_PER_TARGET);
   const files = await client.imageInfo(titles, thumbWidth);
   return {
     target,
@@ -226,6 +338,8 @@ export async function discoverCar(
       season: target.year,
       wikidataImage: false,
       portraitCategory: false,
+      ...(featured.has(file.title) ? { featured: true } : {}),
+      ...(other.has(file.title) ? { other: true } : {}),
     })),
     note: null,
   };

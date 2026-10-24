@@ -4,7 +4,8 @@
  * escolhidas com licença, autor, página de origem, data e dimensões. Os binários nunca entram no git.
  *
  * Curadoria (sobrevive a novas varreduras): `match: manual` numa foto a mantém mesmo que as regras ou a IA
- * deixem de escolhê-la; `match: rejected` a tira para sempre (a varredura não a escolhe de novo).
+ * deixem de escolhê-la; `match: rejected` a tira para sempre (a varredura não a escolhe de novo). No piloto,
+ * `highlight_car` aponta o carro de destaque (heading da página); com `match: manual`, a escolha do curador fica.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { parse, stringify } from 'yaml';
@@ -51,9 +52,21 @@ export interface ManifestEntry {
   wikidata: string | null;
   category: string | null;
   note?: string | null;
+  /**
+   * Piloto: carro de destaque (`car/<construtor>/<ano>`, outro alvo do manifesto). `auto` vem da regra
+   * (`highlightSeason`); `manual` é curadoria e não muda nas próximas varreduras.
+   */
+  highlight_car?: HighlightCar | null;
   /** Ordem do Gemini (passo da VPS): modelo, data e quantas candidatas foram avaliadas. Sem isso, só regras. */
   ranking?: { by: 'gemini'; model: string; at: string; pool: number } | null;
   photos: ManifestPhoto[];
+}
+
+export interface HighlightCar {
+  target: string;
+  season: number;
+  reason: string;
+  match: 'auto' | 'manual';
 }
 
 export interface CommonsManifest {
@@ -126,6 +139,17 @@ export function mergeEntry(
   previous: ManifestEntry | undefined,
 ): ManifestEntry {
   const curated = (previous?.photos ?? []).filter((p) => p.match !== 'auto');
+  const highlight: HighlightCar | null =
+    previous?.highlight_car?.match === 'manual'
+      ? previous.highlight_car
+      : target.kind === 'driver' && target.highlight
+        ? {
+            target: target.highlight.target,
+            season: target.highlight.year,
+            reason: target.highlight.reason,
+            match: 'auto',
+          }
+        : null;
   const rejected = new Set(curated.filter((p) => p.match === 'rejected').map((p) => p.file));
   const manual = curated.filter((p) => p.match === 'manual');
   const auto = chosen
@@ -141,6 +165,7 @@ export function mergeEntry(
     wikidata: discovery.wikidata,
     category: discovery.category,
     ...(discovery.note ? { note: discovery.note } : {}),
+    ...(highlight ? { highlight_car: highlight } : {}),
     photos: [...manual, ...auto, ...curated.filter((p) => p.match === 'rejected')],
   };
 }

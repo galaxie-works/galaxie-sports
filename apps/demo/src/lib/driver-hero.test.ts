@@ -73,6 +73,18 @@ describe('temporada do carro no heading do piloto', () => {
     });
   });
 
+  it('carro de destaque do acervo (curadoria): a temporada e a foto dele, com o piloto', () => {
+    const withSenna = { url: 'https://cdn/mp4-4-senna.jpg' } as Photo;
+    const shots = heroPhotos({ ...senna, portrait: null, highlight: { season: 1991, car: withSenna } });
+    expect(shots.season?.year).toBe(1991);
+    expect(shots.car).toBe(withSenna);
+    // destaque sem foto (url nula): volta à regra da página
+    const noUrl = { url: null } as unknown as Photo;
+    expect(
+      heroPhotos({ ...senna, portrait: null, highlight: { season: 1991, car: noUrl } }).season?.year,
+    ).toBe(1988);
+  });
+
   it('anos de carreira', () => {
     expect(careerSpan(senna)).toEqual({ from: 1984, to: 1993 });
     expect(careerSpan(career([season(2026, { races: 0 })]))).toBeNull();

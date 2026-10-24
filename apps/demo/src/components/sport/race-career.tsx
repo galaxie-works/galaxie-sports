@@ -126,7 +126,7 @@ export async function PhotoGallery({
             caption={
               p.role === 'portrait'
                 ? tx.portrait
-                : p.role === 'car' && p.season
+                : (p.role === 'car' || p.role === 'highlight_car') && p.season
                   ? fill(tx.car!, { season: p.season })
                   : (p.season?.toString() ?? undefined)
             }

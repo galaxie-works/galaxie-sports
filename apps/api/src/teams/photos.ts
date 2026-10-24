@@ -46,7 +46,7 @@ export async function loadPhotos(
       ),
     )
     .orderBy(
-      sql`case ${participantPhoto.role} when 'portrait' then 0 when 'action' then 1 else 2 end`,
+      sql`case ${participantPhoto.role} when 'portrait' then 0 when 'highlight_car' then 1 when 'action' then 2 else 3 end`,
       sql`${participantPhoto.seasonYear} desc nulls last`,
       asc(participantPhoto.rank),
     );

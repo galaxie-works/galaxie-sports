@@ -149,6 +149,41 @@ export class WikimediaClient {
     return out;
   }
 
+  /**
+   * Afirmações de um item pelo `Special:EntityData` (JSON servido do cache do Wikidata, sem o `maxlag` da API):
+   * o caminho quando a API do Wikidata está atrasada. Mesmo ritmo e backoff das outras leituras.
+   */
+  async entityClaims(id: string, props: string[]): Promise<Record<string, unknown[]> | null> {
+    if (!/^Q\d+$/.test(id)) return null;
+    const url = `https://www.wikidata.org/wiki/Special:EntityData/${id}.json`;
+    const maxRetries = this.options.maxRetries ?? 5;
+    for (let attempt = 0; ; attempt++) {
+      const wait = this.last + (this.options.minIntervalMs ?? 1000) - Date.now();
+      if (wait > 0) await this.sleep(wait);
+      this.last = Date.now();
+      this.requests += 1;
+      const res = await this.fetchFn(url, {
+        headers: { 'user-agent': this.options.userAgent ?? WIKIMEDIA_USER_AGENT, accept: 'application/json' },
+      });
+      if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+        const retryAfter = Number(res.headers.get('retry-after')) || 0;
+        await this.sleep(Math.max(retryAfter * 1000, 2 ** attempt * 1000));
+        continue;
+      }
+      if (res.status === 404) return null;
+      if (!res.ok) throw new WikimediaError(`Wikimedia: HTTP ${res.status} em ${url}`, res.status);
+      const body = (await res.json()) as {
+        entities?: Record<string, { claims?: Record<string, unknown[]> }>;
+      };
+      // redirecionamento: a chave é o id final
+      const entity = Object.values(body.entities ?? {})[0];
+      if (!entity) return null;
+      const claims: Record<string, unknown[]> = {};
+      for (const p of props) claims[p] = entity.claims?.[p] ?? [];
+      return claims;
+    }
+  }
+
   // ─── Commons ──────────────────────────────────────────────────────────────────────────────────
 
   /** Arquivos de uma categoria da Commons (namespace 6), em ordem da API. */

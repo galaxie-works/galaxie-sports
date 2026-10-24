@@ -82,7 +82,7 @@ if (values.aplicar) {
       ?.split(',')
       .map((s) => s.trim())
       .filter(Boolean) ?? photoDrivers()
-  ).slice(0, intFlag(values.limite, 'limite') ?? 30);
+  ).slice(0, intFlag(values.limite, 'limite') ?? 100);
   const pending = ids.filter((id) => values.refazer || !done.has(id));
   if (values.plan) {
     console.table(

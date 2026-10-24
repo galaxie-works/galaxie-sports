@@ -12,6 +12,7 @@ const TABLES: readonly F1dbTableName[] = [
   'driver',
   'constructor',
   'chassis',
+  'season_driver',
   'season_driver_standing',
   'season_entrant_driver',
   'season_entrant_chassis',

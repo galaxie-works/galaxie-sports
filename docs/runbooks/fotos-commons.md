@@ -14,6 +14,15 @@ Prioridade do pedido (23/10/2026):
 2. os campeões;
 3. os pilotos com mais corridas.
 
+Ampliação para as lendas (escopo `lendas`, 23/10/2026): todos os campeões mundiais (título decidido; o líder da temporada em andamento não entra) e os N pilotos com mais vitórias e com mais GPs (`--limite`, padrão 20). Cada um ganha o **carro de destaque**, para o topo da página do piloto (o carro ao fundo, o retrato na frente):
+
+- a temporada de título com mais vitórias; sem título, a de mais vitórias; sem vitória, a melhor posição no campeonato;
+- empate: aproveitamento (vitórias por largada), depois posição e ano mais recente;
+- a equipe é a de mais rodadas naquele ano (Moss 1958: Vanwall);
+- exemplos: Senna → McLaren 1988, Schumacher → Ferrari 2004, Hamilton → Mercedes 2020.
+
+O carro vira um alvo `car/<construtor>/<ano>`. Na busca, a foto que cita o piloto (no título ou na subcategoria da Commons, como "McLaren MP4/4 driven by Ayrton Senna") vem primeiro e vale mais nas regras.
+
 ## Licenças
 
 | Licença | Entra? | Obrigação |
@@ -29,7 +38,7 @@ Prioridade do pedido (23/10/2026):
 ## Como escolhe (regras primeiro; IA só ordena)
 
 1. **Identidade.** O piloto é achado no Wikidata pelo nome e **conferido** pela data de nascimento do F1DB e pela ocupação de piloto. O Wikidata dá a foto principal (P18) e a categoria da Commons (P373).
-   - Com o Wikidata atrasado (`maxlag`), a identidade sai da categoria da Commons com o nome do piloto, conferida pelas categorias-mãe ("Formula One drivers…") e pelo ano em "<ano> births".
+   - Com o Wikidata atrasado (`maxlag`), a identidade sai da categoria da Commons com o nome do piloto, conferida pelas categorias-mãe ("Formula One drivers…") e pelo ano em "<ano> births". A foto principal (P18) vem então pelo `Special:EntityData` do Wikidata (JSON do cache, fora do `maxlag`): item da categoria → tema principal (P301) → a pessoa, conferida pela data de nascimento completa do F1DB.
    - Carro: a categoria do chassi do F1DB ("McLaren MP4/4") e as subcategorias dela (por piloto), sem motores, miniaturas, arte e afins.
 2. **Candidatas.** Entram:
    - a categoria do piloto;
@@ -55,7 +64,7 @@ Prioridade do pedido (23/10/2026):
 
 ```bash
 # 1. mapear: busca, regras, ordem e grava config/assets/commons/f1.yaml + f1.cobertura.md (não grava no banco)
-pnpm --filter @galaxie/ingestor assets:commons --mapear --escopo senna      # senna | campeoes | mais-corridas [--limite 30]
+pnpm --filter @galaxie/ingestor assets:commons --mapear --escopo senna      # senna | campeoes | mais-corridas | lendas [--limite 20]
 # 2. prévia da importação (confere a licença de novo; não baixa nem grava)
 pnpm --filter @galaxie/ingestor assets:commons --plan
 # 3. importar: baixa a miniatura, grava no storage e liga ao piloto/construtor (idempotente)
@@ -89,13 +98,20 @@ pnpm --filter @galaxie/ingestor assets:commons
 | `manual` | Curadoria: a foto fica, mesmo que a varredura não a escolha. Para acrescentar uma foto à mão, copie um item, troque `file`, `page_url` e os campos da licença e marque `match: manual`; a importação confere a licença de novo |
 | `rejected` | Curadoria: a foto sai e não volta nas próximas varreduras |
 
+**Carro de destaque do piloto** (`highlight_car` na entrada do piloto): `target` (o alvo do carro), `season`, `reason` e `match`.
+
+- `auto`: vem da regra e é refeito a cada varredura.
+- `manual`: curadoria. Troque o `target` e a `season` e marque `match: manual`; a varredura não mexe mais.
+
+Na importação, a primeira foto (não rejeitada) desse carro vira também vínculo do piloto, com o papel `highlight_car` e a temporada. Se o carro não tiver foto, o piloto fica sem destaque: nunca uma foto ruim.
+
 `config/assets/commons/f1.cobertura.md` mostra, por alvo, as fotos e licenças e, na última varredura, candidatas, aceitas e os motivos de recusa mais comuns.
 
 ## Onde aparece
 
 - **API:**
   - `GET /v1/teams/{id}/photos` (`role`, `season`): fotos com `credit` (autor, licença, links e `text`, a linha pronta);
-  - `GET /v1/teams/{id}/career`: o `portrait` e o `car` de cada temporada, com o mesmo crédito.
+  - `GET /v1/teams/{id}/career`: o `portrait`, o `highlight` (carro de destaque: `season` e `car`) e o `car` de cada temporada, com o mesmo crédito.
 - **Demo:**
   - galeria e retrato na página do piloto ou da equipe;
   - foto do carro na tabela de temporadas da carreira;

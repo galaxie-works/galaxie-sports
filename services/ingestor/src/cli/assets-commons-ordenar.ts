@@ -8,8 +8,9 @@
  * acrescenta foto. Curadoria (`manual`, `rejected`) fica.
  *
  * Idempotente: o alvo ordenado guarda o modelo e a data (`ranking`) e não é refeito sem --refazer; se o Gemini
- * falhar, o alvo fica como estava e volta na próxima execução. O manifesto de --saida (se já existir) é a base,
- * então rodar de novo continua de onde parou.
+ * falhar, o alvo fica como estava e volta na próxima execução. A base é o manifesto de entrada (o do repositório,
+ * com os alvos novos); do --saida de uma execução anterior vêm só os alvos já ordenados (com o carro de destaque
+ * da entrada), então rodar de novo continua de onde parou.
  *
  * Opções: --manifesto <arquivo> (entrada; padrão: o do repositório), --saida <arquivo> (padrão: a entrada),
  * --so driver/ayrton-senna,car/mclaren/1988, --limite <n> (alvos por execução), --refazer.
@@ -22,7 +23,14 @@ import { WikimediaClient } from '../assets/commons/client.js';
 import { GEMINI_VISION_DEFAULT_MODEL, geminiRanker } from '../assets/commons/gemini.js';
 import { loadF1dbForCommons, targetsByKey } from '../assets/commons/load.js';
 import { readManifest, writeManifest } from '../assets/commons/manifest.js';
-import { AI_POOL, coverageReport, isRanked, mapCommons, writeReport } from '../assets/commons/map.js';
+import {
+  AI_POOL,
+  coverageReport,
+  isRanked,
+  mapCommons,
+  mergeRanked,
+  writeReport,
+} from '../assets/commons/map.js';
 import { listArg, parseArgs } from '../multisport/cli-args.js';
 
 const url = process.env.DATABASE_URL;
@@ -38,9 +46,11 @@ const plan = args.has('plan');
 const model = process.env.GEMINI_MODEL_VISION?.trim() || GEMINI_VISION_DEFAULT_MODEL;
 const log = (m: string) => console.log(m);
 
-// a saída de uma execução anterior é a base: continua de onde parou
-const base = (output !== input && existsSync(output) ? readManifest(output) : null) ?? readManifest(input);
+const base = readManifest(input);
 if (!base) throw new Error(`Manifesto não encontrado: ${input} (rode assets:commons --mapear).`);
+// alvos já ordenados numa execução anterior (--saida) continuam: rodar de novo continua de onde parou
+const previous = output !== input && existsSync(output) ? readManifest(output) : null;
+if (previous) base.entries = mergeRanked(base.entries, previous.entries);
 const pending = base.entries
   .filter((e) => !only || only.includes(e.target))
   .filter((e) => redo || !isRanked(e))
@@ -59,7 +69,7 @@ if (plan) {
   );
   console.log(
     `PRÉVIA (nada chamado, nada gravado): ${pending.length} alvo(s) a ordenar com ${model}, ` +
-      `1 chamada ao Gemini por alvo com até ${AI_POOL} miniaturas; base ${existsSync(output) ? output : input}`,
+      `1 chamada ao Gemini por alvo com até ${AI_POOL} miniaturas; base ${input}${previous ? ` + alvos já ordenados de ${output}` : ''}`,
   );
 } else {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
