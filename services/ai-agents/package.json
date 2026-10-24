@@ -35,9 +35,11 @@
     "wtw:rights": "node --env-file-if-exists=../../.env dist/cli/wtw-rights.js",
     "f1:bio": "node --env-file-if-exists=../../.env dist/cli/f1-bio.js",
     "lineups:research": "node --env-file-if-exists=../../.env dist/cli/lineups-research.js",
-    "wtw:rights:compare": "node --env-file-if-exists=../../.env dist/cli/wtw-rights-compare.js"
+    "wtw:rights:compare": "node --env-file-if-exists=../../.env dist/cli/wtw-rights-compare.js",
+    "review:suggestions": "node --env-file-if-exists=../../.env dist/cli/review-suggestions.js"
   },
   "dependencies": {
+    "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",

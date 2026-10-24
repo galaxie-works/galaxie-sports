@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, FilePenLine, Undo2, X } from 'lucide-react';
+import { Bot, Check, FilePenLine, Undo2, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
@@ -314,6 +314,118 @@ function ServingCard({ item, serving, timeZone }: { item: Detail; serving: Servi
   );
 }
 
+/**
+ * Veredito da IA sobre a sugestão em aberto: a recusa com o motivo (o item segue "precisa de revisão"
+ * e o admin decide) ou o aviso de que a avaliação vem na próxima rodada do job.
+ */
+function AiVerdict({ item, timeZone }: { item: Detail; timeZone: string }) {
+  const { t } = useI18n();
+  const T = t.review.detail;
+  const f = useFormatters(timeZone);
+  const v = item.aiVerdict;
+  if (!v || v.outcome !== 'rejected')
+    return <p className="text-muted-foreground border-t pt-3 text-xs">{T.aiPending}</p>;
+  return (
+    <div className="border-destructive/30 bg-destructive/5 flex flex-col gap-2 rounded-md border p-3">
+      <p className="flex items-center gap-1.5 font-medium">
+        <Bot className="size-4" />
+        {T.aiTitle}
+      </p>
+      <p className="whitespace-pre-wrap">{v.reason}</p>
+      {v.validation.length ? (
+        <div>
+          <p className="text-muted-foreground text-xs font-medium">{T.aiValidation}</p>
+          <ul className="list-disc pl-4 text-xs">
+            {v.validation.map((p, i) => (
+              <li key={i}>{p}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {v.fields ? (
+        <div>
+          <p className="text-muted-foreground mb-1 text-xs font-medium">{T.aiProposed}</p>
+          <Fields content={v.fields} empty={T.empty} />
+        </div>
+      ) : null}
+      <p className="text-muted-foreground text-xs">
+        {fill(T.aiRejectedBy, { who: v.by, model: v.model, when: f.dayTime(v.at) })}
+      </p>
+    </div>
+  );
+}
+
+/** Edição da IA em vigor: campo a campo, o que o YAML tem e o que está no ar. */
+function OverrideCard({
+  item,
+  override,
+  timeZone,
+}: {
+  item: Detail;
+  override: NonNullable<Detail['override']>;
+  timeZone: string;
+}) {
+  const { t } = useI18n();
+  const T = t.review.detail;
+  const f = useFormatters(timeZone);
+  const v = item.aiVerdict && item.aiVerdict.outcome !== 'rejected' ? item.aiVerdict : null;
+  return (
+    <Card className="border-info/40">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5">
+          <Bot className="size-4" />
+          {T.overrideTitle}
+        </CardTitle>
+        <CardDescription>
+          {fill(T.overrideHint, { who: override.source, when: f.dayTime(override.at) })}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm">
+        {override.reason ? <p className="whitespace-pre-wrap">{override.reason}</p> : null}
+        {v?.adjustments.length ? (
+          <div>
+            <p className="text-muted-foreground text-xs font-medium">{T.aiAdjustments}</p>
+            <ul className="list-disc pl-4 text-xs">
+              {v.adjustments.map((a, i) => (
+                <li key={i}>{a}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-muted-foreground border-b text-left text-xs">
+                <th className="py-2 pr-3 font-normal" />
+                <th className="py-2 pr-3 font-medium">{T.overrideBefore}</th>
+                <th className="py-2 font-medium">{T.overrideAfter}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {Object.keys(override.fields).map((k) => (
+                <tr key={k} className="align-top">
+                  <td className="text-muted-foreground py-2 pr-3 font-mono text-xs">{k}</td>
+                  <td className="py-2 pr-3">
+                    <Value value={override.base[k]} empty={T.empty} />
+                  </td>
+                  <td className="py-2">
+                    <Value value={override.fields[k]} empty={T.empty} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {v ? (
+          <p className="text-muted-foreground text-xs">
+            {fill(T.aiApprovedBy, { who: v.by, model: v.model, when: f.dayTime(v.at) })}
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 interface Props {
   item: Detail;
   preview: ReviewPreview;
@@ -430,9 +542,12 @@ export function ReviewDetail({ item, preview, serving, timeZone }: Props) {
                 <Fields content={item.suggestion.fields} empty={empty} />
               </div>
             ) : null}
+            <AiVerdict item={item} timeZone={timeZone} />
           </CardContent>
         </Card>
       ) : null}
+
+      {item.override ? <OverrideCard item={item} override={item.override} timeZone={timeZone} /> : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card>

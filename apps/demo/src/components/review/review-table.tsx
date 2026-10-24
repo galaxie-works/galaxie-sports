@@ -78,7 +78,10 @@ function Truncated({ text, className }: { text: string; className?: string }) {
   );
 }
 
-/** O que revisar: a sugestão em aberto (se houver) e o resumo do conteúdo, cada um cortado em uma linha. */
+/**
+ * O que revisar: a sugestão em aberto (se houver), o motivo da IA ao recusá-la e o resumo do conteúdo
+ * (o que está no ar, já com a edição da IA quando houver), cada um cortado em uma linha.
+ */
 function Summary({ item }: { item: ReviewListRow }) {
   const { t } = useI18n();
   const T = t.review;
@@ -89,6 +92,12 @@ function Summary({ item }: { item: ReviewListRow }) {
         <Truncated
           text={`${T.table.suggestion}: ${item.openSuggestion}`}
           className="text-amber-600 dark:text-amber-400"
+        />
+      ) : null}
+      {item.aiRejection ? (
+        <Truncated
+          text={fill(T.table.aiRejected, { reason: item.aiRejection })}
+          className="text-destructive text-xs"
         />
       ) : null}
       {item.summary ? (
@@ -246,6 +255,12 @@ export function ReviewTable({ items, total, filters, timeZone }: Props) {
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-1">
                     <Badge variant={STATE_BADGE[item.state]}>{T.states[item.state]}</Badge>
+                    {item.edited ? (
+                      <Tooltip>
+                        <TooltipTrigger render={<Badge variant="info-outline">{T.table.edited}</Badge>} />
+                        <TooltipContent className="max-w-72">{T.table.editedHint}</TooltipContent>
+                      </Tooltip>
+                    ) : null}
                     {item.stale ? (
                       <Tooltip>
                         <TooltipTrigger

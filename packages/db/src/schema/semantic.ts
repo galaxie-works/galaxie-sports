@@ -207,6 +207,26 @@ export const loadRun = semantic.table('load_run', {
 export type ReviewSuggestion = { comment: string; fields: Record<string, unknown> | null };
 
 /**
+ * Veredito do agente de revisão de sugestões (`review-suggestions`) sobre a sugestão em aberto. Na
+ * recusa, o item segue "precisa de revisão" e o painel mostra o motivo; o painel apaga o veredito
+ * quando a decisão muda (nova sugestão, aprovar, voltar para rascunho).
+ */
+export type ReviewAiVerdict = {
+  outcome: 'accepted' | 'adjusted' | 'rejected';
+  reason: string;
+  /** Campos finais aplicados (aceita) ou propostos pelo modelo (recusa), quando houver. */
+  fields: Record<string, unknown> | null;
+  /** Ajustes pequenos feitos pelo modelo na edição proposta (vírgula, aspas...). */
+  adjustments: string[];
+  /** Falhou na validação determinística (schema, variáveis, campos editáveis) depois do modelo. */
+  validation: string[];
+  /** Quem decidiu: o provedor do modelo (`gemini` em produção). */
+  by: string;
+  model: string;
+  at: string;
+};
+
+/**
  * Catálogo do que pode ser revisado (perfis, clássicos, competições, copy, glossário e traduções),
  * reescrito pelo seed a cada carga a partir do YAML. O painel lista e mostra o conteúdo daqui.
  */
@@ -252,6 +272,31 @@ export const reviewDecision = semantic.table('review_decision', {
   decidedBy: text('decided_by').notNull(),
   decidedById: text('decided_by_id'),
   decidedAt: timestamp('decided_at', { withTimezone: true }).notNull().defaultNow(),
+  /** Veredito do agente sobre a sugestão desta decisão (null = ainda não avaliada). */
+  aiVerdict: jsonb('ai_verdict').$type<ReviewAiVerdict>(),
+});
+
+/**
+ * Edição de conteúdo aprovada fora do YAML (hoje, pelo agente de revisão de sugestões), aplicada por
+ * cima do YAML no seed e na leitura do glossário pela API — o próximo deploy não a desfaz. Campo a
+ * campo (chaves de primeiro nível do conteúdo do item): `fields` = valor novo (null = remover),
+ * `base` = valor do YAML quando a edição foi feita. Se o YAML mudar um desses campos para um terceiro
+ * valor, vale o YAML (conflito); se o YAML já tiver o valor novo (exportado), a edição é absorvida.
+ * Desenho em docs/06 §2.1.
+ */
+export const reviewOverride = semantic.table('review_override', {
+  itemId: text('item_id').primaryKey(),
+  fields: jsonb('fields').$type<Record<string, unknown>>().notNull(),
+  base: jsonb('base').$type<Record<string, unknown>>().notNull(),
+  /** review_hash do conteúdo com a edição aplicada (o da decisão aprovada junto). */
+  reviewHash: text('review_hash').notNull(),
+  /** Quem aprovou a edição (`gemini` no agente). */
+  source: text('source').notNull(),
+  reason: text('reason'),
+  /** Sugestão do painel que originou a edição. */
+  suggestion: jsonb('suggestion').$type<ReviewSuggestion>(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
 });
 
 /** Auditoria das ações do painel: quem, quando, o quê (status de/para, comentário e edição proposta). */

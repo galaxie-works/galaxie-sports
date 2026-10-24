@@ -73,6 +73,7 @@ describe('scheduleFromEnv', () => {
       'wtw-run',
       'related-run',
       'wtw-rights',
+      'review-suggestions',
       'lineups-revisit',
     ]);
     expect(jobs.every((j) => j.cwd === '../ai-agents')).toBe(true);

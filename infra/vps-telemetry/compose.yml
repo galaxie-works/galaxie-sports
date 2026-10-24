@@ -253,6 +253,9 @@ services:
       # pesquisa de direitos por temporada com outro provedor (vazio = AI_PROVIDER)
       AI_RIGHTS_PROVIDER: ${AI_RIGHTS_PROVIDER:-}
       AI_RIGHTS_MODEL: ${AI_RIGHTS_MODEL:-}
+      # revisão das sugestões de edição da base semântica (padrão gemini, com GEMINI_API_KEY)
+      AI_REVIEW_PROVIDER: ${AI_REVIEW_PROVIDER:-gemini}
+      AI_REVIEW_MODEL: ${AI_REVIEW_MODEL:-}
       AI_MODEL_LIGHT: ${AI_MODEL_LIGHT:-}
       AI_MODEL_STANDARD: ${AI_MODEL_STANDARD:-}
       AI_MODEL_RESEARCH: ${AI_MODEL_RESEARCH:-}
