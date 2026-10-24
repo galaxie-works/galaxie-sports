@@ -80,9 +80,10 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     registryComponent: 'GalaxieWhereToWatch',
     name: { 'pt-BR': 'Onde assistir', es: 'Dónde ver', en: 'Where to watch' },
     description: {
-      'pt-BR': 'Onde assistir o jogo no país: TV aberta, TV por assinatura e streaming, com os logos.',
-      es: 'Dónde ver el partido en el país: TV abierta, TV paga y streaming, con los logos.',
-      en: 'Where to watch the match in a country: free TV, pay TV and streaming, with logos.',
+      'pt-BR':
+        'Onde assistir o jogo no país: TV aberta, canais pagos e "disponível também em", com o plano de cada operadora ou streaming, os canais e os streamings inclusos.',
+      es: 'Dónde ver el partido en el país: TV abierta, canales pagos y "disponible también en", con el plan de cada operadora o streaming, los canales y los streamings incluidos.',
+      en: 'Where to watch the match in a country: free-to-air TV, pay TV channels and "also available on", with each operator or streaming plan, its channels and included streaming.',
     },
     requiredProps: ['eventId', 'market'],
     optionalProps: ['region'],

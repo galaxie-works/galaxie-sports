@@ -300,6 +300,11 @@ export default defineMessages(
           description:
             'A IA decide as sugestões de edição em aberto: a aprovada entra no ar sem deploy, a recusada fica com o motivo.',
         },
+        'lineups-revisit': {
+          label: 'Grade de canais: revisita',
+          description:
+            'Refaz a pesquisa das operadoras e planos vistos há mais de 30 dias (até 4 por execução).',
+        },
       },
     },
     history: {
@@ -818,6 +823,11 @@ export default defineMessages(
             label: 'Semantic review: suggestions',
             description:
               'AI decides the open edit suggestions: an approved one goes live without a deploy, a rejected one keeps the reason.',
+          },
+          'lineups-revisit': {
+            label: 'Channel lineups: revisit',
+            description:
+              'Researches again the operators and plans seen more than 30 days ago (up to 4 per run).',
           },
         },
       },
@@ -1342,6 +1352,11 @@ export default defineMessages(
             label: 'Revisión semántica: sugerencias',
             description:
               'La IA decide las sugerencias de edición abiertas: la aprobada sale al aire sin deploy, la rechazada queda con el motivo.',
+          },
+          'lineups-revisit': {
+            label: 'Grilla de canales: revisión',
+            description:
+              'Vuelve a investigar los operadores y planes vistos hace más de 30 días (hasta 4 por ejecución).',
           },
         },
       },

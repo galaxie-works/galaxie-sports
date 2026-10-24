@@ -1,7 +1,8 @@
 /**
  * Onde assistir agrupado para a página do jogo: TV aberta, canais pagos e "disponível também em" (um
  * cartão por operadora ou streaming, com os planos). Usa o bloco `availability` da API; resposta sem
- * ele (cópia gravada antiga) cai para as opções publicadas, sem cartões de plataforma.
+ * ele (cópia gravada antiga) cai para as opções publicadas, sem cartões de plataforma. Com o canal do
+ * jogo a confirmar (`channel_status = to_confirm`), os grupos são os dos detentores dos direitos.
  */
 import type {
   AvailabilityLogo,
@@ -31,6 +32,8 @@ export interface WatchGroups {
   others: WatchLogo[];
   /** Operadora do tenant; com `plans: []` quando o jogo não está na grade dela. */
   yourOperator: PlatformAvailability | null;
+  /** O canal do jogo ainda não foi confirmado: os grupos são os dos detentores dos direitos no país. */
+  toConfirm: boolean;
 }
 
 const fromOptions = (options: WhereToWatchOption[], id: string) =>
@@ -75,11 +78,33 @@ function optionLogos(options: WhereToWatchOption[], keep: (o: WhereToWatchOption
   return [...out.values()];
 }
 
+/** Detentores "a confirmar" de outros meios (streaming, app), no formato das opções. */
+function toConfirmOthers(wtw: WhereToWatch, inCards: Set<string>): WatchLogo[] {
+  const out = new Map<string, WatchLogo>();
+  for (const c of wtw.to_confirm ?? []) {
+    if (c.medium === 'free_tv' || c.medium === 'pay_tv') continue;
+    if (c.provider_id && inCards.has(c.provider_id)) continue;
+    const key = `${c.provider_id ?? c.provider}|${c.provider}`;
+    if (out.has(key)) continue;
+    out.set(key, {
+      key,
+      name: c.provider,
+      logo: c.logo,
+      logoDark: c.logo_dark,
+      href: null,
+      regions: [],
+      medium: c.medium,
+    });
+  }
+  return [...out.values()];
+}
+
 export function groupWhereToWatch(wtw: WhereToWatch): WatchGroups {
   const options = wtw.options;
   // cópias gravadas antes do bloco não o têm: o tipo diz que sempre vem, a resposta antiga não
   const availability = (wtw as Partial<WhereToWatch>).availability ?? null;
   const platforms = availability?.platforms ?? [];
+  const toConfirm = availability?.channel_status === 'to_confirm';
   const inCards = new Set(
     platforms.flatMap((p) => (p.platform.broadcaster_id ? [p.platform.broadcaster_id] : [])),
   );
@@ -91,12 +116,15 @@ export function groupWhereToWatch(wtw: WhereToWatch): WatchGroups {
       ? availability.pay_tv_channels.map((c) => logoOf(c, options))
       : optionLogos(options, (o) => o.medium === 'pay_tv'),
     platforms,
-    others: optionLogos(
-      options,
-      (o) =>
-        o.medium !== 'free_tv' && o.medium !== 'pay_tv' && !(o.provider_id && inCards.has(o.provider_id)),
-    ),
+    others: toConfirm
+      ? toConfirmOthers(wtw, inCards)
+      : optionLogos(
+          options,
+          (o) =>
+            o.medium !== 'free_tv' && o.medium !== 'pay_tv' && !(o.provider_id && inCards.has(o.provider_id)),
+        ),
     yourOperator: availability?.your_operator ?? null,
+    toConfirm,
   };
 }
 

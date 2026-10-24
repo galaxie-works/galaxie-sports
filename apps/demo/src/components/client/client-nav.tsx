@@ -20,7 +20,11 @@ export type ClientSection = (typeof CLIENT_NAV)[number]['id'];
 export function ClientNav({ active }: { active: ClientSection }) {
   const { t } = useI18n();
   return (
-    <nav aria-label={t.client.nav.label} className="bg-muted inline-flex w-fit gap-1 rounded-lg p-1">
+    // no celular as abas rolam na horizontal, sem alargar a página
+    <nav
+      aria-label={t.client.nav.label}
+      className="bg-muted inline-flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg p-1"
+    >
       {CLIENT_NAV.map(({ id, href, icon: Icon }) => (
         <Link
           key={id}
@@ -28,7 +32,7 @@ export function ClientNav({ active }: { active: ClientSection }) {
           onClick={topLevelClick(href)}
           aria-current={active === id ? 'page' : undefined}
           className={cn(
-            'text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            'text-muted-foreground hover:text-foreground flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
             active === id && 'bg-background text-foreground shadow-sm',
           )}
         >
