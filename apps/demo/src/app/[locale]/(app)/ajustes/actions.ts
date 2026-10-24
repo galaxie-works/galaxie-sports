@@ -16,6 +16,8 @@ import { tenantExists } from '@/lib/client/tenants';
 import { isLocale, type Locale } from '@/lib/i18n/config';
 import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { getTenantOperator, lineupDb } from '@/lib/lineup/store';
+import { emailMatchesDomains } from '@/lib/lineup/types';
 
 export interface ActionResult {
   ok: boolean;
@@ -24,6 +26,8 @@ export interface ActionResult {
   link?: string | null;
   emailSent?: boolean;
   userId?: string;
+  /** Convite de cliente recusado só por falta de confirmar o e-mail fora dos domínios da operadora. */
+  outsideDomain?: boolean;
 }
 
 export interface ProfileInput {
@@ -45,6 +49,11 @@ export interface InviteInput extends ProfileInput {
   accessDays: number | null;
   /** Idioma do convite (e dos próximos e-mails da pessoa). */
   locale: Locale;
+  /**
+   * Cliente com e-mail fora dos domínios da operadora do tenant (agência, consultor): o admin viu o aviso
+   * e confirmou. Sem a confirmação, o convite volta com o aviso.
+   */
+  confirmOutsideDomain?: boolean;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -93,6 +102,16 @@ export async function inviteUser(input: InviteInput): Promise<ActionResult> {
   if (!isRole(input.role)) return fail('invalidRole');
   const tenant = await tenantFor(input.role, input.tenantId);
   if ('error' in tenant) return fail(tenant.error);
+  if (tenant.tenantId && !input.confirmOutsideDomain) {
+    // Aviso, não bloqueio: fora dos domínios da operadora, o convite só sai com a confirmação do admin.
+    const operator = await getTenantOperator(lineupDb(), tenant.tenantId);
+    if (!emailMatchesDomains(email, operator?.emailDomains ?? []))
+      return {
+        ok: false,
+        outsideDomain: true,
+        error: getDictionary(await getRequestLocale()).lineup.errors.outsideDomain,
+      };
+  }
   try {
     const created = await auth.api.createUser({
       headers: await headers(),
