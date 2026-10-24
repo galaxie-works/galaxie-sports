@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { tagsForChange } from './change-feed.js';
-import { matchesEtag, sendCached } from './http.js';
+import { matchesEtag, sendCached, SURROGATE_KEY_MAX, surrogateKeyHeader } from './http.js';
 import { cacheControl } from './policy.js';
 import { MemoryResponseCache } from './store.js';
 
@@ -88,5 +88,26 @@ describe('utilitários de cache', () => {
       'venue:v1',
       'venue',
     ]);
+  });
+});
+
+describe('surrogateKeyHeader', () => {
+  it('mantém todas as tags quando cabem', () => {
+    expect(surrogateKeyHeader(['event', 'event:1', 'competition:2'])).toBe('event event:1 competition:2');
+  });
+
+  it('acima do teto fica só com as tags de coleção (header nunca estoura o limite do cliente)', () => {
+    const tags = [
+      'event',
+      ...Array.from(
+        { length: 600 },
+        (_, i) => `event:01a16b43-0674-75d3-a118-${String(i).padStart(12, '0')}`,
+      ),
+      'competition',
+    ];
+    const header = surrogateKeyHeader(tags);
+    expect(tags.join(' ').length).toBeGreaterThan(SURROGATE_KEY_MAX);
+    expect(header).toBe('event competition');
+    expect(header.length).toBeLessThanOrEqual(SURROGATE_KEY_MAX);
   });
 });
