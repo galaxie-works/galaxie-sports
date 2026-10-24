@@ -140,6 +140,29 @@ const photoOf = (c: ChosenPhoto, license: CommonsLicense): ManifestPhoto => {
 };
 
 /**
+ * Carro de destaque do piloto no manifesto: a curadoria (`manual`) da entrada anterior fica; senão, o da regra
+ * (`highlightCandidates`), com os outros candidatos em `fallbacks`.
+ */
+export function highlightCarOf(
+  target: CommonsTarget,
+  previous: ManifestEntry | undefined,
+): HighlightCar | null {
+  if (previous?.highlight_car?.match === 'manual') return previous.highlight_car;
+  if (target.kind !== 'driver' || !target.highlight) return null;
+  return {
+    target: target.highlight.target,
+    season: target.highlight.year,
+    reason: target.highlight.reason,
+    match: 'auto',
+    ...(target.fallbacks?.length
+      ? {
+          fallbacks: target.fallbacks.map((h) => ({ target: h.target, season: h.year, reason: h.reason })),
+        }
+      : {}),
+  };
+}
+
+/**
  * Nova entrada do alvo, mantendo a curadoria da anterior: fotos `manual` ficam (na frente), `rejected` ficam
  * registradas e não voltam, e as escolhas automáticas são as da varredura nova.
  */
@@ -150,26 +173,7 @@ export function mergeEntry(
   previous: ManifestEntry | undefined,
 ): ManifestEntry {
   const curated = (previous?.photos ?? []).filter((p) => p.match !== 'auto');
-  const highlight: HighlightCar | null =
-    previous?.highlight_car?.match === 'manual'
-      ? previous.highlight_car
-      : target.kind === 'driver' && target.highlight
-        ? {
-            target: target.highlight.target,
-            season: target.highlight.year,
-            reason: target.highlight.reason,
-            match: 'auto',
-            ...(target.fallbacks?.length
-              ? {
-                  fallbacks: target.fallbacks.map((h) => ({
-                    target: h.target,
-                    season: h.year,
-                    reason: h.reason,
-                  })),
-                }
-              : {}),
-          }
-        : null;
+  const highlight = highlightCarOf(target, previous);
   const rejected = new Set(curated.filter((p) => p.match === 'rejected').map((p) => p.file));
   const manual = curated.filter((p) => p.match === 'manual');
   const auto = chosen

@@ -7,6 +7,7 @@
  *       Gemini é um passo à parte (assets-commons-ordenar), e os alvos já ordenados ficam como estão (--refazer)
  *   pnpm --filter @galaxie/ingestor assets:commons --plan     # prévia da importação
  *   pnpm --filter @galaxie/ingestor assets:commons            # importa (idempotente)
+ *   pnpm --filter @galaxie/ingestor assets:commons --destaques # refaz o carro de destaque dos pilotos (F1DB)
  * Opções: --so driver/ayrton-senna,car/mclaren/1988, --novos (só alvos fora do manifesto), --manifesto <arquivo>,
  * --refazer.
  * O F1DB precisa estar no raw (f1db:import) com as tabelas de equipes e chassis.
@@ -15,8 +16,8 @@ import { join } from 'node:path';
 import { closeDb, createDb } from '@galaxie/db';
 import { WikimediaClient } from '../assets/commons/client.js';
 import { importCommons } from '../assets/commons/import.js';
-import { loadF1dbForCommons } from '../assets/commons/load.js';
-import { readManifest, writeManifest } from '../assets/commons/manifest.js';
+import { loadF1dbForCommons, targetsByKey } from '../assets/commons/load.js';
+import { highlightCarOf, readManifest, writeManifest } from '../assets/commons/manifest.js';
 import { coverageReport, mapCommons, writeReport } from '../assets/commons/map.js';
 import { COMMONS_SCOPES, targetKey, targetsFor, type CommonsScope } from '../assets/commons/scope.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
@@ -41,7 +42,41 @@ const nullStore = {
 const db = createDb(url, { max: 3 });
 const client = new WikimediaClient({ log });
 try {
-  if (args.has('mapear')) {
+  if (args.has('destaques')) {
+    // só o carro de destaque (e os candidatos) de cada piloto do manifesto, pelo F1DB; não chama a Commons
+    const manifest = readManifest(manifestPath);
+    if (!manifest) throw new Error(`Manifesto não encontrado: ${manifestPath} (rode --mapear).`);
+    const { tables } = await loadF1dbForCommons(db);
+    const drivers = manifest.entries.filter((e) => e.kind === 'driver');
+    const targets = new Map(
+      targetsByKey(
+        tables,
+        drivers.map((e) => e.target),
+      ).map((t) => [targetKey(t), t]),
+    );
+    let changed = 0;
+    for (const e of drivers) {
+      const t = targets.get(e.target);
+      if (!t) continue;
+      const h = highlightCarOf(t, e);
+      if (JSON.stringify(h) === JSON.stringify(e.highlight_car ?? null)) continue;
+      if (h) e.highlight_car = h;
+      else delete e.highlight_car;
+      changed += 1;
+    }
+    const missing = new Set(
+      drivers.flatMap((e) =>
+        e.highlight_car
+          ? [e.highlight_car.target, ...(e.highlight_car.fallbacks ?? []).map((f) => f.target)]
+          : [],
+      ),
+    );
+    for (const e of manifest.entries) missing.delete(e.target);
+    writeManifest(manifestPath, manifest);
+    console.log(`carro de destaque atualizado em ${changed} de ${drivers.length} pilotos`);
+    if (missing.size)
+      console.log(`carros candidatos fora do manifesto (rode --mapear --so ...): ${[...missing].join(',')}`);
+  } else if (args.has('mapear')) {
     const scope = String(args.get('escopo') ?? 'senna') as CommonsScope;
     if (!COMMONS_SCOPES.includes(scope)) throw new Error(`--escopo: use ${COMMONS_SCOPES.join(', ')}`);
     const { tables, release } = await loadF1dbForCommons(db);

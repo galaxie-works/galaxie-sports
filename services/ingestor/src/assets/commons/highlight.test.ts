@@ -104,14 +104,41 @@ describe('foto do carro de destaque (fundo do heading do piloto)', () => {
       for (const e of curated) {
         const target = byTarget.get(e.highlight_car!.target);
         expect(target, `${e.target} → ${e.highlight_car!.target}`).toBeDefined();
-        const chosen = highlightPhoto(target);
+        // a foto que a importação leva ao fundo (a de `file`, quando a curadoria aponta uma)
+        const chosen = pickHighlight(e, byTarget)?.photo;
         expect(
           chosen,
           `${e.target}: ${e.highlight_car!.target} só tem foto CC BY-SA ou rejeitada`,
         ).toBeDefined();
+        if (e.highlight_car!.file) expect(chosen!.file).toBe(e.highlight_car!.file);
         expect(chosen!.share_alike).toBe(false);
         expect(chosen!.license).not.toMatch(/BY-SA/i);
       }
+    });
+
+    it('pedidos do produto: Hamilton na Ferrari 2026, Fangio em Zandvoort 1955, Farina em Monza 1950', () => {
+      const fundo = (driver: string) => {
+        const p = pickHighlight(byTarget.get(driver)!, byTarget);
+        return [p?.target, p?.season, p?.photo.file, p?.photo.license];
+      };
+      expect(fundo('driver/lewis-hamilton')).toEqual([
+        'car/ferrari/2026',
+        2026,
+        'File:2026 Chinese GP - Ferrari - Lewis Hamilton - Qualifying.jpg',
+        'CC BY 4.0',
+      ]);
+      expect(fundo('driver/juan-manuel-fangio')).toEqual([
+        'car/mercedes/1955',
+        1955,
+        'File:Grote Prijs van Nederland Zandvoort. Vooraan J. M. Fangio in Mercedes (de latere, Bestanddeelnr 907-1903.jpg',
+        'CC0',
+      ]);
+      expect(fundo('driver/nino-farina')).toEqual([
+        'car/alfa-romeo/1950',
+        1950,
+        'File:1950 Italian Grand Prix - Farina (Alfa Romeo) ahead Ascari (Ferrari) at Porfido bends.jpg',
+        'Public domain',
+      ]);
     });
 
     it('Senna: Phoenix 1991, com o #1 de campeão', () => {

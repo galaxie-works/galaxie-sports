@@ -3,7 +3,7 @@ import type { F1dbTables } from '@galaxie/providers';
 import type { CommonsFile, WikimediaClient } from './client.js';
 import { chassisCategories, discoverCar, findDriverCategory } from './discover.js';
 import type { ExtMetadata } from './license.js';
-import { mergeEntry, type ManifestEntry } from './manifest.js';
+import { highlightCarOf, mergeEntry, type ManifestEntry } from './manifest.js';
 import { mergeRanked } from './map.js';
 import {
   highlightSeason,
@@ -210,6 +210,23 @@ describe('curadoria do carro de destaque no manifesto', () => {
       match: 'manual' as const,
     };
     expect(mergeEntry(senna, d, [], { ...auto, highlight_car: manual }).highlight_car).toEqual(manual);
+  });
+});
+
+describe('--destaques: carro de destaque refeito sem varrer a Commons', () => {
+  const senna = targetsFor(tables, 'lendas', 3).find((t) => t.f1dbId === 'ayrton-senna') as DriverTarget;
+  const old = {
+    target: 'driver/ayrton-senna',
+    highlight_car: { target: 'car/mclaren/1988', season: 1988, reason: 'antigo', match: 'auto' as const },
+  } as ManifestEntry;
+
+  it('a entrada antiga (sem candidatos) ganha os candidatos; a curadoria manual fica', () => {
+    expect(highlightCarOf(senna, old)?.fallbacks?.map((f) => f.target)).toEqual([
+      'car/mclaren/1991',
+      'car/mclaren/1990',
+    ]);
+    const manual = { ...old.highlight_car!, match: 'manual' as const, file: 'File:Phoenix.jpg' };
+    expect(highlightCarOf(senna, { ...old, highlight_car: manual })).toBe(manual);
   });
 });
 
