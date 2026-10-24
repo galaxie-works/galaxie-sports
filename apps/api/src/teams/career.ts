@@ -17,8 +17,10 @@
  *   tabela da época pela posição.
  * - Abandono (DNF) = `position_text`/`time` "DNF" (desclassificação e não classificado não contam); top 10 =
  *   chegada entre os dez primeiros; largada = `grid` do resultado (largada dos boxes não conta).
- * - Número do carro na temporada = o mais usado nas corridas dela (sem corrida, nas demais sessões); sem ele
- *   (api-sports), o permanente, de 2014 em diante. Cores da equipe na temporada = a pintura curada por época (`formula-1/liveries.yaml`).
+ * - Número do carro na temporada = o mais usado nas corridas dela; sem ele (corridas da api-sports), o da inscrição
+ *   do F1DB na classificação (`standing.entry`); depois as demais sessões e o permanente, de 2014 em diante.
+ * - Equipe na temporada: o nome de época (a inscrição do F1DB nas corridas ou na classificação; a api-sports manda o
+ *   nome de hoje) e a pintura curada por época (`formula-1/liveries.yaml`).
  */
 import { sql } from 'drizzle-orm';
 import {
@@ -51,6 +53,7 @@ type SessionRow = {
   position: number | null;
   result: {
     team?: { id?: unknown; name?: unknown };
+    entrant?: { id?: unknown; name?: unknown };
     time?: unknown;
     position_text?: unknown;
     grid?: unknown;
@@ -107,6 +110,15 @@ const started = (r: SessionRow) => {
   return !(r.position == null && r.result?.time == null && num(r.result?.laps) === 0);
 };
 const stageKey = (r: Pick<SessionRow, 'stage_id' | 'event_id'>) => r.stage_id ?? r.event_id;
+const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+/** Inscrição da corrida no F1DB ("Daimler Benz AG", "Honda Marlboro McLaren"): o nome de época da equipe. */
+const entrantName = (r: SessionRow) => text(r.result?.entrant?.name);
+
+/** A inscrição do piloto na temporada, gravada pelo F1DB na classificação (`core.standing.entry`). */
+interface SeasonEntry {
+  number?: number | null;
+  teams?: { constructor?: string; name?: string }[];
+}
 const gridOf = (r: SessionRow) => {
   const g = num(r.result?.grid);
   return g != null && g > 0 ? g : null;
@@ -158,8 +170,14 @@ export function onePerSession<
  * eventos na base (o F1DB só traz sessão com resultado).
  */
 async function standings(db: Database, participantId: string, group: 'drivers' | 'constructors') {
-  const rows = await db.execute<{ year: number; rank: number; points: number; finished: boolean }>(sql`
-    select se.year, s.rank, s.points,
+  const rows = await db.execute<{
+    year: number;
+    rank: number;
+    points: number;
+    finished: boolean;
+    entry: SeasonEntry | null;
+  }>(sql`
+    select se.year, s.rank, s.points, s.entry,
            (se.year < extract(year from now())::int
             or ((se.end_date is null or se.end_date < current_date)
                 and exists (select 1 from core.event e
@@ -176,7 +194,7 @@ async function standings(db: Database, participantId: string, group: 'drivers' |
   return new Map(
     rows.map((r) => [
       Number(r.year),
-      { rank: Number(r.rank), points: Number(r.points), finished: !!r.finished },
+      { rank: Number(r.rank), points: Number(r.points), finished: !!r.finished, entry: r.entry },
     ]),
   );
 }
@@ -422,6 +440,9 @@ export async function loadRaceCareer(
   const numbers = new Map<number, Map<number, number>>();
   const raceNumbers = new Map<number, Map<number, number>>();
   const teamRaces = new Map<string, number>();
+  // nome de época por ano e equipe: inscrições das corridas do F1DB e, à parte, o nome que a fonte deu na corrida
+  const entrantNames = new Map<string, Map<string, number>>();
+  const sourceNames = new Map<string, Map<string, number>>();
   for (const r of rows) {
     if (r.year == null) continue;
     const year = Number(r.year);
@@ -481,6 +502,15 @@ export async function loadRaceCareer(
       if (t) {
         addTeam(year, t);
         teamRaces.set(`${year}|${t.id}`, (teamRaces.get(`${year}|${t.id}`) ?? 0) + 1);
+        for (const [tally, name] of [
+          [entrantNames, entrantName(r)],
+          [sourceNames, text(r.result?.team?.name)],
+        ] as const)
+          if (name) {
+            const names = tally.get(`${year}|${t.id}`) ?? new Map<string, number>();
+            names.set(name, (names.get(name) ?? 0) + 1);
+            tally.set(`${year}|${t.id}`, names);
+          }
       }
     }
   }
@@ -490,14 +520,36 @@ export async function loadRaceCareer(
     s.final = st.finished;
     s.points = st.points;
   }
-  // a equipe principal do ano primeiro (a de mais corridas), com a pintura daquela época
-  for (const [year, m] of seasonTeams)
-    season(year).teams = [...m.values()].sort(
-      (a, b) => (teamRaces.get(`${year}|${b.id}`) ?? 0) - (teamRaces.get(`${year}|${a.id}`) ?? 0),
+  // a equipe principal do ano primeiro (a de mais corridas), com o nome e a pintura daquela época: a entidade tem o
+  // nome de hoje ("Mercedes-AMG Petronas"), e o Fangio correu pela "Daimler Benz AG" em 1954. Ordem do nome: a
+  // inscrição das corridas do F1DB; a da classificação (anos em que as corridas vieram da api-sports, que manda o
+  // nome de hoje); o nome da fonte na corrida; o da entidade
+  const f1dbOf = constructor
+    ? new Map<string, string[]>()
+    : await f1dbIds(db, [...new Set([...seasonTeams.values()].flatMap((m) => [...m.keys()]))]);
+  const top = (m: Map<string, number> | undefined) =>
+    [...(m ?? new Map<string, number>())].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0];
+  const nameIn = (year: number, t: SeasonTeam, main: boolean) => {
+    const ids = f1dbOf.get(t.id) ?? [];
+    // a api-sports mantém o mesmo ID na troca de nome (AlphaTauri → RB → Racing Bulls) e o F1DB não: com uma
+    // inscrição só no ano, ela é a da equipe principal
+    const teams = table.get(year)?.entry?.teams ?? [];
+    const entry =
+      teams.find((x) => !!x.constructor && ids.includes(x.constructor)) ??
+      (main && teams.length === 1 ? teams[0] : undefined);
+    return (
+      top(entrantNames.get(`${year}|${t.id}`)) ??
+      text(entry?.name) ??
+      top(sourceNames.get(`${year}|${t.id}`)) ??
+      t.name
     );
+  };
+  for (const [year, m] of seasonTeams)
+    season(year).teams = [...m.values()]
+      .sort((a, b) => (teamRaces.get(`${year}|${b.id}`) ?? 0) - (teamRaces.get(`${year}|${a.id}`) ?? 0))
+      .map((t, i) => (constructor ? t : { ...t, name: nameIn(year, t, i === 0) }));
   if (!constructor && options.liveries?.length) {
     const liveries = options.liveries;
-    const f1dbOf = await f1dbIds(db, [...new Set([...seasonTeams.values()].flatMap((m) => [...m.keys()]))]);
     for (const s of seasons.values())
       s.teams = s.teams.map((t) => {
         const era = (f1dbOf.get(t.id) ?? []).map((id) => liveryFor(liveries, id, s.year)).find(Boolean);
@@ -509,11 +561,16 @@ export async function loadRaceCareer(
   const profile = constructor ? null : await driverProfile(db, participant.id, locale);
   if (!constructor)
     for (const s of seasons.values()) {
-      const used = [
-        ...(raceNumbers.get(s.year) ?? numbers.get(s.year) ?? new Map<number, number>()).entries(),
-      ];
-      const top = used.sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? null;
-      s.number = top ?? (s.year >= 2014 ? (profile?.number ?? null) : null);
+      // as corridas; a inscrição da classificação (anos da api-sports, sem número na corrida); as demais sessões;
+      // o permanente de hoje, de 2014 em diante
+      const mostUsed = (m: Map<number, number> | undefined) =>
+        [...(m ?? new Map<number, number>())].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? null;
+      const entryNumber = num(table.get(s.year)?.entry?.number);
+      s.number =
+        mostUsed(raceNumbers.get(s.year)) ??
+        entryNumber ??
+        mostUsed(numbers.get(s.year)) ??
+        (s.year >= 2014 ? (profile?.number ?? null) : null);
     }
 
   // fotos: retrato do participante; carro de cada temporada (do construtor; no piloto, das equipes dele)

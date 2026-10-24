@@ -26,6 +26,7 @@ import {
   type NormalizedParticipant,
   type NormalizedVenue,
   type SeasonRef,
+  type StandingEntry,
 } from '../model.js';
 import { sessionStart } from './schedule.js';
 import {
@@ -38,6 +39,7 @@ import {
   groupBy,
   int,
   num,
+  plainName,
   rowsOf,
   str,
   type F1dbRow,
@@ -82,6 +84,119 @@ function compact(row: F1dbRow, drop: string[] = []): F1dbRow {
   const out: F1dbRow = {};
   for (const [k, v] of Object.entries(row))
     if (v != null && !drop.includes(k)) out[k] = typeof v === 'bigint' ? Number(v) : v;
+  return out;
+}
+
+/**
+ * Nome de época da equipe (ano, construtor, inscrição): o construtor não tem ("Mercedes" em 1954 e em 2026); a
+ * inscrição de fábrica tem ("Daimler Benz AG" em 1954, "Mercedes-AMG Petronas Formula One Team" em 2026). Fábrica é a
+ * inscrição com mais etapas do construtor no ano; carro particular (Fangio em 1958, numa Maserati da Scuderia Sud
+ * Americana e noutra inscrita por ele mesmo) leva o nome do construtor.
+ */
+export function f1dbEraNames(
+  tables: F1dbTables,
+): (year: number | null, constructorId: string | null, entrantId: string | null) => string | null {
+  const entrantName = new Map(rowsOf(tables, 'entrant').map((e) => [str(e.id)!, str(e.name)]));
+  const constructorName = new Map(rowsOf(tables, 'constructor').map((c) => [str(c.id)!, str(c.name)]));
+  const people = new Set(
+    rowsOf(tables, 'driver').flatMap((d) =>
+      [str(d.name), str(d.full_name)].filter((n): n is string => !!n).map(plainName),
+    ),
+  );
+  const rounds = new Map<string, Map<string, number>>();
+  for (const r of rowsOf(tables, 'season_entrant_driver')) {
+    const entrant = str(r.entrant_id);
+    if (r.test_driver || !entrant) continue;
+    const key = `${str(r.year)}|${str(r.constructor_id)}`;
+    const m = rounds.get(key) ?? new Map<string, number>();
+    m.set(entrant, (m.get(entrant) ?? 0) + (str(r.rounds) ?? '').split(';').filter(Boolean).length);
+    rounds.set(key, m);
+  }
+  const works = new Map(
+    [...rounds].map(([key, m]) => [
+      key,
+      [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]![0],
+    ]),
+  );
+  return (year, constructorId, entrantId) => {
+    if (!constructorId) return null;
+    const fallback = constructorName.get(constructorId) ?? constructorId;
+    const name = entrantId ? entrantName.get(entrantId) : null;
+    if (!name || people.has(plainName(name)) || works.get(`${year}|${constructorId}`) !== entrantId)
+      return fallback;
+    return name;
+  };
+}
+
+/**
+ * Inscrição do piloto numa etapa (`season_entrant_driver`, pelas `rounds`), com o nome de época da equipe
+ * (`f1dbEraNames`).
+ */
+export function f1dbEntrants(
+  tables: F1dbTables,
+): (
+  year: number,
+  round: number | null,
+  driverId: string | null,
+  constructorId: string | null,
+) => { id: string; name: string } | null {
+  const eraName = f1dbEraNames(tables);
+  const entries = groupBy(
+    rowsOf(tables, 'season_entrant_driver').filter((r) => !r.test_driver),
+    (r) => `${str(r.year)}|${str(r.driver_id)}|${str(r.constructor_id)}`,
+  );
+  return (year, round, driverId, constructorId) => {
+    const list = entries.get(`${year}|${driverId}|${constructorId}`) ?? [];
+    const rounds = (r: F1dbRow) => (str(r.rounds) ?? '').split(';').map(Number);
+    const hit = (round != null ? list.find((r) => rounds(r).includes(round)) : undefined) ?? list[0];
+    const id = hit ? str(hit.entrant_id) : null;
+    const name = id ? eraName(year, constructorId, id) : null;
+    return id && name ? { id, name } : null;
+  };
+}
+
+/**
+ * A inscrição de cada piloto em cada temporada (`year|driverId`), para a classificação (`core.standing.entry`): o
+ * número mais usado nas corridas (empate: o menor) e, por construtor, o nome de época (`f1dbEraNames`, pela inscrição
+ * do piloto com mais etapas). Vale para todos os anos, inclusive os cobertos pela api-sports, que manda o
+ * número e o nome de hoje (Verstappen com o 3 em 2024; a RB de 2024 como "Racing Bulls").
+ */
+export function f1dbDriverEntries(tables: F1dbTables): Map<string, StandingEntry> {
+  const yearOf = new Map(rowsOf(tables, 'race').map((r) => [str(r.id), int(r.year)]));
+  const numbers = new Map<string, Map<number, number>>();
+  for (const r of rowsOf(tables, 'race_data')) {
+    const text = str(r.position_text);
+    if (str(r.type) !== 'RACE_RESULT' || (text && NOT_IN_SESSION.has(text))) continue;
+    const year = yearOf.get(str(r.race_id));
+    const n = int(r.driver_number);
+    if (year == null || n == null) continue;
+    const key = `${year}|${str(r.driver_id)}`;
+    const m = numbers.get(key) ?? new Map<number, number>();
+    m.set(n, (m.get(n) ?? 0) + 1);
+    numbers.set(key, m);
+  }
+  const eraName = f1dbEraNames(tables);
+  const teams = new Map<string, Map<string, { name: string; rounds: number }>>();
+  for (const r of rowsOf(tables, 'season_entrant_driver')) {
+    const constructor = str(r.constructor_id);
+    if (r.test_driver || !constructor) continue;
+    const name = eraName(int(r.year), constructor, str(r.entrant_id)) ?? constructor;
+    const rounds = (str(r.rounds) ?? '').split(';').filter(Boolean).length;
+    const key = `${str(r.year)}|${str(r.driver_id)}`;
+    const m = teams.get(key) ?? new Map<string, { name: string; rounds: number }>();
+    if ((m.get(constructor)?.rounds ?? -1) < rounds) m.set(constructor, { name, rounds });
+    teams.set(key, m);
+  }
+  const out = new Map<string, StandingEntry>();
+  for (const key of new Set([...numbers.keys(), ...teams.keys()])) {
+    const used = [...(numbers.get(key) ?? [])].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+    out.set(key, {
+      number: used[0]?.[0] ?? null,
+      teams: [...(teams.get(key) ?? [])]
+        .sort((a, b) => b[1].rounds - a[1].rounds || a[0].localeCompare(b[0]))
+        .map(([constructor, t]) => ({ constructor, name: t.name })),
+    });
+  }
   return out;
 }
 
@@ -224,6 +339,8 @@ export function normalizeF1db(tables: F1dbTables, ctx: F1dbNormalizeContext): No
     if (!s.endDate || day > s.endDate) s.endDate = day;
   };
 
+  const entrantOf = f1dbEntrants(tables);
+
   // ─ GPs e sessões ─
   const events: NormalizedEvent[] = [];
   for (const race of rowsOf(tables, 'race')) {
@@ -296,6 +413,8 @@ export function normalizeF1db(tables: F1dbTables, ctx: F1dbNormalizeContext): No
         const position =
           number ?? (isRace && text && RETIRED.has(text) ? int(row.position_display_order) : null);
         const result = sessionResult(type, row, team);
+        const entrant = entrantOf(year, int(race.round), str(row.driver_id), str(row.constructor_id));
+        if (entrant) result.entrant = entrant;
         if (session.key === 'race' && result.pits == null)
           result.pits = stops.get(str(row.driver_id)!) ?? null;
         const ep: NormalizedEventParticipant = { participantId: pid, side: 'grid', position, result };
@@ -419,8 +538,10 @@ export function normalizeF1db(tables: F1dbTables, ctx: F1dbNormalizeContext): No
       goalsAgainst: 0,
       form: null,
       description: null,
+      ...(group === 'drivers' ? { entry: entries.get(`${year}|${str(row.driver_id)}`) ?? null } : {}),
     });
   };
+  const entries = f1dbDriverEntries(tables);
   for (const row of rowsOf(tables, 'season_driver_standing'))
     standing(
       'drivers',

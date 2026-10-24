@@ -145,10 +145,14 @@ rode o import uma vez com `--reprocessar`, mesmo sem release novo. O normalizado
 
 - gravar a pole do F1DB (`result.pole`);
 - ficar com uma linha por piloto no carro compartilhado;
-- criar os países que faltam (Mônaco).
+- criar os países que faltam (Mônaco);
+- gravar a inscrição de época em cada resultado (`result.entrant`) e, na classificação de cada piloto, o número e o
+  nome de época da temporada (`core.standing.entry`, da migration `0034_standing_inscricao`).
 
-Sem `--reprocessar`, o mesmo release só cria os países: a pole e o carro compartilhado não são reaplicados. Na base de dev foram 3.957 sessões atualizadas,
-nenhuma criada, com pico de 498 MB de RSS: use o override de memória acima.
+O release passa a guardar também a tabela `entrant`: o import grava 1 página nova no raw. Sem `--reprocessar`, o
+mesmo release cria os países e grava a classificação, mas não reaplica os resultados das sessões (pole, carro
+compartilhado e inscrição). Na base de dev foram 3.957 sessões atualizadas, nenhuma
+criada, com pico de 536 MB de RSS: use o override de memória acima.
 
 ## Atribuição (CC BY 4.0)
 

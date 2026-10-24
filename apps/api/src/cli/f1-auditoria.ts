@@ -77,6 +77,50 @@ async function loadF1dbTruth(path: string, today: string) {
   for (const r of standings)
     standingsBy.set(s(r.driver_id)!, [...(standingsBy.get(s(r.driver_id)!) ?? []), r]);
 
+  // nome de época: a inscrição de fábrica (a de mais etapas do construtor no ano) dá o nome; carro particular ou
+  // inscrição em nome de um piloto (Fangio, 1958) leva o do construtor. Por piloto, vale a inscrição dele com mais
+  // etapas em cada construtor (com a fábrica e uma particular no mesmo ano, as duas valem)
+  const plain = (x: string) => x.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+  const people = new Set(
+    all('select name, full_name from driver').flatMap((d) =>
+      [s(d.name), s(d.full_name)].filter((x): x is string => !!x).map(plain),
+    ),
+  );
+  const constructorName = new Map(all('select id, name from constructor').map((c) => [s(c.id)!, s(c.name)!]));
+  const entrantName = new Map(all('select id, name from entrant').map((e) => [s(e.id)!, s(e.name)!]));
+  const sed = all(`select year, driver_id, constructor_id, entrant_id, rounds from season_entrant_driver
+                    where coalesce(test_driver, 0) = 0`);
+  const roundsOf = (r: Row) => (s(r.rounds) ?? '').split(';').filter(Boolean).length;
+  const worksTally = new Map<string, Map<string, number>>();
+  for (const r of sed) {
+    const key = `${s(r.year)}|${s(r.constructor_id)}`;
+    const m = worksTally.get(key) ?? new Map<string, number>();
+    m.set(s(r.entrant_id)!, (m.get(s(r.entrant_id)!) ?? 0) + roundsOf(r));
+    worksTally.set(key, m);
+  }
+  const works = new Map(
+    [...worksTally].map(([k, m]) => [
+      k,
+      [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]![0],
+    ]),
+  );
+  const eraNameOf = (year: string, constructor: string, entrant: string) => {
+    const name = entrantName.get(entrant);
+    return name && !people.has(plain(name)) && works.get(`${year}|${constructor}`) === entrant
+      ? name
+      : (constructorName.get(constructor) ?? constructor);
+  };
+  const entries = new Map<string, Map<number, Map<string, string[]>>>();
+  for (const r of sed) {
+    const byYear = entries.get(s(r.driver_id)!) ?? new Map<number, Map<string, string[]>>();
+    const m = byYear.get(Number(r.year)) ?? new Map<string, string[]>();
+    const constructor = s(r.constructor_id)!;
+    const name = eraNameOf(s(r.year)!, constructor, s(r.entrant_id)!);
+    m.set(constructor, [...new Set([...(m.get(constructor) ?? []), name])]);
+    byYear.set(Number(r.year), m);
+    entries.set(s(r.driver_id)!, byYear);
+  }
+
   const truths = new Map<string, F1dbDriverTruth>();
   for (const d of all('select * from driver where total_race_starts > 0')) {
     const id = s(d.id)!;
@@ -113,8 +157,10 @@ async function loadF1dbTruth(path: string, today: string) {
           .sort(),
       );
     }
+    const eraNameBySeason = entries.get(id) ?? new Map<number, Map<string, string[]>>();
     const seasons = standingsBy.get(id) ?? [];
     truths.set(id, {
+      eraNameBySeason,
       id,
       name: s(d.name)!,
       firstName: s(d.first_name)!,
@@ -163,8 +209,15 @@ async function loadF1dbTruth(path: string, today: string) {
     ].filter((x): x is string => !!x);
     priority.set(t.id, tags);
   }
+  // a mesma equipe com outro nome (AlphaTauri → RB → Racing Bulls; Alfa Romeo → Kick Sauber)
+  const lineage = new Map<string, Set<string>>();
+  for (const c of all('select constructor_id, other_constructor_id from constructor_chronology')) {
+    const [a, b] = [s(c.constructor_id)!, s(c.other_constructor_id)!];
+    lineage.set(a, (lineage.get(a) ?? new Set()).add(b));
+    lineage.set(b, (lineage.get(b) ?? new Set()).add(a));
+  }
   db.close();
-  return { truths, priority, currentYear: Number(currentYear), racesLeft: Number(left) };
+  return { truths, priority, lineage, currentYear: Number(currentYear), racesLeft: Number(left) };
 }
 
 /** Participantes do core por ID do F1DB e os construtores do F1DB de cada equipe. */
@@ -255,6 +308,7 @@ async function main() {
           {
             countryName,
             f1dbConstructorsOf: (teamId) => links.constructorsOf.get(teamId) ?? [],
+            sameLineage: (a, b) => a === b || !!f1db.lineage.get(a)?.has(b),
             liveryOf: (c, y) => liveryFor(liveries, c, y),
             racesLeftInCurrentSeason: f1db.racesLeft,
             currentYear: f1db.currentYear,

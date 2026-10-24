@@ -3,6 +3,7 @@
  * andamento (corrida ainda por vir) aparece como posição provisória (`final: false`) e não conta título.
  */
 import { randomBytes } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -379,7 +380,20 @@ describe('carreira na F1: uma linha por GP, largada, classificação e pole (aud
       .returning({ id: participant.id });
     pilot = p!.id;
     leader = l!.id;
+    // a equipe tem o nome de hoje; nas corridas de 2022 a inscrição era outra (o nome de época)
+    const [constructorRow] = await db
+      .insert(participant)
+      .values({ sport: 'formula-1', kind: 'constructor', name: 'Equipe de Hoje' })
+      .returning({ id: participant.id });
+    await db.insert(providerMap).values({
+      entityType: 'participant',
+      entityId: constructorRow!.id,
+      provider: 'f1db',
+      sport: 'formula-1',
+      providerId: 'equipe',
+    });
     const team = { id: 'equipe', name: 'Equipe' };
+    const entrant = { id: 'inscricao', name: 'Equipe da Época' };
     let day = 0;
     const gp = async () => {
       const [st] = await db
@@ -440,7 +454,7 @@ describe('carreira na F1: uma linha por GP, largada, classificação e pole (aud
     const a = await gp();
     await session(a, 'f1db', 'Qualifying', [me(1, { number: 99 })]);
     await session(a, 'api-sports', '3rd Qualifying', [me(1, { number: 99 })]);
-    await session(a, 'f1db', 'Race', [me(3, { position_text: '3', grid: 1, pole: true, laps: 57 })]);
+    await session(a, 'f1db', 'Race', [me(3, { position_text: '3', grid: 1, pole: true, laps: 57, entrant })]);
     await session(a, 'api-sports', 'Race', [me(3, { grid: 1, laps: 57 })]);
     // GP B: fez a pole e não largou (Leclerc, Mônaco 2021): pole sim, GP não
     const b = await gp();
@@ -457,8 +471,19 @@ describe('carreira na F1: uma linha por GP, largada, classificação e pole (aud
     // GP E (F1DB): 18º classificado com `time: "DNF"` (Hamilton, Abu Dhabi 2022) e largada punida: pole de outro
     const e = await gp();
     await session(e, 'f1db', 'Race', [
-      me(18, { position_text: '18', time: 'DNF', grid: 1, pole: false, laps: 55 }),
+      me(18, { position_text: '18', time: 'DNF', grid: 1, pole: false, laps: 55, entrant }),
     ]);
+    // o líder só tem a corrida da api-sports (sem número nem inscrição) e o número permanente de hoje é outro: o
+    // número e o nome daquela época vêm da inscrição que o F1DB grava na classificação (Verstappen com o 1 em 2024)
+    await db.update(participant).set({ number: 3 }).where(eq(participant.id, leader));
+    await db.insert(standing).values({
+      seasonId: s2022!.id,
+      group: 'drivers',
+      participantId: leader,
+      rank: 1,
+      points: 400,
+      entry: { number: 1, teams: [{ constructor: 'equipe', name: 'Oracle Equipe Racing' }] },
+    });
   });
 
   it('conta como o F1DB: uma corrida e uma pole por GP, só GP largado, classificado pelos 90%', async () => {
@@ -471,6 +496,19 @@ describe('carreira na F1: uma linha por GP, largada, classificação e pole (aud
       dnfs: 0,
       best_finish: { position: 3, count: 1 },
     });
+  });
+
+  it('a equipe da temporada vem com o nome daquela época (a inscrição), não com o de hoje', async () => {
+    const career = await loadRaceCareer(db, { id: pilot, kind: 'driver' }, 'pt-BR', undefined);
+    const s = career.seasons.find((x) => x.year === 2022)!;
+    expect(s.teams[0]).toMatchObject({ name: 'Equipe da Época' });
+  });
+
+  it('ano das corridas da api-sports: número e nome de época pela inscrição da classificação', async () => {
+    const career = await loadRaceCareer(db, { id: leader, kind: 'driver' }, 'pt-BR', undefined);
+    const s = career.seasons.find((x) => x.year === 2022)!;
+    expect(s.number).toBe(1);
+    expect(s.teams[0]).toMatchObject({ name: 'Oracle Equipe Racing' });
   });
 });
 

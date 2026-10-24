@@ -41,15 +41,21 @@ export function currentSeason(career: RaceCareer): CareerSeason | null {
  * - Quem está no grid: a temporada atual (equipe, cor e número de hoje). O carro é o dela ou, sem foto, o mais
  *   recente da mesma equipe (o destaque do acervo primeiro) — nunca o carro de outra equipe sob a cor de hoje.
  * - Lenda: o carro de destaque do acervo (`highlight`, curadoria) ou o da temporada mais marcante.
+ * - Temporada escolhida no seletor (`year`): é ela no lugar da atual, com a equipe, a cor e o número daquele ano
+ *   (Fangio em 1958 é Maserati e 2, não a Mercedes do destaque; Farina em 1955 é Ferrari, não a Alfa do título).
  */
-export function heroPhotos(career: RaceCareer): {
+export function heroPhotos(
+  career: RaceCareer,
+  year?: number | null,
+): {
   season: CareerSeason | null;
   car: Photo | null;
   portrait: Photo | null;
 } {
   const portrait = career.portrait?.url ? career.portrait : null;
   const highlight = coverable(career.highlight?.car) ? career.highlight : null;
-  const current = currentSeason(career);
+  const current =
+    (year != null ? career.seasons.find((s) => s.year === year) : undefined) ?? currentSeason(career);
   if (current) {
     const team = current.teams[0]?.id;
     const sameTeam = (s: CareerSeason | undefined) => !!team && s?.teams[0]?.id === team;

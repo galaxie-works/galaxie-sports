@@ -35,6 +35,11 @@ export interface F1dbDriverTruth {
   numberBySeason: Map<number, number>;
   /** Construtores com mais corridas largadas na temporada (ids do F1DB; mais de um no empate). */
   teamBySeason: Map<number, string[]>;
+  /**
+   * Nomes de época por temporada e construtor: os das inscrições do piloto (a de fábrica dá o nome; carro particular,
+   * o construtor). Com a fábrica e uma particular no mesmo ano, os dois valem.
+   */
+  eraNameBySeason: Map<number, Map<string, string[]>>;
 }
 
 export type AuditField =
@@ -56,13 +61,14 @@ export type AuditField =
   | 'campanha_temporada'
   | 'retrato'
   | 'fundo_heading'
+  | 'nome_epoca_equipe'
   | 'nome';
 
 export const AUDIT_FIELDS: { field: AuditField; label: string; outOfScope?: string }[] = [
   { field: 'pais', label: 'País e nacionalidade' },
   { field: 'nascimento', label: 'Nascimento (data, local e país)' },
   { field: 'numero_permanente', label: 'Número permanente' },
-  { field: 'numero_temporada', label: 'Número da temporada selecionada' },
+  { field: 'numero_temporada', label: 'Número da temporada selecionada (cada temporada)' },
   { field: 'titulos', label: 'Títulos mundiais (quantidade e anos)' },
   { field: 'gps', label: 'GPs disputados' },
   { field: 'vitorias', label: 'Vitórias' },
@@ -71,7 +77,7 @@ export const AUDIT_FIELDS: { field: AuditField; label: string; outOfScope?: stri
   { field: 'pontos', label: 'Pontos' },
   { field: 'melhor_resultado', label: 'Melhor resultado (com contagem)' },
   { field: 'abandonos', label: 'Abandonos' },
-  { field: 'equipe_temporada', label: 'Equipe da temporada selecionada' },
+  { field: 'equipe_temporada', label: 'Equipe da temporada selecionada (cada temporada)' },
   { field: 'cor_equipe', label: 'Cor da equipe (curadoria e contraste)' },
   {
     field: 'cor_sem_curadoria',
@@ -89,6 +95,7 @@ export const AUDIT_FIELDS: { field: AuditField; label: string; outOfScope?: stri
     label: 'Fundo do heading',
     outOfScope: 'fotos do grid de 2026 e fallback do carro: sessão "Fotos da F1 para o grid atual"',
   },
+  { field: 'nome_epoca_equipe', label: 'Nome de época da equipe (cada temporada)' },
   { field: 'nome', label: 'Nome (primeiro nome e sobrenome)' },
 ];
 
@@ -116,6 +123,11 @@ export interface AuditContext {
   countryName: (code: string) => string | null;
   /** Construtor do F1DB de cada equipe do core (`provider_map`). */
   f1dbConstructorsOf: (teamId: string) => string[];
+  /**
+   * A mesma equipe com outro nome no F1DB (`constructor_chronology`: AlphaTauri → RB → Racing Bulls). A api-sports
+   * mantém um ID só na troca de nome; o F1DB, não.
+   */
+  sameLineage?: (a: string, b: string) => boolean;
   /** Pintura curada do construtor do F1DB no ano. */
   liveryOf: (constructorId: string, year: number) => { colors: string[] } | null;
   /** GPs do calendário ainda por correr na temporada atual (o F1DB traz o calendário inteiro). */
@@ -140,13 +152,17 @@ const norm = (s: string | null | undefined) =>
 const isTitle = (s: CareerSeason) => s.final && s.position === 1;
 export const coverable = (p: Photo | null | undefined): p is Photo => !!p?.url && !p.credit.share_alike;
 
-/** Temporada do heading, o carro do fundo e o retrato (`heroPhotos` da demo). */
-export function heroOf(career: RaceCareer): { season: CareerSeason | null; car: Photo | null } {
+/** Temporada do heading e o carro do fundo (`heroPhotos` da demo), com a temporada escolhida no seletor. */
+export function heroOf(
+  career: RaceCareer,
+  year?: number | null,
+): { season: CareerSeason | null; car: Photo | null } {
   const highlight = coverable(career.highlight?.car) ? career.highlight : null;
   const current =
-    career.current_season == null
+    (year != null ? career.seasons.find((s) => s.year === year) : undefined) ??
+    (career.current_season == null
       ? null
-      : (career.seasons.find((s) => s.year === career.current_season) ?? null);
+      : (career.seasons.find((s) => s.year === career.current_season) ?? null));
   if (current) {
     const team = current.teams[0]?.id;
     const sameTeam = (s: CareerSeason | undefined) => !!team && s?.teams[0]?.id === team;
@@ -203,6 +219,9 @@ export function textBackdrop(color: string): string {
   const mixed = rgbOf(color).map((c) => (c + 5) / 2);
   return hexOf(mixed.map((c) => c * 0.55));
 }
+
+/** O mesmo nome de equipe, sem diferenciar maiúsculas, acentos e pontuação. */
+const sameEraName = (a: string, b: string) => norm(a) === norm(b);
 
 /** Nomes aceitos do país: o do idioma da página e as grafias consagradas que o cadastro curado usa. */
 const COUNTRY_ALIASES: Record<string, string[]> = {
@@ -308,31 +327,71 @@ export function auditDriver(truth: F1dbDriverTruth, served: ServedProfile, ctx: 
       F1DB('season_driver_standing em 1º, temporada encerrada'),
     );
 
-  // temporada selecionada: a atual de quem está no grid, a do heading nas lendas
+  // cada temporada que o seletor oferece: o heading dela mostra a equipe, o nome de época e o número daquele ano
+  // (o Fangio de 1958 é Maserati e 2; o de 1954, "Daimler Benz AG")
+  const wrong: Record<'numero_temporada' | 'equipe_temporada' | 'nome_epoca_equipe', [string, string][]> = {
+    numero_temporada: [],
+    equipe_temporada: [],
+    nome_epoca_equipe: [],
+  };
+  for (const s of career.seasons.filter((x) => x.races > 0)) {
+    const shown = heroOf(career, s.year).season;
+    const year = s.year;
+    if (shown?.year !== year) {
+      wrong.equipe_temporada.push([`${year}: heading em ${shown?.year ?? '—'}`, `${year}`]);
+      continue;
+    }
+    const wantNumber = truth.numberBySeason.get(year) ?? null;
+    if (wantNumber != null && shown.number !== wantNumber)
+      wrong.numero_temporada.push([`${year}: ${shown.number ?? '—'}`, `${year}: ${wantNumber}`]);
+    // a equipe principal do ano: a de mais corridas largadas (empate: qualquer uma delas)
+    const wantTeams = truth.teamBySeason.get(year) ?? [];
+    const team = shown.teams[0];
+    const gotTeam = team ? ctx.f1dbConstructorsOf(team.id) : [];
+    const lineage = ctx.sameLineage ?? ((a: string, b: string) => a === b);
+    const matchedWant =
+      wantTeams.find((w) => gotTeam.includes(w)) ?? wantTeams.find((w) => gotTeam.some((c) => lineage(c, w)));
+    const matched = matchedWant;
+    if (wantTeams.length && !matched)
+      wrong.equipe_temporada.push([
+        `${year}: ${team?.name ?? '—'}${gotTeam.length ? ` (${gotTeam.join(', ')})` : ''}`,
+        `${year}: ${wantTeams.join(' ou ')}`,
+      ]);
+    const wantNames = matched ? (truth.eraNameBySeason.get(year)?.get(matched) ?? []) : [];
+    if (team && wantNames.length && !wantNames.some((n) => sameEraName(team.name, n)))
+      wrong.nome_epoca_equipe.push([`${year}: ${team.name}`, `${year}: ${wantNames.join(' ou ')}`]);
+  }
+  const sources = {
+    numero_temporada: F1DB('race_data.driver_number nas corridas'),
+    equipe_temporada: F1DB('race_data.constructor_id com mais corridas largadas'),
+    nome_epoca_equipe: F1DB('season_entrant_driver + entrant: a inscrição do piloto no ano'),
+  };
+  for (const field of ['equipe_temporada', 'nome_epoca_equipe', 'numero_temporada'] as const) {
+    const list = wrong[field];
+    if (!list.length) continue;
+    const more = list.length > 6 ? ` (+${list.length - 6})` : '';
+    add(
+      field,
+      list
+        .slice(0, 6)
+        .map((x) => x[0])
+        .join('; ') + more,
+      list
+        .slice(0, 6)
+        .map((x) => x[1])
+        .join('; ') + more,
+      sources[field],
+    );
+  }
+
+  // temporada do heading sem escolha: a atual de quem está no grid, a marcante nas lendas
   const hero = heroOf(career);
   const season = hero.season;
   if (season) {
     const year = season.year;
-    const wantNumber = truth.numberBySeason.get(year) ?? null;
-    if (wantNumber != null && season.number !== wantNumber)
-      add(
-        'numero_temporada',
-        `${year}: ${season.number ?? '—'}`,
-        `${year}: ${wantNumber}`,
-        F1DB('race_data.driver_number nas corridas'),
-      );
-
-    // a equipe principal do ano: a de mais corridas largadas (empate: qualquer uma delas)
     const wantTeams = truth.teamBySeason.get(year) ?? [];
     const team = season.teams[0];
     const gotTeam = team ? ctx.f1dbConstructorsOf(team.id) : [];
-    if (wantTeams.length && !gotTeam.some((c) => wantTeams.includes(c)))
-      add(
-        'equipe_temporada',
-        `${year}: ${team?.name ?? '—'}${gotTeam.length ? ` (${gotTeam.join(', ')})` : ''}`,
-        `${year}: ${wantTeams.join(' ou ')}`,
-        F1DB('race_data.constructor_id com mais corridas largadas'),
-      );
 
     // cor: a pintura curada daquela época (quando há) e o texto branco legível sobre o fundo do heading
     const curatedTeam = gotTeam.find((c) => wantTeams.includes(c)) ?? wantTeams[0];

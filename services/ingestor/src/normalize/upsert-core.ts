@@ -855,6 +855,7 @@ export async function upsertBatchInTx(
           goalsAgainst: s.goalsAgainst,
           form: s.form,
           description: s.description,
+          entry: s.entry ?? null,
           source: 'provider',
         },
       ];
@@ -862,7 +863,7 @@ export async function upsertBatchInTx(
     (s) => `${s.seasonId}|${s.group}|${s.participantId}`,
   );
   for (const chunk of chunks(standingRows, 500)) {
-    const { set, setWhere } = replaceUpdate(
+    const base = replaceUpdate(
       standing,
       [
         'rank',
@@ -881,6 +882,9 @@ export async function upsertBatchInTx(
       ],
       { touchUpdatedAt: true },
     );
+    // a inscrição (F1DB) não some quando outra fonte reescreve a mesma linha sem ela
+    const set = { ...base.set, entry: sql`coalesce(excluded.entry, ${standing.entry})` };
+    const setWhere = sql`(${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry)`;
     await tx
       .insert(standing)
       .values(chunk)

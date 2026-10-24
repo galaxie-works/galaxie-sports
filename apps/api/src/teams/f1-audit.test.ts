@@ -26,7 +26,7 @@ const season = (over: Partial<CareerSeason> = {}): CareerSeason => ({
   teams: [
     {
       id: 'ferrari-core',
-      name: 'Scuderia Ferrari',
+      name: 'Scuderia Ferrari HP',
       logo: null,
       livery: { primary: '#dc0000', secondary: '#ffeb00', gradient: 'x', source: 'https://example.org' },
     },
@@ -97,6 +97,7 @@ const truth: F1dbDriverTruth = {
   titles: [2008, 2014, 2015, 2017, 2018, 2019, 2020],
   numberBySeason: new Map([[2026, 44]]),
   teamBySeason: new Map([[2026, ['ferrari']]]),
+  eraNameBySeason: new Map([[2026, new Map([['ferrari', ['Scuderia Ferrari HP']]])]]),
 };
 
 const ctx: AuditContext = {
@@ -202,6 +203,63 @@ describe('auditoria do perfil de piloto contra o F1DB', () => {
     expect(contrastWithWhite('#00d2be')).toBeLessThan(3);
     expect(contrastWithWhite(textBackdrop('#00d2be'))).toBeGreaterThan(4.5);
     expect(contrastWithWhite(textBackdrop('#ffffff'))).toBeGreaterThan(4.5);
+  });
+});
+
+describe('equipe, nome de época e número de cada temporada selecionável', () => {
+  const team = (id: string, name: string) => ({ id, name, logo: null });
+  // Fangio: a API dava a Mercedes de hoje em 1954 e o heading ignorava a temporada escolhida
+  const fangio: F1dbDriverTruth = {
+    ...truth,
+    id: 'juan-manuel-fangio',
+    numberBySeason: new Map([
+      [1954, 18],
+      [1958, 2],
+    ]),
+    teamBySeason: new Map([
+      [1954, ['mercedes']],
+      [1958, ['maserati']],
+    ]),
+    eraNameBySeason: new Map([
+      [1954, new Map([['mercedes', ['Daimler Benz AG']]])],
+      [1958, new Map([['maserati', ['Maserati']]])],
+    ]),
+  };
+  const fangioCtx: AuditContext = {
+    ...ctx,
+    f1dbConstructorsOf: (id) =>
+      id === 'mercedes-core' ? ['mercedes'] : id === 'maserati-core' ? ['maserati'] : [],
+  };
+  const run = (seasons: CareerSeason[]) =>
+    auditDriver(
+      fangio,
+      {
+        name: '',
+        country: { code: 'GB', name: 'Reino Unido' },
+        career: career({ current_season: null, seasons }),
+        competitions: [],
+      },
+      fangioCtx,
+    ).filter((i) => ['equipe_temporada', 'nome_epoca_equipe', 'numero_temporada'].includes(i.field));
+
+  it('o nome de hoje numa temporada antiga e o número errado aparecem, ano a ano', () => {
+    const issues = run([
+      season({ year: 1958, number: 34, teams: [team('maserati-core', 'Maserati')] }),
+      season({ year: 1954, number: 18, teams: [team('mercedes-core', 'Mercedes-AMG Petronas')] }),
+    ]);
+    expect(issues.map((i) => [i.field, i.current, i.expected])).toEqual([
+      ['nome_epoca_equipe', '1954: Mercedes-AMG Petronas', '1954: Daimler Benz AG'],
+      ['numero_temporada', '1958: 34', '1958: 2'],
+    ]);
+  });
+
+  it('com o nome e o número da época, nada a apontar', () => {
+    expect(
+      run([
+        season({ year: 1958, number: 2, teams: [team('maserati-core', 'Maserati')] }),
+        season({ year: 1954, number: 18, teams: [team('mercedes-core', 'Daimler Benz AG')] }),
+      ]),
+    ).toEqual([]);
   });
 });
 

@@ -1,9 +1,9 @@
 # Auditoria dos perfis de piloto da F1
 
-Gerado em 2026-10-24T20:59:43.872Z · dev (NAS), código deste PR com o F1DB reimportado · F1DB v2026.17.0 · temporada atual 2026 (faltam 6 GPs) · idioma pt-BR
+Gerado em 2026-10-24T21:27:43.557Z · dev (NAS), código deste PR com o F1DB reimportado · F1DB v2026.17.0 · temporada atual 2026 (faltam 6 GPs) · idioma pt-BR
 
 - Pilotos com ao menos um GP no F1DB: 792; auditados: 792; prioritários (grid 2026, campeões, top 20 em vitórias e em GPs): 64.
-- Problemas: 1834 em 771 pilotos.
+- Problemas: 1833 em 771 pilotos.
 
 ## Placar por campo
 
@@ -12,7 +12,7 @@ Gerado em 2026-10-24T20:59:43.872Z · dev (NAS), código deste PR com o F1DB rei
 | País e nacionalidade | 0 de 792 | 0 de 64 |  |  |
 | Nascimento (data, local e país) | 0 de 792 | 0 de 64 |  |  |
 | Número permanente | 0 de 792 | 0 de 64 |  |  |
-| Número da temporada selecionada | 0 de 792 | 0 de 64 |  |  |
+| Número da temporada selecionada (cada temporada) | 0 de 792 | 0 de 64 |  |  |
 | Títulos mundiais (quantidade e anos) | 0 de 792 | 0 de 64 |  |  |
 | GPs disputados | 0 de 792 | 0 de 64 |  |  |
 | Vitórias | 0 de 792 | 0 de 64 |  |  |
@@ -21,12 +21,13 @@ Gerado em 2026-10-24T20:59:43.872Z · dev (NAS), código deste PR com o F1DB rei
 | Pontos | 0 de 792 | 0 de 64 |  |  |
 | Melhor resultado (com contagem) | 1 de 792 | 0 de 64 |  |  |
 | Abandonos | 0 de 792 | 0 de 64 |  |  |
-| Equipe da temporada selecionada | 1 de 792 | 0 de 64 |  |  |
+| Equipe da temporada selecionada (cada temporada) | 0 de 792 | 0 de 64 |  |  |
 | Cor da equipe (curadoria e contraste) | 1 de 792 | 0 de 64 |  |  |
 | Pintura da época sem curadoria | 0 de 792 | 0 de 64 | 371 | fora do escopo: lacuna do liveries.yaml (curadoria com fonte e revisão), não erro de código |
 | Campanha da temporada atual | 0 de 792 | 0 de 64 |  |  |
 | Retrato | 0 de 792 | 0 de 64 | 760 | fora do escopo: retrato mais recente: sessão "Fotos da F1 para o grid atual" |
 | Fundo do heading | 0 de 792 | 0 de 64 | 700 | fora do escopo: fotos do grid de 2026 e fallback do carro: sessão "Fotos da F1 para o grid atual" |
+| Nome de época da equipe (cada temporada) | 0 de 792 | 0 de 64 |  |  |
 | Nome (primeiro nome e sobrenome) | 0 de 792 | 0 de 64 |  |  |
 
 ## Problemas
@@ -34,7 +35,6 @@ Gerado em 2026-10-24T20:59:43.872Z · dev (NAS), código deste PR com o F1DB rei
 | Piloto | Prioridade | Campo | Valor atual | Valor certo | Fonte |
 |---|---|---|---|---|---|
 | Guanyu Zhou (`guanyu-zhou`) | — | Melhor resultado (com contagem) | 8º (x1) | 8º (x2) | F1DB v2026.17.0 (race_data RACE_RESULT) |
-| Guanyu Zhou (`guanyu-zhou`) | — | Equipe da temporada selecionada | 2024: Sauber F1 Team (sauber) | 2024: kick-sauber | F1DB v2026.17.0 (race_data.constructor_id com mais corridas largadas) |
 | Guanyu Zhou (`guanyu-zhou`) | — | Cor da equipe (curadoria e contraste) | 2024: sem pintura | 2024: #00e701 | liveries.yaml (kick-sauber) |
 
 ## De outras frentes (só listados)
