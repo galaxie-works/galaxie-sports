@@ -10,9 +10,16 @@ import { countriesMatch, namesMatch, type PhotoMatch } from './wikimedia-photos.
  * têm e divergem. Do Wikidata vêm nascimento (P569), nacionalidade (P27) e foto (P18, pelo fluxo da Commons).
  */
 
-/** Tipos de clube aceitos (P31): clube e time de futebol; e as versões femininas. */
-const MEN_TYPES = ['Q476028', 'Q15944511'];
-const WOMEN_TYPES = ['Q103229495', 'Q28140340'];
+/**
+ * Tipos de clube aceitos (P31): clube e time de futebol, time masculino (Q103229495), feminino (Q28140340) e clube
+ * poliesportivo (Q847017, o Boca Juniors só tem esse). O tipo não diz a categoria: o Chelsea é Q103229495, o
+ * Boca Q847017, e as categorias de base do Boca são Q15944511. A categoria sai do rótulo e da descrição.
+ */
+const TEAM_TYPES = new Set(['Q476028', 'Q15944511', 'Q103229495', 'Q28140340', 'Q847017']);
+const WOMEN_TEAM_TYPE = 'Q28140340';
+
+/** Categoria de um time: o principal masculino, o feminino, a base (sub-N, academia) ou a reserva (B, II). */
+export type TeamCategory = 'senior' | 'women' | 'youth' | 'reserve';
 
 export interface TeamTarget {
   /** Id do time na api-sports. */
@@ -20,6 +27,20 @@ export interface TeamTarget {
   name: string;
   /** País do time em inglês (core.country.name.en). */
   country: string | null;
+  /** Ligas nacionais em que o time jogou (core.competition.name), para desempatar homônimos. */
+  leagues: string[];
+}
+
+/** Item do Wikidata achado na busca pelo time, com os nomes das ligas (P118) já resolvidos. */
+export interface TeamItem {
+  label: string | null;
+  names: string[];
+  description: string | null;
+  types: string[];
+  /** Países (P17) em inglês. */
+  countries: string[];
+  /** Nomes (rótulos e apelidos) das ligas (P118). */
+  leagues: string[];
 }
 
 export interface TeamCandidate {
@@ -61,14 +82,47 @@ export interface TeamMatchReport {
 
 // ─── funções puras ───────────────────────────────────────────────────────────────────────────────
 
-/** Time feminino na api-sports: nome terminado em " W" ("Roma W"). */
-export function isWomenTeam(name: string): boolean {
-  return /\sW$/.test(name.trim());
+/** Categoria do nosso time pelo nome da api-sports ("Roma W", "Palmeiras U20", "Barcelona B", "Estudiantes Res."). */
+export function teamCategory(name: string): TeamCategory {
+  const n = name.trim();
+  if (/\s(W|Women|Fem\.?|Femenino|Feminino)$/i.test(n)) return 'women';
+  if (/\s(U-?\d{2}|Sub-?\d{2})$/i.test(n)) return 'youth';
+  if (/\s(II|III|B|Res\.?|Reserves?)$/i.test(n)) return 'reserve';
+  return 'senior';
 }
 
-/** Nome para a busca: sem o " W" do feminino. */
+const WOMEN_WORDS = /\b(women|ladies|femenino|feminino|femminile|frauen|f[ée]minines?|dames|vrouwen)\b/i;
+const YOUTH_WORDS = /\b(youth|academy|u-?\d{2}|under-\d{2}|sub-?\d{2}|juvenil|primavera|jugend)\b/i;
+const RESERVE_WORDS = /\b(reserves?|second team|b team)\b/i;
+
+/**
+ * Categoria do item do Wikidata pelo rótulo e pela descrição ("Chelsea F.C. Women", "reserve and youth academy
+ * teams of Boca Juniors", "Real Madrid Castilla: association football reserve team"). Os apelidos ficam de fora:
+ * o do Hoffenheim inclui "1899 Hoffenheim II".
+ */
+export function itemCategory(item: Pick<TeamItem, 'label' | 'description' | 'types'>): TeamCategory {
+  const text = [item.label, item.description].filter(Boolean).join(' | ');
+  if (item.types.includes(WOMEN_TEAM_TYPE) || WOMEN_WORDS.test(text)) return 'women';
+  if (YOUTH_WORDS.test(text)) return 'youth';
+  if (RESERVE_WORDS.test(text) || /\s(II|III|B)$/.test(item.label ?? '')) return 'reserve';
+  return 'senior';
+}
+
+/** Nome para a busca: sem o sufixo de categoria (" W", " U20", " II"…). */
 export function teamSearchName(name: string): string {
-  return name.trim().replace(/\sW$/, '');
+  const n = name.trim();
+  return teamCategory(n) === 'senior' ? n : n.replace(/\s\S+$/, '');
+}
+
+/** Nome comparável: sem acento, caixa e pontuação ("Estudiantes L.P." = "Estudiantes LP"). */
+export function normalizeTeamName(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[.'’]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
 }
 
 /** Valores de uma propriedade nas afirmações do `wbgetentities` (ids de item). */
@@ -80,23 +134,34 @@ export function claimItemIds(claims: Record<string, unknown[]> | undefined, prop
     .filter((v): v is string => typeof v === 'string');
 }
 
+/** Os que passam no teste; se nenhum passa, todos seguem (o desempate não elimina sozinho). */
+function narrow(ids: string[], test: (id: string) => boolean): string[] {
+  const hit = ids.filter(test);
+  return hit.length ? hit : ids;
+}
+
 /**
- * Time do core → QID: entre os itens achados pela busca, os que são clube de futebol (do gênero certo) e do mesmo
- * país. Um só: resolvido. Mais de um: ambíguo. Nenhum: sem QID.
+ * Time do core → QID: entre os itens achados pela busca, os que são clube de futebol, do mesmo país e da mesma
+ * categoria (o principal nunca liga com o feminino, a base ou a reserva). Homônimos desempatam pelo nome exato
+ * (rótulo ou apelido) e depois pela liga (P118 com o nome de uma liga em que o time jogou). Um só: resolvido.
+ * Mais de um: ambíguo. Nenhum: sem QID.
  */
-export function resolveTeam(
-  team: TeamTarget,
-  found: string[],
-  claims: Map<string, Record<string, unknown[]>>,
-  countryLabels: Map<string, string>,
-): TeamResolution {
-  const types = new Set(isWomenTeam(team.name) ? WOMEN_TYPES : MEN_TYPES);
-  const ok = [...new Set(found)].filter((id) => {
-    const c = claims.get(id);
-    if (!claimItemIds(c, 'P31').some((t) => types.has(t))) return false;
-    const countries = claimItemIds(c, 'P17').map((q) => countryLabels.get(q) ?? q);
-    return countriesMatch(team.country, countries);
+export function resolveTeam(team: TeamTarget, found: string[], items: Map<string, TeamItem>): TeamResolution {
+  const category = teamCategory(team.name);
+  let ok = [...new Set(found)].filter((id) => {
+    const it = items.get(id);
+    return (
+      !!it &&
+      it.types.some((t) => TEAM_TYPES.has(t)) &&
+      countriesMatch(team.country, it.countries) &&
+      itemCategory(it) === category
+    );
   });
+  const name = normalizeTeamName(teamSearchName(team.name));
+  if (ok.length > 1) ok = narrow(ok, (id) => items.get(id)!.names.some((n) => normalizeTeamName(n) === name));
+  const leagues = new Set(team.leagues.map(normalizeTeamName));
+  if (ok.length > 1 && leagues.size)
+    ok = narrow(ok, (id) => items.get(id)!.leagues.some((l) => leagues.has(normalizeTeamName(l))));
   if (ok.length === 1) return { qid: ok[0]! };
   return ok.length ? { ambiguous: ok } : { none: true };
 }
@@ -283,8 +348,19 @@ export async function teamCandidates(
     }));
     const ids = [...new Set(candidates.flatMap((c) => c.teams))];
     const teams = ids.length
-      ? await tx.execute<{ provider_id: string; name: string; country: string | null }>(sql`
-          select m.provider_id, pa.name, co.name->>'en' as country
+      ? await tx.execute<{
+          provider_id: string;
+          name: string;
+          country: string | null;
+          leagues: string[] | null;
+        }>(sql`
+          select m.provider_id, pa.name, co.name->>'en' as country,
+                 (select array_agg(distinct c.name)
+                  from core.event_participant ep
+                  join core.event e on e.id = ep.event_id
+                  join core.competition c on c.id = e.competition_id
+                  where ep.participant_id = pa.id and c.type = 'league'
+                    and e.starts_at >= ${options.since.toISOString()}::timestamptz) as leagues
           from core.provider_map m
           join core.participant pa on pa.id = m.entity_id
           left join core.country co on co.code = pa.country_code
@@ -297,15 +373,25 @@ export async function teamCandidates(
       : [];
     return {
       candidates,
-      teams: [...teams].map((t) => ({ providerId: t.provider_id, name: t.name, country: t.country })),
+      teams: [...teams].map((t) => ({
+        providerId: t.provider_id,
+        name: t.name,
+        country: t.country,
+        leagues: t.leagues ?? [],
+      })),
     };
   });
 }
 
-/** Resolve os times no Wikidata: busca pelo nome (sem acento importar), afirmações P31/P17 e rótulo dos países. */
+/** Línguas dos nomes das ligas: as das ligas que cobrimos ("Liga Profesional Argentina", "Brasileirão"). */
+const LEAGUE_LANGUAGES = ['en', 'es', 'pt', 'it', 'fr', 'de'];
+
+/**
+ * Resolve os times no Wikidata: busca pelo nome (sem acento importar), rótulo, apelidos, descrição e afirmações
+ * P31/P17/P118 dos achados, e os nomes dos países e das ligas.
+ */
 export async function resolveTeams(
   client: WikimediaClient,
-  sparql: SparqlClient,
   teams: TeamTarget[],
   options: { onProgress?: (done: number, total: number) => void } = {},
 ): Promise<Map<string, TeamResolution>> {
@@ -316,26 +402,24 @@ export async function resolveTeams(
     if (++done % 100 === 0 || done === teams.length) options.onProgress?.(done, teams.length);
   }
   const ids = [...new Set([...found.values()].flat())];
-  const claims = ids.length
-    ? await client.claims(ids, ['P31', 'P17'])
-    : new Map<string, Record<string, unknown[]>>();
-  const countryIds = [...new Set([...claims.values()].flatMap((c) => claimItemIds(c, 'P17')))];
-  const countryLabels = new Map<string, string>();
-  for (let i = 0; i < countryIds.length; i += 200) {
-    const batch = countryIds.slice(i, i + 200);
-    const { data } = await sparql.query(
-      'country-labels',
-      `SELECT ?c ?label WHERE { VALUES ?c { ${batch.map((q) => `wd:${q}`).join(' ')} } ?c rdfs:label ?label FILTER(LANG(?label) = "en") }`,
-      { first: batch[0]!, n: batch.length },
-    );
-    for (const r of data.results.bindings) {
-      const q = r.c?.value.split('/').pop();
-      if (q && r.label) countryLabels.set(q, r.label.value);
-    }
-  }
+  const raw = await client.items(ids, ['P31', 'P17', 'P118']);
+  const refs = (prop: string) => [
+    ...new Set([...raw.values()].flatMap((it) => claimItemIds(it.claims, prop))),
+  ];
+  const countries = await client.items(refs('P17'), []);
+  const leagues = await client.items(refs('P118'), [], LEAGUE_LANGUAGES);
+  const items = new Map<string, TeamItem>();
+  for (const [id, it] of raw)
+    items.set(id, {
+      label: it.label,
+      names: it.names,
+      description: it.description,
+      types: claimItemIds(it.claims, 'P31'),
+      countries: claimItemIds(it.claims, 'P17').map((q) => countries.get(q)?.label ?? q),
+      leagues: claimItemIds(it.claims, 'P118').flatMap((q) => leagues.get(q)?.names ?? []),
+    });
   const out = new Map<string, TeamResolution>();
-  for (const t of teams)
-    out.set(t.providerId, resolveTeam(t, found.get(t.providerId) ?? [], claims, countryLabels));
+  for (const t of teams) out.set(t.providerId, resolveTeam(t, found.get(t.providerId) ?? [], items));
   return out;
 }
 
