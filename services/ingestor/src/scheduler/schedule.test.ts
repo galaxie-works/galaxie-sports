@@ -36,6 +36,7 @@ describe('scheduleFromEnv', () => {
       'assets-palette',
       'change-feed-prune',
       'quota-status',
+      'data-quality',
     ]);
     expect(jobs.find((j) => j.name === 'quota-status')).toMatchObject({
       name: 'quota-status',

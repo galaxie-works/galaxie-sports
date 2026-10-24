@@ -9,12 +9,19 @@ import { EmptyState } from '@/components/app-shell/empty-state';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { CountryFlag } from '@/components/sport/country-flag';
+import { LegendsCarousel } from '@/components/sport/legends-carousel';
 import { Crest } from '@/components/sport/crest';
 import { Section } from '@/components/sport/section';
 import { ShowMore } from '@/components/sport/show-more';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getExploreSummary, getSportCompetitions, sportCompetitionsRequest } from '@/lib/galaxie/api';
+import {
+  getExploreSummary,
+  getRaceLegends,
+  getSportCompetitions,
+  raceLegendsRequest,
+  sportCompetitionsRequest,
+} from '@/lib/galaxie/api';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
@@ -128,6 +135,12 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
           </p>
         </div>
 
+        {sport.slug === 'formula-1' ? (
+          <Suspense fallback={<LegendsFallback />}>
+            <F1Legends />
+          </Suspense>
+        ) : null}
+
         {groups.length === 0 ? (
           <EmptyState title={fill(ts.empty.title, { sport: label })} description={ts.empty.description} />
         ) : null}
@@ -186,6 +199,27 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
 function countrySlug(code: string): string | null {
   const match = COUNTRIES.find((c) => c.code === code || (code === 'GB' && c.code === 'GB-ENG'));
   return match ? match.code.toLowerCase() : null;
+}
+
+/** Lendas da F1 para o carrossel; sem a API, a página segue sem ele. */
+async function F1Legends() {
+  const { locale } = await getI18n();
+  const legends = await getRaceLegends(locale).catch(() => []);
+  return <LegendsCarousel legends={legends} api={raceLegendsRequest(locale)} />;
+}
+
+/** Espaço do carrossel "Legendary" enquanto as lendas chegam (a página não pula quando ele aparece). */
+function LegendsFallback() {
+  return (
+    <div className="flex flex-col gap-3">
+      <Skeleton className="h-4 w-40" />
+      <div className="flex gap-3 overflow-hidden">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-[25rem] w-[78vw] max-w-72 shrink-0 rounded-xl sm:w-72" />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Fallback() {

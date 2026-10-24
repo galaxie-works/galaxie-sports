@@ -118,6 +118,15 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 10 * MINUTE,
   },
   {
+    name: 'data-quality',
+    description:
+      'Qualidade dos dados: regras automáticas (F1 × F1DB pela API, placares, ao vivo travado, classificação, escudos, Wikidata, grades) e placar em ops.quality_*; sem cota do fornecedor',
+    cron: '40 4 * * *',
+    script: 'dist/cli/quality-run.js',
+    args: ['--agendado'],
+    timeoutMs: 30 * MINUTE,
+  },
+  {
     name: 'bootstrap-catalog',
     description:
       'Atualiza o catálogo global do futebol (~8 chamadas BOOTSTRAP; reaproveita o raw dentro do TTL)',

@@ -229,6 +229,10 @@ services:
       SCHEDULE_BOOTSTRAP_CATALOG: ${SCHEDULE_BOOTSTRAP_CATALOG:-15 3 * * 1}
       SCHEDULER_RUN_ON_START: ${SCHEDULER_RUN_ON_START:-}
       SCHEDULER_TIMEOUT_MINUTES: ${SCHEDULER_TIMEOUT_MINUTES:-}
+      # Qualidade dos dados (job data-quality): as regras da F1 leem a API do próprio stack; sem a chave, saem "puladas"
+      SCHEDULE_DATA_QUALITY: ${SCHEDULE_DATA_QUALITY:-40 4 * * *}
+      QUALITY_API_URL: ${QUALITY_API_URL:-http://api:8080}
+      QUALITY_API_KEY: ${QUALITY_API_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
