@@ -40,6 +40,34 @@ O agente (`services/ai-agents/src/f1bio/profile.ts`) pesquisa com busca (Gemini 
 
 Sem a bio, ou lenda sem nenhum momento verificável, não há proposta. O tom de referência no prompt é o do texto de transmissão esportiva (momentos concretos, traços que dão para ver na pista); o prompt cita o Senna como nível de detalhe esperado, não como texto a copiar.
 
+## Biografia factual (card "Biografia", `profile` de `/v1/teams/{id}/career`)
+
+Fatos estruturados, sem IA, cada um com a fonte, gravados em `core.participant` pelo `f1:biografia` (migration `0034_piloto_biografia`: `full_name`, `death_date` e `bio_facts`). O card mostra só o que existe.
+
+- **F1DB:** nome completo, data da morte e a família no automobilismo (`driver_family_relationship`: pai, filho, irmão, sobrinho, avô, primo, cunhado…; cada parente com link para o perfil).
+- **Morte em corrida:** o resultado que o F1DB marca como fatal ("Fatal accident", "Fatal collision", "… in qualifying", "… in practice", "… in support race"), com o GP, a sessão e a cidade do circuito. São 28 pilotos, de Marimón a Bianchi; no caso do Bianchi, o acidente foi em Suzuka em 2014 e a morte, em 2015. A frase é um modelo fixo nos 3 idiomas da demo ("Morreu após acidente no {GP}, em {cidade}"), sem texto gerado; por isso não passa pelo painel.
+- **Wikidata, com casamento estrito:** a mesma data de nascimento do F1DB e o id do piloto (P3684 Driver Database ou P8140 motorsportstats igual ao id do F1DB) ou, sem ele, o nome em inglês igual ao do F1DB e a ocupação de piloto; o candidato tem de ser único. No dev, 895 dos 917 pilotos casam (810 pelo id e 85 pelo nome). Do QID saem:
+  - o local da morte (P20), só quando há um (o Senna tem o circuito e o hospital, então fica sem);
+  - a causa (P509) e a circunstância (P1196);
+  - os apelidos (P1449);
+  - as vitórias nas 500 Milhas de Indianápolis e nas 24 Horas de Le Mans (P1346 nas edições).
+- **Na dúvida, não mostra:**
+  - Data da morte do Wikidata diferente da do F1DB: os fatos da morte do Wikidata ficam de fora.
+  - Causa do tipo colisão (o rótulo "acidente rodoviário" do Wikidata): o card diz "Em acidente", sem o rótulo.
+  - O mesmo QID para dois pilotos: nenhum dos dois fica com ele.
+- **Limite conhecido:** o Wikidata registra o vencedor de Le Mans de forma incompleta. Na edição de 1972, só o Pescarolo aparece, então a Tríplice Coroa do Graham Hill não sai inteira (a vitória em Indianápolis de 1966, sim).
+
+Comandos (na VPS, depois do deploy, no container `ingestor`):
+
+```bash
+# 1. prévia e gravação da biografia (consultas ao Wikidata cacheadas no banco por 7 dias). Sem a tabela de
+#    parentesco do F1DB no raw, a CLI grava antes as páginas que faltam do release fixado (só o raw, em fluxo)
+docker compose exec -T ingestor node dist/cli/f1-biografia.js --plan
+docker compose exec -T ingestor node dist/cli/f1-biografia.js
+# 2. limpar o cache das respostas da API (como no deploy)
+for p in 'gs:cache:*' 'gs:tag:*'; do docker compose exec -T valkey sh -c "valkey-cli --scan --pattern '$p' | xargs -r -n 200 valkey-cli del >/dev/null"; done
+```
+
 ## Revisão
 
 Tudo entra como `draft`. Depois do merge e do deploy, o seed leva cada perfil × idioma ao painel (Ajustes → Revisão semântica, tipo "Perfil de piloto (F1)", item `editorial:<locale>.<slug>`). A aprovação vale na hora: a API lê o YAML, aplica a decisão e as edições do painel por cima (como no glossário), e o change feed purga o cache (`f1_editorial`). Sugestões de edição passam pelo agente de revisão (#254). A demo pede `min_review_status=approved`: o bloco "Momentos" e a bio editorial só aparecem depois da aprovação.

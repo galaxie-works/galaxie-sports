@@ -319,6 +319,13 @@ describe('carreira na F1: temporada atual, sprint, melhores resultados, número 
       birth_date: '2006-08-25',
       birth_place: 'Bologna',
       birth_country: { code: 'IT', name: 'Itália' },
+      // sem o f1:biografia gravado: nada de morte, família nem Wikidata
+      full_name: null,
+      nicknames: [],
+      death: null,
+      family: [],
+      other_wins: [],
+      sources: { f1db: 'https://github.com/f1db/f1db', wikidata: null },
     });
   });
 

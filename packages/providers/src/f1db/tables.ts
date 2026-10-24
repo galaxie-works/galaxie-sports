@@ -26,6 +26,8 @@ export const F1DB_TABLES = [
   'season_entrant_driver',
   'season_entrant_chassis',
   'chassis',
+  // biografia do piloto (f1:biografia): pai, filho, irmão, sobrinho...
+  'driver_family_relationship',
 ] as const;
 export type F1dbTableName = (typeof F1DB_TABLES)[number];
 

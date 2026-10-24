@@ -23,6 +23,8 @@ import {
   type Database,
 } from '@galaxie/db';
 import type { LocatedEditorial } from '@galaxie/knowledge';
+import { sql } from 'drizzle-orm';
+import { loadBiography } from '../src/teams/biography.js';
 import { driverF1dbId, editorialBody } from '../src/teams/editorial.js';
 import { loadDriverTraits } from '../src/teams/traits.js';
 
@@ -236,6 +238,29 @@ describe('perfil editorial', () => {
       strengths: [],
       text_locale: 'pt-BR',
       review_status: 'approved',
+    });
+  });
+});
+
+describe('biografia (gravada pelo f1:biografia)', () => {
+  it('morte no GP marcado como fatal, família com o participante e o QID como fonte', async () => {
+    await db.execute(sql`
+      update core.participant
+         set full_name = 'Ayrton Senna da Silva', birth_date = '1960-03-21', death_date = '1988-10-30',
+             bio_facts = ${JSON.stringify({
+               family: [{ relation: 'SIBLING', f1db_id: 'alain-prost', name: 'Alain Prost', gender: 'male' }],
+               wikidata: { qid: 'Q10490', matched_by: 'driver_id', checked_at: '2026-10-24T00:00:00Z' },
+             })}::jsonb
+       where id = ${senna}::uuid`);
+    await db.execute(sql`
+      update core.event_participant set result = result || '{"status": "Fatal accident"}'::jsonb
+       where event_id = ${raceIds[2]!}::uuid and participant_id = ${senna}::uuid`);
+    const bio = await loadBiography(db, senna, 'pt-BR');
+    expect(bio).toMatchObject({
+      full_name: 'Ayrton Senna da Silva',
+      death: { date: '1988-10-30', age: 28, accident: true, race: { event_id: raceIds[2], session: 'race' } },
+      family: [{ relation: 'SIBLING', driver: { id: prost, f1db_id: 'alain-prost' } }],
+      sources: { wikidata: 'https://www.wikidata.org/wiki/Q10490' },
     });
   });
 });

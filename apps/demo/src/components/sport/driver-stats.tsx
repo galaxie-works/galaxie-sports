@@ -14,7 +14,7 @@ import type { ApiRequest } from '@/lib/galaxie/request';
 import { calendarDate } from '@/lib/i18n/format';
 import { getI18n } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
-import { countryHref } from '@/lib/navigation';
+import { countryHref, participantHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 import { CountryFlag } from './country-flag';
@@ -163,8 +163,10 @@ export async function CareerStatsCard({ career, api }: { career: RaceCareer; api
 }
 
 /**
- * Biografia: nascimento (data e local), número permanente e o texto da base semântica, quando houver — a bio do
- * perfil editorial aprovado (`/v1/teams/{id}/editorial`) ou, sem ela, as frases de identidade.
+ * Biografia: nome completo, nascimento, morte (com o GP do acidente fatal, quando o F1DB o marca), número permanente,
+ * apelidos, família no automobilismo e vitórias fora da F1 — fatos do F1DB e do Wikidata, com as fontes no rodapé — e
+ * o texto da base semântica: a bio do perfil editorial aprovado (`/v1/teams/{id}/editorial`) ou, sem ela, as frases
+ * de identidade. Só aparece o que existe.
  */
 export async function DriverBioCard({
   profile,
@@ -179,10 +181,34 @@ export async function DriverBioCard({
 }) {
   const born = profile?.birth_date;
   const place = [profile?.birth_place, profile?.birth_country?.name].filter(Boolean).join(', ');
-  if (!born && !place && !identity.length && !bio) return null;
+  const death = profile?.death ?? null;
+  const family = profile?.family ?? [];
+  const nicknames = profile?.nicknames ?? [];
+  const wins = profile?.other_wins ?? [];
+  // nome completo só quando diz mais que o nome da página ("Emerson Fittipaldi" não repete)
+  const shownName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
+  const fullName =
+    profile?.full_name && profile.full_name.trim().toLowerCase() !== shownName.toLowerCase()
+      ? profile.full_name
+      : null;
+  if (!born && !place && !identity.length && !bio && !death && !family.length && !fullName) return null;
   const { locale, t } = await getI18n();
   const tx = t.race.bio;
   const country = profile?.birth_country ? countryHref(profile.birth_country.code) : null;
+  const race = death?.race ?? null;
+  // a corrida do acidente leva o ano quando a morte veio em outro ano (Bianchi: Suzuka 2014, morte em 2015)
+  const raceYear = race ? new Date(race.date).getUTCFullYear() : null;
+  const raceSentence =
+    race && death
+      ? fill(tx.deathRace[race.session], {
+          gp: '\u0000',
+          year: raceYear !== Number(death.date.slice(0, 4)) ? fill(tx.raceYear, { year: raceYear! }) : '',
+          city: race.city ?? race.circuit ?? '',
+        }).split('\u0000')
+      : null;
+  const deathPlace = death?.place
+    ? [death.place.name, death.place.country?.name].filter(Boolean).join(', ')
+    : null;
   return (
     <Card>
       <CardHeader>
@@ -190,6 +216,12 @@ export async function DriverBioCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+          {fullName ? (
+            <div>
+              <dt className="text-muted-foreground text-xs">{tx.fullName}</dt>
+              <dd className="font-medium">{fullName}</dd>
+            </div>
+          ) : null}
           {born ? (
             <div>
               <dt className="text-muted-foreground text-xs">{tx.born}</dt>
@@ -211,10 +243,99 @@ export async function DriverBioCard({
               </dd>
             </div>
           ) : null}
+          {death ? (
+            <div className="sm:col-span-2 lg:col-span-1">
+              <dt className="text-muted-foreground text-xs">{tx.died}</dt>
+              <dd className="flex flex-col gap-1">
+                <span className="font-medium">
+                  {death.age != null
+                    ? fill(tx.diedAge, { date: calendarDate(locale, death.date), age: death.age })
+                    : calendarDate(locale, death.date)}
+                </span>
+                {race && raceSentence ? (
+                  <span className="text-muted-foreground">
+                    {raceSentence[0]}
+                    <Link href={`/eventos/${race.event_id}`} className="hover:underline">
+                      {race.name}
+                    </Link>
+                    {raceSentence[1]}
+                  </span>
+                ) : (
+                  <>
+                    {deathPlace ? (
+                      <span className="text-muted-foreground">
+                        {tx.deathPlace}: {deathPlace}
+                      </span>
+                    ) : null}
+                    {death.accident ? (
+                      <span className="text-muted-foreground">{tx.accident}</span>
+                    ) : death.cause ? (
+                      <span className="text-muted-foreground">
+                        {tx.deathCause}: {death.cause}
+                      </span>
+                    ) : null}
+                  </>
+                )}
+              </dd>
+            </div>
+          ) : null}
           {profile?.number != null ? (
             <div>
               <dt className="text-muted-foreground text-xs">{tx.number}</dt>
               <dd className="font-medium tabular-nums">{profile.number}</dd>
+            </div>
+          ) : null}
+          {nicknames.length ? (
+            <div>
+              <dt className="text-muted-foreground text-xs">{tx.nicknames}</dt>
+              <dd className="font-medium">{nicknames.join(' · ')}</dd>
+            </div>
+          ) : null}
+          {family.length ? (
+            <div className="sm:col-span-2 lg:col-span-1">
+              <dt className="text-muted-foreground text-xs">{tx.family}</dt>
+              <dd>
+                <ul className="flex flex-col gap-0.5">
+                  {family.map((f) => (
+                    <li key={`${f.relation}-${f.driver.f1db_id}`}>
+                      <span className="text-muted-foreground">
+                        {tx.relations[f.relation]?.[f.gender ?? 'male'] ?? f.relation}:
+                      </span>{' '}
+                      {f.driver.id ? (
+                        <Link
+                          href={participantHref({ id: f.driver.id, name: f.driver.name }, 'driver')}
+                          className="font-medium hover:underline"
+                        >
+                          {f.driver.name}
+                        </Link>
+                      ) : (
+                        <span className="font-medium">{f.driver.name}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+          ) : null}
+          {wins.length ? (
+            <div className="sm:col-span-2 lg:col-span-1">
+              <dt className="text-muted-foreground text-xs">{tx.otherWins}</dt>
+              <dd>
+                <ul className="flex flex-col gap-0.5">
+                  {wins.map((w) => (
+                    <li key={`${w.race}-${w.year}`}>
+                      <a
+                        href={w.source}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium hover:underline"
+                      >
+                        {tx.wins[w.race] ?? w.race} {w.year}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </dd>
             </div>
           ) : null}
         </dl>
@@ -242,6 +363,19 @@ export async function DriverBioCard({
               </li>
             ))}
           </ul>
+        ) : null}
+        {profile?.sources ? (
+          <p className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
+            <span>{tx.sources}:</span>
+            <a href={profile.sources.f1db} target="_blank" rel="noreferrer" className="hover:underline">
+              F1DB
+            </a>
+            {profile.sources.wikidata ? (
+              <a href={profile.sources.wikidata} target="_blank" rel="noreferrer" className="hover:underline">
+                Wikidata
+              </a>
+            ) : null}
+          </p>
         ) : null}
       </CardContent>
     </Card>

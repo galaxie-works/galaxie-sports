@@ -27,6 +27,7 @@ import { liveryFor, type LiveryEntry } from '@galaxie/knowledge';
 import { constructorProviderIds, loadRaceTeams, RACE_PROVIDERS, type RaceTeams } from '../events/race.js';
 import { pickText } from '../i18n.js';
 import { assetUrl } from '../util.js';
+import { loadBiography } from './biography.js';
 import { loadPhotos } from './photos.js';
 
 type SessionRow = {
@@ -170,7 +171,7 @@ export function splitName(name: string, shortName: string | null): { first: stri
   return i > 0 ? { first: full.slice(0, i), last: full.slice(i + 1) } : { first: '', last: full };
 }
 
-/** Nome em duas partes, número permanente e nascimento do piloto. */
+/** Nome em duas partes, número permanente, nascimento e a biografia (morte, família, apelidos) do piloto. */
 async function driverProfile(
   db: Database,
   participantId: string,
@@ -191,7 +192,10 @@ async function driverProfile(
       left join core.country c on c.code = p.birth_country_code
      where p.id = ${participantId}::uuid`);
   const { first, last } = splitName(p?.name ?? '', p?.short_name ?? null);
+  // nome completo, apelidos, morte, família e vitórias fora da F1 (F1DB e Wikidata, gravados pelo f1:biografia)
+  const bio = await loadBiography(db, participantId, locale);
   return {
+    ...bio,
     first_name: first,
     last_name: last,
     number: p?.number == null ? null : Number(p.number),

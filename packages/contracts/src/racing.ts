@@ -183,6 +183,71 @@ export const CareerSeason = z
   .meta({ id: 'CareerSeason' });
 export type CareerSeason = z.infer<typeof CareerSeason>;
 
+/** Relação no F1DB: o que o parente é do piloto (`PARENT` = pai ou mãe; `SIBLINGS_CHILD` = sobrinho ou sobrinha). */
+export const DRIVER_RELATIONS = [
+  'PARENT',
+  'CHILD',
+  'SIBLING',
+  'HALF_SIBLING',
+  'GRANDPARENT',
+  'GRANDCHILD',
+  'PARENTS_SIBLING',
+  'SIBLINGS_CHILD',
+  'PARENTS_SIBLINGS_CHILD',
+  'GRANDPARENTS_SIBLING',
+  'SIBLINGS_GRANDCHILD',
+  'PARENT_IN_LAW',
+  'CHILD_IN_LAW',
+  'SIBLING_IN_LAW',
+  'SIBLINGS_CHILD_IN_LAW',
+] as const;
+
+const DriverRelative = z.object({
+  relation: z.string().meta({
+    description: `O que o parente é do piloto, no F1DB (${DRIVER_RELATIONS.join(', ')}).`,
+    example: 'PARENT',
+  }),
+  gender: z.enum(['male', 'female']).nullable(),
+  driver: z.object({
+    id: z.uuid().nullable().meta({ description: 'O parente em `/v1/teams/{id}`.' }),
+    f1db_id: z.string(),
+    name: z.string(),
+  }),
+});
+
+const DriverDeath = z
+  .object({
+    date: z.string().meta({ description: 'ISO 8601 (data), do F1DB.', example: '1994-05-01' }),
+    age: z.number().int().nullable().meta({ example: 34 }),
+    place: z
+      .object({ name: z.string(), country: CountryRef.nullable() })
+      .nullable()
+      .meta({ description: 'Local (Wikidata P20), só quando há um só registrado.' }),
+    accident: z.boolean().meta({ description: 'Morte em acidente (F1DB ou Wikidata P1196/P509).' }),
+    cause: z
+      .string()
+      .nullable()
+      .meta({ description: 'Causa (Wikidata P509) no idioma pedido, fora de acidente; null sem fonte.' }),
+    race: z
+      .object({
+        event_id: z.uuid(),
+        name: z.string().meta({ example: 'San Marino Grand Prix' }),
+        date: z.string().meta({ description: 'ISO 8601 (UTC) da corrida.' }),
+        session: z.enum(['race', 'qualifying', 'practice', 'support_race']).meta({
+          description:
+            'Onde foi o acidente: na corrida, na classificação, nos treinos ou numa corrida de apoio.',
+        }),
+        circuit: z.string().nullable().meta({ example: 'Autodromo Enzo e Dino Ferrari' }),
+        city: z.string().nullable().meta({ example: 'Imola' }),
+      })
+      .nullable()
+      .meta({
+        description:
+          'O GP do acidente fatal, quando o F1DB marca o resultado ("Fatal accident"); a morte pode ter sido dias depois.',
+      }),
+  })
+  .meta({ id: 'DriverDeath' });
+
 export const DriverProfile = z
   .object({
     first_name: z.string().meta({ example: 'Kimi' }),
@@ -195,6 +260,40 @@ export const DriverProfile = z
     birth_date: z.string().nullable().meta({ description: 'ISO 8601 (data).', example: '2006-08-25' }),
     birth_place: z.string().nullable().meta({ example: 'Bologna' }),
     birth_country: CountryRef.nullable(),
+    full_name: z
+      .string()
+      .nullable()
+      .optional()
+      .meta({ description: 'Nome completo de registro (F1DB).', example: 'Ayrton Senna da Silva' }),
+    nicknames: z
+      .array(z.string())
+      .optional()
+      .meta({
+        description: 'Apelidos (Wikidata P1449, QID casado de forma estrita).',
+        example: ['Magic Senna'],
+      }),
+    death: DriverDeath.nullable().optional(),
+    family: z
+      .array(DriverRelative)
+      .optional()
+      .meta({ description: 'Família no automobilismo (F1DB): pai, filho, irmão, sobrinho...' }),
+    other_wins: z
+      .array(
+        z.object({
+          race: z.enum(['indy500', 'le_mans_24h']),
+          year: z.number().int(),
+          source: z.url().meta({ description: 'A edição no Wikidata.' }),
+        }),
+      )
+      .optional()
+      .meta({
+        description:
+          'Vitórias fora da F1: 500 Milhas de Indianápolis e 24 Horas de Le Mans (Wikidata P1346).',
+      }),
+    sources: z.object({ f1db: z.url(), wikidata: z.url().nullable() }).optional().meta({
+      description:
+        'De onde vêm os fatos: o F1DB e o item do Wikidata (casado pela data de nascimento e pelo id do piloto ou nome).',
+    }),
   })
   .meta({ id: 'DriverProfile' });
 export type DriverProfile = z.infer<typeof DriverProfile>;
