@@ -11,9 +11,16 @@ import { fill, localized } from '@/lib/i18n/text';
 type Participant = Event['participants'][number];
 type Stake = Event['stakes'][number];
 
+/** Texto do stake; em "busca o tetra", com as edições já vencidas ("Busca o tetracampeonato (1999, 2020, 2021)"). */
+function sentenceOf(s: Stake, locale: Locale): string {
+  const text = localized(s.text, locale);
+  const seasons = s.titles?.seasons ?? [];
+  return text && seasons.length ? `${text} (${seasons.join(', ')})` : text;
+}
+
 /** Frases dos stakes sem repetição (o mesmo texto pode vir de códigos diferentes). */
 function uniqueSentences(stakes: Stake[], locale: Locale): string[] {
-  return [...new Set(stakes.map((s) => localized(s.text, locale)).filter(Boolean))];
+  return [...new Set(stakes.map((s) => sentenceOf(s, locale)).filter(Boolean))];
 }
 
 /** Stake do participante: pelo `team_id`; em respostas antigas, pelo lado. */
