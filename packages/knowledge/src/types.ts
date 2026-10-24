@@ -167,6 +167,28 @@ export interface TeamsFile {
   teams: TeamEntry[];
 }
 /** `<esporte>/participants/*.yaml`: pilotos, equipes da F1, lutadores... (cada item com `country`). */
+/** Uma pintura de construtor da F1: intervalo de temporadas (`to` null = até hoje) e [primária, secundária]. */
+export interface LiveryEra {
+  from: number;
+  to: number | null;
+  colors: string[];
+  livery: string;
+  sources: string[];
+}
+
+/** Construtor da F1 com as pinturas por época (`formula-1/liveries.yaml`); o slug é o id do F1DB. */
+export interface LiveryEntry {
+  slug: string;
+  name: string;
+  eras: LiveryEra[];
+  review_status: ReviewStatus;
+}
+
+export interface LiveriesFile {
+  schema_version: 1;
+  constructors: LiveryEntry[];
+}
+
 export interface ParticipantsFile {
   schema_version: 1;
   kind: 'driver' | 'constructor' | 'fighter' | 'athlete';

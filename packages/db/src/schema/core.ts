@@ -359,6 +359,12 @@ export const participant = core.table(
     customLogoAssetId: uuid('custom_logo_asset_id').references(() => asset.id),
     /** Nomes anteriores derivados dos jogos do fornecedor (`names:derive`); null = sem troca aceita. */
     providerFormerNames: jsonb('provider_former_names').$type<ProviderFormerName[]>(),
+    /** Atleta individual (piloto de F1): nascimento e número permanente, da fonte que os traz (F1DB). */
+    birthDate: date('birth_date'),
+    birthPlace: text('birth_place'),
+    birthCountryCode: text('birth_country_code').references(() => country.code),
+    /** Número permanente (F1 desde 2014); o número de cada temporada sai das sessões. */
+    number: smallint('number'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

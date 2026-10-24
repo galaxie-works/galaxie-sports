@@ -160,12 +160,27 @@ function Stat({ label, value, highlight }: { label: string; value: number | stri
   );
 }
 
-function SeasonRow({ s, constructor }: { s: CareerSeason; constructor: boolean }) {
+function SeasonRow({
+  s,
+  constructor,
+  href,
+}: {
+  s: CareerSeason;
+  constructor: boolean;
+  /** As corridas daquela temporada (a página na temporada escolhida). */
+  href?: string;
+}) {
   return (
     <TableRow>
       <TableCell className="font-semibold tabular-nums">
         <span className="inline-flex items-center gap-1.5">
-          {s.year}
+          {href ? (
+            <Link href={href} className="hover:underline">
+              {s.year}
+            </Link>
+          ) : (
+            s.year
+          )}
           {s.final && s.position === 1 ? <Trophy className="size-3.5 text-amber-400" aria-hidden /> : null}
         </span>
       </TableCell>
@@ -200,8 +215,22 @@ function SeasonRow({ s, constructor }: { s: CareerSeason; constructor: boolean }
   );
 }
 
-/** Carreira na F1: números, títulos, marcos, temporada a temporada, equipes e companheiros. */
-export async function CareerSection({ career, api }: { career: RaceCareer; api?: ApiRequest }) {
+/**
+ * Carreira na F1: números, títulos, marcos, temporada a temporada, equipes e companheiros. Na página do piloto os
+ * números ficam no card da carreira (`stats={false}`); a tabela é o arquivo de resultados (`#temporadas`).
+ */
+export async function CareerSection({
+  career,
+  api,
+  stats = true,
+  seasonHref,
+}: {
+  career: RaceCareer;
+  api?: ApiRequest;
+  stats?: boolean;
+  /** Link de cada ano da tabela (as corridas da temporada); sem ele, o ano é só texto. */
+  seasonHref?: (year: number) => string | undefined;
+}) {
   const [t, f] = await Promise.all([getT(), getFormatters()]);
   const tx = t.race.career;
   const constructor = career.kind === 'constructor';
@@ -214,16 +243,18 @@ export async function CareerSection({ career, api }: { career: RaceCareer; api?:
   const seasonsWithCar = career.seasons.filter((s) => s.car);
   return (
     <Section title={tx.title!} description={tx.description} api={api}>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Stat label={tx.titles!} value={career.totals.titles} highlight={career.totals.titles > 0} />
-        <Stat label={tx.wins!} value={career.totals.wins} />
-        <Stat label={tx.poles!} value={career.totals.poles} />
-        <Stat label={tx.podiums!} value={career.totals.podiums} />
-        <Stat label={tx.races!} value={career.totals.races} />
-        <Stat label={tx.fastestLaps!} value={career.totals.fastest_laps} />
-        <Stat label={tx.points!} value={career.totals.points} />
-        <Stat label={tx.seasons!} value={career.totals.seasons} />
-      </div>
+      {stats ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Stat label={tx.titles!} value={career.totals.titles} highlight={career.totals.titles > 0} />
+          <Stat label={tx.wins!} value={career.totals.wins} />
+          <Stat label={tx.poles!} value={career.totals.poles} />
+          <Stat label={tx.podiums!} value={career.totals.podiums} />
+          <Stat label={tx.races!} value={career.totals.races} />
+          <Stat label={tx.fastestLaps!} value={career.totals.fastest_laps} />
+          <Stat label={tx.points!} value={career.totals.points} />
+          <Stat label={tx.seasons!} value={career.totals.seasons} />
+        </div>
+      ) : null}
       {career.titles.length ? (
         <div className="flex flex-wrap items-center gap-1.5">
           {career.titles.map((y) => (
@@ -255,7 +286,7 @@ export async function CareerSection({ career, api }: { career: RaceCareer; api?:
           ))}
         </div>
       ) : null}
-      <Card>
+      <Card id="temporadas" className="scroll-mt-20">
         <CardContent className="px-0">
           <Table>
             <TableHeader>
@@ -275,7 +306,7 @@ export async function CareerSection({ career, api }: { career: RaceCareer; api?:
               {career.seasons
                 .filter((s) => s.races > 0 || s.position != null)
                 .map((s) => (
-                  <SeasonRow key={s.year} s={s} constructor={constructor} />
+                  <SeasonRow key={s.year} s={s} constructor={constructor} href={seasonHref?.(s.year)} />
                 ))}
             </TableBody>
           </Table>

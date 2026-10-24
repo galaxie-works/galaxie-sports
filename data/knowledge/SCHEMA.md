@@ -19,7 +19,8 @@ data/knowledge/
 │   ├── teams/br.yaml               # Superliga masculina e feminina (equipes do mesmo clube = itens separados)
 │   └── derbies/br.yaml
 ├── formula-1/
-│   └── participants/<arquivo>.yaml # constructors.yaml (kind: constructor), drivers.yaml (kind: driver)
+│   ├── participants/<arquivo>.yaml # constructors.yaml (kind: constructor), drivers.yaml (kind: driver)
+│   └── liveries.yaml               # cores das equipes por época (pintura de cada temporada) — ver abaixo
 ├── competitions/*.yaml             # apelidos e semântica de competições (ex.: "Glória Eterna" = Libertadores)
 ├── copy/<locale>.yaml              # biblioteca de microcopy por mercado (pt-BR e 7 variantes de espanhol)
 ├── glossary/<locale>.yaml          # glossário esportivo por mercado (GET /v1/glossary)
@@ -160,6 +161,28 @@ O retrospecto que a API calcula (`retrospect`) usa só os jogos que estão na ba
 - **Fontes divergentes = sem `all_time`**, a não ser que a diferença seja só atualização (a mais nova contém a mais antiga) ou um critério explícito (pênaltis contados como vitória, uma competição não reconhecida). Fonte única com números completos é aceita.
 - O validador confere: mesmos times do clássico, `vitórias + empates = jogos`, gols dos dois lados ou de nenhum, `as_of` não futuro (erros `all-time-*`).
 - **Revisão no painel:** cada histórico geral é um item próprio do tipo "Histórico geral" (`all-time:derby:<slug>` e `all-time:pair:<slug>`), com decisão independente da do clássico; o conteúdo revisável do clássico não inclui o `all_time`, então acrescentar um histórico não invalida a decisão já tomada sobre o clássico.
+
+## `formula-1/liveries.yaml`
+
+As cores de cada construtor da F1 **por época** — o `colors` do time no futebol é um só; na F1 a pintura muda com o patrocinador (a McLaren de 1988 é vermelha e branca da Marlboro; a de 2024, papaia e azul). A API devolve a pintura da temporada em `GET /v1/teams/{id}/career` (`seasons[].teams[].livery`), e a página do piloto pinta o heading com ela. Não passa pelo seed: a API lê o arquivo direto (como o glossário), no piso editorial.
+
+```yaml
+schema_version: 1
+constructors:
+  - slug: mclaren              # id do construtor no F1DB (mclaren, red-bull, toro-rosso)
+    name: McLaren
+    eras:
+      - from: 1974
+        to: 1996               # null = até hoje (só a última época)
+        colors: ["#e4002b", "#ffffff"]   # [primária, secundária], hex minúsculo
+        livery: "vermelho e branco da Marlboro"
+        sources: ["https://en.wikipedia.org/wiki/McLaren"]
+    review_status: draft
+```
+
+- A **primária** é a cor de identidade da época: a oficial da equipe nas transmissões (era moderna) ou a que domina o carro (histórico). Os hex são aproximações da pintura descrita nas fontes.
+- Épocas em ordem e sem sobreposição; só a última pode ficar em aberto (erro `livery-years`). Época sem fonte confiável fica de fora: sem cor curada, a API cai nas cores do escudo.
+- Uma equipe com dois ids no F1DB (RB e Racing Bulls) tem um item por id.
 
 ## `<esporte>/head-to-head/<region>.yaml`
 

@@ -13,6 +13,7 @@ import type {
   GlossaryFile,
   GlossaryTermEntry,
   I18nFile,
+  LiveryEntry,
   TeamEntry,
   TeamTextsEntry,
   TeamsFile,
@@ -33,6 +34,7 @@ export type FileKind =
   | 'copy'
   | 'glossary'
   | 'i18n'
+  | 'liveries'
   | 'unknown';
 
 /**
@@ -111,6 +113,8 @@ export interface KnowledgeBase {
   glossary: LocatedGlossaryTerm[];
   /** Traduções dos textos livres (i18n/<locale>.yaml). */
   texts: LocatedTexts[];
+  /** Pinturas dos construtores da F1 por época (formula-1/liveries.yaml). */
+  liveries: Located<LiveryEntry>[];
 }
 
 /** Classifica um arquivo pelo caminho relativo dentro de data/knowledge. */
@@ -125,6 +129,7 @@ export function fileKind(rel: string): FileKind {
   if (/^copy\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'copy';
   if (/^glossary\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'glossary';
   if (/^i18n\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'i18n';
+  if (/^formula-1\/liveries\.ya?ml$/.test(rel)) return 'liveries';
   return 'unknown';
 }
 
@@ -220,6 +225,7 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
     copyTemplates: [],
     glossary: [],
     texts: [],
+    liveries: [],
   };
   for (const file of files) {
     const textLocale = textLocaleOf(file);
@@ -323,6 +329,9 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
           kb.texts.push({ ...d, locale, listKey: 'derbies' });
         break;
       }
+      case 'liveries':
+        kb.liveries.push(...items<LiveryEntry>(file, 'constructors'));
+        break;
       default:
         break;
     }
@@ -348,4 +357,21 @@ export async function loadGlossary(dir: string = DEFAULT_KNOWLEDGE_DIR): Promise
     files.push(parseKnowledgeFile(path, rel, await readFile(path, 'utf8')));
   }
   return buildKnowledgeBase(dir, files).glossary;
+}
+
+/**
+ * Lê só data/knowledge/formula-1/liveries.yaml (usado pela API na carreira da F1, sem carregar a base inteira).
+ * Arquivo ausente = nenhuma pintura curada.
+ */
+export async function loadLiveries(dir: string = DEFAULT_KNOWLEDGE_DIR): Promise<LiveryEntry[]> {
+  const rel = 'formula-1/liveries.yaml';
+  const path = join(dir, rel);
+  let source: string;
+  try {
+    source = await readFile(path, 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw err;
+  }
+  return buildKnowledgeBase(dir, [parseKnowledgeFile(path, rel, source)]).liveries.map((l) => l.entry);
 }

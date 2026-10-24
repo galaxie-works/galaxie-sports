@@ -360,7 +360,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       '/v1/teams/{id}/career': {
         get: getOp(
-          'Carreira na Fórmula 1 (piloto ou construtor): temporada a temporada, títulos, vitórias, poles, pódios, voltas mais rápidas, primeira e última corrida, equipes e companheiros',
+          'Carreira na Fórmula 1 (piloto ou construtor): temporada a temporada (com top 10, abandonos, sprint, número do carro e a pintura da equipe na época), temporada atual, títulos, melhores resultados com a contagem, perfil do piloto (número permanente e nascimento), primeira e última corrida, equipes e companheiros',
           'Times e pessoas',
           RaceCareer,
           { path: TeamParams, query: LocaleQuery },

@@ -118,6 +118,11 @@ export function normalizeF1db(tables: F1dbTables, ctx: F1dbNormalizeContext): No
         venueId: null,
         logoUrl: null,
         logoKind: 'driver',
+        birthDate: str(d.date_of_birth),
+        birthPlace: str(d.place_of_birth),
+        birthCountryName: countryName.get(str(d.country_of_birth_country_id)) ?? null,
+        birthCountryCode: alpha2.get(str(d.country_of_birth_country_id)) ?? null,
+        number: int(d.permanent_number),
         reference: matchedParticipants.has(pid),
       });
     return pid;
@@ -317,6 +322,14 @@ export function normalizeF1db(tables: F1dbTables, ctx: F1dbNormalizeContext): No
         sportEvent: { providerEventId: id, kind: 'race', summary, detail },
       });
     }
+  }
+
+  // ─ calendário: a temporada vai até o último GP previsto, não só até o último disputado (com o release no meio do
+  //   ano, a liderança não é título) ─
+  for (const race of rowsOf(tables, 'race')) {
+    const year = int(race.year);
+    const day = str(race.date);
+    if (year != null && day && seasons.has(year)) seasonDay(year, day);
   }
 
   // ─ campeonatos (classificação final de cada temporada) ─
