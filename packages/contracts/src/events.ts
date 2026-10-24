@@ -3,6 +3,7 @@ import * as z from 'zod';
 import { TeamColors } from './colors.js';
 import { AssetUrl, CountryRef, LocaleQuery, PaginationQuery } from './common.js';
 import { EventContextSummary } from './event-context.js';
+import { Photo } from './racing.js';
 
 /** Estados canônicos do evento (docs/04 §3). */
 export const EVENT_STATUSES = [
@@ -214,6 +215,10 @@ export const EventParticipant = z
       example: 1,
     }),
     result: ParticipantResult.nullable().optional(),
+    photo: Photo.nullable().optional().meta({
+      description:
+        'Corridas (F1, lado `grid`): retrato do piloto no acervo de licenças livres, com o crédito (o mesmo de `/v1/teams/{id}/photos`); null sem retrato. Ausente em mandante × visitante.',
+    }),
   })
   .meta({ id: 'EventParticipant' });
 export type EventParticipant = z.infer<typeof EventParticipant>;

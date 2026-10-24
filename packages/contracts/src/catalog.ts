@@ -1,6 +1,7 @@
 import 'zod-openapi';
 import * as z from 'zod';
-import { AssetUrl, CountryRef, LocaleQuery, LogoSource, PaginationQuery } from './common.js';
+import { AssetUrl, CountryRef, LocaleQuery, LogoCredit, LogoSource, PaginationQuery } from './common.js';
+import { Photo, TeamLivery } from './racing.js';
 
 // ─── esportes ────────────────────────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,10 @@ export type CompetitionSummary = z.infer<typeof CompetitionSummary>;
 
 export const Competition = CompetitionSummary.extend({
   logo_source: LogoSource,
+  logo_credit: LogoCredit.nullable().meta({
+    description:
+      'Crédito do logo quando ele vem da Wikimedia Commons (`logo_source` = `commons`); null nos demais.',
+  }),
   trophy_nickname: z.string().nullable(),
   external_ids: z
     .record(z.string(), z.string())
@@ -161,6 +166,33 @@ export const StandingRow = z
     goal_diff: z.number().int(),
     form: z.string().nullable().meta({ example: 'WWDLW' }),
     description: z.string().nullable().meta({ example: 'Promotion - CONMEBOL Libertadores' }),
+    photo: Photo.nullable().optional().meta({
+      description:
+        'Corridas (F1): retrato do piloto no acervo de licenças livres, com o crédito (o mesmo de `/v1/teams/{id}/photos`); null sem retrato. Ausente nos outros esportes.',
+    }),
+    season_team: z
+      .object({
+        id: z
+          .uuid()
+          .nullable()
+          .meta({ description: 'A equipe no catálogo (`/v1/teams/{id}`), quando ligada.' }),
+        name: z.string().meta({
+          description: 'Nome da equipe naquela temporada (McLaren em 1988, não o nome de hoje).',
+          example: 'McLaren',
+        }),
+        livery: TeamLivery.nullable(),
+      })
+      .nullable()
+      .optional()
+      .meta({
+        description:
+          'Corridas (F1): a equipe da temporada, com o nome de época e a pintura curada. No campeonato de pilotos, a equipe de mais corridas no ano; no de construtores, a própria. Ausente nos outros esportes.',
+      }),
+    podiums: z.number().int().nullable().optional().meta({
+      description:
+        'Corridas (F1): pódios na temporada (só Grandes Prêmios, sprints à parte). Ausente nos outros esportes.',
+      example: 11,
+    }),
   })
   .meta({ id: 'StandingRow' });
 

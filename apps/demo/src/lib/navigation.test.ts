@@ -21,10 +21,10 @@ describe('links de navegação', () => {
     expect(eventCompetitionHref({ competition: null, stage: null, starts_at: '2026-10-23' })).toBeNull();
   });
 
-  it('esporte pai usa o rótulo do menu', () => {
+  it('esporte pai é a família do menu, com o rótulo dela', () => {
     expect(sportParent('formula-1', getDictionary('pt-BR'))).toEqual({
-      path: '/esportes/formula-1',
-      label: 'Fórmula 1',
+      path: '/esportes/automobilismo',
+      label: 'Automobilismo',
       kind: 'esporte',
     });
     expect(sportParent('curling', getDictionary('pt-BR'))).toBeNull();

@@ -15,12 +15,17 @@ export function assetUrl(
 }
 
 /**
- * Origem do logo publicada (`logo_source`): o acervo de logos ou o fornecedor. Fotos da Commons
- * (`origin = commons`) nunca são logo; se um dia forem, contam como fornecedor, sem mudar o contrato.
+ * Origem do logo publicada (`logo_source`): o acervo de logos, a Wikimedia Commons (logo de licença livre
+ * de uma competição sem logo do fornecedor, publicado com `logo_credit`) ou o fornecedor.
  */
-export function logoSource(origin: string | null | undefined): 'provider' | 'acervo' | null {
+export function logoSource(origin: string | null | undefined): 'provider' | 'acervo' | 'commons' | null {
   if (origin == null) return null;
-  return origin === 'acervo' ? 'acervo' : 'provider';
+  return origin === 'acervo' || origin === 'commons' ? origin : 'provider';
+}
+
+/** "Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0" (sem autor: só a fonte e a licença). */
+export function logoCreditText(author: string | null, license: string): string {
+  return `Logo: ${author ? `${author} / ` : ''}Wikimedia Commons · ${license}`;
 }
 
 /** Valida query/params com um schema Zod; erro → 400 INVALID_PARAMS. */

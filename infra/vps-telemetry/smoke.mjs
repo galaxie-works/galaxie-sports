@@ -287,6 +287,22 @@ await check('Demo: páginas públicas sem termos internos', async () => {
   return found.length ? fail(found.slice(0, 5).join(' · ')) : true;
 });
 
+await check('Demo: links antigos de esporte levam à família', async () => {
+  // o menu agrupa por família (Basquete com a NBA, Automobilismo com a F1): /esportes/<esporte da API>
+  // guardado em favoritos e links continua chegando, com redirecionamento permanente e a query
+  for (const [from, to] of [
+    ['/esportes/nba', '/esportes/basquete#nba'],
+    ['/esportes/formula-1?temporada=2024', '/esportes/automobilismo?temporada=2024'],
+    ['/esportes/football', '/esportes/futebol'],
+  ]) {
+    const res = await fetch(`${DEMO}${from}`, { redirect: 'manual' });
+    const location = res.headers.get('location') ?? '';
+    if (res.status !== 308 || !location.endsWith(to))
+      return fail(`${from}: status ${res.status} → ${location || '(sem location)'} (esperado 308 → ${to})`);
+  }
+  return true;
+});
+
 await check('Builder: registry público dos widgets e painel do cliente protegido', async () => {
   // id bem formado que não existe: a rota é pública (sem redirecionar para o login) e responde 404 em JSON
   const missing = '00000000-0000-7000-8000-000000000000';
