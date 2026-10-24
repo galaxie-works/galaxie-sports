@@ -55,7 +55,7 @@ try {
     cache: new PgSparqlCache(db, 'pessoas:wikidata-por-time'),
     log: (m) => console.log(`  ${m}`),
   });
-  const resolved = await resolveTeams(wiki, sparql, teams, {
+  const resolved = await resolveTeams(wiki, teams, {
     onProgress: (d, t) => console.log(`  times buscados: ${d}/${t}`),
   });
   const counts = { qid: 0, ambiguous: 0, none: 0 };

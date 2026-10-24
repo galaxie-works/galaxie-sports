@@ -70,7 +70,7 @@ import type {
   Navigation,
 } from './navigation.js';
 import type { ExploreSummary } from './explore.js';
-import type { RaceCareer, TeamPhotos, TeamPhotosQuery } from './racing.js';
+import type { RaceCareer, RaceLegends, TeamPhotos, TeamPhotosQuery } from './racing.js';
 import type { DriverEditorial, DriverTraits } from './driver-profile.js';
 
 export interface GalaxieClientOptions {
@@ -236,6 +236,9 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     teamCareer: (id: string, opts: LocaleOpts = {}) => v1<RaceCareer>(`/v1/teams/${seg(id)}/career`, opts),
     /** Traços do piloto de F1 (calculados do F1DB). */
     teamTraits: (id: string, opts: LocaleOpts = {}) => v1<DriverTraits>(`/v1/teams/${seg(id)}/traits`, opts),
+    /** Lendas da F1: campeões e os maiores em vitórias e GPs, com a temporada marcante. */
+    raceLegends: (opts: LocaleOpts & { limit?: number } = {}) =>
+      v1<RaceLegends>('/v1/sports/formula-1/legends', opts),
     person: (id: string, opts: LocaleOpts = {}) => v1<Person>(`/v1/people/${seg(id)}`, opts),
     personOverview: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
       v1<PersonOverview>(`/v1/people/${seg(id)}/overview`, opts),

@@ -339,3 +339,82 @@ export const RaceCareer = z
   })
   .meta({ id: 'RaceCareer' });
 export type RaceCareer = z.infer<typeof RaceCareer>;
+
+// ─── lendas da F1 (o carrossel "Legendary") ──────────────────────────────────────────────────────
+
+/** Por que o piloto é lenda: campeão mundial, entre os que mais venceram ou entre os que mais correram. */
+export const LEGEND_CRITERIA = ['titles', 'wins', 'races'] as const;
+
+export const RaceLegendsQuery = LocaleQuery.extend({
+  limit: z.coerce.number().int().min(1).max(100).optional().meta({
+    description: 'Quantas lendas devolver, na ordem (padrão: todas).',
+    example: 12,
+  }),
+});
+export type RaceLegendsQuery = z.input<typeof RaceLegendsQuery>;
+
+export const RaceLegend = z
+  .object({
+    id: z.uuid().meta({ description: 'O piloto (`/v1/teams/{id}/career` tem a carreira inteira).' }),
+    name: z.string().meta({ example: 'Ayrton Senna' }),
+    first_name: z.string().meta({ example: 'Ayrton' }),
+    last_name: z.string().meta({ example: 'Senna' }),
+    country: CountryRef.nullable().meta({ description: 'Nacionalidade.' }),
+    titles: z.array(z.number().int()).meta({
+      description: 'Anos dos títulos mundiais (só temporada encerrada).',
+      example: [1988, 1990, 1991],
+    }),
+    wins: z.number().int().meta({ example: 41 }),
+    races: z.number().int().meta({ description: 'GPs disputados (sem as sprints).', example: 161 }),
+    podiums: z.number().int().meta({ example: 80 }),
+    seasons: z
+      .object({ from: z.number().int(), to: z.number().int() })
+      .meta({ description: 'Primeira e última temporada com corrida.', example: { from: 1984, to: 1994 } }),
+    active: z.boolean().meta({ description: 'Correu na temporada atual (ainda está no grid).' }),
+    criteria: z
+      .array(z.enum(LEGEND_CRITERIA))
+      .min(1)
+      .meta({
+        description:
+          'Por que entrou: `titles` = campeão mundial; `wins` e `races` = entre os 20 com mais vitórias ou com mais GPs.',
+        example: ['titles', 'wins'],
+      }),
+    highlight: z
+      .object({
+        season: z.number().int().meta({ example: 1988 }),
+        team: ParticipantLink.extend({
+          constructor_name: z.string().meta({
+            description:
+              'Nome do construtor, sem o patrocinador de hoje (a Mercedes de 1954 não é "Mercedes-AMG Petronas"); sem curadoria, o `name`.',
+            example: 'McLaren',
+          }),
+          livery: TeamLivery.nullable().meta({ description: 'A pintura da equipe naquela temporada.' }),
+        }).nullable(),
+        number: z
+          .number()
+          .int()
+          .nullable()
+          .meta({ description: 'Número do carro naquela temporada.', example: 12 }),
+        car: Photo.nullable().meta({
+          description:
+            'O carro daquela temporada, para o fundo do card. Nunca CC BY-SA: o fundo recorta a foto. Null quando não há foto compatível (use a cor da equipe e o número).',
+        }),
+      })
+      .nullable()
+      .meta({
+        description:
+          'Temporada marcante: a do carro de destaque do acervo ou, sem ele, a de título com mais vitórias (sem título, a de mais vitórias), de preferência uma com foto do carro.',
+      }),
+    portrait: Photo.nullable(),
+  })
+  .meta({ id: 'RaceLegend' });
+export type RaceLegend = z.infer<typeof RaceLegend>;
+
+export const RaceLegends = z
+  .object({
+    data: z.array(RaceLegend).meta({
+      description: 'Por títulos, depois vitórias e GPs disputados.',
+    }),
+  })
+  .meta({ id: 'RaceLegends' });
+export type RaceLegends = z.infer<typeof RaceLegends>;

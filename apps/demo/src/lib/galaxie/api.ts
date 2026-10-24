@@ -347,6 +347,20 @@ export async function getTeamEditorial(id: string, locale: ContentLocale) {
   return orNull(api.teamEditorial(id, { ...localeQuery(locale), min_review_status: 'approved' }));
 }
 
+export const raceLegendsRequest = (locale: Locale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/sports/formula-1/legends',
+  query: localeQuery(locale),
+  description: text(locale).raceLegends,
+});
+
+/** Lendas da F1 (carrossel "Legendary" da página do esporte): mudam no fim de cada temporada. */
+export async function getRaceLegends(locale: Locale) {
+  'use cache';
+  cacheLife('hours');
+  return (await api.raceLegends(localeQuery(locale))).data;
+}
+
 export const teamPhotosRequest = (id: string, locale: Locale): ApiRequest => ({
   method: 'GET',
   route: '/v1/teams/{id}/photos',

@@ -146,7 +146,7 @@ async function driverKeys(db: Database, participantIds: string[]): Promise<Map<s
  * IDs do construtor no F1DB por participante (a chave da pintura curada). Uma entidade pode ter mais de um (RB e
  * Racing Bulls são a mesma equipe).
  */
-async function f1dbIds(db: Database, participantIds: string[]): Promise<Map<string, string[]>> {
+export async function f1dbIds(db: Database, participantIds: string[]): Promise<Map<string, string[]>> {
   const out = new Map<string, string[]>();
   if (!participantIds.length) return out;
   const rows = await db.execute<{ entity_id: string; provider_id: string }>(sql`
@@ -208,7 +208,7 @@ async function driverProfile(
 }
 
 /** Temporada corrente da F1: a mais recente com corrida já disputada (em janeiro, ainda a do ano anterior). */
-async function currentF1Season(db: Database): Promise<number | null> {
+export async function currentF1Season(db: Database): Promise<number | null> {
   const [row] = await db.execute<{ year: number | null }>(sql`
     select max(se.year) as year
       from core.event e
@@ -227,7 +227,7 @@ function bestWithCount(positions: number[]): { position: number; count: number }
 }
 
 /** Pintura curada → contrato (o gradiente sai da primária, como o das cores do escudo). */
-function toLivery(era: ReturnType<typeof liveryFor>): TeamLivery | null {
+export function toLivery(era: ReturnType<typeof liveryFor>): TeamLivery | null {
   const [primary, secondary] = era?.colors ?? [];
   if (!era || !primary) return null;
   return { primary, secondary: secondary ?? null, gradient: teamGradient(primary), source: era.sources[0]! };

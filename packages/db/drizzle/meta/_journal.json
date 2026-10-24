@@ -243,8 +243,15 @@
     {
       "idx": 34,
       "version": "7",
-      "when": 1792876677767,
-      "tag": "0034_piloto_biografia",
+      "when": 1792874025018,
+      "tag": "0034_qualidade_dados",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792878672585,
+      "tag": "0038_piloto_biografia",
       "breakpoints": true
     }
   ]
