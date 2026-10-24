@@ -365,21 +365,29 @@ export async function teamCandidates(
           country: string | null;
           leagues: string[] | null;
         }>(sql`
-          select m.provider_id, pa.name, co.name->>'en' as country,
-                 (select array_agg(distinct c.name)
-                  from core.event_participant ep
-                  join core.event e on e.id = ep.event_id
-                  join core.competition c on c.id = e.competition_id
-                  where ep.participant_id = pa.id and c.type = 'league'
-                    and e.starts_at >= ${options.since.toISOString()}::timestamptz) as leagues
-          from core.provider_map m
-          join core.participant pa on pa.id = m.entity_id
-          left join core.country co on co.code = pa.country_code
-          where m.provider = 'api-sports' and m.sport = 'football' and m.entity_type = 'participant'
-            and m.provider_id in (${sql.join(
-              ids.map((i) => sql`${i}`),
-              sql`, `,
-            )})
+          with t as (
+            select m.provider_id, pa.id, pa.name, pa.country_code
+            from core.provider_map m
+            join core.participant pa on pa.id = m.entity_id
+            where m.provider = 'api-sports' and m.sport = 'football' and m.entity_type = 'participant'
+              and m.provider_id in (${sql.join(
+                ids.map((i) => sql`${i}`),
+                sql`, `,
+              )})
+          ),
+          lg as (
+            select ep.participant_id, array_agg(distinct c.name) as leagues
+            from core.event_participant ep
+            join core.event e on e.id = ep.event_id
+            join core.competition c on c.id = e.competition_id
+            where ep.participant_id in (select id from t) and c.type = 'league'
+              and e.starts_at >= ${options.since.toISOString()}::timestamptz
+            group by ep.participant_id
+          )
+          select t.provider_id, t.name, co.name->>'en' as country, lg.leagues
+          from t
+          left join core.country co on co.code = t.country_code
+          left join lg on lg.participant_id = t.id
         `)
       : [];
     return {
