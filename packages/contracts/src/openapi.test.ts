@@ -46,6 +46,8 @@ describe('OpenAPI', () => {
         '/v1/people/{id}/overview',
         '/mirror/{sport}/{endpoint}',
         '/v1/events/{id}/where-to-watch',
+        '/v1/platforms',
+        '/v1/platforms/{id}/lineup',
         '/v1/account',
         '/v1/account/keys',
         '/v1/account/keys/rotate',
@@ -81,6 +83,11 @@ describe('OpenAPI', () => {
         'Person',
         'WhereToWatch',
         'WhereToWatchOption',
+        'WhereToWatchAvailability',
+        'PlatformAvailability',
+        'AvailabilityPlan',
+        'Platform',
+        'PlatformLineup',
       ]),
     );
     const team = doc.components?.schemas?.Team as { properties?: Record<string, unknown> };

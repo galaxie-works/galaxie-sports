@@ -73,6 +73,89 @@ export const WhereToWatchToConfirm = z
   .meta({ id: 'WhereToWatchToConfirm' });
 export type WhereToWatchToConfirm = z.infer<typeof WhereToWatchToConfirm>;
 
+// ─── grade das operadoras e streamings (onde o canal está) ────────────────────────────────────────
+
+/** Tipos de plataforma da grade (enrich.platform.kind). */
+export const PLATFORM_KINDS = ['pay_tv_operator', 'vmvpd', 'telco_bundle', 'streaming'] as const;
+export type PlatformKind = (typeof PLATFORM_KINDS)[number];
+/** Como o canal ou o streaming entra no plano: já incluso ou como adicional pago. */
+export const PLAN_ACCESS = ['included', 'addon'] as const;
+export type PlanAccess = (typeof PLAN_ACCESS)[number];
+
+/** Canal ou streaming da biblioteca de emissoras, com o logo (claro e escuro). */
+export const AvailabilityLogo = z
+  .object({
+    id: z.string().meta({ description: 'Id da biblioteca de emissoras (`/v1/broadcasters`).' }),
+    name: z.string(),
+    logo: z.string().nullable(),
+    logo_dark: z.string().nullable().meta({ description: 'Versão para fundo escuro; null = usar `logo`.' }),
+  })
+  .meta({ id: 'AvailabilityLogo' });
+export type AvailabilityLogo = z.infer<typeof AvailabilityLogo>;
+
+/** Canal ou streaming dentro de um plano, com o tipo de acesso. */
+export const LineupItem = AvailabilityLogo.extend({ access: z.enum(PLAN_ACCESS) }).meta({ id: 'LineupItem' });
+export type LineupItem = z.infer<typeof LineupItem>;
+
+export const Platform = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    kind: z.enum(PLATFORM_KINDS).meta({
+      description:
+        'pay_tv_operator = operadora de TV paga · vmvpd = TV paga pela internet · telco_bundle = pacote de ' +
+        'telefonia/internet com TV · streaming.',
+    }),
+    country: z.string(),
+    broadcaster_id: z.string().nullable().meta({
+      description: 'Entrada da própria plataforma na biblioteca de emissoras (ex.: o streaming das opções).',
+    }),
+    logo: z.string().nullable(),
+    logo_dark: z.string().nullable(),
+  })
+  .meta({ id: 'Platform', description: 'Operadora de TV paga ou streaming (grade de canais e ofertas).' });
+export type Platform = z.infer<typeof Platform>;
+
+export const AvailabilityPlan = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    access: z.enum(PLAN_ACCESS).meta({
+      description: '`included` = o jogo está no plano sem custo extra; `addon` = só com um adicional.',
+    }),
+    via_channels: z.array(LineupItem).meta({ description: 'Canais do plano por onde o jogo passa.' }),
+    included_services: z.array(AvailabilityLogo).meta({ description: 'Streamings inclusos no plano.' }),
+  })
+  .meta({ id: 'AvailabilityPlan' });
+export type AvailabilityPlan = z.infer<typeof AvailabilityPlan>;
+
+export const PlatformAvailability = z
+  .object({ platform: Platform, plans: z.array(AvailabilityPlan) })
+  .meta({ id: 'PlatformAvailability' });
+export type PlatformAvailability = z.infer<typeof PlatformAvailability>;
+
+export const WhereToWatchAvailability = z
+  .object({
+    free_tv: z.array(AvailabilityLogo).meta({ description: 'Canais abertos com o jogo.' }),
+    pay_tv_channels: z.array(AvailabilityLogo).meta({ description: 'Canais pagos com o direito.' }),
+    platforms: z.array(PlatformAvailability).meta({
+      description:
+        'Operadoras e streamings que levam o jogo ("disponível também em"), com o plano ou planos. Tenant com ' +
+        'operadora própria e `show_other_operators = false`: só a própria operadora e os streamings.',
+    }),
+    your_operator: PlatformAvailability.nullable().meta({
+      description:
+        'A operadora do próprio tenant, com os planos em que o jogo está (`plans: []` = não está na grade ' +
+        'dela); null quando o tenant não tem operadora.',
+    }),
+  })
+  .meta({
+    id: 'WhereToWatchAvailability',
+    description: 'Onde assistir agrupado por TV aberta, canais pagos e plataformas.',
+  });
+export type WhereToWatchAvailability = z.infer<typeof WhereToWatchAvailability>;
+
 export const WhereToWatch = z
   .object({
     event_id: z.uuid(),
@@ -84,6 +167,7 @@ export const WhereToWatch = z
       description:
         'Detentores de direitos sem o jogo confirmado ("canal a confirmar"). Só vem preenchido quando `options` está vazio.',
     }),
+    availability: WhereToWatchAvailability,
     updated_at: z.string().nullable(),
   })
   .meta({ id: 'WhereToWatch', description: 'Onde assistir um evento num país (docs/05 §4).' });
@@ -162,3 +246,29 @@ export const BroadcasterParams = z.object({
     .regex(/^[a-z0-9_]+$/)
     .meta({ description: 'Id da emissora.', example: 'espn' }),
 });
+
+// ─── grade: rotas /v1/platforms ─────────────────────────────────────────────────────────────────
+
+export const PlatformsQuery = BroadcastersQuery;
+export type PlatformsQuery = z.infer<typeof PlatformsQuery>;
+
+export const PlatformParams = z.object({
+  id: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,64}$/)
+    .meta({ description: 'Id da plataforma.' }),
+});
+
+export const LineupPlan = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    channels: z.array(LineupItem),
+    services: z.array(LineupItem).meta({ description: 'Streamings do plano (inclusos ou adicionais).' }),
+  })
+  .meta({ id: 'LineupPlan' });
+
+export const PlatformLineup = z
+  .object({ platform: Platform, plans: z.array(LineupPlan) })
+  .meta({ id: 'PlatformLineup', description: 'Grade de canais e streamings de cada plano da plataforma.' });
+export type PlatformLineup = z.infer<typeof PlatformLineup>;

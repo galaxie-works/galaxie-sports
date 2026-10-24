@@ -4,7 +4,7 @@ import { Redis } from 'ioredis';
 import { parse } from 'yaml';
 import { MediaDenylist, type MediaDenylistEntry } from '@galaxie/apisports-client';
 import { closeDb, createDb, readRuntimeOverrides, reportRuntimeEnv } from '@galaxie/db';
-import { applyOverrides, envReport } from '@galaxie/runtime-config';
+import { applyOverrides, envReport, lineupMinReviewStatus } from '@galaxie/runtime-config';
 import { hardeningFromEnv } from './config.js';
 import type { ReviewStatus } from './context.js';
 import { buildServer } from './server.js';
@@ -52,6 +52,9 @@ if (db) {
     console.warn('configuração do painel indisponível na partida; seguindo com o env', err);
   }
 }
+// piso editorial da grade de canais e ofertas: lido depois das sobrescritas do painel (banco > env > padrão)
+const lineupMinReview = lineupMinReviewStatus(process.env);
+
 const redis = process.env.REDIS_URL
   ? new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false })
   : undefined;
@@ -73,6 +76,7 @@ const app = buildServer({
   ...(process.env.RULES_DIR ? { rulesDir: process.env.RULES_DIR } : {}),
   ...(mediaDenylist ? { mediaDenylist } : {}),
   publicUrl: process.env.API_PUBLIC_URL ?? `http://localhost:${port}`,
+  lineup: { minReviewStatus: lineupMinReview },
   semantic: {
     minReviewStatus: minReviewStatus ?? 'approved',
     ...(process.env.KNOWLEDGE_DIR ? { knowledgeDir: process.env.KNOWLEDGE_DIR } : {}),

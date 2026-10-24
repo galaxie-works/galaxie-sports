@@ -434,6 +434,11 @@ export default defineMessages(
         description:
           'Modelo da IA que pesquisa os canais do Onde Assistir. Vazio usa o padrão do provedor escolhido.',
       },
+      LINEUP_MIN_REVIEW_STATUS: {
+        label: 'Revisão mínima da grade de canais',
+        description:
+          'Operadoras, planos e streamings do Onde Assistir só aparecem na API a partir deste status editorial (draft, reviewed ou approved).',
+      },
       YOUTUBE_DAILY_QUOTA: {
         label: 'Cota diária do YouTube',
         description: 'Unidades por dia do projeto no YouTube (zera à meia-noite do Pacífico).',
@@ -924,6 +929,11 @@ export default defineMessages(
           label: 'Where to Watch source model',
           description:
             "Model of the AI that researches Where to Watch channels. Empty uses the chosen provider's default.",
+        },
+        LINEUP_MIN_REVIEW_STATUS: {
+          label: 'Minimum review of the channel lineup',
+          description:
+            'Operators, plans and streaming services in Where to Watch only reach the API from this editorial status on (draft, reviewed or approved).',
         },
         YOUTUBE_DAILY_QUOTA: {
           label: 'YouTube daily quota',
@@ -1425,6 +1435,11 @@ export default defineMessages(
           label: 'Modelo de la fuente de Dónde ver',
           description:
             'Modelo de la IA que busca los canales de Dónde ver. Vacío usa el predeterminado del proveedor elegido.',
+        },
+        LINEUP_MIN_REVIEW_STATUS: {
+          label: 'Revisión mínima de la grilla de canales',
+          description:
+            'Operadoras, planes y streamings de Dónde ver solo llegan a la API desde este estado editorial (draft, reviewed o approved).',
         },
         YOUTUBE_DAILY_QUOTA: {
           label: 'Cuota diaria de YouTube',

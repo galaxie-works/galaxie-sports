@@ -40,6 +40,10 @@ import {
   Broadcaster,
   BroadcasterParams,
   BroadcastersQuery,
+  Platform,
+  PlatformLineup,
+  PlatformParams,
+  PlatformsQuery,
   WhereToWatch,
   WhereToWatchParams,
   WhereToWatchQuery,
@@ -411,7 +415,11 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           description:
             'Só opções publicadas (confiança ≥ 0,7, sem conflito). Sem informação confiável: `status: unknown`, ' +
             '`options: []` e `message` localizada. Exige o módulo `where_to_watch` e o país nos mercados do tenant. ' +
-            'Correções editoriais propagam em ≤ 5 min (purge de cache + webhook `where_to_watch.changed`).',
+            'Correções editoriais propagam em ≤ 5 min (purge de cache + webhook `where_to_watch.changed`). ' +
+            '`availability` agrupa o mesmo jogo em TV aberta, canais pagos e plataformas (operadoras e streamings, ' +
+            'com o plano e os streamings inclusos); para o tenant com operadora própria e `show_other_operators` ' +
+            'desligado, `platforms` traz só a própria operadora e os streamings. Piso editorial da grade: ' +
+            '`LINEUP_MIN_REVIEW_STATUS` (padrão `approved`).',
         },
       },
       '/v1/events/{id}/related': {
@@ -446,6 +454,26 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'Onde assistir',
           Broadcaster,
           { path: BroadcasterParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/platforms': {
+        get: {
+          ...getOp('Operadoras e streamings da grade', 'Onde assistir', list(Platform), {
+            query: PlatformsQuery,
+          }),
+          description:
+            'Operadoras de TV paga, TV pela internet, pacotes de telefonia e streamings com grade de canais. ' +
+            'Tenant com operadora própria e `show_other_operators` desligado: só a própria operadora e os ' +
+            'streamings. Exige o módulo `where_to_watch`; piso editorial `LINEUP_MIN_REVIEW_STATUS`.',
+        },
+      },
+      '/v1/platforms/{id}/lineup': {
+        get: getOp(
+          'Grade de canais e streamings de cada plano da plataforma',
+          'Onde assistir',
+          PlatformLineup,
+          { path: PlatformParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
       },
