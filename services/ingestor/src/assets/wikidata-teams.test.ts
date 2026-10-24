@@ -211,6 +211,32 @@ describe('casamento estrito pelo time no Wikidata', () => {
     });
     // "II" no fim, mas o clube se chama assim
     expect(resolveTeam(t('Willem II', 'Netherlands'), ['Q332664'], items)).toEqual({ qid: 'Q332664' });
+    // o feminino de mesmo nome não entra pelo nome inteiro
+    const tijuana = new Map([
+      [
+        'Q1103168',
+        item({ label: 'Tijuana opossums', names: ['Club Tijuana', 'Xolos'], countries: ['Mexico'] }),
+      ],
+      [
+        'Q60829969',
+        item({
+          label: 'Club Tijuana',
+          description: "professional Mexican women's football club",
+          countries: ['Mexico'],
+        }),
+      ],
+    ]);
+    expect(resolveTeam(t('Club Tijuana', 'Mexico'), ['Q60829969', 'Q1103168'], tijuana)).toEqual({
+      qid: 'Q1103168',
+    });
+    // "Esports" é "esportes" em catalão
+    expect(
+      itemCategory({
+        label: "Centre d'Esports Sabadell Futbol Club",
+        description: 'football team',
+        types: [],
+      }),
+    ).toBe('senior');
   });
 
   it('liga pelo nome contido ("Premiership" em "Scottish Premiership")', () => {
