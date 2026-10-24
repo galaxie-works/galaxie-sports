@@ -58,11 +58,13 @@
     "assets:commons:ordenar": "node --env-file-if-exists=../../.env dist/cli/assets-commons-ordenar.js",
     "assets:competition-logos": "node --env-file-if-exists=../../.env dist/cli/competition-logos.js",
     "assets:official-logos": "node --env-file-if-exists=../../.env dist/cli/official-logos.js",
-    "assets:platform-logos": "node --env-file-if-exists=../../.env dist/cli/platform-logos.js"
+    "assets:platform-logos": "node --env-file-if-exists=../../.env dist/cli/platform-logos.js",
+    "quality:run": "node --env-file-if-exists=../../.env dist/cli/quality-run.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1153.0",
     "@galaxie/apisports-client": "workspace:*",
+    "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",

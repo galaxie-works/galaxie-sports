@@ -21,6 +21,8 @@ export default defineMessages(
     teamSemantic:
       'Cartão de identidade do time: apelidos, mascote, torcida, gritos, estádio, rivais e fatos.',
     squad: 'Elenco atual e comissão técnica (envie ?season=AAAA para outra temporada).',
+    raceLegends:
+      'Lendas da Fórmula 1: campeões e os maiores em vitórias e GPs, com a temporada marcante, a cor da equipe, o carro e o retrato.',
     teamCareer:
       'Carreira na Fórmula 1: temporada a temporada, títulos, vitórias, poles, pódios, equipes e companheiros.',
     teamPhotos: 'Fotos de licença livre (Wikimedia Commons), cada uma com autor, licença e página de origem.',
@@ -73,6 +75,8 @@ export default defineMessages(
       teamSemantic:
         "The team's identity card: nicknames, mascot, fan base, chants, stadium, rivals and facts.",
       squad: 'Current squad and coaching staff (send ?season=YYYY for another season).',
+      raceLegends:
+        'Formula 1 legends: champions and the greats in wins and Grands Prix, with the defining season, team color, car and portrait.',
       teamCareer: 'Formula 1 career: season by season, titles, wins, poles, podiums, teams and teammates.',
       teamPhotos: 'Freely licensed photos (Wikimedia Commons), each with author, license and source page.',
       teamOverviewSeason:
@@ -124,6 +128,8 @@ export default defineMessages(
       teamSemantic:
         'La tarjeta de identidad del equipo: apodos, mascota, hinchada, cantitos, estadio, rivales y datos.',
       squad: 'Plantel actual y cuerpo técnico (mandá ?season=AAAA para otra temporada).',
+      raceLegends:
+        'Leyendas de la Fórmula 1: campeones y los más grandes en victorias y GP, con la temporada clave, el color del equipo, el auto y el retrato.',
       teamCareer:
         'Carrera en la Fórmula 1: temporada por temporada, títulos, victorias, poles, podios, equipos y compañeros.',
       teamPhotos:
