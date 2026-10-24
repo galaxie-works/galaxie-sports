@@ -4,6 +4,9 @@
  * domínio público: o card recorta a foto), o número do carro em contorno, o retrato e o nome em duas linhas, e leva
  * à página do piloto. Sem foto compatível, fica a cor da equipe e o número grande. Os créditos das fotos vêm logo
  * abaixo do carrossel, com os links que a licença pede.
+ *
+ * Independente de página: recebe as lendas já buscadas (`getRaceLegends`, de `/v1/sports/formula-1/legends`), para
+ * entrar na página do esporte ou no hub da competição. Lista vazia não desenha nada.
  */
 import type { RaceLegend } from '@galaxie/contracts';
 import { Trophy } from 'lucide-react';
@@ -11,7 +14,8 @@ import Image, { getImageProps } from 'next/image';
 import Link from 'next/link';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getRaceLegends, raceLegendsRequest } from '@/lib/galaxie/api';
+import { raceLegendsRequest } from '@/lib/galaxie/api';
+import type { ApiRequest } from '@/lib/galaxie/request';
 import { initials } from '@/lib/format';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
@@ -29,12 +33,17 @@ import { Section } from './section';
 /** Cards visíveis de saída no desktop: as fotos deles não esperam a rolagem. */
 const EAGER = 4;
 
-export async function LegendsCarousel() {
+export async function LegendsCarousel({
+  legends,
+  api,
+}: {
+  legends: readonly RaceLegend[];
+  /** Chamada do botão "Ver código" (padrão: a de `/v1/sports/formula-1/legends` no idioma da página). */
+  api?: ApiRequest;
+}) {
+  if (!legends.length) return null;
   const { locale, t } = await getI18n();
   const tx = t.race.legends;
-  // sem a API, a página do esporte segue sem o carrossel
-  const legends = await getRaceLegends(locale).catch(() => []);
-  if (!legends.length) return null;
   const regions = new Intl.DisplayNames([locale], { type: 'region' });
   const countryName = (c: NonNullable<RaceLegend['country']>) => {
     try {
@@ -50,7 +59,7 @@ export async function LegendsCarousel() {
       title={tx.title}
       icon={<Trophy className="size-4 text-amber-500" aria-hidden />}
       description={tx.description}
-      api={raceLegendsRequest(locale)}
+      api={api ?? raceLegendsRequest(locale)}
     >
       <ScrollRow
         label={tx.label}

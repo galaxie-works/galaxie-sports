@@ -15,7 +15,13 @@ import { Section } from '@/components/sport/section';
 import { ShowMore } from '@/components/sport/show-more';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getExploreSummary, getSportCompetitions, sportCompetitionsRequest } from '@/lib/galaxie/api';
+import {
+  getExploreSummary,
+  getRaceLegends,
+  getSportCompetitions,
+  raceLegendsRequest,
+  sportCompetitionsRequest,
+} from '@/lib/galaxie/api';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
@@ -131,7 +137,7 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
 
         {sport.slug === 'formula-1' ? (
           <Suspense fallback={<LegendsFallback />}>
-            <LegendsCarousel />
+            <F1Legends />
           </Suspense>
         ) : null}
 
@@ -193,6 +199,13 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
 function countrySlug(code: string): string | null {
   const match = COUNTRIES.find((c) => c.code === code || (code === 'GB' && c.code === 'GB-ENG'));
   return match ? match.code.toLowerCase() : null;
+}
+
+/** Lendas da F1 para o carrossel; sem a API, a página segue sem ele. */
+async function F1Legends() {
+  const { locale } = await getI18n();
+  const legends = await getRaceLegends(locale).catch(() => []);
+  return <LegendsCarousel legends={legends} api={raceLegendsRequest(locale)} />;
 }
 
 /** Espaço do carrossel "Legendary" enquanto as lendas chegam (a página não pula quando ele aparece). */
