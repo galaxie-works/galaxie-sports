@@ -49,7 +49,7 @@ import {
   WhereToWatchParams,
   WhereToWatchQuery,
 } from './where-to-watch.js';
-import { RaceCareer, TeamPhotos, TeamPhotosQuery } from './racing.js';
+import { RaceCareer, RaceLegends, RaceLegendsQuery, TeamPhotos, TeamPhotosQuery } from './racing.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
 import { RelatedContent, RelatedQuery } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
@@ -366,6 +366,15 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           RaceCareer,
           { path: TeamParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/sports/formula-1/legends': {
+        get: getOp(
+          'Lendas da Fórmula 1: os campeões mundiais e os 20 com mais vitórias e com mais GPs, por títulos e vitórias, cada um com a temporada marcante (equipe, pintura da época, número e o carro ao fundo) e o retrato',
+          'Times e pessoas',
+          RaceLegends,
+          { query: RaceLegendsQuery },
+          [400, 401, 403, 429],
         ),
       },
       '/v1/teams/{id}/squad': {

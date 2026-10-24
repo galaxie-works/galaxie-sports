@@ -243,8 +243,15 @@
     {
       "idx": 34,
       "version": "7",
-      "when": 1792876443358,
-      "tag": "0034_standing_inscricao",
+      "when": 1792874025018,
+      "tag": "0034_qualidade_dados",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792877489966,
+      "tag": "0037_standing_inscricao",
       "breakpoints": true
     }
   ]

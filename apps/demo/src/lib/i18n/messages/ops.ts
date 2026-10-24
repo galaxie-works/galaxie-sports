@@ -30,6 +30,7 @@ export default defineMessages(
     },
     tabs: {
       status: 'Status',
+      quality: 'Qualidade dos dados',
       live: 'Ao vivo',
       schedule: 'Agenda dos jobs',
       ai: 'IA e orçamento',
@@ -271,6 +272,11 @@ export default defineMessages(
           label: 'Leitura da cota',
           description: 'Lê o contador oficial do fornecedor (gratuito) e reconcilia a cota do dia.',
         },
+        'data-quality': {
+          label: 'Qualidade dos dados',
+          description:
+            'Regras automáticas que comparam o que a API entrega com a referência (F1DB, Wikidata, tabela do fornecedor, dicionário de emissoras) e gravam o placar da aba Qualidade.',
+        },
         'bootstrap-catalog': {
           label: 'Catálogo do futebol',
           description: 'Atualiza ligas, temporadas e times. Gasta poucas chamadas, uma vez por semana.',
@@ -336,6 +342,62 @@ export default defineMessages(
       requestDetail: {
         not_allowed: 'job não liberado para o painel',
         already_running: 'já estava rodando',
+      },
+    },
+    quality: {
+      title: 'Qualidade dos dados',
+      description:
+        'Regras automáticas que comparam o que a API entrega com a referência: F1DB, Wikidata, a tabela do fornecedor e o dicionário de emissoras. Rodam todo dia. Cada erro achado na demo vira uma regra.',
+      lastRun: 'Última execução: {when} ({trigger})',
+      never: 'Ainda não rodou. Use "Rodar agora" ou o quality:run do ingestor.',
+      unavailable:
+        'As tabelas da qualidade ainda não existem neste banco. Rode as migrations (pnpm db:migrate).',
+      triggers: { schedule: 'agendada', cli: 'linha de comando' },
+      kpi: {
+        results: 'Regras × esportes',
+        passing: 'Sem falha',
+        failing: 'Com falha',
+        skipped: 'Puladas ou com erro',
+        failures: 'Itens errados',
+      },
+      bySport: {
+        title: 'Por esporte',
+        sport: 'Esporte',
+        ok: 'Sem falha',
+        failing: 'Com falha',
+        failed: 'Errados',
+        trend: 'Tendência',
+      },
+      byRule: {
+        title: 'Por regra',
+        rule: 'Regra',
+        sport: 'Esporte',
+        status: 'Status',
+        failed: 'Errados',
+        trend: 'Tendência',
+        ofChecked: 'de {n}',
+      },
+      status: { pass: 'Ok', fail: 'Falha', skipped: 'Pulada', error: 'Erro' },
+      severity: { critical: 'crítica', high: 'alta', medium: 'média', low: 'baixa' },
+      trend: {
+        up: '+{n} desde a anterior',
+        down: '−{n} desde a anterior',
+        same: 'igual à anterior',
+        first: 'primeira execução',
+      },
+      origin: 'Origem: {origin}',
+      sports: { all: 'Todos', geo: 'Países', watch: 'Grades e ofertas' },
+      failures: {
+        title: 'Falhas',
+        description: 'Itens errados no último resultado de cada regra, os mais graves primeiro.',
+        shown: 'Mostrando {shown} de {total}.',
+        empty: 'Nenhuma falha.',
+        filterRule: 'Regra',
+        all: 'todas',
+        item: 'Item',
+        current: 'Atual',
+        expected: 'Esperado',
+        since: 'Desde',
       },
     },
     unavailable: {
@@ -561,6 +623,7 @@ export default defineMessages(
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
       GEMINI_API_KEY: { label: 'Chave do Gemini' },
       YOUTUBE_API_KEY: { label: 'Chave do YouTube' },
+      QUALITY_API_KEY: { label: 'Qualidade dos dados: chave da API' },
       S3_ACCESS_KEY: { label: 'Armazenamento: chave de acesso' },
       S3_SECRET_KEY: { label: 'Armazenamento: segredo' },
       METRICS_TOKEN: { label: 'Token das métricas' },
@@ -592,6 +655,7 @@ export default defineMessages(
       },
       tabs: {
         status: 'Status',
+        quality: 'Data quality',
         live: 'Live',
         schedule: 'Job schedule',
         ai: 'AI and budget',
@@ -809,6 +873,11 @@ export default defineMessages(
             label: 'Quota reading',
             description: "Reads the provider's official counter (free) and reconciles today's quota.",
           },
+          'data-quality': {
+            label: 'Data quality',
+            description:
+              'Automatic rules that compare what the API serves with the reference (F1DB, Wikidata, the provider table, the broadcaster dictionary) and store the Quality tab scoreboard.',
+          },
           'bootstrap-catalog': {
             label: 'Football catalog',
             description: 'Refreshes leagues, seasons and teams. Few calls, once a week.',
@@ -874,6 +943,62 @@ export default defineMessages(
         requestDetail: {
           not_allowed: 'job not allowed from the panel',
           already_running: 'was already running',
+        },
+      },
+      quality: {
+        title: 'Data quality',
+        description:
+          'Automatic rules that compare what the API serves with the reference: F1DB, Wikidata, the provider table and the broadcaster dictionary. They run every day. Every error found in the demo becomes a rule.',
+        lastRun: 'Last run: {when} ({trigger})',
+        never: 'Not run yet. Use "Run now" or the ingestor quality:run.',
+        unavailable:
+          "The quality tables don't exist in this database yet. Run the migrations (pnpm db:migrate).",
+        triggers: { schedule: 'scheduled', cli: 'command line' },
+        kpi: {
+          results: 'Rules × sports',
+          passing: 'Passing',
+          failing: 'Failing',
+          skipped: 'Skipped or errored',
+          failures: 'Wrong items',
+        },
+        bySport: {
+          title: 'By sport',
+          sport: 'Sport',
+          ok: 'Passing',
+          failing: 'Failing',
+          failed: 'Wrong',
+          trend: 'Trend',
+        },
+        byRule: {
+          title: 'By rule',
+          rule: 'Rule',
+          sport: 'Sport',
+          status: 'Status',
+          failed: 'Wrong',
+          trend: 'Trend',
+          ofChecked: 'of {n}',
+        },
+        status: { pass: 'Ok', fail: 'Failing', skipped: 'Skipped', error: 'Error' },
+        severity: { critical: 'critical', high: 'high', medium: 'medium', low: 'low' },
+        trend: {
+          up: '+{n} since the previous run',
+          down: '−{n} since the previous run',
+          same: 'same as the previous run',
+          first: 'first run',
+        },
+        origin: 'Origin: {origin}',
+        sports: { all: 'All', geo: 'Countries', watch: 'Lineups and offers' },
+        failures: {
+          title: 'Failures',
+          description: "Wrong items in each rule's latest result, most severe first.",
+          shown: 'Showing {shown} of {total}.',
+          empty: 'No failures.',
+          filterRule: 'Rule',
+          all: 'all',
+          item: 'Item',
+          current: 'Current',
+          expected: 'Expected',
+          since: 'Since',
         },
       },
       unavailable: {
@@ -1096,6 +1221,7 @@ export default defineMessages(
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
         GEMINI_API_KEY: { label: 'Gemini key' },
         YOUTUBE_API_KEY: { label: 'YouTube key' },
+        QUALITY_API_KEY: { label: 'Data quality: API key' },
         S3_ACCESS_KEY: { label: 'Storage: access key' },
         S3_SECRET_KEY: { label: 'Storage: secret' },
         METRICS_TOKEN: { label: 'Metrics token' },
@@ -1126,6 +1252,7 @@ export default defineMessages(
       },
       tabs: {
         status: 'Estado',
+        quality: 'Calidad de los datos',
         live: 'En vivo',
         schedule: 'Agenda de los jobs',
         ai: 'IA y presupuesto',
@@ -1351,6 +1478,11 @@ export default defineMessages(
             label: 'Lectura de la cuota',
             description: 'Lee el contador oficial del proveedor (gratis) y concilia la cuota del día.',
           },
+          'data-quality': {
+            label: 'Calidad de los datos',
+            description:
+              'Reglas automáticas que comparan lo que entrega la API con la referencia (F1DB, Wikidata, la tabla del proveedor, el diccionario de emisoras) y guardan el marcador de la pestaña Calidad.',
+          },
           'bootstrap-catalog': {
             label: 'Catálogo del fútbol',
             description: 'Actualiza ligas, temporadas y equipos. Pocas llamadas, una vez por semana.',
@@ -1417,6 +1549,62 @@ export default defineMessages(
         requestDetail: {
           not_allowed: 'job no habilitado para el panel',
           already_running: 'ya estaba corriendo',
+        },
+      },
+      quality: {
+        title: 'Calidad de los datos',
+        description:
+          'Reglas automáticas que comparan lo que entrega la API con la referencia: F1DB, Wikidata, la tabla del proveedor y el diccionario de emisoras. Corren todos los días. Cada error encontrado en la demo se vuelve una regla.',
+        lastRun: 'Última ejecución: {when} ({trigger})',
+        never: 'Todavía no corrió. Usá "Ejecutar ahora" o el quality:run del ingestor.',
+        unavailable:
+          'Las tablas de calidad todavía no existen en esta base. Corré las migrations (pnpm db:migrate).',
+        triggers: { schedule: 'agendada', cli: 'línea de comandos' },
+        kpi: {
+          results: 'Reglas × deportes',
+          passing: 'Sin fallas',
+          failing: 'Con fallas',
+          skipped: 'Salteadas o con error',
+          failures: 'Ítems con error',
+        },
+        bySport: {
+          title: 'Por deporte',
+          sport: 'Deporte',
+          ok: 'Sin fallas',
+          failing: 'Con fallas',
+          failed: 'Con error',
+          trend: 'Tendencia',
+        },
+        byRule: {
+          title: 'Por regla',
+          rule: 'Regla',
+          sport: 'Deporte',
+          status: 'Estado',
+          failed: 'Con error',
+          trend: 'Tendencia',
+          ofChecked: 'de {n}',
+        },
+        status: { pass: 'Ok', fail: 'Falla', skipped: 'Salteada', error: 'Error' },
+        severity: { critical: 'crítica', high: 'alta', medium: 'media', low: 'baja' },
+        trend: {
+          up: '+{n} desde la anterior',
+          down: '−{n} desde la anterior',
+          same: 'igual a la anterior',
+          first: 'primera ejecución',
+        },
+        origin: 'Origen: {origin}',
+        sports: { all: 'Todos', geo: 'Países', watch: 'Grillas y ofertas' },
+        failures: {
+          title: 'Fallas',
+          description: 'Ítems con error en el último resultado de cada regla, los más graves primero.',
+          shown: 'Mostrando {shown} de {total}.',
+          empty: 'Ninguna falla.',
+          filterRule: 'Regla',
+          all: 'todas',
+          item: 'Ítem',
+          current: 'Actual',
+          expected: 'Esperado',
+          since: 'Desde',
         },
       },
       unavailable: {
@@ -1645,6 +1833,7 @@ export default defineMessages(
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },
         GEMINI_API_KEY: { label: 'Clave de Gemini' },
         YOUTUBE_API_KEY: { label: 'Clave de YouTube' },
+        QUALITY_API_KEY: { label: 'Calidad de los datos: clave de la API' },
         S3_ACCESS_KEY: { label: 'Almacenamiento: clave de acceso' },
         S3_SECRET_KEY: { label: 'Almacenamiento: secreto' },
         METRICS_TOKEN: { label: 'Token de las métricas' },
