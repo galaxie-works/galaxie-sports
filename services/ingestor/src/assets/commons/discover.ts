@@ -15,6 +15,15 @@ import type { CarTarget, CommonsTarget, DriverTarget } from './scope.js';
 const RACING_OCCUPATIONS = new Set(['Q10841764', 'Q378622']);
 const RACING_SPORTS = new Set(['Q5386', 'Q1968']);
 /** Subcategorias que não são fotos do piloto ou do carro em si. */
+/**
+ * Chassi com outro nome na Commons (o F1DB usa o código de projeto ou o nome antigo da equipe): a categoria da
+ * Commons entra antes da busca por nome.
+ */
+export const CHASSIS_ALIASES: Record<string, string[]> = {
+  'Cadillac CA01': ['Cadillac MAC-26'],
+  'Racing Bulls VCARB 03': ['RB VCARB 03'],
+};
+
 const SKIP_SUBCATEGORY =
   /\b(engine|engines|model|models|toy|toys|scale|lego|in art|art\b|painting|drawing|monument|memorial|statue|grave|signature|logo|film|video game|museum shop|stamp|coin|helmet replica)\b/i;
 const MAX_FILES_PER_TARGET = 120;
@@ -290,6 +299,16 @@ export async function discoverCar(
   const sources: { title: string; from: string }[] = [];
   let category: string | null = null;
   for (const chassis of target.chassis) {
+    // nome da Commons conhecido (CHASSIS_ALIASES): a categoria dele vale, sem buscar o nome do F1DB
+    const aliases = [];
+    for (const alias of CHASSIS_ALIASES[chassis] ?? [])
+      if (await client.categoryExists(alias))
+        aliases.push(...(await filesWithSubcategories(client, alias, () => true)));
+    if (aliases.length) {
+      category ??= CHASSIS_ALIASES[chassis]![0]!;
+      sources.push(...aliases);
+      continue;
+    }
     // o nome do F1DB nem sempre é o da Commons ("Mercedes F1 W11" → "Mercedes-AMG F1 W11 EQ Performance"):
     // sem a categoria exata, as que trazem o construtor e o mesmo chassi
     const exact = (await client.categoryExists(chassis))

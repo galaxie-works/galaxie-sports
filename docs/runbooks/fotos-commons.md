@@ -23,6 +23,27 @@ Ampliação para as lendas (escopo `lendas`, 23/10/2026): todos os campeões mun
 
 O carro vira um alvo `car/<construtor>/<ano>`. Na busca, a foto que cita o piloto (no título ou na subcategoria da Commons, como "McLaren MP4/4 driven by Ayrton Senna") vem primeiro e vale mais nas regras.
 
+Grid da temporada atual (escopo `grid-atual`, 24/10/2026): todo piloto que largou na última temporada do F1DB (ou na de `--ano`). O reserva só de treino livre fica de fora. Cada piloto ganha:
+
+- retrato e fotos de ação, com as mesmas regras de licença e época;
+- o **carro da equipe atual** (`car/<construtor>/<ano>`, um por equipe, sem piloto de destaque). A equipe é a de mais rodadas no ano: em 2026, Lawson fica na Racing Bulls, não na Red Bull de três corridas. É o fundo do heading de quem está no grid. Pela regra do heading, o fundo só aceita CC BY, CC0 ou domínio público; uma foto BY-SA vai só para o retrato e a galeria;
+- o carro de destaque, pela mesma regra das lendas (Hamilton continua com a Mercedes 2020). Assim, mapear um escopo não desfaz o outro.
+
+No heading de quem está no grid, o destaque da temporada atual (a foto com o próprio piloto) vem antes da primeira foto do carro da equipe, que pode ser a do companheiro.
+
+Pilotos antigos (escopo `antigos`, 24/10/2026): quem correu entre 1950 e 1989, em três faixas — campeões, depois vencedores de GP, depois quem fez 3 temporadas ou mais —, cada um com os carros de destaque candidatos. Para a época, a Commons tem muito domínio público (Nationaal Archief, Bundesarchiv) e fotos de carros históricos em museus e eventos (Goodwood, Nürburgring Classic). Essas servem para o carro, marcadas com a temporada do carro, não com a data do arquivo. Numa ampliação, `--novos` mapeia só os alvos que ainda não estão no manifesto.
+
+**Carros de destaque candidatos** (`highlightCandidates`, 24/10/2026). Um carro sem foto que possa ir ao fundo não deixa mais o piloto sem fundo. A importação fica com o primeiro, nesta ordem, que tenha foto compatível:
+
+1. a temporada de título com mais vitórias;
+2. as demais temporadas de título;
+3. a temporada com mais vitórias (sem vitória, a melhor posição no campeonato);
+4. a temporada atual ou a última da carreira, na equipe dela.
+
+Cada candidato vira um alvo `car/<construtor>/<ano>`. No manifesto, o primeiro fica em `highlight_car` e os outros em `highlight_car.fallbacks`. A curadoria (`match: manual`) continua valendo antes de tudo.
+
+**Chassi com outro nome na Commons** (`CHASSIS_ALIASES` em `discover.ts`): o F1DB às vezes usa o código de projeto ou o nome antigo da equipe ("Cadillac CA01" é "Cadillac MAC-26"; "Racing Bulls VCARB 03" é "RB VCARB 03"). A categoria da Commons entra antes da busca por nome.
+
 ## Licenças
 
 | Licença | Entra? | Obrigação |
@@ -57,14 +78,14 @@ O carro vira um alvo `car/<construtor>/<ano>`. Na busca, a foto que cita o pilot
    - O Gemini **não acrescenta** nada e não identifica pessoas pelo rosto.
    - O alvo ordenado guarda o modelo e a data (`ranking` no manifesto). Nem o mapeamento por regras nem uma nova ordenação o refazem sem `--refazer`. Se o Gemini falhar, o alvo fica como estava.
 5. **Escolha.**
-   - Piloto: 1 retrato e até 6 de ação, no máximo 2 por temporada.
+   - Piloto: 1 retrato e até 6 de ação, no máximo 2 por temporada. O retrato é o mais recente entre os candidatos (a nota desempata): Hamilton na Ferrari, não na Mercedes.
    - Carro: até 3 fotos.
 
 ## Comandos
 
 ```bash
 # 1. mapear: busca, regras, ordem e grava config/assets/commons/f1.yaml + f1.cobertura.md (não grava no banco)
-pnpm --filter @galaxie/ingestor assets:commons --mapear --escopo senna      # senna | campeoes | mais-corridas | lendas [--limite 20]
+pnpm --filter @galaxie/ingestor assets:commons --mapear --escopo senna      # senna | campeoes | mais-corridas | lendas [--limite 20] | grid-atual [--ano 2026] | antigos
 # 2. prévia da importação (confere a licença de novo; não baixa nem grava)
 pnpm --filter @galaxie/ingestor assets:commons --plan
 # 3. importar: baixa a miniatura, grava no storage e liga ao piloto/construtor (idempotente)
@@ -73,6 +94,7 @@ pnpm --filter @galaxie/ingestor assets:commons
 
 - **Opções:**
   - `--so driver/ayrton-senna,car/mclaren/1988`: só esses alvos;
+  - `--novos`: só os alvos do escopo que ainda não estão no manifesto;
   - `--manifesto <arquivo>`;
   - `--refazer`: refaz também os alvos já ordenados pelo Gemini.
 - **Ordem do Gemini** (VPS, ver "Produção"): `assets-commons-ordenar --plan` mostra os alvos a ordenar sem chamar nada. Sem `--plan`, ordena e grava o manifesto em `--saida`. Opções: `--so`, `--limite <n>`, `--refazer`; ambiente: `GEMINI_API_KEY` e `GEMINI_MODEL_VISION`.
@@ -98,12 +120,12 @@ pnpm --filter @galaxie/ingestor assets:commons
 | `manual` | Curadoria: a foto fica, mesmo que a varredura não a escolha. Para acrescentar uma foto à mão, copie um item, troque `file`, `page_url` e os campos da licença e marque `match: manual`; a importação confere a licença de novo |
 | `rejected` | Curadoria: a foto sai e não volta nas próximas varreduras |
 
-**Carro de destaque do piloto** (`highlight_car` na entrada do piloto): `target` (o alvo do carro), `season`, `reason` e `match`.
+**Carro de destaque do piloto** (`highlight_car` na entrada do piloto): `target` (o alvo do carro), `season`, `reason`, `match` e, no `auto`, os outros candidatos em `fallbacks`.
 
 - `auto`: vem da regra e é refeito a cada varredura.
-- `manual`: curadoria. Troque o `target` e a `season` e marque `match: manual`; a varredura não mexe mais.
+- `manual`: curadoria. Troque o `target` e a `season` e marque `match: manual`; a varredura não mexe mais. Com `file`, a curadoria aponta a foto do fundo, que pode estar no alvo do carro ou na galeria do piloto (Hamilton: a do GP da China de 2026). A `season` é a do carro, não a da foto: o W196 do Fangio fotografado num museu em 2022 fica com 1955.
 
-Na importação, a primeira foto desse carro que não foi rejeitada **e não é CC BY-SA** vira também vínculo do piloto, com o papel `highlight_car` e a temporada (`highlightPhoto`). O motivo: o heading recorta a foto no navegador (cover), o que é uma adaptação, e BY-SA pediria a mesma licença na obra derivada. Se o carro não tiver foto compatível, o piloto fica sem destaque e o heading usa a cor da equipe: nunca uma foto ruim. As fotos BY-SA continuam na galeria, inteiras e com crédito. Um teste recusa curadoria (`match: manual`) de carro sem foto compatível.
+Na importação, a primeira foto do primeiro candidato que não foi rejeitada **e não é CC BY-SA** vira também vínculo do piloto, com o papel `highlight_car` e a temporada (`highlightPhoto`). O motivo: o heading recorta a foto no navegador (cover), o que é uma adaptação, e BY-SA pediria a mesma licença na obra derivada. Se o carro não tiver foto compatível, o piloto fica sem destaque e o heading usa a cor da equipe: nunca uma foto ruim. As fotos BY-SA continuam na galeria, inteiras e com crédito. Um teste recusa curadoria (`match: manual`) de carro sem foto compatível.
 
 `config/assets/commons/f1.cobertura.md` mostra, por alvo, as fotos e licenças e, na última varredura, candidatas, aceitas e os motivos de recusa mais comuns.
 

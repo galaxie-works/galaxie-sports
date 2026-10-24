@@ -168,9 +168,15 @@ export function choose(
       }));
   }
   const out: ChosenPhoto[] = [];
+  // o retrato mais recente (o piloto de hoje, na equipe de hoje: Hamilton na Ferrari, não na Mercedes); a nota
+  // desempata, e o sem data fica por último
+  const recent = <T extends { e: Eligible }>(list: T[]) =>
+    [...list].sort((a, b) => (b.e.year ?? -1) - (a.e.year ?? -1))[0];
   const portrait =
-    scored.find(({ j }) => j?.kind === 'portrait') ??
-    (ai ? undefined : scored.find(({ e }) => e.candidate.portraitCategory || e.candidate.wikidataImage));
+    recent(scored.filter(({ j }) => j?.kind === 'portrait')) ??
+    (ai
+      ? undefined
+      : recent(scored.filter(({ e }) => e.candidate.portraitCategory || e.candidate.wikidataImage)));
   if (portrait && fresh(portrait.e))
     out.push({
       eligible: portrait.e,

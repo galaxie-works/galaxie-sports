@@ -139,6 +139,17 @@ describe('carro de destaque', () => {
   });
 });
 
+describe('escopo antigos', () => {
+  it('1950–1989: campeões, depois vencedores de GP, com os carros de destaque; sem vitória nem 3 temporadas, fora', () => {
+    expect(targetsFor(tables, 'antigos').map(targetKey)).toEqual([
+      'driver/ayrton-senna',
+      'driver/stirling-moss',
+      'car/mclaren/1988',
+      'car/vanwall/1958',
+    ]);
+  });
+});
+
 describe('escopo lendas', () => {
   const targets = targetsFor(tables, 'lendas', 3);
   const keys = targets.map(targetKey);
@@ -178,6 +189,19 @@ describe('curadoria do carro de destaque no manifesto', () => {
       season: 1988,
       reason: 'título de 1988 · 8 vitória(s) em 16 corrida(s)',
       match: 'auto',
+      // os outros títulos, se o carro de 1988 não tiver foto para o fundo
+      fallbacks: [
+        {
+          target: 'car/mclaren/1991',
+          season: 1991,
+          reason: 'título de 1991 · 7 vitória(s) em 16 corrida(s)',
+        },
+        {
+          target: 'car/mclaren/1990',
+          season: 1990,
+          reason: 'título de 1990 · 6 vitória(s) em 16 corrida(s)',
+        },
+      ],
     });
     const manual = {
       target: 'car/mclaren/1991',
@@ -238,6 +262,32 @@ describe('foto do carro com o piloto', () => {
     expect(choose(d, ok, null).map((c) => c.eligible.candidate.file.title)).toEqual([
       'File:MP4-4 Suzuka 1988.jpg',
     ]);
+  });
+});
+
+describe('chassi com outro nome na Commons', () => {
+  it('Racing Bulls VCARB 03 é "RB VCARB 03" na Commons: a categoria dela vale, sem buscar o nome do F1DB', async () => {
+    const asked: string[] = [];
+    const client = {
+      categoryExists: async (c: string) => (asked.push(c), c === 'RB VCARB 03'),
+      get: async () => ({
+        query: { categorymembers: [{ ns: 6, title: 'File:VCARB 03 Lindblad Melbourne.jpg' }] },
+      }),
+      categoryFiles: async () => [],
+      imageInfo: async (titles: string[]) =>
+        titles.map((title) => ({ title, extmetadata: {}, categories: [] }) as unknown as CommonsFile),
+    } as unknown as WikimediaClient;
+    const car: CarTarget = {
+      kind: 'car',
+      f1dbId: 'racing-bulls',
+      constructorName: 'Racing Bulls',
+      year: 2026,
+      chassis: ['Racing Bulls VCARB 03'],
+    };
+    const d = await discoverCar(client, car, 512);
+    expect(d.category).toBe('RB VCARB 03');
+    expect(d.candidates.map((c) => c.file.title)).toEqual(['File:VCARB 03 Lindblad Melbourne.jpg']);
+    expect(asked).toEqual(['RB VCARB 03']);
   });
 });
 

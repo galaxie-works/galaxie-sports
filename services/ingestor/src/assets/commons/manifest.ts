@@ -54,7 +54,8 @@ export interface ManifestEntry {
   note?: string | null;
   /**
    * Piloto: carro de destaque (`car/<construtor>/<ano>`, outro alvo do manifesto). `auto` vem da regra
-   * (`highlightSeason`); `manual` é curadoria e não muda nas próximas varreduras.
+   * (`highlightCandidates`, com os outros candidatos em `fallbacks`); `manual` é curadoria e não muda nas
+   * próximas varreduras.
    */
   highlight_car?: HighlightCar | null;
   /** Ordem do Gemini (passo da VPS): modelo, data e quantas candidatas foram avaliadas. Sem isso, só regras. */
@@ -67,6 +68,13 @@ export interface HighlightCar {
   season: number;
   reason: string;
   match: 'auto' | 'manual';
+  /**
+   * Curadoria: a foto do fundo (`File:…`), de qualquer alvo do manifesto (do carro ou da galeria do piloto).
+   * Sem isso, a primeira foto do carro que pode ir ao fundo.
+   */
+  file?: string;
+  /** Os outros candidatos, em ordem: a importação fica com o primeiro que tiver foto para o fundo (só `auto`). */
+  fallbacks?: { target: string; season: number; reason: string }[];
 }
 
 export interface CommonsManifest {
@@ -148,6 +156,15 @@ export function mergeEntry(
             season: target.highlight.year,
             reason: target.highlight.reason,
             match: 'auto',
+            ...(target.fallbacks?.length
+              ? {
+                  fallbacks: target.fallbacks.map((h) => ({
+                    target: h.target,
+                    season: h.year,
+                    reason: h.reason,
+                  })),
+                }
+              : {}),
           }
         : null;
   const rejected = new Set(curated.filter((p) => p.match === 'rejected').map((p) => p.file));

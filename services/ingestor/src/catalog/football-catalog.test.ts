@@ -101,6 +101,34 @@ describe('normalização', () => {
     expect(countryCode({ name: 'World', code: null })).toBe('WORLD');
   });
 
+  it('GB é o Reino Unido: as nações têm código próprio e o nome de GB nunca é o da primeira linha', () => {
+    expect(countryCode({ name: 'Wales', code: 'GB' })).toBe('GB-WLS');
+    expect(countryCode({ name: 'Northern-Ireland', code: 'GB' })).toBe('GB-NIR');
+    expect(countryCode({ name: 'United-Kingdom', code: 'GB' })).toBe('GB');
+    const nations = ['Wales', 'England', 'Scotland', 'United Kingdom'].map((name) => ({
+      name,
+      code: 'GB',
+      flag: null,
+    }));
+    const { countries } = buildCatalogRows([], nations, []);
+    expect(countries.find((c) => c.code === 'GB')?.name).toEqual({
+      en: 'United Kingdom',
+      'pt-BR': 'Reino Unido',
+      es: 'Reino Unido',
+    });
+    expect(countries.map((c) => c.code).sort()).toEqual(['GB', 'GB-ENG', 'GB-SCT', 'GB-WLS']);
+    // UA também tem a Crimeia: o código fica com a Ucrânia, seja qual for a ordem
+    const ua = buildCatalogRows(
+      [],
+      [
+        { name: 'Ukraine', code: 'UA', flag: null },
+        { name: 'Crimea', code: 'UA', flag: null },
+      ],
+      [],
+    );
+    expect(ua.countries.find((c) => c.code === 'UA')?.name.en).toBe('Ukraine');
+  });
+
   it('rótulo de temporada segue o calendário da competição', () => {
     expect(seasonLabel({ year: 2026, start: '2026-01-28', end: '2026-12-02' })).toBe('2026');
     expect(seasonLabel({ year: 2026, start: '2026-08-15', end: '2027-05-23' })).toBe('2026/27');

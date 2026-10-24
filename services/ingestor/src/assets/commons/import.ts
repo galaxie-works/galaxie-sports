@@ -5,9 +5,9 @@
  * 3. grava no nosso storage com a nossa nomenclatura (`commons/f1/{drivers|cars}/<id do participante>.<hash>`);
  * 4. registra `core.asset` (origin `commons`), o crédito (`core.asset_credit`) e o vínculo com o piloto ou o
  *    construtor (`core.participant_photo`). O logo do participante não muda.
- * 5. carro de destaque do piloto (`highlight_car` no manifesto): a primeira foto daquele carro que pode ir ao
- *    fundo (`highlightPhoto`: sem CC BY-SA) também vira vínculo do piloto, com o papel `highlight_car` e a
- *    temporada (heading da página do piloto).
+ * 5. carro de destaque do piloto (`highlight_car` no manifesto, com os candidatos em `fallbacks`): a primeira
+ *    foto do primeiro carro candidato que pode ir ao fundo (`highlightPhoto`: sem CC BY-SA) também vira vínculo
+ *    do piloto, com o papel `highlight_car` e a temporada (heading da página do piloto).
  * Idempotente: o mesmo manifesto não regrava nada; foto que saiu do manifesto (ou foi rejeitada) sai do
  * participante (o asset fica).
  */
@@ -53,6 +53,8 @@ export interface ImportReport {
   unlinked: number;
   /** Pilotos com o carro de destaque vinculado (na prévia: que seriam vinculados). */
   highlights: number;
+  /** Pilotos sem nenhum carro candidato com foto que possa ir ao fundo do heading. */
+  withoutHighlight: string[];
   skipped: { key: string; file?: string; reason: string }[];
 }
 
@@ -89,6 +91,7 @@ export async function importCommons(
     linked: 0,
     unlinked: 0,
     highlights: 0,
+    withoutHighlight: [],
     skipped: [],
   };
   for (const entry of manifest.entries) {
@@ -274,7 +277,33 @@ export function highlightPhoto(car: ManifestEntry | undefined): ManifestPhoto | 
   return car?.photos.find((p) => p.match !== 'rejected' && !p.share_alike);
 }
 
-/** Carro de destaque de cada piloto: a foto do alvo do carro (`highlightPhoto`), já no storage. */
+/**
+ * Carro de destaque do piloto, com a foto e a temporada: a curadoria (`manual`, com a foto escolhida em `file`,
+ * de qualquer alvo) ou o primeiro candidato da regra (`highlight_car` e os `fallbacks`) cujo carro tem foto que
+ * pode ir ao fundo (`highlightPhoto`).
+ */
+export function pickHighlight(
+  entry: ManifestEntry,
+  byTarget: Map<string, ManifestEntry>,
+): { target: string; season: number; photo: ManifestPhoto } | undefined {
+  const h = entry.highlight_car;
+  if (!h) return undefined;
+  if (h.file) {
+    const own = [byTarget.get(h.target), entry, ...byTarget.values()];
+    const photo = own
+      .flatMap((e) => e?.photos ?? [])
+      .find((p) => p.file === h.file && p.match !== 'rejected' && !p.share_alike);
+    return photo ? { target: h.target, season: h.season, photo } : undefined;
+  }
+  const candidates = h.match === 'manual' ? [h] : [h, ...(h.fallbacks ?? [])];
+  for (const c of candidates) {
+    const photo = highlightPhoto(byTarget.get(c.target));
+    if (photo) return { target: c.target, season: c.season, photo };
+  }
+  return undefined;
+}
+
+/** Carro de destaque de cada piloto (`pickHighlight`), com a foto já no storage. */
 async function linkHighlights(
   db: Database,
   manifest: CommonsManifest,
@@ -285,8 +314,11 @@ async function linkHighlights(
   for (const entry of manifest.entries) {
     if (entry.kind !== 'driver') continue;
     const h = entry.highlight_car ?? null;
-    if (opts.only && !opts.only.has(entry.target) && !(h && opts.only.has(h.target))) continue;
-    const photo = h ? highlightPhoto(byTarget.get(h.target)) : undefined;
+    const cars = h ? [h.target, ...(h.fallbacks ?? []).map((f) => f.target)] : [];
+    if (opts.only && !opts.only.has(entry.target) && !cars.some((c) => opts.only!.has(c))) continue;
+    const picked = pickHighlight(entry, byTarget);
+    const photo = picked?.photo;
+    if (!picked) report.withoutHighlight.push(entry.target);
     if (opts.plan) {
       if (photo) report.highlights += 1;
       continue;
@@ -301,14 +333,15 @@ async function linkHighlights(
           .limit(1)
       : [];
     const assetId = row?.id ?? null;
-    if (assetId && h && photo) {
-      const selectedBy = h.match === 'manual' ? 'manual' : photo.selected_by;
+    if (assetId && h && picked) {
+      const selectedBy = h.match === 'manual' ? 'manual' : picked.photo.selected_by;
+      const seasonYear = picked.season;
       await db
         .insert(participantPhoto)
-        .values({ participantId, assetId, role: 'highlight_car', seasonYear: h.season, rank: 0, selectedBy })
+        .values({ participantId, assetId, role: 'highlight_car', seasonYear, rank: 0, selectedBy })
         .onConflictDoUpdate({
           target: [participantPhoto.participantId, participantPhoto.assetId, participantPhoto.role],
-          set: { seasonYear: h.season, rank: 0, selectedBy },
+          set: { seasonYear, rank: 0, selectedBy },
         });
       report.highlights += 1;
     }
