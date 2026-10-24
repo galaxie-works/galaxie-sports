@@ -195,6 +195,39 @@ pnpm --filter @galaxie/ai-agents wtw:rights [--competicao <slug>] [--pais BR,AR]
 
 **Sinal de provedor (Sportmonks TV Stations):** ainda não plugado — entra como mais uma evidência com confiança de agregador (0,4) quando o provedor de produção existir.
 
+#### 2.2.2 Grade de canais e ofertas das plataformas
+
+O onde assistir diz **quem tem o direito** do jogo (o canal). A grade dá o elo seguinte: **em que plataforma** (operadora de TV paga, vMVPD, combo de telecom ou streaming) e **em que plano** esse canal está, e quais streamings vêm inclusos num plano. Nós mesmos montamos a grade a partir das ofertas que as plataformas publicam no próprio site: pesquisa com IA e fonte citada, tudo entra como rascunho e só vai à API depois de aprovado no painel. O cliente operadora não edita a grade; ele pede revisão pelo portal.
+
+Confidencialidade: o repositório não nomeia nenhuma plataforma. Os nomes reais vivem só no banco, gravados pela pesquisa em tempo de execução. O prompt não leva lista de plataformas: elas saem da busca em fontes públicas, e o que entra no prompt (plataformas e planos já gravados, canais da biblioteca) vem do banco e do dicionário só para o modelo repetir a mesma grafia. Testes e exemplos usam "Operadora Exemplo", "Streaming Exemplo" e "Canal Exemplo".
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| Tabelas | `enrich.platform`, `enrich.platform_plan`, `enrich.plan_channel`, `enrich.plan_service` (migration `0029_grade_operadoras`) | Plataforma por país (`slug` `<iso2>-<nome>`, tipo `pay_tv_operator` · `vmvpd` · `telco_bundle` · `streaming`, site, `broadcaster_id` quando é o mesmo serviço de uma entrada da biblioteca); plano com preço em texto como publicado, página, vigência (`valid_from`/`valid_to`) e `seen_at`; vínculos plano × canal e plano × streaming (`included` ou `addon`), ambos apontando para `enrich.broadcaster`. Todo item tem `review_status` (`draft` · `reviewed` · `approved` · `rejected`), `sources` (`[{url, seen_at}]`) e `proposed_change` |
+| Pedidos da operadora | `ops.lineup_review_request`; em `api.tenant`, `operator_platform_id`, `show_other_operators` e `operator_email_domains` | O tenant operadora fica ligado à própria plataforma e pede revisão de um item da grade dele (plataforma, plano ou vínculo) com mensagem e campos propostos. Aceito com `apply`, a proposta vira dado aprovado com a fonte "informado pela operadora" |
+| Funções | `packages/db/src/lineups.ts` (`@galaxie/db` e `@galaxie/db/lineups`) | `listPlatforms`, `getPlatformLineup`, `availabilityForChannels` (leitura; padrão: só o aprovado), `upsertLineupDraft` (gravação da pesquisa), `setLineupReviewStatus` e `dismissLineupChange` (painel), `createLineupReviewRequest`, `listLineupReviewRequests` e `resolveLineupReviewRequest` (portal e painel), `setTenantOperator` e `getTenantOperator` |
+| Pesquisa | `services/ai-agents/src/lineups/` + CLI `lineups-research` | Por país (BR, AR, MX, CO e CL no começo): uma chamada descobre as principais plataformas; uma chamada por plataforma levanta os planos, os canais esportivos e os streamings inclusos. Nível `research`, Gemini em dois passos com grounding |
+
+**Regras da gravação (código, não prompt):**
+
+1. Fonte obrigatória e ancorada na busca: a URL precisa estar entre as fontes reais do grounding (`groundedUrls`; nos outros provedores, as citações). Agregador não vale como fonte. Item sem fonte não entra.
+2. Nome ou domínio na blocklist editorial (`_policy.yaml` + `WTW_BLOCKLIST_FILE`/`WTW_BLOCKLIST`) descarta o item sem registrar o nome.
+3. Canal e streaming precisam casar com uma entrada da biblioteca de emissoras pelo dicionário do país (nome, alias ou canal, como "Canal Exemplo 2 HD" → `canal_exemplo_2`). O meio vem do dicionário: entrada de TV vira canal do plano, entrada de streaming vira streaming incluso. Nome desconhecido fica de fora e aparece no relatório para a curadoria.
+4. Tudo entra como `draft`. Gravar de novo é idempotente (por slug e país): só renova a fonte e o `seen_at`. Item revisado ou aprovado **nunca volta a rascunho** por ser revisto: a diferença vai para `proposed_change`, e aprovar de novo aplica a mudança. Item rejeitado continua rejeitado.
+5. A revisita (`--revisitar`) refaz a pesquisa das plataformas com plano visto há mais de 30 dias (`--dias`) e grava a grade como completa: plano ou vínculo que não apareceu fica com `proposed_change.removed`. Nada é apagado sem aprovação; aprovar a remoção encerra a vigência do plano ou apaga o vínculo. Pesquisa sem nenhum plano com fonte não marca nada.
+
+**Leitura no onde assistir:** `availabilityForChannels({ channelIds, country })` recebe os canais que transmitem o jogo e devolve as plataformas do país com os planos vigentes que têm esses canais (`viaChannels`) ou que incluem esses streamings (`services`), além da plataforma de streaming que é o próprio serviço. Para o cliente operadora que não mostra as outras plataformas, `onlyPlatformId`. Plataforma, plano e vínculo precisam estar no nível de revisão pedido (padrão: aprovado).
+
+**Custo:** cada chamada passa pelo orçamento diário e fica em `ops.llm_usage` (agente `lineups`). Sem `--redescobrir` ou `--revisitar`, a execução só pesquisa país sem plataformas e plataforma sem planos; `--max` limita as chamadas.
+
+```bash
+pnpm --filter @galaxie/ai-agents lineups:research --plan [--pais BR]          # o que seria pesquisado (sem LLM)
+pnpm --filter @galaxie/ai-agents lineups:research [--pais BR,AR] [--max 6] [--plataforma <slug>] [--redescobrir]
+pnpm --filter @galaxie/ai-agents lineups:research --revisitar [--dias 30]
+```
+
+Na produção, o comando roda na VPS, onde a chave do Gemini funciona: `docker compose run --rm --no-deps -e AI_PROVIDER=gemini agents node ../ai-agents/dist/cli/lineups-research.js --pais BR --max 6`. O agendamento da revisita fica para depois.
+
 ### 2.3 Agente Cenário (pré-jogo) e Resumo (pós-jogo)
 
 O cenário é **calculado** e só **redigido** pela IA. O motor de regras é o pacote `@galaxie/rules` — catálogo de códigos e regulamentos em [docs/rules](rules/README.md):
