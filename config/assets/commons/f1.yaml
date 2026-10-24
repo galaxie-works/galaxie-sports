@@ -3686,10 +3686,10 @@ entries:
     wikidata: Q10490
     category: Ayrton Senna
     highlight_car:
-      target: car/mclaren/1988
-      season: 1988
-      reason: título de 1988 · 8 vitória(s) em 16 corrida(s)
-      match: auto
+      target: car/mclaren/1991
+      season: 1991
+      reason: "curadoria: Phoenix 1991, com o #1 de campeão (pedido do Wagner)"
+      match: manual
     photos:
       - file: File:Ayrton Senna in the paddock before the 1993 British Grand Prix (33686752075) (cropped).jpg
         role: portrait
