@@ -76,6 +76,7 @@ try {
     'pilotos e construtores no lote': result.batch.participants,
     'circuitos no lote': result.batch.venues,
     'linhas de campeonato': result.batch.standings,
+    'países criados': result.countries.join(', ') || '—',
     'temporadas criadas': result.upsert.seasonsCreated,
     'eventos inseridos': result.upsert.events.inserted,
     'eventos atualizados': result.upsert.events.updated,

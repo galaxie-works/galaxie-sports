@@ -21,11 +21,14 @@ import {
   season,
   sport,
   sportEventDetail,
+  stage,
   standing,
   type Database,
 } from '@galaxie/db';
 import type { LiveryEntry } from '@galaxie/knowledge';
+import { RulesRegistry } from '../src/events/rules-registry.js';
 import { loadRaceCareer, splitName } from '../src/teams/career.js';
+import { loadTeamCompetitions } from '../src/teams/load-campaigns.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -322,6 +325,24 @@ describe('carreira na F1: temporada atual, sprint, melhores resultados, número 
     });
   });
 
+  it('campanha do overview: o líder de uma temporada com GP por vir não é campeão nem "terminou em"', async () => {
+    // só sessões já disputadas na base (o F1DB não cria GP futuro), mas o calendário vai até o ano que vem
+    const competitions = await loadTeamCompetitions(
+      {
+        db,
+        locale: 'pt-BR',
+        tz: 'UTC',
+        now: new Date(),
+        assetsBaseUrl: undefined,
+        customLogos: false,
+        rules: new RulesRegistry(),
+      },
+      rookie,
+    );
+    const current = competitions.find((c) => c.season.year === THIS_YEAR)!;
+    expect(current.campaign).toMatchObject({ status: 'league', ongoing: true, rank: 1 });
+  });
+
   it('sem pintura curada, a equipe vem sem `livery`; lenda fora do grid não tem temporada atual', async () => {
     const career = await loadRaceCareer(db, { id: rookie, kind: 'driver' }, 'pt-BR', undefined);
     expect(career.seasons[0]!.teams[0]!.livery).toBeUndefined();
@@ -331,10 +352,137 @@ describe('carreira na F1: temporada atual, sprint, melhores resultados, número 
   });
 });
 
+describe('carreira na F1: uma linha por GP, largada, classificação e pole (auditoria contra o F1DB)', () => {
+  let pilot: string;
+  let leader: string;
+
+  beforeAll(async () => {
+    const [champ] = await db
+      .insert(competition)
+      .values({
+        sport: 'formula-1',
+        slug: 'f1-auditoria',
+        name: 'Formula 1 World Championship',
+        type: 'league',
+      })
+      .returning({ id: competition.id });
+    const [s2022] = await db
+      .insert(season)
+      .values({ competitionId: champ!.id, year: 2022, label: '2022', endDate: '2022-11-20' })
+      .returning({ id: season.id });
+    const [p, l] = await db
+      .insert(participant)
+      .values([
+        { sport: 'formula-1', kind: 'driver', name: 'Piloto Auditado' },
+        { sport: 'formula-1', kind: 'driver', name: 'Piloto Líder' },
+      ])
+      .returning({ id: participant.id });
+    pilot = p!.id;
+    leader = l!.id;
+    const team = { id: 'equipe', name: 'Equipe' };
+    let day = 0;
+    const gp = async () => {
+      const [st] = await db
+        .insert(stage)
+        .values({
+          seasonId: s2022!.id,
+          kind: 'race_weekend',
+          providerLabel: `gp-${day}`,
+          name: { en: `GP ${day}` },
+        })
+        .returning({ id: stage.id });
+      return st!.id;
+    };
+    const session = async (
+      stageId: string,
+      provider: 'f1db' | 'api-sports',
+      type: string,
+      rows: { id: string; position: number | null; result: Record<string, unknown> }[],
+    ) => {
+      day += 1;
+      const startsAt = new Date(Date.UTC(2022, 2, day, 15));
+      const [ev] = await db
+        .insert(event)
+        .values({
+          sport: 'formula-1',
+          competitionId: champ!.id,
+          seasonId: s2022!.id,
+          stageId,
+          status: 'finished',
+          startsAt,
+          endsAtExpected: new Date(startsAt.getTime() + 2 * 3_600_000),
+        })
+        .returning({ id: event.id });
+      await db.insert(sportEventDetail).values({
+        eventId: ev!.id,
+        sport: 'formula-1',
+        provider,
+        providerEventId: `auditoria-${day}`,
+        kind: 'race',
+        summary: { type },
+      });
+      for (const r of rows)
+        await db.insert(eventParticipant).values({
+          eventId: ev!.id,
+          participantId: r.id,
+          side: 'grid',
+          position: r.position,
+          result: r.result,
+        });
+    };
+    const me = (position: number | null, result: Record<string, unknown>) => ({
+      id: pilot,
+      position,
+      result: { team, number: 44, ...result },
+    });
+
+    // GP A: a mesma corrida e a mesma pole nas duas fontes, sem vínculo (a api-sports de 2022 chegou depois)
+    const a = await gp();
+    await session(a, 'f1db', 'Qualifying', [me(1, { number: 99 })]);
+    await session(a, 'api-sports', '3rd Qualifying', [me(1, { number: 99 })]);
+    await session(a, 'f1db', 'Race', [me(3, { position_text: '3', grid: 1, pole: true, laps: 57 })]);
+    await session(a, 'api-sports', 'Race', [me(3, { grid: 1, laps: 57 })]);
+    // GP B: fez a pole e não largou (Leclerc, Mônaco 2021): pole sim, GP não
+    const b = await gp();
+    await session(b, 'f1db', 'Race', [me(null, { position_text: 'DNS', pole: true })]);
+    // GP C (api-sports): parou com 56 de 58 voltas, `time: "DNF"`, mas cumpriu os 90%: classificado em 17º
+    const c = await gp();
+    await session(c, 'api-sports', 'Race', [
+      { id: leader, position: 1, result: { team, laps: 58, grid: 2 } },
+      me(17, { time: 'DNF', laps: 56, grid: 5 }),
+    ]);
+    // GP D (api-sports): não largou: sem posição, sem tempo e 0 volta
+    const d = await gp();
+    await session(d, 'api-sports', 'Race', [me(null, { laps: 0, grid: 7 })]);
+    // GP E (F1DB): 18º classificado com `time: "DNF"` (Hamilton, Abu Dhabi 2022) e largada punida: pole de outro
+    const e = await gp();
+    await session(e, 'f1db', 'Race', [
+      me(18, { position_text: '18', time: 'DNF', grid: 1, pole: false, laps: 55 }),
+    ]);
+  });
+
+  it('conta como o F1DB: uma corrida e uma pole por GP, só GP largado, classificado pelos 90%', async () => {
+    const career = await loadRaceCareer(db, { id: pilot, kind: 'driver' }, 'pt-BR', undefined);
+    const s = career.seasons.find((x) => x.year === 2022)!;
+    expect(s).toMatchObject({ races: 3, podiums: 1, poles: 2, dnfs: 0, top10: 1, number: 44 });
+    expect(career.totals).toMatchObject({
+      races: 3,
+      poles: 2,
+      dnfs: 0,
+      best_finish: { position: 3, count: 1 },
+    });
+  });
+});
+
 describe('nome em duas partes', () => {
   it('pelo sobrenome do fornecedor ou pela última palavra', () => {
     expect(splitName('Kimi Antonelli', 'Antonelli')).toEqual({ first: 'Kimi', last: 'Antonelli' });
     expect(splitName('Carlos Sainz Jr.', 'Sainz Jr.')).toEqual({ first: 'Carlos', last: 'Sainz Jr.' });
+    // a api-sports escreve sem o ponto: o sobrenome do F1DB fecha o nome mesmo assim
+    expect(splitName('Carlos Sainz Jr', 'Sainz Jr.')).toEqual({ first: 'Carlos', last: 'Sainz Jr.' });
+    // mesma grafia: vale a do nome
+    expect(splitName('Nyck de Vries', 'De Vries')).toEqual({ first: 'Nyck', last: 'de Vries' });
+    expect(splitName('Guanyu Zhou', 'Zhou')).toEqual({ first: 'Guanyu', last: 'Zhou' });
     expect(splitName('Ayrton Senna', 'SEN')).toEqual({ first: 'Ayrton', last: 'Senna' });
     expect(splitName('Zhou', null)).toEqual({ first: '', last: 'Zhou' });
   });

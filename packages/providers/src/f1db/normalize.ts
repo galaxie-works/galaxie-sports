@@ -85,6 +85,49 @@ function compact(row: F1dbRow, drop: string[] = []): F1dbRow {
   return out;
 }
 
+/** Idiomas dos nomes de país criados a partir do F1DB (os da API). */
+const COUNTRY_LOCALES = ['en', 'pt-BR', 'es'] as const;
+
+/**
+ * Países dos pilotos, construtores e circuitos do F1DB (ISO 3166-1 alpha-2), com o nome em cada idioma da API
+ * (`Intl.DisplayNames`; sem tradução, o nome do F1DB). O core só conhece os países dos catálogos da api-sports e da
+ * FIFA: sem a linha, o upsert descarta o código e o piloto fica sem país (Mônaco não é membro da FIFA, e Leclerc
+ * ficava sem bandeira). O import só cria os que faltam: nome curado nunca é trocado.
+ */
+export function f1dbCountries(tables: F1dbTables): { code: string; name: Record<string, string> }[] {
+  const used = new Set(
+    [...rowsOf(tables, 'driver'), ...rowsOf(tables, 'constructor'), ...rowsOf(tables, 'circuit')].flatMap(
+      (r) =>
+        [
+          r.nationality_country_id,
+          r.second_nationality_country_id,
+          r.country_of_birth_country_id,
+          r.country_id,
+        ]
+          .map(str)
+          .filter((id): id is string => !!id),
+    ),
+  );
+  const out: { code: string; name: Record<string, string> }[] = [];
+  for (const c of rowsOf(tables, 'country')) {
+    const code = str(c.alpha2_code)?.toUpperCase();
+    const fallback = str(c.name);
+    if (!code || !/^[A-Z]{2}$/.test(code) || !fallback || !used.has(str(c.id)!)) continue;
+    const name: Record<string, string> = {};
+    for (const locale of COUNTRY_LOCALES) {
+      let label: string | undefined;
+      try {
+        label = new Intl.DisplayNames([locale], { type: 'region', fallback: 'none' }).of(code);
+      } catch {
+        label = undefined;
+      }
+      name[locale] = label ?? fallback;
+    }
+    out.push({ code, name });
+  }
+  return out.sort((a, b) => a.code.localeCompare(b.code));
+}
+
 export function normalizeF1db(tables: F1dbTables, ctx: F1dbNormalizeContext): NormalizedBatch {
   const batch = emptyBatch(F1DB_PROVIDER, F1DB_SPORT, ctx.observedAt);
   const covered = ctx.coveredRaces ?? new Set<string>();
@@ -232,11 +275,22 @@ export function normalizeF1db(tables: F1dbTables, ctx: F1dbNormalizeContext): No
         (a, b) => (int(a.position_display_order) ?? 999) - (int(b.position_display_order) ?? 999),
       );
       const eps: NormalizedEventParticipant[] = [];
+      // carro compartilhado (anos 1950): o piloto aparece mais de uma vez na mesma sessão; vale a melhor linha (a
+      // primeira na ordem da classificação), como na contagem do F1DB: a vitória de Fangio no GP da França de 1951,
+      // no carro de Fagioli, não pode ser trocada pelo abandono no carro dele
+      // (a pole fica com o piloto mesmo que ela esteja na linha do outro carro)
+      const placed = new Map<string, NormalizedEventParticipant>();
       for (const row of ordered) {
         const text = str(row.position_text);
         if (text && NOT_IN_SESSION.has(text)) continue;
         const pid = driverRef(str(row.driver_id));
         if (!pid) continue;
+        const first = placed.get(pid);
+        if (first) {
+          if (type === 'RACE_RESULT' && Number(row.race_pole_position) === 1 && first.result)
+            first.result.pole = true;
+          continue;
+        }
         const team = constructorRef(str(row.constructor_id));
         const number = int(row.position_number);
         const position =
@@ -244,7 +298,9 @@ export function normalizeF1db(tables: F1dbTables, ctx: F1dbNormalizeContext): No
         const result = sessionResult(type, row, team);
         if (session.key === 'race' && result.pits == null)
           result.pits = stops.get(str(row.driver_id)!) ?? null;
-        eps.push({ participantId: pid, side: 'grid', position, result });
+        const ep: NormalizedEventParticipant = { participantId: pid, side: 'grid', position, result };
+        placed.set(pid, ep);
+        eps.push(ep);
       }
       if (!eps.length) continue;
 
@@ -413,6 +469,10 @@ function sessionResult(
       gap: str(row.race_gap),
       laps: int(row.race_laps),
       grid: int(row.race_grid_position_number),
+      // a pole do F1DB: quem largou nela (punição de grid desconta), não só o 1º da classificação
+      ...(type === 'RACE_RESULT' && row.race_pole_position != null
+        ? { pole: Number(row.race_pole_position) === 1 || row.race_pole_position === true }
+        : {}),
       pits: int(row.race_pit_stops),
       points: num(row.race_points),
       status: str(row.race_reason_retired),

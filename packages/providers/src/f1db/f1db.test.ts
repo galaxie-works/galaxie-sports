@@ -1,7 +1,7 @@
 /** F1DB: casamento com a api-sports e normalização (release mínimo: Brasil 2024 casa, Japão 1988 só no F1DB). */
 import { describe, expect, it } from 'vitest';
 import { matchF1db } from './match.js';
-import { normalizeF1db } from './normalize.js';
+import { f1dbCountries, normalizeF1db } from './normalize.js';
 import { sessionStart } from './schedule.js';
 import type { CoreF1Snapshot, CoreRaceEvent } from './match.js';
 import { f1dbSeasonRange, sliceF1dbSeasons, type F1dbRow, type F1dbTables } from './tables.js';
@@ -542,6 +542,60 @@ describe('normalizeF1db', () => {
       ['constructors', 'mclaren', 1, 199, 15],
     ]);
     expect(batch.competitions[0]!.seasons.map((s) => s.year)).toEqual([1988]);
+  });
+
+  it('carro compartilhado: uma linha por piloto, a melhor, com a pole de qualquer uma delas', () => {
+    const tables = f1dbTables();
+    tables.race_data = [
+      ...tables.race_data!.map((r) =>
+        r.type === 'RACE_RESULT' && r.driver_id === 'ayrton-senna' ? { ...r, race_pole_position: 1 } : r,
+      ),
+      // Prost também levou o carro de outro piloto e abandonou com ele (linha depois, na ordem); a pole era dessa
+      {
+        race_id: 470,
+        type: 'RACE_RESULT',
+        position_display_order: 5,
+        position_text: 'DNF',
+        driver_id: 'alain-prost',
+        constructor_id: 'mclaren',
+        race_shared_car: 1,
+        race_pole_position: 1,
+      },
+    ];
+    const race = normalizeF1db(tables, { observedAt, release: 'v2026.17.0' }).events.find(
+      (e) => e.id === 'race-470-race',
+    )!;
+    const prost = race.participants.filter((p) => p.participantId === 'driver-alain-prost');
+    expect(prost).toHaveLength(1);
+    expect(prost[0]).toMatchObject({ position: 2, result: { position_text: '2', pole: true } });
+    const senna = race.participants.find((p) => p.participantId === 'driver-ayrton-senna')!;
+    expect(senna.result).toMatchObject({ pole: true });
+  });
+
+  it('países do F1DB com nome nos idiomas da API, só os usados', () => {
+    const tables = f1dbTables();
+    tables.country = [
+      ...tables.country!,
+      { id: 'monaco', alpha2_code: 'MC', name: 'Monaco' },
+      { id: 'nowhere', alpha2_code: 'ZZ', name: 'Nowhere' },
+    ];
+    tables.driver = [
+      ...tables.driver!,
+      {
+        id: 'charles-leclerc',
+        name: 'Charles Leclerc',
+        last_name: 'Leclerc',
+        nationality_country_id: 'monaco',
+      },
+    ];
+    const countries = f1dbCountries(tables);
+    expect(countries.find((c) => c.code === 'MC')).toEqual({
+      code: 'MC',
+      name: { en: 'Monaco', 'pt-BR': 'Mônaco', es: 'Mónaco' },
+    });
+    // os dos circuitos também; país que ninguém usa fica de fora
+    expect(countries.map((c) => c.code)).toContain('JP');
+    expect(countries.map((c) => c.code)).not.toContain('ZZ');
   });
 
   it('a temporada vai até o último GP do calendário, mesmo sem resultado ainda', () => {

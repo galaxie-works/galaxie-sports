@@ -3,16 +3,22 @@
  * temporada (posição e pontos do campeonato, corridas, vitórias, poles, pódios, voltas mais rápidas), títulos,
  * melhor resultado, primeira corrida, primeira vitória, última corrida, equipes e companheiros de equipe.
  *
- * - Corrida = sessão `Race` (sprint fora); pole = 1º na classificação do GP (`Qualifying` do F1DB ou `3rd
- *   Qualifying` da api-sports); volta mais rápida = o piloto do `fastest_lap` do espelho da corrida.
+ * - Corrida = sessão `Race` (sprint fora) que o piloto largou (não largou, não participou e excluído não contam,
+ *   como no F1DB); pole = quem largou na pole, com a marca do F1DB (`result.pole`, que já desconta a punição de
+ *   grid: Spa 2024 é do Leclerc) ou, na api-sports, o grid 1 da corrida (nas sprints de 2022, o 1º da
+ *   classificação); classificado = posição numérica, ou 90% das voltas do líder; volta mais rápida = o piloto do
+ *   `fastest_lap` do espelho da corrida.
+ * - Uma sessão por GP: quando as duas fontes têm a mesma sessão do mesmo GP sem vínculo entre elas (a api-sports de
+ *   2022 e 2023 chegou depois do F1DB, que antes de 2024 só estima o horário) ou a classificação inteira do F1DB
+ *   convive com o `3rd Qualifying` da api-sports, vale uma linha por piloto: a do F1DB, a fonte da carreira.
  * - Pódio só com posição numérica de chegada (abandono ordenado não conta).
  * - Sprint: a sessão `Sprint`; pole da sprint = 1º na classificação dela (`Sprint Qualifying` do F1DB ou `3rd Sprint
  *   Shootout` da api-sports, de 2023 em diante); pontos da sprint = os do resultado ou, sem eles (api-sports), a
  *   tabela da época pela posição.
  * - Abandono (DNF) = `position_text`/`time` "DNF" (desclassificação e não classificado não contam); top 10 =
  *   chegada entre os dez primeiros; largada = `grid` do resultado (largada dos boxes não conta).
- * - Número do carro na temporada = o mais usado nas sessões dela; sem ele (api-sports), o permanente, de 2014 em
- *   diante. Cores da equipe na temporada = a pintura curada por época (`formula-1/liveries.yaml`).
+ * - Número do carro na temporada = o mais usado nas corridas dela (sem corrida, nas demais sessões); sem ele
+ *   (api-sports), o permanente, de 2014 em diante. Cores da equipe na temporada = a pintura curada por época (`formula-1/liveries.yaml`).
  */
 import { sql } from 'drizzle-orm';
 import {
@@ -31,12 +37,16 @@ import { loadPhotos } from './photos.js';
 
 type SessionRow = {
   event_id: string;
+  stage_id: string | null;
+  provider: string;
   competition_id: string | null;
   starts_at: string;
   year: number | null;
   stage: Record<string, string> | null;
   type: string | null;
   fastest: string | null;
+  /** Voltas do líder da sessão (o máximo entre os resultados): a régua dos 90% da classificação. */
+  leader_laps: number | null;
   participant_id: string;
   position: number | null;
   result: {
@@ -44,6 +54,8 @@ type SessionRow = {
     time?: unknown;
     position_text?: unknown;
     grid?: unknown;
+    laps?: unknown;
+    pole?: unknown;
     number?: unknown;
     points?: unknown;
   } | null;
@@ -52,6 +64,11 @@ type SessionRow = {
 const POLE_SESSIONS = new Set(['qualifying', '3rd qualifying']);
 const SPRINT_POLE_SESSIONS = new Set(['sprint qualifying', '3rd sprint shootout']);
 const SESSION_TYPES = ['race', 'sprint', ...POLE_SESSIONS, ...SPRINT_POLE_SESSIONS];
+/** Na corrida, mas sem largar: não largou, não participou e excluído (o F1DB não conta como GP disputado). */
+const NOT_STARTED = new Set(['DNS', 'DNP', 'EX']);
+/** A sessão que a linha representa no GP: a classificação inteira do F1DB e o Q3 da api-sports são a mesma pole. */
+const sessionGroup = (type: string) =>
+  POLE_SESSIONS.has(type) ? 'pole' : SPRINT_POLE_SESSIONS.has(type) ? 'sprint_pole' : type;
 /** Pontos da sprint pela posição, quando o resultado não traz (a api-sports não traz): 2021 e 2022 em diante. */
 const sprintPointsAt = (year: number, pos: number | null) => {
   const table = year >= 2022 ? [8, 7, 6, 5, 4, 3, 2, 1] : year === 2021 ? [3, 2, 1] : [];
@@ -59,14 +76,37 @@ const sprintPointsAt = (year: number, pos: number | null) => {
 };
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const teamKey = (r: SessionRow) => (r.result?.team?.id == null ? null : String(r.result.team.id));
-/** Chegou numa posição numérica (abandono ordenado pela api-sports vem com `time: "DNF"`). */
+/**
+ * Quem parou depois de 90% das voltas do líder (arredondado para baixo) é classificado (regulamento esportivo da
+ * FIA). A api-sports marca com `time: "DNF"` também esses: Russell, 17º em Melbourne 2024, com 56 de 58 voltas.
+ */
+const coveredDistance = (r: SessionRow) => {
+  const laps = num(r.result?.laps);
+  const leader = r.leader_laps == null ? null : Number(r.leader_laps);
+  return laps != null && leader != null && leader > 0 && laps >= Math.floor(0.9 * leader);
+};
+/**
+ * Chegou numa posição numérica. O F1DB diz pela `position_text` (Hamilton, 18º em Abu Dhabi 2022, mesmo com
+ * `time: "DNF"`); a api-sports não traz o texto e marca o abandono ordenado com `time: "DNF"` (classificado se
+ * cumpriu os 90%).
+ */
 const classifiedAt = (r: SessionRow) => {
   const text = r.result?.position_text;
-  if (text != null && !/^\d+$/.test(String(text))) return null;
-  if (r.result?.time === 'DNF') return null;
+  if (text != null) return /^\d+$/.test(String(text)) ? r.position : null;
+  if (r.result?.time === 'DNF') return coveredDistance(r) ? r.position : null;
   return r.position;
 };
-const retired = (r: SessionRow) => r.result?.position_text === 'DNF' || r.result?.time === 'DNF';
+const retired = (r: SessionRow) =>
+  r.result?.position_text != null
+    ? r.result.position_text === 'DNF'
+    : r.result?.time === 'DNF' && !coveredDistance(r);
+/** Largou: no F1DB, o texto da posição; na api-sports, quem não largou vem sem posição, sem tempo e com 0 volta. */
+const started = (r: SessionRow) => {
+  const text = r.result?.position_text;
+  if (text != null) return !NOT_STARTED.has(String(text));
+  return !(r.position == null && r.result?.time == null && num(r.result?.laps) === 0);
+};
+const stageKey = (r: Pick<SessionRow, 'stage_id' | 'event_id'>) => r.stage_id ?? r.event_id;
 const gridOf = (r: SessionRow) => {
   const g = num(r.result?.grid);
   return g != null && g > 0 ? g : null;
@@ -75,8 +115,11 @@ const gridOf = (r: SessionRow) => {
 /** Sessões de corrida e de classificação com o participante (ou com os pilotos de uma equipe). */
 async function sessions(db: Database, where: ReturnType<typeof sql>): Promise<SessionRow[]> {
   return db.execute<SessionRow>(sql`
-    select e.id as event_id, e.competition_id, e.starts_at, se.year, st.name as stage, sd.summary->>'type' as type,
+    select e.id as event_id, e.stage_id, sd.provider, e.competition_id, e.starts_at, se.year, st.name as stage,
+           sd.summary->>'type' as type,
            sd.summary->'fastest_lap'->'driver'->>'id' as fastest,
+           (select max((x.result->>'laps')::int) from core.event_participant x
+             where x.event_id = e.id and x.result->>'laps' ~ '^[0-9]+$') as leader_laps,
            ep.participant_id, ep.position, ep.result
       from core.event_participant ep
       join core.event e on e.id = ep.event_id and e.sport = 'formula-1' and e.status = 'finished'
@@ -89,6 +132,23 @@ async function sessions(db: Database, where: ReturnType<typeof sql>): Promise<Se
          sql`, `,
        )})
      order by e.starts_at`);
+}
+
+/**
+ * Uma linha por piloto em cada sessão de cada GP (`sessionGroup`): sem vínculo entre as fontes, a mesma corrida ou a
+ * mesma pole aparece duas vezes. Vence a do F1DB; entre iguais, a primeira.
+ */
+export function onePerSession<
+  T extends Pick<SessionRow, 'event_id' | 'stage_id' | 'provider' | 'type' | 'participant_id'>,
+>(rows: T[]): T[] {
+  const kept = new Map<string, T>();
+  for (const r of rows) {
+    const key = `${r.stage_id ?? r.event_id}|${sessionGroup((r.type ?? '').toLowerCase())}|${r.participant_id}`;
+    const prev = kept.get(key);
+    if (!prev || (prev.provider !== 'f1db' && r.provider === 'f1db')) kept.set(key, r);
+  }
+  const keep = new Set(kept.values());
+  return rows.filter((r) => keep.has(r));
 }
 
 /**
@@ -160,12 +220,29 @@ async function f1dbIds(db: Database, participantIds: string[]): Promise<Map<stri
   return out;
 }
 
-/** "Kimi Antonelli" + sobrenome "Antonelli" → Kimi / Antonelli; sem sobrenome que feche o nome, a última palavra. */
+/**
+ * "Kimi Antonelli" + sobrenome "Antonelli" → Kimi / Antonelli; sem sobrenome que feche o nome, a última palavra.
+ * Com a mesma grafia, vale a do nome ("Nyck de Vries" + "De Vries" → Nyck / de Vries); com pontuação diferente, o
+ * sobrenome do F1DB ("Carlos Sainz Jr" + "Sainz Jr." → Carlos / Sainz Jr.).
+ */
 export function splitName(name: string, shortName: string | null): { first: string; last: string } {
   const full = name.trim();
   const short = shortName?.trim();
   if (short && full.length > short.length && full.toLowerCase().endsWith(` ${short.toLowerCase()}`))
     return { first: full.slice(0, -short.length).trim(), last: full.slice(-short.length) };
+  const words = (s: string) =>
+    s
+      .toLowerCase()
+      .split(/[\s.]+/)
+      .filter(Boolean);
+  const fullWords = full.split(/\s+/);
+  const shortWords = short ? words(short) : [];
+  if (
+    shortWords.length &&
+    fullWords.length > shortWords.length &&
+    words(fullWords.slice(-shortWords.length).join(' ')).join(' ') === shortWords.join(' ')
+  )
+    return { first: fullWords.slice(0, -shortWords.length).join(' '), last: short! };
   const i = full.lastIndexOf(' ');
   return i > 0 ? { first: full.slice(0, i), last: full.slice(i + 1) } : { first: '', last: full };
 }
@@ -273,7 +350,7 @@ export async function loadRaceCareer(
 ): Promise<RaceCareer> {
   const constructor = participant.kind === 'constructor';
   const ids = constructor ? await constructorProviderIds(db, participant.id) : [];
-  const rows = constructor
+  const allRows = constructor
     ? ids.length
       ? await sessions(
           db,
@@ -284,10 +361,26 @@ export async function loadRaceCareer(
         )
       : []
     : await sessions(db, sql`ep.participant_id = ${participant.id}::uuid`);
-  const races = rows.filter((r) => (r.type ?? '').toLowerCase() === 'race');
+  const rows = onePerSession(allRows);
+  const races = rows.filter((r) => (r.type ?? '').toLowerCase() === 'race' && started(r));
   // volta mais rápida: o espelho traz o id do piloto no fornecedor ("25", "ayrton-senna")
   const keysOf = await driverKeys(db, [...new Set(races.map((r) => r.participant_id))]);
   const fastestBy = (r: SessionRow) => !!r.fastest && !!keysOf.get(r.participant_id)?.has(r.fastest);
+  // pole: a marca do F1DB (`race_pole_position`); sem ela (api-sports), quem largou em 1º, menos nas sprints de 2021
+  // e 2022, em que a sprint definia o grid e a pole era do 1º da classificação (Magnussen, Brasil 2022)
+  const typeOf = (r: SessionRow) => (r.type ?? '').toLowerCase();
+  const qualiPoles = new Set(
+    allRows
+      .filter((r) => POLE_SESSIONS.has(typeOf(r)) && r.position === 1)
+      .map((r) => `${stageKey(r)}|${r.participant_id}`),
+  );
+  const sprintStages = new Set(allRows.filter((r) => typeOf(r) === 'sprint').map(stageKey));
+  const poleOf = (r: SessionRow, year: number) =>
+    typeof r.result?.pole === 'boolean'
+      ? r.result.pole
+      : year <= 2022 && sprintStages.has(stageKey(r))
+        ? qualiPoles.has(`${stageKey(r)}|${r.participant_id}`)
+        : num(r.result?.grid) === 1;
 
   const teams: RaceTeams = await loadRaceTeams(
     db,
@@ -327,6 +420,7 @@ export async function loadRaceCareer(
   const finishes: number[] = [];
   const grids: number[] = [];
   const numbers = new Map<number, Map<number, number>>();
+  const raceNumbers = new Map<number, Map<number, number>>();
   const teamRaces = new Map<string, number>();
   for (const r of rows) {
     if (r.year == null) continue;
@@ -334,19 +428,20 @@ export async function loadRaceCareer(
     const s = season(year);
     const type = (r.type ?? '').toLowerCase();
     const carNumber = num(r.result?.number);
-    if (!constructor && carNumber != null) {
-      const used = numbers.get(year) ?? new Map<number, number>();
-      used.set(carNumber, (used.get(carNumber) ?? 0) + 1);
-      numbers.set(year, used);
-    }
-    if (POLE_SESSIONS.has(type)) {
-      if (r.position === 1) s.poles += 1;
-      continue;
-    }
+    if (!constructor && carNumber != null)
+      for (const tally of type === 'race' ? [numbers, raceNumbers] : [numbers]) {
+        const used = tally.get(year) ?? new Map<number, number>();
+        used.set(carNumber, (used.get(carNumber) ?? 0) + 1);
+        tally.set(year, used);
+      }
+    if (POLE_SESSIONS.has(type)) continue;
     if (SPRINT_POLE_SESSIONS.has(type)) {
       if (r.position === 1) s.sprint.poles += 1;
       continue;
     }
+    // pole vem antes da largada: quem fez a pole e não largou (Leclerc, Mônaco 2021) continua com ela
+    if (type === 'race' && poleOf(r, year)) s.poles += 1;
+    if (!started(r)) continue;
     const pos = classifiedAt(r);
     if (type === 'sprint') {
       if (!countedSprints.has(r.event_id)) {
@@ -414,7 +509,9 @@ export async function loadRaceCareer(
   const profile = constructor ? null : await driverProfile(db, participant.id, locale);
   if (!constructor)
     for (const s of seasons.values()) {
-      const used = [...(numbers.get(s.year) ?? new Map<number, number>()).entries()];
+      const used = [
+        ...(raceNumbers.get(s.year) ?? numbers.get(s.year) ?? new Map<number, number>()).entries(),
+      ];
       const top = used.sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? null;
       s.number = top ?? (s.year >= 2014 ? (profile?.number ?? null) : null);
     }
@@ -465,7 +562,7 @@ export async function loadRaceCareer(
         logo_key: string | null;
         logo_url: string | null;
       }>(sql`
-        select p.id, p.name, count(distinct mine.event_id) as races, array_agg(distinct se.year order by se.year) as seasons,
+        select p.id, p.name, count(distinct coalesce(e.stage_id, e.id)) as races, array_agg(distinct se.year order by se.year) as seasons,
                min(a.storage_key) as logo_key, min(a.source_url) as logo_url
           from core.event_participant mine
           join core.sport_event_detail sd on sd.event_id = mine.event_id and sd.kind = 'race' and lower(sd.summary->>'type') = 'race'
@@ -477,7 +574,7 @@ export async function loadRaceCareer(
           left join core.asset a on a.id = p.logo_asset_id
          where mine.participant_id = ${participant.id}::uuid
          group by p.id, p.name
-         order by count(distinct mine.event_id) desc, p.name
+         order by count(distinct coalesce(e.stage_id, e.id)) desc, p.name
          limit 40`);
 
   // temporada corrente: o bloco "temporada atual" só para quem correu nela (lenda fica sem)

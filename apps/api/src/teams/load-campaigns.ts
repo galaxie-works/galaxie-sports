@@ -71,7 +71,13 @@ export async function loadTeamCompetitions(
   if (!candidateIds.length) return [];
   const seasonRows = await db
     .select({
-      s: { id: season.id, year: season.year, label: season.label, current: season.current },
+      s: {
+        id: season.id,
+        year: season.year,
+        label: season.label,
+        current: season.current,
+        endDate: season.endDate,
+      },
       c: {
         id: competition.id,
         slug: competition.slug,
@@ -147,7 +153,13 @@ export async function loadTeamCompetitions(
         ),
       ),
   ]);
-  const openSeasons = new Set(openRows.map((r) => r.seasonId));
+  // em aberto: com jogo por disputar ou com o calendário ainda por terminar (o F1DB só cria a sessão disputada, mas
+  // fecha a temporada no último GP previsto): a liderança de uma temporada em andamento não é "terminou em"
+  const today = bctx.now.toISOString().slice(0, 10);
+  const openSeasons = new Set([
+    ...openRows.map((r) => r.seasonId),
+    ...selected.filter((r) => r.s.endDate != null && r.s.endDate >= today).map((r) => r.s.id),
+  ]);
 
   // 3. confrontos: jogos das fases de mata-mata disputadas pelo time e os vencedores do fornecedor
   const stageKind = new Map(stages.map((s) => [s.id, s.kind]));

@@ -22,7 +22,8 @@
     "tenant:create": "node --env-file-if-exists=../../.env dist/cli/tenant-create.js",
     "webhook": "node --env-file-if-exists=../../.env dist/cli/webhook.js",
     "webhooks:worker": "node --env-file-if-exists=../../.env dist/webhooks/worker-main.js",
-    "admin:key": "node dist/cli/admin-key.js"
+    "admin:key": "node dist/cli/admin-key.js",
+    "f1:auditoria": "node --env-file-if-exists=../../.env dist/cli/f1-auditoria.js"
   },
   "dependencies": {
     "@galaxie/apisports-client": "workspace:*",
