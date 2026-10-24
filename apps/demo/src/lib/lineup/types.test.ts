@@ -136,6 +136,66 @@ describe('grade como vai ao navegador', () => {
     expect(findInLineup(lineup, 'plan', ID(999))).toBeNull();
   });
 
+  it('preço provado com a moeda e as checagens do validador, por item', () => {
+    const checked = lineupView(
+      {
+        ...raw,
+        plans: [
+          {
+            ...raw.plans[0]!,
+            plan: {
+              ...raw.plans[0]!.plan,
+              // numeric chega como texto do driver
+              priceAmount: '149.90',
+              priceCurrency: 'BRL',
+              verification: {
+                tier: 'official',
+                final_url: 'https://operadora.example/planos',
+                final_host: 'operadora.example',
+                excerpt: 'Plano Essencial. R$ 149,90.',
+                checks: { redirect: 'pass', official: 'pass', list_price: 'pass', inventada: 'pass' },
+                verified: true,
+                checked_at: '2026-10-24T12:00:00Z',
+              },
+            },
+            channels: [
+              {
+                ...raw.plans[0]!.channels[0]!,
+                access: 'unverified',
+                verification: {
+                  tier: 'comparator',
+                  final_url: null,
+                  checks: { official: 'fail', plan_specific: 'fail' },
+                  verified: false,
+                  claimed: { price_amount: 74.95, currency: 'BRL' },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      library,
+    );
+    const plan = checked.plans[0]!;
+    expect(plan.price).toEqual({ amount: 149.9, currency: 'BRL' });
+    expect(plan.verification).toMatchObject({
+      tier: 'official',
+      finalHost: 'operadora.example',
+      verified: true,
+      // só as checagens conhecidas
+      checks: { redirect: 'pass', official: 'pass', list_price: 'pass' },
+    });
+    expect(Object.keys(plan.verification!.checks)).not.toContain('inventada');
+    expect(plan.channels[0]!.fields.access).toBe('unverified');
+    expect(plan.channels[0]!.verification).toMatchObject({
+      tier: 'comparator',
+      verified: false,
+      claimed: { amount: 74.95, currency: 'BRL' },
+    });
+    // sem checagem (pesquisa anterior ao validador): sem preço provado nem verificação
+    expect([lineup.plans[0]!.price, lineup.plans[0]!.verification]).toEqual([null, null]);
+  });
+
   it('vigência do plano', () => {
     expect(planCurrentAt(lineup.plans[0]!, '2026-10-24')).toBe(true);
     expect(planCurrentAt(lineup.plans[0]!, '2027-01-01')).toBe(false);

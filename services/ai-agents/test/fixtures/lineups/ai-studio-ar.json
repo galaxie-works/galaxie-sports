@@ -1,0 +1,226 @@
+{
+  "mercados_latam": [
+    {
+      "pais_iso": "AR",
+      "provedores_ott_detectados": [
+        {
+          "provedor_id": "ar-plataforma-e",
+          "provedor_nome_comercial": "Plataforma E",
+          "planos_comerciais": [
+            {
+              "plano_id": "plan-futbol-total",
+              "plano_nome_comercial": "Plan Fútbol Total",
+              "preco_mensal": 34900,
+              "moeda_iso": "ARS",
+              "link_oficial_marca_url": "https://plataforma-e.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-14",
+              "trecho_da_fonte": "Plan Fútbol Total. $ 34.900. Descuento por 1 mes. $ 31.900. mes. Precio sin Imp. Nac.: $ 28.842,98. CONTRATAR. Incluído. Canal E Sports. Amazon Prime. Pack Fútbol. NFL Game Pass. Toda la Liga Profesional. Toda la Copa Argentina.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "amazon-prime",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-14",
+                  "streaming_trecho_da_fonte": "Incluído. Canal E Sports. Amazon Prime. Pack Fútbol. NFL Game Pass. Toda la Liga Profesional. Toda la Copa Argentina."
+                },
+                {
+                  "streaming_id": "pack-futbol",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-14",
+                  "streaming_trecho_da_fonte": "Incluído. Canal E Sports. Amazon Prime. Pack Fútbol. NFL Game Pass. Toda la Liga Profesional. Toda la Copa Argentina."
+                },
+                {
+                  "streaming_id": "nfl-game-pass",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-14",
+                  "streaming_trecho_da_fonte": "Incluído. Canal E Sports. Amazon Prime. Pack Fútbol. NFL Game Pass. Toda la Liga Profesional. Toda la Copa Argentina."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "CANAL E SPORTS",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-14",
+                  "canal_trecho_da_fonte": "Plan Fútbol Total. $ 34.900... Incluído. Canal E Sports. Amazon Prime. Pack Fútbol. NFL Game Pass."
+                },
+                {
+                  "canal_nome": "TyC Sports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-15",
+                  "canal_trecho_da_fonte": "Plataforma E Flex · Copa Sudamericana por CANAL E SPORTS, Copa Argentina en TyC, acceso a Plataforma E y Prime Video"
+                }
+              ]
+            },
+            {
+              "plano_id": "plan-full",
+              "plano_nome_comercial": "Plan Full",
+              "preco_mensal": 28000,
+              "moeda_iso": "ARS",
+              "link_oficial_marca_url": "https://plataforma-e.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-16",
+              "trecho_da_fonte": "Lista de precios Plataforma E. A con&nuación, te mostramos los precios de cada plan y paquete Premium: DICIEMBRE 2025. Planes. Precio Final. Precio sin impuestos. Plan Lite. $ 13.650. Plan Básico. $ 19.200. Plan Full. $ 28.000. Plan Full con Prime Video. $ 29.000. Plan Básico con Disney + Premium. $ 29.950. Plan Full con Disney + Premium. $ 38.750.",
+              "streamings_e_parceiros_inclusos": [],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "CANAL E SPORTS",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-17",
+                  "canal_trecho_da_fonte": "Partidos de la Copa Sudamericana. Básquet, ciclismo y más. Entretenimiento y noticias."
+                },
+                {
+                  "canal_nome": "ESPN 3",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-17",
+                  "canal_trecho_da_fonte": "Torino vs. Monza. ESPN 3 Andina. 23/10 · 21:30"
+                },
+                {
+                  "canal_nome": "TyC Sports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-17",
+                  "canal_trecho_da_fonte": "TyC Sports Fan. 23/10 · 21:00. TYC Sports FAN."
+                }
+              ]
+            },
+            {
+              "plano_id": "plan-lite-canal-e-sports",
+              "plano_nome_comercial": "Plan Lite + CANAL E SPORTS",
+              "preco_mensal": 12900,
+              "moeda_iso": "ARS",
+              "link_oficial_marca_url": "https://plataforma-e.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-17",
+              "trecho_da_fonte": "Plan Lite + CANAL E SPORTS. Solo. $ 12.900. mes. Precio sin Imp. Nac.: $ 10.661,16. CONTRATAR. Incluído. CANAL E SPORTS. Partidos de la Copa Sudamericana. Básquet, ciclismo y más. Entretenimiento y noticias.",
+              "streamings_e_parceiros_inclusos": [],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "CANAL E SPORTS",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-17",
+                  "canal_trecho_da_fonte": "Plan Lite + CANAL E SPORTS. Solo. $ 12.900. mes. Precio sin Imp. Nac.: $ 10.661,16. CONTRATAR. Incluído. CANAL E SPORTS. Partidos de la Copa Sudamericana."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "provedor_id": "ar-plataforma-f",
+          "provedor_nome_comercial": "Plataforma F",
+          "planos_comerciais": [
+            {
+              "plano_id": "plataforma-f-full",
+              "plano_nome_comercial": "Plataforma F Full",
+              "preco_mensal": 41560,
+              "moeda_iso": "ARS",
+              "link_oficial_marca_url": "https://plataforma-f.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-18",
+              "trecho_da_fonte": "PRECIO DE LISTA PLATAFORMA F FULL : $41.560, PRECIO DE LISTA SIN IMPUESTOS: $34.347. (*) PRECIO PROMOCIONAL: $19.533, PRECIO PROMOCIONAL SIN IMPUESTOS: $16.143. VER DETALLE EN FACTURA/TRANSPARENCIA FISCAL. PROMOCIÓN APLICABLE POR ÚNICA VEZ Y NO ACUMULABLE CON OTROS DESCUENTOS.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "paramount-plus",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-18",
+                  "streaming_trecho_da_fonte": "Suscripciones incluidas. Beneficio. Paramount+. Incluída. Paramount+. Incluido en el plan."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-19",
+                  "canal_trecho_da_fonte": "Los canales que tiene Plataforma F Clásico son más de 80, entre ellos: TV Pública, ESPN, TyC Sports, TN, Telefe, América"
+                },
+                {
+                  "canal_nome": "TyC Sports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-18",
+                  "canal_trecho_da_fonte": "discovery logo nuevo. hbohd logo nuevo. telefe logo nuevo. tyc logo nuevo. tvp logo nuevo. america logo nuevo."
+                }
+              ]
+            },
+            {
+              "plano_id": "plataforma-f-plus",
+              "plano_nome_comercial": "Plataforma F Plus",
+              "preco_mensal": 87480,
+              "moeda_iso": "ARS",
+              "link_oficial_marca_url": "https://plataforma-f.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-20",
+              "trecho_da_fonte": "PRECIO DE LISTA PLATAFORMA F+: $87.480, PRECIO DE LISTA SIN IMPUESTOS: $72.298; (*) PRECIO PROMOCIONAL: $54.238, PRECIO PROMOCIONAL SIN IMPUESTOS: $44.824. VER DETALLE EN FACTURA/TRANSPARENCIA FISCAL.LA GRILLA DE CANALES DISPONIBLE PARA CADA CLIENTE DEPENDERÁ DEL SERVICIO CONTRATADO. PROMOCIONES NO ACUMULABLES CON OTROS DESCUENTOS.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "paramount-plus",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-21",
+                  "streaming_trecho_da_fonte": "A su vez, la oferta de Plataforma F también brinda sin costo adicional Paramount+."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-19",
+                  "canal_trecho_da_fonte": "Los canales que tiene Plataforma F Clásico son más de 80, entre ellos: TV Pública, ESPN, TyC Sports, TN, Telefe, América"
+                },
+                {
+                  "canal_nome": "TyC Sports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-18",
+                  "canal_trecho_da_fonte": "discovery logo nuevo. hbohd logo nuevo. telefe logo nuevo. tyc logo nuevo. tvp logo nuevo. america logo nuevo."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "provedor_id": "ar-plataforma-g",
+          "provedor_nome_comercial": "Plataforma G",
+          "planos_comerciais": [
+            {
+              "plano_id": "plataforma-g-tv-max",
+              "plano_nome_comercial": "Plataforma G TV Max",
+              "preco_mensal": 30080,
+              "moeda_iso": "ARS",
+              "link_oficial_marca_url": "https://plataforma-g.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-22",
+              "trecho_da_fonte": "Plataforma G TV Max. 1 mes gratis. $15.040 x mes. Antes $30.080. Precio sin impuestos nacionales$12.430. Plataforma G TV. Contratá Plataforma G TV y aprovechá el primer mes gratis. Lo mejor del deporte, TV en vivo y tus series favoritas en un solo lugar. Contratar Plataforma G TV.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "disney-plus-premium",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-23",
+                  "streaming_trecho_da_fonte": "Según tu plan, podés tener Disney+ Plan Premium incluido, con lo melhor de Disney, Pixar, Marvel, Star Wars, National Geographic, ESPN y Hulu. Ideal para toda la familia."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-24",
+                  "canal_trecho_da_fonte": "Los mejores canales disponibles. Ver la grilla de canales completa. ESPN. Telefe. Tyc-Sport. Amc Series. Discovery Home and Health."
+                },
+                {
+                  "canal_nome": "TyC Sports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-24",
+                  "canal_trecho_da_fonte": "Los mejores canales disponibles. Ver la grilla de canales completa. ESPN. Telefe. Tyc-Sport. Amc Series. Discovery Home and Health."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "provedor_id": "ar-plataforma-h",
+          "provedor_nome_comercial": "Plataforma H Play",
+          "planos_comerciais": [
+            {
+              "plano_id": "plataforma-h-play-app",
+              "plano_nome_comercial": "Plataforma H Play (App Digital)",
+              "preco_mensal": 6256,
+              "moeda_iso": "ARS",
+              "link_oficial_marca_url": "https://plataforma-h.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-25",
+              "trecho_da_fonte": "También podés pagar solo por la app de Plataforma H Play a un precio de $6.256 por mes. Plataforma H Play 53 señales de televisión en vivo, series y pelis on demand $6.256 por mes. Ver canales de Plataforma H Play.",
+              "streamings_e_parceiros_inclusos": [],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-26",
+                  "canal_trecho_da_fonte": "A su vez, de manera online se podrá seguir por Disney+, el servicio de streaming que ofrece ESPN o accediendo a ESPN a través de Plataforma H Play, Plataforma E y Plataforma Isión Plataforma F."
+                },
+                {
+                  "canal_nome": "Fox Sports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-27",
+                  "canal_trecho_da_fonte": "A su vez, de manera online se podrá seguir por Disney+, el servicio de streaming que ofrece ESPN o accediendo a Fox Sports a través de Plataforma H Play, Plataforma E y Plataforma F."
+                },
+                {
+                  "canal_nome": "TyC Sports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-28",
+                  "canal_trecho_da_fonte": "Fútbol (básicos) Grilla Completa de Canales - Plataforma H Play 2025. TyC Sports 106 1016. FOX Sports 101 1013. FOX Sports 2 102 1014. FOX Sports 3 103 1015. ESPN 105 1011."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
