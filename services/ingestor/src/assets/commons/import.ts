@@ -268,13 +268,24 @@ export async function importCommons(
   return report;
 }
 
+/** Nota mínima do Gemini (`hero`) para a foto do carro ir ao fundo do heading. */
+export const HERO_MIN = 0.5;
+
 /**
  * Foto do carro de destaque: a primeira não rejeitada e sem CC BY-SA. O heading recorta a foto no navegador
  * (cover), o que é uma adaptação; BY-SA pediria a mesma licença na obra derivada. Só BY-SA no carro: o piloto
  * fica sem destaque (o heading usa a cor da equipe), e as fotos seguem na galeria, inteiras e com crédito.
+ * Com a nota do Gemini para o fundo (`hero`): a curadoria manual primeiro, depois a de maior nota a partir de
+ * `HERO_MIN` (close de gente, detalhe ou pessoa moderna em primeiro plano ficam de fora).
  */
 export function highlightPhoto(car: ManifestEntry | undefined): ManifestPhoto | undefined {
-  return car?.photos.find((p) => p.match !== 'rejected' && !p.share_alike);
+  const ok = (car?.photos ?? []).filter((p) => p.match !== 'rejected' && !p.share_alike);
+  if (!ok.some((p) => p.hero != null)) return ok[0];
+  return ok
+    .filter((p) => p.match === 'manual' || (p.hero ?? 0) >= HERO_MIN)
+    .sort(
+      (a, b) => Number(b.match === 'manual') - Number(a.match === 'manual') || (b.hero ?? 0) - (a.hero ?? 0),
+    )[0];
 }
 
 /**

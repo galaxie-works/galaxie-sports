@@ -39,6 +39,8 @@ export interface ManifestPhoto {
   width: number;
   height: number;
   reason?: string | null;
+  /** Carro: nota do Gemini (0–1) para o fundo do heading; abaixo de `HERO_MIN`, a foto não vai ao fundo. */
+  hero?: number;
 }
 
 export interface ManifestEntry {
@@ -133,6 +135,7 @@ const photoOf = (c: ChosenPhoto, license: CommonsLicense): ManifestPhoto => {
     width: f.width,
     height: f.height,
     ...(c.reason ? { reason: c.reason } : {}),
+    ...(c.hero != null ? { hero: c.hero } : {}),
   };
 };
 

@@ -75,6 +75,7 @@ Cada candidato vira um alvo `car/<construtor>/<ano>`. No manifesto, o primeiro f
 4. **Ordem.**
    - No mapeamento (`--mapear`, dev) valem só as regras: foto do Wikidata, retrato, temporada, época e resolução.
    - O passo do Gemini é separado (`assets-commons-ordenar`, na VPS, onde a chave funciona). O Gemini (visão) classifica as 12 melhores pelas regras em retrato, ação, carro ou outro, descarta o que não é foto real e dá a nota.
+   - Nas fotos de carro, o Gemini também dá a nota `hero` (0 a 1): o quanto a foto serve de fundo do heading. A preferência é: foto de corrida da temporada com o piloto no carro (0,8 a 1), depois o carro em ação num evento histórico (0,6 a 0,8), depois o carro parado e inteiro (0,4 a 0,6). Close de pessoas, carro incompleto ou só um detalhe, e pessoa moderna em primeiro plano ficam com no máximo 0,2. A importação só leva ao fundo foto com nota a partir de `HERO_MIN` (0,5), a maior primeiro. Sem nenhuma, vale o próximo carro candidato. O carro guarda a foto de maior nota mesmo fora das 3 de mais qualidade (a de corrida de 1950 perde em nitidez para a do museu).
    - O Gemini **não acrescenta** nada e não identifica pessoas pelo rosto.
    - O alvo ordenado guarda o modelo e a data (`ranking` no manifesto). Nem o mapeamento por regras nem uma nova ordenação o refazem sem `--refazer`. Se o Gemini falhar, o alvo fica como estava.
 5. **Escolha.**
@@ -97,7 +98,8 @@ pnpm --filter @galaxie/ingestor assets:commons
   - `--novos`: só os alvos do escopo que ainda não estão no manifesto;
   - `--manifesto <arquivo>`;
   - `--refazer`: refaz também os alvos já ordenados pelo Gemini.
-- **Ordem do Gemini** (VPS, ver "Produção"): `assets-commons-ordenar --plan` mostra os alvos a ordenar sem chamar nada. Sem `--plan`, ordena e grava o manifesto em `--saida`. Opções: `--so`, `--limite <n>`, `--refazer`; ambiente: `GEMINI_API_KEY` e `GEMINI_MODEL_VISION`.
+- **Ordem do Gemini** (VPS, ver "Produção"): `assets-commons-ordenar --plan` mostra os alvos a ordenar sem chamar nada. Sem `--plan`, ordena e grava o manifesto em `--saida`. Opções: `--so`, `--tipo car|driver`, `--limite <n>`, `--refazer`; ambiente: `GEMINI_API_KEY` e `GEMINI_MODEL_VISION`. `--tipo car --refazer` refaz os carros com a nota do fundo.
+- **Prancha do fundo** (`assets-commons-prancha --manifesto <ordenado> --antes <anterior> --saida prancha.html`): uma página com o fundo do heading de cada piloto (miniatura da Commons, carro, temporada, nota e crédito). Os trocados em relação ao manifesto `--antes` e os sem fundo vêm primeiro. Só lê os manifestos.
 - **Pré-requisito:** o F1DB no core e no raw, com as tabelas de equipes e chassis (`f1db:import`; a `--previa` já grava o raw).
 - **Etiqueta da Wikimedia:**
   - User-Agent com o projeto e a URL do repositório, sem e-mail;
