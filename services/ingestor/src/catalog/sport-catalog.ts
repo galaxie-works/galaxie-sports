@@ -8,7 +8,14 @@ import { isProviderMediaUrl, type ApiSport, type Params } from '@galaxie/apispor
 import type { I18nText } from '@galaxie/db';
 import { F1_COMPETITION_ID, MMA_COMPETITION_ID } from '@galaxie/providers';
 import type { SportCatalogCompetition } from './catalog-config.js';
-import { mergeSameYear, seasonLabel, slugify, type ApiSeason } from './football-catalog.js';
+import {
+  canonicalCountryName,
+  mergeSameYear,
+  seasonLabel,
+  slugify,
+  UK_NATIONS,
+  type ApiSeason,
+} from './football-catalog.js';
 import type { CatalogRows, CompetitionRow, CountryRow, ParticipantRow, VenueRow } from './persist.js';
 
 export const OTHER_SPORTS = [
@@ -86,12 +93,6 @@ const REGIONS = new Set([
 ]);
 
 /** Nações do Reino Unido: o rúgbi devolve "GB" para as três; o futebol (e config/geo) usa GB-ENG etc. */
-const UK_NATIONS: Record<string, string> = {
-  england: 'GB-ENG',
-  scotland: 'GB-SCT',
-  wales: 'GB-WLS',
-  'northern-ireland': 'GB-NIR',
-};
 
 /** Mesmo critério do futebol (ISO2 ou "WORLD"), tolerando código em branco e regiões com código. */
 export function sportCountryCode(c: ProviderCountry): string {
@@ -109,7 +110,11 @@ function countryRows(list: ProviderCountry[]): CountryRow[] {
     const code = sportCountryCode(c);
     const prev = map.get(code);
     const flag = c.flag && isProviderMediaUrl(c.flag) ? c.flag : null;
-    map.set(code, { code, name: { en: c.name.trim() }, flagUrl: prev?.flagUrl ?? flag });
+    map.set(code, {
+      code,
+      name: canonicalCountryName(code, { en: c.name.trim() }),
+      flagUrl: prev?.flagUrl ?? flag,
+    });
   }
   return [...map.values()];
 }

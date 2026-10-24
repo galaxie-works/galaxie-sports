@@ -34,6 +34,7 @@ const SCHEMA = {
       kind: { type: 'STRING', enum: ['portrait', 'action', 'car', 'other'] },
       keep: { type: 'BOOLEAN' },
       quality: { type: 'INTEGER' },
+      hero: { type: 'NUMBER' },
       reason: { type: 'STRING' },
     },
     required: ['index', 'kind', 'keep', 'quality'],
@@ -48,6 +49,13 @@ export function rankPrompt(subject: string, kind: 'driver' | 'car', count: numbe
   return [
     `Você recebe ${count} fotos candidatas (índices 0 a ${count - 1}, na ordem em que aparecem) ${what}.`,
     'Para cada foto, responda: index, kind, keep (true só para fotografia real e bem feita; false para ilustração, pintura, estátua, mural, pôster, captura de tela, montagem, foto borrada ou cortada demais), quality (0 a 10: nitidez, enquadramento, luz, interesse editorial para TV) e reason (curta, em português).',
+    ...(kind === 'car'
+      ? [
+          'Para cada foto, responda também hero (0 a 1): o quanto ela serve de fundo largo do topo da página do piloto, com o carro à direita e o texto sobre o resto.',
+          'Prefira, nesta ordem: (1) foto de corrida da própria temporada, com o piloto no carro (0,8 a 1); (2) o carro em ação num evento histórico, como Goodwood ou o Nürburgring Classic (0,6 a 0,8); (3) o carro parado e inteiro, num museu ou exposição (0,4 a 0,6).',
+          'Dê no máximo 0,2 para: close de pessoas; carro que não aparece inteiro ou só como detalhe (roda, cockpit, motor, bico); pessoa moderna identificável em primeiro plano; multidão ou objeto cobrindo o carro.',
+        ]
+      : []),
     'Não tente identificar a pessoa pelo rosto: a identidade já foi conferida pela categoria da Wikimedia Commons.',
   ].join('\n');
 }
@@ -93,6 +101,9 @@ export async function rankWithGemini(
       kind: j.kind,
       keep: !!j.keep,
       quality: Math.max(0, Math.min(10, Math.round(j.quality))),
+      ...(kind === 'car' && typeof j.hero === 'number'
+        ? { hero: Math.round(Math.max(0, Math.min(1, j.hero)) * 100) / 100 }
+        : {}),
       ...(j.reason ? { reason: j.reason } : {}),
     }));
 }

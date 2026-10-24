@@ -161,6 +161,28 @@ describe('regras de escolha', () => {
     expect(b.map((c) => c.role)).toEqual(['portrait', 'action', 'action', 'action']);
   });
 
+  it('retrato: o mais recente, mesmo que outro tenha nota maior (Hamilton na Ferrari, não na Mercedes)', () => {
+    const d = discovery([
+      {
+        f: file('File:Retrato 1988.jpg', { width: 4000, height: 3000 }),
+        p18: true,
+        portrait: true,
+        season: 1988,
+      },
+      { f: file('File:Retrato 1991.jpg'), portrait: true, season: 1991 },
+      { f: file('File:Retrato sem data.jpg'), portrait: true },
+    ]);
+    const portrait = choose(d, eligible(d).ok, null).find((c) => c.role === 'portrait');
+    expect(portrait?.eligible.candidate.file.title).toBe('File:Retrato 1991.jpg');
+    // com IA, entre os que ela classificou como retrato
+    const ai = choose(d, eligible(d).ok, [
+      { index: 0, kind: 'portrait', keep: true, quality: 9 },
+      { index: 1, kind: 'portrait', keep: true, quality: 6 },
+      { index: 2, kind: 'action', keep: true, quality: 8 },
+    ]).find((c) => c.role === 'portrait');
+    expect(ai?.eligible.candidate.file.title).toBe('File:Retrato 1991.jpg');
+  });
+
   it('com IA: só entra o que ela manteve, na ordem da nota dela', () => {
     const d = discovery([
       { f: file('File:Estatua.jpg') },
