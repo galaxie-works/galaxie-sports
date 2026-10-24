@@ -74,11 +74,36 @@ describe('scheduleFromEnv', () => {
       'related-run',
       'wtw-rights',
       'review-suggestions',
+      'lineups-revisit',
+      'channel-lists',
     ]);
     expect(jobs.every((j) => j.cwd === '../ai-agents')).toBe(true);
     expect(jobsForProfile(undefined)).toBe(DEFAULT_JOBS);
     expect(jobsForProfile(' Agents ')).toBe(AGENT_JOBS);
     expect(() => jobsForProfile('api')).toThrow(/SCHEDULER_PROFILE inválido/);
+  });
+
+  it('revisita a grade de canais e ofertas uma vez por dia, com teto de pesquisas por execução', () => {
+    const job = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents' }).find((j) => j.name === 'lineups-revisit')!;
+    expect(job).toMatchObject({
+      cron: '50 4 * * *',
+      script: 'dist/cli/lineups-research.js',
+      cwd: '../ai-agents',
+      args: ['--revisitar', '--dias', '30', '--max', '4'],
+    });
+    expect(
+      scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_LINEUPS_REVISIT: 'off' }),
+    ).not.toContainEqual(expect.objectContaining({ name: 'lineups-revisit' }));
+  });
+
+  it('confere as sobras das listas de canais a cada 10 min, repetindo as que falharam', () => {
+    const job = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents' }).find((j) => j.name === 'channel-lists')!;
+    expect(job).toMatchObject({
+      cron: '*/10 * * * *',
+      script: 'dist/cli/channel-lists.js',
+      cwd: '../ai-agents',
+      args: ['--max', '10', '--repetir-falhas'],
+    });
   });
 
   it('recusa expressão cron inválida com mensagem legível', () => {

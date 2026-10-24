@@ -7,8 +7,11 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  asset,
+  assetCredit,
   broadcaster,
   broadcastOption,
   closeDb,
@@ -46,6 +49,8 @@ let redis: Redis;
 let app: FastifyInstance;
 let eventId: string;
 let emptyEventId: string;
+/** Jogo só com o detentor dos direitos ("canal a confirmar", opção `probable`). */
+let probableEventId: string;
 /** Ids das plataformas: a operadora do cliente, a concorrente, o streaming e uma ainda em rascunho. */
 const ids = { operator: '', rival: '', streaming: '', draft: '' };
 /** Chaves: sem operadora, operadora só com a própria grade, operadora vendo as concorrentes, outro mercado. */
@@ -74,9 +79,10 @@ beforeAll(async () => {
     startsAt: kickoff,
     endsAtExpected: new Date(kickoff.getTime() + 7_200_000),
   };
-  const [ev, empty] = await db.insert(event).values([game, game]).returning();
+  const [ev, empty, probable] = await db.insert(event).values([game, game, game]).returning();
   eventId = ev!.id;
   emptyEventId = empty!.id;
+  probableEventId = probable!.id;
 
   // biblioteca de emissoras: canais e streamings (logo com origem http, sem storage)
   const lib = (id: string, name: string, kind: 'free_tv' | 'pay_tv' | 'streaming') => ({
@@ -113,13 +119,18 @@ beforeAll(async () => {
     evidence: [],
     producedBy: 'editorial:teste',
   });
-  await db
-    .insert(broadcastOption)
-    .values([
-      option('Canal Aberto Exemplo', 'canal_aberto_exemplo', 'free_tv'),
-      option('Canal Exemplo', 'canal_exemplo', 'pay_tv'),
-      option('Streaming Exemplo', 'streaming_exemplo', 'streaming_svod'),
-    ]);
+  await db.insert(broadcastOption).values([
+    option('Canal Aberto Exemplo', 'canal_aberto_exemplo', 'free_tv'),
+    option('Canal Exemplo', 'canal_exemplo', 'pay_tv'),
+    option('Streaming Exemplo', 'streaming_exemplo', 'streaming_svod'),
+    // o outro jogo: o canal pago tem os direitos, mas o canal deste jogo não foi confirmado
+    {
+      ...option('Canal Exemplo', 'canal_exemplo', 'pay_tv'),
+      eventId: probable!.id,
+      status: 'probable' as const,
+      confidence: '0.6',
+    },
+  ]);
 
   // grade: plataformas, planos e vínculos (aprovados, salvo a plataforma em rascunho)
   const addPlatform = async (
@@ -148,6 +159,24 @@ beforeAll(async () => {
     return p!.id;
   };
   ids.operator = await addPlatform('br-operadora-exemplo', 'Operadora Exemplo', 'pay_tv_operator');
+  // logo da operadora vindo da Commons, com o crédito (assets:platform-logos)
+  const [logo] = await db
+    .insert(asset)
+    .values({
+      kind: 'broadcaster_logo',
+      sourceUrl: 'https://cdn.exemplo.test/operadora-exemplo.png',
+      origin: 'commons',
+    })
+    .returning();
+  await db.insert(assetCredit).values({
+    assetId: logo!.id,
+    source: 'wikimedia-commons',
+    title: 'File:Operadora Exemplo logo.svg',
+    pageUrl: 'https://commons.wikimedia.org/wiki/File:Operadora_Exemplo_logo.svg',
+    license: 'Public domain',
+    attributionRequired: false,
+  });
+  await db.update(platform).set({ logoAssetId: logo!.id }).where(eq(platform.id, ids.operator));
   ids.rival = await addPlatform('br-operadora-exemplo-dois', 'Operadora Exemplo Dois', 'pay_tv_operator');
   ids.streaming = await addPlatform(
     'br-streaming-exemplo',
@@ -239,7 +268,16 @@ describe('GET /v1/events/{id}/where-to-watch → availability', () => {
       name: 'Operadora Exemplo',
       kind: 'pay_tv_operator',
       country: 'BR',
+      logo: 'https://cdn.exemplo.test/operadora-exemplo.png',
+      logo_credit: {
+        source: 'Wikimedia Commons',
+        title: 'File:Operadora Exemplo logo.svg',
+        license: 'Public domain',
+        attribution_required: false,
+        text: 'Logo: Wikimedia Commons · Public domain',
+      },
     });
+    expect(body.availability.channel_status).toBe('confirmed');
     const plans = Object.fromEntries(
       (operator.plans as { name: string }[]).map((p) => [p.name, p]),
     ) as Record<string, unknown>;
@@ -301,10 +339,33 @@ describe('GET /v1/events/{id}/where-to-watch → availability', () => {
       pay_tv_channels: [],
       platforms: [],
       your_operator: null,
+      channel_status: 'confirmed',
     });
     const own = (await get(`/v1/events/${emptyEventId}/where-to-watch?country=BR`, keys.own)).json();
     expect(own.availability.platforms).toEqual([]);
     expect(own.availability.your_operator).toMatchObject({ platform: { id: ids.operator }, plans: [] });
+  });
+
+  it('canal a confirmar: os detentores no lugar dos canais e as plataformas que os carregam', async () => {
+    const res = await get(`/v1/events/${probableEventId}/where-to-watch?country=BR`, keys.plain);
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.options).toEqual([]);
+    expect(body.to_confirm.map((c: { provider_id: string }) => c.provider_id)).toEqual(['canal_exemplo']);
+    expect(body.availability).toMatchObject({
+      channel_status: 'to_confirm',
+      free_tv: [],
+      pay_tv_channels: [{ id: 'canal_exemplo', name: 'Canal Exemplo' }],
+    });
+    expect(platformIds(body)).toEqual([ids.operator, ids.rival]);
+    expect(body.availability.platforms[0].plans.map((p: { name: string }) => p.name).sort()).toEqual([
+      'Plano Básico',
+      'Plano Top',
+    ]);
+    // a operadora só com a própria grade continua só com a dela
+    const own = (await get(`/v1/events/${probableEventId}/where-to-watch?country=BR`, keys.own)).json();
+    expect(platformIds(own)).toEqual([ids.operator]);
+    expect(own.availability.your_operator.plans).toHaveLength(2);
   });
 
   it('piso do servidor mais baixo (LINEUP_MIN_REVIEW_STATUS=draft) mostra a plataforma em rascunho', async () => {

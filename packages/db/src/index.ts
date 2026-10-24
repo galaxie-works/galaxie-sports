@@ -1,6 +1,7 @@
 export * from './schema/index.js';
 export { createDb, closeDb, pingDb, type Database, type CreateDbOptions } from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
+export { loadTitleRecords, titleCoverage, type TitleQuery, type TitleRecord } from './titles.js';
 export { publishChange, CHANGE_FEED_CHANNEL, type ChangeInput } from './change-feed.js';
 export {
   readEventContext,
@@ -109,3 +110,15 @@ export {
   type CreateLineupReviewRequestInput,
   type ResolveLineupReviewRequestInput,
 } from './lineups.js';
+export {
+  confirmChannelList,
+  deleteChannelList,
+  getChannelList,
+  getConfirmedChannelList,
+  listChannelListsForAi,
+  saveChannelList,
+  saveChannelListAi,
+  setChannelListOverrides,
+  type SaveChannelListInput,
+  type TenantChannelList,
+} from './channel-lists.js';

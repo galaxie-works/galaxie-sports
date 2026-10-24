@@ -123,6 +123,8 @@ export type GsAccessModel = 'free' | 'subscription' | 'ppv' | 'unknown';
 export interface GsWatchOption {
   id: string;
   provider: string;
+  /** Id da emissora na biblioteca (liga a opção aos canais do bloco `availability`). */
+  provider_id?: string | null;
   channel: string | null;
   medium: GsBroadcastMedium;
   access_model: GsAccessModel;
@@ -134,10 +136,56 @@ export interface GsWatchOption {
 
 export interface GsWatchToConfirm {
   provider: string;
+  provider_id?: string | null;
   medium: GsBroadcastMedium;
   access_model: GsAccessModel;
   logo: string | null;
   logo_dark: string | null;
+}
+
+/** Canal ou streaming da biblioteca de emissoras (bloco `availability`). */
+export interface GsAvailabilityLogo {
+  id: string;
+  name: string;
+  logo: string | null;
+  logo_dark: string | null;
+}
+
+export type GsPlanAccess = 'included' | 'addon';
+export type GsPlatformKind = 'pay_tv_operator' | 'vmvpd' | 'telco_bundle' | 'streaming';
+
+export interface GsPlatform {
+  id: string;
+  name: string;
+  kind: GsPlatformKind;
+  broadcaster_id: string | null;
+  logo: string | null;
+  logo_dark: string | null;
+  /** Crédito do logo da Commons (null no acervo oficial); `text` pronto para exibir. */
+  logo_credit?: { text: string; page_url: string; attribution_required: boolean } | null;
+}
+
+export interface GsAvailabilityPlan {
+  id: string;
+  name: string;
+  access: GsPlanAccess;
+  via_channels: (GsAvailabilityLogo & { access: GsPlanAccess })[];
+  included_services: GsAvailabilityLogo[];
+}
+
+export interface GsPlatformAvailability {
+  platform: GsPlatform;
+  plans: GsAvailabilityPlan[];
+}
+
+/** Onde assistir agrupado: TV aberta, canais pagos e as plataformas ("disponível também em"). */
+export interface GsAvailability {
+  free_tv: GsAvailabilityLogo[];
+  pay_tv_channels: GsAvailabilityLogo[];
+  platforms: GsPlatformAvailability[];
+  your_operator: GsPlatformAvailability | null;
+  /** `to_confirm`: o canal do jogo não foi confirmado; os grupos são os dos detentores dos direitos. */
+  channel_status?: 'confirmed' | 'to_confirm';
 }
 
 export interface GsWhereToWatch {
@@ -147,6 +195,8 @@ export interface GsWhereToWatch {
   message: string | null;
   options: GsWatchOption[];
   to_confirm: GsWatchToConfirm[];
+  /** Ausente em respostas antigas (cópias em cache): o widget cai para a lista por mídia. */
+  availability?: GsAvailability | null;
 }
 
 // ─── tema ────────────────────────────────────────────────────────────────────────────────────────
@@ -338,6 +388,28 @@ export const WIDGET_CSS = `
 .gs-skeleton{display:block;height:12px;border-radius:999px;background:linear-gradient(90deg,color-mix(in srgb,var(--gs-foreground) 6%,transparent) 0%,color-mix(in srgb,var(--gs-foreground) 13%,transparent) 50%,color-mix(in srgb,var(--gs-foreground) 6%,transparent) 100%);background-size:200% 100%;animation:gs-shimmer 1.3s linear infinite}
 @keyframes gs-shimmer{to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.gs-dot,.gs-skeleton{animation:none}}
+.gs-tiles{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.gs-tile{display:flex;flex-direction:column;align-items:center;gap:6px;width:96px;padding:8px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.75);text-align:center;font-size:.8em;font-weight:600;line-height:1.2;color:var(--gs-foreground);text-decoration:none}
+.gs-tile[data-to-confirm]{border-style:dashed}
+a.gs-tile:hover{border-color:var(--gs-primary)}
+.gs-tile .gs-logo{width:72px;height:32px;object-position:center}
+.gs-cards{display:flex;flex-direction:column;gap:8px}
+.gs-platform{display:flex;flex-direction:column;gap:8px;padding:calc(var(--gs-pad)*.75);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.75);min-width:0}
+.gs-platform[data-mine]{border-color:color-mix(in srgb,var(--gs-primary) 55%,transparent);background:color-mix(in srgb,var(--gs-primary) 7%,transparent)}
+.gs-platform-head{display:flex;flex-wrap:wrap;align-items:center;gap:var(--gs-gap);min-width:0}
+.gs-platform-head .gs-watch-text{min-width:8em}
+.gs-platform-name{overflow-wrap:break-word;line-height:1.2}
+.gs-plan{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid var(--gs-border)}
+.gs-plan-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-weight:600}
+.gs-pill{display:inline-flex;padding:1px 8px;border-radius:999px;font-size:.72em;font-weight:700;color:#15803d;background:color-mix(in srgb,#16a34a 14%,transparent)}
+.gs-pill[data-access=addon]{color:#b45309;background:color-mix(in srgb,#d97706 15%,transparent)}
+.gs-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.gs-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:3px 8px 3px 4px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);font-size:.8em}
+.gs-chip .gs-logo,.gs-chip .gs-logo.gs-initials{width:36px;height:20px;font-size:8px}
+.gs-notice{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px dashed var(--gs-border);border-radius:calc(var(--gs-radius)*.75);background:color-mix(in srgb,var(--gs-foreground) 4%,transparent)}
+.gs-notice strong{font-size:.9em}
+.gs-credit{font-size:.68em;color:var(--gs-muted-foreground);text-decoration:none}
+.gs-credit:hover{text-decoration:underline}
 .gs-sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);border:0}
 `;
 
@@ -376,6 +448,20 @@ export interface WidgetTexts {
   };
   media: Record<GsBroadcastMedium, string>;
   access: Record<GsAccessModel, string>;
+  /** Onde assistir agrupado (bloco `availability`). */
+  watchGroups: {
+    freeTv: string;
+    payTv: string;
+    alsoOn: string;
+    included: string;
+    addon: string;
+    includedServices: string;
+    yourOperator: string;
+    notInYourOperator: string;
+    toConfirmTitle: string;
+    toConfirmHint: string;
+    kind: Record<GsPlatformKind, string>;
+  };
 }
 
 const TEXTS: Record<WidgetLocale, WidgetTexts> = {
@@ -422,6 +508,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       radio: 'Rádio',
     },
     access: { free: 'Grátis', subscription: 'Assinatura', ppv: 'Pay-per-view', unknown: '' },
+    watchGroups: {
+      freeTv: 'TV aberta',
+      payTv: 'Canais pagos',
+      alsoOn: 'Disponível também em',
+      included: 'Incluso',
+      addon: 'Adicional',
+      includedServices: 'Streamings inclusos',
+      yourOperator: 'Sua operadora',
+      notInYourOperator: 'Este jogo não está na grade da sua operadora.',
+      toConfirmTitle: 'Canal deste jogo a confirmar',
+      toConfirmHint:
+        'Quem tem os direitos no país e onde esses canais estão. O canal do jogo sai mais perto da partida.',
+      kind: {
+        pay_tv_operator: 'Operadora de TV paga',
+        vmvpd: 'TV paga pela internet',
+        telco_bundle: 'Pacote de telefonia e TV',
+        streaming: 'Streaming',
+      },
+    },
   },
   es: {
     status: {
@@ -466,6 +571,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       radio: 'Radio',
     },
     access: { free: 'Gratis', subscription: 'Suscripción', ppv: 'Pay-per-view', unknown: '' },
+    watchGroups: {
+      freeTv: 'TV abierta',
+      payTv: 'Canales pagos',
+      alsoOn: 'Disponible también en',
+      included: 'Incluido',
+      addon: 'Adicional',
+      includedServices: 'Streamings incluidos',
+      yourOperator: 'Tu operadora',
+      notInYourOperator: 'Este partido no está en la grilla de tu operadora.',
+      toConfirmTitle: 'Canal de este partido a confirmar',
+      toConfirmHint:
+        'Quién tiene los derechos en el país y dónde están esos canales. El canal del partido se conoce más cerca del encuentro.',
+      kind: {
+        pay_tv_operator: 'Operadora de TV paga',
+        vmvpd: 'TV paga por internet',
+        telco_bundle: 'Paquete de telefonía y TV',
+        streaming: 'Streaming',
+      },
+    },
   },
   en: {
     status: {
@@ -510,6 +634,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       radio: 'Radio',
     },
     access: { free: 'Free', subscription: 'Subscription', ppv: 'Pay-per-view', unknown: '' },
+    watchGroups: {
+      freeTv: 'Free-to-air TV',
+      payTv: 'Pay TV channels',
+      alsoOn: 'Also available on',
+      included: 'Included',
+      addon: 'Add-on',
+      includedServices: 'Streaming included',
+      yourOperator: 'Your operator',
+      notInYourOperator: 'This match is not in the lineup of your operator.',
+      toConfirmTitle: 'Channel for this match to be confirmed',
+      toConfirmHint:
+        'Rights holders in this country and where those channels are. The match channel is announced closer to kick-off.',
+      kind: {
+        pay_tv_operator: 'Pay TV operator',
+        vmvpd: 'Live TV streaming',
+        telco_bundle: 'Telecom bundle with TV',
+        streaming: 'Streaming',
+      },
+    },
   },
 };
 

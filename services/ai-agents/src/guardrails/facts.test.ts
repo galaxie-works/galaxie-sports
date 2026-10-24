@@ -124,3 +124,28 @@ describe('checkFacts — cenário', () => {
     expect(checkFacts('Club 9 de Octubre recibe a Once Caldas.', s, 'es-EC')).toEqual([]);
   });
 });
+
+describe('checkFacts — ordinais de título (tetra, penta)', () => {
+  const s = new FactSheetBuilder()
+    .name('Palmeiras', 'Estudiantes', 'Libertadores', 'São Paulo')
+    .number(3, 4, 5)
+    .build();
+
+  it('aceita tetra e penta quando 4 e 5 estão nos fatos', () => {
+    expect(checkFacts('O Palmeiras busca o tetra; o Estudiantes, o pentacampeonato.', s, 'pt-BR')).toEqual(
+      [],
+    );
+    expect(checkFacts('Estudiantes va por el pentacampeonato.', s, 'es-AR')).toEqual([]);
+  });
+
+  it('recusa ordinal fora dos fatos (hexa = 6) em pt e es', () => {
+    expect(checkFacts('O Palmeiras busca o hexa.', s, 'pt-BR').map((v) => v.value)).toEqual(['hexa']);
+    expect(checkFacts('Palmeiras es hexacampeón.', s, 'es-AR').map((v) => v.value)).toEqual(['hexacampeon']);
+  });
+
+  it('não confunde "tricolor" com tricampeão', () => {
+    expect(checkFacts('O Tricolor recebe o Palmeiras.', s, 'pt-BR').map((v) => v.kind)).not.toContain(
+      'unknown_number',
+    );
+  });
+});

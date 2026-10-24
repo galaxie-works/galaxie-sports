@@ -16,6 +16,8 @@ e normaliza no core como segunda fonte da F1, ao lado da api-sports. Estudo e de
 | Grid de largada, pit stops (1994+, completo desde 2003) e voltas mais rápidas | `sport_event_detail.detail` da corrida | Total de paradas por piloto em `result.pits` |
 | Campeonato final de pilotos e construtores | `core.standing` (`drivers`, `constructors`) | Pontos arredondados, como na api-sports |
 | Pilotos (`driver-<id>`), construtores e circuitos | `core.participant`, `core.venue` | Sem imagens: fotos e logos seguem da api-sports |
+| Nascimento (data, local e país) e número permanente do piloto | `core.participant` (`birth_date`, `birth_place`, `birth_country_code`, `number`) | Só preenchem lacunas no piloto casado com a api-sports; a página do piloto mostra na biografia |
+| Calendário da temporada (GPs ainda sem resultado) | `core.season.end_date` | Não vira sessão; só fecha a temporada no último GP previsto, para a liderança de uma temporada em andamento não contar título |
 
 ## Casamento com a api-sports (sem duplicata)
 
@@ -133,6 +135,10 @@ O F1DB publica um release depois de cada GP. Para trocar a versão:
 2. Abra um PR e rode a prévia na base de dev.
 3. Depois do deploy, rode os passos 3 e 4 acima. O release novo vira outro pacote no raw. Sessões novas entram e as
    existentes só atualizam o que mudou.
+
+Depois do deploy da migration `0032_piloto_nascimento_numero`, rode o import uma vez mesmo sem release novo: o
+normalizador passou a gravar nascimento e número do piloto e o fim do calendário, e o mesmo release não muda nenhuma
+sessão (só pilotos e temporadas).
 
 ## Atribuição (CC BY 4.0)
 

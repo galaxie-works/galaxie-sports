@@ -10,6 +10,7 @@ import { CampaignCard } from '@/components/sport/campaign-card';
 import { CopyButton } from '@/components/sport/copy-button';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { DriverHero } from '@/components/sport/driver-hero';
+import { CareerStatsCard, DriverBioCard, SeasonStatsCard } from '@/components/sport/driver-stats';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
 import { ChampionshipCard } from '@/components/sport/race';
@@ -175,12 +176,14 @@ function IdentityCard({
   api,
   t,
   locale,
+  facts = true,
 }: {
   s: TeamSemantic | null;
   colors: TeamColors | null;
   api: ApiRequest;
   t: Dictionary;
   locale: Locale;
+  facts?: boolean;
 }) {
   if (!s && !colors) return null;
   return (
@@ -193,7 +196,7 @@ function IdentityCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
         {s ? (
-          <SemanticIdentity s={s} colors={colors} t={t} locale={locale} />
+          <SemanticIdentity s={s} colors={colors} t={t} locale={locale} facts={facts} />
         ) : colors ? (
           <SuggestedGradient colors={colors} t={t} />
         ) : null}
@@ -207,11 +210,13 @@ function SemanticIdentity({
   colors,
   t,
   locale,
+  facts,
 }: {
   s: TeamSemantic;
   colors: TeamColors | null;
   t: Dictionary;
   locale: Locale;
+  facts: boolean;
 }) {
   const tx = t.team.identity;
   return (
@@ -305,7 +310,7 @@ function SemanticIdentity({
           </div>
         ) : null}
       </dl>
-      {s.identity.length ? (
+      {facts && s.identity.length ? (
         <ul className="flex flex-col gap-2">
           {s.identity.map((fact) => (
             <li key={fact} className="text-muted-foreground flex gap-2">
@@ -538,7 +543,24 @@ export async function TeamContent({
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
-            {career ? <CareerSection career={career} api={teamCareerRequest(id, locale, content)} /> : null}
+            {hero ? (
+              <>
+                <SeasonStatsCard career={career!} api={teamCareerRequest(id, locale, content)} />
+                <CareerStatsCard career={career!} api={teamCareerRequest(id, locale, content)} />
+              </>
+            ) : null}
+            {career ? (
+              <CareerSection
+                career={career}
+                api={teamCareerRequest(id, locale, content)}
+                stats={!hero}
+                // cada ano leva às corridas daquela temporada (só os anos que a página sabe mostrar)
+                seasonHref={(y) => {
+                  const o = options.find((x) => x.year === y);
+                  return o ? (o.current ? basePath : `${basePath}?temporada=${y}`) : undefined;
+                }}
+              />
+            ) : null}
             {photos?.photos.length || heroPinned.length ? (
               <PhotoGallery
                 photos={photos?.photos ?? []}
@@ -614,7 +636,9 @@ export async function TeamContent({
           </div>
 
           <div className="flex flex-col gap-6">
-            {hero ? null : (
+            {hero ? (
+              <DriverBioCard profile={career!.profile ?? null} identity={semantic?.identity ?? []} />
+            ) : (
               <PortraitCard
                 photo={career?.portrait ?? photos?.photos.find((p) => p.role === 'portrait') ?? null}
               />
@@ -626,6 +650,8 @@ export async function TeamContent({
               api={teamSemanticRequest(id, locale, content)}
               t={t}
               locale={locale}
+              // piloto: o texto de identidade já está na biografia
+              facts={!hero}
             />
             {semantic ? <RivalsCard s={semantic} t={t} /> : null}
             {/* elenco é de clube e seleção: piloto e lutador ficavam com um card vazio */}

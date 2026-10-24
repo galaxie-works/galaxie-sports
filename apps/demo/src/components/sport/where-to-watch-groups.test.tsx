@@ -1,4 +1,4 @@
-import type { WhereToWatch, WhereToWatchOption } from '@galaxie/contracts';
+import type { LogoCredit, WhereToWatch, WhereToWatchOption } from '@galaxie/contracts';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
@@ -34,6 +34,7 @@ const operadora = {
   broadcaster_id: null,
   logo: 'https://cdn.exemplo.test/operadora.png',
   logo_dark: null,
+  logo_credit: null,
 };
 const streaming = {
   id: 'st-1',
@@ -44,6 +45,7 @@ const streaming = {
   broadcaster_id: 'streaming_exemplo',
   logo: 'https://cdn.exemplo.test/streaming.png',
   logo_dark: 'https://cdn.exemplo.test/streaming-dark.png',
+  logo_credit: null,
 };
 const canal = {
   id: 'canal_exemplo',
@@ -129,6 +131,7 @@ const wtw: WhereToWatch = {
       },
     ],
     your_operator: null,
+    channel_status: 'confirmed',
   },
   updated_at: null,
 };
@@ -192,9 +195,121 @@ describe('onde assistir agrupado (página do jogo)', () => {
     const empty = {
       ...wtw,
       options: [],
-      availability: { free_tv: [], pay_tv_channels: [], platforms: [], your_operator: null },
+      availability: {
+        free_tv: [],
+        pay_tv_channels: [],
+        platforms: [],
+        your_operator: null,
+        channel_status: 'confirmed' as const,
+      },
     };
     expect(hasGroups(groupWhereToWatch(empty))).toBe(false);
+  });
+
+  it('logo da plataforma com o crédito da Commons: no tooltip; visível quando a licença exige', () => {
+    const credit: LogoCredit = {
+      source: 'Wikimedia Commons',
+      title: 'File:Operadora Exemplo logo.svg',
+      page_url: 'https://commons.wikimedia.org/wiki/File:Operadora_Exemplo_logo.svg',
+      author: null,
+      license: 'Public domain',
+      license_url: null,
+      attribution_required: false,
+      text: 'Logo: Wikimedia Commons · Public domain',
+    };
+    const withCredit = (c: LogoCredit) => ({
+      ...wtw,
+      availability: {
+        ...wtw.availability,
+        platforms: [{ ...wtw.availability.platforms[0]!, platform: { ...operadora, logo_credit: c } }],
+      },
+    });
+    const pd = render(withCredit(credit));
+    expect(pd).toContain('title="Logo: Wikimedia Commons · Public domain"');
+    expect(pd).not.toContain('href="https://commons.wikimedia.org/wiki/File:Operadora_Exemplo_logo.svg"');
+    const by = render(
+      withCredit({
+        ...credit,
+        author: 'Fulano',
+        license: 'CC BY-SA 4.0',
+        attribution_required: true,
+        text: 'Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0',
+      }),
+    );
+    expect(by).toContain('href="https://commons.wikimedia.org/wiki/File:Operadora_Exemplo_logo.svg"');
+    expect(by).toContain('>Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0</a>');
+  });
+
+  it('canal a confirmar: aviso, detentores tracejados e os cartões das plataformas que os carregam', () => {
+    const probable: WhereToWatch = {
+      ...wtw,
+      status: 'unknown',
+      options: [],
+      to_confirm: [
+        {
+          provider: 'Canal Exemplo',
+          provider_id: 'canal_exemplo',
+          medium: 'pay_tv',
+          access_model: 'subscription',
+          logo: canal.logo,
+          logo_dark: canal.logo_dark,
+          sources: [],
+        },
+        {
+          provider: 'Streaming Solto',
+          provider_id: 'streaming_solto',
+          medium: 'streaming_svod',
+          access_model: 'subscription',
+          logo: null,
+          logo_dark: null,
+          sources: [],
+        },
+      ],
+      availability: {
+        free_tv: [],
+        pay_tv_channels: [canal],
+        platforms: [wtw.availability.platforms[0]!],
+        your_operator: null,
+        channel_status: 'to_confirm',
+      },
+    };
+    const groups = groupWhereToWatch(probable);
+    expect(groups.toConfirm).toBe(true);
+    expect(hasGroups(groups)).toBe(true);
+    // o streaming detentor sem cartão vem solto em "disponível também em"
+    expect(groups.others.map((o) => o.name)).toEqual(['Streaming Solto']);
+    const html = render(probable);
+    expect(html).toContain('data-testid="channel-to-confirm"');
+    expect(html).toContain('Canal deste jogo a confirmar');
+    expect(html).toContain('Canais pagos');
+    expect(html).toContain('border-dashed');
+    expect(cards(html)).toBe(1);
+    expect(render(wtw)).not.toContain('data-testid="channel-to-confirm"');
+    expect(render(probable, getDictionary('es-AR').event.whereToWatch)).toContain(
+      'Canal de este partido a confirmar',
+    );
+  });
+
+  it('com a lista de canais do tenant confirmada: os canais dele embaixo de cada emissora', () => {
+    const withList: WhereToWatch = {
+      ...wtw,
+      options: wtw.options.map((o) =>
+        o.provider_id === 'canal_aberto_exemplo'
+          ? {
+              ...o,
+              client_channels: [
+                { index: 0, name: 'BR: |SP| CANAL ABERTO HD', match: 'exato' },
+                { index: 1, name: 'CANAL ABERTO RJ', match: 'exato' },
+              ],
+            }
+          : { ...o, client_channels: [] },
+      ),
+    };
+    const g = groupWhereToWatch(withList);
+    expect(g.freeTv[0]!.clientChannels).toEqual(['BR: |SP| CANAL ABERTO HD', 'CANAL ABERTO RJ']);
+    expect(g.payTv[0]!.clientChannels).toEqual([]);
+    const html = renderToStaticMarkup(<WhereToWatchGroups groups={g} t={t} />);
+    expect(html).toContain('Na sua lista: BR: |SP| CANAL ABERTO HD, CANAL ABERTO RJ');
   });
 
   it('a operadora do tenant ganha o selo; sem o jogo na grade, o aviso', () => {

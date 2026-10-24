@@ -84,6 +84,8 @@ export interface RecapTie {
 export interface RecapKnockoutInput extends KnockoutContext {
   /** Gol fora desempata o agregado nesta fase/temporada. */
   awayGoals: boolean;
+  /** Títulos da competição antes deste jogo, por lado (só na final e com contagem confiável). */
+  titlesBefore?: Partial<Record<Side, number>>;
 }
 
 export interface RecapFacts {
@@ -106,6 +108,11 @@ export interface RecapFacts {
   aggregate: { home: number; away: number } | null;
   /** Mata-mata: agregado, quem passou e para onde (null fora do mata-mata). */
   tie: RecapTie | null;
+  /**
+   * Final decidida: o título conquistado é o de número `title_number` do campeão naquela competição
+   * (títulos anteriores do Wikidata + 1). Ausente sem contagem confiável.
+   */
+  champion_titles?: { side: Side; title_number: number };
   goals: RecapGoal[];
   missed_penalties: RecapPlayerEvent[];
   red_cards: RecapPlayerEvent[];
@@ -256,10 +263,17 @@ function playerEvents(
 /** Liga o evento ao motor de regras e devolve o contexto de mata-mata (null fora do mata-mata). */
 export async function loadRecapKnockout(db: Database, core: EventCore): Promise<RecapKnockoutInput | null> {
   if (!core.stage || !KNOCKOUT_STAGE_KINDS.has(core.stage.kind)) return null;
-  const stakes = await computeEventStakes(db, core);
+  const stakes = await computeEventStakes(db, core, { titles: true });
   if (!stakes.knockout) return null;
   const rules = stakes.rules ? knockoutStageRules(stakes.rules, core.stage.kind) : null;
-  return { ...stakes.knockout, awayGoals: !!rules?.awayGoals && !rules.neutralVenue };
+  const titlesBefore: Partial<Record<Side, number>> = {};
+  if (stakes.titles?.home) titlesBefore.home = stakes.titles.home.won;
+  if (stakes.titles?.away) titlesBefore.away = stakes.titles.away.won;
+  return {
+    ...stakes.knockout,
+    awayGoals: !!rules?.awayGoals && !rules.neutralVenue,
+    ...(Object.keys(titlesBefore).length ? { titlesBefore } : {}),
+  };
 }
 
 const sideOfPair = (p: { home: number; away: number }): Side | null =>
@@ -371,7 +385,11 @@ export function buildRecapFacts(
         return v === null ? [] : [[l, v]];
       }),
     ) as Partial<Record<AgentLocale, T>>;
+  const before = tie?.outcome === 'title' && tie.winner ? knockout?.titlesBefore?.[tie.winner] : undefined;
   return {
+    ...(before !== undefined && tie?.winner
+      ? { champion_titles: { side: tie.winner, title_number: before + 1 } }
+      : {}),
     match: {
       competition: core.competition ? per((l) => competitionName(core, l)) : null,
       stage: core.stage ? per((l) => stageName(core, l)) : null,

@@ -5,6 +5,7 @@ import type { ApiModule, Database } from '@galaxie/db';
 import type { WtwConfig } from '@galaxie/where-to-watch';
 import type { TenantContext } from './auth/authenticator.js';
 import type { Lineup } from './lineup/availability.js';
+import type { ClientChannelLists } from './channel-list/lists.js';
 import type { ResponseCache } from './cache/store.js';
 import type { RulesRegistry } from './events/rules-registry.js';
 import { problems } from './errors.js';
@@ -47,6 +48,8 @@ export interface AppContext {
   semantic?: SemanticConfig;
   /** Grade de canais e ofertas: consultas, piso editorial (LINEUP_MIN_REVIEW_STATUS) e operadora do tenant. */
   lineup: Lineup;
+  /** Lista de canais confirmada de cada tenant (`client_channels` no onde assistir). */
+  channelLists: ClientChannelLists;
 }
 
 /** Status editoriais da base semântica, do menos ao mais revisado. */

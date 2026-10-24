@@ -22,6 +22,14 @@
     "./lineups": {
       "types": "./dist/lineups.d.ts",
       "default": "./dist/lineups.js"
+    },
+    "./channel-lists": {
+      "types": "./dist/channel-lists.d.ts",
+      "default": "./dist/channel-lists.js"
+    },
+    "./schema": {
+      "types": "./dist/schema/index.d.ts",
+      "default": "./dist/schema/index.js"
     }
   },
   "files": [

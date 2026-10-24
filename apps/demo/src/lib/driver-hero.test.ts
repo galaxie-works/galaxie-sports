@@ -1,7 +1,15 @@
 import type { CareerSeason, Photo, RaceCareer } from '@galaxie/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { careerSpan, coverable, heroPhotos, heroSeason } from './driver-hero';
+import {
+  careerSpan,
+  coverable,
+  heroColor,
+  heroNumber,
+  heroPhotos,
+  heroSeason,
+  nameParts,
+} from './driver-hero';
 
 const car = { url: 'https://cdn/car.jpg', credit: { share_alike: false } } as Photo;
 
@@ -16,6 +24,10 @@ function season(year: number, o: Partial<CareerSeason> = {}): CareerSeason {
     poles: 0,
     podiums: 0,
     fastest_laps: 0,
+    top10: 0,
+    dnfs: 0,
+    sprint: { races: 0, points: 0, wins: 0, podiums: 0, poles: 0, top10: 0 },
+    number: null,
     teams: [],
     car: null,
     ...o,
@@ -122,5 +134,83 @@ describe('temporada do carro no heading do piloto', () => {
   it('anos de carreira', () => {
     expect(careerSpan(senna)).toEqual({ from: 1984, to: 1993 });
     expect(careerSpan(career([season(2026, { races: 0 })]))).toBeNull();
+  });
+
+  describe('quem está no grid: a temporada atual', () => {
+    const mercedes = { id: 'mer', name: 'Mercedes', logo: null };
+    const ferrari = { id: 'fer', name: 'Ferrari', logo: null };
+    const old = { url: 'https://cdn/w11.jpg', credit: { share_alike: false } } as Photo;
+
+    it('equipe e carro de hoje; sem foto do carro de hoje, o mais recente da mesma equipe', () => {
+      const c = {
+        ...career([
+          season(2026, { teams: [mercedes], number: 12 }),
+          season(2025, { teams: [mercedes], car }),
+        ]),
+        current_season: 2026,
+        portrait: null,
+        highlight: null,
+      };
+      const shots = heroPhotos(c);
+      expect(shots.season?.year).toBe(2026);
+      expect(shots.car).toBe(car);
+    });
+
+    it('nunca o carro de outra equipe sob a cor de hoje (Hamilton na Ferrari)', () => {
+      const c = {
+        ...career([
+          season(2026, { teams: [ferrari] }),
+          season(2020, { teams: [mercedes], position: 1, wins: 11, car: old }),
+        ]),
+        current_season: 2026,
+        portrait: null,
+        highlight: { season: 2020, car: old },
+      };
+      expect(heroPhotos(c)).toMatchObject({ season: { year: 2026 }, car: null });
+    });
+  });
+
+  it('cor do heading: a pintura da época; clara demais, a secundária; sem pintura, o escudo', () => {
+    const livery = (primary: string, secondary: string | null) => ({
+      primary,
+      secondary,
+      gradient: '',
+      source: 'https://example.org',
+    });
+    const team = (o: object) => season(1988, { teams: [{ id: 't', name: 'T', logo: null, ...o }] });
+    expect(heroColor(team({ livery: livery('#e4002b', '#ffffff') }))).toBe('#e4002b');
+    // Williams da Saudia: branca com verde
+    expect(heroColor(team({ livery: livery('#ffffff', '#00843d') }))).toBe('#00843d');
+    expect(
+      heroColor(
+        team({
+          livery: null,
+          colors: { primary: '#123456', secondary: null, monochrome: false, gradient: '' },
+        }),
+      ),
+    ).toBe('#123456');
+    expect(heroColor(season(1988))).toBeNull();
+  });
+
+  it('número da época (Senna #12 em 1988) ou o permanente; nome em duas partes', () => {
+    const profile = {
+      first_name: 'Kimi',
+      last_name: 'Antonelli',
+      number: 12,
+      birth_date: null,
+      birth_place: null,
+      birth_country: null,
+    };
+    expect(heroNumber(career([]), season(1988, { number: 12 }))).toBe(12);
+    expect(heroNumber({ ...career([]), profile }, season(2024))).toBe(12);
+    expect(heroNumber({ ...career([]), profile: null }, null)).toBeNull();
+    expect(nameParts({ ...career([]), profile }, 'Kimi Antonelli')).toEqual({
+      first: 'Kimi',
+      last: 'Antonelli',
+    });
+    expect(nameParts({ ...career([]), profile: null }, 'Ayrton Senna')).toEqual({
+      first: 'Ayrton',
+      last: 'Senna',
+    });
   });
 });

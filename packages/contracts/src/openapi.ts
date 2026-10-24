@@ -18,6 +18,7 @@ import {
   Venue,
 } from './catalog.js';
 import { accountPaths } from './account.js';
+import { channelListPaths } from './channel-list.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
 import {
@@ -360,7 +361,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       '/v1/teams/{id}/career': {
         get: getOp(
-          'Carreira na Fórmula 1 (piloto ou construtor): temporada a temporada, títulos, vitórias, poles, pódios, voltas mais rápidas, primeira e última corrida, equipes e companheiros',
+          'Carreira na Fórmula 1 (piloto ou construtor): temporada a temporada (com top 10, abandonos, sprint, número do carro e a pintura da equipe na época), temporada atual, títulos, melhores resultados com a contagem, perfil do piloto (número permanente e nascimento), primeira e última corrida, equipes e companheiros',
           'Times e pessoas',
           RaceCareer,
           { path: TeamParams, query: LocaleQuery },
@@ -419,7 +420,9 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
             '`availability` agrupa o mesmo jogo em TV aberta, canais pagos e plataformas (operadoras e streamings, ' +
             'com o plano e os streamings inclusos); para o tenant com operadora própria e `show_other_operators` ' +
             'desligado, `platforms` traz só a própria operadora e os streamings. Piso editorial da grade: ' +
-            '`LINEUP_MIN_REVIEW_STATUS` (padrão `approved`).',
+            '`LINEUP_MIN_REVIEW_STATUS` (padrão `approved`). Com a lista de canais do tenant confirmada ' +
+            '(`/v1/channel-list`), cada opção e cada item de `to_confirm` trazem `client_channels`: os canais da ' +
+            'lista que levam a emissora no país.',
         },
       },
       '/v1/events/{id}/related': {
@@ -530,6 +533,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
         },
       },
       ...accountPaths,
+      ...channelListPaths,
     },
     components: {
       securitySchemes: {

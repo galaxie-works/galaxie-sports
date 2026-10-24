@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import {
@@ -9,7 +9,7 @@ import {
   type AccessModel,
   type BroadcastMedium,
   type RightsDistribution,
-} from '@galaxie/db';
+} from '@galaxie/db/schema';
 import { normalizeName } from '../normalize.js';
 import {
   OFFICIAL_LOGO_STATUSES,
@@ -40,7 +40,11 @@ export class WtwConfigError extends Error {
 /** Raiz `config/` do monorepo (mesma profundidade em src/ e dist/). */
 export function defaultConfigRoot(): string {
   // WTW_CONFIG_DIR: imagens Docker, onde o pacote não fica na árvore do monorepo
-  return process.env.WTW_CONFIG_DIR ?? fileURLToPath(new URL('../../../../config/', import.meta.url));
+  // caminho montado em tempo de execução: os bundlers (a demo, no Next) não tentam resolver a pasta
+  return (
+    process.env.WTW_CONFIG_DIR ??
+    join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'config')
+  );
 }
 
 type Raw = Record<string, unknown>;
@@ -238,22 +242,30 @@ export function parseOfficialLogos(raw: Raw | null, knownIds: Set<string>): Offi
     seen.add(node);
     const status = str(l.status, `${where}.status`) as OfficialLogoStatus;
     if (!OFFICIAL_LOGO_STATUSES.includes(status))
-      throw new WtwConfigError(`${where}.status inválido: ${status} (use ${OFFICIAL_LOGO_STATUSES.join(', ')}).`);
+      throw new WtwConfigError(
+        `${where}.status inválido: ${status} (use ${OFFICIAL_LOGO_STATUSES.join(', ')}).`,
+      );
     const broadcaster = optStr(l.broadcaster, `${where}.broadcaster`);
     const channel = optStr(l.channel, `${where}.channel`);
     if (status === 'unmapped' ? broadcaster !== null : broadcaster === null)
-      throw new WtwConfigError(`${where}: status ${status} ${status === 'unmapped' ? 'sem' : 'exige'} broadcaster.`);
+      throw new WtwConfigError(
+        `${where}: status ${status} ${status === 'unmapped' ? 'sem' : 'exige'} broadcaster.`,
+      );
     if (broadcaster && !knownIds.has(broadcaster))
       throw new WtwConfigError(`${where}: emissora "${broadcaster}" não existe nos dicionários.`);
     if (status === 'channel' && !channel) throw new WtwConfigError(`${where}: status channel exige channel.`);
-    if (status === 'primary' && channel) throw new WtwConfigError(`${where}: logo principal não tem channel.`);
+    if (status === 'primary' && channel)
+      throw new WtwConfigError(`${where}: logo principal não tem channel.`);
     if (status === 'primary' || status === 'channel') {
       const slot = `${broadcaster}|${channel ? normalizeName(channel) : ''}`;
       if (slots.has(slot))
-        throw new WtwConfigError(`${where}: ${broadcaster} já tem ${channel ? `logo do canal ${channel}` : 'logo principal'}.`);
+        throw new WtwConfigError(
+          `${where}: ${broadcaster} já tem ${channel ? `logo do canal ${channel}` : 'logo principal'}.`,
+        );
       slots.add(slot);
     }
-    if (l.hd !== undefined && typeof l.hd !== 'boolean') throw new WtwConfigError(`${where}.hd: use true/false.`);
+    if (l.hd !== undefined && typeof l.hd !== 'boolean')
+      throw new WtwConfigError(`${where}.hd: use true/false.`);
     return {
       node,
       name: str(l.name, `${where}.name`),
@@ -339,8 +351,7 @@ export function parseCountryConfig(
         (o) =>
           o.competition === entry.competition && o.validFrom <= entry.validTo && entry.validFrom <= o.validTo,
       );
-      if (overlap)
-        throw new WtwConfigError(`${rw}[${i}]: período sobreposto para ${entry.competition}.`);
+      if (overlap) throw new WtwConfigError(`${rw}[${i}]: período sobreposto para ${entry.competition}.`);
       rights.push(entry);
     });
   }
@@ -416,7 +427,8 @@ export function loadWtwConfig(options: LoadWtwConfigOptions = {}): WtwConfig {
     : [];
   const externalFile = env.WTW_BLOCKLIST_FILE;
   if (externalFile) {
-    if (!existsSync(externalFile)) throw new WtwConfigError(`WTW_BLOCKLIST_FILE não encontrado: ${externalFile}`);
+    if (!existsSync(externalFile))
+      throw new WtwConfigError(`WTW_BLOCKLIST_FILE não encontrado: ${externalFile}`);
     block.push(...parseBlockEntries(readYaml(externalFile).blocklist, 'WTW_BLOCKLIST_FILE'));
   }
   block.push(...parseBlocklistEnv(env.WTW_BLOCKLIST), ...(options.extraBlocklist ?? []));

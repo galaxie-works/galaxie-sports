@@ -7,6 +7,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { formatInstant, resolveLocale } from '../../i18n.js';
+import { channelListVary } from '../../channel-list/lists.js';
 import { buildAvailability, lineupTags, operatorVary } from '../../lineup/availability.js';
 import { assetUrl, parseInput } from '../../util.js';
 
@@ -26,9 +27,14 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
     reply.header('content-language', locale);
     // a operadora do tenant muda `availability` (a dele em `your_operator`; sem as concorrentes, se pedir)
     const operator = ctx.db ? await ctx.lineup.operatorOf(ctx.db, request.tenant?.tenantId) : null;
+    // a lista de canais confirmada do tenant acrescenta `client_channels` (os canais dele com a emissora)
+    const tenantId = request.tenant?.tenantId;
+    const channels = ctx.db ? await ctx.channelLists.confirmedOf(ctx.db, tenantId) : null;
+    const clientChannels = (broadcasterId: string | null, channel?: string | null) =>
+      channels ? { client_channels: channels.forBroadcaster(query.country, broadcasterId, channel) } : {};
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.whereToWatch,
-      vary: [locale, tz, ...operatorVary(operator)],
+      vary: [locale, tz, ...operatorVary(operator), ...channelListVary(tenantId, channels)],
       load: async () => {
         const db = requireDb(ctx);
         const data = await getPublicWhereToWatch(
@@ -49,6 +55,23 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
           options: data.options,
           optionLogo: (o) => ({ logo: logo(o.logo), logo_dark: logoDark(o.logo) }),
           operator,
+          // canal a confirmar: as plataformas dos detentores dos direitos no país
+          toConfirm: [
+            ...data.toConfirm.map(({ row, logo: l }) => ({
+              broadcasterId: row.broadcasterId,
+              name: row.channelName ?? row.providerName,
+              medium: row.medium,
+              logo: logo(l),
+              logo_dark: logoDark(l),
+            })),
+            ...data.fromRights.map((r) => ({
+              broadcasterId: r.broadcasterId,
+              name: r.providerName,
+              medium: r.medium,
+              logo: logo(r.logo),
+              logo_dark: logoDark(r.logo),
+            })),
+          ],
         });
         const body: WhereToWatch = {
           event_id: data.eventId,
@@ -70,6 +93,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
             sources,
             logo: logo(o.logo),
             logo_dark: logoDark(o.logo),
+            ...clientChannels(row.broadcasterId, row.channelName),
           })),
           to_confirm: [
             ...data.toConfirm.map(({ row, sources, logo: l }) => ({
@@ -80,6 +104,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
               logo: logo(l),
               logo_dark: logoDark(l),
               sources,
+              ...clientChannels(row.broadcasterId, row.channelName),
             })),
             // país sem nenhuma opção gravada: os detentores da curadoria/pesquisa, "a confirmar"
             ...data.fromRights.map((r) => ({
@@ -90,6 +115,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
               logo: logo(r.logo),
               logo_dark: logoDark(r.logo),
               sources: r.sources,
+              ...clientChannels(r.broadcasterId),
             })),
           ],
           availability,

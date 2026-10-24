@@ -300,6 +300,16 @@ export default defineMessages(
           description:
             'A IA decide as sugestões de edição em aberto: a aprovada entra no ar sem deploy, a recusada fica com o motivo.',
         },
+        'lineups-revisit': {
+          label: 'Grade de canais: revisita',
+          description:
+            'Refaz a pesquisa das operadoras e planos vistos há mais de 30 dias (até 4 por execução).',
+        },
+        'channel-lists': {
+          label: 'Lista de canais do cliente',
+          description:
+            'A IA confere só as sobras do casamento da lista de canais com os direitos; o validador decide o que entra.',
+        },
       },
     },
     history: {
@@ -429,6 +439,15 @@ export default defineMessages(
         label: 'Modelo da revisão semântica',
         description:
           'Modelo da IA que decide as sugestões de edição. Vazio usa o padrão do provedor escolhido.',
+      },
+      AI_CHANNELS_PROVIDER: {
+        label: 'IA da lista de canais',
+        description:
+          'IA que confere as sobras do casamento da lista de canais do cliente com os direitos. Padrão: Gemini.',
+      },
+      AI_CHANNELS_MODEL: {
+        label: 'Modelo da lista de canais',
+        description: 'Modelo da IA da lista de canais. Vazio usa o padrão do provedor escolhido.',
       },
       WTW_MARKETS: {
         label: 'Mercados ativos',
@@ -819,6 +838,16 @@ export default defineMessages(
             description:
               'AI decides the open edit suggestions: an approved one goes live without a deploy, a rejected one keeps the reason.',
           },
+          'lineups-revisit': {
+            label: 'Channel lineups: revisit',
+            description:
+              'Researches again the operators and plans seen more than 30 days ago (up to 4 per run).',
+          },
+          'channel-lists': {
+            label: 'Client channel list',
+            description:
+              'AI checks only the leftovers of matching the channel list with the rights; the validator decides what goes in.',
+          },
         },
       },
       history: {
@@ -947,6 +976,15 @@ export default defineMessages(
           label: 'Semantic review model',
           description:
             "Model of the AI that decides edit suggestions. Empty uses the chosen provider's default.",
+        },
+        AI_CHANNELS_PROVIDER: {
+          label: 'Channel list AI',
+          description:
+            "AI that checks the leftovers of matching the client's channel list with the rights. Default: Gemini.",
+        },
+        AI_CHANNELS_MODEL: {
+          label: 'Channel list model',
+          description: "Model of the channel list AI. Empty uses the chosen provider's default.",
         },
         WTW_MARKETS: {
           label: 'Active markets',
@@ -1343,6 +1381,16 @@ export default defineMessages(
             description:
               'La IA decide las sugerencias de edición abiertas: la aprobada sale al aire sin deploy, la rechazada queda con el motivo.',
           },
+          'lineups-revisit': {
+            label: 'Grilla de canales: revisión',
+            description:
+              'Vuelve a investigar los operadores y planes vistos hace más de 30 días (hasta 4 por ejecución).',
+          },
+          'channel-lists': {
+            label: 'Lista de canales del cliente',
+            description:
+              'La IA revisa solo lo que sobra del cruce de la lista de canales con los derechos; el validador decide qué entra.',
+          },
         },
       },
       history: {
@@ -1473,6 +1521,16 @@ export default defineMessages(
           label: 'Modelo de la revisión semántica',
           description:
             'Modelo de la IA que decide las sugerencias de edición. Vacío usa el predeterminado del proveedor elegido.',
+        },
+        AI_CHANNELS_PROVIDER: {
+          label: 'IA de la lista de canales',
+          description:
+            'IA que revisa lo que sobra del cruce de la lista de canales del cliente con los derechos. Predeterminado: Gemini.',
+        },
+        AI_CHANNELS_MODEL: {
+          label: 'Modelo de la lista de canales',
+          description:
+            'Modelo de la IA de la lista de canales. Vacío usa el predeterminado del proveedor elegido.',
         },
         WTW_MARKETS: {
           label: 'Mercados activos',

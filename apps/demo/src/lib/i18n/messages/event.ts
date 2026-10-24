@@ -189,6 +189,9 @@ export default defineMessages(
       open: 'Abrir {provider}',
       empty: 'Sem informação de transmissão para este país.',
       rightsHolders: 'Detentores dos direitos no país · canal deste jogo a confirmar',
+      toConfirmTitle: 'Canal deste jogo a confirmar',
+      toConfirmHint:
+        'Abaixo, quem tem os direitos no país e as operadoras e streamings que carregam esses canais. O canal do jogo sai mais perto da partida.',
       source: 'fonte: {publisher}',
       freeTv: 'TV aberta',
       payTv: 'Canais pagos',
@@ -199,6 +202,7 @@ export default defineMessages(
       addon: 'Adicional',
       includedServices: 'Streamings inclusos',
       regions: 'Praças: {regions}',
+      clientChannels: 'Na sua lista: {channels}',
       kind: {
         pay_tv_operator: 'Operadora de TV paga',
         vmvpd: 'TV paga pela internet',
@@ -399,6 +403,9 @@ export default defineMessages(
         open: 'Open {provider}',
         empty: 'No broadcast information for this country.',
         rightsHolders: 'Rights holders in this country · channel for this match to be confirmed',
+        toConfirmTitle: 'Channel for this match to be confirmed',
+        toConfirmHint:
+          'Below are the rights holders in this country and the operators and streaming services that carry those channels. The match channel is announced closer to kick-off.',
         source: 'source: {publisher}',
         freeTv: 'Free-to-air TV',
         payTv: 'Pay TV channels',
@@ -409,6 +416,7 @@ export default defineMessages(
         addon: 'Add-on',
         includedServices: 'Streaming included',
         regions: 'Regions: {regions}',
+        clientChannels: 'In your list: {channels}',
         kind: {
           pay_tv_operator: 'Pay TV operator',
           vmvpd: 'Online pay TV',
@@ -608,6 +616,9 @@ export default defineMessages(
         open: 'Abrir {provider}',
         empty: 'No hay información de transmisión para este país.',
         rightsHolders: 'Titulares de los derechos en el país · canal de este partido a confirmar',
+        toConfirmTitle: 'Canal de este partido a confirmar',
+        toConfirmHint:
+          'Abajo, quién tiene los derechos en el país y las operadoras y streamings que llevan esos canales. El canal del partido se conoce más cerca del encuentro.',
         source: 'fuente: {publisher}',
         freeTv: 'TV abierta',
         payTv: 'Canales pagos',
@@ -618,6 +629,7 @@ export default defineMessages(
         addon: 'Adicional',
         includedServices: 'Streamings incluidos',
         regions: 'Plazas: {regions}',
+        clientChannels: 'En tu lista: {channels}',
         kind: {
           pay_tv_operator: 'Operadora de TV paga',
           vmvpd: 'TV paga por internet',

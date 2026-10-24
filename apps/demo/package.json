@@ -19,6 +19,7 @@
     "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
+    "@galaxie/where-to-watch": "workspace:*",
     "@galaxie/widgets": "workspace:*",
     "@tanstack/react-query": "^5.104.5",
     "@tanstack/react-table": "^9.3.1",

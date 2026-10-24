@@ -1,6 +1,13 @@
 import { and, eq, inArray, ne } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { event, eventParticipant, standing, type Database } from '@galaxie/db';
+import {
+  event,
+  eventParticipant,
+  loadTitleRecords,
+  standing,
+  type Database,
+  type TitleRecord,
+} from '@galaxie/db';
 import { loadCompetitionRules } from '../config/loader.js';
 import { knockoutStageRules } from '../config/parse.js';
 import type { CompetitionRules } from '../config/types.js';
@@ -8,6 +15,7 @@ import type { Stake } from '../stakes/codes.js';
 import { fanTagStanding, type FanTagStanding } from '../stakes/fan-tags.js';
 import { knockoutStakes } from '../stakes/knockout.js';
 import { leagueMatchStakes, type Fixture, type LeagueTeamInput } from '../stakes/league.js';
+import { titleChaseSides, titleChaseStakes } from '../stakes/titles.js';
 
 /**
  * Liga o evento do `core` ao motor de regras: descobre o regulamento, a fase, a perna do confronto
@@ -38,7 +46,8 @@ export interface StakesEventRef {
   id: string;
   sport: string;
   startsAt: Date;
-  competition: { slug: string } | null;
+  /** `id` é necessário para os títulos anteriores (`options.titles`). */
+  competition: { slug: string; id?: string } | null;
   season: { id: string; year: number } | null;
   stage: { id: string; kind: string } | null;
   home: { id: string };
@@ -77,6 +86,11 @@ export interface EventStakes {
   rules: CompetitionRules | null;
   knockout?: KnockoutContext;
   league?: LeagueContext;
+  /**
+   * Títulos anteriores na competição por lado (`core.competition_title`), quando a partida pode dar o título e
+   * a contagem é confiável (`options.titles`). Os mesmos números viram `seeks_title_{n}` em `stakes`.
+   */
+  titles?: Partial<Record<'home' | 'away', TitleRecord>>;
   /** Motivo quando não há stakes (pt-BR, para logs e --plan). */
   reason?: string;
 }
@@ -98,6 +112,8 @@ export interface StakesOptions {
   rulesDir?: string;
   /** Memória compartilhada entre chamadas (lote). */
   cache?: StakesCache;
+  /** Inclui os títulos anteriores ("busca o tetra", `seeks_title_{n}`). Padrão: não (a importância não usa). */
+  titles?: boolean;
 }
 
 function memo<T>(map: Map<string, Promise<T>> | undefined, key: string, load: () => Promise<T>): Promise<T> {
@@ -274,11 +290,41 @@ async function leagueContext(
   }
 }
 
+/** Acrescenta `seeks_title_{n}` e os títulos anteriores quando a partida pode dar o título. */
+async function withTitles(db: Database, core: StakesEventRef, result: EventStakes): Promise<EventStakes> {
+  const competitionId = core.competition?.id;
+  if (!competitionId) return result;
+  const sides = titleChaseSides(result.stakes, result.knockout ?? null);
+  if (!sides.length) return result;
+  const records = await loadTitleRecords(db, {
+    competitionId,
+    seasonYear: core.season?.year ?? null,
+    before: core.startsAt,
+    participantIds: [core.home.id, core.away.id],
+  });
+  const titles: Partial<Record<'home' | 'away', TitleRecord>> = {};
+  const home = records.get(core.home.id);
+  const away = records.get(core.away.id);
+  if (home && sides.includes('home')) titles.home = home;
+  if (away && sides.includes('away')) titles.away = away;
+  if (!titles.home && !titles.away) return result;
+  return { ...result, stakes: [...result.stakes, ...titleChaseStakes(sides, titles)], titles };
+}
+
 /** Stakes estruturados da partida, calculados pelo motor de regras a partir do core. */
 export async function computeEventStakes(
   db: Database,
   core: StakesEventRef,
   options: StakesOptions = {},
+): Promise<EventStakes> {
+  const result = await baseEventStakes(db, core, options);
+  return options.titles && !result.reason ? withTitles(db, core, result) : result;
+}
+
+async function baseEventStakes(
+  db: Database,
+  core: StakesEventRef,
+  options: StakesOptions,
 ): Promise<EventStakes> {
   if (core.sport !== 'football') return { stakes: [], rules: null, reason: 'stakes só existem para futebol' };
   const rules = await rulesFor(core, options);

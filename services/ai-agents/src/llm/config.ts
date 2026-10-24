@@ -105,6 +105,15 @@ export function reviewLlmEnv(env: Env = process.env): Env {
   return agentLlmEnv(env, env.AI_REVIEW_PROVIDER || 'gemini', env.AI_REVIEW_MODEL, 'AI_MODEL_STANDARD');
 }
 
+/**
+ * Ambiente do casamento da lista de canais do cliente (`channel-lists`): o Gemini por padrão
+ * (`AI_CHANNELS_PROVIDER`, com `GEMINI_API_KEY`), modelo `AI_CHANNELS_MODEL` (nível standard). A IA
+ * só vê as sobras do casamento por código e só devolve índices e enums.
+ */
+export function channelsLlmEnv(env: Env = process.env): Env {
+  return agentLlmEnv(env, env.AI_CHANNELS_PROVIDER || 'gemini', env.AI_CHANNELS_MODEL, 'AI_MODEL_STANDARD');
+}
+
 function agentLlmEnv(
   env: Env,
   providerValue: string | undefined,

@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./channel-list": {
+      "types": "./dist/channel-list/entry.d.ts",
+      "default": "./dist/channel-list/entry.js"
     }
   },
   "files": [

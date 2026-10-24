@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import * as z from 'zod';
+import { ClientChannelRef } from './channel-list.js';
 import { LocaleQuery } from './common.js';
 
 /** Meios de transmissão (docs/05 §4, enrich.broadcast_medium). */
@@ -33,6 +34,15 @@ export const WhereToWatchSource = z
   .object({ publisher: z.string(), url: z.string() })
   .meta({ id: 'WhereToWatchSource' });
 
+const clientChannels = z
+  .array(ClientChannelRef)
+  .optional()
+  .meta({
+    description:
+      'Canais da lista do tenant que levam esta emissora (todas as praças entram). Só vem quando o tenant tem ' +
+      'uma lista de canais confirmada (`/v1/channel-list`); [] = nenhum canal da lista.',
+  });
+
 export const WhereToWatchOption = z
   .object({
     id: z.uuid(),
@@ -55,6 +65,7 @@ export const WhereToWatchOption = z
       .string()
       .nullable()
       .meta({ description: 'Versão do logo para fundo escuro (acervo oficial); null = usar `logo`.' }),
+    client_channels: clientChannels,
   })
   .meta({ id: 'WhereToWatchOption' });
 export type WhereToWatchOption = z.infer<typeof WhereToWatchOption>;
@@ -69,6 +80,7 @@ export const WhereToWatchToConfirm = z
     logo: z.string().nullable(),
     logo_dark: z.string().nullable(),
     sources: z.array(WhereToWatchSource),
+    client_channels: clientChannels,
   })
   .meta({ id: 'WhereToWatchToConfirm' });
 export type WhereToWatchToConfirm = z.infer<typeof WhereToWatchToConfirm>;
@@ -97,6 +109,26 @@ export type AvailabilityLogo = z.infer<typeof AvailabilityLogo>;
 export const LineupItem = AvailabilityLogo.extend({ access: z.enum(PLAN_ACCESS) }).meta({ id: 'LineupItem' });
 export type LineupItem = z.infer<typeof LineupItem>;
 
+/** Crédito do logo de uma plataforma (arquivo de licença livre da Wikimedia Commons). */
+export const LogoCredit = z
+  .object({
+    source: z.literal('Wikimedia Commons'),
+    title: z.string().meta({ example: 'File:Logo de exemplo.svg' }),
+    page_url: z.url().meta({ description: 'Página do arquivo na Commons (autor, licença e histórico).' }),
+    author: z.string().nullable(),
+    license: z.string().meta({ example: 'Public domain' }),
+    license_url: z.url().nullable(),
+    attribution_required: z.boolean().meta({
+      description: 'A licença exige o crédito junto do logo (CC BY, CC BY-SA); domínio público não exige.',
+    }),
+    text: z.string().meta({
+      description: 'Atribuição pronta para exibir (ou para o `title` do logo, quando não é exigida).',
+      example: 'Logo: Wikimedia Commons · Public domain',
+    }),
+  })
+  .meta({ id: 'LogoCredit' });
+export type LogoCredit = z.infer<typeof LogoCredit>;
+
 export const Platform = z
   .object({
     id: z.string(),
@@ -111,8 +143,18 @@ export const Platform = z
     broadcaster_id: z.string().nullable().meta({
       description: 'Entrada da própria plataforma na biblioteca de emissoras (ex.: o streaming das opções).',
     }),
-    logo: z.string().nullable(),
+    logo: z
+      .string()
+      .nullable()
+      .meta({
+        description:
+          'Logo da plataforma: o da biblioteca de emissoras com o mesmo site oficial, ou o da Wikimedia Commons ' +
+          'ligado pelo Wikidata e conferido pelo site oficial; null = sem logo com origem verificável.',
+      }),
     logo_dark: z.string().nullable(),
+    logo_credit: LogoCredit.nullable().meta({
+      description: 'Crédito do logo quando ele vem da Wikimedia Commons; null para o acervo oficial.',
+    }),
   })
   .meta({ id: 'Platform', description: 'Operadora de TV paga ou streaming (grade de canais e ofertas).' });
 export type Platform = z.infer<typeof Platform>;
@@ -148,6 +190,12 @@ export const WhereToWatchAvailability = z
       description:
         'A operadora do próprio tenant, com os planos em que o jogo está (`plans: []` = não está na grade ' +
         'dela); null quando o tenant não tem operadora.',
+    }),
+    channel_status: z.enum(['confirmed', 'to_confirm']).meta({
+      description:
+        '`to_confirm` = o canal do jogo ainda não foi confirmado ("canal a confirmar"): TV aberta, canais ' +
+        'pagos e plataformas são os dos detentores dos direitos no país (os mesmos de `to_confirm`), não ' +
+        'o canal do jogo. `confirmed` nos demais casos.',
     }),
   })
   .meta({

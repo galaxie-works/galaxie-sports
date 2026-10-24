@@ -102,6 +102,12 @@ export interface NormalizedParticipant {
   logoUrl: string | null;
   /** Tipo do asset da imagem (padrão `team_logo`; pilotos e lutadores usam `driver`/`fighter`). */
   logoKind?: AssetKind;
+  /** Atleta individual (piloto de F1): nascimento (ISO), local, país e número permanente, quando a fonte traz. */
+  birthDate?: string | null;
+  birthPlace?: string | null;
+  birthCountryName?: string | null;
+  birthCountryCode?: string | null;
+  number?: number | null;
   /**
    * `true` quando a entidade só aparece como referência (time numa partida, jogador numa escalação):
    * preenche lacunas, mas não sobrescreve dados vindos do endpoint próprio da entidade.

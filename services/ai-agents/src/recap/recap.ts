@@ -5,6 +5,7 @@ import {
   type AgentLocale,
   type FactSheet,
 } from '../guardrails/index.js';
+import { championPhrase } from '@galaxie/rules';
 import { eventNames, teamName, type EventCore } from '../context/event-core.js';
 import type { RecapFacts, RecapGoal, RecapNextStage, RecapPlayerEvent, Side } from './facts.js';
 
@@ -14,7 +15,7 @@ import type { RecapFacts, RecapGoal, RecapNextStage, RecapPlayerEvent, Side } fr
  */
 
 // v2: desfecho do mata-mata (agregado, quem passou e para onde) e nome curado do estádio
-export const RECAP_PROMPT_VERSION = 'recap@v2';
+export const RECAP_PROMPT_VERSION = 'recap@v3';
 
 /** Fatos citáveis no texto do locale (validador). */
 export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: AgentLocale): FactSheet {
@@ -29,6 +30,7 @@ export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: Agent
   if (facts.aggregate) b.score(facts.aggregate.home, facts.aggregate.away, { result: true });
   if (facts.tie?.first_leg) b.score(facts.tie.first_leg.home, facts.tie.first_leg.away);
   b.number(facts.match.round);
+  if (facts.champion_titles) b.number(facts.champion_titles.title_number);
   const goalsBy = { home: 0, away: 0 };
   const perScorer = new Map<string, number>();
   for (const g of facts.goals) {
@@ -174,11 +176,14 @@ export function tieSentence(core: EventCore, facts: RecapFacts, locale: AgentLoc
   }
   const winner = teamName(tie.winner === 'home' ? core.home : core.away, locale);
   const lang = pt ? 'pt' : 'es';
+  const titleNumber = facts.champion_titles?.side === tie.winner ? facts.champion_titles.title_number : null;
   let head =
     tie.outcome === 'title'
-      ? pt
-        ? `${winner} é campeão`
-        : `${winner} es campeón`
+      ? titleNumber
+        ? `${winner} ${championPhrase(titleNumber, pt ? 'pt' : 'es')}`
+        : pt
+          ? `${winner} é campeão`
+          : `${winner} es campeón`
       : tie.outcome === 'third_place'
         ? pt
           ? `${winner} ficou com o terceiro lugar`
@@ -257,6 +262,9 @@ export function recapSystemPrompt(): string {
     '  (tie.decided_by: aggregate, away_goals, penalties). Ex.: "X se classificou para a final: 2 x 2 no agregado e 5 x 3 nos pênaltis."',
     '- tie.aggregate e tie.first_leg estão na ótica DESTE jogo (home = mandante deste jogo).',
     '- Se tie.leg = 1 (jogo de ida) ou tie.winner = null, NÃO diga que alguém se classificou, foi eliminado ou campeão.',
+    '- champion_titles (quando houver): o título conquistado é o de número title_number do campeão naquela competição',
+    '  (bi = 2, tri = 3, tetra = 4, penta = 5... deca = 10; 1 = o primeiro). Ex.: "O Palmeiras é tetracampeão da Libertadores."',
+    '  Sem champion_titles, não diga quantos títulos o campeão tem.',
     '- Perder o jogo e passar no confronto não é contradição: diga as duas coisas com clareza.',
     '- Estádio: use exatamente match.venue (nome atual); não use nomes antigos.',
     '- Gol contra é creditado ao time beneficiado; diga "contra" (pt) / "en contra" (es) e não chame o jogador de artilheiro.',

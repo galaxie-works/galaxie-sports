@@ -11,6 +11,7 @@ import {
   scenarioSystemPrompt,
   scenarioUserPrompt,
 } from './scenario.js';
+import { loadLastFinalBetween } from './history.js';
 import { computeEventStakes } from './stakes.js';
 import { factsHash, latestFactsHashes, newRunInfo, saveEventContexts, type ContextSource } from './store.js';
 import { writeLocalizedTexts, type LocaleText } from './writer.js';
@@ -141,13 +142,17 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
         item.reason = `evento ${core.status}`;
         continue;
       }
-      const stakes = await computeEventStakes(db, core, opts.rulesDir ? { rulesDir: opts.rulesDir } : {});
+      const stakes = await computeEventStakes(db, core, {
+        titles: true,
+        ...(opts.rulesDir ? { rulesDir: opts.rulesDir } : {}),
+      });
       if (!stakes.stakes.length) {
         item.reason = stakes.reason ?? 'nenhum stake calculado';
         continue;
       }
       item.summary = stakes.stakes.map((s) => `${s.team}:${s.code}`).join(', ');
-      const facts = buildScenarioFacts(core, stakes, locales);
+      const lastFinal = stakes.knockout?.decidesTitle ? await loadLastFinalBetween(db, core) : null;
+      const facts = buildScenarioFacts(core, stakes, locales, { lastFinal });
       const hash = factsHash(facts, SCENARIO_PROMPT_VERSION);
       if (!opts.force) {
         const previous = await latestFactsHashes(db, id, 'scenario');
@@ -181,6 +186,8 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
               ...stakes.rules.sources.map((url) => ({ kind: 'rules' as const, ref: 'regulamento', url })),
             ]
           : []),
+        // títulos anteriores: edições do Wikidata (P1346) gravadas em core.competition_title
+        ...(facts.history?.titles ? [{ kind: 'core' as const, ref: 'core.competition_title' }] : []),
       ];
       await saveEventContexts(db, {
         eventId: id,
@@ -194,7 +201,12 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
           model: written.model,
           errors: written.errors,
         }),
-        data: { stakes: stakes.stakes, knockout: facts.knockout ?? null, league: facts.league ?? null },
+        data: {
+          stakes: stakes.stakes,
+          knockout: facts.knockout ?? null,
+          league: facts.league ?? null,
+          history: facts.history ?? null,
+        },
       });
       item.action = 'generated';
       item.origins = countOrigins(written.texts);

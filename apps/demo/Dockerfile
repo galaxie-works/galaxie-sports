@@ -2,6 +2,8 @@
 # Imagem do app de demonstração (Next.js standalone). Build a partir da raiz do monorepo:
 #   docker build -f apps/demo/Dockerfile -t galaxie-sports-demo .
 # Em runtime: GALAXIE_API_URL (ex.: http://api:8080) e GALAXIE_DEMO_KEY (chave do tenant de demo).
+# O dicionário de emissoras (config/broadcasters, config/broadcast-rights) vai junto: o portal casa a
+# lista de canais do cliente com ele (WTW_CONFIG_DIR).
 ARG NODE_IMAGE=node:24.22.1-alpine
 
 # ── build: instala o workspace e compila a demo e as dependências internas (topológico) ──
@@ -21,12 +23,14 @@ RUN mkdir -p /out \
  && cp -r apps/demo/.next/standalone/. /out/ \
  && mkdir -p /out/apps/demo/.next \
  && cp -r apps/demo/.next/static /out/apps/demo/.next/static \
- && cp -r apps/demo/public /out/apps/demo/public
+ && cp -r apps/demo/public /out/apps/demo/public \
+ && mkdir -p /out/config \
+ && cp -r config/broadcasters config/broadcast-rights /out/config/
 
 # ── runtime: Node + tini, usuário sem privilégios ──
 FROM ${NODE_IMAGE} AS runtime
 RUN apk add --no-cache tini
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 WTW_CONFIG_DIR=/srv/config
 WORKDIR /srv
 COPY --from=build --chown=node:node /out ./
 USER node
