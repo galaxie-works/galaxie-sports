@@ -1,5 +1,5 @@
--- Grade: validador da pesquisa, leitura da página oficial e complementos (PR #261). Idempotente: o
--- Postgres de desenvolvimento recebeu estas colunas e tabelas antes da renumeração (0034/0035 antigas).
+-- Grade: validador da pesquisa, leitura da página oficial e complementos (PR #261), depois da 0035 do #260.
+-- Idempotente: o Postgres de desenvolvimento recebeu estas colunas e tabelas antes da renumeração.
 CREATE TABLE IF NOT EXISTS "enrich"."lineup_page" (
 	"url" text PRIMARY KEY NOT NULL,
 	"platform_id" uuid,
