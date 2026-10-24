@@ -42,7 +42,7 @@ Sem a bio, ou lenda sem nenhum momento verificável, não há proposta. O tom de
 
 ## Biografia factual (card "Biografia", `profile` de `/v1/teams/{id}/career`)
 
-Fatos estruturados, sem IA, cada um com a fonte, gravados em `core.participant` pelo `f1:biografia` (migration `0034_piloto_biografia`: `full_name`, `death_date` e `bio_facts`). O card mostra só o que existe.
+Fatos estruturados, sem IA, cada um com a fonte, gravados em `core.participant` pelo `f1:biografia` (migration `0038_piloto_biografia`: `full_name`, `death_date` e `bio_facts`). O card mostra só o que existe.
 
 - **F1DB:** nome completo, data da morte e a família no automobilismo (`driver_family_relationship`: pai, filho, irmão, sobrinho, avô, primo, cunhado…; cada parente com link para o perfil).
 - **Morte em corrida:** o resultado que o F1DB marca como fatal ("Fatal accident", "Fatal collision", "… in qualifying", "… in practice", "… in support race"), com o GP, a sessão e a cidade do circuito. São 28 pilotos, de Marimón a Bianchi; no caso do Bianchi, o acidente foi em Suzuka em 2014 e a morte, em 2015. A frase é um modelo fixo nos 3 idiomas da demo ("Morreu após acidente no {GP}, em {cidade}"), sem texto gerado; por isso não passa pelo painel.
