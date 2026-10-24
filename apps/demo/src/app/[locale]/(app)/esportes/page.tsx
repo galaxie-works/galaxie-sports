@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { connection } from 'next/server';
 import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
@@ -21,6 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * da semana dos esportes dela. Os números vêm do mesmo resumo da home.
  */
 async function Content() {
+  // contadores de agora (o resumo envelhece no máximo 1 min): na requisição, nunca no build
+  await connection();
   const { locale, t } = await getI18n();
   const te = t.nav.explore;
   const summary = await getExploreSummary(locale).catch(() => null);
