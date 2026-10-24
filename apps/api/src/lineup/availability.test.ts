@@ -3,10 +3,12 @@ import type { Database } from '@galaxie/db';
 import type { PublicOption } from '@galaxie/where-to-watch';
 import {
   channelsOf,
+  holdersOf,
   Lineup,
   lineupDto,
   lineupTags,
   LogoBook,
+  logoCreditText,
   operatorVary,
   type Operator,
   platformAvailability,
@@ -23,6 +25,17 @@ import {
   STREAMING,
   STREAMING_ID,
 } from './fixtures.js';
+
+const credit = {
+  source: 'Wikimedia Commons' as const,
+  title: 'File:Logo de exemplo.svg',
+  page_url: 'https://commons.wikimedia.org/wiki/File:Logo_de_exemplo.svg',
+  author: null,
+  license: 'Public domain',
+  license_url: null,
+  attribution_required: false,
+  text: 'Logo: Wikimedia Commons · Public domain',
+};
 
 const own: Operator = { platformId: OPERATOR_ID, showOtherOperators: false };
 const ownPlusOthers: Operator = { ...own, showOtherOperators: true };
@@ -164,16 +177,40 @@ describe('montagem das plataformas', () => {
           },
         ],
       ]),
-      new Map([['asset-1', 'https://cdn.test/operadora.png']]),
+      new Map([
+        ['asset-1', { url: 'https://cdn.test/operadora.png', darkUrl: null, credit }],
+        // logo da biblioteca reaproveitado (mesmo site oficial): a versão escura do acervo vem junto
+        [
+          'asset-2',
+          { url: 'https://cdn.test/acervo.svg', darkUrl: 'https://cdn.test/acervo-dark.svg', credit: null },
+        ],
+        // asset ainda sem arquivo no storage: cai para a entrada da biblioteca
+        ['asset-3', { url: null, darkUrl: null, credit: null }],
+      ]),
     );
     expect(book.platform({ ...OPERATOR, logoAssetId: 'asset-1' })).toMatchObject({
       logo: 'https://cdn.test/operadora.png',
       logo_dark: null,
+      logo_credit: credit,
+    });
+    expect(book.platform({ ...OPERATOR, logoAssetId: 'asset-2' })).toMatchObject({
+      logo: 'https://cdn.test/acervo.svg',
+      logo_dark: 'https://cdn.test/acervo-dark.svg',
+      logo_credit: null,
     });
     expect(book.platform({ ...STREAMING, broadcasterId: 'streaming_exemplo' })).toMatchObject({
       logo: 'https://cdn.test/s.png',
       logo_dark: 'https://cdn.test/s-dark.png',
+      logo_credit: null,
     });
+    expect(
+      book.platform({ ...STREAMING, broadcasterId: 'streaming_exemplo', logoAssetId: 'asset-3' }).logo,
+    ).toBe('https://cdn.test/s.png');
+  });
+
+  it('crédito do logo: autor quando há, sempre a fonte e a licença', () => {
+    expect(logoCreditText(null, 'Public domain')).toBe('Logo: Wikimedia Commons · Public domain');
+    expect(logoCreditText('Fulano', 'CC BY-SA 4.0')).toBe('Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0');
   });
 
   it('grade da plataforma no contrato', () => {
@@ -218,6 +255,43 @@ describe('TV aberta e canais pagos', () => {
       },
     ]);
     expect(channelsOf(options, 'pay_tv', logo).map((c) => c.id)).toEqual(['canal_exemplo']);
+  });
+
+  it('canal a confirmar: os detentores dos direitos por meio, sem repetir', () => {
+    const holders = [
+      {
+        broadcasterId: 'canal_exemplo',
+        name: 'Canal Exemplo',
+        medium: 'pay_tv',
+        logo: null,
+        logo_dark: null,
+      },
+      {
+        broadcasterId: 'canal_exemplo',
+        name: 'Canal Exemplo',
+        medium: 'pay_tv',
+        logo: null,
+        logo_dark: null,
+      },
+      {
+        broadcasterId: 'aberto',
+        name: 'Aberto',
+        medium: 'free_tv',
+        logo: 'https://cdn.test/a.png',
+        logo_dark: null,
+      },
+      {
+        broadcasterId: 'streaming_exemplo',
+        name: 'Streaming',
+        medium: 'streaming_svod',
+        logo: null,
+        logo_dark: null,
+      },
+    ] as const;
+    expect(holdersOf([...holders], 'pay_tv')).toEqual([
+      { id: 'canal_exemplo', name: 'Canal Exemplo', logo: null, logo_dark: null },
+    ]);
+    expect(holdersOf([...holders], 'free_tv').map((c) => c.id)).toEqual(['aberto']);
   });
 });
 

@@ -295,6 +295,11 @@ export default defineMessages(
           label: 'Onde Assistir: direitos',
           description: 'Biblioteca de emissoras e direitos de transmissão por temporada.',
         },
+        'lineups-revisit': {
+          label: 'Grade de canais: revisita',
+          description:
+            'Refaz a pesquisa das operadoras e planos vistos há mais de 30 dias (até 4 por execução).',
+        },
       },
     },
     history: {
@@ -798,6 +803,11 @@ export default defineMessages(
           'wtw-rights': {
             label: 'Where to Watch: rights',
             description: 'Broadcaster library and broadcast rights per season.',
+          },
+          'lineups-revisit': {
+            label: 'Channel lineups: revisit',
+            description:
+              'Researches again the operators and plans seen more than 30 days ago (up to 4 per run).',
           },
         },
       },
@@ -1307,6 +1317,11 @@ export default defineMessages(
           'wtw-rights': {
             label: 'Dónde ver: derechos',
             description: 'Biblioteca de señales y derechos de transmisión por temporada.',
+          },
+          'lineups-revisit': {
+            label: 'Grilla de canales: revisión',
+            description:
+              'Vuelve a investigar los operadores y planes vistos hace más de 30 días (hasta 4 por ejecución).',
           },
         },
       },

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_THEMES, PUBLISHABLE_KEY_HEADER, type WidgetLocale } from './core/model.js';
 import { GalaxieWidgetProvider } from './core/react.js';
-import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
+import { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures } from './fixtures.js';
 import { LiveList } from './widgets/live-list.js';
 import { MatchCard } from './widgets/match-card.js';
 import { StandingsTable } from './widgets/standings-table.js';
@@ -169,17 +169,129 @@ describe('StandingsTable', () => {
 });
 
 describe('WhereToWatch', () => {
-  it('agrupa as opções por mídia, com o link de assistir', async () => {
+  const wtwWith = (patch: object) => {
+    const base = createPreviewFixtures().whereToWatch;
+    return vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ ...base, ...patch }));
+  };
+
+  it('agrupa em TV aberta, canais pagos e cartões por plataforma com o plano', async () => {
     const { container, fetchImpl } = setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="br" />);
-    expect(await screen.findByText('Operadora Exemplo Play')).toBeTruthy();
+    expect(await screen.findByText('Disponível também em')).toBeTruthy();
     expect(screen.getByText('TV aberta')).toBeTruthy();
-    expect(screen.getByText('TV por assinatura')).toBeTruthy();
-    expect(screen.getByText('Esporte Exemplo 2')).toBeTruthy();
-    const link = screen.getByRole('link', { name: 'Assistir' });
+    expect(screen.getByText('Canais pagos')).toBeTruthy();
+    expect(container.querySelector('[data-gs-group="free_tv"]')!.textContent).toContain('TV Exemplo');
+    const cards = container.querySelectorAll('.gs-platform');
+    expect(cards).toHaveLength(3);
+    const operator = within(cards[0] as HTMLElement);
+    expect(operator.getByText('Operadora Exemplo')).toBeTruthy();
+    expect(operator.getByText('Operadora de TV paga')).toBeTruthy();
+    expect(operator.getByText('Plano Completo')).toBeTruthy();
+    expect(operator.getByText('Incluso')).toBeTruthy();
+    expect(operator.getByText('Adicional')).toBeTruthy();
+    // canais do plano e streamings inclusos
+    expect(operator.getAllByText('Esporte Exemplo 2')).toHaveLength(2);
+    expect(operator.getByText('Streamings inclusos')).toBeTruthy();
+    // o streaming da opção publicada virou cartão (com o link de assistir), sem repetir solto
+    const play = within(cards[2] as HTMLElement);
+    expect(play.getByText('Streaming')).toBeTruthy();
+    const link = play.getByRole('link', { name: 'Assistir' });
     expect(link.getAttribute('href')).toBe('https://example.com/assistir');
     expect(link.getAttribute('rel')).toContain('noopener');
-    expect(container.querySelectorAll('[data-gs-medium]')).toHaveLength(3);
+    expect(container.querySelector('.gs-tiles [data-gs-group]')).toBeNull();
+    expect(container.querySelectorAll('[data-gs-medium]')).toHaveLength(0);
     expect(String(vi.mocked(fetchImpl).mock.calls[0]![0])).toMatch(/where-to-watch\?.*country=BR/);
+  });
+
+  it('resposta sem o bloco availability: as opções por mídia, com o link de assistir', async () => {
+    const { container } = setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="BR" />, {
+      fetchImpl: wtwWith({ availability: undefined }),
+    });
+    expect(await screen.findByText('Operadora Exemplo Play')).toBeTruthy();
+    expect(screen.getByText('TV por assinatura')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Assistir' }).getAttribute('href')).toBe(
+      'https://example.com/assistir',
+    );
+    expect(container.querySelectorAll('[data-gs-medium]')).toHaveLength(3);
+    expect(container.querySelector('.gs-platform')).toBeNull();
+  });
+
+  it('canal a confirmar: aviso e os cartões das plataformas dos detentores, sem link', async () => {
+    const base = createPreviewFixtures().whereToWatch;
+    const { container } = setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="BR" />, {
+      fetchImpl: wtwWith({
+        status: 'unknown',
+        options: [],
+        to_confirm: [
+          {
+            provider: 'Canal Esporte Exemplo',
+            provider_id: 'esporte_exemplo',
+            medium: 'pay_tv',
+            access_model: 'subscription',
+            logo: null,
+            logo_dark: null,
+            sources: [],
+          },
+        ],
+        availability: {
+          ...base.availability!,
+          free_tv: [],
+          platforms: base.availability!.platforms.slice(0, 2),
+          channel_status: 'to_confirm',
+        },
+      }),
+    });
+    expect(await screen.findByText('Canal deste jogo a confirmar')).toBeTruthy();
+    expect(container.querySelector('[data-gs-to-confirm]')).toBeTruthy();
+    expect(container.querySelector('[data-gs-group="pay_tv"] [data-to-confirm]')).toBeTruthy();
+    expect(container.querySelectorAll('.gs-platform')).toHaveLength(2);
+    expect(screen.queryByRole('link', { name: 'Assistir' })).toBeNull();
+  });
+
+  it('operadora do tenant: selo, e o aviso quando o jogo não está na grade dela', async () => {
+    const base = createPreviewFixtures().whereToWatch;
+    const mine = base.availability!.platforms[0]!;
+    const { container } = setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="BR" />, {
+      fetchImpl: wtwWith({
+        availability: {
+          ...base.availability!,
+          platforms: base.availability!.platforms.slice(1),
+          your_operator: { ...mine, plans: [] },
+        },
+      }),
+    });
+    expect(await screen.findByText('Sua operadora')).toBeTruthy();
+    expect(container.querySelector('.gs-platform[data-mine]')!.textContent).toContain(
+      'Este jogo não está na grade da sua operadora.',
+    );
+  });
+
+  it('crédito do logo da plataforma: visível quando a licença exige', async () => {
+    const base = createPreviewFixtures().whereToWatch;
+    const [first, ...rest] = base.availability!.platforms;
+    const credit = {
+      text: 'Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0',
+      page_url: 'https://commons.wikimedia.org/wiki/File:Exemplo.svg',
+      attribution_required: true,
+    };
+    setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="BR" />, {
+      fetchImpl: wtwWith({
+        availability: {
+          ...base.availability!,
+          platforms: [{ ...first!, platform: { ...first!.platform, logo_credit: credit } }, ...rest],
+        },
+      }),
+    });
+    const link = await screen.findByRole('link', { name: credit.text });
+    expect(link.getAttribute('href')).toBe(credit.page_url);
+  });
+
+  it.each([
+    ['en', 'Also available on', 'Pay TV operator'],
+    ['es', 'Disponible también en', 'Operadora de TV paga'],
+  ] as const)('%s', async (locale, alsoOn, kind) => {
+    setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="BR" />, { locale });
+    expect(await screen.findByText(alsoOn)).toBeTruthy();
+    expect(screen.getByText(kind)).toBeTruthy();
   });
 
   it('explica o 403 (chave sem o módulo) e não oferece tentar de novo', async () => {

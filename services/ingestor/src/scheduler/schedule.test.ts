@@ -68,11 +68,30 @@ describe('scheduleFromEnv', () => {
 
   it('perfil agents: só os agentes de IA, rodando no pacote do ai-agents', () => {
     const jobs = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_CONTEXT_RUN: 'off' });
-    expect(jobs.map((j) => j.name)).toEqual(['recap-run', 'wtw-run', 'related-run', 'wtw-rights']);
+    expect(jobs.map((j) => j.name)).toEqual([
+      'recap-run',
+      'wtw-run',
+      'related-run',
+      'wtw-rights',
+      'lineups-revisit',
+    ]);
     expect(jobs.every((j) => j.cwd === '../ai-agents')).toBe(true);
     expect(jobsForProfile(undefined)).toBe(DEFAULT_JOBS);
     expect(jobsForProfile(' Agents ')).toBe(AGENT_JOBS);
     expect(() => jobsForProfile('api')).toThrow(/SCHEDULER_PROFILE inválido/);
+  });
+
+  it('revisita a grade de canais e ofertas uma vez por dia, com teto de pesquisas por execução', () => {
+    const job = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents' }).find((j) => j.name === 'lineups-revisit')!;
+    expect(job).toMatchObject({
+      cron: '50 4 * * *',
+      script: 'dist/cli/lineups-research.js',
+      cwd: '../ai-agents',
+      args: ['--revisitar', '--dias', '30', '--max', '4'],
+    });
+    expect(
+      scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_LINEUPS_REVISIT: 'off' }),
+    ).not.toContainEqual(expect.objectContaining({ name: 'lineups-revisit' }));
   });
 
   it('recusa expressão cron inválida com mensagem legível', () => {

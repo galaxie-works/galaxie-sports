@@ -55,7 +55,8 @@
     "provisional:sync": "node --env-file-if-exists=../../.env dist/cli/provisional-sync.js",
     "assets:commons": "node --env-file-if-exists=../../.env dist/cli/assets-commons.js",
     "assets:commons:ordenar": "node --env-file-if-exists=../../.env dist/cli/assets-commons-ordenar.js",
-    "assets:official-logos": "node --env-file-if-exists=../../.env dist/cli/official-logos.js"
+    "assets:official-logos": "node --env-file-if-exists=../../.env dist/cli/official-logos.js",
+    "assets:platform-logos": "node --env-file-if-exists=../../.env dist/cli/platform-logos.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1153.0",

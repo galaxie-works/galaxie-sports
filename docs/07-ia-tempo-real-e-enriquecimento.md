@@ -207,6 +207,7 @@ Confidencialidade: o repositório não nomeia nenhuma plataforma. Os nomes reais
 | Pedidos da operadora | `ops.lineup_review_request`; em `api.tenant`, `operator_platform_id`, `show_other_operators` e `operator_email_domains` | O tenant operadora fica ligado à própria plataforma e pede revisão de um item da grade dele (plataforma, plano ou vínculo) com mensagem e campos propostos. Aceito com `apply`, a proposta vira dado aprovado com a fonte "informado pela operadora" |
 | Funções | `packages/db/src/lineups.ts` (`@galaxie/db` e `@galaxie/db/lineups`) | `listPlatforms`, `getPlatformLineup`, `availabilityForChannels` (leitura; padrão: só o aprovado), `upsertLineupDraft` (gravação da pesquisa), `setLineupReviewStatus` e `dismissLineupChange` (painel), `createLineupReviewRequest`, `listLineupReviewRequests` e `resolveLineupReviewRequest` (portal e painel), `setTenantOperator` e `getTenantOperator` |
 | Pesquisa | `services/ai-agents/src/lineups/` + CLI `lineups-research` | Por país (BR, AR, MX, CO e CL no começo): uma chamada descobre as principais plataformas; uma chamada por plataforma levanta os planos, os canais esportivos e os streamings inclusos. Nível `research`, Gemini em dois passos com grounding |
+| Logos | `services/ingestor/src/assets/platform-logos.ts` + CLI `assets:platform-logos` | No padrão da biblioteca de emissoras, sem IA: (1) a entrada da biblioteca com o **mesmo site oficial** (acervo oficial ou Commons já curados) empresta o logo, com a versão escura; (2) senão, o item do Wikidata cujo site oficial (P856) é o da plataforma — mesmo host, ou o mesmo domínio com o nome igual a um rótulo ou apelido — e o logo dele (P154) na Wikimedia Commons, só com licença livre para uso comercial (domínio público, CC0, CC BY, CC BY-SA). A miniatura PNG vai para `platforms/<sha256>.png`, com `core.asset` (`origin = commons`) e o crédito em `core.asset_credit`; a API devolve `logo_credit`. Sem fonte verificável, sem logo |
 
 **Regras da gravação (código, não prompt):**
 
@@ -216,7 +217,7 @@ Confidencialidade: o repositório não nomeia nenhuma plataforma. Os nomes reais
 4. Tudo entra como `draft`. Gravar de novo é idempotente (por slug e país): só renova a fonte e o `seen_at`. Item revisado ou aprovado **nunca volta a rascunho** por ser revisto: a diferença vai para `proposed_change`, e aprovar de novo aplica a mudança. Item rejeitado continua rejeitado.
 5. A revisita (`--revisitar`) refaz a pesquisa das plataformas com plano visto há mais de 30 dias (`--dias`) e grava a grade como completa: plano ou vínculo que não apareceu fica com `proposed_change.removed`. Nada é apagado sem aprovação; aprovar a remoção encerra a vigência do plano ou apaga o vínculo. Pesquisa sem nenhum plano com fonte não marca nada.
 
-**Leitura no onde assistir:** `availabilityForChannels({ channelIds, country })` recebe os canais que transmitem o jogo e devolve as plataformas do país com os planos vigentes que têm esses canais (`viaChannels`) ou que incluem esses streamings (`services`), além da plataforma de streaming que é o próprio serviço. Para o cliente operadora que não mostra as outras plataformas, `onlyPlatformId`. Plataforma, plano e vínculo precisam estar no nível de revisão pedido (padrão: aprovado).
+**Leitura no onde assistir:** `availabilityForChannels({ channelIds, country })` recebe os canais que transmitem o jogo e devolve as plataformas do país com os planos vigentes que têm esses canais (`viaChannels`) ou que incluem esses streamings (`services`), além da plataforma de streaming que é o próprio serviço. Para o cliente operadora que não mostra as outras plataformas, `onlyPlatformId`. Plataforma, plano e vínculo precisam estar no nível de revisão pedido (padrão: aprovado). Jogo com o canal **a confirmar** (sem opção publicada): os canais consultados são os dos detentores dos direitos no país (`to_confirm`), e a resposta sai com `channel_status = to_confirm`.
 
 **Custo:** cada chamada passa pelo orçamento diário e fica em `ops.llm_usage` (agente `lineups`). Sem `--redescobrir` ou `--revisitar`, a execução só pesquisa país sem plataformas e plataforma sem planos; `--max` limita as chamadas.
 
@@ -224,9 +225,13 @@ Confidencialidade: o repositório não nomeia nenhuma plataforma. Os nomes reais
 pnpm --filter @galaxie/ai-agents lineups:research --plan [--pais BR]          # o que seria pesquisado (sem LLM)
 pnpm --filter @galaxie/ai-agents lineups:research [--pais BR,AR] [--max 6] [--plataforma <slug>] [--redescobrir]
 pnpm --filter @galaxie/ai-agents lineups:research --revisitar [--dias 30]
+pnpm --filter @galaxie/ingestor assets:platform-logos --plan [--pais BR]        # logos: o que seria ligado
+pnpm --filter @galaxie/ingestor assets:platform-logos [--pais BR] [--plataforma <slug>] [--refazer]
 ```
 
-Na produção, o comando roda na VPS, onde a chave do Gemini funciona: `docker compose run --rm --no-deps -e AI_PROVIDER=gemini agents node ../ai-agents/dist/cli/lineups-research.js --pais BR --max 6`. O agendamento da revisita fica para depois.
+Os logos rodam depois da pesquisa (plataforma nova entra sem logo); na VPS: `docker compose exec -T ingestor node dist/cli/platform-logos.js --plan` e, conferida a prévia, sem `--plan`.
+
+Na produção, o comando roda na VPS, onde a chave do Gemini funciona: `docker compose run --rm --no-deps -e AI_PROVIDER=gemini agents node ../ai-agents/dist/cli/lineups-research.js --pais BR --max 6`. A revisita é agendada no perfil `agents` do scheduler: job `lineups-revisit`, todo dia às 04:50 UTC, `--revisitar --dias 30 --max 4` (teto de 4 pesquisas por execução; `SCHEDULE_LINEUPS_REVISIT` muda a agenda ou desliga com `off`, também em Ajustes → Operação). O job usa o provedor da pesquisa de direitos (`AI_RIGHTS_PROVIDER=gemini` na VPS); sem ele, o `AI_PROVIDER`.
 
 ### 2.3 Agente Cenário (pré-jogo) e Resumo (pós-jogo)
 

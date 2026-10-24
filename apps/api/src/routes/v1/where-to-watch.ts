@@ -49,6 +49,23 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
           options: data.options,
           optionLogo: (o) => ({ logo: logo(o.logo), logo_dark: logoDark(o.logo) }),
           operator,
+          // canal a confirmar: as plataformas dos detentores dos direitos no país
+          toConfirm: [
+            ...data.toConfirm.map(({ row, logo: l }) => ({
+              broadcasterId: row.broadcasterId,
+              name: row.channelName ?? row.providerName,
+              medium: row.medium,
+              logo: logo(l),
+              logo_dark: logoDark(l),
+            })),
+            ...data.fromRights.map((r) => ({
+              broadcasterId: r.broadcasterId,
+              name: r.providerName,
+              medium: r.medium,
+              logo: logo(r.logo),
+              logo_dark: logoDark(r.logo),
+            })),
+          ],
         });
         const body: WhereToWatch = {
           event_id: data.eventId,

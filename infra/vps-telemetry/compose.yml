@@ -267,6 +267,8 @@ services:
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
       SCHEDULE_RELATED_RUN: ${SCHEDULE_RELATED_RUN:-*/3 * * * *}
       SCHEDULE_WTW_RIGHTS: ${SCHEDULE_WTW_RIGHTS:-40 5,17 * * *}
+      # revisita da grade de canais e ofertas (até 4 pesquisas por execução; AI_RIGHTS_PROVIDER vale aqui)
+      SCHEDULE_LINEUPS_REVISIT: ${SCHEDULE_LINEUPS_REVISIT:-50 4 * * *}
     depends_on:
       migrate:
         condition: service_completed_successfully

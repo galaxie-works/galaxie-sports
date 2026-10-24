@@ -88,6 +88,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'wtw-run', service: 'agents', cron: '*/5 * * * *', runNow: false },
   { name: 'related-run', service: 'agents', cron: '*/3 * * * *', runNow: false },
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
+  { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * *', runNow: false },
 ];
 
 /** Checagem da conta de IA, feita pelo scheduler dos agentes (o painel pede pela mesma fila do "rodar agora"). */
