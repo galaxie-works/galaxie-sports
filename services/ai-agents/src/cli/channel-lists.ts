@@ -27,9 +27,10 @@ import { dbFromEnv, intFlag } from './common.js';
 /** Provedor falso do dev: nenhum canal para as sobras (o que o validador sempre aceita). */
 function fakeMatcher(): LlmClient {
   return new FakeLlmClient((req) => {
-    const input = JSON.parse(req.messages[0]!.content) as { direitos: unknown[] };
+    // direitos numerados da mensagem ("0: país ... | plataforma_id ...")
+    const count = req.messages[0]!.content.match(/^\d+: país /gm)?.length ?? 0;
     const data: ChannelMatchOutput = {
-      casamentos: input.direitos.map((_, i) => ({
+      transmissores: Array.from({ length: count }, (_, i) => ({
         direito_idx: i,
         canal_cliente_idx: null,
         casamento: 'sem_canal_na_lista',

@@ -101,6 +101,7 @@ export function universeRights(
         broadcasterId: b.id,
         name: b.name,
         medium: b.medium,
+        accessModel: b.accessModel,
         access: rightAccess(b.medium),
       });
     }

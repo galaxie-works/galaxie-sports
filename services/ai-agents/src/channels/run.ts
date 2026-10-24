@@ -6,6 +6,7 @@
  */
 import { listChannelListsForAi, saveChannelListAi, type Database, type TenantChannelList } from '@galaxie/db';
 import {
+  CHANNEL_MATCH_PROMPT_VERSION,
   CHANNEL_MATCH_SCHEMA_NAME,
   CHANNEL_MATCH_SYSTEM,
   ChannelDictionary,
@@ -84,7 +85,7 @@ export function channelMatcher(
       schemaName: CHANNEL_MATCH_SCHEMA_NAME,
       maxOutputTokens: 4_000,
       temperature: 0,
-      purpose: `channels:${tenantId}:${batch.country}`,
+      purpose: `${CHANNEL_MATCH_PROMPT_VERSION}:${tenantId}:${batch.country}`,
     });
     onCall(result.usage.costUsd);
     return result.data;
@@ -108,6 +109,7 @@ export async function runChannelLists(opts: ChannelListRunOptions): Promise<Chan
       const res = await processChannelList(input, ai);
       const omitted = res.batches.reduce((n, b) => n + b.omittedChannels, 0);
       const note = [
+        res.batches.length ? `prompt ${CHANNEL_MATCH_PROMPT_VERSION}` : null,
         res.violations.length
           ? `${res.violations.length} violação(ões) do validador: ${res.violations.slice(0, 3).join('; ')}`
           : null,

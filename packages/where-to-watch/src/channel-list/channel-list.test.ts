@@ -14,7 +14,7 @@ const ch = (name: string, idx = 0, group: string | null = null) => ({ idx, name,
 
 /** A IA como o Gemini respondeu no AI Studio para as sobras: nenhum canal para os streamings. */
 const geminiLike = async (batch: AiBatch) => ({
-  casamentos: batch.rights.map((_, i) => ({
+  transmissores: batch.rights.map((_, i) => ({
     direito_idx: i,
     canal_cliente_idx: null,
     casamento: 'sem_canal_na_lista',
@@ -58,6 +58,12 @@ describe('normalização do nome do canal', () => {
   it('VOD, pan-regional, país por extenso e país do grupo do M3U', () => {
     expect(analyzeChannel(ch('MX: MAX VOD')).vod).toBe(true);
     expect(analyzeChannel(ch('LATAM: ESPN HD'))).toMatchObject({ pan: true, country: null });
+    expect(analyzeChannel(ch('ESPN 2 LATAM'))).toMatchObject({
+      pan: true,
+      country: null,
+      feed: '2',
+      brandNoFeed: 'ESPN',
+    });
     expect(analyzeChannel(ch('FOX SPORTS ARGENTINA'))).toMatchObject({ country: 'AR', brand: 'FOX SPORTS' });
     expect(analyzeChannel(ch('ESPN', 0, 'CHILE | DEPORTES'))).toMatchObject({
       country: 'CL',
@@ -129,7 +135,7 @@ describe('exemplo de referência: Palmeiras × Fluminense', () => {
     const origins = byKey(res.matches);
     expect(origins.get('BR:globo')!.origin).toBe('codigo');
     expect(origins.get('CL:espn')!.origin).toBe('codigo');
-    expect(origins.get('CL:paramount_plus')).toMatchObject({ match: 'sem_canal_na_lista', origin: 'codigo' });
+    expect(origins.get('MX:hbo_max')).toMatchObject({ match: 'sem_canal_na_lista', origin: 'codigo' });
   });
 
   it('a IA só vê os pares com palavra de marca em comum, sem VOD nem canal de outra emissora', async () => {
@@ -148,13 +154,15 @@ describe('exemplo de referência: Palmeiras × Fluminense', () => {
     expect(sentChannels).toEqual([11]);
     // entrada da IA: direitos e canais numerados, só índices e enums na saída
     const mx = res.batches.find((b) => b.country === 'MX')!;
-    expect(JSON.parse(channelMatchInput(mx))).toMatchObject({
-      direitos: [{ direito_idx: 0, pais: 'MX', plataforma_id: 'hbo_max', acesso: 'streaming' }],
-    });
+    // mensagem no molde validado: direitos numerados (acesso do dicionário) e canais indexados
+    const message = channelMatchInput(mx);
+    expect(message).toContain('0: país "MX" | plataforma_id "hbo_max" | acesso "streaming_assinatura"');
+    expect(message).toContain('11: "MX: HBO MAX EVENTOS"');
+    expect(message).not.toMatch(/CARTOON|MAX VOD/);
     const schema = channelMatchSchema(mx) as {
-      properties: { casamentos: { items: { properties: Record<string, { enum?: unknown[] }> } } };
+      properties: { transmissores: { items: { properties: Record<string, { enum?: unknown[] }> } } };
     };
-    const props = schema.properties.casamentos.items.properties;
+    const props = schema.properties.transmissores.items.properties;
     expect(props.direito_idx!.enum).toEqual([0]);
     expect(props.canal_cliente_idx!.enum).toContain(null);
     expect(props.canal_cliente_idx!.enum).not.toContain(6);
@@ -214,7 +222,7 @@ describe('validador depois da IA', () => {
     const { matches, violations } = validateAiMatches(
       cl,
       {
-        casamentos: [
+        transmissores: [
           item(0, 99, 'exato'), // índice fora da lista
           item(1, 3, 'exato'), // canal da Argentina como exato
           item(1, 5, 'feed_generico'), // e o direito voltou duas vezes
@@ -237,7 +245,7 @@ describe('validador depois da IA', () => {
   it('VOD, outra emissora e direito ausente também são recusados', () => {
     const { matches, violations } = validateAiMatches(
       cl,
-      { casamentos: [item(0, 6, 'nome_divergente', 'x'), item(1, 7, 'feed_generico')] },
+      { transmissores: [item(0, 6, 'nome_divergente', 'x'), item(1, 7, 'feed_generico')] },
       dict,
     );
     expect(matches.map((m) => m.match)).toEqual([
@@ -254,7 +262,7 @@ describe('validador depois da IA', () => {
     const { matches, violations } = validateAiMatches(
       cl,
       {
-        casamentos: [
+        transmissores: [
           item(0, 4, 'nome_divergente', '  Sufixo  SPORTS  '),
           item(1, 5, 'feed_generico', 'ignorada'),
           item(2, null, 'sem_canal_na_lista'),
@@ -265,13 +273,13 @@ describe('validador depois da IA', () => {
     expect(violations).toEqual([]);
     expect(matches.map((m) => [m.match, m.channels, m.note])).toEqual([
       ['nome_divergente', [4], 'Sufixo SPORTS'],
-      ['feed_generico', [5], null],
+      ['feed_generico', [5], 'ignorada'],
       ['sem_canal_na_lista', [], null],
     ]);
   });
 
   it('texto livre no lugar do enum não passa ("Paramount并发")', () => {
-    const { matches } = validateAiMatches(cl, { casamentos: [item(2, 4, 'Paramount并发')] }, dict);
+    const { matches } = validateAiMatches(cl, { transmissores: [item(2, 4, 'Paramount并发')] }, dict);
     expect(matches[2]!.match).toBe('sem_canal_na_lista');
   });
 });
@@ -290,7 +298,7 @@ describe('correções do cliente', () => {
           channelKeys: [clientChannelKey('CL: CHILEVISION SPORTS')],
         },
         { country: 'BR', broadcasterId: 'globo', channelKeys: [] },
-        { country: 'MX', broadcasterId: 'hbo_max', channelKeys: [clientChannelKey('ESPN HD')] },
+        { country: 'MX', broadcasterId: 'hbo_max', channelKeys: [clientChannelKey('ESPN 2 LATAM')] },
       ],
     });
     const got = byKey(res.matches);

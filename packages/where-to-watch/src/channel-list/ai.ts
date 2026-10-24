@@ -87,16 +87,37 @@ export function aiBatches(
   return out;
 }
 
+/**
+ * Versão do prompt (system, mensagem e schema). Entra no `purpose` de cada chamada e na nota da IA:
+ * mudou o texto ou o schema, suba a versão.
+ */
+export const CHANNEL_MATCH_PROMPT_VERSION = 'channels@v1';
 export const CHANNEL_MATCH_SCHEMA_NAME = 'casamento_canais_cliente';
 
-/** Schema da saída: só índices (em enum, do próprio pedido) e o tipo de casamento. */
+/** Acesso do direito no vocabulário do prompt validado (vem do dicionário, nunca da IA). */
+export type PromptAccess =
+  'aberto' | 'assinatura_base' | 'ppv' | 'streaming_assinatura' | 'streaming_gratuito' | 'radio';
+
+export function promptAccess(r: Pick<ChannelRight, 'medium' | 'accessModel'>): PromptAccess {
+  if (r.medium === 'free_tv') return 'aberto';
+  if (r.medium === 'radio') return 'radio';
+  if (r.accessModel === 'ppv') return 'ppv';
+  if (r.medium === 'pay_tv') return 'assinatura_base';
+  if (r.medium === 'streaming_svod') return 'streaming_assinatura';
+  return 'streaming_gratuito';
+}
+
+/**
+ * Schema da saída (o structured output validado, com o item trocado para `direito_idx`): só índices
+ * em enum, do próprio pedido, e o tipo de casamento.
+ */
 export function channelMatchSchema(batch: AiBatch): Record<string, unknown> {
   return {
     type: 'object',
     additionalProperties: false,
-    required: ['casamentos'],
+    required: ['transmissores'],
     properties: {
-      casamentos: {
+      transmissores: {
         type: 'array',
         description: 'Exatamente um item por direito da entrada, na ordem de direito_idx.',
         items: {
@@ -104,16 +125,20 @@ export function channelMatchSchema(batch: AiBatch): Record<string, unknown> {
           additionalProperties: false,
           required: ['direito_idx', 'canal_cliente_idx', 'casamento', 'nota_auditoria'],
           properties: {
-            direito_idx: { type: 'integer', enum: batch.rights.map((_, i) => i) },
+            direito_idx: {
+              type: 'integer',
+              enum: batch.rights.map((_, i) => i),
+              description: 'Índice do direito na matriz de entrada.',
+            },
             canal_cliente_idx: {
               type: ['integer', 'null'],
               enum: [...batch.channels.map((c) => c.facts.idx), null],
-              description: 'Índice do canal do cliente; null quando casamento = sem_canal_na_lista.',
+              description: 'Índice do canal na lista do cliente; null quando casamento = sem_canal_na_lista.',
             },
             casamento: { type: 'string', enum: [...CHANNEL_MATCH_KINDS] },
             nota_auditoria: {
               type: ['string', 'null'],
-              description: 'Só em nome_divergente: por que o nome diverge (até 200 caracteres). Senão, null.',
+              description: 'Só para feed_generico ou nome_divergente (até 200 caracteres); senão, null.',
             },
           },
         },
@@ -123,7 +148,7 @@ export function channelMatchSchema(batch: AiBatch): Record<string, unknown> {
 }
 
 export interface ChannelMatchOutput {
-  casamentos: {
+  transmissores: {
     direito_idx: number;
     canal_cliente_idx: number | null;
     casamento: ChannelMatchKind;
@@ -131,39 +156,38 @@ export interface ChannelMatchOutput {
   }[];
 }
 
+/**
+ * System instruction validado no teste do AI Studio (deu o resultado esperado no exemplo de
+ * referência), com os ajustes: direitos numerados, marca de praça casa como `exato` e a regra do VOD.
+ */
 export const CHANNEL_MATCH_SYSTEM = [
-  'Você casa direitos de transmissão de futebol com os canais da lista de uma operadora de TV.',
-  'Responda só com índices e enums do schema: nunca escreva nome de plataforma, de canal ou de plano.',
-  'Cada direito da entrada volta exatamente uma vez, com o seu direito_idx.',
-  'Tipos de casamento:',
-  '- exato: o canal é a emissora do direito no mesmo país. Marca de praça ou afiliada (SP, RJ, |SP|) não muda nada: é exato.',
-  '- feed_generico: canal pan-regional ou de outro país da mesma emissora, sem o feed do país na lista.',
-  '- nome_divergente: mesma marca com sufixo diferente (ex.: "CHILEVISION SPORTS" para o sinal aberto Chilevisión). Explique em nota_auditoria. Marca de praça não conta como sufixo.',
-  '- sem_canal_na_lista: nenhum canal da lista é a emissora do direito (canal_cliente_idx = null).',
-  'Regras:',
-  '- Direito com acesso "streaming" nunca casa exato com canal linear.',
-  '- Canal com "VOD" não é transmissão ao vivo: nunca casa.',
-  '- Canal de outro país só casa como feed_generico.',
-  '- Na dúvida, sem_canal_na_lista.',
+  'Você é o motor analítico de classificação do Galaxie Sports. Sua função é mapear e julgar o cruzamento de canais de IPTV com a matriz de direitos, operando estritamente através de índices e identificadores lógicos.',
+  '',
+  'Regras de Decisão Críticas:',
+  "1. MAPEAMENTO DE ÍNDICES: O campo 'direito_idx' deve conter o índice do direito na matriz fornecida no prompt, e cada direito volta exatamente uma vez. O campo 'canal_cliente_idx' deve conter estritamente o índice numérico (inteiro baseado em 0) do canal correspondente localizado na lista fornecida no prompt. Se o direito não possuir nenhum canal equivalente, mapeie obrigatoriamente como null e defina o casamento como 'sem_canal_na_lista'.",
+  '2. CRITÉRIO DE CASAMENTO:',
+  "   - 'exato': O canal é a emissora do direito no mesmo país e no mesmo tipo de transmissão. Marca de praça ou afiliada (ex.: |SP|, RJ) não é divergência: a emissora casa como exato.",
+  "   - 'feed_generico': Sinais pan-regionais (ex: ESPN 2 LATAM) mapeados para países sem sinal dedicado.",
+  "   - 'nome_divergente': Quando houver correspondência de marca, mas o sufixo ou tipo de grade sugerir divergência (ex: Matriz dita TV Aberta e a lista possui canal com sufixo 'SPORTS').",
+  "3. VALIDAÇÃO DE JANELA (STREAMING VS LINEAR): Se o direito for exclusivo de streaming nativo, canais lineares de TV por assinatura tradicionais não devem ser computados como casamento exato. Se não houver o canal de streaming na lista, marque como 'sem_canal_na_lista'.",
+  "4. VOD NÃO É TRANSMISSÃO AO VIVO: canal marcado como VOD nunca casa com um direito; use 'sem_canal_na_lista'.",
+  '5. PROIBIÇÃO DE ESCRITA LIVRE: Você está terminantemente proibido de gerar textos para plataformas ou planos. Utilize apenas os índices fornecidos na matriz de entrada e os Enums do Schema. nota_auditoria só para feed_generico ou nome_divergente.',
 ].join('\n');
 
-/** Mensagem do usuário: direitos e canais numerados (o país e o acesso vêm do dicionário, nunca da IA). */
+/** Mensagem do usuário no molde validado: direitos numerados (país, plataforma e acesso do dicionário) e canais indexados. */
 export function channelMatchInput(batch: AiBatch): string {
-  return JSON.stringify({
-    pais: batch.country,
-    direitos: batch.rights.map((r, i) => ({
-      direito_idx: i,
-      pais: r.country,
-      plataforma_id: r.broadcasterId,
-      nome: r.name,
-      acesso: r.access,
-    })),
-    canais_cliente: batch.channels.map((c) => ({
-      canal_cliente_idx: c.facts.idx,
-      nome: c.facts.name,
-      pais: c.country,
-    })),
-  });
+  return [
+    '--- DIREITOS E PLATAFORMAS EXTRAÍDOS DA BASE DE DADOS (DADOS CONFIÁVEIS) ---',
+    ...batch.rights.map(
+      (r, i) =>
+        `${i}: país "${r.country}" | plataforma_id "${r.broadcasterId}" | acesso "${promptAccess(r)}"`,
+    ),
+    '--- LISTA DE CANAIS DO CLIENTE INDEXADA ---',
+    ...batch.channels.map((c) => `${c.facts.idx}: ${JSON.stringify(c.facts.name)}`),
+    '--- PAÍSES EXIGIDOS ---',
+    JSON.stringify([batch.country]),
+    'Processe o julgamento de casamento semântico e retorne estritamente o JSON restringindo-se aos índices fornecidos.',
+  ].join('\n');
 }
 
 /**
@@ -177,11 +201,11 @@ export function validateAiMatches(
   dict: ChannelDictionary,
 ): { matches: RightMatch[]; violations: string[] } {
   const violations: string[] = [];
-  const items = Array.isArray((output as ChannelMatchOutput | null)?.casamentos)
-    ? (output as ChannelMatchOutput).casamentos
+  const items = Array.isArray((output as ChannelMatchOutput | null)?.transmissores)
+    ? (output as ChannelMatchOutput).transmissores
     : [];
-  if (!items.length) violations.push('saída sem a lista "casamentos"');
-  const byRight = new Map<number, ChannelMatchOutput['casamentos']>();
+  if (!items.length) violations.push('saída sem a lista "transmissores"');
+  const byRight = new Map<number, ChannelMatchOutput['transmissores']>();
   for (const it of items) {
     const i = it?.direito_idx;
     if (!Number.isInteger(i) || i < 0 || i >= batch.rights.length) {
@@ -224,12 +248,17 @@ export function validateAiMatches(
     const other =
       dict.resolve(r.country, ch.facts) ?? (ch.country ? dict.resolve(ch.country, ch.facts) : null);
     if (other && other !== r.broadcasterId) return fail(`canal ${idx} é de outra emissora (${other})`);
+    // nota só em feed_generico e nome_divergente (como no schema validado); na divergência, obrigatória
+    const given =
+      typeof it.nota_auditoria === 'string' && it.nota_auditoria.trim()
+        ? it.nota_auditoria.replace(/\s+/g, ' ').trim().slice(0, AI_NOTE_MAX)
+        : null;
     const note =
       it.casamento === 'nome_divergente'
-        ? typeof it.nota_auditoria === 'string' && it.nota_auditoria.trim()
-          ? it.nota_auditoria.replace(/\s+/g, ' ').trim().slice(0, AI_NOTE_MAX)
-          : 'Nome divergente (IA).'
-        : null;
+        ? (given ?? 'Nome divergente (IA).')
+        : it.casamento === 'feed_generico'
+          ? given
+          : null;
     return { ...matchBase(r), match: it.casamento, channels: [idx!], origin: 'ia', note };
   });
   return { matches, violations };

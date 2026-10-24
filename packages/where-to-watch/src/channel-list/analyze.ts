@@ -46,6 +46,8 @@ const COUNTRY_WORDS = new Set([
   'URUGUAY',
   'ECUADOR',
 ]);
+/** Pan-regional no meio ou no fim do nome (sem as siglas curtas, que só valem como prefixo). */
+const PAN_WORDS = new Set(['LATAM', 'LATINOAMERICA', 'PANREGIONAL']);
 const PAN_TOKENS = new Set([
   'LATAM',
   'LAT',
@@ -169,6 +171,8 @@ export function analyzeChannel(
   // VOD e qualidade em qualquer posição; marcas entre barras no meio ("GLOBO |SP| HD") viram praça
   tokens = tokens.filter((t) => {
     if (t === 'VOD') return !(acc.vod = true);
+    // pan-regional em qualquer posição ("ESPN 2 LATAM")
+    if (PAN_WORDS.has(t)) return !(acc.pan = true);
     if (QUALITY.has(t) || /^(HD|FHD|UHD)\+?$/.test(t)) {
       acc.quality ??= t;
       return false;

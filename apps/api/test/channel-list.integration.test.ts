@@ -168,9 +168,12 @@ describe('PUT /v1/channel-list', () => {
       const m = by.get(key) as { match: string; channels: { index: number }[] };
       expect({ key, match: m.match, channels: m.channels.map((c) => c.index) }).toEqual({ key, ...exp });
     }
-    expect((by.get('BR:sbt') as { match: string }).match).toBe('exato');
+    // fora do jogo, cada canal casa com a própria emissora do país (Premiere, ViX)
+    expect((by.get('BR:premiere') as { channels: { index: number }[] }).channels).toEqual([
+      { index: 8, name: 'BR: PREMIERE 4K' },
+    ]);
     expect((by.get('CO:win_sports') as { channels: { index: number }[] }).channels).toEqual([
-      { index: 9, name: 'COL: WIN SPORTS+ HD' },
+      { index: 9, name: 'COL: WIN SPORTS+' },
     ]);
     const row = await getChannelList(db, tenants.main);
     expect(row!.channels[0]).toEqual({ idx: 0, name: 'BR: |SP| GLOBO HD', group: null });
@@ -191,16 +194,17 @@ describe('POST /v1/channel-list/confirm → client_channels no onde assistir', (
       { index: 0, name: 'BR: |SP| GLOBO HD', match: 'exato' },
     ]);
     expect(await channelsOf('AR', 'fox_sports', keys.main)).toEqual([
-      { index: 3, name: 'ARG: FOX SPORTS HD', match: 'exato' },
+      { index: 3, name: 'AR: FOX SPORTS 1 HD', match: 'exato' },
     ]);
     expect(await channelsOf('CL', 'chilevision', keys.main)).toEqual([
       { index: 4, name: 'CL: CHILEVISION SPORTS', match: 'nome_divergente' },
     ]);
     for (const country of ['CL', 'CO'])
       expect(await channelsOf(country, 'espn', keys.main)).toEqual([
-        { index: 5, name: 'ESPN HD', match: 'feed_generico' },
+        { index: 5, name: 'ESPN 2 LATAM', match: 'feed_generico' },
       ]);
-    expect(await channelsOf('CL', 'paramount_plus', keys.main)).toEqual([]);
+    expect(await channelsOf('BR', 'paramount_plus', keys.main)).toEqual([]);
+    expect(await channelsOf('CL', 'disney_plus', keys.main)).toEqual([]);
     expect(await channelsOf('CO', 'disney_plus', keys.main)).toEqual([]);
     expect(await channelsOf('MX', 'hbo_max', keys.main)).toEqual([]);
   });

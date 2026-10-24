@@ -25,13 +25,16 @@ const channels = [...fixtureChannels(), { idx: 11, name: 'DISNEY PLUS PREMIUM LI
 describe('IA nas sobras da lista de canais', () => {
   it('pedido com índices em enum, schema estrito e resultado do exemplo de referência', async () => {
     const llm = new FakeLlmClient((req) => {
-      const input = JSON.parse(req.messages[0]!.content) as { direitos: { plataforma_id: string }[] };
+      // direitos numerados da mensagem: `0: país "CO" | plataforma_id "disney_plus" | acesso "..."`
+      const rights = [
+        ...req.messages[0]!.content.matchAll(/^(\d+): país "\w+" \| plataforma_id "([^"]+)"/gm),
+      ];
       const data: ChannelMatchOutput = {
-        casamentos: input.direitos.map((d, i) => ({
-          direito_idx: i,
+        transmissores: rights.map(([, idx, id]) => ({
+          direito_idx: Number(idx),
           // a IA tenta casar o streaming com o canal linear como exato: o validador recusa
-          canal_cliente_idx: d.plataforma_id === 'disney_plus' ? 11 : null,
-          casamento: d.plataforma_id === 'disney_plus' ? 'exato' : 'sem_canal_na_lista',
+          canal_cliente_idx: id === 'disney_plus' ? 11 : null,
+          casamento: id === 'disney_plus' ? 'exato' : 'sem_canal_na_lista',
           nota_auditoria: null,
         })),
       };
@@ -45,7 +48,7 @@ describe('IA nas sobras da lista de canais', () => {
     for (const call of llm.calls) {
       expect(strictSchemaProblems(call.schema)).toEqual([]);
       expect(call.messages[0]!.content).not.toMatch(/VOD/); // VOD fica fora antes da IA
-      expect(call.purpose).toMatch(/^channels:tenant-teste:/);
+      expect(call.purpose).toMatch(/^channels@v1:tenant-teste:/);
     }
     const by = new Map(res.matches.map((m) => [rightKey(m), m]));
     for (const [key, exp] of Object.entries(FIXTURE_EXPECTED)) expect(by.get(key)?.match).toBe(exp.match);
@@ -56,7 +59,7 @@ describe('IA nas sobras da lista de canais', () => {
   it('saída fora do schema (texto livre no lugar do índice) é recusada pelo cliente', async () => {
     const llm = new FakeLlmClient(() => ({
       data: {
-        casamentos: [
+        transmissores: [
           { direito_idx: 0, canal_cliente_idx: 'Paramount并发', casamento: 'exato', nota_auditoria: null },
         ],
       },

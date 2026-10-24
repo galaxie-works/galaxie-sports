@@ -2,7 +2,7 @@
  * Lista de canais do cliente casada com os nossos direitos de transmissão (docs/07 §2.2.3). Só nomes
  * de canais, nunca EPG: o guia de programação é licenciado ao cliente pelo fornecedor dele.
  */
-import type { BroadcastMedium, ChannelMatchKind } from '@galaxie/db';
+import type { AccessModel, BroadcastMedium, ChannelMatchKind } from '@galaxie/db';
 import type { WtwCountry } from '../config/types.js';
 
 /**
@@ -59,6 +59,8 @@ export interface ChannelRight {
   broadcasterId: string;
   name: string;
   medium: BroadcastMedium;
+  /** Modelo de acesso do dicionário (vira o acesso do prompt: aberto, assinatura_base, ppv…). */
+  accessModel?: AccessModel;
   access: RightAccess;
 }
 
