@@ -28,6 +28,7 @@ import {
   knockoutStakes,
   leagueMatchStakes,
   localizeStake,
+  TITLE_VARIANT_OF,
   type CompetitionRules,
   type FanTagLocale,
   type FanTagStanding,
@@ -210,6 +211,8 @@ const TITLE_FAMILIES = new Set([
   'can_clinch_title',
   'in_title_race',
   'decides_title',
+  // final: variantes de título dos códigos de mata-mata (TITLE_VARIANT_OF em @galaxie/rules)
+  ...Object.values(TITLE_VARIANT_OF),
 ]);
 const RELEGATION_FAMILIES = new Set([
   'mathematically_relegated',
@@ -237,6 +240,7 @@ export const DECISIVE_FAMILIES = new Set([
   'specific_draw_goes_to_penalties',
   'specific_draw_goes_to_extra_time',
   'outcome_depends_on_away_goals',
+  ...Object.values(TITLE_VARIANT_OF),
   'decides_title',
   'clinches_title_with_draw',
   'clinches_title_with_win',

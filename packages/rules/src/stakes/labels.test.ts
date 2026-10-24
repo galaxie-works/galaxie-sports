@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { makeStake, STAKE_FAMILIES, stakeCode, type StakeFamily } from './codes.js';
+import { makeStake, STAKE_FAMILIES, stakeCode, TITLE_VARIANT_OF, type StakeFamily } from './codes.js';
 import { exampleParams, renderLabelsMarkdown } from './labels-doc.js';
 import {
   isStakeLocale,
@@ -101,6 +101,71 @@ describe('mapa de rótulos', () => {
     });
     expect(isStakeLocale('es-UY')).toBe(true);
     expect(isStakeLocale('en')).toBe(false);
+  });
+});
+
+describe('final: variantes de título', () => {
+  const TITLE_FAMILIES = Object.values(TITLE_VARIANT_OF);
+
+  it('nenhum rótulo de título fala em avançar ou vaga, nos 8 mercados', () => {
+    for (const locale of STAKE_LOCALES) {
+      for (const family of TITLE_FAMILIES) {
+        for (const n of [1, 2]) {
+          const params = exampleParams(family) ? { n } : undefined;
+          const text = stakeText(makeStake('home', family, params), locale);
+          expect(text, `${locale} ${family}`).toMatch(/t[íi]tulo|campe[ãóo]/i);
+          expect(text, `${locale} ${family}`).not.toMatch(/avan[çcz]|vaga|clasifica/i);
+        }
+      }
+    }
+  });
+
+  it.each([
+    [
+      'needs_win_for_title',
+      undefined,
+      'Vitória no tempo normal dá o título',
+      'Si gana en el tiempo reglamentario, es campeón',
+    ],
+    ['wins_title_with_draw', undefined, 'Empate dá o título', 'Con el empate es campeón'],
+    [
+      'needs_win_by_n_for_title',
+      { n: 2 },
+      'Vitória por 2 gols ou mais no tempo normal dá o título',
+      'Si gana por 2 goles o más en el tiempo reglamentario, es campeón',
+    ],
+    [
+      'wins_title_with_loss_by_n',
+      { n: 1 },
+      'É campeão mesmo perdendo por até 1 gol de diferença',
+      'Es campeón incluso perdiendo por hasta 1 gol de diferencia',
+    ],
+    [
+      'wins_title_with_draw_up_to_n',
+      { n: 0 },
+      'Empate sem gols dá o título',
+      'Con empate sin goles es campeón',
+    ],
+  ] as const)('%s %j — pt-BR e es-AR', (family, params, pt, es) => {
+    const stake = makeStake('home', family, params);
+    expect(localizeStake(stake, ['pt-BR', 'es-AR']).text).toEqual({ 'pt-BR': pt, 'es-AR': es });
+  });
+
+  it('es-MX: "con una victoria"; demais mercados seguem o es-AR', () => {
+    const stake = makeStake('away', 'needs_win_for_title');
+    expect(stakeText(stake, 'es-MX')).toBe('Con una victoria en el tiempo reglamentario es campeón');
+    expect(stakeText(stake, 'es-CO')).toBe(stakeText(stake, 'es-AR'));
+  });
+
+  it.each([
+    ['needs_win_for_title', {}, 'needs_win_for_title'],
+    ['needs_win_by_n_for_title', { n: 2 }, 'needs_win_by_2_for_title'],
+    ['wins_title_with_loss_by_n', { n: 1 }, 'wins_title_with_loss_by_1'],
+    ['wins_title_with_draw_up_to_n', { n: 0 }, 'wins_title_with_draw_up_to_0'],
+    ['wins_title_with_draw_from_n', { n: 2 }, 'wins_title_with_draw_from_2'],
+    ['title_depends_on_away_goals', { n: 1 }, 'win_by_1_title_depends_on_away_goals'],
+  ] as const)('código %s %j → %s', (family, params, code) => {
+    expect(stakeCode(family, params)).toBe(code);
   });
 });
 

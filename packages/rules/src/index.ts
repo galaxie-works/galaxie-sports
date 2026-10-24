@@ -39,6 +39,7 @@ export {
   KNOCKOUT_FAMILIES,
   LEAGUE_FAMILIES,
   STAKE_FAMILIES,
+  TITLE_VARIANT_OF,
   makeStake,
   stakeCode,
   type Stake,

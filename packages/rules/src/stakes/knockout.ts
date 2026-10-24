@@ -1,5 +1,5 @@
 import type { KnockoutStageRules } from '../config/types.js';
-import { makeStake, type Stake } from './codes.js';
+import { makeStake, TITLE_VARIANT_OF, type Stake } from './codes.js';
 
 /** Quem passa ao fim do tempo normal desta partida (ou para onde vai a decisão). */
 export type TieOutcome = 'home' | 'away' | 'extra_time' | 'penalties';
@@ -145,7 +145,13 @@ function decisiveStakes(input: KnockoutMatchInput): Stake[] {
     if (o === 'extra_time') pushBoth(makeStake('both', 'specific_draw_goes_to_extra_time', { n: g }));
     else if (o === 'penalties') pushBoth(makeStake('both', 'specific_draw_goes_to_penalties', { n: g }));
   }
-  return [...stakes, ...both];
+  return [...stakes.map((s) => (input.rules.decidesTitle ? titleVariant(s) : s)), ...both];
+}
+
+/** Na final (o confronto decide o campeão), "avança" vira "é campeão": mesma condição, outra família. */
+function titleVariant(stake: Stake): Stake {
+  const family = TITLE_VARIANT_OF[stake.family as keyof typeof TITLE_VARIANT_OF];
+  return family ? makeStake(stake.team, family, stake.params) : stake;
 }
 
 function infoStakes(input: KnockoutMatchInput): Stake[] {
@@ -164,6 +170,8 @@ function infoStakes(input: KnockoutMatchInput): Stake[] {
 /**
  * Stakes de uma partida de mata-mata: o que cada lado precisa para avançar.
  * Ordem: códigos por time (mandante, visitante), depois os do confronto (`both`).
+ * Quando o confronto decide o título (`rules.decidesTitle`), os códigos de "avançar" saem nas variantes
+ * de título (`needs_win_for_title`, `wins_title_with_draw`…, ver `TITLE_VARIANT_OF`).
  */
 export function knockoutStakes(input: KnockoutMatchInput): Stake[] {
   const { rules } = input;

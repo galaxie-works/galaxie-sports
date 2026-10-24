@@ -69,6 +69,58 @@ const FAMILY_TAGS: Record<StakeFamily, FamilyTag | { zone: ZoneVerb } | null> = 
     rank: 1,
     text: { 'pt-BR': 'Vale o título', es: 'Se juega el título', en: 'Title on the line' },
   },
+  // final: variantes de título dos códigos de mata-mata ("avança" vira "é campeão")
+  wins_title_with_draw: {
+    tier: 'title',
+    rank: 2,
+    text: { 'pt-BR': 'Empate dá o título', es: 'Con el empate es campeón', en: 'A draw wins the title' },
+  },
+  wins_title_with_draw_up_to_n: {
+    tier: 'title',
+    rank: 2,
+    text: {
+      'pt-BR': { zero: '0 a 0 dá o título', other: 'Empate até {n} a {n} dá o título' },
+      es: { zero: 'El 0 a 0 le da el título', other: 'Empate hasta {n} a {n}: campeón' },
+      en: { zero: 'A 0-0 draw wins the title', other: 'A draw up to {n}-{n} wins it' },
+    },
+  },
+  wins_title_with_draw_from_n: {
+    tier: 'title',
+    rank: 2,
+    text: {
+      'pt-BR': { one: 'Empate com gols dá o título', other: 'Empate de {n} a {n} ou mais serve' },
+      es: { one: 'El empate con goles le sirve', other: 'Le sirve empate {n} a {n} o más' },
+      en: { one: 'A scoring draw wins the title', other: 'A {n}-{n} draw or more wins it' },
+    },
+  },
+  wins_title_with_loss_by_n: {
+    tier: 'title',
+    rank: 2,
+    text: {
+      'pt-BR': 'Pode perder por até {goals}',
+      es: 'Puede perder por hasta {goals}',
+      en: 'Can lose by up to {goals}',
+    },
+  },
+  needs_win_for_title: {
+    tier: 'title',
+    rank: 3,
+    text: { 'pt-BR': 'Precisa vencer', es: 'Necesita ganar', en: 'Must win' },
+  },
+  needs_win_by_n_for_title: {
+    tier: 'title',
+    rank: 3,
+    text: {
+      'pt-BR': 'Precisa vencer por {goals}',
+      es: 'Necesita ganar por {goals}',
+      en: 'Must win by {goals}',
+    },
+  },
+  title_depends_on_away_goals: {
+    tier: 'title',
+    rank: 6,
+    text: { 'pt-BR': 'Gol fora pesa', es: 'Pesa el gol de visitante', en: 'Away goals count' },
+  },
   clinches_title_with_draw: {
     tier: 'title',
     rank: 2,
