@@ -210,6 +210,105 @@ export const jobRequest = ops.table(
   (t) => [index('job_request_status_idx').on(t.status, t.requestedAt)],
 );
 
+// ─── qualidade dos dados (job `data-quality`, services/ingestor/src/quality) ───────────────────────
+
+/** Severidade de uma regra de qualidade: critical = erro que o cliente vê na página; low = cosmético. */
+export const QUALITY_SEVERITIES = ['critical', 'high', 'medium', 'low'] as const;
+export type QualitySeverity = (typeof QUALITY_SEVERITIES)[number];
+
+/** pass = nada errado · fail = ao menos um item errado · skipped = faltou a fonte (motivo em `detail`) · error = a consulta falhou. */
+export const QUALITY_STATUSES = ['pass', 'fail', 'skipped', 'error'] as const;
+export type QualityStatus = (typeof QUALITY_STATUSES)[number];
+
+/** Link da falha para a página ou o item (a demo monta a URL). */
+export type QualityLink = {
+  /** participant | event | person | competition | platform | plan | country */
+  type: string;
+  id: string;
+  /** Rótulo da URL do participante (piloto e lutador têm rota própria). */
+  kind?: string | null;
+  name?: string | null;
+};
+
+/** Catálogo das regras, regravado a cada execução a partir do código (o painel lê daqui a descrição). */
+export const qualityRule = ops.table('quality_rule', {
+  id: text('id').primaryKey(),
+  /** Esporte da regra (slug) ou `*` quando vale para todos (o resultado sai por esporte). */
+  sport: text('sport').notNull(),
+  /** f1 | events | standings | assets | people | wikidata | watch | geo */
+  area: text('area').notNull(),
+  severity: text('severity').$type<QualitySeverity>().notNull(),
+  /** Descrição por idioma (pt-BR, en, es). */
+  description: jsonb('description').$type<Record<string, string>>().notNull(),
+  /** De onde veio a regra (ex.: "erro achado pelo dono do produto em 24/10/2026"). */
+  origin: text('origin'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Uma execução do motor de regras (job diário ou `quality:run` sem `--plan`). */
+export const qualityRun = ops.table(
+  'quality_run',
+  {
+    id: pkUuidV7(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    /** schedule | cli */
+    trigger: text('trigger').notNull(),
+    /** running | done | error */
+    status: text('status').notNull().default('running'),
+    rules: integer('rules').notNull().default(0),
+    failed: integer('failed').notNull().default(0),
+    error: text('error'),
+  },
+  (t) => [index('quality_run_started_idx').on(t.startedAt)],
+);
+
+/** Resultado de uma regra num esporte, numa execução: base do placar e da tendência. */
+export const qualityResult = ops.table(
+  'quality_result',
+  {
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => qualityRun.id, { onDelete: 'cascade' }),
+    ruleId: text('rule_id').notNull(),
+    sport: text('sport').notNull(),
+    severity: text('severity').$type<QualitySeverity>().notNull(),
+    status: text('status').$type<QualityStatus>().notNull(),
+    /** Itens conferidos e itens errados. */
+    checked: integer('checked').notNull().default(0),
+    failed: integer('failed').notNull().default(0),
+    /** Motivo do skipped ou mensagem do error. */
+    detail: text('detail'),
+    durationMs: integer('duration_ms').notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.runId, t.ruleId, t.sport] }),
+    index('quality_result_rule_idx').on(t.ruleId, t.sport),
+  ],
+);
+
+/** Item errado de uma regra numa execução (só as execuções recentes ficam: a retenção apaga as velhas). */
+export const qualityFailure = ops.table(
+  'quality_failure',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => qualityRun.id, { onDelete: 'cascade' }),
+    ruleId: text('rule_id').notNull(),
+    sport: text('sport').notNull(),
+    /** Chave estável do item na regra (ex.: `<participant>:1955`): liga a mesma falha entre execuções. */
+    itemKey: text('item_key').notNull(),
+    label: text('label').notNull(),
+    current: text('current'),
+    expected: text('expected'),
+    link: jsonb('link').$type<QualityLink>(),
+    /** Primeira execução em que a falha apareceu (seguida, sem sumir no meio). */
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('quality_failure_run_idx').on(t.runId, t.ruleId, t.sport)],
+);
+
 /** Resultado das checagens feitas por um serviço (ex.: crédito da conta de IA, pelo scheduler dos agentes). */
 export const runtimeCheck = ops.table(
   'runtime_check',
