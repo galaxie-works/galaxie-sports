@@ -12,6 +12,7 @@ import type { PoolClient } from 'pg';
 
 import { pool } from '@/lib/auth/db';
 
+import { reviewSummary, type SummaryWords } from './summary';
 import {
   PAGE_SIZE,
   REVIEW_STATES,
@@ -123,7 +124,10 @@ function where(filters: ReviewFilters, withState: boolean) {
   return { sql: conds.length ? `where ${conds.join(' and ')}` : '', params };
 }
 
-export async function listReviewItems(filters: ReviewFilters): Promise<ReviewListResult> {
+export async function listReviewItems(
+  filters: ReviewFilters,
+  words: SummaryWords,
+): Promise<ReviewListResult> {
   const list = where(filters, true);
   const counted = where(filters, false);
   const offset = (filters.page - 1) * PAGE_SIZE;
@@ -151,7 +155,11 @@ export async function listReviewItems(filters: ReviewFilters): Promise<ReviewLis
   const byState = Object.fromEntries(REVIEW_STATES.map((s) => [s, 0])) as Record<ReviewState, number>;
   for (const c of counts) byState[c.state] = c.n;
   return {
-    items: rows.map(toListItem),
+    items: rows.map((r) => ({
+      ...toListItem(r),
+      summary: reviewSummary(r.kind, r.content, words),
+      openSuggestion: r.suggestion?.comment ?? null,
+    })),
     total: total[0]?.n ?? 0,
     counts: byState,
     options: {
