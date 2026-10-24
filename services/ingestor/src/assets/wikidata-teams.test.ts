@@ -2,22 +2,29 @@ import { describe, expect, it } from 'vitest';
 import {
   ageOn,
   asPhotoMatch,
-  isWomenTeam,
+  itemCategory,
   matchByTeam,
   nationalityOf,
+  normalizeTeamName,
   resolveTeam,
+  teamCategory,
   teamPlayers,
   teamPlayersQuery,
   teamSearchName,
   type TeamCandidate,
+  type TeamItem,
   type TeamPlayer,
   type TeamResolution,
 } from './wikidata-teams.js';
 
-const claim = (id: string) => ({ mainsnak: { datavalue: { value: { id } } } });
-const entity = (types: string[], countries: string[]) => ({
-  P31: types.map(claim),
-  P17: countries.map(claim),
+const item = (over: Partial<TeamItem>): TeamItem => ({
+  label: null,
+  names: over.label ? [over.label] : [],
+  description: 'association football club',
+  types: ['Q476028'],
+  countries: ['Argentina'],
+  leagues: [],
+  ...over,
 });
 
 const cand = (over: Partial<TeamCandidate>): TeamCandidate => ({
@@ -46,60 +53,170 @@ const teams = new Map<string, TeamResolution>([
 ]);
 
 describe('casamento estrito pelo time no Wikidata', () => {
-  it('time feminino pelo " W" da api-sports; a busca vai sem ele', () => {
-    expect(isWomenTeam('Roma W')).toBe(true);
-    expect(isWomenTeam('Watford')).toBe(false);
+  it('categoria do nosso time pelo sufixo da api-sports; a busca vai sem ele', () => {
+    expect(teamCategory('Roma W')).toBe('women');
+    expect(teamCategory('Palmeiras U20')).toBe('youth');
+    expect(teamCategory('Flamengo Sub-20')).toBe('youth');
+    expect(teamCategory('Barcelona B')).toBe('reserve');
+    expect(teamCategory('Estudiantes Res.')).toBe('reserve');
+    expect(teamCategory('Watford')).toBe('senior');
+    expect(teamCategory('Juan Pablo II College')).toBe('senior');
     expect(teamSearchName('Birmingham City W')).toBe('Birmingham City');
+    expect(teamSearchName('Palmeiras U20')).toBe('Palmeiras');
+    expect(teamSearchName('Boca Juniors')).toBe('Boca Juniors');
   });
 
-  it('resolve o time: clube do gênero certo e do mesmo país; mais de um é ambíguo; nenhum, sem QID', () => {
-    const claims = new Map([
-      ['Q2714', entity(['Q476028'], ['Q145'])], // Watford FC (Reino Unido)
-      ['Q99', entity(['Q515'], ['Q145'])], // a cidade de Watford
-      ['Q160530', entity(['Q476028'], ['Q183'])], // VfL Osnabrück
-      ['Q97927396', entity(['Q103229495'], ['Q183'])], // VfL Osnabrück feminino
-      ['Q300', entity(['Q476028'], ['Q183'])],
+  it('categoria do item pelo rótulo e pela descrição, não pelo tipo nem pelos apelidos', () => {
+    const it = (label: string, description: string, types = ['Q476028']) => ({ label, description, types });
+    // o Chelsea masculino é Q103229495 ("men's association football team")
+    expect(itemCategory(it('Chelsea F.C.', 'association football club in London', ['Q103229495']))).toBe(
+      'senior',
+    );
+    expect(itemCategory(it('Chelsea F.C. Women', "women's association football club"))).toBe('women');
+    expect(itemCategory(it('X', 'y', ['Q28140340']))).toBe('women');
+    expect(
+      itemCategory(
+        it('Boca Juniors Reserves and Academy', 'reserve and youth academy teams of Boca Juniors'),
+      ),
+    ).toBe('youth');
+    expect(
+      itemCategory(it('Real Madrid Castilla', 'association football reserve team of Real Madrid CF')),
+    ).toBe('reserve');
+    expect(itemCategory(it('FC Barcelona B', 'Spanish football team'))).toBe('reserve');
+  });
+
+  it('nome comparável sem acento, caixa e pontuação', () => {
+    expect(normalizeTeamName('Estudiantes L.P.')).toBe(normalizeTeamName('Estudiantes LP'));
+    expect(normalizeTeamName('Atlético-MG')).toBe('atletico mg');
+  });
+
+  it('resolve o time: clube do mesmo país e da mesma categoria; mais de um é ambíguo; nenhum, sem QID', () => {
+    const items = new Map([
+      ['Q2714', item({ label: 'Watford F.C.', countries: ['United Kingdom'] })],
+      ['Q99', item({ label: 'Watford', types: ['Q515'], countries: ['United Kingdom'] })], // a cidade
+      // Chelsea masculino (Q103229495) e o feminino
+      ['Q9616', item({ label: 'Chelsea F.C.', types: ['Q103229495'], countries: ['United Kingdom'] })],
+      [
+        'Q1023',
+        item({
+          label: 'Chelsea F.C. Women',
+          description: "women's association football club",
+          countries: ['United Kingdom'],
+        }),
+      ],
+      ['Q160530', item({ label: 'VfL Osnabrück', countries: ['Germany'] })],
+      ['Q300', item({ label: 'Y', countries: ['Germany'] })],
     ]);
-    const labels = new Map([
-      ['Q145', 'United Kingdom'],
-      ['Q183', 'Germany'],
-    ]);
+    const t = (name: string, country: string, leagues: string[] = []) => ({
+      providerId: '1',
+      name,
+      country,
+      leagues,
+    });
     // England → United Kingdom pelo apelido; a cidade não é clube
-    expect(
-      resolveTeam({ providerId: '1', name: 'Watford', country: 'England' }, ['Q99', 'Q2714'], claims, labels),
-    ).toEqual({
-      qid: 'Q2714',
-    });
-    // masculino ignora o feminino de mesmo nome
-    expect(
-      resolveTeam(
-        { providerId: '2', name: 'VfL Osnabrück', country: 'Germany' },
-        ['Q160530', 'Q97927396'],
-        claims,
-        labels,
-      ),
-    ).toEqual({
-      qid: 'Q160530',
-    });
-    expect(
-      resolveTeam(
-        { providerId: '3', name: 'VfL Osnabrück W', country: 'Germany' },
-        ['Q160530', 'Q97927396'],
-        claims,
-        labels,
-      ),
-    ).toEqual({
-      qid: 'Q97927396',
-    });
-    expect(
-      resolveTeam({ providerId: '4', name: 'X', country: 'Germany' }, ['Q160530', 'Q300'], claims, labels),
-    ).toEqual({
+    expect(resolveTeam(t('Watford', 'England'), ['Q99', 'Q2714'], items)).toEqual({ qid: 'Q2714' });
+    // o principal não liga com o feminino, e o feminino não liga com o principal
+    expect(resolveTeam(t('Chelsea', 'England'), ['Q1023', 'Q9616'], items)).toEqual({ qid: 'Q9616' });
+    expect(resolveTeam(t('Chelsea W', 'England'), ['Q1023', 'Q9616'], items)).toEqual({ qid: 'Q1023' });
+    expect(resolveTeam(t('Fiorentina W', 'England'), ['Q9616'], items)).toEqual({ none: true });
+    expect(resolveTeam(t('X', 'Germany'), ['Q160530', 'Q300'], items)).toEqual({
       ambiguous: ['Q160530', 'Q300'],
     });
     // país diferente
+    expect(resolveTeam(t('X', 'Brazil'), ['Q160530'], items)).toEqual({ none: true });
+  });
+
+  it('Boca: o clube (só "sports club") e não as categorias de base', () => {
+    const items = new Map([
+      ['Q170703', item({ label: 'Boca Juniors', types: ['Q847017'], description: 'Argentine sports club' })],
+      [
+        'Q4936095',
+        item({
+          label: 'Boca Juniors Reserves and Academy',
+          types: ['Q15944511', 'Q847017'],
+          description: 'reserve and youth academy teams of Boca Juniors',
+        }),
+      ],
+    ]);
+    const boca = { providerId: '451', name: 'Boca Juniors', country: 'Argentina', leagues: [] };
+    expect(resolveTeam(boca, ['Q4936095', 'Q170703'], items)).toEqual({ qid: 'Q170703' });
+  });
+
+  it('o time de futebol passa à frente do clube poliesportivo; outra modalidade nunca liga', () => {
+    const items = new Map([
+      ['Q837205', item({ label: 'Kongsvinger IL Toppfotball', countries: ['Norway'] })],
+      [
+        'Q1118263',
+        item({
+          label: 'Kongsvinger IL',
+          types: ['Q847017'],
+          description: 'sports club in Kongsvinger',
+          countries: ['Norway'],
+        }),
+      ],
+      [
+        'Q65164760',
+        item({ label: 'Legia Warsaw', description: 'Polish amputee football club', countries: ['Poland'] }),
+      ],
+      [
+        'Q11753729',
+        item({
+          label: 'Legia Warszawa',
+          types: ['Q847017'],
+          description: 'former motorcycle speedway club from Warsaw',
+          countries: ['Poland'],
+        }),
+      ],
+    ]);
+    const t = (name: string, country: string) => ({ providerId: '1', name, country, leagues: [] });
+    expect(resolveTeam(t('Kongsvinger', 'Norway'), ['Q1118263', 'Q837205'], items)).toEqual({
+      qid: 'Q837205',
+    });
+    expect(resolveTeam(t('Legia Warszawa', 'Poland'), ['Q65164760', 'Q11753729'], items)).toEqual({
+      none: true,
+    });
+    // "basketball" na descrição de um clube de futebol não o tira (seções de outros esportes)
     expect(
-      resolveTeam({ providerId: '5', name: 'X', country: 'Brazil' }, ['Q160530'], claims, labels),
-    ).toEqual({ none: true });
+      itemCategory({ label: 'X', description: 'football and basketball club', types: ['Q476028'] }),
+    ).toBe('senior');
+  });
+
+  it('homônimos do mesmo país: desempata pelo nome exato e depois pela liga', () => {
+    const items = new Map([
+      [
+        'Q214940',
+        item({
+          label: 'Estudiantes de La Plata',
+          names: ['Estudiantes de La Plata', 'Estudiantes LP'],
+          leagues: ['Argentine Primera División', 'Liga Profesional Argentina'],
+        }),
+      ],
+      [
+        'Q2006',
+        item({
+          label: 'Club Atlético Estudiantes',
+          names: ['CA Estudiantes'],
+          leagues: ['Primera B Metropolitana'],
+        }),
+      ],
+    ]);
+    const t = (name: string, leagues: string[]) => ({
+      providerId: '450',
+      name,
+      country: 'Argentina',
+      leagues,
+    });
+    expect(resolveTeam(t('Estudiantes L.P.', []), ['Q2006', 'Q214940'], items)).toEqual({ qid: 'Q214940' });
+    // sem nome exato: a liga em que o time jogou decide
+    expect(
+      resolveTeam(t('Estudiantes', ['Liga Profesional Argentina']), ['Q2006', 'Q214940'], items),
+    ).toEqual({
+      qid: 'Q214940',
+    });
+    // nem nome nem liga: ambíguo
+    expect(resolveTeam(t('Estudiantes', ['Copa Argentina']), ['Q2006', 'Q214940'], items)).toEqual({
+      ambiguous: ['Q2006', 'Q214940'],
+    });
   });
 
   it('idade em anos completos na data do elenco', () => {

@@ -136,10 +136,12 @@ Na importação, a primeira foto do primeiro candidato que não foi rejeitada **
 - **API:**
   - `GET /v1/teams/{id}/photos` (`role`, `season`): fotos com `credit` (autor, licença, links e `text`, a linha pronta);
   - `GET /v1/teams/{id}/career`: o `portrait`, o `highlight` (carro de destaque: `season` e `car`) e o `car` de cada temporada, com o mesmo crédito.
+  - `GET /v1/sports/formula-1/legends`: as lendas (o mesmo critério do escopo `lendas`), cada uma com o `portrait` e o carro da temporada marcante (o `highlight_car` ou, sem ele, um `car` da temporada, nunca CC BY-SA).
 - **Demo:**
   - galeria e retrato na página do piloto ou da equipe;
   - foto do carro na tabela de temporadas da carreira;
   - "o carro do vencedor" na página do GP.
+  - o carrossel "Legendary" na página da F1 (`/esportes/formula-1`), com a lista de créditos logo abaixo.
   - Sempre com a legenda de crédito.
 - **Banco:**
   - `core.asset` (`origin = commons`, `acervo = commons-f1`, `source_url = commons://<arquivo>`);
