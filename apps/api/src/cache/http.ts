@@ -27,6 +27,20 @@ export interface CachedRouteOptions {
   check?: (meta: Record<string, string>) => void;
 }
 
+/** Teto do header `surrogate-key`: clientes HTTP (undici/Node) recusam cabeçalhos acima de 16 KB no total. */
+export const SURROGATE_KEY_MAX = 8 * 1024;
+
+/**
+ * Valor do header `surrogate-key`: todas as tags quando cabem; acima do teto (ex.: /v1/events/live com
+ * centenas de jogos), só as tags de coleção (sem `:`), que já cobrem o purge por tipo. As tags completas
+ * continuam no índice de tags do cache; só o header da resposta fica limitado.
+ */
+export function surrogateKeyHeader(tags: readonly string[], max = SURROGATE_KEY_MAX): string {
+  const all = tags.join(' ');
+  if (all.length <= max) return all;
+  return [...new Set(tags.filter((t) => !t.includes(':')))].join(' ');
+}
+
 export function etagOf(body: string): string {
   return `"${createHash('sha1').update(body).digest('base64url')}"`;
 }
@@ -103,7 +117,7 @@ export async function sendCached(
     .header('etag', entry.etag)
     .header('cache-control', cacheControl(ttl))
     .header('vary', 'Accept-Language, x-galaxie-key');
-  if (entry.tags.length) reply.header('surrogate-key', entry.tags.join(' '));
+  if (entry.tags.length) reply.header('surrogate-key', surrogateKeyHeader(entry.tags));
 
   if (matchesEtag(request.headers['if-none-match'], entry.etag)) return reply.code(304).send();
   return reply
