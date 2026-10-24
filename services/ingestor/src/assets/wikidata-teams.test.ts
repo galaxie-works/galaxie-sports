@@ -142,6 +142,45 @@ describe('casamento estrito pelo time no Wikidata', () => {
     expect(resolveTeam(boca, ['Q4936095', 'Q170703'], items)).toEqual({ qid: 'Q170703' });
   });
 
+  it('o time de futebol passa à frente do clube poliesportivo; outra modalidade nunca liga', () => {
+    const items = new Map([
+      ['Q837205', item({ label: 'Kongsvinger IL Toppfotball', countries: ['Norway'] })],
+      [
+        'Q1118263',
+        item({
+          label: 'Kongsvinger IL',
+          types: ['Q847017'],
+          description: 'sports club in Kongsvinger',
+          countries: ['Norway'],
+        }),
+      ],
+      [
+        'Q65164760',
+        item({ label: 'Legia Warsaw', description: 'Polish amputee football club', countries: ['Poland'] }),
+      ],
+      [
+        'Q11753729',
+        item({
+          label: 'Legia Warszawa',
+          types: ['Q847017'],
+          description: 'former motorcycle speedway club from Warsaw',
+          countries: ['Poland'],
+        }),
+      ],
+    ]);
+    const t = (name: string, country: string) => ({ providerId: '1', name, country, leagues: [] });
+    expect(resolveTeam(t('Kongsvinger', 'Norway'), ['Q1118263', 'Q837205'], items)).toEqual({
+      qid: 'Q837205',
+    });
+    expect(resolveTeam(t('Legia Warszawa', 'Poland'), ['Q65164760', 'Q11753729'], items)).toEqual({
+      none: true,
+    });
+    // "basketball" na descrição de um clube de futebol não o tira (seções de outros esportes)
+    expect(
+      itemCategory({ label: 'X', description: 'football and basketball club', types: ['Q476028'] }),
+    ).toBe('senior');
+  });
+
   it('homônimos do mesmo país: desempata pelo nome exato e depois pela liga', () => {
     const items = new Map([
       [

@@ -15,11 +15,15 @@ import { countriesMatch, namesMatch, type PhotoMatch } from './wikimedia-photos.
  * poliesportivo (Q847017, o Boca Juniors só tem esse). O tipo não diz a categoria: o Chelsea é Q103229495, o
  * Boca Q847017, e as categorias de base do Boca são Q15944511. A categoria sai do rótulo e da descrição.
  */
-const TEAM_TYPES = new Set(['Q476028', 'Q15944511', 'Q103229495', 'Q28140340', 'Q847017']);
+const FOOTBALL_TYPES = new Set(['Q476028', 'Q15944511', 'Q103229495', 'Q28140340']);
+const SPORTS_CLUB_TYPE = 'Q847017';
 const WOMEN_TEAM_TYPE = 'Q28140340';
 
-/** Categoria de um time: o principal masculino, o feminino, a base (sub-N, academia) ou a reserva (B, II). */
-export type TeamCategory = 'senior' | 'women' | 'youth' | 'reserve';
+/**
+ * Categoria de um time: o principal masculino, o feminino, a base (sub-N, academia), a reserva (B, II) ou outra
+ * modalidade (futsal, areia, amputados), que nunca liga.
+ */
+export type TeamCategory = 'senior' | 'women' | 'youth' | 'reserve' | 'other';
 
 export interface TeamTarget {
   /** Id do time na api-sports. */
@@ -94,6 +98,9 @@ export function teamCategory(name: string): TeamCategory {
 const WOMEN_WORDS = /\b(women|ladies|femenino|feminino|femminile|frauen|f[ée]minines?|dames|vrouwen)\b/i;
 const YOUTH_WORDS = /\b(youth|academy|u-?\d{2}|under-\d{2}|sub-?\d{2}|juvenil|primavera|jugend)\b/i;
 const RESERVE_WORDS = /\b(reserves?|second team|b team)\b/i;
+const OTHER_WORDS = /\b(futsal|beach|amputee|e-?sports?|blind|veterans)\b/i;
+/** Outro esporte na descrição de um clube só poliesportivo ("handball team", "motorcycle speedway club"). */
+const OTHER_SPORTS = /\b(speedway|handball|basketball|volleyball|hockey|rugby|cricket|baseball)\b/i;
 
 /**
  * Categoria do item do Wikidata pelo rótulo e pela descrição ("Chelsea F.C. Women", "reserve and youth academy
@@ -102,6 +109,8 @@ const RESERVE_WORDS = /\b(reserves?|second team|b team)\b/i;
  */
 export function itemCategory(item: Pick<TeamItem, 'label' | 'description' | 'types'>): TeamCategory {
   const text = [item.label, item.description].filter(Boolean).join(' | ');
+  if (OTHER_WORDS.test(text)) return 'other';
+  if (!item.types.some((t) => FOOTBALL_TYPES.has(t)) && OTHER_SPORTS.test(text)) return 'other';
   if (item.types.includes(WOMEN_TEAM_TYPE) || WOMEN_WORDS.test(text)) return 'women';
   if (YOUTH_WORDS.test(text)) return 'youth';
   if (RESERVE_WORDS.test(text) || /\s(II|III|B)$/.test(item.label ?? '')) return 'reserve';
@@ -141,10 +150,11 @@ function narrow(ids: string[], test: (id: string) => boolean): string[] {
 }
 
 /**
- * Time do core → QID: entre os itens achados pela busca, os que são clube de futebol, do mesmo país e da mesma
- * categoria (o principal nunca liga com o feminino, a base ou a reserva). Homônimos desempatam pelo nome exato
- * (rótulo ou apelido) e depois pela liga (P118 com o nome de uma liga em que o time jogou). Um só: resolvido.
- * Mais de um: ambíguo. Nenhum: sem QID.
+ * Time do core → QID: entre os itens achados pela busca, os que são clube de futebol (ou poliesportivo), do mesmo
+ * país e da mesma categoria (o principal nunca liga com o feminino, a base ou a reserva). O time de futebol passa à
+ * frente do clube poliesportivo de mesmo nome (Kongsvinger IL Toppfotball × Kongsvinger IL). Homônimos desempatam
+ * pelo nome exato (rótulo ou apelido) e depois pela liga (P118 com o nome de uma liga em que o time jogou). Um só:
+ * resolvido. Mais de um: ambíguo. Nenhum: sem QID.
  */
 export function resolveTeam(team: TeamTarget, found: string[], items: Map<string, TeamItem>): TeamResolution {
   const category = teamCategory(team.name);
@@ -152,11 +162,12 @@ export function resolveTeam(team: TeamTarget, found: string[], items: Map<string
     const it = items.get(id);
     return (
       !!it &&
-      it.types.some((t) => TEAM_TYPES.has(t)) &&
+      it.types.some((t) => FOOTBALL_TYPES.has(t) || t === SPORTS_CLUB_TYPE) &&
       countriesMatch(team.country, it.countries) &&
       itemCategory(it) === category
     );
   });
+  if (ok.length > 1) ok = narrow(ok, (id) => items.get(id)!.types.some((t) => FOOTBALL_TYPES.has(t)));
   const name = normalizeTeamName(teamSearchName(team.name));
   if (ok.length > 1) ok = narrow(ok, (id) => items.get(id)!.names.some((n) => normalizeTeamName(n) === name));
   const leagues = new Set(team.leagues.map(normalizeTeamName));
