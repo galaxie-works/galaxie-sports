@@ -1,5 +1,6 @@
 import type { ExploreSummary } from '@galaxie/contracts';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
@@ -11,6 +12,7 @@ import { LiveDot } from '@/components/live/live-nav-item';
 import { Section } from '@/components/sport/section';
 import { exploreSummaryRequest, getExploreSummary } from '@/lib/galaxie/api';
 import { compactNumber, countryLayout, FEATURED_SPORT } from '@/lib/explore';
+import { EXPLORE_LINKS, exploreTotals } from '@/lib/explore-index';
 import { defaultMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
@@ -18,39 +20,68 @@ import { plural } from '@/lib/i18n/text';
 import { COUNTRIES, MULTISPORT_NAV, SPORTS } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
-/** Faixa de abertura: o tamanho da cobertura em números (esportes, países, jogos da semana, ao vivo). */
+/**
+ * Faixa de abertura: o tamanho da cobertura em números (esportes, países, jogos da semana, ao vivo). Cada
+ * número é um card que abre a página dele (índice de esportes, de países, agenda e ao vivo), que conta a
+ * mesma coisa com a mesma consulta (`exploreTotals`).
+ */
 function Totals({ summary, t, locale }: { summary: ExploreSummary | null; t: Dictionary; locale: Locale }) {
   const te = t.nav.explore;
-  const upcoming = summary?.sports.reduce((n, s) => n + s.upcoming, 0) ?? null;
-  const live = summary?.sports.reduce((n, s) => n + s.live, 0) ?? null;
+  const totals = exploreTotals(summary);
   const tiles = [
-    { value: SPORTS.length, label: plural(locale, SPORTS.length, te.totals.sports) },
-    { value: COUNTRIES.length, label: plural(locale, COUNTRIES.length, te.totals.countries) },
-    ...(upcoming === null ? [] : [{ value: upcoming, label: plural(locale, upcoming, te.totals.upcoming) }]),
-    ...(live === null ? [] : [{ value: live, label: te.totals.live, live: true }]),
+    {
+      href: EXPLORE_LINKS.sports,
+      value: totals.sports,
+      label: plural(locale, totals.sports, te.totals.sports),
+    },
+    {
+      href: EXPLORE_LINKS.countries,
+      value: totals.countries,
+      label: plural(locale, totals.countries, te.totals.countries),
+    },
+    ...(totals.upcoming === null
+      ? []
+      : [
+          {
+            href: EXPLORE_LINKS.upcoming,
+            value: totals.upcoming,
+            label: plural(locale, totals.upcoming, te.totals.upcoming),
+          },
+        ]),
+    ...(totals.live === null
+      ? []
+      : [{ href: EXPLORE_LINKS.live, value: totals.live, label: te.totals.live, live: true }]),
   ];
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground max-w-2xl text-sm text-pretty">{te.intro}</p>
-      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {tiles.map((tile) => (
-          <div
-            key={tile.label}
-            className="explore-card flex flex-col-reverse justify-end gap-0.5 rounded-xl border px-4 py-3"
-          >
-            <dt className="text-muted-foreground text-xs">{tile.label}</dt>
-            <dd
-              className={cn(
-                'flex items-center gap-2 text-2xl font-semibold tracking-tight tabular-nums md:text-3xl',
-                'live' in tile && tile.value > 0 && 'text-live',
-              )}
+          <li key={tile.href}>
+            <Link
+              href={tile.href}
+              className="explore-card group/tile focus-visible:ring-ring hover:border-primary/40 flex h-full flex-col gap-0.5 rounded-xl border px-4 py-3 transition-colors outline-none focus-visible:ring-2"
             >
-              {'live' in tile ? <LiveDot on={tile.value > 0} /> : null}
-              {compactNumber(locale, tile.value)}
-            </dd>
-          </div>
+              <span
+                className={cn(
+                  'flex items-center gap-2 text-2xl font-semibold tracking-tight tabular-nums md:text-3xl',
+                  'live' in tile && tile.value > 0 && 'text-live',
+                )}
+              >
+                {'live' in tile ? <LiveDot on={tile.value > 0} /> : null}
+                {compactNumber(locale, tile.value)}
+              </span>
+              <span className="text-muted-foreground flex items-center justify-between gap-2 text-xs">
+                {tile.label}
+                <ChevronRight
+                  aria-hidden
+                  className="size-3.5 shrink-0 opacity-50 transition-transform group-hover/tile:translate-x-0.5 group-hover/tile:opacity-100"
+                />
+              </span>
+            </Link>
+          </li>
         ))}
-      </dl>
+      </ul>
     </div>
   );
 }

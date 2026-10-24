@@ -69,6 +69,35 @@ export async function getExploreSummary(locale: Locale) {
   return api.exploreSummary(localeQuery(locale));
 }
 
+/** Filtros e página da agenda (`/v1/explore/agenda`); o mercado da relevância é o do idioma. */
+export interface AgendaQuery {
+  sport?: string | undefined;
+  country?: string | undefined;
+  competition?: string | undefined;
+  day?: string | undefined;
+  limit?: number | undefined;
+}
+
+const agendaQuery = (locale: Locale, q: AgendaQuery) => ({
+  ...localeQuery(locale),
+  market: defaultMarket(locale),
+  ...Object.fromEntries(Object.entries(q).filter(([, v]) => v !== undefined && v !== null && v !== '')),
+});
+
+export const exploreAgendaRequest = (locale: Locale, q: AgendaQuery = {}): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/explore/agenda',
+  query: agendaQuery(locale, q),
+  description: text(locale).exploreAgenda,
+});
+
+/** Agenda dos próximos 7 dias: os jogos que o resumo conta, com a mesma consulta (a API guarda 60 s). */
+export async function getExploreAgenda(locale: Locale, q: AgendaQuery = {}) {
+  'use cache';
+  cacheLife('minutes');
+  return api.exploreAgenda(agendaQuery(locale, q));
+}
+
 // ─── país ────────────────────────────────────────────────────────────────────────────────────────
 
 export const countryCompetitionsRequest = (

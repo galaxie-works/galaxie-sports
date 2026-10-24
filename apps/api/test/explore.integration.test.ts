@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { ExploreSummary } from '@galaxie/contracts';
+import type { ExploreAgenda, ExploreSummary } from '@galaxie/contracts';
 import {
   asset,
   closeDb,
@@ -380,5 +380,41 @@ describe('GET /v1/explore/summary', () => {
   it('exige chave', async () => {
     const res = await app.inject({ method: 'GET', url: '/v1/explore/summary' });
     expect(res.statusCode).toBe(401);
+  });
+});
+
+describe('GET /v1/explore/agenda', () => {
+  it('conta o mesmo que o resumo: o total é a soma por esporte e, por país, o `upcoming` do país', async () => {
+    const summary = (
+      await get('/v1/explore/summary?locale=pt-BR&tz=America/Sao_Paulo')
+    ).json<ExploreSummary>();
+    const res = await get('/v1/explore/agenda?locale=pt-BR&tz=America/Sao_Paulo&market=BR');
+    expect(res.statusCode).toBe(200);
+    const agenda = res.json<ExploreAgenda>();
+    expect(agenda.window).toEqual(summary.window);
+    expect(agenda.total).toBe(summary.sports.reduce((n, s) => n + s.upcoming, 0));
+    expect(agenda.days.reduce((n, d) => n + d.count, 0)).toBe(agenda.total);
+    for (const c of summary.countries)
+      expect(agenda.facets.countries.find((f) => f.code === c.code)?.count, c.code).toBe(c.upcoming);
+    // o país filtrado dá o número do card do país
+    const br = (
+      await get('/v1/explore/agenda?locale=pt-BR&tz=America/Sao_Paulo&country=br')
+    ).json<ExploreAgenda>();
+    expect(br.total).toBe(summary.countries.find((c) => c.code === 'BR')!.upcoming);
+  });
+
+  it('jogos do dia por horário e destaques com a relevância do mercado', async () => {
+    const agenda = (
+      await get('/v1/explore/agenda?locale=pt-BR&tz=America/Sao_Paulo&market=BR')
+    ).json<ExploreAgenda>();
+    expect(agenda.day).toBe(agenda.days.find((d) => d.count > 0)?.date ?? null);
+    const starts = agenda.data.map((e) => e.starts_at);
+    expect([...starts].sort()).toEqual(starts);
+    expect(agenda.highlights[0]).toMatchObject({ id: ids.lib, relevance: { market: 'BR', score: 100 } });
+  });
+
+  it('respeita os esportes do plano, como o resumo', async () => {
+    const agenda = (await get('/v1/explore/agenda', basketballKey)).json<ExploreAgenda>();
+    expect(agenda.total).toBe(0);
   });
 });

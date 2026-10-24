@@ -3,7 +3,7 @@ import * as z from 'zod';
 import { COMPETITION_TYPES } from './catalog.js';
 import { TeamColors } from './colors.js';
 import { AssetUrl, LocaleQuery } from './common.js';
-import { Event } from './events.js';
+import { Event, MarketParam } from './events.js';
 import { ConfederationRef } from './navigation.js';
 
 // ─── resumo da home "Explorar" (docs/05 §3.1.2) ──────────────────────────────────────────────────
@@ -120,3 +120,95 @@ export const ExploreSummary = z
   })
   .meta({ id: 'ExploreSummary' });
 export type ExploreSummary = z.infer<typeof ExploreSummary>;
+
+// ─── agenda dos próximos dias (os jogos que o resumo conta) ─────────────────────────────────────
+
+export const ExploreAgendaQuery = LocaleQuery.extend({
+  sport: z.string().max(40).optional().meta({ example: 'football' }),
+  country: z
+    .string()
+    .max(20)
+    .transform((v) => v.toUpperCase())
+    .optional()
+    .meta({
+      description: 'País da competição ou de um participante (como `/v1/events?country=`).',
+      example: 'BR',
+    }),
+  competition: z
+    .string()
+    .min(1)
+    .max(120)
+    .optional()
+    .meta({ description: 'Slug ou UUID da competição.', example: 'brasileirao-serie-a' }),
+  day: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'use AAAA-MM-DD')
+    .optional()
+    .meta({
+      description:
+        'Dia civil no fuso `tz` cujos jogos vêm em `data`. Padrão: o primeiro dia da janela com jogos.',
+      example: '2026-10-25',
+    }),
+  market: MarketParam.optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(200)
+    .default(60)
+    .meta({ description: 'Jogos por página (1–200).' }),
+  cursor: z.string().max(64).optional().meta({ description: 'Cursor opaco devolvido em `next_cursor`.' }),
+});
+export type ExploreAgendaQuery = z.input<typeof ExploreAgendaQuery>;
+
+const FacetCount = z
+  .number()
+  .int()
+  .meta({ description: 'Jogos da janela com este valor e os demais filtros.' });
+
+export const ExploreAgenda = z
+  .object({
+    generated_at: z.string().meta({ description: 'Quando a agenda foi montada (UTC).' }),
+    window: z
+      .object({
+        from: z.string().meta({ description: 'Início (ISO 8601, UTC): agora.' }),
+        to: z.string().meta({ description: 'Fim exclusivo (ISO 8601, UTC).' }),
+      })
+      .meta({
+        description: `A mesma janela do resumo (\`/v1/explore/summary\`): ${EXPLORE_WINDOW_DAYS} dias.`,
+      }),
+    total: z.number().int().meta({
+      description:
+        'Jogos da janela com os filtros. Sem filtro, é a soma de `upcoming` dos esportes do resumo (mesma consulta).',
+      example: 2413,
+    }),
+    days: z
+      .array(z.object({ date: z.string().meta({ example: '2026-10-25' }), count: z.number().int() }))
+      .meta({ description: 'Todos os dias da janela no fuso `tz`, com a contagem (zero incluído).' }),
+    day: z.string().nullable().meta({ description: 'O dia dos jogos em `data`; null sem jogo na janela.' }),
+    facets: z
+      .object({
+        sports: z.array(z.object({ slug: z.string(), count: FacetCount })),
+        countries: z.array(z.object({ code: z.string(), count: FacetCount })).meta({
+          description: 'Os países da navegação (os mesmos do resumo).',
+        }),
+        competitions: z.array(
+          z.object({
+            id: z.uuid(),
+            slug: z.string(),
+            sport: z.string(),
+            name: z.string(),
+            count: FacetCount,
+          }),
+        ),
+      })
+      .meta({ description: 'Contagens para os filtros: cada uma com os outros filtros aplicados.' }),
+    highlights: z.array(Event).meta({
+      description:
+        'Até 6 jogos da janela (com os filtros) de maior relevância no mercado (`market`), com a nota.',
+    }),
+    data: z.array(Event).meta({ description: 'Os jogos do dia `day`, por horário.' }),
+    next_cursor: z.string().nullable(),
+  })
+  .meta({ id: 'ExploreAgenda' });
+export type ExploreAgenda = z.infer<typeof ExploreAgenda>;

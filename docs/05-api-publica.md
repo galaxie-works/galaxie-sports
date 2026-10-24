@@ -218,6 +218,7 @@ Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 | `GET /v1/countries/{code}/competitions?sport=&max_tier=` | Competições do país por esporte e escopo: domésticas, continentais de clubes, seleção, mundiais (§3.1.1) |
 | `GET /v1/navigation` | Menu da demo em uma chamada: 12 esportes (contagens, `has_data`) e países da navegação (§3.1.1) |
 | `GET /v1/explore/summary` | Vitrine inicial em uma chamada: por esporte e por país, contadores, competições e clubes em destaque, ao vivo e o jogo de maior relevância (§3.1.2) |
+| `GET /v1/explore/agenda?sport=&country=&competition=&day=&market=` | Os jogos dos próximos 7 dias que o resumo conta (mesma consulta): total, por dia, contagens para os filtros, destaques no mercado e os jogos de um dia (§3.1.3) |
 | `GET /v1/competitions?sport=&country=&tier=` | Competições com apelidos (semântica) |
 | `GET /v1/competitions/{id}` | Detalhe + temporadas |
 | `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos |
@@ -316,6 +317,21 @@ curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/explore/summary?locale=p
 ```
 
 (Exemplo resumido: competições e clubes são objetos completos, e `highlight` é o `Event` inteiro.)
+
+#### 3.1.3 Agenda dos próximos dias (`apps/api/src/explore/agenda.ts`)
+
+`GET /v1/explore/agenda?locale=&tz=&sport=&country=&competition=&day=&market=&limit=&cursor=` lista os jogos que o resumo conta, com a **mesma consulta** (`selectWindowEvents`), a mesma janela (agora até +7 dias, fim exclusivo) e as mesmas regras: sem adiados, cancelados, abandonados e encerrados; `country` é a competição do país ou um participante do país. Sem filtro, `total` é a soma de `sports[].upcoming` do resumo; com `country=BR`, é o `countries[BR].upcoming`.
+
+| Campo | Conteúdo |
+|---|---|
+| `total` | Jogos da janela com os filtros |
+| `days[]` | Cada dia civil que a janela toca, no fuso `tz`, com a contagem (zero incluído) |
+| `day` | O dia dos jogos em `data`: o pedido (`day`) ou o primeiro com jogos |
+| `facets` | Contagens para os filtros (`sports`, `countries` da navegação, `competitions` com mais jogos), cada uma com os outros filtros aplicados |
+| `highlights[]` | Até 6 jogos de maior relevância no mercado (`market`; sem mercado, maior importância), com `relevance`. A nota é a exata (a de `/v1/events/{id}`), calculada sobre os 30 jogos mais importantes da janela e os 30 mais importantes do país do mercado |
+| `data[]` | Os jogos de `day`, por horário; `next_cursor` pagina dentro do dia |
+
+Exige `core_data`; os esportes do plano limitam os jogos, como no resumo. Cache de **60 s**, como o resumo.
 
 ### 3.2 Eventos
 

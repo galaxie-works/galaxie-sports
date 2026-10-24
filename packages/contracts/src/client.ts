@@ -69,7 +69,7 @@ import type {
   CountryDetail,
   Navigation,
 } from './navigation.js';
-import type { ExploreSummary } from './explore.js';
+import type { ExploreAgenda, ExploreAgendaQuery, ExploreSummary } from './explore.js';
 import type { RaceCareer, RaceLegends, TeamPhotos, TeamPhotosQuery } from './racing.js';
 
 export interface GalaxieClientOptions {
@@ -151,6 +151,9 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     navigation: (opts: LocaleOpts = {}) => v1<Navigation>('/v1/navigation', opts),
     /** Resumo da home "Explorar": contadores por esporte e por país, destaques e o jogo de maior relevância. */
     exploreSummary: (opts: LocaleOpts = {}) => v1<ExploreSummary>('/v1/explore/summary', opts),
+    exploreAgenda: (
+      query: Omit<ExploreAgendaQuery, 'locale' | 'limit'> & LocaleOpts & { limit?: number } = {},
+    ) => v1<ExploreAgenda>('/v1/explore/agenda', query),
     country: (code: string, opts: LocaleOpts = {}) => v1<CountryDetail>(`/v1/countries/${seg(code)}`, opts),
     /** Competições do país por esporte e escopo (domésticas, continentais, seleções, mundiais). */
     countryCompetitions: (code: string, query: Omit<CountryCompetitionsQuery, 'locale'> & LocaleOpts = {}) =>
