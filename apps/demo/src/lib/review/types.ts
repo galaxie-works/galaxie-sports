@@ -61,6 +61,12 @@ export interface ReviewListRow extends ReviewListItem {
   aiRejection: string | null;
 }
 
+/** Linha da lista: o item, o que revisar nele e a sugestão em aberto (comentário), se houver. */
+export interface ReviewListRow extends ReviewListItem {
+  summary: string;
+  openSuggestion: string | null;
+}
+
 export interface ReviewSuggestion {
   comment: string;
   fields: Record<string, unknown> | null;
