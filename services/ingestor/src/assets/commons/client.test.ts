@@ -37,4 +37,41 @@ describe('WikimediaClient.items', () => {
     expect(urls[0]!.searchParams.get('languages')).toBe('en|es');
     expect(await client.items([], ['P31'])).toEqual(new Map());
   });
+
+  it('resposta cortada pela API (> 12 MB) é refeita em metades; sem afirmações pedidas, não as busca', async () => {
+    const calls: string[][] = [];
+    const client = new WikimediaClient({
+      minIntervalMs: 0,
+      fetch: async (url) => {
+        const u = new URL(String(url));
+        const ids = u.searchParams.get('ids')!.split('|');
+        calls.push(ids);
+        // o lote de 4 volta cortado: só o primeiro item e o aviso
+        const truncated = ids.length > 2;
+        const entities = Object.fromEntries(
+          (truncated ? ids.slice(0, 1) : ids).map((id) => [id, { labels: { en: { value: `país ${id}` } } }]),
+        );
+        return new Response(
+          JSON.stringify({
+            entities,
+            ...(truncated
+              ? {
+                  warnings: {
+                    result: { warnings: 'This result was truncated because it would otherwise be larger' },
+                  },
+                }
+              : {}),
+          }),
+          { status: 200 },
+        );
+      },
+    });
+    const items = await client.items(['Q1', 'Q2', 'Q3', 'Q4'], []);
+    expect([...items.keys()]).toEqual(['Q1', 'Q2', 'Q3', 'Q4']);
+    expect(calls).toEqual([
+      ['Q1', 'Q2', 'Q3', 'Q4'],
+      ['Q1', 'Q2'],
+      ['Q3', 'Q4'],
+    ]);
+  });
 });
