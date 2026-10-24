@@ -46,7 +46,7 @@ describe('mapa de rótulos', () => {
         if (family.includes('_zone'))
           for (const s of all) expect(s, `${locale} ${family}`).toContain('{zone}');
         if (/(^|_)n(_|$)/.test(family) && family !== 'advances_with_draw_up_to_n') {
-          expect(all[0], `${locale} ${family}`).toMatch(/\{(n|goals)\}/);
+          expect(all[0], `${locale} ${family}`).toMatch(/\{(n|nth|goals)\}/);
         }
       }
     }

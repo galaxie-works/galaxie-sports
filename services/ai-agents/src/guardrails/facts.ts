@@ -244,6 +244,22 @@ const SCORE_RE =
 const MINUTE_RE =
   /(?<![\d,.+])(\d{1,3})(?:\s*\+\s*(\d{1,2}))?\s*(?:'|′|min\b|minutos?\b)|(?<![\d,.+])(\d{1,3})\s*\+\s*(\d{1,2})(?!\d)|\b(?:aos|a los)\s+(\d{1,3})(?:\s*\+\s*(\d{1,2}))?(?![\d+])(?!\s*(?:a|x|-)\s*\d)/g;
 const NUMBER_RE = /(?<![\d])(\d+(?:[.,]\d+)?)(?!\d)/g;
+/**
+ * Ordinais de título ("tetracampeão", "penta", "bicampeonato", "tetracampeón"): valem como número (4, 5, 2...).
+ * Só o prefixo sozinho ou seguido de "campe...", para não pegar "tricolor".
+ */
+const TITLE_ORDINALS: Record<string, number> = {
+  bi: 2,
+  tri: 3,
+  tetra: 4,
+  penta: 5,
+  hexa: 6,
+  hepta: 7,
+  octa: 8,
+  enea: 9,
+  deca: 10,
+};
+const TITLE_ORDINAL_RE = /(?<![a-z])(bi|tri|tetra|penta|hexa|hepta|octa|enea|deca)(?:campe[a-z]*)?(?![a-z])/g;
 
 // ─── validação ───────────────────────────────────────────────────────────────────────────────────
 
@@ -319,6 +335,9 @@ export function checkFacts(text: string, facts: FactSheet, locale: string): Fact
     for (const m of stripped.matchAll(NUMBER_RE)) {
       const value = Number(m[1]!.replace(',', '.'));
       if (!numbers.has(value)) out.push({ kind: 'unknown_number', value: m[1]!, sentence });
+    }
+    for (const m of stripped.matchAll(TITLE_ORDINAL_RE)) {
+      if (!numbers.has(TITLE_ORDINALS[m[1]!]!)) out.push({ kind: 'unknown_number', value: m[0], sentence });
     }
     for (const [word, value] of Object.entries(NUMBER_WORDS[lang])) {
       if (new RegExp(`(?<![a-z])${word}(?![a-z])`).test(stripped) && !numbers.has(value))

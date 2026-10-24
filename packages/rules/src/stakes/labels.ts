@@ -1,8 +1,10 @@
 import type { Stake, StakeFamily, StakeSide } from './codes.js';
+import { titleOrdinal } from './titles.js';
 
 /**
  * Rótulos fixos (não gerados) dos códigos de stakes, para os 8 mercados da API.
- * Placeholders: `{n}` (número), `{goals}` ("1 gol" / "2 gols"), `{zone}` (nome da zona com artigo).
+ * Placeholders: `{n}` (número), `{goals}` ("1 gol" / "2 gols"), `{zone}` (nome da zona com artigo),
+ * `{nth}` (o título de número n: "tetracampeonato", "11º título"; ver `titleOrdinal`).
  * Variantes por número: `zero` (n = 0), `one` (n = 1), `other`.
  */
 export const STAKE_LOCALES = [
@@ -80,6 +82,7 @@ const PT_BR: Record<StakeFamily, LabelTemplate> = {
   eliminated_if_loses: 'É eliminado em caso de derrota',
   can_be_eliminated: 'Pode ser eliminado nesta rodada, dependendo de outros resultados',
   at_risk_of_elimination: 'Ainda corre risco de eliminação',
+  seeks_title_n: { zero: 'Busca o primeiro título', one: 'Busca o primeiro título', other: 'Busca o {nth}' },
 };
 
 /** Espanhol rioplatense como base; os demais mercados sobrescrevem só o que muda. */
@@ -144,6 +147,11 @@ const ES_AR: Record<StakeFamily, LabelTemplate> = {
   eliminated_if_loses: 'Queda eliminado si pierde',
   can_be_eliminated: 'Puede quedar eliminado en esta fecha, según otros resultados',
   at_risk_of_elimination: 'Todavía corre riesgo de eliminación',
+  seeks_title_n: {
+    zero: 'Va por su primer título',
+    one: 'Va por su primer título',
+    other: 'Va por el {nth}',
+  },
 };
 
 /** Prorrogação: alargue (AR, UY, CL), tiempos extra (MX), tiempo extra (CO, EC), tiempo suplementario (PE). */
@@ -270,10 +278,11 @@ export function zoneLabel(zone: string, locale: StakeLocale): string {
 /** Texto fixo do código no locale (interpolação de parâmetros, sem geração livre). */
 export function stakeText(stake: Pick<Stake, 'family' | 'params'>, locale: StakeLocale): string {
   const template = pickTemplate(STAKE_LABELS[locale][stake.family], stake.params?.n);
-  return template.replace(/\{(n|goals|zone)\}/g, (_, key: string) => {
+  return template.replace(/\{(n|nth|goals|zone)\}/g, (_, key: string) => {
     const n = stake.params?.n;
     if (key === 'zone') return stake.params?.zone ? zoneLabel(stake.params.zone, locale) : '';
     if (n === undefined) return '';
+    if (key === 'nth') return titleOrdinal(n, locale === 'pt-BR' ? 'pt' : 'es');
     return key === 'goals' ? goals(locale, n) : String(n);
   });
 }

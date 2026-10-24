@@ -351,3 +351,55 @@ describe('mata-mata: agregado, quem passou e para onde', () => {
     expect(tie({ home: 0, away: 1 }, null)).toBeNull();
   });
 });
+
+describe('resumo da final: o campeão e o número do título', () => {
+  const finalCore = sampleCore({
+    status: 'finished',
+    statusDetail: 'FT',
+    score: { home: 2, away: 1 },
+    stage: {
+      id: 'f',
+      kind: 'final',
+      name: { 'pt-BR': 'Final', es: 'Final', en: 'Final' },
+      providerLabel: 'Final',
+    },
+    away: {
+      id: 'away-id',
+      side: 'away',
+      name: 'Estudiantes L.P.',
+      shortName: 'EST',
+      aliases: [],
+      labels: {},
+    },
+  });
+  const ko: RecapKnockoutInput = {
+    legs: 1,
+    leg: null,
+    extraTime: true,
+    penalties: true,
+    decidesTitle: true,
+    awayGoals: false,
+    titlesBefore: { home: 3, away: 4 },
+  };
+  const facts = buildRecapFacts(finalCore, [], null, AGENT_LOCALES, ko)!;
+
+  it('título de número títulos anteriores + 1 do campeão', () => {
+    expect(facts.champion_titles).toEqual({ side: 'home', title_number: 4 });
+  });
+
+  it('fallback: "Palmeiras é tetracampeão" / "Palmeiras es tetracampeón"', () => {
+    expect(recapFallback(finalCore, facts, 'pt-BR')[0]).toBe('Palmeiras é tetracampeão');
+    expect(recapFallback(finalCore, facts, 'es-AR')[0]).toBe('Palmeiras es tetracampeón');
+  });
+
+  it.each(AGENT_LOCALES)('fallback da final passa nos guardrails (%s)', (locale: AgentLocale) => {
+    const text = joinSentences(recapFallback(finalCore, facts, locale));
+    expect(checkGeneratedText(text, { locale, facts: recapFactSheet(finalCore, facts, locale) })).toEqual([]);
+  });
+
+  it('sem contagem confiável, só "é campeão"', () => {
+    const plain = buildRecapFacts(finalCore, [], null, AGENT_LOCALES, { ...ko, titlesBefore: { away: 4 } })!;
+    expect(plain.champion_titles).toBeUndefined();
+    expect(recapFallback(finalCore, plain, 'pt-BR')[0]).toBe('Palmeiras é campeão');
+  });
+});

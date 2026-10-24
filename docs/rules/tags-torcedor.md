@@ -90,6 +90,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos).
 | `eliminated_if_loses` | `eliminated_if_loses` | 32 | Não pode perder | No puede perder | Can't afford to lose |
 | `can_be_eliminated` | `can_be_eliminated` | 33 | Pode ser eliminado hoje | Puede quedar afuera hoy | Could be knocked out today |
 | `at_risk_of_elimination` | `at_risk_of_elimination` | 39 | Luta pela classificação | Pelea por clasificar | Fighting to go through |
+| `seeks_title_n` | `seeks_title_4` | 14 | Busca o tetra | Va por el tetra | Chasing title No. 4 |
 
 ## Códigos com zona
 

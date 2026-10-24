@@ -39,6 +39,7 @@ export {
   KNOCKOUT_FAMILIES,
   LEAGUE_FAMILIES,
   STAKE_FAMILIES,
+  HISTORY_FAMILIES,
   TITLE_VARIANT_OF,
   makeStake,
   stakeCode,
@@ -47,6 +48,14 @@ export {
   type StakeParams,
   type StakeSide,
 } from './stakes/codes.js';
+export {
+  championPhrase,
+  titleChaseSides,
+  titleChaseStakes,
+  titleOrdinal,
+  type TitleCounts,
+  type TitleSide,
+} from './stakes/titles.js';
 export {
   knockoutStakes,
   tieOutcome,

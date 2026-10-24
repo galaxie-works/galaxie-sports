@@ -633,3 +633,20 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Todavía corre riesgo de eliminación |
 | es-UY | Todavía corre riesgo de eliminación |
 | es-EC | Todavía corre riesgo de eliminación |
+
+## Histórico (jogos que podem dar o título)
+
+Exemplo com `n = 4` (busca o 4º título). n = 1: "Busca o primeiro título"; n > 10: "Busca o 11º título".
+
+### `seeks_title_n` — ex.: `seeks_title_4`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Busca o tetracampeonato |
+| es-AR | Va por el tetracampeonato |
+| es-MX | Va por el tetracampeonato |
+| es-CO | Va por el tetracampeonato |
+| es-CL | Va por el tetracampeonato |
+| es-PE | Va por el tetracampeonato |
+| es-UY | Va por el tetracampeonato |
+| es-EC | Va por el tetracampeonato |

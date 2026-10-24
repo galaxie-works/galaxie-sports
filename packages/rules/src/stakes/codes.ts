@@ -76,14 +76,20 @@ export const LEAGUE_FAMILIES = [
   'at_risk_of_elimination',
 ] as const;
 
-export const STAKE_FAMILIES = [...KNOCKOUT_FAMILIES, ...LEAGUE_FAMILIES] as const;
+/**
+ * Famílias de histórico: fatos de proveniência externa (títulos por edição do Wikidata) que valem em
+ * jogos que podem dar o título, em mata-mata ou pontos corridos.
+ */
+export const HISTORY_FAMILIES = ['seeks_title_n'] as const;
+
+export const STAKE_FAMILIES = [...KNOCKOUT_FAMILIES, ...LEAGUE_FAMILIES, ...HISTORY_FAMILIES] as const;
 export type StakeFamily = (typeof STAKE_FAMILIES)[number];
 
 /** Lado a que o código se refere, relativo ao mando da partida analisada. */
 export type StakeSide = 'home' | 'away' | 'both';
 
 export interface StakeParams {
-  /** Gols de diferença, placar do empate etc., conforme a família. */
+  /** Gols de diferença, placar do empate, número do título buscado etc., conforme a família. */
   n?: number;
   /** Id da zona do regulamento (ex.: libertadores_group_stage). */
   zone?: string;
@@ -133,6 +139,8 @@ export function stakeCode(family: StakeFamily, params: StakeParams = {}): string
       return `wins_title_with_draw_from_${n ?? need('n')}`;
     case 'title_depends_on_away_goals':
       return `win_by_${n ?? need('n')}_title_depends_on_away_goals`;
+    case 'seeks_title_n':
+      return `seeks_title_${n ?? need('n')}`;
     case 'qualifies_for_zone':
       return `qualifies_for_${zone ?? need('zone')}`;
     case 'clinches_zone_with_draw':

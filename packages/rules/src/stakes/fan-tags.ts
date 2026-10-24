@@ -2,6 +2,7 @@ import type { LeagueRules } from '../config/types.js';
 import type { Stake, StakeFamily, StakeSide } from './codes.js';
 import { STAKE_LOCALES, type LabelTemplate } from './labels.js';
 import type { LeagueTeamInput } from './league.js';
+import { titleOrdinal } from './titles.js';
 
 /**
  * Tags do torcedor ("fan tags"): rótulos curtos (até ~30 caracteres), escritos do ponto de vista de
@@ -135,6 +136,16 @@ const FAMILY_TAGS: Record<StakeFamily, FamilyTag | { zone: ZoneVerb } | null> = 
     tier: 'title',
     rank: 4,
     text: { 'pt-BR': 'Pode ser campeão hoje', es: 'Puede ser campeón hoy', en: 'Could be champions today' },
+  },
+  // "Busca o tetra": títulos anteriores da competição (Wikidata), em jogo que pode dar o título
+  seeks_title_n: {
+    tier: 'title',
+    rank: 4,
+    text: {
+      'pt-BR': { zero: 'Busca o 1º título', one: 'Busca o 1º título', other: 'Busca o {nth}' },
+      es: { zero: 'Va por su primer título', one: 'Va por su primer título', other: 'Va por el {nth}' },
+      en: { zero: 'Chasing a first title', one: 'Chasing a first title', other: 'Chasing title No. {n}' },
+    },
   },
   in_title_race: {
     tier: 'title',
@@ -670,8 +681,9 @@ function goals(locale: FanTagLocale, n: number): string {
 }
 
 function interpolate(template: string, locale: FanTagLocale, n: number | undefined): string {
-  return template.replace(/\{(n|goals)\}/g, (_, key: string) => {
+  return template.replace(/\{(n|nth|goals)\}/g, (_, key: string) => {
     if (n === undefined) return '';
+    if (key === 'nth') return titleOrdinal(n, baseKey(locale) === 'pt-BR' ? 'pt' : 'es', true);
     return key === 'goals' ? goals(locale, n) : String(n);
   });
 }

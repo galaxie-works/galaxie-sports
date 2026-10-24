@@ -220,6 +220,31 @@ Pontos corridos, grupos e fase de liga (`leagueMatchStakes`; todos com lado = ti
 | `can_be_eliminated` | `can_be_eliminated` | Pode ser eliminado nesta rodada, dependendo de outros resultados | Pode ser eliminado nesta rodada… |
 | `at_risk_of_elimination` | `at_risk_of_elimination` | Ainda pode terminar na zona de eliminação | Ainda corre risco de eliminação |
 
+Histórico (`titleChaseStakes`; lado = time):
+
+| Família | Código (exemplo) | Significado | Rótulo pt-BR |
+|---|---|---|---|
+| `seeks_title_n` | `seeks_title_4` | O time já tem N − 1 títulos desta competição (antes da partida) e busca o N-ésimo | Busca o tetracampeonato |
+
+### 3.3 Histórico: "busca o tetra"
+
+`seeks_title_{n}` sai para cada time de uma **final** (fase com `decides_title`, ida inclusive) ou de um jogo de pontos corridos que **pode dar o título** a ele (`can_clinch_title`, `clinches_title_with_*`). `n` é o título buscado: o Palmeiras, com 3 Libertadores (1999, 2020, 2021), busca o 4º → `seeks_title_4`, "Busca o tetracampeonato" / "Va por el tetracampeonato". Prefixos de bi (2) a deca (10); n = 1 é "Busca o primeiro título" / "Va por su primer título"; acima de 10, "Busca o 11º título" / "Va por el título número 11". As tags do torcedor usam a forma curta ("Busca o tetra", "Va por el tetra").
+
+A contagem vem de `core.competition_title` (campeões por edição importados do Wikidata pelo CLI `titulos:wikidata` do ingestor) e é estrita: só conta título decidido **antes** da partida; o time precisa ter QID do Wikidata em `core.provider_map` (sem ele, "0 títulos" seria palpite); e a competição precisa estar **em dia** (a última edição importada não pode ser anterior à temporada anterior do core). Faltando qualquer um, o código não sai. O motor só decide quando emitir (`titleChaseSides`) e monta o código (`titleChaseStakes`); a leitura do banco é `loadTitleRecords` de `@galaxie/db`.
+
+**Importação** (`services/ingestor/src/titles/wikidata-titles.ts`; não usa a cota da api-sports):
+
+```bash
+pnpm --filter @galaxie/ingestor titulos:wikidata --plan                 # consulta, confere e relata, sem gravar
+pnpm --filter @galaxie/ingestor titulos:wikidata --corrigir-ligacoes    # grava títulos, cobertura e ligações
+```
+
+- Competições (`TITLE_COMPETITIONS`): Libertadores, Sul-Americana, Recopa, Copa do Brasil, Brasileirão, Champions League, Mundial de Clubes e as ligas tier 1 da LatAm (Argentina, Uruguai, Chile, Colômbia, Peru, Equador, Paraguai, México, Bolívia, Venezuela). As competições não têm QID na base semântica; o mapa slug → QID fica no código.
+- Edições: `?edição wdt:P3450 <competição>` com `P1346` (vencedor) sem qualificador "de" (`P642`, prêmios individuais), sem posição ≠ 1 e sem rank depreciado. Recusa edição com mais de um vencedor, sem data, com rótulo e datas divergentes ou com vencedor fora dos participantes (`P1923`) que ela mesma lista; e a que tem final no core com outro campeão (o core manda; a data da final do core também vale no lugar do fim da edição).
+- **Correções curadas** (`EDITION_CORRECTIONS`): edições com erro na fonte que as checagens não resolvem sozinhas, com a URL da lista oficial de campeões em `source_ref` (`source = 'curated'`). Hoje, cinco edições da Libertadores (1991 Colo-Colo, 1993 São Paulo, 1997 Cruzeiro, 1998 Vasco, 2018 River Plate), em que o Wikidata aponta outro time. Corrigidas na fonte, as entradas podem sair.
+- **Casamento estrito** do vencedor com o nosso time: ligação existente em `core.provider_map` (`wikidata`/`football`/`participant`) só vale se o time é adulto masculino e se o nome do vencedor não bate exatamente com outro time nosso; sem ligação, o nome inteiro (rótulos e apelidos em en/es/pt; siglas juntadas: "Estudiantes L.P." = "Estudiantes LP") e, sem par exato, o nome sem tokens genéricos ("Club", "FC"…), mesmo país, time adulto masculino sem outro QID e um só candidato (par único dos dois lados). Ligação em conflito (ex.: o QID do Estudiantes de La Plata ligado ao CA Estudiantes; o do Chelsea ligado ao Chelsea W) não conta e é relatada; `--corrigir-ligacoes` move o QID para o time que o nome indica.
+- **Cobertura** (`core.competition_title_coverage`): até que ano a lista está completa (sem ano faltando nem edição recusada desde a primeira; anos sem edição declarados em `noEditionYears`). Na importação de out/2026: Libertadores completa até 2025; Copa do Brasil até 2020 (o Wikidata parou em 2020); Brasileirão até 1963 (faltam 1964, 2005, 2020, 2023 e 2024); Champions até 1984; demais ligas com lacunas. Só a Libertadores tem contagem nos jogos de 2026.
+
 Os rótulos dos **8 mercados** (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY, es-EC) estão em [rotulos.md](rotulos.md), gerado a partir de `packages/rules/src/stakes/labels.ts`. As **tags do torcedor** (`fan_tags` da API: rótulos curtos por participante, ordenados por relevância, para cards personalizados pelo clube) estão em [tags-torcedor.md](tags-torcedor.md), gerado a partir de `packages/rules/src/stakes/fan-tags.ts` pelo mesmo comando (`pnpm --filter @galaxie/rules docs:labels`). Diferenças regionais: prorrogação = *alargue* (AR, UY, CL), *tiempos extra* (MX), *tiempo extra* (CO, EC), *tiempo suplementario* (PE); rodada = *jornada* (MX) e *fecha* (demais).
 
 ## 4. Fora do escopo (por ora)
