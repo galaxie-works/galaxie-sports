@@ -7,11 +7,13 @@
  * regra por tenant (operadora própria esconde as concorrentes) e a montagem do contrato com os logos da
  * biblioteca de emissoras.
  */
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type {
   AvailabilityLogo,
   AvailabilityPlan,
   LineupItem,
+  LogoCredit,
   Platform,
   PlatformAvailability,
   PlatformLineup,
@@ -19,10 +21,13 @@ import type {
 } from '@galaxie/contracts';
 import {
   asset,
+  assetCredit,
   availabilityForChannels,
+  broadcaster,
   getPlatformLineup,
   getTenantOperator,
   listPlatforms,
+  type BroadcastMedium,
   type ChannelAvailability,
   type Database,
   type LineupAccess,
@@ -127,11 +132,25 @@ interface LogoRef {
   logo_dark: string | null;
 }
 
+/** Logo próprio de uma plataforma (enrich.platform.logo_asset_id), já como URL pública. */
+export interface PlatformLogo {
+  url: string | null;
+  /** Versão escura, quando o asset é o logo de uma entrada da biblioteca (acervo oficial). */
+  darkUrl: string | null;
+  /** Crédito da Commons (core.asset_credit); null para o acervo oficial. */
+  credit: LogoCredit | null;
+}
+
+/** "Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0" (sem autor: só a fonte e a licença). */
+export function logoCreditText(author: string | null, license: string): string {
+  return `Logo: ${author ? `${author} / ` : ''}Wikimedia Commons · ${license}`;
+}
+
 /** Logos da biblioteca de emissoras e dos assets das plataformas, já como URL pública. */
 export class LogoBook {
   constructor(
     private readonly library: Map<string, LogoRef>,
-    private readonly assets: Map<string, string | null>,
+    private readonly assets: Map<string, PlatformLogo>,
   ) {}
 
   static empty(): LogoBook {
@@ -144,22 +163,23 @@ export class LogoBook {
     return { id, name: ref?.name ?? id, logo: ref?.logo ?? null, logo_dark: ref?.logo_dark ?? null };
   }
 
-  /** Plataforma: logo do asset dela; senão, o da entrada dela na biblioteca. */
+  /** Plataforma: logo do asset dela (com o crédito); senão, o da entrada dela na biblioteca. */
   platform(row: LineupPlatform): Platform {
     const lib = row.broadcasterId ? this.library.get(row.broadcasterId) : undefined;
-    const own = row.logoAssetId ? (this.assets.get(row.logoAssetId) ?? null) : null;
-    return {
-      id: row.id,
-      slug: row.slug,
-      name: row.name,
-      kind: row.kind,
-      country: row.country,
-      broadcaster_id: row.broadcasterId,
-      logo: own ?? lib?.logo ?? null,
-      logo_dark: own ? null : (lib?.logo_dark ?? null),
-    };
+    const own = row.logoAssetId ? this.assets.get(row.logoAssetId) : undefined;
+    if (own?.url) return { ...base(row), logo: own.url, logo_dark: own.darkUrl, logo_credit: own.credit };
+    return { ...base(row), logo: lib?.logo ?? null, logo_dark: lib?.logo_dark ?? null, logo_credit: null };
   }
 }
+
+const base = (row: LineupPlatform) => ({
+  id: row.id,
+  slug: row.slug,
+  name: row.name,
+  kind: row.kind,
+  country: row.country,
+  broadcaster_id: row.broadcasterId,
+});
 
 const httpOnly = (url: string | null | undefined) => (url && /^https?:\/\//.test(url) ? url : null);
 
@@ -174,16 +194,27 @@ export async function loadLogoBook(
     ...new Set([...libraryIds, ...platforms.flatMap((p) => (p.broadcasterId ? [p.broadcasterId] : []))]),
   ];
   const assetIds = [...new Set(platforms.flatMap((p) => (p.logoAssetId ? [p.logoAssetId] : [])))];
-  const [rows, assets] = await Promise.all([
+  const dark = alias(asset, 'dark_logo');
+  const [rows, assets, darks] = await Promise.all([
     ids.length ? listBroadcasters(db, { ids }) : Promise.resolve([]),
     assetIds.length
       ? db
-          .select({ id: asset.id, storageKey: asset.storageKey, sourceUrl: asset.sourceUrl })
+          .select({ id: asset.id, storageKey: asset.storageKey, sourceUrl: asset.sourceUrl, c: assetCredit })
           .from(asset)
+          .leftJoin(assetCredit, eq(assetCredit.assetId, asset.id))
           .where(inArray(asset.id, assetIds))
+      : Promise.resolve([]),
+    // logo vindo da biblioteca (mesmo site oficial): a versão escura do acervo vem junto
+    assetIds.length
+      ? db
+          .select({ assetId: broadcaster.logoAssetId, storageKey: dark.storageKey })
+          .from(broadcaster)
+          .innerJoin(dark, eq(dark.id, broadcaster.logoDarkAssetId))
+          .where(inArray(broadcaster.logoAssetId, assetIds))
       : Promise.resolve([]),
   ]);
   const stored = (key: string | null) => (key ? assetUrl(assetsBaseUrl, key, null) : null);
+  const darkOf = new Map(darks.map((d) => [d.assetId, stored(d.storageKey)]));
   return new LogoBook(
     new Map(
       rows.map((b) => [
@@ -195,7 +226,27 @@ export async function loadLogoBook(
         },
       ]),
     ),
-    new Map(assets.map((a) => [a.id, assetUrl(assetsBaseUrl, a.storageKey, httpOnly(a.sourceUrl))])),
+    new Map(
+      assets.map((a) => [
+        a.id,
+        {
+          url: assetUrl(assetsBaseUrl, a.storageKey, httpOnly(a.sourceUrl)),
+          darkUrl: darkOf.get(a.id) ?? null,
+          credit: a.c
+            ? {
+                source: 'Wikimedia Commons' as const,
+                title: a.c.title,
+                page_url: a.c.pageUrl,
+                author: a.c.author,
+                license: a.c.license,
+                license_url: a.c.licenseUrl,
+                attribution_required: a.c.attributionRequired,
+                text: logoCreditText(a.c.author, a.c.license),
+              }
+            : null,
+        },
+      ]),
+    ),
   );
 }
 
@@ -280,16 +331,42 @@ export function channelsOf(
   return out;
 }
 
+/**
+ * Detentor dos direitos no país sem o jogo confirmado ("canal a confirmar"): opção `probable` ou
+ * linha de direitos da curadoria/pesquisa, com o logo já resolvido.
+ */
+export interface RightsHolder {
+  broadcasterId: string | null;
+  name: string;
+  medium: BroadcastMedium;
+  logo: string | null;
+  logo_dark: string | null;
+}
+
+/** Canais dos detentores de um meio, sem repetir. */
+export function holdersOf(holders: RightsHolder[], medium: 'free_tv' | 'pay_tv'): AvailabilityLogo[] {
+  const seen = new Set<string>();
+  return holders.flatMap((h) => {
+    const id = h.broadcasterId ?? h.name;
+    if (h.medium !== medium || seen.has(id)) return [];
+    seen.add(id);
+    return [{ id, name: h.name, logo: h.logo, logo_dark: h.logo_dark }];
+  });
+}
+
 export const EMPTY_AVAILABILITY: WhereToWatchAvailability = {
   free_tv: [],
   pay_tv_channels: [],
   platforms: [],
   your_operator: null,
+  channel_status: 'confirmed',
 };
 
 /**
  * Bloco `availability` do onde assistir: TV aberta e canais pagos das opções publicadas, e as
- * plataformas (com o plano) que levam esses canais, filtradas pela regra do tenant.
+ * plataformas (com o plano) que levam esses canais, filtradas pela regra do tenant. Sem opção
+ * publicada, os detentores dos direitos no país ("canal a confirmar") ocupam o lugar dos canais, com
+ * `channel_status = to_confirm`: as plataformas são as que carregam esses canais, não o do jogo.
  */
 export async function buildAvailability(input: {
   db: Database;
@@ -300,10 +377,16 @@ export async function buildAvailability(input: {
   /** Logo resolvido de cada opção publicada (o do canal, quando o acervo oficial tem). */
   optionLogo: OptionLogo;
   operator: Operator | null;
+  /** Detentores sem o jogo confirmado; só contam quando não há opção publicada. */
+  toConfirm?: RightsHolder[];
 }): Promise<{ availability: WhereToWatchAvailability; platformIds: string[] }> {
   const { db, lineup, operator } = input;
+  const holders = input.options.length ? [] : (input.toConfirm ?? []);
   const channelIds = [
-    ...new Set(input.options.flatMap((o) => (o.row.broadcasterId ? [o.row.broadcasterId] : []))),
+    ...new Set([
+      ...input.options.flatMap((o) => (o.row.broadcasterId ? [o.row.broadcasterId] : [])),
+      ...holders.flatMap((h) => (h.broadcasterId ? [h.broadcasterId] : [])),
+    ]),
   ];
   const rows = channelIds.length
     ? await lineup.source.availabilityForChannels(db, {
@@ -339,12 +422,21 @@ export async function buildAvailability(input: {
       (own ? { platform: logos.platform(own.platform), plans: [] } : null))
     : null;
   return {
-    availability: {
-      free_tv: channelsOf(input.options, 'free_tv', input.optionLogo),
-      pay_tv_channels: channelsOf(input.options, 'pay_tv', input.optionLogo),
-      platforms,
-      your_operator: yours,
-    },
+    availability: holders.length
+      ? {
+          free_tv: holdersOf(holders, 'free_tv'),
+          pay_tv_channels: holdersOf(holders, 'pay_tv'),
+          platforms,
+          your_operator: yours,
+          channel_status: 'to_confirm',
+        }
+      : {
+          free_tv: channelsOf(input.options, 'free_tv', input.optionLogo),
+          pay_tv_channels: channelsOf(input.options, 'pay_tv', input.optionLogo),
+          platforms,
+          your_operator: yours,
+          channel_status: 'confirmed',
+        },
     platformIds: [...platforms.map((p) => p.platform.id), ...(yours ? [yours.platform.id] : [])],
   };
 }

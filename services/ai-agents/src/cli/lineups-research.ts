@@ -7,12 +7,15 @@
  * Opções: --pais BR,AR (padrão: BR, AR, MX, CO, CL), --max N (chamadas de pesquisa por execução,
  * padrão 6), --plataforma <slug> (só os planos dessa plataforma), --redescobrir (refaz a descoberta).
  * Idempotente: sem --redescobrir/--revisitar, só pesquisa país sem plataformas e plataforma sem planos.
- * Requer DATABASE_URL e, para pesquisar, o provedor com busca (AI_PROVIDER=gemini + GEMINI_API_KEY,
- * em dois passos com grounding). O custo vai para ops.llm_usage (agente `lineups`).
+ * Requer DATABASE_URL e, para pesquisar, o provedor com busca (Gemini em dois passos com grounding,
+ * GEMINI_API_KEY): o mesmo da pesquisa de direitos, AI_RIGHTS_PROVIDER (e AI_RIGHTS_MODEL), ou o
+ * AI_PROVIDER sem ele. O custo vai para ops.llm_usage (agente `lineups`).
+ * Agendado no perfil `agents` do scheduler como `lineups-revisit` (--revisitar --dias 30 --max 4).
  */
 import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
 import { loadWtwConfig, syncBroadcasterLibrary } from '@galaxie/where-to-watch';
+import { rightsLlmEnv } from '../llm/config.js';
 import { createLlmClient } from '../llm/factory.js';
 import {
   LINEUP_COUNTRIES,
@@ -103,7 +106,8 @@ async function main(): Promise<void> {
 
     const lib = await syncBroadcasterLibrary(db, config);
     console.log(`Biblioteca de emissoras sincronizada: ${lib.upserted} entrada(s).`);
-    const rt = createLlmClient({ db });
+    // pesquisa com busca, como a de direitos: o job agendado usa o provedor dela (Gemini na VPS)
+    const rt = createLlmClient({ db, env: rightsLlmEnv(process.env) });
     console.log(`Pesquisa: ${rt.settings.provider} · ${rt.settings.models.research}`);
     const researcher = new LineupResearcher({
       db,

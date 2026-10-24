@@ -197,6 +197,18 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     args: ['--max', '10'],
     timeoutMs: 15 * MINUTE,
   },
+  {
+    name: 'lineups-revisit',
+    description:
+      'Grade de canais e ofertas: revisita o que foi visto há mais de 30 dias (descoberta por país e planos por plataforma); mudanças em itens aprovados vão para revisão no painel',
+    // uma vez por dia, até 4 pesquisas (US$ 0,20–0,40 cada nos testes): ~45 plataformas nos 5 países
+    // voltam a ser vistas em ~12 dias, antes de vencer de novo; sem item vencido, custo zero
+    cron: '50 4 * * *',
+    script: 'dist/cli/lineups-research.js',
+    cwd: '../ai-agents',
+    args: ['--revisitar', '--dias', '30', '--max', '4'],
+    timeoutMs: 30 * MINUTE,
+  },
 ];
 
 /** Jobs de cada perfil do scheduler (`SCHEDULER_PROFILE`, padrão `ingestor`). */

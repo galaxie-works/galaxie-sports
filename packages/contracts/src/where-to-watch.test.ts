@@ -11,6 +11,7 @@ const operadora = {
   broadcaster_id: null,
   logo: 'https://cdn.exemplo.test/operadora.png',
   logo_dark: null,
+  logo_credit: null,
 };
 const canal = { id: 'canal_exemplo', name: 'Canal Exemplo', logo: null, logo_dark: null };
 const streaming = {
@@ -38,6 +39,7 @@ const availability = {
     },
   ],
   your_operator: null,
+  channel_status: 'confirmed',
 };
 
 const base = {
@@ -72,8 +74,49 @@ describe('contrato do onde assistir com a grade (availability)', () => {
         pay_tv_channels: [],
         platforms: [],
         your_operator: null,
+        channel_status: 'confirmed',
       }),
-    ).toEqual({ free_tv: [], pay_tv_channels: [], platforms: [], your_operator: null });
+    ).toEqual({
+      free_tv: [],
+      pay_tv_channels: [],
+      platforms: [],
+      your_operator: null,
+      channel_status: 'confirmed',
+    });
+  });
+
+  it('canal a confirmar: as listas são dos detentores dos direitos', () => {
+    expect(
+      WhereToWatchAvailability.parse({ ...availability, channel_status: 'to_confirm' }).channel_status,
+    ).toBe('to_confirm');
+    expect(WhereToWatchAvailability.safeParse({ ...availability, channel_status: 'probable' }).success).toBe(
+      false,
+    );
+  });
+
+  it('logo da plataforma com o crédito da Commons', () => {
+    const credit = {
+      source: 'Wikimedia Commons',
+      title: 'File:Logo de exemplo.svg',
+      page_url: 'https://commons.wikimedia.org/wiki/File:Logo_de_exemplo.svg',
+      author: null,
+      license: 'Public domain',
+      license_url: null,
+      attribution_required: false,
+      text: 'Logo: Wikimedia Commons · Public domain',
+    };
+    expect(
+      WhereToWatchAvailability.parse({
+        ...availability,
+        your_operator: { platform: { ...operadora, logo_credit: credit }, plans: [] },
+      }).your_operator?.platform.logo_credit,
+    ).toEqual(credit);
+    expect(
+      WhereToWatchAvailability.safeParse({
+        ...availability,
+        your_operator: { platform: { ...operadora, logo_credit: { ...credit, source: 'Outro' } }, plans: [] },
+      }).success,
+    ).toBe(false);
   });
 
   it('recusa tipo de plataforma e acesso fora do vocabulário', () => {

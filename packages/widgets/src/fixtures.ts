@@ -1,6 +1,6 @@
 // Dados de exemplo para o preview do Builder e para os testes. Os objetos seguem os contratos completos
 // da API (@galaxie/contracts): se um contrato mudar, o typecheck daqui acusa.
-import type { Event, Standings, WhereToWatch } from '@galaxie/contracts';
+import type { Event, Standings, WhereToWatch, WhereToWatchAvailability } from '@galaxie/contracts';
 
 import type { GsEvent, GsStandings, GsWhereToWatch } from './core/model.js';
 
@@ -163,7 +163,28 @@ export interface PreviewFixtures {
   whereToWatch: GsWhereToWatch;
 }
 
-/** Três jogos (ao vivo, mais tarde e encerrado), a tabela e o onde assistir, relativos a `now`. */
+const esporte = { id: 'esporte_exemplo', name: 'Esporte Exemplo 2', logo: null, logo_dark: null };
+const play = { id: 'exemplo_play', name: 'Operadora Exemplo Play', logo: null, logo_dark: null };
+const platform = (
+  slug: string,
+  name: string,
+  kind: 'pay_tv_operator' | 'vmvpd' | 'streaming',
+): WhereToWatchAvailability['platforms'][number]['platform'] => ({
+  id: `plataforma-${slug}`,
+  slug: `br-${slug}-exemplo`,
+  name,
+  kind,
+  country: 'BR',
+  broadcaster_id: null,
+  logo: null,
+  logo_dark: null,
+  logo_credit: null,
+});
+
+/**
+ * Três jogos (ao vivo, mais tarde e encerrado), a tabela e o onde assistir (com a grade: TV aberta,
+ * canal pago e as plataformas com o plano), relativos a `now`.
+ */
 export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
   const minutes = (m: number) => new Date(now.getTime() + m * 60_000);
   const events: Event[] = [
@@ -224,7 +245,7 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
       {
         id: '0199a5c0-0000-7000-8000-0000000000f1',
         provider: 'TV Exemplo',
-        provider_id: null,
+        provider_id: 'tv_exemplo',
         channel: null,
         medium: 'free_tv',
         access_model: 'free',
@@ -240,7 +261,7 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
       {
         id: '0199a5c0-0000-7000-8000-0000000000f2',
         provider: 'Canal Esporte Exemplo',
-        provider_id: null,
+        provider_id: 'esporte_exemplo',
         channel: 'Esporte Exemplo 2',
         medium: 'pay_tv',
         access_model: 'subscription',
@@ -256,7 +277,7 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
       {
         id: '0199a5c0-0000-7000-8000-0000000000f3',
         provider: 'Operadora Exemplo Play',
-        provider_id: null,
+        provider_id: 'exemplo_play',
         channel: null,
         medium: 'streaming_svod',
         access_model: 'subscription',
@@ -271,7 +292,60 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
       },
     ],
     to_confirm: [],
-    availability: { free_tv: [], pay_tv_channels: [], platforms: [], your_operator: null },
+    availability: {
+      free_tv: [{ id: 'tv_exemplo', name: 'TV Exemplo', logo: null, logo_dark: null }],
+      pay_tv_channels: [esporte],
+      platforms: [
+        {
+          platform: platform('operadora', 'Operadora Exemplo', 'pay_tv_operator'),
+          plans: [
+            {
+              id: '0199a5c0-0000-7000-8000-0000000000e1',
+              name: 'Plano Completo',
+              access: 'included',
+              via_channels: [{ ...esporte, access: 'included' }],
+              included_services: [play],
+            },
+            {
+              id: '0199a5c0-0000-7000-8000-0000000000e2',
+              name: 'Plano Essencial',
+              access: 'addon',
+              via_channels: [{ ...esporte, access: 'addon' }],
+              included_services: [],
+            },
+          ],
+        },
+        {
+          platform: platform('tv-online', 'TV Online Exemplo', 'vmvpd'),
+          plans: [
+            {
+              id: '0199a5c0-0000-7000-8000-0000000000e3',
+              name: 'Plano Esportes',
+              access: 'included',
+              via_channels: [{ ...esporte, access: 'included' }],
+              included_services: [],
+            },
+          ],
+        },
+        {
+          platform: {
+            ...platform('play', 'Operadora Exemplo Play', 'streaming'),
+            broadcaster_id: 'exemplo_play',
+          },
+          plans: [
+            {
+              id: '0199a5c0-0000-7000-8000-0000000000e4',
+              name: 'Plano Padrão',
+              access: 'included',
+              via_channels: [],
+              included_services: [],
+            },
+          ],
+        },
+      ],
+      your_operator: null,
+      channel_status: 'confirmed',
+    },
     updated_at: verified,
   };
   return { events, standings, whereToWatch };
