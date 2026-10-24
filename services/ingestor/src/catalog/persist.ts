@@ -12,6 +12,7 @@ import {
   type I18nText,
 } from '@galaxie/db';
 import { LOGO_KINDS, MISSING_ASSET } from '../assets/placeholder-logos.js';
+import { canonicalCountryName } from './countries.js';
 
 // ─── formato intermediário (comum aos 12 esportes) ───────────────────────────────────────────────
 
@@ -202,7 +203,13 @@ export async function upsertCatalog(
     for (const chunk of chunks(rows.countries, 500)) {
       await tx
         .insert(country)
-        .values(chunk.map((c) => ({ code: c.code, name: c.name, flagAssetId: assetId(c.flagUrl) })))
+        .values(
+          chunk.map((c) => ({
+            code: c.code,
+            name: canonicalCountryName(c.code, c.name),
+            flagAssetId: assetId(c.flagUrl),
+          })),
+        )
         .onConflictDoUpdate({
           target: country.code,
           // preserva traduções já cadastradas (pt-BR, es...) e atualiza o nome em inglês

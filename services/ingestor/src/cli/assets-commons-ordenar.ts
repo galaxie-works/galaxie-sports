@@ -13,7 +13,8 @@
  * da entrada), então rodar de novo continua de onde parou.
  *
  * Opções: --manifesto <arquivo> (entrada; padrão: o do repositório), --saida <arquivo> (padrão: a entrada),
- * --so driver/ayrton-senna,car/mclaren/1988, --limite <n> (alvos por execução), --refazer.
+ * --so driver/ayrton-senna,car/mclaren/1988, --tipo car|driver, --limite <n> (alvos por execução), --refazer
+ * (com --tipo car, refaz os carros com a nota do fundo do heading, `hero`).
  * Ambiente: GEMINI_API_KEY e GEMINI_MODEL_VISION (padrão: o leve da camada de IA).
  */
 import { existsSync } from 'node:fs';
@@ -40,6 +41,8 @@ const root = join(import.meta.dirname, '..', '..', '..', '..');
 const input = String(args.get('manifesto') ?? join(root, 'config', 'assets', 'commons', 'f1.yaml'));
 const output = String(args.get('saida') ?? input);
 const only = listArg(args, 'so');
+const kind = args.has('tipo') ? String(args.get('tipo')) : null;
+if (kind && kind !== 'car' && kind !== 'driver') throw new Error('--tipo: use car ou driver');
 const limit = args.has('limite') ? Number(args.get('limite')) : Number.POSITIVE_INFINITY;
 const redo = args.has('refazer');
 const plan = args.has('plan');
@@ -53,6 +56,7 @@ const previous = output !== input && existsSync(output) ? readManifest(output) :
 if (previous) base.entries = mergeRanked(base.entries, previous.entries);
 const pending = base.entries
   .filter((e) => !only || only.includes(e.target))
+  .filter((e) => !kind || e.kind === kind)
   .filter((e) => redo || !isRanked(e))
   .slice(0, limit);
 

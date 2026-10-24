@@ -46,6 +46,11 @@ export interface AiJudgement {
   keep: boolean;
   /** 0–10: nitidez, enquadramento, rosto visível (retrato) ou carro inteiro (carro). */
   quality: number;
+  /**
+   * Carro: 0–1, serve para o fundo do heading do piloto (corrida da temporada com o piloto > carro em ação em
+   * evento histórico > carro parado inteiro; close de gente, detalhe ou pessoa moderna em primeiro plano ≈ 0).
+   */
+  hero?: number;
   reason?: string;
 }
 
@@ -127,6 +132,8 @@ export interface ChosenPhoto {
   rank: number;
   selectedBy: 'rules' | 'gemini';
   reason: string | null;
+  /** Nota do Gemini para o fundo do heading (só carro). */
+  hero?: number;
 }
 
 /**
@@ -155,22 +162,31 @@ export function choose(
     return true;
   };
   if (d.target.kind === 'car') {
-    return scored
-      .filter(({ j }) => !j || j.kind === 'car')
-      .filter(({ e }) => fresh(e))
-      .slice(0, opts.maxCars ?? 3)
-      .map(({ e, j }, rank) => ({
-        eligible: e,
-        role: 'car',
-        rank,
-        selectedBy: by,
-        reason: j?.reason ?? null,
-      }));
+    const cars = scored.filter(({ j }) => !j || j.kind === 'car').filter(({ e }) => fresh(e));
+    const top = cars.slice(0, opts.maxCars ?? 3);
+    // a melhor para o fundo do heading (nota `hero`) entra mesmo fora das de mais qualidade: a foto de corrida
+    // de 1950 perde em nitidez para a do museu, mas é a que vai ao fundo
+    const hero = [...cars].sort((a, b) => (b.j?.hero ?? 0) - (a.j?.hero ?? 0))[0];
+    if (hero?.j?.hero != null && !top.includes(hero)) top.push(hero);
+    return top.map(({ e, j }, rank) => ({
+      eligible: e,
+      role: 'car',
+      rank,
+      selectedBy: by,
+      reason: j?.reason ?? null,
+      ...(j?.hero != null ? { hero: j.hero } : {}),
+    }));
   }
   const out: ChosenPhoto[] = [];
+  // o retrato mais recente (o piloto de hoje, na equipe de hoje: Hamilton na Ferrari, não na Mercedes); a nota
+  // desempata, e o sem data fica por último
+  const recent = <T extends { e: Eligible }>(list: T[]) =>
+    [...list].sort((a, b) => (b.e.year ?? -1) - (a.e.year ?? -1))[0];
   const portrait =
-    scored.find(({ j }) => j?.kind === 'portrait') ??
-    (ai ? undefined : scored.find(({ e }) => e.candidate.portraitCategory || e.candidate.wikidataImage));
+    recent(scored.filter(({ j }) => j?.kind === 'portrait')) ??
+    (ai
+      ? undefined
+      : recent(scored.filter(({ e }) => e.candidate.portraitCategory || e.candidate.wikidataImage)));
   if (portrait && fresh(portrait.e))
     out.push({
       eligible: portrait.e,

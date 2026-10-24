@@ -8,7 +8,10 @@ import {
   type UpsertStats,
 } from './persist.js';
 
+import { canonicalCountryName, UK_NATIONS } from './countries.js';
+
 export type { CatalogRows, CompetitionRow, CountryRow, UpsertStats } from './persist.js';
+export { canonicalCountryName, UK_NATIONS } from './countries.js';
 
 // ─── formato da api-sports (v3) ──────────────────────────────────────────────────────────────────
 
@@ -45,7 +48,9 @@ export function slugify(value: string): string {
 
 /** Código do país no nosso modelo: ISO2 (ou extensão da api-sports como GB-ENG); "WORLD" para internacionais. */
 export function countryCode(c: Pick<ApiCountry, 'name' | 'code'>): string {
-  if (c.code) return c.code.toUpperCase();
+  const code = c.code?.trim().toUpperCase();
+  if (code === 'GB' && UK_NATIONS[slugify(c.name)]) return UK_NATIONS[slugify(c.name)]!;
+  if (code) return code;
   return c.name === 'World' ? 'WORLD' : slugify(c.name).toUpperCase();
 }
 
@@ -68,7 +73,11 @@ export function buildCatalogRows(
   for (const c of [...countries, ...leagues.map((l) => l.country)]) {
     const code = countryCode(c);
     const prev = countryMap.get(code);
-    countryMap.set(code, { code, name: { en: c.name }, flagUrl: prev?.flagUrl ?? c.flag ?? null });
+    countryMap.set(code, {
+      code,
+      name: canonicalCountryName(code, { en: c.name }),
+      flagUrl: prev?.flagUrl ?? c.flag ?? null,
+    });
   }
 
   const competitions = leagues.map((l): CompetitionRow => {
