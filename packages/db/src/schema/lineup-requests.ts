@@ -4,7 +4,7 @@ import { tenant } from './api.js';
 import { ops } from './ops.js';
 
 /** O que um pedido de revisão da grade aponta. */
-export const LINEUP_TARGET_TYPES = ['platform', 'plan', 'plan_channel', 'plan_service'] as const;
+export const LINEUP_TARGET_TYPES = ['platform', 'plan', 'plan_channel', 'plan_service', 'addon'] as const;
 export type LineupTargetType = (typeof LINEUP_TARGET_TYPES)[number];
 
 export const LINEUP_REQUEST_STATUSES = ['open', 'accepted', 'rejected'] as const;

@@ -15,6 +15,7 @@ import type {
   LineupItem,
   LogoCredit,
   Platform,
+  PlatformAddon,
   PlatformAvailability,
   PlatformLineup,
   WhereToWatchAvailability,
@@ -31,6 +32,7 @@ import {
   type ChannelAvailability,
   type Database,
   type LineupAccess,
+  type LineupAddon,
   type LineupMinReview,
   type LineupPlatform,
   type PlatformKind,
@@ -268,6 +270,32 @@ const published = <T extends { access: LineupAccess }>(
 ): (T & { access: LineupItem['access'] })[] =>
   list.filter((x): x is T & { access: LineupItem['access'] } => x.access !== 'unverified');
 
+/** Complementos aprovados agrupados por emissora (as ofertas juntas, "a partir de" o menor preço). */
+export function addonsDto(logos: LogoBook, addons: readonly LineupAddon[]): PlatformAddon[] {
+  const byRef = new Map<string, LineupAddon[]>();
+  for (const a of addons) {
+    const key = `${a.refId}|${a.channel ?? ''}`;
+    byRef.set(key, [...(byRef.get(key) ?? []), a]);
+  }
+  return [...byRef.values()].map((list) => {
+    const first = list[0]!;
+    const prices = list.map((a) => a.priceAmount).filter((p): p is number => p !== null);
+    return {
+      ...logos.item(first.refId),
+      kind: first.kind,
+      channel: first.channel,
+      price_from: prices.length ? Math.min(...prices) : null,
+      currency: list.find((a) => a.priceCurrency)?.priceCurrency ?? null,
+      offers: list.map((a) => ({
+        name: a.name,
+        price: a.priceAmount,
+        currency: a.priceCurrency,
+        commitment_months: a.commitmentMonths,
+      })),
+    };
+  });
+}
+
 function availabilityPlan(
   logos: LogoBook,
   platform: LineupPlatform,
@@ -303,7 +331,7 @@ export function platformAvailability(
   logos: LogoBook,
 ): PlatformAvailability[] {
   return rows
-    .filter((r) => visibleTo(operator, r.platform) && r.plans.length)
+    .filter((r) => visibleTo(operator, r.platform) && (r.plans.length || r.addons.length))
     .sort(
       (a, b) =>
         Number(b.platform.id === operator?.platformId) - Number(a.platform.id === operator?.platformId) ||
@@ -313,6 +341,7 @@ export function platformAvailability(
     .map((r) => ({
       platform: logos.platform(r.platform),
       plans: r.plans.map((p) => availabilityPlan(logos, r.platform, p)),
+      addons: addonsDto(logos, r.addons),
     }));
 }
 
@@ -419,6 +448,7 @@ export async function buildAvailability(input: {
         ...p.services.map((s) => s.serviceId),
       ]),
     ),
+    ...rows.flatMap((r) => r.addons.map((a) => a.refId)),
   ];
   const logos = await loadLogoBook(db, input.assetsBaseUrl, ids, [
     ...rows.map((r) => r.platform),
@@ -428,7 +458,7 @@ export async function buildAvailability(input: {
   const platforms = platformAvailability(rows, operator, logos);
   const yours = operator
     ? (platforms.find((p) => p.platform.id === operator.platformId) ??
-      (own ? { platform: logos.platform(own.platform), plans: [] } : null))
+      (own ? { platform: logos.platform(own.platform), plans: [], addons: [] } : null))
     : null;
   return {
     availability: holders.length
@@ -460,5 +490,6 @@ export function lineupDto(row: DbPlatformLineup, logos: LogoBook): PlatformLineu
       channels: published(p.channels).map((c) => lineupItem(logos, c.channelId, c.access)),
       services: published(p.services).map((s) => lineupItem(logos, s.serviceId, s.access)),
     })),
+    addons: addonsDto(logos, row.addons),
   };
 }

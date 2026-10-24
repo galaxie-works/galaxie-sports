@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   date,
   index,
+  integer,
   jsonb,
   numeric,
   primaryKey,
@@ -79,11 +80,69 @@ export interface LineupVerification {
     currency?: LineupCheckResult;
     /** Streaming: o trecho diz que vem incluso (skip nos canais). */
     included?: LineupCheckResult;
+    /** Plano listado na etapa 1 que voltou com detalhe na etapa 2 (fail = plano faltando). */
+    details?: LineupCheckResult;
+    /** A página oficial lida do nosso lado confirma o item. */
+    page?: LineupCheckResult;
   };
   verified: boolean;
   /** O que a IA afirmou e não foi aceito (ex.: o preço sem prova), para a revisão. */
   claimed?: { price_amount?: number | null; currency?: string | null };
+  /** Todos os preços vistos do plano, com fonte e data; o escolhido é o oficial provado mais recente. */
+  prices?: LineupPriceObservation[];
+  /** Mais de um valor entre os preços vistos. */
+  price_conflict?: boolean;
+  /** Página oficial lida do nosso lado (proveniência da grade). */
+  page?: LineupPageRef;
   checked_at: string;
+}
+
+/** Um preço visto para o plano (pesquisa ou página oficial). */
+export interface LineupPriceObservation {
+  amount: number;
+  currency: string | null;
+  /** research = pesquisa com IA · page = página oficial lida do nosso lado · operator = curadoria. */
+  origin: 'research' | 'page' | 'operator';
+  source_url: string | null;
+  tier: LineupSourceTier | null;
+  /** Data da fonte (YYYY-MM ou YYYY-MM-DD), se conhecida; senão a da leitura. */
+  source_date: string | null;
+  seen_at: string;
+  /** Oficial, específico do plano, cheio de lista e na moeda do país. */
+  verified: boolean;
+}
+
+/** Página oficial lida (proveniência): URL, data da leitura, hash do conteúdo e como foi lida. */
+export interface LineupPageRef {
+  url: string;
+  fetched_at: string;
+  hash: string;
+  via: LineupPageVia;
+}
+
+/** static = HTML · embedded_json = JSON embutido na página · render = navegador headless. */
+export const LINEUP_PAGE_VIAS = ['static', 'embedded_json', 'render'] as const;
+export type LineupPageVia = (typeof LINEUP_PAGE_VIAS)[number];
+
+/**
+ * ok = lida · robots = o robots.txt não permite · blocked = login, formulário, captcha ou paywall (não
+ * burlamos) · off_domain = redirecionou para fora dos domínios oficiais · needs_render = o conteúdo só
+ * aparece com JavaScript e não há navegador · error = falha de rede ou HTTP.
+ */
+export const LINEUP_PAGE_STATUSES = [
+  'ok',
+  'robots',
+  'blocked',
+  'off_domain',
+  'needs_render',
+  'error',
+] as const;
+export type LineupPageStatus = (typeof LINEUP_PAGE_STATUSES)[number];
+
+/** Conteúdo extraído de uma página: o texto e, quando renderizada, as seções abertas (a grade de cada plano). */
+export interface LineupPageContent {
+  text: string;
+  sections: { label: string | null; text: string }[];
 }
 
 /** Fonte de um item da grade. `url` nulo só para dado informado pela operadora ou editorial. */
@@ -231,4 +290,75 @@ export const planService = enrich.table(
     primaryKey({ columns: [t.planId, t.serviceId] }),
     index('plan_service_service_idx').on(t.serviceId),
   ],
+);
+
+/** service = streaming ou pacote (Premiere) · channel = canal avulso (ESPN 6). */
+export const ADDON_KINDS = ['service', 'channel'] as const;
+export type AddonKind = (typeof ADDON_KINDS)[number];
+
+/**
+ * Complemento da plataforma: serviço ou canal que qualquer plano contrata à parte, com preço. É da
+ * plataforma, não do plano (o Premiere incluso num plano é complemento pago nos outros). O mesmo serviço
+ * pode ter várias ofertas (mensal e com fidelidade): uma linha por oferta.
+ */
+export const platformAddon = enrich.table(
+  'platform_addon',
+  {
+    id: pkUuidV7(),
+    platformId: uuid('platform_id')
+      .notNull()
+      .references(() => platform.id, { onDelete: 'cascade' }),
+    /** `<ref>[-<canal>][-f<meses>]`, único na plataforma. */
+    slug: text('slug').notNull(),
+    kind: text('kind').$type<AddonKind>().notNull(),
+    /** Id da biblioteca (enrich.broadcaster.id). */
+    refId: text('ref_id')
+      .notNull()
+      .references(() => broadcaster.id, { onDelete: 'cascade' }),
+    /** Canal da entrada, quando o complemento é um canal numerado ("ESPN 6"). */
+    channel: text('channel'),
+    /** Nome como a plataforma publica ("Premiere Fidelidade"). */
+    name: text('name').notNull(),
+    priceAmount: numeric('price_amount', { precision: 12, scale: 2, mode: 'number' }),
+    priceCurrency: text('price_currency'),
+    priceText: text('price_text'),
+    /** Fidelidade em meses (null = mensal, sem fidelidade). */
+    commitmentMonths: integer('commitment_months'),
+    url: text('url'),
+    verification: jsonb('verification').$type<LineupVerification>(),
+    ...reviewColumns(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('platform_addon_slug_uq').on(t.platformId, t.slug),
+    index('platform_addon_ref_idx').on(t.refId),
+  ],
+);
+
+/**
+ * Página oficial lida do nosso lado (grade de canais e inclusos de cada plano): cache por URL com
+ * validade e proveniência (data da leitura, hash do conteúdo). Mudou o hash na revisita, a grade vira
+ * mudança para revisar.
+ */
+export const lineupPage = enrich.table(
+  'lineup_page',
+  {
+    url: text('url').primaryKey(),
+    platformId: uuid('platform_id').references(() => platform.id, { onDelete: 'set null' }),
+    status: text('status').$type<LineupPageStatus>().notNull(),
+    via: text('via').$type<LineupPageVia>(),
+    httpStatus: integer('http_status'),
+    finalUrl: text('final_url'),
+    contentHash: text('content_hash'),
+    previousHash: text('previous_hash'),
+    hashChangedAt: timestamp('hash_changed_at', { withTimezone: true }),
+    /** Texto e seções extraídos (para reaproveitar dentro da validade sem buscar de novo). */
+    content: jsonb('content').$type<LineupPageContent>(),
+    error: text('error'),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('lineup_page_platform_idx').on(t.platformId)],
 );

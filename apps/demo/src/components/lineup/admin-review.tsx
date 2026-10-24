@@ -35,8 +35,10 @@ const ALL = '__all';
 export interface ReviewRow extends ItemView {
   planName: string | null;
   platform: { id: string; name: string; country: string };
-  /** Plano: preço cheio provado, com a moeda. */
+  /** Plano e complemento: preço cheio provado, com a moeda. */
   price?: { amount: number; currency: string } | null;
+  /** Complemento com fidelidade. */
+  commitmentMonths?: number | null;
 }
 
 /** Abas de Ajustes → Grades e ofertas (revisão, pedidos das operadoras, operadora de cada tenant). */
@@ -305,7 +307,9 @@ export function LineupReview({
                         verification={row.verification}
                         price={row.price}
                         access={row.fields.access ?? null}
-                        isPlan={row.type === 'plan'}
+                        isPlan={row.type === 'plan' || row.type === 'addon'}
+                        commitmentMonths={row.commitmentMonths ?? null}
+                        timeZone={timeZone}
                       />
                     )}
                   </TableCell>

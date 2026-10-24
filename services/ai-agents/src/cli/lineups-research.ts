@@ -5,6 +5,9 @@
  *   pnpm --filter @galaxie/ai-agents lineups:research --pais BR --max 4      # descobre e levanta os planos
  *   pnpm --filter @galaxie/ai-agents lineups:research --revisitar --dias 30  # refaz o que foi visto há mais de 30 dias
  *   pnpm --filter @galaxie/ai-agents lineups:research --resumo --pais BR,AR  # como está a grade gravada (sem LLM)
+ * A pesquisa de planos é em duas etapas: a lista dos planos e o catálogo de complementos (uma chamada)
+ * e o detalhe de cada plano (uma chamada por plano; `--max` conta todas). Plano listado sem detalhe é
+ * acusado como faltando. A grade de canais é confirmada depois pela página oficial (`lineups:pages`).
  * Cada pesquisa de planos passa pelo validador determinístico (lineups/validate.ts): segue o
  * redirecionamento do grounding, classifica a fonte pelo domínio final e confere o trecho. O que não
  * tem prova oficial e específica do plano entra como `unverified` e o preço sem prova não é gravado.
@@ -19,6 +22,7 @@
 import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
 import { loadWtwConfig, syncBroadcasterLibrary } from '@galaxie/where-to-watch';
+import { dbPageStore, OfficialPageReader } from '../lineups/pages.js';
 import { lineupReport } from '../lineups/report.js';
 import { rightsLlmEnv } from '../llm/config.js';
 import { createLlmClient } from '../llm/factory.js';
@@ -64,7 +68,15 @@ function describe(o: LineupCallOutcome): string {
     ` · descartados: ${d.noSource} sem fonte, ${d.blocked} pela política, ${d.injection} suspeito(s)` +
     (t.kind === 'plans'
       ? `\n    validador: ${v.pricedPlans}/${v.plans} plano(s) com preço provado · vínculos: ${v.included} incluso(s), ` +
-        `${v.addon} adicional(is), ${v.unverified} sem prova${tiers ? ` · fontes: ${tiers}` : ''}`
+        `${v.addon} adicional(is), ${v.unverified} sem prova${tiers ? ` · fontes: ${tiers}` : ''} · ` +
+        `${v.addons} complemento(s) · ${o.calls} chamada(s)` +
+        (o.missingPlans.length
+          ? `\n    PLANO FALTANDO (listado sem detalhe): ${o.missingPlans.join(', ')}`
+          : '') +
+        (o.skippedPlans.length ? `\n    sem orçamento para o detalhe: ${o.skippedPlans.join(', ')}` : '')
+      : '') +
+    (o.rebrandTo
+      ? `\n    REBRAND: o site oficial redireciona para ${o.rebrandTo} (mudança para revisar)`
       : '') +
     (d.unknown.length ? `\n    fora da biblioteca: ${d.unknown.slice(0, 15).join(', ')}` : '') +
     (d.inactive.length ? `\n    canais extintos (recusados): ${d.inactive.join(', ')}` : '')
@@ -116,11 +128,15 @@ async function main(): Promise<void> {
           planos: r.plans,
           'com preço provado': r.priced,
           'planos verificados': r.verifiedPlans,
+          'grade pela página': r.pageConfirmed,
+          'preço em conflito': r.priceConflicts,
+          'plano sem detalhe': r.missingDetails,
           'canais inclusos': r.channels.included,
           'canais sem prova': r.channels.unverified,
           'streamings inclusos': r.services.included,
           'streamings adicionais': r.services.addon,
           'streamings sem prova': r.services.unverified,
+          complementos: r.addons,
           'sem checagem': r.unchecked,
           'fonte oficial': r.checked ? `${Math.round((100 * r.official) / r.checked)}%` : '—',
         })),
@@ -158,6 +174,8 @@ async function main(): Promise<void> {
       db,
       llm: rt.client,
       config,
+      // o mesmo leitor educado da página oficial: detecta o rebrand (site que redireciona)
+      pages: new OfficialPageReader({ store: dbPageStore(db), log: (m) => console.log(`  ${m}`) }),
       log: (m) => console.log(`  ${m}`),
     });
     const outcomes = await researcher.run({ ...opts, maxCalls });

@@ -305,6 +305,11 @@ export default defineMessages(
           description:
             'Refaz a pesquisa das operadoras e planos vistos há mais de 30 dias (até 4 por execução).',
         },
+        'lineups-pages': {
+          label: 'Grade de canais: página oficial',
+          description:
+            'Confirma a grade, os inclusos e o preço de cada plano na página oficial da plataforma (com cache de 25 dias, sem IA).',
+        },
         'channel-lists': {
           label: 'Lista de canais do cliente',
           description:
@@ -842,6 +847,11 @@ export default defineMessages(
             label: 'Channel lineups: revisit',
             description:
               'Researches again the operators and plans seen more than 30 days ago (up to 4 per run).',
+          },
+          'lineups-pages': {
+            label: 'Channel lineup: official page',
+            description:
+              "Confirms each plan's lineup, included services and price on the platform's official page (25-day cache, no AI).",
           },
           'channel-lists': {
             label: 'Client channel list',
@@ -1385,6 +1395,11 @@ export default defineMessages(
             label: 'Grilla de canales: revisión',
             description:
               'Vuelve a investigar los operadores y planes vistos hace más de 30 días (hasta 4 por ejecución).',
+          },
+          'lineups-pages': {
+            label: 'Grilla de canales: página oficial',
+            description:
+              'Confirma la grilla, los incluidos y el precio de cada plan en la página oficial de la plataforma (con caché de 25 días, sin IA).',
           },
           'channel-lists': {
             label: 'Lista de canales del cliente',

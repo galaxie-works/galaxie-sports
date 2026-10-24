@@ -75,6 +75,7 @@ describe('scheduleFromEnv', () => {
       'wtw-rights',
       'review-suggestions',
       'lineups-revisit',
+      'lineups-pages',
       'channel-lists',
     ]);
     expect(jobs.every((j) => j.cwd === '../ai-agents')).toBe(true);
@@ -94,6 +95,19 @@ describe('scheduleFromEnv', () => {
     expect(
       scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_LINEUPS_REVISIT: 'off' }),
     ).not.toContainEqual(expect.objectContaining({ name: 'lineups-revisit' }));
+  });
+
+  it('confirma a grade pela página oficial uma vez por dia, depois da revisita', () => {
+    const job = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents' }).find((j) => j.name === 'lineups-pages')!;
+    expect(job).toMatchObject({
+      cron: '20 5 * * *',
+      script: 'dist/cli/lineups-pages.js',
+      cwd: '../ai-agents',
+      args: ['--max-paginas', '20'],
+    });
+    expect(
+      scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_LINEUPS_PAGES: 'off' }),
+    ).not.toContainEqual(expect.objectContaining({ name: 'lineups-pages' }));
   });
 
   it('confere as sobras das listas de canais a cada 10 min, repetindo as que falharam', () => {

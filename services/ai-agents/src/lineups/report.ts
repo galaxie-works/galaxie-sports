@@ -4,7 +4,7 @@
  * depois de pesquisar de novo (`lineups:research --resumo`).
  */
 import { and, inArray, ne } from 'drizzle-orm';
-import { planChannel, planService, platform, platformPlan, type Database } from '@galaxie/db';
+import { planChannel, planService, platform, platformAddon, platformPlan, type Database } from '@galaxie/db';
 
 export interface LineupReportRow {
   country: string;
@@ -14,6 +14,14 @@ export interface LineupReportRow {
   priced: number;
   /** Planos que passaram no validador. */
   verifiedPlans: number;
+  /** Planos com a grade confirmada pela página oficial. */
+  pageConfirmed: number;
+  /** Planos com preços divergentes entre as fontes. */
+  priceConflicts: number;
+  /** Planos listados na etapa 1 sem detalhe na etapa 2. */
+  missingDetails: number;
+  /** Ofertas do catálogo de complementos. */
+  addons: number;
   channels: { included: number; addon: number; unverified: number };
   services: { included: number; addon: number; unverified: number };
   /** Vínculos gravados antes do validador (sem `verification`). */
@@ -77,6 +85,10 @@ export async function lineupReport(db: Database, countries: readonly string[]): 
         plans: 0,
         priced: 0,
         verifiedPlans: 0,
+        pageConfirmed: 0,
+        priceConflicts: 0,
+        missingDetails: 0,
+        addons: 0,
         channels: { included: 0, addon: 0, unverified: 0 },
         services: { included: 0, addon: 0, unverified: 0 },
         unchecked: 0,
@@ -95,6 +107,9 @@ export async function lineupReport(db: Database, countries: readonly string[]): 
     row.plans++;
     if (p.priceAmount !== null) row.priced++;
     if (p.verification?.verified) row.verifiedPlans++;
+    if (p.verification?.checks.page === 'pass') row.pageConfirmed++;
+    if (p.verification?.price_conflict) row.priceConflicts++;
+    if (p.verification?.checks.details === 'fail') row.missingDetails++;
     tier(row, p.verification);
   }
   for (const [list, key] of [
@@ -107,6 +122,19 @@ export async function lineupReport(db: Database, countries: readonly string[]): 
       if (!l.verification) row.unchecked++;
       tier(row, l.verification);
     }
+  const addons = await db
+    .select({ platformId: platformAddon.platformId })
+    .from(platformAddon)
+    .where(
+      and(
+        inArray(
+          platformAddon.platformId,
+          platforms.map((p) => p.id),
+        ),
+        ne(platformAddon.reviewStatus, 'rejected'),
+      ),
+    );
+  for (const a of addons) rows.get(a.platformId)!.addons++;
   return [...rows.values()].sort(
     (a, b) => a.country.localeCompare(b.country) || a.slug.localeCompare(b.slug),
   );

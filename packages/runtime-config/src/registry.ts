@@ -90,6 +90,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
   { name: 'review-suggestions', service: 'agents', cron: '*/15 * * * *', runNow: true },
   { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * *', runNow: false },
+  { name: 'lineups-pages', service: 'agents', cron: '20 5 * * *', runNow: false },
   { name: 'channel-lists', service: 'agents', cron: '*/10 * * * *', runNow: true },
 ];
 

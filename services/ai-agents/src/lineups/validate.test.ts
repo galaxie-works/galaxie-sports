@@ -6,6 +6,7 @@ import {
   readAiStudio,
   type AiStudioOutput,
 } from '../testing/ai-studio-lineups.js';
+import { gabaritoIds, readGabarito } from '../testing/lineup-gabarito.js';
 import {
   excerptHasAmount,
   formatPrice,
@@ -16,6 +17,7 @@ import {
   namesPlan,
   redirectResolver,
   sourceTier,
+  verifyAddons,
   verifyPlans,
   type ModelPlan,
   type VerifyContext,
@@ -401,5 +403,133 @@ describe('dicionário com validade', () => {
     const out = await run(['GolPerú', 'ESPN'], 'PE');
     expect(access(out.plans[0]!.channels)).toEqual({ espn: 'included' });
     expect(out.drops).toContainEqual({ reason: 'inactive', name: 'GolPerú', plan: 'Plano Total' });
+  });
+});
+
+describe('vários preços: conflito e o oficial mais recente', () => {
+  const PDF = 'https://plataforma-e.exemplo/documentos/precios-noviembre-diciembre-2025';
+  const SITE = 'https://plataforma-e.exemplo/planes/lite';
+  const lite = (prices: NonNullable<ModelPlan['prices']>): ModelPlan[] => [
+    {
+      name: 'Plan Lite',
+      priceAmount: null,
+      currency: null,
+      prices,
+      planUrl: null,
+      evidence: { url: SITE, excerpt: 'Plan Lite. Solo. $ 12.900. mes.' },
+      channels: [],
+      services: [],
+    },
+  ];
+  const run = (prices: NonNullable<ModelPlan['prices']>) =>
+    verifyPlans(lite(prices), {
+      ...ctx('AR', 'ar-plataforma-e'),
+      resolveUrl: async (u) => u,
+    });
+
+  it('PDF de nov/dez 2025 × site de hoje: guarda os dois, marca conflito e vale o mais recente', async () => {
+    const out = await run([
+      {
+        amount: 13650,
+        currency: 'ARS',
+        date: '2025-11',
+        evidence: { url: PDF, excerpt: 'Lista de precios. Plan Lite. $ 13.650. Plan Básico. $ 19.200.' },
+      },
+      {
+        amount: 12900,
+        currency: 'ARS',
+        date: '2026-10',
+        evidence: { url: SITE, excerpt: 'Plan Lite. $ 12.900. mes.' },
+      },
+    ]);
+    const p = out.plans[0]!;
+    expect(p.priceAmount).toBe(12900);
+    expect(p.verification.price_conflict).toBe(true);
+    expect(p.verification.prices?.map((o) => [o.amount, o.source_date, o.verified])).toEqual([
+      [13650, '2025-11', true],
+      [12900, '2026-10', true],
+    ]);
+  });
+
+  it('o preço sem prova (comparador) entra na lista, mas não vence o oficial', async () => {
+    const out = await run([
+      {
+        amount: 11000,
+        currency: 'ARS',
+        date: '2026-10',
+        evidence: { url: 'https://selectra.com.ar/planes', excerpt: 'Plan Lite $ 11.000' },
+      },
+      {
+        amount: 12900,
+        currency: 'ARS',
+        date: '2026-09',
+        evidence: { url: SITE, excerpt: 'Plan Lite. $ 12.900.' },
+      },
+    ]);
+    expect(out.plans[0]!.priceAmount).toBe(12900);
+    expect(out.plans[0]!.verification.price_conflict).toBe(true);
+  });
+});
+
+describe('catálogo de complementos (etapa 1)', () => {
+  const offer = (
+    name: string,
+    amount: number,
+    months: number | null,
+    excerpt: string,
+    url = 'https://plataforma-a.exemplo/home/planos',
+  ) => ({
+    name,
+    kind: 'service' as const,
+    amount,
+    currency: 'BRL',
+    commitmentMonths: months,
+    evidence: { url, excerpt },
+  });
+
+  it('mesmo serviço com duas ofertas; canal numerado vira canal; sem fonte oficial, sem preço', async () => {
+    const { addons, drops } = await verifyAddons(
+      [
+        offer('Premiere', 59.9, null, 'Premiere R$ 59,90 por mês'),
+        offer('Premiere Fidelidade', 49.9, 12, 'FIDELIDADE 12 MESES Premiere Fidelidade R$ 49,90 por mês'),
+        offer('ESPN 6 Fidelidade', 4.9, 12, 'FIDELIDADE 12 MESES ESPN 6 Fidelidade R$ 4,90 por mês'),
+        offer('Paramount+', 34.9, null, 'Paramount+ R$ 34,90', 'https://selectra.com.br/x'),
+        offer('Telecine', 29.9, null, 'Telecine R$ 29,90'),
+      ],
+      ctx('BR', 'br-plataforma-a', { resolveUrl: async (u) => u }),
+    );
+    expect(addons.map((a) => [a.refId, a.kind, a.channel, a.priceAmount, a.commitmentMonths])).toEqual([
+      ['premiere', 'service', null, 59.9, null],
+      ['premiere', 'service', null, 49.9, 12],
+      ['espn', 'channel', 'ESPN 6', 4.9, 12],
+      ['paramount_plus', 'service', null, null, null],
+    ]);
+    expect(addons[1]!.priceText).toBe('R$ 49,90/mês · fidelidade de 12 meses');
+    expect(drops).toEqual([{ reason: 'unknown', name: 'Telecine' }]);
+  });
+});
+
+describe('gabarito do dono do produto × resposta do AI Studio (plataforma A, BR)', () => {
+  it('o validador não aceita nada que o gabarito não tem, e o Plano TV ficou de fora da resposta', async () => {
+    const gabarito = readGabarito();
+    const out = await verify('br-plataforma-a');
+    const dir = config.directory('BR');
+    for (const plan of out.plans) {
+      const g = gabarito.planos.find((x) => x.nome === plan.name)!;
+      expect(plan.priceAmount, plan.name).toBe(g.preco_mensal);
+      const okServices = gabaritoIds(g.streamings_inclusos, dir, '2026-10-24').ids;
+      const okChannels = gabaritoIds(g.canais, dir, '2026-10-24').ids;
+      for (const s of plan.services.filter((x) => x.access === 'included'))
+        expect(okServices, `${plan.name}: ${s.entryId}`).toContain(s.entryId);
+      for (const c of plan.channels.filter((x) => x.access === 'included'))
+        expect(okChannels, `${plan.name}: ${c.entryId}`).toContain(c.entryId);
+    }
+    // a prova genérica (ESPN, SporTV e BandSports da página geral) não entra em nenhum plano
+    for (const name of ['Plano Futebol', 'Plano Streaming'])
+      expect(plan(out, name).channels.filter((c) => c.access !== 'unverified')).toEqual([]);
+    // plano que o gabarito tem e a resposta não trouxe (a 2ª etapa, por plano, existe para isto)
+    expect(gabarito.planos.map((p) => p.nome).filter((n) => !out.plans.some((p) => p.name === n))).toEqual([
+      'Plano TV',
+    ]);
   });
 });

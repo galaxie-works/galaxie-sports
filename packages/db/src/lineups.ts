@@ -13,12 +13,15 @@
 import { and, asc, desc, eq, inArray, ne, sql, type SQL } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
+  ADDON_KINDS,
   LINEUP_ACCESS,
   LINEUP_REQUEST_STATUSES,
   LINEUP_REVIEW_STATUSES,
   LINEUP_TARGET_TYPES,
+  lineupPage,
   lineupReviewRequest,
   planChannel,
+  platformAddon,
   planService,
   platform,
   platformPlan,
@@ -30,6 +33,10 @@ import {
   type LineupReviewStatus,
   type LineupSource,
   type LineupTargetType,
+  type AddonKind,
+  type LineupPageContent,
+  type LineupPageStatus,
+  type LineupPageVia,
   type LineupVerification,
   type PlatformKind,
 } from './schema/index.js';
@@ -43,13 +50,16 @@ export type LineupPlan = typeof platformPlan.$inferSelect;
 export type LineupPlanChannel = typeof planChannel.$inferSelect;
 export type LineupPlanService = typeof planService.$inferSelect;
 export type LineupReviewRequest = typeof lineupReviewRequest.$inferSelect;
+export type LineupAddon = typeof platformAddon.$inferSelect;
+export type LineupPage = typeof lineupPage.$inferSelect;
 
 /** Item da grade: plataforma, plano ou vínculo plano × canal / plano × streaming. */
 export type LineupTarget =
   | { type: 'platform'; id: string }
   | { type: 'plan'; id: string }
   | { type: 'plan_channel'; planId: string; channelId: string }
-  | { type: 'plan_service'; planId: string; serviceId: string };
+  | { type: 'plan_service'; planId: string; serviceId: string }
+  | { type: 'addon'; id: string };
 
 /** Nível mínimo de revisão de uma leitura (`rejected` nunca conta como nível). */
 export type LineupMinReview = Exclude<LineupReviewStatus, 'rejected'>;
@@ -102,6 +112,30 @@ export interface LineupPlanDraft {
   verification?: LineupVerification | null;
   channels?: LineupChannelDraft[];
   services?: LineupServiceDraft[];
+  /**
+   * Os vínculos vieram completos (a grade do plano lida na página oficial): canal ou streaming gravado
+   * que não veio fica com `proposed_change.removed`, mesmo sem `complete` na plataforma.
+   */
+  completeLinks?: boolean;
+}
+
+/** Oferta de complemento da plataforma (serviço ou canal contratado à parte). */
+export interface LineupAddonDraft {
+  kind: AddonKind;
+  /** Id da biblioteca de emissoras. */
+  refId: string;
+  /** Canal numerado da entrada ("ESPN 6"), quando o complemento é um canal. */
+  channel?: string | null;
+  /** Nome como a plataforma publica. */
+  name: string;
+  priceAmount?: number | null;
+  priceCurrency?: string | null;
+  priceText?: string | null;
+  /** Fidelidade em meses (null = mensal). */
+  commitmentMonths?: number | null;
+  url?: string | null;
+  sources: LineupSourceInput[];
+  verification?: LineupVerification | null;
 }
 
 export interface LineupDraftInput {
@@ -119,6 +153,10 @@ export interface LineupDraftInput {
     sources: LineupSourceInput[];
   };
   plans?: LineupPlanDraft[];
+  /** Catálogo de complementos da plataforma. */
+  addons?: LineupAddonDraft[];
+  /** O catálogo veio completo: complemento gravado que não veio fica com `proposed_change.removed`. */
+  addonsComplete?: boolean;
   /** Quando a pesquisa viu os dados (padrão: agora). */
   seenAt?: Date;
   /**
@@ -178,6 +216,8 @@ export interface ChannelAvailabilityPlan {
 export interface ChannelAvailability {
   platform: LineupPlatform;
   plans: ChannelAvailabilityPlan[];
+  /** Complementos da plataforma para os canais ou streamings pedidos (contratados à parte). */
+  addons: LineupAddon[];
 }
 
 export interface AvailabilityOptions extends LineupReadOptions {
@@ -199,6 +239,8 @@ export interface AvailabilityOptions extends LineupReadOptions {
 export interface PlatformLineup {
   platform: LineupPlatform;
   plans: { plan: LineupPlan; channels: LineupPlanChannel[]; services: LineupPlanService[] }[];
+  /** Catálogo de complementos da plataforma (por nome e fidelidade). */
+  addons: LineupAddon[];
 }
 
 export interface TenantOperator {
@@ -258,6 +300,7 @@ export function lineupTargetId(target: LineupTarget): string {
   switch (target.type) {
     case 'platform':
     case 'plan':
+    case 'addon':
       return target.id;
     case 'plan_channel':
       return `${target.planId}:${target.channelId}`;
@@ -268,7 +311,7 @@ export function lineupTargetId(target: LineupTarget): string {
 
 /** (target_type, target_id) → alvo. */
 export function parseLineupTarget(type: string, id: string): LineupTarget {
-  if (type === 'platform' || type === 'plan') return { type, id };
+  if (type === 'platform' || type === 'plan' || type === 'addon') return { type, id };
   if (type === 'plan_channel' || type === 'plan_service') {
     const i = id.indexOf(':');
     if (i <= 0 || i === id.length - 1) throw new LineupError('invalid_input', `target_id inválido: ${id}`);
@@ -408,6 +451,7 @@ const PROPOSAL_KEYS: Record<LineupTargetType, (keyof LineupProposal)[]> = {
   plan: ['name', 'priceText', 'priceAmount', 'priceCurrency', 'url', 'validFrom', 'validTo', 'removed'],
   plan_channel: ['access', 'removed'],
   plan_service: ['access', 'removed'],
+  addon: ['name', 'priceText', 'priceAmount', 'priceCurrency', 'url', 'removed'],
 };
 
 /** Mantém só os campos válidos para o tipo de item, já normalizados. */
@@ -482,6 +526,10 @@ const KIND_ORDER: Record<PlatformKind, number> = {
 const byPlatform = (a: LineupPlatform, b: LineupPlatform) =>
   KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.name.localeCompare(b.name, 'pt-BR');
 const byPlan = (a: LineupPlan, b: LineupPlan) => a.name.localeCompare(b.name, 'pt-BR');
+const byAddon = (a: LineupAddon, b: LineupAddon) =>
+  a.refId.localeCompare(b.refId) ||
+  (a.commitmentMonths ?? 0) - (b.commitmentMonths ?? 0) ||
+  a.name.localeCompare(b.name, 'pt-BR');
 
 /** Sem `includeUnverified`, o vínculo sem prova (`unverified`) fica fora da leitura. */
 function verifiedOnly(
@@ -559,6 +607,10 @@ export async function getPlatformLineup(
           .orderBy(asc(planService.serviceId)),
       ])
     : [[], []];
+  const addons = await db
+    .select()
+    .from(platformAddon)
+    .where(and(eq(platformAddon.platformId, platformId), inArray(platformAddon.reviewStatus, statuses)));
   return {
     platform: p,
     plans: plans.sort(byPlan).map((plan) => ({
@@ -566,6 +618,7 @@ export async function getPlatformLineup(
       channels: channels.filter((c) => c.planId === plan.id),
       services: services.filter((s) => s.planId === plan.id),
     })),
+    addons: addons.sort(byAddon),
   };
 }
 
@@ -649,11 +702,27 @@ export async function availabilityForChannels(
         )
     : [];
 
+  // complemento da plataforma (contratado à parte) para os canais/streamings pedidos
+  const viaAddon = await db
+    .select({ platform, addon: platformAddon })
+    .from(platformAddon)
+    .innerJoin(platform, eq(platform.id, platformAddon.platformId))
+    .where(
+      and(
+        inArray(platformAddon.refId, ids),
+        inArray(platformAddon.reviewStatus, statuses),
+        ...platformWhere(),
+      ),
+    );
+
   const order = new Map(ids.map((id, i) => [id, i]));
-  const out = new Map<string, { platform: LineupPlatform; plans: Map<string, ChannelAvailabilityPlan> }>();
+  const out = new Map<
+    string,
+    { platform: LineupPlatform; plans: Map<string, ChannelAvailabilityPlan>; addons: LineupAddon[] }
+  >();
   const entry = (p: LineupPlatform) => {
     let e = out.get(p.id);
-    if (!e) out.set(p.id, (e = { platform: p, plans: new Map() }));
+    if (!e) out.set(p.id, (e = { platform: p, plans: new Map(), addons: [] }));
     return e;
   };
   const planEntry = (p: LineupPlatform, plan: LineupPlan) => {
@@ -674,10 +743,12 @@ export async function availabilityForChannels(
         pe.services.push({ serviceId: p.broadcasterId!, access: 'included' });
     }
   }
+  for (const r of viaAddon) entry(r.platform).addons.push(r.addon);
   const rank = (id: string) => order.get(id) ?? Number.MAX_SAFE_INTEGER;
   return [...out.values()]
     .map((e) => ({
       platform: e.platform,
+      addons: e.addons.sort((a, b) => rank(a.refId) - rank(b.refId) || byAddon(a, b)),
       plans: [...e.plans.values()]
         .map((pe) => ({
           plan: pe.plan,
@@ -692,6 +763,13 @@ export async function availabilityForChannels(
 // ─── gravação da pesquisa ────────────────────────────────────────────────────────────────────────
 
 const PRICE_FIELDS = ['priceText', 'priceAmount', 'priceCurrency'] as const;
+
+/** Slug da oferta de complemento: `<ref>[-<canal>][-f<meses>]`. */
+export function addonSlug(refId: string, channel: string | null, commitmentMonths: number | null): string {
+  return [refId, channel ? lineupSlug(channel) : '', commitmentMonths ? `f${commitmentMonths}` : '']
+    .filter(Boolean)
+    .join('-');
+}
 
 interface UpsertCtx {
   tx: Tx;
@@ -734,7 +812,7 @@ function reconcile<T extends Record<string, unknown>>(
   if (cur.reviewStatus === 'draft') {
     Object.assign(set, diff, cleared);
     keys.push(...Object.keys(cleared));
-    set.proposedChange = null;
+    set.proposedChange = explicitChange(pending);
     if (keys.length) ctx.result.updated++;
     else ctx.result.unchanged++;
   } else if (cur.reviewStatus === 'rejected') {
@@ -743,11 +821,23 @@ function reconcile<T extends Record<string, unknown>>(
     set.proposedChange = { ...diff, seen_at: ctx.seenAt.toISOString() };
     ctx.result.changes.push({ target, fields: keys });
   } else {
-    // visto de novo igual ao aprovado: a mudança pendente (ou o "não visto") perde o sentido
-    if (pending) set.proposedChange = null;
+    // visto de novo igual ao aprovado: a mudança pendente (ou o "não visto") perde o sentido; a explícita
+    // (rebrand, página oficial mudou) fica até alguém decidir
+    if (pending) set.proposedChange = explicitChange(pending);
     ctx.result.unchanged++;
   }
   return set;
+}
+
+/**
+ * Mudança proposta explicitamente (rebrand, página oficial mudou: vem com `note`): sobrevive à pesquisa
+ * que revê o item. O "não visto" (`removed`) e a diferença da pesquisa, não.
+ */
+function explicitChange(pending: LineupProposedChange | null): LineupProposedChange | null {
+  if (!pending || typeof pending.note !== 'string') return null;
+  const { removed: _removed, ...rest } = pending;
+  void _removed;
+  return rest;
 }
 
 async function markRemoved(
@@ -770,6 +860,8 @@ async function markRemoved(
       .update(planService)
       .set(set)
       .where(and(eq(planService.planId, target.planId), eq(planService.serviceId, target.serviceId)));
+  else if (target.type === 'addon')
+    await ctx.tx.update(platformAddon).set(set).where(eq(platformAddon.id, target.id));
   ctx.result.removed++;
   ctx.result.changes.push({ target, fields: ['removed'] });
 }
@@ -970,7 +1062,7 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
         seenServices.add(id);
         await upsertLink(ctx, 'service', planId, id, s.access ?? 'included', sources, s.verification ?? null);
       }
-      if (input.complete && curPlan) {
+      if ((input.complete || p.completeLinks) && curPlan) {
         const links = await tx.select().from(planChannel).where(eq(planChannel.planId, planId));
         for (const l of links.filter((l) => !seenChannels.has(l.channelId)))
           await markRemoved(ctx, { type: 'plan_channel', planId, channelId: l.channelId }, l);
@@ -984,6 +1076,65 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
       const plans = await tx.select().from(platformPlan).where(eq(platformPlan.platformId, platformId));
       for (const pl of plans.filter((pl) => !seenPlans.has(pl.slug) && !(pl.validTo && pl.validTo < today)))
         await markRemoved(ctx, { type: 'plan', id: pl.id }, pl);
+    }
+
+    const seenAddons = new Set<string>();
+    for (const a of input.addons ?? []) {
+      const name = cleanText(a.name, 160);
+      const refId = a.refId?.trim();
+      const sources = normalizeSources(a.sources, seenAt);
+      const months = a.commitmentMonths && a.commitmentMonths > 0 ? Math.round(a.commitmentMonths) : null;
+      const slug = refId ? addonSlug(refId, a.channel ?? null, months) : '';
+      if (!name || !refId || !ADDON_KINDS.includes(a.kind) || !sources.length || seenAddons.has(slug)) {
+        result.skipped++;
+        continue;
+      }
+      seenAddons.add(slug);
+      const priceAmount = a.priceAmount === undefined ? undefined : cleanAmount(a.priceAmount);
+      const fields = {
+        name,
+        priceText: cleanText(a.priceText, 120),
+        ...(priceAmount !== undefined
+          ? { priceAmount, priceCurrency: priceAmount === null ? null : cleanCurrency(a.priceCurrency) }
+          : {}),
+        url: cleanUrl(a.url),
+      };
+      const verification = a.verification ?? null;
+      const [curAddon] = await tx
+        .select()
+        .from(platformAddon)
+        .where(and(eq(platformAddon.platformId, platformId), eq(platformAddon.slug, slug)));
+      if (!curAddon) {
+        await tx.insert(platformAddon).values({
+          platformId,
+          slug,
+          kind: a.kind,
+          refId,
+          channel: cleanText(a.channel, 80),
+          commitmentMonths: months,
+          ...fields,
+          verification,
+          sources,
+          seenAt,
+          reviewStatus: 'draft',
+        });
+        result.created++;
+        continue;
+      }
+      const set = reconcile(
+        ctx,
+        { type: 'addon', id: curAddon.id },
+        curAddon,
+        fields,
+        sources,
+        verification ? { meta: { verification }, clearable: PRICE_FIELDS } : {},
+      );
+      await tx.update(platformAddon).set(set).where(eq(platformAddon.id, curAddon.id));
+    }
+    if (input.addonsComplete && cur) {
+      const addons = await tx.select().from(platformAddon).where(eq(platformAddon.platformId, platformId));
+      for (const a of addons.filter((a) => !seenAddons.has(a.slug)))
+        await markRemoved(ctx, { type: 'addon', id: a.id }, a);
     }
     return result;
   });
@@ -1049,6 +1200,30 @@ async function applyToTarget(
           ...(opts.source ? { seenAt: now } : {}),
         })
         .where(eq(platformPlan.id, cur.id));
+      return true;
+    }
+    case 'addon': {
+      if (!isUuid(target.id)) return false;
+      const [cur] = await tx.select().from(platformAddon).where(eq(platformAddon.id, target.id));
+      if (!cur) return false;
+      if (proposal.removed) {
+        await tx.delete(platformAddon).where(eq(platformAddon.id, cur.id));
+        return true;
+      }
+      const { name, priceText, priceAmount, priceCurrency, url } = proposal;
+      await tx
+        .update(platformAddon)
+        .set({
+          ...review,
+          ...(name !== undefined ? { name } : {}),
+          ...(priceText !== undefined ? { priceText } : {}),
+          ...(priceAmount !== undefined ? { priceAmount } : {}),
+          ...(priceCurrency !== undefined ? { priceCurrency } : {}),
+          ...(url !== undefined ? { url } : {}),
+          sources: withSource(cur.sources),
+          ...(opts.source ? { seenAt: now } : {}),
+        })
+        .where(eq(platformAddon.id, cur.id));
       return true;
     }
     case 'plan_channel':
@@ -1139,6 +1314,19 @@ async function readTarget(
             .where(and(eq(planService.planId, target.planId), eq(planService.serviceId, target.serviceId)))
         )[0] ?? null
       );
+    case 'addon':
+      if (!isUuid(target.id)) return null;
+      return (
+        (
+          await tx
+            .select({
+              reviewStatus: platformAddon.reviewStatus,
+              proposedChange: platformAddon.proposedChange,
+            })
+            .from(platformAddon)
+            .where(eq(platformAddon.id, target.id))
+        )[0] ?? null
+      );
   }
 }
 
@@ -1192,6 +1380,9 @@ export async function setLineupReviewStatus(
           .set(set)
           .where(and(eq(planService.planId, target.planId), eq(planService.serviceId, target.serviceId)));
         break;
+      case 'addon':
+        await tx.update(platformAddon).set(set).where(eq(platformAddon.id, target.id));
+        break;
     }
     return true;
   });
@@ -1223,6 +1414,9 @@ export async function dismissLineupChange(db: Database, target: LineupTarget, by
           .set(set)
           .where(and(eq(planService.planId, target.planId), eq(planService.serviceId, target.serviceId)));
         break;
+      case 'addon':
+        await tx.update(platformAddon).set(set).where(eq(platformAddon.id, target.id));
+        break;
     }
     return true;
   });
@@ -1239,6 +1433,14 @@ export async function lineupTargetPlatformId(
   if (target.type === 'platform') {
     if (!isUuid(target.id)) return null;
     const [r] = await q.select({ id: platform.id }).from(platform).where(eq(platform.id, target.id));
+    return r?.id ?? null;
+  }
+  if (target.type === 'addon') {
+    if (!isUuid(target.id)) return null;
+    const [r] = await q
+      .select({ id: platformAddon.platformId })
+      .from(platformAddon)
+      .where(eq(platformAddon.id, target.id));
     return r?.id ?? null;
   }
   const planId = target.type === 'plan' ? target.id : target.planId;
@@ -1468,4 +1670,92 @@ export async function findOperatorTenantsByEmail(db: Database, email: string): P
     .from(tenant)
     .where(sql`${domain} = any(${tenant.operatorEmailDomains})`);
   return rows.map((r) => r.id);
+}
+
+// ─── rebrand e páginas oficiais ──────────────────────────────────────────────────────────────────
+
+/**
+ * Propõe uma mudança num item sem tirar a aprovação: o site oficial passou a redirecionar para outro
+ * domínio (rebrand, na plataforma) ou a página oficial do plano mudou (hash, no plano). Fica em
+ * `proposed_change` até alguém aprovar ou descartar; na plataforma, também no rascunho; no plano, só no
+ * revisado ou aprovado (o rascunho já espera revisão). Devolve false se o item não existe, foi rejeitado
+ * ou a mesma mudança já está pendente.
+ */
+export async function proposeLineupChange(
+  db: Database,
+  target: { type: 'platform' | 'plan'; id: string },
+  change: { website?: string | null; name?: string; note?: string; page_hash?: string; page_url?: string },
+  seenAt: Date = new Date(),
+): Promise<boolean> {
+  if (!isUuid(target.id)) return false;
+  const table = target.type === 'platform' ? platform : platformPlan;
+  const [cur] =
+    target.type === 'platform'
+      ? await db.select().from(platform).where(eq(platform.id, target.id))
+      : await db.select().from(platformPlan).where(eq(platformPlan.id, target.id));
+  if (!cur || cur.reviewStatus === 'rejected') return false;
+  if (target.type === 'plan' && cur.reviewStatus === 'draft') return false;
+  const next: LineupProposedChange = { ...(cur.proposedChange ?? {}) };
+  if (change.website !== undefined) next.website = cleanUrl(change.website);
+  if (change.name !== undefined) next.name = cleanText(change.name, 160);
+  if (change.note) next.note = cleanText(change.note, 300);
+  if (change.page_hash) next.page_hash = change.page_hash.slice(0, 64);
+  if (change.page_url) next.page_url = cleanUrl(change.page_url);
+  const same =
+    cur.proposedChange &&
+    Object.entries(next).every(([k, v]) => k === 'seen_at' || cur.proposedChange?.[k] === v);
+  if (same) return false;
+  next.seen_at = seenAt.toISOString();
+  await db.update(table).set({ proposedChange: next, updatedAt: new Date() }).where(eq(table.id, target.id));
+  return true;
+}
+
+/** Leitura em cache de uma página oficial. */
+export async function getLineupPage(db: Database, url: string): Promise<LineupPage | null> {
+  const [row] = await db.select().from(lineupPage).where(eq(lineupPage.url, url));
+  return row ?? null;
+}
+
+export interface SaveLineupPageInput {
+  url: string;
+  platformId?: string | null;
+  status: LineupPageStatus;
+  via?: LineupPageVia | null;
+  httpStatus?: number | null;
+  finalUrl?: string | null;
+  contentHash?: string | null;
+  content?: LineupPageContent | null;
+  error?: string | null;
+  fetchedAt: Date;
+}
+
+/** Grava a leitura; hash diferente do anterior guarda o anterior e a data da mudança. */
+export async function saveLineupPage(
+  db: Database,
+  input: SaveLineupPageInput,
+): Promise<{ page: LineupPage; hashChanged: boolean }> {
+  const prev = await getLineupPage(db, input.url);
+  const hashChanged = !!(prev?.contentHash && input.contentHash && prev.contentHash !== input.contentHash);
+  const values = {
+    url: input.url,
+    platformId: input.platformId ?? prev?.platformId ?? null,
+    status: input.status,
+    via: input.via ?? null,
+    httpStatus: input.httpStatus ?? null,
+    finalUrl: input.finalUrl ?? null,
+    // leitura que falhou não apaga o último conteúdo bom
+    contentHash: input.contentHash ?? prev?.contentHash ?? null,
+    content: input.content ?? prev?.content ?? null,
+    previousHash: hashChanged ? prev!.contentHash : (prev?.previousHash ?? null),
+    hashChangedAt: hashChanged ? input.fetchedAt : (prev?.hashChangedAt ?? null),
+    error: input.error ? input.error.slice(0, 500) : null,
+    fetchedAt: input.fetchedAt,
+    updatedAt: new Date(),
+  };
+  const [page] = await db
+    .insert(lineupPage)
+    .values(values)
+    .onConflictDoUpdate({ target: lineupPage.url, set: values })
+    .returning();
+  return { page: page!, hashChanged };
 }

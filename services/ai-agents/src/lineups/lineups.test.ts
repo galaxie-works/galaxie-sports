@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { strictSchemaProblems } from '../llm/json-schema.js';
-import { discoveryPrompt, lineupSystemPrompt, plansPrompt } from './prompt.js';
-import { anchorResolver, comparableUrl, discoveryPurpose, plansPurpose } from './research.js';
-import { LINEUP_DISCOVERY_SCHEMA, LINEUP_PLANS_SCHEMA } from './schema.js';
+import { catalogPrompt, discoveryPrompt, lineupSystemPrompt, planPrompt } from './prompt.js';
+import { anchorResolver, catalogPurpose, comparableUrl, discoveryPurpose, planPurpose } from './research.js';
+import { LINEUP_CATALOG_SCHEMA, LINEUP_DISCOVERY_SCHEMA, LINEUP_PLAN_SCHEMA } from './schema.js';
 
 describe('schemas da grade', () => {
   it('são compatíveis com o modo estrito', () => {
     expect(strictSchemaProblems(LINEUP_DISCOVERY_SCHEMA)).toEqual([]);
-    expect(strictSchemaProblems(LINEUP_PLANS_SCHEMA)).toEqual([]);
+    expect(strictSchemaProblems(LINEUP_CATALOG_SCHEMA)).toEqual([]);
+    expect(strictSchemaProblems(LINEUP_PLAN_SCHEMA)).toEqual([]);
   });
 });
 
@@ -41,7 +42,8 @@ describe('fontes ancoradas', () => {
 describe('prompts e purposes', () => {
   it('purpose termina no país (localização da busca) e o agente é `lineups`', () => {
     expect(discoveryPurpose('BR')).toBe('lineups:discover:BR');
-    expect(plansPurpose('br-operadora-exemplo', 'BR')).toBe('lineups:plans:br-operadora-exemplo:BR');
+    expect(catalogPurpose('br-operadora-exemplo', 'BR')).toBe('lineups:catalog:br-operadora-exemplo:BR');
+    expect(planPurpose('br-operadora-exemplo', 'BR')).toBe('lineups:plan:br-operadora-exemplo:BR');
   });
 
   it('a descoberta não leva lista de nomes além dos já conhecidos no banco', () => {
@@ -53,20 +55,20 @@ describe('prompts e purposes', () => {
     expect(lineupSystemPrompt()).toContain('DADO');
   });
 
-  it('o pedido de planos leva a plataforma e os nomes da biblioteca', () => {
-    const p = plansPrompt({
+  it('etapa 1: lista todos os planos (só nome e fonte) e o catálogo de complementos com fidelidade', () => {
+    const p = catalogPrompt({
       country: 'BR',
       platform: { name: 'Operadora Exemplo', kind: 'pay_tv_operator', website: 'https://operadora.exemplo' },
       knownPlans: ['Plano Exemplo'],
-      channels: ['Canal Exemplo'],
       services: ['Streaming Exemplo'],
     });
-    for (const s of ['Operadora Exemplo', 'Plano Exemplo', 'Canal Exemplo', 'Streaming Exemplo', 'Brasil'])
+    for (const s of ['Operadora Exemplo', 'Plano Exemplo', 'Streaming Exemplo', 'Brasil', 'TODOS os planos'])
       expect(p).toContain(s);
+    expect(p).toContain('fidelidade de 12 meses são duas linhas');
   });
 
-  it('o pedido de planos leva as regras do teste do AI Studio: um país, preço cheio, prova do plano', () => {
-    const p = plansPrompt({
+  it('etapa 2: um plano por vez, sem misturar a grade dos outros, preço cheio, um preço por fonte', () => {
+    const p = planPrompt({
       country: 'AR',
       platform: {
         name: 'Operadora Exemplo',
@@ -74,15 +76,19 @@ describe('prompts e purposes', () => {
         website: 'https://operadora.exemplo',
         officialDomains: ['grupo.exemplo'],
       },
-      knownPlans: [],
-      channels: [],
+      plan: 'Plano Exemplo Total',
+      siblings: ['Plano Exemplo'],
+      channels: ['Canal Exemplo'],
       services: [],
     });
     expect(p).toContain('só este país');
+    expect(p).toContain('Plano: Plano Exemplo Total. Pesquise só este plano.');
+    expect(p).toContain('- Plano Exemplo');
     expect(p).toContain('CHEIO de lista');
     expect(p).toContain('promocional');
+    expect(p).toContain('um por fonte, com a data da fonte');
     expect(p).toContain('outros domínios oficiais: grupo.exemplo');
-    expect(p).toContain('Não repita a lista de canais da página geral');
+    expect(p).toContain('de marketing');
     expect(lineupSystemPrompt()).toContain('Sem fonte, sem conteúdo');
   });
 });

@@ -210,6 +210,17 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 30 * MINUTE,
   },
   {
+    name: 'lineups-pages',
+    description:
+      'Grade de canais e ofertas: confirma a grade, os inclusos e o preço de cada plano pela página oficial, lida do nosso lado (robots.txt, cache de 25 dias, sem LLM); página que mudou vira mudança para revisar',
+    // depois da revisita; o cache por URL faz a maior parte das execuções não buscar nada
+    cron: '20 5 * * *',
+    script: 'dist/cli/lineups-pages.js',
+    cwd: '../ai-agents',
+    args: ['--max-paginas', '20'],
+    timeoutMs: 30 * MINUTE,
+  },
+  {
     name: 'channel-lists',
     description:
       'Lista de canais do cliente: a IA confere só as sobras do casamento por código (índices e enums, com validador depois); falha volta na próxima rodada',

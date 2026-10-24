@@ -130,6 +130,37 @@ describe('montagem das plataformas', () => {
     });
   });
 
+  it('complemento da plataforma: as ofertas juntas, "a partir de" o menor preço', () => {
+    const [operator] = platformAvailability(AVAILABILITY, own, logos);
+    expect(operator!.addons).toEqual([
+      {
+        id: 'canal_exemplo',
+        name: 'Canal Exemplo',
+        logo: 'https://cdn.test/canal.png',
+        logo_dark: 'https://cdn.test/canal-dark.png',
+        kind: 'service',
+        channel: null,
+        price_from: 49.9,
+        currency: 'BRL',
+        offers: [
+          { name: 'Canal Exemplo', price: 59.9, currency: 'BRL', commitment_months: null },
+          { name: 'Canal Exemplo Fidelidade', price: 49.9, currency: 'BRL', commitment_months: 12 },
+        ],
+      },
+    ]);
+  });
+
+  it('plataforma só com o complemento (nenhum plano tem o canal) vira cartão sem planos', () => {
+    const out = platformAvailability(
+      [{ platform: RIVAL, plans: [], addons: AVAILABILITY[2]!.addons }],
+      null,
+      LogoBook.empty(),
+    );
+    expect(out.map((p) => [p.platform.id, p.plans.length, p.addons?.[0]?.price_from])).toEqual([
+      [RIVAL_ID, 0, 49.9],
+    ]);
+  });
+
   it('filtra as concorrentes mesmo se a consulta devolver todas (show_other_operators = false)', () => {
     expect(platformAvailability(AVAILABILITY, own, logos).map((p) => p.platform.id)).toEqual([
       OPERATOR_ID,
@@ -140,7 +171,7 @@ describe('montagem das plataformas', () => {
   it('plataforma sem plano não vira cartão; canal sem entrada na biblioteca usa o id', () => {
     const out = platformAvailability(
       [
-        { platform: RIVAL, plans: [] },
+        { platform: RIVAL, plans: [], addons: [] },
         {
           platform: STREAMING,
           plans: [
@@ -150,6 +181,7 @@ describe('montagem das plataformas', () => {
               services: [],
             },
           ],
+          addons: [],
         },
       ],
       null,
@@ -180,6 +212,7 @@ describe('montagem das plataformas', () => {
               services: [{ serviceId: 'streaming_sem_prova', access: 'unverified' }],
             },
           ],
+          addons: [],
         },
       ],
       null,

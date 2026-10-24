@@ -14,6 +14,7 @@ import { BudgetExceededError } from '../src/llm/errors.js';
 import { FakeLlmClient, type FakeReply } from '../src/llm/fake.js';
 import { withTokenBudget } from '../src/llm/factory.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
+import { memoryPageStore, OfficialPageReader } from '../src/lineups/pages.js';
 import { LineupResearcher, planLineupResearch } from '../src/lineups/research.js';
 import { disposableDb } from './helpers.js';
 
@@ -107,16 +108,99 @@ const discovery = {
   groundedUrls: [`${OP}/sobre`, ST, 'https://bloqueada.exemplo'],
 };
 
-const operatorPlans = (price: number, withSecond = true) => ({
+/** Etapa 1 da operadora: a lista dos planos (um deles a IA não acha depois) e o catálogo de complementos. */
+const operatorCatalog = (withGhost = true) => ({
   data: {
     planos: [
       {
         plano_nome: 'Plano Exemplo Esportes',
-        preco_mensal: price,
-        moeda_iso: 'BRL',
         plano_url: PAGE,
         fonte_url: PAGE,
-        trecho_da_fonte: `Plano Exemplo Esportes: R$ ${price.toFixed(2).replace('.', ',')} por mês. Streaming Exemplo incluso.`,
+        trecho: 'Plano Exemplo Esportes',
+      },
+      ...(withGhost
+        ? [
+            // listado, mas a 2ª etapa não acha: plano faltando
+            { plano_nome: 'Plano Fantasma', plano_url: null, fonte_url: PAGE, trecho: 'Plano Fantasma' },
+            {
+              plano_nome: 'Plano Sem Fonte',
+              plano_url: null,
+              fonte_url: 'https://inventada.exemplo/plano',
+              trecho: 'Plano Sem Fonte',
+            },
+          ]
+        : []),
+      // sem fonte na lista: nem vai para a 2ª etapa
+      { plano_nome: 'Plano da Memória', plano_url: null, fonte_url: null, trecho: null },
+    ],
+    complementos: [
+      {
+        nome: 'Streaming Exemplo',
+        tipo: 'streaming',
+        preco_mensal: 19.9,
+        moeda_iso: 'BRL',
+        fidelidade_meses: null,
+        fonte_url: PAGE,
+        trecho: 'Streaming Exemplo à parte por R$ 19,90 por mês',
+        data_da_fonte: null,
+      },
+    ],
+    notas: null,
+  },
+  groundedUrls: [PAGE],
+});
+
+/** Etapa 2: o detalhe de cada plano (pela mensagem, que diz qual é o plano). */
+const operatorPlan =
+  (price: number, withSecond = true) =>
+  (req: LlmJsonRequest) => {
+    const content = req.messages.map((m) => m.content).join('\n');
+    if (content.includes('Plano: Plano Fantasma.'))
+      return {
+        data: {
+          plano_nome: 'Plano Fantasma',
+          encontrado: false,
+          plano_url: null,
+          fonte_url: null,
+          trecho_da_fonte: null,
+          precos: [],
+          streamings_inclusos: [],
+          canais: [],
+          notas: null,
+        },
+        groundedUrls: [],
+      };
+    if (content.includes('Plano: Plano Sem Fonte.'))
+      return {
+        data: {
+          plano_nome: 'Plano Sem Fonte',
+          encontrado: true,
+          plano_url: null,
+          fonte_url: 'https://inventada.exemplo/plano',
+          trecho_da_fonte: 'Plano Sem Fonte',
+          precos: [],
+          streamings_inclusos: [],
+          canais: [],
+          notas: null,
+        },
+        groundedUrls: [],
+      };
+    return {
+      data: {
+        plano_nome: 'Plano Exemplo Esportes',
+        encontrado: true,
+        plano_url: PAGE,
+        fonte_url: PAGE,
+        trecho_da_fonte: 'Plano Exemplo Esportes. Streaming Exemplo incluso.',
+        precos: [
+          {
+            preco_mensal: price,
+            moeda_iso: 'BRL',
+            fonte_url: PAGE,
+            trecho: `Plano Exemplo Esportes: R$ ${price.toFixed(2).replace('.', ',')} por mês.`,
+            data_da_fonte: null,
+          },
+        ],
         canais: [
           // fonte oficial pelo redirecionamento do grounding
           {
@@ -139,50 +223,77 @@ const operatorPlans = (price: number, withSecond = true) => ({
           { canal_nome: 'Canal Exemplo 2', fonte_url: null, trecho: null },
         ],
         streamings_inclusos: [{ streaming_id: 'Streaming Exemplo', fonte_url: PAGE, trecho: null }],
+        notas: null,
       },
-      {
-        plano_nome: 'Plano Sem Fonte',
-        preco_mensal: null,
-        moeda_iso: null,
-        plano_url: null,
-        fonte_url: 'https://inventada.exemplo/plano',
-        trecho_da_fonte: 'Plano Sem Fonte',
-        canais: [],
-        streamings_inclusos: [],
-      },
-    ],
-    notas: null,
-  },
-  groundedUrls: [PAGE, REDIRECT, 'https://agregador.exemplo/grade'],
-});
+      groundedUrls: [PAGE, REDIRECT, 'https://agregador.exemplo/grade'],
+    };
+  };
 
-const streamingPlans = {
+const streamingCatalog = {
   data: {
     planos: [
-      {
-        plano_nome: 'Mensal',
-        preco_mensal: 29.9,
-        moeda_iso: 'BRL',
-        plano_url: `${ST}/planos`,
-        fonte_url: `${ST}/planos`,
-        trecho_da_fonte: 'Plano Mensal: R$ 29,90 por mês.',
-        canais: [],
-        streamings_inclusos: [],
-      },
+      { plano_nome: 'Mensal', plano_url: `${ST}/planos`, fonte_url: `${ST}/planos`, trecho: 'Plano Mensal' },
     ],
+    complementos: [],
     notas: null,
   },
   groundedUrls: [`${ST}/planos`],
 };
 
-function fake(replies: { discover?: FakeReply; operator?: FakeReply; streaming?: FakeReply }) {
+const streamingPlan = {
+  data: {
+    plano_nome: 'Mensal',
+    encontrado: true,
+    plano_url: `${ST}/planos`,
+    fonte_url: `${ST}/planos`,
+    trecho_da_fonte: 'Plano Mensal',
+    precos: [
+      {
+        preco_mensal: 29.9,
+        moeda_iso: 'BRL',
+        fonte_url: `${ST}/planos`,
+        trecho: 'Plano Mensal: R$ 29,90 por mês.',
+        data_da_fonte: null,
+      },
+    ],
+    canais: [],
+    streamings_inclusos: [],
+    notas: null,
+  },
+  groundedUrls: [`${ST}/planos`],
+};
+
+function fake(replies: {
+  discover?: FakeReply;
+  operator?: { catalog: FakeReply; plan: (req: LlmJsonRequest) => FakeReply };
+  streaming?: boolean;
+}) {
   return new FakeLlmClient((req: LlmJsonRequest) => {
     if (req.purpose.startsWith('lineups:discover:')) return replies.discover ?? new Error('sem descoberta');
-    if (req.purpose.includes('br-operadora-exemplo')) return replies.operator ?? new Error('sem planos');
-    if (req.purpose.includes('br-streaming-exemplo')) return replies.streaming ?? new Error('sem planos');
+    if (req.purpose.includes('br-operadora-exemplo')) {
+      if (!replies.operator) return new Error('sem planos');
+      return req.purpose.startsWith('lineups:catalog:')
+        ? replies.operator.catalog
+        : replies.operator.plan(req);
+    }
+    if (req.purpose.includes('br-streaming-exemplo')) {
+      if (!replies.streaming) return new Error('sem planos');
+      return req.purpose.startsWith('lineups:catalog:') ? streamingCatalog : streamingPlan;
+    }
     return new Error(`purpose inesperado: ${req.purpose}`);
   });
 }
+
+/** Leitor do site oficial com fetch falso: a operadora passou a redirecionar para a marca nova. */
+const rebrandReader = () =>
+  new OfficialPageReader({
+    fetch: async (url) =>
+      url === OP || url === `${OP}/`
+        ? new Response(null, { status: 301, headers: { location: 'https://www.marca-nova.exemplo/inicio' } })
+        : new Response('', { status: 404 }),
+    store: memoryPageStore(),
+    sleep: async () => undefined,
+  });
 
 const env = disposableDb();
 let db: Database;
@@ -200,8 +311,8 @@ describe('lineups-research (LLM falso)', () => {
     ]);
     const llm = fake({
       discover: discovery,
-      operator: operatorPlans(99.9),
-      streaming: streamingPlans,
+      operator: { catalog: operatorCatalog(), plan: operatorPlan(99.9) },
+      streaming: true,
     });
     const budgeted = withTokenBudget(llm, { db, dailyLimit: null, provider: 'fake', now: () => NOW });
     const out = await new LineupResearcher({ db, llm: budgeted, config, now: () => NOW, resolveUrl }).run({
@@ -227,7 +338,20 @@ describe('lineups-research (LLM falso)', () => {
     const lineup = await getPlatformLineup(db, rows[0]!.id, { minReview: 'draft', includeUnverified: true });
     expect(
       lineup!.plans.map((p) => [p.plan.name, p.plan.priceText, p.plan.priceAmount, p.plan.priceCurrency]),
-    ).toEqual([['Plano Exemplo Esportes', 'R$ 99,90/mês', 99.9, 'BRL']]);
+    ).toEqual([
+      ['Plano Exemplo Esportes', 'R$ 99,90/mês', 99.9, 'BRL'],
+      // listado na 1ª etapa, sem detalhe na 2ª: entra acusado como faltando
+      ['Plano Fantasma', null, null, null],
+    ]);
+    expect(lineup!.plans[1]!.plan.verification).toMatchObject({
+      verified: false,
+      checks: { details: 'fail' },
+    });
+    expect([out[1]!.missingPlans, out[1]!.calls]).toEqual([['Plano Fantasma'], 4]);
+    // catálogo de complementos da plataforma
+    expect(lineup!.addons.map((a) => [a.refId, a.kind, a.priceAmount, a.priceText])).toEqual([
+      ['streaming_exemplo', 'service', 19.9, 'R$ 19,90/mês'],
+    ]);
     const plan = lineup!.plans[0]!;
     expect(plan.plan.verification).toMatchObject({ tier: 'official', verified: true });
     expect(plan.plan.sources.map((s) => s.url)).toEqual([PAGE]);
@@ -251,7 +375,13 @@ describe('lineups-research (LLM falso)', () => {
     // streaming provado pelo trecho do plano ("incluso")
     expect(plan.services.map((s) => [s.serviceId, s.access])).toEqual([['streaming_exemplo', 'included']]);
     expect(out[1]!.drops.unknown).toEqual(['Canal Desconhecido']);
-    expect(out[1]!.verification).toMatchObject({ plans: 1, pricedPlans: 1, included: 2, unverified: 1 });
+    expect(out[1]!.verification).toMatchObject({
+      plans: 2,
+      pricedPlans: 1,
+      included: 2,
+      unverified: 1,
+      addons: 1,
+    });
 
     // a leitura pública nunca mostra o que está sem prova
     const pub = await getPlatformLineup(db, rows[0]!.id, { minReview: 'draft' });
@@ -259,7 +389,8 @@ describe('lineups-research (LLM falso)', () => {
 
     // custo no ledger compartilhado, agente `lineups`
     const usage = await db.select().from(llmUsage).where(eq(llmUsage.agent, 'lineups'));
-    expect(usage).toHaveLength(3);
+    // descoberta + (lista + 3 planos) da operadora + (lista + 1 plano) do streaming
+    expect(usage).toHaveLength(7);
   });
 
   it('é idempotente: rodar de novo não pesquisa nada', async () => {
@@ -298,10 +429,17 @@ describe('lineups-research (LLM falso)', () => {
 
     const llm = fake({
       discover: discovery,
-      operator: operatorPlans(109.9, false),
-      streaming: streamingPlans,
+      operator: { catalog: operatorCatalog(false), plan: operatorPlan(109.9, false) },
+      streaming: true,
     });
-    const out = await new LineupResearcher({ db, llm, config, now: () => later, resolveUrl }).run({
+    const out = await new LineupResearcher({
+      db,
+      llm,
+      config,
+      now: () => later,
+      resolveUrl,
+      pages: rebrandReader(),
+    }).run({
       countries: ['BR'],
       revisit: true,
       maxCalls: 10,
@@ -330,6 +468,13 @@ describe('lineups-research (LLM falso)', () => {
       .from(planChannel)
       .where(and(eq(planChannel.planId, plan!.id), eq(planChannel.channelId, 'canal_exemplo_2')));
     expect(link).toMatchObject({ reviewStatus: 'approved', proposedChange: { removed: true } });
+    // rebrand: o site oficial passou a redirecionar para outro domínio — mudança para revisar
+    const [op] = await db.select().from(platform).where(eq(platform.slug, 'br-operadora-exemplo'));
+    expect(op!.proposedChange).toMatchObject({ website: 'https://www.marca-nova.exemplo/' });
+    expect(op!.website).toBe(`${OP}/`);
+    expect(
+      out.find((o) => o.task.kind === 'plans' && o.task.slug === 'br-operadora-exemplo')?.rebrandTo,
+    ).toBe('https://www.marca-nova.exemplo/');
     expect(await planLineupResearch(db, { countries: ['BR'], now: later, revisit: true })).toEqual([]);
   });
 

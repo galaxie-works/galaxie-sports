@@ -3,7 +3,7 @@
 import { Check, ExternalLink, Minus, X } from 'lucide-react';
 
 import { Badge } from '@/components/reui/badge';
-import { useI18n } from '@/lib/i18n/client';
+import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 import { CHECK_KEYS, type CheckResult, type SourceTier, type VerificationView } from '@/lib/lineup/types';
 import { cn } from '@/lib/utils';
@@ -41,15 +41,22 @@ export function VerificationCell({
   price,
   access,
   isPlan,
+  commitmentMonths,
+  timeZone,
 }: {
   verification: VerificationView | null | undefined;
   price?: { amount: number; currency: string } | null;
   access?: string | null;
+  /** Plano ou complemento: mostra o preço. */
   isPlan: boolean;
+  /** Complemento com fidelidade. */
+  commitmentMonths?: number | null;
+  timeZone: string;
 }) {
   const { t } = useI18n();
   const V = t.lineup.admin.verification;
   const money = useMoney();
+  const f = useFormatters(timeZone);
   if (!verification && !isPlan && access !== 'unverified')
     return <span className="text-muted-foreground text-xs">{access ? '—' : ''}</span>;
   const v = verification;
@@ -65,7 +72,42 @@ export function VerificationCell({
               · {fill(V.claimed, { price: claimed })}
             </span>
           ) : null}
+          {commitmentMonths ? (
+            <span className="text-muted-foreground font-normal">
+              {' '}
+              · {fill(V.commitment, { months: String(commitmentMonths) })}
+            </span>
+          ) : null}
         </span>
+      ) : null}
+      {v?.priceConflict ? <Badge variant="warning-light">{V.priceConflict}</Badge> : null}
+      {v && v.prices.length > 1 ? (
+        <details className="text-muted-foreground">
+          <summary className="hover:text-foreground cursor-pointer">{V.prices}</summary>
+          <ul className="mt-0.5 flex flex-col gap-0.5">
+            {v.prices.map((p, i) => (
+              <li key={i} className={cn(p.verified && 'text-foreground')}>
+                {money(p.amount, p.currency ?? price?.currency ?? 'USD')} ·{' '}
+                {(V.origins as Record<string, string>)[p.origin] ?? p.origin}
+                {p.tier ? ` · ${V.tiers[p.tier]}` : ''}
+                {p.sourceDate ? ` · ${p.sourceDate}` : ''}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      {v?.page ? (
+        <a
+          href={v.page.url}
+          target="_blank"
+          rel="noreferrer noopener"
+          title={v.page.hash ? `sha256 ${v.page.hash.slice(0, 12)}` : undefined}
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 underline-offset-4 hover:underline"
+        >
+          {fill(V.page, { date: v.page.fetchedAt ? f.date(v.page.fetchedAt) : '—' })} ·{' '}
+          {(V.vias as Record<string, string>)[v.page.via] ?? v.page.via}
+          <ExternalLink className="size-3" />
+        </a>
       ) : null}
       {v ? (
         <>

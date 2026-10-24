@@ -8,7 +8,7 @@
 export const REVIEW_STATUSES = ['draft', 'reviewed', 'approved', 'rejected'] as const;
 export type LineupStatus = (typeof REVIEW_STATUSES)[number];
 
-export const TARGET_TYPES = ['platform', 'plan', 'plan_channel', 'plan_service'] as const;
+export const TARGET_TYPES = ['platform', 'plan', 'plan_channel', 'plan_service', 'addon'] as const;
 export type TargetType = (typeof TARGET_TYPES)[number];
 
 export const REQUEST_STATUSES = ['open', 'accepted', 'rejected'] as const;
@@ -30,6 +30,8 @@ export type SourceTier = (typeof SOURCE_TIERS)[number];
 
 /** Checagens do validador, na ordem em que aparecem no painel. */
 export const CHECK_KEYS = [
+  'page',
+  'details',
   'redirect',
   'official',
   'excerpt',
@@ -52,6 +54,19 @@ export interface VerificationView {
   verified: boolean;
   /** O que a IA afirmou e não foi aceito (o preço sem prova). */
   claimed: { amount: number | null; currency: string | null } | null;
+  /** Todos os preços vistos do plano (pesquisa, página oficial, curadoria). */
+  prices: {
+    amount: number;
+    currency: string | null;
+    origin: string;
+    sourceUrl: string | null;
+    tier: SourceTier | null;
+    sourceDate: string | null;
+    verified: boolean;
+  }[];
+  priceConflict: boolean;
+  /** Página oficial lida do nosso lado (proveniência da grade). */
+  page: { url: string; fetchedAt: string; hash: string; via: string } | null;
   checkedAt: string | null;
 }
 
@@ -67,6 +82,8 @@ export const PROPOSABLE_FIELDS = {
   plan: ['name', 'priceText', 'url'],
   plan_channel: ['access'],
   plan_service: ['access'],
+  // complemento: a operadora não propõe correção por campo (pede revisão pela mensagem)
+  addon: [],
 } as const satisfies Record<TargetType, readonly string[]>;
 export type ProposableField = (typeof PROPOSABLE_FIELDS)[TargetType][number];
 export const REMOVABLE_TYPES: readonly TargetType[] = ['plan', 'plan_channel', 'plan_service'];
@@ -115,9 +132,18 @@ export interface PlanView extends ItemView {
   services: ItemView[];
 }
 
+/** Complemento da plataforma (contratado à parte), uma oferta por linha. */
+export interface AddonView extends ItemView {
+  type: 'addon';
+  kind: 'service' | 'channel';
+  price: { amount: number; currency: string } | null;
+  commitmentMonths: number | null;
+}
+
 export interface LineupView {
   platform: ItemView & { country: string; kind: PlatformKind };
   plans: PlanView[];
+  addons: AddonView[];
 }
 
 export interface RequestView {
@@ -186,6 +212,16 @@ export interface LineupLike {
     channels: (ReviewedLike & { planId: string; channelId: string; access: string })[];
     services: (ReviewedLike & { planId: string; serviceId: string; access: string })[];
   }[];
+  addons?: (ReviewedLike & {
+    id: string;
+    refId: string;
+    name: string;
+    kind: string;
+    channel: string | null;
+    priceAmount: number | string | null;
+    priceCurrency: string | null;
+    commitmentMonths: number | null;
+  })[];
 }
 
 const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
@@ -206,6 +242,24 @@ export function verificationView(raw: unknown): VerificationView | null {
   for (const k of CHECK_KEYS) if (isCheck(checksRaw[k])) checks[k] = checksRaw[k];
   const claimedRaw =
     v.claimed && typeof v.claimed === 'object' ? (v.claimed as Record<string, unknown>) : null;
+  const pageRaw = v.page && typeof v.page === 'object' ? (v.page as Record<string, unknown>) : null;
+  const prices = (Array.isArray(v.prices) ? v.prices : []).flatMap((x) => {
+    if (!x || typeof x !== 'object') return [];
+    const o = x as Record<string, unknown>;
+    const a = amount(o.amount);
+    if (a === null) return [];
+    return [
+      {
+        amount: a,
+        currency: text(o.currency),
+        origin: text(o.origin) ?? 'research',
+        sourceUrl: text(o.source_url),
+        tier: (SOURCE_TIERS as readonly string[]).includes(o.tier as string) ? (o.tier as SourceTier) : null,
+        sourceDate: text(o.source_date),
+        verified: o.verified === true,
+      },
+    ];
+  });
   return {
     tier: (SOURCE_TIERS as readonly string[]).includes(v.tier as string) ? (v.tier as SourceTier) : null,
     finalUrl: text(v.final_url),
@@ -216,6 +270,17 @@ export function verificationView(raw: unknown): VerificationView | null {
     claimed: claimedRaw
       ? { amount: amount(claimedRaw.price_amount), currency: text(claimedRaw.currency) }
       : null,
+    prices,
+    priceConflict: v.price_conflict === true,
+    page:
+      pageRaw && text(pageRaw.url)
+        ? {
+            url: text(pageRaw.url)!,
+            fetchedAt: text(pageRaw.fetched_at) ?? '',
+            hash: text(pageRaw.hash) ?? '',
+            via: text(pageRaw.via) ?? 'static',
+          }
+        : null,
     checkedAt: text(v.checked_at),
   };
 }
@@ -295,6 +360,21 @@ export function lineupView(
         verification: verificationView(s.verification),
       })),
     })),
+    addons: (lineup.addons ?? []).map((a) => ({
+      type: 'addon' as const,
+      id: a.id,
+      name: a.name,
+      kind: a.kind === 'channel' ? ('channel' as const) : ('service' as const),
+      fields: {},
+      logoUrl: ref(a.refId)?.logoUrl ?? null,
+      price:
+        amount(a.priceAmount) !== null && a.priceCurrency
+          ? { amount: amount(a.priceAmount)!, currency: a.priceCurrency }
+          : null,
+      commitmentMonths: a.commitmentMonths,
+      ...reviewed(a),
+      verification: verificationView(a.verification),
+    })),
   };
 }
 
@@ -311,6 +391,7 @@ export function flattenLineup(lineup: LineupView): (ItemView & { planName: strin
       ...p.channels.map((c) => ({ ...c, planName: p.name })),
       ...p.services.map((s) => ({ ...s, planName: p.name })),
     ]),
+    ...lineup.addons.map((a) => ({ ...a, planName: null })),
   ];
 }
 
@@ -450,7 +531,7 @@ export const isId = (v: unknown): v is string => typeof v === 'string' && UUID_R
 /** Id de item no formato do banco: uuid (operadora, plano) ou `<uuid do plano>:<id da biblioteca>`. */
 export function isTargetId(type: TargetType, id: unknown): id is string {
   if (typeof id !== 'string') return false;
-  if (type === 'platform' || type === 'plan') return isId(id);
+  if (type === 'platform' || type === 'plan' || type === 'addon') return isId(id);
   const i = id.indexOf(':');
   return i > 0 && isId(id.slice(0, i)) && /^[a-z0-9][a-z0-9._-]{0,119}$/i.test(id.slice(i + 1));
 }

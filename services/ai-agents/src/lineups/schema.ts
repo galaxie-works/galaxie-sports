@@ -70,95 +70,191 @@ export interface LineupDiscoveryOutput {
   notes: string | null;
 }
 
-export const LINEUP_PLANS_SCHEMA_NAME = 'lineups_platform_plans';
-
 const FONTE_URL = {
   type: ['string', 'null'],
   description:
     'URL exata da fonte da busca de hoje que prova o dado (uma da lista de fontes). Sem fonte encontrada na busca, null: o item não entra.',
 } as const;
 
+const DATA_DA_FONTE = {
+  type: ['string', 'null'],
+  description:
+    'Data da fonte, se ela diz (AAAA-MM ou AAAA-MM-DD; ex.: tabela de preços de nov/2025 = 2025-11).',
+} as const;
+
+export const LINEUP_CATALOG_SCHEMA_NAME = 'lineups_platform_catalog';
+
 /**
- * Passo 2: planos de uma plataforma, com preço, canais esportivos e streamings inclusos, cada dado com a
- * fonte e o trecho que o prova. Campos no formato validado no AI Studio (24/10): sem fonte, sem conteúdo.
+ * Etapa 1 (uma chamada por plataforma): a lista dos planos vigentes, só nome e fonte, e o catálogo de
+ * complementos com preço (serviço ou canal contratado à parte, por qualquer plano). Sem fonte, sem
+ * conteúdo.
  */
-export const LINEUP_PLANS_SCHEMA = {
+export const LINEUP_CATALOG_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['planos', 'notas'],
+  required: ['planos', 'complementos', 'notas'],
   properties: {
     planos: {
       type: 'array',
+      description:
+        'TODOS os planos vigentes da plataforma no país que dão acesso a esporte (não pule nenhum).',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['plano_nome', 'plano_url', 'fonte_url', 'trecho'],
+        properties: {
+          plano_nome: { type: 'string', description: 'Nome comercial do plano, como a plataforma publica.' },
+          plano_url: { type: ['string', 'null'], description: 'Página oficial do plano, se houver.' },
+          fonte_url: FONTE_URL,
+          trecho: { type: ['string', 'null'], description: 'Trecho da fonte que cita o plano pelo nome.' },
+        },
+      },
+    },
+    complementos: {
+      type: 'array',
+      description:
+        'Catálogo de complementos: serviços (streaming, pacote) ou canais que se contratam à parte, com preço. Uma linha por oferta (mensal e com fidelidade são duas).',
       items: {
         type: 'object',
         additionalProperties: false,
         required: [
-          'plano_nome',
+          'nome',
+          'tipo',
           'preco_mensal',
           'moeda_iso',
-          'plano_url',
+          'fidelidade_meses',
           'fonte_url',
-          'trecho_da_fonte',
-          'streamings_inclusos',
-          'canais',
+          'trecho',
+          'data_da_fonte',
         ],
         properties: {
-          plano_nome: { type: 'string', description: 'Nome comercial do plano, como a plataforma publica.' },
-          preco_mensal: {
-            type: ['number', 'null'],
-            description:
-              'Preço mensal CHEIO de lista, como número (ex.: 149.9; 34900). Nunca o promocional do 1º mês ou dos primeiros meses. Sem o preço na fonte de hoje, null.',
+          nome: {
+            type: 'string',
+            description: 'Nome como a plataforma publica (ex.: "Premiere Fidelidade").',
           },
-          moeda_iso: { type: ['string', 'null'], description: 'Moeda ISO 4217 do preço (BRL, ARS, CLP...).' },
-          plano_url: { type: ['string', 'null'], description: 'Página oficial deste plano, se houver.' },
+          tipo: { type: 'string', enum: ['streaming', 'canal'] },
+          preco_mensal: { type: ['number', 'null'], description: 'Preço mensal da oferta, como número.' },
+          moeda_iso: { type: ['string', 'null'] },
+          fidelidade_meses: {
+            type: ['integer', 'null'],
+            description: 'Meses de fidelidade da oferta (null = mensal, sem fidelidade).',
+          },
           fonte_url: FONTE_URL,
-          trecho_da_fonte: {
+          trecho: {
             type: ['string', 'null'],
-            description:
-              'Trecho da fonte que cita o NOME do plano e o preço cheio, com os números e nomes escritos como na fonte. Sem trecho, null.',
+            description: 'Trecho da fonte com o nome e o preço da oferta, como a fonte escreve.',
           },
-          streamings_inclusos: {
-            type: 'array',
-            description:
-              'Streamings que a página do PLANO diz que vêm inclusos sem custo extra. Streaming que é complemento pago à parte não entra.',
-            items: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['streaming_id', 'fonte_url', 'trecho'],
-              properties: {
-                streaming_id: {
-                  type: 'string',
-                  description: 'Nome do streaming (o da nossa biblioteca, se for um deles).',
-                },
-                fonte_url: FONTE_URL,
-                trecho: {
-                  type: ['string', 'null'],
-                  description:
-                    'Trecho da fonte que cita o plano e o streaming como incluso. Sem trecho, null.',
-                },
-              },
-            },
+          data_da_fonte: DATA_DA_FONTE,
+        },
+      },
+    },
+    notas: { type: ['string', 'null'] },
+  },
+} as const satisfies Record<string, unknown>;
+
+export interface LineupCatalogOutput {
+  planos: { plano_nome: string; plano_url: string | null; fonte_url: string | null; trecho: string | null }[];
+  complementos: {
+    nome: string;
+    tipo: 'streaming' | 'canal';
+    preco_mensal: number | null;
+    moeda_iso: string | null;
+    fidelidade_meses: number | null;
+    fonte_url: string | null;
+    trecho: string | null;
+    data_da_fonte: string | null;
+  }[];
+  notas: string | null;
+}
+
+export const LINEUP_PLAN_SCHEMA_NAME = 'lineups_plan_detail';
+
+/**
+ * Etapa 2 (uma chamada por plano): o detalhe de um plano — os preços vistos (cada um com a fonte e a
+ * data), os canais esportivos da grade dele e os streamings inclusos, cada dado com a fonte e o trecho.
+ * Campos no formato validado no AI Studio (24/10).
+ */
+export const LINEUP_PLAN_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'plano_nome',
+    'encontrado',
+    'plano_url',
+    'fonte_url',
+    'trecho_da_fonte',
+    'precos',
+    'streamings_inclusos',
+    'canais',
+    'notas',
+  ],
+  properties: {
+    plano_nome: { type: 'string', description: 'Nome do plano, como a plataforma publica.' },
+    encontrado: { type: 'boolean', description: 'false se a busca de hoje não achou este plano.' },
+    plano_url: { type: ['string', 'null'], description: 'Página oficial deste plano, se houver.' },
+    fonte_url: FONTE_URL,
+    trecho_da_fonte: {
+      type: ['string', 'null'],
+      description: 'Trecho da fonte que cita o NOME do plano. Sem trecho, null.',
+    },
+    precos: {
+      type: 'array',
+      description:
+        'Preços mensais CHEIOS de lista vistos para o plano, um por fonte (se fontes diferentes dão valores diferentes, liste todos). Nunca o promocional do 1º mês.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['preco_mensal', 'moeda_iso', 'fonte_url', 'trecho', 'data_da_fonte'],
+        properties: {
+          preco_mensal: { type: 'number' },
+          moeda_iso: { type: ['string', 'null'] },
+          fonte_url: FONTE_URL,
+          trecho: {
+            type: ['string', 'null'],
+            description: 'Trecho com o nome do plano e o preço, com os números como a fonte escreve.',
           },
-          canais: {
-            type: 'array',
-            description:
-              'Canais esportivos lineares da grade DESTE plano (nada de filmes, notícias ou variedades).',
-            items: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['canal_nome', 'fonte_url', 'trecho'],
-              properties: {
-                canal_nome: {
-                  type: 'string',
-                  description: 'Nome do canal (o da nossa biblioteca, se for um deles).',
-                },
-                fonte_url: FONTE_URL,
-                trecho: {
-                  type: ['string', 'null'],
-                  description: 'Trecho da fonte que cita o canal na grade deste plano. Sem trecho, null.',
-                },
-              },
-            },
+          data_da_fonte: DATA_DA_FONTE,
+        },
+      },
+    },
+    streamings_inclusos: {
+      type: 'array',
+      description:
+        'Streamings que a página do PLANO diz que vêm inclusos sem custo extra. Complemento pago à parte não entra.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['streaming_id', 'fonte_url', 'trecho'],
+        properties: {
+          streaming_id: {
+            type: 'string',
+            description: 'Nome do streaming (o da nossa biblioteca, se for um deles).',
+          },
+          fonte_url: FONTE_URL,
+          trecho: {
+            type: ['string', 'null'],
+            description: 'Trecho da fonte que cita o plano e o streaming como incluso. Sem trecho, null.',
+          },
+        },
+      },
+    },
+    canais: {
+      type: 'array',
+      description:
+        'Canais esportivos lineares da grade DESTE plano (nada de filmes, notícias ou variedades).',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['canal_nome', 'fonte_url', 'trecho'],
+        properties: {
+          canal_nome: {
+            type: 'string',
+            description: 'Nome do canal (o da nossa biblioteca, se for um deles).',
+          },
+          fonte_url: FONTE_URL,
+          trecho: {
+            type: ['string', 'null'],
+            description: 'Trecho da fonte que cita o canal na grade deste plano. Sem trecho, null.',
           },
         },
       },
@@ -172,16 +268,20 @@ export interface LineupOutputItem {
   trecho: string | null;
 }
 
-export interface LineupPlansOutput {
-  planos: {
-    plano_nome: string;
-    preco_mensal: number | null;
+export interface LineupPlanOutput {
+  plano_nome: string;
+  encontrado: boolean;
+  plano_url: string | null;
+  fonte_url: string | null;
+  trecho_da_fonte: string | null;
+  precos: {
+    preco_mensal: number;
     moeda_iso: string | null;
-    plano_url: string | null;
     fonte_url: string | null;
-    trecho_da_fonte: string | null;
-    streamings_inclusos: (LineupOutputItem & { streaming_id: string })[];
-    canais: (LineupOutputItem & { canal_nome: string })[];
+    trecho: string | null;
+    data_da_fonte: string | null;
   }[];
+  streamings_inclusos: (LineupOutputItem & { streaming_id: string })[];
+  canais: (LineupOutputItem & { canal_nome: string })[];
   notas: string | null;
 }

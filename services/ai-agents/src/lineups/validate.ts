@@ -21,6 +21,7 @@ import {
   lineupSlug,
   type LineupAccess,
   type LineupCheckResult,
+  type LineupPriceObservation,
   type LineupSourceTier,
   type LineupVerification,
 } from '@galaxie/db';
@@ -347,7 +348,7 @@ function readings(token: string): number[] {
 
 const close = (a: number, b: number) => Math.abs(a - b) < 0.005;
 
-interface AmountAt {
+export interface AmountAt {
   index: number;
   end: number;
   values: number[];
@@ -360,7 +361,7 @@ interface AmountAt {
 const CURRENCY_BEFORE = /(?:R\$|US\$|\$U|S\/\.?|\$|USD|BRL|ARS|CLP|COP|PEN|UYU|MXN)\s*$/i;
 const PERIOD_AFTER = /^\s*(?:\/\s*m[eê]s|por m[eê]s|x m[eê]s|al mes|mensual|mensais|\/mo\b)/i;
 
-function amountsIn(excerpt: string): AmountAt[] {
+export function amountsIn(excerpt: string): AmountAt[] {
   const out: AmountAt[] = [];
   for (const m of excerpt.matchAll(NUMBER_RE)) {
     const index = m.index ?? 0;
@@ -436,7 +437,7 @@ export function formatPrice(amount: number, currency: string, country: string): 
 
 // ─── streaming incluso ───────────────────────────────────────────────────────────────────────────
 
-const INCLUDED_RE =
+export const INCLUDED_RE =
   /inclus[oa]s?|inclu[ií]d[oa]s?|incluye|incluyen|inclui|incluem|sem custo|sin costo|sin cargo|sem pagar a mais|de regalo|j[aá] vem|viene con|bonificad[oa]/i;
 const ADDON_RE =
   /adiciona(?:l|is|les)|add-?on|[àa] parte|aparte|opcional|contrat[eaá]|agreg[aá]|sum[aá]|por \+/i;
@@ -495,7 +496,7 @@ const EXCERPT_STORED = 600;
 /** Chave de reaproveitamento: o trecho normalizado. */
 export const excerptKey = (excerpt: string) => spaced(excerpt).slice(0, 300);
 
-interface CheckInput {
+export interface CheckInput {
   evidence: Evidence;
   plan: string;
   siblings: readonly string[];
@@ -507,7 +508,7 @@ interface CheckInput {
 }
 
 /** Roda as checagens de uma evidência. null = sem fonte (não entra). */
-async function checkEvidence(ctx: VerifyContext, input: CheckInput): Promise<VerifiedEvidence | null> {
+export async function checkEvidence(ctx: VerifyContext, input: CheckInput): Promise<VerifiedEvidence | null> {
   const cited = ctx.acceptUrl ? ctx.acceptUrl(input.evidence.url) : input.evidence.url;
   const excerpt = input.evidence.excerpt ? sanitizeText(input.evidence.excerpt, EXCERPT_MAX).trim() : '';
   if (!cited || !excerpt) return null;
@@ -552,7 +553,7 @@ async function checkEvidence(ctx: VerifyContext, input: CheckInput): Promise<Ver
   };
 }
 
-const passed = (checks: LineupVerification['checks']) =>
+export const passed = (checks: LineupVerification['checks']) =>
   Object.values(checks).every((c) => c === undefined || c === 'pass' || c === 'skip') &&
   checks.official === 'pass' &&
   checks.plan_specific === 'pass';
@@ -562,10 +563,22 @@ export interface ModelItem {
   evidence: Evidence;
 }
 
+/** Um preço citado para o plano, com a fonte, o trecho e a data da fonte (se a fonte diz). */
+export interface ModelPlanPrice {
+  amount: number;
+  currency: string | null;
+  /** YYYY-MM ou YYYY-MM-DD. */
+  date: string | null;
+  evidence: Evidence;
+}
+
 export interface ModelPlan {
   name: string;
+  /** Preço único (formato do AI Studio); ignorado quando há `prices`. */
   priceAmount: number | null;
   currency: string | null;
+  /** Vários preços, cada um com fonte e data (etapa 2): conflito quando divergem. */
+  prices?: ModelPlanPrice[];
   planUrl: string | null;
   evidence: Evidence;
   channels: ModelItem[];
@@ -600,8 +613,36 @@ export interface VerifyOutcome {
   drops: { reason: ItemDrop; name: string; plan: string }[];
 }
 
-const STREAMING_MEDIA = new Set(['streaming_svod', 'streaming_free']);
-const CHANNEL_MEDIA = new Set(['pay_tv', 'free_tv']);
+/** Canal linear da grade: TV paga, aberta e os canais "especiais" que também saem no YouTube. */
+export const GRADE_CHANNEL_MEDIA = new Set(['pay_tv', 'free_tv', 'youtube']);
+/**
+ * Streaming incluso: os de streaming e os pacotes de TV paga vendidos como serviço (o mesmo nome pode
+ * ser canal numa plataforma e serviço noutra, como o Premiere).
+ */
+const SERVICE_MEDIA = new Set(['streaming_svod', 'streaming_free', 'pay_tv']);
+
+/** Data da fonte comparável (YYYY-MM vira o último dia do mês não importa: só ordena). */
+const dateKey = (d: string | null) => (d && /^\d{4}-\d{2}/.test(d) ? d.slice(0, 10) : '');
+
+/**
+ * O preço escolhido entre os vistos: o oficial provado com a fonte mais recente; empate, o primeiro.
+ * Conflito: mais de um valor entre os preços vistos.
+ */
+export function choosePrice(prices: readonly LineupPriceObservation[]): {
+  chosen: LineupPriceObservation | null;
+  conflict: boolean;
+} {
+  const verified = prices
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => p.verified)
+    .sort(
+      (a, b) =>
+        dateKey(b.p.source_date ?? b.p.seen_at).localeCompare(dateKey(a.p.source_date ?? a.p.seen_at)) ||
+        a.i - b.i,
+    );
+  const values = new Set(prices.map((p) => Math.round(p.amount * 100)));
+  return { chosen: verified[0]?.p ?? null, conflict: values.size > 1 };
+}
 
 /**
  * Valida os planos de uma plataforma vindos da IA. Itens são casados com o dicionário do país (meio,
@@ -623,6 +664,7 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
   };
   for (const p of plans) {
     note(p.evidence, p.name);
+    for (const pr of p.prices ?? []) note(pr.evidence, p.name);
     for (const i of [...p.channels, ...p.services]) note(i.evidence, p.name);
   }
   const none: ReadonlySet<string> = new Set<string>();
@@ -633,27 +675,76 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
   for (const p of plans) {
     const siblings = siblingsOf(p.name);
     const currency = COUNTRY_CURRENCY[ctx.country] ?? null;
-    const planCheck = await checkEvidence(ctx, {
-      evidence: p.evidence,
-      plan: p.name,
-      siblings,
-      amount: p.priceAmount,
-      reusedBy: reusedBy(p.evidence),
-    });
+    // os preços vistos: os da etapa 2, cada um com a fonte dele, ou o único do formato do AI Studio
+    const multi = (p.prices?.length ?? 0) > 0;
+    const priceInputs: ModelPlanPrice[] = multi
+      ? p.prices!
+      : p.priceAmount !== null
+        ? [{ amount: p.priceAmount, currency: p.currency, date: null, evidence: p.evidence }]
+        : [];
+    const priceChecks: { input: ModelPlanPrice; checked: VerifiedEvidence }[] = [];
+    for (const input of priceInputs) {
+      const checked = await checkEvidence(ctx, {
+        evidence: input.evidence,
+        plan: p.name,
+        siblings,
+        amount: input.amount,
+        reusedBy: reusedBy(input.evidence),
+      });
+      if (!checked) continue;
+      const c = checked.verification.checks;
+      c.list_price = c.excerpt === 'pass' ? listPriceCheck(checked.fullExcerpt, input.amount) : 'skip';
+      c.currency =
+        !input.currency || !currency || input.currency.toUpperCase() === currency ? 'pass' : 'fail';
+      checked.verification.verified = passed(c) && currency !== null;
+      priceChecks.push({ input, checked });
+    }
+    const observations: LineupPriceObservation[] = priceChecks.map(({ input, checked }) => ({
+      amount: input.amount,
+      currency: currency,
+      origin: 'research',
+      source_url: checked.sourceUrl,
+      tier: checked.verification.tier,
+      source_date: input.date && /^\d{4}-\d{2}/.test(input.date) ? input.date.slice(0, 10) : null,
+      seen_at: ctx.now.toISOString(),
+      verified: checked.verification.verified,
+    }));
+    const { chosen, conflict } = choosePrice(observations);
+    const chosenCheck = chosen ? priceChecks[observations.indexOf(chosen)] : priceChecks[0];
+    // a prova do plano: o trecho do plano; sem ele, o do preço escolhido
+    const planCheck =
+      (multi || p.priceAmount === null
+        ? await checkEvidence(ctx, {
+            evidence: p.evidence,
+            plan: p.name,
+            siblings,
+            amount: null,
+            reusedBy: reusedBy(p.evidence),
+          })
+        : chosenCheck?.checked) ?? chosenCheck?.checked;
     if (!planCheck) {
       out.plansWithoutSource++;
       continue;
     }
-    const v = planCheck.verification;
-    if (p.priceAmount !== null) {
-      v.checks.list_price =
-        v.checks.excerpt === 'pass' ? listPriceCheck(planCheck.fullExcerpt, p.priceAmount) : 'skip';
-      v.checks.currency = !p.currency || !currency || p.currency.toUpperCase() === currency ? 'pass' : 'fail';
+    const v: LineupVerification = { ...planCheck.verification, checks: { ...planCheck.verification.checks } };
+    if (chosenCheck) {
+      const cc = chosenCheck.checked.verification.checks;
+      if (cc.list_price) v.checks.list_price = cc.list_price;
+      if (cc.currency) v.checks.currency = cc.currency;
+      if (!multi) v.checks.excerpt = chosenCheck.checked.verification.checks.excerpt;
     }
-    v.verified = passed(v.checks);
-    const priceOk = v.verified && p.priceAmount !== null && currency !== null;
-    if (p.priceAmount !== null && !priceOk) v.claimed = { price_amount: p.priceAmount, currency: p.currency };
+    v.verified = passed(v.checks) && (!priceInputs.length || chosen !== null);
+    const priceOk = chosen !== null && v.checks.official === 'pass' && v.checks.plan_specific === 'pass';
+    if (observations.length) {
+      v.prices = observations;
+      if (conflict) v.price_conflict = true;
+    }
+    if (priceInputs.length && !priceOk)
+      v.claimed = { price_amount: priceInputs[0]!.amount, currency: priceInputs[0]!.currency };
+    const priceAmount = priceOk ? chosen!.amount : null;
     const sources = [planCheck.sourceUrl];
+    for (const c of priceChecks)
+      if (!sources.includes(c.checked.sourceUrl)) sources.push(c.checked.sourceUrl);
     let url: string | null = null;
     if (p.planUrl) {
       const accepted = ctx.acceptUrl ? ctx.acceptUrl(p.planUrl) : p.planUrl;
@@ -687,13 +778,10 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
           out.drops.push({ reason: 'blocked', name, plan: p.name });
           continue;
         }
-        // o meio vem do dicionário, não do modelo
-        const medium = STREAMING_MEDIA.has(entry.medium)
-          ? 'service'
-          : CHANNEL_MEDIA.has(entry.medium)
-            ? 'channel'
-            : null;
-        if (medium !== as) {
+        // o meio vem do dicionário, não do modelo; TV paga vendida como serviço (Premiere) entra nos dois
+        const fits =
+          as === 'service' ? SERVICE_MEDIA.has(entry.medium) : GRADE_CHANNEL_MEDIA.has(entry.medium);
+        if (!fits) {
           out.drops.push({ reason: 'wrong_medium', name, plan: p.name });
           continue;
         }
@@ -749,9 +837,9 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
 
     out.plans.push({
       name: p.name,
-      priceAmount: priceOk ? p.priceAmount : null,
+      priceAmount,
       priceCurrency: priceOk ? currency : null,
-      priceText: priceOk ? formatPrice(p.priceAmount!, currency!, ctx.country) : null,
+      priceText: priceOk ? formatPrice(priceAmount!, currency!, ctx.country) : null,
       url,
       sources,
       verification: v,
@@ -763,3 +851,99 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
 }
 
 const rank = (a: LineupAccess) => (a === 'included' ? 2 : a === 'addon' ? 1 : 0);
+
+// ─── catálogo de complementos (etapa 1) ──────────────────────────────────────────────────────────
+
+/** Oferta de complemento citada pela IA. */
+export interface ModelAddon {
+  name: string;
+  kind: 'service' | 'channel';
+  amount: number | null;
+  currency: string | null;
+  commitmentMonths: number | null;
+  evidence: Evidence;
+}
+
+export interface VerifiedAddon {
+  kind: 'service' | 'channel';
+  refId: string;
+  channel: string | null;
+  name: string;
+  priceAmount: number | null;
+  priceCurrency: string | null;
+  priceText: string | null;
+  commitmentMonths: number | null;
+  sources: string[];
+  verification: LineupVerification;
+}
+
+/**
+ * Valida o catálogo de complementos: o nome casa com o dicionário (sem a palavra "fidelidade"), a fonte
+ * é oficial e o trecho tem o nome e o preço na moeda do país. Sem prova, entra sem preço (rascunho).
+ */
+export async function verifyAddons(
+  addons: readonly ModelAddon[],
+  ctx: VerifyContext,
+): Promise<{ addons: VerifiedAddon[]; drops: { reason: ItemDrop; name: string }[] }> {
+  const day = ctx.now.toISOString().slice(0, 10);
+  const currency = COUNTRY_CURRENCY[ctx.country] ?? null;
+  const out: VerifiedAddon[] = [];
+  const drops: { reason: ItemDrop; name: string }[] = [];
+  for (const a of addons) {
+    const name = a.name.trim();
+    if (!name) continue;
+    const bare = name.replace(/\b(fidelidade|permanencia|permanência)\b/gi, '').trim() || name;
+    if (ctx.dir.blocklist.isBlockedName(bare)) {
+      drops.push({ reason: 'blocked', name });
+      continue;
+    }
+    const found = ctx.dir.lookup(bare, day) ?? ctx.dir.lookup(name, day);
+    if (!found || found.status === 'inactive') {
+      drops.push({ reason: found ? 'inactive' : 'unknown', name });
+      continue;
+    }
+    const entry = found.resolved.entry;
+    const checked = await checkEvidence(ctx, {
+      evidence: a.evidence,
+      plan: '',
+      siblings: [],
+      amount: a.amount,
+      reusedBy: new Set(),
+    });
+    if (!checked) {
+      drops.push({ reason: 'no_source', name });
+      continue;
+    }
+    const c = checked.verification.checks;
+    // o complemento é da plataforma, não do plano: sem prova de plano nem de reaproveitamento
+    c.plan_specific = 'skip';
+    c.not_reused = 'skip';
+    if (!mentionsAny(checked.fullExcerpt, [bare, ...entryNames(entry, day)])) c.excerpt = 'fail';
+    c.currency = !a.currency || !currency || a.currency.toUpperCase() === currency ? 'pass' : 'fail';
+    const verified =
+      c.official === 'pass' &&
+      Object.values(c).every((x) => x === undefined || x !== 'fail') &&
+      currency !== null;
+    checked.verification.verified = verified;
+    const priceOk = verified && a.amount !== null;
+    if (a.amount !== null && !priceOk)
+      checked.verification.claimed = { price_amount: a.amount, currency: a.currency };
+    const months = a.commitmentMonths && a.commitmentMonths > 0 ? Math.round(a.commitmentMonths) : null;
+    const channel = found.resolved.channel;
+    out.push({
+      kind: channel ? 'channel' : a.kind,
+      refId: entry.id,
+      channel,
+      name,
+      priceAmount: priceOk ? a.amount : null,
+      priceCurrency: priceOk ? currency : null,
+      priceText: priceOk
+        ? `${formatPrice(a.amount!, currency!, ctx.country)}${months ? ` · fidelidade de ${months} meses` : ''}`
+        : null,
+      commitmentMonths: months,
+      sources: [checked.sourceUrl],
+      verification: checked.verification,
+    });
+  }
+  return { addons: out, drops };
+}

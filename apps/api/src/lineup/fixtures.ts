@@ -8,6 +8,7 @@
 import type {
   ChannelAvailability,
   LineupAccess,
+  LineupAddon,
   LineupPlan,
   LineupPlanChannel,
   LineupPlanService,
@@ -71,6 +72,23 @@ const channel = (planId: string, channelId: string, access: LineupAccess): Lineu
   ...review,
 });
 
+const addon = (refId: string, name: string, price: number, months: number | null): LineupAddon => ({
+  id: `${refId}-${months ?? 0}`,
+  platformId: OPERATOR_ID,
+  slug: `${refId}${months ? `-f${months}` : ''}`,
+  kind: 'service',
+  refId,
+  channel: null,
+  name,
+  priceAmount: price,
+  priceCurrency: 'BRL',
+  priceText: null,
+  commitmentMonths: months,
+  url: null,
+  verification: null,
+  ...review,
+});
+
 const service = (planId: string, serviceId: string, access: LineupAccess): LineupPlanService => ({
   planId,
   serviceId,
@@ -98,6 +116,7 @@ export const AVAILABILITY: ChannelAvailability[] = [
         services: [],
       },
     ],
+    addons: [],
   },
   {
     platform: RIVAL,
@@ -108,6 +127,7 @@ export const AVAILABILITY: ChannelAvailability[] = [
         services: [],
       },
     ],
+    addons: [],
   },
   {
     platform: OPERATOR,
@@ -126,6 +146,11 @@ export const AVAILABILITY: ChannelAvailability[] = [
         services: [],
       },
     ],
+    // o canal também vendido à parte: mensal e com fidelidade
+    addons: [
+      addon('canal_exemplo', 'Canal Exemplo', 59.9, null),
+      addon('canal_exemplo', 'Canal Exemplo Fidelidade', 49.9, 12),
+    ],
   },
 ];
 
@@ -141,6 +166,7 @@ export const OPERATOR_LINEUP: PlatformLineup = {
       services: [service('plano-top', 'streaming_exemplo', 'included')],
     },
   ],
+  addons: [addon('streaming_extra_exemplo', 'Streaming Extra Exemplo', 29.9, null)],
 };
 
 /** Fonte da grade em memória, que grava as chamadas (o teste confere o piso e o filtro pedidos). */
@@ -168,7 +194,7 @@ export function fixtureLineupSource(
       calls.push({ fn: 'getPlatformLineup', args: { id, ...opts } });
       if (id === OPERATOR_ID) return OPERATOR_LINEUP;
       const p = all.find((x) => x.id === id);
-      return p ? { platform: p, plans: [] } : null;
+      return p ? { platform: p, plans: [], addons: [] } : null;
     },
     async getTenantOperator(_db, tenantId): Promise<TenantOperator | null> {
       calls.push({ fn: 'getTenantOperator', args: tenantId });
