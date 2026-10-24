@@ -45,6 +45,7 @@
     "mma": "node --env-file-if-exists=../../.env dist/cli/mma.js",
     "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js",
     "assets:fotos-wikidata": "node --env-file-if-exists=../../.env dist/cli/wikimedia-photos.js",
+    "pessoas:wikidata-por-time": "node --env-file-if-exists=../../.env dist/cli/wikidata-teams.js",
     "pessoas:separar-tecnicos": "node --env-file-if-exists=../../.env dist/cli/split-coaches.js",
     "assets:palette": "node --env-file-if-exists=../../.env dist/cli/assets-palette.js",
     "assets:acervo": "node --env-file-if-exists=../../.env dist/cli/assets-acervo.js",
