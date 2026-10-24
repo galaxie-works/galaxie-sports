@@ -17,8 +17,10 @@ import {
   teamProfile,
   venue,
   venueDisplay,
+  loadTitleRecords,
   type Database,
   type EventScore,
+  type TitleRecord,
 } from '@galaxie/db';
 import { isInPlay, momentum } from '@galaxie/providers';
 import {
@@ -28,6 +30,9 @@ import {
   knockoutStakes,
   leagueMatchStakes,
   localizeStake,
+  titleChaseSides,
+  titleChaseStakes,
+  TITLE_VARIANT_OF,
   type CompetitionRules,
   type FanTagLocale,
   type FanTagStanding,
@@ -210,6 +215,9 @@ const TITLE_FAMILIES = new Set([
   'can_clinch_title',
   'in_title_race',
   'decides_title',
+  'seeks_title_n',
+  // final: variantes de título dos códigos de mata-mata (TITLE_VARIANT_OF em @galaxie/rules)
+  ...Object.values(TITLE_VARIANT_OF),
 ]);
 const RELEGATION_FAMILIES = new Set([
   'mathematically_relegated',
@@ -237,6 +245,7 @@ export const DECISIVE_FAMILIES = new Set([
   'specific_draw_goes_to_penalties',
   'specific_draw_goes_to_extra_time',
   'outcome_depends_on_away_goals',
+  ...Object.values(TITLE_VARIANT_OF),
   'decides_title',
   'clinches_title_with_draw',
   'clinches_title_with_win',
@@ -503,6 +512,18 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       )
     : null;
 
+  // títulos anteriores ("busca o tetra"): uma leitura por competição × temporada × dia da partida
+  const titleMemo = new Map<string, Promise<Map<string, TitleRecord>>>();
+  const titlesOf = (competitionId: string, seasonYear: number | null, before: Date, ids: string[]) => {
+    const key = `${competitionId}|${seasonYear ?? ''}|${before.toISOString().slice(0, 10)}|${[...ids].sort().join(',')}`;
+    let hit = titleMemo.get(key);
+    if (!hit) {
+      hit = loadTitleRecords(db, { competitionId, seasonYear, before, participantIds: ids });
+      titleMemo.set(key, hit);
+    }
+    return hit;
+  };
+
   const lang = locale.split('-')[0]!;
   const out: BuiltEvent[] = [];
   const rowBy = new Map(rows.map((r) => [r.e.id, r]));
@@ -519,6 +540,9 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     // situação na tabela por lado: filtra as tags do torcedor de mera possibilidade (pontos corridos)
     const standings: Partial<Record<'home' | 'away', FanTagStanding | null>> = {};
     const contexts = new Set<Event['competition_context'][number]>();
+    // a fase decide o título (final), ida inclusive
+    let decidesTitle = false;
+    const titleRecords = new Map<string, TitleRecord>();
 
     // ── perna e agregado (mata-mata) ──
     let leg: number | null = null;
@@ -531,6 +555,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         ? knockoutStageRules(rules, rulesStageKey(stageKind, r.st.providerLabel))
         : null;
       const legs = tieLegs(e.sport, stageRules?.legs, tie.length);
+      decidesTitle = !!stageRules?.decidesTitle;
       if (legs === 2 && tie.length === 2) {
         leg = tie[0]!.id === id ? 1 : tie[1]!.id === id ? 2 : null;
         firstLeg = tie[0];
@@ -617,6 +642,19 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         } catch {
           // tabela incompatível com o regulamento (ex.: mais jogos que o previsto): sem stakes
         }
+      }
+    }
+    // ── "busca o tetra": títulos anteriores na competição, em final ou jogo que pode dar o título ──
+    if (r.c?.id && open(e.status) && homeId && awayId && (stakes.length || decidesTitle)) {
+      const sides = titleChaseSides(stakes, { decidesTitle });
+      if (sides.length) {
+        const records = await titlesOf(r.c.id, r.seasonYear ?? null, e.startsAt, [homeId, awayId]);
+        const counts = {
+          ...(records.has(homeId) ? { home: records.get(homeId)! } : {}),
+          ...(records.has(awayId) ? { away: records.get(awayId)! } : {}),
+        };
+        for (const [id, rec] of records) titleRecords.set(id, rec);
+        stakes.push(...titleChaseStakes(sides, counts));
       }
     }
     if (r.d?.slug) contexts.add('derby');
@@ -715,11 +753,14 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       competition_context: [...contexts],
       stakes: stakes.map((s): EventStake => {
         const l = localizeStake(s, [locale as StakeLocale]);
+        const teamId = teamIdOf(l.team);
+        const rec = s.family === 'seeks_title_n' && teamId ? titleRecords.get(teamId) : undefined;
         return {
           team: l.team,
-          team_id: teamIdOf(l.team),
+          team_id: teamId,
           code: l.code,
           text: l.text as Record<string, string>,
+          ...(rec ? { titles: { won: rec.won, seasons: rec.seasons, source: 'wikidata' as const } } : {}),
         };
       }),
       data_freshness: {

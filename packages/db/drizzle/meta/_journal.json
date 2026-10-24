@@ -218,6 +218,13 @@
       "when": 1792862956259,
       "tag": "0030_revisao_sugestoes_ia",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792865662489,
+      "tag": "0031_titulos_competicao",
+      "breakpoints": true
     }
   ]
 }

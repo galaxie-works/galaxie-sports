@@ -521,6 +521,67 @@ export const personTrophy = core.table(
   ],
 );
 
+/**
+ * Campeões por edição de uma competição (ex.: cada Copa Libertadores), importados do Wikidata
+ * (P1346 "vencedor" da edição, `services/ingestor` CLI `titulos:wikidata`). Uma linha por edição ×
+ * vencedor × competição nossa. `participant_id` só é preenchido quando o QID do vencedor está ligado
+ * com segurança ao nosso time (`core.provider_map`, provider `wikidata`); sem ele a linha fica guardada
+ * para auditoria, mas não conta. A contagem usada num jogo é a das edições decididas antes da partida.
+ */
+export const competitionTitle = core.table(
+  'competition_title',
+  {
+    id: pkUuidV7(),
+    competitionId: uuid('competition_id')
+      .notNull()
+      .references(() => competition.id),
+    participantId: uuid('participant_id').references(() => participant.id),
+    /** Ano da edição (o da temporada no nosso core: "2020–21" → 2020). */
+    seasonYear: smallint('season_year').notNull(),
+    /** Rótulo da edição para exibição ("2021", "2020–21"). */
+    seasonLabel: text('season_label').notNull(),
+    /** Data em que o título foi decidido (final da edição). */
+    decidedOn: date('decided_on').notNull(),
+    /** Fonte: QID da edição no Wikidata (proveniência). */
+    editionQid: text('edition_qid').notNull(),
+    /** QID do vencedor no Wikidata. */
+    winnerQid: text('winner_qid').notNull(),
+    /** QID da competição no Wikidata. */
+    competitionQid: text('competition_qid').notNull(),
+    /** `wikidata` (P1346 da edição) ou `curated` (correção de edição com erro na fonte, ver `source_ref`). */
+    source: text('source').notNull().default('wikidata'),
+    /** Referência da correção curada (URL da lista oficial de campeões); null para `wikidata`. */
+    sourceRef: text('source_ref'),
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('competition_title_uq').on(t.competitionId, t.editionQid, t.winnerQid),
+    index('competition_title_team_idx').on(t.participantId, t.competitionId, t.decidedOn),
+  ],
+);
+
+/**
+ * Cobertura dos títulos importados por competição (CLI `titulos:wikidata`): até que ano a lista de campeões
+ * está completa, sem lacunas (ano sem edição, edição recusada pelas checagens). A contagem só vale para
+ * partidas cuja temporada anterior está dentro de `complete_through`.
+ */
+export const competitionTitleCoverage = core.table('competition_title_coverage', {
+  competitionId: uuid('competition_id')
+    .primaryKey()
+    .references(() => competition.id),
+  competitionQid: text('competition_qid').notNull(),
+  firstYear: smallint('first_year'),
+  latestYear: smallint('latest_year'),
+  /** Último ano com a lista completa desde `first_year` (null = nenhum). */
+  completeThrough: smallint('complete_through'),
+  /** Lacunas e edições recusadas: `[{ year, reason, edition_qid? }]`. */
+  issues: jsonb('issues')
+    .$type<{ year: number; reason: string; editionQid?: string }[]>()
+    .notNull()
+    .default([]),
+  checkedAt: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Afastamentos de uma pessoa (`sidelined?players`): lesões, suspensões, doenças. */
 export const personSidelined = core.table(
   'person_sidelined',
