@@ -221,7 +221,8 @@ await check('Home Explorar: resumo por esporte e por país', async () => {
 await check('Lendas da F1 (carrossel "Legendary")', async () => {
   const { status, body } = await api('/v1/sports/formula-1/legends?locale=pt-BR');
   if (status !== 200) return fail(`status ${status}`);
-  const legends = Array.isArray(body?.data) ? body.data : [];
+  // `api()` já devolve o `data` da resposta
+  const legends = Array.isArray(body) ? body : [];
   if (!legends.length) return fail('nenhuma lenda — F1DB fora da base?');
   if (legends.some((l) => l.highlight?.car?.credit?.share_alike))
     return fail('carro CC BY-SA no fundo de um card');
