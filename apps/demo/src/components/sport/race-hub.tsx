@@ -75,7 +75,7 @@ function WinnerChip({ weekend, t }: { weekend: RaceWeekend; t: Dictionary }) {
       title={t.pages.competition.hub.winner}
     >
       <Trophy className="size-3.5 shrink-0 text-amber-500" aria-label={t.pages.competition.hub.winner} />
-      <Crest src={winner.logo} name={winner.name} size="xs" round />
+      <Crest src={winner.photo?.url ?? winner.logo} name={winner.name} size="xs" round />
       <span className="truncate font-medium">{winner.name}</span>
     </Link>
   );
@@ -85,11 +85,14 @@ function WinnerChip({ weekend, t }: { weekend: RaceWeekend; t: Dictionary }) {
 function FeaturedGrandPrix({
   weekend,
   kind,
+  current,
   t,
   f,
 }: {
   weekend: RaceWeekend;
   kind: FeaturedKind;
+  /** Temporada em andamento: só nela "nenhum GP depois deste" quer dizer alguma coisa. */
+  current: boolean;
   t: Dictionary;
   f: Formatters;
 }) {
@@ -147,7 +150,7 @@ function FeaturedGrandPrix({
             ))}
           </ul>
         </div>
-        {kind === 'last' ? <p className="text-muted-foreground text-xs">{th.noUpcoming}</p> : null}
+        {kind === 'last' && current ? <p className="text-muted-foreground text-xs">{th.noUpcoming}</p> : null}
       </CardContent>
     </Card>
   );
@@ -205,6 +208,7 @@ export async function RaceHub({
   events,
   groups,
   focus,
+  current,
   standingsApi,
   eventsApi,
 }: {
@@ -212,6 +216,8 @@ export async function RaceHub({
   events: Event[];
   /** GP pedido na URL (`?rodada=`), em destaque no lugar do próximo. */
   focus?: string | null;
+  /** A temporada mostrada é a atual. */
+  current: boolean;
   groups: StandingsGroup[];
   standingsApi?: ApiRequest;
   eventsApi?: ApiRequest;
@@ -222,7 +228,9 @@ export async function RaceHub({
   const featured = featuredWeekend(weekends, focus);
   return (
     <div className="flex flex-col gap-8">
-      {featured ? <FeaturedGrandPrix weekend={featured.weekend} kind={featured.kind} t={t} f={f} /> : null}
+      {featured ? (
+        <FeaturedGrandPrix weekend={featured.weekend} kind={featured.kind} current={current} t={t} f={f} />
+      ) : null}
 
       {groups.length ? (
         <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">

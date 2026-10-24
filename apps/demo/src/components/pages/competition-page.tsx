@@ -259,6 +259,7 @@ export async function CompetitionContent({
                 events={events}
                 groups={groups}
                 focus={typeof query.rodada === 'string' ? query.rodada : null}
+                current={selected?.year === competition.current_season?.year}
                 standingsApi={
                   selected ? standingsRequest(competition.id, selected.year, locale, content) : undefined
                 }

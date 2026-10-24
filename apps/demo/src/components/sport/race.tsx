@@ -2,15 +2,17 @@
  * Eventos de corrida (F1): o Grande Prêmio é a fase (`stage`) e cada sessão (treino, classificação, sprint,
  * corrida) é um evento com vários participantes no lado `grid`, cada um com `position` e `result`.
  */
-import type { Event, Standings, TeamOverview } from '@galaxie/contracts';
+import type { Event, Photo, Standings, TeamOverview } from '@galaxie/contracts';
 import { CalendarClock, MapPin, Timer, TrendingDown, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { Badge } from '@/components/reui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Dictionary } from '@/lib/i18n/dictionary';
+import { initials } from '@/lib/format';
 import type { Formatters } from '@/lib/i18n/format';
 import { getT } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
@@ -48,7 +50,7 @@ function PodiumStep({ p, place }: { p: Participant; place: number }) {
       )}
     >
       <div className="relative">
-        <Crest src={p.logo} name={p.name} size={place === 1 ? 'xl' : 'lg'} round />
+        <Crest src={p.photo?.url ?? p.logo} name={p.name} size={place === 1 ? 'xl' : 'lg'} round />
         <span
           className={cn(
             'absolute -right-1 -bottom-1 flex size-6 items-center justify-center rounded-full text-xs font-bold text-black',
@@ -202,7 +204,7 @@ export async function RaceClassification({ event }: { event: Event }) {
                   href={participantHref(p, 'driver')}
                   className="flex items-center gap-2 font-medium hover:underline"
                 >
-                  <Crest src={p.logo} name={p.name} size="sm" round />
+                  <Crest src={p.photo?.url ?? p.logo} name={p.name} size="sm" round />
                   <span className="truncate">{p.name}</span>
                   {p.id === fastest ? (
                     <Badge variant="info-light" radius="full" title={tx.fastestLap}>
@@ -250,7 +252,35 @@ export async function RaceClassification({ event }: { event: Event }) {
         </TableBody>
       </Table>
       <RaceSourceNote className="px-2 pt-3" />
+      <PhotoCredits items={rows} />
     </>
+  );
+}
+
+/**
+ * Créditos dos retratos (acervo da Commons) de uma lista de pilotos: CC BY e CC BY-SA pedem o crédito junto
+ * da foto, então a lista fica logo abaixo da tabela, recolhida. Sem retrato na lista, nada.
+ */
+async function PhotoCredits({ items }: { items: { id: string; name: string; photo?: Photo | null }[] }) {
+  const credited = items.filter((i) => i.photo);
+  if (!credited.length) return null;
+  const th = (await getT()).pages.competition.hub;
+  return (
+    <details className="text-muted-foreground px-2 pt-1 text-xs">
+      <summary className="cursor-pointer">
+        {th.photoCredits} ({credited.length})
+      </summary>
+      <ul className="flex flex-col gap-0.5 pt-1">
+        {credited.map((i) => (
+          <li key={i.id}>
+            {i.name}:{' '}
+            <a href={i.photo!.credit.page_url} target="_blank" rel="noreferrer" className="hover:underline">
+              {i.photo!.credit.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -286,25 +316,88 @@ type StandingsGroup = Standings['groups'][number];
 export const championshipOrder = (groups: StandingsGroup[]) =>
   [...groups].sort((a, b) => (a.name === 'drivers' ? -1 : b.name === 'drivers' ? 1 : 0));
 
-/** Campeonato de pilotos ou de construtores: posição, nome, vitórias (pilotos) e pontos. */
+type StandingRow = StandingsGroup['rows'][number];
+
+/** Cor e nome da equipe naquela temporada (McLaren vermelha e branca em 1988); sem pintura curada, um cinza. */
+function SeasonTeam({ team }: { team: NonNullable<StandingRow['season_team']> }) {
+  const body = (
+    <>
+      <span
+        aria-hidden
+        className="bg-muted-foreground/40 h-3.5 w-1 shrink-0 rounded-full"
+        style={team.livery ? { background: team.livery.primary } : undefined}
+      />
+      <span className="truncate">{team.name}</span>
+    </>
+  );
+  return team.id ? (
+    <Link
+      href={participantHref({ id: team.id, name: team.name })}
+      className="flex min-w-0 items-center gap-1.5 hover:underline"
+    >
+      {body}
+    </Link>
+  ) : (
+    <span className="flex min-w-0 items-center gap-1.5">{body}</span>
+  );
+}
+
+/** Retrato do piloto (acervo da Commons) ou, sem ele, a foto do fornecedor; sem nenhum, as iniciais. */
+function DriverAvatar({ row }: { row: StandingRow }) {
+  const src = row.photo?.url ?? row.participant.logo;
+  return (
+    <Avatar className="size-8 shrink-0">
+      {src ? (
+        <AvatarImage
+          src={src}
+          alt={row.participant.name}
+          title={row.photo?.credit.text}
+          loading="lazy"
+          decoding="async"
+          className="object-cover object-top"
+        />
+      ) : null}
+      <AvatarFallback className="text-[11px] font-medium">{initials(row.participant.name)}</AvatarFallback>
+    </Avatar>
+  );
+}
+
+/**
+ * Campeonato de pilotos ou de construtores. Pilotos: posição, retrato, equipe da temporada (nome de época e
+ * cor), vitórias, pódios e pontos; construtores: nome de época e cor, vitórias e pontos. Empate em pontos sai
+ * com a mesma posição (marcada com "="). As colunas de número nunca saem da tela: o nome é que encurta.
+ */
 export async function ChampionshipTable({ group }: { group: StandingsGroup }) {
-  const tx = (await getT()).race.championship;
+  const t = await getT();
+  const tx = t.race.championship;
+  const th = t.pages.competition.hub;
   const drivers = group.name === 'drivers';
+  const tied = (r: StandingRow) => group.rows.filter((x) => x.rank === r.rank).length > 1;
+  const hasTeams = group.rows.some((r) => r.season_team);
+  const hasPodiums = group.rows.some((r) => r.podiums != null);
   return (
     <>
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow>
             <TableHead className="w-10 text-right">#</TableHead>
             <TableHead>{drivers ? tx.drivers : tx.constructors}</TableHead>
-            {drivers ? (
-              <TableHead className="text-right">
-                <abbr title={tx.wins} className="no-underline">
-                  {tx.winsShort}
+            {drivers && hasTeams ? (
+              <TableHead className="hidden w-40 md:table-cell">{t.race.team}</TableHead>
+            ) : null}
+            <TableHead className="w-10 text-right">
+              <abbr title={tx.wins} className="no-underline">
+                {tx.winsShort}
+              </abbr>
+            </TableHead>
+            {drivers && hasPodiums ? (
+              <TableHead className="w-12 text-right">
+                <abbr title={t.race.season.podiums} className="no-underline">
+                  {th.podiumsShort}
                 </abbr>
               </TableHead>
             ) : null}
-            <TableHead className="text-right">
+            <TableHead className="w-14 text-right">
               <abbr title={tx.points} className="no-underline">
                 {tx.pointsShort}
               </abbr>
@@ -314,23 +407,77 @@ export async function ChampionshipTable({ group }: { group: StandingsGroup }) {
         <TableBody>
           {group.rows.map((r) => (
             <TableRow key={r.participant.id}>
-              <TableCell className="text-right tabular-nums">{r.rank}</TableCell>
-              <TableCell>
-                <Link
-                  href={participantHref(r.participant, drivers ? 'driver' : null)}
-                  className="flex items-center gap-2 font-medium hover:underline"
-                >
-                  <Crest src={r.participant.logo} name={r.participant.name} size="sm" round={drivers} />
-                  <span className="truncate">{r.participant.name}</span>
-                </Link>
+              <TableCell className="text-right tabular-nums">
+                {tied(r) ? (
+                  <abbr title={th.tied} className="no-underline">
+                    {r.rank}
+                    <span className="text-muted-foreground">=</span>
+                  </abbr>
+                ) : (
+                  r.rank
+                )}
               </TableCell>
-              {drivers ? <TableCell className="text-right tabular-nums">{r.won}</TableCell> : null}
+              <TableCell className="min-w-0">
+                {drivers ? (
+                  <div className="flex min-w-0 items-center gap-2">
+                    <DriverAvatar row={r} />
+                    <div className="flex min-w-0 flex-col">
+                      <Link
+                        href={participantHref(r.participant, 'driver')}
+                        className="truncate font-medium hover:underline"
+                      >
+                        {r.participant.name}
+                      </Link>
+                      {r.season_team ? (
+                        // no celular a equipe vem embaixo do nome; no desktop, na coluna própria
+                        <span className="text-muted-foreground text-xs md:hidden">
+                          <SeasonTeam team={r.season_team} />
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : r.season_team ? (
+                  // construtor: o nome daquela época (McLaren em 1988) com a cor; o nome de hoje no title
+                  <Link
+                    href={participantHref(r.participant)}
+                    className="flex min-w-0 items-center gap-2 font-medium hover:underline"
+                    title={r.participant.name}
+                  >
+                    <span
+                      aria-hidden
+                      className="bg-muted-foreground/40 h-5 w-1.5 shrink-0 rounded-full"
+                      style={r.season_team.livery ? { background: r.season_team.livery.primary } : undefined}
+                    />
+                    <span className="truncate">{r.season_team.name}</span>
+                  </Link>
+                ) : (
+                  <Link
+                    href={participantHref(r.participant)}
+                    className="flex min-w-0 items-center gap-2 font-medium hover:underline"
+                  >
+                    <Crest src={r.participant.logo} name={r.participant.name} size="sm" />
+                    <span className="truncate">{r.participant.name}</span>
+                  </Link>
+                )}
+              </TableCell>
+              {drivers && hasTeams ? (
+                <TableCell className="text-muted-foreground hidden text-sm md:table-cell">
+                  {r.season_team ? <SeasonTeam team={r.season_team} /> : null}
+                </TableCell>
+              ) : null}
+              <TableCell className="text-right tabular-nums">{r.won}</TableCell>
+              {drivers && hasPodiums ? (
+                <TableCell className="text-right tabular-nums">{r.podiums ?? '–'}</TableCell>
+              ) : null}
               <TableCell className="text-right font-semibold tabular-nums">{r.points}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
       <RaceSourceNote className="px-2 pt-3" />
+      <PhotoCredits
+        items={group.rows.map((r) => ({ id: r.participant.id, name: r.participant.name, photo: r.photo }))}
+      />
     </>
   );
 }

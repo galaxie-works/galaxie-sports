@@ -30,6 +30,9 @@ export default defineMessages(
         calendarDescription: { one: '{count} Grande Prêmio', other: '{count} Grandes Prêmios' },
         round: 'Etapa {round}',
         logoCredit: 'Crédito do logo',
+        podiumsShort: 'Pód.',
+        tied: 'Empate em pontos: mesma posição',
+        photoCredits: 'Créditos das fotos',
       },
     },
     sport: {
@@ -278,6 +281,9 @@ export default defineMessages(
           calendarDescription: { one: '{count} Grand Prix', other: '{count} Grands Prix' },
           round: 'Round {round}',
           logoCredit: 'Logo credit',
+          podiumsShort: 'Pod.',
+          tied: 'Tied on points: same position',
+          photoCredits: 'Photo credits',
         },
       },
       sport: {
@@ -525,6 +531,9 @@ export default defineMessages(
           calendarDescription: { one: '{count} Gran Premio', other: '{count} Grandes Premios' },
           round: 'Fecha {round}',
           logoCredit: 'Crédito del logo',
+          podiumsShort: 'Pod.',
+          tied: 'Empate en puntos: misma posición',
+          photoCredits: 'Créditos de las fotos',
         },
       },
       sport: {

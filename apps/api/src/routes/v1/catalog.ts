@@ -50,6 +50,9 @@ import {
   UUID_RE,
 } from '../../util.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
+import { enrichRaceStandings } from '../../events/race-standings.js';
+import { loadLiveries, type LiveryEntry } from '@galaxie/knowledge';
+import { effectiveMinReview, meetsReview } from './semantic.js';
 
 const MODULE = { module: 'core_data' } as const;
 const MIRRORED = new Set<string>(MIRROR_SPORTS);
@@ -65,6 +68,17 @@ function localeOf(request: FastifyRequest, query: { locale?: z.infer<typeof Loca
 
 /** Rotas do catálogo (docs/05 §3.1). Todas exigem o módulo core_data. */
 export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
+  // pinturas da F1 por época (data/knowledge/formula-1/liveries.yaml), lidas uma vez, no piso editorial
+  let liveriesCache: Promise<LiveryEntry[]> | undefined;
+  const liveries = () => {
+    liveriesCache ??= loadLiveries(...(ctx.semantic?.knowledgeDir ? [ctx.semantic.knowledgeDir] : []))
+      .then((all) => all.filter((l) => meetsReview(l.review_status, effectiveMinReview(ctx, undefined))))
+      .catch((err: unknown) => {
+        liveriesCache = undefined;
+        throw err;
+      });
+    return liveriesCache;
+  };
   // nível nacional/regional e posição editorial das domésticas (config/geo); sem a config, os campos saem
   // null em vez de quebrar
   let geo: GeoConfig | null | undefined;
@@ -327,6 +341,13 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           });
           if (!updatedAt || r.st.updatedAt > updatedAt) updatedAt = r.st.updatedAt;
         }
+        // F1: retrato, equipe da temporada (nome de época e cor), pódios e o desempate por contagem regressiva
+        if (row.c.sport === 'formula-1')
+          await enrichRaceStandings(db, s.id, [...groups.values()], {
+            assetsBaseUrl: ctx.assetsBaseUrl,
+            liveries: await liveries().catch(() => []),
+            year: s.year,
+          });
         const source = rows[0]?.st.source;
         const body: Standings = {
           competition_id: row.c.id,
