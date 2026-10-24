@@ -62,16 +62,35 @@ const config = new WtwConfig(
 
 const src = (url: string) => ({ url, excerpt: 'paráfrase curta' });
 
+/** Link do grounding que o validador segue até a página do plano (o `Location` do 302). */
+const REDIRECT = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/EXEMPLO-1';
+const PAGE = `${OP}/planos/esportes`;
+const resolveUrl = async (url: string) => (url === REDIRECT ? PAGE : url);
+
 const discovery = {
   data: {
     platforms: [
-      { name: 'Operadora Exemplo', kind: 'pay_tv_operator', website: OP, sources: [src(`${OP}/sobre`)] },
-      { name: 'Streaming Exemplo', kind: 'streaming', website: ST, sources: [src(ST)] },
+      {
+        name: 'Operadora Exemplo',
+        kind: 'pay_tv_operator',
+        website: OP,
+        // domínio do grupo vale; comparador informado como "oficial" não
+        dominios_oficiais: ['grupo.exemplo', 'selectra.com.br'],
+        sources: [src(`${OP}/sobre`)],
+      },
+      {
+        name: 'Streaming Exemplo',
+        kind: 'streaming',
+        website: ST,
+        dominios_oficiais: [],
+        sources: [src(ST)],
+      },
       // URL inventada pelo modelo (fora da busca): não entra
       {
         name: 'Operadora Sem Fonte',
         kind: 'vmvpd',
         website: null,
+        dominios_oficiais: [],
         sources: [src('https://inventada.exemplo')],
       },
       // política editorial: descartada sem registrar o nome
@@ -79,6 +98,7 @@ const discovery = {
         name: 'Operadora Bloqueada Exemplo',
         kind: 'pay_tv_operator',
         website: 'https://bloqueada.exemplo',
+        dominios_oficiais: [],
         sources: [src('https://bloqueada.exemplo')],
       },
     ],
@@ -87,52 +107,70 @@ const discovery = {
   groundedUrls: [`${OP}/sobre`, ST, 'https://bloqueada.exemplo'],
 };
 
-const operatorPlans = (price: string, withSecond = true) => ({
+const operatorPlans = (price: number, withSecond = true) => ({
   data: {
-    plans: [
+    planos: [
       {
-        name: 'Plano Exemplo Esportes',
-        price_text: price,
-        url: `${OP}/planos/esportes`,
-        sources: [src(`${OP}/planos/esportes`), src('https://agregador.exemplo/grade')],
-        channels: [
-          { name: 'Canal Exemplo', access: 'included', source_url: `${OP}/planos/esportes` },
+        plano_nome: 'Plano Exemplo Esportes',
+        preco_mensal: price,
+        moeda_iso: 'BRL',
+        plano_url: PAGE,
+        fonte_url: PAGE,
+        trecho_da_fonte: `Plano Exemplo Esportes: R$ ${price.toFixed(2).replace('.', ',')} por mês. Streaming Exemplo incluso.`,
+        canais: [
+          // fonte oficial pelo redirecionamento do grounding
+          {
+            canal_nome: 'Canal Exemplo',
+            fonte_url: REDIRECT,
+            trecho: 'Plano Exemplo Esportes: Canal Exemplo.',
+          },
           ...(withSecond
-            ? [{ name: 'Canal Exemplo 2 HD', access: 'addon', source_url: `${OP}/planos/esportes` }]
+            ? [
+                // só o comparador cita: entra sem prova
+                {
+                  canal_nome: 'Canal Exemplo 2 HD',
+                  fonte_url: 'https://agregador.exemplo/grade',
+                  trecho: 'Plano Exemplo Esportes tem Canal Exemplo 2 HD.',
+                },
+              ]
             : []),
-          { name: 'Canal Desconhecido', access: 'included', source_url: `${OP}/planos/esportes` },
-          // fonte só do agregador: não vale
-          { name: 'Canal Exemplo 2', access: 'included', source_url: 'https://agregador.exemplo/grade' },
+          { canal_nome: 'Canal Desconhecido', fonte_url: PAGE, trecho: 'Canal Desconhecido no plano.' },
+          // da memória: sem fonte, sem conteúdo
+          { canal_nome: 'Canal Exemplo 2', fonte_url: null, trecho: null },
         ],
-        services: [{ name: 'Streaming Exemplo', access: 'included', source_url: `${OP}/planos/esportes` }],
+        streamings_inclusos: [{ streaming_id: 'Streaming Exemplo', fonte_url: PAGE, trecho: null }],
       },
       {
-        name: 'Plano Sem Fonte',
-        price_text: null,
-        url: null,
-        sources: [src('https://inventada.exemplo/plano')],
-        channels: [],
-        services: [],
+        plano_nome: 'Plano Sem Fonte',
+        preco_mensal: null,
+        moeda_iso: null,
+        plano_url: null,
+        fonte_url: 'https://inventada.exemplo/plano',
+        trecho_da_fonte: 'Plano Sem Fonte',
+        canais: [],
+        streamings_inclusos: [],
       },
     ],
-    notes: null,
+    notas: null,
   },
-  groundedUrls: [`${OP}/planos/esportes`, 'https://agregador.exemplo/grade'],
+  groundedUrls: [PAGE, REDIRECT, 'https://agregador.exemplo/grade'],
 });
 
 const streamingPlans = {
   data: {
-    plans: [
+    planos: [
       {
-        name: 'Mensal',
-        price_text: 'R$ 29,90/mês',
-        url: `${ST}/planos`,
-        sources: [src(`${ST}/planos`)],
-        channels: [],
-        services: [],
+        plano_nome: 'Mensal',
+        preco_mensal: 29.9,
+        moeda_iso: 'BRL',
+        plano_url: `${ST}/planos`,
+        fonte_url: `${ST}/planos`,
+        trecho_da_fonte: 'Plano Mensal: R$ 29,90 por mês.',
+        canais: [],
+        streamings_inclusos: [],
       },
     ],
-    notes: null,
+    notas: null,
   },
   groundedUrls: [`${ST}/planos`],
 };
@@ -162,11 +200,11 @@ describe('lineups-research (LLM falso)', () => {
     ]);
     const llm = fake({
       discover: discovery,
-      operator: operatorPlans('R$ 99,90/mês'),
+      operator: operatorPlans(99.9),
       streaming: streamingPlans,
     });
     const budgeted = withTokenBudget(llm, { db, dailyLimit: null, provider: 'fake', now: () => NOW });
-    const out = await new LineupResearcher({ db, llm: budgeted, config, now: () => NOW }).run({
+    const out = await new LineupResearcher({ db, llm: budgeted, config, now: () => NOW, resolveUrl }).run({
       countries: ['BR'],
       maxCalls: 10,
     });
@@ -177,26 +215,47 @@ describe('lineups-research (LLM falso)', () => {
     ]);
     expect(out[0]!.drops).toMatchObject({ noSource: 1, blocked: 1 });
     expect(llm.calls[0]).toMatchObject({ tier: 'research', webSearch: true });
+    // a busca dos planos mira o site e os domínios oficiais da plataforma
+    expect(llm.calls[1]).toMatchObject({ allowedDomains: ['operadora.exemplo', 'grupo.exemplo'] });
 
     const rows = await db.select().from(platform).orderBy(platform.slug);
-    expect(rows.map((r) => [r.slug, r.kind, r.reviewStatus, r.broadcasterId])).toEqual([
-      ['br-operadora-exemplo', 'pay_tv_operator', 'draft', null],
-      ['br-streaming-exemplo', 'streaming', 'draft', 'streaming_exemplo'],
+    expect(rows.map((r) => [r.slug, r.kind, r.reviewStatus, r.broadcasterId, r.officialDomains])).toEqual([
+      ['br-operadora-exemplo', 'pay_tv_operator', 'draft', null, ['grupo.exemplo']],
+      ['br-streaming-exemplo', 'streaming', 'draft', 'streaming_exemplo', []],
     ]);
 
-    const lineup = await getPlatformLineup(db, rows[0]!.id, { minReview: 'draft' });
-    expect(lineup!.plans.map((p) => [p.plan.name, p.plan.priceText, p.plan.reviewStatus])).toEqual([
-      ['Plano Exemplo Esportes', 'R$ 99,90/mês', 'draft'],
-    ]);
+    const lineup = await getPlatformLineup(db, rows[0]!.id, { minReview: 'draft', includeUnverified: true });
+    expect(
+      lineup!.plans.map((p) => [p.plan.name, p.plan.priceText, p.plan.priceAmount, p.plan.priceCurrency]),
+    ).toEqual([['Plano Exemplo Esportes', 'R$ 99,90/mês', 99.9, 'BRL']]);
     const plan = lineup!.plans[0]!;
-    // agregador fora da fonte do plano; "Canal Exemplo 2" via agregador não vale, mas o HD (mesma entrada) vale
-    expect(plan.plan.sources.map((s) => s.url)).toEqual([`${OP}/planos/esportes`]);
-    expect(plan.channels.map((c) => [c.channelId, c.access])).toEqual([
-      ['canal_exemplo', 'included'],
-      ['canal_exemplo_2', 'addon'],
+    expect(plan.plan.verification).toMatchObject({ tier: 'official', verified: true });
+    expect(plan.plan.sources.map((s) => s.url)).toEqual([PAGE]);
+    // o redirecionamento foi seguido e a URL final é a guardada
+    const [c1, c2] = plan.channels;
+    expect([c1!.channelId, c1!.access, c1!.sources.map((s) => s.url)]).toEqual([
+      'canal_exemplo',
+      'included',
+      [PAGE],
     ]);
-    expect(plan.services.map((s) => s.serviceId)).toEqual(['streaming_exemplo']);
+    expect(c1!.verification).toMatchObject({
+      source_url: REDIRECT,
+      final_url: PAGE,
+      checks: { redirect: 'pass' },
+    });
+    expect([c2!.channelId, c2!.access, c2!.verification?.tier]).toEqual([
+      'canal_exemplo_2',
+      'unverified',
+      'comparator',
+    ]);
+    // streaming provado pelo trecho do plano ("incluso")
+    expect(plan.services.map((s) => [s.serviceId, s.access])).toEqual([['streaming_exemplo', 'included']]);
     expect(out[1]!.drops.unknown).toEqual(['Canal Desconhecido']);
+    expect(out[1]!.verification).toMatchObject({ plans: 1, pricedPlans: 1, included: 2, unverified: 1 });
+
+    // a leitura pública nunca mostra o que está sem prova
+    const pub = await getPlatformLineup(db, rows[0]!.id, { minReview: 'draft' });
+    expect(pub!.plans[0]!.channels.map((c) => c.channelId)).toEqual(['canal_exemplo']);
 
     // custo no ledger compartilhado, agente `lineups`
     const usage = await db.select().from(llmUsage).where(eq(llmUsage.agent, 'lineups'));
@@ -239,17 +298,20 @@ describe('lineups-research (LLM falso)', () => {
 
     const llm = fake({
       discover: discovery,
-      operator: operatorPlans('R$ 109,90/mês', false),
+      operator: operatorPlans(109.9, false),
       streaming: streamingPlans,
     });
-    const out = await new LineupResearcher({ db, llm, config, now: () => later }).run({
+    const out = await new LineupResearcher({ db, llm, config, now: () => later, resolveUrl }).run({
       countries: ['BR'],
       revisit: true,
       maxCalls: 10,
     });
     expect(out.map((o) => o.status)).toEqual(['done', 'done', 'done']);
     const changes = out.flatMap((o) => o.changes);
-    expect(changes).toContainEqual({ target: { type: 'plan', id: plan!.id }, fields: ['priceText'] });
+    expect(changes).toContainEqual({
+      target: { type: 'plan', id: plan!.id },
+      fields: ['priceText', 'priceAmount'],
+    });
     expect(changes).toContainEqual({
       target: { type: 'plan_channel', planId: plan!.id, channelId: 'canal_exemplo_2' },
       fields: ['removed'],
@@ -259,7 +321,8 @@ describe('lineups-research (LLM falso)', () => {
     expect(after).toMatchObject({
       reviewStatus: 'approved',
       priceText: 'R$ 99,90/mês',
-      proposedChange: { priceText: 'R$ 109,90/mês' },
+      priceAmount: 99.9,
+      proposedChange: { priceText: 'R$ 109,90/mês', priceAmount: 109.9 },
     });
     expect(after!.seenAt.getTime()).toBe(later.getTime());
     const [link] = await db

@@ -28,12 +28,15 @@ import {
 import { cn } from '@/lib/utils';
 
 import { ItemLogo, SourceLine, StatusBadge, useFieldText } from './parts';
+import { VerificationCell } from './verification';
 
 const ALL = '__all';
 
 export interface ReviewRow extends ItemView {
   planName: string | null;
   platform: { id: string; name: string; country: string };
+  /** Plano: preço cheio provado, com a moeda. */
+  price?: { amount: number; currency: string } | null;
 }
 
 /** Abas de Ajustes → Grades e ofertas (revisão, pedidos das operadoras, operadora de cada tenant). */
@@ -263,6 +266,7 @@ export function LineupReview({
                 <TableHead>{A.table.type}</TableHead>
                 <TableHead>{A.table.platform}</TableHead>
                 <TableHead>{A.table.source}</TableHead>
+                <TableHead>{A.table.verification}</TableHead>
                 <TableHead>{A.table.status}</TableHead>
                 <TableHead>{A.table.decision}</TableHead>
                 <TableHead>{A.table.actions}</TableHead>
@@ -292,6 +296,18 @@ export function LineupReview({
                   </TableCell>
                   <TableCell>
                     <SourceLine sources={row.sources} timeZone={timeZone} />
+                  </TableCell>
+                  <TableCell className="whitespace-normal">
+                    {row.type === 'platform' ? (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    ) : (
+                      <VerificationCell
+                        verification={row.verification}
+                        price={row.price}
+                        access={row.fields.access ?? null}
+                        isPlan={row.type === 'plan'}
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

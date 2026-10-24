@@ -4,12 +4,16 @@
  * planos, os canais esportivos de cada plano e os streamings inclusos.
  *
  * Regras, no código e não no prompt:
- * - fonte é obrigatória e precisa ter vindo da busca do provedor (`groundedUrls` do Gemini em dois
- *   passos; nos outros provedores, as citações). Item sem fonte ancorada não entra;
+ * - sem fonte, sem conteúdo: a fonte precisa ter vindo da busca do provedor (`groundedUrls` do Gemini
+ *   em dois passos; nos outros provedores, as citações) e vir com o trecho. Item sem fonte não entra;
  * - nome ou domínio na blocklist editorial (config/broadcasters/_policy.yaml + WTW_BLOCKLIST_FILE/
- *   WTW_BLOCKLIST) descarta o item sem registrar o nome; agregadores não valem como fonte;
- * - canal e streaming precisam casar com uma entrada da biblioteca de emissoras (dicionário do país);
- *   nome desconhecido fica de fora (e aparece no relatório para a curadoria);
+ *   WTW_BLOCKLIST) descarta o item sem registrar o nome;
+ * - canal e streaming precisam casar com uma entrada da biblioteca de emissoras (dicionário do país, no
+ *   dia: canal extinto e apelido de antes da renomeação não casam); nome desconhecido fica de fora (e
+ *   aparece no relatório para a curadoria);
+ * - o validador determinístico (`validate.ts`) segue o redirecionamento do grounding, classifica a fonte
+ *   pelo domínio final e confere o trecho: só fonte oficial e específica do plano vale para `included` e
+ *   para o preço cheio; o resto entra como `unverified`;
  * - tudo vai como `draft` por `upsertLineupDraft` (idempotente; aprovado não volta a rascunho).
  */
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
@@ -19,7 +23,6 @@ import {
   platformSlug,
   upsertLineupDraft,
   type Database,
-  type LineupAccess,
   type LineupChange,
   type LineupPlanDraft,
   type LineupPlatform,
@@ -32,9 +35,17 @@ import { sanitizeText } from '../llm/hygiene.js';
 import type { LlmClient, LlmResult } from '../llm/types.js';
 import { discoveryPrompt, lineupSystemPrompt, plansPrompt } from './prompt.js';
 import {
+  acceptableOfficialDomain,
+  redirectResolver,
+  verifyPlans,
+  type ModelPlan,
+  type VerifyOutcome,
+} from './validate.js';
+import {
   LINEUP_DISCOVERY_SCHEMA,
   LINEUP_DISCOVERY_SCHEMA_NAME,
   LINEUP_MAX_CHANNELS,
+  LINEUP_MAX_OFFICIAL_DOMAINS,
   LINEUP_MAX_PLANS,
   LINEUP_MAX_PLATFORMS,
   LINEUP_MAX_SERVICES,
@@ -81,17 +92,40 @@ export function anchorResolver(result: Pick<LlmResult<unknown>, 'groundedUrls' |
 }
 
 export interface DropStats {
-  /** Itens sem fonte ancorada. */
+  /** Itens sem fonte ancorada (ou sem trecho). */
   noSource: number;
   /** Bloqueados pela política editorial (nome nunca registrado). */
   blocked: number;
   /** Canais/streamings sem entrada na biblioteca (nomes para a curadoria). */
   unknown: string[];
+  /** Canais/streamings fora do período no dicionário (extintos). */
+  inactive: string[];
   /** Texto com padrão de prompt injection. */
   injection: number;
 }
 
-const emptyDrops = (): DropStats => ({ noSource: 0, blocked: 0, unknown: [], injection: 0 });
+const emptyDrops = (): DropStats => ({ noSource: 0, blocked: 0, unknown: [], inactive: [], injection: 0 });
+
+/** O que o validador aceitou numa pesquisa de planos. */
+export interface VerificationStats {
+  plans: number;
+  /** Planos com preço cheio provado (fonte oficial e específica). */
+  pricedPlans: number;
+  included: number;
+  addon: number;
+  unverified: number;
+  /** Fontes por nível (domínio final). */
+  tiers: Record<string, number>;
+}
+
+const emptyVerification = (): VerificationStats => ({
+  plans: 0,
+  pricedPlans: 0,
+  included: 0,
+  addon: 0,
+  unverified: 0,
+  tiers: {},
+});
 
 class SourceGate {
   constructor(
@@ -99,12 +133,17 @@ class SourceGate {
     private readonly dir: CountryDirectory,
   ) {}
 
-  /** Fonte aceitável: ancorada na busca, http(s), fora da blocklist e não agregador. */
-  accept(url: string | null | undefined): string | null {
+  /** Fonte citável: ancorada na busca, http(s) e fora da blocklist (o nível dela é do validador). */
+  cite(url: string | null | undefined): string | null {
     const real = this.anchor(url);
     if (!real || !isAllowedUrl(real)) return null;
-    if (this.dir.blocklist.isBlockedUrl(real) || this.dir.isAggregator(real)) return null;
-    return real;
+    return this.dir.blocklist.isBlockedUrl(real) ? null : real;
+  }
+
+  /** Fonte aceitável para a descoberta: citável e não agregador. */
+  accept(url: string | null | undefined): string | null {
+    const real = this.cite(url);
+    return real && !this.dir.isAggregator(real) ? real : null;
   }
 
   many(sources: readonly LineupOutputSource[], extra: (string | null)[] = []): string[] {
@@ -249,6 +288,8 @@ export interface LineupCallOutcome {
   removed: number;
   changes: LineupChange[];
   drops: DropStats;
+  /** Pesquisa de planos: o que passou no validador. */
+  verification: VerificationStats;
   costUsd: number | null;
   /** Plataformas novas da descoberta (para pesquisar os planos em seguida). */
   newPlatforms: { id: string; slug: string; name: string }[];
@@ -261,6 +302,8 @@ export interface LineupResearchDeps {
   config: WtwConfig;
   now?: () => Date;
   log?: (m: string) => void;
+  /** URL citada → URL final (segue o redirecionamento do grounding). Padrão: `redirectResolver()`. */
+  resolveUrl?: (url: string) => Promise<string | null>;
 }
 
 export interface LineupRunOptions extends Omit<PlanLineupOptions, 'now'> {
@@ -274,10 +317,12 @@ const CHANNEL_MEDIA = new Set(['pay_tv', 'free_tv']);
 export class LineupResearcher {
   private readonly now: () => Date;
   private readonly log: (m: string) => void;
+  private readonly resolveUrl: (url: string) => Promise<string | null>;
 
   constructor(private readonly deps: LineupResearchDeps) {
     this.now = deps.now ?? (() => new Date());
     this.log = deps.log ?? (() => {});
+    this.resolveUrl = deps.resolveUrl ?? redirectResolver();
   }
 
   private directory(country: string): CountryDirectory {
@@ -331,6 +376,7 @@ export class LineupResearcher {
       removed: 0,
       changes: [],
       drops: emptyDrops(),
+      verification: emptyVerification(),
       costUsd: null,
       newPlatforms: [],
     };
@@ -379,7 +425,13 @@ export class LineupResearcher {
         const name = cleanName(p.name);
         if (!name || seen.has(normalizeName(name))) continue;
         seen.add(normalizeName(name));
-        const website = p.website && isAllowedUrl(p.website) ? p.website.trim() : null;
+        const site = p.website && isAllowedUrl(p.website) ? p.website.trim() : null;
+        // site que é de comparador, imprensa ou rede social não é o oficial
+        const website = site && acceptableOfficialDomain(hostOf(site) ?? '', dir) ? site : null;
+        const officialDomains = (p.dominios_oficiais ?? [])
+          .map((d) => d.trim().toLowerCase())
+          .filter((d) => d && acceptableOfficialDomain(d, dir))
+          .slice(0, LINEUP_MAX_OFFICIAL_DOMAINS);
         if (dir.blocklist.isBlockedName(name) || (website && dir.blocklist.isBlockedUrl(website))) {
           out.drops.blocked++;
           continue;
@@ -402,6 +454,7 @@ export class LineupResearcher {
             kind: match?.kind ?? p.kind,
             country: task.country,
             website: match?.website ?? website,
+            officialDomains,
             broadcasterId: match?.broadcasterId ?? streamingId(dir, name, match?.kind ?? p.kind),
             sources,
           },
@@ -445,6 +498,10 @@ export class LineupResearcher {
       .filter((b) => CHANNEL_MEDIA.has(b.medium))
       .flatMap((b) => [b.name, ...b.channels]);
     const serviceNames = dir.broadcasters.filter((b) => STREAMING_MEDIA.has(b.medium)).map((b) => b.name);
+    // a busca mira o site da plataforma: só a fonte oficial prova o plano
+    const officialHosts = [row.website ? hostOf(row.website) : null, ...row.officialDomains].filter(
+      (d): d is string => !!d,
+    );
     try {
       const res = await this.deps.llm.generateJson<LineupPlansOutput>({
         tier: 'research',
@@ -454,7 +511,12 @@ export class LineupResearcher {
             role: 'user',
             content: plansPrompt({
               country: task.country,
-              platform: { name: row.name, kind: row.kind, website: row.website },
+              platform: {
+                name: row.name,
+                kind: row.kind,
+                website: row.website,
+                officialDomains: row.officialDomains,
+              },
               knownPlans: known.map((k) => k.name),
               channels: channelNames,
               services: serviceNames,
@@ -464,12 +526,13 @@ export class LineupResearcher {
         schema: LINEUP_PLANS_SCHEMA,
         schemaName: LINEUP_PLANS_SCHEMA_NAME,
         webSearch: true,
+        ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
         maxOutputTokens: 12_000,
         purpose: plansPurpose(row.slug, task.country),
       });
       out.costUsd = res.usage.costUsd ?? null;
       const gate = new SourceGate(anchorResolver(res), dir);
-      const plans = this.toPlanDrafts(res.data, gate, dir, out);
+      const plans = await this.toPlanDrafts(res.data, gate, dir, row, out);
       out.accepted = plans.length;
       if (plans.length) {
         const r = await upsertLineupDraft(db, {
@@ -489,9 +552,13 @@ export class LineupResearcher {
         });
         this.add(out, r);
       }
+      const v = out.verification;
       this.log(
-        `${task.slug}: ${plans.length} plano(s) com fonte · ${out.created} novo(s), ${out.changes.length} mudança(s)` +
-          (out.drops.unknown.length ? ` · fora da biblioteca: ${out.drops.unknown.length}` : ''),
+        `${task.slug}: ${plans.length} plano(s) com fonte (${v.pricedPlans} com preço provado) · canais e streamings: ` +
+          `${v.included} incluso(s), ${v.addon} adicional(is), ${v.unverified} sem prova · ` +
+          `${out.created} novo(s), ${out.changes.length} mudança(s)` +
+          (out.drops.unknown.length ? ` · fora da biblioteca: ${out.drops.unknown.length}` : '') +
+          (out.drops.inactive.length ? ` · extintos: ${out.drops.inactive.join(', ')}` : ''),
       );
       return out;
     } catch (err) {
@@ -499,16 +566,18 @@ export class LineupResearcher {
     }
   }
 
-  private toPlanDrafts(
+  private async toPlanDrafts(
     data: LineupPlansOutput,
     gate: SourceGate,
     dir: CountryDirectory,
+    row: LineupPlatform,
     out: LineupCallOutcome,
-  ): LineupPlanDraft[] {
-    const plans: LineupPlanDraft[] = [];
-    for (const p of data.plans.slice(0, LINEUP_MAX_PLANS)) {
-      const name = cleanName(p.name, 160);
-      if (!name) continue;
+  ): Promise<LineupPlanDraft[]> {
+    const plans: ModelPlan[] = [];
+    const seen = new Set<string>();
+    for (const p of data.planos.slice(0, LINEUP_MAX_PLANS)) {
+      const name = cleanName(p.plano_nome, 160);
+      if (!name || seen.has(normalizeName(name))) continue;
       if (dir.blocklist.isBlockedName(name)) {
         out.drops.blocked++;
         continue;
@@ -517,57 +586,79 @@ export class LineupResearcher {
         out.drops.injection++;
         continue;
       }
-      const url = gate.accept(p.url);
-      const sources = gate.many(p.sources, [url]);
-      if (!sources.length) {
-        out.drops.noSource++;
-        continue;
-      }
-      const channels = new Map<string, { access: LineupAccess; sources: string[] }>();
-      const services = new Map<string, { access: LineupAccess; sources: string[] }>();
-      const items = [
-        ...p.channels.slice(0, LINEUP_MAX_CHANNELS).map((i) => ({ ...i, as: 'channel' as const })),
-        ...p.services.slice(0, LINEUP_MAX_SERVICES).map((i) => ({ ...i, as: 'service' as const })),
-      ];
-      for (const item of items) {
-        const itemName = cleanName(item.name);
-        if (!itemName) continue;
-        if (dir.blocklist.isBlockedName(itemName)) {
-          out.drops.blocked++;
-          continue;
-        }
-        const src = gate.accept(item.source_url);
-        if (!src) {
-          out.drops.noSource++;
-          continue;
-        }
-        const resolved = dir.resolve(itemName);
-        if (!resolved || dir.blocklist.isBlockedName(resolved.entry.name)) {
-          if (!resolved && !out.drops.unknown.includes(itemName)) out.drops.unknown.push(itemName);
-          else if (resolved) out.drops.blocked++;
-          continue;
-        }
-        const medium = resolved.entry.medium;
-        // o meio vem do dicionário, não do modelo
-        const target = STREAMING_MEDIA.has(medium) ? services : CHANNEL_MEDIA.has(medium) ? channels : null;
-        if (!target) continue;
-        const cur = target.get(resolved.entry.id);
-        if (!cur) target.set(resolved.entry.id, { access: item.access, sources: [src] });
-        else {
-          if (item.access === 'included') cur.access = 'included';
-          if (!cur.sources.includes(src)) cur.sources.push(src);
-        }
-      }
+      seen.add(normalizeName(name));
+      const price = typeof p.preco_mensal === 'number' && p.preco_mensal > 0 ? p.preco_mensal : null;
       plans.push({
         name,
-        priceText: p.price_text ? cleanName(p.price_text, 120) || null : null,
-        url,
-        sources,
-        channels: [...channels].map(([channelId, v]) => ({ channelId, ...v })),
-        services: [...services].map(([serviceId, v]) => ({ serviceId, ...v })),
+        priceAmount: price,
+        currency: p.moeda_iso?.trim().toUpperCase() || null,
+        planUrl: p.plano_url,
+        evidence: { url: p.fonte_url, excerpt: p.trecho_da_fonte },
+        channels: p.canais.slice(0, LINEUP_MAX_CHANNELS).map((c) => ({
+          name: cleanName(c.canal_nome),
+          evidence: { url: c.fonte_url, excerpt: c.trecho },
+        })),
+        services: p.streamings_inclusos.slice(0, LINEUP_MAX_SERVICES).map((c) => ({
+          name: cleanName(c.streaming_id),
+          evidence: { url: c.fonte_url, excerpt: c.trecho },
+        })),
       });
     }
-    return plans;
+    const verified = await verifyPlans(plans, {
+      country: row.country,
+      platform: { name: row.name, website: row.website, officialDomains: row.officialDomains },
+      dir,
+      resolveUrl: this.resolveUrl,
+      acceptUrl: (u) => gate.cite(u),
+      now: this.now(),
+    });
+    this.tally(out, verified);
+    return verified.plans.map((p) => ({
+      name: p.name,
+      priceText: p.priceText,
+      priceAmount: p.priceAmount,
+      priceCurrency: p.priceCurrency,
+      url: p.url,
+      sources: p.sources.slice(0, LINEUP_MAX_SOURCES),
+      verification: p.verification,
+      channels: p.channels.map((c) => ({
+        channelId: c.entryId,
+        access: c.access,
+        sources: c.sources.slice(0, LINEUP_MAX_SOURCES),
+        verification: c.verification,
+      })),
+      services: p.services.map((c) => ({
+        serviceId: c.entryId,
+        access: c.access,
+        sources: c.sources.slice(0, LINEUP_MAX_SOURCES),
+        verification: c.verification,
+      })),
+    }));
+  }
+
+  private tally(out: LineupCallOutcome, v: VerifyOutcome): void {
+    const s = out.verification;
+    out.drops.noSource += v.plansWithoutSource;
+    for (const d of v.drops) {
+      if (d.reason === 'no_source') out.drops.noSource++;
+      else if (d.reason === 'blocked') out.drops.blocked++;
+      else if (d.reason === 'unknown' && !out.drops.unknown.includes(d.name)) out.drops.unknown.push(d.name);
+      else if (d.reason === 'inactive' && !out.drops.inactive.includes(d.name))
+        out.drops.inactive.push(d.name);
+    }
+    const tier = (t: string | null) => {
+      const k = t ?? 'unresolved';
+      s.tiers[k] = (s.tiers[k] ?? 0) + 1;
+    };
+    for (const p of v.plans) {
+      s.plans++;
+      if (p.priceAmount !== null) s.pricedPlans++;
+      tier(p.verification.tier);
+      for (const i of [...p.channels, ...p.services]) {
+        s[i.access]++;
+        tier(i.verification.tier);
+      }
+    }
   }
 
   private add(out: LineupCallOutcome, r: Awaited<ReturnType<typeof upsertLineupDraft>>): void {

@@ -1,4 +1,15 @@
-import { date, index, jsonb, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+  date,
+  index,
+  jsonb,
+  numeric,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
 import { asset } from './core.js';
 import { broadcaster, enrich } from './enrich.js';
@@ -20,9 +31,60 @@ export type PlatformKind = (typeof PLATFORM_KINDS)[number];
 export const LINEUP_REVIEW_STATUSES = ['draft', 'reviewed', 'approved', 'rejected'] as const;
 export type LineupReviewStatus = (typeof LINEUP_REVIEW_STATUSES)[number];
 
-/** included = vem no plano · addon = pacote adicional pago à parte. */
-export const LINEUP_ACCESS = ['included', 'addon'] as const;
+/**
+ * included = vem no plano · addon = pacote adicional pago à parte · unverified = a pesquisa viu, mas sem
+ * prova oficial e específica do plano: nunca sai na leitura pública (nem como incluso, nem como adicional).
+ */
+export const LINEUP_ACCESS = ['included', 'addon', 'unverified'] as const;
 export type LineupAccess = (typeof LINEUP_ACCESS)[number];
+
+/**
+ * Nível da fonte pelo domínio final: official = site da plataforma ou do grupo · comparator = comparador
+ * de planos · press = imprensa (ou site de outra emissora) · other = outro site · discarded = documento
+ * de terceiros, loja de app ou rede social.
+ */
+export const LINEUP_SOURCE_TIERS = ['official', 'comparator', 'press', 'other', 'discarded'] as const;
+export type LineupSourceTier = (typeof LINEUP_SOURCE_TIERS)[number];
+
+/** pass = a checagem passou · fail = falhou · skip = não se aplica ou não deu para checar. */
+export type LineupCheckResult = 'pass' | 'fail' | 'skip';
+
+/**
+ * Resultado do validador determinístico (depois da IA) para um plano ou vínculo. Só `verified` vale como
+ * prova: preço cheio no plano, `included` no vínculo.
+ */
+export interface LineupVerification {
+  /** URL escrita pelo modelo (pode ser o redirecionamento do grounding, que expira). */
+  source_url: string | null;
+  /** URL final depois do redirecionamento; null = não deu para seguir. */
+  final_url: string | null;
+  final_host: string | null;
+  tier: LineupSourceTier | null;
+  /** Trecho da fonte citado pelo modelo. */
+  excerpt: string | null;
+  checks: {
+    /** O redirecionamento do grounding foi seguido (skip = a URL já era a final). */
+    redirect: LineupCheckResult;
+    /** A fonte é oficial (site da plataforma ou do grupo). */
+    official: LineupCheckResult;
+    /** O trecho contém o dado (o número do preço, o nome do canal ou do streaming). */
+    excerpt: LineupCheckResult;
+    /** O trecho cita o plano (ou a URL final é a página dele). */
+    plan_specific: LineupCheckResult;
+    /** O mesmo trecho não foi usado em outro plano da plataforma (fail = reaproveitado). */
+    not_reused: LineupCheckResult;
+    /** Preço: é o cheio de lista, não o promocional (skip fora do preço). */
+    list_price?: LineupCheckResult;
+    /** Preço: moeda do país (skip fora do preço). */
+    currency?: LineupCheckResult;
+    /** Streaming: o trecho diz que vem incluso (skip nos canais). */
+    included?: LineupCheckResult;
+  };
+  verified: boolean;
+  /** O que a IA afirmou e não foi aceito (ex.: o preço sem prova), para a revisão. */
+  claimed?: { price_amount?: number | null; currency?: string | null };
+  checked_at: string;
+}
 
 /** Fonte de um item da grade. `url` nulo só para dado informado pela operadora ou editorial. */
 export interface LineupSource {
@@ -66,6 +128,14 @@ export const platform = enrich.table(
     /** ISO2. */
     country: text('country').notNull(),
     website: text('website'),
+    /**
+     * Domínios oficiais além do site (o do grupo, o da loja própria): fonte destes domínios conta como
+     * oficial no validador da pesquisa. Hosts, sem esquema (`grupo.exemplo`, `loja.exemplo/tv`).
+     */
+    officialDomains: text('official_domains')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     logoAssetId: uuid('logo_asset_id').references(() => asset.id),
     /** Mesmo serviço que uma entrada da biblioteca de emissoras (streaming). */
     broadcasterId: text('broadcaster_id').references(() => broadcaster.id, { onDelete: 'set null' }),
@@ -94,7 +164,13 @@ export const platformPlan = enrich.table(
     country: text('country').notNull(),
     /** Preço como a operadora publica (ex.: "R$ 99,90/mês"); sem conversão. */
     priceText: text('price_text'),
+    /** Preço mensal cheio de lista (sem o promocional do 1º mês); só com fonte oficial. */
+    priceAmount: numeric('price_amount', { precision: 12, scale: 2, mode: 'number' }),
+    /** ISO 4217 da moeda do país (BRL, ARS, CLP, COP, PEN, UYU, MXN; USD no Equador e no Panamá). */
+    priceCurrency: text('price_currency'),
     url: text('url'),
+    /** Checagens do validador da pesquisa (preço e prova do plano). */
+    verification: jsonb('verification').$type<LineupVerification>(),
     ...reviewColumns(),
     /** YYYY-MM-DD (inclusive); null = sem limite. */
     validFrom: date('valid_from', { mode: 'string' }),
@@ -121,6 +197,8 @@ export const planChannel = enrich.table(
       .notNull()
       .references(() => broadcaster.id, { onDelete: 'cascade' }),
     access: text('access').$type<LineupAccess>().notNull(),
+    /** Checagens do validador da pesquisa. */
+    verification: jsonb('verification').$type<LineupVerification>(),
     ...reviewColumns(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -143,6 +221,8 @@ export const planService = enrich.table(
       .notNull()
       .references(() => broadcaster.id, { onDelete: 'cascade' }),
     access: text('access').$type<LineupAccess>().notNull(),
+    /** Checagens do validador da pesquisa. */
+    verification: jsonb('verification').$type<LineupVerification>(),
     ...reviewColumns(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

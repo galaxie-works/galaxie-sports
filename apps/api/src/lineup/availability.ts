@@ -259,6 +259,15 @@ const lineupItem = (logos: LogoBook, id: string, access: LineupItem['access']): 
   access,
 });
 
+/**
+ * Vínculo que pode sair na API: o sem prova (`unverified`) nunca sai, nem como incluso nem como
+ * adicional. A leitura do banco já o deixa de fora; aqui é a segunda trava.
+ */
+const published = <T extends { access: LineupAccess }>(
+  list: readonly T[],
+): (T & { access: LineupItem['access'] })[] =>
+  list.filter((x): x is T & { access: LineupItem['access'] } => x.access !== 'unverified');
+
 function availabilityPlan(
   logos: LogoBook,
   platform: LineupPlatform,
@@ -268,21 +277,21 @@ function availabilityPlan(
     services: { serviceId: string; access: LineupAccess }[];
   },
 ): AvailabilityPlan {
+  const viaChannels = published(p.viaChannels);
+  const services = published(p.services);
   // a própria plataforma de streaming vem como "serviço" do plano: não se lista como inclusa nela mesma
-  const included = p.services.filter(
-    (s) => s.access === 'included' && s.serviceId !== platform.broadcasterId,
-  );
+  const included = services.filter((s) => s.access === 'included' && s.serviceId !== platform.broadcasterId);
   // o jogo vem com o plano quando algum canal dele está incluso (sem canal: quando o streaming está)
   const access =
-    p.viaChannels.some((c) => c.access === 'included') ||
-    (!p.viaChannels.length && p.services.some((s) => s.access === 'included'))
+    viaChannels.some((c) => c.access === 'included') ||
+    (!viaChannels.length && services.some((s) => s.access === 'included'))
       ? 'included'
       : 'addon';
   return {
     id: p.plan.id,
     name: p.plan.name,
     access,
-    via_channels: p.viaChannels.map((c) => lineupItem(logos, c.channelId, c.access)),
+    via_channels: viaChannels.map((c) => lineupItem(logos, c.channelId, c.access)),
     included_services: included.map((s) => logos.item(s.serviceId)),
   };
 }
@@ -448,8 +457,8 @@ export function lineupDto(row: DbPlatformLineup, logos: LogoBook): PlatformLineu
     plans: row.plans.map((p) => ({
       id: p.plan.id,
       name: p.plan.name,
-      channels: p.channels.map((c) => lineupItem(logos, c.channelId, c.access)),
-      services: p.services.map((s) => lineupItem(logos, s.serviceId, s.access)),
+      channels: published(p.channels).map((c) => lineupItem(logos, c.channelId, c.access)),
+      services: published(p.services).map((s) => lineupItem(logos, s.serviceId, s.access)),
     })),
   };
 }

@@ -82,6 +82,7 @@ export {
   mergeSources,
   sanitizeProposal,
   normalizeEmailDomains,
+  normalizeOfficialDomains,
   LineupError,
   OPERATOR_SOURCE_NOTE,
   MAX_LINEUP_SOURCES,

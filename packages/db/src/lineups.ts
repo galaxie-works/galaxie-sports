@@ -10,7 +10,7 @@
  *   o pedido vira dado oficial com a fonte "informado pela operadora".
  * - A leitura pública (`availabilityForChannels`) usa só o que está aprovado (padrão `minReview`).
  */
-import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne, sql, type SQL } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
   LINEUP_ACCESS,
@@ -30,6 +30,7 @@ import {
   type LineupReviewStatus,
   type LineupSource,
   type LineupTargetType,
+  type LineupVerification,
   type PlatformKind,
 } from './schema/index.js';
 
@@ -58,6 +59,11 @@ export interface LineupReadOptions {
   minReview?: LineupMinReview;
   /** Inclui os itens `rejected` (painel). */
   includeRejected?: boolean;
+  /**
+   * Inclui os vínculos `unverified` (sem prova oficial e específica do plano). Padrão false: a leitura
+   * pública nunca os mostra, nem como incluso nem como adicional. O painel usa true.
+   */
+  includeUnverified?: boolean;
 }
 
 /** Fonte de entrada: URL (pesquisa) ou a fonte completa. */
@@ -68,6 +74,8 @@ export interface LineupChannelDraft {
   channelId: string;
   access?: LineupAccess;
   sources: LineupSourceInput[];
+  /** Checagens do validador (sempre regravadas: não viram mudança para revisar). */
+  verification?: LineupVerification | null;
 }
 
 export interface LineupServiceDraft {
@@ -75,6 +83,7 @@ export interface LineupServiceDraft {
   serviceId: string;
   access?: LineupAccess;
   sources: LineupSourceInput[];
+  verification?: LineupVerification | null;
 }
 
 export interface LineupPlanDraft {
@@ -82,10 +91,15 @@ export interface LineupPlanDraft {
   /** Padrão: `lineupSlug(name)`. */
   slug?: string;
   priceText?: string | null;
+  /** Preço cheio de lista, só com prova oficial; null limpa o do rascunho (o aprovado fica). */
+  priceAmount?: number | null;
+  /** ISO 4217. */
+  priceCurrency?: string | null;
   url?: string | null;
   validFrom?: string | null;
   validTo?: string | null;
   sources: LineupSourceInput[];
+  verification?: LineupVerification | null;
   channels?: LineupChannelDraft[];
   services?: LineupServiceDraft[];
 }
@@ -99,6 +113,8 @@ export interface LineupDraftInput {
     /** Padrão: `platformSlug(country, name)`. */
     slug?: string;
     website?: string | null;
+    /** Domínios oficiais além do site (somados aos já gravados). */
+    officialDomains?: string[];
     broadcasterId?: string | null;
     sources: LineupSourceInput[];
   };
@@ -141,6 +157,8 @@ export interface LineupProposal {
   website?: string | null;
   kind?: PlatformKind;
   priceText?: string | null;
+  priceAmount?: number | null;
+  priceCurrency?: string | null;
   url?: string | null;
   validFrom?: string | null;
   validTo?: string | null;
@@ -302,6 +320,42 @@ function cleanUrl(v: string | null | undefined): string | null {
   }
 }
 
+/** Preço: número positivo com até 2 casas (string numérica também vale); null = sem preço. */
+function cleanAmount(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : Number.NaN;
+  if (!Number.isFinite(n) || n <= 0 || n >= 1e10)
+    throw new LineupError('invalid_input', `Preço inválido: ${String(v)}`);
+  return Math.round(n * 100) / 100;
+}
+
+const CURRENCY_RE = /^[A-Z]{3}$/;
+
+function cleanCurrency(v: unknown): string | null {
+  if (v === null || v === undefined || v === '') return null;
+  const c = typeof v === 'string' ? v.trim().toUpperCase() : '';
+  if (!CURRENCY_RE.test(c)) throw new LineupError('invalid_input', `Moeda inválida (ISO 4217): ${String(v)}`);
+  return c;
+}
+
+/** Domínios oficiais: host (com caminho opcional), minúsculo, sem esquema nem `www.`, sem repetidos. */
+export function normalizeOfficialDomains(domains: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const raw of domains) {
+    const d = raw
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/[?#].*$/, '')
+      .replace(/\/+$/, '');
+    const host = d.split('/')[0] ?? '';
+    if (!/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host)) continue;
+    if (!out.includes(d)) out.push(d);
+  }
+  return out.slice(0, 20);
+}
+
 function cleanDay(v: string | null | undefined): string | null {
   if (v === null || v === undefined || v === '') return null;
   if (!DAY_RE.test(v) || !Number.isFinite(Date.parse(v)))
@@ -351,7 +405,7 @@ function diffFields<T extends Record<string, unknown>>(cur: T, next: Partial<T>)
 
 const PROPOSAL_KEYS: Record<LineupTargetType, (keyof LineupProposal)[]> = {
   platform: ['name', 'website', 'kind'],
-  plan: ['name', 'priceText', 'url', 'validFrom', 'validTo', 'removed'],
+  plan: ['name', 'priceText', 'priceAmount', 'priceCurrency', 'url', 'validFrom', 'validTo', 'removed'],
   plan_channel: ['access', 'removed'],
   plan_service: ['access', 'removed'],
 };
@@ -391,6 +445,12 @@ export function sanitizeProposal(type: LineupTargetType, raw: unknown): LineupPr
           throw new LineupError('invalid_input', 'priceText inválido.');
         out.priceText = v === null ? null : cleanText(v, 120);
         break;
+      case 'priceAmount':
+        out.priceAmount = cleanAmount(v);
+        break;
+      case 'priceCurrency':
+        out.priceCurrency = cleanCurrency(v);
+        break;
       case 'validFrom':
       case 'validTo':
         if (v !== null && typeof v !== 'string') throw new LineupError('invalid_input', `${k} inválido.`);
@@ -422,6 +482,14 @@ const KIND_ORDER: Record<PlatformKind, number> = {
 const byPlatform = (a: LineupPlatform, b: LineupPlatform) =>
   KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.name.localeCompare(b.name, 'pt-BR');
 const byPlan = (a: LineupPlan, b: LineupPlan) => a.name.localeCompare(b.name, 'pt-BR');
+
+/** Sem `includeUnverified`, o vínculo sem prova (`unverified`) fica fora da leitura. */
+function verifiedOnly(
+  access: typeof planChannel.access | typeof planService.access,
+  opts: LineupReadOptions,
+): SQL[] {
+  return opts.includeUnverified ? [] : [ne(access, 'unverified')];
+}
 
 /** Plano vigente na data (YYYY-MM-DD). */
 function planCurrentAt(day: string): SQL {
@@ -470,12 +538,24 @@ export async function getPlatformLineup(
         db
           .select()
           .from(planChannel)
-          .where(and(inArray(planChannel.planId, ids), inArray(planChannel.reviewStatus, statuses)))
+          .where(
+            and(
+              inArray(planChannel.planId, ids),
+              inArray(planChannel.reviewStatus, statuses),
+              ...verifiedOnly(planChannel.access, opts),
+            ),
+          )
           .orderBy(asc(planChannel.channelId)),
         db
           .select()
           .from(planService)
-          .where(and(inArray(planService.planId, ids), inArray(planService.reviewStatus, statuses)))
+          .where(
+            and(
+              inArray(planService.planId, ids),
+              inArray(planService.reviewStatus, statuses),
+              ...verifiedOnly(planService.access, opts),
+            ),
+          )
           .orderBy(asc(planService.serviceId)),
       ])
     : [[], []];
@@ -522,6 +602,7 @@ export async function availabilityForChannels(
       and(
         inArray(planChannel.channelId, ids),
         inArray(planChannel.reviewStatus, statuses),
+        ...verifiedOnly(planChannel.access, opts),
         ...planWhere(),
         ...platformWhere(),
       ),
@@ -541,6 +622,7 @@ export async function availabilityForChannels(
           and(
             inArray(planService.serviceId, ids),
             inArray(planService.reviewStatus, statuses),
+            ...verifiedOnly(planService.access, opts),
             ...planWhere(),
             ...platformWhere(),
           ),
@@ -609,6 +691,8 @@ export async function availabilityForChannels(
 
 // ─── gravação da pesquisa ────────────────────────────────────────────────────────────────────────
 
+const PRICE_FIELDS = ['priceText', 'priceAmount', 'priceCurrency'] as const;
+
 interface UpsertCtx {
   tx: Tx;
   now: Date;
@@ -619,6 +703,8 @@ interface UpsertCtx {
 /**
  * Decide o que fazer com um item já gravado visto de novo pela pesquisa: rascunho recebe os dados
  * novos; revisado/aprovado só guarda a mudança em `proposed_change`; rejeitado só renova a fonte.
+ * `meta` (as checagens do validador) é sempre regravado e não conta como mudança. `clearable`: campos
+ * cujo null vindo da pesquisa limpa o rascunho (preço sem prova); no aprovado, null não propõe nada.
  */
 function reconcile<T extends Record<string, unknown>>(
   ctx: UpsertCtx,
@@ -630,14 +716,24 @@ function reconcile<T extends Record<string, unknown>>(
   },
   next: Partial<T>,
   sources: LineupSource[],
+  opts: { meta?: Record<string, unknown>; clearable?: readonly string[] } = {},
 ): Record<string, unknown> {
   const merged = mergeSources(cur.sources, sources);
   const diff = diffFields(cur, next);
+  const cleared: Record<string, null> = {};
+  for (const k of opts.clearable ?? [])
+    if (k in next && (next as Record<string, unknown>)[k] === null && cur[k] != null) cleared[k] = null;
   const keys = Object.keys(diff);
-  const set: Record<string, unknown> = { sources: merged, seenAt: ctx.seenAt, updatedAt: ctx.now };
+  const set: Record<string, unknown> = {
+    sources: merged,
+    seenAt: ctx.seenAt,
+    updatedAt: ctx.now,
+    ...opts.meta,
+  };
   const pending = cur.proposedChange;
   if (cur.reviewStatus === 'draft') {
-    Object.assign(set, diff);
+    Object.assign(set, diff, cleared);
+    keys.push(...Object.keys(cleared));
     set.proposedChange = null;
     if (keys.length) ctx.result.updated++;
     else ctx.result.unchanged++;
@@ -685,6 +781,7 @@ async function upsertLink(
   refId: string,
   access: LineupAccess,
   sources: LineupSource[],
+  verification: LineupVerification | null,
 ): Promise<void> {
   const table = kind === 'channel' ? planChannel : planService;
   const refCol = kind === 'channel' ? planChannel.channelId : planService.serviceId;
@@ -698,13 +795,27 @@ async function upsertLink(
     .from(table)
     .where(and(eq(planCol, planId), eq(refCol, refId)));
   if (!cur) {
-    const base = { planId, access, sources, seenAt: ctx.seenAt, reviewStatus: 'draft' as const };
+    const base = {
+      planId,
+      access,
+      sources,
+      verification,
+      seenAt: ctx.seenAt,
+      reviewStatus: 'draft' as const,
+    };
     if (kind === 'channel') await ctx.tx.insert(planChannel).values({ ...base, channelId: refId });
     else await ctx.tx.insert(planService).values({ ...base, serviceId: refId });
     ctx.result.created++;
     return;
   }
-  const set = reconcile(ctx, target, cur, { access }, sources);
+  const set = reconcile(
+    ctx,
+    target,
+    cur,
+    { access },
+    sources,
+    verification ? { meta: { verification } } : {},
+  );
   await ctx.tx
     .update(table)
     .set(set)
@@ -748,12 +859,21 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
       website: cleanUrl(input.platform.website),
       broadcasterId: input.platform.broadcasterId?.trim() || null,
     };
+    const domains = normalizeOfficialDomains(input.platform.officialDomains ?? []);
     const [cur] = await tx.select().from(platform).where(eq(platform.slug, slug));
     let platformId: string;
     if (!cur) {
       const [row] = await tx
         .insert(platform)
-        .values({ slug, country, ...fields, sources: platformSources, seenAt, reviewStatus: 'draft' })
+        .values({
+          slug,
+          country,
+          ...fields,
+          officialDomains: domains,
+          sources: platformSources,
+          seenAt,
+          reviewStatus: 'draft',
+        })
         .returning({ id: platform.id });
       platformId = row!.id;
       result.created++;
@@ -761,7 +881,11 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
       if (cur.country !== country)
         throw new LineupError('invalid_input', `Slug ${slug} já existe em outro país (${cur.country}).`);
       platformId = cur.id;
-      const set = reconcile(ctx, { type: 'platform', id: cur.id }, cur, fields, platformSources);
+      // domínios oficiais só somam (tirar um é decisão do painel)
+      const officialDomains = normalizeOfficialDomains([...cur.officialDomains, ...domains]);
+      const set = reconcile(ctx, { type: 'platform', id: cur.id }, cur, fields, platformSources, {
+        meta: { officialDomains },
+      });
       await tx.update(platform).set(set).where(eq(platform.id, cur.id));
     }
     result.platformId = platformId;
@@ -776,13 +900,18 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
         continue;
       }
       seenPlans.add(planSlug);
+      const priceAmount = p.priceAmount === undefined ? undefined : cleanAmount(p.priceAmount);
       const planFields = {
         name: planName,
         priceText: cleanText(p.priceText, 120),
+        ...(priceAmount !== undefined
+          ? { priceAmount, priceCurrency: priceAmount === null ? null : cleanCurrency(p.priceCurrency) }
+          : {}),
         url: cleanUrl(p.url),
         validFrom: cleanDay(p.validFrom),
         validTo: cleanDay(p.validTo),
       };
+      const verification = p.verification ?? null;
       const [curPlan] = await tx
         .select()
         .from(platformPlan)
@@ -796,6 +925,7 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
             slug: planSlug,
             country,
             ...planFields,
+            verification,
             sources: planSources,
             seenAt,
             reviewStatus: 'draft',
@@ -805,7 +935,15 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
         result.created++;
       } else {
         planId = curPlan.id;
-        const set = reconcile(ctx, { type: 'plan', id: planId }, curPlan, planFields, planSources);
+        // com a checagem do validador, preço sem prova limpa o do rascunho
+        const set = reconcile(
+          ctx,
+          { type: 'plan', id: planId },
+          curPlan,
+          planFields,
+          planSources,
+          verification ? { meta: { verification }, clearable: PRICE_FIELDS } : {},
+        );
         await tx.update(platformPlan).set(set).where(eq(platformPlan.id, planId));
       }
       result.planIds[planSlug] = planId;
@@ -819,7 +957,7 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
           continue;
         }
         seenChannels.add(id);
-        await upsertLink(ctx, 'channel', planId, id, c.access ?? 'included', sources);
+        await upsertLink(ctx, 'channel', planId, id, c.access ?? 'included', sources, c.verification ?? null);
       }
       const seenServices = new Set<string>();
       for (const s of p.services ?? []) {
@@ -830,7 +968,7 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
           continue;
         }
         seenServices.add(id);
-        await upsertLink(ctx, 'service', planId, id, s.access ?? 'included', sources);
+        await upsertLink(ctx, 'service', planId, id, s.access ?? 'included', sources, s.verification ?? null);
       }
       if (input.complete && curPlan) {
         const links = await tx.select().from(planChannel).where(eq(planChannel.planId, planId));
@@ -892,7 +1030,7 @@ async function applyToTarget(
       if (!isUuid(target.id)) return false;
       const [cur] = await tx.select().from(platformPlan).where(eq(platformPlan.id, target.id));
       if (!cur) return false;
-      const { name, priceText, url, validFrom, removed } = proposal;
+      const { name, priceText, priceAmount, priceCurrency, url, validFrom, removed } = proposal;
       let { validTo } = proposal;
       if (removed && validTo === undefined)
         validTo = cur.validTo && cur.validTo < dayOf(now) ? cur.validTo : dayOf(now);
@@ -902,6 +1040,8 @@ async function applyToTarget(
           ...review,
           ...(name !== undefined ? { name } : {}),
           ...(priceText !== undefined ? { priceText } : {}),
+          ...(priceAmount !== undefined ? { priceAmount } : {}),
+          ...(priceCurrency !== undefined ? { priceCurrency } : {}),
           ...(url !== undefined ? { url } : {}),
           ...(validFrom !== undefined ? { validFrom } : {}),
           ...(validTo !== undefined ? { validTo } : {}),

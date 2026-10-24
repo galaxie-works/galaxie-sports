@@ -41,6 +41,7 @@ const platform = (id: string, slug: string, name: string, kind: PlatformKind): L
   kind,
   country: 'BR',
   website: null,
+  officialDomains: [],
   logoAssetId: null,
   broadcasterId: null,
   ...review,
@@ -53,7 +54,10 @@ const plan = (id: string, platformId: string, name: string): LineupPlan => ({
   name,
   country: 'BR',
   priceText: null,
+  priceAmount: null,
+  priceCurrency: null,
   url: null,
+  verification: null,
   validFrom: null,
   validTo: null,
   ...review,
@@ -63,6 +67,7 @@ const channel = (planId: string, channelId: string, access: LineupAccess): Lineu
   planId,
   channelId,
   access,
+  verification: null,
   ...review,
 });
 
@@ -70,6 +75,7 @@ const service = (planId: string, serviceId: string, access: LineupAccess): Lineu
   planId,
   serviceId,
   access,
+  verification: null,
   ...review,
 });
 

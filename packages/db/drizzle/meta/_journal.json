@@ -239,6 +239,13 @@
       "when": 1792868510687,
       "tag": "0033_lista_canais_cliente",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792871970011,
+      "tag": "0034_grade_validacao",
+      "breakpoints": true
     }
   ]
 }

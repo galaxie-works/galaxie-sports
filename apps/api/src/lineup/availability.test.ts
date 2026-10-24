@@ -165,6 +165,32 @@ describe('montagem das plataformas', () => {
     });
   });
 
+  it('vínculo sem prova (unverified) nunca sai, nem como incluso nem como adicional', () => {
+    const [card] = platformAvailability(
+      [
+        {
+          platform: STREAMING,
+          plans: [
+            {
+              plan: { ...AVAILABILITY[0]!.plans[0]!.plan, id: 'p', platformId: STREAMING_ID, name: 'Plano' },
+              viaChannels: [
+                { channelId: 'canal_provado', access: 'addon' },
+                { channelId: 'canal_sem_prova', access: 'unverified' },
+              ],
+              services: [{ serviceId: 'streaming_sem_prova', access: 'unverified' }],
+            },
+          ],
+        },
+      ],
+      null,
+      LogoBook.empty(),
+    );
+    const plan = card!.plans[0]!;
+    expect(plan.access).toBe('addon');
+    expect(plan.via_channels.map((c) => c.id)).toEqual(['canal_provado']);
+    expect(plan.included_services).toEqual([]);
+  });
+
   it('logo da plataforma: o asset dela; senão, o da entrada dela na biblioteca', () => {
     const book = new LogoBook(
       new Map([

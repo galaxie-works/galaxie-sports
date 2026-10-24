@@ -34,9 +34,9 @@ const list = (items: readonly string[], max = 80) =>
 
 export function lineupSystemPrompt(): string {
   return [
-    'Você pesquisa ofertas de TV paga e streaming na América Latina para uma base de dados esportiva B2B.',
-    'Fontes preferidas: o site oficial da própria plataforma (páginas de planos, grade de canais, regulamento da oferta); imprensa especializada só como apoio. Nunca use agregadores de programação nem sites de terceiros que revendem planos.',
-    'Só informe o que estiver numa fonte encontrada na busca. O que não tiver fonte fica de fora: não complete de memória.',
+    'Você pesquisa ofertas de TV paga e streaming na América Latina para uma base de dados esportiva B2B. Use só o que a busca na web de hoje encontrar.',
+    'Fontes: o site oficial da própria plataforma (ou do grupo dono dela) — página do plano, grade de canais, regulamento da oferta. Comparadores de planos, imprensa, documentos de terceiros, lojas de app e redes sociais não provam a oferta.',
+    'Sem fonte, sem conteúdo: cada plano, canal e streaming leva a URL da fonte da busca e o trecho que o prova. O que vier só da memória fica com fonte e trecho null (e não entra). Não invente canais: se a página não lista o canal pelo nome, ele não entra.',
     UNTRUSTED_CONTENT_RULES,
     UNTRUSTED_DATA_RULE,
   ].join('\n\n');
@@ -50,27 +50,31 @@ export function discoveryPrompt(input: { country: string; known: readonly string
     ...Object.entries(KIND_LABEL).map(([k, v]) => `- ${k}: ${v};`),
     'Inclua as de maior base de assinantes e as que têm direitos de campeonatos relevantes no país. Até 15 plataformas.',
     `Plataformas já conhecidas (se for a mesma, use exatamente este nome):\n${list(input.known)}`,
-    'Para cada plataforma: nome comercial, tipo, site oficial e as fontes que mostram que ela opera no país.',
+    'Para cada plataforma: nome comercial, tipo, site oficial, outros domínios oficiais da empresa ou do grupo onde ficam os planos (se houver) e as fontes que mostram que ela opera no país.',
   ].join('\n\n');
 }
 
 export function plansPrompt(input: {
   country: string;
-  platform: { name: string; kind: PlatformKind; website: string | null };
+  platform: { name: string; kind: PlatformKind; website: string | null; officialDomains?: readonly string[] };
   knownPlans: readonly string[];
   channels: readonly string[];
   services: readonly string[];
 }): string {
   const c = countryOf(input.country);
   const p = input.platform;
+  const domains = (p.officialDomains ?? []).map((d) => sanitizeText(d, 120));
   return [
-    `País: ${c.name} (${input.country}). Pesquise em ${c.language}.`,
-    `Plataforma: ${sanitizeText(p.name, 120)} — ${KIND_LABEL[p.kind]}${p.website ? ` · site: ${sanitizeText(p.website, 200)}` : ''}.`,
-    'Levante os planos/pacotes vigentes dessa plataforma no país que dão acesso a esporte: nome do plano, preço como publicado (com moeda e período), página oficial do plano e fontes.',
-    'Para cada plano: os canais esportivos da grade (included = vem no plano; addon = pacote pago à parte) e os serviços de streaming inclusos no plano. Só canais de esporte; ignore canais de filmes, notícias e variedades.',
+    // um país por vez: com vários, o modelo só cita fonte de metade (teste de 24/10)
+    `País: ${c.name} (${input.country}). Pesquise em ${c.language}, só este país.`,
+    `Plataforma: ${sanitizeText(p.name, 120)} — ${KIND_LABEL[p.kind]}${p.website ? ` · site oficial: ${sanitizeText(p.website, 200)}` : ''}${domains.length ? ` · outros domínios oficiais: ${domains.join(', ')}` : ''}.`,
+    'Levante os planos vigentes dessa plataforma no país que dão acesso a esporte. Para cada plano: nome, preço mensal, moeda, página oficial do plano, a fonte e o trecho.',
+    'Preço: o CHEIO de lista ("preço de lista", "depois", "a partir do 2º mês"). Ignore o promocional do 1º mês ou dos primeiros meses e o desconto de entrada; sem o preço cheio na fonte, null.',
+    'Canais: só os esportivos lineares da grade DESTE plano (nada de filmes, notícias ou variedades). Streamings: só os que a página do plano diz que vêm inclusos sem custo extra; complemento pago à parte não entra.',
+    'Prova do plano: o trecho cita o nome do plano (ou a fonte é a página do próprio plano). Não repita a lista de canais da página geral em vários planos: se a fonte não diz em qual plano o canal está, ele não entra nesse plano.',
+    'Trechos: pode resumir, mas mantenha o nome do plano, os números do preço e os nomes de canais e streamings exatamente como a fonte escreve.',
     `Planos já conhecidos (se for o mesmo, use exatamente este nome):\n${list(input.knownPlans, 30)}`,
     `Canais esportivos da nossa biblioteca (se o canal for um deles, use exatamente este nome):\n${list(input.channels, 120)}`,
     `Streamings da nossa biblioteca (se for um deles, use exatamente este nome):\n${list(input.services, 60)}`,
-    'Cada canal e cada streaming precisa da URL da fonte que mostra que ele está naquele plano.',
   ].join('\n\n');
 }

@@ -64,4 +64,25 @@ describe('prompts e purposes', () => {
     for (const s of ['Operadora Exemplo', 'Plano Exemplo', 'Canal Exemplo', 'Streaming Exemplo', 'Brasil'])
       expect(p).toContain(s);
   });
+
+  it('o pedido de planos leva as regras do teste do AI Studio: um país, preço cheio, prova do plano', () => {
+    const p = plansPrompt({
+      country: 'AR',
+      platform: {
+        name: 'Operadora Exemplo',
+        kind: 'telco_bundle',
+        website: 'https://operadora.exemplo',
+        officialDomains: ['grupo.exemplo'],
+      },
+      knownPlans: [],
+      channels: [],
+      services: [],
+    });
+    expect(p).toContain('só este país');
+    expect(p).toContain('CHEIO de lista');
+    expect(p).toContain('promocional');
+    expect(p).toContain('outros domínios oficiais: grupo.exemplo');
+    expect(p).toContain('Não repita a lista de canais da página geral');
+    expect(lineupSystemPrompt()).toContain('Sem fonte, sem conteúdo');
+  });
 });
