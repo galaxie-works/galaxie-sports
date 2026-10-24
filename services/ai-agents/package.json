@@ -34,6 +34,7 @@
     "related:run": "node --env-file-if-exists=../../.env dist/cli/related-run.js",
     "wtw:rights": "node --env-file-if-exists=../../.env dist/cli/wtw-rights.js",
     "f1:bio": "node --env-file-if-exists=../../.env dist/cli/f1-bio.js",
+    "lineups:research": "node --env-file-if-exists=../../.env dist/cli/lineups-research.js",
     "wtw:rights:compare": "node --env-file-if-exists=../../.env dist/cli/wtw-rights-compare.js"
   },
   "dependencies": {
