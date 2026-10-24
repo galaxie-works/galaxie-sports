@@ -3,7 +3,7 @@ import { loadCompetitionRules } from '../config/loader.js';
 import { knockoutStageRules } from '../config/parse.js';
 import type { CompetitionRules, KnockoutStageRules } from '../config/types.js';
 import { randInt, rng } from '../test-helpers.js';
-import type { Stake } from './codes.js';
+import { TITLE_VARIANT_OF, type Stake } from './codes.js';
 import { KnockoutInputError, knockoutStakes, tieOutcome, type KnockoutMatchInput } from './knockout.js';
 import { localizeStake } from './labels.js';
 
@@ -134,8 +134,8 @@ describe('knockoutStakes — tabela de casos', () => {
       'final em jogo único (Libertadores 2024)',
       () => ({ rules: knockoutStageRules(LIB24, 'final') }),
       [
-        'home:needs_win',
-        'away:needs_win',
+        'home:needs_win_for_title',
+        'away:needs_win_for_title',
         'both:draw_goes_to_extra_time',
         'both:extra_time_then_penalties',
         'both:decides_title',
@@ -155,8 +155,8 @@ describe('knockoutStakes — tabela de casos', () => {
       'Copa do Brasil final, volta: vale o título',
       () => secondLeg(knockoutStageRules(CDB, 'final'), 0, 1),
       [
-        'home:advances_with_draw',
-        'away:needs_win_by_2',
+        'home:wins_title_with_draw',
+        'away:needs_win_by_2_for_title',
         'away:win_by_1_goes_to_penalties',
         'both:decides_title',
       ],
@@ -171,8 +171,8 @@ describe('knockoutStakes — tabela de casos', () => {
       'Libertadores 2017: final de ida e volta (volta) sem gol fora, com prorrogação',
       () => secondLeg(knockoutStageRules(LIB17, 'final'), 1, 1),
       [
-        'home:needs_win',
-        'away:needs_win',
+        'home:needs_win_for_title',
+        'away:needs_win_for_title',
         'both:draw_goes_to_extra_time',
         'both:extra_time_then_penalties',
         'both:decides_title',
@@ -181,6 +181,102 @@ describe('knockoutStakes — tabela de casos', () => {
   ];
   it.each(cases)('%s', (_name, input, expected) => {
     expect(codes(knockoutStakes(input()))).toEqual(expected);
+  });
+});
+
+describe('final: quem vence é campeão (variantes de título)', () => {
+  const texts = (stakes: Stake[], locale: 'pt-BR' | 'es-AR') =>
+    stakes.map((s) => `${s.team}:${localizeStake(s, [locale]).text[locale]}`);
+
+  it('final em jogo único (Palmeiras × Estudiantes, Libertadores 2026): nada de "avançar"', async () => {
+    const LIB26 = await loadCompetitionRules('conmebol-libertadores', { season: 2026 });
+    const stakes = knockoutStakes({ rules: knockoutStageRules(LIB26, 'final') });
+    expect(codes(stakes)).toEqual([
+      'home:needs_win_for_title',
+      'away:needs_win_for_title',
+      'both:draw_goes_to_extra_time',
+      'both:extra_time_then_penalties',
+      'both:decides_title',
+    ]);
+    expect(texts(stakes, 'pt-BR')).toEqual([
+      'home:Vitória no tempo normal dá o título',
+      'away:Vitória no tempo normal dá o título',
+      'both:Empate leva o jogo à prorrogação',
+      'both:Em caso de igualdade, prorrogação e depois pênaltis',
+      'both:Vale o título',
+    ]);
+    expect(texts(stakes, 'es-AR')).toEqual([
+      'home:Si gana en el tiempo reglamentario, es campeón',
+      'away:Si gana en el tiempo reglamentario, es campeón',
+      'both:El empate lleva el partido al alargue',
+      'both:Si hay igualdad, alargue y después penales',
+      'both:Se define el campeón',
+    ]);
+    for (const locale of ['pt-BR', 'es-AR'] as const) {
+      for (const t of texts(stakes, locale)) expect(t).not.toMatch(/avan[çc]|vaga|clasifica/i);
+    }
+  });
+
+  it('final em ida e volta (Copa do Brasil, volta): empate e margem dão o título', () => {
+    const stakes = knockoutStakes(secondLeg(knockoutStageRules(CDB, 'final'), 0, 1));
+    expect(texts(stakes, 'pt-BR')).toEqual([
+      'home:Empate dá o título',
+      'away:Vitória por 2 gols ou mais no tempo normal dá o título',
+      'away:Vitória por 1 gol leva a decisão aos pênaltis',
+      'both:Vale o título',
+    ]);
+    expect(texts(stakes, 'es-AR')).toEqual([
+      'home:Con el empate es campeón',
+      'away:Si gana por 2 goles o más en el tiempo reglamentario, es campeón',
+      'away:Ganar por 1 gol lleva la definición a los penales',
+      'both:Se define el campeón',
+    ]);
+  });
+
+  it('final em ida e volta: vantagem larga vira "é campeão mesmo perdendo"', () => {
+    const stakes = knockoutStakes(secondLeg(knockoutStageRules(CDB, 'final'), 0, 3));
+    expect(codes(stakes)).toEqual([
+      'home:wins_title_with_loss_by_2',
+      'away:needs_win_by_4_for_title',
+      'away:win_by_3_goes_to_penalties',
+      'both:decides_title',
+    ]);
+    expect(localizeStake(stakes[0]!, ['pt-BR']).text['pt-BR']).toBe(
+      'É campeão mesmo perdendo por até 2 gols de diferença',
+    );
+  });
+
+  it('final com gol fora (Libertadores 2017 não tinha; regra sintética): empates e margens de título', () => {
+    const rules = { ...LIB19.knockout!.default, decidesTitle: true };
+    expect(codes(knockoutStakes(secondLeg(rules, 1, 1)))).toEqual([
+      'home:wins_title_with_draw_up_to_0',
+      'away:wins_title_with_draw_from_2',
+      'both:draw_1_1_goes_to_penalties',
+      'both:away_goals_rule',
+      'both:decides_title',
+    ]);
+    expect(codes(knockoutStakes(secondLeg(rules, 2, 1)))).toEqual([
+      'home:needs_win_by_2_for_title',
+      'home:win_by_1_title_depends_on_away_goals',
+      'away:wins_title_with_draw',
+      'both:away_goals_rule',
+      'both:decides_title',
+    ]);
+  });
+
+  it('ida da final não decide nada: só first_leg (sem variantes)', () => {
+    expect(codes(knockoutStakes({ rules: knockoutStageRules(CDB, 'final'), leg: 1 }))).toEqual([
+      'both:first_leg',
+    ]);
+  });
+
+  it('fora da final os códigos de "avançar" seguem como estão (contrato da API)', () => {
+    const stakes = knockoutStakes(secondLeg(knockoutStageRules(LIB24, 'semi_final'), 1, 2));
+    expect(codes(stakes)).toEqual([
+      'home:advances_with_draw',
+      'away:needs_win_by_2',
+      'away:win_by_1_goes_to_penalties',
+    ]);
   });
 });
 
@@ -232,6 +328,11 @@ describe('erros de entrada', () => {
   });
 });
 
+/** Variante de título → família-base (mesma condição). */
+const BASE_OF_TITLE: Record<string, string> = Object.fromEntries(
+  Object.entries(TITLE_VARIANT_OF).map(([base, title]) => [title, base]),
+);
+
 describe('propriedade: todo código emitido é verdadeiro por força bruta', () => {
   const PRIMARY = new Set([
     'advances_with_draw',
@@ -263,7 +364,7 @@ describe('propriedade: todo código emitido é verdadeiro por força bruta', () 
       penalties: true,
       drawAdvantage: null,
       neutralVenue: false,
-      decidesTitle: false,
+      decidesTitle: rand() < 0.5,
     };
     const input: KnockoutMatchInput =
       rules.legs === 1 ? { rules } : secondLeg(rules, randInt(rand, 4), randInt(rand, 4));
@@ -271,10 +372,19 @@ describe('propriedade: todo código emitido é verdadeiro por força bruta', () 
     const out = (h: number, a: number) => tieOutcome(input, h, a);
     for (const side of ['home', 'away'] as const) {
       const mine = stakes.filter((s) => s.team === side);
-      expect(mine.filter((s) => PRIMARY.has(s.family)).length, `${side} ${JSON.stringify(stakes)}`).toBe(1);
+      expect(
+        mine.filter((s) => PRIMARY.has(BASE_OF_TITLE[s.family] ?? s.family)).length,
+        `${side} ${JSON.stringify(stakes)}`,
+      ).toBe(1);
       for (const s of mine) {
         const n = s.params?.n ?? 0;
-        switch (s.family) {
+        // a variante de título tem exatamente a condição da família-base
+        const isTitle = s.family in BASE_OF_TITLE;
+        expect(isTitle, `${s.family} com decidesTitle=${rules.decidesTitle}`).toBe(
+          rules.decidesTitle && Object.values(TITLE_VARIANT_OF).includes(s.family as never),
+        );
+        const family = BASE_OF_TITLE[s.family] ?? s.family;
+        switch (family) {
           case 'advances_with_draw':
             for (const [h, a] of scores(side, 0)) expect(out(h, a)).toBe(side);
             expect(scores(side, -1).some(([h, a]) => out(h, a) !== side)).toBe(true);
@@ -285,7 +395,7 @@ describe('propriedade: todo código emitido é verdadeiro por força bruta', () 
             break;
           case 'needs_win':
           case 'needs_win_by_n': {
-            const need = s.family === 'needs_win' ? 1 : n;
+            const need = family === 'needs_win' ? 1 : n;
             for (const [h, a] of scores(side, need)) expect(out(h, a)).toBe(side);
             expect(scores(side, need - 1).some(([h, a]) => out(h, a) !== side)).toBe(true);
             break;

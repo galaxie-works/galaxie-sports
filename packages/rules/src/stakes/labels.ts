@@ -1,8 +1,10 @@
 import type { Stake, StakeFamily, StakeSide } from './codes.js';
+import { titleOrdinal } from './titles.js';
 
 /**
  * Rótulos fixos (não gerados) dos códigos de stakes, para os 8 mercados da API.
- * Placeholders: `{n}` (número), `{goals}` ("1 gol" / "2 gols"), `{zone}` (nome da zona com artigo).
+ * Placeholders: `{n}` (número), `{goals}` ("1 gol" / "2 gols"), `{zone}` (nome da zona com artigo),
+ * `{nth}` (o título de número n: "tetracampeonato", "11º título"; ver `titleOrdinal`).
  * Variantes por número: `zero` (n = 0), `one` (n = 1), `other`.
  */
 export const STAKE_LOCALES = [
@@ -46,6 +48,16 @@ const PT_BR: Record<StakeFamily, LabelTemplate> = {
   away_goals_rule: 'Gol fora de casa é critério de desempate',
   extra_time_then_penalties: 'Em caso de igualdade, prorrogação e depois pênaltis',
   decides_title: 'Vale o título',
+  wins_title_with_draw: 'Empate dá o título',
+  wins_title_with_loss_by_n: 'É campeão mesmo perdendo por até {goals} de diferença',
+  needs_win_for_title: 'Vitória no tempo normal dá o título',
+  needs_win_by_n_for_title: 'Vitória por {goals} ou mais no tempo normal dá o título',
+  wins_title_with_draw_up_to_n: {
+    zero: 'Empate sem gols dá o título',
+    other: 'Empate de até {n} a {n} dá o título',
+  },
+  wins_title_with_draw_from_n: 'Empate de {n} a {n} ou com mais gols dá o título',
+  title_depends_on_away_goals: 'Com vitória por {goals}, o título depende dos gols fora',
   mathematically_champion: 'Já é campeão matematicamente',
   clinches_title_with_draw: 'Empate garante o título',
   clinches_title_with_win: 'Vitória garante o título',
@@ -70,6 +82,7 @@ const PT_BR: Record<StakeFamily, LabelTemplate> = {
   eliminated_if_loses: 'É eliminado em caso de derrota',
   can_be_eliminated: 'Pode ser eliminado nesta rodada, dependendo de outros resultados',
   at_risk_of_elimination: 'Ainda corre risco de eliminação',
+  seeks_title_n: { zero: 'Busca o primeiro título', one: 'Busca o primeiro título', other: 'Busca o {nth}' },
 };
 
 /** Espanhol rioplatense como base; os demais mercados sobrescrevem só o que muda. */
@@ -100,6 +113,16 @@ const ES_AR: Record<StakeFamily, LabelTemplate> = {
   away_goals_rule: 'El gol de visitante es criterio de desempate',
   extra_time_then_penalties: 'Si hay igualdad, alargue y después penales',
   decides_title: 'Se define el campeón',
+  wins_title_with_draw: 'Con el empate es campeón',
+  wins_title_with_loss_by_n: 'Es campeón incluso perdiendo por hasta {goals} de diferencia',
+  needs_win_for_title: 'Si gana en el tiempo reglamentario, es campeón',
+  needs_win_by_n_for_title: 'Si gana por {goals} o más en el tiempo reglamentario, es campeón',
+  wins_title_with_draw_up_to_n: {
+    zero: 'Con empate sin goles es campeón',
+    other: 'Con empate de hasta {n} a {n} es campeón',
+  },
+  wins_title_with_draw_from_n: 'Con empate de {n} a {n} o con más goles es campeón',
+  title_depends_on_away_goals: 'Si gana por {goals}, el título depende de los goles de visitante',
   mathematically_champion: 'Ya es campeón matemáticamente',
   clinches_title_with_draw: 'Con un empate es campeón',
   clinches_title_with_win: 'Si gana, es campeón',
@@ -124,6 +147,11 @@ const ES_AR: Record<StakeFamily, LabelTemplate> = {
   eliminated_if_loses: 'Queda eliminado si pierde',
   can_be_eliminated: 'Puede quedar eliminado en esta fecha, según otros resultados',
   at_risk_of_elimination: 'Todavía corre riesgo de eliminación',
+  seeks_title_n: {
+    zero: 'Va por su primer título',
+    one: 'Va por su primer título',
+    other: 'Va por el {nth}',
+  },
 };
 
 /** Prorrogação: alargue (AR, UY, CL), tiempos extra (MX), tiempo extra (CO, EC), tiempo suplementario (PE). */
@@ -160,6 +188,8 @@ export const STAKE_LABELS: Record<StakeLocale, Record<StakeFamily, LabelTemplate
     extra_time_then_penalties: 'Si hay igualdad, tiempos extra y luego penales',
     in_title_race: 'Sigue en la lucha por el título',
     clinches_title_with_win: 'Con una victoria es campeón',
+    needs_win_for_title: 'Con una victoria en el tiempo reglamentario es campeón',
+    needs_win_by_n_for_title: 'Con una victoria por {goals} o más en el tiempo reglamentario es campeón',
     clinches_zone_with_win: 'Con una victoria asegura {zone}',
     secures_safety_with_win: 'Con una victoria asegura la permanencia',
   }),
@@ -248,10 +278,11 @@ export function zoneLabel(zone: string, locale: StakeLocale): string {
 /** Texto fixo do código no locale (interpolação de parâmetros, sem geração livre). */
 export function stakeText(stake: Pick<Stake, 'family' | 'params'>, locale: StakeLocale): string {
   const template = pickTemplate(STAKE_LABELS[locale][stake.family], stake.params?.n);
-  return template.replace(/\{(n|goals|zone)\}/g, (_, key: string) => {
+  return template.replace(/\{(n|nth|goals|zone)\}/g, (_, key: string) => {
     const n = stake.params?.n;
     if (key === 'zone') return stake.params?.zone ? zoneLabel(stake.params.zone, locale) : '';
     if (n === undefined) return '';
+    if (key === 'nth') return titleOrdinal(n, locale === 'pt-BR' ? 'pt' : 'es');
     return key === 'goals' ? goals(locale, n) : String(n);
   });
 }

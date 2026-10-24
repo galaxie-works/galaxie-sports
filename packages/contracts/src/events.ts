@@ -228,6 +228,25 @@ export const EventStake = z
     text: z
       .record(z.string(), z.string())
       .meta({ description: 'Rótulo fixo no locale da resposta.', example: { 'pt-BR': 'Avança com empate' } }),
+    titles: z
+      .object({
+        won: z
+          .number()
+          .int()
+          .meta({ description: 'Títulos da competição decididos antes da partida.', example: 3 }),
+        seasons: z
+          .array(z.string())
+          .meta({ description: 'Edições vencidas, em ordem.', example: ['1999', '2020', '2021'] }),
+        source: z.enum(['wikidata']).meta({
+          description:
+            'Campeões por edição do Wikidata (P1346), com correções curadas documentadas em docs/rules.',
+        }),
+      })
+      .optional()
+      .meta({
+        description:
+          'Só em `seeks_title_{n}` ("Busca o tetracampeonato"): títulos anteriores do time naquela competição. Ausente nos demais códigos.',
+      }),
   })
   .meta({ id: 'EventStake', description: 'Código do motor de regras (docs/rules).' });
 export type EventStake = z.infer<typeof EventStake>;

@@ -229,6 +229,97 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-UY | Se define el campeón |
 | es-EC | Se define el campeón |
 
+### `wins_title_with_draw` — ex.: `wins_title_with_draw`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Empate dá o título |
+| es-AR | Con el empate es campeón |
+| es-MX | Con el empate es campeón |
+| es-CO | Con el empate es campeón |
+| es-CL | Con el empate es campeón |
+| es-PE | Con el empate es campeón |
+| es-UY | Con el empate es campeón |
+| es-EC | Con el empate es campeón |
+
+### `wins_title_with_loss_by_n` — ex.: `wins_title_with_loss_by_2`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | É campeão mesmo perdendo por até 2 gols de diferença |
+| es-AR | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
+| es-MX | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
+| es-CO | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
+| es-CL | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
+| es-PE | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
+| es-UY | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
+| es-EC | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
+
+### `needs_win_for_title` — ex.: `needs_win_for_title`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Vitória no tempo normal dá o título |
+| es-AR | Si gana en el tiempo reglamentario, es campeón |
+| es-MX | Con una victoria en el tiempo reglamentario es campeón |
+| es-CO | Si gana en el tiempo reglamentario, es campeón |
+| es-CL | Si gana en el tiempo reglamentario, es campeón |
+| es-PE | Si gana en el tiempo reglamentario, es campeón |
+| es-UY | Si gana en el tiempo reglamentario, es campeón |
+| es-EC | Si gana en el tiempo reglamentario, es campeón |
+
+### `needs_win_by_n_for_title` — ex.: `needs_win_by_2_for_title`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Vitória por 2 gols ou mais no tempo normal dá o título |
+| es-AR | Si gana por 2 goles o más en el tiempo reglamentario, es campeón |
+| es-MX | Con una victoria por 2 goles o más en el tiempo reglamentario es campeón |
+| es-CO | Si gana por 2 goles o más en el tiempo reglamentario, es campeón |
+| es-CL | Si gana por 2 goles o más en el tiempo reglamentario, es campeón |
+| es-PE | Si gana por 2 goles o más en el tiempo reglamentario, es campeón |
+| es-UY | Si gana por 2 goles o más en el tiempo reglamentario, es campeón |
+| es-EC | Si gana por 2 goles o más en el tiempo reglamentario, es campeón |
+
+### `wins_title_with_draw_up_to_n` — ex.: `wins_title_with_draw_up_to_1`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Empate de até 1 a 1 dá o título |
+| es-AR | Con empate de hasta 1 a 1 es campeón |
+| es-MX | Con empate de hasta 1 a 1 es campeón |
+| es-CO | Con empate de hasta 1 a 1 es campeón |
+| es-CL | Con empate de hasta 1 a 1 es campeón |
+| es-PE | Con empate de hasta 1 a 1 es campeón |
+| es-UY | Con empate de hasta 1 a 1 es campeón |
+| es-EC | Con empate de hasta 1 a 1 es campeón |
+
+### `wins_title_with_draw_from_n` — ex.: `wins_title_with_draw_from_1`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Empate de 1 a 1 ou com mais gols dá o título |
+| es-AR | Con empate de 1 a 1 o con más goles es campeón |
+| es-MX | Con empate de 1 a 1 o con más goles es campeón |
+| es-CO | Con empate de 1 a 1 o con más goles es campeón |
+| es-CL | Con empate de 1 a 1 o con más goles es campeón |
+| es-PE | Con empate de 1 a 1 o con más goles es campeón |
+| es-UY | Con empate de 1 a 1 o con más goles es campeón |
+| es-EC | Con empate de 1 a 1 o con más goles es campeón |
+
+### `title_depends_on_away_goals` — ex.: `win_by_2_title_depends_on_away_goals`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Com vitória por 2 gols, o título depende dos gols fora |
+| es-AR | Si gana por 2 goles, el título depende de los goles de visitante |
+| es-MX | Si gana por 2 goles, el título depende de los goles de visitante |
+| es-CO | Si gana por 2 goles, el título depende de los goles de visitante |
+| es-CL | Si gana por 2 goles, el título depende de los goles de visitante |
+| es-PE | Si gana por 2 goles, el título depende de los goles de visitante |
+| es-UY | Si gana por 2 goles, el título depende de los goles de visitante |
+| es-EC | Si gana por 2 goles, el título depende de los goles de visitante |
+
 ## Pontos corridos, grupos e fase de liga
 
 ### `mathematically_champion` — ex.: `mathematically_champion`
@@ -542,3 +633,20 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Todavía corre riesgo de eliminación |
 | es-UY | Todavía corre riesgo de eliminación |
 | es-EC | Todavía corre riesgo de eliminación |
+
+## Histórico (jogos que podem dar o título)
+
+Exemplo com `n = 4` (busca o 4º título). n = 1: "Busca o primeiro título"; n > 10: "Busca o 11º título".
+
+### `seeks_title_n` — ex.: `seeks_title_4`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Busca o tetracampeonato |
+| es-AR | Va por el tetracampeonato |
+| es-MX | Va por el tetracampeonato |
+| es-CO | Va por el tetracampeonato |
+| es-CL | Va por el tetracampeonato |
+| es-PE | Va por el tetracampeonato |
+| es-UY | Va por el tetracampeonato |
+| es-EC | Va por el tetracampeonato |

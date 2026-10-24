@@ -1,5 +1,5 @@
 {
-  "id": "3bfaf0a3-774b-41c7-84bf-ec189c7488f0",
+  "id": "743e6ebb-9f08-4a0d-b0c9-78a717a1e7f2",
   "prevId": "16fc9c8b-71b9-414e-b585-ad513f55147c",
   "version": "7",
   "dialect": "postgresql",
@@ -588,6 +588,250 @@
           "schemaTo": "core",
           "columnsFrom": [
             "custom_logo_asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "core.competition_title": {
+      "name": "competition_title",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "competition_id": {
+          "name": "competition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "participant_id": {
+          "name": "participant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "season_year": {
+          "name": "season_year",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "season_label": {
+          "name": "season_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_on": {
+          "name": "decided_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "edition_qid": {
+          "name": "edition_qid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "winner_qid": {
+          "name": "winner_qid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "competition_qid": {
+          "name": "competition_qid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'wikidata'"
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imported_at": {
+          "name": "imported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "competition_title_uq": {
+          "name": "competition_title_uq",
+          "columns": [
+            {
+              "expression": "competition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "edition_qid",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "winner_qid",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "competition_title_team_idx": {
+          "name": "competition_title_team_idx",
+          "columns": [
+            {
+              "expression": "participant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "competition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "decided_on",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "competition_title_competition_id_competition_id_fk": {
+          "name": "competition_title_competition_id_competition_id_fk",
+          "tableFrom": "competition_title",
+          "tableTo": "competition",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "competition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "competition_title_participant_id_participant_id_fk": {
+          "name": "competition_title_participant_id_participant_id_fk",
+          "tableFrom": "competition_title",
+          "tableTo": "participant",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "participant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "core.competition_title_coverage": {
+      "name": "competition_title_coverage",
+      "schema": "core",
+      "columns": {
+        "competition_id": {
+          "name": "competition_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "competition_qid": {
+          "name": "competition_qid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "first_year": {
+          "name": "first_year",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "latest_year": {
+          "name": "latest_year",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "complete_through": {
+          "name": "complete_through",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issues": {
+          "name": "issues",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "checked_at": {
+          "name": "checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "competition_title_coverage_competition_id_competition_id_fk": {
+          "name": "competition_title_coverage_competition_id_competition_id_fk",
+          "tableFrom": "competition_title_coverage",
+          "tableTo": "competition",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "competition_id"
           ],
           "columnsTo": [
             "id"
@@ -1559,30 +1803,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "birth_date": {
-          "name": "birth_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "birth_place": {
-          "name": "birth_place",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "birth_country_code": {
-          "name": "birth_country_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "number": {
-          "name": "number",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1703,20 +1923,6 @@
           ],
           "columnsTo": [
             "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "participant_birth_country_code_country_code_fk": {
-          "name": "participant_birth_country_code_country_code_fk",
-          "tableFrom": "participant",
-          "tableTo": "country",
-          "schemaTo": "core",
-          "columnsFrom": [
-            "birth_country_code"
-          ],
-          "columnsTo": [
-            "code"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"

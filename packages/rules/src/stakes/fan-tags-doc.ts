@@ -1,4 +1,10 @@
-import { KNOCKOUT_FAMILIES, LEAGUE_FAMILIES, makeStake, type StakeFamily } from './codes.js';
+import {
+  HISTORY_FAMILIES,
+  KNOCKOUT_FAMILIES,
+  LEAGUE_FAMILIES,
+  makeStake,
+  type StakeFamily,
+} from './codes.js';
 import {
   fanTagOf,
   fanTagZoneGroup,
@@ -56,7 +62,9 @@ const HEADER = [
  * (`pnpm --filter @galaxie/rules docs:labels`; um teste garante que está em dia).
  */
 export function renderFanTagsMarkdown(): string {
-  const families = [...KNOCKOUT_FAMILIES, ...LEAGUE_FAMILIES].filter((f) => !ZONE_FAMILIES.has(f));
+  const families = [...KNOCKOUT_FAMILIES, ...LEAGUE_FAMILIES, ...HISTORY_FAMILIES].filter(
+    (f) => !ZONE_FAMILIES.has(f),
+  );
   const tiers = Object.entries(FAN_TAG_TIERS)
     .map(([tier, base]) => `\`${tier}\` = ${base}`)
     .join(', ');

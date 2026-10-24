@@ -1,3 +1,4 @@
+import type { TitleRecord } from '@galaxie/db';
 import { stakeText, zoneLabel, type Stake } from '@galaxie/rules';
 import {
   FactSheetBuilder,
@@ -7,17 +8,47 @@ import {
   type FactSheet,
 } from '../guardrails/index.js';
 import { competitionName, eventNames, stageName, teamName, type EventCore } from './event-core.js';
+import type { LastFinal } from './history.js';
 import type { EventStakes } from './stakes.js';
 
 /**
  * Agente Cenário pré-jogo (issue #57, docs/07 §2.3): os stakes são CALCULADOS pelo motor de
- * regras; o LLM só os REDIGE em 1–3 frases por locale, em tom informativo. Este módulo monta os
- * fatos enviados ao LLM, o `FactSheet` do validador e o texto determinístico de fallback
- * (rótulos fixos de `@galaxie/rules`).
+ * regras; o LLM entende a estrutura do jogo a partir dos fatos (final, ida e volta, prorrogação,
+ * pênaltis, histórico de títulos) e a conta em 1–3 frases por locale, em tom informativo, sem
+ * inventar nada fora dos fatos. Este módulo monta os fatos enviados ao LLM, o `FactSheet` do
+ * validador e o texto determinístico de fallback (rótulos fixos de `@galaxie/rules`).
  */
 
 /** Versão do prompt/fatos: mudar invalida o cache (força regenerar). */
-export const SCENARIO_PROMPT_VERSION = 'scenario@v1';
+export const SCENARIO_PROMPT_VERSION = 'scenario@v2';
+
+/** Títulos anteriores de um time na competição (antes da partida). */
+export interface ScenarioTeamTitles {
+  /** Títulos já conquistados. */
+  won: number;
+  /** Título que busca nesta partida (won + 1): 4 = tetra. */
+  seeking: number;
+  /** Edições vencidas, em ordem. */
+  seasons: string[];
+  /** Última edição vencida (null = nenhuma). */
+  last_title: string | null;
+}
+
+/** Fatos históricos (Wikidata e core), só quando a contagem é confiável. */
+export interface ScenarioHistory {
+  /** Títulos anteriores por lado, nesta competição. */
+  titles?: { home?: ScenarioTeamTitles; away?: ScenarioTeamTitles };
+  /** Última final entre os dois nesta competição (core). */
+  last_final_between?: {
+    season: number;
+    home: string;
+    away: string;
+    home_goals: number;
+    away_goals: number;
+    /** Lado DESTE jogo que venceu aquela final (null = sem dado). */
+    winner: 'home' | 'away' | null;
+  };
+}
 
 export interface ScenarioStakeFact {
   team: Stake['team'];
@@ -48,6 +79,7 @@ export interface ScenarioFacts {
     penalties: boolean;
     decides_title: boolean;
   };
+  history?: ScenarioHistory;
   league?: {
     teams_in_table: number;
     home: { rank: number; points: number; played: number; remaining: number | null };
@@ -70,10 +102,16 @@ const perLocale = <T>(locales: readonly AgentLocale[], fn: (l: AgentLocale) => T
     }),
   ) as Partial<Record<AgentLocale, T>>;
 
+function teamTitles(rec: TitleRecord | undefined): ScenarioTeamTitles | undefined {
+  if (!rec) return undefined;
+  return { won: rec.won, seeking: rec.won + 1, seasons: rec.seasons, last_title: rec.seasons.at(-1) ?? null };
+}
+
 export function buildScenarioFacts(
   core: EventCore,
   result: EventStakes,
   locales: readonly AgentLocale[],
+  extra: { lastFinal?: LastFinal | null } = {},
 ): ScenarioFacts {
   const facts: ScenarioFacts = {
     match: {
@@ -113,6 +151,12 @@ export function buildScenarioFacts(
     }
     if (ko.aggregateBefore) facts.knockout.aggregate_before = ko.aggregateBefore;
   }
+  const history: ScenarioHistory = {};
+  const home = teamTitles(result.titles?.home);
+  const away = teamTitles(result.titles?.away);
+  if (home || away) history.titles = { ...(home ? { home } : {}), ...(away ? { away } : {}) };
+  if (extra.lastFinal) history.last_final_between = extra.lastFinal;
+  if (history.titles || history.last_final_between) facts.history = history;
   const lg = result.league;
   if (lg) {
     const row = (id: string, remaining: number | null) => {
@@ -151,6 +195,16 @@ export function scenarioFactSheet(
   if (ko?.first_leg) b.score(ko.first_leg.home_goals, ko.first_leg.away_goals);
   if (ko?.aggregate_before) b.score(ko.aggregate_before.home, ko.aggregate_before.away);
   if (ko) b.number(ko.legs === 2 ? 2 : null);
+  const h = facts.history;
+  for (const t of [h?.titles?.home, h?.titles?.away]) {
+    if (!t) continue;
+    b.number(t.won, t.seeking);
+    for (const season of t.seasons) b.number(...(season.match(/\d{4}/g) ?? []).map(Number));
+  }
+  if (h?.last_final_between) {
+    const f = h.last_final_between;
+    b.number(f.season).score(f.home_goals, f.away_goals).name(f.home, f.away);
+  }
   if (facts.league) {
     for (const r of [facts.league.home, facts.league.away]) b.number(r.rank, r.points, r.played, r.remaining);
     b.number(facts.league.teams_in_table);
@@ -160,6 +214,55 @@ export function scenarioFactSheet(
 
 const lowerFirst = (s: string) => (s ? s.charAt(0).toLocaleLowerCase() + s.slice(1) : s);
 
+/** Frase de abertura da final: quem vencer é campeão (nada de "avançar"). */
+function finalLead(ko: NonNullable<ScenarioFacts['knockout']>, pt: boolean): string {
+  if (ko.legs === 2 && ko.leg === 1)
+    return pt
+      ? 'Jogo de ida da final: o título se decide na volta'
+      : 'Ida de la final: el título se define en la vuelta';
+  if (ko.legs === 2)
+    return pt
+      ? 'Jogo de volta da final: quem levar o confronto é campeão'
+      : 'Vuelta de la final: el que gane la serie es campeón';
+  return pt ? 'Final em jogo único: quem vencer é campeão' : 'Final a partido único: el que gane es campeón';
+}
+
+/** Texto determinístico da final: abertura, títulos buscados e o que acontece com cada resultado. */
+function finalFallback(
+  core: EventCore,
+  ko: NonNullable<ScenarioFacts['knockout']>,
+  stakes: readonly Stake[],
+  locale: AgentLocale,
+): string[] {
+  const pt = languageOf(locale) === 'pt';
+  const name = (team: 'home' | 'away') => teamName(team === 'home' ? core.home : core.away, locale);
+  const chase = (['home', 'away'] as const).flatMap((team) =>
+    stakes
+      .filter((s) => s.team === team && s.family === 'seeks_title_n')
+      .map((s) => `${name(team)} ${lowerFirst(stakeText(s, locale))}`),
+  );
+  // no jogo único, "vitória no tempo normal dá o título" para os dois já está na abertura
+  const covered = new Set<string>(['seeks_title_n', ...(ko.legs === 1 ? ['needs_win_for_title'] : [])]);
+  const side = (team: 'home' | 'away') => {
+    const labels = stakes
+      .filter((s) => s.team === team && !covered.has(s.family))
+      .map((s) => lowerFirst(stakeText(s, locale)));
+    return labels.length ? `${name(team)}: ${labels.join('; ')}` : null;
+  };
+  const both = stakes
+    .filter((s) => s.team === 'both' && s.family !== 'decides_title')
+    .map((s, i) => (i ? lowerFirst(stakeText(s, locale)) : stakeText(s, locale)));
+  return [
+    finalLead(ko, pt),
+    chase.length ? chase.join('; ') : null,
+    side('home'),
+    side('away'),
+    both.length ? both.join('; ') : null,
+  ]
+    .filter((s): s is string => !!s)
+    .slice(0, 3);
+}
+
 /** Texto determinístico: rótulos fixos dos stakes agrupados por time (máx. 3 frases). */
 export function scenarioFallback(
   core: EventCore,
@@ -167,6 +270,7 @@ export function scenarioFallback(
   stakes: readonly Stake[],
   locale: AgentLocale,
 ): string[] {
+  if (facts.knockout?.decides_title) return finalFallback(core, facts.knockout, stakes, locale);
   const pt = languageOf(locale) === 'pt';
   const side = (team: 'home' | 'away') => {
     const labels = stakes.filter((s) => s.team === team).map((s) => stakeText(s, locale));
@@ -201,15 +305,38 @@ const REGIONAL_HINTS = [
 export function scenarioSystemPrompt(): string {
   return [
     'Você é redator esportivo de uma API de dados esportivos para a América Latina.',
-    'Tarefa: escrever o CENÁRIO PRÉ-JOGO — o que está em jogo para cada time — a partir dos stakes',
-    'calculados pelo motor de regras. Você só redige: não calcule nem deduza cenários novos.',
+    'Tarefa: escrever o CENÁRIO PRÉ-JOGO — o que está em jogo para cada time — a partir dos fatos (JSON).',
+    'Os stakes são calculados pelo motor de regras e dizem exatamente o que cada resultado provoca. Seu',
+    'trabalho é entender a estrutura do jogo pelos fatos e contá-la de forma natural, correta e rica.',
+    '',
+    'Como ler os fatos:',
+    '- `knockout.decides_title = true`: é a decisão do título. Quem vencer (o jogo ou o confronto) é CAMPEÃO.',
+    '  Nunca fale em avançar, passar de fase, classificar-se ou vaga: fale em título, taça, ser campeão.',
+    '- `knockout.legs = 1`: jogo único. `legs = 2`: ida e volta; `leg = 1` é a ida (nada se decide hoje),',
+    '  `leg = 2` é a volta, com o placar da ida em `first_leg` e o agregado antes do jogo em `aggregate_before`.',
+    '- Em caso de igualdade, conte o que acontece exatamente como os fatos e os stakes dizem: com',
+    '  `extra_time = true`, prorrogação e, persistindo, pênaltis; com `extra_time = false`, pênaltis direto',
+    '  (não fale em prorrogação).',
+    '- `league`: posição, pontos, jogos e jogos restantes de cada time.',
+    '- `stakes[].labels[locale]`: o significado exato de cada código. Reescreva com naturalidade, sem mudar a',
+    '  condição, sem acrescentar condições e sem omitir a que decide o jogo.',
+    '- `history` (quando houver): `titles.<lado>.won` = títulos daquela competição antes deste jogo;',
+    '  `seeking` = o título que o time busca (bi = 2, tri = 3, tetra = 4, penta = 5, hexa = 6, hepta = 7,',
+    '  octa = 8, enea = 9, deca = 10; acima de 10, "o 11º título"; 1 = o primeiro título); `seasons` = as',
+    '  edições vencidas; `last_final_between` = a última final entre os dois nesta competição.',
+    '  Use esses fatos para enriquecer o texto ("busca o tetra"), sempre ligados à competição dos fatos.',
     '',
     'Regras:',
     guardrailSystemRules(),
+    '- Não invente números, anos, títulos, campanhas ou fatos que não estejam nos fatos. Sem `history`, não',
+    '  fale de títulos anteriores nem de finais passadas.',
     '- Para cada locale pedido, escreva de 1 a 3 frases curtas (até 320 caracteres no total; texto lido em TV).',
     '- Escreva no idioma e na variante regional do locale; não traduza literalmente. ' + REGIONAL_HINTS,
-    '- O significado de cada stake está em `stakes[].labels[locale]`; reescreva-o de forma natural, sem acrescentar condições.',
     '- Cite os times exatamente como em `teams.<lado>.names[locale]`. Não mencione data, horário, odds, arbitragem ou jogadores.',
+    '',
+    'Exemplo (pt-BR, final em jogo único da Libertadores com prorrogação e `history` de títulos):',
+    '"Final em jogo único: quem vencer é campeão. O Palmeiras busca o tetra da Libertadores; o Estudiantes, o',
+    'penta. Empate leva à prorrogação e, se persistir, pênaltis."',
   ].join('\n');
 }
 
