@@ -6,9 +6,12 @@
 import type { Event, Standings } from '@galaxie/contracts';
 import { CalendarClock, Flag, MapPin, Trophy } from 'lucide-react';
 import Link from 'next/link';
+import { Suspense } from 'react';
 
 import { Badge } from '@/components/reui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getRaceLegends, raceLegendsRequest } from '@/lib/galaxie/api';
 import type { ApiRequest } from '@/lib/galaxie/request';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
@@ -26,6 +29,7 @@ import { sessionLabel } from '@/lib/race-session';
 import { cn } from '@/lib/utils';
 
 import { Crest } from './crest';
+import { LegendsCarousel } from './legends-carousel';
 import { ChampionshipTable } from './race';
 import { Section } from './section';
 import { StatusBadge } from './status-badge';
@@ -194,13 +198,35 @@ function Calendar({ weekends, t, f }: { weekends: RaceWeekend[]; t: Dictionary; 
   );
 }
 
-/**
- * Espaço do carrossel "Legendary" (lendas da F1, `GET /v1/sports/formula-1/legends`), feito em outra
- * frente: enquanto ele não chega, nada aparece. O carrossel entra aqui, sem mexer no resto do hub.
- */
+/** Lendas da F1 (`GET /v1/sports/formula-1/legends`); sem a API, o hub segue sem o carrossel. */
+async function F1Legends() {
+  const { locale } = await getI18n();
+  const legends = await getRaceLegends(locale).catch(() => []);
+  return <LegendsCarousel legends={legends} api={raceLegendsRequest(locale)} />;
+}
+
+/** Espaço do carrossel enquanto as lendas chegam (o hub não pula quando ele aparece). */
+function LegendsFallback() {
+  return (
+    <div className="flex flex-col gap-3">
+      <Skeleton className="h-4 w-40" />
+      <div className="flex gap-3 overflow-hidden">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-[25rem] w-[78vw] max-w-72 shrink-0 rounded-xl sm:w-72" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Carrossel "Legendary" das lendas da F1, no fim do hub; só na F1. */
 function LegendsSlot({ sport }: { sport: string }) {
   if (sport !== 'formula-1') return null;
-  return null;
+  return (
+    <Suspense fallback={<LegendsFallback />}>
+      <F1Legends />
+    </Suspense>
+  );
 }
 
 export async function RaceHub({
