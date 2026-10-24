@@ -14,6 +14,7 @@ import { BudgetExceededError } from '../src/llm/errors.js';
 import { FakeLlmClient, type FakeReply } from '../src/llm/fake.js';
 import { withTokenBudget } from '../src/llm/factory.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
+import { memoryPageStore, OfficialPageReader } from '../src/lineups/pages.js';
 import { LineupResearcher, planLineupResearch } from '../src/lineups/research.js';
 import { disposableDb } from './helpers.js';
 
@@ -62,16 +63,35 @@ const config = new WtwConfig(
 
 const src = (url: string) => ({ url, excerpt: 'paráfrase curta' });
 
+/** Link do grounding que o validador segue até a página do plano (o `Location` do 302). */
+const REDIRECT = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/EXEMPLO-1';
+const PAGE = `${OP}/planos/esportes`;
+const resolveUrl = async (url: string) => (url === REDIRECT ? PAGE : url);
+
 const discovery = {
   data: {
     platforms: [
-      { name: 'Operadora Exemplo', kind: 'pay_tv_operator', website: OP, sources: [src(`${OP}/sobre`)] },
-      { name: 'Streaming Exemplo', kind: 'streaming', website: ST, sources: [src(ST)] },
+      {
+        name: 'Operadora Exemplo',
+        kind: 'pay_tv_operator',
+        website: OP,
+        // domínio do grupo vale; comparador informado como "oficial" não
+        dominios_oficiais: ['grupo.exemplo', 'selectra.com.br'],
+        sources: [src(`${OP}/sobre`)],
+      },
+      {
+        name: 'Streaming Exemplo',
+        kind: 'streaming',
+        website: ST,
+        dominios_oficiais: [],
+        sources: [src(ST)],
+      },
       // URL inventada pelo modelo (fora da busca): não entra
       {
         name: 'Operadora Sem Fonte',
         kind: 'vmvpd',
         website: null,
+        dominios_oficiais: [],
         sources: [src('https://inventada.exemplo')],
       },
       // política editorial: descartada sem registrar o nome
@@ -79,6 +99,7 @@ const discovery = {
         name: 'Operadora Bloqueada Exemplo',
         kind: 'pay_tv_operator',
         website: 'https://bloqueada.exemplo',
+        dominios_oficiais: [],
         sources: [src('https://bloqueada.exemplo')],
       },
     ],
@@ -87,64 +108,192 @@ const discovery = {
   groundedUrls: [`${OP}/sobre`, ST, 'https://bloqueada.exemplo'],
 };
 
-const operatorPlans = (price: string, withSecond = true) => ({
+/** Etapa 1 da operadora: a lista dos planos (um deles a IA não acha depois) e o catálogo de complementos. */
+const operatorCatalog = (withGhost = true) => ({
   data: {
-    plans: [
+    planos: [
       {
-        name: 'Plano Exemplo Esportes',
-        price_text: price,
-        url: `${OP}/planos/esportes`,
-        sources: [src(`${OP}/planos/esportes`), src('https://agregador.exemplo/grade')],
-        channels: [
-          { name: 'Canal Exemplo', access: 'included', source_url: `${OP}/planos/esportes` },
-          ...(withSecond
-            ? [{ name: 'Canal Exemplo 2 HD', access: 'addon', source_url: `${OP}/planos/esportes` }]
-            : []),
-          { name: 'Canal Desconhecido', access: 'included', source_url: `${OP}/planos/esportes` },
-          // fonte só do agregador: não vale
-          { name: 'Canal Exemplo 2', access: 'included', source_url: 'https://agregador.exemplo/grade' },
-        ],
-        services: [{ name: 'Streaming Exemplo', access: 'included', source_url: `${OP}/planos/esportes` }],
+        plano_nome: 'Plano Exemplo Esportes',
+        plano_url: PAGE,
+        fonte_url: PAGE,
+        trecho: 'Plano Exemplo Esportes',
       },
+      ...(withGhost
+        ? [
+            // listado, mas a 2ª etapa não acha: plano faltando
+            { plano_nome: 'Plano Fantasma', plano_url: null, fonte_url: PAGE, trecho: 'Plano Fantasma' },
+            {
+              plano_nome: 'Plano Sem Fonte',
+              plano_url: null,
+              fonte_url: 'https://inventada.exemplo/plano',
+              trecho: 'Plano Sem Fonte',
+            },
+          ]
+        : []),
+      // sem fonte na lista: nem vai para a 2ª etapa
+      { plano_nome: 'Plano da Memória', plano_url: null, fonte_url: null, trecho: null },
+    ],
+    complementos: [
       {
-        name: 'Plano Sem Fonte',
-        price_text: null,
-        url: null,
-        sources: [src('https://inventada.exemplo/plano')],
-        channels: [],
-        services: [],
+        nome: 'Streaming Exemplo',
+        tipo: 'streaming',
+        preco_mensal: 19.9,
+        moeda_iso: 'BRL',
+        fidelidade_meses: null,
+        fonte_url: PAGE,
+        trecho: 'Streaming Exemplo à parte por R$ 19,90 por mês',
+        data_da_fonte: null,
       },
     ],
-    notes: null,
+    notas: null,
   },
-  groundedUrls: [`${OP}/planos/esportes`, 'https://agregador.exemplo/grade'],
+  groundedUrls: [PAGE],
 });
 
-const streamingPlans = {
-  data: {
-    plans: [
-      {
-        name: 'Mensal',
-        price_text: 'R$ 29,90/mês',
-        url: `${ST}/planos`,
-        sources: [src(`${ST}/planos`)],
-        channels: [],
-        services: [],
+/** Etapa 2: o detalhe de cada plano (pela mensagem, que diz qual é o plano). */
+const operatorPlan =
+  (price: number, withSecond = true) =>
+  (req: LlmJsonRequest) => {
+    const content = req.messages.map((m) => m.content).join('\n');
+    if (content.includes('Plano: Plano Fantasma.'))
+      return {
+        data: {
+          plano_nome: 'Plano Fantasma',
+          encontrado: false,
+          plano_url: null,
+          fonte_url: null,
+          trecho_da_fonte: null,
+          precos: [],
+          streamings_inclusos: [],
+          canais: [],
+          notas: null,
+        },
+        groundedUrls: [],
+      };
+    if (content.includes('Plano: Plano Sem Fonte.'))
+      return {
+        data: {
+          plano_nome: 'Plano Sem Fonte',
+          encontrado: true,
+          plano_url: null,
+          fonte_url: 'https://inventada.exemplo/plano',
+          trecho_da_fonte: 'Plano Sem Fonte',
+          precos: [],
+          streamings_inclusos: [],
+          canais: [],
+          notas: null,
+        },
+        groundedUrls: [],
+      };
+    return {
+      data: {
+        plano_nome: 'Plano Exemplo Esportes',
+        encontrado: true,
+        plano_url: PAGE,
+        fonte_url: PAGE,
+        trecho_da_fonte: 'Plano Exemplo Esportes. Streaming Exemplo incluso.',
+        precos: [
+          {
+            preco_mensal: price,
+            moeda_iso: 'BRL',
+            fonte_url: PAGE,
+            trecho: `Plano Exemplo Esportes: R$ ${price.toFixed(2).replace('.', ',')} por mês.`,
+            data_da_fonte: null,
+          },
+        ],
+        canais: [
+          // fonte oficial pelo redirecionamento do grounding
+          {
+            canal_nome: 'Canal Exemplo',
+            fonte_url: REDIRECT,
+            trecho: 'Plano Exemplo Esportes: Canal Exemplo.',
+          },
+          ...(withSecond
+            ? [
+                // só o comparador cita: entra sem prova
+                {
+                  canal_nome: 'Canal Exemplo 2 HD',
+                  fonte_url: 'https://agregador.exemplo/grade',
+                  trecho: 'Plano Exemplo Esportes tem Canal Exemplo 2 HD.',
+                },
+              ]
+            : []),
+          { canal_nome: 'Canal Desconhecido', fonte_url: PAGE, trecho: 'Canal Desconhecido no plano.' },
+          // da memória: sem fonte, sem conteúdo
+          { canal_nome: 'Canal Exemplo 2', fonte_url: null, trecho: null },
+        ],
+        streamings_inclusos: [{ streaming_id: 'Streaming Exemplo', fonte_url: PAGE, trecho: null }],
+        notas: null,
       },
+      groundedUrls: [PAGE, REDIRECT, 'https://agregador.exemplo/grade'],
+    };
+  };
+
+const streamingCatalog = {
+  data: {
+    planos: [
+      { plano_nome: 'Mensal', plano_url: `${ST}/planos`, fonte_url: `${ST}/planos`, trecho: 'Plano Mensal' },
     ],
-    notes: null,
+    complementos: [],
+    notas: null,
   },
   groundedUrls: [`${ST}/planos`],
 };
 
-function fake(replies: { discover?: FakeReply; operator?: FakeReply; streaming?: FakeReply }) {
+const streamingPlan = {
+  data: {
+    plano_nome: 'Mensal',
+    encontrado: true,
+    plano_url: `${ST}/planos`,
+    fonte_url: `${ST}/planos`,
+    trecho_da_fonte: 'Plano Mensal',
+    precos: [
+      {
+        preco_mensal: 29.9,
+        moeda_iso: 'BRL',
+        fonte_url: `${ST}/planos`,
+        trecho: 'Plano Mensal: R$ 29,90 por mês.',
+        data_da_fonte: null,
+      },
+    ],
+    canais: [],
+    streamings_inclusos: [],
+    notas: null,
+  },
+  groundedUrls: [`${ST}/planos`],
+};
+
+function fake(replies: {
+  discover?: FakeReply;
+  operator?: { catalog: FakeReply; plan: (req: LlmJsonRequest) => FakeReply };
+  streaming?: boolean;
+}) {
   return new FakeLlmClient((req: LlmJsonRequest) => {
     if (req.purpose.startsWith('lineups:discover:')) return replies.discover ?? new Error('sem descoberta');
-    if (req.purpose.includes('br-operadora-exemplo')) return replies.operator ?? new Error('sem planos');
-    if (req.purpose.includes('br-streaming-exemplo')) return replies.streaming ?? new Error('sem planos');
+    if (req.purpose.includes('br-operadora-exemplo')) {
+      if (!replies.operator) return new Error('sem planos');
+      return req.purpose.startsWith('lineups:catalog:')
+        ? replies.operator.catalog
+        : replies.operator.plan(req);
+    }
+    if (req.purpose.includes('br-streaming-exemplo')) {
+      if (!replies.streaming) return new Error('sem planos');
+      return req.purpose.startsWith('lineups:catalog:') ? streamingCatalog : streamingPlan;
+    }
     return new Error(`purpose inesperado: ${req.purpose}`);
   });
 }
+
+/** Leitor do site oficial com fetch falso: a operadora passou a redirecionar para a marca nova. */
+const rebrandReader = () =>
+  new OfficialPageReader({
+    fetch: async (url) =>
+      url === OP || url === `${OP}/`
+        ? new Response(null, { status: 301, headers: { location: 'https://www.marca-nova.exemplo/inicio' } })
+        : new Response('', { status: 404 }),
+    store: memoryPageStore(),
+    sleep: async () => undefined,
+  });
 
 const env = disposableDb();
 let db: Database;
@@ -162,11 +311,11 @@ describe('lineups-research (LLM falso)', () => {
     ]);
     const llm = fake({
       discover: discovery,
-      operator: operatorPlans('R$ 99,90/mês'),
-      streaming: streamingPlans,
+      operator: { catalog: operatorCatalog(), plan: operatorPlan(99.9) },
+      streaming: true,
     });
     const budgeted = withTokenBudget(llm, { db, dailyLimit: null, provider: 'fake', now: () => NOW });
-    const out = await new LineupResearcher({ db, llm: budgeted, config, now: () => NOW }).run({
+    const out = await new LineupResearcher({ db, llm: budgeted, config, now: () => NOW, resolveUrl }).run({
       countries: ['BR'],
       maxCalls: 10,
     });
@@ -177,30 +326,71 @@ describe('lineups-research (LLM falso)', () => {
     ]);
     expect(out[0]!.drops).toMatchObject({ noSource: 1, blocked: 1 });
     expect(llm.calls[0]).toMatchObject({ tier: 'research', webSearch: true });
+    // a busca dos planos mira o site e os domínios oficiais da plataforma
+    expect(llm.calls[1]).toMatchObject({ allowedDomains: ['operadora.exemplo', 'grupo.exemplo'] });
 
     const rows = await db.select().from(platform).orderBy(platform.slug);
-    expect(rows.map((r) => [r.slug, r.kind, r.reviewStatus, r.broadcasterId])).toEqual([
-      ['br-operadora-exemplo', 'pay_tv_operator', 'draft', null],
-      ['br-streaming-exemplo', 'streaming', 'draft', 'streaming_exemplo'],
+    expect(rows.map((r) => [r.slug, r.kind, r.reviewStatus, r.broadcasterId, r.officialDomains])).toEqual([
+      ['br-operadora-exemplo', 'pay_tv_operator', 'draft', null, ['grupo.exemplo']],
+      ['br-streaming-exemplo', 'streaming', 'draft', 'streaming_exemplo', []],
     ]);
 
-    const lineup = await getPlatformLineup(db, rows[0]!.id, { minReview: 'draft' });
-    expect(lineup!.plans.map((p) => [p.plan.name, p.plan.priceText, p.plan.reviewStatus])).toEqual([
-      ['Plano Exemplo Esportes', 'R$ 99,90/mês', 'draft'],
+    const lineup = await getPlatformLineup(db, rows[0]!.id, { minReview: 'draft', includeUnverified: true });
+    expect(
+      lineup!.plans.map((p) => [p.plan.name, p.plan.priceText, p.plan.priceAmount, p.plan.priceCurrency]),
+    ).toEqual([
+      ['Plano Exemplo Esportes', 'R$ 99,90/mês', 99.9, 'BRL'],
+      // listado na 1ª etapa, sem detalhe na 2ª: entra acusado como faltando
+      ['Plano Fantasma', null, null, null],
+    ]);
+    expect(lineup!.plans[1]!.plan.verification).toMatchObject({
+      verified: false,
+      checks: { details: 'fail' },
+    });
+    expect([out[1]!.missingPlans, out[1]!.calls]).toEqual([['Plano Fantasma'], 4]);
+    // catálogo de complementos da plataforma
+    expect(lineup!.addons.map((a) => [a.refId, a.kind, a.priceAmount, a.priceText])).toEqual([
+      ['streaming_exemplo', 'service', 19.9, 'R$ 19,90/mês'],
     ]);
     const plan = lineup!.plans[0]!;
-    // agregador fora da fonte do plano; "Canal Exemplo 2" via agregador não vale, mas o HD (mesma entrada) vale
-    expect(plan.plan.sources.map((s) => s.url)).toEqual([`${OP}/planos/esportes`]);
-    expect(plan.channels.map((c) => [c.channelId, c.access])).toEqual([
-      ['canal_exemplo', 'included'],
-      ['canal_exemplo_2', 'addon'],
+    expect(plan.plan.verification).toMatchObject({ tier: 'official', verified: true });
+    expect(plan.plan.sources.map((s) => s.url)).toEqual([PAGE]);
+    // o redirecionamento foi seguido e a URL final é a guardada
+    const [c1, c2] = plan.channels;
+    expect([c1!.channelId, c1!.access, c1!.sources.map((s) => s.url)]).toEqual([
+      'canal_exemplo',
+      'included',
+      [PAGE],
     ]);
-    expect(plan.services.map((s) => s.serviceId)).toEqual(['streaming_exemplo']);
+    expect(c1!.verification).toMatchObject({
+      source_url: REDIRECT,
+      final_url: PAGE,
+      checks: { redirect: 'pass' },
+    });
+    expect([c2!.channelId, c2!.access, c2!.verification?.tier]).toEqual([
+      'canal_exemplo_2',
+      'unverified',
+      'comparator',
+    ]);
+    // streaming provado pelo trecho do plano ("incluso")
+    expect(plan.services.map((s) => [s.serviceId, s.access])).toEqual([['streaming_exemplo', 'included']]);
     expect(out[1]!.drops.unknown).toEqual(['Canal Desconhecido']);
+    expect(out[1]!.verification).toMatchObject({
+      plans: 2,
+      pricedPlans: 1,
+      included: 2,
+      unverified: 1,
+      addons: 1,
+    });
+
+    // a leitura pública nunca mostra o que está sem prova
+    const pub = await getPlatformLineup(db, rows[0]!.id, { minReview: 'draft' });
+    expect(pub!.plans[0]!.channels.map((c) => c.channelId)).toEqual(['canal_exemplo']);
 
     // custo no ledger compartilhado, agente `lineups`
     const usage = await db.select().from(llmUsage).where(eq(llmUsage.agent, 'lineups'));
-    expect(usage).toHaveLength(3);
+    // descoberta + (lista + 3 planos) da operadora + (lista + 1 plano) do streaming
+    expect(usage).toHaveLength(7);
   });
 
   it('é idempotente: rodar de novo não pesquisa nada', async () => {
@@ -239,17 +429,27 @@ describe('lineups-research (LLM falso)', () => {
 
     const llm = fake({
       discover: discovery,
-      operator: operatorPlans('R$ 109,90/mês', false),
-      streaming: streamingPlans,
+      operator: { catalog: operatorCatalog(false), plan: operatorPlan(109.9, false) },
+      streaming: true,
     });
-    const out = await new LineupResearcher({ db, llm, config, now: () => later }).run({
+    const out = await new LineupResearcher({
+      db,
+      llm,
+      config,
+      now: () => later,
+      resolveUrl,
+      pages: rebrandReader(),
+    }).run({
       countries: ['BR'],
       revisit: true,
       maxCalls: 10,
     });
     expect(out.map((o) => o.status)).toEqual(['done', 'done', 'done']);
     const changes = out.flatMap((o) => o.changes);
-    expect(changes).toContainEqual({ target: { type: 'plan', id: plan!.id }, fields: ['priceText'] });
+    expect(changes).toContainEqual({
+      target: { type: 'plan', id: plan!.id },
+      fields: ['priceText', 'priceAmount'],
+    });
     expect(changes).toContainEqual({
       target: { type: 'plan_channel', planId: plan!.id, channelId: 'canal_exemplo_2' },
       fields: ['removed'],
@@ -259,7 +459,8 @@ describe('lineups-research (LLM falso)', () => {
     expect(after).toMatchObject({
       reviewStatus: 'approved',
       priceText: 'R$ 99,90/mês',
-      proposedChange: { priceText: 'R$ 109,90/mês' },
+      priceAmount: 99.9,
+      proposedChange: { priceText: 'R$ 109,90/mês', priceAmount: 109.9 },
     });
     expect(after!.seenAt.getTime()).toBe(later.getTime());
     const [link] = await db
@@ -267,6 +468,13 @@ describe('lineups-research (LLM falso)', () => {
       .from(planChannel)
       .where(and(eq(planChannel.planId, plan!.id), eq(planChannel.channelId, 'canal_exemplo_2')));
     expect(link).toMatchObject({ reviewStatus: 'approved', proposedChange: { removed: true } });
+    // rebrand: o site oficial passou a redirecionar para outro domínio — mudança para revisar
+    const [op] = await db.select().from(platform).where(eq(platform.slug, 'br-operadora-exemplo'));
+    expect(op!.proposedChange).toMatchObject({ website: 'https://www.marca-nova.exemplo/' });
+    expect(op!.website).toBe(`${OP}/`);
+    expect(
+      out.find((o) => o.task.kind === 'plans' && o.task.slug === 'br-operadora-exemplo')?.rebrandTo,
+    ).toBe('https://www.marca-nova.exemplo/');
     expect(await planLineupResearch(db, { countries: ['BR'], now: later, revisit: true })).toEqual([]);
   });
 

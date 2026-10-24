@@ -23,6 +23,7 @@ import {
   type BlockEntry,
   type BroadcasterEntry,
   type CountryConfig,
+  type DatedAlias,
   type LogoEntry,
   type RightsEntry,
   type RightsRule,
@@ -79,6 +80,34 @@ function parseSources(raw: unknown, where: string): SourceDomains {
   };
 }
 
+function optionalDay(v: unknown, where: string): string | null {
+  return v === undefined || v === null ? null : day(v, where);
+}
+
+/** `aliases`: textos, ou `{ name, channel?, valid_from?, valid_to? }` para o apelido com validade. */
+function parseAliases(v: unknown, where: string): { plain: string[]; dated: DatedAlias[] } {
+  if (v === undefined || v === null) return { plain: [], dated: [] };
+  if (!Array.isArray(v)) throw new WtwConfigError(`${where}: esperava uma lista.`);
+  const plain: string[] = [];
+  const dated: DatedAlias[] = [];
+  v.forEach((a, i) => {
+    if (typeof a === 'string' && a.trim()) return void plain.push(a.trim());
+    if (!isObj(a)) throw new WtwConfigError(`${where}[${i}]: texto ou { name, valid_from, valid_to }.`);
+    const alias: DatedAlias = {
+      name: str(a.name, `${where}[${i}].name`),
+      channel: typeof a.channel === 'string' && a.channel.trim() ? a.channel.trim() : null,
+      validFrom: optionalDay(a.valid_from, `${where}[${i}].valid_from`),
+      validTo: optionalDay(a.valid_to, `${where}[${i}].valid_to`),
+    };
+    if (!alias.validFrom && !alias.validTo)
+      throw new WtwConfigError(`${where}[${i}]: apelido em objeto precisa de valid_from ou valid_to.`);
+    if (alias.validFrom && alias.validTo && alias.validTo < alias.validFrom)
+      throw new WtwConfigError(`${where}[${i}]: valid_to anterior a valid_from.`);
+    dated.push(alias);
+  });
+  return { plain, dated };
+}
+
 function parseBroadcaster(raw: unknown, where: string): BroadcasterEntry {
   if (!isObj(raw)) throw new WtwConfigError(`${where}: entrada inválida.`);
   const id = str(raw.id, `${where}.id`);
@@ -93,11 +122,19 @@ function parseBroadcaster(raw: unknown, where: string): BroadcasterEntry {
   if (!domains.length) throw new WtwConfigError(`${where}.domains: ao menos um domínio oficial.`);
   const variants = raw.regional_variants ?? [];
   if (!Array.isArray(variants)) throw new WtwConfigError(`${where}.regional_variants: esperava lista.`);
+  const aliases = parseAliases(raw.aliases, `${where}.aliases`);
+  const validFrom = optionalDay(raw.valid_from, `${where}.valid_from`);
+  const validTo = optionalDay(raw.valid_to, `${where}.valid_to`);
+  if (validFrom && validTo && validTo < validFrom)
+    throw new WtwConfigError(`${where}: valid_to anterior a valid_from.`);
   return {
     id,
     name: str(raw.name, `${where}.name`),
-    aliases: strList(raw.aliases, `${where}.aliases`),
+    aliases: aliases.plain,
     channels: strList(raw.channels, `${where}.channels`),
+    datedAliases: aliases.dated,
+    validFrom,
+    validTo,
     medium: medium as BroadcastMedium,
     accessModel: access as AccessModel,
     group: typeof raw.group === 'string' && raw.group.trim() ? raw.group.trim() : null,
@@ -317,7 +354,13 @@ export function parseCountryConfig(
   for (const b of broadcasters) {
     if (ids.has(b.id)) throw new WtwConfigError(`${where}: id duplicado ${b.id}.`);
     ids.add(b.id);
-    for (const n of [b.name, ...b.aliases, ...b.channels, ...b.regionalVariants.map((v) => v.name)]) {
+    for (const n of [
+      b.name,
+      ...b.aliases,
+      ...b.channels,
+      ...b.regionalVariants.map((v) => v.name),
+      ...b.datedAliases.map((a) => a.name),
+    ]) {
       const key = normalizeName(n);
       const owner = names.get(key);
       if (owner && owner !== b.id)

@@ -51,6 +51,31 @@ describe('config/broadcasters e config/broadcast-rights do repositório', () => 
     expect(config.directory('MX').resolve('Azteca 7')).toMatchObject({ entry: { id: 'tv_azteca' }, channel: 'Azteca 7' });
   });
 
+  it('renomeações com data: o nome antigo é o canal novo só depois da troca, e não na Argentina', () => {
+    const cl = config.directory('CL');
+    expect(cl.resolve('Fox Sports 2', '2026-10-24')).toMatchObject({
+      entry: { id: 'espn' },
+      channel: 'ESPN 6',
+      matchedBy: 'dated_alias',
+    });
+    expect(cl.resolve('Fox Sports 3 HD', '2026-10-24')).toMatchObject({ channel: 'ESPN 7' });
+    expect(cl.resolve('Fox Sports 2', '2023-12-31')).toBeNull();
+    expect(cl.resolve('Fox Sports', '2026-10-24')).toMatchObject({ entry: { id: 'espn' }, channel: 'ESPN 4' });
+    expect(config.directory('CO').resolve('Fox Sports 2', '2026-10-24')?.entry.id).toBe('espn');
+    expect(config.directory('AR').resolve('Fox Sports 2', '2026-10-24')?.entry.id).toBe('fox_sports');
+  });
+
+  it('saídas: o canal fora do período não casa no dia e aparece como inativo', () => {
+    const pe = config.directory('PE');
+    expect(pe.resolve('GolPerú', '2025-12-31')?.entry.id).toBe('golperu');
+    expect(pe.resolve('GolPerú', '2026-01-01')).toBeNull();
+    expect(pe.lookup('Gol Peru', '2026-10-24')).toMatchObject({
+      status: 'inactive',
+      entry: { id: 'golperu' },
+      validTo: '2025-12-31',
+    });
+  });
+
   it('classifica a fonte pelo domínio em relação à emissora da opção', () => {
     const br = config.directory('BR');
     const globo = br.byIdOrNull('globo')!;
@@ -158,6 +183,31 @@ describe('validação do YAML', () => {
         empty,
       ),
     ).toThrow(/sobreposto/);
+  });
+
+  it('apelido com validade precisa de data, e a data no formato do YAML', () => {
+    const withAlias = (alias: unknown, extra: object = {}) => ({
+      ...base,
+      broadcasters: [{ ...base.broadcasters[0], aliases: ['A', alias], ...extra }, base.broadcasters[1]],
+    });
+    const ok = parseCountryConfig(
+      'BR',
+      withAlias({ name: 'Canal Velho', channel: 'Canal A 2', valid_from: '2024-02-01' }),
+      null,
+      empty,
+    );
+    expect(ok.broadcasters[0]).toMatchObject({
+      aliases: ['A'],
+      datedAliases: [{ name: 'Canal Velho', channel: 'Canal A 2', validFrom: '2024-02-01', validTo: null }],
+    });
+    expect(() => parseCountryConfig('BR', withAlias({ name: 'Canal Velho' }), null, empty)).toThrow(/valid_from/);
+    expect(() =>
+      parseCountryConfig('BR', withAlias('B', { valid_from: '2026-01-01', valid_to: '2025-01-01' }), null, empty),
+    ).toThrow(/anterior/);
+    // o apelido com validade também entra na checagem de nome ambíguo
+    expect(() =>
+      parseCountryConfig('BR', withAlias({ name: 'Canal B', valid_from: '2024-01-01' }), null, empty),
+    ).toThrow(/ambíguo/);
   });
 
   it('exige que o país do arquivo bata com o nome', () => {
