@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/app-shell/empty-state';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { CountryFlag } from '@/components/sport/country-flag';
+import { LegendsCarousel } from '@/components/sport/legends-carousel';
 import { Crest } from '@/components/sport/crest';
 import { Section } from '@/components/sport/section';
 import { ShowMore } from '@/components/sport/show-more';
@@ -128,6 +129,12 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
           </p>
         </div>
 
+        {sport.slug === 'formula-1' ? (
+          <Suspense fallback={<LegendsFallback />}>
+            <LegendsCarousel />
+          </Suspense>
+        ) : null}
+
         {groups.length === 0 ? (
           <EmptyState title={fill(ts.empty.title, { sport: label })} description={ts.empty.description} />
         ) : null}
@@ -186,6 +193,20 @@ async function Content({ params }: { params: PageProps<'/[locale]/esportes/[spor
 function countrySlug(code: string): string | null {
   const match = COUNTRIES.find((c) => c.code === code || (code === 'GB' && c.code === 'GB-ENG'));
   return match ? match.code.toLowerCase() : null;
+}
+
+/** Espaço do carrossel "Legendary" enquanto as lendas chegam (a página não pula quando ele aparece). */
+function LegendsFallback() {
+  return (
+    <div className="flex flex-col gap-3">
+      <Skeleton className="h-4 w-40" />
+      <div className="flex gap-3 overflow-hidden">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-[25rem] w-[78vw] max-w-72 shrink-0 rounded-xl sm:w-72" />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Fallback() {
