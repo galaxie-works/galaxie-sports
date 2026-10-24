@@ -38,6 +38,7 @@ import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-li
 import { apiKeyFrom, registerRealtime, type RealtimeOptions } from './realtime/index.js';
 import { docsRoutes } from './routes/docs.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
+import { Lineup, type LineupOptions } from './lineup/availability.js';
 import { mirrorRoutes } from './routes/mirror.js';
 import { apiLoggerOptions, registerObservability } from './observability.js';
 import { accountRoutes } from './routes/v1/account.js';
@@ -107,6 +108,8 @@ export interface ServerOptions {
   now?: () => Date;
   /** Piso editorial da semântica e pasta da base (SEMANTIC_MIN_REVIEW_STATUS, KNOWLEDGE_DIR). */
   semantic?: SemanticConfig;
+  /** Grade de canais e ofertas: piso editorial (LINEUP_MIN_REVIEW_STATUS) e consultas (fixas nos testes). */
+  lineup?: LineupOptions;
 }
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
@@ -170,6 +173,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     mediaDenylist: options.mediaDenylist,
     now: options.now ?? (() => new Date()),
     ...(options.semantic ? { semantic: options.semantic } : {}),
+    lineup: new Lineup(options.lineup),
   };
   const usageBackend =
     options.usage === false

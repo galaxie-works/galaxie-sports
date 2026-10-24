@@ -7,6 +7,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { formatInstant, resolveLocale } from '../../i18n.js';
+import { buildAvailability, lineupTags, operatorVary } from '../../lineup/availability.js';
 import { assetUrl, parseInput } from '../../util.js';
 
 const MODULE = { module: 'where_to_watch' } as const;
@@ -23,9 +24,11 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
     const locale = resolveLocale(query.locale, request.headers['accept-language']);
     const tz = query.tz ?? 'UTC';
     reply.header('content-language', locale);
+    // a operadora do tenant muda `availability` (a dele em `your_operator`; sem as concorrentes, se pedir)
+    const operator = ctx.db ? await ctx.lineup.operatorOf(ctx.db, request.tenant?.tenantId) : null;
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.whereToWatch,
-      vary: [locale, tz],
+      vary: [locale, tz, ...operatorVary(operator)],
       load: async () => {
         const db = requireDb(ctx);
         const data = await getPublicWhereToWatch(
@@ -38,6 +41,15 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
           l ? assetUrl(ctx.assetsBaseUrl, l.storageKey, l.sourceUrl) : null;
         const logoDark = (l: { darkStorageKey: string | null } | null) =>
           l?.darkStorageKey ? assetUrl(ctx.assetsBaseUrl, l.darkStorageKey, null) : null;
+        const { availability, platformIds } = await buildAvailability({
+          db,
+          lineup: ctx.lineup,
+          assetsBaseUrl: ctx.assetsBaseUrl,
+          country: data.country,
+          options: data.options,
+          optionLogo: (o) => ({ logo: logo(o.logo), logo_dark: logoDark(o.logo) }),
+          operator,
+        });
         const body: WhereToWatch = {
           event_id: data.eventId,
           country: data.country,
@@ -80,9 +92,10 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
               sources: r.sources,
             })),
           ],
+          availability,
           updated_at: data.updatedAt ? formatInstant(data.updatedAt, tz) : null,
         };
-        return { body, tags: [wtwTag(params.id), `event:${params.id}`] };
+        return { body, tags: [wtwTag(params.id), `event:${params.id}`, ...lineupTags(platformIds)] };
       },
     });
   });

@@ -23,7 +23,7 @@ import type {
   TeamSummary,
 } from './events.js';
 import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
-import type { Broadcaster, WhereToWatch } from './where-to-watch.js';
+import type { Broadcaster, Platform, PlatformLineup, WhereToWatch } from './where-to-watch.js';
 import type { RelatedContent, RelatedContentTypeName } from './related.js';
 import type { SearchQuery, SearchResponse } from './search.js';
 import type {
@@ -166,6 +166,12 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     broadcasters: (opts: LocaleOpts & { country?: string } = {}) =>
       v1<{ data: Broadcaster[] }>('/v1/broadcasters', opts as Query & LocaleOpts),
     broadcaster: (id: string, opts: LocaleOpts = {}) => v1<Broadcaster>(`/v1/broadcasters/${seg(id)}`, opts),
+    /** Operadoras e streamings da grade de canais e ofertas; `country` filtra. */
+    platforms: (opts: LocaleOpts & { country?: string } = {}) =>
+      v1<{ data: Platform[] }>('/v1/platforms', opts as Query & LocaleOpts),
+    /** Grade de canais e streamings de cada plano da plataforma. */
+    platformLineup: (id: string, opts: LocaleOpts = {}) =>
+      v1<PlatformLineup>(`/v1/platforms/${seg(id)}/lineup`, opts),
     competitionContext: (id: string, opts: LocaleOpts & { season?: number | 'current' } = {}) =>
       v1<CompetitionContext>(`/v1/competitions/${seg(id)}/context`, opts),
 

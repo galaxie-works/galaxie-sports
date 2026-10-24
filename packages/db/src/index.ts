@@ -58,3 +58,24 @@ export {
   type PublishableKeySummary,
   type VerifiedPublishableKey,
 } from './widgets.js';
+// grade de canais e ofertas (interface; consultas reais no PR do banco da grade)
+export {
+  availabilityForChannels,
+  listPlatforms,
+  getPlatformLineup,
+  getTenantOperator,
+  PLATFORM_KINDS,
+  PLAN_ACCESS,
+  LINEUP_REVIEW_STATUSES,
+  type PlatformKind,
+  type PlanAccess,
+  type LineupReviewStatus,
+  type PlatformRow,
+  type PlatformPlanRow,
+  type PlanChannelRef,
+  type PlanServiceRef,
+  type PlatformAvailabilityRow,
+  type PlatformLineupRow,
+  type TenantOperator,
+  type AvailabilityForChannelsParams,
+} from './platforms.js';

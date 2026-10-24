@@ -164,6 +164,19 @@ const secret = (key: string, section: SettingSection, services: readonly Runtime
   default: null,
 });
 
+/** Status editoriais da grade de canais e ofertas, do menos ao mais revisado (LINEUP_MIN_REVIEW_STATUS). */
+export const LINEUP_REVIEW_STATUSES = ['draft', 'reviewed', 'approved'] as const;
+export type LineupMinReviewStatus = (typeof LINEUP_REVIEW_STATUSES)[number];
+
+/** LINEUP_MIN_REVIEW_STATUS do env; vazio = `approved`; valor inválido → erro na partida. */
+export function lineupMinReviewStatus(env: Record<string, string | undefined>): LineupMinReviewStatus {
+  const raw = env.LINEUP_MIN_REVIEW_STATUS?.trim();
+  if (!raw) return 'approved';
+  if (!(LINEUP_REVIEW_STATUSES as readonly string[]).includes(raw))
+    throw new Error(`LINEUP_MIN_REVIEW_STATUS inválido: ${raw} (use draft, reviewed ou approved)`);
+  return raw as LineupMinReviewStatus;
+}
+
 export const SETTINGS: readonly SettingDef[] = [
   // ── Ao vivo ─────────────────────────────────────────────────────────────────────────────────
   live({
@@ -267,6 +280,18 @@ export const SETTINGS: readonly SettingDef[] = [
     default: '1',
     critical: true,
   }),
+
+  {
+    // piso editorial da grade de canais e ofertas (plataformas e planos do onde assistir, /v1/platforms);
+    // mesmo padrão do SEMANTIC_MIN_REVIEW_STATUS: produção serve só o aprovado
+    key: 'LINEUP_MIN_REVIEW_STATUS',
+    section: 'wtw',
+    type: 'enum',
+    options: LINEUP_REVIEW_STATUSES,
+    services: ['api'],
+    apply: 'restart',
+    default: 'approved',
+  },
 
   // ── Conteúdo relacionado ────────────────────────────────────────────────────────────────────
   agents('related', { key: 'YOUTUBE_DAILY_QUOTA', type: 'int', min: 0, max: 1_000_000, default: '10000' }),

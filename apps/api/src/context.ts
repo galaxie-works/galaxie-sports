@@ -4,6 +4,7 @@ import type { MediaDenylist } from '@galaxie/apisports-client';
 import type { ApiModule, Database } from '@galaxie/db';
 import type { WtwConfig } from '@galaxie/where-to-watch';
 import type { TenantContext } from './auth/authenticator.js';
+import type { Lineup } from './lineup/availability.js';
 import type { ResponseCache } from './cache/store.js';
 import type { RulesRegistry } from './events/rules-registry.js';
 import { problems } from './errors.js';
@@ -44,6 +45,8 @@ export interface AppContext {
   now: () => Date;
   /** Camada semântica: piso editorial e pasta da base (glossário). */
   semantic?: SemanticConfig;
+  /** Grade de canais e ofertas: consultas, piso editorial (LINEUP_MIN_REVIEW_STATUS) e operadora do tenant. */
+  lineup: Lineup;
 }
 
 /** Status editoriais da base semântica, do menos ao mais revisado. */

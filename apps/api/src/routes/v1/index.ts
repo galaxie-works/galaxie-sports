@@ -3,6 +3,7 @@ import type { AppContext } from '../../context.js';
 import { catalogRoutes } from './catalog.js';
 import { whereToWatchRoutes } from './where-to-watch.js';
 import { broadcasterRoutes } from './broadcasters.js';
+import { platformRoutes } from './platforms.js';
 import { contextRoutes } from './context.js';
 import { eventContextRoutes } from './event-context.js';
 import { eventRoutes } from './events.js';
@@ -28,6 +29,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await catalogRoutes(app, ctx);
   await whereToWatchRoutes(app, ctx);
   await broadcasterRoutes(app, ctx);
+  // grade de canais e ofertas `/v1/platforms` (operadoras e streamings) — módulo where_to_watch
+  await platformRoutes(app, ctx);
   await contextRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);
