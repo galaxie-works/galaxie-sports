@@ -100,7 +100,8 @@ export function teamCategory(name: string): TeamCategory {
 const WOMEN_WORDS = /\b(women|ladies|femenino|feminino|femminile|frauen|f[ée]minines?|dames|vrouwen)\b/i;
 const YOUTH_WORDS = /\b(youth|academy|u-?\d{2}|under-\d{2}|sub-?\d{2}|juvenil|primavera|jugend)\b/i;
 const RESERVE_WORDS = /\b(reserves?|second team|b team)\b/i;
-const OTHER_WORDS = /\b(futsal|beach|amputee|e-?sports?|blind|veterans)\b/i;
+/** Outra modalidade. "Esports" sozinho fica de fora: é "esportes" em catalão (Centre d'Esports Sabadell). */
+const OTHER_WORDS = /\b(futsal|beach|amputee|e-sports|esports team|video game|blind|veterans)\b/i;
 /** Outro esporte na descrição de um clube só poliesportivo ("handball team", "motorcycle speedway club"). */
 const OTHER_SPORTS = /\b(speedway|handball|basketball|volleyball|hockey|rugby|cricket|baseball)\b/i;
 
@@ -163,8 +164,9 @@ function leagueMatches(ours: string, theirs: string): boolean {
 
 /**
  * Time do core → QID: entre os itens achados pela busca, os que são clube de futebol (ou poliesportivo), do mesmo
- * país e da mesma categoria (o principal nunca liga com o feminino, a base ou a reserva). O nome inteiro igual vale
- * pela categoria ("Willem II" é o principal, não a reserva do "Willem"). Entre os que sobram:
+ * país e da mesma categoria (o principal nunca liga com o feminino, a base ou a reserva). Um item principal com o
+ * nome inteiro igual ao nosso também vale ("Willem II" é o principal, não a reserva do "Willem"); o feminino de
+ * mesmo nome não (o "Club Tijuana" feminino). Entre os que sobram:
  * - o time de futebol passa à frente do clube poliesportivo de mesmo nome (Kongsvinger IL Toppfotball × Kongsvinger
  *   IL);
  * - o clube passa à frente do item do primeiro time dele ("first men's team of 1. FC Heidenheim", P361 = o clube):
@@ -182,7 +184,7 @@ export function resolveTeam(team: TeamTarget, found: string[], items: Map<string
     const itCategory = itemCategory(it);
     const sameCategory =
       itCategory === category ||
-      (itCategory !== 'other' && it.names.some((n) => normalizeTeamName(n) === fullName));
+      (itCategory === 'senior' && it.names.some((n) => normalizeTeamName(n) === fullName));
     return (
       it.types.some((t) => FOOTBALL_TYPES.has(t) || t === SPORTS_CLUB_TYPE) &&
       countriesMatch(team.country, it.countries) &&
