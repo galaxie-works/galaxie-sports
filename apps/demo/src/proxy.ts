@@ -18,6 +18,7 @@ import { COOKIE_MAX_AGE, LOCALE_COOKIE, isLocale, resolveLocale } from '@/lib/i1
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { SMOKE_HEADER } from '@/lib/ops/smoke';
 import { LANDING_PAGE, isPublicPath } from '@/lib/public-routes';
+import { legacySportRedirect } from '@/lib/sport-families';
 
 /**
  * Rota que o smoke test do deploy lê sem sessão, assinando com o segredo do próprio contêiner. O proxy só
@@ -59,6 +60,13 @@ export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (matchesPrefix(pathname, LEGACY_PASSWORD_PAGES)) {
     return NextResponse.redirect(new URL('/login', request.url));
+  }
+  // esporte por API do fornecedor (`/esportes/nba`, `/esportes/formula-1`) → página da família
+  const family = legacySportRedirect(pathname);
+  if (family) {
+    const url = new URL(family, request.url);
+    url.search = search;
+    return NextResponse.redirect(url, 308);
   }
   if (isPublicPath(pathname)) return render(request);
 

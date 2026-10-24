@@ -37,7 +37,7 @@ import {
   type PlatformLineup as DbPlatformLineup,
 } from '@galaxie/db';
 import { listBroadcasters, type PublicOption } from '@galaxie/where-to-watch';
-import { assetUrl } from '../util.js';
+import { assetUrl, logoCreditText } from '../util.js';
 
 /** As consultas da grade (as de `@galaxie/db` em produção; fixas nos testes). */
 export interface LineupSource {
@@ -141,10 +141,7 @@ export interface PlatformLogo {
   credit: LogoCredit | null;
 }
 
-/** "Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0" (sem autor: só a fonte e a licença). */
-export function logoCreditText(author: string | null, license: string): string {
-  return `Logo: ${author ? `${author} / ` : ''}Wikimedia Commons · ${license}`;
-}
+export { logoCreditText };
 
 /** Logos da biblioteca de emissoras e dos assets das plataformas, já como URL pública. */
 export class LogoBook {

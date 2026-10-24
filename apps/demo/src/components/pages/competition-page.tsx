@@ -12,6 +12,7 @@ import { FilterChip } from '@/components/sport/filter-chip';
 import { SeasonSelect } from '@/components/sport/season-select';
 import { ScrollRow } from '@/components/sport/scroll-row';
 import { ChampionshipTable, championshipOrder } from '@/components/sport/race';
+import { RaceHub } from '@/components/sport/race-hub';
 import { Section } from '@/components/sport/section';
 import { StandingsTable } from '@/components/sport/standings-table';
 import { UrlTabs } from '@/components/sport/url-tabs';
@@ -65,7 +66,21 @@ function defaultRound(rounds: Round[]) {
 /** Aba na URL (`?aba=jogos`): o link do jogo de volta para a competição abre direto nos jogos. */
 const TAB_PARAM = 'aba';
 
-export async function CompetitionContent({ params, searchParams, source }: PageContentProps) {
+/**
+ * Competição única de uma família de esporte (a F1 em Automobilismo): o hub dela é a própria página da
+ * família, com o título do menu, na rota da família (os filtros de temporada ficam nela).
+ */
+export interface CompetitionMount {
+  basePath: string;
+  title: string;
+}
+
+export async function CompetitionContent({
+  params,
+  searchParams,
+  source,
+  mount,
+}: PageContentProps & { mount?: CompetitionMount }) {
   const { id } = await params;
   const query = await searchParams;
   const { locale, t } = await getI18n();
@@ -113,7 +128,7 @@ export async function CompetitionContent({ params, searchParams, source }: PageC
   const groups = (
     championship ? championshipOrder(standings?.groups ?? []) : (standings?.groups ?? [])
   ).filter((g) => g.rows.length > 0);
-  const base = `/competicoes/${competition.slug}`;
+  const base = mount?.basePath ?? `/competicoes/${competition.slug}`;
   const seasonQuery = selected ? `temporada=${selected.year}` : '';
   const tab = query[TAB_PARAM] === 'jogos' || !groups.length ? 'jogos' : 'classificacao';
   const sport = sportParent(competition.sport, t);
@@ -121,25 +136,48 @@ export async function CompetitionContent({ params, searchParams, source }: PageC
 
   return (
     <>
-      <PageHeader
-        title={competition.name}
-        kind="competição"
-        parents={sport ? [sport] : undefined}
-        api={competitionRequest(id, locale, content)}
-      />
+      {mount ? (
+        // é a página da família no menu: abre trilha nova, como as outras páginas de esporte
+        <PageHeader title={mount.title} kind="esporte" api={competitionRequest(id, locale, content)} />
+      ) : (
+        <PageHeader
+          title={competition.name}
+          kind="competição"
+          parents={sport ? [sport] : undefined}
+          api={competitionRequest(id, locale, content)}
+        />
+      )}
       <div className="flex flex-col gap-8 p-4 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Crest src={competition.logo} name={competition.name} size="xl" />
+          {competition.logo_source === 'commons' && competition.logo ? (
+            // logo da Commons (a F1): marca horizontal, sem a moldura quadrada dos escudos
+            <img
+              src={competition.logo}
+              alt={competition.name}
+              draggable={false}
+              className="h-14 w-auto max-w-56 self-start object-contain sm:self-center"
+            />
+          ) : (
+            <Crest src={competition.logo} name={competition.name} size="xl" />
+          )}
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{competition.name}</h1>
             <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
               <Badge variant="outline">{t.sport.competitionType[competition.type] ?? competition.type}</Badge>
+              {championship && selected ? (
+                <span>
+                  {fill(t.race.season.title, {
+                    year: competition.seasons.find((x) => x.year === selected.year)?.label ?? selected.year,
+                  })}
+                </span>
+              ) : null}
               {competition.country && country ? (
                 <Link href={country} className="inline-flex items-center gap-1.5 hover:underline">
                   <CountryFlag code={competition.country.code} />
                   {competition.country.name}
                 </Link>
-              ) : competition.country ? (
+              ) : competition.country && competition.country.code !== 'WORLD' ? (
+                // mundiais (F1) não têm país: "World" não diz nada a mais
                 <span className="inline-flex items-center gap-1.5">
                   <CountryFlag code={competition.country.code} />
                   {competition.country.name}
@@ -152,6 +190,17 @@ export async function CompetitionContent({ params, searchParams, source }: PageC
                 <span>· {fill(tc.trophy, { name: competition.trophy_nickname })}</span>
               ) : null}
             </div>
+            {competition.logo_credit ? (
+              <a
+                href={competition.logo_credit.page_url}
+                target="_blank"
+                rel="noreferrer"
+                title={tc.hub.logoCredit}
+                className="text-muted-foreground w-fit text-xs hover:underline"
+              >
+                {competition.logo_credit.text}
+              </a>
+            ) : null}
             {competition.nicknames.length ? (
               <div className="flex flex-wrap gap-1.5">
                 {competition.nicknames.map((n) => (
@@ -203,84 +252,110 @@ export async function CompetitionContent({ params, searchParams, source }: PageC
               ) : null}
             </div>
 
-            <UrlTabs key={selected?.year} param={TAB_PARAM} value={tab}>
-              <TabsList>
-                <TabsTrigger value="classificacao" disabled={!groups.length}>
-                  {tc.standings}
-                </TabsTrigger>
-                {/* F1: a aba das sessões se chama "Corridas" (a URL segue `?aba=jogos`) */}
-                <TabsTrigger value="jogos">{sessions ? tc.races : tc.matches}</TabsTrigger>
-              </TabsList>
+            {championship ? (
+              // F1: hub do campeonato (próximo GP, pilotos e construtores, calendário) no lugar das abas
+              <RaceHub
+                sport={competition.sport}
+                events={events}
+                groups={groups}
+                focus={typeof query.rodada === 'string' ? query.rodada : null}
+                standingsApi={
+                  selected ? standingsRequest(competition.id, selected.year, locale, content) : undefined
+                }
+                eventsApi={
+                  window
+                    ? competitionEventsRequest(competition.id, window.start, window.end, locale, content)
+                    : undefined
+                }
+              />
+            ) : (
+              <UrlTabs key={selected?.year} param={TAB_PARAM} value={tab}>
+                <TabsList>
+                  <TabsTrigger value="classificacao" disabled={!groups.length}>
+                    {tc.standings}
+                  </TabsTrigger>
+                  {/* F1: a aba das sessões se chama "Corridas" (a URL segue `?aba=jogos`) */}
+                  <TabsTrigger value="jogos">{sessions ? tc.races : tc.matches}</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="classificacao" className="flex flex-col gap-6 pt-4">
-                {groups.map((g) => (
-                  <Section
-                    key={g.name ?? 'geral'}
-                    title={
-                      championship && g.name
-                        ? (t.race.championship[g.name] ?? g.name)
-                        : groups.length > 1 && g.name
-                          ? g.name
-                          : tc.standings
-                    }
-                    api={
-                      selected ? standingsRequest(competition.id, selected.year, locale, content) : undefined
-                    }
-                  >
-                    {championship ? (
-                      <ChampionshipTable group={g} />
-                    ) : (
-                      <StandingsTable rows={g.rows} sport={competition.sport} />
-                    )}
-                  </Section>
-                ))}
-              </TabsContent>
+                <TabsContent value="classificacao" className="flex flex-col gap-6 pt-4">
+                  {groups.map((g) => (
+                    <Section
+                      key={g.name ?? 'geral'}
+                      title={
+                        championship && g.name
+                          ? (t.race.championship[g.name] ?? g.name)
+                          : groups.length > 1 && g.name
+                            ? g.name
+                            : tc.standings
+                      }
+                      api={
+                        selected
+                          ? standingsRequest(competition.id, selected.year, locale, content)
+                          : undefined
+                      }
+                    >
+                      {championship ? (
+                        <ChampionshipTable group={g} />
+                      ) : (
+                        <StandingsTable rows={g.rows} sport={competition.sport} />
+                      )}
+                    </Section>
+                  ))}
+                </TabsContent>
 
-              <TabsContent value="jogos" className="flex flex-col gap-4 pt-4">
-                {rounds.length > 1 ? (
-                  // a largura dos chips (45 cards de MMA, 24 GPs) não alarga a página: a fileira rola, sem barra nativa
-                  <ScrollRow
-                    className="gap-2 py-0.5"
-                    label={tc.rounds}
-                    previous={t.common.scrollPrevious}
-                    next={t.common.scrollNext}
-                  >
-                    {rounds.map((r) => (
-                      <FilterChip
-                        key={r.name}
-                        href={`${base}?${seasonQuery}&${TAB_PARAM}=jogos&rodada=${encodeURIComponent(r.name)}`}
-                        active={r.name === round?.name}
-                      >
-                        {r.name}
-                      </FilterChip>
-                    ))}
-                  </ScrollRow>
-                ) : null}
-                {round ? (
-                  <Section
-                    title={round.name}
-                    description={plural(
-                      locale,
-                      round.events.length,
-                      sessions ? t.race.sessions : tc.matchCount,
-                    )}
-                    api={
-                      window
-                        ? competitionEventsRequest(competition.id, window.start, window.end, locale, content)
-                        : undefined
-                    }
-                  >
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {round.events.map((e) => (
-                        <EventCard key={e.id} event={e} showCompetition={false} />
+                <TabsContent value="jogos" className="flex flex-col gap-4 pt-4">
+                  {rounds.length > 1 ? (
+                    // a largura dos chips (45 cards de MMA, 24 GPs) não alarga a página: a fileira rola, sem barra nativa
+                    <ScrollRow
+                      className="gap-2 py-0.5"
+                      label={tc.rounds}
+                      previous={t.common.scrollPrevious}
+                      next={t.common.scrollNext}
+                    >
+                      {rounds.map((r) => (
+                        <FilterChip
+                          key={r.name}
+                          href={`${base}?${seasonQuery}&${TAB_PARAM}=jogos&rodada=${encodeURIComponent(r.name)}`}
+                          active={r.name === round?.name}
+                        >
+                          {r.name}
+                        </FilterChip>
                       ))}
-                    </div>
-                  </Section>
-                ) : (
-                  <EmptyState title={tc.noMatches} />
-                )}
-              </TabsContent>
-            </UrlTabs>
+                    </ScrollRow>
+                  ) : null}
+                  {round ? (
+                    <Section
+                      title={round.name}
+                      description={plural(
+                        locale,
+                        round.events.length,
+                        sessions ? t.race.sessions : tc.matchCount,
+                      )}
+                      api={
+                        window
+                          ? competitionEventsRequest(
+                              competition.id,
+                              window.start,
+                              window.end,
+                              locale,
+                              content,
+                            )
+                          : undefined
+                      }
+                    >
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {round.events.map((e) => (
+                          <EventCard key={e.id} event={e} showCompetition={false} />
+                        ))}
+                      </div>
+                    </Section>
+                  ) : (
+                    <EmptyState title={tc.noMatches} />
+                  )}
+                </TabsContent>
+              </UrlTabs>
+            )}
           </>
         )}
       </div>

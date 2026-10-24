@@ -1,7 +1,7 @@
 import 'zod-openapi';
 import * as z from 'zod';
 import { ClientChannelRef } from './channel-list.js';
-import { LocaleQuery } from './common.js';
+import { LocaleQuery, LogoCredit } from './common.js';
 
 /** Meios de transmissão (docs/05 §4, enrich.broadcast_medium). */
 export const BROADCAST_MEDIA = [
@@ -108,26 +108,6 @@ export type AvailabilityLogo = z.infer<typeof AvailabilityLogo>;
 /** Canal ou streaming dentro de um plano, com o tipo de acesso. */
 export const LineupItem = AvailabilityLogo.extend({ access: z.enum(PLAN_ACCESS) }).meta({ id: 'LineupItem' });
 export type LineupItem = z.infer<typeof LineupItem>;
-
-/** Crédito do logo de uma plataforma (arquivo de licença livre da Wikimedia Commons). */
-export const LogoCredit = z
-  .object({
-    source: z.literal('Wikimedia Commons'),
-    title: z.string().meta({ example: 'File:Logo de exemplo.svg' }),
-    page_url: z.url().meta({ description: 'Página do arquivo na Commons (autor, licença e histórico).' }),
-    author: z.string().nullable(),
-    license: z.string().meta({ example: 'Public domain' }),
-    license_url: z.url().nullable(),
-    attribution_required: z.boolean().meta({
-      description: 'A licença exige o crédito junto do logo (CC BY, CC BY-SA); domínio público não exige.',
-    }),
-    text: z.string().meta({
-      description: 'Atribuição pronta para exibir (ou para o `title` do logo, quando não é exigida).',
-      example: 'Logo: Wikimedia Commons · Public domain',
-    }),
-  })
-  .meta({ id: 'LogoCredit' });
-export type LogoCredit = z.infer<typeof LogoCredit>;
 
 export const Platform = z
   .object({

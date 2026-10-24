@@ -1,6 +1,6 @@
 import 'zod-openapi';
 import * as z from 'zod';
-import { AssetUrl, CountryRef, LocaleQuery, LogoSource, PaginationQuery } from './common.js';
+import { AssetUrl, CountryRef, LocaleQuery, LogoCredit, LogoSource, PaginationQuery } from './common.js';
 
 // ─── esportes ────────────────────────────────────────────────────────────────────────────────────
 
@@ -92,6 +92,10 @@ export type CompetitionSummary = z.infer<typeof CompetitionSummary>;
 
 export const Competition = CompetitionSummary.extend({
   logo_source: LogoSource,
+  logo_credit: LogoCredit.nullable().meta({
+    description:
+      'Crédito do logo quando ele vem da Wikimedia Commons (`logo_source` = `commons`); null nos demais.',
+  }),
   trophy_nickname: z.string().nullable(),
   external_ids: z
     .record(z.string(), z.string())

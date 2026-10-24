@@ -237,7 +237,14 @@ export async function upsertCatalog(
         return row!.id;
       },
       async (id, values) => {
-        await tx.update(competition).set(values).where(eq(competition.id, id));
+        // fornecedor sem logo não apaga o da Commons (assets:competition-logos, ex.: a F1)
+        const logoAssetId =
+          values.logoAssetId ??
+          sql`(select ${asset.id} from ${asset} where ${asset.id} = ${competition.logoAssetId} and ${asset.origin} = 'commons')`;
+        await tx
+          .update(competition)
+          .set({ ...values, logoAssetId })
+          .where(eq(competition.id, id));
       },
     );
 

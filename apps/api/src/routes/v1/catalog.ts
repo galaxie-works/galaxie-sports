@@ -18,6 +18,7 @@ import {
 } from '@galaxie/contracts';
 import {
   asset,
+  assetCredit,
   competition,
   competitionProfile,
   country,
@@ -43,6 +44,7 @@ import {
   decodeCursor,
   encodeCursor,
   likeEscape,
+  logoCreditText,
   logoSource,
   parseInput,
   UUID_RE,
@@ -218,9 +220,26 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .select({ provider: providerMap.provider, providerId: providerMap.providerId })
           .from(providerMap)
           .where(and(eq(providerMap.entityType, 'competition'), eq(providerMap.entityId, row.c.id)));
+        // logo da Commons (competição sem logo do fornecedor, ex.: a F1): sai com o crédito
+        const [credit] =
+          row.logoOrigin === 'commons' && row.logoAssetId
+            ? await db.select().from(assetCredit).where(eq(assetCredit.assetId, row.logoAssetId)).limit(1)
+            : [];
         const body: Competition = {
           ...summary!,
           logo_source: logoSource(row.logoOrigin),
+          logo_credit: credit
+            ? {
+                source: 'Wikimedia Commons',
+                title: credit.title,
+                page_url: credit.pageUrl,
+                author: credit.author,
+                license: credit.license,
+                license_url: credit.licenseUrl,
+                attribution_required: credit.attributionRequired,
+                text: logoCreditText(credit.author, credit.license),
+              }
+            : null,
           trophy_nickname: profile?.trophy ?? null,
           external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
           seasons: seasons.map((s) => ({
@@ -372,6 +391,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         logoKey: asset.storageKey,
         logoUrl: asset.sourceUrl,
         logoOrigin: asset.origin,
+        logoAssetId: asset.id,
       })
       .from(competition)
       .leftJoin(country, eq(country.code, competition.countryCode))

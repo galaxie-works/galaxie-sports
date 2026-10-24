@@ -17,6 +17,7 @@ import {
 import { HockeyStick } from '../components/icons/hockey-stick';
 
 import type { Dictionary } from './i18n/dictionary';
+import { SPORT_FAMILIES, familyHref, familyOf, sportHref, type FamilyId } from './sport-families';
 import type { TrailVisit } from './trail';
 
 /** Rótulos ficam nos dicionários (`t.nav.sports[slug]`, `t.nav.countries[code]`, `t.nav.multisport`). */
@@ -31,7 +32,10 @@ export interface SportNav extends NavItem {
   slug: SportSlug;
 }
 
-/** Os 12 esportes do espelho; a ordem prioriza o que tem cobertura hoje. Ícones provisórios até o Figma. */
+/**
+ * Os 12 esportes do espelho (um por API do fornecedor); a ordem prioriza o que tem cobertura hoje. Ícones
+ * provisórios até o Figma. O link leva à página da família (`nba` → `/esportes/basquete#nba`).
+ */
 export const SPORTS: SportNav[] = (
   [
     ['football', Goal],
@@ -47,7 +51,19 @@ export const SPORTS: SportNav[] = (
     ['rugby', Trophy],
     ['afl', Trophy],
   ] as const
-).map(([slug, icon]) => ({ slug, icon, href: `/esportes/${slug}` }));
+).map(([slug, icon]) => ({ slug, icon, href: sportHref(slug)! }));
+
+export interface FamilyNav extends NavItem {
+  id: FamilyId;
+  /** Esporte que dá o ícone animado (o primeiro da família). */
+  slug: SportSlug;
+}
+
+/** Itens de esporte do menu: uma família por item (Basquete reúne basquete e NBA). Mapa em sport-families.ts. */
+export const FAMILIES: FamilyNav[] = SPORT_FAMILIES.map((f) => {
+  const slug = f.sports[0];
+  return { id: f.id, slug, icon: SPORTS.find((s) => s.slug === slug)!.icon, href: familyHref(f) };
+});
 
 export const MULTISPORT_NAV: NavItem = { href: '/multiesporte', icon: Medal };
 
@@ -101,10 +117,13 @@ export function countryHref(code: string | null | undefined): string | null {
   return code && /^[A-Za-z]{2}(-[A-Za-z]{3})?$/.test(code) ? `/paises/${code.toLowerCase()}` : null;
 }
 
-/** Pai de topo de uma página de esporte (competição, time, jogo): o item do menu daquele esporte. */
+/**
+ * Pai de topo de uma página de esporte (competição, time, jogo): o item do menu da família daquele
+ * esporte (um jogo da NBA tem "Basquete" na trilha).
+ */
 export function sportParent(slug: string, t: Dictionary): TrailVisit | null {
-  const sport = sportBySlug(slug);
-  return sport ? { path: sport.href, label: t.nav.sports[sport.slug], kind: 'esporte' } : null;
+  const family = familyOf(slug);
+  return family ? { path: familyHref(family), label: t.nav.families[family.id], kind: 'esporte' } : null;
 }
 
 /**
