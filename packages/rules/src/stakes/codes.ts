@@ -23,7 +23,30 @@ export const KNOCKOUT_FAMILIES = [
   'away_goals_rule',
   'extra_time_then_penalties',
   'decides_title',
+  // Variantes de título: o confronto decide o campeão (`decides_title`), então ninguém "avança".
+  'wins_title_with_draw',
+  'wins_title_with_loss_by_n',
+  'needs_win_for_title',
+  'needs_win_by_n_for_title',
+  'wins_title_with_draw_up_to_n',
+  'wins_title_with_draw_from_n',
+  'title_depends_on_away_goals',
 ] as const;
+
+/**
+ * Família de mata-mata → variante de título, usada quando o confronto decide o campeão
+ * (`rules.decidesTitle` no jogo decisivo). Os códigos de "avançar" e "vaga" não fazem sentido numa
+ * final; os de prorrogação e pênaltis valem como estão.
+ */
+export const TITLE_VARIANT_OF = {
+  advances_with_draw: 'wins_title_with_draw',
+  advances_with_loss_by_n: 'wins_title_with_loss_by_n',
+  needs_win: 'needs_win_for_title',
+  needs_win_by_n: 'needs_win_by_n_for_title',
+  advances_with_draw_up_to_n: 'wins_title_with_draw_up_to_n',
+  advances_with_draw_from_n: 'wins_title_with_draw_from_n',
+  outcome_depends_on_away_goals: 'title_depends_on_away_goals',
+} as const satisfies Partial<Record<(typeof KNOCKOUT_FAMILIES)[number], (typeof KNOCKOUT_FAMILIES)[number]>>;
 
 /** Famílias de códigos de pontos corridos / fase de grupos / fase de liga. */
 export const LEAGUE_FAMILIES = [
@@ -100,6 +123,16 @@ export function stakeCode(family: StakeFamily, params: StakeParams = {}): string
       return `draw_${n ?? need('n')}_${n}_goes_to_extra_time`;
     case 'outcome_depends_on_away_goals':
       return `win_by_${n ?? need('n')}_depends_on_away_goals`;
+    case 'wins_title_with_loss_by_n':
+      return `wins_title_with_loss_by_${n ?? need('n')}`;
+    case 'needs_win_by_n_for_title':
+      return `needs_win_by_${n ?? need('n')}_for_title`;
+    case 'wins_title_with_draw_up_to_n':
+      return `wins_title_with_draw_up_to_${n ?? need('n')}`;
+    case 'wins_title_with_draw_from_n':
+      return `wins_title_with_draw_from_${n ?? need('n')}`;
+    case 'title_depends_on_away_goals':
+      return `win_by_${n ?? need('n')}_title_depends_on_away_goals`;
     case 'qualifies_for_zone':
       return `qualifies_for_${zone ?? need('zone')}`;
     case 'clinches_zone_with_draw':

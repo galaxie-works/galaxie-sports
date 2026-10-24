@@ -13,9 +13,11 @@ export function exampleParams(family: StakeFamily): StakeParams | undefined {
   if (
     /(^|_)n(_|$)/.test(family) ||
     family.startsWith('specific_draw') ||
-    family.startsWith('outcome_depends')
+    family.startsWith('outcome_depends') ||
+    family === 'title_depends_on_away_goals'
   ) {
-    return { n: family.startsWith('advances_with_draw') || family.startsWith('specific_draw') ? 1 : 2 };
+    const draw = /^(advances_with_draw|specific_draw|wins_title_with_draw)/.test(family);
+    return { n: draw ? 1 : 2 };
   }
   return undefined;
 }

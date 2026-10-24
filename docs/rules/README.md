@@ -181,6 +181,15 @@ Mata-mata (`knockoutStakes`):
 | `away_goals_rule` | `away_goals_rule` | both | Gol fora vale como desempate (edições históricas) | Gol fora de casa é critério de desempate |
 | `extra_time_then_penalties` | `extra_time_then_penalties` | both | Igualdade → prorrogação e, persistindo, pênaltis | Em caso de igualdade, prorrogação e depois pênaltis |
 | `decides_title` | `decides_title` | both | O vencedor do confronto é campeão | Vale o título |
+| `wins_title_with_draw` | `wins_title_with_draw` | time | Final: vitória ou empate dão o título (variante de `advances_with_draw`) | Empate dá o título |
+| `wins_title_with_loss_by_n` | `wins_title_with_loss_by_2` | time | Final: é campeão mesmo perdendo por até N (variante de `advances_with_loss_by_n`) | É campeão mesmo perdendo por até 2 gols de diferença |
+| `needs_win_for_title` | `needs_win_for_title` | time | Final: vencer no tempo normal dá o título (variante de `needs_win`) | Vitória no tempo normal dá o título |
+| `needs_win_by_n_for_title` | `needs_win_by_2_for_title` | time | Final: vencer por N ou mais no tempo normal dá o título (variante de `needs_win_by_n`) | Vitória por 2 gols ou mais no tempo normal dá o título |
+| `wins_title_with_draw_up_to_n` | `wins_title_with_draw_up_to_0` | time | Final com gol fora: empates até N × N dão o título | Empate sem gols dá o título |
+| `wins_title_with_draw_from_n` | `wins_title_with_draw_from_2` | time | Final com gol fora: empates a partir de N × N dão o título | Empate de 2 a 2 ou com mais gols dá o título |
+| `title_depends_on_away_goals` | `win_by_1_title_depends_on_away_goals` | time | Final com gol fora: vencer por N pode dar o título ou não | Com vitória por 1 gol, o título depende dos gols fora |
+
+**Final (`decides_title`)**: numa final ninguém avança, quem vence é campeão. Quando o confronto decide o título (`decides_title: true` na fase, no jogo decisivo: jogo único ou volta), as famílias que falam em avançar ou em vaga saem nas **variantes de título** acima (`TITLE_VARIANT_OF` em `codes.ts`): mesma condição, outro código e outro rótulo. Os demais códigos (prorrogação, pênaltis, gol fora, `extra_time_then_penalties`) valem como estão. Por que famílias novas e não um rótulo diferente por contexto: o `code` é contrato público (docs/05 §3.2) e diz o que está em jogo; `needs_win` numa semifinal e numa final são situações diferentes, e o cliente que traduz ou filtra pelo código precisa saber disso sem olhar a fase. Os códigos antigos não mudam fora da final. Na ida de uma final em ida e volta sai só `first_leg`. As tags do torcedor ficam curtas e coerentes ("Precisa vencer", "Empate dá o título").
 
 Pontos corridos, grupos e fase de liga (`leagueMatchStakes`; todos com lado = time):
 

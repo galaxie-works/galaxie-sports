@@ -64,6 +64,13 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos).
 | `away_goals_rule` | `away_goals_rule` | 51 | Gol fora pesa | Pesa el gol de visitante | Away goals count |
 | `extra_time_then_penalties` | `extra_time_then_penalties` | — | _sem tag (informativo)_ | | |
 | `decides_title` | `decides_title` | 11 | Vale o título | Se juega el título | Title on the line |
+| `wins_title_with_draw` | `wins_title_with_draw` | 12 | Empate dá o título | Con el empate es campeón | A draw wins the title |
+| `wins_title_with_loss_by_n` | `wins_title_with_loss_by_2` | 12 | Pode perder por até 2 gols | Puede perder por hasta 2 goles | Can lose by up to 2 goals |
+| `needs_win_for_title` | `needs_win_for_title` | 13 | Precisa vencer | Necesita ganar | Must win |
+| `needs_win_by_n_for_title` | `needs_win_by_2_for_title` | 13 | Precisa vencer por 2 gols | Necesita ganar por 2 goles | Must win by 2 goals |
+| `wins_title_with_draw_up_to_n` | `wins_title_with_draw_up_to_1` | 12 | Empate até 1 a 1 dá o título | Empate hasta 1 a 1: campeón | A draw up to 1-1 wins it |
+| `wins_title_with_draw_from_n` | `wins_title_with_draw_from_1` | 12 | Empate com gols dá o título | El empate con goles le sirve | A scoring draw wins the title |
+| `title_depends_on_away_goals` | `win_by_2_title_depends_on_away_goals` | 16 | Gol fora pesa | Pesa el gol de visitante | Away goals count |
 | `mathematically_champion` | `mathematically_champion` | 10 | Já é campeão | Ya es campeón | Already champions |
 | `clinches_title_with_draw` | `clinches_title_with_draw` | 12 | Empate dá o título | Con un empate es campeón | A draw seals the title |
 | `clinches_title_with_win` | `clinches_title_with_win` | 13 | Vitória dá o título | Si gana, es campeón | A win seals the title |
