@@ -256,6 +256,9 @@ services:
       # revisão das sugestões de edição da base semântica (padrão gemini, com GEMINI_API_KEY)
       AI_REVIEW_PROVIDER: ${AI_REVIEW_PROVIDER:-gemini}
       AI_REVIEW_MODEL: ${AI_REVIEW_MODEL:-}
+      # sobras do casamento da lista de canais do cliente (padrão gemini, com GEMINI_API_KEY)
+      AI_CHANNELS_PROVIDER: ${AI_CHANNELS_PROVIDER:-gemini}
+      AI_CHANNELS_MODEL: ${AI_CHANNELS_MODEL:-}
       AI_MODEL_LIGHT: ${AI_MODEL_LIGHT:-}
       AI_MODEL_STANDARD: ${AI_MODEL_STANDARD:-}
       AI_MODEL_RESEARCH: ${AI_MODEL_RESEARCH:-}

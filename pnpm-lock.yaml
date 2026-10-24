@@ -117,6 +117,9 @@ importers:
       '@galaxie/runtime-config':
         specifier: workspace:*
         version: link:../../packages/runtime-config
+      '@galaxie/where-to-watch':
+        specifier: workspace:*
+        version: link:../../packages/where-to-watch
       '@galaxie/widgets':
         specifier: workspace:*
         version: link:../../packages/widgets

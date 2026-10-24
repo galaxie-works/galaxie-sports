@@ -209,6 +209,17 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     args: ['--revisitar', '--dias', '30', '--max', '4'],
     timeoutMs: 30 * MINUTE,
   },
+  {
+    name: 'channel-lists',
+    description:
+      'Lista de canais do cliente: a IA confere só as sobras do casamento por código (índices e enums, com validador depois); falha volta na próxima rodada',
+    // sem lista pendente, só uma consulta ao banco (nenhuma chamada ao modelo)
+    cron: '*/10 * * * *',
+    script: 'dist/cli/channel-lists.js',
+    cwd: '../ai-agents',
+    args: ['--max', '10', '--repetir-falhas'],
+    timeoutMs: 15 * MINUTE,
+  },
 ];
 
 /** Jobs de cada perfil do scheduler (`SCHEDULER_PROFILE`, padrão `ingestor`). */

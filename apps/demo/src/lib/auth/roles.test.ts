@@ -35,6 +35,7 @@ describe('papéis da demo', () => {
       '/cliente/chaves',
       '/cliente/builder/novo',
       '/cliente/grade',
+      '/cliente/canais',
       '/api/cliente/x',
     ]) {
       expect(routeAccess(path, 'client')).toBe('allow');

@@ -232,6 +232,13 @@
       "when": 1792866832469,
       "tag": "0032_piloto_nascimento_numero",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792868510687,
+      "tag": "0033_lista_canais_cliente",
+      "breakpoints": true
     }
   ]
 }
