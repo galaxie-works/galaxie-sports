@@ -40,6 +40,15 @@ export class WikimediaError extends Error {
 
 type Json = Record<string, unknown>;
 
+type Text = { value?: string };
+/** Entidade do `wbgetentities` (só os campos que lemos). */
+interface EntityJson {
+  labels?: Record<string, Text>;
+  aliases?: Record<string, Text[]>;
+  descriptions?: Record<string, Text>;
+  claims?: Record<string, unknown[]>;
+}
+
 export class WikimediaClient {
   private readonly fetchFn: typeof globalThis.fetch;
   private readonly sleep: (ms: number) => Promise<void>;
@@ -133,19 +142,33 @@ export class WikimediaClient {
   /** Afirmações (claims) dos itens, só as propriedades pedidas. */
   async claims(ids: string[], props: string[]): Promise<Map<string, Record<string, unknown[]>>> {
     const out = new Map<string, Record<string, unknown[]>>();
-    for (let i = 0; i < ids.length; i += 50) {
-      const body = await this.get(WIKIDATA_API, {
-        action: 'wbgetentities',
-        ids: ids.slice(i, i + 50).join('|'),
-        props: 'claims',
-      });
-      const entities = (body.entities ?? {}) as Record<string, { claims?: Record<string, unknown[]> }>;
-      for (const [id, e] of Object.entries(entities)) {
-        const claims: Record<string, unknown[]> = {};
-        for (const p of props) claims[p] = e.claims?.[p] ?? [];
-        out.set(id, claims);
-      }
+    for (const [id, e] of await this.entities(ids, { props: 'claims' })) {
+      const claims: Record<string, unknown[]> = {};
+      for (const p of props) claims[p] = e.claims?.[p] ?? [];
+      out.set(id, claims);
     }
+    return out;
+  }
+
+  /**
+   * `wbgetentities` em lotes de 50. A API corta a resposta acima de 12 MB sem dar erro ("This result was
+   * truncated", e os itens a mais somem): 50 países com todas as afirmações passam disso. Lote cortado é refeito em
+   * metades; um item que sozinho não cabe fica de fora.
+   */
+  private async entities(ids: string[], params: Record<string, string>): Promise<Map<string, EntityJson>> {
+    const out = new Map<string, EntityJson>();
+    const fetchBatch = async (batch: string[]): Promise<void> => {
+      const body = await this.get(WIKIDATA_API, { action: 'wbgetentities', ids: batch.join('|'), ...params });
+      const entities = (body.entities ?? {}) as Record<string, EntityJson>;
+      if (JSON.stringify(body.warnings ?? '').includes('truncated') && batch.length > 1) {
+        const half = Math.ceil(batch.length / 2);
+        await fetchBatch(batch.slice(0, half));
+        await fetchBatch(batch.slice(half));
+        return;
+      }
+      for (const [id, e] of Object.entries(entities)) out.set(id, e);
+    };
+    for (let i = 0; i < ids.length; i += 50) await fetchBatch(ids.slice(i, i + 50));
     return out;
   }
 
@@ -159,38 +182,24 @@ export class WikimediaClient {
     languages: string[] = ['en'],
   ): Promise<Map<string, WikidataItem>> {
     const out = new Map<string, WikidataItem>();
-    type Text = { value?: string };
-    for (let i = 0; i < ids.length; i += 50) {
-      const body = await this.get(WIKIDATA_API, {
-        action: 'wbgetentities',
-        ids: ids.slice(i, i + 50).join('|'),
-        props: 'labels|aliases|descriptions|claims',
-        languages: languages.join('|'),
+    const entities = await this.entities(ids, {
+      props: props.length ? 'labels|aliases|descriptions|claims' : 'labels|aliases|descriptions',
+      languages: languages.join('|'),
+    });
+    for (const [id, e] of entities) {
+      const label = e.labels?.[languages[0]!]?.value ?? null;
+      const names = [
+        ...languages.map((l) => e.labels?.[l]?.value),
+        ...languages.flatMap((l) => (e.aliases?.[l] ?? []).map((a) => a.value)),
+      ].filter((v): v is string => !!v);
+      const claims: Record<string, unknown[]> = {};
+      for (const p of props) claims[p] = e.claims?.[p] ?? [];
+      out.set(id, {
+        label,
+        names: [...new Set(names)],
+        description: e.descriptions?.[languages[0]!]?.value ?? null,
+        claims,
       });
-      const entities = (body.entities ?? {}) as Record<
-        string,
-        {
-          labels?: Record<string, Text>;
-          aliases?: Record<string, Text[]>;
-          descriptions?: Record<string, Text>;
-          claims?: Record<string, unknown[]>;
-        }
-      >;
-      for (const [id, e] of Object.entries(entities)) {
-        const label = e.labels?.[languages[0]!]?.value ?? null;
-        const names = [
-          ...languages.map((l) => e.labels?.[l]?.value),
-          ...languages.flatMap((l) => (e.aliases?.[l] ?? []).map((a) => a.value)),
-        ].filter((v): v is string => !!v);
-        const claims: Record<string, unknown[]> = {};
-        for (const p of props) claims[p] = e.claims?.[p] ?? [];
-        out.set(id, {
-          label,
-          names: [...new Set(names)],
-          description: e.descriptions?.[languages[0]!]?.value ?? null,
-          claims,
-        });
-      }
     }
     return out;
   }
