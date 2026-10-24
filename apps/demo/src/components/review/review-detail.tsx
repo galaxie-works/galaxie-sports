@@ -1,9 +1,7 @@
 'use client';
 
 import { Check, FilePenLine, Undo2, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
-import { toast } from 'sonner';
+import { useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
 import {
@@ -29,14 +27,13 @@ import { fieldText, parseProposedField, type ReviewPreview } from '@/lib/review/
 import {
   REVIEW_STATUSES,
   floorsFrom,
-  itemSegment,
   servedAt,
-  type ReviewAction,
   type ReviewDetail as Detail,
   type ServingFloor,
 } from '@/lib/review/types';
 
 import { STATE_BADGE, marketLabel, sportLabel } from './labels';
+import { useDecide } from './use-decide';
 
 /** Campos que identificam o item: não entram na edição proposta. */
 const LOCKED_FIELDS = new Set(['slug', 'key']);
@@ -133,45 +130,6 @@ function SideBySide({ item, empty }: { item: Detail; empty: string }) {
       ) : null}
     </div>
   );
-}
-
-function useDecide(id: string) {
-  const { t } = useI18n();
-  const T = t.review;
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const send = (
-    action: ReviewAction,
-    body: { comment?: string; fields?: Record<string, unknown> | null } = {},
-  ) =>
-    new Promise<boolean>((resolve) =>
-      startTransition(async () => {
-        try {
-          const res = await fetch(`/api/ajustes/revisao/${itemSegment(id)}`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ action, ...body }),
-          });
-          const json = (await res.json().catch(() => ({}))) as {
-            code?: string;
-            data?: { unchanged: boolean };
-          };
-          if (!res.ok) {
-            const code = json.code as keyof typeof T.errors | undefined;
-            toast.error(code && code in T.errors ? T.errors[code] : T.errors.failed);
-            resolve(false);
-            return;
-          }
-          toast.success(json.data?.unchanged ? T.actions.unchanged : T.actions.done[action]);
-          router.refresh();
-          resolve(true);
-        } catch {
-          toast.error(T.errors.failed);
-          resolve(false);
-        }
-      }),
-    );
-  return { send, pending };
 }
 
 function Confirm({
