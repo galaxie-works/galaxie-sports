@@ -316,6 +316,37 @@ export async function getTeamCareer(id: string, locale: ContentLocale) {
   return orNull(api.teamCareer(id, localeQuery(locale)));
 }
 
+export const teamTraitsRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/teams/{id}/traits',
+  params: { id },
+  query: localeQuery(content ?? locale),
+  description: text(locale).teamTraits,
+});
+
+/** Traços do piloto de F1 (calculados do F1DB, para todo piloto). */
+export async function getTeamTraits(id: string, locale: ContentLocale) {
+  'use cache';
+  cacheLife('hours');
+  return orNull(api.teamTraits(id, localeQuery(locale)));
+}
+
+export const teamEditorialRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/teams/{id}/editorial',
+  params: { id },
+  query: { ...localeQuery(content ?? locale), min_review_status: 'approved' },
+  description: text(locale).teamEditorial,
+  note: fill(text(locale).requiresModule, { module: 'semantic' }),
+});
+
+/** Perfil editorial do piloto, só o aprovado na revisão (a demo nunca mostra rascunho). */
+export async function getTeamEditorial(id: string, locale: ContentLocale) {
+  'use cache';
+  cacheLife('hours');
+  return orNull(api.teamEditorial(id, { ...localeQuery(locale), min_review_status: 'approved' }));
+}
+
 export const teamPhotosRequest = (id: string, locale: Locale): ApiRequest => ({
   method: 'GET',
   route: '/v1/teams/{id}/photos',

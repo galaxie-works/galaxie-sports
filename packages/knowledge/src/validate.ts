@@ -11,6 +11,7 @@ import {
   type LocatedTeam,
 } from './load.js';
 import { guessLanguage, languageOf } from './language.js';
+import { driverSlug } from './editorial.js';
 import { checkChant, checkProse, type LyricVerdict } from './lyrics.js';
 import {
   COPY_INTENTS,
@@ -48,6 +49,8 @@ export interface ValidationReport {
     texts: number;
     /** Épocas de pintura de construtores da F1 (formula-1/liveries.yaml). */
     liveryEras: number;
+    /** Perfis editoriais de pilotos da F1 (piloto × idioma, formula-1/editorial/<locale>.yaml). */
+    editorial: number;
   };
 }
 
@@ -62,6 +65,7 @@ const SCHEMA_BY_KIND: Partial<Record<FileKind, string>> = {
   glossary: 'glossary.schema.json',
   i18n: 'i18n.schema.json',
   liveries: 'liveries.schema.json',
+  editorial: 'editorial.schema.json',
 };
 
 /** Compila os JSON Schemas de data/knowledge/schemas. */
@@ -230,7 +234,10 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
         `region ${data['region']} difere do nome do arquivo`,
       );
     if (
-      (file.kind === 'copy' || file.kind === 'glossary' || file.kind === 'i18n') &&
+      (file.kind === 'copy' ||
+        file.kind === 'glossary' ||
+        file.kind === 'i18n' ||
+        file.kind === 'editorial') &&
       data?.['locale'] !== base
     )
       add(
@@ -741,6 +748,9 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
   // 10. idioma dos textos livres e traduções (i18n/<locale>.yaml)
   issues.push(...validateTexts(kb, at));
 
+  // 11. perfil editorial dos pilotos da F1
+  issues.push(...validateEditorial(kb, at));
+
   const sortKey = (i: Issue) => `${i.file ?? ''}|${String(i.line ?? 0).padStart(6, '0')}`;
   const sorted = issues.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
   return {
@@ -760,6 +770,7 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
         (n, l) => n + (Array.isArray(l.entry.eras) ? l.entry.eras.length : 0),
         0,
       ),
+      editorial: kb.editorial.length,
     },
   };
 }
@@ -1048,11 +1059,90 @@ export function formatReport(report: ValidationReport): string {
     `  ${i.level === 'error' ? '✗' : '!'} ${i.file ?? '-'}${i.line ? `:${i.line}` : ''} [${i.code}] ${i.message}`;
   const c = report.counts;
   return [
-    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos (${c.derbiesWithAllTime} com histórico geral) · ${c.headToHead} outros confrontos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário · ${c.texts} traduções · ${c.liveryEras} pinturas da F1`,
+    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos (${c.derbiesWithAllTime} com histórico geral) · ${c.headToHead} outros confrontos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário · ${c.texts} traduções · ${c.liveryEras} pinturas da F1 · ${c.editorial} perfis editoriais da F1`,
     ...(report.errors.length ? [`Erros (${report.errors.length}):`, ...report.errors.map(line)] : []),
     ...(report.warnings.length ? [`Avisos (${report.warnings.length}):`, ...report.warnings.map(line)] : []),
     report.errors.length
       ? `✗ ${report.errors.length} erro(s) — corrija antes do merge.`
       : `✓ Nenhum erro${report.warnings.length ? ` (${report.warnings.length} aviso(s))` : ''}.`,
   ].join('\n');
+}
+
+/**
+ * Perfil editorial (formula-1/editorial/<locale>.yaml): um por piloto e idioma, slug = `f1-<id do F1DB>`, o nível
+ * diz o que o perfil traz (`regular` só a bio), a tradução precisa do original em pt-BR, e os textos no idioma do
+ * arquivo e sem cara de letra de música. Fonte por item e o resto do formato ficam no schema.
+ */
+function validateEditorial(
+  kb: KnowledgeBase,
+  at: (file: string, path: (string | number)[]) => number | null,
+): Issue[] {
+  const out: Issue[] = [];
+  const add = (level: Issue['level'], code: string, file: string, line: number | null, message: string) =>
+    out.push({ level, code, file, line, message });
+  const originals = new Set(kb.editorial.filter((e) => e.locale === 'pt-BR').map((e) => e.entry.slug));
+  const seen = new Set<string>();
+  for (const e of kb.editorial) {
+    const base = ['drivers', e.index];
+    const { slug, f1db, tier } = e.entry;
+    const key = `${e.locale}|${slug}`;
+    if (seen.has(key))
+      add('error', 'duplicate-slug', e.file, at(e.file, base), `perfil editorial repetido: ${slug}`);
+    seen.add(key);
+    if (f1db?.id && slug !== driverSlug(f1db.id))
+      add(
+        'error',
+        'editorial-slug',
+        e.file,
+        at(e.file, [...base, 'slug']),
+        `${slug}: o slug deve ser ${driverSlug(f1db.id)}`,
+      );
+    const extras = (['style', 'strengths', 'moments', 'rivalries'] as const).filter(
+      (k) => e.entry[k] !== undefined,
+    );
+    if (tier === 'regular' && extras.length)
+      add(
+        'error',
+        'editorial-tier',
+        e.file,
+        at(e.file, base),
+        `${slug}: nível regular só traz a bio (sobram ${extras.join(', ')})`,
+      );
+    if (tier === 'legend' && (!e.entry.style || !e.entry.moments?.length))
+      add('warning', 'editorial-tier', e.file, at(e.file, base), `${slug}: lenda sem estilo ou sem momentos`);
+    if (e.locale !== 'pt-BR' && !originals.has(slug))
+      add(
+        'error',
+        'editorial-original',
+        e.file,
+        at(e.file, base),
+        `${slug}: tradução sem o original em pt-BR`,
+      );
+
+    const texts: [unknown, (string | number)[]][] = [
+      [e.entry.bio?.text, ['bio', 'text']],
+      [e.entry.style?.text, ['style', 'text']],
+      ...(e.entry.strengths ?? []).map(
+        (s, i) => [s.text, ['strengths', i, 'text']] as [unknown, (string | number)[]],
+      ),
+      ...(e.entry.moments ?? []).map(
+        (m, i) => [m.text, ['moments', i, 'text']] as [unknown, (string | number)[]],
+      ),
+      ...(e.entry.rivalries ?? []).map(
+        (r, i) => [r.text, ['rivalries', i, 'text']] as [unknown, (string | number)[]],
+      ),
+    ];
+    for (const [text, path] of texts) {
+      if (typeof text !== 'string') continue;
+      const where = at(e.file, [...base, ...path]);
+      const verdict = checkProse(text);
+      if (verdict) add(verdict.level, 'lyric-like', e.file, where, `${slug}: ${verdict.reason}`);
+      const found = guessLanguage(text);
+      if (found && found !== languageOf(e.locale)) {
+        const excerpt = text.length > 50 ? `${text.slice(0, 47)}…` : text;
+        add('warning', 'text-language', e.file, where, `${slug}: "${excerpt}" não parece ${e.locale}`);
+      }
+    }
+  }
+  return out;
 }

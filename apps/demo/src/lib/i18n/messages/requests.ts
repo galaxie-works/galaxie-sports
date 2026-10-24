@@ -24,6 +24,10 @@ export default defineMessages(
     teamCareer:
       'Carreira na Fórmula 1: temporada a temporada, títulos, vitórias, poles, pódios, equipes e companheiros.',
     teamPhotos: 'Fotos de licença livre (Wikimedia Commons), cada uma com autor, licença e página de origem.',
+    teamTraits:
+      'Traços do piloto calculados do histórico: pistas preferidas, sábado × domingo, duelo com os companheiros e consistência.',
+    teamEditorial:
+      'Perfil editorial do piloto (bio, estilo, pontos fortes, momentos e rivalidades), cada item com a fonte; só o aprovado.',
     teamOverviewSeason:
       'O time na temporada {season}: campanha em cada competição, tabela, forma e últimos jogos daquele ano (sem próximo jogo). Os anos com dados vêm em `seasons`.',
     squadSeason:
@@ -75,6 +79,10 @@ export default defineMessages(
       squad: 'Current squad and coaching staff (send ?season=YYYY for another season).',
       teamCareer: 'Formula 1 career: season by season, titles, wins, poles, podiums, teams and teammates.',
       teamPhotos: 'Freely licensed photos (Wikimedia Commons), each with author, license and source page.',
+      teamTraits:
+        "The driver's traits computed from the record: favourite tracks, Saturday vs Sunday, teammate battle and consistency.",
+      teamEditorial:
+        "The driver's editorial profile (bio, style, strengths, moments and rivalries), each item with its source; approved only.",
       teamOverviewSeason:
         'The team in the {season} season: campaign in each competition, table, form and last matches of that year (no next match). The years with data come in `seasons`.',
       squadSeason:
@@ -128,6 +136,10 @@ export default defineMessages(
         'Carrera en la Fórmula 1: temporada por temporada, títulos, victorias, poles, podios, equipos y compañeros.',
       teamPhotos:
         'Fotos de licencia libre (Wikimedia Commons), cada una con autor, licencia y página de origen.',
+      teamTraits:
+        'Rasgos del piloto calculados del historial: pistas preferidas, sábado vs. domingo, duelo con los compañeros y regularidad.',
+      teamEditorial:
+        'Perfil editorial del piloto (bio, estilo, puntos fuertes, momentos y rivalidades), cada ítem con su fuente; solo lo aprobado.',
       teamOverviewSeason:
         'El equipo en la temporada {season}: campaña en cada competencia, tabla, racha y últimos partidos de ese año (sin próximo partido). Los años con datos vienen en `seasons`.',
       squadSeason:

@@ -47,6 +47,15 @@ function Tile({
   );
 }
 
+/** Domínio da fonte, sem o `www.` (a URL inteira fica no link). */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
 function MoreLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
@@ -153,18 +162,24 @@ export async function CareerStatsCard({ career, api }: { career: RaceCareer; api
   );
 }
 
-/** Biografia: nascimento (data e local), número permanente e o texto curto da base semântica, quando houver. */
+/**
+ * Biografia: nascimento (data e local), número permanente e o texto da base semântica, quando houver — a bio do
+ * perfil editorial aprovado (`/v1/teams/{id}/editorial`) ou, sem ela, as frases de identidade.
+ */
 export async function DriverBioCard({
   profile,
   identity,
+  bio = null,
 }: {
   profile: DriverProfile | null;
   /** Frases de identidade da base semântica (`/v1/teams/{id}/semantic`). */
   identity: string[];
+  /** Bio do perfil editorial aprovado, com as fontes. */
+  bio?: { text: string; sources: string[] } | null;
 }) {
   const born = profile?.birth_date;
   const place = [profile?.birth_place, profile?.birth_country?.name].filter(Boolean).join(', ');
-  if (!born && !place && !identity.length) return null;
+  if (!born && !place && !identity.length && !bio) return null;
   const { locale, t } = await getI18n();
   const tx = t.race.bio;
   const country = profile?.birth_country ? countryHref(profile.birth_country.code) : null;
@@ -203,7 +218,22 @@ export async function DriverBioCard({
             </div>
           ) : null}
         </dl>
-        {identity.length ? (
+        {bio ? (
+          <div className="flex flex-col gap-3">
+            {bio.text.split(/\n\s*\n/).map((p) => (
+              <p key={p} className="text-muted-foreground leading-relaxed">
+                {p}
+              </p>
+            ))}
+            <p className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              {bio.sources.map((url) => (
+                <a key={url} href={url} target="_blank" rel="noreferrer" className="hover:underline">
+                  {hostOf(url)}
+                </a>
+              ))}
+            </p>
+          </div>
+        ) : identity.length ? (
           <ul className="flex flex-col gap-2">
             {identity.map((fact) => (
               <li key={fact} className="text-muted-foreground flex gap-2">

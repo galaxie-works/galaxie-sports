@@ -71,6 +71,7 @@ import type {
 } from './navigation.js';
 import type { ExploreSummary } from './explore.js';
 import type { RaceCareer, TeamPhotos, TeamPhotosQuery } from './racing.js';
+import type { DriverEditorial, DriverTraits } from './driver-profile.js';
 
 export interface GalaxieClientOptions {
   /** Ex.: http://localhost:8080 */
@@ -233,6 +234,8 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       v1<TeamPhotos>(`/v1/teams/${seg(id)}/photos`, toQuery(query)),
     /** Carreira na F1 (piloto ou construtor). */
     teamCareer: (id: string, opts: LocaleOpts = {}) => v1<RaceCareer>(`/v1/teams/${seg(id)}/career`, opts),
+    /** Traços do piloto de F1 (calculados do F1DB). */
+    teamTraits: (id: string, opts: LocaleOpts = {}) => v1<DriverTraits>(`/v1/teams/${seg(id)}/traits`, opts),
     person: (id: string, opts: LocaleOpts = {}) => v1<Person>(`/v1/people/${seg(id)}`, opts),
     personOverview: (id: string, opts: LocaleOpts & { season?: number } = {}) =>
       v1<PersonOverview>(`/v1/people/${seg(id)}/overview`, opts),
@@ -246,6 +249,9 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       v1<TeamSemantic>(`/v1/teams/${seg(id)}/semantic`, toQuery(query)),
     teamRivals: (id: string, query: Q<ReviewQuery> = {}) =>
       v1<TeamRivals>(`/v1/teams/${seg(id)}/rivals`, toQuery(query)),
+    /** Perfil editorial do piloto de F1 (com fonte por item). */
+    teamEditorial: (id: string, query: Q<ReviewQuery> = {}) =>
+      v1<DriverEditorial>(`/v1/teams/${seg(id)}/editorial`, toQuery(query)),
     glossary: (query: Q<GlossaryQuery> = {}) => v1<Glossary>('/v1/glossary', toQuery(query)),
     copy: (query: Q<CopyQuery> & { intent: string }) => v1<CopySuggestion>('/v1/copy', toQuery(query)),
     // ─── multiesporte (docs/08 §4) ───

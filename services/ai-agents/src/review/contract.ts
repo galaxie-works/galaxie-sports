@@ -134,7 +134,8 @@ function check(kind: ReviewKind, content: Rec, parentKind: 'team' | 'derby' | nu
       return parentKind === 'derby' ? TranslationDerby.safeParse(texts) : TranslationTeam.safeParse(texts);
     }
     case 'competition':
-      // sem contrato próprio do perfil: o schema da base semântica confere os campos
+    case 'editorial':
+      // sem contrato próprio do item (o da API é montado na leitura): o schema da base semântica confere os campos
       return null;
   }
 }

@@ -18,9 +18,11 @@ export const FETCHER_NAMES = [
   'getStats',
   'getTeamCareer',
   'getTeamCountry',
+  'getTeamEditorial',
   'getTeamOverview',
   'getTeamPhotos',
   'getTeamSemantic',
+  'getTeamTraits',
   'getTimeline',
   'getWhereToWatch',
 ] as const;

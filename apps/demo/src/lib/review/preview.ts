@@ -3,7 +3,14 @@
  * vem deste item, com os nomes de campo do contrato (`@galaxie/contracts`). Puro: o servidor e os
  * testes usam o mesmo cálculo.
  */
-import type { CopySuggestion, Derby, DerbyAllTime, GlossaryTerm, TeamSemantic } from '@galaxie/contracts';
+import type {
+  CopySuggestion,
+  Derby,
+  DerbyAllTime,
+  DriverEditorial,
+  GlossaryTerm,
+  TeamSemantic,
+} from '@galaxie/contracts';
 
 import type { ReviewDetail } from './types';
 
@@ -147,6 +154,45 @@ export function previewFor(
         review_status: 'approved',
       };
       return { endpoint: `GET /v1/glossary?locale=${item.locale}`, body };
+    }
+    case 'editorial': {
+      // chave `<locale>.<slug>`; momentos e rivais ganham o evento e o participante na leitura da API
+      const slug = String(c.slug ?? item.key.slice(item.key.indexOf('.') + 1));
+      const bio = rec(c.bio);
+      const style = c.style ? rec(c.style) : null;
+      const items = (v: unknown) => (Array.isArray(v) ? v.map(rec) : []);
+      const body = {
+        slug,
+        text_locale: item.locale ?? 'pt-BR',
+        tier: c.tier === 'regular' ? 'regular' : 'legend',
+        bio: { text: str(bio.text) ?? '', sources: list(bio.sources) },
+        style: style
+          ? {
+              kind: style.kind as NonNullable<DriverEditorial['style']>['kind'],
+              text: str(style.text) ?? '',
+              sources: list(style.sources),
+            }
+          : null,
+        strengths: items(c.strengths).map((s) => ({
+          key: s.key as DriverEditorial['strengths'][number]['key'],
+          text: str(s.text) ?? '',
+          source: str(s.source) ?? '',
+        })),
+        moments: items(c.moments).map((m) => ({
+          year: Number(m.year ?? 0),
+          race: str(m.race) ?? '',
+          wet: m.wet === true,
+          text: str(m.text) ?? '',
+          source: str(m.source) ?? '',
+        })),
+        rivalries: items(c.rivalries).map((r) => ({
+          driver: { f1db_id: String(rec(r.driver).f1db_id ?? ''), name: str(rec(r.driver).name) ?? '' },
+          text: str(r.text) ?? '',
+          source: str(r.source) ?? '',
+        })),
+        review_status: 'approved',
+      } satisfies Partial<Record<keyof DriverEditorial, unknown>>;
+      return { endpoint: `GET /v1/teams/${slug}/editorial?locale=${item.locale ?? 'pt-BR'}`, body };
     }
     case 'translation': {
       const slug = item.key.slice(item.key.indexOf(':') + 1);

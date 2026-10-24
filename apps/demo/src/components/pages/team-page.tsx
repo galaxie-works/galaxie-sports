@@ -10,6 +10,7 @@ import { CampaignCard } from '@/components/sport/campaign-card';
 import { CopyButton } from '@/components/sport/copy-button';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { DriverHero } from '@/components/sport/driver-hero';
+import { DriverMomentsCard, DriverStyleCard } from '@/components/sport/driver-profile';
 import { CareerStatsCard, DriverBioCard, SeasonStatsCard } from '@/components/sport/driver-stats';
 import { Crest } from '@/components/sport/crest';
 import { EventCard } from '@/components/sport/event-card';
@@ -27,9 +28,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   squadRequest,
   teamCareerRequest,
+  teamEditorialRequest,
   teamOverviewRequest,
   teamPhotosRequest,
   teamSemanticRequest,
+  teamTraitsRequest,
 } from '@/lib/galaxie/api';
 import type { ApiRequest } from '@/lib/galaxie/request';
 import { contentLocale, type Locale } from '@/lib/i18n/config';
@@ -406,6 +409,11 @@ export async function TeamContent({
   const [career, photos] = racing
     ? await Promise.all([source.getTeamCareer(id, content), source.getTeamPhotos(id)])
     : [null, null];
+  // piloto: traços calculados (todo piloto) e o perfil editorial aprovado (lendas e regulares)
+  const driver = racing && team.kind === 'driver';
+  const [traits, editorial] = driver
+    ? await Promise.all([source.getTeamTraits(id, content), source.getTeamEditorial(id, content)])
+    : [null, null];
   const tsx = t.team.season;
   const label = past ? seasonLabel(past) : undefined;
   const nicknames = semantic?.nicknames.length ? semantic.nicknames : team.nicknames;
@@ -549,6 +557,16 @@ export async function TeamContent({
                 <CareerStatsCard career={career!} api={teamCareerRequest(id, locale, content)} />
               </>
             ) : null}
+            {traits ? (
+              <DriverStyleCard
+                traits={traits}
+                editorial={editorial}
+                api={teamTraitsRequest(id, locale, content)}
+              />
+            ) : null}
+            {editorial ? (
+              <DriverMomentsCard editorial={editorial} api={teamEditorialRequest(id, locale, content)} />
+            ) : null}
             {career ? (
               <CareerSection
                 career={career}
@@ -637,7 +655,11 @@ export async function TeamContent({
 
           <div className="flex flex-col gap-6">
             {hero ? (
-              <DriverBioCard profile={career!.profile ?? null} identity={semantic?.identity ?? []} />
+              <DriverBioCard
+                profile={career!.profile ?? null}
+                identity={semantic?.identity ?? []}
+                bio={editorial?.bio ?? null}
+              />
             ) : (
               <PortraitCard
                 photo={career?.portrait ?? photos?.photos.find((p) => p.role === 'portrait') ?? null}

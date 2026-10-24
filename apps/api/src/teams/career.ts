@@ -97,7 +97,7 @@ async function sessions(db: Database, where: ReturnType<typeof sql>): Promise<Se
  * andamento não é título. O fim do calendário (`season.end_date`) vale mesmo quando os GPs futuros ainda não são
  * eventos na base (o F1DB só traz sessão com resultado).
  */
-async function standings(db: Database, participantId: string, group: 'drivers' | 'constructors') {
+export async function standings(db: Database, participantId: string, group: 'drivers' | 'constructors') {
   const rows = await db.execute<{ year: number; rank: number; points: number; finished: boolean }>(sql`
     select se.year, s.rank, s.points,
            (se.year < extract(year from now())::int

@@ -90,4 +90,8 @@ const KIND_RULES: Record<SuggestionItem['kind'], string[]> = {
   translation: [
     'Tradução dos textos livres de um time/clássico: precisa dizer o mesmo que o original, no idioma do locale.',
   ],
+  editorial: [
+    'Perfil editorial de piloto de F1 (bio, estilo, pontos fortes, momentos e rivalidades), no idioma do locale.',
+    'Cada item mantém a fonte (URL); não invente fato nem número, e não mude f1db, tier, year nem round dos momentos.',
+  ],
 };

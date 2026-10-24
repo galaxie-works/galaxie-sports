@@ -20,7 +20,8 @@ data/knowledge/
 │   └── derbies/br.yaml
 ├── formula-1/
 │   ├── participants/<arquivo>.yaml # constructors.yaml (kind: constructor), drivers.yaml (kind: driver)
-│   └── liveries.yaml               # cores das equipes por época (pintura de cada temporada) — ver abaixo
+│   ├── liveries.yaml               # cores das equipes por época (pintura de cada temporada) — ver abaixo
+│   └── editorial/<locale>.yaml     # perfil editorial dos pilotos (pt-BR e es), cada item com fonte — ver abaixo
 ├── competitions/*.yaml             # apelidos e semântica de competições (ex.: "Glória Eterna" = Libertadores)
 ├── copy/<locale>.yaml              # biblioteca de microcopy por mercado (pt-BR e 7 variantes de espanhol)
 ├── glossary/<locale>.yaml          # glossário esportivo por mercado (GET /v1/glossary)
@@ -183,6 +184,34 @@ constructors:
 - A **primária** é a cor de identidade da época: a oficial da equipe nas transmissões (era moderna) ou a que domina o carro (histórico). Os hex são aproximações da pintura descrita nas fontes.
 - Épocas em ordem e sem sobreposição; só a última pode ficar em aberto (erro `livery-years`). Época sem fonte confiável fica de fora: sem cor curada, a API cai nas cores do escudo.
 - Uma equipe com dois ids no F1DB (RB e Racing Bulls) tem um item por id.
+
+## `formula-1/editorial/<locale>.yaml`
+
+O perfil editorial dos pilotos da F1, um arquivo por idioma (`pt-BR` é o original; `es`, a tradução). Gerado pelo agente `f1:bio --perfil` como `draft` e aprovado no painel; critérios e comandos no [runbook](../../docs/runbooks/f1-perfil-editorial.md). Como o glossário, não passa pelo seed para as tabelas: a API lê o arquivo (`GET /v1/teams/{id}/editorial`) e aplica as edições e decisões do painel por cima.
+
+```yaml
+schema_version: 1
+locale: pt-BR
+drivers:
+  - slug: f1-ayrton-senna        # f1-<id do F1DB>, o mesmo de participants/drivers.yaml
+    name: Ayrton Senna
+    f1db: { id: ayrton-senna }
+    tier: legend                 # legend = perfil completo; regular = só a bio curta
+    bio: { text: "…", sources: ["https://…"] }
+    style: { kind: aggressive, text: "…", sources: ["https://…"] }   # só lenda; kind da lista do schema
+    strengths:
+      - { key: wet_weather, text: "…", source: "https://…" }
+    moments:
+      - { year: 1993, round: 3, race: GP da Europa, wet: true, text: "…", source: "https://…" }
+    rivalries:
+      - { driver: { f1db_id: alain-prost, name: Alain Prost }, text: "…", source: "https://…" }
+    review_status: draft
+```
+
+- **Fonte por item**: bio e estilo com `sources`; ponto forte, momento e rivalidade com `source`. Momento sem fonte é erro de schema.
+- `round` é a rodada da corrida na temporada (a ordem pela data): liga o momento ao evento da base. `wet` vem da fonte (a F1DB não marca chuva).
+- O validador confere: slug = `f1-<f1db.id>` (`editorial-slug`), regular só com a bio (`editorial-tier`; lenda sem estilo ou sem momento é aviso), tradução com o original em pt-BR (`editorial-original`), o idioma do texto e letra de música. Os números são conferidos contra o F1DB pelo agente, antes de entrar.
+- **Revisão no painel:** cada perfil × idioma é um item do tipo "Perfil de piloto (F1)" (`editorial:<locale>.<slug>`); edição não muda `f1db` nem `tier`.
 
 ## `<esporte>/head-to-head/<region>.yaml`
 
