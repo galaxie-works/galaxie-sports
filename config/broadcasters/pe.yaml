@@ -17,12 +17,30 @@ broadcasters:
     domains: [americatv.com.pe]
   - id: espn
     name: ESPN
-    aliases: ['ESPN Perú', 'ESPN Peru']
-    channels: ['ESPN 2', 'ESPN 3', 'ESPN 4']
+    # Fora do Brasil e da Argentina, a Disney renomeou os Fox Sports 2 e 3 para ESPN 6 e 7 em
+    # fevereiro de 2024: o nome antigo numa grade é o canal novo (não conta duas vezes; antes da data,
+    # não casa). Na Argentina a Fox Sports segue existindo (ar.yaml).
+    aliases:
+      - 'ESPN Perú'
+      - 'ESPN Peru'
+      - { name: 'Fox Sports 2', channel: 'ESPN 6', valid_from: 2024-02-01 }
+      - { name: 'Fox Sports 2 HD', channel: 'ESPN 6', valid_from: 2024-02-01 }
+      - { name: 'Fox Sports 3', channel: 'ESPN 7', valid_from: 2024-02-01 }
+      - { name: 'Fox Sports 3 HD', channel: 'ESPN 7', valid_from: 2024-02-01 }
+    channels: ['ESPN 2', 'ESPN 3', 'ESPN 4', 'ESPN 6', 'ESPN 7']
     medium: pay_tv
     access_model: subscription
     group: disney
     domains: [espn.com.pe]
+  # Saiu das grades em 01/01/2026: fica no dicionário só para a pesquisa recusar o canal extinto
+  # (sem a entrada, ele cairia em "fora da biblioteca" e voltaria para a curadoria).
+  - id: golperu
+    name: GolPerú
+    aliases: ['GolPeru', 'Gol Perú', 'Gol Peru', 'GOLPERU']
+    medium: pay_tv
+    access_model: subscription
+    domains: [golperu.com.pe]
+    valid_to: 2025-12-31
   - id: disney_plus
     name: Disney+
     aliases: ['Disney Plus', 'Disney+ Premium']

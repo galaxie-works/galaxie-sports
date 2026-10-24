@@ -152,8 +152,51 @@ export const AvailabilityPlan = z
   .meta({ id: 'AvailabilityPlan' });
 export type AvailabilityPlan = z.infer<typeof AvailabilityPlan>;
 
+/** Oferta de um complemento: o mensal e o com fidelidade são duas. */
+export const PlatformAddonOffer = z
+  .object({
+    name: z.string().meta({ description: 'Nome como a plataforma vende (ex.: "Premiere Fidelidade").' }),
+    price: z.number().nullable().meta({ description: 'Preço mensal; null = sem preço provado.' }),
+    currency: z.string().nullable().meta({ description: 'ISO 4217.' }),
+    commitment_months: z
+      .number()
+      .int()
+      .nullable()
+      .meta({ description: 'Fidelidade em meses; null = mensal.' }),
+  })
+  .meta({ id: 'PlatformAddonOffer' });
+export type PlatformAddonOffer = z.infer<typeof PlatformAddonOffer>;
+
+/**
+ * Complemento da plataforma: serviço ou canal que qualquer plano contrata à parte. Para quem tem um plano
+ * sem o serviço: "disponível como complemento: Premiere a partir de R$ 49,90".
+ */
+export const PlatformAddon = AvailabilityLogo.extend({
+  kind: z
+    .enum(['service', 'channel'])
+    .meta({ description: 'service = streaming ou pacote · channel = canal avulso.' }),
+  channel: z
+    .string()
+    .nullable()
+    .meta({ description: 'Canal numerado da emissora (ex.: "ESPN 6"), quando é um canal.' }),
+  price_from: z
+    .number()
+    .nullable()
+    .meta({ description: 'Menor preço mensal entre as ofertas ("a partir de").' }),
+  currency: z.string().nullable(),
+  offers: z.array(PlatformAddonOffer),
+}).meta({ id: 'PlatformAddon' });
+export type PlatformAddon = z.infer<typeof PlatformAddon>;
+
 export const PlatformAvailability = z
-  .object({ platform: Platform, plans: z.array(AvailabilityPlan) })
+  .object({
+    platform: Platform,
+    plans: z.array(AvailabilityPlan),
+    addons: z.array(PlatformAddon).optional().meta({
+      description:
+        'Complementos da plataforma com o canal ou o streaming do jogo, contratados à parte por qualquer plano.',
+    }),
+  })
   .meta({ id: 'PlatformAvailability' });
 export type PlatformAvailability = z.infer<typeof PlatformAvailability>;
 
@@ -297,6 +340,13 @@ export const LineupPlan = z
   .meta({ id: 'LineupPlan' });
 
 export const PlatformLineup = z
-  .object({ platform: Platform, plans: z.array(LineupPlan) })
+  .object({
+    platform: Platform,
+    plans: z.array(LineupPlan),
+    addons: z
+      .array(PlatformAddon)
+      .optional()
+      .meta({ description: 'Catálogo de complementos (contratados à parte).' }),
+  })
   .meta({ id: 'PlatformLineup', description: 'Grade de canais e streamings de cada plano da plataforma.' });
 export type PlatformLineup = z.infer<typeof PlatformLineup>;

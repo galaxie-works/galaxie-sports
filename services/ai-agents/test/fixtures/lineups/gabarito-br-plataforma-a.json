@@ -1,0 +1,137 @@
+{
+  "plataforma": "br-plataforma-a",
+  "fonte": "Página oficial de planos, conferida pelo dono do produto (que trabalha na plataforma) em 24/10/2026.",
+  "moeda": "BRL",
+  "promocao": "50% de desconto no 1º mês: promoção, ignorada.",
+  "planos": [
+    {
+      "nome": "Plano Futebol",
+      "preco_mensal": 149.9,
+      "streamings_inclusos": [
+        "Amazon Prime",
+        "Paramount+",
+        "Disney+ Premium",
+        "Premiere",
+        "SportyNet",
+        "NFL Game Pass"
+      ],
+      "canais": [
+        "Bandeirantes",
+        "Globo",
+        "Record",
+        "SBT",
+        "RedeTV!",
+        "Cultura",
+        "TV Gazeta",
+        "CazéTV",
+        "GE TV",
+        "Xsports"
+      ],
+      "sem_os_canais": ["ESPN", "SporTV", "BandSports"]
+    },
+    {
+      "nome": "Plano Streaming",
+      "preco_mensal": 99.9,
+      "streamings_inclusos": ["Amazon Prime", "Disney+ Premium", "HBO Max", "NFL Game Pass"],
+      "canais": [
+        "Bandeirantes",
+        "Globo",
+        "Record",
+        "SBT",
+        "RedeTV!",
+        "Cultura",
+        "TV Gazeta",
+        "CazéTV",
+        "GE TV",
+        "Xsports"
+      ],
+      "sem_os_canais": ["ESPN", "SporTV", "BandSports"]
+    },
+    {
+      "nome": "Plano TV",
+      "preco_mensal": 99.9,
+      "streamings_inclusos": ["Amazon Prime", "NFL Game Pass"],
+      "canais": [
+        "BandSports",
+        "CazéTV",
+        "ESPN",
+        "ESPN 2",
+        "ESPN 3",
+        "ESPN 4",
+        "ESPN 5",
+        "GE TV",
+        "Nsports",
+        "SporTV",
+        "SporTV 2",
+        "SporTV 3",
+        "Xsports"
+      ],
+      "sem_os_canais": ["ESPN 6"]
+    },
+    {
+      "nome": "Plano Futebol Total",
+      "preco_mensal": 219.9,
+      "streamings_inclusos": [
+        "Amazon Prime",
+        "Paramount+",
+        "Disney+ Premium",
+        "Premiere",
+        "SportyNet",
+        "HBO Max",
+        "NFL Game Pass"
+      ],
+      "canais": [
+        "BandSports",
+        "CazéTV",
+        "ESPN",
+        "ESPN 2",
+        "ESPN 3",
+        "ESPN 4",
+        "ESPN 5",
+        "GE TV",
+        "Nsports",
+        "SporTV",
+        "SporTV 2",
+        "SporTV 3",
+        "Xsports"
+      ],
+      "sem_os_canais": ["ESPN 6"]
+    }
+  ],
+  "complementos": [
+    {
+      "nome": "Disney+ Padrão",
+      "tipo": "streaming",
+      "ofertas": [{ "preco_mensal": 49.9, "fidelidade_meses": null }]
+    },
+    {
+      "nome": "HBO Max",
+      "tipo": "streaming",
+      "ofertas": [{ "preco_mensal": 44.9, "fidelidade_meses": null }]
+    },
+    {
+      "nome": "Telecine",
+      "tipo": "streaming",
+      "ofertas": [{ "preco_mensal": 29.9, "fidelidade_meses": null }]
+    },
+    {
+      "nome": "Premiere",
+      "tipo": "streaming",
+      "ofertas": [
+        { "preco_mensal": 59.9, "fidelidade_meses": null },
+        { "preco_mensal": 49.9, "fidelidade_meses": 12 }
+      ]
+    },
+    {
+      "nome": "SportyNet+",
+      "tipo": "streaming",
+      "ofertas": [{ "preco_mensal": 29.9, "fidelidade_meses": null }]
+    },
+    {
+      "nome": "Paramount+",
+      "tipo": "streaming",
+      "ofertas": [{ "preco_mensal": 34.9, "fidelidade_meses": null }]
+    },
+    { "nome": "ESPN 6", "tipo": "canal", "ofertas": [{ "preco_mensal": 4.9, "fidelidade_meses": 12 }] }
+  ]
+}

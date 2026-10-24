@@ -1,0 +1,412 @@
+{
+  "mercados_latam": [
+    {
+      "pais_iso": "BR",
+      "provedores_ott_detectados": [
+        {
+          "provedor_id": "br-plataforma-a",
+          "provedor_nome_comercial": "Plataforma A",
+          "planos_comerciais": [
+            {
+              "plano_id": "plano-futebol",
+              "plano_nome_comercial": "Plano Futebol",
+              "preco_mensal": 149.9,
+              "moeda_iso": "BRL",
+              "link_oficial_marca_url": "https://plataforma-a.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+              "trecho_da_fonte": "Plano Futebol. R$ 149,90. R$ 74,95por mês. Os principais campeonatos de futebol para você torcer. O plano Futebol tem as séries A, B e C do Brasileirão, a Copa do Brasil, a CONMEBOL Libertadores, a Copa Sul-Americana e as principais ligas europeias. Aproveite também todos os jogos da NFL, incluíndo pré-temporada, temporada completa, playoffs e Super Bowl. E não para por aí: você também acompanha partidas da NBA e NBB, tênis, além das emoções do UFC e da NASCAR. São 6 streamings inclusos no seu plano para você curtir o melhor do futebol e do entretenimento: Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet e NFL Game Pass.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "amazon-prime",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "São 6 streamings inclusos no seu plano para você curtir o melhor do futebol e do entretenimento: Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet e NFL Game Pass."
+                },
+                {
+                  "streaming_id": "paramount-plus",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "São 6 streamings inclusos no seu plano para você curtir o melhor do futebol e do entretenimento: Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet e NFL Game Pass."
+                },
+                {
+                  "streaming_id": "disney-plus-premium",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "São 6 streamings inclusos no seu plano para você curtir o melhor do futebol e do entretenimento: Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet e NFL Game Pass."
+                },
+                {
+                  "streaming_id": "premiere-play",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "São 6 streamings inclusos no seu plano para você curtir o melhor do futebol e do entretenimento: Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet e NFL Game Pass."
+                },
+                {
+                  "streaming_id": "sportynet",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "São 6 streamings inclusos no seu plano para você curtir o melhor do futebol e do entretenimento: Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet e NFL Game Pass."
+                },
+                {
+                  "streaming_id": "nfl-game-pass",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "São 6 streamings inclusos no seu plano para você curtir o melhor do futebol e do entretenimento: Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet e NFL Game Pass."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "canal_trecho_da_fonte": "ESPN 5; BAND SPORTS; GLOBO; BIS; SPORTV; TNT; WARNER CHANNEL; DISCOVERY HOME & HEALTH; DISCOVERY CHANNEL; UNIVERSAL TV; ESPN; SPORTV 2."
+                },
+                {
+                  "canal_nome": "SporTV",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "canal_trecho_da_fonte": "ESPN 5; BAND SPORTS; GLOBO; BIS; SPORTV; TNT; WARNER CHANNEL; DISCOVERY HOME & HEALTH; DISCOVERY CHANNEL; UNIVERSAL TV; ESPN; SPORTV 2."
+                },
+                {
+                  "canal_nome": "BandSports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "canal_trecho_da_fonte": "ESPN 5; BAND SPORTS; GLOBO; BIS; SPORTV; TNT; WARNER CHANNEL; DISCOVERY HOME & HEALTH; DISCOVERY CHANNEL; UNIVERSAL TV; ESPN; SPORTV 2."
+                }
+              ]
+            },
+            {
+              "plano_id": "plano-streaming",
+              "plano_nome_comercial": "Plano Streaming",
+              "preco_mensal": 99.9,
+              "moeda_iso": "BRL",
+              "link_oficial_marca_url": "https://plataforma-a.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+              "trecho_da_fonte": "Plano Streaming. R$ 99,90. R$ 49,95por mês. Os melhores streamings na sua Plataforma A. No plano Streaming, você curte futebol ao vivo com os principais campeonatos nacionais e internacionais, além de outros esportes, como NBA, NBB, tênis e NASCAR. Aproveite também todos os jogos da NFL, incluíndo pré-temporada, temporada completa, playoffs e o Super Bowl. Com Amazon Prime, Disney+ Premium, HBO Max e NFL Game Pass inclusos, você tem o melhor do streaming na sua Plataforma A e ainda aproveita filmes, séries, notícias e realities.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "amazon-prime",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "Com Amazon Prime, Disney+ Premium, HBO Max e NFL Game Pass inclusos, você tem o melhor do streaming na sua Plataforma A e ainda aproveita filmes, séries, notícias e realities."
+                },
+                {
+                  "streaming_id": "disney-plus-premium",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "Com Amazon Prime, Disney+ Premium, HBO Max e NFL Game Pass inclusos, você tem o melhor do streaming na sua Plataforma A e ainda aproveita filmes, séries, notícias e realities."
+                },
+                {
+                  "streaming_id": "max",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "Com Amazon Prime, Disney+ Premium, HBO Max e NFL Game Pass inclusos, você tem o melhor do streaming na sua Plataforma A e ainda aproveita filmes, séries, notícias e realities."
+                },
+                {
+                  "streaming_id": "nfl-game-pass",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-01",
+                  "streaming_trecho_da_fonte": "Com Amazon Prime, Disney+ Premium, HBO Max e NFL Game Pass inclusos, você tem o melhor do streaming na sua Plataforma A e ainda aproveita filmes, séries, notícias e realities."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "canal_trecho_da_fonte": "ESPN 5; BAND SPORTS; GLOBO; BIS; SPORTV; TNT; WARNER CHANNEL; DISCOVERY HOME & HEALTH; DISCOVERY CHANNEL; UNIVERSAL TV; ESPN; SPORTV 2."
+                },
+                {
+                  "canal_nome": "SporTV",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "canal_trecho_da_fonte": "ESPN 5; BAND SPORTS; GLOBO; BIS; SPORTV; TNT; WARNER CHANNEL; DISCOVERY HOME & HEALTH; DISCOVERY CHANNEL; UNIVERSAL TV; ESPN; SPORTV 2."
+                },
+                {
+                  "canal_nome": "BandSports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "canal_trecho_da_fonte": "ESPN 5; BAND SPORTS; GLOBO; BIS; SPORTV; TNT; WARNER CHANNEL; DISCOVERY HOME & HEALTH; DISCOVERY CHANNEL; UNIVERSAL TV; ESPN; SPORTV 2."
+                }
+              ]
+            },
+            {
+              "plano_id": "plano-futebol-total",
+              "plano_nome_comercial": "Plano Futebol Total",
+              "preco_mensal": 219.9,
+              "moeda_iso": "BRL",
+              "link_oficial_marca_url": "https://plataforma-a.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+              "trecho_da_fonte": "Plano Futebol Total. R$ 219,90. 50% OFF no 1º mês. R$ 109,95. mês. Assinar. Incluído. Amazon Prime. Disney+. Paramount+. Premiere. +2. Todo futebol brasileiro. Campeonatos internacionais. Filmes, séries e notícias. Detalhes do plano.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "amazon-prime",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "streaming_trecho_da_fonte": "Pra sua experiência completa, o plano conta com mais de 90 canais e ainda inclui Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet, HBO Max e NFL Game Pass pra você aproveitar filmes, séries, notícias, realities, eventos ao vivo e, principalmente, muito esporte."
+                },
+                {
+                  "streaming_id": "paramount-plus",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "streaming_trecho_da_fonte": "Pra sua experiência completa, o plano conta com mais de 90 canais e ainda inclui Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet, HBO Max e NFL Game Pass pra você aproveitar filmes, séries, notícias, realities, eventos ao vivo e, principalmente, muito esporte."
+                },
+                {
+                  "streaming_id": "disney-plus-premium",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "streaming_trecho_da_fonte": "Pra sua experiência completa, o plano conta com mais de 90 canais e ainda inclui Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet, HBO Max e NFL Game Pass pra você aproveitar filmes, séries, notícias, realities, eventos ao vivo e, principalmente, muito esporte."
+                },
+                {
+                  "streaming_id": "premiere-play",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "streaming_trecho_da_fonte": "Pra sua experiência completa, o plano conta com mais de 90 canais e ainda inclui Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet, HBO Max e NFL Game Pass pra você aproveitar filmes, séries, notícias, realities, eventos ao vivo e, principalmente, muito esporte."
+                },
+                {
+                  "streaming_id": "sportynet",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "streaming_trecho_da_fonte": "Pra sua experiência completa, o plano conta com mais de 90 canais e ainda inclui Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet, HBO Max e NFL Game Pass pra você aproveitar filmes, séries, notícias, realities, eventos ao vivo e, principalmente, muito esporte."
+                },
+                {
+                  "streaming_id": "max",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "streaming_trecho_da_fonte": "Pra sua experiência completa, o plano conta com mais de 90 canais e ainda inclui Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet, HBO Max e NFL Game Pass pra você aproveitar filmes, séries, notícias, realities, eventos ao vivo e, principalmente, muito esporte."
+                },
+                {
+                  "streaming_id": "nfl-game-pass",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "streaming_trecho_da_fonte": "Pra sua experiência completa, o plano conta com mais de 90 canais e ainda inclui Amazon Prime, Paramount+, Disney+ Premium, Premiere, SportyNet, HBO Max e NFL Game Pass pra você aproveitar filmes, séries, notícias, realities, eventos ao vivo e, principalmente, muito esporte."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "canal_trecho_da_fonte": "ESPN 5; BAND SPORTS; GLOBO; BIS; SPORTV; TNT; WARNER CHANNEL; DISCOVERY HOME & HEALTH; DISCOVERY CHANNEL; UNIVERSAL TV; ESPN; SPORTV 2."
+                },
+                {
+                  "canal_nome": "SporTV",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "canal_trecho_da_fonte": "ESPN 5; BAND SPORTS; GLOBO; BIS; SPORTV; TNT; WARNER CHANNEL; DISCOVERY HOME & HEALTH; DISCOVERY CHANNEL; UNIVERSAL TV; ESPN; SPORTV 2."
+                },
+                {
+                  "canal_nome": "BandSports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-02",
+                  "canal_trecho_da_fonte": "ESPN 5; BAND SPORTS; GLOBO; BIS; SPORTV; TNT; WARNER CHANNEL; DISCOVERY HOME & HEALTH; DISCOVERY CHANNEL; UNIVERSAL TV; ESPN; SPORTV 2."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "provedor_id": "br-plataforma-b",
+          "provedor_nome_comercial": "Plataforma B",
+          "planos_comerciais": [
+            {
+              "plano_id": "plataforma-b-app",
+              "plano_nome_comercial": "Plataforma B App",
+              "preco_mensal": 109.9,
+              "moeda_iso": "BRL",
+              "link_oficial_marca_url": "https://plataforma-b.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-03",
+              "trecho_da_fonte": "Plataforma B App. TV e streaming em um lugar só. +120 canais Globoplay Netflix HBO Max Apple TV Amazon Prime Disney+. R$ 65,40/mês. Nos 2 primeiros meses. Após esse período, o valor é de R$ 109,90/mês.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "globoplay",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-03",
+                  "streaming_trecho_da_fonte": "Plataforma B App. TV e streaming em um lugar só. +120 canais Globoplay Netflix HBO Max Apple TV Amazon Prime Disney+."
+                },
+                {
+                  "streaming_id": "netflix",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-03",
+                  "streaming_trecho_da_fonte": "Plataforma B App. TV e streaming em um lugar só. +120 canais Globoplay Netflix HBO Max Apple TV Amazon Prime Disney+."
+                },
+                {
+                  "streaming_id": "max",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-03",
+                  "streaming_trecho_da_fonte": "Plataforma B App. TV e streaming em um lugar só. +120 canais Globoplay Netflix HBO Max Apple TV Amazon Prime Disney+."
+                },
+                {
+                  "streaming_id": "apple-tv",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-03",
+                  "streaming_trecho_da_fonte": "Plataforma B App. TV e streaming em um lugar só. +120 canais Globoplay Netflix HBO Max Apple TV Amazon Prime Disney+."
+                },
+                {
+                  "streaming_id": "amazon-prime",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-03",
+                  "streaming_trecho_da_fonte": "Plataforma B App. TV e streaming em um lugar só. +120 canais Globoplay Netflix HBO Max Apple TV Amazon Prime Disney+."
+                },
+                {
+                  "streaming_id": "disney-plus",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-03",
+                  "streaming_trecho_da_fonte": "Plataforma B App. TV e streaming em um lugar só. +120 canais Globoplay Netflix HBO Max Apple TV Amazon Prime Disney+."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-04",
+                  "canal_trecho_da_fonte": "Com o pacote App Plataforma B, você assiste os jogos dos seus times favoritos de acordo com as grades dos canais... ESPN: Campeonatos Internacionais, Espanha, Inglaterra, Itália, Portugal, Holanda, Escócia e Conmebol Libertadores."
+                },
+                {
+                  "canal_nome": "SporTV",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-04",
+                  "canal_trecho_da_fonte": "Sportv: Brasileirão, Campeonatos Carioca, Mineiro, Gaúcho e Campeonato Alemão."
+                },
+                {
+                  "canal_nome": "BandSports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-04",
+                  "canal_trecho_da_fonte": "Band e Bandsports: Campeonato Carioca e Liga Saudita."
+                }
+              ]
+            },
+            {
+              "plano_id": "plataforma-b-box",
+              "plano_nome_comercial": "Plataforma B Box",
+              "preco_mensal": 159.9,
+              "moeda_iso": "BRL",
+              "link_oficial_marca_url": "https://plataforma-b.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-05",
+              "trecho_da_fonte": "O Plataforma B Box sofreu um reajuste de 14,3% e saltou de R$ 139,90 para R$ 159,90 em sua mensalidade. De acordo com o site Tecnoblog, a subida no valor aconteceu desde o dia 26 de agosto e é válida para os novos clientes da operadora.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "netflix",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-06",
+                  "streaming_trecho_da_fonte": "Confira os planos inclusos na assinatura e faça as contas: Disney+ (Padrão com Anúncios), Amazon Prime (com Anúncios), Apple TV, HBO Max (Básico com anúncios) e Netflix (Padrão com anúncios)."
+                },
+                {
+                  "streaming_id": "max",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-06",
+                  "streaming_trecho_da_fonte": "Confira os planos inclusos na assinatura e faça as contas: Disney+ (Padrão com Anúncios), Amazon Prime (com Anúncios), Apple TV, HBO Max (Básico com anúncios) e Netflix (Padrão com anúncios)."
+                },
+                {
+                  "streaming_id": "disney-plus",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-06",
+                  "streaming_trecho_da_fonte": "Confira os planos inclusos na assinatura e faça as contas: Disney+ (Padrão com Anúncios), Amazon Prime (com Anúncios), Apple TV, HBO Max (Básico com anúncios) e Netflix (Padrão com anúncios)."
+                },
+                {
+                  "streaming_id": "amazon-prime",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-06",
+                  "streaming_trecho_da_fonte": "Confira os planos inclusos na assinatura e faça as contas: Disney+ (Padrão com Anúncios), Amazon Prime (com Anúncios), Apple TV, HBO Max (Básico com anúncios) e Netflix (Padrão com anúncios)."
+                },
+                {
+                  "streaming_id": "apple-tv",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-06",
+                  "streaming_trecho_da_fonte": "Confira os planos inclusos na assinatura e faça as contas: Disney+ (Padrão com Anúncios), Amazon Prime (com Anúncios), Apple TV, HBO Max (Básico com anúncios) e Netflix (Padrão com anúncios)."
+                },
+                {
+                  "streaming_id": "globoplay",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-07",
+                  "streaming_trecho_da_fonte": "Terá algum valor a mais pelo serviço de Globoplay? Não! Ao assinar o pacote de TV ou App Plataforma B, você não será cobrado pelo serviço Globoplay."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "Combate",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-05",
+                  "canal_trecho_da_fonte": "Sem custo extra! Plataforma B inclui canal Combate no pacote básico e muda numeração"
+                },
+                {
+                  "canal_nome": "SporTV",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-04",
+                  "canal_trecho_da_fonte": "Sportv: Brasileirão, Campeonatos Carioca, Mineiro, Gaúcho e Campeonato Alemão."
+                },
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-04",
+                  "canal_trecho_da_fonte": "ESPN: Campeonatos Internacionais, Espanha, Inglaterra, Itália, Portugal, Holanda, Escócia e Conmebol Libertadores."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "provedor_id": "br-plataforma-c",
+          "provedor_nome_comercial": "Plataforma C",
+          "planos_comerciais": [
+            {
+              "plano_id": "pacote-lite-plus",
+              "plano_nome_comercial": "Pacote Lite Plus",
+              "preco_mensal": 19.9,
+              "moeda_iso": "BRL",
+              "link_oficial_marca_url": "https://plataforma-c.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-08",
+              "trecho_da_fonte": "Pacote Lite Plus. Popular. INCLUI. 50. canais. TV Globo. R$14,90. no primeiro mês. Depois. R$19,90 ... O canal GE TV está disponível nos municípios com sinal dessas afiliadas para o pacote Lite Plus e aberto para TODO o Brasil no plano Full. O valor promocional é exclusivo para novos usuários no 1° mês. A partir do 2° mês, será cobrado o valor regular.",
+              "streamings_e_parceiros_inclusos": [],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "GE TV",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-08",
+                  "canal_trecho_da_fonte": "O canal GE TV está disponível nos municípios com sinal dessas afiliadas para o pacote Lite Plus e aberto para TODO o Brasil no plano Full."
+                },
+                {
+                  "canal_nome": "X Sports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-09",
+                  "canal_trecho_da_fonte": "Xsports na Plataforma C: o melhor dos Campeonatos Europeus, Nascar e muito mais a partir do plano Lite+"
+                }
+              ]
+            },
+            {
+              "plano_id": "pacote-full",
+              "plano_nome_comercial": "Pacote Full",
+              "preco_mensal": 89.9,
+              "moeda_iso": "BRL",
+              "link_oficial_marca_url": "https://plataforma-c.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-10",
+              "trecho_da_fonte": "Full. R$79,90 no primeiro mês. Depois R$89,90 /mês. Assinar agora. INCLUI. TV Globo*. Disponível para as regiões que recebem o sinal das afiliadas SP, RJ, BH, Brasília, TV Tem Sorocaba, NSC TV Florianópolis e Inter TV Serra+Mar. Melhor cobertura esportiva. Com o Pacote Full você tem acesso a ESPN, ESPN2, ESPN3, ESPN6, BandSports, SportTV, SportTV2, SportTV3, NSports e SportyNet.",
+              "streamings_e_parceiros_inclusos": [],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-10",
+                  "canal_trecho_da_fonte": "Com o Pacote Full você tem acesso a ESPN, ESPN2, ESPN3, ESPN6, BandSports, SportTV, SportTV2, SportTV3, NSports e SportyNet."
+                },
+                {
+                  "canal_nome": "SporTV",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-10",
+                  "canal_trecho_da_fonte": "Com o Pacote Full você tem acesso a ESPN, ESPN2, ESPN3, ESPN6, BandSports, SportTV, SportTV2, SportTV3, NSports e SportyNet."
+                },
+                {
+                  "canal_nome": "BandSports",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-10",
+                  "canal_trecho_da_fonte": "Com o Pacote Full você tem acesso a ESPN, ESPN2, ESPN3, ESPN6, BandSports, SportTV, SportTV2, SportTV3, NSports e SportyNet."
+                },
+                {
+                  "canal_nome": "GE TV",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-08",
+                  "canal_trecho_da_fonte": "O canal GE TV está disponível nos municípios com sinal dessas afiliadas para o pacote Lite Plus e aberto para TODO o Brasil no plano Full."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "provedor_id": "br-plataforma-d",
+          "provedor_nome_comercial": "Plataforma D",
+          "planos_comerciais": [
+            {
+              "plano_id": "plataforma-d-tv-inicial",
+              "plano_nome_comercial": "Plataforma D TV Inicial",
+              "preco_mensal": 45,
+              "moeda_iso": "BRL",
+              "link_oficial_marca_url": "https://plataforma-d.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-11",
+              "trecho_da_fonte": "Plataforma D TV Inicial. + 40 canais até 3 acessos simultâneos. Não consome a internet do seu Plataforma D Móvel (Pós e Controle). 3 meses de YouTube Premium grátis. 50% de desconto no primeiro mês. Depois, 45/mês.",
+              "streamings_e_parceiros_inclusos": [
+                {
+                  "streaming_id": "youtube-premium",
+                  "streaming_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-11",
+                  "streaming_trecho_da_fonte": "3 meses de YouTube Premium grátis. 50% de desconto no primeiro mês. Depois, 45/mês."
+                }
+              ],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-12",
+                  "canal_trecho_da_fonte": "Com planos a partir de R$ 45, você acompanha seus campeonatos favoritos: Libertadores, Premier League, Champions League e muito mais na ESPN... Plataforma D TV Inicial. + 40 canais até 3 acessos simultâneos. Não consome a internet do seu Plataforma D Móvel (Pós e Controle)."
+                }
+              ]
+            },
+            {
+              "plano_id": "plataforma-d-tv-estendido",
+              "plano_nome_comercial": "Plataforma D TV Estendido",
+              "preco_mensal": 65,
+              "moeda_iso": "BRL",
+              "link_oficial_marca_url": "https://plataforma-d.exemplo",
+              "fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-11",
+              "trecho_da_fonte": "Plataforma D TV Estendido. + 80 canais até 3 acessos simultâneos. Não consome a internet do seu Plataforma D Móvel (Pós e Controle). O dobro de canais. Valor R$ {{ total }} 65 /mês.",
+              "streamings_e_parceiros_inclusos": [],
+              "grade_canais_esporte_lineares": [
+                {
+                  "canal_nome": "ESPN",
+                  "canal_fonte_url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/FIXTURE-13",
+                  "canal_trecho_da_fonte": "Plataforma D TV Estendido: mais de 80 canais. Todos os canais do app Plataforma D TV Inicial com mais esportes, notícias e mais variedade."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

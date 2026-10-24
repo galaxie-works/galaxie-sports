@@ -199,7 +199,8 @@ export async function findOperatorTarget(
 /** Todas as grades, com tudo (rascunho, conferido, aprovado e rejeitado), para a revisão. */
 export async function readAllLineups(): Promise<LineupView[]> {
   const db = lineupDb();
-  const opts = { minReview: 'draft', includeRejected: true } as const;
+  // o painel vê também os vínculos sem prova (a API nunca os mostra)
+  const opts = { minReview: 'draft', includeRejected: true, includeUnverified: true } as const;
   const platforms = await listPlatforms(db, opts);
   const lineups = await Promise.all(platforms.map((p) => getPlatformLineup(db, p.id, opts)));
   return toViews(lineups.filter((l): l is PlatformLineup => l !== null));
@@ -240,7 +241,11 @@ export async function readRequestQueue(status: RequestStatus | null): Promise<{
     const op = await getTenantOperator(db, tenantId);
     if (!op?.platformId) return null;
     if (!lineups.has(op.platformId)) {
-      const l = await getPlatformLineup(db, op.platformId, { minReview: 'draft', includeRejected: true });
+      const l = await getPlatformLineup(db, op.platformId, {
+        minReview: 'draft',
+        includeRejected: true,
+        includeUnverified: true,
+      });
       lineups.set(op.platformId, l ? ((await toViews([l]))[0] ?? null) : null);
     }
     return lineups.get(op.platformId) ?? null;
