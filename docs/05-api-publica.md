@@ -651,6 +651,30 @@ A resposta do onde assistir traz o bloco aditivo **`availability`**: além de qu
 | `GET /v1/platforms[?country=BR]` | `{data: Platform[]}` — plataformas acima do piso, com a mesma regra por tenant |
 | `GET /v1/platforms/{id}/lineup` | `{platform, plans: [{id, name, channels[], services[]}]}` (canais e streamings com `access`); 404 se não existe, está abaixo do piso ou é concorrente escondida do tenant; 403 se o país não está nos mercados |
 
+### 4.1.3 Lista de canais do cliente — `client_channels` e `/v1/channel-list`
+
+O cliente manda **só a lista de canais** dele (um M3U ou os nomes, um por linha) e o onde assistir passa a dizer em quais desses canais o jogo passa. **Nunca pedimos o EPG**: o guia de programação é licenciado ao cliente pelo fornecedor dele. Do M3U só o nome do `#EXTINF` (e o `group-title`) é lido; URL de stream, `tvg-id`, logo e qualquer dado de EPG são descartados na leitura (o portal corta as URLs já no navegador).
+
+O casamento é feito contra **todas as emissoras dos mercados do tenant** (cada emissora × país é um "direito"), uma vez, no envio — não a cada jogo. Código primeiro, IA só nas sobras, validador depois ([07 §2.2.3](07-ia-tempo-real-e-enriquecimento.md#223-lista-de-canais-do-cliente)). Cada emissora sai com um tipo de casamento:
+
+| `match` | Quando |
+|---|---|
+| `exato` | O canal é a emissora no país. Praça e afiliada não são modeladas (a geolocalização é da operadora): "BR: \|SP\| GLOBO HD", "GLOBO RJ" e "RBS TV" casam todos como `exato` com a Globo, e **todos entram** |
+| `feed_generico` | Sinal pan-regional (ou de outro país) da emissora, sem o feed do país na lista — ex.: "ESPN HD" sem prefixo para a ESPN do Chile e da Colômbia |
+| `nome_divergente` | Mesma marca com sufixo diferente — ex.: "CL: CHILEVISION SPORTS" para o sinal aberto Chilevisión (marca de praça não conta como sufixo); vem com `note` para o cliente conferir |
+| `sem_canal_na_lista` | Nenhum canal da lista leva a emissora (direito só de streaming nunca casa `exato` com canal linear; canal "VOD" nunca casa) |
+
+**No onde assistir:** com a lista do tenant **confirmada**, cada item de `options[]` e de `to_confirm[]` ganha `client_channels: [{index, name, match}]` — os canais da lista (posição e nome como o cliente mandou) que levam aquela emissora no país do pedido. `[]` = a emissora tem o jogo, mas não está na lista; sem lista confirmada, o campo não vem. Quando a opção tem canal com número de feed ("ESPN 2"), os canais da lista com o mesmo feed vêm primeiro. A lista confirmada entra no `vary` do cache (por tenant e confirmação).
+
+| Rota (chave secreta; módulo `where_to_watch`) | O que faz |
+|---|---|
+| `GET /v1/channel-list` | A lista (`channels[]`), o casamento proposto (`matches[]`: `{country, provider_id, provider, access, match, channels[{index, name}], origin, note}`) e o confirmado (`confirmed_matches`), com `status` (`review` · `confirmed`) e `ai_status` (`not_needed` · `pending` · `done` · `failed`); 404 sem lista |
+| `PUT /v1/channel-list` | `{content, format?: m3u\|text, default_country?}` — envia ou substitui (até 2 MB e 5.000 canais; nomes repetidos são descartados). O casamento por código sai na resposta; as sobras vão para a IA (`ai_status: pending`). Correções feitas no portal seguem valendo para os canais de mesmo nome. `default_country` vale para os canais sem país no nome nem no grupo |
+| `POST /v1/channel-list/reprocess` | Refaz o casamento com o dicionário de emissoras e os mercados atuais (mesma lista, mesmas correções). Sem mudança, a confirmação continua |
+| `POST /v1/channel-list/confirm` | O casamento proposto passa a ser o servido em `client_channels` |
+
+Respostas com `Cache-Control: no-store`; a chave publicável não acessa (403 `PUBLISHABLE_KEY_NOT_ALLOWED`). A versão confirmada continua servida até a próxima confirmação, mesmo com a lista em revisão. Tabela `api.tenant_channel_list` (uma linha por tenant, migration `0033_lista_canais_cliente`); funções em `@galaxie/db/channel-lists`.
+
 ### 4.2 Rotas internas (correção editorial, auditoria e métricas)
 
 Mesmo guard de `/internal/admin`: `x-galaxie-admin-key` validada contra `ADMIN_KEY_HASHES` e allowlist `ADMIN_IP_ALLOWLIST` (sem hashes configurados, as rotas respondem 503) e `x-galaxie-actor` com o handle interno de quem age (`[a-z0-9._-]`, sem e-mail) — gravado na trilha `enrich.broadcast_correction`. Respostas com `Cache-Control: no-store`.

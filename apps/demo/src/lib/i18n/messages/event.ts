@@ -202,6 +202,7 @@ export default defineMessages(
       addon: 'Adicional',
       includedServices: 'Streamings inclusos',
       regions: 'Praças: {regions}',
+      clientChannels: 'Na sua lista: {channels}',
       kind: {
         pay_tv_operator: 'Operadora de TV paga',
         vmvpd: 'TV paga pela internet',
@@ -415,6 +416,7 @@ export default defineMessages(
         addon: 'Add-on',
         includedServices: 'Streaming included',
         regions: 'Regions: {regions}',
+        clientChannels: 'In your list: {channels}',
         kind: {
           pay_tv_operator: 'Pay TV operator',
           vmvpd: 'Online pay TV',
@@ -627,6 +629,7 @@ export default defineMessages(
         addon: 'Adicional',
         includedServices: 'Streamings incluidos',
         regions: 'Plazas: {regions}',
+        clientChannels: 'En tu lista: {channels}',
         kind: {
           pay_tv_operator: 'Operadora de TV paga',
           vmvpd: 'TV paga por internet',

@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
       }
     : {}),
   cacheComponents: true,
+  // a lista de canais do portal (/cliente/canais) chega por server action: até 2 MB de nomes
+  experimental: { serverActions: { bodySizeLimit: '3mb' } },
   partialPrefetching: true,
   turbopack: {
     rules: {

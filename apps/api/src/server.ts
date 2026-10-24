@@ -39,6 +39,7 @@ import { apiKeyFrom, registerRealtime, type RealtimeOptions } from './realtime/i
 import { docsRoutes } from './routes/docs.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
+import { ClientChannelLists } from './channel-list/lists.js';
 import { mirrorRoutes } from './routes/mirror.js';
 import { apiLoggerOptions, registerObservability } from './observability.js';
 import { accountRoutes } from './routes/v1/account.js';
@@ -174,6 +175,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     now: options.now ?? (() => new Date()),
     ...(options.semantic ? { semantic: options.semantic } : {}),
     lineup: new Lineup(options.lineup),
+    channelLists: new ClientChannelLists(),
   };
   const usageBackend =
     options.usage === false

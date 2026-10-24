@@ -90,6 +90,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
   { name: 'review-suggestions', service: 'agents', cron: '*/15 * * * *', runNow: true },
   { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * *', runNow: false },
+  { name: 'channel-lists', service: 'agents', cron: '*/10 * * * *', runNow: true },
 ];
 
 /** Checagem da conta de IA, feita pelo scheduler dos agentes (o painel pede pela mesma fila do "rodar agora"). */
@@ -257,6 +258,15 @@ export const SETTINGS: readonly SettingDef[] = [
   // revisão das sugestões de edição da base semântica (job review-suggestions): Gemini por padrão
   agents('ai', { key: 'AI_REVIEW_PROVIDER', type: 'enum', options: AI_PROVIDERS, default: 'gemini' }),
   agents('ai', { key: 'AI_REVIEW_MODEL', type: 'text', pattern: MODEL_ID, allowEmpty: true, default: null }),
+  // casamento da lista de canais do cliente (job channel-lists): Gemini por padrão, só nas sobras
+  agents('ai', { key: 'AI_CHANNELS_PROVIDER', type: 'enum', options: AI_PROVIDERS, default: 'gemini' }),
+  agents('ai', {
+    key: 'AI_CHANNELS_MODEL',
+    type: 'text',
+    pattern: MODEL_ID,
+    allowEmpty: true,
+    default: null,
+  }),
 
   // ── Onde Assistir ───────────────────────────────────────────────────────────────────────────
   agents('wtw', {

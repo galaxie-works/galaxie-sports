@@ -68,6 +68,11 @@ function LogoTile({ item, t, toConfirm }: { item: WatchLogo; t: T; toConfirm: bo
           {fill(t.regions, { regions: item.regions.join(', ') })}
         </span>
       ) : null}
+      {item.clientChannels.length ? (
+        <span className="text-primary text-center text-[10px] leading-tight font-medium">
+          {fill(t.clientChannels, { channels: item.clientChannels.join(', ') })}
+        </span>
+      ) : null}
     </>
   );
   const box = cn(

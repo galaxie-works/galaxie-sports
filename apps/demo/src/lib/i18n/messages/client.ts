@@ -17,6 +17,7 @@ export default defineMessages(
       keys: 'Chaves publicáveis',
       builder: 'Builder',
       lineup: 'Grade e ofertas',
+      channels: 'Minha lista de canais',
     },
     tenant: {
       label: 'Tenant',
@@ -221,6 +222,7 @@ export default defineMessages(
         keys: 'Publishable keys',
         builder: 'Builder',
         lineup: 'Lineup and offers',
+        channels: 'My channel list',
       },
       tenant: {
         label: 'Tenant',
@@ -424,6 +426,7 @@ export default defineMessages(
         keys: 'Claves publicables',
         builder: 'Builder',
         lineup: 'Grilla y ofertas',
+        channels: 'Mi lista de canales',
       },
       tenant: {
         label: 'Tenant',

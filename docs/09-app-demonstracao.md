@@ -144,6 +144,21 @@ A Galaxie monta sozinha a grade de cada operadora a partir de fontes públicas: 
 - **Página do jogo, "Onde assistir":** TV aberta, canais pagos e "Disponível também em" (cartão por plataforma com o logo — o crédito da Commons no `title` e, quando a licença exige, visível no cartão —, o tipo, cada plano e os streamings inclusos). Com o canal do jogo **a confirmar** (`channel_status = to_confirm`), um aviso tracejado no topo diz que o canal ainda não foi definido, os detentores dos direitos aparecem com borda tracejada e os cartões são os das plataformas que carregam esses canais; streaming detentor sem cartão vem solto em "Disponível também em".
 - **Dados:** as telas usam os helpers de `@galaxie/db/lineups` sempre por `lib/lineup/store.ts` (os testes trocam esse módulo); nomes e logos de canais e streamings vêm de `enrich.broadcaster`, lida direto do Postgres. As regras puras (campos que a operadora pode propor, domínios, filtros da URL) ficam em `lib/lineup/types.ts`.
 
+### 2.6 Minha lista de canais
+
+O cliente envia a lista de canais dele e o onde assistir passa a dizer em quais desses canais cada jogo passa ([05 §4.1.3](05-api-publica.md#413-lista-de-canais-do-cliente--client_channels-e-v1channel-list), [07 §2.2.3](07-ia-tempo-real-e-enriquecimento.md#223-lista-de-canais-do-cliente)).
+
+- **`/cliente/canais` (portal do cliente, aba "Minha lista de canais"):**
+  - **Enviar a lista:** arquivo M3U (as URLs de stream são cortadas no navegador; só as linhas `#EXT…` seguem para o servidor) ou nomes colados, um por linha, e o país opcional dos canais sem país no nome (pré-escolhido quando o tenant tem um mercado só). O texto pede explicitamente para **não** mandar o EPG. Substituir a lista mantém as correções dos canais de mesmo nome.
+  - **Casamento com os direitos:** situação (em revisão ou confirmada), estado da IA (sem sobras, vai conferir, conferiu, falhou), contagem por tipo de casamento e uma aba por país dos mercados do tenant. Cada emissora mostra o tipo (exato, nome divergente, feed genérico, sem canal na lista), quem decidiu (dicionário, IA validada ou correção do cliente), os canais da lista e a nota (divergência, validador). As emissoras sem canal ficam escondidas atrás de "Mostrar as N emissoras sem canal".
+  - **Corrigir:** em cada emissora, um diálogo com busca na lista do cliente para marcar os canais que a levam (todas as praças podem entrar), "Nenhum canal" ou "Desfazer correção".
+  - **Reprocessar** (dicionário atual) e **Confirmar casamento**: só a confirmação muda o que a API serve em `client_channels`. Com a IA ainda a conferir as sobras, dá para confirmar; se ela achar algo, a lista volta para revisão.
+  - **Canais sem emissora:** a lista recolhida dos canais que não casaram com nenhuma emissora dos mercados (VOD, canais sem esporte, fora do dicionário).
+  - Permissão: o tenant sai sempre da sessão; o cliente só envia, corrige e confirma a lista do próprio tenant. Textos em pt-BR, en e es-AR.
+  ![Portal: casamento confirmado](ux/img/lista-canais-portal.jpg) ![Chile: nome divergente e feed genérico](ux/img/lista-canais-chile.jpg)
+- **Página do jogo, "Onde assistir":** com a lista do tenant da demo confirmada, cada canal mostra embaixo "Na sua lista: …" com os canais casados. ![Onde assistir com os canais da lista](ux/img/lista-canais-onde-assistir.jpg)
+- **Dados:** `lib/channel-list/store.ts` (funções de `@galaxie/db/channel-lists`) e `lib/channel-list/server.ts` (casamento por código com `proposeChannelMatches` de `@galaxie/where-to-watch`, o mesmo da API; dicionário de `WTW_CONFIG_DIR`, que a imagem Docker da demo leva em `/srv/config`).
+
 ## 3. Perfis de demonstração
 
 Perfis fictícios para mostrar personalização e `copy_permission`:
