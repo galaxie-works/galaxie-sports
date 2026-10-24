@@ -121,7 +121,7 @@ herói sem fundo são das fotos. Os três ficam com a outra sessão.
 | 8 | "Carlos Sainz \| Jr" | O nome da api-sports vem sem o ponto ("Carlos Sainz Jr") e o sobrenome do F1DB com ele ("Sainz Jr.") | O sobrenome fecha o nome sem diferenciar a pontuação. "Nyck de Vries" continua com a grafia do nome | `career.ts` (`splitName`) |
 | 9 | Herói preso na temporada marcante (Fangio 1958, Farina 1955) | `heroPhotos(career)` não recebia a temporada escolhida | `heroPhotos(career, year)`: com ano escolhido, o herói usa a equipe, a cor, o número e o carro daquele ano (nunca o carro de outra equipe sob aquela cor) | `apps/demo/src/lib/driver-hero.ts`, `driver-hero.tsx`, `team-page.tsx` |
 | 10 | Nome de hoje em temporada antiga (583 pilotos: "Mercedes-AMG Petronas" em 1954) | A equipe da temporada usava o nome atual da entidade | O F1DB grava a inscrição da época em cada resultado (`result.entrant`, pelas etapas de `season_entrant_driver`); a carreira mostra o nome de época. A fábrica dá o nome; carro particular leva o do construtor | `normalize.ts` (`f1dbEraNames`, `f1dbEntrants`), `career.ts` |
-| 11 | Número e nome de hoje nos anos que vieram da api-sports (Verstappen com o 3 em 2024; a RB de 2024 como "Racing Bulls") | A api-sports manda o número permanente e o nome atuais; a carreira caía no permanente de hoje | O F1DB grava a inscrição do piloto em toda temporada na classificação (`core.standing.entry`: número e nome de época por construtor); a carreira usa quando a corrida não traz. Inclui a migration `0034_standing_inscricao` | `f1dbDriverEntries`, `upsert-core.ts` (a inscrição não some quando outra fonte reescreve a linha), `career.ts` |
+| 11 | Número e nome de hoje nos anos que vieram da api-sports (Verstappen com o 3 em 2024; a RB de 2024 como "Racing Bulls") | A api-sports manda o número permanente e o nome atuais; a carreira caía no permanente de hoje | O F1DB grava a inscrição do piloto em toda temporada na classificação (`core.standing.entry`: número e nome de época por construtor); a carreira usa quando a corrida não traz. Inclui a migration `0037_standing_inscricao` | `f1dbDriverEntries`, `upsert-core.ts` (a inscrição não some quando outra fonte reescreve a linha), `career.ts` |
 | 12 | Número da época errado (15 lendas) | O número mais usado contava treinos e classificações | Vale o das corridas; sem corrida, o da inscrição e depois as demais sessões | `career.ts` |
 
 As causas 1, 3, 6, 7, 8, 9 e 12 (e a 2 nas corridas da api-sports) saem com o deploy. As causas 2, 4, 5, 10 e 11
@@ -166,7 +166,10 @@ item abaixo.
 
 ## Comandos de produção
 
-Depois do merge e do deploy normal da `main` (API, ingestor e demo; a migration `0034_standing_inscricao` roda no
+A migration `0037_standing_inscricao` vem depois da 0035 (#260) e da 0036 (#261): faça o merge deste PR depois dos
+dois.
+
+Depois do merge e do deploy normal da `main` (API, ingestor e demo; a migration `0037_standing_inscricao` roda no
 deploy, como as outras), na VPS:
 
 ```bash
