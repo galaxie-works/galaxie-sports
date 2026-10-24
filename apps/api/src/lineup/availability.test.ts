@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Database, TenantOperator } from '@galaxie/db';
+import type { Database } from '@galaxie/db';
 import type { PublicOption } from '@galaxie/where-to-watch';
 import {
   channelsOf,
@@ -8,6 +8,7 @@ import {
   lineupTags,
   LogoBook,
   operatorVary,
+  type Operator,
   platformAvailability,
   visibleTo,
 } from './availability.js';
@@ -23,8 +24,8 @@ import {
   STREAMING_ID,
 } from './fixtures.js';
 
-const own: TenantOperator = { platformId: OPERATOR_ID, showOtherOperators: false, emailDomains: [] };
-const ownPlusOthers: TenantOperator = { ...own, showOtherOperators: true };
+const own: Operator = { platformId: OPERATOR_ID, showOtherOperators: false };
+const ownPlusOthers: Operator = { ...own, showOtherOperators: true };
 
 const logos = new LogoBook(
   new Map([
@@ -86,7 +87,7 @@ describe('montagem das plataformas', () => {
   it('cada plano traz o acesso, os canais por onde o jogo passa e os streamings inclusos', () => {
     const [operator] = platformAvailability(AVAILABILITY, own, logos);
     expect(operator).toMatchObject({
-      platform: { id: OPERATOR_ID, slug: 'operadora-exemplo', kind: 'pay_tv_operator', logo: null },
+      platform: { id: OPERATOR_ID, slug: 'br-operadora-exemplo', kind: 'pay_tv_operator', logo: null },
       plans: [
         {
           id: 'plano-top',
@@ -131,7 +132,7 @@ describe('montagem das plataformas', () => {
           platform: STREAMING,
           plans: [
             {
-              plan: { id: 'p', platformId: STREAMING_ID, name: 'Plano' },
+              plan: { ...AVAILABILITY[0]!.plans[0]!.plan, id: 'p', platformId: STREAMING_ID, name: 'Plano' },
               viaChannels: [{ channelId: 'canal_desconhecido', access: 'addon' }],
               services: [],
             },
@@ -223,17 +224,22 @@ describe('TV aberta e canais pagos', () => {
 describe('operadora do tenant', () => {
   it('fica em memória pelo TTL (uma consulta por tenant a cada minuto)', async () => {
     let now = 0;
-    const { source, calls } = fixtureLineupSource({ t1: own });
+    const { source, calls } = fixtureLineupSource({
+      t1: { platformId: OPERATOR_ID, show: false },
+      // tenant sem plataforma ligada: não é operadora
+      t3: { platformId: null, show: false },
+    });
     const lineup = new Lineup({ source, minReviewStatus: 'reviewed' }, () => now);
     const db = {} as Database;
     expect(await lineup.operatorOf(db, 't1')).toEqual(own);
     expect(await lineup.operatorOf(db, 't1')).toEqual(own);
     expect(await lineup.operatorOf(db, 't2')).toBeNull();
     expect(await lineup.operatorOf(db, undefined)).toBeNull();
-    expect(calls.filter((c) => c.fn === 'getTenantOperator')).toHaveLength(2);
+    expect(await lineup.operatorOf(db, 't3')).toBeNull();
+    expect(calls.filter((c) => c.fn === 'getTenantOperator')).toHaveLength(3);
     now = 61_000;
     await lineup.operatorOf(db, 't1');
-    expect(calls.filter((c) => c.fn === 'getTenantOperator')).toHaveLength(3);
+    expect(calls.filter((c) => c.fn === 'getTenantOperator')).toHaveLength(4);
     expect(lineup.minReview).toBe('reviewed');
     expect(new Lineup().minReview).toBe('approved');
   });

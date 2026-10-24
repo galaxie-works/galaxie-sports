@@ -23,15 +23,13 @@ import {
   getPlatformLineup,
   getTenantOperator,
   listPlatforms,
+  type ChannelAvailability,
   type Database,
-  type LineupReviewStatus,
-  type PlanChannelRef,
-  type PlanServiceRef,
-  type PlatformAvailabilityRow,
+  type LineupAccess,
+  type LineupMinReview,
+  type LineupPlatform,
   type PlatformKind,
-  type PlatformLineupRow,
-  type PlatformRow,
-  type TenantOperator,
+  type PlatformLineup as DbPlatformLineup,
 } from '@galaxie/db';
 import { listBroadcasters, type PublicOption } from '@galaxie/where-to-watch';
 import { assetUrl } from '../util.js';
@@ -51,9 +49,15 @@ export const dbLineupSource: LineupSource = {
   getTenantOperator,
 };
 
+/** Operadora do tenant, como a regra de visibilidade usa (tenant sem plataforma = sem operadora). */
+export interface Operator {
+  platformId: string;
+  showOtherOperators: boolean;
+}
+
 export interface LineupOptions {
   /** Piso editorial da grade (LINEUP_MIN_REVIEW_STATUS); padrão `approved`. */
-  minReviewStatus?: LineupReviewStatus;
+  minReviewStatus?: LineupMinReview;
   source?: LineupSource;
   /** Por quanto tempo a operadora de um tenant fica em memória (ms; padrão 60 s, como a chave). */
   operatorTtlMs?: number;
@@ -62,9 +66,9 @@ export interface LineupOptions {
 /** Grade resolvida para as rotas: consultas, piso e a operadora de cada tenant (memoizada). */
 export class Lineup {
   readonly source: LineupSource;
-  readonly minReview: LineupReviewStatus;
+  readonly minReview: LineupMinReview;
   private readonly ttlMs: number;
-  private readonly operators = new Map<string, { value: TenantOperator | null; expiresAt: number }>();
+  private readonly operators = new Map<string, { value: Operator | null; expiresAt: number }>();
 
   constructor(
     options: LineupOptions = {},
@@ -76,11 +80,14 @@ export class Lineup {
   }
 
   /** Operadora do tenant (null = não é operadora: vê todas as plataformas). */
-  async operatorOf(db: Database, tenantId: string | undefined): Promise<TenantOperator | null> {
+  async operatorOf(db: Database, tenantId: string | undefined): Promise<Operator | null> {
     if (!tenantId) return null;
     const hit = this.operators.get(tenantId);
     if (hit && hit.expiresAt > this.now()) return hit.value;
-    const value = await this.source.getTenantOperator(db, tenantId);
+    const row = await this.source.getTenantOperator(db, tenantId);
+    const value = row?.platformId
+      ? { platformId: row.platformId, showOtherOperators: row.showOtherOperators }
+      : null;
     if (this.operators.size > 10_000) this.operators.clear();
     this.operators.set(tenantId, { value, expiresAt: this.now() + this.ttlMs });
     return value;
@@ -93,10 +100,7 @@ export class Lineup {
  * Tenant com operadora própria e `show_other_operators = false` vê só a própria operadora e os
  * streamings; com `true`, ou sem operadora (outros tenants e a demo), vê todas.
  */
-export function visibleTo(
-  operator: TenantOperator | null,
-  platform: { id: string; kind: PlatformKind },
-): boolean {
+export function visibleTo(operator: Operator | null, platform: { id: string; kind: PlatformKind }): boolean {
   return (
     !operator ||
     operator.showOtherOperators ||
@@ -106,7 +110,7 @@ export function visibleTo(
 }
 
 /** Parte do `vary` do cache: a resposta muda com a operadora do tenant (e com o filtro dela). */
-export function operatorVary(operator: TenantOperator | null): string[] {
+export function operatorVary(operator: Operator | null): string[] {
   return operator ? [`op:${operator.platformId}:${operator.showOtherOperators ? 'all' : 'own'}`] : [];
 }
 
@@ -141,7 +145,7 @@ export class LogoBook {
   }
 
   /** Plataforma: logo do asset dela; senão, o da entrada dela na biblioteca. */
-  platform(row: PlatformRow): Platform {
+  platform(row: LineupPlatform): Platform {
     const lib = row.broadcasterId ? this.library.get(row.broadcasterId) : undefined;
     const own = row.logoAssetId ? (this.assets.get(row.logoAssetId) ?? null) : null;
     return {
@@ -164,7 +168,7 @@ export async function loadLogoBook(
   db: Database,
   assetsBaseUrl: string | undefined,
   libraryIds: Iterable<string>,
-  platforms: PlatformRow[],
+  platforms: LineupPlatform[],
 ): Promise<LogoBook> {
   const ids = [
     ...new Set([...libraryIds, ...platforms.flatMap((p) => (p.broadcasterId ? [p.broadcasterId] : []))]),
@@ -206,12 +210,21 @@ const lineupItem = (logos: LogoBook, id: string, access: LineupItem['access']): 
 
 function availabilityPlan(
   logos: LogoBook,
-  p: { plan: { id: string; name: string }; viaChannels: PlanChannelRef[]; services: PlanServiceRef[] },
+  platform: LineupPlatform,
+  p: {
+    plan: { id: string; name: string };
+    viaChannels: { channelId: string; access: LineupAccess }[];
+    services: { serviceId: string; access: LineupAccess }[];
+  },
 ): AvailabilityPlan {
-  const included = p.services.filter((s) => s.access === 'included');
+  // a própria plataforma de streaming vem como "serviço" do plano: não se lista como inclusa nela mesma
+  const included = p.services.filter(
+    (s) => s.access === 'included' && s.serviceId !== platform.broadcasterId,
+  );
   // o jogo vem com o plano quando algum canal dele está incluso (sem canal: quando o streaming está)
   const access =
-    p.viaChannels.some((c) => c.access === 'included') || (!p.viaChannels.length && included.length)
+    p.viaChannels.some((c) => c.access === 'included') ||
+    (!p.viaChannels.length && p.services.some((s) => s.access === 'included'))
       ? 'included'
       : 'addon';
   return {
@@ -225,8 +238,8 @@ function availabilityPlan(
 
 /** Plataformas visíveis ao tenant, a operadora dele primeiro, depois por tipo e nome. */
 export function platformAvailability(
-  rows: PlatformAvailabilityRow[],
-  operator: TenantOperator | null,
+  rows: ChannelAvailability[],
+  operator: Operator | null,
   logos: LogoBook,
 ): PlatformAvailability[] {
   return rows
@@ -239,7 +252,7 @@ export function platformAvailability(
     )
     .map((r) => ({
       platform: logos.platform(r.platform),
-      plans: r.plans.map((p) => availabilityPlan(logos, p)),
+      plans: r.plans.map((p) => availabilityPlan(logos, r.platform, p)),
     }));
 }
 
@@ -286,7 +299,7 @@ export async function buildAvailability(input: {
   options: PublicOption[];
   /** Logo resolvido de cada opção publicada (o do canal, quando o acervo oficial tem). */
   optionLogo: OptionLogo;
-  operator: TenantOperator | null;
+  operator: Operator | null;
 }): Promise<{ availability: WhereToWatchAvailability; platformIds: string[] }> {
   const { db, lineup, operator } = input;
   const channelIds = [
@@ -297,7 +310,7 @@ export async function buildAvailability(input: {
         channelIds,
         country: input.country,
         minReview: lineup.minReview,
-        ...(operator && !operator.showOtherOperators ? { onlyPlatformId: operator.platformId } : {}),
+        // sem `onlyPlatformId`: ele restringe também os streamings; a regra do tenant filtra abaixo
         includeStreaming: true,
       })
     : [];
@@ -337,7 +350,7 @@ export async function buildAvailability(input: {
 }
 
 /** Grade de uma plataforma no contrato (`/v1/platforms/{id}/lineup`). */
-export function lineupDto(row: PlatformLineupRow, logos: LogoBook): PlatformLineup {
+export function lineupDto(row: DbPlatformLineup, logos: LogoBook): PlatformLineup {
   return {
     platform: logos.platform(row.platform),
     plans: row.plans.map((p) => ({

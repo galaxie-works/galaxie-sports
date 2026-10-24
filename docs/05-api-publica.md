@@ -632,6 +632,22 @@ Regras de contrato:
 
 `Broadcaster`: `id` (o mesmo `provider_id` das opções), `name`, `aliases`, `kind` (`free_tv` · `pay_tv` = TV paga distribuída por cabo/satélite/IPTV · `streaming` · `radio`), `countries`, `channels`, `website`, `markets[]` (`country`, `name`, `medium`, `access_model`, `channels` por país), `logo` (`url`, `dark_url`, `source_url`, `source_page`, `license`) ou `null`, e `channel_logos[]` (`channel`, `url`, `dark_url`: logos dos canais da emissora). Exige o módulo `where_to_watch`; cache de catálogo (24 h). A biblioteca é sincronizada de `config/broadcasters/<iso2>.yaml` pelo job `wtw-rights`. O logo vem do **acervo oficial de logos** (`_official_logos.yaml`: versões clara e escura em SVG, e logos de canal, gravados no nosso storage pelo `assets:official-logos`; `source_url` = `acervo-oficial://<nó>`); sem logo no acervo, de `_logos.yaml` (arquivos da Wikimedia Commons ligados à emissora pelo Wikidata, espelhados pelo `assets:mirror`). Uso nominativo, só para identificar a emissora.
 
+### 4.1.2 Grade de canais e ofertas — `availability` e `/v1/platforms`
+
+A resposta do onde assistir traz o bloco aditivo **`availability`**: além de quem tem o direito, em que operadora ou streaming e em que plano o canal está (`apps/api/src/lineup/availability.ts`, consultas da grade em `@galaxie/db`).
+
+- `free_tv[]` e `pay_tv_channels[]`: os canais das opções publicadas (`{id, name, logo, logo_dark}`, sem repetir praças).
+- `platforms[]`: `{platform: {id, slug, name, kind, country, broadcaster_id, logo, logo_dark}, plans: [{id, name, access, via_channels[], included_services[]}]}` — `kind` = `pay_tv_operator` · `vmvpd` · `telco_bundle` · `streaming`; `access` do plano = `included` quando algum canal do jogo vem no plano, senão `addon`; `included_services` são os streamings inclusos (o adicional pago fica de fora). Logo da plataforma: o asset dela; senão, o da entrada dela na biblioteca (`broadcaster_id`); senão, `null` (a demo mostra as iniciais).
+- `your_operator`: a operadora do próprio tenant (`api.tenant.operator_platform_id`), com os planos em que o jogo está (`plans: []` = não está na grade dela); `null` quando o tenant não é operadora.
+- **Regra por tenant:** com operadora e `show_other_operators = false`, `platforms` traz só a própria operadora e os streamings; com `true`, ou sem operadora (outros tenants e a demo), todas, a do tenant primeiro.
+- **Piso editorial:** `LINEUP_MIN_REVIEW_STATUS` (`draft` | `reviewed` | `approved`, padrão `approved`; painel Ajustes → Operação), no mesmo padrão do `SEMANTIC_MIN_REVIEW_STATUS`.
+- **Cache:** a operadora do tenant (e o filtro dela) entra no `vary`; tags `platform` e `platform:<id>` somadas às do onde assistir.
+
+| Rota | O que devolve |
+|---|---|
+| `GET /v1/platforms[?country=BR]` | `{data: Platform[]}` — plataformas acima do piso, com a mesma regra por tenant |
+| `GET /v1/platforms/{id}/lineup` | `{platform, plans: [{id, name, channels[], services[]}]}` (canais e streamings com `access`); 404 se não existe, está abaixo do piso ou é concorrente escondida do tenant; 403 se o país não está nos mercados |
+
 ### 4.2 Rotas internas (correção editorial, auditoria e métricas)
 
 Mesmo guard de `/internal/admin`: `x-galaxie-admin-key` validada contra `ADMIN_KEY_HASHES` e allowlist `ADMIN_IP_ALLOWLIST` (sem hashes configurados, as rotas respondem 503) e `x-galaxie-actor` com o handle interno de quem age (`[a-z0-9._-]`, sem e-mail) — gravado na trilha `enrich.broadcast_correction`. Respostas com `Cache-Control: no-store`.
