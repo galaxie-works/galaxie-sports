@@ -7,6 +7,7 @@ export * from './copy/library.js';
 export * from './derby.js';
 export * from './seed.js';
 export * from './review.js';
+export * from './overrides.js';
 export * from './venues.js';
 export * from './resolver/normalize.js';
 export * from './resolver/match.js';

@@ -22,3 +22,9 @@ description = "Chaves do acervo de fotos da Commons (car/lotus/1985, driver/ayrt
 # todo (mesmo com condition = "AND"), e um segredo real no acervo passaria despercebido.
 regexTarget = "line"
 regexes = ['''^\s*-?\s*key:\s*[a-z][a-z0-9-]*(/[a-z0-9-]+)+\s*$''']
+
+[[allowlists]]
+description = "Chaves de itens da base semântica (pt-BR.cheer-3-derby, es-AR.alentar): locale + slug, não segredos"
+# Só a linha inteira "key: '<locale>.<slug>'," (testes e fixtures da revisão semântica).
+regexTarget = "line"
+regexes = ['''^\s*key:\s*'[a-z]{2}(-[A-Z]{2})?\.[a-z0-9][a-z0-9-]*',?\s*$''']

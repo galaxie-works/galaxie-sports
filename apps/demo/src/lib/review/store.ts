@@ -18,12 +18,15 @@ import {
   REVIEW_STATES,
   STATUS_OF_ACTION,
   type ReviewAction,
+  type ReviewAiVerdict,
   type ReviewDetail,
   type ReviewFilters,
   type ReviewKind,
   type ReviewListItem,
   type ReviewListResult,
+  type ReviewLogAction,
   type ReviewLogEntry,
+  type ReviewOverride,
   type ReviewState,
   type ReviewSuggestion,
   type ServingFloor,
@@ -39,7 +42,8 @@ export class ReviewInputError extends Error {
   }
 }
 
-const isMissingTable = (err: unknown) => (err as { code?: string }).code === '42P01';
+/** Tabela ou coluna ainda não criada (migrations 0025/0030 pendentes). */
+const isMissingTable = (err: unknown) => ['42P01', '42703'].includes((err as { code?: string }).code ?? '');
 
 async function query<T extends object>(sql: string, params: unknown[] = []): Promise<T[]> {
   try {
@@ -54,19 +58,26 @@ const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOStrin
 
 /**
  * Itens com a situação efetiva: a decisão do painel quando foi tomada sobre o conteúdo atual (mesmo
- * review_hash); senão o status do YAML.
+ * review_hash); senão o status do YAML. O veredito da IA só vale com a decisão em vigor, e a edição do
+ * banco só aparece quando é ela que está no ar (o hash do catálogo é o do conteúdo editado).
  */
 const ITEMS = `
   select i.*,
          d.suggestion, d.decided_by, d.decided_at,
+         case when d.review_hash = i.review_hash then d.ai_verdict end as ai_verdict,
          (d.item_id is not null and d.review_hash <> i.review_hash) as stale,
          case
            when d.item_id is not null and d.review_hash = i.review_hash
              then case when d.suggestion is not null then 'needs_review' else d.status::text end
            else i.yaml_status::text
-         end as state
+         end as state,
+         case when o.review_hash = i.review_hash then
+           jsonb_build_object('fields', o.fields, 'base', o.base, 'source', o.source, 'reason', o.reason,
+                              'at', o.updated_at)
+         end as override
     from semantic.review_item i
-    left join semantic.review_decision d on d.item_id = i.id`;
+    left join semantic.review_decision d on d.item_id = i.id
+    left join semantic.review_override o on o.item_id = i.id`;
 
 interface ItemRow {
   id: string;
@@ -86,9 +97,15 @@ interface ItemRow {
   suggestion: ReviewSuggestion | null;
   decided_by: string | null;
   decided_at: Date | null;
+  ai_verdict: ReviewAiVerdict | null;
+  override: (Omit<ReviewOverride, 'at'> & { at: string }) | null;
   stale: boolean;
   state: ReviewState;
 }
+
+/** Motivo da recusa da IA, quando ela recusou a sugestão que segue em aberto. */
+const aiRejection = (r: ItemRow) =>
+  r.state === 'needs_review' && r.ai_verdict?.outcome === 'rejected' ? r.ai_verdict.reason : null;
 
 const toListItem = (r: ItemRow): ReviewListItem => ({
   id: r.id,
@@ -102,6 +119,7 @@ const toListItem = (r: ItemRow): ReviewListItem => ({
   stale: r.stale,
   decidedBy: r.decided_by,
   decidedAt: iso(r.decided_at),
+  edited: r.override !== null,
 });
 
 /** Condições SQL dos filtros (`withState` = false para as contagens por situação). */
@@ -158,7 +176,8 @@ export async function listReviewItems(
     items: rows.map((r) => ({
       ...toListItem(r),
       summary: reviewSummary(r.kind, r.content, words),
-      openSuggestion: r.suggestion?.comment ?? null,
+      openSuggestion: r.state === 'needs_review' ? (r.suggestion?.comment ?? null) : null,
+      aiRejection: aiRejection(r),
     })),
     total: total[0]?.n ?? 0,
     counts: byState,
@@ -189,7 +208,7 @@ export async function getReviewItem(id: string): Promise<ReviewDetail | null> {
   if (!row) return null;
   const log = await query<{
     id: string;
-    action: ReviewAction;
+    action: ReviewLogAction;
     from_status: string | null;
     to_status: string;
     comment: string | null;
@@ -211,6 +230,8 @@ export async function getReviewItem(id: string): Promise<ReviewDetail | null> {
     parentKind: row.parent_kind,
     // sugestão de uma decisão desatualizada não vale mais (o conteúdo mudou)
     suggestion: row.state === 'needs_review' ? row.suggestion : null,
+    aiVerdict: row.ai_verdict,
+    override: row.override ? { ...row.override, at: iso(row.override.at)! } : null,
     log: log.map<ReviewLogEntry>((l) => ({
       id: l.id,
       action: l.action,
@@ -363,11 +384,12 @@ export async function decideReview(input: DecideInput): Promise<DecideResult> {
     }
 
     await client.query(
+      // decisão nova: o veredito da IA sobre a anterior não vale mais (uma sugestão nova é reavaliada)
       `insert into semantic.review_decision (item_id, status, review_hash, suggestion, decided_by, decided_by_id, decided_at)
        values ($1, $2, $3, $4, $5, $6, now())
        on conflict (item_id) do update set status = excluded.status, review_hash = excluded.review_hash,
          suggestion = excluded.suggestion, decided_by = excluded.decided_by,
-         decided_by_id = excluded.decided_by_id, decided_at = now()`,
+         decided_by_id = excluded.decided_by_id, decided_at = now(), ai_verdict = null`,
       [row.id, status, row.review_hash, suggestion, input.actor.email, input.actor.id],
     );
     await client.query(
