@@ -21,7 +21,7 @@ const png = encodePng({
   width: 4,
   height: 1,
   colorType: 6,
-  rows: [solidRgba(4, 1, [{ color: [220, 0, 0], share: 1 }])],
+  rows: [[...solidRgba(4, 1, [{ color: [220, 0, 0], share: 1 }])]],
 });
 
 /** Commons falsa: imageinfo com a licença de cada arquivo e a miniatura PNG. */
