@@ -16,6 +16,7 @@ export default defineMessages(
       overview: 'Visão geral',
       keys: 'Chaves publicáveis',
       builder: 'Builder',
+      lineup: 'Grade e ofertas',
     },
     tenant: {
       label: 'Tenant',
@@ -219,6 +220,7 @@ export default defineMessages(
         overview: 'Overview',
         keys: 'Publishable keys',
         builder: 'Builder',
+        lineup: 'Lineup and offers',
       },
       tenant: {
         label: 'Tenant',
@@ -421,6 +423,7 @@ export default defineMessages(
         overview: 'Resumen',
         keys: 'Claves publicables',
         builder: 'Builder',
+        lineup: 'Grilla y ofertas',
       },
       tenant: {
         label: 'Tenant',

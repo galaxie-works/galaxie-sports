@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/app-shell/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { listDemoUsers } from '@/lib/auth/admin';
 import { getT, getTimeZone } from '@/lib/i18n/server';
+import { readOperatorDomains } from '@/lib/lineup/server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -16,7 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
 async function Users() {
   // Fuso de quem vê (cookie): a tabela formata as datas nele, igual no servidor e na hidratação.
   const [{ users, tenants }, timeZone] = await Promise.all([listDemoUsers(), getTimeZone()]);
-  return <UsersTable users={users} tenants={tenants} timeZone={timeZone} />;
+  const operatorDomains = await readOperatorDomains(tenants.map((x) => x.id));
+  return <UsersTable users={users} tenants={tenants} operatorDomains={operatorDomains} timeZone={timeZone} />;
 }
 
 export default async function UsersPage() {

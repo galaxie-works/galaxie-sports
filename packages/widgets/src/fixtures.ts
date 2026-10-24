@@ -271,6 +271,7 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
       },
     ],
     to_confirm: [],
+    availability: { free_tv: [], pay_tv_channels: [], platforms: [], your_operator: null },
     updated_at: verified,
   };
   return { events, standings, whereToWatch };

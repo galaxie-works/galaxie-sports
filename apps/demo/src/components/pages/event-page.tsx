@@ -30,6 +30,7 @@ import { RelatedContentGrid } from '@/components/sport/related-content';
 import { RelevanceMeter } from '@/components/sport/relevance-meter';
 import { Section } from '@/components/sport/section';
 import { SourceNote } from '@/components/sport/source-note';
+import { WhereToWatchGroups } from '@/components/sport/where-to-watch-groups';
 import { StatusBadge } from '@/components/sport/status-badge';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,6 +55,7 @@ import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
 import { COUNTRIES, eventCompetitionHref, eventParents, participantHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
+import { groupWhereToWatch, hasGroups } from '@/lib/where-to-watch';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
 export async function eventMetadata(id: string, source: DataSource): Promise<Metadata> {
@@ -328,6 +330,8 @@ function WhereToWatchCard({
   t: Dictionary;
 }) {
   const tx = t.event.whereToWatch;
+  // TV aberta, canais pagos e "disponível também em" (operadoras e streamings com o plano)
+  const groups = wtw ? groupWhereToWatch(wtw) : null;
   return (
     <Card>
       <CardHeader>
@@ -348,39 +352,8 @@ function WhereToWatchCard({
             name: t.nav.countries[m.nav] ?? m.code,
           }))}
         />
-        {wtw?.options.length ? (
-          <ul className="flex flex-col gap-2">
-            {wtw.options.map((o) => (
-              <li key={o.id} className="flex items-center gap-3 rounded-md border p-2">
-                {o.logo ? (
-                  // logo da biblioteca de emissoras (espelho S3; a versão escura do acervo oficial, já
-                  // que a demo é só tema escuro); não passa pelo otimizador do Next
-                  <img src={o.logo_dark ?? o.logo} alt="" className="h-9 w-12 shrink-0 object-contain" />
-                ) : null}
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-medium">
-                    {o.provider}
-                    {o.channel && o.channel !== o.provider ? ` · ${o.channel}` : ''}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {tx.medium[o.medium] ?? o.medium}
-                    {o.region ? ` · ${o.region}` : ''} ·{' '}
-                    {fill(tx.confidence, { value: Math.round(o.confidence * 100) })}
-                  </span>
-                </div>
-                {o.watch_url ? (
-                  <a
-                    href={o.watch_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={fill(tx.open, { provider: o.provider })}
-                  >
-                    <ExternalLink className="text-muted-foreground size-4" />
-                  </a>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+        {groups && hasGroups(groups) ? (
+          <WhereToWatchGroups groups={groups} t={tx} />
         ) : wtw?.to_confirm?.length ? (
           // Direitos conhecidos no país, mas o canal deste jogo ainda não foi alocado pela rodada.
           <div className="flex flex-col gap-2">
