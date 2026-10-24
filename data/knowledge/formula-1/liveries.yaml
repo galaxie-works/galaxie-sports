@@ -1,0 +1,794 @@
+# Base semântica — cores das equipes de Fórmula 1 por época (schema v1)
+#
+# Uma linha por pintura: o intervalo de temporadas, [primária, secundária] em hex e a pintura em poucas palavras.
+# A primária é a cor de identidade da época: a cor oficial da equipe nas transmissões (era moderna) ou a que
+# domina o carro (histórico). O slug é o id do construtor no F1DB. Temporada fora de toda época = sem cor curada
+# (a API cai nas cores do escudo, quando houver). Os hex são aproximações da pintura descrita nas fontes.
+# Revisão (24/10/2026): cada época foi conferida contra as fontes por um revisor de IA independente; o que não
+# se confirmou em texto saiu (melhor sem cor do que com cor errada). Rebaixe para draft o que um revisor humano contestar.
+schema_version: 1
+constructors:
+  - slug: ferrari
+    name: Ferrari
+    eras:
+      - from: 1950
+        to: null
+        colors: ["#dc0000", "#ffeb00"]
+        livery: "rosso corsa, o vermelho de corrida italiano, com o amarelo do escudo de Maranello"
+        sources: ["https://en.wikipedia.org/wiki/Scuderia_Ferrari", "https://en.wikipedia.org/wiki/Rosso_corsa"]
+    review_status: approved
+
+  - slug: mercedes
+    name: Mercedes
+    eras:
+      - from: 1954
+        to: 1955
+        colors: ["#c0c0c0"]
+        livery: "prata, as Flechas de Prata"
+        sources: ["https://en.wikipedia.org/wiki/Mercedes-Benz_in_Formula_One"]
+      - from: 2010
+        to: null
+        colors: ["#00d2be", "#c0c0c0"]
+        livery: "prata ou preto, com o verde-água da Petronas"
+        sources: ["https://en.wikipedia.org/wiki/Mercedes-AMG_Petronas_F1_Team"]
+    review_status: approved
+
+  - slug: mclaren
+    name: McLaren
+    eras:
+      - from: 1968
+        to: 1971
+        colors: ["#ff8000"]
+        livery: "laranja papaia"
+        sources: ["https://en.wikipedia.org/wiki/McLaren"]
+      - from: 1972
+        to: 1973
+        colors: ["#f5f5f5", "#c4561d"]
+        livery: "branco da Yardley, com faixas marrom e laranja"
+        sources: ["https://en.wikipedia.org/wiki/McLaren"]
+      - from: 1974
+        to: 1996
+        colors: ["#e4002b", "#ffffff"]
+        livery: "vermelho e branco da Marlboro"
+        sources: ["https://en.wikipedia.org/wiki/McLaren", "https://en.wikipedia.org/wiki/McLaren_MP4/4"]
+      - from: 1997
+        to: 2005
+        colors: ["#b4b8bd", "#1a1a1a"]
+        livery: "prata e preto da West"
+        sources: ["https://en.wikipedia.org/wiki/McLaren"]
+      - from: 2006
+        to: 2013
+        colors: ["#b4b8bd", "#e4002b"]
+        livery: "prata com vermelho (Vodafone de 2007 a 2013)"
+        sources: ["https://en.wikipedia.org/wiki/McLaren"]
+      - from: 2014
+        to: 2014
+        colors: ["#b4b8bd", "#1a1a1a"]
+        livery: "cromado com preto"
+        sources: ["https://en.wikipedia.org/wiki/McLaren_MP4-29"]
+      - from: 2015
+        to: 2016
+        colors: ["#3a3a3a", "#e4002b"]
+        livery: "grafite e preto com vermelho (2015 começou prata e preto)"
+        sources: ["https://en.wikipedia.org/wiki/McLaren_MP4-30", "https://en.wikipedia.org/wiki/McLaren"]
+      - from: 2017
+        to: 2017
+        colors: ["#ff8000", "#1e1e1e"]
+        livery: "papaia e preto, a volta do laranja"
+        sources: ["https://en.wikipedia.org/wiki/McLaren", "https://en.wikipedia.org/wiki/McLaren_MCL32"]
+      - from: 2018
+        to: null
+        colors: ["#ff8000", "#47c7fc"]
+        livery: "papaia e azul"
+        sources: ["https://en.wikipedia.org/wiki/McLaren"]
+    review_status: approved
+
+  - slug: williams
+    name: Williams
+    eras:
+      - from: 1978
+        to: 1984
+        colors: ["#ffffff", "#00843d"]
+        livery: "branco e verde da Saudia"
+        sources: ["https://en.wikipedia.org/wiki/Williams_Racing", "https://en.wikipedia.org/wiki/Williams_FW07"]
+      - from: 1985
+        to: 1993
+        colors: ["#ffffff", "#1f3c91"]
+        livery: "branco, azul e amarelo da Canon (com Camel e Labatt no início dos anos 90)"
+        sources: ["https://en.wikipedia.org/wiki/Williams_Racing"]
+      - from: 1994
+        to: 1997
+        colors: ["#0b2266", "#ffffff"]
+        livery: "azul-escuro e branco da Rothmans"
+        sources: ["https://en.wikipedia.org/wiki/Williams_FW16", "https://en.wikipedia.org/wiki/Williams_Racing"]
+      - from: 1998
+        to: 1999
+        colors: ["#c8102e", "#ffffff"]
+        livery: "vermelho da Winfield"
+        sources: ["https://en.wikipedia.org/wiki/Williams_FW20", "https://en.wikipedia.org/wiki/Williams_Racing"]
+      - from: 2000
+        to: 2005
+        colors: ["#ffffff", "#1c4fa1"]
+        livery: "branco e azul da BMW"
+        sources: ["https://en.wikipedia.org/wiki/Williams_Racing"]
+      - from: 2006
+        to: 2013
+        colors: ["#0a2a5c", "#ffffff"]
+        livery: "azul-escuro e branco"
+        sources: ["https://en.wikipedia.org/wiki/Williams_Racing"]
+      - from: 2014
+        to: 2018
+        colors: ["#ffffff", "#0b2d6b"]
+        livery: "branco com as faixas da Martini"
+        sources: ["https://en.wikipedia.org/wiki/Williams_FW36", "https://en.wikipedia.org/wiki/Williams_Racing"]
+      - from: 2019
+        to: 2020
+        colors: ["#ffffff", "#041e42"]
+        livery: "branco e azul-escuro (ROKiT)"
+        sources: ["https://en.wikipedia.org/wiki/Williams_FW42"]
+      - from: 2021
+        to: null
+        colors: ["#041e42", "#00a0de"]
+        livery: "azul-escuro e azul-claro"
+        sources: ["https://en.wikipedia.org/wiki/Williams_Racing"]
+    review_status: approved
+
+  - slug: lotus
+    name: Lotus
+    eras:
+      - from: 1958
+        to: 1967
+        colors: ["#004225", "#f5d300"]
+        livery: "verde britânico de corrida com amarelo"
+        sources: ["https://en.wikipedia.org/wiki/Team_Lotus"]
+      - from: 1968
+        to: 1971
+        colors: ["#c8102e", "#d4a017"]
+        livery: "vermelho, branco e dourado da Gold Leaf"
+        sources: ["https://en.wikipedia.org/wiki/Team_Lotus", "https://en.wikipedia.org/wiki/Lotus_49"]
+      - from: 1972
+        to: 1978
+        colors: ["#0a0a0a", "#c9a227"]
+        livery: "preto e dourado da John Player Special"
+        sources: ["https://en.wikipedia.org/wiki/Team_Lotus", "https://en.wikipedia.org/wiki/Lotus_72"]
+      - from: 1980
+        to: 1980
+        colors: ["#0b3d91", "#c8102e"]
+        livery: "azul, vermelho e prata da Essex"
+        sources: ["https://en.wikipedia.org/wiki/Team_Lotus", "https://motorsportretro.com/2013/12/auction-this-essex-lotus-81b-is-up-for-grabs"]
+      - from: 1981
+        to: 1986
+        colors: ["#0a0a0a", "#c9a227"]
+        livery: "preto e dourado da John Player Special (1981 começou com a Essex)"
+        sources: ["https://en.wikipedia.org/wiki/Team_Lotus", "https://en.wikipedia.org/wiki/Lotus_97T"]
+      - from: 1987
+        to: 1990
+        colors: ["#f4c300", "#0b3d91"]
+        livery: "amarelo da Camel"
+        sources: ["https://en.wikipedia.org/wiki/Team_Lotus", "https://en.wikipedia.org/wiki/Lotus_99T"]
+      - from: 1991
+        to: 1991
+        colors: ["#00573f", "#ffffff"]
+        livery: "verde e branco"
+        sources: ["https://www.tamiyausa.com/shop/110-f-1gtindy-cars/rc-team-lotus-type-102b"]
+    review_status: approved
+
+  - slug: red-bull
+    name: Red Bull
+    eras:
+      - from: 2005
+        to: null
+        colors: ["#14214d", "#e8002d"]
+        livery: "azul-marinho com o vermelho e o amarelo da Red Bull"
+        sources: ["https://en.wikipedia.org/wiki/Red_Bull_Racing"]
+    review_status: approved
+
+  - slug: toro-rosso
+    name: Toro Rosso
+    eras:
+      - from: 2006
+        to: 2019
+        colors: ["#16206b", "#c8102e"]
+        livery: "azul-escuro com o touro vermelho"
+        sources: ["https://en.wikipedia.org/wiki/Scuderia_Toro_Rosso"]
+    review_status: approved
+
+  - slug: alphatauri
+    name: AlphaTauri
+    eras:
+      - from: 2020
+        to: 2023
+        colors: ["#1a2b4c", "#ffffff"]
+        livery: "azul-marinho e branco da AlphaTauri"
+        sources: ["https://en.wikipedia.org/wiki/Scuderia_AlphaTauri"]
+    review_status: approved
+
+  - slug: rb
+    name: RB
+    eras:
+      - from: 2024
+        to: 2024
+        colors: ["#1634cb", "#ffffff"]
+        livery: "azul com faixas brancas e filetes vermelhos"
+        sources: ["https://en.wikipedia.org/wiki/RB_VCARB_01"]
+    review_status: approved
+
+  - slug: racing-bulls
+    name: Racing Bulls
+    eras:
+      - from: 2025
+        to: null
+        colors: ["#ffffff", "#1634cb"]
+        livery: "branco e azul"
+        sources: ["https://en.wikipedia.org/wiki/Racing_Bulls"]
+    review_status: approved
+
+  - slug: tyrrell
+    name: Tyrrell
+    eras:
+      - from: 1970
+        to: 1977
+        colors: ["#0b3d91", "#ffffff"]
+        livery: "azul da Elf"
+        sources: ["https://en.wikipedia.org/wiki/Tyrrell_Racing", "https://en.wikipedia.org/wiki/Tyrrell_P34"]
+    review_status: approved
+
+  - slug: renault
+    name: Renault
+    eras:
+      - from: 1977
+        to: 1985
+        colors: ["#ffd500", "#0a0a0a"]
+        livery: "amarelo, preto e branco"
+        sources: ["https://en.wikipedia.org/wiki/Renault_in_Formula_One"]
+      - from: 2002
+        to: 2006
+        colors: ["#1e5aa8", "#ffd500"]
+        livery: "azul e amarelo (Mild Seven)"
+        sources: ["https://en.wikipedia.org/wiki/Renault_in_Formula_One", "https://en.wikipedia.org/wiki/Renault_R25"]
+      - from: 2007
+        to: 2009
+        colors: ["#ff6600", "#1e5aa8"]
+        livery: "laranja e azul (ING)"
+        sources: ["https://en.wikipedia.org/wiki/Renault_in_Formula_One"]
+      - from: 2010
+        to: 2010
+        colors: ["#ffd500", "#0a0a0a"]
+        livery: "amarelo e preto"
+        sources: ["https://en.wikipedia.org/wiki/Renault_R30"]
+      - from: 2011
+        to: 2011
+        colors: ["#0a0a0a", "#c9a227"]
+        livery: "preto e dourado (Lotus Renault GP)"
+        sources: ["https://en.wikipedia.org/wiki/Renault_R31"]
+      - from: 2016
+        to: 2020
+        colors: ["#ffd500", "#0a0a0a"]
+        livery: "amarelo e preto"
+        sources: ["https://en.wikipedia.org/wiki/Renault_in_Formula_One"]
+    review_status: approved
+
+  - slug: alpine
+    name: Alpine
+    eras:
+      - from: 2021
+        to: null
+        colors: ["#0090ff", "#ff87bc"]
+        livery: "azul Alpine, com o rosa da BWT a partir de 2022"
+        sources: ["https://en.wikipedia.org/wiki/Alpine_F1_Team"]
+    review_status: approved
+
+  - slug: brabham
+    name: Brabham
+    eras:
+      - from: 1963
+        to: 1970
+        colors: ["#00843d", "#ffcd00"]
+        livery: "verde e dourado, as cores de corrida da Austrália"
+        sources: ["https://en.wikipedia.org/wiki/Brabham"]
+      - from: 1980
+        to: 1987
+        colors: ["#ffffff", "#0a3d8f"]
+        livery: "branco e azul (Parmalat, depois Olivetti)"
+        sources: ["https://en.wikipedia.org/wiki/Brabham", "https://en.wikipedia.org/wiki/Brabham_BT49"]
+    review_status: approved
+
+  - slug: sauber
+    name: Sauber
+    eras:
+      - from: 1996
+        to: 2005
+        colors: ["#0e3a75", "#00a19c"]
+        livery: "azul com o verde-água da Petronas"
+        sources: ["https://en.wikipedia.org/wiki/Sauber_Motorsport"]
+      - from: 2010
+        to: 2012
+        colors: ["#e6e6e6", "#1a1a1a"]
+        livery: "branco com preto"
+        sources: ["https://en.wikipedia.org/wiki/Sauber_Motorsport"]
+      - from: 2013
+        to: 2014
+        colors: ["#6e6e6e", "#c8102e"]
+        livery: "cinza com detalhes vermelhos (Claro)"
+        sources: ["https://en.wikipedia.org/wiki/Sauber_C32", "https://en.wikipedia.org/wiki/Sauber_C33"]
+      - from: 2015
+        to: 2016
+        colors: ["#0055a5", "#ffd700"]
+        livery: "azul e amarelo do Banco do Brasil"
+        sources: ["https://en.wikipedia.org/wiki/Sauber_C34", "https://en.wikipedia.org/wiki/Sauber_Motorsport"]
+      - from: 2017
+        to: 2017
+        colors: ["#0e2a5c", "#c9a227"]
+        livery: "azul, branco e dourado (25 anos)"
+        sources: ["https://en.wikipedia.org/wiki/Sauber_C36"]
+      - from: 2018
+        to: 2018
+        colors: ["#9b0000", "#ffffff"]
+        livery: "grená e branco da Alfa Romeo"
+        sources: ["https://en.wikipedia.org/wiki/Sauber_C37"]
+    review_status: approved
+
+  - slug: alfa-romeo
+    name: Alfa Romeo
+    eras:
+      - from: 1950
+        to: 1951
+        colors: ["#c8102e"]
+        livery: "vermelho italiano"
+        sources: ["https://en.wikipedia.org/wiki/Alfa_Romeo_in_Formula_One"]
+      - from: 2019
+        to: 2023
+        colors: ["#9b0000", "#ffffff"]
+        livery: "grená e branco"
+        sources: ["https://en.wikipedia.org/wiki/Alfa_Romeo_in_Formula_One"]
+    review_status: approved
+
+  - slug: kick-sauber
+    name: Kick Sauber
+    eras:
+      - from: 2024
+        to: 2025
+        colors: ["#00e701", "#1a1a1a"]
+        livery: "verde neon e preto da Stake e da Kick"
+        sources: ["https://en.wikipedia.org/wiki/Sauber_C44", "https://en.wikipedia.org/wiki/Sauber_Motorsport"]
+    review_status: approved
+
+  - slug: audi
+    name: Audi
+    eras:
+      - from: 2026
+        to: null
+        colors: ["#a8acae", "#e1251b"]
+        livery: "titânio e preto, com vermelho"
+        sources: ["https://en.wikipedia.org/wiki/Audi_in_Formula_One"]
+    review_status: approved
+
+  - slug: cadillac
+    name: Cadillac
+    eras:
+      - from: 2026
+        to: null
+        colors: ["#0a0a0a", "#ffffff"]
+        livery: "preto e branco"
+        sources: ["https://en.wikipedia.org/wiki/Cadillac_Formula_1_Team"]
+    review_status: approved
+
+  - slug: haas
+    name: Haas
+    eras:
+      - from: 2016
+        to: 2018
+        colors: ["#8c8c8c", "#c8102e"]
+        livery: "cinza, preto e vermelho"
+        sources: ["https://en.wikipedia.org/wiki/Haas_F1_Team"]
+      - from: 2019
+        to: 2019
+        colors: ["#0a0a0a", "#c9a227"]
+        livery: "preto e dourado da Rich Energy"
+        sources: ["https://en.wikipedia.org/wiki/Haas_VF-19"]
+      - from: 2020
+        to: 2020
+        colors: ["#8c8c8c", "#c8102e"]
+        livery: "cinza, preto e vermelho"
+        sources: ["https://en.wikipedia.org/wiki/Haas_F1_Team"]
+      - from: 2021
+        to: 2021
+        colors: ["#ffffff", "#0039a6"]
+        livery: "branco, azul e vermelho (Uralkali)"
+        sources: ["https://en.wikipedia.org/wiki/Haas_VF-21"]
+      - from: 2022
+        to: 2022
+        colors: ["#f2f2f2", "#c8102e"]
+        livery: "branco com preto e vermelho"
+        sources: ["https://en.wikipedia.org/wiki/Haas_VF-22"]
+      - from: 2023
+        to: 2024
+        colors: ["#1a1a1a", "#c8102e"]
+        livery: "preto e branco com vermelho (MoneyGram)"
+        sources: ["https://en.wikipedia.org/wiki/Haas_VF-23", "https://en.wikipedia.org/wiki/Haas_VF-24"]
+      - from: 2025
+        to: null
+        colors: ["#f2f2f2", "#c8102e"]
+        livery: "branco com vermelho (Toyota Gazoo Racing em 2026)"
+        sources: ["https://en.wikipedia.org/wiki/Haas_VF-25", "https://en.wikipedia.org/wiki/Haas_VF-26"]
+    review_status: approved
+
+  - slug: aston-martin
+    name: Aston Martin
+    eras:
+      - from: 1959
+        to: 1960
+        colors: ["#004225"]
+        livery: "verde britânico de corrida"
+        sources: ["https://en.wikipedia.org/wiki/Aston_Martin_in_Formula_One"]
+      - from: 2021
+        to: null
+        colors: ["#00665e", "#cedc00"]
+        livery: "verde Aston Martin com verde-limão"
+        sources: ["https://en.wikipedia.org/wiki/Aston_Martin_in_Formula_One"]
+    review_status: approved
+
+  - slug: racing-point
+    name: Racing Point
+    eras:
+      - from: 2019
+        to: 2020
+        colors: ["#f596c8", "#1e5bc6"]
+        livery: "rosa da BWT"
+        sources: ["https://en.wikipedia.org/wiki/Racing_Point_F1_Team"]
+    review_status: approved
+
+  - slug: force-india
+    name: Force India
+    eras:
+      - from: 2009
+        to: 2014
+        colors: ["#ffffff", "#ff7f00"]
+        livery: "branco, laranja e verde, as cores da bandeira da Índia"
+        sources: ["https://en.wikipedia.org/wiki/Force_India"]
+      - from: 2015
+        to: 2016
+        colors: ["#1a1a1a", "#c0c0c0"]
+        livery: "preto e prata, com faixas laranja e verde"
+        sources: ["https://en.wikipedia.org/wiki/Force_India_VJM08"]
+      - from: 2017
+        to: 2018
+        colors: ["#f596c8", "#ffffff"]
+        livery: "rosa da BWT"
+        sources: ["https://en.wikipedia.org/wiki/Force_India_VJM10"]
+    review_status: approved
+
+  - slug: jordan
+    name: Jordan
+    eras:
+      - from: 1991
+        to: 1991
+        colors: ["#00a650", "#003da5"]
+        livery: "verde e azul da 7Up"
+        sources: ["https://en.wikipedia.org/wiki/Jordan_191"]
+      - from: 1996
+        to: 2005
+        colors: ["#ffd500", "#0a0a0a"]
+        livery: "amarelo-ouro da Benson & Hedges"
+        sources: ["https://en.wikipedia.org/wiki/Jordan_Grand_Prix"]
+    review_status: approved
+
+  - slug: benetton
+    name: Benetton
+    eras:
+      - from: 1986
+        to: 1993
+        colors: ["#00a651", "#ffd500"]
+        livery: "multicolorida, com o verde da Benetton (Camel de 1991 a 1993)"
+        sources: ["https://en.wikipedia.org/wiki/Benetton_Formula"]
+      - from: 1994
+        to: 2001
+        colors: ["#2a9fd6", "#00a651"]
+        livery: "azul-claro com verde (Mild Seven)"
+        sources: ["https://en.wikipedia.org/wiki/Benetton_Formula", "https://en.wikipedia.org/wiki/Benetton_B195"]
+    review_status: approved
+
+  - slug: brm
+    name: BRM
+    eras:
+      - from: 1951
+        to: 1969
+        colors: ["#004225"]
+        livery: "verde britânico de corrida"
+        sources: ["https://en.wikipedia.org/wiki/British_Racing_Motors"]
+      - from: 1970
+        to: 1971
+        colors: ["#f5f5f5", "#c9a227"]
+        livery: "branco da Yardley com faixas preta, dourada e ocre"
+        sources: ["https://en.wikipedia.org/wiki/British_Racing_Motors"]
+      - from: 1972
+        to: 1973
+        colors: ["#e4002b", "#ffffff"]
+        livery: "vermelho e branco da Marlboro"
+        sources: ["https://en.wikipedia.org/wiki/British_Racing_Motors"]
+    review_status: approved
+
+  - slug: cooper
+    name: Cooper
+    eras:
+      - from: 1950
+        to: 1969
+        colors: ["#004225", "#ffffff"]
+        livery: "verde britânico de corrida com faixas brancas"
+        sources: ["https://en.wikipedia.org/wiki/Cooper_Car_Company"]
+    review_status: approved
+
+  - slug: vanwall
+    name: Vanwall
+    eras:
+      - from: 1954
+        to: 1960
+        colors: ["#004225"]
+        livery: "verde britânico de corrida"
+        sources: ["https://en.wikipedia.org/wiki/Vanwall"]
+    review_status: approved
+
+  - slug: maserati
+    name: Maserati
+    eras:
+      - from: 1950
+        to: 1960
+        colors: ["#c8102e"]
+        livery: "vermelho italiano"
+        sources: ["https://en.wikipedia.org/wiki/Maserati_in_motorsport"]
+    review_status: approved
+
+  - slug: matra
+    name: Matra
+    eras:
+      - from: 1966
+        to: 1972
+        colors: ["#0055a4", "#ffffff"]
+        livery: "azul francês"
+        sources: ["https://en.wikipedia.org/wiki/Matra_Sports"]
+    review_status: approved
+
+  - slug: ligier
+    name: Ligier
+    eras:
+      - from: 1976
+        to: 1996
+        colors: ["#0055a4", "#ffffff"]
+        livery: "azul francês da Gitanes"
+        sources: ["https://en.wikipedia.org/wiki/Ligier"]
+    review_status: approved
+
+  - slug: prost
+    name: Prost
+    eras:
+      - from: 1997
+        to: 2001
+        colors: ["#0055a4", "#ffffff"]
+        livery: "azul francês"
+        sources: ["https://en.wikipedia.org/wiki/Prost_Grand_Prix"]
+    review_status: approved
+
+  - slug: toleman
+    name: Toleman
+    eras:
+      - from: 1984
+        to: 1984
+        colors: ["#ffffff", "#0b3d91"]
+        livery: "branco com azul e vermelho"
+        sources: ["https://en.wikipedia.org/wiki/Toleman_TG184", "https://www.iconicauctioneers.com/1984-toleman-tg-184-2-rec05803-1-0512"]
+    review_status: approved
+
+  - slug: march
+    name: March
+    eras:
+      - from: 1988
+        to: 1989
+        colors: ["#3fbcc0", "#ffffff"]
+        livery: "turquesa da Leyton House"
+        sources: ["https://en.wikipedia.org/wiki/March_Engineering"]
+    review_status: approved
+
+  - slug: leyton-house
+    name: Leyton House
+    eras:
+      - from: 1990
+        to: 1991
+        colors: ["#3fbcc0", "#ffffff"]
+        livery: "turquesa da Leyton House"
+        sources: ["https://en.wikipedia.org/wiki/Leyton_House_Racing"]
+    review_status: approved
+
+  - slug: lotus-f1
+    name: Lotus F1
+    eras:
+      - from: 2012
+        to: 2015
+        colors: ["#0a0a0a", "#c9a227"]
+        livery: "preto e dourado"
+        sources: ["https://en.wikipedia.org/wiki/Lotus_F1_Team"]
+    review_status: approved
+
+  - slug: lotus-racing
+    name: Lotus Racing
+    eras:
+      - from: 2010
+        to: 2011
+        colors: ["#005030", "#ffd500"]
+        livery: "verde e amarelo"
+        sources: ["https://en.wikipedia.org/wiki/Team_Lotus_(2010–2011)"]
+    review_status: approved
+
+  - slug: caterham
+    name: Caterham
+    eras:
+      - from: 2012
+        to: 2014
+        colors: ["#005030", "#ffd500"]
+        livery: "verde e amarelo"
+        sources: ["https://en.wikipedia.org/wiki/Caterham_F1"]
+    review_status: approved
+
+  - slug: marussia
+    name: Marussia
+    eras:
+      - from: 2012
+        to: 2015
+        colors: ["#c8102e", "#0a0a0a"]
+        livery: "vermelho e preto"
+        sources: ["https://en.wikipedia.org/wiki/Marussia_F1"]
+    review_status: approved
+
+  - slug: virgin
+    name: Virgin
+    eras:
+      - from: 2010
+        to: 2011
+        colors: ["#0a0a0a", "#c8102e"]
+        livery: "preto e vermelho da Virgin"
+        sources: ["https://en.wikipedia.org/wiki/Virgin_Racing"]
+    review_status: approved
+
+  - slug: toyota
+    name: Toyota
+    eras:
+      - from: 2002
+        to: 2009
+        colors: ["#ffffff", "#c8102e"]
+        livery: "branco e vermelho"
+        sources: ["https://en.wikipedia.org/wiki/Toyota_Racing_(Formula_One_team)"]
+    review_status: approved
+
+  - slug: bar
+    name: BAR
+    eras:
+      - from: 1999
+        to: 2005
+        colors: ["#ffffff", "#c8102e"]
+        livery: "branco e vermelho da Lucky Strike (1999 com dois carros de cores diferentes)"
+        sources: ["https://en.wikipedia.org/wiki/British_American_Racing"]
+    review_status: approved
+
+  - slug: honda
+    name: Honda
+    eras:
+      - from: 1964
+        to: 1968
+        colors: ["#ffffff", "#c8102e"]
+        livery: "branco com o vermelho do Japão"
+        sources: ["https://en.wikipedia.org/wiki/Honda_in_Formula_One"]
+      - from: 2006
+        to: 2006
+        colors: ["#ffffff", "#c8102e"]
+        livery: "branco e vermelho da Lucky Strike"
+        sources: ["https://en.wikipedia.org/wiki/Honda_RA106"]
+      - from: 2007
+        to: 2008
+        colors: ["#1f6fb5", "#2e8b57"]
+        livery: "o planeta Terra (my earthdream)"
+        sources: ["https://en.wikipedia.org/wiki/Honda_RA107"]
+    review_status: approved
+
+  - slug: brawn
+    name: Brawn
+    eras:
+      - from: 2009
+        to: 2009
+        colors: ["#ffffff", "#d4f20a"]
+        livery: "branco com amarelo fluorescente"
+        sources: ["https://en.wikipedia.org/wiki/Brawn_GP"]
+    review_status: approved
+
+  - slug: bmw-sauber
+    name: BMW Sauber
+    eras:
+      - from: 2006
+        to: 2009
+        colors: ["#ffffff", "#1c4fa1"]
+        livery: "branco e azul"
+        sources: ["https://en.wikipedia.org/wiki/BMW_Sauber"]
+    review_status: approved
+
+  - slug: jaguar
+    name: Jaguar
+    eras:
+      - from: 2000
+        to: 2004
+        colors: ["#004225", "#ffffff"]
+        livery: "verde britânico de corrida"
+        sources: ["https://en.wikipedia.org/wiki/Jaguar_Racing"]
+    review_status: approved
+
+  - slug: stewart
+    name: Stewart
+    eras:
+      - from: 1997
+        to: 1999
+        colors: ["#ffffff", "#1e3a7a"]
+        livery: "branco com a faixa de tartan escocês"
+        sources: ["https://en.wikipedia.org/wiki/Stewart_Grand_Prix"]
+    review_status: approved
+
+  - slug: super-aguri
+    name: Super Aguri
+    eras:
+      - from: 2006
+        to: 2008
+        colors: ["#ffffff", "#c8102e"]
+        livery: "branco e vermelho"
+        sources: ["https://en.wikipedia.org/wiki/Super_Aguri_F1"]
+    review_status: approved
+
+  - slug: spyker
+    name: Spyker
+    eras:
+      - from: 2007
+        to: 2007
+        colors: ["#ff6a00", "#c0c0c0"]
+        livery: "laranja e prata"
+        sources: ["https://en.wikipedia.org/wiki/Spyker_F1"]
+    review_status: approved
+
+  - slug: arrows
+    name: Arrows
+    eras:
+      - from: 2000
+        to: 2001
+        colors: ["#ff7900", "#0a0a0a"]
+        livery: "laranja e preto da Orange"
+        sources: ["https://en.wikipedia.org/wiki/Arrows_Grand_Prix_International"]
+    review_status: approved
+
+  - slug: wolf
+    name: Wolf
+    eras:
+      - from: 1977
+        to: 1979
+        colors: ["#0b1f4b", "#d4a017"]
+        livery: "azul-escuro e dourado"
+        sources: ["https://en.wikipedia.org/wiki/Walter_Wolf_Racing", "https://imodeler.com/?p=88520"]
+    review_status: approved
+
+  - slug: hesketh
+    name: Hesketh
+    eras:
+      - from: 1974
+        to: 1975
+        colors: ["#ffffff", "#c8102e"]
+        livery: "branco com faixas vermelha e azul"
+        sources: ["https://en.wikipedia.org/wiki/Hesketh_Racing", "https://www.grandprix.com/gpe/con-heske.html"]
+    review_status: approved
+
+  - slug: fittipaldi
+    name: Fittipaldi
+    eras:
+      - from: 1975
+        to: 1977
+        colors: ["#c0c0c0", "#ffd500"]
+        livery: "prata da Copersucar"
+        sources: ["https://en.wikipedia.org/wiki/Fittipaldi_Automotive"]
+      - from: 1978
+        to: 1979
+        colors: ["#ffd500", "#c0c0c0"]
+        livery: "amarelo da Copersucar"
+        sources: ["https://en.wikipedia.org/wiki/Fittipaldi_Automotive"]
+    review_status: approved

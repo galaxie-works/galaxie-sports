@@ -1,7 +1,7 @@
 import 'zod-openapi';
 import * as z from 'zod';
 import { TeamColors } from './colors.js';
-import { AssetUrl, LocaleQuery } from './common.js';
+import { AssetUrl, CountryRef, LocaleQuery } from './common.js';
 
 // ─── fotos com crédito (acervo de licenças livres) ───────────────────────────────────────────────
 
@@ -72,12 +72,55 @@ const ParticipantLink = z.object({
   }),
 });
 
+const HexColor = z.string().regex(/^#[0-9a-f]{6}$/);
+
+export const TeamLivery = z
+  .object({
+    primary: HexColor.meta({
+      description:
+        'Cor de identidade da equipe naquela época (a oficial nas transmissões ou a que domina o carro).',
+      example: '#e4002b',
+    }),
+    secondary: HexColor.nullable().meta({ example: '#ffffff' }),
+    gradient: z.string().meta({
+      description: 'CSS pronto para fundos: `linear-gradient(9deg, #000 0%, <primary> 100%)`.',
+      example: 'linear-gradient(9deg, #000 0%, #e4002b 100%)',
+    }),
+    source: z.url().meta({ description: 'Fonte da curadoria daquela pintura.' }),
+  })
+  .meta({
+    id: 'TeamLivery',
+    description:
+      'Pintura da equipe na temporada, curada por época na base semântica (a McLaren de 1988 é vermelha e branca; a de 2024, papaia). Null quando a época não está curada: use `colors` (do escudo).',
+  });
+export type TeamLivery = z.infer<typeof TeamLivery>;
+
 const RaceRef = z.object({
   event_id: z.uuid(),
   name: z.string().meta({ example: 'Brazilian Grand Prix' }),
   date: z.string().meta({ description: 'ISO 8601 (UTC).' }),
   position: z.number().int().nullable(),
 });
+
+const SprintStats = z
+  .object({
+    races: z.number().int().meta({ description: 'Sprints disputadas.' }),
+    points: z.number().meta({ description: 'Pontos somados nas sprints.' }),
+    wins: z.number().int(),
+    podiums: z.number().int(),
+    poles: z.number().int().meta({
+      description: '1º na classificação da sprint (sprint shootout/sprint qualifying, de 2023 em diante).',
+    }),
+    top10: z.number().int(),
+  })
+  .meta({ id: 'SprintStats' });
+
+const BestWithCount = z
+  .object({
+    position: z.number().int(),
+    count: z.number().int().meta({ description: 'Quantas vezes o participante chegou nessa posição.' }),
+  })
+  .nullable();
 
 const CareerTotals = z.object({
   seasons: z.number().int(),
@@ -94,6 +137,11 @@ const CareerTotals = z.object({
     .int()
     .meta({ description: 'Soma dos pontos do campeonato (válidos, com os descartes da época).' }),
   titles: z.number().int(),
+  top10: z.number().int().meta({ description: 'Chegadas entre os dez primeiros nas corridas.' }),
+  dnfs: z.number().int().meta({ description: 'Abandonos (DNF) nas corridas; desclassificação não conta.' }),
+  best_finish: BestWithCount.meta({ description: 'Melhor chegada numa corrida e quantas vezes ("1 (x8)").' }),
+  best_grid: BestWithCount.meta({ description: 'Melhor posição de largada numa corrida e quantas vezes.' }),
+  sprint: SprintStats,
 });
 
 export const CareerSeason = z
@@ -113,18 +161,60 @@ export const CareerSeason = z
     poles: z.number().int(),
     podiums: z.number().int(),
     fastest_laps: z.number().int(),
+    top10: z.number().int(),
+    dnfs: z.number().int(),
+    sprint: SprintStats,
+    number: z.number().int().nullable().meta({
+      description:
+        'Piloto: número do carro na temporada (o mais usado nas sessões; sem ele, o permanente de 2014 em diante).',
+      example: 12,
+    }),
     teams: z
-      .array(ParticipantLink)
-      .meta({ description: 'Piloto: equipes no ano. Construtor: pilotos no ano.' }),
+      .array(
+        ParticipantLink.extend({
+          livery: TeamLivery.nullable()
+            .optional()
+            .meta({ description: 'Piloto: a pintura da equipe naquela temporada (curadoria por época).' }),
+        }),
+      )
+      .meta({ description: 'Piloto: equipes no ano (a principal primeiro). Construtor: pilotos no ano.' }),
     car: Photo.nullable().meta({ description: 'Foto do carro da temporada, quando houver no acervo.' }),
   })
   .meta({ id: 'CareerSeason' });
 export type CareerSeason = z.infer<typeof CareerSeason>;
 
+export const DriverProfile = z
+  .object({
+    first_name: z.string().meta({ example: 'Kimi' }),
+    last_name: z.string().meta({ example: 'Antonelli' }),
+    number: z.number().int().nullable().meta({
+      description:
+        'Número permanente (F1 desde 2014); antes disso, null — o de cada temporada fica em `seasons[].number`.',
+      example: 12,
+    }),
+    birth_date: z.string().nullable().meta({ description: 'ISO 8601 (data).', example: '2006-08-25' }),
+    birth_place: z.string().nullable().meta({ example: 'Bologna' }),
+    birth_country: CountryRef.nullable(),
+  })
+  .meta({ id: 'DriverProfile' });
+export type DriverProfile = z.infer<typeof DriverProfile>;
+
 export const RaceCareer = z
   .object({
     participant_id: z.uuid(),
     kind: z.enum(['driver', 'constructor']),
+    profile: DriverProfile.nullable().meta({
+      description: 'Piloto: nome, número e nascimento. Construtor: null.',
+    }),
+    current_season: z.number().int().nullable().meta({
+      description:
+        'Temporada corrente, quando o participante correu nela (o bloco de "temporada atual"); null para quem não está no grid deste ano.',
+      example: 2026,
+    }),
+    competition: z
+      .object({ id: z.uuid(), slug: z.string(), name: z.string() })
+      .nullable()
+      .meta({ description: 'O campeonato (para o link dos resultados de cada temporada).' }),
     totals: CareerTotals,
     titles: z
       .array(z.number().int())

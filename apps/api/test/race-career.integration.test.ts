@@ -10,10 +10,13 @@ import {
   assetCredit,
   closeDb,
   competition,
+  country,
   createDb,
   event,
+  eventParticipant,
   participant,
   participantPhoto,
+  providerMap,
   runMigrations,
   season,
   sport,
@@ -21,7 +24,8 @@ import {
   standing,
   type Database,
 } from '@galaxie/db';
-import { loadRaceCareer } from '../src/teams/career.js';
+import type { LiveryEntry } from '@galaxie/knowledge';
+import { loadRaceCareer, splitName } from '../src/teams/career.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -143,5 +147,195 @@ describe('carreira na F1: títulos', () => {
     const byYear = new Map(career.seasons.map((s) => [s.year, s]));
     expect(byYear.get(1988)).toMatchObject({ position: 1, final: true });
     expect(byYear.get(THIS_YEAR)).toMatchObject({ position: 1, final: false });
+  });
+});
+
+describe('carreira na F1: temporada atual, sprint, melhores resultados, número e pintura', () => {
+  let rookie: string;
+  const liveries: LiveryEntry[] = [
+    {
+      slug: 'mclaren',
+      name: 'McLaren',
+      review_status: 'approved',
+      eras: [
+        {
+          from: 2018,
+          to: null,
+          colors: ['#ff8000', '#47c7fc'],
+          livery: 'papaia',
+          sources: ['https://example.org/mcl'],
+        },
+      ],
+    },
+  ];
+
+  beforeAll(async () => {
+    await db
+      .insert(country)
+      .values({ code: 'IT', name: { 'pt-BR': 'Itália' } })
+      .onConflictDoNothing();
+    const [champ] = await db
+      .insert(competition)
+      .values({ sport: 'formula-1', slug: 'f1-atual', name: 'Formula 1 World Championship', type: 'league' })
+      .returning({ id: competition.id });
+    // o calendário vai até dezembro: a liderança de agora não é título, mesmo sem GP futuro na base
+    const [current] = await db
+      .insert(season)
+      .values({
+        competitionId: champ!.id,
+        year: THIS_YEAR,
+        label: String(THIS_YEAR),
+        endDate: `${THIS_YEAR + 1}-01-15`,
+      })
+      .returning({ id: season.id });
+    const [driver, team] = await db
+      .insert(participant)
+      .values([
+        {
+          sport: 'formula-1',
+          kind: 'driver',
+          name: 'Kimi Antonelli',
+          shortName: 'Antonelli',
+          number: 12,
+          birthDate: '2006-08-25',
+          birthPlace: 'Bologna',
+          birthCountryCode: 'IT',
+        },
+        { sport: 'formula-1', kind: 'constructor', name: 'McLaren' },
+      ])
+      .returning({ id: participant.id });
+    rookie = driver!.id;
+    await db.insert(providerMap).values({
+      entityType: 'participant',
+      entityId: team!.id,
+      provider: 'f1db',
+      sport: 'formula-1',
+      providerId: 'mclaren',
+    });
+    await db
+      .insert(standing)
+      .values({ seasonId: current!.id, group: 'drivers', participantId: rookie, rank: 1, points: 33 });
+
+    const team1 = { id: 'mclaren', name: 'McLaren' };
+    // sessões já disputadas: duas corridas (vitória da pole e abandono), sprint e as classificações
+    const sessions: {
+      days: number;
+      type: string;
+      position: number | null;
+      result: Record<string, unknown>;
+    }[] = [
+      { days: 20, type: 'Qualifying', position: 1, result: { number: 12, team: team1 } },
+      {
+        days: 19,
+        type: 'Race',
+        position: 1,
+        result: { number: 12, grid: 1, points: 25, position_text: '1', team: team1 },
+      },
+      { days: 13, type: 'Sprint Qualifying', position: 1, result: { number: 12, team: team1 } },
+      {
+        days: 13,
+        type: 'Sprint',
+        position: 2,
+        result: { number: 12, grid: 1, points: 7, position_text: '2', team: team1 },
+      },
+      { days: 12, type: 'Qualifying', position: 3, result: { number: 12, team: team1 } },
+      {
+        days: 12,
+        type: 'Race',
+        position: 18,
+        result: { number: 12, grid: 3, time: 'DNF', position_text: 'DNF', team: team1 },
+      },
+    ];
+    for (const [i, x] of sessions.entries()) {
+      const startsAt = new Date(Date.now() - x.days * 86_400_000);
+      const [ev] = await db
+        .insert(event)
+        .values({
+          sport: 'formula-1',
+          competitionId: champ!.id,
+          seasonId: current!.id,
+          status: 'finished',
+          startsAt,
+          endsAtExpected: new Date(startsAt.getTime() + 2 * 3_600_000),
+        })
+        .returning({ id: event.id });
+      await db.insert(sportEventDetail).values({
+        eventId: ev!.id,
+        sport: 'formula-1',
+        provider: 'f1db',
+        providerEventId: `atual-${i}`,
+        kind: 'race',
+        summary: { type: x.type },
+      });
+      await db.insert(eventParticipant).values({
+        eventId: ev!.id,
+        participantId: rookie,
+        side: 'grid',
+        position: x.position,
+        result: x.result,
+      });
+    }
+  });
+
+  it('temporada atual com o bloco da sprint, e liderança de agora sem título', async () => {
+    const career = await loadRaceCareer(db, { id: rookie, kind: 'driver' }, 'pt-BR', undefined, { liveries });
+    expect(career.current_season).toBe(THIS_YEAR);
+    expect(career.competition?.slug).toBe('f1-atual');
+    expect(career.titles).toEqual([]);
+    const s = career.seasons.find((x) => x.year === THIS_YEAR)!;
+    expect(s).toMatchObject({
+      position: 1,
+      final: false,
+      races: 2,
+      wins: 1,
+      podiums: 1,
+      poles: 1,
+      top10: 1,
+      dnfs: 1,
+      number: 12,
+      sprint: { races: 1, points: 7, wins: 0, podiums: 1, poles: 1, top10: 1 },
+    });
+    // a pintura da McLaren daquela época, pelo id do F1DB
+    expect(s.teams[0]).toMatchObject({
+      name: 'McLaren',
+      livery: { primary: '#ff8000', secondary: '#47c7fc', source: 'https://example.org/mcl' },
+    });
+  });
+
+  it('carreira: melhor resultado e melhor largada com a contagem; perfil com nascimento', async () => {
+    const career = await loadRaceCareer(db, { id: rookie, kind: 'driver' }, 'pt-BR', undefined, { liveries });
+    expect(career.totals).toMatchObject({
+      races: 2,
+      dnfs: 1,
+      top10: 1,
+      best_finish: { position: 1, count: 1 },
+      best_grid: { position: 1, count: 1 },
+      sprint: { races: 1, points: 7 },
+    });
+    expect(career.profile).toEqual({
+      first_name: 'Kimi',
+      last_name: 'Antonelli',
+      number: 12,
+      birth_date: '2006-08-25',
+      birth_place: 'Bologna',
+      birth_country: { code: 'IT', name: 'Itália' },
+    });
+  });
+
+  it('sem pintura curada, a equipe vem sem `livery`; lenda fora do grid não tem temporada atual', async () => {
+    const career = await loadRaceCareer(db, { id: rookie, kind: 'driver' }, 'pt-BR', undefined);
+    expect(career.seasons[0]!.teams[0]!.livery).toBeUndefined();
+    const legend = await loadRaceCareer(db, { id: driverId, kind: 'driver' }, 'pt-BR', undefined);
+    expect(legend.current_season).toBeNull();
+    expect(legend.profile).toMatchObject({ first_name: 'Piloto', last_name: 'Teste', number: null });
+  });
+});
+
+describe('nome em duas partes', () => {
+  it('pelo sobrenome do fornecedor ou pela última palavra', () => {
+    expect(splitName('Kimi Antonelli', 'Antonelli')).toEqual({ first: 'Kimi', last: 'Antonelli' });
+    expect(splitName('Carlos Sainz Jr.', 'Sainz Jr.')).toEqual({ first: 'Carlos', last: 'Sainz Jr.' });
+    expect(splitName('Ayrton Senna', 'SEN')).toEqual({ first: 'Ayrton', last: 'Senna' });
+    expect(splitName('Zhou', null)).toEqual({ first: '', last: 'Zhou' });
   });
 });

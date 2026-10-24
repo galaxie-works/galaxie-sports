@@ -40,6 +40,7 @@ import {
   venueDisplay,
   type Database,
 } from '@galaxie/db';
+import { loadLiveries, type LiveryEntry } from '@galaxie/knowledge';
 import { coachPersonId } from '@galaxie/providers';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
@@ -77,6 +78,7 @@ import {
 } from '../../util.js';
 import { resolveMarket } from '../../events/relevance.js';
 import { buildCtx, eventPage, localeOf, sportCheck } from './events.js';
+import { effectiveMinReview, meetsReview } from './semantic.js';
 
 const MODULE = { module: 'core_data' } as const;
 const TeamCursor = z.object({ n: z.string(), i: z.string().regex(UUID_RE) });
@@ -97,6 +99,18 @@ const POSITION_ORDER: Record<string, number> = {
 
 /** Rotas de times, elencos e pessoas (docs/05 §3.3). Todas exigem o módulo core_data. */
 export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
+  // pinturas da F1 por época (data/knowledge/formula-1/liveries.yaml), lidas uma vez, no piso editorial
+  let liveriesCache: Promise<LiveryEntry[]> | undefined;
+  const liveries = () => {
+    liveriesCache ??= loadLiveries(...(ctx.semantic?.knowledgeDir ? [ctx.semantic.knowledgeDir] : []))
+      .then((all) => all.filter((l) => meetsReview(l.review_status, effectiveMinReview(ctx, undefined))))
+      .catch((err: unknown) => {
+        liveriesCache = undefined;
+        throw err;
+      });
+    return liveriesCache;
+  };
+
   function selectTeams(db: Database) {
     return db
       .select({
@@ -567,7 +581,9 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         if (!p) throw problems.notFound('Time');
         if (p.sport !== 'formula-1' || (p.kind !== 'driver' && p.kind !== 'constructor'))
           throw problems.notFound('Carreira na F1');
-        const body: RaceCareer = await loadRaceCareer(db, p, locale, ctx.assetsBaseUrl);
+        const body: RaceCareer = await loadRaceCareer(db, p, locale, ctx.assetsBaseUrl, {
+          liveries: await liveries(),
+        });
         return { body, tags: [`team:${p.id}`] };
       },
     });

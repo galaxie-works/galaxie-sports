@@ -42,6 +42,7 @@ function f1dbTables(): F1dbTables {
         last_name: 'Verstappen',
         abbreviation: 'VER',
         nationality_country_id: 'netherlands',
+        permanent_number: '33',
       },
       {
         id: 'esteban-ocon',
@@ -70,6 +71,9 @@ function f1dbTables(): F1dbTables {
         last_name: 'Senna',
         abbreviation: 'SEN',
         nationality_country_id: 'brazil',
+        date_of_birth: '1960-03-21',
+        place_of_birth: 'São Paulo',
+        country_of_birth_country_id: 'brazil',
       },
       {
         id: 'alain-prost',
@@ -140,6 +144,8 @@ function f1dbTables(): F1dbTables {
         laps: 51,
         distance: 298.9,
       },
+      // GP do calendário ainda sem resultado (release no meio da temporada): não vira sessão, mas fecha a temporada
+      { id: 471, year: 1988, round: 16, date: '1988-11-13', grand_prix_id: 'japan', circuit_id: 'suzuka' },
     ],
     race_data: [
       result(1100, 1, 'max-verstappen', 'red-bull', { race_grid_position_number: 17 }),
@@ -519,6 +525,11 @@ describe('normalizeF1db', () => {
       kind: 'driver',
       code: 'SEN',
       countryCode: 'BR',
+      birthDate: '1960-03-21',
+      birthPlace: 'São Paulo',
+      birthCountryCode: 'BR',
+      // sem número permanente antes de 2014: o da época sai das sessões
+      number: null,
     });
     expect(byId.get('mclaren')).toMatchObject({ kind: 'constructor', name: 'McLaren' });
   });
@@ -531,6 +542,12 @@ describe('normalizeF1db', () => {
       ['constructors', 'mclaren', 1, 199, 15],
     ]);
     expect(batch.competitions[0]!.seasons.map((s) => s.year)).toEqual([1988]);
+  });
+
+  it('a temporada vai até o último GP do calendário, mesmo sem resultado ainda', () => {
+    const season = run().competitions[0]!.seasons.find((s) => s.year === 1988)!;
+    expect(season.endDate).toBe('1988-11-13');
+    expect(run().events.some((e) => e.id.startsWith('race-471'))).toBe(false);
   });
 });
 

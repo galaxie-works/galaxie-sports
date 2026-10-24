@@ -1,7 +1,8 @@
 /**
- * Heading do piloto de F1: o carro da temporada mais marcante ao fundo (esmaecido para o texto ler nos dois
- * temas), o retrato em destaque, nome, nacionalidade, anos de carreira e títulos. Sem foto do carro, o fundo é a
- * cor da equipe daquele ano; sem retrato, as iniciais. O crédito das duas fotos fica na galeria da página
+ * Heading do piloto de F1, na cor da equipe da temporada em destaque (a atual de quem está no grid; nas lendas, a
+ * mais marcante): gradiente da pintura daquela época, o número do carro gigante em contorno como marca d'água, o
+ * carro ao fundo (só CC BY, CC0 ou domínio público), o retrato, o primeiro nome leve e o sobrenome grande, e a
+ * linha de meta (bandeira e país | equipe | número). O crédito das duas fotos fica na galeria da página
  * (`heroPhotos` garante que elas estejam lá).
  */
 import type { RaceCareer } from '@galaxie/contracts';
@@ -9,13 +10,22 @@ import { Calendar, Trophy } from 'lucide-react';
 import Link from 'next/link';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { careerSpan, heroPhotos } from '@/lib/driver-hero';
+import { careerSpan, heroColor, heroNumber, heroPhotos, nameParts } from '@/lib/driver-hero';
 import { initials } from '@/lib/format';
 import { getI18n } from '@/lib/i18n/server';
-import { plural } from '@/lib/i18n/text';
+import { fill, plural } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
 
 import { CountryFlag } from './country-flag';
+
+/**
+ * Fundo do heading: a cor da equipe, escurecida do lado do nome (o texto branco lê em qualquer pintura) e pura do
+ * lado do número.
+ */
+function backdrop(color: string | null): string {
+  if (!color) return 'linear-gradient(100deg, #18181b 0%, #27272a 55%, #3f3f46 100%)';
+  return `linear-gradient(100deg, color-mix(in oklab, ${color} 50%, #050505) 0%, color-mix(in oklab, ${color} 78%, #050505) 50%, ${color} 100%)`;
+}
 
 export async function DriverHero({
   name,
@@ -33,68 +43,94 @@ export async function DriverHero({
   const tx = t.race.hero;
   const { season, car, portrait } = heroPhotos(career);
   const team = season?.teams[0] ?? null;
+  const number = heroNumber(career, season);
+  const { first, last } = nameParts(career, name);
   const span = careerSpan(career);
   const titles = career.titles;
-  const colors = car ? null : (team?.colors ?? null);
-  // sem foto e sem cor da equipe não há fundo a mostrar: o heading fica compacto
-  const backdrop = !!car || !!colors;
 
   return (
     <section
-      className={cn(
-        'bg-muted relative isolate flex flex-col justify-end overflow-hidden rounded-xl border',
-        backdrop && 'min-h-64 md:min-h-80',
-      )}
+      className="relative isolate flex min-h-72 flex-col justify-end overflow-hidden rounded-xl border text-white shadow-sm md:min-h-80"
+      style={{ background: backdrop(heroColor(season)) }}
     >
       {car ? (
         <img
           src={car.url!}
           alt=""
-          className="motion-safe:animate-in motion-safe:fade-in absolute inset-x-0 top-0 -z-20 h-64 w-full object-cover object-[50%_65%] md:inset-0 md:h-full motion-safe:duration-700"
+          className="motion-safe:animate-in motion-safe:fade-in absolute inset-x-0 top-0 -z-20 h-52 w-full object-cover object-[50%_65%] [mask-image:linear-gradient(to_bottom,black_55%,transparent)] md:inset-y-0 md:right-0 md:left-auto md:h-full md:w-[70%] md:[mask-image:linear-gradient(to_right,transparent,black_40%)] motion-safe:duration-700"
         />
-      ) : colors ? (
-        <div aria-hidden className="absolute inset-0 -z-20" style={{ background: colors.gradient }} />
       ) : null}
-      {/* esmaecido: de baixo para cima no celular (o carro numa faixa no topo, o texto embaixo), da esquerda para a
-          direita no desktop */}
+      {/* número do carro gigante, só o contorno, como marca d'água */}
+      {number != null ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-4 right-3 -z-10 text-[9rem] leading-none font-black tracking-tighter text-transparent select-none md:top-1/2 md:right-10 md:-translate-y-1/2 md:text-[17rem]"
+          style={{ WebkitTextStroke: '2px rgb(255 255 255 / 0.4)' }}
+        >
+          {number}
+        </span>
+      ) : null}
+      {/* véu do lado do texto: de baixo para cima no celular, da esquerda para a direita no desktop */}
       <div
         aria-hidden
-        className="from-background via-background/85 to-background/10 md:from-background md:via-background/70 md:to-background/0 absolute inset-0 -z-10 bg-gradient-to-t from-35% via-55% md:bg-gradient-to-r md:from-15% md:via-40% md:to-75%"
+        className="absolute inset-0 -z-10 bg-gradient-to-t from-black/70 via-black/25 to-transparent md:bg-gradient-to-r md:from-black/45 md:via-black/10 md:to-transparent"
       />
 
       <div
         className={cn(
-          'flex flex-col gap-4 p-4 sm:flex-row sm:items-end md:p-6',
-          car && 'pt-44',
-          colors && 'pt-16',
+          'flex flex-col gap-4 p-5 sm:flex-row sm:items-end md:p-8',
+          car ? 'pt-36 md:pt-24' : 'pt-20',
         )}
       >
-        <Avatar className="ring-background size-24 shrink-0 shadow-lg ring-4 md:size-32">
+        <Avatar className="size-24 shrink-0 shadow-lg ring-4 ring-white/25 md:size-32">
           {portrait ? (
             <AvatarImage src={portrait.url!} alt={name} className="object-cover object-[50%_20%]" />
           ) : null}
-          <AvatarFallback className="text-3xl font-semibold md:text-4xl">{initials(name)}</AvatarFallback>
+          <AvatarFallback className="bg-white/15 text-3xl font-semibold text-white md:text-4xl">
+            {initials(name)}
+          </AvatarFallback>
         </Avatar>
-        <div className="flex min-w-0 flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-balance md:text-4xl">{name}</h1>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <div className="flex min-w-0 flex-col gap-2.5 [text-shadow:0_1px_12px_rgb(0_0_0/0.35)]">
+          <h1 className="flex flex-col leading-[0.95]">
+            {first ? <span className="text-2xl font-light md:text-4xl">{first}</span> : null}
+            <span className="text-4xl font-black tracking-tight text-balance uppercase md:text-6xl">
+              {last}
+            </span>
+          </h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium md:text-base">
             {country ? (
-              <CountryLink country={country}>
+              <MetaLink href={country.href}>
                 <CountryFlag code={country.code} />
                 {country.name}
-              </CountryLink>
+              </MetaLink>
             ) : null}
+            {team ? (
+              <>
+                <Divider />
+                <MetaLink href={`/times/${team.id}`}>{team.name}</MetaLink>
+              </>
+            ) : null}
+            {number != null ? (
+              <>
+                <Divider />
+                <span aria-label={fill(tx.number, { number })} className="tabular-nums">
+                  {number}
+                </span>
+              </>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/85">
             {span ? (
-              <span className="text-foreground/80 flex items-center gap-1.5">
+              <span className="flex items-center gap-1.5">
                 <Calendar className="size-4" aria-hidden />
                 {span.from === span.to ? span.from : `${span.from}–${span.to}`}
               </span>
             ) : null}
             {titles.length ? (
-              <span className="flex items-center gap-1.5 font-medium">
-                <Trophy className="size-4 text-amber-500" aria-hidden />
+              <span className="flex items-center gap-1.5 font-medium text-white">
+                <Trophy className="size-4 text-amber-300" aria-hidden />
                 {plural(locale, titles.length, tx.titles)}
-                <span className="text-foreground/80 font-normal">· {titles.join(', ')}</span>
+                <span className="font-normal text-white/85">· {titles.join(', ')}</span>
               </span>
             ) : null}
           </div>
@@ -105,10 +141,14 @@ export async function DriverHero({
   );
 }
 
-function CountryLink({ country, children }: { country: { href: string | null }; children: React.ReactNode }) {
-  const className = 'text-foreground/80 flex items-center gap-1.5';
-  return country.href ? (
-    <Link href={country.href} className={`${className} hover:underline`}>
+function Divider() {
+  return <span aria-hidden className="h-4 w-px bg-white/45" />;
+}
+
+function MetaLink({ href, children }: { href: string | null; children: React.ReactNode }) {
+  const className = 'flex items-center gap-1.5';
+  return href ? (
+    <Link href={href} className={`${className} hover:underline`}>
       {children}
     </Link>
   ) : (
