@@ -33,6 +33,7 @@ import {
   headToHead as curatedPair,
   participant,
   reviewDecision,
+  reviewOverride,
   teamProfile,
   type Database,
   type DerbyAllTime as DerbyAllTimeRow,
@@ -40,9 +41,11 @@ import {
 } from '@galaxie/db';
 import {
   applyGlossaryDecisions,
+  applyGlossaryOverrides,
   loadGlossary,
   type LocatedGlossaryTerm,
   type ReviewDecisionRef,
+  type ReviewOverrideRef,
 } from '@galaxie/knowledge';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
@@ -486,8 +489,12 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
       ttl: CACHE_TTL.semantic,
       vary: [locale, min],
       load: async () => {
-        // o glossário vem do YAML; o status aprovado pelo painel de revisão vale por cima (docs/06 §2.1)
-        const all = applyGlossaryDecisions(await glossary(), ctx.db ? await glossaryDecisions(ctx.db) : []);
+        // o glossário vem do YAML; as edições aprovadas fora dele (review_override) e o status aprovado
+        // pelo painel de revisão valem por cima, nessa ordem (docs/06 §2.1)
+        const [overrides, decisions] = ctx.db
+          ? await Promise.all([glossaryOverrides(ctx.db), glossaryDecisions(ctx.db)])
+          : [[], []];
+        const all = applyGlossaryDecisions(applyGlossaryOverrides(await glossary(), overrides), decisions);
         // glossário é por mercado: locale exato e depois o idioma (es-AR → es); nunca outro idioma
         let sourceLocale: string | null = null;
         let terms: LocatedGlossaryTerm[] = [];
@@ -530,6 +537,14 @@ function glossaryDecisions(db: Database): Promise<ReviewDecisionRef[]> {
     })
     .from(reviewDecision)
     .where(sql`${reviewDecision.itemId} like 'glossary:%'`);
+}
+
+/** Edições de termos do glossário aprovadas fora do YAML (agente de revisão de sugestões). */
+function glossaryOverrides(db: Database): Promise<ReviewOverrideRef[]> {
+  return db
+    .select({ itemId: reviewOverride.itemId, fields: reviewOverride.fields, base: reviewOverride.base })
+    .from(reviewOverride)
+    .where(sql`${reviewOverride.itemId} like 'glossary:%'`);
 }
 
 // ─── clássicos: carga e montagem ─────────────────────────────────────────────────────────────────

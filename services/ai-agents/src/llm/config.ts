@@ -93,15 +93,34 @@ export function llmSettingsFromEnv(env: Env = process.env): LlmSettings {
  * `AI_MODEL_*` (nomes de modelo do outro provedor) não se aplicam.
  */
 export function rightsLlmEnv(env: Env = process.env): Env {
-  const rights = env.AI_RIGHTS_PROVIDER?.trim().toLowerCase();
-  const model = env.AI_RIGHTS_MODEL?.trim();
+  return agentLlmEnv(env, env.AI_RIGHTS_PROVIDER, env.AI_RIGHTS_MODEL, 'AI_MODEL_RESEARCH');
+}
+
+/**
+ * Ambiente do cliente da revisão de sugestões (`review-suggestions`): o Gemini por padrão
+ * (`AI_REVIEW_PROVIDER`, com `GEMINI_API_KEY`), modelo `AI_REVIEW_MODEL` (nível standard). Com
+ * `AI_REVIEW_PROVIDER` igual ao `AI_PROVIDER`, valem os `AI_MODEL_*` dos demais agentes.
+ */
+export function reviewLlmEnv(env: Env = process.env): Env {
+  return agentLlmEnv(env, env.AI_REVIEW_PROVIDER || 'gemini', env.AI_REVIEW_MODEL, 'AI_MODEL_STANDARD');
+}
+
+function agentLlmEnv(
+  env: Env,
+  providerValue: string | undefined,
+  modelValue: string | undefined,
+  modelKey: 'AI_MODEL_RESEARCH' | 'AI_MODEL_STANDARD',
+): Env {
+  const provider = providerValue?.trim().toLowerCase();
+  const model = modelValue?.trim();
   const current = env.AI_PROVIDER?.trim().toLowerCase() || 'openai';
-  if (!rights || rights === current) return model ? { ...env, AI_MODEL_RESEARCH: model } : env;
+  if (!provider || provider === current) return model ? { ...env, [modelKey]: model } : env;
   return {
     ...env,
-    AI_PROVIDER: rights,
+    AI_PROVIDER: provider,
     AI_MODEL_LIGHT: undefined,
     AI_MODEL_STANDARD: undefined,
-    AI_MODEL_RESEARCH: model || undefined,
+    AI_MODEL_RESEARCH: undefined,
+    [modelKey]: model || undefined,
   };
 }

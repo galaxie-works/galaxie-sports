@@ -49,12 +49,16 @@ export interface ReviewListItem {
   stale: boolean;
   decidedBy: string | null;
   decidedAt: string | null;
+  /** O conteúdo no ar tem uma edição gravada no banco (por cima do YAML). */
+  edited: boolean;
 }
 
 /** Linha da lista: o item, o que revisar nele e a sugestão em aberto (comentário), se houver. */
 export interface ReviewListRow extends ReviewListItem {
   summary: string;
   openSuggestion: string | null;
+  /** Motivo da IA ao recusar a sugestão em aberto (o item segue "precisa de revisão"). */
+  aiRejection: string | null;
 }
 
 export interface ReviewSuggestion {
@@ -62,9 +66,39 @@ export interface ReviewSuggestion {
   fields: Record<string, unknown> | null;
 }
 
+/**
+ * Veredito do agente de revisão de sugestões (job `review-suggestions`) sobre a última sugestão do
+ * item. O mesmo formato de `semantic.review_decision.ai_verdict`.
+ */
+export interface ReviewAiVerdict {
+  outcome: 'accepted' | 'adjusted' | 'rejected';
+  reason: string;
+  fields: Record<string, unknown> | null;
+  adjustments: string[];
+  validation: string[];
+  /** Quem decidiu (o provedor do modelo: `gemini` em produção). */
+  by: string;
+  model: string;
+  at: string;
+}
+
+/** Edição de conteúdo em vigor no banco, por cima do YAML (semantic.review_override). */
+export interface ReviewOverride {
+  /** Valor no ar, por campo (null = campo removido). */
+  fields: Record<string, unknown>;
+  /** Valor do YAML quando a edição foi feita. */
+  base: Record<string, unknown>;
+  source: string;
+  reason: string | null;
+  at: string;
+}
+
+/** Ações registradas na auditoria: as do painel e os vereditos do agente. */
+export type ReviewLogAction = ReviewAction | 'ai_approve' | 'ai_reject';
+
 export interface ReviewLogEntry {
   id: string;
-  action: ReviewAction;
+  action: ReviewLogAction;
   fromStatus: string | null;
   toStatus: string;
   comment: string | null;
@@ -81,6 +115,9 @@ export interface ReviewDetail extends ReviewListItem {
   originalLocale: string | null;
   parentKind: 'team' | 'derby' | null;
   suggestion: ReviewSuggestion | null;
+  /** Veredito da IA sobre a decisão vigente (recusa da sugestão em aberto ou aprovação dela). */
+  aiVerdict: ReviewAiVerdict | null;
+  override: ReviewOverride | null;
   log: ReviewLogEntry[];
 }
 

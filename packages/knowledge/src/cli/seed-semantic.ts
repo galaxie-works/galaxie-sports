@@ -58,6 +58,12 @@ try {
     `Revisão: ${result.review.items} item(ns) no catálogo, ${result.review.decided} decisão(ões) do painel ` +
       `aplicada(s), ${result.review.stale} desatualizada(s) (o YAML mudou depois da decisão).`,
   );
+  const o = result.review.overrides;
+  if (o.applied + o.absorbed + o.conflicts + o.missing)
+    console.log(
+      `Edições do banco (review_override): ${o.applied} aplicada(s) por cima do YAML, ${o.absorbed} já no YAML, ` +
+        `${o.conflicts} em conflito (vale o YAML), ${o.missing} de item(ns) fora do YAML.`,
+    );
 } finally {
   await closeDb(db);
 }

@@ -380,6 +380,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.136.0
         version: 0.136.0(zod@4.6.7)
+      '@galaxie/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
