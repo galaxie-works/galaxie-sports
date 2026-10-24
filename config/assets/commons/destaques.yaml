@@ -4,9 +4,9 @@
 # importado como foto do piloto (retrato ou ação) ou do carro de uma equipe dele. Sem entrada aqui, vale a regra
 # automática: carro da temporada de título com mais vitórias → mais vitórias → a mais recente.
 #
-# A foto entra na galeria da página com o crédito da licença (o heading não mostra crédito). Prefira CC BY ou
-# domínio público: o heading recorta a foto no navegador (cover), e CC BY-SA pede que obra derivada saia com a
-# mesma licença.
+# A foto entra na galeria da página com o crédito da licença (o heading não mostra crédito). Só CC BY, CC0 ou
+# domínio público: o heading recorta a foto no navegador (cover), o que é uma adaptação, e CC BY-SA pediria que ela
+# saísse com a mesma licença. O teste recusa curadoria CC BY-SA, e a API a ignora.
 drivers:
   # Phoenix 1991, com o #1 de campeão (pedido do Wagner, 23/10/2026)
   ayrton-senna: 'File:Ayrton Senna 1991 USA 3 cropped.jpg'

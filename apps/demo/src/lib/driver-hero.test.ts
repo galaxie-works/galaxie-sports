@@ -1,9 +1,9 @@
 import type { CareerSeason, Photo, RaceCareer } from '@galaxie/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { careerSpan, heroPhotos, heroSeason } from './driver-hero';
+import { careerSpan, coverable, heroPhotos, heroSeason } from './driver-hero';
 
-const car = { url: 'https://cdn/car.jpg' } as Photo;
+const car = { url: 'https://cdn/car.jpg', credit: { share_alike: false } } as Photo;
 
 function season(year: number, o: Partial<CareerSeason> = {}): CareerSeason {
   return {
@@ -74,10 +74,47 @@ describe('temporada do carro no heading do piloto', () => {
   });
 
   it('a foto da curadoria vence a regra (Senna: Phoenix 1991)', () => {
-    const phoenix = { url: 'https://cdn/phoenix.jpg', season: 1991, role: 'action' } as Photo;
+    const phoenix = {
+      url: 'https://cdn/phoenix.jpg',
+      season: 1991,
+      role: 'action',
+      credit: { share_alike: false },
+    } as Photo;
     const shots = heroPhotos({ ...senna, portrait: null, highlight: phoenix });
     expect(shots.car).toBe(phoenix);
     expect(shots.season?.year).toBe(1991);
+  });
+
+  describe('fundo só com foto que pode ser recortada (sem CC BY-SA)', () => {
+    const bySa = { url: 'https://cdn/sa.jpg', season: 1988, credit: { share_alike: true } } as Photo;
+    const by = { url: 'https://cdn/by.jpg', season: 1990, credit: { share_alike: false } } as Photo;
+
+    it('coverable', () => {
+      expect(coverable(by)).toBe(true);
+      expect(coverable(bySa)).toBe(false);
+      expect(coverable(null)).toBe(false);
+    });
+
+    it('regra: pula o carro BY-SA e vai para a próxima temporada', () => {
+      const c = career([
+        season(1988, { position: 1, wins: 8, car: bySa }),
+        season(1990, { position: 1, wins: 6, car: by }),
+      ]);
+      expect(heroSeason(c)?.year).toBe(1990);
+      expect(heroPhotos({ ...c, portrait: null }).car).toBe(by);
+    });
+
+    it('só carros BY-SA: sem foto de fundo (fica a cor da equipe da temporada marcante)', () => {
+      const c = career([season(1988, { position: 1, wins: 8, car: bySa })]);
+      const shots = heroPhotos({ ...c, portrait: null });
+      expect(shots.car).toBeNull();
+      expect(shots.season?.year).toBe(1988);
+    });
+
+    it('curadoria BY-SA é ignorada e vale a regra', () => {
+      const c = career([season(1990, { position: 1, wins: 6, car: by })]);
+      expect(heroPhotos({ ...c, portrait: null, highlight: bySa }).car).toBe(by);
+    });
   });
 
   it('anos de carreira', () => {

@@ -144,7 +144,7 @@ export const RaceCareer = z
     portrait: Photo.nullable(),
     highlight: Photo.nullable().optional().meta({
       description:
-        'Piloto: foto de destaque escolhida pela curadoria (fundo do heading), entre as fotos dele e as dos carros que pilotou. null sem curadoria.',
+        'Piloto: foto de destaque escolhida pela curadoria (fundo do heading), entre as fotos dele e as dos carros que pilotou. Nunca CC BY-SA (o fundo recorta a foto). null sem curadoria compatível.',
     }),
   })
   .meta({ id: 'RaceCareer' });

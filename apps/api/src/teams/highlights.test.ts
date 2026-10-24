@@ -6,7 +6,12 @@ import { photoHighlights } from './highlights.js';
 
 const acervo = parse(
   readFileSync(fileURLToPath(new URL('../../../../config/assets/commons/f1.yaml', import.meta.url)), 'utf8'),
-) as { entries: { target: string; photos?: { file: string; match?: string }[] }[] };
+) as {
+  entries: {
+    target: string;
+    photos?: { file: string; match?: string; license?: string; share_alike?: boolean }[];
+  }[];
+};
 
 describe('curadoria da foto de fundo do piloto', () => {
   const highlights = photoHighlights();
@@ -23,6 +28,16 @@ describe('curadoria da foto de fundo do piloto', () => {
       const photo = entries.flatMap((e) => e.photos ?? []).find((p) => p.file === file);
       expect(photo, `${driver}: ${file}`).toBeDefined();
       expect(photo?.match).not.toBe('rejected');
+    }
+  });
+
+  it('nenhuma foto curada é CC BY-SA (o fundo recorta a foto: só CC BY, CC0 ou domínio público)', () => {
+    for (const [driver, file] of highlights) {
+      const copies = acervo.entries.flatMap((e) => e.photos ?? []).filter((p) => p.file === file);
+      for (const p of copies) {
+        expect(p.share_alike, `${driver}: ${file} (${p.license})`).toBe(false);
+        expect(p.license, `${driver}: ${file}`).not.toMatch(/BY-SA/i);
+      }
     }
   });
 });

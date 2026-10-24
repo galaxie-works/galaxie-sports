@@ -235,7 +235,10 @@ export async function loadRaceCareer(
     ? undefined
     : [...(keysOf.get(participant.id) ?? [])].map((k) => photoHighlights().get(k)).find(Boolean);
   const highlight = highlightFile
-    ? ([...photos.values()].flat().find((p) => p.credit.title === highlightFile) ?? null)
+    ? ([...photos.values()]
+        .flat()
+        // o fundo recorta a foto (cover): CC BY-SA não entra, mesmo curada
+        .find((p) => p.credit.title === highlightFile && !p.credit.share_alike) ?? null)
     : null;
   for (const [year, owners] of constructorsOf) {
     let car: Photo | null = null;

@@ -3,7 +3,16 @@ import type { CareerSeason, Photo, RaceCareer } from '@galaxie/contracts';
 const isTitle = (s: CareerSeason) => s.final && s.position === 1;
 
 /**
- * Temporada do carro no heading do piloto: a mais marcante que tenha foto do carro.
+ * Foto que pode ir ao fundo do heading: o fundo recorta a foto no navegador (cover), o que é uma adaptação. CC BY,
+ * CC0 e domínio público permitem; CC BY-SA não (fica na galeria, inteira e com crédito).
+ */
+export function coverable(photo: Photo | null | undefined): photo is Photo {
+  return !!photo?.url && !photo.credit.share_alike;
+}
+
+/**
+ * Temporada do carro no heading do piloto: a mais marcante que tenha foto do carro que possa ir ao fundo
+ * (`coverable`: sem CC BY-SA).
  *
  * Ordem: curadoria (`curated`, quando houver) → título com mais vitórias → mais vitórias → a mais recente.
  * Sem foto em nenhuma, fica a mais marcante, e o heading usa a cor da equipe dela. Quando o acervo ganha a
@@ -16,24 +25,25 @@ export function heroSeason(career: RaceCareer, curated?: number | null): CareerS
   const ranked = [...raced].sort(
     (a, b) => Number(isTitle(b)) - Number(isTitle(a)) || b.wins - a.wins || b.year - a.year,
   );
-  return ranked.find((s) => s.car?.url) ?? ranked[0] ?? null;
+  return ranked.find((s) => coverable(s.car)) ?? ranked[0] ?? null;
 }
 
 /**
  * Fotos do heading: a foto de fundo e o retrato. O fundo é a foto da curadoria (`highlight`, de
- * config/assets/commons/destaques.yaml) ou, sem ela, o carro da temporada marcante. O heading não mostra crédito:
- * as duas entram na galeria da página, com o crédito da licença.
+ * config/assets/commons/destaques.yaml) ou, sem ela, o carro da temporada marcante; nunca CC BY-SA (sem foto
+ * compatível, o fundo é a cor da equipe). O heading não mostra crédito: as duas entram na galeria da página, com o
+ * crédito da licença.
  */
 export function heroPhotos(career: RaceCareer): {
   season: CareerSeason | null;
   car: Photo | null;
   portrait: Photo | null;
 } {
-  const highlight = career.highlight?.url ? career.highlight : null;
+  const highlight = coverable(career.highlight) ? career.highlight : null;
   const season = (highlight && career.seasons.find((s) => s.year === highlight.season)) || heroSeason(career);
   return {
     season,
-    car: highlight ?? (season?.car?.url ? season.car : null),
+    car: highlight ?? (coverable(season?.car) ? season.car : null),
     portrait: career.portrait?.url ? career.portrait : null,
   };
 }
