@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   bigint,
   bigserial,
   boolean,
@@ -14,6 +16,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
+import { platform } from './lineups.js';
 
 /** Schema da API pública: tenants, chaves de acesso e fila de backfill do espelho (docs/05 §1–2). */
 export const api = pgSchema('api');
@@ -59,6 +62,17 @@ export const tenant = api.table('tenant', {
   /** Cota diária de requisições (todas as rotas); null = sem cota. Informativa (exibida no uso). */
   dailyRequestQuota: integer('daily_request_quota'),
   status: tenantStatus('status').notNull().default('active'),
+  /** Plataforma (enrich.platform) quando o cliente é uma operadora/streaming da grade. */
+  operatorPlatformId: uuid('operator_platform_id').references((): AnyPgColumn => platform.id, {
+    onDelete: 'set null',
+  }),
+  /** No onde assistir do cliente operadora, mostra também as outras plataformas (padrão: só a dele). */
+  showOtherOperators: boolean('show_other_operators').notNull().default(false),
+  /** Domínios de e-mail da operadora (sem @), para ligar usuários do portal ao tenant. */
+  operatorEmailDomains: text('operator_email_domains')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
