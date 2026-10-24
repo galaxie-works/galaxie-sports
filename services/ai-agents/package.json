@@ -36,7 +36,8 @@
     "f1:bio": "node --env-file-if-exists=../../.env dist/cli/f1-bio.js",
     "lineups:research": "node --env-file-if-exists=../../.env dist/cli/lineups-research.js",
     "wtw:rights:compare": "node --env-file-if-exists=../../.env dist/cli/wtw-rights-compare.js",
-    "review:suggestions": "node --env-file-if-exists=../../.env dist/cli/review-suggestions.js"
+    "review:suggestions": "node --env-file-if-exists=../../.env dist/cli/review-suggestions.js",
+    "channels:match": "node --env-file-if-exists=../../.env dist/cli/channel-lists.js"
   },
   "dependencies": {
     "@galaxie/contracts": "workspace:*",

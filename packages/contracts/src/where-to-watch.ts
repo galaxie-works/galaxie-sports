@@ -1,5 +1,6 @@
 import 'zod-openapi';
 import * as z from 'zod';
+import { ClientChannelRef } from './channel-list.js';
 import { LocaleQuery } from './common.js';
 
 /** Meios de transmissão (docs/05 §4, enrich.broadcast_medium). */
@@ -33,6 +34,15 @@ export const WhereToWatchSource = z
   .object({ publisher: z.string(), url: z.string() })
   .meta({ id: 'WhereToWatchSource' });
 
+const clientChannels = z
+  .array(ClientChannelRef)
+  .optional()
+  .meta({
+    description:
+      'Canais da lista do tenant que levam esta emissora (todas as praças entram). Só vem quando o tenant tem ' +
+      'uma lista de canais confirmada (`/v1/channel-list`); [] = nenhum canal da lista.',
+  });
+
 export const WhereToWatchOption = z
   .object({
     id: z.uuid(),
@@ -55,6 +65,7 @@ export const WhereToWatchOption = z
       .string()
       .nullable()
       .meta({ description: 'Versão do logo para fundo escuro (acervo oficial); null = usar `logo`.' }),
+    client_channels: clientChannels,
   })
   .meta({ id: 'WhereToWatchOption' });
 export type WhereToWatchOption = z.infer<typeof WhereToWatchOption>;
@@ -69,6 +80,7 @@ export const WhereToWatchToConfirm = z
     logo: z.string().nullable(),
     logo_dark: z.string().nullable(),
     sources: z.array(WhereToWatchSource),
+    client_channels: clientChannels,
   })
   .meta({ id: 'WhereToWatchToConfirm' });
 export type WhereToWatchToConfirm = z.infer<typeof WhereToWatchToConfirm>;

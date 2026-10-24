@@ -290,6 +290,28 @@ describe('onde assistir agrupado (página do jogo)', () => {
     );
   });
 
+  it('com a lista de canais do tenant confirmada: os canais dele embaixo de cada emissora', () => {
+    const withList: WhereToWatch = {
+      ...wtw,
+      options: wtw.options.map((o) =>
+        o.provider_id === 'canal_aberto_exemplo'
+          ? {
+              ...o,
+              client_channels: [
+                { index: 0, name: 'BR: |SP| CANAL ABERTO HD', match: 'exato' },
+                { index: 1, name: 'CANAL ABERTO RJ', match: 'exato' },
+              ],
+            }
+          : { ...o, client_channels: [] },
+      ),
+    };
+    const g = groupWhereToWatch(withList);
+    expect(g.freeTv[0]!.clientChannels).toEqual(['BR: |SP| CANAL ABERTO HD', 'CANAL ABERTO RJ']);
+    expect(g.payTv[0]!.clientChannels).toEqual([]);
+    const html = renderToStaticMarkup(<WhereToWatchGroups groups={g} t={t} />);
+    expect(html).toContain('Na sua lista: BR: |SP| CANAL ABERTO HD, CANAL ABERTO RJ');
+  });
+
   it('a operadora do tenant ganha o selo; sem o jogo na grade, o aviso', () => {
     const mine = render({
       ...wtw,

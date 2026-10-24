@@ -21,7 +21,14 @@ export interface WatchLogo {
   regions: string[];
   /** Meio da opção (só nas de outros meios, para a legenda). */
   medium: WhereToWatchOption['medium'] | null;
+  /** Canais da lista do tenant que levam a emissora (`client_channels`; vazio sem lista confirmada). */
+  clientChannels: string[];
 }
+
+type WithClientChannels = { client_channels?: { name: string }[] | undefined };
+const clientChannelNames = (items: WithClientChannels[]) => [
+  ...new Set(items.flatMap((i) => (i.client_channels ?? []).map((c) => c.name))),
+];
 
 export interface WatchGroups {
   freeTv: WatchLogo[];
@@ -39,7 +46,11 @@ export interface WatchGroups {
 const fromOptions = (options: WhereToWatchOption[], id: string) =>
   options.filter((o) => (o.provider_id ?? o.id) === id);
 
-function logoOf(item: AvailabilityLogo, options: WhereToWatchOption[]): WatchLogo {
+function logoOf(
+  item: AvailabilityLogo,
+  options: WhereToWatchOption[],
+  toConfirm: WhereToWatch['to_confirm'] = [],
+): WatchLogo {
   const matches = fromOptions(options, item.id);
   return {
     key: `${item.id}|${item.name}`,
@@ -49,6 +60,7 @@ function logoOf(item: AvailabilityLogo, options: WhereToWatchOption[]): WatchLog
     href: matches.find((o) => o.watch_url)?.watch_url ?? null,
     regions: [...new Set(matches.flatMap((o) => (o.region ? [o.region] : [])))],
     medium: null,
+    clientChannels: clientChannelNames([...matches, ...toConfirm.filter((c) => c.provider_id === item.id)]),
   };
 }
 
@@ -63,6 +75,10 @@ function optionLogos(options: WhereToWatchOption[], keep: (o: WhereToWatchOption
     if (prev) {
       if (o.region && !prev.regions.includes(o.region)) prev.regions.push(o.region);
       prev.href ??= o.watch_url;
+      prev.clientChannels = clientChannelNames([
+        { client_channels: prev.clientChannels.map((name) => ({ name })) },
+        o,
+      ]);
       continue;
     }
     out.set(key, {
@@ -73,6 +89,7 @@ function optionLogos(options: WhereToWatchOption[], keep: (o: WhereToWatchOption
       href: o.watch_url,
       regions: o.region ? [o.region] : [],
       medium: o.medium,
+      clientChannels: clientChannelNames([o]),
     });
   }
   return [...out.values()];
@@ -94,6 +111,7 @@ function toConfirmOthers(wtw: WhereToWatch, inCards: Set<string>): WatchLogo[] {
       href: null,
       regions: [],
       medium: c.medium,
+      clientChannels: clientChannelNames([c]),
     });
   }
   return [...out.values()];
@@ -110,10 +128,10 @@ export function groupWhereToWatch(wtw: WhereToWatch): WatchGroups {
   );
   return {
     freeTv: availability
-      ? availability.free_tv.map((c) => logoOf(c, options))
+      ? availability.free_tv.map((c) => logoOf(c, options, wtw.to_confirm))
       : optionLogos(options, (o) => o.medium === 'free_tv'),
     payTv: availability
-      ? availability.pay_tv_channels.map((c) => logoOf(c, options))
+      ? availability.pay_tv_channels.map((c) => logoOf(c, options, wtw.to_confirm))
       : optionLogos(options, (o) => o.medium === 'pay_tv'),
     platforms,
     others: toConfirm

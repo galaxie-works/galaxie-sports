@@ -225,6 +225,13 @@
       "when": 1792865662489,
       "tag": "0031_titulos_competicao",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792868510687,
+      "tag": "0033_lista_canais_cliente",
+      "breakpoints": true
     }
   ]
 }

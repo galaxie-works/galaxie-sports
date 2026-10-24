@@ -22,3 +22,4 @@ export * from './editorial.js';
 export * from './public.js';
 export * from './audit.js';
 export * from './metrics.js';
+export * from './channel-list/index.js';
