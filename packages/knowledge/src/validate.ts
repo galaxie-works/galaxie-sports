@@ -46,6 +46,8 @@ export interface ValidationReport {
     glossaryTerms: number;
     /** Traduções (time ou clássico × locale) em i18n/<locale>.yaml. */
     texts: number;
+    /** Épocas de pintura de construtores da F1 (formula-1/liveries.yaml). */
+    liveryEras: number;
   };
 }
 
@@ -59,6 +61,7 @@ const SCHEMA_BY_KIND: Partial<Record<FileKind, string>> = {
   copy: 'copy.schema.json',
   glossary: 'glossary.schema.json',
   i18n: 'i18n.schema.json',
+  liveries: 'liveries.schema.json',
 };
 
 /** Compila os JSON Schemas de data/knowledge/schemas. */
@@ -306,6 +309,46 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
         `${t.entry.slug}: f1db.id ${id} já está em ${prev}`,
       );
     else f1dbIds.set(key, t.entry.slug);
+  }
+
+  // 3c. pinturas da F1: um item por construtor, épocas em ordem e sem sobreposição; só a última fica em aberto
+  const liverySlugs = new Map<string, number>();
+  for (const l of kb.liveries) {
+    const base = ['constructors', l.index];
+    const prev = liverySlugs.get(l.entry.slug);
+    if (prev !== undefined)
+      add(
+        'error',
+        'duplicate-slug',
+        l.file,
+        at(l.file, [...base, 'slug']),
+        `pinturas de ${l.entry.slug} repetidas (já no item ${prev + 1})`,
+      );
+    else liverySlugs.set(l.entry.slug, l.index);
+    const eras = Array.isArray(l.entry.eras) ? l.entry.eras : [];
+    eras.forEach((era, i) => {
+      const where = at(l.file, [...base, 'eras', i]);
+      const to = era.to ?? Infinity;
+      if (to < era.from)
+        add('error', 'livery-years', l.file, where, `${l.entry.slug}: época ${era.from}–${era.to} invertida`);
+      if (era.to === null && i < eras.length - 1)
+        add(
+          'error',
+          'livery-years',
+          l.file,
+          where,
+          `${l.entry.slug}: só a última época pode ficar em aberto`,
+        );
+      const next = eras[i + 1];
+      if (next && next.from <= to)
+        add(
+          'error',
+          'livery-years',
+          l.file,
+          at(l.file, [...base, 'eras', i + 1]),
+          `${l.entry.slug}: época ${next.from} começa antes do fim da anterior (${era.to ?? 'aberta'})`,
+        );
+    });
   }
 
   // 4. IDs da api-sports únicos (por esporte: cada API tem os seus IDs)
@@ -633,6 +676,17 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
           unknown,
         ],
     ),
+    ...kb.liveries.flatMap((l) =>
+      (Array.isArray(l.entry.eras) ? l.entry.eras : []).map(
+        (era, i) =>
+          [l.file, l.entry.slug, ['constructors', l.index, 'eras', i, 'sources'], era.sources] as [
+            string,
+            string,
+            (string | number)[],
+            unknown,
+          ],
+      ),
+    ),
   ];
   for (const [file, slug, path, sources] of sourceOwners) {
     if (!Array.isArray(sources)) continue;
@@ -702,6 +756,10 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
       copyTemplates: kb.copyTemplates.length,
       glossaryTerms: kb.glossary.length,
       texts: kb.texts.length,
+      liveryEras: kb.liveries.reduce(
+        (n, l) => n + (Array.isArray(l.entry.eras) ? l.entry.eras.length : 0),
+        0,
+      ),
     },
   };
 }
@@ -990,7 +1048,7 @@ export function formatReport(report: ValidationReport): string {
     `  ${i.level === 'error' ? '✗' : '!'} ${i.file ?? '-'}${i.line ? `:${i.line}` : ''} [${i.code}] ${i.message}`;
   const c = report.counts;
   return [
-    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos (${c.derbiesWithAllTime} com histórico geral) · ${c.headToHead} outros confrontos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário · ${c.texts} traduções`,
+    `Base semântica: ${c.files} arquivos · ${c.teams} times/seleções · ${c.derbies} clássicos (${c.derbiesWithAllTime} com histórico geral) · ${c.headToHead} outros confrontos · ${c.competitions} competições · ${c.copyTemplates} templates de copy · ${c.glossaryTerms} termos de glossário · ${c.texts} traduções · ${c.liveryEras} pinturas da F1`,
     ...(report.errors.length ? [`Erros (${report.errors.length}):`, ...report.errors.map(line)] : []),
     ...(report.warnings.length ? [`Avisos (${report.warnings.length}):`, ...report.warnings.map(line)] : []),
     report.errors.length

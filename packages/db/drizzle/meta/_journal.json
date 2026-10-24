@@ -225,6 +225,13 @@
       "when": 1792865662489,
       "tag": "0031_titulos_competicao",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792866832469,
+      "tag": "0032_piloto_nascimento_numero",
+      "breakpoints": true
     }
   ]
 }

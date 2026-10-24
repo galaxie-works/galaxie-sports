@@ -515,6 +515,13 @@ export async function upsertBatchInTx(
         founded: p.founded,
         homeVenueId: venueId(p.venueId),
         logoAssetId: assetId(p.logoUrl),
+        birthDate: p.birthDate ?? null,
+        birthPlace: p.birthPlace ?? null,
+        birthCountryCode:
+          p.birthCountryCode || p.birthCountryName
+            ? await refs.countryCode(p.birthCountryCode ?? null, p.birthCountryName ?? null)
+            : null,
+        number: p.number ?? null,
       },
     });
   const participantKeys = [
@@ -525,6 +532,10 @@ export async function upsertBatchInTx(
     'founded',
     'homeVenueId',
     'logoAssetId',
+    'birthDate',
+    'birthPlace',
+    'birthCountryCode',
+    'number',
   ];
   // dois IDs do provedor na mesma entidade (a mesma equipe com dois nomes no F1DB) viram uma linha só: o
   // Postgres recusa a mesma chave duas vezes no mesmo insert. Tipo conhecido e fonte própria primeiro.

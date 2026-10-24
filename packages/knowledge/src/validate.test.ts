@@ -4,9 +4,11 @@ import {
   DEFAULT_KNOWLEDGE_DIR,
   loadGlossary,
   loadKnowledge,
+  loadLiveries,
   parseKnowledgeFile,
 } from './load.js';
 import { guessLanguage } from './language.js';
+import { liveryFor } from './liveries.js';
 import { checkChant, checkProse } from './lyrics.js';
 import { validateKnowledge, type Issue } from './validate.js';
 
@@ -268,6 +270,44 @@ describe('validateKnowledge — regras', () => {
     });
     expect(report.errors).toEqual([]);
     expect(codes(report.warnings)).toContain('copy-permission');
+  });
+});
+
+describe('pinturas da F1 (formula-1/liveries.yaml)', () => {
+  const era = (from: number, to: number | null, color = '#ff8000') =>
+    `      - { from: ${from}, to: ${to}, colors: ["${color}"], livery: "laranja", sources: ["https://example.org/${from}"] }
+`;
+  const file = (slug: string, eras: string) =>
+    `schema_version: 1
+constructors:
+  - slug: ${slug}
+    name: ${slug}
+    eras:
+${eras}    review_status: draft
+`;
+
+  it('épocas em ordem; invertida, sobreposta, em aberto no meio e hex fora do padrão são erro', async () => {
+    expect(
+      (await validateFiles({ 'formula-1/liveries.yaml': file('mclaren', era(1968, 1971) + era(2018, null)) }))
+        .errors,
+    ).toEqual([]);
+    const report = await validateFiles({
+      'formula-1/liveries.yaml': file(
+        'mclaren',
+        era(1974, 1972) + era(1973, null) + era(1980, 1990, '#FF8000'),
+      ),
+    });
+    expect(report.errors.filter((e) => e.code === 'livery-years')).toHaveLength(3);
+    expect(codes(report.errors)).toContain('schema');
+  });
+
+  it('a McLaren de 1988 é vermelha e branca; a de 2024, papaia; ano sem curadoria fica sem cor', async () => {
+    const entries = await loadLiveries();
+    expect(liveryFor(entries, 'mclaren', 1988)?.colors).toEqual(['#e4002b', '#ffffff']);
+    expect(liveryFor(entries, 'mclaren', 2024)?.colors[0]).toBe('#ff8000');
+    expect(liveryFor(entries, 'mclaren', 1966)).toBeNull();
+    expect(liveryFor(entries, 'equipe-que-nao-existe', 2024)).toBeNull();
+    expect(await loadLiveries('/caminho/que/nao/existe')).toEqual([]);
   });
 });
 
