@@ -62,6 +62,9 @@ export default defineMessages(
       next: 'Próxima',
       stale: 'conteúdo mudou',
       staleHint: 'O YAML mudou depois da decisão de {who}: vale o status do YAML até uma nova revisão.',
+      aiRejected: 'IA recusou: {reason}',
+      edited: 'editado pela IA',
+      editedHint: 'O conteúdo no ar tem uma edição aprovada pela IA, gravada no banco por cima do YAML.',
     },
     detail: {
       back: 'Voltar para a lista',
@@ -79,6 +82,19 @@ export default defineMessages(
       proposedEdit: 'Edição proposta',
       empty: 'vazio',
       decidedBy: '{who} em {when}',
+      aiTitle: 'Veredito da IA',
+      aiPending:
+        'A IA avalia esta sugestão na próxima rodada (a cada 15 minutos). Se aprovar, a edição entra no ar sozinha; se recusar, o motivo aparece aqui.',
+      aiRejectedBy: 'Recusada por {who} ({model}) em {when}. O item segue "precisa de revisão": decida você.',
+      aiApprovedBy: 'Aprovada por {who} ({model}) em {when}.',
+      aiValidation: 'Falhou na validação automática',
+      aiProposed: 'Valores que a IA propôs',
+      aiAdjustments: 'Ajustes feitos pela IA',
+      overrideTitle: 'Editado pela IA',
+      overrideHint:
+        'Edição gravada no banco por {who} em {when}, por cima do YAML: vale na API agora e o próximo deploy não a desfaz. Para levar ao repositório: pnpm --filter @galaxie/knowledge review:export.',
+      overrideBefore: 'No YAML',
+      overrideAfter: 'No ar',
     },
     actions: {
       approve: 'Aprovar',
@@ -145,6 +161,8 @@ export default defineMessages(
       approve: 'aprovou',
       draft: 'voltou para rascunho',
       suggest: 'sugeriu edição',
+      ai_approve: 'aprovou a sugestão',
+      ai_reject: 'recusou a sugestão',
       transition: '{from} → {to}',
     },
   },
@@ -207,6 +225,10 @@ export default defineMessages(
         stale: 'content changed',
         staleHint:
           'The YAML changed after the decision by {who}: the YAML status applies until a new review.',
+        aiRejected: 'AI rejected: {reason}',
+        edited: 'edited by AI',
+        editedHint:
+          'The live content has an edit approved by the AI, stored in the database on top of the YAML.',
       },
       detail: {
         back: 'Back to the list',
@@ -224,6 +246,20 @@ export default defineMessages(
         proposedEdit: 'Proposed edit',
         empty: 'empty',
         decidedBy: '{who} on {when}',
+        aiTitle: 'AI verdict',
+        aiPending:
+          'The AI reviews this suggestion in the next round (every 15 minutes). If it approves, the edit goes live on its own; if it rejects, the reason shows here.',
+        aiRejectedBy:
+          'Rejected by {who} ({model}) on {when}. The item stays "needs review": the decision is yours.',
+        aiApprovedBy: 'Approved by {who} ({model}) on {when}.',
+        aiValidation: 'Failed the automatic validation',
+        aiProposed: 'Values the AI proposed',
+        aiAdjustments: 'Adjustments made by the AI',
+        overrideTitle: 'Edited by AI',
+        overrideHint:
+          'Edit stored in the database by {who} on {when}, on top of the YAML: the API serves it now and the next deploy does not undo it. To bring it to the repository: pnpm --filter @galaxie/knowledge review:export.',
+        overrideBefore: 'In the YAML',
+        overrideAfter: 'Live',
       },
       actions: {
         approve: 'Approve',
@@ -291,6 +327,8 @@ export default defineMessages(
         approve: 'approved',
         draft: 'sent back to draft',
         suggest: 'suggested an edit',
+        ai_approve: 'approved the suggestion',
+        ai_reject: 'rejected the suggestion',
         transition: '{from} → {to}',
       },
     },
@@ -352,6 +390,10 @@ export default defineMessages(
         stale: 'el contenido cambió',
         staleHint:
           'El YAML cambió después de la decisión de {who}: rige el estado del YAML hasta una nueva revisión.',
+        aiRejected: 'La IA rechazó: {reason}',
+        edited: 'editado por la IA',
+        editedHint:
+          'El contenido al aire tiene una edición aprobada por la IA, guardada en la base por encima del YAML.',
       },
       detail: {
         back: 'Volver a la lista',
@@ -369,6 +411,20 @@ export default defineMessages(
         proposedEdit: 'Edición propuesta',
         empty: 'vacío',
         decidedBy: '{who} el {when}',
+        aiTitle: 'Veredicto de la IA',
+        aiPending:
+          'La IA evalúa esta sugerencia en la próxima ronda (cada 15 minutos). Si la aprueba, la edición sale al aire sola; si la rechaza, el motivo aparece aquí.',
+        aiRejectedBy:
+          'Rechazada por {who} ({model}) el {when}. El ítem sigue "necesita revisión": decides tú.',
+        aiApprovedBy: 'Aprobada por {who} ({model}) el {when}.',
+        aiValidation: 'Falló la validación automática',
+        aiProposed: 'Valores que propuso la IA',
+        aiAdjustments: 'Ajustes hechos por la IA',
+        overrideTitle: 'Editado por la IA',
+        overrideHint:
+          'Edición guardada en la base por {who} el {when}, por encima del YAML: la API ya la sirve y el próximo deploy no la deshace. Para llevarla al repositorio: pnpm --filter @galaxie/knowledge review:export.',
+        overrideBefore: 'En el YAML',
+        overrideAfter: 'Al aire',
       },
       actions: {
         approve: 'Aprobar',
@@ -436,6 +492,8 @@ export default defineMessages(
         approve: 'aprobó',
         draft: 'volvió a borrador',
         suggest: 'sugirió una edición',
+        ai_approve: 'aprobó la sugerencia',
+        ai_reject: 'rechazó la sugerencia',
         transition: '{from} → {to}',
       },
     },

@@ -136,7 +136,7 @@ O F1DB publica um release depois de cada GP. Para trocar a versão:
 3. Depois do deploy, rode os passos 3 e 4 acima. O release novo vira outro pacote no raw. Sessões novas entram e as
    existentes só atualizam o que mudou.
 
-Depois do deploy da migration `0030_piloto_nascimento_numero`, rode o import uma vez mesmo sem release novo: o
+Depois do deploy da migration `0031_piloto_nascimento_numero`, rode o import uma vez mesmo sem release novo: o
 normalizador passou a gravar nascimento e número do piloto e o fim do calendário, e o mesmo release não muda nenhuma
 sessão (só pilotos e temporadas).
 

@@ -88,6 +88,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'wtw-run', service: 'agents', cron: '*/5 * * * *', runNow: false },
   { name: 'related-run', service: 'agents', cron: '*/3 * * * *', runNow: false },
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
+  { name: 'review-suggestions', service: 'agents', cron: '*/15 * * * *', runNow: true },
 ];
 
 /** Checagem da conta de IA, feita pelo scheduler dos agentes (o painel pede pela mesma fila do "rodar agora"). */
@@ -252,6 +253,9 @@ export const SETTINGS: readonly SettingDef[] = [
   }),
   agents('ai', { key: 'AI_MAX_RETRIES', type: 'int', min: 0, max: 10, default: '3' }),
   agents('ai', { key: 'AI_TIMEOUT_MS', type: 'int', min: 10_000, max: 600_000, default: '180000' }),
+  // revisão das sugestões de edição da base semântica (job review-suggestions): Gemini por padrão
+  agents('ai', { key: 'AI_REVIEW_PROVIDER', type: 'enum', options: AI_PROVIDERS, default: 'gemini' }),
+  agents('ai', { key: 'AI_REVIEW_MODEL', type: 'text', pattern: MODEL_ID, allowEmpty: true, default: null }),
 
   // ── Onde Assistir ───────────────────────────────────────────────────────────────────────────
   agents('wtw', {

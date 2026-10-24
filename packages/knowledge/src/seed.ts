@@ -9,6 +9,7 @@ import {
   loadRun,
   reviewDecision,
   reviewItem,
+  reviewOverride,
   teamProfile,
   type Database,
   type LocalizedDerbyTexts,
@@ -18,6 +19,7 @@ import {
 import { toCopyTemplate } from './copy/library.js';
 import { assignEventDerbies, type Executor } from './derby.js';
 import type { KnowledgeBase } from './load.js';
+import { applyReviewOverrides, type AppliedOverrides, type ReviewOverrideRef } from './overrides.js';
 import {
   buildReviewItems,
   decidedStatuses,
@@ -55,7 +57,16 @@ export interface SeedResult {
    * Revisão pelo painel: itens no catálogo semantic.review_item, decisões aplicadas (valem sobre o YAML)
    * e decisões desatualizadas (o conteúdo mudou depois delas; volta a valer o status do YAML).
    */
-  review: { items: number; decided: number; stale: number };
+  review: {
+    items: number;
+    decided: number;
+    stale: number;
+    /**
+     * Edições do banco (semantic.review_override) aplicadas por cima do YAML, já absorvidas pelo YAML
+     * (exportadas), em conflito (o YAML mudou o mesmo campo; vale o YAML) e de itens que saíram dele.
+     */
+    overrides: { applied: number; absorbed: number; conflicts: number; missing: number };
+  };
   loadRunId: string;
 }
 
@@ -246,24 +257,22 @@ export async function seedSemantic(
   kb: KnowledgeBase,
   options: { gitSha?: string | null } = {},
 ): Promise<SeedResult> {
-  const items = buildReviewItems(kb);
   return db.transaction(async (tx) => {
-    // 0. decisões do painel: valem sobre o status do YAML enquanto o conteúdo for o mesmo que foi revisado
-    const decisions = await tx
-      .select({
-        itemId: reviewDecision.itemId,
-        status: reviewDecision.status,
-        reviewHash: reviewDecision.reviewHash,
-      })
-      .from(reviewDecision);
-    const decided = decidedStatuses(items, decisions);
+    // 0. edições aprovadas fora do YAML (vão por cima dele) e decisões do painel (valem sobre o status
+    //    do YAML enquanto o conteúdo for o mesmo que foi revisado)
+    const { items, rows, decided, decisions, overrides } = await semanticRows(tx, kb);
     const byId = new Map(decisions.map((d) => [d.itemId, d]));
     const review = {
       items: items.length,
       decided: decided.size,
       stale: items.filter((i) => effectiveReviewStatus(i, byId.get(i.id)).stale).length,
+      overrides: {
+        applied: overrides.applied.length,
+        absorbed: overrides.absorbed.length,
+        conflicts: overrides.conflicts.length,
+        missing: overrides.missing.length,
+      },
     };
-    const rows = buildSeedRows(kb, decided);
 
     const stats = {
       teams: emptyStats(rows.teams.length),
@@ -273,35 +282,10 @@ export async function seedSemantic(
       copyTemplates: emptyStats(rows.copy.length),
     };
 
-    // 1. perfis de time (participant_id é derivado depois, não vem do YAML)
-    for (const batch of chunks(rows.teams)) {
-      const returned = await tx
-        .insert(teamProfile)
-        .values(batch)
-        .onConflictDoUpdate({
-          target: teamProfile.slug,
-          set: { ...excludedSet(teamProfile, ['slug', 'participantId', 'updatedAt']), updatedAt: sql`now()` },
-          setWhere: sql`${teamProfile.contentHash} is distinct from excluded.content_hash`,
-        })
-        .returning({ inserted: sql<boolean>`(xmax = 0)` });
-      tally(stats.teams, returned);
-    }
+    // 1–5. perfis, clássicos, outros confrontos, competições e copy (só as linhas que mudaram)
+    await upsertSemanticRows(tx, rows, stats);
 
-    // 2. clássicos
-    for (const batch of chunks(rows.derbies)) {
-      const returned = await tx
-        .insert(derby)
-        .values(batch)
-        .onConflictDoUpdate({
-          target: derby.slug,
-          set: { ...excludedSet(derby, ['id', 'slug', 'updatedAt']), updatedAt: sql`now()` },
-          setWhere: sql`${derby.contentHash} is distinct from excluded.content_hash`,
-        })
-        .returning({ inserted: sql<boolean>`(xmax = 0)` });
-      tally(stats.derbies, returned);
-    }
-
-    // 3. pares do clássico: troca o conjunto inteiro pelo do YAML
+    // 6. pares do clássico: troca o conjunto inteiro pelo do YAML
     const derbyIds = new Map(
       (await tx.select({ id: derby.id, slug: derby.slug }).from(derby)).map((d) => [d.slug, d.id]),
     );
@@ -315,7 +299,7 @@ export async function seedSemantic(
     if (pairs.length)
       for (const batch of chunks(pairs)) await tx.insert(derbyTeam).values(batch).onConflictDoNothing();
 
-    // 4. remove o que saiu do YAML (clássicos antes dos times, por causa de derby_team)
+    // 7. remove o que saiu do YAML (clássicos antes dos times, por causa de derby_team)
     stats.derbies.removed = await removeMissing(
       tx,
       'derby',
@@ -326,64 +310,16 @@ export async function seedSemantic(
       'team',
       rows.teams.map((t) => t.slug),
     );
-
-    // 4b. pares que não são clássicos (só dependem dos slugs, sem chave estrangeira)
-    for (const batch of chunks(rows.pairs)) {
-      const returned = await tx
-        .insert(headToHead)
-        .values(batch)
-        .onConflictDoUpdate({
-          target: headToHead.slug,
-          set: { ...excludedSet(headToHead, ['slug', 'updatedAt']), updatedAt: sql`now()` },
-          setWhere: sql`${headToHead.contentHash} is distinct from excluded.content_hash`,
-        })
-        .returning({ inserted: sql<boolean>`(xmax = 0)` });
-      tally(stats.headToHead, returned);
-    }
     stats.headToHead.removed = await removeMissing(
       tx,
       'head-to-head',
       rows.pairs.map((p) => p.slug),
     );
-
-    // 5. competições
-    for (const batch of chunks(rows.competitions)) {
-      const returned = await tx
-        .insert(competitionProfile)
-        .values(batch)
-        .onConflictDoUpdate({
-          target: competitionProfile.slug,
-          set: {
-            ...excludedSet(competitionProfile, ['slug', 'competitionId', 'updatedAt']),
-            updatedAt: sql`now()`,
-          },
-          setWhere: sql`${competitionProfile.contentHash} is distinct from excluded.content_hash`,
-        })
-        .returning({ inserted: sql<boolean>`(xmax = 0)` });
-      tally(stats.competitions, returned);
-    }
     stats.competitions.removed = await removeMissing(
       tx,
       'competition',
       rows.competitions.map((c) => c.slug),
     );
-
-    // 6. biblioteca de copy
-    for (const batch of chunks(rows.copy)) {
-      const returned = await tx
-        .insert(copyTemplate)
-        .values(batch)
-        .onConflictDoUpdate({
-          target: copyTemplate.key,
-          set: {
-            ...excludedSet(copyTemplate, ['id', 'key', 'createdAt', 'updatedAt']),
-            updatedAt: sql`now()`,
-          },
-          setWhere: sql`${copyTemplate.contentHash} is distinct from excluded.content_hash`,
-        })
-        .returning({ inserted: sql<boolean>`(xmax = 0)` });
-      tally(stats.copyTemplates, returned);
-    }
     stats.copyTemplates.removed = await removeMissing(
       tx,
       'copy',
@@ -392,15 +328,15 @@ export async function seedSemantic(
 
     for (const s of Object.values(stats)) s.unchanged = s.total - s.inserted - s.updated;
 
-    // 6b. catálogo da revisão (o painel lê daqui)
+    // 8. catálogo da revisão (o painel lê daqui), com o conteúdo editado onde houver edição
     await syncReviewItems(tx, items);
 
-    // 7. ligações com o core
+    // 9. ligações com o core
     const linked = { teams: await linkParticipants(tx), competitions: await linkCompetitions(tx) };
-    // 7b. estádios curados (depende do participant_id ligado acima)
+    // 9b. estádios curados (depende do participant_id ligado acima)
     const venues = await linkVenues(tx);
 
-    // 8. clássicos nos eventos já existentes
+    // 10. clássicos nos eventos já existentes
     const events = await assignEventDerbies(tx);
 
     const [run] = await tx
@@ -419,8 +355,137 @@ export async function seedSemantic(
   });
 }
 
-/** Reescreve semantic.review_item com os itens do YAML (só as linhas que mudaram) e tira os que saíram. */
-async function syncReviewItems(tx: Tx, items: ReviewItem[]) {
+/** Edições de conteúdo gravadas no banco (semantic.review_override), na forma que o seed aplica. */
+export async function readReviewOverrides(tx: Tx | Database): Promise<ReviewOverrideRef[]> {
+  return tx
+    .select({ itemId: reviewOverride.itemId, fields: reviewOverride.fields, base: reviewOverride.base })
+    .from(reviewOverride)
+    .orderBy(reviewOverride.createdAt);
+}
+
+/** Base com as edições do banco, catálogo da revisão, decisões que valem e as linhas de semantic.*. */
+async function semanticRows(tx: Tx, yaml: KnowledgeBase) {
+  const overrides: AppliedOverrides = applyReviewOverrides(yaml, await readReviewOverrides(tx));
+  const kb = overrides.kb;
+  const items = buildReviewItems(kb);
+  const decisions = await tx
+    .select({
+      itemId: reviewDecision.itemId,
+      status: reviewDecision.status,
+      reviewHash: reviewDecision.reviewHash,
+    })
+    .from(reviewDecision);
+  const decided = decidedStatuses(items, decisions);
+  return { kb, items, decisions, decided, overrides, rows: buildSeedRows(kb, decided) };
+}
+
+/**
+ * Publica na hora o conteúdo da base (com as edições e as decisões do banco) nas tabelas que a API lê,
+ * sem o resto do seed (remoções, ligações com o core, load_run): só reescreve as linhas cujo conteúdo
+ * mudou e atualiza o catálogo da revisão. Usado pelo agente de revisão de sugestões, na mesma
+ * transação em que ele grava a edição e a decisão.
+ */
+export async function publishSemanticContent(
+  tx: Tx,
+  yaml: KnowledgeBase,
+): Promise<{ kb: KnowledgeBase; items: ReviewItem[]; overrides: AppliedOverrides }> {
+  const { kb, items, rows, overrides } = await semanticRows(tx, yaml);
+  await upsertSemanticRows(tx, rows);
+  await syncReviewItems(tx, items, { prune: false });
+  return { kb, items, overrides };
+}
+
+type SeedRows = ReturnType<typeof buildSeedRows>;
+type SeedStats = Record<'teams' | 'derbies' | 'headToHead' | 'competitions' | 'copyTemplates', EntityStats>;
+
+/** Upsert de perfis, clássicos, outros confrontos, competições e copy (só linhas com outro content_hash). */
+async function upsertSemanticRows(tx: Tx, rows: SeedRows, stats?: SeedStats) {
+  const count = (s: EntityStats | undefined, returned: { inserted: boolean }[]) => {
+    if (s) tally(s, returned);
+  };
+
+  // 1. perfis de time (participant_id é derivado depois, não vem do YAML)
+  for (const batch of chunks(rows.teams)) {
+    const returned = await tx
+      .insert(teamProfile)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: teamProfile.slug,
+        set: { ...excludedSet(teamProfile, ['slug', 'participantId', 'updatedAt']), updatedAt: sql`now()` },
+        setWhere: sql`${teamProfile.contentHash} is distinct from excluded.content_hash`,
+      })
+      .returning({ inserted: sql<boolean>`(xmax = 0)` });
+    count(stats?.teams, returned);
+  }
+
+  // 2. clássicos
+  for (const batch of chunks(rows.derbies)) {
+    const returned = await tx
+      .insert(derby)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: derby.slug,
+        set: { ...excludedSet(derby, ['id', 'slug', 'updatedAt']), updatedAt: sql`now()` },
+        setWhere: sql`${derby.contentHash} is distinct from excluded.content_hash`,
+      })
+      .returning({ inserted: sql<boolean>`(xmax = 0)` });
+    count(stats?.derbies, returned);
+  }
+
+  // 3. pares que não são clássicos (só dependem dos slugs, sem chave estrangeira)
+  for (const batch of chunks(rows.pairs)) {
+    const returned = await tx
+      .insert(headToHead)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: headToHead.slug,
+        set: { ...excludedSet(headToHead, ['slug', 'updatedAt']), updatedAt: sql`now()` },
+        setWhere: sql`${headToHead.contentHash} is distinct from excluded.content_hash`,
+      })
+      .returning({ inserted: sql<boolean>`(xmax = 0)` });
+    count(stats?.headToHead, returned);
+  }
+
+  // 4. competições
+  for (const batch of chunks(rows.competitions)) {
+    const returned = await tx
+      .insert(competitionProfile)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: competitionProfile.slug,
+        set: {
+          ...excludedSet(competitionProfile, ['slug', 'competitionId', 'updatedAt']),
+          updatedAt: sql`now()`,
+        },
+        setWhere: sql`${competitionProfile.contentHash} is distinct from excluded.content_hash`,
+      })
+      .returning({ inserted: sql<boolean>`(xmax = 0)` });
+    count(stats?.competitions, returned);
+  }
+
+  // 5. biblioteca de copy
+  for (const batch of chunks(rows.copy)) {
+    const returned = await tx
+      .insert(copyTemplate)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: copyTemplate.key,
+        set: {
+          ...excludedSet(copyTemplate, ['id', 'key', 'createdAt', 'updatedAt']),
+          updatedAt: sql`now()`,
+        },
+        setWhere: sql`${copyTemplate.contentHash} is distinct from excluded.content_hash`,
+      })
+      .returning({ inserted: sql<boolean>`(xmax = 0)` });
+    count(stats?.copyTemplates, returned);
+  }
+}
+
+/**
+ * Reescreve semantic.review_item com os itens da base (só as linhas que mudaram) e, com `prune`
+ * (padrão), tira os que saíram do YAML.
+ */
+async function syncReviewItems(tx: Tx, items: ReviewItem[], options: { prune?: boolean } = {}) {
   const values = items.map((i) => ({
     id: i.id,
     kind: i.kind,
@@ -444,9 +509,11 @@ async function syncReviewItems(tx: Tx, items: ReviewItem[]) {
       .onConflictDoUpdate({
         target: reviewItem.id,
         set: { ...excludedSet(reviewItem, ['id', 'updatedAt']), updatedAt: sql`now()` },
-        setWhere: sql`(${reviewItem.reviewHash}, ${reviewItem.yamlStatus}, ${reviewItem.title}, ${reviewItem.sourceFile}, ${reviewItem.market})
-          is distinct from (excluded.review_hash, excluded.yaml_status, excluded.title, excluded.source_file, excluded.market)`,
+        // `original`: a tradução mostra o original lado a lado, que muda com uma edição no item traduzido
+        setWhere: sql`(${reviewItem.reviewHash}, ${reviewItem.yamlStatus}, ${reviewItem.title}, ${reviewItem.sourceFile}, ${reviewItem.market}, ${reviewItem.original})
+          is distinct from (excluded.review_hash, excluded.yaml_status, excluded.title, excluded.source_file, excluded.market, excluded.original)`,
       });
+  if (options.prune === false) return;
   await tx
     .delete(reviewItem)
     .where(notInArray(reviewItem.id, values.length ? values.map((v) => v.id) : ['\u0000']));
