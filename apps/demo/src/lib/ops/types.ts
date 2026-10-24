@@ -123,4 +123,67 @@ export interface OpsSnapshot {
   creditPending: boolean;
   history: HistoryRow[];
   requests: JobRequestRow[];
+  /** Placar da qualidade dos dados (null: migration 0034 ainda não aplicada). */
+  quality: QualitySnapshot | null;
+}
+
+// ── Qualidade dos dados (job data-quality, ops.quality_*) ────────────────────────────────────────
+
+export type QualitySeverity = 'critical' | 'high' | 'medium' | 'low';
+export type QualityStatus = 'pass' | 'fail' | 'skipped' | 'error';
+
+export interface QualityRuleInfo {
+  id: string;
+  sport: string;
+  area: string;
+  severity: QualitySeverity;
+  /** Por idioma (pt-BR, en, es). */
+  description: Record<string, string>;
+  origin: string | null;
+}
+
+/** Último resultado de uma regra num esporte, com a série das execuções anteriores (mais antiga → mais nova). */
+export interface QualityResultRow {
+  ruleId: string;
+  sport: string;
+  severity: QualitySeverity;
+  status: QualityStatus;
+  checked: number;
+  failed: number;
+  detail: string | null;
+  runAt: string;
+  /** Errados nas últimas execuções (a última é esta). */
+  trend: number[];
+}
+
+export interface QualityLink {
+  type: string;
+  id: string;
+  kind?: string | null;
+  name?: string | null;
+}
+
+export interface QualityFailureRow {
+  ruleId: string;
+  sport: string;
+  label: string;
+  current: string | null;
+  expected: string | null;
+  link: QualityLink | null;
+  firstSeenAt: string;
+}
+
+export interface QualitySnapshot {
+  lastRun: {
+    startedAt: string;
+    finishedAt: string | null;
+    trigger: string;
+    rules: number;
+    failed: number;
+  } | null;
+  rules: QualityRuleInfo[];
+  results: QualityResultRow[];
+  failures: QualityFailureRow[];
+  /** Falhas guardadas além das que vieram (o painel mostra as primeiras). */
+  failuresTotal: number;
 }

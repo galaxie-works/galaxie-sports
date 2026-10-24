@@ -29,9 +29,21 @@ import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
 import { displayValue, formatDuration, settingText } from './format';
+import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
 
-const TABS = ['status', 'live', 'schedule', 'ai', 'wtw', 'related', 'provider', 'assets', 'history'] as const;
+const TABS = [
+  'status',
+  'quality',
+  'live',
+  'schedule',
+  'ai',
+  'wtw',
+  'related',
+  'provider',
+  'assets',
+  'history',
+] as const;
 type Tab = (typeof TABS)[number];
 
 interface Ctx {
@@ -76,6 +88,16 @@ export function OpsPanel({ snapshot, timeZone }: Ctx) {
         </TabsList>
         <TabsContent value="status" className="mt-4">
           <StatusTab snapshot={snapshot} timeZone={timeZone} />
+        </TabsContent>
+        <TabsContent value="quality" className="mt-4">
+          <QualityTab
+            quality={snapshot.quality}
+            timeZone={timeZone}
+            action={(() => {
+              const job = snapshot.jobs.find((j) => j.name === 'data-quality');
+              return job ? <RunNowButton job={job} /> : null;
+            })()}
+          />
         </TabsContent>
         {(['live', 'ai', 'wtw', 'related', 'assets'] as const).map((s) => (
           <TabsContent key={s} value={s} className="mt-4">
