@@ -4,6 +4,7 @@ import * as z from 'zod';
 import {
   LocaleQuery,
   PersonOverviewQuery,
+  RaceLegendsQuery,
   SquadQuery,
   TeamEventsQuery,
   TeamOverviewQuery,
@@ -11,6 +12,7 @@ import {
   TeamPhotosQuery,
   TeamsQuery,
   type RaceCareer,
+  type RaceLegends,
   type Event,
   type FormerName,
   type Squad,
@@ -52,6 +54,7 @@ import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events
 import { pickText } from '../../i18n.js';
 import { teamColors } from '../../teams/colors.js';
 import { loadRaceCareer } from '../../teams/career.js';
+import { loadRaceLegends } from '../../teams/legends.js';
 import { loadTeamCompetitions } from '../../teams/load-campaigns.js';
 import { loadPhotos } from '../../teams/photos.js';
 import { ageAt, loadPerson, selectPeople } from '../../people/person.js';
@@ -585,6 +588,27 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           liveries: await liveries(),
         });
         return { body, tags: [`team:${p.id}`] };
+      },
+    });
+  });
+
+  // ─── /v1/sports/formula-1/legends ───────────────────────────────────────────────────────────
+  // lendas da F1 (campeões e os que mais venceram e correram), com a temporada marcante de cada uma
+  app.get('/v1/sports/formula-1/legends', { config: MODULE }, async (request, reply) => {
+    const query = parseInput(RaceLegendsQuery, request.query);
+    const locale = localeOf(request, query);
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.standings,
+      vary: [locale],
+      load: async () => {
+        const body: RaceLegends = {
+          data: await loadRaceLegends(requireDb(ctx), locale, ctx.assetsBaseUrl, {
+            liveries: await liveries(),
+            limit: query.limit,
+          }),
+        };
+        return { body, tags: ['standing', 'asset'] };
       },
     });
   });

@@ -150,6 +150,52 @@ export class WikimediaClient {
   }
 
   /**
+   * Rótulos, apelidos e descrição (nas línguas pedidas, a primeira é a da descrição) e as afirmações pedidas dos
+   * itens. Os nomes vêm sem repetição: rótulos antes dos apelidos.
+   */
+  async items(
+    ids: string[],
+    props: string[],
+    languages: string[] = ['en'],
+  ): Promise<Map<string, WikidataItem>> {
+    const out = new Map<string, WikidataItem>();
+    type Text = { value?: string };
+    for (let i = 0; i < ids.length; i += 50) {
+      const body = await this.get(WIKIDATA_API, {
+        action: 'wbgetentities',
+        ids: ids.slice(i, i + 50).join('|'),
+        props: 'labels|aliases|descriptions|claims',
+        languages: languages.join('|'),
+      });
+      const entities = (body.entities ?? {}) as Record<
+        string,
+        {
+          labels?: Record<string, Text>;
+          aliases?: Record<string, Text[]>;
+          descriptions?: Record<string, Text>;
+          claims?: Record<string, unknown[]>;
+        }
+      >;
+      for (const [id, e] of Object.entries(entities)) {
+        const label = e.labels?.[languages[0]!]?.value ?? null;
+        const names = [
+          ...languages.map((l) => e.labels?.[l]?.value),
+          ...languages.flatMap((l) => (e.aliases?.[l] ?? []).map((a) => a.value)),
+        ].filter((v): v is string => !!v);
+        const claims: Record<string, unknown[]> = {};
+        for (const p of props) claims[p] = e.claims?.[p] ?? [];
+        out.set(id, {
+          label,
+          names: [...new Set(names)],
+          description: e.descriptions?.[languages[0]!]?.value ?? null,
+          claims,
+        });
+      }
+    }
+    return out;
+  }
+
+  /**
    * Afirmações de um item pelo `Special:EntityData` (JSON servido do cache do Wikidata, sem o `maxlag` da API):
    * o caminho quando a API do Wikidata está atrasada. Mesmo ritmo e backoff das outras leituras.
    */
@@ -260,6 +306,14 @@ interface CommonsPage {
     extmetadata?: Record<string, { value?: unknown }>;
   }[];
   categories?: { title: string }[];
+}
+
+/** Item do Wikidata pelo `items()`: rótulo e descrição na primeira língua; nomes = rótulos + apelidos. */
+export interface WikidataItem {
+  label: string | null;
+  names: string[];
+  description: string | null;
+  claims: Record<string, unknown[]>;
 }
 
 export interface CommonsFile {
