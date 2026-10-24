@@ -186,6 +186,17 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     args: ['--chamadas', '4'],
     timeoutMs: 30 * MINUTE,
   },
+  {
+    name: 'review-suggestions',
+    description:
+      'Revisão semântica: o Gemini decide as sugestões de edição em aberto; a aprovada entra no ar como edição no banco (sem deploy), a recusada fica com o motivo no painel',
+    // sem sugestão em aberto, só uma consulta ao banco (nenhuma chamada ao modelo)
+    cron: '*/15 * * * *',
+    script: 'dist/cli/review-suggestions.js',
+    cwd: '../ai-agents',
+    args: ['--max', '10'],
+    timeoutMs: 15 * MINUTE,
+  },
 ];
 
 /** Jobs de cada perfil do scheduler (`SCHEDULER_PROFILE`, padrão `ingestor`). */

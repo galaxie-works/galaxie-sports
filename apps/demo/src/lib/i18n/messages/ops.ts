@@ -295,6 +295,11 @@ export default defineMessages(
           label: 'Onde Assistir: direitos',
           description: 'Biblioteca de emissoras e direitos de transmissão por temporada.',
         },
+        'review-suggestions': {
+          label: 'Revisão semântica: sugestões',
+          description:
+            'A IA decide as sugestões de edição em aberto: a aprovada entra no ar sem deploy, a recusada fica com o motivo.',
+        },
       },
     },
     history: {
@@ -414,6 +419,16 @@ export default defineMessages(
         label: 'Tempo limite por chamada',
         description: 'Espera máxima por uma resposta do provedor.',
         unit: 'ms',
+      },
+      AI_REVIEW_PROVIDER: {
+        label: 'IA da revisão semântica',
+        description:
+          'IA que decide as sugestões de edição da Revisão semântica (Ajustes → Revisão). Padrão: Gemini.',
+      },
+      AI_REVIEW_MODEL: {
+        label: 'Modelo da revisão semântica',
+        description:
+          'Modelo da IA que decide as sugestões de edição. Vazio usa o padrão do provedor escolhido.',
       },
       WTW_MARKETS: {
         label: 'Mercados ativos',
@@ -799,6 +814,11 @@ export default defineMessages(
             label: 'Where to Watch: rights',
             description: 'Broadcaster library and broadcast rights per season.',
           },
+          'review-suggestions': {
+            label: 'Semantic review: suggestions',
+            description:
+              'AI decides the open edit suggestions: an approved one goes live without a deploy, a rejected one keeps the reason.',
+          },
         },
       },
       history: {
@@ -917,6 +937,16 @@ export default defineMessages(
           label: 'Timeout per call',
           description: 'Longest wait for a provider answer.',
           unit: 'ms',
+        },
+        AI_REVIEW_PROVIDER: {
+          label: 'Semantic review AI',
+          description:
+            'AI that decides the edit suggestions of the Semantic review (Settings → Review). Default: Gemini.',
+        },
+        AI_REVIEW_MODEL: {
+          label: 'Semantic review model',
+          description:
+            "Model of the AI that decides edit suggestions. Empty uses the chosen provider's default.",
         },
         WTW_MARKETS: {
           label: 'Active markets',
@@ -1308,6 +1338,11 @@ export default defineMessages(
             label: 'Dónde ver: derechos',
             description: 'Biblioteca de señales y derechos de transmisión por temporada.',
           },
+          'review-suggestions': {
+            label: 'Revisión semántica: sugerencias',
+            description:
+              'La IA decide las sugerencias de edición abiertas: la aprobada sale al aire sin deploy, la rechazada queda con el motivo.',
+          },
         },
       },
       history: {
@@ -1428,6 +1463,16 @@ export default defineMessages(
           label: 'Tiempo límite por llamada',
           description: 'Espera máxima por una respuesta del proveedor.',
           unit: 'ms',
+        },
+        AI_REVIEW_PROVIDER: {
+          label: 'IA de la revisión semántica',
+          description:
+            'IA que decide las sugerencias de edición de la Revisión semántica (Ajustes → Revisión). Predeterminado: Gemini.',
+        },
+        AI_REVIEW_MODEL: {
+          label: 'Modelo de la revisión semántica',
+          description:
+            'Modelo de la IA que decide las sugerencias de edición. Vacío usa el predeterminado del proveedor elegido.',
         },
         WTW_MARKETS: {
           label: 'Mercados activos',

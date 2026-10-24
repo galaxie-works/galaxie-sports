@@ -26,7 +26,10 @@ async function List({ searchParams }: { searchParams: SearchParams }) {
   const [t, timeZone] = await Promise.all([getT(), getTimeZone()]);
   const filters = parseFilters(await searchParams);
   try {
-    const [data, serving] = await Promise.all([listReviewItems(filters), readServingFloor()]);
+    const [data, serving] = await Promise.all([
+      listReviewItems(filters, t.review.summary),
+      readServingFloor(),
+    ]);
     const catalogEmpty = !REVIEW_STATES.some((s) => data.counts[s]) && !data.options.sports.length;
     return (
       <>

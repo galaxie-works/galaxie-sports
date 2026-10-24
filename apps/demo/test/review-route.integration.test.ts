@@ -175,6 +175,66 @@ describe('revisão de um perfil', () => {
   });
 });
 
+describe('veredito e edição da IA (job review-suggestions)', () => {
+  const verdict = {
+    outcome: 'rejected',
+    reason: 'Alviverde já aparece como cor, não como apelido.',
+    fields: null,
+    adjustments: [],
+    validation: [],
+    by: 'gemini',
+    model: 'gemini-3.8-flash',
+    at: '2026-10-24T12:00:00.000Z',
+  };
+
+  it('recusa da IA: o motivo aparece na lista e no detalhe; o item segue "precisa de revisão"', async () => {
+    await sql.query(`update semantic.review_decision set ai_verdict = $1 where item_id = 'team:palmeiras'`, [
+      verdict,
+    ]);
+    const body = await (await getList('?status=needs_review')).json();
+    expect(body.data.items[0]).toMatchObject({
+      id: 'team:palmeiras',
+      state: 'needs_review',
+      openSuggestion: 'Falta Alviverde.',
+      aiRejection: verdict.reason,
+      edited: false,
+    });
+    const detail = (await (await getItem('team:palmeiras')).json()).data;
+    expect(detail.aiVerdict).toEqual(verdict);
+  });
+
+  it('uma sugestão nova apaga o veredito (a IA avalia de novo)', async () => {
+    await post('team:palmeiras', { action: 'suggest', comment: 'Conferir os apelidos de novo.' });
+    const row = (
+      await sql.query(`select ai_verdict from semantic.review_decision where item_id = 'team:palmeiras'`)
+    ).rows[0];
+    expect(row.ai_verdict).toBeNull();
+    expect((await (await getItem('team:palmeiras')).json()).data.aiVerdict).toBeNull();
+  });
+
+  it('edição em vigor no banco: marcada na lista e mostrada campo a campo no detalhe', async () => {
+    const { rows } = await sql.query(
+      `select review_hash, content from semantic.review_item where id = 'glossary:pt-BR.torcedor'`,
+    );
+    const { review_hash: hash, content } = rows[0] as { review_hash: string; content: { example: string } };
+    await sql.query(
+      `insert into semantic.review_override (item_id, fields, base, review_hash, source, reason)
+       values ('glossary:pt-BR.torcedor', $1, $2, $3, 'gemini', 'Exemplo mais natural.')`,
+      [{ example: content.example }, { example: 'A torcida encheu o estádio.' }, hash],
+    );
+    const list = await (await getList('?tipo=glossary&q=torcedor')).json();
+    expect(list.data.items.find((i: { id: string }) => i.id === 'glossary:pt-BR.torcedor').edited).toBe(true);
+    const detail = (await (await getItem('glossary:pt-BR.torcedor')).json()).data;
+    expect(detail.override).toMatchObject({
+      fields: { example: content.example },
+      base: { example: 'A torcida encheu o estádio.' },
+      source: 'gemini',
+      reason: 'Exemplo mais natural.',
+      at: expect.any(String),
+    });
+  });
+});
+
 describe('piso editorial da API', () => {
   it('sem relato da API o piso fica desconhecido; com relato, o detalhe e a lista trazem o piso', async () => {
     expect((await (await getItem('team:palmeiras')).json()).data.serving).toEqual({

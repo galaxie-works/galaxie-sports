@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { fieldText, parseProposedField, previewFor } from './preview';
+import { reviewSummary } from './summary';
 import { filtersQuery, floorsFrom, parseFilters, servedAt } from './types';
 
 describe('filtros da URL', () => {
@@ -136,5 +137,61 @@ describe('servido hoje', () => {
     expect(floorsFrom('draft')).toEqual(['draft', 'reviewed', 'approved']);
     expect(floorsFrom('approved')).toEqual(['approved']);
     expect(floorsFrom(null)).toEqual(['draft', 'reviewed', 'approved']);
+  });
+});
+
+describe('o que revisar (resumo da lista)', () => {
+  const words = { matches: '{count} jogos', draws: '{count} empates' };
+
+  it('glossário: termo, significado, exemplo e nota', () => {
+    expect(
+      reviewSummary(
+        'glossary',
+        {
+          key: 'secar',
+          term: 'secar',
+          meaning: 'Torcer contra o rival.',
+          example: 'Dia de secar!',
+          note: 'Uso lúdico.',
+          sources: ['https://x'],
+        },
+        words,
+      ),
+    ).toBe('secar: Torcer contra o rival. · Dia de secar! · Uso lúdico.');
+  });
+
+  it('histórico geral: placar agregado com as palavras do idioma', () => {
+    expect(
+      reviewSummary(
+        'all-time',
+        {
+          teams: ['liverpool', 'everton'],
+          all_time: {
+            matches: 248,
+            draws: 78,
+            basis: 'official',
+            as_of: '2026-04-19',
+            teams: [
+              { team: 'liverpool', wins: 102 },
+              { team: 'everton', wins: 68 },
+            ],
+          },
+        },
+        words,
+      ),
+    ).toBe('248 jogos: liverpool 102, everton 68, 78 empates · official · 2026-04-19');
+  });
+
+  it('tradução: todo o texto, sem identificadores nem fontes, e corta textos longos', () => {
+    expect(
+      reviewSummary(
+        'translation',
+        { slug: 'x', colors: ['verde', 'blanco'], mascot: 'Periquito', sources: ['https://y'] },
+        words,
+      ),
+    ).toBe('verde · blanco · Periquito');
+    const long = reviewSummary('copy', { template: 'a'.repeat(900) }, words);
+    expect(long).toHaveLength(600);
+    expect(long.endsWith('…')).toBe(true);
   });
 });

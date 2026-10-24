@@ -21,13 +21,15 @@ competitions:
   - https://es.wikipedia.org/wiki/Copa_Mundial_de_F%C3%BAtbol
 - slug: fifa-club-world-cup
   api_sports_league_id: null
-  labels: {pt-BR: Mundial de Clubes, es: Mundial de Clubes, en: FIFA Club World Cup}
+  labels: {pt-BR: Mundial de Clubes FIFA, es: Mundial de Clubes FIFA, en: FIFA Club World Cup}
   nicknames:
     pt-BR:
     - Mundial de Clubes
     - Mundial
+    - Mundial de Clubes FIFA
     es:
     - Mundial de Clubes
+    - Mundial de Clubes FIFA
   trophy_nickname: null
   sources:
   - https://en.wikipedia.org/wiki/FIFA_Club_World_Cup
