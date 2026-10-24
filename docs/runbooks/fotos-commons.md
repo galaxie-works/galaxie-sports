@@ -103,7 +103,7 @@ pnpm --filter @galaxie/ingestor assets:commons
 - `auto`: vem da regra e é refeito a cada varredura.
 - `manual`: curadoria. Troque o `target` e a `season` e marque `match: manual`; a varredura não mexe mais.
 
-Na importação, a primeira foto (não rejeitada) desse carro vira também vínculo do piloto, com o papel `highlight_car` e a temporada. Se o carro não tiver foto, o piloto fica sem destaque: nunca uma foto ruim.
+Na importação, a primeira foto desse carro que não foi rejeitada **e não é CC BY-SA** vira também vínculo do piloto, com o papel `highlight_car` e a temporada (`highlightPhoto`). O motivo: o heading recorta a foto no navegador (cover), o que é uma adaptação, e BY-SA pediria a mesma licença na obra derivada. Se o carro não tiver foto compatível, o piloto fica sem destaque e o heading usa a cor da equipe: nunca uma foto ruim. As fotos BY-SA continuam na galeria, inteiras e com crédito. Um teste recusa curadoria (`match: manual`) de carro sem foto compatível.
 
 `config/assets/commons/f1.cobertura.md` mostra, por alvo, as fotos e licenças e, na última varredura, candidatas, aceitas e os motivos de recusa mais comuns.
 

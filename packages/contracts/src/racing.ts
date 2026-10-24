@@ -145,7 +145,7 @@ export const RaceCareer = z
     portrait: Photo.nullable(),
     highlight: z.object({ season: z.number().int(), car: Photo }).nullable().meta({
       description:
-        'Piloto: carro de destaque (a temporada de título com mais vitórias ou, sem título, a de mais vitórias; curadoria no acervo). Para o topo da página, com o retrato na frente.',
+        'Piloto: carro de destaque (a temporada de título com mais vitórias ou, sem título, a de mais vitórias; curadoria no acervo). Para o topo da página, com o retrato na frente. Nunca CC BY-SA: o fundo recorta a foto.',
     }),
   })
   .meta({ id: 'RaceCareer' });

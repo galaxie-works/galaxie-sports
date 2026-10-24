@@ -372,7 +372,11 @@ Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
 **Correção:**
 
 - **Fundo:** o carro da temporada mais marcante cobre o heading, esmaecido para o texto ler nos dois temas: da esquerda para a direita no desktop, de baixo para cima no celular, com o carro numa faixa no topo.
-- **Qual carro:** curadoria, quando houver (ainda não há dado de curadoria). Depois, a temporada de título com mais vitórias, a de mais vitórias e, por fim, o último carro com foto. Uma temporada sem foto é pulada, então o heading melhora sozinho quando o acervo ganha fotos. Senna: McLaren de 1988.
+- **Qual carro:** primeiro o carro de destaque do acervo (`highlight_car` no manifesto de fotos, #243), que tem curadoria (`match: manual`). O Senna fica com **Phoenix 1991**, com o #1 de campeão, escolhida pelo Wagner. Sem destaque, vale a regra: a temporada de título com mais vitórias, depois a de mais vitórias e, por fim, o último carro com foto. Uma temporada sem foto é pulada, então o heading melhora sozinho quando o acervo ganha fotos.
+- **Licença do fundo:** o fundo recorta a foto no navegador (cover), o que é uma adaptação. Por isso só entra foto CC BY, CC0 ou domínio público, valendo para a regra, para a curadoria e para o carro da temporada (decisão do Wagner). Fotos CC BY-SA ficam na galeria, inteiras e com crédito. Um teste recusa curadoria sem foto compatível. Sem foto compatível, o fundo é a cor da equipe. O retrato no círculo segue como está, também quando é BY-SA (decisão do Wagner). Exemplo: no Michael Schumacher, o carro de destaque é o de 2004 (CC BY-SA), então o fundo vai para o de 2002, em domínio público.
+
+  ![Schumacher: fundo com o carro de 2002, em domínio público](img/depois-piloto-fundo-sem-by-sa.jpg)
+
 - **Frente:** retrato em destaque, nome, bandeira e país, anos de carreira, títulos mundiais (com os anos) e o seletor de temporada.
 - **Crédito:** o heading não mostra crédito. O carro e o retrato dele entram primeiro na galeria da mesma página, com autor, Commons e licença, então a atribuição continua na página. O carro entra mesmo quando não estava na galeria do piloto.
 - **Sem foto:** sem foto do carro, o fundo é a cor da equipe daquele ano (`colors` novo nas equipes da carreira, aditivo na API). Sem cor e sem foto, o heading fica compacto. Sem retrato, as iniciais.

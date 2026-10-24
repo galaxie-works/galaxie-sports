@@ -5,8 +5,9 @@
  * 3. grava no nosso storage com a nossa nomenclatura (`commons/f1/{drivers|cars}/<id do participante>.<hash>`);
  * 4. registra `core.asset` (origin `commons`), o crédito (`core.asset_credit`) e o vínculo com o piloto ou o
  *    construtor (`core.participant_photo`). O logo do participante não muda.
- * 5. carro de destaque do piloto (`highlight_car` no manifesto): a primeira foto daquele carro também vira
- *    vínculo do piloto, com o papel `highlight_car` e a temporada (heading da página do piloto).
+ * 5. carro de destaque do piloto (`highlight_car` no manifesto): a primeira foto daquele carro que pode ir ao
+ *    fundo (`highlightPhoto`: sem CC BY-SA) também vira vínculo do piloto, com o papel `highlight_car` e a
+ *    temporada (heading da página do piloto).
  * Idempotente: o mesmo manifesto não regrava nada; foto que saiu do manifesto (ou foi rejeitada) sai do
  * participante (o asset fica).
  */
@@ -18,7 +19,12 @@ import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
 import type { WikimediaClient } from './client.js';
 import { readLicense } from './license.js';
-import { COMMONS_ACERVO_ID, type CommonsManifest, type ManifestEntry } from './manifest.js';
+import {
+  COMMONS_ACERVO_ID,
+  type CommonsManifest,
+  type ManifestEntry,
+  type ManifestPhoto,
+} from './manifest.js';
 
 /** Largura da miniatura pedida à Commons (o original nunca é servido; a Commons não amplia). */
 export const COMMONS_THUMB_WIDTH = 1600;
@@ -259,7 +265,16 @@ export async function importCommons(
   return report;
 }
 
-/** Carro de destaque de cada piloto: a primeira foto (não rejeitada) do alvo do carro, já no storage. */
+/**
+ * Foto do carro de destaque: a primeira não rejeitada e sem CC BY-SA. O heading recorta a foto no navegador
+ * (cover), o que é uma adaptação; BY-SA pediria a mesma licença na obra derivada. Só BY-SA no carro: o piloto
+ * fica sem destaque (o heading usa a cor da equipe), e as fotos seguem na galeria, inteiras e com crédito.
+ */
+export function highlightPhoto(car: ManifestEntry | undefined): ManifestPhoto | undefined {
+  return car?.photos.find((p) => p.match !== 'rejected' && !p.share_alike);
+}
+
+/** Carro de destaque de cada piloto: a foto do alvo do carro (`highlightPhoto`), já no storage. */
 async function linkHighlights(
   db: Database,
   manifest: CommonsManifest,
@@ -271,7 +286,7 @@ async function linkHighlights(
     if (entry.kind !== 'driver') continue;
     const h = entry.highlight_car ?? null;
     if (opts.only && !opts.only.has(entry.target) && !(h && opts.only.has(h.target))) continue;
-    const photo = h ? byTarget.get(h.target)?.photos.find((p) => p.match !== 'rejected') : undefined;
+    const photo = h ? highlightPhoto(byTarget.get(h.target)) : undefined;
     if (opts.plan) {
       if (photo) report.highlights += 1;
       continue;
