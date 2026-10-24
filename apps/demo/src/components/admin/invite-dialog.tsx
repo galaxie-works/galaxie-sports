@@ -1,12 +1,12 @@
 'use client';
 
-import { Copy, MailCheck, UserPlus } from 'lucide-react';
+import { Copy, MailCheck, TriangleAlert, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { inviteUser, type InviteInput } from '@/app/[locale]/(app)/ajustes/actions';
-import { Alert, AlertDescription } from '@/components/reui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/reui/alert';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -27,6 +28,7 @@ import type { TenantOption } from '@/lib/client/tenants';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import { fill, plural } from '@/lib/i18n/text';
+import { emailMatchesDomains } from '@/lib/lineup/types';
 
 import { LocaleSelect } from './user-badges';
 
@@ -101,8 +103,17 @@ export function TenantSelect({
 
 const EMPTY = { name: '', email: '', jobTitle: '', company: '', phone: '', notes: '' };
 
-/** Cadastro do convidado: dados de contato, papel e validade; o convite sai por e-mail. */
-export function InviteDialog({ tenants }: { tenants: TenantOption[] }) {
+/**
+ * Cadastro do convidado: dados de contato, papel e validade; o convite sai por e-mail. Cliente com e-mail
+ * fora dos domínios da operadora do tenant: aviso e confirmação (pode ser agência ou consultor).
+ */
+export function InviteDialog({
+  tenants,
+  operatorDomains = {},
+}: {
+  tenants: TenantOption[];
+  operatorDomains?: Record<string, string[]>;
+}) {
   const router = useRouter();
   const { locale: screenLocale, t } = useI18n();
   const accessPresets = useAccessPresets();
@@ -116,7 +127,10 @@ export function InviteDialog({ tenants }: { tenants: TenantOption[] }) {
   const [locale, setLocale] = useState<Locale>(screenLocale);
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
+  const [confirmOutside, setConfirmOutside] = useState(false);
   const [pending, startTransition] = useTransition();
+  const domains = role === 'client' && tenantId ? (operatorDomains[tenantId] ?? []) : [];
+  const outside = domains.length > 0 && form.email.includes('@') && !emailMatchesDomains(form.email, domains);
 
   const set = (k: keyof typeof EMPTY) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -129,6 +143,7 @@ export function InviteDialog({ tenants }: { tenants: TenantOption[] }) {
     setLocale(screenLocale);
     setError(null);
     setLink(null);
+    setConfirmOutside(false);
   }
 
   function submit(e: React.FormEvent) {
@@ -140,6 +155,7 @@ export function InviteDialog({ tenants }: { tenants: TenantOption[] }) {
       tenantId: role === 'client' ? tenantId : null,
       accessDays: days === 'none' ? null : Number(days),
       locale,
+      confirmOutsideDomain: outside && confirmOutside,
     };
     startTransition(async () => {
       const res = await inviteUser(input);
@@ -266,6 +282,28 @@ export function InviteDialog({ tenants }: { tenants: TenantOption[] }) {
                   <FieldDescription>{t.admin.tenant.hint}</FieldDescription>
                 </Field>
               ) : null}
+              {outside ? (
+                <Alert variant="warning" className="sm:col-span-2">
+                  <TriangleAlert />
+                  <AlertTitle>{t.lineup.invite.outsideTitle}</AlertTitle>
+                  <AlertDescription className="flex flex-col gap-2">
+                    {fill(t.lineup.invite.outside, {
+                      email: form.email.trim(),
+                      domains: domains.join(', '),
+                    })}
+                    <Field orientation="horizontal">
+                      <Checkbox
+                        id="inv-outside"
+                        checked={confirmOutside}
+                        onCheckedChange={(v) => setConfirmOutside(v === true)}
+                      />
+                      <FieldLabel htmlFor="inv-outside" className="font-normal">
+                        {t.lineup.invite.confirm}
+                      </FieldLabel>
+                    </Field>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
               <Field>
                 <FieldLabel htmlFor="inv-access">{t.admin.invite.access}</FieldLabel>
                 <Select
@@ -311,7 +349,10 @@ export function InviteDialog({ tenants }: { tenants: TenantOption[] }) {
               </Alert>
             ) : null}
             <DialogFooter>
-              <Button type="submit" disabled={pending || (role === 'client' && !tenantId)}>
+              <Button
+                type="submit"
+                disabled={pending || (role === 'client' && !tenantId) || (outside && !confirmOutside)}
+              >
                 {pending ? <Spinner /> : <UserPlus />}
                 {t.admin.invite.submit}
               </Button>

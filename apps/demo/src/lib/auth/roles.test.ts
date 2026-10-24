@@ -19,12 +19,24 @@ describe('papéis da demo', () => {
 
   it('cliente não abre Ajustes (páginas nem API)', () => {
     expect(canAccessAdmin('client')).toBe(false);
-    for (const path of ['/ajustes', '/ajustes/usuarios', '/ajustes/usuarios/1', '/api/ajustes/operacao'])
+    for (const path of [
+      '/ajustes',
+      '/ajustes/usuarios',
+      '/ajustes/usuarios/1',
+      '/ajustes/grades',
+      '/api/ajustes/operacao',
+    ])
       expect(routeAccess(path, 'client')).toBe('deny');
   });
 
   it('painel do cliente: cliente e admin entram; convidado não', () => {
-    for (const path of ['/cliente', '/cliente/chaves', '/cliente/builder/novo', '/api/cliente/x']) {
+    for (const path of [
+      '/cliente',
+      '/cliente/chaves',
+      '/cliente/builder/novo',
+      '/cliente/grade',
+      '/api/cliente/x',
+    ]) {
       expect(routeAccess(path, 'client')).toBe('allow');
       expect(routeAccess(path, 'admin')).toBe('allow');
       expect(routeAccess(path, 'user')).toBe('deny');

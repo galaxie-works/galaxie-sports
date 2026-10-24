@@ -208,10 +208,13 @@ function useColumns(timeZone: string): ColumnDef<DataGridFeatures, DemoUser>[] {
 export function UsersTable({
   users,
   tenants,
+  operatorDomains = {},
   timeZone,
 }: {
   users: DemoUser[];
   tenants: TenantOption[];
+  /** Domínios de e-mail da operadora de cada tenant (aviso no convite de cliente). */
+  operatorDomains?: Record<string, string[]>;
   timeZone: string;
 }) {
   const router = useRouter();
@@ -263,7 +266,7 @@ export function UsersTable({
               {plural(locale, pending, t.admin.table.pendingInvites)}
             </FrameDescription>
           </div>
-          <InviteDialog tenants={tenants} />
+          <InviteDialog tenants={tenants} operatorDomains={operatorDomains} />
         </FrameHeader>
 
         <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
