@@ -1,4 +1,5 @@
 import type { CompetitionRules, LeagueRules, PointsRule, Zone } from '../config/types.js';
+import { accumulate } from '../standings/accumulate.js';
 import { computeTable } from '../standings/compute.js';
 import type { BaselineRow, MatchResult, StandingRow, TeamId } from '../standings/types.js';
 import { makeStake, type Stake, type StakeSide } from './codes.js';
@@ -33,7 +34,22 @@ export interface TableSnapshotRow {
   goalsFor: number;
   goalsAgainst: number;
   points: number;
+  /**
+   * Gols e vitórias como visitante (critérios `away_goals_for` e `away_wins`). A `core.standing` não os
+   * guarda: `prepareFinishedLeagueMatch` os soma dos resultados; sem eles, `tablesAroundMatch` recusa o
+   * regulamento que usa esses critérios.
+   */
+  awayGoalsFor?: number;
+  awayWon?: number;
+  /**
+   * Cartões (critérios de disciplina). Sem eles, ficam zerados para todos: o critério não separa ninguém e o
+   * empate segue para o próximo (no fim, sorteio sinalizado em `unresolvedTieWith`).
+   */
+  yellowCards?: number;
+  redCards?: number;
 }
+
+const AWAY_CRITERIA: ReadonlySet<string> = new Set(['away_goals_for', 'away_wins']);
 
 export interface TablesAroundInput {
   rules: Pick<CompetitionRules, 'standings' | 'league'>;
@@ -60,7 +76,16 @@ export interface TablesAround {
 /** Tabela antes e depois de um jogo encerrado, a partir da tabela atual. */
 export function tablesAroundMatch(input: TablesAroundInput): TablesAround {
   const pr = input.rules.standings.points;
-  const rows = new Map<TeamId, BaselineRow & { points: number }>();
+  const hasAway = input.current.every((r) => r.awayGoalsFor !== undefined && r.awayWon !== undefined);
+  const hasCards = input.current.every((r) => r.yellowCards !== undefined && r.redCards !== undefined);
+  // zerados, os gols/vitórias fora reordenariam os empates (Champions, Libertadores): melhor não ter tabela
+  if (!hasAway && input.rules.standings.tieBreakers.some((tb) => AWAY_CRITERIA.has(tb.criterion)))
+    throw new LeagueInputError(
+      'A tabela atual não traz gols e vitórias como visitante, usados no desempate do regulamento.',
+    );
+  type Row = BaselineRow &
+    Required<Pick<BaselineRow, 'awayGoalsFor' | 'awayWon' | 'yellowCards' | 'redCards'>> & { points: number };
+  const rows = new Map<TeamId, Row>();
   for (const r of input.current) {
     if (rows.has(r.teamId)) throw new LeagueInputError(`Time ${r.teamId} repetido na tabela atual.`);
     rows.set(r.teamId, {
@@ -72,16 +97,35 @@ export function tablesAroundMatch(input: TablesAroundInput): TablesAround {
       goalsFor: r.goalsFor,
       goalsAgainst: r.goalsAgainst,
       points: r.points,
+      awayGoalsFor: hasAway ? r.awayGoalsFor! : 0,
+      awayWon: hasAway ? r.awayWon! : 0,
+      yellowCards: hasCards ? r.yellowCards! : 0,
+      redCards: hasCards ? r.redCards! : 0,
     });
   }
   if (!rows.has(input.match.homeId) || !rows.has(input.match.awayId))
     throw new LeagueInputError('Os times do jogo não estão na tabela atual.');
+  // desfaz o jogo como `applyMatch` o somou (gols/vitórias fora e cartões só quando a tabela os traz)
   const undo = (m: MatchResult) => {
-    const sides: [TeamId, number, number][] = [
-      [m.homeId, m.homeGoals, m.awayGoals],
-      [m.awayId, m.awayGoals, m.homeGoals],
+    const sides: { id: TeamId; gf: number; ga: number; away: boolean; yellow: number; red: number }[] = [
+      {
+        id: m.homeId,
+        gf: m.homeGoals,
+        ga: m.awayGoals,
+        away: false,
+        yellow: m.cards?.home?.yellow ?? 0,
+        red: m.cards?.home?.red ?? 0,
+      },
+      {
+        id: m.awayId,
+        gf: m.awayGoals,
+        ga: m.homeGoals,
+        away: !m.neutral,
+        yellow: m.cards?.away?.yellow ?? 0,
+        red: m.cards?.away?.red ?? 0,
+      },
     ];
-    for (const [id, gf, ga] of sides) {
+    for (const { id, gf, ga, away, yellow, red } of sides) {
       const r = rows.get(id)!;
       r.played -= 1;
       r.goalsFor -= gf;
@@ -96,7 +140,16 @@ export function tablesAroundMatch(input: TablesAroundInput): TablesAround {
         r.lost -= 1;
         r.points -= pr.loss;
       }
-      if (r.played < 0 || r.won < 0 || r.drawn < 0 || r.lost < 0 || r.goalsFor < 0 || r.goalsAgainst < 0)
+      if (hasAway && away) {
+        r.awayGoalsFor -= gf;
+        if (gf > ga) r.awayWon -= 1;
+      }
+      if (hasCards) {
+        r.yellowCards -= yellow;
+        r.redCards -= red;
+      }
+      const counts = [r.played, r.won, r.drawn, r.lost, r.goalsFor, r.goalsAgainst];
+      if ([...counts, r.awayGoalsFor, r.awayWon, r.yellowCards, r.redCards].some((v) => v < 0))
         throw new LeagueInputError(
           `A tabela atual não contém o jogo ${m.id ?? `${m.homeId} x ${m.awayId}`} (time ${id}).`,
         );
@@ -355,7 +408,8 @@ export interface PrepareFinishedInput {
  * temporada: separa os jogos anteriores (confronto direto) dos simultâneos e posteriores (desfeitos na
  * tabela de antes). Recusa (LeagueInputError) quando a tabela atual não bate com os resultados — jogos
  * somados na tabela ≠ jogos encerrados entre os times dela —, porque desfazer jogos de uma tabela
- * desatualizada daria uma tabela de antes errada.
+ * desatualizada daria uma tabela de antes errada. Sem gols/vitórias fora na tabela, eles saem dos
+ * resultados.
  */
 export function prepareFinishedLeagueMatch(input: PrepareFinishedInput): FinishedLeagueMatchInput {
   const ids = new Set(input.current.map((r) => r.teamId));
@@ -367,13 +421,25 @@ export function prepareFinishedLeagueMatch(input: PrepareFinishedInput): Finishe
     throw new LeagueInputError(
       `A tabela atual (${played / 2} jogos) não bate com os resultados encerrados (${results.length}).`,
     );
+  const fromResults = accumulate({
+    points: input.rules.standings.points,
+    matches: results,
+    teams: input.current.map((r) => ({ teamId: r.teamId })),
+  });
+  const hasAway = input.current.every((r) => r.awayGoalsFor !== undefined && r.awayWon !== undefined);
+  const current = hasAway
+    ? input.current
+    : input.current.map((r) => {
+        const t = fromResults.get(r.teamId)!;
+        return { ...r, awayGoalsFor: t.awayGoalsFor, awayWon: t.awayWon };
+      });
   const at = (m: MatchResult) => (m.playedAt ? Date.parse(m.playedAt) : NaN);
   const kickoff = at(match);
   if (!Number.isFinite(kickoff)) throw new LeagueInputError('Jogo sem data de início.');
   const others = results.filter((m) => m.id !== match.id);
   const out: FinishedLeagueMatchInput = {
     rules: input.rules,
-    current: input.current,
+    current,
     match,
     later: others.filter((m) => !(at(m) < kickoff)),
     earlier: others.filter((m) => at(m) < kickoff),

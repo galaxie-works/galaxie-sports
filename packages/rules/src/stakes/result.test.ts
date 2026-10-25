@@ -299,6 +299,105 @@ describe('tablesAroundMatch e prepareFinishedLeagueMatch', () => {
     );
   });
 
+  describe('critérios de gols e vitórias fora (Champions, Libertadores)', () => {
+    const awayRules = rulesFrom({
+      standings: {
+        points: { win: 3, draw: 1, loss: 0 },
+        tie_breakers: ['goal_difference', 'goals_for', 'away_goals_for', 'wins', 'away_wins'],
+      },
+      league: { teams: 6, matches_per_team: 10, title: true, zones: [] },
+    });
+    // a tabela da `core.standing`: sem gols/vitórias fora nem cartões
+    const snapshot = (rows: ReturnType<typeof computeTable>) =>
+      rows.map(({ teamId, played, won, drawn, lost, goalsFor, goalsAgainst, points }) => ({
+        teamId,
+        played,
+        won,
+        drawn,
+        lost,
+        goalsFor,
+        goalsAgainst,
+        points,
+      }));
+    const at = (h: number) => new Date(Date.UTC(2026, 0, 1, h)).toISOString();
+
+    it('A e B empatados em tudo menos nos gols fora: B à frente na tabela de antes', () => {
+      const played: MatchResult[] = [
+        { id: 'm1', homeId: 'A', awayId: 'C', homeGoals: 2, awayGoals: 0, playedAt: at(1) },
+        { id: 'm2', homeId: 'D', awayId: 'B', homeGoals: 0, awayGoals: 2, playedAt: at(2) },
+        { id: 'm3', homeId: 'E', awayId: 'F', homeGoals: 1, awayGoals: 0, playedAt: at(3) },
+      ];
+      const current = snapshot(computeTable({ rules: awayRules, matches: played, teams: all6 }));
+      const out = tablesAroundMatch(
+        prepareFinishedLeagueMatch({ rules: awayRules, current, results: played, matchId: 'm3' }),
+      );
+      const top = out.before.slice(0, 2);
+      expect(top.map((r) => r.teamId)).toEqual(['B', 'A']);
+      expect(top[1]!.decidedBy).toBe('away_goals_for');
+      expect(top[0]).toMatchObject({ awayGoalsFor: 2, awayWon: 1 });
+      // sem os gols fora na tabela e sem os resultados para somá-los: recusa em vez de reordenar errado
+      expect(() =>
+        tablesAroundMatch({ rules: awayRules, current, match: played[2]!, later: [], earlier: played }),
+      ).toThrow(/gols e vitórias como visitante/);
+    });
+
+    it('propriedade: antes/depois iguais aos calculados dos jogos, com a tabela com ou sem os gols fora', () => {
+      for (let seed = 1; seed <= 30; seed++) {
+        const rand = rng(100 + seed);
+        const all = randomDoubleRoundRobin(teams, rand);
+        const played = all.slice(0, 15 + (seed % 12));
+        const full = computeTable({ rules: awayRules, matches: played, teams: all6 });
+        const target = played[Math.floor(rand() * played.length)]!;
+        const earlier = played.filter((m) => m.playedAt! < target.playedAt!);
+        const strip = (rows: ReturnType<typeof computeTable>) =>
+          rows.map((r) => [r.teamId, r.rank, r.points, r.awayGoalsFor, r.awayWon]);
+        for (const current of [full, snapshot(full)]) {
+          const out = tablesAroundMatch(
+            prepareFinishedLeagueMatch({ rules: awayRules, current, results: played, matchId: target.id! }),
+          );
+          expect(strip(out.before), `seed ${seed}`).toEqual(
+            strip(computeTable({ rules: awayRules, matches: earlier, teams: all6 })),
+          );
+          expect(strip(out.after), `seed ${seed}`).toEqual(
+            strip(computeTable({ rules: awayRules, matches: [...earlier, target], teams: all6 })),
+          );
+        }
+      }
+    });
+  });
+
+  it('cartões da tabela atual: o jogo desfeito tira os cartões dele', () => {
+    const cardRules = rulesFrom({
+      standings: {
+        points: { win: 3, draw: 1, loss: 0 },
+        tie_breakers: ['goal_difference', 'fewest_red_cards'],
+      },
+      league: { teams: 6, matches_per_team: 10, title: true, zones: [] },
+    });
+    const played: MatchResult[] = [
+      { id: 'm1', homeId: 'A', awayId: 'B', homeGoals: 1, awayGoals: 1, playedAt: '2026-01-01T00:00:00Z' },
+      {
+        id: 'm2',
+        homeId: 'B',
+        awayId: 'A',
+        homeGoals: 0,
+        awayGoals: 0,
+        playedAt: '2026-01-02T00:00:00Z',
+        cards: { home: { red: 1 } },
+      },
+    ];
+    const current = computeTable({ rules: cardRules, matches: played, teams: all6 });
+    const out = tablesAroundMatch(
+      prepareFinishedLeagueMatch({ rules: cardRules, current, results: played, matchId: 'm2' }),
+    );
+    expect(out.before.find((r) => r.teamId === 'B')!.redCards).toBe(0);
+    expect(out.after.find((r) => r.teamId === 'B')!.redCards).toBe(1);
+    expect(out.after.slice(0, 2).map((r) => [r.teamId, r.decidedBy])).toEqual([
+      ['A', null],
+      ['B', 'fewest_red_cards'],
+    ]);
+  });
+
   it('pickGroupTable: com dois rótulos para a mesma liga, fica a tabela mais completa', () => {
     const fresh = [
       { participantId: 'A', played: 32 },
