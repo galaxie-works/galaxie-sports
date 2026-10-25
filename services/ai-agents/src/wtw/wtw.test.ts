@@ -123,7 +123,7 @@ describe('agente', () => {
             {
               match: 'J1',
               country: 'BR',
-              broadcaster: 'Emissora A\u0000',
+              broadcaster: 'TV Globo\u0000',
               channel: null,
               region: null,
               watch_url: null,
@@ -139,19 +139,36 @@ describe('agente', () => {
             {
               match: 'J2',
               country: 'BR',
-              broadcaster: 'Streaming B',
+              broadcaster: 'Premiere',
               channel: null,
               region: null,
               watch_url: null,
               evidence: [
                 {
                   url: 'https://ge.globo.com/grade',
-                  excerpt: 'J2 no Streaming B',
+                  excerpt: 'J2 no Premiere',
                   published_at: null,
                   stance: 'confirms',
                 },
               ],
             },
+            // fora da lista de detentores (e fora do dicionário): descartadas aqui
+            ...['SBT', 'Streaming B'].map((broadcaster) => ({
+              match: 'J2',
+              country: 'BR',
+              broadcaster,
+              channel: null,
+              region: null,
+              watch_url: null,
+              evidence: [
+                {
+                  url: 'https://www.cbf.com.br/grade',
+                  excerpt: `J2 no ${broadcaster}`,
+                  published_at: null,
+                  stance: 'confirms',
+                },
+              ],
+            })),
             {
               match: 'J9',
               country: 'BR',
@@ -180,7 +197,7 @@ describe('agente', () => {
       round: 'Rodada 7',
       events: [J1, J2],
       markets: [
-        { directory: br, holders: ['globo'], known: [], matches: ['J1', 'J2'] },
+        { directory: br, holders: ['globo'], known: ['premiere'], matches: ['J1', 'J2'] },
         { directory: config.directory('AR'), holders: [], known: [], matches: ['J1'] },
       ],
     });
@@ -191,10 +208,10 @@ describe('agente', () => {
     expect(call.allowedDomains).toContain('cbf.com.br');
     expect(call.allowedDomains).not.toContain('livesoccertv.com');
     expect(call.allowedDomains!.length).toBeLessThanOrEqual(100);
-    expect(out.ignored).toBe(2);
+    expect(out.ignored).toBe(4);
     expect(out.byEvent.get(J1.id)!.get('BR')).toEqual([
       {
-        broadcaster: 'Emissora A',
+        broadcaster: 'TV Globo',
         channel: null,
         region: null,
         watchUrl: null,
@@ -208,7 +225,12 @@ describe('agente', () => {
         ],
       },
     ]);
-    expect(out.byEvent.get(J2.id)!.get('BR')![0]!.broadcaster).toBe('Streaming B');
+    expect(
+      out.byEvent
+        .get(J2.id)!
+        .get('BR')!
+        .map((c) => c.broadcaster),
+    ).toEqual(['Premiere']);
   });
 
   it('alocação com grounding: evidência com URL fora da busca do provedor cai antes de ser buscada', async () => {

@@ -86,6 +86,15 @@ export class WhereToWatchAgent {
     const codes = input.events.map((info, i) => ({ code: `J${i + 1}`, info }));
     const byCode = new Map(codes.map((c) => [c.code, c.info]));
     const holders = new Map<string, string[]>(input.markets.map((m) => [m.directory.country, m.holders]));
+    // com lista de detentores, só eles (e os já garantidos) valem: o validador rebaixa o não detentor
+    // só em 0,2 e uma fonte do organizador ainda o publicaria
+    const markets = new Map(input.markets.map((m) => [m.directory.country as string, m]));
+    const isHolder = (country: string, name: string, channel: string | null) => {
+      const m = markets.get(country)!;
+      if (!m.holders.length) return true;
+      const r = m.directory.resolve(name.trim()) ?? (channel ? m.directory.resolve(channel.trim()) : null);
+      return !!r && (m.holders.includes(r.entry.id) || m.known.includes(r.entry.id));
+    };
     const countries: string[] = input.markets.map((m) => m.directory.country);
     const result = await this.llm.generateJson<WtwAllocationOutput>({
       tier: 'research',
@@ -120,7 +129,7 @@ export class WhereToWatchAgent {
     for (const a of data.assignments.slice(0, WTW_MAX_OPTIONS * Math.max(1, codes.length))) {
       const info = byCode.get(a.match.trim().toUpperCase());
       const country = a.country.trim().toUpperCase();
-      if (!info || !holders.has(country)) {
+      if (!info || !holders.has(country) || !isHolder(country, a.broadcaster, a.channel)) {
         ignored++;
         continue;
       }
