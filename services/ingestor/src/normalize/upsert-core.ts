@@ -1482,10 +1482,17 @@ async function upsertSportMirrors(tx: Tx, batch: NormalizedBatch, allowed: Allow
   for (const applied of [true, false]) {
     const mirrors = allowed.filter((e) => e.source.sportEvent && e.stateApplied === applied);
     const pick = (column: SQL, value: SQL) => (applied ? value : column);
+    // espelho órfão de outro evento com a mesma identidade (sport_event_detail_provider_uq): trocar a identidade
+    // derrubaria o lote inteiro; nesse caso ela fica e só o resumo acompanha
+    const taken = sql`exists (select 1 from core.sport_event_detail other
+      where other.provider = excluded.provider and other.sport = excluded.sport
+        and other.provider_event_id = excluded.provider_event_id and other.event_id <> ${sd.eventId})`;
+    const identity = (column: SQL, value: SQL) =>
+      pick(column, sql`case when ${taken} then ${column} else ${value} end`);
     const next = {
-      provider: pick(sql`${sd.provider}`, sql`excluded.provider`),
-      providerEventId: pick(sql`${sd.providerEventId}`, sql`excluded.provider_event_id`),
-      kind: pick(sql`${sd.kind}`, sql`excluded.kind`),
+      provider: identity(sql`${sd.provider}`, sql`excluded.provider`),
+      providerEventId: identity(sql`${sd.providerEventId}`, sql`excluded.provider_event_id`),
+      kind: identity(sql`${sd.kind}`, sql`excluded.kind`),
       summary: pick(sql`${sd.summary}`, sql`excluded.summary`),
     };
     for (const chunk of chunks(mirrors, 200)) {

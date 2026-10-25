@@ -370,6 +370,14 @@ describe('importação do F1DB', () => {
     expect(e!.estimated).toBe(true);
     // a api-sports diz 5 h depois do estimado (Bahrein 2022: 11h estimado, 15h real): fora dos ±3 h, no mesmo dia
     const real = new Date(new Date(e!.starts_at).getTime() + 5 * 3_600_000).toISOString();
+    // espelho órfão de outro evento já com a identidade api-sports/2200 (duplicata antiga): a troca de
+    // identidade violaria sport_event_detail_provider_uq e derrubaria o lote; a identidade fica
+    const [orphan] = await db.execute<{ id: string }>(sql`
+      insert into core.event (id, sport, starts_at, ends_at_expected)
+      values (gen_random_uuid(), 'formula-1', now(), now()) returning id::text as id`);
+    await db.execute(sql`
+      insert into core.sport_event_detail (event_id, sport, provider, provider_event_id, kind, summary)
+      values (${orphan!.id}::uuid, 'formula-1', 'api-sports', '2200', 'race', '{}'::jsonb)`);
     const stats = await upsertBatch(
       db,
       normalizeF1Races([apiRace(2200, 'Race', real)], new Date('2026-10-23T11:00:00Z')),
@@ -378,6 +386,10 @@ describe('importação do F1DB', () => {
     expect(stats.events.matchedAcrossProviders).toBe(1);
     expect(stats.events.inserted).toBe(0);
     expect(await entityOf('api-sports', 'event', '2200')).toBe(japan);
+    const [mirror] = await db.execute<{ provider: string; summary_id: string | null }>(sql`
+      select provider, summary->>'id' as summary_id from core.sport_event_detail where event_id = ${japan}::uuid`);
+    expect(mirror).toEqual({ provider: 'f1db', summary_id: '2200' });
+    await db.execute(sql`delete from core.event where id = ${orphan!.id}::uuid`);
   });
 
   it('cria o país do F1DB que o core não tem (Mônaco não é da FIFA) e não mexe nos que existem', async () => {
