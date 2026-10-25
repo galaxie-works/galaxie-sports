@@ -9,9 +9,9 @@
 .claude
 .vscode
 .idea
-.env
-.env.*
-!.env.example
+# em qualquer pasta (ex.: apps/demo/.env.local): aqui, ao contrário do .gitignore, padrão sem ** vale só na raiz
+**/.env*
+!**/.env.example
 docs
 data/raw
 data/assets
