@@ -1,6 +1,13 @@
-import { agentKey } from './budget.js';
 import { LlmError } from './errors.js';
 import type { LlmTier } from './types.js';
+
+/**
+ * Chave do agente sem a versão do prompt (`channels@v1` → `channels`): o teto e as métricas do agente
+ * não mudam de chave quando o prompt sobe de versão.
+ */
+export function agentKey(name: string): string {
+  return name.split('@')[0]!.trim().toLowerCase();
+}
 
 export type LlmProviderName = 'openai' | 'anthropic' | 'gemini';
 export const LLM_PROVIDERS: readonly LlmProviderName[] = ['openai', 'anthropic', 'gemini'];

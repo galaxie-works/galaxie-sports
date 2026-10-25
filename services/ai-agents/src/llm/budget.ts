@@ -18,6 +18,7 @@
  */
 import { and, eq, sql } from 'drizzle-orm';
 import { llmUsage, type Database } from '@galaxie/db';
+import { agentKey } from './config.js';
 import { BudgetExceededError, LlmError } from './errors.js';
 import { budgetPriceFor, searchUsdFor } from './pricing.js';
 import type { LlmClient, LlmJsonRequest, LlmResult, LlmTier, LlmUsage } from './types.js';
@@ -49,14 +50,6 @@ export interface TokenBudgetStore {
 }
 
 export const dayUtcOf = (d: Date) => d.toISOString().slice(0, 10);
-
-/**
- * Chave do agente sem a versão do prompt (`channels@v1` → `channels`): o teto e as métricas do agente
- * não mudam de chave quando o prompt sobe de versão.
- */
-export function agentKey(name: string): string {
-  return name.split('@')[0]!.trim().toLowerCase();
-}
 
 /** Agente = prefixo de `purpose` (antes do primeiro ":"), sem a versão do prompt. */
 export function agentOf(purpose: string): string {
@@ -225,13 +218,14 @@ export class TokenBudget {
       const used = await this.store.usedUsd(dayUtc, agent);
       limits.push({ who: agent, unit: 'usd', used, limit: agentUsd });
     }
-    this.checkPartial(limits, { tokens: 0, usd: 0 }, estimate, estimateUsd);
+    this.check(limits, { tokens: 0, usd: 0 }, estimate, estimateUsd, false);
     return limits;
   }
 
   /**
    * Confere os tetos da reserva somando o gasto parcial desta chamada (`spent`: retentativas e
-   * continuações já cobradas) e mais uma rodada estimada; lança BudgetExceededError se não couber.
+   * continuações já cobradas) e mais uma rodada estimada; lança BudgetExceededError (`midCall`) se não
+   * couber. A recusa aqui não é "orçamento esgotado": não consome o aviso único do dia.
    */
   checkPartial(
     limits: readonly ReservedLimit[],
@@ -239,15 +233,29 @@ export class TokenBudget {
     estimate: number,
     estimateUsd: number,
   ): void {
+    this.check(limits, spent, estimate, estimateUsd, true);
+  }
+
+  private check(
+    limits: readonly ReservedLimit[],
+    spent: { tokens: number; usd: number },
+    estimate: number,
+    estimateUsd: number,
+    midCall: boolean,
+  ): void {
     for (const l of limits) {
-      if (l.unit === 'tokens') {
-        const used = l.used + spent.tokens;
-        if (used + estimate > l.limit) throw new BudgetExceededError(l.who, used, l.limit, estimate);
-      } else {
-        const used = l.used + spent.usd;
-        if (used >= l.limit || used + estimateUsd > l.limit)
-          throw this.usdExceeded(dayUtcOf(this.now()), l.who, used, l.limit, estimateUsd);
+      const tokens = l.unit === 'tokens';
+      const used = l.used + (tokens ? spent.tokens : spent.usd);
+      const next = tokens ? estimate : estimateUsd;
+      if (used + next <= l.limit && (tokens || used < l.limit)) continue;
+      if (midCall) {
+        const err = new BudgetExceededError(l.who, used, l.limit, next, l.unit, true);
+        console.warn(`[orçamento de IA] ${err.message}`);
+        throw err;
       }
+      throw tokens
+        ? new BudgetExceededError(l.who, used, l.limit, estimate)
+        : this.usdExceeded(dayUtcOf(this.now()), l.who, used, l.limit, estimateUsd);
     }
   }
 

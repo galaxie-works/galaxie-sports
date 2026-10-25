@@ -28,6 +28,7 @@ import {
   WEB_SEARCH_USD_PER_CALL,
 } from './pricing.js';
 import { AnthropicLlmClient } from './providers/anthropic.js';
+import { GeminiLlmClient } from './providers/gemini.js';
 import { OpenAiLlmClient } from './providers/openai.js';
 import type { LlmJsonRequest } from './types.js';
 
@@ -374,43 +375,120 @@ describe('o teto em US$ segura', () => {
     expect((await budget.usdStatus()).usedUsd).toBeLessThanOrEqual(0.07);
   });
 
-  it('Anthropic: cada continuação (pause_turn) também passa pela conferência', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const claude = { light: 'claude-sonnet-5-5', standard: 'claude-sonnet-5-5', research: 'claude-sonnet-5-5' };
+  /** SDK falso da Anthropic: `reply(i)` monta a i-ésima resposta. */
+  const anthropicSdk = (reply: (i: number) => unknown) => {
     const calls: Record<string, unknown>[] = [];
-    // todo turno pausa com uma busca: US$ 0,03 em tokens + 0,01 da busca
     const create = async (params: Record<string, unknown>) => {
       calls.push(params);
-      const id = `srvtoolu_${calls.length}`;
-      return {
-        stop_reason: 'pause_turn',
-        content: [
-          { type: 'server_tool_use', id, name: 'web_search', input: { query: 'q' } },
-          { type: 'web_search_tool_result', tool_use_id: id, content: [] },
-        ],
-        usage: { input_tokens: 10_000, output_tokens: 1_000, server_tool_use: { web_search_requests: 1 } },
-      };
+      return reply(calls.length - 1);
     };
-    const models = {
-      light: 'claude-sonnet-5-5',
-      standard: 'claude-sonnet-5-5',
-      research: 'claude-sonnet-5-5',
-    };
-    const anthropic = new AnthropicLlmClient({ models, sdk: { messages: { create } }, retry: noSleep });
+    return { calls, sdk: { messages: { create } } };
+  };
+  const anthropicUsage = (searches: number) => ({
+    input_tokens: 10_000,
+    output_tokens: 1_000,
+    server_tool_use: { web_search_requests: searches },
+  });
+
+  it('Anthropic: cada continuação (pause_turn) também passa pela conferência', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // todo turno pausa com a busca pendente (não cobrada): US$ 0,03 em tokens por requisição
+    const api = anthropicSdk(() => ({
+      stop_reason: 'pause_turn',
+      content: [{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'q' } }],
+      usage: anthropicUsage(0),
+    }));
+    const anthropic = new AnthropicLlmClient({ models: claude, sdk: api.sdk, retry: noSleep });
     const store = new MemoryTokenBudgetStore();
     const budget = new TokenBudget(
       store,
       { dailyLimit: null, dailyUsdLimit: 0.1, maxSearchesPerCall: 1 },
       () => NOW,
     );
-    const client = new BudgetedLlmClient(anthropic, budget, (t) => models[t], 'anthropic');
+    const client = new BudgetedLlmClient(anthropic, budget, (t) => claude[t], 'anthropic');
 
     const err = await client
       .generateJson(req({ webSearch: true, maxOutputTokens: 100 }))
       .catch((e: unknown) => e);
+    // estimativa ≈ US$ 0,05 (overhead de 20 mil tokens da busca + 1 busca): 0,03 + 0,05 cabe; 0,06 + 0,05 não
     expect(err).toBeInstanceOf(BudgetExceededError);
-    // estimativa ≈ US$ 0,05 (overhead de 20 mil tokens da busca + 1 busca): 0,04 + 0,05 cabe; 0,08 + 0,05 não
-    expect(calls).toHaveLength(2);
-    expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 2, costUsd: 0.08 });
+    expect(err).toMatchObject({ midCall: true, agent: 'global' });
+    expect(api.calls).toHaveLength(2);
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', costUsd: 0.06 });
+    expect(String(warn.mock.calls.at(-1)![0])).toMatch(/não comporta mais uma tentativa desta chamada/);
+  });
+
+  it('Anthropic: retentativa passa pela conferência; a recusa no meio da chamada não gasta o aviso do dia', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // entrega fora do schema (retentável): 1ª com 1 busca (US$ 0,04), a 2ª já sem busca (US$ 0,03)
+    const api = anthropicSdk((i) => ({
+      stop_reason: 'tool_use',
+      content: [{ type: 'tool_use', name: 'submit_resposta', input: {} }],
+      usage: anthropicUsage(i === 0 ? 1 : 0),
+    }));
+    const anthropic = new AnthropicLlmClient({ models: claude, sdk: api.sdk, retry: noSleep });
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(
+      store,
+      { dailyLimit: null, dailyUsdLimit: 0.1, maxSearchesPerCall: 1 },
+      () => NOW,
+    );
+    const client = new BudgetedLlmClient(anthropic, budget, (t) => claude[t], 'anthropic');
+    const call = () =>
+      client.generateJson(req({ webSearch: true, maxOutputTokens: 100 })).catch((e: unknown) => e);
+
+    // 0,04 + 0,05 cabe (2ª tentativa sai); 0,07 + 0,05 não (a 3ª não sai)
+    expect(await call()).toMatchObject({ midCall: true });
+    expect(api.calls).toHaveLength(2);
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 1, costUsd: 0.07 });
+    // a próxima chamada é recusada na reserva, e aí sim vem o aviso de teto esgotado do dia
+    expect(await call()).toMatchObject({ midCall: false, unit: 'usd' });
+    expect(api.calls).toHaveLength(2);
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes('virada do dia UTC'))).toHaveLength(1);
+  });
+
+  it('Gemini via orçamento: retentativa do passo 2 conta o gasto do passo 1; modelo sem preço cobra o mais caro', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const bodies: Record<string, unknown>[] = [];
+    const interaction = (text: string, usage: Record<string, unknown>) => ({
+      status: 'completed',
+      steps: [{ type: 'model_output', content: [{ type: 'text', text }] }],
+      usage,
+    });
+    const replies = [
+      // passo 1: pesquisa no modelo sem preço (preço mais caro do Gemini, 2/12) + 5 consultas
+      interaction('Globo transmite.', {
+        total_input_tokens: 10_000,
+        total_output_tokens: 1_000,
+        grounding_tool_count: [{ type: 'google_search', count: 5 }],
+      }),
+      // passo 2 fora do schema (retentável), no modelo leve
+      interaction('{}', { total_input_tokens: 500, total_output_tokens: 50 }),
+      interaction('{"answer":"ok"}', { total_input_tokens: 500, total_output_tokens: 50 }),
+    ];
+    const fetch = async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify(replies.shift()), { status: 200 });
+    };
+    const models = { light: 'gemini-3.5-flash-lite', standard: 'gemini-9-ultra', research: 'gemini-9-ultra' };
+    const gemini = new GeminiLlmClient({ apiKey: 'k', models, fetch, retry: noSleep });
+    const store = new MemoryTokenBudgetStore();
+    // estimativa ≈ US$ 0,12; passo 1 + passo 2 ≈ 0,10: a 1ª tentativa cabe em 0,2, a retentativa (0,22) não
+    const budget = new TokenBudget(
+      store,
+      { dailyLimit: null, dailyUsdLimit: 0.2, maxSearchesPerCall: 5 },
+      () => NOW,
+    );
+    const client = new BudgetedLlmClient(gemini, budget, (t) => models[t], 'gemini');
+
+    const err = await client.generateJson(req({ webSearch: true })).catch((e: unknown) => e);
+    expect(err).toMatchObject({ midCall: true, unit: 'usd' });
+    expect(bodies).toHaveLength(2); // pesquisa + 1 estruturação; a retentativa não saiu
+    // (10k × 2 + 1k × 12) / 1M + 5 × 0,014 + (500 × 0,3 + 50 × 2,5) / 1M
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 5 });
+    expect(store.entries[0]!.costUsd).toBeCloseTo(0.032 + 0.07 + 0.000275, 6);
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('gemini-9-ultra fora da tabela'))).toBe(true);
   });
 
   it('falha ao gravar o ledger não descarta a chamada já paga (nem faz o agente pagar de novo)', async () => {
