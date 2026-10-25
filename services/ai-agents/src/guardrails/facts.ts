@@ -25,8 +25,16 @@ export interface FactSheet {
   names: readonly string[];
   /** Pessoas citáveis (subconjunto de `names`), usadas pela regra de autoria de gol. */
   people?: readonly string[];
-  /** Pessoas envolvidas em gols (autor, assistência, gol contra, pênalti perdido). */
-  goalPeople?: readonly string[];
+  /**
+   * Pessoas envolvidas em gols, por papel (regra de autoria de gol). Só o autor (gol contra incluído) vale
+   * como quem marcou; assistência e pênalti perdido só valem em frase que fala disso.
+   */
+  goalRoles?: { scorers: readonly string[]; assists: readonly string[]; missedPenalties: readonly string[] };
+  /**
+   * Desfecho do confronto decidido (mata-mata): nomes de quem passou/foi campeão e de quem caiu. Ausente =
+   * não checa (confronto em aberto ou fora do mata-mata).
+   */
+  outcome?: { winners: readonly string[]; losers: readonly string[] };
   /** Minutos citáveis (resumo). Ausente = minutos só são checados como números. */
   minutes?: readonly FactMinute[];
 }
@@ -38,6 +46,7 @@ export const FACT_VIOLATION_KINDS = [
   'unknown_name',
   'unknown_minute',
   'wrong_scorer',
+  'wrong_outcome',
 ] as const;
 export type FactViolationKind = (typeof FACT_VIOLATION_KINDS)[number];
 
@@ -156,6 +165,49 @@ const GOAL_VERBS: Record<'pt' | 'es', RegExp> = {
   es: /\b(marco|marca|anoto|convirtio|abrio el marcador|amplio|desconto|igualo|gol de|goles de|asistencia|gol en contra|de cabeza|de penal)\b/,
 };
 
+/** Frase que fala de assistência (aí quem deu o passe pode ser citado). */
+const ASSIST_CUES: Record<'pt' | 'es', RegExp> = {
+  pt: /\b(assistencias?|assistiu|passes?|cruzamentos?|lancamentos?|servid[oa]|serviu)\b/,
+  es: /\b(asistencias?|asistio|pases?|centros?|habilitacion|servid[oa]|sirvio)\b/,
+};
+/** Frase que fala de pênalti perdido (aí o batedor pode ser citado). */
+const MISSED_PENALTY_CUES: Record<'pt' | 'es', RegExp> = {
+  pt: /\b(perdeu|perde|desperdicou|desperdica|errou|erra|isolou|parou|defendid[oa]|defendeu|nao converteu)\b[^.]*\bpenaltis?\b|\bpenaltis?\b[^.]*\b(perdid[oa]s?|desperdicad[oa]|defendid[oa]|para fora|na trave)\b/,
+  es: /\b(erro|fallo|desperdicio|perdio|atajado|atajo|no convirtio|marro)\b[^.]*\b(penal|penales|penalti|penal)\b|\b(penal|penales|penalti)\b[^.]*\b(errad[oa]s?|fallad[oa]s?|desperdiciad[oa]|atajad[oa]|afuera|al palo)\b/,
+};
+/** Verbo que faz da pessoa citada logo antes a autora do gol ("X marcou", "X anotó"). */
+const SCORED_AFTER: Record<'pt' | 'es', string> = {
+  pt: '(?:marcou|marca|anotou|converteu|abriu o placar|ampliou|descontou|empatou|virou|balancou as redes|fez (?:o |os |um |dois |tres |seu |o seu )?(?:(?:primeiro|segundo|terceiro|quarto|quinto|ultimo) )?gols?)',
+  es: '(?:marco|marca|anoto|convirtio|abrio el marcador|amplio|desconto|igualo|empato|hizo (?:el |los |un |dos |tres |su )?(?:(?:primer|segundo|tercer|cuarto|quinto|ultimo) )?gol(?:es)?)',
+};
+/** Expressão que faz da pessoa citada logo depois a autora do gol ("gol de X", "convertido por X"). */
+const SCORED_BEFORE: Record<'pt' | 'es', string> = {
+  pt: '(?:gols? de|gols? marcados? por|marcado por|convertido por|anotado por|feito por)',
+  es: '(?:goles? de|tanto de|marcado por|anotado por|convertido por)',
+};
+
+/**
+ * Verbos de desfecho do confronto: quem passou ou foi campeão (`advance`) e quem caiu (`out`). O sujeito é o
+ * time citado mais perto antes do verbo (fora os que são objeto: "eliminou o X", "perdeu para o X").
+ */
+const OUTCOME_VERBS: Record<'pt' | 'es', { advance: RegExp; out: RegExp; objectMarker: RegExp }> = {
+  pt: {
+    advance:
+      /\b(classificou|classifica|classificam|classificad[oa]s?|avancou|avanca|passou (?:para|as|a|de fase)|garantiu (?:a )?vaga|carimbou (?:a )?vaga|(?:bi|tri|tetra|penta|hexa|hepta|octa|enea|deca)?(?<!vice-?)campe(?:ao|a|oes)|sagrou-se|eliminou|despachou|conquista o|conquistou|levantou a taca|ergueu a taca|fic(?:ou|a) com o (?:titulo|trofeu|terceiro lugar))\b/g,
+    out: /\b(eliminad[oa]s?|se despediu|ficou fora|ficou pelo caminho|deu adeus|vice-?campe(?:ao|a|oes))\b/g,
+    objectMarker:
+      /\b(eliminou|eliminar|eliminando|despachou|despachar|bateu|bater|batendo|venceu|vencer|vencendo|derrotou|derrotar|derrotando|superou|superar|superando|goleou|tirou|tirando|deixou|deixando|perdeu para|perder para|perdendo para|para|de|do|da|diante|contra|sobre|com)\s+(?:(?:o|a|os|as)\s+)?$/,
+  },
+  es: {
+    advance:
+      /\b(clasifico|clasifica|clasifican|clasificad[oa]s?|avanzo|avanza|paso a|se metio en|(?:bi|tri|tetra|penta|hexa|hepta|octa|enea|deca)?(?<!sub)campeon(?:a|es)?|se consagro|elimino|despacho|conquisto|levanto la copa|alzo la copa|gana su titulo|se quedo con (?:el titulo|el trofeo|el tercer puesto|la copa))\b/g,
+    out: /\b(eliminad[oa]s?|quedo afuera|quedo fuera|se despidio|quedo en el camino|dijo adios|subcampeon(?:a|es)?)\b/g,
+    objectMarker:
+      /\b(elimino|eliminar|eliminando|despacho|vencio|vencer|venciendo|derroto|derrotar|derrotando|supero|superar|superando|goleo|gano a|dejo|dejando|dejar|perdio con|perdio ante|a|al|de|del|ante|contra|sobre|con|frente a)\s+(?:(?:el|la|los|las)\s+)?$/,
+  },
+};
+const NEGATED = /\b(nao|no|nunca|sem|sin)\s+(?:(?:se|foi|fue|esta|esteve)\s+)?$/;
+
 // ─── extração ────────────────────────────────────────────────────────────────────────────────────
 
 const WORD_RE = /[\p{L}\p{M}\d][\p{L}\p{M}\d'’.-]*/gu;
@@ -270,7 +322,11 @@ export function checkFacts(text: string, facts: FactSheet, locale: string): Fact
   const numbers = new Set(facts.numbers);
   const allowedTokens = facts.names.map(tokensOf).filter((t) => t.length > 0);
   const people = (facts.people ?? []).map(normalizeText).filter(Boolean);
-  const goalPeople = new Set((facts.goalPeople ?? []).map(normalizeText));
+  const roles = facts.goalRoles && {
+    scorers: new Set(facts.goalRoles.scorers.map(normalizeText)),
+    assists: new Set(facts.goalRoles.assists.map(normalizeText)),
+    missed: new Set(facts.goalRoles.missedPenalties.map(normalizeText)),
+  };
 
   const nameAllowed = (tokens: string[]): boolean => {
     const norm = tokens.map(normalizeText);
@@ -344,16 +400,87 @@ export function checkFacts(text: string, facts: FactSheet, locale: string): Fact
         out.push({ kind: 'unknown_number', value: word, sentence });
     }
 
-    // autoria de gol: em frase sobre gol, toda pessoa citada precisa ter participado de um gol
-    if (facts.goalPeople && GOAL_VERBS[lang].test(normalized)) {
+    // autoria de gol: em frase sobre gol, toda pessoa citada precisa ter participado de um gol no papel que a
+    // frase dá a ela — só o autor marcou; assistência e pênalti perdido só valem em frase que fala disso
+    if (roles && GOAL_VERBS[lang].test(normalized)) {
+      const assistTalk = ASSIST_CUES[lang].test(normalized);
+      const missedTalk = MISSED_PENALTY_CUES[lang].test(normalized);
       for (const p of people) {
-        if (goalPeople.has(p)) continue;
-        if (new RegExp(`(?<![\\p{L}\\d])${escapeRegExp(p)}(?![\\p{L}\\d])`, 'u').test(normalized))
-          out.push({ kind: 'wrong_scorer', value: p, sentence });
+        const name = escapeRegExp(p);
+        if (!new RegExp(`(?<![\\p{L}\\d])${name}(?![\\p{L}\\d])`, 'u').test(normalized)) continue;
+        if (roles.scorers.has(p)) continue;
+        const otherRole = (assistTalk && roles.assists.has(p)) || (missedTalk && roles.missed.has(p));
+        const claimsGoal = new RegExp(
+          `(?<![\\p{L}\\d])${name}(?:,[^,]{0,40},)?\\s+${SCORED_AFTER[lang]}(?![\\p{L}])|${SCORED_BEFORE[lang]}\\s+${name}(?![\\p{L}\\d])`,
+          'u',
+        ).test(normalized);
+        if (!otherRole || claimsGoal) out.push({ kind: 'wrong_scorer', value: p, sentence });
       }
+    }
+
+    // desfecho do confronto: quem caiu não pode aparecer como quem passou/foi campeão, nem o contrário
+    if (facts.outcome) {
+      for (const name of outcomeViolations(normalized, facts.outcome, lang))
+        out.push({ kind: 'wrong_outcome', value: name, sentence });
     }
   }
   return dedupe(out);
+}
+
+/**
+ * Times trocados no desfecho: verbo de classificação/título com quem caiu como sujeito, ou verbo de eliminação
+ * com quem passou. O sujeito é o time citado mais perto antes do verbo, pulando os que são objeto ("eliminou o
+ * X", "perdeu para o X"), salvo quando o verbo vem logo depois dele numa oração relativa ("X, que avançou").
+ */
+function outcomeViolations(
+  normalized: string,
+  outcome: NonNullable<FactSheet['outcome']>,
+  lang: 'pt' | 'es',
+): string[] {
+  const winners = new Set(outcome.winners.map(normalizeText).filter((n) => n.length > 1));
+  const losers = new Set(outcome.losers.map(normalizeText).filter((n) => n.length > 1));
+  // nome dos dois lados (ex.: "Atlético") não identifica ninguém
+  for (const n of [...winners]) if (losers.delete(n)) winners.delete(n);
+  const mentions: { start: number; end: number; name: string; winner: boolean }[] = [];
+  const all = [
+    ...[...winners].map((n) => [n, true] as const),
+    ...[...losers].map((n) => [n, false] as const),
+  ];
+  for (const [name, winner] of all.sort((a, b) => b[0].length - a[0].length)) {
+    const re = new RegExp(`(?<![\\p{L}\\d])${escapeRegExp(name)}(?![\\p{L}\\d])`, 'gu');
+    for (const m of normalized.matchAll(re)) {
+      const start = m.index;
+      const end = start + name.length;
+      if (mentions.some((x) => start < x.end && end > x.start)) continue;
+      mentions.push({ start, end, name, winner });
+    }
+  }
+  if (!mentions.length) return [];
+  const verbs = OUTCOME_VERBS[lang];
+  const subjectBefore = (at: number) => {
+    const before = mentions.filter((x) => x.end <= at).sort((a, b) => b.end - a.end);
+    const nearest = before[0];
+    if (
+      nearest &&
+      /^\s*,?\s*(?:que|quien|el cual|la cual)\s+(?:(?:se|ja|ya|tambem|tambien)\s+)?$/.test(
+        normalized.slice(nearest.end, at),
+      )
+    )
+      return nearest;
+    return before.find((x) => !verbs.objectMarker.test(normalized.slice(0, x.start)));
+  };
+  const out: string[] = [];
+  for (const [re, wrongIfWinner] of [
+    [verbs.advance, false],
+    [verbs.out, true],
+  ] as const) {
+    for (const m of normalized.matchAll(re)) {
+      if (NEGATED.test(normalized.slice(0, m.index))) continue;
+      const subject = subjectBefore(m.index);
+      if (subject && subject.winner === wrongIfWinner) out.push(subject.name);
+    }
+  }
+  return out;
 }
 
 function dedupe(list: FactViolation[]): FactViolation[] {
@@ -366,6 +493,9 @@ function dedupe(list: FactViolation[]): FactViolation[] {
   });
 }
 
+/** Papel de uma pessoa num gol: autor (gol contra incluído), assistência ou pênalti perdido. */
+export type GoalRole = 'scorer' | 'assist' | 'missed_penalty';
+
 /** Acumula números e placares para montar um `FactSheet` sem repetição. */
 export class FactSheetBuilder {
   private readonly numbers = new Set<number>();
@@ -373,7 +503,12 @@ export class FactSheetBuilder {
   private readonly resultScores: [number, number][] = [];
   private readonly names = new Set<string>();
   private readonly people = new Set<string>();
-  private readonly goalPeople = new Set<string>();
+  private readonly goalRoles = {
+    scorer: new Set<string>(),
+    assist: new Set<string>(),
+    missed_penalty: new Set<string>(),
+  };
+  private outcomeSides: { winners: string[]; losers: string[] } | null = null;
   private readonly minutes: FactMinute[] = [];
   private withResults = false;
   private withMinutes = false;
@@ -406,11 +541,24 @@ export class FactSheetBuilder {
     return this;
   }
 
-  person(name: string | null | undefined, opts: { goal?: boolean } = {}): this {
+  /** Pessoa citável; `goal` = o papel dela num gol (autor, assistência ou pênalti perdido). */
+  person(name: string | null | undefined, opts: { goal?: GoalRole } = {}): this {
     if (!name || !name.trim()) return this;
     this.name(name);
     this.people.add(name.trim());
-    if (opts.goal) this.goalPeople.add(name.trim());
+    if (opts.goal) this.goalRoles[opts.goal].add(name.trim());
+    return this;
+  }
+
+  /** Liga a regra de desfecho: nomes de quem passou/foi campeão e de quem caiu. */
+  outcome(
+    winners: readonly (string | null | undefined)[],
+    losers: readonly (string | null | undefined)[],
+  ): this {
+    const clean = (list: readonly (string | null | undefined)[]) => [
+      ...new Set(list.filter((v): v is string => !!v && !!v.trim()).map((v) => v.trim())),
+    ];
+    this.outcomeSides = { winners: clean(winners), losers: clean(losers) };
     return this;
   }
 
@@ -438,7 +586,13 @@ export class FactSheetBuilder {
     };
     if (this.withResults) sheet.resultScores = this.resultScores;
     if (this.withMinutes) sheet.minutes = this.minutes;
-    if (this.withGoals) sheet.goalPeople = [...this.goalPeople];
+    if (this.withGoals)
+      sheet.goalRoles = {
+        scorers: [...this.goalRoles.scorer],
+        assists: [...this.goalRoles.assist],
+        missedPenalties: [...this.goalRoles.missed_penalty],
+      };
+    if (this.outcomeSides) sheet.outcome = this.outcomeSides;
     return sheet;
   }
 }

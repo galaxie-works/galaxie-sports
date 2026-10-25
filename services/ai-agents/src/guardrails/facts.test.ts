@@ -16,10 +16,11 @@ function recapSheet(): FactSheet {
     [81, null, 'Reserva B', 3, 1],
     [90, 4, 'Atacante A', 4, 1],
   ] as const) {
-    b.minute(m, e).person(scorer, { goal: true }).score(h, a);
+    b.minute(m, e).person(scorer, { goal: 'scorer' }).score(h, a);
   }
-  b.person('Meia A', { goal: true }); // assistência
-  b.minute(58, null).person('Atacante B', { goal: true }); // pênalti perdido
+  b.person('Meia A', { goal: 'assist' });
+  b.person('Lateral A', { goal: 'assist' }); // só deu assistência
+  b.minute(58, null).person('Atacante B', { goal: 'missed_penalty' });
   b.minute(30, null).person('Zagueiro B'); // amarelo
   b.number(2, 30, 58, 42, 8, 3); // 2 gols do Atacante A, rodada, posse, chutes
   return b.build();
@@ -56,11 +57,37 @@ describe('checkFacts — resumo', () => {
     expect(v).toEqual([]); // gol contra conta como participação em gol
     const w = checkFacts('Palmeiras venceu por 4 a 1 com dois gols marcados por Meia A.', sheet, 'pt-BR');
     expect(w).toEqual([]);
-    const bad = new FactSheetBuilder().name('Palmeiras').expectGoals().person('Atacante A', { goal: true });
+    const bad = new FactSheetBuilder()
+      .name('Palmeiras')
+      .expectGoals()
+      .person('Atacante A', { goal: 'scorer' });
     bad.person('Goleiro A');
     expect(
       checkFacts('Goleiro A marcou o gol do Palmeiras.', bad.build(), 'pt-BR').map((x) => x.kind),
     ).toContain('wrong_scorer');
+  });
+
+  it('assistência e pênalti perdido não fazem de ninguém autor de gol', () => {
+    const scorer = (text: string) =>
+      checkFacts(text, sheet, 'pt-BR')
+        .filter((v) => v.kind === 'wrong_scorer')
+        .map((v) => v.value);
+    expect(scorer("Lateral A marcou o gol do Palmeiras aos 12'.")).toEqual(['lateral a']);
+    expect(scorer('Palmeiras venceu por 4 a 1, com gol de Lateral A.')).toEqual(['lateral a']);
+    expect(scorer("Atacante B marcou de pênalti aos 58'.")).toEqual(['atacante b']);
+    // papel trocado na mesma frase: quem só deu o passe aparece como autor
+    expect(scorer("Lateral A marcou aos 12', com assistência de Atacante A.")).toEqual(['lateral a']);
+    // cada um no seu papel
+    expect(scorer("Atacante A abriu o placar aos 12' após assistência de Lateral A.")).toEqual([]);
+    expect(scorer("Atacante B perdeu um pênalti aos 58', antes do gol de Meia A.")).toEqual([]);
+    expect(
+      checkFacts('Atacante A marcó tras una asistencia de Lateral A.', sheet, 'es-AR').filter(
+        (v) => v.kind === 'wrong_scorer',
+      ),
+    ).toEqual([]);
+    expect(checkFacts('Lateral A marcó el gol de Palmeiras.', sheet, 'es-AR').map((v) => v.kind)).toContain(
+      'wrong_scorer',
+    );
   });
 
   it('reprova placar final errado mesmo quando o placar existiu no meio do jogo', () => {
@@ -85,6 +112,47 @@ describe('checkFacts — resumo', () => {
 
   it('não confunde "dos" (contração em pt) com número', () => {
     expect(checkFacts('O Palmeiras dominou a maior parte dos minutos.', sheet, 'pt-BR')).toEqual([]);
+  });
+});
+
+describe('checkFacts — desfecho do confronto', () => {
+  const sheet = new FactSheetBuilder()
+    .name('Palmeiras', 'Corinthians', 'Libertadores', 'final', 'semifinais')
+    .score(2, 1, { result: true })
+    .outcome(['Palmeiras', 'Verdão'], ['Corinthians', 'Timão'])
+    .build();
+  const outcome = (text: string, locale = 'pt-BR') =>
+    checkFacts(text, sheet, locale)
+      .filter((v) => v.kind === 'wrong_outcome')
+      .map((v) => v.value);
+
+  it('reprova o perdedor como classificado ou campeão e o vencedor como eliminado', () => {
+    expect(outcome('O Corinthians se classificou para a final.')).toEqual(['corinthians']);
+    expect(outcome('O Corinthians é campeão da Libertadores.')).toEqual(['corinthians']);
+    expect(outcome('O Corinthians eliminou o Palmeiras.')).toEqual(['corinthians']);
+    expect(outcome('O Palmeiras foi eliminado pelo Corinthians.')).toEqual(['palmeiras']);
+    expect(outcome('Corinthians se clasificó a la final.', 'es-AR')).toEqual(['corinthians']);
+    expect(outcome('Palmeiras quedó eliminado ante Corinthians.', 'es-AR')).toEqual(['palmeiras']);
+  });
+
+  it('aceita o desfecho certo, com o perdedor como objeto ou em outra oração', () => {
+    for (const text of [
+      'O Palmeiras se classificou para a final ao eliminar o Corinthians.',
+      'O Palmeiras eliminou o Corinthians e avançou para a final.',
+      'Mesmo perdendo para o Corinthians por 2 a 1, o Palmeiras se classificou.',
+      'O Palmeiras perdeu para o Corinthians, mas se classificou para a final.',
+      'O Corinthians venceu por 2 a 1, mas foi eliminado.',
+      'O Corinthians caiu diante do Palmeiras, que se classificou para a final.',
+      'O Corinthians não se classificou.',
+      'O Palmeiras é tetracampeão; o Corinthians ficou com o vice-campeonato.',
+    ])
+      expect(outcome(text), text).toEqual([]);
+    expect(outcome('Palmeiras eliminó a Corinthians y se metió en la final.', 'es-AR')).toEqual([]);
+  });
+
+  it('sem desfecho nos fatos, não checa', () => {
+    const open = new FactSheetBuilder().name('Palmeiras', 'Corinthians').build();
+    expect(checkFacts('O Corinthians se classificou.', open, 'pt-BR')).toEqual([]);
   });
 });
 

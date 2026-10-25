@@ -6,7 +6,7 @@ import {
   type FactSheet,
 } from '../guardrails/index.js';
 import { championPhrase, zoneLabel } from '@galaxie/rules';
-import { eventNames, teamName, type EventCore } from '../context/event-core.js';
+import { eventNames, teamName, type EventCore, type TeamRef } from '../context/event-core.js';
 import type {
   RecapFacts,
   RecapGoal,
@@ -43,8 +43,8 @@ export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: Agent
   const perScorer = new Map<string, number>();
   for (const g of facts.goals) {
     b.minute(g.minute, g.extra);
-    b.person(g.scorer, { goal: true });
-    b.person(g.assist, { goal: true });
+    b.person(g.scorer, { goal: 'scorer' });
+    b.person(g.assist, { goal: 'assist' });
     if (g.score_after) b.score(g.score_after.home, g.score_after.away);
     goalsBy[g.team]++;
     if (g.scorer) perScorer.set(g.scorer, (perScorer.get(g.scorer) ?? 0) + 1);
@@ -53,7 +53,7 @@ export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: Agent
   b.number(goalsBy.home, goalsBy.away, ...perScorer.values(), facts.goals.length);
   for (const p of facts.missed_penalties) {
     b.minute(p.minute, p.extra);
-    b.person(p.player, { goal: true });
+    b.person(p.player, { goal: 'missed_penalty' });
   }
   for (const r of facts.red_cards) {
     b.minute(r.minute, r.extra);
@@ -79,8 +79,25 @@ export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: Agent
       b.number(st.params?.n);
     }
   }
+  // confronto decidido: quem caiu não pode aparecer como classificado/campeão (nem o contrário)
+  const winner = facts.tie?.winner;
+  if (winner) {
+    const loser: Side = winner === 'home' ? 'away' : 'home';
+    b.outcome(
+      [...teamNames(core[winner]), facts.teams[winner].names[locale]],
+      [...teamNames(core[loser]), facts.teams[loser].names[locale]],
+    );
+  }
   return b.build();
 }
+
+/** Todos os nomes de um time (provedor, curto, apelidos curados e rótulos por locale). */
+const teamNames = (t: TeamRef): string[] => [
+  t.name,
+  ...(t.shortName ? [t.shortName] : []),
+  ...t.aliases,
+  ...Object.values(t.labels).filter((v): v is string => !!v),
+];
 
 const lowerFirst = (s: string) => (s ? s.charAt(0).toLocaleLowerCase() + s.slice(1) : s);
 

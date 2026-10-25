@@ -226,6 +226,18 @@ describe('resumo determinístico', () => {
     });
     expect(ghost.map((v) => [v.kind, v.value])).toContainEqual(['unknown_name', 'Endrick']);
   });
+
+  it('quem só deu assistência ou perdeu pênalti não passa como autor de gol', () => {
+    const sheet = recapFactSheet(core, facts, 'pt-BR');
+    const scorers = (text: string) =>
+      checkGeneratedText(text, { locale: 'pt-BR', facts: sheet })
+        .filter((v) => v.kind === 'wrong_scorer')
+        .map((v) => v.value);
+    // Meia A deu a assistência do gol dos 12' e marcou o pênalti dos 77'; Atacante B perdeu o pênalti dos 58'
+    expect(scorers("Atacante B marcou aos 58'.")).toEqual(['atacante b']);
+    expect(scorers("Atacante B perdeu um pênalti aos 58' e Reserva B descontou aos 81'.")).toEqual([]);
+    expect(scorers("Atacante A abriu o placar aos 12', com assistência de Meia A.")).toEqual([]);
+  });
 });
 
 describe('mata-mata: agregado, quem passou e para onde', () => {
@@ -317,6 +329,18 @@ describe('mata-mata: agregado, quem passou e para onde', () => {
       facts: sheet,
     });
     expect(oldName.map((v) => [v.kind, v.value])).toContainEqual(['unknown_name', 'Allianz Parque']);
+  });
+
+  it('texto que troca o classificado é barrado (cai no determinístico)', () => {
+    const kinds = (text: string, locale: AgentLocale = 'pt-BR') =>
+      checkGeneratedText(text, { locale, facts: recapFactSheet(semi, facts, locale) }).map((v) => v.kind);
+    expect(kinds('O Fluminense venceu por 1 a 0 e se classificou para a final.')).toContain('wrong_outcome');
+    expect(kinds('El Palmeiras quedó eliminado pese al 2-2 en el global.', 'es-AR')).toContain(
+      'wrong_outcome',
+    );
+    expect(kinds('O Fluminense venceu por 1 a 0, mas foi eliminado nos pênaltis.')).not.toContain(
+      'wrong_outcome',
+    );
   });
 
   it('vitória no agregado, gol fora, jogo de ida e final em jogo único', () => {
