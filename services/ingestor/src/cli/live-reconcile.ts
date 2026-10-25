@@ -13,7 +13,8 @@
  *   pnpm --filter @galaxie/ingestor live:reconcile --plan     # quais jogos seriam conferidos (nada é chamado)
  *   pnpm --filter @galaxie/ingestor live:reconcile            # confere e corrige os parados
  *   pnpm --filter @galaxie/ingestor live:reconcile --forcar   # confere todos os em andamento
- * Opções: --esporte football · --horas 6 (jogos que começaram até N horas atrás) · --max 60 (chamadas)
+ * Opções: --esporte football · --horas 6 (jogos em andamento que começaram até N horas atrás; os encerrados
+ *         pelo relógio usam pelo menos 8 h, para caber a 3ª tentativa) · --max 60 (chamadas)
  *         · --parado-min 30 · --prioridade-min high|medium|low (padrão: LIVE_MIN_PRIORITY ou medium)
  *         · --sem-publicar · --sem-tabelas
  */
@@ -22,7 +23,7 @@ import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
 import { ApiSportsProvider } from '@galaxie/providers';
 import { contextFromEnv } from '../context.js';
-import { cursorId, PgCursorStore } from '../jobs/runtime/cursor-store.js';
+import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../jobs/runtime/job-run-store.js';
 import {
   adhocAllowance,
@@ -30,7 +31,7 @@ import {
   DEFAULT_STALE_MINUTES,
   dueUnconfirmed,
   nextListAt,
-  RECONCILE_CURSOR_ENDPOINT,
+  quotaSkipsToWarn,
   inPlayCandidates,
   reconcileLive,
   reconcileReason,
@@ -184,22 +185,18 @@ await runCli(async () => {
           },
           c.finished ? 'jogo encerrado pela reconciliação' : 'status corrigido pela reconciliação',
         );
-      // aviso de falta de cota: uma vez por data e por dia (sem repetir a cada 10 min)
-      const day = now.toISOString().slice(0, 10);
-      const warnRefs = r.listSkipped.map((skip) => ({
-        sport,
-        endpoint: RECONCILE_CURSOR_ENDPOINT,
-        key: `aviso=${skip.date}@${day}`,
-      }));
-      const warned = await cursors.load(warnRefs);
-      for (const [i, skip] of r.listSkipped.entries()) {
-        if (warned.get(cursorId(warnRefs[i]!))?.completedAt) continue;
+      // 429 / agenda em voo: passageiro, a próxima execução tenta de novo
+      for (const skip of r.listSkipped.filter((x) => x.reason === 'rate_limited'))
+        log.info(
+          { date: skip.date, games: skip.games },
+          'agenda do dia limitada pela fonte (429 ou em voo noutro processo); tenta de novo na próxima execução',
+        );
+      // falta de cota: aviso uma vez por data e por dia (sem repetir a cada 10 min)
+      for (const skip of await quotaSkipsToWarn(cursors, sport, r.listSkipped, now))
         log.warn(
           { date: skip.date, reason: skip.reason, games: skip.games, adhoc_available: adhocAvailable },
           'encerrados pelo relógio sem conferência por falta de cota; ficam para o sync D-1',
         );
-        await cursors.complete([warnRefs[i]!], { reason: skip.reason }, now);
-      }
       // cursores da reconciliação só servem dentro da janela de horas: apaga os de mais de 2 dias
       await pruneReconcileCursors(ctx.db, new Date(now.getTime() - 2 * 86_400_000));
       const stats = {

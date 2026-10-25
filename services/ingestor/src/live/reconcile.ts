@@ -236,6 +236,31 @@ export function adhocAllowance(
   return Math.max(0, usage.budget.ADHOC - usage.used.ADHOC - margin);
 }
 
+/**
+ * Datas puladas por falta de cota que merecem aviso no log: uma vez por data e por dia (cursor
+ * `aviso=<data>@<dia>`), sem repetir a cada execução. `rate_limited` (429 ou a mesma agenda em voo noutro
+ * processo) é passageiro: não avisa nem grava o cursor, para não esconder um aviso real mais tarde.
+ */
+export async function quotaSkipsToWarn(
+  cursors: CursorStore,
+  sport: string,
+  skips: ReconcileReport['listSkipped'],
+  now: Date,
+): Promise<ReconcileReport['listSkipped']> {
+  const day = now.toISOString().slice(0, 10);
+  const quota = skips.filter((s) => s.reason !== 'rate_limited');
+  const refs = quota.map((s) => ({
+    sport,
+    endpoint: RECONCILE_CURSOR_ENDPOINT,
+    key: `aviso=${s.date}@${day}`,
+  }));
+  const warned = await cursors.load(refs);
+  const out = quota.filter((_, i) => !warned.get(cursorId(refs[i]!))?.completedAt);
+  const fresh = refs.filter((r) => !warned.get(cursorId(r))?.completedAt);
+  if (fresh.length) await cursors.complete(fresh, { reason: 'quota' }, now);
+  return out;
+}
+
 /** Encerrados pelo relógio com tentativa devida agora (o `--plan` usa o mesmo critério). */
 export async function dueUnconfirmed(
   cursors: CursorStore,

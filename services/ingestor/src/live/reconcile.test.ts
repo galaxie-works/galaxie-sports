@@ -6,6 +6,7 @@ import { InMemoryLiveStore } from './memory-store.js';
 import {
   adhocAllowance,
   LIST_EVERY_MS,
+  quotaSkipsToWarn,
   reconcileLive,
   SCHEDULE_SLACK_MS,
   reconcileReason,
@@ -483,5 +484,24 @@ describe('reconcileLive', () => {
     const r = await reconcileLive(provider, store, { cursors, sport: 'football', now });
     expect(r.listSkipped).toEqual([{ date: '2026-10-21', reason: 'rate_limited', games: 1 }]);
     expect([...cursors.rows.values()]).toEqual([]);
+  });
+
+  it('aviso de falta de cota: 1× por data e por dia; 429/agenda em voo não avisa nem gasta o aviso', async () => {
+    const cursors = new InMemoryCursorStore();
+    const now = new Date('2026-10-24T15:00:00Z');
+    const limited = [{ date: '2026-10-24', reason: 'rate_limited' as const, games: 3 }];
+    expect(await quotaSkipsToWarn(cursors, 'football', limited, now)).toEqual([]);
+    expect([...cursors.rows.values()]).toEqual([]);
+    // mais tarde, a fatia ADHOC acaba: o aviso real sai (o 429 não o escondeu)
+    const budget = [{ date: '2026-10-24', reason: 'adhoc_budget' as const, games: 3 }];
+    const later = new Date(now.getTime() + 60 * MIN);
+    expect(await quotaSkipsToWarn(cursors, 'football', budget, later)).toEqual(budget);
+    expect(await quotaSkipsToWarn(cursors, 'football', budget, new Date(later.getTime() + 10 * MIN))).toEqual(
+      [],
+    );
+    // no dia seguinte, avisa de novo
+    expect(await quotaSkipsToWarn(cursors, 'football', budget, new Date('2026-10-25T01:00:00Z'))).toEqual(
+      budget,
+    );
   });
 });
