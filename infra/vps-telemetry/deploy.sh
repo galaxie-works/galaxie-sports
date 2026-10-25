@@ -78,11 +78,24 @@ WT=""
 OLD=""
 SCALE=""
 LOCKED=""
+MIG_BEFORE="" # migrations aplicadas antes do up e depois do migrate; vazio = não deu para contar
+MIG_AFTER=""
 LOCK_ID="$(hostname 2>/dev/null || echo dev)-$$-$(date +%s)"
 
+# Como voltar. O comando de voltar a imagem só aparece sem migration nova aplicada (contagem igual antes e depois):
+# com schema novo, o código antigo pode quebrar, e a saída é corrigir para frente ou restaurar também o banco.
 rollback_help() {
   local o="${OLD:0:7}"
-  echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --scale ingestor=${SCALE:-1}'"
+  if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ && "$MIG_AFTER" = "$MIG_BEFORE" ]]; then
+    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --scale ingestor=${SCALE:-1}'"
+  else
+    if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ ]]; then
+      echo "FAIL  $((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) já aplicada(s): não volte só a imagem para ${o} (o código antigo pode quebrar com o schema novo)"
+    else
+      echo "FAIL  não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${MIG_AFTER}'): confira drizzle.__drizzle_migrations antes de voltar a imagem para ${o}"
+    fi
+    echo "FAIL  prefira corrigir para frente (deploy de um fix); voltar exige restaurar também o banco (infra/backup/restore.sh), perdendo o que foi gravado depois do dump"
+  fi
   echo "FAIL  conferir: ssh $VPS 'cd $DIR && docker compose ps -a && docker compose logs --tail 50 migrate api'"
 }
 
@@ -271,16 +284,16 @@ MIG_BEFORE="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_BEFORE=""
 # anterior diferente (redeploy do mesmo SHA sobrescreveu as imagens), backups no lugar e as seis imagens antigas
 # presentes. Senão, FAIL com o rollback manual. Nunca sai com sucesso.
 restore_previous() {
-  local o="${OLD:0:7}" why="" mig_after
+  local o="${OLD:0:7}" why=""
   STAGE=restored
   echo "FAIL  deploy da ${SHA:0:7}: $1"
-  mig_after="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || mig_after=""
+  MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
   if [ -z "$OLD" ] || [ "$OLD" = "$SHA" ]; then
     why="redeploy do mesmo SHA: não há versão anterior para onde voltar"
-  elif ! [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$mig_after" =~ ^[0-9]+$ ]]; then
-    why="não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${mig_after}')"
-  elif [ "$mig_after" != "$MIG_BEFORE" ]; then
-    why="$((mig_after - MIG_BEFORE)) migration(s) nova(s) aplicada(s): a ${o} pode não funcionar com o schema novo"
+  elif ! [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ ]]; then
+    why="não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${MIG_AFTER}')"
+  elif [ "$MIG_AFTER" != "$MIG_BEFORE" ]; then
+    why="$((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) aplicada(s): a ${o} pode não funcionar com o schema novo"
   elif ! ssh "$VPS" "$CD && test -f compose.yml.bak-$o && test -f .env.bak-$o \
     && for s in api ingestor demo backup prometheus grafana; do docker image inspect $REG-\$s:$OLD >/dev/null || exit 1; done \
     && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env \
@@ -323,6 +336,8 @@ else
   migrate="contêiner não encontrado (código $rc)"
 fi
 [ "$migrate" = "exited 0" ] || restore_previous "migrate não terminou com sucesso ($migrate)"
+# a partir daqui uma falha deixa a versão nova no ar: a dica de rollback depende de ter entrado migration nova
+MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
 
 echo "pós-deploy (idempotente, sem chamadas ao fornecedor)"
 ssh "$VPS" "$CD && \
