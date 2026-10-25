@@ -175,9 +175,23 @@ describe('LiveRunner', () => {
       .spyOn(world.store, 'candidates')
       .mockRejectedValue(new Error('relation does not exist'));
     await expect(runner.run()).rejects.toThrow(
-      /desistiu depois de 3 erros seguidos: relation does not exist/,
+      /desistiu depois de 3 erros seguidos ao planejar: relation does not exist/,
     );
     expect(candidates).toHaveBeenCalledTimes(3);
+  });
+
+  it('tick que sempre falha (o wait entre os ticks não zera a contagem): desiste depois de N seguidos', async () => {
+    const { runner } = runnerFor(
+      wednesdayNight(),
+      '2026-10-21T16:50:00Z',
+      { idleExitMs: null, until: new Date('2026-10-21T23:00:00Z'), maxConsecutiveErrors: 3 },
+      { log: { info() {}, debug() {}, error() {}, warn() {} } },
+    );
+    const poller = (runner as unknown as { poller: { tick: (...args: unknown[]) => Promise<unknown> } })
+      .poller;
+    const tick = vi.spyOn(poller, 'tick').mockRejectedValue(new Error('insert falhou'));
+    await expect(runner.run()).rejects.toThrow(/desistiu depois de 3 erros seguidos no tick: insert falhou/);
+    expect(tick).toHaveBeenCalledTimes(3);
   });
 
   it('falha ao reler a configuração mantém a atual', async () => {

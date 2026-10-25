@@ -140,7 +140,8 @@ export class LiveRunner {
   private lastTickAt: Date | null = null;
   private backoffUntil: Date | null = null;
   private consecutiveFailures = 0;
-  private consecutiveErrors = 0;
+  /** Erros inesperados seguidos ao planejar e no tick (contados à parte: um não zera o outro). */
+  private readonly consecutiveErrors = { plan: 0, tick: 0 };
   private order: { key: string; ids: string[] } | null = null;
   private lastRefreshAt = -Infinity;
 
@@ -303,11 +304,11 @@ export class LiveRunner {
   }
 
   /** Conta um erro inesperado; passou de `maxConsecutiveErrors` seguidos, desiste (o run lança). */
-  private giveUpAfter(err: unknown): void {
-    this.consecutiveErrors += 1;
-    if (this.consecutiveErrors < this.options.maxConsecutiveErrors) return;
+  private giveUpAfter(kind: 'plan' | 'tick', err: unknown): void {
+    const n = (this.consecutiveErrors[kind] += 1);
+    if (n < this.options.maxConsecutiveErrors) return;
     throw new Error(
-      `ao vivo desistiu depois de ${this.consecutiveErrors} erros seguidos: ${err instanceof Error ? err.message : String(err)}`,
+      `ao vivo desistiu depois de ${n} erros seguidos ${kind === 'plan' ? 'ao planejar' : 'no tick'}: ${err instanceof Error ? err.message : String(err)}`,
       { cause: err },
     );
   }
@@ -354,7 +355,7 @@ export class LiveRunner {
         step = await this.plan(now);
       } catch (err) {
         // erro inesperado ao planejar (ex.: banco ou Governor fora): não derruba o processo; tenta de novo
-        this.giveUpAfter(err);
+        this.giveUpAfter('plan', err);
         this.log.error({ err }, 'falha ao planejar o ao vivo; tentando de novo');
         summary.errors += 1;
         await sleepUntil(new Date(now.getTime() + PLAN_RETRY_MS), opts.replanEveryMs);
@@ -363,7 +364,7 @@ export class LiveRunner {
       const { plan, candidates } = step;
       summary.plans.set(plan.day, plan);
       const decision = decideTick(plan, now, this.lastTickAt, opts, { halftimeSeenAt: this.halftimeSeenAt });
-      if (decision.kind !== 'tick') this.consecutiveErrors = 0;
+      this.consecutiveErrors.plan = 0;
 
       if (decision.kind === 'done') {
         const next = this.nextDayWindowStart(candidates, plan);
@@ -420,13 +421,13 @@ export class LiveRunner {
         });
       } catch (err) {
         // erro inesperado (ex.: banco): não derruba o processo; tenta de novo no próximo intervalo
-        this.giveUpAfter(err);
+        this.giveUpAfter('tick', err);
         this.log.error({ err }, 'falha no tick ao vivo');
         this.lastTickAt = now;
         summary.errors += 1;
         continue;
       }
-      this.consecutiveErrors = 0;
+      this.consecutiveErrors.tick = 0;
       if (this.lastTickAt) summary.gaps.push(now.getTime() - this.lastTickAt.getTime());
       this.lastTickAt = now;
       summary.ticks += 1;
