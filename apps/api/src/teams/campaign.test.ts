@@ -84,6 +84,7 @@ const rules = (ko: Partial<NonNullable<CompetitionRules['knockout']>['default']>
     },
     stages: {},
   },
+  tables: [],
   sources: [],
 });
 

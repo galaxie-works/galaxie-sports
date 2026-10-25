@@ -216,11 +216,21 @@ describe('classificação da F1 enriquecida', () => {
     const groups: Standings['groups'] = [
       {
         name: 'drivers',
+        display_name: null,
+        table: null,
+        table_key: null,
+        current: null,
+        source: 'provider' as const,
         // C antes de B, como poderia vir do banco: o empate é reordenado
         rows: [row(ids.a, 'Piloto A', 1, 18), row(ids.c, 'Piloto C', 2, 6), row(ids.b, 'Piloto B', 2, 6)],
       },
       {
         name: 'constructors',
+        display_name: null,
+        table: null,
+        table_key: null,
+        current: null,
+        source: 'provider' as const,
         rows: [row(ids.red, 'Equipe Vermelha Racing', 1, 18), row(ids.yellow, 'Equipe Amarela', 2, 12)],
       },
     ];
