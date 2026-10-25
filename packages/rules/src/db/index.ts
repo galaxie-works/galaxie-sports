@@ -179,12 +179,14 @@ export async function loadSeasonResults(
 
 export {
   computeEventStakes,
+  loadLeagueResults,
   KNOCKOUT_STAGE_KINDS,
   LEAGUE_STAGE_KINDS,
   StakesCache,
   type EventStakes,
   type KnockoutContext,
   type LeagueContext,
+  type LeagueResultContext,
   type StakesEventRef,
   type StakesOptions,
 } from './stakes.js';

@@ -1,0 +1,323 @@
+{
+  "source": "core.standing (grupo '', source = computed) e core.event da produção, consulta só de leitura em 2026-10-25 02:13 UTC; ids de time trocados por slugs",
+  "season": "brasileirao-serie-a 2026",
+  "table": [
+    {
+      "teamId": "palmeiras",
+      "name": "Palmeiras",
+      "points": 69,
+      "played": 32,
+      "won": 20,
+      "drawn": 9,
+      "lost": 3,
+      "goalsFor": 56,
+      "goalsAgainst": 22
+    },
+    {
+      "teamId": "flamengo",
+      "name": "Flamengo",
+      "points": 67,
+      "played": 31,
+      "won": 20,
+      "drawn": 7,
+      "lost": 4,
+      "goalsFor": 61,
+      "goalsAgainst": 25
+    },
+    {
+      "teamId": "cruzeiro",
+      "name": "Cruzeiro",
+      "points": 54,
+      "played": 32,
+      "won": 16,
+      "drawn": 6,
+      "lost": 10,
+      "goalsFor": 51,
+      "goalsAgainst": 46
+    },
+    {
+      "teamId": "athletico-pr",
+      "name": "Athletico-PR",
+      "points": 54,
+      "played": 32,
+      "won": 15,
+      "drawn": 9,
+      "lost": 8,
+      "goalsFor": 50,
+      "goalsAgainst": 38
+    },
+    {
+      "teamId": "fluminense",
+      "name": "Fluminense",
+      "points": 51,
+      "played": 32,
+      "won": 14,
+      "drawn": 9,
+      "lost": 9,
+      "goalsFor": 50,
+      "goalsAgainst": 41
+    },
+    {
+      "teamId": "atletico-mg",
+      "name": "Atlético-MG",
+      "points": 50,
+      "played": 31,
+      "won": 14,
+      "drawn": 8,
+      "lost": 9,
+      "goalsFor": 42,
+      "goalsAgainst": 35
+    },
+    {
+      "teamId": "bahia",
+      "name": "Bahia",
+      "points": 50,
+      "played": 32,
+      "won": 13,
+      "drawn": 11,
+      "lost": 8,
+      "goalsFor": 45,
+      "goalsAgainst": 40
+    },
+    {
+      "teamId": "santos",
+      "name": "Santos",
+      "points": 46,
+      "played": 32,
+      "won": 12,
+      "drawn": 10,
+      "lost": 10,
+      "goalsFor": 49,
+      "goalsAgainst": 47
+    },
+    {
+      "teamId": "sao-paulo",
+      "name": "São Paulo",
+      "points": 43,
+      "played": 32,
+      "won": 12,
+      "drawn": 7,
+      "lost": 13,
+      "goalsFor": 37,
+      "goalsAgainst": 36
+    },
+    {
+      "teamId": "bragantino",
+      "name": "RB Bragantino",
+      "points": 41,
+      "played": 32,
+      "won": 11,
+      "drawn": 8,
+      "lost": 13,
+      "goalsFor": 39,
+      "goalsAgainst": 38
+    },
+    {
+      "teamId": "botafogo",
+      "name": "Botafogo",
+      "points": 39,
+      "played": 32,
+      "won": 10,
+      "drawn": 9,
+      "lost": 13,
+      "goalsFor": 44,
+      "goalsAgainst": 51
+    },
+    {
+      "teamId": "coritiba",
+      "name": "Coritiba",
+      "points": 39,
+      "played": 31,
+      "won": 10,
+      "drawn": 9,
+      "lost": 12,
+      "goalsFor": 38,
+      "goalsAgainst": 49
+    },
+    {
+      "teamId": "vasco",
+      "name": "Vasco da Gama",
+      "points": 38,
+      "played": 31,
+      "won": 10,
+      "drawn": 8,
+      "lost": 13,
+      "goalsFor": 39,
+      "goalsAgainst": 45
+    },
+    {
+      "teamId": "vitoria",
+      "name": "Vitória",
+      "points": 38,
+      "played": 32,
+      "won": 10,
+      "drawn": 8,
+      "lost": 14,
+      "goalsFor": 35,
+      "goalsAgainst": 46
+    },
+    {
+      "teamId": "mirassol",
+      "name": "Mirassol",
+      "points": 37,
+      "played": 32,
+      "won": 9,
+      "drawn": 10,
+      "lost": 13,
+      "goalsFor": 37,
+      "goalsAgainst": 45
+    },
+    {
+      "teamId": "internacional",
+      "name": "Internacional",
+      "points": 35,
+      "played": 32,
+      "won": 8,
+      "drawn": 11,
+      "lost": 13,
+      "goalsFor": 36,
+      "goalsAgainst": 40
+    },
+    {
+      "teamId": "corinthians",
+      "name": "Corinthians",
+      "points": 33,
+      "played": 32,
+      "won": 8,
+      "drawn": 9,
+      "lost": 15,
+      "goalsFor": 34,
+      "goalsAgainst": 42
+    },
+    {
+      "teamId": "gremio",
+      "name": "Grêmio",
+      "points": 31,
+      "played": 31,
+      "won": 7,
+      "drawn": 10,
+      "lost": 14,
+      "goalsFor": 34,
+      "goalsAgainst": 44
+    },
+    {
+      "teamId": "remo",
+      "name": "Remo",
+      "points": 26,
+      "played": 32,
+      "won": 5,
+      "drawn": 11,
+      "lost": 16,
+      "goalsFor": 34,
+      "goalsAgainst": 50
+    },
+    {
+      "teamId": "chapecoense",
+      "name": "Chapecoense",
+      "points": 21,
+      "played": 31,
+      "won": 4,
+      "drawn": 9,
+      "lost": 18,
+      "goalsFor": 32,
+      "goalsAgainst": 63
+    }
+  ],
+  "round32": [
+    {
+      "id": "cru-rem",
+      "startsAt": "2026-10-23T23:00:00Z",
+      "status": "finished",
+      "homeId": "cruzeiro",
+      "awayId": "remo",
+      "homeGoals": 1,
+      "awayGoals": 0
+    },
+    {
+      "id": "mir-sao",
+      "startsAt": "2026-10-24T19:30:00Z",
+      "status": "finished",
+      "homeId": "mirassol",
+      "awayId": "sao-paulo",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "id": "int-bot",
+      "startsAt": "2026-10-24T19:30:00Z",
+      "status": "finished",
+      "homeId": "internacional",
+      "awayId": "botafogo",
+      "homeGoals": 3,
+      "awayGoals": 0
+    },
+    {
+      "id": "vit-cap",
+      "startsAt": "2026-10-24T19:30:00Z",
+      "status": "finished",
+      "homeId": "vitoria",
+      "awayId": "athletico-pr",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "id": "pal-rbb",
+      "startsAt": "2026-10-24T21:30:00Z",
+      "status": "finished",
+      "homeId": "palmeiras",
+      "awayId": "bragantino",
+      "homeGoals": 2,
+      "awayGoals": 0
+    },
+    {
+      "id": "vas-cor",
+      "startsAt": "2026-10-24T21:30:00Z",
+      "status": "finished",
+      "homeId": "vasco",
+      "awayId": "corinthians",
+      "homeGoals": 3,
+      "awayGoals": 2
+    },
+    {
+      "id": "cha-flu",
+      "startsAt": "2026-10-24T22:30:00Z",
+      "status": "finished",
+      "homeId": "chapecoense",
+      "awayId": "fluminense",
+      "homeGoals": 2,
+      "awayGoals": 1
+    },
+    {
+      "id": "san-bah",
+      "startsAt": "2026-10-25T00:00:00Z",
+      "status": "finished",
+      "homeId": "santos",
+      "awayId": "bahia",
+      "homeGoals": 1,
+      "awayGoals": 1
+    },
+    {
+      "id": "cor-gre",
+      "startsAt": "2026-10-26T22:30:00Z",
+      "status": "scheduled",
+      "homeId": "coritiba",
+      "awayId": "gremio"
+    },
+    {
+      "id": "fla-cam",
+      "startsAt": "2026-10-26T23:00:00Z",
+      "status": "scheduled",
+      "homeId": "flamengo",
+      "awayId": "atletico-mg"
+    }
+  ],
+  "goals": {
+    "vas-cor": [
+      { "minute": 35, "team": "home", "scorer": "J. Rodríguez" },
+      { "minute": 50, "team": "away", "scorer": "Gustavo Henrique" },
+      { "minute": 57, "team": "away", "scorer": "Matheus Bidu" },
+      { "minute": 88, "team": "home", "scorer": "M. Hinestroza" },
+      { "minute": 90, "team": "home", "scorer": "M. Hinestroza" }
+    ]
+  }
+}

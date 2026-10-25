@@ -650,3 +650,307 @@ Exemplo com `n = 4` (busca o 4º título). n = 1: "Busca o primeiro título"; n 
 | es-PE | Va por el tetracampeonato |
 | es-UY | Va por el tetracampeonato |
 | es-EC | Va por el tetracampeonato |
+
+## Resultado (pontos corridos, jogo encerrado)
+
+Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group_stage`
+(`zone = sudamericana` em `points_behind_zone_n`). Variantes: n = 0 (empatado em pontos) e n = 1 (singular).
+
+### `moved_up_to_n` — ex.: `moved_up_to_13`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Subiu para o 13º lugar |
+| es-AR | Subió al puesto 13 |
+| es-MX | Subió al puesto 13 |
+| es-CO | Subió al puesto 13 |
+| es-CL | Subió al puesto 13 |
+| es-PE | Subió al puesto 13 |
+| es-UY | Subió al puesto 13 |
+| es-EC | Subió al puesto 13 |
+
+### `moved_down_to_n` — ex.: `moved_down_to_13`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Caiu para o 13º lugar |
+| es-AR | Bajó al puesto 13 |
+| es-MX | Bajó al puesto 13 |
+| es-CO | Bajó al puesto 13 |
+| es-CL | Bajó al puesto 13 |
+| es-PE | Bajó al puesto 13 |
+| es-UY | Bajó al puesto 13 |
+| es-EC | Bajó al puesto 13 |
+
+### `stayed_at_n` — ex.: `stayed_at_13`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Segue em 13º lugar |
+| es-AR | Sigue en el puesto 13 |
+| es-MX | Sigue en el puesto 13 |
+| es-CO | Sigue en el puesto 13 |
+| es-CL | Sigue en el puesto 13 |
+| es-PE | Sigue en el puesto 13 |
+| es-UY | Sigue en el puesto 13 |
+| es-EC | Sigue en el puesto 13 |
+
+### `took_the_lead` — ex.: `took_the_lead`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Assumiu a liderança |
+| es-AR | Pasó a ser líder |
+| es-MX | Pasó a ser líder |
+| es-CO | Pasó a ser líder |
+| es-CL | Pasó a ser líder |
+| es-PE | Pasó a ser líder |
+| es-UY | Pasó a ser líder |
+| es-EC | Pasó a ser líder |
+
+### `lost_the_lead` — ex.: `lost_the_lead`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Perdeu a liderança |
+| es-AR | Dejó de ser líder |
+| es-MX | Dejó de ser líder |
+| es-CO | Dejó de ser líder |
+| es-CL | Dejó de ser líder |
+| es-PE | Dejó de ser líder |
+| es-UY | Dejó de ser líder |
+| es-EC | Dejó de ser líder |
+
+### `entered_zone` — ex.: `entered_libertadores_group_stage`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Passou a ocupar vaga para a fase de grupos da Libertadores |
+| es-AR | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
+| es-MX | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
+| es-CO | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
+| es-CL | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
+| es-PE | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
+| es-UY | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
+| es-EC | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
+
+### `left_zone` — ex.: `left_libertadores_group_stage`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Deixou de ocupar vaga para a fase de grupos da Libertadores |
+| es-AR | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
+| es-MX | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
+| es-CO | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
+| es-CL | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
+| es-PE | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
+| es-UY | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
+| es-EC | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
+
+### `dropped_into_relegation` — ex.: `dropped_into_relegation`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Entrou na zona de rebaixamento |
+| es-AR | Entró en la zona de descenso |
+| es-MX | Entró en la zona de descenso |
+| es-CO | Entró en la zona de descenso |
+| es-CL | Entró en la zona de descenso |
+| es-PE | Entró en la zona de descenso |
+| es-UY | Entró en la zona de descenso |
+| es-EC | Entró en la zona de descenso |
+
+### `climbed_out_of_relegation` — ex.: `climbed_out_of_relegation`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Saiu da zona de rebaixamento |
+| es-AR | Salió de la zona de descenso |
+| es-MX | Salió de la zona de descenso |
+| es-CO | Salió de la zona de descenso |
+| es-CL | Salió de la zona de descenso |
+| es-PE | Salió de la zona de descenso |
+| es-UY | Salió de la zona de descenso |
+| es-EC | Salió de la zona de descenso |
+
+### `dropped_into_elimination` — ex.: `dropped_into_elimination`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Entrou na zona de eliminação |
+| es-AR | Entró en la zona de eliminación |
+| es-MX | Entró en la zona de eliminación |
+| es-CO | Entró en la zona de eliminación |
+| es-CL | Entró en la zona de eliminación |
+| es-PE | Entró en la zona de eliminación |
+| es-UY | Entró en la zona de eliminación |
+| es-EC | Entró en la zona de eliminación |
+
+### `climbed_out_of_elimination` — ex.: `climbed_out_of_elimination`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Saiu da zona de eliminação |
+| es-AR | Salió de la zona de eliminación |
+| es-MX | Salió de la zona de eliminación |
+| es-CO | Salió de la zona de eliminación |
+| es-CL | Salió de la zona de eliminación |
+| es-PE | Salió de la zona de eliminación |
+| es-UY | Salió de la zona de eliminación |
+| es-EC | Salió de la zona de eliminación |
+
+### `clinched_title` — ex.: `clinched_title`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Garantiu o título matematicamente |
+| es-AR | Se aseguró el título matemáticamente |
+| es-MX | Se aseguró el título matemáticamente |
+| es-CO | Se aseguró el título matemáticamente |
+| es-CL | Se aseguró el título matemáticamente |
+| es-PE | Se aseguró el título matemáticamente |
+| es-UY | Se aseguró el título matemáticamente |
+| es-EC | Se aseguró el título matemáticamente |
+
+### `clinched_zone` — ex.: `clinched_libertadores_group_stage`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Garantiu ao menos a fase de grupos da Libertadores matematicamente |
+| es-AR | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
+| es-MX | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
+| es-CO | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
+| es-CL | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
+| es-PE | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
+| es-UY | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
+| es-EC | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
+
+### `clinched_safety` — ex.: `clinched_safety`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Garantiu a permanência matematicamente |
+| es-AR | Se aseguró la permanencia matemáticamente |
+| es-MX | Se aseguró la permanencia matemáticamente |
+| es-CO | Se aseguró la permanencia matemáticamente |
+| es-CL | Se aseguró la permanencia matemáticamente |
+| es-PE | Se aseguró la permanencia matemáticamente |
+| es-UY | Se aseguró la permanencia matemáticamente |
+| es-EC | Se aseguró la permanencia matemáticamente |
+
+### `relegation_confirmed` — ex.: `relegation_confirmed`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Teve o rebaixamento confirmado |
+| es-AR | Se confirmó su descenso |
+| es-MX | Se confirmó su descenso |
+| es-CO | Se confirmó su descenso |
+| es-CL | Se confirmó su descenso |
+| es-PE | Se confirmó su descenso |
+| es-UY | Se confirmó su descenso |
+| es-EC | Se confirmó su descenso |
+
+### `elimination_confirmed` — ex.: `elimination_confirmed`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Teve a eliminação confirmada |
+| es-AR | Se confirmó su eliminación |
+| es-MX | Se confirmó su eliminación |
+| es-CO | Se confirmó su eliminación |
+| es-CL | Se confirmó su eliminación |
+| es-PE | Se confirmó su eliminación |
+| es-UY | Se confirmó su eliminación |
+| es-EC | Se confirmó su eliminación |
+
+### `lost_title_chance` — ex.: `lost_title_chance`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Não pode mais ser campeão |
+| es-AR | Ya no puede ser campeón |
+| es-MX | Ya no puede ser campeón |
+| es-CO | Ya no puede ser campeón |
+| es-CL | Ya no puede ser campeón |
+| es-PE | Ya no puede ser campeón |
+| es-UY | Ya no puede ser campeón |
+| es-EC | Ya no puede ser campeón |
+
+### `lost_zone_chance` — ex.: `lost_libertadores_group_stage_chance`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Não alcança mais a fase de grupos da Libertadores |
+| es-AR | Ya no puede alcanzar la fase de grupos de la Libertadores |
+| es-MX | Ya no puede alcanzar la fase de grupos de la Libertadores |
+| es-CO | Ya no puede alcanzar la fase de grupos de la Libertadores |
+| es-CL | Ya no puede alcanzar la fase de grupos de la Libertadores |
+| es-PE | Ya no puede alcanzar la fase de grupos de la Libertadores |
+| es-UY | Ya no puede alcanzar la fase de grupos de la Libertadores |
+| es-EC | Ya no puede alcanzar la fase de grupos de la Libertadores |
+
+### `points_behind_leader_n` — ex.: `points_behind_leader_2`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Fica a 2 pontos do líder |
+| es-AR | Queda a 2 puntos del líder |
+| es-MX | Queda a 2 puntos del líder |
+| es-CO | Queda a 2 puntos del líder |
+| es-CL | Queda a 2 puntos del líder |
+| es-PE | Queda a 2 puntos del líder |
+| es-UY | Queda a 2 puntos del líder |
+| es-EC | Queda a 2 puntos del líder |
+
+### `points_ahead_at_top_n` — ex.: `points_ahead_at_top_2`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Lidera com 2 pontos de vantagem |
+| es-AR | Es líder con 2 puntos de ventaja |
+| es-MX | Es líder con 2 puntos de ventaja |
+| es-CO | Es líder con 2 puntos de ventaja |
+| es-CL | Es líder con 2 puntos de ventaja |
+| es-PE | Es líder con 2 puntos de ventaja |
+| es-UY | Es líder con 2 puntos de ventaja |
+| es-EC | Es líder con 2 puntos de ventaja |
+
+### `points_behind_zone_n` — ex.: `points_behind_sudamericana_2`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Fica a 2 pontos da vaga para a Sul-Americana |
+| es-AR | Queda a 2 puntos de un lugar para la Sudamericana |
+| es-MX | Queda a 2 puntos de un lugar para la Sudamericana |
+| es-CO | Queda a 2 puntos de un lugar para la Sudamericana |
+| es-CL | Queda a 2 puntos de un lugar para la Sudamericana |
+| es-PE | Queda a 2 puntos de un lugar para la Sudamericana |
+| es-UY | Queda a 2 puntos de un lugar para la Sudamericana |
+| es-EC | Queda a 2 puntos de un lugar para la Sudamericana |
+
+### `points_above_relegation_n` — ex.: `points_above_relegation_2`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Fica 2 pontos acima da zona de rebaixamento |
+| es-AR | Queda 2 puntos por encima de la zona de descenso |
+| es-MX | Queda 2 puntos por encima de la zona de descenso |
+| es-CO | Queda 2 puntos por encima de la zona de descenso |
+| es-CL | Queda 2 puntos por encima de la zona de descenso |
+| es-PE | Queda 2 puntos por encima de la zona de descenso |
+| es-UY | Queda 2 puntos por encima de la zona de descenso |
+| es-EC | Queda 2 puntos por encima de la zona de descenso |
+
+### `points_below_safety_n` — ex.: `points_below_safety_2`
+
+| Locale | Texto (exemplo) |
+|---|---|
+| pt-BR | Fica a 2 pontos de sair da zona de rebaixamento |
+| es-AR | Queda a 2 puntos de salir de la zona de descenso |
+| es-MX | Queda a 2 puntos de salir de la zona de descenso |
+| es-CO | Queda a 2 puntos de salir de la zona de descenso |
+| es-CL | Queda a 2 puntos de salir de la zona de descenso |
+| es-PE | Queda a 2 puntos de salir de la zona de descenso |
+| es-UY | Queda a 2 puntos de salir de la zona de descenso |
+| es-EC | Queda a 2 puntos de salir de la zona de descenso |
