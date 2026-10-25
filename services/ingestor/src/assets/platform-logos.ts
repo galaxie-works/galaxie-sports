@@ -326,6 +326,7 @@ export async function runPlatformLogos(options: {
       license: c.license,
       licenseUrl: c.licenseUrl,
       credit: c.credit,
+      attribution: c.attribution,
       attributionRequired: c.attributionRequired,
       shareAlike: c.shareAlike,
       dateTaken: c.dateTaken,

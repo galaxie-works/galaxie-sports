@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { CommonsFile, WikimediaClient } from './client.js';
 import type { Discovery } from './discover.js';
-import { classifyLicense, firstHref, plainText, readLicense, yearOf, type ExtMetadata } from './license.js';
+import {
+  classifyLicense,
+  firstHref,
+  plainText,
+  readAttribution,
+  readLicense,
+  yearOf,
+  type ExtMetadata,
+} from './license.js';
 import { mergeEntry, type ManifestEntry } from './manifest.js';
 import { mapCommons, type Ranker } from './map.js';
 import { targetsFor, type DriverTarget } from './scope.js';
@@ -79,6 +87,22 @@ describe('licença da Commons', () => {
     // domínio público não exige autor
     expect(readLicense({ License: { value: 'pd' }, LicenseShortName: { value: 'Public domain' } }).ok).toBe(
       true,
+    );
+  });
+
+  it('atribuição pedida pelo autor (`Attribution`) em texto, separada do `Credit` (a fonte)', () => {
+    const v = readLicense(
+      meta('cc-by-4.0', 'CC BY 4.0', {
+        Credit: 'Own work',
+        Attribution: '<a href="https://example.org/fulano">Fulano</a> &amp; <b>Exemplo FC</b>',
+      }),
+    );
+    expect(v).toMatchObject({ ok: true, value: { credit: 'Own work', attribution: 'Fulano & Exemplo FC' } });
+    // sem o campo, ou só com espaço: nulo
+    expect(readLicense(meta('cc-by-4.0', 'CC BY 4.0'))).toMatchObject({ value: { attribution: null } });
+    expect(readAttribution({ Attribution: { value: '  ' } })).toBeNull();
+    expect(readAttribution({ Attribution: { value: '<span>Foto: <i>Beltrano</i></span>' } })).toBe(
+      'Foto: Beltrano',
     );
   });
 

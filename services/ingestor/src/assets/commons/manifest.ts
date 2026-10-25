@@ -33,6 +33,8 @@ export interface ManifestPhoto {
   author: string | null;
   author_url: string | null;
   credit: string | null;
+  /** Atribuição pedida pelo autor (`Attribution`), quando o arquivo pede. */
+  attribution?: string | null;
   attribution_required: boolean;
   share_alike: boolean;
   date: string | null;
@@ -129,6 +131,7 @@ const photoOf = (c: ChosenPhoto, license: CommonsLicense): ManifestPhoto => {
     author: license.author,
     author_url: license.authorUrl,
     credit: license.credit,
+    ...(license.attribution ? { attribution: license.attribution } : {}),
     attribution_required: license.attributionRequired,
     share_alike: license.shareAlike,
     date: license.dateTaken,

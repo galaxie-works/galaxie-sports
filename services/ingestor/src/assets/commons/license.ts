@@ -12,7 +12,10 @@ export interface CommonsLicense {
   licenseUrl: string | null;
   author: string | null;
   authorUrl: string | null;
+  /** Campo `Credit`: na prática a fonte do arquivo ("Own work", link do Flickr), não a atribuição. */
   credit: string | null;
+  /** Atribuição pedida pelo autor (`Attribution`), em texto: a linha que a licença manda exibir. */
+  attribution: string | null;
   attributionRequired: boolean;
   shareAlike: boolean;
   dateTaken: string | null;
@@ -80,6 +83,9 @@ export function classifyLicense(
   return { allowed: false, shareAlike: false, reason: `licença fora da lista (${shortName ?? code})` };
 }
 
+/** Atribuição pedida pelo autor (`Attribution` do `extmetadata`), sem HTML; null quando o arquivo não pede. */
+export const readAttribution = (meta: ExtMetadata): string | null => plainText(value(meta, 'Attribution'));
+
 /** Lê e valida a licença do `extmetadata`. */
 export function readLicense(meta: ExtMetadata): LicenseVerdict {
   if (value(meta, 'NonFree') === 'true') return { ok: false, reason: 'marcado como não livre' };
@@ -101,6 +107,7 @@ export function readLicense(meta: ExtMetadata): LicenseVerdict {
       author,
       authorUrl: firstHref(artistHtml),
       credit: plainText(value(meta, 'Credit')),
+      attribution: readAttribution(meta),
       attributionRequired,
       shareAlike: verdict.shareAlike,
       dateTaken: plainText(value(meta, 'DateTimeOriginal')),

@@ -1,0 +1,1 @@
+ALTER TABLE "core"."asset_credit" ADD COLUMN "attribution" text;
