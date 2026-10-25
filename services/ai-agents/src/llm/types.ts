@@ -42,9 +42,11 @@ export interface LlmJsonRequest {
   /**
    * Preenchido pelo orçamento (BudgetedLlmClient), que reserva uma tentativa só. O provedor chama antes
    * de cada nova tentativa e de cada continuação, com o gasto parcial da chamada (tokens e US$ já
-   * cobrados); lança BudgetExceededError se mais uma rodada estimada não couber no teto do dia.
+   * cobrados); lança BudgetExceededError se mais uma rodada estimada não couber no teto do dia. `next`:
+   * estimativa da próxima rodada quando ela é menor que o pedido inteiro (ex.: só o passo 2 do Gemini);
+   * ausente, vale a estimativa da reserva.
    */
-  budgetCheck?: (spent: { tokens: number; usd: number }) => void;
+  budgetCheck?: (spent: { tokens: number; usd: number }, next?: { tokens: number; usd: number }) => void;
 }
 
 export interface LlmCitation {

@@ -15,7 +15,7 @@
  * Sem filtro de domínios na busca do Google: a allowlist vai no prompt e o validador de direitos só
  * aceita fonte de domínio permitido que cita a emissora (docs/07 §2.2), como nos outros provedores.
  */
-import { DEFAULT_MAX_OUTPUT_TOKENS } from '../budget.js';
+import { DEFAULT_MAX_OUTPUT_TOKENS, estimateRequestTokens, estimateRequestUsd } from '../budget.js';
 import { classifyProviderError, LlmError } from '../errors.js';
 import { assertMatchesSchema, parseJsonOutput, strictSchemaProblems } from '../json-schema.js';
 import { estimateCostUsd, GEMINI_GROUNDING_USD_PER_QUERY } from '../pricing.js';
@@ -245,6 +245,19 @@ export class GeminiLlmClient implements LlmClient {
           ].join('\n\n');
           return { sources, input };
         }, retry);
+      // retentativa do passo 2 com busca: a próxima rodada é só a estruturação (modelo leve, sem busca)
+      const structureInput = grounded?.input;
+      const structureRetry: RetryOptions =
+        structureInput === undefined
+          ? retry
+          : {
+              ...retry,
+              beforeRetry: () =>
+                req.budgetCheck?.(
+                  total().spent(cost()),
+                  structureEstimate(req, structureInput, structureModel),
+                ),
+            };
       return await withRetry(async () => {
         const out = await this.interact(
           this.buildBody(req, structureModel, {
@@ -271,7 +284,7 @@ export class GeminiLlmClient implements LlmClient {
           model,
           ...(sources ? { groundedUrls: sources.map((s) => s.url) } : {}),
         };
-      }, retry);
+      }, structureRetry);
     } catch (err) {
       throw withUsage(err, total().toUsage(cost()));
     }
@@ -410,4 +423,22 @@ export function allowlistNote(domains: readonly string[] | undefined): string {
 
 function meterTokens(m: UsageMeter) {
   return { inputTokens: m.inputTokens, outputTokens: m.outputTokens, cachedInputTokens: m.cachedInputTokens };
+}
+
+/** Estimativa de uma rodada do passo 2: o texto da pesquisa no modelo leve, sem busca. */
+export function structureEstimate(
+  req: LlmJsonRequest,
+  input: string,
+  structureModel: string,
+): { tokens: number; usd: number } {
+  const { webSearch: _search, maxSearches: _cap, ...rest } = req;
+  const step: LlmJsonRequest = {
+    ...rest,
+    system: [req.system, STRUCTURE_STEP_NOTE, NO_RECITATION_NOTE].join('\n\n'),
+    messages: [{ role: 'user', content: input }],
+  };
+  return {
+    tokens: estimateRequestTokens(step),
+    usd: estimateRequestUsd(step, structureModel, 'gemini'),
+  };
 }

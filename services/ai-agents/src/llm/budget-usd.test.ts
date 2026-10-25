@@ -28,7 +28,7 @@ import {
   WEB_SEARCH_USD_PER_CALL,
 } from './pricing.js';
 import { AnthropicLlmClient } from './providers/anthropic.js';
-import { GeminiLlmClient } from './providers/gemini.js';
+import { GeminiLlmClient, structureEstimate } from './providers/gemini.js';
 import { OpenAiLlmClient } from './providers/openai.js';
 import type { LlmJsonRequest } from './types.js';
 
@@ -453,47 +453,75 @@ describe('o teto em US$ segura', () => {
     expect(warn.mock.calls.filter((c) => String(c[0]).includes('virada do dia UTC'))).toHaveLength(1);
   });
 
-  it('Gemini via orçamento: retentativa do passo 2 conta o gasto do passo 1; modelo sem preço cobra o mais caro', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const bodies: Record<string, unknown>[] = [];
-    const interaction = (text: string, usage: Record<string, unknown>) => ({
-      status: 'completed',
-      steps: [{ type: 'model_output', content: [{ type: 'text', text }] }],
-      usage,
-    });
-    const replies = [
-      // passo 1: pesquisa no modelo sem preço (preço mais caro do Gemini, 2/12) + 5 consultas
-      interaction('Globo transmite.', {
-        total_input_tokens: 10_000,
-        total_output_tokens: 1_000,
-        grounding_tool_count: [{ type: 'google_search', count: 5 }],
-      }),
-      // passo 2 fora do schema (retentável), no modelo leve
-      interaction('{}', { total_input_tokens: 500, total_output_tokens: 50 }),
-      interaction('{"answer":"ok"}', { total_input_tokens: 500, total_output_tokens: 50 }),
-    ];
-    const fetch = async (_url: string, init: RequestInit) => {
-      bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
-      return new Response(JSON.stringify(replies.shift()), { status: 200 });
+  describe('Gemini via orçamento', () => {
+    /** Passo 1 no modelo sem preço (o mais caro do Gemini, 2/12) com 5 consultas; passo 2 fora do schema uma vez. */
+    const run = async (researchInputTokens: number, dailyUsdLimit: number) => {
+      const bodies: Record<string, unknown>[] = [];
+      const interaction = (text: string, usage: Record<string, unknown>) => ({
+        status: 'completed',
+        steps: [{ type: 'model_output', content: [{ type: 'text', text }] }],
+        usage,
+      });
+      const replies = [
+        interaction('Globo transmite.', {
+          total_input_tokens: researchInputTokens,
+          total_output_tokens: 1_000,
+          grounding_tool_count: [{ type: 'google_search', count: 5 }],
+        }),
+        interaction('{}', { total_input_tokens: 500, total_output_tokens: 50 }),
+        interaction('{"answer":"ok"}', { total_input_tokens: 500, total_output_tokens: 50 }),
+      ];
+      const fetch = async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify(replies.shift()), { status: 200 });
+      };
+      const models = {
+        light: 'gemini-3.5-flash-lite',
+        standard: 'gemini-9-ultra',
+        research: 'gemini-9-ultra',
+      };
+      const gemini = new GeminiLlmClient({ apiKey: 'k', models, fetch, retry: noSleep });
+      const store = new MemoryTokenBudgetStore();
+      const budget = new TokenBudget(
+        store,
+        { dailyLimit: null, dailyUsdLimit, maxSearchesPerCall: 5 },
+        () => NOW,
+      );
+      const client = new BudgetedLlmClient(gemini, budget, (t) => models[t], 'gemini');
+      const out = await client.generateJson(req({ webSearch: true })).catch((e: unknown) => e);
+      return { out, bodies, store };
     };
-    const models = { light: 'gemini-3.5-flash-lite', standard: 'gemini-9-ultra', research: 'gemini-9-ultra' };
-    const gemini = new GeminiLlmClient({ apiKey: 'k', models, fetch, retry: noSleep });
-    const store = new MemoryTokenBudgetStore();
-    // estimativa ≈ US$ 0,12; passo 1 + passo 2 ≈ 0,10: a 1ª tentativa cabe em 0,2, a retentativa (0,22) não
-    const budget = new TokenBudget(
-      store,
-      { dailyLimit: null, dailyUsdLimit: 0.2, maxSearchesPerCall: 5 },
-      () => NOW,
-    );
-    const client = new BudgetedLlmClient(gemini, budget, (t) => models[t], 'gemini');
 
-    const err = await client.generateJson(req({ webSearch: true })).catch((e: unknown) => e);
-    expect(err).toMatchObject({ midCall: true, unit: 'usd' });
-    expect(bodies).toHaveLength(2); // pesquisa + 1 estruturação; a retentativa não saiu
-    // (10k × 2 + 1k × 12) / 1M + 5 × 0,014 + (500 × 0,3 + 50 × 2,5) / 1M
-    expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 5 });
-    expect(store.entries[0]!.costUsd).toBeCloseTo(0.032 + 0.07 + 0.000275, 6);
-    expect(warn.mock.calls.some((c) => String(c[0]).includes('gemini-9-ultra fora da tabela'))).toBe(true);
+    it('a retentativa do passo 2 conta o gasto do passo 1 mas estima só a estruturação (modelo leve, sem busca)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // pedido inteiro estimado em ≈ US$ 0,12 (cabe em 0,2); passo 1 + passo 2 ≈ 0,10; a retentativa do
+      // passo 2 custa ≈ 0,003: cabe. Somando a estimativa do pedido inteiro (0,10 + 0,12) seria recusada.
+      const { out, bodies, store } = await run(10_000, 0.2);
+      expect(out).toMatchObject({ data: { answer: 'ok' } });
+      expect(bodies).toHaveLength(3); // pesquisa + 2 estruturações
+      expect(bodies.filter((b) => b.tools)).toHaveLength(1);
+      // (10k × 2 + 1k × 12) / 1M + 5 × 0,014 + 2 × (500 × 0,3 + 50 × 2,5) / 1M
+      expect(store.entries[0]).toMatchObject({ outcome: 'ok', webSearches: 5 });
+      expect(store.entries[0]!.costUsd).toBeCloseTo(0.032 + 0.07 + 2 * 0.000275, 6);
+      expect(warn.mock.calls.some((c) => String(c[0]).includes('gemini-9-ultra fora da tabela'))).toBe(true);
+    });
+
+    it('sem saldo nem para a estruturação, a retentativa do passo 2 não sai', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // passo 1 + passo 2 ≈ US$ 0,142 com 30 mil tokens; + ≈ 0,003 da estruturação passa de 0,14
+      const { out, bodies, store } = await run(30_000, 0.14);
+      expect(out).toMatchObject({ midCall: true, unit: 'usd' });
+      expect(bodies).toHaveLength(2);
+      expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 5 });
+      expect(store.entries[0]!.costUsd).toBeCloseTo(0.072 + 0.07 + 0.000275, 6);
+    });
+
+    it('estimativa da estruturação: modelo leve, sem overhead nem custo de busca', () => {
+      const r = req({ webSearch: true, maxSearches: 5 });
+      const step = structureEstimate(r, 'x'.repeat(4_000), 'gemini-3.5-flash-lite');
+      expect(step.tokens).toBeLessThan(2_500); // ~1.000 de entrada + 1.000 de saída, sem os 20 mil da busca
+      expect(step.usd).toBeLessThan(estimateRequestUsd(r, 'gemini-3.8-flash', 'gemini') / 10);
+    });
   });
 
   it('falha ao gravar o ledger não descarta a chamada já paga (nem faz o agente pagar de novo)', async () => {

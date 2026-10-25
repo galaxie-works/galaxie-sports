@@ -347,7 +347,8 @@ export class BudgetedLlmClient implements LlmClient {
     // a reserva cobre uma tentativa: o provedor confere de novo antes de cada retentativa/continuação
     const call: LlmJsonRequest = {
       ...req,
-      budgetCheck: (spent) => this.budget.checkPartial(limits, spent, estimate, estimateUsd),
+      budgetCheck: (spent, next) =>
+        this.budget.checkPartial(limits, spent, next?.tokens ?? estimate, next?.usd ?? estimateUsd),
     };
     let result: LlmResult<T>;
     try {
