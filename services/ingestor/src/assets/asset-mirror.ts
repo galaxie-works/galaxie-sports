@@ -148,7 +148,11 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
       return;
     }
     if (denylist.has(url)) {
-      await options.assets.markMissing(item.id, new Date(clock.now()));
+      // como no 404: a entidade fica sem imagem na hora, sem esperar a limpeza da próxima execução
+      await options.assets.markMissing(item.id, new Date(clock.now()), {
+        detachPeople: PERSON_PHOTO_KINDS.has(item.kind),
+        detachLogos: LOGO_KINDS.has(item.kind),
+      });
       report.denied += 1;
       emit({ type: 'denied', asset: item, reason: denylist.reason(url) ?? '' });
       return;

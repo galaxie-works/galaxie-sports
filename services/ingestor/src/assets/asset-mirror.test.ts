@@ -92,6 +92,8 @@ describe('runAssetMirror', () => {
     expect(media.calls).toHaveLength(0);
     expect(assets.byUrl(PAULISTAO)).toMatchObject({ storageKey: null });
     expect(assets.byUrl(BR)).toMatchObject({ storageKey: null, sha256: null });
+    // o logo bloqueado sai das competições na hora, como no 404
+    expect([...assets.detachedLogos]).toEqual([assets.byUrl(PAULISTAO)!.id]);
   });
 
   it('falhas transitórias continuam pendentes; muitos 429 seguidos interrompem a execução', async () => {
