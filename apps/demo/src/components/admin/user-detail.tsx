@@ -70,6 +70,7 @@ import type { DemoActivity, DemoSession, DemoUser } from '@/lib/auth/admin';
 import type { Role } from '@/lib/auth/roles';
 import type { TenantOption } from '@/lib/client/tenants';
 import { initials } from '@/lib/format';
+import { internalPath } from '@/lib/internal-path';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import { fill, plural, rich } from '@/lib/i18n/text';
@@ -404,6 +405,20 @@ function SessionsTab({
   );
 }
 
+/**
+ * Caminho registrado pelo navegador: vira link só se for da própria demo. Registros antigos (de antes
+ * de a rota de atividade validar a origem) podem ter `//evil.com/x`; esses ficam como texto.
+ */
+function ActivityPath({ path }: { path: string | null }) {
+  const href = internalPath(path);
+  if (!href) return <span>{path}</span>;
+  return (
+    <Link href={href} className="hover:underline">
+      {path}
+    </Link>
+  );
+}
+
 function ActivityTab({ activity, timeZone }: { activity: DemoActivity[]; timeZone: string }) {
   const { t } = useI18n();
   const { describeAgent, formatDateTime, formatIp } = useAdminFormat(timeZone);
@@ -444,9 +459,7 @@ function ActivityTab({ activity, timeZone }: { activity: DemoActivity[]; timeZon
                     `${describeAgent(a.userAgent)}${formatIp(a.ipAddress) ? ` · ${formatIp(a.ipAddress)}` : ''}`
                   ) : (
                     <>
-                      <Link href={a.path ?? '/'} className="hover:underline">
-                        {a.path}
-                      </Link>
+                      <ActivityPath path={a.path} />
                       {/* Trilha de navegação (registros antigos não têm). */}
                       {a.fromPath ? (
                         <>
@@ -454,11 +467,7 @@ function ActivityTab({ activity, timeZone }: { activity: DemoActivity[]; timeZon
                           {rich(
                             t.admin.activity.cameFrom,
                             {
-                              link: (path) => (
-                                <Link href={a.fromPath!} className="hover:underline">
-                                  {path}
-                                </Link>
-                              ),
+                              link: () => <ActivityPath path={a.fromPath} />,
                             },
                             { path: a.fromPath },
                           )}

@@ -1,6 +1,6 @@
-import { randomBytes } from 'node:crypto';
-import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { codeFor, createAuthTestDb, type AuthTestDb } from './support/auth-db';
 
 /*
  * Bloqueio temporário do login por código (lib/auth/otp-guard.ts) com o Better Auth de verdade contra um
@@ -8,51 +8,20 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
  * quando as tentativas erradas saem da janela. Só o envio do e-mail é falso (guarda o código).
  */
 
-const mail = vi.hoisted(() => ({ codes: new Map<string, string>() }));
-vi.mock('../src/lib/auth/email', () => ({
-  sendAccessEmail: async ({ to, code }: { to: string; code?: string }) => {
-    if (code) mail.codes.set(to, code);
-    return { delivered: true };
-  },
-}));
+vi.mock('../src/lib/auth/email', async () => (await import('./support/auth-db')).fakeEmailModule);
 
-const adminUrl = process.env.DATABASE_URL;
-if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração.');
-const dbName = `galaxie_test_${randomBytes(4).toString('hex')}`;
-const testUrl = (() => {
-  const u = new URL(adminUrl);
-  u.pathname = `/${dbName}`;
-  return u.toString();
-})();
-
-let sql: Client;
+let db: AuthTestDb;
 let server: typeof import('../src/lib/auth/server');
 let guard: typeof import('../src/lib/auth/otp-guard');
 
 beforeAll(async () => {
-  const admin = new Client({ connectionString: adminUrl });
-  await admin.connect();
-  await admin.query(`create database ${dbName}`);
-  await admin.end();
-  // o pool da demo lê a URL ao ser importado
-  process.env.DEMO_DATABASE_URL = testUrl;
-  delete process.env.DEMO_ADMIN_EMAIL;
-  const { setupAuthDatabase } = await import('../src/lib/auth/setup');
-  await setupAuthDatabase();
+  db = await createAuthTestDb();
   server = await import('../src/lib/auth/server');
   guard = await import('../src/lib/auth/otp-guard');
-  sql = new Client({ connectionString: testUrl, options: '-c search_path=demo_auth' });
-  await sql.connect();
 });
 
 afterAll(async () => {
-  await sql?.end();
-  const { pool } = await import('../src/lib/auth/db');
-  await pool.end();
-  const admin = new Client({ connectionString: adminUrl });
-  await admin.connect();
-  await admin.query(`drop database if exists ${dbName} with (force)`);
-  await admin.end();
+  await db?.drop();
 });
 
 /** Código do erro do Better Auth (ou `ok` quando a chamada passa). */
@@ -69,14 +38,8 @@ const signIn = (email: string, otp: string) => outcome(server.auth.api.signInEma
 const sendCode = (email: string) =>
   outcome(server.auth.api.sendVerificationOTP({ body: { email, type: 'sign-in' } }));
 const failures = async (email: string) =>
-  (await sql.query<{ n: number }>('select count(*)::int as n from otp_failure where email = $1', [email]))
+  (await db.sql.query<{ n: number }>('select count(*)::int as n from otp_failure where email = $1', [email]))
     .rows[0]!.n;
-
-/** O envio do código sai fora da requisição (deliverOtp): espera o e-mail falso receber. */
-async function codeFor(email: string) {
-  await vi.waitFor(() => expect(mail.codes.get(email)).toBeDefined());
-  return mail.codes.get(email)!;
-}
 
 describe('bloqueio do login por código', () => {
   const email = 'chute@galaxie.test';
@@ -101,7 +64,7 @@ describe('bloqueio do login por código', () => {
   });
 
   it('é temporário: some quando as tentativas erradas saem da janela', async () => {
-    await sql.query(
+    await db.sql.query(
       `update otp_failure set created_at = now() - make_interval(mins => $2 + 1) where email = $1`,
       [email, guard.OTP_FAILURE_WINDOW_MINUTES],
     );
