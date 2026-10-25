@@ -40,6 +40,27 @@ export interface UsageSnapshot {
   providerUsed?: number;
   /** Limite diário informado pelo fornecedor (/status). Se menor que o da política, prevalece. */
   providerLimit?: number;
+  /**
+   * O fornecedor respondeu "cota do dia esgotada" há pouco (ver `exhaustedSince`): nega por um tempo,
+   * inclusive LIVE crítico, em vez de gastar uma tentativa a cada job. Não é piso do dia: expira sozinho.
+   */
+  providerExhausted?: boolean;
+}
+
+/** Depois de uma resposta quota_exhausted, a API fica negada por este tempo (uma nova tentativa a cada janela). */
+export const EXHAUSTED_COOLDOWN_MS = 15 * 60_000;
+/**
+ * Nos primeiros minutos do dia UTC o contador do fornecedor (eventualmente consistente) ainda pode responder
+ * "esgotada" pelo dia anterior: essas respostas não bloqueiam o dia novo.
+ */
+export const DAY_START_GRACE_MS = 5 * 60_000;
+
+/**
+ * Instante a partir do qual um quota_exhausted enviado no dia `day` (o dia da reserva) ainda bloqueia:
+ * os últimos EXHAUSTED_COOLDOWN_MS, nunca antes do fim da carência do começo do dia.
+ */
+export function exhaustedSince(day: string, nowMs: number): number {
+  return Math.max(nowMs - EXHAUSTED_COOLDOWN_MS, Date.parse(`${day}T00:00:00Z`) + DAY_START_GRACE_MS);
 }
 
 export interface Decision {
@@ -91,6 +112,15 @@ export function decide(
   const totalUsed = Math.max(sumUsed, usage.providerUsed ?? 0);
   const cap = policy.dailyLimit - (p === 'LIVE' && opts.critical ? 0 : reserveOf(policy));
 
+  if (usage.providerExhausted) {
+    return {
+      allow: false,
+      borrowed: false,
+      reason: `o fornecedor informou cota do dia esgotada (nova tentativa em até ${EXHAUSTED_COOLDOWN_MS / 60_000} min)`,
+      totalUsed,
+      cap,
+    };
+  }
   if (totalUsed >= cap) {
     return {
       allow: false,

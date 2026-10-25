@@ -1,15 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import {
-  apiResponse,
-  closeDb,
-  createDb,
-  quotaLedger,
-  quotaSnapshot,
-  runMigrations,
-  type Database,
-} from '@galaxie/db';
+import { apiResponse, closeDb, createDb, quotaLedger, runMigrations, type Database } from '@galaxie/db';
 import { ApiSportsClient } from '../src/client.js';
 import { QuotaExceededError, RequestInFlightError } from '../src/errors.js';
 import { PgQuotaGovernor } from '../src/quota/pg-governor.js';
@@ -258,16 +250,57 @@ describe('revisão: concorrência entre processos e leituras atrasadas', () => {
     await gov.settle(ticket, 'ok', 99);
     expect((await gov.usage('handball')).providerUsed).toBe(1);
   });
+});
 
-  it('piso aprendido de quota_exhausted (sem plano) mantém o plano lido do /status', async () => {
-    const gov = new PgQuotaGovernor(db, () => defaultPolicy(100), now);
-    await gov.reconcile('nba', 40, 100, 'Free');
-    await gov.reconcile('nba', 100, 100);
-    const [snap] = (await db.select().from(quotaSnapshot)).filter((s) => s.api === 'nba');
-    expect(snap).toMatchObject({ providerUsed: 100, plan: 'Free' });
-    await expect(
-      gov.acquire({ api: 'nba', priority: 'LIVE', endpoint: '/games', requestHash: 'q', critical: true }),
-    ).rejects.toBeInstanceOf(QuotaExceededError);
+describe('cota esgotada informada pelo fornecedor', () => {
+  /** Governor com relógio movível e um atalho para reservar como LIVE crítico. */
+  function governorAt(start: string) {
+    let t = Date.parse(start);
+    const gov = new PgQuotaGovernor(
+      db,
+      () => defaultPolicy(100),
+      () => new Date(t),
+    );
+    return {
+      gov,
+      at: (iso: string) => {
+        t = Date.parse(iso);
+      },
+      live: (api: string, hash: string) =>
+        gov.acquire({ api, priority: 'LIVE', endpoint: '/games', requestHash: hash, critical: true }),
+    };
+  }
+
+  it('nega a API por 15 min, inclusive LIVE crítico, e depois libera uma nova tentativa', async () => {
+    const { gov, at, live } = governorAt('2026-10-25T10:00:00Z');
+    await gov.settle(await live('nba', 'e1'), 'quota_exhausted', 0);
+    at('2026-10-25T10:05:00Z');
+    await expect(live('nba', 'e2')).rejects.toBeInstanceOf(QuotaExceededError);
+    at('2026-10-25T10:15:01Z');
+    await expect(live('nba', 'e3')).resolves.toMatchObject({ dayUtc: '2026-10-25' });
+  });
+
+  it('"esgotada" de uma chamada do dia anterior que chega depois da meia-noite não trava o dia novo', async () => {
+    const { gov, at, live } = governorAt('2026-10-25T23:59:58Z');
+    const ticket = await live('mma', 'm1');
+    at('2026-10-26T00:00:03Z');
+    await gov.settle(ticket, 'quota_exhausted'); // resposta sem header de cota
+    at('2026-10-26T00:00:30Z');
+    await expect(live('mma', 'm2')).resolves.toMatchObject({ dayUtc: '2026-10-26' });
+  });
+
+  it('"esgotada" nos primeiros minutos do dia UTC (contador ainda no dia anterior) não bloqueia', async () => {
+    const { gov, at, live } = governorAt('2026-10-27T00:00:10Z');
+    await gov.settle(await live('volleyball', 'v1'), 'quota_exhausted', 0);
+    at('2026-10-27T00:00:40Z');
+    await expect(live('volleyball', 'v2')).resolves.toMatchObject({ dayUtc: '2026-10-27' });
+  });
+
+  it('"esgotada" com cota restante no header não bloqueia', async () => {
+    const { gov, at, live } = governorAt('2026-10-25T12:00:00Z');
+    await gov.settle(await live('afl', 'r1'), 'quota_exhausted', 37);
+    at('2026-10-25T12:00:30Z');
+    await expect(live('afl', 'r2')).resolves.toMatchObject({ dayUtc: '2026-10-25' });
   });
 });
 
@@ -318,18 +351,57 @@ describe('limite por minuto entre processos', () => {
     await Promise.all([run('a'), run('b')]);
 
     expect(sentAt).toHaveLength(24);
-    const sorted = [...sentAt].sort((x, y) => x - y);
+    // O espaçamento é medido no sent_at do ledger (o instante da reserva, logo antes do fetch). O horário
+    // visto pelo fetch falso não serve: no relógio virtual, a espera do outro "processo" pode avançar o
+    // tempo entre a reserva e o fetch, o que num servidor real leva milissegundos.
+    const sorted = (await db.select().from(quotaLedger))
+      .filter((l) => l.api === 'football' && l.dayUtc === '2026-10-23')
+      .map((l) => l.sentAt.getTime())
+      .sort((x, y) => x - y);
+    expect(sorted).toHaveLength(24);
     // sem rajada: 1 envio a cada 6 s somando os dois processos
     for (let i = 1; i < sorted.length; i++) expect(sorted[i]! - sorted[i - 1]!).toBeGreaterThanOrEqual(6000);
     // em qualquer janela de 60 s, no máximo 10 envios
     for (const start of sorted) {
       expect(sorted.filter((s) => s >= start && s < start + 60_000).length).toBeLessThanOrEqual(10);
     }
-    // o ledger guarda o instante do envio
-    const ledger = (await db.select().from(quotaLedger))
-      .filter((l) => l.api === 'football' && l.dayUtc === '2026-10-23')
+  });
+
+  it('na virada da meia-noite, quem calculou o dia antes do lock ainda respeita a vaga e vê a chamada em voo', async () => {
+    const policy = () => defaultPolicy(100, 15, 10);
+    // B já está no dia novo e reserva às 00:00:00.100
+    const b = new PgQuotaGovernor(db, policy, () => new Date('2026-10-29T00:00:00.100Z'));
+    await b.acquire({ api: 'hockey', priority: 'LIVE', endpoint: '/games', requestHash: 'mid-1' });
+    // A leu o relógio antes da meia-noite (dia do lock); depois dos locks o relógio já está em 00:00:00.200
+    let calls = 0;
+    let tA = Date.parse('2026-10-29T00:00:00.200Z');
+    const waits: number[] = [];
+    const a = new PgQuotaGovernor(
+      db,
+      policy,
+      () => new Date(calls++ === 0 ? Date.parse('2026-10-28T23:59:59.900Z') : tA),
+      async (ms) => {
+        waits.push(ms);
+        tA += ms;
+      },
+    );
+    await expect(
+      a.acquire({ api: 'hockey', priority: 'LIVE', endpoint: '/games', requestHash: 'mid-1' }),
+    ).rejects.toBeInstanceOf(RequestInFlightError);
+    calls = 0;
+    const ticket = await a.acquire({
+      api: 'hockey',
+      priority: 'DAILY',
+      endpoint: '/teams',
+      requestHash: 'mid-2',
+    });
+    expect(ticket.dayUtc).toBe('2026-10-29');
+    expect(Math.max(...waits)).toBeLessThanOrEqual(6000);
+    const sent = (await db.select().from(quotaLedger))
+      .filter((l) => l.api === 'hockey' && l.dayUtc === '2026-10-29')
       .map((l) => l.sentAt.getTime())
       .sort((x, y) => x - y);
-    expect(ledger).toEqual(sorted);
+    expect(sent).toHaveLength(2);
+    expect(sent[1]! - sent[0]!).toBeGreaterThanOrEqual(6000);
   });
 });

@@ -173,31 +173,50 @@ describe('ApiSportsClient', () => {
     });
   });
 
-  it('depois de quota_exhausted o Governor nega o resto do dia sem gastar outra tentativa', async () => {
-    const { client, governor, api } = setup(() => ({
-      body: envelope([], { errors: { requests: 'You have reached the request limit for the day.' } }),
-    }));
-    await expect(
-      client.get({ sport: 'football', endpoint: '/countries', priority: 'DAILY' }),
-    ).rejects.toMatchObject({ outcome: 'quota_exhausted' });
-    expect((await governor.usage('football')).providerUsed).toBe(100);
-    await expect(
-      client.get({
-        sport: 'football',
-        endpoint: '/teams',
-        params: { id: 1 },
-        priority: 'LIVE',
-        critical: true,
-      }),
-    ).rejects.toBeInstanceOf(QuotaExceededError);
-    // a cota de cada API é separada
-    await client
-      .get({ sport: 'hockey', endpoint: '/teams', params: { id: 1 }, priority: 'DAILY' })
-      .catch(() => {});
-    expect(api.calls.map((u) => u.hostname)).toEqual([
-      'v3.football.api-sports.io',
-      'v1.hockey.api-sports.io',
-    ]);
+  describe('cota esgotada no fornecedor', () => {
+    const exhausted =
+      (remaining = 0) =>
+      () => ({
+        body: envelope([], { errors: { requests: 'You have reached the request limit for the day.' } }),
+        remaining,
+      });
+    const live = (id: number) =>
+      ({ sport: 'football', endpoint: '/teams', params: { id }, priority: 'LIVE', critical: true }) as const;
+
+    it('nega a API por 15 min (até LIVE crítico) sem gastar outra tentativa, depois tenta de novo', async () => {
+      const { client, api, clock } = setup(exhausted());
+      await expect(
+        client.get({ sport: 'football', endpoint: '/countries', priority: 'DAILY' }),
+      ).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      await expect(client.get(live(1))).rejects.toBeInstanceOf(QuotaExceededError);
+      // a cota de cada API é separada
+      await client
+        .get({ sport: 'hockey', endpoint: '/teams', params: { id: 1 }, priority: 'DAILY' })
+        .catch(() => {});
+      expect(api.calls.map((u) => u.hostname)).toEqual([
+        'v3.football.api-sports.io',
+        'v1.hockey.api-sports.io',
+      ]);
+      // não é piso do dia: passada a janela, uma nova tentativa sai
+      clock.t += 15 * 60_000;
+      await expect(client.get(live(2))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      expect(api.calls).toHaveLength(3);
+    });
+
+    it('não trava o dia novo: resposta "esgotada" nos primeiros minutos do dia UTC é ignorada', async () => {
+      const { client, api, clock } = setup(exhausted());
+      clock.t = Date.parse('2026-10-22T00:00:20Z'); // contador do fornecedor ainda no dia anterior
+      await expect(client.get(live(1))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      await expect(client.get(live(2))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      expect(api.calls).toHaveLength(2);
+    });
+
+    it('ignora a resposta "esgotada" quando o header ainda informa cota restante', async () => {
+      const { client, api } = setup(exhausted(40));
+      await expect(client.get(live(1))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      await expect(client.get(live(2))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      expect(api.calls).toHaveLength(2);
+    });
   });
 
   it('HTTP 429 vira rate_limited', async () => {

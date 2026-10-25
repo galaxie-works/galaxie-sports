@@ -5,6 +5,7 @@ import {
   decide,
   effectivePolicy,
   emptyUsage,
+  exhaustedSince,
   reserveOf,
   type QuotaPolicy,
   type UsageSnapshot,
@@ -53,10 +54,7 @@ export interface QuotaGovernor {
   settle(ticket: QuotaTicket, outcome: Outcome, remainingAfter?: number): Promise<void>;
   /** Desfaz uma reserva que não chegou a ser enviada. */
   release(ticket: QuotaTicket): Promise<void>;
-  /**
-   * Registra o contador do fornecedor como piso para o dia: lido do /status, ou usado = limite quando uma
-   * resposta diz que a cota acabou (sem `plan`, o plano já registrado é mantido).
-   */
+  /** Registra o contador do fornecedor (/status) como piso para o dia. */
   reconcile(api: string, providerUsed: number, providerLimit: number, plan?: string): Promise<void>;
   /** Planeja o dia (ex.: LIVE = 0 em dia sem jogos libera folga para o BOOTSTRAP). */
   plan(api: string, dayUtc: string, planned: Partial<Record<Priority, number>>): Promise<void>;
@@ -95,7 +93,15 @@ export class InMemoryQuotaGovernor implements QuotaGovernor {
   private seq = 0;
   private readonly ledger = new Map<
     number,
-    { api: string; day: string; priority: Priority; outcome: string; requestHash: string; at: number }
+    {
+      api: string;
+      day: string;
+      priority: Priority;
+      outcome: string;
+      requestHash: string;
+      at: number;
+      remainingAfter?: number | undefined;
+    }
   >();
   /** Contador do fornecedor e o último id do ledger no momento da leitura. */
   private readonly snapshots = new Map<
@@ -115,7 +121,14 @@ export class InMemoryQuotaGovernor implements QuotaGovernor {
 
   private snapshot(api: string, day: string): UsageSnapshot {
     const used = emptyUsage();
-    for (const row of this.ledger.values()) if (row.api === api && row.day === day) used[row.priority] += 1;
+    const since = exhaustedSince(day, this.now().getTime());
+    let providerExhausted = false;
+    for (const row of this.ledger.values()) {
+      if (row.api !== api || row.day !== day) continue;
+      used[row.priority] += 1;
+      if (row.outcome === 'quota_exhausted' && !row.remainingAfter && row.at >= since)
+        providerExhausted = true;
+    }
     const snap = this.snapshots.get(`${api}|${day}`);
     const planned = this.plans.get(`${api}|${day}`);
     return {
@@ -127,6 +140,7 @@ export class InMemoryQuotaGovernor implements QuotaGovernor {
           }
         : {}),
       ...(planned ? { planned } : {}),
+      ...(providerExhausted ? { providerExhausted } : {}),
     };
   }
 
@@ -158,9 +172,9 @@ export class InMemoryQuotaGovernor implements QuotaGovernor {
     return { id, api: req.api, priority: req.priority, dayUtc: day, borrowed: decision.borrowed };
   }
 
-  async settle(ticket: QuotaTicket, outcome: Outcome): Promise<void> {
+  async settle(ticket: QuotaTicket, outcome: Outcome, remainingAfter?: number): Promise<void> {
     const row = this.ledger.get(ticket.id);
-    if (row) row.outcome = outcome;
+    if (row) Object.assign(row, { outcome, remainingAfter });
   }
 
   async release(ticket: QuotaTicket): Promise<void> {
