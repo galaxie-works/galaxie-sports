@@ -303,9 +303,19 @@ function PlatformCard({
   href: string | null;
   logoOf: (o: LogoPair) => string | null;
 }) {
-  const { texts } = useGalaxieWidget();
+  const { texts, locale } = useGalaxieWidget();
   const t = texts.watchGroups;
   const { platform, plans } = entry;
+  const addons = entry.addons ?? [];
+  const money = (amount: number, currency: string | null) => {
+    try {
+      return currency
+        ? new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount)
+        : amount.toLocaleString(locale);
+    } catch {
+      return String(amount);
+    }
+  };
   const credit = platform.logo_credit ?? null;
   return (
     <div className="gs-platform" data-gs-platform={platform.kind} {...(mine ? { 'data-mine': '' } : {})}>
@@ -346,9 +356,22 @@ function PlatformCard({
             ) : null}
           </div>
         ))
-      ) : (
+      ) : addons.length ? null : (
         <div className="gs-plan gs-muted gs-small">{t.notInYourOperator}</div>
       )}
+      {addons.length ? (
+        <div className="gs-plan">
+          <span className="gs-muted gs-small">{t.addonsAvailable}</span>
+          {addons.map((a) => (
+            <span key={`${a.id}|${a.channel ?? ''}`} className="gs-small">
+              {a.channel ?? a.name}
+              {a.price_from !== null
+                ? ` · ${t.priceFrom.replace('{price}', money(a.price_from, a.currency))}`
+                : ''}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {credit?.attribution_required ? (
         <a className="gs-credit" href={credit.page_url} target="_blank" rel="noopener noreferrer">
           {credit.text}

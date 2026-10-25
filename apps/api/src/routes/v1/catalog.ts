@@ -18,6 +18,7 @@ import {
 } from '@galaxie/contracts';
 import {
   asset,
+  assetCredit,
   competition,
   competitionProfile,
   country,
@@ -43,11 +44,15 @@ import {
   decodeCursor,
   encodeCursor,
   likeEscape,
+  logoCreditText,
   logoSource,
   parseInput,
   UUID_RE,
 } from '../../util.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
+import { enrichRaceStandings } from '../../events/race-standings.js';
+import { loadLiveries, type LiveryEntry } from '@galaxie/knowledge';
+import { effectiveMinReview, meetsReview } from './semantic.js';
 
 const MODULE = { module: 'core_data' } as const;
 const MIRRORED = new Set<string>(MIRROR_SPORTS);
@@ -63,6 +68,17 @@ function localeOf(request: FastifyRequest, query: { locale?: z.infer<typeof Loca
 
 /** Rotas do catálogo (docs/05 §3.1). Todas exigem o módulo core_data. */
 export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
+  // pinturas da F1 por época (data/knowledge/formula-1/liveries.yaml), lidas uma vez, no piso editorial
+  let liveriesCache: Promise<LiveryEntry[]> | undefined;
+  const liveries = () => {
+    liveriesCache ??= loadLiveries(...(ctx.semantic?.knowledgeDir ? [ctx.semantic.knowledgeDir] : []))
+      .then((all) => all.filter((l) => meetsReview(l.review_status, effectiveMinReview(ctx, undefined))))
+      .catch((err: unknown) => {
+        liveriesCache = undefined;
+        throw err;
+      });
+    return liveriesCache;
+  };
   // nível nacional/regional e posição editorial das domésticas (config/geo); sem a config, os campos saem
   // null em vez de quebrar
   let geo: GeoConfig | null | undefined;
@@ -218,9 +234,26 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .select({ provider: providerMap.provider, providerId: providerMap.providerId })
           .from(providerMap)
           .where(and(eq(providerMap.entityType, 'competition'), eq(providerMap.entityId, row.c.id)));
+        // logo da Commons (competição sem logo do fornecedor, ex.: a F1): sai com o crédito
+        const [credit] =
+          row.logoOrigin === 'commons' && row.logoAssetId
+            ? await db.select().from(assetCredit).where(eq(assetCredit.assetId, row.logoAssetId)).limit(1)
+            : [];
         const body: Competition = {
           ...summary!,
           logo_source: logoSource(row.logoOrigin),
+          logo_credit: credit
+            ? {
+                source: 'Wikimedia Commons',
+                title: credit.title,
+                page_url: credit.pageUrl,
+                author: credit.author,
+                license: credit.license,
+                license_url: credit.licenseUrl,
+                attribution_required: credit.attributionRequired,
+                text: logoCreditText(credit.author, credit.license),
+              }
+            : null,
           trophy_nickname: profile?.trophy ?? null,
           external_ids: Object.fromEntries(ids.map((i) => [i.provider, i.providerId])),
           seasons: seasons.map((s) => ({
@@ -308,6 +341,13 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           });
           if (!updatedAt || r.st.updatedAt > updatedAt) updatedAt = r.st.updatedAt;
         }
+        // F1: retrato, equipe da temporada (nome de época e cor), pódios e o desempate por contagem regressiva
+        if (row.c.sport === 'formula-1')
+          await enrichRaceStandings(db, s.id, [...groups.values()], {
+            assetsBaseUrl: ctx.assetsBaseUrl,
+            liveries: await liveries().catch(() => []),
+            year: s.year,
+          });
         const source = rows[0]?.st.source;
         const body: Standings = {
           competition_id: row.c.id,
@@ -372,6 +412,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         logoKey: asset.storageKey,
         logoUrl: asset.sourceUrl,
         logoOrigin: asset.origin,
+        logoAssetId: asset.id,
       })
       .from(competition)
       .leftJoin(country, eq(country.code, competition.countryCode))

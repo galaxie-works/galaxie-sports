@@ -30,7 +30,7 @@ import { canAccessClientPanel } from '@/lib/auth/roles';
 import { DOCS_NAV } from '@/lib/docs';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { useI18n } from '@/lib/i18n/client';
-import { COUNTRIES, EQUESTRIAN_NAV, MULTISPORT_NAV, SPORTS, type NavItem } from '@/lib/navigation';
+import { COUNTRIES, EQUESTRIAN_NAV, FAMILIES, MULTISPORT_NAV, type NavItem } from '@/lib/navigation';
 import { topLevelClick } from '@/lib/trail';
 
 import { UserMenu } from './user-menu';
@@ -146,11 +146,12 @@ function SidebarNav({ pathname, section = null }: { pathname: string | null; sec
         <SidebarGroupLabel>{t.shell.sidebar.sports}</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            {SPORTS.map((item) => (
+            {/* por família de esporte (Basquete reúne basquete e NBA), não por API do fornecedor */}
+            {FAMILIES.map((item) => (
               <NavLink
                 key={item.href}
                 item={item}
-                label={t.nav.sports[item.slug]}
+                label={t.nav.families[item.id]}
                 pathname={pathname}
                 section={section}
               />

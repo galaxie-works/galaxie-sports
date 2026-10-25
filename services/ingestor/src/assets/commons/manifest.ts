@@ -39,6 +39,8 @@ export interface ManifestPhoto {
   width: number;
   height: number;
   reason?: string | null;
+  /** Carro: nota do Gemini (0–1) para o fundo do heading; abaixo de `HERO_MIN`, a foto não vai ao fundo. */
+  hero?: number;
 }
 
 export interface ManifestEntry {
@@ -54,7 +56,8 @@ export interface ManifestEntry {
   note?: string | null;
   /**
    * Piloto: carro de destaque (`car/<construtor>/<ano>`, outro alvo do manifesto). `auto` vem da regra
-   * (`highlightSeason`); `manual` é curadoria e não muda nas próximas varreduras.
+   * (`highlightCandidates`, com os outros candidatos em `fallbacks`); `manual` é curadoria e não muda nas
+   * próximas varreduras.
    */
   highlight_car?: HighlightCar | null;
   /** Ordem do Gemini (passo da VPS): modelo, data e quantas candidatas foram avaliadas. Sem isso, só regras. */
@@ -67,6 +70,13 @@ export interface HighlightCar {
   season: number;
   reason: string;
   match: 'auto' | 'manual';
+  /**
+   * Curadoria: a foto do fundo (`File:…`), de qualquer alvo do manifesto (do carro ou da galeria do piloto).
+   * Sem isso, a primeira foto do carro que pode ir ao fundo.
+   */
+  file?: string;
+  /** Os outros candidatos, em ordem: a importação fica com o primeiro que tiver foto para o fundo (só `auto`). */
+  fallbacks?: { target: string; season: number; reason: string }[];
 }
 
 export interface CommonsManifest {
@@ -125,8 +135,32 @@ const photoOf = (c: ChosenPhoto, license: CommonsLicense): ManifestPhoto => {
     width: f.width,
     height: f.height,
     ...(c.reason ? { reason: c.reason } : {}),
+    ...(c.hero != null ? { hero: c.hero } : {}),
   };
 };
+
+/**
+ * Carro de destaque do piloto no manifesto: a curadoria (`manual`) da entrada anterior fica; senão, o da regra
+ * (`highlightCandidates`), com os outros candidatos em `fallbacks`.
+ */
+export function highlightCarOf(
+  target: CommonsTarget,
+  previous: ManifestEntry | undefined,
+): HighlightCar | null {
+  if (previous?.highlight_car?.match === 'manual') return previous.highlight_car;
+  if (target.kind !== 'driver' || !target.highlight) return null;
+  return {
+    target: target.highlight.target,
+    season: target.highlight.year,
+    reason: target.highlight.reason,
+    match: 'auto',
+    ...(target.fallbacks?.length
+      ? {
+          fallbacks: target.fallbacks.map((h) => ({ target: h.target, season: h.year, reason: h.reason })),
+        }
+      : {}),
+  };
+}
 
 /**
  * Nova entrada do alvo, mantendo a curadoria da anterior: fotos `manual` ficam (na frente), `rejected` ficam
@@ -139,17 +173,7 @@ export function mergeEntry(
   previous: ManifestEntry | undefined,
 ): ManifestEntry {
   const curated = (previous?.photos ?? []).filter((p) => p.match !== 'auto');
-  const highlight: HighlightCar | null =
-    previous?.highlight_car?.match === 'manual'
-      ? previous.highlight_car
-      : target.kind === 'driver' && target.highlight
-        ? {
-            target: target.highlight.target,
-            season: target.highlight.year,
-            reason: target.highlight.reason,
-            match: 'auto',
-          }
-        : null;
+  const highlight = highlightCarOf(target, previous);
   const rejected = new Set(curated.filter((p) => p.match === 'rejected').map((p) => p.file));
   const manual = curated.filter((p) => p.match === 'manual');
   const auto = chosen

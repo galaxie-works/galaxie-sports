@@ -109,9 +109,13 @@ describe('scheduler relendo a configuração do painel', () => {
       ['events-clock', 'done', null],
       ['sync-daily', 'skipped', 'not_allowed'],
     ]);
-    expect(runs).toHaveLength(1);
-    expect(runs[0]).toMatchObject({ job: 'events-clock', trigger: 'panel' });
-    expect(runs[0]!.env.LIVE_FEATURED).toBe('on');
+    // só os pedidos do painel: o events-clock (`* * * * *`) roda sozinho na virada de um minuto antes de
+    // ser desligado no teste anterior, e essa execução agendada não é o que este teste mede
+    const panel = runs.filter((r) => r.trigger === 'panel');
+    expect(panel).toHaveLength(1);
+    expect(panel[0]).toMatchObject({ job: 'events-clock', trigger: 'panel' });
+    expect(panel[0]!.env.LIVE_FEATURED).toBe('on');
+    expect(runs.some((r) => r.job === 'sync-daily')).toBe(false);
   });
 
   it('voltar ao padrão devolve a agenda do env do contêiner', async () => {

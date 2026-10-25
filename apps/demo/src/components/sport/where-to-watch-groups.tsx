@@ -11,6 +11,29 @@ import type { WatchGroups, WatchLogo } from '@/lib/where-to-watch';
 
 type T = Dictionary['event']['whereToWatch'];
 
+/** Preço do complemento como no mercado da moeda (R$ 49,90; $ 34.900). */
+const CURRENCY_LOCALE: Record<string, string> = {
+  BRL: 'pt-BR',
+  ARS: 'es-AR',
+  CLP: 'es-CL',
+  COP: 'es-CO',
+  PEN: 'es-PE',
+  UYU: 'es-UY',
+  MXN: 'es-MX',
+  USD: 'es-EC',
+};
+
+function money(amount: number, currency: string | null): string {
+  if (!currency) return String(amount);
+  try {
+    return new Intl.NumberFormat(CURRENCY_LOCALE[currency] ?? 'pt-BR', { style: 'currency', currency })
+      .format(amount)
+      .replace(/\u00a0/g, ' ');
+  } catch {
+    return `${amount} ${currency}`;
+  }
+}
+
 /**
  * Logo de emissora ou plataforma: a versão escura no tema escuro (acervo oficial), a clara no claro;
  * sem logo, as iniciais. Arquivos do nosso storage, fora do otimizador do Next.
@@ -170,9 +193,27 @@ function PlatformCard({ entry, mine, t }: { entry: PlatformAvailability; mine: b
             </li>
           ))}
         </ul>
-      ) : (
+      ) : entry.addons?.length ? null : (
         <p className="text-muted-foreground basis-full border-t pt-2.5 text-xs">{t.notInYourOperator}</p>
       )}
+      {entry.addons?.length ? (
+        <div className="flex basis-full flex-col gap-1 border-t pt-2.5" data-testid="platform-addons">
+          <span className="text-muted-foreground text-[11px]">{t.addonsAvailable}</span>
+          <ul className="flex flex-col gap-0.5 text-xs">
+            {entry.addons.map((a) => (
+              <li key={`${a.id}|${a.channel ?? ''}`}>
+                <span className="font-medium">{a.channel ?? a.name}</span>
+                {a.price_from !== null ? (
+                  <span className="text-muted-foreground">
+                    {' · '}
+                    {fill(t.priceFrom, { price: money(a.price_from, a.currency) })}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {platform.logo_credit?.attribution_required ? (
         // CC BY / CC BY-SA: o crédito do logo vai junto, visível
         <a

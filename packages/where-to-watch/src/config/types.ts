@@ -4,6 +4,20 @@ import type { AccessModel, BroadcastMedium, BroadcasterKind, RightsDistribution 
 export const WTW_COUNTRIES = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as const;
 export type WtwCountry = (typeof WTW_COUNTRIES)[number];
 
+/**
+ * Apelido com validade: um nome que só vale como esta emissora num período (renomeação de canal, como
+ * "Canal Antigo 2" que virou "Canal Novo 6" em certa data). Fora do período o nome não casa: não conta
+ * duas vezes o mesmo canal nem confunde o canal antigo com o novo.
+ */
+export interface DatedAlias {
+  name: string;
+  /** Canal da entrada que o nome passou a designar (ex.: o número novo). */
+  channel: string | null;
+  /** YYYY-MM-DD (inclusive); null = sem limite. */
+  validFrom: string | null;
+  validTo: string | null;
+}
+
 export interface RegionalVariant {
   name: string;
   /** UF/praça (BR) ou região. */
@@ -17,6 +31,14 @@ export interface BroadcasterEntry {
   aliases: string[];
   /** Canais da emissora: casam como alias e viram o `channel` da opção. */
   channels: string[];
+  /** Apelidos que só valem num período (renomeações). */
+  datedAliases: DatedAlias[];
+  /**
+   * Período em que a emissora existe (está nas grades), YYYY-MM-DD inclusive; null = sem limite. Fora
+   * dele o nome não casa na resolução do dia (canal extinto não entra).
+   */
+  validFrom: string | null;
+  validTo: string | null;
   medium: BroadcastMedium;
   accessModel: AccessModel;
   /** Grupo de mídia: entradas do mesmo grupo compartilham domínios como fonte primária. */
@@ -109,5 +131,13 @@ export interface ResolvedBroadcaster {
   region: string | null;
   /** Canal fixado quando o nome casou com um canal da entrada. */
   channel: string | null;
-  matchedBy: 'name' | 'alias' | 'channel' | 'regional_variant';
+  matchedBy: 'name' | 'alias' | 'channel' | 'regional_variant' | 'dated_alias';
 }
+
+/**
+ * Resultado da busca de um nome numa data: `active` = casa e vale no dia; `inactive` = o nome é de uma
+ * emissora fora do período (canal extinto ou ainda não lançado).
+ */
+export type BroadcasterLookup =
+  | { status: 'active'; resolved: ResolvedBroadcaster }
+  | { status: 'inactive'; entry: BroadcasterEntry; validFrom: string | null; validTo: string | null };
