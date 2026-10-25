@@ -693,7 +693,8 @@ export class LineupResearcher {
           .map((d) => d.trim().toLowerCase())
           .filter((d) => d && acceptableOfficialDomain(d, dir))
           .slice(0, LINEUP_MAX_OFFICIAL_DOMAINS);
-        if (dir.blocklist.isBlockedName(name) || (website && dir.blocklist.isBlockedUrl(website))) {
+        // o site bruto: o bloqueado já não passa em acceptableOfficialDomain e `website` viraria null
+        if (dir.blocklist.isBlockedName(name) || (site && dir.blocklist.isBlockedUrl(site))) {
           out.drops.blocked++;
           continue;
         }

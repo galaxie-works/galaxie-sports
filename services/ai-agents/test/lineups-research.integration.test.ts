@@ -610,4 +610,31 @@ describe('lineups-research: o que entra na fila', () => {
     expect([out.status, out.calls, out.skippedPlans]).toEqual(['done', 1, ['Plano Exemplo Esportes']]);
     expect([out.removed, out.changes.filter((c) => c.fields.includes('removed'))]).toEqual([0, []]);
   });
+
+  it('site na blocklist descarta a plataforma pela política, mesmo com nome fora da lista', async () => {
+    const llm = new FakeLlmClient(() => ({
+      data: {
+        platforms: [
+          {
+            name: 'Operadora Disfarçada Exemplo',
+            kind: 'pay_tv_operator',
+            website: 'https://www.bloqueada.exemplo',
+            dominios_oficiais: [],
+            sources: [src('https://imprensa.exemplo/operadora')],
+          },
+        ],
+        notes: null,
+      },
+      groundedUrls: ['https://imprensa.exemplo/operadora'],
+    }));
+    const out = await new LineupResearcher({ db, llm, config, now: () => later, resolveUrl }).discover({
+      kind: 'discover',
+      country: 'BR',
+      reason: 'rediscover',
+    });
+    expect([out.status, out.accepted, out.drops.blocked]).toEqual(['done', 0, 1]);
+    expect(
+      await db.select().from(platform).where(eq(platform.slug, 'br-operadora-disfarcada-exemplo')),
+    ).toEqual([]);
+  });
 });
