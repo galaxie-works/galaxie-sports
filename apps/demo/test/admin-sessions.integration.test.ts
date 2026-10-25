@@ -44,7 +44,9 @@ describe('sessões no painel do admin', () => {
   it('o detalhe do usuário não leva o token das sessões', async () => {
     const detail = await admin.getDemoUser(await idOf('convidado@galaxie.test'));
     expect(detail?.sessions).toHaveLength(1);
-    const tokens = (await db.sql.query<{ token: string }>('select token from session')).rows.map((r) => r.token);
+    const tokens = (await db.sql.query<{ token: string }>('select token from session')).rows.map(
+      (r) => r.token,
+    );
     const payload = JSON.stringify(detail);
     for (const token of tokens) expect(payload).not.toContain(token);
   });

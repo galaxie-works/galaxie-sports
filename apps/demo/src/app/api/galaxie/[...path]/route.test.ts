@@ -67,7 +67,8 @@ describe('proxy /api/galaxie', () => {
   });
 
   it('teto por sessão: passou, 429 com Retry-After; outra sessão segue livre', async () => {
-    for (let i = 0; i < PROXY_REQUESTS_PER_MINUTE; i++) expect((await get(['v1', 'search'])).status).toBe(200);
+    for (let i = 0; i < PROXY_REQUESTS_PER_MINUTE; i++)
+      expect((await get(['v1', 'search'])).status).toBe(200);
     const blocked = await get(['v1', 'search']);
     expect(blocked.status).toBe(429);
     expect(Number(blocked.headers.get('retry-after'))).toBeGreaterThan(0);

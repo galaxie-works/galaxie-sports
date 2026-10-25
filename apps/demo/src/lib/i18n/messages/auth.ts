@@ -89,7 +89,8 @@ export default defineMessages(
         tooManyAttempts: 'Too many attempts with this code. Request a new one.',
         rateLimited: 'Too many attempts in a short time. Wait a minute and try again.',
         resendTooSoon: 'Wait a moment before requesting another code.',
-        otpLocked: 'Too many wrong attempts for this email. For security, sign-in is blocked for up to an hour.',
+        otpLocked:
+          'Too many wrong attempts for this email. For security, sign-in is blocked for up to an hour.',
         banned: 'Your access to the demo has been disabled. Talk to the person who invited you.',
         sendFailed: "We couldn't send the code right now. Try again.",
         signInFailed: "We couldn't sign you in right now. Try again.",

@@ -34,7 +34,8 @@ async function outcome(call: Promise<unknown>): Promise<string> {
   }
 }
 
-const signIn = (email: string, otp: string) => outcome(server.auth.api.signInEmailOTP({ body: { email, otp } }));
+const signIn = (email: string, otp: string) =>
+  outcome(server.auth.api.signInEmailOTP({ body: { email, otp } }));
 const sendCode = (email: string) =>
   outcome(server.auth.api.sendVerificationOTP({ body: { email, type: 'sign-in' } }));
 const failures = async (email: string) =>
@@ -45,7 +46,8 @@ describe('bloqueio do login por código', () => {
   const email = 'chute@galaxie.test';
 
   it('conta erros de qualquer código e bloqueia o e-mail ao chegar ao limite', async () => {
-    for (let i = 0; i < guard.OTP_MAX_FAILURES; i++) expect(await signIn(email, '000000')).toBe('INVALID_OTP');
+    for (let i = 0; i < guard.OTP_MAX_FAILURES; i++)
+      expect(await signIn(email, '000000')).toBe('INVALID_OTP');
     expect(await failures(email)).toBe(guard.OTP_MAX_FAILURES);
     // bloqueado: nem confere o código nem manda outro (o erro não conta como tentativa)
     expect(await signIn(email, '123456')).toBe('OTP_LOCKED');

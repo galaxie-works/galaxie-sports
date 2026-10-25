@@ -18,8 +18,9 @@ beforeAll(async () => {
   db = await createAuthTestDb();
   route = await import('../src/app/api/atividade/route');
   cookie = await signInAs('navegante@galaxie.test');
-  userId = (await db.sql.query<{ id: string }>(`select id from "user" where email = 'navegante@galaxie.test'`))
-    .rows[0]!.id;
+  userId = (
+    await db.sql.query<{ id: string }>(`select id from "user" where email = 'navegante@galaxie.test'`)
+  ).rows[0]!.id;
 });
 
 afterAll(async () => {

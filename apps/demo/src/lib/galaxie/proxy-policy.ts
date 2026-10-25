@@ -37,7 +37,8 @@ export const PROXY_RESOURCES: ReadonlySet<string> = new Set([
 /** Caminho (segmentos depois de `/api/galaxie`) que o proxy repassa. */
 export function isProxyPathAllowed(path: readonly string[]): boolean {
   if (path[0] !== 'v1' || path.length < 2) return false;
-  if (path.some((p) => p === '' || p === '.' || p === '..' || p.includes('/') || p.includes('\\'))) return false;
+  if (path.some((p) => p === '' || p === '.' || p === '..' || p.includes('/') || p.includes('\\')))
+    return false;
   return PROXY_RESOURCES.has(path[1]!);
 }
 
