@@ -12,7 +12,7 @@ import {
 } from '@galaxie/db';
 import { problems } from '../errors.js';
 import type { AuthAttempt, TenantContext } from './authenticator.js';
-import type { AuthThrottle } from './throttle.js';
+import { ipBucket, type AuthThrottle } from './throttle.js';
 
 /** Header da chave publicável (a que vai no código do navegador). */
 export const PUBLISHABLE_KEY_HEADER = 'x-galaxie-publishable-key';
@@ -86,7 +86,8 @@ export class PublishableAuthenticator {
     let entry = this.cache.get(hash);
     if (!entry || entry.expiresAt <= now.getTime()) {
       // fora do cache: uma consulta ao banco por chave (chaves aleatórias não autenticadas) — limite por IP
-      if (attempt.ip) await this.throttle?.check(`ip:${attempt.ip}`);
+      // (IPv6 por /64, como na chave secreta: um /64 inteiro gira endereços)
+      if (attempt.ip) await this.throttle?.check(`ip:${ipBucket(attempt.ip)}`);
       entry = { value: await this.store.verify(rawKey), expiresAt: now.getTime() + this.cacheTtlMs };
       if (this.cache.size > 10_000) this.cache.clear();
       if (this.cacheTtlMs > 0) this.cache.set(hash, entry);

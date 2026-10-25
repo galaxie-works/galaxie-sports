@@ -117,6 +117,20 @@ describe('PublishableAuthenticator', () => {
       '429 RATE_LIMITED',
     ]);
     expect(calls.verify).toBe(3);
+    // IPv6: o /64 inteiro é um balde só (girar o endereço não fura o limite)
+    const v6 = new PublishableAuthenticator(s, {
+      throttle: new AuthThrottle(new MemoryRateLimiter(), { attemptsPerMinute: 2 }),
+    });
+    const v6Results = [];
+    for (let i = 1; i <= 4; i++)
+      v6Results.push(
+        await code(
+          v6.authenticate(generatePublishableKey().key, 'https://app.exemplo.test', {
+            ip: `2001:db8:1:2::${i}`,
+          }),
+        ),
+      );
+    expect(v6Results).toEqual(['401 INVALID_KEY', '401 INVALID_KEY', '429 RATE_LIMITED', '429 RATE_LIMITED']);
     // outro IP com a chave válida não é afetado
     expect(await code(auth.authenticate(key, 'https://app.exemplo.test', { ip: '198.51.100.2' }))).toBe('ok');
   });
