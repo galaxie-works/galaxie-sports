@@ -128,13 +128,15 @@ export const accountPaths: ZodOpenApiPathsObject = {
     post: {
       summary: 'Rotaciona a chave usada na requisição',
       description:
-        'Cria uma chave nova (mesmo rótulo, escopos e ambiente) e mantém a atual válida por `graceSeconds`. ' +
-        'A chave nova aparece só nesta resposta.',
+        'Cria uma chave nova (mesmo rótulo, escopos, ambiente e validade) e mantém a atual válida por ' +
+        '`graceSeconds`. A chave nova aparece só nesta resposta. Uma chave já rotacionada (no período de ' +
+        'graça) não pode ser rotacionada de novo, e a rotação exige menos de 20 chaves válidas no tenant.',
       tags: ['Conta'],
       requestBody: { content: json(RotateKeyBody) },
       responses: {
         '201': { description: 'Chave criada', content: json(RotatedKey) },
         '400': problem('Parâmetro inválido (INVALID_PARAMS)'),
+        '409': problem('Chave já rotacionada ou teto de chaves válidas do tenant atingido (CONFLICT)'),
         ...common,
       },
     },

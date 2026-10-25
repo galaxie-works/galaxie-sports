@@ -4,7 +4,8 @@
 {
 	admin off
 	servers {
-		trusted_proxies static private_ranges
+		# sem trusted_proxies: o Caddy sobrescreve o X-Forwarded-For com o IP do cliente (confiar em private_ranges
+		# deixava forjá-lo pelo gateway do Docker, que é privado; a API usa esse IP nos limites por IP)
 	}
 	# Logs internos do Caddy (inclusive erros de proxy) também sem IP completo nem credenciais.
 	log default {

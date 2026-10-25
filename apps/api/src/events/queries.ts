@@ -28,7 +28,8 @@ export interface EventFilters {
 
 export type EventOrder = 'starts_at' | 'importance' | 'relevance';
 
-const StartsCursor = z.object({ s: z.string(), i: z.string().regex(UUID_RE) });
+// `s` vai para o SQL como ::timestamptz: só ISO 8601 válido (cursor forjado → 400, não 500)
+const StartsCursor = z.object({ s: z.iso.datetime(), i: z.string().regex(UUID_RE) });
 const ImportanceCursor = StartsCursor.extend({ m: z.number().int() });
 
 /**

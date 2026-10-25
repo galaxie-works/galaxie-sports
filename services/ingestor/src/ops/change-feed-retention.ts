@@ -2,7 +2,8 @@
  * Retenção do `ops.change_feed` (follow-up do #35): apaga mudanças com mais de N dias, mas mantém a
  * mais recente de cada entidade (`entity_type`, `entity_id`) — quem consulta "a última mudança de X"
  * continua achando — e nunca apaga o que o enfileirador de webhooks ainda não leu
- * (`api.webhook_cursor`). O SSE só retoma pelo `Last-Event-ID` dentro da janela de retenção.
+ * (`api.webhook_cursor`). O SSE só retoma pelo `Last-Event-ID` dentro da janela de retenção: o maior id
+ * apagado fica em `ops.change_feed_prune`, e quem retoma de antes dele recebe `replay_truncated`.
  * Apaga em lotes curtos para não segurar locks; rode uma vez por dia (job `change-feed-prune`).
  */
 import { sql } from 'drizzle-orm';
@@ -27,6 +28,17 @@ export interface ChangeFeedRetentionReport {
   /** Maior id que o enfileirador de webhooks já leu (limite superior do que pode ser apagado); null = sem consumidor. */
   webhookCursor: number | null;
   dryRun: boolean;
+}
+
+type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/** Grava (sem regredir) o maior id já apagado em `ops.change_feed_prune`. */
+export async function markPruned(tx: Database | Tx, maxDeletedId: number): Promise<void> {
+  await tx.execute(sql`
+    insert into ops.change_feed_prune (name, max_deleted_id) values ('default', ${maxDeletedId})
+    on conflict (name) do update
+      set max_deleted_id = greatest(ops.change_feed_prune.max_deleted_id, excluded.max_deleted_id),
+          updated_at = now()`);
 }
 
 export async function pruneChangeFeed(
@@ -60,12 +72,19 @@ export async function pruneChangeFeed(
     return report;
   }
   for (;;) {
-    const rows = await db.execute<{ id: string }>(sql`
-      delete from ops.change_feed
-       where id in (${victims} order by cf.id limit ${batch})
-       returning id`);
-    report.deleted += rows.length;
-    if (rows.length < batch) break;
+    // marca da poda (o SSE avisa replay_truncated a quem retoma de um Last-Event-ID abaixo dela) na mesma
+    // transação de cada lote: se o processo cair entre lotes, nada some sem a marca cobrir
+    const deleted = await db.transaction(async (tx) => {
+      const rows = await tx.execute<{ id: string }>(sql`
+        delete from ops.change_feed
+         where id in (${victims} order by cf.id limit ${batch})
+         returning id`);
+      const max = rows.reduce((m, r) => Math.max(m, Number(r.id)), 0);
+      if (max > 0) await markPruned(tx, max);
+      return rows.length;
+    });
+    report.deleted += deleted;
+    if (deleted < batch) break;
   }
   return report;
 }
