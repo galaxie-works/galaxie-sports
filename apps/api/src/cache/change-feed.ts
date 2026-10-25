@@ -1,7 +1,10 @@
 import { asc, gt, sql } from 'drizzle-orm';
-import { CHANGE_FEED_CHANNEL, changeFeed, type Database } from '@galaxie/db';
+import { CHANGE_FEED_CHANNEL, changeFeed, tagsForChange, type Database } from '@galaxie/db';
 import type { CdnPurger } from './purger.js';
 import type { ResponseCache } from './store.js';
+
+/** Tags de uma mudança: a regra mora em @galaxie/db, a mesma que a demo usa para revalidar o cache dela. */
+export { tagsForChange };
 
 export interface ChangeRow {
   id: number;
@@ -9,17 +12,6 @@ export interface ChangeRow {
   entityType: string;
   entityId: string;
   payload: unknown;
-}
-
-/**
- * Tags afetadas por uma mudança: a entidade (`competition:<id>`), a coleção (`competition`)
- * e as tags extras em `payload.tags`. Convenções de tag em docs/05 §7.
- */
-export function tagsForChange(change: Pick<ChangeRow, 'entityType' | 'entityId' | 'payload'>): string[] {
-  const tags = [`${change.entityType}:${change.entityId}`, change.entityType];
-  const extra = (change.payload as { tags?: unknown } | null)?.tags;
-  if (Array.isArray(extra)) for (const t of extra) if (typeof t === 'string') tags.push(t);
-  return [...new Set(tags)];
 }
 
 interface Logger {
