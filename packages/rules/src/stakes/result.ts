@@ -406,10 +406,11 @@ export interface PrepareFinishedInput {
 /**
  * Monta a entrada de `finishedLeagueMatchStakes` a partir da tabela atual e dos resultados da
  * temporada: separa os jogos anteriores (confronto direto) dos simultâneos e posteriores (desfeitos na
- * tabela de antes). Recusa (LeagueInputError) quando a tabela atual não bate com os resultados — jogos
- * somados na tabela ≠ jogos encerrados entre os times dela —, porque desfazer jogos de uma tabela
- * desatualizada daria uma tabela de antes errada. Sem gols/vitórias fora na tabela, eles saem dos
- * resultados.
+ * tabela de antes). Recusa (LeagueInputError) quando a tabela atual não bate com os resultados — por
+ * time, jogos, V/E/D ou gols somados na tabela ≠ os dos jogos encerrados entre os times dela (tabela
+ * desatualizada, placar corrigido de um lado só) —, porque desfazer jogos de uma tabela que não os
+ * contém daria uma tabela de antes errada. Os pontos não entram na conta: a diferença para V/E/D é
+ * ajuste (punição), preservado. Sem gols/vitórias fora na tabela, eles saem dos resultados.
  */
 export function prepareFinishedLeagueMatch(input: PrepareFinishedInput): FinishedLeagueMatchInput {
   const ids = new Set(input.current.map((r) => r.teamId));
@@ -426,6 +427,15 @@ export function prepareFinishedLeagueMatch(input: PrepareFinishedInput): Finishe
     matches: results,
     teams: input.current.map((r) => ({ teamId: r.teamId })),
   });
+  const fields = ['played', 'won', 'drawn', 'lost', 'goalsFor', 'goalsAgainst'] as const;
+  for (const r of input.current) {
+    const t = fromResults.get(r.teamId)!;
+    const diff = fields.find((f) => r[f] !== t[f]);
+    if (diff)
+      throw new LeagueInputError(
+        `A tabela atual não bate com os resultados encerrados (time ${r.teamId}, ${diff}: ${r[diff]} × ${t[diff]}).`,
+      );
+  }
   const hasAway = input.current.every((r) => r.awayGoalsFor !== undefined && r.awayWon !== undefined);
   const current = hasAway
     ? input.current

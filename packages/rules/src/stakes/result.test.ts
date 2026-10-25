@@ -299,6 +299,19 @@ describe('tablesAroundMatch e prepareFinishedLeagueMatch', () => {
     );
   });
 
+  it('recusa tabela com o mesmo número de jogos, mas placar corrigido só nos resultados', () => {
+    const played = randomDoubleRoundRobin(teams, rng(11)).slice(0, 12);
+    const fixed = played.map((m, i) => (i === 3 ? { ...m, homeGoals: m.homeGoals + 1 } : m));
+    const current = computeTable({ rules, matches: played, teams: all6 });
+    expect(() =>
+      prepareFinishedLeagueMatch({ rules, current, results: fixed, matchId: played[11]!.id! }),
+    ).toThrow(/não bate com os resultados encerrados \(time [A-F], (won|drawn|lost|goalsFor)/);
+    // com o mesmo placar, passa
+    expect(() =>
+      prepareFinishedLeagueMatch({ rules, current, results: played, matchId: played[11]!.id! }),
+    ).not.toThrow();
+  });
+
   describe('critérios de gols e vitórias fora (Champions, Libertadores)', () => {
     const awayRules = rulesFrom({
       standings: {
