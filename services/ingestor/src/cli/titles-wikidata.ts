@@ -22,9 +22,11 @@ import {
   loadMappedTeams,
   resolveWinners,
   saveTitles,
+  titleDropGuard,
   coverageOf,
   TITLE_COMPETITIONS,
   type Coverage,
+  type TitleCompetition,
   type TitleRow,
 } from '../titles/wikidata-titles.js';
 
@@ -97,7 +99,8 @@ try {
   const champions = await loadCoreChampions(db, [...ids.values()]);
   const rows: TitleRow[] = [];
   const coverage: Coverage[] = [];
-  const counts = new Map<string, Map<string, number>>();
+  // por competição da lista (o Paraguai tem dois feeds com o mesmo QID)
+  const counts = new Map<TitleCompetition, Map<string, number>>();
   for (const c of competitions) {
     const compIds = c.slugs.map((s) => ids.get(s)).filter((x): x is string => !!x);
     const editions = editionsBy.get(c) ?? [];
@@ -133,9 +136,9 @@ try {
         });
       }
       if (participantId) {
-        const m = counts.get(c.qid) ?? new Map<string, number>();
+        const m = counts.get(c) ?? new Map<string, number>();
         m.set(participantId, (m.get(participantId) ?? 0) + 1);
-        counts.set(c.qid, m);
+        counts.set(c, m);
       }
     }
     for (const compId of compIds) coverage.push(coverageOf(c, compId, editions));
@@ -167,7 +170,7 @@ try {
           `${REASONS[e.rejected.reason]}${e.rejected.detail ? ` (${e.rejected.detail})` : ''}`,
       );
     }
-    const top = [...(counts.get(c.qid) ?? new Map<string, number>()).entries()]
+    const top = [...(counts.get(c) ?? new Map<string, number>()).entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
       .map(([id, n]) => `${teamName.get(id) ?? id} ${n}`);
@@ -191,10 +194,16 @@ try {
   for (const [qid, id] of newLinks)
     console.log(`  nova ligação: ${winnerName.get(qid)} (${qid}) → ${teamName.get(id)}`);
 
+  const slugOf = new Map([...ids].map(([slug, id]) => [id, slug]));
   if (values.plan) {
     console.log(
       `Prévia: nada foi gravado (${rows.length} títulos e ${coverage.length} coberturas seriam gravados).`,
     );
+    const skips = values['aceitar-queda'] ? [] : await titleDropGuard(db, rows, coverage);
+    for (const s of skips)
+      console.log(
+        `  seria mantida como estava: ${slugOf.get(s.competitionId) ?? s.competitionId} (${s.reason}; --aceitar-queda grava assim mesmo)`,
+      );
   } else {
     const saved = await saveTitles(db, rows, newLinks, coverage, relinks, {
       allowDrop: values['aceitar-queda'],
@@ -203,7 +212,6 @@ try {
       `Gravados: ${saved.titles} títulos · ${coverage.length - saved.skipped.length} coberturas · ` +
         `${saved.links} ligações novas de times · ${saved.relinked} ligações corrigidas`,
     );
-    const slugOf = new Map([...ids].map(([slug, id]) => [id, slug]));
     for (const s of saved.skipped)
       console.log(
         `  mantida como estava: ${slugOf.get(s.competitionId) ?? s.competitionId} (${s.reason}; --aceitar-queda grava assim mesmo)`,

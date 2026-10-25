@@ -262,7 +262,10 @@ describe('Paraguai: Apertura e Clausura no mesmo QID', () => {
         };
       },
     } as unknown as SparqlClient;
-    const by = await fetchEditions(sparql, paraguay);
+    const logs: string[] = [];
+    const by = await fetchEditions(sparql, paraguay, (m) => logs.push(m));
+    // a edição da temporada inteira (sem o torneio no rótulo) aparece no log dos dois feeds, para conferir
+    expect(logs.filter((l) => l.includes('2022 Paraguayan Primera División season (Q3)'))).toHaveLength(2);
     expect(paraguay.map((c) => by.get(c)!.map((e) => e.winners[0]))).toEqual([['Q501'], ['Q502']]);
     expect(queries).toEqual(['titles-editions-Q954911']);
     // cópias: a recusa marcada num feed não passa para o outro

@@ -664,6 +664,35 @@ export interface SkippedCompetition {
 }
 
 /**
+ * Competições que a gravação vai pular (`suspiciousDrop`: consulta sem edições aceitas, ou com menos da metade
+ * dos títulos gravados), com o motivo. O `--plan` mostra a mesma lista sem gravar.
+ */
+export async function titleDropGuard(
+  db: Pick<Database, 'execute'>,
+  rows: readonly TitleRow[],
+  coverage: readonly Coverage[],
+): Promise<SkippedCompetition[]> {
+  const ids = coverage.map((c) => c.competitionId);
+  if (!ids.length) return [];
+  const stored = new Map<string, number>();
+  for (const r of await db.execute<{ competition_id: string; n: number }>(sql`
+    select competition_id, count(*)::int as n from core.competition_title
+    where source in ('wikidata', 'curated') and competition_id in (${sql.join(
+      ids.map((id) => sql`${id}`),
+      sql`, `,
+    )})
+    group by competition_id
+  `))
+    stored.set(r.competition_id, Number(r.n));
+  const incoming = new Map<string, number>();
+  for (const r of rows) incoming.set(r.competitionId, (incoming.get(r.competitionId) ?? 0) + 1);
+  return ids.flatMap((id) => {
+    const reason = suspiciousDrop(stored.get(id) ?? 0, incoming.get(id) ?? 0);
+    return reason ? [{ competitionId: id, reason }] : [];
+  });
+}
+
+/**
  * Grava (idempotente): as ligações novas QID → time em `core.provider_map` e, por competição, substitui as
  * linhas `source = 'wikidata'`/`curated` pelas desta importação. Competição cuja consulta veio sem edições
  * aceitas, ou com bem menos que o gravado (`suspiciousDrop`), fica como estava (títulos e cobertura) e volta em
@@ -679,27 +708,9 @@ export async function saveTitles(
   options: { allowDrop?: boolean } = {},
 ): Promise<{ titles: number; links: number; relinked: number; skipped: SkippedCompetition[] }> {
   return db.transaction(async (tx) => {
-    const skipped: SkippedCompetition[] = [];
-    const stored = new Map<string, number>();
-    const ids = coverage.map((c) => c.competitionId);
-    if (ids.length)
-      for (const r of await tx.execute<{ competition_id: string; n: number }>(sql`
-        select competition_id, count(*)::int as n from core.competition_title
-        where source in ('wikidata', 'curated') and competition_id in (${sql.join(
-          ids.map((id) => sql`${id}`),
-          sql`, `,
-        )})
-        group by competition_id
-      `))
-        stored.set(r.competition_id, Number(r.n));
-    const incoming = new Map<string, number>();
-    for (const r of rows) incoming.set(r.competitionId, (incoming.get(r.competitionId) ?? 0) + 1);
-    const competitionIds = ids.filter((id) => {
-      const reason = suspiciousDrop(stored.get(id) ?? 0, incoming.get(id) ?? 0);
-      if (!reason || options.allowDrop) return true;
-      skipped.push({ competitionId: id, reason });
-      return false;
-    });
+    const skipped = options.allowDrop ? [] : await titleDropGuard(tx, rows, coverage);
+    const skippedIds = new Set(skipped.map((s) => s.competitionId));
+    const competitionIds = coverage.map((c) => c.competitionId).filter((id) => !skippedIds.has(id));
     const kept = new Set(competitionIds);
     let links = 0;
     let relinked = 0;
@@ -790,6 +801,15 @@ export async function fetchEditions(
     const editions = all.filter((e) => !c.edition || c.edition.test(e.label ?? '')).map((e) => ({ ...e }));
     out.set(c, editions);
     log(`${c.label}: ${editions.length} edições com vencedor`);
+    // o filtro do torneio (Paraguai): as edições do QID que ficaram de fora, para conferir o rótulo da fonte
+    if (c.edition) {
+      const left = all.filter((e) => !c.edition!.test(e.label ?? ''));
+      if (left.length)
+        log(
+          `  fora do filtro ${c.edition}: ${left.length} — ` +
+            left.map((e) => `${e.label ?? '(sem rótulo)'} (${e.qid})`).join('; '),
+        );
+    }
   }
   return out;
 }

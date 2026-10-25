@@ -5,7 +5,13 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { competition, competitionTitle, competitionTitleCoverage, sport, type Database } from '@galaxie/db';
-import { coverageOf, saveTitles, type Edition, type TitleRow } from '../src/titles/wikidata-titles.js';
+import {
+  coverageOf,
+  saveTitles,
+  titleDropGuard,
+  type Edition,
+  type TitleRow,
+} from '../src/titles/wikidata-titles.js';
 import { disposableDb } from './db.js';
 
 const testDb = disposableDb();
@@ -78,8 +84,11 @@ describe('títulos: proteção contra a fonte vazia', () => {
     expect(await stored()).toEqual(years.slice(1));
   });
 
-  it('consulta sem edições: o histórico e a cobertura ficam, com o motivo', async () => {
+  it('consulta sem edições: o histórico e a cobertura ficam, com o motivo (e a prévia já mostra)', async () => {
     const before = await coverage();
+    expect(await titleDropGuard(db, [], [coverageOf(COMPETITION, libertadores, [])])).toEqual([
+      { competitionId: libertadores, reason: 'a fonte veio vazia e há 5 gravado(s)' },
+    ]);
     const r = await save([]);
     expect(r.titles).toBe(0);
     expect(r.skipped).toEqual([
