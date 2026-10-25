@@ -1,6 +1,6 @@
 /**
- * Onde assistir e grades: o que a API serve (itens no piso editorial `LINEUP_MIN_REVIEW_STATUS`, padrão `approved`)
- * tem fonte oficial, preço com moeda e canal do dicionário de emissoras.
+ * Onde assistir e grades: o que a API serve (itens no piso editorial `LINEUP_MIN_REVIEW_STATUS`, padrão `approved`,
+ * de planos vigentes) tem fonte oficial, preço com moeda e canal do dicionário de emissoras.
  */
 import { sql } from 'drizzle-orm';
 import type { LineupSource } from '@galaxie/db';
@@ -55,6 +55,12 @@ export function priceHasCurrency(price: string | null | undefined): boolean {
   );
 }
 
+/** Plano vigente no dia de `now` (o mesmo filtro da API: só o vigente é servido). */
+const planCurrent = (now: Date) => {
+  const day = now.toISOString().slice(0, 10);
+  return sql`(pp.valid_from is null or pp.valid_from <= ${day}::date) and (pp.valid_to is null or pp.valid_to >= ${day}::date)`;
+};
+
 const norm = (s: string) =>
   s
     .normalize('NFD')
@@ -99,7 +105,7 @@ export const WATCH_RULES: QualityRule[] = [
         select i.plan_id::text, i.item, pp.name as plan, pf.name as platform, pf.id::text as platform_id,
                pf.website, pp.url as plan_url, i.sources
           from items i
-          join enrich.platform_plan pp on pp.id = i.plan_id and pp.review_status in (${list})
+          join enrich.platform_plan pp on pp.id = i.plan_id and pp.review_status in (${list}) and ${planCurrent(ctx.now)}
           join enrich.platform pf on pf.id = pp.platform_id and pf.review_status in (${list})`);
       const failures: QualityFailureItem[] = rows
         .filter((r) => !hasOfficialSource(r.sources ?? [], [r.website, r.plan_url]))
@@ -138,7 +144,7 @@ export const WATCH_RULES: QualityRule[] = [
         select pp.id::text, pp.name as plan, pf.name as platform, pf.id::text as platform_id, pp.price_text as price
           from enrich.platform_plan pp
           join enrich.platform pf on pf.id = pp.platform_id and pf.review_status in (${list})
-         where pp.review_status in (${list})`);
+         where pp.review_status in (${list}) and ${planCurrent(ctx.now)}`);
       return {
         checked: rows.length,
         failures: rows

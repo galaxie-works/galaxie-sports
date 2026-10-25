@@ -3,12 +3,16 @@ import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   asset,
+  broadcaster,
   competition,
   country,
   event,
   eventParticipant,
   participant,
   person,
+  planChannel,
+  platform,
+  platformPlan,
   qualityFailure,
   qualityResult,
   qualityRule,
@@ -151,6 +155,65 @@ describe('regras de SQL', () => {
     });
     // sem API configurada, a regra da F1 é pulada, não aprovada
     expect(by('f1.season-team', 'formula-1')).toMatchObject({ status: 'skipped' });
+  });
+});
+
+describe('regras de grade', () => {
+  it('só conferem planos vigentes no dia (o expirado e o futuro não são servidos)', async () => {
+    await db
+      .insert(broadcaster)
+      .values({ id: 'canal-teste', name: 'Canal Teste', kind: 'pay_tv', markets: {} });
+    const [pf] = await db
+      .insert(platform)
+      .values({
+        slug: 'br-operadora-teste',
+        name: 'Operadora Teste',
+        kind: 'pay_tv_operator',
+        country: 'BR',
+        website: 'https://operadora.exemplo.com.br',
+        reviewStatus: 'approved',
+      })
+      .returning();
+    const plans = await db
+      .insert(platformPlan)
+      .values(
+        [
+          { slug: 'vigente', validFrom: '2026-01-01' },
+          { slug: 'expirado', validTo: '2026-09-30' },
+          { slug: 'futuro', validFrom: '2026-11-01' },
+        ].map((p) => ({
+          ...p,
+          platformId: pf!.id,
+          name: p.slug,
+          country: 'BR',
+          reviewStatus: 'approved' as const,
+        })),
+      )
+      .returning();
+    // sem fonte e sem preço: os três falhariam se fossem conferidos
+    await db
+      .insert(planChannel)
+      .values(
+        plans.map((p) => ({
+          planId: p.id,
+          channelId: 'canal-teste',
+          access: 'included' as const,
+          reviewStatus: 'approved' as const,
+        })),
+      );
+
+    const rows = await runRules(
+      selectRules(QUALITY_RULES, {
+        only: ['watch.included-has-official-source', 'watch.plan-price-currency'],
+      }),
+      createQualityContext(db, { env: {}, now: NOW }),
+    );
+    const vigente = plans.find((p) => p.slug === 'vigente')!.id;
+    for (const r of rows) {
+      expect(r).toMatchObject({ status: 'fail', checked: 1, failed: 1 });
+      expect(r.failures[0]!.key.startsWith(vigente)).toBe(true);
+    }
+    expect(rows).toHaveLength(2);
   });
 });
 

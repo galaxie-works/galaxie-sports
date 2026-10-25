@@ -87,7 +87,7 @@ No VPS, a API do próprio stack serve de alvo: `QUALITY_API_URL=http://api:8080`
 | `watch.plan-price-currency` | grades | Plano servido tem preço com moeda. | `enrich.platform_plan.price_text` |
 | `watch.channel-in-dictionary` | todos | Onde assistir publicado (últimos 30 dias) usa emissora e canal do dicionário. | `config/broadcasters` → `enrich.broadcaster` |
 
-"Servido" segue o piso editorial `LINEUP_MIN_REVIEW_STATUS` (padrão `approved`), o mesmo da API.
+"Servido" segue o piso editorial `LINEUP_MIN_REVIEW_STATUS` (padrão `approved`) e a vigência do plano (`valid_from`/`valid_to` no dia da execução), os mesmos filtros da API.
 
 ## Como adicionar uma regra
 
