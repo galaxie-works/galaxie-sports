@@ -18,7 +18,9 @@
  */
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import {
+  addonSlug,
   platform as platformTable,
+  platformAddon,
   platformPlan,
   platformSlug,
   recordPlanPagesExtraction,
@@ -66,12 +68,14 @@ import {
   acceptableOfficialDomain,
   amountsIn,
   isOfficialUrl,
+  mentionsAny,
   redirectResolver,
   spaced,
   verifyPlans,
   GRADE_CHANNEL_MEDIA,
   verifyAddons,
   type ModelPlan,
+  type VerifiedAddon,
   type VerifyOutcome,
 } from './validate.js';
 import {
@@ -882,6 +886,8 @@ export class LineupResearcher {
       // 2. leitura do nosso lado (cache por URL; estático → JSON embutido → navegador)
       const enough = enoughForExtraction(dir, row.kind);
       const reads: ReadablePage[] = [];
+      // páginas lidas agora sem redirecionamento (só nelas a ausência de um complemento é prova)
+      const direct = new Set<string>();
       for (const url of urls.slice(0, LINEUP_MAX_PLAN_PAGES)) {
         const read = await reader.read(url, row, { platformId: row.id, force: opts.force ?? false, enough });
         out.pages.push({
@@ -893,6 +899,8 @@ export class LineupResearcher {
           ...(read.limited ? { limited: true } : {}),
           ...(read.error ? { error: read.error } : {}),
         });
+        if (read.status === 'ok' && (!read.finalUrl || comparableUrl(read.finalUrl) === comparableUrl(url)))
+          direct.add(comparableUrl(url));
         // sem navegador, a página que pede JavaScript ainda pode ter os planos e os preços no estático
         if ((read.status === 'ok' || read.status === 'needs_render') && read.content?.text)
           reads.push({
@@ -1027,9 +1035,13 @@ export class LineupResearcher {
             url: null,
             verification: withPageRef(a.verification, reads),
           })),
-          // catálogo vazio de uma página lida inteira também vale (o complemento que saiu dela é removido);
-          // extração sem nenhum plano não: é mais provável a resposta ter falhado que a página ter esvaziado
-          addonsComplete: task.reason === 'revisit' && allRead && plans.length > 0,
+          // o catálogo vale como completo (vazio ou não) só com prova de ausência de cada complemento que
+          // sumiu; extração sem nenhum plano não: é mais provável a resposta ter falhado
+          addonsComplete:
+            task.reason === 'revisit' &&
+            allRead &&
+            plans.length > 0 &&
+            (await this.addonsGone(row.id, catalog.addons, direct, reads)),
           seenAt: this.now(),
           complete: task.reason === 'revisit' && allRead && !models.truncated && plans.length > 0,
         });
@@ -1307,6 +1319,35 @@ export class LineupResearcher {
     } catch (err) {
       return this.failed(out, err);
     }
+  }
+
+  /**
+   * Os complementos gravados que não vieram na extração saíram mesmo da página? Só com prova: a página
+   * de onde cada um veio foi lida agora sem redirecionamento e nenhum nome dele aparece no texto lido.
+   * O modelo que omitiu o catálogo, a página de complementos que redireciona ou que não está entre as
+   * páginas de planos não remove nada.
+   */
+  private async addonsGone(
+    platformId: string,
+    catalog: readonly VerifiedAddon[],
+    direct: ReadonlySet<string>,
+    reads: readonly ReadablePage[],
+  ): Promise<boolean> {
+    const seen = new Set(catalog.map((a) => addonSlug(a.refId, a.channel, a.commitmentMonths)));
+    const stored = await this.deps.db
+      .select()
+      .from(platformAddon)
+      .where(eq(platformAddon.platformId, platformId));
+    const text = reads.flatMap((r) => [r.content.text, ...r.content.sections.map((s) => s.text)]).join('\n');
+    return stored
+      .filter((a) => a.reviewStatus !== 'rejected' && !a.proposedChange?.removed && !seen.has(a.slug))
+      .every((a) => {
+        const v = a.verification;
+        const origin = v?.page?.url ?? v?.final_url ?? v?.source_url ?? a.url ?? a.sources[0]?.url ?? null;
+        const bare = a.name.replace(/\b(fidelidade|permanencia|permanência)\b/gi, '').trim();
+        const names = [a.name, bare, a.channel].filter((n): n is string => !!n);
+        return !!origin && direct.has(comparableUrl(origin)) && !mentionsAny(text, names);
+      });
   }
 
   private tally(out: LineupCallOutcome, v: VerifyOutcome): void {
