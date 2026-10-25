@@ -81,4 +81,41 @@ describe('runJob', () => {
     const result = await runJob(job('fail.mjs'), { cwd: dir, logger, trigger: 'manual' });
     expect(result).toMatchObject({ status: 'error', runId: undefined });
   });
+
+  it('trava ocupada por outro processo: pula sem rodar nem registrar', async () => {
+    const recorder = new MemoryRecorder();
+    const result = await runJob(job('ok.mjs'), {
+      cwd: dir,
+      recorder,
+      logger,
+      trigger: 'manual',
+      lock: async () => null,
+    });
+    expect(result).toMatchObject({ status: 'skipped', runId: undefined, exitCode: null });
+    expect(recorder.rows.size).toBe(0);
+  });
+
+  it('solta a trava ao terminar (também em falha) e segue sem ela se o banco não responder', async () => {
+    const released: string[] = [];
+    const lock = async (name: string) => ({
+      release: async () => {
+        released.push(name);
+      },
+    });
+    const recorder = new MemoryRecorder();
+    expect(
+      (await runJob(job('fail.mjs'), { cwd: dir, recorder, logger, trigger: 'schedule', lock })).status,
+    ).toBe('error');
+    expect(released).toEqual(['teste']);
+    const offline = await runJob(job('ok.mjs'), {
+      cwd: dir,
+      recorder,
+      logger,
+      trigger: 'schedule',
+      lock: async () => {
+        throw new Error('banco fora');
+      },
+    });
+    expect(offline.status).toBe('ok');
+  });
 });

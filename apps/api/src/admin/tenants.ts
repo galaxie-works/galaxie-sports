@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { apiKey, tenant, type ApiModule, type ApiPlan, type Database } from '@galaxie/db';
 import { createApiKey, type CreatedKey } from '../auth/admin.js';
 import type { KeyEnv } from '../auth/keys.js';
@@ -228,9 +228,29 @@ export async function revokeTenantKey(
 export const MAX_ROTATION_GRACE_SEC = 7 * 86_400;
 
 /**
- * Rotação: cria uma chave nova com o mesmo rótulo, escopos e ambiente e encurta a validade da
- * antiga para `graceSeconds` (0 = revoga já). Assim o cliente troca a chave sem janela de erro.
- * Devolve undefined se a chave não existe, não é do tenant ou já foi revogada/expirou.
+ * Teto de chaves válidas (não revogadas nem expiradas) por tenant para criar uma chave por rotação.
+ * Sem ele, rotações em sequência acumulariam chaves sem limite durante os períodos de graça.
+ */
+export const MAX_ACTIVE_KEYS_PER_TENANT = 20;
+
+/** Rotação recusada pelo estado atual (vira 409 nas rotas). */
+export class KeyRotationError extends Error {
+  constructor(
+    readonly reason: 'already_rotated' | 'too_many_keys',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'KeyRotationError';
+  }
+}
+
+/**
+ * Rotação: cria uma chave nova com o mesmo rótulo, escopos, ambiente e validade (`expiresAt`) e encurta
+ * a validade da antiga para `graceSeconds` (0 = revoga já). Assim o cliente troca a chave sem janela
+ * de erro, e a rotação nunca estende o prazo de uma chave com validade (ex.: trial).
+ * Devolve undefined se a chave não existe, não é do tenant ou já foi revogada/expirou; lança
+ * KeyRotationError se a chave já foi rotacionada (está no período de graça) ou se o tenant já tem
+ * MAX_ACTIVE_KEYS_PER_TENANT chaves válidas.
  */
 export async function rotateKey(
   db: Database,
@@ -240,6 +260,8 @@ export async function rotateKey(
 ): Promise<{ key: CreatedKey; previous: KeyView } | undefined> {
   const now = options.now ?? new Date();
   return db.transaction(async (tx) => {
+    // trava o tenant: rotações simultâneas não furam o teto de chaves
+    await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, tenantId)).for('update');
     const [old] = await tx
       .select()
       .from(apiKey)
@@ -249,19 +271,43 @@ export async function rotateKey(
     if (!old) return undefined;
     const status = keyStatus(old, now);
     if (status === 'revoked' || status === 'expired') return undefined;
+    if (old.rotatedAt)
+      throw new KeyRotationError(
+        'already_rotated',
+        'Esta chave já foi rotacionada e só vale até o fim do período de graça; use a chave nova.',
+      );
+    const [active] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(apiKey)
+      .where(
+        and(
+          eq(apiKey.tenantId, tenantId),
+          or(isNull(apiKey.revokedAt), gt(apiKey.revokedAt, now)),
+          or(isNull(apiKey.expiresAt), gt(apiKey.expiresAt, now)),
+        ),
+      );
+    if ((active?.n ?? 0) >= MAX_ACTIVE_KEYS_PER_TENANT)
+      throw new KeyRotationError(
+        'too_many_keys',
+        `O tenant já tem ${MAX_ACTIVE_KEYS_PER_TENANT} chaves válidas; revogue as que não usa antes de rotacionar.`,
+      );
 
     const key = await createApiKey(tx, tenantId, {
       env: old.env,
       ...(old.label ? { label: old.label } : {}),
       ...(old.scopes ? { scopes: old.scopes } : {}),
+      ...(old.expiresAt ? { expiresAt: old.expiresAt } : {}),
     });
     const graceEnd = new Date(now.getTime() + Math.min(options.graceSeconds, MAX_ROTATION_GRACE_SEC) * 1000);
     const [prev] = await tx
       .update(apiKey)
       .set(
         options.graceSeconds <= 0
-          ? { revokedAt: now }
-          : { expiresAt: old.expiresAt && old.expiresAt < graceEnd ? old.expiresAt : graceEnd },
+          ? { revokedAt: now, rotatedAt: now }
+          : {
+              expiresAt: old.expiresAt && old.expiresAt < graceEnd ? old.expiresAt : graceEnd,
+              rotatedAt: now,
+            },
       )
       .where(eq(apiKey.id, old.id))
       .returning();

@@ -377,7 +377,7 @@ export interface LineupCallEstimate {
 }
 
 const tokensUsd = (model: string, inputTokens: number, outputTokens: number) =>
-  estimateCostUsd(model, { inputTokens, outputTokens }) ?? 0;
+  estimateCostUsd(model, { inputTokens, outputTokens });
 
 /** Uma chamada com busca: pesquisa no modelo de pesquisa + estruturação no leve, e as buscas. */
 export const groundedCallUsd = (m: LineupModels, searches: number) =>

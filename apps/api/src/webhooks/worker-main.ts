@@ -4,6 +4,7 @@
  * entregas usam `FOR UPDATE SKIP LOCKED`).
  */
 import { closeDb, createDb } from '@galaxie/db';
+import { WebhookSecretBox } from './secret-box.js';
 import { WebhookWorker } from './worker.js';
 
 const url = process.env.DATABASE_URL;
@@ -25,6 +26,14 @@ const log =
     );
   };
 
+// KEK dos segredos: sem ela só os segredos legados (texto puro) assinam; os cifrados falham (SECURITY.md)
+const secrets = WebhookSecretBox.fromEnv();
+if (!secrets.configured)
+  log('warn')(
+    {},
+    'webhooks: WEBHOOK_SIGNING_SECRET não definida — só endpoints com segredo legado em texto puro serão entregues',
+  );
+
 const db = createDb(url, { max: 5 });
 const maxAttempts = num('WEBHOOK_MAX_ATTEMPTS');
 const baseDelayMs = num('WEBHOOK_RETRY_BASE_MS');
@@ -33,6 +42,8 @@ const worker = new WebhookWorker(db, {
   ...(maxAttempts ? { maxAttempts } : {}),
   ...(baseDelayMs ? { baseDelayMs } : {}),
   ...(timeoutMs ? { timeoutMs } : {}),
+  secrets,
+  allowPrivateTargets: process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS === 'true',
   logger: { info: log('info'), warn: log('warn') },
 });
 

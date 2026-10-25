@@ -6,6 +6,7 @@
 #   restore.sh --yes latest                   # restaura o mais recente POR CIMA do banco PGDATABASE
 #   restore.sh --yes galaxie_sports_20261021T033000Z.dump
 #   restore.sh --yes s3://bucket/postgres/galaxie_sports_20261021T033000Z.dump
+#   restore.sh --yes --no-checksum <dump>     # sem o .sha256 ao lado (só quando ele se perdeu de verdade)
 #
 # A restauração real é feita num banco novo (<db>_restoring), conferida e só então trocada pelo nome:
 # o banco anterior fica guardado como <db>_pre_restore_<data> para rollback (apague quando não precisar mais).
@@ -14,18 +15,20 @@ set -eu
 . /usr/local/lib/galaxie-backup/lib.sh
 
 usage() {
-  sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
 mode=restore
 confirmed=false
+checksum=true
 source_arg=""
 for a in "$@"; do
   case "$a" in
     --verify) mode=verify ;;
     --yes) confirmed=true ;;
     --list) mode=list ;;
+    --no-checksum) checksum=false ;;
     -h | --help) usage ;;
     *) source_arg="$a" ;;
   esac
@@ -48,15 +51,21 @@ case "$source_arg" in
     file="$BACKUP_DIR/$(basename "$source_arg")"
     log info "baixando $source_arg"
     aws_s3 cp --only-show-errors "$source_arg" "$file"
-    aws_s3 cp --only-show-errors "$source_arg.sha256" "$file.sha256" || true
+    aws_s3 cp --only-show-errors "$source_arg.sha256" "$file.sha256" || log warn "não deu para baixar $source_arg.sha256"
     ;;
   /*) file="$source_arg" ;;
   *) file="$BACKUP_DIR/$source_arg" ;;
 esac
 [ -f "$file" ] || { log error "arquivo não encontrado: $file"; exit 1; }
+# O backup.sh grava o .sha256 ao lado de cada dump (local e S3): sem ele não dá para saber se o arquivo está inteiro.
 if [ -f "$file.sha256" ]; then
   (cd "$(dirname "$file")" && sha256sum -c -s "$(basename "$file").sha256") ||
     { log error "checksum não confere: $file"; exit 1; }
+elif [ "$checksum" = true ]; then
+  log error "sem $file.sha256 para conferir o dump; repita com --no-checksum se tiver certeza de que o arquivo está inteiro"
+  exit 1
+else
+  log warn "restaurando sem conferir o checksum (--no-checksum): $file"
 fi
 
 target="$PGDATABASE"
