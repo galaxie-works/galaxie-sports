@@ -14,6 +14,10 @@ import {
   addOption,
   applyAgentResult,
   applyMatchChannels,
+  currentMatchChannels,
+  teamNames,
+  validateMatchChannels,
+  type TeamNames,
   computeWtwMetrics,
   correctOption,
   currentOptions,
@@ -655,5 +659,52 @@ describe('canal do jogo × opção publicada da mesma emissora', () => {
     expect(ed.matchChannel.channels.map((c) => [c.option.row.channelName, c.source?.url])).toEqual([
       ['ESPN 2', 'https://www.espn.com.br/jogo'],
     ]);
+  });
+});
+
+describe('canal do jogo: subcanal que a fonte nova não sustenta', () => {
+  it('outro canal proposto sem fonte limpa o subcanal gravado; sem canal proposto, o gravado fica', async () => {
+    const rights = br.rightsFor('conmebol-libertadores', KICKOFF)!;
+    const teams = [teamNames('Palmeiras'), teamNames('Fluminense')] as [TeamNames, TeamNames];
+    const validate = (channel: string | null, excerpt: string) =>
+      validateMatchChannels(
+        [
+          {
+            broadcasterId: 'espn',
+            channel,
+            evidence: [{ url: 'https://www.espn.com.br/agenda', excerpt, publishedAt: null }],
+          },
+        ],
+        { directory: br, rights, teams, eventStartsAt: KICKOFF, now: NOW },
+      ).accepted;
+    const apply = (eventId: string, accepted: ReturnType<typeof validate>) =>
+      applyMatchChannels(db, {
+        eventId,
+        country: 'BR',
+        accepted,
+        phase: 'pre',
+        window: 'T-48h',
+        researchId: null,
+        now: NOW,
+      });
+    const channelOf = async (eventId: string) =>
+      (await currentMatchChannels(db, eventId, 'BR')).find((m) => m.broadcasterId === 'espn')!.channelName;
+
+    for (const [next, expected] of [
+      // a pesquisa nova diz ESPN 3, mas a fonte só cita a ESPN: o ESPN 2 antigo não pode seguir publicado
+      [validate('ESPN 3', 'Palmeiras x Fluminense ao vivo na ESPN'), null],
+      // a pesquisa nova não propôs canal: o ESPN 2 já confirmado fica
+      [validate(null, 'Palmeiras x Fluminense ao vivo na ESPN'), 'ESPN 2'],
+      // propôs o mesmo canal, sem a fonte citá-lo: fica
+      [validate('ESPN 2', 'Palmeiras x Fluminense ao vivo na ESPN'), 'ESPN 2'],
+    ] as const) {
+      const { eventId } = await seedEvent(db, { startsAt: KICKOFF });
+      const first = validate('ESPN 2', 'Palmeiras x Fluminense ao vivo na ESPN 2');
+      expect(first.map((a) => a.channel)).toEqual(['ESPN 2']);
+      await apply(eventId, first);
+      expect(next.map((a) => a.channel)).toEqual([null]);
+      await apply(eventId, next);
+      expect(await channelOf(eventId)).toBe(expected);
+    }
   });
 });

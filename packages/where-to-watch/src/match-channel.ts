@@ -288,6 +288,11 @@ export interface ValidatedChannel {
   broadcasterId: string;
   providerName: string;
   channel: string | null;
+  /**
+   * Canais da emissora que a pesquisa propôs (citados ou não pela fonte). Com `channel` null, o canal
+   * já gravado só fica se nenhum canal diferente foi proposto: senão o jogo pode ter mudado de canal.
+   */
+  proposedChannels?: string[];
   confidence: number;
   sourceKind: MatchChannelSourceKind;
   evidence: MatchChannelEvidence[];
@@ -473,6 +478,7 @@ export function validateMatchChannels(
       broadcasterId: id,
       providerName: entry.name,
       channel: channel && normalizeName(channel) !== normalizeName(entry.name) ? channel : null,
+      proposedChannels: channels,
       confidence,
       sourceKind: support.some((e) => OFFICIAL.includes(e.sourceKind)) ? 'official' : 'press',
       evidence: support.slice(0, CHANNEL_SCORING.maxEvidence).map(({ score: _s, channels: _c, ...e }) => e),
@@ -514,6 +520,16 @@ function mergeEvidence(a: MatchChannelEvidence[], b: MatchChannelEvidence[]): Ma
         Number(y.pageVerified === true) - Number(x.pageVerified === true),
     )
     .slice(0, CHANNEL_SCORING.maxEvidence);
+}
+
+/**
+ * Canal gravado que continua quando a validação nova confirma só a emissora: fica se a pesquisa não
+ * propôs canal ou só propôs o mesmo; outro canal proposto (sem fonte que o cite) limpa — o jogo pode
+ * ter mudado de canal e o antigo não deve seguir publicado.
+ */
+function keptChannel(prev: string | null, proposed: string[]): string | null {
+  if (!prev) return null;
+  return proposed.every((c) => normalizeName(c) === normalizeName(prev)) ? prev : null;
 }
 
 export interface ApplyMatchChannelsInput {
@@ -560,7 +576,7 @@ export async function applyMatchChannels(
       const sourceKind: MatchChannelSourceKind =
         a.sourceKind === 'official' || prev?.sourceKind === 'official' ? 'official' : 'press';
       const values = {
-        channelName: a.channel ?? prev?.channelName ?? null,
+        channelName: a.channel ?? keptChannel(prev?.channelName ?? null, a.proposedChannels ?? []),
         status: 'confirmed' as const,
         confidence: Math.max(
           a.confidence,
