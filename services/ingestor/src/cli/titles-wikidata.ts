@@ -5,7 +5,9 @@
  *   pnpm --filter @galaxie/ingestor titulos:wikidata          # grava títulos e as ligações novas de times
  * Opções: --competicao conmebol-libertadores (só uma) · --refresh (ignora o cache das consultas) ·
  *   --corrigir-ligacoes (move o QID do provider_map para o time que o nome indica, quando a ligação atual
- *   aponta para um time de base/feminino ou para outro clube; sem a opção, o conflito só é relatado)
+ *   aponta para um time de base/feminino ou para outro clube; sem a opção, o conflito só é relatado) ·
+ *   --aceitar-queda (grava mesmo quando a consulta veio sem edições ou com bem menos títulos que os gravados;
+ *   sem a opção, essa competição fica como estava e o motivo é relatado)
  */
 import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '@galaxie/db';
@@ -32,6 +34,7 @@ const { values } = parseArgs({
     refresh: { type: 'boolean', default: false },
     competicao: { type: 'string' },
     'corrigir-ligacoes': { type: 'boolean', default: false },
+    'aceitar-queda': { type: 'boolean', default: false },
   },
 });
 
@@ -97,7 +100,7 @@ try {
   const counts = new Map<string, Map<string, number>>();
   for (const c of competitions) {
     const compIds = c.slugs.map((s) => ids.get(s)).filter((x): x is string => !!x);
-    const editions = editionsBy.get(c.qid) ?? [];
+    const editions = editionsBy.get(c) ?? [];
     for (const e of editions) {
       if (e.rejected) continue;
       const winner = e.winners[0]!;
@@ -141,7 +144,7 @@ try {
   console.log('');
   const who = (qids: readonly string[]) => qids.map((w) => winnerName.get(w) ?? w).join(' / ');
   for (const c of competitions) {
-    const editions = editionsBy.get(c.qid) ?? [];
+    const editions = editionsBy.get(c) ?? [];
     const ok = editions.filter((e) => !e.rejected);
     const found = c.slugs.filter((s) => ids.has(s));
     const linked = ok.filter((e) => participantOf(e.winners[0]!)).length;
@@ -193,11 +196,18 @@ try {
       `Prévia: nada foi gravado (${rows.length} títulos e ${coverage.length} coberturas seriam gravados).`,
     );
   } else {
-    const saved = await saveTitles(db, rows, newLinks, coverage, relinks);
+    const saved = await saveTitles(db, rows, newLinks, coverage, relinks, {
+      allowDrop: values['aceitar-queda'],
+    });
     console.log(
-      `Gravados: ${saved.titles} títulos · ${coverage.length} coberturas · ${saved.links} ligações novas de times · ` +
-        `${saved.relinked} ligações corrigidas`,
+      `Gravados: ${saved.titles} títulos · ${coverage.length - saved.skipped.length} coberturas · ` +
+        `${saved.links} ligações novas de times · ${saved.relinked} ligações corrigidas`,
     );
+    const slugOf = new Map([...ids].map(([slug, id]) => [id, slug]));
+    for (const s of saved.skipped)
+      console.log(
+        `  mantida como estava: ${slugOf.get(s.competitionId) ?? s.competitionId} (${s.reason}; --aceitar-queda grava assim mesmo)`,
+      );
   }
   console.log(`Consultas ao Wikidata: ${sparql.networkCalls} (cache: ${sparql.cacheHits})`);
 } finally {
