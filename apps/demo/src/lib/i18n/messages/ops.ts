@@ -26,6 +26,7 @@ export default defineMessages(
       operations: 'Operação',
       review: 'Revisão',
       lineup: 'Grades e ofertas',
+      related: 'Vídeos relacionados',
       label: 'Seções dos ajustes',
     },
     tabs: {
@@ -739,6 +740,7 @@ export default defineMessages(
         operations: 'Operations',
         review: 'Review',
         lineup: 'Lineups and offers',
+        related: 'Related videos',
         label: 'Settings sections',
       },
       tabs: {
@@ -1424,6 +1426,7 @@ export default defineMessages(
         operations: 'Operación',
         review: 'Revisión',
         lineup: 'Grillas y ofertas',
+        related: 'Videos relacionados',
         label: 'Secciones de ajustes',
       },
       tabs: {

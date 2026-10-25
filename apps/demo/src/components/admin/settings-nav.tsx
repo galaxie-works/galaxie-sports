@@ -1,6 +1,6 @@
 'use client';
 
-import { ListChecks, SlidersHorizontal, Tv, Users } from 'lucide-react';
+import { Clapperboard, ListChecks, SlidersHorizontal, Tv, Users } from 'lucide-react';
 import Link from 'next/link';
 
 import { useI18n } from '@/lib/i18n/client';
@@ -12,11 +12,12 @@ const ITEMS = [
   { id: 'operations', href: '/ajustes/operacao', icon: SlidersHorizontal },
   { id: 'review', href: '/ajustes/revisao', icon: ListChecks },
   { id: 'lineup', href: '/ajustes/grades', icon: Tv },
+  { id: 'related', href: '/ajustes/videos', icon: Clapperboard },
 ] as const;
 
 /**
- * Abas das áreas de Ajustes (só admin): usuários e convites, o painel de Operação, a revisão semântica e as
- * grades e ofertas das operadoras.
+ * Abas das áreas de Ajustes (só admin): usuários e convites, o painel de Operação, a revisão semântica, as
+ * grades e ofertas das operadoras e o bloqueio dos canais nos vídeos relacionados.
  */
 export function SettingsNav({ active }: { active: (typeof ITEMS)[number]['id'] }) {
   const { t } = useI18n();

@@ -22,6 +22,7 @@ import nav from './messages/nav';
 import ops from './messages/ops';
 import pages from './messages/pages';
 import race from './messages/race';
+import relatedAdmin from './messages/related-admin';
 import requests from './messages/requests';
 import review from './messages/review';
 import search from './messages/search';
@@ -50,6 +51,7 @@ export const NAMESPACES = {
   ops,
   pages,
   race,
+  relatedAdmin,
   requests,
   review,
   search,
@@ -89,6 +91,7 @@ export const CLIENT_NAMESPACES = [
   'media',
   'nav',
   'ops',
+  'relatedAdmin',
   'review',
   'search',
   'shell',

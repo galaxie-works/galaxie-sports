@@ -12,6 +12,12 @@ export {
   type EventContextContentBase,
 } from './event-context.js';
 export {
+  clearRelatedChannelRefusals,
+  listRelatedChannels,
+  setRelatedChannelRule,
+  type ListRelatedChannelsOptions,
+  type RelatedChannelSummary,
+  type SetRelatedChannelRuleInput,
   readPlaybackBlocks,
   readRelatedContent,
   recordPlaybackBlock,

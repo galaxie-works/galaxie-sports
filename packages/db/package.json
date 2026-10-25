@@ -27,6 +27,10 @@
       "types": "./dist/channel-lists.d.ts",
       "default": "./dist/channel-lists.js"
     },
+    "./related": {
+      "types": "./dist/related-content.d.ts",
+      "default": "./dist/related-content.js"
+    },
     "./schema": {
       "types": "./dist/schema/index.d.ts",
       "default": "./dist/schema/index.js"
