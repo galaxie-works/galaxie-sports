@@ -49,7 +49,7 @@ const subscribers = new Set<(c: RealtimeChange) => void>();
 
 async function harness(options: {
   limiter: ConnectionLimiter;
-  reauthenticate?: () => Promise<TenantContext>;
+  reauthenticate?: (maxAgeMs?: number) => Promise<TenantContext>;
   cors?: boolean;
 }): Promise<string> {
   app = Fastify();
@@ -170,6 +170,28 @@ describe('GET /v1/stream — ciclo de vida da conexão', () => {
     );
     await expect.poll(() => calls.release.length).toBe(1);
     expect(subscribers.size).toBe(0);
+  });
+
+  it('revalidação lenta não se sobrepõe; o cache usado tem no máximo 60 s − heartbeat', async () => {
+    const { limiter, calls } = spyLimiter();
+    const ages: (number | undefined)[] = [];
+    let release!: () => void;
+    const slow = new Promise<void>((r) => (release = r));
+    const url = await harness({
+      limiter,
+      reauthenticate: async (maxAgeMs) => {
+        ages.push(maxAgeMs);
+        await slow;
+        return ctx;
+      },
+    });
+    const c = connect(url);
+    await expect.poll(() => c.body()).toContain('event: ready');
+    await expect.poll(() => calls.renew).toBeGreaterThanOrEqual(5);
+    expect(ages).toEqual([60_000 - 30]);
+    release();
+    await expect.poll(() => ages.length).toBeGreaterThan(1);
+    c.req.destroy();
   });
 
   it('módulo retirado do plano também encerra o stream', async () => {

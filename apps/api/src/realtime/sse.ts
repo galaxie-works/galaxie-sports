@@ -44,6 +44,9 @@ interface StreamDeps {
   options: SseOptions;
 }
 
+/** Prazo para uma revogação (chave, tenant, plano) encerrar um stream aberto. */
+const REVALIDATE_WITHIN_MS = 60_000;
+
 /** Formata uma mensagem SSE (`data:` em uma linha: o JSON não tem quebras). */
 export function formatSse(event: string, data: unknown, id?: string): string {
   return `${id ? `id: ${id}\n` : ''}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -236,12 +239,16 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
       };
       const unsubscribe = deps.stream.subscribe(deliver);
 
-      // revalida a chave a cada heartbeat (o autenticador cacheia por 60 s): chave revogada, tenant
-      // suspenso ou módulo retirado encerram o stream; banco fora não derruba (fail-open)
+      // revalida a chave a cada heartbeat: chave revogada, tenant suspenso ou módulo retirado encerram o
+      // stream; banco fora não derruba (fail-open). O contexto em cache pode ter no máximo 60 s − heartbeat,
+      // então a revogação vale em ≤ 60 s, como nas requisições comuns. Uma revalidação por vez.
+      const maxAgeMs = Math.max(0, REVALIDATE_WITHIN_MS - heartbeatMs);
+      let revalidating = false;
       const revalidate = async () => {
-        if (!request.reauthenticate || conn.closed) return;
+        if (!request.reauthenticate || conn.closed || revalidating) return;
+        revalidating = true;
         try {
-          const ctx = await request.reauthenticate();
+          const ctx = await request.reauthenticate(maxAgeMs);
           assertAccess(ctx);
           if (ctx.tenantId === tenant.tenantId) tenant = ctx;
         } catch (err) {
@@ -249,6 +256,8 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
           request.log.info({ tenant: tenant.slug, code: err.code }, 'SSE: acesso revogado, encerrando');
           conn.write(formatSse('access_revoked', { code: err.code, message: err.title, detail: err.detail }));
           conn.close();
+        } finally {
+          revalidating = false;
         }
       };
       const heartbeat = setInterval(() => {
