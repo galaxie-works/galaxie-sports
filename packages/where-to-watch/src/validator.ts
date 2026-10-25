@@ -201,14 +201,39 @@ interface Group {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/** URL de "assista aqui" num domínio oficial da emissora resolvida (ou do grupo dela)? */
-export function isOfficialWatchUrl(
+/** Canal oficial no YouTube da entrada (`youtube.com/@canal` em `domains`), ou null. */
+function youtubeHandle(entry: BroadcasterEntry): string | null {
+  for (const d of entry.domains) {
+    const m = /^(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/(@[\w.-]+)\/?$/i.exec(d.trim());
+    if (m) return m[1]!;
+  }
+  return null;
+}
+
+/** Vídeo ou transmissão do YouTube (watch, live, shorts ou youtu.be)? */
+function isYoutubeVideo(url: string): boolean {
+  const host = hostOf(url);
+  if (host === 'youtu.be') return true;
+  if (host !== 'youtube.com' && host !== 'm.youtube.com') return false;
+  const path = new URL(url).pathname.toLowerCase();
+  return path === '/watch' || path.startsWith('/live/') || path.startsWith('/shorts/');
+}
+
+/**
+ * Link de "assista aqui" aceito para a emissora resolvida: num domínio oficial dela (ou do grupo) ou
+ * numa plataforma própria (`watch_domains`); vídeo do YouTube de emissora com canal oficial lá vira a
+ * página ao vivo do canal (o vídeo pode ser de qualquer canal: a URL vem do modelo). Senão, null.
+ */
+export function officialWatchUrl(
   dir: CountryDirectory,
   entry: BroadcasterEntry | null,
   url: string | null | undefined,
-): url is string {
-  if (!entry || !isHttpUrl(url) || dir.isAggregator(url) || dir.blocklist.isBlockedUrl(url)) return false;
-  return dir.primaryDomains(entry).some((d) => matchesDomain(url, d));
+): string | null {
+  if (!entry || !isHttpUrl(url) || dir.isAggregator(url) || dir.blocklist.isBlockedUrl(url)) return null;
+  const official = [...dir.primaryDomains(entry), ...(entry.watchDomains ?? [])];
+  if (official.some((d) => matchesDomain(url, d))) return url;
+  const handle = youtubeHandle(entry);
+  return handle && isYoutubeVideo(url) ? `https://www.youtube.com/${handle}/live` : null;
 }
 
 /** Aplica as regras e devolve as opções com status e confiança (função pura). */
@@ -281,7 +306,7 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
     if (!entry) g.flags.add('unknown_broadcaster');
     // link para assistir só no domínio oficial da emissora (ou do grupo dela) no dicionário: a URL vem
     // do modelo e uma página injetada não pode publicar um link qualquer como "assista aqui"
-    if (!g.watchUrl && isOfficialWatchUrl(dir, entry, c.watchUrl)) g.watchUrl = c.watchUrl;
+    g.watchUrl ??= officialWatchUrl(dir, entry, c.watchUrl);
     const channel = resolved?.channel ?? (c.channel?.trim() || null);
 
     if (fromRights) {

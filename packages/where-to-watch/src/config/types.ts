@@ -59,6 +59,11 @@ export interface BroadcasterEntry {
   /** Grupo de mídia: entradas do mesmo grupo compartilham domínios como fonte primária. */
   group: string | null;
   domains: string[];
+  /**
+   * Plataformas próprias de assistir fora de `domains` (app/site de streaming da emissora): valem só
+   * para o link "assista aqui", não como fonte nem na busca.
+   */
+  watchDomains?: string[];
   regionalVariants: RegionalVariant[];
 }
 

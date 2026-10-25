@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { loadWtwConfig } from './config/loader.js';
+import { Blocklist, CountryDirectory } from './config/directory.js';
+import { loadWtwConfig, parseCountryConfig } from './config/loader.js';
 import {
   validateCandidates,
   type Candidate,
@@ -166,6 +167,67 @@ describe('validador determinístico — evidência, conflito e política', () =>
     expect(link('TV Globo', 'https://www.espn.com.br/ao-vivo')).toBeNull();
     // emissora fora do dicionário: sem domínio oficial conhecido, sem link
     expect(link('Canal Desconhecido', 'https://canal-desconhecido.example/live')).toBeNull();
+  });
+
+  it('plataforma própria de assistir (`watch_domains`) vale só para o link', () => {
+    const cfg = parseCountryConfig(
+      'BR',
+      {
+        country: 'BR',
+        broadcasters: [
+          {
+            id: 'emissora_a',
+            name: 'Emissora A',
+            medium: 'free_tv',
+            access_model: 'free',
+            domains: ['emissora-a.example'],
+            watch_domains: ['play-da-emissora.example'],
+          },
+        ],
+      },
+      { country: 'BR', rights: [] },
+      { organizers: [], press: [], aggregators: [] },
+    );
+    const dir = new CountryDirectory(cfg, new Blocklist([]));
+    const r = validateCandidates(
+      [
+        cand('Emissora A', [ev('https://emissora-a.example/jogo')], {
+          watchUrl: 'https://play-da-emissora.example/ao-vivo',
+        }),
+      ],
+      ctx({ directory: dir, competitionSlug: null }),
+    );
+    expect(r.options[0]!.url).toBe('https://play-da-emissora.example/ao-vivo');
+    // não é fonte da emissora
+    expect(dir.classifySource('https://play-da-emissora.example/x', dir.byIdOrNull('emissora_a'))).toBe(
+      'unknown',
+    );
+  });
+
+  it('CazéTV (canal no YouTube): vídeo ou live do YouTube vira a página ao vivo do canal oficial', () => {
+    const link = (watchUrl: string) =>
+      validateCandidates(
+        [cand('CazéTV', [ev('https://www.youtube.com/@CazeTV/videos')], { watchUrl })],
+        ctx({ competitionSlug: 'brasileirao-serie-a' }),
+      ).options[0]!.url;
+    expect(link('https://www.youtube.com/@CazeTV/live')).toBe('https://www.youtube.com/@CazeTV/live');
+    expect(link('https://cazetv.com.br/ao-vivo')).toBe('https://cazetv.com.br/ao-vivo');
+    for (const u of [
+      'https://www.youtube.com/watch?v=abc123',
+      'https://m.youtube.com/live/abc123',
+      'https://youtu.be/abc123',
+    ])
+      expect(link(u), u).toBe('https://www.youtube.com/@CazeTV/live');
+    // canal de terceiro, ou página do YouTube que não é vídeo: sem link
+    expect(link('https://www.youtube.com/@OutroCanal/live')).toBeNull();
+    expect(link('https://www.youtube.com/results?search_query=x')).toBeNull();
+    // emissora sem canal no YouTube não ganha link de vídeo
+    expect(
+      validateCandidates(
+        [cand('TV Globo', [ev('https://ge.globo.com/agenda/jogo')], { watchUrl: 'https://youtu.be/abc' })],
+        ctx(),
+      ).options[0]!.url,
+    ).toBeNull();
   });
 
   it('descarta opção sem URL de evidência acessível', () => {

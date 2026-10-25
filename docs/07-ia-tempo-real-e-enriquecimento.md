@@ -140,7 +140,7 @@ Exemplo do resultado esperado (Brasil, semifinal de Libertadores): TV aberta nac
 
 1. Opção sem evidência **acessível** (fetch 2xx) é descartada; nome ou URL na blocklist → descartada sem registrar o nome.
 2. Normalização pelo dicionário (sem acento/caixa, `+` = "plus"; aliases, canais e afiliadas). O meio e o modelo de acesso vêm do dicionário, não do LLM. **Nome desconhecido → `pending` com a flag `unknown_broadcaster`** (fila de revisão; nunca publicado).
-3. Dedupe por (região, emissora, meio), juntando evidências por URL. O link para assistir (`watch_url`) só fica quando está num domínio oficial da emissora (ou do grupo dela) no dicionário.
+3. Dedupe por (região, emissora, meio), juntando evidências por URL. O link para assistir (`watch_url`) só fica quando está num domínio oficial da emissora (ou do grupo dela) ou numa plataforma própria (`watch_domains`) no dicionário; vídeo do YouTube de emissora com canal oficial lá (`youtube.com/@canal`) vira a página ao vivo do canal.
 4. Tipo da fonte por domínio, relativo à opção: site da própria emissora (ou do mesmo grupo de mídia) = primária; organizador = primária; site de **outra** emissora = imprensa; imprensa do país = imprensa; agregador ou domínio desconhecido = 0,4.
 5. Confiança = melhor fonte + 0,1 (detentor na tabela) − 0,2 (emissora fora da tabela, flag `rights_mismatch`) + 0,1 (≥ 2 domínios registráveis distintos) − 0,3 (competição com escolha por rodada e todas as fontes datadas com mais de 72 h, flag `stale_source`); limitada a [0, 1].
 6. ≥ 0,7 → `confirmed`; 0,5–0,7 → `pending`; < 0,5 → descartada. Fonte primária que nega + primária que confirma, ou canais divergentes entre primárias → `omitted` (`conflict = true`). Negação primária sem confirmação primária → descartada.
