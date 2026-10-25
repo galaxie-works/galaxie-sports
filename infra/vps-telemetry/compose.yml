@@ -302,15 +302,18 @@ services:
   # pg_dump diário (BACKUP_TIME, UTC) com retenção no volume `backups` e cópia opcional para S3 externo.
   # Navegador headless para a leitura da página oficial do plano que só mostra a grade com JavaScript
   # (lineups:pages). Fora do padrão: sobe só com `--profile render`, durante a leitura, e cai depois.
-  # A versão tem de ser a mesma do playwright-core do services/ai-agents.
+  # Imagem própria (infra/lineup-render): a oficial do Playwright com o pacote npm já instalado, sem npx na partida.
+  # A tag é a versão do Playwright, a mesma do playwright-core do services/ai-agents (o CI confere). O deploy.sh a
+  # constrói na VPS quando a pasta muda; `missing` usa essa e só puxa do GHCR se ela não existir.
+  # Sem a imagem própria (fallback): image mcr.microsoft.com/playwright:v1.64.0-noble com
+  # command ['npx', '-y', 'playwright@1.64.0', 'run-server', '--port', '3000', '--host', '0.0.0.0'] e o resto igual.
   # Abre páginas de terceiros: roda como o usuário sem privilégio da imagem (pwuser), com /dev/shm próprio
   # em vez do IPC do host e só na rede `render`, que ele divide com os agents (sem Postgres, Valkey nem S3).
   lineup-render:
     profiles: [render]
-    image: mcr.microsoft.com/playwright:v1.64.0-noble
-    command: ['npx', '-y', 'playwright@1.64.0', 'run-server', '--port', '3000', '--host', '0.0.0.0']
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-lineup-render:1.64.0
+    pull_policy: missing
     user: pwuser
-    working_dir: /home/pwuser
     init: true
     shm_size: 512m
     mem_limit: 1g

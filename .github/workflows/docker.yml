@@ -133,6 +133,93 @@ jobs:
             if (missing.length) { console.error("faltando na imagem:", missing); process.exit(1); }
             console.log("ok:", need.length, "caminhos");'
 
+  # Servidor do Playwright do lineup-render (infra/lineup-render). A base tem ~2 GB: só constrói quando a pasta mudou em
+  # relação ao 1º pai do commit (no PR, a main em que ele entra; no push, o commit anterior da main) ou no disparo
+  # manual. Na main publica com a tag da versão do Playwright (a que o compose usa) e a do SHA.
+  lineup-render:
+    name: build lineup-render
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/galaxie-works/galaxie-sports-lineup-render
+      PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Mesma versão do Playwright na imagem, no compose e no services/ai-agents
+        run: |
+          node --test infra/lineup-render/versions.test.mjs
+          node infra/lineup-render/versions.mjs
+
+      - name: A pasta mudou?
+        id: changed
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          tree=$(git rev-parse HEAD:infra/lineup-render)
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./infra/lineup-render/package.json').dependencies.playwright")" >> "$GITHUB_OUTPUT"
+          base=$(git cat-file -p HEAD | awk '/^parent /{print $2; exit}')
+          if [ "$EVENT" != workflow_dispatch ] && [ -n "$base" ] && git fetch -q --no-tags --depth=1 origin "$base" \
+            && [ "$(git rev-parse -q --verify "$base:infra/lineup-render" || true)" = "$tree" ]; then
+            echo "infra/lineup-render igual à do commit base ($base): sem build."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.changed.outputs.build == 'true'
+
+      - name: Login no GHCR
+        if: steps.changed.outputs.build == 'true' && env.PUBLISH == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (e push na main)
+        if: steps.changed.outputs.build == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: infra/lineup-render
+          file: infra/lineup-render/Dockerfile
+          push: ${{ env.PUBLISH == 'true' }}
+          load: ${{ env.PUBLISH != 'true' }}
+          # mesmo rótulo que o deploy.sh usa para saber se a VPS já tem a imagem desta versão da pasta
+          labels: works.galaxie.context-tree=${{ steps.changed.outputs.tree }}
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.changed.outputs.version }}
+            ${{ env.IMAGE }}:${{ github.sha }}
+          # sem cache do GHA: a base de ~2 GB disputaria o limite de cache do repositório com as outras imagens, e
+          # este build é raro e curto (npm ci de dois pacotes)
+
+      # Sem rede: prova que a partida não baixa nada do npm. O servidor tem de ficar no ar e anunciar o endpoint.
+      - name: run-server sobe como pwuser e sem rede
+        if: steps.changed.outputs.build == 'true' && env.PUBLISH != 'true'
+        run: |
+          img="$IMAGE:${{ github.sha }}"
+          user=$(docker image inspect -f '{{.Config.User}}' "$img")
+          [ "$user" = pwuser ] || { echo "::error::usuário da imagem é '$user', esperado pwuser"; exit 1; }
+          docker run -d --name lineup-render --network none --init --shm-size 512m "$img"
+          for _ in $(seq 60); do
+            docker logs lineup-render 2>&1 | grep -q 'Listening on ws://' && break
+            sleep 1
+          done
+          docker logs lineup-render
+          sleep 3
+          [ "$(docker inspect -f '{{.State.Running}}' lineup-render)" = true ] || { echo "::error::o servidor caiu"; exit 1; }
+          docker logs lineup-render 2>&1 | grep -q 'Listening on ws://0.0.0.0:3000/'
+          docker rm -f lineup-render
+
   stack:
     name: valida stack, alertas e scripts
     runs-on: ubuntu-latest

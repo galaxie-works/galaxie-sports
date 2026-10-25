@@ -12,7 +12,8 @@
 #      espera, depois do build, até CI_WAIT_MIN minutos (padrão 20)
 #   2. worktree temporária no SHA → docker build de api, ingestor e demo (tag = SHA); backup, prometheus e grafana
 #      levam no rótulo o hash git da própria pasta: a VPS já tem a imagem com esse hash → só ganha a tag do SHA;
-#      senão é construída aqui e vai junto
+#      senão é construída aqui e vai junto; lineup-render (perfil render) é construída na própria VPS quando a pasta
+#      dela muda, com a tag da versão do Playwright
 #   3. trava na VPS ($DIR/.deploy.lock): um deploy por vez, de qualquer máquina, até o fim do script. Só é pedida
 #      com menos de PRELOCK_MAX_MIN minutos de script (padrão: teto do deploy-safe.sh, DEPLOY_TIMEOUT ou 80 min,
 #      menos 30), para o resto caber no teto; trava mais velha que LOCK_STALE_MIN (padrão: teto + 10 min, no
@@ -222,6 +223,20 @@ for spec in backup:infra/backup prometheus:infra/observability/prometheus grafan
 done
 
 ci_gate "$CI_WAIT_MIN"
+
+# lineup-render (perfil render, não sobe no deploy): a base do Playwright tem ~2 GB, então em vez de enviar a imagem
+# a VPS a constrói da pasta (poucos KB) quando não tem a tag da versão com o hash desta pasta no rótulo. A tag é a
+# versão do Playwright, a do compose.yml. Depois do CI verde, porque a tag não segue o SHA (um rollback não a
+# desfaz). Falha aqui só avisa: o serviço é opcional e fica com a imagem anterior.
+# SHA anterior à pasta (deploy de um commit antigo): nada a fazer.
+if LR_TREE="$(git -C "$WT" rev-parse -q --verify "HEAD:infra/lineup-render")" &&
+  LR_IMAGE="$REG-lineup-render:$(node -p "require('$WT/infra/lineup-render/package.json').dependencies.playwright")" &&
+  [ -z "$(ssh "$VPS" "docker images -q --filter label=$TREE_LABEL=$LR_TREE $LR_IMAGE")" ]; then
+  echo "build lineup-render na VPS (não tem a imagem desta versão da pasta)"
+  if ! tar -C "$WT/infra/lineup-render" -c . | ssh "$VPS" "docker build -q --label $TREE_LABEL=$LR_TREE -t $LR_IMAGE - >/dev/null"; then
+    echo "WARN  build do lineup-render na VPS falhou; o deploy segue e o perfil render fica com a imagem anterior"
+  fi
+fi
 
 # o que vem depois da trava (envio, up, pós-deploy, smoke) precisa caber no teto do deploy-safe.sh ($CEILING_MIN min):
 # morrer pelo timeout no meio do compose up é pior do que não começar

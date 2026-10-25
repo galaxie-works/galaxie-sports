@@ -38,6 +38,16 @@ Com pacotes privados, a VPS precisa de `docker login ghcr.io` com um token só `
 mesmos nomes/tags, enviar com `docker save … | gzip | ssh root@<vps> 'gunzip | docker load'` e usar
 `PULL_POLICY=missing` no `.env`.
 
+**`lineup-render`** (navegador headless do perfil `render`, [`infra/lineup-render`](../lineup-render/Dockerfile)): a
+imagem oficial do Playwright com o pacote npm já instalado (sem `npx` na partida). A tag é a **versão do Playwright**
+(`…-lineup-render:1.64.0`), não o SHA, e o serviço usa `pull_policy: missing`. O `deploy.sh` a constrói **na VPS**
+quando a pasta muda (a base tem ~2 GB e a VPS já a tem; vai só a pasta), depois do CI verde; falha ali só avisa. O
+`docker.yml` também a publica no GHCR quando a pasta muda. Subir a versão é mudar juntos o `FROM` do Dockerfile, o
+`package.json`/`package-lock.json` da pasta, o `playwright-core` do `services/ai-agents` e a tag no `compose.yml` (o
+CI confere com `infra/lineup-render/versions.mjs`). Fallback, sem a imagem própria: no `compose.yml`, `image:
+mcr.microsoft.com/playwright:v1.64.0-noble` com `command: ['npx', '-y', 'playwright@1.64.0', 'run-server', '--port',
+'3000', '--host', '0.0.0.0']` e o resto igual.
+
 ## Atualizar (rotina: toda publicação passa por aqui)
 
 ```bash
