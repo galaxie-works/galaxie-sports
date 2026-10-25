@@ -1,4 +1,4 @@
-import { sql, TransactionRollbackError, type SQL } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import type { MediaAssetKind } from '@galaxie/apisports-client';
 import type { Database } from '@galaxie/db';
 
@@ -103,65 +103,114 @@ export interface PhotoRegistrationReport {
   skippedMissing: number;
 }
 
+/** Pessoas sem foto e a URL que o id delas dá na CDN de mídia (jogador ou técnico), com a prioridade. */
+function photoCandidates(since: Date): SQL {
+  return sql`
+      ${personPriority(since)}
+      select pr.person_id, pr.tier,
+        case when pr.provider_id like 'coach:%' then 'coach' else 'player' end::core.asset_kind as kind,
+        case when pr.provider_id like 'coach:%'
+          then 'https://media.api-sports.io/football/coachs/' || substr(pr.provider_id, 7) || '.png'
+          else 'https://media.api-sports.io/football/players/' || pr.provider_id || '.png'
+        end as url
+      from priority pr
+      join core.person p on p.id = pr.person_id
+      where p.photo_asset_id is null and pr.provider_id ~ '^(coach:)?[0-9]+$'`;
+}
+
 /**
  * Registra a foto das pessoas do futebol que ainda não têm uma, a partir do id da api-sports, e liga a pessoa
  * ao asset: `football/players/{id}.png` para jogadores (inclusive quem só aparece em transferências) e
  * `football/coachs/{id}.png` para técnicos (`coach:<id>`). Não liga asset já marcado como ausente (404 ou
- * foto genérica). Idempotente: a segunda execução não registra nem liga nada. `dryRun` faz o mesmo numa
- * transação desfeita no fim: só as contagens (a prévia do `--fotos --plan`).
+ * foto genérica). Idempotente: a segunda execução não registra nem liga nada.
  */
 export async function registerPlayerPhotos(
   db: Database,
-  options: { since: Date; dryRun?: boolean | undefined },
+  options: { since: Date },
 ): Promise<PhotoRegistrationReport> {
-  let report: PhotoRegistrationReport | undefined;
-  try {
-    await db.transaction(async (tx) => {
-      await tx.execute(SERIAL);
-      await tx.execute(sql`
-        create temp table photo_candidate on commit drop as
-        ${personPriority(options.since)}
-        select pr.person_id, pr.tier,
-          case when pr.provider_id like 'coach:%' then 'coach' else 'player' end::core.asset_kind as kind,
-          case when pr.provider_id like 'coach:%'
-            then 'https://media.api-sports.io/football/coachs/' || substr(pr.provider_id, 7) || '.png'
-            else 'https://media.api-sports.io/football/players/' || pr.provider_id || '.png'
-          end as url
-        from priority pr
-        join core.person p on p.id = pr.person_id
-        where p.photo_asset_id is null and pr.provider_id ~ '^(coach:)?[0-9]+$'
-      `);
-      const registered = await tx.execute<{ id: string }>(sql`
-        insert into core.asset (kind, source_url)
-        select distinct kind, url from photo_candidate
-        on conflict (source_url) do nothing
-        returning id
-      `);
-      const linked = await tx.execute<{ tier: number; n: number }>(sql`
-        with done as (
-          update core.person p set photo_asset_id = a.id, updated_at = now()
-          from photo_candidate c
-          join core.asset a on a.source_url = c.url
-          where p.id = c.person_id and not (a.storage_key is null and a.fetched_at is not null)
-          returning c.tier
-        )
-        select tier, count(*)::int as n from done group by 1
-      `);
-      const [skipped] = await tx.execute<{ n: number }>(sql`
-        select count(*)::int as n
+  return db.transaction(async (tx) => {
+    await tx.execute(SERIAL);
+    await tx.execute(sql`
+      create temp table photo_candidate on commit drop as
+      ${photoCandidates(options.since)}
+    `);
+    const registered = await tx.execute<{ id: string }>(sql`
+      insert into core.asset (kind, source_url)
+      select distinct kind, url from photo_candidate
+      on conflict (source_url) do nothing
+      returning id
+    `);
+    const linked = await tx.execute<{ tier: number; n: number }>(sql`
+      with done as (
+        update core.person p set photo_asset_id = a.id, updated_at = now()
         from photo_candidate c
         join core.asset a on a.source_url = c.url
-        where a.storage_key is null and a.fetched_at is not null
-      `);
-      const byTier: [number, number, number] = [0, 0, 0];
-      for (const r of linked) byTier[r.tier as 0 | 1 | 2] = r.n;
-      report = { linked: byTier, registered: registered.length, skippedMissing: skipped?.n ?? 0 };
-      if (options.dryRun) tx.rollback();
-    });
-  } catch (err) {
-    if (!(options.dryRun && err instanceof TransactionRollbackError)) throw err;
+        where p.id = c.person_id and not (a.storage_key is null and a.fetched_at is not null)
+        returning c.tier
+      )
+      select tier, count(*)::int as n from done group by 1
+    `);
+    const [skipped] = await tx.execute<{ n: number }>(sql`
+      select count(*)::int as n
+      from photo_candidate c
+      join core.asset a on a.source_url = c.url
+      where a.storage_key is null and a.fetched_at is not null
+    `);
+    const byTier: [number, number, number] = [0, 0, 0];
+    for (const r of linked) byTier[r.tier as 0 | 1 | 2] = r.n;
+    return { linked: byTier, registered: registered.length, skippedMissing: skipped?.n ?? 0 };
+  });
+}
+
+export interface PhotoRegistrationPreview extends PhotoRegistrationReport {
+  /** Assets novos por tipo (para a prévia somar só os que caem no `--caminho`). */
+  registeredByKind: { player: number; coach: number };
+}
+
+/**
+ * Prévia de `registerPlayerPhotos` (o `--fotos --plan`): as mesmas contagens, numa transação só de leitura
+ * (nada é gravado nem travado; roda também numa réplica). Pessoa com dois ids (jogador e técnico) conta na
+ * prioridade menor.
+ */
+export async function previewPlayerPhotos(
+  db: Database,
+  options: { since: Date },
+): Promise<PhotoRegistrationPreview> {
+  const rows = await db.transaction(async (tx) => {
+    await tx.execute(sql`set transaction read only`);
+    await tx.execute(SERIAL);
+    return tx.execute<{ what: string; key: string; n: number }>(sql`
+      with candidate as materialized (${photoCandidates(options.since)}),
+      matched as (
+        select c.*, a.id as asset_id, (a.storage_key is null and a.fetched_at is not null) as missing
+        from candidate c
+        left join core.asset a on a.source_url = c.url
+      )
+      select 'linked' as what, tier::text as key, count(*)::int as n
+      from (select distinct on (person_id) person_id, tier from matched where missing is not true
+            order by person_id, tier) l
+      group by tier
+      union all
+      select 'registered', kind::text, count(distinct url)::int from matched where asset_id is null group by kind
+      union all
+      select 'skipped', '', count(*)::int from matched where missing
+    `);
+  });
+  const report: PhotoRegistrationPreview = {
+    linked: [0, 0, 0],
+    registered: 0,
+    skippedMissing: 0,
+    registeredByKind: { player: 0, coach: 0 },
+  };
+  for (const r of rows) {
+    if (r.what === 'linked') report.linked[Number(r.key) as 0 | 1 | 2] = r.n;
+    else if (r.what === 'skipped') report.skippedMissing = r.n;
+    else {
+      report.registeredByKind[r.key as 'player' | 'coach'] = r.n;
+      report.registered += r.n;
+    }
   }
-  return report!;
+  return report;
 }
 
 /**

@@ -31,7 +31,14 @@ import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
 import { mediaPathPrefix, PgAssetStore, runRawDiscovery, type LogoCleanup } from '../assets/asset-store.js';
 import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
-import { PLACEHOLDER_PHOTO_SHA256, registerPlayerPhotos } from '../assets/person-photos.js';
+import {
+  coachPhotoUrl,
+  PLACEHOLDER_PHOTO_SHA256,
+  playerPhotoUrl,
+  previewPlayerPhotos,
+  registerPlayerPhotos,
+  type PhotoRegistrationPreview,
+} from '../assets/person-photos.js';
 
 const { values } = parseArgs({
   options: {
@@ -68,10 +75,10 @@ try {
     );
   }
 
-  // no --plan, numa transação desfeita: a prévia conta as fotos que a execução real vai registrar
-  const photoRegistration = personPhotos
-    ? await registerPlayerPhotos(db, { ...personPhotos, dryRun: values.plan })
-    : undefined;
+  // no --plan, só leitura: a prévia conta as fotos que a execução real vai registrar
+  const photoPreview = personPhotos && values.plan ? await previewPlayerPhotos(db, personPhotos) : undefined;
+  const photoRegistration =
+    personPhotos && !values.plan ? await registerPlayerPhotos(db, personPhotos) : photoPreview;
   if (photoRegistration) {
     const r = photoRegistration;
     console.log(
@@ -104,10 +111,9 @@ try {
       limit: values.limite ? Number(values.limite) : undefined,
       pathPrefix: values.caminho,
     });
-    // os assets que o registro pelo id criaria ainda não existem (a transação foi desfeita)
+    // os assets que o registro pelo id criaria ainda não existem: entram os que caem no --caminho
     const limit = values.limite ? Number(values.limite) : Infinity;
-    const football = !values.caminho || mediaPathPrefix(values.caminho) === '/football/';
-    const registered = football ? (photoRegistration?.registered ?? 0) : 0;
+    const registered = newPhotosUnder(photoPreview, values.caminho);
     const pending = Math.min(limit, report.pending + registered);
     console.log(`A baixar nesta execução: ${pending} (nenhuma chamada à API de dados).`);
     console.log(logoCleanupLine(report.logoCleanup, 'a limpar'));
@@ -197,6 +203,16 @@ try {
   }
 } finally {
   await closeDb(db);
+}
+
+/** Assets de foto que a prévia do registro pelo id criaria sob `--caminho` (todos, sem ele). */
+function newPhotosUnder(preview: PhotoRegistrationPreview | undefined, path: string | undefined): number {
+  if (!preview) return 0;
+  const under = (url: string) => !path || new URL(url).pathname.startsWith(mediaPathPrefix(path));
+  return (
+    (under(playerPhotoUrl('0')) ? preview.registeredByKind.player : 0) +
+    (under(coachPhotoUrl('0')) ? preview.registeredByKind.coach : 0)
+  );
 }
 
 function logoCleanupLine(c: LogoCleanup, verb: string): string {

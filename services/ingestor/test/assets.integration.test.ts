@@ -31,6 +31,7 @@ import {
   coachPhotoUrl,
   pendingPersonPhotoIds,
   playerPhotoUrl,
+  previewPlayerPhotos,
   registerPlayerPhotos,
 } from '../src/assets/person-photos.js';
 import { PLACEHOLDER_LOGO_SHA256 } from '../src/assets/palette.js';
@@ -550,8 +551,12 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
     const photo = async () =>
       (await db.select({ id: person.photoAssetId }).from(person).where(eq(person.id, p!.id)))[0]!.id;
 
-    const preview = await registerPlayerPhotos(db, { since, dryRun: true });
-    expect(preview).toMatchObject({ linked: [0, 1, 0], registered: 1 });
+    const preview = await previewPlayerPhotos(db, { since });
+    expect(preview).toMatchObject({
+      linked: [0, 1, 0],
+      registered: 1,
+      registeredByKind: { player: 1, coach: 0 },
+    });
     expect(
       await db
         .select()
@@ -560,7 +565,8 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
     ).toEqual([]);
     expect(await photo()).toBeNull();
 
-    expect(await registerPlayerPhotos(db, { since })).toEqual(preview);
+    const { registeredByKind: _byKind, ...counts } = preview;
+    expect(await registerPlayerPhotos(db, { since })).toEqual(counts);
     expect(await photo()).not.toBeNull();
   });
 
