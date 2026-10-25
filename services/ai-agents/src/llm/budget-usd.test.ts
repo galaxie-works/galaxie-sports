@@ -77,7 +77,18 @@ describe('configuração do orçamento em US$', () => {
     expect(s.dailyTokenBudget).toBe(2_000_000);
     expect(s.dailyUsdBudget).toBe(DEFAULT_DAILY_USD_BUDGET);
     expect(DEFAULT_DAILY_USD_BUDGET).toBe(10);
-    expect(s.agentUsdBudgets).toEqual({ lineups: 2, wtw: 3, context: 1.5, related: 0.5, f1profile: 1 });
+    expect(s.agentUsdBudgets).toEqual({
+      lineups: 2,
+      wtw: 3,
+      context: 1.5,
+      related: 0.5,
+      f1profile: 2,
+      f1bio: null,
+      curator: null,
+      review: null,
+      channels: null,
+      live: null,
+    });
     expect(s.maxSearchesPerCall).toBe(DEFAULT_MAX_SEARCHES_PER_CALL);
   });
 

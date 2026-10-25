@@ -338,7 +338,8 @@ export const SETTINGS: readonly SettingDef[] = [
     pattern: AGENT_USD_BUDGETS_PATTERN,
     zeroInvalid: true,
     allowEmpty: true,
-    default: 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=1',
+    default:
+      'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=unlimited,curator=unlimited,review=unlimited,channels=unlimited,live=unlimited',
     critical: true,
   }),
   // buscas na web por chamada: OpenAI e Anthropic aplicam na API; o Gemini recebe no prompt e o

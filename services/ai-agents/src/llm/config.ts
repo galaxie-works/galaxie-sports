@@ -53,10 +53,12 @@ export const DEFAULT_DAILY_USD_BUDGET = 10;
 
 /**
  * Teto diário em US$ por agente (prefixo de `purpose`). Agente fora da lista fica só no teto global.
- * Valores pela semana de 2026-10-18 a 24: lineups ~US$ 1,9/dia (concentrado num dia), wtw ~1,7,
- * context ~1, related e f1profile pequenos.
+ * Os números são os da produção (sobrescrita do painel em 2026-10-26: lineups=2, wtw=3, context=1,5,
+ * related=0,5, f1profile=2). Os agentes sem histórico de gasto que justifique um número (f1bio,
+ * curator, review, channels, live) ficam explícitos como `unlimited`: só o teto global vale para eles.
  */
-export const DEFAULT_AGENT_USD_BUDGETS = 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=1';
+export const DEFAULT_AGENT_USD_BUDGETS =
+  'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=unlimited,curator=unlimited,review=unlimited,channels=unlimited,live=unlimited';
 
 /** Buscas na web por chamada (teto do provedor quando existe; senão instrução no prompt + alerta). */
 export const DEFAULT_MAX_SEARCHES_PER_CALL = 5;
