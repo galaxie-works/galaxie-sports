@@ -79,16 +79,17 @@ export function decodePng(input: Uint8Array): DecodedImage | null {
   if (colorType === 3 && !palette) return null;
   if (!idat.length) return null;
 
-  let raw: Uint8Array;
-  try {
-    raw = inflateSync(Buffer.concat(idat));
-  } catch {
-    return null;
-  }
-
   const bitsPerPixel = channels * bitDepth;
   const stride = Math.ceil((width * bitsPerPixel) / 8);
   const bpp = Math.max(1, bitsPerPixel >> 3);
+
+  let raw: Uint8Array;
+  try {
+    // o tamanho exato vem do cabeçalho: um IDAT hostil (zip bomb) estoura o teto e cai no catch
+    raw = inflateSync(Buffer.concat(idat), { maxOutputLength: height * (stride + 1) });
+  } catch {
+    return null;
+  }
   if (raw.length < height * (stride + 1)) return null;
 
   // desfaz os filtros linha a linha (in place sobre uma cópia sem o byte de filtro)
