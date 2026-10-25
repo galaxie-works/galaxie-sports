@@ -11,7 +11,7 @@ import {
   type Database,
 } from '@galaxie/db';
 import { Blocklist, parseCountryConfig, syncBroadcasterLibrary, WtwConfig } from '@galaxie/where-to-watch';
-import { BudgetExceededError } from '../src/llm/errors.js';
+import { BudgetExceededError, LlmError } from '../src/llm/errors.js';
 import { FakeLlmClient, type FakeReply } from '../src/llm/fake.js';
 import { withTokenBudget } from '../src/llm/factory.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
@@ -570,6 +570,26 @@ describe('lineups-research: o que entra na fila', () => {
       ['plans', 'br-operadora-nova-exemplo', 'no_plans'],
       ['plans', 'br-operadora-rejeitada-exemplo', 'no_plans'],
       ['plans', 'br-streaming-exemplo', 'requested'],
+    ]);
+  });
+
+  it('chamada que falha conta no --max (o provedor já cobrou as tentativas)', async () => {
+    const schemaError = () =>
+      Object.assign(new LlmError('saída fora do schema', 'schema', false), {
+        usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.01, webSearchCalls: 4 },
+      });
+    const llm = new FakeLlmClient(() => schemaError());
+    const out = await new LineupResearcher({ db, llm, config, now: () => later, resolveUrl }).run({
+      countries: ['BR'],
+      rediscover: true,
+      maxCalls: 2,
+      mode: 'search',
+    });
+    // descoberta e a 1ª plataforma falham; o --max para a fila aí (antes rodava a fila inteira)
+    expect(llm.calls).toHaveLength(2);
+    expect(out.map((o) => [o.task.kind, o.status, o.calls, o.searchCalls, o.searches, o.costUsd])).toEqual([
+      ['discover', 'failed', 1, 1, 4, 0.01],
+      ['plans', 'failed', 1, 1, 4, 0.01],
     ]);
   });
 });

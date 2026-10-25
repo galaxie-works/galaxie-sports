@@ -121,8 +121,6 @@ export const extractPurpose = (slug: string, country: string) => `lineups:extrac
  */
 export type LineupResearchMode = 'pages' | 'search';
 
-const searchesOf = (r: LlmResult<unknown>) => (r.usage as UsageWithSearches).webSearchCalls ?? 0;
-
 /** Junta as fontes da busca de várias chamadas (as etapas de uma mesma plataforma). */
 function mergeResults(
   results: readonly LlmResult<unknown>[],
@@ -590,21 +588,43 @@ export class LineupResearcher {
     };
   }
 
-  /** Soma o custo, as buscas e a chamada no resultado da tarefa. */
-  private count(out: LineupCallOutcome, r: LlmResult<unknown>, kind: 'search' | 'extract'): void {
+  /**
+   * Uma chamada ao modelo, somada no resultado da tarefa (a chamada, as buscas e o custo). A que falha
+   * também conta no `--max`: o provedor já cobrou as tentativas (o uso vem no erro). Só o orçamento
+   * esgotado, que recusa antes de chamar, não conta.
+   */
+  private async call<T>(
+    out: LineupCallOutcome,
+    kind: 'search' | 'extract',
+    run: () => Promise<LlmResult<T>>,
+  ): Promise<LlmResult<T>> {
+    try {
+      const r = await run();
+      this.count(out, r.usage as UsageWithSearches, kind);
+      return r;
+    } catch (err) {
+      if (!(err instanceof BudgetExceededError))
+        this.count(out, (err as { usage?: UsageWithSearches } | null)?.usage, kind);
+      throw err;
+    }
+  }
+
+  private count(
+    out: LineupCallOutcome,
+    usage: UsageWithSearches | undefined,
+    kind: 'search' | 'extract',
+  ): void {
     out.calls++;
     if (kind === 'search') out.searchCalls++;
     else out.extractCalls++;
-    out.searches += searchesOf(r);
-    if (r.usage.costUsd !== undefined) out.costUsd = (out.costUsd ?? 0) + r.usage.costUsd;
+    out.searches += usage?.webSearchCalls ?? 0;
+    if (usage?.costUsd !== undefined) out.costUsd = (out.costUsd ?? 0) + usage.costUsd;
   }
 
   private failed(out: LineupCallOutcome, err: unknown): LineupCallOutcome {
-    const partial = (err as { usage?: { costUsd?: number } }).usage;
     return {
       ...out,
       status: err instanceof BudgetExceededError ? 'skipped' : 'failed',
-      costUsd: partial?.costUsd ?? out.costUsd,
       error: (err instanceof Error ? err.message : String(err)).slice(0, 500),
     };
   }
@@ -616,25 +636,26 @@ export class LineupResearcher {
     const dir = this.directory(task.country);
     const existing = await db.select().from(platformTable).where(eq(platformTable.country, task.country));
     try {
-      const res = await this.deps.llm.generateJson<LineupDiscoveryOutput>({
-        tier: 'research',
-        system: lineupSystemPrompt(),
-        messages: [
-          {
-            role: 'user',
-            content: discoveryPrompt({
-              country: task.country,
-              known: existing.filter((p) => p.reviewStatus !== 'rejected').map((p) => p.name),
-            }),
-          },
-        ],
-        schema: LINEUP_DISCOVERY_SCHEMA,
-        schemaName: LINEUP_DISCOVERY_SCHEMA_NAME,
-        webSearch: true,
-        maxOutputTokens: 8_000,
-        purpose: discoveryPurpose(task.country),
-      });
-      this.count(out, res, 'search');
+      const res = await this.call(out, 'search', () =>
+        this.deps.llm.generateJson<LineupDiscoveryOutput>({
+          tier: 'research',
+          system: lineupSystemPrompt(),
+          messages: [
+            {
+              role: 'user',
+              content: discoveryPrompt({
+                country: task.country,
+                known: existing.filter((p) => p.reviewStatus !== 'rejected').map((p) => p.name),
+              }),
+            },
+          ],
+          schema: LINEUP_DISCOVERY_SCHEMA,
+          schemaName: LINEUP_DISCOVERY_SCHEMA_NAME,
+          webSearch: true,
+          maxOutputTokens: 8_000,
+          purpose: discoveryPurpose(task.country),
+        }),
+      );
       const gate = new SourceGate(anchorResolver(res), dir);
       const seenAt = this.now();
       const seen = new Set<string>();
@@ -761,31 +782,32 @@ export class LineupResearcher {
     const officialHosts = [row.website ? hostOf(row.website) : null, ...row.officialDomains].filter(
       (d): d is string => !!d,
     );
-    const res = await this.deps.llm.generateJson<LineupPlanPagesOutput>({
-      tier: 'research',
-      system: lineupSystemPrompt(),
-      messages: [
-        {
-          role: 'user',
-          content: planPagesPrompt({
-            country: task.country,
-            platform: {
-              name: row.name,
-              kind: row.kind,
-              website: row.website,
-              officialDomains: row.officialDomains,
-            },
-          }),
-        },
-      ],
-      schema: LINEUP_PLAN_PAGES_SCHEMA,
-      schemaName: LINEUP_PLAN_PAGES_SCHEMA_NAME,
-      webSearch: true,
-      ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
-      maxOutputTokens: 2_000,
-      purpose: planPagesPurpose(row.slug, task.country),
-    });
-    this.count(out, res, 'search');
+    const res = await this.call(out, 'search', () =>
+      this.deps.llm.generateJson<LineupPlanPagesOutput>({
+        tier: 'research',
+        system: lineupSystemPrompt(),
+        messages: [
+          {
+            role: 'user',
+            content: planPagesPrompt({
+              country: task.country,
+              platform: {
+                name: row.name,
+                kind: row.kind,
+                website: row.website,
+                officialDomains: row.officialDomains,
+              },
+            }),
+          },
+        ],
+        schema: LINEUP_PLAN_PAGES_SCHEMA,
+        schemaName: LINEUP_PLAN_PAGES_SCHEMA_NAME,
+        webSearch: true,
+        ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
+        maxOutputTokens: 2_000,
+        purpose: planPagesPurpose(row.slug, task.country),
+      }),
+    );
     const anchor = anchorResolver(res);
     const dir = this.directory(task.country);
     const urls: { url: string; grounded: boolean }[] = [];
@@ -896,29 +918,30 @@ export class LineupResearcher {
 
       // 4. extração do texto, sem busca, no nível leve
       const lib = this.libraryNames(dir);
-      const res = await llm.generateJson<LineupPageExtractOutput>({
-        tier: 'light',
-        system: pageExtractSystemPrompt(),
-        messages: [
-          {
-            role: 'user',
-            content: pageExtractPrompt({
-              country: task.country,
-              platform: { name: row.name, kind: row.kind, website: row.website },
-              pages: reads.map((r) => ({ url: r.url, text: r.content.text, sections: r.content.sections })),
-              knownPlans: known.map((k) => k.name),
-              channels: lib.channels,
-              services: [...lib.services, ...lib.channels],
-            }),
-          },
-        ],
-        schema: LINEUP_PAGE_EXTRACT_SCHEMA,
-        schemaName: LINEUP_PAGE_EXTRACT_SCHEMA_NAME,
-        webSearch: false,
-        maxOutputTokens: 16_000,
-        purpose: extractPurpose(row.slug, task.country),
-      });
-      this.count(out, res, 'extract');
+      const res = await this.call(out, 'extract', () =>
+        llm.generateJson<LineupPageExtractOutput>({
+          tier: 'light',
+          system: pageExtractSystemPrompt(),
+          messages: [
+            {
+              role: 'user',
+              content: pageExtractPrompt({
+                country: task.country,
+                platform: { name: row.name, kind: row.kind, website: row.website },
+                pages: reads.map((r) => ({ url: r.url, text: r.content.text, sections: r.content.sections })),
+                knownPlans: known.map((k) => k.name),
+                channels: lib.channels,
+                services: [...lib.services, ...lib.channels],
+              }),
+            },
+          ],
+          schema: LINEUP_PAGE_EXTRACT_SCHEMA,
+          schemaName: LINEUP_PAGE_EXTRACT_SCHEMA_NAME,
+          webSearch: false,
+          maxOutputTokens: 16_000,
+          purpose: extractPurpose(row.slug, task.country),
+        }),
+      );
 
       // 5. o validador decide a prova; o trecho precisa estar na página
       const skip = (name: string) => {
@@ -1041,18 +1064,19 @@ export class LineupResearcher {
       (d): d is string => !!d,
     );
     const ask = <T>(content: string, schema: Record<string, unknown>, schemaName: string, purpose: string) =>
-      llm.generateJson<T>({
-        tier: 'research',
-        system: lineupSystemPrompt(),
-        messages: [{ role: 'user', content }],
-        schema,
-        schemaName,
-        webSearch: true,
-        ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
-        maxOutputTokens: 12_000,
-        purpose,
-      });
-    const cost = (r: LlmResult<unknown>) => this.count(out, r, 'search');
+      this.call(out, 'search', () =>
+        llm.generateJson<T>({
+          tier: 'research',
+          system: lineupSystemPrompt(),
+          messages: [{ role: 'user', content }],
+          schema,
+          schemaName,
+          webSearch: true,
+          ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
+          maxOutputTokens: 12_000,
+          purpose,
+        }),
+      );
 
     await this.checkRebrand(task, row, out);
 
@@ -1070,7 +1094,6 @@ export class LineupResearcher {
         LINEUP_CATALOG_SCHEMA_NAME,
         catalogPurpose(row.slug, task.country),
       );
-      cost(cat);
       results.push(cat);
       const listed: {
         name: string;
@@ -1120,7 +1143,6 @@ export class LineupResearcher {
             LINEUP_PLAN_SCHEMA_NAME,
             planPurpose(row.slug, task.country),
           );
-          cost(r);
           results.push(r);
           details.set(l.name, { status: r.data.encontrado ? 'ok' : 'not_found', data: r.data });
         } catch (err) {
