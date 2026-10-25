@@ -14,7 +14,7 @@ import {
   type RelatedChannelSource,
 } from '@galaxie/db';
 import type { TeamRef } from '../context/event-core.js';
-import { ALLOWLIST_MIN_SUBSCRIBERS, type ChannelEntry } from './channels.js';
+import { ALLOWLIST_MIN_SUBSCRIBERS, competitionLabelMatches, type ChannelEntry } from './channels.js';
 import { matchText, mentions, teamVariants } from './policy.js';
 import type { ChannelDetail, PlaylistVideo, YoutubeClient } from './youtube.js';
 
@@ -47,6 +47,8 @@ export async function channelEntriesFromDb(db: Database): Promise<ChannelEntry[]
     .select({
       channelId: relatedChannel.channelId,
       kind: relatedChannel.kind,
+      participantId: relatedChannel.participantId,
+      competitionId: relatedChannel.competitionId,
       broadcasterId: relatedChannel.broadcasterId,
       country: relatedChannel.country,
       source: relatedChannel.source,
@@ -62,8 +64,73 @@ export async function channelEntriesFromDb(db: Database): Promise<ChannelEntry[]
     broadcaster: r.broadcasterId,
     country: r.country,
     label: r.title ?? null,
+    participantId: r.participantId,
+    competitionId: r.competitionId,
     source: r.source,
   }));
+}
+
+export type ConfigChannelRow = typeof relatedChannel.$inferInsert;
+
+/**
+ * Linhas do mapa a partir das entradas da configuração (CLI `related:canais`): clube por nome e país (único),
+ * competição pelo slug (ou pela federação: `conmebol` → uma linha por competição `conmebol-*`), emissora pelo
+ * id do dicionário. `idOf` = handle → id do canal já resolvido. Devolve também o que ficou sem par.
+ */
+export function configChannelRows(
+  entries: readonly ChannelEntry[],
+  ctx: {
+    idOf: ReadonlyMap<string, string>;
+    teams: readonly { id: string; name: string; shortName: string | null; country: string | null }[];
+    comps: readonly { id: string; slug: string }[];
+  },
+): { rows: ConfigChannelRow[]; unmatched: string[] } {
+  const norm = (x: string) => matchText(x).trim();
+  const rows: ConfigChannelRow[] = [];
+  const unmatched: string[] = [];
+  for (const e of entries) {
+    const channelId = e.id ?? (e.handle ? ctx.idOf.get(e.handle) : undefined);
+    if (!channelId) continue;
+    const base = { channelId, source: 'config' as const, sourceRef: e.handle ?? e.id, country: e.country };
+    if (e.kind === 'club') {
+      const hits = ctx.teams.filter(
+        (t) =>
+          (!e.country || t.country === e.country) &&
+          [t.name, t.shortName].some((n) => n && e.label && norm(n) === norm(e.label)),
+      );
+      if (hits.length === 1) rows.push({ ...base, kind: 'club', participantId: hits[0]!.id });
+      else unmatched.push(`${e.label ?? e.handle} (${hits.length ? 'ambíguo' : 'sem time'})`);
+    } else if (e.kind === 'competition') {
+      const label = e.label;
+      const hits = label ? ctx.comps.filter((c) => competitionLabelMatches(label, c.slug)) : [];
+      for (const c of hits) rows.push({ ...base, kind: 'competition', competitionId: c.id });
+      if (!hits.length) unmatched.push(`${label} (sem competição)`);
+    } else if (e.kind === 'broadcaster' && e.broadcaster) {
+      rows.push({ ...base, kind: 'broadcaster', broadcasterId: e.broadcaster });
+    }
+  }
+  return { rows, unmatched };
+}
+
+type ChannelKey = Pick<
+  ConfigChannelRow,
+  'channelId' | 'kind' | 'participantId' | 'competitionId' | 'broadcasterId'
+>;
+const channelKey = (r: ChannelKey) =>
+  [r.channelId, r.kind, r.participantId ?? '', r.competitionId ?? '', r.broadcasterId ?? ''].join('|');
+
+/**
+ * Linhas ativas do mapa vindas da configuração que saíram dela (o editor tirou o canal do channels.yaml ou do
+ * dicionário de emissoras): o CLI as desativa, senão o canal continuaria tratado como oficial. `keep` = refs
+ * (`source_ref`) que não deu para conferir nesta execução (handle fora do cache na prévia): ficam.
+ */
+export function staleConfigChannels<T extends ChannelKey & { sourceRef: string | null }>(
+  active: readonly T[],
+  rows: readonly ChannelKey[],
+  keep: ReadonlySet<string> = new Set(),
+): T[] {
+  const current = new Set(rows.map(channelKey));
+  return active.filter((r) => !current.has(channelKey(r)) && !(r.sourceRef && keep.has(r.sourceRef)));
 }
 
 /** Emissoras com canal no mapa (para saber, sem consulta, se o jogo tem canal de detentor). */

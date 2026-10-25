@@ -52,7 +52,7 @@ import {
   type YieldFactor,
 } from './budget.js';
 import { broadcastersWithChannels, ChannelBook, matchUploads } from './channel-map.js';
-import { rightsHoldersFor, type ChannelAllowlist } from './channels.js';
+import { rightsHoldersFor, type ChannelAllowlist, type ChannelScope } from './channels.js';
 import {
   aspectRatioOf,
   classifyVideos,
@@ -60,7 +60,7 @@ import {
   RULES_CLASSIFIER,
   type ClassifyFacts,
 } from './classify.js';
-import { checkRelevance, decidePublication, rankScore } from './policy.js';
+import { checkRelevance, decidePublication, rankScore, teamVariants } from './policy.js';
 import {
   capPublished,
   fullSearchDue,
@@ -656,6 +656,12 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
         ...new Set([...(await teamCountries(db, core)).filter((c): c is string => !!c), 'BR']),
       ];
       const holders = rightsHoldersFor(opts.wtw, core.competition?.slug, markets, core.startsAt);
+      const channelScope: ChannelScope = {
+        participantIds: [core.home.id, core.away.id],
+        teamNames: [...teamVariants(core.home), ...teamVariants(core.away)],
+        competitionId: core.competition?.id ?? null,
+        competitionSlug: core.competition?.slug ?? null,
+      };
       const channelQuery = {
         participantIds: [core.home.id, core.away.id],
         competitionId: core.competition?.id ?? null,
@@ -723,7 +729,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             handle: null,
             subscribers: null,
           };
-          return opts.allowlist.classify(ch, holders);
+          return opts.allowlist.classify(ch, holders, channelScope);
         };
         const usable = (v: VideoDetail, chans: Map<string, ChannelDetail>) => {
           const verdict = tierOf(v, chans);
@@ -736,6 +742,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             privacyStatus: v.privacyStatus,
             embeddable: v.embeddable,
             tier: verdict.tier,
+            clubChannel: verdict.tier === 'official' && verdict.entry?.kind === 'club',
           });
           return rel.ok ? verdict.tier : null;
         };
@@ -859,6 +866,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             privacyStatus: v.privacyStatus,
             embeddable: v.embeddable,
             tier: verdict.tier,
+            clubChannel: verdict.tier === 'official' && verdict.entry?.kind === 'club',
           });
           if (!rel.ok) {
             discard(rel.reason);

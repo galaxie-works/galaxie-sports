@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Blocklist } from '@galaxie/where-to-watch';
 import type { EventCore, TeamRef } from '../context/event-core.js';
 import { FakeLlmClient } from '../llm/fake.js';
-import { ChannelAllowlist, type ChannelEntry } from './channels.js';
+import { ChannelAllowlist, type ChannelEntry, type ChannelScope } from './channels.js';
 import {
   aspectFromFrame,
   aspectRatioOf,
@@ -11,7 +11,13 @@ import {
   detectFormat,
   RULES_CLASSIFIER,
 } from './classify.js';
-import { checkRelevance, decidePublication, playbackBlockPenalty, rankScore } from './policy.js';
+import {
+  checkRelevance,
+  decidePublication,
+  playbackBlockPenalty,
+  rankScore,
+  teamVariants,
+} from './policy.js';
 import { buildRelatedQueries, languagesFor } from './queries.js';
 import {
   parseIsoDuration,
@@ -465,6 +471,84 @@ describe('allowlist de canais', () => {
     expect(allow.classify(ch('UC5', '@pequeno', 2_000), holders).tier).toBe('unknown');
     expect(allow.classify(ch('UC6', null, null, 'Canal Bloqueado'), holders).blocked).toBe(true);
   });
+
+  it('com o jogo: só o clube que joga e a competição do jogo (ou a federação dela) são oficiais', () => {
+    const scoped = new ChannelAllowlist({
+      entries: [
+        ...entries,
+        // do mapa (enrich.related_channel), ligado ao time / à competição
+        {
+          handle: null,
+          id: 'UCflu',
+          kind: 'club',
+          broadcaster: null,
+          country: 'BR',
+          label: 'Fluminense FC',
+          participantId: 't2',
+        },
+        {
+          handle: null,
+          id: 'UCfla',
+          kind: 'club',
+          broadcaster: null,
+          country: 'BR',
+          label: 'Flamengo TV',
+          participantId: 't9',
+        },
+        {
+          handle: null,
+          id: 'UCsul',
+          kind: 'competition',
+          broadcaster: null,
+          country: null,
+          label: 'Sul-Americana',
+          competitionId: 'c2',
+        },
+        // do channels.yaml: rótulo = time ou slug/federação
+        {
+          handle: '@corinthians',
+          id: null,
+          kind: 'club',
+          broadcaster: null,
+          country: 'BR',
+          label: 'Corinthians',
+        },
+        {
+          handle: '@conmebol',
+          id: null,
+          kind: 'competition',
+          broadcaster: null,
+          country: null,
+          label: 'conmebol',
+        },
+        {
+          handle: '@ligamx',
+          id: null,
+          kind: 'competition',
+          broadcaster: null,
+          country: null,
+          label: 'liga-mx',
+        },
+      ],
+    });
+    const scope: ChannelScope = {
+      participantIds: [core.home.id, core.away.id],
+      teamNames: [...teamVariants(core.home), ...teamVariants(core.away)],
+      competitionId: core.competition!.id,
+      competitionSlug: core.competition!.slug,
+    };
+    const tier = (id: string, handle: string | null) => scoped.classify(ch(id, handle), holders, scope).tier;
+    expect(tier('UC1', '@palmeiras')).toBe('official'); // yaml, time do jogo pelo nome
+    expect(tier('UCflu', null)).toBe('official'); // mapa, time do jogo pelo id
+    expect(tier('UCfla', null)).toBe('media'); // outro clube da allowlist
+    expect(tier('UCcor', '@corinthians')).toBe('media');
+    expect(tier('UCcmb', '@conmebol')).toBe('official'); // federação da Libertadores
+    expect(tier('UCsul', null)).toBe('media'); // outra competição
+    expect(tier('UClmx', '@ligamx')).toBe('media');
+    expect(scoped.classify(ch('UCfla', null), holders, scope).entry?.kind).toBe('club');
+    // sem o jogo (chamadas antigas): continua oficial
+    expect(scoped.classify(ch('UCfla', null), holders).tier).toBe('official');
+  });
 });
 
 describe('política de publicação e ranking', () => {
@@ -505,7 +589,7 @@ describe('política de publicação e ranking', () => {
     ).toBe('pending');
   });
 
-  it('relevância: os dois times, ou um em canal oficial; depois do apito; público e incorporável', () => {
+  it('relevância: os dois times, ou um no canal oficial de um dos clubes; depois do apito; público e incorporável', () => {
     const base = {
       title: 'Palmeiras 2 x 1 Fluminense | Melhores momentos',
       description: '',
@@ -520,9 +604,15 @@ describe('política de publicação e ranking', () => {
       ok: false,
       reason: 'one_team_only',
     });
-    expect(checkRelevance(core, { ...base, title: 'PALMEIRAS NA FINAL!', tier: 'official' })).toEqual({
-      ok: true,
-    });
+    expect(
+      checkRelevance(core, { ...base, title: 'PALMEIRAS NA FINAL!', tier: 'official', clubChannel: true }),
+    ).toEqual({ ok: true });
+    // canal da competição e emissora detentora cobrem outros jogos do time: um time só não basta
+    for (const tier of ['official', 'rights_holder'] as const)
+      expect(checkRelevance(core, { ...base, title: 'Palmeiras 3 x 0 Botafogo | Gols', tier })).toEqual({
+        ok: false,
+        reason: 'one_team_only',
+      });
     expect(checkRelevance(core, { ...base, publishedAt: new Date('2026-10-20T00:00:00Z') })).toEqual({
       ok: false,
       reason: 'before_kickoff',
