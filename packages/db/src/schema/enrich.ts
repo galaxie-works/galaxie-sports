@@ -382,10 +382,12 @@ export const RELATED_PLAYBACK_BLOCK_CODES = [100, 101, 150] as const;
 export type RelatedPlaybackBlockCode = (typeof RELATED_PLAYBACK_BLOCK_CODES)[number];
 
 /**
- * Vídeos que o player oficial recusou fora da plataforma. O embed bloqueado por reivindicação de
- * direitos (ex.: imagens do jogo num vídeo de outro canal) não aparece na Data API, só quando o player
- * tenta tocar. O bloqueio vale para o vídeo em todos os jogos, e a pesquisa pesa o canal e o formato
- * com bloqueios.
+ * Vídeos que o player oficial recusou fora da plataforma, confirmados para todos. O embed bloqueado por
+ * reivindicação de direitos (ex.: imagens do jogo num vídeo de outro canal) não aparece na Data API, só
+ * quando o player tenta tocar. Desde a 0046 a linha só nasce quando `RELATED_GLOBAL_BLOCK_TENANTS`
+ * tenants distintos relatam o vídeo (`related_playback_report`); as linhas anteriores (um relato só)
+ * continuam valendo. O bloqueio vale para o vídeo em todos os jogos, e a pesquisa pesa o canal e o
+ * formato com bloqueios.
  */
 export const relatedPlaybackBlock = enrich.table(
   'related_playback_block',
@@ -405,6 +407,37 @@ export const relatedPlaybackBlock = enrich.table(
   (t) => [
     primaryKey({ columns: [t.provider, t.externalId] }),
     index('related_playback_block_channel_idx').on(t.channelId, t.format),
+  ],
+);
+
+/**
+ * Relato de recusa do player por tenant: o vídeo sai na hora da vitrine de quem relatou (o erro 101/150
+ * pode depender do domínio do embed), e só vira bloqueio de todos (`related_playback_block`) com relatos
+ * de tenants distintos. Um tenant isolado não mexe na vitrine dos outros. `tenant_id` sem FK (o schema `api`
+ * já depende de `enrich`): relato de tenant removido sai com "Limpar recusas" no painel.
+ */
+export const relatedPlaybackReport = enrich.table(
+  'related_playback_report',
+  {
+    provider: text('provider').notNull(),
+    externalId: text('external_id').notNull(),
+    tenantId: uuid('tenant_id').notNull(),
+    code: integer('code').$type<RelatedPlaybackBlockCode>().notNull(),
+    channelId: text('channel_id'),
+    format: text('format').$type<RelatedFormat>(),
+    reports: integer('reports').notNull().default(1),
+    /**
+     * Conta para o bloqueio de todos? false quando o tenant avisou que o relato vem de usuário não
+     * verificado (ex.: visitante da demo): tira o vídeo só da vitrine dele.
+     */
+    quorum: boolean('quorum').notNull().default(true),
+    firstReportedAt: timestamp('first_reported_at', { withTimezone: true }).notNull().defaultNow(),
+    lastReportedAt: timestamp('last_reported_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.provider, t.externalId, t.tenantId] }),
+    // recusas do tenant por canal (o canal sai da vitrine dele no limiar)
+    index('related_playback_report_tenant_channel_idx').on(t.tenantId, t.provider, t.channelId),
   ],
 );
 

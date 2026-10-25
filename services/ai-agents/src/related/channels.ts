@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { parse } from 'yaml';
 import type { RelatedSourceTier } from '@galaxie/db';
 import { defaultConfigRoot, type Blocklist, type WtwConfig } from '@galaxie/where-to-watch';
+import { matchText } from './policy.js';
 
 export interface ChannelEntry {
   /** Handle sem caixa, com "@" (ex.: "@palmeiras"). */
@@ -19,7 +20,12 @@ export interface ChannelEntry {
   /** Id do dicionário de emissoras (kind = broadcaster). */
   broadcaster: string | null;
   country: string | null;
+  /** Nome do time (club) ou slug da competição (competition) no channels.yaml; título do canal no mapa. */
   label: string | null;
+  /** Time do canal (kind = club, entradas do mapa `enrich.related_channel`). */
+  participantId?: string | null;
+  /** Competição do canal (kind = competition, entradas do mapa). */
+  competitionId?: string | null;
   /**
    * De onde veio: `config` (channels.yaml, dicionário de emissoras) ou `wikidata` (P2397 do time/competição,
    * mapa em enrich.related_channel). Entrada do Wikidata por id passa pelo piso de inscritos: o dado é aberto.
@@ -32,6 +38,30 @@ export interface ChannelRef {
   title: string;
   handle: string | null;
   subscribers: number | null;
+}
+
+/** O jogo a que o vídeo é atribuído: canal de clube ou de competição só é oficial se for deste jogo. */
+export interface ChannelScope {
+  /** Os dois times do jogo. */
+  participantIds: readonly string[];
+  /**
+   * Os dois times com as variantes normalizadas do nome (`teamVariants`) e o país (null = fora do catálogo): para as entradas do
+   * channels.yaml sem time ligado, que casam pelo nome e pelo país (o `@santosfc` do Brasil não é o canal do
+   * Santos Laguna, nem o `América` do México o do América-MG).
+   */
+  teams: readonly { names: readonly string[]; country: string | null }[];
+  competitionId: string | null;
+  competitionSlug: string | null;
+}
+
+/**
+ * Slug da competição casa com o rótulo do channels.yaml: igual, ou, quando o rótulo é uma federação (sem
+ * hífen), toda competição dela (`conmebol` → `conmebol-libertadores`, `conmebol-sudamericana`; `uefa` →
+ * `uefa-champions-league`). Rótulo de competição (`conmebol-libertadores`) só casa com o próprio slug.
+ */
+export function competitionLabelMatches(label: string, slug: string): boolean {
+  const l = label.trim().toLowerCase();
+  return slug === l || (!l.includes('-') && slug.startsWith(`${l}-`));
 }
 
 export interface ChannelVerdict {
@@ -150,9 +180,11 @@ export class ChannelAllowlist {
 
   /**
    * Tier do canal para o evento. `holders` = ids de emissoras detentoras da competição nos mercados
-   * do evento (tabela de direitos); emissora da allowlist sem direitos conta como imprensa.
+   * do evento (tabela de direitos); emissora da allowlist sem direitos conta como imprensa. Com `scope`,
+   * canal de clube só é oficial se o clube joga o jogo, e canal de competição se for a do jogo (ou a
+   * federação dela); o canal de outro clube ou de outra competição conta como imprensa.
    */
-  classify(channel: ChannelRef, holders: ReadonlySet<string>): ChannelVerdict {
+  classify(channel: ChannelRef, holders: ReadonlySet<string>, scope?: ChannelScope): ChannelVerdict {
     const blocklist = this.options.blocklist;
     const blocked =
       !!blocklist &&
@@ -160,17 +192,46 @@ export class ChannelAllowlist {
         (channel.handle ? blocklist.isBlockedUrl(`https://www.youtube.com/${channel.handle}`) : false));
     const entries = this.entriesOf(channel);
     const pick = (kind: ChannelEntry['kind']) => entries.find((e) => e.kind === kind) ?? null;
-    const club = pick('club') ?? pick('competition');
+    const official = entries.filter((e) => e.kind === 'club' || e.kind === 'competition');
+    // o mapa (time/competição ligado por id) vence o casamento pelo rótulo do channels.yaml: com uma entrada
+    // ligada do mesmo tipo, as só com rótulo não contam
+    const mapped = (e: ChannelEntry) => !!(e.kind === 'club' ? e.participantId : e.competitionId);
+    const linkedKinds = new Set(official.filter(mapped).map((e) => e.kind));
+    const own = (e: ChannelEntry) => !scope || ((mapped(e) || !linkedKinds.has(e.kind)) && ofEvent(e, scope));
+    const club =
+      official.find((e) => e.kind === 'club' && own(e)) ??
+      official.find((e) => e.kind === 'competition' && own(e));
     if (club) return { tier: 'official', entry: club, blocked };
     const broadcasters = entries.filter((e) => e.kind === 'broadcaster');
     const holder = broadcasters.find((e) => e.broadcaster && holders.has(e.broadcaster));
     if (holder) return { tier: 'rights_holder', entry: holder, blocked };
-    const media = broadcasters[0] ?? pick('media');
+    const media = broadcasters[0] ?? pick('media') ?? official[0];
     if (media) return { tier: 'media', entry: media, blocked };
     if ((channel.subscribers ?? 0) >= this.creatorMinSubscribers)
       return { tier: 'creator', entry: null, blocked };
     return { tier: 'unknown', entry: null, blocked };
   }
+}
+
+/**
+ * A entrada de clube/competição é do jogo? Pelo time/competição ligado no mapa, ou pelo rótulo do channels.yaml
+ * (time pelo nome e pelo país; competição pelo slug ou pela federação).
+ */
+function ofEvent(e: ChannelEntry, scope: ChannelScope): boolean {
+  if (e.kind === 'club') {
+    if (e.participantId) return scope.participantIds.includes(e.participantId);
+    const name = e.label ? matchText(e.label).trim() : '';
+    // entrada com país só casa com time do mesmo país (time sem país no catálogo: só o nome, como antes)
+    return (
+      !!name &&
+      scope.teams.some((t) => t.names.includes(name) && (!e.country || !t.country || t.country === e.country))
+    );
+  }
+  if (e.kind === 'competition') {
+    if (e.competitionId) return e.competitionId === scope.competitionId;
+    return !!e.label && !!scope.competitionSlug && competitionLabelMatches(e.label, scope.competitionSlug);
+  }
+  return true;
 }
 
 /** Ids de emissoras detentoras da competição nos mercados, na data do jogo. */

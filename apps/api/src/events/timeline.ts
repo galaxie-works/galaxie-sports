@@ -66,6 +66,8 @@ export interface TimelineInput {
   /** Horário marcado (o 1º tempo observado só vale perto dele). */
   startsAt?: Date | null;
   stateLog: StateLogEntry[];
+  /** Times do evento (mandante e visitante), para o time creditado no gol contra. */
+  teams?: TeamRef[];
   /** Papel na escalação (para acertar quem entra e quem sai na substituição). */
   lineupRole?: (personId: string | null) => 'starter' | 'sub' | null;
   venueTimezone: string | null;
@@ -171,13 +173,13 @@ export function periodAnchors(input: Pick<TimelineInput, 'periods' | 'stateLog' 
    * intervalo observado, os intervalos saindo de bola rolando e o 1º tempo perto do horário marcado. Se o
    * Live Poller pegou o jogo já no meio (ingestor reiniciado), a primeira observação não é o início.
    */
-  const observed = (detail: string, from: (EventStatus | null)[], nth = 0) =>
+  const observed = (detail: string | string[], from: (EventStatus | null)[], nth = 0) =>
     input.stateLog.filter(
       (l) =>
         (l.to === 'live' || l.to === 'break') &&
         l.reason !== 'temporal' &&
         l.reason !== 'temporal_fallback' &&
-        (l.statusDetail ?? '').toUpperCase() === detail &&
+        [detail].flat().includes((l.statusDetail ?? '').toUpperCase()) &&
         from.includes(l.from) &&
         (detail !== '1H' ||
           !input.startsAt ||
@@ -194,7 +196,7 @@ export function periodAnchors(input: Pick<TimelineInput, 'periods' | 'stateLog' 
     second_half: anchor(input.periods.second, observed('2H', ['break'])),
     extra_time_first: anchor(null, observed('ET', ['break'], 0)),
     extra_time_second: anchor(null, observed('ET', ['break'], 1)),
-    penalty_shootout: anchor(null, observed('P', ['break'])),
+    penalty_shootout: anchor(null, observed(['P', 'PT'], ['break'])),
     halftime: anchor(null, observed('HT', ['live'])),
     end_of_regulation: anchor(null, observed('BT', ['live'], 0)),
   };
@@ -219,6 +221,7 @@ function finishedAt(log: StateLogEntry[]): Date | null {
   return end?.at ?? null;
 }
 
+/** Fase do jogo pelo código do fornecedor (PT e AP: disputa de pênaltis do handebol e do rúgbi). */
 const STATUS_PHASE: Record<string, number> = {
   '1H': 1,
   HT: 2,
@@ -226,10 +229,14 @@ const STATUS_PHASE: Record<string, number> = {
   BT: 4,
   ET: 4,
   P: 5,
+  PT: 5,
   FT: 3,
   AET: 4,
   PEN: 5,
+  AP: 5,
 };
+/** Códigos da disputa de pênaltis (em andamento e encerrada), no futebol e nos demais esportes. */
+const SHOOTOUT_CODES: ReadonlySet<string> = new Set(['P', 'PEN', 'PT', 'AP']);
 
 /** Relógio atual do evento a partir do código do fornecedor. */
 export function currentClock(
@@ -244,11 +251,59 @@ export function currentClock(
   let period: MatchPeriod | null = null;
   if (code === '1H' || code === 'HT') period = 'first_half';
   else if (code === '2H') period = 'second_half';
-  else if (code === 'P' || code === 'PEN') period = 'penalty_shootout';
+  else if (SHOOTOUT_CODES.has(code)) period = 'penalty_shootout';
   else if (minute != null) period = periodOf({ minute, comments: null });
   if (code in STATUS_PHASE || minute != null)
     return { period, minute, extra_minute: extra, display: clockDisplay(minute, extra) };
   return null;
+}
+
+const SCORING_KINDS: ReadonlySet<TimelineKind> = new Set(['goal', 'own_goal', 'penalty_goal']);
+
+/** Lado que soma o gol; no gol contra, o oposto ao time do incidente quando essa é a convenção. */
+function creditedSide(raw: RawIncident, kind: TimelineKind, ownGoalForOpponent: boolean): Side | null {
+  const side = raw.team?.side;
+  if (side !== 'home' && side !== 'away') return null;
+  if (kind !== 'own_goal' || !ownGoalForOpponent) return side;
+  return side === 'home' ? 'away' : 'home';
+}
+
+/**
+ * O gol contra soma para o adversário do time do incidente? O time do incidente pode ser o beneficiado
+ * (o padrão assumido aqui e em docs/05; não há fixture gravado de verdade com gol contra no repositório) ou o
+ * do jogador que marcou contra (como no fixture sintético 1492407).
+ *
+ * Só o placar final é evidência estável: no ao vivo o placar chega antes do lance, e qualquer conclusão
+ * tirada do placar parcial pode se desfazer no gol seguinte (o mesmo lance trocaria de lado entre leituras).
+ * Por isso, com o jogo em andamento vale sempre o padrão; encerrado, como em `buildGoals` do resumo
+ * (services/ai-agents/src/recap/facts.ts), fica a convenção que reproduz o placar (as duas: o padrão) ou,
+ * sem nenhuma exata (lance faltando, gol anulado ainda listado), a única que menos passa dele.
+ */
+export function ownGoalCountsForOpponent(
+  incidents: RawIncident[],
+  score: TimelineInput['score'],
+  finished: boolean,
+): boolean {
+  if (!finished || score.home == null || score.away == null) return false;
+  const { home, away } = score;
+  const tally = (forOpponent: boolean) => {
+    const t = { home: 0, away: 0 };
+    for (const raw of incidents) {
+      const kind = kindOf(raw);
+      if (!SCORING_KINDS.has(kind)) continue;
+      const side = creditedSide(raw, kind, forOpponent);
+      if (side) t[side] += 1;
+    }
+    return t;
+  };
+  const asIs = tally(false);
+  const flipped = tally(true);
+  const exact = (t: { home: number; away: number }) => t.home === home && t.away === away;
+  if (exact(asIs)) return false;
+  if (exact(flipped)) return true;
+  const excess = (t: { home: number; away: number }) =>
+    Math.max(0, t.home - home) + Math.max(0, t.away - away);
+  return excess(flipped) < excess(asIs);
 }
 
 export function buildTimelineDto(input: TimelineInput): EventTimeline {
@@ -278,12 +333,19 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
   };
 
   // ─ lances: tipo, relógio, instante, placar parcial e bandeiras ─
+  const ownGoalForOpponent = ownGoalCountsForOpponent(input.incidents, input.score, finished);
   const yellows = new Set<string>();
   let home = 0;
   let away = 0;
   let goals = 0;
   let scoreKnown = true;
-  const incidents: TimelineIncident[] = input.incidents.map((raw) => {
+  /** Lado beneficiado por gol (no gol contra, pode não ser o time do incidente). */
+  const credited: (Side | null)[] = [];
+  const teamBySide = new Map<string, TeamRef>();
+  for (const t of [...(input.teams ?? []), ...input.incidents.map((i) => i.team)])
+    if (t?.side && !teamBySide.has(t.side)) teamBySide.set(t.side, t);
+  const teamOf = (side: Side): TeamRef => teamBySide.get(side) ?? { id: null, name: null, side, logo: null };
+  const incidents: TimelineIncident[] = input.incidents.map((raw, idx) => {
     let kind = kindOf(raw);
     const key = personKey(raw.player);
     if (kind === 'yellow_card' && key) yellows.add(key);
@@ -300,9 +362,10 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
 
     const flags: TimelineFlag[] = [];
     let scoreAfter: { home: number; away: number } | null = null;
-    if (kind === 'goal' || kind === 'own_goal' || kind === 'penalty_goal') {
-      const side = raw.team?.side;
-      if (side === 'home' || side === 'away') {
+    if (SCORING_KINDS.has(kind)) {
+      const side = creditedSide(raw, kind, ownGoalForOpponent);
+      credited[idx] = side;
+      if (side) {
         const tiedBefore = home === away;
         if (side === 'home') home += 1;
         else away += 1;
@@ -344,6 +407,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
       key_moment: weight >= KEY_MOMENT_MIN_WEIGHT,
       flags,
       score_after: scoreAfter,
+      scoring_team: credited[idx] ? teamOf(credited[idx]) : null,
       player_in: playerIn,
       player_out: playerOut,
     };
@@ -365,7 +429,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
     const winner: Side = score.home > score.away ? 'home' : 'away';
     const loserGoals = Math.min(score.home, score.away);
     const decisive = incidents.find(
-      (i) => i.score_after && i.team?.side === winner && i.score_after[winner] === loserGoals + 1,
+      (i, idx) => i.score_after && credited[idx] === winner && i.score_after[winner] === loserGoals + 1,
     );
     if (decisive) {
       decisive.flags.push('decisive');
@@ -386,6 +450,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
       const side = k.team?.side;
       if (scored && side === 'home') ph += 1;
       if (scored && side === 'away') pa += 1;
+      if (scored && (side === 'home' || side === 'away')) k.scoring_team = teamOf(side);
       const teamKey = side ?? k.team?.name ?? '?';
       const round = (perTeam.get(teamKey) ?? 0) + 1;
       perTeam.set(teamKey, round);
@@ -435,8 +500,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
   const extraTimeStarted =
     ['ET', 'AET'].includes(code) ||
     incidents.some((i) => i.clock.period === 'extra_time_first' || i.clock.period === 'extra_time_second') ||
-    ((code === 'P' || code === 'PEN') &&
-      ((score.extratime?.home ?? 0) > 0 || (score.extratime?.away ?? 0) > 0)) ||
+    (SHOOTOUT_CODES.has(code) && ((score.extratime?.home ?? 0) > 0 || (score.extratime?.away ?? 0) > 0)) ||
     anchors.extra_time_first != null;
 
   const maxExtra = (period: MatchPeriod) =>

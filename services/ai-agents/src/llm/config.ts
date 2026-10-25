@@ -1,6 +1,14 @@
 import { LlmError } from './errors.js';
 import type { LlmTier } from './types.js';
 
+/**
+ * Chave do agente sem a versão do prompt (`channels@v1` → `channels`): o teto e as métricas do agente
+ * não mudam de chave quando o prompt sobe de versão.
+ */
+export function agentKey(name: string): string {
+  return name.split('@')[0]!.trim().toLowerCase();
+}
+
 export type LlmProviderName = 'openai' | 'anthropic' | 'gemini';
 export const LLM_PROVIDERS: readonly LlmProviderName[] = ['openai', 'anthropic', 'gemini'];
 
@@ -58,14 +66,15 @@ export const AGENT_USD_BUDGET_ENTRY = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?)$
 
 /**
  * `lineups=2,wtw=3` → `{ lineups: 2, wtw: 3 }`. Vazio → `{}`; formato inválido → null.
- * US$ 0 num agente = agente sem IA (só o determinístico).
+ * US$ 0 num agente = agente sem IA (só o determinístico). A chave perde a versão do prompt
+ * (`channels@v1=1` vale para o agente `channels`, como o ledger grava).
  */
 export function parseAgentUsdBudgets(raw: string | undefined | null): Record<string, number> | null {
   const out: Record<string, number> = {};
   for (const part of (raw ?? '').split(/[,\s;]+/).filter(Boolean)) {
     const m = AGENT_USD_BUDGET_ENTRY.exec(part);
     if (!m) return null;
-    out[m[1]!.toLowerCase()] = Number(m[2]);
+    out[agentKey(m[1]!)] = Number(m[2]);
   }
   return out;
 }
@@ -76,7 +85,7 @@ export interface LlmSettings {
   models: Record<LlmTier, string>;
   /** Tokens (entrada + saída) por dia UTC para todos os agentes; null = sem limite. */
   dailyTokenBudget: number | null;
-  /** US$ (tokens + buscas) por dia UTC para todos os agentes; null = sem limite. */
+  /** US$ (tokens + buscas) por dia UTC para todos os agentes; null = sem limite; 0 = IA desligada. */
   dailyUsdBudget: number | null;
   /** US$ por dia UTC de cada agente (prefixo de `purpose`); agente ausente = só o teto global. */
   agentUsdBudgets: Record<string, number>;
@@ -103,10 +112,11 @@ const isUnlimited = (raw: string | undefined) => {
   return v === 'unlimited' || v === '0';
 };
 
+/** Teto em US$: "unlimited" = sem teto; 0 = IA desligada (como `agente=0`), nunca "sem teto". */
 function usdEnv(env: Env, name: string, fallback: number): number | null {
   const raw = env[name]?.trim();
   if (!raw) return fallback;
-  if (isUnlimited(raw)) return null;
+  if (raw.toLowerCase() === 'unlimited') return null;
   const n = Number(raw.replace(',', '.'));
   if (!Number.isFinite(n) || n < 0)
     throw new LlmError(`${name} precisa ser um número ≥ 0 (ou "unlimited").`, 'config', false);

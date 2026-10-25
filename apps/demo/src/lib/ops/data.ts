@@ -236,10 +236,14 @@ async function readQuota(dayUtc: string, settings: OpsSetting[]): Promise<QuotaR
     });
 }
 
-/** Valor numérico de uma flag; vazio, "unlimited", 0 ou inválido = null (sem limite). */
+/**
+ * Valor numérico de uma flag; vazio, "unlimited", 0 ou inválido = null (sem limite). Nas flags em que 0
+ * desliga (`zeroIsOff`, ex.: AI_DAILY_USD_BUDGET), 0 continua 0.
+ */
 function limitSetting(settings: OpsSetting[], key: string): number | null {
   const raw = settings.find((s) => s.key === key)?.value;
-  const n = !raw || raw === 'unlimited' || raw === '0' ? null : Number(raw);
+  const zeroIsOff = SETTINGS.find((d) => d.key === key)?.zeroIsOff === true;
+  const n = !raw || raw === 'unlimited' || (raw === '0' && !zeroIsOff) ? null : Number(raw);
   return n !== null && Number.isFinite(n) ? n : null;
 }
 

@@ -4,20 +4,23 @@
  * - US$ (AI_DAILY_USD_BUDGET global e AI_AGENT_USD_BUDGETS por agente), somando o custo dos tokens e o
  *   das buscas na web (`cost_usd` de cada linha; o grounding do Gemini é cobrado por consulta).
  * Cada chamada ao LLM vira uma linha em `ops.llm_usage` (fonte da verdade); antes de chamar,
- * `TokenBudget.reserve` soma o consumo do dia UTC e recusa se a estimativa não couber. Agente que
- * bate o próprio teto em US$ fica sem IA até a virada do dia UTC (segue com o determinístico).
+ * `TokenBudget.reserve` soma o consumo do dia UTC e recusa se a estimativa (de uma tentativa) não
+ * couber; antes de cada retentativa ou continuação, o provedor confere de novo com o gasto parcial da
+ * chamada (`LlmJsonRequest.budgetCheck`). Agente que bate o próprio teto em US$ fica sem IA até a
+ * virada do dia UTC (segue com o determinístico); AI_DAILY_USD_BUDGET=0 desliga a IA de todos.
  *
  * Uso por outros agentes: envolva o cliente com `new BudgetedLlmClient(client, budget)` e use
- * `purpose` no formato `<agente>:<detalhe>` (ex.: `live:priorities:2026-10-21`) — o prefixo é a
- * chave do limite por agente (opcional) e das métricas.
+ * `purpose` no formato `<agente>:<detalhe>` (ex.: `live:priorities:2026-10-21`) — o prefixo, sem a
+ * versão do prompt (`channels@v1` → `channels`), é a chave do limite por agente (opcional) e das métricas.
  *
  * O limite é "macio" entre processos (a checagem lê o ledger; duas execuções simultâneas podem
  * ultrapassar por no máximo uma chamada cada) — suficiente para conter custo descontrolado.
  */
 import { and, eq, sql } from 'drizzle-orm';
 import { llmUsage, type Database } from '@galaxie/db';
+import { agentKey } from './config.js';
 import { BudgetExceededError, LlmError } from './errors.js';
-import { priceFor, searchUsdFor } from './pricing.js';
+import { budgetPriceFor, searchUsdFor } from './pricing.js';
 import type { LlmClient, LlmJsonRequest, LlmResult, LlmTier, LlmUsage } from './types.js';
 
 /** `LlmUsage` com o número de buscas na web (campo extra preenchido pelos provedores). */
@@ -48,9 +51,9 @@ export interface TokenBudgetStore {
 
 export const dayUtcOf = (d: Date) => d.toISOString().slice(0, 10);
 
-/** Agente = prefixo de `purpose` (antes do primeiro ":"). */
+/** Agente = prefixo de `purpose` (antes do primeiro ":"), sem a versão do prompt. */
 export function agentOf(purpose: string): string {
-  return purpose.split(':')[0]?.trim() || 'unknown';
+  return agentKey(purpose.split(':')[0] ?? '') || 'unknown';
 }
 
 export class PgTokenBudgetStore implements TokenBudgetStore {
@@ -136,6 +139,14 @@ export interface BudgetStatus {
   remaining: number | null;
 }
 
+/** Teto que valeu na reserva, com o uso do dia lido do ledger naquele momento. */
+export interface ReservedLimit {
+  who: string;
+  unit: 'tokens' | 'usd';
+  used: number;
+  limit: number;
+}
+
 export interface UsdBudgetStatus {
   dayUtc: string;
   usedUsd: number;
@@ -182,31 +193,69 @@ export class TokenBudget {
 
   /**
    * Lança BudgetExceededError se `estimate` (tokens) não couber no global nem no limite do agente, ou se
-   * `estimateUsd` não couber no teto em US$ global ou do agente.
+   * `estimateUsd` não couber no teto em US$ global ou do agente. Devolve os tetos conferidos (para
+   * `checkPartial` conferir de novo a cada retentativa sem reler o ledger).
    */
-  async reserve(agent: string, estimate: number, estimateUsd = 0): Promise<void> {
+  async reserve(agent: string, estimate: number, estimateUsd = 0): Promise<ReservedLimit[]> {
     const dayUtc = dayUtcOf(this.now());
+    const limits: ReservedLimit[] = [];
     if (this.policy.dailyLimit !== null) {
       const used = await this.store.usedTokens(dayUtc);
-      if (used + estimate > this.policy.dailyLimit)
-        throw new BudgetExceededError('global', used, this.policy.dailyLimit, estimate);
+      limits.push({ who: 'global', unit: 'tokens', used, limit: this.policy.dailyLimit });
     }
     const agentLimit = this.policy.agentLimits?.[agent];
     if (agentLimit !== undefined) {
       const used = await this.store.usedTokens(dayUtc, agent);
-      if (used + estimate > agentLimit) throw new BudgetExceededError(agent, used, agentLimit, estimate);
+      limits.push({ who: agent, unit: 'tokens', used, limit: agentLimit });
     }
     const usdLimit = this.policy.dailyUsdLimit ?? null;
     if (usdLimit !== null) {
       const used = await this.store.usedUsd(dayUtc);
-      if (used >= usdLimit || used + estimateUsd > usdLimit)
-        throw this.usdExceeded(dayUtc, 'global', used, usdLimit, estimateUsd);
+      limits.push({ who: 'global', unit: 'usd', used, limit: usdLimit });
     }
     const agentUsd = this.policy.agentUsdLimits?.[agent];
     if (agentUsd !== undefined) {
       const used = await this.store.usedUsd(dayUtc, agent);
-      if (used >= agentUsd || used + estimateUsd > agentUsd)
-        throw this.usdExceeded(dayUtc, agent, used, agentUsd, estimateUsd);
+      limits.push({ who: agent, unit: 'usd', used, limit: agentUsd });
+    }
+    this.check(limits, { tokens: 0, usd: 0 }, estimate, estimateUsd, false);
+    return limits;
+  }
+
+  /**
+   * Confere os tetos da reserva somando o gasto parcial desta chamada (`spent`: retentativas e
+   * continuações já cobradas) e mais uma rodada estimada; lança BudgetExceededError (`midCall`) se não
+   * couber. A recusa aqui não é "orçamento esgotado": não consome o aviso único do dia.
+   */
+  checkPartial(
+    limits: readonly ReservedLimit[],
+    spent: { tokens: number; usd: number },
+    estimate: number,
+    estimateUsd: number,
+  ): void {
+    this.check(limits, spent, estimate, estimateUsd, true);
+  }
+
+  private check(
+    limits: readonly ReservedLimit[],
+    spent: { tokens: number; usd: number },
+    estimate: number,
+    estimateUsd: number,
+    midCall: boolean,
+  ): void {
+    for (const l of limits) {
+      const tokens = l.unit === 'tokens';
+      const used = l.used + (tokens ? spent.tokens : spent.usd);
+      const next = tokens ? estimate : estimateUsd;
+      if (used + next <= l.limit && (tokens || used < l.limit)) continue;
+      if (midCall) {
+        const err = new BudgetExceededError(l.who, used, l.limit, next, l.unit, true);
+        console.warn(`[orçamento de IA] ${err.message}`);
+        throw err;
+      }
+      throw tokens
+        ? new BudgetExceededError(l.who, used, l.limit, estimate)
+        : this.usdExceeded(dayUtcOf(this.now()), l.who, used, l.limit, estimateUsd);
     }
   }
 
@@ -259,10 +308,10 @@ export const UNCAPPED_SEARCH_ESTIMATE = 10;
 /**
  * Estimativa conservadora em US$ de uma requisição: tokens de entrada (com o overhead da busca) e a saída
  * máxima ao preço do modelo, mais o teto de buscas ao preço por busca do provedor. Modelo fora da tabela
- * de preços conta só as buscas.
+ * de preços usa o preço mais caro do provedor (sem provedor conhecido, conta só as buscas).
  */
 export function estimateRequestUsd(req: LlmJsonRequest, model: string, provider: string): number {
-  const p = priceFor(model);
+  const p = budgetPriceFor(model, provider);
   const outputTokens = req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
   const inputTokens = Math.max(0, estimateRequestTokens(req) - outputTokens);
   const tokensUsd = p ? (inputTokens * p.input + outputTokens * p.output) / 1_000_000 : 0;
@@ -292,34 +341,18 @@ export class BudgetedLlmClient implements LlmClient {
       original.webSearch && original.maxSearches === undefined && cap !== null
         ? { ...original, maxSearches: cap }
         : original;
-    await this.budget.reserve(
-      agent,
-      estimateRequestTokens(req),
-      estimateRequestUsd(req, req.model ?? this.modelOf(req.tier), this.providerName),
-    );
+    const estimate = estimateRequestTokens(req);
+    const estimateUsd = estimateRequestUsd(req, req.model ?? this.modelOf(req.tier), this.providerName);
+    const limits = await this.budget.reserve(agent, estimate, estimateUsd);
+    // a reserva cobre uma tentativa: o provedor confere de novo antes de cada retentativa/continuação
+    const call: LlmJsonRequest = {
+      ...req,
+      budgetCheck: (spent, next) =>
+        this.budget.checkPartial(limits, spent, next?.tokens ?? estimate, next?.usd ?? estimateUsd),
+    };
+    let result: LlmResult<T>;
     try {
-      const result = await this.inner.generateJson<T>(req);
-      const usage = result.usage as UsageWithSearches;
-      const searches = usage.webSearchCalls ?? 0;
-      const searchCap = req.maxSearches ?? cap;
-      // fica no ledger (web_searches): o painel conta as chamadas acima do teto
-      if (overSearchCap(searches, searchCap))
-        console.warn(
-          `[orçamento de IA] ${req.purpose}: ${searches} buscas na web, acima do teto de ${searchCap} por chamada (${result.provider}/${result.model}).`,
-        );
-      await this.budget.record({
-        agent,
-        purpose: req.purpose,
-        provider: result.provider,
-        model: result.model,
-        tier: req.tier,
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        webSearches: usage.webSearchCalls ?? 0,
-        costUsd: usage.costUsd,
-        outcome: 'ok',
-      });
-      return result;
+      result = await this.inner.generateJson<T>(call);
     } catch (err) {
       const partial = (err as { usage?: UsageWithSearches }).usage;
       await this.budget.record({
@@ -337,5 +370,33 @@ export class BudgetedLlmClient implements LlmClient {
       });
       throw err instanceof LlmError ? err : new LlmError(String(err), 'provider', false, { cause: err });
     }
+    const usage = result.usage as UsageWithSearches;
+    const searches = usage.webSearchCalls ?? 0;
+    const searchCap = req.maxSearches ?? cap;
+    // fica no ledger (web_searches): o painel conta as chamadas acima do teto
+    if (overSearchCap(searches, searchCap))
+      console.warn(
+        `[orçamento de IA] ${req.purpose}: ${searches} buscas na web, acima do teto de ${searchCap} por chamada (${result.provider}/${result.model}).`,
+      );
+    // a chamada já foi paga: falha ao gravar o ledger não descarta o resultado (nem faz o agente pagar de novo)
+    try {
+      await this.budget.record({
+        agent,
+        purpose: req.purpose,
+        provider: result.provider,
+        model: result.model,
+        tier: req.tier,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        webSearches: searches,
+        costUsd: usage.costUsd,
+        outcome: 'ok',
+      });
+    } catch (recordErr) {
+      console.error(
+        `[orçamento de IA] ${req.purpose}: falha ao gravar o uso no ledger (US$ ${usage.costUsd ?? '?'} fora do teto do dia): ${recordErr instanceof Error ? recordErr.message : String(recordErr)}`,
+      );
+    }
+    return result;
   }
 }
