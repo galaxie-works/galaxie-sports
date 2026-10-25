@@ -285,21 +285,19 @@ describe('carro de destaque do piloto', () => {
     });
   });
 
-  it('a primeira foto do carro de destaque também fica no piloto, com a temporada', async () => {
+  // a foto com a nota do Gemini para o fundo (`hero`): sem ela, o carro não vai ao fundo
+  const scored = () => [photo('File:MP4-4 Suzuka 1988.jpg', 'car', { rank: 0, hero: 0.8 })];
+
+  it('a foto do carro de destaque com a nota do fundo também fica no piloto, com a temporada', async () => {
     const plan = await importCommons(
       db,
       new InMemoryObjectStore(),
       client(licenses),
-      withHighlight([photo('File:MP4-4 Suzuka 1988.jpg', 'car', { rank: 0 })], true),
+      withHighlight(scored(), true),
       { plan: true },
     );
     expect(plan.highlights).toBe(1);
-    const r = await importCommons(
-      db,
-      store,
-      client(licenses),
-      withHighlight([photo('File:MP4-4 Suzuka 1988.jpg', 'car', { rank: 0 })], true),
-    );
+    const r = await importCommons(db, store, client(licenses), withHighlight(scored(), true));
     expect(r.highlights).toBe(1);
     const [carAsset] = await db
       .select({ id: asset.id })
@@ -308,13 +306,23 @@ describe('carro de destaque do piloto', () => {
     expect(await highlightOf()).toEqual([{ role: 'highlight_car', season: 1988, assetId: carAsset!.id }]);
   });
 
+  it('carro sem a nota do Gemini não vai ao fundo (nem a primeira foto compatível): o vínculo sai', async () => {
+    const semNota = withHighlight([photo('File:MP4-4 Suzuka 1988.jpg', 'car', { rank: 0 })], true);
+    const plan = await importCommons(db, new InMemoryObjectStore(), client(licenses), semNota, {
+      plan: true,
+    });
+    expect(plan.highlights).toBe(0);
+    expect(plan.withoutHighlight).toEqual(['driver/ayrton-senna']);
+    const r = await importCommons(db, store, client(licenses), semNota);
+    expect(r.highlights).toBe(0);
+    expect(await highlightOf()).toEqual([]);
+    // com a nota de novo, volta
+    await importCommons(db, store, client(licenses), withHighlight(scored(), true));
+    expect(await highlightOf()).toHaveLength(1);
+  });
+
   it('sem destaque no manifesto, o vínculo sai', async () => {
-    const r = await importCommons(
-      db,
-      store,
-      client(licenses),
-      withHighlight([photo('File:MP4-4 Suzuka 1988.jpg', 'car', { rank: 0 })], false),
-    );
+    const r = await importCommons(db, store, client(licenses), withHighlight(scored(), false));
     expect(r.highlights).toBe(0);
     expect(await highlightOf()).toEqual([]);
   });
