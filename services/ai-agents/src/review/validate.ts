@@ -5,6 +5,7 @@
  * com o motivo para o admin.
  */
 import { canonicalJson, editableReviewFields, lockedReviewFields, type ReviewKind } from '@galaxie/knowledge';
+import { checkGeneratedText, describeViolations, type Violation } from '../guardrails/index.js';
 import type { ReviewModelOutput } from './schema.js';
 
 /** Item com sugestão em aberto, como o runner lê do banco (semantic.review_item + review_decision). */
@@ -86,8 +87,33 @@ export function fieldProblems(field: string, before: unknown, after: unknown): s
 }
 
 /**
+ * Guardrails do texto gerado (termos proibidos, eco de prompt injection e, com o idioma do item, idioma errado) nos
+ * textos que a edição escreve no campo. Só conta o problema novo: o que o valor atual já tinha (ex.: o nome oficial
+ * de um time que contém um termo da lista) não pesa contra a edição. Rivalidade só na copy de intenção `rivalry`.
+ */
+export function textProblems(item: SuggestionItem, field: string, before: unknown, after: unknown): string[] {
+  const locales = item.locale ? [item.locale] : ['pt-BR', 'es'];
+  const allowRivalry = item.kind === 'copy' && item.content.intent === 'rivalry';
+  const relevant = (v: Violation) =>
+    v.kind.startsWith('forbidden_') ||
+    v.kind === 'injection_echo' ||
+    (!!item.locale && v.kind === 'wrong_language');
+  const violations = (value: unknown) =>
+    strings(value)
+      .filter((s) => s.trim())
+      .flatMap((s) => locales.flatMap((locale) => checkGeneratedText(s, { locale, allowRivalry })))
+      .filter(relevant);
+  const had = new Set(violations(before).map((v) => `${v.kind}|${v.value}`));
+  const fresh = violations(after).filter((v, i, all) => {
+    const key = `${v.kind}|${v.value}`;
+    return !had.has(key) && all.findIndex((x) => `${x.kind}|${x.value}` === key) === i;
+  });
+  return describeViolations(fresh).map((d) => `${field}: ${d}`);
+}
+
+/**
  * Campos finais a partir da saída do modelo: parse dos valores, só campos editáveis do item, sem os que
- * não mudam e com as regras de `fieldProblems`. `accept` sem campos = a edição proposta como veio.
+ * não mudam e com as regras de `fieldProblems` e de `textProblems`. `accept` sem campos = a edição proposta como veio.
  */
 export function finalFields(item: SuggestionItem, output: ReviewModelOutput): FinalFields {
   const problems: string[] = [];
@@ -122,7 +148,8 @@ export function finalFields(item: SuggestionItem, output: ReviewModelOutput): Fi
   const fields = Object.fromEntries(
     Object.entries(raw).filter(([k, v]) => !same(item.content[k], v)),
   ) as Record<string, unknown>;
-  for (const [k, v] of Object.entries(fields)) problems.push(...fieldProblems(k, item.content[k], v));
+  for (const [k, v] of Object.entries(fields))
+    problems.push(...fieldProblems(k, item.content[k], v), ...textProblems(item, k, item.content[k], v));
   if (JSON.stringify(fields).length > FIELDS_MAX) problems.push('edição grande demais');
   if (output.decision === 'accept_with_changes' && !Object.keys(fields).length)
     problems.push('aceita com ajustes, mas sem nenhum campo alterado');
