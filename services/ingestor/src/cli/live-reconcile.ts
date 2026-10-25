@@ -1,12 +1,14 @@
 /**
- * Reconciliação do ao vivo: confirma pelo detalhe (`fixtures?id=`, prioridade LIVE) os jogos que o core
- * ainda dá como em andamento e grava status, placar e encerramento. Rede de segurança do scheduler e
- * "botão de pânico" do painel de Operação — não depende do plano nem do processo do ao vivo.
- * Sem --forcar, só confere o que parece errado: encerrados pelo relógio sem confirmação da fonte (qualquer
- * prioridade, 1 chamada por jogo) e jogos acompanhados pelo ao vivo, já vistos depois do apito, sem
- * observação válida há N minutos (ou 2× o intervalo do plano do ao vivo; nada com o orçamento LIVE
- * esgotado). Os que o poller está atualizando não gastam cota de novo.
- * O painel ("rodar agora") e o `scheduler --run` rodam com --forcar.
+ * Reconciliação do ao vivo: confirma na fonte os jogos que o core ainda dá como em andamento, ou que o
+ * relógio encerrou sem placar, e grava status, placar e encerramento. Rede de segurança do scheduler e
+ * "botão de pânico" do painel de Operação — não depende do processo do ao vivo (regras em live/reconcile.ts).
+ * Sem --forcar, só confere o que parece errado:
+ * - jogos acompanhados pelo ao vivo, já vistos depois do apito, sem observação válida há N minutos (ou 2×
+ *   o intervalo do plano do ao vivo; nada com o orçamento LIVE esgotado): detalhe `fixtures?id=` (LIVE);
+ * - jogos do catálogo encerrados pelo relógio sem placar da fonte: uma agenda `fixtures?date=` (ADHOC) por
+ *   dia confirma todos, com até 3 tentativas espaçadas por jogo.
+ * Os que o poller está atualizando não gastam cota de novo.
+ * O painel ("rodar agora") e o `scheduler --run` rodam com --forcar (detalhe de todo jogo em andamento).
  *   pnpm --filter @galaxie/ingestor live:reconcile --plan     # quais jogos seriam conferidos (nada é chamado)
  *   pnpm --filter @galaxie/ingestor live:reconcile            # confere e corrige os parados
  *   pnpm --filter @galaxie/ingestor live:reconcile --forcar   # confere todos os em andamento
@@ -36,6 +38,7 @@ import { recomputeStandings } from '../standings/recompute.js';
 import { runCli } from './job-cli.js';
 
 const rulesDir = resolve('../../config/rules');
+const LIVE_STATE_MAX_AGE_MS = 15 * 60_000;
 const log = logger.child({ component: 'live-reconcile' });
 
 function positive(value: string, flag: string): number {
@@ -72,9 +75,14 @@ await runCli(async () => {
   const now = new Date();
 
   try {
-    // plano do ao vivo de hoje (gravado pelo live-run): intervalo atual e orçamento esgotado
+    // plano do ao vivo (gravado pelo live-run a cada passo): intervalo atual e orçamento esgotado. Estado de
+    // outro dia ou parado há mais de 15 min (o ao vivo caiu ou saiu ocioso) não vale
     const live = await loadLiveState(ctx.db, sport);
-    const today = live?.day === now.toISOString().slice(0, 10) ? live : null;
+    const today =
+      live?.day === now.toISOString().slice(0, 10) &&
+      now.getTime() - Date.parse(live.updatedAt) <= LIVE_STATE_MAX_AGE_MS
+        ? live
+        : null;
     const intervalS = Math.max(today?.intervalSeconds ?? 0, today?.baseIntervalSeconds ?? 0);
     const triage: ReconcileTargetOptions = {
       lookbackHours,
@@ -133,6 +141,7 @@ await runCli(async () => {
         ...triage,
         max,
         jobId,
+        cursors,
         onDetailFetched: async (providerEventId, at) => {
           await cursors.complete(
             [{ sport, endpoint: '/fixtures', key: `id=${providerEventId}` }],
@@ -156,6 +165,8 @@ await runCli(async () => {
         inPlay: r.inPlay,
         pending: r.pending,
         checked: r.checked.length,
+        listed: r.listed,
+        confirmedByList: r.confirmedByList.length,
         changed: r.changes.length,
         finished: r.finished.length,
         published: r.published,

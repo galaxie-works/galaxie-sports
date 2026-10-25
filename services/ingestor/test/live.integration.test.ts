@@ -332,12 +332,21 @@ describe('ao vivo no Postgres', () => {
     expect(await eventRow(minor.fixtureId)).toMatchObject({ status: 'finished', statusSource: 'temporal' });
     expect(await targetsAt(now)).toEqual(['9301']);
 
+    // a agenda do dia inteiro (1 chamada ADHOC): só o jogo pedido entra no core
     const provider = new FakeProvider('api-sports').willReturn(
-      'getEventDetail',
-      normalizeFixtures([{ ...apiFixture(minor, now, teamId), lineups: [], statistics: [] }], now),
+      'listEvents',
+      normalizeFixtures([apiFixture(minor, now, teamId), apiFixture(arg, now, teamId)], now),
     );
-    const r = await reconcileLive(provider, store, { sport: 'football', now });
-    expect(r).toMatchObject({ checked: ['9301'], calls: 1 });
+    const cursors = new PgCursorStore(db);
+    const argBefore = await eventRow(arg.fixtureId);
+    const r = await reconcileLive(provider, store, { sport: 'football', now, cursors });
+    expect(r).toMatchObject({ checked: [], listed: ['2026-10-25'], confirmedByList: ['9301'], calls: 1 });
+    expect((await eventRow(arg.fixtureId)).updatedAt).toEqual(argBefore.updatedAt);
+    // tentativa registrada: não confere de novo
+    const [state] = [
+      ...(await cursors.load([{ sport: 'football', endpoint: 'live:reconcile', key: 'id=9301' }])).values(),
+    ];
+    expect(state?.completedAt).toBeInstanceOf(Date);
     const done = await eventRow(minor.fixtureId);
     expect(done).toMatchObject({ status: 'finished', statusSource: 'provider', statusDetail: 'FT' });
     expect(done.score).toMatchObject({ home: 1, away: 0 });

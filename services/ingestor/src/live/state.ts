@@ -1,5 +1,6 @@
 /**
- * Estado publicado pelo processo do ao vivo em `ops.sync_cursor` (endpoint `live:scheduler`, chave = esporte):
+ * Estado publicado pelo processo do ao vivo em `ops.sync_cursor` (endpoint `live:scheduler`, chave `state`, uma
+ * linha por esporte na coluna `sport`):
  * o intervalo dinâmico, o orçamento e as janelas do dia. As métricas (`galaxie_live_poll_interval_seconds`)
  * e o `live:run --plan` leem daqui — sem métricas em memória, vale com qualquer número de processos.
  */
