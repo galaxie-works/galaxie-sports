@@ -91,6 +91,9 @@ export interface VideoDetail {
   defaultLanguage: string | null;
   privacyStatus: string | null;
   embeddable: boolean;
+  /** `contentDetails.regionRestriction`: países onde toca (null = todos) e onde não toca. */
+  regionAllowed: string[] | null;
+  regionBlocked: string[];
   uploadStatus: string | null;
   views: number | null;
   likes: number | null;
@@ -285,6 +288,7 @@ export class YoutubeClient {
           defaultLanguage: str(sn.defaultAudioLanguage) ?? str(sn.defaultLanguage),
           privacyStatus: str(status.privacyStatus),
           embeddable: status.embeddable !== false,
+          ...regionRestriction(cd.regionRestriction),
           uploadStatus: str(status.uploadStatus),
           views: num(st.viewCount),
           likes: num(st.likeCount),
@@ -377,4 +381,12 @@ export function youtubeQuotaDayEnd(at: Date): Date {
     if (youtubeQuotaDay(end) !== day && youtubeQuotaDay(new Date(end.getTime() - 1)) === day) return end;
   }
   return new Date(Date.UTC(y, m - 1, d + 1, 8));
+}
+
+/** Países do `regionRestriction` (ISO 3166-1 em maiúsculas); sem restrição, toca em todos. */
+export function regionRestriction(raw: unknown): { regionAllowed: string[] | null; regionBlocked: string[] } {
+  const r = obj(raw);
+  const codes = (v: unknown) =>
+    Array.isArray(v) ? v.filter((c): c is string => typeof c === 'string').map((c) => c.toUpperCase()) : null;
+  return { regionAllowed: codes(r.allowed), regionBlocked: codes(r.blocked) ?? [] };
 }

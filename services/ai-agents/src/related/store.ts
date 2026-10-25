@@ -41,6 +41,8 @@ export interface RelatedItemInput {
   publishedAt: Date;
   thumbnailUrl: string | null;
   language: string | null;
+  regionAllowed: string[] | null;
+  regionBlocked: string[];
   statistics: RelatedStatistics | null;
   rankScore: number;
   confidence: number;
@@ -159,6 +161,9 @@ export async function saveRelatedContent(db: Database, input: SaveRelatedInput):
             thumbnailUrl: item.thumbnailUrl,
             // proporção vem das dimensões do player: atualiza sem criar versão nova
             aspectRatio: item.aspectRatio,
+            // a restrição de país filtra na leitura, por país do público: também sem versão nova
+            regionAllowed: item.regionAllowed,
+            regionBlocked: item.regionBlocked,
             queries: [...new Set([...prev.queries, ...item.queries])],
             runId: input.runId,
           })

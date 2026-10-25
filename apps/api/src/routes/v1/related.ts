@@ -1,17 +1,28 @@
 import type { FastifyInstance } from 'fastify';
 import {
   EventParams,
+  RelatedPlaybackErrorBody,
   RelatedQuery,
   type RelatedContent,
+  type RelatedPlaybackErrorResult,
   type RelatedContentTypeName,
   type RelatedItem,
   type SupportedLocale,
 } from '@galaxie/contracts';
-import { readRelatedContent, relatedContentTag, type RelatedContentRow } from '@galaxie/db';
+import {
+  publishChange,
+  readRelatedContent,
+  recordPlaybackBlock,
+  RELATED_CONTENT_TOPIC,
+  relatedContentTag,
+  type RelatedContentRow,
+  type RelatedPlaybackBlockCode,
+} from '@galaxie/db';
 import { assertSport } from '../../auth/authenticator.js';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
+import { problems } from '../../errors.js';
 import { eventHead } from '../../events/queries.js';
 import { resolveMarket } from '../../events/relevance.js';
 import { formatInstant, resolveLocale } from '../../i18n.js';
@@ -110,7 +121,10 @@ function toItem(row: RelatedContentRow, locale: SupportedLocale, tz: string): Re
   };
 }
 
-/** GET /v1/events/{id}/related?type=&format=&limit= (docs/12 §7) — módulo related_content. */
+/**
+ * GET /v1/events/{id}/related?type=&format=&aspect_ratio=&limit= (docs/12 §7) e o aviso de vídeo recusado
+ * pelo player (POST /v1/related/playback-errors) — módulo related_content.
+ */
 export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   app.get('/v1/events/:id/related', { config: MODULE }, async (request, reply) => {
     const params = parseInput(EventParams, request.params);
@@ -133,7 +147,9 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const page = await readRelatedContent(db, head.id, {
           ...(query.type?.length ? { types: query.type } : {}),
           ...(query.format ? { format: query.format } : {}),
+          ...(query.aspect_ratio?.length ? { aspectRatios: query.aspect_ratio } : {}),
           ...(language ? { language, region: country! } : {}),
+          ...(country ? { country } : {}),
           limit: query.limit,
         });
         const body: RelatedContent = {
@@ -149,5 +165,49 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
         };
       },
     });
+  });
+
+  // O player oficial recusou o vídeo (onError 100/101/150): sai da vitrine em todos os jogos.
+  app.post('/v1/related/playback-errors', { config: MODULE }, async (request, reply) => {
+    const t = request.tenant;
+    if (!t) throw problems.invalidKey();
+    if (t.keyKind !== 'secret') throw problems.publishableKeyNotAllowed();
+    const body = parseInput(RelatedPlaybackErrorBody, request.body ?? {});
+    const db = requireDb(ctx);
+    const result = await db.transaction(async (tx) => {
+      const saved = await recordPlaybackBlock(tx, {
+        itemId: body.item_id,
+        code: body.code as RelatedPlaybackBlockCode,
+        tenantId: t.tenantId,
+      });
+      if (!saved) return null;
+      // o change feed purga o cache dos jogos e avisa SSE/webhook
+      if (saved.first)
+        for (const eventId of saved.eventIds)
+          await publishChange(tx, {
+            topic: RELATED_CONTENT_TOPIC,
+            entityType: 'related_content',
+            entityId: eventId,
+            payload: {
+              event_id: eventId,
+              changed: ['related_content'],
+              data: { added: [], removed: [saved.externalId], changed: [] },
+              tags: [relatedContentTag(eventId), `event:${eventId}`],
+            },
+          });
+      return saved;
+    });
+    if (!result) throw problems.notFound('Item do conteúdo relacionado');
+    request.log.info(
+      { tenant: t.slug, video: result.externalId, code: body.code, events: result.eventIds.length },
+      'vídeo relacionado recusado pelo player',
+    );
+    reply.header('cache-control', 'no-store');
+    const out: RelatedPlaybackErrorResult = {
+      item_id: body.item_id,
+      external_id: result.externalId,
+      removed_from_events: result.first ? result.eventIds.length : 0,
+    };
+    return out;
   });
 }

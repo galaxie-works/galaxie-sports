@@ -11,10 +11,11 @@ import {
   detectFormat,
   RULES_CLASSIFIER,
 } from './classify.js';
-import { checkRelevance, decidePublication, rankScore } from './policy.js';
+import { checkRelevance, decidePublication, playbackBlockPenalty, rankScore } from './policy.js';
 import { buildRelatedQueries, languagesFor } from './queries.js';
 import {
   parseIsoDuration,
+  regionRestriction,
   YoutubeClient,
   YoutubeError,
   youtubeQuotaDay,
@@ -561,6 +562,28 @@ describe('política de publicação e ranking', () => {
     });
     expect(official).toBeGreaterThan(media);
     expect(media).toBeGreaterThan(creator);
+  });
+
+  it('bloqueios no player do mesmo canal e formato descontam o ranking; um caso isolado não pesa', () => {
+    expect([0, 1, 2, 4, 5, 9].map(playbackBlockPenalty)).toEqual([0, 0, 1, 1, 2, 2]);
+    const base = {
+      tier: 'rights_holder' as const,
+      type: 'highlights' as const,
+      views: 100_000,
+      publishedAt: new Date('2026-10-22T03:00:00Z'),
+      kickoff: KICKOFF,
+    };
+    expect(rankScore({ ...base, blockedSameChannelFormat: 1 })).toBe(rankScore(base));
+    expect(rankScore({ ...base, blockedSameChannelFormat: 3 })).toBe(rankScore(base) - 1);
+  });
+
+  it('restrição de país do YouTube: allowed e blocked em maiúsculas; sem restrição, toca em todos', () => {
+    expect(regionRestriction(undefined)).toEqual({ regionAllowed: null, regionBlocked: [] });
+    expect(regionRestriction({ blocked: ['ar', 'UY'] })).toEqual({
+      regionAllowed: null,
+      regionBlocked: ['AR', 'UY'],
+    });
+    expect(regionRestriction({ allowed: ['br'] })).toEqual({ regionAllowed: ['BR'], regionBlocked: [] });
   });
 });
 

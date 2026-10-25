@@ -1,11 +1,19 @@
 'use client';
 
 import type { RelatedItem } from '@galaxie/contracts';
-import { BadgeCheck, ChevronLeft, ChevronRight, ExternalLink, VolumeX, XIcon } from 'lucide-react';
+import {
+  BadgeCheck,
+  ChevronLeft,
+  ChevronRight,
+  CircleSlash,
+  ExternalLink,
+  VolumeX,
+  XIcon,
+} from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 import { cn } from '@/lib/utils';
@@ -52,6 +60,7 @@ interface YtNamespace {
       events: {
         onReady?: (e: { target: YtPlayer }) => void;
         onStateChange?: (e: { data: number; target: YtPlayer }) => void;
+        onError?: (e: { data: number }) => void;
       };
     },
   ) => YtPlayer;
@@ -87,17 +96,49 @@ const YT_PLAYING = 1;
 const YT_BUFFERING = 3;
 /** Tempo para o vídeo começar com som antes de cair no autoplay mudo. */
 export const AUTOPLAY_FALLBACK_MS = 1_500;
+/** Contagem até o próximo vídeo quando o player recusa o atual. */
+export const UNPLAYABLE_SKIP_SECONDS = 5;
 
-function YoutubeEmbed({ videoId, title, onEnded }: { videoId: string; title: string; onEnded?: () => void }) {
+/**
+ * Erros do `onError` da IFrame API que tiram o vídeo da vitrine (a API é avisada): 100 = removido ou
+ * privado; 101 e 150 = o dono do conteúdo não permite tocar fora do YouTube (ex.: reivindicação de
+ * direitos, que a Data API não mostra antes do play). 2 e 5 são do player: só pula.
+ */
+const BLOCK_CODES = new Set([100, 101, 150]);
+
+function reportUnplayable(itemId: string, code: number) {
+  if (!BLOCK_CODES.has(code)) return;
+  void fetch('/api/related/playback-error', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ item_id: itemId, code }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function YoutubeEmbed({
+  videoId,
+  title,
+  onEnded,
+  onUnplayable,
+}: {
+  videoId: string;
+  title: string;
+  onEnded?: () => void;
+  /** O player recusou o vídeo (código do `onError`). */
+  onUnplayable?: (code: number) => void;
+}) {
   const { t } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const ended = useRef(onEnded);
+  const unplayable = useRef(onUnplayable);
   /** Autoplay com som bloqueado (ex.: Safari do iPhone): tocando mudo, à espera de um toque. */
   const [mutedFallback, setMutedFallback] = useState(false);
   useEffect(() => {
     ended.current = onEnded;
-  }, [onEnded]);
+    unplayable.current = onUnplayable;
+  }, [onEnded, onUnplayable]);
 
   useEffect(() => {
     let player: YtPlayer | undefined;
@@ -137,6 +178,10 @@ function YoutubeEmbed({ videoId, title, onEnded }: { videoId: string; title: str
           },
           onStateChange: ({ data }) => {
             if (data === YT_ENDED) ended.current?.();
+          },
+          onError: ({ data }) => {
+            if (timer) clearTimeout(timer);
+            unplayable.current?.(data);
           },
         },
       });
@@ -291,6 +336,16 @@ function RelatedPlayerPanel({
   const vertical = item.aspect_ratio === '9:16';
   const tier = t.media.tiers[item.channel.source_tier];
   const time = duration(item.duration_seconds);
+  /** Erro do player no vídeo atual (null = tocando normalmente). */
+  const [failure, setFailure] = useState<{ itemId: string; code: number } | null>(null);
+  const failed = failure?.itemId === item.id ? failure.code : null;
+  const onUnplayable = useCallback(
+    (code: number) => {
+      setFailure({ itemId: item.id, code });
+      reportUnplayable(item.id, code);
+    },
+    [item.id],
+  );
 
   return (
     <aside
@@ -349,8 +404,17 @@ function RelatedPlayerPanel({
                 videoId={source.videoId}
                 title={item.title}
                 onEnded={hasNext ? () => go(1) : undefined}
+                onUnplayable={onUnplayable}
               />
             </div>
+          ) : null}
+          {failed !== null ? (
+            <UnplayableNotice
+              key={item.id}
+              code={failed}
+              url={item.url}
+              onNext={hasNext ? () => go(1) : null}
+            />
           ) : null}
         </div>
       </div>
@@ -387,5 +451,66 @@ function RelatedPlayerPanel({
         <ExternalLink className="size-3" aria-hidden /> {tp.openOnPlatform}
       </a>
     </aside>
+  );
+}
+
+// ─── vídeo recusado pelo player ──────────────────────────────────────────────────────────────────
+
+/**
+ * Aviso por cima do player quando o YouTube recusa o vídeo: o motivo, o link para assistir lá e a
+ * contagem de 5 s até o próximo da lista (ou o aviso de que era o último).
+ */
+function UnplayableNotice({ code, url, onNext }: { code: number; url: string; onNext: (() => void) | null }) {
+  const { t } = useI18n();
+  const tu = t.media.player.unplayable;
+  const [seconds, setSeconds] = useState(UNPLAYABLE_SKIP_SECONDS);
+  const next = useRef(onNext);
+  useEffect(() => {
+    next.current = onNext;
+  }, [onNext]);
+  const counting = onNext !== null;
+  useEffect(() => {
+    if (!counting) return;
+    const id = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1_000);
+    return () => clearInterval(id);
+  }, [counting]);
+  useEffect(() => {
+    if (seconds === 0) next.current?.();
+  }, [seconds]);
+  const reason = code === 101 || code === 150 ? tu.embedBlocked : code === 100 ? tu.removed : tu.error;
+
+  return (
+    <div
+      role="alert"
+      className="bg-background/95 text-foreground absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"
+    >
+      <CircleSlash className="text-muted-foreground size-8" aria-hidden />
+      <div className="flex flex-col gap-1">
+        <p className="text-base font-medium">{tu.title}</p>
+        <p className="text-muted-foreground text-sm">{reason}</p>
+      </div>
+      {onNext ? (
+        <p className="text-sm tabular-nums" aria-live="polite">
+          {fill(tu.countdown, { seconds })}
+        </p>
+      ) : (
+        <p className="text-muted-foreground text-sm">{tu.last}</p>
+      )}
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {onNext ? (
+          <Button size="sm" onClick={onNext}>
+            {tu.skipNow} <ChevronRight aria-hidden />
+          </Button>
+        ) : null}
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+        >
+          <ExternalLink aria-hidden /> {t.media.player.openOnPlatform}
+        </a>
+      </div>
+    </div>
   );
 }
