@@ -218,6 +218,7 @@ Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 | `GET /v1/countries/{code}/competitions?sport=&max_tier=` | Competições do país por esporte e escopo: domésticas, continentais de clubes, seleção, mundiais (§3.1.1) |
 | `GET /v1/navigation` | Menu da demo em uma chamada: 12 esportes (contagens, `has_data`) e países da navegação (§3.1.1) |
 | `GET /v1/explore/summary` | Vitrine inicial em uma chamada: por esporte e por país, contadores, competições e clubes em destaque, ao vivo e o jogo de maior relevância (§3.1.2) |
+| `GET /v1/explore/agenda?sport=&country=&competition=&day=&market=` | Os jogos dos próximos 7 dias que o resumo conta (mesma consulta): total, por dia, contagens para os filtros, destaques no mercado e os jogos de um dia (§3.1.3) |
 | `GET /v1/competitions?sport=&country=&tier=` | Competições com apelidos (semântica) |
 | `GET /v1/competitions/{id}` | Detalhe + temporadas |
 | `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos |
@@ -316,6 +317,21 @@ curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/explore/summary?locale=p
 ```
 
 (Exemplo resumido: competições e clubes são objetos completos, e `highlight` é o `Event` inteiro.)
+
+#### 3.1.3 Agenda dos próximos dias (`apps/api/src/explore/agenda.ts`)
+
+`GET /v1/explore/agenda?locale=&tz=&sport=&country=&competition=&day=&market=&limit=&cursor=` lista os jogos que o resumo conta, com a **mesma consulta** (`selectWindowEvents`), a mesma janela (agora até +7 dias, fim exclusivo) e as mesmas regras: sem adiados, cancelados, abandonados e encerrados; `country` é a competição do país ou um participante do país. Sem filtro, `total` é a soma de `sports[].upcoming` do resumo; com `country=BR`, é o `countries[BR].upcoming`.
+
+| Campo | Conteúdo |
+|---|---|
+| `total` | Jogos da janela com os filtros |
+| `days[]` | Cada dia civil que a janela toca, no fuso `tz`, com a contagem (zero incluído) |
+| `day` | O dia dos jogos em `data`: o pedido (`day`) ou o primeiro com jogos |
+| `facets` | Contagens para os filtros (`sports`, `countries` da navegação, `competitions` com mais jogos), cada uma com os outros filtros aplicados |
+| `highlights[]` | Até 6 jogos de maior relevância no mercado (`market`; sem mercado, maior importância), com `relevance`. A nota é a exata (a de `/v1/events/{id}`), calculada sobre os 30 jogos mais importantes da janela e os 30 mais importantes do país do mercado |
+| `data[]` | Os jogos de `day`, por horário; `next_cursor` pagina dentro do dia |
+
+Exige `core_data`; os esportes do plano limitam os jogos, como no resumo. Cache de **60 s**, como o resumo.
 
 ### 3.2 Eventos
 
@@ -469,6 +485,8 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 | `GET /v1/teams/{id}/events?from=&to=` | Jogos do time |
 | `GET /v1/teams/{id}/squad?season=` | Elenco e comissão técnica |
 | `GET /v1/teams/{id}/career` | F1: carreira do piloto ou do construtor (temporada a temporada, temporada atual com o bloco da sprint, títulos, vitórias, poles, pódios, top 10, abandonos, melhor resultado e melhor largada com a contagem, número do carro, pintura da equipe na época, nascimento, primeira e última corrida, equipes e companheiros) |
+| `GET /v1/teams/{id}/traits` | F1: traços do piloto calculados do F1DB (pistas preferidas com o critério, sábado × domingo com o rótulo, duelo com os companheiros por temporada e na carreira, abandonos, pontos por largada, sequências e o nível do perfil) |
+| `GET /v1/teams/{id}/editorial?min_review_status=` | F1: perfil editorial do piloto (bio, estilo, pontos fortes, momentos marcantes e rivalidades), cada item com a fonte; módulo `semantic` |
 | `GET /v1/sports/formula-1/legends?limit=` | F1: as lendas (campeões mundiais e os 20 com mais vitórias e com mais GPs), por títulos e vitórias, cada uma com a temporada marcante (equipe, pintura da época, número e o carro ao fundo) e o retrato |
 | `GET /v1/teams/{id}/photos?role=&season=` | Fotos de licença livre (Wikimedia Commons), cada uma com `credit` (autor, licença, links e a linha pronta) |
 | `GET /v1/teams/{id}/semantic?locale=` | Cartão de identidade: apelidos, mascote, torcida, gritos, estádio, rivais, fatos, dicas de copy do mercado |
@@ -526,6 +544,8 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
   - **Página de piloto** (os números da página oficial): `totals` traz `top10`, `dnfs` (abandono = DNF; desclassificação não conta), `best_finish` e `best_grid` com a contagem (`{ position: 1, count: 8 }` = "1 (x8)"; largada dos boxes não conta) e `sprint` (corridas, pontos, vitórias, pódios, poles e top 10; pole da sprint = 1º na classificação dela, de 2023 em diante; sem pontos no resultado, a tabela da época pela posição). Cada `seasons[]` tem os mesmos campos do ano e `number` (o número do carro mais usado nas sessões; sem ele, o permanente de 2014 em diante). `current_season` é a temporada corrente (a mais recente com corrida disputada) quando o piloto correu nela, e null para as lendas. `profile` (só piloto): primeiro nome e sobrenome, número permanente, data, local e país de nascimento (F1DB). `competition` dá o slug do campeonato para o link dos resultados de cada ano.
   - **Cores da equipe por época:** `seasons[].teams[].livery` (piloto) é a pintura curada em `data/knowledge/formula-1/liveries.yaml` (a McLaren de 1988 é vermelha e branca; a de 2024, papaia), com a fonte; null quando a época não está curada (use `colors`, do escudo). Respeita o piso editorial da semântica (`SEMANTIC_MIN_REVIEW_STATUS`). A equipe principal do ano vem primeiro.
 - `GET /v1/sports/formula-1/legends` (o carrossel "Legendary"): o mesmo critério do escopo `lendas` do acervo da Commons (docs/runbooks/fotos-commons.md): todo campeão mundial (só temporada encerrada) e os 20 com mais vitórias e com mais GPs; `criteria` diz por quê (`titles`, `wins`, `races`). Ordem: títulos, vitórias, GPs e nome — objetiva, a mesma para todo cliente e idioma, e um campeão novo entra sozinho. GPs, vitórias e pódios contam como em `/career` (o card e a página do piloto mostram os mesmos números). `highlight` é a temporada marcante: a do carro de destaque do acervo ou, sem ele, a de título com mais vitórias (sem título, a de mais vitórias; empate, a mais recente), de preferência uma com foto do carro; traz a equipe principal do ano com a pintura da época e `constructor_name` (o nome do construtor sem o patrocinador de hoje), o número do carro e o `car` — nunca CC BY-SA, porque o card recorta a foto; null quando não há foto compatível (use a cor da equipe e o número). `active` = correu na temporada atual. `limit` corta na ordem. Cache de 1 h (tags `standing` e `asset`).
+- `GET /v1/teams/{id}/career`, `profile` do piloto: além do nascimento e do número, `full_name`, `nicknames`, `death` (data, idade, local, acidente, causa e `race`, o GP que o F1DB marca como fatal), `family` (parentes pilotos, do F1DB) e `other_wins` (Indianápolis e Le Mans), com `sources` (F1DB e o item do Wikidata). Critérios no [runbook](runbooks/f1-perfil-editorial.md).
+- `GET /v1/teams/{id}/traits` (só piloto de F1) e `GET /v1/teams/{id}/editorial`: critérios, níveis (lenda, regular, básico) e o fluxo de geração e revisão no [runbook do perfil editorial](runbooks/f1-perfil-editorial.md). O perfil editorial é lido de `data/knowledge/formula-1/editorial/<locale>.yaml` como o glossário (edições e decisões do painel por cima, tag de cache `f1_editorial`) e segue `es-XX → es → pt-BR`; `{id}` aceita o UUID do piloto ou o slug `f1-<id do F1DB>`.
 - `GET /v1/teams/{id}/photos`: acervo de fotos de licença livre ([runbook](runbooks/fotos-commons.md)). Retrato primeiro, depois o carro de destaque (`highlight_car`), ação e carros por temporada. **Exibir a foto exige o crédito** (`credit.text` ou os campos separados, com os links): é a condição das licenças CC BY e CC BY-SA.
 - `GET /v1/teams/{id}/squad?season=`: sem `season`, o elenco atual (`core.roster.season_id` nulo); com o ano, os elencos de temporadas daquele ano. `players`, `coaches`, `staff`, ordenados por posição (goleiro → atacante), número e nome; pessoa com `age` calculada.
 - `GET /v1/people/{id}`: dados de `core.person`, foto, `age`, `teams` (elencos, atual primeiro) e `external_ids`.

@@ -1,8 +1,9 @@
 import { isMap, parseDocument } from 'yaml';
-import type { KnowledgeBase, KnowledgeFile, LocatedGlossaryTerm } from './load.js';
+import type { KnowledgeBase, KnowledgeFile, LocatedEditorial, LocatedGlossaryTerm } from './load.js';
 import {
   buildReviewItems,
   canonicalJson,
+  editorialKey,
   glossaryKey,
   reviewContent,
   reviewItemId,
@@ -42,6 +43,8 @@ const LOCKED_BY_KIND: Record<ReviewKind, readonly string[]> = {
   copy: [],
   glossary: [],
   translation: [],
+  // o perfil é do piloto do F1DB e o nível vem dos números dele: uma edição muda o texto, não o vínculo
+  editorial: ['f1db', 'tier'],
 };
 
 export const lockedReviewFields = (kind: ReviewKind): ReadonlySet<string> =>
@@ -107,7 +110,8 @@ export function patchEntry<T extends object>(kind: ReviewKind, entry: T, fields:
   return (status === undefined ? patched : { ...patched, review_status: status }) as T;
 }
 
-type ListName = 'teams' | 'derbies' | 'headToHead' | 'competitions' | 'copyTemplates' | 'glossary' | 'texts';
+type ListName =
+  'teams' | 'derbies' | 'headToHead' | 'competitions' | 'copyTemplates' | 'glossary' | 'texts' | 'editorial';
 
 interface Located {
   kind: ReviewKind;
@@ -183,6 +187,15 @@ function locateItems(kb: KnowledgeBase): Map<string, Located> {
       { kind: 'translation', list: 'texts', index: i, file: x.file, path: [x.listKey, x.index] },
     ),
   );
+  kb.editorial.forEach((e, i) =>
+    out.set(reviewItemId('editorial', editorialKey(e)), {
+      kind: 'editorial',
+      list: 'editorial',
+      index: i,
+      file: e.file,
+      path: ['drivers', e.index],
+    }),
+  );
   return out;
 }
 
@@ -247,6 +260,23 @@ export function applyGlossaryOverrides(
     const o = byId.get(reviewItemId('glossary', glossaryKey(t)));
     if (!o || resolveOverride(reviewContent(t.entry), o) !== 'apply') return t;
     return { ...t, entry: patchEntry('glossary', t.entry, o.fields) };
+  });
+}
+
+/**
+ * Edições do banco sobre os perfis editoriais lidos do YAML (a API lê os perfis direto dos arquivos). Aplique antes
+ * de `applyEditorialDecisions`, como no glossário.
+ */
+export function applyEditorialOverrides(
+  profiles: LocatedEditorial[],
+  overrides: ReviewOverrideRef[],
+): LocatedEditorial[] {
+  if (!overrides.length) return profiles;
+  const byId = new Map(overrides.map((o) => [o.itemId, o]));
+  return profiles.map((p) => {
+    const o = byId.get(reviewItemId('editorial', editorialKey(p)));
+    if (!o || resolveOverride(reviewContent(p.entry), o) !== 'apply') return p;
+    return { ...p, entry: patchEntry('editorial', p.entry, o.fields) };
   });
 }
 

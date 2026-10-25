@@ -111,7 +111,14 @@ export interface WindowEvent {
   importance: number;
   /** Em andamento de fato (status de jogo e dado fresco, como em /v1/events/live). */
   live: boolean;
-  competition: { sport: string; slug: string; countryCode: string | null } | null;
+  competition: {
+    sport: string;
+    slug: string;
+    countryCode: string | null;
+    /** Para as facetas da agenda (o resumo não usa). */
+    id?: string;
+    name?: string;
+  } | null;
   participantIds: string[];
   participantCountries: (string | null)[];
 }
@@ -252,6 +259,65 @@ interface TeamRow extends Record<string, unknown> {
   palette: AssetPalette | null;
 }
 
+/** Janela de "próximos jogos" do resumo e da agenda: de agora até `EXPLORE_WINDOW_DAYS` dias depois (fim exclusivo). */
+export function exploreWindow(now: Date): { from: Date; to: Date } {
+  return { from: now, to: new Date(now.getTime() + EXPLORE_WINDOW_DAYS * DAY_MS) };
+}
+
+/**
+ * Jogos (uma linha por jogo) com o país da competição e dos participantes, no recorte do plano (`sports`). A
+ * mesma consulta serve ao resumo (contadores) e à agenda (`/v1/explore/agenda`), para os dois contarem igual.
+ */
+export async function selectWindowEvents(
+  bctx: Pick<BuildContext, 'db' | 'now' | 'locale'>,
+  where: SQL | undefined,
+  sports: string[] | null,
+): Promise<WindowEvent[]> {
+  const { db, now, locale } = bctx;
+  const rows = await db
+    .select({
+      id: event.id,
+      sport: event.sport,
+      status: event.status,
+      startsAt: event.startsAt,
+      importance: event.importance,
+      live: sql<boolean>`${actuallyLiveCond(now)}`,
+      compId: competition.id,
+      compSport: competition.sport,
+      compSlug: competition.slug,
+      compCountry: competition.countryCode,
+      compName: competition.name,
+      compLabels: competition.labels,
+      participantIds: sql<(string | null)[]>`array_agg(${participant.id})`,
+      countries: sql<(string | null)[]>`array_agg(${participant.countryCode})`,
+    })
+    .from(event)
+    .leftJoin(competition, eq(competition.id, event.competitionId))
+    .leftJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
+    .leftJoin(participant, eq(participant.id, eventParticipant.participantId))
+    .where(and(where, sports ? inArray(event.sport, sports) : undefined))
+    .groupBy(event.id, competition.id);
+  return rows.map((r) => ({
+    id: r.id,
+    sport: r.sport,
+    status: r.status,
+    startsAt: r.startsAt,
+    importance: r.importance,
+    live: IN_PLAY.includes(r.status) && r.live,
+    competition: r.compSlug
+      ? {
+          sport: r.compSport!,
+          slug: r.compSlug,
+          countryCode: r.compCountry,
+          id: r.compId!,
+          name: pickText((r.compLabels ?? {}) as I18n, locale, r.compName!)!,
+        }
+      : null,
+    participantIds: (r.participantIds ?? []).filter((id): id is string => !!id),
+    participantCountries: (r.countries ?? []).filter((c): c is string => !!c),
+  }));
+}
+
 /**
  * Monta o resumo. `sports` é a restrição do plano do tenant (null = todos): limita os jogos contados e os
  * destaques; o catálogo (competições, participantes) é o mesmo para todos, como em /v1/navigation.
@@ -263,33 +329,11 @@ export async function loadExploreSummary(
   assetsBaseUrl: string | undefined,
 ): Promise<ExploreSummary> {
   const { db, locale, now } = bctx;
-  const window = { from: now, to: new Date(now.getTime() + EXPLORE_WINDOW_DAYS * DAY_MS) };
+  const window = exploreWindow(now);
   const recentFrom = new Date(now.getTime() - 365 * DAY_MS);
   const recentTo = new Date(now.getTime() + 30 * DAY_MS);
   const codes = geo.navigationCountries;
-  const inPlan = sports ? inArray(event.sport, sports) : undefined;
-  // jogos com o país da competição e dos participantes (uma linha por jogo)
-  const eventRows = (where: SQL | undefined) =>
-    db
-      .select({
-        id: event.id,
-        sport: event.sport,
-        status: event.status,
-        startsAt: event.startsAt,
-        importance: event.importance,
-        live: sql<boolean>`${actuallyLiveCond(now)}`,
-        compSport: competition.sport,
-        compSlug: competition.slug,
-        compCountry: competition.countryCode,
-        participantIds: sql<(string | null)[]>`array_agg(${participant.id})`,
-        countries: sql<(string | null)[]>`array_agg(${participant.countryCode})`,
-      })
-      .from(event)
-      .leftJoin(competition, eq(competition.id, event.competitionId))
-      .leftJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
-      .leftJoin(participant, eq(participant.id, eventParticipant.participantId))
-      .where(and(where, inPlan))
-      .groupBy(event.id, competition.id);
+  const eventRows = (where: SQL | undefined) => selectWindowEvents(bctx, where, sports);
 
   const [
     sportRows,
@@ -383,19 +427,8 @@ export async function loadExploreSummary(
   );
 
   // ── jogos: ao vivo e próximos por esporte e por país, e o destaque de cada país
-  const windowEvent = (r: (typeof windowRows)[number]): WindowEvent => ({
-    id: r.id,
-    sport: r.sport,
-    status: r.status,
-    startsAt: r.startsAt,
-    importance: r.importance,
-    live: IN_PLAY.includes(r.status) && r.live,
-    competition: r.compSlug ? { sport: r.compSport!, slug: r.compSlug, countryCode: r.compCountry } : null,
-    participantIds: (r.participantIds ?? []).filter((id): id is string => !!id),
-    participantCountries: (r.countries ?? []).filter((c): c is string => !!c),
-  });
-  const events = windowRows.map(windowEvent);
-  const provisional = provisionalRows.map(windowEvent);
+  const events = windowRows;
+  const provisional = provisionalRows;
   const activity = new Map(
     codes.map((code) => {
       const continental = continentalSlugs(geo, code);

@@ -164,7 +164,11 @@ describe('chaves publicáveis', () => {
       widgetId: null,
       widgetKind: null,
     });
-    expect(await verifyPublishableKey(db, created.key.slice(0, -1) + '0')).toBeNull();
+    // chave adulterada: troca o último caractere por outro (trocar sempre por '0' não mudava nada quando a
+    // chave já terminava em '0', 1 em cada 16 chaves de base64url)
+    const tampered = created.key.slice(0, -1) + (created.key.endsWith('A') ? 'E' : 'A');
+    expect(tampered).not.toBe(created.key);
+    expect(await verifyPublishableKey(db, tampered)).toBeNull();
     expect(await verifyPublishableKey(db, 'gs_live_qualquer')).toBeNull();
     expect(await listActivePublishableOrigins(db)).toEqual(
       expect.arrayContaining(['https://app.exemplo.com', 'https://*.exemplo.com']),

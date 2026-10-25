@@ -11,6 +11,7 @@ export const REVIEW_KINDS = [
   'copy',
   'glossary',
   'translation',
+  'editorial',
 ] as const;
 export type ReviewKind = (typeof REVIEW_KINDS)[number];
 

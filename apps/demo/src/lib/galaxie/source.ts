@@ -29,9 +29,11 @@ import {
   getStats,
   getTeamCareer,
   getTeamCountry,
+  getTeamEditorial,
   getTeamOverview,
   getTeamPhotos,
   getTeamSemantic,
+  getTeamTraits,
   getTimeline,
   getWhereToWatch,
 } from './api';
@@ -53,9 +55,11 @@ const FETCHERS = {
   getStats,
   getTeamCareer,
   getTeamCountry,
+  getTeamEditorial,
   getTeamOverview,
   getTeamPhotos,
   getTeamSemantic,
+  getTeamTraits,
   getTimeline,
   getWhereToWatch,
   // os nomes têm de bater com a lista que o exemplo usa (`source-key.ts`, sem importar a API)

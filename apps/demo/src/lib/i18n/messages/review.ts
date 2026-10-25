@@ -25,6 +25,7 @@ export default defineMessages(
       copy: 'Copy',
       glossary: 'Glossário',
       translation: 'Tradução',
+      editorial: 'Perfil de piloto (F1)',
     },
     states: {
       draft: 'Rascunho',
@@ -187,6 +188,7 @@ export default defineMessages(
         copy: 'Copy',
         glossary: 'Glossary',
         translation: 'Translation',
+        editorial: 'Driver profile (F1)',
       },
       states: {
         draft: 'Draft',
@@ -352,6 +354,7 @@ export default defineMessages(
         copy: 'Copy',
         glossary: 'Glosario',
         translation: 'Traducción',
+        editorial: 'Perfil de piloto (F1)',
       },
       states: {
         draft: 'Borrador',

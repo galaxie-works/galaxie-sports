@@ -25,7 +25,8 @@ export type TrailKind =
   | 'ao vivo'
   | 'docs'
   | 'ajustes'
-  | 'cliente';
+  | 'cliente'
+  | 'agenda';
 
 /** O que a página informa ao abrir. */
 export interface TrailVisit {

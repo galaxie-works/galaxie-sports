@@ -11,6 +11,7 @@ import {
   TeamParams,
   TeamPhotosQuery,
   TeamsQuery,
+  type DriverTraits,
   type RaceCareer,
   type RaceLegends,
   type Event,
@@ -54,6 +55,7 @@ import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events
 import { pickText } from '../../i18n.js';
 import { teamColors } from '../../teams/colors.js';
 import { loadRaceCareer } from '../../teams/career.js';
+import { loadDriverTraits } from '../../teams/traits.js';
 import { loadRaceLegends } from '../../teams/legends.js';
 import { loadTeamCompetitions } from '../../teams/load-campaigns.js';
 import { loadPhotos } from '../../teams/photos.js';
@@ -587,6 +589,32 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         const body: RaceCareer = await loadRaceCareer(db, p, locale, ctx.assetsBaseUrl, {
           liveries: await liveries(),
         });
+        return { body, tags: [`team:${p.id}`] };
+      },
+    });
+  });
+
+  // ─── /v1/teams/:id/traits ───────────────────────────────────────────────────────────────────
+  // traços do piloto de F1 (pistas, sábado × domingo, companheiros, consistência), do core
+  app.get('/v1/teams/:id/traits', { config: MODULE }, async (request, reply) => {
+    const params = parseInput(TeamParams, request.params);
+    const query = parseInput(LocaleQuery, request.query);
+    const locale = localeOf(request, query);
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.standings,
+      vary: [locale],
+      check: sportCheck(request),
+      load: async () => {
+        const db = requireDb(ctx);
+        const [p] = await db
+          .select({ id: participant.id, sport: participant.sport, kind: participant.kind })
+          .from(participant)
+          .where(eq(participant.id, params.id))
+          .limit(1);
+        if (!p) throw problems.notFound('Time');
+        if (p.sport !== 'formula-1' || p.kind !== 'driver') throw problems.notFound('Traços do piloto');
+        const body: DriverTraits = await loadDriverTraits(db, p.id, locale, ctx.assetsBaseUrl);
         return { body, tags: [`team:${p.id}`] };
       },
     });

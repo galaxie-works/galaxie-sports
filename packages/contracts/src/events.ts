@@ -624,7 +624,7 @@ export const StakesParam = z.enum(['salient', 'all']).default('salient').meta({
 });
 
 /** Mercado da relevância (ISO 3166-1 alfa-2, qualquer caixa). Sem ele vale o único mercado do plano. */
-const MarketParam = z
+export const MarketParam = z
   .string()
   .regex(/^[A-Za-z]{2}$/, 'use o código ISO de 2 letras do país')
   .transform((v) => v.toUpperCase())
