@@ -19,10 +19,12 @@ import {
   type TenantOperator,
 } from './store';
 import {
+  PLAN_LIBRARY_KINDS,
   PUBLISHED_MIN_REVIEW,
   awaitsDecision,
   findInLineup,
   flattenLineup,
+  libraryTargetType,
   lineupView,
   planCurrentAt,
   proposedView,
@@ -73,11 +75,15 @@ export async function readLibrary(ids: string[]): Promise<Map<string, LibraryEnt
   return new Map(list.map((r) => [r.id, toEntry(r)]));
 }
 
-/** Biblioteca de um país (canais e streamings que a operadora pode pedir para incluir num plano). */
+/**
+ * Biblioteca de um país (canais e streamings que a operadora pode pedir para incluir num plano). Rádio
+ * fica de fora: não é canal de grade.
+ */
 export async function readCountryLibrary(country: string): Promise<LibraryEntry[]> {
-  const list = await rows<LibraryRow>(`${LIBRARY_SELECT} where $1 = any(b.countries) order by b.name`, [
-    country,
-  ]);
+  const list = await rows<LibraryRow>(
+    `${LIBRARY_SELECT} where $1 = any(b.countries) and b.kind = any($2) order by b.name`,
+    [country, [...PLAN_LIBRARY_KINDS]],
+  );
   return list.map(toEntry);
 }
 
@@ -190,7 +196,8 @@ export async function findOperatorTarget(
   const [planId, ref] = [id.slice(0, id.indexOf(':')), id.slice(id.indexOf(':') + 1)];
   if (!lineup.plans.some((p) => p.id === planId)) return null;
   const entry = (await readLibrary([ref])).get(ref);
-  if (!entry || (type === 'plan_service') !== (entry.kind === 'streaming')) return null;
+  // canal de TV como plan_channel, streaming como plan_service; rádio não entra em plano
+  if (!entry || libraryTargetType(entry.kind) !== type) return null;
   return { item: null, adding: true };
 }
 
