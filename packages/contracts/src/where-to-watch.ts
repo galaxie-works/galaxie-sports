@@ -1,7 +1,7 @@
 import 'zod-openapi';
 import * as z from 'zod';
 import { ClientChannelRef } from './channel-list.js';
-import { LocaleQuery } from './common.js';
+import { LocaleQuery, LogoCredit } from './common.js';
 
 /** Meios de transmissão (docs/05 §4, enrich.broadcast_medium). */
 export const BROADCAST_MEDIA = [
@@ -109,26 +109,6 @@ export type AvailabilityLogo = z.infer<typeof AvailabilityLogo>;
 export const LineupItem = AvailabilityLogo.extend({ access: z.enum(PLAN_ACCESS) }).meta({ id: 'LineupItem' });
 export type LineupItem = z.infer<typeof LineupItem>;
 
-/** Crédito do logo de uma plataforma (arquivo de licença livre da Wikimedia Commons). */
-export const LogoCredit = z
-  .object({
-    source: z.literal('Wikimedia Commons'),
-    title: z.string().meta({ example: 'File:Logo de exemplo.svg' }),
-    page_url: z.url().meta({ description: 'Página do arquivo na Commons (autor, licença e histórico).' }),
-    author: z.string().nullable(),
-    license: z.string().meta({ example: 'Public domain' }),
-    license_url: z.url().nullable(),
-    attribution_required: z.boolean().meta({
-      description: 'A licença exige o crédito junto do logo (CC BY, CC BY-SA); domínio público não exige.',
-    }),
-    text: z.string().meta({
-      description: 'Atribuição pronta para exibir (ou para o `title` do logo, quando não é exigida).',
-      example: 'Logo: Wikimedia Commons · Public domain',
-    }),
-  })
-  .meta({ id: 'LogoCredit' });
-export type LogoCredit = z.infer<typeof LogoCredit>;
-
 export const Platform = z
   .object({
     id: z.string(),
@@ -172,8 +152,51 @@ export const AvailabilityPlan = z
   .meta({ id: 'AvailabilityPlan' });
 export type AvailabilityPlan = z.infer<typeof AvailabilityPlan>;
 
+/** Oferta de um complemento: o mensal e o com fidelidade são duas. */
+export const PlatformAddonOffer = z
+  .object({
+    name: z.string().meta({ description: 'Nome como a plataforma vende (ex.: "Premiere Fidelidade").' }),
+    price: z.number().nullable().meta({ description: 'Preço mensal; null = sem preço provado.' }),
+    currency: z.string().nullable().meta({ description: 'ISO 4217.' }),
+    commitment_months: z
+      .number()
+      .int()
+      .nullable()
+      .meta({ description: 'Fidelidade em meses; null = mensal.' }),
+  })
+  .meta({ id: 'PlatformAddonOffer' });
+export type PlatformAddonOffer = z.infer<typeof PlatformAddonOffer>;
+
+/**
+ * Complemento da plataforma: serviço ou canal que qualquer plano contrata à parte. Para quem tem um plano
+ * sem o serviço: "disponível como complemento: Premiere a partir de R$ 49,90".
+ */
+export const PlatformAddon = AvailabilityLogo.extend({
+  kind: z
+    .enum(['service', 'channel'])
+    .meta({ description: 'service = streaming ou pacote · channel = canal avulso.' }),
+  channel: z
+    .string()
+    .nullable()
+    .meta({ description: 'Canal numerado da emissora (ex.: "ESPN 6"), quando é um canal.' }),
+  price_from: z
+    .number()
+    .nullable()
+    .meta({ description: 'Menor preço mensal entre as ofertas ("a partir de").' }),
+  currency: z.string().nullable(),
+  offers: z.array(PlatformAddonOffer),
+}).meta({ id: 'PlatformAddon' });
+export type PlatformAddon = z.infer<typeof PlatformAddon>;
+
 export const PlatformAvailability = z
-  .object({ platform: Platform, plans: z.array(AvailabilityPlan) })
+  .object({
+    platform: Platform,
+    plans: z.array(AvailabilityPlan),
+    addons: z.array(PlatformAddon).optional().meta({
+      description:
+        'Complementos da plataforma com o canal ou o streaming do jogo, contratados à parte por qualquer plano.',
+    }),
+  })
   .meta({ id: 'PlatformAvailability' });
 export type PlatformAvailability = z.infer<typeof PlatformAvailability>;
 
@@ -317,6 +340,13 @@ export const LineupPlan = z
   .meta({ id: 'LineupPlan' });
 
 export const PlatformLineup = z
-  .object({ platform: Platform, plans: z.array(LineupPlan) })
+  .object({
+    platform: Platform,
+    plans: z.array(LineupPlan),
+    addons: z
+      .array(PlatformAddon)
+      .optional()
+      .meta({ description: 'Catálogo de complementos (contratados à parte).' }),
+  })
   .meta({ id: 'PlatformLineup', description: 'Grade de canais e streamings de cada plano da plataforma.' });
 export type PlatformLineup = z.infer<typeof PlatformLineup>;

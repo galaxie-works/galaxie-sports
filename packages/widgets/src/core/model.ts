@@ -173,9 +173,19 @@ export interface GsAvailabilityPlan {
   included_services: GsAvailabilityLogo[];
 }
 
+/** Complemento da plataforma (contratado à parte por qualquer plano), "a partir de" o menor preço. */
+export interface GsPlatformAddon extends GsAvailabilityLogo {
+  kind: 'service' | 'channel';
+  channel: string | null;
+  price_from: number | null;
+  currency: string | null;
+}
+
 export interface GsPlatformAvailability {
   platform: GsPlatform;
   plans: GsAvailabilityPlan[];
+  /** Ausente nas respostas antigas da API. */
+  addons?: GsPlatformAddon[] | undefined;
 }
 
 /** Onde assistir agrupado: TV aberta, canais pagos e as plataformas ("disponível também em"). */
@@ -456,6 +466,10 @@ export interface WidgetTexts {
     included: string;
     addon: string;
     includedServices: string;
+    /** "Disponível como complemento" (contratado à parte). */
+    addonsAvailable: string;
+    /** "a partir de {price}". */
+    priceFrom: string;
     yourOperator: string;
     notInYourOperator: string;
     toConfirmTitle: string;
@@ -515,6 +529,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       included: 'Incluso',
       addon: 'Adicional',
       includedServices: 'Streamings inclusos',
+      addonsAvailable: 'Disponível como complemento',
+      priceFrom: 'a partir de {price}',
       yourOperator: 'Sua operadora',
       notInYourOperator: 'Este jogo não está na grade da sua operadora.',
       toConfirmTitle: 'Canal deste jogo a confirmar',
@@ -578,6 +594,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       included: 'Incluido',
       addon: 'Adicional',
       includedServices: 'Streamings incluidos',
+      addonsAvailable: 'Disponible como adicional',
+      priceFrom: 'desde {price}',
       yourOperator: 'Tu operadora',
       notInYourOperator: 'Este partido no está en la grilla de tu operadora.',
       toConfirmTitle: 'Canal de este partido a confirmar',
@@ -641,6 +659,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       included: 'Included',
       addon: 'Add-on',
       includedServices: 'Streaming included',
+      addonsAvailable: 'Available as an add-on',
+      priceFrom: 'from {price}',
       yourOperator: 'Your operator',
       notInYourOperator: 'This match is not in the lineup of your operator.',
       toConfirmTitle: 'Channel for this match to be confirmed',

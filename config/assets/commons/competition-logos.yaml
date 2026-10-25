@@ -1,0 +1,16 @@
+# Logos de competições sem logo do fornecedor, vindos da Wikimedia Commons.
+# Consumido por: pnpm --filter @galaxie/ingestor assets:competition-logos [--plan]
+#
+# Só entram arquivos cuja licença permite uso comercial (domínio público, CC0, CC BY, CC BY-SA), conferida
+# no extmetadata da Commons a cada execução; o crédito (autor, licença, página) vai para core.asset_credit e
+# sai na API junto do logo (`logo_credit`). Competição com logo do fornecedor nunca é tocada.
+# Marca registrada: a licença cobre o direito autoral do arquivo, não a marca. Uso editorial (identificar a
+# competição), nada de sugestão de endosso.
+schema_version: 1
+logos:
+  # A api-sports não tem a entidade "campeonato" (a competição é sintética) nem logo dela.
+  - competition: formula-1-world-championship
+    file: 'File:F1.svg'
+    note: >-
+      Logo atual da F1 (2018). Na Commons, texto-logo em domínio público (PD-textlogo, sem originalidade
+      suficiente para direito autoral), com o aviso de marca registrada.

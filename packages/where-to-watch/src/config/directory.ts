@@ -3,6 +3,7 @@ import { domainHost, hostOf, matchesDomain, normalizeName } from '../normalize.j
 import type {
   BlockEntry,
   BroadcasterEntry,
+  BroadcasterLookup,
   CountryConfig,
   LogoEntry,
   ResolvedBroadcaster,
@@ -50,6 +51,10 @@ export class CountryDirectory {
   readonly language: string;
   readonly sources: SourceDomains;
   private readonly byName = new Map<string, ResolvedBroadcaster>();
+  private readonly byDatedName = new Map<
+    string,
+    { resolved: ResolvedBroadcaster; validFrom: string | null; validTo: string | null }[]
+  >();
   private readonly byId = new Map<string, BroadcasterEntry>();
 
   constructor(
@@ -66,6 +71,17 @@ export class CountryDirectory {
       for (const c of entry.channels) this.index(c, { entry, region: null, channel: c, matchedBy: 'channel' });
       for (const v of entry.regionalVariants)
         this.index(v.name, { entry, region: v.region, channel: v.name, matchedBy: 'regional_variant' });
+      for (const a of entry.datedAliases) {
+        const key = normalizeName(a.name);
+        if (!key) continue;
+        const list = this.byDatedName.get(key) ?? [];
+        list.push({
+          resolved: { entry, region: null, channel: a.channel, matchedBy: 'dated_alias' },
+          validFrom: a.validFrom,
+          validTo: a.validTo,
+        });
+        this.byDatedName.set(key, list);
+      }
     }
   }
 
@@ -86,9 +102,27 @@ export class CountryDirectory {
     return id ? (this.byId.get(id) ?? null) : null;
   }
 
-  /** Nome (ou alias, canal, afiliada) → entrada canônica; null = desconhecido (vai para revisão). */
-  resolve(name: string): ResolvedBroadcaster | null {
-    return this.byName.get(normalizeName(name)) ?? null;
+  /**
+   * Nome (ou alias, canal, afiliada) → entrada canônica que vale na data (padrão: hoje); null =
+   * desconhecido (vai para revisão) ou fora do período (canal extinto, apelido de antes da renomeação).
+   */
+  resolve(name: string, at: Date | string = new Date()): ResolvedBroadcaster | null {
+    const found = this.lookup(name, at);
+    return found?.status === 'active' ? found.resolved : null;
+  }
+
+  /** Como `resolve`, mas diz quando o nome é de uma emissora que existe e está fora do período no dia. */
+  lookup(name: string, at: Date | string = new Date()): BroadcasterLookup | null {
+    const key = normalizeName(name);
+    const d = typeof at === 'string' ? at.slice(0, 10) : at.toISOString().slice(0, 10);
+    const within = (from: string | null, to: string | null) => (!from || from <= d) && (!to || d <= to);
+    const dated = (this.byDatedName.get(key) ?? []).find((a) => within(a.validFrom, a.validTo));
+    const resolved = this.byName.get(key) ?? dated?.resolved ?? null;
+    if (!resolved) return null;
+    const e = resolved.entry;
+    if (!within(e.validFrom, e.validTo))
+      return { status: 'inactive', entry: e, validFrom: e.validFrom, validTo: e.validTo };
+    return { status: 'active', resolved };
   }
 
   /** Domínios da entrada e das demais entradas do mesmo grupo de mídia. */

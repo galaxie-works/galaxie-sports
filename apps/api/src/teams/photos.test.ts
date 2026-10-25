@@ -8,10 +8,10 @@ describe('crédito das fotos da Commons', () => {
     expect(creditText(null, 'Public domain')).toBe('Foto: Wikimedia Commons · Public domain');
   });
 
-  it('foto da Commons nunca muda o contrato de logo_source', () => {
+  it('logo_source: fornecedor, acervo ou Commons (logo de competição sem logo do fornecedor, com crédito)', () => {
     expect(logoSource('acervo')).toBe('acervo');
     expect(logoSource('provider')).toBe('provider');
-    expect(logoSource('commons')).toBe('provider');
+    expect(logoSource('commons')).toBe('commons');
     expect(logoSource(null)).toBeNull();
   });
 });

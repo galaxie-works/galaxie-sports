@@ -45,6 +45,8 @@ export interface TeamItem {
   countries: string[];
   /** Nomes (rótulos e apelidos) das ligas (P118). */
   leagues: string[];
+  /** Itens de que este faz parte (P361): o time principal alemão aponta para o clube. */
+  partOf: string[];
 }
 
 export interface TeamCandidate {
@@ -98,7 +100,8 @@ export function teamCategory(name: string): TeamCategory {
 const WOMEN_WORDS = /\b(women|ladies|femenino|feminino|femminile|frauen|f[ée]minines?|dames|vrouwen)\b/i;
 const YOUTH_WORDS = /\b(youth|academy|u-?\d{2}|under-\d{2}|sub-?\d{2}|juvenil|primavera|jugend)\b/i;
 const RESERVE_WORDS = /\b(reserves?|second team|b team)\b/i;
-const OTHER_WORDS = /\b(futsal|beach|amputee|e-?sports?|blind|veterans)\b/i;
+/** Outra modalidade. "Esports" sozinho fica de fora: é "esportes" em catalão (Centre d'Esports Sabadell). */
+const OTHER_WORDS = /\b(futsal|beach|amputee|e-sports|esports team|video game|blind|veterans)\b/i;
 /** Outro esporte na descrição de um clube só poliesportivo ("handball team", "motorcycle speedway club"). */
 const OTHER_SPORTS = /\b(speedway|handball|basketball|volleyball|hockey|rugby|cricket|baseball)\b/i;
 
@@ -116,6 +119,9 @@ export function itemCategory(item: Pick<TeamItem, 'label' | 'description' | 'typ
   if (RESERVE_WORDS.test(text) || /\s(II|III|B)$/.test(item.label ?? '')) return 'reserve';
   return 'senior';
 }
+
+/** Item do primeiro time masculino de um clube ("first men's team of 1. FC Heidenheim"). */
+const FIRST_TEAM = /\bfirst (men's )?((association )?football |soccer )?team\b/i;
 
 /** Nome para a busca: sem o sufixo de categoria (" W", " U20", " II"…). */
 export function teamSearchName(name: string): string {
@@ -149,30 +155,57 @@ function narrow(ids: string[], test: (id: string) => boolean): string[] {
   return hit.length ? hit : ids;
 }
 
+/** Liga do Wikidata compatível com a nossa: nome igual, ou um contém o outro ("Scottish Premiership" ⊃ "Premiership"). */
+function leagueMatches(ours: string, theirs: string): boolean {
+  if (ours === theirs) return true;
+  const [short, long] = ours.length < theirs.length ? [ours, theirs] : [theirs, ours];
+  return short.length >= 6 && ` ${long} `.includes(` ${short} `);
+}
+
 /**
  * Time do core → QID: entre os itens achados pela busca, os que são clube de futebol (ou poliesportivo), do mesmo
- * país e da mesma categoria (o principal nunca liga com o feminino, a base ou a reserva). O time de futebol passa à
- * frente do clube poliesportivo de mesmo nome (Kongsvinger IL Toppfotball × Kongsvinger IL). Homônimos desempatam
- * pelo nome exato (rótulo ou apelido) e depois pela liga (P118 com o nome de uma liga em que o time jogou). Um só:
- * resolvido. Mais de um: ambíguo. Nenhum: sem QID.
+ * país e da mesma categoria (o principal nunca liga com o feminino, a base ou a reserva). Um item principal com o
+ * nome inteiro igual ao nosso também vale ("Willem II" é o principal, não a reserva do "Willem"); o feminino de
+ * mesmo nome não (o "Club Tijuana" feminino). Entre os que sobram:
+ * - o time de futebol passa à frente do clube poliesportivo de mesmo nome (Kongsvinger IL Toppfotball × Kongsvinger
+ *   IL);
+ * - o clube passa à frente do item do primeiro time dele ("first men's team of 1. FC Heidenheim", P361 = o clube):
+ *   é no clube que o P54 dos jogadores aponta;
+ * - homônimos desempatam pelo nome exato (rótulo ou apelido) e depois pela liga (P118 com o nome de uma liga em
+ *   que o time jogou).
+ * Um só: resolvido. Mais de um: ambíguo. Nenhum: sem QID.
  */
 export function resolveTeam(team: TeamTarget, found: string[], items: Map<string, TeamItem>): TeamResolution {
   const category = teamCategory(team.name);
+  const fullName = normalizeTeamName(team.name);
   let ok = [...new Set(found)].filter((id) => {
     const it = items.get(id);
+    if (!it) return false;
+    const itCategory = itemCategory(it);
+    const sameCategory =
+      itCategory === category ||
+      (itCategory === 'senior' && it.names.some((n) => normalizeTeamName(n) === fullName));
     return (
-      !!it &&
       it.types.some((t) => FOOTBALL_TYPES.has(t) || t === SPORTS_CLUB_TYPE) &&
       countriesMatch(team.country, it.countries) &&
-      itemCategory(it) === category
+      sameCategory
     );
   });
   if (ok.length > 1) ok = narrow(ok, (id) => items.get(id)!.types.some((t) => FOOTBALL_TYPES.has(t)));
+  if (ok.length > 1) {
+    const set = new Set(ok);
+    ok = narrow(ok, (id) => {
+      const it = items.get(id)!;
+      return !it.partOf.some((p) => set.has(p)) && !FIRST_TEAM.test(it.description ?? '');
+    });
+  }
   const name = normalizeTeamName(teamSearchName(team.name));
   if (ok.length > 1) ok = narrow(ok, (id) => items.get(id)!.names.some((n) => normalizeTeamName(n) === name));
   const leagues = new Set(team.leagues.map(normalizeTeamName));
   if (ok.length > 1 && leagues.size)
-    ok = narrow(ok, (id) => items.get(id)!.leagues.some((l) => leagues.has(normalizeTeamName(l))));
+    ok = narrow(ok, (id) =>
+      items.get(id)!.leagues.some((l) => [...leagues].some((o) => leagueMatches(o, normalizeTeamName(l)))),
+    );
   if (ok.length === 1) return { qid: ok[0]! };
   return ok.length ? { ambiguous: ok } : { none: true };
 }
@@ -365,21 +398,29 @@ export async function teamCandidates(
           country: string | null;
           leagues: string[] | null;
         }>(sql`
-          select m.provider_id, pa.name, co.name->>'en' as country,
-                 (select array_agg(distinct c.name)
-                  from core.event_participant ep
-                  join core.event e on e.id = ep.event_id
-                  join core.competition c on c.id = e.competition_id
-                  where ep.participant_id = pa.id and c.type = 'league'
-                    and e.starts_at >= ${options.since.toISOString()}::timestamptz) as leagues
-          from core.provider_map m
-          join core.participant pa on pa.id = m.entity_id
-          left join core.country co on co.code = pa.country_code
-          where m.provider = 'api-sports' and m.sport = 'football' and m.entity_type = 'participant'
-            and m.provider_id in (${sql.join(
-              ids.map((i) => sql`${i}`),
-              sql`, `,
-            )})
+          with t as (
+            select m.provider_id, pa.id, pa.name, pa.country_code
+            from core.provider_map m
+            join core.participant pa on pa.id = m.entity_id
+            where m.provider = 'api-sports' and m.sport = 'football' and m.entity_type = 'participant'
+              and m.provider_id in (${sql.join(
+                ids.map((i) => sql`${i}`),
+                sql`, `,
+              )})
+          ),
+          lg as (
+            select ep.participant_id, array_agg(distinct c.name) as leagues
+            from core.event_participant ep
+            join core.event e on e.id = ep.event_id
+            join core.competition c on c.id = e.competition_id
+            where ep.participant_id in (select id from t) and c.type = 'league'
+              and e.starts_at >= ${options.since.toISOString()}::timestamptz
+            group by ep.participant_id
+          )
+          select t.provider_id, t.name, co.name->>'en' as country, lg.leagues
+          from t
+          left join core.country co on co.code = t.country_code
+          left join lg on lg.participant_id = t.id
         `)
       : [];
     return {
@@ -409,11 +450,15 @@ export async function resolveTeams(
   const found = new Map<string, string[]>();
   let done = 0;
   for (const t of teams) {
-    found.set(t.providerId, await client.searchItems(teamSearchName(t.name), 10));
+    // o nome inteiro acha "Willem II" e "Inter U23"; sem o sufixo, o clube principal do " W" e do " U20"
+    const names = [...new Set([t.name.trim(), teamSearchName(t.name)])];
+    const ids: string[] = [];
+    for (const n of names) ids.push(...(await client.searchItems(n, 10)));
+    found.set(t.providerId, [...new Set(ids)]);
     if (++done % 100 === 0 || done === teams.length) options.onProgress?.(done, teams.length);
   }
   const ids = [...new Set([...found.values()].flat())];
-  const raw = await client.items(ids, ['P31', 'P17', 'P118']);
+  const raw = await client.items(ids, ['P31', 'P17', 'P118', 'P361']);
   const refs = (prop: string) => [
     ...new Set([...raw.values()].flatMap((it) => claimItemIds(it.claims, prop))),
   ];
@@ -428,6 +473,7 @@ export async function resolveTeams(
       types: claimItemIds(it.claims, 'P31'),
       countries: claimItemIds(it.claims, 'P17').map((q) => countries.get(q)?.label ?? q),
       leagues: claimItemIds(it.claims, 'P118').flatMap((q) => leagues.get(q)?.names ?? []),
+      partOf: claimItemIds(it.claims, 'P361'),
     });
   const out = new Map<string, TeamResolution>();
   for (const t of teams) out.set(t.providerId, resolveTeam(t, found.get(t.providerId) ?? [], items));

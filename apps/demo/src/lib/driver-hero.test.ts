@@ -223,6 +223,21 @@ describe('temporada do carro no heading do piloto', () => {
       };
       expect(heroPhotos(c)).toMatchObject({ season: { year: 2026 }, car: null });
     });
+
+    it('destaque desta temporada (a foto com o piloto) antes do carro da equipe (pode ser o do companheiro)', () => {
+      const leclerc = { url: 'https://cdn/sf-26-leclerc.jpg', credit: { share_alike: false } } as Photo;
+      const lewis = { url: 'https://cdn/sf-26-hamilton.jpg', credit: { share_alike: false } } as Photo;
+      const c = {
+        ...career([season(2026, { teams: [ferrari], car: leclerc })]),
+        current_season: 2026,
+        portrait: null,
+        highlight: { season: 2026, car: lewis },
+      };
+      expect(heroPhotos(c).car).toBe(lewis);
+      // destaque BY-SA não vai ao fundo: fica o carro da equipe
+      const bySa = { ...lewis, credit: { share_alike: true } } as Photo;
+      expect(heroPhotos({ ...c, highlight: { season: 2026, car: bySa } }).car).toBe(leclerc);
+    });
   });
 
   it('cor do heading: a pintura da época; clara demais, a secundária; sem pintura, o escudo', () => {

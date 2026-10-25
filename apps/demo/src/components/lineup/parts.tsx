@@ -113,7 +113,8 @@ export function useFieldText() {
   const label = (field: string) => (t.lineup.fields as Record<string, string>)[field] ?? field;
   const value = (field: string, v: unknown): string => {
     if (field === 'removed') return v ? t.lineup.fields.removed : '—';
-    if (field === 'access' && (v === 'included' || v === 'addon')) return t.lineup.access[v];
+    if (field === 'access' && (v === 'included' || v === 'addon' || v === 'unverified'))
+      return t.lineup.access[v];
     return v === null || v === undefined || v === '' ? '—' : String(v);
   };
   /** "Campo: valor · Campo: valor" (tirar da grade vira só o rótulo). */

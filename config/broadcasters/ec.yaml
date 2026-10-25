@@ -17,8 +17,16 @@ broadcasters:
     domains: [teleamazonas.com]
   - id: espn
     name: ESPN
-    aliases: ['ESPN Ecuador']
-    channels: ['ESPN 2', 'ESPN 3']
+    # Fora do Brasil e da Argentina, a Disney renomeou os Fox Sports 2 e 3 para ESPN 6 e 7 em
+    # fevereiro de 2024: o nome antigo numa grade é o canal novo (não conta duas vezes; antes da data,
+    # não casa). Na Argentina a Fox Sports segue existindo (ar.yaml).
+    aliases:
+      - 'ESPN Ecuador'
+      - { name: 'Fox Sports 2', channel: 'ESPN 6', valid_from: 2024-02-01 }
+      - { name: 'Fox Sports 2 HD', channel: 'ESPN 6', valid_from: 2024-02-01 }
+      - { name: 'Fox Sports 3', channel: 'ESPN 7', valid_from: 2024-02-01 }
+      - { name: 'Fox Sports 3 HD', channel: 'ESPN 7', valid_from: 2024-02-01 }
+    channels: ['ESPN 2', 'ESPN 3', 'ESPN 6', 'ESPN 7']
     medium: pay_tv
     access_model: subscription
     group: disney

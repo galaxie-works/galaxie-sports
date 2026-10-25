@@ -53,7 +53,7 @@ export async function DriverHero({
 
   return (
     <section
-      className="relative isolate flex min-h-72 flex-col justify-end overflow-hidden rounded-xl border text-white shadow-sm md:min-h-80"
+      className="relative isolate flex min-h-72 flex-col justify-end overflow-hidden rounded-xl text-white ring-1 ring-foreground/10 md:min-h-80"
       style={{ background: backdrop(heroColor(season)) }}
     >
       {car ? (
@@ -85,7 +85,7 @@ export async function DriverHero({
           car ? 'pt-36 md:pt-24' : 'pt-20',
         )}
       >
-        <Avatar className="size-24 shrink-0 shadow-lg ring-4 ring-white/25 md:size-32">
+        <Avatar className="size-24 shrink-0 shadow-md ring-2 ring-white/20 md:size-32">
           {portrait ? (
             <AvatarImage src={portrait.url!} alt={name} className="object-cover object-[50%_20%]" />
           ) : null}

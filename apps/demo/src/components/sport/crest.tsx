@@ -31,7 +31,7 @@ export function Crest({
         <AvatarImage
           src={src}
           alt={name}
-          className={round ? 'object-cover' : 'rounded-none object-contain'}
+          className={round ? 'object-cover object-top' : 'rounded-none object-contain'}
         />
       ) : null}
       <AvatarFallback className={`${INITIALS[size]} font-medium ${round ? '' : 'rounded-md'}`}>

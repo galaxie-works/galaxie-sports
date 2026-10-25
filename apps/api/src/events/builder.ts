@@ -47,6 +47,7 @@ import { aflGoalsBehinds, loadAflQuarters } from './afl.js';
 import { pickCheer } from './cheer.js';
 import { loadFights } from './fight.js';
 import { loadRaceSessions, loadRaceTeams, raceResult } from './race.js';
+import { loadPhotos } from '../teams/photos.js';
 import { importanceBreakdownDto } from './relevance.js';
 import { venueTimezone } from './timezone.js';
 import type { RulesRegistry } from './rules-registry.js';
@@ -437,6 +438,15 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
   const raceTeams = gridResults.length
     ? await loadRaceTeams(db, 'formula-1', gridResults, ctx.assetsBaseUrl, ctx.customLogos)
     : new Map();
+  // retrato de cada piloto do grid no acervo da Commons (com o crédito), como na página do piloto
+  const gridPhotos = gridResults.length
+    ? await loadPhotos(
+        db,
+        [...new Set(partRows.filter((r) => r.side === 'grid').map((r) => r.p.id))],
+        ctx.assetsBaseUrl,
+        { role: 'portrait' },
+      )
+    : new Map();
   const sideId = (eventId: string, side: 'home' | 'away') =>
     partsBy.get(eventId)?.find((p) => p.side === side)?.id ?? null;
 
@@ -677,7 +687,13 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       .map(({ _pos, _result, ...p }): EventParticipant => ({
         ...p,
         // vários participantes (F1): posição e resultado; mandante × visitante segue sem os campos
-        ...(p.side === 'grid' ? { position: _pos, result: raceResult(_result, raceTeams) } : {}),
+        ...(p.side === 'grid'
+          ? {
+              position: _pos,
+              result: raceResult(_result, raceTeams),
+              photo: gridPhotos.get(p.id)?.[0] ?? null,
+            }
+          : {}),
         // tags do torcedor por lado (stakes `both` valem para os dois), no locale da resposta
         fan_tags:
           p.side === 'home' || p.side === 'away'

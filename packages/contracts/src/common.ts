@@ -101,12 +101,32 @@ export const AssetUrl = z
   .nullable()
   .meta({ description: 'URL no nosso storage quando o asset já foi espelhado; senão, a URL de origem.' });
 
-export const LogoSource = z.enum(['provider', 'acervo']).nullable().meta({
+export const LogoSource = z.enum(['provider', 'acervo', 'commons']).nullable().meta({
   id: 'LogoSource',
   description:
-    'De onde vem o `logo`: `provider` = o fornecedor de dados; `acervo` = acervo customizado de logos em alta (ligado pela operação). null quando não há logo.',
+    'De onde vem o `logo`: `provider` = o fornecedor de dados; `acervo` = acervo customizado de logos em alta (ligado pela operação); `commons` = arquivo de licença livre da Wikimedia Commons, quando o fornecedor não tem logo (crédito em `logo_credit`). null quando não há logo.',
 });
 export type LogoSource = z.infer<typeof LogoSource>;
+
+/** Crédito de um logo vindo da Wikimedia Commons (arquivo de licença livre): plataformas e competições. */
+export const LogoCredit = z
+  .object({
+    source: z.literal('Wikimedia Commons'),
+    title: z.string().meta({ example: 'File:Logo de exemplo.svg' }),
+    page_url: z.url().meta({ description: 'Página do arquivo na Commons (autor, licença e histórico).' }),
+    author: z.string().nullable(),
+    license: z.string().meta({ example: 'Public domain' }),
+    license_url: z.url().nullable(),
+    attribution_required: z.boolean().meta({
+      description: 'A licença exige o crédito junto do logo (CC BY, CC BY-SA); domínio público não exige.',
+    }),
+    text: z.string().meta({
+      description: 'Atribuição pronta para exibir (ou para o `title` do logo, quando não é exigida).',
+      example: 'Logo: Wikimedia Commons · Public domain',
+    }),
+  })
+  .meta({ id: 'LogoCredit' });
+export type LogoCredit = z.infer<typeof LogoCredit>;
 
 export const CountryRef = z
   .object({ code: z.string().meta({ example: 'BR' }), name: z.string().meta({ example: 'Brasil' }) })
