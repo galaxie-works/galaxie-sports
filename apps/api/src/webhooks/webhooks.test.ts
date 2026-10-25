@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { parseTopics, validateWebhookUrl, WebhookInputError } from './admin.js';
 import { generateWebhookSecret, signWebhook, verifyWebhookSignature } from './signature.js';
+import { WebhookSecretBox, WebhookSecretError } from './secret-box.js';
 import { retryDelayMs } from './worker.js';
 
 describe('assinatura HMAC-SHA256', () => {
@@ -28,6 +29,51 @@ describe('assinatura HMAC-SHA256', () => {
   it('segredos são únicos e com prefixo', () => {
     expect(generateWebhookSecret()).toMatch(/^whsec_[A-Za-z0-9_-]{43}$/);
     expect(generateWebhookSecret()).not.toBe(generateWebhookSecret());
+  });
+});
+
+describe('cifra do segredo com a KEK (auditoria API-9)', () => {
+  const kek = (n: string) => n.repeat(32);
+
+  it('cifra com AES-GCM e decifra de volta; cada cifra é diferente (IV aleatório)', () => {
+    const box = new WebhookSecretBox([kek('a')]);
+    const secret = generateWebhookSecret();
+    const sealed = box.seal(secret);
+    expect(sealed).toMatch(/^enc:v1:[0-9a-f]{8}:/);
+    expect(sealed).not.toContain(secret.slice(6));
+    expect(box.seal(secret)).not.toBe(sealed);
+    expect(box.open(sealed)).toBe(secret);
+    expect(box.needsSeal(sealed)).toBe(false);
+  });
+
+  it('legado em texto puro é lido como está (com ou sem KEK) e precisa ser cifrado', () => {
+    const legacy = generateWebhookSecret();
+    expect(new WebhookSecretBox([]).open(legacy)).toBe(legacy);
+    expect(new WebhookSecretBox([kek('a')]).open(legacy)).toBe(legacy);
+    expect(new WebhookSecretBox([kek('a')]).needsSeal(legacy)).toBe(true);
+  });
+
+  it('rotação da KEK: nova,antiga decifra os dois e marca o antigo para recifrar', () => {
+    const old = new WebhookSecretBox([kek('a')]).seal('whsec_x');
+    const both = new WebhookSecretBox([kek('b'), kek('a')]);
+    expect(both.open(old)).toBe('whsec_x');
+    expect(both.needsSeal(old)).toBe(true);
+    expect(both.needsSeal(both.seal('whsec_x'))).toBe(false);
+  });
+
+  it('sem KEK: não cifra e não decifra; KEK curta, KEK errada e dado alterado falham explicitamente', () => {
+    const sealed = new WebhookSecretBox([kek('a')]).seal('whsec_x');
+    const none = new WebhookSecretBox([]);
+    expect(none.configured).toBe(false);
+    expect(() => none.seal('whsec_x')).toThrow(/WEBHOOK_SIGNING_SECRET não definida/);
+    expect(() => none.open(sealed)).toThrow(/WEBHOOK_SIGNING_SECRET não está definida/);
+    expect(() => new WebhookSecretBox(['curta'])).toThrow(/ao menos 32/);
+    expect(() => new WebhookSecretBox([kek('c')]).open(sealed)).toThrow(WebhookSecretError);
+    const tampered = sealed.slice(0, -2) + (sealed.endsWith('A') ? 'BB' : 'AA');
+    expect(() => new WebhookSecretBox([kek('a')]).open(tampered)).toThrow(/não confere/);
+    expect(
+      WebhookSecretBox.fromEnv({ WEBHOOK_SIGNING_SECRET: ` ${kek('a')} , ${kek('b')} ` }).open(sealed),
+    ).toBe('whsec_x');
   });
 });
 

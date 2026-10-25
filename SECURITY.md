@@ -70,7 +70,7 @@ Revisão do esquema de hash (issue #84):
 | `POSTGRES_PASSWORD` | `ALTER ROLE galaxie PASSWORD '...'` → atualize `DATABASE_URL`/stack → redeploy (API, ingestor, backup, migrate) |
 | `S3_*` / `BACKUP_S3_*` | Crie credencial nova no storage, atualize a stack, redeploy, remova a antiga |
 | `METRICS_TOKEN` | Atualize na stack (API e Prometheus leem a mesma variável) e redeploy |
-| `WEBHOOK_SIGNING_SECRET` | Ver [Webhooks](#webhooks): publicar o novo segredo com período de sobreposição |
+| `WEBHOOK_SIGNING_SECRET` | KEK dos segredos dos webhooks (ver [Webhooks](#webhooks)): `WEBHOOK_SIGNING_SECRET=<nova>,<antiga>` no worker e na CLI → `pnpm --filter @galaxie/api webhook seal-secrets` (recifra com a nova) → remova a antiga. Os segredos `whsec_...` dos clientes não mudam |
 
 Rotacione imediatamente qualquer segredo que apareça num alerta do gitleaks, num log ou fora do secret store — remover o
 commit **não** basta.
@@ -81,8 +81,18 @@ Notas para a implementação dos webhooks (docs/05 §5, issue #35):
 
 - Assinatura `HMAC-SHA256(segredo, "<timestamp>.<corpo>")` em `x-galaxie-signature: t=<unix>,v1=<hex>`; o cliente
   rejeita `t` com mais de 5 min de diferença (replay) e compara em tempo constante.
-- **Um segredo por tenant/endpoint**, gerado pelo servidor (32 bytes), exibido uma vez; guardado cifrado (não hash —
-  o servidor precisa dele para assinar), com a chave de cifra fora do banco (`WEBHOOK_SIGNING_SECRET` como KEK).
+- **Um segredo por endpoint**, gerado pelo servidor (32 bytes), exibido uma vez; guardado cifrado (não hash — o
+  servidor precisa dele para assinar) em AES-256-GCM, com a chave de cifra fora do banco: `WEBHOOK_SIGNING_SECRET`
+  é a KEK (≥ 32 caracteres, ex.: `openssl rand -base64 32`; chave derivada por HKDF-SHA256). Formato gravado
+  `enc:v1:<kid>:<iv>:<cifrado>:<tag>`; só o worker decifra, no momento de assinar.
+  - **Sem KEK**: `webhook create` é recusado (nunca grava texto puro); o worker registra um aviso ao subir e as
+    entregas de segredos cifrados falham como tentativa com erro `WebhookSecretError` (retentativas → DLQ;
+    `webhook replay` depois de corrigir). KEK errada ou ausente da lista tem o mesmo efeito.
+  - **Legado** (endpoints cadastrados antes da cifra, `whsec_...` em texto puro): o worker continua lendo e
+    assinando como antes, com ou sem KEK. Migração no deploy: defina a KEK no ambiente do worker e da CLI,
+    publique a versão nova e rode `pnpm --filter @galaxie/api webhook seal-secrets` (idempotente; troca cada
+    linha só se o valor não mudou, com o worker no ar). O segredo do cliente continua o mesmo.
+  - **Rotação da KEK**: várias KEKs separadas por vírgula (a primeira cifra, todas decifram) + `seal-secrets`.
 - Rotação com sobreposição: durante a janela, enviar duas assinaturas (`v1=<novo>,v1=<antigo>`).
 - URLs de destino só `https://`, sem IPs privados/loopback/link-local (SSRF), resolvendo o DNS no momento do envio;
   timeout curto, sem seguir redirects, corpo de resposta descartado.

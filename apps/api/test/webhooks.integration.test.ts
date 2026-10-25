@@ -12,7 +12,9 @@ import {
   event,
   runMigrations,
   sport,
+  tenant,
   webhookDelivery,
+  webhookEndpoint,
   type Database,
 } from '@galaxie/db';
 import { upsertTenant } from '../src/auth/admin.js';
@@ -20,9 +22,12 @@ import {
   createWebhookEndpoint,
   listDeadDeliveries,
   replayDeadDeliveries,
+  sealWebhookSecrets,
   setWebhookActive,
+  type WebhookInput,
 } from '../src/webhooks/admin.js';
-import { verifyWebhookSignature } from '../src/webhooks/signature.js';
+import { WebhookSecretBox } from '../src/webhooks/secret-box.js';
+import { generateWebhookSecret, verifyWebhookSignature } from '../src/webhooks/signature.js';
 import { WebhookWorker } from '../src/webhooks/worker.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -54,6 +59,9 @@ const script: Record<string, number[]> = {};
 const latencies: Record<string, number> = {};
 
 const hits = (path: string) => received.filter((r) => r.path === path);
+/** KEK do worker e da "CLI" deste teste. */
+const secrets = new WebhookSecretBox([randomBytes(32).toString('base64')]);
+const create = (input: WebhookInput) => createWebhookEndpoint(db, input, secrets);
 
 async function newEvent(): Promise<string> {
   const now = Date.now();
@@ -99,7 +107,13 @@ beforeAll(async () => {
   await new Promise<void>((r) => receiver.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(receiver.address() as AddressInfo).port}`;
 
-  worker = new WebhookWorker(db, { baseDelayMs: 100, maxAttempts: 3, pollIntervalMs: 100, timeoutMs: 2_000 });
+  worker = new WebhookWorker(db, {
+    baseDelayMs: 100,
+    maxAttempts: 3,
+    pollIntervalMs: 100,
+    timeoutMs: 2_000,
+    secrets,
+  });
   await worker.start();
 }, 60_000);
 
@@ -115,7 +129,7 @@ afterAll(async () => {
 describe('webhooks assinados', () => {
   it('entrega a mudança com assinatura HMAC válida, idempotency key e cabeçalhos', async () => {
     const id = await newEvent();
-    const ep = await createWebhookEndpoint(db, {
+    const ep = await create({
       tenantSlug: 'portal',
       url: `${base}/ok`,
       topics: ['score'],
@@ -168,7 +182,7 @@ describe('webhooks assinados', () => {
   it('retenta com backoff exponencial após 500 e reenvia o mesmo corpo e idempotency key', async () => {
     const id = await newEvent();
     script['/flaky'] = [500, 503];
-    const ep = await createWebhookEndpoint(db, {
+    const ep = await create({
       tenantSlug: 'portal',
       url: `${base}/flaky`,
       topics: ['status'],
@@ -203,7 +217,7 @@ describe('webhooks assinados', () => {
   it('após N falhas vai para a DLQ; replay recoloca na fila e entrega', async () => {
     const id = await newEvent();
     script['/down'] = [500, 500, 500];
-    const ep = await createWebhookEndpoint(db, {
+    const ep = await create({
       tenantSlug: 'portal',
       url: `${base}/down`,
       topics: ['score'],
@@ -229,7 +243,7 @@ describe('webhooks assinados', () => {
 
   it('respeita o contrato do tenant: onde assistir só para os mercados contratados', async () => {
     const id = await newEvent();
-    await createWebhookEndpoint(db, {
+    await create({
       tenantSlug: 'portal-ar',
       url: `${base}/ar`,
       topics: ['where_to_watch'],
@@ -261,7 +275,7 @@ describe('webhooks assinados', () => {
 
   it('webhook desativado não recebe; URL insegura é recusada no cadastro', async () => {
     const id = await newEvent();
-    const ep = await createWebhookEndpoint(db, {
+    const ep = await create({
       tenantSlug: 'portal',
       url: `${base}/off`,
       filters: { events: [id] },
@@ -284,11 +298,86 @@ describe('webhooks assinados', () => {
       expect(d).toMatchObject({ status: 'dead', lastError: 'endpoint desativado' });
     }
 
-    await expect(
-      createWebhookEndpoint(db, { tenantSlug: 'portal', url: 'http://cliente.example/hook' }),
-    ).rejects.toThrow(/https/);
-    await expect(createWebhookEndpoint(db, { tenantSlug: 'nao-existe', url: `${base}/x` })).rejects.toThrow(
-      /Tenant/,
+    await expect(create({ tenantSlug: 'portal', url: 'http://cliente.example/hook' })).rejects.toThrow(
+      /https/,
     );
+    await expect(create({ tenantSlug: 'nao-existe', url: `${base}/x` })).rejects.toThrow(/Tenant/);
+  });
+
+  it('segredo cifrado com a KEK no banco; legado em texto puro segue entregue e é migrado (auditoria API-9)', async () => {
+    const id = await newEvent();
+    const ep = await create({
+      tenantSlug: 'portal',
+      url: `${base}/sealed`,
+      topics: ['score'],
+      filters: { events: [id] },
+    });
+    const [stored] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
+    expect(stored!.secret).toMatch(/^enc:v1:/);
+    expect(stored!.secret).not.toContain(ep.secret.slice(6));
+
+    // linha gravada antes da cifra: segredo em texto puro
+    const legacySecret = generateWebhookSecret();
+    const [tenantRow] = await db.select({ id: tenant.id }).from(tenant).where(eq(tenant.slug, 'portal'));
+    const [legacy] = await db
+      .insert(webhookEndpoint)
+      .values({
+        tenantId: tenantRow!.id,
+        url: `${base}/legacy`,
+        secret: legacySecret,
+        topics: ['event.score_changed'],
+        filters: { events: [id] },
+      })
+      .returning();
+
+    await db
+      .update(event)
+      .set({ score: { home: 3, away: 0 } })
+      .where(eq(event.id, id));
+    await expect.poll(() => hits('/sealed').length + hits('/legacy').length, { timeout: 5_000 }).toBe(2);
+    const sig = (h: Received) => h.headers['x-galaxie-signature'] as string;
+    expect(verifyWebhookSignature(ep.secret, hits('/sealed')[0]!.body, sig(hits('/sealed')[0]!))).toBe(true);
+    expect(verifyWebhookSignature(legacySecret, hits('/legacy')[0]!.body, sig(hits('/legacy')[0]!))).toBe(
+      true,
+    );
+
+    // migração: cifra o legado (idempotente) e a entrega continua com o mesmo segredo
+    expect((await sealWebhookSecrets(db, secrets)).sealed).toBe(1);
+    expect((await sealWebhookSecrets(db, secrets)).sealed).toBe(0);
+    const [migrated] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
+    expect(migrated!.secret).toMatch(/^enc:v1:/);
+    expect(secrets.open(migrated!.secret)).toBe(legacySecret);
+    await db
+      .update(event)
+      .set({ score: { home: 3, away: 1 } })
+      .where(eq(event.id, id));
+    await expect.poll(() => hits('/legacy').length, { timeout: 5_000 }).toBe(2);
+    expect(verifyWebhookSignature(legacySecret, hits('/legacy')[1]!.body, sig(hits('/legacy')[1]!))).toBe(
+      true,
+    );
+  });
+
+  it('segredo cifrado com uma KEK que o worker não tem: nada é enviado, a entrega falha com erro explícito', async () => {
+    const id = await newEvent();
+    const other = new WebhookSecretBox([randomBytes(32).toString('base64')]);
+    const ep = await createWebhookEndpoint(
+      db,
+      { tenantSlug: 'portal', url: `${base}/wrong-kek`, topics: ['score'], filters: { events: [id] } },
+      other,
+    );
+    await db
+      .update(event)
+      .set({ score: { home: 4, away: 0 } })
+      .where(eq(event.id, id));
+    await expect
+      .poll(async () => (await listDeadDeliveries(db, { endpointId: ep.id })).length, { timeout: 10_000 })
+      .toBe(1);
+    const [dead] = await listDeadDeliveries(db, { endpointId: ep.id });
+    expect(dead!.lastError).toMatch(/^WebhookSecretError: .*KEK/);
+    expect(hits('/wrong-kek')).toHaveLength(0);
+    // sem KEK nenhuma, o cadastro é recusado (nunca grava texto puro)
+    await expect(
+      createWebhookEndpoint(db, { tenantSlug: 'portal', url: `${base}/x` }, new WebhookSecretBox([])),
+    ).rejects.toThrow(/WEBHOOK_SIGNING_SECRET/);
   });
 });

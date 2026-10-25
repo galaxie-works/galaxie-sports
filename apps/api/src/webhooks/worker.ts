@@ -17,6 +17,7 @@ import {
   type TenantScope,
 } from '../realtime/changes.js';
 import { GapCursor } from '../realtime/gap-cursor.js';
+import { WebhookSecretBox } from './secret-box.js';
 import { SIGNATURE_HEADER, signWebhook } from './signature.js';
 
 interface Logger {
@@ -43,6 +44,8 @@ export interface WebhookWorkerOptions {
   listen?: boolean;
   /** Nome do cursor em api.webhook_cursor. Padrão `default`. */
   cursorName?: string;
+  /** KEK dos segredos (padrão: `WEBHOOK_SIGNING_SECRET` do ambiente). Legados em texto puro valem sem ela. */
+  secrets?: WebhookSecretBox;
   fetch?: typeof fetch;
   logger?: Logger;
 }
@@ -100,6 +103,7 @@ export class WebhookWorker {
   private readonly batchSize: number;
   private readonly concurrency: number;
   private readonly cursorName: string;
+  private readonly secrets: WebhookSecretBox;
 
   constructor(
     private readonly db: Database,
@@ -113,6 +117,7 @@ export class WebhookWorker {
     this.batchSize = options.batchSize ?? 50;
     this.concurrency = options.concurrency ?? 10;
     this.cursorName = options.cursorName ?? 'default';
+    this.secrets = options.secrets ?? WebhookSecretBox.fromEnv();
   }
 
   async start(): Promise<void> {
@@ -284,12 +289,14 @@ export class WebhookWorker {
     let responseCode: number | null = null;
     let error: string;
     try {
+      // decifra só aqui, no momento de assinar (sem KEK, segredo cifrado vira erro desta tentativa)
+      const secret = this.secrets.open(d.secret);
       const res = await this.fetch(d.url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           'user-agent': USER_AGENT,
-          [SIGNATURE_HEADER]: signWebhook(d.secret, body, t),
+          [SIGNATURE_HEADER]: signWebhook(secret, body, t),
           'x-galaxie-event': d.topic,
           'x-galaxie-delivery': d.id,
           'x-galaxie-attempt': String(attempts),

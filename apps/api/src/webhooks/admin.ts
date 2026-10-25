@@ -9,6 +9,7 @@ import {
   type WebhookFilters,
 } from '@galaxie/db';
 import { resolveTopic } from '@galaxie/contracts';
+import { WEBHOOK_KEK_ENV, type WebhookSecretBox } from './secret-box.js';
 import { generateWebhookSecret } from './signature.js';
 
 export interface WebhookInput {
@@ -51,11 +52,20 @@ export function parseTopics(names: string[] = []): RealtimeTopic[] {
   return [...new Set(topics)];
 }
 
-/** Cadastra um webhook para o tenant. O segredo volta só aqui — guarde-o. */
+/**
+ * Cadastra um webhook para o tenant. O segredo volta só aqui — guarde-o. No banco ele fica cifrado com a
+ * KEK (`WEBHOOK_SIGNING_SECRET`); sem KEK o cadastro é recusado (nunca grava texto puro).
+ */
 export async function createWebhookEndpoint(
   db: Database,
   input: WebhookInput,
+  secrets: WebhookSecretBox,
 ): Promise<{ id: string; tenantId: string; secret: string; topics: RealtimeTopic[] }> {
+  if (!secrets.configured)
+    throw new WebhookInputError(
+      `${WEBHOOK_KEK_ENV} não definida: sem ela o segredo do webhook ficaria em texto puro no banco. ` +
+        'Defina a KEK (openssl rand -base64 32) no ambiente do worker e da CLI (SECURITY.md › Webhooks).',
+    );
   const url = validateWebhookUrl(input.url, input.allowInsecure);
   const topics = parseTopics(input.topics);
   const [t] = await db.select({ id: tenant.id }).from(tenant).where(eq(tenant.slug, input.tenantSlug));
@@ -66,13 +76,39 @@ export async function createWebhookEndpoint(
     .values({
       tenantId: t.id,
       url,
-      secret,
+      secret: secrets.seal(secret),
       topics,
       filters: input.filters ?? {},
       description: input.description ?? null,
     })
     .returning({ id: webhookEndpoint.id });
   return { id: row!.id, tenantId: t.id, secret, topics };
+}
+
+/**
+ * Migração dos segredos: cifra os legados em texto puro e recifra os que usam uma KEK antiga (rotação).
+ * Idempotente e segura com o worker no ar: cada linha só é trocada se o valor lido não mudou, e o worker
+ * lê os dois formatos.
+ */
+export async function sealWebhookSecrets(
+  db: Database,
+  secrets: WebhookSecretBox,
+): Promise<{ sealed: number; total: number }> {
+  if (!secrets.configured) throw new WebhookInputError(`${WEBHOOK_KEK_ENV} não definida.`);
+  const rows = await db
+    .select({ id: webhookEndpoint.id, secret: webhookEndpoint.secret })
+    .from(webhookEndpoint);
+  let sealed = 0;
+  for (const r of rows) {
+    if (!secrets.needsSeal(r.secret)) continue;
+    const updated = await db
+      .update(webhookEndpoint)
+      .set({ secret: secrets.seal(secrets.open(r.secret)), updatedAt: new Date() })
+      .where(and(eq(webhookEndpoint.id, r.id), eq(webhookEndpoint.secret, r.secret)))
+      .returning({ id: webhookEndpoint.id });
+    sealed += updated.length;
+  }
+  return { sealed, total: rows.length };
 }
 
 export async function listWebhookEndpoints(db: Database, tenantSlug?: string) {

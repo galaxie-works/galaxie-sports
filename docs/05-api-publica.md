@@ -835,6 +835,7 @@ pnpm --filter @galaxie/api webhook list [--tenant demo-local]
 pnpm --filter @galaxie/api webhook disable|enable --id <endpoint>
 pnpm --filter @galaxie/api webhook dlq [--id <endpoint>]
 pnpm --filter @galaxie/api webhook replay --id <endpoint> | --deliveries <ids>
+pnpm --filter @galaxie/api webhook seal-secrets   # cifra segredos legados / recifra após rotacionar a KEK
 ```
 
 URL: `https://` (http só para `localhost`, ou com `--allow-http`), sem credenciais. Sem `--topics`, o endpoint recebe todos os tópicos do plano; filtros e contrato do tenant valem como no SSE.
@@ -878,7 +879,7 @@ export function verifyGalaxieSignature(rawBody, header, secret, toleranceSec = 3
 // });
 ```
 
-O segredo fica em `api.webhook_endpoint.secret` (o worker precisa dele para assinar). Rotação: cadastre um novo endpoint, migre o receptor e desative o antigo.
+O segredo fica em `api.webhook_endpoint.secret` **cifrado** (AES-256-GCM) com a KEK `WEBHOOK_SIGNING_SECRET`, que fica fora do banco; só o worker o decifra, para assinar. `webhook create` exige a KEK no ambiente; endpoints antigos com o segredo em texto puro continuam sendo entregues e são cifrados por `pnpm --filter @galaxie/api webhook seal-secrets` (detalhes, comportamento sem KEK e rotação da KEK: SECURITY.md › Webhooks). Rotação do segredo do endpoint: cadastre um novo endpoint, migre o receptor e desative o antigo.
 
 ## 6. Erros
 
