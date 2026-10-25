@@ -13,6 +13,11 @@ export interface CachedResponse {
   /** Metadados internos, não enviados (ex.: esporte do evento, para checar o plano no HIT). */
   meta?: Record<string, string>;
   storedAt: number;
+  /**
+   * TTL efetivo (s) com que a entrada foi gravada (o da rota ou o do `load`, ex.: 10 s ao vivo). No HIT, o
+   * Cache-Control usa o que resta dele. Ausente em entradas gravadas antes deste campo.
+   */
+  ttl?: number;
 }
 
 /** Cache de respostas por chave, com invalidação por tag (purge). */

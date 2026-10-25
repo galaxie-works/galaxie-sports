@@ -65,6 +65,27 @@ export function cacheKeyFor(request: FastifyRequest, vary: string[] = []): strin
 }
 
 /**
+ * Teto do Cache-Control no HIT de uma entrada sem `ttl` (gravada antes do campo existir): não se sabe se ela
+ * nasceu com o TTL da rota ou com um menor (ao vivo, quadro de medalhas), então a CDN e o navegador só a
+ * guardam por pouco tempo. Some sozinho quando essas entradas expiram no Valkey.
+ */
+export const LEGACY_ENTRY_TTL_SEC = 10;
+
+/**
+ * TTL a anunciar no HIT: o que resta do TTL com que a entrada foi gravada (nunca o da rota, que pode ser
+ * maior: o detalhe de um jogo ao vivo é gravado por 10 s numa rota de 1 h). Nunca passa do TTL da entrada,
+ * mesmo com o relógio desta instância atrás do da que gravou (`storedAt` no futuro).
+ */
+export function remainingTtl(
+  entry: Pick<CachedResponse, 'storedAt' | 'ttl'>,
+  routeTtl: number,
+  now = Date.now(),
+): number {
+  if (entry.ttl == null) return Math.min(routeTtl, LEGACY_ENTRY_TTL_SEC);
+  return Math.min(entry.ttl, Math.max(0, Math.ceil(entry.ttl - (now - entry.storedAt) / 1000)));
+}
+
+/**
  * Serve uma resposta JSON com cache no Valkey, ETag/304, Cache-Control e `surrogate-key`.
  * Falhas do cache nunca derrubam a requisição: a resposta é montada direto do banco.
  */
@@ -82,10 +103,10 @@ export async function sendCached(
     request.log.warn({ err }, 'cache indisponível (leitura)');
   }
 
-  let ttl = options.ttl;
+  let ttl: number;
   if (entry) {
     reply.header('x-galaxie-cache', 'HIT');
-    ttl = Math.max(0, Math.ceil(ttl - (Date.now() - entry.storedAt) / 1000));
+    ttl = remainingTtl(entry, options.ttl);
   } else {
     const loaded = await options.load();
     const body =
@@ -100,6 +121,7 @@ export async function sendCached(
       ...(loaded.contentType ? { contentType: loaded.contentType } : {}),
       ...(loaded.meta ? { meta: loaded.meta } : {}),
       storedAt: Date.now(),
+      ttl,
     };
     reply.header('x-galaxie-cache', 'MISS');
     if (loaded.store !== false && ttl > 0) {

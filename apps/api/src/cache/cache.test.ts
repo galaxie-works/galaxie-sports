@@ -1,7 +1,14 @@
 import Fastify from 'fastify';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { tagsForChange } from './change-feed.js';
-import { matchesEtag, sendCached, SURROGATE_KEY_MAX, surrogateKeyHeader } from './http.js';
+import {
+  LEGACY_ENTRY_TTL_SEC,
+  matchesEtag,
+  remainingTtl,
+  sendCached,
+  SURROGATE_KEY_MAX,
+  surrogateKeyHeader,
+} from './http.js';
 import { cacheControl } from './policy.js';
 import { MemoryResponseCache } from './store.js';
 
@@ -55,6 +62,39 @@ describe('sendCached', () => {
     expect(await cache.purgeTags(['competition:1'])).toBe(1);
     expect((await app.inject({ url: '/r' })).json()).toEqual({ name: 'B' });
     expect(loads()).toBe(2);
+  });
+
+  it('HIT anuncia o que resta do TTL da entrada (o do load), não o TTL da rota', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-21T15:00:00Z'), toFake: ['Date'] });
+    try {
+      const cache = new MemoryResponseCache();
+      const app = Fastify();
+      // rota de 1 h cujo load escolhe 10 s (jogo ao vivo)
+      app.get('/live', (request, reply) =>
+        sendCached(request, reply, cache, {
+          ttl: 3600,
+          load: async () => ({ body: { status: 'live' }, tags: ['event:1'], ttl: 10 }),
+        }),
+      );
+      const miss = await app.inject({ url: '/live' });
+      expect(miss.headers['cache-control']).toBe(cacheControl(10));
+      vi.advanceTimersByTime(4_000);
+      const hit = await app.inject({ url: '/live' });
+      expect(hit.headers['x-galaxie-cache']).toBe('HIT');
+      expect(hit.headers['cache-control']).toBe(cacheControl(6));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('entrada antiga sem ttl gravado: HIT com TTL curto, nunca o da rota', () => {
+    const storedAt = Date.parse('2026-10-21T15:00:00Z');
+    expect(remainingTtl({ storedAt }, 86_400, storedAt + 1_000)).toBe(LEGACY_ENTRY_TTL_SEC);
+    expect(remainingTtl({ storedAt }, 5, storedAt)).toBe(5);
+    expect(remainingTtl({ storedAt, ttl: 60 }, 86_400, storedAt + 59_500)).toBe(1);
+    expect(remainingTtl({ storedAt, ttl: 60 }, 86_400, storedAt + 61_000)).toBe(0);
+    // gravada por uma instância com o relógio adiantado: nunca mais que o TTL da entrada
+    expect(remainingTtl({ storedAt, ttl: 10 }, 3600, storedAt - 30_000)).toBe(10);
   });
 
   it('varia por locale', async () => {

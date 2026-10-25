@@ -663,6 +663,21 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect(data.every((e) => ['live', 'break', 'suspended'].includes(e.status))).toBe(true);
     expect(data.every((e) => e.momentum === 'live')).toBe(true);
   });
+
+  it('detalhe de jogo ao vivo: o HIT do Valkey mantém o TTL de 10 s (não o de 1 h da rota)', async () => {
+    const live = (await get('/v1/events/live')).json().data as EventBody[];
+    const url = `/v1/events/${live[0]!.id}?tz=America/Argentina/Buenos_Aires`;
+    const maxAges = (cc: string | undefined) =>
+      [...String(cc).matchAll(/(?:max-age|s-maxage)=(\d+)/g)].map((m) => Number(m[1]));
+    const miss = await get(url);
+    expect(miss.headers['x-galaxie-cache']).toBe('MISS');
+    expect(miss.headers['cache-control']).toContain('s-maxage=10');
+    const hit = await get(url);
+    expect(hit.headers['x-galaxie-cache']).toBe('HIT');
+    const ages = maxAges(hit.headers['cache-control'] as string);
+    expect(ages).toHaveLength(2);
+    for (const age of ages) expect(age).toBeLessThanOrEqual(10);
+  });
 });
 
 describe('/v1/events/{id}', () => {
