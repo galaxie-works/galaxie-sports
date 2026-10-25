@@ -5,6 +5,7 @@
 import {
   applyObservation,
   expectedEnd,
+  tick,
   type EventState,
   type FailureReason,
   type NormalizedBatch,
@@ -70,6 +71,7 @@ export class InMemoryLiveStore implements LiveStore {
       providerEventId: meta.providerEventId,
       startsAt: state.startsAt,
       status: state.status,
+      statusSource: state.statusSource,
       statusDetail: state.statusDetail,
       clock: state.clock,
       score: state.score,
@@ -89,6 +91,18 @@ export class InMemoryLiveStore implements LiveStore {
       })
       .map((r) => this.candidate(r))
       .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || (a.eventId < b.eventId ? -1 : 1));
+  }
+
+  /** Relógio dos eventos (como o `advanceEventClock` do core): avança pelo horário quem está sem dado fresco. */
+  advanceClock(now: Date): number {
+    let changed = 0;
+    for (const r of this.rows.values()) {
+      const step = tick(r.state, now);
+      if (!step.changed) continue;
+      r.state = step.state;
+      changed += 1;
+    }
+    return changed;
   }
 
   async snapshots(

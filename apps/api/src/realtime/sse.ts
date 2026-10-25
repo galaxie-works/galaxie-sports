@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
-import { and, asc, gt, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { resolveTopic, StreamQuery, type ChangeTopic, type RealtimeChange } from '@galaxie/contracts';
-import { changeFeed, type Database } from '@galaxie/db';
-import { assertModule, assertSport } from '../auth/authenticator.js';
+import { changeFeed, changeFeedPrune, type Database } from '@galaxie/db';
+import { assertModule, assertSport, type TenantContext } from '../auth/authenticator.js';
 import { ProblemError, problems } from '../errors.js';
 import { parseInput } from '../util.js';
 import { RecentIds, type ChangeStream } from './change-stream.js';
@@ -43,6 +43,9 @@ interface StreamDeps {
   limiter: ConnectionLimiter;
   options: SseOptions;
 }
+
+/** Prazo para uma revogação (chave, tenant, plano) encerrar um stream aberto. */
+const REVALIDATE_WITHIN_MS = 60_000;
 
 /** Formata uma mensagem SSE (`data:` em uma linha: o JSON não tem quebras). */
 export function formatSse(event: string, data: unknown, id?: string): string {
@@ -142,13 +145,17 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
     { config: { module: 'core_data', allowQueryKey: true } },
     async (request, reply): Promise<void> => {
       const q = parseInput(StreamQuery, request.query);
-      const tenant = request.tenant!;
+      let tenant = request.tenant!;
 
       const topics: ChangeTopic[] = q.topics.length
         ? [...new Set(q.topics.map((t) => resolveTopic(t)!))]
         : topicsForTenant(tenant);
-      for (const t of topics) assertModule(tenant, TOPIC_MODULE[t]);
-      for (const s of q.sports) assertSport(tenant, s);
+      const assertAccess = (ctx: TenantContext) => {
+        assertModule(ctx, 'core_data');
+        for (const t of topics) assertModule(ctx, TOPIC_MODULE[t]);
+        for (const s of q.sports) assertSport(ctx, s);
+      };
+      assertAccess(tenant);
 
       const header = request.headers['last-event-id'];
       const headerId = Array.isArray(header) ? header[0] : header;
@@ -165,6 +172,14 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
         sports: new Set(q.sports),
       };
 
+      // o cliente pode cair enquanto o acquire espera o Valkey: o 'close' dispara antes de existir o
+      // cleanup, e sem esta marca o heartbeat renovaria o lease (vaga do tenant) para sempre
+      const res = reply.raw;
+      let clientGone = false;
+      const onEarlyClose = () => {
+        clientGone = true;
+      };
+      res.once('close', onEarlyClose);
       const connectionId = randomUUID();
       const acquired = await deps.limiter
         .acquire(tenant.tenantId, connectionId, maxConnections)
@@ -173,6 +188,13 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
           request.log.warn({ err }, 'limite de conexões SSE indisponível');
           return true;
         });
+      res.off('close', onEarlyClose);
+      if (clientGone || res.destroyed) {
+        if (acquired) deps.limiter.release(tenant.tenantId, connectionId).catch(() => {});
+        reply.hijack();
+        res.destroy();
+        return;
+      }
       if (!acquired)
         throw new ProblemError(
           429,
@@ -182,13 +204,16 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
           { headers: { 'retry-after': '30' } },
         );
 
-      // a partir daqui a resposta é nossa (stream longo)
+      // a partir daqui a resposta é nossa (stream longo): o hijack pula os hooks onSend, então os
+      // headers de segurança e de CORS (EventSource de outra origem) vão aqui, à mão
       reply.hijack();
-      const res = reply.raw;
       const headers: Record<string, string> = {};
       for (const [k, v] of Object.entries(reply.getHeaders())) if (v != null) headers[k] = String(v);
       res.writeHead(200, {
         ...headers,
+        ...app.securityHeaders?.(request, 'text/event-stream'),
+        ...app.corsHeaders?.(request),
+        ...(app.corsHeaders ? { vary: 'Origin' } : {}),
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-cache, no-store, no-transform',
         'x-accel-buffering': 'no',
@@ -214,9 +239,31 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
       };
       const unsubscribe = deps.stream.subscribe(deliver);
 
+      // revalida a chave a cada heartbeat: chave revogada, tenant suspenso ou módulo retirado encerram o
+      // stream; banco fora não derruba (fail-open). O contexto em cache pode ter no máximo 60 s − heartbeat,
+      // então a revogação vale em ≤ 60 s, como nas requisições comuns. Uma revalidação por vez.
+      const maxAgeMs = Math.max(0, REVALIDATE_WITHIN_MS - heartbeatMs);
+      let revalidating = false;
+      const revalidate = async () => {
+        if (!request.reauthenticate || conn.closed || revalidating) return;
+        revalidating = true;
+        try {
+          const ctx = await request.reauthenticate(maxAgeMs);
+          assertAccess(ctx);
+          if (ctx.tenantId === tenant.tenantId) tenant = ctx;
+        } catch (err) {
+          if (!(err instanceof ProblemError) || err.status >= 500 || err.status === 429) return;
+          request.log.info({ tenant: tenant.slug, code: err.code }, 'SSE: acesso revogado, encerrando');
+          conn.write(formatSse('access_revoked', { code: err.code, message: err.title, detail: err.detail }));
+          conn.close();
+        } finally {
+          revalidating = false;
+        }
+      };
       const heartbeat = setInterval(() => {
         conn.write(`: hb ${Date.now()}\n\n`);
         deps.limiter.renew(tenant.tenantId, connectionId).catch(() => {});
+        void revalidate();
       }, heartbeatMs);
       heartbeat.unref();
 
@@ -232,7 +279,7 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
       conn.write(`retry: ${retryMs}\n: galaxie-sports stream\n\n`);
       try {
         let resumeFrom = await deps.stream.latestId();
-        let truncated = false;
+        let truncated: 'max_replay' | 'retention' | null = null;
         if (lastEventId != null) {
           const r = await replay(deps.db, lastEventId, filter, maxReplay, (c) => {
             const scoped = scopeChange(c, filter, tenant);
@@ -247,7 +294,11 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
         if (truncated)
           conn.write(
             formatSse('replay_truncated', {
-              message: 'Muitas mudanças desde o Last-Event-ID; recarregue o estado pela API REST.',
+              reason: truncated,
+              message:
+                truncated === 'retention'
+                  ? 'Parte das mudanças desde o Last-Event-ID já saiu da retenção do change feed; recarregue o estado pela API REST.'
+                  : 'Muitas mudanças desde o Last-Event-ID; recarregue o estado pela API REST.',
             }),
           );
         conn.write(formatSse('ready', { last_event_id: String(resumeFrom), topics }));
@@ -261,14 +312,23 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
   return open;
 }
 
-/** Reenvia as mudanças após `afterId` (Last-Event-ID), em ordem, até `max`. */
+/**
+ * Reenvia as mudanças após `afterId` (Last-Event-ID), em ordem, até `max`. `truncated`: `max_replay` se
+ * parou no teto; `retention` se `afterId` está abaixo da marca da poda (`ops.change_feed_prune`), ou seja,
+ * parte do que veio depois dele já foi apagado pela retenção (o que restou é reenviado mesmo assim).
+ */
 async function replay(
   db: Database,
   afterId: number,
   filter: ChangeFilter,
   max: number,
   send: (change: RealtimeChange) => void,
-): Promise<{ lastId: number; truncated: boolean }> {
+): Promise<{ lastId: number; truncated: 'max_replay' | 'retention' | null }> {
+  const [mark] = await db
+    .select({ maxDeletedId: changeFeedPrune.maxDeletedId })
+    .from(changeFeedPrune)
+    .where(eq(changeFeedPrune.name, 'default'));
+  const pruned = mark != null && afterId < mark.maxDeletedId;
   let cursor = afterId;
   let sent = 0;
   const events = filter.events?.size ? [...filter.events] : undefined;
@@ -289,10 +349,10 @@ async function replay(
       const change = toRealtimeChange(row);
       cursor = row.id;
       if (!change) continue;
-      if (sent >= max) return { lastId: cursor, truncated: true };
+      if (sent >= max) return { lastId: cursor, truncated: 'max_replay' };
       send(change);
       sent += 1;
     }
-    if (rows.length < 500) return { lastId: cursor, truncated: false };
+    if (rows.length < 500) return { lastId: cursor, truncated: pruned ? 'retention' : null };
   }
 }

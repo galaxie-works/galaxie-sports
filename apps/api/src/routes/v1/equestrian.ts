@@ -133,7 +133,8 @@ const num = (v: string | number | null | undefined) => (v === null || v === unde
 const iso = (d: Date | string | null | undefined) =>
   d === null || d === undefined ? null : d instanceof Date ? d.toISOString() : d;
 const OffsetCursor = z.object({ o: z.number().int().min(0) });
-const KeysetCursor = z.object({ d: z.string(), id: z.uuid() });
+// `d` vai para o SQL como ::date: só data ISO válida (cursor forjado → 400, não 500)
+const KeysetCursor = z.object({ d: z.iso.date(), id: z.uuid() });
 
 // ─── países (FEI/COI → ISO, nome e bandeira) ─────────────────────────────────────────────────────
 
