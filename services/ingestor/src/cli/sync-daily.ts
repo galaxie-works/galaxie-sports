@@ -90,11 +90,19 @@ await runCli(async () => {
           (written.length ? ` (${written.map((t) => `${t.competition} ${t.year}`).join(', ')})` : '') +
           '.',
       );
-      for (const t of tables.filter((x) => x.outcome !== 'written'))
-        logger.info(
-          { season_id: t.seasonId, competition: t.competition, outcome: t.outcome, detail: t.detail },
-          'tabela não recalculada',
-        );
+      // tabela do fornecedor mais nova, mata-mata ou sem resultado é o normal; grupo ambíguo (time em mais de um
+      // grupo do fornecedor) ou regulamento/entrada inválidos deixam a tabela parada e precisam de atenção
+      const attention = new Set(['no_groups', 'rules_error', 'invalid_input']);
+      for (const t of tables.filter((x) => x.outcome !== 'written')) {
+        const fields = {
+          season_id: t.seasonId,
+          competition: t.competition,
+          outcome: t.outcome,
+          detail: t.detail,
+        };
+        if (attention.has(t.outcome)) logger.warn(fields, 'tabela não recalculada');
+        else logger.info(fields, 'tabela não recalculada');
+      }
     }
   } finally {
     await closeDb(ctx.db);

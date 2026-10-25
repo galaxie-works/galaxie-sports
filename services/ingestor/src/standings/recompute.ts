@@ -218,8 +218,9 @@ export async function recomputeSeasonStandings(
 
 /**
  * Linhas calculadas velhas: nos grupos que este recálculo gravou, o time que não foi regravado (a tabela do
- * grupo é refeita inteira); fora deles, só o grupo vazio deixado pelo recálculo que perdia os grupos, e só
- * quando todos os grupos gravados têm nome. Grupo nomeado que não foi recalculado e linhas do provedor ficam.
+ * grupo é refeita inteira); fora deles, só o grupo vazio (resíduo do recálculo que perdia os grupos; quando
+ * a tabela gravada é a única, sem nome, ele é o próprio grupo gravado). Grupo nomeado que não foi recalculado
+ * e linhas do provedor ficam.
  */
 async function dropStaleComputedRows(
   db: Database,
