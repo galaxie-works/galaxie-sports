@@ -166,8 +166,16 @@ export async function readOperatorPortal(tenantId: string): Promise<OperatorPort
     listLineupReviewRequests(db, { tenantId }),
   ]);
   const [full] = all ? await toViews([all]) : [null];
-  const library = operator.platform ? await readCountryLibrary(operator.platform.country) : [];
-  const byId = new Map(library.map((e) => [e.id, e]));
+  // nomes dos pedidos de inclusão pela biblioteca inteira (como a fila do admin): a do país vem sem
+  // rádio, e um pedido de rádio já gravado mostraria o id cru em "Meus pedidos"
+  const refs = requests
+    .filter((r) => r.targetType === 'plan_channel' || r.targetType === 'plan_service')
+    .map((r) => r.targetId.split(':')[1]!)
+    .filter(Boolean);
+  const [library, byId] = await Promise.all([
+    operator.platform ? readCountryLibrary(operator.platform.country) : Promise.resolve([]),
+    readLibrary([...new Set(refs)]),
+  ]);
   return {
     operator,
     lineup,
