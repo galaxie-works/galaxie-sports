@@ -162,7 +162,10 @@ describe('validação por tipo', () => {
 
   it('orçamento de IA em US$, por agente e buscas por chamada', () => {
     expect(validateSettingKey('AI_DAILY_USD_BUDGET', '7,5')).toEqual({ ok: true, value: '7.5' });
-    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0')).toEqual({ ok: true, value: 'unlimited' });
+    // 0 desliga a IA (como `agente=0`), não tira o teto; sem teto só com "unlimited"
+    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0')).toEqual({ ok: true, value: '0' });
+    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0,0')).toEqual({ ok: true, value: '0' });
+    expect(validateSettingKey('AI_DAILY_USD_BUDGET', 'unlimited')).toEqual({ ok: true, value: 'unlimited' });
     expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0.1')).toMatchObject({
       ok: false,
       error: { code: 'range' },

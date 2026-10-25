@@ -79,6 +79,15 @@ describe('configuração do orçamento em US$', () => {
     expect(s.maxSearchesPerCall).toBe(DEFAULT_MAX_SEARCHES_PER_CALL);
   });
 
+  it('AI_DAILY_USD_BUDGET=0 desliga a IA (como agente=0); sem teto só com "unlimited"', async () => {
+    expect(llmSettingsFromEnv({ AI_DAILY_USD_BUDGET: '0' }).dailyUsdBudget).toBe(0);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fake = new FakeLlmClient([{ data: { answer: 'a' } }]);
+    const off = withTokenBudget(fake, { env: { AI_DAILY_USD_BUDGET: '0' } });
+    await expect(off.generateJson(req())).rejects.toMatchObject({ agent: 'global', unit: 'usd' });
+    expect(fake.calls).toHaveLength(0);
+  });
+
   it('sobrescritas, "unlimited"/0 e vazio = padrão', () => {
     const s = llmSettingsFromEnv({
       AI_DAILY_USD_BUDGET: '7,5',

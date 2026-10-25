@@ -7,7 +7,7 @@
  * `TokenBudget.reserve` soma o consumo do dia UTC e recusa se a estimativa (de uma tentativa) não
  * couber; antes de cada retentativa ou continuação, o provedor confere de novo com o gasto parcial da
  * chamada (`LlmJsonRequest.budgetCheck`). Agente que bate o próprio teto em US$ fica sem IA até a
- * virada do dia UTC (segue com o determinístico).
+ * virada do dia UTC (segue com o determinístico); AI_DAILY_USD_BUDGET=0 desliga a IA de todos.
  *
  * Uso por outros agentes: envolva o cliente com `new BudgetedLlmClient(client, budget)` e use
  * `purpose` no formato `<agente>:<detalhe>` (ex.: `live:priorities:2026-10-21`) — o prefixo é a

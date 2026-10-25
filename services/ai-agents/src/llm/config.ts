@@ -76,7 +76,7 @@ export interface LlmSettings {
   models: Record<LlmTier, string>;
   /** Tokens (entrada + saída) por dia UTC para todos os agentes; null = sem limite. */
   dailyTokenBudget: number | null;
-  /** US$ (tokens + buscas) por dia UTC para todos os agentes; null = sem limite. */
+  /** US$ (tokens + buscas) por dia UTC para todos os agentes; null = sem limite; 0 = IA desligada. */
   dailyUsdBudget: number | null;
   /** US$ por dia UTC de cada agente (prefixo de `purpose`); agente ausente = só o teto global. */
   agentUsdBudgets: Record<string, number>;
@@ -103,10 +103,11 @@ const isUnlimited = (raw: string | undefined) => {
   return v === 'unlimited' || v === '0';
 };
 
+/** Teto em US$: "unlimited" = sem teto; 0 = IA desligada (como `agente=0`), nunca "sem teto". */
 function usdEnv(env: Env, name: string, fallback: number): number | null {
   const raw = env[name]?.trim();
   if (!raw) return fallback;
-  if (isUnlimited(raw)) return null;
+  if (raw.toLowerCase() === 'unlimited') return null;
   const n = Number(raw.replace(',', '.'));
   if (!Number.isFinite(n) || n < 0)
     throw new LlmError(`${name} precisa ser um número ≥ 0 (ou "unlimited").`, 'config', false);

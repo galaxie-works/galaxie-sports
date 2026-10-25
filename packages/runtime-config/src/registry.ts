@@ -48,6 +48,8 @@ export interface SettingDef {
   max?: number;
   /** int/number: aceita "unlimited" (e 0, quando o serviço trata 0 como "sem limite"). */
   unlimited?: boolean;
+  /** Com `unlimited`: 0 é um valor (IA desligada), não "sem limite"; aceito fora da faixa `min`. */
+  zeroIsOff?: boolean;
   /** Aceita vazio (ex.: herdar o plano padrão, usar os mercados dos tenants, modelo padrão). */
   allowEmpty?: boolean;
   /** text: formato aceito. */
@@ -281,6 +283,8 @@ export const SETTINGS: readonly SettingDef[] = [
     min: 0.5,
     max: 10_000,
     unlimited: true,
+    // 0 desliga a IA de todos os agentes (como `agente=0` no teto por agente); sem teto = "unlimited"
+    zeroIsOff: true,
     default: '10',
     critical: true,
   }),
