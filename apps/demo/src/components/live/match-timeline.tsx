@@ -16,7 +16,6 @@ import {
   CircleDot,
   CircleSlash,
   Flag,
-  Goal,
   MonitorPlay,
   Repeat2,
   Sparkles,
@@ -182,13 +181,17 @@ function KindIcon({ kind }: { kind: TimelineIncident['kind'] }) {
     case 'shootout_scored':
       return (
         <span className={cn(base, 'border-success/50 text-success')}>
-          <Goal className="size-4" aria-hidden />
+          <span className="text-sm leading-none" aria-hidden>
+            ⚽
+          </span>
         </span>
       );
     case 'own_goal':
       return (
         <span className={cn(base, 'border-warning/50 text-warning')}>
-          <Goal className="size-4" aria-hidden />
+          <span className="text-sm leading-none" aria-hidden>
+            ⚽
+          </span>
         </span>
       );
     case 'penalty_missed':
