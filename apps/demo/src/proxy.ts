@@ -13,6 +13,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
 import { matchesPrefix, routeAccess } from '@/lib/auth/roles';
+import { REVALIDATE_HEADER, REVALIDATE_ROUTE } from '@/lib/cache/signature';
 import { auth, isAccessExpired } from '@/lib/auth/server';
 import { COOKIE_MAX_AGE, LOCALE_COOKIE, isLocale, resolveLocale } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
@@ -71,6 +72,8 @@ export async function proxy(request: NextRequest) {
   if (isPublicPath(pathname)) return render(request);
 
   if (pathname === SMOKE_ROUTE && request.headers.has(SMOKE_HEADER)) return NextResponse.next();
+  // revalidação do cache pelo seguidor do change feed (o próprio servidor): a rota confere a assinatura
+  if (pathname === REVALIDATE_ROUTE && request.headers.has(REVALIDATE_HEADER)) return NextResponse.next();
 
   const session = await auth.api.getSession({ headers: request.headers });
   const isApi = pathname.startsWith('/api/');
