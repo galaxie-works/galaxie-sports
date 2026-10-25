@@ -35,6 +35,7 @@ import type { UsageWithSearches } from '../llm/budget.js';
 import type { LlmClient } from '../llm/types.js';
 import { WhereToWatchAgent, type AllocationResult } from './agent.js';
 import { loadEventInfos, matchFacts, type EventInfo } from './event-info.js';
+import { teamsOf } from './channel/runner.js';
 import { rowToCandidate, verifyCandidates } from './evidence.js';
 import { CachingPageFetcher, type PageFetcher } from './fetcher.js';
 import { groupKeyOf, roundKeyOf } from './groups.js';
@@ -476,7 +477,9 @@ export class WtwRunner {
       const proposed = [...(allocated ?? []), ...saved];
       // O validador decide: "a confirmar" só fica se nenhuma fonte publicar aquele detentor.
       const fromRights = rightsCandidates(answer, directory, { includeToConfirm: true });
-      const verified = await verifyCandidates(proposed, directory, fetcher, this.now());
+      const verified = await verifyCandidates(proposed, directory, fetcher, this.now(), {
+        teams: teamsOf(info),
+      });
       const report = validateCandidates([...verified.candidates, ...fromRights], {
         directory,
         competitionSlug: info.competition?.slug ?? null,

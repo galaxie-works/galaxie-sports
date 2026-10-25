@@ -1,7 +1,12 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo, LookupFunction } from 'node:net';
 import { gzipSync } from 'node:zlib';
-import { loadWtwConfig, type BroadcastOptionRow, type BroadcastRightsRow } from '@galaxie/where-to-watch';
+import {
+  loadWtwConfig,
+  teamNames,
+  type BroadcastOptionRow,
+  type BroadcastRightsRow,
+} from '@galaxie/where-to-watch';
 import { importance } from '@galaxie/providers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeLlmClient } from '../llm/fake.js';
@@ -12,6 +17,7 @@ import { recheckRightsRow, rowToCandidate, verifyCandidates } from './evidence.j
 import {
   CachingPageFetcher,
   contentHash,
+  decodeBody,
   FakePageFetcher,
   htmlToText,
   guardedLookup,
@@ -705,6 +711,38 @@ describe('verificação das evidências', () => {
       [true, false],
       [true, true],
     ]);
+  });
+
+  it('trecho parafraseado vale quando a página traz os dois times perto da emissora', async () => {
+    const fetcher = new FakePageFetcher({
+      'https://ge.globo.com/grade': `<p>Sábado: Time Um x Time Dois, às 16h, na TV Globo. ${'x '.repeat(80)} Time Três x Time Quatro no SporTV.</p>`,
+    });
+    const teams = [teamNames('Time Um'), teamNames('Time Dois')] as const;
+    const out = await verifyCandidates(
+      [
+        {
+          broadcaster: 'Globo',
+          evidence: [{ url: 'https://ge.globo.com/grade', excerpt: 'A Globo exibe Um e Dois' }],
+        },
+        {
+          broadcaster: 'SporTV',
+          evidence: [{ url: 'https://ge.globo.com/grade', excerpt: 'O SporTV exibe Um e Dois' }],
+        },
+      ],
+      br,
+      fetcher,
+      NOW,
+      { teams },
+    );
+    expect(out.candidates.map((c) => c.evidence[0]!.excerptFound)).toEqual([true, false]);
+  });
+
+  it('decodifica pelo charset da resposta (ISO-8859-1)', () => {
+    const latin = Buffer.from('<p>Transmissão: São Paulo</p>', 'latin1');
+    expect(decodeBody(latin, 'text/html; charset=ISO-8859-1')).toBe('<p>Transmissão: São Paulo</p>');
+    const meta = Buffer.concat([Buffer.from('<meta charset="iso-8859-1">'), latin]);
+    expect(decodeBody(meta, 'text/html')).toContain('Transmissão');
+    expect(decodeBody(Buffer.from('ação'), 'text/html; charset=nao-existe')).toBe('ação');
   });
 
   it('cache por execução: a grade da rodada é buscada uma vez para todos os jogos e mercados', async () => {

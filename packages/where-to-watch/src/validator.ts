@@ -7,7 +7,9 @@
  *    quando está num domínio oficial da emissora (ou do grupo dela) no dicionário.
  * 4. Confiança: primária (emissora/organizador) 0,9 · imprensa 0,7 · agregador/desconhecida 0,4 ·
  *    +0,1 consistente com a tabela de direitos · −0,2 fora da tabela · +0,1 duas fontes independentes ·
- *    −0,3 fonte com mais de 72 h em competição com escolha por rodada. Limite [0, 1].
+ *    −0,3 fonte com mais de 72 h em competição com escolha por rodada. Limite [0, 1]. Por fonte: página
+ *    sem a emissora, ou que tinha o trecho do jogo e o perdeu (revalidação), cai para 0,4; trecho
+ *    nunca achado na página (paráfrase) custa 0,1.
  * 5. Publica (`confirmed`) se ≥ 0,7; `pending` entre 0,5 e 0,7; descarta abaixo de 0,5.
  *    Conflito entre fontes primárias → `omitted`.
  * 6. Candidatas da tabela de direitos (origem `rights`): só valem para detentores da linha efetiva,
@@ -44,6 +46,8 @@ export const SCORING = {
   rightsMismatch: -0.2,
   independentSources: 0.1,
   staleSource: -0.3,
+  /** Trecho do jogo não achado na página (paráfrase do modelo): penalidade leve, não rebaixa. */
+  excerptMissing: -0.1,
   staleHours: 72,
   publishThreshold: 0.7,
   pendingThreshold: 0.5,
@@ -65,8 +69,13 @@ export interface CandidateEvidence {
   accessible?: boolean | null;
   /** A página menciona a emissora (nome, alias ou canal)? null = não verificado. */
   mentionsBroadcaster?: boolean | null;
-  /** O trecho citado (do jogo) está na página? null/undefined = não verificado. */
+  /**
+   * O trecho citado (ou os dois times perto da emissora) está na página agora? null/undefined = não
+   * verificado.
+   */
   excerptFound?: boolean | null;
+  /** Já tinha sido achado numa verificação anterior (evidência salva). */
+  excerptVerified?: boolean;
   contentHash?: string | null;
   fetchedAt?: string;
 }
@@ -306,10 +315,16 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
       if (ev.accessible !== true) continue;
       const kind = dir.classifySource(ev.url, entry);
       let score = SOURCE_SCORES[kind];
-      if (ev.mentionsBroadcaster === false || ev.excerptFound === false) {
-        // Página não menciona a emissora (ou não traz mais o trecho do jogo): rebaixa ao nível de
-        // agregador (anti-alucinação; a página da própria emissora sempre a menciona).
+      // a página da própria emissora sempre a menciona: o que liga a fonte ao jogo é o trecho
+      const lost = ev.excerptVerified === true && ev.excerptFound === false;
+      if (ev.mentionsBroadcaster === false || lost) {
+        // Página não menciona a emissora, ou tinha o jogo e não tem mais: rebaixa ao nível de
+        // agregador (anti-alucinação; escala que mudou perto do jogo).
         score = Math.min(score, SOURCE_SCORES.aggregator);
+        g.flags.add('excerpt_not_found');
+      } else if (ev.excerptFound === false) {
+        // trecho nunca achado (o modelo parafraseia): só uma penalidade leve
+        score = Math.max(0, score + SCORING.excerptMissing);
         g.flags.add('excerpt_not_found');
       }
       const evidence: Evidence & { score: number } = {
@@ -320,6 +335,7 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
         sourceKind: kind,
         publishedAt: ev.publishedAt ?? null,
         contentHash: ev.contentHash ?? null,
+        ...(ev.excerptVerified || ev.excerptFound === true ? { excerptVerified: true } : {}),
         stance: ev.stance ?? 'confirms',
         score,
       };

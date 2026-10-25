@@ -247,8 +247,9 @@ async function seedRound(opts: {
 const GRADE_BR = 'https://emissora-a.example/grade-da-rodada';
 const GRADE_MX = 'https://emissora-m.example/programacion';
 const PAGES: Record<string, string> = {
-  [GRADE_BR]: '<p>Grade da rodada: J1 na Emissora A; J2 na Streaming B.</p>',
-  [GRADE_MX]: '<p>Programación: J1 na Emissora M.</p>',
+  // trechos do modelo nem sempre literais ("J2 na Streaming B" × "J2 no Streaming B"): ainda publicam
+  [GRADE_BR]: '<p>Grade da rodada: J1 na Emissora A; J2 no Streaming B.</p>',
+  [GRADE_MX]: '<p>Programación: J1 por Emissora M.</p>',
 };
 
 const assignment = (match: string, country: string, broadcaster: string, url: string): WtwAssignment => ({

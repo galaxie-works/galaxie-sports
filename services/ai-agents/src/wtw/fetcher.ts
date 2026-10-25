@@ -157,6 +157,26 @@ export function contentHash(text: string): string {
   return createHash('sha256').update(text.toLowerCase().replace(/\s+/g, ' ').trim()).digest('hex');
 }
 
+/**
+ * Corpo → texto pelo charset da resposta (cabeçalho ou `<meta charset>` no começo do HTML); sem
+ * charset ou com um desconhecido, UTF-8. Página em ISO-8859-1 lida como UTF-8 perde os acentos e o
+ * trecho e os nomes deixam de casar.
+ */
+export function decodeBody(body: Buffer, contentType?: string | null): string {
+  const fromHeader = /charset\s*=\s*["']?([\w.:-]+)/i.exec(contentType ?? '')?.[1];
+  const start = body.subarray(0, 2048).toString('latin1');
+  const fromMeta = /<meta[^>]+charset\s*=\s*["']?([\w.:-]+)/i.exec(start)?.[1];
+  for (const label of [fromHeader, fromMeta]) {
+    if (!label) continue;
+    try {
+      return new TextDecoder(label).decode(body);
+    } catch {
+      // rótulo desconhecido: tenta o próximo
+    }
+  }
+  return body.toString('utf8');
+}
+
 export interface HttpPageFetcherOptions {
   timeoutMs?: number;
   maxBytes?: number;
@@ -269,7 +289,11 @@ export class HttpPageFetcher implements PageFetcher {
           const done = () => {
             if (settled) return;
             settled = true;
-            resolve({ status, location: null, body: Buffer.concat(chunks).toString('utf8') });
+            resolve({
+              status,
+              location: null,
+              body: decodeBody(Buffer.concat(chunks), res.headers['content-type']),
+            });
           };
           body.on('data', (chunk: Buffer) => {
             if (settled) return;

@@ -132,13 +132,22 @@ describe('validador determinístico — confiança', () => {
     );
     expect(r.options[0]).toMatchObject({ confidence: 0.5, status: 'pending' });
     expect(r.options[0]!.flags).toContain('excerpt_not_found');
-    // página da própria emissora sem o trecho do jogo: idem (não publica)
-    const gone = validateCandidates(
-      [cand('Globo', [ev('https://ge.globo.com/x', { excerptFound: false })])],
-      ctx(),
-    );
-    expect(gone.options[0]).toMatchObject({ confidence: 0.5, status: 'pending' });
-    expect(gone.options[0]!.flags).toContain('excerpt_not_found');
+  });
+
+  it('trecho do jogo: paráfrase custa 0,1; a fonte que tinha o jogo e o perdeu cai para 0,4', () => {
+    const run = (over: Partial<CandidateEvidence>) =>
+      validateCandidates([cand('Globo', [ev('https://ge.globo.com/x', over)])], ctx()).options[0]!;
+    // nunca achado (paráfrase do modelo, linha antiga sem a marca): continua publicada
+    const paraphrase = run({ excerptFound: false });
+    expect(paraphrase).toMatchObject({ confidence: 0.9, status: 'confirmed' });
+    expect(paraphrase.flags).toContain('excerpt_not_found');
+    expect(paraphrase.evidence[0]!.excerptVerified).toBeUndefined();
+    // achado agora: a evidência guarda a marca para a revalidação
+    expect(run({ excerptFound: true }).evidence[0]!.excerptVerified).toBe(true);
+    // tinha sido achado e sumiu (escala mudou): não publica; a marca continua
+    const lost = run({ excerptFound: false, excerptVerified: true });
+    expect(lost).toMatchObject({ confidence: 0.5, status: 'pending' });
+    expect(lost.evidence[0]!.excerptVerified).toBe(true);
   });
 });
 

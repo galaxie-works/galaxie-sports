@@ -67,6 +67,11 @@ export type Evidence = {
   publishedAt?: string | null;
   /** sha256 do texto normalizado da página na última verificação (revalidação por diff). */
   contentHash?: string | null;
+  /**
+   * O trecho (ou os dois times perto da emissora) já foi achado na página numa verificação: na
+   * revalidação, só a fonte que tinha o jogo e o perdeu é rebaixada. Ausente = nunca conferido.
+   */
+  excerptVerified?: boolean;
   /** A fonte confirma ou nega a transmissão. */
   stance?: 'confirms' | 'denies';
 };

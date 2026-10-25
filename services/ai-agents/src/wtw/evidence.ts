@@ -5,23 +5,35 @@
  */
 import type { RightsHolderRecord } from '@galaxie/db';
 import {
+  mentionsTogether,
   normalizeName,
   type BroadcastOptionRow,
   type BroadcastRightsRow,
   type Candidate,
   type CountryDirectory,
   type RightsCandidate,
+  type TeamNames,
 } from '@galaxie/where-to-watch';
 import { contentHash, isPublicHttpUrl, type PageFetcher, type PageFetchResult } from './fetcher.js';
 
-/** Nomes pelos quais a emissora pode aparecer na página. */
-export function mentionNames(directory: CountryDirectory, name: string, channel?: string | null): string[] {
+/** Nomes da emissora como escritos no dicionário (para conferir por palavras). */
+function rawNames(directory: CountryDirectory, name: string, channel?: string | null): string[] {
   const resolved = directory.resolve(name) ?? (channel ? directory.resolve(channel) : null);
   const e = resolved?.entry;
-  const names = e
+  return e
     ? [e.name, ...e.aliases, ...e.channels, ...e.regionalVariants.map((v) => v.name)]
     : [name, ...(channel ? [channel] : [])];
-  return [...new Set(names.map(normalizeName).filter((n) => n.length >= 3))];
+}
+
+/** Nomes pelos quais a emissora pode aparecer na página. */
+export function mentionNames(directory: CountryDirectory, name: string, channel?: string | null): string[] {
+  return [
+    ...new Set(
+      rawNames(directory, name, channel)
+        .map(normalizeName)
+        .filter((n) => n.length >= 3),
+    ),
+  ];
 }
 
 export function pageMentions(text: string, names: string[]): boolean {
@@ -56,17 +68,19 @@ export function shouldFetch(directory: CountryDirectory, url: string): boolean {
 
 /**
  * Preenche `accessible`, `mentionsBroadcaster`, `excerptFound` e `contentHash` de cada evidência.
- * O trecho é conferido além da menção: a página da própria emissora sempre a cita, então só o trecho
- * (o jogo naquele canal) mostra que a fonte ainda sustenta a opção — na alocação e na revalidação.
- * Agregadores ficam com `accessible: null` (pista, não evidência).
+ * O jogo é conferido além da menção (a página da própria emissora sempre a cita): `excerptFound` =
+ * o trecho está na página ou, com `teams`, os dois times aparecem perto da emissora (o modelo costuma
+ * parafrasear o trecho). O validador rebaixa a fonte que tinha o jogo e o perdeu; a que nunca o
+ * teve só leva uma penalidade leve. Agregadores ficam com `accessible: null` (pista, não evidência).
  */
 export async function verifyCandidates(
   candidates: Candidate[],
   directory: CountryDirectory,
   fetcher: PageFetcher,
   now: Date,
-  concurrency = 4,
+  opts: { teams?: readonly [TeamNames, TeamNames]; concurrency?: number } = {},
 ): Promise<{ candidates: Candidate[]; fetched: number; failed: number }> {
+  const concurrency = opts.concurrency ?? 4;
   const urls = [
     ...new Set(
       candidates.flatMap((c) => c.evidence.map((e) => e.url)).filter((u) => shouldFetch(directory, u)),
@@ -77,6 +91,7 @@ export async function verifyCandidates(
   const fetchedAt = now.toISOString();
   const verified = candidates.map((c) => {
     const names = mentionNames(directory, c.broadcaster, c.channel);
+    const words = rawNames(directory, c.broadcaster, c.channel).filter((n) => normalizeName(n).length >= 3);
     return {
       ...c,
       evidence: c.evidence.map((e) => {
@@ -86,7 +101,10 @@ export async function verifyCandidates(
           ...e,
           accessible: r.ok,
           mentionsBroadcaster: r.ok ? pageMentions(r.text, names) : null,
-          excerptFound: r.ok && e.excerpt ? excerptStillPresent(r.text, e.excerpt) : null,
+          excerptFound: r.ok
+            ? (!!e.excerpt && excerptStillPresent(r.text, e.excerpt)) ||
+              (!!opts.teams && mentionsTogether(r.text, opts.teams, words))
+            : null,
           contentHash: r.ok ? contentHash(r.text) : null,
           fetchedAt,
         };
@@ -117,6 +135,7 @@ export function rowToCandidate(row: BroadcastOptionRow): Candidate {
         excerpt: e.excerpt,
         publishedAt: e.publishedAt ?? null,
         stance: e.stance ?? 'confirms',
+        ...(e.excerptVerified ? { excerptVerified: true } : {}),
       })),
   };
 }
