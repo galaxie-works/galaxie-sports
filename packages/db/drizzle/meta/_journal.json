@@ -306,8 +306,29 @@
     {
       "idx": 43,
       "version": "7",
-      "when": 1792950170886,
-      "tag": "0043_falhas_da_normalizacao",
+      "when": 1792948460030,
+      "tag": "0043_chave_rotacionada",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1792949878583,
+      "tag": "0044_poda_do_change_feed",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1792954870136,
+      "tag": "0045_epoca_do_uso",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1792963747700,
+      "tag": "0046_falhas_da_normalizacao",
       "breakpoints": true
     }
   ]

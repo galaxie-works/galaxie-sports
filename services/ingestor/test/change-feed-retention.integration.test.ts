@@ -1,7 +1,7 @@
 /** Retenção do `ops.change_feed` (job `change-feed-prune`). */
-import { asc } from 'drizzle-orm';
+import { asc, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { changeFeed, webhookCursor, type Database } from '@galaxie/db';
+import { changeFeed, changeFeedPrune, webhookCursor, type Database } from '@galaxie/db';
 import { pruneChangeFeed } from '../src/ops/change-feed-retention.js';
 import { disposableDb } from './db.js';
 
@@ -18,6 +18,7 @@ async function add(entityId: string, createdAt: Date, topic = 'event.score_chang
   return row!.id;
 }
 
+const mark = async () => (await db.select().from(changeFeedPrune))[0]?.maxDeletedId;
 const ids = async () => (await db.select().from(changeFeed).orderBy(asc(changeFeed.id))).map((r) => r.id);
 
 beforeAll(async () => {
@@ -51,13 +52,46 @@ describe('pruneChangeFeed', () => {
     expect(done.deleted).toBe(3);
     expect(await ids()).toEqual([a3, b1, c2, d1, d2, d3]);
     expect([a1, a2, c1].some((id) => [a3, b1, c2, d1, d2, d3].includes(id))).toBe(false);
+    // marca da poda (o SSE avisa replay_truncated abaixo dela): o maior id apagado, não o menor que ficou
+    expect(await mark()).toBe(c1);
 
     // webhooks em dia: agora d1 e d2 também podem sair
     await db.update(webhookCursor).set({ lastChangeId: d3 });
     expect((await pruneChangeFeed(db, { now: NOW, retentionDays: 7 })).deleted).toBe(2);
     expect(await ids()).toEqual([a3, b1, c2, d3]);
-    // idempotente
+    expect(await mark()).toBe(d2);
+    // idempotente (e a marca não regride)
     expect((await pruneChangeFeed(db, { now: NOW, retentionDays: 7 })).deleted).toBe(0);
+    expect(await mark()).toBe(d2);
+  });
+
+  it('a marca é gravada com cada lote: falha no meio não deixa evento apagado sem marca', async () => {
+    await db.delete(changeFeed);
+    await db.delete(changeFeedPrune);
+    await db.delete(webhookCursor);
+    const old = [];
+    for (let i = 0; i < 4; i++) old.push(await add(`x${i}`, daysAgo(20)));
+    for (let i = 0; i < 4; i++) await add(`x${i}`, daysAgo(1)); // última de cada entidade: fica
+    // a marca falha a partir do 2º lote: o 1º lote (com a marca) fica, o 2º é desfeito inteiro
+    await db.execute(sql`
+      create or replace function ops.test_fail_mark() returns trigger language plpgsql as $$
+      begin
+        if old.max_deleted_id is not null then raise exception 'falha simulada na marca'; end if;
+        return new;
+      end $$`);
+    await db.execute(sql`
+      create trigger test_fail_mark before update on ops.change_feed_prune
+      for each row execute function ops.test_fail_mark()`);
+    try {
+      await expect(pruneChangeFeed(db, { now: NOW, retentionDays: 7, batchSize: 2 })).rejects.toThrow();
+    } finally {
+      await db.execute(sql`drop trigger test_fail_mark on ops.change_feed_prune`);
+      await db.execute(sql`drop function ops.test_fail_mark()`);
+    }
+    const left = await ids();
+    expect(left).toEqual(expect.arrayContaining([old[2], old[3]]));
+    expect(left).not.toContain(old[0]);
+    expect(await mark()).toBe(old[1]); // tudo o que sumiu está coberto pela marca
   });
 
   it('recusa retenção menor que 1 dia', async () => {
