@@ -1,5 +1,7 @@
 # Infra local do Galaxie Sports: Postgres 17, Valkey (Redis) e RustFS (S3 compatível).
 # Uso: pnpm infra:up  ·  pnpm infra:down
+# Portas só no localhost (o Docker passa por cima do firewall do host): numa rede compartilhada o banco local não
+# fica exposto. Para outra máquina alcançar (ex.: notebook de teste na mesma rede), INFRA_BIND=0.0.0.0 no .env.
 name: galaxie-sports
 
 services:
@@ -10,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-galaxie}
       POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
     ports:
-      - '${POSTGRES_PORT:-5433}:5432'
+      - '${INFRA_BIND:-127.0.0.1}:${POSTGRES_PORT:-5433}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -23,7 +25,7 @@ services:
     image: valkey/valkey:8-alpine
     command: ['valkey-server', '--appendonly', 'yes']
     ports:
-      - '${REDIS_PORT:-6379}:6379'
+      - '${INFRA_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379'
     volumes:
       - valkeydata:/data
     healthcheck:
@@ -40,12 +42,13 @@ services:
       RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-galaxie-secret}
       RUSTFS_CONSOLE_ENABLE: 'true'
     ports:
-      - '${S3_PORT:-9000}:9000'
-      - '${S3_CONSOLE_PORT:-9001}:9001'
+      - '${INFRA_BIND:-127.0.0.1}:${S3_PORT:-9000}:9000'
+      - '${INFRA_BIND:-127.0.0.1}:${S3_CONSOLE_PORT:-9001}:9001'
     volumes:
       - s3data:/data
 
-  # Cria o bucket de assets com leitura pública (imagens servidas pela API/CDN) e encerra.
+  # Cria o bucket de assets com leitura pública (imagens servidas pela API/CDN) e encerra. S3 fora do ar depois de
+  # 60 s, ou bucket/política que falham, saem com erro (o `pnpm infra:up` falha em vez de seguir sem bucket).
   s3-init:
     image: amazon/aws-cli:2.38.2
     depends_on:
@@ -58,7 +61,10 @@ services:
     entrypoint: ['/bin/sh', '-c']
     command:
       - |
-        for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && break; sleep 2; done
+        set -e
+        ready=0
+        for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && { ready=1; break; }; sleep 2; done
+        [ "$$ready" = 1 ] || { echo "s3 indisponível depois de 60 s" >&2; exit 1; }
         aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$BUCKET"
         aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket "$$BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$BUCKET/*\"]}]}"
         echo "bucket $$BUCKET pronto"
