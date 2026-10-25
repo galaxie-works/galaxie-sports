@@ -281,6 +281,35 @@ describe('cores dos times', () => {
     // segunda execução: só os que não decodificaram voltam
     expect((await runPaletteBackfill({ assets, objects, dryRun: true })).candidates).toBe(2);
   });
+
+  it('com --limite, os que nunca decodificam não ocupam o lote: a fila segue depois deles', async () => {
+    const urls = [1, 2, 3, 4, 5].map((i) => `https://media.api-sports.io/football/teams/${i}.png`);
+    const assets = new InMemoryAssetStore(urls);
+    const objects = new InMemoryObjectStore();
+    for (const [i, url] of urls.entries()) {
+      const storageKey = `api-sports/football/teams/${i + 1}.png`;
+      await assets.markStored(assets.byUrl(url)!.id, {
+        storageKey,
+        sha256: `x${i}`,
+        bytes: 1,
+        width: 2,
+        height: 2,
+        fetchedAt: new Date(),
+      });
+      // os dois primeiros são JPEG com extensão .png: falham sempre
+      await objects.put(storageKey, i < 2 ? fakePng(2, 2, 8) : CREST, 'image/png', 'x');
+    }
+    expect(await runPaletteBackfill({ assets, objects, limit: 2 })).toEqual({
+      candidates: 4,
+      saved: 2,
+      monochrome: 0,
+      skipped: 2,
+    });
+    expect(urls.map((u) => assets.byUrl(u)!.palette !== null)).toEqual([false, false, true, true, false]);
+    const next = await runPaletteBackfill({ assets, objects, limit: 2 });
+    expect(next).toMatchObject({ saved: 1, skipped: 2 });
+    expect(assets.byUrl(urls[4]!)!.palette).toEqual(PALMEIRAS_PALETTE);
+  });
 });
 
 describe('fotos de pessoas', () => {

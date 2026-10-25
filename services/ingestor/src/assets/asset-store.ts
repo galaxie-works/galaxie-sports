@@ -118,8 +118,11 @@ export interface AssetStore {
   /** Registra URLs novas (idempotente). Retorna quantas eram novas. */
   register(urls: string[]): Promise<number>;
   counts(): Promise<AssetCounts>;
-  /** team_logo espelhados em PNG com palette nula (fora os placeholders do fornecedor), na ordem de criação. */
-  paletteCandidates(limit?: number): Promise<PaletteCandidate[]>;
+  /**
+   * team_logo espelhados em PNG com palette nula (fora os placeholders do fornecedor), na ordem de criação;
+   * `after` (id de um candidato) pagina a partir do seguinte, para passar dos que não decodificam.
+   */
+  paletteCandidates(limit?: number, after?: string): Promise<PaletteCandidate[]>;
   savePalette(id: string, palette: AssetPalette): Promise<void>;
 }
 
@@ -264,14 +267,17 @@ export class InMemoryAssetStore implements AssetStore {
     return { total: this.rows.length, stored, missing, pending: this.rows.length - stored - missing };
   }
 
-  async paletteCandidates(limit?: number): Promise<PaletteCandidate[]> {
-    const rows = this.rows.filter(
-      (r) =>
-        r.kind === 'team_logo' &&
-        r.storageKey?.toLowerCase().endsWith('.png') &&
-        !r.palette &&
-        !PLACEHOLDER_LOGO_SHA256.has(r.sha256 ?? ''),
-    );
+  async paletteCandidates(limit?: number, after?: string): Promise<PaletteCandidate[]> {
+    const start = after ? this.rows.findIndex((r) => r.id === after) + 1 : 0;
+    const rows = this.rows
+      .slice(start)
+      .filter(
+        (r) =>
+          r.kind === 'team_logo' &&
+          r.storageKey?.toLowerCase().endsWith('.png') &&
+          !r.palette &&
+          !PLACEHOLDER_LOGO_SHA256.has(r.sha256 ?? ''),
+      );
     return rows.slice(0, limit ?? rows.length).map((r) => ({ id: r.id, storageKey: r.storageKey! }));
   }
 
@@ -508,7 +514,7 @@ export class PgAssetStore implements AssetStore {
     return { total, stored, missing, pending: total - stored - missing };
   }
 
-  async paletteCandidates(limit?: number): Promise<PaletteCandidate[]> {
+  async paletteCandidates(limit?: number, after?: string): Promise<PaletteCandidate[]> {
     const q = this.db
       .select({ id: asset.id, storageKey: sql<string>`${asset.storageKey}` })
       .from(asset)
@@ -518,6 +524,9 @@ export class PgAssetStore implements AssetStore {
           isNull(asset.palette),
           sql`lower(${asset.storageKey}) like '%.png'`,
           or(isNull(asset.sha256), notInArray(asset.sha256, [...PLACEHOLDER_LOGO_SHA256])),
+          after
+            ? sql`(${asset.createdAt}, ${asset.id}) > (select created_at, id from core.asset where id = ${after})`
+            : undefined,
         ),
       )
       .orderBy(asc(asset.createdAt), asc(asset.id));

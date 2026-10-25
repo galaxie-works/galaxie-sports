@@ -526,6 +526,28 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
     expect(await photo()).not.toBeNull();
   });
 
+  it('o backfill com limite pagina depois dos escudos que não decodificam', async () => {
+    const store = new PgAssetStore(db);
+    const objects = new InMemoryObjectStore();
+    const crest = encodePng({ width: 1, height: 1, colorType: 6, rows: [[0, 105, 55, 255]] });
+    const urls = [20, 21, 22].map((i) => handball(`teams/${i}`));
+    for (const [i, url] of urls.entries()) {
+      const id = await newAsset(url);
+      await store.markStored(id, stored(url));
+      // os dois primeiros não são PNG de verdade: falham sempre
+      await objects.put(stored(url).storageKey, i < 2 ? fakePng(2, 2, 8) : crest, 'image/png', 'x');
+    }
+    const all = await store.paletteCandidates();
+    expect(all.map((c) => c.storageKey).slice(-3)).toEqual(urls.map((u) => stored(u).storageKey));
+    expect(await store.paletteCandidates(1, all[0]!.id)).toEqual([all[1]]);
+
+    // os de testes anteriores sem objeto no storage também falham: o lote de 1 passa por todos eles
+    const report = await runPaletteBackfill({ assets: store, objects, limit: 1 });
+    expect(report).toMatchObject({ saved: 1, skipped: all.length - 1 });
+    const [last] = await db.select().from(asset).where(eq(asset.sourceUrl, urls[2]!));
+    expect(last!.palette).not.toBeNull();
+  });
+
 });
 
 describe.skipIf(!process.env.S3_ENDPOINT)('S3ObjectStore (RustFS local)', () => {
