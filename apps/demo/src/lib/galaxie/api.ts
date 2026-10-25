@@ -12,6 +12,7 @@ import { apiLocale, apiTimeZone, defaultMarket, type ContentLocale, type Locale 
 import { getDictionary } from '../i18n/dictionary';
 import { fill } from '../i18n/text';
 
+import { isLiveSeason, isRecentWindow } from './cache-life';
 import type { ApiRequest } from './request';
 import { API_URL } from './server';
 
@@ -183,7 +184,9 @@ export const standingsRequest = (
 
 export async function getStandings(competitionId: string, season: number, locale: ContentLocale) {
   'use cache';
-  cacheLife('hours');
+  // temporada em andamento: a tabela muda a cada rodada encerrada
+  if (isLiveSeason(season)) cacheLife('minutes');
+  else cacheLife('hours');
   return orNull(api.standings(competitionId, season, localeQuery(locale)));
 }
 
@@ -242,7 +245,9 @@ export async function getCompetitionEvents(
   locale: ContentLocale,
 ) {
   'use cache';
-  cacheLife('hours');
+  // janela que chega a hoje: jogo encerrado não pode seguir "agendado" por até 1 h
+  if (isRecentWindow(to)) cacheLife('minutes');
+  else cacheLife('hours');
   const all = [];
   let cursor: string | undefined;
   do {
@@ -298,7 +303,9 @@ export const teamOverviewRequest = (
 
 export async function getTeamOverview(id: string, locale: ContentLocale, season?: number) {
   'use cache';
-  cacheLife('hours');
+  // forma, últimos jogos e posição da temporada atual mudam a cada jogo
+  if (isLiveSeason(season)) cacheLife('minutes');
+  else cacheLife('hours');
   return orNotFound(api.teamOverview(id, { ...seasonQuery(season), ...localeQuery(locale) }));
 }
 
