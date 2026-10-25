@@ -387,7 +387,8 @@ export class LiveRunner {
       const featured = plan.featured
         ? (tracked.find((c) => isInPlay(c.status) && c.providerEventId) ?? null)
         : null;
-      const finalizeBudget = plan.budget.finalizeReserve > 0 ? opts.maxFinalizePerTick : 0;
+      // nunca mais confirmações num tick do que o plano reservou
+      const finalizeBudget = Math.min(opts.maxFinalizePerTick, plan.budget.finalizeReserve);
       let report: TickReport;
       try {
         report = await this.poller.tick({

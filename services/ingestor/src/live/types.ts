@@ -82,7 +82,10 @@ export interface LiveBudget {
   /** Orçamento LIVE total do dia (inclui o que já foi gasto) — enviado ao `governor.plan`. */
   liveTotal: number;
   liveUsed: number;
-  /** Chamadas guardadas para confirmar o resultado final de cada jogo (`fixtures?id=` ao sair do live). */
+  /**
+   * Chamadas guardadas para confirmar o resultado final de cada jogo (`fixtures?id=` ao sair do live): 1 por
+   * jogo, até 1/4 do saldo; jogo em andamento garante a sua fora desse teto.
+   */
   finalizeReserve: number;
   /** Cada tick custa 1 chamada, ou 2 com o detalhe do jogo em destaque. */
   tickCost: number;
