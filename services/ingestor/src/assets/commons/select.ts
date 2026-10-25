@@ -168,8 +168,11 @@ export function choose(
       .filter(({ e }) => fresh(e));
     const top = cars.slice(0, opts.maxCars ?? 3);
     // a melhor para o fundo do heading (nota `hero`) entra mesmo fora das de mais qualidade: a foto de corrida
-    // de 1950 perde em nitidez para a do museu, mas é a que vai ao fundo
-    const hero = [...cars].sort((a, b) => (b.j?.hero ?? 0) - (a.j?.hero ?? 0))[0];
+    // de 1950 perde em nitidez para a do museu, mas é a que vai ao fundo. Só entre as que podem ir ao fundo (sem
+    // CC BY-SA): a Ferrari 2026 tinha as 3 de mais qualidade em BY-SA e a CC BY da China ficava de fora
+    const hero = cars
+      .filter(({ e }) => !e.license.shareAlike)
+      .sort((a, b) => (b.j?.hero ?? 0) - (a.j?.hero ?? 0))[0];
     if (hero?.j?.hero != null && !top.includes(hero)) top.push(hero);
     return top.map(({ e, j }, rank) => ({
       eligible: e,

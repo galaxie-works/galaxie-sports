@@ -120,6 +120,42 @@ describe('escolha do carro guarda a melhor para o fundo', () => {
       ['File:Monza 1950.jpg', 0.95],
     ]);
   });
+
+  it('a foto a mais é a de maior nota entre as que podem ir ao fundo (sem CC BY-SA)', () => {
+    const bySa = {
+      License: { value: 'cc-by-sa-4.0' },
+      LicenseShortName: { value: 'CC BY-SA 4.0' },
+      Artist: { value: 'A' },
+    };
+    const ccBy = {
+      License: { value: 'cc-by-4.0' },
+      LicenseShortName: { value: 'CC BY 4.0' },
+      Artist: { value: 'B' },
+    };
+    const titles2 = ['SA 1', 'SA 2', 'SA 3', 'SA 4', 'China CC BY'].map((t) => `File:${t}.jpg`);
+    const d2: Discovery = {
+      ...d,
+      candidates: titles2.map((t) => ({
+        file: { ...file(t), extmetadata: t.includes('CC BY') ? ccBy : bySa },
+        season: 2026,
+        wikidataImage: false,
+        portraitCategory: false,
+      })),
+    };
+    const chosen = choose(d2, eligible(d2).ok, [
+      { index: 0, kind: 'car', keep: true, quality: 9, hero: 0.9 },
+      { index: 1, kind: 'car', keep: true, quality: 9, hero: 0.85 },
+      { index: 2, kind: 'car', keep: true, quality: 9, hero: 0.8 },
+      { index: 3, kind: 'car', keep: true, quality: 8, hero: 0.95 },
+      { index: 4, kind: 'car', keep: true, quality: 6, hero: 0.7 },
+    ]);
+    expect(chosen.map((c) => c.eligible.candidate.file.title)).toEqual([
+      'File:SA 1.jpg',
+      'File:SA 2.jpg',
+      'File:SA 3.jpg',
+      'File:China CC BY.jpg',
+    ]);
+  });
 });
 
 describe('prancha do fundo do heading', () => {
