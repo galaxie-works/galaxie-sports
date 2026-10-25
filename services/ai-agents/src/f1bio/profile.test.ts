@@ -226,6 +226,29 @@ describe('proposeProfile (lenda)', () => {
     expect(p.entries).toEqual({ 'pt-BR': null, es: null });
   });
 
+  it('o que veio da produção: marcador de citação, pilotagem agressiva, nome de chassi e uma frase com número errado', async () => {
+    const bio = [
+      'Ayrton Senna disputou 161 GPs entre 1984 e 1994 [S1], com 41 vitórias e 65 poles [S2, S3].',
+      'Fez da volta de classificação uma assinatura, com uma agressividade controlada.',
+      'Em 1988, com o McLaren MP4/4, venceu 8 corridas. Voltou ao cockpit 39 dias depois de um susto.',
+    ].join('\n\n');
+    const reply = { ...research, data: { ...research.data, bio: { ...research.data.bio, text: bio } } };
+    const p = await proposeProfile(new FakeLlmClient([reply, translation]), senna);
+    expect(p.status).toBe('accepted');
+    const text = p.entries['pt-BR']!.bio.text;
+    expect(text).not.toMatch(/\[S\d/);
+    expect(text).toContain('disputou 161 GPs entre 1984 e 1994, com 41 vitórias');
+    expect(text).toContain('agressividade controlada');
+    expect(text).toContain('McLaren MP4/4');
+    expect(text).not.toContain('39 dias');
+    expect(p.dropped).toContainEqual({
+      locale: 'pt-BR',
+      field: 'bio',
+      text: 'Voltou ao cockpit 39 dias depois de um susto.',
+      reason: 'frase tirada da bio: número fora do F1DB (39)',
+    });
+  });
+
   it('lenda sem nenhum momento verificável: sem proposta', async () => {
     const none = { ...research, data: { ...research.data, moments: [] } };
     const p = await proposeProfile(new FakeLlmClient([none]), senna);
