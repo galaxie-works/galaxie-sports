@@ -47,6 +47,11 @@ export class MemoryRateLimiter implements RateLimiter {
     const t = this.now();
     let w = this.windows.get(key);
     if (!w || w.resetAt <= t) {
+      // limite de memória: chaves aleatórias (IPs, prefixos) não acumulam janelas vencidas sem fim
+      if (this.windows.size >= 50_000) {
+        for (const [k, v] of this.windows) if (v.resetAt <= t) this.windows.delete(k);
+        if (this.windows.size >= 50_000) this.windows.clear();
+      }
       w = { count: 0, resetAt: t + windowMs };
       this.windows.set(key, w);
     }
