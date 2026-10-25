@@ -5,7 +5,7 @@
  * código e entra.
  */
 import { betterAuth } from 'better-auth';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
 import { admin } from 'better-auth/plugins/admin';
 import { adminAc, userAc } from 'better-auth/plugins/admin/access';
@@ -16,8 +16,12 @@ import { getDictionary } from '@/lib/i18n/dictionary';
 
 import { pool } from './db';
 import { sendAccessEmail } from './email';
+import { OTP_FAILURE_CODES, clearOtpFailures, isOtpLocked, recordOtpFailure } from './otp-guard';
 
-/** Código de acesso: 6 dígitos, vale 10 minutos, até 5 tentativas erradas por código. */
+/**
+ * Código de acesso: 6 dígitos, vale 10 minutos, até 5 tentativas erradas por código. Por e-mail, somando
+ * todos os códigos, há ainda o bloqueio temporário de `otp-guard.ts` (20 erros por hora).
+ */
 export const OTP_LENGTH = 6;
 export const OTP_MINUTES = 10;
 export const OTP_MAX_ATTEMPTS = 5;
@@ -70,6 +74,16 @@ function throttleOtpRequest(email: string, locale: Locale) {
   }
   lastOtpRequest.set(email, now);
 }
+
+const OTP_SEND_PATH = '/email-otp/send-verification-otp';
+const OTP_SIGN_IN_PATH = '/sign-in/email-otp';
+const OTP_PATHS = new Set([OTP_SEND_PATH, OTP_SIGN_IN_PATH]);
+
+/** E-mail do corpo de uma rota do login por código, normalizado como o Better Auth grava. */
+const bodyEmail = (body: unknown) =>
+  String((body as { email?: unknown } | undefined)?.email ?? '')
+    .trim()
+    .toLowerCase();
 
 /**
  * Envia o código fora do fluxo da requisição: o tempo de resposta não muda se a conta existe ou não. O
@@ -145,11 +159,30 @@ export const auth = betterAuth({
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      if (ctx.path !== '/email-otp/send-verification-otp') return;
-      const email = String((ctx.body as { email?: unknown } | undefined)?.email ?? '')
-        .trim()
-        .toLowerCase();
-      if (email) throttleOtpRequest(email, localeFromHeaders(ctx.headers));
+      if (!OTP_PATHS.has(ctx.path)) return;
+      const email = bodyEmail(ctx.body);
+      if (!email) return;
+      // E-mail bloqueado por erros demais: nem manda código novo nem confere o digitado.
+      if (await isOtpLocked(email)) {
+        throw new APIError('TOO_MANY_REQUESTS', {
+          code: 'OTP_LOCKED',
+          message: authText(localeFromHeaders(ctx.headers)).otpLocked,
+        });
+      }
+      if (ctx.path === OTP_SEND_PATH) throttleOtpRequest(email, localeFromHeaders(ctx.headers));
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== OTP_SIGN_IN_PATH) return;
+      const email = bodyEmail(ctx.body);
+      if (!email) return;
+      const returned = ctx.context.returned;
+      try {
+        if (!isAPIError(returned)) await clearOtpFailures(email);
+        else if (OTP_FAILURE_CODES.has(String(returned.body?.code))) await recordOtpFailure(email);
+      } catch (err) {
+        // a contagem não pode trocar a resposta do login (o erro do código continua sendo o que vale)
+        console.error('[demo-auth] falha ao registrar a tentativa de login por código', err);
+      }
     }),
   },
   databaseHooks: {

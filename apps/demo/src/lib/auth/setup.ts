@@ -1,11 +1,13 @@
 /**
  * Preparação do banco da demo na subida do servidor (instrumentation.ts): schema `demo_auth`, tabelas do
- * Better Auth (migração aditiva, idempotente), tabelas próprias (convites e atividade) e o primeiro admin.
+ * Better Auth (migração aditiva, idempotente), tabelas próprias (convites, atividade e tentativas erradas
+ * de código) e o primeiro admin.
  */
 import { getMigrations } from 'better-auth/db/migration';
 
 import { AUTH_SCHEMA, hasDatabase, pool } from './db';
 import { sendInvite } from './invite';
+import { OTP_FAILURE_TABLE } from './otp-guard';
 
 const OWN_TABLES = `
 create table if not exists invite (
@@ -61,6 +63,7 @@ export async function setupAuthDatabase(): Promise<void> {
   const { runMigrations } = await getMigrations(auth.options);
   await runMigrations();
   await pool.query(OWN_TABLES);
+  await pool.query(OTP_FAILURE_TABLE);
   await pool.query(OTP_TRANSITION);
   await ensureFirstAdmin();
 }

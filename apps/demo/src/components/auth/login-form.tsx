@@ -32,6 +32,7 @@ const OTP_ERROR: Record<string, keyof AuthErrors> = {
   OTP_EXPIRED: 'otpExpired',
   TOO_MANY_ATTEMPTS: 'tooManyAttempts',
   OTP_RESEND_TOO_SOON: 'resendTooSoon',
+  OTP_LOCKED: 'otpLocked',
   ACCESS_EXPIRED: 'expired',
   BANNED_USER: 'banned',
 };
