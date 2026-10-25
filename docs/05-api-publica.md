@@ -785,10 +785,10 @@ Last-Event-ID: 1041
 | `events` | Até 200 IDs de evento (vírgula). Vazio = todos os eventos do contrato |
 | `competitions`, `sports` | Filtros adicionais (até 50 competições, 20 esportes); esporte fora do contrato → 403 |
 | `topics` | Nomes curtos ou completos; padrão: todos os do plano. Tópico de módulo não contratado → 403 `MODULE_NOT_IN_PLAN` |
-| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` e o cliente deve recarregar o estado pela REST). O change feed guarda `CHANGE_FEED_RETENTION_DAYS` dias (padrão 7; job `change-feed-prune` do ingestor, que mantém a última mudança de cada entidade e o que os webhooks ainda não leram) |
+| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` com `reason: "max_replay"` e o cliente deve recarregar o estado pela REST). O change feed guarda `CHANGE_FEED_RETENTION_DAYS` dias (padrão 7; job `change-feed-prune` do ingestor, que mantém a última mudança de cada entidade e o que os webhooks ainda não leram). ID anterior ao que a retenção já apagou (`ops.change_feed_prune`): o que restou é reenviado e chega `replay_truncated` com `reason: "retention"` |
 | `?key=` | Chave para `EventSource` do navegador, que não envia headers (ver *trade-off* abaixo) |
 
-Mensagens: `id:` (ID da mudança), `event:` (tópico), `data:` (JSON). O stream começa com `retry: 3000` e, depois da retomada, `event: ready` com `{ "last_event_id": "...", "topics": [...] }`. Heartbeat a cada 15 s (comentário `: hb <ts>`), que mantém proxies e balanceadores com a conexão aberta.
+Mensagens: `id:` (ID da mudança), `event:` (tópico), `data:` (JSON). O stream começa com `retry: 3000` e, depois da retomada, `event: ready` com `{ "last_event_id": "...", "topics": [...] }`. Heartbeat a cada 15 s (comentário `: hb <ts>`), que mantém proxies e balanceadores com a conexão aberta. A cada heartbeat a chave é revalidada (cache de 60 s do autenticador): chave revogada ou expirada, tenant suspenso ou módulo/esporte retirado do plano encerram o stream com `event: access_revoked` (`{ code, message, detail }`) — a reconexão do `EventSource` recebe então o 401/403. A resposta leva os mesmos headers de segurança e de CORS (`CORS_ORIGINS`) das demais rotas, então `EventSource` de outra origem autorizada funciona.
 
 ```js
 const es = new EventSource(`${API}/v1/stream?events=${id}&topics=score,status&key=${KEY_DE_LEITURA}`);

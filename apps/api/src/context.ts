@@ -23,6 +23,8 @@ declare module 'fastify' {
   }
   interface FastifyRequest {
     tenant: TenantContext | null;
+    /** Repete a autenticação da requisição com a mesma chave (conexões longas, como o SSE). */
+    reauthenticate: (() => Promise<TenantContext>) | null;
   }
 }
 

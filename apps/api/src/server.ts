@@ -213,6 +213,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   if (options.cors?.origins.length || publishable)
     registerCors(app, options.cors ?? { origins: [] }, publishable);
   app.decorateRequest('tenant', null);
+  app.decorateRequest('reauthenticate', null);
 
   // Autenticação, módulo do plano, uso e rate limit — rotas com `config.module` ou `config.authenticated`.
   // A chave secreta (`x-galaxie-key`) tem precedência; sem ela, vale a publicável, só para leitura.
@@ -221,19 +222,22 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (!module && !request.routeOptions.config?.authenticated) return;
     const secretKey = apiKeyFrom(request);
     const pk = secretKey ? undefined : publishableKeyFrom(request);
-    let tenant: TenantContext;
+    let authenticate: () => Promise<TenantContext>;
     if (pk) {
       assertPublishableRoute(request);
       if (!publishable) throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
       const origin = requestOrigin(request);
-      tenant = await publishable.authenticate(pk, origin, { ip: request.ip });
+      authenticate = () => publishable.authenticate(pk, origin, { ip: request.ip });
       if (origin) request.publishableOrigin = origin;
     } else {
       if (!authenticator)
         throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
-      tenant = await authenticator.authenticate(secretKey, { ip: request.ip });
+      authenticate = () => authenticator.authenticate(secretKey, { ip: request.ip });
     }
+    const tenant = await authenticate();
     request.tenant = tenant;
+    // conexões longas (SSE) revalidam a mesma chave periodicamente (revogação, suspensão, plano)
+    request.reauthenticate = authenticate;
     if (module) assertModule(tenant, module);
 
     const route = `${request.method} ${request.routeOptions.url ?? request.url}`;
