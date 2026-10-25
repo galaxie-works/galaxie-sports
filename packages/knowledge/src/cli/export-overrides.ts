@@ -68,7 +68,13 @@ if (values.json) {
             : 'item fora do YAML'
       }`,
     );
-  for (const id of result.exported) console.log(`  + ${id}`);
+  const partial = new Map(result.partial.map((p) => [p.itemId, p.fields]));
+  for (const id of result.exported)
+    console.log(
+      partial.has(id)
+        ? `  + ${id} (só em parte: ${partial.get(id)!.join(', ')} em conflito, vale o YAML)`
+        : `  + ${id}`,
+    );
 
   // a base com os arquivos novos tem de continuar válida
   const files = kb.files.map((f) =>

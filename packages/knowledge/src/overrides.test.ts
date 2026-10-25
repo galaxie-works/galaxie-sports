@@ -8,6 +8,7 @@ import {
   mergeOverride,
   patchEntry,
   resolveOverride,
+  resolveOverrideFields,
   type ReviewOverrideRef,
 } from './overrides.js';
 import { buildReviewItems, reviewContent } from './review.js';
@@ -37,6 +38,25 @@ describe('resolveOverride', () => {
   });
   it('conflito quando o YAML mudou o mesmo campo para outro valor: vale o YAML', () => {
     expect(resolveOverride({ template: 'Força, {team}!' }, o)).toBe('conflict');
+  });
+  it('conflito num campo não derruba os outros: só os sem conflito entram', () => {
+    const edit = {
+      fields: { template: 'Vai, {team}! Rumo à vitória!', tone: 4, confidence: 'HIGH' },
+      base: { template: 'Vai, {team}!', tone: 3, confidence: 'MEDIUM' },
+    };
+    // template mudou no YAML para um terceiro valor; tone ainda é o base; confidence já tem o valor novo
+    const current = { template: 'Força, {team}!', tone: 3, confidence: 'HIGH' };
+    expect(resolveOverrideFields(current, edit)).toEqual({
+      status: 'apply',
+      fields: { tone: 4 },
+      conflicts: ['template'],
+    });
+    expect(resolveOverride(current, edit)).toBe('apply');
+    // nenhum campo entra: conflito
+    expect(resolveOverrideFields({ ...current, tone: 2 }, edit)).toMatchObject({
+      status: 'conflict',
+      conflicts: ['template', 'tone'],
+    });
   });
   it('item que saiu do YAML', () => {
     expect(resolveOverride(undefined, o)).toBe('missing');
@@ -96,6 +116,37 @@ describe('applyReviewOverrides', () => {
     ]);
     expect(result.conflicts).toEqual([COPY]);
     expect(result.kb).toBe(kb);
+  });
+
+  it('conflito parcial: aplica os campos sem conflito, vale o YAML no campo em conflito e registra', () => {
+    const before = item(kb, COPY);
+    const result = applyReviewOverrides(kb, [
+      {
+        itemId: COPY,
+        fields: { template: 'Vai, {team}! Hoje é dia!', tone: 4 },
+        base: { template: 'outro texto', tone: before.content.tone },
+      },
+    ]);
+    expect(result.applied).toEqual([COPY]);
+    expect(result.conflicts).toEqual([]);
+    expect(result.partial).toEqual([{ itemId: COPY, fields: ['template'] }]);
+    const after = item(result.kb, COPY);
+    expect(after.content).toMatchObject({ template: before.content.template, tone: 4 });
+    // o conteúdo mudou só em parte: a aprovação gravada com a edição inteira fica desatualizada pelo hash
+    expect(after.reviewHash).not.toBe(before.reviewHash);
+
+    // a exportação leva só o campo sem conflito para o YAML
+    const out = exportOverridesToYaml(kb, [
+      {
+        itemId: COPY,
+        fields: { template: 'Vai, {team}! Hoje é dia!', tone: 4 },
+        base: { template: 'outro texto', tone: before.content.tone },
+      },
+    ]);
+    expect(out.partial).toEqual([{ itemId: COPY, fields: ['template'] }]);
+    const text = out.files.get('copy/pt-BR.yaml')!;
+    expect(text).not.toContain('Hoje é dia!');
+    expect(text).toMatch(/key: cheer-3, intent: cheer, tone: 4,/);
   });
 
   it('clássico e o histórico geral dele editam o mesmo item do YAML sem se perder', () => {

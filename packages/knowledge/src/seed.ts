@@ -65,7 +65,8 @@ export interface SeedResult {
      * Edições do banco (semantic.review_override) aplicadas por cima do YAML, já absorvidas pelo YAML
      * (exportadas), em conflito (o YAML mudou o mesmo campo; vale o YAML) e de itens que saíram dele.
      */
-    overrides: { applied: number; absorbed: number; conflicts: number; missing: number };
+    /** `partial`: aplicadas só em parte (contam também em `applied`). */
+    overrides: { applied: number; absorbed: number; conflicts: number; partial: number; missing: number };
   };
   loadRunId: string;
 }
@@ -270,6 +271,7 @@ export async function seedSemantic(
         applied: overrides.applied.length,
         absorbed: overrides.absorbed.length,
         conflicts: overrides.conflicts.length,
+        partial: overrides.partial.length,
         missing: overrides.missing.length,
       },
     };

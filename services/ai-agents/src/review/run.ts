@@ -261,7 +261,9 @@ export class SuggestionReviewer {
     const current = applyReviewOverrides(yaml, overrides).kb;
     const next = applyReviewOverrides(yaml, candidate);
     const problems: string[] = [];
-    if (!remove && !next.applied.includes(item.id))
+    // a edição desta sugestão tem de entrar inteira (campo em conflito com o YAML não entraria)
+    const conflicted = next.partial.find((p) => p.itemId === item.id)?.fields ?? [];
+    if (!remove && (!next.applied.includes(item.id) || conflicted.some((f) => f in final.fields)))
       problems.push('a edição não se encaixa no YAML atual (ele mudou desde a sugestão)');
     const edited = buildReviewItems(next.kb).find((i) => i.id === item.id);
     if (!edited) problems.push('item não encontrado na base com a edição');
