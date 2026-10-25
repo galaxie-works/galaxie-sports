@@ -484,15 +484,20 @@ beforeAll(async () => {
   await app.ready();
 }, 120_000);
 
+/** Apaga as chaves deste arquivo no Valkey (`pattern` relativo ao prefixo; `cache:*` só as respostas). */
+async function clearCache(pattern = '*'): Promise<void> {
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', `${keyPrefix}${pattern}`, 'COUNT', 500);
+    if (keys.length) await redis.del(...keys);
+    cursor = next;
+  } while (cursor !== '0');
+}
+
 afterAll(async () => {
   await app?.close();
   if (redis) {
-    let cursor = '0';
-    do {
-      const [next, keys] = await redis.scan(cursor, 'MATCH', `${keyPrefix}*`, 'COUNT', 500);
-      if (keys.length) await redis.del(...keys);
-      cursor = next;
-    } while (cursor !== '0');
+    await clearCache();
     redis.disconnect();
   }
   if (db) await closeDb(db);
@@ -1704,7 +1709,10 @@ describe('desempenho', () => {
       `/v1/teams/${ids.palmeiras}/overview`,
       '/v1/competitions/conmebol-libertadores/context',
     ];
-    for (const u of urls) await get(u);
+    // aquece do zero: a agenda do dia (com jogo ao vivo) tem TTL de poucos segundos, e a entrada que um teste
+    // anterior gravou pode vencer no meio da medição (CI lento) e voltar como MISS
+    await clearCache('cache:*');
+    for (const u of urls) expect((await get(u)).headers['x-galaxie-cache']).toBe('MISS');
     const times: number[] = [];
     for (let i = 0; i < 20; i++) {
       for (const u of urls) {
