@@ -87,15 +87,19 @@ O Gemini só roda na VPS, no container `agents` (a imagem precisa desta versão:
      /data/commons/f1perfil/profiles.json > /tmp/f1perfil-profiles.json
    docker compose run --rm --no-deps -v galaxie-commons:/data/commons --entrypoint cat agents \
      /data/commons/f1perfil/profiles-report.md > /tmp/f1perfil-report.md
+   docker compose run --rm --no-deps -v galaxie-commons:/data/commons --entrypoint cat agents \
+     /data/commons/f1perfil/panel-decisions.json > /tmp/f1perfil-panel-decisions.json
    ```
+
+   O segundo comando grava também `panel-decisions.json`: as decisões do painel sobre os perfis (`editorial:*` de `semantic.review_decision` e as edições de `semantic.review_override`), lidas do banco de produção. O comando imprime o host consultado e quantas decisões leu (aviso quando são 0). Para só exportar as decisões, sem pesquisar: `node ../ai-agents/dist/cli/f1-bio.js --perfil --exportar-decisoes --saida /data/commons/f1perfil` (no mesmo `docker compose run` dos comandos acima).
 
    Para os regulares, o mesmo com `--escopo regulares` (341 pilotos; `--limite N` faz em lotes). Para um piloto só: `--pilotos ayrton-senna`. O relatório mostra cada item aceito com a fonte e cada descartado com o motivo.
 
-2. **No dev, aplicar e abrir o PR.** Os perfis entram como `draft` em `data/knowledge/formula-1/editorial/pt-BR.yaml` e `es.yaml`; perfil aprovado nunca é sobrescrito, aplicar de novo não muda nada e cada item passa pelo validador da base. A aprovação do painel fica no banco (`semantic.review_decision`), não no YAML: com `DATABASE_URL` apontando para o banco que tem as decisões do painel, o passo de aplicar as lê e pula o perfil aprovado lá (trocar o texto desfaria a aprovação e o perfil sumiria da API até ser aprovado de novo); `--sobrescrever-aprovados` troca mesmo assim. Sem `DATABASE_URL`, o comando avisa que só conferiu o status do YAML.
+2. **No dev, aplicar e abrir o PR.** Os perfis entram como `draft` em `data/knowledge/formula-1/editorial/pt-BR.yaml` e `es.yaml`; perfil aprovado nunca é sobrescrito, aplicar de novo não muda nada e cada item passa pelo validador da base. A aprovação do painel fica no banco de produção (`semantic.review_decision`), não no YAML: o `--aplicar` lê as decisões do `panel-decisions.json` exportado no passo 1 (`--decisoes <arquivo>`; sem a opção, procura ao lado do profiles.json) e pula o perfil aprovado lá — trocar o texto desfaria a aprovação e o perfil sumiria da API até ser aprovado de novo. `--sobrescrever-aprovados` troca mesmo assim. Sem o arquivo, o `--aplicar` para (na prévia `--plan`, só avisa); `--sem-decisoes-do-painel` aplica só com o status do YAML. O passo não usa banco.
 
    ```bash
-   pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar f1perfil-profiles.json --plan
-   pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar f1perfil-profiles.json
+   pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar f1perfil-profiles.json --decisoes f1perfil-panel-decisions.json --plan
+   pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar f1perfil-profiles.json --decisoes f1perfil-panel-decisions.json
    pnpm knowledge:validate
    ```
 
