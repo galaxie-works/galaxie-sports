@@ -19,6 +19,10 @@
 				request>headers>X-Galaxie-Key delete
 				request>headers>X-Galaxie-Admin-Key delete
 				request>headers>Cookie delete
+				# chave do EventSource (`?key=`, o SSE não manda header): a API já redige nos logs dela
+				request>uri query {
+					replace key REDACTED
+				}
 			}
 		}
 	}
@@ -46,6 +50,10 @@
 				request>headers>X-Galaxie-Key delete
 				request>headers>X-Galaxie-Admin-Key delete
 				request>headers>Cookie delete
+				# chave do EventSource (`?key=`, o SSE não manda header): a API já redige nos logs dela
+				request>uri query {
+					replace key REDACTED
+				}
 			}
 		}
 	}
