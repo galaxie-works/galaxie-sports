@@ -81,6 +81,8 @@ broadcasters:
     medium: free_tv
     access_model: free
     domains: [record.r7.com, r7.com]
+    # RecordPlus (antigo PlayPlus), streaming próprio com a Record ao vivo: www.recordplus.com/help/faq
+    watch_domains: [recordplus.com]
   - id: sbt
     name: SBT
     aliases: ['Sistema Brasileiro de Televisão', 'TV SBT']

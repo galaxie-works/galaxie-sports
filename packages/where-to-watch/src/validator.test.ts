@@ -181,6 +181,18 @@ describe('validador determinístico — evidência, conflito e política', () =>
     expect(link('Canal Desconhecido', 'https://canal-desconhecido.example/live')).toBeNull();
   });
 
+  it('RecordPlus (watch_domains da Record no dicionário) é aceito como link', () => {
+    const r = validateCandidates(
+      [
+        cand('Record', [ev('https://record.r7.com/esportes/jogo')], {
+          watchUrl: 'https://www.recordplus.com/ao-vivo',
+        }),
+      ],
+      ctx({ competitionSlug: 'brasileirao-serie-a' }),
+    );
+    expect(r.options[0]!.url).toBe('https://www.recordplus.com/ao-vivo');
+  });
+
   it('plataforma própria de assistir (`watch_domains`) vale só para o link', () => {
     const cfg = parseCountryConfig(
       'BR',
