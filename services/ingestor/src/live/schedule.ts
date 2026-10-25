@@ -525,27 +525,35 @@ export function planLiveDay(input: PlanInput): LiveDayPlan {
   const windows = new Map(eligible.map((e) => [e.candidate.eventId, e.window]));
   const { available, protectedDaily } = availableForLive(input.usage, options.protectDaily);
 
-  // confirmação do placar final: 1 chamada por jogo, mas no máximo 1/4 do orçamento (os ticks vêm antes)
-  const finalizeFor = (matches: number) =>
-    options.finalize ? Math.min(matches, Math.floor(available * MAX_FINALIZE_SHARE)) : 0;
+  // confirmação do placar final: 1 chamada por jogo, mas no máximo 1/4 do orçamento (os ticks vêm antes).
+  // Jogo já em andamento guarda a sua fora desse teto: perto do fim da cota a reserva não encolhe a zero
+  // com o saldo, só sai quando o jogo é confirmado (e deixa o plano). Novas tentativas do poller saem do
+  // saldo replanejado a cada tick; reservá-las de antemão tiraria jogos do plano gratuito
+  const finalizeFor = (matches: number, inPlay: number) =>
+    options.finalize
+      ? Math.min(available, Math.max(inPlay, Math.min(matches, Math.floor(available * MAX_FINALIZE_SHARE))))
+      : 0;
 
   // inclusão gulosa pela prioridade: cada jogo entra se o intervalo continuar dentro do teto
   let current = evaluate(new WeightTimeline(now, dayEnd), available, 0, 1);
   const included: PlannedMatch[] = [];
+  let inPlayIncluded = 0;
   for (const c of ranked) {
     const window = windows.get(c.eventId)!;
     const timeline = current.timeline.clone();
     timeline.add(window);
-    const next = evaluate(timeline, available, finalizeFor(included.length + 1), 1);
-    if (included.length === 0 || isInPlay(c.status) || next.intervalMs <= options.maxIntervalMs) {
+    const inPlay = isInPlay(c.status) ? 1 : 0;
+    const next = evaluate(timeline, available, finalizeFor(included.length + 1, inPlayIncluded + inPlay), 1);
+    if (included.length === 0 || inPlay || next.intervalMs <= options.maxIntervalMs) {
       included.push({ candidate: c, window, rank: included.length });
+      inPlayIncluded += inPlay;
       current = next;
     } else {
       excluded.push({ eventId: c.eventId, label: c.label, reason: 'budget' });
     }
   }
 
-  const finalizeReserve = finalizeFor(included.length);
+  const finalizeReserve = finalizeFor(included.length, inPlayIncluded);
   let featured = options.featured === 'on';
   if (options.featured === 'auto' && included.length > 0) {
     const withDetail = evaluate(current.timeline, available, finalizeReserve, 2);

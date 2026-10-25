@@ -12,7 +12,11 @@ export interface ScheduledJob {
   /** Raiz do pacote do job, relativa à do ingestor (padrão: o próprio ingestor). */
   cwd?: string;
   args: string[];
+  /** Args quando roda sob demanda (painel "rodar agora", `scheduler --run`); padrão: `args`. */
+  onDemandArgs?: string[];
   timeoutMs: number;
+  /** O tempo limite é do job e não segue SCHEDULER_TIMEOUT_MINUTES (o ao vivo fica no ar por horas). */
+  ownTimeout?: boolean;
 }
 
 const MINUTE = 60_000;
@@ -39,14 +43,17 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     script: 'dist/cli/live-run.js',
     args: [],
     timeoutMs: 20 * 60 * MINUTE,
+    ownTimeout: true,
   },
   {
     name: 'live-reconcile',
     description:
-      'Reconciliação do ao vivo (LIVE): confirma pelo detalhe os jogos que o core ainda dá como em andamento (rede de segurança do live-run)',
+      'Reconciliação do ao vivo: detalhe (LIVE) dos jogos acompanhados pelo ao vivo que pararam de atualizar e agenda do dia (ADHOC, no máximo 1 por data a cada 60 min e dentro da fatia ADHOC) para os do catálogo encerrados pelo relógio sem placar da fonte; sob demanda (painel), detalhe de todos os em andamento',
     cron: '*/10 * * * *',
     script: 'dist/cli/live-reconcile.js',
     args: [],
+    // botão de pânico do painel: confere todo jogo em andamento, não só os parados
+    onDemandArgs: ['--forcar'],
     timeoutMs: 15 * MINUTE,
   },
   {
@@ -280,7 +287,10 @@ export function assertCron(pattern: string, name: string): void {
   }
 }
 
-/** Aplica as sobrescritas do ambiente: SCHEDULE_<JOB>=<cron>|off e SCHEDULER_TIMEOUT_MINUTES. */
+/**
+ * Aplica as sobrescritas do ambiente: SCHEDULE_<JOB>=<cron>|off e SCHEDULER_TIMEOUT_MINUTES (este, só nos
+ * jobs sem tempo limite próprio: um valor de 60 mataria o ao vivo a cada hora, no meio do jogo).
+ */
 export function scheduleFromEnv(
   env: NodeJS.ProcessEnv = process.env,
   jobs: readonly ScheduledJob[] = jobsForProfile(env.SCHEDULER_PROFILE),
@@ -295,7 +305,7 @@ export function scheduleFromEnv(
     out.push({
       ...job,
       cron,
-      ...(Number.isFinite(timeoutMinutes) && timeoutMinutes > 0
+      ...(Number.isFinite(timeoutMinutes) && timeoutMinutes > 0 && !job.ownTimeout
         ? { timeoutMs: timeoutMinutes * MINUTE }
         : {}),
     });

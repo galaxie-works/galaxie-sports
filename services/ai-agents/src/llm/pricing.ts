@@ -2,7 +2,7 @@
  * Tabela de preços para estimar custo (USD por 1 milhão de tokens, tier padrão, contexto curto).
  * Fontes oficiais conferidas em 2026-10-21:
  * - https://developers.openai.com/api/docs/pricing
- * - https://platform.claude.com/docs/en/about-claude/pricing
+ * - https://platform.claude.com/docs/en/about-claude/pricing (Anthropic, modelos atuais conferidos em 2026-10-25)
  * - https://ai.google.dev/gemini-api/docs/pricing (Gemini, conferida em 2026-10-23)
  * É uma ESTIMATIVA para orçamento e métricas — a fatura do provedor é a fonte da verdade.
  */
@@ -31,12 +31,19 @@ export const MODEL_PRICES: Record<string, ModelPrice> = {
   'gpt-5.4-nano': { input: 0.2, cachedInput: 0.02, output: 1.25 },
   'gpt-5-mini': { input: 0.25, cachedInput: 0.025, output: 2 },
   'gpt-4.1-mini': { input: 0.4, cachedInput: 0.1, output: 1.6 },
-  // Anthropic
+  // Anthropic (modelos atuais conferidos em 2026-10-25). Leitura de cache: Fable 5.1 e Mythos 5.1
+  // 0,025× da entrada, Opus 5.5 0,05×, Fable 5 US$ 1, os demais 0,1×. Mythos 5.1: só Project Glasswing.
+  'claude-fable-5-1': { input: 10, cachedInput: 0.25, output: 50 },
+  'claude-mythos-5-1': { input: 10, cachedInput: 0.25, output: 50 },
+  'claude-fable-5': { input: 10, cachedInput: 1, output: 50 },
   'claude-opus-5-5': { input: 4, cachedInput: 0.2, output: 20 },
-  'claude-sonnet-5-5': { input: 2, cachedInput: 0.1, output: 10 },
+  'claude-sonnet-5-5': { input: 2, cachedInput: 0.2, output: 10 },
   /** Prompts até 100 mil tokens (acima disso: 0,50/2,50). */
   'claude-haiku-5-5': { input: 0.1, cachedInput: 0.01, output: 0.5 },
   'claude-opus-5': { input: 5, cachedInput: 0.5, output: 25 },
+  'claude-opus-4-8': { input: 5, cachedInput: 0.5, output: 25 },
+  'claude-opus-4-7': { input: 5, cachedInput: 0.5, output: 25 },
+  'claude-opus-4-6': { input: 5, cachedInput: 0.5, output: 25 },
   'claude-sonnet-5': { input: 2, cachedInput: 0.2, output: 10 },
   'claude-sonnet-4-6': { input: 3, cachedInput: 0.3, output: 15 },
   'claude-haiku-4-5': { input: 1, cachedInput: 0.1, output: 5 },
@@ -71,21 +78,67 @@ export function priceFor(model: string): ModelPrice | undefined {
   return base ? MODEL_PRICES[base] : undefined;
 }
 
-/** Custo estimado; undefined quando o modelo não está na tabela. */
+/** Prefixo dos modelos de cada provedor na tabela de preços. */
+const PROVIDER_MODEL_PREFIX: Record<string, string> = {
+  openai: 'gpt-',
+  anthropic: 'claude-',
+  gemini: 'gemini-',
+};
+
+/** Provedor do modelo pelo nome (o da tabela); undefined fora dos três provedores. */
+export function providerOfModel(model: string): string | undefined {
+  return Object.entries(PROVIDER_MODEL_PREFIX).find(([, prefix]) => model.startsWith(prefix))?.[0];
+}
+
+/** Maior preço de entrada e de saída entre os modelos do provedor (sem desconto de cache). */
+function highestPriceOf(provider: string): ModelPrice | undefined {
+  const prefix = PROVIDER_MODEL_PREFIX[provider];
+  const prices = Object.entries(MODEL_PRICES)
+    .filter(([k]) => prefix && k.startsWith(prefix))
+    .map(([, p]) => p);
+  if (!prices.length) return undefined;
+  return { input: Math.max(...prices.map((p) => p.input)), output: Math.max(...prices.map((p) => p.output)) };
+}
+
+const warnedUnpriced = new Set<string>();
+
+/**
+ * Preço para o orçamento: o da tabela ou, para modelo fora dela (ex.: `AI_MODEL_*` novo), o mais caro
+ * do provedor — o teto em US$ não pode tratar o modelo desconhecido como de graça. O provedor vem do
+ * parâmetro ou do prefixo do nome; sem provedor conhecido (cliente falso dos testes), undefined.
+ */
+export function budgetPriceFor(model: string, provider?: string): ModelPrice | undefined {
+  const known = priceFor(model);
+  if (known) return known;
+  const family = provider && PROVIDER_MODEL_PREFIX[provider] ? provider : providerOfModel(model);
+  const fallback = family ? highestPriceOf(family) : undefined;
+  if (fallback && !warnedUnpriced.has(model)) {
+    warnedUnpriced.add(model);
+    console.warn(
+      `[orçamento de IA] modelo ${model} fora da tabela de preços: o custo usa o preço mais caro do provedor ${family} (atualize MODEL_PRICES).`,
+    );
+  }
+  return fallback;
+}
+
+/**
+ * Custo estimado: tokens ao preço do modelo (fora da tabela, o mais caro do provedor; sem provedor
+ * conhecido, tokens não entram) mais as buscas na web, que entram sempre.
+ */
 export function estimateCostUsd(
   model: string,
   usage: Pick<LlmUsage, 'inputTokens' | 'outputTokens'> & { cachedInputTokens?: number },
   webSearches = 0,
   usdPerSearch = WEB_SEARCH_USD_PER_CALL,
-): number | undefined {
-  const p = priceFor(model);
-  if (!p) return undefined;
+  provider?: string,
+): number {
+  const p = budgetPriceFor(model, provider);
   const cached = Math.min(usage.cachedInputTokens ?? 0, usage.inputTokens);
-  const cost =
-    ((usage.inputTokens - cached) * p.input +
-      cached * (p.cachedInput ?? p.input) +
-      usage.outputTokens * p.output) /
-      1_000_000 +
-    webSearches * usdPerSearch;
-  return Math.round(cost * 1_000_000) / 1_000_000;
+  const tokensCost = p
+    ? ((usage.inputTokens - cached) * p.input +
+        cached * (p.cachedInput ?? p.input) +
+        usage.outputTokens * p.output) /
+      1_000_000
+    : 0;
+  return Math.round((tokensCost + webSearches * usdPerSearch) * 1_000_000) / 1_000_000;
 }

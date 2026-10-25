@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { quotaBudget, quotaLedger, quotaSnapshot, type Database } from '@galaxie/db';
 import { QuotaExceededError, RequestInFlightError } from '../errors.js';
 import type { Outcome, Priority } from '../types.js';
@@ -11,19 +11,24 @@ import {
   type QuotaTicket,
   type UsageReport,
 } from './governor.js';
-import { decide, emptyUsage, type QuotaPolicy, type UsageSnapshot } from './policy.js';
+import { decide, emptyUsage, exhaustedSince, type QuotaPolicy, type UsageSnapshot } from './policy.js';
 
 const PROVIDER = 'api-sports';
 
 /**
  * Quota Governor sobre Postgres. A reserva é uma linha `pending` em ops.quota_ledger inserida
  * sob advisory lock por (api, dia) — vários workers concorrentes nunca ultrapassam o orçamento.
+ * Com `perMinute` na política, a reserva também espera a vaga do limite por minuto da API, somando
+ * todos os processos que usam a chave.
  */
 export class PgQuotaGovernor implements QuotaGovernor {
   constructor(
     private readonly db: Database,
     private readonly policyFor: (api: string) => QuotaPolicy,
     private readonly now: () => Date = () => new Date(),
+    /** Espera pela vaga do limite por minuto (testes injetam um relógio falso). */
+    private readonly sleep: (ms: number) => Promise<void> = (ms) =>
+      new Promise((resolve) => setTimeout(resolve, ms)),
   ) {}
 
   private async countSince(
@@ -46,14 +51,27 @@ export class PgQuotaGovernor implements QuotaGovernor {
     return row?.n ?? 0;
   }
 
-  private async snapshot(tx: Pick<Database, 'select'>, api: string, day: string): Promise<UsageSnapshot> {
+  private async snapshot(
+    tx: Pick<Database, 'select'>,
+    api: string,
+    day: string,
+    nowMs: number,
+  ): Promise<UsageSnapshot> {
     const used = emptyUsage();
+    // na mesma passada: um quota_exhausted recente do dia (sem `remaining` positivo) nega a API por um tempo
+    const since = new Date(exhaustedSince(day, nowMs)).toISOString();
     const counts = await tx
-      .select({ priority: quotaLedger.priority, n: sql<number>`count(*)::int` })
+      .select({
+        priority: quotaLedger.priority,
+        n: sql<number>`count(*)::int`,
+        exhausted: sql<number>`(count(*) filter (where ${quotaLedger.outcome} = 'quota_exhausted'
+          and coalesce(${quotaLedger.remainingAfter}, 0) = 0 and ${quotaLedger.sentAt} >= ${since}::timestamptz))::int`,
+      })
       .from(quotaLedger)
       .where(and(eq(quotaLedger.provider, PROVIDER), eq(quotaLedger.api, api), eq(quotaLedger.dayUtc, day)))
       .groupBy(quotaLedger.priority);
     for (const c of counts) used[c.priority as Priority] = c.n;
+    const providerExhausted = counts.some((c) => c.exhausted > 0);
 
     const planRows = await tx
       .select({ priority: quotaBudget.priority, planned: quotaBudget.planned })
@@ -85,26 +103,59 @@ export class PgQuotaGovernor implements QuotaGovernor {
             providerLimit: snap.providerLimit,
           }
         : {}),
+      ...(providerExhausted ? { providerExhausted } : {}),
     };
   }
 
   async acquire(req: AcquireRequest): Promise<QuotaTicket> {
+    for (;;) {
+      const attempt = await this.tryAcquire(req);
+      if ('ticket' in attempt) return attempt.ticket;
+      await this.sleep(attempt.waitMs);
+    }
+  }
+
+  /**
+   * Uma tentativa sob os locks: o ticket, ou quanto esperar pela próxima vaga do limite por minuto.
+   */
+  private async tryAcquire(req: AcquireRequest): Promise<{ ticket: QuotaTicket } | { waitMs: number }> {
     const day = utcDayString(this.now());
+    const policy = this.policyFor(req.api);
+    const perMinute = policy.perMinute !== undefined && policy.perMinute > 0 ? policy.perMinute : undefined;
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${PROVIDER}|${req.api}|${day}`}))`);
+      // lock por API, sem o dia: na virada da meia-noite UTC, processos com locks de dias diferentes
+      // também disputam a mesma vaga do minuto
+      if (perMinute)
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${PROVIDER}|${req.api}|per-minute`}))`);
+      // O relógio é lido depois dos locks. Se o dia virou durante a espera, tenta de novo com o lock do dia
+      // novo: assim day_utc é sempre o dia do sent_at, e as buscas por janela só olham os dias que ela cruza.
+      const nowMs = this.now().getTime();
+      if (utcDayString(new Date(nowMs)) !== day) return { waitMs: 0 };
+      // provider/api/dia usam o índice quota_ledger_day_idx (só pelo hash seria seq scan sob o lock)
+      const staleBefore = nowMs - IN_FLIGHT_STALE_MS;
       const [inFlight] = await tx
         .select({ id: quotaLedger.id })
         .from(quotaLedger)
         .where(
           and(
+            eq(quotaLedger.provider, PROVIDER),
+            eq(quotaLedger.api, req.api),
+            inArray(quotaLedger.dayUtc, utcDaysBetween(staleBefore, nowMs)),
             eq(quotaLedger.requestHash, req.requestHash),
             eq(quotaLedger.outcome, 'pending'),
-            gte(quotaLedger.sentAt, new Date(this.now().getTime() - IN_FLIGHT_STALE_MS)),
+            gte(quotaLedger.sentAt, new Date(staleBefore)),
           ),
         )
         .limit(1);
       if (inFlight) throw new RequestInFlightError(req.requestHash);
-      const decision = decide(this.policyFor(req.api), await this.snapshot(tx, req.api, day), req.priority, {
+      // a vaga vem depois da checagem em voo (o pedido duplicado não espera o espaçamento à toa) e antes do
+      // snapshot, para que o retry de quem perdeu a vaga saia barato
+      if (perMinute) {
+        const waitMs = await this.minuteWait(tx, req.api, perMinute, nowMs);
+        if (waitMs > 0) return { waitMs };
+      }
+      const decision = decide(policy, await this.snapshot(tx, req.api, day, nowMs), req.priority, {
         critical: req.critical ?? false,
       });
       if (!decision.allow) throw new QuotaExceededError(req.api, req.priority, decision.reason);
@@ -119,17 +170,57 @@ export class PgQuotaGovernor implements QuotaGovernor {
           requestHash: req.requestHash,
           outcome: 'pending',
           jobId: req.jobId ?? null,
-          sentAt: this.now(),
+          sentAt: new Date(nowMs),
         })
         .returning({ id: quotaLedger.id });
-      return { id: row!.id, api: req.api, priority: req.priority, dayUtc: day, borrowed: decision.borrowed };
+      return {
+        ticket: {
+          id: row!.id,
+          api: req.api,
+          priority: req.priority,
+          dayUtc: day,
+          borrowed: decision.borrowed,
+        },
+      };
     });
+  }
+
+  /**
+   * Limite por minuto da chave somando todos os processos: no máximo 1 envio a cada 60/perMinute s por API
+   * (a mesma regra sem rajada do RateLimiter local), contado pelo sent_at do ledger. O cliente reserva logo
+   * antes do fetch, então sent_at é o instante do envio. A espera de UMA tentativa nunca passa do
+   * espaçamento, mesmo com um sent_at no futuro; mas, enquanto o relógio de outro processo estiver
+   * adiantado, cada nova tentativa volta a esperar, e a espera total acompanha esse adiantamento.
+   */
+  private async minuteWait(
+    tx: Pick<Database, 'select'>,
+    api: string,
+    perMinute: number,
+    nowMs: number,
+  ): Promise<number> {
+    const spacingMs = 60_000 / perMinute;
+    const since = nowMs - spacingMs;
+    const [row] = await tx
+      .select({ last: sql<Date | null>`max(${quotaLedger.sentAt})`.mapWith(quotaLedger.sentAt) })
+      .from(quotaLedger)
+      .where(
+        and(
+          eq(quotaLedger.provider, PROVIDER),
+          eq(quotaLedger.api, api),
+          inArray(quotaLedger.dayUtc, utcDaysBetween(since, nowMs)),
+          gte(quotaLedger.sentAt, new Date(since)),
+        ),
+      );
+    if (!row?.last) return 0;
+    return Math.min(spacingMs, Math.ceil(row.last.getTime() + spacingMs - nowMs));
   }
 
   async settle(ticket: QuotaTicket, outcome: Outcome, remainingAfter?: number): Promise<void> {
     await this.db
       .update(quotaLedger)
-      .set({ outcome, remainingAfter: remainingAfter ?? null, sentAt: this.now() })
+      // sent_at fica o do envio: reescrever com a hora do desfecho contaria de novo, no piso do
+      // fornecedor, uma chamada que já estava no contador lido por um /status no meio dela
+      .set({ outcome, remainingAfter: remainingAfter ?? null })
       .where(eq(quotaLedger.id, ticket.id));
   }
 
@@ -189,6 +280,18 @@ export class PgQuotaGovernor implements QuotaGovernor {
   }
 
   async usage(api: string, dayUtc = utcDayString(this.now())): Promise<UsageReport> {
-    return buildReport(this.policyFor(api), api, dayUtc, await this.snapshot(this.db, api, dayUtc));
+    return buildReport(
+      this.policyFor(api),
+      api,
+      dayUtc,
+      await this.snapshot(this.db, api, dayUtc, this.now().getTime()),
+    );
   }
+}
+
+/** Dias UTC que a janela [fromMs, toMs] cruza (a janela é sempre menor que um dia): um, ou dois na virada. */
+function utcDaysBetween(fromMs: number, toMs: number): string[] {
+  const from = utcDayString(new Date(fromMs));
+  const to = utcDayString(new Date(toMs));
+  return from === to ? [to] : [from, to];
 }

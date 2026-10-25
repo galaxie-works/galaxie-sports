@@ -18,6 +18,8 @@ export class LlmError extends Error {
 /**
  * Orçamento diário esgotado — de tokens (AI_DAILY_TOKEN_BUDGET) ou de US$ (AI_DAILY_USD_BUDGET, global,
  * ou AI_AGENT_USD_BUDGETS, do agente). Não é tentado de novo: o agente segue com o determinístico.
+ * `midCall`: a recusa veio no meio de uma chamada (mais uma retentativa ou continuação não cabia), não
+ * na reserva — o dia pode ainda ter saldo para chamadas menores.
  */
 export class BudgetExceededError extends LlmError {
   constructor(
@@ -26,11 +28,16 @@ export class BudgetExceededError extends LlmError {
     readonly limit: number,
     readonly requested: number,
     readonly unit: 'tokens' | 'usd' = 'tokens',
+    readonly midCall = false,
   ) {
     super(
-      unit === 'usd'
-        ? `Orçamento diário em US$ esgotado (${agent}): gastos US$ ${used.toFixed(4)} de US$ ${limit}, pedido estimado US$ ${requested.toFixed(4)}.`
-        : `Orçamento diário de tokens esgotado (${agent}): usados ${used} de ${limit}, pedido estimado ${requested}.`,
+      midCall
+        ? unit === 'usd'
+          ? `Orçamento diário em US$ (${agent}) não comporta mais uma tentativa desta chamada: gastos US$ ${used.toFixed(4)} de US$ ${limit} (contando a chamada), próxima estimada em US$ ${requested.toFixed(4)}.`
+          : `Orçamento diário de tokens (${agent}) não comporta mais uma tentativa desta chamada: usados ${used} de ${limit} (contando a chamada), próxima estimada em ${requested}.`
+        : unit === 'usd'
+          ? `Orçamento diário em US$ esgotado (${agent}): gastos US$ ${used.toFixed(4)} de US$ ${limit}, pedido estimado US$ ${requested.toFixed(4)}.`
+          : `Orçamento diário de tokens esgotado (${agent}): usados ${used} de ${limit}, pedido estimado ${requested}.`,
       'budget',
       false,
     );
