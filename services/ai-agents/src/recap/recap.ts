@@ -278,6 +278,8 @@ export function tieSentence(core: EventCore, facts: RecapFacts, locale: AgentLoc
         : pt
           ? `${winner} se classificou para ${NEXT_STAGE_TEXT[lang][tie.next_stage ?? 'next_round']}`
           : `${winner} se clasificó a ${NEXT_STAGE_TEXT[lang][tie.next_stage ?? 'next_round']}`;
+  if (tie.decided_by === 'draw_advantage')
+    head += pt ? '; o empate bastava pelo regulamento' : '; el empate le alcanzaba por reglamento';
   if (tie.legs === 2 && agg) {
     const w = tie.winner === 'home' ? agg.home : agg.away;
     const l = tie.winner === 'home' ? agg.away : agg.home;
@@ -351,6 +353,7 @@ export function recapSystemPrompt(): string {
     '  quem se classificou e para qual fase (tie.outcome = "advances", fase em tie.next_stage) ou quem foi campeão',
     '  (tie.outcome = "title"); em ida e volta, cite o agregado (tie.aggregate) e como a vaga saiu',
     '  (tie.decided_by: aggregate, away_goals, penalties). Ex.: "X se classificou para a final: 2 x 2 no agregado e 5 x 3 nos pênaltis."',
+    '  tie.decided_by = draw_advantage: jogo único empatado em que o regulamento dá a vaga a tie.winner com o empate.',
     '- tie.aggregate e tie.first_leg estão na ótica DESTE jogo (home = mandante deste jogo).',
     '- Se tie.leg = 1 (jogo de ida) ou tie.winner = null, NÃO diga que alguém se classificou, foi eliminado ou campeão.',
     '- champion_titles (quando houver): o título conquistado é o de número title_number do campeão naquela competição',

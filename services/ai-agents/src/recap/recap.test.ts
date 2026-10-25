@@ -373,6 +373,27 @@ describe('mata-mata: agregado, quem passou e para onde', () => {
     expect(final).toMatchObject({ legs: 1, winner: 'home', outcome: 'title', next_stage: null });
     // sem contexto do motor de regras e sem agregado do fornecedor: não afirma desfecho
     expect(tie({ home: 0, away: 1 }, null)).toBeNull();
+    // jogo único empatado sem pênaltis: passa quem tem a vantagem do empate (copa-do-brasil, 1ª fase)
+    const single: RecapKnockoutInput = {
+      legs: 1,
+      leg: null,
+      extraTime: false,
+      penalties: false,
+      decidesTitle: false,
+      awayGoals: false,
+      drawAdvantage: 'away',
+    };
+    expect(tie({ home: 1, away: 1 }, single, null, 'knockout_round')).toMatchObject({
+      winner: 'away',
+      decided_by: 'draw_advantage',
+      outcome: 'advances',
+      next_stage: 'next_round',
+    });
+    expect(tie({ home: 2, away: 1 }, single, null, 'knockout_round')).toMatchObject({
+      winner: 'home',
+      decided_by: 'match',
+    });
+    expect(tie({ home: 1, away: 1 }, { ...single, drawAdvantage: null })).toMatchObject({ winner: null });
   });
 });
 
