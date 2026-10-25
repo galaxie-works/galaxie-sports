@@ -19531,6 +19531,24 @@ entries:
     wikidata: null
     category: Watson Indy Roadster (1962 Indianapolis 500, No.3)
     photos:
+      - file: File:Indy500winningcar1960.JPG
+        role: car
+        season: 1960
+        rank: 0
+        match: manual
+        selected_by: manual
+        page_url: https://commons.wikimedia.org/wiki/File:Indy500winningcar1960.JPG
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Doctorindy
+        author_url: https://commons.wikimedia.org/wiki/User:Doctorindy
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: Taken on 28 May 2005
+        width: 2304
+        height: 1728
+        reason: "curadoria (auditoria 25/10): o Watson vencedor de Indianápolis 1960 (Jim Rathmann), fotografado em 2005; antes estava como retrato do piloto"
       - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
         role: car
         season: 1960
@@ -21584,7 +21602,7 @@ entries:
         role: portrait
         season: 1950
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:1950-07-23_12h_Paris_Montlh%C3%A9ry_Ferrari_0014M_0052M.jpg
         license: Public domain
@@ -21597,6 +21615,7 @@ entries:
         date: 1950-07-23
         width: 960
         height: 592
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, as Ferrari 0014M e 0052M em Montlhéry)"
   - target: driver/andre-simon
     kind: driver
     f1db_id: andre-simon
@@ -25961,7 +25980,7 @@ entries:
         date: 1981-08-30
         width: 3683
         height: 2445
-        reason: "curadoria (auditoria 25/10): a legenda do arquivo diz Eddie Cheever, outro piloto; o nº 14 de 1981 era a Ensign do Salazar, mas sem ver a foto não dá para confirmar quem está nela"
+        reason: "curadoria (auditoria 25/10): conferir visualmente; provavelmente é o próprio Salazar (o nº 14 de 1981 era a Ensign dele), mas a legenda do arquivo diz Eddie Cheever"
       - file: File:Grand Prix van NL op circuit van Zandvoort nr. 10 , 11 officials en politie la, Bestanddeelnr 253-8581.jpg
         role: action
         season: 1981
@@ -27019,7 +27038,7 @@ entries:
         role: portrait
         season: 1950
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:1950-07-16_Dolomiti_Maserati_A6GCS_Rol.jpg
         license: Public domain
@@ -27032,6 +27051,7 @@ entries:
         date: 1950-07-16
         width: 2048
         height: 1272
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Maserati A6GCS em corrida)"
   - target: driver/francois-cevert
     kind: driver
     f1db_id: francois-cevert
@@ -27149,7 +27169,7 @@ entries:
         role: portrait
         season: 2008
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Rondeau_M482_-_Jean_Rondeau_%26_Francois_Migault_at_the_1982_Silverstone_6_Hours_(49905175726).jpg
         license: CC BY-SA 2.0
@@ -27162,6 +27182,7 @@ entries:
         date: 2008-01-07 11:34
         width: 2063
         height: 1344
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o Rondeau M482)"
   - target: driver/frank-gardner
     kind: driver
     f1db_id: frank-gardner
@@ -27379,23 +27400,6 @@ entries:
       reason: "melhor temporada: ?º em 1982"
       match: auto
     photos:
-      - file: File:Toyota GT-One - Thierry Boutsen, Ralf Kelleners & Geoff Lees at the 1998 Le Mans (51841391200).jpg
-        role: portrait
-        season: 2022
-        rank: 0
-        match: auto
-        selected_by: rules
-        page_url: https://commons.wikimedia.org/wiki/File:Toyota_GT-One_-_Thierry_Boutsen,_Ralf_Kelleners_%26_Geoff_Lees_at_the_1998_Le_Mans_(51841391200).jpg
-        license: CC BY-SA 2.0
-        license_url: https://creativecommons.org/licenses/by-sa/2.0
-        author: Martin Lee from London, UK
-        author_url: https://www.flickr.com/people/62983535@N06
-        credit: Toyota GT-One - Thierry Boutsen, Ralf Kelleners & Geoff Lees at the 1998 Le Mans
-        attribution_required: true
-        share_alike: true
-        date: 2022-01-24 15:27
-        width: 2321
-        height: 1380
       - file: File:ラルトホンダRH-6.-01.jpg
         role: action
         season: 1981
@@ -27430,6 +27434,24 @@ entries:
         date: 1981-11
         width: 3240
         height: 2184
+      - file: File:Toyota GT-One - Thierry Boutsen, Ralf Kelleners & Geoff Lees at the 1998 Le Mans (51841391200).jpg
+        role: portrait
+        season: 2022
+        rank: 0
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Toyota_GT-One_-_Thierry_Boutsen,_Ralf_Kelleners_%26_Geoff_Lees_at_the_1998_Le_Mans_(51841391200).jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee from London, UK
+        author_url: https://www.flickr.com/people/62983535@N06
+        credit: Toyota GT-One - Thierry Boutsen, Ralf Kelleners & Geoff Lees at the 1998 Le Mans
+        attribution_required: true
+        share_alike: true
+        date: 2022-01-24 15:27
+        width: 2321
+        height: 1380
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o Toyota GT-One em Le Mans 1998)"
   - target: driver/george-connor
     kind: driver
     f1db_id: george-connor
@@ -27825,23 +27847,6 @@ entries:
           season: 1967
           reason: "última temporada: 1967"
     photos:
-      - file: File:1961 Syracuse GP - Giancarlo Baghetti (Ferrari 156 F1).jpg
-        role: portrait
-        season: 1961
-        rank: 0
-        match: auto
-        selected_by: rules
-        page_url: https://commons.wikimedia.org/wiki/File:1961_Syracuse_GP_-_Giancarlo_Baghetti_(Ferrari_156_F1).jpg
-        license: Public domain
-        license_url: null
-        author: Unknown authorUnknown author
-        author_url: null
-        credit: "(in Italian) (May 1, 1961). Auto Italiana Sport (9): cover page. Milan, Italy: Editoriale Domus."
-        attribution_required: false
-        share_alike: false
-        date: Taken on 25 April 1961
-        width: 1854
-        height: 2186
       - file: File:Baghetti at 1962 Dutch Grand Prix.jpg
         role: action
         season: 1962
@@ -27859,6 +27864,24 @@ entries:
         date: 1962-05-18
         width: 3648
         height: 2307
+      - file: File:1961 Syracuse GP - Giancarlo Baghetti (Ferrari 156 F1).jpg
+        role: portrait
+        season: 1961
+        rank: 0
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1961_Syracuse_GP_-_Giancarlo_Baghetti_(Ferrari_156_F1).jpg
+        license: Public domain
+        license_url: null
+        author: Unknown authorUnknown author
+        author_url: null
+        credit: "(in Italian) (May 1, 1961). Auto Italiana Sport (9): cover page. Milan, Italy: Editoriale Domus."
+        attribution_required: false
+        share_alike: false
+        date: Taken on 25 April 1961
+        width: 1854
+        height: 2186
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Ferrari 156 em corrida)"
   - target: driver/giancarlo-fisichella
     kind: driver
     f1db_id: giancarlo-fisichella
@@ -28219,23 +28242,6 @@ entries:
           season: 1961
           reason: "última temporada: 1961"
     photos:
-      - file: File:1957-08-18 Pescara GP Maserati 250 Scarlatti.jpg
-        role: portrait
-        season: 1957
-        rank: 0
-        match: auto
-        selected_by: rules
-        page_url: https://commons.wikimedia.org/wiki/File:1957-08-18_Pescara_GP_Maserati_250_Scarlatti.jpg
-        license: Public domain
-        license_url: null
-        author: Unknown photographer
-        author_url: null
-        credit: "[2]"
-        attribution_required: false
-        share_alike: false
-        date: 1957-08-18
-        width: 539
-        height: 991
       - file: File:Cuban Grand Prix. Havana, Cuba.jpg
         role: action
         season: 1958
@@ -28253,6 +28259,24 @@ entries:
         date: 1958-02-23
         width: 1023
         height: 576
+      - file: File:1957-08-18 Pescara GP Maserati 250 Scarlatti.jpg
+        role: portrait
+        season: 1957
+        rank: 0
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1957-08-18_Pescara_GP_Maserati_250_Scarlatti.jpg
+        license: Public domain
+        license_url: null
+        author: Unknown photographer
+        author_url: null
+        credit: "[2]"
+        attribution_required: false
+        share_alike: false
+        date: 1957-08-18
+        width: 539
+        height: 991
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Maserati 250F em corrida)"
   - target: driver/giulio-cabianca
     kind: driver
     f1db_id: giulio-cabianca
@@ -28485,7 +28509,7 @@ entries:
         role: portrait
         season: 1976
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:1976-07-10_Gunnar_Nilsson_im_BMW_CSL.jpg
         license: CC BY-SA 2.0 de
@@ -28498,6 +28522,7 @@ entries:
         date: 1976-07-10
         width: 2963
         height: 1947
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o BMW CSL)"
   - target: driver/guy-edwards
     kind: driver
     f1db_id: guy-edwards
@@ -32774,7 +32799,7 @@ entries:
         role: portrait
         season: 2019
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:John_Love_Surtees_TS9_2019_Silverstone_Classic_(48557776041).jpg
         license: CC BY 2.0
@@ -32787,6 +32812,7 @@ entries:
         date: 2019-07-26 15:04:09
         width: 6016
         height: 4000
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o Surtees TS9 num evento histórico de 2019)"
   - target: driver/john-surtees
     kind: driver
     f1db_id: john-surtees
@@ -36617,23 +36643,6 @@ entries:
           season: 1994
           reason: "última temporada: 1994"
     photos:
-      - file: File:SCA 0028 MICHELE ALBORETO - Ferrari F 1-87 - 1987 neg. 417 10x15 R.JPG
-        role: portrait
-        season: 1987
-        rank: 0
-        match: auto
-        selected_by: rules
-        page_url: https://commons.wikimedia.org/wiki/File:SCA_0028_MICHELE_ALBORETO_-_Ferrari_F_1-87_-_1987_neg._417_10x15_R.JPG
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: Lucianoserra.d
-        author_url: https://commons.wikimedia.org/wiki/User:Lucianoserra.d?action=edit&redlink=1
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 1987-03-18
-        width: 1332
-        height: 877
       - file: File:Alboreto at 1986 Italian Grand Prix.jpg
         role: action
         season: 1986
@@ -36736,6 +36745,24 @@ entries:
         date: "1993"
         width: 2500
         height: 1665
+      - file: File:SCA 0028 MICHELE ALBORETO - Ferrari F 1-87 - 1987 neg. 417 10x15 R.JPG
+        role: portrait
+        season: 1987
+        rank: 0
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:SCA_0028_MICHELE_ALBORETO_-_Ferrari_F_1-87_-_1987_neg._417_10x15_R.JPG
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Lucianoserra.d
+        author_url: https://commons.wikimedia.org/wiki/User:Lucianoserra.d?action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 1987-03-18
+        width: 1332
+        height: 877
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Ferrari F1-87)"
   - target: driver/mika-hakkinen
     kind: driver
     f1db_id: mika-hakkinen
@@ -39922,23 +39949,6 @@ entries:
           season: 1970
           reason: "última temporada: 1970"
     photos:
-      - file: File:1969 British Grand Prix P Courage Brabham BT26 close.jpg
-        role: portrait
-        season: 2006
-        rank: 0
-        match: auto
-        selected_by: rules
-        page_url: https://commons.wikimedia.org/wiki/File:1969_British_Grand_Prix_P_Courage_Brabham_BT26_close.jpg
-        license: CC BY-SA 3.0
-        license_url: http://creativecommons.org/licenses/by-sa/3.0/
-        author: The original uploader was 4u1e at English Wikipedia.
-        author_url: https://en.wikipedia.org/wiki/User:4u1e
-        credit: Transferred from en.wikipedia to Commons.
-        attribution_required: true
-        share_alike: true
-        date: 5 June 2006 (original upload date)
-        width: 800
-        height: 517
       - file: File:Brabham BT23C Mont-Tremblant rear.JPG
         role: action
         season: 1969
@@ -39990,6 +40000,24 @@ entries:
         date: 1968-08-01
         width: 3655
         height: 2392
+      - file: File:1969 British Grand Prix P Courage Brabham BT26 close.jpg
+        role: portrait
+        season: 2006
+        rank: 0
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1969_British_Grand_Prix_P_Courage_Brabham_BT26_close.jpg
+        license: CC BY-SA 3.0
+        license_url: http://creativecommons.org/licenses/by-sa/3.0/
+        author: The original uploader was 4u1e at English Wikipedia.
+        author_url: https://en.wikipedia.org/wiki/User:4u1e
+        credit: Transferred from en.wikipedia to Commons.
+        attribution_required: true
+        share_alike: true
+        date: 5 June 2006 (original upload date)
+        width: 800
+        height: 517
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o Brabham BT26)"
   - target: driver/ray-crawford
     kind: driver
     f1db_id: ray-crawford
@@ -41795,8 +41823,8 @@ entries:
       - file: File:1989 Belgian GP race start 08.jpg
         role: action
         season: 1989
-        rank: 2
-        match: rejected
+        rank: 3
+        match: auto
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:1989_Belgian_GP_race_start_08.jpg
         license: CC BY 2.0
@@ -41809,12 +41837,11 @@ entries:
         date: 1989-08-27 14:15
         width: 1800
         height: 1241
-        reason: "curadoria (auditoria 25/10): largada com vários carros; sem ver a foto não dá para confirmar o Johansson"
       - file: File:1989 Belgian GP race start 07.jpg
         role: action
         season: 1989
-        rank: 3
-        match: rejected
+        rank: 4
+        match: auto
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:1989_Belgian_GP_race_start_07.jpg
         license: CC BY 2.0
@@ -41827,7 +41854,6 @@ entries:
         date: 1989-08-27 14:16
         width: 1799
         height: 1243
-        reason: "curadoria (auditoria 25/10): largada com vários carros; sem ver a foto não dá para confirmar o Johansson"
     highlight_car:
       target: car/ferrari/1986
       season: 1986
@@ -43005,6 +43031,24 @@ entries:
       match: auto
     photos:
       - file: File:GTC Mirage 11.jpg
+        role: action
+        season: 1976
+        rank: 0
+        match: manual
+        selected_by: manual
+        page_url: https://commons.wikimedia.org/wiki/File:GTC_Mirage_11.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: John Pease
+        author_url: null
+        credit: https://www.flickr.com/photos/ashfordjohn/11340108133/in/photostream/
+        attribution_required: true
+        share_alike: true
+        date: 1976-06-13
+        width: 2628
+        height: 1934
+        reason: "curadoria (auditoria 25/10): a Mirage em Le Mans 1976, que o Schuppan pilotou (conferir visualmente); não é retrato, fica como foto de ação"
+      - file: File:GTC Mirage 11.jpg
         role: portrait
         season: 1976
         rank: 0
@@ -43071,23 +43115,6 @@ entries:
           season: 1980
           reason: "última temporada: 1980"
     photos:
-      - file: File:Vittorio Brambilla - March Ford 761 (Foto Spu 1976-07-31).jpg
-        role: portrait
-        season: 1976
-        rank: 0
-        match: auto
-        selected_by: rules
-        page_url: https://commons.wikimedia.org/wiki/File:Vittorio_Brambilla_-_March_Ford_761_(Foto_Spu_1976-07-31).jpg
-        license: CC BY-SA 2.0 de
-        license_url: https://creativecommons.org/licenses/by-sa/2.0/de/deed.en
-        author: Lothar Spurzem
-        author_url: https://commons.wikimedia.org/wiki/User:Spurzem
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 1976-07-31
-        width: 2953
-        height: 1968
       - file: File:Vittorio Brambilla.jpg
         role: action
         season: 1975
@@ -43156,6 +43183,24 @@ entries:
         date: 1977-05-22
         width: 1872
         height: 899
+      - file: File:Vittorio Brambilla - March Ford 761 (Foto Spu 1976-07-31).jpg
+        role: portrait
+        season: 1976
+        rank: 0
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Vittorio_Brambilla_-_March_Ford_761_(Foto_Spu_1976-07-31).jpg
+        license: CC BY-SA 2.0 de
+        license_url: https://creativecommons.org/licenses/by-sa/2.0/de/deed.en
+        author: Lothar Spurzem
+        author_url: https://commons.wikimedia.org/wiki/User:Spurzem
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 1976-07-31
+        width: 2953
+        height: 1968
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o March 761)"
   - target: driver/walt-faulkner
     kind: driver
     f1db_id: walt-faulkner
@@ -43382,23 +43427,6 @@ entries:
       reason: "melhor temporada: ?º em 1962"
       match: auto
     photos:
-      - file: File:1955-05-01 Mille Miglia Porsche 550-15 Seidel Glöckler.jpg
-        role: portrait
-        season: 1955
-        rank: 0
-        match: auto
-        selected_by: rules
-        page_url: https://commons.wikimedia.org/wiki/File:1955-05-01_Mille_Miglia_Porsche_550-15_Seidel_Gl%C3%B6ckler.jpg
-        license: Public domain
-        license_url: null
-        author: Unknown photographer
-        author_url: null
-        credit: ebayimg.com
-        attribution_required: false
-        share_alike: false
-        date: 1955-05-01
-        width: 1706
-        height: 1158
       - file: File:Nürburgring- Nr. 36; Wolfgang Seidel; Ferrari - LABW - Staatsarchiv Freiburg W 134 Nr. 048156.jpeg
         role: action
         season: 1957
@@ -43416,6 +43444,24 @@ entries:
         date: 4 August 1957date QS:P571,+1957-08-04T00:00:00Z/11
         width: 1656
         height: 1118
+      - file: File:1955-05-01 Mille Miglia Porsche 550-15 Seidel Glöckler.jpg
+        role: portrait
+        season: 1955
+        rank: 0
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1955-05-01_Mille_Miglia_Porsche_550-15_Seidel_Gl%C3%B6ckler.jpg
+        license: Public domain
+        license_url: null
+        author: Unknown photographer
+        author_url: null
+        credit: ebayimg.com
+        attribution_required: false
+        share_alike: false
+        date: 1955-05-01
+        width: 1706
+        height: 1158
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o Porsche 550 na Mille Miglia)"
   - target: driver/wolfgang-von-trips
     kind: driver
     f1db_id: wolfgang-von-trips
