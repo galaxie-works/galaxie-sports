@@ -450,4 +450,17 @@ describe('limite por minuto entre processos', () => {
     // a espera total acompanha o adiantamento: A só reserva 6 s depois do sent_at de B
     expect(tA).toBeGreaterThanOrEqual(Date.parse('2026-11-01T12:00:36Z'));
   });
+
+  it('pedido idêntico em voo é recusado na hora, sem esperar a vaga do minuto', async () => {
+    const policy = () => defaultPolicy(100, 15, 10);
+    const clock = () => new Date('2026-11-02T12:00:00Z');
+    const req = { api: 'formula-1', priority: 'DAILY', endpoint: '/races', requestHash: 'dup' } as const;
+    await new PgQuotaGovernor(db, policy, clock).acquire(req);
+    const waits: number[] = [];
+    const second = new PgQuotaGovernor(db, policy, clock, async (ms) => {
+      waits.push(ms);
+    });
+    await expect(second.acquire(req)).rejects.toBeInstanceOf(RequestInFlightError);
+    expect(waits).toEqual([]);
+  });
 });

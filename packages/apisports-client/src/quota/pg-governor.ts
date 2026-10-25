@@ -117,7 +117,6 @@ export class PgQuotaGovernor implements QuotaGovernor {
 
   /**
    * Uma tentativa sob os locks: o ticket, ou quanto esperar pela próxima vaga do limite por minuto.
-   * A vaga é conferida antes do snapshot, para que o retry de quem perdeu a vaga saia barato.
    */
   private async tryAcquire(req: AcquireRequest): Promise<{ ticket: QuotaTicket } | { waitMs: number }> {
     const day = utcDayString(this.now());
@@ -133,10 +132,6 @@ export class PgQuotaGovernor implements QuotaGovernor {
       // novo: assim day_utc é sempre o dia do sent_at, e as buscas por janela só olham os dias que ela cruza.
       const nowMs = this.now().getTime();
       if (utcDayString(new Date(nowMs)) !== day) return { waitMs: 0 };
-      if (perMinute) {
-        const waitMs = await this.minuteWait(tx, req.api, perMinute, nowMs);
-        if (waitMs > 0) return { waitMs };
-      }
       // provider/api/dia usam o índice quota_ledger_day_idx (só pelo hash seria seq scan sob o lock)
       const staleBefore = nowMs - IN_FLIGHT_STALE_MS;
       const [inFlight] = await tx
@@ -154,6 +149,12 @@ export class PgQuotaGovernor implements QuotaGovernor {
         )
         .limit(1);
       if (inFlight) throw new RequestInFlightError(req.requestHash);
+      // a vaga vem depois da checagem em voo (o pedido duplicado não espera o espaçamento à toa) e antes do
+      // snapshot, para que o retry de quem perdeu a vaga saia barato
+      if (perMinute) {
+        const waitMs = await this.minuteWait(tx, req.api, perMinute, nowMs);
+        if (waitMs > 0) return { waitMs };
+      }
       const decision = decide(policy, await this.snapshot(tx, req.api, day, nowMs), req.priority, {
         critical: req.critical ?? false,
       });
