@@ -113,7 +113,7 @@ describe('lista editorial das lendas', () => {
     ['ham', ['lewis-hamilton']],
     ['msc', ['michael-schumacher']],
     ['vet', ['sebastian-vettel']],
-    ['sen', ['ayrton-senna']],
+    ['sen', ['driver-ayrton-senna']], // como está no provider_map da produção
   ]);
   it('só as da lista, na ordem dela; quem não está na lista ou não tem id do F1DB fica de fora', () => {
     const list = ['ayrton-senna', 'michael-schumacher', 'lewis-hamilton', 'jim-clark'];

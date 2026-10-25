@@ -258,14 +258,14 @@ describe('lendas da F1', () => {
         entityId: ids.senna!,
         provider: 'f1db',
         sport: 'formula-1',
-        providerId: 'ayrton-senna',
+        providerId: 'driver-ayrton-senna',
       },
       {
         entityType: 'participant',
         entityId: ids.prost!,
         provider: 'f1db',
         sport: 'formula-1',
-        providerId: 'alain-prost',
+        providerId: 'driver-alain-prost',
       },
     ]);
     const listed = await loadRaceLegends(db, 'pt-BR', undefined, { list: ['alain-prost', 'ayrton-senna'] });
