@@ -10,6 +10,7 @@ import {
   UpcomingDerbiesQuery,
   type Derby,
   type DerbyAllTime,
+  type DriverEditorial,
   type DerbyMatch,
   type DerbyRetrospect,
   type DerbySummary,
@@ -40,9 +41,13 @@ import {
   type EventScore,
 } from '@galaxie/db';
 import {
+  applyEditorialDecisions,
+  applyEditorialOverrides,
   applyGlossaryDecisions,
   applyGlossaryOverrides,
+  loadEditorial,
   loadGlossary,
+  type LocatedEditorial,
   type LocatedGlossaryTerm,
   type ReviewDecisionRef,
   type ReviewOverrideRef,
@@ -54,6 +59,8 @@ import { ProblemError, problems } from '../../errors.js';
 import { formatInstant, hintLocales, pickList, pickText, resolveLocale } from '../../i18n.js';
 import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
+import { curatedTeamName, loadTeamNames, type TeamNameOptions } from '../../teams/display-name.js';
+import { driverF1dbId, editorialBody, pickEditorial } from '../../teams/editorial.js';
 
 const MODULE = { module: 'semantic' } as const;
 const REVIEW_ORDER: readonly ReviewStatus[] = ['draft', 'reviewed', 'approved'];
@@ -87,8 +94,8 @@ type CopyHints = Record<string, { cheer?: string[]; nicknames?: string[] }>;
 
 /** Nome do time no mercado: labels (pt-BR → pt → en; es-AR → es → en) ou o nome curto. */
 export function profileName(p: Pick<ProfileRow, 'labels' | 'names'>, locale: string): string {
-  const names = p.names as Names;
-  return pickText(p.labels as Record<string, string> | null, locale, names.short)!;
+  // mesma regra do nome de exibição dos times no resto da API (teams/display-name.ts)
+  return curatedTeamName(p, locale) ?? (p.names as Names).short;
 }
 
 /**
@@ -243,7 +250,10 @@ export const notPublished = (what: string, min: ReviewStatus) =>
 
 // ─── rotas ───────────────────────────────────────────────────────────────────────────────────────
 
-/** Rotas semânticas (docs/06 §5): clássicos, cartão do time, rivais e glossário. Módulo `semantic`. */
+/**
+ * Rotas semânticas (docs/06 §5): clássicos, cartão do time, rivais, perfil editorial do piloto de F1 e glossário.
+ * Módulo `semantic`.
+ */
 export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   // ─── /v1/derbies ─────────────────────────────────────────────────────────────────────────────
   app.get('/v1/derbies', { config: MODULE }, async (request, reply) => {
@@ -312,6 +322,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const parts = await participantsOf(
           db,
           rows.map((r) => r.e.id),
+          { locale, minReview: min },
         );
         const data: UpcomingDerby[] = [];
         for (const r of rows) {
@@ -355,7 +366,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const [a, b] = d.teams;
         const resolved = ids.every((id): id is string => !!id);
         const matches = resolved ? await headToHead(db, ids[0]!, ids[1]!, locale, tz, d.teams) : [];
-        const next = resolved ? await nextMeeting(db, ids[0]!, ids[1]!, locale, tz) : null;
+        const next = resolved ? await nextMeeting(db, ids[0]!, ids[1]!, locale, tz, min) : null;
         const texts = derbyTexts(row, locale, min);
         const body: Derby = {
           ...derbySummary(d, locale),
@@ -468,6 +479,46 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
     });
   });
 
+  // ─── /v1/teams/:id/editorial ─────────────────────────────────────────────────────────────────
+  let editorialCache: Promise<LocatedEditorial[]> | undefined;
+  const editorial = () => {
+    editorialCache ??= loadEditorial(
+      ...(ctx.semantic?.knowledgeDir ? [ctx.semantic.knowledgeDir] : []),
+    ).catch((err: unknown) => {
+      editorialCache = undefined;
+      throw err;
+    });
+    return editorialCache;
+  };
+
+  app.get('/v1/teams/:id/editorial', { config: MODULE }, async (request, reply) => {
+    const params = parseInput(SemanticTeamParams, request.params);
+    const query = parseInput(ReviewQuery, request.query);
+    const locale = localeOf(request, query);
+    const min = effectiveMinReview(ctx, query.min_review_status);
+    reply.header('content-language', locale);
+    return sendCached(request, reply, ctx.cache, {
+      ttl: CACHE_TTL.semantic,
+      vary: [locale, min],
+      load: async () => {
+        const db = requireDb(ctx);
+        const driver = await driverF1dbId(db, params.id);
+        if (!driver?.participantId) throw problems.notFound('Piloto');
+        // o perfil vem do YAML; as edições aprovadas fora dele e o status do painel valem por cima (docs/06 §2.1)
+        const [overrides, decisions] = await Promise.all([
+          reviewOverrides(db, 'editorial'),
+          reviewDecisions(db, 'editorial'),
+        ]);
+        const all = applyEditorialDecisions(applyEditorialOverrides(await editorial(), overrides), decisions);
+        const { found, below } = pickEditorial(all, driver.f1dbId, locale, min);
+        if (!found)
+          throw below ? notPublished('Perfil editorial', min) : problems.notFound('Perfil editorial');
+        const body: DriverEditorial = await editorialBody(db, found, driver.participantId, locale);
+        return { body, tags: ['f1_editorial', `team:${driver.participantId}`] };
+      },
+    });
+  });
+
   // ─── /v1/glossary ────────────────────────────────────────────────────────────────────────────
   let glossaryCache: Promise<LocatedGlossaryTerm[]> | undefined;
   const glossary = () => {
@@ -492,7 +543,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         // o glossário vem do YAML; as edições aprovadas fora dele (review_override) e o status aprovado
         // pelo painel de revisão valem por cima, nessa ordem (docs/06 §2.1)
         const [overrides, decisions] = ctx.db
-          ? await Promise.all([glossaryOverrides(ctx.db), glossaryDecisions(ctx.db)])
+          ? await Promise.all([reviewOverrides(ctx.db, 'glossary'), reviewDecisions(ctx.db, 'glossary')])
           : [[], []];
         const all = applyGlossaryDecisions(applyGlossaryOverrides(await glossary(), overrides), decisions);
         // glossário é por mercado: locale exato e depois o idioma (es-AR → es); nunca outro idioma
@@ -527,8 +578,8 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
   });
 }
 
-/** Decisões do painel de revisão sobre termos do glossário. */
-function glossaryDecisions(db: Database): Promise<ReviewDecisionRef[]> {
+/** Decisões do painel de revisão sobre os itens lidos direto do YAML (glossário e perfil editorial da F1). */
+function reviewDecisions(db: Database, kind: 'glossary' | 'editorial'): Promise<ReviewDecisionRef[]> {
   return db
     .select({
       itemId: reviewDecision.itemId,
@@ -536,15 +587,15 @@ function glossaryDecisions(db: Database): Promise<ReviewDecisionRef[]> {
       reviewHash: reviewDecision.reviewHash,
     })
     .from(reviewDecision)
-    .where(sql`${reviewDecision.itemId} like 'glossary:%'`);
+    .where(sql`${reviewDecision.itemId} like ${`${kind}:%`}`);
 }
 
-/** Edições de termos do glossário aprovadas fora do YAML (agente de revisão de sugestões). */
-function glossaryOverrides(db: Database): Promise<ReviewOverrideRef[]> {
+/** Edições aprovadas fora do YAML (agente de revisão de sugestões) do glossário e do perfil editorial. */
+function reviewOverrides(db: Database, kind: 'glossary' | 'editorial'): Promise<ReviewOverrideRef[]> {
   return db
     .select({ itemId: reviewOverride.itemId, fields: reviewOverride.fields, base: reviewOverride.base })
     .from(reviewOverride)
-    .where(sql`${reviewOverride.itemId} like 'glossary:%'`);
+    .where(sql`${reviewOverride.itemId} like ${`${kind}:%`}`);
 }
 
 // ─── clássicos: carga e montagem ─────────────────────────────────────────────────────────────────
@@ -606,8 +657,8 @@ function competitionRef(
   };
 }
 
-/** Participantes de cada evento, com o slug do perfil semântico quando houver. */
-async function participantsOf(db: Database, eventIds: string[]) {
+/** Participantes de cada evento, com o slug do perfil semântico quando houver e o nome de exibição. */
+async function participantsOf(db: Database, eventIds: string[], nameOptions: TeamNameOptions) {
   const out = new Map<string, UpcomingDerby['participants']>();
   if (!eventIds.length) return out;
   const rows = await db
@@ -623,10 +674,16 @@ async function participantsOf(db: Database, eventIds: string[]) {
     .leftJoin(teamProfile, eq(teamProfile.participantId, participant.id))
     .where(inArray(eventParticipant.eventId, eventIds))
     .orderBy(asc(eventParticipant.eventId), sql`${eventParticipant.side} = 'away'`, asc(participant.name));
+  const names = await loadTeamNames(
+    db,
+    rows.map((r) => r.id),
+    nameOptions,
+  );
   for (const r of rows) {
     const list = out.get(r.eventId) ?? [];
     out.set(r.eventId, list);
-    if (!list.some((p) => p.id === r.id)) list.push({ side: r.side, id: r.id, name: r.name, slug: r.slug });
+    if (!list.some((p) => p.id === r.id))
+      list.push({ side: r.side, id: r.id, name: names.name(r.id, r.name), slug: r.slug });
   }
   return out;
 }
@@ -692,7 +749,14 @@ async function headToHead(
   return out;
 }
 
-async function nextMeeting(db: Database, a: string, b: string, locale: string, tz: string) {
+async function nextMeeting(
+  db: Database,
+  a: string,
+  b: string,
+  locale: string,
+  tz: string,
+  min: ReviewStatus,
+) {
   const [r] = await selectPair(db)
     .where(
       and(gte(event.startsAt, new Date()), notInArray(event.status, [...NOT_UPCOMING]), pairFilter(a, b)),
@@ -700,7 +764,7 @@ async function nextMeeting(db: Database, a: string, b: string, locale: string, t
     .orderBy(asc(event.startsAt))
     .limit(1);
   if (!r) return null;
-  const parts = await participantsOf(db, [r.e.id]);
+  const parts = await participantsOf(db, [r.e.id], { locale, minReview: min });
   return {
     event_id: r.e.id,
     starts_at: formatInstant(r.e.startsAt, tz),

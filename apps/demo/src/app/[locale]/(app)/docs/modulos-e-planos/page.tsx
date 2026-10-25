@@ -49,6 +49,7 @@ const MODULES = [
     routes: [
       'GET /v1/teams/{id}/semantic',
       'GET /v1/teams/{id}/rivals',
+      'GET /v1/teams/{id}/editorial',
       'GET /v1/derbies',
       'GET /v1/derbies/{slug}',
       'GET /v1/glossary',

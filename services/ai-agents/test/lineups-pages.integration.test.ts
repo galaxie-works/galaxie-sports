@@ -121,7 +121,7 @@ describe('lineups-pages: a página oficial confirma a grade', () => {
     const espn = futebol.channels.find((c) => c.channelId === 'espn')!;
     expect(espn.proposedChange).toMatchObject({ removed: true });
     expect(futebol.services.map((s) => s.serviceId).sort()).toEqual(
-      ['disney_plus', 'paramount_plus', 'premiere', 'prime_video'].sort(),
+      ['disney_plus', 'nfl_game_pass', 'paramount_plus', 'premiere', 'prime_video', 'sportynet'].sort(),
     );
 
     const tv = byName.get('Plano TV')!;
@@ -129,7 +129,7 @@ describe('lineups-pages: a página oficial confirma a grade', () => {
     expect(tv.channels.map((c) => c.channelId)).toEqual(
       expect.arrayContaining(['espn', 'sportv', 'ge_tv', 'cazetv']),
     );
-    expect(tv.services.map((s) => s.serviceId)).toEqual(['prime_video']);
+    expect(tv.services.map((s) => s.serviceId).sort()).toEqual(['nfl_game_pass', 'prime_video']);
 
     // complementos: Premiere mensal e com fidelidade; ESPN 6 só como canal à parte
     expect(
@@ -142,9 +142,11 @@ describe('lineups-pages: a página oficial confirma a grade', () => {
         ['paramount_plus', 'service', null, 34.9, null],
         ['premiere', 'service', null, 59.9, null],
         ['premiere', 'service', null, 49.9, 12],
+        ['sportynet', 'service', null, 29.9, null],
+        ['telecine', 'service', null, 29.9, null],
       ].sort(),
     );
-    expect(out!.unknownAddons).toEqual(['Telecine', 'SportyNet+']);
+    expect(out!.unknownAddons).toEqual([]);
 
     // proveniência no cache: URL, data e hash
     const [page] = await db.select().from(lineupPage).where(eq(lineupPage.url, PAGE));
@@ -161,6 +163,29 @@ describe('lineups-pages: a página oficial confirma a grade', () => {
     const mine = rows.find((r) => r.platform.id === platformId)!;
     expect(mine.plans.map((p) => p.plan.name).sort()).toEqual(['Plano Futebol', 'Plano Futebol Total']);
     expect(mine.addons.map((a) => a.priceAmount).sort()).toEqual([49.9, 59.9]);
+  });
+
+  it('onde assistir: o complemento de canal só aparece no jogo daquele canal, não colapsa na ESPN', async () => {
+    const espnOn = async (channel: string | null) =>
+      (
+        await availabilityForChannels(db, {
+          channelIds: ['espn'],
+          channelNames: { espn: [channel] },
+          country: 'BR',
+          minReview: 'draft',
+        })
+      ).find((r) => r.platform.id === platformId)!;
+    // jogo na ESPN 4: o plano com a ESPN leva, e não há "ESPN 6 como complemento"
+    const espn4 = await espnOn('ESPN 4');
+    expect(espn4.plans.map((p) => p.plan.name)).toContain('Plano TV');
+    expect(espn4.addons).toEqual([]);
+    // jogo na ESPN 6: o complemento do canal aparece, com o preço com fidelidade
+    const espn6 = await espnOn('ESPN 6');
+    expect(espn6.addons.map((a) => [a.channel, a.priceAmount, a.commitmentMonths])).toEqual([
+      ['ESPN 6', 4.9, 12],
+    ]);
+    // canal do jogo desconhecido: nada de complemento de canal
+    expect((await espnOn(null)).addons).toEqual([]);
   });
 
   it('dentro da validade não busca de novo; a página que mudou vira mudança no plano revisado', async () => {
@@ -229,7 +254,7 @@ describe('lineups-curate: curadoria interna com prévia', () => {
         {
           name: 'Plano Futebol',
           price_amount: 149.9,
-          channels: ['Globo', 'CazéTV', 'GE TV', 'Xsports'],
+          channels: ['Globo', 'CazéTV', 'GE TV', 'Canal Inexistente'],
           services: ['Amazon Prime', 'Premiere'],
         },
       ],
@@ -239,7 +264,7 @@ describe('lineups-curate: curadoria interna com prévia', () => {
     expect(preview).toMatchObject({
       applied: false,
       platform: { slug: 'br-marca-nova', exists: false },
-      unknown: ['Xsports'],
+      unknown: ['Canal Inexistente'],
       replaces: [{ slug: 'br-marca-antiga', found: true, tenants: [t!.id] }],
     });
     expect(await db.select().from(platform).where(eq(platform.slug, 'br-marca-nova'))).toEqual([]);

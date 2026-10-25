@@ -218,6 +218,7 @@ Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 | `GET /v1/countries/{code}/competitions?sport=&max_tier=` | Competições do país por esporte e escopo: domésticas, continentais de clubes, seleção, mundiais (§3.1.1) |
 | `GET /v1/navigation` | Menu da demo em uma chamada: 12 esportes (contagens, `has_data`) e países da navegação (§3.1.1) |
 | `GET /v1/explore/summary` | Vitrine inicial em uma chamada: por esporte e por país, contadores, competições e clubes em destaque, ao vivo e o jogo de maior relevância (§3.1.2) |
+| `GET /v1/explore/agenda?sport=&country=&competition=&day=&market=` | Os jogos dos próximos 7 dias que o resumo conta (mesma consulta): total, por dia, contagens para os filtros, destaques no mercado e os jogos de um dia (§3.1.3) |
 | `GET /v1/competitions?sport=&country=&tier=` | Competições com apelidos (semântica) |
 | `GET /v1/competitions/{id}` | Detalhe + temporadas |
 | `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos |
@@ -316,6 +317,21 @@ curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/explore/summary?locale=p
 ```
 
 (Exemplo resumido: competições e clubes são objetos completos, e `highlight` é o `Event` inteiro.)
+
+#### 3.1.3 Agenda dos próximos dias (`apps/api/src/explore/agenda.ts`)
+
+`GET /v1/explore/agenda?locale=&tz=&sport=&country=&competition=&day=&market=&limit=&cursor=` lista os jogos que o resumo conta, com a **mesma consulta** (`selectWindowEvents`), a mesma janela (agora até +7 dias, fim exclusivo) e as mesmas regras: sem adiados, cancelados, abandonados e encerrados; `country` é a competição do país ou um participante do país. Sem filtro, `total` é a soma de `sports[].upcoming` do resumo; com `country=BR`, é o `countries[BR].upcoming`.
+
+| Campo | Conteúdo |
+|---|---|
+| `total` | Jogos da janela com os filtros |
+| `days[]` | Cada dia civil que a janela toca, no fuso `tz`, com a contagem (zero incluído) |
+| `day` | O dia dos jogos em `data`: o pedido (`day`) ou o primeiro com jogos |
+| `facets` | Contagens para os filtros (`sports`, `countries` da navegação, `competitions` com mais jogos), cada uma com os outros filtros aplicados |
+| `highlights[]` | Até 6 jogos de maior relevância no mercado (`market`; sem mercado, maior importância), com `relevance`. A nota é a exata (a de `/v1/events/{id}`), calculada sobre os 30 jogos mais importantes da janela e os 30 mais importantes do país do mercado |
+| `data[]` | Os jogos de `day`, por horário; `next_cursor` pagina dentro do dia |
+
+Exige `core_data`; os esportes do plano limitam os jogos, como no resumo. Cache de **60 s**, como o resumo.
 
 ### 3.2 Eventos
 
@@ -469,6 +485,8 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 | `GET /v1/teams/{id}/events?from=&to=` | Jogos do time |
 | `GET /v1/teams/{id}/squad?season=` | Elenco e comissão técnica |
 | `GET /v1/teams/{id}/career` | F1: carreira do piloto ou do construtor (temporada a temporada, temporada atual com o bloco da sprint, títulos, vitórias, poles, pódios, top 10, abandonos, melhor resultado e melhor largada com a contagem, número do carro, pintura da equipe na época, nascimento, primeira e última corrida, equipes e companheiros) |
+| `GET /v1/teams/{id}/traits` | F1: traços do piloto calculados do F1DB (pistas preferidas com o critério, sábado × domingo com o rótulo, duelo com os companheiros por temporada e na carreira, abandonos, pontos por largada, sequências e o nível do perfil) |
+| `GET /v1/teams/{id}/editorial?min_review_status=` | F1: perfil editorial do piloto (bio, estilo, pontos fortes, momentos marcantes e rivalidades), cada item com a fonte; módulo `semantic` |
 | `GET /v1/sports/formula-1/legends?limit=` | F1: as lendas (campeões mundiais e os 20 com mais vitórias e com mais GPs), por títulos e vitórias, cada uma com a temporada marcante (equipe, pintura da época, número e o carro ao fundo) e o retrato |
 | `GET /v1/teams/{id}/photos?role=&season=` | Fotos de licença livre (Wikimedia Commons), cada uma com `credit` (autor, licença, links e a linha pronta) |
 | `GET /v1/teams/{id}/semantic?locale=` | Cartão de identidade: apelidos, mascote, torcida, gritos, estádio, rivais, fatos, dicas de copy do mercado |
@@ -480,6 +498,13 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 | `GET /v1/people/{id}` | Jogador/técnico/piloto |
 | `GET /v1/search?q=&types=&sport=&limit=` | Busca global: times, competições, jogos, pessoas, estádios e países por nome e apelido (§3.6) |
 | `GET /v1/copy?locale=&sport=&intent=&tone=&affinity_type=&affinity_source=&momentum=&context=&team=&rival=&minutes=` | Microcopy sugerida (badges, chamadas) respeitando `copy_permission` |
+
+**Nome de exibição dos times** (`apps/api/src/teams/display-name.ts`). O `name` de um time é o mesmo em todas as respostas (evento, listas, classificação, contexto, busca, perfil, pessoa) e depende do `locale`:
+
+1. Time com perfil na base semântica no piso editorial (`SEMANTIC_MIN_REVIEW_STATUS`): o rótulo do idioma (`labels`, cadeia es-AR → es → en) ou, sem rótulo, o nome curto curado (`names.short`). É o mesmo nome de `/v1/teams/{id}/semantic` e dos gritos da torcida ("São Paulo", não "Sao Paulo").
+2. Sem perfil (ou abaixo do piso): o nome do fornecedor com o corretor de acentos (`teams/accents.ts`). O corretor só troca palavras inteiras de uma lista fixa por idioma, e só quando o país do time é de língua portuguesa (BR, PT, AO, MZ…) ou espanhola (ES e América hispânica). Ex.: "Gremio" → "Grêmio", "Leon" → "León". Pilotos, lutadores e atletas não passam pelo corretor.
+
+O nome do fornecedor segue em `provider_name` (times de evento, `TeamSummary`, `ParticipantRef`, `ExploreTeam` e o confronto direto). `GET /v1/teams?q=` e `/v1/search` acham o time com e sem acento.
 
 #### 3.3.1 Implementação da semântica (`apps/api/src/routes/v1/semantic.ts` e `copy.ts`)
 
@@ -497,7 +522,7 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 
 Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 
-- `GET /v1/teams`: `{ data, next_cursor }` ordenado por nome; `q` (≥ 2 caracteres) busca em nome, nome curto, código e apelidos/nomes da base semântica; `competition` (UUID ou slug) = times com jogos na competição. Cada item traz `nicknames` da base semântica (vazio sem perfil).
+- `GET /v1/teams`: `{ data, next_cursor }` ordenado por nome; `q` (≥ 2 caracteres) busca em nome, nome curto, código e apelidos/nomes/rótulos da base semântica, sem diferença de caixa nem de acento ("gremio" acha "Gremio" e "Grêmio"); `competition` (UUID ou slug) = times com jogos na competição. Cada item traz `nicknames` da base semântica (vazio sem perfil).
 - **Logos do acervo customizado** (flag `ASSETS_CUSTOM_LOGOS` da operação, padrão desligada): ligada, todo `logo` de time e de competição (eventos, busca, navegação, classificação, elencos...) vem do acervo em alta quando há mapeamento, e as `colors` do time saem desse escudo. `Team` e `Competition` (detalhe) dizem a origem em `logo_source`: `provider`, `acervo` ou `null` sem logo. A troca não muda a URL de quem não tem logo no acervo ([runbooks/acervo-de-logos.md](runbooks/acervo-de-logos.md)).
 - `GET /v1/teams/{id}`: resumo + `country_ref` localizado, `founded`, `venue` (estádio da casa, com imagem e nome curado), `colors`, `external_ids` e `former_names` (nomes anteriores do time derivados dos jogos do fornecedor, `origin: provider`, `confidence: low`; variações de grafia não contam e os nomes da base semântica vencem).
 - `former_names` com `confidence: low` (origem `provider`) são **pistas** para busca e casamento de nomes, não fato confirmado editorialmente (podem ser casa provisória ou nome de torneio): nunca substituem o nome atual e não devem ser exibidos ao usuário final como fato. Para exibir, use só `confidence: high` (curadoria).
@@ -519,6 +544,8 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
   - **Página de piloto** (os números da página oficial): `totals` traz `top10`, `dnfs` (abandono = DNF; desclassificação não conta), `best_finish` e `best_grid` com a contagem (`{ position: 1, count: 8 }` = "1 (x8)"; largada dos boxes não conta) e `sprint` (corridas, pontos, vitórias, pódios, poles e top 10; pole da sprint = 1º na classificação dela, de 2023 em diante; sem pontos no resultado, a tabela da época pela posição). Cada `seasons[]` tem os mesmos campos do ano e `number` (o número do carro mais usado nas sessões; sem ele, o permanente de 2014 em diante). `current_season` é a temporada corrente (a mais recente com corrida disputada) quando o piloto correu nela, e null para as lendas. `profile` (só piloto): primeiro nome e sobrenome, número permanente, data, local e país de nascimento (F1DB). `competition` dá o slug do campeonato para o link dos resultados de cada ano.
   - **Cores da equipe por época:** `seasons[].teams[].livery` (piloto) é a pintura curada em `data/knowledge/formula-1/liveries.yaml` (a McLaren de 1988 é vermelha e branca; a de 2024, papaia), com a fonte; null quando a época não está curada (use `colors`, do escudo). Respeita o piso editorial da semântica (`SEMANTIC_MIN_REVIEW_STATUS`). A equipe principal do ano vem primeiro.
 - `GET /v1/sports/formula-1/legends` (o carrossel "Legendary"): o mesmo critério do escopo `lendas` do acervo da Commons (docs/runbooks/fotos-commons.md): todo campeão mundial (só temporada encerrada) e os 20 com mais vitórias e com mais GPs; `criteria` diz por quê (`titles`, `wins`, `races`). Ordem: títulos, vitórias, GPs e nome — objetiva, a mesma para todo cliente e idioma, e um campeão novo entra sozinho. GPs, vitórias e pódios contam como em `/career` (o card e a página do piloto mostram os mesmos números). `highlight` é a temporada marcante: a do carro de destaque do acervo ou, sem ele, a de título com mais vitórias (sem título, a de mais vitórias; empate, a mais recente), de preferência uma com foto do carro; traz a equipe principal do ano com a pintura da época e `constructor_name` (o nome do construtor sem o patrocinador de hoje), o número do carro e o `car` — nunca CC BY-SA, porque o card recorta a foto; null quando não há foto compatível (use a cor da equipe e o número). `active` = correu na temporada atual. `limit` corta na ordem. Cache de 1 h (tags `standing` e `asset`).
+- `GET /v1/teams/{id}/career`, `profile` do piloto: além do nascimento e do número, `full_name`, `nicknames`, `death` (data, idade, local, acidente, causa e `race`, o GP que o F1DB marca como fatal), `family` (parentes pilotos, do F1DB) e `other_wins` (Indianápolis e Le Mans), com `sources` (F1DB e o item do Wikidata). Critérios no [runbook](runbooks/f1-perfil-editorial.md).
+- `GET /v1/teams/{id}/traits` (só piloto de F1) e `GET /v1/teams/{id}/editorial`: critérios, níveis (lenda, regular, básico) e o fluxo de geração e revisão no [runbook do perfil editorial](runbooks/f1-perfil-editorial.md). O perfil editorial é lido de `data/knowledge/formula-1/editorial/<locale>.yaml` como o glossário (edições e decisões do painel por cima, tag de cache `f1_editorial`) e segue `es-XX → es → pt-BR`; `{id}` aceita o UUID do piloto ou o slug `f1-<id do F1DB>`.
 - `GET /v1/teams/{id}/photos`: acervo de fotos de licença livre ([runbook](runbooks/fotos-commons.md)). Retrato primeiro, depois o carro de destaque (`highlight_car`), ação e carros por temporada. **Exibir a foto exige o crédito** (`credit.text` ou os campos separados, com os links): é a condição das licenças CC BY e CC BY-SA.
 - `GET /v1/teams/{id}/squad?season=`: sem `season`, o elenco atual (`core.roster.season_id` nulo); com o ano, os elencos de temporadas daquele ano. `players`, `coaches`, `staff`, ordenados por posição (goleiro → atacante), número e nome; pessoa com `age` calculada.
 - `GET /v1/people/{id}`: dados de `core.person`, foto, `age`, `teams` (elencos, atual primeiro) e `external_ids`.
@@ -565,7 +592,7 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 
 Onde cada tipo procura:
 
-- `team`: nome do fornecedor, `short_name`, `code` e, da base semântica (`semantic.team_profile`), nomes oficial/curto/sigla, `labels` por locale e apelidos; também os nomes anteriores derivados dos jogos.
+- `team`: nome de exibição (§3.3), nome do fornecedor, `short_name`, `code` e, da base semântica (`semantic.team_profile`), nomes oficial/curto/sigla, `labels` por locale e apelidos; também os nomes anteriores derivados dos jogos.
 - `competition`: nome localizado (`labels` do catálogo e da base semântica), nome do fornecedor, slug, apelidos por locale e apelido do troféu. Traz `slug`.
 - `event`: jogos ao vivo (a mesma regra de `/v1/events/live`) e agendados dos próximos 14 dias dos 8 melhores times encontrados; o jogo herda o casamento do time. `event` traz `starts_at`, `status`, `live`, competição e participantes (casa primeiro).
 - `person`: nome, nome completo (`first_name` + `last_name`) e sobrenome; `detail` é o time do elenco mais recente.
@@ -893,6 +920,7 @@ Formato RFC 9457 (`application/problem+json`):
 ### 7.1 Implementação
 
 - **Cache de respostas no Valkey** (`<prefixo>cache:<hash>`): chave = método + caminho + query ordenada + locale resolvido (+ fuso quando a resposta tem instantes). Respostas independem do tenant. Sem Valkey (ou com falha), a resposta sai direto do banco.
+- **Deploy limpa o cache de respostas** (`infra/vps-telemetry/deploy.sh`: `gs:cache:*` e `gs:tag:*`, depois do seed da base semântica). Toda mudança de forma ou de regra de uma resposta (ex.: o nome de exibição dos times, §3.3) só aparece por inteiro depois dessa limpeza; sem ela, respostas antigas seguem servidas até o TTL (até 24 h).
 - **Headers:** `ETag` (sha1 do corpo), `Cache-Control: public, max-age=min(TTL, 300), s-maxage=TTL, stale-while-revalidate=…` (o navegador revalida em ≤ 5 min; a CDN usa o TTL cheio e é purgada ativamente), `Vary: Accept-Language, x-galaxie-key`, `surrogate-key` com as tags da resposta e `x-galaxie-cache: HIT|MISS`. `If-None-Match` igual ao ETag → 304 sem corpo.
 - **Tags de purge:** entidade `<tipo>:<id>` e coleção `<tipo>`. Ex.: detalhe da competição → `competition:<id>`; lista de competições → `competition`, `season`, `competition_profile`, `country`; tabela → `standing:<season_id>`, `competition:<id>`; venue → `venue:<id>`; espelho → `api_response:<request_hash>`.
 - **Change feed:** mudanças em `core.event`, `core.event_incident`, `enrich.broadcast_option` e `enrich.event_context` chegam ao `ops.change_feed` sozinhas, por triggers (§5.1). Os demais writers que alteram dado servido pela API chamam `publishChange(db, { topic, entityType, entityId, payload? })` (`@galaxie/db`), que usa a mesma função `ops.publish_change()` (deduplicada por transação) e faz `pg_notify('ops_change_feed', id)`. Entidades dos triggers: `event:<id>` (estado, placar, lances), `where_to_watch:<event_id>` (+ `event:<event_id>`) e `event_context:<event_id>` (+ `event:<event_id>`). A API escuta o canal (LISTEN) e também varre a tabela a cada 5 s (cobre writers que não notificam); cada mudança purga as tags `<entityType>:<entityId>`, `<entityType>` e `payload.tags` no Valkey e na CDN. Propagação típica: < 1 s com NOTIFY, ≤ 5 s só com a varredura — dentro do SLA de 5 min do onde assistir.

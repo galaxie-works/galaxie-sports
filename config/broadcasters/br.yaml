@@ -18,7 +18,7 @@
 schema_version: 1
 country: BR
 language: pt-BR
-updated_at: 2026-10-21
+updated_at: 2026-10-25
 broadcasters:
   - id: globo
     name: Globo
@@ -90,7 +90,33 @@ broadcasters:
     aliases: ['TV Bandeirantes', 'Rede Bandeirantes', 'Bandeirantes']
     medium: free_tv
     access_model: free
-    domains: [band.uol.com.br]
+    group: band
+    domains: [band.com.br, band.uol.com.br]
+  - id: bandsports
+    name: BandSports
+    aliases: ['Band Sports', 'Bandsports']
+    medium: pay_tv
+    access_model: subscription
+    group: band
+    domains: [bandsports.uol.com.br, band.com.br/tudo-sobre/bandsports]
+  - id: redetv
+    name: RedeTV!
+    aliases: ['RedeTV', 'Rede TV!', 'Rede TV']
+    medium: free_tv
+    access_model: free
+    domains: [redetv.uol.com.br]
+  - id: tv_cultura
+    name: TV Cultura
+    aliases: ['Cultura', 'Rede Cultura']
+    medium: free_tv
+    access_model: free
+    domains: [cultura.uol.com.br]
+  - id: xsports
+    name: Xsports
+    aliases: ['X Sports', 'XSports TV']
+    medium: free_tv
+    access_model: free
+    domains: [xsports.com.br]
   - id: n_sports
     name: N Sports
     aliases: ['NSports', 'N Sports TV']
@@ -138,6 +164,25 @@ broadcasters:
     access_model: subscription
     group: wbd
     domains: [hbomax.com, max.com]
+  - id: telecine
+    name: Telecine
+    aliases: ['Telecine Play', 'Telecine Premium']
+    medium: streaming_svod
+    access_model: subscription
+    group: globo
+    domains: [telecine.globo.com]
+  - id: sportynet
+    name: SportyNet
+    aliases: ['SportyNet+', 'Sporty Net', 'SportyNet Plus']
+    medium: streaming_svod
+    access_model: subscription
+    domains: [sportynet.com]
+  - id: nfl_game_pass
+    name: NFL Game Pass
+    aliases: ['NFL GamePass', 'Game Pass NFL', 'NFL Game Pass (DAZN)']
+    medium: streaming_svod
+    access_model: subscription
+    domains: [nflgamepass.com]
 sources:
   organizers: [cbf.com.br]
   press:

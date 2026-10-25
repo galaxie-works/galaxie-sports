@@ -45,6 +45,7 @@ import { formatInstant, pickText, resolveLocale } from '../../i18n.js';
 import { scheduleWindow } from '../../time.js';
 import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
+import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
 
 const MODULE = { module: 'core_data' } as const;
 
@@ -73,6 +74,7 @@ export function buildCtx(
     assetsBaseUrl: ctx.assetsBaseUrl,
     customLogos: ctx.logos.enabled(),
     rules: ctx.rules,
+    minReview: ctx.semantic?.minReviewStatus ?? 'approved',
     stakes,
   };
 }
@@ -301,17 +303,34 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
 
   detailRoute(
     '/v1/events/:id/timeline',
-    (ev) => buildTimeline(requireDb(ctx), ev, ctx.assetsBaseUrl, ctx.now(), ctx.logos.enabled()),
+    (ev, locale) =>
+      buildTimeline(
+        requireDb(ctx),
+        ev,
+        ctx.assetsBaseUrl,
+        ctx.now(),
+        ctx.logos.enabled(),
+        teamNameOptions(ctx, locale),
+      ),
     CACHE_TTL.live,
   );
   detailRoute(
     '/v1/events/:id/lineups',
-    (ev) => buildLineups(requireDb(ctx), ev, ctx.assetsBaseUrl, ctx.logos.enabled()),
+    (ev, locale) =>
+      buildLineups(requireDb(ctx), ev, ctx.assetsBaseUrl, ctx.logos.enabled(), teamNameOptions(ctx, locale)),
     60,
   );
   detailRoute(
     '/v1/events/:id/stats',
-    (ev, locale) => buildStats(requireDb(ctx), ev, ctx.assetsBaseUrl, locale, ctx.logos.enabled()),
+    (ev, locale) =>
+      buildStats(
+        requireDb(ctx),
+        ev,
+        ctx.assetsBaseUrl,
+        locale,
+        ctx.logos.enabled(),
+        teamNameOptions(ctx, locale),
+      ),
     30,
   );
 
@@ -403,11 +422,16 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
           .orderBy(
             sql`case ${eventParticipant.side} when 'home' then 0 when 'corner_red' then 0 when 'away' then 1 when 'corner_blue' then 1 else 2 end`,
           );
+        const names = await loadTeamNames(
+          db,
+          parts.map((p) => p.id),
+          teamNameOptions(ctx, locale),
+        );
         const body: HeadToHead = {
           event_id: head.id,
           participants: parts.map((p) => ({
             id: p.id,
-            name: p.name,
+            ...names.of(p.id, p.name),
             logo: assetUrl(ctx.assetsBaseUrl, p.logoKey, p.logoUrl),
             colors: teamColors(p.logoPalette),
           })),

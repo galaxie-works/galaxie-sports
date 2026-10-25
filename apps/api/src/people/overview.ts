@@ -15,6 +15,7 @@ import { pickText } from '../i18n.js';
 import { teamColors } from '../teams/colors.js';
 import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
+import { loadTeamNames, type TeamNameOptions } from '../teams/display-name.js';
 import { loadPerson } from './person.js';
 import {
   coachCareerTeams,
@@ -52,6 +53,7 @@ async function participantRefs(
   assetsBaseUrl: string | undefined,
   customLogos: boolean,
   ids: string[],
+  nameOptions: TeamNameOptions,
 ) {
   if (!ids.length) return new Map<string, ReturnType<typeof toRef>>();
   const rows = await db
@@ -66,11 +68,16 @@ async function participantRefs(
     .from(participant)
     .leftJoin(asset, eq(asset.id, teamLogoId(customLogos)))
     .where(inArray(participant.id, [...new Set(ids)]));
+  const names = await loadTeamNames(
+    db,
+    rows.map((r) => r.id),
+    nameOptions,
+  );
   function toRef(r: (typeof rows)[number]) {
     return {
       ref: {
         id: r.id,
-        name: r.name,
+        ...names.of(r.id, r.name),
         short_name: r.shortName,
         logo: assetUrl(assetsBaseUrl, r.logoKey, r.logoUrl),
       },
@@ -152,7 +159,8 @@ export async function loadPersonOverview(
   year: number | undefined,
 ): Promise<{ body: PersonOverview; teamIds: string[]; eventIds: string[] }> {
   const { db, assetsBaseUrl, customLogos, locale } = bctx;
-  const person = await loadPerson(db, assetsBaseUrl, bctx.now, id, customLogos);
+  const nameOptions = { locale, minReview: bctx.minReview ?? 'approved' } as const;
+  const person = await loadPerson(db, assetsBaseUrl, bctx.now, id, customLogos, nameOptions);
   const [nationality, photo, seasonRows, transferRows, trophies, sidelined] = await Promise.all([
     nationalityResolver(db, locale),
     photoAsset(db, id),
@@ -273,10 +281,13 @@ export async function loadPersonOverview(
   const shown = year ?? seasons.find((s) => s.appearances > 0)?.year ?? seasons[0]?.year ?? null;
   const inYear = shown === null ? [] : lines.filter((l) => l.year === shown);
 
-  const teams = await participantRefs(db, assetsBaseUrl, customLogos, [
-    ...candidates,
-    ...lines.map((l) => l.teamId).filter((x): x is string => !!x),
-  ]);
+  const teams = await participantRefs(
+    db,
+    assetsBaseUrl,
+    customLogos,
+    [...candidates, ...lines.map((l) => l.teamId).filter((x): x is string => !!x)],
+    nameOptions,
+  );
   const shownGroups = merged.filter((m) => m.g.year === shown);
   const comps = await competitionRefs(
     db,

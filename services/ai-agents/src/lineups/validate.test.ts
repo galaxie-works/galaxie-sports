@@ -359,7 +359,11 @@ describe('fixtures do AI Studio (BR e AR com grounding)', () => {
     });
     expect(out.plansWithoutSource).toBe(1);
     // sem trecho próprio, só entra o canal que o trecho do plano cita
-    expect(access(plan(out, 'Pacote Full').channels)).toEqual({ espn: 'included', sportv: 'included' });
+    expect(access(plan(out, 'Pacote Full').channels)).toEqual({
+      bandsports: 'included',
+      espn: 'included',
+      sportv: 'included',
+    });
     expect(out.drops).toContainEqual({ reason: 'no_source', name: 'TNT Sports', plan: 'Pacote Full' });
   });
 });
@@ -494,7 +498,7 @@ describe('catálogo de complementos (etapa 1)', () => {
         offer('Premiere Fidelidade', 49.9, 12, 'FIDELIDADE 12 MESES Premiere Fidelidade R$ 49,90 por mês'),
         offer('ESPN 6 Fidelidade', 4.9, 12, 'FIDELIDADE 12 MESES ESPN 6 Fidelidade R$ 4,90 por mês'),
         offer('Paramount+', 34.9, null, 'Paramount+ R$ 34,90', 'https://selectra.com.br/x'),
-        offer('Telecine', 29.9, null, 'Telecine R$ 29,90'),
+        offer('Streaming Inexistente', 29.9, null, 'Streaming Inexistente R$ 29,90'),
       ],
       ctx('BR', 'br-plataforma-a', { resolveUrl: async (u) => u }),
     );
@@ -505,7 +509,7 @@ describe('catálogo de complementos (etapa 1)', () => {
       ['paramount_plus', 'service', null, null, null],
     ]);
     expect(addons[1]!.priceText).toBe('R$ 49,90/mês · fidelidade de 12 meses');
-    expect(drops).toEqual([{ reason: 'unknown', name: 'Telecine' }]);
+    expect(drops).toEqual([{ reason: 'unknown', name: 'Streaming Inexistente' }]);
   });
 });
 

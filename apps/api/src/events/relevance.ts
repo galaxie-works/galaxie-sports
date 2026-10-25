@@ -44,6 +44,7 @@ import {
   type BuildContext,
   type StageMatch,
 } from './builder.js';
+import { loadTeamNames } from '../teams/display-name.js';
 
 export const TEAM_BONUS = 10;
 export const COMPETITION_BONUS = 5;
@@ -333,7 +334,7 @@ export function tieOutcome(
  * TODO(chaveamento): estender às quartas e oitavas quando o regulamento (`config/rules`) cadastrar a chave.
  */
 export async function loadBrackets(
-  ctx: Pick<BuildContext, 'db' | 'rules'>,
+  ctx: Pick<BuildContext, 'db' | 'rules'> & Partial<Pick<BuildContext, 'locale' | 'minReview'>>,
   events: Pick<Event, 'id' | 'stage'>[],
 ): Promise<Map<string, BracketTeam[]>> {
   const out = new Map<string, BracketTeam[]>();
@@ -390,12 +391,20 @@ export async function loadBrackets(
     .from(participant)
     .where(inArray(participant.id, ids));
   const partBy = new Map(parts.map((p) => [p.id, p]));
+  // nome citado no motivo ("decide o adversário de …"): o mesmo nome de exibição do evento
+  const names = ctx.locale
+    ? await loadTeamNames(ctx.db, ids, { locale: ctx.locale, minReview: ctx.minReview ?? 'approved' })
+    : null;
+  const nameOf = (id: string) => {
+    const provider = partBy.get(id)?.name ?? '';
+    return names && provider ? names.name(id, provider) : provider;
+  };
   for (const [eventId, teams] of pending)
     out.set(
       eventId,
       teams.map((t) => ({
         id: t.id,
-        name: partBy.get(t.id)?.name ?? '',
+        name: nameOf(t.id),
         countryCode: partBy.get(t.id)?.country ?? null,
         round: t.round,
       })),
@@ -405,7 +414,7 @@ export async function loadBrackets(
 
 // ─── preenchimento das respostas ─────────────────────────────────────────────────────────────────
 
-type RelevanceCtx = Pick<BuildContext, 'db' | 'rules' | 'locale'>;
+type RelevanceCtx = Pick<BuildContext, 'db' | 'rules' | 'locale' | 'minReview'>;
 
 interface RelevanceFacts {
   countryOf: Map<string, string | null>;

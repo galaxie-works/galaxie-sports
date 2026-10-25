@@ -32,6 +32,7 @@
     "wtw:run": "node --env-file-if-exists=../../.env dist/cli/wtw-run.js",
     "wtw:audit": "node --env-file-if-exists=../../.env dist/cli/wtw-audit.js",
     "related:run": "node --env-file-if-exists=../../.env dist/cli/related-run.js",
+    "related:canais": "node --env-file-if-exists=../../.env dist/cli/related-channels.js",
     "wtw:rights": "node --env-file-if-exists=../../.env dist/cli/wtw-rights.js",
     "wtw:channel": "node --env-file-if-exists=../../.env dist/cli/wtw-channel.js",
     "f1:bio": "node --env-file-if-exists=../../.env dist/cli/f1-bio.js",

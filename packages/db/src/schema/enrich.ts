@@ -10,11 +10,12 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { pkUuidV7 } from './_shared.js';
-import { asset, event } from './core.js';
+import { asset, competition, event, participant } from './core.js';
 
 export const enrich = pgSchema('enrich');
 
@@ -369,7 +370,15 @@ export const relatedContent = enrich.table(
   ],
 );
 
-/** Execuções do agente de conteúdo relacionado; `quota_units` soma a cota do YouTube por dia do Pacífico. */
+/** Modo de uma execução por jogo: busca completa, só os canais conhecidos ou só a revalidação. */
+export type RelatedRunMode = 'full' | 'channels' | 'revalidate';
+
+/**
+ * Execuções do agente de conteúdo relacionado, por dia de cota do YouTube (meia-noite do Pacífico). A cota tem
+ * dois baldes: `searches` (consultas `search.list`, ~100/dia) e `api_units` (videos, channels e playlistItems,
+ * 10.000 unidades/dia). `quota_units` até a 0039 somava 100 por busca (modelo antigo); desde a 0039 é
+ * `searches + api_units`.
+ */
 export const relatedRun = enrich.table(
   'related_run',
   {
@@ -377,13 +386,16 @@ export const relatedRun = enrich.table(
     eventId: uuid('event_id')
       .notNull()
       .references(() => event.id, { onDelete: 'cascade' }),
-    /** full = busca completa · revalidate = só videos.list dos ids guardados. */
-    mode: text('mode').$type<'full' | 'revalidate'>().notNull(),
+    /** full = canais + busca · channels = só os canais conhecidos · revalidate = só videos.list dos ids guardados. */
+    mode: text('mode').$type<RelatedRunMode>().notNull(),
     /** running | done | failed | skipped */
     status: text('status').notNull().default('running'),
     /** Dia da cota do YouTube (zera à meia-noite do Pacífico). */
     quotaDay: date('quota_day').notNull(),
     quotaUnits: integer('quota_units').notNull().default(0),
+    /** Unidades do balde geral (videos, channels, playlistItems). */
+    apiUnits: integer('api_units').notNull().default(0),
+    /** Consultas `search.list` (balde próprio). */
     searches: integer('searches').notNull().default(0),
     candidates: integer('candidates').notNull().default(0),
     published: integer('published').notNull().default(0),
@@ -404,6 +416,101 @@ export const relatedRun = enrich.table(
     index('related_run_quota_idx').on(t.quotaDay),
   ],
 );
+
+/**
+ * Cache permanente do `channels.list` (docs/12 §3.2): id do canal → playlist de uploads, handle, título e
+ * inscritos. A playlist de uploads não muda; os inscritos servem ao piso da allowlist.
+ */
+export const youtubeChannel = enrich.table(
+  'youtube_channel',
+  {
+    /** Id do canal (UC…). */
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    /** `snippet.customUrl` em minúsculas, com "@". */
+    handle: text('handle'),
+    /** Playlist de uploads (UU…). */
+    uploadsPlaylistId: text('uploads_playlist_id'),
+    country: text('country'),
+    subscribers: integer('subscribers'),
+    /** O `channels.list` não devolveu o canal (removido ou id errado). */
+    missing: boolean('missing').notNull().default(false),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('youtube_channel_handle_idx').on(t.handle)],
+);
+
+export const RELATED_CHANNEL_KINDS = ['club', 'competition', 'broadcaster'] as const;
+export type RelatedChannelKind = (typeof RELATED_CHANNEL_KINDS)[number];
+/** wikidata = P2397 do QID do time/competição (casamento estrito) · config = channels.yaml e dicionário de emissoras. */
+export type RelatedChannelSource = 'wikidata' | 'config';
+
+/**
+ * Mapa de canais oficiais do Conteúdo relacionado (docs/12 §3.2): canal do clube, da competição ou da emissora,
+ * com a fonte. O agente lê os uploads recentes desses canais (1 unidade por página) antes de gastar a busca.
+ */
+export const relatedChannel = enrich.table(
+  'related_channel',
+  {
+    id: pkUuidV7(),
+    channelId: text('channel_id').notNull(),
+    kind: text('kind').$type<RelatedChannelKind>().notNull(),
+    participantId: uuid('participant_id').references(() => participant.id, { onDelete: 'cascade' }),
+    competitionId: uuid('competition_id').references(() => competition.id, { onDelete: 'cascade' }),
+    /** Id do dicionário de emissoras (kind = broadcaster). */
+    broadcasterId: text('broadcaster_id'),
+    /** País do canal no mapa (emissora: o mercado). */
+    country: text('country'),
+    source: text('source').$type<RelatedChannelSource>().notNull(),
+    /** QID do Wikidata ou o arquivo de configuração. */
+    sourceRef: text('source_ref'),
+    active: boolean('active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('related_channel_uq')
+      .on(t.channelId, t.kind, t.participantId, t.competitionId, t.broadcasterId)
+      .nullsNotDistinct(),
+    index('related_channel_participant_idx').on(t.participantId),
+    index('related_channel_competition_idx').on(t.competitionId),
+  ],
+);
+
+/** Jogo que ficou sem busca (ou sem vídeo) por causa da cota, para o painel de Operação. */
+export interface RelatedSkippedGame {
+  eventId: string;
+  label: string;
+  competition: string | null;
+  relevance: number;
+  score: number;
+  reason: string;
+  at: string;
+}
+
+/** Jogo da agenda que ainda vai acontecer no dia de cota, com a fatia reservada para ele. */
+export interface RelatedUpcomingGame {
+  eventId: string;
+  startsAt: string;
+  score: number;
+  reserved: number;
+}
+
+/**
+ * Orçamento do YouTube por dia de cota, gravado a cada execução do `related:run` (painel de Operação): gasto,
+ * reservado para os jogos que ainda vão acontecer e livre, nos dois baldes, e os jogos pulados por cota.
+ */
+export const relatedBudget = enrich.table('related_budget', {
+  quotaDay: date('quota_day').primaryKey(),
+  searchLimit: integer('search_limit').notNull(),
+  searchUsed: integer('search_used').notNull().default(0),
+  searchReserved: integer('search_reserved').notNull().default(0),
+  apiLimit: integer('api_limit').notNull(),
+  apiUsed: integer('api_used').notNull().default(0),
+  skipped: jsonb('skipped').$type<RelatedSkippedGame[]>().notNull().default([]),
+  upcoming: jsonb('upcoming').$type<RelatedUpcomingGame[]>().notNull().default([]),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Tipo da emissora na biblioteca: TV aberta, TV paga (cabo/satélite/IPTV), streaming ou rádio. */
 export const BROADCASTER_KINDS = ['free_tv', 'pay_tv', 'streaming', 'radio'] as const;

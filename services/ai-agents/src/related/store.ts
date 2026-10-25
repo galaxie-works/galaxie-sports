@@ -8,6 +8,7 @@ import { and, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 import {
   publishChange,
   RELATED_CONTENT_TOPIC,
+  relatedBudget,
   relatedContent,
   relatedContentTag,
   type Database,
@@ -15,10 +16,13 @@ import {
   type RelatedAspectRatio,
   type RelatedContentType,
   type RelatedFormat,
+  type RelatedSkippedGame,
   type RelatedSourceTier,
   type RelatedStatistics,
   type RelatedStatus,
+  type RelatedUpcomingGame,
 } from '@galaxie/db';
+import type { CompetitionYieldRow } from './budget.js';
 
 export interface RelatedItemInput {
   externalId: string;
@@ -269,10 +273,110 @@ export async function expireStaleRelated(
   });
 }
 
-/** Unidades da cota do YouTube já gastas no dia (ledger em enrich.related_run). */
-export async function quotaUnitsUsed(db: Pick<Database, 'execute'>, quotaDay: string): Promise<number> {
-  const rows = await db.execute<{ total: string | null }>(
-    sql`select sum(quota_units)::text as total from enrich.related_run where quota_day = ${quotaDay}`,
+/**
+ * Cota do YouTube já gasta no dia (ledger em enrich.related_run), nos dois baldes: consultas `search.list`
+ * e unidades do balde geral (videos, channels, playlistItems).
+ */
+export async function quotaUsage(
+  db: Pick<Database, 'execute'>,
+  quotaDay: string,
+): Promise<{ search: number; api: number }> {
+  const rows = await db.execute<{ search: string | null; api: string | null }>(
+    sql`select sum(searches)::text as search, sum(api_units)::text as api
+          from enrich.related_run where quota_day = ${quotaDay}`,
   );
-  return Number(rows[0]?.total ?? 0);
+  return { search: Number(rows[0]?.search ?? 0), api: Number(rows[0]?.api ?? 0) };
+}
+
+/** Rótulo de `queries` dos vídeos achados num canal conhecido (`channel:club`, `channel:competition`…). */
+export const CHANNEL_QUERY_PREFIX = 'channel:';
+
+/**
+ * Rendimento por competição desde `since` (prioridade e painel): jogos com busca completa, consultas, unidades
+ * do balde geral e vídeos publicados (versão vigente) achados pela busca e pelos canais conhecidos.
+ */
+export async function competitionYields(
+  db: Pick<Database, 'execute'>,
+  since: Date,
+): Promise<CompetitionYieldRow[]> {
+  const rows = await db.execute<{
+    competition_id: string;
+    slug: string;
+    games: number;
+    searches: string;
+    api_units: string;
+    search_videos: number;
+    channel_videos: number;
+  }>(sql`
+    with runs as (
+      select e.competition_id, count(distinct r.event_id) filter (where r.mode = 'full')::int as games,
+             sum(r.searches) as searches, sum(r.api_units) as api_units
+        from enrich.related_run r join core.event e on e.id = r.event_id
+       where r.started_at >= ${since.toISOString()}::timestamptz and e.competition_id is not null
+       group by e.competition_id
+    ), vids as (
+      select e.competition_id,
+             (count(*) filter (where exists (select 1 from unnest(rc.queries) q where q not like ${`${CHANNEL_QUERY_PREFIX}%`})))::int as search_videos,
+             (count(*) filter (where exists (select 1 from unnest(rc.queries) q where q like ${`${CHANNEL_QUERY_PREFIX}%`})))::int as channel_videos
+        from enrich.related_content rc join core.event e on e.id = rc.event_id
+       where rc.superseded_by is null and rc.status = 'published'
+         and rc.first_seen_at >= ${since.toISOString()}::timestamptz
+       group by e.competition_id
+    )
+    select runs.competition_id::text, c.slug, runs.games, runs.searches::text, runs.api_units::text,
+           coalesce(vids.search_videos, 0) as search_videos, coalesce(vids.channel_videos, 0) as channel_videos
+      from runs join core.competition c on c.id = runs.competition_id
+      left join vids on vids.competition_id = runs.competition_id
+  `);
+  return [...rows].map((r) => ({
+    competitionId: r.competition_id,
+    slug: r.slug,
+    games: Number(r.games),
+    searches: Number(r.searches ?? 0),
+    apiUnits: Number(r.api_units ?? 0),
+    searchVideos: Number(r.search_videos),
+    channelVideos: Number(r.channel_videos),
+  }));
+}
+
+/**
+ * Grava o orçamento do dia de cota (painel de Operação). Os pulados por cota somam-se aos já gravados no dia
+ * (um por jogo, o motivo mais recente; até 100).
+ */
+export async function saveRelatedBudget(
+  db: Database,
+  input: {
+    quotaDay: string;
+    searchLimit: number;
+    searchUsed: number;
+    searchReserved: number;
+    apiLimit: number;
+    apiUsed: number;
+    skipped: RelatedSkippedGame[];
+    upcoming: RelatedUpcomingGame[];
+    now: Date;
+  },
+): Promise<void> {
+  const [prev] = await db
+    .select({ skipped: relatedBudget.skipped })
+    .from(relatedBudget)
+    .where(eq(relatedBudget.quotaDay, input.quotaDay));
+  const merged = new Map<string, RelatedSkippedGame>();
+  for (const s of [...(prev?.skipped ?? []), ...input.skipped]) merged.set(s.eventId, s);
+  const skipped = [...merged.values()].sort((a, b) => b.score - a.score).slice(0, 100);
+  const values = {
+    quotaDay: input.quotaDay,
+    searchLimit: input.searchLimit,
+    searchUsed: input.searchUsed,
+    searchReserved: input.searchReserved,
+    apiLimit: input.apiLimit,
+    apiUsed: input.apiUsed,
+    skipped,
+    upcoming: input.upcoming,
+    updatedAt: input.now,
+  };
+  await db
+    .insert(relatedBudget)
+    .values(values)
+    .onConflictDoUpdate({ target: relatedBudget.quotaDay, set: values });
 }

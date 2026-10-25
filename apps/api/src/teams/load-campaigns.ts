@@ -23,6 +23,7 @@ import {
   type CampaignStanding,
 } from './campaign.js';
 import { campaignText } from './campaign-text.js';
+import { loadTeamNames } from './display-name.js';
 
 /** Temporadas não atuais entram se o time jogou nelas nos últimos 12 meses. */
 const RECENT_MS = 365 * 24 * 3600_000;
@@ -229,7 +230,11 @@ export async function loadTeamCompetitions(
         .leftJoin(asset, eq(asset.id, teamLogoId(bctx.customLogos)))
         .where(inArray(participant.id, opponentIds))
     : [];
-  const opponentBy = new Map(opponents.map((o) => [o.id, o]));
+  const names = await loadTeamNames(db, opponentIds, {
+    locale,
+    minReview: bctx.minReview ?? 'approved',
+  });
+  const opponentBy = new Map(opponents.map((o) => [o.id, { ...o, ...names.of(o.id, o.name) }]));
 
   return rows
     .map(({ r, campaign: c }) => {
@@ -257,6 +262,7 @@ export async function loadTeamCompetitions(
             ? {
                 id: opp.id,
                 name: opp.name,
+                provider_name: opp.provider_name,
                 short_name: opp.shortName,
                 logo: assetUrl(bctx.assetsBaseUrl, opp.logoKey, opp.logoUrl),
               }

@@ -426,9 +426,14 @@ export async function buildAvailability(input: {
       ...holders.flatMap((h) => (h.broadcasterId ? [h.broadcasterId] : [])),
     ]),
   ];
+  // canal numerado de cada opção publicada: complemento de canal ("ESPN 6") só para o jogo nele
+  const channelNames: Record<string, (string | null)[]> = {};
+  for (const o of input.options)
+    if (o.row.broadcasterId) (channelNames[o.row.broadcasterId] ??= []).push(o.row.channelName);
   const rows = channelIds.length
     ? await lineup.source.availabilityForChannels(db, {
         channelIds,
+        channelNames,
         country: input.country,
         minReview: lineup.minReview,
         // sem `onlyPlatformId`: ele restringe também os streamings; a regra do tenant filtra abaixo

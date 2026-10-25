@@ -329,6 +329,15 @@ export const SETTINGS: readonly SettingDef[] = [
   },
 
   // ── Conteúdo relacionado ────────────────────────────────────────────────────────────────────
+  // dois baldes da YouTube Data API: busca (consultas/dia) e geral (unidades/dia) — related/budget.ts
+  agents('related', {
+    key: 'YOUTUBE_SEARCH_DAILY_QUOTA',
+    type: 'int',
+    min: 0,
+    max: 1_000_000,
+    default: '100',
+    critical: true,
+  }),
   agents('related', { key: 'YOUTUBE_DAILY_QUOTA', type: 'int', min: 0, max: 1_000_000, default: '10000' }),
   agents('related', { key: 'YOUTUBE_QUOTA_RESERVE_PERCENT', type: 'int', min: 0, max: 90, default: '10' }),
   agents('related', { key: 'RELATED_RESEARCH_HOURS', type: 'int', min: 1, max: 168, default: '12' }),
@@ -342,9 +351,32 @@ export const SETTINGS: readonly SettingDef[] = [
   }),
   agents('related', { key: 'RELATED_MIN_RELEVANCE', type: 'int', min: 0, max: 100, default: '50' }),
   agents('related', { key: 'RELATED_MAX_VIDEOS', type: 'int', min: 1, max: 50, default: '12' }),
-  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_EVENT', type: 'int', min: 1, max: 16, default: '4' }),
-  agents('related', { key: 'RELATED_HIGH_RELEVANCE', type: 'int', min: 0, max: 100, default: '85' }),
-  agents('related', { key: 'RELATED_HIGH_RESERVE_PERCENT', type: 'int', min: 0, max: 90, default: '30' }),
+  agents('related', {
+    key: 'RELATED_MARKET_WEIGHTS',
+    type: 'text',
+    pattern: /^[A-Za-z]{2}:\d+(\.\d+)?([,\s]+[A-Za-z]{2}:\d+(\.\d+)?)*$/,
+    allowEmpty: true,
+    default: 'BR:1,AR:0.6,MX:0.6,CO:0.45,CL:0.4,PE:0.35,UY:0.35,EC:0.35',
+  }),
+  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_EVENT', type: 'int', min: 0, max: 16, default: '4' }),
+  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_RUN', type: 'int', min: 0, max: 16, default: '2' }),
+  agents('related', { key: 'RELATED_CHANNEL_ENOUGH', type: 'int', min: 1, max: 50, default: '4' }),
+  agents('related', {
+    key: 'RELATED_CHANNEL_REFRESH_MINUTES',
+    type: 'int',
+    min: 0,
+    max: 1440,
+    default: '60',
+  }),
+  agents('related', { key: 'RELATED_REVALIDATE_MINUTES', type: 'int', min: 0, max: 1440, default: '120' }),
+  agents('related', { key: 'RELATED_RESERVE_MAX_PERCENT', type: 'int', min: 0, max: 90, default: '60' }),
+  agents('related', {
+    key: 'RELATED_SEARCH_AFTER_KICKOFF_MINUTES',
+    type: 'int',
+    min: 0,
+    max: 600,
+    default: '140',
+  }),
   agents('related', { key: 'RELATED_LOOKBACK_HOURS', type: 'int', min: 1, max: 168, default: '24' }),
   agents('related', { key: 'RELATED_SECOND_SEARCH_MINUTES', type: 'int', min: 0, max: 720, default: '30' }),
   agents('related', {

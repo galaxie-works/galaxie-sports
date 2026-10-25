@@ -300,7 +300,8 @@ export default defineMessages(
         },
         'related-run': {
           label: 'Vídeos relacionados',
-          description: 'Busca no YouTube os vídeos dos jogos encerrados nas últimas 48 horas.',
+          description:
+            'Lê os canais oficiais e, como complemento, busca no YouTube os vídeos dos jogos encerrados nas últimas 24 horas.',
         },
         'wtw-rights': {
           label: 'Onde Assistir: direitos',
@@ -418,6 +419,45 @@ export default defineMessages(
     secrets: {
       configured: 'Configurada',
       missing: 'Não configurada',
+    },
+    youtube: {
+      title: 'Cota do YouTube hoje',
+      day: 'Dia de cota {day} (zera à meia-noite do Pacífico)',
+      updated: 'Orçamento gravado {when}',
+      never: 'O agente de vídeos ainda não rodou neste dia de cota.',
+      search: 'Busca (search.list)',
+      searchUnit: 'consultas',
+      api: 'Geral: uploads dos canais, vídeos e canais',
+      apiUnit: 'unidades',
+      used: 'Gasta {n}',
+      reserved: 'Reservada {n}',
+      free: 'Livre {n}',
+      ofLimit: '{used} de {limit} {unit}',
+      reservedHint:
+        'Reservada = buscas guardadas para os jogos que ainda vão acontecer no dia, pela prioridade.',
+      channels:
+        'Canais oficiais no mapa: {club} de clubes · {competition} de competições · {broadcaster} de emissoras',
+      yieldTitle: 'Rendimento por competição (14 dias)',
+      yieldNone: 'Sem histórico nos últimos 14 dias.',
+      yieldColumns: {
+        competition: 'Competição',
+        games: 'Jogos',
+        searches: 'Consultas',
+        units: 'Unidades',
+        searchVideos: 'Vídeos da busca',
+        channelVideos: 'Vídeos dos canais',
+        perSearch: 'Vídeos por consulta',
+      },
+      zero: 'rendimento zero: fim da fila',
+      skippedTitle: 'Jogos pulados por cota',
+      skippedNone: 'Nenhum jogo pulado por cota neste dia.',
+      skippedColumns: {
+        match: 'Jogo',
+        competition: 'Competição',
+        score: 'Prioridade',
+        reason: 'Motivo',
+        at: 'Quando',
+      },
     },
     apis: {
       football: 'Futebol',
@@ -551,14 +591,21 @@ export default defineMessages(
         description:
           'Operadoras, planos e streamings do Onde Assistir só aparecem na API a partir deste status editorial (draft, reviewed ou approved).',
       },
+      YOUTUBE_SEARCH_DAILY_QUOTA: {
+        label: 'Buscas por dia no YouTube',
+        description:
+          'Balde próprio da busca (search.list), contado em consultas: 100 por dia no projeto padrão. Acima disso, só com aumento aprovado pelo Google.',
+        unit: 'consultas',
+      },
       YOUTUBE_DAILY_QUOTA: {
-        label: 'Cota diária do YouTube',
-        description: 'Unidades por dia do projeto no YouTube (zera à meia-noite do Pacífico).',
+        label: 'Cota diária do YouTube (geral)',
+        description:
+          'Unidades por dia das demais chamadas: uploads dos canais, detalhes dos vídeos e dos canais (zera à meia-noite do Pacífico).',
         unit: 'unidades',
       },
       YOUTUBE_QUOTA_RESERVE_PERCENT: {
         label: 'Reserva da cota do YouTube',
-        description: 'Parte da cota que a busca de vídeos nunca gasta.',
+        description: 'Parte dos dois baldes que o agente de vídeos nunca gasta.',
         unit: '%',
       },
       RELATED_MARKETS: {
@@ -576,21 +623,52 @@ export default defineMessages(
           'Vídeos publicados por jogo e idioma. Menos vídeos também reduz o consumo da cota do YouTube.',
         unit: 'vídeos',
       },
-      RELATED_MAX_SEARCHES_PER_EVENT: {
-        label: 'Buscas por jogo',
+      RELATED_MARKET_WEIGHTS: {
+        label: 'Peso de cada mercado',
         description:
-          'Cada busca gasta 100 unidades da cota do YouTube; o resumo do jogo vem sempre primeiro.',
+          'Multiplica a relevância do jogo no mercado na hora de dividir a busca (ex.: BR:1,AR:0.6). Vazio usa o padrão.',
+      },
+      RELATED_MAX_SEARCHES_PER_EVENT: {
+        label: 'Buscas por jogo (total)',
+        description:
+          'Teto de consultas de busca por jogo, somando todas as rodadas. Os canais oficiais vêm antes e não contam aqui.',
         unit: 'buscas',
       },
-      RELATED_HIGH_RELEVANCE: {
-        label: 'Relevância de jogo grande',
+      RELATED_MAX_SEARCHES_PER_RUN: {
+        label: 'Buscas por jogo em cada rodada',
         description:
-          'A partir desta relevância o jogo pode usar a parte da cota reservada aos jogos grandes.',
+          'Consultas por jogo numa rodada; a busca para cedo quando a primeira não traz vídeo aproveitável.',
+        unit: 'buscas',
       },
-      RELATED_HIGH_RESERVE_PERCENT: {
-        label: 'Cota reservada aos jogos grandes',
-        description: 'Parte da cota diária que só os jogos de relevância alta podem gastar.',
+      RELATED_CHANNEL_ENOUGH: {
+        label: 'Vídeos oficiais que dispensam a busca',
+        description:
+          'Com este número de vídeos aproveitáveis nos canais oficiais (clubes, liga, emissoras), o jogo não gasta busca.',
+        unit: 'vídeos',
+      },
+      RELATED_CHANNEL_REFRESH_MINUTES: {
+        label: 'Releitura dos canais oficiais',
+        description:
+          'Entre as buscas, os uploads dos canais do jogo são lidos de novo a cada intervalo. 0 lê em toda rodada.',
+        unit: 'min',
+      },
+      RELATED_REVALIDATE_MINUTES: {
+        label: 'Revalidação dos vídeos',
+        description:
+          'Os vídeos guardados são conferidos (fora do ar, estatísticas) no máximo a cada intervalo.',
+        unit: 'min',
+      },
+      RELATED_RESERVE_MAX_PERCENT: {
+        label: 'Reserva de busca para a agenda do dia',
+        description:
+          'Teto da parte das buscas do dia guardada para os jogos que ainda vão acontecer, pela prioridade. 0 desliga.',
         unit: '%',
+      },
+      RELATED_SEARCH_AFTER_KICKOFF_MINUTES: {
+        label: 'Primeira busca após o início',
+        description:
+          'No apito a busca ainda não acha os melhores momentos: antes disto, só os canais oficiais são lidos.',
+        unit: 'min',
       },
       RELATED_LOOKBACK_HOURS: {
         label: 'Janela de jogos encerrados',
@@ -911,7 +989,8 @@ export default defineMessages(
           },
           'related-run': {
             label: 'Related videos',
-            description: 'Searches YouTube for videos of matches finished in the last 48 hours.',
+            description:
+              'Reads the official channels and, as a complement, searches YouTube for videos of matches finished in the last 24 hours.',
           },
           'wtw-rights': {
             label: 'Where to Watch: rights',
@@ -1027,6 +1106,44 @@ export default defineMessages(
           'The settings tables do not exist in this database yet. Run the migrations (pnpm db:migrate).',
       },
       secrets: { configured: 'Set', missing: 'Not set' },
+      youtube: {
+        title: 'YouTube quota today',
+        day: 'Quota day {day} (resets at Pacific midnight)',
+        updated: 'Budget saved {when}',
+        never: 'The video agent has not run in this quota day yet.',
+        search: 'Search (search.list)',
+        searchUnit: 'queries',
+        api: 'General: channel uploads, videos and channels',
+        apiUnit: 'units',
+        used: 'Spent {n}',
+        reserved: 'Reserved {n}',
+        free: 'Free {n}',
+        ofLimit: '{used} of {limit} {unit}',
+        reservedHint: 'Reserved = searches kept for matches still to be played today, by priority.',
+        channels:
+          'Official channels in the map: {club} clubs · {competition} competitions · {broadcaster} broadcasters',
+        yieldTitle: 'Yield by competition (14 days)',
+        yieldNone: 'No history in the last 14 days.',
+        yieldColumns: {
+          competition: 'Competition',
+          games: 'Matches',
+          searches: 'Queries',
+          units: 'Units',
+          searchVideos: 'Videos from search',
+          channelVideos: 'Videos from channels',
+          perSearch: 'Videos per query',
+        },
+        zero: 'zero yield: end of the queue',
+        skippedTitle: 'Matches skipped for quota',
+        skippedNone: 'No match skipped for quota in this day.',
+        skippedColumns: {
+          match: 'Match',
+          competition: 'Competition',
+          score: 'Priority',
+          reason: 'Reason',
+          at: 'When',
+        },
+      },
       apis: {
         football: 'Football',
         afl: 'Australian football',
@@ -1160,14 +1277,21 @@ export default defineMessages(
           description:
             'Operators, plans and streaming services in Where to Watch only reach the API from this editorial status on (draft, reviewed or approved).',
         },
+        YOUTUBE_SEARCH_DAILY_QUOTA: {
+          label: 'YouTube searches per day',
+          description:
+            'The search bucket (search.list), counted in queries: 100 per day on a default project. More requires an increase approved by Google.',
+          unit: 'queries',
+        },
         YOUTUBE_DAILY_QUOTA: {
-          label: 'YouTube daily quota',
-          description: "The project's units per day on YouTube (resets at Pacific midnight).",
+          label: 'YouTube daily quota (general)',
+          description:
+            'Units per day for the other calls: channel uploads, video and channel details (resets at Pacific midnight).',
           unit: 'units',
         },
         YOUTUBE_QUOTA_RESERVE_PERCENT: {
           label: 'YouTube quota reserve',
-          description: 'Share of the quota the video search never spends.',
+          description: 'Share of both buckets the video agent never spends.',
           unit: '%',
         },
         RELATED_MARKETS: {
@@ -1185,19 +1309,51 @@ export default defineMessages(
             'Videos published per match and language. Fewer videos also reduces YouTube quota use.',
           unit: 'videos',
         },
+        RELATED_MARKET_WEIGHTS: {
+          label: 'Weight of each market',
+          description:
+            "Multiplies the match's relevance in the market when sharing the searches (e.g. BR:1,AR:0.6). Empty uses the default.",
+        },
         RELATED_MAX_SEARCHES_PER_EVENT: {
-          label: 'Searches per match',
-          description: 'Each search costs 100 YouTube quota units; the match highlights always come first.',
+          label: 'Searches per match (total)',
+          description:
+            'Cap on search queries per match across all rounds. Official channels come first and do not count here.',
           unit: 'searches',
         },
-        RELATED_HIGH_RELEVANCE: {
-          label: 'Big match relevance',
-          description: 'From this relevance on, the match may use the quota reserved for big matches.',
+        RELATED_MAX_SEARCHES_PER_RUN: {
+          label: 'Searches per match in each round',
+          description:
+            'Queries per match in one round; the search stops early when the first brings no usable video.',
+          unit: 'searches',
         },
-        RELATED_HIGH_RESERVE_PERCENT: {
-          label: 'Quota reserved for big matches',
-          description: 'Share of the daily quota only high-relevance matches can spend.',
+        RELATED_CHANNEL_ENOUGH: {
+          label: 'Official videos that skip the search',
+          description:
+            'With this many usable videos on the official channels (clubs, league, broadcasters), the match spends no search.',
+          unit: 'videos',
+        },
+        RELATED_CHANNEL_REFRESH_MINUTES: {
+          label: 'Official channels re-read',
+          description:
+            "Between searches, the match's channel uploads are read again at this interval. 0 reads every round.",
+          unit: 'min',
+        },
+        RELATED_REVALIDATE_MINUTES: {
+          label: 'Video revalidation',
+          description: 'Stored videos are re-checked (taken down, statistics) at most once per interval.',
+          unit: 'min',
+        },
+        RELATED_RESERVE_MAX_PERCENT: {
+          label: "Search reserve for the day's schedule",
+          description:
+            "Cap on the share of the day's searches kept for matches still to be played, by priority. 0 disables it.",
           unit: '%',
+        },
+        RELATED_SEARCH_AFTER_KICKOFF_MINUTES: {
+          label: 'First search after kickoff',
+          description:
+            'At the final whistle the search does not find the highlights yet: before this, only the official channels are read.',
+          unit: 'min',
         },
         RELATED_LOOKBACK_HOURS: {
           label: 'Finished matches window',
@@ -1527,7 +1683,8 @@ export default defineMessages(
           },
           'related-run': {
             label: 'Videos relacionados',
-            description: 'Busca en YouTube los videos de los partidos terminados en las últimas 48 horas.',
+            description:
+              'Lee los canales oficiales y, como complemento, busca en YouTube los videos de los partidos terminados en las últimas 24 horas.',
           },
           'wtw-rights': {
             label: 'Dónde ver: derechos',
@@ -1643,6 +1800,45 @@ export default defineMessages(
           'Las tablas de configuración todavía no existen en esta base. Corré las migraciones (pnpm db:migrate).',
       },
       secrets: { configured: 'Configurada', missing: 'Sin configurar' },
+      youtube: {
+        title: 'Cuota de YouTube hoy',
+        day: 'Día de cuota {day} (se reinicia a la medianoche del Pacífico)',
+        updated: 'Presupuesto guardado {when}',
+        never: 'El agente de videos aún no corrió en este día de cuota.',
+        search: 'Búsqueda (search.list)',
+        searchUnit: 'consultas',
+        api: 'General: subidas de los canales, videos y canales',
+        apiUnit: 'unidades',
+        used: 'Gastada {n}',
+        reserved: 'Reservada {n}',
+        free: 'Libre {n}',
+        ofLimit: '{used} de {limit} {unit}',
+        reservedHint:
+          'Reservada = búsquedas guardadas para los partidos que aún se jugarán hoy, por prioridad.',
+        channels:
+          'Canales oficiales en el mapa: {club} de clubes · {competition} de competiciones · {broadcaster} de emisoras',
+        yieldTitle: 'Rendimiento por competición (14 días)',
+        yieldNone: 'Sin historial en los últimos 14 días.',
+        yieldColumns: {
+          competition: 'Competición',
+          games: 'Partidos',
+          searches: 'Consultas',
+          units: 'Unidades',
+          searchVideos: 'Videos de la búsqueda',
+          channelVideos: 'Videos de los canales',
+          perSearch: 'Videos por consulta',
+        },
+        zero: 'rendimiento cero: final de la cola',
+        skippedTitle: 'Partidos omitidos por cuota',
+        skippedNone: 'Ningún partido omitido por cuota en este día.',
+        skippedColumns: {
+          match: 'Partido',
+          competition: 'Competición',
+          score: 'Prioridad',
+          reason: 'Motivo',
+          at: 'Cuándo',
+        },
+      },
       apis: {
         football: 'Fútbol',
         afl: 'Fútbol australiano',
@@ -1780,14 +1976,21 @@ export default defineMessages(
           description:
             'Operadoras, planes y streamings de Dónde ver solo llegan a la API desde este estado editorial (draft, reviewed o approved).',
         },
+        YOUTUBE_SEARCH_DAILY_QUOTA: {
+          label: 'Búsquedas por día en YouTube',
+          description:
+            'Cubo propio de la búsqueda (search.list), contado en consultas: 100 por día en un proyecto estándar. Más que eso requiere un aumento aprobado por Google.',
+          unit: 'consultas',
+        },
         YOUTUBE_DAILY_QUOTA: {
-          label: 'Cuota diaria de YouTube',
-          description: 'Unidades por día del proyecto en YouTube (se reinicia a la medianoche del Pacífico).',
+          label: 'Cuota diaria de YouTube (general)',
+          description:
+            'Unidades por día de las demás llamadas: subidas de los canales, detalles de videos y canales (se reinicia a la medianoche del Pacífico).',
           unit: 'unidades',
         },
         YOUTUBE_QUOTA_RESERVE_PERCENT: {
           label: 'Reserva de la cuota de YouTube',
-          description: 'Parte de la cuota que la búsqueda de videos nunca gasta.',
+          description: 'Parte de los dos cubos que el agente de videos nunca gasta.',
           unit: '%',
         },
         RELATED_MARKETS: {
@@ -1805,21 +2008,52 @@ export default defineMessages(
             'Videos publicados por partido e idioma. Menos videos también reduce el consumo de la cuota de YouTube.',
           unit: 'videos',
         },
-        RELATED_MAX_SEARCHES_PER_EVENT: {
-          label: 'Búsquedas por partido',
+        RELATED_MARKET_WEIGHTS: {
+          label: 'Peso de cada mercado',
           description:
-            'Cada búsqueda gasta 100 unidades de la cuota de YouTube; el resumen del partido siempre va primero.',
+            'Multiplica la relevancia del partido en el mercado al repartir las búsquedas (ej.: BR:1,AR:0.6). Vacío usa el estándar.',
+        },
+        RELATED_MAX_SEARCHES_PER_EVENT: {
+          label: 'Búsquedas por partido (total)',
+          description:
+            'Tope de consultas de búsqueda por partido, sumando todas las rondas. Los canales oficiales van antes y no cuentan aquí.',
           unit: 'búsquedas',
         },
-        RELATED_HIGH_RELEVANCE: {
-          label: 'Relevancia de partido grande',
+        RELATED_MAX_SEARCHES_PER_RUN: {
+          label: 'Búsquedas por partido en cada ronda',
           description:
-            'Desde esta relevancia el partido puede usar la parte de la cuota reservada a los partidos grandes.',
+            'Consultas por partido en una ronda; la búsqueda se detiene antes cuando la primera no trae video aprovechable.',
+          unit: 'búsquedas',
         },
-        RELATED_HIGH_RESERVE_PERCENT: {
-          label: 'Cuota reservada a los partidos grandes',
-          description: 'Parte de la cuota diaria que solo los partidos de relevancia alta pueden gastar.',
+        RELATED_CHANNEL_ENOUGH: {
+          label: 'Videos oficiales que evitan la búsqueda',
+          description:
+            'Con esta cantidad de videos aprovechables en los canales oficiales (clubes, liga, emisoras), el partido no gasta búsqueda.',
+          unit: 'videos',
+        },
+        RELATED_CHANNEL_REFRESH_MINUTES: {
+          label: 'Relectura de los canales oficiales',
+          description:
+            'Entre búsquedas, las subidas de los canales del partido se leen de nuevo en cada intervalo. 0 lee en cada ronda.',
+          unit: 'min',
+        },
+        RELATED_REVALIDATE_MINUTES: {
+          label: 'Revalidación de los videos',
+          description:
+            'Los videos guardados se revisan (fuera de línea, estadísticas) como máximo una vez por intervalo.',
+          unit: 'min',
+        },
+        RELATED_RESERVE_MAX_PERCENT: {
+          label: 'Reserva de búsqueda para la agenda del día',
+          description:
+            'Tope de la parte de las búsquedas del día guardada para los partidos que aún se jugarán, por prioridad. 0 la desactiva.',
           unit: '%',
+        },
+        RELATED_SEARCH_AFTER_KICKOFF_MINUTES: {
+          label: 'Primera búsqueda tras el inicio',
+          description:
+            'Al pitazo final la búsqueda aún no encuentra el resumen: antes de esto, solo se leen los canales oficiales.',
+          unit: 'min',
         },
         RELATED_LOOKBACK_HOURS: {
           label: 'Ventana de partidos terminados',

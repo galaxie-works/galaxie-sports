@@ -342,6 +342,9 @@ async function applyLive(
     case 'glossary':
       // a API lê o glossário do YAML e aplica as decisões por cima; só falta purgar o cache
       return { entityType: 'glossary', entityId: row.key };
+    case 'editorial':
+      // o perfil editorial da F1 também é lido do YAML pela API (tag `f1_editorial`)
+      return { entityType: 'f1_editorial', entityId: row.key };
     case 'translation': {
       const slug = row.key.slice(row.key.indexOf(':') + 1);
       const table = row.parent_kind === 'derby' ? 'semantic.derby' : 'semantic.team_profile';

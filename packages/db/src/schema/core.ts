@@ -340,6 +340,30 @@ export function venueFormerNames(v: {
   return [...curated.sort(recentFirst), ...provider.sort(recentFirst)];
 }
 
+/** Rótulos de um item do Wikidata nos idiomas da base (só os que existem). */
+export type WikidataLabels = Partial<Record<'pt' | 'es' | 'en', string>>;
+
+/**
+ * Fatos da biografia do piloto de F1, cada bloco com a fonte: a família vem do F1DB (`driver_family_relationship`:
+ * `relation` é o que o parente é do piloto, `PARENT` = pai ou mãe); o resto, do Wikidata, só com o QID casado de
+ * forma estrita (mesma data de nascimento e o id do piloto ou o nome).
+ */
+export interface ParticipantBioFacts {
+  family?: { relation: string; f1db_id: string; name: string; gender: 'male' | 'female' | null }[];
+  wikidata?: {
+    qid: string;
+    /** Como o QID foi casado: id de piloto (P3684/P8140) ou nome, sempre com a data de nascimento. */
+    matched_by: 'driver_id' | 'name';
+    death_place?: { qid: string; labels: WikidataLabels; country: string | null } | null;
+    death_cause?: { qid: string; labels: WikidataLabels }[];
+    death_manner?: { qid: string; labels: WikidataLabels }[];
+    nicknames?: { text: string; lang: string }[];
+    /** Vitórias fora da F1 (P1346 nas edições): 500 Milhas de Indianápolis e 24 Horas de Le Mans. */
+    wins?: { race: 'indy500' | 'le_mans_24h'; year: number; qid: string }[];
+    checked_at: string;
+  };
+}
+
 export const participant = core.table(
   'participant',
   {
@@ -365,6 +389,11 @@ export const participant = core.table(
     birthCountryCode: text('birth_country_code').references(() => country.code),
     /** Número permanente (F1 desde 2014); o número de cada temporada sai das sessões. */
     number: smallint('number'),
+    /** Piloto de F1: nome completo de registro e data da morte (F1DB). */
+    fullName: text('full_name'),
+    deathDate: date('death_date'),
+    /** Piloto de F1: família no automobilismo (F1DB) e os fatos do Wikidata com casamento estrito (`f1:biografia`). */
+    bioFacts: jsonb('bio_facts').$type<ParticipantBioFacts>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

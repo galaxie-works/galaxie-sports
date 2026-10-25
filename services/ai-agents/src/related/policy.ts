@@ -42,7 +42,15 @@ export function teamVariants(team: TeamRef): string[] {
   return [...out];
 }
 
-function mentions(text: string, variants: readonly string[]): boolean {
+/** Texto normalizado para casar nomes de time (sem acento, caixa e pontuação). */
+export function matchText(raw: string): string {
+  return normalizeText(raw)
+    .replace(/[^\p{L}\p{N} ]+/gu, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+/** O texto (já em `matchText`) cita alguma variante do nome? */
+export function mentions(text: string, variants: readonly string[]): boolean {
   return variants.some((v) =>
     new RegExp(`(?<![\\p{L}\\p{N}])${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'u').test(
       text,

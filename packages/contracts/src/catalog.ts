@@ -1,6 +1,15 @@
 import 'zod-openapi';
 import * as z from 'zod';
-import { AssetUrl, CountryRef, LocaleQuery, LogoCredit, LogoSource, PaginationQuery } from './common.js';
+import {
+  AssetUrl,
+  CountryRef,
+  LocaleQuery,
+  LogoCredit,
+  LogoSource,
+  PaginationQuery,
+  ProviderName,
+  TeamDisplayName,
+} from './common.js';
 import { Photo, TeamLivery } from './racing.js';
 
 // ─── esportes ────────────────────────────────────────────────────────────────────────────────────
@@ -138,7 +147,8 @@ export const StandingsParams = CompetitionParams.extend({
 export const ParticipantRef = z
   .object({
     id: z.uuid(),
-    name: z.string(),
+    name: TeamDisplayName,
+    provider_name: ProviderName,
     short_name: z.string().nullable(),
     logo: AssetUrl,
   })
