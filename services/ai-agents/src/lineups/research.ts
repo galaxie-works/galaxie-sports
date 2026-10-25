@@ -1015,7 +1015,9 @@ export class LineupResearcher {
             url: null,
             verification: withPageRef(a.verification, reads),
           })),
-          addonsComplete: task.reason === 'revisit' && allRead && catalog.addons.length > 0,
+          // catálogo vazio de uma página lida inteira também vale (o complemento que saiu dela é removido);
+          // extração sem nenhum plano não: é mais provável a resposta ter falhado que a página ter esvaziado
+          addonsComplete: task.reason === 'revisit' && allRead && plans.length > 0,
           seenAt: this.now(),
           complete: task.reason === 'revisit' && allRead && !models.truncated && plans.length > 0,
         });

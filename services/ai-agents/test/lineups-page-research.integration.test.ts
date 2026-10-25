@@ -310,4 +310,20 @@ describe('lineups-research pela página oficial (LLM e site falsos)', () => {
     expect(out.status).toBe('done');
     expect([out.removed, out.changes.filter((c) => c.fields.includes('removed'))]).toEqual([0, []]);
   });
+
+  it('revisita com a página inteira e sem complementos marca o complemento antigo como removido', async () => {
+    page = rendered('109,90');
+    const out = await revisit(
+      { ...extraction(109.9), complementos: [] },
+      new Date(NOW.getTime() + 4 * 86_400_000),
+    );
+    expect(out.status).toBe('done');
+    expect(out.changes.filter((c) => c.fields.includes('removed')).map((c) => c.target.type)).toEqual([
+      'addon',
+    ]);
+    const lineup = await getPlatformLineup(db, platformId, { minReview: 'draft', includeUnverified: true });
+    expect(lineup!.addons.map((a) => [a.refId, a.proposedChange])).toEqual([
+      ['canal_exemplo_2', expect.objectContaining({ removed: true })],
+    ]);
+  });
 });
