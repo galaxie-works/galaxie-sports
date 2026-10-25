@@ -164,5 +164,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://$ASSETS_DOMAIN/$S3_BUCKET/    
 
 ## Pendências
 
-- Backups no mesmo disco: ligar a cópia para um S3 externo (`BACKUP_S3_*`) quando houver bucket.
+- Cópia dos backups fora da VPS: existe (dumps no NAS do dono e snapshot diário da VPS no provedor, ver
+  [SECURITY.md](../../SECURITY.md)); falta o dono confirmar a frequência e a retenção da cópia no NAS. A cópia para
+  um S3 externo (`BACKUP_S3_*`) segue opcional.
 - Cabeçalhos de cache/CDN para os assets.
