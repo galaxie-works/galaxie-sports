@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --dir src --passWithNoTests",
     "test:integration": "vitest run --dir test",
-    "dev": "node --env-file-if-exists=../../.env --watch dist/main.js",
+    "dev": "node scripts/dev.mjs",
     "start": "node --env-file-if-exists=../../.env dist/main.js",
     "tenant:create": "node --env-file-if-exists=../../.env dist/cli/tenant-create.js",
     "webhook": "node --env-file-if-exists=../../.env dist/cli/webhook.js",

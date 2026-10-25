@@ -109,6 +109,15 @@ export const ChannelList = z
   .meta({ id: 'ChannelList' });
 export type ChannelList = z.infer<typeof ChannelList>;
 
+export const ChannelListUpload = ChannelList.extend({
+  duplicates: z.number().int().min(0).meta({ description: 'Nomes repetidos descartados no envio.' }),
+  truncated: z.number().int().min(0).meta({
+    description:
+      'Canais além do limite de 5.000 (sem contar os repetidos) que ficaram de fora; 0 = lista inteira.',
+  }),
+}).meta({ id: 'ChannelListUpload' });
+export type ChannelListUpload = z.infer<typeof ChannelListUpload>;
+
 const json = (schema: z.ZodType) => ({ 'application/json': { schema } });
 const problem = (description: string) => ({
   description,
@@ -139,11 +148,12 @@ export const channelListPaths: ZodOpenApiPathsObject = {
       description:
         'M3U ou nomes colados. Nunca envie EPG: só o nome de cada canal é lido. O casamento por código sai na ' +
         'hora (`status: review`); as sobras vão para a IA (`ai_status: pending`). Correções feitas no portal ' +
-        'continuam valendo para os canais de mesmo nome. Só com a chave secreta.',
+        'continuam valendo para os canais de mesmo nome. Até 5.000 canais: os repetidos e os além do limite ' +
+        'ficam de fora, contados em `duplicates` e `truncated`. Só com a chave secreta.',
       tags: ['Onde assistir'],
       requestBody: { content: json(ChannelListBody) },
       responses: {
-        '200': { description: 'Lista gravada', content: json(ChannelList) },
+        '200': { description: 'Lista gravada', content: json(ChannelListUpload) },
         '400': problem('Lista vazia, sem nomes ou acima do limite (INVALID_PARAMS)'),
         ...common,
       },
