@@ -45,6 +45,17 @@ describe('scheduleFromEnv', () => {
     });
   });
 
+  it('SCHEDULER_TIMEOUT_MINUTES não encurta o ao vivo, que tem tempo limite próprio', () => {
+    const jobs = scheduleFromEnv({ SCHEDULER_TIMEOUT_MINUTES: '60' });
+    expect(jobs.find((j) => j.name === 'live-run')!.timeoutMs).toBe(20 * 3_600_000);
+    expect(jobs.find((j) => j.name === 'live-reconcile')!.timeoutMs).toBe(3_600_000);
+  });
+
+  it('reconciliação do ao vivo: a agenda confere só os parados; sob demanda (painel) força todos', () => {
+    const job = scheduleFromEnv({}).find((j) => j.name === 'live-reconcile')!;
+    expect(job).toMatchObject({ cron: '*/10 * * * *', args: [], onDemandArgs: ['--forcar'] });
+  });
+
   it('agenda o sync diário logo após a virada da cota (00:05 UTC) e o ao vivo a cada 5 min', () => {
     const jobs = scheduleFromEnv({});
     const daily = jobs.find((j) => j.name === 'sync-daily')!;

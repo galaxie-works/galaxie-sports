@@ -13,10 +13,14 @@
  *
  * O painel de Ajustes → Operação sobrescreve as flags pelo banco (ops.runtime_setting): banco > env >
  * padrão. As agendas mudadas são reprogramadas sem reinício e cada job recebe o env efetivo.
+ *
+ * Cada job roda em um processo por vez em todo o banco (advisory lock de sessão, solto quando o processo
+ * cai): se outro scheduler já está rodando o job, a execução é pulada (o `--run` sai com código 1).
+ * SCHEDULER_TIMEOUT_MINUTES não vale para o ao vivo, que tem tempo limite próprio.
  */
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { closeDb, createDb, type Database } from '@galaxie/db';
+import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
 import { logger, report } from '../logger.js';
 import { checkAiCredit } from '../scheduler/ai-credit.js';
 import { PgRunRecorder, runJob } from '../scheduler/runner.js';
@@ -32,9 +36,8 @@ const arg = (flag: string) => {
   return i >= 0 ? (process.argv[i + 1] ?? '') : undefined;
 };
 
-const db: Database | undefined = process.env.DATABASE_URL
-  ? createDb(process.env.DATABASE_URL, { max: 2 })
-  : undefined;
+const databaseUrl = process.env.DATABASE_URL;
+const db: Database | undefined = databaseUrl ? createDb(databaseUrl, { max: 2 }) : undefined;
 if (!db) log.warn('DATABASE_URL não definida: as execuções não serão registradas em ops.job_run');
 const recorder = db ? new PgRunRecorder(db) : undefined;
 /** Abortado no encerramento: os jobs em andamento recebem SIGTERM (o ao vivo fecha o tick e sai). */
@@ -49,7 +52,26 @@ const service = new SchedulerService({
   refreshMs: Number(process.env.SCHEDULER_REFRESH_SECONDS ?? 30) * 1000 || 30_000,
   creditCheck: profile === 'agents' ? (env) => checkAiCredit(env) : undefined,
   run: (job, { trigger, env }) =>
-    runJob(job, { cwd: packageRoot, env, recorder, logger: log, trigger, signal: shutdownController.signal }),
+    runJob(job, {
+      cwd: packageRoot,
+      env,
+      recorder,
+      logger: log,
+      trigger,
+      signal: shutdownController.signal,
+      // um processo por job em todo o banco: o `--run` no console ou um contêiner sobreposto no deploy
+      // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
+      lock: databaseUrl
+        ? (name) =>
+            tryJobLock(databaseUrl, name, {
+              onLost: () =>
+                log.warn(
+                  { job: name },
+                  'conexão da trava do job caiu com o job rodando; outro processo pode iniciá-lo em paralelo',
+                ),
+            })
+        : undefined,
+    }),
 });
 
 if (process.argv.includes('--list') || arg('--run') !== undefined) {
@@ -66,6 +88,8 @@ if (process.argv.includes('--list')) {
 const manual = arg('--run');
 if (manual !== undefined) {
   const result = await service.execute(manual, 'manual');
+  if (result.status === 'skipped')
+    console.error(`"${manual}" já está rodando em outro processo; nada feito.`);
   if (db) await closeDb(db);
   process.exit(result.status === 'ok' ? 0 : 1);
 }
