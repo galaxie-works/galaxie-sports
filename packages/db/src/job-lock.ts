@@ -32,6 +32,8 @@ export async function tryJobLock(
   job: string,
   options: JobLockOptions = {},
 ): Promise<JobLock | null> {
+  // só avisa a perda de uma trava que chegou a ser obtida (falha ao conectar não é "perder a trava")
+  let held = false;
   let released = false;
   const sql = postgres(url, {
     max: 1,
@@ -39,7 +41,7 @@ export async function tryJobLock(
     max_lifetime: null,
     onnotice: () => {},
     onclose: () => {
-      if (!released) options.onLost?.();
+      if (held && !released) options.onLost?.();
     },
   });
   const close = async () => {
@@ -53,6 +55,7 @@ export async function tryJobLock(
       await close();
       return null;
     }
+    held = true;
   } catch (err) {
     await close().catch(() => {});
     throw err;
