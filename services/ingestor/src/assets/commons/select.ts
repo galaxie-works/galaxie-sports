@@ -197,9 +197,13 @@ export function choose(
     )[0];
   const portrait =
     recent(scored.filter(({ j }) => j?.kind === 'portrait')) ??
-    (ai
-      ? undefined
-      : recent(scored.filter(({ e }) => e.candidate.portraitCategory || e.candidate.wikidataImage)));
+    // sem retrato do Gemini, o candidato das regras (foto do Wikidata, categoria de retratos) que ele manteve e não
+    // viu como carro: em 25/10, 46 pilotos ficaram sem retrato porque o Gemini os marcou como "action"
+    recent(
+      scored.filter(
+        ({ e, j }) => (e.candidate.portraitCategory || e.candidate.wikidataImage) && j?.kind !== 'car',
+      ),
+    );
   if (portrait && fresh(portrait.e))
     out.push({
       eligible: portrait.e,
