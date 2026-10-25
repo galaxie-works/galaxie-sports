@@ -299,9 +299,15 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
 
   /**
    * Anos de temporada com jogos do time (`season.year`, do mais recente ao mais antigo). A corrente é a
-   * mais recente marcada como atual pelo fornecedor; sem nenhuma marcada, a mais recente.
+   * mais recente marcada como atual pelo fornecedor; sem nenhuma marcada, a mais recente. Construtor da F1
+   * (`constructor`, com os IDs dela nas fontes): as sessões dos pilotos da equipe, pelo mesmo vínculo de
+   * `constructorEvents`.
    */
-  async function teamSeasons(db: Database, teamId: string): Promise<TeamSeason[]> {
+  async function teamSeasons(
+    db: Database,
+    teamId: string,
+    constructor?: { sport: string; ids: string[] },
+  ): Promise<TeamSeason[]> {
     const rows = await db
       .select({
         year: season.year,
@@ -314,7 +320,15 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       .from(event)
       .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
       .innerJoin(season, eq(season.id, event.seasonId))
-      .where(eq(eventParticipant.participantId, teamId))
+      .where(
+        constructor?.ids.length
+          ? and(
+              eq(event.sport, constructor.sport),
+              eq(eventParticipant.side, 'grid'),
+              inArray(sql<string>`${eventParticipant.result} -> 'team' ->> 'id'`, constructor.ids),
+            )
+          : eq(eventParticipant.participantId, teamId),
+      )
       .groupBy(season.year)
       .orderBy(desc(season.year));
     const currentYear = rows.find((r) => r.current)?.year ?? rows[0]?.year;
@@ -343,7 +357,9 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         const bctx = buildCtx(ctx, locale, tz);
         const db = bctx.db;
         const team = await loadTeam(db, params.id, locale);
-        const seasons = await teamSeasons(db, team.id);
+        // construtor (F1): as sessões dos pilotos da equipe, por todos os IDs dela nas duas fontes
+        const constructorIds = team.kind === 'constructor' ? await constructorProviderIds(db, team.id) : [];
+        const seasons = await teamSeasons(db, team.id, { sport: team.sport, ids: constructorIds });
         // ao vivo e próximo jogo só existem na temporada corrente
         const upcoming = year === undefined || seasons.find((s) => s.year === year)?.current === true;
         const inYear =
@@ -433,8 +449,6 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           });
         }
 
-        // construtor (F1): as sessões dos pilotos da equipe, por todos os IDs dela nas duas fontes
-        const constructorIds = team.kind === 'constructor' ? await constructorProviderIds(db, team.id) : [];
         const teamEvents = (status: Event['status'][], order: 'asc' | 'desc', limit: number) =>
           constructorIds.length
             ? constructorEvents(
@@ -623,6 +637,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           throw problems.notFound('Carreira na F1');
         const body: RaceCareer = await loadRaceCareer(db, p, locale, ctx.assetsBaseUrl, {
           liveries: await liveries(),
+          customLogos: ctx.logos.enabled(),
         });
         return { body, tags: [`team:${p.id}`] };
       },
@@ -664,6 +679,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.standings,
       vary: [locale],
+      check: sportCheck(request),
       load: async () => {
         const body: RaceLegends = {
           data: await loadRaceLegends(requireDb(ctx), locale, ctx.assetsBaseUrl, {
@@ -671,7 +687,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             limit: query.limit,
           }),
         };
-        return { body, tags: ['standing', 'asset'] };
+        return { body, tags: ['standing', 'asset'], meta: { sport: 'formula-1' } };
       },
     });
   });

@@ -42,6 +42,8 @@ clubs:
   - { handle: '@clubamerica', team: América, country: MX } # Club América (1,7 mi)
   - { handle: '@chivas', team: Guadalajara, country: MX } # Chivas (903 mil)
 
+# competition = slug da competição, ou a federação (sem hífen: conmebol, uefa), que vale para todas as
+# competições cujo slug começa com ela (conmebol-libertadores, conmebol-sudamericana, uefa-champions-league...).
 competitions:
   - { handle: '@conmebol', competition: conmebol } # CONMEBOL (2,5 mi)
   - { handle: '@libertadoresbr', competition: conmebol-libertadores } # CONMEBOL Libertadores (1,2 mi)

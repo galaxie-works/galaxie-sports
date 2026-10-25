@@ -92,6 +92,8 @@ export interface CampaignInput {
   standing: CampaignStanding | null;
   /** A temporada ainda tem jogos por acontecer (de qualquer time). */
   seasonOpen: boolean;
+  /** Jogos de cada fase da temporada (de todos os times) e quantos em aberto; fase sem jogo fica de fora. */
+  stageActivity: ReadonlyMap<string, { events: number; open: number }>;
   rules: CompetitionRules | null;
   /** core.competition.type: league | cup | tournament. */
   competitionType: string;
@@ -105,7 +107,7 @@ export interface TieSummary {
   stageName: I18nName;
   opponentId: string;
   state: TieState;
-  /** Partidas do confronto (excluídas as canceladas), em ordem cronológica. */
+  /** Partidas do confronto: as existentes (sem as canceladas) ou, se forem mais, as do regulamento. */
   legs: number;
   /** Partidas já encerradas. */
   playedLegs: number;
@@ -155,12 +157,16 @@ const DEFAULT_TIE_RULES: KnockoutStageRules = {
   decidesTitle: false,
 };
 
-/** Regras do confronto: as do regulamento (quando há) com o número de jogos que de fato existem. */
-function tieRules(rules: CompetitionRules | null, stage: CampaignStage, legs: 1 | 2): KnockoutStageRules {
+/** Regras da fase no regulamento (sem regulamento: jogo único). */
+function stageTieRules(rules: CompetitionRules | null, stage: CampaignStage): KnockoutStageRules {
   const ko = rules?.knockout;
   const key = rulesStageKey(stage.kind, stage.providerLabel);
-  const base = ko ? (ko.stages[key] ?? ko.default) : DEFAULT_TIE_RULES;
-  return { ...base, legs };
+  return ko ? (ko.stages[key] ?? ko.default) : DEFAULT_TIE_RULES;
+}
+
+/** Regras do confronto: as do regulamento (quando há) com o número de jogos que de fato existem. */
+function tieRules(rules: CompetitionRules | null, stage: CampaignStage, legs: 1 | 2): KnockoutStageRules {
+  return { ...stageTieRules(rules, stage), legs };
 }
 
 /** Houve prorrogação: o fornecedor preenche o placar da prorrogação (mesmo 0–0). */
@@ -170,13 +176,15 @@ const playedExtraTime = (p: { home: number | null; away: number | null } | null 
 /**
  * Resultado de um confronto direto para o time: agregado (gols por participante, independente do
  * mando — cuidado: na volta os mandos se invertem), depois o regulamento (gol fora, vantagem do
- * empate), depois os pênaltis e, por fim, o vencedor informado pelo fornecedor.
+ * empate), depois os pênaltis e, por fim, o vencedor informado pelo fornecedor. Com a temporada em
+ * aberto (`seasonOpen`), o confronto de ida e volta só se decide com as duas partidas encerradas.
  */
 export function decideTie(
   teamId: string,
   stage: CampaignStage,
   matches: CampaignMatch[],
   rules: CompetitionRules | null,
+  seasonOpen = true,
 ): TieSummary | null {
   const legsList = matches.filter((m) => m.status !== 'cancelled');
   const first = legsList[0];
@@ -192,12 +200,13 @@ export function decideTie(
     goalsAgainst += g?.get(opponentId) ?? 0;
   }
   const last = finished.at(-1) ?? null;
+  const requiredLegs = stageTieRules(rules, stage).legs;
   const base: TieSummary = {
     stageKind: stage.kind,
     stageName: stage.name,
     opponentId,
     state: 'pending',
-    legs: legsList.length,
+    legs: Math.max(legsList.length, requiredLegs),
     playedLegs: finished.length,
     goalsFor,
     goalsAgainst,
@@ -207,6 +216,11 @@ export function decideTie(
     lastEventId: last?.id ?? null,
   };
   if (legsList.some((m) => isOpen(m.status)) || !last) return base;
+  // ida e volta no regulamento com só a ida encerrada (volta ainda não carregada, ou abandonada): segue
+  // em disputa enquanto a temporada estiver aberta; decidir pelo saldo de um jogo faria campeão quem só
+  // venceu a ida. Temporada encerrada (W.O., volta cancelada, fase sem regra própria caindo no `default` de
+  // ida e volta): decide com o que há, para não ficar em disputa para sempre
+  if (seasonOpen && finished.length < requiredLegs) return base;
 
   const won = (winnerId: string | null): TieSummary => ({
     ...base,
@@ -264,6 +278,26 @@ export function decideTie(
   return won(flagged);
 }
 
+/** Zonas de classificação cujo id não é o tipo da fase seguinte. */
+const ZONE_STAGE: Record<string, string> = { knockout_playoff: 'playoff' };
+
+/**
+ * Zona do regulamento (`league.zones`) em que a posição cai na tabela, com a fase desta competição a que
+ * ela leva (`next`, só nas zonas de classificação cujo id é uma fase: `round_of_16`, `knockout_playoff`...).
+ * Zona de vaga em outra competição (ex.: `europa_league_knockout_playoff`) fica sem `next`.
+ */
+function tableZone(
+  rules: CompetitionRules | null,
+  rank: number | null,
+): { kind: string; next: string | null } | null {
+  if (rank == null) return null;
+  const zone = rules?.league?.zones.find((z) => rank >= z.from && rank <= z.to);
+  if (!zone) return null;
+  const stage = ZONE_STAGE[zone.id] ?? zone.id;
+  const next = zone.kind === 'qualification' && depthOf(stage) !== undefined ? stage : null;
+  return { kind: zone.kind, next };
+}
+
 /** Calcula a situação da campanha do time na temporada. */
 export function computeCampaign(input: CampaignInput): Campaign | null {
   const { teamId, standing } = input;
@@ -282,8 +316,6 @@ export function computeCampaign(input: CampaignInput): Campaign | null {
     played: standing?.played ?? null,
     group: standing?.group ?? null,
   };
-  const hasDeeperStage = (s: CampaignStage | null) =>
-    stages.some((x) => (depthOf(x.kind) ?? -1) > (s ? (depthOf(s.kind) ?? -1) : 1));
 
   // ── pontos corridos (ou só tabela, sem jogos ligados a fases) ──
   if (!deepest || LEAGUE_KINDS.has(deepest.kind)) {
@@ -305,8 +337,30 @@ export function computeCampaign(input: CampaignInput): Campaign | null {
       };
     }
     if (teamOpen) return { status: 'in_progress', ...common, advancedFrom: false };
-    // a temporada já avançou para o mata-mata sem o time: eliminado na fase de pontos corridos
-    if (hasDeeperStage(deepest)) return { status: 'eliminated', ...common, advancedFrom: false };
+    // a fase de tabela ainda tem jogos de outros times: a classificação não fechou (uma fase de mata-mata
+    // já cadastrada não prova a eliminação)
+    const activity = (s: CampaignStage) => input.stageActivity.get(s.id);
+    const tableOpen = deepest ? (activity(deepest)?.open ?? 0) > 0 : input.seasonOpen;
+    if (tableOpen) return { status: 'in_progress', ...common, advancedFrom: false };
+    // fase encerrada: a zona da classificação no regulamento diz o desfecho (ex.: Champions, 1º–8º direto às
+    // oitavas, 9º–24º playoff, 25º+ eliminado). Sem zonas, ou zona que não leva a uma fase desta competição,
+    // segue a evidência dos jogos abaixo
+    const zone = tableZone(input.rules, standing?.rank ?? null);
+    if (zone?.kind === 'elimination') return { status: 'eliminated', ...common, advancedFrom: false };
+    if (zone && zone.next && input.seasonOpen) {
+      const next = stages.find((s) => s.kind === zone.next);
+      return {
+        status: 'in_progress',
+        ...common,
+        stageKind: zone.next,
+        stageName: next?.name ?? null,
+        advancedFrom: false,
+      };
+    }
+    // fase encerrada e o mata-mata já com jogos, sem o time: eliminado na fase de pontos corridos
+    const depth = depthOf(kind) ?? 1;
+    if (stages.some((s) => (depthOf(s.kind) ?? -1) > depth && (activity(s)?.events ?? 0) > 0))
+      return { status: 'eliminated', ...common, advancedFrom: false };
     if (input.seasonOpen) return { status: 'in_progress', ...common, advancedFrom: false };
     return { status: 'finished_league', ...common, advancedFrom: false };
   }
@@ -318,7 +372,7 @@ export function computeCampaign(input: CampaignInput): Campaign | null {
     if (key.startsWith(`${deepest.id}|`) && list.some((m) => m.homeId === teamId || m.awayId === teamId))
       tieMatches = list as CampaignMatch[];
   }
-  const tie = decideTie(teamId, deepest, tieMatches, input.rules);
+  const tie = decideTie(teamId, deepest, tieMatches, input.rules, input.seasonOpen);
   const at = (status: CampaignStatus, extra: Partial<Campaign> = {}): Campaign => ({
     status,
     stageKind: deepest.kind,
