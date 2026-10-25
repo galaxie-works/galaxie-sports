@@ -30,6 +30,17 @@ export interface ChangeFeedRetentionReport {
   dryRun: boolean;
 }
 
+type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/** Grava (sem regredir) o maior id já apagado em `ops.change_feed_prune`. */
+export async function markPruned(tx: Database | Tx, maxDeletedId: number): Promise<void> {
+  await tx.execute(sql`
+    insert into ops.change_feed_prune (name, max_deleted_id) values ('default', ${maxDeletedId})
+    on conflict (name) do update
+      set max_deleted_id = greatest(ops.change_feed_prune.max_deleted_id, excluded.max_deleted_id),
+          updated_at = now()`);
+}
+
 export async function pruneChangeFeed(
   db: Database,
   options: ChangeFeedRetentionOptions = {},
@@ -60,22 +71,20 @@ export async function pruneChangeFeed(
     report.deleted = Number(row?.n ?? 0);
     return report;
   }
-  let maxDeleted = 0;
   for (;;) {
-    const rows = await db.execute<{ id: string }>(sql`
-      delete from ops.change_feed
-       where id in (${victims} order by cf.id limit ${batch})
-       returning id`);
-    report.deleted += rows.length;
-    for (const r of rows) maxDeleted = Math.max(maxDeleted, Number(r.id));
-    if (rows.length < batch) break;
+    // marca da poda (o SSE avisa replay_truncated a quem retoma de um Last-Event-ID abaixo dela) na mesma
+    // transação de cada lote: se o processo cair entre lotes, nada some sem a marca cobrir
+    const deleted = await db.transaction(async (tx) => {
+      const rows = await tx.execute<{ id: string }>(sql`
+        delete from ops.change_feed
+         where id in (${victims} order by cf.id limit ${batch})
+         returning id`);
+      const max = rows.reduce((m, r) => Math.max(m, Number(r.id)), 0);
+      if (max > 0) await markPruned(tx, max);
+      return rows.length;
+    });
+    report.deleted += deleted;
+    if (deleted < batch) break;
   }
-  // marca da poda: o SSE avisa (replay_truncated) quem retoma de um Last-Event-ID abaixo dela
-  if (maxDeleted > 0)
-    await db.execute(sql`
-      insert into ops.change_feed_prune (name, max_deleted_id) values ('default', ${maxDeleted})
-      on conflict (name) do update
-        set max_deleted_id = greatest(ops.change_feed_prune.max_deleted_id, excluded.max_deleted_id),
-            updated_at = now()`);
   return report;
 }
