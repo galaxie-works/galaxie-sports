@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.galaxie-sports.local/knowledge/editorial.schema.json",
+  "title": "Perfil editorial dos pilotos da F1 — data/knowledge/formula-1/editorial/<locale>.yaml",
+  "description": "Bio, estilo, pontos fortes, momentos marcantes e rivalidades de cada piloto, num idioma, cada item com a fonte. Lenda (`legend`) tem o perfil completo; `regular`, só a bio curta. Gerado pelo agente f1:bio --perfil e aprovado no painel de revisão.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "locale", "drivers"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "locale": { "enum": ["pt-BR", "es"] },
+    "drivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slug", "name", "f1db", "tier", "bio", "review_status"],
+        "properties": {
+          "slug": {
+            "$ref": "common.schema.json#/definitions/slug",
+            "description": "f1-<id do piloto no F1DB>, o mesmo de participants/drivers.yaml"
+          },
+          "name": {
+            "$ref": "common.schema.json#/definitions/nonEmptyString",
+            "description": "Nome do piloto (o do F1DB), para a lista do painel de revisão"
+          },
+          "f1db": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": { "id": { "$ref": "common.schema.json#/definitions/slug" } }
+          },
+          "tier": { "enum": ["legend", "regular"] },
+          "bio": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text", "sources"],
+            "properties": {
+              "text": { "type": "string", "minLength": 40, "maxLength": 1800 },
+              "sources": { "$ref": "common.schema.json#/definitions/sources" }
+            }
+          },
+          "style": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "text", "sources"],
+            "properties": {
+              "kind": {
+                "enum": ["aggressive", "smooth", "calculating", "precise", "instinctive", "complete", "consistent"]
+              },
+              "text": { "type": "string", "minLength": 10, "maxLength": 400 },
+              "sources": { "$ref": "common.schema.json#/definitions/sources" }
+            }
+          },
+          "strengths": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["key", "text", "source"],
+              "properties": {
+                "key": {
+                  "enum": [
+                    "qualifying",
+                    "wet_weather",
+                    "overtaking",
+                    "defending",
+                    "starts",
+                    "tyre_management",
+                    "car_control",
+                    "race_intelligence",
+                    "consistency",
+                    "technical_feedback",
+                    "street_circuits",
+                    "high_speed"
+                  ]
+                },
+                "text": { "type": "string", "minLength": 10, "maxLength": 300 },
+                "source": { "$ref": "common.schema.json#/definitions/url" }
+              }
+            }
+          },
+          "moments": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["year", "round", "race", "text", "source"],
+              "properties": {
+                "year": { "type": "integer", "minimum": 1950, "maximum": 2100 },
+                "race": { "$ref": "common.schema.json#/definitions/nonEmptyString" },
+                "round": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 30,
+                  "description": "Rodada da corrida na temporada (a ordem pela data), que liga o momento ao evento da base"
+                },
+                "wet": { "type": "boolean" },
+                "text": { "type": "string", "minLength": 10, "maxLength": 400 },
+                "source": { "$ref": "common.schema.json#/definitions/url" }
+              }
+            }
+          },
+          "rivalries": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["driver", "text", "source"],
+              "properties": {
+                "driver": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["f1db_id", "name"],
+                  "properties": {
+                    "f1db_id": { "$ref": "common.schema.json#/definitions/slug" },
+                    "name": { "$ref": "common.schema.json#/definitions/nonEmptyString" }
+                  }
+                },
+                "text": { "type": "string", "minLength": 10, "maxLength": 300 },
+                "source": { "$ref": "common.schema.json#/definitions/url" }
+              }
+            }
+          },
+          "review_status": { "enum": ["draft", "reviewed", "approved"] }
+        }
+      }
+    }
+  }
+}
