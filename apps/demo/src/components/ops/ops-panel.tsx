@@ -3,7 +3,7 @@
 import { SCHEDULED_JOBS, scheduleKey, settingDef, type SettingSection } from '@galaxie/runtime-config';
 import { Activity, Bot, Gauge, Play, RefreshCw, Server, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
 
 import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
@@ -33,37 +33,49 @@ import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
-const TABS = [
-  'status',
-  'quality',
-  'live',
-  'schedule',
-  'ai',
-  'wtw',
-  'related',
-  'provider',
-  'assets',
-  'history',
-] as const;
-type Tab = (typeof TABS)[number];
+/** Sistema: saúde e infraestrutura. Esportes e features: o plano de cada esporte e as regras das features. */
+export const PANEL_TABS = {
+  system: ['status', 'quality', 'live', 'schedule', 'ai', 'provider', 'assets', 'history'],
+  features: ['sports', 'related', 'wtw'],
+} as const;
+export type PanelScope = keyof typeof PANEL_TABS;
+type Tab = (typeof PANEL_TABS)[PanelScope][number];
+
+/** Plano por esporte (APISPORTS_PLAN_<API>) vai para Esportes e features; o padrão fica no Sistema. */
+const isSportPlan = (key: string) => key.startsWith('APISPORTS_PLAN_');
 
 interface Ctx {
   snapshot: OpsSnapshot;
   timeZone: string;
 }
 
-export function OpsPanel({ snapshot, timeZone }: Ctx) {
+export function OpsPanel({
+  snapshot,
+  timeZone,
+  scope = 'system',
+  initialTab,
+  relatedChannels,
+}: Ctx & {
+  scope?: PanelScope;
+  /** Aba aberta ao chegar (ex.: `?aba=related` da busca de canais). */
+  initialTab?: string;
+  /** Controle dos canais nos vídeos relacionados (renderizado no servidor, com a busca e o filtro da URL). */
+  relatedChannels?: ReactNode;
+}) {
   const { t } = useI18n();
   const T = t.ops;
   const f = useFormatters(timeZone);
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
-  const [tab, setTab] = useState<Tab>('status');
+  const tabs: readonly Tab[] = PANEL_TABS[scope];
+  const [tab, setTab] = useState<Tab>(tabs.find((id) => id === initialTab) ?? tabs[0]!);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground max-w-3xl text-sm">{T.page.description}</p>
+        <p className="text-muted-foreground max-w-3xl text-sm">
+          {scope === 'features' ? T.features.description : T.page.description}
+        </p>
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-xs">
             {fill(T.page.generatedAt, { when: f.time(snapshot.generatedAt) })}
@@ -81,7 +93,7 @@ export function OpsPanel({ snapshot, timeZone }: Ctx) {
       </div>
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList className="h-auto flex-wrap justify-start">
-          {TABS.map((id) => (
+          {tabs.map((id) => (
             <TabsTrigger key={id} value={id}>
               {T.tabs[id]}
             </TabsTrigger>
@@ -112,13 +124,28 @@ export function OpsPanel({ snapshot, timeZone }: Ctx) {
               <YoutubeYieldPanel youtube={snapshot.youtube} timeZone={timeZone} />
             </>
           ) : null}
+          {relatedChannels}
           <SectionCard section="related" snapshot={snapshot} timeZone={timeZone} />
+        </TabsContent>
+        <TabsContent value="sports" className="mt-4">
+          <SectionCard
+            section="provider"
+            variant="sports"
+            filter={isSportPlan}
+            snapshot={snapshot}
+            timeZone={timeZone}
+          />
         </TabsContent>
         <TabsContent value="schedule" className="mt-4">
           <ScheduleTab snapshot={snapshot} timeZone={timeZone} />
         </TabsContent>
         <TabsContent value="provider" className="mt-4 flex flex-col gap-4">
-          <SectionCard section="provider" snapshot={snapshot} timeZone={timeZone} />
+          <SectionCard
+            section="provider"
+            filter={(key) => !isSportPlan(key)}
+            snapshot={snapshot}
+            timeZone={timeZone}
+          />
           <SectionCard section="credentials" snapshot={snapshot} timeZone={timeZone} />
         </TabsContent>
         <TabsContent value="history" className="mt-4">
@@ -157,10 +184,23 @@ function SecretsList({ settings }: { settings: OpsSetting[] }) {
   );
 }
 
-function SectionCard({ section, snapshot, timeZone }: Ctx & { section: SettingSection }) {
+function SectionCard({
+  section,
+  snapshot,
+  timeZone,
+  filter,
+  variant,
+}: Ctx & {
+  section: SettingSection;
+  /** Só parte das flags da seção (ex.: o plano de cada esporte). */
+  filter?: (key: string) => boolean;
+  /** Título e descrição de outra caixa (`sports`). */
+  variant?: 'sports';
+}) {
   const { t } = useI18n();
   const T = t.ops;
-  const settings = snapshot.settings.filter((s) => s.section === section);
+  const settings = snapshot.settings.filter((s) => s.section === section && (!filter || filter(s.key)));
+  const text = T.sections[variant ?? section];
   const editable = settings.filter((s) => settingDef(s.key)!.type !== 'secret');
   const secrets = settings.filter((s) => settingDef(s.key)!.type === 'secret');
   const inheritPlan = effective(snapshot, 'APISPORTS_PLAN');
@@ -168,8 +208,8 @@ function SectionCard({ section, snapshot, timeZone }: Ctx & { section: SettingSe
     <Frame>
       <FramePanel className="p-0">
         <FrameHeader className="px-4 pt-4">
-          <FrameTitle>{T.sections[section].title}</FrameTitle>
-          <FrameDescription>{T.sections[section].description}</FrameDescription>
+          <FrameTitle>{text.title}</FrameTitle>
+          <FrameDescription>{text.description}</FrameDescription>
         </FrameHeader>
         {editable.map((s) => (
           <SettingRow
