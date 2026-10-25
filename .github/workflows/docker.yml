@@ -177,7 +177,9 @@ jobs:
           from=$(sed -n 's/^FROM \(mcr\.microsoft\.com\/playwright:[^@ ]*\)@\(sha256:[0-9a-f]*\).*/\1 \2/p' infra/lineup-render/Dockerfile)
           ref=${from% *}
           want=${from#* }
-          got=$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r .digest) || got=
+          # a saída padrão traz "Digest: sha256:…" do que a tag aponta (o índice multi-arquitetura); o --format
+          # .Manifest é o documento cru, que não tem campo digest
+          got=$(docker buildx imagetools inspect "$ref" | awk '$1 == "Digest:" { print $2; exit }') || got=
           if [ "$got" = "$want" ]; then
             echo "$ref = $want"
           else
