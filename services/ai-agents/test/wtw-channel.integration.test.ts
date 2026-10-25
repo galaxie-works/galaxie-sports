@@ -265,16 +265,13 @@ describe('canal do jogo (wtw-channel) com o provedor falso', () => {
         'Alfa FC x Beta EC por Emissora M',
       ),
     ]);
-    const runner = new MatchChannelRunner({
-      db,
-      llm,
-      config,
-      policy,
-      fetcher: new FakePageFetcher({ ...PAGES }),
-      now: () => now,
-    });
+    const fetcher = new FakePageFetcher({ ...PAGES });
+    const runner = new MatchChannelRunner({ db, llm, config, policy, fetcher, now: () => now });
     const report = await runner.run(plan.groups, { maxCalls: 2 });
     expect(report.groups[0]).toMatchObject({ status: 'researched', calls: 1 });
+    // URL que não veio da busca do provedor nem é buscada (SSRF por URL do modelo)
+    expect(fetcher.requested).not.toContain('https://emissora-m.example/inventada');
+    expect(fetcher.requested).toContain(ESCALA);
     // o jogo importado no BR não volta para a pesquisa do BR
     const msg = requests[0]!.messages[0]!.content;
     expect(msg).toMatch(/- BR \(Brasil\) — jogos: J1, J2\n/);

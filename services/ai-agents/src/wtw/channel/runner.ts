@@ -13,9 +13,10 @@
  * `dryRun` (prévia `--plan`): faz a importação e mostra o que gravaria, sem gravar e sem LLM.
  */
 import { and, eq, inArray, isNull, like } from 'drizzle-orm';
-import { broadcastOption, wtwResearch, type Database } from '@galaxie/db';
+import { broadcastOption, wtwResearch, type Database, type SourceKind } from '@galaxie/db';
 import {
   applyMatchChannels,
+  comparableUrl,
   isEditorial,
   teamNames,
   validateMatchChannels,
@@ -87,6 +88,8 @@ export interface ChannelRunReport {
 }
 
 const ACTIVE_OPTION = new Set(['confirmed', 'pending', 'probable']);
+/** Tipos de fonte que o validador do canal aceita (os demais nem são buscados). */
+const FETCHABLE = new Set<SourceKind>(['broadcaster', 'organizer', 'press']);
 
 export class MatchChannelRunner {
   private readonly now: () => Date;
@@ -316,7 +319,7 @@ export class MatchChannelRunner {
       const info = infos.get(t.event.id);
       if (!info) continue;
       const directory = config.directory(t.country);
-      const pages = await this.fetchPages(proposals, directory, fetcher);
+      const pages = await this.fetchPages(proposals, directory, fetcher, res.groundedUrls);
       const r = validateMatchChannels(proposals, {
         directory,
         rights: t.rights,
@@ -436,14 +439,30 @@ export class MatchChannelRunner {
     return r.accepted.some((a) => a.sourceKind === 'official') ? 'official' : 'press';
   }
 
+  /**
+   * Busca só o que o validador pode aceitar: URL da busca do provedor (quando há grounding) e fonte
+   * oficial ou imprensa do dicionário — URL inventada ou injetada pelo modelo nunca é buscada.
+   */
   private async fetchPages(
     proposals: ChannelProposal[],
     directory: CountryDirectory,
     fetcher: CachingPageFetcher,
+    groundedUrls: readonly string[] | null = null,
   ): Promise<Map<string, FetchedPage>> {
+    const grounded = groundedUrls ? new Set(groundedUrls.map(comparableUrl)) : null;
     const urls = [
       ...new Set(
-        proposals.flatMap((p) => p.evidence.map((e) => e.url)).filter((u) => shouldFetch(directory, u)),
+        proposals.flatMap((p) => {
+          const entry = directory.byIdOrNull(p.broadcasterId);
+          return p.evidence
+            .map((e) => e.url.trim())
+            .filter(
+              (u) =>
+                shouldFetch(directory, u) &&
+                (!grounded || grounded.has(comparableUrl(u))) &&
+                FETCHABLE.has(directory.classifySource(u, entry)),
+            );
+        }),
       ),
     ];
     const pages = new Map<string, FetchedPage>();

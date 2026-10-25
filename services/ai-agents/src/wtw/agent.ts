@@ -113,6 +113,8 @@ export class WhereToWatchAgent {
       purpose: allocationPurpose(input.competition.slug, input.round, countries),
     });
     const { data, ...meta } = result;
+    // como nos direitos: com grounding, só URLs da busca do provedor (nada escrito pelo modelo é buscado)
+    const grounded = groundedFilter(result.groundedUrls);
     const byEvent = new Map<string, Map<string, Candidate[]>>();
     let ignored = 0;
     for (const a of data.assignments.slice(0, WTW_MAX_OPTIONS * Math.max(1, codes.length))) {
@@ -130,7 +132,10 @@ export class WhereToWatchAgent {
         channel: a.channel ? sanitizeText(a.channel, 80).trim() || null : null,
         region: a.region ? sanitizeText(a.region, 40).trim() || null : null,
         watchUrl: a.watch_url,
-        evidence: a.evidence.slice(0, WTW_MAX_EVIDENCE).map(toEvidence),
+        evidence: a.evidence
+          .filter((e) => grounded(e.url))
+          .slice(0, WTW_MAX_EVIDENCE)
+          .map(toEvidence),
       });
       perCountry.set(country, list);
       byEvent.set(info.id, perCountry);
