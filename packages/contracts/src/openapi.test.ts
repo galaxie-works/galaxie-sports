@@ -55,6 +55,7 @@ describe('OpenAPI', () => {
         '/v1/account/usage',
         '/v1/navigation',
         '/v1/explore/summary',
+        '/v1/explore/agenda',
         '/v1/countries/{code}',
         '/v1/countries/{code}/competitions',
         '/v1/search',
