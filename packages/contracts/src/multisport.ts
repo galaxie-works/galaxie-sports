@@ -369,7 +369,12 @@ export const MedalHistory = z
           data_quality: MedalDataQuality,
         }),
       )
-      .meta({ description: 'Edições com medalhas do CON omitidas por qualidade insuficiente.' }),
+      .meta({
+        description:
+          'Edições já iniciadas do filtro (tipo, temporada) sem quadro publicável (`insufficient`, `unknown`), ' +
+          'com ou sem medalha do CON carregada: o cliente distingue "retida" de "sem participação" (edição ' +
+          'publicada sem o CON em `data`). Edições futuras não entram.',
+      }),
     sources: z.array(SourceAttribution),
   })
   .meta({ id: 'MedalHistory' });

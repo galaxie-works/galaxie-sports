@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import {
@@ -658,8 +658,8 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
         const nocs = await db.select().from(noc).where(inArray(noc.code, query.noc)).orderBy(asc(noc.code));
         if (!nocs.length) throw problems.notFound('Comitê olímpico (CON)');
         // as edições vêm de games: a retida entra em `withheld` mesmo sem linha do CON no quadro (senão o
-        // cliente não distingue "retida" de "sem participação")
-        const conds: SQL[] = [inArray(games.type, query.type)];
+        // cliente não distingue "retida" de "sem participação"); as futuras ainda não são histórico
+        const conds: SQL[] = [inArray(games.type, query.type), ne(games.status, 'upcoming')];
         if (query.season) conds.push(eq(games.season, query.season));
         const editions = await db
           .select()

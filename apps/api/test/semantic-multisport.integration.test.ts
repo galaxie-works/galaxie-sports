@@ -902,15 +902,14 @@ describe('/v1/multisport', () => {
     expect(res.data).toHaveLength(1);
     expect(res.data[0]).toMatchObject({ games: { slug: 'og-summer-2024' }, gold: 2, total: 2 });
     expect(res.totals).toEqual([{ noc: 'BRA', gold: 2, silver: 0, bronze: 0, total: 2 }]);
-    // retidas: todas as edições do filtro sem quadro publicável (insuficiente, sem avaliação, futura)
+    // retidas: as edições já iniciadas do filtro sem quadro publicável (insuficiente, sem avaliação)
     const withheld = (body: { withheld: { slug: string; data_quality: { level: string | null } }[] }) =>
       new Map(body.withheld.map((w) => [w.slug, w.data_quality]));
     const all = withheld(res);
     expect(all.get('pan-2023')).toMatchObject({ level: 'insufficient', publishable: false });
-    expect(all.get('pan-2027')).toMatchObject({
-      publishable: false,
-      notice: 'Os Jogos ainda não começaram.',
-    });
+    expect(all.get('pan-2019')).toMatchObject({ level: null, publishable: false });
+    // futura (Lima 2027) não é histórico; a publicada fica em `data`
+    expect(all.has('pan-2027')).toBe(false);
     expect(all.has('og-summer-2024')).toBe(false);
     const og = (await get('/v1/multisport/history/medals?noc=BRA&type=OG')).json();
     expect([...withheld(og).keys()].every((slug) => slug.startsWith('og-'))).toBe(true);
