@@ -158,6 +158,17 @@ export function rankNbaStandings(
     });
 }
 
+/** Conferências da NBA v2 com o nome canônico do normalizador (`NBA_CONFERENCES` em @galaxie/providers). */
+const NBA_CONFERENCES: Readonly<Record<string, string>> = {
+  east: 'Eastern Conference',
+  west: 'Western Conference',
+};
+
+/** Nome canônico da conferência (`east` → `Eastern Conference`); outros nomes passam como estão. */
+export function canonicalConference(group: string): string {
+  return NBA_CONFERENCES[group.trim().toLowerCase()] ?? group;
+}
+
 export interface NbaStandingsReport {
   seasonId: string;
   year: number;
@@ -191,9 +202,14 @@ export async function recomputeNbaStandings(
       .select({ participantId: standing.participantId, group: standing.group, source: standing.source })
       .from(standing)
       .where(eq(standing.seasonId, s.id));
-    // conferências: as do fornecedor quando houver (a nossa tabela repete as dele); senão, as já calculadas
+    // conferências: as do fornecedor quando houver (a nossa tabela repete as dele); senão, as já calculadas.
+    // Nome legado (`east`/`west`, de antes do normalizador usar o do api-basketball) vira o canônico: linha
+    // antiga e nova do mesmo time caem no mesmo grupo, qualquer que seja a ordem de leitura, e a antiga sai
+    // na limpeza abaixo
     const provider = current.filter((r) => r.source === 'provider');
-    const groupOf = new Map((provider.length ? provider : current).map((r) => [r.participantId, r.group]));
+    const groupOf = new Map(
+      (provider.length ? provider : current).map((r) => [r.participantId, canonicalConference(r.group)]),
+    );
     const matches = (await loadSeasonResults(db, s.id, { stageIds: regular.map((r) => r.id) })).filter(
       (m) => groupOf.has(m.homeId) && groupOf.has(m.awayId),
     );

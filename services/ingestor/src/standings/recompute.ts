@@ -7,7 +7,7 @@
  * Quando já existe tabela do provedor (ex.: bootstrap Pro) e ela é mais nova que o último resultado,
  * a do provedor prevalece. Mais velha: a calculada a substitui, com os mesmos nomes de grupo.
  */
-import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import { competition, event, publishChange, season, stage, standing, type Database } from '@galaxie/db';
 import { computeStandings, type MatchResult } from '@galaxie/rules';
 import { loadCompetitionRules } from '@galaxie/rules/config';
@@ -126,10 +126,19 @@ export async function recomputeSeasonStandings(
   const stageIds = stages.length || (anyStage[0]?.n ?? 0) > 0 ? stages.map((s) => s.id) : undefined;
   if (stageIds && !stageIds.length) return report('knockout');
 
-  const providerRows = await db
-    .select({ participantId: standing.participantId, group: standing.group, updatedAt: standing.updatedAt })
+  // pertença aos grupos de qualquer origem: o replace grava `computed` sobre a linha do provedor (mesma chave),
+  // então a partir do 2º recálculo não há mais linha `provider` e os grupos sumiriam; a origem só decide o
+  // atalho provider_fresh abaixo
+  const tableRows = await db
+    .select({
+      participantId: standing.participantId,
+      group: standing.group,
+      source: standing.source,
+      updatedAt: standing.updatedAt,
+    })
     .from(standing)
-    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'provider')));
+    .where(eq(standing.seasonId, seasonId));
+  const providerRows = tableRows.filter((r) => r.source === 'provider');
   const [latest] = await db
     .select({ at: sql<string | null>`max(${event.updatedAt})` })
     .from(event)
@@ -140,9 +149,14 @@ export async function recomputeSeasonStandings(
     if (providerAt >= latestResultAt.getTime()) return report('provider_fresh');
   }
 
-  // grupos: os do provedor quando existem (mesma chave em core.standing); senão tabela única
-  const groupOfTeam = new Map(providerRows.map((r) => [r.participantId, r.group]));
-  const groups = new Set(providerRows.map((r) => r.group));
+  // grupos: os já gravados em core.standing (do provedor ou de recálculo anterior); sem nenhum, tabela única.
+  // Time em mais de uma linha: o provedor vence a calculada, e grupo nomeado vence o vazio (resíduo do
+  // recálculo que perdia os grupos)
+  const rank = (r: { source: string; group: string }) => (r.source === 'provider' ? 2 : r.group ? 1 : 0);
+  const groupOfTeam = new Map(
+    [...tableRows].sort((a, b) => rank(a) - rank(b)).map((r) => [r.participantId, r.group]),
+  );
+  const groups = new Set(groupOfTeam.values());
   const singleGroup = groups.size === 1 ? [...groups][0]! : groups.size === 0 ? '' : null;
   // fase de grupos sem a divisão do provedor: não dá para saber quem é de qual grupo
   if (groups.size === 0 && rules.format === 'groups_and_knockout') return report('no_groups');
@@ -173,6 +187,7 @@ export async function recomputeSeasonStandings(
     });
   }
   const rows = await writeComputedStandings(db, seasonId, tables, { mode: 'replace' });
+  await dropStaleComputedRows(db, seasonId, tables);
   if (options.publish !== false && rows > 0) {
     await publishChange(db, {
       topic: 'standings',
@@ -187,6 +202,29 @@ export async function recomputeSeasonStandings(
     });
   }
   return report('written', { results: matches.length, rows });
+}
+
+/**
+ * Linhas calculadas que o recálculo atual não gravou (time/grupo que saiu da tabela, ou o grupo vazio deixado
+ * pelo recálculo que perdia os grupos): a tabela calculada é refeita inteira a cada vez, então elas são velhas.
+ * Linhas do provedor não são tocadas.
+ */
+async function dropStaleComputedRows(
+  db: Database,
+  seasonId: string,
+  tables: readonly { group: string; rows: readonly { teamId: string }[] }[],
+): Promise<void> {
+  const keep = tables.flatMap((t) => t.rows.map((r) => `${t.group}|${r.teamId}`));
+  if (!keep.length) return;
+  await db
+    .delete(standing)
+    .where(
+      and(
+        eq(standing.seasonId, seasonId),
+        eq(standing.source, 'computed'),
+        notInArray(sql<string>`${standing.group} || '|' || ${standing.participantId}::text`, keep),
+      ),
+    );
 }
 
 /**
