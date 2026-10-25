@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { tenant, usageDaily, type Database } from '@galaxie/db';
 import { UUID_RE } from '../util.js';
-import { utcDay, type UsageBackend } from './counter.js';
+import { USAGE_RETENTION_DAYS, utcDay, type RouteCounts, type UsageBackend } from './counter.js';
 
 export interface UsageRow {
   tenantId: string;
@@ -12,15 +12,23 @@ export interface UsageRow {
 
 const DAY_MS = 86_400_000;
 
-/** Dias (UTC) cujos contadores ainda podem estar só no Valkey: ontem e hoje. */
+/**
+ * Dias (UTC) cujos contadores ainda podem estar no Valkey: os `USAGE_RETENTION_DAYS` mais recentes (TTL
+ * das chaves), do mais antigo para hoje. Com o Postgres fora por mais de um dia, a consolidação seguinte
+ * ainda alcança os dias retidos.
+ */
 export function liveDays(now: Date = new Date()): string[] {
-  return [utcDay(new Date(now.getTime() - DAY_MS)), utcDay(now)];
+  return Array.from({ length: USAGE_RETENTION_DAYS }, (_, i) =>
+    utcDay(new Date(now.getTime() - (USAGE_RETENTION_DAYS - 1 - i) * DAY_MS)),
+  );
 }
 
 /**
  * Consolida os contadores do Valkey em `api.usage_daily`. Idempotente: o Valkey guarda o total
  * acumulado do dia, e o upsert mantém o maior valor (um Valkey reiniciado sem AOF não apaga uso já
- * consolidado). Tenants inexistentes (ex.: removidos) são ignorados.
+ * consolidado). Antes, cada tenant × dia é conciliado com o consolidado (`UsageBackend.reconcile`): se o
+ * Valkey perdeu contagens, o uso registrado depois é somado ao consolidado em vez de ficar congelado
+ * pelo `greatest()`. Tenants inexistentes (ex.: removidos) são ignorados.
  */
 export async function persistUsage(
   db: Database,
@@ -34,8 +42,18 @@ export async function persistUsage(
     const known = new Set(
       (await db.select({ id: tenant.id }).from(tenant).where(inArray(tenant.id, ids))).map((r) => r.id),
     );
+    if (!known.size) continue;
+    const stored = new Map<string, RouteCounts>();
+    for (const r of await db
+      .select({ tenantId: usageDaily.tenantId, route: usageDaily.route, requests: usageDaily.requests })
+      .from(usageDaily)
+      .where(and(eq(usageDaily.day, day), inArray(usageDaily.tenantId, [...known])))) {
+      const counts = stored.get(r.tenantId) ?? {};
+      counts[r.route] = Number(r.requests);
+      stored.set(r.tenantId, counts);
+    }
     for (const tenantId of known) {
-      const counts = await backend.get(day, tenantId);
+      const counts = await backend.reconcile(day, tenantId, stored.get(tenantId) ?? {});
       const values = Object.entries(counts)
         .filter(([, n]) => n > 0)
         .map(([route, requests]) => ({ tenantId, day, route, requests }));
@@ -58,7 +76,7 @@ export async function persistUsage(
 
 /**
  * Uso no intervalo [from, to] (dias UTC, inclusivos): o consolidado no Postgres combinado com os
- * contadores vivos do Valkey para ontem/hoje (vale o maior valor por tenant × dia × rota).
+ * contadores vivos do Valkey para os dias retidos (vale o maior valor por tenant × dia × rota).
  */
 export async function queryUsage(
   db: Database,

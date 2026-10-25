@@ -17,6 +17,7 @@ describe('UsageCounter', () => {
       },
       tenants: backend.tenants.bind(backend),
       get: backend.get.bind(backend),
+      reconcile: backend.reconcile.bind(backend),
       lock: backend.lock.bind(backend),
     };
     const now = new Date('2026-10-21T23:59:59Z');
@@ -42,6 +43,7 @@ describe('UsageCounter', () => {
       },
       tenants: backend.tenants.bind(backend),
       get: backend.get.bind(backend),
+      reconcile: backend.reconcile.bind(backend),
       lock: backend.lock.bind(backend),
     };
     const counter = new UsageCounter(flaky);
@@ -102,6 +104,12 @@ describe('consulta de uso', () => {
       },
       { day: '2026-10-21', total: 2, routes: [{ route: 'a', requests: 2 }] },
     ]);
-    expect(liveDays(new Date('2026-10-21T00:30:00Z'))).toEqual(['2026-10-20', '2026-10-21']);
+    // os 4 dias retidos no Valkey (TTL), não só ontem e hoje (Codex C16)
+    expect(liveDays(new Date('2026-10-21T00:30:00Z'))).toEqual([
+      '2026-10-18',
+      '2026-10-19',
+      '2026-10-20',
+      '2026-10-21',
+    ]);
   });
 });

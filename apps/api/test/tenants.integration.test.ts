@@ -336,6 +336,36 @@ describe('autoatendimento /v1/account', () => {
     expect((await tenantReq(key, 'GET', '/v1/account/usage?from=2026-13-01')).statusCode).toBe(400);
   });
 
+  it('após Valkey zerado, o uso novo soma ao consolidado; dias retidos além de ontem são consolidados (C16/C17)', async () => {
+    const countries = async (day = utcDay()) =>
+      (await db.select().from(usageDaily).where(eq(usageDaily.tenantId, tenantId))).find(
+        (r) => r.day === day && r.route === 'GET /v1/countries',
+      )?.requests ?? 0;
+    await adminReq('POST', '/internal/admin/usage/flush');
+    const before = await countries();
+    expect(before).toBeGreaterThan(0);
+    // reinício do Valkey sem AOF: o hash do dia some e o contador recomeça do zero
+    await redis.del(`${keyPrefix}usage:${utcDay()}:${tenantId}`);
+    await tenantReq(key, 'GET', '/v1/countries');
+    await tenantReq(key, 'GET', '/v1/countries');
+    await waitFlush();
+    await adminReq('POST', '/internal/admin/usage/flush');
+    // greatest(consolidado, 2) congelaria em `before`; a conciliação soma
+    expect(await countries()).toBe(before + 2);
+    await adminReq('POST', '/internal/admin/usage/flush');
+    expect(await countries()).toBe(before + 2);
+    // hash sem a marca mas sem perda (ex.: dia do deploy desta conciliação): só marca, não soma de novo
+    await redis.hdel(`${keyPrefix}usage:${utcDay()}:${tenantId}`, '#conciliado');
+    await adminReq('POST', '/internal/admin/usage/flush');
+    expect(await countries()).toBe(before + 2);
+
+    // Postgres fora por mais de um dia: o dia de 3 dias atrás ainda está no Valkey e é consolidado
+    const old = utcDay(new Date(Date.now() - 3 * 86_400_000));
+    await usage.incr([{ day: old, tenantId, route: 'GET /v1/countries', n: 5 }]);
+    await adminReq('POST', '/internal/admin/usage/flush');
+    expect(await countries(old)).toBe(5);
+  });
+
   it('a consolidação ignora tenants removidos', async () => {
     const [t] = await db
       .insert(tenant)
