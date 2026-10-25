@@ -743,11 +743,20 @@ describe('verificação das evidências', () => {
       fetcher,
       NOW,
     );
+    // trecho curto não prova o jogo: sem a proximidade dos times, fica não conferido
     expect(out.candidates[0]!.evidence.map((e) => [e.mentionsBroadcaster, e.excerptFound])).toEqual([
       [true, true],
       [true, false],
-      [true, true],
+      [true, false],
     ]);
+    const near = await verifyCandidates(
+      [{ broadcaster: 'Globo', evidence: [{ url: 'https://ge.globo.com/grade', excerpt: 'Globo' }] }],
+      br,
+      fetcher,
+      NOW,
+      { teams: [teamNames('Time Um'), teamNames('Time Dois')] },
+    );
+    expect(near.candidates[0]!.evidence[0]!.excerptFound).toBe(true);
   });
 
   it('trecho parafraseado vale quando a página traz os dois times perto da emissora', async () => {

@@ -48,10 +48,14 @@ export function pageMentions(text: string, names: string[]): boolean {
   return names.some((n) => page.includes(n));
 }
 
-/** O trecho salvo ainda está na página? (compara os primeiros 60 caracteres normalizados) */
+/**
+ * O trecho salvo ainda está na página? (compara os primeiros 60 caracteres normalizados). Trecho com
+ * menos de 12 caracteres não prova o jogo ("Globo" está em qualquer página da emissora): fica não
+ * conferido, salvo se os dois times aparecem perto da emissora (`verifyCandidates`).
+ */
 export function excerptStillPresent(text: string, excerpt: string): boolean {
   const ex = normalizeName(excerpt.replace(/…$/, '')).slice(0, 60);
-  return ex.length < 12 || normalizeName(text).includes(ex);
+  return ex.length >= 12 && normalizeName(text).includes(ex);
 }
 
 async function pool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>): Promise<R[]> {
