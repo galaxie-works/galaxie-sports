@@ -6,23 +6,13 @@ import { aflPercentage } from '@/lib/afl';
 import { hockeySplit } from '@/lib/hockey-standings';
 import { getT } from '@/lib/i18n/server';
 import { rugbyBonusPoints } from '@/lib/rugby-standings';
-import { winPct } from '@/lib/standings';
+import { winPct, zoneClass, zoneLabel } from '@/lib/standings';
 import { cn } from '@/lib/utils';
 
 import { Crest } from './crest';
 import { FormChips, formFromString } from './form-chips';
 
 type Row = Standings['groups'][number]['rows'][number];
-
-/** Cor da faixa de classificação a partir da descrição do fornecedor (vaga, rebaixamento…). */
-function zoneClass(description: string | null | undefined) {
-  const d = (description ?? '').toLowerCase();
-  if (!d) return 'bg-transparent';
-  if (d.includes('relegation') || d.includes('rebaix')) return 'bg-destructive';
-  if (d.includes('libertadores') || d.includes('champions') || d.includes('promotion')) return 'bg-primary';
-  if (d.includes('sudamericana') || d.includes('sul-americana') || d.includes('europa')) return 'bg-info';
-  return 'bg-muted-foreground';
-}
 
 /** Esportes em que a tabela conta sets (pró/contra/saldo) e não há empate. */
 const SET_SPORTS = new Set(['volleyball']);
@@ -152,7 +142,7 @@ export async function StandingsTable({
               <TableCell className="relative text-right tabular-nums">
                 <span
                   className={cn('absolute inset-y-1 left-0 w-0.5 rounded-full', zoneClass(r.description))}
-                  title={r.description ?? undefined}
+                  title={r.description ? zoneLabel(r.description, standings.zones) : undefined}
                 />
                 {r.rank}
               </TableCell>
@@ -214,7 +204,7 @@ export async function StandingsTable({
           {zones.map((z) => (
             <li key={z} className="flex items-center gap-1.5">
               <span className={cn('size-2 rounded-full', zoneClass(z))} />
-              {z}
+              {zoneLabel(z, standings.zones)}
             </li>
           ))}
         </ul>
