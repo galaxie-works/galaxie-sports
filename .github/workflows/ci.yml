@@ -6,8 +6,10 @@ on:
   pull_request:
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Na main cada commit tem o próprio grupo e nada é cancelado: o deploy.sh só publica um SHA com o CI verde, e um
+  # merge logo depois do outro não pode deixar o primeiro sem teste. Nos PRs, o push novo cancela o anterior.
+  group: ci-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   checks:

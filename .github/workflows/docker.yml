@@ -33,8 +33,10 @@ on:
   workflow_dispatch:
 
 concurrency:
+  # Na main, a execução em andamento nunca é cancelada (o deploy.sh exige o CI verde do SHA); o grupo continua por
+  # ref para a tag staging sair em ordem, então só uma execução ainda na fila pode ser trocada pela do commit seguinte.
   group: docker-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -152,7 +154,14 @@ jobs:
         run: jq empty infra/observability/grafana/dashboards/*.json
 
       - name: shellcheck
-        run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh
+        run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/vps-telemetry/deploy.sh
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Notas de versão (numeração, agrupamento e CLI com gh falso)
+        run: node --test infra/vps-telemetry/release-notes.test.mjs
 
   backup-restore:
     name: backup e restore ponta a ponta (Postgres ${{ matrix.postgres }})
