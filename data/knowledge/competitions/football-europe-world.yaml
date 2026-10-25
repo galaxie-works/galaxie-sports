@@ -1,5 +1,7 @@
 # Semântica de competições europeias e FIFA (schema v1 de competições, ver data/knowledge/SCHEMA.md)
 # Complementa competitions/football.yaml (mantido por outro fluxo). api_sports_league_id só quando citado em fonte; senão null.
+# Revisão (out/2026, docs/06 §2): rótulos, apelidos e troféu conferidos nas fontes de cada item; o apelido sem fonte
+# foi trocado ou retirado. A API só serve o perfil no piso editorial.
 # trophy_nickname é string única (pt-BR); o equivalente em espanhol ("La Orejona") está em nicknames.es.
 schema_version: 1
 competitions:
@@ -19,6 +21,7 @@ competitions:
   - https://en.wikipedia.org/wiki/FIFA_World_Cup
   - https://pt.wikipedia.org/wiki/Copa_do_Mundo_FIFA
   - https://es.wikipedia.org/wiki/Copa_Mundial_de_F%C3%BAtbol
+  review_status: approved
 - slug: fifa-club-world-cup
   api_sports_league_id: null
   labels: {pt-BR: Mundial de Clubes FIFA, es: Mundial de Clubes FIFA, en: FIFA Club World Cup}
@@ -35,6 +38,7 @@ competitions:
   - https://en.wikipedia.org/wiki/FIFA_Club_World_Cup
   - https://pt.wikipedia.org/wiki/Copa_do_Mundo_de_Clubes_da_FIFA
   - https://es.wikipedia.org/wiki/Copa_Mundial_de_Clubes_de_la_FIFA
+  review_status: approved
 - slug: uefa-champions-league
   api_sports_league_id: null
   labels: {pt-BR: Liga dos Campeões, es: Champions League, en: UEFA Champions League}
@@ -55,6 +59,8 @@ competitions:
   - https://es.wikipedia.org/wiki/Liga_de_Campeones_de_la_UEFA
   - https://www.dci.com.br/esporte/futebol/liga-dos-campeoes/taca-da-champions-league-conheca-a-historia-da-orelhuda/
   - https://primicias.ec/noticias/jugada/historia-trofeo-champions-league
+  - https://www.panamaamerica.com.pa/deportes/chelsea-celebra-su-segunda-liga-de-campeones-la-orejona-es-blue-1188047
+  review_status: approved
 - slug: uefa-europa-league
   api_sports_league_id: null
   labels: {pt-BR: Liga Europa, es: Europa League, en: UEFA Europa League}
@@ -70,6 +76,7 @@ competitions:
   - https://en.wikipedia.org/wiki/UEFA_Europa_League
   - https://pt.wikipedia.org/wiki/Liga_Europa_da_UEFA
   - https://es.wikipedia.org/wiki/Liga_Europa_de_la_UEFA
+  review_status: approved
 - slug: uefa-conference-league
   api_sports_league_id: null
   labels: {pt-BR: Conference League, es: Conference League, en: UEFA Conference League}
@@ -85,13 +92,14 @@ competitions:
   - https://en.wikipedia.org/wiki/UEFA_Conference_League
   - https://pt.wikipedia.org/wiki/Liga_Confer%C3%AAncia_da_UEFA
   - https://es.wikipedia.org/wiki/Liga_Conferencia_de_la_UEFA
+  review_status: approved
 - slug: uefa-super-cup
   api_sports_league_id: null
   labels: {pt-BR: Supercopa da UEFA, es: Supercopa de Europa, en: UEFA Super Cup}
   nicknames:
     pt-BR:
     - Supercopa da UEFA
-    - Supercopa Europeia
+    - Supercopa da Europa
     es:
     - Supercopa de Europa
   trophy_nickname: null
@@ -99,6 +107,9 @@ competitions:
   - https://en.wikipedia.org/wiki/UEFA_Super_Cup
   - https://pt.wikipedia.org/wiki/Supercopa_da_UEFA
   - https://es.wikipedia.org/wiki/Supercopa_de_la_UEFA
+  - https://mais.opovo.com.br/jornal/esportes/2026/08/13/psg-bate-aston-villa-e-conquista-o-bicampeonato-da-supercopa-da-europa.html
+  - https://www.teletica.com/internacional/el-psg-revalida-la-supercopa-de-europa-tras-vencer-2-1-al-aston-villa_415342
+  review_status: approved
 - slug: uefa-euro
   api_sports_league_id: null
   labels: {pt-BR: Eurocopa, es: Eurocopa, en: UEFA European Championship}
@@ -114,6 +125,7 @@ competitions:
   - https://en.wikipedia.org/wiki/UEFA_European_Championship
   - https://pt.wikipedia.org/wiki/Campeonato_Europeu_de_Futebol
   - https://es.wikipedia.org/wiki/Eurocopa
+  review_status: approved
 - slug: uefa-nations-league
   api_sports_league_id: null
   labels: {pt-BR: Liga das Nações, es: Liga de Naciones, en: UEFA Nations League}
@@ -129,6 +141,7 @@ competitions:
   - https://en.wikipedia.org/wiki/UEFA_Nations_League
   - https://pt.wikipedia.org/wiki/Liga_das_Na%C3%A7%C3%B5es_da_UEFA
   - https://es.wikipedia.org/wiki/Liga_de_Naciones_de_la_UEFA
+  review_status: approved
 - slug: premier-league
   api_sports_league_id: 39
   labels: {pt-BR: Premier League, es: Premier League, en: Premier League}
@@ -145,6 +158,8 @@ competitions:
   - https://pt.wikipedia.org/wiki/Premier_League
   - https://es.wikipedia.org/wiki/Premier_League
   - https://www.api-football.com/news/post/how-to-get-all-teams-and-their-ids
+  - https://okdiario.com/noticias/premier-league/5/
+  review_status: approved
 - slug: laliga
   api_sports_league_id: 140
   labels: {pt-BR: LaLiga, es: LaLiga, en: La Liga}
@@ -161,8 +176,9 @@ competitions:
   - https://pt.wikipedia.org/wiki/La_Liga
   - https://es.wikipedia.org/wiki/Primera_Divisi%C3%B3n_de_Espa%C3%B1a
   - https://www.api-football.com/news/post/how-to-get-started-with-api-football-the-complete-beginners-guide
+  review_status: approved
 - slug: serie-a
-  api_sports_league_id: null
+  api_sports_league_id: 135
   labels: {pt-BR: Campeonato Italiano, es: Serie A, en: Serie A}
   nicknames:
     pt-BR:
@@ -178,6 +194,9 @@ competitions:
   - https://en.wikipedia.org/wiki/Serie_A
   - https://pt.wikipedia.org/wiki/Campeonato_Italiano_de_Futebol_%E2%80%93_S%C3%A9rie_A
   - https://es.wikipedia.org/wiki/Serie_A_(Italia)
+  - https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data
+  - https://blogs.correiobraziliense.com.br/dribledecorpo/guia-campeonato-italiano-2019-2020-10-motivos-para-voce-nao-perder-a-serie-a/
+  review_status: approved
 - slug: bundesliga
   api_sports_league_id: null
   labels: {pt-BR: Bundesliga, es: Bundesliga, en: Bundesliga}
@@ -193,6 +212,7 @@ competitions:
   - https://en.wikipedia.org/wiki/Bundesliga
   - https://pt.wikipedia.org/wiki/Bundesliga
   - https://es.wikipedia.org/wiki/Bundesliga_(Alemania)
+  review_status: approved
 - slug: ligue-1
   api_sports_league_id: null
   labels: {pt-BR: Ligue 1, es: Ligue 1, en: Ligue 1}
@@ -208,9 +228,10 @@ competitions:
   - https://en.wikipedia.org/wiki/Ligue_1
   - https://pt.wikipedia.org/wiki/Ligue_1
   - https://es.wikipedia.org/wiki/Ligue_1
+  review_status: approved
 - slug: primeira-liga
   api_sports_league_id: null
-  labels: {pt-BR: Campeonato Português, es: Primera División de Portugal, en: Primeira Liga}
+  labels: {pt-BR: Campeonato Português, es: Primeira Liga, en: Primeira Liga}
   nicknames:
     pt-BR:
     - Liga Portugal
@@ -218,12 +239,15 @@ competitions:
     - Primeira Liga
     es:
     - Liga portuguesa
-    - Primera División de Portugal
+    - Liga Portugal
   trophy_nickname: null
   sources:
   - https://en.wikipedia.org/wiki/Primeira_Liga
   - https://pt.wikipedia.org/wiki/Primeira_Liga
   - https://es.wikipedia.org/wiki/Primeira_Liga
+  - https://ligaportugal.pt/en/liga/classificacao/20242025/ligaportugalbetclic
+  - https://canchallena.lanacion.com.ar/futbol/primeira-liga/historial/
+  review_status: approved
 - slug: eredivisie
   api_sports_league_id: null
   labels: {pt-BR: Eredivisie, es: Eredivisie, en: Eredivisie}
@@ -240,6 +264,8 @@ competitions:
   - https://en.wikipedia.org/wiki/Eredivisie
   - https://pt.wikipedia.org/wiki/Eredivisie
   - https://es.wikipedia.org/wiki/Eredivisie
+  - https://trivela.com.br/holanda/guia-do-campeonato-holandes-2/
+  review_status: approved
 - slug: fa-cup
   api_sports_league_id: null
   labels: {pt-BR: Copa da Inglaterra, es: FA Cup, en: FA Cup}
@@ -255,6 +281,7 @@ competitions:
   - https://en.wikipedia.org/wiki/FA_Cup
   - https://pt.wikipedia.org/wiki/Copa_da_Inglaterra
   - https://es.wikipedia.org/wiki/FA_Cup
+  review_status: approved
 - slug: copa-del-rey
   api_sports_league_id: null
   labels: {pt-BR: Copa do Rei, es: Copa del Rey, en: Copa del Rey}
@@ -270,6 +297,8 @@ competitions:
   - https://en.wikipedia.org/wiki/Copa_del_Rey
   - https://pt.wikipedia.org/wiki/Copa_del_Rey
   - https://es.wikipedia.org/wiki/Copa_del_Rey
+  - https://www.laliga.com/noticias/palmares-copa-del-rey
+  review_status: approved
 - slug: coppa-italia
   api_sports_league_id: null
   labels: {pt-BR: Copa da Itália, es: Copa Italia, en: Coppa Italia}
@@ -284,6 +313,7 @@ competitions:
   - https://en.wikipedia.org/wiki/Coppa_Italia
   - https://pt.wikipedia.org/wiki/Coppa_Italia
   - https://es.wikipedia.org/wiki/Copa_Italia
+  review_status: approved
 - slug: dfb-pokal
   api_sports_league_id: null
   labels: {pt-BR: Copa da Alemanha, es: Copa de Alemania, en: DFB-Pokal}
@@ -299,6 +329,7 @@ competitions:
   - https://en.wikipedia.org/wiki/DFB-Pokal
   - https://pt.wikipedia.org/wiki/Copa_da_Alemanha
   - https://es.wikipedia.org/wiki/Copa_de_Alemania
+  review_status: approved
 - slug: coupe-de-france
   api_sports_league_id: null
   labels: {pt-BR: Copa da França, es: Copa de Francia, en: Coupe de France}
@@ -312,6 +343,7 @@ competitions:
   - https://en.wikipedia.org/wiki/Coupe_de_France
   - https://pt.wikipedia.org/wiki/Copa_da_Fran%C3%A7a_de_Futebol
   - https://es.wikipedia.org/wiki/Copa_de_Francia
+  review_status: approved
 - slug: taca-de-portugal
   api_sports_league_id: null
   labels: {pt-BR: Taça de Portugal, es: Copa de Portugal, en: Taça de Portugal}
@@ -325,3 +357,4 @@ competitions:
   - https://en.wikipedia.org/wiki/Ta%C3%A7a_de_Portugal
   - https://pt.wikipedia.org/wiki/Ta%C3%A7a_de_Portugal
   - https://es.wikipedia.org/wiki/Copa_de_Portugal
+  review_status: approved
