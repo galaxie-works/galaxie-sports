@@ -5,7 +5,8 @@
  *     pesquisada) + opções salvas com as evidências rebuscadas → validador → gravação versionada.
  *   allocate (T-48h) — agrupa as execuções por (competição, rodada) e faz UMA chamada para todos os
  *     jogos e mercados do grupo, só nos mercados cujos direitos dividem os jogos, com relevância ≥
- *     WTW_MIN_RELEVANCE e dentro do teto diário do mercado; os demais saem só dos direitos.
+ *     WTW_MIN_RELEVANCE e dentro do teto diário do mercado; os demais saem só dos direitos. Só com
+ *     WTW_ROUND_ALLOCATION=on: por padrão o canal de cada jogo é do job `wtw-channel` (channel/).
  *   full (manual) — reexecução editorial de um jogo: alocação restrita aos detentores (ou aberta,
  *     sem tabela de direitos).
  *
@@ -168,7 +169,9 @@ export class WtwRunner {
       // `full` só na reexecução manual; execuções `full` antigas do agendador (T-7d/T-24h do
       // desenho anterior) saem só dos direitos, sem LLM.
       const manual = run.mode === 'full' && run.window === 'manual';
-      if (run.mode === 'allocate' || manual) {
+      // sem a alocação por rodada (padrão), T-48h sai só dos direitos: o canal é do job wtw-channel
+      const allocate = run.mode === 'allocate' && (this.policy.roundAllocation ?? true);
+      if (allocate || manual) {
         const key = manual ? `manual:${run.id}` : group;
         groups.set(key, [...(groups.get(key) ?? []), ctx]);
       } else ready.push(ctx);

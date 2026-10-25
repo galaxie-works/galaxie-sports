@@ -351,11 +351,14 @@ describe('janelas, relevância e grupos', () => {
   });
 
   it('política por ambiente: limiar de relevância e teto por mercado', () => {
-    expect(wtwPolicyFromEnv({})).toEqual({ minRelevance: 60, dailyUsdPerMarket: 1 });
+    // a alocação por rodada do wtw-run fica desligada: o canal do jogo é do job wtw-channel
+    expect(wtwPolicyFromEnv({})).toEqual({ minRelevance: 60, dailyUsdPerMarket: 1, roundAllocation: false });
     expect(wtwPolicyFromEnv({ WTW_MIN_RELEVANCE: '70', WTW_DAILY_USD_PER_MARKET: '0.5' })).toEqual({
       minRelevance: 70,
       dailyUsdPerMarket: 0.5,
+      roundAllocation: false,
     });
+    expect(wtwPolicyFromEnv({ WTW_ROUND_ALLOCATION: 'on' }).roundAllocation).toBe(true);
     expect(wtwPolicyFromEnv({ WTW_DAILY_USD_PER_MARKET: 'unlimited' }).dailyUsdPerMarket).toBeNull();
     expect(() => wtwPolicyFromEnv({ WTW_MIN_RELEVANCE: '120' })).toThrow();
   });

@@ -6,6 +6,7 @@
  */
 import type {
   AvailabilityLogo,
+  MatchChannel,
   PlatformAvailability,
   WhereToWatch,
   WhereToWatchOption,
@@ -41,6 +42,8 @@ export interface WatchGroups {
   yourOperator: PlatformAvailability | null;
   /** O canal do jogo ainda não foi confirmado: os grupos são os dos detentores dos direitos no país. */
   toConfirm: boolean;
+  /** Canal do jogo por momento (antes, ao vivo, encerrado); null na cópia antiga sem o campo. */
+  matchChannel: MatchChannel | null;
 }
 
 const fromOptions = (options: WhereToWatchOption[], id: string) =>
@@ -143,6 +146,7 @@ export function groupWhereToWatch(wtw: WhereToWatch): WatchGroups {
         ),
     yourOperator: availability?.your_operator ?? null,
     toConfirm,
+    matchChannel: availability?.match_channel ?? null,
   };
 }
 

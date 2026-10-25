@@ -281,6 +281,13 @@
       "when": 1792895887245,
       "tag": "0039_related_canais_cota",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792900000000,
+      "tag": "0040_canal_do_jogo",
+      "breakpoints": true
     }
   ]
 }

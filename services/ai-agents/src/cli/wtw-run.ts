@@ -28,7 +28,7 @@ import { estimateCallUsd } from '../wtw/spend.js';
 
 const usd = (n: number) => `US$ ${n.toFixed(2)}`;
 const DECISION: Record<string, string> = {
-  llm: 'LLM (alocação)',
+  llm: 'LLM (alocação ou, com WTW_ROUND_ALLOCATION=off, canal do jogo no wtw-channel)',
   deterministic: 'determinístico',
   to_confirm: 'a confirmar (abaixo do limiar)',
   no_rights: 'sem direitos',

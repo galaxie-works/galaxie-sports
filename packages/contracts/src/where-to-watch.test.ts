@@ -40,7 +40,39 @@ const availability = {
   ],
   your_operator: null,
   channel_status: 'confirmed',
+  match_channel: {
+    phase: 'post',
+    state: 'confirmed',
+    headline: 'Transmitido por Canal Exemplo',
+    hint: null,
+    channels: [
+      {
+        id: 'canal_exemplo',
+        name: 'Canal Exemplo',
+        logo: null,
+        logo_dark: null,
+        channel: null,
+        medium: 'pay_tv',
+        confirmed_at: '2026-10-22T12:00:00Z',
+        post_match: true,
+        source: {
+          publisher: 'emissora.exemplo.test',
+          url: 'https://emissora.exemplo.test/escala',
+          excerpt: 'Time A x Time B no Canal Exemplo',
+          kind: 'official',
+        },
+      },
+    ],
+  },
 };
+
+const noChannel = {
+  phase: 'post',
+  state: 'not_confirmed',
+  headline: 'Não confirmamos o canal deste jogo',
+  hint: null,
+  channels: [],
+} as const;
 
 const base = {
   event_id: '0199a5c0-0000-7000-8000-000000000001',
@@ -75,6 +107,7 @@ describe('contrato do onde assistir com a grade (availability)', () => {
         platforms: [],
         your_operator: null,
         channel_status: 'confirmed',
+        match_channel: noChannel,
       }),
     ).toEqual({
       free_tv: [],
@@ -82,7 +115,25 @@ describe('contrato do onde assistir com a grade (availability)', () => {
       platforms: [],
       your_operator: null,
       channel_status: 'confirmed',
+      match_channel: noChannel,
     });
+  });
+
+  it('canal do jogo: momento, estado e fonte do vocabulário', () => {
+    const mc = availability.match_channel;
+    expect(WhereToWatchAvailability.parse(availability).match_channel.channels[0]!.source?.kind).toBe(
+      'official',
+    );
+    const bad = (patch: object) =>
+      WhereToWatchAvailability.safeParse({ ...availability, match_channel: { ...mc, ...patch } }).success;
+    expect(bad({ phase: 'halftime' })).toBe(false);
+    expect(bad({ state: 'probable' })).toBe(false);
+    expect(
+      bad({ channels: [{ ...mc.channels[0]!, source: { ...mc.channels[0]!.source, kind: 'blog' } }] }),
+    ).toBe(false);
+    expect(WhereToWatchAvailability.safeParse({ ...availability, match_channel: undefined }).success).toBe(
+      false,
+    );
   });
 
   it('canal a confirmar: as listas são dos detentores dos direitos', () => {

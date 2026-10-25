@@ -188,6 +188,19 @@ export interface GsPlatformAvailability {
   addons?: GsPlatformAddon[] | undefined;
 }
 
+/** Canal deste jogo por momento (antes, ao vivo, encerrado), com a melhor fonte. */
+export interface GsMatchChannel {
+  phase: 'pre' | 'live' | 'post';
+  state: 'confirmed' | 'to_confirm' | 'not_confirmed';
+  headline: string;
+  hint: string | null;
+  channels: {
+    id: string;
+    name: string;
+    source: { publisher: string; url: string; kind: string } | null;
+  }[];
+}
+
 /** Onde assistir agrupado: TV aberta, canais pagos e as plataformas ("disponível também em"). */
 export interface GsAvailability {
   free_tv: GsAvailabilityLogo[];
@@ -196,6 +209,8 @@ export interface GsAvailability {
   your_operator: GsPlatformAvailability | null;
   /** `to_confirm`: o canal do jogo não foi confirmado; os grupos são os dos detentores dos direitos. */
   channel_status?: 'confirmed' | 'to_confirm';
+  /** Ausente nas respostas antigas da API. */
+  match_channel?: GsMatchChannel | null;
 }
 
 export interface GsWhereToWatch {
@@ -474,6 +489,15 @@ export interface WidgetTexts {
     notInYourOperator: string;
     toConfirmTitle: string;
     toConfirmHint: string;
+    /** Sem a frase "sai mais perto da partida" (ao vivo). */
+    toConfirmLiveHint: string;
+    notConfirmedTitle: string;
+    /** "Passa em {channels}", "Ao vivo em {channels}", "Transmitido por {channels}". */
+    confirmedPre: string;
+    confirmedLive: string;
+    confirmedPost: string;
+    /** "Fonte: {publisher}". */
+    confirmedSource: string;
     kind: Record<GsPlatformKind, string>;
   };
 }
@@ -536,6 +560,12 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       toConfirmTitle: 'Canal deste jogo a confirmar',
       toConfirmHint:
         'Quem tem os direitos no país e onde esses canais estão. O canal do jogo sai mais perto da partida.',
+      toConfirmLiveHint: 'Quem tem os direitos no país e onde esses canais estão.',
+      notConfirmedTitle: 'Não confirmamos o canal deste jogo',
+      confirmedPre: 'Passa em {channels}',
+      confirmedLive: 'Ao vivo em {channels}',
+      confirmedPost: 'Transmitido por {channels}',
+      confirmedSource: 'Fonte: {publisher}',
       kind: {
         pay_tv_operator: 'Operadora de TV paga',
         vmvpd: 'TV paga pela internet',
@@ -601,6 +631,12 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       toConfirmTitle: 'Canal de este partido a confirmar',
       toConfirmHint:
         'Quién tiene los derechos en el país y dónde están esos canales. El canal del partido se conoce más cerca del encuentro.',
+      toConfirmLiveHint: 'Quién tiene los derechos en el país y dónde están esos canales.',
+      notConfirmedTitle: 'No confirmamos el canal de este partido',
+      confirmedPre: 'Se ve por {channels}',
+      confirmedLive: 'En vivo por {channels}',
+      confirmedPost: 'Transmitido por {channels}',
+      confirmedSource: 'Fuente: {publisher}',
       kind: {
         pay_tv_operator: 'Operadora de TV paga',
         vmvpd: 'TV paga por internet',
@@ -666,6 +702,12 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       toConfirmTitle: 'Channel for this match to be confirmed',
       toConfirmHint:
         'Rights holders in this country and where those channels are. The match channel is announced closer to kick-off.',
+      toConfirmLiveHint: 'Rights holders in this country and where those channels are.',
+      notConfirmedTitle: "We couldn't confirm the channel for this match",
+      confirmedPre: 'On {channels}',
+      confirmedLive: 'Live on {channels}',
+      confirmedPost: 'Broadcast on {channels}',
+      confirmedSource: 'Source: {publisher}',
       kind: {
         pay_tv_operator: 'Pay TV operator',
         vmvpd: 'Live TV streaming',

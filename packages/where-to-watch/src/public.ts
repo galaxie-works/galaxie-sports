@@ -2,13 +2,22 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { broadcastOption, competition, event, season, type Database } from '@galaxie/db';
 import type { WtwConfig } from './config/directory.js';
-import type { AccessModel, BroadcastMedium } from '@galaxie/db';
+import type { AccessModel, BroadcastMedium, Evidence, SourceKind } from '@galaxie/db';
 import { listBroadcasters } from './library.js';
+import {
+  currentMatchChannels,
+  MATCH_CHANNEL_PRODUCER,
+  matchChannelState,
+  matchPhaseOf,
+  type MatchChannelRow,
+  type MatchChannelState,
+  type MatchPhase,
+} from './match-channel.js';
 import { isHttpUrl } from './normalize.js';
 import { channelKey } from './official-logos.js';
 import { currentResearchedRights, ResearchedRightsIndex } from './rights-research.js';
 import { effectiveRights } from './rights.js';
-import type { BroadcastOptionRow } from './store.js';
+import { isEditorial, type BroadcastOptionRow } from './store.js';
 
 /** Mensagem quando não há informação confiável — o evento continua existindo. */
 export const UNKNOWN_MESSAGES: Record<string, string> = {
@@ -61,9 +70,36 @@ export interface PublicOption {
   logo: PublicLogo | null;
 }
 
+/** Fonte do canal confirmado: oficial (emissora/organizador), imprensa, editorial ou a tabela de direitos. */
+export type ConfirmedChannelSourceKind = 'official' | 'press' | 'editorial' | 'rights';
+
+export interface ConfirmedChannelSource {
+  publisher: string;
+  url: string;
+  excerpt: string;
+  kind: ConfirmedChannelSourceKind;
+}
+
+/** Canal confirmado do jogo (opção publicada), com a melhor fonte e quando foi confirmado. */
+export interface PublicConfirmedChannel {
+  option: PublicOption;
+  confirmedAt: Date;
+  /** Confirmado também depois do jogo (quem de fato transmitiu). */
+  postMatch: boolean;
+  source: ConfirmedChannelSource | null;
+}
+
+/** Canal do jogo por momento: antes, ao vivo ou encerrado (docs/05 §4, `availability.match_channel`). */
+export interface PublicMatchChannel {
+  phase: MatchPhase;
+  state: MatchChannelState;
+  channels: PublicConfirmedChannel[];
+}
+
 export interface PublicWhereToWatch {
   eventId: string;
   country: string;
+  matchChannel: PublicMatchChannel;
   status: 'resolved' | 'unknown';
   options: PublicOption[];
   /** Detentores de direitos sem o jogo confirmado ("canal a confirmar", status `probable`). */
@@ -133,7 +169,10 @@ export async function getPublicWhereToWatch(
   /** Com a configuração, o país sem nenhuma opção gravada mostra os detentores dos direitos. */
   config?: WtwConfig | null,
 ): Promise<PublicWhereToWatch | null> {
-  const [ev] = await db.select({ id: event.id }).from(event).where(eq(event.id, params.eventId));
+  const [ev] = await db
+    .select({ id: event.id, status: event.status })
+    .from(event)
+    .where(eq(event.id, params.eventId));
   if (!ev) return null;
   const country = params.country.toUpperCase();
   const rows = await db
@@ -155,7 +194,11 @@ export async function getPublicWhereToWatch(
     Number(b.confidence) - Number(a.confidence) ||
     a.providerName.localeCompare(b.providerName) ||
     (a.region ?? '').localeCompare(b.region ?? '');
-  const confirmed = rows.filter((r) => r.status === 'confirmed' && inRegion(r)).sort(order);
+  const matchChannels = (await currentMatchChannels(db, params.eventId, country)).filter(
+    (m) => m.status === 'confirmed',
+  );
+  const promoted = await promoteMatchChannels(db, rows, matchChannels, config?.has(country) ? config : null);
+  const confirmed = [...rows.filter((r) => r.status === 'confirmed' && inRegion(r)), ...promoted].sort(order);
   // "a confirmar" só aparece enquanto nenhuma opção estiver confirmada
   const probable = confirmed.length
     ? []
@@ -197,15 +240,157 @@ export async function getPublicWhereToWatch(
   };
   const options = confirmed.map(toPublic);
   const toConfirm = probable.map(toPublic);
+  const phase = matchPhaseOf(ev.status);
+  const channels = confirmedChannels(options, matchChannels);
 
-  const stamps = rows.flatMap((r) => [r.createdAt.getTime(), r.lastVerifiedAt.getTime()]);
+  const stamps = [
+    ...rows.flatMap((r) => [r.createdAt.getTime(), r.lastVerifiedAt.getTime()]),
+    ...matchChannels.map((m) => m.updatedAt.getTime()),
+  ];
   return {
     eventId: params.eventId,
     country,
+    matchChannel: { phase, state: matchChannelState(phase, channels.length), channels },
     status: options.length ? 'resolved' : 'unknown',
     options,
     toConfirm,
     fromRights: fallback.map((f) => ({ ...f, logo: logoOf(f) })),
     updatedAt: stamps.length ? new Date(Math.max(...stamps)) : null,
+  };
+}
+
+/**
+ * Canais do jogo confirmados pelo job `wtw-channel` (enrich.match_channel) que ainda não estão entre as
+ * opções publicadas viram opções `confirmed` na leitura (a gravação versionada das opções não muda).
+ * A correção editorial vence: emissora retirada/omitida pela editoria não volta por aqui.
+ */
+async function promoteMatchChannels(
+  db: Database,
+  rows: BroadcastOptionRow[],
+  channels: MatchChannelRow[],
+  config: WtwConfig | null,
+): Promise<BroadcastOptionRow[]> {
+  if (!channels.length) return [];
+  const published = new Set(rows.filter((r) => r.status === 'confirmed').map((r) => r.broadcasterId));
+  const removedByEditorial = new Set(
+    rows
+      .filter((r) => isEditorial(r) && (r.status === 'retracted' || r.status === 'omitted'))
+      .map((r) => r.broadcasterId),
+  );
+  const todo = channels.filter(
+    (m) => !published.has(m.broadcasterId) && !removedByEditorial.has(m.broadcasterId),
+  );
+  if (!todo.length) return [];
+  const library = new Map(
+    (await listBroadcasters(db, { ids: todo.map((m) => m.broadcasterId) })).map((b) => [b.id, b]),
+  );
+  return todo.flatMap((m) => {
+    const country = m.countryCode;
+    const entry = config?.directory(country).byIdOrNull(m.broadcasterId) ?? null;
+    const lib = library.get(m.broadcasterId);
+    const market = lib?.markets[country];
+    const base = rows.find((r) => r.broadcasterId === m.broadcasterId && r.status !== 'retracted');
+    const name = entry?.name ?? market?.name ?? base?.providerName ?? lib?.name;
+    const medium =
+      entry?.medium ?? market?.medium ?? base?.medium ?? (lib ? MEDIUM_OF_KIND[lib.kind] : undefined);
+    if (!name || !medium) return [];
+    const evidence: Evidence[] = m.evidence.map((e) => ({
+      url: e.url,
+      excerpt: e.excerpt,
+      publisher: e.publisher,
+      fetchedAt: e.fetchedAt,
+      sourceKind: e.sourceKind,
+      publishedAt: e.publishedAt,
+      stance: 'confirms',
+    }));
+    const row: BroadcastOptionRow = {
+      id: m.id,
+      eventId: m.eventId,
+      countryCode: country,
+      region: null,
+      providerName: name,
+      broadcasterId: m.broadcasterId,
+      channelName: m.channelName,
+      medium,
+      accessModel: entry?.accessModel ?? market?.accessModel ?? base?.accessModel ?? 'unknown',
+      url: base?.url ?? null,
+      language: base?.language ?? null,
+      status: 'confirmed',
+      confidence: m.confidence,
+      evidence,
+      sourceKind: evidence[0]?.sourceKind ?? null,
+      conflict: false,
+      flags: ['match_channel'],
+      firstSeenAt: m.firstConfirmedAt,
+      lastVerifiedAt: m.confirmedAt,
+      producedBy: MATCH_CHANNEL_PRODUCER,
+      runId: null,
+      createdAt: m.createdAt,
+      supersededBy: null,
+      supersededAt: null,
+    };
+    return [row];
+  });
+}
+
+/** Meio a partir do tipo da biblioteca (só quando o dicionário do país não diz). */
+const MEDIUM_OF_KIND: Record<string, BroadcastMedium> = {
+  free_tv: 'free_tv',
+  pay_tv: 'pay_tv',
+  streaming: 'streaming_svod',
+  radio: 'radio',
+};
+
+const SOURCE_KIND_PUBLIC: Record<SourceKind, ConfirmedChannelSourceKind> = {
+  broadcaster: 'official',
+  organizer: 'official',
+  editorial: 'editorial',
+  rights: 'rights',
+  press: 'press',
+  aggregator: 'press',
+  unknown: 'press',
+};
+
+/** Canais confirmados do jogo (uma entrada por emissora), com a melhor fonte de cada um. */
+function confirmedChannels(options: PublicOption[], channels: MatchChannelRow[]): PublicConfirmedChannel[] {
+  const byBroadcaster = new Map(channels.map((m) => [m.broadcasterId, m]));
+  const seen = new Set<string>();
+  const out: PublicConfirmedChannel[] = [];
+  for (const option of options) {
+    const key = option.row.broadcasterId ?? option.row.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const m = option.row.broadcasterId ? byBroadcaster.get(option.row.broadcasterId) : undefined;
+    const source: ConfirmedChannelSource | null = m
+      ? {
+          url: m.sourceUrl,
+          publisher: m.sourcePublisher,
+          excerpt: m.sourceExcerpt,
+          kind: m.sourceKind === 'editorial' ? 'editorial' : m.sourceKind,
+        }
+      : bestEvidence(option.row.evidence);
+    out.push({
+      option,
+      confirmedAt: m?.firstConfirmedAt ?? option.row.firstSeenAt,
+      postMatch: !!m?.postConfirmedAt,
+      source,
+    });
+  }
+  return out;
+}
+
+const KIND_ORDER: ConfirmedChannelSourceKind[] = ['editorial', 'official', 'press', 'rights'];
+
+function bestEvidence(evidence: Evidence[]): ConfirmedChannelSource | null {
+  const top = evidence
+    .filter((e) => e.stance !== 'denies' && isHttpUrl(e.url))
+    .map((e) => ({ e, kind: SOURCE_KIND_PUBLIC[e.sourceKind ?? 'unknown'] }))
+    .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind))[0];
+  if (!top) return null;
+  return {
+    url: top.e.url,
+    publisher: top.e.publisher ?? new URL(top.e.url).hostname,
+    excerpt: top.e.excerpt,
+    kind: top.kind,
   };
 }

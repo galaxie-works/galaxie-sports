@@ -345,6 +345,25 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
       ],
       your_operator: null,
       channel_status: 'confirmed',
+      match_channel: {
+        phase: 'pre',
+        state: 'confirmed',
+        headline: 'Passa em Exemplo Play',
+        hint: null,
+        channels: [
+          {
+            id: 'exemplo_play',
+            name: 'Exemplo Play',
+            logo: null,
+            logo_dark: null,
+            channel: null,
+            medium: 'streaming_svod',
+            confirmed_at: verified,
+            post_match: false,
+            source: null,
+          },
+        ],
+      },
     },
     updated_at: verified,
   };

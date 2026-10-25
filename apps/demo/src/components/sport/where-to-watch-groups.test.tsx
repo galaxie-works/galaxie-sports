@@ -132,13 +132,58 @@ const wtw: WhereToWatch = {
     ],
     your_operator: null,
     channel_status: 'confirmed',
+    match_channel: {
+      phase: 'pre',
+      state: 'confirmed',
+      headline: 'Passa em Canal Aberto Exemplo e Canal Exemplo',
+      hint: null,
+      channels: [
+        {
+          id: 'canal_aberto_exemplo',
+          name: 'Canal Aberto Exemplo',
+          logo: null,
+          logo_dark: null,
+          channel: null,
+          medium: 'free_tv',
+          confirmed_at: '2026-10-22T12:00:00Z',
+          post_match: false,
+          source: {
+            publisher: 'canalaberto.exemplo.test',
+            url: 'https://canalaberto.exemplo.test/escala-rodada-32',
+            excerpt: 'Time A x Time B, sábado, no Canal Aberto Exemplo',
+            kind: 'official',
+          },
+        },
+        {
+          id: 'canal_exemplo',
+          name: 'Canal Exemplo',
+          logo: null,
+          logo_dark: null,
+          channel: null,
+          medium: 'pay_tv',
+          confirmed_at: '2026-10-22T12:00:00Z',
+          post_match: false,
+          source: null,
+        },
+      ],
+    },
   },
   updated_at: null,
 };
 
 const t = getDictionary('pt-BR').event.whereToWatch;
-const render = (data: WhereToWatch, dict = t) =>
-  renderToStaticMarkup(<WhereToWatchGroups groups={groupWhereToWatch(data)} t={dict} />);
+const TO_CONFIRM_PRE: WhereToWatch['availability']['match_channel'] = {
+  phase: 'pre',
+  state: 'to_confirm',
+  headline: 'Canal deste jogo a confirmar',
+  hint: 'O canal do jogo sai mais perto da partida.',
+  channels: [],
+};
+
+const render = (data: WhereToWatch, dict = t, relatedHref?: string) =>
+  renderToStaticMarkup(
+    <WhereToWatchGroups groups={groupWhereToWatch(data)} t={dict} relatedHref={relatedHref ?? null} />,
+  );
 const cards = (html: string) => html.split('data-testid="platform-card"').length - 1;
 
 describe('onde assistir agrupado (página do jogo)', () => {
@@ -201,6 +246,7 @@ describe('onde assistir agrupado (página do jogo)', () => {
         platforms: [],
         your_operator: null,
         channel_status: 'confirmed' as const,
+        match_channel: TO_CONFIRM_PRE,
       },
     };
     expect(hasGroups(groupWhereToWatch(empty))).toBe(false);
@@ -271,6 +317,7 @@ describe('onde assistir agrupado (página do jogo)', () => {
         platforms: [wtw.availability.platforms[0]!],
         your_operator: null,
         channel_status: 'to_confirm',
+        match_channel: TO_CONFIRM_PRE,
       },
     };
     const groups = groupWhereToWatch(probable);
@@ -288,6 +335,82 @@ describe('onde assistir agrupado (página do jogo)', () => {
     expect(render(probable, getDictionary('es-AR').event.whereToWatch)).toContain(
       'Canal de este partido a confirmar',
     );
+  });
+
+  it('canal do jogo por momento: "Passa em", "Ao vivo em" e "Transmitido por", com a fonte', () => {
+    const pre = render(wtw);
+    expect(pre).toContain('data-testid="match-channel"');
+    expect(pre).toContain('Passa em Canal Aberto Exemplo e Canal Exemplo');
+    expect(pre).toContain('href="https://canalaberto.exemplo.test/escala-rodada-32"');
+    expect(pre).toContain('Fonte: canalaberto.exemplo.test');
+    expect(pre).toContain('fonte oficial');
+    const at = (phase: 'pre' | 'live' | 'post') => ({
+      ...wtw,
+      availability: { ...wtw.availability, match_channel: { ...wtw.availability.match_channel, phase } },
+    });
+    expect(render(at('live'))).toContain('Ao vivo em Canal Aberto Exemplo e Canal Exemplo');
+    const post = render(at('post'), t, '#conteudo-relacionado');
+    expect(post).toContain('Transmitido por Canal Aberto Exemplo e Canal Exemplo');
+    // reprise não é inventada: só o link para os vídeos relacionados que existem
+    expect(post).toContain('href="#conteudo-relacionado"');
+    expect(post).toContain('Melhores momentos e vídeos do jogo');
+    expect(render(at('post'))).not.toContain('Melhores momentos');
+    const es = renderToStaticMarkup(
+      <WhereToWatchGroups
+        groups={groupWhereToWatch(at('pre'))}
+        t={getDictionary('es-AR').event.whereToWatch}
+        listLocale="es-AR"
+      />,
+    );
+    expect(es).toContain('Se ve por Canal Aberto Exemplo y Canal Exemplo');
+  });
+
+  it('jogo encerrado sem canal: "Não confirmamos o canal", nunca "sai mais perto da partida"', () => {
+    const base: WhereToWatch = {
+      ...wtw,
+      status: 'unknown',
+      options: [],
+      to_confirm: [
+        {
+          provider: 'Canal Exemplo',
+          provider_id: 'canal_exemplo',
+          medium: 'pay_tv',
+          access_model: 'subscription',
+          logo: canal.logo,
+          logo_dark: canal.logo_dark,
+          sources: [],
+        },
+      ],
+      availability: {
+        free_tv: [],
+        pay_tv_channels: [canal],
+        platforms: [],
+        your_operator: null,
+        channel_status: 'to_confirm',
+        match_channel: TO_CONFIRM_PRE,
+      },
+    };
+    const withState = (mc: WhereToWatch['availability']['match_channel']) => ({
+      ...base,
+      availability: { ...base.availability, match_channel: mc },
+    });
+    const post = render(
+      withState({
+        phase: 'post',
+        state: 'not_confirmed',
+        headline: 'Não confirmamos o canal deste jogo',
+        hint: null,
+        channels: [],
+      }),
+    );
+    expect(post).toContain('Não confirmamos o canal deste jogo');
+    expect(post).toContain('data-state="not_confirmed"');
+    expect(post).not.toContain('sai mais perto da partida');
+    expect(post).not.toContain('Canal deste jogo a confirmar');
+    const live = render(withState({ ...TO_CONFIRM_PRE, phase: 'live', hint: null }));
+    expect(live).toContain('Canal deste jogo a confirmar');
+    expect(live).not.toContain('sai mais perto da partida');
+    expect(render(base)).toContain('sai mais perto da partida');
   });
 
   it('com a lista de canais do tenant confirmada: os canais dele embaixo de cada emissora', () => {
