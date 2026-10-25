@@ -69,12 +69,21 @@ ssh "$VPS" "cd $DIR && for p in 'gs:cache:*' 'gs:tag:*'; do \
 # conta do provedor de IA com crédito? (chamada mínima, ~20 tokens) — só avisa, não derruba o deploy
 echo "conta da IA"
 ssh "$VPS" "cd $DIR && docker compose exec -T agents node -e '
-  if (process.env.AI_PROVIDER !== \"openai\" || !process.env.OPENAI_API_KEY) { console.log(\"WARN  IA: provedor sem chave OpenAI configurada\"); process.exit(0); }
-  fetch(\"https://api.openai.com/v1/responses\", { method: \"POST\",
-    headers: { authorization: \"Bearer \" + process.env.OPENAI_API_KEY, \"content-type\": \"application/json\" },
-    body: JSON.stringify({ model: process.env.AI_MODEL_LIGHT || \"gpt-6-luna\", input: \"ok\", max_output_tokens: 16 }) })
+  const p = (process.env.AI_PROVIDER || \"openai\").toLowerCase();
+  const gem = p === \"gemini\";
+  const key = gem ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY;
+  if (!key || (p !== \"openai\" && !gem)) { console.log(\"WARN  IA: provedor \" + p + \" sem chave configurada\"); process.exit(0); }
+  const model = process.env.AI_MODEL_LIGHT || (gem ? \"gemini-3.5-flash-lite\" : \"gpt-6-luna\");
+  const req = gem
+    ? [\"https://generativelanguage.googleapis.com/v1beta/models/\" + model + \":generateContent\", { method: \"POST\",
+        headers: { \"x-goog-api-key\": key, \"content-type\": \"application/json\" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: \"ok\" }] }], generationConfig: { maxOutputTokens: 1 } }) }]
+    : [\"https://api.openai.com/v1/responses\", { method: \"POST\",
+        headers: { authorization: \"Bearer \" + key, \"content-type\": \"application/json\" },
+        body: JSON.stringify({ model, input: \"ok\", max_output_tokens: 16 }) }];
+  fetch(req[0], req[1])
     .then(async (r) => { const j = await r.json().catch(() => ({}));
-      console.log(r.ok ? \"PASS  IA: conta com crédito\" : \"WARN  IA: \" + r.status + \" \" + (j.error?.code || j.error?.type || \"\") + \" — agentes no texto determinístico\"); })
+      console.log(r.ok ? \"PASS  IA: conta com crédito (\" + p + \")\" : \"WARN  IA: \" + r.status + \" \" + (j.error?.status || j.error?.code || j.error?.type || \"\") + \" — agentes no texto determinístico\"); })
     .catch((e) => console.log(\"WARN  IA: sem conexão com o provedor (\" + e.message + \")\"));'"
 
 echo "smoke test"
