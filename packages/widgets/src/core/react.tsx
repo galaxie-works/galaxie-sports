@@ -141,15 +141,17 @@ const ERROR_RETRY_MS = 60_000;
 /**
  * Sem chave publicável, o widget só chama uma base da mesma origem da página (caminho relativo ou a
  * própria origem): é o proxy no backend da operadora, que repassa com a chave secreta (docs/05 §1.3).
- * Base de outra origem (a API da Galaxie) sem chave → `missing_key`, sem chamar.
+ * A base é resolvida contra a página como o `fetch` faria (espaços, barras invertidas, `https:host`).
+ * Base de outra origem (a API da Galaxie, ou um proxy num subdomínio) sem chave → `missing_key`.
  */
 export function needsPublishableKey(
   baseUrl: string,
-  pageOrigin: string | undefined = globalThis.location?.origin,
+  /** Página atual; `null` = fora do navegador (sem `location`). */
+  page: Pick<Location, 'href' | 'origin'> | null = globalThis.location ?? null,
 ): boolean {
-  if (!/^([a-z][a-z0-9+.-]*:)?\/\//i.test(baseUrl)) return false;
+  if (!page) return true;
   try {
-    return new URL(baseUrl, pageOrigin).origin !== pageOrigin;
+    return new URL(baseUrl, page.href).origin !== page.origin;
   } catch {
     return true;
   }

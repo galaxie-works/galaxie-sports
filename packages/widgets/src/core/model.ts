@@ -809,13 +809,24 @@ export function initials(name: string): string {
 const MINUTE = 60_000;
 /** Teto do despertar de um jogo distante: o horário pode mudar (e a página fica aberta por dias). */
 const SCHEDULED_WAKE_MAX_MS = 6 * 60 * MINUTE;
+/** Antecipação máxima do despertar, para os widgets da mesma rodada não chamarem todos no mesmo segundo. */
+const SCHEDULED_WAKE_JITTER_MS = 2 * MINUTE;
+
+/** Antecipação estável por evento (hash FNV-1a do id): o mesmo jogo acorda sempre no mesmo instante. */
+function wakeJitterMs(id: string | undefined): number {
+  if (!id) return 0;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193);
+  return (h >>> 0) % SCHEDULED_WAKE_JITTER_MS;
+}
 
 /**
  * Polling do placar: 30 s com bola rolando, 1 min perto do início, nada depois do fim. Jogo agendado
- * mais longe acorda quando entra na janela de 30 min (no máximo a cada 6 h), para não ficar parado.
+ * mais longe acorda quando entra na janela de 30 min (até 2 min antes, conforme o id; no máximo a cada
+ * 6 h), para não ficar parado.
  */
 export function eventRefreshMs(
-  event: Pick<GsEvent, 'status' | 'starts_at'>,
+  event: Pick<GsEvent, 'status' | 'starts_at'> & { id?: string | undefined },
   now = Date.now(),
 ): number | null {
   if (LIVE_STATUSES.has(event.status) || event.status === 'starting') return 30_000;
@@ -823,7 +834,8 @@ export function eventRefreshMs(
     const until = Date.parse(event.starts_at) - now;
     if (!Number.isFinite(until)) return null;
     if (until < 30 * MINUTE) return MINUTE;
-    return Math.min(Math.max(until - 30 * MINUTE, MINUTE), SCHEDULED_WAKE_MAX_MS);
+    const wake = until - 30 * MINUTE - wakeJitterMs(event.id);
+    return Math.min(Math.max(wake, MINUTE), SCHEDULED_WAKE_MAX_MS);
   }
   return null;
 }

@@ -95,17 +95,23 @@ describe('MatchCard', () => {
     expect(eventRefreshMs(at(3 * 24 * 60), now)).toBe(6 * 60 * 60_000); // teto de 6 h
     expect(eventRefreshMs({ status: 'scheduled', starts_at: 'sem data' }, now)).toBeNull();
     expect(eventRefreshMs({ status: 'postponed', starts_at: at(150).starts_at }, now)).toBeNull();
+    // com id: até 2 min antes, sempre o mesmo para o mesmo jogo, diferente entre jogos da rodada
+    const wakes = ['e1', 'e2', 'e3', 'e4'].map((id) => eventRefreshMs({ ...at(150), id }, now)!);
+    for (const w of wakes) expect(w).toBeGreaterThan(118 * 60_000);
+    for (const w of wakes) expect(w).toBeLessThanOrEqual(120 * 60_000);
+    expect(new Set(wakes).size).toBeGreaterThan(1);
+    expect(eventRefreshMs({ ...at(150), id: 'e1' }, now)).toBe(wakes[0]);
 
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { fetchImpl } = setup(<MatchCard eventId={PREVIEW_IDS.scheduledEvent} />); // começa em 150 min
     await screen.findByText('Serra');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(119 * 60_000);
+      await vi.advanceTimersByTimeAsync(117 * 60_000);
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2 * 60_000);
+      await vi.advanceTimersByTimeAsync(4 * 60_000);
     });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
@@ -167,11 +173,23 @@ describe('MatchCard', () => {
 
 describe('proxy no backend da operadora (sem chave)', () => {
   it('base na mesma origem ou relativa dispensa a chave; outra origem exige', () => {
-    expect(needsPublishableKey('/api/galaxie', 'https://app.exemplo.com')).toBe(false);
-    expect(needsPublishableKey('https://app.exemplo.com/api/galaxie', 'https://app.exemplo.com')).toBe(false);
-    expect(needsPublishableKey('https://api.galaxie.sports', 'https://app.exemplo.com')).toBe(true);
-    expect(needsPublishableKey('//api.galaxie.sports', 'https://app.exemplo.com')).toBe(true);
-    expect(needsPublishableKey('https://api.galaxie.sports', undefined)).toBe(true);
+    const https = { href: 'https://app.exemplo.com/jogos', origin: 'https://app.exemplo.com' };
+    const http = { href: 'http://app.exemplo.com/jogos', origin: 'http://app.exemplo.com' };
+    expect(needsPublishableKey('/api/galaxie', https)).toBe(false);
+    expect(needsPublishableKey('api/galaxie', https)).toBe(false);
+    expect(needsPublishableKey('https://app.exemplo.com/api/galaxie', https)).toBe(false);
+    expect(needsPublishableKey('https://api.galaxie.sports', https)).toBe(true);
+    expect(needsPublishableKey('//api.galaxie.sports', https)).toBe(true);
+    // formatos que o fetch resolve para outra origem
+    expect(needsPublishableKey(' https://api.galaxie.sports', https)).toBe(true);
+    expect(needsPublishableKey('\\\\api.galaxie.sports', https)).toBe(true);
+    expect(needsPublishableKey('https:api.galaxie.sports', http)).toBe(true);
+    // ...e para a mesma origem
+    expect(needsPublishableKey('\\api', https)).toBe(false);
+    expect(needsPublishableKey('https:api', https)).toBe(false);
+    // proxy num subdomínio é outra origem: continua exigindo a chave
+    expect(needsPublishableKey('https://api.exemplo.com/galaxie', https)).toBe(true);
+    expect(needsPublishableKey('/api/galaxie', null)).toBe(true); // fora do navegador
   });
 
   it('chama o proxy sem o header da chave publicável', async () => {
