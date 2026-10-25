@@ -223,6 +223,38 @@ describe('regras de escolha', () => {
       ['File:Podio.jpg', 'action', 'gemini'],
     ]);
   });
+
+  it('com IA sem retrato: vale o candidato das regras que ela manteve como foto do piloto (nunca "car" nem "other")', () => {
+    const d = discovery([
+      { f: file('File:Wikidata.jpg'), p18: true, portrait: true },
+      { f: file('File:Corrida.jpg'), season: 1988 },
+    ]);
+    const { ok } = eligible(d);
+    const kept = choose(d, ok, [
+      { index: 0, kind: 'action', keep: true, quality: 6 },
+      { index: 1, kind: 'action', keep: true, quality: 8 },
+    ]);
+    expect(kept.map((c) => [c.eligible.candidate.file.title, c.role])).toEqual([
+      ['File:Wikidata.jpg', 'portrait'],
+      ['File:Corrida.jpg', 'action'],
+    ]);
+    const dropped = choose(d, ok, [
+      { index: 0, kind: 'other', keep: false, quality: 6 },
+      { index: 1, kind: 'action', keep: true, quality: 8 },
+    ]);
+    expect(dropped.some((c) => c.role === 'portrait')).toBe(false);
+    // "other" mantida (não é o piloto, ou não é foto dele): também não vira retrato
+    const other = choose(d, ok, [
+      { index: 0, kind: 'other', keep: true, quality: 6 },
+      { index: 1, kind: 'action', keep: true, quality: 8 },
+    ]);
+    expect(other.some((c) => c.role === 'portrait')).toBe(false);
+    const car = choose(d, ok, [
+      { index: 0, kind: 'car', keep: true, quality: 6 },
+      { index: 1, kind: 'action', keep: true, quality: 8 },
+    ]);
+    expect(car.some((c) => c.role === 'portrait')).toBe(false);
+  });
 });
 
 describe('manifesto', () => {
@@ -421,5 +453,27 @@ describe('passo do Gemini (ranqueador falso)', () => {
     });
     expect(manifest.entries).toEqual([before]);
     expect(stats[0]!.ranking).toBe('gemini falhou');
+  });
+
+  it('descoberta vazia (identidade não conferida) não apaga a galeria já mapeada: fica como estava', async () => {
+    const mapped = await mapCommons(client, [senna], null, { revision: '2026-10-22', discover });
+    const before = mapped.manifest.entries[0]!;
+    expect(before.photos.length).toBeGreaterThan(0);
+    const vazia = async () => ({
+      target: senna,
+      wikidata: null,
+      category: null,
+      candidates: [],
+      note: 'sem item conferido no Wikidata',
+    });
+    const { manifest, stats } = await mapCommons(client, [senna], mapped.manifest, {
+      revision: '2026-10-25',
+      discover: vazia,
+    });
+    expect(manifest.entries).toEqual([before]);
+    expect(stats[0]!.note).toBe('pendente: descoberta vazia (sem item conferido no Wikidata)');
+    // sem galeria antes, a descoberta vazia entra como sempre (o alvo fica sem fotos)
+    const fresh = await mapCommons(client, [senna], null, { revision: '2026-10-25', discover: vazia });
+    expect(fresh.manifest.entries[0]!.photos).toEqual([]);
   });
 });

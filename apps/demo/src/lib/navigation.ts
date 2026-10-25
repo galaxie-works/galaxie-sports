@@ -1,20 +1,21 @@
 import type { MirrorSport } from '@galaxie/contracts';
 import {
-  Activity,
   Award,
   CarFront,
-  CircleDot,
-  Goal,
   Hand,
   HandFist,
   Medal,
-  Shield,
-  Trophy,
+  // o "rugby-ball" do lucide tem cadarço: é a bola do futebol americano
+  RugbyBall as AmericanFootballBall,
   Volleyball,
   type LucideIcon,
 } from 'lucide-react';
 
+import { Baseball } from '../components/icons/baseball';
+import { Basketball } from '../components/icons/basketball';
 import { HockeyStick } from '../components/icons/hockey-stick';
+import { RugbyBall } from '../components/icons/rugby-ball';
+import { SoccerBall } from '../components/icons/soccer-ball';
 
 import type { Dictionary } from './i18n/dictionary';
 import { SPORT_FAMILIES, familyHref, familyOf, sportHref, type FamilyId } from './sport-families';
@@ -33,23 +34,26 @@ export interface SportNav extends NavItem {
 }
 
 /**
- * Os 12 esportes do espelho (um por API do fornecedor); a ordem prioriza o que tem cobertura hoje. Ícones
- * provisórios até o Figma. O link leva à página da família (`nba` → `/esportes/basquete#nba`).
+ * Os 12 esportes do espelho (um por API do fornecedor); a ordem prioriza o que tem cobertura hoje. Mapa
+ * único de esporte → ícone do app (menu, filtros do Ao vivo, explorar, agenda, busca): a bola ou o objeto
+ * de cada esporte, no traço do lucide; os que o lucide não tem ficam em components/icons. NBA usa o do
+ * basquete e AFL o do rúgbi (bola oval, como a animação). O link leva à página da família
+ * (`nba` → `/esportes/basquete#nba`).
  */
 export const SPORTS: SportNav[] = (
   [
-    ['football', Goal],
-    ['basketball', CircleDot],
-    ['nba', CircleDot],
+    ['football', SoccerBall],
+    ['basketball', Basketball],
+    ['nba', Basketball],
     ['volleyball', Volleyball],
     ['formula-1', CarFront],
     ['mma', HandFist],
-    ['american-football', Shield],
-    ['baseball', Activity],
+    ['american-football', AmericanFootballBall],
+    ['baseball', Baseball],
     ['hockey', HockeyStick],
     ['handball', Hand],
-    ['rugby', Trophy],
-    ['afl', Trophy],
+    ['rugby', RugbyBall],
+    ['afl', RugbyBall],
   ] as const
 ).map(([slug, icon]) => ({ slug, icon, href: sportHref(slug)! }));
 
