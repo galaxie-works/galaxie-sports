@@ -287,7 +287,14 @@ Módulo vendável próprio (add-on): incluído no `enterprise` e contratável po
 
 - Só `status = published`, versão vigente, ordenada por `rank_score`.
 - `counts` traz o total por tipo **antes** do filtro (para a vitrine montar as abas).
-- Cache: TTL de 1 h, purgado por `event.related_content_changed` (tag `related_content:<evento>`).
+- Cache: TTL de 1 h, purgado por `event.related_content_changed` (tag `related_content:<evento>`). A resposta varia por tenant (os vídeos que o player dele recusou).
+
+**Vídeo recusado pelo player** (`POST /v1/related/playback-errors`, chave secreta): o player oficial que dispara `onError` 100, 101 ou 150 avisa a API, e o vídeo sai **na hora da vitrine do tenant que avisou**, em todos os jogos (`enrich.related_playback_report`, uma linha por vídeo e tenant). Só sai da vitrine de todos quando **2 tenants distintos** avisam (`RELATED_GLOBAL_BLOCK_TENANTS`; aí entra em `enrich.related_playback_block`, que também guia a pesquisa do agente). O canal segue a mesma regra com 3 vídeos recusados (`RELATED_CHANNEL_BLOCK_THRESHOLD`): os avisos do tenant e os bloqueios confirmados tiram o canal da vitrine dele, e só 3 bloqueios confirmados tiram o canal de todos. Ao cruzar o limiar, todos os jogos com vídeo do canal são purgados, não só o do vídeo avisado.
+
+- Por quê: o 101/150 pode depender do domínio do embed, e um aviso é só a palavra de um cliente. Com o bloqueio global no primeiro aviso, um tenant (ou um convidado da demo, que usa a chave da demo) tirava qualquer vídeo da vitrine de todos, e 3 avisos derrubavam o canal oficial de um clube.
+- Tempo real: o aviso isolado só purga o cache, pelo tópico interno `related_content.purge` (não chega ao SSE nem aos webhooks de ninguém); o bloqueio confirmado sai em `event.related_content_changed` com `removed`, `sport` e `competition_id`.
+- Os bloqueios gravados antes da migração 0043 (um aviso só) continuam valendo para todos; o painel (Ajustes → Vídeos relacionados) libera o canal ou limpa as recusas, confirmadas e avisadas.
+- Demo: a rota `/api/related/playback-error` registra no log quem avisou e limita cada usuário a 10 avisos por hora e um por vídeo.
 - Tempo real: tópico `event.related_content_changed` (curto: `related`) no SSE e nos webhooks, para quem tem o módulo.
 
 ## 8. Cota e custo

@@ -2,9 +2,11 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { publishChange } from './change-feed.js';
 import type { Database } from './client.js';
 import {
+  event,
   relatedChannelRule,
   relatedContent,
   relatedPlaybackBlock,
+  relatedPlaybackReport,
   type RelatedAspectRatio,
   type RelatedChannelRuleMode,
   type RelatedContentType,
@@ -19,9 +21,16 @@ export const RELATED_CONTENT_TOPIC = 'event.related_content_changed';
 
 /**
  * Canal com este número de vídeos recusados pelo player sai inteiro da vitrine e da pesquisa (ex.: o
- * detentor de direitos que bloqueia o embed de tudo o que tem imagem do jogo).
+ * detentor de direitos que bloqueia o embed de tudo o que tem imagem do jogo). Conta por tenant (os
+ * relatos dele e os bloqueios confirmados) para a vitrine dele, e só os confirmados para todos.
  */
 export const RELATED_CHANNEL_BLOCK_THRESHOLD = 3;
+
+/**
+ * Tenants distintos que precisam relatar a recusa do mesmo vídeo para ele sair da vitrine de todos (e
+ * contar para o bloqueio do canal e para a pesquisa). Abaixo disso, sai só da vitrine de quem relatou.
+ */
+export const RELATED_GLOBAL_BLOCK_TENANTS = 2;
 
 /** Tag de purge das respostas de conteúdo relacionado de um evento. */
 export const relatedContentTag = (eventId: string) => `related_content:${eventId}`;
@@ -44,6 +53,8 @@ export interface ReadRelatedOptions {
   region?: string;
   /** País do público: tira os vídeos que o YouTube não toca nele (`regionRestriction`). */
   country?: string;
+  /** Tenant que lê: também ficam de fora os vídeos (e os canais, no limiar) que o player dele recusou. */
+  tenantId?: string;
 }
 
 export interface RelatedContentPage {
@@ -69,13 +80,24 @@ export async function readRelatedContent(
     isNull(relatedContent.supersededBy),
     inArray(relatedContent.status, [...statuses]),
   ];
-  // fora da vitrine: o vídeo que o player oficial recusou (lista de bloqueios, em qualquer jogo)
+  const tenant = options.tenantId ?? null;
+  // fora da vitrine: o vídeo que o player oficial recusou (bloqueio confirmado, em qualquer jogo, ou o
+  // relato do próprio tenant)
   base.push(
     sql`not exists (select 1 from ${relatedPlaybackBlock} b where b.provider = ${relatedContent.provider} and b.external_id = ${relatedContent.externalId})`,
-    // o canal bloqueado no painel, ou o que já acumulou recusas (todos os formatos) sem ter sido liberado
+    ...(tenant
+      ? [
+          sql`not exists (select 1 from ${relatedPlaybackReport} p where p.provider = ${relatedContent.provider} and p.external_id = ${relatedContent.externalId} and p.tenant_id = ${tenant})`,
+        ]
+      : []),
+    // o canal bloqueado no painel, ou o que já acumulou recusas (todos os formatos) sem ter sido liberado:
+    // os bloqueios confirmados e, para o tenant, também os relatos dele
     sql`coalesce(
       (select r.mode = 'allow' from ${relatedChannelRule} r where r.provider = ${relatedContent.provider} and r.channel_id = ${relatedContent.channelId}),
-      (select count(*) from ${relatedPlaybackBlock} b where b.provider = ${relatedContent.provider} and b.channel_id = ${relatedContent.channelId}) < ${RELATED_CHANNEL_BLOCK_THRESHOLD}
+      (select count(*) from (
+        select b.external_id from ${relatedPlaybackBlock} b where b.provider = ${relatedContent.provider} and b.channel_id = ${relatedContent.channelId}
+        ${tenant ? sql`union select p.external_id from ${relatedPlaybackReport} p where p.provider = ${relatedContent.provider} and p.channel_id = ${relatedContent.channelId} and p.tenant_id = ${tenant}` : sql``}
+      ) refused) < ${RELATED_CHANNEL_BLOCK_THRESHOLD}
     )`,
   );
   if (options.country) {
@@ -129,24 +151,97 @@ export interface PlaybackBlockInput {
   /** Linha do conteúdo relacionado que o player recusou (`RelatedItem.id`). */
   itemId: string;
   code: RelatedPlaybackBlockCode;
-  tenantId?: string | null;
+  /** Tenant que relatou: o vídeo sai na hora da vitrine dele. */
+  tenantId: string;
   now?: Date;
+}
+
+/** Vídeos que saíram da vitrine de um jogo. */
+export interface PlaybackRemoval {
+  eventId: string;
+  sport: string;
+  competitionId: string | null;
+  removed: string[];
 }
 
 export interface PlaybackBlockResult {
   externalId: string;
-  /** Jogos com o vídeo na vitrine: o cache de cada um precisa ser purgado. */
-  eventIds: string[];
-  /** Primeiro relato deste vídeo (antes só somava `reports`). */
+  /** Primeiro relato deste tenant para o vídeo (o repetido só soma `reports`). */
   first: boolean;
+  /** Este relato confirmou o bloqueio para todos (`RELATED_GLOBAL_BLOCK_TENANTS` tenants distintos). */
+  global: boolean;
+  /** Jogos em que o vídeo saiu da vitrine do tenant que relatou (com o canal inteiro, no limiar dele). */
+  tenantRemovals: PlaybackRemoval[];
+  /** Jogos em que o vídeo saiu da vitrine de todos (com o canal inteiro, no limiar global). */
+  globalRemovals: PlaybackRemoval[];
 }
 
 /**
- * Registra o vídeo que o player oficial recusou (erro 100, 101 ou 150) e devolve os jogos em que ele
- * aparece. null quando o item não existe.
+ * Tópico interno do change feed: só purga o cache dos jogos (o vídeo saiu da vitrine de um tenant). Não é
+ * tópico de tempo real, então não chega ao SSE nem aos webhooks dos outros tenants.
+ */
+export const RELATED_CONTENT_PURGE_TOPIC = 'related_content.purge';
+
+/** Versões vigentes publicadas do vídeo ou do canal, por jogo, com o esporte e a competição do jogo. */
+async function publishedIn(
+  db: Pick<Database, 'select'>,
+  provider: string,
+  where: { externalId: string } | { channelId: string },
+): Promise<PlaybackRemoval[]> {
+  const rows = await db
+    .select({
+      eventId: relatedContent.eventId,
+      externalId: relatedContent.externalId,
+      sport: event.sport,
+      competitionId: event.competitionId,
+    })
+    .from(relatedContent)
+    .innerJoin(event, eq(event.id, relatedContent.eventId))
+    .where(
+      and(
+        eq(relatedContent.provider, provider),
+        'externalId' in where
+          ? eq(relatedContent.externalId, where.externalId)
+          : eq(relatedContent.channelId, where.channelId),
+        isNull(relatedContent.supersededBy),
+        eq(relatedContent.status, 'published'),
+      ),
+    )
+    .orderBy(relatedContent.eventId, relatedContent.externalId);
+  return mergeRemovals(
+    rows.map((r) => ({
+      eventId: r.eventId,
+      sport: r.sport,
+      competitionId: r.competitionId,
+      removed: [r.externalId],
+    })),
+  );
+}
+
+function mergeRemovals(...lists: PlaybackRemoval[][]): PlaybackRemoval[] {
+  const byEvent = new Map<string, PlaybackRemoval>();
+  for (const r of lists.flat()) {
+    const cur = byEvent.get(r.eventId);
+    if (!cur) byEvent.set(r.eventId, { ...r, removed: [...new Set(r.removed)] });
+    else cur.removed = [...new Set([...cur.removed, ...r.removed])];
+  }
+  return [...byEvent.values()];
+}
+
+/**
+ * Registra o vídeo que o player oficial recusou (erro 100, 101 ou 150) e avisa os jogos em que ele
+ * aparece. O relato vale na hora só para o tenant que relatou (o 101/150 pode depender do domínio do
+ * embed, e um tenant não pode esvaziar a vitrine dos outros); o bloqueio de todos exige relatos de
+ * `RELATED_GLOBAL_BLOCK_TENANTS` tenants distintos. O mesmo vale para o canal: `RELATED_CHANNEL_BLOCK_THRESHOLD`
+ * vídeos recusados tiram o canal da vitrine do tenant, e o mesmo número de bloqueios confirmados tira o canal de
+ * todos. Ao cruzar o limiar, todos os jogos com vídeo do canal são avisados, não só os do vídeo relatado.
+ *
+ * A vitrine de quem relatou é purgada pelo tópico interno `RELATED_CONTENT_PURGE_TOPIC`; o bloqueio de
+ * todos sai em `event.related_content_changed` (SSE e webhook), com esporte e competição para os filtros.
+ * null quando o item não existe. Rode numa transação: o lock serializa os relatos do mesmo canal.
  */
 export async function recordPlaybackBlock(
-  db: Pick<Database, 'select' | 'selectDistinct' | 'insert'>,
+  db: Pick<Database, 'select' | 'insert' | 'execute'>,
   input: PlaybackBlockInput,
 ): Promise<PlaybackBlockResult | null> {
   const [row] = await db
@@ -161,37 +256,140 @@ export async function recordPlaybackBlock(
     .where(eq(relatedContent.id, input.itemId))
     .limit(1);
   if (!row) return null;
+  const { provider, externalId, channelId } = row;
   const now = input.now ?? new Date();
+  // relatos concorrentes do mesmo canal (ou vídeo) contam um de cada vez: senão dois tenants ao mesmo
+  // tempo nunca confirmariam o bloqueio, e o limiar do canal poderia passar sem aviso
+  await db.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${`related_playback:${provider}:${channelId ?? externalId}`}))`,
+  );
   const [saved] = await db
-    .insert(relatedPlaybackBlock)
+    .insert(relatedPlaybackReport)
     .values({
-      ...row,
+      provider,
+      externalId,
+      tenantId: input.tenantId,
       code: input.code,
-      tenantId: input.tenantId ?? null,
+      channelId,
+      format: row.format,
       firstReportedAt: now,
       lastReportedAt: now,
     })
     .onConflictDoUpdate({
-      target: [relatedPlaybackBlock.provider, relatedPlaybackBlock.externalId],
-      set: {
-        code: input.code,
-        reports: sql`${relatedPlaybackBlock.reports} + 1`,
-        lastReportedAt: now,
-      },
+      target: [
+        relatedPlaybackReport.provider,
+        relatedPlaybackReport.externalId,
+        relatedPlaybackReport.tenantId,
+      ],
+      set: { code: input.code, reports: sql`${relatedPlaybackReport.reports} + 1`, lastReportedAt: now },
     })
-    .returning({ reports: relatedPlaybackBlock.reports });
-  const events = await db
-    .selectDistinct({ eventId: relatedContent.eventId })
-    .from(relatedContent)
+    .returning({ reports: relatedPlaybackReport.reports });
+  const result: PlaybackBlockResult = {
+    externalId,
+    first: saved?.reports === 1,
+    global: false,
+    tenantRemovals: [],
+    globalRemovals: [],
+  };
+  if (!result.first) return result;
+
+  const [already] = await db
+    .select({ code: relatedPlaybackBlock.code })
+    .from(relatedPlaybackBlock)
+    .where(and(eq(relatedPlaybackBlock.provider, provider), eq(relatedPlaybackBlock.externalId, externalId)))
+    .limit(1);
+  // bloqueado para todos antes (inclusive as linhas de antes da 0043): a vitrine de ninguém muda
+  if (already) return result;
+
+  const allowed =
+    channelId != null &&
+    (
+      await db
+        .select({ mode: relatedChannelRule.mode })
+        .from(relatedChannelRule)
+        .where(and(eq(relatedChannelRule.provider, provider), eq(relatedChannelRule.channelId, channelId)))
+        .limit(1)
+    )[0]?.mode === 'allow';
+
+  // confirmação: tenants distintos que relataram o vídeo
+  const [tenants] = await db
+    .select({
+      n: sql<number>`count(*)::int`,
+      firstTenant: sql<string>`(array_agg(${relatedPlaybackReport.tenantId} order by ${relatedPlaybackReport.firstReportedAt}))[1]`,
+      firstAt: sql<string>`min(${relatedPlaybackReport.firstReportedAt})`,
+      reports: sql<number>`sum(${relatedPlaybackReport.reports})::int`,
+    })
+    .from(relatedPlaybackReport)
     .where(
-      and(
-        eq(relatedContent.provider, row.provider),
-        eq(relatedContent.externalId, row.externalId),
-        isNull(relatedContent.supersededBy),
-        eq(relatedContent.status, 'published'),
-      ),
+      and(eq(relatedPlaybackReport.provider, provider), eq(relatedPlaybackReport.externalId, externalId)),
     );
-  return { externalId: row.externalId, eventIds: events.map((e) => e.eventId), first: saved?.reports === 1 };
+  if (Number(tenants?.n ?? 0) >= RELATED_GLOBAL_BLOCK_TENANTS) {
+    await db.insert(relatedPlaybackBlock).values({
+      ...row,
+      code: input.code,
+      reports: Number(tenants!.reports),
+      tenantId: tenants!.firstTenant,
+      firstReportedAt: new Date(tenants!.firstAt),
+      lastReportedAt: now,
+    });
+    result.global = true;
+    const lists = [await publishedIn(db, provider, { externalId })];
+    if (channelId && !allowed) {
+      const [blocked] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(relatedPlaybackBlock)
+        .where(
+          and(eq(relatedPlaybackBlock.provider, provider), eq(relatedPlaybackBlock.channelId, channelId)),
+        );
+      if (Number(blocked?.n ?? 0) === RELATED_CHANNEL_BLOCK_THRESHOLD)
+        lists.push(await publishedIn(db, provider, { channelId }));
+    }
+    result.globalRemovals = mergeRemovals(...lists);
+  }
+
+  // vitrine de quem relatou: o vídeo (se não saiu para todos) e, no limiar do tenant, o canal inteiro
+  const lists = result.global ? [] : [await publishedIn(db, provider, { externalId })];
+  if (channelId && !allowed) {
+    const refused = await db.execute<{ n: number }>(sql`
+      select count(*)::int as n from (
+        select b.external_id from ${relatedPlaybackBlock} b where b.provider = ${provider} and b.channel_id = ${channelId}
+        union
+        select p.external_id from ${relatedPlaybackReport} p
+         where p.provider = ${provider} and p.channel_id = ${channelId} and p.tenant_id = ${input.tenantId}
+      ) x`);
+    if (Number([...refused][0]?.n ?? 0) === RELATED_CHANNEL_BLOCK_THRESHOLD)
+      lists.push(await publishedIn(db, provider, { channelId }));
+  }
+  result.tenantRemovals = mergeRemovals(...lists);
+
+  for (const r of result.globalRemovals)
+    await publishChange(db, {
+      topic: RELATED_CONTENT_TOPIC,
+      entityType: 'related_content',
+      entityId: r.eventId,
+      payload: {
+        event_id: r.eventId,
+        sport: r.sport,
+        competition_id: r.competitionId,
+        changed: ['related_content'],
+        data: { added: [], removed: r.removed, changed: [] },
+        tags: [relatedContentTag(r.eventId), `event:${r.eventId}`],
+      },
+    });
+  const announced = new Set(result.globalRemovals.map((r) => r.eventId));
+  for (const r of result.tenantRemovals)
+    if (!announced.has(r.eventId))
+      await publishChange(db, {
+        topic: RELATED_CONTENT_PURGE_TOPIC,
+        entityType: 'related_content',
+        entityId: r.eventId,
+        payload: {
+          event_id: r.eventId,
+          tenant_id: input.tenantId,
+          tags: [relatedContentTag(r.eventId), `event:${r.eventId}`],
+        },
+      });
+  return result;
 }
 
 /** Bloqueios por canal e formato (o vídeo recusado e quantos do mesmo canal e formato já foram). */
@@ -246,8 +444,10 @@ export interface RelatedChannelSummary {
   sourceTier: RelatedSourceTier | null;
   /** Vídeos publicados (versão vigente) do canal, em todos os jogos. */
   published: number;
-  /** Vídeos do canal que o player recusou. */
+  /** Vídeos do canal com a recusa do player confirmada (bloqueados para todos). */
   refused: number;
+  /** Vídeos do canal relatados por algum tenant (saíram só da vitrine de quem relatou, até confirmar). */
+  reported: number;
   lastRefusedAt: Date | null;
   rule: RelatedChannelRuleMode | null;
   ruleBy: string | null;
@@ -261,7 +461,7 @@ export interface ListRelatedChannelsOptions {
   provider?: string;
   /** Busca no nome ou no @ do canal. */
   q?: string;
-  /** `blocked` = fora dos relacionados; `refused` = com recusas do player. */
+  /** `blocked` = fora dos relacionados; `refused` = com recusas do player (confirmadas ou relatadas). */
   only?: 'blocked' | 'refused';
   limit?: number;
 }
@@ -283,6 +483,7 @@ export async function listRelatedChannels(
     source_tier: RelatedSourceTier | null;
     published: number;
     refused: number;
+    reported: number;
     last_refused_at: string | null;
     rule: RelatedChannelRuleMode | null;
     rule_by: string | null;
@@ -301,20 +502,28 @@ export async function listRelatedChannels(
       from ${relatedPlaybackBlock}
       where provider = ${provider} and channel_id is not null
       group by channel_id
+    ), rep as (
+      select channel_id, count(distinct external_id)::int as reported, max(last_reported_at) as last_reported_at
+      from ${relatedPlaybackReport}
+      where provider = ${provider} and channel_id is not null
+      group by channel_id
     ), rules as (
       select channel_id, mode, channel_title, note, updated_by, updated_at
       from ${relatedChannelRule}
       where provider = ${provider}
     ), ids as (
-      select channel_id from vids union select channel_id from blk union select channel_id from rules
+      select channel_id from vids union select channel_id from blk union select channel_id from rep
+      union select channel_id from rules
     )
     select ids.channel_id, coalesce(vids.title, rules.channel_title) as title, vids.handle, vids.source_tier,
            coalesce(vids.published, 0) as published, coalesce(blk.refused, 0) as refused,
-           blk.last_refused_at, rules.mode as rule, rules.updated_by as rule_by, rules.updated_at as rule_at,
+           coalesce(rep.reported, 0) as reported,
+           greatest(blk.last_refused_at, rep.last_reported_at) as last_refused_at, rules.mode as rule, rules.updated_by as rule_by, rules.updated_at as rule_at,
            rules.note
     from ids
     left join vids on vids.channel_id = ids.channel_id
     left join blk on blk.channel_id = ids.channel_id
+    left join rep on rep.channel_id = ids.channel_id
     left join rules on rules.channel_id = ids.channel_id
     where (${q}::text is null or coalesce(vids.title, rules.channel_title, '') ilike ${q} or coalesce(vids.handle, '') ilike ${q})
   `);
@@ -328,6 +537,7 @@ export async function listRelatedChannels(
       sourceTier: r.source_tier,
       published: Number(r.published),
       refused,
+      reported: Number(r.reported),
       lastRefusedAt: r.last_refused_at ? new Date(r.last_refused_at) : null,
       rule: r.rule,
       ruleBy: r.rule_by,
@@ -338,12 +548,17 @@ export async function listRelatedChannels(
   });
   return out
     .filter((c) =>
-      options.only === 'blocked' ? c.blocked : options.only === 'refused' ? c.refused > 0 : true,
+      options.only === 'blocked'
+        ? c.blocked
+        : options.only === 'refused'
+          ? c.refused > 0 || c.reported > 0
+          : true,
     )
     .sort(
       (a, b) =>
         Number(b.blocked) - Number(a.blocked) ||
         b.refused - a.refused ||
+        b.reported - a.reported ||
         b.published - a.published ||
         a.title.localeCompare(b.title),
     )
@@ -352,28 +567,20 @@ export async function listRelatedChannels(
 
 /** Avisa os jogos com vídeo do canal (purga do cache da API, SSE e webhook). */
 async function announceChannel(
-  tx: Pick<Database, 'selectDistinct' | 'execute'>,
+  tx: Pick<Database, 'select' | 'execute'>,
   provider: string,
   channelId: string,
 ) {
-  const events = await tx
-    .selectDistinct({ eventId: relatedContent.eventId })
-    .from(relatedContent)
-    .where(
-      and(
-        eq(relatedContent.provider, provider),
-        eq(relatedContent.channelId, channelId),
-        isNull(relatedContent.supersededBy),
-        eq(relatedContent.status, 'published'),
-      ),
-    );
-  for (const { eventId } of events)
+  const events = await publishedIn(tx, provider, { channelId });
+  for (const { eventId, sport, competitionId } of events)
     await publishChange(tx, {
       topic: RELATED_CONTENT_TOPIC,
       entityType: 'related_content',
       entityId: eventId,
       payload: {
         event_id: eventId,
+        sport,
+        competition_id: competitionId,
         changed: ['related_content'],
         tags: [relatedContentTag(eventId), `event:${eventId}`],
       },
@@ -429,8 +636,9 @@ export async function setRelatedChannelRule(
 }
 
 /**
- * Apaga as recusas do player do canal (ex.: o detentor liberou o embed): os vídeos voltam à vitrine e o
- * automático recomeça a contar. Devolve quantas recusas saíram.
+ * Apaga as recusas do player do canal, confirmadas e relatadas por tenant (ex.: o detentor liberou o
+ * embed): os vídeos voltam à vitrine e o automático recomeça a contar. Devolve quantos vídeos saíram da
+ * lista de recusas.
  */
 export async function clearRelatedChannelRefusals(
   db: Database,
@@ -438,13 +646,22 @@ export async function clearRelatedChannelRefusals(
 ): Promise<number> {
   const provider = input.provider ?? 'youtube';
   return db.transaction(async (tx) => {
-    const removed = await tx
+    const blocks = await tx
       .delete(relatedPlaybackBlock)
       .where(
         and(eq(relatedPlaybackBlock.provider, provider), eq(relatedPlaybackBlock.channelId, input.channelId)),
       )
       .returning({ id: relatedPlaybackBlock.externalId });
+    const reports = await tx
+      .delete(relatedPlaybackReport)
+      .where(
+        and(
+          eq(relatedPlaybackReport.provider, provider),
+          eq(relatedPlaybackReport.channelId, input.channelId),
+        ),
+      )
+      .returning({ id: relatedPlaybackReport.externalId });
     await announceChannel(tx, provider, input.channelId);
-    return removed.length;
+    return new Set([...blocks, ...reports].map((r) => r.id)).size;
   });
 }
