@@ -439,6 +439,50 @@ describe('logos genéricos ("image not available")', () => {
 });
 
 /** Só roda com o RustFS/S3 local configurado (S3_ENDPOINT...); usa um prefixo descartável e apaga ao final. */
+describe('auditoria do espelho (change feed, prévias, filtros)', () => {
+  const handball = (path: string) => `https://media.api-sports.io/handball/${path}.png`;
+  const stored = (url: string) => ({
+    storageKey: `api-sports${new URL(url).pathname}`,
+    sha256: createHash('sha256').update(url).digest('hex'),
+    bytes: 1,
+    width: 2,
+    height: 2,
+    fetchedAt: new Date(),
+  });
+  const newAsset = async (url: string, kind: 'team_logo' | 'player' = 'team_logo') =>
+    (await db.insert(asset).values({ kind, sourceUrl: url }).returning())[0]!.id;
+  const team = async (name: string, logo: { logoAssetId?: string; customLogoAssetId?: string }) =>
+    (
+      await db
+        .insert(participant)
+        .values({ sport: 'football', kind: 'club', name, ...logo })
+        .returning()
+    )[0]!.id;
+
+  beforeAll(async () => {
+    await db
+      .insert(sport)
+      .values({ slug: 'football', name: { 'pt-BR': 'Futebol' } })
+      .onConflictDoNothing();
+  });
+
+  it('--plan conta no Postgres os times de logos espelhados que entraram na lista de bloqueio', async () => {
+    const store = new PgAssetStore(db);
+    const url = handball('teams/10');
+    const crest = await newAsset(url);
+    await store.markStored(crest, stored(url));
+    await team('Handebol Bloqueado', { logoAssetId: crest });
+    const at = new Date();
+    const before = await store.cleanupLogos(at, { dryRun: true });
+    const preview = await store.cleanupLogos(at, { dryRun: true, denylisted: [url] });
+    expect(preview).toEqual({ ...before, participants: before.participants + 1 });
+
+    expect(await store.unlink([url], at)).toBe(1);
+    expect(await store.cleanupLogos(at)).toEqual(preview);
+  });
+
+});
+
 describe.skipIf(!process.env.S3_ENDPOINT)('S3ObjectStore (RustFS local)', () => {
   it('grava, lê, consulta e apaga um objeto; a URL pública serve o arquivo', async () => {
     const objects = objectStoreFromEnv();

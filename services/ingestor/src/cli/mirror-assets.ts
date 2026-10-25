@@ -99,18 +99,21 @@ try {
     });
     console.log(`A baixar nesta execução: ${report.pending} (nenhuma chamada à API de dados).`);
     console.log(logoCleanupLine(report.logoCleanup, 'a limpar'));
-    const logos = await runBroadcasterLogoMirror({
-      db,
-      objects: {
-        put: async () => {},
-        head: async () => undefined,
-        get: async () => undefined,
-        delete: async () => {},
-      },
-      dryRun: true,
-      includeMissing: values['retentar-ausentes'],
-    });
-    console.log(`Logos de emissoras a baixar: ${logos.pending}.`);
+    if (report.photoCleanup) console.log(`Fotos genéricas já gravadas a desligar: ${report.photoCleanup}`);
+    if (!personPhotos) {
+      const logos = await runBroadcasterLogoMirror({
+        db,
+        objects: {
+          put: async () => {},
+          head: async () => undefined,
+          get: async () => undefined,
+          delete: async () => {},
+        },
+        dryRun: true,
+        includeMissing: values['retentar-ausentes'],
+      });
+      console.log(`Logos de emissoras a baixar: ${logos.pending}.`);
+    }
   } else {
     const objects = objectStoreFromEnv();
     const [run] = await db.insert(jobRun).values({ job: 'assets:mirror', status: 'running' }).returning();
@@ -132,16 +135,19 @@ try {
           if (e.type === 'failed') console.warn(`  falha ${e.asset.sourceUrl}: ${e.reason}`);
         },
       });
-      const logos = await runBroadcasterLogoMirror({
-        db,
-        objects,
-        includeMissing: values['retentar-ausentes'],
-      });
-      for (const f of logos.failures) console.warn(`  logo de emissora ${f.url}: ${f.reason}`);
+      // --fotos é só fotos: os logos de emissoras ficam para a execução normal
+      const logos = personPhotos
+        ? undefined
+        : await runBroadcasterLogoMirror({
+            db,
+            objects,
+            includeMissing: values['retentar-ausentes'],
+          });
+      for (const f of logos?.failures ?? []) console.warn(`  logo de emissora ${f.url}: ${f.reason}`);
       objects.close();
       const stats = {
         ...report,
-        broadcasterLogos: { ...logos, failures: logos.failures.slice(0, 20) },
+        ...(logos && { broadcasterLogos: { ...logos, failures: logos.failures.slice(0, 20) } }),
         failures: report.failures.slice(0, 50),
         notFoundUrls: report.notFoundUrls.slice(0, 50),
       };
@@ -160,9 +166,11 @@ try {
       console.log(logoCleanupLine(report.logoCleanup, 'limpos'));
       if (report.photoCleanup) console.log(`Fotos genéricas já gravadas desligadas: ${report.photoCleanup}`);
       if (personPhotos) await warnRepeatedPhotos();
-      console.log(
-        `Logos de emissoras: ${logos.stored} espelhados · 404: ${logos.notFound} · recusados: ${logos.rejected} · falhas: ${logos.failed}`,
-      );
+      if (logos) {
+        console.log(
+          `Logos de emissoras: ${logos.stored} espelhados · 404: ${logos.notFound} · recusados: ${logos.rejected} · falhas: ${logos.failed}`,
+        );
+      }
       if (ASSETS_PUBLIC_BASE_URL) {
         console.log(`URLs públicas: ${publicAssetUrl('<storage_key>', ASSETS_PUBLIC_BASE_URL)}`);
       }

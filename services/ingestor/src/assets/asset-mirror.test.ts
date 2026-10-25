@@ -135,7 +135,10 @@ describe('runAssetMirror', () => {
     expect(objects.objects.size).toBe(3);
 
     // erros seguidos interrompem
-    const down = setup(Object.fromEntries(urls.map((u) => [u, [{ status: 200, body: fakePng(5, 5) }]])), urls);
+    const down = setup(
+      Object.fromEntries(urls.map((u) => [u, [{ status: 200, body: fakePng(5, 5) }]])),
+      urls,
+    );
     down.objects.put = async () => {
       throw new Error('storage fora do ar');
     };
@@ -446,6 +449,28 @@ describe('logos genéricos', () => {
     expect(assets.byUrl(TEAM)!.storageKey).toBe('api-sports/football/teams/121.png');
     expect(assets.byUrl(PLAYER)!.storageKey).toBe('api-sports/football/players/154.png');
     expect((await runAssetMirror({ assets, objects, fetcher, clock })).logoCleanup.placeholders).toBe(0);
+  });
+
+  it('--plan conta os logos espelhados que entraram na lista de bloqueio (o unlink da execução real)', async () => {
+    const { clock, assets, objects, fetcher } = setup({}, [TEAM, PRAIA]);
+    const stored = { sha256: 'escudo', bytes: 1, width: 2, height: 2, fetchedAt: new Date(0) };
+    await assets.markStored(assets.byUrl(TEAM)!.id, {
+      ...stored,
+      storageKey: 'api-sports/football/teams/121.png',
+    });
+    await assets.markStored(assets.byUrl(PRAIA)!.id, {
+      ...stored,
+      storageKey: 'api-sports/volley/teams/1999.png',
+    });
+    const denylist = new MediaDenylist([{ url: TEAM, reason: 'escudo errado' }]);
+
+    const plan = await runAssetMirror({ assets, objects, fetcher, clock, denylist, dryRun: true });
+    expect(plan.logoCleanup).toEqual({ placeholders: 0, participants: 1, competitions: 0 });
+    expect(assets.byUrl(TEAM)!.storageKey).not.toBeNull();
+
+    const report = await runAssetMirror({ assets, objects, fetcher, clock, denylist });
+    expect(report).toMatchObject({ unlinked: 1, logoCleanup: plan.logoCleanup });
+    expect([...assets.detachedLogos]).toEqual([assets.byUrl(TEAM)!.id]);
   });
 
   it('os hashes catalogados valem só para logos de time e de competição', () => {

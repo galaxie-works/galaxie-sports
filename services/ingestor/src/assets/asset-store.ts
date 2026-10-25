@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, isNull, notInArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, notInArray, or, sql, type SQL } from 'drizzle-orm'
 import {
   isProviderMediaUrl,
   mediaKindFromUrl,
@@ -76,6 +76,11 @@ export interface LogoCleanupOptions {
   placeholders?: ReadonlySet<string> | undefined;
   /** Só conta, sem mudar nada. */
   dryRun?: boolean | undefined;
+  /**
+   * URLs normalizadas da lista de bloqueio. Só no `dryRun`: a execução real tira os já espelhados do storage
+   * (`unlink`) antes da limpeza, então a prévia já os conta como ausentes.
+   */
+  denylisted?: readonly string[] | undefined;
 }
 
 /** Resultado de `cleanupLogos`. */
@@ -229,9 +234,14 @@ export class InMemoryAssetStore implements AssetStore {
       (r) => LOGO_KINDS.has(r.kind) && r.storageKey && placeholders.has(r.sha256 ?? ''),
     );
     if (!options.dryRun) for (const r of generic) await this.markMissing(r.id, at);
+    const denylisted = new Set(options.dryRun ? options.denylisted : []);
     // sem tabelas de times e competições na memória: conta os logos ausentes que seriam desligados
     const missing = this.rows.filter(
-      (r) => LOGO_KINDS.has(r.kind) && ((!r.storageKey && r.fetchedAt) || generic.includes(r)),
+      (r) =>
+        LOGO_KINDS.has(r.kind) &&
+        ((!r.storageKey && r.fetchedAt) ||
+          generic.includes(r) ||
+          (r.storageKey && denylisted.has(normalizeMediaUrl(r.sourceUrl) ?? ''))),
     );
     if (!options.dryRun) for (const r of missing) this.detachedLogos.add(r.id);
     return { placeholders: generic.length, participants: missing.length, competitions: 0 };
@@ -393,12 +403,23 @@ export class PgAssetStore implements AssetStore {
     const placeholders = [...(options.placeholders ?? PLACEHOLDER_LOGO_SHA256)];
     const logoKinds = inArray(asset.kind, [...LOGO_KIND_VALUES]);
     const generic = and(logoKinds, isNotNull(asset.storageKey), inArray(asset.sha256, placeholders));
-    // no dry run os genéricos ainda estão no storage: contam como ausentes para a prévia dos desligados
+    // no dry run os genéricos e os bloqueados (o unlink foi pulado) ainda estão no storage: contam como
+    // ausentes para a prévia dos desligados
+    const denied = options.dryRun
+      ? await this.idsByMediaUrl(options.denylisted ?? [], and(logoKinds, isNotNull(asset.storageKey)))
+      : [];
     const missingLogo = (dryRun: boolean) =>
       this.db
         .select({ id: asset.id })
         .from(asset)
-        .where(and(logoKinds, dryRun ? or(MISSING_ASSET, generic) : MISSING_ASSET));
+        .where(
+          and(
+            logoKinds,
+            dryRun
+              ? or(MISSING_ASSET, generic, denied.length ? inArray(asset.id, denied) : undefined)
+              : MISSING_ASSET,
+          ),
+        );
     if (options.dryRun) {
       const [row] = await this.db.execute<{
         placeholders: number;
@@ -432,14 +453,19 @@ export class PgAssetStore implements AssetStore {
     });
   }
 
-  async unlink(urls: string[], at: Date): Promise<number> {
-    if (!urls.length) return 0;
+  /** Ids dos assets (filtrados por `where`) cuja URL normalizada está em `urls`. */
+  private async idsByMediaUrl(urls: readonly string[], where: SQL | undefined): Promise<string[]> {
+    if (!urls.length) return [];
     const candidates = await this.db
       .select({ id: asset.id, sourceUrl: asset.sourceUrl })
       .from(asset)
-      .where(isNotNull(asset.storageKey));
+      .where(where);
     const set = new Set(urls);
-    const ids = candidates.filter((c) => set.has(normalizeMediaUrl(c.sourceUrl) ?? '')).map((c) => c.id);
+    return candidates.filter((c) => set.has(normalizeMediaUrl(c.sourceUrl) ?? '')).map((c) => c.id);
+  }
+
+  async unlink(urls: string[], at: Date): Promise<number> {
+    const ids = await this.idsByMediaUrl(urls, isNotNull(asset.storageKey));
     if (!ids.length) return 0;
     await this.db
       .update(asset)

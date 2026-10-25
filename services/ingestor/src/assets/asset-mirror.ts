@@ -123,6 +123,8 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
   report.logoCleanup = await options.assets.cleanupLogos(new Date(clock.now()), {
     placeholders: options.placeholderLogos,
     dryRun: options.dryRun,
+    // a prévia pula o unlink: os logos bloqueados entram na conta dos desligados
+    denylisted: denylist.urls,
   });
   report.photoCleanup = await options.assets.cleanupPhotos(new Date(clock.now()), {
     placeholders: options.placeholderPhotos,
