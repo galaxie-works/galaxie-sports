@@ -285,14 +285,14 @@ describe('webhooks assinados', () => {
       .update(event)
       .set({ score: { home: 2, away: 2 } })
       .where(eq(event.id, id));
-    await worker.tick();
     // O worker roda em segundo plano: uma rodada entre o cadastro (ativo) e a desativação pode enfileirar a
     // entrega do evento recém-criado. O que importa é que nada seja enviado: a linha, se existir, vira `dead`.
+    // tick() devolve o ciclo em andamento quando há um; idle() espera também o ciclo coalescido, que já vê a
+    // mudança acima — sem isso a fila "vazia" podia ser só a mudança ainda não enfileirada.
+    await worker.tick();
+    await worker.idle();
     const deliveries = () => db.select().from(webhookDelivery).where(eq(webhookDelivery.endpointId, ep.id));
-    await expect
-      .poll(async () => (await deliveries()).filter((d) => d.status === 'pending'), { timeout: 5_000 })
-      .toHaveLength(0);
-    await new Promise((r) => setTimeout(r, 300));
+    expect((await deliveries()).filter((d) => d.status === 'pending')).toHaveLength(0);
     expect(hits('/off')).toHaveLength(0);
     for (const d of await deliveries()) {
       expect(d).toMatchObject({ status: 'dead', lastError: 'endpoint desativado' });

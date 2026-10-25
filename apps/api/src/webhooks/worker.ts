@@ -156,6 +156,11 @@ export class WebhookWorker {
     return this.running;
   }
 
+  /** Espera o ciclo em andamento e os coalescidos atrás dele (testes e desligamento). */
+  async idle(): Promise<void> {
+    while (this.running) await this.running;
+  }
+
   private async cycle(): Promise<void> {
     await this.enqueue();
     for (;;) {
