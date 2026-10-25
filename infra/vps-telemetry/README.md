@@ -162,6 +162,23 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://$ASSETS_DOMAIN/$S3_BUCKET/    
 - Apagar os dados (Postgres, S3, backups) só com pedido explícito: `docker compose down -v`.
 - Remover os registros DNS. Nada disto toca nas outras stacks.
 
+## Logs e a chave do SSE (`?key=`)
+
+O `EventSource` não manda header, então o `/v1/stream` aceita a chave em `?key=`. Na VPS a borda é o Traefik (v3,
+configurado por argumentos fora deste repositório; não há Caddy aqui), com **access log desligado** (sem
+`--accesslog`), e a API redige `?key=` nos próprios logs. Hoje a chave na query não vai para log: na verificação de
+2026-10-25 houve 0 ocorrências de `key=` em 7 dias de logs do Traefik e da API.
+
+Se o access log do Traefik for ligado, ele precisa descartar o `RequestPath`, que leva a query:
+
+```text
+--accesslog=true --accesslog.format=json --accesslog.fields.defaultmode=keep
+--accesslog.fields.names.RequestPath=drop --accesslog.fields.headers.defaultmode=drop
+```
+
+Para manter o caminho no log, as alternativas são exigir a chave só no header `x-galaxie-key` no SSE ou reescrever a
+URL num middleware antes do log.
+
 ## Pendências
 
 - Cópia dos backups fora da VPS: existe (dumps no NAS do dono e snapshot diário da VPS no provedor, ver
