@@ -11,7 +11,8 @@
  *    país — agregador e domínio desconhecido não contam;
  * 4. o trecho cita os dois times e a emissora/canal; a página, quando foi possível buscá-la, cita a
  *    emissora (senão a evidência cai) e, com os dois times e a emissora juntos (a até 40 palavras),
- *    soma confiança;
+ *    soma confiança. O canal (subcanal) só é gravado quando a fonte o cita pelo nome dele — a fonte
+ *    que só cita a emissora ou um canal irmão sustenta a emissora, sem o canal;
  * 5. fonte com data mais de 30 dias antes do jogo só vale se o trecho citar a data do jogo (tabela
  *    da temporada); senão é descartada (escala de outra rodada ou temporada).
  *
@@ -130,6 +131,25 @@ export function mentionsTeam(text: string, team: TeamNames): boolean {
 /** Nomes pelos quais a emissora (ou o canal) pode aparecer num texto. */
 export function broadcasterNames(entry: BroadcasterEntry, channel?: string | null): string[] {
   const names = [entry.name, ...entry.aliases, ...entry.channels, ...(channel ? [channel] : [])];
+  return [...new Set(names.filter((n) => normalizeName(n).length >= 2))];
+}
+
+/**
+ * Nomes pelos quais UM canal da emissora aparece num texto: o canal, os apelidos com validade que
+ * apontam para ele e as grafias da emissora com o mesmo sufixo ("SportTV 2" para "SporTV 2"). Não
+ * inclui a emissora genérica nem os canais irmãos: a fonte de "SporTV 3" não sustenta "SporTV 2".
+ */
+export function channelNames(entry: BroadcasterEntry, channel: string): string[] {
+  const ch = words(channel);
+  const base = words(entry.name);
+  const suffix = base.length && base.every((w, i) => ch[i] === w) ? ch.slice(base.length) : [];
+  const names = [
+    channel,
+    ...entry.datedAliases
+      .filter((a) => a.channel && normalizeName(a.channel) === normalizeName(channel))
+      .map((a) => a.name),
+    ...(suffix.length ? [entry.name, ...entry.aliases].map((n) => `${n} ${suffix.join(' ')}`) : []),
+  ];
   return [...new Set(names.filter((n) => normalizeName(n).length >= 2))];
 }
 
@@ -296,13 +316,19 @@ export function validateMatchChannels(
       rejected.push({ broadcasterId: id, reason: 'not_a_rights_holder' });
       continue;
     }
-    const channels = group
-      .map((p) => p.channel?.trim() || null)
-      .filter((c): c is string => !!c && entry.channels.some((x) => normalizeName(x) === normalizeName(c)));
-    const channel = channels[0] ?? null;
-    const names = broadcasterNames(entry, channel);
+    const channels = [
+      ...new Set(
+        group
+          .map((p) => p.channel?.trim() || null)
+          .filter(
+            (c): c is string => !!c && entry.channels.some((x) => normalizeName(x) === normalizeName(c)),
+          ),
+      ),
+    ];
+    const names = broadcasterNames(entry);
+    const byChannel = new Map(channels.map((c) => [c, channelNames(entry, c)]));
     const reasons: EvidenceRejection[] = [];
-    const kept = new Map<string, MatchChannelEvidence & { score: number }>();
+    const kept = new Map<string, MatchChannelEvidence & { score: number; channels: string[] }>();
 
     for (const p of group)
       for (const ev of p.evidence) {
@@ -358,9 +384,18 @@ export function validateMatchChannels(
         const score =
           (OFFICIAL.includes(kind) ? CHANNEL_SCORING.official : CHANNEL_SCORING.press) +
           (pageVerified ? CHANNEL_SCORING.pageVerified : 0);
+        // canal proposto que o trecho (e a página, quando buscada) cita pelo nome dele
+        const cited = channels.filter(
+          (c) =>
+            mentionsBroadcaster(excerpt, byChannel.get(c)!) &&
+            (!page?.ok || mentionsBroadcaster(page.text, byChannel.get(c)!)),
+        );
         const key = comparableUrl(url);
         const prev = kept.get(key);
-        if (prev && prev.score >= score) continue;
+        if (prev && prev.score >= score) {
+          prev.channels = [...new Set([...prev.channels, ...cited])];
+          continue;
+        }
         kept.set(key, {
           url,
           publisher: hostOf(url)!,
@@ -370,10 +405,13 @@ export function validateMatchChannels(
           pageVerified,
           fetchedAt: ctx.now.toISOString(),
           score,
+          channels: [...new Set([...(prev?.channels ?? []), ...cited])],
         });
       }
 
     const support = [...kept.values()].sort((a, b) => b.score - a.score);
+    // sem fonte que cite o canal escolhido, grava só a emissora (sem o canal)
+    const channel = channels.find((c) => support.some((e) => e.channels.includes(c))) ?? null;
     if (!support.length) {
       rejected.push({ broadcasterId: id, reason: 'no_valid_source', evidence: [...new Set(reasons)] });
       continue;
@@ -392,7 +430,7 @@ export function validateMatchChannels(
       channel: channel && normalizeName(channel) !== normalizeName(entry.name) ? channel : null,
       confidence,
       sourceKind: support.some((e) => OFFICIAL.includes(e.sourceKind)) ? 'official' : 'press',
-      evidence: support.slice(0, CHANNEL_SCORING.maxEvidence).map(({ score: _s, ...e }) => e),
+      evidence: support.slice(0, CHANNEL_SCORING.maxEvidence).map(({ score: _s, channels: _c, ...e }) => e),
     });
   }
   accepted.sort((a, b) => a.broadcasterId.localeCompare(b.broadcasterId));
