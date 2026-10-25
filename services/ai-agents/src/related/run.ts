@@ -10,6 +10,7 @@ import {
   competition,
   event,
   participant,
+  readPlaybackBlocks,
   relatedRun,
   type Database,
   type RelatedContentRow,
@@ -834,7 +835,17 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           prev?: RelatedContentRow;
         };
         const cands: Cand[] = [];
+        // vídeos que o player oficial recusou (lista de bloqueios) e o histórico por canal e formato
+        const blocks = await readPlaybackBlocks(db);
         for (const v of videos) {
+          if (blocks.videos.has(v.id)) {
+            discard('playback_blocked');
+            continue;
+          }
+          if (blocks.channels.has(v.channelId)) {
+            discard('channel_playback_blocked');
+            continue;
+          }
           const verdict = tierOf(v, channels);
           if (verdict.blocked) {
             discard('blocked_channel');
@@ -941,6 +952,8 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             publishedAt,
             thumbnailUrl: v.thumbnailUrl,
             language,
+            regionAllowed: v.regionAllowed,
+            regionBlocked: v.regionBlocked,
             statistics: {
               views: v.views,
               likes: v.likes,
@@ -953,6 +966,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
               views: v.views,
               publishedAt,
               kickoff: core.startsAt,
+              blockedSameChannelFormat: blocks.byChannelFormat.get(`${v.channelId}|${format}`) ?? 0,
             }),
             confidence: base.confidence,
             classifiedBy: base.classifiedBy,

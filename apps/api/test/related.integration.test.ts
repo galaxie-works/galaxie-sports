@@ -17,6 +17,7 @@ import {
   participant,
   publishChange,
   RELATED_CONTENT_TOPIC,
+  relatedChannelRule,
   relatedContent,
   relatedContentTag,
   runMigrations,
@@ -49,6 +50,13 @@ const cdn = new RecordingCdnPurger();
 const KICKOFF = new Date('2026-10-22T00:30:00Z');
 
 const get = (url: string, k = key) => app.inject({ method: 'GET', url, headers: { 'x-galaxie-key': k } });
+const reportError = (body: Record<string, unknown>, k = key) =>
+  app.inject({
+    method: 'POST',
+    url: '/v1/related/playback-errors',
+    headers: { 'x-galaxie-key': k },
+    payload: body,
+  });
 
 type Row = typeof relatedContent.$inferInsert;
 function row(externalId: string, over: Partial<Row> = {}): Row {
@@ -263,5 +271,102 @@ describe('GET /v1/events/{id}/related', () => {
     expect(await ids('country=US')).toEqual(['an-xx', 'an-br', 'an-mx', 'an-ar']);
     expect(await ids('')).toEqual(['an-xx', 'an-br', 'an-mx', 'an-ar']);
     expect((await get(`/v1/events/${eventId}/related?country=ARG`)).statusCode).toBe(400);
+  });
+
+  it('filtro por proporção: só verticais, só horizontais ou os dois', async () => {
+    const ids = async (qs: string) =>
+      (await get(`/v1/events/${eventId}/related?type=highlights,goal&${qs}`))
+        .json()
+        .data.map((d: { external_id: string }) => d.external_id);
+    expect(await ids('aspect_ratio=9:16')).toEqual(['short1']);
+    expect(await ids('aspect_ratio=16:9')).toEqual(['hl']);
+    expect(await ids('aspect_ratio=16:9,9:16')).toEqual(['hl', 'short1']);
+    expect((await get(`/v1/events/${eventId}/related?aspect_ratio=21:9`)).statusCode).toBe(400);
+  });
+
+  it('restrição de país do YouTube: o vídeo bloqueado no país não aparece para ele', async () => {
+    await db
+      .insert(relatedContent)
+      .values([
+        row('bts-noar', { contentType: 'behind_the_scenes', language: 'es-AR', regionBlocked: ['AR'] }),
+        row('bts-onlymx', { contentType: 'behind_the_scenes', language: 'es-MX', regionAllowed: ['MX'] }),
+        row('bts-all', { contentType: 'behind_the_scenes', language: 'es-AR', rankScore: '1.000' }),
+      ]);
+    const ids = async (country: string) =>
+      (await get(`/v1/events/${eventId}/related?type=behind_the_scenes&country=${country}`))
+        .json()
+        .data.map((d: { external_id: string }) => d.external_id);
+    expect(await ids('AR')).toEqual(['bts-all']);
+    // o bloqueado só na Argentina toca no México
+    expect(await ids('MX')).toEqual(['bts-onlymx', 'bts-noar', 'bts-all']);
+  });
+
+  it('erro do player tira o vídeo da vitrine; 3 recusas tiram o canal, e a liberação no painel vence', async () => {
+    await db.insert(relatedContent).values([
+      row('cz1', {
+        contentType: 'full_match',
+        channelId: 'UCcz',
+        channelTitle: 'Canal X',
+        rankScore: '3.000',
+      }),
+      row('cz2', {
+        contentType: 'full_match',
+        channelId: 'UCcz',
+        channelTitle: 'Canal X',
+        rankScore: '2.900',
+      }),
+      row('cz3', {
+        contentType: 'full_match',
+        channelId: 'UCcz',
+        channelTitle: 'Canal X',
+        rankScore: '2.800',
+      }),
+      row('cz4', {
+        contentType: 'full_match',
+        channelId: 'UCcz',
+        channelTitle: 'Canal X',
+        rankScore: '2.700',
+      }),
+    ]);
+    const url = `/v1/events/${eventId}/related?type=full_match`;
+    const ids = async () => (await get(url)).json().data.map((d: { external_id: string }) => d.external_id);
+    expect(await ids()).toEqual(['cz1', 'cz2', 'cz3', 'cz4']);
+    const items = (await get(url)).json().data as { id: string; external_id: string }[];
+    const idOf = (ext: string) => items.find((i) => i.external_id === ext)!.id;
+
+    const first = await reportError({ item_id: idOf('cz1'), code: 150 });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({ external_id: 'cz1', removed_from_events: 1 });
+    // o change feed purga o cache do jogo
+    await expect.poll(ids, { timeout: 10_000, interval: 50 }).toEqual(['cz2', 'cz3', 'cz4']);
+    // relato repetido só soma
+    expect((await reportError({ item_id: idOf('cz1'), code: 150 })).json().removed_from_events).toBe(0);
+
+    await reportError({ item_id: idOf('cz2'), code: 101 });
+    await reportError({ item_id: idOf('cz3'), code: 150 });
+    // terceira recusa do canal: o cz4, que nunca falhou, também sai
+    await expect.poll(ids, { timeout: 10_000, interval: 50 }).toEqual([]);
+
+    // liberado no painel: volta o que não foi recusado
+    await db.insert(relatedChannelRule).values({ provider: 'youtube', channelId: 'UCcz', mode: 'allow' });
+    await db.transaction((tx) =>
+      publishChange(tx, {
+        topic: RELATED_CONTENT_TOPIC,
+        entityType: 'related_content',
+        entityId: eventId,
+        payload: { event_id: eventId, tags: [relatedContentTag(eventId)] },
+      }),
+    );
+    await expect.poll(ids, { timeout: 10_000, interval: 50 }).toEqual(['cz4']);
+  });
+
+  it('relato de erro: código, item, chave e módulo', async () => {
+    const any = (await get(`/v1/events/${eventId}/related`)).json().data[0].id as string;
+    expect((await reportError({ item_id: any, code: 5 })).statusCode).toBe(400);
+    expect((await reportError({ item_id: 'x', code: 150 })).statusCode).toBe(400);
+    expect(
+      (await reportError({ item_id: '00000000-0000-7000-8000-000000000000', code: 150 })).statusCode,
+    ).toBe(404);
+    expect((await reportError({ item_id: any, code: 150 }, liKey)).statusCode).toBe(403);
   });
 });

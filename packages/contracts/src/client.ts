@@ -201,15 +201,20 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       opts: LocaleOpts & {
         type?: RelatedContentTypeName[];
         format?: 'short' | 'long';
+        /** Proporções do quadro aceitas (ex.: `['9:16']` só os verticais). */
+        aspectRatio?: ('16:9' | '9:16' | '4:3' | '1:1')[];
         limit?: number;
         /** País do público (vídeos localizados). */
         country?: string;
       } = {},
-    ) =>
-      v1<RelatedContent>(`/v1/events/${seg(id)}/related`, {
-        ...opts,
+    ) => {
+      const { aspectRatio, ...rest } = opts;
+      return v1<RelatedContent>(`/v1/events/${seg(id)}/related`, {
+        ...rest,
         ...(opts.type ? { type: opts.type.join(',') } : {}),
-      } as Query & LocaleOpts),
+        ...(aspectRatio?.length ? { aspect_ratio: aspectRatio.join(',') } : {}),
+      } as Query & LocaleOpts);
+    },
     /** Card de MMA da luta (a noite de lutas). */
     eventCard: (id: string, opts: LocaleOpts = {}) => v1<EventFightCard>(`/v1/events/${seg(id)}/card`, opts),
     eventH2h: (id: string, opts: LocaleOpts & { limit?: number } = {}) =>

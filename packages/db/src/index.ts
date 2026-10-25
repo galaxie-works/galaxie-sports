@@ -12,9 +12,15 @@ export {
   type EventContextContentBase,
 } from './event-context.js';
 export {
+  readPlaybackBlocks,
   readRelatedContent,
+  recordPlaybackBlock,
+  RELATED_CHANNEL_BLOCK_THRESHOLD,
   relatedContentTag,
   RELATED_CONTENT_TOPIC,
+  type PlaybackBlockIndex,
+  type PlaybackBlockInput,
+  type PlaybackBlockResult,
   type ReadRelatedOptions,
   type RelatedContentPage,
   type RelatedContentRow,
