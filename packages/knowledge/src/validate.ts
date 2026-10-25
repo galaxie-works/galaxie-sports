@@ -1070,8 +1070,8 @@ export function formatReport(report: ValidationReport): string {
 
 /**
  * Perfil editorial (formula-1/editorial/<locale>.yaml): um por piloto e idioma, slug = `f1-<id do F1DB>`, o nível
- * diz o que o perfil traz (`regular` só a bio), a tradução precisa do original em pt-BR, e os textos no idioma do
- * arquivo e sem cara de letra de música. Fonte por item e o resto do formato ficam no schema.
+ * diz o que o perfil traz (`regular` só a bio) e a tradução precisa do original em pt-BR. O conteúdo nunca é barrado:
+ * idioma e cara de letra de música são avisos, e o resto (fonte, números, corridas) vem nos achados do agente.
  */
 function validateEditorial(
   kb: KnowledgeBase,
@@ -1137,7 +1137,8 @@ function validateEditorial(
       const where = at(e.file, [...base, ...path]);
       // a bio é texto editorial em parágrafos; os itens, frases curtas
       const verdict = path[0] === 'bio' ? checkParagraphs(text) : checkProse(text);
-      if (verdict) add(verdict.level, 'lyric-like', e.file, where, `${slug}: ${verdict.reason}`);
+      // o perfil nunca é barrado pelo texto: o agente grava o achado e o revisor decide (aqui, só aviso)
+      if (verdict) add('warning', 'lyric-like', e.file, where, `${slug}: ${verdict.reason}`);
       const found = guessLanguage(text);
       if (found && found !== languageOf(e.locale)) {
         const excerpt = text.length > 50 ? `${text.slice(0, 47)}…` : text;

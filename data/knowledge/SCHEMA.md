@@ -208,9 +208,9 @@ drivers:
     review_status: draft
 ```
 
-- **Fonte por item**: bio e estilo com `sources`; ponto forte, momento e rivalidade com `source`. Momento sem fonte é erro de schema.
+- **Fonte por item**: bio e estilo com `sources`; ponto forte, momento e rivalidade com `source`. O conteúdo nunca é barrado: item sem fonte, momento fora da lista do piloto (sem `year`/`round`) e rival sem `f1db_id` entram com achados graves em `findings` (campo, trecho, regra, motivo e gravidade), que o painel de revisão destaca.
 - `round` é a rodada da corrida na temporada (a ordem pela data): liga o momento ao evento da base. `wet` vem da fonte (a F1DB não marca chuva).
-- O validador confere: slug = `f1-<f1db.id>` (`editorial-slug`), regular só com a bio (`editorial-tier`; lenda sem estilo ou sem momento é aviso), tradução com o original em pt-BR (`editorial-original`), o idioma do texto e letra de música. Os números são conferidos contra o F1DB pelo agente, antes de entrar.
+- O validador da base confere a forma: slug = `f1-<f1db.id>` (`editorial-slug`), regular só com a bio (`editorial-tier`; lenda sem estilo ou sem momento é aviso) e tradução com o original em pt-BR (`editorial-original`). Idioma e letra de música são avisos. Os números são conferidos contra o F1DB pelo agente e vão para os achados.
 - **Revisão no painel:** cada perfil × idioma é um item do tipo "Perfil de piloto (F1)" (`editorial:<locale>.<slug>`); edição não muda `f1db` nem `tier`.
 
 ## `<esporte>/head-to-head/<region>.yaml`

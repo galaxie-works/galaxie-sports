@@ -3,16 +3,16 @@
  * lenda = bio, estilo, pontos fortes, momentos marcantes e rivalidades; regular = bio curta.
  *
  * O LLM (tier `research`, com busca na web) recebe os fatos do F1DB e a lista de corridas do piloto e devolve uma
- * estrutura fixa em pt-BR, cada item com a URL da fonte. Regras, no código e não no prompt:
- * - item sem fonte, com fonte que não veio da busca (`groundedUrls` do Gemini) ou de domínio não permitido **não
- *   entra**;
- * - número que não está nos fatos do F1DB (FactSheet: totais, temporadas, corridas, pistas) reprova o item;
- * - momento precisa citar uma corrida da lista do piloto (`<ano>-<rodada>`); rival precisa ser um piloto que largou
- *   nas mesmas corridas (vínculo pelo F1DB, nunca pelo LLM);
- * - termo proibido, padrão de prompt injection ou texto com cara de letra de música reprovam o item;
- * - sem a bio, ou lenda sem nenhum momento, não há proposta.
- * Depois, um segundo pedido (tier `standard`, sem busca) traduz o perfil aceito para o espanhol neutro (`es`), item a
- * item e com as mesmas fontes; a tradução passa pelas mesmas regras de texto.
+ * estrutura fixa em pt-BR, cada item com a URL da fonte. **O validador nunca barra e ninguém mexe na resposta antes
+ * dele**: cada problema vira um achado (`findings`: campo, trecho, regra, motivo e gravidade) e o perfil vai como
+ * rascunho para a revisão humana, que vê o trecho destacado no painel.
+ * - grave: número fora do F1DB (FactSheet), corrida que o piloto não disputou (fora da lista `<ano>-<rodada>`), rival
+ *   que não largou junto (vínculo pelo F1DB, nunca pelo LLM), prompt injection e fonte sem a busca por trás (sem fonte,
+ *   fora dos `groundedUrls` do Gemini ou de domínio não permitido);
+ * - alerta: termo da lista de proibidos, cara de letra de música, outro idioma, tamanho, item repetido, lenda sem
+ *   momento e tradução com outro número de itens.
+ * Só não há proposta sem bio. Depois, um segundo pedido (tier `standard`, sem busca) traduz o perfil para o espanhol
+ * neutro (`es`), item a item e com as mesmas fontes; a tradução passa pelo mesmo validador.
  */
 import {
   checkParagraphs,
@@ -21,6 +21,7 @@ import {
   DRIVING_STYLES,
   driverSlug,
   type DriverEditorialEntry,
+  type EditorialFinding,
 } from '@galaxie/knowledge';
 import {
   checkFacts,
@@ -44,14 +45,13 @@ export interface ProfileProposal {
   tier: 'legend' | 'regular';
   status: 'accepted' | 'rejected';
   reasons: string[];
+  /** As entradas com os achados do validador (`findings`); nada é descartado. */
   entries: Record<ProfileLocale, DriverEditorialEntry | null>;
-  /** Itens descartados e o motivo (para o relatório). */
-  dropped: { locale: ProfileLocale; field: string; text: string; reason: string }[];
   model?: string;
   usage?: LlmUsage;
 }
 
-/** Tamanhos de cada parte (o schema da base aceita um pouco mais, para a edição no painel). */
+/** Tamanhos pedidos ao modelo; passar deles é alerta, não corte. */
 const LIMITS = { legendBio: 1500, regularBio: 450, style: 400, item: 280 } as const;
 const MAX = { strengths: 5, moments: 6, rivalries: 3 } as const;
 
@@ -137,7 +137,7 @@ const REGULAR_SCHEMA = {
   properties: { bio: LEGEND_SCHEMA.properties.bio },
 } as const;
 
-type LegendReply = {
+export type LegendReply = {
   bio: { text: string; sources: string[] };
   style: { kind: string; text: string; sources: string[] } | null;
   strengths: { key: string; text: string; source: string }[];
@@ -230,12 +230,38 @@ export function profilePrompt(f: ProfileFacts): string {
   ].join('\n\n');
 }
 
-interface Ctx {
+export interface Ctx {
   facts: ProfileFacts;
   sheet: FactSheet;
   grounded: Set<string> | null;
   cited: Set<string>;
 }
+
+/** Regras graves: pedem conferência do fato. As demais são alertas sobre o texto. Nenhuma descarta. */
+export const SEVERE_RULES: ReadonlySet<string> = new Set([
+  'unknown_number',
+  'race_not_driven',
+  'rival_not_in_race',
+  'prompt_injection',
+  'source_not_grounded',
+  'source_domain',
+  'missing_source',
+]);
+
+const finding = (
+  field: string,
+  start: number,
+  end: number,
+  rule: string,
+  reason: string,
+): EditorialFinding => ({
+  field,
+  start,
+  end,
+  rule,
+  reason,
+  severity: SEVERE_RULES.has(rule) ? 'severe' : 'alert',
+});
 
 /**
  * Vocabulário de pilotagem que a lista de termos proibidos (feita para torcida e violência) pegaria: "pilotagem
@@ -253,93 +279,84 @@ const RACING_PHRASES = [
 /** Nome de modelo com número (Brabham BT52, McLaren MP4/4, Ferrari F2004): o número é do nome, não estatística. */
 const MODEL_CODE = /\b\p{L}+\d+(?:[/-]\d+)*\p{L}*\b/gu;
 
-/** Número citado que não está nos fatos do F1DB (os de nome de modelo não contam). */
-function unknownNumbers(text: string, locale: ProfileLocale, ctx: Ctx): string[] {
-  const plain = text.replace(MODEL_CODE, ' ');
-  return [
-    ...new Set(
-      checkFacts(plain, ctx.sheet, locale)
-        .filter((v) => v.kind === 'unknown_number')
-        .map((v) => v.value),
-    ),
-  ];
-}
-
-const forbiddenIn = (text: string, locale: ProfileLocale, ctx: Ctx) =>
-  findForbiddenTerms(text, locale, { allowPhrases: [...ctx.sheet.names, ...RACING_PHRASES] });
-
-/** Motivo para recusar um texto (ou null): injection, termos, letra de música, idioma e números fora do F1DB. */
-function textProblem(text: string, locale: ProfileLocale, ctx: Ctx, max: number): string | null {
-  if (!text) return 'texto vazio';
-  if (text.length > max) return 'texto longo demais';
-  if (detectPromptInjection(text).length) return 'padrão de prompt injection';
-  const hits = forbiddenIn(text, locale, ctx);
-  if (hits.length) return `termo proibido (${hits.map((h) => h.match).join(', ')})`;
-  // a bio vem em parágrafos (prosa); os itens são frases curtas
-  const prose = /\n\s*\n/.test(text) ? checkParagraphs(text) : checkProse(text);
-  if (prose?.level === 'error') return `texto reprovado pelo validador da base (${prose.reason})`;
-  const lang = detectLanguage(text);
-  if (lang && lang !== (locale === 'pt-BR' ? 'pt' : 'es')) return 'texto em outro idioma';
-  const numbers = unknownNumbers(text, locale, ctx);
-  if (numbers.length) return `número fora do F1DB (${numbers.join(', ')})`;
-  return null;
+/** Frases do texto com a posição de cada uma (o parágrafo não junta frases). */
+export function sentenceSpans(text: string): { start: number; end: number; text: string }[] {
+  const out: { start: number; end: number; text: string }[] = [];
+  for (const m of text.matchAll(/[^.!?…\n]+[.!?…]*/gu)) {
+    const raw = m[0];
+    const lead = raw.length - raw.trimStart().length;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const start = m.index + lead;
+    out.push({ start, end: start + trimmed.length, text: trimmed });
+  }
+  return out;
 }
 
 /**
- * A bio sem as frases com número fora do F1DB ou termo proibido: tira só a frase, não a bio inteira, desde que
- * sobrem ao menos 70% do texto. Devolve o texto aproveitado e as frases tiradas, ou null quando não dá para aproveitar.
+ * Achados de um texto do perfil: por frase, número fora do F1DB (grave) e termo proibido (alerta); no texto todo,
+ * prompt injection (grave), tamanho, cara de letra de música e idioma (alertas). O texto não muda.
  */
-function salvageBio(
+function textFindings(
   text: string,
+  field: string,
   locale: ProfileLocale,
   ctx: Ctx,
-): { text: string; removed: { text: string; reason: string }[] } | null {
-  const removed: { text: string; reason: string }[] = [];
-  const paragraphs = text
-    .split(/\n\s*\n/)
-    .map((p) =>
-      p
-        .split(/(?<=[.!?…])\s+/u)
-        .filter((sentence) => {
-          const numbers = unknownNumbers(sentence, locale, ctx);
-          const hits = forbiddenIn(sentence, locale, ctx);
-          const reason = numbers.length
-            ? `número fora do F1DB (${numbers.join(', ')})`
-            : hits.length
-              ? `termo proibido (${hits.map((h) => h.match).join(', ')})`
-              : null;
-          if (reason) removed.push({ text: sentence, reason });
-          return !reason;
-        })
-        .join(' '),
-    )
-    .filter((p) => p.trim());
-  const kept = paragraphs.join('\n\n');
-  if (!removed.length || kept.length < text.length * 0.7) return null;
-  return { text: kept, removed };
+  max: number,
+): EditorialFinding[] {
+  const out: EditorialFinding[] = [];
+  const all = (rule: string, reason: string) => out.push(finding(field, 0, text.length, rule, reason));
+  if (detectPromptInjection(text).length) all('prompt_injection', 'padrão de prompt injection');
+  if (text.length > max) all('too_long', `texto longo demais (${text.length} de ${max} caracteres)`);
+  const prose = /\n\s*\n/.test(text) ? checkParagraphs(text) : checkProse(text);
+  if (prose?.level === 'error') all('lyric_like', `cara de letra de música (${prose.reason})`);
+  const lang = detectLanguage(text);
+  if (lang && lang !== (locale === 'pt-BR' ? 'pt' : 'es'))
+    all('wrong_language', `texto em ${lang === 'pt' ? 'português' : 'espanhol'}, não no idioma do arquivo`);
+  // marcador de citação do passo de estruturação ("[S1]"): fica no texto, destacado para o revisor tirar
+  for (const m of text.matchAll(/\[S\d+(?:\s*[,;]\s*S?\d+)*\]/g))
+    out.push(
+      finding(field, m.index, m.index + m[0].length, 'citation_marker', 'marcador de citação no texto'),
+    );
+  for (const s of sentenceSpans(text)) {
+    const numbers = [
+      ...new Set(
+        checkFacts(s.text.replace(MODEL_CODE, ' '), ctx.sheet, locale)
+          .filter((v) => v.kind === 'unknown_number')
+          .map((v) => v.value),
+      ),
+    ];
+    if (numbers.length)
+      out.push(
+        finding(field, s.start, s.end, 'unknown_number', `número fora do F1DB (${numbers.join(', ')})`),
+      );
+    const hits = findForbiddenTerms(s.text, locale, {
+      allowPhrases: [...ctx.sheet.names, ...RACING_PHRASES],
+    });
+    if (hits.length)
+      out.push(
+        finding(
+          field,
+          s.start,
+          s.end,
+          'forbidden_term',
+          `termo da lista de proibidos (${hits.map((h) => h.match).join(', ')})`,
+        ),
+      );
+  }
+  return out;
 }
 
-/** Motivo para recusar uma fonte (ou null): tem de ser URL da busca e de domínio permitido. */
-function sourceProblem(url: string, ctx: Ctx): string | null {
-  if (!url || !/^https?:\/\//.test(url)) return 'sem fonte';
-  if (ctx.grounded ? !ctx.grounded.has(url) : !ctx.cited.has(url)) return 'fonte não veio da busca';
-  if (!isAllowedUrl(url)) return 'domínio da fonte não permitido';
+/** Achado da fonte (grave): sem fonte, fora da busca (`groundedUrls` do Gemini) ou de domínio não permitido. */
+function sourceFinding(url: string | undefined, field: string, ctx: Ctx): EditorialFinding | null {
+  if (!url || !/^https?:\/\//.test(url))
+    return finding(field, 0, url?.length ?? 0, 'missing_source', 'sem fonte');
+  if (ctx.grounded ? !ctx.grounded.has(url) : !ctx.cited.has(url))
+    return finding(field, 0, url.length, 'source_not_grounded', 'fonte que não veio da busca');
+  if (!isAllowedUrl(url))
+    return finding(field, 0, url.length, 'source_domain', 'domínio da fonte não permitido');
   return null;
 }
-
-/** Sem os marcadores de citação do passo de estruturação ("[S1]", "[S2, S4]") e sem espaços repetidos. */
-const clean = (s: string) =>
-  s
-    .replace(/\s*\[S\d+(?:\s*[,;]\s*S?\d+)*\]/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/\s+([.,;:!?])/g, '$1')
-    .trim();
-const cleanBio = (s: string) =>
-  s
-    .split(/\n\s*\n/)
-    .map(clean)
-    .filter(Boolean)
-    .join('\n\n');
 
 /** O rival citado pelo nome, entre os pilotos que largaram nas mesmas corridas (nome completo, ou sobrenome único). */
 export function resolveRival(name: string, f: ProfileFacts): { f1dbId: string; name: string } | null {
@@ -351,6 +368,135 @@ export function resolveRival(name: string, f: ProfileFacts): { f1dbId: string; n
   return bySurname.length === 1 ? bySurname[0]! : null;
 }
 
+/** `1993-03` → ano e rodada, quando têm cara de corrida (ano da F1 e rodada até 30). */
+function parseRaceKey(key: string): { year: number; round: number } | null {
+  const m = /^(\d{4})-(\d{1,2})$/.exec(key.trim());
+  if (!m) return null;
+  const year = Number(m[1]);
+  const round = Number(m[2]);
+  return year >= 1950 && year <= 2100 && round >= 1 && round <= 30 ? { year, round } : null;
+}
+
+/**
+ * Monta o perfil a partir da resposta do modelo **sem mexer nela**: os textos entram como vieram (só sem os espaços
+ * das pontas) e cada problema vira um achado com o trecho e a gravidade. Só não há proposta sem bio.
+ */
+export function buildProfile(
+  data: LegendReply,
+  facts: ProfileFacts,
+  ctx: Ctx,
+): { entry: DriverEditorialEntry | null; reasons: string[] } {
+  const tier = facts.tier === 'legend' ? 'legend' : 'regular';
+  const bioText = (data.bio?.text ?? '').trim();
+  if (!bioText) return { entry: null, reasons: ['o modelo não devolveu a bio'] };
+  const findings: EditorialFinding[] = [];
+  const bioSources = data.bio?.sources ?? [];
+  findings.push(
+    ...textFindings(bioText, 'bio', 'pt-BR', ctx, tier === 'legend' ? LIMITS.legendBio : LIMITS.regularBio),
+  );
+  if (!bioSources.length) findings.push(finding('bio.sources', 0, 0, 'missing_source', 'bio sem fonte'));
+  bioSources.forEach((u, i) => {
+    const f = sourceFinding(u, `bio.sources[${i}]`, ctx);
+    if (f) findings.push(f);
+  });
+  const entry: DriverEditorialEntry = {
+    slug: driverSlug(facts.f1dbId),
+    name: facts.name,
+    f1db: { id: facts.f1dbId },
+    tier,
+    bio: { text: bioText, sources: bioSources },
+    review_status: 'draft',
+  };
+
+  if (tier === 'legend') {
+    if (data.style) {
+      const text = data.style.text.trim();
+      const sources = data.style.sources ?? [];
+      entry.style = { kind: data.style.kind, text, sources };
+      findings.push(...textFindings(text, 'style', 'pt-BR', ctx, LIMITS.style));
+      if (!sources.length)
+        findings.push(finding('style.sources', 0, 0, 'missing_source', 'estilo sem fonte'));
+      sources.forEach((u, i) => {
+        const f = sourceFinding(u, `style.sources[${i}]`, ctx);
+        if (f) findings.push(f);
+      });
+    }
+    const strengths: NonNullable<DriverEditorialEntry['strengths']> = [];
+    for (const s of data.strengths ?? []) {
+      const field = `strengths[${strengths.length}]`;
+      const text = s.text.trim();
+      findings.push(...textFindings(text, field, 'pt-BR', ctx, LIMITS.item));
+      const src = sourceFinding(s.source, `${field}.source`, ctx);
+      if (src) findings.push(src);
+      if (strengths.some((x) => x.key === s.key))
+        findings.push(finding(field, 0, text.length, 'duplicate', `ponto forte repetido (${s.key})`));
+      strengths.push({ key: s.key, text, ...(s.source ? { source: s.source } : {}) });
+    }
+    const races = new Map(facts.racesList.map((r) => [r.key, r]));
+    const moments: NonNullable<DriverEditorialEntry['moments']> = [];
+    for (const m of data.moments ?? []) {
+      const field = `moments[${moments.length}]`;
+      const text = m.text.trim();
+      const race = races.get(m.race_key.trim());
+      const parsed = race ?? parseRaceKey(m.race_key);
+      findings.push(...textFindings(text, field, 'pt-BR', ctx, LIMITS.item));
+      if (!race)
+        findings.push(
+          finding(
+            field,
+            0,
+            text.length,
+            'race_not_driven',
+            `corrida que o piloto não disputou (${m.race_key})`,
+          ),
+        );
+      const src = sourceFinding(m.source, `${field}.source`, ctx);
+      if (src) findings.push(src);
+      if (race && moments.some((x) => x.year === race.year && x.round === race.round))
+        findings.push(finding(field, 0, text.length, 'duplicate', `momento repetido (${m.race_key})`));
+      moments.push({
+        ...(parsed ? { year: parsed.year, round: parsed.round } : {}),
+        race: m.race.trim() || race?.gp || m.race_key,
+        ...(m.wet ? { wet: true } : {}),
+        text,
+        ...(m.source ? { source: m.source } : {}),
+      });
+    }
+    const rivalries: NonNullable<DriverEditorialEntry['rivalries']> = [];
+    for (const r of data.rivalries ?? []) {
+      const field = `rivalries[${rivalries.length}]`;
+      const text = r.text.trim();
+      const rival = resolveRival(r.driver, facts);
+      findings.push(...textFindings(text, field, 'pt-BR', ctx, LIMITS.item));
+      if (!rival)
+        findings.push(
+          finding(
+            field,
+            0,
+            text.length,
+            'rival_not_in_race',
+            `rival que não largou junto com o piloto (${r.driver})`,
+          ),
+        );
+      const src = sourceFinding(r.source, `${field}.source`, ctx);
+      if (src) findings.push(src);
+      if (rival && rivalries.some((x) => x.driver.f1db_id === rival.f1dbId))
+        findings.push(finding(field, 0, text.length, 'duplicate', `rival repetido (${rival.name})`));
+      rivalries.push({
+        driver: { f1db_id: rival?.f1dbId ?? null, name: rival?.name ?? r.driver.trim() },
+        text,
+        ...(r.source ? { source: r.source } : {}),
+      });
+    }
+    if (!moments.length) findings.push(finding('moments', 0, 0, 'no_moments', 'lenda sem nenhum momento'));
+    if (strengths.length) entry.strengths = strengths;
+    if (moments.length) entry.moments = moments;
+    if (rivalries.length) entry.rivalries = rivalries;
+  }
+  if (findings.length) entry.findings = findings;
+  return { entry, reasons: [] };
+}
+
 export async function proposeProfile(llm: LlmClient, facts: ProfileFacts): Promise<ProfileProposal> {
   const tier = facts.tier === 'legend' ? 'legend' : 'regular';
   const out: ProfileProposal = {
@@ -360,7 +506,6 @@ export async function proposeProfile(llm: LlmClient, facts: ProfileFacts): Promi
     status: 'rejected',
     reasons: [],
     entries: { 'pt-BR': null, es: null },
-    dropped: [],
   };
   const result = await llm.generateJson<LegendReply>({
     tier: 'research',
@@ -379,109 +524,12 @@ export async function proposeProfile(llm: LlmClient, facts: ProfileFacts): Promi
     grounded: result.groundedUrls ? new Set(result.groundedUrls) : null,
     cited: new Set(result.citations.map((c) => c.url)),
   };
-  const data = result.data;
-  const drop = (field: string, text: string, reason: string) =>
-    out.dropped.push({ locale: 'pt-BR', field, text, reason });
-  /** Fontes que passam (sem repetir); as recusadas vão para o relatório. */
-  const goodSources = (field: string, list: string[]) =>
-    [...new Set(list.map(clean))].filter((u) => {
-      const why = sourceProblem(u, ctx);
-      if (why) drop(field, u, why);
-      return !why;
-    });
-
-  // bio: obrigatória
-  let bioText = cleanBio(data.bio?.text ?? '');
-  const bioSources = goodSources('bio', data.bio?.sources ?? []);
-  const bioMax = tier === 'legend' ? LIMITS.legendBio : LIMITS.regularBio;
-  // frase com número fora do F1DB ou termo proibido sai sozinha; o resto da bio fica
-  if (textProblem(bioText, 'pt-BR', ctx, bioMax)) {
-    const salvaged = salvageBio(bioText, 'pt-BR', ctx);
-    if (salvaged) {
-      for (const r of salvaged.removed) drop('bio', r.text, `frase tirada da bio: ${r.reason}`);
-      bioText = salvaged.text;
-    }
-  }
-  const bioProblem =
-    textProblem(bioText, 'pt-BR', ctx, bioMax) ?? (bioSources.length ? null : 'bio sem fonte da busca');
-  if (bioProblem) {
-    drop('bio', bioText, bioProblem);
-    out.reasons.push(`bio recusada: ${bioProblem}`);
-    return out;
-  }
-  const entry: DriverEditorialEntry = {
-    slug: driverSlug(facts.f1dbId),
-    name: facts.name,
-    f1db: { id: facts.f1dbId },
-    tier,
-    bio: { text: bioText, sources: bioSources },
-    review_status: 'draft',
-  };
-
-  if (tier === 'legend') {
-    if (data.style) {
-      const text = clean(data.style.text);
-      const sources = goodSources('style', data.style.sources);
-      const why =
-        textProblem(text, 'pt-BR', ctx, LIMITS.style) ?? (sources.length ? null : 'sem fonte da busca');
-      if (why) drop('style', text, why);
-      else entry.style = { kind: data.style.kind, text, sources };
-    }
-    const strengths: NonNullable<DriverEditorialEntry['strengths']> = [];
-    for (const s of data.strengths ?? []) {
-      const text = clean(s.text);
-      const why =
-        sourceProblem(s.source, ctx) ??
-        textProblem(text, 'pt-BR', ctx, LIMITS.item) ??
-        (strengths.some((x) => x.key === s.key) ? 'ponto forte repetido' : null);
-      if (why) drop('strengths', text, why);
-      else if (strengths.length < MAX.strengths) strengths.push({ key: s.key, text, source: s.source });
-    }
-    const races = new Map(facts.racesList.map((r) => [r.key, r]));
-    const moments: NonNullable<DriverEditorialEntry['moments']> = [];
-    for (const m of data.moments ?? []) {
-      const text = clean(m.text);
-      const race = races.get(m.race_key.trim());
-      const why =
-        (race ? null : `corrida fora da lista do piloto (${m.race_key})`) ??
-        sourceProblem(m.source, ctx) ??
-        textProblem(text, 'pt-BR', ctx, LIMITS.item) ??
-        (moments.some((x) => x.year === race!.year && x.round === race!.round) ? 'momento repetido' : null);
-      if (why) drop('moments', text, why);
-      else if (moments.length < MAX.moments)
-        moments.push({
-          year: race!.year,
-          round: race!.round,
-          race: clean(m.race) || race!.gp,
-          ...(m.wet ? { wet: true } : {}),
-          text,
-          source: m.source,
-        });
-    }
-    const rivalries: NonNullable<DriverEditorialEntry['rivalries']> = [];
-    for (const r of data.rivalries ?? []) {
-      const text = clean(r.text);
-      const rival = resolveRival(r.driver, facts);
-      const why =
-        (rival ? null : `rival fora do F1DB (${r.driver})`) ??
-        sourceProblem(r.source, ctx) ??
-        textProblem(text, 'pt-BR', ctx, LIMITS.item) ??
-        (rivalries.some((x) => x.driver.f1db_id === rival!.f1dbId) ? 'rival repetido' : null);
-      if (why) drop('rivalries', text, why);
-      else if (rivalries.length < MAX.rivalries)
-        rivalries.push({ driver: { f1db_id: rival!.f1dbId, name: rival!.name }, text, source: r.source });
-    }
-    if (!moments.length) {
-      out.reasons.push('lenda sem nenhum momento com fonte verificável');
-      return out;
-    }
-    if (strengths.length) entry.strengths = strengths;
-    entry.moments = moments.sort((a, b) => a.year - b.year || a.round - b.round);
-    if (rivalries.length) entry.rivalries = rivalries;
-  }
+  const built = buildProfile(result.data, facts, ctx);
+  out.reasons.push(...built.reasons);
+  if (!built.entry) return out;
   out.status = 'accepted';
-  out.entries['pt-BR'] = entry;
-  out.entries.es = await translateProfile(llm, entry, ctx, out);
+  out.entries['pt-BR'] = built.entry;
+  out.entries.es = await translateProfile(llm, built.entry, ctx, out);
   return out;
 }
 
@@ -508,7 +556,7 @@ const TRANSLATION_SCHEMA = {
   },
 } as const;
 
-type TranslationReply = {
+export type TranslationReply = {
   bio: string;
   style: string | null;
   strengths: string[];
@@ -516,7 +564,101 @@ type TranslationReply = {
   rivalries: string[];
 };
 
-/** O perfil aceito em espanhol neutro, item a item (as fontes são as do original); item recusado fica de fora. */
+/** Achados que são do item e não do texto (valem igual na tradução, com o trecho = o item todo). */
+const ITEM_RULES = new Set(['race_not_driven', 'rival_not_in_race', 'duplicate', 'no_moments']);
+const isSourceField = (field: string) => /\.sources?(\[\d+\])?$/.test(field);
+
+/**
+ * O perfil em espanhol neutro, item a item, com as fontes e os vínculos do original. A tradução passa pelo mesmo
+ * validador de texto; os achados de fonte e de item do original valem para ela. Nada é descartado: lista traduzida
+ * com outro número de itens fica com o texto do original e um alerta.
+ */
+export function buildTranslation(
+  entry: DriverEditorialEntry,
+  reply: TranslationReply,
+  ctx: Ctx,
+): DriverEditorialEntry {
+  const findings: EditorialFinding[] = [];
+  const textOf = (field: string, translated: string | null | undefined, original: string, max: number) => {
+    const text = (translated ?? '').trim();
+    if (!text) {
+      // sem tradução, fica o texto do original: os achados dele valem aqui também (e o idioma vira alerta)
+      findings.push(
+        finding(field, 0, original.length, 'translation_mismatch', 'sem tradução: texto do original'),
+        ...textFindings(original, field, 'es', ctx, max),
+      );
+      return original;
+    }
+    findings.push(...textFindings(text, field, 'es', ctx, max));
+    return text;
+  };
+  const es: DriverEditorialEntry = {
+    ...entry,
+    bio: {
+      ...entry.bio,
+      text: textOf(
+        'bio',
+        reply.bio,
+        entry.bio.text,
+        entry.tier === 'legend' ? LIMITS.legendBio : LIMITS.regularBio,
+      ),
+    },
+  };
+  delete es.findings;
+  if (entry.style)
+    es.style = { ...entry.style, text: textOf('style', reply.style, entry.style.text, LIMITS.style) };
+  const pair = <T extends { text: string }>(
+    name: string,
+    original: T[] | undefined,
+    translated: (string | undefined)[],
+  ) => {
+    if (!original?.length) return undefined;
+    const same = translated.length === original.length;
+    if (!same)
+      findings.push(
+        finding(
+          name,
+          0,
+          0,
+          'translation_mismatch',
+          `tradução com ${translated.length} itens para ${original.length}`,
+        ),
+      );
+    return original.map((o, i) => ({
+      ...o,
+      text: textOf(`${name}[${i}]`, same ? translated[i] : undefined, o.text, LIMITS.item),
+    }));
+  };
+  const strengths = pair('strengths', entry.strengths, reply.strengths ?? []);
+  if (strengths) es.strengths = strengths;
+  const moments = pair(
+    'moments',
+    entry.moments,
+    (reply.moments ?? []).map((m) => m.text),
+  );
+  if (moments)
+    es.moments = moments.map((m, i) => ({
+      ...m,
+      race: (reply.moments?.length === entry.moments!.length ? reply.moments[i]!.race.trim() : '') || m.race,
+    }));
+  const rivalries = pair('rivalries', entry.rivalries, reply.rivalries ?? []);
+  if (rivalries) es.rivalries = rivalries;
+  // fonte e item: os achados do original, com o trecho no texto traduzido
+  const textLength = (field: string) => {
+    if (field === 'bio') return es.bio.text.length;
+    if (field === 'style') return es.style?.text.length ?? 0;
+    const m = /^(strengths|moments|rivalries)\[(\d+)\]$/.exec(field);
+    return m ? ((es[m[1] as 'strengths'] ?? [])[Number(m[2])]?.text.length ?? 0) : 0;
+  };
+  for (const f of entry.findings ?? []) {
+    if (isSourceField(f.field)) findings.push(f);
+    else if (ITEM_RULES.has(f.rule))
+      findings.push({ ...f, start: 0, end: f.end === 0 ? 0 : textLength(f.field) });
+  }
+  if (findings.length) es.findings = findings;
+  return es;
+}
+
 async function translateProfile(
   llm: LlmClient,
   entry: DriverEditorialEntry,
@@ -530,7 +672,6 @@ async function translateProfile(
     moments: (entry.moments ?? []).map((m) => ({ race: m.race, text: m.text })),
     rivalries: (entry.rivalries ?? []).map((r) => r.text),
   };
-  let reply: TranslationReply;
   try {
     const result = await llm.generateJson<TranslationReply>({
       tier: 'standard',
@@ -542,7 +683,6 @@ async function translateProfile(
       schemaName: 'f1_driver_profile_es',
       purpose: `f1profile:${entry.f1db.id}:es`,
     });
-    reply = result.data;
     if (out.usage)
       out.usage = {
         inputTokens: out.usage.inputTokens + result.usage.inputTokens,
@@ -551,66 +691,21 @@ async function translateProfile(
           ? { costUsd: (out.usage.costUsd ?? 0) + (result.usage.costUsd ?? 0) }
           : {}),
       };
+    return buildTranslation(entry, result.data, ctx);
   } catch (err) {
+    // falha da chamada (não do validador): sem a versão es nesta rodada; a próxima tenta de novo
     out.reasons.push(`tradução es falhou: ${(err as Error).message}`);
     return null;
   }
-  const drop = (field: string, text: string, reason: string) =>
-    out.dropped.push({ locale: 'es', field, text, reason });
-  const ok = (field: string, text: string | null | undefined, max: number): string | null => {
-    const t = field === 'bio' ? cleanBio(text ?? '') : clean(text ?? '');
-    const why = textProblem(t, 'es', ctx, max);
-    if (why) drop(field, t, why);
-    return why ? null : t;
+}
+
+/** Contagem dos achados de uma entrada (o selo "N alertas / N graves"). */
+export function findingCounts(entry: DriverEditorialEntry | null): { alert: number; severe: number } {
+  const list = entry?.findings ?? [];
+  return {
+    alert: list.filter((f) => f.severity === 'alert').length,
+    severe: list.filter((f) => f.severity === 'severe').length,
   };
-  const bio = ok('bio', reply.bio, entry.tier === 'legend' ? LIMITS.legendBio : LIMITS.regularBio);
-  if (!bio) {
-    out.reasons.push('tradução es da bio recusada');
-    return null;
-  }
-  const es: DriverEditorialEntry = { ...entry, bio: { ...entry.bio, text: bio } };
-  delete es.style;
-  delete es.strengths;
-  delete es.moments;
-  delete es.rivalries;
-  if (entry.style) {
-    const text = ok('style', reply.style, LIMITS.style);
-    if (text) es.style = { ...entry.style, text };
-  }
-  // lista traduzida com tamanho diferente do original: não dá para casar item a item
-  const pair = <T>(field: string, original: T[] | undefined, translated: unknown[]): T[] | null => {
-    if (!original?.length) return null;
-    if (translated.length !== original.length) {
-      drop(field, '', 'tradução com outro número de itens');
-      return null;
-    }
-    return original;
-  };
-  const strengths = pair('strengths', entry.strengths, reply.strengths ?? []);
-  if (strengths) {
-    const list = strengths.flatMap((s, i) => {
-      const text = ok('strengths', reply.strengths[i], LIMITS.item);
-      return text ? [{ ...s, text }] : [];
-    });
-    if (list.length) es.strengths = list;
-  }
-  const moments = pair('moments', entry.moments, reply.moments ?? []);
-  if (moments) {
-    const list = moments.flatMap((m, i) => {
-      const text = ok('moments', reply.moments[i]!.text, LIMITS.item);
-      return text ? [{ ...m, race: clean(reply.moments[i]!.race) || m.race, text }] : [];
-    });
-    if (list.length) es.moments = list;
-  }
-  const rivalries = pair('rivalries', entry.rivalries, reply.rivalries ?? []);
-  if (rivalries) {
-    const list = rivalries.flatMap((r, i) => {
-      const text = ok('rivalries', reply.rivalries[i], LIMITS.item);
-      return text ? [{ ...r, text }] : [];
-    });
-    if (list.length) es.rivalries = list;
-  }
-  return es;
 }
 
 /** Junta as propostas novas às de uma execução anterior: a nova substitui a do mesmo piloto. */

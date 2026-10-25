@@ -95,14 +95,22 @@ describe('perfil editorial: schema e regras', () => {
     expect(checkParagraphs('Verso um\nverso dois\n\nrefrão')?.level).toBe('error');
   });
 
-  it('momento sem fonte é erro de schema', async () => {
-    const body = legend().replace(
-      `text: "Saiu da quarta posição e liderou a primeira volta.", source: "${SRC}"`,
-      'text: "Saiu da quarta posição."',
-    );
-    expect((await codes({ 'formula-1/editorial/pt-BR.yaml': file('pt-BR', body) })).errors).toContain(
-      'schema',
-    );
+  it('momento sem fonte, rival fora do F1DB e achados entram (o validador do agente não barra)', async () => {
+    const body = legend()
+      .replace(
+        `text: "Saiu da quarta posição e liderou a primeira volta.", source: "${SRC}"`,
+        'text: "Saiu da quarta posição."',
+      )
+      .replace('f1db_id: alain-prost', 'f1db_id: null')
+      .replace(
+        '    review_status: draft',
+        [
+          '    findings:',
+          '      - { field: bio, start: 0, end: 12, rule: unknown_number, reason: "número fora do F1DB (39)", severity: severe }',
+          '    review_status: draft',
+        ].join('\n'),
+      );
+    expect((await codes({ 'formula-1/editorial/pt-BR.yaml': file('pt-BR', body) })).errors).toEqual([]);
   });
 
   it('slug fora do F1DB, regular com momentos, tradução sem original e locale errado', async () => {

@@ -9,11 +9,13 @@ import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  clearRelatedChannelRefusals,
   closeDb,
   competition,
   createDb,
   event,
   eventParticipant,
+  listRelatedChannels,
   participant,
   publishChange,
   RELATED_CONTENT_TOPIC,
@@ -21,6 +23,7 @@ import {
   relatedContent,
   relatedContentTag,
   runMigrations,
+  setRelatedChannelRule,
   sport,
   type Database,
 } from '@galaxie/db';
@@ -368,5 +371,60 @@ describe('GET /v1/events/{id}/related', () => {
       (await reportError({ item_id: '00000000-0000-7000-8000-000000000000', code: 150 })).statusCode,
     ).toBe(404);
     expect((await reportError({ item_id: any, code: 150 }, liKey)).statusCode).toBe(403);
+  });
+
+  it('painel: lista os canais com recusas e regra; bloquear, voltar ao automático e limpar recusas', async () => {
+    await db.insert(relatedContent).values(
+      row('pn1', {
+        contentType: 'interview',
+        channelId: 'UCpn',
+        channelTitle: 'Canal Painel',
+        rankScore: '1.000',
+      }),
+    );
+    const url = `/v1/events/${eventId}/related?type=interview`;
+    const ids = async () => (await get(url)).json().data.map((d: { external_id: string }) => d.external_id);
+    expect(await ids()).toEqual(['pn1']);
+
+    const before = await listRelatedChannels(db, { q: 'painel' });
+    expect(before).toEqual([
+      expect.objectContaining({
+        channelId: 'UCpn',
+        title: 'Canal Painel',
+        published: 1,
+        refused: 0,
+        blocked: false,
+      }),
+    ]);
+    // o canal X (3 recusas, liberado no teste anterior) aparece no filtro de recusas
+    const refused = await listRelatedChannels(db, { only: 'refused' });
+    expect(refused.map((c) => c.channelId)).toContain('UCcz');
+    expect(refused.find((c) => c.channelId === 'UCcz')).toMatchObject({
+      refused: 3,
+      rule: 'allow',
+      blocked: false,
+    });
+
+    expect(
+      await setRelatedChannelRule(db, { channelId: 'UCpn', mode: 'block', by: 'admin@galaxie.test' }),
+    ).toBe(1);
+    await expect.poll(ids, { timeout: 10_000, interval: 50 }).toEqual([]);
+    expect((await listRelatedChannels(db, { only: 'blocked' })).map((c) => c.channelId)).toContain('UCpn');
+
+    await setRelatedChannelRule(db, { channelId: 'UCpn', mode: null, by: 'admin@galaxie.test' });
+    await expect.poll(ids, { timeout: 10_000, interval: 50 }).toEqual(['pn1']);
+
+    // limpar as recusas do canal X traz de volta os vídeos recusados
+    await setRelatedChannelRule(db, { channelId: 'UCcz', mode: null, by: 'admin@galaxie.test' });
+    expect(await clearRelatedChannelRefusals(db, { channelId: 'UCcz' })).toBe(3);
+    await expect
+      .poll(
+        async () =>
+          (await get(`/v1/events/${eventId}/related?type=full_match`))
+            .json()
+            .data.map((d: { external_id: string }) => d.external_id),
+        { timeout: 10_000, interval: 50 },
+      )
+      .toEqual(['cz1', 'cz2', 'cz3', 'cz4']);
   });
 });

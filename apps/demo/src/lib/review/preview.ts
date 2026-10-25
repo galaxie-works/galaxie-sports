@@ -176,19 +176,19 @@ export function previewFor(
         strengths: items(c.strengths).map((s) => ({
           key: s.key as DriverEditorial['strengths'][number]['key'],
           text: str(s.text) ?? '',
-          source: str(s.source) ?? '',
+          source: str(s.source),
         })),
         moments: items(c.moments).map((m) => ({
-          year: Number(m.year ?? 0),
+          year: m.year == null ? null : Number(m.year),
           race: str(m.race) ?? '',
           wet: m.wet === true,
           text: str(m.text) ?? '',
-          source: str(m.source) ?? '',
+          source: str(m.source),
         })),
         rivalries: items(c.rivalries).map((r) => ({
-          driver: { f1db_id: String(rec(r.driver).f1db_id ?? ''), name: str(rec(r.driver).name) ?? '' },
+          driver: { f1db_id: str(rec(r.driver).f1db_id), name: str(rec(r.driver).name) ?? '' },
           text: str(r.text) ?? '',
-          source: str(r.source) ?? '',
+          source: str(r.source),
         })),
         review_status: 'approved',
       } satisfies Partial<Record<keyof DriverEditorial, unknown>>;

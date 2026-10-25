@@ -307,7 +307,28 @@ export type DerbyTexts = Omit<DerbyTextsEntry, 'slug' | 'note'>;
  */
 export interface EditorialSourced {
   text: string;
-  source: string;
+  /** Fonte do item; ausente só quando o modelo não deu nenhuma (vira achado grave). */
+  source?: string;
+}
+
+/** Gravidade de um achado do validador: grave pede conferência do fato; alerta, do texto. */
+export const FINDING_SEVERITIES = ['alert', 'severe'] as const;
+export type FindingSeverity = (typeof FINDING_SEVERITIES)[number];
+
+/**
+ * Achado do validador sobre o texto gerado. O validador nunca barra: o item entra como rascunho com os achados, e o
+ * painel de revisão destaca o trecho (`start`–`end` no texto do campo) com o motivo.
+ */
+export interface EditorialFinding {
+  /** Campo: `bio`, `style`, `strengths[0]`, `moments[2]`, `rivalries[1]`, `bio.sources[0]`, `moments[2].source`... */
+  field: string;
+  /** Início e fim (exclusivo) do trecho no texto do campo; o item inteiro quando o achado é sobre ele todo. */
+  start: number;
+  end: number;
+  /** Regra: unknown_number, race_not_driven, rival_not_in_race, prompt_injection, source_not_grounded... */
+  rule: string;
+  reason: string;
+  severity: FindingSeverity;
 }
 
 export interface DriverEditorialEntry {
@@ -322,15 +343,19 @@ export interface DriverEditorialEntry {
   style?: { kind: string; text: string; sources: string[] };
   strengths?: (EditorialSourced & { key: string })[];
   moments?: (EditorialSourced & {
-    year: number;
+    /** Ano e rodada da corrida da lista do piloto; ausentes quando o modelo citou uma corrida fora dela. */
+    year?: number;
     /** Nome do GP como é conhecido no idioma do arquivo. */
     race: string;
     /** Rodada da corrida na temporada (a ordem pela data): liga o momento ao evento da base. */
-    round: number;
+    round?: number;
     /** Corrida com chuva (a F1DB não marca; vem da fonte do momento). */
     wet?: boolean;
   })[];
-  rivalries?: (EditorialSourced & { driver: { f1db_id: string; name: string } })[];
+  /** Rival: `f1db_id` null quando o nome não casa com quem largou nas mesmas corridas (achado grave). */
+  rivalries?: (EditorialSourced & { driver: { f1db_id: string | null; name: string } })[];
+  /** Achados do validador, para o painel de revisão. */
+  findings?: EditorialFinding[];
   review_status: ReviewStatus;
 }
 
