@@ -32,6 +32,14 @@ type AnimatedIconProps = {
   children: React.ReactNode;
 };
 
+/**
+ * O gatilho já está sob o mouse ou com o foco (nele ou num descendente)? Conferido quando a animação acaba
+ * de carregar, para não perder o `pointerenter`/`focusin` que chegou antes dela.
+ */
+export function isEngaged(trigger: Pick<Element, 'matches'>): boolean {
+  return trigger.matches(':hover, :focus-within');
+}
+
 /** Ícone do esporte (atalho de `AnimatedIcon` pelo slug do esporte). */
 export function AnimatedSportIcon({ slug, ...props }: AnimatedIconProps & { slug: string }) {
   return <AnimatedIcon name={slug} {...props} />;
@@ -75,6 +83,8 @@ export function AnimatedIcon({ name, className, children }: AnimatedIconProps & 
         anim.addEventListener('DOMLoaded', () => {
           anim?.goToAndStop(0, true);
           setReady(true);
+          // O hover/foco que começou durante o carregamento foi descartado por `play`: reconfere agora.
+          if (isEngaged(trigger)) play();
         });
       });
 
