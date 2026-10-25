@@ -32,7 +32,7 @@ import { liveStateFromPlan, saveLiveState } from '../live/state.js';
 import { PgLiveStore } from '../live/store.js';
 import type { LiveDayPlan } from '../live/types.js';
 import { logger, report } from '../logger.js';
-import { recomputeStandings } from '../standings/recompute.js';
+import { needsAttention, recomputeStandings } from '../standings/recompute.js';
 import { runCli } from './job-cli.js';
 
 const rulesDir = resolve('../../config/rules');
@@ -199,11 +199,19 @@ await runCli(async () => {
         const seasonIds = [...new Set(changes.flatMap((c) => (c.seasonId ? [c.seasonId] : [])))];
         if (!seasonIds.length) return;
         const tables = await recomputeStandings(ctx.db, { seasonIds, rulesDir });
-        for (const t of tables)
-          log.info(
-            { season_id: t.seasonId, competition: t.competition, outcome: t.outcome, rows: t.rows },
-            'tabela recalculada após jogo encerrado',
-          );
+        for (const t of tables) {
+          const fields = {
+            season_id: t.seasonId,
+            competition: t.competition,
+            outcome: t.outcome,
+            rows: t.rows,
+            ...(needsAttention(t)
+              ? { detail: t.detail, skipped: t.skipped, unclassified: t.unclassified }
+              : {}),
+          };
+          if (needsAttention(t)) log.warn(fields, 'tabela após jogo encerrado pede atenção');
+          else log.info(fields, 'tabela recalculada após jogo encerrado');
+        }
       },
     });
     const provider = new ApiSportsProvider(ctx.client, { priority: 'LIVE', jobId });

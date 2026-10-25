@@ -9,9 +9,10 @@
  */
 import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { competition, event, publishChange, season, stage, standing, type Database } from '@galaxie/db';
-import { computeStandings, type MatchResult } from '@galaxie/rules';
+import { computeStandings, type CompetitionRules, type MatchResult } from '@galaxie/rules';
 import { loadCompetitionRules } from '@galaxie/rules/config';
 import { loadSeasonResults, writeComputedStandings } from '@galaxie/rules/db';
+import { computeTablesByRule, type TableRow } from './phases.js';
 import { regularSeasonCutoff, winPctTables } from './win-pct.js';
 
 /** Fases que entram na tabela (pontos corridos, fase de liga, grupos). */
@@ -30,6 +31,12 @@ export type StandingsOutcome =
   | 'rules_error'
   | 'invalid_input';
 
+/** Tabela do regulamento que o recálculo não gravou, e por quê (vai para o log de operação). */
+export interface SkippedTable {
+  table: string;
+  reason: string;
+}
+
 export interface SeasonStandingsReport {
   seasonId: string;
   competition: string | null;
@@ -38,6 +45,23 @@ export interface SeasonStandingsReport {
   results: number;
   rows: number;
   detail?: string | undefined;
+  /** Tabelas do regulamento (`tables:`) que ficaram sem recálculo (sem grupos, grupo ambíguo, erro). */
+  skipped?: SkippedTable[] | undefined;
+  /** Grupos de `core.standing` que nenhuma tabela do regulamento reconhece (guardados como vieram). */
+  unclassified?: string[] | undefined;
+}
+
+/**
+ * Relatório que pede atenção da operação: tabela parada (grupo ambíguo, regulamento ou entrada inválidos),
+ * tabela do regulamento sem recálculo ou grupo que o regulamento não reconhece. O resto (tabela do
+ * fornecedor mais nova, mata-mata, sem resultado) é o normal.
+ */
+export function needsAttention(r: SeasonStandingsReport): boolean {
+  return (
+    ['no_groups', 'rules_error', 'invalid_input'].includes(r.outcome) ||
+    !!r.skipped?.length ||
+    !!r.unclassified?.length
+  );
 }
 
 export interface RecomputeOptions {
@@ -114,18 +138,6 @@ export async function recomputeSeasonStandings(
   }
   if (rules.format === 'cup') return report('knockout');
 
-  const stages = await db
-    .select({ id: stage.id })
-    .from(stage)
-    .where(and(eq(stage.seasonId, seasonId), inArray(stage.kind, [...TABLE_STAGE_KINDS])));
-  const anyStage = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(stage)
-    .where(eq(stage.seasonId, seasonId));
-  // sem fase cadastrada (liga simples), todos os resultados contam; com fases, só as de tabela
-  const stageIds = stages.length || (anyStage[0]?.n ?? 0) > 0 ? stages.map((s) => s.id) : undefined;
-  if (stageIds && !stageIds.length) return report('knockout');
-
   // pertença aos grupos de qualquer origem: o replace grava `computed` sobre a linha do provedor (mesma chave),
   // então a partir do 2º recálculo não há mais linha `provider` e os grupos sumiriam; a origem só decide o
   // atalho provider_fresh abaixo
@@ -149,6 +161,23 @@ export async function recomputeSeasonStandings(
     if (providerAt >= latestResultAt.getTime()) return report('provider_fresh');
   }
 
+  // regulamento com as tabelas da temporada (Apertura/Clausura, anual, promedios...): cada fase com as suas
+  // rodadas e os seus grupos
+  if (rules.tables.length)
+    return recomputeByTables(db, seasonId, info.competitionId, rules, tableRows, report, options);
+
+  const stages = await db
+    .select({ id: stage.id })
+    .from(stage)
+    .where(and(eq(stage.seasonId, seasonId), inArray(stage.kind, [...TABLE_STAGE_KINDS])));
+  const anyStage = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(stage)
+    .where(eq(stage.seasonId, seasonId));
+  // sem fase cadastrada (liga simples), todos os resultados contam; com fases, só as de tabela
+  const stageIds = stages.length || (anyStage[0]?.n ?? 0) > 0 ? stages.map((s) => s.id) : undefined;
+  if (stageIds && !stageIds.length) return report('knockout');
+
   // grupos: os já gravados em core.standing (do provedor ou de recálculo anterior); sem nenhum, tabela única.
   // O grupo vazio de um time que também está num grupo nomeado é resíduo do recálculo que perdia os grupos.
   // Time em mais de um grupo nomeado (fase regular + fase final, tabela de melhores terceiros): não dá para
@@ -164,7 +193,7 @@ export async function recomputeSeasonStandings(
     const named = [...set].filter((g) => g !== '');
     if (named.length > 1)
       return report('no_groups', {
-        detail: `time em mais de um grupo do fornecedor (${named.sort().join(', ')})`,
+        detail: `time em mais de um grupo do fornecedor (${named.sort().join(', ')}); a competição não tem \`tables\` no regulamento`,
       });
     groupOfTeam.set(team, named[0] ?? '');
   }
@@ -214,6 +243,52 @@ export async function recomputeSeasonStandings(
     });
   }
   return report('written', { results: matches.length, rows });
+}
+
+/**
+ * Recálculo pelas tabelas do regulamento: cada fase com as rodadas e os grupos dela, a anual com todas as
+ * fases. Tabela sem como montar (sem grupos do fornecedor, grupo ambíguo) e grupo que o regulamento não
+ * reconhece vão para o relatório; as demais são gravadas mesmo assim.
+ */
+async function recomputeByTables(
+  db: Database,
+  seasonId: string,
+  competitionId: string,
+  rules: CompetitionRules,
+  tableRows: readonly TableRow[],
+  report: (outcome: StandingsOutcome, extra?: Partial<SeasonStandingsReport>) => SeasonStandingsReport,
+  options: RecomputeOptions,
+): Promise<SeasonStandingsReport> {
+  const out = await computeTablesByRule(db, seasonId, rules, tableRows);
+  const extra = {
+    ...(out.skipped.length ? { skipped: out.skipped } : {}),
+    ...(out.unclassified.length ? { unclassified: out.unclassified } : {}),
+  };
+  const detail = [
+    ...out.skipped.map((t) => `${t.table}: ${t.reason}`),
+    ...(out.unclassified.length ? [`grupos sem tabela no regulamento: ${out.unclassified.join(', ')}`] : []),
+  ].join('; ');
+  if (!out.tables.length)
+    return report(out.skipped.length ? 'no_groups' : 'no_results', {
+      ...extra,
+      ...(detail ? { detail } : {}),
+    });
+  const rows = await writeComputedStandings(db, seasonId, out.tables, { mode: 'replace' });
+  await dropStaleComputedRows(db, seasonId, out.tables);
+  if (options.publish !== false && rows > 0) {
+    await publishChange(db, {
+      topic: 'standings',
+      entityType: 'season',
+      entityId: seasonId,
+      payload: {
+        source: 'computed',
+        rows,
+        groups: out.tables.map((t) => t.group),
+        tags: [`competition:${competitionId}`, 'standing'],
+      },
+    });
+  }
+  return report('written', { results: out.results, rows, ...extra, ...(detail ? { detail } : {}) });
 }
 
 /**
