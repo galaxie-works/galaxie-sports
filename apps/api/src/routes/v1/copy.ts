@@ -15,6 +15,7 @@ import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { resolveLocale } from '../../i18n.js';
 import { parseInput, UUID_RE } from '../../util.js';
+import { loadTeamNames } from '../../teams/display-name.js';
 import { effectiveMinReview, findProfile, meetsReview, nicknamesFor, profileName } from './semantic.js';
 
 const MODULE = { module: 'semantic' } as const;
@@ -134,7 +135,11 @@ async function teamVars(
       .from(participant)
       .where(eq(participant.id, key))
       .limit(1);
-    if (row) return { name: row.name, nickname: null };
+    if (row) {
+      // sem perfil publicado: o nome do fornecedor com o corretor de acentos (mesma regra das outras rotas)
+      const names = await loadTeamNames(db, [key], { locale, minReview: min });
+      return { name: names.name(key, row.name), nickname: null };
+    }
   }
   throw problems.notFound('Time');
 }

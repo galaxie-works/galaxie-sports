@@ -131,3 +131,16 @@ export type LogoCredit = z.infer<typeof LogoCredit>;
 export const CountryRef = z
   .object({ code: z.string().meta({ example: 'BR' }), name: z.string().meta({ example: 'Brasil' }) })
   .meta({ id: 'CountryRef' });
+
+/** Nome de exibição de um time no idioma da resposta (mesma regra em todas as rotas). */
+export const TeamDisplayName = z.string().meta({
+  description:
+    'Nome de exibição no idioma da resposta: o rótulo da base semântica (ou o nome curto curado) quando o time tem perfil; senão o nome do fornecedor, com os acentos corrigidos por uma lista fixa nos países de língua portuguesa e espanhola.',
+  example: 'São Paulo',
+});
+
+/** Nome do time como o fornecedor manda, sem a curadoria nem o corretor de acentos. */
+export const ProviderName = z
+  .string()
+  .optional()
+  .meta({ description: 'Nome do time como o fornecedor manda (sem curadoria).', example: 'Sao Paulo' });

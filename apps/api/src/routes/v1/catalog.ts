@@ -53,6 +53,7 @@ import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 import { enrichRaceStandings } from '../../events/race-standings.js';
 import { loadLiveries, type LiveryEntry } from '@galaxie/knowledge';
 import { effectiveMinReview, meetsReview } from './semantic.js';
+import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
 
 const MODULE = { module: 'core_data' } as const;
 const MIRRORED = new Set<string>(MIRROR_SPORTS);
@@ -313,6 +314,11 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .where(eq(standing.seasonId, s.id))
           .orderBy(asc(standing.group), asc(standing.rank));
 
+        const names = await loadTeamNames(
+          db,
+          rows.map((r) => r.p.id),
+          teamNameOptions(ctx, locale),
+        );
         const groups = new Map<string, Standings['groups'][number]>();
         let updatedAt: Date | null = null;
         for (const r of rows) {
@@ -322,7 +328,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
             rank: r.st.rank,
             participant: {
               id: r.p.id,
-              name: r.p.name,
+              ...names.of(r.p.id, r.p.name),
               short_name: r.p.shortName,
               logo: assetUrl(ctx.assetsBaseUrl, r.storageKey, r.sourceUrl),
             },

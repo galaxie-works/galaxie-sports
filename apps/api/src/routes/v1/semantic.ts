@@ -59,6 +59,7 @@ import { ProblemError, problems } from '../../errors.js';
 import { formatInstant, hintLocales, pickList, pickText, resolveLocale } from '../../i18n.js';
 import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
+import { curatedTeamName, loadTeamNames, type TeamNameOptions } from '../../teams/display-name.js';
 import { driverF1dbId, editorialBody, pickEditorial } from '../../teams/editorial.js';
 
 const MODULE = { module: 'semantic' } as const;
@@ -93,8 +94,8 @@ type CopyHints = Record<string, { cheer?: string[]; nicknames?: string[] }>;
 
 /** Nome do time no mercado: labels (pt-BR → pt → en; es-AR → es → en) ou o nome curto. */
 export function profileName(p: Pick<ProfileRow, 'labels' | 'names'>, locale: string): string {
-  const names = p.names as Names;
-  return pickText(p.labels as Record<string, string> | null, locale, names.short)!;
+  // mesma regra do nome de exibição dos times no resto da API (teams/display-name.ts)
+  return curatedTeamName(p, locale) ?? (p.names as Names).short;
 }
 
 /**
@@ -321,6 +322,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const parts = await participantsOf(
           db,
           rows.map((r) => r.e.id),
+          { locale, minReview: min },
         );
         const data: UpcomingDerby[] = [];
         for (const r of rows) {
@@ -364,7 +366,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const [a, b] = d.teams;
         const resolved = ids.every((id): id is string => !!id);
         const matches = resolved ? await headToHead(db, ids[0]!, ids[1]!, locale, tz, d.teams) : [];
-        const next = resolved ? await nextMeeting(db, ids[0]!, ids[1]!, locale, tz) : null;
+        const next = resolved ? await nextMeeting(db, ids[0]!, ids[1]!, locale, tz, min) : null;
         const texts = derbyTexts(row, locale, min);
         const body: Derby = {
           ...derbySummary(d, locale),
@@ -655,8 +657,8 @@ function competitionRef(
   };
 }
 
-/** Participantes de cada evento, com o slug do perfil semântico quando houver. */
-async function participantsOf(db: Database, eventIds: string[]) {
+/** Participantes de cada evento, com o slug do perfil semântico quando houver e o nome de exibição. */
+async function participantsOf(db: Database, eventIds: string[], nameOptions: TeamNameOptions) {
   const out = new Map<string, UpcomingDerby['participants']>();
   if (!eventIds.length) return out;
   const rows = await db
@@ -672,10 +674,16 @@ async function participantsOf(db: Database, eventIds: string[]) {
     .leftJoin(teamProfile, eq(teamProfile.participantId, participant.id))
     .where(inArray(eventParticipant.eventId, eventIds))
     .orderBy(asc(eventParticipant.eventId), sql`${eventParticipant.side} = 'away'`, asc(participant.name));
+  const names = await loadTeamNames(
+    db,
+    rows.map((r) => r.id),
+    nameOptions,
+  );
   for (const r of rows) {
     const list = out.get(r.eventId) ?? [];
     out.set(r.eventId, list);
-    if (!list.some((p) => p.id === r.id)) list.push({ side: r.side, id: r.id, name: r.name, slug: r.slug });
+    if (!list.some((p) => p.id === r.id))
+      list.push({ side: r.side, id: r.id, name: names.name(r.id, r.name), slug: r.slug });
   }
   return out;
 }
@@ -741,7 +749,14 @@ async function headToHead(
   return out;
 }
 
-async function nextMeeting(db: Database, a: string, b: string, locale: string, tz: string) {
+async function nextMeeting(
+  db: Database,
+  a: string,
+  b: string,
+  locale: string,
+  tz: string,
+  min: ReviewStatus,
+) {
   const [r] = await selectPair(db)
     .where(
       and(gte(event.startsAt, new Date()), notInArray(event.status, [...NOT_UPCOMING]), pairFilter(a, b)),
@@ -749,7 +764,7 @@ async function nextMeeting(db: Database, a: string, b: string, locale: string, t
     .orderBy(asc(event.startsAt))
     .limit(1);
   if (!r) return null;
-  const parts = await participantsOf(db, [r.e.id]);
+  const parts = await participantsOf(db, [r.e.id], { locale, minReview: min });
   return {
     event_id: r.e.id,
     starts_at: formatInstant(r.e.startsAt, tz),

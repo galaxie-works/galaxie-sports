@@ -228,10 +228,11 @@ describe('GET /v1/search', () => {
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-language']).toBe('pt-BR');
     expect(body.q).toBe('verdao');
-    // empate no apelido exato: o time com mais jogos no último ano vem antes
+    // empate no apelido exato: o time com mais jogos no último ano vem antes. O perfil do Goiás está em
+    // rascunho (abaixo do piso approved): o nome vem do fornecedor ("Goias") com o corretor de acentos
     expect(body.data.map((r) => [r.name, r.matched, r.match])).toEqual([
       ['Palmeiras', 'Verdão', 'exact'],
-      ['Goias', 'Verdão', 'exact'],
+      ['Goiás', 'Verdão', 'exact'],
     ]);
     expect(body.data[0]).toMatchObject({ type: 'team', id: ids.Palmeiras, country: 'BR', detail: 'Brasil' });
   });
@@ -258,7 +259,8 @@ describe('GET /v1/search', () => {
       ['event', 'Boca Juniors x Palmeiras', 'prefix'],
     ]);
     const exact = await search('q=sao%20paulo&locale=pt-BR');
-    expect(exact.body.data[0]).toMatchObject({ type: 'team', name: 'Sao Paulo', match: 'exact' });
+    // nome exibido com acento (corretor); o do fornecedor, sem acento, segue casando por inteiro
+    expect(exact.body.data[0]).toMatchObject({ type: 'team', name: 'São Paulo', match: 'exact' });
     // a cidade do estádio não conta como nome
     expect(exact.body.data.some((r) => r.type === 'venue')).toBe(false);
   });

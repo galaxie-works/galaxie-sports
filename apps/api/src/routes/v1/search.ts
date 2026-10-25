@@ -26,6 +26,7 @@ import {
 import { logoIdSql } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
 import { localeOf } from './events.js';
+import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 
 const MODULE = { module: 'core_data' } as const;
@@ -145,11 +146,19 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
          group by ep.participant_id`);
       for (const s of stats) prominence.set(s.id, { tier: s.tier, events: s.events });
     }
+    // nome exibido no idioma (base semântica ou corretor); o do fornecedor segue casando como apelido
+    const names = await loadTeamNames(
+      db,
+      rows.map((r) => r.id),
+      teamNameOptions(ctx, locale),
+    );
     const hits: Hit[] = [];
     for (const r of rows) {
+      const display = names.name(r.id, r.name);
       const m = bestMatch(
-        r.name,
+        display,
         [
+          r.name,
           r.short_name,
           r.code,
           ...stringsOf(r.names),
@@ -168,7 +177,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
           type: 'team',
           id: r.id,
           slug: null,
-          name: r.name,
+          name: display,
           ...m,
           sport: r.sport,
           country: r.country_code,
@@ -447,6 +456,11 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
          rows.map((r) => r.id),
        )}
        order by ep.event_id, case ep.side when 'home' then 0 when 'away' then 1 else 2 end, ep.position nulls last`);
+    const names = await loadTeamNames(
+      db,
+      parts.map((p) => p.id),
+      teamNameOptions(ctx, locale),
+    );
     const byEvent = new Map<string, (typeof parts)[number][]>();
     for (const p of parts) byEvent.set(p.event_id, [...(byEvent.get(p.event_id) ?? []), p]);
     const hits: Hit[] = [];
@@ -465,7 +479,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
           type: 'event',
           id: r.id,
           slug: null,
-          name: ps.map((p) => p.name).join(' x '),
+          name: ps.map((p) => names.name(p.id, p.name)).join(' x '),
           match: team.result.match,
           matched: team.result.matched,
           sport: r.sport,
@@ -480,7 +494,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
             competition,
             participants: ps.map((p) => ({
               id: p.id,
-              name: p.name,
+              ...names.of(p.id, p.name),
               short_name: p.short_name,
               logo: asset(p.logo_key, p.logo_url),
             })),

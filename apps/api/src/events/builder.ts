@@ -59,6 +59,8 @@ import { pickCheer } from './cheer.js';
 import { loadFights } from './fight.js';
 import { loadRaceSessions, loadRaceTeams, raceResult } from './race.js';
 import { loadPhotos } from '../teams/photos.js';
+import { loadTeamNames } from '../teams/display-name.js';
+import type { ReviewStatus } from '../context.js';
 import { importanceBreakdownDto } from './relevance.js';
 import { venueTimezone } from './timezone.js';
 import type { RulesRegistry } from './rules-registry.js';
@@ -103,6 +105,8 @@ export interface BuildContext {
   /** Flag ASSETS_CUSTOM_LOGOS lida no começo da requisição: logo do acervo onde houver. */
   customLogos: boolean;
   rules: RulesRegistry;
+  /** Piso editorial da base semântica (SEMANTIC_MIN_REVIEW_STATUS) para o nome curado dos times; padrão approved. */
+  minReview?: ReviewStatus;
   /**
    * `salient` (padrão): até 3 stakes por time e fase (`salientStakes`, docs/rules §3.5); `all`: a lista
    * completa do motor, com `salient` marcando os escolhidos.
@@ -411,6 +415,12 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
   // MMA: canto vermelho antes do azul, como o mandante antes do visitante
   const sideOrder = (s: string) =>
     s === 'home' || s === 'corner_red' ? 0 : s === 'away' || s === 'corner_blue' ? 1 : 2;
+  // nome de exibição no idioma (base semântica ou corretor de acentos); o do fornecedor em provider_name
+  const names = await loadTeamNames(
+    db,
+    partRows.map((r) => r.p.id),
+    { locale, minReview: ctx.minReview ?? 'approved' },
+  );
   const partsBy = new Map<string, (EventParticipant & { _pos: number | null; _result: unknown })[]>();
   // país do mandante: fallback do fuso do local quando o local não tem país
   const homeCountryBy = new Map<string, string | null>();
@@ -422,7 +432,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     list.push({
       side: r.side,
       id: r.p.id,
-      name: r.p.name,
+      ...names.of(r.p.id, r.p.name),
       short_name: r.p.shortName,
       logo: assetUrl(ctx.assetsBaseUrl, r.logoKey, r.logoUrl),
       nickname: r.nicknames?.[0] ?? null,
