@@ -298,6 +298,14 @@ export interface NormalizedStanding {
   goalsAgainst: number;
   form: string | null;
   description: string | null;
+  /** F1 (F1DB), piloto: número e nome de época da equipe na temporada (`core.standing.entry`). */
+  entry?: StandingEntry | null;
+}
+
+/** A inscrição do piloto na temporada: o número mais usado nas corridas e as equipes com o nome daquela época. */
+export interface StandingEntry {
+  number: number | null;
+  teams: { constructor: string; name: string }[];
 }
 
 /** Tudo o que uma resposta de provedor descreve, pronto para o upsert idempotente no core. */

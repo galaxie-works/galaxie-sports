@@ -59,7 +59,12 @@ export function sportCheck(request: FastifyRequest) {
   };
 }
 
-export function buildCtx(ctx: AppContext, locale: SupportedLocale, tz: string): BuildContext {
+export function buildCtx(
+  ctx: AppContext,
+  locale: SupportedLocale,
+  tz: string,
+  stakes: BuildContext['stakes'] = 'salient',
+): BuildContext {
   return {
     db: requireDb(ctx),
     locale,
@@ -68,8 +73,13 @@ export function buildCtx(ctx: AppContext, locale: SupportedLocale, tz: string): 
     assetsBaseUrl: ctx.assetsBaseUrl,
     customLogos: ctx.logos.enabled(),
     rules: ctx.rules,
+    stakes,
   };
 }
+
+/** Variação do cache pela lista de stakes (a completa só com `?stakes=all`). */
+export const stakesVary = (stakes: BuildContext['stakes'] | undefined) =>
+  stakes === 'all' ? ['stakes:all'] : [];
 
 /**
  * Lista paginada de eventos (agenda): usada por /v1/events e /v1/teams/{id}/events. Com `market`, preenche
@@ -107,9 +117,9 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.schedule,
-      vary: [locale, tz, `market:${market ?? ''}`, ...(sports ?? [])],
+      vary: [locale, tz, `market:${market ?? ''}`, ...(sports ?? []), ...stakesVary(query.stakes)],
       load: async () => {
-        const bctx = buildCtx(ctx, locale, tz);
+        const bctx = buildCtx(ctx, locale, tz, query.stakes);
         const win = scheduleWindow(query, tz, bctx.now);
         assertWindow(win.start, win.end);
         return eventPage(
@@ -143,9 +153,9 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.live,
-      vary: [locale, tz, `market:${market ?? ''}`, ...(sports ?? [])],
+      vary: [locale, tz, `market:${market ?? ''}`, ...(sports ?? []), ...stakesVary(query.stakes)],
       load: async () => {
-        const bctx = buildCtx(ctx, locale, tz);
+        const bctx = buildCtx(ctx, locale, tz, query.stakes);
         const rows = await bctx.db
           .select({ id: event.id })
           .from(event)
@@ -196,10 +206,11 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         ...(market ? [`market:${market}`] : []),
         ...(markets.length ? [`markets:${markets.join(',')}`] : []),
         ...(withContext ? ['context'] : []),
+        ...stakesVary(query.stakes),
       ],
       check: sportCheck(request),
       load: async () => {
-        const bctx = buildCtx(ctx, locale, tz);
+        const bctx = buildCtx(ctx, locale, tz, query.stakes);
         const [built] = await buildEvents(bctx, [params.id]);
         if (!built) throw problems.notFound('Evento');
         const e = built.dto;

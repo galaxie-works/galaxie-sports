@@ -1,5 +1,5 @@
 import type { LeagueRules } from '../config/types.js';
-import type { Stake, StakeFamily, StakeSide } from './codes.js';
+import { RESULT_FAMILIES, type Stake, type StakeFamily, type StakeSide } from './codes.js';
 import { STAKE_LOCALES, type LabelTemplate } from './labels.js';
 import type { LeagueTeamInput } from './league.js';
 import { titleOrdinal } from './titles.js';
@@ -53,6 +53,12 @@ interface FamilyTag {
 /** Verbo das famílias de zona: vaga garantida, pode garantir nesta rodada, ainda em disputa. */
 type ZoneVerb = 'secured' | 'clinch' | 'chasing';
 const ZONE_VERB_RANK: Record<ZoneVerb, number> = { clinch: 0, chasing: 3, secured: 6 };
+
+/** Famílias de resultado: sem tag (o card de chamada fala do que está em jogo, não do que já aconteceu). */
+const RESULT_NO_TAG = Object.fromEntries(RESULT_FAMILIES.map((f) => [f, null])) as Record<
+  (typeof RESULT_FAMILIES)[number],
+  null
+>;
 
 /**
  * Tabela família → tag. `zone` delega à tabela de zonas; `null` = código só informativo, sem tag
@@ -360,6 +366,8 @@ const FAMILY_TAGS: Record<StakeFamily, FamilyTag | { zone: ZoneVerb } | null> = 
     text: { 'pt-BR': 'Livre do rebaixamento', es: 'A salvo del descenso', en: 'Safe from relegation' },
   },
   extra_time_then_penalties: null,
+  // resultado (jogo encerrado): descreve o que já aconteceu, não o que está em jogo; sem tag de chamada
+  ...RESULT_NO_TAG,
 };
 
 type ZoneTexts = Record<ZoneVerb, string>;

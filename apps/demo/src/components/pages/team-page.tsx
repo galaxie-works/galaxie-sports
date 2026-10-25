@@ -441,7 +441,7 @@ export async function TeamContent({
   // F1: o piloto ganha o heading com o carro da temporada mais marcante (no lugar do escudo e do retrato lateral)
   const hero = team.kind === 'driver' && career && career.totals.races > 0;
   // o heading não leva crédito: o carro e o retrato dele vão para a galeria, com o crédito da licença
-  const heroShots = hero ? heroPhotos(career) : null;
+  const heroShots = hero ? heroPhotos(career, year) : null;
   const heroPinned = [heroShots?.car, heroShots?.portrait].filter((p): p is Photo => !!p);
   const seasonControls =
     (options.length && shownYear !== undefined) || label ? (
@@ -482,6 +482,7 @@ export async function TeamContent({
           <DriverHero
             name={team.name}
             career={career!}
+            year={year}
             country={
               team.country_ref
                 ? { code: team.country_ref.code, name: team.country_ref.name, href: country }

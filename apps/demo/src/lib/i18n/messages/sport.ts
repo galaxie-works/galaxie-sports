@@ -55,6 +55,8 @@ export default defineMessages(
     points: '{count} pts',
     fanTagsOf: 'Tags do torcedor de {team}',
     bothTeams: 'Para os dois times',
+    stakesBefore: 'Antes do jogo',
+    stakesResult: 'Com o resultado',
     form: {
       letter: { W: 'V', D: 'E', L: 'D' } as Record<string, string>,
       title: { W: 'Vitória', D: 'Empate', L: 'Derrota' } as Record<string, string>,
@@ -202,6 +204,8 @@ export default defineMessages(
       points: '{count} pts',
       fanTagsOf: 'Fan tags for {team}',
       bothTeams: 'For both teams',
+      stakesBefore: 'Before the match',
+      stakesResult: 'After the result',
       form: {
         letter: { W: 'W', D: 'D', L: 'L' },
         title: { W: 'Win', D: 'Draw', L: 'Loss' },
@@ -342,6 +346,8 @@ export default defineMessages(
       points: '{count} pts',
       fanTagsOf: 'Tags del hincha de {team}',
       bothTeams: 'Para los dos equipos',
+      stakesBefore: 'Antes del partido',
+      stakesResult: 'Con el resultado',
       form: {
         letter: { W: 'G', D: 'E', L: 'P' },
         title: { W: 'Victoria', D: 'Empate', L: 'Derrota' },

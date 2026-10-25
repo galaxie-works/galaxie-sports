@@ -262,6 +262,13 @@
       "breakpoints": true
     },
     {
+      "idx": 37,
+      "version": "7",
+      "when": 1792877489966,
+      "tag": "0037_standing_inscricao",
+      "breakpoints": true
+    },
+    {
       "idx": 38,
       "version": "7",
       "when": 1792878672585,

@@ -8,6 +8,7 @@ import {
   SCENARIO_PROMPT_VERSION,
   scenarioFactSheet,
   scenarioFallback,
+  scenarioStakes,
   scenarioSystemPrompt,
   scenarioUserPrompt,
 } from './scenario.js';
@@ -150,7 +151,11 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
         item.reason = stakes.reason ?? 'nenhum stake calculado';
         continue;
       }
-      item.summary = stakes.stakes.map((s) => `${s.team}:${s.code}`).join(', ');
+      // o texto conta só os salientes (até 3 por time); o resumo do item mostra todos
+      const chosen = scenarioStakes(stakes);
+      item.summary = stakes.stakes
+        .map((s) => `${s.team}:${s.code}${chosen.includes(s) ? '' : ' (não saliente)'}`)
+        .join(', ');
       const lastFinal = stakes.knockout?.decidesTitle ? await loadLastFinalBetween(db, core) : null;
       const facts = buildScenarioFacts(core, stakes, locales, { lastFinal });
       const hash = factsHash(facts, SCENARIO_PROMPT_VERSION);
@@ -169,8 +174,8 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
         locales,
         system: scenarioSystemPrompt(),
         userPrompt: (ls) => scenarioUserPrompt(facts, ls),
-        factsFor: (l) => scenarioFactSheet(core, facts, stakes.stakes, l),
-        fallback: (l) => scenarioFallback(core, facts, stakes.stakes, l),
+        factsFor: (l) => scenarioFactSheet(core, facts, chosen, l),
+        fallback: (l) => scenarioFallback(core, facts, chosen, l),
         surface: 'tv',
         minSentences: 1,
         maxSentences: 3,
@@ -202,7 +207,8 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
           errors: written.errors,
         }),
         data: {
-          stakes: stakes.stakes,
+          stakes: chosen,
+          stakes_all: stakes.stakes,
           knockout: facts.knockout ?? null,
           league: facts.league ?? null,
           history: facts.history ?? null,

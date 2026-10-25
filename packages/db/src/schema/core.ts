@@ -833,6 +833,12 @@ export const standing = core.table(
     goalsAgainst: integer('goals_against').notNull().default(0),
     form: text('form'),
     description: text('description'),
+    /**
+     * F1, piloto: a inscrição dele na temporada, do F1DB (`{ number, teams: [{ constructor, name }] }`): o número e o
+     * nome de época da equipe valem também nos anos cujas corridas vieram de outra fonte (a api-sports manda o número
+     * e o nome de hoje). Null nos outros esportes.
+     */
+    entry: jsonb('entry'),
     /** provider | computed (calculada localmente a partir dos resultados) */
     source: text('source').notNull().default('provider'),
     updatedAt: updatedAt(),

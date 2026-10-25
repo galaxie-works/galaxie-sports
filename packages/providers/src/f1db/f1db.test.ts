@@ -1,7 +1,7 @@
 /** F1DB: casamento com a api-sports e normalização (release mínimo: Brasil 2024 casa, Japão 1988 só no F1DB). */
 import { describe, expect, it } from 'vitest';
 import { matchF1db } from './match.js';
-import { normalizeF1db } from './normalize.js';
+import { f1dbCountries, f1dbDriverEntries, f1dbEntrants, normalizeF1db } from './normalize.js';
 import { sessionStart } from './schedule.js';
 import type { CoreF1Snapshot, CoreRaceEvent } from './match.js';
 import { f1dbSeasonRange, sliceF1dbSeasons, type F1dbRow, type F1dbTables } from './tables.js';
@@ -542,6 +542,109 @@ describe('normalizeF1db', () => {
       ['constructors', 'mclaren', 1, 199, 15],
     ]);
     expect(batch.competitions[0]!.seasons.map((s) => s.year)).toEqual([1988]);
+  });
+
+  it('carro compartilhado: uma linha por piloto, a melhor, com a pole de qualquer uma delas', () => {
+    const tables = f1dbTables();
+    tables.race_data = [
+      ...tables.race_data!.map((r) =>
+        r.type === 'RACE_RESULT' && r.driver_id === 'ayrton-senna' ? { ...r, race_pole_position: 1 } : r,
+      ),
+      // Prost também levou o carro de outro piloto e abandonou com ele (linha depois, na ordem); a pole era dessa
+      {
+        race_id: 470,
+        type: 'RACE_RESULT',
+        position_display_order: 5,
+        position_text: 'DNF',
+        driver_id: 'alain-prost',
+        constructor_id: 'mclaren',
+        race_shared_car: 1,
+        race_pole_position: 1,
+      },
+    ];
+    const race = normalizeF1db(tables, { observedAt, release: 'v2026.17.0' }).events.find(
+      (e) => e.id === 'race-470-race',
+    )!;
+    const prost = race.participants.filter((p) => p.participantId === 'driver-alain-prost');
+    expect(prost).toHaveLength(1);
+    expect(prost[0]).toMatchObject({ position: 2, result: { position_text: '2', pole: true } });
+    const senna = race.participants.find((p) => p.participantId === 'driver-ayrton-senna')!;
+    expect(senna.result).toMatchObject({ pole: true });
+  });
+
+  it('nome de época da equipe: a inscrição de fábrica; carro particular leva o nome do construtor', () => {
+    const entry = (year: number, entrant: string, constructor: string, driver: string, rounds: string) => ({
+      year,
+      entrant_id: entrant,
+      constructor_id: constructor,
+      driver_id: driver,
+      rounds,
+      test_driver: 0,
+    });
+    const tables = {
+      driver: [{ id: 'juan-manuel-fangio', name: 'Juan Manuel Fangio', full_name: 'Juan Manuel Fangio' }],
+      constructor: [
+        { id: 'mercedes', name: 'Mercedes' },
+        { id: 'maserati', name: 'Maserati' },
+      ],
+      entrant: [
+        { id: 'daimler-benz-ag', name: 'Daimler Benz AG' },
+        { id: 'officine-alfieri-maserati', name: 'Officine Alfieri Maserati' },
+        { id: 'juan-manuel-fangio', name: 'Juan Manuel Fangio' },
+        { id: 'scuderia-sud-americana', name: 'Scuderia Sud Americana' },
+        { id: 'scuderia-centro-sud', name: 'Scuderia Centro Sud' },
+      ],
+      season_entrant_driver: [
+        entry(1954, 'daimler-benz-ag', 'mercedes', 'juan-manuel-fangio', '4;5;6;7;8;9'),
+        entry(1954, 'officine-alfieri-maserati', 'maserati', 'juan-manuel-fangio', '1;3'),
+        // 1958: sem a fábrica da Maserati; a Centro Sud é a inscrição com mais etapas
+        entry(1958, 'scuderia-centro-sud', 'maserati', 'outro-piloto', '1;2;3;4;5'),
+        entry(1958, 'scuderia-sud-americana', 'maserati', 'juan-manuel-fangio', '1'),
+        entry(1958, 'juan-manuel-fangio', 'maserati', 'juan-manuel-fangio', '6'),
+      ],
+    } as F1dbTables;
+    const entrantOf = f1dbEntrants(tables);
+    expect(entrantOf(1954, 4, 'juan-manuel-fangio', 'mercedes')).toEqual({
+      id: 'daimler-benz-ag',
+      name: 'Daimler Benz AG',
+    });
+    expect(entrantOf(1954, 1, 'juan-manuel-fangio', 'maserati')?.name).toBe('Officine Alfieri Maserati');
+    // a mesma Maserati em 1958: particular nas duas etapas (Sud Americana e ele mesmo), então "Maserati"
+    expect(entrantOf(1958, 1, 'juan-manuel-fangio', 'maserati')?.name).toBe('Maserati');
+    expect(entrantOf(1958, 6, 'juan-manuel-fangio', 'maserati')?.name).toBe('Maserati');
+    expect(entrantOf(1958, 3, 'outro-piloto', 'maserati')?.name).toBe('Scuderia Centro Sud');
+    expect(entrantOf(1960, 1, 'juan-manuel-fangio', 'maserati')).toBeNull();
+    // a inscrição da temporada, para a classificação: o nome de época por construtor
+    expect(f1dbDriverEntries(tables).get('1954|juan-manuel-fangio')?.teams).toEqual([
+      { constructor: 'mercedes', name: 'Daimler Benz AG' },
+      { constructor: 'maserati', name: 'Officine Alfieri Maserati' },
+    ]);
+  });
+
+  it('países do F1DB com nome nos idiomas da API, só os usados', () => {
+    const tables = f1dbTables();
+    tables.country = [
+      ...tables.country!,
+      { id: 'monaco', alpha2_code: 'MC', name: 'Monaco' },
+      { id: 'nowhere', alpha2_code: 'ZZ', name: 'Nowhere' },
+    ];
+    tables.driver = [
+      ...tables.driver!,
+      {
+        id: 'charles-leclerc',
+        name: 'Charles Leclerc',
+        last_name: 'Leclerc',
+        nationality_country_id: 'monaco',
+      },
+    ];
+    const countries = f1dbCountries(tables);
+    expect(countries.find((c) => c.code === 'MC')).toEqual({
+      code: 'MC',
+      name: { en: 'Monaco', 'pt-BR': 'Mônaco', es: 'Mónaco' },
+    });
+    // os dos circuitos também; país que ninguém usa fica de fora
+    expect(countries.map((c) => c.code)).toContain('JP');
+    expect(countries.map((c) => c.code)).not.toContain('ZZ');
   });
 
   it('a temporada vai até o último GP do calendário, mesmo sem resultado ainda', () => {

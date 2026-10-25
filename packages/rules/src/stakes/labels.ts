@@ -3,7 +3,7 @@ import { titleOrdinal } from './titles.js';
 
 /**
  * Rótulos fixos (não gerados) dos códigos de stakes, para os 8 mercados da API.
- * Placeholders: `{n}` (número), `{goals}` ("1 gol" / "2 gols"), `{zone}` (nome da zona com artigo),
+ * Placeholders: `{n}` (número; nas famílias de resultado, posição ou pontos), `{goals}` ("1 gol" / "2 gols"), `{zone}` (nome da zona com artigo),
  * `{nth}` (o título de número n: "tetracampeonato", "11º título"; ver `titleOrdinal`).
  * Variantes por número: `zero` (n = 0), `one` (n = 1), `other`.
  */
@@ -83,6 +83,50 @@ const PT_BR: Record<StakeFamily, LabelTemplate> = {
   can_be_eliminated: 'Pode ser eliminado nesta rodada, dependendo de outros resultados',
   at_risk_of_elimination: 'Ainda corre risco de eliminação',
   seeks_title_n: { zero: 'Busca o primeiro título', one: 'Busca o primeiro título', other: 'Busca o {nth}' },
+  // resultado (jogo encerrado): o que o placar mudou na tabela
+  moved_up_to_n: 'Subiu para o {n}º lugar',
+  moved_down_to_n: 'Caiu para o {n}º lugar',
+  stayed_at_n: 'Segue em {n}º lugar',
+  took_the_lead: 'Assumiu a liderança',
+  lost_the_lead: 'Perdeu a liderança',
+  entered_zone: 'Passou a ocupar vaga para {zone}',
+  left_zone: 'Deixou de ocupar vaga para {zone}',
+  dropped_into_relegation: 'Entrou na zona de rebaixamento',
+  climbed_out_of_relegation: 'Saiu da zona de rebaixamento',
+  dropped_into_elimination: 'Entrou na zona de eliminação',
+  climbed_out_of_elimination: 'Saiu da zona de eliminação',
+  clinched_title: 'Garantiu o título matematicamente',
+  clinched_zone: 'Garantiu ao menos {zone} matematicamente',
+  clinched_safety: 'Garantiu a permanência matematicamente',
+  relegation_confirmed: 'Teve o rebaixamento confirmado',
+  elimination_confirmed: 'Teve a eliminação confirmada',
+  lost_title_chance: 'Não pode mais ser campeão',
+  lost_zone_chance: 'Não alcança mais {zone}',
+  points_behind_leader_n: {
+    zero: 'Fica empatado em pontos com o líder',
+    one: 'Fica a 1 ponto do líder',
+    other: 'Fica a {n} pontos do líder',
+  },
+  points_ahead_at_top_n: {
+    zero: 'Lidera empatado em pontos com o vice-líder',
+    one: 'Lidera com 1 ponto de vantagem',
+    other: 'Lidera com {n} pontos de vantagem',
+  },
+  points_behind_zone_n: {
+    zero: 'Fica empatado em pontos com o último na vaga para {zone}',
+    one: 'Fica a 1 ponto da vaga para {zone}',
+    other: 'Fica a {n} pontos da vaga para {zone}',
+  },
+  points_above_relegation_n: {
+    zero: 'Fica fora da zona de rebaixamento só pelos critérios de desempate',
+    one: 'Fica 1 ponto acima da zona de rebaixamento',
+    other: 'Fica {n} pontos acima da zona de rebaixamento',
+  },
+  points_below_safety_n: {
+    zero: 'Fica na zona de rebaixamento, empatado em pontos com o primeiro fora dela',
+    one: 'Fica a 1 ponto de sair da zona de rebaixamento',
+    other: 'Fica a {n} pontos de sair da zona de rebaixamento',
+  },
 };
 
 /** Espanhol rioplatense como base; os demais mercados sobrescrevem só o que muda. */
@@ -151,6 +195,50 @@ const ES_AR: Record<StakeFamily, LabelTemplate> = {
     zero: 'Va por su primer título',
     one: 'Va por su primer título',
     other: 'Va por el {nth}',
+  },
+  // resultado (partido terminado): lo que el marcador cambió en la tabla
+  moved_up_to_n: 'Subió al puesto {n}',
+  moved_down_to_n: 'Bajó al puesto {n}',
+  stayed_at_n: 'Sigue en el puesto {n}',
+  took_the_lead: 'Pasó a ser líder',
+  lost_the_lead: 'Dejó de ser líder',
+  entered_zone: 'Ahora ocupa un lugar para {zone}',
+  left_zone: 'Ya no ocupa un lugar para {zone}',
+  dropped_into_relegation: 'Entró en la zona de descenso',
+  climbed_out_of_relegation: 'Salió de la zona de descenso',
+  dropped_into_elimination: 'Entró en la zona de eliminación',
+  climbed_out_of_elimination: 'Salió de la zona de eliminación',
+  clinched_title: 'Se aseguró el título matemáticamente',
+  clinched_zone: 'Se aseguró al menos {zone} matemáticamente',
+  clinched_safety: 'Se aseguró la permanencia matemáticamente',
+  relegation_confirmed: 'Se confirmó su descenso',
+  elimination_confirmed: 'Se confirmó su eliminación',
+  lost_title_chance: 'Ya no puede ser campeón',
+  lost_zone_chance: 'Ya no puede alcanzar {zone}',
+  points_behind_leader_n: {
+    zero: 'Queda igualado en puntos con el líder',
+    one: 'Queda a 1 punto del líder',
+    other: 'Queda a {n} puntos del líder',
+  },
+  points_ahead_at_top_n: {
+    zero: 'Es líder, igualado en puntos con el segundo',
+    one: 'Es líder con 1 punto de ventaja',
+    other: 'Es líder con {n} puntos de ventaja',
+  },
+  points_behind_zone_n: {
+    zero: 'Queda igualado en puntos con el último lugar para {zone}',
+    one: 'Queda a 1 punto de un lugar para {zone}',
+    other: 'Queda a {n} puntos de un lugar para {zone}',
+  },
+  points_above_relegation_n: {
+    zero: 'Queda fuera de la zona de descenso solo por los criterios de desempate',
+    one: 'Queda 1 punto por encima de la zona de descenso',
+    other: 'Queda {n} puntos por encima de la zona de descenso',
+  },
+  points_below_safety_n: {
+    zero: 'Queda en zona de descenso, igualado en puntos con el primero que se salva',
+    one: 'Queda a 1 punto de salir de la zona de descenso',
+    other: 'Queda a {n} puntos de salir de la zona de descenso',
   },
 };
 
