@@ -1,7 +1,7 @@
 /** Retenção do `ops.change_feed` (job `change-feed-prune`). */
 import { asc } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { changeFeed, webhookCursor, type Database } from '@galaxie/db';
+import { changeFeed, changeFeedPrune, webhookCursor, type Database } from '@galaxie/db';
 import { pruneChangeFeed } from '../src/ops/change-feed-retention.js';
 import { disposableDb } from './db.js';
 
@@ -18,6 +18,7 @@ async function add(entityId: string, createdAt: Date, topic = 'event.score_chang
   return row!.id;
 }
 
+const mark = async () => (await db.select().from(changeFeedPrune))[0]?.maxDeletedId;
 const ids = async () => (await db.select().from(changeFeed).orderBy(asc(changeFeed.id))).map((r) => r.id);
 
 beforeAll(async () => {
@@ -51,13 +52,17 @@ describe('pruneChangeFeed', () => {
     expect(done.deleted).toBe(3);
     expect(await ids()).toEqual([a3, b1, c2, d1, d2, d3]);
     expect([a1, a2, c1].some((id) => [a3, b1, c2, d1, d2, d3].includes(id))).toBe(false);
+    // marca da poda (o SSE avisa replay_truncated abaixo dela): o maior id apagado, não o menor que ficou
+    expect(await mark()).toBe(c1);
 
     // webhooks em dia: agora d1 e d2 também podem sair
     await db.update(webhookCursor).set({ lastChangeId: d3 });
     expect((await pruneChangeFeed(db, { now: NOW, retentionDays: 7 })).deleted).toBe(2);
     expect(await ids()).toEqual([a3, b1, c2, d3]);
-    // idempotente
+    expect(await mark()).toBe(d2);
+    // idempotente (e a marca não regride)
     expect((await pruneChangeFeed(db, { now: NOW, retentionDays: 7 })).deleted).toBe(0);
+    expect(await mark()).toBe(d2);
   });
 
   it('recusa retenção menor que 1 dia', async () => {

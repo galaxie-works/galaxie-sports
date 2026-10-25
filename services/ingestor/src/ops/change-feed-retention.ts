@@ -2,7 +2,8 @@
  * Retenção do `ops.change_feed` (follow-up do #35): apaga mudanças com mais de N dias, mas mantém a
  * mais recente de cada entidade (`entity_type`, `entity_id`) — quem consulta "a última mudança de X"
  * continua achando — e nunca apaga o que o enfileirador de webhooks ainda não leu
- * (`api.webhook_cursor`). O SSE só retoma pelo `Last-Event-ID` dentro da janela de retenção.
+ * (`api.webhook_cursor`). O SSE só retoma pelo `Last-Event-ID` dentro da janela de retenção: o maior id
+ * apagado fica em `ops.change_feed_prune`, e quem retoma de antes dele recebe `replay_truncated`.
  * Apaga em lotes curtos para não segurar locks; rode uma vez por dia (job `change-feed-prune`).
  */
 import { sql } from 'drizzle-orm';
@@ -59,13 +60,22 @@ export async function pruneChangeFeed(
     report.deleted = Number(row?.n ?? 0);
     return report;
   }
+  let maxDeleted = 0;
   for (;;) {
     const rows = await db.execute<{ id: string }>(sql`
       delete from ops.change_feed
        where id in (${victims} order by cf.id limit ${batch})
        returning id`);
     report.deleted += rows.length;
+    for (const r of rows) maxDeleted = Math.max(maxDeleted, Number(r.id));
     if (rows.length < batch) break;
   }
+  // marca da poda: o SSE avisa (replay_truncated) quem retoma de um Last-Event-ID abaixo dela
+  if (maxDeleted > 0)
+    await db.execute(sql`
+      insert into ops.change_feed_prune (name, max_deleted_id) values ('default', ${maxDeleted})
+      on conflict (name) do update
+        set max_deleted_id = greatest(ops.change_feed_prune.max_deleted_id, excluded.max_deleted_id),
+            updated_at = now()`);
   return report;
 }
