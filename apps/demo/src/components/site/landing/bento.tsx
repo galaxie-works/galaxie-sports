@@ -1,7 +1,6 @@
 import {
   ArrowLeftRight,
   Check,
-  Goal,
   Maximize2,
   MonitorPlay,
   Play,
@@ -14,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import { SoccerBall } from '@/components/icons/soccer-ball';
 import { buttonVariants } from '@/components/ui/button';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
@@ -35,7 +35,7 @@ function TimelineWidget({ t, app, locale }: { t: Text['timeline']; app: AppText;
   const SEMI = showcase(locale).semi;
   const nf = new Intl.NumberFormat(locale);
   const icon: Record<TimelineEntry['kind'], LucideIcon> = {
-    goal: Goal,
+    goal: SoccerBall,
     yellow: RectangleVertical,
     red: RectangleVertical,
     sub: ArrowLeftRight,

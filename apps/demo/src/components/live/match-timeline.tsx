@@ -16,7 +16,6 @@ import {
   CircleDot,
   CircleSlash,
   Flag,
-  Goal,
   MonitorPlay,
   Repeat2,
   Sparkles,
@@ -25,6 +24,7 @@ import {
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
+import { SoccerBall } from '@/components/icons/soccer-ball';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -182,13 +182,13 @@ function KindIcon({ kind }: { kind: TimelineIncident['kind'] }) {
     case 'shootout_scored':
       return (
         <span className={cn(base, 'border-success/50 text-success')}>
-          <Goal className="size-4" aria-hidden />
+          <SoccerBall className="size-4" aria-hidden />
         </span>
       );
     case 'own_goal':
       return (
         <span className={cn(base, 'border-warning/50 text-warning')}>
-          <Goal className="size-4" aria-hidden />
+          <SoccerBall className="size-4" aria-hidden />
         </span>
       );
     case 'penalty_missed':
