@@ -103,6 +103,13 @@ export async function mapCommons(
       stats.push(empty(key, 'rules', `pendente: ${(err as Error).message}`));
       continue;
     }
+    // descoberta sem nenhuma candidata (identidade não conferida, categoria sumida) com galeria já mapeada: é
+    // tratada como falha, e o alvo fica como estava — nunca apaga as fotos (Johansson, 25/10/2026)
+    if (!d.candidates.length && prev?.photos.some((p) => p.match !== 'rejected')) {
+      opts.log?.(`${key}: descoberta vazia (${d.note ?? 'sem candidatas'}); fica como estava`);
+      stats.push(empty(key, 'rules', `pendente: descoberta vazia (${d.note ?? 'sem candidatas'})`));
+      continue;
+    }
     const { ok, rejected } = eligible(d);
     const pool = [...ok].sort((a, b) => b.ruleScore - a.ruleScore).slice(0, AI_POOL);
     let judgements: AiJudgement[] | null = null;
