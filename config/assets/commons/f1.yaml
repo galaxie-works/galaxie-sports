@@ -19349,7 +19349,7 @@ entries:
         role: car
         season: 1956
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
         license: CC BY-SA 4.0
@@ -19362,11 +19362,12 @@ entries:
         date: 2026-05-12 15:26:03
         width: 4032
         height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1956"
       - file: File:Ansted-Thompson Racing Watson-Offenhauser 1964 Indy 500 Winner - A.J. Foyt.jpg
         role: car
         season: 1956
         rank: 1
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Ansted-Thompson_Racing_Watson-Offenhauser_1964_Indy_500_Winner_-_A.J._Foyt.jpg
         license: CC BY-SA 4.0
@@ -19379,11 +19380,12 @@ entries:
         date: 2026-05-12 15:27:27
         width: 4032
         height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1964 (categoria do carro de 1962), não o chassi de 1956"
       - file: File:Indianapolis Motor Speedway Museum May 2026 41 (A. J. Foyt's 1964 Sheraton-Thompson Special Watson).jpg
         role: car
         season: 1956
         rank: 2
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_41_(A._J._Foyt%27s_1964_Sheraton-Thompson_Special_Watson).jpg
         license: CC BY-SA 4.0
@@ -19396,6 +19398,7 @@ entries:
         date: Taken on 9 May 2026
         width: 6000
         height: 4000
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1964 (categoria do carro de 1962), não o chassi de 1956"
   - target: car/watson/1958
     kind: car
     f1db_id: watson
@@ -19408,7 +19411,7 @@ entries:
         role: car
         season: 1958
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
         license: CC BY-SA 4.0
@@ -19421,11 +19424,12 @@ entries:
         date: 2026-05-12 15:26:03
         width: 4032
         height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1958"
       - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
         role: car
         season: 1958
         rank: 1
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
         license: CC BY-SA 4.0
@@ -19438,11 +19442,12 @@ entries:
         date: Taken on 9 May 2026
         width: 6000
         height: 4000
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1958"
       - file: File:Millers at Milwaukee 2026 049 (1964 Watson Roadster 'Sheraton-Thompson Special' tribute No. 1).jpg
         role: car
         season: 1958
         rank: 2
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Millers_at_Milwaukee_2026_049_(1964_Watson_Roadster_%27Sheraton-Thompson_Special%27_tribute_No._1).jpg
         license: CC BY-SA 4.0
@@ -19455,6 +19460,7 @@ entries:
         date: Taken on 11 July 2026
         width: 6000
         height: 4000
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1964 (categoria do carro de 1962), não o chassi de 1958"
   - target: car/watson/1959
     kind: car
     f1db_id: watson
@@ -19467,7 +19473,7 @@ entries:
         role: car
         season: 1959
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Watson-Offenhauser_1962_Indy_500_Winner_-_Rodger_Ward.jpg
         license: CC BY-SA 4.0
@@ -19480,11 +19486,12 @@ entries:
         date: 2026-05-12 15:23:05
         width: 4032
         height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1962 (categoria do carro de 1962), não o chassi de 1959"
       - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
         role: car
         season: 1959
         rank: 1
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
         license: CC BY-SA 4.0
@@ -19497,11 +19504,12 @@ entries:
         date: 2026-05-12 15:26:03
         width: 4032
         height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1959"
       - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
         role: car
         season: 1959
         rank: 2
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
         license: CC BY-SA 4.0
@@ -19514,6 +19522,7 @@ entries:
         date: Taken on 9 May 2026
         width: 6000
         height: 4000
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1959"
   - target: car/watson/1960
     kind: car
     f1db_id: watson
@@ -19526,7 +19535,7 @@ entries:
         role: car
         season: 1960
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
         license: CC BY-SA 4.0
@@ -19539,11 +19548,12 @@ entries:
         date: 2026-05-12 15:26:03
         width: 4032
         height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1960"
       - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
         role: car
         season: 1960
         rank: 1
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
         license: CC BY-SA 4.0
@@ -19556,11 +19566,12 @@ entries:
         date: Taken on 9 May 2026
         width: 6000
         height: 4000
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1960"
       - file: File:Millers at Milwaukee 2026 049 (1964 Watson Roadster 'Sheraton-Thompson Special' tribute No. 1).jpg
         role: car
         season: 1960
         rank: 2
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Millers_at_Milwaukee_2026_049_(1964_Watson_Roadster_%27Sheraton-Thompson_Special%27_tribute_No._1).jpg
         license: CC BY-SA 4.0
@@ -19573,6 +19584,7 @@ entries:
         date: Taken on 11 July 2026
         width: 6000
         height: 4000
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1964 (categoria do carro de 1962), não o chassi de 1960"
   - target: car/williams/1979
     kind: car
     f1db_id: williams
