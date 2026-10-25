@@ -88,6 +88,11 @@ describe('checkFacts — resumo', () => {
     expect(checkFacts('Lateral A marcó el gol de Palmeiras.', sheet, 'es-AR').map((v) => v.kind)).toContain(
       'wrong_scorer',
     );
+    expect(
+      checkFacts('Atacante B erró un penal a los 58, antes del gol de Meia A.', sheet, 'es-AR').filter(
+        (v) => v.kind === 'wrong_scorer',
+      ),
+    ).toEqual([]);
   });
 
   it('reprova placar final errado mesmo quando o placar existiu no meio do jogo', () => {

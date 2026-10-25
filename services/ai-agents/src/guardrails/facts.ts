@@ -173,7 +173,7 @@ const ASSIST_CUES: Record<'pt' | 'es', RegExp> = {
 /** Frase que fala de pênalti perdido (aí o batedor pode ser citado). */
 const MISSED_PENALTY_CUES: Record<'pt' | 'es', RegExp> = {
   pt: /\b(perdeu|perde|desperdicou|desperdica|errou|erra|isolou|parou|defendid[oa]|defendeu|nao converteu)\b[^.]*\bpenaltis?\b|\bpenaltis?\b[^.]*\b(perdid[oa]s?|desperdicad[oa]|defendid[oa]|para fora|na trave)\b/,
-  es: /\b(erro|fallo|desperdicio|perdio|atajado|atajo|no convirtio|marro)\b[^.]*\b(penal|penales|penalti|penal)\b|\b(penal|penales|penalti)\b[^.]*\b(errad[oa]s?|fallad[oa]s?|desperdiciad[oa]|atajad[oa]|afuera|al palo)\b/,
+  es: /\b(erro|fallo|desperdicio|perdio|atajado|atajo|no convirtio|marro)\b[^.]*\b(penal|penales|penalti)\b|\b(penal|penales|penalti)\b[^.]*\b(errad[oa]s?|fallad[oa]s?|desperdiciad[oa]|atajad[oa]|afuera|al palo)\b/,
 };
 /** Verbo que faz da pessoa citada logo antes a autora do gol ("X marcou", "X anotó"). */
 const SCORED_AFTER: Record<'pt' | 'es', string> = {
