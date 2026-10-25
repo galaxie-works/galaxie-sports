@@ -119,7 +119,7 @@ x-galaxie-publishable-key: gs_pk_live_...
 
 **O que a chave publicável não protege.** O `Origin` é confiável dentro de um navegador, mas qualquer script fora dele pode forjá-lo. A lista de origens impede que outro site use a chave da operadora nas páginas dele; não impede alguém de copiar a chave e chamar a API de um servidor. O que limita esse abuso é o alcance (só leitura, só o contrato do tenant) e o rate limit por IP. Se isso não basta para a operadora, a alternativa é o proxy abaixo.
 
-**Alternativa: proxy pelo backend da operadora.** Em vez de chamar a Galaxie direto, o widget aponta a URL base para uma rota do próprio app da operadora, que repassa a requisição com a chave **secreta** guardada no servidor (o widget então não envia chave nenhuma):
+**Alternativa: proxy pelo backend da operadora.** Em vez de chamar a Galaxie direto, o widget aponta a URL base para uma rota do próprio app da operadora, que repassa a requisição com a chave **secreta** guardada no servidor (o widget então não envia chave nenhuma: com `baseUrl` na mesma origem da página, como `/api/galaxie`, o `publishableKey` fica vazio e o header `x-galaxie-publishable-key` não vai):
 
 ```ts
 // app/api/galaxie/[...path]/route.ts (Next.js) no app da Operadora Exemplo

@@ -807,8 +807,13 @@ export function initials(name: string): string {
 }
 
 const MINUTE = 60_000;
+/** Teto do despertar de um jogo distante: o horário pode mudar (e a página fica aberta por dias). */
+const SCHEDULED_WAKE_MAX_MS = 6 * 60 * MINUTE;
 
-/** Polling do placar: 30 s com bola rolando, 1 min perto do início, nada depois do fim. */
+/**
+ * Polling do placar: 30 s com bola rolando, 1 min perto do início, nada depois do fim. Jogo agendado
+ * mais longe acorda quando entra na janela de 30 min (no máximo a cada 6 h), para não ficar parado.
+ */
 export function eventRefreshMs(
   event: Pick<GsEvent, 'status' | 'starts_at'>,
   now = Date.now(),
@@ -816,7 +821,9 @@ export function eventRefreshMs(
   if (LIVE_STATUSES.has(event.status) || event.status === 'starting') return 30_000;
   if (event.status === 'scheduled') {
     const until = Date.parse(event.starts_at) - now;
-    if (Number.isFinite(until) && until < 30 * MINUTE) return MINUTE;
+    if (!Number.isFinite(until)) return null;
+    if (until < 30 * MINUTE) return MINUTE;
+    return Math.min(Math.max(until - 30 * MINUTE, MINUTE), SCHEDULED_WAKE_MAX_MS);
   }
   return null;
 }
