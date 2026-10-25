@@ -39,6 +39,7 @@ import { teamColors } from '../teams/colors.js';
 import { competitionLogoId, logoIdSql } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import { OFF_CATALOG_SPORTS } from '../off-catalog.js';
+import { loadTeamNames } from '../teams/display-name.js';
 
 type I18n = Record<string, string>;
 
@@ -467,11 +468,16 @@ export async function loadExploreSummary(
   // ── países
   const dbCountry = new Map(countryRows.map((r) => [r.code, r]));
   const teamsBy = new Map<string, ExploreTeam[]>();
+  const teamNames = await loadTeamNames(
+    bctx.db,
+    teamRows.map((t) => t.id),
+    { locale, minReview: bctx.minReview ?? 'approved' },
+  );
   for (const t of teamRows) {
     const list = teamsBy.get(t.country_code) ?? [];
     list.push({
       id: t.id,
-      name: t.name,
+      ...teamNames.of(t.id, t.name),
       short_name: t.short_name,
       logo: assetUrl(assetsBaseUrl, t.storage_key, t.source_url),
       colors: teamColors(t.palette),

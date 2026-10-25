@@ -481,6 +481,13 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 | `GET /v1/search?q=&types=&sport=&limit=` | Busca global: times, competições, jogos, pessoas, estádios e países por nome e apelido (§3.6) |
 | `GET /v1/copy?locale=&sport=&intent=&tone=&affinity_type=&affinity_source=&momentum=&context=&team=&rival=&minutes=` | Microcopy sugerida (badges, chamadas) respeitando `copy_permission` |
 
+**Nome de exibição dos times** (`apps/api/src/teams/display-name.ts`). O `name` de um time é o mesmo em todas as respostas (evento, listas, classificação, contexto, busca, perfil, pessoa) e depende do `locale`:
+
+1. Time com perfil na base semântica no piso editorial (`SEMANTIC_MIN_REVIEW_STATUS`): o rótulo do idioma (`labels`, cadeia es-AR → es → en) ou, sem rótulo, o nome curto curado (`names.short`). É o mesmo nome de `/v1/teams/{id}/semantic` e dos gritos da torcida ("São Paulo", não "Sao Paulo").
+2. Sem perfil (ou abaixo do piso): o nome do fornecedor com o corretor de acentos (`teams/accents.ts`). O corretor só troca palavras inteiras de uma lista fixa por idioma, e só quando o país do time é de língua portuguesa (BR, PT, AO, MZ…) ou espanhola (ES e América hispânica). Ex.: "Gremio" → "Grêmio", "Leon" → "León". Pilotos, lutadores e atletas não passam pelo corretor.
+
+O nome do fornecedor segue em `provider_name` (times de evento, `TeamSummary`, `ParticipantRef`, `ExploreTeam` e o confronto direto). `GET /v1/teams?q=` e `/v1/search` acham o time com e sem acento.
+
 #### 3.3.1 Implementação da semântica (`apps/api/src/routes/v1/semantic.ts` e `copy.ts`)
 
 - **Módulo `semantic`** em todas as rotas desta tabela a partir de `/v1/teams/{id}/semantic` (planos `fan_experience`, `live_intelligence` e `enterprise`). As demais rotas de times ficam com `/v1/teams` (#32).
@@ -497,7 +504,7 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 
 Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 
-- `GET /v1/teams`: `{ data, next_cursor }` ordenado por nome; `q` (≥ 2 caracteres) busca em nome, nome curto, código e apelidos/nomes da base semântica; `competition` (UUID ou slug) = times com jogos na competição. Cada item traz `nicknames` da base semântica (vazio sem perfil).
+- `GET /v1/teams`: `{ data, next_cursor }` ordenado por nome; `q` (≥ 2 caracteres) busca em nome, nome curto, código e apelidos/nomes/rótulos da base semântica, sem diferença de caixa nem de acento ("gremio" acha "Gremio" e "Grêmio"); `competition` (UUID ou slug) = times com jogos na competição. Cada item traz `nicknames` da base semântica (vazio sem perfil).
 - **Logos do acervo customizado** (flag `ASSETS_CUSTOM_LOGOS` da operação, padrão desligada): ligada, todo `logo` de time e de competição (eventos, busca, navegação, classificação, elencos...) vem do acervo em alta quando há mapeamento, e as `colors` do time saem desse escudo. `Team` e `Competition` (detalhe) dizem a origem em `logo_source`: `provider`, `acervo` ou `null` sem logo. A troca não muda a URL de quem não tem logo no acervo ([runbooks/acervo-de-logos.md](runbooks/acervo-de-logos.md)).
 - `GET /v1/teams/{id}`: resumo + `country_ref` localizado, `founded`, `venue` (estádio da casa, com imagem e nome curado), `colors`, `external_ids` e `former_names` (nomes anteriores do time derivados dos jogos do fornecedor, `origin: provider`, `confidence: low`; variações de grafia não contam e os nomes da base semântica vencem).
 - `former_names` com `confidence: low` (origem `provider`) são **pistas** para busca e casamento de nomes, não fato confirmado editorialmente (podem ser casa provisória ou nome de torneio): nunca substituem o nome atual e não devem ser exibidos ao usuário final como fato. Para exibir, use só `confidence: high` (curadoria).
@@ -565,7 +572,7 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 
 Onde cada tipo procura:
 
-- `team`: nome do fornecedor, `short_name`, `code` e, da base semântica (`semantic.team_profile`), nomes oficial/curto/sigla, `labels` por locale e apelidos; também os nomes anteriores derivados dos jogos.
+- `team`: nome de exibição (§3.3), nome do fornecedor, `short_name`, `code` e, da base semântica (`semantic.team_profile`), nomes oficial/curto/sigla, `labels` por locale e apelidos; também os nomes anteriores derivados dos jogos.
 - `competition`: nome localizado (`labels` do catálogo e da base semântica), nome do fornecedor, slug, apelidos por locale e apelido do troféu. Traz `slug`.
 - `event`: jogos ao vivo (a mesma regra de `/v1/events/live`) e agendados dos próximos 14 dias dos 8 melhores times encontrados; o jogo herda o casamento do time. `event` traz `starts_at`, `status`, `live`, competição e participantes (casa primeiro).
 - `person`: nome, nome completo (`first_name` + `last_name`) e sobrenome; `detail` é o time do elenco mais recente.
@@ -887,6 +894,7 @@ Formato RFC 9457 (`application/problem+json`):
 ### 7.1 Implementação
 
 - **Cache de respostas no Valkey** (`<prefixo>cache:<hash>`): chave = método + caminho + query ordenada + locale resolvido (+ fuso quando a resposta tem instantes). Respostas independem do tenant. Sem Valkey (ou com falha), a resposta sai direto do banco.
+- **Deploy limpa o cache de respostas** (`infra/vps-telemetry/deploy.sh`: `gs:cache:*` e `gs:tag:*`, depois do seed da base semântica). Toda mudança de forma ou de regra de uma resposta (ex.: o nome de exibição dos times, §3.3) só aparece por inteiro depois dessa limpeza; sem ela, respostas antigas seguem servidas até o TTL (até 24 h).
 - **Headers:** `ETag` (sha1 do corpo), `Cache-Control: public, max-age=min(TTL, 300), s-maxage=TTL, stale-while-revalidate=…` (o navegador revalida em ≤ 5 min; a CDN usa o TTL cheio e é purgada ativamente), `Vary: Accept-Language, x-galaxie-key`, `surrogate-key` com as tags da resposta e `x-galaxie-cache: HIT|MISS`. `If-None-Match` igual ao ETag → 304 sem corpo.
 - **Tags de purge:** entidade `<tipo>:<id>` e coleção `<tipo>`. Ex.: detalhe da competição → `competition:<id>`; lista de competições → `competition`, `season`, `competition_profile`, `country`; tabela → `standing:<season_id>`, `competition:<id>`; venue → `venue:<id>`; espelho → `api_response:<request_hash>`.
 - **Change feed:** mudanças em `core.event`, `core.event_incident`, `enrich.broadcast_option` e `enrich.event_context` chegam ao `ops.change_feed` sozinhas, por triggers (§5.1). Os demais writers que alteram dado servido pela API chamam `publishChange(db, { topic, entityType, entityId, payload? })` (`@galaxie/db`), que usa a mesma função `ops.publish_change()` (deduplicada por transação) e faz `pg_notify('ops_change_feed', id)`. Entidades dos triggers: `event:<id>` (estado, placar, lances), `where_to_watch:<event_id>` (+ `event:<event_id>`) e `event_context:<event_id>` (+ `event:<event_id>`). A API escuta o canal (LISTEN) e também varre a tabela a cada 5 s (cobre writers que não notificam); cada mudança purga as tags `<entityType>:<entityId>`, `<entityType>` e `payload.tags` no Valkey e na CDN. Propagação típica: < 1 s com NOTIFY, ≤ 5 s só com a varredura — dentro do SLA de 5 min do onde assistir.

@@ -1,7 +1,14 @@
 import 'zod-openapi';
 import * as z from 'zod';
 import { TeamColors } from './colors.js';
-import { AssetUrl, CountryRef, LocaleQuery, PaginationQuery } from './common.js';
+import {
+  AssetUrl,
+  CountryRef,
+  LocaleQuery,
+  PaginationQuery,
+  ProviderName,
+  TeamDisplayName,
+} from './common.js';
 import { EventContextSummary } from './event-context.js';
 import { Photo } from './racing.js';
 
@@ -90,7 +97,8 @@ export const TeamSummary = z
     id: z.uuid(),
     sport: z.string().meta({ example: 'football' }),
     kind: z.enum(PARTICIPANT_KINDS),
-    name: z.string().meta({ example: 'Palmeiras' }),
+    name: TeamDisplayName,
+    provider_name: ProviderName,
     short_name: z.string().nullable(),
     code: z.string().nullable().meta({ example: 'PAL' }),
     country: z.string().nullable().meta({ description: 'Código do país.', example: 'BR' }),
@@ -186,7 +194,8 @@ export const EventParticipant = z
   .object({
     side: z.string().meta({ example: 'home' }),
     id: z.uuid(),
-    name: z.string(),
+    name: TeamDisplayName,
+    provider_name: ProviderName,
     short_name: z.string().nullable(),
     logo: AssetUrl,
     nickname: z.string().nullable().meta({ description: 'Primeiro apelido da base semântica.' }),
@@ -1027,7 +1036,13 @@ export const HeadToHead = z
   .object({
     event_id: z.uuid(),
     participants: z.array(
-      z.object({ id: z.uuid(), name: z.string(), logo: AssetUrl, colors: TeamColors.nullable().optional() }),
+      z.object({
+        id: z.uuid(),
+        name: TeamDisplayName,
+        provider_name: ProviderName,
+        logo: AssetUrl,
+        colors: TeamColors.nullable().optional(),
+      }),
     ),
     summary: z.object({
       scope: z.literal('database').meta({

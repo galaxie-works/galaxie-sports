@@ -2,7 +2,7 @@ import 'zod-openapi';
 import * as z from 'zod';
 import { COMPETITION_TYPES } from './catalog.js';
 import { TeamColors } from './colors.js';
-import { AssetUrl, LocaleQuery } from './common.js';
+import { AssetUrl, LocaleQuery, ProviderName, TeamDisplayName } from './common.js';
 import { Event } from './events.js';
 import { ConfederationRef } from './navigation.js';
 
@@ -30,7 +30,8 @@ export type ExploreCompetition = z.infer<typeof ExploreCompetition>;
 export const ExploreTeam = z
   .object({
     id: z.uuid(),
-    name: z.string().meta({ example: 'Palmeiras' }),
+    name: TeamDisplayName,
+    provider_name: ProviderName,
     short_name: z.string().nullable(),
     logo: AssetUrl,
     colors: TeamColors.nullable().meta({ description: 'Cores do escudo; null enquanto não espelhado.' }),
