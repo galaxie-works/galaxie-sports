@@ -1,10 +1,11 @@
 'use client';
 
 import type { Event } from '@galaxie/contracts';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { CalendarClock, CircleAlert } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { CompetitionCountry } from '@/components/sport/competition-country';
@@ -16,18 +17,46 @@ import { useHydrated } from '@/hooks/use-hydrated';
 import {
   fetchLiveEvents,
   fetchUpcoming,
+  fetchUpcomingSports,
   LIVE_EVENTS_KEY,
   relevanceOf,
-  UPCOMING_KEY,
+  upcomingKey,
+  UPCOMING_SPORTS_KEY,
+  type UpcomingScope,
 } from '@/lib/galaxie/live';
 import type { ApiRequest } from '@/lib/galaxie/request';
+import type { Locale } from '@/lib/i18n/config';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { plural } from '@/lib/i18n/text';
 import { SPORTS } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
+import { LiveFilterBar } from './live-filter-bar';
+import {
+  groupUpcoming,
+  hasLiveFilters,
+  liveFilterOptions,
+  liveFiltersSearch,
+  matchesLiveFilters,
+  parseLiveFilters,
+  showsStatus,
+  UPCOMING_FETCH_LIMIT,
+  upcomingScopes,
+  type LiveFilters,
+  type UpcomingGroup,
+} from './live-filters';
 import { RefreshTimer } from './refresh-timer';
 import { useLiveRefresh } from './use-live-refresh';
+
+/** Próximos por esporte na tela: uma fileira com todos os esportes; mais quando o filtro deixa poucos. */
+const UPCOMING_PER_SPORT = 3;
+const UPCOMING_PER_SPORT_FEW = 6;
+/**
+ * Os próximos não mudam a cada lance: a lista de esportes vale 5 min e cada busca, 2 min. Nenhuma delas
+ * entra na atualização do ao vivo (SSE e verificação periódica só tocam `LIVE_EVENTS_KEY`).
+ */
+const UPCOMING_SPORTS_STALE_MS = 5 * 60_000;
+const UPCOMING_STALE_MS = 2 * 60_000;
 
 interface CompetitionGroup {
   key: string;
@@ -114,45 +143,136 @@ function LiveCard({ event }: { event: Event }) {
   );
 }
 
-function UpcomingKickoffs() {
-  const { locale, t } = useI18n();
-  const { data, isLoading } = useQuery({
-    queryKey: UPCOMING_KEY,
-    queryFn: () => fetchUpcoming(locale, 6),
-    staleTime: 60_000,
+function CardsSkeleton({ count }: { count: number }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: count }, (_, i) => (
+        <Skeleton key={i} className="h-44" />
+      ))}
+    </div>
+  );
+}
+
+/** Enquanto a página não lê a URL (os filtros): o mesmo esqueleto do carregamento. */
+export function LiveBoardFallback() {
+  return <CardsSkeleton count={6} />;
+}
+
+/** Junta o resultado de várias buscas de próximos (as que falharam ficam de fora). */
+const combineUpcoming = (results: { data?: Event[]; isPending: boolean }[]) => ({
+  data: results.flatMap((r) => r.data ?? []),
+  pending: results.some((r) => r.isPending),
+});
+
+/**
+ * Próximos apitos de todos os esportes: a agenda diz quais esportes têm jogo nos próximos dias e a página
+ * busca os próximos de cada um em paralelo (poucos por esporte). Com país ou competição escolhidos, as
+ * buscas já vão filtradas para a API. Ver `upcomingScopes`.
+ */
+function useUpcoming(locale: Locale, filters: LiveFilters) {
+  const sportsQuery = useQuery({
+    queryKey: UPCOMING_SPORTS_KEY,
+    queryFn: () => fetchUpcomingSports(locale),
+    staleTime: UPCOMING_SPORTS_STALE_MS,
   });
-  if (isLoading)
-    return (
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 3 }, (_, i) => (
-          <Skeleton key={i} className="h-44" />
-        ))}
-      </div>
-    );
-  if (!data?.length) return null;
+  const sports = useMemo(() => sportsQuery.data ?? [], [sportsQuery.data]);
+  const { base, targeted } = useMemo(
+    () =>
+      upcomingScopes(
+        filters,
+        sports.map((s) => s.slug),
+      ),
+    [filters, sports],
+  );
+  const query = (scope: UpcomingScope) => ({
+    queryKey: upcomingKey(scope),
+    queryFn: () => fetchUpcoming(locale, scope, UPCOMING_FETCH_LIMIT),
+    staleTime: UPCOMING_STALE_MS,
+  });
+  const baseResults = useQueries({ queries: base.map(query), combine: combineUpcoming });
+  const targetedResults = useQueries({ queries: targeted.map(query), combine: combineUpcoming });
+  const list = targeted.length ? targetedResults : baseResults;
+  return {
+    sports,
+    /** Base das opções dos filtros: tudo que foi carregado. */
+    loaded: [...baseResults.data, ...targetedResults.data],
+    /** A lista da seção, antes do filtro no navegador. */
+    list: list.data,
+    loading: sportsQuery.isPending || (list.pending && !list.data.length),
+  };
+}
+
+/** Próximos apitos por esporte, já filtrados. Sem filtro e sem jogo marcado, a seção não aparece. */
+function UpcomingKickoffs({
+  groups,
+  loading,
+  filtered,
+  sportLabel,
+}: {
+  groups: UpcomingGroup[];
+  loading: boolean;
+  filtered: boolean;
+  sportLabel: (slug: string) => string;
+}) {
+  const { t } = useI18n();
+  if (loading) return <CardsSkeleton count={3} />;
+  if (!groups.length && !filtered) return null;
   return (
     <Section title={t.live.board.upcoming} icon={<CalendarClock className="size-4" aria-hidden />}>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {data.map((e) => (
-          <ClientEventCard key={e.id} event={e} />
-        ))}
-      </div>
+      {groups.length ? (
+        <div className="flex flex-col gap-6">
+          {groups.map((g) => {
+            const Icon = SPORTS.find((s) => s.slug === g.sport)?.icon;
+            const label = sportLabel(g.sport);
+            return (
+              <section key={g.sport} className="flex flex-col gap-3" aria-label={label}>
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  {Icon ? <Icon className="size-4" aria-hidden /> : null}
+                  {label}
+                </h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {g.events.map((e) => (
+                    <ClientEventCard key={e.id} event={e} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-sm">{t.live.filters.upcomingEmpty}</p>
+      )}
     </Section>
   );
 }
 
 /**
+ * Grava os filtros na URL sem nova requisição ao servidor. O estado `null` é o que faz o Next sincronizar
+ * o `useSearchParams` (com o estado interno dele, a chamada passa como se fosse do próprio roteador).
+ */
+function writeFilters(filters: LiveFilters) {
+  const { pathname, search, hash } = window.location;
+  window.history.replaceState(null, '', `${pathname}${liveFiltersSearch(filters, search)}${hash}`);
+}
+
+/**
  * Página Ao vivo: tudo que está em andamento agora, por esporte e competição, com placar e relógio que
  * se atualizam sozinhos (SSE do /v1/stream + verificação periódica) e o contador da cadência no topo.
+ * A barra de filtros (status, esporte, país e competição, na URL) recorta os jogos ao vivo e os próximos
+ * no navegador: a consulta e o SSE continuam sobre todos os jogos ao vivo (a sidebar divide a consulta).
  */
 export function LiveBoard({ api }: { api: ApiRequest }) {
   const { locale, t } = useI18n();
   const tb = t.live.board;
+  const searchParams = useSearchParams();
+  const filters = useMemo(() => parseLiveFilters(searchParams), [searchParams]);
+  const filtered = hasLiveFilters(filters);
   const q = useQuery({
     queryKey: LIVE_EVENTS_KEY,
     queryFn: () => fetchLiveEvents(locale),
     staleTime: 10_000,
   });
+  const up = useUpcoming(locale, filters);
   const hydrated = useHydrated();
   const data = hydrated ? q.data : undefined;
   const events = useMemo(() => data ?? [], [data]);
@@ -170,39 +290,54 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
       .sort((a, b) => Date.parse(b) - Date.parse(a));
     return times[0] ?? null;
   }, [events]);
-  const groups = useMemo(
-    () =>
-      groupLive(events, (slug) => {
-        const nav = SPORTS.find((s) => s.slug === slug);
-        return nav ? t.nav.sports[nav.slug] : slug;
-      }),
-    [events, t],
+  const sportLabel = useCallback(
+    (slug: string) => {
+      const nav = SPORTS.find((s) => s.slug === slug);
+      return nav ? t.nav.sports[nav.slug] : slug;
+    },
+    [t],
   );
+  const shown = useMemo(() => events.filter((e) => matchesLiveFilters(e, filters)), [events, filters]);
+  const groups = useMemo(() => groupLive(shown, sportLabel), [shown, sportLabel]);
+  // depois da hidratação, como o ao vivo (os dados são do navegador)
+  const upList = hydrated ? up.list : [];
+  const upLoaded = hydrated ? up.loaded : [];
+  const upcomingGroups = groupUpcoming(
+    upList.filter((e) => matchesLiveFilters(e, filters)),
+    up.sports.map((s) => s.slug),
+    filters.sport.length === 1
+      ? UPCOMING_FETCH_LIMIT
+      : filtered
+        ? UPCOMING_PER_SPORT_FEW
+        : UPCOMING_PER_SPORT,
+  );
+  const options = liveFilterOptions([...events, ...upLoaded], filters, sportLabel, up.sports);
 
   return (
     <div className="flex flex-col gap-6">
+      <LiveFilterBar filters={filters} options={options} onChange={writeFilters} />
       <RefreshTimer state={refresh} sourceLastAt={sourceLastAt} className="sticky top-16 z-[5]" />
 
-      {!hydrated || q.isPending ? (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-44" />
-          ))}
-        </div>
+      {!showsStatus(filters, 'live') ? null : !hydrated || q.isPending ? (
+        <CardsSkeleton count={6} />
       ) : q.isError && !data ? (
         <EmptyState title={tb.errorTitle} description={tb.errorDescription}>
           <CircleAlert className="text-muted-foreground mx-auto size-5" aria-hidden />
         </EmptyState>
       ) : !events.length ? (
-        <>
-          <Section title={tb.liveGames} api={api}>
-            <EmptyState title={tb.emptyTitle} description={tb.emptyDescription} />
-          </Section>
-          <UpcomingKickoffs />
-        </>
+        <Section title={tb.liveGames} api={api}>
+          <EmptyState title={tb.emptyTitle} description={tb.emptyDescription} />
+        </Section>
+      ) : !shown.length ? (
+        <Section title={tb.liveGames} api={api}>
+          <EmptyState
+            title={t.live.filters.liveEmptyTitle}
+            description={plural(locale, events.length, t.live.filters.liveEmptyDescription)}
+          />
+        </Section>
       ) : (
         <Section
-          title={plural(locale, events.length, t.live.nav.count)}
+          title={plural(locale, shown.length, t.live.nav.count)}
           description={tb.description}
           api={api}
         >
@@ -258,6 +393,15 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
           </div>
         </Section>
       )}
+
+      {showsStatus(filters, 'upcoming') ? (
+        <UpcomingKickoffs
+          groups={upcomingGroups}
+          loading={!hydrated || up.loading}
+          filtered={filtered}
+          sportLabel={sportLabel}
+        />
+      ) : null}
     </div>
   );
 }
