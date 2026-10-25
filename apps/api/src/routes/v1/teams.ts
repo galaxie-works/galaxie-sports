@@ -588,6 +588,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           throw problems.notFound('Carreira na F1');
         const body: RaceCareer = await loadRaceCareer(db, p, locale, ctx.assetsBaseUrl, {
           liveries: await liveries(),
+          customLogos: ctx.logos.enabled(),
         });
         return { body, tags: [`team:${p.id}`] };
       },

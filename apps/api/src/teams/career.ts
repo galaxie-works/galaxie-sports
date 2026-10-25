@@ -361,6 +361,8 @@ function emptySeason(year: number): CareerSeason {
 export interface RaceCareerOptions {
   /** Pinturas curadas por época (`loadLiveries`), já no piso editorial. */
   liveries?: readonly LiveryEntry[];
+  /** Logos próprios ligados (`ASSETS_CUSTOM_LOGOS`): logo e cores das equipes como em `/v1/teams/{id}`. */
+  customLogos?: boolean;
 }
 
 export async function loadRaceCareer(
@@ -409,6 +411,7 @@ export async function loadRaceCareer(
     'formula-1',
     rows.map((r) => r.result),
     assetsBaseUrl,
+    options.customLogos,
   );
   const drivers = constructor
     ? await db.execute<{ id: string; name: string }>(sql`
