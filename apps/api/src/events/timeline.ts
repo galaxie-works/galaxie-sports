@@ -251,6 +251,38 @@ export function currentClock(
   return null;
 }
 
+const SCORING_KINDS: ReadonlySet<TimelineKind> = new Set(['goal', 'own_goal', 'penalty_goal']);
+
+/** Lado que soma o gol; no gol contra, o oposto ao time do incidente quando essa é a convenção. */
+function creditedSide(raw: RawIncident, kind: TimelineKind, ownGoalForOpponent: boolean): Side | null {
+  const side = raw.team?.side;
+  if (side !== 'home' && side !== 'away') return null;
+  if (kind !== 'own_goal' || !ownGoalForOpponent) return side;
+  return side === 'home' ? 'away' : 'home';
+}
+
+/**
+ * O gol contra soma para o adversário do time do incidente? Como em `buildGoals` do resumo
+ * (services/ai-agents/src/recap/facts.ts): o time do incidente pode ser o do jogador que marcou contra
+ * (o padrão do fornecedor: no fixture 1492407, o gol contra do zagueiro visitante aos 45+2 fecha o 1º
+ * tempo em 2–0 para o mandante) ou o beneficiado. Fica a convenção que reproduz o placar do evento; se
+ * nenhuma bater (no ao vivo o placar pode chegar antes do lance), vale o padrão do fornecedor.
+ */
+export function ownGoalCountsForOpponent(incidents: RawIncident[], score: TimelineInput['score']): boolean {
+  if (score.home == null || score.away == null) return true;
+  const reproduces = (forOpponent: boolean) => {
+    const tally = { home: 0, away: 0 };
+    for (const raw of incidents) {
+      const kind = kindOf(raw);
+      if (!SCORING_KINDS.has(kind)) continue;
+      const side = creditedSide(raw, kind, forOpponent);
+      if (side) tally[side] += 1;
+    }
+    return tally.home === score.home && tally.away === score.away;
+  };
+  return reproduces(true) || !reproduces(false);
+}
+
 export function buildTimelineDto(input: TimelineInput): EventTimeline {
   const anchors = periodAnchors(input);
   const watched = watchedLive(input.stateLog);
@@ -278,12 +310,15 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
   };
 
   // ─ lances: tipo, relógio, instante, placar parcial e bandeiras ─
+  const ownGoalForOpponent = ownGoalCountsForOpponent(input.incidents, input.score);
   const yellows = new Set<string>();
   let home = 0;
   let away = 0;
   let goals = 0;
   let scoreKnown = true;
-  const incidents: TimelineIncident[] = input.incidents.map((raw) => {
+  /** Lado beneficiado por gol (no gol contra, pode não ser o time do incidente). */
+  const credited: (Side | null)[] = [];
+  const incidents: TimelineIncident[] = input.incidents.map((raw, idx) => {
     let kind = kindOf(raw);
     const key = personKey(raw.player);
     if (kind === 'yellow_card' && key) yellows.add(key);
@@ -300,9 +335,10 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
 
     const flags: TimelineFlag[] = [];
     let scoreAfter: { home: number; away: number } | null = null;
-    if (kind === 'goal' || kind === 'own_goal' || kind === 'penalty_goal') {
-      const side = raw.team?.side;
-      if (side === 'home' || side === 'away') {
+    if (SCORING_KINDS.has(kind)) {
+      const side = creditedSide(raw, kind, ownGoalForOpponent);
+      credited[idx] = side;
+      if (side) {
         const tiedBefore = home === away;
         if (side === 'home') home += 1;
         else away += 1;
@@ -365,7 +401,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
     const winner: Side = score.home > score.away ? 'home' : 'away';
     const loserGoals = Math.min(score.home, score.away);
     const decisive = incidents.find(
-      (i) => i.score_after && i.team?.side === winner && i.score_after[winner] === loserGoals + 1,
+      (i, idx) => i.score_after && credited[idx] === winner && i.score_after[winner] === loserGoals + 1,
     );
     if (decisive) {
       decisive.flags.push('decisive');
@@ -435,8 +471,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
   const extraTimeStarted =
     ['ET', 'AET'].includes(code) ||
     incidents.some((i) => i.clock.period === 'extra_time_first' || i.clock.period === 'extra_time_second') ||
-    ((code === 'P' || code === 'PEN') &&
-      ((score.extratime?.home ?? 0) > 0 || (score.extratime?.away ?? 0) > 0)) ||
+    ((code === 'P' || code === 'PEN') && ((score.extratime?.home ?? 0) > 0 || (score.extratime?.away ?? 0) > 0)) ||
     anchors.extra_time_first != null;
 
   const maxExtra = (period: MatchPeriod) =>
