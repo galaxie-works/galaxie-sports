@@ -1,4 +1,4 @@
-import { loadWtwConfig } from '@galaxie/where-to-watch';
+import { Blocklist, loadWtwConfig, type CountryDirectory } from '@galaxie/where-to-watch';
 import { describe, expect, it } from 'vitest';
 import {
   aiStudioPlans,
@@ -8,6 +8,7 @@ import {
 } from '../testing/ai-studio-lineups.js';
 import { gabaritoIds, readGabarito } from '../testing/lineup-gabarito.js';
 import {
+  acceptableOfficialDomain,
   excerptHasAmount,
   formatPrice,
   includedCheck,
@@ -131,6 +132,52 @@ describe('nível da fonte pelo domínio final', () => {
     expect(sourceTier('https://play.google.com/store/apps/details?id=x', site, dir)).toBe('discarded');
     expect(sourceTier('https://www.instagram.com/p/1', site, dir)).toBe('discarded');
     expect(sourceTier('https://blog.qualquer.exemplo/post', site, dir)).toBe('other');
+  });
+});
+
+describe('blocklist no destino do redirecionamento', () => {
+  // o dicionário do BR com um domínio bloqueado de exemplo
+  const blocked: CountryDirectory = Object.create(config.directory('BR'), {
+    blocklist: {
+      value: new Blocklist([{ name: 'Bloqueada Exemplo', aliases: [], domains: ['bloqueada.exemplo'] }]),
+    },
+  });
+  const R1 = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/BLOQ-1';
+  const R2 = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/BLOQ-2';
+  const OK = 'https://operadora.exemplo/planos';
+  const vctx: VerifyContext = {
+    country: 'BR',
+    // o domínio bloqueado informado como oficial: sem a checagem, a fonte contaria como oficial
+    platform: {
+      name: 'Operadora Exemplo',
+      website: 'https://operadora.exemplo',
+      officialDomains: ['bloqueada.exemplo'],
+    },
+    dir: blocked,
+    resolveUrl: async (u) => (u === R1 || u === R2 ? 'https://www.bloqueada.exemplo/plano' : u),
+    now: NOW,
+  };
+  const model = (planUrl: string, channelUrl: string): ModelPlan => ({
+    name: 'Plano Exemplo',
+    priceAmount: null,
+    currency: null,
+    planUrl: null,
+    evidence: { url: planUrl, excerpt: 'Plano Exemplo' },
+    channels: [{ name: 'Globo', evidence: { url: channelUrl, excerpt: 'Plano Exemplo: Globo' } }],
+    services: [],
+  });
+
+  it('o link do Google que leva a domínio bloqueado não vira fonte (nem oficial)', async () => {
+    const out = await verifyPlans([model(R1, OK)], vctx);
+    expect([out.plans.length, out.plansWithoutSource]).toEqual([0, 1]);
+    const ok = await verifyPlans([model(OK, R2)], vctx);
+    expect(ok.plans.map((p) => [p.name, p.channels.length])).toEqual([['Plano Exemplo', 0]]);
+    expect(ok.drops).toContainEqual({ reason: 'no_source', name: 'Globo', plan: 'Plano Exemplo' });
+  });
+
+  it('domínio bloqueado não é aceito como domínio oficial da plataforma', () => {
+    expect(acceptableOfficialDomain('bloqueada.exemplo', blocked)).toBe(false);
+    expect(acceptableOfficialDomain('operadora.exemplo', blocked)).toBe(true);
   });
 });
 

@@ -191,10 +191,13 @@ export function sourceTier(url: string, platform: PlatformOfficial, dir: Country
   return 'other';
 }
 
-/** Um domínio oficial informado pela IA não pode ser de comparador, imprensa ou rede social. */
+/** Um domínio oficial informado pela IA não pode ser de comparador, imprensa, rede social nem da blocklist. */
 export function acceptableOfficialDomain(domain: string, dir: CountryDirectory): boolean {
   const url = `https://${domain.replace(/^https?:\/\//, '')}`;
-  return sourceTier(url, { website: null, officialDomains: [] }, dir) === 'other';
+  return (
+    sourceTier(url, { website: null, officialDomains: [] }, dir) === 'other' &&
+    !dir.blocklist.isBlockedUrl(url)
+  );
 }
 
 // ─── texto do trecho ─────────────────────────────────────────────────────────────────────────────
@@ -529,6 +532,8 @@ export async function checkEvidence(ctx: VerifyContext, input: CheckInput): Prom
   if (!cited || (!excerpt && !ctx.pageProof)) return null;
   const redirected = isGroundingRedirect(cited);
   const final = await ctx.resolveUrl(cited);
+  // a blocklist vale também para o destino do redirecionamento (antes só o link do Google era conferido)
+  if (final && ctx.dir.blocklist.isBlockedUrl(final)) return null;
   const tier = final ? sourceTier(final, ctx.platform, ctx.dir) : null;
   const proof = ctx.pageProof && excerpt ? ctx.pageProof(final ?? cited, excerpt) : null;
   const byName = excerpt ? namesPlan(excerpt, input.plan, input.siblings) : false;
@@ -769,7 +774,7 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
     if (p.planUrl) {
       const accepted = ctx.acceptUrl ? ctx.acceptUrl(p.planUrl) : p.planUrl;
       const final = accepted ? await ctx.resolveUrl(accepted) : null;
-      if (final && isOfficialUrl(final, ctx.platform)) {
+      if (final && isOfficialUrl(final, ctx.platform) && !ctx.dir.blocklist.isBlockedUrl(final)) {
         url = final;
         if (!sources.includes(final)) sources.push(final);
       }
