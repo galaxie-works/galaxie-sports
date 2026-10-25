@@ -42,7 +42,16 @@ import type { AllocationMarket } from './prompt.js';
 import { marketRelevance, priorityOf, wtwPolicyFromEnv, type WtwPolicy } from './relevance.js';
 import { claimRuns, requeueStale, type WtwRunRow } from './scheduler.js';
 import { WTW_MAX_MATCHES_PER_CALL } from './schema.js';
-import { estimateCallUsd, finishResearch, marketSpendToday, startResearch, withinCap } from './spend.js';
+import {
+  estimateCallUsd,
+  failureUsage,
+  finishResearch,
+  marketSpendToday,
+  researchBackoffMs,
+  startResearch,
+  withinCap,
+  WTW_RESEARCH_MAX_FAILURES,
+} from './spend.js';
 
 export interface WtwRunnerDeps {
   db: Database;
@@ -207,7 +216,10 @@ export class WtwRunner {
         );
       }
       if (res.retryLater) {
-        await this.requeue(group.map((g) => g.run));
+        await this.requeue(
+          group.map((g) => g.run),
+          res.retryAt,
+        );
         this.log(
           `${group[0]!.group}: alocação adiada (${res.reasons.values().next().value ?? ''}) — volta para a fila`,
         );
@@ -226,9 +238,13 @@ export class WtwRunner {
     return null;
   }
 
-  private async requeue(runs: WtwRunRow[]): Promise<void> {
+  /** Devolve para a fila; com `at`, a execução só volta a ser reservada a partir dali (espera). */
+  private async requeue(runs: WtwRunRow[], at: Date | null = null): Promise<void> {
     for (const r of runs)
-      await this.deps.db.update(wtwRun).set({ status: 'queued', startedAt: null }).where(eq(wtwRun.id, r.id));
+      await this.deps.db
+        .update(wtwRun)
+        .set({ status: 'queued', startedAt: null, ...(at ? { scheduledFor: at } : {}) })
+        .where(eq(wtwRun.id, r.id));
   }
 
   /** Decide e faz as chamadas de alocação de um grupo (rodada × todos os mercados). */
@@ -248,6 +264,8 @@ export class WtwRunner {
     deferred: boolean;
     /** Falha passageira na alocação: publica os direitos agora e devolve as execuções para a fila. */
     retryLater?: boolean;
+    /** Com `retryLater`: a partir de quando tentar de novo (espera depois de falha do provedor). */
+    retryAt?: Date | null;
   }> {
     const byEvent: AllocationResult['byEvent'] = new Map();
     const shares = new Map<string, CallShare>();
@@ -300,6 +318,10 @@ export class WtwRunner {
     // falha passageira (orçamento, conta sem crédito, limite de taxa, provedor fora): a rodada volta
     // para a fila em vez de fechar como "feita" só com os direitos — senão nunca mais é alocada
     let transient: string | null = null;
+    let retryAt: Date | null = null;
+    const waitUntil = (at: Date) => {
+      if (!retryAt || at > retryAt) retryAt = at;
+    };
     let allocatedAny = false;
     for (const [i, all] of chunks.entries()) {
       const ids = new Set(all.map((e) => e.id));
@@ -323,7 +345,7 @@ export class WtwRunner {
       const key = manual
         ? `alloc:manual:${first.run.id}`
         : `alloc:${first.group}:${i}:${marketsHere.join(',')}:${this.now().toISOString().slice(0, 10)}`;
-      const researchId = await startResearch(this.deps.db, {
+      const started = await startResearch(this.deps.db, {
         kind: 'allocation',
         researchKey: key,
         competition: comp.slug,
@@ -333,11 +355,21 @@ export class WtwRunner {
         requestedBy: manual ? first.run.requestedBy : 'scheduler',
         now: this.now(),
       });
-      if (!researchId) {
-        for (const m of marketsHere)
-          reasons.set(m, 'rodada já pesquisada hoje (opções salvas reaproveitadas)');
+      if (started.id === null) {
+        const why =
+          started.reason === 'backoff'
+            ? `alocação em espera depois de falha (nova tentativa a partir de ${started.retryAt!.toISOString()})`
+            : started.reason === 'exhausted'
+              ? `alocação desistida hoje depois de ${WTW_RESEARCH_MAX_FAILURES} falhas (opções salvas reaproveitadas)`
+              : 'rodada já pesquisada hoje (opções salvas reaproveitadas)';
+        for (const m of marketsHere) reasons.set(m, why);
+        if (started.reason === 'backoff') {
+          transient ??= why;
+          waitUntil(started.retryAt!);
+        }
         continue;
       }
+      const researchId = started.id;
       const markets: AllocationMarket[] = marketsHere.map((m) => {
         const ctxs = inChunk.filter((c) => c.run.countryCode === m);
         const any = ctxs[0]!;
@@ -380,16 +412,26 @@ export class WtwRunner {
         for (const c of inChunk) shares.set(c.run.id, { researchId, usage, model, runs: inChunk.length });
         for (const m of marketsHere) reasons.set(m, `alocação por rodada (${researchId})`);
       } catch (err) {
-        const partial = (err as { usage?: UsageWithSearches }).usage;
         const message = err instanceof LlmError || err instanceof Error ? err.message : String(err);
+        const budget = err instanceof BudgetExceededError;
+        const failed = failureUsage(err, estimate);
         await finishResearch(this.deps.db, researchId, {
-          status: err instanceof BudgetExceededError ? 'skipped' : 'failed',
-          usage: partial,
+          status: budget ? 'skipped' : 'failed',
+          usage: failed.usage,
+          ...(failed.stats ? { stats: failed.stats } : {}),
           error: message.slice(0, 500),
           now: this.now(),
         });
+        const lost = failed.usage?.costUsd ?? 0;
+        for (const m of marketsHere) spend.set(m, (spend.get(m) ?? 0) + lost / marketsHere.length);
         for (const m of marketsHere) reasons.set(m, `alocação falhou: ${message.slice(0, 200)}`);
-        if (isTransient(err)) transient ??= message.slice(0, 200);
+        // orçamento esgotado não chamou o provedor: tenta na próxima rodada. Falha do provedor espera
+        // (30 min, 1 h…) e desiste no dia depois de WTW_RESEARCH_MAX_FAILURES falhas.
+        if (budget) transient ??= message.slice(0, 200);
+        else if (isTransient(err) && started.failures + 1 < WTW_RESEARCH_MAX_FAILURES) {
+          transient ??= message.slice(0, 200);
+          waitUntil(new Date(this.now().getTime() + researchBackoffMs(started.failures + 1)));
+        }
       }
     }
     // os direitos saem agora (como antes); a alocação fica para a próxima rodada do agendador
@@ -404,6 +446,7 @@ export class WtwRunner {
       calls,
       deferred: false,
       retryLater,
+      retryAt: retryLater ? retryAt : null,
     };
   }
 

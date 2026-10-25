@@ -34,7 +34,15 @@ import { shouldFetch } from '../evidence.js';
 import { CachingPageFetcher, type PageFetcher } from '../fetcher.js';
 import type { WtwPolicy } from '../relevance.js';
 import { WTW_MAX_MATCHES_PER_CALL } from '../schema.js';
-import { estimateCallUsd, finishResearch, marketSpendToday, startResearch, withinCap } from '../spend.js';
+import {
+  estimateCallUsd,
+  failureUsage,
+  finishResearch,
+  marketSpendToday,
+  startResearch,
+  withinCap,
+  WTW_RESEARCH_MAX_FAILURES,
+} from '../spend.js';
 import { MatchChannelAgent } from './agent.js';
 import type { ChannelGroup, ChannelTarget } from './plan.js';
 import type { ChannelMarket } from './prompt.js';
@@ -156,7 +164,7 @@ export class MatchChannelRunner {
         if (!pending.length) {
           out.status = 'resolved_by_import';
           if (!dryRun) {
-            const id = await startResearch(db, {
+            const { id } = await startResearch(db, {
               kind: 'channel',
               researchKey: `${base}:${markets.join(',')}:import`,
               competition: group.competition.slug,
@@ -217,7 +225,7 @@ export class MatchChannelRunner {
         }
         const here = [...new Set(inChunk.map((t) => t.country))].sort();
         const games = chunk.filter((e) => inChunk.some((t) => t.event.id === e.id));
-        const researchId = await startResearch(db, {
+        const started = await startResearch(db, {
           kind: 'channel',
           researchKey: `${base}:${here.join(',')}:${i}`,
           competition: group.competition.slug,
@@ -226,10 +234,21 @@ export class MatchChannelRunner {
           markets: here,
           now: this.now(),
         });
-        if (!researchId) {
-          out.status = any ? out.status : 'already_researched';
+        if (started.id === null) {
+          // espera depois de falha do provedor (ou desistência no dia): sem chamada agora
+          if (started.reason === 'backoff' || started.reason === 'exhausted') {
+            if (!any) out.status = started.reason === 'backoff' ? 'deferred' : 'failed';
+            this.log(
+              `${group.key} [${here.join(',')}]: ${
+                started.reason === 'backoff'
+                  ? `em espera depois de falha até ${started.retryAt!.toISOString()}`
+                  : `desistiu hoje depois de ${WTW_RESEARCH_MAX_FAILURES} falhas`
+              }`,
+            );
+          } else if (!any) out.status = 'already_researched';
           continue;
         }
+        const researchId = started.id;
         callsLeft--;
         out.calls++;
         out.researchIds.push(researchId);
@@ -240,14 +259,18 @@ export class MatchChannelRunner {
           out.costUsd += cost;
           for (const m of here) spend.set(m, (spend.get(m) ?? 0) + cost / here.length);
         } catch (err) {
-          const partial = (err as { usage?: UsageWithSearches }).usage;
           const message = err instanceof LlmError || err instanceof Error ? err.message : String(err);
+          const failed = failureUsage(err, estimateUsd);
           await finishResearch(db, researchId, {
             status: err instanceof BudgetExceededError ? 'skipped' : 'failed',
-            usage: partial,
+            usage: failed.usage,
+            ...(failed.stats ? { stats: failed.stats } : {}),
             error: message.slice(0, 500),
             now: this.now(),
           });
+          const lost = failed.usage?.costUsd ?? 0;
+          out.costUsd += lost;
+          for (const m of here) spend.set(m, (spend.get(m) ?? 0) + lost / here.length);
           out.status = 'failed';
           out.error = message.slice(0, 200);
           this.log(`${group.key}: pesquisa falhou — ${out.error}`);

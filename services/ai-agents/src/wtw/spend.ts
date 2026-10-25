@@ -7,6 +7,7 @@
 import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { wtwResearch, type Database } from '@galaxie/db';
 import type { UsageWithSearches } from '../llm/budget.js';
+import { LlmError } from '../llm/errors.js';
 
 /** Estimativas iniciais (medidas no teste real de 2026-10-22; o histórico substitui quando houver). */
 export const DEFAULT_CALL_USD = { allocation: 0.15, rights: 0.25, channel: 0.15 } as const;
@@ -70,22 +71,63 @@ export interface ResearchStart {
   now: Date;
 }
 
+/** Falhas por chave no dia (UTC) antes de desistir até o dia seguinte (provedor fora, timeout). */
+export const WTW_RESEARCH_MAX_FAILURES = 3;
+
+/** Espera depois da n-ésima falha do dia, entre execuções do agendador: 30 min, 1 h, 2 h (teto 6 h). */
+export function researchBackoffMs(failures: number): number {
+  return Math.min(30 * 60_000 * 2 ** Math.max(0, failures - 1), 6 * 3_600_000);
+}
+
+export type ResearchStartResult =
+  /** Pode chamar o provedor; `failures` = falhas já registradas hoje nesta chave. */
+  | { id: string; failures: number }
+  /** Não chama: já feita, em andamento, esperando depois de uma falha ou desistida no dia. */
+  | { id: null; reason: 'done' | 'running' | 'backoff' | 'exhausted'; retryAt?: Date };
+
+const sameUtcDay = (a: Date, b: Date) => dayStartUtc(a).getTime() === dayStartUtc(b).getTime();
+
 /**
- * Registra o início de uma chamada (idempotente por `research_key`): devolve null se a mesma
- * chave já rodou ou está rodando; falhas anteriores são reaproveitadas (nova tentativa).
+ * Registra o início de uma chamada (idempotente por `research_key`): não chama se a mesma chave já
+ * rodou ou está rodando. Falha anterior é reaproveitada (nova tentativa) depois da espera
+ * (`researchBackoffMs`) e até WTW_RESEARCH_MAX_FAILURES falhas no dia; a tentativa nova passa a
+ * contar no dia dela (`created_at`), com o custo somado ao das anteriores (`finishResearch`).
  */
-export async function startResearch(db: Database, s: ResearchStart): Promise<string | null> {
+export async function startResearch(db: Database, s: ResearchStart): Promise<ResearchStartResult> {
   const [existing] = await db
-    .select({ id: wtwResearch.id, status: wtwResearch.status })
+    .select({
+      id: wtwResearch.id,
+      status: wtwResearch.status,
+      failures: wtwResearch.failures,
+      finishedAt: wtwResearch.finishedAt,
+    })
     .from(wtwResearch)
     .where(eq(wtwResearch.researchKey, s.researchKey));
-  if (existing && ['done', 'running'].includes(existing.status)) return null;
+  if (existing && (existing.status === 'done' || existing.status === 'running'))
+    return { id: null, reason: existing.status };
   if (existing) {
-    await db
+    // falhas de outro dia não contam: o limite é por dia
+    const failures = existing.finishedAt && sameUtcDay(existing.finishedAt, s.now) ? existing.failures : 0;
+    if (failures >= WTW_RESEARCH_MAX_FAILURES) return { id: null, reason: 'exhausted' };
+    // a espera é depois de uma falha do provedor; orçamento esgotado (`skipped`) tenta na próxima
+    if (existing.status === 'failed' && failures > 0 && existing.finishedAt) {
+      const retryAt = new Date(existing.finishedAt.getTime() + researchBackoffMs(failures));
+      if (retryAt > s.now) return { id: null, reason: 'backoff', retryAt };
+    }
+    const [row] = await db
       .update(wtwResearch)
-      .set({ status: 'running', startedAt: s.now, error: null, markets: s.markets })
-      .where(eq(wtwResearch.id, existing.id));
-    return existing.id;
+      .set({
+        status: 'running',
+        startedAt: s.now,
+        createdAt: s.now,
+        failures,
+        error: null,
+        markets: s.markets,
+      })
+      // outra execução pode ter pegado a mesma tentativa entre a leitura e aqui
+      .where(and(eq(wtwResearch.id, existing.id), eq(wtwResearch.status, existing.status)))
+      .returning({ id: wtwResearch.id });
+    return row ? { id: row.id, failures } : { id: null, reason: 'running' };
   }
   const [row] = await db
     .insert(wtwResearch)
@@ -103,9 +145,13 @@ export async function startResearch(db: Database, s: ResearchStart): Promise<str
     })
     .onConflictDoNothing({ target: wtwResearch.researchKey })
     .returning({ id: wtwResearch.id });
-  return row?.id ?? null;
+  return row ? { id: row.id, failures: 0 } : { id: null, reason: 'running' };
 }
 
+/**
+ * Fecha a tentativa. Tokens e custo SOMAM aos das tentativas anteriores da chave (o teto por mercado
+ * não subconta a pesquisa retentada); `failed` soma uma falha no dia.
+ */
 export async function finishResearch(
   db: Database,
   id: string,
@@ -125,14 +171,38 @@ export async function finishResearch(
       finishedAt: f.now,
       stats: f.stats ?? null,
       error: f.error ?? null,
+      ...(f.status === 'failed' ? { failures: sql`${wtwResearch.failures} + 1` } : {}),
       ...(f.usage
         ? {
-            inputTokens: f.usage.inputTokens,
-            outputTokens: f.usage.outputTokens,
-            costUsd: f.usage.costUsd === undefined ? null : f.usage.costUsd.toFixed(6),
+            inputTokens: sql`${wtwResearch.inputTokens} + ${Math.round(f.usage.inputTokens)}`,
+            outputTokens: sql`${wtwResearch.outputTokens} + ${Math.round(f.usage.outputTokens)}`,
+            ...(f.usage.costUsd === undefined
+              ? {}
+              : {
+                  costUsd: sql`coalesce(${wtwResearch.costUsd}, 0) + ${f.usage.costUsd.toFixed(6)}::numeric`,
+                }),
           }
         : {}),
       ...(f.model ? { provider: f.model.provider, model: f.model.model } : {}),
     })
     .where(eq(wtwResearch.id, id));
+}
+
+/**
+ * Uso a registrar numa falha: o parcial que o provedor devolveu ou, no timeout sem parcial, a
+ * estimativa da chamada — o provedor pode ter processado (e cobrado) o pedido; sem isso o teto por
+ * mercado não via o gasto.
+ */
+export function failureUsage(
+  err: unknown,
+  estimateUsd: number,
+): { usage: UsageWithSearches | undefined; stats?: Record<string, unknown> } {
+  const partial = (err as { usage?: UsageWithSearches } | null)?.usage;
+  if (partial) return { usage: partial };
+  if (err instanceof LlmError && err.kind === 'timeout')
+    return {
+      usage: { inputTokens: 0, outputTokens: 0, costUsd: estimateUsd },
+      stats: { costEstimated: true },
+    };
+  return { usage: undefined };
 }

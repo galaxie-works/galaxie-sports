@@ -30,6 +30,7 @@ import {
   WtwConfig,
 } from '@galaxie/where-to-watch';
 import { BudgetedLlmClient, PgTokenBudgetStore, TokenBudget } from '../src/llm/budget.js';
+import { LlmError } from '../src/llm/errors.js';
 import { FakeLlmClient } from '../src/llm/fake.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
 import { FakePageFetcher } from '../src/wtw/fetcher.js';
@@ -38,6 +39,13 @@ import type { WtwPolicy } from '../src/wtw/relevance.js';
 import { planRightsResearch, RightsResearcher } from '../src/wtw/rights-runner.js';
 import { WtwRunner } from '../src/wtw/runner.js';
 import { enqueueRuns, planDueRuns } from '../src/wtw/scheduler.js';
+import {
+  finishResearch,
+  marketSpendToday,
+  researchBackoffMs,
+  startResearch,
+  WTW_RESEARCH_MAX_FAILURES,
+} from '../src/wtw/spend.js';
 import type { WtwAllocationOutput, WtwAssignment, WtwRightsOutput } from '../src/wtw/schema.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -593,6 +601,109 @@ describe('onde assistir por rodada', () => {
     const [skipped] = await s2.runner.runQueued({ limit: 5, eventId: old! });
     expect(skipped).toMatchObject({ status: 'skipped' });
     expect(s2.fake.calls).toHaveLength(0);
+  });
+});
+
+describe('pesquisas retentadas: custo, espera e limite de falhas', () => {
+  const MIN = 60_000;
+  const start = (key: string, now: Date) =>
+    startResearch(db, { kind: 'allocation', researchKey: key, competition: 'x', markets: ['XX'], now });
+
+  it('a retentativa conta no dia dela e soma o custo das tentativas anteriores', async () => {
+    const t0 = new Date('2026-12-01T10:00:00Z');
+    const first = await start('teste:retentativa', t0);
+    expect(first).toMatchObject({ failures: 0 });
+    await finishResearch(db, first.id!, {
+      status: 'failed',
+      usage: { inputTokens: 1_000, outputTokens: 100, costUsd: 0.05 },
+      error: 'provedor fora',
+      now: t0,
+    });
+    // ainda na espera depois da 1ª falha (30 min)
+    expect(await start('teste:retentativa', new Date(t0.getTime() + 10 * MIN))).toMatchObject({
+      id: null,
+      reason: 'backoff',
+      retryAt: new Date(t0.getTime() + 30 * MIN),
+    });
+    // dia seguinte (UTC): a nova tentativa passa a contar no dia dela, com o custo da anterior somado
+    const t1 = new Date('2026-12-02T09:00:00Z');
+    const again = await start('teste:retentativa', t1);
+    expect(again).toEqual({ id: first.id, failures: 0 });
+    await finishResearch(db, again.id!, {
+      status: 'done',
+      usage: { inputTokens: 2_000, outputTokens: 200, costUsd: 0.1 },
+      now: t1,
+    });
+    const [row] = await db.select().from(wtwResearch).where(eq(wtwResearch.id, first.id!));
+    expect(row).toMatchObject({
+      status: 'done',
+      costUsd: '0.150000',
+      inputTokens: 3_000,
+      outputTokens: 300,
+      createdAt: t1,
+    });
+    expect((await marketSpendToday(db, t1)).get('XX')).toBeCloseTo(0.15);
+    expect((await marketSpendToday(db, t0)).get('XX')).toBeUndefined();
+    expect(await start('teste:retentativa', t1)).toEqual({ id: null, reason: 'done' });
+  });
+
+  it('desiste depois de 3 falhas no dia; volta a tentar no dia seguinte', async () => {
+    let now = new Date('2026-12-03T08:00:00Z');
+    for (let i = 0; i < WTW_RESEARCH_MAX_FAILURES; i++) {
+      const s = await start('teste:desiste', now);
+      expect(s, `tentativa ${i + 1}`).toMatchObject({ failures: i });
+      await finishResearch(db, s.id!, { status: 'failed', error: 'timeout', now });
+      now = new Date(now.getTime() + researchBackoffMs(i + 1));
+    }
+    expect(await start('teste:desiste', now)).toEqual({ id: null, reason: 'exhausted' });
+    expect(await start('teste:desiste', new Date('2026-12-04T08:00:00Z'))).toMatchObject({ failures: 0 });
+  });
+
+  it('alocação com o provedor fora: espera entre as rodadas do agendador e desiste no limite do dia', async () => {
+    const startsAt = new Date(KICKOFF.getTime() + 6 * 24 * H);
+    const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 80', startsAt });
+    let now = new Date(startsAt.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const fake = new FakeLlmClient(() => new LlmError('provedor fora do ar', 'provider', true));
+    const runner = () =>
+      new WtwRunner({
+        db,
+        llm: fake,
+        config,
+        fetcher: new FakePageFetcher({ ...PAGES }),
+        policy,
+        now: () => now,
+      });
+    const runRow = async () => (await db.select().from(wtwRun).where(eq(wtwRun.eventId, ids[0]!)))[0]!;
+
+    const [o1] = await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(o1!.stats.allocation).toMatch(/alocação falhou: provedor fora/);
+    expect(fake.calls).toHaveLength(1);
+    expect(await runRow()).toMatchObject({
+      status: 'queued',
+      scheduledFor: new Date(now.getTime() + 30 * 60_000),
+    });
+
+    // antes da espera, nada é reservado (nenhuma chamada)
+    now = new Date(now.getTime() + 10 * 60_000);
+    expect(await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! })).toEqual([]);
+    expect(fake.calls).toHaveLength(1);
+
+    // 2ª e 3ª tentativas, cada uma depois da sua espera; na 3ª falha desiste no dia (fecha com os direitos)
+    now = new Date(now.getTime() + 21 * 60_000);
+    await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(fake.calls).toHaveLength(2);
+    now = (await runRow()).scheduledFor;
+    await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(fake.calls).toHaveLength(3);
+    expect(await runRow()).toMatchObject({ status: 'done' });
+    now = new Date(now.getTime() + 6 * H);
+    expect(await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! })).toEqual([]);
+    expect(fake.calls).toHaveLength(3);
   });
 });
 

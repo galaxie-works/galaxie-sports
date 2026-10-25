@@ -33,7 +33,8 @@ import {
 import { marketRelevance, priorityOf, wtwPolicyFromEnv } from './relevance.js';
 import { dueWindow } from './scheduler.js';
 import { WTW_ALLOCATION_SCHEMA, WTW_RIGHTS_SCHEMA } from './schema.js';
-import { withinCap } from './spend.js';
+import { failureUsage, researchBackoffMs, withinCap } from './spend.js';
+import { LlmError } from '../llm/errors.js';
 
 const config = loadWtwConfig({ env: {} });
 const br = config.directory('BR');
@@ -452,6 +453,20 @@ describe('janelas, relevância e grupos', () => {
       allowed: ['AR', 'MX'],
       blocked: ['BR'],
     });
+  });
+
+  it('falha: uso parcial do provedor ou, no timeout sem parcial, a estimativa da chamada; espera crescente', () => {
+    const timeout = new LlmError('tempo esgotado', 'timeout', true);
+    expect(failureUsage(timeout, 0.15)).toEqual({
+      usage: { inputTokens: 0, outputTokens: 0, costUsd: 0.15 },
+      stats: { costEstimated: true },
+    });
+    const partial = Object.assign(new LlmError('cortado', 'incomplete', false), {
+      usage: { inputTokens: 10, outputTokens: 2, costUsd: 0.01 },
+    });
+    expect(failureUsage(partial, 0.15).usage).toEqual({ inputTokens: 10, outputTokens: 2, costUsd: 0.01 });
+    expect(failureUsage(new LlmError('fora', 'provider', true), 0.15).usage).toBeUndefined();
+    expect([1, 2, 3, 10].map((n) => researchBackoffMs(n) / 60_000)).toEqual([30, 60, 120, 360]);
   });
 
   it('grupo = competição × rodada (ou data); allowlist conjunta ≤ 100; os 8 mercados cabem numa chamada', () => {

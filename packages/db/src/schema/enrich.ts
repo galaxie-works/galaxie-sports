@@ -709,16 +709,23 @@ export const wtwResearch = enrich.table(
     markets: text('markets').array().notNull(),
     /** running | done | failed | skipped */
     status: text('status').notNull().default('running'),
+    /**
+     * Falhas no dia (UTC) da última tentativa: a chave espera entre as tentativas e desiste no limite
+     * do dia (WTW_RESEARCH_MAX_FAILURES). Orçamento esgotado (`skipped`) não conta: não chamou o provedor.
+     */
+    failures: integer('failures').notNull().default(0),
     requestedBy: text('requested_by').notNull().default('scheduler'),
     startedAt: timestamp('started_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     provider: text('provider'),
     model: text('model'),
+    /** Tokens e custo somados de todas as tentativas da chave. */
     inputTokens: integer('input_tokens').notNull().default(0),
     outputTokens: integer('output_tokens').notNull().default(0),
     costUsd: numeric('cost_usd', { precision: 12, scale: 6 }),
     stats: jsonb('stats'),
     error: text('error'),
+    /** Início da última tentativa (o gasto dela conta no dia dela, no teto por mercado). */
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
