@@ -389,6 +389,48 @@ export function excerptHasAmount(excerpt: string, amount: number): boolean {
   return amountsIn(excerpt).some((a) => a.values.some((v) => close(v, amount)));
 }
 
+/** Moeda escrita sem ambiguidade junto do número ("$" sozinho é o peso local ou o dólar: não conta). */
+const EXPLICIT_CURRENCY_BEFORE = /(R\$|U\$S|US\$|U\$D|\$U|S\/\.?|USD|BRL|ARS|CLP|COP|PEN|UYU|MXN)\s*$/i;
+const EXPLICIT_CURRENCY_AFTER = /^\s*(USD|BRL|ARS|CLP|COP|PEN|UYU|MXN|d[oó]lares)\b/i;
+const CURRENCY_TOKEN: Record<string, string> = {
+  R$: 'BRL',
+  US$: 'USD',
+  U$S: 'USD',
+  U$D: 'USD',
+  DÓLARES: 'USD',
+  DOLARES: 'USD',
+  $U: 'UYU',
+  'S/': 'PEN',
+  'S/.': 'PEN',
+};
+
+/** A moeda (ISO 4217) que o trecho escreve junto do número do preço, quando não é ambígua. */
+export function excerptCurrency(excerpt: string, amount: number): string | null {
+  for (const hit of amountsIn(excerpt)) {
+    if (!hit.values.some((v) => close(v, amount))) continue;
+    const before = EXPLICIT_CURRENCY_BEFORE.exec(excerpt.slice(Math.max(0, hit.index - 8), hit.index));
+    const after = EXPLICIT_CURRENCY_AFTER.exec(excerpt.slice(hit.end, hit.end + 12));
+    const token = (before?.[1] ?? after?.[1])?.toUpperCase();
+    if (token) return CURRENCY_TOKEN[token] ?? token;
+  }
+  return null;
+}
+
+/**
+ * A moeda do preço é a do país? Falha se o modelo informou outra ou se o trecho escreve outra junto do
+ * número ("US$ 29,99" no Uruguai), mesmo com a moeda do modelo vazia; sem nenhuma das duas, vale a do país.
+ */
+export function currencyCheck(
+  claimed: string | null,
+  excerpt: string,
+  amount: number | null,
+  country: string | null,
+): LineupCheckResult {
+  if (!country) return 'pass';
+  const seen = amount !== null ? excerptCurrency(excerpt, amount) : null;
+  return [claimed?.toUpperCase() || null, seen].every((c) => !c || c === country) ? 'pass' : 'fail';
+}
+
 /** Rótulos do preço cheio de lista (antes do número). */
 const LIST_LABEL =
   /(precio de lista|pre[cç]o (?:cheio|de lista|normal|regular)|precio (?:regular|normal|final)|valor (?:regular|normal|cheio)|o valor [eé] de|el valor es de|depois|despu[eé]s|ap[oó]s|luego|a partir do \d|a partir del \d|antes)[^\d]{0,30}$/i;
@@ -719,8 +761,7 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
       if (!checked) continue;
       const c = checked.verification.checks;
       c.list_price = c.excerpt === 'pass' ? listPriceCheck(checked.fullExcerpt, input.amount) : 'skip';
-      c.currency =
-        !input.currency || !currency || input.currency.toUpperCase() === currency ? 'pass' : 'fail';
+      c.currency = currencyCheck(input.currency, checked.fullExcerpt, input.amount, currency);
       checked.verification.verified = passed(c) && currency !== null;
       priceChecks.push({ input, checked });
     }
@@ -944,7 +985,7 @@ export async function verifyAddons(
     c.plan_specific = 'skip';
     c.not_reused = 'skip';
     if (!mentionsAny(checked.fullExcerpt, [bare, ...entryNames(entry, day)])) c.excerpt = 'fail';
-    c.currency = !a.currency || !currency || a.currency.toUpperCase() === currency ? 'pass' : 'fail';
+    c.currency = currencyCheck(a.currency, checked.fullExcerpt, a.amount, currency);
     const verified =
       c.official === 'pass' &&
       Object.values(c).every((x) => x === undefined || x !== 'fail') &&

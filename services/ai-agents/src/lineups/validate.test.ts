@@ -9,6 +9,8 @@ import {
 import { gabaritoIds, readGabarito } from '../testing/lineup-gabarito.js';
 import {
   acceptableOfficialDomain,
+  currencyCheck,
+  excerptCurrency,
   excerptHasAmount,
   formatPrice,
   includedCheck,
@@ -251,6 +253,22 @@ describe('preço cheio de lista', () => {
     );
   });
 
+  it('a moeda escrita junto do número no trecho vale, mesmo sem a moeda do modelo', () => {
+    expect(excerptCurrency('Plan Fútbol US$ 29,99 por mes', 29.99)).toBe('USD');
+    expect(excerptCurrency('Plan Fútbol U$S 29,99', 29.99)).toBe('USD');
+    expect(excerptCurrency('Plan Fútbol 29,99 USD al mes', 29.99)).toBe('USD');
+    expect(excerptCurrency('Plan Fútbol $U 990 por mes', 990)).toBe('UYU');
+    expect(excerptCurrency('Plano Futebol R$ 149,90', 149.9)).toBe('BRL');
+    // "$" sozinho é ambíguo; e a moeda de outro número do trecho não conta
+    expect(excerptCurrency('Plan Fútbol $ 990 por mes', 990)).toBeNull();
+    expect(excerptCurrency('Plan Fútbol $ 990 (o US$ 25)', 990)).toBeNull();
+    expect(currencyCheck(null, 'Plan Fútbol US$ 29,99 por mes', 29.99, 'UYU')).toBe('fail');
+    expect(currencyCheck(null, 'Plan Fútbol $ 990 por mes', 990, 'UYU')).toBe('pass');
+    expect(currencyCheck('UYU', 'Plan Fútbol US$ 29,99', 29.99, 'UYU')).toBe('fail');
+    expect(currencyCheck('USD', 'Plan Fútbol $ 990', 990, 'UYU')).toBe('fail');
+    expect(currencyCheck(null, 'Plan Fútbol US$ 29,99', 29.99, 'USD')).toBe('pass');
+  });
+
   it('formata como publicado, na moeda do país', () => {
     expect(formatPrice(149.9, 'BRL', 'BR')).toBe('R$ 149,90/mês');
     expect(formatPrice(34900, 'ARS', 'AR')).toBe('$ 34.900/mes');
@@ -385,6 +403,36 @@ describe('fixtures do AI Studio (BR e AR com grounding)', () => {
       expect([p.verification.tier, p.verification.final_url, p.priceAmount]).toEqual([null, null, null]);
       expect(p.channels.every((c) => c.access === 'unverified')).toBe(true);
     }
+  });
+
+  it('moeda nula e o trecho em dólar: o preço não sai na moeda do país', async () => {
+    const out = await verifyPlans(
+      [
+        {
+          name: 'Plan Lite',
+          priceAmount: null,
+          currency: null,
+          prices: [
+            {
+              amount: 29.99,
+              currency: null,
+              date: null,
+              evidence: {
+                url: 'https://plataforma-e.exemplo/planes/lite',
+                excerpt: 'Plan Lite US$ 29,99 por mes',
+              },
+            },
+          ],
+          planUrl: null,
+          evidence: { url: 'https://plataforma-e.exemplo/planes/lite', excerpt: 'Plan Lite' },
+          channels: [],
+          services: [],
+        },
+      ],
+      { ...ctx('AR', 'ar-plataforma-e'), resolveUrl: async (u) => u },
+    );
+    const p = out.plans[0]!;
+    expect([p.verification.checks.currency, p.priceAmount, p.priceText]).toEqual(['fail', null, null]);
   });
 
   it('moeda fora do país: o preço não entra', async () => {
