@@ -1,17 +1,24 @@
 /**
  * Grava os perfis editoriais aceitos em data/knowledge/formula-1/editorial/<locale>.yaml como `draft` (o painel de
- * revisão aprova; até lá a API não serve). Perfil já aprovado nunca é sobrescrito, e aplicar de novo a mesma proposta
- * não muda nada. Cada alteração passa pelo validador do CI (`validateKnowledge`) antes de entrar; o original pt-BR
- * vai antes da tradução (a tradução sem original é erro).
+ * revisão aprova; até lá a API não serve). Perfil já aprovado nunca é sobrescrito — aprovado no YAML ou no painel
+ * (`semantic.review_decision`, que vale enquanto o conteúdo for o mesmo: trocar o texto desfaria a aprovação e o perfil
+ * sumiria da API), salvo `overwriteApproved` no aprovado pelo painel. Aplicar de novo a mesma proposta não muda nada.
+ * Cada alteração passa pelo validador do CI (`validateKnowledge`) antes de entrar; o original pt-BR vai antes da
+ * tradução (a tradução sem original é erro).
  */
 import { join } from 'node:path';
 import { isMap, isSeq, parseDocument, type YAMLMap } from 'yaml';
 import {
+  applyEditorialDecisions,
+  applyEditorialOverrides,
   buildKnowledgeBase,
+  editorialKey,
   parseKnowledgeFile,
   validateKnowledge,
   type KnowledgeBase,
   type KnowledgeFile,
+  type ReviewDecisionRef,
+  type ReviewOverrideRef,
 } from '@galaxie/knowledge';
 import { unifiedDiff } from '../curator/diff.js';
 import type { ProfileLocale, ProfileProposal } from './profile.js';
@@ -38,11 +45,30 @@ const header = (locale: ProfileLocale) =>
     '',
   ].join('\n');
 
+export interface ApplyProfilesOptions {
+  /** Decisões do painel (`semantic.review_decision`, itens `editorial:*`). */
+  decisions?: ReviewDecisionRef[];
+  /** Edições aprovadas fora do YAML (`semantic.review_override`), aplicadas antes das decisões, como na API. */
+  overrides?: ReviewOverrideRef[];
+  /** Sobrescreve também o perfil aprovado pelo painel (o do YAML aprovado continua intocado). */
+  overwriteApproved?: boolean;
+}
+
 export async function applyProfiles(
   kb: KnowledgeBase,
   proposals: ProfileProposal[],
+  options: ApplyProfilesOptions = {},
 ): Promise<ProfileChanges> {
   const out: ProfileChanges = { files: [], applied: [], skipped: [] };
+  // status que a API serve hoje: o YAML com as edições e as decisões do painel por cima
+  const panelApproved = new Set(
+    applyEditorialDecisions(
+      applyEditorialOverrides(kb.editorial, options.overrides ?? []),
+      options.decisions ?? [],
+    )
+      .filter((p) => p.entry.review_status === 'approved')
+      .map(editorialKey),
+  );
   const sources = new Map(kb.files.map((f) => [f.rel, f.source]));
   // a base de trabalho acumula os arquivos já alterados nesta aplicação
   let working = kb;
@@ -66,6 +92,14 @@ export async function applyProfiles(
       const previous = idx >= 0 ? ((list.items[idx] as YAMLMap).toJSON() as Record<string, unknown>) : null;
       if (previous?.review_status === 'approved') {
         out.skipped.push({ f1dbId: p.f1dbId, locale, reason: 'perfil já aprovado: não é sobrescrito' });
+        continue;
+      }
+      if (!options.overwriteApproved && panelApproved.has(editorialKey({ locale, entry }))) {
+        out.skipped.push({
+          f1dbId: p.f1dbId,
+          locale,
+          reason: 'perfil aprovado no painel: não é sobrescrito (--sobrescrever-aprovados para trocar)',
+        });
         continue;
       }
       if (previous && JSON.stringify(previous) === JSON.stringify(entry)) {

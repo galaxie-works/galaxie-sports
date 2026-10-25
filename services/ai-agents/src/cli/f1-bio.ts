@@ -18,6 +18,8 @@
  *      node ../ai-agents/dist/cli/f1-bio.js --perfil --escopo lendas --plan --saida /data/commons/f1perfil
  *      node ../ai-agents/dist/cli/f1-bio.js --perfil --escopo lendas --saida /data/commons/f1perfil   # profiles.json
  *      pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar profiles.json [--plan]              # no dev
+ *    Com DATABASE_URL, o passo de aplicar lê as decisões do painel: perfil aprovado lá não é sobrescrito
+ *    (--sobrescrever-aprovados troca mesmo assim, e o perfil volta a rascunho até nova aprovação).
  *    Escopos: `lendas` (campeões e top 20 em vitórias ou em GPs) e `regulares` (vencedor de GP ou 3 temporadas);
  *    --pilotos escolhe à mão (piloto `basic` não tem perfil editorial, só os traços da API).
  */
@@ -26,8 +28,15 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parse } from 'yaml';
-import { closeDb } from '@galaxie/db';
-import { DEFAULT_KNOWLEDGE_DIR, loadKnowledge } from '@galaxie/knowledge';
+import { like } from 'drizzle-orm';
+import { closeDb, reviewDecision } from '@galaxie/db';
+import {
+  DEFAULT_KNOWLEDGE_DIR,
+  loadKnowledge,
+  readReviewOverrides,
+  type ReviewDecisionRef,
+  type ReviewOverrideRef,
+} from '@galaxie/knowledge';
 import { applyBios, DRIVERS_FILE } from '../f1bio/apply.js';
 import { applyProfiles } from '../f1bio/apply-profile.js';
 import { driverFacts } from '../f1bio/facts.js';
@@ -45,6 +54,7 @@ const { values } = parseArgs({
     aplicar: { type: 'string' },
     plan: { type: 'boolean', default: false },
     refazer: { type: 'boolean', default: false },
+    'sobrescrever-aprovados': { type: 'boolean', default: false },
     perfil: { type: 'boolean', default: false },
     escopo: { type: 'string' },
   },
@@ -142,6 +152,34 @@ if (values.perfil) {
   }
 }
 
+/**
+ * Decisões e edições do painel sobre os perfis (só leitura): o perfil aprovado lá não é sobrescrito. Sem DATABASE_URL,
+ * só vale o status do YAML — aponte para o banco com as decisões do painel antes de aplicar.
+ */
+async function panelReview(): Promise<{ decisions: ReviewDecisionRef[]; overrides: ReviewOverrideRef[] }> {
+  if (!process.env.DATABASE_URL) {
+    console.warn(
+      'AVISO: sem DATABASE_URL, as aprovações do painel não foram conferidas (só o status do YAML protege o perfil).',
+    );
+    return { decisions: [], overrides: [] };
+  }
+  const db = dbFromEnv();
+  try {
+    const decisions = await db
+      .select({
+        itemId: reviewDecision.itemId,
+        status: reviewDecision.status,
+        reviewHash: reviewDecision.reviewHash,
+      })
+      .from(reviewDecision)
+      .where(like(reviewDecision.itemId, 'editorial:%'));
+    const overrides = (await readReviewOverrides(db)).filter((o) => o.itemId.startsWith('editorial:'));
+    return { decisions, overrides };
+  } finally {
+    await closeDb(db);
+  }
+}
+
 /** Perfil editorial (--perfil): os mesmos dois passos, com profiles.json. */
 async function profileMode(): Promise<void> {
   const read = (path: string): ProfileProposal[] =>
@@ -149,7 +187,10 @@ async function profileMode(): Promise<void> {
   if (values.aplicar) {
     const proposals = read(resolve(values.aplicar));
     if (!proposals.length) throw new Error(`Nenhuma proposta em ${values.aplicar}.`);
-    const changes = await applyProfiles(await loadKnowledge(DEFAULT_KNOWLEDGE_DIR), proposals);
+    const changes = await applyProfiles(await loadKnowledge(DEFAULT_KNOWLEDGE_DIR), proposals, {
+      ...(await panelReview()),
+      overwriteApproved: values['sobrescrever-aprovados'],
+    });
     console.log(profileReport(proposals, changes));
     for (const f of changes.files) console.log(`\n${f.diff}`);
     if (values.plan || !changes.files.length) {

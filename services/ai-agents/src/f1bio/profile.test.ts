@@ -4,8 +4,12 @@ import { parse } from 'yaml';
 import {
   buildKnowledgeBase,
   DEFAULT_KNOWLEDGE_DIR,
+  editorialKey,
   loadKnowledge,
   parseKnowledgeFile,
+  reviewContent,
+  reviewHash,
+  reviewItemId,
   type KnowledgeBase,
 } from '@galaxie/knowledge';
 import { FakeLlmClient } from '../llm/fake.js';
@@ -427,6 +431,36 @@ describe('applyProfiles', () => {
       locale: 'pt-BR',
       reason: 'perfil já aprovado: não é sobrescrito',
     });
+  });
+
+  it('perfil aprovado no painel (decisão no banco, YAML em draft) não é trocado, salvo pedido explícito', async () => {
+    const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
+    const p = await proposeProfile(new FakeLlmClient([research, translation]), senna);
+    let current = kb;
+    for (const f of (await applyProfiles(kb, [p])).files) current = withFile(current, f.rel, f.text);
+    const pt = current.editorial.find((e) => e.locale === 'pt-BR' && e.entry.slug === 'f1-ayrton-senna')!;
+    expect(pt.entry.review_status).toBe('draft');
+    const decision = {
+      itemId: reviewItemId('editorial', editorialKey(pt)),
+      status: 'approved' as const,
+      reviewHash: reviewHash(reviewContent(pt.entry)),
+    };
+    // --refazer: nova proposta com outra bio
+    const redo = structuredClone(p);
+    redo.entries['pt-BR']!.bio.text = 'Ayrton Senna venceu 41 GPs e fez 65 poles.';
+    const kept = await applyProfiles(current, [redo], { decisions: [decision] });
+    expect(kept.applied).toEqual([]);
+    expect(kept.files).toEqual([]);
+    expect(kept.skipped).toContainEqual({
+      f1dbId: 'ayrton-senna',
+      locale: 'pt-BR',
+      reason: 'perfil aprovado no painel: não é sobrescrito (--sobrescrever-aprovados para trocar)',
+    });
+    const forced = await applyProfiles(current, [redo], { decisions: [decision], overwriteApproved: true });
+    expect(forced.applied).toContain('pt-BR:ayrton-senna');
+    // decisão sobre outro conteúdo (o YAML mudou depois dela) não vale mais: o perfil já não estava aprovado
+    const stale = await applyProfiles(current, [redo], { decisions: [{ ...decision, reviewHash: 'outro' }] });
+    expect(stale.applied).toContain('pt-BR:ayrton-senna');
   });
 });
 

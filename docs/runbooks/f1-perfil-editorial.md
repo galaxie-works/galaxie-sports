@@ -91,7 +91,7 @@ O Gemini só roda na VPS, no container `agents` (a imagem precisa desta versão:
 
    Para os regulares, o mesmo com `--escopo regulares` (341 pilotos; `--limite N` faz em lotes). Para um piloto só: `--pilotos ayrton-senna`. O relatório mostra cada item aceito com a fonte e cada descartado com o motivo.
 
-2. **No dev, aplicar e abrir o PR.** Os perfis entram como `draft` em `data/knowledge/formula-1/editorial/pt-BR.yaml` e `es.yaml`; perfil aprovado nunca é sobrescrito, aplicar de novo não muda nada e cada item passa pelo validador da base.
+2. **No dev, aplicar e abrir o PR.** Os perfis entram como `draft` em `data/knowledge/formula-1/editorial/pt-BR.yaml` e `es.yaml`; perfil aprovado nunca é sobrescrito, aplicar de novo não muda nada e cada item passa pelo validador da base. A aprovação do painel fica no banco (`semantic.review_decision`), não no YAML: com `DATABASE_URL` apontando para o banco que tem as decisões do painel, o passo de aplicar as lê e pula o perfil aprovado lá (trocar o texto desfaria a aprovação e o perfil sumiria da API até ser aprovado de novo); `--sobrescrever-aprovados` troca mesmo assim. Sem `DATABASE_URL`, o comando avisa que só conferiu o status do YAML.
 
    ```bash
    pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar f1perfil-profiles.json --plan
