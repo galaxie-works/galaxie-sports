@@ -15,7 +15,7 @@ import { resolve } from 'node:path';
 import { type ApiSport } from '@galaxie/apisports-client';
 import { closeDb } from '@galaxie/db';
 import { jobContextFromEnv } from '../context.js';
-import { dailyJob, OTHER_SPORTS_SCHEDULE, startOfUtcDay } from '../jobs/daily-job.js';
+import { checkProviderStatus, dailyJob, OTHER_SPORTS_SCHEDULE, startOfUtcDay } from '../jobs/daily-job.js';
 import { resolveDerbiesFromRaw } from '../knowledge/derbies.js';
 import { logger } from '../logger.js';
 import { normalizeAfterFetch } from '../normalize/after-fetch.js';
@@ -44,9 +44,14 @@ await runCli(async () => {
         'football',
         ...(values['outros-esportes'] ? (Object.keys(OTHER_SPORTS_SCHEDULE) as ApiSport[]) : []),
       ];
-      for (const sport of sports) {
-        const s = await ctx.client.status(sport);
-        console.log(`/status ${sport}: ${s.used}/${s.limitDay} (${s.plan ?? '?'})`);
+      for (const r of await checkProviderStatus(sports, (sport) => ctx.client.status(sport))) {
+        if (r.ok)
+          console.log(`/status ${r.sport}: ${r.status.used}/${r.status.limitDay} (${r.status.plan ?? '?'})`);
+        else
+          logger.warn(
+            { err: r.error, sport: r.sport },
+            '/status falhou; seguindo o sync com o contador local da cota',
+          );
       }
     }
     const derbyKeys = async () =>

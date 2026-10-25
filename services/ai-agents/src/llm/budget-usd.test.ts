@@ -27,6 +27,9 @@ import {
   searchUsdFor,
   WEB_SEARCH_USD_PER_CALL,
 } from './pricing.js';
+import { AnthropicLlmClient } from './providers/anthropic.js';
+import { GeminiLlmClient, structureEstimate } from './providers/gemini.js';
+import { OpenAiLlmClient } from './providers/openai.js';
 import type { LlmJsonRequest } from './types.js';
 
 const SCHEMA = {
@@ -77,6 +80,15 @@ describe('configuração do orçamento em US$', () => {
     expect(s.maxSearchesPerCall).toBe(DEFAULT_MAX_SEARCHES_PER_CALL);
   });
 
+  it('AI_DAILY_USD_BUDGET=0 desliga a IA (como agente=0); sem teto só com "unlimited"', async () => {
+    expect(llmSettingsFromEnv({ AI_DAILY_USD_BUDGET: '0' }).dailyUsdBudget).toBe(0);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fake = new FakeLlmClient([{ data: { answer: 'a' } }]);
+    const off = withTokenBudget(fake, { env: { AI_DAILY_USD_BUDGET: '0' } });
+    await expect(off.generateJson(req())).rejects.toMatchObject({ agent: 'global', unit: 'usd' });
+    expect(fake.calls).toHaveLength(0);
+  });
+
   it('sobrescritas, "unlimited"/0 e vazio = padrão', () => {
     const s = llmSettingsFromEnv({
       AI_DAILY_USD_BUDGET: '7,5',
@@ -104,10 +116,11 @@ describe('configuração do orçamento em US$', () => {
   });
 
   it('parseAgentUsdBudgets: agente=US$, separadores vírgula/espaço/;, minúsculas', () => {
+    // a versão do prompt sai da chave (o ledger grava `channels`, não `channels@v1`)
     expect(parseAgentUsdBudgets('Lineups=2, wtw=3;channels@v1=0.2')).toEqual({
       lineups: 2,
       wtw: 3,
-      'channels@v1': 0.2,
+      channels: 0.2,
     });
     expect(parseAgentUsdBudgets('')).toEqual({});
     expect(parseAgentUsdBudgets(undefined)).toEqual({});
@@ -133,8 +146,13 @@ describe('custo: tokens + buscas → US$', () => {
     expect(capped - noSearch).toBeGreaterThan(5 * GEMINI_GROUNDING_USD_PER_QUERY);
     const uncapped = estimateRequestUsd(req({ webSearch: true }), 'gemini-3.8-flash', 'gemini');
     expect(uncapped - capped).toBeCloseTo((UNCAPPED_SEARCH_ESTIMATE - 5) * GEMINI_GROUNDING_USD_PER_QUERY, 6);
-    // modelo fora da tabela: só as buscas
-    expect(estimateRequestUsd(req({ webSearch: true, maxSearches: 2 }), 'desconhecido', 'openai')).toBe(
+    // modelo fora da tabela: o preço mais caro do provedor (nunca de graça) + as buscas
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const unknown = estimateRequestUsd(req({ webSearch: true, maxSearches: 2 }), 'gpt-7-nova', 'openai');
+    const priciest = estimateRequestUsd(req({ webSearch: true, maxSearches: 2 }), 'gpt-6-astra', 'openai');
+    expect(unknown).toBeCloseTo(priciest, 9);
+    // sem provedor conhecido (cliente falso): só as buscas
+    expect(estimateRequestUsd(req({ webSearch: true, maxSearches: 2 }), 'desconhecido', 'fake')).toBe(
       2 * WEB_SEARCH_USD_PER_CALL,
     );
   });
@@ -283,6 +301,257 @@ describe('fábrica', () => {
     const fake = new FakeLlmClient([{ data: { answer: 'a' } }]);
     const wrapped = withTokenBudget(fake, { dailyLimit: null, agentUsdLimits: { lineups: 0 } });
     await expect(wrapped.generateJson(req())).rejects.toMatchObject({ unit: 'usd' });
+    expect(fake.calls).toHaveLength(0);
+  });
+});
+
+/**
+ * Auditoria de 2026-10-25: caminhos que furavam o teto em US$ criado depois do dia de US$ 20,88.
+ * Provedores reais com SDK falso (nenhuma chamada de rede).
+ */
+describe('o teto em US$ segura', () => {
+  const noSleep = { sleep: async () => {} };
+  /** SDK falso da OpenAI: toda chamada recebe a mesma resposta. */
+  const openAiSdk = (reply: unknown) => {
+    const calls: Record<string, unknown>[] = [];
+    const create = async (params: Record<string, unknown>) => {
+      calls.push(params);
+      return reply;
+    };
+    return { calls, sdk: { responses: { create } } };
+  };
+  const openAiReply = (text: string, input: number, output: number, searches = 0) => ({
+    status: 'completed',
+    output_text: text,
+    output: [
+      ...Array.from({ length: searches }, () => ({ type: 'web_search_call' })),
+      { type: 'message', content: [{ type: 'output_text', text }] },
+    ],
+    usage: { input_tokens: input, output_tokens: output },
+  });
+
+  it('modelo fora da tabela de preços não desliga o teto: preço mais caro do provedor + buscas', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const models = { light: 'gpt-7-orion', standard: 'gpt-7-orion', research: 'gpt-7-orion' };
+    const api = openAiSdk(openAiReply('{"answer":"ok"}', 10_000, 1_000, 5));
+    const openai = new OpenAiLlmClient({ models, sdk: api.sdk, retry: noSleep });
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(
+      store,
+      { dailyLimit: null, dailyUsdLimit: 1, maxSearchesPerCall: 5 },
+      () => NOW,
+    );
+    const client = new BudgetedLlmClient(openai, budget, (t) => models[t], 'openai');
+
+    let refused: unknown;
+    for (let i = 0; i < 50 && !refused; i++)
+      await client.generateJson(req({ webSearch: true })).catch((e: unknown) => (refused = e));
+    expect(refused).toBeInstanceOf(BudgetExceededError);
+    // cada chamada: (10k × 10 + 1k × 50) / 1M + 5 buscas × 0,01 = US$ 0,20 (preço do gpt-6-astra)
+    expect(store.entries.map((e) => e.costUsd)).toEqual([0.2, 0.2, 0.2, 0.2]);
+    expect(api.calls).toHaveLength(4);
+    expect((await budget.usdStatus()).usedUsd).toBeLessThanOrEqual(1);
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('gpt-7-orion fora da tabela'))).toBe(true);
+  });
+
+  it('retentativas: a reserva cobre uma tentativa e o provedor confere o gasto parcial antes de cada nova', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // saída fora do schema (retentável) em todas as tentativas; cada uma custa US$ 0,03
+    const api = openAiSdk(openAiReply('{}', 10_000, 1_000));
+    const models = { light: 'gpt-6.1-sol', standard: 'gpt-6.1-sol', research: 'gpt-6.1-sol' };
+    const openai = new OpenAiLlmClient({ models, sdk: api.sdk, maxRetries: 3, retry: noSleep });
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(store, { dailyLimit: null, dailyUsdLimit: 0.07 }, () => NOW);
+    const client = new BudgetedLlmClient(openai, budget, (t) => models[t], 'openai');
+    // ~10 mil tokens de entrada + 1 mil de saída: a estimativa (US$ 0,03) cabe; 4 tentativas (0,12) não
+    const big = req({ purpose: 'wtw:event:1:BR', messages: [{ role: 'user', content: 'x'.repeat(40_000) }] });
+
+    const err = await client.generateJson(big).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BudgetExceededError);
+    expect(err).toMatchObject({ agent: 'global', unit: 'usd' });
+    expect(api.calls).toHaveLength(2); // sem a conferência seriam 4 (AI_MAX_RETRIES=3)
+    expect(store.entries).toHaveLength(1);
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', inputTokens: 20_000, costUsd: 0.06 });
+    expect((await budget.usdStatus()).usedUsd).toBeLessThanOrEqual(0.07);
+  });
+
+  const claude = { light: 'claude-sonnet-5-5', standard: 'claude-sonnet-5-5', research: 'claude-sonnet-5-5' };
+  /** SDK falso da Anthropic: `reply(i)` monta a i-ésima resposta. */
+  const anthropicSdk = (reply: (i: number) => unknown) => {
+    const calls: Record<string, unknown>[] = [];
+    const create = async (params: Record<string, unknown>) => {
+      calls.push(params);
+      return reply(calls.length - 1);
+    };
+    return { calls, sdk: { messages: { create } } };
+  };
+  const anthropicUsage = (searches: number) => ({
+    input_tokens: 10_000,
+    output_tokens: 1_000,
+    server_tool_use: { web_search_requests: searches },
+  });
+
+  it('Anthropic: cada continuação (pause_turn) também passa pela conferência', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // todo turno pausa depois de uma busca cobrada: US$ 0,03 em tokens + 0,01 da busca por requisição
+    const api = anthropicSdk((i) => ({
+      stop_reason: 'pause_turn',
+      content: [
+        { type: 'server_tool_use', id: `s${i}`, name: 'web_search', input: { query: 'q' } },
+        { type: 'web_search_tool_result', tool_use_id: `s${i}`, content: [] },
+      ],
+      usage: anthropicUsage(1),
+    }));
+    const anthropic = new AnthropicLlmClient({ models: claude, sdk: api.sdk, retry: noSleep });
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(
+      store,
+      { dailyLimit: null, dailyUsdLimit: 0.15, maxSearchesPerCall: 4 },
+      () => NOW,
+    );
+    const client = new BudgetedLlmClient(anthropic, budget, (t) => claude[t], 'anthropic');
+
+    const err = await client
+      .generateJson(req({ webSearch: true, maxOutputTokens: 100 }))
+      .catch((e: unknown) => e);
+    // teto 4 → max_uses 2: a continuação cabe no teto de buscas e segue na mesma conversa; no orçamento,
+    // a estimativa é ≈ US$ 0,08 (overhead de 20 mil tokens da busca + 4 buscas): 0,04 + 0,08 cabe; 0,08 + 0,08 não
+    expect(err).toBeInstanceOf(BudgetExceededError);
+    expect(err).toMatchObject({ midCall: true, agent: 'global' });
+    expect(api.calls).toHaveLength(2);
+    expect(api.calls[1]!.tools).toEqual(api.calls[0]!.tools);
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 2, costUsd: 0.08 });
+    expect(String(warn.mock.calls.at(-1)![0])).toMatch(/não comporta mais uma tentativa desta chamada/);
+  });
+
+  it('Anthropic: retentativa passa pela conferência; a recusa no meio da chamada não gasta o aviso do dia', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // entrega fora do schema (retentável): 1ª com 1 busca (US$ 0,04), a 2ª já sem busca (US$ 0,03)
+    const api = anthropicSdk((i) => ({
+      stop_reason: 'tool_use',
+      content: [{ type: 'tool_use', name: 'submit_resposta', input: {} }],
+      usage: anthropicUsage(i === 0 ? 1 : 0),
+    }));
+    const anthropic = new AnthropicLlmClient({ models: claude, sdk: api.sdk, retry: noSleep });
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(
+      store,
+      { dailyLimit: null, dailyUsdLimit: 0.1, maxSearchesPerCall: 1 },
+      () => NOW,
+    );
+    const client = new BudgetedLlmClient(anthropic, budget, (t) => claude[t], 'anthropic');
+    const call = () =>
+      client.generateJson(req({ webSearch: true, maxOutputTokens: 100 })).catch((e: unknown) => e);
+
+    // 0,04 + 0,05 cabe (2ª tentativa sai); 0,07 + 0,05 não (a 3ª não sai)
+    expect(await call()).toMatchObject({ midCall: true });
+    expect(api.calls).toHaveLength(2);
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 1, costUsd: 0.07 });
+    // a próxima chamada é recusada na reserva, e aí sim vem o aviso de teto esgotado do dia
+    expect(await call()).toMatchObject({ midCall: false, unit: 'usd' });
+    expect(api.calls).toHaveLength(2);
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes('virada do dia UTC'))).toHaveLength(1);
+  });
+
+  describe('Gemini via orçamento', () => {
+    /** Passo 1 no modelo sem preço (o mais caro do Gemini, 2/12) com 5 consultas; passo 2 fora do schema uma vez. */
+    const run = async (researchInputTokens: number, dailyUsdLimit: number) => {
+      const bodies: Record<string, unknown>[] = [];
+      const interaction = (text: string, usage: Record<string, unknown>) => ({
+        status: 'completed',
+        steps: [{ type: 'model_output', content: [{ type: 'text', text }] }],
+        usage,
+      });
+      const replies = [
+        interaction('Globo transmite.', {
+          total_input_tokens: researchInputTokens,
+          total_output_tokens: 1_000,
+          grounding_tool_count: [{ type: 'google_search', count: 5 }],
+        }),
+        interaction('{}', { total_input_tokens: 500, total_output_tokens: 50 }),
+        interaction('{"answer":"ok"}', { total_input_tokens: 500, total_output_tokens: 50 }),
+      ];
+      const fetch = async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify(replies.shift()), { status: 200 });
+      };
+      const models = {
+        light: 'gemini-3.5-flash-lite',
+        standard: 'gemini-9-ultra',
+        research: 'gemini-9-ultra',
+      };
+      const gemini = new GeminiLlmClient({ apiKey: 'k', models, fetch, retry: noSleep });
+      const store = new MemoryTokenBudgetStore();
+      const budget = new TokenBudget(
+        store,
+        { dailyLimit: null, dailyUsdLimit, maxSearchesPerCall: 5 },
+        () => NOW,
+      );
+      const client = new BudgetedLlmClient(gemini, budget, (t) => models[t], 'gemini');
+      const out = await client.generateJson(req({ webSearch: true })).catch((e: unknown) => e);
+      return { out, bodies, store };
+    };
+
+    it('a retentativa do passo 2 conta o gasto do passo 1 mas estima só a estruturação (modelo leve, sem busca)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // pedido inteiro estimado em ≈ US$ 0,12 (cabe em 0,2); passo 1 + passo 2 ≈ 0,10; a retentativa do
+      // passo 2 custa ≈ 0,003: cabe. Somando a estimativa do pedido inteiro (0,10 + 0,12) seria recusada.
+      const { out, bodies, store } = await run(10_000, 0.2);
+      expect(out).toMatchObject({ data: { answer: 'ok' } });
+      expect(bodies).toHaveLength(3); // pesquisa + 2 estruturações
+      expect(bodies.filter((b) => b.tools)).toHaveLength(1);
+      // (10k × 2 + 1k × 12) / 1M + 5 × 0,014 + 2 × (500 × 0,3 + 50 × 2,5) / 1M
+      expect(store.entries[0]).toMatchObject({ outcome: 'ok', webSearches: 5 });
+      expect(store.entries[0]!.costUsd).toBeCloseTo(0.032 + 0.07 + 2 * 0.000275, 6);
+      expect(warn.mock.calls.some((c) => String(c[0]).includes('gemini-9-ultra fora da tabela'))).toBe(true);
+    });
+
+    it('sem saldo nem para a estruturação, a retentativa do passo 2 não sai', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // passo 1 + passo 2 ≈ US$ 0,142 com 30 mil tokens; + ≈ 0,003 da estruturação passa de 0,14
+      const { out, bodies, store } = await run(30_000, 0.14);
+      expect(out).toMatchObject({ midCall: true, unit: 'usd' });
+      expect(bodies).toHaveLength(2);
+      expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 5 });
+      expect(store.entries[0]!.costUsd).toBeCloseTo(0.072 + 0.07 + 0.000275, 6);
+    });
+
+    it('estimativa da estruturação: modelo leve, sem overhead nem custo de busca', () => {
+      const r = req({ webSearch: true, maxSearches: 5 });
+      const step = structureEstimate(r, 'x'.repeat(4_000), 'gemini-3.5-flash-lite');
+      expect(step.tokens).toBeLessThan(2_500); // ~1.000 de entrada + 1.000 de saída, sem os 20 mil da busca
+      expect(step.usd).toBeLessThan(estimateRequestUsd(r, 'gemini-3.8-flash', 'gemini') / 10);
+    });
+  });
+
+  it('falha ao gravar o ledger não descarta a chamada já paga (nem faz o agente pagar de novo)', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const store = new MemoryTokenBudgetStore();
+    store.record = async () => {
+      throw new Error('conexão perdida');
+    };
+    const budget = new TokenBudget(store, { dailyLimit: null }, () => NOW);
+    const fake = new FakeLlmClient([{ data: { answer: 'pago' }, usage: { costUsd: 0.5 } }]);
+    const client = new BudgetedLlmClient(fake, budget);
+    const out = await client.generateJson<{ answer: string }>(req());
+    expect(out.data.answer).toBe('pago');
+    expect(fake.calls).toHaveLength(1);
+    expect(String(error.mock.calls[0]![0])).toMatch(/falha ao gravar o uso no ledger.*conexão perdida/);
+  });
+
+  it('teto por agente não depende da versão do prompt (`channels@v2` cai no teto de `channels`)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const budget = new TokenBudget(
+      new MemoryTokenBudgetStore(),
+      { dailyLimit: null, agentUsdLimits: parseAgentUsdBudgets('channels@v1=0')! },
+      () => NOW,
+    );
+    const fake = new FakeLlmClient([{ data: { answer: 'a' } }]);
+    const client = new BudgetedLlmClient(fake, budget);
+    await expect(client.generateJson(req({ purpose: 'channels@v2:tenant:BR' }))).rejects.toMatchObject({
+      agent: 'channels',
+      unit: 'usd',
+    });
     expect(fake.calls).toHaveLength(0);
   });
 });

@@ -98,6 +98,11 @@ export const apiKey = api.table(
     scopes: text('scopes').array().$type<ApiModule[]>(),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    /**
+     * Quando a chave foi substituída por uma rotação (fica válida só no período de graça). Uma chave
+     * já rotacionada não pode ser rotacionada de novo: quem tem só a chave antiga não gera outra.
+     */
+    rotatedAt: timestamp('rotated_at', { withTimezone: true }),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
@@ -119,6 +124,14 @@ export const usageDaily = api.table(
     day: date('day', { mode: 'string' }).notNull(),
     route: text('route').notNull(),
     requests: bigint('requests', { mode: 'number' }).notNull().default(0),
+    /**
+     * Época do hash do Valkey que alimentou a última consolidação (`#epoca`) e `epoch_base`, o consolidado
+     * das épocas anteriores. Mesma época: `requests = greatest(requests, base + contador)`; época nova
+     * (Valkey zerado): `base := requests` e soma. Só `greatest()`, então uma versão anterior da API que
+     * consolide junto (rollout, rollback) não faz o total crescer em dobro. null = linha anterior às épocas.
+     */
+    epoch: text('epoch'),
+    epochBase: bigint('epoch_base', { mode: 'number' }).notNull().default(0),
     updatedAt: updatedAt(),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.day, t.route] }), index('usage_daily_day_idx').on(t.day)],

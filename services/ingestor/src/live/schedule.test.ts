@@ -336,6 +336,36 @@ describe('decisão do tick', () => {
     expect(tick.kind === 'tick' && tick.intervalMs).toBeCloseTo(plan.baseIntervalMs / 2, 3);
   });
 
+  it('perto do fim da cota a reserva de confirmação dos jogos em andamento não encolhe a zero', () => {
+    // 100 − 15 − 40 (DAILY) = 45 para o LIVE; 42 já gastos → sobram 3 (1/4 disso arredonda para 0)
+    const live = (id: string) =>
+      cand(id, '2026-10-21T20:00:00Z', {
+        status: 'live',
+        statusDetail: '2H',
+        clock: { minute: 70, extra: null, period: '2H' },
+        lastValidAt: at('2026-10-21T21:20:00Z'),
+      });
+    const plan = planLiveDay({
+      sport: 'football',
+      now: at('2026-10-21T21:20:00Z'),
+      candidates: [live('e1'), live('e2'), cand('e3', '2026-10-21T22:00:00Z')],
+      usage: usage(100, { LIVE: 42, DAILY: 40 }),
+    });
+    // os em andamento ficam sempre; o que ainda vai começar não cabe no saldo
+    expect(plan.included.map((i) => i.candidate.eventId)).toEqual(['e1', 'e2']);
+    // um por jogo em andamento (o teto de 1/4 daria 0) e o resto em ticks
+    expect(plan.budget).toMatchObject({ finalizeReserve: 2, ticksLeft: 1 });
+
+    // com saldo folgado, nada muda: 1 por jogo, todos dentro do teto
+    const roomy = planLiveDay({
+      sport: 'football',
+      now: at('2026-10-21T21:20:00Z'),
+      candidates: [live('e1'), live('e2'), cand('e3', '2026-10-21T22:00:00Z')],
+      usage: usage(100, { DAILY: 40 }),
+    });
+    expect(roomy.budget.finalizeReserve).toBe(3);
+  });
+
   it('orçamento esgotado: espera o próximo dia de cota', () => {
     const empty = planLiveDay({
       sport: 'football',
