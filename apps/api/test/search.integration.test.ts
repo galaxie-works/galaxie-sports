@@ -304,7 +304,13 @@ describe('GET /v1/search', () => {
     // mais perfis e estádios com a chave do que cabe na pré-seleção (40 por tipo), nenhum com o termo no nome
     const junk = await db
       .insert(participant)
-      .values(Array.from({ length: 45 }, (_, i) => ({ sport: 'football', kind: 'club', name: `Clube ${i}` })))
+      .values(
+        Array.from({ length: 45 }, (_, i) => ({
+          sport: 'football',
+          kind: 'club' as const,
+          name: `Clube ${i}`,
+        })),
+      )
       .returning({ id: participant.id });
     await db.insert(teamProfile).values(
       junk.map((p, i) => ({

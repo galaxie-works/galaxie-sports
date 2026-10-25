@@ -385,7 +385,7 @@ describe('carreira na F1: temporada atual, sprint, melhores resultados, número 
       .update(participant)
       .set({ logoAssetId: vendor!.id, customLogoAssetId: own!.id })
       .where(eq(participant.id, mclaren));
-    const teamOf = async (customLogos?: boolean) =>
+    const teamOf = async (customLogos = false) =>
       (
         await loadRaceCareer(db, { id: rookie, kind: 'driver' }, 'pt-BR', 'https://assets.test', {
           customLogos,
