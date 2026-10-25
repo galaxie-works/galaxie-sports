@@ -23,13 +23,14 @@ beforeAll(async () => {
 });
 
 describe('buildReviewItems', () => {
-  it('cobre perfis, clássicos, competições, copy, glossário e traduções, com ids únicos', () => {
+  it('cobre perfis, clássicos, competições, copy, glossário, traduções e perfis editoriais, com ids únicos', () => {
     const kinds = new Set(items.map((i) => i.kind));
     expect([...kinds].sort()).toEqual([
       'all-time',
       'competition',
       'copy',
       'derby',
+      'editorial',
       'glossary',
       'team',
       'translation',
@@ -37,6 +38,8 @@ describe('buildReviewItems', () => {
     expect(new Set(items.map((i) => i.id)).size).toBe(items.length);
     expect(items.filter((i) => i.kind === 'team')).toHaveLength(kb.teams.length);
     expect(items.filter((i) => i.kind === 'translation')).toHaveLength(kb.texts.length);
+    // um item por perfil editorial × idioma (`editorial:<locale>.<slug>`)
+    expect(items.filter((i) => i.kind === 'editorial')).toHaveLength(kb.editorial.length);
   });
 
   it('perfil: conteúdo legível, mercado e arquivo de origem', () => {
