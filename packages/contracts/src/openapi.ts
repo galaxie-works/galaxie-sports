@@ -52,7 +52,7 @@ import {
 import { RaceCareer, RaceLegends, RaceLegendsQuery, TeamPhotos, TeamPhotosQuery } from './racing.js';
 import { DriverTraits } from './driver-profile.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
-import { RelatedContent, RelatedQuery } from './related.js';
+import { RelatedContent, RelatedQuery, relatedPaths } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import { navigationPaths } from './openapi-navigation.js';
@@ -455,8 +455,9 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           ),
           description:
             'Links diretos e embed oficial de vídeos sobre o evento (melhores momentos, gols, pênaltis, coletiva, ' +
-            'bastidores, reação da torcida, análise…), com canal, selo de fonte oficial, formato (short/long) e ' +
-            'duração. Só metadados: nada é rehospedado. Exige o módulo `related_content`. Atualizações chegam ' +
+            'bastidores, reação da torcida, análise…), com canal, selo de fonte oficial, formato (short/long), ' +
+            'proporção do quadro (filtro `aspect_ratio`: `16:9`, `9:16` ou os dois) e duração. Vídeos bloqueados no ' +
+            'país (`country`) ou recusados pelo player (`POST /v1/related/playback-errors`) ficam de fora. Só metadados: nada é rehospedado. Exige o módulo `related_content`. Atualizações chegam ' +
             'pelo tópico `event.related_content_changed` (SSE/webhook).',
         },
       },
@@ -553,6 +554,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       ...accountPaths,
       ...channelListPaths,
+      ...relatedPaths,
     },
     components: {
       securitySchemes: {

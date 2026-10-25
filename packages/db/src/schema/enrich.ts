@@ -336,6 +336,13 @@ export const relatedContent = enrich.table(
     thumbnailUrl: text('thumbnail_url'),
     /** Idioma da consulta que achou o vídeo (pt, es). */
     language: text('language'),
+    /** Países onde o vídeo toca (`contentDetails.regionRestriction.allowed`); null = em todos. */
+    regionAllowed: text('region_allowed').array(),
+    /** Países onde o vídeo não toca (`contentDetails.regionRestriction.blocked`). */
+    regionBlocked: text('region_blocked')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     statistics: jsonb('statistics').$type<RelatedStatistics>(),
     rankScore: numeric('rank_score', { precision: 6, scale: 3 }).notNull(),
     confidence: numeric('confidence', { precision: 3, scale: 2 }).notNull(),
@@ -368,6 +375,60 @@ export const relatedContent = enrich.table(
       .on(t.lastCheckedAt)
       .where(sql`${t.supersededBy} is null`),
   ],
+);
+
+/** Erros do player oficial que tiram o vídeo da vitrine: 100 (removido ou privado), 101 e 150 (embed recusado). */
+export const RELATED_PLAYBACK_BLOCK_CODES = [100, 101, 150] as const;
+export type RelatedPlaybackBlockCode = (typeof RELATED_PLAYBACK_BLOCK_CODES)[number];
+
+/**
+ * Vídeos que o player oficial recusou fora da plataforma. O embed bloqueado por reivindicação de
+ * direitos (ex.: imagens do jogo num vídeo de outro canal) não aparece na Data API, só quando o player
+ * tenta tocar. O bloqueio vale para o vídeo em todos os jogos, e a pesquisa pesa o canal e o formato
+ * com bloqueios.
+ */
+export const relatedPlaybackBlock = enrich.table(
+  'related_playback_block',
+  {
+    provider: text('provider').notNull(),
+    externalId: text('external_id').notNull(),
+    code: integer('code').$type<RelatedPlaybackBlockCode>().notNull(),
+    channelId: text('channel_id'),
+    format: text('format').$type<RelatedFormat>(),
+    contentType: relatedContentType('content_type'),
+    reports: integer('reports').notNull().default(1),
+    /** Tenant que reportou primeiro. */
+    tenantId: uuid('tenant_id'),
+    firstReportedAt: timestamp('first_reported_at', { withTimezone: true }).notNull().defaultNow(),
+    lastReportedAt: timestamp('last_reported_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.provider, t.externalId] }),
+    index('related_playback_block_channel_idx').on(t.channelId, t.format),
+  ],
+);
+
+/** Regra manual do canal nos vídeos relacionados: `block` tira o canal; `allow` vence o bloqueio automático. */
+export const RELATED_CHANNEL_RULE_MODES = ['block', 'allow'] as const;
+export type RelatedChannelRuleMode = (typeof RELATED_CHANNEL_RULE_MODES)[number];
+
+/**
+ * Controle do canal no painel (Ajustes): bloqueia o canal nos vídeos relacionados (vitrine e pesquisa)
+ * ou o libera apesar das recusas do player. Não mexe no Onde Assistir.
+ */
+export const relatedChannelRule = enrich.table(
+  'related_channel_rule',
+  {
+    provider: text('provider').notNull(),
+    channelId: text('channel_id').notNull(),
+    mode: text('mode').$type<RelatedChannelRuleMode>().notNull(),
+    channelTitle: text('channel_title'),
+    note: text('note'),
+    /** E-mail de quem decidiu. */
+    updatedBy: text('updated_by'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.channelId] })],
 );
 
 /** Modo de uma execução por jogo: busca completa, só os canais conhecidos ou só a revalidação. */

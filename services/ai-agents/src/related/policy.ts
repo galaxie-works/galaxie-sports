@@ -158,16 +158,34 @@ const TYPE_BONUS: Record<RelatedContentType, number> = {
   other: 0,
 };
 
-/** Ranking: tier do canal + log10(visualizações)/2 + bônus do tipo − 0,5 a cada 3 dias desde o apito. */
+/**
+ * Desconto por bloqueios no player do mesmo canal e formato (ex.: live longa de canal com imagens do
+ * jogo, recusada por reivindicação de direitos): um caso isolado não pesa; 2 a 4 tiram 1 ponto, 5 ou mais, 2.
+ */
+export function playbackBlockPenalty(blockedSameChannelFormat: number): number {
+  return blockedSameChannelFormat >= 5 ? 2 : blockedSameChannelFormat >= 2 ? 1 : 0;
+}
+
+/**
+ * Ranking: tier do canal + log10(visualizações)/2 + bônus do tipo − 0,5 a cada 3 dias desde o apito −
+ * desconto pelos bloqueios no player do mesmo canal e formato.
+ */
 export function rankScore(input: {
   tier: RelatedSourceTier;
   type: RelatedContentType;
   views: number | null;
   publishedAt: Date;
   kickoff: Date;
+  /** Vídeos do mesmo canal e formato que o player já recusou. */
+  blockedSameChannelFormat?: number;
 }): number {
   const views = Math.log10(Math.max(0, input.views ?? 0) + 1) / 2;
   const ageDays = Math.max(0, (input.publishedAt.getTime() - input.kickoff.getTime()) / 86_400_000);
-  const score = TIER_WEIGHT[input.tier] + views + TYPE_BONUS[input.type] - 0.5 * (ageDays / 3);
+  const score =
+    TIER_WEIGHT[input.tier] +
+    views +
+    TYPE_BONUS[input.type] -
+    0.5 * (ageDays / 3) -
+    playbackBlockPenalty(input.blockedSameChannelFormat ?? 0);
   return Math.round(Math.max(0, score) * 1000) / 1000;
 }
