@@ -688,7 +688,7 @@ describe('pesquisas retentadas: custo, espera e limite de falhas', () => {
   const start = (key: string, now: Date) =>
     startResearch(db, { kind: 'allocation', researchKey: key, competition: 'x', markets: ['XX'], now });
 
-  it('a retentativa conta no dia dela e soma o custo das tentativas anteriores', async () => {
+  it('retentativa no mesmo dia soma o custo; em outro dia, cada gasto fica no dia em que aconteceu', async () => {
     const t0 = new Date('2026-12-01T10:00:00Z');
     const first = await start('teste:retentativa', t0);
     expect(first).toMatchObject({ failures: 0 });
@@ -704,25 +704,37 @@ describe('pesquisas retentadas: custo, espera e limite de falhas', () => {
       reason: 'backoff',
       retryAt: new Date(t0.getTime() + 30 * MIN),
     });
-    // dia seguinte (UTC): a nova tentativa passa a contar no dia dela, com o custo da anterior somado
+    // mesmo dia: a mesma linha, com o custo somado
+    const t0b = new Date(t0.getTime() + 31 * MIN);
+    expect(await start('teste:retentativa', t0b)).toEqual({ id: first.id, failures: 1 });
+    await finishResearch(db, first.id!, {
+      status: 'failed',
+      usage: { inputTokens: 1_000, outputTokens: 100, costUsd: 0.05 },
+      error: 'provedor fora',
+      now: t0b,
+    });
+    const [sameDay] = await db.select().from(wtwResearch).where(eq(wtwResearch.id, first.id!));
+    expect(sameDay).toMatchObject({ costUsd: '0.100000', inputTokens: 2_000, failures: 2 });
+
+    // dia seguinte (UTC): linha nova; a de ontem sai da chave e guarda o gasto de ontem
     const t1 = new Date('2026-12-02T09:00:00Z');
     const again = await start('teste:retentativa', t1);
-    expect(again).toEqual({ id: first.id, failures: 0 });
+    expect(again).toMatchObject({ failures: 0 });
+    expect(again.id).not.toBe(first.id);
     await finishResearch(db, again.id!, {
       status: 'done',
       usage: { inputTokens: 2_000, outputTokens: 200, costUsd: 0.1 },
       now: t1,
     });
-    const [row] = await db.select().from(wtwResearch).where(eq(wtwResearch.id, first.id!));
-    expect(row).toMatchObject({
-      status: 'done',
-      costUsd: '0.150000',
-      inputTokens: 3_000,
-      outputTokens: 300,
-      createdAt: t1,
+    const [old] = await db.select().from(wtwResearch).where(eq(wtwResearch.id, first.id!));
+    expect(old).toMatchObject({
+      researchKey: `teste:retentativa#${first.id}`,
+      status: 'failed',
+      costUsd: '0.100000',
+      createdAt: t0b,
     });
-    expect((await marketSpendToday(db, t1)).get('XX')).toBeCloseTo(0.15);
-    expect((await marketSpendToday(db, t0)).get('XX')).toBeUndefined();
+    expect((await marketSpendToday(db, t0)).get('XX')).toBeCloseTo(0.1);
+    expect((await marketSpendToday(db, t1)).get('XX')).toBeCloseTo(0.1);
     expect(await start('teste:retentativa', t1)).toEqual({ id: null, reason: 'done' });
   });
 

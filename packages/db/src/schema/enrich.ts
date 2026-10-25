@@ -724,13 +724,13 @@ export const wtwResearch = enrich.table(
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     provider: text('provider'),
     model: text('model'),
-    /** Tokens e custo somados de todas as tentativas da chave. */
+    /** Tokens e custo somados das tentativas do dia (UTC); tentativa de outro dia ganha linha nova. */
     inputTokens: integer('input_tokens').notNull().default(0),
     outputTokens: integer('output_tokens').notNull().default(0),
     costUsd: numeric('cost_usd', { precision: 12, scale: 6 }),
     stats: jsonb('stats'),
     error: text('error'),
-    /** Início da última tentativa (o gasto dela conta no dia dela, no teto por mercado). */
+    /** Início da última tentativa do dia (o gasto conta nesse dia, no teto por mercado). */
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

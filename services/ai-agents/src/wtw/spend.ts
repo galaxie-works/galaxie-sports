@@ -97,8 +97,10 @@ const sameUtcDay = (a: Date, b: Date) => dayStartUtc(a).getTime() === dayStartUt
 /**
  * Registra o início de uma chamada (idempotente por `research_key`): não chama se a mesma chave já
  * rodou ou está rodando. Falha anterior é reaproveitada (nova tentativa) depois da espera
- * (`researchBackoffMs`) e até WTW_RESEARCH_MAX_FAILURES falhas no dia; a tentativa nova passa a
- * contar no dia dela (`created_at`), com o custo somado ao das anteriores (`finishResearch`).
+ * (`researchBackoffMs`) e até WTW_RESEARCH_MAX_FAILURES falhas no dia. No mesmo dia (UTC), a tentativa
+ * nova reaproveita a linha e o custo soma ao das anteriores (`finishResearch`); em outro dia, a linha
+ * antiga sai da chave (`<chave>#<id>`, com o custo no dia dela) e a tentativa ganha uma linha nova —
+ * o teto por mercado conta cada gasto no dia em que aconteceu.
  */
 export async function startResearch(db: Database, s: ResearchStart): Promise<ResearchStartResult> {
   const [existing] = await db
@@ -107,6 +109,7 @@ export async function startResearch(db: Database, s: ResearchStart): Promise<Res
       status: wtwResearch.status,
       failures: wtwResearch.failures,
       finishedAt: wtwResearch.finishedAt,
+      createdAt: wtwResearch.createdAt,
     })
     .from(wtwResearch)
     .where(eq(wtwResearch.researchKey, s.researchKey));
@@ -127,7 +130,15 @@ export async function startResearch(db: Database, s: ResearchStart): Promise<Res
     const retryAt = new Date(lastFailure.getTime() + researchBackoffMs(failures));
     if (retryAt > s.now) return { id: null, reason: 'backoff', retryAt };
   }
-  if (existing) {
+  if (existing && !sameUtcDay(existing.createdAt, s.now)) {
+    // tentativa de outro dia: a linha antiga guarda o gasto daquele dia; a chave vai para uma nova
+    const [moved] = await db
+      .update(wtwResearch)
+      .set({ researchKey: `${s.researchKey}#${existing.id}` })
+      .where(and(eq(wtwResearch.id, existing.id), eq(wtwResearch.status, existing.status)))
+      .returning({ id: wtwResearch.id });
+    if (!moved) return { id: null, reason: 'running' };
+  } else if (existing) {
     const [row] = await db
       .update(wtwResearch)
       .set({
@@ -156,6 +167,7 @@ export async function startResearch(db: Database, s: ResearchStart): Promise<Res
       status: 'running',
       requestedBy: s.requestedBy ?? 'scheduler',
       stats: s.stats ?? null,
+      failures: own,
       startedAt: s.now,
       createdAt: s.now,
     })
@@ -187,7 +199,7 @@ async function familyFailures(
 }
 
 /**
- * Fecha a tentativa. Tokens e custo SOMAM aos das tentativas anteriores da chave (o teto por mercado
+ * Fecha a tentativa. Tokens e custo SOMAM aos das tentativas anteriores do dia (o teto por mercado
  * não subconta a pesquisa retentada); `failed` soma uma falha no dia.
  */
 export async function finishResearch(
