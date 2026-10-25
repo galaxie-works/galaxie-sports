@@ -657,20 +657,38 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
         const db = requireDb(ctx);
         const nocs = await db.select().from(noc).where(inArray(noc.code, query.noc)).orderBy(asc(noc.code));
         if (!nocs.length) throw problems.notFound('Comitê olímpico (CON)');
-        const conds: SQL[] = [
-          inArray(
-            medalTable.nocCode,
-            nocs.map((n) => n.code),
-          ),
-          inArray(games.type, query.type),
-        ];
+        // as edições vêm de games: a retida entra em `withheld` mesmo sem linha do CON no quadro (senão o
+        // cliente não distingue "retida" de "sem participação")
+        const conds: SQL[] = [inArray(games.type, query.type)];
         if (query.season) conds.push(eq(games.season, query.season));
-        const rows = await db
-          .select({ m: MT_COLS, g: games })
-          .from(medalTable)
-          .innerJoin(games, eq(games.id, medalTable.gamesId))
+        const editions = await db
+          .select()
+          .from(games)
           .where(and(...conds))
-          .orderBy(asc(games.year), asc(games.type), asc(games.season), asc(medalTable.nocCode));
+          .orderBy(asc(games.year), asc(games.type), asc(games.season));
+        const published = editions.filter((g) => medalQuality(g, locale).publishable);
+        const tableRows = published.length
+          ? await db
+              .select({ gamesId: medalTable.gamesId, m: MT_COLS })
+              .from(medalTable)
+              .where(
+                and(
+                  inArray(
+                    medalTable.gamesId,
+                    published.map((g) => g.id),
+                  ),
+                  inArray(
+                    medalTable.nocCode,
+                    nocs.map((n) => n.code),
+                  ),
+                ),
+              )
+              .orderBy(asc(medalTable.nocCode))
+          : [];
+        const rows = editions.flatMap((g): { g: GamesRow; m: (typeof tableRows)[number]['m'] | null }[] => {
+          const lines = tableRows.filter((r) => r.gamesId === g.id);
+          return lines.length ? lines.map((r) => ({ g, m: r.m })) : [{ g, m: null }];
+        });
 
         const body: MedalHistory = {
           nocs: nocs.map((n) => nocRef(n, locale)),
@@ -689,6 +707,7 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
             withheld.set(r.g.slug, { slug: r.g.slug, name, data_quality: quality });
             continue;
           }
+          if (!r.m) continue; // edição publicada sem medalha do CON
           sourceGames.set(r.g.id, r.g);
           body.data.push({
             games: { slug: r.g.slug, type: r.g.type, season: r.g.season, year: r.g.year, name },
