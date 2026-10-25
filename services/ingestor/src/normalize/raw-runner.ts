@@ -197,7 +197,7 @@ export async function normalizeSportFromRaw(
  * Times dos jogos da mesma liga e temporada no raw, para a tabela recuperar o time que o fornecedor manda
  * como placeholder (`id: 0`): o Utah Mammoth na NHL 2024/25.
  */
-async function standingsContext(
+export async function standingsContext(
   db: Database,
   sport: string,
   params: Record<string, string>,
@@ -214,9 +214,14 @@ async function standingsContext(
         sql`${apiResponse.params}->>'league' = ${params.league}`,
         sql`${apiResponse.params}->>'season' = ${params.season}`,
         sql`${apiResponse.statusCode} between 200 and 299`,
+        // envelope 200 com `errors` (cota, plano) ou sem jogos não vale: venceria o válido e a tabela perderia
+        // os times recuperados (mesmo critério de latestSuccessfulResponses)
+        sql`(${apiResponse.errors} is null or ${apiResponse.errors} in ('[]'::jsonb, '{}'::jsonb))`,
+        sql`(case when jsonb_typeof(${apiResponse.body}->'response') = 'array'
+                  then jsonb_array_length(${apiResponse.body}->'response') > 0 else false end)`,
       ),
     )
-    .orderBy(sql`${apiResponse.fetchedAt} desc`)
+    .orderBy(sql`${apiResponse.fetchedAt} desc`, sql`${apiResponse.id} desc`)
     .limit(1);
   const response = (games?.body as { response?: unknown } | undefined)?.response;
   return Array.isArray(response) ? { teamsByName: seasonTeamsFromGames(response) } : {};
