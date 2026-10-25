@@ -5,7 +5,8 @@ import { BlockList, isIP, type LookupFunction } from 'node:net';
 
 /**
  * Faixas que um webhook nunca alcança (SSRF): loopback, redes privadas, link-local (inclui o metadata
- * 169.254.169.254 das nuvens), CGNAT, multicast, reservadas e equivalentes IPv6. IPv4 mapeado em IPv6
+ * 169.254.169.254 das nuvens), CGNAT, multicast, reservadas, de documentação (TEST-NET) e equivalentes IPv6,
+ * inclusive os formatos que embutem um IPv4 (compatível, traduzido, NAT64, 6to4). IPv4 mapeado em IPv6
  * (`::ffff:10.0.0.1`) cai nas faixas IPv4.
  */
 const BLOCKED = new BlockList();
@@ -17,16 +18,22 @@ for (const [net, prefix] of [
   ['169.254.0.0', 16],
   ['172.16.0.0', 12],
   ['192.0.0.0', 24],
+  ['192.0.2.0', 24], // TEST-NET-1
   ['192.168.0.0', 16],
   ['198.18.0.0', 15],
+  ['198.51.100.0', 24], // TEST-NET-2
+  ['203.0.113.0', 24], // TEST-NET-3
   ['224.0.0.0', 4],
   ['240.0.0.0', 4],
 ] as const)
   BLOCKED.addSubnet(net, prefix, 'ipv4');
 for (const [net, prefix] of [
-  ['::', 128],
-  ['::1', 128],
-  ['64:ff9b::', 96],
+  ['::', 96], // IPv4-compatível (inclui :: e ::1)
+  ['::ffff:0:0:0', 96], // IPv4-traduzido (SIIT)
+  ['64:ff9b::', 96], // NAT64
+  ['64:ff9b:1::', 48], // NAT64 local
+  ['2002::', 16], // 6to4 (embute um IPv4 qualquer)
+  ['2001:db8::', 32], // documentação
   ['fc00::', 7],
   ['fe80::', 10],
   ['ff00::', 8],
@@ -40,9 +47,10 @@ export function isBlockedAddress(address: string): boolean {
   return BLOCKED.check(address, family === 6 ? 'ipv6' : 'ipv4');
 }
 
+/** O endereço resolvido não entra na mensagem (ela vai para `last_error`, que o operador e o cliente veem). */
 export class BlockedTargetError extends Error {
-  constructor(host: string, address: string) {
-    super(`destino ${host} resolve para ${address}, em rede privada ou reservada`);
+  constructor(host: string) {
+    super(`destino ${host} em rede privada ou reservada`);
     this.name = 'BlockedTargetError';
   }
 }
@@ -55,7 +63,7 @@ const guardedLookup: LookupFunction = (hostname, options, callback) => {
   dnsLookup(hostname, { ...options, all: true }, (err, addresses: LookupAddress[]) => {
     if (err) return callback(err, '', 0);
     const blocked = addresses.find((a) => isBlockedAddress(a.address));
-    if (blocked) return callback(new BlockedTargetError(hostname, blocked.address), '', 0);
+    if (blocked) return callback(new BlockedTargetError(hostname), '', 0);
     if (options.all) return (callback as unknown as (e: null, a: LookupAddress[]) => void)(null, addresses);
     const first = addresses[0];
     if (!first) return callback(new Error(`sem endereço para ${hostname}`), '', 0);
@@ -80,8 +88,7 @@ export function postWebhook(url: string, post: WebhookPost): Promise<number> {
   return new Promise((resolve, reject) => {
     const target = new URL(url);
     const host = target.hostname.replace(/^\[|\]$/g, '');
-    if (!post.allowPrivateTargets && isBlockedAddress(host))
-      return reject(new BlockedTargetError(host, host));
+    if (!post.allowPrivateTargets && isBlockedAddress(host)) return reject(new BlockedTargetError(host));
     const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
     const req = send(
       target,

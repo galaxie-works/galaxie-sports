@@ -94,21 +94,28 @@ Notas para a implementação dos webhooks (docs/05 §5, issue #35):
 - **Um segredo por endpoint**, gerado pelo servidor (32 bytes), exibido uma vez; guardado cifrado (não hash — o
   servidor precisa dele para assinar) em AES-256-GCM, com a chave de cifra fora do banco: `WEBHOOK_SIGNING_SECRET`
   é a KEK (≥ 32 caracteres, ex.: `openssl rand -base64 32`; chave derivada por HKDF-SHA256). Formato gravado
-  `enc:v1:<kid>:<iv>:<cifrado>:<tag>`; só o worker decifra, no momento de assinar.
+  `enc:v1:<kid>:<iv>:<cifrado>:<tag>`, com o id do endpoint como dado autenticado (AAD: o cifrado copiado para outro
+  endpoint não abre) e tag de 16 bytes exigida (o Node aceitaria tag truncada); só o worker decifra, ao assinar.
   - **Sem KEK**: `webhook create` é recusado (nunca grava texto puro); o worker registra um aviso ao subir e as
     entregas de segredos cifrados falham como tentativa com erro `WebhookSecretError` (retentativas → DLQ;
     `webhook replay` depois de corrigir). KEK errada ou ausente da lista tem o mesmo efeito.
   - **Legado** (endpoints cadastrados antes da cifra, `whsec_...` em texto puro): o worker continua lendo e
     assinando como antes, com ou sem KEK. Migração no deploy: defina a KEK no ambiente do worker e da CLI,
     publique a versão nova e rode `pnpm --filter @galaxie/api webhook seal-secrets` (idempotente; troca cada
-    linha só se o valor não mudou, com o worker no ar). O segredo do cliente continua o mesmo.
+    linha só se o valor não mudou, com o worker no ar; linha que não abre é listada no fim, sem abortar as demais). O
+    segredo do cliente continua o mesmo — mas ele já esteve em texto puro e segue nos dumps do banco até o fim da
+    retenção dos backups (`BACKUP_RETENTION_DAYS`, padrão 30 dias). **Recomendado**: recriar os endpoints legados
+    (segredo novo para o cliente) e, quando todos estiverem cifrados, ligar `WEBHOOK_REJECT_PLAINTEXT_SECRETS=true`
+    no worker: segredo em texto puro passa a falhar a entrega em vez de assinar.
   - **Rotação da KEK**: várias KEKs separadas por vírgula (a primeira cifra, todas decifram) + `seal-secrets`.
 - Rotação com sobreposição: durante a janela, enviar duas assinaturas (`v1=<novo>,v1=<antigo>`).
 - URLs de destino só `https://`, sem IPs privados/loopback/link-local (SSRF): IP literal nessas faixas é recusado no
   cadastro (loopback só para desenvolvimento) e, na entrega, o `lookup` do socket recusa qualquer resolução para
-  rede privada, link-local (metadata `169.254.169.254`), CGNAT, multicast ou reservada — a checagem é no endereço
+  rede privada, link-local (metadata `169.254.169.254`), CGNAT, multicast, reservada ou de documentação (TEST-NET),
+  incluindo os formatos IPv6 que embutem IPv4 (`::/96`, `::ffff:0:0:0/96`, NAT64, 6to4) — a checagem é no endereço
   usado na conexão, sem janela para DNS rebinding. `WEBHOOK_ALLOW_PRIVATE_TARGETS=true` desliga o bloqueio (só
-  desenvolvimento). Timeout curto, sem seguir redirects, corpo de resposta descartado.
+  desenvolvimento). O IP resolvido não vai para o `last_error`. Timeout curto, sem seguir redirects, corpo de
+  resposta descartado.
 - Endpoint desativado ou tenant suspenso: entregas já enfileiradas não são enviadas (vão para a DLQ com o motivo).
 - Nunca incluir dados pessoais no payload (a API não os possui; ver docs/11 §3).
 

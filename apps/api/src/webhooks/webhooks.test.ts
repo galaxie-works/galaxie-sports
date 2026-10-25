@@ -35,47 +35,66 @@ describe('assinatura HMAC-SHA256', () => {
   });
 });
 
+const EP = '01900000-0000-7000-8000-000000000001';
+
 describe('cifra do segredo com a KEK (auditoria API-9)', () => {
   const kek = (n: string) => n.repeat(32);
+
+  it('preso ao endpoint (AAD), tag de 16 bytes obrigatória, texto puro recusável', () => {
+    const box = new WebhookSecretBox([kek('a')]);
+    const sealed = box.seal('whsec_x', EP);
+    // copiado para outro endpoint: não abre
+    expect(() => box.open(sealed, '01900000-0000-7000-8000-000000000002')).toThrow(/não confere/);
+    // tag truncada para 4 bytes (aceita pelo Node sem authTagLength)
+    const parts = sealed.split(':');
+    const short = Buffer.from(parts.at(-1)!, 'base64url').subarray(0, 4).toString('base64url');
+    expect(() => box.open([...parts.slice(0, -1), short].join(':'), EP)).toThrow(WebhookSecretError);
+    const strict = WebhookSecretBox.fromEnv({
+      WEBHOOK_SIGNING_SECRET: kek('a'),
+      WEBHOOK_REJECT_PLAINTEXT_SECRETS: 'true',
+    });
+    expect(() => strict.open('whsec_legado', EP)).toThrow(/texto puro recusado/);
+    expect(strict.open(sealed, EP)).toBe('whsec_x');
+  });
 
   it('cifra com AES-GCM e decifra de volta; cada cifra é diferente (IV aleatório)', () => {
     const box = new WebhookSecretBox([kek('a')]);
     const secret = generateWebhookSecret();
-    const sealed = box.seal(secret);
+    const sealed = box.seal(secret, EP);
     expect(sealed).toMatch(/^enc:v1:[0-9a-f]{8}:/);
     expect(sealed).not.toContain(secret.slice(6));
-    expect(box.seal(secret)).not.toBe(sealed);
-    expect(box.open(sealed)).toBe(secret);
+    expect(box.seal(secret, EP)).not.toBe(sealed);
+    expect(box.open(sealed, EP)).toBe(secret);
     expect(box.needsSeal(sealed)).toBe(false);
   });
 
   it('legado em texto puro é lido como está (com ou sem KEK) e precisa ser cifrado', () => {
     const legacy = generateWebhookSecret();
-    expect(new WebhookSecretBox([]).open(legacy)).toBe(legacy);
-    expect(new WebhookSecretBox([kek('a')]).open(legacy)).toBe(legacy);
+    expect(new WebhookSecretBox([]).open(legacy, EP)).toBe(legacy);
+    expect(new WebhookSecretBox([kek('a')]).open(legacy, EP)).toBe(legacy);
     expect(new WebhookSecretBox([kek('a')]).needsSeal(legacy)).toBe(true);
   });
 
   it('rotação da KEK: nova,antiga decifra os dois e marca o antigo para recifrar', () => {
-    const old = new WebhookSecretBox([kek('a')]).seal('whsec_x');
+    const old = new WebhookSecretBox([kek('a')]).seal('whsec_x', EP);
     const both = new WebhookSecretBox([kek('b'), kek('a')]);
-    expect(both.open(old)).toBe('whsec_x');
+    expect(both.open(old, EP)).toBe('whsec_x');
     expect(both.needsSeal(old)).toBe(true);
-    expect(both.needsSeal(both.seal('whsec_x'))).toBe(false);
+    expect(both.needsSeal(both.seal('whsec_x', EP))).toBe(false);
   });
 
   it('sem KEK: não cifra e não decifra; KEK curta, KEK errada e dado alterado falham explicitamente', () => {
-    const sealed = new WebhookSecretBox([kek('a')]).seal('whsec_x');
+    const sealed = new WebhookSecretBox([kek('a')]).seal('whsec_x', EP);
     const none = new WebhookSecretBox([]);
     expect(none.configured).toBe(false);
-    expect(() => none.seal('whsec_x')).toThrow(/WEBHOOK_SIGNING_SECRET não definida/);
-    expect(() => none.open(sealed)).toThrow(/WEBHOOK_SIGNING_SECRET não está definida/);
+    expect(() => none.seal('whsec_x', EP)).toThrow(/WEBHOOK_SIGNING_SECRET não definida/);
+    expect(() => none.open(sealed, EP)).toThrow(/WEBHOOK_SIGNING_SECRET não está definida/);
     expect(() => new WebhookSecretBox(['curta'])).toThrow(/ao menos 32/);
-    expect(() => new WebhookSecretBox([kek('c')]).open(sealed)).toThrow(WebhookSecretError);
+    expect(() => new WebhookSecretBox([kek('c')]).open(sealed, EP)).toThrow(WebhookSecretError);
     const tampered = sealed.slice(0, -2) + (sealed.endsWith('A') ? 'BB' : 'AA');
-    expect(() => new WebhookSecretBox([kek('a')]).open(tampered)).toThrow(/não confere/);
+    expect(() => new WebhookSecretBox([kek('a')]).open(tampered, EP)).toThrow(/não confere/);
     expect(
-      WebhookSecretBox.fromEnv({ WEBHOOK_SIGNING_SECRET: ` ${kek('a')} , ${kek('b')} ` }).open(sealed),
+      WebhookSecretBox.fromEnv({ WEBHOOK_SIGNING_SECRET: ` ${kek('a')} , ${kek('b')} ` }).open(sealed, EP),
     ).toBe('whsec_x');
   });
 });
@@ -117,6 +136,17 @@ describe('transporte da entrega (auditoria API-15)', () => {
   });
 
   it('faixas bloqueadas', () => {
+    // formatos que embutem IPv4 e faixas de documentação
+    for (const a of [
+      '::7f00:1',
+      '::ffff:0:a00:1',
+      '2002:a00:1::1',
+      '64:ff9b:1::a00:1',
+      '192.0.2.1',
+      '198.51.100.1',
+      '203.0.113.9',
+    ])
+      expect(isBlockedAddress(a), a).toBe(true);
     for (const a of [
       '10.1.2.3',
       '100.64.0.1',
@@ -131,7 +161,7 @@ describe('transporte da entrega (auditoria API-15)', () => {
       '::ffff:10.0.0.1',
     ])
       expect(isBlockedAddress(a), a).toBe(true);
-    for (const a of ['203.0.113.10', '8.8.8.8', '172.32.0.1', '2001:4860:4860::8888', 'cliente.example'])
+    for (const a of ['93.184.215.14', '8.8.8.8', '172.32.0.1', '2001:4860:4860::8888', 'cliente.example'])
       expect(isBlockedAddress(a), a).toBe(false);
   });
 });
@@ -167,7 +197,7 @@ describe('validação do cadastro', () => {
       'https://[::ffff:172.16.0.1]/x',
     ])
       expect(() => validateWebhookUrl(url), url).toThrow(/IP privado/);
-    expect(validateWebhookUrl('https://203.0.113.10/x')).toBe('https://203.0.113.10/x');
+    expect(validateWebhookUrl('https://93.184.215.14/x')).toBe('https://93.184.215.14/x');
     expect(validateWebhookUrl('http://127.0.0.1:3000/x')).toBe('http://127.0.0.1:3000/x');
   });
 

@@ -344,11 +344,11 @@ describe('webhooks assinados', () => {
     );
 
     // migração: cifra o legado (idempotente) e a entrega continua com o mesmo segredo
-    expect((await sealWebhookSecrets(db, secrets)).sealed).toBe(1);
+    expect(await sealWebhookSecrets(db, secrets)).toMatchObject({ sealed: 1, failed: [] });
     expect((await sealWebhookSecrets(db, secrets)).sealed).toBe(0);
     const [migrated] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
     expect(migrated!.secret).toMatch(/^enc:v1:/);
-    expect(secrets.open(migrated!.secret)).toBe(legacySecret);
+    expect(secrets.open(migrated!.secret, legacy!.id)).toBe(legacySecret);
     await db
       .update(event)
       .set({ score: { home: 3, away: 1 } })
@@ -377,6 +377,24 @@ describe('webhooks assinados', () => {
     const [dead] = await listDeadDeliveries(db, { endpointId: ep.id });
     expect(dead!.lastError).toMatch(/^WebhookSecretError: .*KEK/);
     expect(hits('/wrong-kek')).toHaveLength(0);
+    // seal-secrets: a linha que não abre é reportada, sem abortar a migração das demais
+    const legacySecret = generateWebhookSecret();
+    const [tenantRow] = await db.select({ id: tenant.id }).from(tenant).where(eq(tenant.slug, 'portal'));
+    const [legacy] = await db
+      .insert(webhookEndpoint)
+      .values({
+        tenantId: tenantRow!.id,
+        url: `${base}/legacy-2`,
+        secret: legacySecret,
+        topics: ['event.score_changed'],
+        active: false,
+      })
+      .returning();
+    const report = await sealWebhookSecrets(db, secrets);
+    expect(report.failed.map((f) => f.id)).toEqual([ep.id]);
+    expect(report.sealed).toBe(1);
+    const [migrated] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
+    expect(secrets.open(migrated!.secret, legacy!.id)).toBe(legacySecret);
     // sem KEK nenhuma, o cadastro é recusado (nunca grava texto puro)
     await expect(
       createWebhookEndpoint(db, { tenantSlug: 'portal', url: `${base}/x` }, new WebhookSecretBox([])),

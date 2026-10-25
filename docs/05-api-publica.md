@@ -879,7 +879,7 @@ export function verifyGalaxieSignature(rawBody, header, secret, toleranceSec = 3
 // });
 ```
 
-O segredo fica em `api.webhook_endpoint.secret` **cifrado** (AES-256-GCM) com a KEK `WEBHOOK_SIGNING_SECRET`, que fica fora do banco; só o worker o decifra, para assinar. `webhook create` exige a KEK no ambiente; endpoints antigos com o segredo em texto puro continuam sendo entregues e são cifrados por `pnpm --filter @galaxie/api webhook seal-secrets` (detalhes, comportamento sem KEK e rotação da KEK: SECURITY.md › Webhooks). Rotação do segredo do endpoint: cadastre um novo endpoint, migre o receptor e desative o antigo.
+O segredo fica em `api.webhook_endpoint.secret` **cifrado** (AES-256-GCM) com a KEK `WEBHOOK_SIGNING_SECRET`, que fica fora do banco; só o worker o decifra, para assinar. `webhook create` exige a KEK no ambiente; endpoints antigos com o segredo em texto puro continuam sendo entregues e são cifrados por `pnpm --filter @galaxie/api webhook seal-secrets` (detalhes, comportamento sem KEK, rotação da KEK e `WEBHOOK_REJECT_PLAINTEXT_SECRETS`: SECURITY.md › Webhooks). Recomendado recriar os endpoints legados: o segredo antigo esteve em texto puro e segue nos backups até o fim da retenção. Rotação do segredo do endpoint: cadastre um novo endpoint, migre o receptor e desative o antigo.
 
 ## 6. Erros
 

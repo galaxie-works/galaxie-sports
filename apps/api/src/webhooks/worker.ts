@@ -306,7 +306,7 @@ export class WebhookWorker {
     let error: string;
     try {
       // decifra só aqui, no momento de assinar (sem KEK, segredo cifrado vira erro desta tentativa)
-      const secret = this.secrets.open(d.secret);
+      const secret = this.secrets.open(d.secret, d.endpoint_id);
       responseCode = await this.post(d.url, {
         headers: {
           'content-type': 'application/json',

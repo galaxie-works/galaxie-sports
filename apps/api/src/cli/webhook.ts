@@ -156,6 +156,8 @@ try {
     case 'seal-secrets': {
       const r = await sealWebhookSecrets(db, secrets);
       console.log(`${r.sealed} segredo(s) cifrado(s) com a KEK atual (${r.total} webhook(s) no total).`);
+      for (const f of r.failed) console.error(`falhou: ${f.id}: ${f.error}`);
+      if (r.failed.length) process.exitCode = 1;
       break;
     }
     default:
