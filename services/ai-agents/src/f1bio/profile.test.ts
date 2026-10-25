@@ -11,7 +11,13 @@ import {
 import { FakeLlmClient } from '../llm/fake.js';
 import { applyProfiles, editorialFile } from './apply-profile.js';
 import type { ProfileFacts } from './profile-facts.js';
-import { mergeProfiles, profileFactSheet, proposeProfile, resolveRival } from './profile.js';
+import {
+  mergeProfiles,
+  profileFactSheet,
+  proposeProfile,
+  raceLabelMatches,
+  resolveRival,
+} from './profile.js';
 import { checkFacts } from '../guardrails/index.js';
 
 const race = (
@@ -184,14 +190,15 @@ describe('proposeProfile (lenda): o validador gera achados, nunca descarta', () 
       'qualifying',
       'race_intelligence',
     ]);
-    // na ordem da resposta; a corrida fora da lista fica sem ano e rodada da lista (os da chave, sem o evento)
+    // na ordem da resposta; a corrida fora da lista fica sem ano e rodada (não liga o evento de outra corrida)
     expect(pt.moments?.map((m) => [m.year, m.round, m.wet ?? false])).toEqual([
       [1993, 3, true],
       [1991, 2, false],
       [1984, 6, true],
-      [1990, 15, false],
+      [undefined, undefined, false],
       [1988, 4, false],
     ]);
+    expect(pt.moments?.[3]!.race).toBe('GP do Japão');
     expect(pt.rivalries?.map((r) => r.driver)).toEqual([
       { f1db_id: 'alain-prost', name: 'Alain Prost' },
       { f1db_id: null, name: 'Fulano de Tal' },
@@ -276,6 +283,50 @@ describe('proposeProfile (lenda): o validador gera achados, nunca descarta', () 
       ['[S2, S3]', 'citation_marker', 'alert'],
       ['Voltou ao cockpit 39 dias depois de um susto.', 'unknown_number', 'severe'],
     ]);
+  });
+
+  it('nome de GP que não é o da corrida da chave vira alerta (pt e es)', async () => {
+    const swapped = {
+      ...research,
+      data: {
+        ...research.data,
+        moments: research.data.moments.map((m) =>
+          m.race_key === '1991-02' ? { ...m, race: 'GP da Itália' } : m,
+        ),
+      },
+    };
+    const p = await proposeProfile(new FakeLlmClient([swapped, translation]), senna);
+    const label = (loc: 'pt-BR' | 'es') =>
+      (p.entries[loc]!.findings ?? [])
+        .filter((f) => f.rule === 'race_label')
+        .map((f) => [f.field, f.severity]);
+    // o texto e o vínculo ficam como vieram; o revisor decide
+    expect(p.entries['pt-BR']!.moments![1]).toMatchObject({ year: 1991, round: 2, race: 'GP da Itália' });
+    expect(label('pt-BR')).toEqual([['moments[1]', 'alert']]);
+    expect(raceLabelMatches('GP do Brasil', 'Brazilian Grand Prix')).toBe(true);
+    expect(raceLabelMatches('Gran Premio de Gran Bretaña', 'British Grand Prix')).toBe(true);
+    expect(raceLabelMatches('GP de Mônaco', 'Monaco Grand Prix')).toBe(true);
+    expect(raceLabelMatches('GP de Las Vegas', 'Las Vegas Grand Prix')).toBe(true);
+    expect(raceLabelMatches('GP da Itália', 'Brazilian Grand Prix')).toBe(false);
+    expect(raceLabelMatches('GP da Europa', 'European Grand Prix')).toBe(true);
+  });
+
+  it('"P2" e "Q3" não são nome de chassi: o número passa pelo F1DB; "agressivo" fora da pista vira alerta', async () => {
+    const bio = [
+      'Ayrton Senna disputou 161 GPs entre 1984 e 1994, com 41 vitórias e 65 poles.',
+      'Largou em P17 e passou ao Q3 na estreia.',
+      'Tinha uma pilotagem agressiva e era agressivo nas freadas.',
+      'Era agressivo com os jornalistas.',
+    ].join('\n\n');
+    const reply = { ...research, data: { ...research.data, bio: { ...research.data.bio, text: bio } } };
+    const p = await proposeProfile(new FakeLlmClient([reply, translation]), senna);
+    const pt = p.entries['pt-BR']!;
+    const bioFindings = pt.findings!.filter((f) => f.field === 'bio');
+    expect(bioFindings.map((f) => [pt.bio.text.slice(f.start, f.end), f.rule])).toEqual([
+      ['Largou em P17 e passou ao Q3 na estreia.', 'unknown_number'],
+      ['Era agressivo com os jornalistas.', 'forbidden_term'],
+    ]);
+    expect(bioFindings[0]!.reason).toBe('número fora do F1DB (17)');
   });
 
   it('lenda sem nenhum momento: rascunho com alerta; sem bio, não há proposta', async () => {

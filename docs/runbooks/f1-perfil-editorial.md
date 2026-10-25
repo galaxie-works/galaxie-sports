@@ -35,8 +35,8 @@ O agente (`services/ai-agents/src/f1bio/profile.ts`) pesquisa com busca (Gemini 
 
 | Gravidade | Regras |
 | --- | --- |
-| **grave** (fato a conferir) | número fora dos fatos do F1DB (FactSheet: totais, temporadas, corridas da lista, pistas, datas e idade; o número de nome de chassi, como BT52, não conta); corrida que o piloto não disputou (fora da lista `<ano>-<rodada>`); rival que não largou nas mesmas corridas; prompt injection; fonte ausente, que não veio da busca ou de domínio não permitido |
-| **alerta** (texto) | termo da lista de proibidos (o vocabulário de pilotagem, como "agressividade", não conta); cara de letra de música; outro idioma; tamanho acima do pedido; marcador de citação (`[S1]`) no texto; item repetido; lenda sem momento; tradução com outro número de itens |
+| **grave** (fato a conferir) | número fora dos fatos do F1DB (FactSheet: totais, temporadas, corridas da lista, pistas, datas e idade; o número de nome de chassi, como BT52, não conta, mas posição e sessão como P2 e Q3 contam); corrida que o piloto não disputou (fora da lista `<ano>-<rodada>`; o momento fica sem ano e rodada, sem ligar o evento de outra corrida); rival que não largou nas mesmas corridas; prompt injection; fonte ausente, que não veio da busca ou de domínio não permitido |
+| **alerta** (texto) | termo da lista de proibidos ("agressivo" em contexto de pilotagem, como "pilotagem agressiva" ou "agressivo nas freadas", não conta; fora da pista, conta); nome do GP do momento que não é o da corrida da chave; cara de letra de música; outro idioma; tamanho acima do pedido; marcador de citação (`[S1]`) no texto; item repetido; lenda sem momento; tradução com outro número de itens |
 
 Só não há proposta sem bio. O painel (tipo "Perfil de piloto (F1)") mostra o selo "N alertas / N graves" na lista e, no item, cada campo com o trecho destacado (vermelho = grave, âmbar = alerta) e o motivo; o revisor aprova, sugere a edição ou deixa em rascunho. O tom de referência no prompt é o do texto de transmissão esportiva (momentos concretos, traços que dão para ver na pista); o prompt cita o Senna como nível de detalhe esperado, não como texto a copiar.
 
