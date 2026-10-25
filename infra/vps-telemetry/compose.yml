@@ -306,7 +306,8 @@ services:
   # A tag é a versão do Playwright, a mesma do playwright-core do services/ai-agents (o CI confere). O deploy.sh a
   # constrói na VPS quando a pasta muda; `missing` usa essa e só puxa do GHCR se ela não existir.
   # Sem a imagem própria (fallback): image mcr.microsoft.com/playwright:v1.64.0-noble com
-  # command ['npx', '-y', 'playwright@1.64.0', 'run-server', '--port', '3000', '--host', '0.0.0.0'] e o resto igual.
+  # command ['npx', '-y', 'playwright@1.64.0', 'run-server', '--port', '3000', '--host', '0.0.0.0'] e
+  # working_dir: /home/pwuser, o resto igual.
   # Abre páginas de terceiros: roda como o usuário sem privilégio da imagem (pwuser), com /dev/shm próprio
   # em vez do IPC do host e só na rede `render`, que ele divide com os agents (sem Postgres, Valkey nem S3).
   lineup-render:
