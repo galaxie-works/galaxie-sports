@@ -49,9 +49,9 @@ ou cancelado para tudo; ainda rodando espera até `CI_WAIT_MIN` minutos, padrão
 (execução cancelada porque outro commit entrou na fila) pede `SKIP_CI_CHECK=1`, que também é a saída de emergência.
 Constrói `api`, `ingestor` e `demo` e, quando a pasta delas mudou, `backup`, `prometheus` e `grafana` (o hash git da
 pasta vai no rótulo da imagem; igual ao de uma imagem da VPS, ela só ganha a tag nova). Se já se passaram
-`PRELOCK_MAX_MIN` minutos (padrão 25) antes de tocar a VPS, para ali: o resto precisa caber no teto de 45 min do
-`deploy-safe.sh`. Com a **trava na VPS** (`.deploy.lock`: um deploy por vez, de qualquer máquina; quem chega com outro
-em andamento sai com `FAIL` e o comando para liberar; trava com mais de `LOCK_STALE_MIN` minutos, padrão 60, é de
+`PRELOCK_MAX_MIN` minutos antes de tocar a VPS, para ali: o resto precisa caber no teto do `deploy-safe.sh`
+(`DEPLOY_TIMEOUT`, padrão 80 min; o limite padrão é o teto menos 30 min, 50 min com o teto padrão). Com a **trava na VPS** (`.deploy.lock`: um deploy por vez, de qualquer máquina; quem chega com outro
+em andamento sai com `FAIL` e o comando para liberar; trava com mais de `LOCK_STALE_MIN` minutos, padrão teto + 10 (90 com o teto padrão), é de
 deploy morto e é tomada com `WARN`), envia por `docker save | ssh docker load`, valida e troca `compose.yml` e
 `IMAGE_TAG` (com backup dos dois), sobe a stack mantendo a escala do ingestor (`PULL_POLICY=missing`) e confere o
 `migrate` (saída 0). Se o `up` ou o `migrate` falha, volta `compose.yml` e `.env` anteriores e sobe a stack de novo na

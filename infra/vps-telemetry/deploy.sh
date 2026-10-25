@@ -14,8 +14,9 @@
 #      levam no rótulo o hash git da própria pasta: a VPS já tem a imagem com esse hash → só ganha a tag do SHA;
 #      senão é construída aqui e vai junto
 #   3. trava na VPS ($DIR/.deploy.lock): um deploy por vez, de qualquer máquina, até o fim do script. Só é pedida
-#      com menos de PRELOCK_MAX_MIN minutos (padrão 25) de script, para o resto caber no teto de 45 min do
-#      deploy-safe.sh; trava com mais de LOCK_STALE_MIN minutos (padrão 60) é de deploy morto e é tomada, com WARN
+#      com menos de PRELOCK_MAX_MIN minutos de script (padrão: teto do deploy-safe.sh, DEPLOY_TIMEOUT ou 80 min,
+#      menos 30), para o resto caber no teto; trava mais velha que LOCK_STALE_MIN (padrão: teto + 10 min, no
+#      mínimo 60) é de deploy morto e é tomada, com WARN
 #   4. docker save | ssh docker load
 #   5. compose.yml do SHA e IMAGE_TAG no .env, validados antes de trocar (com backup dos dois)
 #   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry)
@@ -34,8 +35,30 @@ REG="ghcr.io/galaxie-works/galaxie-sports"
 ROOT="$(git rev-parse --show-toplevel)"
 LOCK="$DIR/.deploy.lock"
 CI_WAIT_MIN="${CI_WAIT_MIN:-20}"
-PRELOCK_MAX_MIN="${PRELOCK_MAX_MIN:-25}"
-LOCK_STALE_MIN="${LOCK_STALE_MIN:-60}"
+# teto do deploy-safe.sh em minutos: DEPLOY_TIMEOUT no formato do timeout (80m, 1h, 4800s, 4800); padrão 80 min
+# (fração, formato desconhecido ou 0, que no timeout é "sem teto": vale o padrão)
+deploy_ceiling_min() {
+  local t="${DEPLOY_TIMEOUT:-80m}" n m
+  n="${t%[smhd]}"
+  case "$n" in '' | *[!0-9]*)
+    echo 80
+    return
+    ;;
+  esac
+  case "${t#"$n"}" in
+    m) m="$n" ;;
+    h) m=$((n * 60)) ;;
+    d) m=$((n * 1440)) ;;
+    *) m=$((n / 60)) ;;
+  esac
+  [ "$m" -gt 0 ] || m=80
+  echo "$m"
+}
+CEILING_MIN="$(deploy_ceiling_min)"
+# depois da trava (envio, up, pós-deploy, smoke) ficam ao menos 30 min, ou metade de um teto curto
+PRELOCK_MAX_MIN="${PRELOCK_MAX_MIN:-$((CEILING_MIN > 60 ? CEILING_MIN - 30 : CEILING_MIN / 2))}"
+# um deploy vivo segura a trava no máximo até o teto; mais velha que isso é de deploy morto
+LOCK_STALE_MIN="${LOCK_STALE_MIN:-$((CEILING_MIN + 10 > 60 ? CEILING_MIN + 10 : 60))}"
 TREE_LABEL="works.galaxie.context-tree"
 # comandos do compose na VPS: as imagens chegam por docker load; o registry nunca é consultado
 CD="cd $DIR && export PULL_POLICY=missing"
@@ -187,8 +210,8 @@ done
 
 ci_gate "$CI_WAIT_MIN"
 
-# o que vem depois da trava (envio, up, pós-deploy, smoke) precisa caber no teto de 45 min do deploy-safe.sh: morrer
-# pelo timeout no meio do compose up é pior do que não começar
+# o que vem depois da trava (envio, up, pós-deploy, smoke) precisa caber no teto do deploy-safe.sh ($CEILING_MIN min):
+# morrer pelo timeout no meio do compose up é pior do que não começar
 if [ "$SECONDS" -ge $((PRELOCK_MAX_MIN * 60)) ]; then
   echo "FAIL  já são $((SECONDS / 60)) min de deploy antes de tocar a VPS (limite PRELOCK_MAX_MIN=$PRELOCK_MAX_MIN);" \
     "rode de novo (SKIP_BUILD=1 reaproveita as imagens)"
