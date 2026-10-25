@@ -1,9 +1,10 @@
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, inArray, ne, notInArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import {
   event,
   eventParticipant,
   loadTitleRecords,
+  stage,
   standing,
   type Database,
   type TitleRecord,
@@ -15,6 +16,14 @@ import type { Stake } from '../stakes/codes.js';
 import { fanTagStanding, type FanTagStanding } from '../stakes/fan-tags.js';
 import { knockoutStakes } from '../stakes/knockout.js';
 import { leagueMatchStakes, type Fixture, type LeagueTeamInput } from '../stakes/league.js';
+import {
+  finishedLeagueMatchStakes,
+  leagueInputOf,
+  pickGroupTable,
+  prepareFinishedLeagueMatch,
+} from '../stakes/result.js';
+import { salienceStanding, type SalienceStanding } from '../stakes/salience.js';
+import type { MatchResult } from '../standings/types.js';
 import { titleChaseSides, titleChaseStakes } from '../stakes/titles.js';
 
 /**
@@ -52,6 +61,12 @@ export interface StakesEventRef {
   stage: { id: string; kind: string } | null;
   home: { id: string };
   away: { id: string };
+  /**
+   * Status e placar: num jogo encerrado de pontos corridos, os stakes saem com a tabela de ANTES do jogo
+   * e `result` traz o que o placar mudou. Sem eles, vale a tabela atual (pré-jogo).
+   */
+  status?: string;
+  score?: { home?: number | null; away?: number | null } | null;
 }
 
 export interface KnockoutContext {
@@ -79,13 +94,28 @@ export interface LeagueContext {
    * (`isRelevantForFans`): usada pelas tags do torcedor e pelos sinais de decisão da importância.
    */
   standings: { home: FanTagStanding | null; away: FanTagStanding | null };
+  /** Situação de cada time para a camada de saliência (`salientStakes`). */
+  salience: { home: SalienceStanding | null; away: SalienceStanding | null };
+}
+
+/** Jogo encerrado de pontos corridos: o que o placar mudou (tabela de depois do jogo). */
+export interface LeagueResultContext {
+  /** Códigos de resultado (`RESULT_FAMILIES`), lista completa. */
+  stakes: Stake[];
+  /** Linhas dos dois times depois do jogo. */
+  rows: { teamId: string; rank: number; points: number; played: number }[];
+  /** Situação de cada time depois do jogo, para a saliência dos códigos de resultado. */
+  salience: { home: SalienceStanding | null; away: SalienceStanding | null };
 }
 
 export interface EventStakes {
   stakes: Stake[];
   rules: CompetitionRules | null;
   knockout?: KnockoutContext;
+  /** Pontos corridos; em jogo encerrado, a situação ANTES do jogo. */
   league?: LeagueContext;
+  /** Jogo encerrado de pontos corridos: o que o resultado mudou. */
+  result?: LeagueResultContext;
   /**
    * Títulos anteriores na competição por lado (`core.competition_title`), quando a partida pode dar o título e
    * a contagem é confiável (`options.titles`). Os mesmos números viram `seeks_title_{n}` em `stakes`.
@@ -105,6 +135,7 @@ export class StakesCache {
   readonly rules = new Map<string, Promise<CompetitionRules>>();
   readonly standings = new Map<string, Promise<StandingRow[]>>();
   readonly openRound = new Map<string, Promise<Fixture[]>>();
+  readonly seasonResults = new Map<string, Promise<MatchResult[]>>();
 }
 
 export interface StakesOptions {
@@ -219,6 +250,81 @@ function loadOpenRound(db: Database, stageId: string): Promise<Fixture[]> {
     );
 }
 
+/**
+ * Jogos encerrados das temporadas nas fases de pontos corridos, por temporada e em ordem cronológica
+ * (entrada de `prepareFinishedLeagueMatch`). Jogos sem placar ficam de fora.
+ */
+export async function loadLeagueResults(
+  db: Database,
+  seasonIds: readonly string[],
+): Promise<Map<string, MatchResult[]>> {
+  const out = new Map<string, MatchResult[]>();
+  if (!seasonIds.length) return out;
+  const home = alias(eventParticipant, 'home_side');
+  const away = alias(eventParticipant, 'away_side');
+  const rows = await db
+    .select({
+      seasonId: event.seasonId,
+      id: event.id,
+      startsAt: event.startsAt,
+      score: event.score,
+      homeId: home.participantId,
+      awayId: away.participantId,
+    })
+    .from(event)
+    .innerJoin(stage, eq(stage.id, event.stageId))
+    .innerJoin(home, and(eq(home.eventId, event.id), eq(home.side, 'home')))
+    .innerJoin(away, and(eq(away.eventId, event.id), eq(away.side, 'away')))
+    .where(
+      and(
+        inArray(event.seasonId, [...seasonIds]),
+        eq(event.status, 'finished'),
+        inArray(stage.kind, [...LEAGUE_STAGE_KINDS]),
+      ),
+    )
+    .orderBy(event.startsAt, event.id);
+  for (const r of rows) {
+    if (!r.seasonId || typeof r.score?.home !== 'number' || typeof r.score.away !== 'number') continue;
+    const list = out.get(r.seasonId) ?? [];
+    list.push({
+      id: r.id,
+      homeId: r.homeId,
+      awayId: r.awayId,
+      homeGoals: r.score.home,
+      awayGoals: r.score.away,
+      playedAt: r.startsAt.toISOString(),
+    });
+    out.set(r.seasonId, list);
+  }
+  return out;
+}
+
+/** Jogos da rodada que ainda estavam por começar no início de `core` (sem ele e sem os cancelados). */
+async function loadRoundAtKickoff(db: Database, core: StakesEventRef, stageId: string): Promise<Fixture[]> {
+  const home = alias(eventParticipant, 'home_side');
+  const away = alias(eventParticipant, 'away_side');
+  const rows = await db
+    .select({ startsAt: event.startsAt, homeId: home.participantId, awayId: away.participantId })
+    .from(event)
+    .innerJoin(home, and(eq(home.eventId, event.id), eq(home.side, 'home')))
+    .innerJoin(away, and(eq(away.eventId, event.id), eq(away.side, 'away')))
+    .where(
+      and(
+        eq(event.stageId, stageId),
+        ne(event.id, core.id),
+        notInArray(event.status, ['cancelled', 'abandoned']),
+      ),
+    );
+  return rows.filter((r) => r.startsAt >= core.startsAt).map((r) => ({ homeId: r.homeId, awayId: r.awayId }));
+}
+
+/** O evento é um jogo encerrado com placar final (stakes com a tabela de antes do jogo)? */
+function isFinishedWithScore(core: StakesEventRef): boolean {
+  return (
+    core.status === 'finished' && typeof core.score?.home === 'number' && typeof core.score.away === 'number'
+  );
+}
+
 async function leagueContext(
   db: Database,
   core: StakesEventRef,
@@ -231,14 +337,23 @@ async function leagueContext(
   const rows = await memo(options.cache?.standings, season.id, () =>
     db.select().from(standing).where(eq(standing.seasonId, season.id)),
   );
-  const homeRow = rows.find((r) => r.participantId === core.home.id);
-  const awayRow = rows.find((r) => r.participantId === core.away.id);
-  if (!homeRow || !awayRow) return { stakes: [], rules, reason: 'times fora da tabela da temporada' };
-  if (homeRow.group !== awayRow.group) return { stakes: [], rules, reason: 'times em grupos diferentes' };
-  const group = homeRow.group;
-  const table = rows.filter((r) => r.group === group).sort((x, y) => x.rank - y.rank);
+  if (
+    !rows.some((r) => r.participantId === core.home.id) ||
+    !rows.some((r) => r.participantId === core.away.id)
+  )
+    return { stakes: [], rules, reason: 'times fora da tabela da temporada' };
+  const groups = new Map<string, StandingRow[]>();
+  for (const r of rows) groups.set(r.group, [...(groups.get(r.group) ?? []), r]);
+  // a mesma liga pode ter dois rótulos de grupo (um desatualizado): fica a tabela mais completa
+  const picked = pickGroupTable(groups.values(), core.home.id, core.away.id);
+  if (!picked) return { stakes: [], rules, reason: 'times em grupos diferentes' };
+  const table = [...picked].sort((x, y) => x.rank - y.rank);
+  const group = table[0]!.group;
+  const homeRow = table.find((r) => r.participantId === core.home.id)!;
+  const awayRow = table.find((r) => r.participantId === core.away.id)!;
   if (league.teams !== null && table.length !== league.teams)
     return { stakes: [], rules, reason: `tabela incompleta (${table.length} de ${league.teams} times)` };
+  if (isFinishedWithScore(core)) return finishedLeagueContext(db, core, rules, table, options);
   const input: LeagueTeamInput[] = table.map((r) => ({
     teamId: r.participantId,
     points: r.points,
@@ -269,6 +384,10 @@ async function leagueContext(
       home: fanTagStanding(input, league, core.home.id),
       away: fanTagStanding(input, league, core.away.id),
     },
+    salience: {
+      home: salienceStanding(input, league, core.home.id, rules.standings.points),
+      away: salienceStanding(input, league, core.away.id, rules.standings.points),
+    },
   };
   const matchInput = {
     table: input,
@@ -288,6 +407,79 @@ async function leagueContext(
     if (!nextRound) throw err;
     return { stakes: leagueMatchStakes(matchInput), rules, league: context };
   }
+}
+
+/**
+ * Jogo encerrado de pontos corridos: tabela de antes (atual menos este jogo e os posteriores), o que
+ * estava em jogo com ela e os códigos de resultado com a tabela de depois.
+ */
+async function finishedLeagueContext(
+  db: Database,
+  core: StakesEventRef,
+  rules: CompetitionRules,
+  table: StandingRow[],
+  options: StakesOptions,
+): Promise<EventStakes> {
+  const league = rules.league!;
+  const season = core.season!;
+  const results = await memo(options.cache?.seasonResults, season.id, async () => {
+    const bySeason = await loadLeagueResults(db, [season.id]);
+    return bySeason.get(season.id) ?? [];
+  });
+  const ids = new Set(table.map((r) => r.participantId));
+  const nextRound = core.stage
+    ? (await loadRoundAtKickoff(db, core, core.stage.id)).filter(
+        (f) => ids.has(f.homeId) && ids.has(f.awayId),
+      )
+    : undefined;
+  const finished = finishedLeagueMatchStakes(
+    prepareFinishedLeagueMatch({
+      rules,
+      current: table.map((r) => ({
+        teamId: r.participantId,
+        played: r.played,
+        won: r.won,
+        drawn: r.drawn,
+        lost: r.lost,
+        goalsFor: r.goalsFor,
+        goalsAgainst: r.goalsAgainst,
+        points: r.points,
+      })),
+      results,
+      matchId: core.id,
+      ...(nextRound ? { nextRound } : {}),
+    }),
+  );
+  const before = leagueInputOf(finished.before);
+  const after = leagueInputOf(finished.after);
+  const rowsOf = (t: LeagueTeamInput[]) =>
+    [core.home.id, core.away.id].map((id) => {
+      const i = t.findIndex((r) => r.teamId === id);
+      return { teamId: id, rank: i + 1, points: t[i]!.points, played: t[i]!.played };
+    });
+  const remaining = (played: number) =>
+    league.matchesPerTeam === null ? null : league.matchesPerTeam - played;
+  const [homeBefore, awayBefore] = rowsOf(before);
+  const sal = (t: LeagueTeamInput[]) => ({
+    home: salienceStanding(t, league, core.home.id, rules.standings.points),
+    away: salienceStanding(t, league, core.away.id, rules.standings.points),
+  });
+  return {
+    stakes: finished.pre,
+    rules,
+    league: {
+      group: table[0]!.group,
+      rows: [homeBefore!, awayBefore!],
+      teams: table.length,
+      remaining: { home: remaining(homeBefore!.played), away: remaining(awayBefore!.played) },
+      standings: {
+        home: fanTagStanding(before, league, core.home.id),
+        away: fanTagStanding(before, league, core.away.id),
+      },
+      salience: sal(before),
+    },
+    result: { stakes: finished.result, rows: rowsOf(after), salience: sal(after) },
+  };
 }
 
 /** Acrescenta `seeks_title_{n}` e os títulos anteriores quando a partida pode dar o título. */

@@ -2,6 +2,7 @@ import {
   HISTORY_FAMILIES,
   KNOCKOUT_FAMILIES,
   LEAGUE_FAMILIES,
+  RESULT_FAMILIES,
   makeStake,
   type StakeFamily,
   type StakeParams,
@@ -11,7 +12,9 @@ import { STAKE_LOCALES, stakeText } from './labels.js';
 /** Parâmetros de exemplo usados na documentação de cada família. */
 export function exampleParams(family: StakeFamily): StakeParams | undefined {
   if (family === 'seeks_title_n') return { n: 4 };
+  if (family === 'points_behind_zone_n') return { zone: 'sudamericana', n: 2 };
   if (family.includes('_zone')) return { zone: 'libertadores_group_stage' };
+  if (/^(moved_up_to|moved_down_to|stayed_at)_n$/.test(family)) return { n: 13 };
   if (
     /(^|_)n(_|$)/.test(family) ||
     family.startsWith('specific_draw') ||
@@ -62,5 +65,11 @@ export function renderLabelsMarkdown(): string {
     'Exemplo com `n = 4` (busca o 4º título). n = 1: "Busca o primeiro título"; n > 10: "Busca o 11º título".',
     '',
     ...HISTORY_FAMILIES.map(section),
+    '## Resultado (pontos corridos, jogo encerrado)',
+    '',
+    'Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group_stage`',
+    '(`zone = sudamericana` em `points_behind_zone_n`). Variantes: n = 0 (empatado em pontos) e n = 1 (singular).',
+    '',
+    ...RESULT_FAMILIES.map(section),
   ].join('\n');
 }

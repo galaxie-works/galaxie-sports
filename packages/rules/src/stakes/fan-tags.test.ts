@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { makeStake, STAKE_FAMILIES, type StakeFamily } from './codes.js';
+import { makeStake, RESULT_FAMILIES, STAKE_FAMILIES, type StakeFamily } from './codes.js';
 import { renderFanTagsMarkdown } from './fan-tags-doc.js';
 import {
   FAN_TAG_LOCALES,
@@ -58,9 +58,16 @@ describe('tabela de tags do torcedor', () => {
     for (const zone of zones) {
       for (const n of [0, 1, 2, 3]) {
         const base = exampleParams(family);
-        const params = zone ? { zone } : base?.n !== undefined ? { ...base, n } : base;
+        const params = zone
+          ? { ...(base?.n !== undefined ? { n } : {}), zone }
+          : base?.n !== undefined
+            ? { ...base, n }
+            : base;
         const tag = fanTagOf(makeStake('home', family, params), [locale]);
-        if (family === 'extra_time_then_penalties') {
+        if (
+          family === 'extra_time_then_penalties' ||
+          (RESULT_FAMILIES as readonly string[]).includes(family)
+        ) {
           expect(tag).toBeNull();
           continue;
         }
