@@ -52,7 +52,7 @@ export interface ProfileProposal {
 }
 
 /** Tamanhos de cada parte (o schema da base aceita um pouco mais, para a edição no painel). */
-const LIMITS = { legendBio: 1500, regularBio: 450, item: 280 } as const;
+const LIMITS = { legendBio: 1500, regularBio: 450, style: 400, item: 280 } as const;
 const MAX = { strengths: 5, moments: 6, rivalries: 3 } as const;
 
 const sourced = (description: string) => ({
@@ -237,21 +237,86 @@ interface Ctx {
   cited: Set<string>;
 }
 
+/**
+ * Vocabulário de pilotagem que a lista de termos proibidos (feita para torcida e violência) pegaria: "pilotagem
+ * agressiva" descreve estilo, não agressão.
+ */
+const RACING_PHRASES = [
+  'agressividade',
+  'agressivamente',
+  'agressivo',
+  'agressiva',
+  'agressivos',
+  'agressivas',
+] as const;
+
+/** Nome de modelo com número (Brabham BT52, McLaren MP4/4, Ferrari F2004): o número é do nome, não estatística. */
+const MODEL_CODE = /\b\p{L}+\d+(?:[/-]\d+)*\p{L}*\b/gu;
+
+/** Número citado que não está nos fatos do F1DB (os de nome de modelo não contam). */
+function unknownNumbers(text: string, locale: ProfileLocale, ctx: Ctx): string[] {
+  const plain = text.replace(MODEL_CODE, ' ');
+  return [
+    ...new Set(
+      checkFacts(plain, ctx.sheet, locale)
+        .filter((v) => v.kind === 'unknown_number')
+        .map((v) => v.value),
+    ),
+  ];
+}
+
+const forbiddenIn = (text: string, locale: ProfileLocale, ctx: Ctx) =>
+  findForbiddenTerms(text, locale, { allowPhrases: [...ctx.sheet.names, ...RACING_PHRASES] });
+
 /** Motivo para recusar um texto (ou null): injection, termos, letra de música, idioma e números fora do F1DB. */
 function textProblem(text: string, locale: ProfileLocale, ctx: Ctx, max: number): string | null {
   if (!text) return 'texto vazio';
   if (text.length > max) return 'texto longo demais';
   if (detectPromptInjection(text).length) return 'padrão de prompt injection';
-  const hits = findForbiddenTerms(text, locale, { allowPhrases: ctx.sheet.names });
+  const hits = forbiddenIn(text, locale, ctx);
   if (hits.length) return `termo proibido (${hits.map((h) => h.match).join(', ')})`;
   // a bio vem em parágrafos (prosa); os itens são frases curtas
   const prose = /\n\s*\n/.test(text) ? checkParagraphs(text) : checkProse(text);
   if (prose?.level === 'error') return `texto reprovado pelo validador da base (${prose.reason})`;
   const lang = detectLanguage(text);
   if (lang && lang !== (locale === 'pt-BR' ? 'pt' : 'es')) return 'texto em outro idioma';
-  const numbers = checkFacts(text, ctx.sheet, locale).filter((v) => v.kind === 'unknown_number');
-  if (numbers.length) return `número fora do F1DB (${[...new Set(numbers.map((v) => v.value))].join(', ')})`;
+  const numbers = unknownNumbers(text, locale, ctx);
+  if (numbers.length) return `número fora do F1DB (${numbers.join(', ')})`;
   return null;
+}
+
+/**
+ * A bio sem as frases com número fora do F1DB ou termo proibido: tira só a frase, não a bio inteira, desde que
+ * sobrem ao menos 70% do texto. Devolve o texto aproveitado e as frases tiradas, ou null quando não dá para aproveitar.
+ */
+function salvageBio(
+  text: string,
+  locale: ProfileLocale,
+  ctx: Ctx,
+): { text: string; removed: { text: string; reason: string }[] } | null {
+  const removed: { text: string; reason: string }[] = [];
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) =>
+      p
+        .split(/(?<=[.!?…])\s+/u)
+        .filter((sentence) => {
+          const numbers = unknownNumbers(sentence, locale, ctx);
+          const hits = forbiddenIn(sentence, locale, ctx);
+          const reason = numbers.length
+            ? `número fora do F1DB (${numbers.join(', ')})`
+            : hits.length
+              ? `termo proibido (${hits.map((h) => h.match).join(', ')})`
+              : null;
+          if (reason) removed.push({ text: sentence, reason });
+          return !reason;
+        })
+        .join(' '),
+    )
+    .filter((p) => p.trim());
+  const kept = paragraphs.join('\n\n');
+  if (!removed.length || kept.length < text.length * 0.7) return null;
+  return { text: kept, removed };
 }
 
 /** Motivo para recusar uma fonte (ou null): tem de ser URL da busca e de domínio permitido. */
@@ -262,7 +327,13 @@ function sourceProblem(url: string, ctx: Ctx): string | null {
   return null;
 }
 
-const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
+/** Sem os marcadores de citação do passo de estruturação ("[S1]", "[S2, S4]") e sem espaços repetidos. */
+const clean = (s: string) =>
+  s
+    .replace(/\s*\[S\d+(?:\s*[,;]\s*S?\d+)*\]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .trim();
 const cleanBio = (s: string) =>
   s
     .split(/\n\s*\n/)
@@ -320,11 +391,19 @@ export async function proposeProfile(llm: LlmClient, facts: ProfileFacts): Promi
     });
 
   // bio: obrigatória
-  const bioText = cleanBio(data.bio?.text ?? '');
+  let bioText = cleanBio(data.bio?.text ?? '');
   const bioSources = goodSources('bio', data.bio?.sources ?? []);
+  const bioMax = tier === 'legend' ? LIMITS.legendBio : LIMITS.regularBio;
+  // frase com número fora do F1DB ou termo proibido sai sozinha; o resto da bio fica
+  if (textProblem(bioText, 'pt-BR', ctx, bioMax)) {
+    const salvaged = salvageBio(bioText, 'pt-BR', ctx);
+    if (salvaged) {
+      for (const r of salvaged.removed) drop('bio', r.text, `frase tirada da bio: ${r.reason}`);
+      bioText = salvaged.text;
+    }
+  }
   const bioProblem =
-    textProblem(bioText, 'pt-BR', ctx, tier === 'legend' ? LIMITS.legendBio : LIMITS.regularBio) ??
-    (bioSources.length ? null : 'bio sem fonte da busca');
+    textProblem(bioText, 'pt-BR', ctx, bioMax) ?? (bioSources.length ? null : 'bio sem fonte da busca');
   if (bioProblem) {
     drop('bio', bioText, bioProblem);
     out.reasons.push(`bio recusada: ${bioProblem}`);
@@ -344,7 +423,7 @@ export async function proposeProfile(llm: LlmClient, facts: ProfileFacts): Promi
       const text = clean(data.style.text);
       const sources = goodSources('style', data.style.sources);
       const why =
-        textProblem(text, 'pt-BR', ctx, LIMITS.item) ?? (sources.length ? null : 'sem fonte da busca');
+        textProblem(text, 'pt-BR', ctx, LIMITS.style) ?? (sources.length ? null : 'sem fonte da busca');
       if (why) drop('style', text, why);
       else entry.style = { kind: data.style.kind, text, sources };
     }
@@ -495,7 +574,7 @@ async function translateProfile(
   delete es.moments;
   delete es.rivalries;
   if (entry.style) {
-    const text = ok('style', reply.style, LIMITS.item);
+    const text = ok('style', reply.style, LIMITS.style);
     if (text) es.style = { ...entry.style, text };
   }
   // lista traduzida com tamanho diferente do original: não dá para casar item a item
