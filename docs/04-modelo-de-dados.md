@@ -190,7 +190,7 @@ Todo upsert de evento (normalização do raw, `afterFetch` dos jobs, ao vivo) co
 
 ### 3.4 Normalização raw → core (futebol, issue #22)
 
-`pnpm --filter @galaxie/ingestor normalize:football [--tudo] [--relogio]` lê, para cada `request_hash`, a resposta **mais recente bem-sucedida** (HTTP 2xx e `errors` vazio) de `raw.api_response` — `fixtures` (temporada, dia, ao vivo, detalhe), `fixtures/headtohead`, `teams`, `players/squads`, `coachs`, `players`, `standings` — normaliza para o lote neutro de `@galaxie/providers` e grava no core numa transação por resposta. Zero chamadas ao fornecedor. Sem `--tudo`, processa só o que entrou depois do cursor em `ops.sync_cursor`; cada execução fica em `ops.job_run`.
+`pnpm --filter @galaxie/ingestor normalize:football [--tudo] [--relogio]` lê, para cada `request_hash`, a resposta **mais recente bem-sucedida** (HTTP 2xx e `errors` vazio) de `raw.api_response` — `fixtures` (temporada, dia, ao vivo, detalhe), `fixtures/headtohead`, `teams`, `players/squads`, `coachs`, `players`, `standings` — normaliza para o lote neutro de `@galaxie/providers` e grava no core numa transação por resposta. Zero chamadas ao fornecedor. Sem `--tudo`, processa só o que entrou depois do cursor em `ops.sync_cursor`; cada execução fica em `ops.job_run`. Resposta que falha segura o cursor (é tentada de novo na próxima execução) e fica em `ops.normalize_failure` com o erro e as tentativas; na 3ª falha seguida vira **poison** (`poisoned_at`, log `warn`) e o cursor segue sem ela, para um erro determinístico não fazer todo normalize reprocessar tudo acima dele. `--reprocessar-falhas` tenta de novo as pendentes (depois da correção); quando passam, ou quando a requisição já tem resposta mais nova no raw, ficam com `resolved_at`.
 
 - **IDs estáveis**: toda entidade é achada por `core.provider_map (provider, sport, entity_type, provider_id)`; IDs novos são UUID v7 gerados no processo.
 - **Idempotência**: reprocessar o raw inteiro gera o mesmo estado, inclusive `updated_at` — cada upsert só toca a linha quando algum valor muda.
@@ -327,6 +327,7 @@ Conteúdo relacionado (migration 0014, [12 §6](12-conteudo-relacionado.md#6-mod
 | `ops.quota_budget` | Orçamento planejado por `api × dia × prioridade` |
 | `ops.sync_cursor` | Marca d'água por `(sport, endpoint, chave)` — ex.: último `fixtures?league=71&season=2026` sincronizado |
 | `ops.job_run` | Execuções de jobs, duração, chamadas gastas, erros |
+| `ops.normalize_failure` | Respostas do raw que a normalização não levou ao core: tentativas, último erro, `poisoned_at` (o cursor seguiu sem ela) e `resolved_at` (§3.4) |
 | `ops.change_feed` | Mudanças publicadas (para SSE/webhooks e purge de cache/CDN) — gravadas por triggers (`core.event`, `core.event_incident`, `enrich.broadcast_option`, `enrich.event_context`) ou por `publishChange()`; ambos usam `ops.publish_change()`, que deduplica por transação e faz `pg_notify('ops_change_feed', id)` (docs/05 §5) |
 
 ## 6.1 `api` — tenants, chaves e backfill do espelho
