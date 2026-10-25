@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RaceCareer, Team } from '@galaxie/contracts';
-import type { F1dbDriverTruth, F1dbTruth } from '../sources/f1db.js';
+import { priorityTags, type F1dbDriverTruth } from '../sources/f1db.js';
 import {
   checkCareerTotals,
   checkDriverCountry,
@@ -152,40 +152,40 @@ describe('F1: nome de época da equipe', () => {
   });
 });
 
-describe('F1: vínculo dos pilotos prioritários', () => {
-  const truthOf = (...drivers: Partial<F1dbDriverTruth>[]): F1dbTruth => ({
-    release: 'v0',
-    currentYear: 2026,
-    racesLeft: 0,
-    drivers: new Map(
-      drivers.map((d) => [
-        d.id!,
-        {
-          name: d.id!,
-          nationality: null,
-          starts: 0,
-          wins: 0,
-          titles: [],
-          seasons: new Map(),
-          tags: [],
-          ...d,
-        } as F1dbDriverTruth,
-      ]),
-    ),
+describe('F1: prioridade e vínculo dos pilotos', () => {
+  it('top 20 em vitórias e em GPs (desempate pela ordem da tabela), campeões e grid atual', () => {
+    const list = [
+      ...Array.from({ length: 21 }, (_, i) => ({
+        id: `v${i}`,
+        wins: 10,
+        starts: 100 + i,
+        champion: false,
+        grid: false,
+      })),
+      { id: 'campeao', wins: 0, starts: 1, champion: true, grid: false },
+      { id: 'novato', wins: 0, starts: 1, champion: false, grid: true },
+      { id: 'nada', wins: 0, starts: 1, champion: false, grid: false },
+    ];
+    const tags = priorityTags(list, 2026);
+    // vitórias empatadas: os 20 primeiros da tabela; GPs: os 20 com mais (v0 fica fora)
+    expect(tags.get('v0')).toEqual(['top 20 vitórias']);
+    expect(tags.get('v20')).toEqual(['top 20 GPs']);
+    expect(tags.get('v5')).toEqual(['top 20 vitórias', 'top 20 GPs']);
+    expect(tags.get('campeao')).toEqual(['campeão']);
+    expect(tags.get('novato')).toEqual(['grid 2026']);
+    expect(tags.has('nada')).toBe(false);
   });
 
-  it('prioritário sem participante no core é falha; quem não é prioritário não conta', () => {
-    const truth = truthOf(
+  it('prioritário sem participante no core é falha', () => {
+    const targets = [
       { id: 'juan-manuel-fangio', name: 'Juan Manuel Fangio', tags: ['campeão'] },
       { id: 'alberto-ascari', name: 'Alberto Ascari', tags: ['campeão', 'top 20 vitórias'] },
-      { id: 'piloto-reserva', name: 'Piloto Reserva', tags: [] },
-    );
-    const r = checkDriverLinks(truth, new Map([['juan-manuel-fangio', 'p1']]));
+    ];
+    const r = checkDriverLinks(targets, new Map([['juan-manuel-fangio', 'p1']]));
     expect(r.checked).toBe(2);
     expect(r.failures.map((f) => [f.key, f.label, f.expected])).toEqual([
       ['alberto-ascari', 'Alberto Ascari · campeão, top 20 vitórias', 'vínculo f1db driver-alberto-ascari'],
     ]);
-    expect(checkDriverLinks(truth, new Map()).failures).toHaveLength(2);
   });
 });
 

@@ -80,7 +80,7 @@ async function missingNeed(rule: QualityRule, ctx: QualityContext): Promise<stri
         return `F1DB indisponível: ${message(err)}`;
       }
   }
-  return null;
+  return (await rule.unavailable?.(ctx)) ?? null;
 }
 
 export interface RunOptions {
@@ -111,13 +111,13 @@ export async function runRules(rules: readonly QualityRule[], ctx: QualityContex
       failed: 0,
       failures: [],
     };
-    const skip = await missingNeed(rule, ctx);
-    if (skip) {
-      rows.push({ ...base, status: 'skipped', detail: skip, durationMs: Date.now() - started });
-      ctx.log(`${rule.id}: pulada (${skip})`);
-      continue;
-    }
     try {
+      const skip = await missingNeed(rule, ctx);
+      if (skip) {
+        rows.push({ ...base, status: 'skipped', detail: skip, durationMs: Date.now() - started });
+        ctx.log(`${rule.id}: pulada (${skip})`);
+        continue;
+      }
       const outcome = await rule.check(ctx);
       const split = splitBySport(rule, outcome, Date.now() - started);
       rows.push(...split);
@@ -132,10 +132,13 @@ export async function runRules(rules: readonly QualityRule[], ctx: QualityContex
   return rows;
 }
 
+/** Motivo do `skipped` gravado para o esporte que saiu do escopo de uma regra. */
+export const OUT_OF_SCOPE = 'sem itens deste esporte nesta execução';
+
 const failureKey = (ruleId: string, sport: string, key: string) => `${ruleId}|${sport}|${key}`;
 
 /**
- * Grava a execução: o catálogo das regras, o placar por esporte (com pass zerado para o esporte que saiu do escopo de
+ * Grava a execução: o catálogo das regras, o placar por esporte (com `skipped` para o esporte que saiu do escopo de
  * uma regra) e as falhas (com o "desde" do resultado anterior da mesma regra × esporte).
  */
 export async function saveRun(
@@ -169,8 +172,6 @@ export async function saveRun(
           ruleId: qualityResult.ruleId,
           sport: qualityResult.sport,
           status: qualityResult.status,
-          checked: qualityResult.checked,
-          failed: qualityResult.failed,
         })
         .from(qualityResult)
         .innerJoin(qualityRun, and(eq(qualityRun.id, qualityResult.runId), eq(qualityRun.status, 'done')))
@@ -204,27 +205,30 @@ export async function saveRun(
           since.set(failureKey(f.ruleId, f.sport, f.itemKey), f.firstSeenAt);
 
     // Regra que rodou (pass/fail) e não trouxe um esporte que tinha resultado: o esporte saiu do escopo (ex.: regra
-    // `all` sem itens dele agora). Grava pass zerado, senão a falha antiga fica no placar para sempre; o pass zerado já
-    // gravado não se repete a cada execução.
+    // `all` sem itens dele agora). Grava `skipped` com o motivo, senão a falha antiga fica no placar para sempre; nunca
+    // `pass` (nada foi conferido) e não zera o "desde" (que só olha pass/fail). Uma vez só: o `skipped` já gravado não
+    // se repete. A linha do próprio balde da regra (`all` do error/skipped) não é esporte: fica de fora.
     const ran = ruleIds.filter((id) =>
       rows.filter((r) => r.ruleId === id).every((r) => r.status === 'pass' || r.status === 'fail'),
     );
     const present = new Set(rows.map((r) => `${r.ruleId}|${r.sport}`));
+    const ruleSport = new Map(rules.map((r) => [r.id, r.sport]));
     const severityOf = new Map(rows.map((r) => [r.ruleId, r.severity]));
     const gone: RuleResultRow[] = (ran.length ? await latest(ran) : [])
       .filter(
         (r) =>
           !present.has(`${r.ruleId}|${r.sport}`) &&
-          !(r.status === 'pass' && r.checked === 0 && r.failed === 0),
+          r.sport !== ruleSport.get(r.ruleId) &&
+          r.status !== 'skipped',
       )
       .map((r) => ({
         ruleId: r.ruleId,
         sport: r.sport,
         severity: severityOf.get(r.ruleId)!,
-        status: 'pass',
+        status: 'skipped',
         checked: 0,
         failed: 0,
-        detail: 'sem itens deste esporte na execução',
+        detail: OUT_OF_SCOPE,
         durationMs: 0,
         failures: [],
       }));

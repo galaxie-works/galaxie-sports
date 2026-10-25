@@ -7,6 +7,7 @@ import { sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db';
 import type { RaceCareer, Team } from '@galaxie/contracts';
 import type { F1dbDriverTruth, F1dbTruth } from '../sources/f1db.js';
+import { f1dbPriorityFromRaw, type F1dbPriorityDriver } from '../sources/f1db-raw.js';
 import { AMBIGUOUS_COUNTRIES } from './geo.js';
 import type { QualityContext, QualityFailureItem, QualityRule } from '../types.js';
 
@@ -100,10 +101,9 @@ export async function loadServedDrivers(ctx: QualityContext) {
  * então a falta de vínculo é falha (senão a auditoria fica verde sem cobrir o piloto).
  */
 export function checkDriverLinks(
-  truth: F1dbTruth,
+  targets: readonly F1dbPriorityDriver[],
   linked: ReadonlyMap<string, string>,
 ): { checked: number; failures: QualityFailureItem[] } {
-  const targets = priorityDrivers(truth);
   const failures = targets
     .filter((t) => !linked.has(t.id))
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -115,6 +115,10 @@ export function checkDriverLinks(
     }));
   return { checked: targets.length, failures };
 }
+
+/** Prioritários do F1DB já importado no raw (sem baixar o release: o job agendado não tem volume para ele). */
+const rawPriority = (ctx: QualityContext) =>
+  ctx.memo('f1:priority-raw', () => f1dbPriorityFromRaw(ctx.db, ctx.now.toISOString().slice(0, 10)));
 
 const driverLink = (d: ServedDriver) => ({
   type: 'participant',
@@ -266,8 +270,14 @@ export const F1_RULES: QualityRule[] = [
       en: 'Every priority F1DB driver (current grid, champions, top 20 in wins and starts) has a core participant linked to F1DB',
       es: 'Todo piloto prioritario de F1DB (parrilla actual, campeones, 20 primeros en victorias y en GP) tiene participante en el core vinculado a F1DB',
     },
-    needs: ['f1db'],
-    check: async (ctx) => checkDriverLinks(await ctx.f1db(), (await links(ctx)).drivers),
+    unavailable: async (ctx) => {
+      const priority = await rawPriority(ctx);
+      if (!priority) return 'F1DB não importado no core (rode f1db:import)';
+      if (!(await links(ctx)).drivers.size)
+        return `F1DB não importado no core: nenhum piloto com vínculo f1db (release ${priority.release ?? '?'} no raw)`;
+      return null;
+    },
+    check: async (ctx) => checkDriverLinks((await rawPriority(ctx))!.drivers, (await links(ctx)).drivers),
   },
   {
     id: 'f1.season-team',

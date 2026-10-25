@@ -45,7 +45,8 @@ Sem `--plan`, grava a execução e aplica a retenção: as falhas ficam 30 dias;
 | Fonte | Quem usa | Configuração | Sem ela |
 |---|---|---|---|
 | API pública | regras `f1.*` (menos `f1.driver-link`) | `QUALITY_API_URL` e `QUALITY_API_KEY`. No dev, caem em `NEXT_PUBLIC_GALAXIE_API_URL` e `GALAXIE_DEMO_KEY` do `.env`. | `skipped` |
-| F1DB (release fixado) | regras `f1.*` | `F1DB_DIR` (padrão `~/.galaxie/f1db`). Baixa o zip na primeira vez e confere o sha256. | `skipped` |
+| F1DB (release fixado) | regras `f1.*` (menos `f1.driver-link`) | `F1DB_DIR` (padrão `~/.galaxie/f1db`). Baixa o zip na primeira vez e confere o sha256. | `skipped` |
+| F1DB importado no core (raw `f1db`, vínculos `f1db` no `provider_map`) | `f1.driver-link` | `f1db:import` (o release já gravado no raw). A regra **não baixa** o release: o job agendado roda no container do ingestor, sem volume para o F1DB e com pouca memória. | `skipped` ("F1DB não importado no core") |
 | Wikidata (`wbgetentities`) | `wikidata.team-category` | nenhuma: 50 QIDs por pedido, 1 pedido/s | `error` |
 
 Regra sem a fonte sai como **`skipped`**, com o motivo, e nunca como `pass`. Nenhuma regra gasta cota da api-sports.
@@ -69,7 +70,7 @@ No VPS, a API do próprio stack serve de alvo: `QUALITY_API_URL=http://api:8080`
 
 | Regra | Esporte | O que garante | Referência |
 |---|---|---|---|
-| `f1.driver-link` | F1 | Todo piloto prioritário (grid atual, campeões, 20 primeiros em vitórias e em GPs) tem participante no core com vínculo `f1db`. Sem ele, as outras regras da F1 não conferem o piloto. | F1DB + `core.provider_map` |
+| `f1.driver-link` | F1 | Todo piloto prioritário (grid atual, campeões, 20 primeiros em vitórias e em GPs) tem participante no core com vínculo `f1db`. Sem ele, as outras regras da F1 não conferem o piloto. A prioridade sai das tabelas pequenas do release importado no raw (`driver`, `race`, `season_driver`, `season_driver_standing`), com as mesmas contas da verdade do F1DB. | raw `f1db` + `core.provider_map` |
 | `f1.season-team` | F1 | A equipe de cada temporada do piloto é o construtor daquele ano, com o **nome da época**. Em 1955, "Mercedes-AMG Petronas" é erro; em 2024, não. | F1DB `race_data` + `season_entrant_driver`/`entrant` |
 | `f1.season-number` | F1 | O número da temporada é um dos mais usados nas corridas do ano. | F1DB `race_data.driver_number` |
 | `f1.career-totals` | F1 | Títulos (quantidade e anos), vitórias e GPs largados. | F1DB |
@@ -107,6 +108,7 @@ No VPS, a API do próprio stack serve de alvo: `QUALITY_API_URL=http://api:8080`
      },
      origin: 'erro achado por <quem> em <data>: <o caso>', // quando veio de um erro achado à mão
      needs: [], // 'api' | 'f1db' | 'wikidata': sem a fonte, a regra sai skipped
+     // unavailable: async (ctx) => 'motivo' | null, // fonte própria (ex.: dado não importado): skipped com o motivo
      check: async (ctx) => {
        const rows = await ctx.db.execute<{ id: string; sport: string; label: string }>(sql`...`);
        return {
@@ -125,7 +127,7 @@ No VPS, a API do próprio stack serve de alvo: `QUALITY_API_URL=http://api:8080`
    ```
 
    - **`checked`:** um número para regra de um esporte, ou um objeto por esporte para regra `all`.
-   - **`failed`:** devolva só quando `failures` é uma amostra, e a regra tem a contagem completa (veja `events.ts`). O motor guarda no máximo 200 falhas por regra e esporte.
+   - **`failed`:** devolva só quando `failures` é uma amostra, e a regra tem a contagem completa (veja `events.ts`). O motor guarda no máximo 200 falhas por regra e esporte, na ordem em que a regra as devolve: ordene a consulta (`order by` estável, com o id no fim) para o recorte ser o mesmo entre execuções.
    - **`ctx.memo(chave, carga)`:** use quando várias regras leem a mesma coisa (as quatro da F1 leem os pilotos da API uma vez só).
    - **Regra nova, área nova:** acrescente o array em `rules/index.ts`.
 3. **Ponha a lógica num helper puro**, como `eraNameOk`, `categoryFromWikidata` ou `priceHasCurrency`. Teste-o em `rules/rules.test.ts`, com **o caso real que motivou a regra**. Se a regra veio de um erro achado à mão, acrescente o id ao teste "cada erro achado pelo dono do produto tem uma regra" (`engine.test.ts`).
@@ -140,7 +142,7 @@ No VPS, a API do próprio stack serve de alvo: `QUALITY_API_URL=http://api:8080`
 |---|---|
 | `ops.quality_rule` | Catálogo: id, esporte, área, severidade, descrição nos três idiomas e origem. |
 | `ops.quality_run` | Uma linha por execução gravada, com o gatilho (`schedule`/`cli`). |
-| `ops.quality_result` | Placar: regra × esporte × execução, com status, conferidos, errados e motivo. Quando uma regra roda e um esporte que tinha resultado não vem mais (ex.: regra `all` sem itens dele), o esporte ganha um `pass` zerado, para a falha antiga não ficar no placar. |
-| `ops.quality_failure` | Itens errados: chave, rótulo, atual, esperado, link e `first_seen_at`. A falha que continua no resultado seguinte da mesma regra × esporte mantém a data em que apareceu, mesmo com uma execução filtrada (`--regras`/`--esporte`) ou um `error` no meio. |
+| `ops.quality_result` | Placar: regra × esporte × execução, com status, conferidos, errados e motivo. Quando uma regra roda e um esporte que tinha resultado não vem mais (ex.: regra `all` sem itens dele), o esporte ganha um `skipped` ("sem itens deste esporte nesta execução"), uma vez só, para a falha antiga não ficar no placar. Nunca `pass`: nada foi conferido. |
+| `ops.quality_failure` | Itens errados: chave, rótulo, atual, esperado, link e `first_seen_at`. A falha que continua no resultado seguinte da mesma regra × esporte mantém a data em que apareceu, mesmo com uma execução filtrada (`--regras`/`--esporte`) ou um `error`/`skipped` no meio. O "desde" só cobre as 200 falhas guardadas por regra e esporte: a que passa desse recorte recomeça a data quando volta a ser guardada. |
 
 Migration `0034_qualidade_dados`.
