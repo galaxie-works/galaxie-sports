@@ -413,7 +413,8 @@ export const relatedPlaybackBlock = enrich.table(
 /**
  * Relato de recusa do player por tenant: o vídeo sai na hora da vitrine de quem relatou (o erro 101/150
  * pode depender do domínio do embed), e só vira bloqueio de todos (`related_playback_block`) com relatos
- * de tenants distintos. Um tenant isolado não mexe na vitrine dos outros.
+ * de tenants distintos. Um tenant isolado não mexe na vitrine dos outros. `tenant_id` sem FK (o schema `api`
+ * já depende de `enrich`): relato de tenant removido sai com "Limpar recusas" no painel.
  */
 export const relatedPlaybackReport = enrich.table(
   'related_playback_report',
@@ -425,6 +426,11 @@ export const relatedPlaybackReport = enrich.table(
     channelId: text('channel_id'),
     format: text('format').$type<RelatedFormat>(),
     reports: integer('reports').notNull().default(1),
+    /**
+     * Conta para o bloqueio de todos? false quando o tenant avisou que o relato vem de usuário não
+     * verificado (ex.: visitante da demo): tira o vídeo só da vitrine dele.
+     */
+    quorum: boolean('quorum').notNull().default(true),
     firstReportedAt: timestamp('first_reported_at', { withTimezone: true }).notNull().defaultNow(),
     lastReportedAt: timestamp('last_reported_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -153,6 +153,11 @@ export interface PlaybackBlockInput {
   code: RelatedPlaybackBlockCode;
   /** Tenant que relatou: o vídeo sai na hora da vitrine dele. */
   tenantId: string;
+  /**
+   * Conta para o bloqueio de todos (padrão true). false = o tenant avisa que o relato vem de usuário não
+   * verificado (ex.: visitante da demo): o vídeo sai só da vitrine dele.
+   */
+  quorum?: boolean;
   now?: Date;
 }
 
@@ -168,7 +173,7 @@ export interface PlaybackBlockResult {
   externalId: string;
   /** Primeiro relato deste tenant para o vídeo (o repetido só soma `reports`). */
   first: boolean;
-  /** Este relato confirmou o bloqueio para todos (`RELATED_GLOBAL_BLOCK_TENANTS` tenants distintos). */
+  /** Este relato confirmou o bloqueio para todos (`RELATED_GLOBAL_BLOCK_TENANTS` tenants distintos que contam). */
   global: boolean;
   /** Jogos em que o vídeo saiu da vitrine do tenant que relatou (com o canal inteiro, no limiar dele). */
   tenantRemovals: PlaybackRemoval[];
@@ -263,7 +268,18 @@ export async function recordPlaybackBlock(
   await db.execute(
     sql`select pg_advisory_xact_lock(hashtext(${`related_playback:${provider}:${channelId ?? externalId}`}))`,
   );
-  const [saved] = await db
+  const quorum = input.quorum ?? true;
+  const key = and(
+    eq(relatedPlaybackReport.provider, provider),
+    eq(relatedPlaybackReport.externalId, externalId),
+    eq(relatedPlaybackReport.tenantId, input.tenantId),
+  );
+  const [prev] = await db
+    .select({ quorum: relatedPlaybackReport.quorum })
+    .from(relatedPlaybackReport)
+    .where(key)
+    .limit(1);
+  await db
     .insert(relatedPlaybackReport)
     .values({
       provider,
@@ -272,6 +288,7 @@ export async function recordPlaybackBlock(
       code: input.code,
       channelId,
       format: row.format,
+      quorum,
       firstReportedAt: now,
       lastReportedAt: now,
     })
@@ -281,17 +298,24 @@ export async function recordPlaybackBlock(
         relatedPlaybackReport.externalId,
         relatedPlaybackReport.tenantId,
       ],
-      set: { code: input.code, reports: sql`${relatedPlaybackReport.reports} + 1`, lastReportedAt: now },
-    })
-    .returning({ reports: relatedPlaybackReport.reports });
+      set: {
+        code: input.code,
+        reports: sql`${relatedPlaybackReport.reports} + 1`,
+        // um relato que conta não deixa de contar
+        quorum: sql`${relatedPlaybackReport.quorum} or excluded.quorum`,
+        lastReportedAt: now,
+      },
+    });
   const result: PlaybackBlockResult = {
     externalId,
-    first: saved?.reports === 1,
+    first: !prev,
     global: false,
     tenantRemovals: [],
     globalRemovals: [],
   };
-  if (!result.first) return result;
+  // o tenant passou a contar para o bloqueio de todos agora (primeiro relato que conta)
+  const counts = quorum && !prev?.quorum;
+  if (!result.first && !counts) return result;
 
   const [already] = await db
     .select({ code: relatedPlaybackBlock.code })
@@ -311,27 +335,39 @@ export async function recordPlaybackBlock(
         .limit(1)
     )[0]?.mode === 'allow';
 
-  // confirmação: tenants distintos que relataram o vídeo
-  const [tenants] = await db
-    .select({
-      n: sql<number>`count(*)::int`,
-      firstTenant: sql<string>`(array_agg(${relatedPlaybackReport.tenantId} order by ${relatedPlaybackReport.firstReportedAt}))[1]`,
-      firstAt: sql<string>`min(${relatedPlaybackReport.firstReportedAt})`,
-      reports: sql<number>`sum(${relatedPlaybackReport.reports})::int`,
-    })
-    .from(relatedPlaybackReport)
-    .where(
-      and(eq(relatedPlaybackReport.provider, provider), eq(relatedPlaybackReport.externalId, externalId)),
-    );
+  // confirmação: tenants distintos que relataram o vídeo (só os relatos que contam)
+  const [tenants] = counts
+    ? await db
+        .select({
+          n: sql<number>`count(*)::int`,
+          firstTenant: sql<string>`(array_agg(${relatedPlaybackReport.tenantId} order by ${relatedPlaybackReport.firstReportedAt}))[1]`,
+          firstAt: sql<string>`min(${relatedPlaybackReport.firstReportedAt})`,
+          reports: sql<number>`sum(${relatedPlaybackReport.reports})::int`,
+        })
+        .from(relatedPlaybackReport)
+        .where(
+          and(
+            eq(relatedPlaybackReport.provider, provider),
+            eq(relatedPlaybackReport.externalId, externalId),
+            eq(relatedPlaybackReport.quorum, true),
+          ),
+        )
+    : [];
   if (Number(tenants?.n ?? 0) >= RELATED_GLOBAL_BLOCK_TENANTS) {
-    await db.insert(relatedPlaybackBlock).values({
-      ...row,
-      code: input.code,
-      reports: Number(tenants!.reports),
-      tenantId: tenants!.firstTenant,
-      firstReportedAt: new Date(tenants!.firstAt),
-      lastReportedAt: now,
-    });
+    // a versão anterior da API (durante o deploy) grava a mesma linha direto: quem chegou primeiro avisa
+    const inserted = await db
+      .insert(relatedPlaybackBlock)
+      .values({
+        ...row,
+        code: input.code,
+        reports: Number(tenants!.reports),
+        tenantId: tenants!.firstTenant,
+        firstReportedAt: new Date(tenants!.firstAt),
+        lastReportedAt: now,
+      })
+      .onConflictDoNothing()
+      .returning({ externalId: relatedPlaybackBlock.externalId });
+    if (!inserted.length) return result;
     result.global = true;
     const lists = [await publishedIn(db, provider, { externalId })];
     if (channelId && !allowed) {
@@ -347,9 +383,10 @@ export async function recordPlaybackBlock(
     result.globalRemovals = mergeRemovals(...lists);
   }
 
-  // vitrine de quem relatou: o vídeo (se não saiu para todos) e, no limiar do tenant, o canal inteiro
-  const lists = result.global ? [] : [await publishedIn(db, provider, { externalId })];
-  if (channelId && !allowed) {
+  // vitrine de quem relatou (só no primeiro relato dele): o vídeo (se não saiu para todos) e, no limiar do
+  // tenant, o canal inteiro
+  const lists = result.global || !result.first ? [] : [await publishedIn(db, provider, { externalId })];
+  if (result.first && channelId && !allowed) {
     const refused = await db.execute<{ n: number }>(sql`
       select count(*)::int as n from (
         select b.external_id from ${relatedPlaybackBlock} b where b.provider = ${provider} and b.channel_id = ${channelId}
@@ -383,11 +420,8 @@ export async function recordPlaybackBlock(
         topic: RELATED_CONTENT_PURGE_TOPIC,
         entityType: 'related_content',
         entityId: r.eventId,
-        payload: {
-          event_id: r.eventId,
-          tenant_id: input.tenantId,
-          tags: [relatedContentTag(r.eventId), `event:${r.eventId}`],
-        },
+        // só a vitrine de vídeos: `event:<id>` purgaria o jogo inteiro (placar, onde assistir...) para todos
+        payload: { event_id: r.eventId, tenant_id: input.tenantId, tags: [relatedContentTag(r.eventId)] },
       });
   return result;
 }
@@ -448,6 +482,8 @@ export interface RelatedChannelSummary {
   refused: number;
   /** Vídeos do canal relatados por algum tenant (saíram só da vitrine de quem relatou, até confirmar). */
   reported: number;
+  /** Vídeos distintos com recusa, confirmada ou relatada: o que "Limpar recusas" devolve à vitrine. */
+  refusedVideos: number;
   lastRefusedAt: Date | null;
   rule: RelatedChannelRuleMode | null;
   ruleBy: string | null;
@@ -484,6 +520,7 @@ export async function listRelatedChannels(
     published: number;
     refused: number;
     reported: number;
+    refused_videos: number;
     last_refused_at: string | null;
     rule: RelatedChannelRuleMode | null;
     rule_by: string | null;
@@ -507,6 +544,12 @@ export async function listRelatedChannels(
       from ${relatedPlaybackReport}
       where provider = ${provider} and channel_id is not null
       group by channel_id
+    ), refs as (
+      select channel_id, count(*)::int as refused_videos from (
+        select channel_id, external_id from ${relatedPlaybackBlock} where provider = ${provider} and channel_id is not null
+        union
+        select channel_id, external_id from ${relatedPlaybackReport} where provider = ${provider} and channel_id is not null
+      ) u group by channel_id
     ), rules as (
       select channel_id, mode, channel_title, note, updated_by, updated_at
       from ${relatedChannelRule}
@@ -517,13 +560,14 @@ export async function listRelatedChannels(
     )
     select ids.channel_id, coalesce(vids.title, rules.channel_title) as title, vids.handle, vids.source_tier,
            coalesce(vids.published, 0) as published, coalesce(blk.refused, 0) as refused,
-           coalesce(rep.reported, 0) as reported,
+           coalesce(rep.reported, 0) as reported, coalesce(refs.refused_videos, 0) as refused_videos,
            greatest(blk.last_refused_at, rep.last_reported_at) as last_refused_at, rules.mode as rule, rules.updated_by as rule_by, rules.updated_at as rule_at,
            rules.note
     from ids
     left join vids on vids.channel_id = ids.channel_id
     left join blk on blk.channel_id = ids.channel_id
     left join rep on rep.channel_id = ids.channel_id
+    left join refs on refs.channel_id = ids.channel_id
     left join rules on rules.channel_id = ids.channel_id
     where (${q}::text is null or coalesce(vids.title, rules.channel_title, '') ilike ${q} or coalesce(vids.handle, '') ilike ${q})
   `);
@@ -538,6 +582,7 @@ export async function listRelatedChannels(
       published: Number(r.published),
       refused,
       reported: Number(r.reported),
+      refusedVideos: Number(r.refused_videos),
       lastRefusedAt: r.last_refused_at ? new Date(r.last_refused_at) : null,
       rule: r.rule,
       ruleBy: r.rule_by,

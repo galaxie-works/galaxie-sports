@@ -1,5 +1,5 @@
 {
-  "id": "35cdd48e-2684-4552-b7c0-58080b2c1426",
+  "id": "ad26b301-0839-4c00-b246-b1a92ae3a686",
   "prevId": "bbed94fc-8213-44ad-b0fc-c57b575c0f45",
   "version": "7",
   "dialect": "postgresql",
@@ -6653,6 +6653,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
+        },
+        "quorum": {
+          "name": "quorum",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
         },
         "first_reported_at": {
           "name": "first_reported_at",

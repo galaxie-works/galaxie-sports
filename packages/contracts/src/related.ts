@@ -170,6 +170,14 @@ export const RelatedPlaybackErrorBody = z
           'do conteúdo não permite a reprodução fora do YouTube). Outros códigos (2, 5) são do player e não tiram o vídeo.',
         example: 150,
       }),
+    quorum: z
+      .boolean()
+      .optional()
+      .meta({
+        description:
+          '`false` quando o aviso vem de usuário não verificado (ex.: visitante anônimo): o vídeo sai só da sua ' +
+          'vitrine e o aviso não conta para tirá-lo da vitrine dos outros clientes. Padrão `true`.',
+      }),
   })
   .meta({ id: 'RelatedPlaybackErrorBody' });
 export type RelatedPlaybackErrorBody = z.infer<typeof RelatedPlaybackErrorBody>;

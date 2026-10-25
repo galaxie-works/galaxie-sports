@@ -362,6 +362,8 @@ describe('GET /v1/events/{id}/related', () => {
       .from(changeFeed)
       .where(and(eq(changeFeed.topic, RELATED_CONTENT_PURGE_TOPIC), eq(changeFeed.entityId, eventId)));
     expect(purge.length).toBeGreaterThan(0);
+    // só a vitrine de vídeos: a tag do jogo inteiro (placar, onde assistir...) não é purgada para todos
+    expect((purge[0]!.payload as { tags: string[] }).tags).toEqual([relatedContentTag(eventId)]);
     // nada no tópico público: SSE e webhooks dos outros tenants não veem o relato isolado
     expect(await publicChanges(eventId)).toHaveLength(publicBefore);
     // relato repetido só soma
@@ -440,8 +442,39 @@ describe('GET /v1/events/{id}/related', () => {
     expect((await listRelatedChannels(db, { q: 'Canal Y' }))[0]).toMatchObject({
       refused: 0,
       reported: 3,
+      refusedVideos: 3,
       blocked: false,
     });
+  });
+
+  it('relato com quorum false (usuário não verificado, ex.: a demo) não conta para o bloqueio de todos', async () => {
+    await db.insert(relatedContent).values(
+      row('qz1', {
+        contentType: 'interview',
+        channelId: 'UCqz',
+        channelTitle: 'Canal Q',
+        rankScore: '1.000',
+      }),
+    );
+    const url = `/v1/events/${eventId}/related?type=interview`;
+    const ids = async (k = key) =>
+      (await get(url, k)).json().data.map((d: { external_id: string }) => d.external_id);
+    const item = ((await get(url)).json().data as { id: string; external_id: string }[]).find(
+      (i) => i.external_id === 'qz1',
+    )!.id;
+    // a "demo" (tenant 1) relata sem quorum: sai só da vitrine dela
+    expect((await reportError({ item_id: item, code: 150, quorum: false })).json().removed_from_events).toBe(
+      1,
+    );
+    await expect.poll(() => ids(), { timeout: 10_000, interval: 50 }).not.toContain('qz1');
+    // um tenant de verdade relata: ainda é um só que conta, nada sai para os outros
+    await reportError({ item_id: item, code: 150 }, key2);
+    await expect.poll(() => ids(key2), { timeout: 10_000, interval: 50 }).not.toContain('qz1');
+    expect(await ids(key3)).toContain('qz1');
+    // o tenant 1 passa a relatar valendo (ex.: usuário verificado): agora são dois, sai para todos
+    expect((await reportError({ item_id: item, code: 150 })).json().removed_from_events).toBe(1);
+    await expect.poll(() => ids(key3), { timeout: 10_000, interval: 50 }).not.toContain('qz1');
+    expect((await reportError({ item_id: item, code: 150, quorum: 'x' })).statusCode).toBe(400);
   });
 
   it('relato de erro: código, item, chave e módulo', async () => {
@@ -483,6 +516,7 @@ describe('GET /v1/events/{id}/related', () => {
     expect(refused.find((c) => c.channelId === 'UCcz')).toMatchObject({
       refused: 3,
       reported: 3,
+      refusedVideos: 3,
       rule: 'allow',
       blocked: false,
     });

@@ -182,6 +182,7 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
         itemId: body.item_id,
         code: body.code as RelatedPlaybackBlockCode,
         tenantId: t.tenantId,
+        ...(body.quorum === false ? { quorum: false } : {}),
       }),
     );
     if (!result) throw problems.notFound('Item do conteúdo relacionado');
@@ -196,6 +197,7 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
         tenant: t.slug,
         video: result.externalId,
         code: body.code,
+        quorum: body.quorum ?? true,
         first: result.first,
         global: result.global,
         events: removedFrom.size,
