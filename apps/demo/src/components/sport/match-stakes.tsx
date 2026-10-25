@@ -7,15 +7,11 @@ import { Crest } from '@/components/sport/crest';
 import type { Locale } from '@/lib/i18n/config';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, localized } from '@/lib/i18n/text';
+import { phaseOf, splitStakes, type Phase, type Stake } from '@/lib/match-stakes';
 
 type Participant = Event['participants'][number];
-type Stake = Event['stakes'][number];
-type Phase = Stake['phase'];
 
 const PHASES: readonly Phase[] = ['pre_match', 'result'];
-
-/** Fase do stake; respostas antigas (sem `phase`) só tinham o pré-jogo. */
-const phaseOf = (s: Stake): Phase => s.phase ?? 'pre_match';
 
 /** Texto do stake; em "busca o tetra", com as edições já vencidas ("Busca o tetracampeonato (1999, 2020, 2021)"). */
 function sentenceOf(s: Stake, locale: Locale): string {
@@ -28,9 +24,6 @@ function sentenceOf(s: Stake, locale: Locale): string {
 function uniqueSentences(stakes: Stake[], locale: Locale): string[] {
   return [...new Set(stakes.map((s) => sentenceOf(s, locale)).filter(Boolean))];
 }
-
-/** Stake do participante: pelo `team_id`; em respostas antigas, pelo lado. */
-const belongsTo = (s: Stake, p: Participant) => (s.team_id ? s.team_id === p.id : s.team === p.side);
 
 function Sentences({ items }: { items: string[] }) {
   if (!items.length) return null;
@@ -127,29 +120,15 @@ function TeamStakes({
  * "O que está em jogo" agrupado por time: um bloco por participante (escudo, nome e a cor do clube na
  * borda), com as tags do torcedor (`fan_tags`), as frases dos stakes daquele time e o grito da torcida.
  * O mesmo código para os dois times (ex.: os dois "ainda correm risco de rebaixamento") e os stakes
- * `both` aparecem uma vez só, no bloco "Para os dois times". Em jogo encerrado, cada bloco separa o que
- * estava em jogo do que o resultado mudou.
+ * `both` aparecem uma vez só, no bloco "Para os dois times" (`splitStakes`); o histórico de títulos de
+ * cada um ("busca o tetra", com as edições) fica no bloco do time. Em jogo encerrado, cada bloco separa o
+ * que estava em jogo do que o resultado mudou.
  */
 export async function MatchStakes({ event }: { event: Event }) {
   const { locale, t } = await getI18n();
   const sides = event.participants.filter((p) => p.side === 'home' || p.side === 'away');
-  const key = (s: Stake) => `${phaseOf(s)}|${s.code}`;
-  // código repetido nos dois times, na mesma fase: vira um item só, para os dois
-  const owners = new Map<string, Set<string>>();
-  for (const s of event.stakes) {
-    if (s.team === 'both') continue;
-    const owner = sides.find((p) => belongsTo(s, p))?.id;
-    if (!owner) continue;
-    owners.set(key(s), (owners.get(key(s)) ?? new Set()).add(owner));
-  }
-  const isShared = (s: Stake) => s.team === 'both' || (sides.length === 2 && owners.get(key(s))?.size === 2);
-  const shared = event.stakes
-    .filter(isShared)
-    .filter((s, i, list) => list.findIndex((x) => key(x) === key(s)) === i);
-  const groups = sides.map((p) => ({
-    p,
-    stakes: event.stakes.filter((s) => !isShared(s) && belongsTo(s, p)),
-  }));
+  // código repetido nos dois times, na mesma fase: vira um item só, para os dois (exceto histórico de títulos)
+  const { shared, groups } = splitStakes(event.stakes, sides);
   const phaseLabels: Record<Phase, string> = {
     pre_match: t.sport.stakesBefore,
     result: t.sport.stakesResult,
