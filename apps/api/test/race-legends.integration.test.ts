@@ -202,7 +202,7 @@ afterAll(async () => {
 
 describe('lendas da F1', () => {
   it('campeão primeiro, depois vitórias; os números contam como na carreira', async () => {
-    const legends = await loadRaceLegends(db, 'pt-BR', 'https://assets.test', { liveries });
+    const legends = await loadRaceLegends(db, 'pt-BR', 'https://assets.test', { liveries, list: [] });
     expect(legends.map((l) => [l.name, l.titles, l.wins, l.races, l.podiums, l.criteria])).toEqual([
       ['Ayrton Senna', [1988], 2, 3, 2, ['titles', 'wins', 'races']],
       ['Alain Prost', [], 1, 3, 3, ['wins', 'races']],
@@ -219,7 +219,7 @@ describe('lendas da F1', () => {
   });
 
   it('sem destaque, o título vence, sem foto de fundo (a do carro da temporada não tem a nota do Gemini)', async () => {
-    const [senna] = await loadRaceLegends(db, 'pt-BR', 'https://assets.test', { liveries });
+    const [senna] = await loadRaceLegends(db, 'pt-BR', 'https://assets.test', { liveries, list: [] });
     // 1988 (título): a foto do carro da temporada fica na galeria, mas o fundo é só o destaque do acervo
     expect(senna!.highlight).toMatchObject({
       season: 1988,
@@ -234,7 +234,7 @@ describe('lendas da F1', () => {
   });
 
   it('o carro de destaque do acervo vence; sem equipe nem foto, o card fica com a cor e o número', async () => {
-    const legends = await loadRaceLegends(db, 'pt-BR', 'https://assets.test', { liveries });
+    const legends = await loadRaceLegends(db, 'pt-BR', 'https://assets.test', { liveries, list: [] });
     expect(legends[1]!.highlight).toMatchObject({
       season: 1988,
       number: 11,
@@ -244,10 +244,33 @@ describe('lendas da F1', () => {
   });
 
   it('`limit` corta na ordem', async () => {
-    const legends = await loadRaceLegends(db, 'pt-BR', undefined, { limit: 1 });
+    const legends = await loadRaceLegends(db, 'pt-BR', undefined, { limit: 1, list: [] });
     expect(legends.map((l) => l.name)).toEqual(['Ayrton Senna']);
     // sem pintura curada, a equipe vem com `livery: null`
     expect(legends[0]!.highlight?.team?.livery).toBeNull();
     expect(legends[0]!.highlight?.team?.constructor_name).toBe('McLaren');
+  });
+
+  it('a lista editorial manda: só quem está nela, na ordem dela', async () => {
+    await db.insert(providerMap).values([
+      {
+        entityType: 'participant',
+        entityId: ids.senna!,
+        provider: 'f1db',
+        sport: 'formula-1',
+        providerId: 'ayrton-senna',
+      },
+      {
+        entityType: 'participant',
+        entityId: ids.prost!,
+        provider: 'f1db',
+        sport: 'formula-1',
+        providerId: 'alain-prost',
+      },
+    ]);
+    const listed = await loadRaceLegends(db, 'pt-BR', undefined, { list: ['alain-prost', 'ayrton-senna'] });
+    expect(listed.map((l) => l.name)).toEqual(['Alain Prost', 'Ayrton Senna']);
+    const onlySenna = await loadRaceLegends(db, 'pt-BR', undefined, { list: ['ayrton-senna', 'jim-clark'] });
+    expect(onlySenna.map((l) => l.name)).toEqual(['Ayrton Senna']);
   });
 });
