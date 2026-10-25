@@ -262,7 +262,10 @@ describe('GET /v1/events/{id}/related', () => {
         interval: 50,
       })
       .toEqual(['bast']);
-    expect(cdn.purged.flat()).toContain(relatedContentTag(eventId));
+    // O purge do CDN pode chegar depois da invalidação do Valkey: espera também.
+    await expect
+      .poll(() => cdn.purged.flat(), { timeout: 10_000, interval: 50 })
+      .toContain(relatedContentTag(eventId));
   });
 
   it('localizado por país: só o idioma do público, o próprio país primeiro, nunca vídeo em português para AR', async () => {
