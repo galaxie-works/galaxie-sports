@@ -5,6 +5,7 @@
  * com o motivo para o admin.
  */
 import { canonicalJson, editableReviewFields, lockedReviewFields, type ReviewKind } from '@galaxie/knowledge';
+import { withoutRacingAggression } from '../f1bio/profile.js';
 import { checkGeneratedText, describeViolations, type Violation } from '../guardrails/index.js';
 import type { ReviewModelOutput } from './schema.js';
 
@@ -89,18 +90,24 @@ export function fieldProblems(field: string, before: unknown, after: unknown): s
 /**
  * Guardrails do texto gerado (termos proibidos, eco de prompt injection e, com o idioma do item, idioma errado) nos
  * textos que a edição escreve no campo. Só conta o problema novo: o que o valor atual já tinha (ex.: o nome oficial
- * de um time que contém um termo da lista) não pesa contra a edição. Rivalidade só na copy de intenção `rivalry`.
+ * de um time que contém um termo da lista) não pesa contra a edição. Rivalidade só na copy de intenção `rivalry`;
+ * no perfil editorial da F1, as isenções do validador do f1bio.
  */
 export function textProblems(item: SuggestionItem, field: string, before: unknown, after: unknown): string[] {
   const locales = item.locale ? [item.locale] : ['pt-BR', 'es'];
   const allowRivalry = item.kind === 'copy' && item.content.intent === 'rivalry';
+  // perfil editorial da F1: as mesmas isenções do validador do f1bio ("pilotagem agressiva"; morte e acidente
+  // são fato da biografia, não termo de torcida)
+  const editorial = item.kind === 'editorial';
   const relevant = (v: Violation) =>
-    v.kind.startsWith('forbidden_') ||
+    (v.kind.startsWith('forbidden_') &&
+      !(editorial && (v.kind === 'forbidden_violence' || v.kind === 'forbidden_tragedy'))) ||
     v.kind === 'injection_echo' ||
     (!!item.locale && v.kind === 'wrong_language');
   const violations = (value: unknown) =>
     strings(value)
       .filter((s) => s.trim())
+      .map((s) => (editorial ? withoutRacingAggression(s) : s))
       .flatMap((s) => locales.flatMap((locale) => checkGeneratedText(s, { locale, allowRivalry })))
       .filter(relevant);
   const had = new Set(violations(before).map((v) => `${v.kind}|${v.value}`));

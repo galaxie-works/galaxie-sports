@@ -278,6 +278,9 @@ const RACING_AGGRESSION = new RegExp(
   'g',
 );
 
+/** O texto normalizado sem o "agressivo" de pilotagem (para a lista de termos proibidos; também na revisão). */
+export const withoutRacingAggression = (text: string) => normalizeText(text).replace(RACING_AGGRESSION, ' ');
+
 /** Nome de modelo com número (Brabham BT52, McLaren MP4/4, Ferrari F2004): o número é do nome, não estatística. */
 const MODEL_CODE = /\b\p{L}+\d+(?:[/-]\d+)*\p{L}*\b/gu;
 
@@ -426,7 +429,7 @@ function textFindings(
       out.push(
         finding(field, s.start, s.end, 'unknown_number', `número fora do F1DB (${numbers.join(', ')})`),
       );
-    const hits = findForbiddenTerms(normalizeText(s.text).replace(RACING_AGGRESSION, ' '), locale, {
+    const hits = findForbiddenTerms(withoutRacingAggression(s.text), locale, {
       allowPhrases: ctx.sheet.names,
     });
     if (hits.length)
