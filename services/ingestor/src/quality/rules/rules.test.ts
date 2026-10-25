@@ -11,7 +11,7 @@ import {
   type ServedDriver,
 } from './f1.js';
 import { wrongNames } from './geo.js';
-import { compareTables } from './standings.js';
+import { compareSeasons, compareTables } from './standings.js';
 import { hasOfficialSource, priceHasCurrency, servedStatuses, siteOf } from './watch.js';
 import { categoryFromName, categoryFromWikidata, competitionCategory } from './wikidata.js';
 
@@ -305,5 +305,49 @@ describe('classificação', () => {
     );
     expect(compared).toBe(2);
     expect(diffs.map((d) => d.line.participantId)).toEqual(['ecu']);
+  });
+
+  const ref = (slug: string) => ({
+    id: `s-${slug}`,
+    slug,
+    name: slug,
+    year: 2026,
+    competition_id: `c-${slug}`,
+  });
+  const table = {
+    provider: [
+      { participantId: 'a', name: 'A', group: '', played: 3, points: 9, goalsFor: 5, goalsAgainst: 1 },
+    ],
+    computed: [{ participantId: 'a', group: '', played: 3, points: 9, goalsFor: 5, goalsAgainst: 1 }],
+  };
+  const boom = async () => Promise.reject(new Error('regulamento inválido'));
+
+  it('temporada com erro vira falha com a mensagem; as outras são conferidas', async () => {
+    const r = await compareSeasons(
+      [ref('serie-a'), ref('liga-x')],
+      async (s) => (s.slug === 'liga-x' ? boom() : table),
+      () => {},
+    );
+    expect(r.checked).toBe(1);
+    expect(r.failures.map((f) => [f.key, f.current])).toEqual([
+      ['s-liga-x:erro', 'erro ao recalcular: regulamento inválido'],
+    ]);
+  });
+
+  it('erro em todas as temporadas: a regra lança (sai como error, não como pass com 0)', async () => {
+    await expect(compareSeasons([ref('serie-a'), ref('liga-x')], boom, () => {})).rejects.toThrow(
+      'nenhuma temporada recalculada (2 com erro; serie-a 2026: regulamento inválido)',
+    );
+    // sem erro e sem tabela, continua pass com 0
+    expect(
+      await compareSeasons(
+        [ref('serie-a')],
+        async () => null,
+        () => {},
+      ),
+    ).toEqual({
+      checked: 0,
+      failures: [],
+    });
   });
 });
