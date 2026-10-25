@@ -3,6 +3,7 @@ import { buildOpenApiDocument } from '@galaxie/contracts';
 import type { Database } from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../admin/guard.js';
 import { parsePlans } from '../admin/plans.js';
+import { generateApiKey } from '../auth/keys.js';
 import { isPublishableRoute } from '../auth/publishable.js';
 import { hardeningFromEnv } from '../config.js';
 import { buildServer } from '../server.js';
@@ -222,5 +223,28 @@ describe('configuração por ambiente', () => {
     expect(hardeningFromEnv({})).toEqual({});
     expect(hardeningFromEnv({ TRUST_PROXY: 'true' }).trustProxy).toBe(true);
     expect(() => hardeningFromEnv({ API_BODY_LIMIT: 'muito' })).toThrow(/API_BODY_LIMIT/);
+  });
+
+  it('TRUST_PROXY=uniquelocal (padrão da stack Portainer): IP do cliente atrás do proxy da rede interna', async () => {
+    const { store, key } = await memoryTenant();
+    // limite de 1 tentativa por IP: só passa se o IP de cada cliente for distinto do IP do proxy
+    const app = buildServer({
+      tenantStore: store,
+      ...hardeningFromEnv({ TRUST_PROXY: 'uniquelocal' }),
+      authThrottle: { attemptsPerMinute: 1 },
+    });
+    // prefixos aleatórios (o mesmo prefixo cairia no cache negativo, sem contar tentativa)
+    const viaProxy = (client: string, k = generateApiKey('test').key) =>
+      app.inject({
+        method: 'GET',
+        url: '/v1/sports',
+        remoteAddress: '172.18.0.5',
+        headers: { 'x-galaxie-key': k, 'x-forwarded-for': client },
+      });
+    expect((await viaProxy('198.51.100.1')).statusCode).toBe(401);
+    expect((await viaProxy('198.51.100.2')).statusCode).toBe(401); // outro cliente, outro balde
+    expect((await viaProxy('198.51.100.1')).statusCode).toBe(429);
+    // chave válida autentica (sem banco a rota responde 503 depois da autenticação)
+    expect([401, 429]).not.toContain((await viaProxy('198.51.100.3', key)).statusCode);
   });
 });
