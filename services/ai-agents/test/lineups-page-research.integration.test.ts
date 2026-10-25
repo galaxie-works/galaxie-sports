@@ -275,4 +275,39 @@ describe('lineups-research pela página oficial (LLM e site falsos)', () => {
     const [plan] = await db.select().from(platformPlan).where(eq(platformPlan.platformId, platformId));
     expect(plan!.priceAmount).toBe(109.9);
   });
+
+  /** Revisita direta da plataforma (a grade completa marca o que sumiu como `removed`). */
+  const revisit = async (extracted: LineupPageExtractOutput, at: Date) => {
+    const llm = new FakeLlmClient((req: LlmJsonRequest) =>
+      req.purpose.startsWith('lineups:extract:')
+        ? { data: extracted }
+        : new Error(`purpose inesperado: ${req.purpose}`),
+    );
+    const researcher = new LineupResearcher({ db, llm, config, now: () => at, pages: reader() });
+    return researcher.researchFromPages(
+      {
+        kind: 'plans',
+        country: 'BR',
+        platformId,
+        slug: 'br-operadora-exemplo',
+        name: 'Operadora Exemplo',
+        reason: 'revisit',
+      },
+      Infinity,
+      { force: true },
+    );
+  };
+
+  it('revisita com a página cortada no prompt não marca canal nem complemento como removido', async () => {
+    const base = rendered('109,90');
+    // a página passa do teto de caracteres do prompt: o modelo não viu tudo
+    page = { ...base, text: `${base.text}\n${'Texto institucional. '.repeat(10_000)}` };
+    const extracted = extraction(109.9);
+    const out = await revisit(
+      { ...extracted, planos: [{ ...extracted.planos[0]!, canais: [] }], complementos: [] },
+      new Date(NOW.getTime() + 3 * 86_400_000),
+    );
+    expect(out.status).toBe('done');
+    expect([out.removed, out.changes.filter((c) => c.fields.includes('removed'))]).toEqual([0, []]);
+  });
 });

@@ -142,15 +142,34 @@ export interface PromptPage {
 export const PAGE_PROMPT_MAX_CHARS = 60_000;
 export const PAGES_PROMPT_MAX_CHARS = 150_000;
 
-/** Texto de uma página para o prompt: o texto e, depois, cada lista aberta com o rótulo do plano. */
-export function pageBlock(page: PromptPage, index: number, maxChars = PAGE_PROMPT_MAX_CHARS): string {
-  const body = [
+/** O texto e, depois, cada lista aberta com o rótulo do plano. */
+const pageBody = (page: PromptPage) =>
+  [
     page.text,
     ...page.sections.map(
       (s) => `### Lista aberta no cartão: ${sanitizeText(s.label ?? '(sem rótulo)', 160)}\n${s.text}`,
     ),
   ].join('\n\n');
-  return wrapUntrusted(`página P${index + 1}: ${page.url}`, body, maxChars);
+
+/** Texto de uma página para o prompt: o texto e, depois, cada lista aberta com o rótulo do plano. */
+export function pageBlock(page: PromptPage, index: number, maxChars = PAGE_PROMPT_MAX_CHARS): string {
+  return wrapUntrusted(`página P${index + 1}: ${page.url}`, pageBody(page), maxChars);
+}
+
+/** Teto de cada página na extração: o total dividido entre as páginas (ao menos 5 mil). */
+const perPageChars = (pages: number, budget: number) =>
+  Math.max(5_000, Math.floor(budget / Math.max(1, pages)));
+
+/**
+ * Alguma página passou do teto e foi cortada no prompt da extração? Então o modelo não viu a página
+ * inteira e a resposta não é a grade completa (não pode marcar o que sumiu).
+ */
+export function pageExtractTruncated(
+  pages: readonly PromptPage[],
+  maxChars = PAGES_PROMPT_MAX_CHARS,
+): boolean {
+  const per = perPageChars(pages.length, maxChars);
+  return pages.some((p) => sanitizeText(pageBody(p), Infinity).length > per);
 }
 
 export function pageExtractSystemPrompt(): string {
@@ -173,8 +192,7 @@ export function pageExtractPrompt(input: {
   maxChars?: number;
 }): string {
   const c = countryOf(input.country);
-  const budget = input.maxChars ?? PAGES_PROMPT_MAX_CHARS;
-  const per = Math.max(5_000, Math.floor(budget / Math.max(1, input.pages.length)));
+  const per = perPageChars(input.pages.length, input.maxChars ?? PAGES_PROMPT_MAX_CHARS);
   return [
     `País: ${c.name} (${input.country}).`,
     `Plataforma: ${sanitizeText(input.platform.name, 120)} — ${KIND_LABEL[input.platform.kind]}.`,

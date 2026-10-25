@@ -58,6 +58,7 @@ import {
   lineupSystemPrompt,
   pageExtractPrompt,
   pageExtractSystemPrompt,
+  pageExtractTruncated,
   planPagesPrompt,
   planPrompt,
 } from './prompt.js';
@@ -918,6 +919,11 @@ export class LineupResearcher {
 
       // 4. extração do texto, sem busca, no nível leve
       const lib = this.libraryNames(dir);
+      const promptPages = reads.map((r) => ({
+        url: r.url,
+        text: r.content.text,
+        sections: r.content.sections,
+      }));
       const res = await this.call(out, 'extract', () =>
         llm.generateJson<LineupPageExtractOutput>({
           tier: 'light',
@@ -928,7 +934,7 @@ export class LineupResearcher {
               content: pageExtractPrompt({
                 country: task.country,
                 platform: { name: row.name, kind: row.kind, website: row.website },
-                pages: reads.map((r) => ({ url: r.url, text: r.content.text, sections: r.content.sections })),
+                pages: promptPages,
                 knownPlans: known.map((k) => k.name),
                 channels: lib.channels,
                 services: [...lib.services, ...lib.channels],
@@ -989,8 +995,9 @@ export class LineupResearcher {
         })),
       }));
       out.accepted = plans.length;
-      // grade completa só com todas as páginas lidas por inteiro: página que falhou não apaga plano
-      const allRead = out.pages.every((p) => p.status === 'ok');
+      // grade completa só com todas as páginas lidas por inteiro e nada cortado (página que passou do
+      // teto do prompt, planos, canais ou streamings além do limite): o que ficou de fora não é removido
+      const allRead = out.pages.every((p) => p.status === 'ok') && !pageExtractTruncated(promptPages);
       if (plans.length || catalog.addons.length) {
         const r = await upsertLineupDraft(db, {
           platform: {
@@ -1010,7 +1017,7 @@ export class LineupResearcher {
           })),
           addonsComplete: task.reason === 'revisit' && allRead && catalog.addons.length > 0,
           seenAt: this.now(),
-          complete: task.reason === 'revisit' && allRead && plans.length > 0,
+          complete: task.reason === 'revisit' && allRead && !models.truncated && plans.length > 0,
         });
         this.add(out, r);
       }
@@ -1194,6 +1201,18 @@ export class LineupResearcher {
         acceptUrl: (u: string | null) => gate.cite(u),
         now: this.now(),
       };
+      // algum limite cortou a resposta (planos, canais, streamings) ou um plano ficou sem o detalhe
+      // (sem orçamento, falhou, não achado): não é a grade inteira e nada pode virar "removido"
+      const cut =
+        listed.length > LINEUP_MAX_PLANS ||
+        listed.slice(0, LINEUP_MAX_PLANS).some((l) => {
+          const d = details.get(l.name);
+          return (
+            d?.status !== 'ok' ||
+            d.data!.canais.length > LINEUP_MAX_CHANNELS ||
+            d.data!.streamings_inclusos.length > LINEUP_MAX_SERVICES
+          );
+        });
       const verified = await verifyPlans(models, ctx);
       for (const p of verified.plans) {
         const st = details.get(p.name)?.status;
@@ -1255,8 +1274,8 @@ export class LineupResearcher {
           plans,
           addons: catalog.addons.map((a) => ({ ...a, url: null })),
           seenAt: this.now(),
-          // só a revisita com resultado marca o que sumiu: pesquisa vazia não apaga nada
-          complete: task.reason === 'revisit' && plans.length > 0,
+          // só a revisita com a grade inteira marca o que sumiu: pesquisa vazia ou cortada não apaga nada
+          complete: task.reason === 'revisit' && !cut && plans.length > 0,
         });
         this.add(out, r);
       }

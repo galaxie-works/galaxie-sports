@@ -13,7 +13,12 @@ import {
   type ReadablePage,
 } from './page-research.js';
 import { contentHashOf, memoryPageStore, OfficialPageReader } from './pages.js';
-import { pageExtractPrompt, pageExtractSystemPrompt, planPagesPrompt } from './prompt.js';
+import {
+  pageExtractPrompt,
+  pageExtractSystemPrompt,
+  pageExtractTruncated,
+  planPagesPrompt,
+} from './prompt.js';
 import { enoughForExtraction, extractPurpose, planPagesPurpose } from './research.js';
 import {
   LINEUP_PAGE_EXTRACT_SCHEMA,
@@ -159,6 +164,22 @@ describe('extração pela página oficial: schemas e prompts', () => {
       services: [],
     });
     expect(prompt.length).toBeLessThan(160_000);
+    // a página cortada no prompt não é a grade inteira (a revisita não marca o que sumiu)
+    expect(pageExtractTruncated([big, big])).toBe(true);
+    expect(pageExtractTruncated([{ ...big, text: 'x'.repeat(70_000) }])).toBe(false);
+    expect(
+      pageExtractTruncated([
+        { ...big, text: 'x'.repeat(70_000) },
+        { ...big, text: 'x' },
+      ]),
+    ).toBe(false);
+    expect(
+      pageExtractTruncated([
+        { ...big, text: 'x'.repeat(80_000) },
+        { ...big, text: 'x' },
+      ]),
+    ).toBe(true);
+    expect(pageExtractTruncated([{ url: read.url, ...read.content }])).toBe(false);
   });
 
   it('a descoberta das URLs pede no máximo 3 buscas, só no site oficial', () => {
@@ -188,10 +209,34 @@ describe('extração pela página oficial: resposta do modelo → validador', ()
   it('planos sem repetir, a URL de cada evidência é a da página (o modelo não escreve URL)', async () => {
     const { models } = await validate();
     expect(models.plans.map((p) => p.name)).toEqual(['Plano Futebol', 'Plano TV']);
+    expect(models.truncated).toBe(false);
     for (const p of models.plans) {
       expect(p.evidence.url).toBe(read.url);
       for (const c of p.channels) expect(c.evidence.url).toBe(read.url);
     }
+  });
+
+  it('resposta cortada pelos limites (planos, canais, streamings) não é a grade inteira', () => {
+    const locator = pageLocator([read], [], PLATFORM.name);
+    const ctx = { pages: [read], locator, platformName: PLATFORM.name };
+    const plan = (i: number, canais = 1, streamings = 0) => ({
+      plano_nome: `Plano ${i}`,
+      trecho_do_plano: `Plano ${i}`,
+      precos: [],
+      canais: Array.from({ length: canais }, (_, j) => ({ canal_nome: `Canal ${j}`, trecho: `Canal ${j}` })),
+      streamings_inclusos: Array.from({ length: streamings }, (_, j) => ({
+        streaming_nome: `Streaming ${j}`,
+        trecho: `Streaming ${j}`,
+      })),
+    });
+    const of = (planos: ReturnType<typeof plan>[]) =>
+      modelsFromExtraction({ planos, complementos: [], notas: null }, ctx);
+    expect(of(Array.from({ length: 12 }, (_, i) => plan(i))).truncated).toBe(false);
+    const thirteen = of(Array.from({ length: 13 }, (_, i) => plan(i)));
+    expect([thirteen.plans.length, thirteen.truncated]).toEqual([12, true]);
+    expect(of([plan(1, 61)]).truncated).toBe(true);
+    expect(of([plan(1, 60, 11)]).truncated).toBe(true);
+    expect(of([plan(1, 60, 10)]).truncated).toBe(false);
   });
 
   it('preço cheio provado pela página; o promocional fica de fora', async () => {

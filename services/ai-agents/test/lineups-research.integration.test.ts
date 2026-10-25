@@ -592,4 +592,22 @@ describe('lineups-research: o que entra na fila', () => {
       ['plans', 'failed', 1, 1, 4, 0.01],
     ]);
   });
+
+  it('revisita cortada (plano sem detalhe por falta de orçamento) não marca nada como removido', async () => {
+    const [op] = await db.select().from(platform).where(eq(platform.slug, 'br-operadora-exemplo'));
+    const llm = fake({ operator: { catalog: operatorCatalog(false), plan: operatorPlan(109.9) } });
+    const researcher = new LineupResearcher({ db, llm, config, now: () => later, resolveUrl });
+    const task = {
+      kind: 'plans' as const,
+      country: 'BR',
+      platformId: op!.id,
+      slug: op!.slug,
+      name: op!.name,
+      reason: 'revisit' as const,
+    };
+    // orçamento de 1 chamada: só a lista dos planos; o detalhe fica para a próxima
+    const out = await researcher.researchPlans(task, 1);
+    expect([out.status, out.calls, out.skippedPlans]).toEqual(['done', 1, ['Plano Exemplo Esportes']]);
+    expect([out.removed, out.changes.filter((c) => c.fields.includes('removed'))]).toEqual([0, []]);
+  });
 });
