@@ -80,7 +80,8 @@ const MT_COLS = {
   rankByTotal: medalTable.rankByTotal,
 };
 
-const ScheduleCursor = z.object({ s: z.string().nullable(), i: z.string().regex(UUID_RE) });
+// `s` vai para o SQL como timestamptz: só ISO 8601 válido (cursor forjado → 400, não 500)
+const ScheduleCursor = z.object({ s: z.iso.datetime().nullable(), i: z.string().regex(UUID_RE) });
 
 // ─── qualidade de dados ──────────────────────────────────────────────────────────────────────────
 

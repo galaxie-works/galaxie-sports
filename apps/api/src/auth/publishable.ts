@@ -11,7 +11,8 @@ import {
   type VerifiedPublishableKey,
 } from '@galaxie/db';
 import { problems } from '../errors.js';
-import type { TenantContext } from './authenticator.js';
+import type { AuthAttempt, TenantContext } from './authenticator.js';
+import { ipBucket, type AuthThrottle } from './throttle.js';
 
 /** Header da chave publicável (a que vai no código do navegador). */
 export const PUBLISHABLE_KEY_HEADER = 'x-galaxie-publishable-key';
@@ -42,6 +43,8 @@ export interface PublishableAuthenticatorOptions {
   cacheTtlMs?: number;
   /** Intervalo mínimo entre atualizações de last_used_at (ms). Padrão 5 min. */
   touchIntervalMs?: number;
+  /** Limite por IP das verificações fora do cache (cada uma é uma consulta ao banco). */
+  throttle?: AuthThrottle;
   now?: () => Date;
 }
 
@@ -55,6 +58,7 @@ export class PublishableAuthenticator {
   private origins: { list: string[]; expiresAt: number } | undefined;
   private readonly cacheTtlMs: number;
   private readonly touchIntervalMs: number;
+  private readonly throttle: AuthThrottle | undefined;
   private readonly now: () => Date;
 
   constructor(
@@ -63,6 +67,7 @@ export class PublishableAuthenticator {
   ) {
     this.cacheTtlMs = options.cacheTtlMs ?? 60_000;
     this.touchIntervalMs = options.touchIntervalMs ?? 5 * 60_000;
+    this.throttle = options.throttle;
     this.now = options.now ?? (() => new Date());
   }
 
@@ -70,12 +75,19 @@ export class PublishableAuthenticator {
    * Contexto do tenant para uma chave publicável usada a partir de `origin`. Chave inválida ou
    * revogada → 401 `INVALID_KEY`; origem fora da lista (ou ausente) → 403 `ORIGIN_NOT_ALLOWED`.
    */
-  async authenticate(rawKey: string, origin: string | undefined): Promise<TenantContext> {
+  async authenticate(
+    rawKey: string,
+    origin: string | undefined,
+    attempt: AuthAttempt = {},
+  ): Promise<TenantContext> {
     if (!isPublishableKey(rawKey)) throw problems.invalidKey('Formato de chave publicável inválido.');
     const now = this.now();
     const hash = hashPublishableKey(rawKey);
     let entry = this.cache.get(hash);
     if (!entry || entry.expiresAt <= now.getTime()) {
+      // fora do cache: uma consulta ao banco por chave (chaves aleatórias não autenticadas) — limite por IP
+      // (IPv6 por /64, como na chave secreta: um /64 inteiro gira endereços)
+      if (attempt.ip) await this.throttle?.check(`ip:${ipBucket(attempt.ip)}`);
       entry = { value: await this.store.verify(rawKey), expiresAt: now.getTime() + this.cacheTtlMs };
       if (this.cache.size > 10_000) this.cache.clear();
       if (this.cacheTtlMs > 0) this.cache.set(hash, entry);

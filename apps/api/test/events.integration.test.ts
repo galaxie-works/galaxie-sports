@@ -573,6 +573,19 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect(seen.every((e) => e.starts_at.startsWith('2026-10-21T'))).toBe(true);
   });
 
+  it('cursor forjado com timestamp inválido → 400, não 500 (auditoria API-13)', async () => {
+    const forge = (v: object) => Buffer.from(JSON.stringify(v)).toString('base64url');
+    const i = '00000000-0000-4000-8000-000000000000';
+    for (const url of [
+      `/v1/events?date=2026-10-21&cursor=${forge({ s: 'nao-e-data', i })}`,
+      `/v1/events?from=2020-01-01&order=importance&cursor=${forge({ m: 1, s: "2026-10-21'; --", i })}`,
+    ]) {
+      const res = await get(url);
+      expect(res.statusCode, url).toBe(400);
+      expect(res.json()).toMatchObject({ code: 'INVALID_PARAMS', errors: [{ path: 'cursor' }] });
+    }
+  });
+
   it('fuso do cliente muda o dia civil e o formato dos instantes', async () => {
     // 2026-10-21 em São Paulo = 03:00Z do dia 21 até 03:00Z do dia 22 — inclui a volta da semifinal (00:30Z do 22)
     const res = await get('/v1/events?date=2026-10-21&tz=America/Sao_Paulo&limit=50');
