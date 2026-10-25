@@ -249,6 +249,25 @@ describe('YouTube Data API', () => {
     expect(yt.units).toBe(2);
   });
 
+  it('teto do balde geral: a requisição que passaria dele nem sai', async () => {
+    let calls = 0;
+    const fetch: FetchLike = async () => {
+      calls++;
+      return new Response(JSON.stringify({ items: [] }));
+    };
+    const yt = new YoutubeClient({ apiKey: 'k', fetch });
+    yt.unitCeiling = 1;
+    await yt.videos(['a']);
+    const err = await yt.videos(['b']).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(YoutubeError);
+    expect((err as YoutubeError).reason).toBe('runQuotaExhausted');
+    expect(calls).toBe(1);
+    expect(yt.units).toBe(1);
+    // a busca tem balde próprio
+    await yt.search({ q: 'x', publishedAfter: KICKOFF });
+    expect(calls).toBe(2);
+  });
+
   it('cota estourada vira YoutubeError.quotaExceeded', async () => {
     const fetch: FetchLike = async () =>
       new Response(JSON.stringify({ error: { errors: [{ reason: 'quotaExceeded' }] } }), { status: 403 });

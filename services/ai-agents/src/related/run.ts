@@ -573,7 +573,10 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       report.idle++;
       continue;
     }
-    if (state.api.used >= state.api.limit) {
+    // balde geral: o jogo só entra com folga para o custo mínimo dele (videos.list + channels.list e uma
+    // página de uploads por canal conhecido); o teto do cliente (abaixo) segura o resto
+    const minUnits = mode === 'revalidate' ? 2 : mode ? 2 + cand.channelLinks : 1;
+    if (state.api.limit - state.api.used < minUnits) {
       report.idle++;
       continue;
     }
@@ -693,6 +696,8 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       const client = yt!;
       const searchStart = client.searchCalls;
       const unitsStart = client.units;
+      // nenhuma requisição do balde geral passa do que sobra no dia (a checagem acima é só por jogo)
+      client.unitCeiling = unitsStart + Math.max(0, state.api.limit - state.api.used);
       const [run] = await db
         .insert(relatedRun)
         .values({ eventId: id, mode, quotaDay, requestedBy: opts.requestedBy ?? 'cli', startedAt: now })
@@ -854,8 +859,11 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             continue;
           }
           const verdict = tierOf(v, channels);
+          // blocklist editorial (arquivo): o que já estava publicado sai na hora. As recusas do player e o
+          // bloqueio do painel já ficam fora na leitura e voltam sozinhos quando liberados: não são retirados
           if (verdict.blocked) {
             discard('blocked_channel');
+            if (prevById.has(v.id)) gone.push(v.id);
             continue;
           }
           const rel = checkRelevance(core, {

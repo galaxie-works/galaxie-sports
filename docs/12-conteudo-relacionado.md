@@ -48,7 +48,7 @@ No mesmo espírito da allowlist de domínios do Onde Assistir (`services/ai-agen
 | `media` | `channels.yaml` → `media` | imprensa esportiva de referência |
 | `creator` | Fora da allowlist, conteúdo próprio, ≥ 100 mil inscritos | canal de análise ou de torcida |
 
-O casamento é por **handle** (`snippet.customUrl` do `channels.list`, sem caixa) ou por **id do canal** (`UC…`). A blocklist editorial do Onde Assistir (`_policy.yaml` + `WTW_BLOCKLIST_FILE`/`WTW_BLOCKLIST`) também vale aqui: canal bloqueado não aparece, e o nome não é registrado.
+O casamento é por **handle** (`snippet.customUrl` do `channels.list`, sem caixa) ou por **id do canal** (`UC…`). A blocklist editorial do Onde Assistir (`_policy.yaml` + `WTW_BLOCKLIST_FILE`/`WTW_BLOCKLIST`) também vale aqui: canal bloqueado não aparece, e o nome não é registrado; o vídeo dele que já estava publicado é retirado (`retracted`) na rodada seguinte do jogo.
 
 O selo `official` depende do jogo: canal de clube só é oficial no jogo do clube, e canal de competição na competição dele (a entrada de federação do `channels.yaml`, como `competition: conmebol`, vale para todas as competições `conmebol-*`). O canal de outro clube ou de outra competição da allowlist conta como `media`.
 
@@ -313,7 +313,7 @@ Desde 1º/6/2026 a YouTube Data API conta `search.list` (e `videos.insert`) num 
 | `channels.list` (50 canais, ou `forHandle`) | geral | 1 unidade | 0–1 (cache de 30 dias) |
 | Revalidação (`videos.list`) | geral | 1 unidade | 1 a cada 2 h |
 
-O agente soma o dia de cota em `enrich.related_run` (`searches` e `api_units`), respeita `YOUTUBE_SEARCH_DAILY_QUOTA` (padrão 100) e `YOUTUBE_DAILY_QUOTA` (padrão 10.000) menos a folga `YOUTUBE_QUOTA_RESERVE_PERCENT` (padrão 10%: **90 consultas e 9.000 unidades úteis**) e grava o orçamento do dia em `enrich.related_budget` para o painel de Operação (Status e aba Conteúdo relacionado: gasta, reservada e livre nos dois baldes, rendimento por competição e jogos pulados por cota). Até a 0039 o código cobrava 100 unidades por busca num balde só; o teto de 9.000 virava ~90 buscas por coincidência, perto do limite real de 100 consultas.
+O agente soma o dia de cota em `enrich.related_run` (`searches` e `api_units`). Um jogo só entra com folga no balde geral para o custo mínimo dele (2 unidades, mais 1 por canal conhecido), e o cliente do YouTube recusa a requisição que passaria do que sobra no dia (o jogo para com erro em vez de estourar a cota). Respeita `YOUTUBE_SEARCH_DAILY_QUOTA` (padrão 100) e `YOUTUBE_DAILY_QUOTA` (padrão 10.000) menos a folga `YOUTUBE_QUOTA_RESERVE_PERCENT` (padrão 10%: **90 consultas e 9.000 unidades úteis**) e grava o orçamento do dia em `enrich.related_budget` para o painel de Operação (Status e aba Conteúdo relacionado: gasta, reservada e livre nos dois baldes, rendimento por competição e jogos pulados por cota). Até a 0039 o código cobrava 100 unidades por busca num balde só; o teto de 9.000 virava ~90 buscas por coincidência, perto do limite real de 100 consultas.
 
 ### 8.2 Reserva por faixa do dia
 
