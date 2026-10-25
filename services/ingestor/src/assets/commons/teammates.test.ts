@@ -5,7 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import type { F1dbTables } from '@galaxie/providers';
 import type { CommonsFile, WikimediaClient } from './client.js';
-import { discoverDriver, type Discovery } from './discover.js';
+import { citesDriver } from './cites.js';
+import { discoverCar, discoverDriver, type Discovery } from './discover.js';
 import { highlightPhoto, pickHighlight } from './import.js';
 import type { HighlightCar, ManifestEntry, ManifestPhoto } from './manifest.js';
 import { mapCommons, mergeRanked } from './map.js';
@@ -289,6 +290,126 @@ describe('ordenar na VPS: destaque que saiu da entrada', () => {
       [entry({ ranking: ranked, highlight_car: h('auto') })],
     );
     expect(explicitNull).not.toHaveProperty('highlight_car');
+    // `highlight_car: null` explícito no git tira também a curadoria manual
+    const [manualOff] = mergeRanked(
+      [entry({ highlight_car: null })],
+      [entry({ ranking: ranked, highlight_car: h('manual') })],
+    );
+    expect(manualOff).not.toHaveProperty('highlight_car');
+  });
+});
+
+describe('sobrenome que é o nome do carro (Brabham, McLaren, Surtees)', () => {
+  const brabham = { name: 'Jack Brabham', surname: 'Brabham' };
+  const carNames = ['Brabham 1970', 'Brabham BT33', 'brabham'];
+
+  it('só o nome inteiro ou o possessivo cita o piloto-construtor; outro sobrenome vale como palavra inteira', () => {
+    expect(citesDriver('1971 Brabham BT33 (19698941594).jpg', brabham, carNames)).toBe(false);
+    expect(citesDriver('Jack Brabham, Zandvoort 1970.jpg', brabham, carNames)).toBe(true);
+    expect(citesDriver("1970 Italian GP - Brabham's Brabham-Ford BT33.jpg", brabham, carNames)).toBe(true);
+    // fora do carro dele, o sobrenome basta
+    expect(citesDriver('Brabham at 1964 Dutch Grand Prix.jpg', brabham, ['Cooper T53'])).toBe(true);
+    // palavra inteira: "Hill" não casa com "Hillclimb"
+    const hill = { name: 'Graham Hill', surname: 'Hill' };
+    expect(citesDriver('Shelsley Walsh Hillclimb.jpg', hill, ['Lotus 49'])).toBe(false);
+    expect(citesDriver('Graham_Hill_Lotus.jpg', hill, ['Lotus 49'])).toBe(true);
+  });
+
+  it('car/brabham/1970: a foto só do carro serve a de Klerk e Stommelen; a do Jack fica com ele', () => {
+    const driver = (id: string, name: string): ManifestEntry => ({
+      target: `driver/${id}`,
+      kind: 'driver',
+      f1db_id: id,
+      name,
+      wikidata: null,
+      category: null,
+      photos: [],
+      highlight_car: { target: 'car/brabham/1970', season: 1970, reason: 'r', match: 'auto' },
+    });
+    const photo = (file: string, hero: number) =>
+      ({ file, match: 'auto', share_alike: false, hero }) as ManifestPhoto;
+    const car: ManifestEntry = {
+      target: 'car/brabham/1970',
+      kind: 'car',
+      f1db_id: 'brabham',
+      name: 'Brabham 1970',
+      season: 1970,
+      wikidata: null,
+      category: 'Brabham BT33',
+      photos: [
+        photo('File:1971 Brabham BT33 (19698941594).jpg', 0.8),
+        photo("File:1970 Italian GP - Brabham's Brabham-Ford BT33.jpg", 0.7),
+      ],
+    };
+    const entries = [
+      driver('jack-brabham', 'Jack Brabham'),
+      driver('peter-de-klerk', 'Peter de Klerk'),
+      driver('rolf-stommelen', 'Rolf Stommelen'),
+      car,
+    ];
+    const byTarget = new Map(entries.map((e) => [e.target, e]));
+    const fundo = (id: string) => pickHighlight(byTarget.get(`driver/${id}`)!, byTarget)?.photo.file;
+    expect(fundo('jack-brabham')).toBe("File:1970 Italian GP - Brabham's Brabham-Ford BT33.jpg");
+    expect(fundo('peter-de-klerk')).toBe('File:1971 Brabham BT33 (19698941594).jpg');
+    expect(fundo('rolf-stommelen')).toBe('File:1971 Brabham BT33 (19698941594).jpg');
+  });
+
+  it('na descoberta: a categoria do chassi não faz toda foto citar o Jack, nem recusar como "outro piloto"', async () => {
+    const target: CarTarget = {
+      kind: 'car',
+      f1dbId: 'mclaren',
+      constructorName: 'McLaren',
+      year: 1970,
+      chassis: ['McLaren M14A'],
+      drivers: [{ f1dbId: 'denny-hulme', name: 'Denny Hulme', lastName: 'Hulme' }],
+      // Bruce McLaren correu 1970 e é "outro piloto" do destaque do Hulme
+      others: ['McLaren', 'Gurney'],
+    };
+    const files = ['File:McLaren M14A Brands Hatch.jpg', 'File:Hulme M14A 1970.jpg', 'File:Gurney M14A.jpg'];
+    const client = {
+      categoryExists: async (c: string) => c === 'McLaren M14A',
+      get: async () => ({
+        query: { categorymembers: files.map((title) => ({ ns: 6, title })) },
+      }),
+      categoryFiles: async () => [],
+      imageInfo: async (titles: string[]) =>
+        titles.map((title) => ({ title, width: 1600, height: 1200, mime: 'image/jpeg', extmetadata: {} })),
+    } as unknown as WikimediaClient;
+    const d = await discoverCar(client, target, 512);
+    const by = new Map(d.candidates.map((c) => [c.file.title, c]));
+    expect(by.get('File:McLaren M14A Brands Hatch.jpg')!.other).toBeUndefined();
+    expect(by.get('File:Hulme M14A 1970.jpg')).toMatchObject({ featured: true, drivers: ['denny-hulme'] });
+    expect(by.get('File:Gurney M14A.jpg')!.other).toBe(true);
+  });
+});
+
+describe('outros pilotos no carro de vários destaques: interseção', () => {
+  it('o carro da equipe do grid (sem recusas) continua sem recusar ninguém; os pilotos em ordem de id', () => {
+    const generic: CarTarget = {
+      kind: 'car',
+      f1dbId: 'red-bull',
+      constructorName: 'Red Bull',
+      year: 2026,
+      chassis: ['Red Bull Racing RB22'],
+    };
+    mergeCarTarget(generic, {
+      ...generic,
+      drivers: [{ f1dbId: 'isack-hadjar', name: 'Isack Hadjar', lastName: 'Hadjar' }],
+      others: ['Lawson', 'Russell'],
+    });
+    expect(generic.others).toBeUndefined();
+    const v: CarTarget = {
+      ...generic,
+      drivers: [{ f1dbId: 'max-verstappen', name: 'Max Verstappen', lastName: 'Verstappen' }],
+      others: ['Pérez', 'Hamilton', 'Lawson'],
+    };
+    mergeCarTarget(v, {
+      ...generic,
+      drivers: [{ f1dbId: 'liam-lawson', name: 'Liam Lawson', lastName: 'Lawson' }],
+      others: ['Verstappen', 'Hamilton'],
+    });
+    expect(v.drivers!.map((d) => d.f1dbId)).toEqual(['liam-lawson', 'max-verstappen']);
+    expect(v.others).toEqual(['Hamilton']);
   });
 });
 
@@ -338,7 +459,22 @@ describe('descoberta vazia não apaga a galeria do manifesto (Stefan Johansson)'
     entries: [before],
   };
 
-  it('nenhuma candidata (com ou sem --refazer): a entrada anterior fica', async () => {
+  it('alvo identificado (categoria) sem nenhuma candidata (fotos apagadas na Commons): a entrada é refeita', async () => {
+    const discover = async (): Promise<Discovery> => ({
+      target: johansson,
+      wikidata: null,
+      category: 'Stefan Johansson',
+      candidates: [],
+      note: null,
+    });
+    const { manifest } = await mapCommons({} as WikimediaClient, [johansson], previous, {
+      revision: '2026-10-23',
+      discover,
+    });
+    expect(manifest.entries[0]!.photos).toEqual([]);
+  });
+
+  it('nenhuma candidata nem identidade (com ou sem --refazer): a entrada anterior fica', async () => {
     const discover = async (): Promise<Discovery> => ({
       target: johansson,
       wikidata: null,

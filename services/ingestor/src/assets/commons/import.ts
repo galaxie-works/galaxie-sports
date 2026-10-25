@@ -21,6 +21,7 @@ import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
 import type { WikimediaClient } from './client.js';
 import { readLicense } from './license.js';
+import { citesDriver, plainWords } from './cites.js';
 import { surname } from './scope.js';
 import {
   COMMONS_ACERVO_ID,
@@ -113,15 +114,19 @@ export async function importCommons(
     }
     /** Pares (asset, papel) que ficam: o mesmo asset em outro papel é vínculo antigo. */
     const keep: { assetId: string; role: string }[] = [];
-    /** A Commons não devolveu nenhum dos arquivos (fora do ar ou resposta vazia): a galeria fica. */
+    /**
+     * A Commons não devolveu nenhuma página (nem o arquivo nem "apagado"): falha da fonte, a galeria fica. Arquivo
+     * apagado na Commons (`missing`) sai normalmente.
+     */
     let sourceEmpty = false;
     if (photos.length) {
       // licença conferida de novo, na hora da importação
-      const infos = await client.imageInfo(
+      const { files: infos, missing } = await client.imageInfoReport(
         photos.map((p) => p.file),
         COMMONS_THUMB_WIDTH,
       );
-      sourceEmpty = !infos.length;
+      sourceEmpty = !infos.length && !missing.length;
+      const gone = new Set(missing);
       const byTitle = new Map(infos.map((i) => [i.title, i]));
       for (const photo of photos) {
         report.photos += 1;
@@ -135,7 +140,9 @@ export async function importCommons(
             file: photo.file,
             reason: info
               ? `licença: ${license && !license.ok ? license.reason : '?'}`
-              : 'arquivo sumiu da Commons',
+              : gone.has(photo.file)
+                ? 'arquivo apagado na Commons'
+                : 'arquivo sumiu da Commons',
           });
           continue;
         }
@@ -261,9 +268,11 @@ export async function importCommons(
         db.select({ id: asset.id }).from(asset).where(eq(asset.origin, 'commons')),
       ),
     );
-    // entrada sem nenhuma foto (nem rejeitada: a descoberta não achou nada, como a do Stefan Johansson) ou sem
-    // resposta da Commons: não é curadoria, e apagar levaria a galeria inteira. Só a rejeição explícita tira tudo
-    if (!entry.photos.length || sourceEmpty) {
+    // entrada sem nenhuma foto e sem identidade (nem item do Wikidata nem categoria: a descoberta não achou o
+    // piloto, como a do Stefan Johansson em 23/10) ou sem resposta da Commons: não é curadoria, e apagar levaria a
+    // galeria inteira. A rejeição explícita (`match: rejected`) e o arquivo apagado na Commons tiram foto
+    const unidentified = !entry.photos.length && !entry.wikidata && !entry.category;
+    if (unidentified || sourceEmpty) {
       const [linked] = await db
         .select({ n: sql<number>`count(*)::int` })
         .from(participantPhoto)
@@ -299,9 +308,10 @@ export async function importCommons(
 /** Nota mínima do Gemini (`hero`) para a foto do carro ir ao fundo do heading. */
 export const HERO_MIN = 0.5;
 
-/** Piloto do carro de destaque, para casar com a foto: id do F1DB e sobrenome. */
+/** Piloto do carro de destaque, para casar com a foto: id do F1DB, nome e sobrenome. */
 export interface HighlightDriver {
   f1dbId: string;
+  name: string;
   surname: string;
 }
 
@@ -316,19 +326,17 @@ export interface HighlightOptions {
   free?: (p: ManifestPhoto) => boolean;
 }
 
-/** Texto comparável: sem acento, minúsculo, `_` e `-` viram espaço. */
-const plain = (v: string) =>
-  v
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .replace(/[_-]+/g, ' ');
+/** Nomes do carro (construtor, chassi da categoria): o sobrenome igual a um deles só cita com o nome inteiro. */
+const carNamesOf = (car: ManifestEntry | undefined): string[] =>
+  car ? [car.name, car.category, car.f1db_id?.replace(/-/g, ' ')].filter((n): n is string => !!n) : [];
 
-/** A foto cita o piloto: o que a varredura registrou (`drivers`) ou o sobrenome no título do arquivo. */
-export function photoCites(p: ManifestPhoto, d: HighlightDriver): boolean {
+/**
+ * A foto cita o piloto: o que a varredura registrou (`drivers`) ou o sobrenome no título do arquivo, como palavra
+ * inteira. Sobrenome que é também o nome do carro (Jack Brabham no "1971 Brabham BT33") só com o nome inteiro.
+ */
+export function photoCites(p: ManifestPhoto, d: HighlightDriver, carNames: readonly string[] = []): boolean {
   if (p.drivers?.includes(d.f1dbId)) return true;
-  const name = plain(d.surname).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return !!name && new RegExp(`\\b${name}\\b`).test(plain(p.file));
+  return citesDriver(p.file.replace(/^File:/, ''), d, carNames);
 }
 
 /** Sobrenome do piloto pelo nome do manifesto ("Carlos Sainz Jr." → "Sainz"). */
@@ -351,10 +359,13 @@ export function highlightPhoto(
   const free = opts.free ?? ((p: ManifestPhoto) => !p.share_alike);
   const { driver } = opts;
   // o mesmo sobrenome (os Hill, os Verstappen) não separa as fotos
-  const mates = (opts.teammates ?? []).filter((t) => !driver || plain(t.surname) !== plain(driver.surname));
-  const own = (p: ManifestPhoto) => !!driver && photoCites(p, driver);
+  const mates = (opts.teammates ?? []).filter(
+    (t) => !driver || plainWords(t.surname) !== plainWords(driver.surname),
+  );
+  const carNames = carNamesOf(car);
+  const own = (p: ManifestPhoto) => !!driver && photoCites(p, driver, carNames);
   const ok = (car?.photos ?? []).filter(
-    (p) => p.match !== 'rejected' && free(p) && (own(p) || !mates.some((t) => photoCites(p, t))),
+    (p) => p.match !== 'rejected' && free(p) && (own(p) || !mates.some((t) => photoCites(p, t, carNames))),
   );
   if (!opts.scored && !ok.some((p) => p.hero != null)) return ok.find(own) ?? ok[0];
   return ok
@@ -392,11 +403,11 @@ export function pickHighlight(
       .find((p) => p.file === h.file && p.match !== 'rejected' && free(p));
     return photo ? { target: h.target, season: h.season, photo } : undefined;
   }
-  const driver = { f1dbId: entry.f1db_id, surname: driverSurname(entry.name) };
+  const driver = { f1dbId: entry.f1db_id, name: entry.name, surname: driverSurname(entry.name) };
   const teammates = (target: string) =>
     [...byTarget.values()]
       .filter((e) => e.kind === 'driver' && e.target !== entry.target && highlightTargets(e).includes(target))
-      .map((e) => ({ f1dbId: e.f1db_id, surname: driverSurname(e.name) }));
+      .map((e) => ({ f1dbId: e.f1db_id, name: e.name, surname: driverSurname(e.name) }));
   const forCar = (target: string, scored: boolean) =>
     highlightPhoto(byTarget.get(target), { scored, driver, teammates: teammates(target), free });
   if (h.match === 'manual') {

@@ -300,7 +300,20 @@ export class WikimediaClient {
 
   /** Dimensões, tipo, URL da miniatura e `extmetadata` (licença, autor, data) dos arquivos. */
   async imageInfo(titles: string[], thumbWidth: number): Promise<CommonsFile[]> {
+    return (await this.imageInfoReport(titles, thumbWidth)).files;
+  }
+
+  /**
+   * `imageInfo` com os títulos que a Commons diz não existirem (`missing`: apagado, por exemplo por violação de
+   * direito autoral; `invalid`: título inválido). Arquivo apagado sai do participante na importação; resposta sem
+   * nenhuma página (nem arquivo nem `missing`) é falha da fonte.
+   */
+  async imageInfoReport(
+    titles: string[],
+    thumbWidth: number,
+  ): Promise<{ files: CommonsFile[]; missing: string[] }> {
     const out: CommonsFile[] = [];
+    const missing: string[] = [];
     for (let i = 0; i < titles.length; i += 50) {
       const body = await this.get(COMMONS_API, {
         action: 'query',
@@ -314,6 +327,10 @@ export class WikimediaClient {
       });
       const pages = ((body.query as { pages?: unknown[] } | undefined)?.pages ?? []) as CommonsPage[];
       for (const p of pages) {
+        if (p.missing || p.invalid) {
+          missing.push(p.title);
+          continue;
+        }
         const info = p.imageinfo?.[0];
         if (!info) continue;
         out.push({
@@ -331,12 +348,14 @@ export class WikimediaClient {
         });
       }
     }
-    return out;
+    return { files: out, missing };
   }
 }
 
 interface CommonsPage {
   title: string;
+  missing?: boolean;
+  invalid?: boolean;
   imageinfo?: {
     url: string;
     descriptionurl: string;

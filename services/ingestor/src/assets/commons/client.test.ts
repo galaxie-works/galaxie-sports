@@ -76,6 +76,30 @@ describe('WikimediaClient.items', () => {
   });
 });
 
+describe('WikimediaClient.imageInfoReport', () => {
+  it('devolve à parte os arquivos que a Commons diz não existirem (apagados ou título inválido)', async () => {
+    const client = new WikimediaClient({
+      minIntervalMs: 0,
+      fetch: async () =>
+        Response.json({
+          query: {
+            pages: [
+              { title: 'File:Apagada.jpg', missing: true },
+              { title: 'File:<inválido>', invalid: true },
+              {
+                title: 'File:Viva.jpg',
+                imageinfo: [{ url: 'u', descriptionurl: 'd', width: 10, height: 10, mime: 'image/jpeg' }],
+              },
+            ],
+          },
+        }),
+    });
+    const r = await client.imageInfoReport(['File:Apagada.jpg', 'File:<inválido>', 'File:Viva.jpg'], 100);
+    expect(r.missing).toEqual(['File:Apagada.jpg', 'File:<inválido>']);
+    expect(r.files.map((f) => f.title)).toEqual(['File:Viva.jpg']);
+  });
+});
+
 describe('WikimediaClient: rede instável', () => {
   const reset = () => Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } });
 

@@ -9,6 +9,7 @@
  *   miniaturas, arte e afins.
  */
 import { WikimediaError, type CommonsFile, type WikimediaClient } from './client.js';
+import { citesDriver, hasWords, surnameIsCar } from './cites.js';
 import type { CarTarget, CommonsTarget, DriverTarget } from './scope.js';
 
 /** Ocupações aceitas: piloto de automobilismo, piloto de F1; ou esporte (P641) automobilismo/F1. */
@@ -341,10 +342,14 @@ export async function discoverCar(
       candidates: [],
       note: 'sem categoria do chassi na Commons',
     };
-  // carro de destaque: as fotos que citam um dos pilotos vêm primeiro (e não ficam de fora do limite)
+  // carro de destaque: as fotos que citam um dos pilotos vêm primeiro (e não ficam de fora do limite). O sobrenome
+  // que também é o nome do carro (Jack Brabham no Brabham BT33) só vale com o nome inteiro
+  const carNames = [target.constructorName, ...target.chassis, ...(category ? [category] : [])];
   const citedBy = (s: { title: string; from: string }) =>
     (target.drivers ?? [])
-      .filter((d) => [s.title, s.from].some((text) => plain(text).includes(plain(d.lastName))))
+      .filter((d) =>
+        [s.title, s.from].some((text) => citesDriver(text, { name: d.name, surname: d.lastName }, carNames)),
+      )
       .map((d) => d.f1dbId);
   const cited = new Map<string, string[]>();
   for (const s of sources) {
@@ -352,8 +357,9 @@ export async function discoverCar(
     if (ids.length) cited.set(s.title, [...new Set([...(cited.get(s.title) ?? []), ...ids])]);
   }
   const featured = new Set(cited.keys());
-  const others = (target.others ?? []).map((o) => plain(o).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  const citesOther = (text: string) => others.some((o) => new RegExp(`\\b${o}\\b`).test(plain(text)));
+  // outro piloto com o nome do carro (Bruce McLaren num McLaren de outro piloto) não serve para recusar a foto
+  const others = (target.others ?? []).filter((o) => !surnameIsCar(o, carNames));
+  const citesOther = (text: string) => others.some((o) => hasWords(text, o));
   const other = new Set(
     sources
       .filter((s) => !featured.has(s.title) && (citesOther(s.title) || citesOther(s.from)))

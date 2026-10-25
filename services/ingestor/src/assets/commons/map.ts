@@ -55,7 +55,7 @@ export const isRanked = (e: ManifestEntry | undefined) => !!e?.ranking;
  * Manifesto novo (entrada) com os alvos já ordenados de uma execução anterior: o alvo ordenado fica como estava,
  * com o carro de destaque da entrada (curadoria nova); alvos novos e não ordenados vêm da entrada. O destaque que
  * saiu da entrada sai também do alvo ordenado (senão voltaria a ser importado); só a curadoria manual da execução
- * anterior fica.
+ * anterior fica, salvo se a entrada traz `highlight_car: null` (o destaque foi tirado de propósito no git).
  */
 export function mergeRanked(entries: ManifestEntry[], previous: ManifestEntry[]): ManifestEntry[] {
   const before = new Map(previous.map((e) => [e.target, e]));
@@ -63,7 +63,7 @@ export function mergeRanked(entries: ManifestEntry[], previous: ManifestEntry[])
     const p = before.get(e.target);
     if (!p || !isRanked(p)) return e;
     if (e.highlight_car != null) return { ...p, highlight_car: e.highlight_car };
-    if (p.highlight_car?.match === 'manual') return p;
+    if (e.highlight_car === undefined && p.highlight_car?.match === 'manual') return p;
     const { highlight_car: _dropped, ...rest } = p;
     return rest;
   });
@@ -108,9 +108,15 @@ export async function mapCommons(
       stats.push(empty(key, 'rules', `pendente: ${(err as Error).message}`));
       continue;
     }
-    if (!d.candidates.length && prev?.photos.some((p) => p.match !== 'rejected')) {
-      // a descoberta não achou nada (item do Wikidata não encontrado, categoria fora): a entrada anterior tinha
-      // fotos conferidas, então fica como estava em vez de virar `photos: []`
+    if (
+      !d.candidates.length &&
+      !d.wikidata &&
+      !d.category &&
+      prev?.photos.some((p) => p.match !== 'rejected')
+    ) {
+      // a descoberta não identificou o alvo (sem item do Wikidata nem categoria): a entrada anterior tinha fotos
+      // conferidas, então fica como estava em vez de virar `photos: []`. Alvo identificado sem candidatas (fotos
+      // apagadas na Commons) é refeito normalmente
       opts.log?.(`${key}: nenhuma candidata (${d.note ?? 'sem nota'}); a entrada anterior fica`);
       stats.push(empty(key, 'rules', `pendente: descoberta vazia (${d.note ?? 'sem nota'})`));
       continue;

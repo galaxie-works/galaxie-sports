@@ -265,15 +265,18 @@ export function targetsFor(
 
 /**
  * Junta no alvo de carro já listado os pilotos de destaque de outro alvo com a mesma chave. O chassi fica o do
- * primeiro; os sobrenomes de quem passou a ser piloto do destaque saem de `others` (a foto do companheiro deixa
- * de ser recusada).
+ * primeiro; os pilotos ficam em ordem de id. `others` (foto que cita um deles é recusada) é a interseção dos dois:
+ * só fica de fora quem nenhum dos alvos aceita. O carro da equipe atual do grid (sem `others`) continua sem
+ * recusar ninguém — Lawson, que correu três provas pela Red Bull 2026, não perde a foto no carro do Hadjar.
  */
 export function mergeCarTarget(into: CommonsTarget, from: CommonsTarget): void {
   if (into.kind !== 'car' || from.kind !== 'car' || !from.drivers?.length) return;
   const drivers = [...(into.drivers ?? [])];
   for (const d of from.drivers) if (!drivers.some((x) => x.f1dbId === d.f1dbId)) drivers.push(d);
+  drivers.sort((a, b) => a.f1dbId.localeCompare(b.f1dbId));
   const names = new Set(drivers.map((d) => d.lastName));
-  const others = [...new Set([...(into.others ?? []), ...(from.others ?? [])])].filter((n) => !names.has(n));
+  const theirs = new Set(from.others ?? []);
+  const others = (into.others ?? []).filter((n) => theirs.has(n) && !names.has(n));
   into.drivers = drivers;
   if (others.length) into.others = others;
   else delete into.others;

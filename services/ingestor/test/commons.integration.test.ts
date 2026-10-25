@@ -292,6 +292,30 @@ describe('galeria protegida da descoberta vazia', () => {
     expect(rejected.unlinked).toBe(1);
     expect(await links()).toEqual([]);
   });
+
+  it('arquivo apagado na Commons (página `missing`) sai do piloto: a proteção é só para resposta sem página', async () => {
+    await importCommons(db, store, client(licenses), manifest([photo('File:Senna retrato.jpg', 'portrait')]));
+    expect(await links()).toEqual([{ role: 'portrait' }]);
+    const deleted = new WikimediaClient({
+      fetch: (async () =>
+        Response.json({
+          query: { pages: [{ title: 'File:Senna retrato.jpg', missing: true }] },
+        })) as typeof fetch,
+      minIntervalMs: 0,
+      sleep: async () => {},
+    });
+    const r = await importCommons(
+      db,
+      store,
+      deleted,
+      manifest([photo('File:Senna retrato.jpg', 'portrait')]),
+    );
+    expect(r.skipped).toEqual([
+      { key: 'driver/ayrton-senna', file: 'File:Senna retrato.jpg', reason: 'arquivo apagado na Commons' },
+    ]);
+    expect(r.unlinked).toBe(1);
+    expect(await links()).toEqual([]);
+  });
 });
 
 describe('carro de destaque do piloto', () => {
