@@ -31,7 +31,7 @@ export default defineMessages(
       product: 'Galaxie Sports é um produto da Galaxie Works.',
     },
     legal: {
-      updated: 'Atualizado em 23 de outubro de 2026',
+      updated: 'Atualizado em 24 de outubro de 2026',
       back: 'Voltar para a apresentação',
       terms: {
         title: 'Termos de uso',
@@ -59,6 +59,10 @@ export default defineMessages(
             title: 'Contato',
             body: 'Dúvidas sobre estes termos: <email>{email}</email>.',
           },
+          youtube: {
+            title: 'Vídeos do YouTube',
+            body: 'Os vídeos de conteúdo relacionado vêm do YouTube, pelos serviços de API do YouTube, e são exibidos no player oficial. Ao assisti-los, você concorda com os <ytterms>Termos de Serviço do YouTube</ytterms>.',
+          },
         },
       },
       privacy: {
@@ -73,7 +77,7 @@ export default defineMessages(
           },
           cookies: {
             title: 'Cookies',
-            body: 'Usamos só cookies necessários: o de sessão, que mantém você conectado, e os de preferência de idioma e fuso horário. Não usamos cookies de publicidade nem de rastreamento de terceiros.',
+            body: 'Usamos só cookies necessários: o de sessão, que mantém você conectado, e os de preferência de idioma e fuso horário. Não usamos cookies de publicidade nem de rastreamento de terceiros. O player do YouTube só grava cookies do YouTube quando você reproduz um vídeo.',
           },
           use: {
             title: 'Para que usamos',
@@ -82,6 +86,10 @@ export default defineMessages(
           sharing: {
             title: 'Compartilhamento',
             body: 'Não vendemos nem alugamos dados pessoais. Eles passam só pelos fornecedores de infraestrutura que operam o serviço (hospedagem e envio de e-mail), para essa finalidade.',
+          },
+          youtube: {
+            title: 'Vídeos do YouTube',
+            body: 'Os vídeos de conteúdo relacionado são exibidos com o player do YouTube, pelos serviços de API do YouTube, no modo de privacidade aprimorada (youtube-nocookie.com). Não acessamos, não coletamos e não guardamos dados da sua conta do YouTube. Guardamos só o identificador e os dados públicos de cada vídeo (título, canal e data) para exibi-lo, revalidamos esses dados periodicamente e os removemos quando o vídeo deixa de estar disponível. Ao reproduzir um vídeo, o YouTube e o Google tratam dados conforme a <gprivacy>Política de Privacidade do Google</gprivacy> e os <ytterms>Termos de Serviço do YouTube</ytterms>.',
           },
           retention: {
             title: 'Retenção',
@@ -121,7 +129,7 @@ export default defineMessages(
         product: 'Galaxie Sports is a product of Galaxie Works.',
       },
       legal: {
-        updated: 'Updated on October 23, 2026',
+        updated: 'Updated on October 24, 2026',
         back: 'Back to the overview',
         terms: {
           title: 'Terms of use',
@@ -149,6 +157,10 @@ export default defineMessages(
               title: 'Contact',
               body: 'Questions about these terms: <email>{email}</email>.',
             },
+            youtube: {
+              title: 'YouTube videos',
+              body: 'Related videos come from YouTube, through the YouTube API Services, and play in the official YouTube player. By watching them, you agree to the <ytterms>YouTube Terms of Service</ytterms>.',
+            },
           },
         },
         privacy: {
@@ -163,7 +175,7 @@ export default defineMessages(
             },
             cookies: {
               title: 'Cookies',
-              body: 'We only use necessary cookies: the session cookie, which keeps you signed in, and the language and time zone preference cookies. We do not use advertising or third-party tracking cookies.',
+              body: 'We only use necessary cookies: the session cookie, which keeps you signed in, and the language and time zone preference cookies. We do not use advertising or third-party tracking cookies. The YouTube player only sets YouTube cookies when you play a video.',
             },
             use: {
               title: 'How we use it',
@@ -172,6 +184,10 @@ export default defineMessages(
             sharing: {
               title: 'Sharing',
               body: 'We do not sell or rent personal data. It only goes through the infrastructure providers that run the service (hosting and email delivery), for that purpose.',
+            },
+            youtube: {
+              title: 'YouTube videos',
+              body: 'Related videos are shown with the YouTube player, through the YouTube API Services, in privacy-enhanced mode (youtube-nocookie.com). We do not access, collect or store data from your YouTube account. We only keep each video’s ID and public data (title, channel and date) to display it, refresh that data periodically and remove it when the video is no longer available. When you play a video, YouTube and Google process data under the <gprivacy>Google Privacy Policy</gprivacy> and the <ytterms>YouTube Terms of Service</ytterms>.',
             },
             retention: {
               title: 'Retention',
@@ -210,7 +226,7 @@ export default defineMessages(
         product: 'Galaxie Sports es un producto de Galaxie Works.',
       },
       legal: {
-        updated: 'Actualizado el 23 de octubre de 2026',
+        updated: 'Actualizado el 24 de octubre de 2026',
         back: 'Volver a la presentación',
         terms: {
           title: 'Términos de uso',
@@ -238,6 +254,10 @@ export default defineMessages(
               title: 'Contacto',
               body: 'Consultas sobre estos términos: <email>{email}</email>.',
             },
+            youtube: {
+              title: 'Videos de YouTube',
+              body: 'Los videos de contenido relacionado vienen de YouTube, a través de los servicios de API de YouTube, y se reproducen en el reproductor oficial. Al verlos, aceptás las <ytterms>Condiciones del Servicio de YouTube</ytterms>.',
+            },
           },
         },
         privacy: {
@@ -252,7 +272,7 @@ export default defineMessages(
             },
             cookies: {
               title: 'Cookies',
-              body: 'Usamos solo cookies necesarias: la de sesión, que te mantiene conectado, y las de preferencia de idioma y huso horario. No usamos cookies publicitarias ni de seguimiento de terceros.',
+              body: 'Usamos solo cookies necesarias: la de sesión, que te mantiene conectado, y las de preferencia de idioma y huso horario. No usamos cookies publicitarias ni de seguimiento de terceros. El reproductor de YouTube solo guarda cookies de YouTube cuando reproducís un video.',
             },
             use: {
               title: 'Para qué los usamos',
@@ -261,6 +281,10 @@ export default defineMessages(
             sharing: {
               title: 'Datos compartidos',
               body: 'No vendemos ni alquilamos datos personales. Solo pasan por los proveedores de infraestructura que operan el servicio (hosting y envío de e-mails), con esa finalidad.',
+            },
+            youtube: {
+              title: 'Videos de YouTube',
+              body: 'Los videos de contenido relacionado se muestran con el reproductor de YouTube, a través de los servicios de API de YouTube, en modo de privacidad mejorada (youtube-nocookie.com). No accedemos, no recopilamos ni guardamos datos de tu cuenta de YouTube. Solo guardamos el identificador y los datos públicos de cada video (título, canal y fecha) para mostrarlo, los revalidamos periódicamente y los eliminamos cuando el video deja de estar disponible. Al reproducir un video, YouTube y Google tratan datos según la <gprivacy>Política de Privacidad de Google</gprivacy> y las <ytterms>Condiciones del Servicio de YouTube</ytterms>.',
             },
             retention: {
               title: 'Conservación',

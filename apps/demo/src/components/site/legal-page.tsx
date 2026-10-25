@@ -6,6 +6,23 @@ import { CONTACT_EMAIL } from '@/lib/site';
 
 type LegalDoc = Dictionary['site']['legal']['terms'] | Dictionary['site']['legal']['privacy'];
 
+const external = (href: string) => (chunk: string) => (
+  <a
+    href={href}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-foreground underline underline-offset-4"
+  >
+    {chunk}
+  </a>
+);
+
+/** Links exigidos pelas políticas dos serviços de API do YouTube (termos do YouTube e privacidade do Google). */
+const LINKS = {
+  ytterms: external('https://www.youtube.com/t/terms'),
+  gprivacy: external('https://policies.google.com/privacy'),
+};
+
 const mail = (chunk: string) => (
   <a href={`mailto:${CONTACT_EMAIL}`} className="text-foreground underline underline-offset-4">
     {chunk}
@@ -25,7 +42,7 @@ export async function LegalPage({ doc }: { doc: LegalDoc }) {
           <section key={key} className="mt-9">
             <h2 className="text-xl font-semibold tracking-tight">{section.title}</h2>
             <p className="text-muted-foreground mt-2 leading-relaxed">
-              {rich(section.body, { email: mail }, { email: CONTACT_EMAIL })}
+              {rich(section.body, { email: mail, ...LINKS }, { email: CONTACT_EMAIL })}
             </p>
           </section>
         ))}
