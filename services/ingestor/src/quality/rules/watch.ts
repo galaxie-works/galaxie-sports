@@ -106,7 +106,8 @@ export const WATCH_RULES: QualityRule[] = [
                pf.website, pp.url as plan_url, i.sources
           from items i
           join enrich.platform_plan pp on pp.id = i.plan_id and pp.review_status in (${list}) and ${planCurrent(ctx.now)}
-          join enrich.platform pf on pf.id = pp.platform_id and pf.review_status in (${list})`);
+          join enrich.platform pf on pf.id = pp.platform_id and pf.review_status in (${list})
+         order by pf.name, pp.name, i.item, i.plan_id`);
       const failures: QualityFailureItem[] = rows
         .filter((r) => !hasOfficialSource(r.sources ?? [], [r.website, r.plan_url]))
         .map((r) => ({
@@ -144,7 +145,8 @@ export const WATCH_RULES: QualityRule[] = [
         select pp.id::text, pp.name as plan, pf.name as platform, pf.id::text as platform_id, pp.price_text as price
           from enrich.platform_plan pp
           join enrich.platform pf on pf.id = pp.platform_id and pf.review_status in (${list})
-         where pp.review_status in (${list}) and ${planCurrent(ctx.now)}`);
+         where pp.review_status in (${list}) and ${planCurrent(ctx.now)}
+         order by pf.name, pp.name, pp.id`);
       return {
         checked: rows.length,
         failures: rows
@@ -188,7 +190,8 @@ export const WATCH_RULES: QualityRule[] = [
           join core.event e on e.id = o.event_id
           left join enrich.broadcaster b on b.id = o.broadcaster_id
          where o.superseded_by is null and o.status in ('confirmed', 'probable')
-           and e.starts_at > ${ctx.now.toISOString()}::timestamptz - interval '30 days'`);
+           and e.starts_at > ${ctx.now.toISOString()}::timestamptz - interval '30 days'
+         order by e.sport, e.starts_at, o.id`);
       const checked: Record<string, number> = {};
       const failures: QualityFailureItem[] = [];
       for (const r of rows) {
