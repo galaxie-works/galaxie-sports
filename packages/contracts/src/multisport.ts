@@ -373,8 +373,12 @@ export const MedalHistory = z
         description:
           'Edições já iniciadas do filtro (tipo, temporada) sem quadro publicável (`insufficient`, `unknown`), ' +
           'com ou sem medalha do CON carregada: o cliente distingue "retida" de "sem participação" (edição ' +
-          'publicada sem o CON em `data`). Edições futuras não entram.',
+          'publicada sem o CON em `data`). Edições futuras não entram. Só as 10 mais recentes, em ordem ' +
+          'cronológica; o total está em `withheld_total`.',
       }),
+    withheld_total: z.number().int().min(0).meta({
+      description: 'Quantas edições do filtro estão retidas (`withheld` traz só as 10 mais recentes).',
+    }),
     sources: z.array(SourceAttribution),
   })
   .meta({ id: 'MedalHistory' });

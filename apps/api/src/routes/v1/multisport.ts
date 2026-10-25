@@ -70,6 +70,9 @@ function medalsTtl(g: GamesRow): number {
 }
 
 /** Colunas da view do quadro (views não entram aninhadas no select). */
+/** Edições retidas listadas no histórico de medalhas (as mais recentes; o total vai em `withheld_total`). */
+const WITHHELD_MAX = 10;
+
 const MT_COLS = {
   nocCode: medalTable.nocCode,
   gold: medalTable.gold,
@@ -696,6 +699,7 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
           data: [],
           totals: [],
           withheld: [],
+          withheld_total: 0,
           sources: [],
         };
         const totals = new Map<string, { gold: number; silver: number; bronze: number; total: number }>();
@@ -732,7 +736,10 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
           noc: n.code,
           ...(totals.get(n.code) ?? { gold: 0, silver: 0, bronze: 0, total: 0 }),
         }));
-        body.withheld = [...withheld.values()];
+        // sem avaliação de qualidade, quase toda edição antiga é retida: só as mais recentes, e o total
+        const retained = [...withheld.values()];
+        body.withheld = retained.slice(-WITHHELD_MAX);
+        body.withheld_total = retained.length;
         // fontes: licença de cada fonte usada nas edições publicadas
         if (sourceGames.size) {
           const src = await db

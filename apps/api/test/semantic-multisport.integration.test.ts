@@ -910,7 +910,11 @@ describe('/v1/multisport', () => {
       new Map(body.withheld.map((w) => [w.slug, w.data_quality]));
     const all = withheld(res);
     expect(all.get('pan-2023')).toMatchObject({ level: 'insufficient', publishable: false });
-    expect(all.get('pan-2019')).toMatchObject({ level: null, publishable: false });
+    // só as 10 retidas mais recentes (sem avaliação, quase toda edição antiga é retida); o total à parte
+    expect(res.withheld).toHaveLength(10);
+    expect(res.withheld_total).toBeGreaterThan(10);
+    expect(all.get('og-winter-2026')).toMatchObject({ level: null, publishable: false });
+    expect(all.has('og-summer-1896')).toBe(false);
     // futura (Lima 2027) não é histórico; a publicada fica em `data`
     expect(all.has('pan-2027')).toBe(false);
     expect(all.has('og-summer-2024')).toBe(false);
