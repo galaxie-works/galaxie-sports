@@ -200,7 +200,9 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
     expect(out.data).toEqual({ answer: 'ok' });
     expect(out.model).toBe('claude-sonnet-5-5');
     const first = sdk.calls[0]!;
-    expect(first.system).toBe('sistema\n\nextra');
+    expect(first.system).toMatch(
+      /^sistema\n\nextra\n\nAo terminar, entregue a resposta final chamando a ferramenta submit_resposta_final/,
+    );
     expect(first.tool_choice).toEqual({ type: 'auto' });
     expect(first.tools).toEqual([
       {
@@ -213,13 +215,18 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
       expect.objectContaining({ name: 'submit_resposta_final', input_schema: SCHEMA, strict: true }),
     ]);
     expect((sdk.calls[1]!.messages as unknown[]).length).toBe(2); // pergunta + turno pausado
+    // o turno pausado deixou a busca pendente: a continuação leva a mesma ferramenta, com o que sobra do teto
+    expect((sdk.calls[1]!.tools as Record<string, unknown>[])[0]).toMatchObject({
+      name: 'web_search',
+      max_uses: 5,
+    });
     // teto de buscas da chamada (AI_MAX_SEARCHES_PER_CALL, preenchido pelo orçamento) vira max_uses
     expect(client.buildTools(req({ maxSearches: 3 }))[0]).toMatchObject({ max_uses: 3 });
     expect(out.citations.map((c) => c.url)).toEqual(['https://conmebol.com/r', 'https://ge.globo.com/x']);
     expect(out.usage).toMatchObject({ inputTokens: 1_200, outputTokens: 130, webSearchCalls: 2 });
   });
 
-  it('sem busca força a ferramenta; terminou sem chamar → pede a entrega forçada', async () => {
+  it('nunca força a ferramenta nem manda temperature (400 nos modelos atuais); sem chamada → pede de novo', async () => {
     const sdk = fakeSdk([
       { stop_reason: 'end_turn', content: [{ type: 'text', text: 'pensei' }], usage: usage(10, 5) },
       {
@@ -233,8 +240,12 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
       sdk: { messages: { create: sdk.create } },
       retry: noSleep,
     });
-    await client.generateJson(req());
-    expect(sdk.calls[1]!.tool_choice).toEqual({ type: 'tool', name: 'submit_resposta_final' });
+    await client.generateJson(req({ temperature: 0.3 }));
+    expect(sdk.calls[1]!.tool_choice).toEqual({ type: 'auto' });
+    expect((sdk.calls[1]!.messages as { role: string; content: unknown }[]).at(-1)).toEqual({
+      role: 'user',
+      content: 'Entregue agora a resposta final chamando a ferramenta submit_resposta_final.',
+    });
 
     const sdk2 = fakeSdk([
       {
@@ -248,9 +259,67 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
       sdk: { messages: { create: sdk2.create } },
       retry: noSleep,
     });
-    await c2.generateJson(req({ webSearch: false }));
-    expect(sdk2.calls[0]!.tool_choice).toEqual({ type: 'tool', name: 'submit_resposta_final' });
+    await c2.generateJson(req({ webSearch: false, temperature: 0 }));
+    expect(sdk2.calls[0]!.tool_choice).toEqual({ type: 'auto' });
+    expect(sdk2.calls[0]).not.toHaveProperty('temperature');
+    expect(sdk2.calls[0]!.system).toContain('chamando a ferramenta submit_resposta_final');
     expect((sdk2.calls[0]!.tools as unknown[]).length).toBe(1);
+  });
+
+  it('teto de buscas somado entre as continuações (max_uses vale por requisição)', async () => {
+    const searched = (id: string) => [
+      { type: 'server_tool_use', id, name: 'web_search', input: { query: id } },
+      { type: 'web_search_tool_result', tool_use_id: id, content: [] },
+    ];
+    const sdk = fakeSdk([
+      {
+        stop_reason: 'pause_turn',
+        content: [...searched('s1'), ...searched('s2')],
+        usage: usage(100, 10, 4),
+      },
+      { stop_reason: 'pause_turn', content: searched('s5'), usage: usage(100, 10, 1) },
+      {
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', name: 'submit_resposta_final', input: { answer: 'ok' } }],
+        usage: usage(100, 10),
+      },
+    ]);
+    const client = new AnthropicLlmClient({
+      models: A_MODELS,
+      sdk: { messages: { create: sdk.create } },
+      retry: noSleep,
+    });
+    const out = await client.generateJson(req({ maxSearches: 5 }));
+    const tools = sdk.calls.map((c) => c.tools as Record<string, unknown>[]);
+    expect(tools[0]![0]).toMatchObject({ name: 'web_search', max_uses: 5 });
+    expect(tools[1]![0]).toMatchObject({ name: 'web_search', max_uses: 1 }); // 4 já gastas
+    // teto esgotado e nenhuma busca pendente: a continuação vai só com a ferramenta de saída
+    expect(tools[2]!.map((t) => t.name)).toEqual(['submit_resposta_final']);
+    expect(out.usage).toMatchObject({ webSearchCalls: 5 });
+
+    // teto esgotado mas com busca pendente no turno pausado: a API exige a mesma ferramenta (só ela roda)
+    const pending = fakeSdk([
+      {
+        stop_reason: 'pause_turn',
+        content: [...searched('s1'), { type: 'server_tool_use', id: 's9', name: 'web_search', input: {} }],
+        usage: usage(100, 10, 5),
+      },
+      {
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', name: 'submit_resposta_final', input: { answer: 'ok' } }],
+        usage: usage(100, 10, 1),
+      },
+    ]);
+    const c2 = new AnthropicLlmClient({
+      models: A_MODELS,
+      sdk: { messages: { create: pending.create } },
+      retry: noSleep,
+    });
+    await c2.generateJson(req({ maxSearches: 5 }));
+    expect((pending.calls[1]!.tools as Record<string, unknown>[])[0]).toMatchObject({
+      name: 'web_search',
+      max_uses: 1,
+    });
   });
 
   it('recusa não é retentada', async () => {

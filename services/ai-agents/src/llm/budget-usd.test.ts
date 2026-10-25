@@ -27,6 +27,7 @@ import {
   searchUsdFor,
   WEB_SEARCH_USD_PER_CALL,
 } from './pricing.js';
+import { AnthropicLlmClient } from './providers/anthropic.js';
 import { OpenAiLlmClient } from './providers/openai.js';
 import type { LlmJsonRequest } from './types.js';
 
@@ -361,6 +362,45 @@ describe('o teto em US$ segura', () => {
     expect(store.entries).toHaveLength(1);
     expect(store.entries[0]).toMatchObject({ outcome: 'error', inputTokens: 20_000, costUsd: 0.06 });
     expect((await budget.usdStatus()).usedUsd).toBeLessThanOrEqual(0.07);
+  });
+
+  it('Anthropic: cada continuação (pause_turn) também passa pela conferência', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const calls: Record<string, unknown>[] = [];
+    // todo turno pausa com uma busca: US$ 0,03 em tokens + 0,01 da busca
+    const create = async (params: Record<string, unknown>) => {
+      calls.push(params);
+      const id = `srvtoolu_${calls.length}`;
+      return {
+        stop_reason: 'pause_turn',
+        content: [
+          { type: 'server_tool_use', id, name: 'web_search', input: { query: 'q' } },
+          { type: 'web_search_tool_result', tool_use_id: id, content: [] },
+        ],
+        usage: { input_tokens: 10_000, output_tokens: 1_000, server_tool_use: { web_search_requests: 1 } },
+      };
+    };
+    const models = {
+      light: 'claude-sonnet-5-5',
+      standard: 'claude-sonnet-5-5',
+      research: 'claude-sonnet-5-5',
+    };
+    const anthropic = new AnthropicLlmClient({ models, sdk: { messages: { create } }, retry: noSleep });
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(
+      store,
+      { dailyLimit: null, dailyUsdLimit: 0.1, maxSearchesPerCall: 1 },
+      () => NOW,
+    );
+    const client = new BudgetedLlmClient(anthropic, budget, (t) => models[t], 'anthropic');
+
+    const err = await client
+      .generateJson(req({ webSearch: true, maxOutputTokens: 100 }))
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BudgetExceededError);
+    // estimativa ≈ US$ 0,05 (overhead de 20 mil tokens da busca + 1 busca): 0,04 + 0,05 cabe; 0,08 + 0,05 não
+    expect(calls).toHaveLength(2);
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 2, costUsd: 0.08 });
   });
 
   it('falha ao gravar o ledger não descarta a chamada já paga (nem faz o agente pagar de novo)', async () => {
