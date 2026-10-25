@@ -36,7 +36,7 @@ type AnimatedIconProps = {
  * O gatilho já está sob o mouse ou com o foco (nele ou num descendente)? Conferido quando a animação acaba
  * de carregar, para não perder o `pointerenter`/`focusin` que chegou antes dela.
  */
-export function isEngaged(trigger: Pick<Element, 'matches'>): boolean {
+export function isEngaged(trigger: { matches(selectors: string): boolean }): boolean {
   return trigger.matches(':hover, :focus-within');
 }
 
