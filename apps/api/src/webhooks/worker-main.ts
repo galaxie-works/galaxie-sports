@@ -43,6 +43,7 @@ const worker = new WebhookWorker(db, {
   ...(baseDelayMs ? { baseDelayMs } : {}),
   ...(timeoutMs ? { timeoutMs } : {}),
   secrets,
+  allowPrivateTargets: process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS === 'true',
   logger: { info: log('info'), warn: log('warn') },
 });
 

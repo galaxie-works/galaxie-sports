@@ -94,8 +94,12 @@ Notas para a implementação dos webhooks (docs/05 §5, issue #35):
     linha só se o valor não mudou, com o worker no ar). O segredo do cliente continua o mesmo.
   - **Rotação da KEK**: várias KEKs separadas por vírgula (a primeira cifra, todas decifram) + `seal-secrets`.
 - Rotação com sobreposição: durante a janela, enviar duas assinaturas (`v1=<novo>,v1=<antigo>`).
-- URLs de destino só `https://`, sem IPs privados/loopback/link-local (SSRF), resolvendo o DNS no momento do envio;
-  timeout curto, sem seguir redirects, corpo de resposta descartado.
+- URLs de destino só `https://`, sem IPs privados/loopback/link-local (SSRF): IP literal nessas faixas é recusado no
+  cadastro (loopback só para desenvolvimento) e, na entrega, o `lookup` do socket recusa qualquer resolução para
+  rede privada, link-local (metadata `169.254.169.254`), CGNAT, multicast ou reservada — a checagem é no endereço
+  usado na conexão, sem janela para DNS rebinding. `WEBHOOK_ALLOW_PRIVATE_TARGETS=true` desliga o bloqueio (só
+  desenvolvimento). Timeout curto, sem seguir redirects, corpo de resposta descartado.
+- Endpoint desativado ou tenant suspenso: entregas já enfileiradas não são enviadas (vão para a DLQ com o motivo).
 - Nunca incluir dados pessoais no payload (a API não os possui; ver docs/11 §3).
 
 ## Backups e recuperação

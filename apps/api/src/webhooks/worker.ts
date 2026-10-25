@@ -19,6 +19,7 @@ import {
 import { GapCursor } from '../realtime/gap-cursor.js';
 import { WebhookSecretBox } from './secret-box.js';
 import { SIGNATURE_HEADER, signWebhook } from './signature.js';
+import { postWebhook } from './transport.js';
 
 interface Logger {
   info(obj: object, msg?: string): void;
@@ -46,7 +47,13 @@ export interface WebhookWorkerOptions {
   cursorName?: string;
   /** KEK dos segredos (padrão: `WEBHOOK_SIGNING_SECRET` do ambiente). Legados em texto puro valem sem ela. */
   secrets?: WebhookSecretBox;
-  fetch?: typeof fetch;
+  /**
+   * Entrega em rede privada/loopback (WEBHOOK_ALLOW_PRIVATE_TARGETS; só desenvolvimento e testes). Padrão
+   * false: destino que resolve para IP privado, link-local (metadata) ou reservado falha a tentativa.
+   */
+  allowPrivateTargets?: boolean;
+  /** Transporte do POST (padrão: postWebhook, com a checagem de destino no socket). */
+  post?: typeof postWebhook;
   logger?: Logger;
 }
 
@@ -69,6 +76,7 @@ type ClaimedDelivery = {
   url: string;
   secret: string;
   active: boolean;
+  tenant_status: string;
 };
 
 /** Atraso exponencial com jitter de ±20%. */
@@ -95,7 +103,7 @@ export class WebhookWorker {
   private running: Promise<void> | undefined;
   private pending = false;
   private stopped = true;
-  private readonly fetch: typeof fetch;
+  private readonly post: typeof postWebhook;
   private readonly maxAttempts: number;
   private readonly baseDelayMs: number;
   private readonly maxDelayMs: number;
@@ -109,7 +117,7 @@ export class WebhookWorker {
     private readonly db: Database,
     private readonly options: WebhookWorkerOptions = {},
   ) {
-    this.fetch = options.fetch ?? globalThis.fetch;
+    this.post = options.post ?? postWebhook;
     this.maxAttempts = options.maxAttempts ?? 10;
     this.baseDelayMs = options.baseDelayMs ?? 10_000;
     this.maxDelayMs = options.maxDelayMs ?? 3_600_000;
@@ -258,6 +266,7 @@ export class WebhookWorker {
       update api.webhook_delivery d
          set next_retry_at = now() + make_interval(secs => ${leaseSec})
         from api.webhook_endpoint e
+        join api.tenant t on t.id = e.tenant_id
        where e.id = d.endpoint_id
          and d.id in (
            select id from api.webhook_delivery
@@ -266,7 +275,7 @@ export class WebhookWorker {
             limit ${this.batchSize}
             for update skip locked)
       returning d.id::text, d.endpoint_id, d.change_id::text, d.topic, d.payload, d.attempts,
-                e.url, e.secret, e.active`);
+                e.url, e.secret, e.active, t.status::text as tenant_status`);
     const stats: DeliveryStats = { delivered: 0, failed: 0, dead: 0 };
     const queue = [...claimed];
     const work = async () => {
@@ -282,10 +291,12 @@ export class WebhookWorker {
   private async deliver(d: ClaimedDelivery): Promise<keyof DeliveryStats> {
     const id = Number(d.id);
     const attempts = d.attempts + 1;
-    if (!d.active) {
+    // endpoint desativado ou tenant suspenso depois do enfileiramento: nada é enviado (replay pela DLQ)
+    const off = !d.active ? 'endpoint desativado' : d.tenant_status !== 'active' ? 'tenant suspenso' : null;
+    if (off) {
       await this.db
         .update(webhookDelivery)
-        .set({ status: 'dead', lastError: 'endpoint desativado' })
+        .set({ status: 'dead', lastError: off })
         .where(eq(webhookDelivery.id, id));
       return 'dead';
     }
@@ -296,8 +307,7 @@ export class WebhookWorker {
     try {
       // decifra só aqui, no momento de assinar (sem KEK, segredo cifrado vira erro desta tentativa)
       const secret = this.secrets.open(d.secret);
-      const res = await this.fetch(d.url, {
-        method: 'POST',
+      responseCode = await this.post(d.url, {
         headers: {
           'content-type': 'application/json',
           'user-agent': USER_AGENT,
@@ -309,12 +319,10 @@ export class WebhookWorker {
           'idempotency-key': `${d.endpoint_id}:${d.change_id}`,
         },
         body,
-        redirect: 'manual',
-        signal: AbortSignal.timeout(this.timeoutMs),
+        timeoutMs: this.timeoutMs,
+        allowPrivateTargets: this.options.allowPrivateTargets ?? false,
       });
-      responseCode = res.status;
-      await res.body?.cancel().catch(() => {});
-      if (res.status >= 200 && res.status < 300) {
+      if (responseCode >= 200 && responseCode < 300) {
         await this.db
           .update(webhookDelivery)
           .set({
@@ -328,7 +336,7 @@ export class WebhookWorker {
           .where(eq(webhookDelivery.id, id));
         return 'delivered';
       }
-      error = `HTTP ${res.status}`;
+      error = `HTTP ${responseCode}`;
     } catch (err) {
       error = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     }

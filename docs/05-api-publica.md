@@ -838,7 +838,7 @@ pnpm --filter @galaxie/api webhook replay --id <endpoint> | --deliveries <ids>
 pnpm --filter @galaxie/api webhook seal-secrets   # cifra segredos legados / recifra após rotacionar a KEK
 ```
 
-URL: `https://` (http só para `localhost`, ou com `--allow-http`), sem credenciais. Sem `--topics`, o endpoint recebe todos os tópicos do plano; filtros e contrato do tenant valem como no SSE.
+URL: `https://` (http só para `localhost`, ou com `--allow-http`), sem credenciais, sem IP privado/link-local/reservado. Na entrega, destino cujo DNS resolve para rede privada, loopback ou link-local (metadata) falha a tentativa (`BlockedTargetError`; `WEBHOOK_ALLOW_PRIVATE_TARGETS=true` só em desenvolvimento). Sem `--topics`, o endpoint recebe todos os tópicos do plano; filtros e contrato do tenant valem como no SSE. Endpoint desativado ou tenant suspenso: as entregas pendentes vão para a DLQ sem envio (`endpoint desativado` / `tenant suspenso`).
 
 **Requisição** — `POST` com o corpo `RealtimeChange` (acima) e os headers:
 

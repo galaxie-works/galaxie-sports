@@ -113,6 +113,8 @@ beforeAll(async () => {
     pollIntervalMs: 100,
     timeoutMs: 2_000,
     secrets,
+    // o receptor do teste está em 127.0.0.1 (em produção, rede privada é bloqueada)
+    allowPrivateTargets: true,
   });
   await worker.start();
 }, 60_000);
@@ -379,5 +381,32 @@ describe('webhooks assinados', () => {
     await expect(
       createWebhookEndpoint(db, { tenantSlug: 'portal', url: `${base}/x` }, new WebhookSecretBox([])),
     ).rejects.toThrow(/WEBHOOK_SIGNING_SECRET/);
+  });
+
+  it('tenant suspenso: entregas já enfileiradas não são enviadas (auditoria API-15)', async () => {
+    const id = await newEvent();
+    const { id: tenantId } = await upsertTenant(db, {
+      slug: 'portal-susp',
+      name: 'Suspenso',
+      plan: 'enterprise',
+    });
+    const ep = await create({
+      tenantSlug: 'portal-susp',
+      url: `${base}/susp`,
+      topics: ['score'],
+      filters: { events: [id] },
+    });
+    await db.update(tenant).set({ status: 'suspended' }).where(eq(tenant.id, tenantId));
+    // entrega que já estava na fila (ou em retentativa) quando o tenant foi suspenso
+    const [row] = await db
+      .insert(webhookDelivery)
+      .values({ endpointId: ep.id, changeId: 1, topic: 'event.score_changed', payload: { id: '1' } })
+      .returning();
+    await expect
+      .poll(async () => (await db.select().from(webhookDelivery).where(eq(webhookDelivery.id, row!.id)))[0], {
+        timeout: 5_000,
+      })
+      .toMatchObject({ status: 'dead', lastError: 'tenant suspenso' });
+    expect(hits('/susp')).toHaveLength(0);
   });
 });

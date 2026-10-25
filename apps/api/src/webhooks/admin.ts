@@ -11,6 +11,7 @@ import {
 import { resolveTopic } from '@galaxie/contracts';
 import { WEBHOOK_KEK_ENV, type WebhookSecretBox } from './secret-box.js';
 import { generateWebhookSecret } from './signature.js';
+import { isBlockedAddress } from './transport.js';
 
 export interface WebhookInput {
   tenantSlug: string;
@@ -40,6 +41,10 @@ export function validateWebhookUrl(raw: string, allowInsecure = false): string {
   if (url.protocol === 'http:' && !allowInsecure && !LOCAL_HOSTS.has(url.hostname))
     throw new WebhookInputError('Use https:// (http:// só para localhost ou com --allow-http).');
   if (url.username || url.password) throw new WebhookInputError('A URL não pode conter credenciais.');
+  // IP literal em rede privada, link-local (metadata) ou reservada: recusado já no cadastro (loopback só em
+  // desenvolvimento). Nomes de DNS são checados na entrega, no endereço que o socket usa.
+  if (!LOCAL_HOSTS.has(url.hostname) && isBlockedAddress(url.hostname.replace(/^\[|\]$/g, '')))
+    throw new WebhookInputError('A URL não pode apontar para IP privado, link-local ou reservado.');
   return url.toString();
 }
 

@@ -1,8 +1,11 @@
 import { createHmac } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseTopics, validateWebhookUrl, WebhookInputError } from './admin.js';
 import { generateWebhookSecret, signWebhook, verifyWebhookSignature } from './signature.js';
 import { WebhookSecretBox, WebhookSecretError } from './secret-box.js';
+import { BlockedTargetError, isBlockedAddress, postWebhook } from './transport.js';
 import { retryDelayMs } from './worker.js';
 
 describe('assinatura HMAC-SHA256', () => {
@@ -77,6 +80,62 @@ describe('cifra do segredo com a KEK (auditoria API-9)', () => {
   });
 });
 
+describe('transporte da entrega (auditoria API-15)', () => {
+  let server: Server;
+  let port: number;
+  const bodies: string[] = [];
+  beforeAll(async () => {
+    server = createServer((req, res) => {
+      let b = '';
+      req.on('data', (c: Buffer) => (b += c.toString('utf8')));
+      req.on('end', () => {
+        bodies.push(b);
+        res.statusCode = req.url === '/redirect' ? 302 : 204;
+        if (req.url === '/redirect') res.setHeader('location', 'http://169.254.169.254/');
+        res.end('descartado');
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    port = (server.address() as AddressInfo).port;
+  });
+  afterAll(() => new Promise((r) => server.close(r)));
+  const post = { headers: { 'content-type': 'application/json' }, body: '{"a":1}', timeoutMs: 2_000 };
+
+  it('bloqueia IP privado na URL e nome que resolve para rede privada (no socket)', async () => {
+    await expect(postWebhook(`http://127.0.0.1:${port}/x`, post)).rejects.toThrow(BlockedTargetError);
+    await expect(postWebhook(`http://localhost:${port}/x`, post)).rejects.toThrow(/rede privada/);
+    await expect(postWebhook('http://[::ffff:169.254.169.254]/x', post)).rejects.toThrow(BlockedTargetError);
+    expect(bodies).toHaveLength(0);
+  });
+
+  it('com allowPrivateTargets entrega, devolve o status e não segue redirect', async () => {
+    expect(await postWebhook(`http://localhost:${port}/x`, { ...post, allowPrivateTargets: true })).toBe(204);
+    expect(
+      await postWebhook(`http://127.0.0.1:${port}/redirect`, { ...post, allowPrivateTargets: true }),
+    ).toBe(302);
+    expect(bodies).toEqual(['{"a":1}', '{"a":1}']);
+  });
+
+  it('faixas bloqueadas', () => {
+    for (const a of [
+      '10.1.2.3',
+      '100.64.0.1',
+      '127.0.0.1',
+      '169.254.169.254',
+      '172.31.255.255',
+      '192.168.0.1',
+      '0.0.0.0',
+      '::1',
+      'fe80::1',
+      'fd12::1',
+      '::ffff:10.0.0.1',
+    ])
+      expect(isBlockedAddress(a), a).toBe(true);
+    for (const a of ['203.0.113.10', '8.8.8.8', '172.32.0.1', '2001:4860:4860::8888', 'cliente.example'])
+      expect(isBlockedAddress(a), a).toBe(false);
+  });
+});
+
 describe('retentativas', () => {
   it('dobram a cada falha, com teto e jitter de ±20%', () => {
     const mid = () => 0.5;
@@ -97,6 +156,19 @@ describe('validação do cadastro', () => {
     expect(validateWebhookUrl('http://cliente.example/x', true)).toBe('http://cliente.example/x');
     expect(() => validateWebhookUrl('https://u:p@cliente.example/x')).toThrow(WebhookInputError);
     expect(() => validateWebhookUrl('ftp://cliente.example')).toThrow(WebhookInputError);
+  });
+
+  it('recusa IP literal privado, link-local (metadata) ou reservado (auditoria API-15)', () => {
+    for (const url of [
+      'https://10.0.0.5/x',
+      'https://169.254.169.254/latest/meta-data',
+      'https://192.168.1.1/x',
+      'https://[fd00::1]/x',
+      'https://[::ffff:172.16.0.1]/x',
+    ])
+      expect(() => validateWebhookUrl(url), url).toThrow(/IP privado/);
+    expect(validateWebhookUrl('https://203.0.113.10/x')).toBe('https://203.0.113.10/x');
+    expect(validateWebhookUrl('http://127.0.0.1:3000/x')).toBe('http://127.0.0.1:3000/x');
   });
 
   it('aceita nomes curtos e completos de tópico', () => {
