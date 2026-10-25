@@ -2,11 +2,17 @@ import { asc, eq } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { eventIncident, footballFixture, person, type Database } from '@galaxie/db';
 import { teamStatisticValues, type TeamStatisticCode } from '@galaxie/providers';
-import { knockoutStageRules } from '@galaxie/rules';
+import { knockoutStageRules, salientStakes, stakeText, type Stake } from '@galaxie/rules';
 import type { AgentLocale } from '../guardrails/index.js';
 import { competitionName, stageName, teamName, type EventCore } from '../context/event-core.js';
 import { roundNumber } from '../context/scenario.js';
-import { computeEventStakes, KNOCKOUT_STAGE_KINDS, type KnockoutContext } from '../context/stakes.js';
+import {
+  computeEventStakes,
+  KNOCKOUT_STAGE_KINDS,
+  LEAGUE_STAGE_KINDS,
+  type EventStakes,
+  type KnockoutContext,
+} from '../context/stakes.js';
 
 /**
  * Fatos do Resumo pós-jogo (issue #58): placar, timeline (`core.event_incident`) e estatísticas do
@@ -88,6 +94,63 @@ export interface RecapKnockoutInput extends KnockoutContext {
   titlesBefore?: Partial<Record<Side, number>>;
 }
 
+/** Código do motor com o rótulo fixo por locale (o significado exato). */
+export interface RecapStakeFact {
+  team: Stake['team'];
+  code: string;
+  /** Parâmetros do código (posição, pontos, zona), para o validador. */
+  params?: Stake['params'];
+  labels: Partial<Record<AgentLocale, string>>;
+}
+
+/** Posição e pontos de um time antes e depois do jogo (pontos corridos). */
+export interface RecapLeagueRow {
+  rank_before: number;
+  rank_after: number;
+  points_before: number;
+  points_after: number;
+  /** Jogos restantes depois deste (null sem `matches_per_team`). */
+  remaining: number | null;
+}
+
+/**
+ * Pontos corridos (jogo encerrado): o que estava em jogo, com a tabela de antes, e o que o resultado
+ * mudou, só os códigos salientes (até 3 por time e fase, docs/rules §3.5).
+ */
+export interface RecapLeague {
+  teams_in_table: number;
+  home: RecapLeagueRow;
+  away: RecapLeagueRow;
+  /** O que estava em jogo antes do jogo. */
+  before: RecapStakeFact[];
+  /** O que o resultado mudou (posição, zona, garantias, distância para as zonas). */
+  result: RecapStakeFact[];
+}
+
+/**
+ * Como o placar se construiu, a partir da timeline (só quando os placares parciais batem com o final):
+ * virada, gol decisivo e se ele saiu no fim ou nos acréscimos.
+ */
+export interface RecapFlow {
+  /** Vencedor (null = empate). */
+  winner: Side | null;
+  /** O vencedor esteve atrás no placar (virada) — maior desvantagem, em gols. 0 = nunca esteve atrás. */
+  winner_max_deficit: number;
+  /** Empate: o time que saiu atrás e buscou o empate (null sem isso). */
+  came_back_to_draw: Side | null;
+  /** Gol que decidiu: o que deu a vantagem final ao vencedor, ou o último gol do empate. */
+  decisive_goal: {
+    team: Side;
+    minute: number | null;
+    extra: number | null;
+    scorer: string | null;
+    /** Do 85' ao fim do tempo normal (acréscimos inclusive; prorrogação não conta). */
+    late: boolean;
+    /** Nos acréscimos do 2º tempo (90+N). Aos 90' sem acréscimo, false. */
+    stoppage_time: boolean;
+  } | null;
+}
+
 export interface RecapFacts {
   match: {
     competition: Partial<Record<AgentLocale, string>> | null;
@@ -114,9 +177,123 @@ export interface RecapFacts {
    */
   champion_titles?: { side: Side; title_number: number };
   goals: RecapGoal[];
+  /** Virada e gol decisivo (ausente sem placares parciais confiáveis). */
+  flow?: RecapFlow;
+  /** Pontos corridos: o que estava em jogo e o que o resultado mudou (ausente fora deles). */
+  league?: RecapLeague;
   missed_penalties: RecapPlayerEvent[];
   red_cards: RecapPlayerEvent[];
   statistics: { home: Record<string, number>; away: Record<string, number> } | null;
+}
+
+/** Virada, empate buscado e gol decisivo a partir dos placares parciais da timeline. */
+export function buildRecapFlow(
+  goals: readonly RecapGoal[],
+  final: { home: number; away: number },
+): RecapFlow | null {
+  if (!goals.length || goals.some((g) => !g.score_after)) return null;
+  const winner: Side | null = final.home === final.away ? null : final.home > final.away ? 'home' : 'away';
+  const other = (x: Side): Side => (x === 'home' ? 'away' : 'home');
+  let deficit = 0;
+  let decisive: RecapGoal | null = null;
+  if (winner) {
+    for (const g of goals) {
+      const sa = g.score_after!;
+      deficit = Math.max(deficit, sa[other(winner)] - sa[winner]);
+    }
+    // o gol que pôs o vencedor na frente pela última vez (depois dele, nunca mais empatou)
+    for (let i = goals.length - 1; i >= 0; i--) {
+      const sa = goals[i]!.score_after!;
+      const prev = i ? goals[i - 1]!.score_after! : { home: 0, away: 0 };
+      if (
+        goals[i]!.team === winner &&
+        sa[winner] > sa[other(winner)] &&
+        prev[winner] <= prev[other(winner)]
+      ) {
+        decisive = goals[i]!;
+        break;
+      }
+    }
+  } else decisive = goals.at(-1)!;
+  // empate: quem saiu atrás e buscou (o último gol empatou o jogo)
+  let cameBack: Side | null = null;
+  if (!winner) {
+    const last = goals.at(-1)!;
+    const sa = last.score_after!;
+    if (sa.home === sa.away) cameBack = last.team;
+  }
+  const minute = decisive?.minute ?? null;
+  const extra = decisive?.extra ?? null;
+  return {
+    winner,
+    winner_max_deficit: deficit,
+    came_back_to_draw: cameBack,
+    decisive_goal: decisive
+      ? {
+          team: decisive.team,
+          minute,
+          extra,
+          scorer: decisive.scorer,
+          // tempo normal: o fornecedor manda os acréscimos como 90 + extra; 91' em diante é prorrogação
+          late: minute !== null && minute >= 85 && minute <= 90,
+          stoppage_time: minute === 90 && !!extra,
+        }
+      : null,
+  };
+}
+
+/**
+ * Pontos corridos encerrado: o motor de regras calcula a tabela de antes e a de depois; só os códigos
+ * salientes vão para o resumo. Null fora de pontos corridos ou sem dados confiáveis (tabela que não
+ * bate com os resultados).
+ */
+export async function loadRecapLeague(
+  db: Database,
+  core: EventCore,
+): Promise<Pick<EventStakes, 'stakes' | 'league' | 'result'> | null> {
+  if (core.stage && !LEAGUE_STAGE_KINDS.has(core.stage.kind)) return null;
+  const stakes = await computeEventStakes(db, core);
+  return stakes.league && stakes.result ? stakes : null;
+}
+
+/** Fatos de pontos corridos do resumo (salientes, com rótulos fixos por locale). */
+export function buildRecapLeague(
+  core: Pick<EventCore, 'home' | 'away'>,
+  input: Pick<EventStakes, 'stakes' | 'league' | 'result'>,
+  locales: readonly AgentLocale[],
+): RecapLeague | null {
+  const lg = input.league;
+  const res = input.result;
+  if (!lg || !res) return null;
+  const labels = (list: readonly Stake[]): RecapStakeFact[] =>
+    list.map((s) => ({
+      team: s.team,
+      code: s.code,
+      ...(s.params ? { params: { ...s.params } } : {}),
+      labels: Object.fromEntries(locales.map((l) => [l, stakeText(s, l)])) as Partial<
+        Record<AgentLocale, string>
+      >,
+    }));
+  const row = (side: Side): RecapLeagueRow => {
+    const id = side === 'home' ? core.home.id : core.away.id;
+    const b = lg.rows.find((r) => r.teamId === id)!;
+    const a = res.rows.find((r) => r.teamId === id)!;
+    const remaining = lg.remaining[side];
+    return {
+      rank_before: b.rank,
+      rank_after: a.rank,
+      points_before: b.points,
+      points_after: a.points,
+      remaining: remaining === null ? null : Math.max(0, remaining - 1),
+    };
+  };
+  return {
+    teams_in_table: lg.teams,
+    home: row('home'),
+    away: row('away'),
+    before: labels(salientStakes(input.stakes, lg.salience)),
+    result: labels(salientStakes(res.stakes, res.salience)),
+  };
 }
 
 /**
@@ -360,6 +537,7 @@ export function buildRecapFacts(
   statistics: RecapFacts['statistics'],
   locales: readonly AgentLocale[],
   knockout: RecapKnockoutInput | null = null,
+  league: Pick<EventStakes, 'stakes' | 'league' | 'result'> | null = null,
 ): RecapFacts | null {
   const s = core.score;
   if (!s || typeof s.home !== 'number' || typeof s.away !== 'number') return null;
@@ -386,6 +564,9 @@ export function buildRecapFacts(
       }),
     ) as Partial<Record<AgentLocale, T>>;
   const before = tie?.outcome === 'title' && tie.winner ? knockout?.titlesBefore?.[tie.winner] : undefined;
+  const goals = buildGoals(incidents, core, final);
+  const flow = buildRecapFlow(goals, final);
+  const leagueFacts = league ? buildRecapLeague(core, league, locales) : null;
   return {
     ...(before !== undefined && tie?.winner
       ? { champion_titles: { side: tie.winner, title_number: before + 1 } }
@@ -407,7 +588,9 @@ export function buildRecapFacts(
     penalties: pen,
     aggregate: tie?.aggregate ?? s.aggregate ?? null,
     tie,
-    goals: buildGoals(incidents, core, final),
+    goals,
+    ...(flow ? { flow } : {}),
+    ...(leagueFacts ? { league: leagueFacts } : {}),
     missed_penalties: playerEvents(incidents, core, (i) => i.type === 'penalty_missed'),
     red_cards: playerEvents(
       incidents,
