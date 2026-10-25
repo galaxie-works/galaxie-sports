@@ -4,7 +4,8 @@ import { ChevronRight } from 'lucide-react';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { MatchTimeline } from '@/components/live/match-timeline';
 import { Frame, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
-import { hasPitch, LineupBench, LineupPitch, LineupStarters } from '@/components/sport/lineups';
+import { hasPitch, lineupDictionary } from '@/components/sport/lineups';
+import { LiveLineup } from '@/components/sport/live-lineup';
 import { MatchStats } from '@/components/sport/match-stats';
 import { UrlTabs } from '@/components/sport/url-tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -13,7 +14,6 @@ import { lineupsRequest, statsRequest, timelineRequest } from '@/lib/galaxie/api
 import type { ApiRequest } from '@/lib/galaxie/request';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
-import type { MarksLookup } from '@/lib/lineup-marks';
 import {
   activeTab,
   DETAIL_PARAM,
@@ -47,7 +47,6 @@ export function MatchDetails({
   timeline,
   stats,
   lineups,
-  marks,
   colors,
   query,
   timeZone,
@@ -56,11 +55,13 @@ export function MatchDetails({
   t,
 }: {
   eventId: string;
-  /** Minuto a minuto, só quando já faz sentido mostrar (jogo começou ou há lance). */
+  /**
+   * Minuto a minuto, só quando já faz sentido mostrar (jogo começou ou há lance). Também dá as marcas da
+   * escalação (gols, cartões, trocas), que seguem o minuto a minuto ao vivo (`LiveLineup`).
+   */
   timeline: EventTimeline | null;
   stats: EventStats | null;
   lineups: EventLineups | null;
-  marks: MarksLookup;
   /** Cor de cada time [mandante, visitante] (`versusColors`). */
   colors: [string, string];
   /** `searchParams` da página (aba e sub-aba ativas). */
@@ -101,6 +102,8 @@ export function MatchDetails({
     reservas: tx.lineupTabs.bench,
     campo: tx.lineupTabs.pitch,
   };
+  // a escalação é do navegador (segue o minuto a minuto ao vivo): só os textos que ela usa
+  const lineupTexts = lineupDictionary(t);
 
   return (
     <Frame className="w-full" stacked>
@@ -178,19 +181,19 @@ export function MatchDetails({
                         </TabsTrigger>
                       ))}
                     </TabsList>
-                    <TabsContent value="titulares" keepMounted>
-                      <LineupStarters lineups={lineups!} colors={colors} marks={marks} t={t} />
-                    </TabsContent>
-                    {lineupTabs.has('reservas') ? (
-                      <TabsContent value="reservas" keepMounted>
-                        <LineupBench lineups={lineups!} colors={colors} marks={marks} t={t} />
+                    {LINEUP_TABS.filter((x) => lineupTabs.has(x)).map((x) => (
+                      <TabsContent key={x} value={x} keepMounted>
+                        <LiveLineup
+                          view={x}
+                          eventId={eventId}
+                          timeline={timeline}
+                          lineups={lineups!}
+                          colors={colors}
+                          content={content}
+                          t={lineupTexts}
+                        />
                       </TabsContent>
-                    ) : null}
-                    {lineupTabs.has('campo') ? (
-                      <TabsContent value="campo" keepMounted>
-                        <LineupPitch lineups={lineups!} colors={colors} marks={marks} t={t} />
-                      </TabsContent>
-                    ) : null}
+                    ))}
                   </UrlTabs>
                 </TabsContent>
               ) : null}

@@ -16,6 +16,19 @@ type Lineup = EventLineups['lineups'][number];
 type LineupPlayer = Lineup['start_xi'][number];
 type Tx = Dictionary['event']['lineups'];
 
+/**
+ * Só os textos do dicionário que a escalação usa: o assunto `event` não vai para o navegador, e a
+ * escalação ao vivo (`LiveLineup`, componente do navegador) recebe só este pedaço do servidor.
+ */
+export interface LineupDictionary {
+  event: { lineups: Tx; details: { columns: Dictionary['event']['details']['columns'] } };
+}
+
+/** O pedaço do dicionário que a escalação usa (`LineupDictionary`), para passar ao navegador. */
+export const lineupDictionary = (t: Dictionary): LineupDictionary => ({
+  event: { lineups: t.event.lineups, details: { columns: t.event.details.columns } },
+});
+
 // ─── ícones dos lances ───────────────────────────────────────────────────────────────────────────
 
 function CardIcon({ marks, tx }: { marks: PlayerMarks; tx: Tx }) {
@@ -445,7 +458,7 @@ export function LineupStarters({
   lineups: EventLineups;
   colors: [string, string];
   marks: MarksLookup;
-  t: Dictionary;
+  t: LineupDictionary;
 }) {
   const tx = t.event.lineups;
   const cols = t.event.details.columns;
@@ -505,7 +518,7 @@ export function LineupBench({
   lineups: EventLineups;
   colors: [string, string];
   marks: MarksLookup;
-  t: Dictionary;
+  t: LineupDictionary;
 }) {
   const tx = t.event.lineups;
   const cols = t.event.details.columns;
@@ -581,7 +594,7 @@ export function LineupPitch({
   lineups: EventLineups;
   colors: [string, string];
   marks: MarksLookup;
-  t: Dictionary;
+  t: LineupDictionary;
 }) {
   const [home, away] = lineups.lineups;
   if (!home || !away) return null;
