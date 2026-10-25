@@ -62,9 +62,9 @@ describe('temporada do carro no heading do piloto', () => {
     expect(heroSeason(career([season(2010, { car }), season(2012, { car })]))?.year).toBe(2012);
   });
 
-  it('pula temporada sem foto do carro', () => {
+  it('foto do carro da temporada não pesa na escolha (o fundo só usa o destaque do acervo)', () => {
     const c = career([season(1988, { position: 1, wins: 8 }), season(1990, { position: 1, wins: 6, car })]);
-    expect(heroSeason(c)?.year).toBe(1990);
+    expect(heroSeason(c)?.year).toBe(1988);
   });
 
   it('sem foto nenhuma, fica a mais marcante (para a cor da equipe)', () => {
@@ -109,12 +109,12 @@ describe('temporada do carro no heading do piloto', () => {
       expect(coverable(null)).toBe(false);
     });
 
-    it('regra: a temporada pula o carro BY-SA (a cor dela); o fundo só vem do destaque', () => {
+    it('regra: a temporada mais marcante, mesmo com carro BY-SA; o fundo só vem do destaque', () => {
       const c = career([
         season(1988, { position: 1, wins: 8, car: bySa }),
         season(1990, { position: 1, wins: 6, car: by }),
       ]);
-      expect(heroSeason(c)?.year).toBe(1990);
+      expect(heroSeason(c)?.year).toBe(1988);
       expect(heroPhotos({ ...c, portrait: null, highlight: null }).car).toBeNull();
       expect(heroPhotos({ ...c, portrait: null, highlight: { season: 1990, car: by } }).car).toBe(by);
     });
