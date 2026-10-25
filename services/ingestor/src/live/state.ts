@@ -1,9 +1,12 @@
 /**
- * Estado publicado pelo processo do ao vivo em `ops.sync_cursor` (endpoint `live:scheduler`, chave = esporte):
+ * Estado publicado pelo processo do ao vivo em `ops.sync_cursor` (endpoint `live:scheduler`, chave `state`, uma
+ * linha por esporte na coluna `sport`):
  * o intervalo dinâmico, o orçamento e as janelas do dia. As métricas (`galaxie_live_poll_interval_seconds`)
  * e o `live:run --plan` leem daqui — sem métricas em memória, vale com qualquer número de processos.
  */
+import { and, eq, lt } from 'drizzle-orm';
 import { syncCursor, type Database } from '@galaxie/db';
+import { RECONCILE_CURSOR_ENDPOINT } from './reconcile.js';
 import { windowEnd } from './schedule.js';
 import type { LiveDayPlan } from './types.js';
 
@@ -78,4 +81,46 @@ export async function saveLiveState(
       target: [syncCursor.provider, syncCursor.sport, syncCursor.endpoint, syncCursor.key],
       set: { cursor: state, completedAt: now, updatedAt: now },
     });
+}
+
+/** Último estado gravado pelo processo do ao vivo (`null` = nunca rodou para o esporte). */
+export async function loadLiveState(
+  db: Database,
+  sport: string,
+  provider = 'api-sports',
+): Promise<LiveSchedulerState | null> {
+  const [row] = await db
+    .select({ cursor: syncCursor.cursor })
+    .from(syncCursor)
+    .where(
+      and(
+        eq(syncCursor.provider, provider),
+        eq(syncCursor.sport, sport),
+        eq(syncCursor.endpoint, LIVE_STATE_ENDPOINT),
+        eq(syncCursor.key, 'state'),
+      ),
+    );
+  return (row?.cursor as LiveSchedulerState | undefined) ?? null;
+}
+
+/**
+ * Retenção dos cursores da reconciliação (`live:reconcile`: tentativas por jogo e último lote por data):
+ * só servem enquanto o jogo está na janela de horas da reconciliação. Devolve quantos apagou.
+ */
+export async function pruneReconcileCursors(
+  db: Database,
+  before: Date,
+  provider = 'api-sports',
+): Promise<number> {
+  const rows = await db
+    .delete(syncCursor)
+    .where(
+      and(
+        eq(syncCursor.provider, provider),
+        eq(syncCursor.endpoint, RECONCILE_CURSOR_ENDPOINT),
+        lt(syncCursor.updatedAt, before),
+      ),
+    )
+    .returning({ key: syncCursor.key });
+  return rows.length;
 }
