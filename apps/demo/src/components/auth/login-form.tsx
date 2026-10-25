@@ -14,6 +14,7 @@ import { useI18n } from '@/lib/i18n/client';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { fill, rich } from '@/lib/i18n/text';
 import { internalPath } from '@/lib/internal-path';
+import { clearTrail } from '@/lib/trail';
 
 /** Mesmos valores do servidor (lib/auth/server.ts), repetidos aqui para não importar código do servidor. */
 const OTP_LENGTH = 6;
@@ -144,6 +145,8 @@ export function LoginForm() {
     }
     // O idioma da tela de login passa a ser o do perfil (o dos próximos e-mails da pessoa).
     await authClient.updateUser({ locale }).catch(() => {});
+    // Trilha nova a cada login: a da aba pode ser de outra pessoa (sessão vencida, troca de usuário).
+    clearTrail();
     router.replace(safeNext(params.get('voltar')));
     router.refresh();
   }
