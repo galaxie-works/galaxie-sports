@@ -80,6 +80,7 @@ import {
   type Tx,
 } from './sql-helpers.js';
 import { uuidv7 } from './uuid.js';
+import { tidyParticles } from './name-case.js';
 
 export interface UpsertOptions {
   precedence?: PrecedencePolicy;
@@ -510,8 +511,8 @@ export async function upsertBatchInTx(
         sport: batch.sport,
         // tipo desconhecido entra como clube e não sobrescreve um tipo já conhecido
         kind: p.kind ?? 'club',
-        name: p.name,
-        shortName: p.shortName,
+        name: tidyParticles(p.name),
+        shortName: tidyParticles(p.shortName),
         code: p.code,
         countryCode: await refs.countryCode(p.countryCode, p.countryName),
         founded: p.founded,
