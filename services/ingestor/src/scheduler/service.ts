@@ -261,6 +261,11 @@ export class SchedulerService {
       }
       log.info({}, 'rodando job pedido pelo painel');
       const result = await this.execute(req.job, 'panel');
+      if (result.status === 'skipped') {
+        // outro processo (ex.: um `scheduler --run` no console) já está rodando o job
+        await finishJobRequest(db, req.id, { status: 'skipped', detail: 'already_running' });
+        return;
+      }
       await finishJobRequest(db, req.id, {
         status: result.status === 'ok' ? 'done' : 'error',
         runId: result.runId,
