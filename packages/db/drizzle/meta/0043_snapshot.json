@@ -1,5 +1,5 @@
 {
-  "id": "fe8e1683-8f67-41c1-8465-70b72a61b776",
+  "id": "8cdc75b3-7cdb-4ed6-9e5e-34b636cd8e82",
   "prevId": "bbed94fc-8213-44ad-b0fc-c57b575c0f45",
   "version": "7",
   "dialect": "postgresql",
@@ -13771,6 +13771,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "rotated_at": {
+          "name": "rotated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "last_used_at": {
           "name": "last_used_at",
           "type": "timestamp with time zone",
@@ -15012,13 +15018,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "uploaded_by": {
           "name": "uploaded_by",

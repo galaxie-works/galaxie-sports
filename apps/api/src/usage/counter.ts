@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type { Redis } from 'ioredis';
 
 /** Dia UTC no formato YYYY-MM-DD. */
@@ -7,6 +8,41 @@ export function utcDay(at: Date = new Date()): string {
 
 /** Uso de um tenant num dia: rota → requisições. */
 export type RouteCounts = Record<string, number>;
+
+/** Dias que os contadores ficam no Valkey (TTL das chaves); o persister reconsidera todos eles. */
+export const USAGE_RETENTION_DAYS = 4;
+
+/**
+ * Campo do hash do dia com a **época** do contador, gravado (HSETNX) antes do primeiro HINCRBY do hash.
+ * Hash recriado (Valkey reiniciado sem dados, chave apagada, sufixo do AOF perdido) = época nova, e o
+ * Postgres soma a contagem da época nova ao consolidado em vez de comparar com `greatest()` (ver
+ * `persistUsage`). Não é rota (rotas são `MÉTODO /caminho`); `get()` nunca o devolve.
+ *
+ * Fica no próprio hash (não numa chave à parte) para sumir junto com os contadores em qualquer perda,
+ * inclusive por despejo de memória. Efeito colateral num rollback para uma versão sem épocas: o `get()`
+ * antigo lê `#epoca` como uma rota de valor NaN — a consolidação antiga o descarta (`n > 0`), mas a
+ * consulta de uso antiga mostra total null para os dias ainda no Valkey (até 4 dias).
+ */
+const EPOCH_FIELD = '#epoca';
+
+/** Época ordenada no tempo (`<ms em largura fixa de 15>-<aleatório>`): a consolidação ignora snapshot mais velho. */
+const newEpoch = () => `${String(Date.now()).padStart(15, '0')}-${randomBytes(6).toString('base64url')}`;
+
+const splitEpoch = (raw: Record<string, string>): UsageSnapshot => {
+  let epoch: string | null = null;
+  const counts: RouteCounts = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (k === EPOCH_FIELD) epoch = v;
+    else counts[k] = Number(v);
+  }
+  return { epoch, counts };
+};
+
+/** Contadores de tenant × dia e a época do hash (null = hash anterior às épocas). */
+export interface UsageSnapshot {
+  epoch: string | null;
+  counts: RouteCounts;
+}
 
 /**
  * Onde os contadores diários vivem. No Valkey: um hash por tenant × dia
@@ -18,6 +54,8 @@ export interface UsageBackend {
   incr(entries: { day: string; tenantId: string; route: string; n: number }[]): Promise<void>;
   tenants(day: string): Promise<string[]>;
   get(day: string, tenantId: string): Promise<RouteCounts>;
+  /** Contadores com a época do hash (consolidação e consulta). */
+  snapshot(day: string, tenantId: string): Promise<UsageSnapshot>;
   /** Trava curta para que só uma instância consolide por vez (true = obteve a trava). */
   lock(name: string, ttlMs: number): Promise<boolean>;
 }
@@ -26,7 +64,7 @@ export class RedisUsageBackend implements UsageBackend {
   constructor(
     private readonly redis: Redis,
     private readonly prefix = 'gs:',
-    private readonly ttlDays = 4,
+    private readonly ttlDays = USAGE_RETENTION_DAYS,
   ) {}
 
   private hashKey(day: string, tenantId: string) {
@@ -44,6 +82,9 @@ export class RedisUsageBackend implements UsageBackend {
     const touched = new Set<string>();
     for (const e of entries) {
       const key = this.hashKey(e.day, e.tenantId);
+      // época antes do primeiro HINCRBY: num AOF truncado, perder a época implica perder os incrementos
+      // seguintes (o AOF perde um sufixo), então nunca sobra contagem de época nova sem a época
+      if (!touched.has(key)) pipe.hsetnx(key, EPOCH_FIELD, newEpoch());
       pipe.hincrby(key, e.route, e.n);
       if (!touched.has(key)) {
         touched.add(key);
@@ -62,8 +103,11 @@ export class RedisUsageBackend implements UsageBackend {
   }
 
   async get(day: string, tenantId: string): Promise<RouteCounts> {
-    const raw = await this.redis.hgetall(this.hashKey(day, tenantId));
-    return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, Number(v)]));
+    return (await this.snapshot(day, tenantId)).counts;
+  }
+
+  async snapshot(day: string, tenantId: string): Promise<UsageSnapshot> {
+    return splitEpoch(await this.redis.hgetall(this.hashKey(day, tenantId)));
   }
 
   async lock(name: string, ttlMs: number): Promise<boolean> {
@@ -74,6 +118,7 @@ export class RedisUsageBackend implements UsageBackend {
 /** Em memória (testes e desenvolvimento sem Valkey; não compartilha entre instâncias). */
 export class MemoryUsageBackend implements UsageBackend {
   readonly data = new Map<string, Map<string, RouteCounts>>();
+  private readonly epochs = new Map<string, string>();
 
   async incr(entries: { day: string; tenantId: string; route: string; n: number }[]): Promise<void> {
     for (const e of entries) {
@@ -82,6 +127,8 @@ export class MemoryUsageBackend implements UsageBackend {
       const counts = day.get(e.tenantId) ?? {};
       counts[e.route] = (counts[e.route] ?? 0) + e.n;
       day.set(e.tenantId, counts);
+      const k = `${e.day}\u0000${e.tenantId}`;
+      if (!this.epochs.has(k)) this.epochs.set(k, newEpoch());
     }
   }
 
@@ -91,6 +138,19 @@ export class MemoryUsageBackend implements UsageBackend {
 
   async get(day: string, tenantId: string): Promise<RouteCounts> {
     return { ...(this.data.get(day)?.get(tenantId) ?? {}) };
+  }
+
+  async snapshot(day: string, tenantId: string): Promise<UsageSnapshot> {
+    return {
+      epoch: this.epochs.get(`${day}\u0000${tenantId}`) ?? null,
+      counts: await this.get(day, tenantId),
+    };
+  }
+
+  /** Simula um Valkey reiniciado sem persistência (testes): a próxima contagem abre uma época nova. */
+  reset(): void {
+    this.data.clear();
+    this.epochs.clear();
   }
 
   async lock(): Promise<boolean> {
