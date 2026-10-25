@@ -47,7 +47,8 @@ function range(def: SettingDef, n: number, value: string): Validation {
 
 /**
  * Valida e normaliza o valor de uma flag (o que vai para o banco). Segredos nunca são aceitos.
- * Vazio só vale para flags com `allowEmpty`; "unlimited" (ou 0) só para as com `unlimited`.
+ * Vazio só vale para flags com `allowEmpty`; "unlimited" (ou 0) só para as com `unlimited` (com
+ * `zeroIsOff`, 0 fica 0: desliga, não é "sem limite").
  */
 export function validateSetting(def: SettingDef, raw: string): Validation {
   if (isSecret(def)) return fail({ code: 'readonly' });
@@ -69,10 +70,12 @@ export function validateSetting(def: SettingDef, raw: string): Validation {
     case 'int':
     case 'number': {
       const lower = value.toLowerCase();
-      if (def.unlimited && (lower === 'unlimited' || lower === '0')) return ok('unlimited');
+      if (def.unlimited && (lower === 'unlimited' || (lower === '0' && !def.zeroIsOff)))
+        return ok('unlimited');
       const pattern = def.type === 'int' ? /^-?\d+$/ : /^-?\d+(\.\d+)?$/;
       const normalized = value.replace(',', '.');
       if (!pattern.test(normalized)) return fail({ code: def.type === 'int' ? 'integer' : 'number' });
+      if (def.zeroIsOff && Number(normalized) === 0) return ok('0');
       return range(def, Number(normalized), String(Number(normalized)));
     }
     case 'markets': {
