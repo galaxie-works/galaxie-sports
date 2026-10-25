@@ -7,7 +7,7 @@ import OpenAI from 'openai';
 import { DEFAULT_MAX_OUTPUT_TOKENS } from '../budget.js';
 import { classifyProviderError, LlmError } from '../errors.js';
 import { assertMatchesSchema, parseJsonOutput, strictSchemaProblems } from '../json-schema.js';
-import { estimateCostUsd } from '../pricing.js';
+import { estimateCostUsd, WEB_SEARCH_USD_PER_CALL } from '../pricing.js';
 import { withRetry, type RetryOptions } from '../retry.js';
 import type { LlmCitation, LlmClient, LlmJsonRequest, LlmResult, LlmTier } from '../types.js';
 import {
@@ -134,6 +134,8 @@ export class OpenAiLlmClient implements LlmClient {
           cachedInputTokens: meter.cachedInputTokens,
         },
         meter.webSearchCalls,
+        WEB_SEARCH_USD_PER_CALL,
+        'openai',
       );
     try {
       return await withRetry(
@@ -184,7 +186,12 @@ export class OpenAiLlmClient implements LlmClient {
             model,
           };
         },
-        { retries: this.options.maxRetries ?? 3, ...this.options.retry },
+        {
+          retries: this.options.maxRetries ?? 3,
+          ...this.options.retry,
+          // cada retentativa é paga de novo: o orçamento confere o gasto parcial antes
+          beforeRetry: () => req.budgetCheck?.(meter.spent(cost())),
+        },
       );
     } catch (err) {
       throw withUsage(err, meter.toUsage(cost()));
