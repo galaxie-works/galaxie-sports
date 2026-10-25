@@ -216,27 +216,37 @@ describe('validador determinístico — evidência, conflito e política', () =>
     );
   });
 
-  it('CazéTV (canal no YouTube): vídeo ou live do YouTube vira a página ao vivo do canal oficial', () => {
+  it('CazéTV (canal no YouTube): só a transmissão com o id do vídeo; o link genérico do canal não sai', () => {
     const link = (watchUrl: string) =>
       validateCandidates(
         [cand('CazéTV', [ev('https://www.youtube.com/@CazeTV/videos')], { watchUrl })],
         ctx({ competitionSlug: 'brasileirao-serie-a' }),
       ).options[0]!.url;
-    expect(link('https://www.youtube.com/@CazeTV/live')).toBe('https://www.youtube.com/@CazeTV/live');
     expect(link('https://cazetv.com.br/ao-vivo')).toBe('https://cazetv.com.br/ao-vivo');
     for (const u of [
-      'https://www.youtube.com/watch?v=abc123',
-      'https://m.youtube.com/live/abc123',
-      'https://youtu.be/abc123',
+      'https://www.youtube.com/watch?v=abcDEF12345',
+      'https://m.youtube.com/live/abcDEF12345',
+      'https://youtu.be/abcDEF12345',
     ])
-      expect(link(u), u).toBe('https://www.youtube.com/@CazeTV/live');
-    // canal de terceiro, ou página do YouTube que não é vídeo: sem link
-    expect(link('https://www.youtube.com/@OutroCanal/live')).toBeNull();
-    expect(link('https://www.youtube.com/results?search_query=x')).toBeNull();
+      expect(link(u), u).toBe('https://www.youtube.com/watch?v=abcDEF12345');
+    // link genérico do canal, página de canal, busca e id inválido: sem link
+    for (const u of [
+      'https://www.youtube.com/@CazeTV/live',
+      'https://www.youtube.com/@CazeTV',
+      'https://www.youtube.com/@OutroCanal/live',
+      'https://www.youtube.com/results?search_query=x',
+      'https://www.youtube.com/watch?v=curto',
+      'https://www.youtube.com/shorts/abcDEF12345',
+    ])
+      expect(link(u), u).toBeNull();
     // emissora sem canal no YouTube não ganha link de vídeo
     expect(
       validateCandidates(
-        [cand('TV Globo', [ev('https://ge.globo.com/agenda/jogo')], { watchUrl: 'https://youtu.be/abc' })],
+        [
+          cand('TV Globo', [ev('https://ge.globo.com/agenda/jogo')], {
+            watchUrl: 'https://youtu.be/abcDEF12345',
+          }),
+        ],
         ctx(),
       ).options[0]!.url,
     ).toBeNull();

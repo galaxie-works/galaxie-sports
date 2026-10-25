@@ -201,28 +201,34 @@ interface Group {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/** Canal oficial no YouTube da entrada (`youtube.com/@canal` em `domains`), ou null. */
-function youtubeHandle(entry: BroadcasterEntry): string | null {
-  for (const d of entry.domains) {
-    const m = /^(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/(@[\w.-]+)\/?$/i.exec(d.trim());
-    if (m) return m[1]!;
-  }
-  return null;
+/** A entrada tem canal oficial no YouTube (`youtube.com/@canal` em `domains`)? */
+function hasYoutubeChannel(entry: BroadcasterEntry): boolean {
+  return entry.domains.some((d) =>
+    /^(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/@[\w.-]+\/?$/i.test(d.trim()),
+  );
 }
 
-/** Vídeo ou transmissão do YouTube (watch, live, shorts ou youtu.be)? */
-function isYoutubeVideo(url: string): boolean {
+const YOUTUBE_HOSTS = new Set(['youtube.com', 'm.youtube.com', 'youtu.be']);
+const YOUTUBE_ID = /^[\w-]{11}$/;
+
+/** Id do vídeo de um link do YouTube (`watch?v=<id>`, `/live/<id>`, `youtu.be/<id>`), ou null. */
+function youtubeVideoId(url: string): string | null {
+  const u = new URL(url);
   const host = hostOf(url);
-  if (host === 'youtu.be') return true;
-  if (host !== 'youtube.com' && host !== 'm.youtube.com') return false;
-  const path = new URL(url).pathname.toLowerCase();
-  return path === '/watch' || path.startsWith('/live/') || path.startsWith('/shorts/');
+  const id =
+    host === 'youtu.be'
+      ? u.pathname.split('/')[1]
+      : u.pathname === '/watch'
+        ? u.searchParams.get('v')
+        : /^\/live\/([^/]+)\/?$/.exec(u.pathname)?.[1];
+  return id && YOUTUBE_ID.test(id) ? id : null;
 }
 
 /**
  * Link de "assista aqui" aceito para a emissora resolvida: num domínio oficial dela (ou do grupo) ou
- * numa plataforma própria (`watch_domains`); vídeo do YouTube de emissora com canal oficial lá vira a
- * página ao vivo do canal (o vídeo pode ser de qualquer canal: a URL vem do modelo). Senão, null.
+ * numa plataforma própria (`watch_domains`). No YouTube, só a transmissão com o id do vídeo, para a
+ * emissora com canal oficial lá (normalizado para `watch?v=<id>`); página de canal, `@canal/live` e
+ * busca não são publicadas (não levam à transmissão do jogo). Senão, null.
  */
 export function officialWatchUrl(
   dir: CountryDirectory,
@@ -230,10 +236,12 @@ export function officialWatchUrl(
   url: string | null | undefined,
 ): string | null {
   if (!entry || !isHttpUrl(url) || dir.isAggregator(url) || dir.blocklist.isBlockedUrl(url)) return null;
+  if (YOUTUBE_HOSTS.has(hostOf(url)!)) {
+    const id = hasYoutubeChannel(entry) ? youtubeVideoId(url) : null;
+    return id ? `https://www.youtube.com/watch?v=${id}` : null;
+  }
   const official = [...dir.primaryDomains(entry), ...(entry.watchDomains ?? [])];
-  if (official.some((d) => matchesDomain(url, d))) return url;
-  const handle = youtubeHandle(entry);
-  return handle && isYoutubeVideo(url) ? `https://www.youtube.com/${handle}/live` : null;
+  return official.some((d) => matchesDomain(url, d)) ? url : null;
 }
 
 /** Aplica as regras e devolve as opções com status e confiança (função pura). */
