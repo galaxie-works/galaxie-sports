@@ -114,4 +114,18 @@ describe('competições da família', () => {
     ]);
     expect(merged[0]!.items).toEqual([]);
   });
+
+  it('ligas homônimas (ou com o mesmo logo) dentro do mesmo esporte ficam todas', () => {
+    const items = [
+      c('premier-league-39', 'Premier League', 'https://cdn/generic.png'),
+      c('premier-league-nz', 'Premier League', 'https://cdn/generic.png'),
+      c('national-league', 'National League', 'https://cdn/generic.png'),
+    ];
+    const merged = mergeFamilyCompetitions(basquete, [
+      { sport: 'basketball', items },
+      { sport: 'nba', items: [c('nba', 'NBA')] },
+    ]);
+    expect(merged[0]!.items).toEqual(items);
+    expect(merged[1]!.items).toEqual([c('nba', 'NBA')]);
+  });
 });

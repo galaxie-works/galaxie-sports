@@ -94,7 +94,9 @@ function sameCompetitionKey(name: string): string {
 /**
  * Junta as competições dos esportes da família. A mesma competição vinda de duas APIs (a NBA no
  * basquete e na API da NBA: "NBA - Las Vegas Summer League" × "NBA Summer League Las Vegas", com o
- * mesmo logo) aparece uma vez só, na versão do esporte com seção própria.
+ * mesmo logo) aparece uma vez só, na versão do esporte com seção própria. A comparação é só com o que
+ * já entrou de outro esporte: dentro da mesma lista, ligas homônimas de países diferentes (ou com o
+ * mesmo logo genérico) são competições distintas e ficam todas.
  */
 export function mergeFamilyCompetitions<T extends FamilyCompetition>(
   family: SportFamily,
@@ -104,17 +106,17 @@ export function mergeFamilyCompetitions<T extends FamilyCompetition>(
   const ordered = [...lists].sort(
     (a, b) => Number(preferred.includes(b.sport)) - Number(preferred.includes(a.sport)),
   );
+  // nomes e logos dos esportes já processados; os da lista atual só entram no fim dela
   const seenNames = new Set<string>();
   const seenLogos = new Set<string>();
   const kept = new Map<string, T[]>();
   for (const { sport, items } of ordered) {
-    const out: T[] = [];
-    for (const c of items) {
-      const key = sameCompetitionKey(c.name);
-      if (seenNames.has(key) || (c.logo && seenLogos.has(c.logo))) continue;
-      seenNames.add(key);
+    const out = items.filter(
+      (c) => !seenNames.has(sameCompetitionKey(c.name)) && !(c.logo && seenLogos.has(c.logo)),
+    );
+    for (const c of out) {
+      seenNames.add(sameCompetitionKey(c.name));
       if (c.logo) seenLogos.add(c.logo);
-      out.push(c);
     }
     kept.set(sport, out);
   }
