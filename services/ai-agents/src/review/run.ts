@@ -413,5 +413,8 @@ async function changeEntity(
       const id = await derbyId(slug);
       return id ? { type: 'derby', id } : null;
     }
+    case 'editorial':
+      // a API lê o perfil do YAML e aplica a edição e a decisão por cima; só falta purgar o cache
+      return { type: 'f1_editorial', id: item.key };
   }
 }

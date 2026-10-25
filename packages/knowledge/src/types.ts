@@ -298,3 +298,44 @@ export interface I18nFile {
 /** Textos localizáveis guardados no banco: `{ "<locale>": { identity, mascot, ..., review_status } }`. */
 export type TeamTexts = Omit<TeamTextsEntry, 'slug' | 'note'>;
 export type DerbyTexts = Omit<DerbyTextsEntry, 'slug' | 'note'>;
+
+/**
+ * Perfil editorial de piloto da F1 (`formula-1/editorial/<locale>.yaml`, um arquivo por idioma): bio, estilo,
+ * pontos fortes, momentos marcantes e rivalidades, **cada item com a fonte**. Gerado pelo agente `f1:bio --perfil`
+ * (pesquisa com grounding) como `draft` e aprovado no painel de revisão; os números são conferidos contra o F1DB
+ * antes de entrar. O nível (`tier`) diz o que o perfil traz: `legend` = completo; `regular` = só a bio curta.
+ */
+export interface EditorialSourced {
+  text: string;
+  source: string;
+}
+
+export interface DriverEditorialEntry {
+  /** O mesmo slug do perfil do piloto (`f1-<id do F1DB>`). */
+  slug: string;
+  /** Nome do piloto (o do F1DB). */
+  name: string;
+  f1db: { id: string };
+  tier: 'legend' | 'regular';
+  bio: { text: string; sources: string[] };
+  /** Só lenda. */
+  style?: { kind: string; text: string; sources: string[] };
+  strengths?: (EditorialSourced & { key: string })[];
+  moments?: (EditorialSourced & {
+    year: number;
+    /** Nome do GP como é conhecido no idioma do arquivo. */
+    race: string;
+    /** Rodada da corrida na temporada (a ordem pela data): liga o momento ao evento da base. */
+    round: number;
+    /** Corrida com chuva (a F1DB não marca; vem da fonte do momento). */
+    wet?: boolean;
+  })[];
+  rivalries?: (EditorialSourced & { driver: { f1db_id: string; name: string } })[];
+  review_status: ReviewStatus;
+}
+
+export interface EditorialFile {
+  schema_version: 1;
+  locale: TextLocale;
+  drivers: DriverEditorialEntry[];
+}
