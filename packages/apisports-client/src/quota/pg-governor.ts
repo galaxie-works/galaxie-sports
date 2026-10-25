@@ -221,15 +221,16 @@ export class PgQuotaGovernor implements QuotaGovernor {
       const baseline = prev
         ? prev.providerUsed + (await this.countSince(tx, api, dayUtc, prev.capturedAt))
         : 0;
+      // sem `plan` (piso aprendido de uma resposta, não do /status), o plano já lido é mantido
       const values = {
         providerUsed: Math.max(baseline, providerUsed),
         providerLimit,
-        plan: plan ?? null,
+        ...(plan !== undefined ? { plan } : {}),
         capturedAt: this.now(),
       };
       await tx
         .insert(quotaSnapshot)
-        .values({ provider: PROVIDER, api, dayUtc, ...values })
+        .values({ provider: PROVIDER, api, dayUtc, plan: plan ?? null, ...values })
         .onConflictDoUpdate({
           target: [quotaSnapshot.provider, quotaSnapshot.api, quotaSnapshot.dayUtc],
           set: values,

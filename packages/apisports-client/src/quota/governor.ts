@@ -53,7 +53,10 @@ export interface QuotaGovernor {
   settle(ticket: QuotaTicket, outcome: Outcome, remainingAfter?: number): Promise<void>;
   /** Desfaz uma reserva que não chegou a ser enviada. */
   release(ticket: QuotaTicket): Promise<void>;
-  /** Registra o contador do fornecedor (/status) como piso para o dia. */
+  /**
+   * Registra o contador do fornecedor como piso para o dia: lido do /status, ou usado = limite quando uma
+   * resposta diz que a cota acabou (sem `plan`, o plano já registrado é mantido).
+   */
   reconcile(api: string, providerUsed: number, providerLimit: number, plan?: string): Promise<void>;
   /** Planeja o dia (ex.: LIVE = 0 em dia sem jogos libera folga para o BOOTSTRAP). */
   plan(api: string, dayUtc: string, planned: Partial<Record<Priority, number>>): Promise<void>;

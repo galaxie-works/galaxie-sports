@@ -173,6 +173,33 @@ describe('ApiSportsClient', () => {
     });
   });
 
+  it('depois de quota_exhausted o Governor nega o resto do dia sem gastar outra tentativa', async () => {
+    const { client, governor, api } = setup(() => ({
+      body: envelope([], { errors: { requests: 'You have reached the request limit for the day.' } }),
+    }));
+    await expect(
+      client.get({ sport: 'football', endpoint: '/countries', priority: 'DAILY' }),
+    ).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+    expect((await governor.usage('football')).providerUsed).toBe(100);
+    await expect(
+      client.get({
+        sport: 'football',
+        endpoint: '/teams',
+        params: { id: 1 },
+        priority: 'LIVE',
+        critical: true,
+      }),
+    ).rejects.toBeInstanceOf(QuotaExceededError);
+    // a cota de cada API é separada
+    await client
+      .get({ sport: 'hockey', endpoint: '/teams', params: { id: 1 }, priority: 'DAILY' })
+      .catch(() => {});
+    expect(api.calls.map((u) => u.hostname)).toEqual([
+      'v3.football.api-sports.io',
+      'v1.hockey.api-sports.io',
+    ]);
+  });
+
   it('HTTP 429 vira rate_limited', async () => {
     const { client } = setup(() => ({ status: 429, body: { message: 'Too many requests' } }));
     await expect(

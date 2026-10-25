@@ -280,6 +280,18 @@ export class ApiSportsClient {
       const rules = this.planRulesFor(req.sport);
       if (rules.learnFromPlanError(message)) this.options.onPlanChange?.(rules, req.sport);
     }
+    if (outcome === 'quota_exhausted') {
+      // O fornecedor disse que a cota do dia acabou: vira piso no Governor (usado = limite), senão cada
+      // job seguinte gasta uma tentativa até o próximo /status.
+      const limit =
+        toInt(response.headers.get('x-ratelimit-requests-limit')) ??
+        this.planRulesFor(req.sport).current.dailyLimit;
+      try {
+        await this.options.governor.reconcile(req.sport, limit, limit);
+      } catch {
+        // sem o piso, o Governor segue pelo ledger; o desfecho já foi registrado
+      }
+    }
     if (outcome !== 'ok' || !envelope) {
       throw new ApiSportsError(outcome, envelope?.errors ?? text.slice(0, 500), hash);
     }

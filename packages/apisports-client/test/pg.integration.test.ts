@@ -1,7 +1,15 @@
 import { randomBytes } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { apiResponse, closeDb, createDb, quotaLedger, runMigrations, type Database } from '@galaxie/db';
+import {
+  apiResponse,
+  closeDb,
+  createDb,
+  quotaLedger,
+  quotaSnapshot,
+  runMigrations,
+  type Database,
+} from '@galaxie/db';
 import { ApiSportsClient } from '../src/client.js';
 import { QuotaExceededError, RequestInFlightError } from '../src/errors.js';
 import { PgQuotaGovernor } from '../src/quota/pg-governor.js';
@@ -249,6 +257,17 @@ describe('revisão: concorrência entre processos e leituras atrasadas', () => {
     t += 1000;
     await gov.settle(ticket, 'ok', 99);
     expect((await gov.usage('handball')).providerUsed).toBe(1);
+  });
+
+  it('piso aprendido de quota_exhausted (sem plano) mantém o plano lido do /status', async () => {
+    const gov = new PgQuotaGovernor(db, () => defaultPolicy(100), now);
+    await gov.reconcile('nba', 40, 100, 'Free');
+    await gov.reconcile('nba', 100, 100);
+    const [snap] = (await db.select().from(quotaSnapshot)).filter((s) => s.api === 'nba');
+    expect(snap).toMatchObject({ providerUsed: 100, plan: 'Free' });
+    await expect(
+      gov.acquire({ api: 'nba', priority: 'LIVE', endpoint: '/games', requestHash: 'q', critical: true }),
+    ).rejects.toBeInstanceOf(QuotaExceededError);
   });
 });
 
