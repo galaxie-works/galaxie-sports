@@ -1,5 +1,5 @@
 {
-  "id": "75026abf-93e1-44b4-a96b-5c796708ac23",
+  "id": "26a3c3c6-5b23-475b-a200-4b054681c5f8",
   "prevId": "d939d5db-4390-485d-bf7a-bb1989126ebf",
   "version": "7",
   "dialect": "postgresql",
@@ -6607,6 +6607,120 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "enrich.related_playback_report": {
+      "name": "related_playback_report",
+      "schema": "enrich",
+      "columns": {
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "format": {
+          "name": "format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reports": {
+          "name": "reports",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "quorum": {
+          "name": "quorum",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "first_reported_at": {
+          "name": "first_reported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_reported_at": {
+          "name": "last_reported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "related_playback_report_tenant_channel_idx": {
+          "name": "related_playback_report_tenant_channel_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "channel_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "related_playback_report_provider_external_id_tenant_id_pk": {
+          "name": "related_playback_report_provider_external_id_tenant_id_pk",
+          "columns": [
+            "provider",
+            "external_id",
+            "tenant_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "enrich.related_run": {
       "name": "related_run",
       "schema": "enrich",
@@ -6856,13 +6970,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'running'"
-        },
-        "failures": {
-          "name": "failures",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "requested_by": {
           "name": "requested_by",

@@ -156,6 +156,7 @@ describe('carreira na F1: títulos', () => {
 
 describe('carreira na F1: temporada atual, sprint, melhores resultados, número e pintura', () => {
   let rookie: string;
+  let mclaren: string;
   const liveries: LiveryEntry[] = [
     {
       slug: 'mclaren',
@@ -209,6 +210,7 @@ describe('carreira na F1: temporada atual, sprint, melhores resultados, número 
       ])
       .returning({ id: participant.id });
     rookie = driver!.id;
+    mclaren = team!.id;
     await db.insert(providerMap).values({
       entityType: 'participant',
       entityId: team!.id,
@@ -357,6 +359,46 @@ describe('carreira na F1: temporada atual, sprint, melhores resultados, número 
     const legend = await loadRaceCareer(db, { id: driverId, kind: 'driver' }, 'pt-BR', undefined);
     expect(legend.current_season).toBeNull();
     expect(legend.profile).toMatchObject({ first_name: 'Piloto', last_name: 'Teste', number: null });
+  });
+
+  it('com os logos próprios ligados, a equipe vem com o logo e as cores do acervo (como em /v1/teams/{id})', async () => {
+    const [vendor, own] = await db
+      .insert(asset)
+      .values([
+        {
+          kind: 'team_logo',
+          sourceUrl: 'https://media.api-sports.io/formula-1/teams/1.png',
+          storageKey: 'formula-1/teams/1.png',
+          palette: { version: 1, dominant: '#111111', secondary: null, monochrome: false },
+        },
+        {
+          kind: 'team_logo',
+          origin: 'acervo',
+          acervo: 'exemplo',
+          sourceUrl: 'acervo://exemplo/teams/mclaren.svg',
+          storageKey: 'acervo/formula-1/teams/mclaren.svg',
+          palette: { version: 1, dominant: '#ff8000', secondary: null, monochrome: false },
+        },
+      ])
+      .returning({ id: asset.id });
+    await db
+      .update(participant)
+      .set({ logoAssetId: vendor!.id, customLogoAssetId: own!.id })
+      .where(eq(participant.id, mclaren));
+    const teamOf = async (customLogos = false) =>
+      (
+        await loadRaceCareer(db, { id: rookie, kind: 'driver' }, 'pt-BR', 'https://assets.test', {
+          customLogos,
+        })
+      ).seasons[0]!.teams[0]!;
+    expect(await teamOf()).toMatchObject({
+      logo: 'https://assets.test/formula-1/teams/1.png',
+      colors: { primary: '#111111' },
+    });
+    expect(await teamOf(true)).toMatchObject({
+      logo: 'https://assets.test/acervo/formula-1/teams/mclaren.svg',
+      colors: { primary: '#ff8000' },
+    });
   });
 });
 
