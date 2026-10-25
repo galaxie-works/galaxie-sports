@@ -124,6 +124,13 @@ export const usageDaily = api.table(
     day: date('day', { mode: 'string' }).notNull(),
     route: text('route').notNull(),
     requests: bigint('requests', { mode: 'number' }).notNull().default(0),
+    /**
+     * Época do hash do Valkey que alimentou a última consolidação (`#epoca`) e quanto dela já está em
+     * `requests`. Época nova (Valkey zerado) soma; a mesma época troca a parcela pelo maior valor.
+     * null = linha anterior às épocas.
+     */
+    epoch: text('epoch'),
+    epochRequests: bigint('epoch_requests', { mode: 'number' }).notNull().default(0),
     updatedAt: updatedAt(),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.day, t.route] }), index('usage_daily_day_idx').on(t.day)],

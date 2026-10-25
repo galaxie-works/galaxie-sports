@@ -350,14 +350,30 @@ describe('autoatendimento /v1/account', () => {
     await tenantReq(key, 'GET', '/v1/countries');
     await waitFlush();
     await adminReq('POST', '/internal/admin/usage/flush');
-    // greatest(consolidado, 2) congelaria em `before`; a conciliação soma
+    // greatest(consolidado, 2) congelaria em `before`; a época nova do hash soma
     expect(await countries()).toBe(before + 2);
+    // a API de uso mostra o mesmo total antes e depois de consolidar
+    const shown = async () =>
+      (await tenantReq(key, 'GET', '/v1/account/usage'))
+        .json()
+        .days.find((d: { day: string }) => d.day === utcDay())
+        .routes.find((r: { route: string }) => r.route === 'GET /v1/countries').requests;
+    expect(await shown()).toBe(before + 2);
     await adminReq('POST', '/internal/admin/usage/flush');
     expect(await countries()).toBe(before + 2);
-    // hash sem a marca mas sem perda (ex.: dia do deploy desta conciliação): só marca, não soma de novo
-    await redis.hdel(`${keyPrefix}usage:${utcDay()}:${tenantId}`, '#conciliado');
+    // AOF everysec truncado: o hash volta a um estado anterior da mesma época (sem a última contagem).
+    // A consolidação não escreve no Valkey, então nada dela se perde — e nada é somado de novo
+    const hash = `${keyPrefix}usage:${utcDay()}:${tenantId}`;
+    await redis.hset(hash, 'GET /v1/countries', '1');
     await adminReq('POST', '/internal/admin/usage/flush');
     expect(await countries()).toBe(before + 2);
+    // e uma segunda perda logo depois (época nova de novo) soma só o contado nela
+    await redis.del(hash);
+    await tenantReq(key, 'GET', '/v1/countries');
+    await waitFlush();
+    await adminReq('POST', '/internal/admin/usage/flush');
+    await adminReq('POST', '/internal/admin/usage/flush');
+    expect(await countries()).toBe(before + 3);
 
     // Postgres fora por mais de um dia: o dia de 3 dias atrás ainda está no Valkey e é consolidado
     const old = utcDay(new Date(Date.now() - 3 * 86_400_000));

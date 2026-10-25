@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { tenant, usageDaily, type Database } from '@galaxie/db';
 import { UUID_RE } from '../util.js';
-import { USAGE_RETENTION_DAYS, utcDay, type RouteCounts, type UsageBackend } from './counter.js';
+import { USAGE_RETENTION_DAYS, utcDay, type UsageBackend } from './counter.js';
 
 export interface UsageRow {
   tenantId: string;
@@ -24,11 +24,29 @@ export function liveDays(now: Date = new Date()): string[] {
 }
 
 /**
- * Consolida os contadores do Valkey em `api.usage_daily`. Idempotente: o Valkey guarda o total
- * acumulado do dia, e o upsert mantém o maior valor (um Valkey reiniciado sem AOF não apaga uso já
- * consolidado). Antes, cada tenant × dia é conciliado com o consolidado (`UsageBackend.reconcile`): se o
- * Valkey perdeu contagens, o uso registrado depois é somado ao consolidado em vez de ficar congelado
- * pelo `greatest()`. Tenants inexistentes (ex.: removidos) são ignorados.
+ * Total de uma rota combinando o consolidado com a contagem da época atual do Valkey (mesma regra do upsert
+ * de `persistUsage`): mesma época → base + maior parcela; época nova → soma; sem época (linha ou hash
+ * anterior às épocas) → maior valor.
+ */
+export function combineUsage(
+  stored: { requests: number; epoch: string | null; epochRequests: number } | undefined,
+  live: { epoch: string | null; n: number },
+): number {
+  if (!stored) return live.n;
+  if (!live.epoch || !stored.epoch) return Math.max(stored.requests, live.n);
+  if (stored.epoch === live.epoch)
+    return stored.requests - stored.epochRequests + Math.max(stored.epochRequests, live.n);
+  return stored.requests + live.n;
+}
+
+/**
+ * Consolida os contadores do Valkey em `api.usage_daily`. Idempotente por época (`UsageSnapshot.epoch`):
+ * dentro da mesma época, a parcela consolidada é trocada pelo maior valor (repetir não soma de novo); uma
+ * época nova — o Valkey perdeu o hash (reinício sem dados, AOF truncado) — tem a contagem somada ao
+ * consolidado, em vez de o `greatest()` congelar o uso até o contador novo passar o antigo, e sem cobrar
+ * em dobro o que já estava consolidado. Linha ou hash sem época (anteriores a esta regra) usam o maior
+ * valor, como antes. Perde-se só o que o Valkey contou e ninguém consolidou antes da perda.
+ * Tenants inexistentes (ex.: removidos) são ignorados.
  */
 export async function persistUsage(
   db: Database,
@@ -42,29 +60,29 @@ export async function persistUsage(
     const known = new Set(
       (await db.select({ id: tenant.id }).from(tenant).where(inArray(tenant.id, ids))).map((r) => r.id),
     );
-    if (!known.size) continue;
-    const stored = new Map<string, RouteCounts>();
-    for (const r of await db
-      .select({ tenantId: usageDaily.tenantId, route: usageDaily.route, requests: usageDaily.requests })
-      .from(usageDaily)
-      .where(and(eq(usageDaily.day, day), inArray(usageDaily.tenantId, [...known])))) {
-      const counts = stored.get(r.tenantId) ?? {};
-      counts[r.route] = Number(r.requests);
-      stored.set(r.tenantId, counts);
-    }
     for (const tenantId of known) {
-      const counts = await backend.reconcile(day, tenantId, stored.get(tenantId) ?? {});
+      const { epoch, counts } = await backend.snapshot(day, tenantId);
       const values = Object.entries(counts)
         .filter(([, n]) => n > 0)
-        .map(([route, requests]) => ({ tenantId, day, route, requests }));
+        .map(([route, requests]) => ({ tenantId, day, route, requests, epoch, epochRequests: requests }));
       if (!values.length) continue;
+      const cur = { requests: usageDaily.requests, epoch: usageDaily.epoch, part: usageDaily.epochRequests };
       await db
         .insert(usageDaily)
         .values(values)
         .onConflictDoUpdate({
           target: [usageDaily.tenantId, usageDaily.day, usageDaily.route],
           set: {
-            requests: sql`greatest(${usageDaily.requests}, excluded.requests)`,
+            requests: sql`case
+              when excluded.epoch is null or ${cur.epoch} is null then greatest(${cur.requests}, excluded.requests)
+              when ${cur.epoch} = excluded.epoch
+                then ${cur.requests} - ${cur.part} + greatest(${cur.part}, excluded.epoch_requests)
+              else ${cur.requests} + excluded.epoch_requests end`,
+            epochRequests: sql`case
+              when excluded.epoch is null then ${cur.part}
+              when ${cur.epoch} = excluded.epoch then greatest(${cur.part}, excluded.epoch_requests)
+              else excluded.epoch_requests end`,
+            epoch: sql`coalesce(excluded.epoch, ${cur.epoch})`,
             updatedAt: sql`now()`,
           },
         });
@@ -76,7 +94,7 @@ export async function persistUsage(
 
 /**
  * Uso no intervalo [from, to] (dias UTC, inclusivos): o consolidado no Postgres combinado com os
- * contadores vivos do Valkey para os dias retidos (vale o maior valor por tenant × dia × rota).
+ * contadores vivos do Valkey para os dias retidos (`combineUsage`, a mesma regra da consolidação).
  */
 export async function queryUsage(
   db: Database,
@@ -91,24 +109,33 @@ export async function queryUsage(
       day: usageDaily.day,
       route: usageDaily.route,
       requests: usageDaily.requests,
+      epoch: usageDaily.epoch,
+      epochRequests: usageDaily.epochRequests,
     })
     .from(usageDaily)
     .where(and(...where))
     .orderBy(asc(usageDaily.day), asc(usageDaily.route));
 
-  const merged = new Map<string, UsageRow>();
   const keyOf = (r: Omit<UsageRow, 'requests'>) => `${r.tenantId}|${r.day}|${r.route}`;
-  for (const r of stored) merged.set(keyOf(r), { ...r, requests: Number(r.requests) });
+  const storedBy = new Map(
+    stored.map((r) => [
+      keyOf(r),
+      { requests: Number(r.requests), epoch: r.epoch, epochRequests: Number(r.epochRequests) },
+    ]),
+  );
+  const merged = new Map<string, UsageRow>();
+  for (const r of stored)
+    merged.set(keyOf(r), { tenantId: r.tenantId, day: r.day, route: r.route, requests: Number(r.requests) });
 
   if (backend) {
     for (const day of liveDays(options.now)) {
       if (day < options.from || day > options.to) continue;
       const tenants = options.tenantId ? [options.tenantId] : await backend.tenants(day);
       for (const tenantId of tenants) {
-        for (const [route, n] of Object.entries(await backend.get(day, tenantId))) {
+        const { epoch, counts } = await backend.snapshot(day, tenantId);
+        for (const [route, n] of Object.entries(counts)) {
           const k = keyOf({ tenantId, day, route });
-          const prev = merged.get(k);
-          if (!prev || prev.requests < n) merged.set(k, { tenantId, day, route, requests: n });
+          merged.set(k, { tenantId, day, route, requests: combineUsage(storedBy.get(k), { epoch, n }) });
         }
       }
     }
