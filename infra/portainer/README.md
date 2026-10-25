@@ -108,7 +108,7 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `SCHEDULE_QUOTA_STATUS` | não | `5 * * * *` | Reconciliação da cota via `/status` (não consome cota); `off` desliga |
 | `SCHEDULE_BOOTSTRAP_CATALOG` | não | `15 3 * * 1` | Catálogo do futebol (segunda, 03:15 UTC; ~8 chamadas BOOTSTRAP) |
 | `SCHEDULER_RUN_ON_START` | não | vazio | Jobs para rodar já na partida (ex.: `quota-status`) |
-| `SCHEDULER_TIMEOUT_MINUTES` | não | por job | Tempo limite de cada execução |
+| `SCHEDULER_TIMEOUT_MINUTES` | não | por job | Tempo limite de cada execução (o `live-run` mantém o próprio, 20 h) |
 | `LOG_LEVEL` | não | `info` | `debug` mostra também as respostas servidas do raw |
 | `METRICS_TOKEN` | recomendado | vazio | Bearer exigido em `/metrics` (o Prometheus da stack já envia) |
 | `LIVE_POLL_INTERVAL_SECONDS` | não | `300` | Intervalo esperado do ao vivo (placeholder até o Live Scheduler) |
@@ -176,8 +176,8 @@ Execução manual (registrada): console do `ingestor` → `node dist/cli/schedul
 Plano do ao vivo sem chamar nada: `node dist/cli/live-run.js --plan` (ou `--plan --dia amanha`).
 O `live-run` fica no ar enquanto houver janela ao vivo (um processo por vez — o cron a cada 5 min só o reinicia
 quando ele saiu ocioso); no encerramento do container o scheduler repassa SIGTERM e ele termina o tick em
-andamento. Atenção: `SCHEDULER_TIMEOUT_MINUTES` vale para todos os jobs — um valor baixo encerra o ao vivo no meio
-da noite. Novos jobs (bootstraps de temporadas/detalhes/pessoas quando houver cota) entram em
+andamento. `SCHEDULER_TIMEOUT_MINUTES` vale para todos os jobs menos o `live-run`, que mantém o tempo limite
+próprio (20 h). Novos jobs (bootstraps de temporadas/detalhes/pessoas quando houver cota) entram em
 `services/ingestor/src/scheduler/schedule.ts` à medida que forem necessários.
 
 ## Observabilidade (issue #6)
