@@ -88,18 +88,20 @@ export function processInputOf(row: TenantChannelList, config: WtwConfig, dict: 
 
 /**
  * Um pedido ao modelo por lote (as sobras de um país, ou parte delas acima do limite de canais): só
- * índices e enums na saída (o validador confere depois). O `purpose` leva o país e o número do lote
- * no país (`:CO:1`, `:CO:2`), para cada pedido ter a sua linha no ops.llm_usage.
+ * índices e enums na saída (o validador confere depois). O `purpose` leva o país e o índice do lote
+ * na lista de sobras (`plan.batches`, estável entre rodadas: `:CO:0`, `:CO:1`, `:MX:2`), para cada
+ * pedido ter a sua linha no ops.llm_usage. Sem o índice (processChannelList chama todos os lotes em
+ * ordem), vale a ordem da chamada, que é a mesma.
  */
 export function channelMatcher(
   llm: LlmClient,
   tenantId: string,
   onCall: (costUsd: number | undefined) => void = () => {},
-): (batch: AiBatch) => Promise<ChannelMatchOutput> {
-  const perCountry = new Map<string, number>();
-  return async (batch) => {
-    const n = (perCountry.get(batch.country) ?? 0) + 1;
-    perCountry.set(batch.country, n);
+): (batch: AiBatch, lot?: number) => Promise<ChannelMatchOutput> {
+  let calls = 0;
+  return async (batch, lot) => {
+    const n = lot ?? calls;
+    calls++;
     const result = await llm.generateJson<ChannelMatchOutput>({
       tier: 'standard',
       system: CHANNEL_MATCH_SYSTEM,
@@ -145,7 +147,7 @@ export async function runChannelLists(opts: ChannelListRunOptions): Promise<Chan
     try {
       const violations: string[] = [];
       for (const batch of batches) {
-        const v = validateAiMatches(batch, await ai(batch), dict);
+        const v = validateAiMatches(batch, await ai(batch, plan.batches.indexOf(batch)), dict);
         for (const m of v.matches) fromAi.set(rightKey(m), m);
         violations.push(...v.violations);
       }

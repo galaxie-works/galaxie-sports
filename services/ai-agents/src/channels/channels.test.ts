@@ -69,22 +69,23 @@ describe('IA nas sobras da lista de canais', () => {
     ).rejects.toThrow(/fora do schema/);
   });
 
-  it('um purpose por lote: o país e o número do lote nele', async () => {
+  it('um purpose por lote: o país e o índice do lote nas sobras', async () => {
     const llm = new FakeLlmClient(() => ({ data: { transmissores: [] } }));
     const match = channelMatcher(llm, 't');
     const rights = fixtureRights(config).filter((r) => r.country === 'CO');
     const batch = { country: 'CO' as const, rights, channels: [], omittedChannels: 0 };
-    await match(batch);
+    await match(batch, 3);
     await match(batch);
     await match({
       ...batch,
       country: 'MX' as const,
       rights: fixtureRights(config).filter((r) => r.country === 'MX'),
     });
+    // com o índice, vale ele; sem, a ordem da chamada (a de processChannelList, que chama todos)
     expect(llm.calls.map((c) => c.purpose)).toEqual([
+      'channels@v1:t:CO:3',
       'channels@v1:t:CO:1',
-      'channels@v1:t:CO:2',
-      'channels@v1:t:MX:1',
+      'channels@v1:t:MX:2',
     ]);
   });
 });
