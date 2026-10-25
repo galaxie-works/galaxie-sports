@@ -131,7 +131,10 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       ADMIN_KEY_HASHES: ${ADMIN_KEY_HASHES:-}
       ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
-      TRUST_PROXY: ${TRUST_PROXY:-}
+      # IP real do cliente atrás do Caddy (rate limit e limite de tentativas de autenticação por IP). A API só é
+      # alcançável pela rede interna da stack; `uniquelocal` = 10/8, 172.16/12, 192.168/16, fc00::/7. Vazio aqui
+      # faria todo mundo ter o IP do Caddy (um balde só para todos os clientes).
+      TRUST_PROXY: ${TRUST_PROXY:-uniquelocal}
       HSTS_MAX_AGE: ${HSTS_MAX_AGE:-31536000}
     depends_on:
       migrate:

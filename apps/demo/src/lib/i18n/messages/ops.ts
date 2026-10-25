@@ -557,7 +557,7 @@ export default defineMessages(
       AI_DAILY_USD_BUDGET: {
         label: 'Orçamento diário em US$',
         description:
-          'Teto de gasto de IA por dia (UTC), somando todos os agentes: tokens e buscas na web (a busca do Google no Gemini é cobrada por consulta). Ao bater, os agentes seguem só com texto determinístico.',
+          'Teto de gasto de IA por dia (UTC), somando todos os agentes: tokens e buscas na web (a busca do Google no Gemini é cobrada por consulta). Ao bater, os agentes seguem só com texto determinístico. 0 desliga a IA de todos os agentes; "Sem limite" tira o teto.',
         unit: 'US$',
       },
       AI_AGENT_USD_BUDGETS: {
@@ -1282,7 +1282,7 @@ export default defineMessages(
         AI_DAILY_USD_BUDGET: {
           label: 'Daily budget in US$',
           description:
-            'AI spend cap per day (UTC) across all agents: tokens plus web searches (Google Search on Gemini is billed per query). Once reached, agents fall back to deterministic text.',
+            'AI spend cap per day (UTC) across all agents: tokens plus web searches (Google Search on Gemini is billed per query). Once reached, agents fall back to deterministic text. 0 turns AI off for every agent; "No limit" removes the cap.',
           unit: 'US$',
         },
         AI_AGENT_USD_BUDGETS: {
@@ -2017,7 +2017,7 @@ export default defineMessages(
         AI_DAILY_USD_BUDGET: {
           label: 'Presupuesto diario en US$',
           description:
-            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico.',
+            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico. 0 apaga la IA de todos los agentes; "Sin límite" quita el tope.',
           unit: 'US$',
         },
         AI_AGENT_USD_BUDGETS: {
