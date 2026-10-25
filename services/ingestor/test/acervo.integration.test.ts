@@ -200,6 +200,35 @@ describe('assets:acervo (importação idempotente)', () => {
     expect((await customLogo('Boca Juniors')).custom).not.toBeNull();
   });
 
+  it('asset regravado avisa os times na hora, mesmo se um item seguinte falhar', async () => {
+    const current = await manifestFor(manifest);
+    const wanted = current.logos.filter((l) => l.target_id && (l.match === 'auto' || l.match === 'manual'));
+    const at = wanted.findIndex((l) => l.kind === 'team');
+    const first = wanted[at]!;
+    // paleta zerada: o upsert regrava o asset já ligado ao time
+    await db
+      .update(asset)
+      .set({ palette: null })
+      .where(eq(asset.sourceUrl, `acervo://exemplo/${first.file}`));
+    const published = (await teamChanges()).length;
+    let heads = 0;
+    const failing = {
+      ...objects,
+      put: objects.put.bind(objects),
+      get: objects.get.bind(objects),
+      delete: objects.delete.bind(objects),
+      head: async (key: string) => {
+        // falha no item seguinte ao primeiro time
+        if (++heads > at + 1) throw new Error('storage fora do ar');
+        return objects.head(key);
+      },
+    };
+    await expect(importAcervo({ db, objects: failing, manifest: current, dir: EXEMPLO })).rejects.toThrow(
+      'storage fora do ar',
+    );
+    expect((await teamChanges()).slice(published)).toEqual([first.target_id]);
+  });
+
   it('desvincular o acervo devolve todos ao logo do fornecedor', async () => {
     expect(await detachAcervo(db, 'exemplo', true)).toBe(7);
     const published = (await teamChanges()).length;
