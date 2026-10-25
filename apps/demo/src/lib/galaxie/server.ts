@@ -2,6 +2,7 @@
  * Cliente da API Galaxie Sports para uso no servidor (Server Components e Route Handlers).
  * A chave do tenant de demonstração fica só no servidor: o navegador fala com `/api/galaxie/*`.
  */
+import { tagFromResponse } from './cache-tags';
 
 export const API_URL = (
   process.env.GALAXIE_API_URL ??
@@ -38,6 +39,8 @@ export async function galaxieGet<T>(
     if (v !== undefined) url.searchParams.set(k, String(v));
   }
   const res = await fetch(url, { ...init, headers: apiHeaders(init?.headers) });
+  // dentro de 'use cache', a entrada leva as tags da resposta (purgadas pelo change feed)
+  tagFromResponse(res);
   if (!res.ok) {
     const problem = await res.json().catch(() => null);
     throw new GalaxieApiError(res.status, problem);
