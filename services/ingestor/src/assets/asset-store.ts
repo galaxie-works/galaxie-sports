@@ -315,7 +315,7 @@ const UNLINKED = {
 type Executor = Pick<Database, 'selectDistinct' | 'execute'>;
 
 /** Times (core.participant) que usam algum destes assets como logo, do fornecedor ou do acervo. */
-async function teamsUsing(db: Executor, assetIds: string[]): Promise<string[]> {
+export async function teamsUsing(db: Executor, assetIds: string[]): Promise<string[]> {
   if (!assetIds.length) return [];
   const rows = await db
     .selectDistinct({ id: participant.id })
@@ -327,9 +327,10 @@ async function teamsUsing(db: Executor, assetIds: string[]): Promise<string[]> {
 /**
  * Publica no change feed que o logo ou as cores (`colors`, da paleta do escudo) destes times mudaram: o
  * consumidor da API purga `participant:<id>`. Não há trigger em core.asset, então quem grava ou limpa a paleta
- * (ou desliga o logo) chama isto na mesma transação; o NOTIFY só sai no commit.
+ * (ou desliga o logo) chama isto na mesma transação; o NOTIFY só sai no commit, e o consumidor purga junto as
+ * mudanças que chegam juntas — escrever em lote numa transação evita purgar a coleção `participant` a cada time.
  */
-async function publishTeamLogoChanges(db: Executor, participantIds: Iterable<string>): Promise<void> {
+export async function publishTeamLogoChanges(db: Executor, participantIds: Iterable<string>): Promise<void> {
   for (const id of new Set(participantIds)) {
     await publishChange(db, {
       topic: 'catalog',

@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { asset, competition, country, participant, sport, type Database } from '@galaxie/db';
+import { asset, changeFeed, competition, country, participant, sport, type Database } from '@galaxie/db';
 import {
   acervoStorageKey,
   detachAcervo,
@@ -83,6 +83,16 @@ const customLogo = async (name: string) =>
       .where(eq(participant.id, ids.get(name)!))
   )[0]!;
 
+/** Times publicados no change feed (logo ou cores mudaram: a API purga `participant:<id>`). */
+const teamChanges = async () =>
+  (
+    await db
+      .select({ id: changeFeed.entityId })
+      .from(changeFeed)
+      .where(eq(changeFeed.entityType, 'participant'))
+      .orderBy(asc(changeFeed.id))
+  ).map((r) => r.id);
+
 describe('assets:acervo (importação idempotente)', () => {
   const objects = new InMemoryObjectStore();
   let manifest: AcervoManifest;
@@ -144,13 +154,18 @@ describe('assets:acervo (importação idempotente)', () => {
       .where(eq(competition.id, ids.get('Serie A')!));
     expect(serieA!.kind).toBe('league_logo');
     expect((await customLogo('Palmeiras U20')).custom).toBeNull();
+    // os 6 times ligados (a sétima é a competição) saem do cache da API
+    const linkedTeams = manifest.logos.filter((l) => l.kind === 'team' && l.match === 'auto');
+    expect(new Set(await teamChanges())).toEqual(new Set(linkedTeams.map((l) => l.target_id)));
   });
 
   it('rodar de novo não regrava nada', async () => {
     const before = await db.select({ id: asset.id, createdAt: asset.createdAt }).from(asset);
+    const published = (await teamChanges()).length;
     const report = await importAcervo({ db, objects, manifest, dir: EXEMPLO });
     expect(report).toMatchObject({ linked: 7, uploaded: 0, changed: 0, detached: 0 });
     expect(await db.select({ id: asset.id, createdAt: asset.createdAt }).from(asset)).toEqual(before);
+    expect(await teamChanges()).toHaveLength(published);
   });
 
   it('logo que sai do manifesto desliga o time, mas o asset fica', async () => {
@@ -165,8 +180,13 @@ describe('assets:acervo (importação idempotente)', () => {
     const remapped = await manifestFor(manifest);
     expect(remapped.logos.find((l) => l.key === 'teams/br/america')).toMatchObject({ match: 'manual' });
 
+    const published = (await teamChanges()).length;
     const report = await importAcervo({ db, objects, manifest: remapped, dir: EXEMPLO });
     expect(report).toMatchObject({ linked: 7, uploaded: 1, changed: 1, detached: 1 });
+    // o desligado e o recém-ligado
+    expect(new Set((await teamChanges()).slice(published))).toEqual(
+      new Set([ids.get('Palmeiras'), ids.get('America Mineiro')]),
+    );
     expect(await customLogo('Palmeiras')).toMatchObject({ custom: null, provider: providerLogoId });
     expect((await customLogo('America Mineiro')).custom).not.toBeNull();
     expect(await db.select({ id: asset.id }).from(asset).where(eq(asset.id, assetId))).toHaveLength(1);
@@ -182,7 +202,9 @@ describe('assets:acervo (importação idempotente)', () => {
 
   it('desvincular o acervo devolve todos ao logo do fornecedor', async () => {
     expect(await detachAcervo(db, 'exemplo', true)).toBe(7);
+    const published = (await teamChanges()).length;
     expect(await detachAcervo(db, 'exemplo')).toBe(7);
+    expect((await teamChanges()).slice(published)).toHaveLength(6); // os 7 menos a competição
     const linked = await db
       .select({ id: participant.id })
       .from(participant)

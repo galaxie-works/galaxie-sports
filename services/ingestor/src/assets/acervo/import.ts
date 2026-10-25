@@ -22,6 +22,7 @@ import {
   teamProfile,
   type Database,
 } from '@galaxie/db';
+import { publishTeamLogoChanges, teamsUsing } from '../asset-store.js';
 import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
 import { paletteFromPng, type AssetPalette } from '../palette.js';
@@ -229,6 +230,7 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
   }
 
   const assetIdFor = new Map<string, string>(); // `${kind}:${target}` → asset.id
+  const rewritten = new Set<string>(); // assets que o upsert gravou ou regravou (arquivo ou paleta nova)
   // logo com arquivo divergente: não grava, mas também não desliga o vínculo que já existe
   const keep = new Set<string>();
   for (let i = 0; i < wanted.length; i += batchSize) {
@@ -307,6 +309,7 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
           setWhere: sql`${asset.sha256} is distinct from ${hash} or ${asset.storageKey} is distinct from ${storageKey} or ${asset.palette} is null`,
         })
         .returning({ id: asset.id });
+      if (row) rewritten.add(row.id);
       const assetId =
         row?.id ??
         (await db.select({ id: asset.id }).from(asset).where(eq(asset.sourceUrl, sourceUrl)))[0]!.id;
@@ -320,6 +323,8 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
   }
 
   await db.transaction(async (tx) => {
+    // times cujo logo ou cores (paleta do asset) mudaram: purgados do cache da API pelo change feed
+    const teams = await teamsUsing(tx, [...rewritten]);
     for (const [ref, assetId] of assetIdFor) {
       const [kind, targetId] = ref.split(':') as ['team' | 'competition', string];
       const table = kind === 'team' ? participant : competition;
@@ -329,6 +334,7 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
         .where(and(eq(table.id, targetId), sql`${table.customLogoAssetId} is distinct from ${assetId}`))
         .returning({ id: table.id });
       report.changed += updated.length;
+      if (kind === 'team') teams.push(...updated.map((u) => u.id));
     }
     // quem aponta para um asset deste acervo e não está mais no manifesto perde o vínculo
     for (const r of await linkedToAcervo(tx, id)) {
@@ -340,7 +346,9 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
         .set({ customLogoAssetId: null, updatedAt: sql`now()` })
         .where(and(eq(table.id, r.targetId), eq(table.customLogoAssetId, r.assetId)));
       report.detached += 1;
+      if (r.kind === 'team') teams.push(r.targetId);
     }
+    await publishTeamLogoChanges(tx, teams);
   });
   return report;
 }
@@ -388,6 +396,10 @@ export async function detachAcervo(db: Database, id: string, dryRun = false): Pr
         .set({ customLogoAssetId: null, updatedAt: sql`now()` })
         .where(eq(table.id, r.targetId));
     }
+    await publishTeamLogoChanges(
+      tx,
+      rows.filter((r) => r.kind === 'team').map((r) => r.targetId),
+    );
   });
   return rows.length;
 }
