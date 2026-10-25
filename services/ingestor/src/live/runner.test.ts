@@ -164,6 +164,22 @@ describe('LiveRunner', () => {
     expect(warn).toHaveBeenCalledWith(expect.anything(), 'falha no gancho do tick ao vivo; seguindo');
   });
 
+  it('erro que não passa (ex.: bug, banco fora de vez): desiste depois de N seguidos e o job sai com erro', async () => {
+    const { world, runner } = runnerFor(
+      wednesdayNight(),
+      '2026-10-21T16:50:00Z',
+      { idleExitMs: null, until: new Date('2026-10-21T20:00:00Z'), maxConsecutiveErrors: 3 },
+      { log: { info() {}, debug() {}, error() {}, warn() {} } },
+    );
+    const candidates = vi
+      .spyOn(world.store, 'candidates')
+      .mockRejectedValue(new Error('relation does not exist'));
+    await expect(runner.run()).rejects.toThrow(
+      /desistiu depois de 3 erros seguidos: relation does not exist/,
+    );
+    expect(candidates).toHaveBeenCalledTimes(3);
+  });
+
   it('falha ao reler a configuração mantém a atual', async () => {
     const { runner } = runnerFor(
       wednesdayNight(),

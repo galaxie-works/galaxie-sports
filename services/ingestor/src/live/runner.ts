@@ -63,6 +63,12 @@ export interface LiveRunnerOptions extends LiveSchedulerOptions {
   maxFinalizePerTick: number;
   /** Falhas seguidas da fonte a partir das quais o intervalo dobra (até 8×). */
   failureBackoffAfter: number;
+  /**
+   * Erros inesperados seguidos (planejar ou tick: banco, Governor, bug) a partir dos quais o processo
+   * desiste e sai com erro — melhor um job falho em ops.job_run (e o scheduler religando) do que um ao
+   * vivo parado no ar por horas segurando a trava do job.
+   */
+  maxConsecutiveErrors: number;
   /** Só para testes/simulação: para neste instante. */
   until?: Date | undefined;
   /** Só para testes: máximo de ticks. */
@@ -74,6 +80,7 @@ export const DEFAULT_RUNNER_OPTIONS: Omit<LiveRunnerOptions, keyof LiveScheduler
   replanEveryMs: 5 * 60_000,
   maxFinalizePerTick: 5,
   failureBackoffAfter: 3,
+  maxConsecutiveErrors: 10,
 };
 
 export interface LiveHooks {
@@ -133,6 +140,7 @@ export class LiveRunner {
   private lastTickAt: Date | null = null;
   private backoffUntil: Date | null = null;
   private consecutiveFailures = 0;
+  private consecutiveErrors = 0;
   private order: { key: string; ids: string[] } | null = null;
   private lastRefreshAt = -Infinity;
 
@@ -294,6 +302,16 @@ export class LiveRunner {
     return starts.length ? new Date(Math.min(...starts)) : null;
   }
 
+  /** Conta um erro inesperado; passou de `maxConsecutiveErrors` seguidos, desiste (o run lança). */
+  private giveUpAfter(err: unknown): void {
+    this.consecutiveErrors += 1;
+    if (this.consecutiveErrors < this.options.maxConsecutiveErrors) return;
+    throw new Error(
+      `ao vivo desistiu depois de ${this.consecutiveErrors} erros seguidos: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
+    );
+  }
+
   async run(signal?: AbortSignal): Promise<LiveRunSummary> {
     const summary: LiveRunSummary = {
       stoppedBy: 'idle',
@@ -336,6 +354,7 @@ export class LiveRunner {
         step = await this.plan(now);
       } catch (err) {
         // erro inesperado ao planejar (ex.: banco ou Governor fora): não derruba o processo; tenta de novo
+        this.giveUpAfter(err);
         this.log.error({ err }, 'falha ao planejar o ao vivo; tentando de novo');
         summary.errors += 1;
         await sleepUntil(new Date(now.getTime() + PLAN_RETRY_MS), opts.replanEveryMs);
@@ -344,6 +363,7 @@ export class LiveRunner {
       const { plan, candidates } = step;
       summary.plans.set(plan.day, plan);
       const decision = decideTick(plan, now, this.lastTickAt, opts, { halftimeSeenAt: this.halftimeSeenAt });
+      if (decision.kind !== 'tick') this.consecutiveErrors = 0;
 
       if (decision.kind === 'done') {
         const next = this.nextDayWindowStart(candidates, plan);
@@ -400,11 +420,13 @@ export class LiveRunner {
         });
       } catch (err) {
         // erro inesperado (ex.: banco): não derruba o processo; tenta de novo no próximo intervalo
+        this.giveUpAfter(err);
         this.log.error({ err }, 'falha no tick ao vivo');
         this.lastTickAt = now;
         summary.errors += 1;
         continue;
       }
+      this.consecutiveErrors = 0;
       if (this.lastTickAt) summary.gaps.push(now.getTime() - this.lastTickAt.getTime());
       this.lastTickAt = now;
       summary.ticks += 1;
