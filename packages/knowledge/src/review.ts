@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { KnowledgeBase, LocatedGlossaryTerm } from './load.js';
+import type { KnowledgeBase, LocatedEditorial, LocatedGlossaryTerm } from './load.js';
 import type { ReviewStatus } from './types.js';
 
 /**
@@ -23,6 +23,7 @@ export const REVIEW_KINDS = [
   'copy',
   'glossary',
   'translation',
+  'editorial',
 ] as const;
 export type ReviewKind = (typeof REVIEW_KINDS)[number];
 
@@ -31,7 +32,10 @@ export interface ReviewItem {
   /** `<tipo>:<chave>` (ex.: `team:palmeiras`, `copy:pt-BR.cheer-3`, `translation:team:palmeiras:es`). */
   id: string;
   kind: ReviewKind;
-  /** Slug (time, clássico, competição), chave do template/termo (`<locale>.<key>`) ou slug do item traduzido. */
+  /**
+   * Slug (time, clássico, competição), chave do template/termo (`<locale>.<key>`), slug do item traduzido ou o
+   * perfil editorial do piloto num idioma (`<locale>.<slug>`).
+   */
   key: string;
   /** Locale do texto: o da tradução, do template/termo ou o idioma-base do perfil; null nas competições. */
   locale: string | null;
@@ -267,8 +271,31 @@ export function buildReviewItems(kb: KnowledgeBase): ReviewItem[] {
       parentKind,
     });
   }
+  for (const e of kb.editorial) {
+    const content = reviewContent(e.entry);
+    const key = editorialKey(e);
+    items.push({
+      id: reviewItemId('editorial', key),
+      kind: 'editorial',
+      key,
+      locale: e.locale,
+      sport: 'formula-1',
+      market: marketOfLocale(e.locale),
+      title: e.entry.name ?? e.entry.slug,
+      sourceFile: `data/knowledge/${e.file}`,
+      yamlStatus: statusOf(e.entry.review_status),
+      reviewHash: reviewHash(content),
+      content,
+      original: null,
+      originalLocale: null,
+      parentKind: null,
+    });
+  }
   return items;
 }
+
+/** Chave do perfil editorial de um piloto num idioma (`<locale>.<slug>`), a mesma em review_item e na API. */
+export const editorialKey = (e: Pick<LocatedEditorial, 'locale' | 'entry'>) => `${e.locale}.${e.entry.slug}`;
 
 /** Chave de um termo do glossário (`<locale>.<key>`), a mesma em review_item e na API. */
 export const glossaryKey = (g: Pick<LocatedGlossaryTerm, 'locale' | 'entry'>) => `${g.locale}.${g.entry.key}`;
@@ -319,5 +346,26 @@ export function applyGlossaryDecisions(
       decision,
     );
     return e.decided ? { ...t, entry: { ...t.entry, review_status: e.status } } : t;
+  });
+}
+
+/**
+ * Aplica as decisões do painel aos perfis editoriais lidos do YAML (a API lê os perfis direto dos arquivos, como o
+ * glossário). Perfil com decisão válida ganha o status dela.
+ */
+export function applyEditorialDecisions(
+  profiles: LocatedEditorial[],
+  decisions: ReviewDecisionRef[],
+): LocatedEditorial[] {
+  if (!decisions.length) return profiles;
+  const byId = new Map(decisions.map((d) => [d.itemId, d]));
+  return profiles.map((p) => {
+    const decision = byId.get(reviewItemId('editorial', editorialKey(p)));
+    if (!decision) return p;
+    const e = effectiveReviewStatus(
+      { yamlStatus: statusOf(p.entry.review_status), reviewHash: reviewHash(reviewContent(p.entry)) },
+      decision,
+    );
+    return e.decided ? { ...p, entry: { ...p.entry, review_status: e.status } } : p;
   });
 }

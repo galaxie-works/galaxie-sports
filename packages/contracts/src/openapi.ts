@@ -50,6 +50,7 @@ import {
   WhereToWatchQuery,
 } from './where-to-watch.js';
 import { RaceCareer, RaceLegends, RaceLegendsQuery, TeamPhotos, TeamPhotosQuery } from './racing.js';
+import { DriverTraits } from './driver-profile.js';
 import { RealtimeChange, StreamQuery } from './realtime.js';
 import { RelatedContent, RelatedQuery } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
@@ -364,6 +365,15 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'Carreira na Fórmula 1 (piloto ou construtor): temporada a temporada (com top 10, abandonos, sprint, número do carro e a pintura da equipe na época), temporada atual, títulos, melhores resultados com a contagem, perfil do piloto (número permanente e nascimento), primeira e última corrida, equipes e companheiros',
           'Times e pessoas',
           RaceCareer,
+          { path: TeamParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/teams/{id}/traits': {
+        get: getOp(
+          'Traços do piloto de F1, calculados do F1DB: pistas preferidas (com o critério), sábado × domingo (pole, largada média, posições ganhas e o rótulo), duelo com os companheiros por temporada e na carreira, consistência (abandonos, pontos por largada e sequências) e o nível do perfil',
+          'Times e pessoas',
+          DriverTraits,
           { path: TeamParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),

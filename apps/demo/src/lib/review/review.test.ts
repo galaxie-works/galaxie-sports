@@ -96,6 +96,44 @@ describe('prévia do que a API serviria', () => {
       review_status: 'approved',
     });
   });
+
+  it('perfil editorial da F1: o perfil como em GET /v1/teams/{slug}/editorial, no idioma do item', () => {
+    const p = previewFor({
+      kind: 'editorial',
+      key: 'es.f1-ayrton-senna',
+      locale: 'es',
+      market: null,
+      parentKind: null,
+      content: {
+        slug: 'f1-ayrton-senna',
+        name: 'Ayrton Senna',
+        f1db: { id: 'ayrton-senna' },
+        tier: 'legend',
+        bio: { text: 'Tricampeão mundial.', sources: ['https://pt.wikipedia.org/wiki/Ayrton_Senna'] },
+        style: { kind: 'aggressive', text: 'No limite.', sources: ['https://x'] },
+        moments: [
+          {
+            year: 1993,
+            round: 3,
+            race: 'GP da Europa',
+            wet: true,
+            text: 'Venceu sob chuva.',
+            source: 'https://y',
+          },
+        ],
+      },
+    });
+    expect(p.endpoint).toBe('GET /v1/teams/f1-ayrton-senna/editorial?locale=es');
+    expect(p.body).toMatchObject({
+      tier: 'legend',
+      text_locale: 'es',
+      style: { kind: 'aggressive' },
+      strengths: [],
+      moments: [{ year: 1993, race: 'GP da Europa', wet: true }],
+      rivalries: [],
+      review_status: 'approved',
+    });
+  });
 });
 
 describe('edição proposta campo a campo', () => {
@@ -142,6 +180,33 @@ describe('servido hoje', () => {
 
 describe('o que revisar (resumo da lista)', () => {
   const words = { matches: '{count} jogos', draws: '{count} empates' };
+
+  it('perfil editorial: a bio, o estilo e os momentos com ano e corrida', () => {
+    expect(
+      reviewSummary(
+        'editorial',
+        {
+          slug: 'f1-ayrton-senna',
+          name: 'Ayrton Senna',
+          f1db: { id: 'ayrton-senna' },
+          tier: 'legend',
+          bio: { text: 'Tricampeão mundial.', sources: ['https://pt.wikipedia.org/wiki/Ayrton_Senna'] },
+          style: { kind: 'aggressive', text: 'No limite.', sources: ['https://x'] },
+          moments: [
+            {
+              year: 1993,
+              round: 3,
+              race: 'GP da Europa',
+              wet: true,
+              text: 'Venceu sob chuva.',
+              source: 'https://y',
+            },
+          ],
+        },
+        words,
+      ),
+    ).toBe('Tricampeão mundial. · No limite. · 1993 GP da Europa: Venceu sob chuva.');
+  });
 
   it('glossário: termo, significado, exemplo e nota', () => {
     expect(

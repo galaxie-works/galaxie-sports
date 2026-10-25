@@ -68,6 +68,14 @@ function parts(kind: ReviewKind, c: Rec, words: SummaryWords): string[] {
       return allTime(c, words);
     case 'competition':
       return [...byLocale(c.labels), ...byLocale(c.nicknames)];
+    case 'editorial': {
+      // a bio primeiro, depois os momentos com o ano e a corrida (o que mais pede conferência)
+      const moments = (Array.isArray(c.moments) ? c.moments : []).map((m) => {
+        const r = rec(m);
+        return `${String(r.year ?? '')} ${str(r.race) ?? ''}: ${str(r.text) ?? ''}`.trim();
+      });
+      return [str(rec(c.bio).text), str(rec(c.style).text), ...moments].filter((x): x is string => !!x);
+    }
     case 'team': {
       const names = rec(c.names);
       return [

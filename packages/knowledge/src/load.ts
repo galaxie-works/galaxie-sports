@@ -8,6 +8,8 @@ import type {
   CopyTemplateEntry,
   DerbyEntry,
   DerbyTextsEntry,
+  DriverEditorialEntry,
+  EditorialFile,
   HeadToHeadEntry,
   ParticipantsFile,
   GlossaryFile,
@@ -35,6 +37,7 @@ export type FileKind =
   | 'glossary'
   | 'i18n'
   | 'liveries'
+  | 'editorial'
   | 'unknown';
 
 /**
@@ -100,6 +103,8 @@ export type LocatedTexts =
   | (Located<DerbyTextsEntry> & { locale: TextLocale; listKey: 'derbies' });
 export type LocatedCopyTemplate = Located<CopyTemplateEntry> & { locale: string; sport: string };
 export type LocatedGlossaryTerm = Located<GlossaryTermEntry> & { locale: string; sport: string };
+/** Perfil editorial de piloto da F1 num idioma (`formula-1/editorial/<locale>.yaml`). */
+export type LocatedEditorial = Located<DriverEditorialEntry> & { locale: string };
 
 export interface KnowledgeBase {
   dir: string;
@@ -115,6 +120,8 @@ export interface KnowledgeBase {
   texts: LocatedTexts[];
   /** Pinturas dos construtores da F1 por época (formula-1/liveries.yaml). */
   liveries: Located<LiveryEntry>[];
+  /** Perfis editoriais dos pilotos da F1, por idioma (formula-1/editorial/<locale>.yaml). */
+  editorial: LocatedEditorial[];
 }
 
 /** Classifica um arquivo pelo caminho relativo dentro de data/knowledge. */
@@ -130,6 +137,7 @@ export function fileKind(rel: string): FileKind {
   if (/^glossary\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'glossary';
   if (/^i18n\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'i18n';
   if (/^formula-1\/liveries\.ya?ml$/.test(rel)) return 'liveries';
+  if (/^formula-1\/editorial\/[A-Za-z-]+\.ya?ml$/.test(rel)) return 'editorial';
   return 'unknown';
 }
 
@@ -226,6 +234,7 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
     glossary: [],
     texts: [],
     liveries: [],
+    editorial: [],
   };
   for (const file of files) {
     const textLocale = textLocaleOf(file);
@@ -332,6 +341,11 @@ export function buildKnowledgeBase(dir: string, files: KnowledgeFile[]): Knowled
       case 'liveries':
         kb.liveries.push(...items<LiveryEntry>(file, 'constructors'));
         break;
+      case 'editorial': {
+        const locale = String((file.data as Partial<EditorialFile> | null)?.locale ?? '');
+        for (const e of items<DriverEditorialEntry>(file, 'drivers')) kb.editorial.push({ ...e, locale });
+        break;
+      }
       default:
         break;
     }
@@ -374,4 +388,24 @@ export async function loadLiveries(dir: string = DEFAULT_KNOWLEDGE_DIR): Promise
     throw err;
   }
   return buildKnowledgeBase(dir, [parseKnowledgeFile(path, rel, source)]).liveries.map((l) => l.entry);
+}
+
+/**
+ * Lê só data/knowledge/formula-1/editorial (usado pela API no perfil editorial do piloto, sem carregar a base
+ * inteira). Pasta ausente = nenhum perfil.
+ */
+export async function loadEditorial(dir: string = DEFAULT_KNOWLEDGE_DIR): Promise<LocatedEditorial[]> {
+  let paths: string[];
+  try {
+    paths = await listYamlFiles(join(dir, 'formula-1', 'editorial'));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw err;
+  }
+  const files: KnowledgeFile[] = [];
+  for (const path of paths) {
+    const rel = relative(dir, path).split(sep).join('/');
+    files.push(parseKnowledgeFile(path, rel, await readFile(path, 'utf8')));
+  }
+  return buildKnowledgeBase(dir, files).editorial;
 }
