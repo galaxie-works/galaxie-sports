@@ -205,7 +205,7 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm db:studio` | Drizzle Studio para inspecionar o banco |
 | `pnpm infra:down` | Para a infra local (volumes preservados) |
 | `pnpm --filter @galaxie/ingestor quota` | Cota do dia por API (lê `/status`, que não consome cota) |
-| `pnpm --filter @galaxie/ingestor raw:import` | Importa respostas brutas salvas em `data/raw/<esporte>/*.json` (zero chamadas) |
+| `pnpm --filter @galaxie/ingestor raw:import` | Importa respostas brutas salvas em `data/raw/<esporte>/<nome>__AAAAMMDDTHHMMSSZ.json` (zero chamadas; sem a data da coleta no nome o arquivo fica de fora) |
 | `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa |
 | `pnpm --filter @galaxie/ingestor multisport:seed` | CONs, edições (OG/Inverno/Pan), esportes e ligação com os torneios da api-sports (zero chamadas) |
 | `pnpm --filter @galaxie/ingestor multisport:wikidata` | Histórico de medalhas via Wikidata (CC0), com cache no raw — ver [docs/08](docs/08-olimpiadas-e-panamericano.md) |
