@@ -523,6 +523,84 @@ describe('onde assistir por rodada', () => {
     expect(pub!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
   });
 
+  it('T-3h: o jogo trocou de canal na agenda compacta: a fonte que tinha o jogo cai para 0,4', async () => {
+    const ids = await seedRound({ slug: 'liga-dividida', games: 2, round: 'Rodada 42' });
+    const names = async (id: string) =>
+      (
+        await db
+          .select({ name: participant.name, side: eventParticipant.side })
+          .from(eventParticipant)
+          .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
+          .where(eq(eventParticipant.eventId, id))
+      )
+        .sort((a, b) => (a.side === 'home' ? -1 : b.side === 'home' ? 1 : 0))
+        .map((r) => r.name);
+    const [h1, a1] = await names(ids[0]!);
+    const [h2, a2] = await names(ids[1]!);
+    const AGENDA = 'https://emissora-a.example/agenda-compacta';
+    const t48 = new Date(KICKOFF.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(t48, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t48,
+    );
+    const fake = new FakeLlmClient(() => ({
+      data: {
+        // paráfrase do modelo: vale pela proximidade dos times com a emissora na página
+        assignments: [
+          {
+            ...assignment('J1', 'BR', 'Emissora A', AGENDA),
+            evidence: [
+              {
+                url: AGENDA,
+                excerpt: `A Emissora A mostra ${h1} contra ${a1} no sábado`,
+                published_at: null,
+                stance: 'confirms' as const,
+              },
+            ],
+          },
+        ],
+        notes: null,
+      },
+      usage: { inputTokens: 1_000, outputTokens: 100, costUsd: 0.01 },
+    }));
+    const runner = (now: Date, page: string) =>
+      new WtwRunner({
+        db,
+        llm: fake,
+        config,
+        fetcher: new FakePageFetcher({ [AGENDA]: page }),
+        policy,
+        now: () => now,
+      });
+    await runner(t48, `<p>${h1} x ${a1}, 16h, Emissora A. ${h2} x ${a2}, 18h30, Streaming B.</p>`).runQueued({
+      limit: 10,
+      maxCalls: 3,
+      eventId: ids[0]!,
+    });
+    const before = (await currentOptions(db, ids[0]!, 'BR')).find((o) => o.broadcasterId === 'emissora_a')!;
+    expect(before.status).toBe('confirmed');
+    expect(before.evidence.find((e) => e.url === AGENDA)?.excerptVerified).toBe(true);
+
+    // T-3h: o jogo 1 passou para o Streaming B; a Emissora A segue na página, no jogo vizinho
+    const t3 = new Date(KICKOFF.getTime() - 2.5 * H);
+    await enqueueRuns(
+      db,
+      (await plan(t3, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t3,
+    );
+    await runner(t3, `<p>${h1} x ${a1}, 16h, Streaming B. ${h2} x ${a2}, 18h30, Emissora A.</p>`).runQueued({
+      limit: 10,
+      eventId: ids[0]!,
+    });
+    const pub = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
+    expect(pub!.options.map((o) => o.row.broadcasterId)).not.toContain('emissora_a');
+    const after = (await currentOptions(db, ids[0]!, 'BR')).find((o) => o.broadcasterId === 'emissora_a')!;
+    // a fonte cai para 0,4 e a opção volta ao piso "a confirmar" dos direitos; a marca continua
+    expect(after).toMatchObject({ status: 'probable', flags: ['to_confirm'] });
+    expect(after.evidence.find((e) => e.url === AGENDA)).toMatchObject({ excerptVerified: true });
+  });
+
   it('T-3h: página da emissora que ainda a cita, mas sem o trecho do jogo, não sustenta mais a opção', async () => {
     const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 41' });
     const t48 = new Date(KICKOFF.getTime() - 40 * H);

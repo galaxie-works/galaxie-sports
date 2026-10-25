@@ -150,6 +150,18 @@ describe('validador determinístico — confiança', () => {
     expect(lost).toMatchObject({ confidence: 0.5, status: 'pending' });
     expect(lost.evidence[0]!.excerptVerified).toBe(true);
   });
+
+  it('alocado + salvo com a mesma URL: a marca do salvo vale para a evidência nova', () => {
+    const url = 'https://www.lance.com.br/agenda';
+    const base = { excerptFound: false } as const;
+    const saved = cand('SporTV', [ev(url, { ...base, excerptVerified: true })]);
+    const allocated = cand('SporTV', [ev(url, { ...base, excerpt: 'Outro trecho do modelo' })]);
+    for (const list of [[saved], [allocated, saved], [saved, allocated]]) {
+      const o = validateCandidates(list, ctx({ competitionSlug: 'brasileirao-serie-a' })).options[0]!;
+      expect(o).toMatchObject({ status: 'pending', confidence: 0.5 });
+      expect(o.evidence[0]!.excerptVerified).toBe(true);
+    }
+  });
 });
 
 describe('validador determinístico — evidência, conflito e política', () => {

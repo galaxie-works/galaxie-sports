@@ -204,23 +204,41 @@ export function mentionsBroadcaster(text: string, names: string[]): boolean {
 /** Distância máxima (em palavras) entre os dois times e a emissora na mesma página. */
 export const PAGE_PROXIMITY_WORDS = 40;
 
+/** Separadores de confronto numa agenda ("Flamengo x Palmeiras", "A vs B"). */
+const MATCH_SEPARATORS = new Set(['x', 'vs', 'versus']);
+
 /**
  * A página cita os dois times e a emissora JUNTOS (a até `maxWords` palavras uns dos outros)? Numa
  * escala da rodada, todos os jogos e canais aparecem; só a proximidade liga este jogo a este canal.
+ * Com `sameMatch`, o trecho entre eles não pode passar por outro confronto ("x" de outro jogo): numa
+ * agenda compacta o canal do jogo vizinho fica a poucas palavras.
  */
 export function mentionsTogether(
   text: string,
   teams: readonly [TeamNames, TeamNames],
   names: string[],
   maxWords = PAGE_PROXIMITY_WORDS,
+  opts: { sameMatch?: boolean } = {},
 ): boolean {
-  const all = words(text);
+  const all = words(opts.sameMatch ? text.replace(/×/g, ' x ') : text);
   const a = teamHits(all, teams[0]);
   const b = teamHits(all, teams[1]);
   const c = broadcasterHits(all, names);
   if (!a.length || !b.length || !c.length) return false;
-  const near = (xs: number[], p: number) => xs.some((x) => Math.abs(x - p) <= maxWords);
-  return c.some((p) => a.some((x) => Math.abs(x - p) <= maxWords && near(b, p) && near(b, x)));
+  const seps = opts.sameMatch ? all.flatMap((w, i) => (MATCH_SEPARATORS.has(w) ? [i] : [])) : [];
+  const oneMatch = (x: number, y: number, p: number) => {
+    if (!opts.sameMatch) return true;
+    const lo = Math.min(x, y, p);
+    const hi = Math.max(x, y, p);
+    return seps.filter((i) => i > lo && i < hi).length <= 1;
+  };
+  return c.some((p) =>
+    a.some(
+      (x) =>
+        Math.abs(x - p) <= maxWords &&
+        b.some((y) => Math.abs(y - p) <= maxWords && Math.abs(y - x) <= maxWords && oneMatch(x, y, p)),
+    ),
+  );
 }
 
 // ─── validador ───────────────────────────────────────────────────────────────────────────────────

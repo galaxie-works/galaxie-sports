@@ -82,7 +82,13 @@ describe('prompts', () => {
         { code: 'J2', info: J2 },
       ],
       markets: [
-        { directory: br, holders: ['globo', 'premiere'], known: ['sportv'], matches: ['J1', 'J2'] },
+        {
+          directory: br,
+          holders: ['globo', 'premiere'],
+          known: ['sportv'],
+          uncertain: ['sbt'],
+          matches: ['J1', 'J2'],
+        },
         { directory: config.directory('AR'), holders: [], known: [], matches: ['J2'] },
       ],
     });
@@ -90,6 +96,7 @@ describe('prompts', () => {
     expect(user).toMatch(/BR \(Brasil\) — jogos: J1, J2/);
     expect(user).toMatch(/detentores a alocar: Globo; Premiere/);
     expect(user).toMatch(/já garantidos \(não repita\): SporTV/);
+    expect(user).toMatch(/incertos \(confirme com fonte do jogo\): SBT/);
     expect(user).toMatch(/AR \(Argentina\) — jogos: J2\n {2}sem tabela de direitos/);
   });
 
@@ -238,6 +245,36 @@ describe('agente', () => {
         .get('BR')!
         .map((c) => c.broadcaster),
     ).toEqual(['Premiere', 'SBT']);
+  });
+
+  it('alocação: detentor citado pelo apelido datado vale só no período do apelido (dia do jogo)', async () => {
+    const cl = config.directory('CL');
+    const reply = (match: string) => ({
+      match,
+      country: 'CL',
+      broadcaster: 'Fox Sports 2',
+      channel: null,
+      region: null,
+      watch_url: null,
+      evidence: [{ url: 'https://www.espn.cl/grade', excerpt: 'x', published_at: null, stance: 'confirms' }],
+    });
+    const llm = new FakeLlmClient([{ data: { assignments: [reply('J1'), reply('J2')], notes: null } }]);
+    const old = info(
+      '0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d12',
+      'Time Cinco',
+      'Time Seis',
+      new Date('2023-06-01T23:00:00Z'),
+    );
+    const out = await new WhereToWatchAgent(llm).allocate({
+      competition: { slug: 'liga-x', name: 'Liga X' },
+      round: 'Rodada 7',
+      events: [J1, old],
+      markets: [{ directory: cl, holders: ['espn'], known: [], matches: ['J1', 'J2'] }],
+    });
+    // 2026: "Fox Sports 2" é o ESPN 6; 2023: o nome ainda não era da ESPN
+    expect(out.byEvent.get(J1.id)?.get('CL')).toHaveLength(1);
+    expect(out.byEvent.get(old.id)).toBeUndefined();
+    expect(out.ignored).toBe(1);
   });
 
   it('alocação com grounding: evidência com URL fora da busca do provedor cai antes de ser buscada', async () => {
@@ -735,6 +772,34 @@ describe('verificação das evidências', () => {
       { teams },
     );
     expect(out.candidates.map((c) => c.evidence[0]!.excerptFound)).toEqual([true, false]);
+  });
+
+  it('agenda compacta: os times perto da emissora valem só para o canal do próprio jogo', async () => {
+    const agenda =
+      '<p>Flamengo x Palmeiras, 16h, Globo e Premiere. Santos x Corinthians, 18h30, SporTV e Premiere. Grêmio x Internacional, 21h, Premiere.</p>';
+    const fetcher = new FakePageFetcher({ 'https://ge.globo.com/agenda': agenda });
+    const found = async (broadcaster: string, home: string, away: string) =>
+      (
+        await verifyCandidates(
+          [
+            {
+              broadcaster,
+              evidence: [
+                { url: 'https://ge.globo.com/agenda', excerpt: `${broadcaster} transmite o jogo da rodada` },
+              ],
+            },
+          ],
+          br,
+          fetcher,
+          NOW,
+          { teams: [teamNames(home), teamNames(away)] },
+        )
+      ).candidates[0]!.evidence[0]!.excerptFound;
+    expect(await found('Globo', 'Flamengo', 'Palmeiras')).toBe(true);
+    expect(await found('SporTV', 'Santos', 'Corinthians')).toBe(true);
+    // emissora do jogo vizinho: não
+    expect(await found('SporTV', 'Flamengo', 'Palmeiras')).toBe(false);
+    expect(await found('Globo', 'Grêmio', 'Internacional')).toBe(false);
   });
 
   it('decodifica pelo charset da resposta (ISO-8859-1)', () => {

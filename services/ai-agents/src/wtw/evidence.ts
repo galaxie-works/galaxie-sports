@@ -16,6 +16,13 @@ import {
 } from '@galaxie/where-to-watch';
 import { contentHash, isPublicHttpUrl, type PageFetcher, type PageFetchResult } from './fetcher.js';
 
+/**
+ * Distância máxima (em palavras) entre os dois times e a emissora para valer como o trecho do jogo. Mais
+ * curta que a do canal do jogo: aqui o falso negativo custa só 0,1, o falso positivo arma a marca de
+ * "jogo achado" da revalidação.
+ */
+export const EXCERPT_PROXIMITY_WORDS = 10;
+
 /** Nomes da emissora como escritos no dicionário (para conferir por palavras). */
 function rawNames(directory: CountryDirectory, name: string, channel?: string | null): string[] {
   const resolved = directory.resolve(name) ?? (channel ? directory.resolve(channel) : null);
@@ -103,7 +110,12 @@ export async function verifyCandidates(
           mentionsBroadcaster: r.ok ? pageMentions(r.text, names) : null,
           excerptFound: r.ok
             ? (!!e.excerpt && excerptStillPresent(r.text, e.excerpt)) ||
-              (!!opts.teams && mentionsTogether(r.text, opts.teams, words))
+              // janela curta e sem passar por outro confronto: numa agenda compacta o canal do jogo
+              // vizinho fica a poucas palavras
+              (!!opts.teams &&
+                mentionsTogether(r.text, opts.teams, words, EXCERPT_PROXIMITY_WORDS, {
+                  sameMatch: true,
+                }))
             : null,
           contentHash: r.ok ? contentHash(r.text) : null,
           fetchedAt,

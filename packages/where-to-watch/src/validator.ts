@@ -248,6 +248,21 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
   const answer = rightsAnswer(rights, ctx.match ?? NO_MATCH_FACTS);
   const rightsUrls = new Set(rights?.sources ?? []);
 
+  // URLs cujo jogo já foi achado numa verificação, por emissora: vale para todas as candidatas da
+  // emissora com a mesma URL (a alocação nova não apaga a marca da evidência salva)
+  const verifiedKey = (c: Candidate, url: string) => {
+    const name = c.broadcaster.trim();
+    const r = dir.resolve(name) ?? (c.channel ? dir.resolve(c.channel) : null);
+    return `${r?.entry.id ?? normalizeName(name)}|${url}`;
+  };
+  const verifiedUrls = new Set(
+    candidates.flatMap((c) =>
+      c.origin === 'rights'
+        ? []
+        : c.evidence.filter((e) => e.excerptVerified).map((e) => verifiedKey(c, e.url)),
+    ),
+  );
+
   for (const c of candidates) {
     const name = c.broadcaster.trim();
     // Política editorial: nome ou URL bloqueados → a opção nunca chega à API (e não registramos o nome).
@@ -341,7 +356,8 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
       const kind = dir.classifySource(ev.url, entry);
       let score = SOURCE_SCORES[kind];
       // a página da própria emissora sempre a menciona: o que liga a fonte ao jogo é o trecho
-      const lost = ev.excerptVerified === true && ev.excerptFound === false;
+      const verified = ev.excerptVerified === true || verifiedUrls.has(verifiedKey(c, ev.url));
+      const lost = verified && ev.excerptFound === false;
       if (ev.mentionsBroadcaster === false || lost) {
         // Página não menciona a emissora, ou tinha o jogo e não tem mais: rebaixa ao nível de
         // agregador (anti-alucinação; escala que mudou perto do jogo).
@@ -360,7 +376,7 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
         sourceKind: kind,
         publishedAt: ev.publishedAt ?? null,
         contentHash: ev.contentHash ?? null,
-        ...(ev.excerptVerified || ev.excerptFound === true ? { excerptVerified: true } : {}),
+        ...(verified || ev.excerptFound === true ? { excerptVerified: true } : {}),
         stance: ev.stance ?? 'confirms',
         score,
       };

@@ -499,6 +499,36 @@ describe('canal do jogo: teto diário por mercado', () => {
     expect(later.calls).toHaveLength(1);
   });
 
+  it('pesquisa antiga (chave com os mercados, sem stats.targets) cobre os jogos dos mercados dela', async () => {
+    const startsAt = new Date(KICKOFF.getTime() + 30 * 24 * H);
+    const now = new Date(startsAt.getTime() - 30 * H);
+    await seedMoreRounds('Regular Season - 60', startsAt, 2);
+    const groups = await groupsOf(now, ['BR', 'MX'], 'Regular Season - 60');
+    const g = groups[0]!;
+    await db.insert(wtwResearch).values({
+      kind: 'channel',
+      researchKey: `channel:${g.key}:${g.season}:BR:0`,
+      competitionSlug: 'liga-dividida',
+      markets: ['BR'],
+      status: 'done',
+      createdAt: now,
+    });
+    const llm = silent(0.1);
+    const runner = new MatchChannelRunner({
+      db,
+      llm,
+      config,
+      policy,
+      fetcher: new FakePageFetcher({}),
+      now: () => now,
+    });
+    const r = await runner.run(groups, { maxCalls: 3, importSaved: false });
+    expect(r.groups[0]).toMatchObject({ status: 'researched', calls: 1 });
+    // só o MX vai para a pesquisa: o BR já estava coberto pela chave antiga
+    expect(llm.calls[0]!.messages[0]!.content).not.toMatch(/- BR \(Brasil\)/);
+    expect(llm.calls[0]!.messages[0]!.content).toMatch(/- MX \(México\)/);
+  });
+
   it('mercado cortado pelo teto não fica marcado como pesquisado: entra na rodada seguinte', async () => {
     const startsAt = new Date(KICKOFF.getTime() + 20 * 24 * H);
     const now = new Date(startsAt.getTime() - 30 * H);
