@@ -105,8 +105,9 @@ export function buildScheduleRequests(now: Date, opts: DailyOptions = {}): Plann
  * Agenda de anteontem gravada com jogo ainda em andamento: o sync das 00:05 grava `fixtures?date=D-1` com os
  * jogos que começaram depois das ~22h UTC no meio, e essa lista não era mais buscada (D-2 tem TTL eterno no
  * raw) — o jogo ficava em andamento no raw e nunca recebia detalhe. Rebusca a lista de D-2 (1 chamada,
- * uma vez por dia) só quando ela tem jogo em andamento; o detalhe dos encerrados vem na fase seguinte, que
- * também aceita o jogo que a lista deixou em andamento mas já deveria ter acabado (`isStaleOpen`).
+ * uma vez por dia) só quando ela tem jogo em andamento (`isInPlay`: inclui intervalo e suspenso/interrompido,
+ * que pode ter sido retomado); o detalhe dos encerrados vem na fase seguinte, que também aceita o jogo que a
+ * lista deixou em andamento mas já deveria ter acabado (`isStaleOpen`, sem os suspensos).
  */
 export async function reopenUnfinishedDay(
   raw: RawSource,
