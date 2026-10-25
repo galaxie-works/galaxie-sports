@@ -56,6 +56,12 @@ const config = new WtwConfig(
       null,
       { organizers: [], press: [], aggregators: [] },
     ),
+    // Uruguai: só para o preço em dólar (streaming, sem grade)
+    parseCountryConfig('UY', { country: 'UY', broadcasters: [] }, null, {
+      organizers: [],
+      press: [],
+      aggregators: [],
+    }),
   ],
   new Blocklist([]),
 );
@@ -433,5 +439,80 @@ describe('lineups-research pela página oficial (LLM e site falsos)', () => {
     expect(row!.planPages).toEqual([`${SITE}/precos`]);
     // não renova o seen_at: a página guardada é lida na próxima execução, sem nova busca
     expect(await taskOf('br-operadora-limite-exemplo', new Date(day1.getTime() + 86_400_000))).toBeDefined();
+  });
+
+  it('Uruguai: o preço em US$ é gravado em USD (sem converter) e o em "$" na moeda do país', async () => {
+    const UY = 'https://streaming-uy.exemplo';
+    const r = await upsertLineupDraft(db, {
+      platform: {
+        name: 'Streaming Uruguai Exemplo',
+        kind: 'streaming',
+        country: 'UY',
+        website: UY,
+        sources: [UY],
+      },
+      seenAt: NOW,
+    });
+    const html =
+      '<html><body><h2>Plan Fútbol</h2><p>US$ 29,99 por mes</p><h2>Plan Básico</h2><p>$ 590 por mes</p></body></html>';
+    const uyReader = new OfficialPageReader({
+      fetch: async (url) =>
+        url === `${UY}/planes`
+          ? new Response(html, { status: 200, headers: { 'content-type': 'text/html' } })
+          : new Response('', { status: 404 }),
+      store: memoryPageStore(),
+      sleep: async () => undefined,
+      minIntervalMs: 0,
+    });
+    const plan = (name: string, trecho: string, preco: number) => ({
+      plano_nome: name,
+      trecho_do_plano: name,
+      precos: [{ preco_mensal: preco, moeda_iso: null, trecho }],
+      canais: [],
+      streamings_inclusos: [],
+    });
+    const llm = new FakeLlmClient((req: LlmJsonRequest) =>
+      req.purpose.startsWith('lineups:pages-url:')
+        ? {
+            data: { paginas: [{ url: `${UY}/planes`, tipo: 'lista_de_planos' }], notas: null },
+            groundedUrls: [`${UY}/planes`],
+          }
+        : {
+            data: {
+              planos: [
+                plan('Plan Fútbol', 'Plan Fútbol US$ 29,99 por mes', 29.99),
+                plan('Plan Básico', 'Plan Básico $ 590 por mes', 590),
+              ],
+              complementos: [],
+              notas: null,
+            },
+          },
+    );
+    const out = await new LineupResearcher({
+      db,
+      llm,
+      config,
+      now: () => NOW,
+      pages: uyReader,
+    }).researchFromPages({
+      kind: 'plans',
+      country: 'UY',
+      platformId: r.platformId,
+      slug: 'uy-streaming-uruguai-exemplo',
+      name: 'Streaming Uruguai Exemplo',
+      reason: 'no_plans',
+    });
+    expect([out.status, out.extractCalls]).toEqual(['done', 1]);
+    const lineup = await getPlatformLineup(db, r.platformId, { minReview: 'draft', includeUnverified: true });
+    expect(
+      lineup!.plans
+        .map((p) => [p.plan.name, p.plan.priceAmount, p.plan.priceCurrency, p.plan.priceText])
+        .sort(),
+    ).toEqual(
+      [
+        ['Plan Básico', 590, 'UYU', '$ 590/mes'],
+        ['Plan Fútbol', 29.99, 'USD', 'US$ 29,99/mes'],
+      ].sort(),
+    );
   });
 });

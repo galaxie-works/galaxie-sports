@@ -427,20 +427,29 @@ export function excerptCurrencies(excerpt: string, amount: number): (string | nu
 }
 
 /**
- * A moeda do preço é a do país? Falha se o modelo informou outra ou se o trecho só escreve outra junto do
- * número ("US$ 29,99" no Uruguai), mesmo com a moeda do modelo vazia. Basta uma ocorrência do número na
- * moeda do país ou com "$" ("USD 15 o $ 15"); sem moeda nenhuma, vale a do país.
+ * A moeda do preço como a fonte mostra, sem converter (o preço em US$ no Uruguai é gravado em USD):
+ * - a moeda escrita sem ambiguidade junto do número no trecho; com mais de uma, a do país entre elas;
+ * - sem moeda no trecho, ou só "$": a do país, salvo se o modelo informou outra que o trecho não
+ *   confirma (ambígua).
+ * Ilegível ou ambígua: `currency` null e a checagem falha (o preço não é gravado).
  */
-export function currencyCheck(
+export function priceCurrency(
   claimed: string | null,
   excerpt: string,
   amount: number | null,
   country: string | null,
-): LineupCheckResult {
-  if (!country) return 'pass';
-  if (claimed?.trim() && isoOf(claimed.trim()) !== country) return 'fail';
-  const seen = amount !== null ? excerptCurrencies(excerpt, amount) : [];
-  return seen.length && seen.every((c) => c && c !== country) ? 'fail' : 'pass';
+): { currency: string | null; check: LineupCheckResult } {
+  const seen =
+    amount !== null
+      ? [...new Set(excerptCurrencies(excerpt, amount).filter((c): c is string => c !== null))]
+      : [];
+  const model = claimed?.trim() ? isoOf(claimed.trim()) : null;
+  let currency: string | null;
+  if (seen.length === 1) currency = seen[0]!;
+  else if (seen.length > 1) currency = country && seen.includes(country) ? country : null;
+  else currency = model && model !== country ? null : country;
+  if (currency && !/^[A-Z]{3}$/.test(currency)) currency = null;
+  return { currency, check: currency ? 'pass' : 'fail' };
 }
 
 /** Rótulos do preço cheio de lista (antes do número). */
@@ -719,7 +728,7 @@ export function choosePrice(prices: readonly LineupPriceObservation[]): {
         dateKey(b.p.source_date ?? b.p.seen_at).localeCompare(dateKey(a.p.source_date ?? a.p.seen_at)) ||
         a.i - b.i,
     );
-  const values = new Set(prices.map((p) => Math.round(p.amount * 100)));
+  const values = new Set(prices.map((p) => `${p.currency ?? ''}|${Math.round(p.amount * 100)}`));
   return { chosen: verified[0]?.p ?? null, conflict: values.size > 1 };
 }
 
@@ -761,7 +770,7 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
       : p.priceAmount !== null
         ? [{ amount: p.priceAmount, currency: p.currency, date: null, evidence: p.evidence }]
         : [];
-    const priceChecks: { input: ModelPlanPrice; checked: VerifiedEvidence }[] = [];
+    const priceChecks: { input: ModelPlanPrice; checked: VerifiedEvidence; currency: string | null }[] = [];
     for (const input of priceInputs) {
       const checked = await checkEvidence(ctx, {
         evidence: input.evidence,
@@ -773,13 +782,14 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
       if (!checked) continue;
       const c = checked.verification.checks;
       c.list_price = c.excerpt === 'pass' ? listPriceCheck(checked.fullExcerpt, input.amount) : 'skip';
-      c.currency = currencyCheck(input.currency, checked.fullExcerpt, input.amount, currency);
-      checked.verification.verified = passed(c) && currency !== null;
-      priceChecks.push({ input, checked });
+      const pc = priceCurrency(input.currency, checked.fullExcerpt, input.amount, currency);
+      c.currency = pc.check;
+      checked.verification.verified = passed(c) && pc.currency !== null;
+      priceChecks.push({ input, checked, currency: pc.currency });
     }
-    const observations: LineupPriceObservation[] = priceChecks.map(({ input, checked }) => ({
+    const observations: LineupPriceObservation[] = priceChecks.map(({ input, checked, currency }) => ({
       amount: input.amount,
-      currency: currency,
+      currency,
       origin: 'research',
       source_url: checked.sourceUrl,
       tier: checked.verification.tier,
@@ -916,8 +926,8 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
     out.plans.push({
       name: p.name,
       priceAmount,
-      priceCurrency: priceOk ? currency : null,
-      priceText: priceOk ? formatPrice(priceAmount!, currency!, ctx.country) : null,
+      priceCurrency: priceOk ? chosen!.currency : null,
+      priceText: priceOk ? formatPrice(priceAmount!, chosen!.currency!, ctx.country) : null,
       url,
       sources,
       verification: v,
@@ -997,11 +1007,12 @@ export async function verifyAddons(
     c.plan_specific = 'skip';
     c.not_reused = 'skip';
     if (!mentionsAny(checked.fullExcerpt, [bare, ...entryNames(entry, day)])) c.excerpt = 'fail';
-    c.currency = currencyCheck(a.currency, checked.fullExcerpt, a.amount, currency);
+    const pc = priceCurrency(a.currency, checked.fullExcerpt, a.amount, currency);
+    c.currency = pc.check;
     const verified =
       c.official === 'pass' &&
       Object.values(c).every((x) => x === undefined || x !== 'fail') &&
-      currency !== null;
+      pc.currency !== null;
     checked.verification.verified = verified;
     const priceOk = verified && a.amount !== null;
     if (a.amount !== null && !priceOk)
@@ -1014,9 +1025,9 @@ export async function verifyAddons(
       channel,
       name,
       priceAmount: priceOk ? a.amount : null,
-      priceCurrency: priceOk ? currency : null,
+      priceCurrency: priceOk ? pc.currency : null,
       priceText: priceOk
-        ? `${formatPrice(a.amount!, currency!, ctx.country)}${months ? ` · fidelidade de ${months} meses` : ''}`
+        ? `${formatPrice(a.amount!, pc.currency!, ctx.country)}${months ? ` · fidelidade de ${months} meses` : ''}`
         : null,
       commitmentMonths: months,
       sources: [checked.sourceUrl],
