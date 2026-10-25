@@ -74,7 +74,8 @@ const research = {
     bio: {
       text:
         'Ayrton Senna disputou 161 GPs entre 1984 e 1994 e venceu 41 deles, com 65 poles e três títulos mundiais (1988, 1990 e 1991).\n\n' +
-        'Fez da volta de classificação uma assinatura e da chuva, um palco.',
+        'Fez da volta de classificação uma assinatura e da chuva, um palco.\n\n' +
+        'Em Donington, em 1993, saiu da quarta posição e liderou já na primeira volta.',
       sources: [WIKI, F1, 'https://exemplo.invalido/senna'],
     },
     style: {

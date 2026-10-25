@@ -12,7 +12,7 @@ import {
 } from './load.js';
 import { guessLanguage, languageOf } from './language.js';
 import { driverSlug } from './editorial.js';
-import { checkChant, checkProse, type LyricVerdict } from './lyrics.js';
+import { checkChant, checkParagraphs, checkProse, type LyricVerdict } from './lyrics.js';
 import {
   COPY_INTENTS,
   COPY_LOCALES,
@@ -1135,7 +1135,8 @@ function validateEditorial(
     for (const [text, path] of texts) {
       if (typeof text !== 'string') continue;
       const where = at(e.file, [...base, ...path]);
-      const verdict = checkProse(text);
+      // a bio é texto editorial em parágrafos; os itens, frases curtas
+      const verdict = path[0] === 'bio' ? checkParagraphs(text) : checkProse(text);
       if (verdict) add(verdict.level, 'lyric-like', e.file, where, `${slug}: ${verdict.reason}`);
       const found = guessLanguage(text);
       if (found && found !== languageOf(e.locale)) {
