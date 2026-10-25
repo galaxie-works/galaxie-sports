@@ -223,18 +223,19 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     const secretKey = apiKeyFrom(request);
     const pk = secretKey ? undefined : publishableKeyFrom(request);
     let authenticate: () => Promise<TenantContext>;
+    const origin = pk ? requestOrigin(request) : undefined;
     if (pk) {
       assertPublishableRoute(request);
       if (!publishable) throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
-      const origin = requestOrigin(request);
       authenticate = () => publishable.authenticate(pk, origin, { ip: request.ip });
-      if (origin) request.publishableOrigin = origin;
     } else {
       if (!authenticator)
         throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
       authenticate = () => authenticator.authenticate(secretKey, { ip: request.ip });
     }
     const tenant = await authenticate();
+    // só depois de a origem conferir com a chave (CORS da resposta)
+    if (origin) request.publishableOrigin = origin;
     request.tenant = tenant;
     // conexões longas (SSE) revalidam a mesma chave periodicamente (revogação, suspensão, plano)
     request.reauthenticate = authenticate;
