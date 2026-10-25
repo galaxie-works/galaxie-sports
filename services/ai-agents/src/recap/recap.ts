@@ -23,7 +23,8 @@ import type {
 
 // v2: desfecho do mata-mata (agregado, quem passou e para onde) e nome curado do estádio
 // v4: pontos corridos (o que estava em jogo e o que o resultado mudou) e virada/gol decisivo
-export const RECAP_PROMPT_VERSION = 'recap@v4';
+// v5: vantagem do empate em jogo único (tie.decided_by = draw_advantage) e fases numeradas de copa
+export const RECAP_PROMPT_VERSION = 'recap@v5';
 
 /** Fatos citáveis no texto do locale (validador). */
 export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: AgentLocale): FactSheet {

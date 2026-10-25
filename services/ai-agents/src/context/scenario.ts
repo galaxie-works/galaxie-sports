@@ -30,7 +30,8 @@ import type { EventStakes } from './stakes.js';
 
 /** Versão do prompt/fatos: mudar invalida o cache (força regenerar). */
 // v3: só os stakes salientes (até 3 por time, docs/rules §3.5) e a distância em pontos de cada briga
-export const SCENARIO_PROMPT_VERSION = 'scenario@v3';
+// v4: última final de temporada anterior; em ida e volta, pelo agregado (`legs = 2`)
+export const SCENARIO_PROMPT_VERSION = 'scenario@v4';
 
 /** Títulos anteriores de um time na competição (antes da partida). */
 export interface ScenarioTeamTitles {
