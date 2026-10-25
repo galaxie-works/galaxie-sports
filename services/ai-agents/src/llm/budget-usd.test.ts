@@ -27,6 +27,7 @@ import {
   searchUsdFor,
   WEB_SEARCH_USD_PER_CALL,
 } from './pricing.js';
+import { OpenAiLlmClient } from './providers/openai.js';
 import type { LlmJsonRequest } from './types.js';
 
 const SCHEMA = {
@@ -133,8 +134,13 @@ describe('custo: tokens + buscas → US$', () => {
     expect(capped - noSearch).toBeGreaterThan(5 * GEMINI_GROUNDING_USD_PER_QUERY);
     const uncapped = estimateRequestUsd(req({ webSearch: true }), 'gemini-3.8-flash', 'gemini');
     expect(uncapped - capped).toBeCloseTo((UNCAPPED_SEARCH_ESTIMATE - 5) * GEMINI_GROUNDING_USD_PER_QUERY, 6);
-    // modelo fora da tabela: só as buscas
-    expect(estimateRequestUsd(req({ webSearch: true, maxSearches: 2 }), 'desconhecido', 'openai')).toBe(
+    // modelo fora da tabela: o preço mais caro do provedor (nunca de graça) + as buscas
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const unknown = estimateRequestUsd(req({ webSearch: true, maxSearches: 2 }), 'gpt-7-nova', 'openai');
+    const priciest = estimateRequestUsd(req({ webSearch: true, maxSearches: 2 }), 'gpt-6-astra', 'openai');
+    expect(unknown).toBeCloseTo(priciest, 9);
+    // sem provedor conhecido (cliente falso): só as buscas
+    expect(estimateRequestUsd(req({ webSearch: true, maxSearches: 2 }), 'desconhecido', 'fake')).toBe(
       2 * WEB_SEARCH_USD_PER_CALL,
     );
   });
@@ -284,5 +290,91 @@ describe('fábrica', () => {
     const wrapped = withTokenBudget(fake, { dailyLimit: null, agentUsdLimits: { lineups: 0 } });
     await expect(wrapped.generateJson(req())).rejects.toMatchObject({ unit: 'usd' });
     expect(fake.calls).toHaveLength(0);
+  });
+});
+
+/**
+ * Auditoria de 2026-10-25: caminhos que furavam o teto em US$ criado depois do dia de US$ 20,88.
+ * Provedores reais com SDK falso (nenhuma chamada de rede).
+ */
+describe('o teto em US$ segura', () => {
+  const noSleep = { sleep: async () => {} };
+  /** SDK falso da OpenAI: toda chamada recebe a mesma resposta. */
+  const openAiSdk = (reply: unknown) => {
+    const calls: Record<string, unknown>[] = [];
+    const create = async (params: Record<string, unknown>) => {
+      calls.push(params);
+      return reply;
+    };
+    return { calls, sdk: { responses: { create } } };
+  };
+  const openAiReply = (text: string, input: number, output: number, searches = 0) => ({
+    status: 'completed',
+    output_text: text,
+    output: [
+      ...Array.from({ length: searches }, () => ({ type: 'web_search_call' })),
+      { type: 'message', content: [{ type: 'output_text', text }] },
+    ],
+    usage: { input_tokens: input, output_tokens: output },
+  });
+
+  it('modelo fora da tabela de preços não desliga o teto: preço mais caro do provedor + buscas', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const models = { light: 'gpt-7-orion', standard: 'gpt-7-orion', research: 'gpt-7-orion' };
+    const api = openAiSdk(openAiReply('{"answer":"ok"}', 10_000, 1_000, 5));
+    const openai = new OpenAiLlmClient({ models, sdk: api.sdk, retry: noSleep });
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(
+      store,
+      { dailyLimit: null, dailyUsdLimit: 1, maxSearchesPerCall: 5 },
+      () => NOW,
+    );
+    const client = new BudgetedLlmClient(openai, budget, (t) => models[t], 'openai');
+
+    let refused: unknown;
+    for (let i = 0; i < 50 && !refused; i++)
+      await client.generateJson(req({ webSearch: true })).catch((e: unknown) => (refused = e));
+    expect(refused).toBeInstanceOf(BudgetExceededError);
+    // cada chamada: (10k × 10 + 1k × 50) / 1M + 5 buscas × 0,01 = US$ 0,20 (preço do gpt-6-astra)
+    expect(store.entries.map((e) => e.costUsd)).toEqual([0.2, 0.2, 0.2, 0.2]);
+    expect(api.calls).toHaveLength(4);
+    expect((await budget.usdStatus()).usedUsd).toBeLessThanOrEqual(1);
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('gpt-7-orion fora da tabela'))).toBe(true);
+  });
+
+  it('retentativas: a reserva cobre uma tentativa e o provedor confere o gasto parcial antes de cada nova', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // saída fora do schema (retentável) em todas as tentativas; cada uma custa US$ 0,03
+    const api = openAiSdk(openAiReply('{}', 10_000, 1_000));
+    const models = { light: 'gpt-6.1-sol', standard: 'gpt-6.1-sol', research: 'gpt-6.1-sol' };
+    const openai = new OpenAiLlmClient({ models, sdk: api.sdk, maxRetries: 3, retry: noSleep });
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(store, { dailyLimit: null, dailyUsdLimit: 0.07 }, () => NOW);
+    const client = new BudgetedLlmClient(openai, budget, (t) => models[t], 'openai');
+    // ~10 mil tokens de entrada + 1 mil de saída: a estimativa (US$ 0,03) cabe; 4 tentativas (0,12) não
+    const big = req({ purpose: 'wtw:event:1:BR', messages: [{ role: 'user', content: 'x'.repeat(40_000) }] });
+
+    const err = await client.generateJson(big).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BudgetExceededError);
+    expect(err).toMatchObject({ agent: 'global', unit: 'usd' });
+    expect(api.calls).toHaveLength(2); // sem a conferência seriam 4 (AI_MAX_RETRIES=3)
+    expect(store.entries).toHaveLength(1);
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', inputTokens: 20_000, costUsd: 0.06 });
+    expect((await budget.usdStatus()).usedUsd).toBeLessThanOrEqual(0.07);
+  });
+
+  it('falha ao gravar o ledger não descarta a chamada já paga (nem faz o agente pagar de novo)', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const store = new MemoryTokenBudgetStore();
+    store.record = async () => {
+      throw new Error('conexão perdida');
+    };
+    const budget = new TokenBudget(store, { dailyLimit: null }, () => NOW);
+    const fake = new FakeLlmClient([{ data: { answer: 'pago' }, usage: { costUsd: 0.5 } }]);
+    const client = new BudgetedLlmClient(fake, budget);
+    const out = await client.generateJson<{ answer: string }>(req());
+    expect(out.data.answer).toBe('pago');
+    expect(fake.calls).toHaveLength(1);
+    expect(String(error.mock.calls[0]![0])).toMatch(/falha ao gravar o uso no ledger.*conexão perdida/);
   });
 });

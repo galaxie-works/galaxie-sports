@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   agentOf,
   BudgetedLlmClient,
@@ -12,7 +12,7 @@ import { FakeLlmClient } from './fake.js';
 import { createLlmClientFromEnv, withTokenBudget } from './factory.js';
 import { sanitizeText, UNTRUSTED_CONTENT_RULES, wrapUntrusted } from './hygiene.js';
 import { assertMatchesSchema, parseJsonOutput, strictSchemaProblems } from './json-schema.js';
-import { estimateCostUsd, priceFor } from './pricing.js';
+import { budgetPriceFor, estimateCostUsd, priceFor } from './pricing.js';
 import { withRetry } from './retry.js';
 import type { LlmJsonRequest } from './types.js';
 
@@ -70,7 +70,22 @@ describe('preços', () => {
         2,
       ),
     ).toBeCloseTo((5_000 * 2 + 5_000 * 0.1 + 1_000 * 10) / 1e6 + 0.02, 6);
-    expect(estimateCostUsd('modelo-desconhecido', { inputTokens: 1, outputTokens: 1 })).toBeUndefined();
+    // sem provedor conhecido (cliente falso): os tokens não entram, as buscas sim
+    expect(estimateCostUsd('modelo-desconhecido', { inputTokens: 1, outputTokens: 1 })).toBe(0);
+    expect(estimateCostUsd('modelo-desconhecido', { inputTokens: 1, outputTokens: 1 }, 3)).toBe(0.03);
+  });
+
+  it('modelo fora da tabela usa o preço mais caro do provedor (pelo parâmetro ou pelo prefixo)', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const usage = { inputTokens: 1_000_000, outputTokens: 100_000 };
+    // OpenAI: gpt-6-astra (10/50); Anthropic: claude-opus-5 (5/25); Gemini: 2/12 (4 Argon e 3.1 Pro)
+    expect(estimateCostUsd('gpt-7-nova', usage)).toBe(15);
+    expect(estimateCostUsd('ft-sob-medida', usage, 0, 0.01, 'openai')).toBe(15);
+    expect(estimateCostUsd('claude-nova-6', usage, 1)).toBe(7.51);
+    expect(estimateCostUsd('gemini-9-ultra', usage, 10, 0.014)).toBe(3.34);
+    expect(budgetPriceFor('gpt-6-luna-2026-05-18')).toEqual(priceFor('gpt-6-luna'));
+    expect(budgetPriceFor('fake-light', 'fake')).toBeUndefined();
+    vi.restoreAllMocks();
   });
 
   it('reconhece snapshots datados', () => {
@@ -103,6 +118,29 @@ describe('retry com backoff', () => {
       ),
     ).rejects.toThrow('400');
     expect(m).toBe(1);
+  });
+
+  it('beforeRetry roda antes de cada nova tentativa e, se lançar, interrompe', async () => {
+    let n = 0;
+    const seen: number[] = [];
+    await expect(
+      withRetry(
+        async () => {
+          n++;
+          throw new LlmError('fora do schema', 'schema', true);
+        },
+        {
+          retries: 3,
+          sleep: async () => {},
+          beforeRetry: (attempt) => {
+            seen.push(attempt);
+            if (attempt === 2) throw new BudgetExceededError('global', 9, 10, 2, 'usd');
+          },
+        },
+      ),
+    ).rejects.toBeInstanceOf(BudgetExceededError);
+    expect(n).toBe(2);
+    expect(seen).toEqual([1, 2]);
   });
 
   it('classifica erros de SDK por status', () => {

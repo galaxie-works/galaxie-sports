@@ -39,6 +39,12 @@ export interface LlmJsonRequest {
   temperature?: number;
   /** Identifica a tarefa no orçamento de tokens e nos logs (ex.: "wtw:event:<id>:BR"). */
   purpose: string;
+  /**
+   * Preenchido pelo orçamento (BudgetedLlmClient), que reserva uma tentativa só. O provedor chama antes
+   * de cada nova tentativa e de cada continuação, com o gasto parcial da chamada (tokens e US$ já
+   * cobrados); lança BudgetExceededError se mais uma rodada estimada não couber no teto do dia.
+   */
+  budgetCheck?: (spent: { tokens: number; usd: number }) => void;
 }
 
 export interface LlmCitation {

@@ -188,85 +188,92 @@ export class GeminiLlmClient implements LlmClient {
     const research = new UsageMeter();
     const structure = new UsageMeter();
     const cost = () => {
-      const c1 = research.inputTokens
-        ? estimateCostUsd(
-            model,
-            meterTokens(research),
-            research.webSearchCalls,
-            GEMINI_GROUNDING_USD_PER_QUERY,
-          )
-        : 0;
-      const c2 = estimateCostUsd(structureModel, meterTokens(structure));
-      return c1 === undefined || c2 === undefined ? undefined : Math.round((c1 + c2) * 1e6) / 1e6;
+      // as consultas do grounding entram sempre, mesmo sem tokens medidos
+      const c1 = estimateCostUsd(
+        model,
+        meterTokens(research),
+        research.webSearchCalls,
+        GEMINI_GROUNDING_USD_PER_QUERY,
+        'gemini',
+      );
+      const c2 = estimateCostUsd(structureModel, meterTokens(structure), 0, 0, 'gemini');
+      return Math.round((c1 + c2) * 1e6) / 1e6;
     };
-    const usage = () => {
-      const total = new UsageMeter();
+    const total = () => {
+      const t = new UsageMeter();
       for (const m of [research, structure])
-        total.add({
+        t.add({
           input: m.inputTokens,
           output: m.outputTokens,
           cached: m.cachedInputTokens,
           searches: m.webSearchCalls,
         });
-      return total.toUsage(cost());
+      return t;
+    };
+    const retry: RetryOptions = {
+      retries: this.options.maxRetries ?? 3,
+      ...this.options.retry,
+      // cada retentativa é paga de novo: o orçamento confere o gasto parcial antes
+      beforeRetry: () => req.budgetCheck?.(total().spent(cost())),
     };
     try {
-      return await withRetry(
-        async () => {
-          let sources: GroundedSource[] | null = null;
-          let input: string | undefined;
-          if (req.webSearch) {
-            const found = await this.interact(
-              this.buildBody(req, model, {
-                schema: false,
-                search: true,
-                extraSystem: [
-                  RESEARCH_STEP_NOTE,
-                  searchCapNote(req.maxSearches),
-                  allowlistNote(req.allowedDomains),
-                ]
-                  .filter(Boolean)
-                  .join('\n\n'),
-              }),
-              research,
-            );
-            sources = await this.groundedSources(found.text, found.annotations);
-            const { dialog } = splitMessages(req);
-            input = [
-              dialog.map((m) => m.content).join('\n\n'),
-              `## Resultado da pesquisa\n${found.text}`,
-              `## Fontes permitidas\n${sources.length ? sourcesBlock(sources) : '(nenhuma: a busca não trouxe fontes)'}`,
-            ].join('\n\n');
-          }
-          const out = await this.interact(
-            this.buildBody(req, structureModel, {
-              ...(input !== undefined ? { input, extraSystem: STRUCTURE_STEP_NOTE } : {}),
-              schema: true,
-              search: false,
+      // passo 1 (pesquisa paga, por consulta) fora da retentativa do passo 2: erro de schema na
+      // estruturação refaz só a estruturação, não a busca
+      let grounded: { sources: GroundedSource[]; input: string } | null = null;
+      if (req.webSearch)
+        grounded = await withRetry(async () => {
+          const found = await this.interact(
+            this.buildBody(req, model, {
+              schema: false,
+              search: true,
+              extraSystem: [
+                RESEARCH_STEP_NOTE,
+                searchCapNote(req.maxSearches),
+                allowlistNote(req.allowedDomains),
+              ]
+                .filter(Boolean)
+                .join('\n\n'),
             }),
-            structure,
+            research,
           );
-          const data = assertMatchesSchema<T>(
-            req.schema,
-            parseJsonOutput(out.text, req.schemaName),
-            req.schemaName,
-          );
-          const citations: LlmCitation[] = sources
-            ? sources.map((s) => ({ url: s.url, ...(s.title ? { title: s.title } : {}) }))
-            : await this.resolveRedirects(out.annotations.filter((a) => a.url).map((a) => ({ url: a.url! })));
-          return {
-            data,
-            citations: dedupeCitations(citations),
-            usage: usage(),
-            provider: 'gemini' as const,
-            model,
-            ...(sources ? { groundedUrls: sources.map((s) => s.url) } : {}),
-          };
-        },
-        { retries: this.options.maxRetries ?? 3, ...this.options.retry },
-      );
+          const sources = await this.groundedSources(found.text, found.annotations);
+          const { dialog } = splitMessages(req);
+          const input = [
+            dialog.map((m) => m.content).join('\n\n'),
+            `## Resultado da pesquisa\n${found.text}`,
+            `## Fontes permitidas\n${sources.length ? sourcesBlock(sources) : '(nenhuma: a busca não trouxe fontes)'}`,
+          ].join('\n\n');
+          return { sources, input };
+        }, retry);
+      return await withRetry(async () => {
+        const out = await this.interact(
+          this.buildBody(req, structureModel, {
+            ...(grounded ? { input: grounded.input, extraSystem: STRUCTURE_STEP_NOTE } : {}),
+            schema: true,
+            search: false,
+          }),
+          structure,
+        );
+        const data = assertMatchesSchema<T>(
+          req.schema,
+          parseJsonOutput(out.text, req.schemaName),
+          req.schemaName,
+        );
+        const sources = grounded?.sources;
+        const citations: LlmCitation[] = sources
+          ? sources.map((s) => ({ url: s.url, ...(s.title ? { title: s.title } : {}) }))
+          : await this.resolveRedirects(out.annotations.filter((a) => a.url).map((a) => ({ url: a.url! })));
+        return {
+          data,
+          citations: dedupeCitations(citations),
+          usage: total().toUsage(cost()),
+          provider: 'gemini' as const,
+          model,
+          ...(sources ? { groundedUrls: sources.map((s) => s.url) } : {}),
+        };
+      }, retry);
     } catch (err) {
-      throw withUsage(err, usage());
+      throw withUsage(err, total().toUsage(cost()));
     }
   }
 

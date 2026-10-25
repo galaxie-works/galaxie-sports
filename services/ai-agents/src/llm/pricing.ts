@@ -71,21 +71,67 @@ export function priceFor(model: string): ModelPrice | undefined {
   return base ? MODEL_PRICES[base] : undefined;
 }
 
-/** Custo estimado; undefined quando o modelo não está na tabela. */
+/** Prefixo dos modelos de cada provedor na tabela de preços. */
+const PROVIDER_MODEL_PREFIX: Record<string, string> = {
+  openai: 'gpt-',
+  anthropic: 'claude-',
+  gemini: 'gemini-',
+};
+
+/** Provedor do modelo pelo nome (o da tabela); undefined fora dos três provedores. */
+export function providerOfModel(model: string): string | undefined {
+  return Object.entries(PROVIDER_MODEL_PREFIX).find(([, prefix]) => model.startsWith(prefix))?.[0];
+}
+
+/** Maior preço de entrada e de saída entre os modelos do provedor (sem desconto de cache). */
+function highestPriceOf(provider: string): ModelPrice | undefined {
+  const prefix = PROVIDER_MODEL_PREFIX[provider];
+  const prices = Object.entries(MODEL_PRICES)
+    .filter(([k]) => prefix && k.startsWith(prefix))
+    .map(([, p]) => p);
+  if (!prices.length) return undefined;
+  return { input: Math.max(...prices.map((p) => p.input)), output: Math.max(...prices.map((p) => p.output)) };
+}
+
+const warnedUnpriced = new Set<string>();
+
+/**
+ * Preço para o orçamento: o da tabela ou, para modelo fora dela (ex.: `AI_MODEL_*` novo), o mais caro
+ * do provedor — o teto em US$ não pode tratar o modelo desconhecido como de graça. O provedor vem do
+ * parâmetro ou do prefixo do nome; sem provedor conhecido (cliente falso dos testes), undefined.
+ */
+export function budgetPriceFor(model: string, provider?: string): ModelPrice | undefined {
+  const known = priceFor(model);
+  if (known) return known;
+  const family = provider && PROVIDER_MODEL_PREFIX[provider] ? provider : providerOfModel(model);
+  const fallback = family ? highestPriceOf(family) : undefined;
+  if (fallback && !warnedUnpriced.has(model)) {
+    warnedUnpriced.add(model);
+    console.warn(
+      `[orçamento de IA] modelo ${model} fora da tabela de preços: o custo usa o preço mais caro do provedor ${family} (atualize MODEL_PRICES).`,
+    );
+  }
+  return fallback;
+}
+
+/**
+ * Custo estimado: tokens ao preço do modelo (fora da tabela, o mais caro do provedor; sem provedor
+ * conhecido, tokens não entram) mais as buscas na web, que entram sempre.
+ */
 export function estimateCostUsd(
   model: string,
   usage: Pick<LlmUsage, 'inputTokens' | 'outputTokens'> & { cachedInputTokens?: number },
   webSearches = 0,
   usdPerSearch = WEB_SEARCH_USD_PER_CALL,
-): number | undefined {
-  const p = priceFor(model);
-  if (!p) return undefined;
+  provider?: string,
+): number {
+  const p = budgetPriceFor(model, provider);
   const cached = Math.min(usage.cachedInputTokens ?? 0, usage.inputTokens);
-  const cost =
-    ((usage.inputTokens - cached) * p.input +
-      cached * (p.cachedInput ?? p.input) +
-      usage.outputTokens * p.output) /
-      1_000_000 +
-    webSearches * usdPerSearch;
-  return Math.round(cost * 1_000_000) / 1_000_000;
+  const tokensCost = p
+    ? ((usage.inputTokens - cached) * p.input +
+        cached * (p.cachedInput ?? p.input) +
+        usage.outputTokens * p.output) /
+      1_000_000
+    : 0;
+  return Math.round((tokensCost + webSearches * usdPerSearch) * 1_000_000) / 1_000_000;
 }
