@@ -165,16 +165,6 @@ const GOAL_VERBS: Record<'pt' | 'es', RegExp> = {
   es: /\b(marco|marca|anoto|convirtio|abrio el marcador|amplio|desconto|igualo|gol de|goles de|asistencia|gol en contra|de cabeza|de penal)\b/,
 };
 
-/** Frase que fala de assistência (aí quem deu o passe pode ser citado). */
-const ASSIST_CUES: Record<'pt' | 'es', RegExp> = {
-  pt: /\b(assistencias?|assistiu|passes?|cruzamentos?|lancamentos?|servid[oa]|serviu)\b/,
-  es: /\b(asistencias?|asistio|pases?|centros?|habilitacion|servid[oa]|sirvio)\b/,
-};
-/** Frase que fala de pênalti perdido (aí o batedor pode ser citado). */
-const MISSED_PENALTY_CUES: Record<'pt' | 'es', RegExp> = {
-  pt: /\b(perdeu|perde|desperdicou|desperdica|errou|erra|isolou|parou|defendid[oa]|defendeu|nao converteu)\b[^.]*\bpenaltis?\b|\bpenaltis?\b[^.]*\b(perdid[oa]s?|desperdicad[oa]|defendid[oa]|para fora|na trave)\b/,
-  es: /\b(erro|fallo|desperdicio|perdio|atajado|atajo|no convirtio|marro)\b[^.]*\b(penal|penales|penalti)\b|\b(penal|penales|penalti)\b[^.]*\b(errad[oa]s?|fallad[oa]s?|desperdiciad[oa]|atajad[oa]|afuera|al palo)\b/,
-};
 /** Verbo que faz da pessoa citada logo antes a autora do gol ("X marcou", "X anotó"). */
 const SCORED_AFTER: Record<'pt' | 'es', string> = {
   pt: '(?:marcou|marca|anotou|converteu|abriu o placar|ampliou|descontou|empatou|virou|balancou as redes|fez (?:o |os |um |dois |tres |seu |o seu )?(?:(?:primeiro|segundo|terceiro|quarto|quinto|ultimo) )?gols?)',
@@ -186,27 +176,88 @@ const SCORED_BEFORE: Record<'pt' | 'es', string> = {
   es: '(?:goles? de|tanto de|marcado por|anotado por|convertido por)',
 };
 
+/** Fase alcançada ("a final", "as semifinais", "la siguiente fase"): o desfecho só vale com ela no texto. */
+const STAGE_PT =
+  '(?:a |as |o )?(?:grande )?(?:final|semifinal|semifinais|quartas(?: de final)?|oitavas(?: de final)?|proxima fase|fase seguinte|proxima etapa|decisao)\\b';
+const STAGE_ES =
+  '(?:la |las |los |el )?(?:gran )?(?:final|semifinal|semifinales|cuartos(?: de final)?|octavos(?: de final)?|siguiente fase|proxima fase|siguiente ronda|definicion)\\b';
+const ORDINAL_PREFIX = '(?:bi|tri|tetra|penta|hexa|hepta|octa|enea|deca)?';
+
 /**
- * Verbos de desfecho do confronto: quem passou ou foi campeão (`advance`) e quem caiu (`out`). O sujeito é o
- * time citado mais perto antes do verbo (fora os que são objeto: "eliminou o X", "perdeu para o X").
+ * Verbos de desfecho do confronto: quem passou ou foi campeão (`advance`) e quem caiu (`out`), presos ao contexto
+ * ("passou para a final", "conquistou o título"; não "passou à frente", "conquistou a vitória"). O sujeito é o time
+ * citado mais perto antes do verbo (fora os que são objeto: "eliminou o X", "perdeu para o X"). Na dúvida, não
+ * reprova: derrubar um resumo bom custa mais do que deixar passar um caso raro.
  */
 const OUTCOME_VERBS: Record<'pt' | 'es', { advance: RegExp; out: RegExp; objectMarker: RegExp }> = {
   pt: {
-    advance:
-      /\b(classificou|classifica|classificam|classificad[oa]s?|avancou|avanca|passou (?:para|as|a|de fase)|garantiu (?:a )?vaga|carimbou (?:a )?vaga|(?:bi|tri|tetra|penta|hexa|hepta|octa|enea|deca)?(?<!vice-?)campe(?:ao|a|oes)|sagrou-se|eliminou|despachou|conquista o|conquistou|levantou a taca|ergueu a taca|fic(?:ou|a) com o (?:titulo|trofeu|terceiro lugar))\b/g,
+    advance: new RegExp(
+      [
+        '(?:se )?classific(?:ou|a|am|aram)\\b',
+        'classificad[oa]s?\\b',
+        `avanc(?:ou|a|am|aram) (?:para |ate )?${STAGE_PT}`,
+        'avanc(?:ou|a|am|aram) de fase\\b',
+        'avanc(?:ou|aram)(?=\\s*(?:[,.;!]|$))',
+        `passou (?:para |as? )?${STAGE_PT}`,
+        'passou de fase\\b',
+        'garantiu (?:a )?vaga\\b',
+        'carimbou (?:a )?vaga\\b',
+        `(?:esta|estara) na ${STAGE_PT.replace('(?:a |as |o )?', '')}`,
+        `(?:e|foi|sera|sagrou-se|se sagrou|tornou-se|se tornou) (?:o |a )?${ORDINAL_PREFIX}campe(?:ao|a|oes)\\b`,
+        'eliminou\\b',
+        'despachou\\b',
+        `conquist(?:ou|a) (?:o |a )?(?:titulo|taca|vaga|trofeu|copa|${ORDINAL_PREFIX}campeonato|\\S+ titulo)\\b`,
+        'levantou a taca\\b',
+        'ergueu a taca\\b',
+        'fic(?:ou|a) com (?:o titulo|o trofeu|o terceiro lugar|a vaga|a taca)\\b',
+      ]
+        .map((x) => `\\b${x}`)
+        .join('|'),
+      'g',
+    ),
     out: /\b(eliminad[oa]s?|se despediu|ficou fora|ficou pelo caminho|deu adeus|vice-?campe(?:ao|a|oes))\b/g,
     objectMarker:
       /\b(eliminou|eliminar|eliminando|despachou|despachar|bateu|bater|batendo|venceu|vencer|vencendo|derrotou|derrotar|derrotando|superou|superar|superando|goleou|tirou|tirando|deixou|deixando|perdeu para|perder para|perdendo para|para|de|do|da|diante|contra|sobre|com)\s+(?:(?:o|a|os|as)\s+)?$/,
   },
   es: {
-    advance:
-      /\b(clasifico|clasifica|clasifican|clasificad[oa]s?|avanzo|avanza|paso a|se metio en|(?:bi|tri|tetra|penta|hexa|hepta|octa|enea|deca)?(?<!sub)campeon(?:a|es)?|se consagro|elimino|despacho|conquisto|levanto la copa|alzo la copa|gana su titulo|se quedo con (?:el titulo|el trofeo|el tercer puesto|la copa))\b/g,
+    advance: new RegExp(
+      [
+        '(?:se )?clasific(?:o|a|an|aron)\\b',
+        'clasificad[oa]s?\\b',
+        `avanz(?:o|a|an|aron) (?:a |hasta )?${STAGE_ES}`,
+        'avanz(?:o|a|an|aron) de (?:fase|ronda)\\b',
+        'avanz(?:o|aron)(?=\\s*(?:[,.;!]|$))',
+        `paso a ${STAGE_ES}`,
+        'paso de (?:fase|ronda)\\b',
+        `se metio en ${STAGE_ES}`,
+        `(?:esta|estara) en ${STAGE_ES}`,
+        `(?:es|fue|sera|se consagro|se corono|salio) (?:el |la )?${ORDINAL_PREFIX}campeon(?:a|es)?\\b`,
+        'se consagro\\b',
+        'elimino\\b',
+        'despacho\\b',
+        `conquisto (?:el |la |su )?(?:titulo|copa|trofeo|clasificacion|cupo|${ORDINAL_PREFIX}campeonato|\\S+ titulo)\\b`,
+        'gana su titulo\\b',
+        'levanto la copa\\b',
+        'alzo la copa\\b',
+        'se quedo con (?:el titulo|el trofeo|el tercer puesto|la copa)\\b',
+      ]
+        .map((x) => `\\b${x}`)
+        .join('|'),
+      'g',
+    ),
     out: /\b(eliminad[oa]s?|quedo afuera|quedo fuera|se despidio|quedo en el camino|dijo adios|subcampeon(?:a|es)?)\b/g,
     objectMarker:
       /\b(elimino|eliminar|eliminando|despacho|vencio|vencer|venciendo|derroto|derrotar|derrotando|supero|superar|superando|goleo|gano a|dejo|dejando|dejar|perdio con|perdio ante|a|al|de|del|ante|contra|sobre|con|frente a)\s+(?:(?:el|la|los|las)\s+)?$/,
   },
 };
-const NEGATED = /\b(nao|no|nunca|sem|sin)\s+(?:(?:se|foi|fue|esta|esteve)\s+)?$/;
+/**
+ * Verbo que não afirma o desfecho de quem vem antes: negação ("não se classificou"), infinitivo ("perto de ser
+ * eliminado", "evitou ser eliminado") e clivada ("quem avançou foi o X", o sujeito vem depois).
+ */
+const NOT_AN_OUTCOME =
+  /\b(nao|no|nunca|sem|sin|ser|evitou|evitar|evito|quase|casi|quem|quien)\s+(?:(?:se|foi|fue|esta|esteve|ser)\s+)?$/;
+/** Oração relativa entre o time e o verbo: "o Corinthians, que foi eliminado", "…nos pênaltis, que acabou eliminado". */
+const RELATIVE = /^(?:\s+[^,;.]{0,25})?\s*,?\s*(?:que|quien|el cual|la cual)\b[^,;]*$/;
 
 // ─── extração ────────────────────────────────────────────────────────────────────────────────────
 
@@ -315,6 +366,10 @@ const TITLE_ORDINAL_RE = /(?<![a-z])(bi|tri|tetra|penta|hexa|hepta|octa|enea|dec
 
 // ─── validação ───────────────────────────────────────────────────────────────────────────────────
 
+/** O termo (normalizado) como palavra inteira. */
+const wordRe = (term: string, flags = '') =>
+  new RegExp(`(?<![\\p{L}\\d])${escapeRegExp(term)}(?![\\p{L}\\d])`, `u${flags}`);
+
 /** Confere o texto contra os fatos. Lista vazia = nenhuma divergência encontrada. */
 export function checkFacts(text: string, facts: FactSheet, locale: string): FactViolation[] {
   const lang = languageOf(locale);
@@ -400,20 +455,22 @@ export function checkFacts(text: string, facts: FactSheet, locale: string): Fact
         out.push({ kind: 'unknown_number', value: word, sentence });
     }
 
-    // autoria de gol: em frase sobre gol, toda pessoa citada precisa ter participado de um gol no papel que a
-    // frase dá a ela — só o autor marcou; assistência e pênalti perdido só valem em frase que fala disso
+    // autoria de gol: em frase sobre gol, toda pessoa citada precisa ter participado de um gol; quem só deu a
+    // assistência ou perdeu o pênalti pode ser citado, mas não como autor ("X marcou", "gol de X")
     if (roles && GOAL_VERBS[lang].test(normalized)) {
-      const assistTalk = ASSIST_CUES[lang].test(normalized);
-      const missedTalk = MISSED_PENALTY_CUES[lang].test(normalized);
       for (const p of people) {
-        const name = escapeRegExp(p);
-        if (!new RegExp(`(?<![\\p{L}\\d])${name}(?![\\p{L}\\d])`, 'u').test(normalized)) continue;
         if (roles.scorers.has(p)) continue;
-        const otherRole = (assistTalk && roles.assists.has(p)) || (missedTalk && roles.missed.has(p));
+        // menção dentro do nome mais longo de outra pessoa ("Raphael Veiga" em "Raphael Veiga Jr") não conta
+        let text = normalized;
+        for (const q of people)
+          if (q.length > p.length && q.includes(p)) text = text.replace(wordRe(q, 'g'), ' # ');
+        const name = escapeRegExp(p);
+        if (!wordRe(p).test(text)) continue;
+        const otherRole = roles.assists.has(p) || roles.missed.has(p);
         const claimsGoal = new RegExp(
           `(?<![\\p{L}\\d])${name}(?:,[^,]{0,40},)?\\s+${SCORED_AFTER[lang]}(?![\\p{L}])|${SCORED_BEFORE[lang]}\\s+${name}(?![\\p{L}\\d])`,
           'u',
-        ).test(normalized);
+        ).test(text);
         if (!otherRole || claimsGoal) out.push({ kind: 'wrong_scorer', value: p, sentence });
       }
     }
@@ -437,8 +494,9 @@ function outcomeViolations(
   outcome: NonNullable<FactSheet['outcome']>,
   lang: 'pt' | 'es',
 ): string[] {
-  const winners = new Set(outcome.winners.map(normalizeText).filter((n) => n.length > 1));
-  const losers = new Set(outcome.losers.map(normalizeText).filter((n) => n.length > 1));
+  // siglas de 3 letras ("SAO", "PAL") casariam palavras comuns ("são"): ficam de fora
+  const winners = new Set(outcome.winners.map(normalizeText).filter((n) => n.length > 3));
+  const losers = new Set(outcome.losers.map(normalizeText).filter((n) => n.length > 3));
   // nome dos dois lados (ex.: "Atlético") não identifica ninguém
   for (const n of [...winners]) if (losers.delete(n)) winners.delete(n);
   const mentions: { start: number; end: number; name: string; winner: boolean }[] = [];
@@ -460,13 +518,7 @@ function outcomeViolations(
   const subjectBefore = (at: number) => {
     const before = mentions.filter((x) => x.end <= at).sort((a, b) => b.end - a.end);
     const nearest = before[0];
-    if (
-      nearest &&
-      /^\s*,?\s*(?:que|quien|el cual|la cual)\s+(?:(?:se|ja|ya|tambem|tambien)\s+)?$/.test(
-        normalized.slice(nearest.end, at),
-      )
-    )
-      return nearest;
+    if (nearest && RELATIVE.test(normalized.slice(nearest.end, at))) return nearest;
     return before.find((x) => !verbs.objectMarker.test(normalized.slice(0, x.start)));
   };
   const out: string[] = [];
@@ -475,7 +527,7 @@ function outcomeViolations(
     [verbs.out, true],
   ] as const) {
     for (const m of normalized.matchAll(re)) {
-      if (NEGATED.test(normalized.slice(0, m.index))) continue;
+      if (NOT_AN_OUTCOME.test(normalized.slice(0, m.index))) continue;
       const subject = subjectBefore(m.index);
       if (subject && subject.winner === wrongIfWinner) out.push(subject.name);
     }
