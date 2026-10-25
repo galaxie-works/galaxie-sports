@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { surfaceFit } from '../guardrails/index.js';
+import { FactSheetBuilder, surfaceFit } from '../guardrails/index.js';
+import { FakeLlmClient } from '../testing/fake-llm.js';
 import { fellBackOnLlmError, type StoredContextContent } from './store.js';
+import { writeLocalizedTexts } from './writer.js';
 
 const content = (over: Partial<StoredContextContent>): StoredContextContent => ({
   text: 'Fim de jogo: Palmeiras 1 x 0 Corinthians.',
@@ -36,5 +38,24 @@ describe('fellBackOnLlmError (regerar na próxima rodada)', () => {
     const ok = content({});
     ok.run = { ...ok.run, errors: [] };
     expect(fellBackOnLlmError(ok)).toBe(false);
+  });
+});
+
+describe('motivo do texto determinístico (writeLocalizedTexts)', () => {
+  it('locale ausente na 1ª resposta e erro do LLM na 2ª: llm_error (regera na próxima rodada)', async () => {
+    const llm = new FakeLlmClient([{ texts: [] }, new Error('timeout')]);
+    const res = await writeLocalizedTexts({
+      locales: ['pt-BR'],
+      system: 's',
+      userPrompt: () => 'u',
+      factsFor: () => new FactSheetBuilder().name('Palmeiras').build(),
+      fallback: () => ['Fim de jogo'],
+      surface: 'mobile',
+      minSentences: 1,
+      maxSentences: 4,
+      llm,
+      purpose: 'teste',
+    });
+    expect(res.texts[0]).toMatchObject({ origin: 'fallback', fallbackReason: 'llm_error' });
   });
 });
