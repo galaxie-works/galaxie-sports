@@ -79,6 +79,11 @@ export interface MirrorReport {
   failed: number;
   /** Das falhas, as por erro inesperado (storage, banco): a execução termina, mas o job fica com erro. */
   errors: number;
+  /**
+   * Logos de time e competição que estavam ausentes (404, bloqueados) e foram espelhados agora
+   * (`includeMissing`): as entidades que os perderam são religadas por `relinkRecoveredLogos`.
+   */
+  recoveredLogos: string[];
   /** Já espelhados que entraram na lista de bloqueio e foram desvinculados. */
   unlinked: number;
   bytes: number;
@@ -115,6 +120,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     photoCleanup: 0,
     failed: 0,
     errors: 0,
+    recoveredLogos: [],
     unlinked: 0,
     bytes: 0,
     aborted: null,
@@ -198,6 +204,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
       });
       report.stored += 1;
       report.bytes += res.body.length;
+      if (item.missing && LOGO_KINDS.has(item.kind)) report.recoveredLogos.push(item.id);
       emit({ type: 'stored', asset: item, storageKey: key, bytes: res.body.length });
     } else if (res.status === 'not_found') {
       consecutiveRateLimited = 0;

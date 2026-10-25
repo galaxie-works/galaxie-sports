@@ -19,6 +19,7 @@ import {
 } from '@galaxie/db';
 import {
   emptyBatch,
+  normalizeFootballEnvelope,
   normalizePlayers,
   type ApiPlayerItem,
   type NormalizedParticipant,
@@ -37,6 +38,7 @@ import {
 import { PLACEHOLDER_LOGO_SHA256 } from '../src/assets/palette.js';
 import { upsertCatalog, type CatalogRows } from '../src/catalog/persist.js';
 import { runPaletteBackfill } from '../src/assets/palette-backfill.js';
+import { relinkRecoveredLogos } from '../src/assets/relink-logos.js';
 import { disposableDb } from './db.js';
 import { FakeClock, fakeMediaFetch, fakePng } from './helpers.js';
 import { encodePng } from './png.js';
@@ -656,6 +658,109 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
 
     const full = await runRawDiscovery(db, store, { denylist, full: true });
     expect(full).toMatchObject({ after: null, urls: first.urls + 3, added: 0 });
+  });
+});
+
+describe('logo 404 que volta no --retentar-ausentes', () => {
+  // pasta só deste teste na CDN, para a fila (--caminho) não pegar os assets dos outros
+  const media = (path: string) => `https://media.api-sports.io/cricket/${path}.png`;
+  const TEAM = media('teams/5001');
+  const LEAGUE = media('leagues/6001');
+  const ORPHAN = media('teams/5999');
+
+  it('religa time e competição pelo par id ↔ logo que o fornecedor já devolveu, sem chamar a API', async () => {
+    await db
+      .insert(sport)
+      .values({ slug: 'football', name: { 'pt-BR': 'Futebol' } })
+      .onConflictDoNothing();
+    // o catálogo do fornecedor no raw: o time 5001 e a liga 6001 com os logos
+    const teams = { response: [{ team: { id: 5001, name: 'Time que Volta', logo: TEAM }, venue: null }] };
+    await saveRaw('football', '/teams', teams);
+    await saveRaw('football', '/leagues', {
+      response: [
+        {
+          league: { id: 6001, name: 'Liga que Volta', type: 'League', logo: LEAGUE },
+          country: { name: 'Brazil', code: 'BR', flag: null },
+          seasons: [],
+        },
+      ],
+    });
+    await upsertBatch(db, normalizeFootballEnvelope('/teams', teams, new Date())!.batch);
+    const [leagueAsset] = await db
+      .insert(asset)
+      .values({ kind: 'league_logo', sourceUrl: LEAGUE })
+      .returning();
+    const [league] = await db
+      .insert(competition)
+      .values({
+        sport: 'football',
+        slug: 'liga-que-volta',
+        name: 'Liga que Volta',
+        type: 'league',
+        logoAssetId: leagueAsset!.id,
+      })
+      .returning();
+    await db.insert(providerMap).values({
+      entityType: 'competition',
+      entityId: league!.id,
+      provider: 'api-sports',
+      sport: 'football',
+      providerId: '6001',
+    });
+    await db.insert(asset).values({ kind: 'team_logo', sourceUrl: ORPHAN });
+    const [club] = await db.select().from(participant).where(eq(participant.name, 'Time que Volta'));
+    expect(club!.logoAssetId).not.toBeNull();
+    const logos = async () => ({
+      team: (await db.select().from(participant).where(eq(participant.id, club!.id)))[0]!.logoAssetId,
+      league: (await db.select().from(competition).where(eq(competition.id, league!.id)))[0]!.logoAssetId,
+    });
+
+    // 1ª execução: 404 desliga time e competição
+    const store = new PgAssetStore(db);
+    const objects = new InMemoryObjectStore();
+    const clock = new FakeClock();
+    const down = fakeMediaFetch({});
+    const fetcher = (fetch: typeof globalThis.fetch) => new MediaFetcher({ fetch, clock });
+    const first = await runAssetMirror({
+      assets: store,
+      objects,
+      fetcher: fetcher(down.fetch),
+      clock,
+      pathPrefix: 'cricket',
+    });
+    expect(first).toMatchObject({ notFound: 3, recoveredLogos: [] });
+    expect(await logos()).toEqual({ team: null, league: null });
+
+    // --retentar-ausentes: os três voltam; o time e a liga religam, o órfão não tem de quem ser
+    const up = fakeMediaFetch(
+      Object.fromEntries([TEAM, LEAGUE, ORPHAN].map((u) => [u, [{ status: 200, body: fakePng(4, 4) }]])),
+    );
+    const retry = await runAssetMirror({
+      assets: store,
+      objects,
+      fetcher: fetcher(up.fetch),
+      clock,
+      pathPrefix: 'cricket',
+      includeMissing: true,
+    });
+    expect(retry).toMatchObject({ stored: 3 });
+    expect(retry.recoveredLogos).toHaveLength(3);
+    const published = await db.select().from(changeFeed).where(eq(changeFeed.entityId, club!.id));
+    const report = await relinkRecoveredLogos(db, retry.recoveredLogos);
+    expect(report).toEqual({ participants: 1, competitions: 1, unresolved: [ORPHAN] });
+    const teamAsset = (await db.select().from(asset).where(eq(asset.sourceUrl, TEAM)))[0]!;
+    expect(await logos()).toEqual({ team: teamAsset.id, league: leagueAsset!.id });
+    // o time religado sai do cache da API
+    expect(await db.select().from(changeFeed).where(eq(changeFeed.entityId, club!.id))).toHaveLength(
+      published.length + 1,
+    );
+    // só a CDN de mídia foi chamada; idempotente: rodar de novo não troca nada
+    expect(up.calls.every((c) => c.url.startsWith('https://media.api-sports.io/'))).toBe(true);
+    expect(await relinkRecoveredLogos(db, retry.recoveredLogos)).toEqual({
+      participants: 0,
+      competitions: 0,
+      unresolved: [ORPHAN],
+    });
   });
 });
 

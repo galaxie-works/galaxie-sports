@@ -33,6 +33,8 @@ export interface MirrorAsset {
   id: string;
   sourceUrl: string;
   kind: MediaAssetKind;
+  /** Já tentado e ausente (404, bloqueado, genérico): só aparece na fila com `includeMissing`. */
+  missing?: boolean;
 }
 
 export interface StoredInfo {
@@ -187,7 +189,7 @@ export class InMemoryAssetStore implements AssetStore {
     );
     return rows
       .slice(0, query.limit ?? rows.length)
-      .map(({ id, sourceUrl, kind }) => ({ id, sourceUrl, kind }));
+      .map(({ id, sourceUrl, kind, fetchedAt }) => ({ id, sourceUrl, kind, missing: !!fetchedAt }));
   }
 
   async markStored(id: string, info: StoredInfo): Promise<void> {
@@ -359,7 +361,12 @@ export class PgAssetStore implements AssetStore {
     if (!query.includeMissing) conditions.push(isNull(asset.fetchedAt));
     const q = this.db
       // só URLs da CDN de mídia (filtro acima): o tipo é sempre um MediaAssetKind
-      .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: sql<MediaAssetKind>`${asset.kind}` })
+      .select({
+        id: asset.id,
+        sourceUrl: asset.sourceUrl,
+        kind: sql<MediaAssetKind>`${asset.kind}`,
+        missing: MISSING_ASSET,
+      })
       .from(asset)
       .where(and(...conditions))
       .orderBy(asc(asset.createdAt), asc(asset.id));
@@ -396,7 +403,12 @@ export class PgAssetStore implements AssetStore {
       const chunk = ids.slice(i, i + 1000);
       rows.push(
         ...(await this.db
-          .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: sql<MediaAssetKind>`${asset.kind}` })
+          .select({
+            id: asset.id,
+            sourceUrl: asset.sourceUrl,
+            kind: sql<MediaAssetKind>`${asset.kind}`,
+            missing: MISSING_ASSET,
+          })
           .from(asset)
           .where(and(inArray(asset.id, chunk), sql`${asset.sourceUrl} ~* ${urlPattern}`))),
       );

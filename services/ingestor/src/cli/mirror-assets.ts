@@ -11,6 +11,8 @@
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
  *           --desde-dias N (com --fotos: janela dos "escalados recentes", padrão 365)
  *           --caminho volley    só a mídia de um esporte (pasta na CDN: football, basketball, volley...)
+ * Com `--retentar-ausentes`, os logos de time e competição que voltam (antes 404 ou bloqueados) religam na hora
+ * as entidades que os perderam, pelo par id ↔ logo que o fornecedor já devolveu (raw; sem chamada à API).
  * `--fotos` antes liga cada jogador sem foto à URL `football/players/{id}.png` (sai do id, sem cota) e, no fim,
  * aponta hashes repetidos que podem ser imagens genéricas ainda fora de PLACEHOLDER_PHOTO_SHA256.
  * Logos de time e competição que vêm como imagem genérica ("image not available", PLACEHOLDER_LOGO_SHA256) não vão
@@ -30,6 +32,7 @@ import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
 import { mediaPathPrefix, PgAssetStore, runRawDiscovery, type LogoCleanup } from '../assets/asset-store.js';
 import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
+import { relinkRecoveredLogos } from '../assets/relink-logos.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
 import {
   coachPhotoUrl,
@@ -153,6 +156,10 @@ try {
           if (e.type === 'failed') console.warn(`  falha ${e.asset.sourceUrl}: ${e.reason}`);
         },
       });
+      // logos que voltaram (--retentar-ausentes): religa times e competições pelo par id ↔ logo do raw
+      const relinked = report.recoveredLogos.length
+        ? await relinkRecoveredLogos(db, report.recoveredLogos)
+        : undefined;
       // --fotos é só fotos: os logos de emissoras ficam para a execução normal
       const logos = personPhotos
         ? undefined
@@ -166,6 +173,7 @@ try {
       const stats = {
         ...report,
         ...(logos && { broadcasterLogos: { ...logos, failures: logos.failures.slice(0, 20) } }),
+        ...(relinked && { relinked: { ...relinked, unresolved: relinked.unresolved.slice(0, 50) } }),
         failures: report.failures.slice(0, 50),
         notFoundUrls: report.notFoundUrls.slice(0, 50),
       };
@@ -182,6 +190,15 @@ try {
       );
       console.log(logoCleanupLine(report.logoCleanup, 'limpos'));
       if (report.photoCleanup) console.log(`Fotos genéricas já gravadas desligadas: ${report.photoCleanup}`);
+      if (relinked) {
+        console.log(
+          `Logos que voltaram: ${report.recoveredLogos.length} · times religados: ${relinked.participants} · competições religadas: ${relinked.competitions}`,
+        );
+        for (const url of relinked.unresolved.slice(0, 20))
+          console.warn(
+            `  sem resposta no raw que diga de quem é ${url}: religa na próxima normalização do catálogo`,
+          );
+      }
       if (personPhotos) await warnRepeatedPhotos();
       if (logos) {
         console.log(
