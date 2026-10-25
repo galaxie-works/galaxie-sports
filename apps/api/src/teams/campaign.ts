@@ -92,6 +92,8 @@ export interface CampaignInput {
   standing: CampaignStanding | null;
   /** A temporada ainda tem jogos por acontecer (de qualquer time). */
   seasonOpen: boolean;
+  /** Jogos de cada fase da temporada (de todos os times) e quantos em aberto; fase sem jogo fica de fora. */
+  stageActivity: ReadonlyMap<string, { events: number; open: number }>;
   rules: CompetitionRules | null;
   /** core.competition.type: league | cup | tournament. */
   competitionType: string;
@@ -290,8 +292,6 @@ export function computeCampaign(input: CampaignInput): Campaign | null {
     played: standing?.played ?? null,
     group: standing?.group ?? null,
   };
-  const hasDeeperStage = (s: CampaignStage | null) =>
-    stages.some((x) => (depthOf(x.kind) ?? -1) > (s ? (depthOf(s.kind) ?? -1) : 1));
 
   // ── pontos corridos (ou só tabela, sem jogos ligados a fases) ──
   if (!deepest || LEAGUE_KINDS.has(deepest.kind)) {
@@ -313,8 +313,15 @@ export function computeCampaign(input: CampaignInput): Campaign | null {
       };
     }
     if (teamOpen) return { status: 'in_progress', ...common, advancedFrom: false };
-    // a temporada já avançou para o mata-mata sem o time: eliminado na fase de pontos corridos
-    if (hasDeeperStage(deepest)) return { status: 'eliminated', ...common, advancedFrom: false };
+    // a fase de tabela ainda tem jogos de outros times: a classificação não fechou (uma fase de mata-mata
+    // já cadastrada não prova a eliminação)
+    const activity = (s: CampaignStage) => input.stageActivity.get(s.id);
+    const tableOpen = deepest ? (activity(deepest)?.open ?? 0) > 0 : input.seasonOpen;
+    if (tableOpen) return { status: 'in_progress', ...common, advancedFrom: false };
+    // fase encerrada e o mata-mata já com jogos, sem o time: eliminado na fase de pontos corridos
+    const depth = depthOf(kind) ?? 1;
+    if (stages.some((s) => (depthOf(s.kind) ?? -1) > depth && (activity(s)?.events ?? 0) > 0))
+      return { status: 'eliminated', ...common, advancedFrom: false };
     if (input.seasonOpen) return { status: 'in_progress', ...common, advancedFrom: false };
     return { status: 'finished_league', ...common, advancedFrom: false };
   }

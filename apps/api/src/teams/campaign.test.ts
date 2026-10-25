@@ -54,6 +54,7 @@ function input(o: Partial<CampaignInput> & Pick<CampaignInput, 'stages'>): Campa
     tieMatches,
     standing: null,
     seasonOpen: false,
+    stageActivity: new Map(),
     rules: null,
     competitionType: 'cup',
     ...o,
@@ -320,14 +321,40 @@ describe('computeCampaign', () => {
       input({
         stages: cupStages,
         teamEvents: [{ id: 'g1', stageId: 'g', status: 'finished' }],
-        tieMatches: [match('r16', '2026-08-12', ['a', 'b'], [1, 0])],
         standing: { rank: 3, points: 7, played: 6, group: 'Group F' },
         seasonOpen: true,
+        stageActivity: new Map([
+          ['g', { events: 48, open: 0 }],
+          ['r16', { events: 8, open: 7 }],
+        ]),
       }),
       null,
     );
     expect(r.c.status).toBe('eliminated');
     expect([r.label, r.detail]).toEqual(['Eliminado na fase de grupos', '3º lugar · 7 pts']);
+  });
+
+  it('fase de grupos com jogos de outros times por disputar não elimina, mesmo com o mata-mata cadastrado', () => {
+    const groups = (activity: [string, { events: number; open: number }][]) =>
+      computeCampaign(
+        input({
+          stages: cupStages,
+          teamEvents: [{ id: 'g1', stageId: 'g', status: 'finished' }],
+          standing: { rank: 3, points: 7, played: 6, group: 'Group F' },
+          seasonOpen: true,
+          stageActivity: new Map(activity),
+        }),
+      )!.status;
+    // o time já fez os 6 jogos, mas o grupo ainda não acabou
+    expect(groups([['g', { events: 48, open: 2 }]])).toBe('in_progress');
+    // grupos encerrados e o mata-mata ainda sem jogos (sorteio por fazer): sem prova de eliminação
+    expect(groups([['g', { events: 48, open: 0 }]])).toBe('in_progress');
+    expect(
+      groups([
+        ['g', { events: 48, open: 2 }],
+        ['r16', { events: 8, open: 8 }],
+      ]),
+    ).toBe('in_progress');
   });
 
   it('disputa de 3º lugar conta', () => {
