@@ -1,7 +1,7 @@
 import { PRO_PLAN } from '@galaxie/apisports-client';
 import { describe, expect, it } from 'vitest';
 import { harness, NOW } from '../testing/fake-api.js';
-import { buildRotationRequests, buildScheduleRequests, dailyJob } from './daily-job.js';
+import { buildRotationRequests, buildScheduleRequests, checkProviderStatus, dailyJob } from './daily-job.js';
 import { planJob, plannedRequest, runJob } from './runtime/runner.js';
 import { seasonsJob } from './seasons-job.js';
 
@@ -121,5 +121,22 @@ describe('dailyJob', () => {
     const rerun = await planJob(job, h.deps);
     expect(rerun.phases[2]!.steps).toEqual({});
     expect(rerun.totals.network).toBe(0);
+  });
+});
+
+describe('checkProviderStatus', () => {
+  it('uma API auxiliar fora do ar não derruba o sync (nem o /status das outras)', async () => {
+    const seen: string[] = [];
+    const r = await checkProviderStatus(['football', 'afl', 'nba'], async (sport) => {
+      seen.push(sport);
+      if (sport === 'afl') throw new Error('The operation was aborted due to timeout');
+      return { plan: 'Free', active: true, end: null, used: 3, limitDay: 100 };
+    });
+    expect(seen).toEqual(['football', 'afl', 'nba']);
+    expect(r.map((x) => [x.sport, x.ok])).toEqual([
+      ['football', true],
+      ['afl', false],
+      ['nba', true],
+    ]);
   });
 });

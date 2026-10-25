@@ -1,4 +1,4 @@
-import type { ApiSport, PlanRules } from '@galaxie/apisports-client';
+import type { ApiSport, PlanRules, ProviderStatus } from '@galaxie/apisports-client';
 import type { CatalogSource } from './catalog-source.js';
 import { buildDetailRequests, selectDetailFixtures, splitDone } from './details-job.js';
 import { collectFixtures, dateList } from './fixtures.js';
@@ -129,6 +129,29 @@ export async function buildRotationRequests(
     .sort((a, b) => a.age - b.age || a.i - b.i)
     .slice(0, limit)
     .map((a) => a.item);
+}
+
+export type StatusCheck =
+  { sport: ApiSport; ok: true; status: ProviderStatus } | { sport: ApiSport; ok: false; error: unknown };
+
+/**
+ * /status de cada API antes do sync (não consome cota; reconcilia o Governor com o contador do fornecedor).
+ * Uma API que falha (timeout, fora do ar) só fica registrada: o sync segue com o contador local, e o
+ * futebol não deixa de rodar por causa de uma API auxiliar.
+ */
+export async function checkProviderStatus(
+  sports: readonly ApiSport[],
+  status: (sport: ApiSport) => Promise<ProviderStatus>,
+): Promise<StatusCheck[]> {
+  const out: StatusCheck[] = [];
+  for (const sport of sports) {
+    try {
+      out.push({ sport, ok: true, status: await status(sport) });
+    } catch (error) {
+      out.push({ sport, ok: false, error });
+    }
+  }
+  return out;
 }
 
 /** Job #19: sync diário incremental (prioridade DAILY). */
