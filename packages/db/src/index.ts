@@ -2,7 +2,14 @@ export * from './schema/index.js';
 export { createDb, closeDb, pingDb, type Database, type CreateDbOptions } from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
 export { loadTitleRecords, titleCoverage, type TitleQuery, type TitleRecord } from './titles.js';
-export { publishChange, CHANGE_FEED_CHANNEL, type ChangeInput } from './change-feed.js';
+export {
+  publishChange,
+  tagsForChange,
+  CHANGE_FEED_CHANNEL,
+  type ChangeInput,
+  type ChangeTagSource,
+} from './change-feed.js';
+export { GapCursor } from './gap-cursor.js';
 export {
   readEventContext,
   EVENT_CONTEXT_KINDS,
