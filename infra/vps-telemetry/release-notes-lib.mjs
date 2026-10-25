@@ -95,7 +95,7 @@ export function parseTagName(name) {
   return m ? { name, date: m[1], n: Number(m[2]) } : null;
 }
 
-/** Mais recente primeiro: pela data e pelo número do nome (10 depois de 9), não pela data de criação. */
+/** Pelo nome, mais recente primeiro: data e número (10 depois de 9). Só desempate; a ordem vale pelo histórico. */
 export const byTagDesc = (a, b) => (a.date === b.date ? b.n - a.n : a.date < b.date ? 1 : -1);
 
 /**
@@ -114,6 +114,19 @@ export function parseRemoteTags(lsRemote) {
     if (peeled || !byName.has(tag.name)) byName.set(tag.name, { ...tag, sha });
   }
   return [...byName.values()].sort(byTagDesc);
+}
+
+/**
+ * Tags no histórico publicado, mais recente primeiro pela posição do commit em `history` (os SHAs de
+ * `git log --first-parent --format=%H <to>`, do mais novo ao mais velho), não pelo nome: tags do fluxo antigo
+ * levam a data em UTC, e um deploy à noite ganhou o nome do dia seguinte, que passaria à frente das de depois.
+ * Tag fora do histórico (commit que não é ancestral de `to`) fica de fora.
+ */
+export function orderByHistory(tags, history) {
+  const pos = new Map(history.map((sha, i) => [sha, i]));
+  return tags
+    .filter((t) => pos.has(t.sha))
+    .sort((a, b) => pos.get(a.sha) - pos.get(b.sha) || byTagDesc(a, b));
 }
 
 /**

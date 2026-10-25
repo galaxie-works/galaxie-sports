@@ -10,7 +10,8 @@
  *   node infra/vps-telemetry/release-notes.mjs --to <sha> --dry                  # só imprime as notas
  *
  * - Tag e release saem juntas (`gh release create --target`, a tag nasce no GitHub): sem tag local, nem tag
- *   publicada sem release se a criação falhar. Tags e numeração vêm do GitHub (`git ls-remote`), não do clone.
+ *   publicada sem release se a criação falhar. Tags e numeração vêm do GitHub (`git ls-remote`), não do clone;
+ *   a tag anterior é a mais nova no histórico (first-parent) do commit publicado.
  * - A tag `deploy-*` mais recente ainda sem release (publicação que falhou no fluxo antigo) é concluída antes,
  *   com os PRs dela; senão as notas desses PRs se perderiam.
  * - Sem PR novo desde a última tag (redeploy do mesmo código), não cria tag nem release.
@@ -20,6 +21,7 @@ import { execFileSync } from 'node:child_process';
 import {
   deployDate,
   nextTag,
+  orderByHistory,
   parseRemoteTags,
   parseSubject,
   renderSections,
@@ -74,7 +76,10 @@ const publish = ({ tag, title, from, fromLabel, to, existingTag, note }) => {
 };
 
 const to = git('rev-parse', opt('to') ?? 'origin/main');
-const tags = parseRemoteTags(git('ls-remote', '--tags', 'origin', 'refs/tags/deploy-*'));
+const remoteTags = parseRemoteTags(git('ls-remote', '--tags', 'origin', 'refs/tags/deploy-*'));
+// anterior = a tag mais nova no histórico do commit publicado (o nome não serve: as antigas têm data UTC)
+const history = git('log', '--first-parent', '--format=%H', to).split('\n').filter(Boolean);
+const tags = orderByHistory(remoteTags, history);
 
 // tag publicada sem release (o `gh release create` falhou depois do push da tag): conclui antes da nova
 const [latest, previous] = tags;
@@ -101,6 +106,6 @@ const fromLabel = fromRef ? (fromRef.startsWith('deploy-') ? fromRef : from.slic
 
 const today = deployDate();
 const localTags = git('tag', '--list', 'deploy-*').split('\n').filter(Boolean);
-const { tag: autoTag, n } = nextTag([...tags.map((t) => t.name), ...localTags], today);
+const { tag: autoTag, n } = nextTag([...remoteTags.map((t) => t.name), ...localTags], today);
 const tag = opt('tag') ?? autoTag;
 publish({ tag, title: opt('title') ?? `Deploy ${today} nº ${n}`, from, fromLabel, to });
