@@ -386,6 +386,7 @@ networks:
         # Sub-rede fixa: o Traefik (rede do host) chega aos contêineres pelo gateway 172.30.50.1 = TRUST_PROXY.
         - subnet: 172.30.50.0/24
   # Navegador headless (lineup-render) e agents; com saída para a internet, sem os serviços da stack.
+  # O host continua alcançável pelo gateway desta rede (Traefik em network_mode: host e outras portas do host).
   render: {}
 
 volumes:
