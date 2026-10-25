@@ -462,6 +462,37 @@ describe('applyProfiles', () => {
     const stale = await applyProfiles(current, [redo], { decisions: [{ ...decision, reviewHash: 'outro' }] });
     expect(stale.applied).toContain('pt-BR:ayrton-senna');
   });
+
+  it('pt-BR aprovado mantido: a tradução da proposta nova (es em rascunho) não é gravada, fica pendente', async () => {
+    const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
+    const p = await proposeProfile(new FakeLlmClient([research, translation]), senna);
+    let current = kb;
+    for (const f of (await applyProfiles(kb, [p])).files) current = withFile(current, f.rel, f.text);
+    const pt = current.editorial.find((e) => e.locale === 'pt-BR' && e.entry.slug === 'f1-ayrton-senna')!;
+    const es = current.editorial.find((e) => e.locale === 'es' && e.entry.slug === 'f1-ayrton-senna')!;
+    const decision = {
+      itemId: reviewItemId('editorial', editorialKey(pt)),
+      status: 'approved' as const,
+      reviewHash: reviewHash(reviewContent(pt.entry)),
+    };
+    // --refazer: original e tradução novos; o pt-BR aprovado fica, então a tradução nova não tem original gravado
+    const redo = structuredClone(p);
+    redo.entries['pt-BR']!.bio.text = 'Ayrton Senna venceu 41 GPs e fez 65 poles.';
+    redo.entries.es!.bio.text = 'Ayrton Senna ganó 41 GP y logró 65 poles.';
+    const changes = await applyProfiles(current, [redo], { decisions: [decision] });
+    expect(changes.applied).toEqual([]);
+    expect(changes.files).toEqual([]);
+    const skippedEs = changes.skipped.find((s) => s.locale === 'es')!;
+    expect(skippedEs.reason).toMatch(
+      /^tradução de um original \(pt-BR\) que não foi gravado \(perfil aprovado no painel/,
+    );
+    expect(skippedEs.reason).toMatch(/pendente de revisão/);
+    // o es do YAML segue o de antes, em rascunho (pendente no painel)
+    expect(es.entry.review_status).toBe('draft');
+    // com o original sobrescrito de propósito, a tradução dele entra junto
+    const forced = await applyProfiles(current, [redo], { decisions: [decision], overwriteApproved: true });
+    expect(forced.applied).toEqual(['pt-BR:ayrton-senna', 'es:ayrton-senna']);
+  });
 });
 
 describe('propostas de várias execuções (passo da VPS)', () => {
