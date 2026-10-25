@@ -98,6 +98,25 @@ describe('applyReviewOverrides', () => {
     expect(result.kb).toBe(kb);
   });
 
+  it('campo em conflito derruba a edição inteira do item, não só o campo (campos acoplados)', () => {
+    // a edição trocou o texto para "hoje" e o momento para today; depois o YAML reescreveu o texto
+    // ("Amanhã…", ainda D-1). Aplicar só o momento serviria "Amanhã…" no dia do jogo
+    const id = 'copy:pt-BR.anticipate-3-d1';
+    const before = item(kb, id);
+    expect(before.content).toMatchObject({ momentum: 'D-1', template: expect.stringMatching(/^Amanhã/) });
+    const result = applyReviewOverrides(kb, [
+      {
+        itemId: id,
+        fields: { template: 'Hoje tem {nickname}! Contagem regressiva ligada', momentum: 'today' },
+        base: { template: 'Amanhã tem {nickname}!', momentum: 'D-1' },
+      },
+    ]);
+    expect(result.conflicts).toEqual([id]);
+    expect(result.applied).toEqual([]);
+    expect(item(result.kb, id).content).toEqual(before.content);
+    expect(item(result.kb, id).reviewHash).toBe(before.reviewHash);
+  });
+
   it('clássico e o histórico geral dele editam o mesmo item do YAML sem se perder', () => {
     const d = kb.derbies.find((x) => x.entry.all_time)!;
     const derbyId = `derby:${d.entry.slug}`;
