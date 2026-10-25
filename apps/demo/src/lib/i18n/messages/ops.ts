@@ -258,7 +258,7 @@ export default defineMessages(
         'live-reconcile': {
           label: 'Reconciliação do ao vivo',
           description:
-            'Confirma na fonte os jogos ainda dados como em andamento e corrige status, placar e encerramento. Botão de pânico: gasta até 60 chamadas.',
+            'Confirma na fonte os jogos ainda dados como em andamento e corrige status, placar e encerramento. Pela agenda, só os que parecem parados; rodar agora é o botão de pânico: confere todos, até 60 chamadas.',
         },
         'normalize-football': {
           label: 'Normalização do futebol',
@@ -987,7 +987,7 @@ export default defineMessages(
           'live-reconcile': {
             label: 'Live reconciliation',
             description:
-              'Checks with the source the matches still shown as in play and fixes status, score and full time. Panic button: spends up to 60 calls.',
+              'Checks with the source the matches still shown as in play and fixes status, score and full time. On schedule, only those that look stuck; run now is the panic button: checks them all, up to 60 calls.',
           },
           'normalize-football': {
             label: 'Football normalization',
@@ -1715,7 +1715,7 @@ export default defineMessages(
           'live-reconcile': {
             label: 'Reconciliación del en vivo',
             description:
-              'Confirma en la fuente los partidos que siguen en curso y corrige estado, marcador y final. Botón de pánico: gasta hasta 60 llamadas.',
+              'Confirma en la fuente los partidos que siguen en curso y corrige estado, marcador y final. Por la agenda, solo los que parecen detenidos; correr ahora es el botón de pánico: revisa todos, hasta 60 llamadas.',
           },
           'normalize-football': {
             label: 'Normalización del fútbol',
