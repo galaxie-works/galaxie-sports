@@ -41714,14 +41714,99 @@ entries:
     f1db_id: stefan-johansson
     name: Stefan Johansson
     wikidata: null
-    category: null
-    note: sem item conferido no Wikidata
-    photos: []
-    ranking:
-      by: gemini
-      model: gemini-3.5-flash-lite
-      at: 2026-10-23
-      pool: 0
+    category: Stefan Johansson
+    note: identificado pela categoria da Commons (Wikidata atrasado)
+    photos:
+      - file: File:1983 Race of Champions, Johansson.jpg
+        role: action
+        season: 1983
+        rank: 0
+        match: manual
+        selected_by: manual
+        page_url: https://commons.wikimedia.org/wiki/File:1983_Race_of_Champions,_Johansson.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Martin Lee
+        author_url: null
+        credit: https://www.flickr.com/photos/kartingnord/51633970849/
+        attribution_required: true
+        share_alike: true
+        date: 1983-04-10
+        width: 2112
+        height: 1536
+        reason: "curadoria (auditoria 25/10): restaurada (apagada pela varredura sem o Wikidata); o título cita o Johansson e a temporada é da carreira"
+      - file: File:Toleman TG184 Johansson.jpg
+        role: action
+        season: 1985
+        rank: 1
+        match: manual
+        selected_by: manual
+        page_url: https://commons.wikimedia.org/wiki/File:Toleman_TG184_Johansson.jpg
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Uploader's father, digitized and altered by Mr.choppers
+        author_url: https://commons.wikimedia.org/wiki/User:Mr.choppers
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: Early spring 1985
+        width: 2505
+        height: 1875
+        reason: "curadoria (auditoria 25/10): restaurada (apagada pela varredura sem o Wikidata); o título cita o Johansson e a temporada é da carreira"
+      - file: File:Johanson at 1986 Italian Grand Prix.jpg
+        role: action
+        season: 1986
+        rank: 2
+        match: manual
+        selected_by: manual
+        page_url: https://commons.wikimedia.org/wiki/File:Johanson_at_1986_Italian_Grand_Prix.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: Luigi Rosa from Pavia, Italy
+        author_url: https://www.flickr.com/people/30571787@N00
+        credit: F1 GP Monza 1986 - Johanson Uploaded by Sporti
+        attribution_required: true
+        share_alike: true
+        date: 1986-09-01 00:00
+        width: 1600
+        height: 1019
+        reason: "curadoria (auditoria 25/10): restaurada (apagada pela varredura sem o Wikidata); o título cita o Johansson e a temporada é da carreira"
+      - file: File:1989 Belgian GP race start 08.jpg
+        role: action
+        season: 1989
+        rank: 2
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1989_Belgian_GP_race_start_08.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: madagascarica from Verneuil Grand, France
+        author_url: https://www.flickr.com/people/37974559@N08
+        credit: img072
+        attribution_required: true
+        share_alike: false
+        date: 1989-08-27 14:15
+        width: 1800
+        height: 1241
+        reason: "curadoria (auditoria 25/10): largada com vários carros; sem ver a foto não dá para confirmar o Johansson"
+      - file: File:1989 Belgian GP race start 07.jpg
+        role: action
+        season: 1989
+        rank: 3
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:1989_Belgian_GP_race_start_07.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: madagascarica from Verneuil Grand, France
+        author_url: https://www.flickr.com/people/37974559@N08
+        credit: img019
+        attribution_required: true
+        share_alike: false
+        date: 1989-08-27 14:16
+        width: 1799
+        height: 1243
+        reason: "curadoria (auditoria 25/10): largada com vários carros; sem ver a foto não dá para confirmar o Johansson"
     highlight_car:
       target: car/ferrari/1986
       season: 1986
