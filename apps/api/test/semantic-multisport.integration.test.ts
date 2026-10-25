@@ -26,6 +26,7 @@ import {
   season,
   sport,
   teamMember,
+  teamProfile,
   unit,
   type Database,
   type EventScore,
@@ -614,6 +615,39 @@ describe('/v1/derbies', () => {
   });
 });
 
+describe('/v1/derbies: piso editorial dos perfis', () => {
+  it('clássico aprovado com um dos perfis em rascunho não sai (lista, próximos e /{slug})', async () => {
+    // pré-condição: Choque-Rei e os dois perfis aprovados, sai no piso de produção
+    const [original] = await db.select().from(teamProfile).where(eq(teamProfile.slug, 'sao-paulo'));
+    expect(original!.reviewStatus).toBe('approved');
+    const before = (await get('/v1/derbies?team=sao-paulo', {}, prodApp)).json().data as { slug: string }[];
+    expect(before.map((d) => d.slug)).toContain('choque-rei');
+    await db.update(teamProfile).set({ reviewStatus: 'draft' }).where(eq(teamProfile.slug, 'sao-paulo'));
+    // servidor novo (cache vazio) com o piso de produção
+    const fresh = buildServer({ db, redis, keyPrefix: `${keyPrefix}floor:` });
+    try {
+      await fresh.ready();
+      const list = (await get('/v1/derbies?country=br', {}, fresh)).json().data as {
+        slug: string;
+        teams: { slug: string }[];
+      }[];
+      expect(list.map((d) => d.slug)).not.toContain('choque-rei');
+      expect(list.flatMap((d) => d.teams.map((t) => t.slug))).not.toContain('sao-paulo');
+      expect(list.map((d) => d.slug)).toContain('derby-paulista');
+      const month = (await get('/v1/derbies/upcoming?days=30', {}, fresh)).json().data as {
+        event_id: string;
+      }[];
+      expect(month.map((e) => e.event_id)).toEqual([ids.next]);
+      const detail = await get('/v1/derbies/choque-rei', {}, fresh);
+      expect(detail.statusCode).toBe(404);
+      expect(detail.json().detail).toContain('approved');
+    } finally {
+      await fresh.close();
+      await db.update(teamProfile).set({ reviewStatus: 'approved' }).where(eq(teamProfile.slug, 'sao-paulo'));
+    }
+  });
+});
+
 describe('/v1/teams/{id}/semantic e /rivals', () => {
   it('cartão de identidade por slug ou UUID, com dicas de copy do mercado', async () => {
     const bySlug = await get('/v1/teams/palmeiras/semantic?locale=pt-BR');
@@ -905,14 +939,32 @@ describe('/v1/multisport', () => {
     expect(res.data).toHaveLength(1);
     expect(res.data[0]).toMatchObject({ games: { slug: 'og-summer-2024' }, gold: 2, total: 2 });
     expect(res.totals).toEqual([{ noc: 'BRA', gold: 2, silver: 0, bronze: 0, total: 2 }]);
-    expect(res.withheld).toEqual([
-      expect.objectContaining({
-        slug: 'pan-2023',
-        data_quality: expect.objectContaining({ publishable: false }),
-      }),
-    ]);
+    // retidas: as edições já iniciadas do filtro sem quadro publicável (insuficiente, sem avaliação)
+    const withheld = (body: { withheld: { slug: string; data_quality: { level: string | null } }[] }) =>
+      new Map(body.withheld.map((w) => [w.slug, w.data_quality]));
+    const all = withheld(res);
+    expect(all.get('pan-2023')).toMatchObject({ level: 'insufficient', publishable: false });
+    // só as 10 retidas mais recentes (sem avaliação, quase toda edição antiga é retida); o total à parte
+    expect(res.withheld).toHaveLength(10);
+    expect(res.withheld_total).toBeGreaterThan(10);
+    expect(all.get('og-winter-2026')).toMatchObject({ level: null, publishable: false });
+    expect(all.has('og-summer-1896')).toBe(false);
+    // futura (Lima 2027) não é histórico; a publicada fica em `data`
+    expect(all.has('pan-2027')).toBe(false);
+    expect(all.has('og-summer-2024')).toBe(false);
     const og = (await get('/v1/multisport/history/medals?noc=BRA&type=OG')).json();
-    expect(og.withheld).toEqual([]);
+    expect([...withheld(og).keys()].every((slug) => slug.startsWith('og-'))).toBe(true);
+    expect(withheld(og).has('og-summer-2024')).toBe(false);
+    // CON sem linha no quadro da edição retida (a Argentina não tem medalha no Pan de 2023 carregado):
+    // a edição aparece como retida, não some como se não tivesse participado
+    const arg = (await get('/v1/multisport/history/medals?noc=ARG&type=PAN')).json();
+    expect(arg.data).toEqual([]);
+    expect(withheld(arg).get('pan-2023')).toMatchObject({ level: 'insufficient', publishable: false });
+    // na edição publicada, o CON sem medalha fica fora de `data` (sem participação no quadro)
+    const uru = (await get('/v1/multisport/history/medals?noc=URU&type=OG')).json();
+    expect(uru.data).toEqual([]);
+    expect(uru.totals).toEqual([{ noc: 'URU', gold: 0, silver: 0, bronze: 0, total: 0 }]);
+    expect(withheld(uru).has('og-summer-2024')).toBe(false);
     expect((await get('/v1/multisport/history/medals')).statusCode).toBe(400);
     expect((await get('/v1/multisport/history/medals?noc=ZZZ')).statusCode).toBe(404);
   });
