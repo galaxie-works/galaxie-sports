@@ -12,7 +12,7 @@ import { apiLocale, apiTimeZone, defaultMarket, type ContentLocale, type Locale 
 import { getDictionary } from '../i18n/dictionary';
 import { fill } from '../i18n/text';
 
-import { isLiveSeason, isRecentWindow } from './cache-life';
+import { ACTIVE_LIFE, hasNearMatch, isActiveStandings, isActiveWindow } from './cache-life';
 import type { ApiRequest } from './request';
 import { API_URL } from './server';
 
@@ -184,10 +184,11 @@ export const standingsRequest = (
 
 export async function getStandings(competitionId: string, season: number, locale: ContentLocale) {
   'use cache';
-  // temporada em andamento: a tabela muda a cada rodada encerrada
-  if (isLiveSeason(season)) cacheLife('minutes');
+  const standings = await orNull(api.standings(competitionId, season, localeQuery(locale)));
+  // temporada em andamento: a tabela muda a cada rodada encerrada; a encerrada fica parada
+  if (isActiveStandings(standings?.updated_at)) cacheLife(ACTIVE_LIFE);
   else cacheLife('hours');
-  return orNull(api.standings(competitionId, season, localeQuery(locale)));
+  return standings;
 }
 
 export interface SeasonWindow {
@@ -245,8 +246,8 @@ export async function getCompetitionEvents(
   locale: ContentLocale,
 ) {
   'use cache';
-  // janela que chega a hoje: jogo encerrado não pode seguir "agendado" por até 1 h
-  if (isRecentWindow(to)) cacheLife('minutes');
+  // temporada em andamento: jogo encerrado não pode seguir "agendado" por até 1 h
+  if (isActiveWindow(from, to)) cacheLife(ACTIVE_LIFE);
   else cacheLife('hours');
   const all = [];
   let cursor: string | undefined;
@@ -303,10 +304,11 @@ export const teamOverviewRequest = (
 
 export async function getTeamOverview(id: string, locale: ContentLocale, season?: number) {
   'use cache';
-  // forma, últimos jogos e posição da temporada atual mudam a cada jogo
-  if (isLiveSeason(season)) cacheLife('minutes');
+  const overview = await orNotFound(api.teamOverview(id, { ...seasonQuery(season), ...localeQuery(locale) }));
+  // forma, últimos jogos e posição mudam a cada jogo: com jogo perto, o cache curto
+  if (hasNearMatch(overview)) cacheLife(ACTIVE_LIFE);
   else cacheLife('hours');
-  return orNotFound(api.teamOverview(id, { ...seasonQuery(season), ...localeQuery(locale) }));
+  return overview;
 }
 
 export const teamSemanticRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
