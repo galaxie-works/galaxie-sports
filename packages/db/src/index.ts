@@ -48,6 +48,7 @@ export {
   saveRuntimeCheck,
   touchRuntimeEnv,
   writeRuntimeSetting,
+  mergeJobRunStats,
   JOB_REQUEST_TTL_MS,
   type ClaimedJobRequest,
   type RuntimeSettingState,
