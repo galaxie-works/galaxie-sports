@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
@@ -374,6 +374,29 @@ describe('autoatendimento /v1/account', () => {
     await adminReq('POST', '/internal/admin/usage/flush');
     await adminReq('POST', '/internal/admin/usage/flush');
     expect(await countries()).toBe(before + 3);
+
+    // rollout/rollback: uma versão sem épocas consolida junto, gravando só greatest(requests, contador)
+    const route = 'GET /v1/rollback';
+    const rollbackRow = async () =>
+      (await db.select().from(usageDaily).where(eq(usageDaily.tenantId, tenantId))).find(
+        (r) => r.day === utcDay() && r.route === route,
+      )!;
+    await usage.incr([{ day: utcDay(), tenantId, route, n: 10 }]);
+    await adminReq('POST', '/internal/admin/usage/flush');
+    expect((await rollbackRow()).requests).toBe(10);
+    await usage.incr([{ day: utcDay(), tenantId, route, n: 140 }]);
+    await db.execute(
+      sql`update api.usage_daily set requests = greatest(requests, 150)
+           where tenant_id = ${tenantId} and day = ${utcDay()} and route = ${route}`,
+    );
+    await usage.incr([{ day: utcDay(), tenantId, route, n: 10 }]);
+    await adminReq('POST', '/internal/admin/usage/flush');
+    expect((await rollbackRow()).requests).toBe(160); // não 300
+    // snapshot de uma época mais velha que a gravada (corrida após Valkey zerado): ignorado
+    await db.update(usageDaily).set({ epoch: '999999999999999-z' }).where(eq(usageDaily.route, route));
+    await usage.incr([{ day: utcDay(), tenantId, route, n: 5 }]);
+    await adminReq('POST', '/internal/admin/usage/flush');
+    expect((await rollbackRow()).requests).toBe(160);
 
     // Postgres fora por mais de um dia: o dia de 3 dias atrás ainda está no Valkey e é consolidado
     const old = utcDay(new Date(Date.now() - 3 * 86_400_000));

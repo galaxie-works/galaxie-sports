@@ -73,13 +73,14 @@ describe('UsageCounter', () => {
 });
 
 describe('épocas do contador (Codex C17)', () => {
-  it('mesma época troca a parcela; época nova soma; sem época vale o maior', () => {
-    const row = { requests: 100, epoch: 'e1', epochRequests: 40 };
-    expect(combineUsage(row, { epoch: 'e1', n: 50 })).toBe(110); // 60 de épocas anteriores + 50
-    expect(combineUsage(row, { epoch: 'e1', n: 30 })).toBe(100); // AOF truncado: não regride
-    expect(combineUsage(row, { epoch: 'e2', n: 3 })).toBe(103); // Valkey zerado: soma
-    expect(combineUsage({ ...row, epoch: null }, { epoch: 'e2', n: 3 })).toBe(100);
-    expect(combineUsage(undefined, { epoch: 'e1', n: 7 })).toBe(7);
+  it('mesma época: maior entre consolidado e base + contador; época nova soma; velha é ignorada', () => {
+    const row = { requests: 100, epoch: '000001700000000-b', epochBase: 60 };
+    expect(combineUsage(row, { epoch: row.epoch, n: 50 })).toBe(110); // 60 de épocas anteriores + 50
+    expect(combineUsage(row, { epoch: row.epoch, n: 30 })).toBe(100); // AOF truncado: não regride
+    expect(combineUsage(row, { epoch: '000001700000099-a', n: 3 })).toBe(103); // Valkey zerado: soma
+    expect(combineUsage(row, { epoch: '000001600000000-z', n: 3 })).toBe(100); // snapshot atrasado
+    expect(combineUsage({ ...row, epoch: null }, { epoch: 'x', n: 3 })).toBe(100);
+    expect(combineUsage(undefined, { epoch: 'x', n: 7 })).toBe(7);
   });
 
   it('a memória abre uma época nova depois de um reset', async () => {

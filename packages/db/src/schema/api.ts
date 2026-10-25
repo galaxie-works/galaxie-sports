@@ -125,12 +125,13 @@ export const usageDaily = api.table(
     route: text('route').notNull(),
     requests: bigint('requests', { mode: 'number' }).notNull().default(0),
     /**
-     * Época do hash do Valkey que alimentou a última consolidação (`#epoca`) e quanto dela já está em
-     * `requests`. Época nova (Valkey zerado) soma; a mesma época troca a parcela pelo maior valor.
-     * null = linha anterior às épocas.
+     * Época do hash do Valkey que alimentou a última consolidação (`#epoca`) e `epoch_base`, o consolidado
+     * das épocas anteriores. Mesma época: `requests = greatest(requests, base + contador)`; época nova
+     * (Valkey zerado): `base := requests` e soma. Só `greatest()`, então uma versão anterior da API que
+     * consolide junto (rollout, rollback) não faz o total crescer em dobro. null = linha anterior às épocas.
      */
     epoch: text('epoch'),
-    epochRequests: bigint('epoch_requests', { mode: 'number' }).notNull().default(0),
+    epochBase: bigint('epoch_base', { mode: 'number' }).notNull().default(0),
     updatedAt: updatedAt(),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.day, t.route] }), index('usage_daily_day_idx').on(t.day)],

@@ -25,28 +25,30 @@ export function liveDays(now: Date = new Date()): string[] {
 
 /**
  * Total de uma rota combinando o consolidado com a contagem da época atual do Valkey (mesma regra do upsert
- * de `persistUsage`): mesma época → base + maior parcela; época nova → soma; sem época (linha ou hash
- * anterior às épocas) → maior valor.
+ * de `persistUsage`): mesma época → maior entre o consolidado e base + contador; época mais nova → soma;
+ * época mais velha (snapshot atrasado) → consolidado; sem época (linha ou hash anterior) → maior valor.
  */
 export function combineUsage(
-  stored: { requests: number; epoch: string | null; epochRequests: number } | undefined,
+  stored: { requests: number; epoch: string | null; epochBase: number } | undefined,
   live: { epoch: string | null; n: number },
 ): number {
   if (!stored) return live.n;
   if (!live.epoch || !stored.epoch) return Math.max(stored.requests, live.n);
-  if (stored.epoch === live.epoch)
-    return stored.requests - stored.epochRequests + Math.max(stored.epochRequests, live.n);
-  return stored.requests + live.n;
+  if (stored.epoch === live.epoch) return Math.max(stored.requests, stored.epochBase + live.n);
+  return live.epoch > stored.epoch ? stored.requests + live.n : stored.requests;
 }
 
 /**
- * Consolida os contadores do Valkey em `api.usage_daily`. Idempotente por época (`UsageSnapshot.epoch`):
- * dentro da mesma época, a parcela consolidada é trocada pelo maior valor (repetir não soma de novo); uma
- * época nova — o Valkey perdeu o hash (reinício sem dados, AOF truncado) — tem a contagem somada ao
- * consolidado, em vez de o `greatest()` congelar o uso até o contador novo passar o antigo, e sem cobrar
- * em dobro o que já estava consolidado. Linha ou hash sem época (anteriores a esta regra) usam o maior
- * valor, como antes. Perde-se só o que o Valkey contou e ninguém consolidou antes da perda.
- * Tenants inexistentes (ex.: removidos) são ignorados.
+ * Consolida os contadores do Valkey em `api.usage_daily`, por época (`UsageSnapshot.epoch`):
+ * - mesma época: `requests = greatest(requests, epoch_base + contador)` — idempotente, e só `greatest()`,
+ *   então uma versão anterior da API consolidando junto (rollout ou rollback no mesmo dia, gravando
+ *   `greatest(requests, contador)`) não faz o total crescer em dobro;
+ * - época mais nova (o Valkey perdeu o hash: reinício sem dados, AOF truncado): `epoch_base := requests` e
+ *   a contagem nova soma, em vez de o `greatest()` congelar o uso até o contador novo passar o antigo;
+ * - época mais velha que a gravada (snapshot lido antes de uma perda e gravado depois): ignorada;
+ * - linha ou hash sem época (anteriores a esta regra): `greatest()`, como antes.
+ * Perde-se só o que o Valkey contou e ninguém consolidou antes da perda. A consolidação nunca escreve no
+ * Valkey. Tenants inexistentes (ex.: removidos) são ignorados.
  */
 export async function persistUsage(
   db: Database,
@@ -64,9 +66,11 @@ export async function persistUsage(
       const { epoch, counts } = await backend.snapshot(day, tenantId);
       const values = Object.entries(counts)
         .filter(([, n]) => n > 0)
-        .map(([route, requests]) => ({ tenantId, day, route, requests, epoch, epochRequests: requests }));
+        .map(([route, requests]) => ({ tenantId, day, route, requests, epoch, epochBase: 0 }));
       if (!values.length) continue;
-      const cur = { requests: usageDaily.requests, epoch: usageDaily.epoch, part: usageDaily.epochRequests };
+      const cur = { requests: usageDaily.requests, epoch: usageDaily.epoch, base: usageDaily.epochBase };
+      // épocas comparadas byte a byte (o prefixo é o instante em largura fixa)
+      const newer = sql`excluded.epoch collate "C" > ${cur.epoch} collate "C"`;
       await db
         .insert(usageDaily)
         .values(values)
@@ -75,14 +79,19 @@ export async function persistUsage(
           set: {
             requests: sql`case
               when excluded.epoch is null or ${cur.epoch} is null then greatest(${cur.requests}, excluded.requests)
-              when ${cur.epoch} = excluded.epoch
-                then ${cur.requests} - ${cur.part} + greatest(${cur.part}, excluded.epoch_requests)
-              else ${cur.requests} + excluded.epoch_requests end`,
-            epochRequests: sql`case
-              when excluded.epoch is null then ${cur.part}
-              when ${cur.epoch} = excluded.epoch then greatest(${cur.part}, excluded.epoch_requests)
-              else excluded.epoch_requests end`,
-            epoch: sql`coalesce(excluded.epoch, ${cur.epoch})`,
+              when excluded.epoch = ${cur.epoch} then greatest(${cur.requests}, ${cur.base} + excluded.requests)
+              when ${newer} then ${cur.requests} + excluded.requests
+              else ${cur.requests} end`,
+            epochBase: sql`case
+              when excluded.epoch is null then ${cur.base}
+              when ${cur.epoch} is null then greatest(${cur.requests}, excluded.requests) - excluded.requests
+              when excluded.epoch = ${cur.epoch} then ${cur.base}
+              when ${newer} then ${cur.requests}
+              else ${cur.base} end`,
+            epoch: sql`case
+              when excluded.epoch is null then ${cur.epoch}
+              when ${cur.epoch} is null or ${newer} then excluded.epoch
+              else ${cur.epoch} end`,
             updatedAt: sql`now()`,
           },
         });
@@ -110,7 +119,7 @@ export async function queryUsage(
       route: usageDaily.route,
       requests: usageDaily.requests,
       epoch: usageDaily.epoch,
-      epochRequests: usageDaily.epochRequests,
+      epochBase: usageDaily.epochBase,
     })
     .from(usageDaily)
     .where(and(...where))
@@ -120,7 +129,7 @@ export async function queryUsage(
   const storedBy = new Map(
     stored.map((r) => [
       keyOf(r),
-      { requests: Number(r.requests), epoch: r.epoch, epochRequests: Number(r.epochRequests) },
+      { requests: Number(r.requests), epoch: r.epoch, epochBase: Number(r.epochBase) },
     ]),
   );
   const merged = new Map<string, UsageRow>();

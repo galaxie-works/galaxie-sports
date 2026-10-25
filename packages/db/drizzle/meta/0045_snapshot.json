@@ -1,5 +1,5 @@
 {
-  "id": "a4ee9235-1fed-4cf1-a648-2008ba20c33f",
+  "id": "d939d5db-4390-485d-bf7a-bb1989126ebf",
   "prevId": "e9591f3e-37a0-4534-bdfc-01a552367b27",
   "version": "7",
   "dialect": "postgresql",
@@ -14197,8 +14197,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "epoch_requests": {
-          "name": "epoch_requests",
+        "epoch_base": {
+          "name": "epoch_base",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,

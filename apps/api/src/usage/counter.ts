@@ -13,14 +13,20 @@ export type RouteCounts = Record<string, number>;
 export const USAGE_RETENTION_DAYS = 4;
 
 /**
- * Campo do hash do dia com a **época** do contador: um id aleatório gravado (HSETNX) antes do primeiro
- * HINCRBY do hash. Hash recriado (Valkey reiniciado sem dados, chave apagada, sufixo do AOF perdido) =
- * época nova, e o Postgres soma a contagem da época nova ao consolidado em vez de comparar com
- * `greatest()` (ver `persistUsage`). Não é rota (rotas são `MÉTODO /caminho`); `get()` nunca o devolve.
+ * Campo do hash do dia com a **época** do contador, gravado (HSETNX) antes do primeiro HINCRBY do hash.
+ * Hash recriado (Valkey reiniciado sem dados, chave apagada, sufixo do AOF perdido) = época nova, e o
+ * Postgres soma a contagem da época nova ao consolidado em vez de comparar com `greatest()` (ver
+ * `persistUsage`). Não é rota (rotas são `MÉTODO /caminho`); `get()` nunca o devolve.
+ *
+ * Fica no próprio hash (não numa chave à parte) para sumir junto com os contadores em qualquer perda,
+ * inclusive por despejo de memória. Efeito colateral num rollback para uma versão sem épocas: o `get()`
+ * antigo lê `#epoca` como uma rota de valor NaN — a consolidação antiga o descarta (`n > 0`), mas a
+ * consulta de uso antiga mostra total null para os dias ainda no Valkey (até 4 dias).
  */
 const EPOCH_FIELD = '#epoca';
 
-const newEpoch = () => randomBytes(8).toString('base64url');
+/** Época ordenada no tempo (`<ms em largura fixa de 15>-<aleatório>`): a consolidação ignora snapshot mais velho. */
+const newEpoch = () => `${String(Date.now()).padStart(15, '0')}-${randomBytes(6).toString('base64url')}`;
 
 const splitEpoch = (raw: Record<string, string>): UsageSnapshot => {
   let epoch: string | null = null;
