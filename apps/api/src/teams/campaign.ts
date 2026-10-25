@@ -105,7 +105,7 @@ export interface TieSummary {
   stageName: I18nName;
   opponentId: string;
   state: TieState;
-  /** Partidas do confronto (excluídas as canceladas), em ordem cronológica. */
+  /** Partidas do confronto: as existentes (sem as canceladas) ou, se forem mais, as do regulamento. */
   legs: number;
   /** Partidas já encerradas. */
   playedLegs: number;
@@ -155,12 +155,16 @@ const DEFAULT_TIE_RULES: KnockoutStageRules = {
   decidesTitle: false,
 };
 
-/** Regras do confronto: as do regulamento (quando há) com o número de jogos que de fato existem. */
-function tieRules(rules: CompetitionRules | null, stage: CampaignStage, legs: 1 | 2): KnockoutStageRules {
+/** Regras da fase no regulamento (sem regulamento: jogo único). */
+function stageTieRules(rules: CompetitionRules | null, stage: CampaignStage): KnockoutStageRules {
   const ko = rules?.knockout;
   const key = rulesStageKey(stage.kind, stage.providerLabel);
-  const base = ko ? (ko.stages[key] ?? ko.default) : DEFAULT_TIE_RULES;
-  return { ...base, legs };
+  return ko ? (ko.stages[key] ?? ko.default) : DEFAULT_TIE_RULES;
+}
+
+/** Regras do confronto: as do regulamento (quando há) com o número de jogos que de fato existem. */
+function tieRules(rules: CompetitionRules | null, stage: CampaignStage, legs: 1 | 2): KnockoutStageRules {
+  return { ...stageTieRules(rules, stage), legs };
 }
 
 /** Houve prorrogação: o fornecedor preenche o placar da prorrogação (mesmo 0–0). */
@@ -192,12 +196,13 @@ export function decideTie(
     goalsAgainst += g?.get(opponentId) ?? 0;
   }
   const last = finished.at(-1) ?? null;
+  const requiredLegs = stageTieRules(rules, stage).legs;
   const base: TieSummary = {
     stageKind: stage.kind,
     stageName: stage.name,
     opponentId,
     state: 'pending',
-    legs: legsList.length,
+    legs: Math.max(legsList.length, requiredLegs),
     playedLegs: finished.length,
     goalsFor,
     goalsAgainst,
@@ -207,6 +212,9 @@ export function decideTie(
     lastEventId: last?.id ?? null,
   };
   if (legsList.some((m) => isOpen(m.status)) || !last) return base;
+  // ida e volta no regulamento com só a ida encerrada (volta ainda não carregada, ou abandonada): segue
+  // em disputa; decidir pelo saldo de um jogo faria campeão quem só venceu a ida
+  if (finished.length < requiredLegs) return base;
 
   const won = (winnerId: string | null): TieSummary => ({
     ...base,

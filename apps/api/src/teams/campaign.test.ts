@@ -165,6 +165,18 @@ describe('decideTie', () => {
     expect(t).toMatchObject({ state: 'pending', playedLegs: 1, goalsFor: 2, goalsAgainst: 1 });
     expect(tieScore(t, 'pt-BR')).toBe('ida: 2–1');
   });
+
+  it('ida e volta no regulamento com só a ida carregada fica pendente, mesmo com saldo', () => {
+    const s = stage('f', 'final', 13000);
+    const ida = [match('f', '2026-11-04', [PAL, 'fla'], [3, 0])];
+    const t = decideTie(PAL, s, ida, rules({}))!;
+    expect(t).toMatchObject({ state: 'pending', playedLegs: 1, goalsFor: 3, goalsAgainst: 0 });
+    expect(tieScore(t, 'pt-BR')).toBe('ida: 3–0');
+    const c = computeCampaign(input({ stages: [s], tieMatches: ida, rules: rules({}) }))!;
+    expect(c.status).toBe('in_progress');
+    // a final em jogo único no regulamento decide com o jogo que há
+    expect(decideTie(PAL, s, ida, rules({ legs: 1 }))!.state).toBe('won');
+  });
 });
 
 describe('computeCampaign', () => {
