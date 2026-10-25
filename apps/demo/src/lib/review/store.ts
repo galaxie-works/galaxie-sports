@@ -8,6 +8,7 @@
  * também é gravado na hora nas tabelas que a API lê e o `ops.change_feed` recebe a mudança, então a API
  * purga o cache (tags) e passa a servir (ou deixa de servir) o item sem novo deploy.
  */
+import { tagsForChange } from '@galaxie/db/change-feed';
 import type { PoolClient } from 'pg';
 
 import { pool } from '@/lib/auth/db';
@@ -260,6 +261,11 @@ export interface DecideResult {
   state: ReviewState;
   /** A situação já era essa: nada foi gravado. */
   unchanged: boolean;
+  /**
+   * Tags de cache da mudança publicada no change feed (as que a API purga): a rota revalida o cache da
+   * demo com elas na hora, sem esperar o seguidor do change feed.
+   */
+  tags: string[];
 }
 
 const COMMENT_MAX = 2000;
@@ -387,7 +393,7 @@ export async function decideReview(input: DecideInput): Promise<DecideResult> {
     // precisa ser gravada com o hash de agora, senão o item segue marcado como desatualizado
     if (state === row.state && !row.stale && input.action !== 'suggest') {
       await client.query('rollback');
-      return { state, unchanged: true };
+      return { state, unchanged: true, tags: [] };
     }
 
     await client.query(
@@ -416,15 +422,16 @@ export async function decideReview(input: DecideInput): Promise<DecideResult> {
       ],
     );
     const entity = await applyLive(client, row, status);
+    const payload = { item_id: row.id, review_status: status };
     if (entity)
       await client.query('select ops.publish_change($1, $2, $3, $4::jsonb)', [
         'semantic.review',
         entity.entityType,
         entity.entityId,
-        JSON.stringify({ item_id: row.id, review_status: status }),
+        JSON.stringify(payload),
       ]);
     await client.query('commit');
-    return { state, unchanged: false };
+    return { state, unchanged: false, tags: entity ? tagsForChange({ ...entity, payload }) : [] };
   } catch (err) {
     await client.query('rollback').catch(() => {});
     if (isMissingTable(err)) throw new ReviewUnavailableError(String(err));

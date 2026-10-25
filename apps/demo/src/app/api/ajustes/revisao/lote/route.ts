@@ -4,6 +4,7 @@
  * obrigatório) em até MAX_IDS itens, um por vez, cada um com a sua auditoria. Responde quantos mudaram,
  * quantos já estavam assim e os que falharam (com o código do erro).
  */
+import { revalidateApiTags } from '@/lib/cache/revalidate';
 import { requireAdminApi } from '@/lib/review/guard';
 import { ReviewInputError, ReviewUnavailableError, decideReview } from '@/lib/review/store';
 import { PAGE_SIZE, REVIEW_ACTIONS, type ReviewAction } from '@/lib/review/types';
@@ -32,26 +33,33 @@ export async function POST(request: Request) {
   let changed = 0;
   let unchanged = 0;
   const failed: { id: string; code: string }[] = [];
-  for (const id of ids) {
-    try {
-      const result = await decideReview({
-        itemId: id,
-        action: body.action as ReviewAction,
-        comment: (body.comment as string | undefined) ?? null,
-        fields: null,
-        actor,
-      });
-      if (result.unchanged) unchanged++;
-      else changed++;
-    } catch (err) {
-      if (err instanceof ReviewUnavailableError)
-        return Response.json({ code: 'unavailable' }, { status: 503, headers: NO_STORE });
-      if (!(err instanceof ReviewInputError)) throw err;
-      // comentário ausente ou longo vale para todos: devolve o erro de uma vez
-      if (err.code === 'comment_required' || err.code === 'comment_too_long')
-        return Response.json({ code: err.code }, { status: 400, headers: NO_STORE });
-      failed.push({ id, code: err.code });
+  const tags = new Set<string>();
+  try {
+    for (const id of ids) {
+      try {
+        const result = await decideReview({
+          itemId: id,
+          action: body.action as ReviewAction,
+          comment: (body.comment as string | undefined) ?? null,
+          fields: null,
+          actor,
+        });
+        for (const t of result.tags) tags.add(t);
+        if (result.unchanged) unchanged++;
+        else changed++;
+      } catch (err) {
+        if (err instanceof ReviewUnavailableError)
+          return Response.json({ code: 'unavailable' }, { status: 503, headers: NO_STORE });
+        if (!(err instanceof ReviewInputError)) throw err;
+        // comentário ausente ou longo vale para todos: devolve o erro de uma vez
+        if (err.code === 'comment_required' || err.code === 'comment_too_long')
+          return Response.json({ code: err.code }, { status: 400, headers: NO_STORE });
+        failed.push({ id, code: err.code });
+      }
     }
+  } finally {
+    // o que já foi decidido (e publicado no change feed) aparece na demo na hora, mesmo se o lote parou no meio
+    revalidateApiTags(tags);
   }
   return Response.json({ data: { changed, unchanged, failed } }, { headers: NO_STORE });
 }

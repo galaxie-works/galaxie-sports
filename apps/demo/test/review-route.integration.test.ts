@@ -14,6 +14,9 @@ const session = vi.hoisted(() => ({
   current: null as null | { user: { id: string; email: string; role: string } },
 }));
 vi.mock('@/lib/auth/server', () => ({ auth: { api: { getSession: async () => session.current } } }));
+// o cache da demo: a rota revalida as tags da mudança na hora (fora de uma requisição do Next, só registra)
+const cache = vi.hoisted(() => ({ revalidateTag: vi.fn() }));
+vi.mock('next/cache', () => ({ revalidateTag: cache.revalidateTag }));
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração.');
@@ -95,6 +98,7 @@ describe('revisão de um perfil', () => {
   });
 
   it('aprovar: status servido na hora, auditoria e aviso no change feed para purgar o cache', async () => {
+    cache.revalidateTag.mockClear();
     const res = await post('team:palmeiras', { action: 'approve' });
     expect(await res.json()).toEqual({ data: { state: 'approved', unchanged: false } });
     expect((await teamStatus('palmeiras')).review_status).toBe('approved');
@@ -130,11 +134,18 @@ describe('revisão de um perfil', () => {
       entity_type: 'team_profile',
       entity_id: 'palmeiras',
     });
+    // o cache da demo expira na hora com as mesmas tags que a API purga
+    expect(cache.revalidateTag.mock.calls).toEqual([
+      ['team_profile:palmeiras', { expire: 0 }],
+      ['team_profile', { expire: 0 }],
+    ]);
 
-    // aprovar de novo não grava nada
+    // aprovar de novo não grava nada (nem revalida)
+    cache.revalidateTag.mockClear();
     expect(await (await post('team:palmeiras', { action: 'approve' })).json()).toEqual({
       data: { state: 'approved', unchanged: true },
     });
+    expect(cache.revalidateTag).not.toHaveBeenCalled();
   });
 
   it('sugerir edição exige comentário e só aceita campos do item', async () => {
@@ -322,6 +333,23 @@ describe('outros tipos', () => {
     ).rows[0];
     expect(decision.review_hash).toBe(hash);
     expect((await (await getItem(id)).json()).data.stale).toBe(false);
+  });
+
+  it('perfil editorial da F1: aprovar avisa o change feed e expira o cache da página do piloto', async () => {
+    const { rows } = await sql.query(
+      `select id, key from semantic.review_item where kind = 'editorial' order by id limit 1`,
+    );
+    const { id, key } = rows[0] as { id: string; key: string };
+    await post(id, { action: 'draft' });
+    cache.revalidateTag.mockClear();
+    expect((await post(id, { action: 'approve' })).status).toBe(200);
+    const change = await sql.query(
+      `select topic from ops.change_feed where entity_type = 'f1_editorial' and entity_id = $1`,
+      [key],
+    );
+    expect(change.rows).toContainEqual({ topic: 'semantic.review' });
+    // `f1_editorial` é a tag do GET /v1/teams/{id}/editorial na API e do getTeamEditorial na demo
+    expect(cache.revalidateTag).toHaveBeenCalledWith('f1_editorial', { expire: 0 });
   });
 
   it('item inexistente → 404', async () => {
