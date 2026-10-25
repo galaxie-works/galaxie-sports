@@ -22,6 +22,9 @@ DIR="${VPS_DIR:-/docker/galaxie-sports}"
 REG="ghcr.io/galaxie-works/galaxie-sports"
 ROOT="$(git rev-parse --show-toplevel)"
 
+# conexão morta (queda do SSH no meio do envio das imagens) vira erro em ~2 min, em vez de travar o deploy
+ssh() { command ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=4 "$@"; }
+
 git -C "$ROOT" fetch -q origin
 SHA="$(git -C "$ROOT" rev-parse "${1:-origin/main}")"
 OLD="$(ssh "$VPS" "grep -E '^IMAGE_TAG=' $DIR/.env | cut -d= -f2")"
