@@ -230,4 +230,87 @@ describe('revisão: concorrência entre processos e leituras atrasadas', () => {
     expect(report.dailyLimit).toBe(100);
     expect(report.budget.DAILY).toBe(40);
   });
+
+  it('chamada em voo durante o /status não conta duas vezes no piso do fornecedor', async () => {
+    let t = Date.parse('2026-10-24T10:00:00Z');
+    const gov = new PgQuotaGovernor(
+      db,
+      () => defaultPolicy(100),
+      () => new Date(t),
+    );
+    const ticket = await gov.acquire({
+      api: 'handball',
+      priority: 'DAILY',
+      endpoint: '/games',
+      requestHash: 's',
+    });
+    t += 1000;
+    await gov.reconcile('handball', 1, 100, 'Free'); // o contador do fornecedor já inclui a chamada em voo
+    t += 1000;
+    await gov.settle(ticket, 'ok', 99);
+    expect((await gov.usage('handball')).providerUsed).toBe(1);
+  });
+});
+
+describe('limite por minuto entre processos', () => {
+  it('dois processos com a mesma chave somam no máximo perMinute envios por minuto', async () => {
+    // relógio virtual compartilhado: cada espera avança o tempo de todos (como num único servidor)
+    let t = Date.parse('2026-10-23T12:00:00Z');
+    const clock = {
+      now: () => t,
+      sleep: async (ms: number) => {
+        t += ms;
+        await new Promise((r) => setImmediate(r));
+      },
+    };
+    const sentAt: number[] = [];
+    const fetchFn = (async () => {
+      sentAt.push(t);
+      return new Response(
+        JSON.stringify({ get: 'teams', parameters: [], errors: [], results: 0, response: [] }),
+      );
+    }) as typeof globalThis.fetch;
+    // cada processo tem o próprio limitador local (10/min) e o próprio Governor, sobre o mesmo banco
+    const makeClient = () =>
+      new ApiSportsClient({
+        apiKey: 'k',
+        store: new PgRawStore(db),
+        governor: new PgQuotaGovernor(
+          db,
+          () => defaultPolicy(100, 15, 10),
+          () => new Date(t),
+          clock.sleep,
+        ),
+        fetch: fetchFn,
+        clock,
+        rateLimiter: new RateLimiter(10, clock),
+      });
+    const run = async (name: string) => {
+      const client = makeClient();
+      for (let i = 0; i < 12; i++) {
+        await client.get({
+          sport: 'football',
+          endpoint: '/teams',
+          params: { id: `${name}${i}` },
+          priority: 'DAILY',
+        });
+      }
+    };
+    await Promise.all([run('a'), run('b')]);
+
+    expect(sentAt).toHaveLength(24);
+    const sorted = [...sentAt].sort((x, y) => x - y);
+    // sem rajada: 1 envio a cada 6 s somando os dois processos
+    for (let i = 1; i < sorted.length; i++) expect(sorted[i]! - sorted[i - 1]!).toBeGreaterThanOrEqual(6000);
+    // em qualquer janela de 60 s, no máximo 10 envios
+    for (const start of sorted) {
+      expect(sorted.filter((s) => s >= start && s < start + 60_000).length).toBeLessThanOrEqual(10);
+    }
+    // o ledger guarda o instante do envio
+    const ledger = (await db.select().from(quotaLedger))
+      .filter((l) => l.api === 'football' && l.dayUtc === '2026-10-23')
+      .map((l) => l.sentAt.getTime())
+      .sort((x, y) => x - y);
+    expect(ledger).toEqual(sorted);
+  });
 });

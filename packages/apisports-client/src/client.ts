@@ -72,7 +72,8 @@ export interface ProviderStatus {
  * Cliente único das 12 APIs da api-sports. Toda chamada:
  * 1. reaproveita o raw se houver resposta fresca (TTL por endpoint) — sem gastar cota;
  * 2. é pré-validada contra as restrições do plano;
- * 3. reserva cota no Quota Governor e respeita o limite por minuto;
+ * 3. respeita o limite por minuto (no processo e, com o PgQuotaGovernor, somando os processos da chave)
+ *    e reserva cota no Quota Governor;
  *    pedidos idênticos simultâneos (no processo ou entre processos) geram uma única chamada;
  * 4. grava o envelope integral em raw.api_response e o desfecho em ops.quota_ledger.
  */
@@ -182,6 +183,9 @@ export class ApiSportsClient {
     maxAge: number,
   ): Promise<CallResult<T>> {
     const startedAt = this.clock.now();
+    // O limitador local vem antes da reserva: o Governor marca o envio (sent_at) na reserva e, com o
+    // limite por minuto na política, espera a vaga somando os outros processos que usam a chave.
+    await this.limiterFor(req.sport).take(req.sport);
     let ticket: QuotaTicket;
     for (;;) {
       try {
@@ -207,13 +211,6 @@ export class ApiSportsClient {
         }
         if (now - startedAt > this.timeoutMs) throw err;
       }
-    }
-
-    try {
-      await this.limiterFor(req.sport).take(req.sport);
-    } catch (err) {
-      await this.options.governor.release(ticket);
-      throw err;
     }
 
     const url = this.buildUrl(req.sport, req.endpoint, params);

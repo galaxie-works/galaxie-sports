@@ -18,12 +18,17 @@ const PROVIDER = 'api-sports';
 /**
  * Quota Governor sobre Postgres. A reserva é uma linha `pending` em ops.quota_ledger inserida
  * sob advisory lock por (api, dia) — vários workers concorrentes nunca ultrapassam o orçamento.
+ * Com `perMinute` na política, a reserva também espera a vaga do limite por minuto da API, somando
+ * todos os processos que usam a chave.
  */
 export class PgQuotaGovernor implements QuotaGovernor {
   constructor(
     private readonly db: Database,
     private readonly policyFor: (api: string) => QuotaPolicy,
     private readonly now: () => Date = () => new Date(),
+    /** Espera pela vaga do limite por minuto (testes injetam um relógio falso). */
+    private readonly sleep: (ms: number) => Promise<void> = (ms) =>
+      new Promise((resolve) => setTimeout(resolve, ms)),
   ) {}
 
   private async countSince(
@@ -89,6 +94,15 @@ export class PgQuotaGovernor implements QuotaGovernor {
   }
 
   async acquire(req: AcquireRequest): Promise<QuotaTicket> {
+    for (;;) {
+      const attempt = await this.tryAcquire(req);
+      if ('ticket' in attempt) return attempt.ticket;
+      await this.sleep(attempt.waitMs);
+    }
+  }
+
+  /** Uma tentativa sob o lock: o ticket, ou quanto esperar pela próxima vaga do limite por minuto. */
+  private async tryAcquire(req: AcquireRequest): Promise<{ ticket: QuotaTicket } | { waitMs: number }> {
     const day = utcDayString(this.now());
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${PROVIDER}|${req.api}|${day}`}))`);
@@ -109,10 +123,15 @@ export class PgQuotaGovernor implements QuotaGovernor {
         )
         .limit(1);
       if (inFlight) throw new RequestInFlightError(req.requestHash);
-      const decision = decide(this.policyFor(req.api), await this.snapshot(tx, req.api, day), req.priority, {
+      const policy = this.policyFor(req.api);
+      const decision = decide(policy, await this.snapshot(tx, req.api, day), req.priority, {
         critical: req.critical ?? false,
       });
       if (!decision.allow) throw new QuotaExceededError(req.api, req.priority, decision.reason);
+      if (policy.perMinute !== undefined && policy.perMinute > 0) {
+        const waitMs = await this.minuteWait(tx, req.api, day, policy.perMinute);
+        if (waitMs > 0) return { waitMs };
+      }
       const [row] = await tx
         .insert(quotaLedger)
         .values({
@@ -127,14 +146,53 @@ export class PgQuotaGovernor implements QuotaGovernor {
           sentAt: this.now(),
         })
         .returning({ id: quotaLedger.id });
-      return { id: row!.id, api: req.api, priority: req.priority, dayUtc: day, borrowed: decision.borrowed };
+      return {
+        ticket: {
+          id: row!.id,
+          api: req.api,
+          priority: req.priority,
+          dayUtc: day,
+          borrowed: decision.borrowed,
+        },
+      };
     });
+  }
+
+  /**
+   * Limite por minuto da chave somando todos os processos: no máximo 1 envio a cada 60/perMinute s por API
+   * (a mesma regra sem rajada do RateLimiter local), contado pelo sent_at do ledger. O cliente reserva logo
+   * antes do fetch, então sent_at é o instante do envio. O lock próprio por API (sem o dia) fecha a
+   * virada da meia-noite UTC, quando dois processos seguram locks de dias diferentes.
+   */
+  private async minuteWait(
+    tx: Pick<Database, 'select' | 'execute'>,
+    api: string,
+    day: string,
+    perMinute: number,
+  ): Promise<number> {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${PROVIDER}|${api}|per-minute`}))`);
+    const spacingMs = 60_000 / perMinute;
+    const nowMs = this.now().getTime();
+    const [row] = await tx
+      .select({ last: sql<Date | null>`max(${quotaLedger.sentAt})`.mapWith(quotaLedger.sentAt) })
+      .from(quotaLedger)
+      .where(
+        and(
+          eq(quotaLedger.provider, PROVIDER),
+          eq(quotaLedger.api, api),
+          inArray(quotaLedger.dayUtc, [day, previousUtcDay(day)]),
+          gte(quotaLedger.sentAt, new Date(nowMs - spacingMs)),
+        ),
+      );
+    return row?.last ? Math.ceil(row.last.getTime() + spacingMs - nowMs) : 0;
   }
 
   async settle(ticket: QuotaTicket, outcome: Outcome, remainingAfter?: number): Promise<void> {
     await this.db
       .update(quotaLedger)
-      .set({ outcome, remainingAfter: remainingAfter ?? null, sentAt: this.now() })
+      // sent_at fica o do envio: reescrever com a hora do desfecho contaria de novo, no piso do
+      // fornecedor, uma chamada que já estava no contador lido por um /status no meio dela
+      .set({ outcome, remainingAfter: remainingAfter ?? null })
       .where(eq(quotaLedger.id, ticket.id));
   }
 
