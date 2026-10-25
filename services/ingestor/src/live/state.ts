@@ -4,8 +4,9 @@
  * o intervalo dinâmico, o orçamento e as janelas do dia. As métricas (`galaxie_live_poll_interval_seconds`)
  * e o `live:run --plan` leem daqui — sem métricas em memória, vale com qualquer número de processos.
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, lt } from 'drizzle-orm';
 import { syncCursor, type Database } from '@galaxie/db';
+import { RECONCILE_CURSOR_ENDPOINT } from './reconcile.js';
 import { windowEnd } from './schedule.js';
 import type { LiveDayPlan } from './types.js';
 
@@ -100,4 +101,26 @@ export async function loadLiveState(
       ),
     );
   return (row?.cursor as LiveSchedulerState | undefined) ?? null;
+}
+
+/**
+ * Retenção dos cursores da reconciliação (`live:reconcile`: tentativas por jogo e último lote por data):
+ * só servem enquanto o jogo está na janela de horas da reconciliação. Devolve quantos apagou.
+ */
+export async function pruneReconcileCursors(
+  db: Database,
+  before: Date,
+  provider = 'api-sports',
+): Promise<number> {
+  const rows = await db
+    .delete(syncCursor)
+    .where(
+      and(
+        eq(syncCursor.provider, provider),
+        eq(syncCursor.endpoint, RECONCILE_CURSOR_ENDPOINT),
+        lt(syncCursor.updatedAt, before),
+      ),
+    )
+    .returning({ key: syncCursor.key });
+  return rows.length;
 }

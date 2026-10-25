@@ -1,9 +1,17 @@
-import { FakeProvider, normalizeFixtures, type NormalizedBatch } from '@galaxie/providers';
+import { batchResult, FakeProvider, normalizeFixtures, type NormalizedBatch } from '@galaxie/providers';
 import { describe, expect, it } from 'vitest';
 import { apiFixture, wednesdayNight, type WorldMatch } from '../testing/live-world.js';
 import { InMemoryCursorStore } from '../jobs/runtime/cursor-store.js';
 import { InMemoryLiveStore } from './memory-store.js';
-import { reconcileLive, reconcileReason, reconcileTargets, UNCONFIRMED_MAX_ATTEMPTS } from './reconcile.js';
+import {
+  adhocAllowance,
+  LIST_EVERY_MS,
+  reconcileLive,
+  reconcileReason,
+  reconcileTargets,
+  UNCONFIRMED_MAX_ATTEMPTS,
+  unconfirmedDue,
+} from './reconcile.js';
 import type { LiveCandidate } from './types.js';
 
 const MIN = 60_000;
@@ -172,10 +180,128 @@ describe('reconcileLive', () => {
     expect(r.store.published).toHaveLength(0);
   });
 
-  it('relógio: fora da agenda do dia (ou agenda vazia) conta como encerrado por ora — 1 chamada só', async () => {
+  it('relógio: fora de uma agenda com jogos conta como encerrado por ora — 1 chamada só', async () => {
+    const someoneElse = batchAt([wednesdayNight()[0]!], new Date(kick + 300 * MIN));
+    const r = await simulateDay(lowMatch, (p) => p.willReturn('listEvents', someoneElse));
+    expect(r.calls).toBe(1);
+  });
+
+  it('relógio: agenda mundial vazia é falha da fonte — tenta de novo, espaçado, até 3 vezes', async () => {
     const empty = normalizeFixtures([], new Date(kick));
     const r = await simulateDay(lowMatch, (p) => p.willReturn('listEvents', empty));
+    expect(r.calls).toBe(UNCONFIRMED_MAX_ATTEMPTS);
+  });
+
+  it('relógio: jogo remarcado para outra data volta para a agenda nova', async () => {
+    const moved = { ...lowMatch, kickoff: new Date(lowMatch.kickoff.getTime() + 86_400_000) };
+    const r = await simulateDay(lowMatch, (p) =>
+      p.willReturn('listEvents', batchAt([moved], new Date(lowMatch.kickoff.getTime() + 3 * 3_600_000))),
+    );
     expect(r.calls).toBe(1);
+    expect(r.store.state('9102')).toMatchObject({ status: 'scheduled', startsAt: moved.kickoff });
+  });
+
+  it('tentativas: a 1ª logo, a 2ª depois de 30 min, a 3ª depois de 2 h, e para', () => {
+    const t0 = new Date(kick);
+    const after = (n: number) => ({
+      completedAt: null,
+      cursor: { attempts: n, lastAttemptAt: t0.toISOString() },
+    });
+    const at = (min: number) => new Date(kick + min * MIN);
+    expect(unconfirmedDue(undefined, t0)).toBe(true);
+    expect(unconfirmedDue(after(1), at(29))).toBe(false);
+    expect(unconfirmedDue(after(1), at(30))).toBe(true);
+    expect(unconfirmedDue(after(2), at(119))).toBe(false);
+    expect(unconfirmedDue(after(2), at(120))).toBe(true);
+    expect(unconfirmedDue(after(3), at(10_000))).toBe(false);
+    expect(unconfirmedDue({ completedAt: t0, cursor: null }, at(10_000))).toBe(false);
+  });
+
+  it('cota: bloqueio local (cota/plano) não conta tentativa nem lote — tenta de novo na próxima execução', async () => {
+    const { store, provider, cursors } = setup([lowMatch]);
+    const k = lowMatch.kickoff.getTime();
+    const now = new Date(k + 130 * MIN);
+    store.advanceClock(now);
+    provider.willFail('listEvents', { kind: 'quota', message: 'cota ADHOC', retryable: true }, now);
+    const r = await reconcileLive(provider, store, { cursors, sport: 'football', now });
+    expect(r).toMatchObject({
+      calls: 0,
+      listed: [],
+      listSkipped: [{ date: '2026-10-21', reason: 'quota', games: 1 }],
+    });
+    expect([...cursors.rows.values()]).toEqual([]);
+    // 10 min depois, com cota: confere (sem esperar o espaçamento)
+    const later = new Date(now.getTime() + 10 * MIN);
+    provider.willReturn('listEvents', batchAt([lowMatch], later));
+    const r2 = await reconcileLive(provider, store, { cursors, sport: 'football', now: later });
+    expect(r2).toMatchObject({ calls: 1, confirmedByList: ['9102'] });
+  });
+
+  it('sábado com 22 horários: no máximo 1 agenda por data a cada 60 min, e nunca além da fatia ADHOC', async () => {
+    const slots = ['11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '16:00']
+      .concat(['16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'])
+      .concat(['21:30', '22:00']);
+    const matches: WorldMatch[] = slots.flatMap((hhmm, i) =>
+      [0, 1, 2].map((j) => ({
+        ...lowMatch,
+        fixtureId: 50_000 + i * 3 + j,
+        leagueId: 900 + j,
+        home: `Casa ${i}-${j}`,
+        away: `Fora ${i}-${j}`,
+        kickoff: new Date(`2026-10-24T${hhmm}:00Z`),
+        goals: [],
+      })),
+    );
+    const run = async (adhoc: number | undefined) => {
+      const { store, cursors } = setup(matches);
+      const listCalls: Date[] = [];
+      const skipped: string[] = [];
+      let now = new Date('2026-10-24T10:00:00Z');
+      const provider = new FakeProvider('api-sports');
+      provider.listEvents = async () => {
+        listCalls.push(now);
+        const done = matches.filter((m) => now.getTime() - m.kickoff.getTime() > 115 * MIN);
+        const batch = normalizeFixtures(
+          done.map((m) => apiFixture(m, new Date(m.kickoff.getTime() + 200 * MIN), teamId)),
+          now,
+        );
+        return batchResult(batch, 'network', done.length);
+      };
+      let left = adhoc;
+      for (let t = 0; t < 15 * 60; t++) {
+        now = new Date(Date.parse('2026-10-24T10:00:00Z') + t * MIN);
+        store.advanceClock(now);
+        if (t % 10) continue;
+        const r = await reconcileLive(provider, store, {
+          cursors,
+          sport: 'football',
+          now,
+          adhocAvailable: left,
+        });
+        if (left !== undefined) left -= r.listed.length;
+        skipped.push(...r.listSkipped.map((x) => x.reason));
+      }
+      return { listCalls, skipped, store };
+    };
+
+    const free = await run(undefined);
+    // 15 h de simulação (10:00 → 01:00): ≤ 1 por hora (antes, uma a cada execução com jogo devido: 21)
+    expect(free.listCalls.length).toBeLessThanOrEqual(15);
+    for (let i = 1; i < free.listCalls.length; i++)
+      expect(free.listCalls[i]!.getTime() - free.listCalls[i - 1]!.getTime()).toBeGreaterThanOrEqual(
+        LIST_EVERY_MS,
+      );
+    // todos confirmados pela fonte até a 01:00
+    const confirmed = matches.filter(
+      (m) => free.store.state(String(m.fixtureId))!.statusSource === 'provider',
+    );
+    expect(confirmed.length).toBe(matches.length);
+
+    // plano gratuito: fatia ADHOC de 5 (− 1 de margem) → 4 agendas, o resto avisado e deixado para o sync D-1
+    const capped = await run(adhocAllowance({ used: { ADHOC: 0 }, budget: { ADHOC: 5 } }));
+    expect(capped.listCalls).toHaveLength(4);
+    expect(capped.skipped.length).toBeGreaterThan(0);
+    expect(new Set(capped.skipped)).toEqual(new Set(['adhoc_budget']));
   });
 
   it('relógio: fonte com erro tenta de novo espaçado (+30 min, +2 h), no máximo 3 vezes', async () => {

@@ -25,7 +25,12 @@ import { ApiSportsProvider, FakeProvider, normalizeFixtures } from '@galaxie/pro
 import { PgCursorStore } from '../src/jobs/runtime/cursor-store.js';
 import { reconcileLive, reconcileTargets } from '../src/live/reconcile.js';
 import { LiveRunner } from '../src/live/runner.js';
-import { liveStateFromPlan, saveLiveState, LIVE_STATE_ENDPOINT } from '../src/live/state.js';
+import {
+  liveStateFromPlan,
+  pruneReconcileCursors,
+  saveLiveState,
+  LIVE_STATE_ENDPOINT,
+} from '../src/live/state.js';
 import { PgLiveStore } from '../src/live/store.js';
 import { normalizeAfterFetch } from '../src/normalize/after-fetch.js';
 import { advanceEventClock } from '../src/normalize/event-state.js';
@@ -347,6 +352,9 @@ describe('ao vivo no Postgres', () => {
       ...(await cursors.load([{ sport: 'football', endpoint: 'live:reconcile', key: 'id=9301' }])).values(),
     ];
     expect(state?.completedAt).toBeInstanceOf(Date);
+    // retenção: os cursores da reconciliação (jogo e lote da data) saem depois da janela
+    expect(await pruneReconcileCursors(db, new Date(now.getTime() - 86_400_000))).toBe(0);
+    expect(await pruneReconcileCursors(db, new Date(now.getTime() + 60_000))).toBe(2);
     const done = await eventRow(minor.fixtureId);
     expect(done).toMatchObject({ status: 'finished', statusSource: 'provider', statusDetail: 'FT' });
     expect(done.score).toMatchObject({ home: 1, away: 0 });

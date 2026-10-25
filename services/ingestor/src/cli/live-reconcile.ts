@@ -5,8 +5,9 @@
  * Sem --forcar, só confere o que parece errado:
  * - jogos acompanhados pelo ao vivo, já vistos depois do apito, sem observação válida há N minutos (ou 2×
  *   o intervalo do plano do ao vivo; nada com o orçamento LIVE esgotado): detalhe `fixtures?id=` (LIVE);
- * - jogos do catálogo encerrados pelo relógio sem placar da fonte: uma agenda `fixtures?date=` (ADHOC) por
- *   dia confirma todos, com até 3 tentativas espaçadas por jogo.
+ * - jogos do catálogo encerrados pelo relógio sem placar da fonte: uma agenda `fixtures?date=` (ADHOC)
+ *   confirma todos os devidos da data, no máximo uma por data a cada 60 min e só dentro da fatia ADHOC do
+ *   dia (nunca pega folga emprestada; o que passar fica para o sync D-1), com até 3 tentativas por jogo.
  * Os que o poller está atualizando não gastam cota de novo.
  * O painel ("rodar agora") e o `scheduler --run` rodam com --forcar (detalhe de todo jogo em andamento).
  *   pnpm --filter @galaxie/ingestor live:reconcile --plan     # quais jogos seriam conferidos (nada é chamado)
@@ -24,14 +25,16 @@ import { contextFromEnv } from '../context.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../jobs/runtime/job-run-store.js';
 import {
+  adhocAllowance,
   DEFAULT_STALE_MINUTES,
+  dueUnconfirmed,
   inPlayCandidates,
   reconcileLive,
   reconcileReason,
   type ReconcileTargetOptions,
 } from '../live/reconcile.js';
 import type { LiveSchedulerOptions } from '../live/schedule.js';
-import { loadLiveState } from '../live/state.js';
+import { loadLiveState, pruneReconcileCursors } from '../live/state.js';
 import { PgLiveStore } from '../live/store.js';
 import { logger, report } from '../logger.js';
 import { recomputeStandings } from '../standings/recompute.js';
@@ -101,17 +104,24 @@ await runCli(async () => {
         now,
       );
       const inPlay = inPlayCandidates(candidates, now, lookbackHours);
-      const rows = inPlay.map((c) => ({ c, motivo: reconcileReason(c, now, triage) }));
+      // encerrado pelo relógio só "a conferir" com tentativa devida (esgotado ou espaçando, não)
+      const unconfirmed = inPlay.filter((c) => reconcileReason(c, now, triage) === 'unconfirmed');
+      const due = new Set(await dueUnconfirmed(new PgCursorStore(ctx.db), sport, unconfirmed, now));
+      const rows = inPlay.map((c) => {
+        const reason = reconcileReason(c, now, triage);
+        const waiting = reason === 'unconfirmed' && !due.has(c);
+        return { c, motivo: waiting ? null : reason, espera: waiting };
+      });
       const pending = rows.filter((r) => r.motivo).length;
       report(
         `Em andamento no core (${inPlay.length}; ${pending} a conferir, até ${max})`,
-        rows.map(({ c, motivo }) => ({
+        rows.map(({ c, motivo, espera }) => ({
           jogo: c.label ?? c.eventId,
           status: c.statusDetail ?? c.status,
           apito_utc: c.startsAt.toISOString().slice(11, 16),
           ultima_obs_utc: c.lastValidAt?.toISOString().slice(11, 16) ?? '—',
           prioridade: c.livePriority,
-          conferir: motivo ?? 'não',
+          conferir: motivo ?? (espera ? 'não (tentativas esgotadas ou espaçando)' : 'não'),
           fornecedor: c.providerEventId,
         })),
       );
@@ -134,6 +144,8 @@ await runCli(async () => {
       },
     });
     const provider = new ApiSportsProvider(ctx.client, { priority: 'LIVE', jobId });
+    // fatia ADHOC do dia: as agendas dos encerrados pelo relógio nunca pegam folga emprestada
+    const adhocAvailable = adhocAllowance(await ctx.governor.usage(sport));
     try {
       const r = await reconcileLive(provider, store, {
         sport,
@@ -142,6 +154,7 @@ await runCli(async () => {
         max,
         jobId,
         cursors,
+        adhocAvailable,
         onDetailFetched: async (providerEventId, at) => {
           await cursors.complete(
             [{ sport, endpoint: '/fixtures', key: `id=${providerEventId}` }],
@@ -160,12 +173,20 @@ await runCli(async () => {
           },
           c.finished ? 'jogo encerrado pela reconciliação' : 'status corrigido pela reconciliação',
         );
+      for (const skip of r.listSkipped)
+        log.warn(
+          { date: skip.date, reason: skip.reason, games: skip.games, adhoc_available: adhocAvailable },
+          'encerrados pelo relógio sem conferência por falta de cota; ficam para o sync D-1',
+        );
+      // cursores da reconciliação só servem dentro da janela de horas: apaga os de mais de 2 dias
+      await pruneReconcileCursors(ctx.db, new Date(now.getTime() - 2 * 86_400_000));
       const stats = {
         forced: values.forcar,
         inPlay: r.inPlay,
         pending: r.pending,
         checked: r.checked.length,
         listed: r.listed,
+        listSkipped: r.listSkipped.length,
         confirmedByList: r.confirmedByList.length,
         changed: r.changes.length,
         finished: r.finished.length,
