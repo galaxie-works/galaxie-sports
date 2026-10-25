@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { getDictionary } from './i18n/dictionary';
-import { countryHref, eventCompetitionHref, idFromSlug, participantHref, sportParent } from './navigation';
+import {
+  SPORTS,
+  countryHref,
+  eventCompetitionHref,
+  idFromSlug,
+  participantHref,
+  sportParent,
+} from './navigation';
 
 describe('links de navegação', () => {
   it('país só ganha link com código de país (ISO2 ou extensão como GB-ENG)', () => {
@@ -28,6 +35,17 @@ describe('links de navegação', () => {
       kind: 'esporte',
     });
     expect(sportParent('curling', getDictionary('pt-BR'))).toBeNull();
+  });
+});
+
+describe('ícones dos esportes', () => {
+  const icon = (slug: string) => SPORTS.find((s) => s.slug === slug)?.icon;
+
+  it('cada esporte tem um ícone próprio, exceto NBA (o do basquete) e AFL (o do rúgbi)', () => {
+    expect(icon('nba')).toBe(icon('basketball'));
+    expect(icon('afl')).toBe(icon('rugby'));
+    const own = SPORTS.filter((s) => s.slug !== 'nba' && s.slug !== 'afl').map((s) => s.icon);
+    expect(new Set(own).size).toBe(own.length);
   });
 });
 
