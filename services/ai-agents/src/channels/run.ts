@@ -113,7 +113,7 @@ export async function runChannelLists(opts: ChannelListRunOptions): Promise<Chan
         res.violations.length
           ? `${res.violations.length} violação(ões) do validador: ${res.violations.slice(0, 3).join('; ')}`
           : null,
-        omitted ? `${omitted} canal(is) acima do limite por pedido ficaram de fora` : null,
+        omitted ? `${omitted} canal(is) acima do limite por direito ficaram de fora` : null,
       ]
         .filter(Boolean)
         .join(' · ');
