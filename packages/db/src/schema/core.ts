@@ -149,6 +149,11 @@ export const assetCredit = core.table('asset_credit', {
    * manda exibir. Gravada na importação; os assets anteriores, pelo `assets:commons:atribuicao`.
    */
   attribution: text('attribution'),
+  /**
+   * Quando o `Attribution` foi conferido na Commons (com ou sem atribuição, ou arquivo que sumiu): o backfill
+   * pula o que já conferiu, para que uma rodada com limite não fique presa nos mesmos arquivos.
+   */
+  attributionCheckedAt: timestamp('attribution_checked_at', { withTimezone: true }),
   attributionRequired: boolean('attribution_required').notNull().default(true),
   /** CC BY-SA: obras derivadas (recorte, edição) têm de sair com a mesma licença; só redimensionamos. */
   shareAlike: boolean('share_alike').notNull().default(false),

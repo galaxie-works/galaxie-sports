@@ -4,6 +4,10 @@
  *
  *   pnpm --filter @galaxie/ingestor assets:commons:atribuicao --plan   # o que seria gravado (sem gravar)
  *   pnpm --filter @galaxie/ingestor assets:commons:atribuicao [--limite 500]
+ *   pnpm --filter @galaxie/ingestor assets:commons:atribuicao --reconferir   # de novo os já conferidos sem atribuição
+ *
+ * Cada crédito consultado fica marcado (`attribution_checked_at`), com ou sem atribuição: rodadas com `--limite`
+ * andam pela fila em vez de repetir os mesmos arquivos.
  *
  * Só lê a Commons (uma requisição a cada 50 arquivos, no ritmo do cliente da Wikimedia). Variável: DATABASE_URL.
  */
@@ -16,6 +20,7 @@ const { values } = parseArgs({
   options: {
     plan: { type: 'boolean', default: false },
     limite: { type: 'string' },
+    reconferir: { type: 'boolean', default: false },
   },
   strict: true,
 });
@@ -35,6 +40,7 @@ try {
     db,
     client,
     plan: values.plan,
+    recheck: values.reconferir,
     ...(limit !== undefined ? { limit } : {}),
     log: (m) => console.log(`  ${m}`),
   });

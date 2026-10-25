@@ -1,5 +1,5 @@
 {
-  "id": "862086fc-8c1a-4203-9fbe-750935159e08",
+  "id": "33c617ef-3efe-40fc-90fb-2313e862cda5",
   "prevId": "26a3c3c6-5b23-475b-a200-4b054681c5f8",
   "version": "7",
   "dialect": "postgresql",
@@ -344,6 +344,12 @@
         "attribution": {
           "name": "attribution",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attribution_checked_at": {
+          "name": "attribution_checked_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },

@@ -176,6 +176,7 @@ export async function runCompetitionLogos(options: {
       licenseUrl: c.licenseUrl,
       credit: c.credit,
       attribution: c.attribution,
+      attributionCheckedAt: new Date(),
       attributionRequired: c.attributionRequired,
       shareAlike: c.shareAlike,
       dateTaken: c.dateTaken,
