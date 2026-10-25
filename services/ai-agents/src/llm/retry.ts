@@ -9,6 +9,11 @@ export interface RetryOptions {
   sleep?: (ms: number) => Promise<void>;
   random?: () => number;
   onRetry?: (err: LlmError, attempt: number, delayMs: number) => void;
+  /**
+   * Chamado antes de cada nova tentativa (depois da espera). Se lançar, não tenta de novo e o erro sobe:
+   * é onde o orçamento confere o gasto parcial antes de pagar mais uma tentativa.
+   */
+  beforeRetry?: (attempt: number) => void | Promise<void>;
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -31,6 +36,7 @@ export async function withRetry<T>(fn: (attempt: number) => Promise<T>, options:
       const delay = Math.round(random() * Math.min(max, base * 2 ** attempt));
       options.onRetry?.(err, attempt + 1, delay);
       await sleep(delay);
+      await options.beforeRetry?.(attempt + 1);
     }
   }
 }

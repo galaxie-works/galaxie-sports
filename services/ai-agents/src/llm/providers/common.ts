@@ -20,6 +20,11 @@ export class UsageMeter {
     this.webSearchCalls += u.searches ?? 0;
   }
 
+  /** Gasto parcial para a conferência do orçamento (`LlmJsonRequest.budgetCheck`). */
+  spent(costUsd: number): { tokens: number; usd: number } {
+    return { tokens: this.inputTokens + this.outputTokens, usd: costUsd };
+  }
+
   toUsage(costUsd: number | undefined): UsageWithSearches {
     return {
       inputTokens: this.inputTokens,

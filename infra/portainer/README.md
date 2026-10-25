@@ -101,18 +101,22 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `SCHEDULE_SYNC_DAILY` | não | `5 0 * * *` | Sync diário do futebol logo após a virada do dia de cota |
 | `SCHEDULE_LIVE_RUN` | não | `*/5 * * * *` | Ao vivo: inicia o Live Scheduler/Poller (sai sozinho sem janela próxima; não sobrepõe) |
 | `LIVE_FEATURED` / `LIVE_MAX_INTERVAL_MINUTES` / `LIVE_IDLE_EXIT_MINUTES` / `LIVE_PROTECT_DAILY` | não | `off` / `15` / `15` / fatia DAILY | Detalhe do jogo principal por tick (`off`, `auto`, `on`), teto do intervalo, ociosidade antes de sair e saldo DAILY protegido |
+| `LIVE_MIN_PRIORITY` | não | `medium` | Menor `live_priority` acompanhada pelo ao vivo (`high`, `medium`, `low`); a reconciliação usa o mesmo corte |
+| `SCHEDULE_LIVE_RECONCILE` | não | `*/10 * * * *` | Reconciliação do ao vivo: confere na fonte só os jogos em andamento que parecem parados; `off` desliga |
 | `SCHEDULE_NORMALIZE_FOOTBALL` | não | `35 0 * * *` | Normalização raw → core depois do sync |
+| `SCHEDULE_NORMALIZE_SPORTS` | não | `15 * * * *` | Normalização raw → core das outras 11 APIs e relógio dos eventos (sem cota) |
 | `SCHEDULE_EVENTS_CLOCK` | não | `* * * * *` | Relógio dos eventos (sem cota) |
 | `SCHEDULE_ASSETS_MIRROR` | não | `30 1 * * *` | Espelho de assets (não consome cota) |
 | `SCHEDULE_CHANGE_FEED_PRUNE` / `CHANGE_FEED_RETENTION_DAYS` | não | `45 2 * * *` / `7` | Retenção do `ops.change_feed`: apaga mudanças mais velhas que N dias, mantendo a última de cada entidade e o que os webhooks ainda não leram (limita a retomada do SSE por `Last-Event-ID` a N dias) |
 | `SCHEDULE_QUOTA_STATUS` | não | `5 * * * *` | Reconciliação da cota via `/status` (não consome cota); `off` desliga |
 | `SCHEDULE_BOOTSTRAP_CATALOG` | não | `15 3 * * 1` | Catálogo do futebol (segunda, 03:15 UTC; ~8 chamadas BOOTSTRAP) |
 | `SCHEDULER_RUN_ON_START` | não | vazio | Jobs para rodar já na partida (ex.: `quota-status`) |
-| `SCHEDULER_TIMEOUT_MINUTES` | não | por job | Tempo limite de cada execução |
+| `SCHEDULER_TIMEOUT_MINUTES` | não | por job | Tempo limite de cada execução (o `live-run` mantém o próprio, 20 h) |
 | `LOG_LEVEL` | não | `info` | `debug` mostra também as respostas servidas do raw |
 | `METRICS_TOKEN` | recomendado | vazio | Bearer exigido em `/metrics` (o Prometheus da stack já envia) |
 | `LIVE_POLL_INTERVAL_SECONDS` | não | `300` | Intervalo esperado do ao vivo (placeholder até o Live Scheduler) |
-| `WEBHOOK_SIGNING_SECRET` | não | vazio | Assinatura de webhooks (quando existirem) |
+| `TRUST_PROXY` | não | `uniquelocal` | Proxies confiáveis para o IP real do cliente (o Caddy, na rede interna). Nunca vazio atrás do Caddy (todos os clientes teriam o IP dele e dividiriam o mesmo limite por IP) nem `true` (confia no 1º endereço do `X-Forwarded-For`, forjável) |
+| `WEBHOOK_SIGNING_SECRET` | não | vazio | KEK que cifra os segredos dos webhooks no banco (worker e CLI `webhook`; SECURITY.md › Webhooks) |
 | `BACKUP_TIME` | não | `03:30` | Horário do dump diário (UTC) |
 | `BACKUP_RETENTION_DAYS` | não | `30` | Retenção local |
 | `BACKUP_ON_START` | não | `true` | Faz um dump ao (re)iniciar o serviço |
@@ -164,6 +168,7 @@ tempo limite, sem sobreposição e registrado em `ops.job_run` (alimenta as mét
 |---|---|---|---|
 | `sync-daily` | `5 0 * * *` | `dist/cli/sync-daily.js` | DAILY (agenda D-1/D0/D+1, lesões, detalhes, rodízio) direto ao core + tabelas calculadas; idempotente no dia |
 | `live-run` | `*/5 * * * *` | `dist/cli/live-run.js` | LIVE: planeja o orçamento do dia (LIVE = 0 sem jogos relevantes) e roda o poller enquanto houver janela |
+| `live-reconcile` | `*/10 * * * *` | `dist/cli/live-reconcile.js` | LIVE: `fixtures?id=` dos jogos acompanhados pelo ao vivo sem observação há 30 min (ou 2× o intervalo do plano; nada com o LIVE esgotado). ADHOC: `fixtures?date=` (no máximo 1 por data a cada 60 min, só dentro da fatia ADHOC do dia, até 3 tentativas por jogo) para os do catálogo encerrados pelo relógio sem placar da fonte; o que passar fica para o sync D-1. No "rodar agora" do painel, `--forcar` confere todos os em andamento (até 60) |
 | `normalize-football` | `35 0 * * *` | `dist/cli/normalize-football.js` | 0 (raw → core incremental) |
 | `events-clock` | `* * * * *` | `dist/cli/events-clock.js` | 0 (transições de estado pelo horário previsto) |
 | `events-importance` | `20 * * * *` | `dist/cli/events-importance.js --esporte football --proximos-dias 7` | 0 (sinais da tabela pelo motor de regras e prestígio do catálogo na importância, docs/06 §3.1) |
@@ -176,8 +181,8 @@ Execução manual (registrada): console do `ingestor` → `node dist/cli/schedul
 Plano do ao vivo sem chamar nada: `node dist/cli/live-run.js --plan` (ou `--plan --dia amanha`).
 O `live-run` fica no ar enquanto houver janela ao vivo (um processo por vez — o cron a cada 5 min só o reinicia
 quando ele saiu ocioso); no encerramento do container o scheduler repassa SIGTERM e ele termina o tick em
-andamento. Atenção: `SCHEDULER_TIMEOUT_MINUTES` vale para todos os jobs — um valor baixo encerra o ao vivo no meio
-da noite. Novos jobs (bootstraps de temporadas/detalhes/pessoas quando houver cota) entram em
+andamento. `SCHEDULER_TIMEOUT_MINUTES` vale para todos os jobs menos o `live-run`, que mantém o tempo limite
+próprio (20 h). Novos jobs (bootstraps de temporadas/detalhes/pessoas quando houver cota) entram em
 `services/ingestor/src/scheduler/schedule.ts` à medida que forem necessários.
 
 ## Observabilidade (issue #6)

@@ -834,6 +834,9 @@ describe('/v1/multisport', () => {
     expect(p2.next_cursor).toBeNull();
     const all = [...p1.data, ...p2.data].map((u: { id: string }) => u.id);
     expect(new Set(all).size).toBe(3);
+    // cursor forjado com timestamp inválido → 400, não 500 (auditoria API-13)
+    const forged = Buffer.from(JSON.stringify({ s: 'ontem', i: ids.swim })).toString('base64url');
+    expect((await get(`/v1/multisport/games/og-summer-2024/schedule?cursor=${forged}`)).statusCode).toBe(400);
     expect((await get('/v1/multisport/games/pan-2027/schedule')).json()).toEqual({
       data: [],
       next_cursor: null,

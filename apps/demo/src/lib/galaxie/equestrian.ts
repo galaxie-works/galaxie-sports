@@ -11,7 +11,7 @@ import type {
   EqOverview,
   EqResult,
 } from '@galaxie/contracts';
-import { cacheLife } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { notFound } from 'next/navigation';
 
 import { apiLocale, type Locale } from '../i18n/config';
@@ -54,6 +54,7 @@ export const equestrianOverviewRequest = (locale: Locale): ApiRequest => ({
 export async function getEquestrianOverview(locale: Locale) {
   'use cache';
   cacheLife('hours');
+  cacheTag('equestrian');
   return galaxieGet<EqOverview>('/v1/equestrian/overview', clean(withLocale(locale)));
 }
 
@@ -76,6 +77,7 @@ export const equestrianAthletesRequest = (locale: Locale, f: AthleteFilters = {}
 export async function getEquestrianAthletes(locale: Locale, f: AthleteFilters = {}) {
   'use cache';
   cacheLife('hours');
+  cacheTag('equestrian');
   return galaxieGet<Page<EqAthleteSummary>>(
     '/v1/equestrian/athletes',
     clean(
@@ -95,6 +97,7 @@ export const equestrianAthleteRequest = (id: string, locale: Locale): ApiRequest
 export async function getEquestrianAthlete(id: string, locale: Locale) {
   'use cache';
   cacheLife('hours');
+  cacheTag('equestrian');
   return orNotFound(galaxieGet<EqAthleteDetail>(`/v1/equestrian/athletes/${id}`, clean(withLocale(locale))));
 }
 
@@ -131,6 +134,7 @@ export const equestrianResultsRequest = (locale: Locale, f: ResultFilters): ApiR
 export async function getEquestrianResults(locale: Locale, f: ResultFilters) {
   'use cache';
   cacheLife('hours');
+  cacheTag('equestrian');
   return galaxieGet<Page<EqResult>>(
     '/v1/equestrian/results',
     clean(withLocale(locale, { ...resultQuery(f), cursor: f.cursor })),
@@ -150,6 +154,7 @@ export const equestrianHorseRequest = (id: string, locale: Locale): ApiRequest =
 export async function getEquestrianHorse(id: string, locale: Locale) {
   'use cache';
   cacheLife('hours');
+  cacheTag('equestrian');
   return orNotFound(galaxieGet<EqHorseDetail>(`/v1/equestrian/horses/${id}`, clean(withLocale(locale))));
 }
 
@@ -164,6 +169,7 @@ export const equestrianCompetitionRequest = (id: string, locale: Locale): ApiReq
 export async function getEquestrianCompetition(id: string, locale: Locale) {
   'use cache';
   cacheLife('hours');
+  cacheTag('equestrian');
   return orNotFound(
     galaxieGet<EqCompetitionDetail>(`/v1/equestrian/competitions/${id}`, clean(withLocale(locale))),
   );
@@ -180,6 +186,7 @@ export const equestrianChampionshipRequest = (key: string, locale: Locale): ApiR
 export async function getEquestrianChampionship(key: string, locale: Locale) {
   'use cache';
   cacheLife('days');
+  cacheTag('equestrian');
   return orNotFound(
     galaxieGet<EqChampionship>(`/v1/equestrian/championships/${key}`, clean(withLocale(locale))),
   );
