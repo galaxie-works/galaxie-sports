@@ -171,13 +171,13 @@ export function periodAnchors(input: Pick<TimelineInput, 'periods' | 'stateLog' 
    * intervalo observado, os intervalos saindo de bola rolando e o 1º tempo perto do horário marcado. Se o
    * Live Poller pegou o jogo já no meio (ingestor reiniciado), a primeira observação não é o início.
    */
-  const observed = (detail: string, from: (EventStatus | null)[], nth = 0) =>
+  const observed = (detail: string | string[], from: (EventStatus | null)[], nth = 0) =>
     input.stateLog.filter(
       (l) =>
         (l.to === 'live' || l.to === 'break') &&
         l.reason !== 'temporal' &&
         l.reason !== 'temporal_fallback' &&
-        (l.statusDetail ?? '').toUpperCase() === detail &&
+        [detail].flat().includes((l.statusDetail ?? '').toUpperCase()) &&
         from.includes(l.from) &&
         (detail !== '1H' ||
           !input.startsAt ||
@@ -194,7 +194,7 @@ export function periodAnchors(input: Pick<TimelineInput, 'periods' | 'stateLog' 
     second_half: anchor(input.periods.second, observed('2H', ['break'])),
     extra_time_first: anchor(null, observed('ET', ['break'], 0)),
     extra_time_second: anchor(null, observed('ET', ['break'], 1)),
-    penalty_shootout: anchor(null, observed('P', ['break'])),
+    penalty_shootout: anchor(null, observed(['P', 'PT'], ['break'])),
     halftime: anchor(null, observed('HT', ['live'])),
     end_of_regulation: anchor(null, observed('BT', ['live'], 0)),
   };
@@ -219,6 +219,7 @@ function finishedAt(log: StateLogEntry[]): Date | null {
   return end?.at ?? null;
 }
 
+/** Fase do jogo pelo código do fornecedor (PT e AP: disputa de pênaltis do handebol e do rúgbi). */
 const STATUS_PHASE: Record<string, number> = {
   '1H': 1,
   HT: 2,
@@ -226,10 +227,14 @@ const STATUS_PHASE: Record<string, number> = {
   BT: 4,
   ET: 4,
   P: 5,
+  PT: 5,
   FT: 3,
   AET: 4,
   PEN: 5,
+  AP: 5,
 };
+/** Códigos da disputa de pênaltis (em andamento e encerrada), no futebol e nos demais esportes. */
+const SHOOTOUT_CODES: ReadonlySet<string> = new Set(['P', 'PEN', 'PT', 'AP']);
 
 /** Relógio atual do evento a partir do código do fornecedor. */
 export function currentClock(
@@ -244,7 +249,7 @@ export function currentClock(
   let period: MatchPeriod | null = null;
   if (code === '1H' || code === 'HT') period = 'first_half';
   else if (code === '2H') period = 'second_half';
-  else if (code === 'P' || code === 'PEN') period = 'penalty_shootout';
+  else if (SHOOTOUT_CODES.has(code)) period = 'penalty_shootout';
   else if (minute != null) period = periodOf({ minute, comments: null });
   if (code in STATUS_PHASE || minute != null)
     return { period, minute, extra_minute: extra, display: clockDisplay(minute, extra) };
@@ -471,7 +476,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
   const extraTimeStarted =
     ['ET', 'AET'].includes(code) ||
     incidents.some((i) => i.clock.period === 'extra_time_first' || i.clock.period === 'extra_time_second') ||
-    ((code === 'P' || code === 'PEN') && ((score.extratime?.home ?? 0) > 0 || (score.extratime?.away ?? 0) > 0)) ||
+    (SHOOTOUT_CODES.has(code) && ((score.extratime?.home ?? 0) > 0 || (score.extratime?.away ?? 0) > 0)) ||
     anchors.extra_time_first != null;
 
   const maxExtra = (period: MatchPeriod) =>

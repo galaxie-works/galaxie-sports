@@ -400,6 +400,55 @@ describe('buildTimelineDto', () => {
     ]);
   });
 
+  it('handebol decidido nos pênaltis (AP, jogo 175399): fim do tempo regulamentar e pênaltis, sem prorrogação', () => {
+    const t = buildTimelineDto(
+      input({
+        sport: 'handball',
+        statusDetail: 'AP',
+        clock: null,
+        score: { home: 24, away: 26, extratime: null },
+        incidents: [],
+      }),
+    );
+    expect(t.markers.map((m) => [m.kind, m.clock.minute])).toEqual([
+      ['kickoff', 0],
+      ['halftime', 30],
+      ['second_half', 31],
+      ['end_of_regulation', 60],
+      ['penalty_shootout', null],
+      ['full_time', 60],
+    ]);
+    expect(t.clock?.period).toBe('penalty_shootout');
+    // disputa em andamento (PT), observada a partir do intervalo
+    const live = buildTimelineDto(
+      input({
+        sport: 'handball',
+        status: 'live',
+        statusDetail: 'PT',
+        clock: null,
+        score: { home: 24, away: 24, extratime: null },
+        stateLog: [
+          {
+            from: 'break',
+            to: 'live',
+            reason: 'provider',
+            statusDetail: 'PT',
+            at: new Date('2024-05-12T18:40:00Z'),
+          },
+        ],
+      }),
+    );
+    expect(live.clock?.period).toBe('penalty_shootout');
+    expect(live.markers.map((m) => m.kind)).toEqual([
+      'kickoff',
+      'halftime',
+      'second_half',
+      'end_of_regulation',
+      'penalty_shootout',
+    ]);
+    expect(live.markers.at(-1)?.occurred_at).toBe('2024-05-12T18:40:00Z');
+  });
+
   it('fora do futebol não inventa apito, intervalo e 90 minutos', () => {
     const basketball = { statusDetail: 'FT', score: { home: 86, away: 73 } };
     expect(buildTimelineDto(input(basketball)).markers.map((m) => m.kind)).toContain('full_time');
