@@ -670,7 +670,8 @@ export async function TeamContent({
             <IdentityCard
               s={semantic}
               colors={team.colors}
-              api={teamSemanticRequest(id, locale, content)}
+              // sem semântico o card mostra só as cores do overview: o código aponta para essa fonte
+              api={semantic ? teamSemanticRequest(id, locale, content) : overviewApi}
               t={t}
               locale={locale}
               // piloto: o texto de identidade já está na biografia
