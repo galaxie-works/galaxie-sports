@@ -624,13 +624,13 @@ export class PgAssetStore implements AssetStore {
    * Varre os corpos em raw.api_response e devolve, normalizadas e sem repetição, todas as URLs de mídia —
    * cobre os 12 esportes e qualquer tipo de imagem (times, jogadores, estádios...) sem adivinhar IDs.
    */
-  async discoverFromRaw(since?: Date, afterId?: number): Promise<string[]> {
+  async discoverFromRaw(since?: Date, after?: RawWatermark): Promise<string[]> {
     const pattern = `https?://media(-[0-9]+)?\\.api-sports\\.io(/[A-Za-z0-9_.-]+)+`;
     const rows = await this.db.execute<{ url: string }>(sql`
       select distinct m[1] as url
       from ${apiResponse} r,
         lateral regexp_matches(r.body::text, ${`(${pattern})`}, 'g') as m
-      where ${rawWindow(since, afterId)}
+      where ${rawWindow(since, after)}
     `);
     const urls = new Set<string>();
     for (const r of rows) {
@@ -641,36 +641,51 @@ export class PgAssetStore implements AssetStore {
   }
 }
 
-const RAW_DISCOVERY_OVERLAP_MS = 3_600_000;
+/**
+ * Marca d'água da descoberta: o maior `raw.api_response.id` visível no início dela e o intervalo de transações
+ * (xid8) ainda em andamento naquele instante (`pg_snapshot_xmin`/`xmax` do mesmo snapshot). Uma transação em
+ * andamento pode ter reservado um id abaixo da marca e commitar depois; as linhas dela entram na descoberta
+ * seguinte pelo xmin, então nada fica para trás mesmo com `fetched_at` retroativo (raw:import, snapshot:import).
+ */
+export interface RawWatermark {
+  maxRawId: number;
+  xmin: number;
+  xmax: number;
+}
+
+const XID_SPACE = 4_294_967_296; // o xmin da linha é o xid de 32 bits
 
 /**
- * Janela da descoberta incremental: o raw com id acima da marca d'água da descoberta anterior (pega o que
- * raw:import e snapshot:import gravam com `fetched_at` retroativo) ou gravado desde `since` (pega as
- * transações que já tinham o id antes da marca e só commitaram depois). Sem nada: a tabela inteira.
+ * Janela da descoberta incremental: o raw acima da marca, ou gravado por uma transação que estava em andamento
+ * quando a marca foi tirada (xid em [xmin, xmax), comparado no espaço circular de 32 bits; as que já tinham
+ * commitado são relidas, sem efeito). `since` filtra por `fetched_at`. Sem nada: a tabela inteira.
  */
-function rawWindow(since: Date | undefined, afterId: number | undefined): SQL {
+function rawWindow(since: Date | undefined, after: RawWatermark | undefined): SQL {
   const conditions: SQL[] = [];
-  if (afterId !== undefined) conditions.push(sql`r.id > ${afterId}`);
+  if (after) {
+    const xmin32 = after.xmin % XID_SPACE;
+    const span = Math.max(0, after.xmax - after.xmin);
+    conditions.push(
+      sql`(r.id > ${after.maxRawId} or ((r.xmin::text::bigint - ${xmin32} + ${XID_SPACE}) % ${XID_SPACE}) < ${span})`,
+    );
+  }
   if (since) conditions.push(sql`r.fetched_at >= ${since.toISOString()}::timestamptz`);
-  return conditions.length ? sql`(${sql.join(conditions, sql` or `)})` : sql`true`;
+  return conditions.length ? sql.join(conditions, sql` and `) : sql`true`;
 }
 
 export interface RawDiscoveryReport {
-  /** Início da descoberta anterior, menos 1 h de margem; null = varreu a tabela inteira. */
-  since: Date | null;
-  /** Maior id de raw.api_response visto pela descoberta anterior (a marca d'água); null = tabela inteira. */
-  afterId: number | null;
-  /** Maior id de raw.api_response no início desta descoberta: a marca d'água da próxima. */
-  maxRawId: number;
+  /** Marca d'água da descoberta anterior (o que já tinha sido varrido); null = varreu a tabela inteira. */
+  after: RawWatermark | null;
+  /** Marca d'água desta descoberta, gravada em `job_run.stats` para a próxima. */
+  watermark: RawWatermark;
   urls: number;
   added: number;
 }
 
 /**
- * `--descobrir-raw`: registra em core.asset as URLs de mídia do raw (fora as bloqueadas). Incremental: só as
- * respostas acima da marca d'água (`raw.api_response.id`) da última descoberta concluída (`ops.job_run`
- * `assets:discover-raw`, em `stats.maxRawId`) ou gravadas desde o início dela, para o job diário não varrer a
- * tabela inteira; a primeira execução (ou `full`) varre tudo.
+ * `--descobrir-raw`: registra em core.asset as URLs de mídia do raw (fora as bloqueadas). Incremental: só o raw
+ * que a descoberta anterior concluída (`ops.job_run` `assets:discover-raw`, `stats.watermark`) não podia ter
+ * visto, para o job diário não varrer a tabela inteira; a primeira execução (ou `full`) varre tudo.
  */
 export async function runRawDiscovery(
   db: Database,
@@ -680,23 +695,27 @@ export async function runRawDiscovery(
   const [last] = options.full
     ? []
     : await db
-        .select({ startedAt: jobRun.startedAt, maxRawId: sql<string | null>`${jobRun.stats}->>'maxRawId'` })
+        .select({ watermark: sql<RawWatermark | null>`${jobRun.stats}->'watermark'` })
         .from(jobRun)
         .where(and(eq(jobRun.job, 'assets:discover-raw'), eq(jobRun.status, 'ok')))
         .orderBy(desc(jobRun.startedAt))
         .limit(1);
-  // sem marca d'água (execução anterior a ela), varre tudo de novo
-  const afterId = last?.maxRawId != null ? Number(last.maxRawId) : null;
-  // margem para o raw gravado em transações que começaram antes da descoberta anterior e commitaram depois
-  const since =
-    last && afterId !== null ? new Date(last.startedAt.getTime() - RAW_DISCOVERY_OVERLAP_MS) : null;
+  // sem marca d'água completa (execução anterior a ela), varre tudo de novo
+  const w = last?.watermark;
+  const after = w && [w.maxRawId, w.xmin, w.xmax].every(Number.isFinite) ? w : null;
   const [run] = await db.insert(jobRun).values({ job: 'assets:discover-raw', status: 'running' }).returning();
   try {
-    const [top] = await db.select({ max: sql<string | null>`max(${apiResponse.id})` }).from(apiResponse);
-    const maxRawId = Number(top?.max ?? 0);
-    const urls = await store.discoverFromRaw(since ?? undefined, afterId ?? undefined);
+    // o maior id e as transações em andamento saem do mesmo snapshot (o desta consulta)
+    const [top] = await db.execute<{ max: string | null; xmin: string; xmax: string }>(sql`
+      select max(id)::text as max,
+        pg_snapshot_xmin(pg_current_snapshot())::text as xmin,
+        pg_snapshot_xmax(pg_current_snapshot())::text as xmax
+      from ${apiResponse}
+    `);
+    const watermark = { maxRawId: Number(top?.max ?? 0), xmin: Number(top!.xmin), xmax: Number(top!.xmax) };
+    const urls = await store.discoverFromRaw(undefined, after ?? undefined);
     const added = await store.register(urls.filter((u) => !options.denylist.has(u)));
-    const report = { since, afterId, maxRawId, urls: urls.length, added };
+    const report = { after, watermark, urls: urls.length, added };
     await db
       .update(jobRun)
       .set({ status: 'ok', finishedAt: new Date(), stats: report })

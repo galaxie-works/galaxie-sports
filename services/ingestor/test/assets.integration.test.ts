@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MediaDenylist, publicAssetUrl } from '@galaxie/apisports-client';
 import {
@@ -24,7 +24,7 @@ import {
   type NormalizedParticipant,
 } from '@galaxie/providers';
 import { runAssetMirror } from '../src/assets/asset-mirror.js';
-import { PgAssetStore, runRawDiscovery } from '../src/assets/asset-store.js';
+import { PgAssetStore, runRawDiscovery, type RawDiscoveryReport } from '../src/assets/asset-store.js';
 import { MediaFetcher } from '../src/assets/media-fetcher.js';
 import { InMemoryObjectStore, objectStoreFromEnv } from '../src/assets/object-store.js';
 import {
@@ -610,31 +610,52 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
     expect(last!.palette).not.toBeNull();
   });
 
-  it('--descobrir-raw é incremental: só o raw gravado desde a última descoberta', async () => {
+  it('--descobrir-raw é incremental e não perde raw retroativo nem de transação que commitou depois', async () => {
     const store = new PgAssetStore(db);
     const denylist = new MediaDenylist();
     const first = await runRawDiscovery(db, store, { denylist });
-    expect(first.since).toBeNull();
+    expect(first.after).toBeNull();
     expect(first.urls).toBe((await store.discoverFromRaw()).length);
+    const team = (id: number) => `https://media.api-sports.io/handball/teams/${id}.png`;
+    const raw = (id: number) => ({
+      provider: 'api-sports',
+      sport: 'handball',
+      apiVersion: 'v1',
+      endpoint: '/teams',
+      params: {},
+      requestHash: randomBytes(8).toString('hex'),
+      statusCode: 200,
+      body: { response: [{ team: { id, logo: team(id) } }] },
+      bodyHash: randomBytes(8).toString('hex'),
+      // raw:import e snapshot:import gravam com o fetched_at original
+      fetchedAt: new Date('2024-01-01T00:00:00Z'),
+    });
+    const registered = async (id: number) =>
+      (
+        await db
+          .select()
+          .from(asset)
+          .where(eq(asset.sourceUrl, team(id)))
+      ).length;
 
-    // o raw antigo fica fora da janela (o início da descoberta anterior, com margem de 1 h)
-    await db.update(apiResponse).set({ fetchedAt: new Date(Date.now() - 2 * 3_600_000) });
-    const fresh = 'https://media.api-sports.io/handball/teams/99.png';
-    await saveRaw('handball', '/teams', { response: [{ team: { id: 99, logo: fresh } }] });
-    // raw:import / snapshot:import gravam com fetched_at retroativo: entram pela marca d'água do id
-    const imported = 'https://media.api-sports.io/handball/teams/98.png';
-    await saveRaw('handball', '/teams', { response: [{ team: { id: 98, logo: imported } }] });
-    await db
-      .update(apiResponse)
-      .set({ fetchedAt: new Date('2024-01-01T00:00:00Z') })
-      .where(sql`${apiResponse.body}::text like '%/teams/98.png%'`);
-    const second = await runRawDiscovery(db, store, { denylist });
-    expect(second).toMatchObject({ urls: 2, added: 2, afterId: first.maxRawId });
-    expect(second.since).toBeInstanceOf(Date);
-    expect(await db.select().from(asset).where(eq(asset.sourceUrl, imported))).toHaveLength(1);
+    // 97 reserva o id antes de 98 e 99, mas só commita depois da segunda descoberta
+    let second: RawDiscoveryReport | undefined;
+    await db.transaction(async (tx) => {
+      await tx.insert(apiResponse).values(raw(97));
+      await db.insert(apiResponse).values([raw(98), raw(99)]);
+      second = await runRawDiscovery(db, store, { denylist });
+    });
+    expect(second).toMatchObject({ after: first.watermark, added: 2 });
+    expect(await registered(98)).toBe(1);
+    expect(await registered(97)).toBe(0);
+
+    // o id de 97 está abaixo da marca da segunda, mas a transação dele estava em andamento: entra agora
+    const third = await runRawDiscovery(db, store, { denylist });
+    expect(third).toMatchObject({ after: second!.watermark, added: 1 });
+    expect(await registered(97)).toBe(1);
 
     const full = await runRawDiscovery(db, store, { denylist, full: true });
-    expect(full).toMatchObject({ since: null, afterId: null, urls: first.urls + 2, added: 0 });
+    expect(full).toMatchObject({ after: null, urls: first.urls + 3, added: 0 });
   });
 });
 

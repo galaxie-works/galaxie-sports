@@ -71,7 +71,7 @@ try {
   if (values['descobrir-raw']) {
     const r = await runRawDiscovery(db, assets, { denylist, full: values['raw-completo'] });
     console.log(
-      `URLs de mídia no raw${r.since ? ` desde ${r.since.toISOString()}` : ''}: ${r.urls} · novas em core.asset: ${r.added}`,
+      `URLs de mídia no raw${r.after ? ` novo (id > ${r.after.maxRawId} e transações em andamento na anterior)` : ''}: ${r.urls} · novas em core.asset: ${r.added}`,
     );
   }
 
