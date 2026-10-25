@@ -31,14 +31,14 @@ Corrida = sessão `Race` (sprint fora); pole = 1º na classificação do GP, com
 
 Estrutura fixa em `data/knowledge/formula-1/editorial/<locale>.yaml` (formato no [SCHEMA.md](../../data/knowledge/SCHEMA.md)): bio, estilo (`kind` de uma lista e texto curto), pontos fortes, momentos marcantes (corrida, ano, rodada, chuva, o que aconteceu e a fonte) e rivalidades. Original em pt-BR; tradução em `es` (espanhol neutro), item a item, com as mesmas fontes.
 
-O agente (`services/ai-agents/src/f1bio/profile.ts`) pesquisa com busca (Gemini com grounding) e descarta, com o motivo no relatório:
+O agente (`services/ai-agents/src/f1bio/profile.ts`) pesquisa com busca (Gemini com grounding). Regras do projeto: **ninguém mexe na resposta do Gemini antes do validador, e o validador nunca barra sozinho**. Cada problema vira um achado (`findings` no item do YAML: campo, início e fim do trecho no texto, regra, motivo e gravidade). Toda proposta com bio vai para o painel como rascunho, com o trecho destacado.
 
-- item sem fonte, com fonte que não veio da busca ou de domínio não permitido;
-- número que não está nos fatos do F1DB (totais, temporadas, corridas da lista, pistas, datas e idade) — o FactSheet dos guardrails;
-- momento numa corrida fora da lista do piloto (a chave `<ano>-<rodada>`), e rival que não largou nas mesmas corridas;
-- termo proibido, padrão de prompt injection, texto em outro idioma ou com cara de letra de música.
+| Gravidade | Regras |
+| --- | --- |
+| **grave** (fato a conferir) | número fora dos fatos do F1DB (FactSheet: totais, temporadas, corridas da lista, pistas, datas e idade; o número de nome de chassi, como BT52, não conta); corrida que o piloto não disputou (fora da lista `<ano>-<rodada>`); rival que não largou nas mesmas corridas; prompt injection; fonte ausente, que não veio da busca ou de domínio não permitido |
+| **alerta** (texto) | termo da lista de proibidos (o vocabulário de pilotagem, como "agressividade", não conta); cara de letra de música; outro idioma; tamanho acima do pedido; marcador de citação (`[S1]`) no texto; item repetido; lenda sem momento; tradução com outro número de itens |
 
-Sem a bio, ou lenda sem nenhum momento verificável, não há proposta. O tom de referência no prompt é o do texto de transmissão esportiva (momentos concretos, traços que dão para ver na pista); o prompt cita o Senna como nível de detalhe esperado, não como texto a copiar.
+Só não há proposta sem bio. O painel (tipo "Perfil de piloto (F1)") mostra o selo "N alertas / N graves" na lista e, no item, cada campo com o trecho destacado (vermelho = grave, âmbar = alerta) e o motivo; o revisor aprova, sugere a edição ou deixa em rascunho. O tom de referência no prompt é o do texto de transmissão esportiva (momentos concretos, traços que dão para ver na pista); o prompt cita o Senna como nível de detalhe esperado, não como texto a copiar.
 
 ## Biografia factual (card "Biografia", `profile` de `/v1/teams/{id}/career`)
 

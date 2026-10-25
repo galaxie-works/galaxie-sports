@@ -169,7 +169,12 @@ export const DRIVER_STRENGTHS = [
   'high_speed',
 ] as const;
 
-const Source = z.url().meta({ description: 'Fonte consultada (a busca que sustentou o item).' });
+const Source = z
+  .string()
+  .meta({ description: 'Fonte do item, como o modelo devolveu (o revisor conferiu na aprovação).' });
+const ItemSource = Source.nullable().meta({
+  description: 'Fonte do item; null quando o modelo não deu nenhuma.',
+});
 
 export const DriverEditorial = z
   .object({
@@ -183,26 +188,30 @@ export const DriverEditorial = z
       .object({ kind: z.enum(DRIVING_STYLES), text: z.string(), sources: z.array(Source) })
       .nullable()
       .meta({ description: 'Modo de pilotagem (só lenda).' }),
-    strengths: z.array(z.object({ key: z.enum(DRIVER_STRENGTHS), text: z.string(), source: Source })),
+    strengths: z.array(z.object({ key: z.enum(DRIVER_STRENGTHS), text: z.string(), source: ItemSource })),
     moments: z.array(
       z.object({
-        year: z.number().int(),
+        year: z
+          .number()
+          .int()
+          .nullable()
+          .meta({ description: 'Ano; null quando a corrida não é da lista do piloto.' }),
         race: z.string(),
         event_id: z.uuid().nullable().meta({ description: 'A corrida na base (`/v1/events/{id}`).' }),
         wet: z.boolean().meta({ description: 'Corrida com chuva (pela fonte do momento).' }),
         text: z.string(),
-        source: Source,
+        source: ItemSource,
       }),
     ),
     rivalries: z.array(
       z.object({
         driver: z.object({
           id: z.uuid().nullable(),
-          f1db_id: z.string(),
+          f1db_id: z.string().nullable().meta({ description: 'null quando o nome não casou com o F1DB.' }),
           name: z.string(),
         }),
         text: z.string(),
-        source: Source,
+        source: ItemSource,
       }),
     ),
     review_status: z.enum(REVIEW_STATUSES),
@@ -210,6 +219,6 @@ export const DriverEditorial = z
   .meta({
     id: 'DriverEditorial',
     description:
-      'Perfil editorial do piloto (bio, estilo, pontos fortes, momentos marcantes e rivalidades), cada item com fonte; os números foram conferidos contra o F1DB antes da revisão.',
+      'Perfil editorial do piloto (bio, estilo, pontos fortes, momentos marcantes e rivalidades), com a fonte de cada item. Só é servido depois da aprovação humana no painel de revisão, onde o validador destaca os achados (número fora do F1DB, corrida que o piloto não disputou, fonte que não veio da busca...).',
   });
 export type DriverEditorial = z.infer<typeof DriverEditorial>;

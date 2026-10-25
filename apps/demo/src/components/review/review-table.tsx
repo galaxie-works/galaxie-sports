@@ -255,6 +255,19 @@ export function ReviewTable({ items, total, filters, timeZone }: Props) {
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-1">
                     <Badge variant={STATE_BADGE[item.state]}>{T.states[item.state]}</Badge>
+                    {item.findings ? (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Badge variant={item.findings.severe ? 'destructive-light' : 'warning-light'}>
+                              {plural(locale, item.findings.alert, T.findings.alert)} /{' '}
+                              {plural(locale, item.findings.severe, T.findings.severe)}
+                            </Badge>
+                          }
+                        />
+                        <TooltipContent className="max-w-72">{T.findings.description}</TooltipContent>
+                      </Tooltip>
+                    ) : null}
                     {item.edited ? (
                       <Tooltip>
                         <TooltipTrigger render={<Badge variant="info-outline">{T.table.edited}</Badge>} />

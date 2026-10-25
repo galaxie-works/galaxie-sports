@@ -32,11 +32,12 @@ import {
   type ServingFloor,
 } from '@/lib/review/types';
 
+import { EditorialFindings } from './editorial-findings';
 import { STATE_BADGE, marketLabel, sportLabel } from './labels';
 import { useDecide } from './use-decide';
 
-/** Campos que identificam o item: não entram na edição proposta. */
-const LOCKED_FIELDS = new Set(['slug', 'key']);
+/** Campos que identificam o item (e os achados do validador): não entram na edição proposta. */
+const LOCKED_FIELDS = new Set(['slug', 'key', 'findings']);
 
 function Value({ value, empty }: { value: unknown; empty: string }) {
   if (value === null || value === undefined || value === '' || (Array.isArray(value) && !value.length))
@@ -77,6 +78,12 @@ function Value({ value, empty }: { value: unknown; empty: string }) {
   ) : (
     <span className="break-words whitespace-pre-wrap">{text}</span>
   );
+}
+
+/** O conteúdo sem os achados do validador (o card de achados os mostra no texto). */
+function withoutFindings(content: Record<string, unknown>): Record<string, unknown> {
+  const { findings: _f, ...rest } = content;
+  return rest;
 }
 
 function Fields({ content, empty }: { content: Record<string, unknown>; empty: string }) {
@@ -549,6 +556,8 @@ export function ReviewDetail({ item, preview, serving, timeZone }: Props) {
 
       {item.override ? <OverrideCard item={item} override={item.override} timeZone={timeZone} /> : null}
 
+      {item.kind === 'editorial' ? <EditorialFindings content={item.content} /> : null}
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card>
           <CardHeader>
@@ -558,7 +567,8 @@ export function ReviewDetail({ item, preview, serving, timeZone }: Props) {
             {item.kind === 'translation' ? (
               <SideBySide item={item} empty={empty} />
             ) : (
-              <Fields content={item.content} empty={empty} />
+              // os achados do perfil editorial já aparecem destacados no card acima
+              <Fields content={withoutFindings(item.content)} empty={empty} />
             )}
           </CardContent>
         </Card>

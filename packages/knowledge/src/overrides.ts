@@ -43,8 +43,8 @@ const LOCKED_BY_KIND: Record<ReviewKind, readonly string[]> = {
   copy: [],
   glossary: [],
   translation: [],
-  // o perfil é do piloto do F1DB e o nível vem dos números dele: uma edição muda o texto, não o vínculo
-  editorial: ['f1db', 'tier'],
+  // o perfil é do piloto do F1DB, o nível vem dos números dele e os achados são do validador: a edição muda o texto
+  editorial: ['f1db', 'tier', 'findings'],
 };
 
 export const lockedReviewFields = (kind: ReviewKind): ReadonlySet<string> =>

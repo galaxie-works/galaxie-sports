@@ -45,7 +45,7 @@ export const RESEARCH_STEP_NOTE =
 
 /** Instrução do passo 2 (estruturação sem busca, só com as fontes do passo 1). */
 export const STRUCTURE_STEP_NOTE =
-  'Converta o resultado da pesquisa abaixo no JSON pedido. Use SOMENTE as fontes da lista "Fontes permitidas": todo campo de URL de evidência precisa ser exatamente uma URL dessa lista, e o trecho deve vir do texto da pesquisa associado a essa fonte. Afirmação sem fonte da lista não entra (deixe "a confirmar"/vazio). Não invente URLs.';
+  'Converta o resultado da pesquisa abaixo no JSON pedido. Use SOMENTE as fontes da lista "Fontes permitidas": todo campo de URL de evidência precisa ser exatamente uma URL dessa lista, e o trecho deve vir do texto da pesquisa associado a essa fonte. Afirmação sem fonte da lista não entra (deixe "a confirmar"/vazio). Não invente URLs. Os rótulos [S1], [S2]... da lista servem só para achar a URL: nunca os escreva dentro dos campos de texto.';
 
 interface Annotation {
   type: string;

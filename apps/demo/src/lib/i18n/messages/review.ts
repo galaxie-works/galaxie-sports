@@ -67,6 +67,24 @@ export default defineMessages(
       edited: 'editado pela IA',
       editedHint: 'O conteúdo no ar tem uma edição aprovada pela IA, gravada no banco por cima do YAML.',
     },
+    findings: {
+      title: 'Achados do validador',
+      description:
+        'O validador nunca barra: ele marca no texto o que o revisor precisa conferir. Grave = fato a conferir (número fora do F1DB, corrida que o piloto não disputou, rival, fonte); alerta = texto.',
+      severe: { one: '{count} grave', other: '{count} graves' },
+      alert: { one: '{count} alerta', other: '{count} alertas' },
+      severeLabel: 'grave',
+      alertLabel: 'alerta',
+      whole: 'o item todo',
+      source: 'fonte',
+      parts: {
+        bio: 'Bio',
+        style: 'Estilo',
+        strengths: 'Ponto forte',
+        moments: 'Momento',
+        rivalries: 'Rivalidade',
+      } as Record<string, string>,
+    },
     detail: {
       back: 'Voltar para a lista',
       file: 'Arquivo',
@@ -231,6 +249,24 @@ export default defineMessages(
         edited: 'edited by AI',
         editedHint:
           'The live content has an edit approved by the AI, stored in the database on top of the YAML.',
+      },
+      findings: {
+        title: 'Validator findings',
+        description:
+          'The validator never blocks: it marks in the text what the reviewer must check. Severe = a fact to check (number not in F1DB, a race the driver did not run, rival, source); alert = wording.',
+        severe: { one: '{count} severe', other: '{count} severe' },
+        alert: { one: '{count} alert', other: '{count} alerts' },
+        severeLabel: 'severe',
+        alertLabel: 'alert',
+        whole: 'the whole item',
+        source: 'source',
+        parts: {
+          bio: 'Bio',
+          style: 'Style',
+          strengths: 'Strength',
+          moments: 'Moment',
+          rivalries: 'Rivalry',
+        },
       },
       detail: {
         back: 'Back to the list',
@@ -397,6 +433,24 @@ export default defineMessages(
         edited: 'editado por la IA',
         editedHint:
           'El contenido al aire tiene una edición aprobada por la IA, guardada en la base por encima del YAML.',
+      },
+      findings: {
+        title: 'Hallazgos del validador',
+        description:
+          'El validador nunca bloquea: marca en el texto lo que el revisor tiene que verificar. Grave = un dato a verificar (número fuera del F1DB, carrera que el piloto no corrió, rival, fuente); alerta = redacción.',
+        severe: { one: '{count} grave', other: '{count} graves' },
+        alert: { one: '{count} alerta', other: '{count} alertas' },
+        severeLabel: 'grave',
+        alertLabel: 'alerta',
+        whole: 'el ítem entero',
+        source: 'fuente',
+        parts: {
+          bio: 'Bio',
+          style: 'Estilo',
+          strengths: 'Punto fuerte',
+          moments: 'Momento',
+          rivalries: 'Rivalidad',
+        },
       },
       detail: {
         back: 'Volver a la lista',

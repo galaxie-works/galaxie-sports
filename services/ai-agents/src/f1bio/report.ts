@@ -28,8 +28,30 @@ export function bioReport(proposals: BioProposal[], changes: BioChanges | null):
 
 /** Relatório legível dos perfis editoriais propostos (e do que foi aplicado no YAML, quando há). */
 export function profileReport(proposals: ProfileProposal[], changes: ProfileChanges | null): string {
-  const item = (label: string, text: string, source: string | string[]) =>
-    `- **${label}** ${text} — ${Array.isArray(source) ? source.join(', ') : source}`;
+  const item = (label: string, text: string, source: string | string[] | undefined) =>
+    `- **${label}** ${text} — ${Array.isArray(source) ? source.join(', ') || 'sem fonte' : (source ?? 'sem fonte')}`;
+  /** O trecho que o achado aponta, no texto do campo. */
+  const excerpt = (
+    e: NonNullable<ProfileProposal['entries']['pt-BR']>,
+    field: string,
+    start: number,
+    end: number,
+  ) => {
+    const m = /^(bio|style|strengths|moments|rivalries)(?:\[(\d+)\])?(?:\.(sources?)(?:\[(\d+)\])?)?$/.exec(
+      field,
+    );
+    if (!m) return '';
+    const [, part, index, src, srcIndex] = m;
+    const node =
+      part === 'bio' ? e.bio : part === 'style' ? e.style : (e[part as 'strengths'] ?? [])[Number(index)];
+    if (!node) return '';
+    const text = src
+      ? (((node as { sources?: string[] }).sources ?? [])[Number(srcIndex)] ??
+        (node as { source?: string }).source ??
+        '')
+      : node.text;
+    return text.slice(start, end).replace(/\s+/g, ' ');
+  };
   return [
     '# Perfil editorial de pilotos (F1) — propostas `draft`',
     '',
@@ -43,12 +65,19 @@ export function profileReport(proposals: ProfileProposal[], changes: ProfileChan
               ...(e.style ? [item(`estilo (${e.style.kind})`, e.style.text, e.style.sources)] : []),
               ...(e.strengths ?? []).map((s) => item(`forte (${s.key})`, s.text, s.source)),
               ...(e.moments ?? []).map((m) =>
-                item(`${m.year} ${m.race}${m.wet ? ' 🌧' : ''}`, m.text, m.source),
+                item(`${m.year ?? '?'} ${m.race}${m.wet ? ' 🌧' : ''}`, m.text, m.source),
               ),
               ...(e.rivalries ?? []).map((r) => item(`× ${r.driver.name}`, r.text, r.source)),
             ]
           : []),
-        ...p.dropped.map((d) => `- ~~${d.locale} ${d.field}: ${d.text.slice(0, 120)}~~ (${d.reason})`),
+        ...(['pt-BR', 'es'] as const).flatMap((l) => {
+          const entry = p.entries[l];
+          return (entry?.findings ?? []).map(
+            (f) =>
+              `- ${f.severity === 'severe' ? '🔴 grave' : '🟡 alerta'} · ${l} ${f.field}: ${f.reason}` +
+              (f.end > f.start ? ` — "${excerpt(entry!, f.field, f.start, f.end).slice(0, 160)}"` : ''),
+          );
+        }),
         ...p.reasons.map((r) => `> ${r}`),
       ].join('\n');
     }),

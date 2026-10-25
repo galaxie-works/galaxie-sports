@@ -2,10 +2,19 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://schemas.galaxie-sports.local/knowledge/editorial.schema.json",
   "title": "Perfil editorial dos pilotos da F1 — data/knowledge/formula-1/editorial/<locale>.yaml",
-  "description": "Bio, estilo, pontos fortes, momentos marcantes e rivalidades de cada piloto, num idioma, cada item com a fonte. Lenda (`legend`) tem o perfil completo; `regular`, só a bio curta. Gerado pelo agente f1:bio --perfil e aprovado no painel de revisão.",
+  "description": "Bio, estilo, pontos fortes, momentos marcantes e rivalidades de cada piloto, num idioma, com a fonte de cada item. Lenda (`legend`) tem o perfil completo; `regular`, só a bio curta. Gerado pelo agente f1:bio --perfil e aprovado no painel de revisão. O schema só confere a forma: o validador do agente nunca barra o conteúdo, ele grava os achados (`findings`) para o revisor.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "locale", "drivers"],
+  "definitions": {
+    "text": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Fonte como o modelo devolveu; a que não veio da busca é achado grave, não erro"
+    },
+    "sources": { "type": "array", "items": { "$ref": "#/definitions/source" } }
+  },
   "properties": {
     "schema_version": { "const": 1 },
     "locale": { "enum": ["pt-BR", "es"] },
@@ -36,8 +45,8 @@
             "additionalProperties": false,
             "required": ["text", "sources"],
             "properties": {
-              "text": { "type": "string", "minLength": 40, "maxLength": 1800 },
-              "sources": { "$ref": "common.schema.json#/definitions/sources" }
+              "text": { "$ref": "#/definitions/text" },
+              "sources": { "$ref": "#/definitions/sources" }
             }
           },
           "style": {
@@ -48,17 +57,16 @@
               "kind": {
                 "enum": ["aggressive", "smooth", "calculating", "precise", "instinctive", "complete", "consistent"]
               },
-              "text": { "type": "string", "minLength": 10, "maxLength": 400 },
-              "sources": { "$ref": "common.schema.json#/definitions/sources" }
+              "text": { "$ref": "#/definitions/text" },
+              "sources": { "$ref": "#/definitions/sources" }
             }
           },
           "strengths": {
             "type": "array",
-            "maxItems": 6,
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["key", "text", "source"],
+              "required": ["key", "text"],
               "properties": {
                 "key": {
                   "enum": [
@@ -76,18 +84,17 @@
                     "high_speed"
                   ]
                 },
-                "text": { "type": "string", "minLength": 10, "maxLength": 300 },
-                "source": { "$ref": "common.schema.json#/definitions/url" }
+                "text": { "$ref": "#/definitions/text" },
+                "source": { "$ref": "#/definitions/source" }
               }
             }
           },
           "moments": {
             "type": "array",
-            "maxItems": 8,
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["year", "round", "race", "text", "source"],
+              "required": ["race", "text"],
               "properties": {
                 "year": { "type": "integer", "minimum": 1950, "maximum": 2100 },
                 "race": { "$ref": "common.schema.json#/definitions/nonEmptyString" },
@@ -95,33 +102,52 @@
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 30,
-                  "description": "Rodada da corrida na temporada (a ordem pela data), que liga o momento ao evento da base"
+                  "description": "Rodada da corrida na temporada (a ordem pela data), que liga o momento ao evento da base; sem ela (corrida fora da lista do piloto), o momento fica sem o evento"
                 },
                 "wet": { "type": "boolean" },
-                "text": { "type": "string", "minLength": 10, "maxLength": 400 },
-                "source": { "$ref": "common.schema.json#/definitions/url" }
+                "text": { "$ref": "#/definitions/text" },
+                "source": { "$ref": "#/definitions/source" }
               }
             }
           },
           "rivalries": {
             "type": "array",
-            "maxItems": 4,
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["driver", "text", "source"],
+              "required": ["driver", "text"],
               "properties": {
                 "driver": {
                   "type": "object",
                   "additionalProperties": false,
                   "required": ["f1db_id", "name"],
                   "properties": {
-                    "f1db_id": { "$ref": "common.schema.json#/definitions/slug" },
+                    "f1db_id": {
+                      "oneOf": [{ "$ref": "common.schema.json#/definitions/slug" }, { "type": "null" }],
+                      "description": "null quando o nome não casa com quem largou nas mesmas corridas"
+                    },
                     "name": { "$ref": "common.schema.json#/definitions/nonEmptyString" }
                   }
                 },
-                "text": { "type": "string", "minLength": 10, "maxLength": 300 },
-                "source": { "$ref": "common.schema.json#/definitions/url" }
+                "text": { "$ref": "#/definitions/text" },
+                "source": { "$ref": "#/definitions/source" }
+              }
+            }
+          },
+          "findings": {
+            "type": "array",
+            "description": "Achados do validador do agente (número fora do F1DB, corrida que o piloto não disputou, fonte que não veio da busca...), com o trecho no texto do campo, para o painel de revisão",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["field", "start", "end", "rule", "reason", "severity"],
+              "properties": {
+                "field": { "$ref": "common.schema.json#/definitions/nonEmptyString" },
+                "start": { "type": "integer", "minimum": 0 },
+                "end": { "type": "integer", "minimum": 0 },
+                "rule": { "$ref": "common.schema.json#/definitions/nonEmptyString" },
+                "reason": { "$ref": "common.schema.json#/definitions/nonEmptyString" },
+                "severity": { "enum": ["alert", "severe"] }
               }
             }
           },
