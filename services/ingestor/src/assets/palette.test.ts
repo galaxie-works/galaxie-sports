@@ -116,6 +116,15 @@ describe('decodePng', () => {
       rawIdat: deflateSync(new Uint8Array(64 * 1024 * 1024)),
     });
     expect(decodePng(bomb)).toBeNull();
+    // poucos bytes sobrando depois da última linha ainda decodificam
+    const trailing = encodePng({
+      width: 1,
+      height: 1,
+      colorType: 6,
+      rows: [[0, 0, 0, 0]],
+      rawIdat: deflateSync(Uint8Array.from([0, 0x12, 0xab, 0x00, 0xff, 0, 0, 0])),
+    });
+    expect([...decodePng(trailing)!.rgba]).toEqual([0x12, 0xab, 0x00, 0xff]);
   });
 });
 

@@ -18,6 +18,8 @@ export interface DecodedImage {
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 /** Teto de pixels decodificados (escudos da api-sports têm ~150×150). */
 const MAX_PIXELS = 4096 * 4096;
+/** Bytes além das linhas declaradas que a descompressão do IDAT ainda aceita. */
+const IDAT_SLACK = 64 * 1024;
 /** Canais por tipo de cor do PNG. */
 const CHANNELS: Record<number, number> = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 };
 
@@ -85,8 +87,9 @@ export function decodePng(input: Uint8Array): DecodedImage | null {
 
   let raw: Uint8Array;
   try {
-    // o tamanho exato vem do cabeçalho: um IDAT hostil (zip bomb) estoura o teto e cai no catch
-    raw = inflateSync(Buffer.concat(idat), { maxOutputLength: height * (stride + 1) });
+    // o tamanho vem do cabeçalho: um IDAT hostil (zip bomb) estoura o teto e cai no catch; a folga aceita
+    // codificadores que deixam bytes sobrando depois da última linha
+    raw = inflateSync(Buffer.concat(idat), { maxOutputLength: height * (stride + 1) + IDAT_SLACK });
   } catch {
     return null;
   }
