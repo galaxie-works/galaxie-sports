@@ -1,5 +1,5 @@
 import type { SourceKind } from '@galaxie/db';
-import { domainHost, hostOf, matchesDomain, normalizeName } from '../normalize.js';
+import { collapseHosts, hostOf, matchesDomain, normalizeName } from '../normalize.js';
 import type {
   BlockEntry,
   BroadcasterEntry,
@@ -154,12 +154,11 @@ export class CountryDirectory {
    * Ordem de prioridade preservada e limitada a `MAX_ALLOWED_DOMAINS` (só hosts).
    */
   allowedDomains(): string[] {
-    const hosts = [
+    return collapseHosts([
       ...this.sources.organizers,
       ...this.config.broadcasters.flatMap((b) => b.domains),
       ...this.sources.press,
-    ].map(domainHost);
-    return [...new Set(hosts)].slice(0, MAX_ALLOWED_DOMAINS);
+    ]).slice(0, MAX_ALLOWED_DOMAINS);
   }
 
   /** Linha da tabela de direitos vigente para a competição na data do jogo. */

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
-import { normalizeName } from '../normalize.js';
+import { collapseHosts, normalizeName } from '../normalize.js';
 import { loadWtwConfig, parseBlocklistEnv, parseCountryConfig, WtwConfigError } from './loader.js';
 import { WTW_COUNTRIES } from './types.js';
 
@@ -49,6 +49,36 @@ describe('config/broadcasters e config/broadcast-rights do repositório', () => 
     expect(br.resolve('Cazé TV')?.entry.id).toBe('cazetv');
     expect(br.resolve('Canal Inexistente')).toBeNull();
     expect(config.directory('MX').resolve('Azteca 7')).toMatchObject({ entry: { id: 'tv_azteca' }, channel: 'Azteca 7' });
+  });
+
+  it('cobre os nomes da grade curada do Brasil, cada um com o meio certo', () => {
+    const br = config.directory('BR');
+    const cases: [string, string, string][] = [
+      ['BandSports', 'bandsports', 'pay_tv'],
+      ['Bandeirantes', 'band', 'free_tv'],
+      ['Xsports', 'xsports', 'free_tv'],
+      ['RedeTV!', 'redetv', 'free_tv'],
+      ['Cultura', 'tv_cultura', 'free_tv'],
+      ['TV Cultura', 'tv_cultura', 'free_tv'],
+      ['SportyNet', 'sportynet', 'streaming_svod'],
+      ['SportyNet+', 'sportynet', 'streaming_svod'],
+      ['NFL Game Pass', 'nfl_game_pass', 'streaming_svod'],
+      ['Telecine', 'telecine', 'streaming_svod'],
+    ];
+    for (const [name, id, medium] of cases)
+      expect(br.resolve(name)?.entry, name).toMatchObject({ id, medium });
+    // TV Gazeta continua afiliada da Globo no ES, não uma emissora à parte
+    expect(br.resolve('TV Gazeta')).toMatchObject({ entry: { id: 'globo' }, region: 'ES' });
+    // allowlist: subdomínio coberto pelo domínio da lista não ocupa vaga (as buscas aceitam subdomínios)
+    expect(br.allowedDomains()).toContain('globo.com');
+    expect(br.allowedDomains()).not.toContain('telecine.globo.com');
+    expect(
+      collapseHosts(['sportv.globo.com', 'lance.com.br', 'globo.com', 'www.redetv.uol.com.br', 'uol.com.br']),
+    ).toEqual(['globo.com', 'lance.com.br', 'uol.com.br']);
+    // BandSports e Band são do mesmo grupo: o site da Band é fonte primária do canal
+    expect(
+      br.classifySource('https://www.band.com.br/tudo-sobre/bandsports', br.byIdOrNull('bandsports')!),
+    ).toBe('broadcaster');
   });
 
   it('renomeações com data: o nome antigo é o canal novo só depois da troca, e não na Argentina', () => {

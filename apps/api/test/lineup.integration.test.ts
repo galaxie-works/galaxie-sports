@@ -21,6 +21,7 @@ import {
   planChannel,
   planService,
   platform,
+  platformAddon,
   platformPlan,
   runMigrations,
   setTenantOperator,
@@ -209,6 +210,24 @@ beforeAll(async () => {
     { planId: top, serviceId: 'streaming_exemplo', access: 'included', reviewStatus: 'approved' },
     { planId: top, serviceId: 'streaming_extra_exemplo', access: 'addon', reviewStatus: 'approved' },
   ]);
+  // complementos: o canal inteiro e um canal numerado dele (o jogo não passa nesse canal)
+  const addon = (slug: string, kind: 'service' | 'channel', channel: string | null, priceAmount: number) => ({
+    platformId: ids.operator,
+    slug,
+    kind,
+    refId: 'canal_exemplo',
+    channel,
+    name: channel ?? 'Canal Exemplo',
+    priceAmount,
+    priceCurrency: 'BRL',
+    reviewStatus: 'approved' as const,
+  });
+  await db
+    .insert(platformAddon)
+    .values([
+      addon('canal-exemplo', 'service', null, 19.9),
+      addon('canal-exemplo-canal-exemplo-6', 'channel', 'Canal Exemplo 6', 4.9),
+    ]);
 
   const tenant = async (slug: string, markets = ['BR', 'AR']) => {
     const t = await upsertTenant(db, { slug, name: slug, plan: 'fan_experience', markets });
@@ -282,6 +301,14 @@ describe('GET /v1/events/{id}/where-to-watch → availability', () => {
       (operator.plans as { name: string }[]).map((p) => [p.name, p]),
     ) as Record<string, unknown>;
     expect(plans['Plano Básico']).toMatchObject({ access: 'addon', included_services: [] });
+    // o complemento do canal numerado não colapsa no canal: o jogo não passa nele
+    expect(
+      (operator.addons as { id: string; channel: string | null; price_from: number }[]).map((a) => [
+        a.id,
+        a.channel,
+        a.price_from,
+      ]),
+    ).toEqual([['canal_exemplo', null, 19.9]]);
     expect(plans['Plano Top']).toMatchObject({
       access: 'included',
       via_channels: [
