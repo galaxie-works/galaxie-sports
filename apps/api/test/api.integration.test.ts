@@ -519,6 +519,18 @@ describe('cache, ETag e change feed', () => {
     const after = await get(url);
     expect(after.headers.etag).not.toBe(first.headers.etag);
   });
+
+  it('parâmetro de query desconhecido não fura o cache (chave pela query validada)', async () => {
+    const url = '/v1/competitions?country=AR&locale=es-AR';
+    expect((await get(url)).headers['x-galaxie-cache']).toBe('MISS');
+    for (let i = 0; i < 3; i++) {
+      const res = await get(`${url}&x=${randomBytes(4).toString('hex')}`);
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['x-galaxie-cache']).toBe('HIT');
+    }
+    // parâmetro conhecido continua separando as respostas
+    expect((await get('/v1/competitions?country=BR&locale=es-AR')).headers['x-galaxie-cache']).toBe('MISS');
+  });
 });
 
 describe('/mirror', () => {

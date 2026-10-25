@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { cacheControl } from './policy.js';
 import type { CachedResponse, ResponseCache } from './store.js';
+import { validatedInput } from '../util.js';
 
 export interface Loaded {
   body: unknown;
@@ -62,10 +63,17 @@ export function matchesEtag(header: string | undefined, etag: string): boolean {
     .some((t) => t === '*' || t === etag);
 }
 
+/**
+ * Chave do cache: método, caminho, query e as partes de `vary`. A query é a já validada pelo schema da rota
+ * (`parseInput`): parâmetro desconhecido (`?x=<aleatório>`) não cria entrada nova nem vai ao banco. Rota
+ * que não valida a query cai na query bruta (nunca junta respostas diferentes numa chave só).
+ */
 export function cacheKeyFor(request: FastifyRequest, vary: string[] = []): string {
   const [path] = request.url.split('?');
-  const query = Object.entries((request.query ?? {}) as Record<string, unknown>)
-    .map(([k, v]) => [k, String(v)] as const)
+  const parsed = validatedInput(request.query);
+  const query = Object.entries((parsed ?? request.query ?? {}) as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => [k, parsed === undefined ? String(v) : v] as const)
     .sort(([a], [b]) => a.localeCompare(b));
   return createHash('sha256')
     .update(JSON.stringify([request.method, path, query, vary]))

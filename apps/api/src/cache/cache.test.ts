@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
+import * as z from 'zod';
 import { tagsForChange } from './change-feed.js';
 import {
   LEGACY_ENTRY_TTL_SEC,
@@ -11,6 +12,7 @@ import {
 } from './http.js';
 import { cacheControl } from './policy.js';
 import { MemoryResponseCache } from './store.js';
+import { parseInput } from '../util.js';
 
 function appWith(cache: MemoryResponseCache, load: () => unknown, ttl = 60) {
   const app = Fastify();
@@ -97,6 +99,39 @@ describe('sendCached', () => {
     expect(remainingTtl({ storedAt, ttl: 60 }, 86_400, storedAt + 61_000)).toBe(0);
     // gravada por uma instância com o relógio adiantado: nunca mais que o TTL da entrada
     expect(remainingTtl({ storedAt, ttl: 10 }, 3600, storedAt - 30_000)).toBe(10);
+  });
+
+  it('chave usa a query validada: parâmetro desconhecido não fura o cache', async () => {
+    const cache = new MemoryResponseCache();
+    const app = Fastify();
+    const Query = z.object({ limit: z.coerce.number().int().default(50), q: z.string().optional() });
+    let loads = 0;
+    app.get('/q', (request, reply) => {
+      const query = parseInput(Query, request.query);
+      return sendCached(request, reply, cache, {
+        ttl: 60,
+        load: async () => {
+          loads += 1;
+          return { body: query, tags: [] };
+        },
+      });
+    });
+    expect((await app.inject({ url: '/q?x=1' })).headers['x-galaxie-cache']).toBe('MISS');
+    expect((await app.inject({ url: '/q?x=2&y=3' })).headers['x-galaxie-cache']).toBe('HIT');
+    // o padrão do schema e o valor explícito igual caem na mesma entrada
+    expect((await app.inject({ url: '/q?limit=50' })).headers['x-galaxie-cache']).toBe('HIT');
+    expect(loads).toBe(1);
+    // parâmetro conhecido continua separando as respostas
+    expect((await app.inject({ url: '/q?limit=10' })).json()).toEqual({ limit: 10 });
+    expect((await app.inject({ url: '/q?limit=10&q=a' })).json()).toEqual({ limit: 10, q: 'a' });
+    expect(loads).toBe(3);
+  });
+
+  it('rota que não valida a query segue com a query bruta na chave', async () => {
+    const { app, loads } = appWith(new MemoryResponseCache(), () => ({}));
+    await app.inject({ url: '/r?x=1' });
+    await app.inject({ url: '/r?x=2' });
+    expect(loads()).toBe(2);
   });
 
   it('varia por locale', async () => {
