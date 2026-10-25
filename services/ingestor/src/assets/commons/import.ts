@@ -10,10 +10,12 @@
  *    do piloto, com o papel `highlight_car` e a temporada (heading da página do piloto).
  * Idempotente: o mesmo manifesto não regrava nada; foto que saiu do manifesto (ou foi rejeitada) sai do
  * participante (o asset fica).
+ * 6. avisa o `ops.change_feed` (`team:<participante>` e `asset`): a API purga as fotos, a carreira e as lendas
+ *    em cache, e a demo revalida as páginas do piloto e da F1.
  */
 import { createHash } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { asset, assetCredit, participantPhoto, providerMap, type Database } from '@galaxie/db';
+import { asset, assetCredit, participantPhoto, providerMap, publishChange, type Database } from '@galaxie/db';
 import { f1dbDriverId } from '@galaxie/providers';
 import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
@@ -94,6 +96,8 @@ export async function importCommons(
     withoutHighlight: [],
     skipped: [],
   };
+  /** Participantes cujas fotos foram regravadas nesta importação (avisados no change feed no fim). */
+  const touched = new Set<string>();
   for (const entry of manifest.entries) {
     if (opts.only && !opts.only.has(entry.target)) continue;
     const photos = entry.photos.filter((p) => p.match !== 'rejected');
@@ -240,6 +244,7 @@ export async function importCommons(
       }
     }
     if (opts.plan) continue;
+    touched.add(participantId);
     // fotos do acervo que saíram do manifesto deixam o participante (carro: só as da temporada da entrada)
     const stale = await db
       .delete(participantPhoto)
@@ -264,7 +269,15 @@ export async function importCommons(
       .returning({ id: participantPhoto.assetId });
     report.unlinked += stale.length;
   }
-  await linkHighlights(db, manifest, report, opts);
+  await linkHighlights(db, manifest, report, opts, touched);
+  for (const id of touched)
+    await publishChange(db, {
+      topic: 'catalog',
+      entityType: 'team',
+      entityId: id,
+      // `team:<id>`: fotos, carreira e perfil do piloto; `asset`: lendas e vitrines com o retrato
+      payload: { reason: 'commons_photos', tags: ['asset'] },
+    });
   return report;
 }
 
@@ -327,6 +340,7 @@ async function linkHighlights(
   manifest: CommonsManifest,
   report: ImportReport,
   opts: { plan?: boolean; only?: Set<string> },
+  touched: Set<string>,
 ): Promise<void> {
   const byTarget = new Map(manifest.entries.map((e) => [e.target, e]));
   for (const entry of manifest.entries) {
@@ -343,6 +357,7 @@ async function linkHighlights(
     }
     const participantId = await participantOf(db, entry);
     if (!participantId) continue;
+    touched.add(participantId);
     const [row] = photo
       ? await db
           .select({ id: asset.id })

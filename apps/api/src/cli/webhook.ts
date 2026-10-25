@@ -5,9 +5,11 @@ import {
   listDeadDeliveries,
   listWebhookEndpoints,
   replayDeadDeliveries,
+  sealWebhookSecrets,
   setWebhookActive,
   WebhookInputError,
 } from '../webhooks/admin.js';
+import { WebhookSecretBox } from '../webhooks/secret-box.js';
 
 const USAGE = `Uso: pnpm --filter @galaxie/api webhook <comando> [opções]
 
@@ -20,6 +22,12 @@ Comandos:
   enable   --id <endpoint>                 Reativa um webhook.
   dlq      [--id <endpoint>] [--limit 50]  Lista entregas na DLQ (status dead).
   replay   --id <endpoint> | --deliveries <ids>   Recoloca entregas da DLQ na fila.
+  seal-secrets                             Cifra com a KEK os segredos legados em texto puro e recifra os
+                                           que usam uma KEK antiga (idempotente; rode após definir/rotacionar
+                                           WEBHOOK_SIGNING_SECRET).
+
+O segredo de assinatura fica cifrado no banco com a KEK WEBHOOK_SIGNING_SECRET (create e seal-secrets
+exigem a variável; várias KEKs separadas por vírgula: a primeira cifra, todas decifram).
 
 Tópicos: score, status, incidents, where_to_watch, context, related (ou ${REALTIME_TOPICS.join(', ')}).
 Sem --topics, o webhook recebe todos os tópicos do plano do tenant.
@@ -67,6 +75,15 @@ const fail = (msg: string): never => {
   process.exit(1);
 };
 
+// KEK inválida (curta demais) para já, antes de abrir o banco
+const secrets = (() => {
+  try {
+    return WebhookSecretBox.fromEnv();
+  } catch (err) {
+    return fail((err as Error).message);
+  }
+})();
+
 const db = createDb(url, { max: 1 });
 try {
   switch (command) {
@@ -75,18 +92,22 @@ try {
       const events = csv(values.events)?.map((e) => e.toLowerCase());
       const competitions = csv(values.competitions)?.map((c) => c.toLowerCase());
       const sports = csv(values.sports);
-      const created = await createWebhookEndpoint(db, {
-        tenantSlug: values.tenant!,
-        url: values.url!,
-        topics: csv(values.topics) ?? [],
-        filters: {
-          ...(events?.length ? { events } : {}),
-          ...(competitions?.length ? { competitions } : {}),
-          ...(sports?.length ? { sports } : {}),
+      const created = await createWebhookEndpoint(
+        db,
+        {
+          tenantSlug: values.tenant!,
+          url: values.url!,
+          topics: csv(values.topics) ?? [],
+          filters: {
+            ...(events?.length ? { events } : {}),
+            ...(competitions?.length ? { competitions } : {}),
+            ...(sports?.length ? { sports } : {}),
+          },
+          ...(values.description ? { description: values.description } : {}),
+          allowInsecure: values['allow-http'],
         },
-        ...(values.description ? { description: values.description } : {}),
-        allowInsecure: values['allow-http'],
-      });
+        secrets,
+      );
       console.log(`Webhook ${created.id} criado para o tenant ${values.tenant}.`);
       console.log(`Tópicos: ${created.topics.length ? created.topics.join(', ') : 'todos os do plano'}`);
       console.log('Segredo de assinatura (guarde agora — não será exibido novamente):\n');
@@ -130,6 +151,13 @@ try {
       if (!ids?.length && !values.id) fail('replay exige --id <endpoint> ou --deliveries <ids>.');
       const n = await replayDeadDeliveries(db, ids?.length ? { ids } : { endpointId: values.id! });
       console.log(`${n} entrega(s) recolocada(s) na fila.`);
+      break;
+    }
+    case 'seal-secrets': {
+      const r = await sealWebhookSecrets(db, secrets);
+      console.log(`${r.sealed} segredo(s) cifrado(s) com a KEK atual (${r.total} webhook(s) no total).`);
+      for (const f of r.failed) console.error(`falhou: ${f.id}: ${f.error}`);
+      if (r.failed.length) process.exitCode = 1;
       break;
     }
     default:

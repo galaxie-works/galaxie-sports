@@ -1,4 +1,14 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    /**
+     * Headers de segurança de uma resposta. Exposto para rotas que assumem o socket (`reply.hijack()`,
+     * como o SSE), que não passam pelos hooks `onSend`.
+     */
+    securityHeaders?: (request: FastifyRequest, contentType: string) => Record<string, string>;
+  }
+}
 
 export interface SecurityHeadersOptions {
   /**
@@ -25,21 +35,27 @@ export function registerSecurityHeaders(app: FastifyInstance, options: SecurityH
     ? `max-age=${Math.floor(options.hstsMaxAgeSec)}; includeSubDomains`
     : null;
 
-  app.addHook('onSend', async (request, reply, payload) => {
-    const isHtml = String(reply.getHeader('content-type') ?? '').startsWith('text/html');
-    reply
-      .header('x-content-type-options', 'nosniff')
-      .header('x-frame-options', 'DENY')
-      .header('referrer-policy', 'no-referrer')
-      .header('cross-origin-opener-policy', 'same-origin')
-      .header('cross-origin-resource-policy', 'same-origin')
-      .header('x-permitted-cross-domain-policies', 'none')
-      .header('x-dns-prefetch-control', 'off')
-      .header('origin-agent-cluster', '?1')
-      .header('content-security-policy', isHtml ? DOCS_CSP : API_CSP);
-    if (hsts) reply.header('strict-transport-security', hsts);
+  const headersFor = (request: FastifyRequest, contentType: string): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'DENY',
+      'referrer-policy': 'no-referrer',
+      'cross-origin-opener-policy': 'same-origin',
+      'cross-origin-resource-policy': 'same-origin',
+      'x-permitted-cross-domain-policies': 'none',
+      'x-dns-prefetch-control': 'off',
+      'origin-agent-cluster': '?1',
+      'content-security-policy': contentType.startsWith('text/html') ? DOCS_CSP : API_CSP,
+    };
+    if (hsts) headers['strict-transport-security'] = hsts;
     // rotas internas nunca devem ser indexadas nem guardadas por intermediários
-    if (request.url.startsWith('/internal/')) reply.header('x-robots-tag', 'noindex, nofollow');
+    if (request.url.startsWith('/internal/')) headers['x-robots-tag'] = 'noindex, nofollow';
+    return headers;
+  };
+  app.decorate('securityHeaders', headersFor);
+
+  app.addHook('onSend', async (request, reply, payload) => {
+    reply.headers(headersFor(request, String(reply.getHeader('content-type') ?? '')));
     return payload;
   });
 }

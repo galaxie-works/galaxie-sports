@@ -1,12 +1,14 @@
 import { randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   broadcastOption,
+  changeFeed,
+  changeFeedPrune,
   closeDb,
   competition,
   createDb,
@@ -240,6 +242,40 @@ describe('GET /v1/stream (SSE)', () => {
     expect(Number(live.id)).toBeGreaterThan(Number(replayed[1]!.id));
     expect(resumed.messages.filter((m) => m.event === 'event.score_changed')).toHaveLength(3);
     resumed.close();
+  });
+
+  it('Last-Event-ID anterior à poda da retenção: reenvia o que restou e avisa replay_truncated (C30)', async () => {
+    const id = await newEvent();
+    await setScore(id, 7);
+    const [row] = await db.select({ max: sql<string>`max(${changeFeed.id})` }).from(changeFeed);
+    const latest = Number(row!.max);
+    // a retenção apagou até `latest - 1` (a marca é gravada pelo job change-feed-prune)
+    await db.insert(changeFeedPrune).values({ name: 'default', maxDeletedId: latest - 1 });
+    try {
+      const before = await open(baseA, `/v1/stream?events=${id}&topics=score`, {
+        'x-galaxie-key': key,
+        'last-event-id': String(latest - 2),
+      });
+      const warn = await before.waitFor((m) => m.event === 'replay_truncated');
+      expect(JSON.parse(warn.data)).toMatchObject({ reason: 'retention' });
+      await before.waitFor((m) => m.event === 'ready');
+      // o que restou depois do Last-Event-ID ainda é reenviado
+      expect(before.messages.some((m) => m.event === 'event.score_changed' && m.id === String(latest))).toBe(
+        true,
+      );
+      before.close();
+
+      // a partir da marca, nada foi apagado: sem aviso
+      const after = await open(baseA, `/v1/stream?events=${id}&topics=score`, {
+        'x-galaxie-key': key,
+        'last-event-id': String(latest - 1),
+      });
+      await after.waitFor((m) => m.event === 'ready');
+      expect(after.messages.some((m) => m.event === 'replay_truncated')).toBe(false);
+      after.close();
+    } finally {
+      await db.delete(changeFeedPrune);
+    }
   });
 
   it('aceita ?key= (EventSource), valida chave, plano e parâmetros', async () => {

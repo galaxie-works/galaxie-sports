@@ -23,25 +23,21 @@ export interface LoggerConfig {
   environment?: string;
 }
 
-/** Chaves que nunca podem aparecer em log (segredos de fornecedor, de tenant e de infraestrutura). */
+const SECRET_KEYS = ['apiKey', 'password', 'secret', 'token', 'authorization'];
+const SECRET_HEADERS = ['authorization', '["x-apisports-key"]', '["x-api-key"]', 'cookie'];
+/**
+ * Até quantos níveis acima da chave os curingas alcançam: um erro aninhado como
+ * `err.cause.config.headers["x-apisports-key"]` põe o header 3 níveis abaixo do topo.
+ */
+const MAX_DEPTH = 4;
+const PREFIXES = Array.from({ length: MAX_DEPTH + 1 }, (_, depth) => '*.'.repeat(depth));
+
+/** Chaves que nunca podem aparecer em log (segredos de fornecedor, de tenant e de infraestrutura), em qualquer nível até MAX_DEPTH. */
 export const REDACTED_PATHS = [
-  'apiKey',
-  'password',
-  'secret',
-  'token',
-  'authorization',
-  '*.apiKey',
-  '*.password',
-  '*.secret',
-  '*.token',
-  '*.authorization',
-  'headers.authorization',
-  'headers["x-apisports-key"]',
-  'headers["x-api-key"]',
-  'req.headers.authorization',
-  'req.headers["x-apisports-key"]',
-  'req.headers["x-api-key"]',
-  'req.headers.cookie',
+  ...SECRET_KEYS.flatMap((key) => PREFIXES.map((prefix) => `${prefix}${key}`)),
+  ...SECRET_HEADERS.flatMap((header) =>
+    PREFIXES.map((prefix) => `${prefix}headers${header.startsWith('[') ? header : `.${header}`}`),
+  ),
 ];
 
 /** Opções do pino compartilhadas por todos os serviços (JSON, horário ISO, nível como texto, segredos ocultos). */
