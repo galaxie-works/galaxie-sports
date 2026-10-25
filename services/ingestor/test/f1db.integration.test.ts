@@ -160,6 +160,17 @@ function tables(): F1dbTables {
 }
 
 const count = async (q: ReturnType<typeof sql>) => Number((await db.execute<{ n: string }>(q))[0]!.n);
+/** Evento solto com espelho que já usa a identidade api-sports/<id> (duplicata antiga). */
+async function orphanMirror(providerEventId: string): Promise<string> {
+  const [orphan] = await db.execute<{ id: string }>(sql`
+    insert into core.event (id, sport, starts_at, ends_at_expected)
+    values (gen_random_uuid(), 'formula-1', now(), now()) returning id::text as id`);
+  await db.execute(sql`
+    insert into core.sport_event_detail (event_id, sport, provider, provider_event_id, kind, summary)
+    values (${orphan!.id}::uuid, 'formula-1', 'api-sports', ${providerEventId}, 'race', '{}'::jsonb)`);
+  return orphan!.id;
+}
+
 const entityOf = async (provider: string, type: string, providerId: string) =>
   (
     await db.execute<{ id: string }>(sql`
@@ -371,13 +382,11 @@ describe('importação do F1DB', () => {
     // a api-sports diz 5 h depois do estimado (Bahrein 2022: 11h estimado, 15h real): fora dos ±3 h, no mesmo dia
     const real = new Date(new Date(e!.starts_at).getTime() + 5 * 3_600_000).toISOString();
     // espelho órfão de outro evento já com a identidade api-sports/2200 (duplicata antiga): a troca de
-    // identidade violaria sport_event_detail_provider_uq e derrubaria o lote; a identidade fica
-    const [orphan] = await db.execute<{ id: string }>(sql`
-      insert into core.event (id, sport, starts_at, ends_at_expected)
-      values (gen_random_uuid(), 'formula-1', now(), now()) returning id::text as id`);
-    await db.execute(sql`
-      insert into core.sport_event_detail (event_id, sport, provider, provider_event_id, kind, summary)
-      values (${orphan!.id}::uuid, 'formula-1', 'api-sports', '2200', 'race', '{}'::jsonb)`);
+    // identidade violaria sport_event_detail_provider_uq e derrubaria o lote; o espelho do evento fica como estava
+    const orphan = await orphanMirror('2200');
+    const [beforeMirror] = await db.execute<{ provider: string; summary: unknown }>(
+      sql`select provider, summary from core.sport_event_detail where event_id = ${japan}::uuid`,
+    );
     const stats = await upsertBatch(
       db,
       normalizeF1Races([apiRace(2200, 'Race', real)], new Date('2026-10-23T11:00:00Z')),
@@ -385,11 +394,35 @@ describe('importação do F1DB', () => {
     );
     expect(stats.events.matchedAcrossProviders).toBe(1);
     expect(stats.events.inserted).toBe(0);
+    expect(stats.events.mirrorIdentityTaken).toBe(1);
     expect(await entityOf('api-sports', 'event', '2200')).toBe(japan);
-    const [mirror] = await db.execute<{ provider: string; summary_id: string | null }>(sql`
-      select provider, summary->>'id' as summary_id from core.sport_event_detail where event_id = ${japan}::uuid`);
-    expect(mirror).toEqual({ provider: 'f1db', summary_id: '2200' });
-    await db.execute(sql`delete from core.event where id = ${orphan!.id}::uuid`);
+    // nem identidade de um com resumo do outro: o espelho inteiro fica como estava
+    const [mirror] = await db.execute<{ provider: string; summary: unknown }>(
+      sql`select provider, summary from core.sport_event_detail where event_id = ${japan}::uuid`,
+    );
+    expect(mirror).toEqual(beforeMirror);
+    expect(mirror!.provider).toBe('f1db');
+    await db.execute(sql`delete from core.event where id = ${orphan}::uuid`);
+  });
+
+  it('evento novo sem espelho cuja identidade já é de um espelho órfão: o lote passa, sem o espelho', async () => {
+    const orphan = await orphanMirror('2400');
+    const stats = await upsertBatch(
+      db,
+      normalizeF1Races(
+        [apiRace(2400, 'Race', '2026-06-01T12:00:00+00:00')],
+        new Date('2026-10-23T12:00:00Z'),
+      ),
+      { derbyLookup: false },
+    );
+    expect(stats.events.inserted).toBe(1);
+    expect(stats.events.mirrorIdentityTaken).toBe(1);
+    const created = await entityOf('api-sports', 'event', '2400');
+    const mirrors = await db.execute<{ n: string }>(
+      sql`select count(*) as n from core.sport_event_detail where event_id = ${created}::uuid`,
+    );
+    expect(mirrors[0]!.n).toBe('0');
+    await db.execute(sql`delete from core.event where id = ${orphan}::uuid`);
   });
 
   it('cria o país do F1DB que o core não tem (Mônaco não é da FIFA) e não mexe nos que existem', async () => {
