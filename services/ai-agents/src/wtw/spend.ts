@@ -38,7 +38,10 @@ export async function estimateCallUsd(db: Database, kind: ResearchKind): Promise
   return costs.length ? costs.reduce((a, b) => a + b, 0) / costs.length : DEFAULT_CALL_USD[kind];
 }
 
-/** Mercados que ainda cabem no teto do dia com a parte deles da próxima chamada. */
+/**
+ * Mercados que ainda cabem no teto do dia com a parte deles da próxima chamada. A parte é recalculada
+ * a cada mercado bloqueado: com menos mercados, cada um paga mais da mesma chamada.
+ */
 export function withinCap(
   spend: Map<string, number>,
   markets: string[],
@@ -46,8 +49,13 @@ export function withinCap(
   cap: number | null,
 ): { allowed: string[]; blocked: string[] } {
   if (cap === null) return { allowed: [...markets], blocked: [] };
-  const share = estimateUsd / Math.max(1, markets.length);
-  const allowed = markets.filter((m) => (spend.get(m) ?? 0) + share <= cap);
+  let allowed = [...markets];
+  for (;;) {
+    const share = estimateUsd / Math.max(1, allowed.length);
+    const next = allowed.filter((m) => (spend.get(m) ?? 0) + share <= cap);
+    if (next.length === allowed.length) break;
+    allowed = next;
+  }
   return { allowed, blocked: markets.filter((m) => !allowed.includes(m)) };
 }
 

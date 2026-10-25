@@ -374,6 +374,16 @@ describe('janelas, relevância e grupos', () => {
       blocked: [],
     });
     expect(withinCap(spend, ['BR'], 5, null).allowed).toEqual(['BR']);
+    // sem o BR, o AR pagaria a chamada inteira e passaria do teto: o rateio é refeito
+    const near = new Map([
+      ['BR', 0.95],
+      ['AR', 0.7],
+    ]);
+    expect(withinCap(near, ['BR', 'AR'], 0.4, 1)).toEqual({ allowed: [], blocked: ['BR', 'AR'] });
+    expect(withinCap(near, ['BR', 'AR', 'MX'], 0.4, 1)).toEqual({
+      allowed: ['AR', 'MX'],
+      blocked: ['BR'],
+    });
   });
 
   it('grupo = competição × rodada (ou data); allowlist conjunta ≤ 100; os 8 mercados cabem numa chamada', () => {
