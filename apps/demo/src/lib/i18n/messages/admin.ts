@@ -171,6 +171,13 @@ export default defineMessages(
       ended: 'Sessão encerrada',
       endAll: 'Encerrar todas',
       endedAll: 'Sessões encerradas',
+      otpFailures: {
+        one: '{count} tentativa errada de código na última hora',
+        other: '{count} tentativas erradas de código na última hora',
+      },
+      otpLocked: 'login por código bloqueado',
+      otpUnlock: 'Desbloquear login',
+      otpUnlocked: 'Login por código desbloqueado',
     },
     activity: {
       title: 'Atividade',
@@ -382,6 +389,13 @@ export default defineMessages(
         ended: 'Session ended',
         endAll: 'Sign out everywhere',
         endedAll: 'Sessions ended',
+        otpFailures: {
+          one: '{count} wrong code attempt in the last hour',
+          other: '{count} wrong code attempts in the last hour',
+        },
+        otpLocked: 'code sign-in blocked',
+        otpUnlock: 'Unblock sign-in',
+        otpUnlocked: 'Code sign-in unblocked',
       },
       activity: {
         title: 'Activity',
@@ -595,6 +609,13 @@ export default defineMessages(
         ended: 'Sesión cerrada',
         endAll: 'Cerrar todas',
         endedAll: 'Sesiones cerradas',
+        otpFailures: {
+          one: '{count} intento fallido de código en la última hora',
+          other: '{count} intentos fallidos de código en la última hora',
+        },
+        otpLocked: 'ingreso con código bloqueado',
+        otpUnlock: 'Desbloquear ingreso',
+        otpUnlocked: 'Ingreso con código desbloqueado',
       },
       activity: {
         title: 'Actividad',

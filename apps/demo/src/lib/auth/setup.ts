@@ -1,13 +1,13 @@
 /**
  * Preparação do banco da demo na subida do servidor (instrumentation.ts): schema `demo_auth`, tabelas do
- * Better Auth (migração aditiva, idempotente), tabelas próprias (convites, atividade e tentativas erradas
- * de código) e o primeiro admin.
+ * Better Auth (migração aditiva, idempotente), tabelas próprias (convites, atividade, pedidos e tentativas
+ * erradas de código) e o primeiro admin.
  */
 import { getMigrations } from 'better-auth/db/migration';
 
 import { AUTH_SCHEMA, hasDatabase, pool } from './db';
 import { sendInvite } from './invite';
-import { OTP_FAILURE_TABLE } from './otp-guard';
+import { OTP_GUARD_TABLES } from './otp-guard';
 
 const OWN_TABLES = `
 create table if not exists invite (
@@ -53,19 +53,31 @@ begin
 end $$;
 `;
 
+/** Chave da trava do setup (pg_advisory_lock): número fixo, só desta rotina. */
+const SETUP_LOCK = 7_301_202_601;
+
 export async function setupAuthDatabase(): Promise<void> {
   if (!hasDatabase) {
     console.warn('[demo-auth] DEMO_DATABASE_URL não definido: login desativado até configurar o banco.');
     return;
   }
-  await pool.query(`create schema if not exists ${AUTH_SCHEMA}`);
-  const { auth } = await import('./server');
-  const { runMigrations } = await getMigrations(auth.options);
-  await runMigrations();
-  await pool.query(OWN_TABLES);
-  await pool.query(OTP_FAILURE_TABLE);
-  await pool.query(OTP_TRANSITION);
-  await ensureFirstAdmin();
+  // Duas subidas ao mesmo tempo (troca de contêiner no deploy) não podem criar as mesmas tabelas juntas:
+  // `create ... if not exists` concorrente ainda esbarra no catálogo. A trava vale até o fim do setup.
+  const lock = await pool.connect();
+  try {
+    await lock.query('select pg_advisory_lock($1)', [SETUP_LOCK]);
+    await pool.query(`create schema if not exists ${AUTH_SCHEMA}`);
+    const { auth } = await import('./server');
+    const { runMigrations } = await getMigrations(auth.options);
+    await runMigrations();
+    await pool.query(OWN_TABLES);
+    await pool.query(OTP_GUARD_TABLES);
+    await pool.query(OTP_TRANSITION);
+    await ensureFirstAdmin();
+  } finally {
+    await lock.query('select pg_advisory_unlock($1)', [SETUP_LOCK]).catch(() => {});
+    lock.release();
+  }
 }
 
 /**

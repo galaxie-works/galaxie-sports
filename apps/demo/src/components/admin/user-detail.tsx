@@ -23,6 +23,7 @@ import {
   resendInvite,
   revokeAllSessions,
   revokeSession,
+  unlockOtpSignIn,
   setDisabled,
   updateAccess,
   updateProfile,
@@ -342,13 +343,18 @@ function AccessTab({
   );
 }
 
+/** Tentativas erradas de código na última hora (lib/auth/otp-guard.ts). */
+type OtpStatus = { failures: number; locked: boolean };
+
 function SessionsTab({
   user,
   sessions,
+  otp,
   timeZone,
 }: {
   user: DemoUser;
   sessions: DemoSession[];
+  otp: OtpStatus;
   timeZone: string;
 }) {
   const { locale, t } = useI18n();
@@ -397,6 +403,22 @@ function SessionsTab({
             >
               <LogIn />
               {t.admin.sessions.endAll}
+            </Button>
+          </FrameFooter>
+        ) : null}
+        {otp.failures ? (
+          <FrameFooter className="flex-row items-center justify-between gap-3">
+            <span className="text-muted-foreground text-xs">
+              {plural(locale, otp.failures, t.admin.sessions.otpFailures)}
+              {otp.locked ? ` · ${t.admin.sessions.otpLocked}` : ''}
+            </span>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => run(() => unlockOtpSignIn(user.id), t.admin.sessions.otpUnlocked)}
+            >
+              <KeyRound />
+              {t.admin.sessions.otpUnlock}
             </Button>
           </FrameFooter>
         ) : null}
@@ -555,6 +577,7 @@ export function UserDetail({
   user,
   tenants,
   sessions,
+  otp,
   activity,
   currentUserId,
   timeZone,
@@ -562,6 +585,7 @@ export function UserDetail({
   user: DemoUser;
   tenants: TenantOption[];
   sessions: DemoSession[];
+  otp: OtpStatus;
   activity: DemoActivity[];
   currentUserId?: string;
   /** Fuso de quem vê (lido no servidor), para as datas baterem entre servidor e hidratação. */
@@ -640,7 +664,7 @@ export function UserDetail({
             <AccessTab user={user} tenants={tenants} isSelf={isSelf} timeZone={timeZone} />
           </TabsContent>
           <TabsContent value="sessoes">
-            <SessionsTab user={user} sessions={sessions} timeZone={timeZone} />
+            <SessionsTab otp={otp} user={user} sessions={sessions} timeZone={timeZone} />
           </TabsContent>
           <TabsContent value="atividade">
             <ActivityTab activity={activity} timeZone={timeZone} />

@@ -64,4 +64,16 @@ describe('sessões no painel do admin', () => {
     expect((await admin.getDemoUser(guest))!.sessions).toHaveLength(0);
     expect((await admin.getDemoUser(other))!.sessions).toHaveLength(1);
   });
+
+  it('destravar o login por código apaga as tentativas erradas do e-mail', async () => {
+    const guest = await idOf('convidado@galaxie.test');
+    for (let i = 0; i < 20; i++) {
+      await db.sql.query(
+        `insert into otp_failure (email, ip) values ('convidado@galaxie.test', '203.0.113.9')`,
+      );
+    }
+    expect((await admin.getDemoUser(guest))!.otp).toEqual({ failures: 20, locked: true });
+    expect(await actions.unlockOtpSignIn(guest)).toEqual({ ok: true });
+    expect((await admin.getDemoUser(guest))!.otp).toEqual({ failures: 0, locked: false });
+  });
 });
