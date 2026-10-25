@@ -120,8 +120,19 @@ export const LogoCredit = z
     attribution_required: z.boolean().meta({
       description: 'A licença exige o crédito junto do logo (CC BY, CC BY-SA); domínio público não exige.',
     }),
+    attribution: z
+      .string()
+      .nullable()
+      .meta({
+        description:
+          'Atribuição pedida pelo autor (campo `Attribution` da Commons, sem HTML), quando o arquivo pede: é a linha ' +
+          'que a licença manda exibir, e o `text` já a usa. null quando não há.',
+        example: 'Fulano / Exemplo FC',
+      }),
     text: z.string().meta({
-      description: 'Atribuição pronta para exibir (ou para o `title` do logo, quando não é exigida).',
+      description:
+        'Atribuição pronta para exibir (ou para o `title` do logo, quando não é exigida): com `attribution`, ' +
+        '"Logo: <attribution> · <licença>"; sem ela, autor, Wikimedia Commons e licença.',
       example: 'Logo: Wikimedia Commons · Public domain',
     }),
   })

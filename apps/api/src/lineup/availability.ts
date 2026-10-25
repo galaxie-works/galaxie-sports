@@ -240,7 +240,8 @@ export async function loadLogoBook(
                 license: a.c.license,
                 license_url: a.c.licenseUrl,
                 attribution_required: a.c.attributionRequired,
-                text: logoCreditText(a.c.author, a.c.license),
+                attribution: a.c.attribution,
+                text: logoCreditText(a.c.author, a.c.license, a.c.attribution),
               }
             : null,
         },

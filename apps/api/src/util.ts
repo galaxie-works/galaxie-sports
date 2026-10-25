@@ -23,8 +23,16 @@ export function logoSource(origin: string | null | undefined): 'provider' | 'ace
   return origin === 'acervo' || origin === 'commons' ? origin : 'provider';
 }
 
-/** "Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0" (sem autor: só a fonte e a licença). */
-export function logoCreditText(author: string | null, license: string): string {
+/**
+ * "Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0" (sem autor: só a fonte e a licença). Com a atribuição pedida
+ * pelo autor (`Attribution` da Commons), ela no lugar do autor e da fonte: "Logo: <atribuição> · CC BY 4.0".
+ */
+export function logoCreditText(author: string | null, license: string, attribution?: string | null): string {
+  // a atribuição pedida pelo autor é o texto que a licença manda exibir; a licença vai junto, se ela não citar
+  if (attribution)
+    return attribution.toLowerCase().includes(license.toLowerCase())
+      ? `Logo: ${attribution}`
+      : `Logo: ${attribution} · ${license}`;
   return `Logo: ${author ? `${author} / ` : ''}Wikimedia Commons · ${license}`;
 }
 

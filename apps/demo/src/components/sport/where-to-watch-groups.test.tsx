@@ -261,6 +261,7 @@ describe('onde assistir agrupado (página do jogo)', () => {
       license: 'Public domain',
       license_url: null,
       attribution_required: false,
+      attribution: null,
       text: 'Logo: Wikimedia Commons · Public domain',
     };
     const withCredit = (c: LogoCredit) => ({

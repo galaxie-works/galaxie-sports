@@ -180,6 +180,26 @@ beforeAll(async () => {
   });
   await db.update(platform).set({ logoAssetId: logo!.id }).where(eq(platform.id, ids.operator));
   ids.rival = await addPlatform('br-operadora-exemplo-dois', 'Operadora Exemplo Dois', 'pay_tv_operator');
+  // logo CC BY com a atribuição pedida pelo autor (`Attribution` da Commons): ela vira o texto do crédito
+  const [rivalLogo] = await db
+    .insert(asset)
+    .values({
+      kind: 'broadcaster_logo',
+      sourceUrl: 'https://cdn.exemplo.test/operadora-exemplo-dois.png',
+      origin: 'commons',
+    })
+    .returning();
+  await db.insert(assetCredit).values({
+    assetId: rivalLogo!.id,
+    source: 'wikimedia-commons',
+    title: 'File:Operadora Exemplo Dois logo.svg',
+    pageUrl: 'https://commons.wikimedia.org/wiki/File:Operadora_Exemplo_Dois_logo.svg',
+    author: 'Fulano',
+    license: 'CC BY 4.0',
+    credit: 'Own work',
+    attribution: 'Fulano / Operadora Exemplo Dois',
+  });
+  await db.update(platform).set({ logoAssetId: rivalLogo!.id }).where(eq(platform.id, ids.rival));
   ids.streaming = await addPlatform(
     'br-streaming-exemplo',
     'Streaming Exemplo',
@@ -294,8 +314,16 @@ describe('GET /v1/events/{id}/where-to-watch → availability', () => {
         title: 'File:Operadora Exemplo logo.svg',
         license: 'Public domain',
         attribution_required: false,
+        attribution: null,
         text: 'Logo: Wikimedia Commons · Public domain',
       },
+    });
+    expect(body.availability.platforms[1].platform.logo_credit).toMatchObject({
+      author: 'Fulano',
+      license: 'CC BY 4.0',
+      attribution_required: true,
+      attribution: 'Fulano / Operadora Exemplo Dois',
+      text: 'Logo: Fulano / Operadora Exemplo Dois · CC BY 4.0',
     });
     expect(body.availability.channel_status).toBe('confirmed');
     const plans = Object.fromEntries(
