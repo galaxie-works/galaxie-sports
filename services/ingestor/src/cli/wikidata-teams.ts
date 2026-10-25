@@ -61,7 +61,12 @@ try {
   const counts = { qid: 0, ambiguous: 0, none: 0 };
   for (const r of resolved.values())
     counts['qid' in r ? 'qid' : 'ambiguous' in r ? 'ambiguous' : 'none'] += 1;
-  console.log(`Times: com QID único ${counts.qid} · ambíguos ${counts.ambiguous} · sem QID ${counts.none}`);
+  // sem país no core o time nunca resolve (o país dos dois lados é exigido): à parte, para corrigir o core
+  const noCountry = teams.filter((t) => !t.country).length;
+  console.log(
+    `Times: com QID único ${counts.qid} · ambíguos ${counts.ambiguous} · sem QID ${counts.none}` +
+      (noCountry ? ` (${noCountry} sem país no core, não resolvem)` : ''),
+  );
 
   const qids = [...resolved.values()].flatMap((r: TeamResolution) => ('qid' in r ? [r.qid] : []));
   const players = await findTeamPlayers(sparql, qids, {

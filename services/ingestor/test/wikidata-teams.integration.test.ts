@@ -45,7 +45,15 @@ describe('gravação do casamento pelo time', () => {
         ageAt: '2026-08-01',
         teams: ['1137'],
       },
-      player: { qid, birthDate: '2004-03-10', labels: [], countries, image: null, teams: ['Q100'] },
+      player: {
+        qid,
+        birthDate: '2004-03-10',
+        birthPrecision: 11,
+        labels: [],
+        countries,
+        image: null,
+        teams: ['Q100'],
+      },
     });
     const teams = new Map<string, TeamResolution>([['1137', { qid: 'Q100' }]]);
     const r = await saveTeamMatches(
@@ -95,10 +103,25 @@ describe('gravação do casamento pelo time', () => {
       linked: 0,
       conflicts: 1,
     });
+    // nascimento só com o ano: liga o QID e a nacionalidade, sem gravar a data
+    const [yearOnly] = await db.insert(person).values({ name: 'P. Ano' }).returning();
+    await map('person', yearOnly!.id, 'api-sports', '700002');
+    const imprecise = m(yearOnly!.id, '700002', 'Q3', ['Chile']);
+    imprecise.player.birthPrecision = 9;
+    expect(await saveTeamMatches(db, [imprecise], teams)).toEqual({
+      linked: 1,
+      birthDates: 0,
+      nationalities: 1,
+      conflicts: 0,
+    });
+    expect((await db.select().from(person).where(eq(person.id, yearOnly!.id)))[0]).toMatchObject({
+      birthDate: null,
+      nationality: 'Chile',
+    });
     const people = await db
       .select({ id: providerMap.providerId })
       .from(providerMap)
       .where(and(eq(providerMap.provider, 'wikidata'), eq(providerMap.entityType, 'person')));
-    expect(people.map((w) => w.id).sort()).toEqual(['Q1', 'Q2']);
+    expect(people.map((w) => w.id).sort()).toEqual(['Q1', 'Q2', 'Q3']);
   });
 });

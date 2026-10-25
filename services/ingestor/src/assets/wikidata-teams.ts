@@ -67,6 +67,12 @@ export type TeamResolution = { qid: string } | { ambiguous: string[] } | { none:
 export interface TeamPlayer {
   qid: string;
   birthDate: string;
+  /**
+   * Precisão do nascimento no Wikidata (`timePrecision`: 11 = dia, 10 = mês, 9 = ano). Só com o dia o nascimento é
+   * gravado; com menos, o jogador continua no casamento (um homônimo não vira par único), com a idade aproximada.
+   * Duas datas diferentes com a mesma precisão ficam como 10 (não grava).
+   */
+  birthPrecision: number;
   labels: string[];
   countries: string[];
   image: string | null;
@@ -228,8 +234,8 @@ export function resolveTeam(team: TeamTarget, found: string[], items: Map<string
 
 /**
  * Jogadores com passagem pelos times em 2026 (P54 com início até 2026 e fim a partir de 2026, quando houver). O
- * nascimento só com precisão de dia (`timePrecision` 11): data só com o ano ou o mês viraria 1º de janeiro gravado
- * como exato; afirmação depreciada fica de fora.
+ * nascimento vem da afirmação de melhor rank (`wikibase:BestRank`, como o `wdt:`) com a precisão
+ * (`timePrecision`): data só com o ano ou o mês não pode ser gravada como 1º de janeiro exato.
  */
 export function teamPlayersQuery(teamQids: string[], season = 2026): string {
   return `SELECT ?player ?team ?birth ?prec ?image ?label ?country WHERE {
@@ -239,9 +245,8 @@ export function teamPlayersQuery(teamQids: string[], season = 2026): string {
   OPTIONAL { ?st pq:P582 ?end }
   FILTER(!BOUND(?start) || YEAR(?start) <= ${season})
   FILTER(!BOUND(?end) || YEAR(?end) >= ${season})
-  ?player p:P569 ?bst. ?bst psv:P569 ?bv. ?bv wikibase:timeValue ?birth; wikibase:timePrecision ?prec.
-  FILTER(?prec >= 11)
-  FILTER NOT EXISTS { ?bst wikibase:rank wikibase:DeprecatedRank }
+  ?player p:P569 ?bst. ?bst a wikibase:BestRank; psv:P569 ?bv.
+  ?bv wikibase:timeValue ?birth; wikibase:timePrecision ?prec.
   FILTER(YEAR(?birth) >= ${season - 50})
   OPTIONAL { ?player wdt:P18 ?image }
   ?player rdfs:label ?label FILTER(LANG(?label) IN ("en", "es", "pt", "fr", "it", "de"))
@@ -255,16 +260,21 @@ export function teamPlayers(rows: SparqlBinding[]): TeamPlayer[] {
     const qid = r.player?.value.split('/').pop();
     const team = r.team?.value.split('/').pop();
     if (!qid || !team || !r.birth) continue;
-    // a consulta já exige o dia; resposta antiga do cache (sem ?prec) ou precisão menor não grava nascimento
-    if (!r.prec || Number(r.prec.value) < 11) continue;
+    const birth = r.birth.value.slice(0, 10);
+    const precision = Number(r.prec?.value ?? 0) || 0;
     const p = out.get(qid) ?? {
       qid,
-      birthDate: r.birth.value.slice(0, 10),
+      birthDate: birth,
+      birthPrecision: precision,
       labels: [],
       countries: [],
       image: null,
       teams: [],
     };
+    // mais de uma data de melhor rank: vale a mais precisa; duas diferentes no mesmo nível não gravam
+    if (precision > p.birthPrecision) Object.assign(p, { birthDate: birth, birthPrecision: precision });
+    else if (precision === p.birthPrecision && birth !== p.birthDate && precision >= 11)
+      p.birthPrecision = 10;
     if (r.label && !p.labels.includes(r.label.value)) p.labels.push(r.label.value);
     if (r.country && !p.countries.includes(r.country.value)) p.countries.push(r.country.value);
     if (!p.teams.includes(team)) p.teams.push(team);
@@ -283,8 +293,17 @@ export function ageOn(birth: string, at: string): number {
 }
 
 /**
- * Casa cada candidato com os jogadores dos times dele no Wikidata: nome compatível, idade com ±1 ano e
- * nacionalidade que não diverge. Liga só com um candidato único; o mesmo QID para duas pessoas do core não liga
+ * Idade compatível: ±1 ano com o nascimento exato; ±2 só com o ano ou o mês (o dia desconhecido); sem nem o ano,
+ * não dá para conferir e o jogador conta como possível (homônimo não vira par único).
+ */
+function ageMatches(p: TeamPlayer, c: TeamCandidate): boolean {
+  if (p.birthPrecision < 9) return true;
+  return Math.abs(ageOn(p.birthDate, c.ageAt) - c.age) <= (p.birthPrecision >= 11 ? 1 : 2);
+}
+
+/**
+ * Casa cada candidato com os jogadores dos times dele no Wikidata: nome compatível, idade compatível
+ * (`ageMatches`) e nacionalidade que não diverge. Liga só com um candidato único; o mesmo QID para duas pessoas do core não liga
  * nenhuma (conta como ambíguo).
  */
 export function matchByTeam(
@@ -309,7 +328,7 @@ export function matchByTeam(
     const hits = pool.filter(
       (p) =>
         p.labels.some((l) => namesMatch(c, l)) &&
-        Math.abs(ageOn(p.birthDate, c.ageAt) - c.age) <= 1 &&
+        ageMatches(p, c) &&
         countriesMatch(c.nationality, p.countries),
     );
     if (hits.length === 1) found.push({ candidate: c, player: hits[0]! });
@@ -565,14 +584,16 @@ export async function saveTeamMatches(
         return;
       }
       const nat = nationalityOf(m.player);
+      // nascimento só com o dia (precisão 11); com o ano ou o mês, liga o QID e a nacionalidade, sem a data
+      const birth = m.player.birthPrecision >= 11 ? m.player.birthDate : null;
       await tx.execute(sql`
         update core.person
-        set birth_date = coalesce(birth_date, ${m.player.birthDate}::date),
+        set birth_date = coalesce(birth_date, ${birth}::date),
             nationality = coalesce(nationality, ${nat}),
             updated_at = now()
         where id = ${m.candidate.personId}
       `);
-      if (!before.birth) report.birthDates += 1;
+      if (!before.birth && birth) report.birthDates += 1;
       if (!before.nat && nat) report.nationalities += 1;
       await tx.execute(sql`
         insert into core.provider_map (entity_type, entity_id, provider, sport, provider_id)

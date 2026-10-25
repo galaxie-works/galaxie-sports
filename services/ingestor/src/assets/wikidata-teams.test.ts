@@ -42,6 +42,7 @@ const cand = (over: Partial<TeamCandidate>): TeamCandidate => ({
 const player = (over: Partial<TeamPlayer>): TeamPlayer => ({
   qid: 'Q1',
   birthDate: '2004-03-10',
+  birthPrecision: 11,
   labels: ['Juan Durán'],
   countries: ['Colombia'],
   image: 'Juan Duran.jpg',
@@ -377,6 +378,7 @@ describe('casamento estrito pelo time no Wikidata', () => {
     expect(p).toEqual({
       qid: 'Q1',
       birthDate: '2004-03-10',
+      birthPrecision: 11,
       labels: ['Juan Durán', 'Juan Duran'],
       countries: ['Colombia', 'Spain'],
       image: 'Juan Durán.jpg',
@@ -388,22 +390,38 @@ describe('casamento estrito pelo time no Wikidata', () => {
     expect(teamPlayersQuery(['Q100'])).toContain('YEAR(?end) >= 2026');
   });
 
-  it('nascimento só com precisão de dia: só o ano ou o mês não vira 1º de janeiro gravado como exato', () => {
+  it('nascimento com a precisão e do melhor rank; data só com o ano fica no casamento, sem ser exata', () => {
     const q = teamPlayersQuery(['Q100']);
     expect(q).toContain('wikibase:timePrecision ?prec');
-    expect(q).toContain('FILTER(?prec >= 11)');
-    expect(q).toContain('wikibase:DeprecatedRank');
+    expect(q).toContain('?bst a wikibase:BestRank');
     expect(q).not.toContain('wdt:P569');
-    const row = (prec?: string) => ({
-      player: { type: 'uri' as const, value: 'http://www.wikidata.org/entity/Q1' },
+    const row = (prec: string, birth = '2004-01-01', qid = 'Q1') => ({
+      player: { type: 'uri' as const, value: `http://www.wikidata.org/entity/${qid}` },
       team: { type: 'uri' as const, value: 'http://www.wikidata.org/entity/Q100' },
-      birth: { type: 'literal' as const, value: '2004-01-01T00:00:00Z' },
+      birth: { type: 'literal' as const, value: `${birth}T00:00:00Z` },
       label: { type: 'literal' as const, value: 'Juan Durán' },
-      ...(prec ? { prec: { type: 'literal' as const, value: prec } } : {}),
+      prec: { type: 'literal' as const, value: prec },
     });
-    // 9 = ano, 10 = mês; sem ?prec (consulta antiga)
-    expect(teamPlayers([row('9'), row('10'), row()])).toEqual([]);
-    expect(teamPlayers([row('11')]).map((p) => p.birthDate)).toEqual(['2004-01-01']);
+    // 9 = ano: o jogador fica, com a precisão
+    expect(teamPlayers([row('9')]).map((p) => [p.birthDate, p.birthPrecision])).toEqual([['2004-01-01', 9]]);
+    // duas datas de melhor rank: a mais precisa; duas diferentes com o dia, nenhuma é exata
+    expect(teamPlayers([row('9'), row('11', '2004-03-10')])[0]).toMatchObject({
+      birthDate: '2004-03-10',
+      birthPrecision: 11,
+    });
+    expect(teamPlayers([row('11', '2004-03-10'), row('11', '2004-05-02')])[0]!.birthPrecision).toBe(10);
+  });
+
+  it('homônimo com nascimento só no ano no mesmo time: ambíguo, não liga o outro', () => {
+    const exact = player({ qid: 'Q1' });
+    const yearOnly = player({ qid: 'Q2', birthDate: '2004-01-01', birthPrecision: 9 });
+    expect(matchByTeam([cand({})], [exact, yearOnly], teams)).toMatchObject({ matches: [], ambiguous: 1 });
+    // sozinho, o de data só no ano liga (o QID e a nacionalidade; o nascimento não é gravado)
+    expect(matchByTeam([cand({})], [yearOnly], teams).matches.map((m) => m.player.qid)).toEqual(['Q2']);
+    // idade muito longe nem com o ano
+    expect(
+      matchByTeam([cand({})], [player({ birthDate: '1990-01-01', birthPrecision: 9 })], teams).matches,
+    ).toEqual([]);
   });
 
   it('país dos dois lados para resolver o time: sem país no core ou sem P17 no item, não resolve', () => {
