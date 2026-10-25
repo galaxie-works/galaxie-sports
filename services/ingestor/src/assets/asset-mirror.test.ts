@@ -116,6 +116,34 @@ describe('runAssetMirror', () => {
     expect((await assets.pending()).length).toBe(5);
   });
 
+  it('erro de um asset (storage) vira falha e os outros workers terminam antes de a execução voltar', async () => {
+    const urls = [1, 2, 3, 4].map((i) => `https://media.api-sports.io/football/teams/${i}.png`);
+    const { clock, assets, objects, fetcher } = setup(
+      Object.fromEntries(urls.map((u) => [u, [{ status: 200, body: fakePng(5, 5) }]])),
+      urls,
+    );
+    const put = objects.put.bind(objects);
+    objects.put = async (key, ...rest) => {
+      if (key.endsWith('/1.png')) throw new Error('storage fora do ar');
+      return put(key, ...rest);
+    };
+    const report = await runAssetMirror({ assets, objects, fetcher, clock, concurrency: 2, delayMs: 10 });
+    expect(report).toMatchObject({ pending: 4, stored: 3, failed: 1, aborted: null });
+    expect(report.failures).toEqual([{ url: urls[0], reason: 'storage fora do ar' }]);
+    // o que falhou continua pendente; os outros foram gravados (no storage e no banco)
+    expect((await assets.pending()).map((a) => a.sourceUrl)).toEqual([urls[0]]);
+    expect(objects.objects.size).toBe(3);
+
+    // erros seguidos interrompem
+    const down = setup(Object.fromEntries(urls.map((u) => [u, [{ status: 200, body: fakePng(5, 5) }]])), urls);
+    down.objects.put = async () => {
+      throw new Error('storage fora do ar');
+    };
+    const aborted = await runAssetMirror({ ...down, concurrency: 1, abortAfterRateLimited: 2 });
+    expect(aborted.failed).toBe(2);
+    expect(aborted.aborted).toMatch(/storage fora do ar/);
+  });
+
   it('modo plano não baixa e --retentar-ausentes volta a tentar 404', async () => {
     const { clock, media, assets, objects, fetcher } = setup(
       { [GONE]: [{ status: 404 }, { status: 200, body: fakePng(5, 5) }] },

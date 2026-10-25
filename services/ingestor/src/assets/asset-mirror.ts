@@ -45,7 +45,10 @@ export interface AssetMirrorOptions {
   placeholderLogos?: ReadonlySet<string>;
   /** Só a mídia sob este caminho da CDN (ex.: `/volley/`). */
   pathPrefix?: string | undefined;
-  /** Interrompe a execução depois de N assets seguidos que esgotaram as tentativas por 429. Padrão 5. */
+  /**
+   * Interrompe a execução depois de N assets seguidos que esgotaram as tentativas por 429 (ou que falharam
+   * com erro inesperado, como storage ou banco fora do ar). Padrão 5.
+   */
   abortAfterRateLimited?: number;
   /** Só lista o que seria baixado. */
   dryRun?: boolean;
@@ -212,11 +215,27 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     }
   };
 
+  // Erro inesperado num asset (storage, banco) conta como falha e o worker segue: rejeitar o Promise.all
+  // deixaria os outros workers gravando com o CLI já fechando o banco. Erros seguidos interrompem a execução.
+  let consecutiveErrors = 0;
   const worker = async (): Promise<void> => {
     while (!report.aborted) {
       const item = queue[next++];
       if (!item) return;
-      await handle(item);
+      try {
+        await handle(item);
+        consecutiveErrors = 0;
+      } catch (err) {
+        consecutiveErrors += 1;
+        const reason = err instanceof Error ? err.message : String(err);
+        report.failed += 1;
+        report.failures.push({ url: item.sourceUrl, reason });
+        emit({ type: 'failed', asset: item, reason });
+        if (consecutiveErrors >= abortAfter && !report.aborted) {
+          report.aborted = `${consecutiveErrors} assets seguidos falharam com erro (último: ${reason}); execução interrompida.`;
+          emit({ type: 'aborted', reason: report.aborted });
+        }
+      }
       if (delayMs > 0) await clock.sleep(delayMs);
     }
   };
