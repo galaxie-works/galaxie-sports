@@ -389,9 +389,14 @@ export function excerptHasAmount(excerpt: string, amount: number): boolean {
   return amountsIn(excerpt).some((a) => a.values.some((v) => close(v, amount)));
 }
 
-/** Moeda escrita sem ambiguidade junto do número ("$" sozinho é o peso local ou o dólar: não conta). */
-const EXPLICIT_CURRENCY_BEFORE = /(R\$|U\$S|US\$|U\$D|\$U|S\/\.?|USD|BRL|ARS|CLP|COP|PEN|UYU|MXN)\s*$/i;
-const EXPLICIT_CURRENCY_AFTER = /^\s*(USD|BRL|ARS|CLP|COP|PEN|UYU|MXN|d[oó]lares)\b/i;
+/**
+ * Moeda escrita sem ambiguidade junto do número ("$" sozinho é o peso local ou o dólar: não conta). Sem
+ * letra colada antes do símbolo ou do código: "AR$" não é R$, "Open 249" não é PEN, e "s/" minúsculo é
+ * "sem" ("12x s/ juros"), não o sol.
+ */
+const EXPLICIT_CURRENCY_BEFORE =
+  /(?<![A-Za-zÀ-ÿ])(R\$|U\$S|US\$|U\$D|\$U|S\/\.?|USD|BRL|ARS|CLP|COP|PEN|UYU|MXN)\s*$/;
+const EXPLICIT_CURRENCY_AFTER = /^\s*(?:(USD|BRL|ARS|CLP|COP|PEN|UYU|MXN)(?![A-Za-zÀ-ÿ])|([Dd][oó]lares)\b)/;
 const CURRENCY_TOKEN: Record<string, string> = {
   R$: 'BRL',
   US$: 'USD',
@@ -403,22 +408,28 @@ const CURRENCY_TOKEN: Record<string, string> = {
   'S/': 'PEN',
   'S/.': 'PEN',
 };
+const isoOf = (token: string) => CURRENCY_TOKEN[token.toUpperCase()] ?? token.toUpperCase();
 
-/** A moeda (ISO 4217) que o trecho escreve junto do número do preço, quando não é ambígua. */
-export function excerptCurrency(excerpt: string, amount: number): string | null {
+/**
+ * A moeda (ISO 4217) que o trecho escreve junto de cada ocorrência do número do preço; null onde não há
+ * moeda ou ela é ambígua ("$").
+ */
+export function excerptCurrencies(excerpt: string, amount: number): (string | null)[] {
+  const out: (string | null)[] = [];
   for (const hit of amountsIn(excerpt)) {
     if (!hit.values.some((v) => close(v, amount))) continue;
     const before = EXPLICIT_CURRENCY_BEFORE.exec(excerpt.slice(Math.max(0, hit.index - 8), hit.index));
     const after = EXPLICIT_CURRENCY_AFTER.exec(excerpt.slice(hit.end, hit.end + 12));
-    const token = (before?.[1] ?? after?.[1])?.toUpperCase();
-    if (token) return CURRENCY_TOKEN[token] ?? token;
+    const token = before?.[1] ?? after?.[1] ?? after?.[2];
+    out.push(token ? isoOf(token) : null);
   }
-  return null;
+  return out;
 }
 
 /**
- * A moeda do preço é a do país? Falha se o modelo informou outra ou se o trecho escreve outra junto do
- * número ("US$ 29,99" no Uruguai), mesmo com a moeda do modelo vazia; sem nenhuma das duas, vale a do país.
+ * A moeda do preço é a do país? Falha se o modelo informou outra ou se o trecho só escreve outra junto do
+ * número ("US$ 29,99" no Uruguai), mesmo com a moeda do modelo vazia. Basta uma ocorrência do número na
+ * moeda do país ou com "$" ("USD 15 o $ 15"); sem moeda nenhuma, vale a do país.
  */
 export function currencyCheck(
   claimed: string | null,
@@ -427,8 +438,9 @@ export function currencyCheck(
   country: string | null,
 ): LineupCheckResult {
   if (!country) return 'pass';
-  const seen = amount !== null ? excerptCurrency(excerpt, amount) : null;
-  return [claimed?.toUpperCase() || null, seen].every((c) => !c || c === country) ? 'pass' : 'fail';
+  if (claimed?.trim() && isoOf(claimed.trim()) !== country) return 'fail';
+  const seen = amount !== null ? excerptCurrencies(excerpt, amount) : [];
+  return seen.length && seen.every((c) => c && c !== country) ? 'fail' : 'pass';
 }
 
 /** Rótulos do preço cheio de lista (antes do número). */

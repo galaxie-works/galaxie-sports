@@ -10,7 +10,7 @@ import { gabaritoIds, readGabarito } from '../testing/lineup-gabarito.js';
 import {
   acceptableOfficialDomain,
   currencyCheck,
-  excerptCurrency,
+  excerptCurrencies,
   excerptHasAmount,
   formatPrice,
   includedCheck,
@@ -254,19 +254,50 @@ describe('preço cheio de lista', () => {
   });
 
   it('a moeda escrita junto do número no trecho vale, mesmo sem a moeda do modelo', () => {
-    expect(excerptCurrency('Plan Fútbol US$ 29,99 por mes', 29.99)).toBe('USD');
-    expect(excerptCurrency('Plan Fútbol U$S 29,99', 29.99)).toBe('USD');
-    expect(excerptCurrency('Plan Fútbol 29,99 USD al mes', 29.99)).toBe('USD');
-    expect(excerptCurrency('Plan Fútbol $U 990 por mes', 990)).toBe('UYU');
-    expect(excerptCurrency('Plano Futebol R$ 149,90', 149.9)).toBe('BRL');
+    expect(excerptCurrencies('Plan Fútbol US$ 29,99 por mes', 29.99)).toEqual(['USD']);
+    expect(excerptCurrencies('Plan Fútbol U$S 29,99', 29.99)).toEqual(['USD']);
+    expect(excerptCurrencies('Plan Fútbol 29,99 USD al mes', 29.99)).toEqual(['USD']);
+    expect(excerptCurrencies('Plan Fútbol 29,99 dólares', 29.99)).toEqual(['USD']);
+    expect(excerptCurrencies('Plan Fútbol $U 990 por mes', 990)).toEqual(['UYU']);
+    expect(excerptCurrencies('Plan Fútbol S/ 49,90', 49.9)).toEqual(['PEN']);
+    expect(excerptCurrencies('Plano Futebol R$ 149,90', 149.9)).toEqual(['BRL']);
     // "$" sozinho é ambíguo; e a moeda de outro número do trecho não conta
-    expect(excerptCurrency('Plan Fútbol $ 990 por mes', 990)).toBeNull();
-    expect(excerptCurrency('Plan Fútbol $ 990 (o US$ 25)', 990)).toBeNull();
+    expect(excerptCurrencies('Plan Fútbol $ 990 por mes', 990)).toEqual([null]);
+    expect(excerptCurrencies('Plan Fútbol $ 990 (o US$ 25)', 990)).toEqual([null]);
+  });
+
+  it('letra colada antes do símbolo não é moeda: AR$, MX$, "Open 249", "12x s/ juros"', () => {
+    for (const [excerpt, amount] of [
+      ['Plan Full AR$ 15.999 por mes', 15999],
+      ['Plan Full AR$15.999 por mes', 15999],
+      ['Plan Full ARS$ 15.999', 15999],
+      ['Plan MX$ 299 al mes', 299],
+      ['Plan Mex$299 al mes', 299],
+      ['Plan COL$ 49.900', 49900],
+      ['Plan CLP$ 9.990', 9990],
+      ['Plan UYU$ 590', 590],
+      ['HBO Max Open 249 al mes', 249],
+      ['Plano 12x s/ 49,90', 49.9],
+      ['Plano 49,90 PENDENTE', 49.9],
+    ] as const)
+      expect(excerptCurrencies(excerpt, amount), excerpt).toEqual([null]);
+    expect(currencyCheck(null, 'Plan Full AR$ 15.999 por mes', 15999, 'ARS')).toBe('pass');
+    expect(currencyCheck('ARS', 'Plan Full AR$15.999', 15999, 'ARS')).toBe('pass');
+    expect(currencyCheck(null, 'HBO Max Open 249 al mes', 249, 'MXN')).toBe('pass');
+    expect(currencyCheck(null, 'Plano 12x s/ 49,90', 49.9, 'BRL')).toBe('pass');
+  });
+
+  it('checagem de moeda: o modelo e o trecho; basta uma ocorrência na moeda do país', () => {
     expect(currencyCheck(null, 'Plan Fútbol US$ 29,99 por mes', 29.99, 'UYU')).toBe('fail');
     expect(currencyCheck(null, 'Plan Fútbol $ 990 por mes', 990, 'UYU')).toBe('pass');
     expect(currencyCheck('UYU', 'Plan Fútbol US$ 29,99', 29.99, 'UYU')).toBe('fail');
     expect(currencyCheck('USD', 'Plan Fútbol $ 990', 990, 'UYU')).toBe('fail');
     expect(currencyCheck(null, 'Plan Fútbol US$ 29,99', 29.99, 'USD')).toBe('pass');
+    // o modelo escreve o símbolo em vez do código
+    expect(currencyCheck('R$', 'Plano R$ 49,90/mês', 49.9, 'BRL')).toBe('pass');
+    // o mesmo número em dólar e em peso: vale a do país
+    expect(currencyCheck(null, 'Plan Lite USD 15 o $ 15 por mes', 15, 'UYU')).toBe('pass');
+    expect(currencyCheck(null, 'Plan Lite USD 15 o $U 15 por mes', 15, 'UYU')).toBe('pass');
   });
 
   it('formata como publicado, na moeda do país', () => {
