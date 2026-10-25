@@ -213,6 +213,8 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
       expect.objectContaining({ name: 'submit_resposta_final', input_schema: SCHEMA, strict: true }),
     ]);
     expect((sdk.calls[1]!.messages as unknown[]).length).toBe(2); // pergunta + turno pausado
+    // teto de buscas da chamada (AI_MAX_SEARCHES_PER_CALL, preenchido pelo orçamento) vira max_uses
+    expect(client.buildTools(req({ maxSearches: 3 }))[0]).toMatchObject({ max_uses: 3 });
     expect(out.citations.map((c) => c.url)).toEqual(['https://conmebol.com/r', 'https://ge.globo.com/x']);
     expect(out.usage).toMatchObject({ inputTokens: 1_200, outputTokens: 130, webSearchCalls: 2 });
   });
@@ -260,5 +262,16 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
     });
     await expect(client.generateJson(req())).rejects.toMatchObject({ kind: 'refusal' });
     expect(sdk.calls).toHaveLength(1);
+  });
+});
+
+describe('teto de buscas por chamada (OpenAI)', () => {
+  it('max_tool_calls só com busca e teto; a busca é a única ferramenta embutida', () => {
+    const client = new OpenAiLlmClient({ models: MODELS, sdk: { responses: { create: async () => ({}) } } });
+    expect(client.buildParams(req({ maxSearches: 4 }), 'gpt-6.1-sol')).toMatchObject({ max_tool_calls: 4 });
+    expect(client.buildParams(req(), 'gpt-6.1-sol')).not.toHaveProperty('max_tool_calls');
+    expect(client.buildParams(req({ webSearch: false, maxSearches: 4 }), 'gpt-6.1-sol')).not.toHaveProperty(
+      'max_tool_calls',
+    );
   });
 });

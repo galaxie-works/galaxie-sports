@@ -100,7 +100,8 @@ export const jobRun = ops.table(
 
 /**
  * Ledger de uso de LLM (uma linha por chamada) — fonte da verdade do orçamento diário de tokens
- * (AI_DAILY_TOKEN_BUDGET) compartilhado por todos os agentes (services/ai-agents/src/llm/budget.ts).
+ * (AI_DAILY_TOKEN_BUDGET) e em US$ (AI_DAILY_USD_BUDGET e AI_AGENT_USD_BUDGETS, pelo `cost_usd`, que soma
+ * tokens e buscas na web) compartilhado por todos os agentes (services/ai-agents/src/llm/budget.ts).
  */
 export const llmUsage = ops.table(
   'llm_usage',

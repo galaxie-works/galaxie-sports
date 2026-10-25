@@ -15,6 +15,7 @@ import {
   envReport,
   isSecret,
   nextCronRuns,
+  parseAgentUsdBudgets,
   planKey,
   resolveAll,
   type RuntimeService,
@@ -235,7 +236,17 @@ async function readQuota(dayUtc: string, settings: OpsSetting[]): Promise<QuotaR
     });
 }
 
+/** Valor numérico de uma flag; vazio, "unlimited", 0 ou inválido = null (sem limite). */
+function limitSetting(settings: OpsSetting[], key: string): number | null {
+  const raw = settings.find((s) => s.key === key)?.value;
+  const n = !raw || raw === 'unlimited' || raw === '0' ? null : Number(raw);
+  return n !== null && Number.isFinite(n) ? n : null;
+}
+
 async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend> {
+  const maxSearchesPerCall = limitSetting(settings, 'AI_MAX_SEARCHES_PER_CALL');
+  const rawAgentBudgets = settings.find((s) => s.key === 'AI_AGENT_USD_BUDGETS');
+  const agentUsdBudgets = parseAgentUsdBudgets(rawAgentBudgets?.value || rawAgentBudgets?.defaultValue) ?? {};
   const rows = await query<{
     agent: string;
     calls: number;
@@ -244,12 +255,14 @@ async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend
     web_searches: string;
     cost_usd: number;
     errors: number;
+    over_search_cap: number;
   }>(
     `select agent, count(*)::int as calls, sum(input_tokens) as input_tokens, sum(output_tokens) as output_tokens,
             sum(web_searches) as web_searches, coalesce(sum(cost_usd), 0)::float8 as cost_usd,
-            (count(*) filter (where outcome = 'error'))::int as errors
+            (count(*) filter (where outcome = 'error'))::int as errors,
+            (count(*) filter (where $2::int is not null and web_searches > $2::int))::int as over_search_cap
        from ops.llm_usage where day_utc = $1 group by agent order by cost_usd desc, agent`,
-    [dayUtc],
+    [dayUtc, maxSearchesPerCall],
   );
   const byAgent = rows.map((r) => ({
     agent: r.agent,
@@ -259,6 +272,7 @@ async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend
     webSearches: num(r.web_searches),
     costUsd: r.cost_usd,
     errors: r.errors,
+    overSearchCap: r.over_search_cap,
   }));
   const totals = byAgent.reduce(
     (t, a) => ({
@@ -268,12 +282,18 @@ async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend
       webSearches: t.webSearches + a.webSearches,
       costUsd: t.costUsd + a.costUsd,
       errors: t.errors + a.errors,
+      overSearchCap: t.overSearchCap + a.overSearchCap,
     }),
-    { calls: 0, inputTokens: 0, outputTokens: 0, webSearches: 0, costUsd: 0, errors: 0 },
+    { calls: 0, inputTokens: 0, outputTokens: 0, webSearches: 0, costUsd: 0, errors: 0, overSearchCap: 0 },
   );
-  const raw = settings.find((s) => s.key === 'AI_DAILY_TOKEN_BUDGET')?.value;
-  const budget = !raw || raw === 'unlimited' || raw === '0' ? null : Number(raw);
-  return { totals, byAgent, budget: Number.isFinite(budget) ? budget : null };
+  return {
+    totals,
+    byAgent,
+    budget: limitSetting(settings, 'AI_DAILY_TOKEN_BUDGET'),
+    usdBudget: limitSetting(settings, 'AI_DAILY_USD_BUDGET'),
+    agentUsdBudgets,
+    maxSearchesPerCall,
+  };
 }
 
 async function readCredit(): Promise<{ credit: CreditStatus | null; pending: boolean }> {

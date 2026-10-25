@@ -86,7 +86,8 @@ export class AnthropicLlmClient implements LlmClient {
       tools.push({
         type: 'web_search_20250305',
         name: 'web_search',
-        max_uses: this.options.maxSearches ?? 6,
+        // teto de buscas da chamada (AI_MAX_SEARCHES_PER_CALL, via orçamento); a API aplica max_uses
+        max_uses: req.maxSearches ?? this.options.maxSearches ?? 6,
         ...(req.allowedDomains?.length ? { allowed_domains: req.allowedDomains } : {}),
         ...(country ? { user_location: { type: 'approximate', country } } : {}),
       });

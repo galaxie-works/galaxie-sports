@@ -71,6 +71,8 @@ export interface LlmAgentSpend {
   webSearches: number;
   costUsd: number;
   errors: number;
+  /** Chamadas com mais buscas na web que AI_MAX_SEARCHES_PER_CALL. */
+  overSearchCap: number;
 }
 
 export interface LlmSpend {
@@ -78,6 +80,12 @@ export interface LlmSpend {
   byAgent: LlmAgentSpend[];
   /** Orçamento efetivo (tokens/dia); null = sem limite. */
   budget: number | null;
+  /** Orçamento efetivo em US$/dia (tokens + buscas); null = sem limite. */
+  usdBudget: number | null;
+  /** Teto em US$/dia de cada agente (AI_AGENT_USD_BUDGETS). */
+  agentUsdBudgets: Record<string, number>;
+  /** Buscas na web por chamada; null = sem teto. */
+  maxSearchesPerCall: number | null;
 }
 
 export interface CreditStatus {

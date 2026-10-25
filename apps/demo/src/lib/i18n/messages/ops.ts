@@ -198,9 +198,17 @@ export default defineMessages(
       llm: 'Gasto de IA hoje',
       llmTokens: '{used} de {budget} tokens',
       llmTokensUnlimited: '{used} tokens (sem limite)',
-      llmCost: 'US$ {cost} · {calls} chamadas',
       llmErrors: { one: '{count} erro', other: '{count} erros' },
       llmNone: 'Nenhuma chamada de IA hoje.',
+      llmUsd: 'US$ {used} de US$ {budget}',
+      llmUsdUnlimited: 'US$ {used} (sem limite)',
+      llmCalls: '{calls} chamadas · {searches} buscas',
+      llmOverSearchCap: {
+        one: '{count} chamada passou de {max} buscas',
+        other: '{count} chamadas passaram de {max} buscas',
+      },
+      llmAgentCapped: 'no teto',
+      searchesColumn: 'Buscas',
       agent: 'Agente',
       tokensColumn: 'Tokens',
       costColumn: 'US$',
@@ -545,6 +553,23 @@ export default defineMessages(
         description:
           'Teto de tokens por dia (UTC), somando todos os agentes. Ao bater, os agentes seguem só com texto determinístico.',
         unit: 'tokens',
+      },
+      AI_DAILY_USD_BUDGET: {
+        label: 'Orçamento diário em US$',
+        description:
+          'Teto de gasto de IA por dia (UTC), somando todos os agentes: tokens e buscas na web (a busca do Google no Gemini é cobrada por consulta). Ao bater, os agentes seguem só com texto determinístico.',
+        unit: 'US$',
+      },
+      AI_AGENT_USD_BUDGETS: {
+        label: 'Teto diário por agente',
+        description:
+          'US$ por dia de cada agente, no formato agente=valor separado por vírgula (ex.: lineups=2,wtw=3). O agente que bate o teto fica sem IA até a virada do dia UTC; 0 desliga a IA do agente; agente fora da lista fica só no teto global. Vazio usa o padrão.',
+      },
+      AI_MAX_SEARCHES_PER_CALL: {
+        label: 'Buscas na web por chamada',
+        description:
+          'Teto de buscas em cada chamada de pesquisa. OpenAI e Anthropic aplicam o teto; o Gemini recebe a instrução, e as chamadas que passarem dele aparecem no Gasto de IA hoje.',
+        unit: 'buscas',
       },
       AI_MAX_RETRIES: {
         label: 'Tentativas extras',
@@ -914,9 +939,17 @@ export default defineMessages(
         llm: 'AI spend today',
         llmTokens: '{used} of {budget} tokens',
         llmTokensUnlimited: '{used} tokens (no limit)',
-        llmCost: 'US$ {cost} · {calls} calls',
         llmErrors: { one: '{count} error', other: '{count} errors' },
         llmNone: 'No AI calls today.',
+        llmUsd: 'US$ {used} of US$ {budget}',
+        llmUsdUnlimited: 'US$ {used} (no limit)',
+        llmCalls: '{calls} calls · {searches} searches',
+        llmOverSearchCap: {
+          one: '{count} call went over {max} searches',
+          other: '{count} calls went over {max} searches',
+        },
+        llmAgentCapped: 'capped',
+        searchesColumn: 'Searches',
         agent: 'Agent',
         tokensColumn: 'Tokens',
         costColumn: 'US$',
@@ -1245,6 +1278,23 @@ export default defineMessages(
           description:
             'Token cap per day (UTC) across all agents. Once reached, agents fall back to deterministic text.',
           unit: 'tokens',
+        },
+        AI_DAILY_USD_BUDGET: {
+          label: 'Daily budget in US$',
+          description:
+            'AI spend cap per day (UTC) across all agents: tokens plus web searches (Google Search on Gemini is billed per query). Once reached, agents fall back to deterministic text.',
+          unit: 'US$',
+        },
+        AI_AGENT_USD_BUDGETS: {
+          label: 'Daily cap per agent',
+          description:
+            'US$ per day for each agent, as agent=value separated by commas (e.g. lineups=2,wtw=3). An agent that hits its cap gets no AI until the UTC day rolls over; 0 turns AI off for that agent; agents not listed only count against the global cap. Empty uses the default.',
+        },
+        AI_MAX_SEARCHES_PER_CALL: {
+          label: 'Web searches per call',
+          description:
+            'Search cap for each research call. OpenAI and Anthropic enforce it; Gemini gets it as an instruction, and calls that go over show up in AI spend today.',
+          unit: 'searches',
         },
         AI_MAX_RETRIES: {
           label: 'Extra attempts',
@@ -1617,9 +1667,17 @@ export default defineMessages(
         llm: 'Gasto de IA hoy',
         llmTokens: '{used} de {budget} tokens',
         llmTokensUnlimited: '{used} tokens (sin límite)',
-        llmCost: 'US$ {cost} · {calls} llamadas',
         llmErrors: { one: '{count} error', other: '{count} errores' },
         llmNone: 'Ninguna llamada de IA hoy.',
+        llmUsd: 'US$ {used} de US$ {budget}',
+        llmUsdUnlimited: 'US$ {used} (sin límite)',
+        llmCalls: '{calls} llamadas · {searches} búsquedas',
+        llmOverSearchCap: {
+          one: '{count} llamada superó {max} búsquedas',
+          other: '{count} llamadas superaron {max} búsquedas',
+        },
+        llmAgentCapped: 'en el tope',
+        searchesColumn: 'Búsquedas',
         agent: 'Agente',
         tokensColumn: 'Tokens',
         costColumn: 'US$',
@@ -1955,6 +2013,23 @@ export default defineMessages(
           description:
             'Tope de tokens por día (UTC), sumando todos los agentes. Al llegar, los agentes siguen solo con texto determinístico.',
           unit: 'tokens',
+        },
+        AI_DAILY_USD_BUDGET: {
+          label: 'Presupuesto diario en US$',
+          description:
+            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico.',
+          unit: 'US$',
+        },
+        AI_AGENT_USD_BUDGETS: {
+          label: 'Tope diario por agente',
+          description:
+            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=3). El agente que llega al tope queda sin IA hasta el cambio de día UTC; 0 apaga la IA del agente; un agente fuera de la lista solo cuenta para el tope global. Vacío usa el valor por defecto.',
+        },
+        AI_MAX_SEARCHES_PER_CALL: {
+          label: 'Búsquedas web por llamada',
+          description:
+            'Tope de búsquedas en cada llamada de investigación. OpenAI y Anthropic aplican el tope; Gemini lo recibe como instrucción, y las llamadas que lo superan aparecen en Gasto de IA hoy.',
+          unit: 'búsquedas',
         },
         AI_MAX_RETRIES: {
           label: 'Intentos extra',

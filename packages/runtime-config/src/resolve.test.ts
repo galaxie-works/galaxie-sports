@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { nextCronRuns } from './cron.js';
-import { SCHEDULED_JOBS, SETTINGS, scheduleKey, settingDef } from './registry.js';
+import { parseAgentUsdBudgets, SCHEDULED_JOBS, SETTINGS, scheduleKey, settingDef } from './registry.js';
 import {
   applyOverrides,
   envReport,
@@ -155,6 +155,34 @@ describe('validação por tipo', () => {
       error: { code: 'range' },
     });
     expect(validateSettingKey('YOUTUBE_DAILY_QUOTA', 'unlimited')).toMatchObject({
+      ok: false,
+      error: { code: 'integer' },
+    });
+  });
+
+  it('orçamento de IA em US$, por agente e buscas por chamada', () => {
+    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '7,5')).toEqual({ ok: true, value: '7.5' });
+    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0')).toEqual({ ok: true, value: 'unlimited' });
+    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0.1')).toMatchObject({
+      ok: false,
+      error: { code: 'range' },
+    });
+    expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups=2, wtw=3.5;context=1')).toMatchObject({
+      ok: true,
+    });
+    expect(validateSettingKey('AI_AGENT_USD_BUDGETS', '')).toEqual({ ok: true, value: '' });
+    expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups:2')).toMatchObject({
+      ok: false,
+      error: { code: 'format' },
+    });
+    expect(parseAgentUsdBudgets('Lineups=2, wtw=0.5')).toEqual({ lineups: 2, wtw: 0.5 });
+    expect(parseAgentUsdBudgets('lineups')).toBeNull();
+    expect(validateSettingKey('AI_MAX_SEARCHES_PER_CALL', '8')).toEqual({ ok: true, value: '8' });
+    expect(validateSettingKey('AI_MAX_SEARCHES_PER_CALL', 'unlimited')).toEqual({
+      ok: true,
+      value: 'unlimited',
+    });
+    expect(validateSettingKey('AI_MAX_SEARCHES_PER_CALL', '2.5')).toMatchObject({
       ok: false,
       error: { code: 'integer' },
     });
