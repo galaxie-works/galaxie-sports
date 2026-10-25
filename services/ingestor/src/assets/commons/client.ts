@@ -3,7 +3,9 @@
  * - User-Agent que identifica o projeto e o repositório, sem e-mail nem dado de pessoa;
  * - requisições em série, com intervalo mínimo entre elas;
  * - `maxlag=5` em toda leitura: com o servidor atrasado, espera o `Retry-After` e tenta de novo;
- * - 429/5xx com backoff exponencial.
+ * - 429/5xx com backoff exponencial;
+ * - tempo-limite em toda requisição (conexão pendurada não trava o CLI) e nova tentativa com backoff em erro de
+ *   rede (ECONNRESET, DNS, tempo esgotado).
  * https://www.mediawiki.org/wiki/API:Etiquette · https://meta.wikimedia.org/wiki/User-Agent_policy
  */
 
@@ -24,6 +26,8 @@ export interface WikimediaClientOptions {
   maxLagRetries?: number;
   /** No Wikidata, o atraso inclui o do query service e dura mais: desiste antes (padrão 3) e cai na Commons. */
   wikidataMaxLagRetries?: number;
+  /** Tempo-limite de cada requisição, corpo incluído (ms). Padrão 60 s. */
+  timeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
   log?: (msg: string) => void;
 }
@@ -61,6 +65,36 @@ export class WikimediaClient {
     this.sleep = options.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   }
 
+  /** Requisição no ritmo da etiqueta (intervalo mínimo), com o User-Agent e o tempo-limite. */
+  private async send(url: string | URL, accept: string): Promise<Response> {
+    const wait = this.last + (this.options.minIntervalMs ?? 1000) - Date.now();
+    if (wait > 0) await this.sleep(wait);
+    this.last = Date.now();
+    this.requests += 1;
+    return this.fetchFn(url, {
+      headers: { 'user-agent': this.options.userAgent ?? WIKIMEDIA_USER_AGENT, accept },
+      signal: AbortSignal.timeout(this.options.timeoutMs ?? 60_000),
+    });
+  }
+
+  /**
+   * Erro de rede (conexão caída, DNS, tempo esgotado, corpo cortado): espera e tenta de novo; esgotadas as
+   * tentativas, vira `WikimediaError` (quem chama trata como a Wikimedia fora). Erro da própria API sobe direto.
+   */
+  private async retryNetwork(
+    err: unknown,
+    attempt: number,
+    maxRetries: number,
+    where: string,
+  ): Promise<void> {
+    if (err instanceof WikimediaError) throw err;
+    const message = err instanceof Error ? err.message : String(err);
+    if (attempt >= maxRetries)
+      throw new WikimediaError(`Wikimedia: falha de rede em ${where} (${message})`, null);
+    this.options.log?.(`rede: ${message} em ${where}; nova tentativa`);
+    await this.sleep(2 ** attempt * 1000);
+  }
+
   /** GET na API (`action=query` etc.) com `format=json`, `formatversion=2` e `maxlag=5`. */
   async get(api: string, params: Record<string, string | number>): Promise<Json> {
     const url = new URL(api);
@@ -68,13 +102,15 @@ export class WikimediaClient {
       url.searchParams.set(k, String(v));
     const maxRetries = this.options.maxRetries ?? 5;
     for (let attempt = 0; ; attempt++) {
-      const wait = this.last + (this.options.minIntervalMs ?? 1000) - Date.now();
-      if (wait > 0) await this.sleep(wait);
-      this.last = Date.now();
-      this.requests += 1;
-      const res = await this.fetchFn(url, {
-        headers: { 'user-agent': this.options.userAgent ?? WIKIMEDIA_USER_AGENT, accept: 'application/json' },
-      });
+      let res: Response;
+      let body: Json;
+      try {
+        res = await this.send(url, 'application/json');
+        body = res.ok ? ((await res.json()) as Json) : {};
+      } catch (err) {
+        await this.retryNetwork(err, attempt, maxRetries, api);
+        continue;
+      }
       const retryAfter = Number(res.headers.get('retry-after')) || 0;
       if (res.status === 429 || res.status >= 500) {
         if (attempt >= maxRetries)
@@ -83,7 +119,6 @@ export class WikimediaClient {
         continue;
       }
       if (!res.ok) throw new WikimediaError(`Wikimedia: HTTP ${res.status} em ${api}`, res.status);
-      const body = (await res.json()) as Json;
       const error = body.error as { code?: string; info?: string } | undefined;
       if (error?.code === 'maxlag') {
         // o Wikidata soma o atraso do query service: espera mais a cada vez (5, 10, 15... até 60 s)
@@ -108,20 +143,21 @@ export class WikimediaClient {
   async download(url: string): Promise<{ body: Uint8Array; contentType: string | null }> {
     const maxRetries = this.options.maxRetries ?? 5;
     for (let attempt = 0; ; attempt++) {
-      const wait = this.last + (this.options.minIntervalMs ?? 1000) - Date.now();
-      if (wait > 0) await this.sleep(wait);
-      this.last = Date.now();
-      this.requests += 1;
-      const res = await this.fetchFn(url, {
-        headers: { 'user-agent': this.options.userAgent ?? WIKIMEDIA_USER_AGENT, accept: 'image/*' },
-      });
-      if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
-        const retryAfter = Number(res.headers.get('retry-after')) || 0;
-        await this.sleep(Math.max(retryAfter * 1000, 2 ** attempt * 1000));
-        continue;
+      try {
+        const res = await this.send(url, 'image/*');
+        if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+          const retryAfter = Number(res.headers.get('retry-after')) || 0;
+          await this.sleep(Math.max(retryAfter * 1000, 2 ** attempt * 1000));
+          continue;
+        }
+        if (!res.ok) throw new WikimediaError(`Wikimedia: HTTP ${res.status} ao baixar ${url}`, res.status);
+        return {
+          body: new Uint8Array(await res.arrayBuffer()),
+          contentType: res.headers.get('content-type'),
+        };
+      } catch (err) {
+        await this.retryNetwork(err, attempt, maxRetries, url);
       }
-      if (!res.ok) throw new WikimediaError(`Wikimedia: HTTP ${res.status} ao baixar ${url}`, res.status);
-      return { body: new Uint8Array(await res.arrayBuffer()), contentType: res.headers.get('content-type') };
     }
   }
 
@@ -213,23 +249,21 @@ export class WikimediaClient {
     const url = `https://www.wikidata.org/wiki/Special:EntityData/${id}.json`;
     const maxRetries = this.options.maxRetries ?? 5;
     for (let attempt = 0; ; attempt++) {
-      const wait = this.last + (this.options.minIntervalMs ?? 1000) - Date.now();
-      if (wait > 0) await this.sleep(wait);
-      this.last = Date.now();
-      this.requests += 1;
-      const res = await this.fetchFn(url, {
-        headers: { 'user-agent': this.options.userAgent ?? WIKIMEDIA_USER_AGENT, accept: 'application/json' },
-      });
-      if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
-        const retryAfter = Number(res.headers.get('retry-after')) || 0;
-        await this.sleep(Math.max(retryAfter * 1000, 2 ** attempt * 1000));
+      let body: { entities?: Record<string, { claims?: Record<string, unknown[]> }> };
+      try {
+        const res = await this.send(url, 'application/json');
+        if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+          const retryAfter = Number(res.headers.get('retry-after')) || 0;
+          await this.sleep(Math.max(retryAfter * 1000, 2 ** attempt * 1000));
+          continue;
+        }
+        if (res.status === 404) return null;
+        if (!res.ok) throw new WikimediaError(`Wikimedia: HTTP ${res.status} em ${url}`, res.status);
+        body = (await res.json()) as typeof body;
+      } catch (err) {
+        await this.retryNetwork(err, attempt, maxRetries, url);
         continue;
       }
-      if (res.status === 404) return null;
-      if (!res.ok) throw new WikimediaError(`Wikimedia: HTTP ${res.status} em ${url}`, res.status);
-      const body = (await res.json()) as {
-        entities?: Record<string, { claims?: Record<string, unknown[]> }>;
-      };
       // redirecionamento: a chave é o id final
       const entity = Object.values(body.entities ?? {})[0];
       if (!entity) return null;
