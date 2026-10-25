@@ -32,7 +32,7 @@ não há manutenção de versões antigas.
 | Logs | Sem headers de chave (API e Caddy) e com IP mascarado | `apps/api/src/observability.ts`, `infra/caddy/Caddyfile` |
 | Segredos no Git | gitleaks no CI (histórico completo) + `.gitignore` de `.env*` | `.github/workflows/ci.yml`, `.gitleaks.toml` |
 | Dependências | Dependabot (npm, Actions, Docker, Compose) + `pnpm audit --prod` informativo | `.github/dependabot.yml` |
-| Backups / DR | Dump diário, cópia remota, restore testado no CI e exercício de DR documentado | [infra/portainer/README.md](infra/portainer/README.md#backups), [docs/runbooks/exercicio-dr.md](docs/runbooks/exercicio-dr.md) |
+| Backups / DR | Dump diário, restore testado no CI e exercício de DR documentado. **Pendentes**: a cópia remota é opcional e, sem `BACKUP_S3_*` (vazio nos exemplos), os dumps ficam no disco da própria VPS; os alertas (inclusive `BackupStale`) só aparecem no Prometheus e no Grafana, sem canal de notificação | [infra/portainer/README.md](infra/portainer/README.md#backups), [docs/runbooks/exercicio-dr.md](docs/runbooks/exercicio-dr.md) |
 
 ## Chaves de API
 

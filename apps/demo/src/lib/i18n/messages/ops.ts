@@ -258,7 +258,7 @@ export default defineMessages(
         'live-reconcile': {
           label: 'Reconciliação do ao vivo',
           description:
-            'Confirma na fonte os jogos ainda dados como em andamento e corrige status, placar e encerramento. Botão de pânico: gasta até 60 chamadas.',
+            'Confirma na fonte os jogos ainda dados como em andamento e corrige status, placar e encerramento. Pela agenda, só os que parecem parados; rodar agora é o botão de pânico: confere todos, até 60 chamadas.',
         },
         'normalize-football': {
           label: 'Normalização do futebol',
@@ -557,7 +557,7 @@ export default defineMessages(
       AI_DAILY_USD_BUDGET: {
         label: 'Orçamento diário em US$',
         description:
-          'Teto de gasto de IA por dia (UTC), somando todos os agentes: tokens e buscas na web (a busca do Google no Gemini é cobrada por consulta). Ao bater, os agentes seguem só com texto determinístico.',
+          'Teto de gasto de IA por dia (UTC), somando todos os agentes: tokens e buscas na web (a busca do Google no Gemini é cobrada por consulta). Ao bater, os agentes seguem só com texto determinístico. 0 desliga a IA de todos os agentes; "Sem limite" tira o teto.',
         unit: 'US$',
       },
       AI_AGENT_USD_BUDGETS: {
@@ -987,7 +987,7 @@ export default defineMessages(
           'live-reconcile': {
             label: 'Live reconciliation',
             description:
-              'Checks with the source the matches still shown as in play and fixes status, score and full time. Panic button: spends up to 60 calls.',
+              'Checks with the source the matches still shown as in play and fixes status, score and full time. On schedule, only those that look stuck; run now is the panic button: checks them all, up to 60 calls.',
           },
           'normalize-football': {
             label: 'Football normalization',
@@ -1282,7 +1282,7 @@ export default defineMessages(
         AI_DAILY_USD_BUDGET: {
           label: 'Daily budget in US$',
           description:
-            'AI spend cap per day (UTC) across all agents: tokens plus web searches (Google Search on Gemini is billed per query). Once reached, agents fall back to deterministic text.',
+            'AI spend cap per day (UTC) across all agents: tokens plus web searches (Google Search on Gemini is billed per query). Once reached, agents fall back to deterministic text. 0 turns AI off for every agent; "No limit" removes the cap.',
           unit: 'US$',
         },
         AI_AGENT_USD_BUDGETS: {
@@ -1715,7 +1715,7 @@ export default defineMessages(
           'live-reconcile': {
             label: 'Reconciliación del en vivo',
             description:
-              'Confirma en la fuente los partidos que siguen en curso y corrige estado, marcador y final. Botón de pánico: gasta hasta 60 llamadas.',
+              'Confirma en la fuente los partidos que siguen en curso y corrige estado, marcador y final. Por la agenda, solo los que parecen detenidos; correr ahora es el botón de pánico: revisa todos, hasta 60 llamadas.',
           },
           'normalize-football': {
             label: 'Normalización del fútbol',
@@ -2017,7 +2017,7 @@ export default defineMessages(
         AI_DAILY_USD_BUDGET: {
           label: 'Presupuesto diario en US$',
           description:
-            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico.',
+            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico. 0 apaga la IA de todos los agentes; "Sin límite" quita el tope.',
           unit: 'US$',
         },
         AI_AGENT_USD_BUDGETS: {

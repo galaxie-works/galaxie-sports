@@ -327,8 +327,15 @@
     {
       "idx": 46,
       "version": "7",
-      "when": 1792963743735,
-      "tag": "0046_lista_canais_revisao",
+      "when": 1792963744501,
+      "tag": "0046_related_relato_por_tenant",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1792972180829,
+      "tag": "0047_lista_canais_revisao",
       "breakpoints": true
     }
   ]

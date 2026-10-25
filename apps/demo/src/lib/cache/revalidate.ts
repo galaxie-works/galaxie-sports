@@ -7,19 +7,27 @@ import { revalidateTag } from 'next/cache';
 
 import { revalidateProfile } from './tags';
 
+export interface RevalidateOutcome {
+  revalidated: number;
+  /** Tags em que o `revalidateTag` falhou. */
+  failed: string[];
+}
+
 /**
- * Devolve quantas tags foram revalidadas. Uma falha só avisa no log: quem chama já gravou a mudança, e o
- * seguidor do change feed revalida as mesmas tags logo depois.
+ * Tenta todas as tags e devolve as que falharam: a rota interna responde erro (e o seguidor não avança o
+ * cursor); as rotas da revisão só avisam no log, porque a decisão já foi gravada e o seguidor revalida as
+ * mesmas tags logo depois.
  */
-export function revalidateApiTags(tags: Iterable<string>): number {
-  let n = 0;
+export function revalidateApiTags(tags: Iterable<string>): RevalidateOutcome {
+  const outcome: RevalidateOutcome = { revalidated: 0, failed: [] };
   for (const tag of new Set(tags)) {
     try {
       revalidateTag(tag, revalidateProfile(tag));
-      n++;
+      outcome.revalidated++;
     } catch (err) {
+      outcome.failed.push(tag);
       console.warn('[demo-cache] revalidateTag falhou', { tag, err: String(err) });
     }
   }
-  return n;
+  return outcome;
 }
