@@ -31,7 +31,7 @@ export default defineMessages(
       product: 'Galaxie Sports é um produto da Galaxie Works.',
     },
     legal: {
-      updated: 'Atualizado em 24 de outubro de 2026',
+      updated: 'Atualizado em 25 de outubro de 2026',
       back: 'Voltar para a apresentação',
       terms: {
         title: 'Termos de uso',
@@ -61,7 +61,7 @@ export default defineMessages(
           },
           youtube: {
             title: 'Vídeos do YouTube',
-            body: 'Os vídeos de conteúdo relacionado vêm do YouTube, pelos serviços de API do YouTube, e são exibidos no player oficial. Ao assisti-los, você concorda com os <ytterms>Termos de Serviço do YouTube</ytterms>.',
+            body: 'Os vídeos de conteúdo relacionado vêm do YouTube e são exibidos no player oficial. O Galaxie Sports usa os serviços de API do YouTube: ao usar o Galaxie Sports, você concorda com os <ytterms>Termos de Serviço do YouTube</ytterms>.',
           },
         },
       },
@@ -89,7 +89,7 @@ export default defineMessages(
           },
           youtube: {
             title: 'Vídeos do YouTube',
-            body: 'Os vídeos de conteúdo relacionado são exibidos com o player do YouTube, pelos serviços de API do YouTube, no modo de privacidade aprimorada (youtube-nocookie.com). Não acessamos, não coletamos e não guardamos dados da sua conta do YouTube. Guardamos só o identificador e os dados públicos de cada vídeo (título, canal e data) para exibi-lo, revalidamos esses dados periodicamente e os removemos quando o vídeo deixa de estar disponível. Ao reproduzir um vídeo, o YouTube e o Google tratam dados conforme a <gprivacy>Política de Privacidade do Google</gprivacy> e os <ytterms>Termos de Serviço do YouTube</ytterms>.',
+            body: 'Os vídeos de conteúdo relacionado são exibidos com o player do YouTube, pelos serviços de API do YouTube, no modo de privacidade aprimorada (youtube-nocookie.com). Não acessamos, não coletamos e não guardamos dados da sua conta do YouTube. Para exibir cada vídeo, guardamos o identificador e dados públicos dele (título, trecho da descrição, miniatura, canal, data, duração e estatísticas) e revalidamos esses dados periodicamente. O vídeo que deixa de estar disponível sai do site assim que a revalidação percebe. Do vídeo que não revalidamos por 30 dias (inclusive o que deixou de estar disponível), apagamos o título, o trecho da descrição, a miniatura e as estatísticas; ficam o identificador, o canal, a data, a duração e o idioma do vídeo, além da nossa classificação. Ao reproduzir um vídeo, o YouTube e o Google tratam dados conforme a <gprivacy>Política de Privacidade do Google</gprivacy> e os <ytterms>Termos de Serviço do YouTube</ytterms>.',
           },
           retention: {
             title: 'Retenção',
@@ -129,7 +129,7 @@ export default defineMessages(
         product: 'Galaxie Sports is a product of Galaxie Works.',
       },
       legal: {
-        updated: 'Updated on October 24, 2026',
+        updated: 'Updated on October 25, 2026',
         back: 'Back to the overview',
         terms: {
           title: 'Terms of use',
@@ -159,7 +159,7 @@ export default defineMessages(
             },
             youtube: {
               title: 'YouTube videos',
-              body: 'Related videos come from YouTube, through the YouTube API Services, and play in the official YouTube player. By watching them, you agree to the <ytterms>YouTube Terms of Service</ytterms>.',
+              body: 'Related videos come from YouTube and play in the official YouTube player. Galaxie Sports uses the YouTube API Services: by using Galaxie Sports, you agree to the <ytterms>YouTube Terms of Service</ytterms>.',
             },
           },
         },
@@ -187,7 +187,7 @@ export default defineMessages(
             },
             youtube: {
               title: 'YouTube videos',
-              body: 'Related videos are shown with the YouTube player, through the YouTube API Services, in privacy-enhanced mode (youtube-nocookie.com). We do not access, collect or store data from your YouTube account. We only keep each video’s ID and public data (title, channel and date) to display it, refresh that data periodically and remove it when the video is no longer available. When you play a video, YouTube and Google process data under the <gprivacy>Google Privacy Policy</gprivacy> and the <ytterms>YouTube Terms of Service</ytterms>.',
+              body: 'Related videos are shown with the YouTube player, through the YouTube API Services, in privacy-enhanced mode (youtube-nocookie.com). We do not access, collect or store data from your YouTube account. To display each video, we keep its ID and public data (title, description excerpt, thumbnail, channel, date, duration and statistics) and refresh that data periodically. A video that is no longer available is removed from the site as soon as a refresh detects it. For any video we have not refreshed in 30 days (including those no longer available), we delete the title, description excerpt, thumbnail and statistics; the video’s ID, channel, date, duration and language remain, along with our classification. When you play a video, YouTube and Google process data under the <gprivacy>Google Privacy Policy</gprivacy> and the <ytterms>YouTube Terms of Service</ytterms>.',
             },
             retention: {
               title: 'Retention',
@@ -226,7 +226,7 @@ export default defineMessages(
         product: 'Galaxie Sports es un producto de Galaxie Works.',
       },
       legal: {
-        updated: 'Actualizado el 24 de octubre de 2026',
+        updated: 'Actualizado el 25 de octubre de 2026',
         back: 'Volver a la presentación',
         terms: {
           title: 'Términos de uso',
@@ -256,7 +256,7 @@ export default defineMessages(
             },
             youtube: {
               title: 'Videos de YouTube',
-              body: 'Los videos de contenido relacionado vienen de YouTube, a través de los servicios de API de YouTube, y se reproducen en el reproductor oficial. Al verlos, aceptás las <ytterms>Condiciones del Servicio de YouTube</ytterms>.',
+              body: 'Los videos de contenido relacionado vienen de YouTube y se reproducen en el reproductor oficial. Galaxie Sports usa los servicios de API de YouTube: al usar Galaxie Sports, aceptás las <ytterms>Condiciones del Servicio de YouTube</ytterms>.',
             },
           },
         },
@@ -284,7 +284,7 @@ export default defineMessages(
             },
             youtube: {
               title: 'Videos de YouTube',
-              body: 'Los videos de contenido relacionado se muestran con el reproductor de YouTube, a través de los servicios de API de YouTube, en modo de privacidad mejorada (youtube-nocookie.com). No accedemos, no recopilamos ni guardamos datos de tu cuenta de YouTube. Solo guardamos el identificador y los datos públicos de cada video (título, canal y fecha) para mostrarlo, los revalidamos periódicamente y los eliminamos cuando el video deja de estar disponible. Al reproducir un video, YouTube y Google tratan datos según la <gprivacy>Política de Privacidad de Google</gprivacy> y las <ytterms>Condiciones del Servicio de YouTube</ytterms>.',
+              body: 'Los videos de contenido relacionado se muestran con el reproductor de YouTube, a través de los servicios de API de YouTube, en modo de privacidad mejorada (youtube-nocookie.com). No accedemos, no recopilamos ni guardamos datos de tu cuenta de YouTube. Para mostrar cada video, guardamos su identificador y datos públicos (título, extracto de la descripción, miniatura, canal, fecha, duración y estadísticas) y los revalidamos periódicamente. El video que deja de estar disponible sale del sitio en cuanto la revalidación lo detecta. Del video que no revalidamos en 30 días (incluido el que dejó de estar disponible), eliminamos el título, el extracto de la descripción, la miniatura y las estadísticas; quedan el identificador, el canal, la fecha, la duración y el idioma del video, además de nuestra clasificación. Al reproducir un video, YouTube y Google tratan datos según la <gprivacy>Política de Privacidad de Google</gprivacy> y las <ytterms>Condiciones del Servicio de YouTube</ytterms>.',
             },
             retention: {
               title: 'Conservación',
