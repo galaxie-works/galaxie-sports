@@ -53,7 +53,7 @@ describe('gravação do casamento pelo time', () => {
       [m(empty!.id, '639962', 'Q1', ['Colombia']), m(known!.id, '636515', 'Q2', ['Colombia'])],
       teams,
     );
-    expect(r).toEqual({ linked: 2, birthDates: 2, nationalities: 1 });
+    expect(r).toEqual({ linked: 2, birthDates: 2, nationalities: 1, conflicts: 0 });
 
     const [e] = await db.select().from(person).where(eq(person.id, empty!.id));
     expect(e).toMatchObject({ birthDate: '2004-03-10', nationality: 'Colombia' });
@@ -71,9 +71,34 @@ describe('gravação do casamento pelo time', () => {
       linked: 1,
       birthDates: 0,
       nationalities: 0,
+      conflicts: 0,
     });
     expect((await db.select().from(person).where(eq(person.id, empty!.id)))[0]).toMatchObject({
       nationality: 'Colombia',
     });
+
+    // o QID Q1 já é de outra pessoa: nem nascimento nem nacionalidade de Q1 vão para esta
+    const [other] = await db.insert(person).values({ name: 'J. Duran' }).returning();
+    await map('person', other!.id, 'api-sports', '700001');
+    expect(await saveTeamMatches(db, [m(other!.id, '700001', 'Q1', ['Colombia'])], teams)).toEqual({
+      linked: 0,
+      birthDates: 0,
+      nationalities: 0,
+      conflicts: 1,
+    });
+    expect((await db.select().from(person).where(eq(person.id, other!.id)))[0]).toMatchObject({
+      birthDate: null,
+      nationality: null,
+    });
+    // a pessoa já ligada a outro QID (Q1) também não é enriquecida por um QID novo
+    expect(await saveTeamMatches(db, [m(empty!.id, '639962', 'Q9', ['Spain'])], teams)).toMatchObject({
+      linked: 0,
+      conflicts: 1,
+    });
+    const people = await db
+      .select({ id: providerMap.providerId })
+      .from(providerMap)
+      .where(and(eq(providerMap.provider, 'wikidata'), eq(providerMap.entityType, 'person')));
+    expect(people.map((w) => w.id).sort()).toEqual(['Q1', 'Q2']);
   });
 });

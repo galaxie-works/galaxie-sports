@@ -87,7 +87,10 @@ try {
   } else {
     const bio = await saveTeamMatches(db, report.matches, resolved);
     console.log(
-      `Gravados: ${bio.linked} QIDs · nascimento ${bio.birthDates} · nacionalidade ${bio.nationalities}`,
+      `Gravados: ${bio.linked} QIDs · nascimento ${bio.birthDates} · nacionalidade ${bio.nationalities}` +
+        (bio.conflicts
+          ? ` · ${bio.conflicts} recusado(s): QID já ligado a outra pessoa (ou a pessoa a outro QID)`
+          : ''),
     );
     const store = objectStoreFromEnv();
     const photos = await importPeoplePhotos(db, store, wiki, withPhoto);
