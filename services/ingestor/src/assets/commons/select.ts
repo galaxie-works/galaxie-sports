@@ -162,7 +162,10 @@ export function choose(
     return true;
   };
   if (d.target.kind === 'car') {
-    const cars = scored.filter(({ j }) => !j || j.kind === 'car').filter(({ e }) => fresh(e));
+    // a foto de corrida do carro às vezes volta do Gemini como "action": também é foto do carro
+    const cars = scored
+      .filter(({ j }) => !j || j.kind === 'car' || j.kind === 'action')
+      .filter(({ e }) => fresh(e));
     const top = cars.slice(0, opts.maxCars ?? 3);
     // a melhor para o fundo do heading (nota `hero`) entra mesmo fora das de mais qualidade: a foto de corrida
     // de 1950 perde em nitidez para a do museu, mas é a que vai ao fundo

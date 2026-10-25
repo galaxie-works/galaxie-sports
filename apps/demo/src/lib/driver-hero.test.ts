@@ -73,11 +73,13 @@ describe('temporada do carro no heading do piloto', () => {
     expect(heroSeason(career([]))).toBeNull();
   });
 
-  it('fotos do heading (vão para a galeria com o crédito)', () => {
+  it('fotos do heading (vão para a galeria com o crédito); sem destaque do acervo, sem foto de fundo', () => {
     const portrait = { url: 'https://cdn/senna.jpg' } as Photo;
-    const shots = heroPhotos({ ...senna, portrait });
+    const shots = heroPhotos({ ...senna, portrait, highlight: { season: 1988, car } });
     expect(shots.season?.year).toBe(1988);
     expect(shots.car).toBe(car);
+    // a foto do carro da temporada (sem a nota do Gemini) não vai ao fundo: fica a cor da equipe
+    expect(heroPhotos({ ...senna, portrait, highlight: null }).car).toBeNull();
     expect(shots.portrait).toBe(portrait);
     expect(heroPhotos({ ...career([season(2012)]), portrait: null })).toMatchObject({
       car: null,
@@ -107,13 +109,14 @@ describe('temporada do carro no heading do piloto', () => {
       expect(coverable(null)).toBe(false);
     });
 
-    it('regra: pula o carro BY-SA e vai para a próxima temporada', () => {
+    it('regra: a temporada pula o carro BY-SA (a cor dela); o fundo só vem do destaque', () => {
       const c = career([
         season(1988, { position: 1, wins: 8, car: bySa }),
         season(1990, { position: 1, wins: 6, car: by }),
       ]);
       expect(heroSeason(c)?.year).toBe(1990);
-      expect(heroPhotos({ ...c, portrait: null, highlight: null }).car).toBe(by);
+      expect(heroPhotos({ ...c, portrait: null, highlight: null }).car).toBeNull();
+      expect(heroPhotos({ ...c, portrait: null, highlight: { season: 1990, car: by } }).car).toBe(by);
     });
 
     it('só carros BY-SA: sem foto de fundo (fica a cor da equipe da temporada marcante)', () => {
@@ -123,10 +126,10 @@ describe('temporada do carro no heading do piloto', () => {
       expect(shots.season?.year).toBe(1988);
     });
 
-    it('carro de destaque BY-SA é ignorado e vale a regra', () => {
+    it('carro de destaque BY-SA é ignorado: vale a temporada da regra, sem foto de fundo', () => {
       const c = career([season(1990, { position: 1, wins: 6, car: by })]);
       const shots = heroPhotos({ ...c, portrait: null, highlight: { season: 1988, car: bySa } });
-      expect(shots.car).toBe(by);
+      expect(shots.car).toBeNull();
       expect(shots.season?.year).toBe(1990);
     });
   });
@@ -196,7 +199,7 @@ describe('temporada do carro no heading do piloto', () => {
     const ferrari = { id: 'fer', name: 'Ferrari', logo: null };
     const old = { url: 'https://cdn/w11.jpg', credit: { share_alike: false } } as Photo;
 
-    it('equipe e carro de hoje; sem foto do carro de hoje, o mais recente da mesma equipe', () => {
+    it('equipe de hoje; o fundo é o destaque da mesma equipe; sem destaque, a cor da equipe', () => {
       const c = {
         ...career([
           season(2026, { teams: [mercedes], number: 12 }),
@@ -204,11 +207,13 @@ describe('temporada do carro no heading do piloto', () => {
         ]),
         current_season: 2026,
         portrait: null,
-        highlight: null,
+        highlight: { season: 2025, car },
       };
       const shots = heroPhotos(c);
       expect(shots.season?.year).toBe(2026);
       expect(shots.car).toBe(car);
+      // a foto do carro da temporada sem a nota do Gemini não vai ao fundo
+      expect(heroPhotos({ ...c, highlight: null }).car).toBeNull();
     });
 
     it('nunca o carro de outra equipe sob a cor de hoje (Hamilton na Ferrari)', () => {
@@ -234,9 +239,9 @@ describe('temporada do carro no heading do piloto', () => {
         highlight: { season: 2026, car: lewis },
       };
       expect(heroPhotos(c).car).toBe(lewis);
-      // destaque BY-SA não vai ao fundo: fica o carro da equipe
+      // destaque BY-SA não vai ao fundo, nem o carro da equipe sem a nota: fica a cor da equipe
       const bySa = { ...lewis, credit: { share_alike: true } } as Photo;
-      expect(heroPhotos({ ...c, highlight: { season: 2026, car: bySa } }).car).toBe(leclerc);
+      expect(heroPhotos({ ...c, highlight: { season: 2026, car: bySa } }).car).toBeNull();
     });
   });
 

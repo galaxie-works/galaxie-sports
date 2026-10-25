@@ -141,7 +141,7 @@ describe('prancha do fundo do heading', () => {
     }) as unknown as CommonsManifest;
 
   it('o fundo de cada piloto, com as trocas e os sem fundo primeiro', () => {
-    const before = manifest([photo('File:Close no cockpit.jpg')]);
+    const before = manifest([photo('File:Close no cockpit.jpg', { hero: 0.6 })]);
     const after = manifest([
       photo('File:Close no cockpit.jpg', { hero: 0.1 }),
       photo('File:Monza 1950.jpg', { hero: 0.95, license: 'Public domain' }),
@@ -155,5 +155,12 @@ describe('prancha do fundo do heading', () => {
     expect(html).toContain('Special:FilePath/Monza%201950.jpg?width=480');
     expect(html).toContain('1 trocados pela regra nova');
     expect(html).toContain('antes: Close no cockpit.jpg');
+    // carro com foto compatível, mas sem a nota do Gemini: "aguardando nota"
+    const semNota = manifest([photo('File:Monza 1950.jpg', { license: 'Public domain' })]);
+    expect(pranchaRows(semNota).map((r) => [r.target, r.file, r.pending])).toEqual([
+      ['driver/nino-farina', null, true],
+      ['driver/sem-foto', null, false],
+    ]);
+    expect(pranchaHtml(pranchaRows(semNota), 'Prancha')).toContain('aguardando nota do Gemini');
   });
 });

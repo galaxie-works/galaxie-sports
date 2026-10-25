@@ -78,8 +78,8 @@ describe('temporada marcante do card', () => {
     expect(pickHighlight(senna, highlight)).toMatchObject({ season: { year: 1990 }, car: highlight });
   });
 
-  it('sem destaque: o título com mais vitórias que tenha foto do carro', () => {
-    expect(pickHighlight(senna, null)).toMatchObject({ season: { year: 1991 }, car: { season: 1991 } });
+  it('sem destaque: o título com mais vitórias, sem foto de fundo (a do carro da temporada não tem a nota)', () => {
+    expect(pickHighlight(senna, null)).toMatchObject({ season: { year: 1988 }, car: null });
   });
 
   it('nunca CC BY-SA no fundo: o destaque BY-SA é ignorado e o carro BY-SA não conta', () => {

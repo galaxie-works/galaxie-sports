@@ -38,10 +38,13 @@ export function currentSeason(career: RaceCareer): CareerSeason | null {
  * Fotos do heading e a temporada em destaque. O fundo nunca é CC BY-SA (`coverable`); sem foto compatível, fica a
  * cor da equipe. O heading não mostra crédito: as duas fotos entram na galeria da página, com o crédito da licença.
  *
- * - Quem está no grid: a temporada atual (equipe, cor e número de hoje). O carro é o destaque do acervo, se for
- *   desta temporada (a foto com o piloto); senão o da temporada ou, sem foto, o mais
- *   recente da mesma equipe (o destaque do acervo primeiro) — nunca o carro de outra equipe sob a cor de hoje.
- * - Lenda: o carro de destaque do acervo (`highlight`, curadoria) ou o da temporada mais marcante.
+ * O fundo é só o carro de destaque do acervo (`highlight`): a importação o escolhe pela nota do Gemini para o
+ * fundo (ou pela curadoria). A foto do carro da temporada (`season.car`) fica na tabela e na galeria, mas não vai ao
+ * fundo: sem a nota, pode ser um close ou um detalhe. Sem destaque, fica a cor da equipe.
+ *
+ * - Quem está no grid: a temporada atual (equipe, cor e número de hoje). O fundo é o destaque, se for desta
+ *   temporada ou da mesma equipe — nunca o carro de outra equipe sob a cor de hoje.
+ * - Lenda: o destaque e a temporada dele.
  * - Temporada escolhida no seletor (`year`): é ela no lugar da atual, com a equipe, a cor e o número daquele ano
  *   (Fangio em 1958 é Maserati e 2, não a Mercedes do destaque; Farina em 1955 é Ferrari, não a Alfa do título).
  */
@@ -61,25 +64,13 @@ export function heroPhotos(
     const team = current.teams[0]?.id;
     const sameTeam = (s: CareerSeason | undefined) => !!team && s?.teams[0]?.id === team;
     const highlightSeason = career.seasons.find((s) => s.year === highlight?.season);
-    // o destaque desta temporada é a foto com o próprio piloto (a do carro da equipe pode ser a do companheiro)
     const car =
-      highlight && highlight.season === current.year
-        ? highlight.car
-        : coverable(current.car)
-          ? current.car
-          : highlight && sameTeam(highlightSeason)
-            ? highlight.car
-            : (career.seasons.find((s) => sameTeam(s) && coverable(s.car))?.car ?? null);
+      highlight && (highlight.season === current.year || sameTeam(highlightSeason)) ? highlight.car : null;
     return { season: current, car, portrait };
   }
-  // lenda: carro de destaque do acervo, a temporada e a foto dele, de preferência com o piloto
+  // lenda: carro de destaque do acervo e a temporada dele
   const season = heroSeason(career, highlight?.season);
-  const car =
-    highlight && season?.year === highlight.season
-      ? highlight.car
-      : coverable(season?.car)
-        ? season.car
-        : null;
+  const car = highlight && season?.year === highlight.season ? highlight.car : null;
   return { season, car, portrait };
 }
 

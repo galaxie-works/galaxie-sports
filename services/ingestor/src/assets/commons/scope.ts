@@ -271,7 +271,7 @@ export function highlightSeason(tables: F1dbTables, driverId: string): Highlight
  * 1. a temporada de título com mais vitórias (`highlightSeason`);
  * 2. as demais temporadas de título, na mesma ordem;
  * 3. a temporada com mais vitórias (sem vitória, a melhor posição no campeonato);
- * 4. a temporada atual (a última da carreira), na equipe atual.
+ * 4. a temporada atual (a última da carreira), na equipe atual — para quem está no grid, ela vem primeiro.
  */
 export function highlightCandidates(tables: F1dbTables, driverId: string): Highlight[] {
   const seasons = rowsOf(tables, 'season_driver').filter((r) => str(r.driver_id) === driverId);
@@ -292,7 +292,10 @@ export function highlightCandidates(tables: F1dbTables, driverId: string): Highl
         (int(b.year) ?? 0) - (int(a.year) ?? 0),
     );
   const latest = [...seasons].sort((a, b) => (int(b.year) ?? 0) - (int(a.year) ?? 0)).slice(0, 1);
+  // quem está no grid: a temporada atual primeiro (o heading mostra a equipe de hoje)
+  const onGrid = latest.length > 0 && int(latest[0]!.year) === lastSeason(tables);
   const order = [
+    ...(onGrid ? latest.map((r) => ({ r, current: true })) : []),
     ...ranked(seasons.filter((r) => titles.has(int(r.year)))).map((r) => ({ r, current: false })),
     ...ranked(seasons.filter((r) => !titles.has(int(r.year))))
       .slice(0, 1)

@@ -32,8 +32,8 @@ describe('foto do carro de destaque (fundo do heading do piloto)', () => {
       entry('car/mercedes/2020', [photo('File:W11 by-sa.jpg', { share_alike: true })]),
       entry('car/mercedes/2019', []),
       entry('car/ferrari/2026', [
-        photo('File:SF-26 Leclerc.jpg'),
-        photo('File:SF-26 by-sa.jpg', { share_alike: true }),
+        photo('File:SF-26 Leclerc.jpg', { hero: 0.8 }),
+        photo('File:SF-26 by-sa.jpg', { share_alike: true, hero: 0.9 }),
       ]),
     ];
     const byTarget = new Map(cars.map((c) => [c.target, c]));
@@ -56,6 +56,15 @@ describe('foto do carro de destaque (fundo do heading do piloto)', () => {
         season: 2026,
         photo: { file: 'File:SF-26 Leclerc.jpg' },
       });
+    });
+
+    it('carro sem a nota do Gemini não vai ao fundo (cor da equipe), nem a primeira foto compatível', () => {
+      const semNota = new Map(byTarget);
+      semNota.set('car/ferrari/2026', entry('car/ferrari/2026', [photo('File:SF-26 Leclerc.jpg')]));
+      expect(pickHighlight(lewis(auto), semNota)).toBeUndefined();
+      // o carro da curadoria vale sem a nota
+      const manual = { ...auto, target: 'car/ferrari/2026', season: 2026, match: 'manual' as const };
+      expect(pickHighlight(lewis(manual), semNota)?.photo.file).toBe('File:SF-26 Leclerc.jpg');
     });
 
     it('nenhum candidato com foto compatível: sem destaque', () => {

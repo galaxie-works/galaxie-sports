@@ -210,8 +210,10 @@ describe('escopo grid-atual', () => {
     expect(kimi.seasons).toEqual([2025, 2026]);
     expect(kimi.highlight).toMatchObject({ target: 'car/mercedes/2026', year: 2026 });
     const lewis = targets.find((t) => targetKey(t) === 'driver/lewis-hamilton') as DriverTarget;
-    expect(lewis.highlight).toEqual(highlightSeason(tables, 'lewis-hamilton'));
-    expect(lewis.highlight?.target).toBe('car/mercedes/2020');
+    // no grid, a temporada atual vem primeiro (o heading mostra a equipe de hoje); o título fica de candidato
+    expect(lewis.highlight?.target).toBe('car/ferrari/2026');
+    expect(lewis.fallbacks?.map((h) => h.target)).toEqual(['car/mercedes/2020']);
+    expect(highlightSeason(tables, 'lewis-hamilton')?.target).toBe('car/ferrari/2026');
   });
 
   it('a equipe atual é a de mais rodadas no ano (Lawson: Racing Bulls, não a Red Bull de 3 corridas)', () => {

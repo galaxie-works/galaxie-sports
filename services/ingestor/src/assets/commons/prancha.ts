@@ -19,7 +19,15 @@ export interface PranchaRow {
   /** Foto do fundo no manifesto de antes, quando trocou. */
   before: string | null;
   changed: boolean;
+  /** Sem fundo porque os carros candidatos têm foto compatível, mas ainda sem a nota do Gemini. */
+  pending: boolean;
 }
+
+const candidates = (e: ManifestEntry) =>
+  e.highlight_car ? [e.highlight_car.target, ...(e.highlight_car.fallbacks ?? []).map((f) => f.target)] : [];
+/** Carro com foto que pode ir ao fundo, mas sem a nota do Gemini (`hero`). */
+const waiting = (car: ManifestEntry | undefined) =>
+  !!car?.photos.some((p) => p.match !== 'rejected' && !p.share_alike && p.hero == null);
 
 export function pranchaRows(manifest: CommonsManifest, before?: CommonsManifest | null): PranchaRow[] {
   const byTarget = new Map(manifest.entries.map((e) => [e.target, e]));
@@ -44,6 +52,7 @@ export function pranchaRows(manifest: CommonsManifest, before?: CommonsManifest 
         pageUrl: now?.photo.page_url ?? null,
         before: was,
         changed: !!old && was !== file,
+        pending: !now && candidates(e).some((c) => waiting(byTarget.get(c))),
       };
     });
   return rows.sort(
@@ -62,9 +71,10 @@ const thumb = (file: string) =>
 export function pranchaHtml(rows: PranchaRow[], title: string): string {
   const changed = rows.filter((r) => r.changed).length;
   const empty = rows.filter((r) => !r.file).length;
+  const pending = rows.filter((r) => r.pending).length;
   const card = (r: PranchaRow) => `
   <figure class="${r.changed ? 'changed' : ''}${r.file ? '' : ' empty'}">
-    ${r.file ? `<a href="${esc(r.pageUrl ?? '#')}"><img loading="lazy" src="${esc(thumb(r.file))}" alt=""></a>` : '<div class="none">sem foto para o fundo</div>'}
+    ${r.file ? `<a href="${esc(r.pageUrl ?? '#')}"><img loading="lazy" src="${esc(thumb(r.file))}" alt=""></a>` : `<div class="none">${r.pending ? 'aguardando nota do Gemini' : 'sem foto para o fundo'}</div>`}
     <figcaption>
       <strong>${esc(r.name)}</strong>
       <span>${r.car ? `${esc(r.car)} · ${r.season}` : '—'}${r.hero != null ? ` · nota ${r.hero.toFixed(2)}` : ''}</span>
@@ -90,7 +100,7 @@ export function pranchaHtml(rows: PranchaRow[], title: string): string {
 </style></head>
 <body>
 <h1>${esc(title)}</h1>
-<p>${rows.length} pilotos · ${changed} trocados pela regra nova (borda laranja, primeiro) · ${empty} sem foto para o fundo</p>
+<p>${rows.length} pilotos · ${changed} trocados pela regra nova (borda laranja, primeiro) · ${empty} sem foto para o fundo (${pending} aguardando nota do Gemini)</p>
 <main>${rows.map(card).join('')}
 </main>
 </body></html>

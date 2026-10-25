@@ -218,19 +218,18 @@ describe('lendas da F1', () => {
     });
   });
 
-  it('sem destaque, o título vence, mas o fundo procura uma temporada com foto compatível (nunca CC BY-SA)', async () => {
+  it('sem destaque, o título vence, sem foto de fundo (a do carro da temporada não tem a nota do Gemini)', async () => {
     const [senna] = await loadRaceLegends(db, 'pt-BR', 'https://assets.test', { liveries });
-    // 1988 (título) só tem o carro em CC BY-SA: o card vai para 1989, que tem o carro em CC BY
+    // 1988 (título): a foto do carro da temporada fica na galeria, mas o fundo é só o destaque do acervo
     expect(senna!.highlight).toMatchObject({
-      season: 1989,
-      number: 1,
+      season: 1988,
       team: {
         id: ids.mclaren,
         name: 'McLaren',
         constructor_name: 'McLaren',
         livery: { primary: '#e4002b', secondary: '#ffffff' },
       },
-      car: { url: 'https://assets.test/commons/f1/cars/MP4-5.jpg', credit: { share_alike: false } },
+      car: null,
     });
   });
 
