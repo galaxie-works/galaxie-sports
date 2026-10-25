@@ -1,7 +1,7 @@
 // node --test infra/lineup-render/versions.test.mjs
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { playwrightVersions, versionProblems } from './versions.mjs';
+import { fromHasDigest, playwrightVersions, versionProblems } from './versions.mjs';
 
 const files = (v = {}) => ({
   dockerfile: `# comentário\nFROM mcr.microsoft.com/playwright:v${v.image ?? '1.64.0'}-noble@sha256:abc\nUSER pwuser\n`,
@@ -41,4 +41,11 @@ test('faixa em vez de versão exata e versão ausente', () => {
   assert.deepEqual(versionProblems(playwrightVersions(noCompose)), [
     'infra/vps-telemetry/compose.yml (lineup-render): versão não encontrada',
   ]);
+});
+
+test('FROM fixado por digest', () => {
+  const digest = 'a'.repeat(64);
+  assert.equal(fromHasDigest(`FROM mcr.microsoft.com/playwright:v1.64.0-noble@sha256:${digest}\n`), true);
+  assert.equal(fromHasDigest('FROM mcr.microsoft.com/playwright:v1.64.0-noble\n'), false);
+  assert.equal(fromHasDigest('FROM mcr.microsoft.com/playwright:v1.64.0-noble@sha256:abc\n'), false);
 });

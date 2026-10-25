@@ -2,7 +2,9 @@
 /**
  * Confere que a versão do Playwright é uma só: a imagem base do Dockerfile, o package.json e o package-lock.json
  * daqui, o playwright-core do services/ai-agents (o cliente tem de falar o protocolo do servidor) e a tag da imagem
- * no compose da VPS. Subir a versão é mudar os cinco juntos (o lockfile com `npm install --package-lock-only`).
+ * no compose da VPS. Subir a versão é mudar os cinco juntos (o lockfile com `npm install --package-lock-only`; o
+ * digest do FROM com `docker buildx imagetools inspect <tag>`). O FROM precisa do digest; se ele ainda é o da tag,
+ * quem confere (só com aviso) é o job lineup-render do docker.yml, que tem rede.
  *
  *   node infra/lineup-render/versions.mjs        # sai com 1 e lista o que diverge
  */
@@ -25,6 +27,11 @@ export function playwrightVersions({ dockerfile, pkg, lock, agentsPkg, compose }
     'infra/vps-telemetry/compose.yml (lineup-render)':
       /-lineup-render:(\d+\.\d+\.\d+)\s*$/m.exec(compose)?.[1] ?? null,
   };
+}
+
+/** O FROM fixa a imagem por digest (tag@sha256:<64 hex>)? A tag sozinha pode ser republicada. */
+export function fromHasDigest(dockerfile) {
+  return /^FROM\s+mcr\.microsoft\.com\/playwright:v[^@\s]+@sha256:[0-9a-f]{64}\s*$/m.test(dockerfile);
 }
 
 /** Problemas, vazio se todas as versões existem, são exatas e iguais. */
@@ -54,6 +61,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     compose: read('../vps-telemetry/compose.yml'),
   });
   const problems = versionProblems(versions);
+  if (!fromHasDigest(read('./Dockerfile')))
+    problems.push(
+      'infra/lineup-render/Dockerfile: FROM sem digest (use tag@sha256:…; tag e digest sobem juntos)',
+    );
   if (problems.length) {
     for (const p of problems) console.error(`playwright: ${p}`);
     console.error('Suba a versão nos cinco lugares juntos (ver infra/lineup-render/Dockerfile).');
