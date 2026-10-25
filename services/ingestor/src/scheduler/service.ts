@@ -211,7 +211,12 @@ export class SchedulerService {
       throw new Error(
         `Job desconhecido ou desligado: "${name}". Disponíveis: ${this.current.map((j) => j.name).join(', ')}`,
       );
-    const run = this.options.run(job, { trigger, env: this.env });
+    // sob demanda, alguns jobs mudam de modo (ex.: a reconciliação do ao vivo confere tudo)
+    const onDemand = (trigger === 'panel' || trigger === 'manual') && job.onDemandArgs;
+    const run = this.options.run(onDemand ? { ...job, args: job.onDemandArgs! } : job, {
+      trigger,
+      env: this.env,
+    });
     this.running.set(name, run);
     void run
       .finally(() => {
@@ -256,6 +261,11 @@ export class SchedulerService {
       }
       log.info({}, 'rodando job pedido pelo painel');
       const result = await this.execute(req.job, 'panel');
+      if (result.status === 'skipped') {
+        // outro processo (ex.: um `scheduler --run` no console) já está rodando o job
+        await finishJobRequest(db, req.id, { status: 'skipped', detail: 'already_running' });
+        return;
+      }
       await finishJobRequest(db, req.id, {
         status: result.status === 'ok' ? 'done' : 'error',
         runId: result.runId,

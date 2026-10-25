@@ -245,6 +245,7 @@ export async function buildTimeline(
       statusDetail: detailOf(l.payload),
       at: l.at,
     })),
+    teams: [...teams.values()],
     lineupRole: (id) => (id ? (lineup.get(id)?.role ?? null) : null),
     venueTimezone: venueTimezone(
       [head.venueCountry, head.homeCountry, head.competitionCountry],

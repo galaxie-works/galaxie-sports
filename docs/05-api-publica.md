@@ -59,7 +59,7 @@ pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --l
 | `GET /internal/admin/tenants/{id\|slug}` | Tenant + metadados das chaves (nunca hash/segredo) |
 | `PATCH /internal/admin/tenants/{id\|slug}` | Plano, módulos, mercados, esportes, limites, `status` (`suspended` bloqueia todas as chaves); `applyTemplate: true` reaplica o modelo do plano antes dos demais campos |
 | `POST /internal/admin/tenants/{id}/keys` | Emite chave (escopos ⊆ módulos do tenant) |
-| `POST /internal/admin/tenants/{id}/keys/{keyId}/rotate` | Nova chave (mesmo rótulo/escopos/ambiente); a antiga expira em `graceSeconds` (padrão 86400; 0 = revoga já; máx. 7 dias) |
+| `POST /internal/admin/tenants/{id}/keys/{keyId}/rotate` | Nova chave (mesmo rótulo/escopos/ambiente/validade); a antiga expira em `graceSeconds` (padrão 86400; 0 = revoga já; máx. 7 dias). Chave já rotacionada ou tenant com 20 chaves válidas → 409 `CONFLICT` |
 | `POST /internal/admin/tenants/{id}/keys/{keyId}/revoke` | Revoga |
 | `GET /internal/admin/tenants/{id}/usage?from=&to=` | Uso por dia e rota (dias UTC; padrão últimos 7; máx. 92) |
 | `GET /internal/admin/usage?from=&to=` | Total por tenant no período |
@@ -80,9 +80,11 @@ curl -X POST http://localhost:8080/internal/admin/tenants \
 | `POST /v1/account/keys/rotate` | Rotaciona **a chave usada na requisição**: `{ graceSeconds? }` (padrão 86400) → 201 com a chave nova (exibida uma vez) |
 | `GET /v1/account/usage?from=&to=` | Uso por dia e rota + `dailyRequestQuota` |
 
+A chave nova herda o rótulo, os escopos, o ambiente e a **validade** (`expiresAt`) da antiga: rotacionar não estende o prazo de uma chave com validade (ex.: trial). Cada chave só é rotacionada uma vez: a antiga, já no período de graça, recebe 409 `CONFLICT` (quem tem só a chave vazada não gera outra a partir dela), e a rotação é recusada (409) quando o tenant já tem 20 chaves válidas — revogue as que não usa.
+
 Revogação, suspensão e mudança de plano valem em até 60 s (cache do autenticador por instância).
 
-**Contadores de uso** — toda requisição autenticada incrementa um `Map` em memória (tenant × dia UTC × padrão de rota; sem I/O na requisição). A cada 1 s (`USAGE_FLUSH_MS`) o buffer agregado vira **um** pipeline de `HINCRBY` no Valkey (`<prefixo>usage:<dia>:<tenant>`, campo = rota; set `<prefixo>usage:<dia>:tenants`; TTL 4 dias). A cada 60 s (`USAGE_PERSIST_MS`) uma instância (trava `SET NX`) consolida ontem e hoje em `api.usage_daily` com `greatest(...)` — idempotente e sem regredir se o Valkey for reiniciado. As consultas combinam o consolidado com os contadores vivos. Em queda abrupta da instância perde-se no máximo o último segundo. A 10k req/s isso dá ~1 round-trip/s por instância.
+**Contadores de uso** — toda requisição autenticada incrementa um `Map` em memória (tenant × dia UTC × padrão de rota; sem I/O na requisição). A cada 1 s (`USAGE_FLUSH_MS`) o buffer agregado vira **um** pipeline de `HINCRBY` no Valkey (`<prefixo>usage:<dia>:<tenant>`, campo = rota; set `<prefixo>usage:<dia>:tenants`; TTL 4 dias). A cada 60 s (`USAGE_PERSIST_MS`) uma instância (trava `SET NX`) consolida em `api.usage_daily` todos os dias ainda retidos no Valkey (os 4 do TTL, para não perder uso se o Postgres ficar fora mais de um dia) com `greatest(...)` — idempotente e sem regredir se o Valkey for reiniciado. Cada hash tem uma **época** (`#epoca` = `<instante>-<aleatório>`, gravada antes do primeiro incremento); `api.usage_daily` guarda a época da última consolidação e `epoch_base`, o consolidado das épocas anteriores. Mesma época: `requests = greatest(requests, epoch_base + contador)` (idempotente; um AOF truncado que volte o contador não regride nem soma de novo; uma réplica ou rollback com a versão anterior, que grava `greatest(requests, contador)`, não faz o total crescer em dobro). Época mais nova (o Valkey perdeu o hash): `epoch_base := requests` e a contagem nova soma, em vez de o `greatest()` congelar o uso até o contador novo passar o antigo. Época mais velha que a gravada (snapshot atrasado): ignorada. A consolidação nunca escreve no Valkey; perde-se só o que foi contado e não consolidado antes da queda. Rollback para uma versão sem épocas: a consulta de uso antiga lê `#epoca` como rota e mostra total null para os dias ainda no Valkey (até 4 dias); a consolidação antiga não é afetada. As consultas combinam o consolidado com os contadores vivos. Em queda abrupta da instância perde-se no máximo o último segundo. A 10k req/s isso dá ~1 round-trip/s por instância.
 
 ### 1.3 Chave publicável (widgets no navegador)
 
@@ -458,7 +460,7 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 | `incidents[].clock` | `period` (`first_half`, `second_half`, `extra_time_first`, `extra_time_second`, `penalty_shootout`), `minute`, `extra_minute`, `display`. Na disputa de pênaltis não há minuto |
 | `incidents[].occurred_at`, `occurred_at_source` | Instante UTC (abaixo) |
 | `incidents[].weight`, `key_moment`, `flags` | Peso do momento (0–100): **decisivo 100** > pênalti (convertido ou perdido) 80 > vermelho/segundo amarelo 70 > VAR sobre gol, pênalti ou vermelho 65 > gol 60 > cobrança na disputa 45 > outro VAR 40 > amarelo 30 > substituição 10. `key_moment` = peso ≥ 60 (é o filtro "só os principais"). `flags`: `opener`, `go_ahead`, `equalizer` e `decisive` — o gol da vitória (o do vencedor que o pôs à frente de vez) ou a cobrança que decidiu os pênaltis, **só com o jogo encerrado** |
-| `incidents[].score_after` | Placar depois do gol (o lado vem de `team`; no gol contra, `team` é quem se beneficiou). Na disputa, o placar da disputa |
+| `incidents[].score_after`, `scoring_team` | Placar depois do gol e o time que somou o gol (`scoring_team`, com `side`). Na disputa, o placar da disputa e quem converteu. `team` é o time do lance como o fornecedor manda: no gol contra pode ser o do jogador ou o beneficiado. Com o jogo em andamento, `team` é tratado como o beneficiado (o placar parcial chega antes dos lances e não serve de prova: o lado não troca entre leituras); com o jogo encerrado, vale a convenção que reproduz o placar final (sem nenhuma exata, a que menos passa dele; empate, o beneficiado), o que pode corrigir o lado uma vez no apito final. As bandeiras (`go_ahead`, `decisive`...) valem para `scoring_team` |
 | `incidents[].player_in`, `player_out` | Substituição: quem entra e quem sai. O fornecedor manda quem sai em `player` e quem entra em `assist`; se a escalação disser o contrário (reserva em `player`, titular em `assist`), a API corrige |
 | `player`, `assist`, `player_in`, `player_out` | `TimelinePerson`: `id` do core (ou `null`), nome, `photo`, `number` e `position` (G, D, M, F) da escalação, quando sincronizada |
 | `markers[]` | Marcos derivados do estado: `kickoff`, `halftime`, `second_half`, `end_of_regulation`, `extra_time`, `penalty_shootout`, `full_time` — com `clock` (onde acontecem) e instante quando conhecido. A prorrogação só aparece com evidência (código `ET`/`AET`, lance nela ou gol de prorrogação); `extratime: 0 × 0` sozinho não basta |
@@ -567,7 +569,7 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 #### 3.4.1 Implementação (`apps/api/src/routes/v1/multisport.ts`)
 
 - **Módulo `multisport`** (planos `live_intelligence` e `enterprise`). Países pelo código COI (`BRA`, `CHI`, `URU`…), case-insensitive; `noc` aceita lista separada por vírgula no histórico.
-- **Regra de qualidade (docs/08 §6.4) — escolha: resposta sinalizada, não erro.** Quadro, ranking, medalhas do dia e histórico só são publicados quando `games.medal_data_quality` é `complete` ou `partial`. Fora disso a resposta é **200** com `data_quality: { level, coverage, publishable: false, notice }` e `data: []` (no histórico, a edição vai para `withheld`). Motivos: o cliente renderiza "indisponível" sem tratar erro, a resposta é cacheável e não há como exibir número errado (a lista vem vazia). `partial` sai com `notice` localizado ("Quadro parcial: cobertura de 95,7%…"). `unknown` (sem referência para medir) e edições futuras também não publicam.
+- **Regra de qualidade (docs/08 §6.4) — escolha: resposta sinalizada, não erro.** Quadro, ranking, medalhas do dia e histórico só são publicados quando `games.medal_data_quality` é `complete` ou `partial`. Fora disso a resposta é **200** com `data_quality: { level, coverage, publishable: false, notice }` e `data: []` (no histórico, a edição já iniciada vai para `withheld`, com ou sem medalha do CON carregada; as futuras ficam de fora; `withheld` traz as 10 mais recentes e `withheld_total`, quantas são). Motivos: o cliente renderiza "indisponível" sem tratar erro, a resposta é cacheável e não há como exibir número errado (a lista vem vazia). `partial` sai com `notice` localizado ("Quadro parcial: cobertura de 95,7%…"). `unknown` (sem referência para medir) e edições futuras também não publicam.
 - **Quadro**: view `multisport.medal_table` (derivada, sem revogadas); `rank` é a posição no critério pedido (`sort=gold` padrão COI ou `total`), empates dividem a posição; `region=latam` filtra `LATAM_NOCS` mantendo as posições globais. `sources` traz fonte e licença (Wikidata, CC0) para atribuição.
 - **Agenda**: unidades (`multisport.unit`) da edição, por início; `date` é o dia **local** no `tz` pedido ou, sem `tz`, no fuso da sede; `sport` aceita código do esporte ou da disciplina (ODF); `noc` filtra unidades com resultado/participante do CON; `medal_only=true` só unidades de medalha. Vazia enquanto a agenda oficial não é carregada (hoje não há fonte de agenda).
 - **Delegação** (`basis: medals_and_results`): atletas derivados das medalhas (individuais e integrantes de equipes) e dos resultados, por ouro → prata → bronze → nome. A lista oficial de inscritos é follow-up.
@@ -710,7 +712,7 @@ O casamento é feito contra **todas as emissoras dos mercados do tenant** (cada 
 | Rota (chave secreta; módulo `where_to_watch`) | O que faz |
 |---|---|
 | `GET /v1/channel-list` | A lista (`channels[]`), o casamento proposto (`matches[]`: `{country, provider_id, provider, access, match, channels[{index, name}], origin, note}`) e o confirmado (`confirmed_matches`), com `status` (`review` · `confirmed`) e `ai_status` (`not_needed` · `pending` · `done` · `failed`); 404 sem lista |
-| `PUT /v1/channel-list` | `{content, format?: m3u\|text, default_country?}` — envia ou substitui (até 2 MB e 5.000 canais; nomes repetidos são descartados). O casamento por código sai na resposta; as sobras vão para a IA (`ai_status: pending`). Correções feitas no portal seguem valendo para os canais de mesmo nome. `default_country` vale para os canais sem país no nome nem no grupo |
+| `PUT /v1/channel-list` | `{content, format?: m3u\|text, default_country?}` — envia ou substitui (até 2 MB e 5.000 canais; nomes repetidos são descartados). A resposta traz `duplicates` (repetidos descartados) e `truncated` (canais além dos 5.000 que ficaram de fora; 0 = lista inteira), como o aviso do portal. O casamento por código sai na resposta; as sobras vão para a IA (`ai_status: pending`). Correções feitas no portal seguem valendo para os canais de mesmo nome. `default_country` vale para os canais sem país no nome nem no grupo |
 | `POST /v1/channel-list/reprocess` | Refaz o casamento com o dicionário de emissoras e os mercados atuais (mesma lista, mesmas correções). Sem mudança, a confirmação continua |
 | `POST /v1/channel-list/confirm` | O casamento proposto passa a ser o servido em `client_channels` |
 
@@ -783,10 +785,10 @@ Last-Event-ID: 1041
 | `events` | Até 200 IDs de evento (vírgula). Vazio = todos os eventos do contrato |
 | `competitions`, `sports` | Filtros adicionais (até 50 competições, 20 esportes); esporte fora do contrato → 403 |
 | `topics` | Nomes curtos ou completos; padrão: todos os do plano. Tópico de módulo não contratado → 403 `MODULE_NOT_IN_PLAN` |
-| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` e o cliente deve recarregar o estado pela REST). O change feed guarda `CHANGE_FEED_RETENTION_DAYS` dias (padrão 7; job `change-feed-prune` do ingestor, que mantém a última mudança de cada entidade e o que os webhooks ainda não leram) |
+| `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` com `reason: "max_replay"` e o cliente deve recarregar o estado pela REST). O change feed guarda `CHANGE_FEED_RETENTION_DAYS` dias (padrão 7; job `change-feed-prune` do ingestor, que mantém a última mudança de cada entidade e o que os webhooks ainda não leram). ID anterior ao que a retenção já apagou (`ops.change_feed_prune`): o que restou é reenviado e chega `replay_truncated` com `reason: "retention"` |
 | `?key=` | Chave para `EventSource` do navegador, que não envia headers (ver *trade-off* abaixo) |
 
-Mensagens: `id:` (ID da mudança), `event:` (tópico), `data:` (JSON). O stream começa com `retry: 3000` e, depois da retomada, `event: ready` com `{ "last_event_id": "...", "topics": [...] }`. Heartbeat a cada 15 s (comentário `: hb <ts>`), que mantém proxies e balanceadores com a conexão aberta.
+Mensagens: `id:` (ID da mudança), `event:` (tópico), `data:` (JSON). O stream começa com `retry: 3000` e, depois da retomada, `event: ready` com `{ "last_event_id": "...", "topics": [...] }`. Heartbeat a cada 15 s (comentário `: hb <ts>`), que mantém proxies e balanceadores com a conexão aberta. A cada heartbeat a chave é revalidada (cache de 60 s do autenticador): chave revogada ou expirada, tenant suspenso ou módulo/esporte retirado do plano encerram o stream com `event: access_revoked` (`{ code, message, detail }`) — a reconexão do `EventSource` recebe então o 401/403. A resposta leva os mesmos headers de segurança e de CORS (`CORS_ORIGINS`) das demais rotas, então `EventSource` de outra origem autorizada funciona.
 
 ```js
 const es = new EventSource(`${API}/v1/stream?events=${id}&topics=score,status&key=${KEY_DE_LEITURA}`);
@@ -833,9 +835,10 @@ pnpm --filter @galaxie/api webhook list [--tenant demo-local]
 pnpm --filter @galaxie/api webhook disable|enable --id <endpoint>
 pnpm --filter @galaxie/api webhook dlq [--id <endpoint>]
 pnpm --filter @galaxie/api webhook replay --id <endpoint> | --deliveries <ids>
+pnpm --filter @galaxie/api webhook seal-secrets   # cifra segredos legados / recifra após rotacionar a KEK
 ```
 
-URL: `https://` (http só para `localhost`, ou com `--allow-http`), sem credenciais. Sem `--topics`, o endpoint recebe todos os tópicos do plano; filtros e contrato do tenant valem como no SSE.
+URL: `https://` (http só para `localhost`, ou com `--allow-http`), sem credenciais, sem IP privado/link-local/reservado. Na entrega, destino cujo DNS resolve para rede privada, loopback ou link-local (metadata) falha a tentativa (`BlockedTargetError`; `WEBHOOK_ALLOW_PRIVATE_TARGETS=true` só em desenvolvimento). Sem `--topics`, o endpoint recebe todos os tópicos do plano; filtros e contrato do tenant valem como no SSE. Endpoint desativado ou tenant suspenso: as entregas pendentes vão para a DLQ sem envio (`endpoint desativado` / `tenant suspenso`).
 
 **Requisição** — `POST` com o corpo `RealtimeChange` (acima) e os headers:
 
@@ -876,7 +879,7 @@ export function verifyGalaxieSignature(rawBody, header, secret, toleranceSec = 3
 // });
 ```
 
-O segredo fica em `api.webhook_endpoint.secret` (o worker precisa dele para assinar). Rotação: cadastre um novo endpoint, migre o receptor e desative o antigo.
+O segredo fica em `api.webhook_endpoint.secret` **cifrado** (AES-256-GCM) com a KEK `WEBHOOK_SIGNING_SECRET`, que fica fora do banco; só o worker o decifra, para assinar. `webhook create` exige a KEK no ambiente; endpoints antigos com o segredo em texto puro continuam sendo entregues e são cifrados por `pnpm --filter @galaxie/api webhook seal-secrets` (detalhes, comportamento sem KEK, rotação da KEK e `WEBHOOK_REJECT_PLAINTEXT_SECRETS`: SECURITY.md › Webhooks). Recomendado recriar os endpoints legados: o segredo antigo esteve em texto puro e segue nos backups até o fim da retenção. Rotação do segredo do endpoint: cadastre um novo endpoint, migre o receptor e desative o antigo.
 
 ## 6. Erros
 
@@ -896,7 +899,7 @@ Formato RFC 9457 (`application/problem+json`):
 | 404 `NOT_FOUND` | Entidade inexistente |
 | 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente; rotas internas de correção quando a versão corrigida não é mais a vigente) |
 | 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
-| 429 `RATE_LIMITED` | Limite do tenant |
+| 429 `RATE_LIMITED` | Limite do tenant, ou muitas tentativas de autenticação com chaves não verificadas por IP/prefixo (`AUTH_ATTEMPTS_PER_MINUTE`, padrão 60; SECURITY.md) |
 | 503 `DEGRADED` | Raro: só quando nem last-known-good existe |
 | 500 `INTERNAL_ERROR` | Erro inesperado (registrado em log) |
 

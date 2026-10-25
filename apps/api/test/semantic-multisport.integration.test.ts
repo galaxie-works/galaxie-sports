@@ -868,6 +868,9 @@ describe('/v1/multisport', () => {
     expect(p2.next_cursor).toBeNull();
     const all = [...p1.data, ...p2.data].map((u: { id: string }) => u.id);
     expect(new Set(all).size).toBe(3);
+    // cursor forjado com timestamp inválido → 400, não 500 (auditoria API-13)
+    const forged = Buffer.from(JSON.stringify({ s: 'ontem', i: ids.swim })).toString('base64url');
+    expect((await get(`/v1/multisport/games/og-summer-2024/schedule?cursor=${forged}`)).statusCode).toBe(400);
     expect((await get('/v1/multisport/games/pan-2027/schedule')).json()).toEqual({
       data: [],
       next_cursor: null,
@@ -936,14 +939,32 @@ describe('/v1/multisport', () => {
     expect(res.data).toHaveLength(1);
     expect(res.data[0]).toMatchObject({ games: { slug: 'og-summer-2024' }, gold: 2, total: 2 });
     expect(res.totals).toEqual([{ noc: 'BRA', gold: 2, silver: 0, bronze: 0, total: 2 }]);
-    expect(res.withheld).toEqual([
-      expect.objectContaining({
-        slug: 'pan-2023',
-        data_quality: expect.objectContaining({ publishable: false }),
-      }),
-    ]);
+    // retidas: as edições já iniciadas do filtro sem quadro publicável (insuficiente, sem avaliação)
+    const withheld = (body: { withheld: { slug: string; data_quality: { level: string | null } }[] }) =>
+      new Map(body.withheld.map((w) => [w.slug, w.data_quality]));
+    const all = withheld(res);
+    expect(all.get('pan-2023')).toMatchObject({ level: 'insufficient', publishable: false });
+    // só as 10 retidas mais recentes (sem avaliação, quase toda edição antiga é retida); o total à parte
+    expect(res.withheld).toHaveLength(10);
+    expect(res.withheld_total).toBeGreaterThan(10);
+    expect(all.get('og-winter-2026')).toMatchObject({ level: null, publishable: false });
+    expect(all.has('og-summer-1896')).toBe(false);
+    // futura (Lima 2027) não é histórico; a publicada fica em `data`
+    expect(all.has('pan-2027')).toBe(false);
+    expect(all.has('og-summer-2024')).toBe(false);
     const og = (await get('/v1/multisport/history/medals?noc=BRA&type=OG')).json();
-    expect(og.withheld).toEqual([]);
+    expect([...withheld(og).keys()].every((slug) => slug.startsWith('og-'))).toBe(true);
+    expect(withheld(og).has('og-summer-2024')).toBe(false);
+    // CON sem linha no quadro da edição retida (a Argentina não tem medalha no Pan de 2023 carregado):
+    // a edição aparece como retida, não some como se não tivesse participado
+    const arg = (await get('/v1/multisport/history/medals?noc=ARG&type=PAN')).json();
+    expect(arg.data).toEqual([]);
+    expect(withheld(arg).get('pan-2023')).toMatchObject({ level: 'insufficient', publishable: false });
+    // na edição publicada, o CON sem medalha fica fora de `data` (sem participação no quadro)
+    const uru = (await get('/v1/multisport/history/medals?noc=URU&type=OG')).json();
+    expect(uru.data).toEqual([]);
+    expect(uru.totals).toEqual([{ noc: 'URU', gold: 0, silver: 0, bronze: 0, total: 0 }]);
+    expect(withheld(uru).has('og-summer-2024')).toBe(false);
     expect((await get('/v1/multisport/history/medals')).statusCode).toBe(400);
     expect((await get('/v1/multisport/history/medals?noc=ZZZ')).statusCode).toBe(404);
   });
