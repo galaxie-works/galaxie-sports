@@ -46,6 +46,18 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   where_to_watch: ['event'],
 };
 
+/**
+ * Entidade sem a qual o componente não renderiza (`requiredProps` do catálogo: `eventId` no placar e no
+ * onde assistir, `competitionId` na tabela). O widget salvo grava a entidade no arquivo instalado e o
+ * snippet de uso vai sem props: sem ela, o componente instalado só mostraria erro.
+ */
+export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
+  match_card: 'event',
+  live_list: null,
+  standings: 'competition',
+  where_to_watch: 'event',
+};
+
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
 
 /** Fontes do editor (pilhas CSS): a dos temas prontos e famílias comuns do Google Fonts. */
@@ -137,7 +149,7 @@ export function defaultsFromEntity(entity: { type: WidgetEntityType; id: string 
 /** Ids da API: UUID; competições também aceitam slug. */
 const ENTITY_ID = /^[0-9a-z][0-9a-z-]{0,119}$/i;
 
-export type WidgetInputError = 'kind' | 'name' | 'theme' | 'locale' | 'market' | 'entity';
+export type WidgetInputError = 'kind' | 'name' | 'theme' | 'locale' | 'market' | 'entity' | 'entityRequired';
 
 export interface WidgetInput {
   kind: WidgetKind;
@@ -175,7 +187,7 @@ export function parseWidgetInput(
     if (!opts.entityTypes(r.kind).includes(type) || typeof id !== 'string' || !ENTITY_ID.test(id))
       return { ok: false, error: 'entity' };
     defaults = defaultsFromEntity({ type, id });
-  }
+  } else if (REQUIRED_ENTITY[r.kind]) return { ok: false, error: 'entityRequired' };
   return {
     ok: true,
     value: { kind: r.kind, name, config: { theme, locale: c.locale, market, defaults } },
