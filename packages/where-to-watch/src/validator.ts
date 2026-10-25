@@ -57,6 +57,8 @@ export interface CandidateEvidence {
   accessible?: boolean | null;
   /** A página menciona a emissora (nome, alias ou canal)? null = não verificado. */
   mentionsBroadcaster?: boolean | null;
+  /** O trecho citado (do jogo) está na página? null/undefined = não verificado. */
+  excerptFound?: boolean | null;
   contentHash?: string | null;
   fetchedAt?: string;
 }
@@ -284,8 +286,9 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
       if (ev.accessible !== true) continue;
       const kind = dir.classifySource(ev.url, entry);
       let score = SOURCE_SCORES[kind];
-      if (ev.mentionsBroadcaster === false) {
-        // Página não menciona a emissora: rebaixa ao nível de agregador (anti-alucinação).
+      if (ev.mentionsBroadcaster === false || ev.excerptFound === false) {
+        // Página não menciona a emissora (ou não traz mais o trecho do jogo): rebaixa ao nível de
+        // agregador (anti-alucinação; a página da própria emissora sempre a menciona).
         score = Math.min(score, SOURCE_SCORES.aggregator);
         g.flags.add('excerpt_not_found');
       }

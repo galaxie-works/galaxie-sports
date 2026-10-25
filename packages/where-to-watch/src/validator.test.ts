@@ -132,6 +132,13 @@ describe('validador determinístico — confiança', () => {
     );
     expect(r.options[0]).toMatchObject({ confidence: 0.5, status: 'pending' });
     expect(r.options[0]!.flags).toContain('excerpt_not_found');
+    // página da própria emissora sem o trecho do jogo: idem (não publica)
+    const gone = validateCandidates(
+      [cand('Globo', [ev('https://ge.globo.com/x', { excerptFound: false })])],
+      ctx(),
+    );
+    expect(gone.options[0]).toMatchObject({ confidence: 0.5, status: 'pending' });
+    expect(gone.options[0]!.flags).toContain('excerpt_not_found');
   });
 });
 

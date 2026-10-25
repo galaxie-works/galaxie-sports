@@ -486,6 +486,32 @@ describe('verificação das evidências', () => {
     expect(out.candidates[1]!.evidence[1]).toMatchObject({ accessible: false });
   });
 
+  it('confere o trecho salvo na página, não só a menção à emissora', async () => {
+    const fetcher = new FakePageFetcher({
+      'https://ge.globo.com/grade': '<p>Grade da rodada: Time Um x Time Dois na TV Globo</p>',
+    });
+    const out = await verifyCandidates(
+      [
+        {
+          broadcaster: 'Globo',
+          evidence: [
+            { url: 'https://ge.globo.com/grade', excerpt: 'Time Um x Time Dois na TV Globo' },
+            { url: 'https://ge.globo.com/grade', excerpt: 'Time Três x Time Quatro na TV Globo' },
+            { url: 'https://ge.globo.com/grade', excerpt: 'curto' },
+          ],
+        },
+      ],
+      br,
+      fetcher,
+      NOW,
+    );
+    expect(out.candidates[0]!.evidence.map((e) => [e.mentionsBroadcaster, e.excerptFound])).toEqual([
+      [true, true],
+      [true, false],
+      [true, true],
+    ]);
+  });
+
   it('cache por execução: a grade da rodada é buscada uma vez para todos os jogos e mercados', async () => {
     const inner = new FakePageFetcher({ 'https://ge.globo.com/grade': '<p>Grade da rodada: Globo</p>' });
     const cached = new CachingPageFetcher(inner);

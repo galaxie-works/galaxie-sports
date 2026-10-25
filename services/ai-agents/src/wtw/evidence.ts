@@ -55,7 +55,9 @@ export function shouldFetch(directory: CountryDirectory, url: string): boolean {
 }
 
 /**
- * Preenche `accessible`, `mentionsBroadcaster` e `contentHash` de cada evidência.
+ * Preenche `accessible`, `mentionsBroadcaster`, `excerptFound` e `contentHash` de cada evidência.
+ * O trecho é conferido além da menção: a página da própria emissora sempre a cita, então só o trecho
+ * (o jogo naquele canal) mostra que a fonte ainda sustenta a opção — na alocação e na revalidação.
  * Agregadores ficam com `accessible: null` (pista, não evidência).
  */
 export async function verifyCandidates(
@@ -84,6 +86,7 @@ export async function verifyCandidates(
           ...e,
           accessible: r.ok,
           mentionsBroadcaster: r.ok ? pageMentions(r.text, names) : null,
+          excerptFound: r.ok && e.excerpt ? excerptStillPresent(r.text, e.excerpt) : null,
           contentHash: r.ok ? contentHash(r.text) : null,
           fetchedAt,
         };

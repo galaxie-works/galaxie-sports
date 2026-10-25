@@ -239,8 +239,8 @@ async function seedRound(opts: {
 const GRADE_BR = 'https://emissora-a.example/grade-da-rodada';
 const GRADE_MX = 'https://emissora-m.example/programacion';
 const PAGES: Record<string, string> = {
-  [GRADE_BR]: '<p>Grade da rodada: J1 na Emissora A; J2 no Streaming B.</p>',
-  [GRADE_MX]: '<p>Programación: J1 por Emissora M.</p>',
+  [GRADE_BR]: '<p>Grade da rodada: J1 na Emissora A; J2 na Streaming B.</p>',
+  [GRADE_MX]: '<p>Programación: J1 na Emissora M.</p>',
 };
 
 const assignment = (match: string, country: string, broadcaster: string, url: string): WtwAssignment => ({
@@ -479,6 +479,39 @@ describe('onde assistir por rodada', () => {
     const [r2] = await changed.runner.runQueued({ limit: 10, eventId: ids[0]! });
     expect(r2).toMatchObject({ window: 'T-30min', mode: 'revalidate', status: 'done' });
     expect(changed.fake.calls).toHaveLength(0);
+    const pub = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
+    expect(pub!.options).toEqual([]);
+    expect(pub!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
+  });
+
+  it('T-3h: página da emissora que ainda a cita, mas sem o trecho do jogo, não sustenta mais a opção', async () => {
+    const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 41' });
+    const t48 = new Date(KICKOFF.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(t48, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t48,
+    );
+    await setup(t48).runner.runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(
+      (await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' }))!.options.map(
+        (o) => o.row.broadcasterId,
+      ),
+    ).toEqual(['emissora_a']);
+
+    // a grade mudou: o J1 passou para o Streaming B, mas a página segue citando a Emissora A
+    const t3 = new Date(KICKOFF.getTime() - 2.5 * H);
+    const moved = setup(t3, {
+      pages: { [GRADE_BR]: '<p>Grade da rodada: J1 no Streaming B; J2 na Emissora A.</p>' },
+    });
+    await enqueueRuns(
+      db,
+      (await plan(t3, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t3,
+    );
+    const [r] = await moved.runner.runQueued({ limit: 10, eventId: ids[0]! });
+    expect(r).toMatchObject({ window: 'T-3h', mode: 'revalidate', status: 'done' });
+    expect(moved.fake.calls).toHaveLength(0);
     const pub = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
     expect(pub!.options).toEqual([]);
     expect(pub!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
