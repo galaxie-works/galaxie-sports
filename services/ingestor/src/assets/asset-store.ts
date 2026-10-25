@@ -285,6 +285,13 @@ export class InMemoryAssetStore implements AssetStore {
 /** Mesma expressão de normalizeMediaUrl, para casar URLs gravadas com variações de host/protocolo. */
 const MEDIA_URL_SQL = `^https?://media(-[0-9]+)?\\.api-sports\\.io/`;
 
+/** Regex das URLs da CDN de mídia, opcionalmente só as sob um caminho (`--caminho volley`). */
+function mediaUrlPattern(pathPrefix: string | undefined): string {
+  if (!pathPrefix) return MEDIA_URL_SQL;
+  const path = mediaPathPrefix(pathPrefix).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return MEDIA_URL_SQL.replace(/\/$/, '') + path;
+}
+
 /** Colunas zeradas quando o asset sai do storage (404, bloqueado). */
 const UNLINKED = {
   storageKey: null,
@@ -300,12 +307,11 @@ export class PgAssetStore implements AssetStore {
 
   async pending(query: PendingQuery = {}): Promise<MirrorAsset[]> {
     if (query.personPhotos) return this.pendingPersonPhotos(query, query.personPhotos.since);
-    const conditions = [isNull(asset.storageKey), sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL}`];
+    const conditions = [
+      isNull(asset.storageKey),
+      sql`${asset.sourceUrl} ~* ${mediaUrlPattern(query.pathPrefix)}`,
+    ];
     if (!query.includeMissing) conditions.push(isNull(asset.fetchedAt));
-    if (query.pathPrefix) {
-      const path = mediaPathPrefix(query.pathPrefix).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      conditions.push(sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL.replace(/\/$/, '') + path}`);
-    }
     const q = this.db
       // só URLs da CDN de mídia (filtro acima): o tipo é sempre um MediaAssetKind
       .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: sql<MediaAssetKind>`${asset.kind}` })
@@ -320,10 +326,12 @@ export class PgAssetStore implements AssetStore {
   }
 
   private async pendingPersonPhotos(query: PendingQuery, since: Date): Promise<MirrorAsset[]> {
+    const urlPattern = mediaUrlPattern(query.pathPrefix);
     const ids = await pendingPersonPhotoIds(this.db, {
       since,
       includeMissing: query.includeMissing,
       limit: query.limit,
+      urlPattern,
     });
     const rows: MirrorAsset[] = [];
     for (let i = 0; i < ids.length; i += 1000) {
@@ -332,7 +340,7 @@ export class PgAssetStore implements AssetStore {
         ...(await this.db
           .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: sql<MediaAssetKind>`${asset.kind}` })
           .from(asset)
-          .where(and(inArray(asset.id, chunk), sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL}`))),
+          .where(and(inArray(asset.id, chunk), sql`${asset.sourceUrl} ~* ${urlPattern}`))),
       );
     }
     const order = new Map(ids.map((id, i) => [id, i]));

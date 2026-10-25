@@ -1,4 +1,4 @@
-import { sql, type SQL } from 'drizzle-orm';
+import { sql, TransactionRollbackError, type SQL } from 'drizzle-orm';
 import type { MediaAssetKind } from '@galaxie/apisports-client';
 import type { Database } from '@galaxie/db';
 
@@ -37,7 +37,8 @@ export function coachPhotoUrl(providerId: string): string {
 
 /**
  * Prioridade de cada pessoa do futebol (api-sports), para registrar e espelhar as fotos na ordem em que
- * aparecem na demo: 0 = escalada desde `since`; 1 = no elenco de uma temporada atual; 2 = o resto.
+ * aparecem na demo: 0 = escalada desde `since`; 1 = no elenco de uma temporada atual ou no elenco atual
+ * do time (sem temporada); 2 = o resto.
  * `last_at` é o último jogo em que entrou em campo (o técnico, o último em que foi o técnico da escalação).
  * Técnicos têm o id `coach:<id>` em core.provider_map (`coachPersonId`); os demais ids numéricos são jogadores.
  */
@@ -74,8 +75,9 @@ function personPriority(since: Date): SQL {
     current_roster as materialized (
       select distinct r.person_id
       from core.roster r
-      join core.season s on s.id = r.season_id
-      where s.current
+      left join core.season s on s.id = r.season_id
+      -- season_id nulo = elenco atual do time (players/squads e coachs), sem temporada
+      where s.current or (r.season_id is null and r.role in ('player', 'coach'))
     ),
     priority as (
       select m.entity_id as person_id, m.provider_id, coalesce(lu.last_at, lc.last_at) as last_at,
@@ -105,53 +107,61 @@ export interface PhotoRegistrationReport {
  * Registra a foto das pessoas do futebol que ainda não têm uma, a partir do id da api-sports, e liga a pessoa
  * ao asset: `football/players/{id}.png` para jogadores (inclusive quem só aparece em transferências) e
  * `football/coachs/{id}.png` para técnicos (`coach:<id>`). Não liga asset já marcado como ausente (404 ou
- * foto genérica). Idempotente: a segunda execução não registra nem liga nada.
+ * foto genérica). Idempotente: a segunda execução não registra nem liga nada. `dryRun` faz o mesmo numa
+ * transação desfeita no fim: só as contagens (a prévia do `--fotos --plan`).
  */
 export async function registerPlayerPhotos(
   db: Database,
-  options: { since: Date },
+  options: { since: Date; dryRun?: boolean | undefined },
 ): Promise<PhotoRegistrationReport> {
-  return db.transaction(async (tx) => {
-    await tx.execute(SERIAL);
-    await tx.execute(sql`
-      create temp table photo_candidate on commit drop as
-      ${personPriority(options.since)}
-      select pr.person_id, pr.tier,
-        case when pr.provider_id like 'coach:%' then 'coach' else 'player' end::core.asset_kind as kind,
-        case when pr.provider_id like 'coach:%'
-          then 'https://media.api-sports.io/football/coachs/' || substr(pr.provider_id, 7) || '.png'
-          else 'https://media.api-sports.io/football/players/' || pr.provider_id || '.png'
-        end as url
-      from priority pr
-      join core.person p on p.id = pr.person_id
-      where p.photo_asset_id is null and pr.provider_id ~ '^(coach:)?[0-9]+$'
-    `);
-    const registered = await tx.execute<{ id: string }>(sql`
-      insert into core.asset (kind, source_url)
-      select distinct kind, url from photo_candidate
-      on conflict (source_url) do nothing
-      returning id
-    `);
-    const linked = await tx.execute<{ tier: number; n: number }>(sql`
-      with done as (
-        update core.person p set photo_asset_id = a.id, updated_at = now()
+  let report: PhotoRegistrationReport | undefined;
+  try {
+    await db.transaction(async (tx) => {
+      await tx.execute(SERIAL);
+      await tx.execute(sql`
+        create temp table photo_candidate on commit drop as
+        ${personPriority(options.since)}
+        select pr.person_id, pr.tier,
+          case when pr.provider_id like 'coach:%' then 'coach' else 'player' end::core.asset_kind as kind,
+          case when pr.provider_id like 'coach:%'
+            then 'https://media.api-sports.io/football/coachs/' || substr(pr.provider_id, 7) || '.png'
+            else 'https://media.api-sports.io/football/players/' || pr.provider_id || '.png'
+          end as url
+        from priority pr
+        join core.person p on p.id = pr.person_id
+        where p.photo_asset_id is null and pr.provider_id ~ '^(coach:)?[0-9]+$'
+      `);
+      const registered = await tx.execute<{ id: string }>(sql`
+        insert into core.asset (kind, source_url)
+        select distinct kind, url from photo_candidate
+        on conflict (source_url) do nothing
+        returning id
+      `);
+      const linked = await tx.execute<{ tier: number; n: number }>(sql`
+        with done as (
+          update core.person p set photo_asset_id = a.id, updated_at = now()
+          from photo_candidate c
+          join core.asset a on a.source_url = c.url
+          where p.id = c.person_id and not (a.storage_key is null and a.fetched_at is not null)
+          returning c.tier
+        )
+        select tier, count(*)::int as n from done group by 1
+      `);
+      const [skipped] = await tx.execute<{ n: number }>(sql`
+        select count(*)::int as n
         from photo_candidate c
         join core.asset a on a.source_url = c.url
-        where p.id = c.person_id and not (a.storage_key is null and a.fetched_at is not null)
-        returning c.tier
-      )
-      select tier, count(*)::int as n from done group by 1
-    `);
-    const [skipped] = await tx.execute<{ n: number }>(sql`
-      select count(*)::int as n
-      from photo_candidate c
-      join core.asset a on a.source_url = c.url
-      where a.storage_key is null and a.fetched_at is not null
-    `);
-    const byTier: [number, number, number] = [0, 0, 0];
-    for (const r of linked) byTier[r.tier as 0 | 1 | 2] = r.n;
-    return { linked: byTier, registered: registered.length, skippedMissing: skipped?.n ?? 0 };
-  });
+        where a.storage_key is null and a.fetched_at is not null
+      `);
+      const byTier: [number, number, number] = [0, 0, 0];
+      for (const r of linked) byTier[r.tier as 0 | 1 | 2] = r.n;
+      report = { linked: byTier, registered: registered.length, skippedMissing: skipped?.n ?? 0 };
+      if (options.dryRun) tx.rollback();
+    });
+  } catch (err) {
+    if (!(options.dryRun && err instanceof TransactionRollbackError)) throw err;
+  }
+  return report!;
 }
 
 /**
@@ -160,7 +170,13 @@ export async function registerPlayerPhotos(
  */
 export async function pendingPersonPhotoIds(
   db: Database,
-  options: { since: Date; includeMissing?: boolean | undefined; limit?: number | undefined },
+  options: {
+    since: Date;
+    includeMissing?: boolean | undefined;
+    limit?: number | undefined;
+    /** Só as URLs que casam com esta regex (ex.: as da pasta de um esporte, `--caminho`), antes do `limit`. */
+    urlPattern?: string | undefined;
+  },
 ): Promise<string[]> {
   const rows = await db.transaction(async (tx) => {
     await tx.execute(SERIAL);
@@ -172,6 +188,7 @@ export async function pendingPersonPhotoIds(
     left join priority pr on pr.person_id = p.id
     where a.kind in ('player', 'coach') and a.storage_key is null
       ${options.includeMissing ? sql`` : sql`and a.fetched_at is null`}
+      ${options.urlPattern ? sql`and a.source_url ~* ${options.urlPattern}` : sql``}
     group by a.id, a.created_at
     order by min(coalesce(pr.tier, 3)), max(pr.last_at) desc nulls last, a.created_at, a.id
     ${options.limit ? sql`limit ${options.limit}` : sql``}

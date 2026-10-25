@@ -12,6 +12,7 @@ import {
   participant,
   person,
   providerMap,
+  roster,
   sport,
   type Database,
 } from '@galaxie/db';
@@ -440,6 +441,7 @@ describe('logos genéricos ("image not available")', () => {
 
 /** Só roda com o RustFS/S3 local configurado (S3_ENDPOINT...); usa um prefixo descartável e apaga ao final. */
 describe('auditoria do espelho (change feed, prévias, filtros)', () => {
+  const DAY = 86_400_000;
   const handball = (path: string) => `https://media.api-sports.io/handball/${path}.png`;
   const stored = (url: string) => ({
     storageKey: `api-sports${new URL(url).pathname}`,
@@ -479,6 +481,49 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
 
     expect(await store.unlink([url], at)).toBe(1);
     expect(await store.cleanupLogos(at)).toEqual(preview);
+  });
+
+  it('--fotos --caminho filtra a fila de fotos pelo caminho antes do limite', async () => {
+    const store = new PgAssetStore(db);
+    const volley = await newAsset('https://media.api-sports.io/volley/players/5.png', 'player');
+    await newAsset(playerPhotoUrl('777'), 'player');
+    const since = new Date(Date.now() - 365 * DAY);
+    const all = await store.pending({ personPhotos: { since } });
+    expect(all.some((a) => a.sourceUrl.includes('/football/'))).toBe(true);
+    expect(
+      (await store.pending({ personPhotos: { since }, pathPrefix: 'volley', limit: 1 })).map((a) => a.id),
+    ).toEqual([volley]);
+    const filtered = await store.pending({ personPhotos: { since }, pathPrefix: 'volley' });
+    expect(filtered.every((a) => a.sourceUrl.includes('/volley/'))).toBe(true);
+  });
+
+  it('elenco atual sem temporada é prioridade 1; --plan conta o registro pelo id sem gravar', async () => {
+    const club = await team('Clube do Elenco', {});
+    const [p] = await db.insert(person).values({ name: 'Jogador do Elenco' }).returning();
+    await db.insert(providerMap).values({
+      entityType: 'person',
+      entityId: p!.id,
+      provider: 'api-sports',
+      sport: 'football',
+      providerId: '4242',
+    });
+    await db.insert(roster).values({ participantId: club, personId: p!.id, seasonId: null, role: 'player' });
+    const since = new Date(Date.now() - 365 * DAY);
+    const photo = async () =>
+      (await db.select({ id: person.photoAssetId }).from(person).where(eq(person.id, p!.id)))[0]!.id;
+
+    const preview = await registerPlayerPhotos(db, { since, dryRun: true });
+    expect(preview).toMatchObject({ linked: [0, 1, 0], registered: 1 });
+    expect(
+      await db
+        .select()
+        .from(asset)
+        .where(eq(asset.sourceUrl, playerPhotoUrl('4242'))),
+    ).toEqual([]);
+    expect(await photo()).toBeNull();
+
+    expect(await registerPlayerPhotos(db, { since })).toEqual(preview);
+    expect(await photo()).not.toBeNull();
   });
 
 });

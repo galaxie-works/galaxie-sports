@@ -27,7 +27,7 @@ import { eq, sql } from 'drizzle-orm';
 import { publicAssetUrl } from '@galaxie/apisports-client';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
-import { PgAssetStore, type LogoCleanup } from '../assets/asset-store.js';
+import { mediaPathPrefix, PgAssetStore, type LogoCleanup } from '../assets/asset-store.js'
 import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
 import { PLACEHOLDER_PHOTO_SHA256, registerPlayerPhotos } from '../assets/person-photos.js';
@@ -65,10 +65,14 @@ try {
     console.log(`URLs de mídia no raw: ${urls.length} · novas em core.asset: ${added}`);
   }
 
-  if (personPhotos && !values.plan) {
-    const r = await registerPlayerPhotos(db, personPhotos);
+  // no --plan, numa transação desfeita: a prévia conta as fotos que a execução real vai registrar
+  const photoRegistration = personPhotos
+    ? await registerPlayerPhotos(db, { ...personPhotos, dryRun: values.plan })
+    : undefined;
+  if (photoRegistration) {
+    const r = photoRegistration;
     console.log(
-      `Fotos ligadas pelo id (jogadores e técnicos): escalados recentes ${r.linked[0]} · elenco atual ${r.linked[1]} · resto ${r.linked[2]}` +
+      `Fotos ${values.plan ? 'a ligar' : 'ligadas'} pelo id (jogadores e técnicos): escalados recentes ${r.linked[0]} · elenco atual ${r.linked[1]} · resto ${r.linked[2]}` +
         ` · assets novos ${r.registered} · já sabidamente sem foto ${r.skippedMissing}`,
     );
   }
@@ -97,7 +101,12 @@ try {
       limit: values.limite ? Number(values.limite) : undefined,
       pathPrefix: values.caminho,
     });
-    console.log(`A baixar nesta execução: ${report.pending} (nenhuma chamada à API de dados).`);
+    // os assets que o registro pelo id criaria ainda não existem (a transação foi desfeita)
+    const limit = values.limite ? Number(values.limite) : Infinity;
+    const football = !values.caminho || mediaPathPrefix(values.caminho) === '/football/';
+    const registered = football ? (photoRegistration?.registered ?? 0) : 0;
+    const pending = Math.min(limit, report.pending + registered);
+    console.log(`A baixar nesta execução: ${pending} (nenhuma chamada à API de dados).`);
     console.log(logoCleanupLine(report.logoCleanup, 'a limpar'));
     if (report.photoCleanup) console.log(`Fotos genéricas já gravadas a desligar: ${report.photoCleanup}`);
     if (!personPhotos) {
