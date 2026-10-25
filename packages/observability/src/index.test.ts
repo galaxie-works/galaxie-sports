@@ -13,6 +13,15 @@ describe('quotaPolicyFromEnv', () => {
     expect(policyFor('formula-1')).toMatchObject({ dailyLimit: 100 });
   });
 
+  it('leva o limite por minuto do plano (com o teto de APISPORTS_PER_MINUTE) para o Governor', () => {
+    const policyFor = quotaPolicyFromEnv({
+      APISPORTS_PLAN_FOOTBALL: 'pro',
+      APISPORTS_PER_MINUTE_FOOTBALL: '120',
+    });
+    expect(policyFor('football').perMinute).toBe(120);
+    expect(policyFor('hockey').perMinute).toBe(10);
+  });
+
   it('sem variáveis, todas as APIs no free com reserva de 15%', () => {
     expect(quotaPolicyFromEnv({})('football')).toMatchObject({ dailyLimit: 100, reservePercent: 15 });
   });

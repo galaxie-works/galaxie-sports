@@ -25,9 +25,20 @@ export interface RawHit {
   quotaRemaining: number | null;
 }
 
+/**
+ * De onde veio a requisição. O request hash já identifica tudo, mas a busca precisa dos três campos para
+ * usar o índice raw.api_response_lookup_idx (provider, sport, endpoint, request_hash, fetched_at): só pelo
+ * hash, uma falta com TTL infinito varre a maior tabela do banco.
+ */
+export interface RawScope {
+  provider: string;
+  sport: string;
+  endpoint: string;
+}
+
 /** Armazena toda resposta bruta e serve respostas frescas (HTTP 2xx e sem erro no envelope) para evitar chamadas repetidas. */
 export interface RawStore {
-  findFresh(requestHash: string, maxAgeMs: number, now: Date): Promise<RawHit | undefined>;
+  findFresh(requestHash: string, maxAgeMs: number, now: Date, scope: RawScope): Promise<RawHit | undefined>;
   save(record: RawRecord): Promise<void>;
 }
 
@@ -63,9 +74,17 @@ export class InMemoryRawStore implements RawStore {
 export class PgRawStore implements RawStore {
   constructor(private readonly db: Database) {}
 
-  async findFresh(requestHash: string, maxAgeMs: number, now: Date): Promise<RawHit | undefined> {
+  async findFresh(
+    requestHash: string,
+    maxAgeMs: number,
+    now: Date,
+    scope: RawScope,
+  ): Promise<RawHit | undefined> {
     const success = sql`(${apiResponse.errors} is null or ${apiResponse.errors} in ('[]'::jsonb, '{}'::jsonb))`;
     const conditions = [
+      eq(apiResponse.provider, scope.provider),
+      eq(apiResponse.sport, scope.sport),
+      eq(apiResponse.endpoint, scope.endpoint),
       eq(apiResponse.requestHash, requestHash),
       success,
       gte(apiResponse.statusCode, 200),
