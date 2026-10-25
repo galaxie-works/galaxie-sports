@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { buildOpenApiDocument } from '@galaxie/contracts';
 import type { Database } from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../admin/guard.js';
 import { parsePlans } from '../admin/plans.js';
+import { isPublishableRoute } from '../auth/publishable.js';
 import { hardeningFromEnv } from '../config.js';
 import { buildServer } from '../server.js';
 import { memoryTenant } from '../test-helpers.js';
@@ -175,6 +177,27 @@ describe('auditoria de rotas', () => {
       });
       expect(res.statusCode, `${id} sem chave respondeu ${res.statusCode}`).toBe(401);
     }
+    await app.close();
+  });
+});
+
+describe('OpenAPI × rotas', () => {
+  it('declara a chave publicável exatamente nas operações que a API aceita com ela', async () => {
+    const app = buildServer({ usage: false });
+    await app.ready();
+    const doc = buildOpenApiDocument();
+    const publishable = (op: { security?: Record<string, unknown>[] } | undefined) =>
+      Boolean(op?.security?.some((s) => 'galaxiePublishableKey' in s));
+    let checked = 0;
+    for (const r of app.routeTable) {
+      const path = r.url.replace(/:(\w+)/g, '{$1}');
+      const item = doc.paths?.[path] as Record<string, { security?: Record<string, unknown>[] }> | undefined;
+      const op = item?.[r.method.toLowerCase()];
+      if (!op) continue;
+      checked++;
+      expect(publishable(op), `${r.method} ${r.url}`).toBe(isPublishableRoute(r.method, r.url, r.config));
+    }
+    expect(checked).toBeGreaterThan(40);
     await app.close();
   });
 });

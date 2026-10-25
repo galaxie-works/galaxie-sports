@@ -136,6 +136,25 @@ describe('OpenAPI', () => {
   });
 });
 
+describe('OpenAPI — chave publicável', () => {
+  it('é alternativa à secreta nas leituras de /v1; conta, SSE, escrita e espelho só com a secreta', () => {
+    const doc = buildOpenApiDocument();
+    const read = [{ galaxieKey: [] }, { galaxiePublishableKey: [] }];
+    const security = (path: string, method: 'get' | 'post' | 'put' = 'get') =>
+      (doc.paths?.[path]?.[method] as { security?: unknown } | undefined)?.security;
+    expect(doc.security).toEqual([{ galaxieKey: [] }]);
+    for (const path of ['/v1/events', '/v1/events/{id}', '/v1/competitions/{id}/seasons/{season}/standings'])
+      expect(security(path), path).toEqual(read);
+    expect(security('/v1/events/{id}/where-to-watch')).toEqual(read);
+    for (const path of ['/v1/account', '/v1/account/keys', '/v1/account/usage', '/v1/stream'])
+      expect(security(path), path).toBeUndefined();
+    expect(security('/mirror/{sport}/{endpoint}')).toBeUndefined();
+    expect(security('/v1/account/keys/rotate', 'post')).toBeUndefined();
+    expect(security('/v1/channel-list', 'put')).toBeUndefined();
+    expect(security('/v1/related/playback-errors', 'post')).toBeUndefined();
+  });
+});
+
 describe('OpenAPI — tags do torcedor', () => {
   type Schema = {
     properties?: Record<string, Schema & { $ref?: string }>;
