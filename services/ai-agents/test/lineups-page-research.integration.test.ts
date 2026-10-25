@@ -15,6 +15,7 @@ import { withTokenBudget } from '../src/llm/factory.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
 import { memoryPageStore, OfficialPageReader, type PageRenderer } from '../src/lineups/pages.js';
 import { LineupResearcher, planLineupResearch } from '../src/lineups/research.js';
+import type { LineupPromptLimits } from '../src/lineups/prompt.js';
 import type { LineupPageExtractOutput } from '../src/lineups/schema.js';
 import { disposableDb } from './helpers.js';
 
@@ -285,13 +286,17 @@ describe('lineups-research pela página oficial (LLM e site falsos)', () => {
   });
 
   /** Revisita direta da plataforma (a grade completa marca o que sumiu como `removed`). */
-  const revisit = async (extracted: LineupPageExtractOutput, at: Date) => {
+  const revisit = async (
+    extracted: LineupPageExtractOutput,
+    at: Date,
+    extra: { log?: (m: string) => void; promptLimits?: LineupPromptLimits } = {},
+  ) => {
     const llm = new FakeLlmClient((req: LlmJsonRequest) =>
       req.purpose.startsWith('lineups:extract:')
         ? { data: extracted }
         : new Error(`purpose inesperado: ${req.purpose}`),
     );
-    const researcher = new LineupResearcher({ db, llm, config, now: () => at, pages: reader() });
+    const researcher = new LineupResearcher({ db, llm, config, now: () => at, pages: reader(), ...extra });
     return researcher.researchFromPages(
       {
         kind: 'plans',
@@ -311,12 +316,35 @@ describe('lineups-research pela página oficial (LLM e site falsos)', () => {
     // a página passa do teto de caracteres do prompt: o modelo não viu tudo
     page = { ...base, text: `${base.text}\n${'Texto institucional. '.repeat(10_000)}` };
     const extracted = extraction(109.9);
+    const logs: string[] = [];
     const out = await revisit(
       { ...extracted, planos: [{ ...extracted.planos[0]!, canais: [] }], complementos: [] },
       new Date(NOW.getTime() + 3 * 86_400_000),
+      { log: (m) => logs.push(m) },
     );
     expect(out.status).toBe('done');
     expect([out.removed, out.changes.filter((c) => c.fields.includes('removed'))]).toEqual([0, []]);
+    // o corte fica registrado: no resultado da tarefa e no log, com a página, o tamanho e o teto
+    expect(out.promptCuts).toEqual([{ url: PLANS, chars: expect.any(Number), limit: 150_000 }]);
+    expect(out.promptCuts[0]!.chars).toBeGreaterThan(150_000);
+    expect(logs.filter((m) => m.includes('página cortada no prompt da extração'))).toEqual([
+      expect.stringMatching(/^br-operadora-exemplo: .*\/planos \(\d+ caracteres, teto 150000;/),
+    ]);
+  });
+
+  it('o teto vindo do painel vale no lugar do padrão: a mesma página normal passa a ser cortada', async () => {
+    // ~8 mil caracteres: cabe no padrão, passa do teto de 5 mil por página
+    const base = rendered('109,90');
+    page = { ...base, text: `${base.text}\n${'Texto institucional. '.repeat(400)}` };
+    const at = new Date(NOW.getTime() + 3 * 86_400_000);
+    expect((await revisit(extraction(109.9), at)).promptCuts).toEqual([]);
+    const logs: string[] = [];
+    const cut = await revisit(extraction(109.9), at, {
+      promptLimits: { pageChars: 5_000, totalChars: 10_000 },
+      log: (m) => logs.push(m),
+    });
+    expect(cut.promptCuts).toEqual([{ url: PLANS, chars: expect.any(Number), limit: 5_000 }]);
+    expect(logs.some((m) => m.includes('teto 5000'))).toBe(true);
   });
 
   /** A página sem o bloco de complementos ("Personalize seu plano" e o Canal Exemplo 2 à parte). */

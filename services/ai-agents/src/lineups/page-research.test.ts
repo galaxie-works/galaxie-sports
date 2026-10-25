@@ -14,6 +14,10 @@ import {
 } from './page-research.js';
 import { contentHashOf, memoryPageStore, OfficialPageReader } from './pages.js';
 import {
+  DEFAULT_LINEUP_PROMPT_LIMITS,
+  lineupPromptLimitsFromEnv,
+  pageCharLimit,
+  pageExtractCuts,
   pageExtractPrompt,
   pageExtractSystemPrompt,
   pageExtractTruncated,
@@ -180,6 +184,47 @@ describe('extração pela página oficial: schemas e prompts', () => {
       ]),
     ).toBe(true);
     expect(pageExtractTruncated([{ url: read.url, ...read.content }])).toBe(false);
+  });
+
+  it('os tetos vêm do env (o painel sobrescreve); inválido ou fora da faixa cai no padrão, com aviso', () => {
+    expect(lineupPromptLimitsFromEnv({})).toEqual(DEFAULT_LINEUP_PROMPT_LIMITS);
+    expect(DEFAULT_LINEUP_PROMPT_LIMITS).toEqual({ pageChars: 150_000, totalChars: 150_000 });
+    expect(
+      lineupPromptLimitsFromEnv({ LINEUP_PROMPT_MAX_CHARS: ' 90000 ', LINEUP_PAGE_MAX_CHARS: '40000' }),
+    ).toEqual({ pageChars: 40_000, totalChars: 90_000 });
+    const warnings: string[] = [];
+    expect(
+      lineupPromptLimitsFromEnv({ LINEUP_PROMPT_MAX_CHARS: 'muito', LINEUP_PAGE_MAX_CHARS: '1000' }, (m) =>
+        warnings.push(m),
+      ),
+    ).toEqual(DEFAULT_LINEUP_PROMPT_LIMITS);
+    expect(warnings).toHaveLength(2);
+    expect(warnings.join('\n')).toMatch(/LINEUP_PAGE_MAX_CHARS inválido \(1000\).*5000 a 600000/);
+    expect(lineupPromptLimitsFromEnv({ LINEUP_PROMPT_MAX_CHARS: '12345.5' }).totalChars).toBe(150_000);
+  });
+
+  it('o teto de cada página: a fatia do total (ao menos 5 mil), até o teto da página', () => {
+    expect(pageCharLimit(1)).toBe(150_000);
+    expect(pageCharLimit(3)).toBe(50_000);
+    expect(pageCharLimit(100)).toBe(5_000);
+    expect(pageCharLimit(1, { pageChars: 40_000, totalChars: 150_000 })).toBe(40_000);
+    expect(pageCharLimit(2, { pageChars: 150_000, totalChars: 20_000 })).toBe(10_000);
+    const page = { url: 'https://p.exemplo/planos', text: 'x'.repeat(45_000), sections: [] };
+    expect(pageExtractCuts([page])).toEqual([]);
+    expect(pageExtractCuts([page], { pageChars: 40_000, totalChars: 150_000 })).toEqual([
+      { url: page.url, chars: 45_000, limit: 40_000 },
+    ]);
+    // o prompt corta no mesmo teto
+    const prompt = pageExtractPrompt({
+      country: 'BR',
+      platform: { name: PLATFORM.name, kind: 'streaming', website: PLATFORM.website },
+      pages: [page],
+      knownPlans: [],
+      channels: [],
+      services: [],
+      limits: { pageChars: 40_000, totalChars: 150_000 },
+    });
+    expect(prompt.match(/x+/g)!.reduce((m, r) => Math.max(m, r.length), 0)).toBe(40_000);
   });
 
   it('a descoberta das URLs pede no máximo 3 buscas, só no site oficial', () => {

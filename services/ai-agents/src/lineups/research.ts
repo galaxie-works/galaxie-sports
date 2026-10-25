@@ -58,9 +58,12 @@ import {
   catalogPrompt,
   discoveryPrompt,
   lineupSystemPrompt,
+  DEFAULT_LINEUP_PROMPT_LIMITS,
+  pageExtractCuts,
   pageExtractPrompt,
   pageExtractSystemPrompt,
-  pageExtractTruncated,
+  type LineupPromptLimits,
+  type PromptCut,
   planPagesPrompt,
   planPrompt,
 } from './prompt.js';
@@ -479,6 +482,8 @@ export interface LineupCallOutcome {
   pages: Pick<PageRead, 'url' | 'status' | 'via' | 'fromCache' | 'hashChanged' | 'limited' | 'error'>[];
   /** Pela página oficial: a página não mudou desde a última extração (nenhuma chamada ao modelo). */
   pagesUnchanged: boolean;
+  /** Pela página oficial: páginas cortadas no prompt da extração (LINEUP_PAGE_MAX_CHARS/LINEUP_PROMPT_MAX_CHARS). */
+  promptCuts: PromptCut[];
   /** Por que a tarefa parou antes de extrair (sem site, nenhuma página lida, sem orçamento). */
   note: string | null;
   error?: string;
@@ -494,6 +499,8 @@ export interface LineupResearchDeps {
   resolveUrl?: (url: string) => Promise<string | null>;
   /** Leitor educado do site oficial (rebrand: o site que redireciona para outro domínio). */
   pages?: OfficialPageReader | null;
+  /** Tetos de caracteres das páginas no prompt da extração (padrão: os do código). */
+  promptLimits?: LineupPromptLimits;
 }
 
 export interface LineupRunOptions extends Omit<PlanLineupOptions, 'now'> {
@@ -591,6 +598,7 @@ export class LineupResearcher {
       extractCalls: 0,
       pages: [],
       pagesUnchanged: false,
+      promptCuts: [],
       note: null,
     };
   }
@@ -947,6 +955,14 @@ export class LineupResearcher {
         text: r.content.text,
         sections: r.content.sections,
       }));
+      const limits = this.deps.promptLimits ?? DEFAULT_LINEUP_PROMPT_LIMITS;
+      // o que passa do teto é cortado do fim da página: o modelo não vê esses planos e preços
+      out.promptCuts = pageExtractCuts(promptPages, limits);
+      for (const c of out.promptCuts)
+        this.log(
+          `${row.slug}: página cortada no prompt da extração: ${c.url} (${c.chars} caracteres, teto ${c.limit}; ` +
+            'LINEUP_PAGE_MAX_CHARS/LINEUP_PROMPT_MAX_CHARS); o modelo não vê o fim da página',
+        );
       const res = await this.call(out, 'extract', () =>
         llm.generateJson<LineupPageExtractOutput>({
           tier: 'light',
@@ -958,6 +974,7 @@ export class LineupResearcher {
                 country: task.country,
                 platform: { name: row.name, kind: row.kind, website: row.website },
                 pages: promptPages,
+                limits,
                 knownPlans: known.map((k) => k.name),
                 channels: lib.channels,
                 services: [...lib.services, ...lib.channels],
@@ -1020,7 +1037,7 @@ export class LineupResearcher {
       out.accepted = plans.length;
       // grade completa só com todas as páginas lidas por inteiro e nada cortado (página que passou do
       // teto do prompt, planos, canais ou streamings além do limite): o que ficou de fora não é removido
-      const allRead = out.pages.every((p) => p.status === 'ok') && !pageExtractTruncated(promptPages);
+      const allRead = out.pages.every((p) => p.status === 'ok') && !out.promptCuts.length;
       if (plans.length || catalog.addons.length) {
         const r = await upsertLineupDraft(db, {
           platform: {
