@@ -151,6 +151,24 @@ export const AI_DEFAULT_MODELS = {
 
 const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,80}$/;
 
+/**
+ * AI_AGENT_USD_BUDGETS: `agente=US$` separados por vírgula (agente = prefixo do `purpose` em
+ * ops.llm_usage). Espelho de parseAgentUsdBudgets em services/ai-agents/src/llm/config.ts.
+ */
+const AGENT_USD_ENTRY = '[a-zA-Z0-9][a-zA-Z0-9@._-]*=\\d+(\\.\\d+)?';
+export const AGENT_USD_BUDGETS_PATTERN = new RegExp(`^${AGENT_USD_ENTRY}([,;\\s]+${AGENT_USD_ENTRY})*$`);
+
+/** `lineups=2,wtw=3` → `{ lineups: 2, wtw: 3 }`; vazio → `{}`; formato inválido → null. */
+export function parseAgentUsdBudgets(raw: string | null | undefined): Record<string, number> | null {
+  const out: Record<string, number> = {};
+  for (const part of (raw ?? '').split(/[,;\s]+/).filter(Boolean)) {
+    const m = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?)$/i.exec(part);
+    if (!m) return null;
+    out[m[1]!.toLowerCase()] = Number(m[2]);
+  }
+  return out;
+}
+
 const live = (def: Omit<SettingDef, 'section' | 'services' | 'apply'>): SettingDef => ({
   section: 'live',
   services: ['ingestor'],
@@ -254,6 +272,36 @@ export const SETTINGS: readonly SettingDef[] = [
     max: 100_000_000,
     unlimited: true,
     default: '2000000',
+    critical: true,
+  }),
+  // teto em US$ (tokens + buscas na web) somando todos os agentes; o de tokens acima continua valendo
+  agents('ai', {
+    key: 'AI_DAILY_USD_BUDGET',
+    type: 'number',
+    min: 0.5,
+    max: 10_000,
+    unlimited: true,
+    default: '10',
+    critical: true,
+  }),
+  // teto em US$ por agente (vazio = o padrão; agente fora da lista fica só no teto global)
+  agents('ai', {
+    key: 'AI_AGENT_USD_BUDGETS',
+    type: 'text',
+    pattern: AGENT_USD_BUDGETS_PATTERN,
+    allowEmpty: true,
+    default: 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=1',
+    critical: true,
+  }),
+  // buscas na web por chamada: OpenAI e Anthropic aplicam na API; o Gemini recebe no prompt e o
+  // painel conta as chamadas que passaram do teto
+  agents('ai', {
+    key: 'AI_MAX_SEARCHES_PER_CALL',
+    type: 'int',
+    min: 1,
+    max: 50,
+    unlimited: true,
+    default: '5',
     critical: true,
   }),
   agents('ai', { key: 'AI_MAX_RETRIES', type: 'int', min: 0, max: 10, default: '3' }),

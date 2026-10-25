@@ -107,6 +107,9 @@ export class OpenAiLlmClient implements LlmClient {
         tool.filters = { allowed_domains: req.allowedDomains.slice(0, OPENAI_MAX_ALLOWED_DOMAINS) };
       params.tools = [tool];
       params.tool_choice = 'auto';
+      // teto de buscas da chamada (AI_MAX_SEARCHES_PER_CALL, via orçamento): a única ferramenta embutida
+      // é a busca, então max_tool_calls limita as buscas
+      if (req.maxSearches !== undefined) params.max_tool_calls = req.maxSearches;
       params.include = ['web_search_call.action.sources'];
     }
     return params;

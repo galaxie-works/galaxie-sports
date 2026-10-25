@@ -16,6 +16,7 @@ export {
   type AnthropicMessagesApi,
 } from './providers/anthropic.js';
 export {
+  budgetPolicyFromSettings,
   createLlmClient,
   createLlmClientFromEnv,
   withTokenBudget,

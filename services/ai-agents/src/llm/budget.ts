@@ -1,7 +1,11 @@
 /**
- * Orçamento diário de tokens (AI_DAILY_TOKEN_BUDGET) compartilhado por TODOS os agentes.
+ * Orçamento diário de IA compartilhado por TODOS os agentes, em duas medidas:
+ * - tokens (AI_DAILY_TOKEN_BUDGET), o teto original;
+ * - US$ (AI_DAILY_USD_BUDGET global e AI_AGENT_USD_BUDGETS por agente), somando o custo dos tokens e o
+ *   das buscas na web (`cost_usd` de cada linha; o grounding do Gemini é cobrado por consulta).
  * Cada chamada ao LLM vira uma linha em `ops.llm_usage` (fonte da verdade); antes de chamar,
- * `TokenBudget.reserve` soma o consumo do dia UTC e recusa se a estimativa não couber.
+ * `TokenBudget.reserve` soma o consumo do dia UTC e recusa se a estimativa não couber. Agente que
+ * bate o próprio teto em US$ fica sem IA até a virada do dia UTC (segue com o determinístico).
  *
  * Uso por outros agentes: envolva o cliente com `new BudgetedLlmClient(client, budget)` e use
  * `purpose` no formato `<agente>:<detalhe>` (ex.: `live:priorities:2026-10-21`) — o prefixo é a
@@ -13,6 +17,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { llmUsage, type Database } from '@galaxie/db';
 import { BudgetExceededError, LlmError } from './errors.js';
+import { priceFor, searchUsdFor } from './pricing.js';
 import type { LlmClient, LlmJsonRequest, LlmResult, LlmTier, LlmUsage } from './types.js';
 
 /** `LlmUsage` com o número de buscas na web (campo extra preenchido pelos provedores). */
@@ -36,6 +41,8 @@ export interface UsageRecord {
 export interface TokenBudgetStore {
   /** Tokens (entrada + saída) usados no dia UTC — de um agente ou de todos. */
   usedTokens(dayUtc: string, agent?: string): Promise<number>;
+  /** US$ gastos no dia UTC (tokens + buscas, `cost_usd`) — de um agente ou de todos. */
+  usedUsd(dayUtc: string, agent?: string): Promise<number>;
   record(entry: UsageRecord): Promise<void>;
 }
 
@@ -52,6 +59,16 @@ export class PgTokenBudgetStore implements TokenBudgetStore {
   async usedTokens(dayUtc: string, agent?: string): Promise<number> {
     const [row] = await this.db
       .select({ total: sql<string | null>`sum(${llmUsage.inputTokens} + ${llmUsage.outputTokens})` })
+      .from(llmUsage)
+      .where(
+        agent ? and(eq(llmUsage.dayUtc, dayUtc), eq(llmUsage.agent, agent)) : eq(llmUsage.dayUtc, dayUtc),
+      );
+    return Number(row?.total ?? 0);
+  }
+
+  async usedUsd(dayUtc: string, agent?: string): Promise<number> {
+    const [row] = await this.db
+      .select({ total: sql<string | null>`sum(${llmUsage.costUsd})` })
       .from(llmUsage)
       .where(
         agent ? and(eq(llmUsage.dayUtc, dayUtc), eq(llmUsage.agent, agent)) : eq(llmUsage.dayUtc, dayUtc),
@@ -88,6 +105,12 @@ export class MemoryTokenBudgetStore implements TokenBudgetStore {
       .reduce((s, e) => s + e.inputTokens + e.outputTokens, 0);
   }
 
+  async usedUsd(dayUtc: string, agent?: string): Promise<number> {
+    return this.entries
+      .filter((e) => dayUtcOf(e.at) === dayUtc && (!agent || e.agent === agent))
+      .reduce((s, e) => s + (e.costUsd ?? 0), 0);
+  }
+
   async record(entry: UsageRecord): Promise<void> {
     this.entries.push(entry);
   }
@@ -98,6 +121,12 @@ export interface BudgetPolicy {
   dailyLimit: number | null;
   /** Limites opcionais por agente (ex.: { wtw: 1_200_000 }). */
   agentLimits?: Record<string, number>;
+  /** Teto global em US$ do dia (tokens + buscas); null/ausente = sem teto. */
+  dailyUsdLimit?: number | null;
+  /** Tetos em US$ por agente (ex.: { lineups: 2 }); 0 = agente sem IA. */
+  agentUsdLimits?: Record<string, number>;
+  /** Buscas na web por chamada; null/ausente = sem teto. */
+  maxSearchesPerCall?: number | null;
 }
 
 export interface BudgetStatus {
@@ -105,6 +134,15 @@ export interface BudgetStatus {
   used: number;
   limit: number | null;
   remaining: number | null;
+}
+
+export interface UsdBudgetStatus {
+  dayUtc: string;
+  usedUsd: number;
+  limitUsd: number | null;
+  remainingUsd: number | null;
+  /** Gasto bateu o teto: o agente (ou todos) fica sem IA até a virada do dia UTC. */
+  exhausted: boolean;
 }
 
 export class TokenBudget {
@@ -126,8 +164,27 @@ export class TokenBudget {
     return { dayUtc, used, limit, remaining: limit === null ? null : Math.max(0, limit - used) };
   }
 
-  /** Lança BudgetExceededError se `estimate` não couber no global nem no limite do agente. */
-  async reserve(agent: string, estimate: number): Promise<void> {
+  /** Gasto em US$ do dia: global (sem agente) ou do agente, contra o teto que vale para ele. */
+  async usdStatus(agent?: string): Promise<UsdBudgetStatus> {
+    const dayUtc = dayUtcOf(this.now());
+    const limitUsd = agent
+      ? (this.policy.agentUsdLimits?.[agent] ?? null)
+      : (this.policy.dailyUsdLimit ?? null);
+    const usedUsd = await this.store.usedUsd(dayUtc, agent);
+    return {
+      dayUtc,
+      usedUsd,
+      limitUsd,
+      remainingUsd: limitUsd === null ? null : Math.max(0, limitUsd - usedUsd),
+      exhausted: limitUsd !== null && usedUsd >= limitUsd,
+    };
+  }
+
+  /**
+   * Lança BudgetExceededError se `estimate` (tokens) não couber no global nem no limite do agente, ou se
+   * `estimateUsd` não couber no teto em US$ global ou do agente.
+   */
+  async reserve(agent: string, estimate: number, estimateUsd = 0): Promise<void> {
     const dayUtc = dayUtcOf(this.now());
     if (this.policy.dailyLimit !== null) {
       const used = await this.store.usedTokens(dayUtc);
@@ -139,6 +196,39 @@ export class TokenBudget {
       const used = await this.store.usedTokens(dayUtc, agent);
       if (used + estimate > agentLimit) throw new BudgetExceededError(agent, used, agentLimit, estimate);
     }
+    const usdLimit = this.policy.dailyUsdLimit ?? null;
+    if (usdLimit !== null) {
+      const used = await this.store.usedUsd(dayUtc);
+      if (used >= usdLimit || used + estimateUsd > usdLimit)
+        throw this.usdExceeded(dayUtc, 'global', used, usdLimit, estimateUsd);
+    }
+    const agentUsd = this.policy.agentUsdLimits?.[agent];
+    if (agentUsd !== undefined) {
+      const used = await this.store.usedUsd(dayUtc, agent);
+      if (used >= agentUsd || used + estimateUsd > agentUsd)
+        throw this.usdExceeded(dayUtc, agent, used, agentUsd, estimateUsd);
+    }
+  }
+
+  /** Avisos já dados neste processo (um por dia e teto: o log não repete a cada chamada recusada). */
+  private readonly warned = new Set<string>();
+
+  private usdExceeded(
+    dayUtc: string,
+    who: string,
+    used: number,
+    limit: number,
+    estimate: number,
+  ): BudgetExceededError {
+    const err = new BudgetExceededError(who, used, limit, estimate, 'usd');
+    const key = `${dayUtc}:${who}`;
+    if (!this.warned.has(key)) {
+      this.warned.add(key);
+      console.warn(
+        `[orçamento de IA] ${err.message} ${who === 'global' ? 'Todos os agentes seguem' : `O agente ${who} segue`} só com o determinístico até a virada do dia UTC.`,
+      );
+    }
+    return err;
   }
 
   async record(entry: Omit<UsageRecord, 'at'> & { at?: Date }): Promise<void> {
@@ -163,6 +253,28 @@ export function estimateRequestTokens(req: LlmJsonRequest): number {
   );
 }
 
+/** Buscas presumidas numa chamada com busca quando não há teto configurado. */
+export const UNCAPPED_SEARCH_ESTIMATE = 10;
+
+/**
+ * Estimativa conservadora em US$ de uma requisição: tokens de entrada (com o overhead da busca) e a saída
+ * máxima ao preço do modelo, mais o teto de buscas ao preço por busca do provedor. Modelo fora da tabela
+ * de preços conta só as buscas.
+ */
+export function estimateRequestUsd(req: LlmJsonRequest, model: string, provider: string): number {
+  const p = priceFor(model);
+  const outputTokens = req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
+  const inputTokens = Math.max(0, estimateRequestTokens(req) - outputTokens);
+  const tokensUsd = p ? (inputTokens * p.input + outputTokens * p.output) / 1_000_000 : 0;
+  const searches = req.webSearch ? (req.maxSearches ?? UNCAPPED_SEARCH_ESTIMATE) : 0;
+  return tokensUsd + searches * searchUsdFor(provider);
+}
+
+/** A chamada fez mais buscas que o teto (o Gemini não aplica o teto na API: o alerta é a defesa). */
+export function overSearchCap(searches: number, cap: number | null | undefined): boolean {
+  return cap !== null && cap !== undefined && searches > cap;
+}
+
 /** Decorador de LlmClient que aplica o orçamento e registra o uso de cada chamada. */
 export class BudgetedLlmClient implements LlmClient {
   constructor(
@@ -172,12 +284,29 @@ export class BudgetedLlmClient implements LlmClient {
     private readonly providerName = 'unknown',
   ) {}
 
-  async generateJson<T>(req: LlmJsonRequest): Promise<LlmResult<T>> {
-    const agent = agentOf(req.purpose);
-    await this.budget.reserve(agent, estimateRequestTokens(req));
+  async generateJson<T>(original: LlmJsonRequest): Promise<LlmResult<T>> {
+    const agent = agentOf(original.purpose);
+    const cap = this.budget.policy.maxSearchesPerCall ?? null;
+    // o teto de buscas vai para o provedor (OpenAI e Anthropic aplicam; o Gemini recebe no prompt)
+    const req: LlmJsonRequest =
+      original.webSearch && original.maxSearches === undefined && cap !== null
+        ? { ...original, maxSearches: cap }
+        : original;
+    await this.budget.reserve(
+      agent,
+      estimateRequestTokens(req),
+      estimateRequestUsd(req, req.model ?? this.modelOf(req.tier), this.providerName),
+    );
     try {
       const result = await this.inner.generateJson<T>(req);
       const usage = result.usage as UsageWithSearches;
+      const searches = usage.webSearchCalls ?? 0;
+      const searchCap = req.maxSearches ?? cap;
+      // fica no ledger (web_searches): o painel conta as chamadas acima do teto
+      if (overSearchCap(searches, searchCap))
+        console.warn(
+          `[orçamento de IA] ${req.purpose}: ${searches} buscas na web, acima do teto de ${searchCap} por chamada (${result.provider}/${result.model}).`,
+        );
       await this.budget.record({
         agent,
         purpose: req.purpose,

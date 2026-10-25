@@ -9,6 +9,7 @@ import {
   GeminiLlmClient,
   NO_RECITATION_NOTE,
   RESEARCH_STEP_NOTE,
+  searchCapNote,
   segmentOf,
   sourcesBlock,
   STRUCTURE_STEP_NOTE,
@@ -138,6 +139,7 @@ describe('GeminiLlmClient (API Interactions + Grounding with Google Search)', ()
     expect(f.calls[0]!.body!.system_instruction).toContain(RESEARCH_STEP_NOTE);
     expect(f.calls[0]!.body!.system_instruction).toContain(allowlistNote(['conmebol.com']));
     expect(allowlistNote([])).toBe('');
+    expect(f.calls[0]!.body!.system_instruction).not.toContain('no máximo'); // sem teto no pedido
     // passo 2: modelo leve, sem busca, JSON Schema, texto + fontes reais numeradas com os trechos
     const step2 = f.calls[1]!.body!;
     expect(step2).toMatchObject({
@@ -164,6 +166,20 @@ describe('GeminiLlmClient (API Interactions + Grounding with Google Search)', ()
       3 * GEMINI_GROUNDING_USD_PER_QUERY +
       (500 * 0.3 + 50 * 2.5) / 1_000_000;
     expect(r.usage.costUsd).toBeCloseTo(expected, 6);
+  });
+
+  it('teto de buscas: sem parâmetro na API, vai como instrução no passo 1 (o passo 2 não busca)', async () => {
+    const f = fakeFetch([research, ok('Fox Sports')]);
+    const client = new GeminiLlmClient({ apiKey: 'k', models: MODELS, fetch: f.fetch, retry: noSleep });
+    const r = await client.generateJson<{ answer: string }>(req({ maxSearches: 2 }));
+    expect(f.calls[0]!.body!.system_instruction).toContain(searchCapNote(2));
+    expect(searchCapNote(2)).toMatch(/no máximo 2 consultas/);
+    expect(searchCapNote(1)).toMatch(/no máximo 1 consulta /);
+    expect(searchCapNote(undefined)).toBe('');
+    expect(f.calls[0]!.body).not.toHaveProperty('max_searches');
+    expect(f.calls[1]!.body!.system_instruction).not.toContain('no máximo');
+    // a contagem real (3, acima do teto) volta no uso: o orçamento alerta e o ledger guarda
+    expect(r.usage).toMatchObject({ webSearchCalls: 3 });
   });
 
   it('sem busca: um passo só, com JSON Schema e sem groundedUrls', async () => {

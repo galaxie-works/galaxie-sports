@@ -425,7 +425,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
   const { t, locale } = useI18n();
   const T = t.ops;
   const f = useFormatters(timeZone);
-  const { totals, byAgent, budget } = snapshot.llm;
+  const { totals, byAgent, budget, usdBudget, agentUsdBudgets, maxSearchesPerCall } = snapshot.llm;
   const tokens = totals.inputTokens + totals.outputTokens;
   const usd = (v: number) =>
     new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(v);
@@ -438,18 +438,31 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2 text-sm">
           <span className="font-medium tabular-nums">
-            {budget
-              ? fill(T.status.llmTokens, { used: f.number(tokens), budget: f.number(budget) })
-              : fill(T.status.llmTokensUnlimited, { used: f.number(tokens) })}
+            {usdBudget
+              ? fill(T.status.llmUsd, { used: usd(totals.costUsd), budget: usd(usdBudget) })
+              : fill(T.status.llmUsdUnlimited, { used: usd(totals.costUsd) })}
           </span>
           <span className="text-xs tabular-nums">
-            {fill(T.status.llmCost, { cost: usd(totals.costUsd), calls: f.number(totals.calls) })}
+            {fill(T.status.llmCalls, {
+              calls: f.number(totals.calls),
+              searches: f.number(totals.webSearches),
+            })}
           </span>
         </div>
-        {budget ? <Progress value={Math.min(100, (tokens / budget) * 100)} /> : null}
+        {usdBudget ? <Progress value={Math.min(100, (totals.costUsd / usdBudget) * 100)} /> : null}
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {budget
+            ? fill(T.status.llmTokens, { used: f.number(tokens), budget: f.number(budget) })
+            : fill(T.status.llmTokensUnlimited, { used: f.number(tokens) })}
+        </span>
         {totals.errors ? (
           <span className="text-destructive text-xs">
             {plural(locale, totals.errors, T.status.llmErrors)}
+          </span>
+        ) : null}
+        {totals.overSearchCap && maxSearchesPerCall !== null ? (
+          <span className="text-warning text-xs">
+            {plural(locale, totals.overSearchCap, T.status.llmOverSearchCap, { max: maxSearchesPerCall })}
           </span>
         ) : null}
       </div>
@@ -458,20 +471,38 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
           <TableHeader>
             <TableRow>
               <TableHead>{T.status.agent}</TableHead>
+              <TableHead className="text-right">{T.status.searchesColumn}</TableHead>
               <TableHead className="text-right">{T.status.tokensColumn}</TableHead>
               <TableHead className="text-right">{T.status.costColumn}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {byAgent.map((a) => (
-              <TableRow key={a.agent}>
-                <TableCell className="font-mono text-xs">{a.agent}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {f.number(a.inputTokens + a.outputTokens)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{usd(a.costUsd)}</TableCell>
-              </TableRow>
-            ))}
+            {byAgent.map((a) => {
+              const cap = agentUsdBudgets[a.agent];
+              return (
+                <TableRow key={a.agent}>
+                  <TableCell className="font-mono text-xs">
+                    {a.agent}
+                    {cap !== undefined && a.costUsd >= cap ? (
+                      <Badge variant="destructive-light" className="ml-1.5">
+                        {T.status.llmAgentCapped}
+                      </Badge>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {f.number(a.webSearches)}
+                    {a.overSearchCap ? <span className="text-warning"> ({a.overSearchCap}!)</span> : null}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {f.number(a.inputTokens + a.outputTokens)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {usd(a.costUsd)}
+                    {cap !== undefined ? <span className="text-muted-foreground"> / {usd(cap)}</span> : null}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       ) : (

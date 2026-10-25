@@ -3,9 +3,24 @@
  * eles têm de ser os mesmos dos agentes.
  */
 import { WTW_COUNTRIES } from '@galaxie/where-to-watch';
-import { AI_DEFAULT_MODELS, AI_PROVIDERS, settingDef, WTW_MARKET_CODES } from '@galaxie/runtime-config';
+import {
+  AI_DEFAULT_MODELS,
+  AI_PROVIDERS,
+  parseAgentUsdBudgets as parseAgentUsdBudgetsPanel,
+  settingDef,
+  validateSettingKey,
+  WTW_MARKET_CODES,
+} from '@galaxie/runtime-config';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DAILY_TOKEN_BUDGET, DEFAULT_MODELS, LLM_PROVIDERS } from './llm/config.js';
+import {
+  DEFAULT_AGENT_USD_BUDGETS,
+  DEFAULT_DAILY_TOKEN_BUDGET,
+  DEFAULT_DAILY_USD_BUDGET,
+  DEFAULT_MAX_SEARCHES_PER_CALL,
+  DEFAULT_MODELS,
+  LLM_PROVIDERS,
+  parseAgentUsdBudgets,
+} from './llm/config.js';
 import { DEFAULT_MARKET_WEIGHTS, parseMarketWeights } from './related/budget.js';
 import { DEFAULT_CREATOR_MIN_SUBSCRIBERS } from './related/channels.js';
 import { relatedPolicyFromEnv } from './related/priority.js';
@@ -28,6 +43,9 @@ describe('registro do painel × padrões dos agentes', () => {
 
   it('orçamento, Onde Assistir e conteúdo relacionado', () => {
     expect(dflt('AI_DAILY_TOKEN_BUDGET')).toBe(String(DEFAULT_DAILY_TOKEN_BUDGET));
+    expect(dflt('AI_DAILY_USD_BUDGET')).toBe(String(DEFAULT_DAILY_USD_BUDGET));
+    expect(dflt('AI_AGENT_USD_BUDGETS')).toBe(DEFAULT_AGENT_USD_BUDGETS);
+    expect(dflt('AI_MAX_SEARCHES_PER_CALL')).toBe(String(DEFAULT_MAX_SEARCHES_PER_CALL));
     expect(dflt('WTW_MIN_RELEVANCE')).toBe(String(DEFAULT_MIN_RELEVANCE));
     expect(dflt('WTW_DAILY_USD_PER_MARKET')).toBe(String(DEFAULT_DAILY_USD_PER_MARKET));
     expect([...WTW_MARKET_CODES]).toEqual([...WTW_COUNTRIES]);
@@ -49,5 +67,21 @@ describe('registro do painel × padrões dos agentes', () => {
     expect(dflt('RELATED_LOOKBACK_HOURS')).toBe(String(p.lookbackHours));
     expect(dflt('RELATED_SECOND_SEARCH_MINUTES')).toBe(String(p.secondSearchMinutes));
     expect(parseMarketWeights(dflt('RELATED_MARKET_WEIGHTS'))).toEqual(DEFAULT_MARKET_WEIGHTS);
+  });
+});
+
+describe('tetos por agente: o painel e os agentes leem o mesmo formato', () => {
+  it('os dois parsers concordam e o padrão passa na validação do painel', () => {
+    for (const raw of [
+      DEFAULT_AGENT_USD_BUDGETS,
+      'Lineups=2; wtw=0.5 channels@v1=1',
+      '',
+      'wtw',
+      'a=-1',
+      'a=1,,b=2',
+    ])
+      expect(parseAgentUsdBudgetsPanel(raw)).toEqual(parseAgentUsdBudgets(raw));
+    expect(validateSettingKey('AI_AGENT_USD_BUDGETS', DEFAULT_AGENT_USD_BUDGETS)).toMatchObject({ ok: true });
+    expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups:2')).toMatchObject({ ok: false });
   });
 });
