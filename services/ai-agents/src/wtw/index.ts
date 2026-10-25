@@ -12,3 +12,4 @@ export * from './runner.js';
 export * from './rights-runner.js';
 export * from './plan.js';
 export * from './markets.js';
+export * from './channel/index.js';

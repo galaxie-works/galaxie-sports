@@ -164,11 +164,23 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
   {
     name: 'wtw-run',
     description:
-      'Onde Assistir: direitos (T-7d), alocação por rodada (T-48h, só quando os direitos dividem os jogos) e revalidações (T-3h, T-30min)',
+      'Onde Assistir: direitos (T-7d), alocação por rodada (T-48h, só com WTW_ROUND_ALLOCATION=on) e revalidações (T-3h, T-30min)',
     cron: '*/5 * * * *',
     script: 'dist/cli/wtw-run.js',
     cwd: '../ai-agents',
     args: ['--limite', '100', '--chamadas', '2'],
+    timeoutMs: 20 * MINUTE,
+  },
+  {
+    name: 'wtw-channel',
+    description:
+      'Onde Assistir: canal de cada jogo pela escala da rodada (T-5d, T-48h, T-6h) e confirmação depois do jogo (Gemini com fontes, validador determinístico)',
+    // um grupo (competição × rodada × janela × dia) é pesquisado uma vez; execução sem grupo devido só
+    // consulta o banco. Até 2 chamadas por execução (~US$ 0,15 cada), dentro do teto por mercado
+    cron: '*/10 * * * *',
+    script: 'dist/cli/wtw-channel.js',
+    cwd: '../ai-agents',
+    args: ['--chamadas', '2'],
     timeoutMs: 20 * MINUTE,
   },
   {

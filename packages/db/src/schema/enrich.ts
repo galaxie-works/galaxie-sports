@@ -530,7 +530,8 @@ export const wtwResearch = enrich.table(
   'wtw_research',
   {
     id: pkUuidV7(),
-    kind: text('kind').$type<'rights' | 'allocation'>().notNull(),
+    /** rights = direitos por temporada · allocation = alocação por rodada · channel = canal do jogo. */
+    kind: text('kind').$type<'rights' | 'allocation' | 'channel'>().notNull(),
     /** Chave idempotente (ex.: rights:<competição>:<temporada>:<mercados>). */
     researchKey: text('research_key').notNull(),
     competitionSlug: text('competition_slug').notNull(),
@@ -555,5 +556,75 @@ export const wtwResearch = enrich.table(
   (t) => [
     uniqueIndex('wtw_research_key_uq').on(t.researchKey),
     index('wtw_research_created_idx').on(t.createdAt),
+  ],
+);
+
+/**
+ * Canal do jogo (docs/07 §2.2.4): por jogo × país, qual detentor dos direitos passa (ou passou) o jogo,
+ * com a fonte que diz isso. Gravado pelo job `wtw-channel` só depois do validador determinístico
+ * (detentor conhecido da competição no país, fonte oficial ou imprensa esportiva, trecho com os dois
+ * times e o canal); na dúvida, nada é gravado e o jogo segue "a confirmar".
+ */
+export const MATCH_CHANNEL_STATUSES = ['confirmed', 'retracted'] as const;
+export type MatchChannelStatus = (typeof MATCH_CHANNEL_STATUSES)[number];
+/** official = organizador ou a própria emissora (e o grupo dela) · press = imprensa esportiva. */
+export const MATCH_CHANNEL_SOURCE_KINDS = ['official', 'press', 'editorial'] as const;
+export type MatchChannelSourceKind = (typeof MATCH_CHANNEL_SOURCE_KINDS)[number];
+/** Momento da confirmação: antes do jogo (escala da rodada) ou depois (quem transmitiu). */
+export const MATCH_CHANNEL_PHASES = ['pre', 'post'] as const;
+export type MatchChannelPhase = (typeof MATCH_CHANNEL_PHASES)[number];
+
+export type MatchChannelEvidence = {
+  url: string;
+  publisher: string;
+  /** Trecho (≤ 200 caracteres) com os dois times e o canal — paráfrase curta, nunca a matéria. */
+  excerpt: string;
+  /** Tipo do domínio (o validador só aceita estes): emissora/grupo e organizador = oficial. */
+  sourceKind: Extract<SourceKind, 'broadcaster' | 'organizer' | 'press' | 'editorial'>;
+  publishedAt: string | null;
+  /** A página respondeu e cita os dois times e o canal (true) · não foi possível buscar (null). */
+  pageVerified: boolean | null;
+  fetchedAt: string;
+};
+
+export const matchChannel = enrich.table(
+  'match_channel',
+  {
+    id: pkUuidV7(),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => event.id, { onDelete: 'cascade' }),
+    countryCode: text('country_code').notNull(),
+    /** Detentor (id da biblioteca de emissoras, config/broadcasters). */
+    broadcasterId: text('broadcaster_id').notNull(),
+    /** Canal específico da emissora (ex.: "SporTV 2"), quando a fonte diz. */
+    channelName: text('channel_name'),
+    status: text('status').$type<MatchChannelStatus>().notNull().default('confirmed'),
+    confidence: numeric('confidence', { precision: 3, scale: 2 }).notNull(),
+    /** Melhor fonte (oficial vale mais que imprensa). */
+    sourceKind: text('source_kind').$type<MatchChannelSourceKind>().notNull(),
+    sourceUrl: text('source_url').notNull(),
+    sourcePublisher: text('source_publisher').notNull(),
+    sourceExcerpt: text('source_excerpt').notNull(),
+    sourcePublishedAt: timestamp('source_published_at', { withTimezone: true }),
+    evidence: jsonb('evidence').$type<MatchChannelEvidence[]>().notNull(),
+    /** Fase da última confirmação. */
+    phase: text('phase').$type<MatchChannelPhase>().notNull(),
+    /** Janela que confirmou por último (T-5d, T-48h, T-6h, post, import). */
+    window: text('window').notNull(),
+    /** Pesquisa (enrich.wtw_research) da última confirmação; null = importado das opções salvas. */
+    researchId: uuid('research_id'),
+    firstConfirmedAt: timestamp('first_confirmed_at', { withTimezone: true }).notNull().defaultNow(),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Confirmado também depois do jogo (quem de fato transmitiu). */
+    postConfirmedAt: timestamp('post_confirmed_at', { withTimezone: true }),
+    retractedAt: timestamp('retracted_at', { withTimezone: true }),
+    retractedReason: text('retracted_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('match_channel_event_country_broadcaster_uq').on(t.eventId, t.countryCode, t.broadcasterId),
+    index('match_channel_event_country_idx').on(t.eventId, t.countryCode, t.status),
   ],
 );

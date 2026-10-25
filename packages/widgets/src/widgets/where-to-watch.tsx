@@ -5,10 +5,12 @@ import {
   type GsAvailability,
   type GsAvailabilityLogo,
   type GsBroadcastMedium,
+  type GsMatchChannel,
   type GsPlatformAvailability,
   type GsWatchOption,
   type GsWatchToConfirm,
   type GsWhereToWatch,
+  intlLocale,
 } from '../core/model.js';
 import {
   Crest,
@@ -118,6 +120,8 @@ interface Tile extends LogoPair {
 
 interface Groups {
   toConfirm: boolean;
+  /** Canal deste jogo por momento (ausente nas respostas antigas). */
+  matchChannel: GsMatchChannel | null;
   freeTv: Tile[];
   payTv: Tile[];
   /** Cartões "disponível também em", a operadora do tenant primeiro (mesmo sem o jogo na grade). */
@@ -183,6 +187,7 @@ function groupsOf(data: GsWhereToWatch, availability: GsAvailability): Groups {
   const payTv = availability.pay_tv_channels.map(tile);
   return {
     toConfirm,
+    matchChannel: availability.match_channel ?? null,
     freeTv,
     payTv,
     cards,
@@ -192,6 +197,70 @@ function groupsOf(data: GsWhereToWatch, availability: GsAvailability): Groups {
     // a operadora do tenant sozinha, sem o jogo na grade, não basta para trocar o modo
     count: freeTv.length + payTv.length + availability.platforms.length + others.length,
   };
+}
+
+/** "Globo, SporTV e Premiere" no idioma do widget. */
+function joinNames(names: string[], locale: string): string {
+  try {
+    return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(names);
+  } catch {
+    return names.join(', ');
+  }
+}
+
+const CONFIRMED_TITLE = { pre: 'confirmedPre', live: 'confirmedLive', post: 'confirmedPost' } as const;
+
+/**
+ * Aviso do canal do jogo: "Passa em X" / "Ao vivo em X" / "Transmitido por X" com a fonte; sem canal,
+ * "a confirmar" (a frase "sai mais perto da partida" só antes do jogo) ou, encerrado, "Não confirmamos".
+ */
+function MatchChannelNotice({ groups }: { groups: Groups }) {
+  const { texts, locale } = useGalaxieWidget();
+  const t = texts.watchGroups;
+  const mc = groups.matchChannel;
+  if (mc?.state === 'confirmed' && mc.channels.length) {
+    const source = mc.channels.find((c) => c.source)?.source ?? null;
+    const href = httpUrl(source?.url);
+    return (
+      <div className="gs-notice" role="note" data-gs-match-channel="confirmed" data-gs-phase={mc.phase}>
+        <strong>
+          {t[CONFIRMED_TITLE[mc.phase]].replace(
+            '{channels}',
+            joinNames(
+              mc.channels.map((c) => c.name),
+              intlLocale(locale),
+            ),
+          )}
+        </strong>
+        {source ? (
+          href ? (
+            <a className="gs-muted gs-small" href={href} target="_blank" rel="noreferrer">
+              {t.confirmedSource.replace('{publisher}', source.publisher)}
+            </a>
+          ) : (
+            <span className="gs-muted gs-small">
+              {t.confirmedSource.replace('{publisher}', source.publisher)}
+            </span>
+          )
+        ) : null}
+      </div>
+    );
+  }
+  if (mc?.state === 'not_confirmed')
+    return (
+      <div className="gs-notice" role="note" data-gs-to-confirm data-gs-match-channel="not_confirmed">
+        <strong>{t.notConfirmedTitle}</strong>
+      </div>
+    );
+  if (!groups.toConfirm) return null;
+  return (
+    <div className="gs-notice" role="note" data-gs-to-confirm>
+      <strong>{t.toConfirmTitle}</strong>
+      <span className="gs-muted gs-small">
+        {!mc || mc.phase === 'pre' ? t.toConfirmHint : t.toConfirmLiveHint}
+      </span>
+    </div>
+  );
 }
 
 function Groups({ groups, logoOf }: { groups: Groups; logoOf: (o: LogoPair) => string | null }) {
@@ -206,12 +275,7 @@ function Groups({ groups, logoOf }: { groups: Groups; logoOf: (o: LogoPair) => s
   );
   return (
     <>
-      {groups.toConfirm ? (
-        <div className="gs-notice" role="note" data-gs-to-confirm>
-          <strong>{t.toConfirmTitle}</strong>
-          <span className="gs-muted gs-small">{t.toConfirmHint}</span>
-        </div>
-      ) : null}
+      <MatchChannelNotice groups={groups} />
       {groups.freeTv.length ? (
         <div className="gs-group" data-gs-group="free_tv">
           <div className="gs-group-title">{t.freeTv}</div>

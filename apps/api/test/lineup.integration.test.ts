@@ -18,6 +18,7 @@ import {
   competition,
   createDb,
   event,
+  matchChannel,
   planChannel,
   planService,
   platform,
@@ -340,10 +341,104 @@ describe('GET /v1/events/{id}/where-to-watch → availability', () => {
       platforms: [],
       your_operator: null,
       channel_status: 'confirmed',
+      match_channel: {
+        phase: 'pre',
+        state: 'to_confirm',
+        headline: 'Canal deste jogo a confirmar',
+        hint: 'O canal do jogo sai mais perto da partida.',
+        channels: [],
+      },
     });
     const own = (await get(`/v1/events/${emptyEventId}/where-to-watch?country=BR`, keys.own)).json();
     expect(own.availability.platforms).toEqual([]);
     expect(own.availability.your_operator).toMatchObject({ platform: { id: ids.operator }, plans: [] });
+  });
+
+  it('canal do jogo por momento: encerrado com canal = "Transmitido por"; sem canal = "Não confirmamos"', async () => {
+    const [comp] = await db.select({ id: competition.id }).from(competition).limit(1);
+    const past = new Date(Date.now() - 6 * 3_600_000);
+    const finished = {
+      sport: 'football',
+      competitionId: comp!.id,
+      startsAt: past,
+      endsAtExpected: new Date(past.getTime() + 7_200_000),
+      status: 'finished' as const,
+    };
+    const [withChannel, without] = await db.insert(event).values([finished, finished]).returning();
+    // só o detentor dos direitos ("a confirmar") nos dois jogos
+    const probable = {
+      countryCode: 'BR',
+      providerName: 'Canal Exemplo',
+      broadcasterId: 'canal_exemplo',
+      medium: 'pay_tv' as const,
+      accessModel: 'subscription' as const,
+      status: 'probable' as const,
+      confidence: '0.80',
+      evidence: [],
+      flags: ['to_confirm'],
+      producedBy: 'agent:wtw@v1',
+    };
+    await db.insert(broadcastOption).values([
+      { ...probable, eventId: withChannel!.id },
+      { ...probable, eventId: without!.id },
+    ]);
+    // o job wtw-channel confirmou o canal do primeiro jogo, também depois do apito
+    const at = new Date(past.getTime() - 24 * 3_600_000);
+    await db.insert(matchChannel).values({
+      eventId: withChannel!.id,
+      countryCode: 'BR',
+      broadcasterId: 'canal_exemplo',
+      confidence: '0.90',
+      sourceKind: 'official',
+      sourceUrl: 'https://canal.exemplo.test/escala-da-rodada',
+      sourcePublisher: 'canal.exemplo.test',
+      sourceExcerpt: 'Time A x Time B, sábado, no Canal Exemplo',
+      evidence: [],
+      phase: 'post',
+      window: 'post',
+      firstConfirmedAt: at,
+      confirmedAt: new Date(),
+      postConfirmedAt: new Date(),
+    });
+
+    const body = (await get(`/v1/events/${withChannel!.id}/where-to-watch?country=BR`, keys.plain)).json();
+    expect(body.status).toBe('resolved');
+    expect(body.to_confirm).toEqual([]);
+    expect(body.options.map((o: { provider_id: string }) => o.provider_id)).toEqual(['canal_exemplo']);
+    expect(body.availability).toMatchObject({
+      channel_status: 'confirmed',
+      pay_tv_channels: [{ id: 'canal_exemplo', name: 'Canal Exemplo' }],
+      match_channel: {
+        phase: 'post',
+        state: 'confirmed',
+        headline: 'Transmitido por Canal Exemplo',
+        hint: null,
+        channels: [
+          {
+            id: 'canal_exemplo',
+            name: 'Canal Exemplo',
+            medium: 'pay_tv',
+            post_match: true,
+            confirmed_at: at.toISOString().replace(/\.\d{3}Z$/, 'Z'),
+            source: { kind: 'official', url: 'https://canal.exemplo.test/escala-da-rodada' },
+          },
+        ],
+      },
+    });
+
+    const none = (await get(`/v1/events/${without!.id}/where-to-watch?country=BR`, keys.plain)).json();
+    expect(none.availability.channel_status).toBe('to_confirm');
+    expect(none.availability.match_channel).toEqual({
+      phase: 'post',
+      state: 'not_confirmed',
+      headline: 'Não confirmamos o canal deste jogo',
+      hint: null,
+      channels: [],
+    });
+    const es = (
+      await get(`/v1/events/${without!.id}/where-to-watch?country=BR&locale=es-AR`, keys.plain)
+    ).json();
+    expect(es.availability.match_channel.headline).toBe('No confirmamos el canal de este partido');
   });
 
   it('canal a confirmar: os detentores no lugar dos canais e as plataformas que os carregam', async () => {

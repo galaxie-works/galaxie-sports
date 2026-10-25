@@ -94,7 +94,7 @@ Intervalos simulados (relógio e fornecedor falsos, cota contada pelo Governor) 
 | Item | Definição |
 |---|---|
 | Modelo | `claude-sonnet-5-5` com ferramenta de busca web (e *fetch* de páginas) |
-| Gatilhos | Direitos por temporada (job `wtw-rights`); alocação por rodada em T-48h; T-7d (direitos), T-3h e T-30min (revalidação, sem LLM); reexecução sob demanda (correção editorial) |
+| Gatilhos | Direitos por temporada (job `wtw-rights`); **canal do jogo** pela escala da rodada em T-5d, T-48h e T-6h e confirmação depois do jogo (job `wtw-channel`, §2.2.4); T-7d (direitos), T-3h e T-30min (revalidação, sem LLM); reexecução sob demanda (correção editorial) |
 | Escopo | Direitos: `(competição, temporada)` para todos os mercados numa chamada · alocação: `(competição, rodada)` para todos os mercados numa chamada, só onde os direitos dividem os jogos · publicação: `(evento, país)` para mercados ativos, tiers 1 e 2 |
 | Fontes priorizadas | 1) organizador da competição, 2) site/redes oficiais da emissora/plataforma, 3) clubes, 4) imprensa esportiva de referência do país |
 | Saída | Lista JSON de opções (schema em [04](04-modelo-de-dados.md#5-enrich--saídas-de-ia-e-fontes-externas)) com `evidence` (URL + trecho ≤ 200 caracteres) |
@@ -151,7 +151,7 @@ Exemplo do resultado esperado (Brasil, semifinal de Libertadores): TV aberta nac
 | Nível | Quando | O que faz | LLM |
 |---|---|---|---|
 | 1. Direitos por temporada | Job `wtw-rights` (05:40 e 17:40 UTC, até 4 pesquisas cada; só pesquisa o que falta) — provedor próprio opcional: `AI_RIGHTS_PROVIDER=gemini` (Grounding with Google Search, `GEMINI_API_KEY`), em dois passos — pesquisa em texto com a busca do Google e a allowlist no prompt (a busca não filtra domínios), depois o JSON montado pelo modelo leve só com as URLs reais das citações do grounding (`groundedUrls`; o agente descarta qualquer outra antes do validador) | Para cada (competição, temporada) com jogos nos próximos 45 dias e relevância ≥ `WTW_MIN_RELEVANCE` em algum mercado configurado (inclusive os que já têm direitos — a liga curada no próprio país ganha a pesquisa nos vizinhos pelo mesmo custo): **uma** chamada pesquisa os detentores em todos os mercados da América Latina sem linha curada (ou poucas, se a allowlist conjunta passar de 100 domínios — hoje os 8 mercados cabem numa). Saída por país: detentores, canais/serviços, tipo (TV aberta, TV paga, streaming), regra de distribuição (`exclusive`, `all_matches`, `split`, `selected`, `to_confirm`) e fontes. O validador de direitos confere cada detentor (dicionário do país, fonte acessível em domínio permitido que cita a emissora; ≥ 0,7 → confirmado) e grava em `enrich.broadcast_rights` (versionado). A linha curada de `config/broadcast-rights` **sempre vence**. Reconfirmação mensal sem tokens (fetch + hash das fontes); fonte que não sustenta mais → nova versão `pending` (`source_changed`) e nova pesquisa | 1 chamada por competição × temporada |
-| 2. Alocação por rodada | Janela T-48h do **primeiro** jogo da rodada | Só nos mercados cujos direitos **dividem** os jogos (`split`, `selected`, `to_confirm`), com relevância ≥ `WTW_MIN_RELEVANCE` e dentro do teto diário do mercado: **uma** chamada por (competição, rodada) para todos os jogos e mercados, restrita aos detentores conhecidos (até 12 jogos por chamada). Sem divisão, sai 100% dos direitos | 1 chamada por rodada (só com divisão) |
+| 2. Alocação por rodada | Janela T-48h do **primeiro** jogo da rodada — **desligada por padrão desde o canal do jogo** (`WTW_ROUND_ALLOCATION=on` religa); o nível 2 agora é o job `wtw-channel` (§2.2.4) | Só nos mercados cujos direitos **dividem** os jogos (`split`, `selected`, `to_confirm`), com relevância ≥ `WTW_MIN_RELEVANCE` e dentro do teto diário do mercado: **uma** chamada por (competição, rodada) para todos os jogos e mercados, restrita aos detentores conhecidos (até 12 jogos por chamada). Sem divisão, sai 100% dos direitos | 1 chamada por rodada (só com divisão) |
 | 3. Por jogo | T-7d, T-3h, T-30min | T-7d publica a resposta dos direitos; T-3h e T-30min refazem o fetch das URLs salvas (cache por URL na execução), reaplicam os direitos e revalidam — **nunca** chamam o LLM | — |
 
 **Janelas** (`wtw:run`, cron a cada 5 min; execuções idempotentes em `enrich.wtw_run`, `run_key = evento:país:janela`):
@@ -282,6 +282,48 @@ O provedor é o Gemini por padrão (`AI_CHANNELS_PROVIDER`, com `GEMINI_API_KEY`
 pnpm --filter @galaxie/ai-agents channels:match --plan         # o que seria enviado à IA (sem chamada)
 pnpm --filter @galaxie/ai-agents channels:match --falso        # dev: provedor falso (sem_canal_na_lista para as sobras)
 pnpm --filter @galaxie/ai-agents channels:match [--tenant <id>] [--max 10] [--repetir-falhas]
+```
+
+#### 2.2.4 Canal do jogo
+
+Os direitos dizem **quem pode** passar; o canal do jogo diz **quem passa este jogo**. No Brasileirão, por exemplo, oito detentores dividem os jogos e a escala sai por rodada nos sites das emissoras e na imprensa. Antes, um jogo encerrado podia seguir com "Canal deste jogo a confirmar — o canal do jogo sai mais perto da partida" (caso Mirassol × São Paulo, rodada 32): o canal nunca tinha sido resolvido e o texto não sabia o momento do jogo.
+
+| Peça | Onde | O que faz |
+|---|---|---|
+| Job | `wtw-channel` (cron a cada 10 min, `--chamadas 2`), `services/ai-agents/src/cli/wtw-channel.ts` | Grupos devidos → importação → pesquisa → validação → gravação |
+| Seleção e janelas | `services/ai-agents/src/wtw/channel/plan.ts`, `windows.ts` | Jogos tier ≤ 2 dos próximos 5 dias e os encerrados há até 72 h, por mercado ativo com direitos conhecidos que **dividem** os jogos (detentor exclusivo já é o canal) e relevância ≥ `WTW_MIN_RELEVANCE` — a **liga principal** do país (futebol, liga nacional tier 1) entra sempre e vai na frente da fila. Jogo × país que já tem canal de fonte oficial (antes) ou já confirmado depois do jogo não volta |
+| Pesquisa | `channel/agent.ts`, `prompt.ts`, `schema.ts` | **Uma** chamada `research` por grupo (competição × rodada × janela × dia), todos os jogos (até 12) e mercados juntos, Gemini com grounding em dois passos (`AI_MATCH_CHANNEL_PROVIDER`, padrão `gemini`; `AI_MATCH_CHANNEL_MODEL`). O modelo **só escolhe ids**: o jogo da lista (J1…Jn), o país, a emissora (enum com os detentores da linha de direitos) e o canal dela (enum); e aponta a fonte (URL da busca + trecho com os dois times e o canal). Consulta sugerida: "transmissão rodada 32 Brasileirão Série A 2026" |
+| Importação | `channel/runner.ts` | Antes de gastar a chamada: as opções salvas pelo agente com fonte do jogo (alocação anterior) passam pelo mesmo validador, com a página buscada de novo e **obrigatoriamente conferida** — o que passar vira canal do jogo (`window = import`) e o jogo × país sai da pesquisa |
+| Validador | `packages/where-to-watch/src/match-channel.ts` (`validateMatchChannels`, função pura) | Regras abaixo |
+| Gravação | `applyMatchChannels` → `enrich.match_channel` | Upsert por jogo × país × emissora, com a melhor fonte e as evidências; depois do jogo marca `post_confirmed_at`; publica `where_to_watch.changed` (purge de cache) |
+| Leitura | `getPublicWhereToWatch` → `availability.match_channel` ([05 §4.1.2](05-api-publica.md#412-grade-de-canais-e-ofertas--availability-e-v1platforms)) | Canal do jogo vira opção `confirmed`; título por momento (antes, ao vivo, encerrado) |
+
+**Janelas** (por grupo; uma chamada por janela — a mesma janela não pesquisa de novo, `research_key` em `enrich.wtw_research`, `kind = channel`):
+
+| Janela | Âncora | Fase |
+|---|---|---|
+| T-5d | primeiro jogo da rodada | antes (a escala costuma sair uma semana antes) |
+| T-48h | primeiro jogo da rodada | antes (escala definitiva) |
+| T-6h | primeiro jogo de cada **dia** da rodada | antes (troca de última hora) |
+| post | 3 h depois do último jogo do dia, até 72 h | depois (quem transmitiu) |
+
+**Regras do validador do canal (código):**
+
+1. A emissora é **detentora conhecida** da competição no país (linha de direitos efetiva, curada > pesquisada); fora da biblioteca → descartada. O canal só entra se for um canal daquela emissora.
+2. A URL veio da busca do provedor (`groundedUrls`), é http(s) pública e não está na blocklist. Provedor sem grounding garantido: só com a página conferida (item 4).
+3. Tipo da fonte pelo domínio: **oficial** (organizador, a própria emissora ou o grupo dela) = 0,9; **imprensa esportiva** do país (ou site de outra emissora) = 0,7; agregador e domínio desconhecido → descartada.
+4. O trecho cita os **dois times** (nome, nome curto ou o núcleo sem "FC", "Clube", "Atlético"…) e a **emissora/canal** (palavra inteira; "Globo" não casa com "Globoplay"). A página é buscada de novo: acessível e sem a emissora → evidência descartada; acessível com os dois times e a emissora → +0,1 (página conferida).
+5. Fonte com data mais de 30 dias antes do jogo → descartada (escala de outra rodada/temporada).
+6. +0,1 com duas fontes de domínios independentes. **Grava com ≥ 0,8**: oficial sozinha basta; imprensa sozinha precisa da página conferida ou de uma segunda fonte. **Na dúvida, nada é gravado** e o jogo segue "a confirmar".
+7. Fonte oficial vale mais: quando uma pesquisa confirma o jogo por fonte oficial, o canal que só a imprensa sustentava e que ela não repetiu é retirado (`retracted`, "a fonte oficial confirmou o jogo em outro canal"). Correção editorial vence o canal do jogo.
+
+**Custo:** uma chamada por grupo e janela (US$ ≈ 0,15, estimativa até haver histórico em `enrich.wtw_research`), no orçamento global de tokens (`ops.llm_usage`, `AI_DAILY_TOKEN_BUDGET`) e no teto por mercado (`WTW_DAILY_USD_PER_MARKET`). Uma rodada do Brasileirão: 3 chamadas antes (T-5d, T-48h e um T-6h por dia de jogo) + uma por dia depois. Execução sem grupo devido só consulta o banco. A alocação por rodada antiga (T-48h do `wtw-run`) fica desligada para não pagar duas vezes (`WTW_ROUND_ALLOCATION`).
+
+```bash
+pnpm --filter @galaxie/ai-agents wtw:channel --plan                                   # grupos devidos agora (sem LLM, sem gravar)
+pnpm --filter @galaxie/ai-agents wtw:channel --plan --competicao brasileirao-serie-a --rodada 32 --temporada 2026
+pnpm --filter @galaxie/ai-agents wtw:channel --plan --linha-de-base [--dias 7]        # encerrados com canal, por país e competição
+pnpm --filter @galaxie/ai-agents wtw:channel [--pais BR] [--chamadas 2] [--sem-importar]
 ```
 
 ### 2.3 Agente Cenário (pré-jogo) e Resumo (pós-jogo)

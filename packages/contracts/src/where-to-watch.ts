@@ -200,6 +200,66 @@ export const PlatformAvailability = z
   .meta({ id: 'PlatformAvailability' });
 export type PlatformAvailability = z.infer<typeof PlatformAvailability>;
 
+/** Momento do jogo para o onde assistir (status do evento). */
+export const MATCH_PHASES = ['pre', 'live', 'post'] as const;
+export const MATCH_CHANNEL_STATES = ['confirmed', 'to_confirm', 'not_confirmed'] as const;
+export const CONFIRMED_CHANNEL_SOURCE_KINDS = ['official', 'press', 'editorial', 'rights'] as const;
+
+export const ConfirmedChannelSource = z
+  .object({
+    publisher: z.string().meta({ example: 'ge.globo.com' }),
+    url: z.string(),
+    excerpt: z.string().meta({
+      description: 'Trecho curto da fonte com os dois times e o canal (paráfrase, nunca a matéria).',
+    }),
+    kind: z.enum(CONFIRMED_CHANNEL_SOURCE_KINDS).meta({
+      description:
+        'official = organizador ou a própria emissora (e o grupo dela) · press = imprensa esportiva · ' +
+        'editorial = correção da equipe · rights = a tabela de direitos garante o jogo (detentor exclusivo).',
+    }),
+  })
+  .meta({ id: 'ConfirmedChannelSource' });
+export type ConfirmedChannelSource = z.infer<typeof ConfirmedChannelSource>;
+
+/** Canal confirmado do jogo, com a fonte e a data. */
+export const ConfirmedChannel = AvailabilityLogo.extend({
+  channel: z.string().nullable().meta({ description: 'Canal específico da emissora (ex.: "SporTV 2").' }),
+  medium: z.enum(BROADCAST_MEDIA),
+  confirmed_at: z
+    .string()
+    .meta({ description: 'Quando o canal deste jogo foi confirmado pela primeira vez.' }),
+  post_match: z
+    .boolean()
+    .meta({ description: 'Confirmado também depois do jogo (quem de fato transmitiu).' }),
+  source: ConfirmedChannelSource.nullable(),
+}).meta({ id: 'ConfirmedChannel' });
+export type ConfirmedChannel = z.infer<typeof ConfirmedChannel>;
+
+/**
+ * Canal do jogo por momento (antes, ao vivo, encerrado). `headline` já vem no idioma pedido:
+ * "Passa em Globo e Premiere" · "Ao vivo em Premiere" · "Transmitido por Premiere" ·
+ * "Canal deste jogo a confirmar" · "Não confirmamos o canal deste jogo" (encerrado sem canal).
+ */
+export const MatchChannel = z
+  .object({
+    phase: z.enum(MATCH_PHASES).meta({
+      description: 'pre = antes do jogo (inclui adiado) · live = em andamento · post = encerrado.',
+    }),
+    state: z.enum(MATCH_CHANNEL_STATES).meta({
+      description:
+        'confirmed = há canal confirmado para ESTE jogo · to_confirm = antes/ao vivo sem canal confirmado · ' +
+        'not_confirmed = jogo encerrado cujo canal nunca foi confirmado.',
+    }),
+    headline: z.string().meta({ example: 'Transmitido por Premiere' }),
+    hint: z.string().nullable().meta({
+      description:
+        'Complemento do título. Só antes do jogo e sem canal ("O canal do jogo sai mais perto da partida"); null nos demais.',
+    }),
+    channels: z.array(ConfirmedChannel),
+  })
+  .meta({ id: 'MatchChannel', description: 'Canal confirmado do jogo, com a fonte, por momento do jogo.' });
+export type MatchChannel = z.infer<typeof MatchChannel>;
+
 export const WhereToWatchAvailability = z
   .object({
     free_tv: z.array(AvailabilityLogo).meta({ description: 'Canais abertos com o jogo.' }),
@@ -220,6 +280,7 @@ export const WhereToWatchAvailability = z
         'pagos e plataformas são os dos detentores dos direitos no país (os mesmos de `to_confirm`), não ' +
         'o canal do jogo. `confirmed` nos demais casos.',
     }),
+    match_channel: MatchChannel,
   })
   .meta({
     id: 'WhereToWatchAvailability',

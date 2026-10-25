@@ -72,6 +72,7 @@ describe('scheduleFromEnv', () => {
     expect(jobs.map((j) => j.name)).toEqual([
       'recap-run',
       'wtw-run',
+      'wtw-channel',
       'related-run',
       'wtw-rights',
       'review-suggestions',

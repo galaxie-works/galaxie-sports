@@ -76,9 +76,17 @@ export interface WtwPolicy {
   minRelevance: number;
   /** Teto diário de US$ por mercado (custo das chamadas rateado pelos mercados de cada uma). */
   dailyUsdPerMarket: number | null;
+  /**
+   * Alocação por rodada em T-48h (`wtw-run`, desenho anterior). Desligada por padrão: o canal de cada
+   * jogo sai do job `wtw-channel` (T-5d, T-48h, T-6h e depois do jogo). Ausente = ligada (legado).
+   */
+  roundAllocation?: boolean;
 }
 
-/** WTW_MIN_RELEVANCE (padrão 60) e WTW_DAILY_USD_PER_MARKET (padrão 1; 0 ou "unlimited" = sem teto). */
+/**
+ * WTW_MIN_RELEVANCE (padrão 60), WTW_DAILY_USD_PER_MARKET (padrão 1; 0 ou "unlimited" = sem teto) e
+ * WTW_ROUND_ALLOCATION (padrão off: o canal do jogo é do job `wtw-channel`).
+ */
 export function wtwPolicyFromEnv(env: Record<string, string | undefined> = process.env): WtwPolicy {
   const rel = env.WTW_MIN_RELEVANCE?.trim();
   const minRelevance = rel ? Number(rel) : DEFAULT_MIN_RELEVANCE;
@@ -92,5 +100,6 @@ export function wtwPolicyFromEnv(env: Record<string, string | undefined> = proce
     if (!Number.isFinite(dailyUsdPerMarket) || dailyUsdPerMarket < 0)
       throw new Error('WTW_DAILY_USD_PER_MARKET precisa ser um número ≥ 0 (ou "unlimited").');
   }
-  return { minRelevance, dailyUsdPerMarket };
+  const roundAllocation = ['on', 'true', '1'].includes(env.WTW_ROUND_ALLOCATION?.trim().toLowerCase() ?? '');
+  return { minRelevance, dailyUsdPerMarket, roundAllocation };
 }

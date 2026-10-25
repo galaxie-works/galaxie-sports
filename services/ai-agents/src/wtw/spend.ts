@@ -9,7 +9,7 @@ import { wtwResearch, type Database } from '@galaxie/db';
 import type { UsageWithSearches } from '../llm/budget.js';
 
 /** Estimativas iniciais (medidas no teste real de 2026-10-22; o histórico substitui quando houver). */
-export const DEFAULT_CALL_USD = { allocation: 0.15, rights: 0.25 } as const;
+export const DEFAULT_CALL_USD = { allocation: 0.15, rights: 0.25, channel: 0.15 } as const;
 export type ResearchKind = keyof typeof DEFAULT_CALL_USD;
 
 export const dayStartUtc = (now: Date) => new Date(`${now.toISOString().slice(0, 10)}T00:00:00Z`);

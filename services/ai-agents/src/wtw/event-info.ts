@@ -11,6 +11,9 @@ export interface EventInfo {
   competition: { id: string; slug: string; name: string; tier: number; countryCode: string | null } | null;
   home: string | null;
   away: string | null;
+  /** Nomes curtos do mandante e do visitante (casam o trecho da fonte no canal do jogo). */
+  homeShort?: string | null;
+  awayShort?: string | null;
   participants: string[];
   /** País de cada participante (relevância por mercado). */
   participantCountries?: (string | null)[];
@@ -42,6 +45,7 @@ export async function loadEventInfos(db: Database, eventIds: string[]): Promise<
       eventId: eventParticipant.eventId,
       side: eventParticipant.side,
       name: participant.name,
+      shortName: participant.shortName,
       country: participant.countryCode,
     })
     .from(eventParticipant)
@@ -66,6 +70,8 @@ export async function loadEventInfos(db: Database, eventIds: string[]): Promise<
         : null,
       home: mine.find((p) => p.side === 'home')?.name ?? null,
       away: mine.find((p) => p.side === 'away')?.name ?? null,
+      homeShort: mine.find((p) => p.side === 'home')?.shortName ?? null,
+      awayShort: mine.find((p) => p.side === 'away')?.shortName ?? null,
       participants: mine.map((p) => p.name),
       participantCountries: mine.map((p) => p.country),
       round: row.round,

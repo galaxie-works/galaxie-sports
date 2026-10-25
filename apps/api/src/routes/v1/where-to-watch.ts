@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { WhereToWatchParams, WhereToWatchQuery, type WhereToWatch } from '@galaxie/contracts';
-import { getPublicWhereToWatch, unknownMessage } from '@galaxie/where-to-watch';
+import { getPublicWhereToWatch, matchChannelHeadline, unknownMessage } from '@galaxie/where-to-watch';
 import { assertMarket } from '../../auth/authenticator.js';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
@@ -47,6 +47,25 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
           l ? assetUrl(ctx.assetsBaseUrl, l.storageKey, l.sourceUrl) : null;
         const logoDark = (l: { darkStorageKey: string | null } | null) =>
           l?.darkStorageKey ? assetUrl(ctx.assetsBaseUrl, l.darkStorageKey, null) : null;
+        // canal do jogo por momento: "Passa em X", "Ao vivo em X", "Transmitido por X" ou o aviso
+        const mc = data.matchChannel;
+        const names = mc.channels.map((c) => c.option.row.channelName ?? c.option.row.providerName);
+        const matchChannel = {
+          phase: mc.phase,
+          state: mc.state,
+          ...matchChannelHeadline(mc.state, mc.phase, names, locale),
+          channels: mc.channels.map((c) => ({
+            id: c.option.row.broadcasterId ?? c.option.row.id,
+            name: c.option.row.channelName ?? c.option.row.providerName,
+            channel: c.option.row.channelName,
+            medium: c.option.row.medium,
+            logo: logo(c.option.logo),
+            logo_dark: logoDark(c.option.logo),
+            confirmed_at: formatInstant(c.confirmedAt, tz),
+            post_match: c.postMatch,
+            source: c.source,
+          })),
+        };
         const { availability, platformIds } = await buildAvailability({
           db,
           lineup: ctx.lineup,
@@ -55,6 +74,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
           options: data.options,
           optionLogo: (o) => ({ logo: logo(o.logo), logo_dark: logoDark(o.logo) }),
           operator,
+          matchChannel,
           // canal a confirmar: as plataformas dos detentores dos direitos no país
           toConfirm: [
             ...data.toConfirm.map(({ row, logo: l }) => ({

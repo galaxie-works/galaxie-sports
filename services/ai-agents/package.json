@@ -33,6 +33,7 @@
     "wtw:audit": "node --env-file-if-exists=../../.env dist/cli/wtw-audit.js",
     "related:run": "node --env-file-if-exists=../../.env dist/cli/related-run.js",
     "wtw:rights": "node --env-file-if-exists=../../.env dist/cli/wtw-rights.js",
+    "wtw:channel": "node --env-file-if-exists=../../.env dist/cli/wtw-channel.js",
     "f1:bio": "node --env-file-if-exists=../../.env dist/cli/f1-bio.js",
     "lineups:research": "node --env-file-if-exists=../../.env dist/cli/lineups-research.js",
     "lineups:pages": "node --env-file-if-exists=../../.env dist/cli/lineups-pages.js",

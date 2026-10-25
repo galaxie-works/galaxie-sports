@@ -215,6 +215,51 @@ describe('WhereToWatch', () => {
     expect(container.querySelector('.gs-platform')).toBeNull();
   });
 
+  it('canal do jogo: "Passa em" antes; encerrado "Transmitido por" ou "Não confirmamos", sem "sai mais perto"', async () => {
+    const base = createPreviewFixtures().whereToWatch;
+    const pre = setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="BR" />);
+    expect(await screen.findByText('Passa em Exemplo Play')).toBeTruthy();
+    expect(pre.container.querySelector('[data-gs-match-channel="confirmed"]')).toBeTruthy();
+    pre.unmount();
+
+    const post = setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="BR" />, {
+      fetchImpl: wtwWith({
+        availability: {
+          ...base.availability!,
+          match_channel: {
+            ...base.availability!.match_channel!,
+            phase: 'post',
+            channels: [
+              {
+                ...base.availability!.match_channel!.channels[0]!,
+                source: { publisher: 'exemplo.test', url: 'https://exemplo.test/escala', kind: 'official' },
+              },
+            ],
+          },
+        },
+      }),
+    });
+    expect(await screen.findByText('Transmitido por Exemplo Play')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Fonte: exemplo.test' }).getAttribute('href')).toBe(
+      'https://exemplo.test/escala',
+    );
+    post.unmount();
+
+    const none = setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="BR" />, {
+      fetchImpl: wtwWith({
+        status: 'unknown',
+        options: [],
+        availability: {
+          ...base.availability!,
+          channel_status: 'to_confirm',
+          match_channel: { phase: 'post', state: 'not_confirmed', headline: '', hint: null, channels: [] },
+        },
+      }),
+    });
+    expect(await screen.findByText('Não confirmamos o canal deste jogo')).toBeTruthy();
+    expect(none.container.textContent).not.toContain('sai mais perto da partida');
+  });
+
   it('canal a confirmar: aviso e os cartões das plataformas dos detentores, sem link', async () => {
     const base = createPreviewFixtures().whereToWatch;
     const { container } = setup(<WhereToWatch eventId={PREVIEW_IDS.liveEvent} market="BR" />, {
@@ -237,6 +282,7 @@ describe('WhereToWatch', () => {
           free_tv: [],
           platforms: base.availability!.platforms.slice(0, 2),
           channel_status: 'to_confirm',
+          match_channel: { phase: 'pre', state: 'to_confirm', headline: '', hint: null, channels: [] },
         },
       }),
     });

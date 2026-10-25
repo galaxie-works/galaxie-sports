@@ -1,5 +1,5 @@
 import type { AvailabilityLogo, PlatformAvailability } from '@galaxie/contracts';
-import { CircleDashed } from 'lucide-react';
+import { CircleCheck, CircleDashed, Radio } from 'lucide-react';
 
 import { Badge } from '@/components/reui/badge';
 import { Item, ItemContent, ItemHeader, ItemMedia, ItemTitle } from '@/components/ui/item';
@@ -233,7 +233,115 @@ function PlatformCard({ entry, mine, t }: { entry: PlatformAvailability; mine: b
  * Onde assistir agrupado: TV aberta, canais pagos e "disponível também em" (um cartão por operadora ou
  * streaming). Sem plataforma, os cartões não aparecem; os outros grupos seguem.
  */
-export function WhereToWatchGroups({ groups, t }: { groups: WatchGroups; t: T }) {
+/** "Globo, SporTV e Premiere" no idioma do conteúdo. */
+function joinNames(names: string[], locale: string): string {
+  try {
+    return new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(names);
+  } catch {
+    return names.join(', ');
+  }
+}
+
+const CONFIRMED_TITLE = { pre: 'confirmedPre', live: 'confirmedLive', post: 'confirmedPost' } as const;
+
+/**
+ * Aviso do canal do jogo por momento: "Passa em X" (antes), "Ao vivo em X", "Transmitido por X"
+ * (encerrado), com a fonte; sem canal, "a confirmar" — a dica "sai mais perto da partida" só antes do
+ * jogo — ou, encerrado, "Não confirmamos o canal deste jogo". Nunca inventa reprise: depois do jogo,
+ * só aponta os vídeos relacionados que já existem.
+ */
+export function MatchChannelNotice({
+  groups,
+  t,
+  listLocale,
+  relatedHref,
+}: {
+  groups: WatchGroups;
+  t: T;
+  listLocale: string;
+  relatedHref?: string | null | undefined;
+}) {
+  const mc = groups.matchChannel;
+  const highlights =
+    mc?.phase === 'post' && relatedHref ? (
+      <a href={relatedHref} className="text-primary text-xs font-medium hover:underline">
+        {t.highlights}
+      </a>
+    ) : null;
+  if (mc?.state === 'confirmed' && mc.channels.length) {
+    const source = mc.channels.find((c) => c.source)?.source ?? null;
+    return (
+      <div
+        className="bg-primary/5 flex items-start gap-2 rounded-md border p-2.5"
+        data-testid="match-channel"
+        data-state="confirmed"
+        data-phase={mc.phase}
+      >
+        {mc.phase === 'live' ? (
+          <Radio className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+        ) : (
+          <CircleCheck className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+        )}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium">
+            {fill(t[CONFIRMED_TITLE[mc.phase]], {
+              channels: joinNames(
+                mc.channels.map((c) => c.name),
+                listLocale,
+              ),
+            })}
+          </span>
+          {source ? (
+            <span className="text-muted-foreground text-xs">
+              <a href={source.url} target="_blank" rel="noreferrer" className="hover:underline">
+                {fill(t.confirmedSource, { publisher: source.publisher })}
+              </a>
+              {t.sourceKind[source.kind] ? ` · ${t.sourceKind[source.kind]}` : ''}
+            </span>
+          ) : null}
+          {highlights}
+        </div>
+      </div>
+    );
+  }
+  const notConfirmed = mc?.state === 'not_confirmed';
+  if (!groups.toConfirm && !notConfirmed) return null;
+  const hint = notConfirmed
+    ? groups.toConfirm
+      ? t.notConfirmedHint
+      : null
+    : !mc || mc.phase === 'pre'
+      ? t.toConfirmHint
+      : t.toConfirmLiveHint;
+  return (
+    <div
+      className="bg-muted/50 flex items-start gap-2 rounded-md border border-dashed p-2.5"
+      data-testid="channel-to-confirm"
+      data-state={mc?.state ?? 'to_confirm'}
+    >
+      <CircleDashed className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm font-medium">{notConfirmed ? t.notConfirmedTitle : t.toConfirmTitle}</span>
+        {hint ? <span className="text-muted-foreground text-xs">{hint}</span> : null}
+        {highlights}
+      </div>
+    </div>
+  );
+}
+
+export function WhereToWatchGroups({
+  groups,
+  t,
+  listLocale = 'pt-BR',
+  relatedHref,
+}: {
+  groups: WatchGroups;
+  t: T;
+  /** Idioma do conteúdo (lista de canais "Globo e Premiere"). */
+  listLocale?: string;
+  /** Âncora dos vídeos relacionados do jogo (melhores momentos), quando existem. */
+  relatedHref?: string | null;
+}) {
   const mineId = groups.yourOperator?.platform.id ?? null;
   // a operadora do tenant sem o jogo na grade entra como cartão próprio, com o aviso
   const cards =
@@ -243,18 +351,7 @@ export function WhereToWatchGroups({ groups, t }: { groups: WatchGroups; t: T })
   const alsoOn = cards.length + groups.others.length > 0;
   return (
     <div className="flex flex-col gap-4">
-      {groups.toConfirm ? (
-        <div
-          className="bg-muted/50 flex items-start gap-2 rounded-md border border-dashed p-2.5"
-          data-testid="channel-to-confirm"
-        >
-          <CircleDashed className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm font-medium">{t.toConfirmTitle}</span>
-            <span className="text-muted-foreground text-xs">{t.toConfirmHint}</span>
-          </div>
-        </div>
-      ) : null}
+      <MatchChannelNotice groups={groups} t={t} listLocale={listLocale} relatedHref={relatedHref} />
       {groups.freeTv.length ? (
         <Group title={t.freeTv}>
           <ul className="flex flex-wrap gap-2">

@@ -321,6 +321,7 @@ function WhereToWatchCard({
   locale,
   content,
   t,
+  relatedHref,
 }: {
   eventId: string;
   wtw: WhereToWatch | null;
@@ -328,6 +329,8 @@ function WhereToWatchCard({
   locale: Locale;
   content: SupportedLocale;
   t: Dictionary;
+  /** Âncora dos vídeos relacionados (melhores momentos) do jogo, quando existem. */
+  relatedHref?: string | null;
 }) {
   const tx = t.event.whereToWatch;
   // TV aberta, canais pagos e "disponível também em" (operadoras e streamings com o plano)
@@ -353,11 +356,16 @@ function WhereToWatchCard({
           }))}
         />
         {groups && hasGroups(groups) ? (
-          <WhereToWatchGroups groups={groups} t={tx} />
+          <WhereToWatchGroups groups={groups} t={tx} listLocale={content} relatedHref={relatedHref} />
         ) : wtw?.to_confirm?.length ? (
           // Direitos conhecidos no país, mas o canal deste jogo ainda não foi alocado pela rodada.
           <div className="flex flex-col gap-2">
-            <p className="text-muted-foreground text-xs">{tx.rightsHolders}</p>
+            <p className="text-muted-foreground text-xs">
+              {/* encerrado sem canal confirmado: nunca "sai mais perto da partida" */}
+              {wtw.availability?.match_channel?.state === 'not_confirmed'
+                ? tx.rightsHoldersPost
+                : tx.rightsHolders}
+            </p>
             <ul className="flex flex-col gap-2">
               {wtw.to_confirm.map((c) => (
                 <li
@@ -633,19 +641,22 @@ export async function EventContent({ params, searchParams, source }: PageContent
                 locale={locale}
                 content={content}
                 t={t}
+                relatedHref={related?.data.length ? '#conteudo-relacionado' : null}
               />
             )}
           </div>
         </div>
         {!source.showcase && related?.data.length ? (
-          <Section
-            title={t.event.related.title}
-            icon={<Clapperboard className="size-4" aria-hidden />}
-            description={t.event.related.description}
-            api={relatedRequest(id, locale, content, country)}
-          >
-            <RelatedContentGrid related={related} />
-          </Section>
+          <div id="conteudo-relacionado" className="scroll-mt-20">
+            <Section
+              title={t.event.related.title}
+              icon={<Clapperboard className="size-4" aria-hidden />}
+              description={t.event.related.description}
+              api={relatedRequest(id, locale, content, country)}
+            >
+              <RelatedContentGrid related={related} />
+            </Section>
+          </div>
         ) : null}
       </div>
     </>

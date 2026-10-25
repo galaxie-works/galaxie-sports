@@ -293,6 +293,11 @@ export default defineMessages(
           label: 'Onde Assistir: rodadas',
           description: 'Confirma onde cada jogo passa, por mercado, perto do horário do jogo.',
         },
+        'wtw-channel': {
+          label: 'Onde Assistir: canal do jogo',
+          description:
+            'Descobre o canal de cada jogo pela escala da rodada (5 dias, 48 h e 6 h antes) e confirma depois do jogo.',
+        },
         'related-run': {
           label: 'Vídeos relacionados',
           description: 'Busca no YouTube os vídeos dos jogos encerrados nas últimas 48 horas.',
@@ -898,6 +903,11 @@ export default defineMessages(
           'wtw-run': {
             label: 'Where to Watch: rounds',
             description: 'Confirms where each match airs, per market, close to kick-off.',
+          },
+          'wtw-channel': {
+            label: 'Where to Watch: match channel',
+            description:
+              'Finds each match channel from the round schedule (5 days, 48 h and 6 h before) and confirms it after the match.',
           },
           'related-run': {
             label: 'Related videos',
@@ -1509,6 +1519,11 @@ export default defineMessages(
           'wtw-run': {
             label: 'Dónde ver: fechas',
             description: 'Confirma dónde pasan cada partido, por mercado, cerca del horario.',
+          },
+          'wtw-channel': {
+            label: 'Dónde ver: canal del partido',
+            description:
+              'Descubre el canal de cada partido por la programación de la fecha (5 días, 48 h y 6 h antes) y lo confirma después.',
           },
           'related-run': {
             label: 'Videos relacionados',

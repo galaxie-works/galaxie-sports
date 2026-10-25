@@ -114,6 +114,20 @@ export function channelsLlmEnv(env: Env = process.env): Env {
   return agentLlmEnv(env, env.AI_CHANNELS_PROVIDER || 'gemini', env.AI_CHANNELS_MODEL, 'AI_MODEL_STANDARD');
 }
 
+/**
+ * Ambiente do canal do jogo (`wtw-channel`): o Gemini por padrão (`AI_MATCH_CHANNEL_PROVIDER`, com
+ * `GEMINI_API_KEY`) — o pedido em dois passos garante que toda URL de evidência veio da busca —,
+ * modelo `AI_MATCH_CHANNEL_MODEL` (nível research).
+ */
+export function matchChannelLlmEnv(env: Env = process.env): Env {
+  return agentLlmEnv(
+    env,
+    env.AI_MATCH_CHANNEL_PROVIDER || 'gemini',
+    env.AI_MATCH_CHANNEL_MODEL,
+    'AI_MODEL_RESEARCH',
+  );
+}
+
 function agentLlmEnv(
   env: Env,
   providerValue: string | undefined,

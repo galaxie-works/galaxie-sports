@@ -87,6 +87,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'recap-run', service: 'agents', cron: '*/5 * * * *', runNow: true },
   { name: 'context-run', service: 'agents', cron: '10 * * * *', runNow: true },
   { name: 'wtw-run', service: 'agents', cron: '*/5 * * * *', runNow: false },
+  { name: 'wtw-channel', service: 'agents', cron: '*/10 * * * *', runNow: false },
   { name: 'related-run', service: 'agents', cron: '*/3 * * * *', runNow: false },
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
   { name: 'review-suggestions', service: 'agents', cron: '*/15 * * * *', runNow: true },
@@ -279,6 +280,23 @@ export const SETTINGS: readonly SettingDef[] = [
     default: null,
   }),
   agents('wtw', { key: 'WTW_MIN_RELEVANCE', type: 'number', min: 0, max: 100, default: '60' }),
+  // alocação por rodada do wtw-run (desenho anterior); o canal do jogo é do job wtw-channel
+  agents('wtw', { key: 'WTW_ROUND_ALLOCATION', type: 'enum', options: ['off', 'on'], default: 'off' }),
+  // canal do jogo (wtw-channel): Gemini por padrão — o grounding garante as URLs das fontes
+  agents('wtw', {
+    key: 'AI_MATCH_CHANNEL_PROVIDER',
+    type: 'enum',
+    options: AI_PROVIDERS,
+    allowEmpty: true,
+    default: null,
+  }),
+  agents('wtw', {
+    key: 'AI_MATCH_CHANNEL_MODEL',
+    type: 'text',
+    pattern: MODEL_ID,
+    allowEmpty: true,
+    default: null,
+  }),
   // pesquisa de direitos por temporada com outro provedor (vazio = o AI_PROVIDER dos demais agentes)
   agents('wtw', {
     key: 'AI_RIGHTS_PROVIDER',

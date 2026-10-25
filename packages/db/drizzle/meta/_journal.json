@@ -267,6 +267,13 @@
       "when": 1792877489966,
       "tag": "0037_standing_inscricao",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792900000000,
+      "tag": "0040_canal_do_jogo",
+      "breakpoints": true
     }
   ]
 }

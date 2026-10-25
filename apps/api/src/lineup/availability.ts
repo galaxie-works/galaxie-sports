@@ -395,6 +395,7 @@ export const EMPTY_AVAILABILITY: WhereToWatchAvailability = {
   platforms: [],
   your_operator: null,
   channel_status: 'confirmed',
+  match_channel: { phase: 'pre', state: 'to_confirm', headline: '', hint: null, channels: [] },
 };
 
 /**
@@ -414,6 +415,8 @@ export async function buildAvailability(input: {
   operator: Operator | null;
   /** Detentores sem o jogo confirmado; só contam quando não há opção publicada. */
   toConfirm?: RightsHolder[];
+  /** Canal do jogo por momento (antes, ao vivo, encerrado), já com título localizado. */
+  matchChannel?: WhereToWatchAvailability['match_channel'];
 }): Promise<{ availability: WhereToWatchAvailability; platformIds: string[] }> {
   const { db, lineup, operator } = input;
   const holders = input.options.length ? [] : (input.toConfirm ?? []);
@@ -465,6 +468,7 @@ export async function buildAvailability(input: {
           platforms,
           your_operator: yours,
           channel_status: 'to_confirm',
+          match_channel: input.matchChannel ?? EMPTY_AVAILABILITY.match_channel,
         }
       : {
           free_tv: channelsOf(input.options, 'free_tv', input.optionLogo),
@@ -472,6 +476,7 @@ export async function buildAvailability(input: {
           platforms,
           your_operator: yours,
           channel_status: 'confirmed',
+          match_channel: input.matchChannel ?? EMPTY_AVAILABILITY.match_channel,
         },
     platformIds: [...platforms.map((p) => p.platform.id), ...(yours ? [yours.platform.id] : [])],
   };
