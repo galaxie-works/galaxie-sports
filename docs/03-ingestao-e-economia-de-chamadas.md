@@ -120,7 +120,7 @@ Ordem de execução e custo estimado para as **145 competições** do catálogo 
 | H2H + venues + referência | | ≈ 150 |
 | **Total** | | **≈ 27.000 → ~4 dias de Pro** |
 
-As 69 competições do tier 2 acrescentadas em 22/10 (#166) somam ≈ 22.000 jogos em 3 temporadas: cerca de 7.500 por temporada, sobretudo nas 14 segundas divisões (~300 jogos cada), nos 8 femininos (~150) e nos estaduais (~60); as supercopas têm 1 a 3 jogos. Também trazem ≈ 800 times novos, entre estaduais, segundas divisões, femininos e clubes das divisões de baixo que entram nas copas. Os dois números são estimativas: o `--plan` de cada job dá o custo real a partir do raw.
+As 69 competições do tier 2 acrescentadas em 22/10 (#166) somam ≈ 22.000 jogos em 3 temporadas: cerca de 7.300 por temporada, sobretudo nas 14 segundas divisões (~300 jogos cada), nos 8 femininos (~150) e nos estaduais (~60); as supercopas têm 1 a 3 jogos. Também trazem ≈ 800 times novos, entre estaduais, segundas divisões, femininos e clubes das divisões de baixo que entram nas copas. Os dois números são estimativas: o `--plan` de cada job dá o custo real a partir do raw.
 
 Com 30 dias de Pro, sobra cota para estender o histórico (todas as temporadas disponíveis das competições tier 1) e para fazer o mesmo nas outras APIs que precisarem.
 

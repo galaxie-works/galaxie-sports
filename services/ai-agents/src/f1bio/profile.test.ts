@@ -401,6 +401,38 @@ describe('applyProfiles', () => {
     expect(changes.skipped).toEqual([]);
   });
 
+  it('todas as fontes vazias: listas vazias, só o achado de sem fonte, e o perfil entra', async () => {
+    const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
+    const d = research.data;
+    const empty = {
+      ...research,
+      data: {
+        ...d,
+        bio: { ...d.bio, sources: ['', ' '] },
+        style: { ...d.style, sources: [''] },
+        strengths: d.strengths.map((s) => ({ ...s, source: '' })),
+        moments: d.moments.map((m) => ({ ...m, source: '' })),
+        rivalries: d.rivalries.map((r) => ({ ...r, source: '' })),
+      },
+    };
+    const p = await proposeProfile(new FakeLlmClient([empty, translation]), senna);
+    const pt = p.entries['pt-BR']!;
+    expect(pt.bio.sources).toEqual([]);
+    expect(pt.style?.sources).toEqual([]);
+    expect(
+      [...(pt.strengths ?? []), ...(pt.moments ?? []), ...(pt.rivalries ?? [])].some((x) => 'source' in x),
+    ).toBe(false);
+    const missing = (pt.findings ?? []).filter((f) => f.rule === 'missing_source');
+    expect(missing.map((f) => f.field)).toEqual(
+      expect.arrayContaining(['bio.sources', 'style.sources', 'strengths[0].source', 'moments[0].source']),
+    );
+    // a lista toda vazia tem um achado só ("sem fonte"), não um por string vazia
+    expect(missing.filter((f) => f.field === 'bio.sources')).toHaveLength(1);
+    expect(missing.every((f) => f.severity === 'severe')).toBe(true);
+    const changes = await applyProfiles(kb, [p]);
+    expect(changes.applied).toEqual(['pt-BR:ayrton-senna', 'es:ayrton-senna']);
+  });
+
   it('nunca sobrescreve um perfil aprovado', async () => {
     const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
     const p = await proposeProfile(new FakeLlmClient([research, translation]), senna);
