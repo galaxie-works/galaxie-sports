@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LlmError } from '../errors.js';
 import type { LlmJsonRequest } from '../types.js';
-import { AnthropicLlmClient } from './anthropic.js';
+import { AnthropicLlmClient, DELIVERY_NOTE } from './anthropic.js';
 import { OpenAiLlmClient } from './openai.js';
 
 const SCHEMA = {
@@ -171,8 +171,9 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
     const sdk = fakeSdk([
       {
         stop_reason: 'pause_turn',
+        // pausou antes de rodar a busca (pendente, ainda não cobrada)
         content: [{ type: 'server_tool_use', name: 'web_search', input: { query: 'x' } }],
-        usage: usage(500, 50, 1),
+        usage: usage(500, 50, 0),
       },
       {
         stop_reason: 'tool_use',
@@ -215,15 +216,13 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
       expect.objectContaining({ name: 'submit_resposta_final', input_schema: SCHEMA, strict: true }),
     ]);
     expect((sdk.calls[1]!.messages as unknown[]).length).toBe(2); // pergunta + turno pausado
-    // o turno pausado deixou a busca pendente: a continuação leva a mesma ferramenta, com o que sobra do teto
-    expect((sdk.calls[1]!.tools as Record<string, unknown>[])[0]).toMatchObject({
-      name: 'web_search',
-      max_uses: 5,
-    });
+    // a continuação é a mesma conversa: ferramentas e system idênticos (o raciocínio fica preso a eles)
+    expect(sdk.calls[1]!.tools).toEqual(first.tools);
+    expect(sdk.calls[1]!.system).toBe(first.system);
     // teto de buscas da chamada (AI_MAX_SEARCHES_PER_CALL, preenchido pelo orçamento) vira max_uses
     expect(client.buildTools(req({ maxSearches: 3 }))[0]).toMatchObject({ max_uses: 3 });
     expect(out.citations.map((c) => c.url)).toEqual(['https://conmebol.com/r', 'https://ge.globo.com/x']);
-    expect(out.usage).toMatchObject({ inputTokens: 1_200, outputTokens: 130, webSearchCalls: 2 });
+    expect(out.usage).toMatchObject({ inputTokens: 1_200, outputTokens: 130, webSearchCalls: 1 });
   });
 
   it('nunca força a ferramenta nem manda temperature (400 nos modelos atuais); sem chamada → pede de novo', async () => {
@@ -266,59 +265,98 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
     expect((sdk2.calls[0]!.tools as unknown[]).length).toBe(1);
   });
 
-  it('teto de buscas somado entre as continuações (max_uses vale por requisição)', async () => {
-    const searched = (id: string) => [
+  describe('teto de buscas vale para a chamada inteira (turnos e tentativas)', () => {
+    const searched = (id: string, url = `https://conmebol.com/${id}`) => [
       { type: 'server_tool_use', id, name: 'web_search', input: { query: id } },
-      { type: 'web_search_tool_result', tool_use_id: id, content: [] },
+      {
+        type: 'web_search_tool_result',
+        tool_use_id: id,
+        content: [{ type: 'web_search_result', url, title: id }],
+      },
     ];
-    const sdk = fakeSdk([
-      {
-        stop_reason: 'pause_turn',
-        content: [...searched('s1'), ...searched('s2')],
-        usage: usage(100, 10, 4),
-      },
-      { stop_reason: 'pause_turn', content: searched('s5'), usage: usage(100, 10, 1) },
-      {
-        stop_reason: 'tool_use',
-        content: [{ type: 'tool_use', name: 'submit_resposta_final', input: { answer: 'ok' } }],
-        usage: usage(100, 10),
-      },
-    ]);
-    const client = new AnthropicLlmClient({
-      models: A_MODELS,
-      sdk: { messages: { create: sdk.create } },
-      retry: noSleep,
+    const submitOk = (answer = 'ok') => ({
+      stop_reason: 'tool_use',
+      content: [{ type: 'tool_use', name: 'submit_resposta_final', input: { answer } }],
+      usage: usage(100, 10),
     });
-    const out = await client.generateJson(req({ maxSearches: 5 }));
-    const tools = sdk.calls.map((c) => c.tools as Record<string, unknown>[]);
-    expect(tools[0]![0]).toMatchObject({ name: 'web_search', max_uses: 5 });
-    expect(tools[1]![0]).toMatchObject({ name: 'web_search', max_uses: 1 }); // 4 já gastas
-    // teto esgotado e nenhuma busca pendente: a continuação vai só com a ferramenta de saída
-    expect(tools[2]!.map((t) => t.name)).toEqual(['submit_resposta_final']);
-    expect(out.usage).toMatchObject({ webSearchCalls: 5 });
+    const toolNames = (call: Record<string, unknown>) =>
+      (call.tools as Record<string, unknown>[]).map((t) => t.name);
+    const client = (create: (p: Record<string, unknown>) => Promise<unknown>, maxRetries = 3) =>
+      new AnthropicLlmClient({ models: A_MODELS, sdk: { messages: { create } }, maxRetries, retry: noSleep });
 
-    // teto esgotado mas com busca pendente no turno pausado: a API exige a mesma ferramenta (só ela roda)
-    const pending = fakeSdk([
-      {
-        stop_reason: 'pause_turn',
-        content: [...searched('s1'), { type: 'server_tool_use', id: 's9', name: 'web_search', input: {} }],
-        usage: usage(100, 10, 5),
-      },
-      {
-        stop_reason: 'tool_use',
-        content: [{ type: 'tool_use', name: 'submit_resposta_final', input: { answer: 'ok' } }],
-        usage: usage(100, 10, 1),
-      },
-    ]);
-    const c2 = new AnthropicLlmClient({
-      models: A_MODELS,
-      sdk: { messages: { create: pending.create } },
-      retry: noSleep,
+    it('pause_turn depois de buscar: continuar poderia passar do teto → entrega numa conversa nova, sem busca', async () => {
+      const sdk = fakeSdk([
+        {
+          stop_reason: 'pause_turn',
+          content: [...searched('s1'), { type: 'text', text: 'Globo tem os direitos no Brasil.' }],
+          usage: usage(100, 10, 4),
+        },
+        submitOk(),
+      ]);
+      const out = await client(sdk.create).generateJson(req({ maxSearches: 5 }));
+      expect(sdk.calls[0]!.tools).toEqual(client(sdk.create).buildTools(req({ maxSearches: 5 })));
+      expect((sdk.calls[0]!.tools as Record<string, unknown>[])[0]).toMatchObject({ max_uses: 5 });
+      // 4 buscas + max_uses 5 na mesma conversa daria até 9: a entrega vai sem a ferramenta de busca
+      expect(toolNames(sdk.calls[1]!)).toEqual(['submit_resposta_final']);
+      const delivery = sdk.calls[1]!.messages as { role: string; content: string }[];
+      expect(delivery).toHaveLength(1);
+      expect(delivery[0]!.content).toContain('## Resultado da pesquisa\nGlobo tem os direitos no Brasil.');
+      expect(delivery[0]!.content).toContain('- https://conmebol.com/s1 (s1)');
+      expect(sdk.calls[1]!.system).toContain(DELIVERY_NOTE);
+      expect(out.usage).toMatchObject({ webSearchCalls: 4 });
+      expect(out.citations.map((c) => c.url)).toEqual(['https://conmebol.com/s1']);
     });
-    await c2.generateJson(req({ maxSearches: 5 }));
-    expect((pending.calls[1]!.tools as Record<string, unknown>[])[0]).toMatchObject({
-      name: 'web_search',
-      max_uses: 1,
+
+    it('modelo que nunca chama a ferramenta: sem retentativa e sem buscas além do teto', async () => {
+      const calls: Record<string, unknown>[] = [];
+      const create = async (params: Record<string, unknown>) => {
+        calls.push(structuredClone(params));
+        const first = calls.length === 1;
+        return {
+          stop_reason: 'end_turn',
+          content: [...(first ? searched('s1') : []), { type: 'text', text: `texto ${calls.length}` }],
+          usage: usage(100, 10, first ? 5 : 0),
+        };
+      };
+      const c = client(create);
+      const err = await c
+        .generateJson(req({ maxSearches: 5 }))
+        .catch((e: unknown) => e as LlmError & { usage: unknown });
+      expect(err).toMatchObject({ kind: 'schema', retryable: false });
+      expect(err.usage).toMatchObject({ webSearchCalls: 5 });
+      // 4 requisições (uma tentativa só): a 1ª com busca, as outras na conversa de entrega, sem busca
+      expect(calls).toHaveLength(4);
+      expect((calls[0]!.tools as Record<string, unknown>[])[0]).toMatchObject({ max_uses: 5 });
+      for (const call of calls.slice(1)) expect(toolNames(call)).toEqual(['submit_resposta_final']);
+      // dentro da conversa de entrega o histórico só cresce (pedido de entrega anexado)
+      expect((calls[3]!.messages as unknown[]).length).toBe(5);
+    });
+
+    it('retentativa depois de pesquisar não pesquisa de novo: entrega sobre o que já foi pago', async () => {
+      const sdk = fakeSdk([
+        // 3 buscas e a entrega fora do schema (retentável)
+        {
+          stop_reason: 'tool_use',
+          content: [...searched('s1'), { type: 'tool_use', name: 'submit_resposta_final', input: {} }],
+          usage: usage(100, 10, 3),
+        },
+        submitOk('certo'),
+      ]);
+      const out = await client(sdk.create).generateJson<{ answer: string }>(req({ maxSearches: 5 }));
+      expect(out.data.answer).toBe('certo');
+      expect(sdk.calls).toHaveLength(2);
+      expect(toolNames(sdk.calls[1]!)).toEqual(['submit_resposta_final']);
+      expect(out.usage).toMatchObject({ webSearchCalls: 3 });
+    });
+
+    it('falha antes de qualquer busca: a nova tentativa ainda tem o teto inteiro', async () => {
+      const sdk = fakeSdk([Object.assign(new Error('overloaded'), { status: 529 }), submitOk()]);
+      await client(sdk.create).generateJson(req({ maxSearches: 5 }));
+      expect(sdk.calls).toHaveLength(2);
+      expect((sdk.calls[1]!.tools as Record<string, unknown>[])[0]).toMatchObject({
+        name: 'web_search',
+        max_uses: 5,
+      });
     });
   });
 

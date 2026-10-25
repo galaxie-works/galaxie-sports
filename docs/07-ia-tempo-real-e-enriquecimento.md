@@ -421,7 +421,7 @@ Contrato único `LlmClient.generateJson` (`types.ts`); provedor por `AI_PROVIDER
 | Provedor | Implementação |
 |---|---|
 | `openai` (padrão) | SDK oficial `openai`, **Responses API** com `text.format` `json_schema` estrito e a ferramenta `web_search` (`filters.allowed_domains` ≤ 100, `user_location` com o país do `purpose`); citações `url_citation` + fontes consultadas |
-| `anthropic` | SDK `@anthropic-ai/sdk`, Messages API: saída pela ferramenta `submit_<schema>` (`input_schema` = schema pedido; forçada quando não há busca), `web_search_20250305` com `allowed_domains`; continua `pause_turn` e pede a entrega se o modelo terminar sem a ferramenta |
+| `anthropic` | SDK `@anthropic-ai/sdk`, Messages API: saída pela ferramenta `submit_<schema>` (`input_schema` = schema pedido, `strict`; `tool_choice` sempre `auto` com a instrução de entrega no system, sem `temperature` — os modelos atuais recusam com 400 o `tool_choice` forçado e o `temperature` fora do padrão), `web_search_20250305` com `allowed_domains` e `max_uses` = o que sobra do teto de buscas da chamada; continua `pause_turn` (e pede a entrega se o modelo terminar sem a ferramenta) só enquanto o pior caso couber no teto — senão entrega numa conversa nova, sem busca, com o texto e as fontes já pagos |
 
 - Toda saída é validada com ajv contra o schema; fora do schema, 429, 5xx, timeout e falha de conexão são retentados com backoff exponencial com jitter (`AI_MAX_RETRIES`, padrão 3). Recusa e resposta incompleta não.
 - `pricing.ts`: tabela de preços (US$/MTok, conferida em 2026-10-21) + US$ 10/1.000 buscas → `usage.costUsd`.
