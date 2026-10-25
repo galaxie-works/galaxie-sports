@@ -1049,12 +1049,13 @@ describe('/v1/events/{id} — timeline, escalações, estatísticas, h2h e .ics'
     });
     expect(goal.flags).toContain('opener');
     expect(card).toMatchObject({ kind: 'yellow_card', weight: 30, key_moment: false, score_after: null });
-    // gol contra do zagueiro do Corinthians: o fornecedor manda o time do jogador; soma para o Palmeiras
-    // (2–0 no intervalo, como no placar do fixture), é o decisivo do 4–1 e os gols fecham o placar final
+    // gol contra do zagueiro do Corinthians (fixture sintético com o time do jogador no lance): o placar
+    // final decide a convenção, soma para o Palmeiras (2–0 no intervalo, como no fixture) e é o decisivo do 4–1
     expect(own).toMatchObject({
       kind: 'own_goal',
       clock: { period: 'first_half', minute: 45, extra_minute: 2, display: "45+2'" },
       team: { side: 'away' },
+      scoring_team: { id: ids.palmeiras, name: 'Palmeiras', side: 'home' },
       score_after: { home: 2, away: 0 },
       flags: ['decisive'],
     });

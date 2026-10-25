@@ -238,37 +238,106 @@ describe('buildTimelineDto', () => {
       ['goal', 4, 1],
     ];
 
-    it('soma para o adversário do time do incidente (convenção do fornecedor) e confere o placar final', () => {
+    it('time do jogador no incidente (fixture sintético 1492407): soma para o adversário, pelo placar final', () => {
       const t = buildTimelineDto(derby(FLU, { home: 4, away: 1 }));
       expect(scores(t)).toEqual(expected);
-      // o time do lance continua o do jogador; o gol contra amplia (não empata) e é o 2º gol do vencedor
-      // num 4–1: o decisivo
-      expect(t.incidents[1]).toMatchObject({ team: { side: 'away' }, flags: ['decisive'] });
+      // `team` continua o do lance; o gol contra amplia (não empata), é do Palmeiras e, 2º gol do vencedor
+      // num 4–1, o decisivo
+      expect(t.incidents[1]).toMatchObject({
+        team: { side: 'away' },
+        scoring_team: { id: 'pal', side: 'home' },
+        flags: ['decisive'],
+      });
       expect(t.incidents[0]?.flags).toEqual(['opener', 'go_ahead']);
+      expect(t.incidents.map((i) => i.scoring_team?.side)).toEqual(['home', 'home', 'home', 'away', 'home']);
     });
 
-    it('aceita a outra convenção (time beneficiado no incidente) quando é ela que fecha o placar', () => {
-      expect(scores(buildTimelineDto(derby(PAL, { home: 4, away: 1 })))).toEqual(expected);
-    });
-
-    it('no ao vivo, com o placar ainda sem o lance, fica a convenção do fornecedor', () => {
-      const t = buildTimelineDto(derby(FLU, { home: 5, away: 1 }));
+    it('time beneficiado no incidente (docs/05) quando é ele que fecha o placar', () => {
+      const t = buildTimelineDto(derby(PAL, { home: 4, away: 1 }));
       expect(scores(t)).toEqual(expected);
+      expect(t.incidents[1]).toMatchObject({ team: { side: 'home' }, scoring_team: { side: 'home' } });
     });
 
-    it('gol contra decisivo leva a bandeira do lado beneficiado', () => {
+    it('placar à frente dos lances, nas duas convenções: a que não passa do placar', () => {
+      expect(scores(buildTimelineDto(derby(FLU, { home: 5, away: 1 })))).toEqual(expected);
+      expect(scores(buildTimelineDto(derby(PAL, { home: 5, away: 1 })))).toEqual(expected);
+    });
+
+    it('o lado não troca entre leituras do ao vivo com o placar adiantado', () => {
+      const sideAt = (incidents: RawIncident[], score: { home: number; away: number }) =>
+        buildTimelineDto(input({ status: 'live', statusDetail: '2H', score, incidents })).incidents[0]
+          ?.scoring_team?.side;
+      seq = 0;
+      // beneficiado no incidente: 1–0; depois 2–0 com o lance do 2º gol ainda por chegar; depois ele chega
+      const og = inc({ type: 'own_goal', detail: 'Own Goal', minute: 20, team: PAL });
+      const second = inc({ type: 'goal', detail: 'Normal Goal', minute: 50, team: PAL });
+      expect([
+        sideAt([og], { home: 1, away: 0 }),
+        sideAt([og], { home: 2, away: 0 }),
+        sideAt([og, second], { home: 2, away: 0 }),
+      ]).toEqual(['home', 'home', 'home']);
+      // jogador no incidente, com um gol do Fluminense anulado no VAR ainda listado e o 2º do Palmeiras
+      // no placar antes do lance: nenhuma bate, fica a que menos passa do placar
+      seq = 0;
+      const og2 = inc({ type: 'own_goal', detail: 'Own Goal', minute: 20, team: FLU });
+      const annulled = inc({ type: 'goal', detail: 'Normal Goal', minute: 40, team: FLU });
+      expect([
+        sideAt([og2, annulled], { home: 1, away: 1 }),
+        sideAt([og2, annulled], { home: 2, away: 0 }),
+      ]).toEqual(['home', 'home']);
+    });
+
+    it('sem como decidir, vale o time do incidente como beneficiado (padrão de docs/05 e do main)', () => {
+      seq = 0;
+      const t = buildTimelineDto(
+        input({
+          status: 'live',
+          statusDetail: '2H',
+          score: { home: 1, away: 1 },
+          incidents: [inc({ type: 'own_goal', detail: 'Own Goal', minute: 30, team: FLU })],
+        }),
+      );
+      expect(t.incidents[0]).toMatchObject({
+        score_after: { home: 0, away: 1 },
+        scoring_team: { side: 'away' },
+      });
+      // placar desconhecido: idem
+      const unknown = input({
+        score: { home: null, away: null },
+        incidents: [inc({ type: 'own_goal', team: FLU })],
+      });
+      expect(buildTimelineDto(unknown).incidents[0]?.scoring_team?.side).toBe('away');
+    });
+
+    it('gol contra decisivo leva a bandeira do lado beneficiado; a cobrança convertida, de quem bateu', () => {
       seq = 0;
       const t = buildTimelineDto(
         input({
           score: { home: 0, away: 1 },
           incidents: [inc({ type: 'own_goal', detail: 'Own Goal', minute: 70, team: PAL })],
+          teams: [PAL, FLU],
         }),
       );
       expect(t.incidents[0]).toMatchObject({
         score_after: { home: 0, away: 1 },
+        scoring_team: FLU,
         flags: ['opener', 'go_ahead', 'decisive'],
         weight: 100,
       });
+      const shootout = buildTimelineDto(semifinal()).incidents.filter(
+        (i) => i.clock.period === 'penalty_shootout',
+      );
+      expect(shootout.map((i) => i.scoring_team?.side ?? null)).toEqual([
+        'home',
+        'away',
+        'home',
+        'away',
+        'home',
+        'away',
+        'home',
+        null,
+        'home',
+      ]);
     });
   });
 

@@ -66,6 +66,8 @@ export interface TimelineInput {
   /** Horário marcado (o 1º tempo observado só vale perto dele). */
   startsAt?: Date | null;
   stateLog: StateLogEntry[];
+  /** Times do evento (mandante e visitante), para o time creditado no gol contra. */
+  teams?: TeamRef[];
   /** Papel na escalação (para acertar quem entra e quem sai na substituição). */
   lineupRole?: (personId: string | null) => 'starter' | 'sub' | null;
   venueTimezone: string | null;
@@ -267,25 +269,36 @@ function creditedSide(raw: RawIncident, kind: TimelineKind, ownGoalForOpponent: 
 }
 
 /**
- * O gol contra soma para o adversário do time do incidente? Como em `buildGoals` do resumo
- * (services/ai-agents/src/recap/facts.ts): o time do incidente pode ser o do jogador que marcou contra
- * (o padrão do fornecedor: no fixture 1492407, o gol contra do zagueiro visitante aos 45+2 fecha o 1º
- * tempo em 2–0 para o mandante) ou o beneficiado. Fica a convenção que reproduz o placar do evento; se
- * nenhuma bater (no ao vivo o placar pode chegar antes do lance), vale o padrão do fornecedor.
+ * O gol contra soma para o adversário do time do incidente? O time do incidente pode ser o beneficiado
+ * (o padrão assumido aqui e em docs/05; não há fixture gravado de verdade com gol contra no repositório) ou o
+ * do jogador que marcou contra (como no fixture sintético 1492407). Como em `buildGoals` do resumo
+ * (services/ai-agents/src/recap/facts.ts), o placar do evento decide:
+ * 1. a convenção cuja contagem reproduz o placar (as duas: o padrão);
+ * 2. senão, a que menos passa do placar: no ao vivo o placar chega antes do lance, então a contagem certa
+ *    fica abaixo dele (ou, com um gol anulado ainda listado, passa menos) — o lado não troca entre leituras;
+ * 3. empate (ou placar desconhecido): o padrão.
  */
 export function ownGoalCountsForOpponent(incidents: RawIncident[], score: TimelineInput['score']): boolean {
-  if (score.home == null || score.away == null) return true;
-  const reproduces = (forOpponent: boolean) => {
-    const tally = { home: 0, away: 0 };
+  if (score.home == null || score.away == null) return false;
+  const { home, away } = score;
+  const tally = (forOpponent: boolean) => {
+    const t = { home: 0, away: 0 };
     for (const raw of incidents) {
       const kind = kindOf(raw);
       if (!SCORING_KINDS.has(kind)) continue;
       const side = creditedSide(raw, kind, forOpponent);
-      if (side) tally[side] += 1;
+      if (side) t[side] += 1;
     }
-    return tally.home === score.home && tally.away === score.away;
+    return t;
   };
-  return reproduces(true) || !reproduces(false);
+  const asIs = tally(false);
+  const flipped = tally(true);
+  const exact = (t: { home: number; away: number }) => t.home === home && t.away === away;
+  if (exact(asIs)) return false;
+  if (exact(flipped)) return true;
+  const excess = (t: { home: number; away: number }) =>
+    Math.max(0, t.home - home) + Math.max(0, t.away - away);
+  return excess(flipped) < excess(asIs);
 }
 
 export function buildTimelineDto(input: TimelineInput): EventTimeline {
@@ -323,6 +336,10 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
   let scoreKnown = true;
   /** Lado beneficiado por gol (no gol contra, pode não ser o time do incidente). */
   const credited: (Side | null)[] = [];
+  const teamBySide = new Map<string, TeamRef>();
+  for (const t of [...(input.teams ?? []), ...input.incidents.map((i) => i.team)])
+    if (t?.side && !teamBySide.has(t.side)) teamBySide.set(t.side, t);
+  const teamOf = (side: Side): TeamRef => teamBySide.get(side) ?? { id: null, name: null, side, logo: null };
   const incidents: TimelineIncident[] = input.incidents.map((raw, idx) => {
     let kind = kindOf(raw);
     const key = personKey(raw.player);
@@ -385,6 +402,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
       key_moment: weight >= KEY_MOMENT_MIN_WEIGHT,
       flags,
       score_after: scoreAfter,
+      scoring_team: credited[idx] ? teamOf(credited[idx]) : null,
       player_in: playerIn,
       player_out: playerOut,
     };
@@ -427,6 +445,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
       const side = k.team?.side;
       if (scored && side === 'home') ph += 1;
       if (scored && side === 'away') pa += 1;
+      if (scored && (side === 'home' || side === 'away')) k.scoring_team = teamOf(side);
       const teamKey = side ?? k.team?.name ?? '?';
       const round = (perTeam.get(teamKey) ?? 0) + 1;
       perTeam.set(teamKey, round);
