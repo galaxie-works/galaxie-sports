@@ -296,6 +296,30 @@ describe('cota esgotada informada pelo fornecedor', () => {
     await expect(live('volleyball', 'v2')).resolves.toMatchObject({ dayUtc: '2026-10-27' });
   });
 
+  it('a sonda depois da janela, se vier esgotada de novo, volta a bloquear por mais 15 min', async () => {
+    const { gov, at, live } = governorAt('2026-10-30T10:00:00Z');
+    await gov.settle(await live('nba', 'p1'), 'quota_exhausted', 0);
+    at('2026-10-30T10:15:01Z');
+    await gov.settle(await live('nba', 'p2'), 'quota_exhausted', 0);
+    at('2026-10-30T10:29:00Z');
+    await expect(live('nba', 'p3')).rejects.toBeInstanceOf(QuotaExceededError);
+    // o operador vê o motivo no relatório (CLI `quota`)
+    expect((await gov.usage('nba')).providerExhausted).toBe(true);
+    at('2026-10-30T10:30:02Z');
+    await expect(live('nba', 'p4')).resolves.toMatchObject({ dayUtc: '2026-10-30' });
+    expect((await gov.usage('nba')).providerExhausted).toBeUndefined();
+  });
+
+  it('fronteira da carência do começo do dia: 00:04:59 não bloqueia, 00:05:01 bloqueia', async () => {
+    const { gov, at, live } = governorAt('2026-10-31T00:04:59Z');
+    await gov.settle(await live('baseball', 'g1'), 'quota_exhausted', 0);
+    at('2026-10-31T00:05:01Z');
+    const probe = await live('baseball', 'g2');
+    await gov.settle(probe, 'quota_exhausted', 0);
+    at('2026-10-31T00:06:00Z');
+    await expect(live('baseball', 'g3')).rejects.toBeInstanceOf(QuotaExceededError);
+  });
+
   it('"esgotada" com cota restante no header não bloqueia', async () => {
     const { gov, at, live } = governorAt('2026-10-25T12:00:00Z');
     await gov.settle(await live('afl', 'r1'), 'quota_exhausted', 37);
@@ -403,5 +427,27 @@ describe('limite por minuto entre processos', () => {
       .sort((x, y) => x - y);
     expect(sent).toHaveLength(2);
     expect(sent[1]! - sent[0]!).toBeGreaterThanOrEqual(6000);
+  });
+
+  it('sent_at no futuro (relógio de outro processo adiantado): cada espera fica no espaçamento', async () => {
+    const policy = () => defaultPolicy(100, 15, 10);
+    // B tem o relógio 30 s adiantado
+    const b = new PgQuotaGovernor(db, policy, () => new Date('2026-11-01T12:00:30Z'));
+    await b.acquire({ api: 'rugby', priority: 'DAILY', endpoint: '/games', requestHash: 'skew-1' });
+    let tA = Date.parse('2026-11-01T12:00:00Z');
+    const waits: number[] = [];
+    const a = new PgQuotaGovernor(
+      db,
+      policy,
+      () => new Date(tA),
+      async (ms) => {
+        waits.push(ms);
+        tA += ms;
+      },
+    );
+    await a.acquire({ api: 'rugby', priority: 'DAILY', endpoint: '/games', requestHash: 'skew-2' });
+    expect(Math.max(...waits)).toBeLessThanOrEqual(6000);
+    // a espera total acompanha o adiantamento: A só reserva 6 s depois do sent_at de B
+    expect(tA).toBeGreaterThanOrEqual(Date.parse('2026-11-01T12:00:36Z'));
   });
 });

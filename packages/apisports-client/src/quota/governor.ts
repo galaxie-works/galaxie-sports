@@ -38,6 +38,8 @@ export interface UsageReport {
   totalUsed: number;
   providerUsed?: number | undefined;
   providerLimit?: number | undefined;
+  /** true enquanto um quota_exhausted recente do fornecedor nega a API (ver `exhaustedSince`). */
+  providerExhausted?: boolean | undefined;
 }
 
 /** Pendências mais antigas que isso são consideradas abandonadas (processo caiu) e não bloqueiam. */
@@ -85,6 +87,7 @@ export function buildReport(
     totalUsed: Object.values(usage.used).reduce((a, b) => a + b, 0),
     providerUsed: usage.providerUsed,
     providerLimit: usage.providerLimit,
+    ...(usage.providerExhausted ? { providerExhausted: true } : {}),
   };
 }
 

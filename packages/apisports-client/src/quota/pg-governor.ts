@@ -187,8 +187,9 @@ export class PgQuotaGovernor implements QuotaGovernor {
   /**
    * Limite por minuto da chave somando todos os processos: no máximo 1 envio a cada 60/perMinute s por API
    * (a mesma regra sem rajada do RateLimiter local), contado pelo sent_at do ledger. O cliente reserva logo
-   * antes do fetch, então sent_at é o instante do envio. A espera de uma tentativa nunca passa do
-   * espaçamento, mesmo com um sent_at no futuro (relógio de outro processo adiantado).
+   * antes do fetch, então sent_at é o instante do envio. A espera de UMA tentativa nunca passa do
+   * espaçamento, mesmo com um sent_at no futuro; mas, enquanto o relógio de outro processo estiver
+   * adiantado, cada nova tentativa volta a esperar, e a espera total acompanha esse adiantamento.
    */
   private async minuteWait(
     tx: Pick<Database, 'select'>,
