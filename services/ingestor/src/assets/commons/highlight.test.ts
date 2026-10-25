@@ -27,7 +27,14 @@ describe('foto do carro de destaque (fundo do heading do piloto)', () => {
 
   describe('candidatos em ordem (pickHighlight)', () => {
     const entry = (target: string, photos: ManifestPhoto[], o: Partial<ManifestEntry> = {}) =>
-      ({ target, kind: target.split('/')[0], photos, ...o }) as ManifestEntry;
+      ({
+        target,
+        kind: target.split('/')[0],
+        f1db_id: target.split('/')[1],
+        name: target.split('/')[1]!.replace(/-/g, ' '),
+        photos,
+        ...o,
+      }) as ManifestEntry;
     const cars = [
       entry('car/mercedes/2020', [photo('File:W11 by-sa.jpg', { share_alike: true })]),
       entry('car/mercedes/2019', []),

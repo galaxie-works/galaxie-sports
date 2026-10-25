@@ -128,4 +128,41 @@ describe('SparqlClient', () => {
     expect(offsets).toEqual([0, 2, 4]);
     expect(rows).toHaveLength(5);
   });
+
+  it('paginação não mistura cache e rede: faltou uma página no cache, todas vêm da rede de novo', async () => {
+    const cache = memoryCache();
+    const build = (limit: number, offset: number) => `SELECT LIMIT ${limit} OFFSET ${offset}`;
+    // página 1 de uma carga antiga (com s0 e s1); depois a fonte mudou (s0 saiu) e a página 2 não está no cache
+    cache.store.set(
+      queryHash(build(2, 0)),
+      response(['s0', 's1'].map((id) => statementRow({ id, ev: 'Q1', p: 'Q2', rank: 1 }))),
+    );
+    const now = ['s1', 's2', 's3'];
+    const offsets: number[] = [];
+    const client = new SparqlClient({
+      cache,
+      fetch: async (_url, init) => {
+        const q = new URLSearchParams(String(init!.body)).get('query')!;
+        const offset = Number(/OFFSET (\d+)/.exec(q)![1]);
+        offsets.push(offset);
+        return ok(
+          response(
+            now.slice(offset, offset + 2).map((id) => statementRow({ id, ev: 'Q1', p: 'Q2', rank: 1 })),
+          ),
+        );
+      },
+      minIntervalMs: 0,
+      sleep: noSleep,
+    });
+    const rows = await client.paginate('t', build, {}, 2);
+    // misturado, viriam s0, s1 (cache) e s3 (rede): s2 sumiria e s0 voltaria
+    expect(offsets).toEqual([0, 2]);
+    expect(rows.map((r) => r.st!.value.split('/').pop())).toEqual(now);
+    expect(client.cacheHits).toBe(0);
+    // tudo no cache agora: a segunda paginação não vai à rede
+    const again = await client.paginate('t', build, {}, 2);
+    expect(again).toHaveLength(3);
+    expect(offsets).toHaveLength(2);
+    expect(client.cacheHits).toBe(2);
+  });
 });

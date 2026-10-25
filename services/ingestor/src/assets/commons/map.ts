@@ -53,14 +53,19 @@ export const isRanked = (e: ManifestEntry | undefined) => !!e?.ranking;
 
 /**
  * Manifesto novo (entrada) com os alvos já ordenados de uma execução anterior: o alvo ordenado fica como estava,
- * com o carro de destaque da entrada (curadoria nova); alvos novos e não ordenados vêm da entrada.
+ * com o carro de destaque da entrada (curadoria nova); alvos novos e não ordenados vêm da entrada. O destaque que
+ * saiu da entrada sai também do alvo ordenado (senão voltaria a ser importado); só a curadoria manual da execução
+ * anterior fica, salvo se a entrada traz `highlight_car: null` (o destaque foi tirado de propósito no git).
  */
 export function mergeRanked(entries: ManifestEntry[], previous: ManifestEntry[]): ManifestEntry[] {
   const before = new Map(previous.map((e) => [e.target, e]));
   return entries.map((e) => {
     const p = before.get(e.target);
     if (!p || !isRanked(p)) return e;
-    return e.highlight_car !== undefined ? { ...p, highlight_car: e.highlight_car } : p;
+    if (e.highlight_car != null) return { ...p, highlight_car: e.highlight_car };
+    if (e.highlight_car === undefined && p.highlight_car?.match === 'manual') return p;
+    const { highlight_car: _dropped, ...rest } = p;
+    return rest;
   });
 }
 
@@ -104,7 +109,8 @@ export async function mapCommons(
       continue;
     }
     // descoberta sem nenhuma candidata (identidade não conferida, categoria sumida) com galeria já mapeada: é
-    // tratada como falha, e o alvo fica como estava — nunca apaga as fotos (Johansson, 25/10/2026)
+    // tratada como falha, e o alvo fica como estava — nunca apaga as fotos (Johansson, 25/10/2026). Arquivo apagado
+    // na Commons sai do mesmo jeito: a importação o desvincula pela resposta `missing` (`imageInfoReport`)
     if (!d.candidates.length && prev?.photos.some((p) => p.match !== 'rejected')) {
       opts.log?.(`${key}: descoberta vazia (${d.note ?? 'sem candidatas'}); fica como estava`);
       stats.push(empty(key, 'rules', `pendente: descoberta vazia (${d.note ?? 'sem candidatas'})`));
