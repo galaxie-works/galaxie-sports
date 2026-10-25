@@ -346,3 +346,63 @@ describe('autoatendimento /v1/account', () => {
     expect((await adminReq('POST', '/internal/admin/usage/flush')).statusCode).toBe(200);
   });
 });
+
+describe('rotação não gera chave eterna (auditoria API-1)', () => {
+  let tenantId: string;
+  let trialKey: string;
+  let trialExpiresAt: string;
+
+  beforeAll(async () => {
+    trialExpiresAt = new Date(Date.now() + 2 * 86_400_000).toISOString();
+    const res = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'trial-rotacao',
+      name: 'Trial',
+      plan: 'core_data',
+      key: { label: 'trial', expiresAt: trialExpiresAt },
+    });
+    expect(res.statusCode).toBe(201);
+    tenantId = res.json().tenant.id;
+    trialKey = res.json().key.key;
+  });
+
+  it('a chave nova herda a validade da antiga (trial continua com prazo)', async () => {
+    const res = await tenantReq(trialKey, 'POST', '/v1/account/keys/rotate', { graceSeconds: 3600 });
+    expect(res.statusCode).toBe(201);
+    const fresh = res.json().key.key as string;
+    const me = await tenantReq(fresh, 'GET', '/v1/account');
+    expect(me.json().key).toMatchObject({ status: 'expiring', label: 'trial' });
+    expect(new Date(me.json().key.expiresAt).getTime()).toBe(new Date(trialExpiresAt).getTime());
+    // a antiga vale só no período de graça (antes do fim do trial)
+    expect(new Date(res.json().previous.expiresAt).getTime()).toBeLessThan(
+      new Date(trialExpiresAt).getTime(),
+    );
+  });
+
+  it('a chave antiga, já em graça, não rotaciona de novo (pelo tenant nem pela operação)', async () => {
+    expect((await tenantReq(trialKey, 'GET', '/v1/sports')).statusCode).toBe(200);
+    const self = await tenantReq(trialKey, 'POST', '/v1/account/keys/rotate', { graceSeconds: 3600 });
+    expect(self.statusCode).toBe(409);
+    expect(self.json().code).toBe('CONFLICT');
+    const keys = (await adminReq('GET', `/internal/admin/tenants/${tenantId}`)).json().keys as {
+      id: string;
+      prefix: string;
+    }[];
+    expect(keys).toHaveLength(2);
+    const oldId = keys.find((k) => trialKey.includes(`_${k.prefix}_`))!.id;
+    const admin = await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys/${oldId}/rotate`, {});
+    expect(admin.statusCode).toBe(409);
+  });
+
+  it('teto de chaves válidas por tenant: rotação recusada até revogar uma', async () => {
+    const issued: { id: string; key: string }[] = [];
+    // 2 válidas da etapa anterior + 18 = 20 (o teto)
+    for (let i = 0; i < 18; i++)
+      issued.push((await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys`, {})).json().key);
+    const blocked = await tenantReq(issued[0]!.key, 'POST', '/v1/account/keys/rotate', { graceSeconds: 0 });
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json().detail).toMatch(/20 chaves/);
+    await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys/${issued[1]!.id}/revoke`);
+    const ok = await tenantReq(issued[0]!.key, 'POST', '/v1/account/keys/rotate', { graceSeconds: 0 });
+    expect(ok.statusCode).toBe(201);
+  });
+});

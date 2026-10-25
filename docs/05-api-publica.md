@@ -59,7 +59,7 @@ pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --l
 | `GET /internal/admin/tenants/{id\|slug}` | Tenant + metadados das chaves (nunca hash/segredo) |
 | `PATCH /internal/admin/tenants/{id\|slug}` | Plano, módulos, mercados, esportes, limites, `status` (`suspended` bloqueia todas as chaves); `applyTemplate: true` reaplica o modelo do plano antes dos demais campos |
 | `POST /internal/admin/tenants/{id}/keys` | Emite chave (escopos ⊆ módulos do tenant) |
-| `POST /internal/admin/tenants/{id}/keys/{keyId}/rotate` | Nova chave (mesmo rótulo/escopos/ambiente); a antiga expira em `graceSeconds` (padrão 86400; 0 = revoga já; máx. 7 dias) |
+| `POST /internal/admin/tenants/{id}/keys/{keyId}/rotate` | Nova chave (mesmo rótulo/escopos/ambiente/validade); a antiga expira em `graceSeconds` (padrão 86400; 0 = revoga já; máx. 7 dias). Chave já rotacionada ou tenant com 20 chaves válidas → 409 `CONFLICT` |
 | `POST /internal/admin/tenants/{id}/keys/{keyId}/revoke` | Revoga |
 | `GET /internal/admin/tenants/{id}/usage?from=&to=` | Uso por dia e rota (dias UTC; padrão últimos 7; máx. 92) |
 | `GET /internal/admin/usage?from=&to=` | Total por tenant no período |
@@ -79,6 +79,8 @@ curl -X POST http://localhost:8080/internal/admin/tenants \
 | `GET /v1/account/keys` | Chaves do tenant (prefixo, rótulo, escopos, status, último uso) |
 | `POST /v1/account/keys/rotate` | Rotaciona **a chave usada na requisição**: `{ graceSeconds? }` (padrão 86400) → 201 com a chave nova (exibida uma vez) |
 | `GET /v1/account/usage?from=&to=` | Uso por dia e rota + `dailyRequestQuota` |
+
+A chave nova herda o rótulo, os escopos, o ambiente e a **validade** (`expiresAt`) da antiga: rotacionar não estende o prazo de uma chave com validade (ex.: trial). Cada chave só é rotacionada uma vez: a antiga, já no período de graça, recebe 409 `CONFLICT` (quem tem só a chave vazada não gera outra a partir dela), e a rotação é recusada (409) quando o tenant já tem 20 chaves válidas — revogue as que não usa.
 
 Revogação, suspensão e mudança de plano valem em até 60 s (cache do autenticador por instância).
 

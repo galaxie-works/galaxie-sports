@@ -98,6 +98,11 @@ export const apiKey = api.table(
     scopes: text('scopes').array().$type<ApiModule[]>(),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    /**
+     * Quando a chave foi substituída por uma rotação (fica válida só no período de graça). Uma chave
+     * já rotacionada não pode ser rotacionada de novo: quem tem só a chave antiga não gera outra.
+     */
+    rotatedAt: timestamp('rotated_at', { withTimezone: true }),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
     createdAt: createdAt(),
   },

@@ -302,6 +302,13 @@
       "when": 1792942832689,
       "tag": "0042_grade_paginas_de_planos",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1792948460030,
+      "tag": "0043_chave_rotacionada",
+      "breakpoints": true
     }
   ]
 }
