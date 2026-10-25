@@ -3,7 +3,7 @@
  * painel). Uma regra que falha ao rodar sai como `error` e não derruba as outras; sem a fonte de que precisa,
  * `skipped` com o motivo (nunca `pass`).
  */
-import { desc, eq, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import {
   qualityFailure,
   qualityResult,
@@ -134,7 +134,10 @@ export async function runRules(rules: readonly QualityRule[], ctx: QualityContex
 
 const failureKey = (ruleId: string, sport: string, key: string) => `${ruleId}|${sport}|${key}`;
 
-/** Grava a execução: o catálogo das regras, o placar por esporte e as falhas (com o "desde" da execução anterior). */
+/**
+ * Grava a execução: o catálogo das regras, o placar por esporte (com pass zerado para o esporte que saiu do escopo de
+ * uma regra) e as falhas (com o "desde" do resultado anterior da mesma regra × esporte).
+ */
 export async function saveRun(
   db: Database,
   rules: readonly QualityRule[],
@@ -157,25 +160,75 @@ export async function saveRun(
         .values({ id: r.id, ...values })
         .onConflictDoUpdate({ target: qualityRule.id, set: values });
     }
-    // "desde": a mesma falha na última execução concluída continua com a data em que apareceu
-    const [prev] = await tx
-      .select({ id: qualityRun.id })
-      .from(qualityRun)
-      .where(eq(qualityRun.status, 'done'))
-      .orderBy(desc(qualityRun.startedAt))
-      .limit(1);
+    const ruleIds = [...new Set(rows.map((r) => r.ruleId))];
+    // último resultado de cada regra × esporte nas execuções concluídas (só das regras desta execução)
+    const latest = (ids: readonly string[], statuses?: QualityStatus[]) =>
+      tx
+        .selectDistinctOn([qualityResult.ruleId, qualityResult.sport], {
+          runId: qualityResult.runId,
+          ruleId: qualityResult.ruleId,
+          sport: qualityResult.sport,
+          status: qualityResult.status,
+          checked: qualityResult.checked,
+          failed: qualityResult.failed,
+        })
+        .from(qualityResult)
+        .innerJoin(qualityRun, and(eq(qualityRun.id, qualityResult.runId), eq(qualityRun.status, 'done')))
+        .where(
+          and(
+            inArray(qualityResult.ruleId, [...ids]),
+            statuses ? inArray(qualityResult.status, statuses) : undefined,
+          ),
+        )
+        .orderBy(qualityResult.ruleId, qualityResult.sport, desc(qualityRun.startedAt));
+
+    // "desde": a mesma falha no último resultado conferido (pass/fail) da regra × esporte continua com a data em que
+    // apareceu. É por regra × esporte, não pela última execução: uma gravada com --regras/--esporte não zera as outras
+    // (e um error/skipped no meio não diz que a falha sumiu).
     const since = new Map<string, Date>();
-    if (prev)
+    const checkedBefore = ruleIds.length ? await latest(ruleIds, ['pass', 'fail']) : [];
+    const lastRun = new Map(checkedBefore.map((r) => [`${r.ruleId}|${r.sport}`, r.runId]));
+    const prevRuns = [...new Set(lastRun.values())];
+    if (prevRuns.length)
       for (const f of await tx
         .select({
+          runId: qualityFailure.runId,
           ruleId: qualityFailure.ruleId,
           sport: qualityFailure.sport,
           itemKey: qualityFailure.itemKey,
           firstSeenAt: qualityFailure.firstSeenAt,
         })
         .from(qualityFailure)
-        .where(eq(qualityFailure.runId, prev.id)))
-        since.set(failureKey(f.ruleId, f.sport, f.itemKey), f.firstSeenAt);
+        .where(and(inArray(qualityFailure.runId, prevRuns), inArray(qualityFailure.ruleId, ruleIds))))
+        if (lastRun.get(`${f.ruleId}|${f.sport}`) === f.runId)
+          since.set(failureKey(f.ruleId, f.sport, f.itemKey), f.firstSeenAt);
+
+    // Regra que rodou (pass/fail) e não trouxe um esporte que tinha resultado: o esporte saiu do escopo (ex.: regra
+    // `all` sem itens dele agora). Grava pass zerado, senão a falha antiga fica no placar para sempre; o pass zerado já
+    // gravado não se repete a cada execução.
+    const ran = ruleIds.filter((id) =>
+      rows.filter((r) => r.ruleId === id).every((r) => r.status === 'pass' || r.status === 'fail'),
+    );
+    const present = new Set(rows.map((r) => `${r.ruleId}|${r.sport}`));
+    const severityOf = new Map(rows.map((r) => [r.ruleId, r.severity]));
+    const gone: RuleResultRow[] = (ran.length ? await latest(ran) : [])
+      .filter(
+        (r) =>
+          !present.has(`${r.ruleId}|${r.sport}`) &&
+          !(r.status === 'pass' && r.checked === 0 && r.failed === 0),
+      )
+      .map((r) => ({
+        ruleId: r.ruleId,
+        sport: r.sport,
+        severity: severityOf.get(r.ruleId)!,
+        status: 'pass',
+        checked: 0,
+        failed: 0,
+        detail: 'sem itens deste esporte na execução',
+        durationMs: 0,
+        failures: [],
+      }));
+    const allRows = [...rows, ...gone];
 
     const [run] = await tx
       .insert(qualityRun)
@@ -189,9 +242,9 @@ export async function saveRun(
       })
       .returning({ id: qualityRun.id });
     const runId = run!.id;
-    if (rows.length)
+    if (allRows.length)
       await tx.insert(qualityResult).values(
-        rows.map((r) => ({
+        allRows.map((r) => ({
           runId,
           ruleId: r.ruleId,
           sport: r.sport,

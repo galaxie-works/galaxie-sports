@@ -140,7 +140,7 @@ No VPS, a API do próprio stack serve de alvo: `QUALITY_API_URL=http://api:8080`
 |---|---|
 | `ops.quality_rule` | Catálogo: id, esporte, área, severidade, descrição nos três idiomas e origem. |
 | `ops.quality_run` | Uma linha por execução gravada, com o gatilho (`schedule`/`cli`). |
-| `ops.quality_result` | Placar: regra × esporte × execução, com status, conferidos, errados e motivo. |
-| `ops.quality_failure` | Itens errados: chave, rótulo, atual, esperado, link e `first_seen_at`. A falha que continua de uma execução para a outra mantém a data em que apareceu. |
+| `ops.quality_result` | Placar: regra × esporte × execução, com status, conferidos, errados e motivo. Quando uma regra roda e um esporte que tinha resultado não vem mais (ex.: regra `all` sem itens dele), o esporte ganha um `pass` zerado, para a falha antiga não ficar no placar. |
+| `ops.quality_failure` | Itens errados: chave, rótulo, atual, esperado, link e `first_seen_at`. A falha que continua no resultado seguinte da mesma regra × esporte mantém a data em que apareceu, mesmo com uma execução filtrada (`--regras`/`--esporte`) ou um `error` no meio. |
 
 Migration `0034_qualidade_dados`.

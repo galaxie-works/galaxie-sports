@@ -23,8 +23,16 @@ import {
   type Database,
 } from '@galaxie/db';
 import { createQualityContext } from '../src/quality/context.js';
-import { pruneQuality, runRules, saveRun, selectRules } from '../src/quality/engine.js';
+import {
+  pruneQuality,
+  runRules,
+  saveRun,
+  selectRules,
+  splitBySport,
+  type RuleResultRow,
+} from '../src/quality/engine.js';
 import { QUALITY_RULES } from '../src/quality/rules/index.js';
+import type { QualityRule, RuleOutcome } from '../src/quality/types.js';
 import { disposableDb } from './db.js';
 
 const disposable = disposableDb();
@@ -191,16 +199,14 @@ describe('regras de grade', () => {
       )
       .returning();
     // sem fonte e sem preço: os três falhariam se fossem conferidos
-    await db
-      .insert(planChannel)
-      .values(
-        plans.map((p) => ({
-          planId: p.id,
-          channelId: 'canal-teste',
-          access: 'included' as const,
-          reviewStatus: 'approved' as const,
-        })),
-      );
+    await db.insert(planChannel).values(
+      plans.map((p) => ({
+        planId: p.id,
+        channelId: 'canal-teste',
+        access: 'included' as const,
+        reviewStatus: 'approved' as const,
+      })),
+    );
 
     const rows = await runRules(
       selectRules(QUALITY_RULES, {
@@ -258,5 +264,86 @@ describe('gravação', () => {
     ).toBeGreaterThan(0);
     // 181 dias depois: a execução inteira sai
     expect((await pruneQuality(db, new Date(NOW.getTime() + 181 * DAY))).runs).toBe(1);
+  });
+});
+
+describe('gravação entre execuções parciais', () => {
+  const fake = (id: string, sport: string): QualityRule => ({
+    id,
+    sport,
+    area: 'events',
+    severity: 'high',
+    description: { 'pt-BR': id, en: id, es: id },
+    check: async () => ({ checked: 0, failures: [] }),
+  });
+  const ruleA = fake('teste.a', 'football');
+  const ruleB = fake('teste.b', 'football');
+  const ruleAll = fake('teste.all', 'all');
+  const at = (days: number) => new Date(NOW.getTime() + (200 + days) * DAY);
+  const save = (rows: RuleResultRow[], when: Date) =>
+    saveRun(db, [ruleA, ruleB, ruleAll], rows, { trigger: 'cli', startedAt: when, finishedAt: when });
+  const rowsOf = (rule: QualityRule, outcome: RuleOutcome) => splitBySport(rule, outcome, 0);
+  const errorRow = (rule: QualityRule): RuleResultRow => ({
+    ruleId: rule.id,
+    sport: rule.sport,
+    severity: rule.severity,
+    status: 'error',
+    checked: 0,
+    failed: 0,
+    detail: 'quebrou',
+    durationMs: 0,
+    failures: [],
+  });
+  const failing = { checked: 3, failures: [{ key: 'k1', label: 'K1' }] };
+  const firstSeen = async (runId: string, ruleId: string) =>
+    (await db.select().from(qualityFailure).where(eq(qualityFailure.runId, runId))).find(
+      (f) => f.ruleId === ruleId,
+    )?.firstSeenAt;
+
+  it('o "desde" sobrevive a uma execução gravada só com outras regras e a um error no meio', async () => {
+    await save([...rowsOf(ruleA, failing), ...rowsOf(ruleB, { checked: 1, failures: [] })], at(0));
+    // execução filtrada (--regras teste.b): não tem a regra A
+    await save(rowsOf(ruleB, { checked: 1, failures: [] }), at(1));
+    // a regra A quebrou: não diz que a falha sumiu
+    await save([errorRow(ruleA)], at(2));
+    const run = await save(rowsOf(ruleA, failing), at(3));
+    expect((await firstSeen(run, 'teste.a'))!.toISOString()).toBe(at(0).toISOString());
+
+    // a falha some (pass) e volta: o "desde" recomeça
+    await save(rowsOf(ruleA, { checked: 3, failures: [] }), at(4));
+    const back = await save(rowsOf(ruleA, failing), at(5));
+    expect((await firstSeen(back, 'teste.a'))!.toISOString()).toBe(at(5).toISOString());
+  });
+
+  it('esporte que saiu do escopo de uma regra "all" ganha pass zerado (uma vez), não a falha antiga para sempre', async () => {
+    const both = {
+      checked: { football: 2, hockey: 1 },
+      failures: [
+        { key: 'f', label: 'F', sport: 'football' },
+        { key: 'h', label: 'H', sport: 'hockey' },
+      ],
+    };
+    const onlyFootball = {
+      checked: { football: 2 },
+      failures: [{ key: 'f', label: 'F', sport: 'football' }],
+    };
+    const resultsOf = async (runId: string) =>
+      (await db.select().from(qualityResult).where(eq(qualityResult.runId, runId)))
+        .filter((r) => r.ruleId === 'teste.all')
+        .map((r) => [r.sport, r.status, r.checked, r.failed])
+        .sort();
+
+    await save(rowsOf(ruleAll, both), at(10));
+    // a regra quebrou: nada de pass zerado (não se sabe se o hóquei saiu)
+    expect(await resultsOf(await save([errorRow(ruleAll)], at(11)))).toEqual([['all', 'error', 0, 0]]);
+    expect(await resultsOf(await save(rowsOf(ruleAll, onlyFootball), at(12)))).toEqual([
+      ['all', 'pass', 0, 0],
+      ['football', 'fail', 2, 1],
+      ['hockey', 'pass', 0, 0],
+    ]);
+    // o pass zerado já gravado não se repete
+    expect(await resultsOf(await save(rowsOf(ruleAll, onlyFootball), at(13)))).toEqual([
+      ['football', 'fail', 2, 1],
+    ]);
   });
 });
