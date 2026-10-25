@@ -118,8 +118,10 @@ export function pickListed<T extends { id: string }>(
   list: readonly string[],
 ): T[] {
   if (!list.length) return [...ranked];
+  // o provider_map guarda o id do F1DB com o tipo na frente (`driver-ayrton-senna`); a lista usa o id puro
+  const bare = (id: string) => id.replace(/^driver-/, '');
   const position = (d: T) =>
-    Math.min(...(f1dbOf.get(d.id) ?? []).map((id) => list.indexOf(id)).filter((i) => i >= 0), Infinity);
+    Math.min(...(f1dbOf.get(d.id) ?? []).map((id) => list.indexOf(bare(id))).filter((i) => i >= 0), Infinity);
   return ranked
     .map((d) => ({ d, at: position(d) }))
     .filter((x) => x.at !== Infinity)
