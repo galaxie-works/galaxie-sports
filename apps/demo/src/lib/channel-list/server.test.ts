@@ -84,7 +84,8 @@ describe('overrideChannels', () => {
     expect(input).not.toHaveProperty('aiStatus');
     expect(
       input.proposed.find(
-        (m: { broadcasterId: string }) => m.broadcasterId === 'disney_plus' && m.country === 'CO',
+        (m: { country: string; broadcasterId: string }) =>
+          m.country === 'CO' && m.broadcasterId === 'disney_plus',
       ),
     ).toMatchObject({ origin: 'ia' });
   });
