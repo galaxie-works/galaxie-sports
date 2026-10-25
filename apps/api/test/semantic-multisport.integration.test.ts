@@ -26,6 +26,7 @@ import {
   season,
   sport,
   teamMember,
+  teamProfile,
   unit,
   type Database,
   type EventScore,
@@ -611,6 +612,39 @@ describe('/v1/derbies', () => {
     expect(res.retrospect).toMatchObject({ available: false, matches: 0, last_5: [] });
     expect((await get('/v1/derbies/nao-existe')).statusCode).toBe(404);
     expect((await get('/v1/derbies/Slug%20Ruim')).statusCode).toBe(400);
+  });
+});
+
+describe('/v1/derbies: piso editorial dos perfis', () => {
+  it('clássico aprovado com um dos perfis em rascunho não sai (lista, próximos e /{slug})', async () => {
+    // pré-condição: Choque-Rei e os dois perfis aprovados, sai no piso de produção
+    const [original] = await db.select().from(teamProfile).where(eq(teamProfile.slug, 'sao-paulo'));
+    expect(original!.reviewStatus).toBe('approved');
+    const before = (await get('/v1/derbies?team=sao-paulo', {}, prodApp)).json().data as { slug: string }[];
+    expect(before.map((d) => d.slug)).toContain('choque-rei');
+    await db.update(teamProfile).set({ reviewStatus: 'draft' }).where(eq(teamProfile.slug, 'sao-paulo'));
+    // servidor novo (cache vazio) com o piso de produção
+    const fresh = buildServer({ db, redis, keyPrefix: `${keyPrefix}floor:` });
+    try {
+      await fresh.ready();
+      const list = (await get('/v1/derbies?country=br', {}, fresh)).json().data as {
+        slug: string;
+        teams: { slug: string }[];
+      }[];
+      expect(list.map((d) => d.slug)).not.toContain('choque-rei');
+      expect(list.flatMap((d) => d.teams.map((t) => t.slug))).not.toContain('sao-paulo');
+      expect(list.map((d) => d.slug)).toContain('derby-paulista');
+      const month = (await get('/v1/derbies/upcoming?days=30', {}, fresh)).json().data as {
+        event_id: string;
+      }[];
+      expect(month.map((e) => e.event_id)).toEqual([ids.next]);
+      const detail = await get('/v1/derbies/choque-rei', {}, fresh);
+      expect(detail.statusCode).toBe(404);
+      expect(detail.json().detail).toContain('approved');
+    } finally {
+      await fresh.close();
+      await db.update(teamProfile).set({ reviewStatus: 'approved' }).where(eq(teamProfile.slug, 'sao-paulo'));
+    }
   });
 });
 
