@@ -335,8 +335,10 @@ export async function planLineupResearch(db: Database, opts: PlanLineupOptions):
     }
     if (!mine.length || opts.rediscover)
       tasks.push({ kind: 'discover', country, reason: mine.length ? 'rediscover' : 'new_country' });
-    // --redescobrir refaz também as páginas de planos: entra toda plataforma, não só a sem plano
-    for (const p of opts.rediscover ? mine : mine.filter((p) => p.plans === 0))
+    // --redescobrir refaz também as páginas de planos: entra toda plataforma, não só a sem plano, a vista
+    // há mais tempo primeiro (o --max corta a fila; a execução seguinte continua de onde parou)
+    const redo = [...mine].sort((a, b) => new Date(a.seenAt).getTime() - new Date(b.seenAt).getTime());
+    for (const p of opts.rediscover ? redo : mine.filter((p) => p.plans === 0))
       tasks.push({
         kind: 'plans',
         country,

@@ -566,10 +566,11 @@ describe('lineups-research: o que entra na fila', () => {
     const tasks = await planLineupResearch(db, { countries: ['BR'], now: later, rediscover: true });
     expect(tasks.map((t) => [t.kind, t.kind === 'plans' ? t.slug : null, t.reason])).toEqual([
       ['discover', null, 'rediscover'],
-      ['plans', 'br-operadora-exemplo', 'requested'],
-      ['plans', 'br-operadora-nova-exemplo', 'no_plans'],
+      // a vista há mais tempo primeiro (o --max corta a fila; a execução seguinte continua)
       ['plans', 'br-operadora-rejeitada-exemplo', 'no_plans'],
+      ['plans', 'br-operadora-exemplo', 'requested'],
       ['plans', 'br-streaming-exemplo', 'requested'],
+      ['plans', 'br-operadora-nova-exemplo', 'no_plans'],
     ]);
   });
 
