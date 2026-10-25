@@ -119,6 +119,7 @@ export async function runChannelLists(opts: ChannelListRunOptions): Promise<Chan
         .join(' · ');
       const saved = await saveChannelListAi(opts.db, row.tenantId, {
         processedAt: row.processedAt,
+        revision: row.revision,
         proposed: res.matches,
         aiStatus: 'done',
         aiNote: note || null,
@@ -142,6 +143,7 @@ export async function runChannelLists(opts: ChannelListRunOptions): Promise<Chan
       const fallback = await processChannelList(input);
       await saveChannelListAi(opts.db, row.tenantId, {
         processedAt: row.processedAt,
+        revision: row.revision,
         proposed: fallback.matches,
         aiStatus: 'failed',
         aiNote: `IA indisponível: ${message.slice(0, 300)}`,
