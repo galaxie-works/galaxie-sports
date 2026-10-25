@@ -472,4 +472,4 @@ pnpm snapshot:restore                     # local: restaura o snapshot mais rece
 pnpm --filter @galaxie/ingestor bootstrap:catalog   # sem APISPORTS_KEY: modo offline, reprocessa do raw
 ```
 
-Sem `APISPORTS_KEY`, o `ApiSportsClient` entra em **modo offline**: serve a resposta mais recente do raw (de qualquer idade) e nunca chama o fornecedor (`OfflineMissError`). Os assets em si ficam no object storage; o snapshot leva só o manifesto (URL de origem → `storage_key`, `sha256`).
+Sem `APISPORTS_KEY`, o `ApiSportsClient` entra em **modo offline**: serve a resposta mais recente do raw (de qualquer idade) e nunca chama o fornecedor (`OfflineMissError`). Os assets em si ficam no object storage; o snapshot leva só o manifesto (URL de origem → `storage_key`, `sha256`). O export grava em `<arquivo>.part` e só renomeia no fim (interrompido, não vira o "mais recente" da pasta); o restore roda numa transação e só confirma se a linha `end` bate com o que foi lido; asset que o banco local já marcou como ausente (tentado e sem arquivo) não é religado pelo manifesto.
