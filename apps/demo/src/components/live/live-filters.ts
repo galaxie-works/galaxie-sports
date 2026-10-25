@@ -1,8 +1,9 @@
 /**
  * Filtros da página Ao vivo: status (ao vivo / próximos), esporte, país e competição. Puro (sem React):
  * lê e escreve a query string, filtra os eventos já buscados e monta as opções de cada filtro a partir
- * deles. A API de ao vivo aceita um esporte e uma competição só; aqui a escolha é múltipla, por isso o
- * filtro roda no navegador sobre o que a página já tem.
+ * deles. A API aceita um esporte, um país e uma competição por chamada; aqui a escolha é múltipla, por isso
+ * o ao vivo é filtrado no navegador e os próximos são buscados em recortes (`upcomingScopes`) e filtrados
+ * de novo aqui.
  */
 import type { Event } from '@galaxie/contracts';
 
@@ -12,6 +13,7 @@ import {
   flattenFilterRules,
 } from '@/components/reui/filters/filters-query';
 import type { FilterQuery } from '@/components/reui/filters/filters-types';
+import type { UpcomingScope } from '@/lib/galaxie/live';
 
 export type LiveStatus = 'live' | 'upcoming';
 export const LIVE_STATUSES: readonly LiveStatus[] = ['live', 'upcoming'];
@@ -140,6 +142,8 @@ export function liveFilterOptions(
   events: Event[],
   filters: LiveFilters,
   sportLabel: (slug: string) => string,
+  /** Esportes com jogo nos próximos dias (facetas da agenda): entram mesmo sem jogo carregado. */
+  upcomingSports: { slug: string; count: number }[] = [],
 ): LiveFilterOptions {
   const bySport = filters.sport.length ? events.filter((e) => filters.sport.includes(e.sport)) : events;
   const byCountry = filters.country.length
@@ -148,12 +152,23 @@ export function liveFilterOptions(
         return !!c && filters.country.includes(c);
       })
     : bySport;
-  return {
-    sport: collect(
-      events,
-      (e) => ({ value: e.sport, label: sportLabel(e.sport), image: null }),
-      filters.sport,
+  const sport = new Map(
+    collect(events, (e) => ({ value: e.sport, label: sportLabel(e.sport), image: null }), filters.sport).map(
+      (o) => [o.value, o],
     ),
+  );
+  // a contagem da agenda (a semana toda) vale mais que a amostra carregada
+  for (const s of upcomingSports) {
+    const prev = sport.get(s.slug);
+    sport.set(s.slug, {
+      value: s.slug,
+      label: sportLabel(s.slug),
+      image: null,
+      count: Math.max(prev?.count ?? 0, s.count),
+    });
+  }
+  return {
+    sport: [...sport.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
     country: collect(
       bySport,
       (e) => {
@@ -171,6 +186,68 @@ export function liveFilterOptions(
       filters.competition,
     ),
   };
+}
+
+// ─── próximos apitos: buscas por esporte (ou já filtradas) e agrupamento ───
+
+/** Jogos pedidos por busca de próximos (um esporte, um esporte num país ou uma competição). */
+export const UPCOMING_FETCH_LIMIT = 12;
+/** Teto de buscas filtradas de uma vez (esportes × países, ou competições). */
+export const MAX_TARGETED_SCOPES = 24;
+
+/**
+ * Quais buscas de próximos a página faz. A `base` é sempre uma por esporte com jogo nos próximos dias:
+ * os 100 jogos mais próximos eram só futebol, e assim cada esporte traz os seus (e as opções dos filtros
+ * saem dela). Com país ou competição escolhidos, as buscas `targeted` já vêm filtradas da API, para a
+ * lista não depender da amostra: uma por competição, ou uma por esporte em cada país.
+ */
+export function upcomingScopes(
+  filters: LiveFilters,
+  sports: string[],
+): { base: UpcomingScope[]; targeted: UpcomingScope[] } {
+  const all = [...new Set([...sports, ...filters.sport])];
+  const base = all.map((sport) => ({ sport }));
+  if (filters.competition.length)
+    return {
+      base,
+      targeted: filters.competition.slice(0, MAX_TARGETED_SCOPES).map((competition) => ({ competition })),
+    };
+  if (filters.country.length) {
+    const inScope = filters.sport.length ? filters.sport : all;
+    const targeted = filters.country.flatMap((country) => inScope.map((sport) => ({ sport, country })));
+    return { base, targeted: targeted.slice(0, MAX_TARGETED_SCOPES) };
+  }
+  return { base, targeted: [] };
+}
+
+export interface UpcomingGroup {
+  sport: string;
+  /** Jogos do esporte que passaram nos filtros (o total, antes do corte de exibição). */
+  total: number;
+  events: Event[];
+}
+
+/**
+ * Próximos por esporte, sem repetidos e por horário, até `perSport` jogos em cada um. Os esportes seguem
+ * `order` (mais jogos na semana primeiro); os que não estão nela vão para o fim.
+ */
+export function groupUpcoming(events: Event[], order: string[], perSport: number): UpcomingGroup[] {
+  const seen = new Set<string>();
+  const bySport = new Map<string, Event[]>();
+  for (const e of [...events].sort(
+    (a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at) || a.id.localeCompare(b.id),
+  )) {
+    if (seen.has(e.id)) continue;
+    seen.add(e.id);
+    bySport.set(e.sport, [...(bySport.get(e.sport) ?? []), e]);
+  }
+  const rank = (s: string) => {
+    const i = order.indexOf(s);
+    return i < 0 ? order.length : i;
+  };
+  return [...bySport.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+    .map(([sport, list]) => ({ sport, total: list.length, events: list.slice(0, perSport) }));
 }
 
 // ─── ponte com o componente de filtros (ReUI): um chip por filtro, sempre "é um destes" ───

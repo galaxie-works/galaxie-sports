@@ -5,6 +5,7 @@ import { createFilterQuery, createFilterRule } from '@/components/reui/filters/f
 
 import {
   fromFilterQuery,
+  groupUpcoming,
   hasLiveFilters,
   liveFilterOptions,
   liveFiltersSearch,
@@ -13,14 +14,22 @@ import {
   parseLiveFilters,
   showsStatus,
   toFilterQuery,
+  MAX_TARGETED_SCOPES,
+  upcomingScopes,
   type LiveFilters,
 } from './live-filters';
 
 /** Só o que os filtros leem do evento. */
-function ev(id: string, sport: string, comp: { slug: string; name: string; country: string | null } | null) {
+function ev(
+  id: string,
+  sport: string,
+  comp: { slug: string; name: string; country: string | null } | null,
+  startsAt = '2026-10-25T12:00:00Z',
+) {
   return {
     id,
     sport,
+    starts_at: startsAt,
     competition: comp
       ? {
           id: `c-${comp.slug}`,
@@ -147,5 +156,79 @@ describe('ponte com o componente de filtros', () => {
       createFilterRule({ id: 'b', path: ['status'], operator: 'is_any_of', value: ['live', 'outro'] }),
     ]);
     expect(fromFilterQuery(query)).toEqual(f({ status: ['live'] }));
+  });
+});
+
+describe('buscas de próximos', () => {
+  const sports = ['football', 'basketball', 'mma'];
+
+  it('sem filtro: uma busca por esporte com jogo nos próximos dias', () => {
+    expect(upcomingScopes(NO_LIVE_FILTERS, sports)).toEqual({
+      base: [{ sport: 'football' }, { sport: 'basketball' }, { sport: 'mma' }],
+      targeted: [],
+    });
+  });
+
+  it('esporte escolhido fora da agenda também é buscado', () => {
+    expect(upcomingScopes(f({ sport: ['hockey'] }), sports).base).toContainEqual({ sport: 'hockey' });
+  });
+
+  it('país escolhido: busca filtrada por esporte em cada país (só os esportes escolhidos, se houver)', () => {
+    expect(upcomingScopes(f({ country: ['AR'] }), sports).targeted).toEqual([
+      { sport: 'football', country: 'AR' },
+      { sport: 'basketball', country: 'AR' },
+      { sport: 'mma', country: 'AR' },
+    ]);
+    expect(upcomingScopes(f({ country: ['AR', 'BR'], sport: ['basketball'] }), sports).targeted).toEqual([
+      { sport: 'basketball', country: 'AR' },
+      { sport: 'basketball', country: 'BR' },
+    ]);
+  });
+
+  it('competição escolhida: uma busca por competição (vale mais que o país)', () => {
+    expect(upcomingScopes(f({ competition: ['nbb', 'laliga'], country: ['AR'] }), sports).targeted).toEqual([
+      { competition: 'nbb' },
+      { competition: 'laliga' },
+    ]);
+  });
+
+  it('o número de buscas filtradas tem teto', () => {
+    const many = Array.from({ length: 30 }, (_, i) => `s${i}`);
+    expect(upcomingScopes(f({ country: ['AR', 'BR'] }), many).targeted).toHaveLength(MAX_TARGETED_SCOPES);
+  });
+});
+
+describe('próximos por esporte', () => {
+  const list = [
+    ev('a', 'football', serieA, '2026-10-25T18:00:00Z'),
+    ev('b', 'basketball', nbb, '2026-10-25T13:00:00Z'),
+    ev('c', 'football', liga, '2026-10-25T12:00:00Z'),
+    ev('d', 'football', serieA, '2026-10-25T20:00:00Z'),
+    ev('c', 'football', liga, '2026-10-25T12:00:00Z'),
+    ev('e', 'hockey', null, '2026-10-25T11:00:00Z'),
+  ];
+
+  it('agrupa na ordem da agenda, por horário, sem repetidos e com corte por esporte', () => {
+    const groups = groupUpcoming(list, ['football', 'basketball'], 2);
+    expect(groups.map((g) => [g.sport, g.total, g.events.map((e) => e.id)])).toEqual([
+      ['football', 3, ['c', 'a']],
+      ['basketball', 1, ['b']],
+      ['hockey', 1, ['e']],
+    ]);
+  });
+});
+
+describe('opções de esporte com a agenda', () => {
+  it('esportes com jogo na semana entram mesmo sem jogo carregado, pela contagem da agenda', () => {
+    const o = liveFilterOptions(EVENTS, NO_LIVE_FILTERS, (s) => s, [
+      { slug: 'football', count: 300 },
+      { slug: 'volleyball', count: 12 },
+    ]);
+    expect(o.sport.map((s) => [s.value, s.count])).toEqual([
+      ['football', 300],
+      ['volleyball', 12],
+      ['basketball', 1],
+      ['mma', 1],
+    ]);
   });
 });

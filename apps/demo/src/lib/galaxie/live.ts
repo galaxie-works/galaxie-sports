@@ -3,14 +3,13 @@
  * Ao contrário de `api.ts` (Server Components com `use cache`), aqui tudo é buscado sem cache: o
  * ritmo de atualização é controlado por `useLiveRefresh` (SSE + verificação periódica).
  */
-import type { Event, EventTimeline, Page } from '@galaxie/contracts';
+import type { Event, EventTimeline, ExploreAgenda, Page } from '@galaxie/contracts';
 
 import { apiLocale, apiTimeZone, defaultMarket, type ContentLocale, type Locale } from '../i18n/config';
 
 /** Eventos ao vivo por relevância: compartilhado pela sidebar (contador) e pela página Ao vivo. */
 export const LIVE_EVENTS_KEY = ['live-events'] as const;
 export const timelineKey = (id: string) => ['event-timeline', id] as const;
-export const UPCOMING_KEY = ['upcoming-events'] as const;
 
 async function getJson<T>(
   locale: ContentLocale,
@@ -34,13 +33,34 @@ export async function fetchTimeline(id: string, locale: ContentLocale): Promise<
   return getJson<EventTimeline>(locale, `/v1/events/${encodeURIComponent(id)}/timeline`);
 }
 
-/** Próximos apitos (a seção "Próximos" do Ao vivo). `from` é o instante atual, calculado na busca. */
-export async function fetchUpcoming(locale: Locale, limit = 6): Promise<Event[]> {
+/** Esportes com jogo nos próximos dias, com a contagem: as facetas da agenda (`/v1/explore/agenda`). */
+export const UPCOMING_SPORTS_KEY = ['upcoming-sports'] as const;
+
+export async function fetchUpcomingSports(locale: Locale): Promise<{ slug: string; count: number }[]> {
+  // limit=1: só as facetas interessam (os jogos do dia vêm de `fetchUpcoming`, por esporte)
+  const agenda = await getJson<ExploreAgenda>(locale, '/v1/explore/agenda', { limit: 1 });
+  return agenda.facets.sports.filter((s) => s.count > 0);
+}
+
+/** Recorte de uma busca de próximos: um esporte, um esporte num país ou uma competição. */
+export interface UpcomingScope {
+  sport?: string;
+  country?: string;
+  competition?: string;
+}
+
+export const upcomingKey = (scope: UpcomingScope) =>
+  ['upcoming-events', scope.sport ?? '', scope.country ?? '', scope.competition ?? ''] as const;
+
+/** Próximos apitos de um recorte (a seção "Próximos" do Ao vivo). `from` é o instante atual, calculado na busca. */
+export async function fetchUpcoming(locale: Locale, scope: UpcomingScope, limit: number): Promise<Event[]> {
+  const filters = Object.fromEntries(Object.entries(scope).filter(([, v]) => !!v)) as Record<string, string>;
   const page = await getJson<Page<Event>>(locale, '/v1/events', {
     from: new Date().toISOString(),
     status: 'scheduled,starting',
     order: 'starts_at',
     limit,
+    ...filters,
   });
   return page.data;
 }
