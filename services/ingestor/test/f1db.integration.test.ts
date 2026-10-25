@@ -316,6 +316,10 @@ describe('importação do F1DB', () => {
 
   it('sessão da api-sports que chega depois assume o evento criado pelo F1DB', async () => {
     const f1dbEvent = await entityOf('f1db', 'event', 'race-1166-race');
+    const before = await db.execute<{ provider: string; detail: unknown }>(
+      sql`select provider, detail from core.sport_event_detail where event_id = ${f1dbEvent}::uuid`,
+    );
+    expect(before[0]!.provider).toBe('f1db');
     const stats = await upsertBatch(
       db,
       normalizeF1Races(
@@ -332,6 +336,29 @@ describe('importação do F1DB', () => {
         from core.event e where e.id = ${f1dbEvent}::uuid`);
     // a api-sports vira dona do estado; os pilotos do F1DB ficam até ela mandar a classificação
     expect(e[0]).toMatchObject({ source_provider: 'api-sports', n: '2' });
+    // o espelho troca de identidade junto com o resumo (antes ficava com o id do F1DB e o resumo da api-sports);
+    // o detalhe já gravado fica
+    const [mirror] = await db.execute<{
+      provider: string;
+      provider_event_id: string;
+      kind: string;
+      summary_id: string | null;
+    }>(sql`
+      select provider, provider_event_id, kind, summary->>'id' as summary_id
+        from core.sport_event_detail where event_id = ${f1dbEvent}::uuid`);
+    expect(mirror).toEqual({
+      provider: 'api-sports',
+      provider_event_id: '2100',
+      kind: 'race',
+      summary_id: '2100',
+    });
+    expect(before[0]!.detail).toEqual(
+      (
+        await db.execute<{ detail: unknown }>(
+          sql`select detail from core.sport_event_detail where event_id = ${f1dbEvent}::uuid`,
+        )
+      )[0]!.detail,
+    );
   });
 
   it('com o horário estimado do F1DB (antes de 2024), a sessão da api-sports casa pelo dia', async () => {

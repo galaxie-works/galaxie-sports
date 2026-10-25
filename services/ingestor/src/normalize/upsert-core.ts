@@ -1474,12 +1474,20 @@ async function upsertEvents(
 /**
  * `core.sport_event_detail`: o resumo (item do fornecedor) acompanha o estado aplicado — uma lista mais
  * antiga não reescreve o resumo; o detalhe vindo dos complementos é preservado (mesmo padrão do futebol).
+ * A identidade (provider, provider_event_id, kind) anda junto com o resumo: quando outro fornecedor passa a
+ * ser o dono do evento (ex.: F1DB → api-sports), o espelho não fica com o resumo de um e o id do outro.
  */
 async function upsertSportMirrors(tx: Tx, batch: NormalizedBatch, allowed: AllowedEvent[]): Promise<void> {
   const sd = sportEventDetail;
   for (const applied of [true, false]) {
     const mirrors = allowed.filter((e) => e.source.sportEvent && e.stateApplied === applied);
-    const summary = applied ? sql`excluded.summary` : sql`${sd.summary}`;
+    const pick = (column: SQL, value: SQL) => (applied ? value : column);
+    const next = {
+      provider: pick(sql`${sd.provider}`, sql`excluded.provider`),
+      providerEventId: pick(sql`${sd.providerEventId}`, sql`excluded.provider_event_id`),
+      kind: pick(sql`${sd.kind}`, sql`excluded.kind`),
+      summary: pick(sql`${sd.summary}`, sql`excluded.summary`),
+    };
     for (const chunk of chunks(mirrors, 200)) {
       await tx
         .insert(sd)
@@ -1500,8 +1508,8 @@ async function upsertSportMirrors(tx: Tx, batch: NormalizedBatch, allowed: Allow
         )
         .onConflictDoUpdate({
           target: sd.eventId,
-          set: { summary, updatedAt: sql`now()` },
-          setWhere: sql`${sd.summary} is distinct from ${summary}`,
+          set: { ...next, updatedAt: sql`now()` },
+          setWhere: sql`(${sd.provider}, ${sd.providerEventId}, ${sd.kind}, ${sd.summary}) is distinct from (${next.provider}, ${next.providerEventId}, ${next.kind}, ${next.summary})`,
         });
     }
   }
