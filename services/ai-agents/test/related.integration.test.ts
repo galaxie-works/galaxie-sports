@@ -6,11 +6,14 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  AUTO_CHANNEL_RULE_BY,
   changeFeed,
   readRelatedContent,
   RELATED_CONTENT_TOPIC,
   relatedBudget,
+  relatedChannelRule,
   relatedContent,
+  relatedPlaybackBlock,
   relatedRun,
   type Database,
 } from '@galaxie/db';
@@ -106,10 +109,11 @@ const VIDEOS: FakeVideo[] = [
   },
 ];
 
-function fakeYoutube(state: { removed: Set<string>; searches: string[] }): FetchLike {
+function fakeYoutube(state: { removed: Set<string>; searches: string[]; videoIds?: string[] }): FetchLike {
   return async (url) => {
     const u = new URL(url);
     const p = u.searchParams;
+    if (u.pathname.endsWith('/videos')) state.videoIds?.push(...p.get('id')!.split(','));
     const json = (body: unknown) => new Response(JSON.stringify(body));
     if (u.pathname.endsWith('/search')) {
       state.searches.push(`${p.get('q')}|${p.get('videoDuration') ?? 'any'}|${p.get('relevanceLanguage')}`);
@@ -406,6 +410,53 @@ describe('Conteúdo relacionado (integração)', () => {
     const [budget] = await db.select().from(relatedBudget);
     expect(budget).toMatchObject({ quotaDay: '2026-10-11', searchLimit: 2, searchUsed: 2, apiLimit: 10_000 });
     expect(budget!.skipped.map((s) => s.eventId)).toEqual([eventId]);
+  });
+
+  it('coleta: vídeo recusado e canal bloqueado não vão para o videos.list (não gastam cota)', async () => {
+    const before = await db.select().from(relatedRun);
+    // v-react recusado pelo player; o canal da emissora (v-short, v-outro) bloqueado no limiar de recusas
+    await db.insert(relatedPlaybackBlock).values({
+      provider: 'youtube',
+      externalId: 'v-react',
+      code: 150,
+      channelId: 'UCreact',
+      tenantId: null,
+      firstReportedAt: NOW,
+      lastReportedAt: NOW,
+    });
+    await db.insert(relatedChannelRule).values({
+      provider: 'youtube',
+      channelId: 'UCge',
+      mode: 'block',
+      updatedBy: AUTO_CHANNEL_RULE_BY,
+    });
+    const seen = { removed: new Set<string>(), searches: [] as string[], videoIds: [] as string[] };
+    const yt = new YoutubeClient({ apiKey: 'test', fetch: fakeYoutube(seen) });
+    const report = await runRelatedAgent(db, {
+      ...base,
+      now: new Date(NOW.getTime() + 5 * 3_600_000),
+      force: true,
+      llm: null,
+      youtube: yt,
+    });
+    expect(report.items[0], report.items[0]!.reason).toMatchObject({ action: 'searched' });
+    expect(seen.searches.length).toBeGreaterThan(0);
+    // nenhum id bloqueado chegou ao videos.list: nem os da busca, nem os guardados
+    for (const id of ['v-react', 'v-short', 'v-outro']) expect(seen.videoIds).not.toContain(id);
+    expect(seen.videoIds).toContain('v-official');
+    const [run] = (await db.select().from(relatedRun)).filter((r) => !before.some((b) => b.id === r.id));
+    // guardado bloqueado: o v-short (o v-react já tinha sido retirado pela blocklist editorial)
+    expect(run!.stats).toMatchObject({ blockedSkipped: { stored: 1 } });
+    expect((run!.stats as { blockedSkipped: { videos: number } }).blockedSkipped.videos).toBeGreaterThan(0);
+    // os guardados bloqueados não são retirados: só ficam fora da vitrine (voltam se o bloqueio sair)
+    const current = await db
+      .select({ externalId: relatedContent.externalId, status: relatedContent.status })
+      .from(relatedContent)
+      .where(and(eq(relatedContent.eventId, eventId), isNull(relatedContent.supersededBy)));
+    expect(current.find((r) => r.externalId === 'v-short')?.status).toBe('published');
+    const page = await readRelatedContent(db, eventId);
+    expect(page.rows.map((r) => r.externalId)).not.toContain('v-short');
+    expect(page.rows.map((r) => r.externalId)).not.toContain('v-react');
   });
 
   it('expira em 30 dias sem atualização: apaga título, miniatura e estatísticas em todas as versões', async () => {
