@@ -13,6 +13,7 @@ import { authClient } from '@/lib/auth/client';
 import { useI18n } from '@/lib/i18n/client';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { fill, rich } from '@/lib/i18n/text';
+import { internalPath } from '@/lib/internal-path';
 
 /** Mesmos valores do servidor (lib/auth/server.ts), repetidos aqui para não importar código do servidor. */
 const OTP_LENGTH = 6;
@@ -34,9 +35,12 @@ const OTP_ERROR: Record<string, keyof AuthErrors> = {
   BANNED_USER: 'banned',
 };
 
-/** Só aceita voltar para um caminho interno (evita redirecionamento aberto). */
+/**
+ * Só aceita voltar para um caminho da própria origem (evita redirecionamento aberto): resolvido como o
+ * navegador resolveria, porque `/\evil.com` passa numa checagem só de prefixo.
+ */
 function safeNext(value: string | null) {
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/';
+  return internalPath(value, window.location.origin) ?? '/';
 }
 
 type AuthError = { status?: number; code?: string; message?: string };
