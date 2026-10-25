@@ -297,7 +297,8 @@ describe('GET /v1/events/{id}/related', () => {
         .json()
         .data.map((d: { external_id: string }) => d.external_id);
     expect(await ids('AR')).toEqual(['bts-all']);
-    expect(await ids('MX')).toEqual(['bts-onlymx', 'bts-all']);
+    // o bloqueado só na Argentina toca no México
+    expect(await ids('MX')).toEqual(['bts-onlymx', 'bts-noar', 'bts-all']);
   });
 
   it('erro do player tira o vídeo da vitrine; 3 recusas tiram o canal, e a liberação no painel vence', async () => {
