@@ -134,6 +134,44 @@ describe('sendCached', () => {
     expect(loads()).toBe(2);
   });
 
+  it('purge durante o load: não grava a resposta (pode ser anterior à mudança) e sai sem cache', async () => {
+    const cache = new MemoryResponseCache();
+    let name = 'A';
+    let purgeMidLoad = true;
+    const { app, loads } = appWith(cache, () => {
+      const body = { name };
+      if (purgeMidLoad) {
+        // a mudança comita e o change feed purga enquanto a requisição ainda monta a resposta velha
+        name = 'B';
+        void cache.purgeTags(['competition:1']);
+        purgeMidLoad = false;
+      }
+      return body;
+    });
+    const stale = await app.inject({ url: '/r' });
+    expect(stale.json()).toEqual({ name: 'A' });
+    expect(stale.headers['cache-control']).toBe('no-cache');
+    const next = await app.inject({ url: '/r' });
+    expect(next.headers['x-galaxie-cache']).toBe('MISS');
+    expect(next.json()).toEqual({ name: 'B' });
+    expect(next.headers['cache-control']).toBe(cacheControl(60));
+    expect((await app.inject({ url: '/r' })).headers['x-galaxie-cache']).toBe('HIT');
+    expect(loads()).toBe(2);
+  });
+
+  it('cache fora do ar na leitura: responde do load sem buscar a marca de purge', async () => {
+    const cache = new MemoryResponseCache();
+    cache.get = async () => {
+      throw new Error('fora do ar');
+    };
+    const purgeMark = vi.spyOn(cache, 'purgeMark');
+    const { app } = appWith(cache, () => ({ ok: true }));
+    const res = await app.inject({ url: '/r' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+    expect(purgeMark).not.toHaveBeenCalled();
+  });
+
   it('varia por locale', async () => {
     const { app, loads } = appWith(new MemoryResponseCache(), () => ({}));
     await app.inject({ url: '/r?locale=es-AR' });

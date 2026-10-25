@@ -113,9 +113,11 @@ export async function sendCached(
 ): Promise<FastifyReply> {
   const key = cacheKeyFor(request, options.vary);
   let entry: CachedResponse | undefined;
+  let readable = true;
   try {
     entry = await cache.get(key);
   } catch (err) {
+    readable = false;
     request.log.warn({ err }, 'cache indisponível (leitura)');
   }
 
@@ -124,6 +126,16 @@ export async function sendCached(
     reply.header('x-galaxie-cache', 'HIT');
     ttl = remainingTtl(entry, options.ttl);
   } else {
+    // marca d'água dos purges antes de ler o banco: purge que cair durante o load recusa a gravação
+    // (com o cache fora do ar na leitura, não insiste: a gravação abaixo cai no mesmo erro, ou grava sem a checagem)
+    let since: number | undefined;
+    if (readable) {
+      try {
+        since = await cache.purgeMark();
+      } catch (err) {
+        request.log.warn({ err }, 'cache indisponível (leitura)');
+      }
+    }
     const loaded = await options.load();
     const body =
       loaded.contentType && typeof loaded.body === 'string' ? loaded.body : JSON.stringify(loaded.body);
@@ -142,7 +154,9 @@ export async function sendCached(
     reply.header('x-galaxie-cache', 'MISS');
     if (loaded.store !== false && ttl > 0) {
       try {
-        await cache.set(key, entry, ttl);
+        // recusada: uma tag da resposta foi purgada durante o load, então ela pode ser anterior à mudança;
+        // sai sem cache compartilhado (a próxima requisição monta de novo)
+        if (!(await cache.set(key, entry, ttl, since))) ttl = 0;
       } catch (err) {
         request.log.warn({ err }, 'cache indisponível (escrita)');
       }
