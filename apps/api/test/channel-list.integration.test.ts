@@ -138,6 +138,21 @@ describe('PUT /v1/channel-list', () => {
     expect((await req('GET', '/v1/channel-list', keys.main)).statusCode).toBe(404);
   });
 
+  it('recusa lista acima de 5.000 canais em vez de cortar sem avisar', async () => {
+    const names = (n: number) => Array.from({ length: n }, (_, i) => `CANAL ${i}`);
+    const res = await req('PUT', '/v1/channel-list', keys.main, {
+      content: [...names(5003), 'CANAL 1'].join('\n'),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().errors).toEqual([
+      {
+        path: 'content',
+        message: 'a lista passa de 5.000 canais (3 a mais, sem contar os repetidos); envie até 5.000',
+      },
+    ]);
+    expect((await req('GET', '/v1/channel-list', keys.main)).statusCode).toBe(404);
+  });
+
   it('grava só os nomes e propõe o casamento do exemplo de referência', async () => {
     const m3u = [
       '#EXTM3U',

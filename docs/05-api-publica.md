@@ -710,7 +710,7 @@ O casamento é feito contra **todas as emissoras dos mercados do tenant** (cada 
 | Rota (chave secreta; módulo `where_to_watch`) | O que faz |
 |---|---|
 | `GET /v1/channel-list` | A lista (`channels[]`), o casamento proposto (`matches[]`: `{country, provider_id, provider, access, match, channels[{index, name}], origin, note}`) e o confirmado (`confirmed_matches`), com `status` (`review` · `confirmed`) e `ai_status` (`not_needed` · `pending` · `done` · `failed`); 404 sem lista |
-| `PUT /v1/channel-list` | `{content, format?: m3u\|text, default_country?}` — envia ou substitui (até 2 MB e 5.000 canais; nomes repetidos são descartados). O casamento por código sai na resposta; as sobras vão para a IA (`ai_status: pending`). Correções feitas no portal seguem valendo para os canais de mesmo nome. `default_country` vale para os canais sem país no nome nem no grupo |
+| `PUT /v1/channel-list` | `{content, format?: m3u\|text, default_country?}` — envia ou substitui (até 2 MB e 5.000 canais, sem contar os nomes repetidos, que são descartados; acima disso, 400 `INVALID_PARAMS` em `content`, sem gravar). O casamento por código sai na resposta; as sobras vão para a IA (`ai_status: pending`). Correções feitas no portal seguem valendo para os canais de mesmo nome. `default_country` vale para os canais sem país no nome nem no grupo |
 | `POST /v1/channel-list/reprocess` | Refaz o casamento com o dicionário de emissoras e os mercados atuais (mesma lista, mesmas correções). Sem mudança, a confirmação continua |
 | `POST /v1/channel-list/confirm` | O casamento proposto passa a ser o servido em `client_channels` |
 
