@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { llmSettingsFromEnv, rightsLlmEnv } from '../config.js';
+import { LlmError } from '../errors.js';
 import { createLlmClient } from '../factory.js';
 import { GEMINI_GROUNDING_USD_PER_QUERY } from '../pricing.js';
 import type { LlmJsonRequest } from '../types.js';
@@ -239,6 +240,47 @@ describe('GeminiLlmClient (API Interactions + Grounding with Google Search)', ()
     const r = await client.generateJson<{ answer: string }>(req({ webSearch: false }));
     expect(r.data.answer).toBe('ESPN');
     expect(f.calls).toHaveLength(3);
+  });
+
+  it('falha no passo 2 (estruturação) refaz só o passo 2: a pesquisa paga não se repete', async () => {
+    const badJson = {
+      status: 200,
+      body: {
+        status: 'completed',
+        steps: [{ type: 'model_output', content: [{ type: 'text', text: '{}' }] }],
+        usage: { total_input_tokens: 500, total_output_tokens: 50 },
+      },
+    };
+    const f = fakeFetch([research, badJson, badJson, ok('Fox Sports')]);
+    const client = new GeminiLlmClient({ apiKey: 'k', models: MODELS, fetch: f.fetch, retry: noSleep });
+    const r = await client.generateJson<{ answer: string }>(req());
+    expect(r.data.answer).toBe('Fox Sports');
+    expect(f.calls).toHaveLength(4);
+    expect(f.calls.filter((c) => c.body!.tools)).toHaveLength(1); // uma pesquisa só
+    expect(f.calls.slice(1).every((c) => c.body!.model === 'gemini-3.5-flash-lite')).toBe(true);
+    expect(r.usage).toMatchObject({ webSearchCalls: 3 });
+    expect(r.groundedUrls).toEqual(['https://www.conmebol.com/tv', 'https://ge.globo.com/x']);
+  });
+
+  it('retentativa só sai se o orçamento ainda couber (conferência com o gasto parcial)', async () => {
+    const f = fakeFetch([{ status: 503, body: { error: { message: 'overloaded' } } }, ok('x')]);
+    const client = new GeminiLlmClient({ apiKey: 'k', models: MODELS, fetch: f.fetch, retry: noSleep });
+    const spent: { tokens: number; usd: number }[] = [];
+    const refuse = new LlmError('orçamento', 'budget', false);
+    const err = await client
+      .generateJson(
+        req({
+          webSearch: false,
+          budgetCheck: (s) => {
+            spent.push(s);
+            throw refuse;
+          },
+        }),
+      )
+      .catch((e: unknown) => e);
+    expect(err).toBe(refuse);
+    expect(f.calls).toHaveLength(1);
+    expect(spent).toEqual([{ tokens: 0, usd: 0 }]);
   });
 
   it('sem chave: erro de configuração', () => {

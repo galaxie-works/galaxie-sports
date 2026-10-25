@@ -47,6 +47,12 @@ echo "4) ensaio (--verify) não altera o banco"
 run restore.sh --verify latest
 [ "$(psql_e2e "select count(*) from ops.job_run where job = 'e2e-marker'")" = 0 ]
 
+echo "4b) dump sem .sha256 só passa com --no-checksum"
+run sh -c 'f=$(ls -1t /backups/*.dump | head -n 1); mv "$f.sha256" "$f.sha256.fora"'
+if run restore.sh --verify latest >/dev/null 2>&1; then echo "restore sem checksum deveria falhar" >&2; exit 1; fi
+run restore.sh --verify --no-checksum latest
+run sh -c 'f=$(ls -1t /backups/*.dump | head -n 1); mv "$f.sha256.fora" "$f.sha256"'
+
 echo "5) restauração real exige confirmação"
 if run restore.sh latest >/dev/null 2>&1; then echo "restore sem --yes deveria falhar" >&2; exit 1; fi
 

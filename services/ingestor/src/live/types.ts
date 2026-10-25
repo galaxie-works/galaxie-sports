@@ -2,7 +2,7 @@
  * Tipos do ao vivo (docs/07 §2.1): candidatos lidos do core, plano do dia do Live Scheduler e
  * decisões de *tick* do Live Poller. Tudo aqui é dado puro — sem banco, sem relógio do sistema.
  */
-import type { EventClock, EventScore, EventStatus } from '@galaxie/providers';
+import type { EventClock, EventScore, EventStatus, StatusSource } from '@galaxie/providers';
 
 /** Prioridade ao vivo do catálogo (`core.competition.live_priority`). */
 export type LivePriority = 'high' | 'medium' | 'low' | 'none';
@@ -21,6 +21,11 @@ export interface LiveCandidate {
   /** Horário oficial do início. */
   startsAt: Date;
   status: EventStatus;
+  /**
+   * Origem do status: `temporal` = avançado pelo relógio dos eventos sem confirmação da fonte (ex.: encerrado
+   * em `ends_at_expected` sem dado fresco). Ausente = desconhecida (tratada como da fonte).
+   */
+  statusSource?: StatusSource | undefined;
   /** Código do fornecedor (NS, 1H, HT, 2H, ET, BT, P, FT...). */
   statusDetail: string | null;
   clock: EventClock | null;
@@ -82,7 +87,10 @@ export interface LiveBudget {
   /** Orçamento LIVE total do dia (inclui o que já foi gasto) — enviado ao `governor.plan`. */
   liveTotal: number;
   liveUsed: number;
-  /** Chamadas guardadas para confirmar o resultado final de cada jogo (`fixtures?id=` ao sair do live). */
+  /**
+   * Chamadas guardadas para confirmar o resultado final de cada jogo (`fixtures?id=` ao sair do live): 1 por
+   * jogo, até 1/4 do saldo; jogo em andamento garante a sua fora desse teto.
+   */
   finalizeReserve: number;
   /** Cada tick custa 1 chamada, ou 2 com o detalhe do jogo em destaque. */
   tickCost: number;
