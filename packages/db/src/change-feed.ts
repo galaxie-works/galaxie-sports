@@ -22,8 +22,9 @@ type Executor = Pick<Database, 'execute'>;
  * Usa `ops.publish_change`, a mesma função dos triggers de captura (migration 0006): a mesma
  * (tópico, entidade) publicada duas vezes na mesma transação — por um trigger e pelo app, por
  * exemplo — vira uma única linha com os payloads fundidos. Mudanças em `core.event`,
- * `core.event_incident`, `enrich.broadcast_option` e `enrich.event_context` já são capturadas
- * pelos triggers; use publishChange para os demais writers (catálogo, tabelas, espelho...).
+ * `core.event_incident`, `enrich.broadcast_option`, `enrich.event_context` e nas tabelas da grade
+ * (`enrich.platform` e filhas) já são capturadas pelos triggers; use publishChange para os demais
+ * writers (catálogo, tabelas, espelho...).
  */
 export async function publishChange(db: Executor, change: ChangeInput): Promise<number> {
   const payload = change.payload == null ? null : JSON.stringify(change.payload);
