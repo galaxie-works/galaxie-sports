@@ -8,7 +8,7 @@ import { and, gte, lt } from 'drizzle-orm';
 import type { ExploreAgenda } from '@galaxie/contracts';
 import { event } from '@galaxie/db';
 import { buildEvents, type BuildContext } from '../events/builder.js';
-import { applyRelevance } from '../events/relevance.js';
+import { applyRelevance, inMarket } from '../events/relevance.js';
 import { OFF_CATALOG_SPORTS } from '../off-catalog.js';
 import { UUID_RE } from '../util.js';
 import { exploreWindow, involves, isUpcoming, selectWindowEvents, type WindowEvent } from './summary.js';
@@ -119,6 +119,13 @@ export function agendaCounts(
 /** Candidatos aos destaques: os mais importantes da janela e, com mercado, os mais importantes do país. */
 export const HIGHLIGHT_POOL = 30;
 
+/**
+ * O jogo é do mercado? Pela mesma regra do bônus do mercado (`inMarket`): GB cobre GB-ENG, GB-SCT… O filtro de
+ * país (`involves`) segue com o código exato, como `/v1/events?country=`.
+ */
+const ofMarket = (e: WindowEvent, market: string) =>
+  inMarket(e.competition?.countryCode, market) || e.participantCountries.some((c) => inMarket(c, market));
+
 export function highlightCandidates(matching: WindowEvent[], market: string | null): WindowEvent[] {
   const byImportance = (list: WindowEvent[]) =>
     [...list]
@@ -126,7 +133,7 @@ export function highlightCandidates(matching: WindowEvent[], market: string | nu
       .slice(0, HIGHLIGHT_POOL);
   const pool = [
     ...byImportance(matching),
-    ...(market ? byImportance(matching.filter((e) => involves(e, market))) : []),
+    ...(market ? byImportance(matching.filter((e) => ofMarket(e, market))) : []),
   ];
   return [...new Map(pool.map((e) => [e.id, e])).values()];
 }
