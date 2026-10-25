@@ -14,6 +14,7 @@ import {
   getTenant,
   invalidScopes,
   issueKey,
+  KeyRotationError,
   listKeys,
   listTenants,
   MAX_ROTATION_GRACE_SEC,
@@ -191,7 +192,9 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     const { id, keyId } = parseInput(KeyParams, request.params);
     const { graceSeconds } = parseInput(RotateBody, request.body ?? {});
     const t = await tenantOr404(id);
-    const rotated = await rotateKey(db, t.id, keyId, { graceSeconds });
+    const rotated = await rotateKey(db, t.id, keyId, { graceSeconds }).catch((err) => {
+      throw err instanceof KeyRotationError ? problems.conflict(err.message) : err;
+    });
     if (!rotated) throw problems.notFound('Chave ativa');
     request.log.info(
       { tenant: t.slug, key: rotated.previous.prefix, admin: 'key.rotate' },
