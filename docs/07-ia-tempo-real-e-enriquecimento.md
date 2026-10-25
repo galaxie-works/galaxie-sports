@@ -252,6 +252,7 @@ pnpm --filter @galaxie/ai-agents lineups:pages [--pais BR] [--plataforma <slug>]
 pnpm --filter @galaxie/ai-agents lineups:curate --arquivo <json> [--aplicar]      # curadoria interna (prévia sem --aplicar)
 pnpm --filter @galaxie/ingestor assets:platform-logos --plan [--pais BR]        # logos: o que seria ligado
 pnpm --filter @galaxie/ingestor assets:platform-logos [--pais BR] [--plataforma <slug>] [--refazer]
+pnpm --filter @galaxie/ingestor assets:commons:atribuicao [--plan]           # atribuição pedida pelo autor nos créditos antigos
 ```
 
 Os logos rodam depois da pesquisa (plataforma nova entra sem logo); na VPS: `docker compose exec -T ingestor node dist/cli/platform-logos.js --plan` e, conferida a prévia, sem `--plan`.
