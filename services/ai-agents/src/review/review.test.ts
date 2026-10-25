@@ -209,6 +209,52 @@ describe('guardrails de texto na edição aceita (antes de publicar)', () => {
   });
 });
 
+describe('rivalidade pela intenção final da edição', () => {
+  const rivalry = copyItem({
+    content: {
+      ...copyItem().content,
+      intent: 'rivalry',
+      template: '{team} x {rival}: freguês de novo. Vai, {nickname}!',
+    },
+  });
+
+  it('trocar rivalry por cheer junto com o texto não libera "freguês"', () => {
+    const r = finalFields(
+      rivalry,
+      out({
+        decision: 'accept_with_changes',
+        fields: [
+          value('intent', 'cheer'),
+          value('template', '{team} x {rival}: o freguês de sempre. Vai, {nickname}!'),
+        ],
+      }),
+    );
+    expect(!r.ok && r.problems.join(' ')).toMatch(/^template: linguagem de rivalidade/);
+  });
+
+  it('trocar só a intenção para inform barra o termo que o texto já tinha', () => {
+    const r = finalFields(
+      rivalry,
+      out({ decision: 'accept_with_changes', fields: [value('intent', 'inform')] }),
+    );
+    expect(!r.ok && r.problems.join(' ')).toMatch(/template: linguagem de rivalidade/);
+  });
+
+  it('virar rivalry libera o termo no texto novo', () => {
+    const r = finalFields(
+      copyItem(),
+      out({
+        decision: 'accept_with_changes',
+        fields: [
+          value('intent', 'rivalry'),
+          value('template', '{team} x {rival}: freguês de novo. Vai, {nickname}!'),
+        ],
+      }),
+    );
+    expect(r).toMatchObject({ ok: true });
+  });
+});
+
 describe('guardrails de texto no perfil editorial da F1 (as isenções do f1bio)', () => {
   const profile = (bio: string): SuggestionItem =>
     copyItem({

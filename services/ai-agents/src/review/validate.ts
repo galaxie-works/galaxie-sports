@@ -87,15 +87,26 @@ export function fieldProblems(field: string, before: unknown, after: unknown): s
   return out;
 }
 
+/** Copy de intenção `rivalry`: a única em que a linguagem de rivalidade é permitida. */
+const rivalryCopy = (kind: ReviewKind, content: Record<string, unknown>) =>
+  kind === 'copy' && content.intent === 'rivalry';
+
 /**
  * Guardrails do texto gerado (termos proibidos, eco de prompt injection e, com o idioma do item, idioma errado) nos
  * textos que a edição escreve no campo. Só conta o problema novo: o que o valor atual já tinha (ex.: o nome oficial
- * de um time que contém um termo da lista) não pesa contra a edição. Rivalidade só na copy de intenção `rivalry`;
- * no perfil editorial da F1, as isenções do validador do f1bio.
+ * de um time que contém um termo da lista) não pesa contra a edição. Rivalidade só na copy de intenção `rivalry`, a
+ * do conteúdo final (`finalContent`: a edição pode trocar a intenção junto com o texto); o valor atual é lido com a
+ * intenção de antes, então o termo de rivalidade que ele já tinha conta se a edição tira a intenção `rivalry`. No
+ * perfil editorial da F1, as isenções do validador do f1bio.
  */
-export function textProblems(item: SuggestionItem, field: string, before: unknown, after: unknown): string[] {
+export function textProblems(
+  item: SuggestionItem,
+  field: string,
+  before: unknown,
+  after: unknown,
+  finalContent: Record<string, unknown> = item.content,
+): string[] {
   const locales = item.locale ? [item.locale] : ['pt-BR', 'es'];
-  const allowRivalry = item.kind === 'copy' && item.content.intent === 'rivalry';
   // perfil editorial da F1: as mesmas isenções do validador do f1bio ("pilotagem agressiva"; morte e acidente
   // são fato da biografia, não termo de torcida)
   const editorial = item.kind === 'editorial';
@@ -104,14 +115,16 @@ export function textProblems(item: SuggestionItem, field: string, before: unknow
       !(editorial && (v.kind === 'forbidden_violence' || v.kind === 'forbidden_tragedy'))) ||
     v.kind === 'injection_echo' ||
     (!!item.locale && v.kind === 'wrong_language');
-  const violations = (value: unknown) =>
+  const violations = (value: unknown, allowRivalry: boolean) =>
     strings(value)
       .filter((s) => s.trim())
       .map((s) => (editorial ? withoutRacingAggression(s) : s))
       .flatMap((s) => locales.flatMap((locale) => checkGeneratedText(s, { locale, allowRivalry })))
       .filter(relevant);
-  const had = new Set(violations(before).map((v) => `${v.kind}|${v.value}`));
-  const fresh = violations(after).filter((v, i, all) => {
+  const had = new Set(
+    violations(before, rivalryCopy(item.kind, item.content)).map((v) => `${v.kind}|${v.value}`),
+  );
+  const fresh = violations(after, rivalryCopy(item.kind, finalContent)).filter((v, i, all) => {
     const key = `${v.kind}|${v.value}`;
     return !had.has(key) && all.findIndex((x) => `${x.kind}|${x.value}` === key) === i;
   });
@@ -155,8 +168,16 @@ export function finalFields(item: SuggestionItem, output: ReviewModelOutput): Fi
   const fields = Object.fromEntries(
     Object.entries(raw).filter(([k, v]) => !same(item.content[k], v)),
   ) as Record<string, unknown>;
+  const finalContent = { ...item.content, ...fields };
   for (const [k, v] of Object.entries(fields))
-    problems.push(...fieldProblems(k, item.content[k], v), ...textProblems(item, k, item.content[k], v));
+    problems.push(
+      ...fieldProblems(k, item.content[k], v),
+      ...textProblems(item, k, item.content[k], v, finalContent),
+    );
+  // a edição tirou a intenção `rivalry`: o texto que ficou como estava também não pode ter rivalidade
+  if (rivalryCopy(item.kind, item.content) && !rivalryCopy(item.kind, finalContent))
+    for (const [k, v] of Object.entries(item.content))
+      if (!(k in fields)) problems.push(...textProblems(item, k, v, v, finalContent));
   if (JSON.stringify(fields).length > FIELDS_MAX) problems.push('edição grande demais');
   if (output.decision === 'accept_with_changes' && !Object.keys(fields).length)
     problems.push('aceita com ajustes, mas sem nenhum campo alterado');
