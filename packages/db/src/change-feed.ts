@@ -1,6 +1,9 @@
 import { sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 
+/** Marca d'água dos consumidores do change feed (SSE, webhooks, cache da demo). */
+export { GapCursor } from './gap-cursor.js';
+
 /** Canal do LISTEN/NOTIFY usado para acordar os consumidores do change feed (purge de cache, SSE...). */
 export const CHANGE_FEED_CHANNEL = 'ops_change_feed';
 
@@ -32,4 +35,23 @@ export async function publishChange(db: Executor, change: ChangeInput): Promise<
     sql`select ops.publish_change(${change.topic}, ${change.entityType}, ${change.entityId}, ${payload}::jsonb)::text as id`,
   );
   return Number(rows[0]!.id);
+}
+
+/** O que define as tags de uma mudança (subconjunto de uma linha de `ops.change_feed`). */
+export interface ChangeTagSource {
+  entityType: string;
+  entityId: string;
+  payload: unknown;
+}
+
+/**
+ * Tags de cache afetadas por uma mudança: a entidade (`competition:<id>`), a coleção (`competition`)
+ * e as tags extras em `payload.tags`. Convenções de tag em docs/05 §7. A API purga o Valkey e a CDN
+ * com elas; a demo revalida o cache do Next (`cacheTag`) com as mesmas.
+ */
+export function tagsForChange(change: ChangeTagSource): string[] {
+  const tags = [`${change.entityType}:${change.entityId}`, change.entityType];
+  const extra = (change.payload as { tags?: unknown } | null)?.tags;
+  if (Array.isArray(extra)) for (const t of extra) if (typeof t === 'string') tags.push(t);
+  return [...new Set(tags)];
 }
