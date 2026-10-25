@@ -476,7 +476,21 @@ export interface VerifyContext {
   resolveUrl: (url: string) => Promise<string | null>;
   /** URL citada aceitável como fonte (ancorada na busca, fora da blocklist)? null = sem fonte. */
   acceptUrl?: (url: string | null) => string | null;
+  /**
+   * Extração da página lida do nosso lado (sem busca): onde o trecho está na página. Com ela, o trecho
+   * precisa estar na página (`checks.page`), o trecho dentro do cartão ou da lista aberta do plano prova
+   * o plano, e o item sem trecho não some: entra sem prova (`unverified`), para a revisão no painel.
+   */
+  pageProof?: (url: string, excerpt: string) => PageProof;
   now: Date;
+}
+
+/** Onde o trecho citado está na página oficial lida do nosso lado. */
+export interface PageProof {
+  /** O trecho (cada pedaço, se cortado com "...") está no texto da página. */
+  found: boolean;
+  /** Planos cujo cartão ou lista aberta (seção com o nome do plano) contém o trecho. */
+  planBlocks: string[];
 }
 
 export interface VerifiedEvidence {
@@ -511,19 +525,24 @@ export interface CheckInput {
 export async function checkEvidence(ctx: VerifyContext, input: CheckInput): Promise<VerifiedEvidence | null> {
   const cited = ctx.acceptUrl ? ctx.acceptUrl(input.evidence.url) : input.evidence.url;
   const excerpt = input.evidence.excerpt ? sanitizeText(input.evidence.excerpt, EXCERPT_MAX).trim() : '';
-  if (!cited || !excerpt) return null;
+  // da página lida do nosso lado, o item sem trecho entra sem prova (a revisão decide); da busca, não entra
+  if (!cited || (!excerpt && !ctx.pageProof)) return null;
   const redirected = isGroundingRedirect(cited);
   const final = await ctx.resolveUrl(cited);
   const tier = final ? sourceTier(final, ctx.platform, ctx.dir) : null;
-  const byName = namesPlan(excerpt, input.plan, input.siblings);
+  const proof = ctx.pageProof && excerpt ? ctx.pageProof(final ?? cited, excerpt) : null;
+  const byName = excerpt ? namesPlan(excerpt, input.plan, input.siblings) : false;
   const byUrl = final ? isPlanPage(final, input.plan, ctx.platform.name) : false;
+  // o trecho está no cartão do plano ou na lista de canais aberta pelo botão dele
+  const byBlock = !!proof?.planBlocks.some((b) => b === input.plan);
   const reused = input.reusedBy.size > 1;
   const checks: LineupVerification['checks'] = {
     redirect: !redirected ? 'skip' : final ? 'pass' : 'fail',
     // sem URL final não há domínio para conferir: não é oficial
     official: tier === 'official' ? 'pass' : 'fail',
-    excerpt:
-      input.amount !== undefined
+    excerpt: !excerpt
+      ? 'fail'
+      : input.amount !== undefined
         ? input.amount === null
           ? 'skip'
           : excerptHasAmount(excerpt, input.amount)
@@ -532,9 +551,10 @@ export async function checkEvidence(ctx: VerifyContext, input: CheckInput): Prom
         : mentionsAny(excerpt, input.names ?? [])
           ? 'pass'
           : 'fail',
-    plan_specific: byName || byUrl ? 'pass' : 'fail',
-    // reaproveitado em outro plano só vale se citar este plano pelo nome
-    not_reused: reused && !byName ? 'fail' : 'pass',
+    plan_specific: byName || byUrl || byBlock ? 'pass' : 'fail',
+    // reaproveitado em outro plano só vale se citar este plano pelo nome (ou estiver no bloco dele)
+    not_reused: reused && !byName && !byBlock ? 'fail' : 'pass',
+    ...(ctx.pageProof ? { page: proof?.found ? ('pass' as const) : ('fail' as const) } : {}),
   };
   return {
     verification: {
@@ -542,7 +562,7 @@ export async function checkEvidence(ctx: VerifyContext, input: CheckInput): Prom
       final_url: final,
       final_host: final ? hostOf(final) : null,
       tier,
-      excerpt: excerpt.slice(0, EXCERPT_STORED),
+      excerpt: excerpt ? excerpt.slice(0, EXCERPT_STORED) : null,
       checks,
       verified: false,
       checked_at: ctx.now.toISOString(),

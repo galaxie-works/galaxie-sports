@@ -21,24 +21,52 @@ import {
   platform as platformTable,
   platformPlan,
   platformSlug,
+  recordPlanPagesExtraction,
+  setPlatformPlanPages,
+  touchPlatformLineup,
   upsertLineupDraft,
   proposeLineupChange,
   type Database,
   type LineupChange,
+  type LineupPageContent,
   type LineupPlanDraft,
   type LineupPlatform,
   type PlatformKind,
 } from '@galaxie/db';
 import { hostOf, normalizeName, type CountryDirectory, type WtwConfig } from '@galaxie/where-to-watch';
 import { detectPromptInjection, isAllowedUrl } from '../guardrails/index.js';
+import type { UsageWithSearches } from '../llm/budget.js';
 import { BudgetExceededError } from '../llm/errors.js';
 import { sanitizeText } from '../llm/hygiene.js';
+import { estimateCostUsd, GEMINI_GROUNDING_USD_PER_QUERY } from '../llm/pricing.js';
 import type { LlmClient, LlmResult } from '../llm/types.js';
-import type { OfficialPageReader } from './pages.js';
-import { catalogPrompt, discoveryPrompt, lineupSystemPrompt, planPrompt } from './prompt.js';
+import { candidatePages } from './confirm.js';
+import {
+  extractedPlanNames,
+  modelsFromExtraction,
+  needsExtraction,
+  pageLocator,
+  pagesHash,
+  pageVerifyContext,
+  withPageRef,
+  type ReadablePage,
+} from './page-research.js';
+import { contentHashOf, type OfficialPageReader, type PageRead } from './pages.js';
+import {
+  catalogPrompt,
+  discoveryPrompt,
+  lineupSystemPrompt,
+  pageExtractPrompt,
+  pageExtractSystemPrompt,
+  planPagesPrompt,
+  planPrompt,
+} from './prompt.js';
 import {
   acceptableOfficialDomain,
+  amountsIn,
+  isOfficialUrl,
   redirectResolver,
+  spaced,
   verifyPlans,
   GRADE_CHANNEL_MEDIA,
   verifyAddons,
@@ -50,18 +78,25 @@ import {
   LINEUP_DISCOVERY_SCHEMA_NAME,
   LINEUP_MAX_CHANNELS,
   LINEUP_MAX_OFFICIAL_DOMAINS,
+  LINEUP_MAX_PLAN_PAGES,
   LINEUP_MAX_PLANS,
   LINEUP_MAX_PLATFORMS,
   LINEUP_MAX_SERVICES,
   LINEUP_MAX_SOURCES,
   LINEUP_CATALOG_SCHEMA,
   LINEUP_CATALOG_SCHEMA_NAME,
+  LINEUP_PAGE_EXTRACT_SCHEMA,
+  LINEUP_PAGE_EXTRACT_SCHEMA_NAME,
+  LINEUP_PLAN_PAGES_SCHEMA,
+  LINEUP_PLAN_PAGES_SCHEMA_NAME,
   LINEUP_PLAN_SCHEMA,
   LINEUP_PLAN_SCHEMA_NAME,
   type LineupCatalogOutput,
   type LineupDiscoveryOutput,
   type LineupOutputSource,
+  type LineupPageExtractOutput,
   type LineupPlanOutput,
+  type LineupPlanPagesOutput,
 } from './schema.js';
 
 const DAY = 86_400_000;
@@ -76,6 +111,17 @@ export const plansPurpose = (slug: string, country: string) => `lineups:plans:${
 /** Etapa 1 (lista dos planos e catálogo de complementos) e etapa 2 (um plano). */
 export const catalogPurpose = (slug: string, country: string) => `lineups:catalog:${slug}:${country}`;
 export const planPurpose = (slug: string, country: string) => `lineups:plan:${slug}:${country}`;
+/** Pela página oficial: a descoberta das URLs de planos (busca curta) e a extração (sem busca). */
+export const planPagesPurpose = (slug: string, country: string) => `lineups:pages-url:${slug}:${country}`;
+export const extractPurpose = (slug: string, country: string) => `lineups:extract:${slug}:${country}`;
+
+/**
+ * pages = lê a página oficial e extrai sem busca (padrão) · search = a pesquisa antiga, com grounding em
+ * cada etapa (`--com-busca`, só para comparar ou quando o site não deixa ler).
+ */
+export type LineupResearchMode = 'pages' | 'search';
+
+const searchesOf = (r: LlmResult<unknown>) => (r.usage as UsageWithSearches).webSearchCalls ?? 0;
 
 /** Junta as fontes da busca de várias chamadas (as etapas de uma mesma plataforma). */
 function mergeResults(
@@ -297,6 +343,99 @@ export async function planLineupResearch(db: Database, opts: PlanLineupOptions):
   return tasks;
 }
 
+// ─── estimativa (--plan, sem LLM) ────────────────────────────────────────────────────────────────
+
+/** Medido na produção (ops.llm_usage, 7 dias até 25/10/2026): 873 buscas em 83 chamadas com grounding. */
+export const GROUNDED_SEARCHES_PER_CALL = 10.5;
+/** A descoberta das páginas de planos pede no máximo 3 buscas. */
+export const PLAN_PAGES_SEARCHES = 3;
+/** Planos por plataforma na pesquisa antiga, quando a plataforma ainda não tem planos gravados. */
+const SEARCH_MODE_PLANS = 4;
+
+export interface LineupModels {
+  research: string;
+  light: string;
+}
+
+export interface LineupCallEstimate {
+  task: LineupTask;
+  /** Chamadas com busca (descoberta, URLs de planos ou a pesquisa antiga) e as buscas esperadas. */
+  searchCalls: number;
+  searches: number;
+  /** Extrações sem busca (teto: na execução, 0 se a página não mudou). */
+  extractCalls: number;
+  usd: number;
+  note: string | null;
+}
+
+const tokensUsd = (model: string, inputTokens: number, outputTokens: number) =>
+  estimateCostUsd(model, { inputTokens, outputTokens }) ?? 0;
+
+/** Uma chamada com busca: pesquisa no modelo de pesquisa + estruturação no leve, e as buscas. */
+export const groundedCallUsd = (m: LineupModels, searches: number) =>
+  tokensUsd(m.research, 4_000, 1_500) +
+  tokensUsd(m.light, 6_000, 1_500) +
+  searches * GEMINI_GROUNDING_USD_PER_QUERY;
+/** Uma extração sem busca: as páginas no prompt (~30 mil tokens) e a grade na saída. */
+export const extractCallUsd = (m: LineupModels) => tokensUsd(m.light, 30_000, 4_000);
+
+/**
+ * O que cada tarefa deve chamar (sem LLM nem rede): na pesquisa pela página, uma busca curta só para a
+ * plataforma sem página de planos conhecida e no máximo uma extração (nenhuma se a página não mudou).
+ */
+export async function estimateLineupCalls(
+  db: Database,
+  tasks: readonly LineupTask[],
+  opts: { mode: LineupResearchMode; models: LineupModels; rediscover?: boolean },
+): Promise<LineupCallEstimate[]> {
+  const ids = tasks.flatMap((t) => (t.kind === 'plans' ? [t.platformId] : []));
+  const platforms = ids.length
+    ? await db.select().from(platformTable).where(inArray(platformTable.id, ids))
+    : [];
+  const plans = ids.length
+    ? await db
+        .select({
+          platformId: platformPlan.platformId,
+          url: platformPlan.url,
+          sources: platformPlan.sources,
+          verification: platformPlan.verification,
+        })
+        .from(platformPlan)
+        .where(and(inArray(platformPlan.platformId, ids), ne(platformPlan.reviewStatus, 'rejected')))
+    : [];
+  const grounded = (calls: number, searches: number) => ({
+    searchCalls: calls,
+    searches,
+    extractCalls: 0,
+    usd: calls ? calls * groundedCallUsd(opts.models, searches / calls) : 0,
+    note: null,
+  });
+  return tasks.map((task): LineupCallEstimate => {
+    if (task.kind === 'discover') return { task, ...grounded(1, GROUNDED_SEARCHES_PER_CALL) };
+    const row = platforms.find((p) => p.id === task.platformId);
+    const mine = plans.filter((p) => p.platformId === task.platformId);
+    if (opts.mode === 'search') {
+      const calls = 1 + (mine.length || SEARCH_MODE_PLANS);
+      return { task, ...grounded(calls, calls * GROUNDED_SEARCHES_PER_CALL) };
+    }
+    if (!row || (!row.website && !row.officialDomains.length))
+      return { task, ...grounded(0, 0), note: 'sem site oficial: nada a ler' };
+    const known = !opts.rediscover && (row.planPages.length > 0 || candidatePages(row, mine, 1).length > 0);
+    const search = known ? grounded(0, 0) : grounded(1, PLAN_PAGES_SEARCHES);
+    return {
+      task,
+      ...search,
+      extractCalls: 1,
+      usd: search.usd + extractCallUsd(opts.models),
+      note: known
+        ? row.planPagesHash
+          ? 'página guardada; extrai só se mudou'
+          : 'página guardada; primeira extração'
+        : 'sem página de planos guardada: busca curta',
+    };
+  });
+}
+
 // ─── execução ────────────────────────────────────────────────────────────────────────────────────
 
 export interface LineupCallOutcome {
@@ -323,6 +462,17 @@ export interface LineupCallOutcome {
   skippedPlans: string[];
   /** Domínio novo do site oficial (rebrand), quando o site redireciona. */
   rebrandTo: string | null;
+  /** Buscas na web feitas pelo provedor nesta tarefa (o mesmo que vai para ops.llm_usage). */
+  searches: number;
+  /** Chamadas com busca (descoberta, URLs de planos, pesquisa antiga) e sem busca (extração). */
+  searchCalls: number;
+  extractCalls: number;
+  /** Pela página oficial: as páginas lidas. */
+  pages: Pick<PageRead, 'url' | 'status' | 'via' | 'fromCache' | 'hashChanged' | 'error'>[];
+  /** Pela página oficial: a página não mudou desde a última extração (nenhuma chamada ao modelo). */
+  pagesUnchanged: boolean;
+  /** Por que a tarefa parou antes de extrair (sem site, nenhuma página lida, sem orçamento). */
+  note: string | null;
   error?: string;
 }
 
@@ -339,8 +489,12 @@ export interface LineupResearchDeps {
 }
 
 export interface LineupRunOptions extends Omit<PlanLineupOptions, 'now'> {
-  /** Máximo de chamadas de pesquisa (descoberta + planos) nesta execução. */
+  /** Máximo de chamadas ao modelo (com e sem busca) nesta execução. */
   maxCalls: number;
+  /** Padrão `pages`: lê a página oficial e extrai sem busca. */
+  mode?: LineupResearchMode;
+  /** Pela página oficial: ignora o cache das páginas e extrai mesmo com a página igual. */
+  force?: boolean;
 }
 
 const STREAMING_MEDIA = new Set(['streaming_svod', 'streaming_free']);
@@ -380,8 +534,14 @@ export class LineupResearcher {
         const outcome =
           task.kind === 'discover'
             ? await this.discover(task)
-            : await this.researchPlans(task, opts.maxCalls - calls);
-        calls += Math.max(1, outcome.calls);
+            : (opts.mode ?? 'pages') === 'search'
+              ? await this.researchPlans(task, opts.maxCalls - calls)
+              : await this.researchFromPages(task, opts.maxCalls - calls, {
+                  force: opts.force ?? false,
+                  rediscoverPages: opts.rediscover ?? false,
+                });
+        // página igual à da última extração não chama o modelo e não gasta o --max
+        calls += outcome.calls;
         out.push(outcome);
         if (outcome.status === 'skipped') return out; // orçamento do dia esgotado
         if (task.kind === 'discover' && !opts.revisit)
@@ -417,7 +577,22 @@ export class LineupResearcher {
       missingPlans: [],
       skippedPlans: [],
       rebrandTo: null,
+      searches: 0,
+      searchCalls: 0,
+      extractCalls: 0,
+      pages: [],
+      pagesUnchanged: false,
+      note: null,
     };
+  }
+
+  /** Soma o custo, as buscas e a chamada no resultado da tarefa. */
+  private count(out: LineupCallOutcome, r: LlmResult<unknown>, kind: 'search' | 'extract'): void {
+    out.calls++;
+    if (kind === 'search') out.searchCalls++;
+    else out.extractCalls++;
+    out.searches += searchesOf(r);
+    if (r.usage.costUsd !== undefined) out.costUsd = (out.costUsd ?? 0) + r.usage.costUsd;
   }
 
   private failed(out: LineupCallOutcome, err: unknown): LineupCallOutcome {
@@ -455,8 +630,7 @@ export class LineupResearcher {
         maxOutputTokens: 8_000,
         purpose: discoveryPurpose(task.country),
       });
-      out.costUsd = res.usage.costUsd ?? null;
-      out.calls = 1;
+      this.count(out, res, 'search');
       const gate = new SourceGate(anchorResolver(res), dir);
       const seenAt = this.now();
       const seen = new Set<string>();
@@ -540,6 +714,295 @@ export class LineupResearcher {
     return row!;
   }
 
+  /** Rebrand: na revisita, o site oficial que passou a redirecionar para outro domínio vira mudança. */
+  private async checkRebrand(
+    task: Extract<LineupTask, { kind: 'plans' }>,
+    row: LineupPlatform,
+    out: LineupCallOutcome,
+  ): Promise<void> {
+    if (task.reason !== 'revisit' || !row.website || !this.deps.pages) return;
+    const target = await this.deps.pages.rebrandTarget(row.website);
+    if (!target) return;
+    out.rebrandTo = target;
+    await proposeLineupChange(
+      this.deps.db,
+      { type: 'platform', id: row.id },
+      {
+        website: target,
+        note: `o site oficial (${hostOf(row.website)}) redireciona para ${hostOf(target)}`,
+      },
+      this.now(),
+    );
+  }
+
+  /** Nomes da biblioteca do país para o prompt (o modelo repete a mesma grafia). */
+  private libraryNames(dir: CountryDirectory): { channels: string[]; services: string[] } {
+    return {
+      channels: dir.broadcasters
+        .filter((b) => GRADE_CHANNEL_MEDIA.has(b.medium))
+        .flatMap((b) => [b.name, ...b.channels]),
+      services: dir.broadcasters.filter((b) => STREAMING_MEDIA.has(b.medium)).map((b) => b.name),
+    };
+  }
+
+  /**
+   * As URLs das páginas de planos de uma plataforma sem nenhuma conhecida: uma chamada curta com busca
+   * no site oficial. Vale a URL do domínio oficial (a leitura confere de novo e respeita o robots.txt).
+   */
+  private async findPlanPages(
+    task: Extract<LineupTask, { kind: 'plans' }>,
+    row: LineupPlatform,
+    out: LineupCallOutcome,
+  ): Promise<string[]> {
+    const officialHosts = [row.website ? hostOf(row.website) : null, ...row.officialDomains].filter(
+      (d): d is string => !!d,
+    );
+    const res = await this.deps.llm.generateJson<LineupPlanPagesOutput>({
+      tier: 'research',
+      system: lineupSystemPrompt(),
+      messages: [
+        {
+          role: 'user',
+          content: planPagesPrompt({
+            country: task.country,
+            platform: {
+              name: row.name,
+              kind: row.kind,
+              website: row.website,
+              officialDomains: row.officialDomains,
+            },
+          }),
+        },
+      ],
+      schema: LINEUP_PLAN_PAGES_SCHEMA,
+      schemaName: LINEUP_PLAN_PAGES_SCHEMA_NAME,
+      webSearch: true,
+      ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
+      maxOutputTokens: 2_000,
+      purpose: planPagesPurpose(row.slug, task.country),
+    });
+    this.count(out, res, 'search');
+    const anchor = anchorResolver(res);
+    const dir = this.directory(task.country);
+    const urls: { url: string; grounded: boolean }[] = [];
+    for (const p of res.data.paginas) {
+      const grounded = anchor(p.url);
+      const raw = grounded ?? (isAllowedUrl(p.url) ? p.url.trim() : null);
+      const url = raw ? await this.resolveUrl(raw) : null;
+      if (!url || !isOfficialUrl(url, row) || dir.blocklist.isBlockedUrl(url)) continue;
+      const key = comparableUrl(url);
+      if (!urls.some((u) => comparableUrl(u.url) === key)) urls.push({ url, grounded: !!grounded });
+    }
+    // as que vieram da busca primeiro
+    return [...urls.filter((u) => u.grounded), ...urls.filter((u) => !u.grounded)]
+      .map((u) => u.url)
+      .slice(0, LINEUP_MAX_PLAN_PAGES);
+  }
+
+  /**
+   * Planos de uma plataforma pela página oficial (padrão): URLs guardadas (ou uma busca curta para
+   * achá-las), leitura do nosso lado, e uma extração sem busca só quando a página mudou desde a última.
+   * `budget`: chamadas ao modelo que esta tarefa ainda pode fazer.
+   */
+  async researchFromPages(
+    task: Extract<LineupTask, { kind: 'plans' }>,
+    budget = Infinity,
+    opts: { force?: boolean; rediscoverPages?: boolean } = {},
+  ): Promise<LineupCallOutcome> {
+    const { db, llm } = this.deps;
+    const out = this.base(task);
+    const reader = this.deps.pages;
+    if (!reader) return { ...out, status: 'failed', error: 'sem leitor da página oficial' };
+    const row = await this.platformRow(task.platformId);
+    if (!row) return { ...out, status: 'failed', error: 'plataforma inexistente' };
+    const dir = this.directory(task.country);
+    const stop = (note: string) => {
+      out.note = note;
+      this.log(`${row.slug}: ${note}`);
+      return out;
+    };
+    if (!row.website && !row.officialDomains.length)
+      return stop(
+        'sem site oficial: a página de planos não tem onde ser lida (corrija a plataforma no painel)',
+      );
+    try {
+      await this.checkRebrand(task, row, out);
+      const known = await db
+        .select({
+          name: platformPlan.name,
+          url: platformPlan.url,
+          sources: platformPlan.sources,
+          verification: platformPlan.verification,
+        })
+        .from(platformPlan)
+        .where(and(eq(platformPlan.platformId, row.id), ne(platformPlan.reviewStatus, 'rejected')));
+
+      // 1. as páginas de planos: guardadas, as oficiais dos planos já gravados ou uma busca curta
+      let urls = opts.rediscoverPages
+        ? []
+        : row.planPages.length
+          ? row.planPages
+          : candidatePages(row, known, LINEUP_MAX_PLAN_PAGES);
+      if (!urls.length) urls = await this.findPlanPages(task, row, out);
+      if (!urls.length && row.website) urls = [row.website];
+
+      // 2. leitura do nosso lado (cache por URL; estático → JSON embutido → navegador)
+      const enough = enoughForExtraction(dir, row.kind);
+      const reads: ReadablePage[] = [];
+      for (const url of urls.slice(0, LINEUP_MAX_PLAN_PAGES)) {
+        const read = await reader.read(url, row, { platformId: row.id, force: opts.force ?? false, enough });
+        out.pages.push({
+          url,
+          status: read.status,
+          via: read.via,
+          fromCache: read.fromCache,
+          hashChanged: read.hashChanged,
+          ...(read.error ? { error: read.error } : {}),
+        });
+        // sem navegador, a página que pede JavaScript ainda pode ter os planos e os preços no estático
+        if ((read.status === 'ok' || read.status === 'needs_render') && read.content?.text)
+          reads.push({
+            url: read.finalUrl ?? read.url,
+            content: read.content,
+            hash: read.hash ?? contentHashOf(read.content),
+            via: read.via,
+            fetchedAt: read.fetchedAt,
+          });
+      }
+      // guarda as URLs certas (as que existem no site oficial), lidas ou não (robots, bloqueio)
+      const keep = out.pages
+        .filter((p) => p.status !== 'error' && p.status !== 'off_domain')
+        .map((p) => p.url);
+      if (keep.length && keep.join('\n') !== row.planPages.join('\n'))
+        await setPlatformPlanPages(db, row.id, keep);
+      if (!reads.length)
+        return stop(
+          `nenhuma página de planos lida (${out.pages.map((p) => `${p.status} ${p.url}`).join('; ') || 'nenhuma URL'})`,
+        );
+
+      // 3. página igual à da última extração: nada a extrair
+      const hash = pagesHash(reads);
+      if (!needsExtraction(row.planPagesHash, hash, opts.force)) {
+        out.pagesUnchanged = true;
+        await touchPlatformLineup(db, row.id, this.now());
+        return stop('página de planos igual à da última extração; nenhuma chamada ao modelo');
+      }
+      if (out.calls >= budget)
+        return stop('sem orçamento para a extração nesta execução; fica para a próxima');
+
+      // 4. extração do texto, sem busca, no nível leve
+      const lib = this.libraryNames(dir);
+      const res = await llm.generateJson<LineupPageExtractOutput>({
+        tier: 'light',
+        system: pageExtractSystemPrompt(),
+        messages: [
+          {
+            role: 'user',
+            content: pageExtractPrompt({
+              country: task.country,
+              platform: { name: row.name, kind: row.kind, website: row.website },
+              pages: reads.map((r) => ({ url: r.url, text: r.content.text, sections: r.content.sections })),
+              knownPlans: known.map((k) => k.name),
+              channels: lib.channels,
+              services: [...lib.services, ...lib.channels],
+            }),
+          },
+        ],
+        schema: LINEUP_PAGE_EXTRACT_SCHEMA,
+        schemaName: LINEUP_PAGE_EXTRACT_SCHEMA_NAME,
+        webSearch: false,
+        maxOutputTokens: 16_000,
+        purpose: extractPurpose(row.slug, task.country),
+      });
+      this.count(out, res, 'extract');
+
+      // 5. o validador decide a prova; o trecho precisa estar na página
+      const skip = (name: string) => {
+        if (dir.blocklist.isBlockedName(name)) return (out.drops.blocked++, true);
+        if (detectPromptInjection(name).length) return (out.drops.injection++, true);
+        return false;
+      };
+      const names = extractedPlanNames(res.data);
+      const locator = pageLocator(reads, names, row.name);
+      const models = modelsFromExtraction(res.data, { pages: reads, locator, platformName: row.name, skip });
+      const ctx = pageVerifyContext({
+        country: row.country,
+        platform: { name: row.name, website: row.website, officialDomains: row.officialDomains },
+        dir,
+        pages: reads,
+        locator,
+        now: this.now(),
+      });
+      const verified = await verifyPlans(models.plans, ctx);
+      this.tally(out, verified);
+      const catalog = await verifyAddons(models.addons, ctx);
+      out.verification.addons = catalog.addons.length;
+      for (const d of catalog.drops)
+        if (d.reason === 'unknown' && !out.drops.unknown.includes(d.name)) out.drops.unknown.push(d.name);
+
+      const plans: LineupPlanDraft[] = verified.plans.map((p) => ({
+        name: p.name,
+        priceText: p.priceText,
+        priceAmount: p.priceAmount,
+        priceCurrency: p.priceCurrency,
+        url: p.url,
+        sources: p.sources.slice(0, LINEUP_MAX_SOURCES),
+        verification: withPageRef(p.verification, reads),
+        channels: p.channels.map((c) => ({
+          channelId: c.entryId,
+          access: c.access,
+          sources: c.sources.slice(0, LINEUP_MAX_SOURCES),
+          verification: withPageRef(c.verification, reads),
+        })),
+        services: p.services.map((c) => ({
+          serviceId: c.entryId,
+          access: c.access,
+          sources: c.sources.slice(0, LINEUP_MAX_SOURCES),
+          verification: withPageRef(c.verification, reads),
+        })),
+      }));
+      out.accepted = plans.length;
+      // grade completa só com todas as páginas lidas por inteiro: página que falhou não apaga plano
+      const allRead = out.pages.every((p) => p.status === 'ok');
+      if (plans.length || catalog.addons.length) {
+        const r = await upsertLineupDraft(db, {
+          platform: {
+            slug: row.slug,
+            name: row.name,
+            kind: row.kind,
+            country: row.country,
+            website: row.website,
+            broadcasterId: row.broadcasterId,
+            sources: row.sources,
+          },
+          plans,
+          addons: catalog.addons.map((a) => ({
+            ...a,
+            url: null,
+            verification: withPageRef(a.verification, reads),
+          })),
+          addonsComplete: task.reason === 'revisit' && allRead && catalog.addons.length > 0,
+          seenAt: this.now(),
+          complete: task.reason === 'revisit' && allRead && plans.length > 0,
+        });
+        this.add(out, r);
+      }
+      await recordPlanPagesExtraction(db, row.id, hash, this.now());
+      const v = out.verification;
+      this.log(
+        `${row.slug}: ${reads.length} página(s) lida(s) · ${plans.length} plano(s) (${v.pricedPlans} com preço provado) · ` +
+          `canais e streamings: ${v.included} incluso(s), ${v.addon} adicional(is), ${v.unverified} sem prova · ` +
+          `${v.addons} complemento(s) · ${out.created} novo(s), ${out.changes.length} mudança(s) · ` +
+          `${out.searchCalls} chamada(s) com busca (${out.searches} busca(s)), ${out.extractCalls} extração(ões)` +
+          (out.drops.unknown.length ? ` · fora da biblioteca: ${out.drops.unknown.length}` : '') +
+          (out.drops.inactive.length ? ` · extintos: ${out.drops.inactive.join(', ')}` : ''),
+      );
+      return out;
+    } catch (err) {
+      return this.failed(out, err);
+    }
+  }
+
   /**
    * Planos de uma plataforma em duas etapas: (1) a lista dos planos (só nome e fonte) e o catálogo de
    * complementos; (2) uma chamada por plano, para o detalhe. A validação é conjunta (o trecho
@@ -585,27 +1048,9 @@ export class LineupResearcher {
         maxOutputTokens: 12_000,
         purpose,
       });
-    const cost = (r: LlmResult<unknown>) => {
-      out.calls++;
-      if (r.usage.costUsd !== undefined) out.costUsd = (out.costUsd ?? 0) + r.usage.costUsd;
-    };
+    const cost = (r: LlmResult<unknown>) => this.count(out, r, 'search');
 
-    // rebrand: na revisita, o site oficial que passou a redirecionar para outro domínio vira mudança
-    if (task.reason === 'revisit' && row.website && this.deps.pages) {
-      const target = await this.deps.pages.rebrandTarget(row.website);
-      if (target) {
-        out.rebrandTo = target;
-        await proposeLineupChange(
-          db,
-          { type: 'platform', id: row.id },
-          {
-            website: target,
-            note: `o site oficial (${hostOf(row.website)}) redireciona para ${hostOf(target)}`,
-          },
-          this.now(),
-        );
-      }
-    }
+    await this.checkRebrand(task, row, out);
 
     const results: LlmResult<unknown>[] = [];
     try {
@@ -838,6 +1283,33 @@ export class LineupResearcher {
     out.drops.noSource += r.skipped;
     out.changes.push(...r.changes);
   }
+}
+
+/**
+ * O conteúdo lido já basta para a extração? Tem preço e, fora o streaming, cita ao menos 5 canais da
+ * biblioteca (a grade); senão o leitor tenta o JSON embutido e o navegador.
+ */
+export function enoughForExtraction(
+  dir: CountryDirectory,
+  kind: PlatformKind,
+): (content: LineupPageContent) => boolean {
+  const names = [
+    ...new Set(
+      dir.broadcasters
+        .filter((b) => GRADE_CHANNEL_MEDIA.has(b.medium))
+        .map((b) => spaced(b.name))
+        .filter((n) => n.length >= 3),
+    ),
+  ];
+  return (content) => {
+    const all = [content.text, ...content.sections.map((s) => s.text)].join('\n');
+    if (!amountsIn(all).some((a) => a.money)) return false;
+    if (kind === 'streaming') return true;
+    const text = ` ${spaced(all)} `;
+    let hits = 0;
+    for (const n of names) if (text.includes(` ${n} `) && ++hits >= 5) return true;
+    return false;
+  };
 }
 
 /** A plataforma descoberta já está gravada? Mesmo nome normalizado ou mesmo host do site. */

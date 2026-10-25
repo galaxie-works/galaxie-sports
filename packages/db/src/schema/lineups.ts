@@ -198,6 +198,19 @@ export const platform = enrich.table(
     logoAssetId: uuid('logo_asset_id').references(() => asset.id),
     /** Mesmo serviço que uma entrada da biblioteca de emissoras (streaming). */
     broadcasterId: text('broadcaster_id').references(() => broadcaster.id, { onDelete: 'set null' }),
+    /**
+     * Páginas oficiais de planos e ofertas (a da lista de planos e, se o site tiver, a de cada plano),
+     * descobertas uma vez (busca curta) e lidas do nosso lado na pesquisa da grade.
+     */
+    planPages: text('plan_pages')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /**
+     * Hash das páginas de planos na última extração com IA: página igual na revisita não chama o modelo.
+     */
+    planPagesHash: text('plan_pages_hash'),
+    planPagesExtractedAt: timestamp('plan_pages_extracted_at', { withTimezone: true }),
     ...reviewColumns(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

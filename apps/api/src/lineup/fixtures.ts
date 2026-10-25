@@ -45,6 +45,9 @@ const platform = (id: string, slug: string, name: string, kind: PlatformKind): L
   officialDomains: [],
   logoAssetId: null,
   broadcasterId: null,
+  planPages: [],
+  planPagesHash: null,
+  planPagesExtractedAt: null,
   ...review,
 });
 

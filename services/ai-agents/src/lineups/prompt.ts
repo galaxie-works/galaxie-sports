@@ -6,7 +6,7 @@
  */
 import type { PlatformKind } from '@galaxie/db';
 import { UNTRUSTED_DATA_RULE } from '../guardrails/index.js';
-import { sanitizeText, UNTRUSTED_CONTENT_RULES } from '../llm/hygiene.js';
+import { sanitizeText, UNTRUSTED_CONTENT_RULES, wrapUntrusted } from '../llm/hygiene.js';
 import { COUNTRY_NAMES } from '../wtw/prompt.js';
 
 /** Nome do país e idioma da busca. */
@@ -112,5 +112,80 @@ export function planPrompt(input: {
     'Se a busca de hoje não achar este plano, responda encontrado = false.',
     `Canais esportivos da nossa biblioteca (se o canal for um deles, use exatamente este nome):\n${list(input.channels, 120)}`,
     `Streamings da nossa biblioteca (se for um deles, use exatamente este nome):\n${list(input.services, 60)}`,
+  ].join('\n\n');
+}
+
+// ─── pesquisa pela página oficial ────────────────────────────────────────────────────────────────
+
+/**
+ * Descoberta das páginas de planos (só quando a plataforma não tem nenhuma guardada): busca curta, no
+ * site oficial. O resto da pesquisa lê essas páginas do nosso lado, sem busca.
+ */
+export function planPagesPrompt(input: { country: string; platform: PlatformPromptInput }): string {
+  return [
+    ...platformLines(input.country, input.platform),
+    'Ache só as URLs das páginas do site oficial onde a plataforma publica os planos vigentes no país, com os preços: a página da lista de planos e, se o site tiver, a página de cada plano e a da grade de canais.',
+    'Faça no máximo 3 buscas, de preferência com "site:" no domínio oficial. Não levante planos, preços nem canais: só as URLs.',
+    'Só URLs do site oficial ou dos domínios oficiais da plataforma que apareceram na busca de hoje. Até 6, a da lista de planos primeiro.',
+  ].join('\n\n');
+}
+
+/** Página oficial lida do nosso lado, como entra no prompt da extração. */
+export interface PromptPage {
+  url: string;
+  text: string;
+  /** Listas abertas pelo botão de cada plano (rótulo = o cartão do plano). */
+  sections: { label: string | null; text: string }[];
+}
+
+/** Teto de caracteres das páginas no prompt da extração (por página e no total). */
+export const PAGE_PROMPT_MAX_CHARS = 60_000;
+export const PAGES_PROMPT_MAX_CHARS = 150_000;
+
+/** Texto de uma página para o prompt: o texto e, depois, cada lista aberta com o rótulo do plano. */
+export function pageBlock(page: PromptPage, index: number, maxChars = PAGE_PROMPT_MAX_CHARS): string {
+  const body = [
+    page.text,
+    ...page.sections.map(
+      (s) => `### Lista aberta no cartão: ${sanitizeText(s.label ?? '(sem rótulo)', 160)}\n${s.text}`,
+    ),
+  ].join('\n\n');
+  return wrapUntrusted(`página P${index + 1}: ${page.url}`, body, maxChars);
+}
+
+export function pageExtractSystemPrompt(): string {
+  return [
+    'Você extrai ofertas de TV paga e streaming do texto de páginas oficiais de uma plataforma, lidas por nós, para uma base de dados esportiva B2B. Não há busca: use só o texto das páginas entre <dados_externos>.',
+    'Sem trecho, sem prova: cada plano, preço, canal, streaming e complemento leva um trecho copiado LITERALMENTE da página (pode cortar com "..."). O código confere cada trecho na página; trecho que não está lá deixa o item sem prova. Nunca escreva um trecho que não está na página e não invente canais, streamings ou preços.',
+    UNTRUSTED_CONTENT_RULES,
+    UNTRUSTED_DATA_RULE,
+  ].join('\n\n');
+}
+
+/** Extração (nível leve, sem busca) dos planos, preços, grade, inclusos e complementos das páginas. */
+export function pageExtractPrompt(input: {
+  country: string;
+  platform: PlatformPromptInput;
+  pages: readonly PromptPage[];
+  knownPlans: readonly string[];
+  channels: readonly string[];
+  services: readonly string[];
+  maxChars?: number;
+}): string {
+  const c = countryOf(input.country);
+  const budget = input.maxChars ?? PAGES_PROMPT_MAX_CHARS;
+  const per = Math.max(5_000, Math.floor(budget / Math.max(1, input.pages.length)));
+  return [
+    `País: ${c.name} (${input.country}).`,
+    `Plataforma: ${sanitizeText(input.platform.name, 120)} — ${KIND_LABEL[input.platform.kind]}.`,
+    'Das páginas abaixo, levante TODOS os planos vigentes da plataforma que dão acesso a esporte e, de cada um:',
+    '- o preço mensal CHEIO de lista ("de", "depois", "a partir do 2º mês"); ignore o promocional do 1º mês e o desconto de entrada. Trecho: do nome do plano até o preço, como está no cartão;',
+    '- os canais lineares esportivos e de TV aberta da grade DESTE plano: a lista aberta no cartão dele ("### Lista aberta no cartão: <plano>") ou a página que é só dele. Trecho: a linha do canal. Lista de outro plano ou texto de marketing ("X, Y e muito mais") não é a grade deste plano;',
+    '- os streamings que o cartão ou a página DESTE plano diz que vêm inclusos. Trecho: a frase que diz incluso. Complemento pago à parte não é incluso.',
+    'Levante também o catálogo de complementos (o que qualquer plano contrata à parte, com preço): uma linha por oferta; mensal e com fidelidade de 12 meses são duas. Trecho: o nome e o preço.',
+    `Planos já conhecidos (se for o mesmo, use exatamente este nome):\n${list(input.knownPlans, 30)}`,
+    `Canais da nossa biblioteca (se o canal for um deles, use exatamente este nome):\n${list(input.channels, 120)}`,
+    `Streamings da nossa biblioteca (se for um deles, use exatamente este nome):\n${list(input.services, 60)}`,
+    ...input.pages.map((p, i) => pageBlock(p, i, per)),
   ].join('\n\n');
 }

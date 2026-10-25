@@ -92,7 +92,7 @@ describe('scheduleFromEnv', () => {
       cron: '50 4 * * *',
       script: 'dist/cli/lineups-research.js',
       cwd: '../ai-agents',
-      args: ['--revisitar', '--dias', '30', '--max', '4'],
+      args: ['--revisitar', '--dias', '30', '--max', '4', '--max-paginas', '10'],
     });
     expect(
       scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_LINEUPS_REVISIT: 'off' }),

@@ -277,7 +277,8 @@ services:
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
       SCHEDULE_RELATED_RUN: ${SCHEDULE_RELATED_RUN:-*/3 * * * *}
       SCHEDULE_WTW_RIGHTS: ${SCHEDULE_WTW_RIGHTS:-40 5,17 * * *}
-      # revisita da grade de canais e ofertas (até 4 pesquisas por execução; AI_RIGHTS_PROVIDER vale aqui)
+      # revisita da grade de canais e ofertas pela página oficial (até 4 chamadas ao modelo por execução,
+      # extração sem busca só se a página mudou; AI_RIGHTS_PROVIDER vale aqui)
       SCHEDULE_LINEUPS_REVISIT: ${SCHEDULE_LINEUPS_REVISIT:-50 4 * * *}
       # página oficial do plano lida do nosso lado (sem LLM; cache de 25 dias por URL)
       SCHEDULE_LINEUPS_PAGES: ${SCHEDULE_LINEUPS_PAGES:-20 5 * * *}

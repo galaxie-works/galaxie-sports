@@ -57,7 +57,7 @@ const lines = (text: string) =>
     .filter(Boolean);
 
 /** A linha é o título do plano (começa com o nome dele, e não com o de um plano de nome mais longo)? */
-function headingOf(line: string, plans: readonly string[]): string | null {
+export function headingOf(line: string, plans: readonly string[]): string | null {
   const l = spaced(line);
   const hits = plans
     .map((p) => spaced(p))
