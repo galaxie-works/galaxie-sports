@@ -898,7 +898,7 @@ Formato RFC 9457 (`application/problem+json`):
 | 404 `NOT_FOUND` | Entidade inexistente |
 | 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente; rotas internas de correção quando a versão corrigida não é mais a vigente) |
 | 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
-| 429 `RATE_LIMITED` | Limite do tenant |
+| 429 `RATE_LIMITED` | Limite do tenant, ou muitas tentativas de autenticação com chaves não verificadas por IP/prefixo (`AUTH_ATTEMPTS_PER_MINUTE`, padrão 60; SECURITY.md) |
 | 503 `DEGRADED` | Raro: só quando nem last-known-good existe |
 | 500 `INTERNAL_ERROR` | Erro inesperado (registrado em log) |
 

@@ -347,6 +347,60 @@ describe('autoatendimento /v1/account', () => {
   });
 });
 
+describe('autenticação sob chaves aleatórias (auditoria API-2)', () => {
+  let throttled: FastifyInstance;
+  let key: string;
+  const req = (k: string, ip: string) =>
+    throttled.inject({
+      method: 'GET',
+      url: '/v1/sports',
+      remoteAddress: ip,
+      headers: { 'x-galaxie-key': k },
+    });
+  const withSecret = (k: string) => `${k.slice(0, -43)}${randomBytes(32).toString('base64url')}`;
+
+  beforeAll(async () => {
+    // limite baixo e compartilhado no Valkey (o padrão é 60 por IP e por prefixo)
+    throttled = buildServer({
+      db,
+      redis,
+      keyPrefix,
+      usage: false,
+      authenticator: { cacheTtlMs: 0 },
+      authThrottle: { attemptsPerMinute: 3 },
+    });
+    await throttled.ready();
+    const res = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'alvo-forca-bruta',
+      name: 'Alvo',
+      plan: 'core_data',
+    });
+    key = res.json().key.key;
+  });
+  afterAll(async () => throttled?.close());
+
+  it('segredos aleatórios num prefixo real esbarram no limite antes do scrypt; a chave verificada segue', async () => {
+    expect((await req(key, '192.0.2.10')).statusCode).toBe(200);
+    const statuses = [];
+    for (let i = 0; i < 5; i++) statuses.push((await req(withSecret(key), `192.0.2.${20 + i}`)).statusCode);
+    expect(statuses).toEqual([401, 401, 429, 429, 429]);
+    const blocked = await req(withSecret(key), '192.0.2.30');
+    expect(blocked.json()).toMatchObject({ code: 'RATE_LIMITED' });
+    expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
+    // segredo já verificado nesta instância: não passa pelo limite nem pelo scrypt
+    expect((await req(key, '192.0.2.10')).statusCode).toBe(200);
+  });
+
+  it('prefixos aleatórios do mesmo IP esbarram no limite por IP antes do banco', async () => {
+    const statuses = [];
+    for (let i = 0; i < 5; i++)
+      statuses.push(
+        (await req(`gs_live_${randomBytes(6).toString('hex')}_${'A'.repeat(43)}`, '192.0.2.99')).statusCode,
+      );
+    expect(statuses).toEqual([401, 401, 401, 429, 429]);
+  });
+});
+
 describe('rotação não gera chave eterna (auditoria API-1)', () => {
   let tenantId: string;
   let trialKey: string;

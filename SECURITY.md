@@ -47,6 +47,12 @@ Revisão do esquema de hash (issue #84):
 - **Verificação**: comparação em tempo constante (`timingSafeEqual`). Resultado positivo fica em cache por 60 s (por
   instância, indexado pelo sha256 da chave completa — a chave em claro não fica em memória como índice); resultado
   negativo com prefixo existente também (evita que repetir a mesma chave errada custe um scrypt por requisição).
+- **Chaves aleatórias** (o prefixo é público): numa chave fora do cache, a ordem é limite por IP → banco → revogada,
+  expirada ou tenant suspenso (ainda sem scrypt) → limite por prefixo → scrypt. Prefixo inexistente, revogado ou
+  expirado fica em cache negativo por prefixo (60 s). Os limites (`AUTH_ATTEMPTS_PER_MINUTE`, padrão 60 por IP e por
+  prefixo, no Valkey) respondem 429 `RATE_LIMITED` e só contam tentativas que custam banco/scrypt. Um segredo já
+  verificado dispensa os limites e o scrypt por 1 h (o registro da chave continua relido a cada 60 s), então atacar o
+  prefixo de um cliente não derruba a chave legítima. A chave publicável tem o mesmo limite por IP antes do banco.
 - **Consequência do cache**: revogação, suspensão e mudança de plano valem em até 60 s.
 - **Chaves administrativas** (`gs_admin_...`): também 256 bits; guardadas no ambiente como `sha256$...` — hash rápido de
   propósito, para que chaves inválidas em massa não custem CPU numa rota interna. Várias podem coexistir em

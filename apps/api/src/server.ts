@@ -22,6 +22,7 @@ import {
   type PublishableStore,
 } from './auth/publishable.js';
 import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
+import { AuthThrottle, type AuthThrottleOptions } from './auth/throttle.js';
 import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.js';
 import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
@@ -61,6 +62,11 @@ export interface ServerOptions {
   /** Chaves publicáveis (`x-galaxie-publishable-key`); padrão: Postgres, quando há db. */
   publishableStore?: PublishableStore;
   publishableAuthenticator?: PublishableAuthenticatorOptions;
+  /**
+   * Limite de tentativas de autenticação fora do cache, por IP e por prefixo, antes do banco e do
+   * scrypt (AUTH_ATTEMPTS_PER_MINUTE, padrão 60). `false` desliga (só testes).
+   */
+  authThrottle?: AuthThrottleOptions | false;
   /**
    * Rate limit da chave publicável, por chave × IP (todas as rotas somadas), por janela.
    * Padrão 60 (PUBLISHABLE_RATE_LIMIT_PER_MINUTE); nunca acima do limite do tenant.
@@ -153,12 +159,25 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     options.rateLimiter ??
     (options.redis ? new RedisRateLimiter(options.redis, prefix) : new MemoryRateLimiter());
   const windowMs = options.rateLimitWindowMs ?? 60_000;
+  const throttle =
+    options.authThrottle === false
+      ? undefined
+      : new AuthThrottle(limiter, {
+          windowMs,
+          ...options.authThrottle,
+          onError: (err) => app.log.warn({ err }, 'limite de tentativas de autenticação indisponível'),
+        });
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
-  const authenticator = store ? new Authenticator(store, options.authenticator) : undefined;
+  const authenticator = store
+    ? new Authenticator(store, { ...(throttle ? { throttle } : {}), ...options.authenticator })
+    : undefined;
   const publishableStore =
     options.publishableStore ?? (options.db ? new PgPublishableStore(options.db) : undefined);
   const publishable = publishableStore
-    ? new PublishableAuthenticator(publishableStore, options.publishableAuthenticator)
+    ? new PublishableAuthenticator(publishableStore, {
+        ...(throttle ? { throttle } : {}),
+        ...options.publishableAuthenticator,
+      })
     : undefined;
   const publishableLimit = options.publishableRateLimitPerMinute ?? 60;
   let wtwConfig = options.wtwConfig;
@@ -207,12 +226,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       assertPublishableRoute(request);
       if (!publishable) throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
       const origin = requestOrigin(request);
-      tenant = await publishable.authenticate(pk, origin);
+      tenant = await publishable.authenticate(pk, origin, { ip: request.ip });
       if (origin) request.publishableOrigin = origin;
     } else {
       if (!authenticator)
         throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
-      tenant = await authenticator.authenticate(secretKey);
+      tenant = await authenticator.authenticate(secretKey, { ip: request.ip });
     }
     request.tenant = tenant;
     if (module) assertModule(tenant, module);

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { generatePublishableKey, type VerifiedPublishableKey } from '@galaxie/db';
 import { ProblemError } from '../errors.js';
+import { MemoryRateLimiter } from '../rate-limit.js';
 import { PublishableAuthenticator, type PublishableStore } from './publishable.js';
+import { AuthThrottle } from './throttle.js';
 
 function store(records: Record<string, VerifiedPublishableKey>) {
   const calls = { verify: 0, touch: [] as string[] };
@@ -92,5 +94,30 @@ describe('PublishableAuthenticator', () => {
     const auth = new PublishableAuthenticator(store({ [key]: record() }).s);
     expect(await auth.isRegisteredOrigin('https://a.exemplo.test')).toBe(true);
     expect(await auth.isRegisteredOrigin('https://atacante.test')).toBe(false);
+  });
+
+  it('chaves aleatórias do mesmo IP: limite antes da consulta ao banco (auditoria API-2)', async () => {
+    const { key } = generatePublishableKey();
+    const { s, calls } = store({ [key]: record() });
+    const throttle = new AuthThrottle(new MemoryRateLimiter(), { attemptsPerMinute: 3 });
+    const auth = new PublishableAuthenticator(s, { throttle });
+    const results = [];
+    for (let i = 0; i < 6; i++)
+      results.push(
+        await code(
+          auth.authenticate(generatePublishableKey().key, 'https://app.exemplo.test', { ip: '203.0.113.9' }),
+        ),
+      );
+    expect(results).toEqual([
+      '401 INVALID_KEY',
+      '401 INVALID_KEY',
+      '401 INVALID_KEY',
+      '429 RATE_LIMITED',
+      '429 RATE_LIMITED',
+      '429 RATE_LIMITED',
+    ]);
+    expect(calls.verify).toBe(3);
+    // outro IP com a chave válida não é afetado
+    expect(await code(auth.authenticate(key, 'https://app.exemplo.test', { ip: '198.51.100.2' }))).toBe('ok');
   });
 });
