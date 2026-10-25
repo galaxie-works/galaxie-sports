@@ -276,11 +276,15 @@ export const HERO_MIN = 0.5;
  * (cover), o que é uma adaptação; BY-SA pediria a mesma licença na obra derivada. Só BY-SA no carro: o piloto
  * fica sem destaque (o heading usa a cor da equipe), e as fotos seguem na galeria, inteiras e com crédito.
  * Com a nota do Gemini para o fundo (`hero`): a curadoria manual primeiro, depois a de maior nota a partir de
- * `HERO_MIN` (close de gente, detalhe ou pessoa moderna em primeiro plano ficam de fora).
+ * `HERO_MIN` (close de gente, detalhe ou pessoa moderna em primeiro plano ficam de fora). `scored`: só foto com
+ * nota (ou da curadoria) — carro ainda sem a nota do Gemini não vai ao fundo (o heading usa a cor da equipe).
  */
-export function highlightPhoto(car: ManifestEntry | undefined): ManifestPhoto | undefined {
+export function highlightPhoto(
+  car: ManifestEntry | undefined,
+  opts: { scored?: boolean } = {},
+): ManifestPhoto | undefined {
   const ok = (car?.photos ?? []).filter((p) => p.match !== 'rejected' && !p.share_alike);
-  if (!ok.some((p) => p.hero != null)) return ok[0];
+  if (!opts.scored && !ok.some((p) => p.hero != null)) return ok[0];
   return ok
     .filter((p) => p.match === 'manual' || (p.hero ?? 0) >= HERO_MIN)
     .sort(
@@ -290,8 +294,8 @@ export function highlightPhoto(car: ManifestEntry | undefined): ManifestPhoto | 
 
 /**
  * Carro de destaque do piloto, com a foto e a temporada: a curadoria (`manual`, com a foto escolhida em `file`,
- * de qualquer alvo) ou o primeiro candidato da regra (`highlight_car` e os `fallbacks`) cujo carro tem foto que
- * pode ir ao fundo (`highlightPhoto`).
+ * de qualquer alvo) ou o primeiro candidato da regra (`highlight_car` e os `fallbacks`) cujo carro tem foto com
+ * a nota do Gemini para o fundo (`highlightPhoto` com `scored`). O carro escolhido na curadoria vale sem a nota.
  */
 export function pickHighlight(
   entry: ManifestEntry,
@@ -306,9 +310,12 @@ export function pickHighlight(
       .find((p) => p.file === h.file && p.match !== 'rejected' && !p.share_alike);
     return photo ? { target: h.target, season: h.season, photo } : undefined;
   }
-  const candidates = h.match === 'manual' ? [h] : [h, ...(h.fallbacks ?? [])];
-  for (const c of candidates) {
-    const photo = highlightPhoto(byTarget.get(c.target));
+  if (h.match === 'manual') {
+    const photo = highlightPhoto(byTarget.get(h.target));
+    return photo ? { target: h.target, season: h.season, photo } : undefined;
+  }
+  for (const c of [h, ...(h.fallbacks ?? [])]) {
+    const photo = highlightPhoto(byTarget.get(c.target), { scored: true });
     if (photo) return { target: c.target, season: c.season, photo };
   }
   return undefined;

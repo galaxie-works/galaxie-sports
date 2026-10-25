@@ -89,9 +89,10 @@ export const coverable = (photo: Photo | null | undefined): photo is Photo =>
   !!photo?.url && !photo.credit.share_alike;
 
 /**
- * Temporada marcante e o carro do fundo. O carro de destaque do acervo vence (curadoria); sem ele, título com mais
- * vitórias → mais vitórias → a mais recente, de preferência uma com foto do carro; sem foto em nenhuma, a mais
- * marcante, sem carro. Puro.
+ * Temporada marcante e o carro do fundo. O fundo é só o carro de destaque do acervo, que a importação escolhe pela
+ * nota do Gemini para o fundo ou pela curadoria; sem ele, a temporada é título com mais vitórias → mais vitórias →
+ * a mais recente, sem carro (o card usa a cor e o número). A foto do carro da temporada não vai ao fundo: sem a
+ * nota, pode ser um close ou um detalhe. Puro.
  */
 export function pickHighlight<S extends LegendSeason>(
   seasons: readonly S[],
@@ -104,8 +105,6 @@ export function pickHighlight<S extends LegendSeason>(
   const ranked = [...seasons].sort(
     (a, b) => Number(b.title) - Number(a.title) || b.wins - a.wins || b.year - a.year,
   );
-  const withCar = ranked.find((s) => coverable(s.car));
-  if (withCar) return { season: withCar, car: withCar.car };
   return ranked[0] ? { season: ranked[0], car: null } : null;
 }
 

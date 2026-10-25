@@ -22,7 +22,7 @@ const out = String(args.get('saida') ?? path.replace(/\.yaml$/, '.prancha.html')
 writeFileSync(out, pranchaHtml(rows, `Fundo do heading dos pilotos — ${manifest.acervo.revision}`));
 const changed = rows.filter((r) => r.changed);
 console.log(
-  `${rows.length} pilotos · ${changed.length} trocados · ${rows.filter((r) => !r.file).length} sem fundo`,
+  `${rows.length} pilotos · ${changed.length} trocados · ${rows.filter((r) => !r.file).length} sem fundo (${rows.filter((r) => r.pending).length} aguardando nota)`,
 );
 for (const r of changed) console.log(`  ${r.target}: ${r.before ?? 'sem fundo'} → ${r.file ?? 'sem fundo'}`);
 console.log(`prancha: ${out}`);
