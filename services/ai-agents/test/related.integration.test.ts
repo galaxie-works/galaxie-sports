@@ -9,6 +9,7 @@ import {
   changeFeed,
   readRelatedContent,
   RELATED_CONTENT_TOPIC,
+  relatedBudget,
   relatedContent,
   relatedRun,
   type Database,
@@ -203,8 +204,15 @@ beforeAll(async () => {
       blocklist: wtw.blocklist,
     }),
     // fila e orçamento sem a segunda busca e sem reserva: estes testes cobrem busca, revalidação e corte
-    // pela cota; a política nova tem testes próprios (related/priority.test.ts)
-    policy: { ...relatedPolicyFromEnv({}), secondSearchMinutes: 0, highReservePercent: 0 },
+    // pela cota; a política nova tem testes próprios (related/priority.test.ts, budget.test.ts) e a
+    // simulação do dia (related-day.integration.test.ts)
+    policy: {
+      ...relatedPolicyFromEnv({}),
+      secondSearchMinutes: 0,
+      reserveMaxPercent: 0,
+      maxSearchesPerRun: 4,
+      revalidateMinutes: 30,
+    },
   };
   state = { removed: new Set(), searches: [] };
 }, 120_000);
@@ -222,7 +230,8 @@ describe('Conteúdo relacionado (integração)', () => {
         action: 'planned',
         mode: 'full',
         queries: ['pt:highlights', 'pt:shorts', 'pt:goals', 'pt:postgame'],
-        units: 404,
+        searches: 4,
+        units: 2,
       }),
     ]);
     expect(report.items[0]!.reason).toContain('Palmeiras x Corinthians melhores momentos');
@@ -235,9 +244,12 @@ describe('Conteúdo relacionado (integração)', () => {
     const report = await runRelatedAgent(db, { ...base, llm, youtube: yt });
     const item = report.items[0]!;
     expect(item).toMatchObject({ action: 'searched', mode: 'full', published: 4, llm: true });
-    expect(state.searches).toHaveLength(4);
+    // parada cedo: a segunda busca (#shorts) não trouxe vídeo novo aproveitável → as outras duas não saem
+    expect(state.searches).toHaveLength(2);
     expect(state.searches[1]).toBe('Palmeiras Corinthians #shorts|short|pt');
-    expect(report.unitsSpent).toBe(4 * 100 + 1 + 1);
+    // balde de busca: 2 consultas; balde geral: 1 videos.list + 1 channels.list
+    expect(report.quota.search.spent).toBe(2);
+    expect(report.quota.api.spent).toBe(2);
     expect(llm.calls).toHaveLength(1);
     expect(llm.calls[0]!.tier).toBe('light');
 
@@ -291,8 +303,9 @@ describe('Conteúdo relacionado (integração)', () => {
     expect(run).toMatchObject({
       status: 'done',
       mode: 'full',
-      quotaUnits: 402,
-      searches: 4,
+      quotaUnits: 4,
+      apiUnits: 2,
+      searches: 2,
       published: 4,
       quotaDay: '2026-10-11',
     });
@@ -315,7 +328,8 @@ describe('Conteúdo relacionado (integração)', () => {
       published: 3,
     });
     expect(state.searches.length).toBe(searchesBefore);
-    expect(report.unitsSpent).toBe(2);
+    // 1 videos.list; o canal já está no cache permanente (enrich.youtube_channel)
+    expect(report.quota).toMatchObject({ search: { spent: 0 }, api: { spent: 1 } });
     expect(llm.calls).toHaveLength(0); // nada novo para classificar
 
     const page = await readRelatedContent(db, eventId);
@@ -332,12 +346,12 @@ describe('Conteúdo relacionado (integração)', () => {
 
   it('cota do dia: corta consultas que não cabem e pula quando não sobra nada', async () => {
     const yt = new YoutubeClient({ apiKey: 'test', fetch: fakeYoutube(state) });
-    // 402 + 2 já gastos no dia de cota 2026-10-11; limite 610 → cabe 2 buscas (2×100 + 4)
+    // 2 consultas já gastas no dia de cota 2026-10-11 (balde de busca, contado em consultas); limite 4 → cabem 2
     const plan = await runRelatedAgent(db, {
       ...base,
       plan: true,
       force: true,
-      dailyQuota: 610,
+      searchDailyQuota: 4,
       reservePercent: 0,
       llm: null,
       youtube: null,
@@ -346,13 +360,17 @@ describe('Conteúdo relacionado (integração)', () => {
     const skipped = await runRelatedAgent(db, {
       ...base,
       force: true,
-      dailyQuota: 410,
+      searchDailyQuota: 2,
       reservePercent: 0,
       llm: null,
       youtube: yt,
     });
-    expect(skipped.items[0]).toMatchObject({ action: 'skipped' });
-    expect(skipped.items[0]!.reason).toContain('cota do YouTube insuficiente');
+    expect(skipped.items[0]).toMatchObject({ action: 'skipped', quotaSkip: true });
+    expect(skipped.items[0]!.reason).toContain('balde de busca do YouTube esgotado');
+    // o painel de Operação lê o orçamento do dia e os jogos pulados por cota
+    const [budget] = await db.select().from(relatedBudget);
+    expect(budget).toMatchObject({ quotaDay: '2026-10-11', searchLimit: 2, searchUsed: 2, apiLimit: 10_000 });
+    expect(budget!.skipped.map((s) => s.eventId)).toEqual([eventId]);
   });
 
   it('expira em 30 dias sem atualização: apaga título, miniatura e estatísticas em todas as versões', async () => {

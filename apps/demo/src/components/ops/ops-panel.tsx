@@ -31,6 +31,7 @@ import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 import { displayValue, formatDuration, settingText } from './format';
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
+import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
 const TABS = [
   'status',
@@ -99,11 +100,20 @@ export function OpsPanel({ snapshot, timeZone }: Ctx) {
             })()}
           />
         </TabsContent>
-        {(['live', 'ai', 'wtw', 'related', 'assets'] as const).map((s) => (
+        {(['live', 'ai', 'wtw', 'assets'] as const).map((s) => (
           <TabsContent key={s} value={s} className="mt-4">
             <SectionCard section={s} snapshot={snapshot} timeZone={timeZone} />
           </TabsContent>
         ))}
+        <TabsContent value="related" className="mt-4 flex flex-col gap-4">
+          {snapshot.youtube ? (
+            <>
+              <YoutubeQuotaCard youtube={snapshot.youtube} timeZone={timeZone} />
+              <YoutubeYieldPanel youtube={snapshot.youtube} timeZone={timeZone} />
+            </>
+          ) : null}
+          <SectionCard section="related" snapshot={snapshot} timeZone={timeZone} />
+        </TabsContent>
         <TabsContent value="schedule" className="mt-4">
           <ScheduleTab snapshot={snapshot} timeZone={timeZone} />
         </TabsContent>
@@ -185,6 +195,7 @@ function StatusTab({ snapshot, timeZone }: Ctx) {
       <CreditCard snapshot={snapshot} timeZone={timeZone} />
       <QuotaCard snapshot={snapshot} timeZone={timeZone} />
       <LlmCard snapshot={snapshot} timeZone={timeZone} />
+      {snapshot.youtube ? <YoutubeQuotaCard youtube={snapshot.youtube} timeZone={timeZone} /> : null}
       <div className="xl:col-span-2">
         <JobsOverview snapshot={snapshot} timeZone={timeZone} />
       </div>

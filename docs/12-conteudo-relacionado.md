@@ -30,7 +30,7 @@ Vídeo de criador fora da allowlist só entra se for **conteúdo próprio** (rea
 
 | Fonte | Situação | Como |
 |---|---|---|
-| **YouTube Data API v3** | **Principal** | `search.list` (descoberta) → `videos.list` (duração, status, estatísticas) → `channels.list` (handle e inscritos) |
+| **YouTube Data API v3** | **Principal** | `playlistItems.list` (uploads dos canais oficiais, §3.2) e `search.list` (descoberta, só como complemento) → `videos.list` (duração, status, estatísticas) → `channels.list` (playlist de uploads, handle e inscritos) |
 | Instagram (Reels) | Fora do MVP | Não há busca pública por API: a Graph API só pesquisa hashtags para contas Business, com limite de 30 hashtags por semana, e o oEmbed exige app revisado e a URL exata do post |
 | TikTok | Fora do MVP | A Research API é restrita a pesquisa acadêmica e a Display API só lê o conteúdo da própria conta autenticada; o oEmbed embute uma URL conhecida, mas não descobre vídeos |
 | X / Kwai / Facebook | Fora do MVP | Mesma limitação de descoberta |
@@ -50,7 +50,23 @@ No mesmo espírito da allowlist de domínios do Onde Assistir (`services/ai-agen
 
 O casamento é por **handle** (`snippet.customUrl` do `channels.list`, sem caixa) ou por **id do canal** (`UC…`). A blocklist editorial do Onde Assistir (`_policy.yaml` + `WTW_BLOCKLIST_FILE`/`WTW_BLOCKLIST`) também vale aqui: canal bloqueado não aparece, e o nome não é registrado.
 
-Toda entrada é conferida com `channels.list?forHandle=` antes de entrar (a lista atual foi conferida em 2026-10-22). Handles parecidos com os dos clubes costumam ser de terceiros — na conferência, `@vascotv` era um canal de torcedor com 1,3 mil inscritos e `@penarol` tinha 3 —, por isso o código também exige **10 mil inscritos** (`ALLOWLIST_MIN_SUBSCRIBERS`) para uma entrada casada só pelo handle dar o selo; entrada por id do canal não passa por esse piso.
+Toda entrada é conferida com `channels.list?forHandle=` antes de entrar (a lista atual foi conferida em 2026-10-22). Handles parecidos com os dos clubes costumam ser de terceiros — na conferência, `@vascotv` era um canal de torcedor com 1,3 mil inscritos e `@penarol` tinha 3 —, por isso o código também exige **10 mil inscritos** (`ALLOWLIST_MIN_SUBSCRIBERS`) para uma entrada casada só pelo handle dar o selo; entrada por id do canal conferida à mão não passa por esse piso (a do Wikidata passa, §3.2).
+
+### 3.2 Mapa de canais oficiais (canais primeiro)
+
+Ler os uploads recentes de um canal conhecido custa **1 unidade** do balde geral por página de 50 vídeos (`playlistItems.list`); uma busca custa 1 das **100 consultas** diárias do balde de busca (§8). Por isso o agente lê primeiro os canais ligados ao jogo e só busca o que faltar. O mapa fica em `enrich.related_channel`, com a fonte:
+
+| Canal | Fonte (`source`) | Como entra |
+|---|---|---|
+| Clube (os dois times) | `wikidata` | P2397 (*YouTube channel ID*) do QID do time. O QID vem do casamento estrito já gravado em `core.provider_map` (CLI `pessoas:wikidata-por-time`) ou do mesmo `resolveTeams` com `canais:wikidata --resolver` (clube de futebol do mesmo país e categoria, nome e liga como desempate; ambíguo não liga). Afirmação depreciada ou com data de fim (P582) não vale; havendo preferida, só ela |
+| Competição | `wikidata` / `config` | P2397 do QID da competição (`core.competition_title_coverage`, CLI `titulos:wikidata`) e as entradas `competitions` do `channels.yaml` |
+| Emissora com direitos no país | `config` | `broadcasters` do `channels.yaml` e os `youtube.com/@handle` do dicionário de emissoras; só entram no jogo as detentoras da competição nos mercados (`config/broadcast-rights`) |
+
+- **Carga**: `pnpm --filter @galaxie/ingestor canais:wikidata [--resolver]` grava os canais do Wikidata (sem cota de nenhuma API); `pnpm --filter @galaxie/ai-agents related:canais` soma os da configuração (resolve cada handle uma vez com `channels.list?forHandle=`, 1 unidade) e confere todos no YouTube. P2397 trocado desativa o canal antigo (`active = false`); nada é apagado.
+- **Cache do `channels.list`** (`enrich.youtube_channel`): playlist de uploads (`contentDetails.relatedPlaylists.uploads`), handle, título e inscritos, renovado a cada 30 dias (a política da API não deixa dado sem atualizar por mais que isso). Canal que a API não devolve fica `missing`.
+- **Piso**: canal do Wikidata abaixo de 10 mil inscritos não é lido nem dá selo (o dado é aberto).
+- **Casamento do upload com o jogo** (`matchUploads`, antes do `videos.list`): publicado entre o apito e 7 dias depois e citando os dois times; no canal de um dos clubes basta o adversário, ou o próprio time até 6 h depois do apito (coletiva, bastidores). Canal da liga ou da emissora cobre vários jogos: só com os dois times. Depois vale a mesma relevância e política de sempre (§5.4–5.6); vídeo achado num canal guarda `channel:<tipo>` em `queries`.
+- **Uma leitura por execução**: o canal da liga ou da emissora é lido uma vez e serve a todos os jogos da rodada (até 3 páginas, até passar do apito do jogo mais antigo).
 
 ## 4. Taxonomia
 
@@ -84,8 +100,9 @@ Na primeira execução real, a proporção vinda das dimensões deu 17 vídeos `
 
 ```mermaid
 flowchart LR
-  C[core.event finished<br/>últimas 24 h, tier ≤ 2,<br/>relevância nos mercados] --> Q[Consultas a partir dos fatos<br/>times, competição, fase,<br/>placar, autores de gol]
-  Q --> S[search.list<br/>publishedAfter = apito<br/>videoDuration=short para shorts<br/>relevanceLanguage por locale]
+  C[core.event finished<br/>últimas 24 h, tier ≤ 2,<br/>prioridade e reserva da agenda] --> K[playlistItems.list<br/>uploads dos canais oficiais<br/>clubes, liga, emissoras]
+  K --> Q[Consultas a partir dos fatos<br/>só se os canais não bastam<br/>times, competição, autores de gol]
+  Q --> S[search.list<br/>publishedAfter = apito<br/>para cedo sem vídeo novo<br/>relevanceLanguage por locale]
   S --> V[videos.list + channels.list<br/>duração, status, estatísticas,<br/>handle e inscritos]
   V --> R[Relevância determinística<br/>cita os times? público e incorporável?]
   R --> L[Classificação<br/>LLM light + JSON Schema<br/>fallback por regras]
@@ -94,9 +111,13 @@ flowchart LR
   DB --> CF[change feed<br/>event.related_content_changed]
 ```
 
-1. **Candidatos** (`related/priority.ts`): futebol `finished` com início nas últimas `RELATED_LOOKBACK_HOURS` (padrão 24; `--horas`), competição tier ≤ 2 e relevância ≥ `RELATED_MIN_RELEVANCE` (padrão 50) em algum mercado ativo (`RELATED_MARKETS`, senão `WTW_MARKETS`; a mesma conta do Onde Assistir: importância + bônus do país + audiência da competição no mercado). Ordem: primeira busca pendente (jogo que acabou de terminar) → relevância → mais recente; ou um evento (`--evento`). Antes a ordem era tier e importância global, e a Champions de dois dias antes gastou a cota da semifinal da Libertadores (22–23/10/2026).
-   - **Orçamento**: no máximo `RELATED_MAX_SEARCHES_PER_EVENT` buscas por jogo (padrão 4, alternando os idiomas: o resumo de cada mercado vem primeiro); parada antecipada depois de 2 buscas seguidas sem resultado ou com candidatos de sobra; `RELATED_HIGH_RESERVE_PERCENT` (padrão 30%) da cota útil só para jogos com relevância ≥ `RELATED_HIGH_RELEVANCE` (padrão 85).
-   - **Tempo**: o job roda a cada 3 min; a primeira busca sai logo depois do apito e a segunda `RELATED_SECOND_SEARCH_MINUTES` (padrão 30) depois da primeira, para pegar os melhores momentos publicados mais tarde; depois, uma a cada `RELATED_RESEARCH_HOURS`.
+1. **Candidatos** (`related/priority.ts`, `related/budget.ts`): futebol `finished` com início nas últimas `RELATED_LOOKBACK_HOURS` (padrão 24; `--horas`), competição tier ≤ 2 e relevância ≥ `RELATED_MIN_RELEVANCE` (padrão 50) em algum mercado ativo (`RELATED_MARKETS`, senão `WTW_MARKETS`; a mesma conta do Onde Assistir: importância + bônus do país + audiência da competição no mercado); ou um evento (`--evento`).
+   - **Prioridade** = maior (relevância no mercado × peso do mercado) × rendimento histórico da competição. Pesos padrão (`RELATED_MARKET_WEIGHTS`): BR 1 · AR 0,6 · MX 0,6 · CO 0,45 · CL 0,4 · PE, UY, EC 0,35 — Vasco × Corinthians (95 no BR) fica em 95; a sobra da madrugada da Liga MX (91 no MX) em ~55. O rendimento é vídeos publicados pela busca ÷ consultas nos últimos 14 dias (`enrich.related_run` × `related_content`), suavizado pela média global (4 consultas "a priori") e em raiz, entre 0,3 e 1,5.
+   - **Ordem da fila**: grupo → primeira busca pendente → prioridade → mais recente. Grupos: (0) mercados ativos; (1) fora dos mercados (Premier League, LaLiga, Champions sem time daqui) — só buscam com sobra da cota inteira, mas leem os canais oficiais; (2) competição com rendimento zero recorrente (≥ 6 consultas e nenhum vídeo em 14 dias) — fim da fila, 1 consulta por rodada, só com sobra.
+   - **Canais primeiro** (§3.2): lê os uploads dos canais do jogo; com `RELATED_CHANNEL_ENOUGH` (padrão 4) vídeos aproveitáveis de canal oficial/detentor, o jogo não busca.
+   - **Busca como complemento**: no máximo `RELATED_MAX_SEARCHES_PER_RUN` (padrão 2) por rodada e `RELATED_MAX_SEARCHES_PER_EVENT` (padrão 4) por jogo no total, alternando os idiomas (o resumo de cada mercado primeiro; só os mercados com ≥ 60% da maior relevância ponderada — Remo × Cruzeiro busca só em português). **Para cedo**: se uma busca não traz vídeo novo aproveitável (cita os times, público, depois do apito), as seguintes não saem. A primeira só sai `RELATED_SEARCH_AFTER_KICKOFF_MINUTES` (padrão 140) depois do início (~25 min depois do apito), quando os melhores momentos já existem; antes disso, só os canais.
+   - **Reserva por faixa do dia** (§8.2): parte do balde de busca fica guardada para os jogos de prioridade maior que ainda vão acontecer no dia de cota.
+   - **Tempo**: o job roda a cada 3 min; a execução sem trabalho não chama o YouTube. Busca completa (canais + busca) no apito, a segunda `RELATED_SECOND_SEARCH_MINUTES` (padrão 30) depois e depois uma a cada `RELATED_RESEARCH_HOURS`; entre elas, releitura dos canais a cada `RELATED_CHANNEL_REFRESH_MINUTES` (padrão 60) e revalidação dos guardados a cada `RELATED_REVALIDATE_MINUTES` (padrão 120). Antes a revalidação rodava a cada 3 min: no dia 24/10 foram 124 rodadas em 35 minutos.
    - **Teto de vídeos**: `RELATED_MAX_VIDEOS` (padrão 12) publicados por jogo e idioma, pelo ranking; o excedente fica `pending` com `over_limit`.
 2. **Consultas** (`buildRelatedQueries`), nos idiomas dos mercados em que o jogo é relevante (`languagesForMarkets`: `pt` para BR, `es` para os hispânicos, com `regionCode` do mercado mais relevante do idioma); sem mercado relevante (ex.: `--evento`), pelo país dos times. **Localização**: cada vídeo grava `language` como `es-AR`/`pt-BR` (país do canal quando ele fala o idioma, senão o da busca), e a API filtra por `?country=` (só o idioma do país, os do próprio país primeiro; nunca vídeo em português para a Argentina):
    - `highlights`: `Palmeiras x Fluminense melhores momentos Libertadores` (`order=relevance`);
@@ -104,7 +125,7 @@ flowchart LR
    - `postgame`: `Palmeiras Fluminense coletiva|bastidores|torcida|análise`;
    - `goals` (se houve gols): `Palmeiras Fluminense gol <autor 1>|<autor 2>` (até 3 autores de gol do core).
    Todas com `type=video`, `publishedAfter` = início do jogo, `publishedBefore` = início + 7 dias, `videoEmbeddable=true`, `relevanceLanguage` e `regionCode` do locale, `maxResults=25`.
-3. **Detalhe**: um `videos.list` por lote de 50 ids (`snippet,contentDetails,statistics,status`) e um `channels.list` por lote de 50 canais (`snippet,statistics`).
+3. **Detalhe**: um `videos.list` por lote de 50 ids (`snippet,contentDetails,statistics,status`) e um `channels.list` por lote de 50 canais (`snippet,statistics,contentDetails`), com o canal no cache de 30 dias (§3.2).
 4. **Relevância (código)**: o título ou a descrição precisa citar **os dois times** (nome, nome curto, apelidos e rótulos da base semântica, sem acento e sem caixa) — ou um deles, se o canal for oficial de um dos dois. Vídeo privado, não incorporável, publicado antes do apito ou fora do ar → descartado.
 5. **Classificação**: o LLM tier `light` recebe os fatos do jogo e os vídeos — em lotes de 20, porque uma lista de ~70 vídeos estourou o limite de saída do modelo leve na primeira execução real — (título, trecho da descrição, canal, duração) **como dado** (`<dados_externos>`), e devolve `{ id, content_type, about_this_event, confidence }` por vídeo, em JSON Schema estrito. Guardrails:
    - id que não estava na entrada é ignorado; vídeo que o LLM omitiu cai no classificador por regras;
@@ -124,7 +145,7 @@ flowchart LR
    Confiança < 0,5 na classificação → `pending`.
 7. **Ranking**: `source_tier` (oficial 3, detentor 3, imprensa 2, criador 1) + log₁₀(visualizações) / 2 + bônus de tipo (melhores momentos e gols primeiro) − meia-vida de 3 dias desde o apito. Desempate por data e id.
 8. **Gravação e histórico** (`saveRelatedContent`): uma versão por mudança material (tipo, formato, status, título, flags); sem mudança, só renova `last_checked_at` e as estatísticas. Vídeo que sumiu do `videos.list` → versão `retracted`. Mudança visível → `event.related_content_changed` no change feed (tag `related_content:<evento>`), que purga o cache e vira SSE/webhook.
-9. **Revalidação**: rodadas seguintes no mesmo evento em menos de `RELATED_RESEARCH_HOURS` (padrão 12 h) não buscam de novo: só um `videos.list` com os ids guardados (1 unidade) para atualizar estatísticas e retirar o que saiu do ar.
+9. **Revalidação**: entre as buscas completas (`RELATED_RESEARCH_HOURS`, padrão 12 h) o jogo não busca de novo: relê os canais oficiais a cada `RELATED_CHANNEL_REFRESH_MINUTES` e, no máximo a cada `RELATED_REVALIDATE_MINUTES`, faz um `videos.list` com os ids guardados (1 unidade) para atualizar estatísticas e retirar o que saiu do ar.
 10. **Expiração (30 dias)**: linhas com `last_checked_at` > 30 dias viram `expired`, com título, miniatura e estatísticas apagados — o id do vídeo e a classificação ficam (histórico).
 
 ## 6. Modelo de dados (`enrich`)
@@ -176,11 +197,12 @@ create unique index on enrich.related_content (event_id, provider, external_id) 
 create table enrich.related_run (
   id            uuid primary key default uuid_generate_v7(),
   event_id      uuid not null references core.event(id) on delete cascade,
-  mode          text not null,      -- full | revalidate
+  mode          text not null,      -- full | channels | revalidate
   status        text not null,      -- running | done | failed | skipped
   quota_day     date not null,      -- dia da cota do YouTube (meia-noite do Pacífico)
-  quota_units   integer not null default 0,
-  searches      integer not null default 0,
+  quota_units   integer not null default 0,  -- até a 0039: 100 por busca; desde a 0039: searches + api_units
+  api_units     integer not null default 0,  -- balde geral (videos, channels, playlistItems)
+  searches      integer not null default 0,  -- balde de busca (consultas search.list)
   candidates    integer not null default 0,
   published     integer not null default 0,
   provider      text, model text,
@@ -192,6 +214,28 @@ create table enrich.related_run (
   requested_by  text not null default 'cli',
   started_at    timestamptz not null default now(),
   finished_at   timestamptz
+);
+
+-- 0039: mapa de canais oficiais (§3.2), cache do channels.list e orçamento por dia de cota (§8)
+create table enrich.related_channel (
+  id uuid primary key, channel_id text not null,
+  kind text not null,                    -- club | competition | broadcaster
+  participant_id uuid, competition_id uuid, broadcaster_id text, country text,
+  source text not null,                  -- wikidata | config
+  source_ref text,                       -- QID ou arquivo/handle
+  active boolean not null default true, created_at timestamptz, updated_at timestamptz,
+  unique nulls not distinct (channel_id, kind, participant_id, competition_id, broadcaster_id)
+);
+create table enrich.youtube_channel (
+  id text primary key, title text not null, handle text, uploads_playlist_id text,
+  country text, subscribers integer, missing boolean not null default false, fetched_at timestamptz not null
+);
+create table enrich.related_budget (
+  quota_day date primary key,
+  search_limit integer, search_used integer, search_reserved integer,   -- balde de busca (consultas)
+  api_limit integer, api_used integer,                                   -- balde geral (unidades)
+  skipped jsonb,                         -- jogos pulados por cota (painel de Operação)
+  upcoming jsonb, updated_at timestamptz
 );
 ```
 
@@ -248,14 +292,61 @@ Módulo vendável próprio (add-on): incluído no `enterprise` e contratável po
 
 ## 8. Cota e custo
 
-| Chamada | Unidades | Por evento (busca completa) |
-|---|---|---|
-| `search.list` | 100 | 3–4 consultas por idioma → 300–400 (600–800 com dois idiomas) |
-| `videos.list` (50 ids) | 1 | 1–2 |
-| `channels.list` (50 ids) | 1 | 1–2 |
-| Revalidação (`videos.list`) | 1 | 1 |
+### 8.1 Dois baldes
 
-A cota padrão de um projeto é **10.000 unidades/dia**, zerada à meia-noite do Pacífico → ~25 eventos/dia com busca completa em um idioma. O CLI soma as unidades do dia em `enrich.related_run`, respeita `YOUTUBE_DAILY_QUOTA` (padrão 10.000) menos a reserva `YOUTUBE_QUOTA_RESERVE_PERCENT` (padrão 10%) e para quando a próxima busca não cabe. A ordem dos candidatos (tier, importância) garante que os jogos grandes entram primeiro. Mais volume = pedir aumento de cota ao Google (formulário de auditoria) — o pipeline não muda.
+Desde 1º/6/2026 a YouTube Data API conta `search.list` (e `videos.insert`) num **balde próprio, em consultas**; as demais chamadas dividem o balde de **unidades** ([custo por método](https://developers.google.com/youtube/v3/determine_quota_cost) e histórico de revisões da API). No projeto, conferido no Google Cloud Console pelo dono do produto: **Search Queries per day = 100** e **Queries per day = 10.000**.
+
+| Chamada | Balde | Custo | Por jogo |
+|---|---|---|---|
+| `search.list` | busca | 1 consulta (100/dia) | 0–2 por rodada, até 4 no total; 0 quando os canais oficiais bastam |
+| `playlistItems.list` (50 uploads) | geral | 1 unidade | 1 por canal do jogo; o canal da liga e o da emissora servem à rodada inteira |
+| `videos.list` (50 ids) | geral | 1 unidade | 1–3 |
+| `channels.list` (50 canais, ou `forHandle`) | geral | 1 unidade | 0–1 (cache de 30 dias) |
+| Revalidação (`videos.list`) | geral | 1 unidade | 1 a cada 2 h |
+
+O agente soma o dia de cota em `enrich.related_run` (`searches` e `api_units`), respeita `YOUTUBE_SEARCH_DAILY_QUOTA` (padrão 100) e `YOUTUBE_DAILY_QUOTA` (padrão 10.000) menos a folga `YOUTUBE_QUOTA_RESERVE_PERCENT` (padrão 10%: **90 consultas e 9.000 unidades úteis**) e grava o orçamento do dia em `enrich.related_budget` para o painel de Operação (Status e aba Conteúdo relacionado: gasta, reservada e livre nos dois baldes, rendimento por competição e jogos pulados por cota). Até a 0039 o código cobrava 100 unidades por busca num balde só; o teto de 9.000 virava ~90 buscas por coincidência, perto do limite real de 100 consultas.
+
+### 8.2 Reserva por faixa do dia
+
+O dia de cota zera à meia-noite do Pacífico (07:00 UTC no horário de verão, 04:00 em Brasília): a primeira rodada do dia pega a sobra da madrugada. Cada jogo enxerga como livre só `limite − gasto − reserva`, em que a reserva é a soma das consultas esperadas dos jogos **de prioridade maior** que ainda vão acontecer no dia de cota (agenda de `core.event` que termina antes da meia-noite do Pacífico, mais os que acabaram e esperam a primeira busca), com teto de `RELATED_RESERVE_MAX_PERCENT` (padrão 60%) do balde. Jogo com canal oficial no mapa espera 1 consulta; sem canal, 2. Jogo fora dos mercados ou de rendimento zero enxerga a agenda inteira como reservada: só busca com sobra.
+
+### 8.3 Diagnóstico de 24/10/2026 e simulação
+
+Na produção, o dia de cota 2026-10-24 gastou as 87 buscas (8.747 unidades no modelo antigo) numa rodada só, às 07:00 UTC, em 26 buscas completas de 19 jogos da sexta e da madrugada — Primera A da Colômbia, Liga MX, Uruguai, Chile e Equador sem vídeo nenhum, e as ligas europeias com 0 ou 1. Os jogos grandes da noite de sábado (Vasco × Corinthians, Palmeiras × Bragantino, Santos × Bahia, relevância 95+ no BR) ficaram com "cota do YouTube insuficiente". Os 1.932 vídeos do dia 23 eram contagem repetida das revalidações (cada uma soma de novo os publicados), não rendimento: as buscas completas do dia 23 publicaram 42.
+
+A simulação (`services/ai-agents/test/related-day.integration.test.ts`) roda o agente de verdade, com banco descartável e YouTube falso, nos **142 jogos de futebol tier ≤ 2** da produção entre a sexta à noite e a madrugada de domingo (consulta só de leitura; `test/fixtures/related-day-2026-10-24.json`), de 15 em 15 min das 07:00 às 07:00 UTC. O mapa de canais é o que a carga deixaria: P2397 do Wikidata dos **35 times e 2 ligas** que já têm QID no `core.provider_map` (só 51 dos ~280 times da janela; com `--resolver` o mapa cresce) e as emissoras do `channels.yaml`. Premissas do mundo falso: canal de clube posta coletiva e bastidores; canal da liga, o resumo de todos os jogos; emissora detentora, melhores momentos e um short em metade dos jogos; a busca devolve o que existe no YouTube na hora (vídeos dos canais, reações de criador na quantidade que a produção publicou para o jogo e lixo citando um time só). O "antes" são as regras até a 0039 (só busca, 4 por rodada, sem reserva, sem peso nem rendimento) no mesmo mundo: ele reproduz a produção — na rodada das 07:00, 6 jogos cobertos e 17 vídeos, como no dia real.
+
+| Grupo | Jogos | Cobertos antes | Cobertos depois | Vídeos antes | Vídeos depois |
+|---|---|---|---|---|---|
+| Rodada das 07:00 (os 19 da produção) | 19 | 6 | 12 | 17 | 42 |
+| Série A da noite (19:30–00:00 UTC) | 7 | **0** | **7** | 0 | 36 |
+| Mercados ativos (todos) | 70 | 8 | 40 | 19 | 143 |
+| Todos | 142 | 9 | 49 | 20 | 183 |
+
+| Regra | Consultas (de 90) | Unidades (de 9.000) | Consultas gastas até 12:00 / 21:00 / 00:00 UTC | Vídeos por consulta |
+|---|---|---|---|---|
+| Antes | 90 | ~690 | 74 / 90 / 90 | 0,2 |
+| Depois | 90 | 1.539 | 42 / 61 / 88 | 2,0 |
+| Depois, sem teto de busca | 231 | 1.876 | 54 / 133 / 181 | 1,0 |
+
+- Os canais oficiais pesam pouco no balde geral: **~1.500–1.900 unidades num sábado de pico**, menos de 20% das 10.000. O pedido de aumento é só para a busca.
+- Premier League e Liga MX Femenil saem cobertas sem nenhuma busca (canais dos clubes ou da liga); Colômbia, Chile, Serie A da Itália e Ligue 1 ficam sem vídeo nos dois cenários (nenhum canal no mapa e a busca não rende) — e passam a gastar 1–2 consultas no dia em vez de 4–8.
+
+### 8.4 Pedido de aumento de cota (o que o dono do produto precisa pedir)
+
+**Pedido**: subir **Search Queries per day** (`search.list`) de **100 para 300 consultas/dia** no projeto do Google Cloud da chave `YOUTUBE_API_KEY`. O balde geral (**Queries per day**, 10.000 unidades) fica como está.
+
+**Conta**: com canais primeiro, a busca vira complemento e o sábado de pico pede **231 consultas** para cobrir todos os jogos em que ela ainda acha vídeo (80 jogos cobertos contra 49 com o teto de 100; 58 dos 70 jogos dos mercados ativos contra 40). Desses 231, ~175 são de jogos dos mercados ativos e ~57 de ligas europeias. Somando a folga de 10% que o agente nunca gasta e ~20% de margem para as quartas e quintas com Libertadores, Sul-Americana e Champions no mesmo dia, **300/dia** cobre o pico; um dia comum fica bem abaixo. Hoje (22–24/10) o projeto já bate no teto: 88, 81 e 87 buscas.
+
+**Como**: a cota extra passa pela auditoria de conformidade da API — formulário *YouTube API Services – Audit and Quota Extension Form* ([guia](https://developers.google.com/youtube/v3/guides/quota_and_compliance_audits), [formulário](https://support.google.com/youtube/contact/yt_api_form)); a equipe do YouTube entra em contato, sem prazo publicado. Para preencher:
+
+1. Projeto do Google Cloud (id e número) e o e-mail do responsável pela conta;
+2. caso de uso: metadados e embed oficial de vídeos de futebol (melhores momentos, coletivas) por evento, para hubs esportivos de clientes; sem upload (`videos.insert` não é usado);
+3. conformidade com os Termos e a política de desenvolvedor (§2): só metadados e o player oficial (`youtube-nocookie`), nada de baixar ou rehospedar, miniatura pela URL da plataforma, dados atualizados ou expirados em 30 dias, canais oficiais priorizados;
+4. uso de cota hoje e o pedido: 100 consultas/dia esgotadas diariamente; leitura dos canais oficiais por `playlistItems.list` como caminho principal; busca só como complemento, com parada cedo e teto por jogo; pedido de 300 consultas/dia em `search.list` (a conta acima);
+5. telas: a seção Conteúdo relacionado da página do evento na demo e o painel lateral do player; as páginas `/privacidade` e `/termos` da demo, que já citam os serviços de API do YouTube, os Termos de Serviço do YouTube e a Política de Privacidade do Google (#273).
+
+Se o aumento vier, basta mudar `YOUTUBE_SEARCH_DAILY_QUOTA` no painel de Operação; o pipeline não muda.
 
 LLM: uma chamada `light` por evento (todos os vídeos de uma vez), ~3–5 mil tokens de entrada → frações de centavo por evento.
 
@@ -278,9 +369,11 @@ pnpm --filter @galaxie/ai-agents related:run --plan                 # candidatos
 pnpm --filter @galaxie/ai-agents related:run --evento <id>          # um jogo (busca completa se devida)
 pnpm --filter @galaxie/ai-agents related:run --horas 48 --limite 20 # rodada do cron
 pnpm --filter @galaxie/ai-agents related:run --evento <id> --forcar # ignora a janela de revalidação
+pnpm --filter @galaxie/ingestor canais:wikidata [--plan] [--resolver] # mapa de canais pelo P2397 do Wikidata
+pnpm --filter @galaxie/ai-agents related:canais [--plan]             # canais do channels.yaml + conferência no YouTube
 ```
 
-Flags: `--plan`, `--evento`, `--horas` (padrão 48), `--tier` (padrão 2), `--limite`, `--forcar`, `--sem-llm` (só regras). Variáveis (editáveis no painel de Operação): `YOUTUBE_API_KEY` (só no `.env`), `YOUTUBE_DAILY_QUOTA`, `YOUTUBE_QUOTA_RESERVE_PERCENT`, `RELATED_RESEARCH_HOURS`, `RELATED_CREATOR_MIN_SUBSCRIBERS`, `RELATED_MARKETS`, `RELATED_MIN_RELEVANCE`, `RELATED_MAX_VIDEOS`, `RELATED_MAX_SEARCHES_PER_EVENT`, `RELATED_HIGH_RELEVANCE`, `RELATED_HIGH_RESERVE_PERCENT`, `RELATED_LOOKBACK_HOURS`, `RELATED_SECOND_SEARCH_MINUTES`. Cron padrão: a cada 3 min o dia todo (execução sem jogo novo não chama o YouTube), para os vídeos aparecerem em até ~5 min do apito.
+Flags: `--plan`, `--evento`, `--horas` (padrão 24), `--tier` (padrão 2), `--limite` (padrão 60), `--forcar`, `--sem-llm` (só regras). Variáveis (editáveis no painel de Operação): `YOUTUBE_API_KEY` (só no `.env`), `YOUTUBE_SEARCH_DAILY_QUOTA` (100), `YOUTUBE_DAILY_QUOTA` (10.000), `YOUTUBE_QUOTA_RESERVE_PERCENT` (10), `RELATED_RESEARCH_HOURS`, `RELATED_CREATOR_MIN_SUBSCRIBERS`, `RELATED_MARKETS`, `RELATED_MARKET_WEIGHTS`, `RELATED_MIN_RELEVANCE`, `RELATED_MAX_VIDEOS`, `RELATED_MAX_SEARCHES_PER_EVENT` (4), `RELATED_MAX_SEARCHES_PER_RUN` (2), `RELATED_CHANNEL_ENOUGH` (4), `RELATED_CHANNEL_REFRESH_MINUTES` (60), `RELATED_REVALIDATE_MINUTES` (120), `RELATED_RESERVE_MAX_PERCENT` (60), `RELATED_SEARCH_AFTER_KICKOFF_MINUTES` (140), `RELATED_LOOKBACK_HOURS`, `RELATED_SECOND_SEARCH_MINUTES`. Saíram `RELATED_HIGH_RELEVANCE` e `RELATED_HIGH_RESERVE_PERCENT` (a reserva fixa para relevância ≥ 85 virou a reserva por agenda, §8.2). Cron padrão: a cada 3 min o dia todo; a execução sem trabalho não chama o YouTube, e os canais oficiais põem vídeo no ar em minutos depois do apito.
 
 ## 11. Demo
 
@@ -310,6 +403,8 @@ O clique abre um **painel lateral 9:16** ([related-player.tsx](../apps/demo/src/
 | Reupload sem licença | Imagem de jogo só de canal oficial/detentor; blocklist editorial |
 | Vídeo de jogo antigo com os mesmos times | `publishedAfter` = apito, `about_this_event` do LLM, janela de 7 dias |
 | Título com *prompt injection* | Conteúdo como dado, detecção de padrões, saída em JSON Schema e política em código |
+| Cota de busca (100/dia) | Canais oficiais primeiro (balde geral), parada cedo, teto por jogo, reserva por agenda, rendimento por competição; pedido de aumento (§8.4) |
+| Canal errado no Wikidata | Só QID com casamento estrito, afirmação vigente do P2397, piso de 10 mil inscritos e a mesma relevância/política dos vídeos da busca |
 | Cota do YouTube | Ledger por dia do Pacífico, prioridade por tier, revalidação de 1 unidade |
 | Política de dados da plataforma | Só metadados + embed; expiração em 30 dias sem atualização |
 
