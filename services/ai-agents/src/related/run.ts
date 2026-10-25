@@ -83,7 +83,7 @@ import {
   CHANNEL_QUERY_PREFIX,
   competitionYields,
   currentRelatedRows,
-  expireStaleRelated,
+  purgeYoutubeData,
   quotaUsage,
   saveRelatedBudget,
   saveRelatedContent,
@@ -488,7 +488,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
   };
   if (!opts.plan) {
     if (!opts.youtube) throw new Error('Cliente do YouTube ausente (YOUTUBE_API_KEY).');
-    report.expired = (await expireStaleRelated(db, { now })).rows;
+    report.expired = (await purgeYoutubeData(db, { now })).rows;
   }
   const maxTier = opts.maxTier ?? 2;
   const ctx = await priorityContext(db, {

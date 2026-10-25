@@ -15,6 +15,7 @@ import {
   relatedContent,
   relatedPlaybackBlock,
   relatedRun,
+  youtubeChannel,
   type Database,
 } from '@galaxie/db';
 import { Blocklist, loadWtwConfig } from '@galaxie/where-to-watch';
@@ -22,7 +23,7 @@ import { FakeLlmClient } from '../src/llm/fake.js';
 import { broadcasterChannelsFrom, ChannelAllowlist, loadChannelEntries } from '../src/related/channels.js';
 import { runRelatedAgent, type RelatedRunOptions } from '../src/related/run.js';
 import { relatedPolicyFromEnv } from '../src/related/priority.js';
-import { expireStaleRelated } from '../src/related/store.js';
+import { purgeYoutubeData } from '../src/related/store.js';
 import { YoutubeClient, type FetchLike } from '../src/related/youtube.js';
 import { detailFixture, disposableDb, idOf, ingest, seedCatalog } from './helpers.js';
 
@@ -459,11 +460,61 @@ describe('Conteúdo relacionado (integração)', () => {
     expect(page.rows.map((r) => r.externalId)).not.toContain('v-react');
   });
 
-  it('expira em 30 dias sem atualização: apaga título, miniatura e estatísticas em todas as versões', async () => {
-    const res = await expireStaleRelated(db, { now: new Date(NOW.getTime() + 31 * 86_400_000) });
+  it('retenção de 30 dias: apaga vídeos, canais e recusas; o canal no limiar fica bloqueado por regra', async () => {
+    // a CazéTV de produção: 3 vídeos recusados, nenhuma regra
+    const t0 = new Date(NOW.getTime() - 3_600_000);
+    await db.insert(relatedPlaybackBlock).values(
+      ['cz-a', 'cz-b', 'cz-c'].map((externalId) => ({
+        provider: 'youtube',
+        externalId,
+        code: 150 as const,
+        channelId: 'UCcaze',
+        tenantId: null,
+        firstReportedAt: t0,
+        lastReportedAt: t0,
+      })),
+    );
+    await db.insert(relatedChannelRule).values({
+      provider: 'youtube',
+      channelId: 'UCmanual',
+      mode: 'block',
+      channelTitle: 'Título vindo da API',
+      updatedBy: 'admin@galaxie.test',
+      updatedAt: t0,
+    });
+    const later = new Date(NOW.getTime() + 31 * 86_400_000);
+    const res = await purgeYoutubeData(db, { now: later });
+    expect(res.promoted).toEqual(['UCcaze']);
     expect(res.events).toEqual([eventId]);
-    const rows = await db.select().from(relatedContent).where(eq(relatedContent.eventId, eventId));
-    expect(rows.every((r) => r.title === '' && r.thumbnailUrl === null && r.statistics === null)).toBe(true);
+    expect(res.rows).toBeGreaterThan(0);
+    expect(res.channels).toBeGreaterThan(0);
+    expect(res.blocks).toBe(4); // as 3 da CazéTV e a do v-react
+    expect(res.ruleTitles).toBe(1);
+    // nada do YouTube sobra: nem vídeo (com título, canal e handle), nem o cache de canais, nem os ids recusados
+    expect(await db.select().from(relatedContent).where(eq(relatedContent.eventId, eventId))).toEqual([]);
+    expect(await db.select().from(youtubeChannel)).toEqual([]);
+    expect(await db.select().from(relatedPlaybackBlock)).toEqual([]);
     expect((await readRelatedContent(db, eventId)).rows).toHaveLength(0);
+    // o bloqueio da CazéTV continua, como regra nossa (só o id do canal); a regra manual perdeu o título
+    const rules = await db.select().from(relatedChannelRule);
+    expect(rules.find((r) => r.channelId === 'UCcaze')).toMatchObject({
+      mode: 'block',
+      updatedBy: AUTO_CHANNEL_RULE_BY,
+      channelTitle: null,
+    });
+    expect(rules.find((r) => r.channelId === 'UCmanual')?.channelTitle).toBeNull();
+    // a vitrine do jogo é avisada
+    const feed = await db.select().from(changeFeed).where(eq(changeFeed.entityId, eventId));
+    expect(feed.at(-1)!.payload).toMatchObject({ data: { removed: expect.arrayContaining(['v-official']) } });
+    // idempotente
+    expect(await purgeYoutubeData(db, { now: later })).toMatchObject({
+      promoted: [],
+      rows: 0,
+      events: [],
+      channels: 0,
+      blocks: 0,
+      reports: 0,
+      ruleTitles: 0,
+    });
   });
 });
