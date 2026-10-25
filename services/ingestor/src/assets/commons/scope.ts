@@ -60,10 +60,19 @@ export interface CarTarget {
   year: number;
   /** Chassis da temporada ("McLaren MP4/4"); cada um é uma categoria candidata na Commons. */
   chassis: string[];
-  /** Piloto de quem este é o carro de destaque: foto do carro com ele vale mais. */
-  driver?: { f1dbId: string; name: string; lastName: string } | null;
-  /** Sobrenomes dos outros pilotos da temporada: foto que cita outro piloto (e não o do destaque) vale menos. */
+  /**
+   * Pilotos de quem este é o carro de destaque (os companheiros de equipe com o mesmo carro, ou os dois do grid
+   * atual): foto do carro com um deles vale mais, e a importação leva ao fundo de cada um a foto que o cita.
+   */
+  drivers?: CarDriver[];
+  /** Sobrenomes dos outros pilotos da temporada: foto que cita outro piloto (e não um do destaque) vale menos. */
   others?: string[];
+}
+
+export interface CarDriver {
+  f1dbId: string;
+  name: string;
+  lastName: string;
 }
 
 export type CommonsTarget = DriverTarget | CarTarget;
@@ -104,7 +113,7 @@ export function targetsFor(
   const carTarget = (
     constructorId: string,
     year: number,
-    driver?: CarTarget['driver'],
+    driver?: CarDriver,
     entrant?: string | null,
     others?: string[],
   ): CarTarget | null => {
@@ -128,18 +137,21 @@ export function targetsFor(
       constructorName: str(c.name) ?? constructorId,
       year,
       chassis,
-      ...(driver ? { driver } : {}),
+      ...(driver ? { drivers: [driver] } : {}),
       ...(others?.length ? { others } : {}),
     };
   };
 
   const out: CommonsTarget[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, CommonsTarget>();
   const push = (t: CommonsTarget | null) => {
     if (!t) return;
     const key = targetKey(t);
-    if (seen.has(key)) return;
-    seen.add(key);
+    const prev = seen.get(key);
+    // o mesmo carro como destaque de outro piloto (Verstappen e Pérez na Red Bull 2023) ou o carro da equipe
+    // atual do grid: o alvo fica um só, com os pilotos todos (cada um leva ao fundo a foto que o cita)
+    if (prev) return mergeCarTarget(prev, t);
+    seen.set(key, t);
     out.push(t);
   };
   /**
@@ -249,6 +261,22 @@ export function targetsFor(
     for (const d of ranked) push(driverTarget(str(d.id)!));
   }
   return out;
+}
+
+/**
+ * Junta no alvo de carro já listado os pilotos de destaque de outro alvo com a mesma chave. O chassi fica o do
+ * primeiro; os sobrenomes de quem passou a ser piloto do destaque saem de `others` (a foto do companheiro deixa
+ * de ser recusada).
+ */
+export function mergeCarTarget(into: CommonsTarget, from: CommonsTarget): void {
+  if (into.kind !== 'car' || from.kind !== 'car' || !from.drivers?.length) return;
+  const drivers = [...(into.drivers ?? [])];
+  for (const d of from.drivers) if (!drivers.some((x) => x.f1dbId === d.f1dbId)) drivers.push(d);
+  const names = new Set(drivers.map((d) => d.lastName));
+  const others = [...new Set([...(into.others ?? []), ...(from.others ?? [])])].filter((n) => !names.has(n));
+  into.drivers = drivers;
+  if (others.length) into.others = others;
+  else delete into.others;
 }
 
 /** Chave estável do alvo no manifesto: `driver/ayrton-senna`, `car/mclaren/1988`. */

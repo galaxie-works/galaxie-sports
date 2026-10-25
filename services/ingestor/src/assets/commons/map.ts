@@ -53,14 +53,19 @@ export const isRanked = (e: ManifestEntry | undefined) => !!e?.ranking;
 
 /**
  * Manifesto novo (entrada) com os alvos já ordenados de uma execução anterior: o alvo ordenado fica como estava,
- * com o carro de destaque da entrada (curadoria nova); alvos novos e não ordenados vêm da entrada.
+ * com o carro de destaque da entrada (curadoria nova); alvos novos e não ordenados vêm da entrada. O destaque que
+ * saiu da entrada sai também do alvo ordenado (senão voltaria a ser importado); só a curadoria manual da execução
+ * anterior fica.
  */
 export function mergeRanked(entries: ManifestEntry[], previous: ManifestEntry[]): ManifestEntry[] {
   const before = new Map(previous.map((e) => [e.target, e]));
   return entries.map((e) => {
     const p = before.get(e.target);
     if (!p || !isRanked(p)) return e;
-    return e.highlight_car !== undefined ? { ...p, highlight_car: e.highlight_car } : p;
+    if (e.highlight_car != null) return { ...p, highlight_car: e.highlight_car };
+    if (p.highlight_car?.match === 'manual') return p;
+    const { highlight_car: _dropped, ...rest } = p;
+    return rest;
   });
 }
 
@@ -101,6 +106,13 @@ export async function mapCommons(
       // Wikimedia fora (atraso, erro): o alvo fica como estava no manifesto e volta na próxima varredura
       opts.log?.(`${key}: ${(err as Error).message}; fica para a próxima varredura`);
       stats.push(empty(key, 'rules', `pendente: ${(err as Error).message}`));
+      continue;
+    }
+    if (!d.candidates.length && prev?.photos.some((p) => p.match !== 'rejected')) {
+      // a descoberta não achou nada (item do Wikidata não encontrado, categoria fora): a entrada anterior tinha
+      // fotos conferidas, então fica como estava em vez de virar `photos: []`
+      opts.log?.(`${key}: nenhuma candidata (${d.note ?? 'sem nota'}); a entrada anterior fica`);
+      stats.push(empty(key, 'rules', `pendente: descoberta vazia (${d.note ?? 'sem nota'})`));
       continue;
     }
     const { ok, rejected } = eligible(d);

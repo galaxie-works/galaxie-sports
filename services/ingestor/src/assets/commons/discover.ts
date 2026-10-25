@@ -45,6 +45,8 @@ export interface Candidate {
   portraitCategory: boolean;
   /** Carro de destaque: a foto cita o piloto (título ou categoria), então é o carro com ele. */
   featured?: boolean;
+  /** Carro de destaque: os pilotos do destaque (id do F1DB) que a foto cita. */
+  drivers?: string[];
   /** Carro de destaque: a foto cita outro piloto da temporada (e não o do destaque). */
   other?: boolean;
 }
@@ -189,6 +191,12 @@ export async function discoverDriver(
   let note: string | null = null;
   try {
     item = await findDriverItem(client, target);
+    // a busca do Wikidata não achou o item (nome diferente, homônimos): a categoria da Commons, conferida pelas
+    // categorias-mãe e pelo ano de nascimento, ainda identifica o piloto (Stefan Johansson, 23/10)
+    if (!item) {
+      item = await findDriverCategory(client, target);
+      note = item ? 'identificado pela categoria da Commons (sem item conferido no Wikidata)' : null;
+    }
   } catch (err) {
     // Wikidata atrasado (maxlag) ou fora: a identificação pela categoria da Commons é conferível do mesmo jeito
     if (!(err instanceof WikimediaError)) throw err;
@@ -333,10 +341,17 @@ export async function discoverCar(
       candidates: [],
       note: 'sem categoria do chassi na Commons',
     };
-  // carro de destaque: as fotos que citam o piloto vêm primeiro (e não ficam de fora do limite)
-  const surname = target.driver ? plain(target.driver.lastName) : null;
-  const cites = (text: string) => !!surname && plain(text).includes(surname);
-  const featured = new Set(sources.filter((s) => cites(s.title) || cites(s.from)).map((s) => s.title));
+  // carro de destaque: as fotos que citam um dos pilotos vêm primeiro (e não ficam de fora do limite)
+  const citedBy = (s: { title: string; from: string }) =>
+    (target.drivers ?? [])
+      .filter((d) => [s.title, s.from].some((text) => plain(text).includes(plain(d.lastName))))
+      .map((d) => d.f1dbId);
+  const cited = new Map<string, string[]>();
+  for (const s of sources) {
+    const ids = citedBy(s);
+    if (ids.length) cited.set(s.title, [...new Set([...(cited.get(s.title) ?? []), ...ids])]);
+  }
+  const featured = new Set(cited.keys());
   const others = (target.others ?? []).map((o) => plain(o).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const citesOther = (text: string) => others.some((o) => new RegExp(`\\b${o}\\b`).test(plain(text)));
   const other = new Set(
@@ -357,7 +372,7 @@ export async function discoverCar(
       season: target.year,
       wikidataImage: false,
       portraitCategory: false,
-      ...(featured.has(file.title) ? { featured: true } : {}),
+      ...(featured.has(file.title) ? { featured: true, drivers: cited.get(file.title)! } : {}),
       ...(other.has(file.title) ? { other: true } : {}),
     })),
     note: null,
