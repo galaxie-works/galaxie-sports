@@ -520,6 +520,29 @@ describe('cache, ETag e change feed', () => {
     expect(after.headers.etag).not.toBe(first.headers.etag);
   });
 
+  it('transação com id menor que comita depois de um id maior já lido ainda purga (GapCursor)', async () => {
+    const url = '/v1/competitions/nbb?locale=pt-BR';
+    expect((await get(url)).json().official_name).toBe('NBB');
+    expect((await get(url)).headers['x-galaxie-cache']).toBe('HIT');
+    const slow = postgres(testUrl, { max: 1, onnotice: () => {} });
+    try {
+      await slow.begin(async (tx) => {
+        // a transação lenta pega o id primeiro, mas só comita depois que o listener já leu um id maior
+        await tx`update core.competition set name = 'Novo Basquete Brasil' where id = ${ids.nbb!}`;
+        await tx`select ops.publish_change('catalog', 'competition', ${ids.nbb!}, null)`;
+        await publishChange(db, { topic: 'catalog', entityType: 'venue', entityId: ids.venue! });
+        await expect
+          .poll(() => cdn.purged.flat().includes(`venue:${ids.venue}`), { timeout: 5_000, interval: 50 })
+          .toBe(true);
+      });
+    } finally {
+      await slow.end();
+    }
+    await expect
+      .poll(async () => (await get(url)).json().official_name, { timeout: 5_000, interval: 50 })
+      .toBe('Novo Basquete Brasil');
+  });
+
   it('parâmetro de query desconhecido não fura o cache (chave pela query validada)', async () => {
     const url = '/v1/competitions?country=AR&locale=es-AR';
     expect((await get(url)).headers['x-galaxie-cache']).toBe('MISS');

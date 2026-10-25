@@ -1,5 +1,6 @@
-import { asc, gt, sql } from 'drizzle-orm';
+import { and, asc, gt, notInArray, sql } from 'drizzle-orm';
 import { CHANGE_FEED_CHANNEL, changeFeed, type Database } from '@galaxie/db';
+import { GapCursor } from '../realtime/gap-cursor.js';
 import type { CdnPurger } from './purger.js';
 import type { ResponseCache } from './store.js';
 
@@ -22,6 +23,9 @@ export function tagsForChange(change: Pick<ChangeRow, 'entityType' | 'entityId' 
   return [...new Set(tags)];
 }
 
+/** Espera padrão por um id pulado no change feed antes de abandoná-lo (ver ChangeFeedOptions.gapTimeoutMs). */
+export const PURGE_GAP_TIMEOUT_MS = 90_000;
+
 interface Logger {
   info(obj: object, msg?: string): void;
   warn(obj: object, msg?: string): void;
@@ -32,6 +36,11 @@ export interface ChangeFeedOptions {
   pollIntervalMs?: number;
   /** Usa LISTEN/NOTIFY para acordar na hora. Padrão true. */
   listen?: boolean;
+  /**
+   * Quanto esperar por um id pulado (transação mais lenta) antes de desistir dele. Padrão 90 s: maior que o
+   * do SSE (10 s), porque um purge que chega tarde não faz mal e um perdido deixa a resposta velha até o TTL.
+   */
+  gapTimeoutMs?: number;
   logger?: Logger;
 }
 
@@ -39,9 +48,11 @@ export interface ChangeFeedOptions {
  * Consome `ops.change_feed` e purga o cache (Valkey + CDN). Acorda via LISTEN `ops_change_feed`
  * e também varre periodicamente, então a propagação fica limitada a `pollIntervalMs` mesmo sem NOTIFY.
  * Começa do id mais recente no momento do start (mudanças antigas já não estão em cache).
+ * Lê com o GapCursor (como o ChangeStream e o worker de webhooks): uma transação que pegou um id menor e
+ * comitou depois de um id maior já lido ainda é purgada.
  */
 export class ChangeFeedListener {
-  private lastId = 0;
+  private cursor = new GapCursor(0);
   private timer: NodeJS.Timeout | undefined;
   private unlisten: (() => Promise<void>) | undefined;
   private running: Promise<void> | undefined;
@@ -61,7 +72,9 @@ export class ChangeFeedListener {
   async start(): Promise<void> {
     this.stopped = false;
     const [row] = await this.db.select({ max: sql<string | null>`max(${changeFeed.id})` }).from(changeFeed);
-    this.lastId = Number(row?.max ?? 0);
+    this.cursor = new GapCursor(Number(row?.max ?? 0), {
+      gapTimeoutMs: this.options.gapTimeoutMs ?? PURGE_GAP_TIMEOUT_MS,
+    });
     if (this.options.listen !== false) {
       const sub = await this.db.$client.listen(CHANGE_FEED_CHANNEL, () => void this.poll());
       this.unlisten = () => sub.unlisten();
@@ -97,7 +110,9 @@ export class ChangeFeedListener {
   }
 
   private async drain(): Promise<void> {
+    const cursor = this.cursor;
     for (;;) {
+      const seen = cursor.seenIds;
       const rows = await this.db
         .select({
           id: changeFeed.id,
@@ -107,19 +122,26 @@ export class ChangeFeedListener {
           payload: changeFeed.payload,
         })
         .from(changeFeed)
-        .where(gt(changeFeed.id, this.lastId))
+        .where(
+          and(gt(changeFeed.id, cursor.floor), seen.length ? notInArray(changeFeed.id, seen) : undefined),
+        )
         .orderBy(asc(changeFeed.id))
         .limit(500);
-      if (!rows.length) return;
-      const tags = [...new Set(rows.flatMap(tagsForChange))];
-      const purged = await this.cache.purgeTags(tags);
-      await this.cdn.purgeTags(tags);
-      this.lastId = rows.at(-1)!.id;
-      this.options.logger?.info(
-        { changes: rows.length, tags: tags.length, purged },
-        'change feed: cache purgado',
-      );
-      if (rows.length < 500) return;
+      const fresh = rows.filter((r) => cursor.isNew(r.id));
+      if (fresh.length) {
+        const tags = [...new Set(fresh.flatMap(tagsForChange))];
+        const purged = await this.cache.purgeTags(tags);
+        await this.cdn.purgeTags(tags);
+        this.options.logger?.info(
+          { changes: fresh.length, tags: tags.length, purged },
+          'change feed: cache purgado',
+        );
+      }
+      // só marca depois do purge: se ele falhar, as mesmas linhas voltam na próxima varredura
+      cursor.mark(rows.map((r) => r.id));
+      if (rows.length < 500) break;
     }
+    // lacuna vencida (transação revertida, sequência pulada) é abandonada mesmo sem linhas novas
+    cursor.advance();
   }
 }
