@@ -258,41 +258,51 @@ describe('buildTimelineDto', () => {
       expect(t.incidents[1]).toMatchObject({ team: { side: 'home' }, scoring_team: { side: 'home' } });
     });
 
-    it('placar à frente dos lances, nas duas convenções: a que não passa do placar', () => {
+    it('encerrado com lance faltando, nas duas convenções: a que não passa do placar', () => {
       expect(scores(buildTimelineDto(derby(FLU, { home: 5, away: 1 })))).toEqual(expected);
       expect(scores(buildTimelineDto(derby(PAL, { home: 5, away: 1 })))).toEqual(expected);
     });
 
-    it('o lado não troca entre leituras do ao vivo com o placar adiantado', () => {
-      const sideAt = (incidents: RawIncident[], score: { home: number; away: number }) =>
-        buildTimelineDto(input({ status: 'live', statusDetail: '2H', score, incidents })).incidents[0]
-          ?.scoring_team?.side;
+    it('no ao vivo o lado do gol contra não troca entre leituras: vale o padrão até o placar final', () => {
+      const sideAt = (incidents: RawIncident[], score: { home: number; away: number }, status = 'live') =>
+        buildTimelineDto(
+          input({
+            status: status as TimelineInput['status'],
+            statusDetail: status === 'live' ? '2H' : 'FT',
+            score,
+            incidents,
+          }),
+        ).incidents[0]?.scoring_team?.side;
+      // jogador no incidente (gol contra do zagueiro do Fluminense): 1–0; o Fluminense empata e o placar
+      // chega a 1–1 antes do lance; depois o lance chega. O 1–0 parcial "provaria" a convenção do jogador,
+      // mas o 1–1 sem o lance a desfaria: no ao vivo fica o padrão nas três leituras
       seq = 0;
-      // beneficiado no incidente: 1–0; depois 2–0 com o lance do 2º gol ainda por chegar; depois ele chega
-      const og = inc({ type: 'own_goal', detail: 'Own Goal', minute: 20, team: PAL });
-      const second = inc({ type: 'goal', detail: 'Normal Goal', minute: 50, team: PAL });
+      const og = inc({ type: 'own_goal', detail: 'Own Goal', minute: 20, team: FLU });
+      const equalizer = inc({ type: 'goal', detail: 'Normal Goal', minute: 60, team: FLU });
       expect([
         sideAt([og], { home: 1, away: 0 }),
-        sideAt([og], { home: 2, away: 0 }),
-        sideAt([og, second], { home: 2, away: 0 }),
-      ]).toEqual(['home', 'home', 'home']);
-      // jogador no incidente, com um gol do Fluminense anulado no VAR ainda listado e o 2º do Palmeiras
-      // no placar antes do lance: nenhuma bate, fica a que menos passa do placar
+        sideAt([og], { home: 1, away: 1 }),
+        sideAt([og, equalizer], { home: 1, away: 1 }),
+      ]).toEqual(['away', 'away', 'away']);
+      // encerrado, o placar final decide uma vez: 1–1 só fecha com o gol contra para o Palmeiras
+      expect(sideAt([og, equalizer], { home: 1, away: 1 }, 'finished')).toBe('home');
+      // beneficiado no incidente: 1–0, 2–0 com o lance do 2º ainda por chegar, depois ele chega
       seq = 0;
-      const og2 = inc({ type: 'own_goal', detail: 'Own Goal', minute: 20, team: FLU });
-      const annulled = inc({ type: 'goal', detail: 'Normal Goal', minute: 40, team: FLU });
+      const og2 = inc({ type: 'own_goal', detail: 'Own Goal', minute: 20, team: PAL });
+      const second = inc({ type: 'goal', detail: 'Normal Goal', minute: 50, team: PAL });
       expect([
-        sideAt([og2, annulled], { home: 1, away: 1 }),
-        sideAt([og2, annulled], { home: 2, away: 0 }),
-      ]).toEqual(['home', 'home']);
+        sideAt([og2], { home: 1, away: 0 }),
+        sideAt([og2], { home: 2, away: 0 }),
+        sideAt([og2, second], { home: 2, away: 0 }),
+        sideAt([og2, second], { home: 2, away: 0 }, 'finished'),
+      ]).toEqual(['home', 'home', 'home', 'home']);
     });
 
     it('sem como decidir, vale o time do incidente como beneficiado (padrão de docs/05 e do main)', () => {
       seq = 0;
+      // encerrado 1–1 com só o gol contra listado: as duas convenções ficam abaixo do placar
       const t = buildTimelineDto(
         input({
-          status: 'live',
-          statusDetail: '2H',
           score: { home: 1, away: 1 },
           incidents: [inc({ type: 'own_goal', detail: 'Own Goal', minute: 30, team: FLU })],
         }),

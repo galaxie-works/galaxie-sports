@@ -271,15 +271,20 @@ function creditedSide(raw: RawIncident, kind: TimelineKind, ownGoalForOpponent: 
 /**
  * O gol contra soma para o adversário do time do incidente? O time do incidente pode ser o beneficiado
  * (o padrão assumido aqui e em docs/05; não há fixture gravado de verdade com gol contra no repositório) ou o
- * do jogador que marcou contra (como no fixture sintético 1492407). Como em `buildGoals` do resumo
- * (services/ai-agents/src/recap/facts.ts), o placar do evento decide:
- * 1. a convenção cuja contagem reproduz o placar (as duas: o padrão);
- * 2. senão, a que menos passa do placar: no ao vivo o placar chega antes do lance, então a contagem certa
- *    fica abaixo dele (ou, com um gol anulado ainda listado, passa menos) — o lado não troca entre leituras;
- * 3. empate (ou placar desconhecido): o padrão.
+ * do jogador que marcou contra (como no fixture sintético 1492407).
+ *
+ * Só o placar final é evidência estável: no ao vivo o placar chega antes do lance, e qualquer conclusão
+ * tirada do placar parcial pode se desfazer no gol seguinte (o mesmo lance trocaria de lado entre leituras).
+ * Por isso, com o jogo em andamento vale sempre o padrão; encerrado, como em `buildGoals` do resumo
+ * (services/ai-agents/src/recap/facts.ts), fica a convenção que reproduz o placar (as duas: o padrão) ou,
+ * sem nenhuma exata (lance faltando, gol anulado ainda listado), a única que menos passa dele.
  */
-export function ownGoalCountsForOpponent(incidents: RawIncident[], score: TimelineInput['score']): boolean {
-  if (score.home == null || score.away == null) return false;
+export function ownGoalCountsForOpponent(
+  incidents: RawIncident[],
+  score: TimelineInput['score'],
+  finished: boolean,
+): boolean {
+  if (!finished || score.home == null || score.away == null) return false;
   const { home, away } = score;
   const tally = (forOpponent: boolean) => {
     const t = { home: 0, away: 0 };
@@ -328,7 +333,7 @@ export function buildTimelineDto(input: TimelineInput): EventTimeline {
   };
 
   // ─ lances: tipo, relógio, instante, placar parcial e bandeiras ─
-  const ownGoalForOpponent = ownGoalCountsForOpponent(input.incidents, input.score);
+  const ownGoalForOpponent = ownGoalCountsForOpponent(input.incidents, input.score, finished);
   const yellows = new Set<string>();
   let home = 0;
   let away = 0;
