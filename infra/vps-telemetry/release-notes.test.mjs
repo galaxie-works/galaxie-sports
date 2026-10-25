@@ -8,6 +8,7 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   deployDate,
+  missingReleases,
   nextTag,
   orderByHistory,
   parseRemoteTags,
@@ -126,6 +127,29 @@ describe('orderByHistory', () => {
   });
 });
 
+describe('missingReleases', () => {
+  it('todas as tags sem release, da mais velha à mais nova, cada uma com a anterior no histórico', () => {
+    const t = (name, sha) => parseRemoteTags(`${sha}\trefs/tags/${name}`)[0];
+    const tags = [
+      t('deploy-2026-10-25.1', 'c4'),
+      t('deploy-2026-10-24.1', 'c3'),
+      t('deploy-2026-10-23.1', 'c2'),
+      t('deploy-2026-10-22.1', 'c1'),
+    ];
+    const got = missingReleases(tags, ['deploy-2026-10-25.1', 'deploy-2026-10-23.1']);
+    assert.deepEqual(
+      got.map(({ tag, previous }) => [tag.name, previous.name]),
+      [['deploy-2026-10-24.1', 'deploy-2026-10-23.1']],
+    );
+    // a primeira do histórico não tem de onde partir
+    assert.deepEqual(missingReleases(tags.slice(3), []), []);
+    assert.deepEqual(
+      missingReleases(tags, []).map(({ tag }) => tag.name),
+      ['deploy-2026-10-23.1', 'deploy-2026-10-24.1', 'deploy-2026-10-25.1'],
+    );
+  });
+});
+
 describe('nextTag', () => {
   it('primeira do dia é .1; outros dias não contam', () => {
     assert.deepEqual(nextTag(['deploy-2026-10-24.3'], '2026-10-25'), { tag: 'deploy-2026-10-25.1', n: 1 });
@@ -150,9 +174,9 @@ describe('release-notes.mjs', () => {
 const fs = require('node:fs');
 const a = process.argv.slice(2);
 if (a[0] === 'repo') { console.log('https://github.com/exemplo/repo'); process.exit(0); }
-if (a[0] === 'release' && a[1] === 'view') {
-  if ((process.env.GH_RELEASED || 'deploy-2026-10-20.1').split(',').includes(a[2])) process.exit(0);
-  console.error('release not found'); process.exit(1);
+if (a[0] === 'release' && a[1] === 'list') {
+  console.log((process.env.GH_RELEASED || 'deploy-2026-10-20.1').split(',').join('\\n'));
+  process.exit(0);
 }
 if (a[0] === 'release' && a[1] === 'create') {
   fs.appendFileSync(process.env.GH_FAKE_LOG, JSON.stringify({ args: a.slice(2), body: fs.readFileSync(0, 'utf8') }) + '\\n');
@@ -226,6 +250,8 @@ process.exit(2);
 
       assert.equal(recovered.args[0], 'deploy-2026-10-21.1');
       assert.ok(recovered.args.includes('--verify-tag'));
+      assert.ok(recovered.args.includes('--latest=false'));
+      assert.ok(!created.args.includes('--latest=false'));
       assert.match(recovered.body, /desde `deploy-2026-10-20\.1`/);
       assert.match(recovered.body, /Pontos do sprint/);
       assert.doesNotMatch(recovered.body, /#3/);
@@ -251,6 +277,22 @@ process.exit(2);
       assert.match(created.body, /1 PR\(s\) desde `deploy-2026-10-20\.2`/);
       assert.match(created.body, /Busca/);
       assert.doesNotMatch(created.body, /#3/);
+    }));
+
+  it('conclui também a tag sem release que ficou atrás de uma com release', () =>
+    withRepo(({ git, cli, calls, setReleased }) => {
+      // 21.1 sem release; o deploy seguinte (20.2, no #3) já tem; depois entra o #4
+      git('tag', 'deploy-2026-10-20.2');
+      git('commit', '-q', '--allow-empty', '-m', 'feat(api): busca (#4)');
+      git('push', '-q', 'origin', 'HEAD:main', 'deploy-2026-10-20.2');
+      setReleased(['deploy-2026-10-20.1', 'deploy-2026-10-20.2']);
+      cli('--to', git('rev-parse', 'HEAD'));
+      const [recovered, created, ...rest] = calls();
+      assert.equal(rest.length, 0);
+      assert.equal(recovered.args[0], 'deploy-2026-10-21.1');
+      assert.ok(recovered.args.includes('--latest=false'));
+      assert.match(recovered.body, /Pontos do sprint/);
+      assert.match(created.body, /1 PR\(s\) desde `deploy-2026-10-20\.2`/);
     }));
 
   it('com --dry só imprime; redeploy do mesmo commit não gera release nova', () =>

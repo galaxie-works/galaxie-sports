@@ -12,14 +12,15 @@
  * - Tag e release saem juntas (`gh release create --target`, a tag nasce no GitHub): sem tag local, nem tag
  *   publicada sem release se a criação falhar. Tags e numeração vêm do GitHub (`git ls-remote`), não do clone;
  *   a tag anterior é a mais nova no histórico (first-parent) do commit publicado.
- * - A tag `deploy-*` mais recente ainda sem release (publicação que falhou no fluxo antigo) é concluída antes,
- *   com os PRs dela; senão as notas desses PRs se perderiam.
+ * - Tags `deploy-*` ainda sem release (publicação que falhou no fluxo antigo) são concluídas antes, cada uma com os
+ *   PRs dela e sem virar a "Latest"; senão as notas desses PRs se perderiam.
  * - Sem PR novo desde a última tag (redeploy do mesmo código), não cria tag nem release.
  * Requer o gh autenticado com permissão de escrita no repositório.
  */
 import { execFileSync } from 'node:child_process';
 import {
   deployDate,
+  missingReleases,
   nextTag,
   orderByHistory,
   parseRemoteTags,
@@ -37,17 +38,6 @@ const dry = args.includes('--dry');
 const run = (cmd, a, input) =>
   execFileSync(cmd, a, { encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 const git = (...a) => run('git', a);
-
-/** Release da tag existe? "release not found" → false; outro erro do gh (rede, login) sobe. */
-const hasRelease = (tag) => {
-  try {
-    run('gh', ['release', 'view', tag, '--json', 'tagName']);
-    return true;
-  } catch (err) {
-    if (/not found/i.test(String(err.stderr ?? ''))) return false;
-    throw err;
-  }
-};
 
 const repo = run('gh', ['repo', 'view', '--json', 'url', '--jq', '.url']);
 
@@ -69,8 +59,9 @@ const publish = ({ tag, title, from, fromLabel, to, existingTag, note }) => {
     console.log(`${tag} — ${title}\n\n${body}\n`);
     return;
   }
-  // tag nova: o GitHub cria a tag no commit junto com a release (as duas ou nenhuma)
-  const target = existingTag ? ['--verify-tag'] : ['--target', to];
+  // tag nova: o GitHub cria a tag no commit junto com a release (as duas ou nenhuma). Tag antiga concluída agora
+  // não vira a "Latest" do GitHub (seria a de data de criação mais nova)
+  const target = existingTag ? ['--verify-tag', '--latest=false'] : ['--target', to];
   run('gh', ['release', 'create', tag, '--title', title, '--notes-file', '-', ...target], body);
   console.log(`release ${tag}: ${prs.length} PR(s) — ${repo}/releases/tag/${tag}`);
 };
@@ -81,19 +72,34 @@ const remoteTags = parseRemoteTags(git('ls-remote', '--tags', 'origin', 'refs/ta
 const history = git('log', '--first-parent', '--format=%H', to).split('\n').filter(Boolean);
 const tags = orderByHistory(remoteTags, history);
 
-// tag publicada sem release (o `gh release create` falhou depois do push da tag): conclui antes da nova
-const [latest, previous] = tags;
-if (!opt('from') && latest && previous && !hasRelease(latest.name)) {
-  console.log(`release: ${latest.name} está sem release; concluindo`);
-  publish({
-    tag: latest.name,
-    title: titleOf(latest),
-    from: previous.sha,
-    fromLabel: previous.name,
-    to: latest.sha,
-    existingTag: true,
-    note: '_Release concluída depois do deploy: a publicação original falhou._',
-  });
+// tags publicadas sem release (no fluxo antigo, o `gh release create` falhava depois do push da tag): todas são
+// concluídas, da mais velha à mais nova, antes da nova. Uma lista só de releases, não uma chamada por tag.
+const [latest] = tags;
+if (!opt('from')) {
+  const released = run('gh', [
+    'release',
+    'list',
+    '--limit',
+    '1000',
+    '--json',
+    'tagName',
+    '--jq',
+    '.[].tagName',
+  ])
+    .split('\n')
+    .filter(Boolean);
+  for (const { tag: orphan, previous } of missingReleases(tags, released)) {
+    console.log(`release: ${orphan.name} está sem release; concluindo`);
+    publish({
+      tag: orphan.name,
+      title: titleOf(orphan),
+      from: previous.sha,
+      fromLabel: previous.name,
+      to: orphan.sha,
+      existingTag: true,
+      note: '_Release concluída depois do deploy: a publicação original falhou._',
+    });
+  }
 }
 
 const fromRef = opt('from');

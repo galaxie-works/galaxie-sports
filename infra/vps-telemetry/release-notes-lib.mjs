@@ -130,6 +130,18 @@ export function orderByHistory(tags, history) {
 }
 
 /**
+ * Tags sem release, cada uma com a anterior no histórico (de onde partem as notas dela), da mais velha à mais nova.
+ * `tags` na ordem de orderByHistory; a primeira tag do histórico não tem anterior e fica de fora.
+ */
+export function missingReleases(tags, released) {
+  const has = new Set(released);
+  return tags
+    .map((tag, i) => ({ tag, previous: tags[i + 1] }))
+    .filter(({ tag, previous }) => previous && !has.has(tag.name))
+    .reverse();
+}
+
+/**
  * Próxima tag do dia: o maior N já usado no dia (no GitHub ou só local) + 1. Pelo maior e não pela contagem, para
  * um buraco na sequência não repetir um nome que já existe.
  */
