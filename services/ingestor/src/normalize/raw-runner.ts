@@ -347,6 +347,8 @@ async function recordNormalizeFailures(
   retried: readonly number[],
   /** A execução examinou todas as respostas vigentes acima deste id (null com filtro de endpoints). */
   scannedAfter: number | null,
+  /** Endpoints examinados (null: todos); falha de outro endpoint nunca é resolvida por esta execução. */
+  examined: readonly string[] | null,
 ): Promise<Set<number>> {
   const errors = rows.filter((r) => r.outcome === 'error');
   const poisoned = new Set<number>();
@@ -406,6 +408,7 @@ async function recordNormalizeFailures(
   const seen = new Set(rows.map((r) => r.id));
   const retriedSet = new Set(retried);
   const resolved = (await pendingNormalizeFailures(db, provider, sport))
+    .filter((f) => examined === null || examined.includes(f.endpoint))
     .map((f) => Number(f.rawId))
     .filter(
       (id) =>
@@ -446,9 +449,11 @@ async function runNormalizeJob(
     .returning();
   try {
     const afterId = options.full ? 0 : await readNormalizeCursor(db, provider, sport);
-    // com --reprocessar-falhas, todas as pendentes; sem, só as em poison cuja última falha passou do intervalo
+    // com --reprocessar-falhas, todas as pendentes; sem, só as em poison cuja última falha passou do intervalo.
+    // Com filtro de endpoints, só as desses endpoints: as outras não seriam examinadas
     const retryBefore = Date.now() - NORMALIZE_POISON_RETRY_MS;
     const retried = (await pendingNormalizeFailures(db, provider, sport))
+      .filter((f) => !options.endpoints || options.endpoints.includes(f.endpoint))
       .filter(
         (f) => options.retryFailures || (f.poisonedAt !== null && f.lastFailedAt.getTime() < retryBefore),
       )
@@ -462,6 +467,7 @@ async function runNormalizeJob(
       result.rows,
       retried,
       options.endpoints ? null : afterId,
+      options.endpoints ?? null,
     );
     // com erro, o cursor para antes da primeira resposta que falhou (será tentada de novo; o upsert é idempotente);
     // a que já falhou NORMALIZE_POISON_ATTEMPTS vezes não segura mais o cursor

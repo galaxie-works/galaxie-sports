@@ -179,6 +179,32 @@ describe('normalize: resposta com erro determinístico', () => {
     expect(retried.rows.map((row) => [row.id, row.outcome])).toEqual([[poison, 'empty']]);
     expect(await pendingNormalizeFailures(db, 'api-sports', 'football')).toHaveLength(0);
   });
+
+  it('execução com filtro de endpoints não tenta nem resolve poison de outro endpoint', async () => {
+    const broken = await insertRaw(
+      'football',
+      '/fixtures',
+      { id: '3' },
+      [{ fixture: { id: 3, date: 'x' }, league: { id: 1, season: 2026 } }],
+      '2026-10-21T13:00:00Z',
+    );
+    for (let i = 0; i < NORMALIZE_POISON_ATTEMPTS; i++) await runNormalizeFootballJob(db);
+    await db
+      .update(normalizeFailure)
+      .set({ lastFailedAt: new Date(Date.now() - NORMALIZE_POISON_RETRY_MS - 60_000) })
+      .where(eq(normalizeFailure.rawId, broken));
+    // ex.: `normalize:football --tudo --endpoints /coachs,/trophies` (separar técnicos)
+    for (const options of [
+      { full: true, endpoints: ['/teams'] },
+      { retryFailures: true, endpoints: ['/teams'] },
+    ]) {
+      const r = await runNormalizeFootballJob(db, options);
+      expect(r.rows.some((row) => row.id === broken)).toBe(false);
+      const [f] = await pendingNormalizeFailures(db, 'api-sports', 'football');
+      expect(f).toMatchObject({ rawId: broken, attempts: NORMALIZE_POISON_ATTEMPTS, resolvedAt: null });
+      expect(f!.poisonedAt).toBeInstanceOf(Date);
+    }
+  });
 });
 
 describe('normalize:nba', () => {
