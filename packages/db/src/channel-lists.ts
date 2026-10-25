@@ -195,7 +195,11 @@ export async function deleteChannelList(db: Database, tenantId: string): Promise
   return rows.length > 0;
 }
 
-/** Listas com sobras esperando a IA (ou que falharam), as mais antigas primeiro. */
+/**
+ * Listas com sobras esperando a IA, as mais antigas primeiro; com `retryFailed`, as que falharam vêm
+ * depois de todas as pendentes, pela tentativa mais antiga (`updatedAt`): lista que falha sempre não
+ * trava a fila nem as outras que falharam.
+ */
 export async function listChannelListsForAi(
   db: Database,
   opts: { limit?: number; retryFailed?: boolean; tenantIds?: string[] } = {},
@@ -207,7 +211,12 @@ export async function listChannelListsForAi(
     .select()
     .from(tenantChannelList)
     .where(and(...conds))
-    .orderBy(asc(tenantChannelList.processedAt))
+    .orderBy(
+      asc(sql`${tenantChannelList.aiStatus} = 'failed'`),
+      asc(
+        sql`case when ${tenantChannelList.aiStatus} = 'failed' then ${tenantChannelList.updatedAt} else ${tenantChannelList.processedAt} end`,
+      ),
+    )
     .limit(opts.limit ?? 20);
 }
 

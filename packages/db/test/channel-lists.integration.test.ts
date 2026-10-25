@@ -4,16 +4,19 @@
  */
 import { randomBytes } from 'node:crypto';
 import postgres from 'postgres';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   closeDb,
   createDb,
   getChannelList,
+  listChannelListsForAi,
   runMigrations,
   saveChannelList,
   saveChannelListAi,
   setChannelListOverrides,
   tenant,
+  tenantChannelList,
   type Database,
   type StoredChannelMatch,
 } from '../src/index.js';
@@ -119,5 +122,42 @@ describe('saveChannelListAi × correção do cliente', () => {
     ).toBe(true);
     expect((await getChannelList(db, id))!.aiStatus).toBe('done');
   });
+});
 
+describe('listChannelListsForAi', () => {
+  it('pendentes antes das que falharam; entre as falhas, a tentativa mais antiga primeiro', async () => {
+    const at = (min: number) => new Date(Date.UTC(2026, 9, 1, 12, min));
+    const failed: string[] = [];
+    // três listas que falham sempre, enviadas antes da pendente
+    for (let i = 0; i < 3; i++) {
+      const id = await newTenant(`lista-falha-${i}`);
+      await upload(id, at(i));
+      await db
+        .update(tenantChannelList)
+        .set({ aiStatus: 'failed', updatedAt: at(30 + i) })
+        .where(eq(tenantChannelList.tenantId, id));
+      failed.push(id);
+    }
+    const pending = await newTenant('lista-pendente-nova');
+    await upload(pending, at(20));
+    const ids = [...failed, pending];
+
+    const order = async (limit: number) =>
+      (await listChannelListsForAi(db, { limit, retryFailed: true, tenantIds: ids })).map((r) => r.tenantId);
+    // com o limite menor que as falhas, a pendente entra mesmo assim
+    expect(await order(2)).toEqual([pending, failed[0]]);
+    expect(await order(10)).toEqual([pending, ...failed]);
+    // a primeira falha tentou de novo agora (o job grava `failed` e avança updatedAt): vai para o fim
+    const first = (await getChannelList(db, failed[0]!))!;
+    await saveChannelListAi(db, failed[0]!, {
+      processedAt: first.processedAt,
+      revision: first.revision,
+      proposed: first.proposed,
+      aiStatus: 'failed',
+      aiNote: 'IA indisponível: teste',
+    });
+    expect(await order(10)).toEqual([pending, failed[1], failed[2], failed[0]]);
+    // sem --repetir-falhas, só as pendentes
+    expect((await listChannelListsForAi(db, { tenantIds: ids })).map((r) => r.tenantId)).toEqual([pending]);
+  });
 });
