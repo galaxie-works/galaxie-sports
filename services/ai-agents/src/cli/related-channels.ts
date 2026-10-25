@@ -100,7 +100,8 @@ try {
         ],
         set: { active: true, updatedAt: now },
       });
-  // o que saiu da configuração deixa de valer (nada é apagado); na prévia, handle fora do cache não conta
+  // o que saiu da configuração deixa de valer (nada é apagado); entrada que continua no arquivo e ficou sem
+  // par só vai para o log
   const activeConfig = await db
     .select({
       id: relatedChannel.id,
@@ -113,21 +114,27 @@ try {
     })
     .from(relatedChannel)
     .where(and(eq(relatedChannel.source, 'config'), eq(relatedChannel.active, true)));
-  const stale = staleConfigChannels(activeConfig, rows, new Set(values.plan ? missingHandles : []));
-  if (!values.plan && stale.length)
+  const configRefs = new Set(entries.flatMap((e) => [e.handle, e.id].filter((x): x is string => !!x)));
+  const { gone: removed, unmatched: kept } = staleConfigChannels(activeConfig, rows, configRefs);
+  if (!values.plan && removed.length)
     await db
       .update(relatedChannel)
       .set({ active: false, updatedAt: now })
       .where(
         inArray(
           relatedChannel.id,
-          stale.map((r) => r.id),
+          removed.map((r) => r.id),
         ),
       );
-  if (stale.length)
+  if (removed.length)
     console.log(
       `${values.plan ? 'Desativaria' : 'Desativados'} (fora da configuração): ` +
-        stale.map((r) => r.sourceRef ?? r.channelId).join(', '),
+        removed.map((r) => r.sourceRef ?? r.channelId).join(', '),
+    );
+  if (kept.length)
+    console.log(
+      `Continuam ativos (na configuração, sem par nesta execução; confira): ` +
+        kept.map((r) => r.sourceRef).join(', '),
     );
 
   // 3. confere no YouTube os canais do mapa (playlist de uploads e inscritos; 1 unidade por 50)

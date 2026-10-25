@@ -552,7 +552,10 @@ describe('allowlist de canais', () => {
     });
     const scope: ChannelScope = {
       participantIds: [core.home.id, core.away.id],
-      teamNames: [...teamVariants(core.home), ...teamVariants(core.away)],
+      teams: [
+        { names: teamVariants(core.home), country: 'BR' },
+        { names: teamVariants(core.away), country: 'BR' },
+      ],
       competitionId: core.competition!.id,
       competitionSlug: core.competition!.slug,
     };
@@ -567,6 +570,68 @@ describe('allowlist de canais', () => {
     expect(scoped.classify(ch('UCfla', null), holders, scope).entry?.kind).toBe('club');
     // sem o jogo (chamadas antigas): continua oficial
     expect(scoped.classify(ch('UCfla', null), holders).tier).toBe('official');
+  });
+
+  it('entrada do channels.yaml casa pelo nome e pelo país; a do mapa, ligada a outro time, vence o nome', () => {
+    const santos = (id: string, side: 'home' | 'away', name: string) => ({
+      ...team(id, side, name),
+      shortName: 'Santos',
+    });
+    const allow = new ChannelAllowlist({
+      entries: [
+        { handle: '@santosfc', id: null, kind: 'club', broadcaster: null, country: 'BR', label: 'Santos' },
+        {
+          handle: '@clubamerica',
+          id: null,
+          kind: 'club',
+          broadcaster: null,
+          country: 'MX',
+          label: 'América',
+        },
+        // mesmo canal já ligado no mapa ao Santos do Brasil
+        {
+          handle: null,
+          id: 'UCsfc',
+          kind: 'club',
+          broadcaster: null,
+          country: 'BR',
+          label: 'SantosTV',
+          participantId: 'sfc',
+        },
+      ],
+    });
+    const scopeOf = (
+      home: TeamRef,
+      homeCountry: string,
+      away: TeamRef,
+      awayCountry: string,
+    ): ChannelScope => ({
+      participantIds: [home.id, away.id],
+      teams: [
+        { names: teamVariants(home), country: homeCountry },
+        { names: teamVariants(away), country: awayCountry },
+      ],
+      competitionId: null,
+      competitionSlug: null,
+    });
+    const laguna = santos('lag', 'home', 'Santos Laguna');
+    const mg = team('amg', 'away', 'América');
+    const lagunaGame = scopeOf(laguna, 'MX', team('tij', 'away', 'Tijuana'), 'MX');
+    const mgGame = scopeOf(team('cru', 'home', 'Cruzeiro'), 'BR', mg, 'BR');
+    // só pelo handle (sem o mapa): o país separa os homônimos
+    expect(allow.classify(ch('UCx', '@santosfc'), holders, lagunaGame).tier).toBe('media');
+    expect(allow.classify(ch('UCam', '@clubamerica'), holders, mgGame).tier).toBe('media');
+    expect(
+      allow.classify(
+        ch('UCam', '@clubamerica'),
+        holders,
+        scopeOf(team('ame', 'home', 'América'), 'MX', team('tol', 'away', 'Toluca'), 'MX'),
+      ).tier,
+    ).toBe('official');
+    // o canal ligado no mapa a outro time não vira oficial pelo nome
+    expect(allow.classify(ch('UCsfc', '@santosfc'), holders, lagunaGame).tier).toBe('media');
+    const santosGame = scopeOf(santos('sfc', 'home', 'Santos'), 'BR', team('pal', 'away', 'Palmeiras'), 'BR');
+    expect(allow.classify(ch('UCsfc', '@santosfc'), holders, santosGame).tier).toBe('official');
   });
 });
 

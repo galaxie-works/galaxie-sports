@@ -127,7 +127,7 @@ describe('mapa de canais da configuração', () => {
     ).toEqual(['liga-x (sem competição)']);
   });
 
-  it('linha da configuração que saiu do arquivo é desativada; handle não conferido na prévia fica', () => {
+  it('só a linha cuja entrada saiu do arquivo é desativada; a que ficou sem par só vai para o log', () => {
     const row = (channelId: string, sourceRef: string, competitionId: string | null = 'lib') => ({
       id: channelId,
       channelId,
@@ -139,9 +139,13 @@ describe('mapa de canais da configuração', () => {
     });
     const active = [row('UCcmb', '@conmebol'), row('UCold', '@antigo'), row('UCprev', '@prev')];
     const rows = [{ channelId: 'UCcmb', kind: 'competition' as const, competitionId: 'lib' }];
-    expect(staleConfigChannels(active, rows).map((r) => r.channelId)).toEqual(['UCold', 'UCprev']);
-    expect(staleConfigChannels(active, rows, new Set(['@prev'])).map((r) => r.channelId)).toEqual(['UCold']);
-    // a mesma entrada ligada a outra competição também sai
-    expect(staleConfigChannels([row('UCcmb', '@conmebol', 'ucl')], rows)).toHaveLength(1);
+    // @prev continua no arquivo (handle não conferido, time ambíguo...): fica ativo
+    const res = staleConfigChannels(active, rows, new Set(['@conmebol', '@prev']));
+    expect(res.gone.map((r) => r.channelId)).toEqual(['UCold']);
+    expect(res.unmatched.map((r) => r.channelId)).toEqual(['UCprev']);
+    // a mesma entrada, ainda no arquivo, que hoje casa com outra competição: só log
+    expect(
+      staleConfigChannels([row('UCcmb', '@conmebol', 'ucl')], rows, new Set(['@conmebol'])).gone,
+    ).toHaveLength(0);
   });
 });

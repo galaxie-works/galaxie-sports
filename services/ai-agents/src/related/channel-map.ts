@@ -120,17 +120,23 @@ const channelKey = (r: ChannelKey) =>
   [r.channelId, r.kind, r.participantId ?? '', r.competitionId ?? '', r.broadcasterId ?? ''].join('|');
 
 /**
- * Linhas ativas do mapa vindas da configuração que saíram dela (o editor tirou o canal do channels.yaml ou do
- * dicionário de emissoras): o CLI as desativa, senão o canal continuaria tratado como oficial. `keep` = refs
- * (`source_ref`) que não deu para conferir nesta execução (handle fora do cache na prévia): ficam.
+ * Linhas ativas do mapa vindas da configuração que não saíram desta execução. `gone` = a entrada saiu da
+ * configuração (o editor tirou o handle/id do channels.yaml ou do dicionário de emissoras): o CLI desativa,
+ * senão o canal continuaria tratado como oficial. `unmatched` = a entrada continua no arquivo mas ficou sem
+ * par (time ambíguo, competição renomeada, handle não conferido na prévia): só vai para o log, porque desativar
+ * por um casamento que falhou tiraria um canal conferido à mão.
  */
 export function staleConfigChannels<T extends ChannelKey & { sourceRef: string | null }>(
   active: readonly T[],
   rows: readonly ChannelKey[],
-  keep: ReadonlySet<string> = new Set(),
-): T[] {
+  configRefs: ReadonlySet<string>,
+): { gone: T[]; unmatched: T[] } {
   const current = new Set(rows.map(channelKey));
-  return active.filter((r) => !current.has(channelKey(r)) && !(r.sourceRef && keep.has(r.sourceRef)));
+  const stale = active.filter((r) => !current.has(channelKey(r)));
+  return {
+    gone: stale.filter((r) => !r.sourceRef || !configRefs.has(r.sourceRef)),
+    unmatched: stale.filter((r) => !!r.sourceRef && configRefs.has(r.sourceRef)),
+  };
 }
 
 /** Emissoras com canal no mapa (para saber, sem consulta, se o jogo tem canal de detentor). */

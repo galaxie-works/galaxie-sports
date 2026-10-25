@@ -44,8 +44,12 @@ export interface ChannelRef {
 export interface ChannelScope {
   /** Os dois times do jogo. */
   participantIds: readonly string[];
-  /** Variantes normalizadas dos nomes dos dois times (`teamVariants`), para as entradas sem time ligado. */
-  teamNames: readonly string[];
+  /**
+   * Os dois times com as variantes normalizadas do nome (`teamVariants`) e o país (null = fora do catálogo): para as entradas do
+   * channels.yaml sem time ligado, que casam pelo nome e pelo país (o `@santosfc` do Brasil não é o canal do
+   * Santos Laguna, nem o `América` do México o do América-MG).
+   */
+  teams: readonly { names: readonly string[]; country: string | null }[];
   competitionId: string | null;
   competitionSlug: string | null;
 }
@@ -188,8 +192,12 @@ export class ChannelAllowlist {
         (channel.handle ? blocklist.isBlockedUrl(`https://www.youtube.com/${channel.handle}`) : false));
     const entries = this.entriesOf(channel);
     const pick = (kind: ChannelEntry['kind']) => entries.find((e) => e.kind === kind) ?? null;
-    const own = (e: ChannelEntry) => !scope || ofEvent(e, scope);
     const official = entries.filter((e) => e.kind === 'club' || e.kind === 'competition');
+    // o mapa (time/competição ligado por id) vence o casamento pelo rótulo do channels.yaml: com uma entrada
+    // ligada do mesmo tipo, as só com rótulo não contam
+    const mapped = (e: ChannelEntry) => !!(e.kind === 'club' ? e.participantId : e.competitionId);
+    const linkedKinds = new Set(official.filter(mapped).map((e) => e.kind));
+    const own = (e: ChannelEntry) => !scope || ((mapped(e) || !linkedKinds.has(e.kind)) && ofEvent(e, scope));
     const club =
       official.find((e) => e.kind === 'club' && own(e)) ??
       official.find((e) => e.kind === 'competition' && own(e));
@@ -205,12 +213,19 @@ export class ChannelAllowlist {
   }
 }
 
-/** A entrada de clube/competição é do jogo? Pelo time/competição ligado no mapa, ou pelo rótulo do channels.yaml. */
+/**
+ * A entrada de clube/competição é do jogo? Pelo time/competição ligado no mapa, ou pelo rótulo do channels.yaml
+ * (time pelo nome e pelo país; competição pelo slug ou pela federação).
+ */
 function ofEvent(e: ChannelEntry, scope: ChannelScope): boolean {
   if (e.kind === 'club') {
     if (e.participantId) return scope.participantIds.includes(e.participantId);
     const name = e.label ? matchText(e.label).trim() : '';
-    return !!name && scope.teamNames.includes(name);
+    // entrada com país só casa com time do mesmo país (time sem país no catálogo: só o nome, como antes)
+    return (
+      !!name &&
+      scope.teams.some((t) => t.names.includes(name) && (!e.country || !t.country || t.country === e.country))
+    );
   }
   if (e.kind === 'competition') {
     if (e.competitionId) return e.competitionId === scope.competitionId;

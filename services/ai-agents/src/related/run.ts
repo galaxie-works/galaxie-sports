@@ -655,13 +655,15 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
               Math.max(0, policy.maxSearchesPerEvent - cand.searchesSoFar),
             )
           : [];
-      const markets = [
-        ...new Set([...(await teamCountries(db, core)).filter((c): c is string => !!c), 'BR']),
-      ];
+      const countries = await teamCountries(db, core);
+      const markets = [...new Set([...countries.filter((c): c is string => !!c), 'BR'])];
       const holders = rightsHoldersFor(opts.wtw, core.competition?.slug, markets, core.startsAt);
       const channelScope: ChannelScope = {
         participantIds: [core.home.id, core.away.id],
-        teamNames: [...teamVariants(core.home), ...teamVariants(core.away)],
+        teams: [
+          { names: teamVariants(core.home), country: countries[0] ?? null },
+          { names: teamVariants(core.away), country: countries[1] ?? null },
+        ],
         competitionId: core.competition?.id ?? null,
         competitionSlug: core.competition?.slug ?? null,
       };
@@ -878,6 +880,11 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           });
           if (!rel.ok) {
             discard(rel.reason);
+            // um time só: por tier, para acompanhar o que a regra (só no canal do clube) passou a cortar
+            if (rel.reason === 'one_team_only') {
+              const byTier = (stats.oneTeamOnly ??= {}) as Record<string, number>;
+              byTier[verdict.tier] = (byTier[verdict.tier] ?? 0) + 1;
+            }
             if (prevById.has(v.id)) gone.push(v.id);
             continue;
           }
