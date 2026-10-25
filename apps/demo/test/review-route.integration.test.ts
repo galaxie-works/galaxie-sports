@@ -300,6 +300,30 @@ describe('outros tipos', () => {
     expect(change.rowCount).toBeGreaterThan(0);
   });
 
+  it('decisão desatualizada (conteúdo mudou) com o YAML no mesmo status: aprovar grava o hash novo', async () => {
+    const id = 'team:flamengo';
+    expect((await post(id, { action: 'draft' })).status).toBe(200);
+    expect((await post(id, { action: 'approve' })).status).toBe(200);
+    // o conteúdo do item mudou depois da decisão (outro review_hash no catálogo)
+    await sql.query(`update semantic.review_decision set review_hash = 'hash-antigo' where item_id = $1`, [
+      id,
+    ]);
+    const { yaml_status: yaml, review_hash: hash } = (
+      await sql.query(`select yaml_status::text, review_hash from semantic.review_item where id = $1`, [id])
+    ).rows[0] as { yaml_status: string; review_hash: string };
+    expect(yaml).toBe('approved');
+    expect((await (await getItem(id)).json()).data).toMatchObject({ state: 'approved', stale: true });
+
+    expect(await (await post(id, { action: 'approve' })).json()).toEqual({
+      data: { state: 'approved', unchanged: false },
+    });
+    const decision = (
+      await sql.query(`select review_hash from semantic.review_decision where item_id = $1`, [id])
+    ).rows[0];
+    expect(decision.review_hash).toBe(hash);
+    expect((await (await getItem(id)).json()).data.stale).toBe(false);
+  });
+
   it('item inexistente → 404', async () => {
     expect((await getItem('team:nao-existe')).status).toBe(404);
     expect((await post('team:nao-existe', { action: 'approve' })).status).toBe(404);

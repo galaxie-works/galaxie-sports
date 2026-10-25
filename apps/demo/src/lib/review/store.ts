@@ -383,7 +383,9 @@ export async function decideReview(input: DecideInput): Promise<DecideResult> {
     const suggestion = checkSuggestion(input, row.content);
     const status = STATUS_OF_ACTION[input.action];
     const state: ReviewState = input.action === 'suggest' ? 'needs_review' : status;
-    if (state === row.state && input.action !== 'suggest') {
+    // decisão sobre conteúdo antigo (stale): o estado pode coincidir com o do YAML, mas a decisão nova
+    // precisa ser gravada com o hash de agora, senão o item segue marcado como desatualizado
+    if (state === row.state && !row.stale && input.action !== 'suggest') {
       await client.query('rollback');
       return { state, unchanged: true };
     }
