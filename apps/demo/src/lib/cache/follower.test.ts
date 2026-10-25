@@ -5,6 +5,8 @@ import { ChangeFeedFollower, type FeedRow, type FeedStore, type SavedCursor } fr
 /** Change feed em memória: só as linhas "commitadas" aparecem na leitura e no max(id). */
 class MemoryFeed implements FeedStore {
   rows: FeedRow[] = [];
+  /** Hora de criação de cada linha (o `created_at` do banco). */
+  createdAt = new Map<number, number>();
   saved = new Map<string, SavedCursor>();
   onNotify: (() => void) | undefined;
   failLatest = 0;
@@ -12,7 +14,14 @@ class MemoryFeed implements FeedStore {
 
   add(id: number, entityType: string, entityId: string, payload: unknown = null, notify = true) {
     this.rows.push({ id, entityType, entityId, payload });
+    this.createdAt.set(id, Date.now());
     if (notify) this.onNotify?.();
+  }
+
+  /** Linha antiga (criada `ageMs` atrás), já no banco antes do teste. */
+  addOld(id: number, ageMs: number) {
+    this.rows.push({ id, entityType: 'event', entityId: `e${id}`, payload: null });
+    this.createdAt.set(id, Date.now() - ageMs);
   }
 
   async latestId() {
@@ -28,6 +37,18 @@ class MemoryFeed implements FeedStore {
       .filter((r) => r.id > floor && !skip.includes(r.id))
       .sort((a, b) => a.id - b.id)
       .slice(0, limit);
+  }
+
+  async recentIds(latest: number, maxAgeMs: number, limit: number) {
+    const visible = this.rows.map((r) => r.id).filter((id) => id <= latest);
+    const recent = visible.filter((id) => this.createdAt.get(id)! > Date.now() - maxAgeMs);
+    if (!recent.length) return [];
+    const lo = Math.min(...recent);
+    return visible
+      .filter((id) => id >= lo)
+      .sort((a, b) => b - a)
+      .slice(0, limit)
+      .reverse();
   }
 
   async listen(onChange: () => void) {
@@ -115,6 +136,31 @@ describe('ChangeFeedFollower: ponto de partida', () => {
     expect(f.floor).toBe(5);
   });
 
+  it('primeira subida com um ID menor ainda em voo: ele é revalidado quando commitar', async () => {
+    feed.add(1, 'event', 'e1');
+    feed.add(2, 'event', 'e2');
+    feed.add(4, 'team_profile', 'rapido');
+    const f = make();
+    await f.start();
+    expect(revalidate).not.toHaveBeenCalled();
+    expect(f.floor).toBe(2);
+    // a transação que reservou o 3 commita depois da subida
+    feed.add(3, 'f1_editorial', 'lendas.clark', null, false);
+    await f.poll();
+    expect(calls).toEqual([['f1_editorial:lendas.clark', 'f1_editorial']]);
+    expect(f.floor).toBe(4);
+  });
+
+  it('primeira subida: buraco antigo (retenção, rollback) fora da janela de tempo não é esperado', async () => {
+    feed.addOld(1, 5 * 60_000);
+    feed.addOld(3, 5 * 60_000);
+    const f = make();
+    await f.start();
+    expect(f.floor).toBe(3);
+    await f.poll();
+    expect(revalidate).not.toHaveBeenCalled();
+  });
+
   it('banco fora na subida: não rejeita e tenta de novo depois', async () => {
     feed.failLatest = 1;
     feed.add(1, 'event', 'e1');
@@ -164,6 +210,22 @@ describe('ChangeFeedFollower: revalidação', () => {
     await vi.advanceTimersByTimeAsync(5_000);
     expect(calls).toEqual([['f1_editorial:lendas.prost', 'f1_editorial']]);
     expect(f.floor).toBe(1);
+  });
+
+  it('rota respondeu erro: o cursor salvo não avança até a revalidação dar certo', async () => {
+    const f = make({ saveEveryMs: 0 });
+    await f.start();
+    revalidate.mockRejectedValue(new Error('revalidação respondeu 500'));
+    feed.add(1, 'f1_editorial', 'lendas.hill', null, false);
+    await f.poll();
+    await f.poll();
+    expect(f.floor).toBe(0);
+    expect(feed.saved.get('demo-cache')?.lastId).toBe(0);
+    revalidate.mockImplementation(async (tags: string[]) => {
+      calls.push(tags);
+    });
+    await f.poll();
+    expect(feed.saved.get('demo-cache')?.lastId).toBe(1);
   });
 
   it('lacuna: o ID menor que fica visível depois (transação lenta) também é revalidado', async () => {
