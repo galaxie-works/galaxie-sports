@@ -374,16 +374,14 @@ describe('GET /v1/events/{id}/related', () => {
   });
 
   it('painel: lista os canais com recusas e regra; bloquear, voltar ao automático e limpar recusas', async () => {
-    await db
-      .insert(relatedContent)
-      .values(
-        row('pn1', {
-          contentType: 'interview',
-          channelId: 'UCpn',
-          channelTitle: 'Canal Painel',
-          rankScore: '1.000',
-        }),
-      );
+    await db.insert(relatedContent).values(
+      row('pn1', {
+        contentType: 'interview',
+        channelId: 'UCpn',
+        channelTitle: 'Canal Painel',
+        rankScore: '1.000',
+      }),
+    );
     const url = `/v1/events/${eventId}/related?type=interview`;
     const ids = async () => (await get(url)).json().data.map((d: { external_id: string }) => d.external_id);
     expect(await ids()).toEqual(['pn1']);
