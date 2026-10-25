@@ -25284,7 +25284,7 @@ entries:
         role: portrait
         season: 2020
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:SAF1_Lupini_Cooper_Maser.jpg
         license: CC0
@@ -25297,6 +25297,7 @@ entries:
         date: 2020-04-25 20:35:54
         width: 2500
         height: 1667
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro (Cooper-Maserati))"
   - target: driver/duane-carter
     kind: driver
     f1db_id: duane-carter
@@ -25638,7 +25639,7 @@ entries:
         role: portrait
         season: 2008
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:American_Red_Ball_Halibrand_Ford_front_view_Honda_Collection_Hall.jpg
         license: CC BY-SA 3.0
@@ -25651,6 +25652,7 @@ entries:
         date: 2008-03-15
         width: 2560
         height: 1679
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro, num museu)"
   - target: driver/edgar-barth
     kind: driver
     f1db_id: edgar-barth
@@ -29950,7 +29952,7 @@ entries:
         role: portrait
         season: 2015
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Allard_J2X_Le_Mans_(1952)_(18678221540).jpg
         license: CC BY-SA 2.0
@@ -29963,6 +29965,7 @@ entries:
         date: 2015-06-11 16:36
         width: 2000
         height: 1333
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro (Allard J2X))"
   - target: driver/jack-mcgrath
     kind: driver
     f1db_id: jack-mcgrath
@@ -31939,23 +31942,6 @@ entries:
       reason: 1 vitória(s) em 1 corrida(s) em 1960
       match: auto
     photos:
-      - file: File:Indy500winningcar1960.JPG
-        role: portrait
-        season: 2005
-        rank: 0
-        match: auto
-        selected_by: rules
-        page_url: https://commons.wikimedia.org/wiki/File:Indy500winningcar1960.JPG
-        license: CC BY-SA 3.0
-        license_url: https://creativecommons.org/licenses/by-sa/3.0
-        author: Doctorindy
-        author_url: https://commons.wikimedia.org/wiki/User:Doctorindy
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: Taken on 28 May 2005
-        width: 2304
-        height: 1728
       - file: File:Jim Rathmann and Lou Moore 1953.jpg
         role: action
         season: 1953
@@ -31973,6 +31959,24 @@ entries:
         date: "1953"
         width: 2562
         height: 1662
+      - file: File:Indy500winningcar1960.JPG
+        role: portrait
+        season: 2005
+        rank: 0
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Indy500winningcar1960.JPG
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Doctorindy
+        author_url: https://commons.wikimedia.org/wiki/User:Doctorindy
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: Taken on 28 May 2005
+        width: 2304
+        height: 1728
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro vencedor de Indianápolis 1960)"
   - target: driver/jimmy-bryan
     kind: driver
     f1db_id: jimmy-bryan
@@ -37335,7 +37339,7 @@ entries:
         role: portrait
         season: 2003
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:Solanas_racecar_at_2003_Wine_Country_Classic.jpg
         license: CC BY 2.0
@@ -37348,6 +37352,7 @@ entries:
         date: 2003-05-31 13:42
         width: 1280
         height: 960
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro, num evento de 2003)"
   - target: driver/nanni-galli
     kind: driver
     f1db_id: nanni-galli
@@ -39119,23 +39124,6 @@ entries:
           season: 1958
           reason: "última temporada: 1958"
     photos:
-      - file: File:Ferrari 246 F1.jpg
-        role: portrait
-        season: 2010
-        rank: 0
-        match: auto
-        selected_by: rules
-        page_url: https://commons.wikimedia.org/wiki/File:Ferrari_246_F1.jpg
-        license: CC BY 2.0
-        license_url: https://creativecommons.org/licenses/by/2.0
-        author: Jitesh Jagadish from Dubai, United Arab Emirates
-        author_url: https://www.flickr.com/photos/28112399@N04
-        credit: Ferrari 246 F1 Uploaded by Sporti
-        attribution_required: true
-        share_alike: false
-        date: 2010-09-28 10:05
-        width: 2313
-        height: 3466
       - file: File:Collins Fangio and Hawthorn celebrate Nurburgring 1957.jpg
         role: action
         season: 1957
@@ -39170,6 +39158,24 @@ entries:
         date: 1957-08-04
         width: 1696
         height: 1105
+      - file: File:Ferrari 246 F1.jpg
+        role: portrait
+        season: 2010
+        rank: 0
+        match: rejected
+        selected_by: rules
+        page_url: https://commons.wikimedia.org/wiki/File:Ferrari_246_F1.jpg
+        license: CC BY 2.0
+        license_url: https://creativecommons.org/licenses/by/2.0
+        author: Jitesh Jagadish from Dubai, United Arab Emirates
+        author_url: https://www.flickr.com/photos/28112399@N04
+        credit: Ferrari 246 F1 Uploaded by Sporti
+        attribution_required: true
+        share_alike: false
+        date: 2010-09-28 10:05
+        width: 2313
+        height: 3466
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro (Ferrari 246 F1))"
   - target: driver/peter-de-klerk
     kind: driver
     f1db_id: peter-de-klerk
@@ -41039,24 +41045,6 @@ entries:
           season: 2011
           reason: "última temporada: 2011"
     photos:
-      - file: File:Rubens Barrichello 2008 Turkish GP helmet 2014 Honda Collection Hall.jpg
-        role: portrait
-        season: 2008
-        rank: 0
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Rubens_Barrichello_2008_Turkish_GP_helmet_2014_Honda_Collection_Hall.jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: Morio
-        author_url: https://commons.wikimedia.org/wiki/User:Morio
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 2014-08-23
-        width: 2560
-        height: 1707
-        reason: Foto detalhada e de alta qualidade de um capacete.
       - file: File:Rubens Barrichello - Ferrari F2004 approaches the grid at the 2004 British Grand Prix (50835442441).jpg
         role: action
         season: 2004
@@ -41165,6 +41153,24 @@ entries:
         width: 3483
         height: 2310
         reason: Foto de pódio aceitável, enquadramento um pouco fechado.
+      - file: File:Rubens Barrichello 2008 Turkish GP helmet 2014 Honda Collection Hall.jpg
+        role: portrait
+        season: 2008
+        rank: 0
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Rubens_Barrichello_2008_Turkish_GP_helmet_2014_Honda_Collection_Hall.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Morio
+        author_url: https://commons.wikimedia.org/wiki/User:Morio
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2014-08-23
+        width: 2560
+        height: 1707
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o capacete, num museu)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -41346,7 +41352,7 @@ entries:
         role: portrait
         season: 2016
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:1965_Sam_Tingle_Formula_1_LDS_Race_Car-1_(29891690293).jpg
         license: CC BY 2.0
@@ -41359,6 +41365,7 @@ entries:
         date: 2016-10-23 13:19
         width: 3000
         height: 2000
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro (LDS de 1965))"
   - target: driver/satoru-nakajima
     kind: driver
     f1db_id: satoru-nakajima
@@ -43001,7 +43008,7 @@ entries:
         role: portrait
         season: 1976
         rank: 0
-        match: auto
+        match: rejected
         selected_by: rules
         page_url: https://commons.wikimedia.org/wiki/File:GTC_Mirage_11.jpg
         license: CC BY-SA 2.0
@@ -43014,6 +43021,7 @@ entries:
         date: 1976-06-13
         width: 2628
         height: 1934
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro (Mirage))"
   - target: driver/vic-elford
     kind: driver
     f1db_id: vic-elford
