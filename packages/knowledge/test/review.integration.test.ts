@@ -62,6 +62,7 @@ describe('catálogo da revisão', () => {
       'competition',
       'copy',
       'derby',
+      'editorial',
       'glossary',
       'team',
       'translation',
