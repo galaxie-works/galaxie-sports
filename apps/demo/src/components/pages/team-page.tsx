@@ -278,7 +278,9 @@ function SemanticIdentity({
           </div>
         ) : null}
         {s.colors.length ? (
-          <div>
+          // com o degradê ao lado, Cores abre a linha: com número ímpar de campos antes, o degradê cairia
+          // na linha seguinte
+          <div className={colors ? 'col-start-1' : undefined}>
             <dt className="text-muted-foreground text-xs">{tx.colors}</dt>
             <dd className="flex flex-wrap items-center gap-2">
               {s.colors.map((c) => {
