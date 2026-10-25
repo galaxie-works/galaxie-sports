@@ -8,7 +8,7 @@
  *
  * Módulo puro: serve ao proxy (redirecionamento das rotas antigas), ao servidor, ao navegador e aos testes.
  */
-import type { MirrorSport } from '@galaxie/contracts';
+import type { CompetitionSummary, MirrorSport } from '@galaxie/contracts';
 
 export interface SportFamilyDef {
   /** Slug da rota e chave do rótulo no dicionário. */
@@ -121,6 +121,25 @@ export function mergeFamilyCompetitions<T extends FamilyCompetition>(
     kept.set(sport, out);
   }
   return lists.map(({ sport }) => ({ sport, items: kept.get(sport) ?? [] }));
+}
+
+/**
+ * Ordem das competições num grupo da página da família: as nacionais (Série A a D, Copa do Brasil) antes
+ * dos estaduais e regionais (`level`), mesmo quando um estadual está entre os destaques da API
+ * (`featured`, a posição em `top_competitions`); dentro do nível, os destaques na frente, depois a ordem
+ * editorial da API, o tier e o nome.
+ */
+export function sortFamilyCompetitions<
+  T extends Pick<CompetitionSummary, 'slug' | 'level' | 'order' | 'tier' | 'name'>,
+>(items: T[], featured: Map<string, number>, locale: string): T[] {
+  return [...items].sort(
+    (a, b) =>
+      Number(a.level === 'regional') - Number(b.level === 'regional') ||
+      (featured.get(a.slug) ?? Infinity) - (featured.get(b.slug) ?? Infinity) ||
+      (a.order ?? Infinity) - (b.order ?? Infinity) ||
+      a.tier - b.tier ||
+      a.name.localeCompare(b.name, locale),
+  );
 }
 
 /** Esportes da família com seção própria (na ordem da família). */

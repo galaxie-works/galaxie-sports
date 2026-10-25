@@ -8,6 +8,7 @@ import {
   familyOf,
   legacySportRedirect,
   mergeFamilyCompetitions,
+  sortFamilyCompetitions,
   sportHref,
 } from './sport-families';
 
@@ -127,5 +128,36 @@ describe('competições da família', () => {
     ]);
     expect(merged[0]!.items).toEqual(items);
     expect(merged[1]!.items).toEqual([c('nba', 'NBA')]);
+  });
+});
+
+describe('ordem das competições no grupo', () => {
+  const comp = (slug: string, level: 'national' | 'regional' | null, order: number | null) => ({
+    slug,
+    name: slug,
+    level,
+    order,
+    tier: 1,
+  });
+
+  it('nacionais antes dos estaduais, mesmo com o estadual entre os destaques', () => {
+    const items = [
+      comp('paulista', 'regional', 0),
+      comp('serie-b', 'national', 2),
+      comp('copa-do-brasil', 'national', 1),
+      comp('serie-a', 'national', 0),
+      comp('carioca', 'regional', 1),
+    ];
+    const featured = new Map([
+      ['serie-a', 0],
+      ['paulista', 1],
+    ]);
+    expect(sortFamilyCompetitions(items, featured, 'pt-BR').map((c) => c.slug)).toEqual([
+      'serie-a',
+      'copa-do-brasil',
+      'serie-b',
+      'paulista',
+      'carioca',
+    ]);
   });
 });
