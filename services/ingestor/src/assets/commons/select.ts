@@ -197,11 +197,13 @@ export function choose(
     )[0];
   const portrait =
     recent(scored.filter(({ j }) => j?.kind === 'portrait')) ??
-    // sem retrato do Gemini, o candidato das regras (foto do Wikidata, categoria de retratos) que ele manteve e não
-    // viu como carro: em 25/10, 46 pilotos ficaram sem retrato porque o Gemini os marcou como "action"
+    // sem retrato do Gemini, o candidato das regras (foto do Wikidata, categoria de retratos) que ele manteve como
+    // foto do piloto ("action") ou não avaliou: em 25/10, 46 pilotos ficaram sem retrato porque o Gemini os marcou
+    // como "action". "car" e "other" (não é o piloto) nunca viram retrato
     recent(
       scored.filter(
-        ({ e, j }) => (e.candidate.portraitCategory || e.candidate.wikidataImage) && j?.kind !== 'car',
+        ({ e, j }) =>
+          (e.candidate.portraitCategory || e.candidate.wikidataImage) && (!j || j.kind === 'action'),
       ),
     );
   if (portrait && fresh(portrait.e))

@@ -224,7 +224,7 @@ describe('regras de escolha', () => {
     ]);
   });
 
-  it('com IA sem retrato: vale o candidato das regras que ela manteve (não o que ela descartou nem viu como carro)', () => {
+  it('com IA sem retrato: vale o candidato das regras que ela manteve como foto do piloto (nunca "car" nem "other")', () => {
     const d = discovery([
       { f: file('File:Wikidata.jpg'), p18: true, portrait: true },
       { f: file('File:Corrida.jpg'), season: 1988 },
@@ -243,6 +243,12 @@ describe('regras de escolha', () => {
       { index: 1, kind: 'action', keep: true, quality: 8 },
     ]);
     expect(dropped.some((c) => c.role === 'portrait')).toBe(false);
+    // "other" mantida (não é o piloto, ou não é foto dele): também não vira retrato
+    const other = choose(d, ok, [
+      { index: 0, kind: 'other', keep: true, quality: 6 },
+      { index: 1, kind: 'action', keep: true, quality: 8 },
+    ]);
+    expect(other.some((c) => c.role === 'portrait')).toBe(false);
     const car = choose(d, ok, [
       { index: 0, kind: 'car', keep: true, quality: 6 },
       { index: 1, kind: 'action', keep: true, quality: 8 },
