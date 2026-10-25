@@ -10,12 +10,14 @@
  *    de novo, e a que cita o piloto antes da do companheiro) também vira vínculo do piloto, com o papel
  *    `highlight_car` e a temporada (heading da página do piloto).
  * Idempotente: o mesmo manifesto não regrava nada; foto que saiu do manifesto (ou foi rejeitada) sai do
- * participante (o asset fica). Entrada sem nenhuma foto (descoberta que não achou nada) ou cujos arquivos a
- * Commons não devolveu não apaga a galeria já vinculada.
+ * participante (o asset fica), e o arquivo apagado na Commons também. Entrada sem nenhuma foto e sem identidade
+ * (descoberta que não achou o piloto) ou resposta da Commons sem nenhuma página não apaga a galeria já vinculada.
+ * 6. avisa o `ops.change_feed` (`team:<participante>` e `asset`): a API purga as fotos, a carreira e as lendas
+ *    em cache, e a demo revalida as páginas do piloto e da F1.
  */
 import { createHash } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { asset, assetCredit, participantPhoto, providerMap, type Database } from '@galaxie/db';
+import { asset, assetCredit, participantPhoto, providerMap, publishChange, type Database } from '@galaxie/db';
 import { f1dbDriverId } from '@galaxie/providers';
 import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
@@ -100,6 +102,8 @@ export async function importCommons(
   };
   /** Licença conferida nesta importação: arquivo → CC BY-SA (null = recusada ou sumiu da Commons). */
   const revalidated = new Map<string, boolean | null>();
+  /** Participantes cujas fotos foram regravadas nesta importação (avisados no change feed no fim). */
+  const touched = new Set<string>();
   for (const entry of manifest.entries) {
     if (opts.only && !opts.only.has(entry.target)) continue;
     const photos = entry.photos.filter((p) => p.match !== 'rejected');
@@ -284,6 +288,7 @@ export async function importCommons(
         });
       continue;
     }
+    touched.add(participantId);
     // as que saíram do manifesto deixam o participante
     const stale = await db
       .delete(participantPhoto)
@@ -301,7 +306,15 @@ export async function importCommons(
       .returning({ id: participantPhoto.assetId });
     report.unlinked += stale.length;
   }
-  await linkHighlights(db, manifest, report, revalidated, opts);
+  await linkHighlights(db, manifest, report, revalidated, opts, touched);
+  for (const id of touched)
+    await publishChange(db, {
+      topic: 'catalog',
+      entityType: 'team',
+      entityId: id,
+      // `team:<id>`: fotos, carreira e perfil do piloto; `asset`: lendas e vitrines com o retrato
+      payload: { reason: 'commons_photos', tags: ['asset'] },
+    });
   return report;
 }
 
@@ -432,6 +445,7 @@ async function linkHighlights(
   report: ImportReport,
   revalidated: ReadonlyMap<string, boolean | null>,
   opts: { plan?: boolean; only?: Set<string> },
+  touched: Set<string>,
 ): Promise<void> {
   const byTarget = new Map(manifest.entries.map((e) => [e.target, e]));
   const credits = new Map(
@@ -458,6 +472,7 @@ async function linkHighlights(
     }
     const participantId = await participantOf(db, entry);
     if (!participantId) continue;
+    touched.add(participantId);
     const [row] = photo
       ? await db
           .select({ id: asset.id })

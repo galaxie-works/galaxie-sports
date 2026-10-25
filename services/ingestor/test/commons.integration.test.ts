@@ -178,6 +178,11 @@ describe('importação do acervo de fotos', () => {
       .select({ origin: asset.origin, kind: asset.kind, width: asset.width })
       .from(asset);
     expect(assets.every((a) => a.origin === 'commons' && a.kind === 'driver' && a.width === 2)).toBe(true);
+    // a API purga (e a demo revalida) as fotos e a carreira do piloto: `team:<id>`
+    const changes = await db.execute<{ topic: string; payload: { tags: string[] } }>(
+      sql`select topic, payload from ops.change_feed where entity_type = 'team' and entity_id = ${sennaId}`,
+    );
+    expect(changes.map((c) => [c.topic, c.payload.tags])).toEqual([['catalog', ['asset']]]);
   });
 
   it('o mesmo manifesto de novo não baixa nem regrava', async () => {
