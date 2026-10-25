@@ -20,6 +20,7 @@ import {
   DETAIL_TABS,
   LINEUP_PARAM,
   LINEUP_TABS,
+  panelSemantics,
   type DetailTab,
   type LineupTab,
 } from '@/lib/match-details';
@@ -119,7 +120,8 @@ export function MatchDetails({
         <CollapsibleContent keepMounted>
           <FramePanel>
             <UrlTabs param={DETAIL_PARAM} value={tab} className="gap-4">
-              {/* uma aba só (ex.: jogo ao vivo sem escalação nem estatísticas): sem barra de abas */}
+              {/* uma aba só (ex.: jogo ao vivo sem escalação nem estatísticas): sem barra de abas, e o
+                  painel vira uma região com o nome da aba (`panelSemantics`) */}
               {tabs.size > 1 ? (
                 // rola só na horizontal e sem barra visível: no Windows o overflow-x sozinho mostrava
                 // as setinhas de rolagem vertical ao lado das abas
@@ -133,7 +135,12 @@ export function MatchDetails({
               ) : null}
 
               {timeline ? (
-                <TabsContent value="minuto" keepMounted className="flex flex-col gap-3">
+                <TabsContent
+                  value="minuto"
+                  keepMounted
+                  className="flex flex-col gap-3"
+                  {...panelSemantics(tabs, labels.minuto)}
+                >
                   <PanelIntro
                     text={t.live.timeline.description}
                     api={timelineRequest(eventId, locale, content)}
@@ -143,14 +150,24 @@ export function MatchDetails({
               ) : null}
 
               {stats && hasStats ? (
-                <TabsContent value="estatisticas" keepMounted className="flex flex-col gap-3">
+                <TabsContent
+                  value="estatisticas"
+                  keepMounted
+                  className="flex flex-col gap-3"
+                  {...panelSemantics(tabs, labels.estatisticas)}
+                >
                   <PanelIntro text={t.event.stats.description} api={statsRequest(eventId, locale, content)} />
                   <MatchStats stats={stats} colors={colors} locale={locale} t={t} />
                 </TabsContent>
               ) : null}
 
               {hasLineups ? (
-                <TabsContent value="escalacao" keepMounted className="flex flex-col gap-3">
+                <TabsContent
+                  value="escalacao"
+                  keepMounted
+                  className="flex flex-col gap-3"
+                  {...panelSemantics(tabs, labels.escalacao)}
+                >
                   <PanelIntro text={tx.lineupsDescription} api={lineupsRequest(eventId, locale, content)} />
                   <UrlTabs param={LINEUP_PARAM} value={lineupTab} className="gap-3">
                     <TabsList variant="line">
