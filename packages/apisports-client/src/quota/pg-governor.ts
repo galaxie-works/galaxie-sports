@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { quotaBudget, quotaLedger, quotaSnapshot, type Database } from '@galaxie/db';
 import { QuotaExceededError, RequestInFlightError } from '../errors.js';
 import type { Outcome, Priority } from '../types.js';
@@ -92,11 +92,16 @@ export class PgQuotaGovernor implements QuotaGovernor {
     const day = utcDayString(this.now());
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${PROVIDER}|${req.api}|${day}`}))`);
+      // provider/api/dia usam o índice quota_ledger_day_idx (só pelo hash seria seq scan sob o lock);
+      // o dia anterior cobre a pendência de até IN_FLIGHT_STALE_MS atrás na virada da meia-noite UTC
       const [inFlight] = await tx
         .select({ id: quotaLedger.id })
         .from(quotaLedger)
         .where(
           and(
+            eq(quotaLedger.provider, PROVIDER),
+            eq(quotaLedger.api, req.api),
+            inArray(quotaLedger.dayUtc, [day, previousUtcDay(day)]),
             eq(quotaLedger.requestHash, req.requestHash),
             eq(quotaLedger.outcome, 'pending'),
             gte(quotaLedger.sentAt, new Date(this.now().getTime() - IN_FLIGHT_STALE_MS)),
@@ -191,4 +196,9 @@ export class PgQuotaGovernor implements QuotaGovernor {
   async usage(api: string, dayUtc = utcDayString(this.now())): Promise<UsageReport> {
     return buildReport(this.policyFor(api), api, dayUtc, await this.snapshot(this.db, api, dayUtc));
   }
+}
+
+/** "2026-10-21" → "2026-10-20". */
+function previousUtcDay(day: string): string {
+  return utcDayString(new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000));
 }

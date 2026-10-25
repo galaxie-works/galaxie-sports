@@ -3,7 +3,7 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { apiResponse, closeDb, createDb, quotaLedger, runMigrations, type Database } from '@galaxie/db';
 import { ApiSportsClient } from '../src/client.js';
-import { QuotaExceededError } from '../src/errors.js';
+import { QuotaExceededError, RequestInFlightError } from '../src/errors.js';
 import { PgQuotaGovernor } from '../src/quota/pg-governor.js';
 import { defaultPolicy } from '../src/quota/policy.js';
 import { RateLimiter } from '../src/rate-limiter.js';
@@ -204,6 +204,23 @@ describe('revisão: concorrência entre processos e leituras atrasadas', () => {
     t += 1000;
     await gov.reconcile('baseball', 10, 100, 'Free');
     expect((await gov.usage('baseball')).providerUsed).toBe(15);
+  });
+
+  it('chamada em voo reservada antes da meia-noite UTC ainda bloqueia a mesma requisição depois dela', async () => {
+    let t = Date.parse('2026-10-21T23:59:00Z');
+    const gov = new PgQuotaGovernor(
+      db,
+      () => defaultPolicy(100),
+      () => new Date(t),
+    );
+    const req = { api: 'afl', priority: 'DAILY', endpoint: '/games', requestHash: 'midnight' } as const;
+    const ticket = await gov.acquire(req);
+    t = Date.parse('2026-10-22T00:01:00Z');
+    await expect(gov.acquire(req)).rejects.toBeInstanceOf(RequestInFlightError);
+    // o mesmo hash em outra API não é a mesma requisição (o hash inclui o esporte)
+    await expect(gov.acquire({ ...req, api: 'nba' })).resolves.toMatchObject({ dayUtc: '2026-10-22' });
+    await gov.settle(ticket, 'ok');
+    await expect(gov.acquire(req)).resolves.toMatchObject({ dayUtc: '2026-10-22' });
   });
 
   it('limite reconciliado do fornecedor vira teto da política', async () => {
