@@ -71,10 +71,8 @@ function ChannelRow({ c, timeZone }: { c: ChannelRowData; timeZone: string }) {
       <TableCell className="min-w-48">
         <span className="block font-medium">{c.title}</span>
         <span className="text-muted-foreground font-mono text-xs">{c.handle ?? c.channelId}</span>
-        {c.sourceTier ? (
-          <span className="text-muted-foreground ml-1 text-xs">
-            · {t.media.tiers[c.sourceTier] ?? c.sourceTier}
-          </span>
+        {c.sourceTier && t.media.tiers[c.sourceTier] ? (
+          <span className="text-muted-foreground ml-1 text-xs">· {t.media.tiers[c.sourceTier]}</span>
         ) : null}
       </TableCell>
       <TableCell className="tabular-nums">{c.published}</TableCell>
@@ -162,11 +160,10 @@ export function RelatedChannels({
   const { t } = useI18n();
   const T = t.relatedAdmin;
   const href = (next: ChannelFilter) => {
-    const p = new URLSearchParams();
+    const p = new URLSearchParams({ aba: 'related' });
     if (q) p.set('q', q);
     if (next !== 'all') p.set('filtro', next);
-    const s = p.toString();
-    return `/ajustes/videos${s ? `?${s}` : ''}`;
+    return `/ajustes/esportes?${p.toString()}`;
   };
 
   return (
@@ -187,7 +184,8 @@ export function RelatedChannels({
             </Link>
           ))}
         </nav>
-        <form action="/ajustes/videos" className="flex items-center gap-2">
+        <form action="/ajustes/esportes" className="flex items-center gap-2">
+          <input type="hidden" name="aba" value="related" />
           {filter !== 'all' ? <input type="hidden" name="filtro" value={filter} /> : null}
           <Input
             name="q"

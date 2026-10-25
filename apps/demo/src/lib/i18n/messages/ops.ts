@@ -13,20 +13,20 @@ interface SettingText {
 
 export default defineMessages(
   {
-    meta: { title: 'Operação' },
+    meta: { title: 'Sistema' },
     page: {
-      title: 'Operação',
+      title: 'Sistema',
       description:
-        'Flags, agenda dos jobs e saúde da operação. O que você muda aqui sobrescreve o .env da VPS sem reiniciar os contêineres.',
+        'Saúde da operação, ao vivo, agenda dos jobs, IA, fornecedor e logos. O que você muda aqui sobrescreve o .env da VPS sem reiniciar os contêineres.',
       generatedAt: 'Atualizado {when}',
       refresh: 'Atualizar',
     },
     nav: {
       users: 'Usuários',
-      operations: 'Operação',
+      system: 'Sistema',
+      features: 'Esportes e features',
       review: 'Revisão',
       lineup: 'Grades e ofertas',
-      related: 'Vídeos relacionados',
       label: 'Seções dos ajustes',
     },
     tabs: {
@@ -40,6 +40,12 @@ export default defineMessages(
       provider: 'Fornecedor',
       assets: 'Logos',
       history: 'Histórico',
+      sports: 'Esportes',
+    },
+    features: {
+      title: 'Esportes e features',
+      description:
+        'O que cada esporte usa do fornecedor e as regras de cada feature: vídeos relacionados (com o controle dos canais) e onde assistir. Vale o mesmo do Sistema: muda sem reiniciar os contêineres.',
     },
     sections: {
       live: {
@@ -61,8 +67,14 @@ export default defineMessages(
         description: 'Cota do YouTube e frequência das buscas de vídeos.',
       },
       provider: {
-        title: 'Fornecedor (planos e cota)',
-        description: 'Plano contratado de cada API da api-sports e a reserva da cota diária.',
+        title: 'Fornecedor (plano e cota)',
+        description:
+          'Plano padrão da api-sports e a reserva da cota diária. O plano de cada esporte fica em Esportes e features.',
+      },
+      sports: {
+        title: 'Plano de cada esporte',
+        description:
+          'Plano contratado da API de cada esporte na api-sports. Vazio = herda o plano padrão do Sistema.',
       },
       assets: {
         title: 'Acervo customizado de logos',
@@ -727,20 +739,20 @@ export default defineMessages(
   },
   {
     en: {
-      meta: { title: 'Operations' },
+      meta: { title: 'System' },
       page: {
-        title: 'Operations',
+        title: 'System',
         description:
-          'Flags, job schedule and operational health. Changes here override the VPS .env without restarting containers.',
+          'Operational health, live, job schedule, AI, provider and logos. Changes here override the VPS .env without restarting containers.',
         generatedAt: 'Updated {when}',
         refresh: 'Refresh',
       },
       nav: {
         users: 'Users',
-        operations: 'Operations',
+        system: 'System',
+        features: 'Sports and features',
         review: 'Review',
         lineup: 'Lineups and offers',
-        related: 'Related videos',
         label: 'Settings sections',
       },
       tabs: {
@@ -754,6 +766,12 @@ export default defineMessages(
         provider: 'Provider',
         assets: 'Logos',
         history: 'History',
+        sports: 'Sports',
+      },
+      features: {
+        title: 'Sports and features',
+        description:
+          'What each sport uses from the provider and the rules of each feature: related videos (with the channel control) and where to watch. Same as System: changes apply without restarting containers.',
       },
       sections: {
         live: {
@@ -775,8 +793,14 @@ export default defineMessages(
           description: 'YouTube quota and how often videos are searched.',
         },
         provider: {
-          title: 'Provider (plans and quota)',
-          description: 'Subscribed plan for each api-sports API and the daily quota reserve.',
+          title: 'Provider (plan and quota)',
+          description:
+            'Default api-sports plan and the daily quota reserve. Each sport plan is under Sports and features.',
+        },
+        sports: {
+          title: 'Plan of each sport',
+          description:
+            'Subscribed plan of each sport API on api-sports. Empty = inherits the default plan from System.',
         },
         assets: {
           title: 'Custom logo collection',
@@ -1413,20 +1437,20 @@ export default defineMessages(
       },
     },
     'es-AR': {
-      meta: { title: 'Operación' },
+      meta: { title: 'Sistema' },
       page: {
-        title: 'Operación',
+        title: 'Sistema',
         description:
-          'Flags, agenda de los jobs y salud de la operación. Lo que cambies acá pisa el .env de la VPS sin reiniciar los contenedores.',
+          'Salud de la operación, en vivo, agenda de los jobs, IA, proveedor y logos. Lo que cambies acá pisa el .env de la VPS sin reiniciar los contenedores.',
         generatedAt: 'Actualizado {when}',
         refresh: 'Actualizar',
       },
       nav: {
         users: 'Usuarios',
-        operations: 'Operación',
+        system: 'Sistema',
+        features: 'Deportes y features',
         review: 'Revisión',
         lineup: 'Grillas y ofertas',
-        related: 'Videos relacionados',
         label: 'Secciones de ajustes',
       },
       tabs: {
@@ -1440,6 +1464,12 @@ export default defineMessages(
         provider: 'Proveedor',
         assets: 'Logos',
         history: 'Historial',
+        sports: 'Deportes',
+      },
+      features: {
+        title: 'Deportes y features',
+        description:
+          'Lo que cada deporte usa del proveedor y las reglas de cada feature: videos relacionados (con el control de los canales) y dónde ver. Igual que en Sistema: cambia sin reiniciar los contenedores.',
       },
       sections: {
         live: {
@@ -1461,8 +1491,14 @@ export default defineMessages(
           description: 'Cuota de YouTube y frecuencia de las búsquedas de videos.',
         },
         provider: {
-          title: 'Proveedor (planes y cuota)',
-          description: 'Plan contratado de cada API de api-sports y la reserva de la cuota diaria.',
+          title: 'Proveedor (plan y cuota)',
+          description:
+            'Plan por defecto de api-sports y la reserva de la cuota diaria. El plan de cada deporte está en Deportes y features.',
+        },
+        sports: {
+          title: 'Plan de cada deporte',
+          description:
+            'Plan contratado de la API de cada deporte en api-sports. Vacío = hereda el plan por defecto de Sistema.',
         },
         assets: {
           title: 'Acervo propio de escudos',

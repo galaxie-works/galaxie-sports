@@ -43,7 +43,7 @@ export async function setChannelMode(
       channelTitle: channelTitle.slice(0, 200) || null,
       by: me.email,
     });
-    revalidatePath('/ajustes/videos');
+    revalidatePath('/ajustes/esportes');
     return { ok: true, message: fill(t.saved, { events }) };
   } catch {
     return { ok: false, error: t.errors.generic };
@@ -56,7 +56,7 @@ export async function clearChannelRefusals(channelId: string): Promise<ChannelAc
   if (!isChannelId(channelId)) return { ok: false, error: t.errors.invalid };
   try {
     const count = await clearRelatedChannelRefusals(builderDb(), { channelId });
-    revalidatePath('/ajustes/videos');
+    revalidatePath('/ajustes/esportes');
     return { ok: true, message: fill(t.cleared, { count }) };
   } catch {
     return { ok: false, error: t.errors.generic };

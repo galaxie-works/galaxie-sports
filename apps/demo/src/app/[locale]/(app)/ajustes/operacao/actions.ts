@@ -27,7 +27,8 @@ export interface OpsActionResult {
   warning?: string;
 }
 
-const PATH = '/ajustes/operacao';
+const PATH = '/ajustes/sistema';
+const FEATURES_PATH = '/ajustes/esportes';
 /** O mesmo limite do painel: scheduler sem relatar há mais que isto não vai pegar o pedido logo. */
 const ALIVE_MS = 3 * 60_000;
 
@@ -106,6 +107,7 @@ export async function saveSetting(key: string, raw: string): Promise<OpsActionRe
     return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
   }
   revalidatePath(PATH);
+  revalidatePath(FEATURES_PATH);
   const alive = await serviceAlive(def.services[0]!).catch(() => false);
   return def.services[0] === 'demo' || def.apply === 'restart' || alive
     ? { ok: true }
@@ -123,6 +125,7 @@ export async function resetSetting(key: string): Promise<OpsActionResult> {
     return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
   }
   revalidatePath(PATH);
+  revalidatePath(FEATURES_PATH);
   return { ok: true };
 }
 
@@ -136,6 +139,7 @@ async function enqueue(job: string, by: string, service: string): Promise<OpsAct
   if ((rows[0]?.n ?? 0) > 0) return { ok: false, error: t.errors.alreadyQueued };
   await pool.query('insert into ops.job_request (job, requested_by) values ($1, $2)', [job, by]);
   revalidatePath(PATH);
+  revalidatePath(FEATURES_PATH);
   const alive = await serviceAlive(service).catch(() => false);
   return alive ? { ok: true } : { ok: true, warning: t.feedback.serviceOffline };
 }
