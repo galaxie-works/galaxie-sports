@@ -178,10 +178,17 @@ export function choose(
     }));
   }
   const out: ChosenPhoto[] = [];
-  // o retrato mais recente (o piloto de hoje, na equipe de hoje: Hamilton na Ferrari, não na Mercedes); a nota
-  // desempata, e o sem data fica por último
+  // o retrato mais recente dentro da carreira (Hamilton na Ferrari, não na Mercedes; Prost piloto, não em 2015);
+  // depois o sem data e, por último, o de fora da época (só os retratos escapam da regra da época); a nota desempata
+  const seasons = d.target.kind === 'driver' ? d.target.seasons : [];
+  const from = (seasons[0] ?? 0) - 1;
+  const to = (seasons.at(-1) ?? 9999) + 1;
+  const band = (y: number | null) => (y == null ? 1 : y >= from && y <= to ? 0 : 2);
   const recent = <T extends { e: Eligible }>(list: T[]) =>
-    [...list].sort((a, b) => (b.e.year ?? -1) - (a.e.year ?? -1))[0];
+    [...list].sort(
+      (a, b) =>
+        band(a.e.year) - band(b.e.year) || (band(a.e.year) === 0 ? (b.e.year ?? 0) - (a.e.year ?? 0) : 0),
+    )[0];
   const portrait =
     recent(scored.filter(({ j }) => j?.kind === 'portrait')) ??
     (ai

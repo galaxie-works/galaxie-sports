@@ -79,7 +79,7 @@ Cada candidato vira um alvo `car/<construtor>/<ano>`. No manifesto, o primeiro f
    - O Gemini **não acrescenta** nada e não identifica pessoas pelo rosto.
    - O alvo ordenado guarda o modelo e a data (`ranking` no manifesto). Nem o mapeamento por regras nem uma nova ordenação o refazem sem `--refazer`. Se o Gemini falhar, o alvo fica como estava.
 5. **Escolha.**
-   - Piloto: 1 retrato e até 6 de ação, no máximo 2 por temporada. O retrato é o mais recente entre os candidatos (a nota desempata): Hamilton na Ferrari, não na Mercedes.
+   - Piloto: 1 retrato e até 6 de ação, no máximo 2 por temporada. O retrato é o mais recente **dentro da carreira** (da estreia − 1 à última temporada + 1; a nota desempata): Hamilton na Ferrari, não na Mercedes; Prost piloto, não num evento de 2015. Depois vem o retrato sem data e, por último, o de fora da época (só os retratos escapam da regra da época).
    - Carro: até 3 fotos.
 
 ## Comandos
