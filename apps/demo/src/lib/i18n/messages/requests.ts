@@ -7,6 +7,8 @@ export default defineMessages(
       'Vitrine inicial em uma chamada: por esporte e por país, contadores, competições e clubes em destaque, ao vivo e o jogo de maior relevância.',
     exploreSummaryNote:
       'Feita para a home: sete consultas em lote na API, sem N+1, e cache de 60 s (os contadores envelhecem até 1 min).',
+    exploreAgenda:
+      'Os jogos dos próximos 7 dias que a home conta (mesma consulta): total, por dia, contagens dos filtros, destaques no mercado e os jogos de um dia.',
     countryCompetitions:
       'Competições do país por esporte e escopo: nacionais, continentais, seleção e mundiais.',
     sportCompetitions: 'Competições catalogadas de um esporte, paginadas por cursor.',
@@ -26,6 +28,10 @@ export default defineMessages(
     teamCareer:
       'Carreira na Fórmula 1: temporada a temporada, títulos, vitórias, poles, pódios, equipes e companheiros.',
     teamPhotos: 'Fotos de licença livre (Wikimedia Commons), cada uma com autor, licença e página de origem.',
+    teamTraits:
+      'Traços do piloto calculados do histórico: pistas preferidas, sábado × domingo, duelo com os companheiros e consistência.',
+    teamEditorial:
+      'Perfil editorial do piloto (bio, estilo, pontos fortes, momentos e rivalidades), cada item com a fonte; só o aprovado.',
     teamOverviewSeason:
       'O time na temporada {season}: campanha em cada competição, tabela, forma e últimos jogos daquele ano (sem próximo jogo). Os anos com dados vêm em `seasons`.',
     squadSeason:
@@ -61,6 +67,8 @@ export default defineMessages(
         'The landing page in one call: per sport and per country, counters, featured competitions and clubs, live games and the most relevant upcoming match.',
       exploreSummaryNote:
         'Built for the home page: seven batched queries in the API, no N+1, and a 60 s cache (counters lag at most 1 min).',
+      exploreAgenda:
+        'The games of the next 7 days that the home page counts (same query): total, per day, filter counts, market highlights and the games of one day.',
       countryCompetitions:
         "The country's competitions by sport and scope: domestic, continental, national team and world.",
       sportCompetitions: "A sport's catalogued competitions, paginated by cursor.",
@@ -79,6 +87,10 @@ export default defineMessages(
         'Formula 1 legends: champions and the greats in wins and Grands Prix, with the defining season, team color, car and portrait.',
       teamCareer: 'Formula 1 career: season by season, titles, wins, poles, podiums, teams and teammates.',
       teamPhotos: 'Freely licensed photos (Wikimedia Commons), each with author, license and source page.',
+      teamTraits:
+        "The driver's traits computed from the record: favourite tracks, Saturday vs Sunday, teammate battle and consistency.",
+      teamEditorial:
+        "The driver's editorial profile (bio, style, strengths, moments and rivalries), each item with its source; approved only.",
       teamOverviewSeason:
         'The team in the {season} season: campaign in each competition, table, form and last matches of that year (no next match). The years with data come in `seasons`.',
       squadSeason:
@@ -114,6 +126,8 @@ export default defineMessages(
         'La vidriera inicial en una llamada: por deporte y por país, contadores, competencias y clubes destacados, en vivo y el partido de mayor relevancia.',
       exploreSummaryNote:
         'Pensada para la home: siete consultas en lote en la API, sin N+1, y caché de 60 s (los contadores se atrasan hasta 1 min).',
+      exploreAgenda:
+        'Los partidos de los próximos 7 días que cuenta la portada (misma consulta): total, por día, conteos de los filtros, destacados en el mercado y los partidos de un día.',
       countryCompetitions:
         'Competencias del país por deporte y alcance: nacionales, continentales, selección y mundiales.',
       sportCompetitions: 'Competencias catalogadas de un deporte, paginadas por cursor.',
@@ -134,6 +148,10 @@ export default defineMessages(
         'Carrera en la Fórmula 1: temporada por temporada, títulos, victorias, poles, podios, equipos y compañeros.',
       teamPhotos:
         'Fotos de licencia libre (Wikimedia Commons), cada una con autor, licencia y página de origen.',
+      teamTraits:
+        'Rasgos del piloto calculados del historial: pistas preferidas, sábado vs. domingo, duelo con los compañeros y regularidad.',
+      teamEditorial:
+        'Perfil editorial del piloto (bio, estilo, puntos fuertes, momentos y rivalidades), cada ítem con su fuente; solo lo aprobado.',
       teamOverviewSeason:
         'El equipo en la temporada {season}: campaña en cada competencia, tabla, racha y últimos partidos de ese año (sin próximo partido). Los años con datos vienen en `seasons`.',
       squadSeason:

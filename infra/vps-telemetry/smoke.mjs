@@ -232,6 +232,25 @@ await check('Lendas da F1 (carrossel "Legendary")', async () => {
   return `${legends.length} lendas (1ª: ${legends[0].name}, ${legends[0].titles.length} títulos) · ${withCar} com o carro ao fundo`;
 });
 
+await check('Agenda conta os mesmos jogos que a home', async () => {
+  // a agenda tem `data` (os jogos do dia): lida inteira, sem o atalho de `api()` para `data`
+  const [summary, res] = await Promise.all([
+    api('/v1/explore/summary?locale=pt-BR'),
+    fetch(`${API}/v1/explore/agenda?locale=pt-BR&market=BR&limit=1`, { headers: { 'x-galaxie-key': KEY } }),
+  ]);
+  if (res.status !== 200) return fail(`agenda: status ${res.status}`);
+  const agenda = await res.json();
+  const home = (summary.body?.sports ?? []).reduce((n, s) => n + (s.upcoming ?? 0), 0);
+  const total = agenda.total ?? -1;
+  const days = (agenda.days ?? []).reduce((n, d) => n + d.count, 0);
+  if (days !== total) return fail(`agenda: soma dos dias ${days} ≠ total ${total}`);
+  // os dois caches (60 s) podem estar alguns jogos defasados entre si; diferença grande é consulta divergente
+  if (Math.abs(home - total) > Math.max(3, home * 0.02))
+    return fail(`home ${home} × agenda ${total} jogos nos próximos 7 dias`);
+  if (home !== total) return warn(`home ${home} × agenda ${total} (caches de 60 s fora de fase)`);
+  return `${total} jogos nos próximos 7 dias, na home e na agenda`;
+});
+
 await check('Demo: páginas públicas e proteção do resto', async () => {
   // públicas: abrem sem sessão (a raiz mostra a apresentação, para filtros web e buscadores)
   for (const path of [

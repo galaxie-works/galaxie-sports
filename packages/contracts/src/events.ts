@@ -233,6 +233,16 @@ export const EventStake = z
     text: z
       .record(z.string(), z.string())
       .meta({ description: 'Rótulo fixo no locale da resposta.', example: { 'pt-BR': 'Avança com empate' } }),
+    phase: z.enum(['pre_match', 'result']).meta({
+      description:
+        '`pre_match`: o que está (ou estava) em jogo, com a tabela de antes do jogo. `result`: o que o placar mudou (jogo encerrado de pontos corridos: posição, zona, garantias e distância para as zonas).',
+      example: 'pre_match',
+    }),
+    salient: z.boolean().meta({
+      description:
+        'Está entre os até 3 códigos mais relevantes do time nesta fase (saliência, docs/rules §3.5). Sempre `true` sem `?stakes=all`.',
+      example: true,
+    }),
     titles: z
       .object({
         won: z
@@ -553,7 +563,10 @@ export const Event = z
       .object({ slug: z.string(), name: z.string(), intensity: z.number().int().min(1).max(5) })
       .nullable(),
     competition_context: z.array(z.enum(COMPETITION_CONTEXTS)),
-    stakes: z.array(EventStake).meta({ description: 'Vazio em eventos encerrados ou sem regulamento.' }),
+    stakes: z.array(EventStake).meta({
+      description:
+        'Até 3 códigos por time e fase (os mais relevantes; `?stakes=all` traz a lista completa). Jogo encerrado de pontos corridos: o que estava em jogo (`phase: pre_match`) e o que o resultado mudou (`phase: result`). Vazio sem regulamento e em mata-mata encerrado.',
+    }),
     data_freshness: z.object({ last_valid_at: z.string().nullable(), is_stale: z.boolean() }),
     provisional: EventProvisional.nullable().meta({
       description: 'Preenchido só em jogo provisório (anunciado e ainda não publicado pelo fornecedor).',
@@ -594,8 +607,15 @@ const statusList = z
   })
   .meta({ description: 'Lista separada por vírgulas.', example: 'scheduled,live' });
 
+/** Lista de stakes: só os salientes (padrão) ou todos os códigos do motor. */
+export const StakesParam = z.enum(['salient', 'all']).default('salient').meta({
+  description:
+    '`salient` (padrão): até 3 códigos por time e fase, os mais relevantes. `all`: todos os códigos do motor, com `salient` marcando os escolhidos.',
+  example: 'all',
+});
+
 /** Mercado da relevância (ISO 3166-1 alfa-2, qualquer caixa). Sem ele vale o único mercado do plano. */
-const MarketParam = z
+export const MarketParam = z
   .string()
   .regex(/^[A-Za-z]{2}$/, 'use o código ISO de 2 letras do país')
   .transform((v) => v.toUpperCase())
@@ -645,6 +665,7 @@ export const EventsQuery = LocaleQuery.extend(PaginationQuery.shape).extend({
     description:
       '`starts_at` (crescente), `importance` ou `relevance` (decrescentes, depois horário; `relevance` exige mercado).',
   }),
+  stakes: StakesParam,
 });
 export type EventsQuery = z.input<typeof EventsQuery>;
 
@@ -652,11 +673,12 @@ export const LiveEventsQuery = LocaleQuery.extend({
   sport: z.string().max(40).optional(),
   competition: z.string().min(1).max(120).optional().meta({ description: 'UUID ou slug da competição.' }),
   market: MarketParam.optional(),
+  stakes: StakesParam,
 });
 export type LiveEventsQuery = z.input<typeof LiveEventsQuery>;
 
-/** Detalhe do evento: locale/fuso e o mercado da relevância. */
-export const EventQuery = LocaleQuery.extend({ market: MarketParam.optional() });
+/** Detalhe do evento: locale/fuso, o mercado da relevância e a lista de stakes. */
+export const EventQuery = LocaleQuery.extend({ market: MarketParam.optional(), stakes: StakesParam });
 export type EventQuery = z.input<typeof EventQuery>;
 
 export const EventParams = z.object({

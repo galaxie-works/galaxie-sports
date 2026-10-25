@@ -39,8 +39,9 @@ export function normalizeText(text: string): string {
 
 /** Divide em frases (ponto final, exclamação, interrogação ou ponto e vírgula seguido de espaço). */
 export function splitSentences(text: string): string[] {
+  // a inicial de um nome ("M. Hinestroza", "J. Rodríguez") não encerra a frase
   return text
-    .split(/(?<=[.!?…])\s+/u)
+    .split(/(?<=[.!?…])(?<!(?:^|[\s(])\p{Lu}\.)\s+/u)
     .map((s) => s.trim())
     .filter(Boolean);
 }

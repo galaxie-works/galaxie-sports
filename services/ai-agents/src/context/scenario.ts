@@ -1,5 +1,14 @@
 import type { TitleRecord } from '@galaxie/db';
-import { stakeText, zoneLabel, type Stake } from '@galaxie/rules';
+import {
+  salienceFight,
+  salienceGap,
+  salienceWindow,
+  salientStakes,
+  stakeText,
+  zoneLabel,
+  type SalienceStanding,
+  type Stake,
+} from '@galaxie/rules';
 import {
   FactSheetBuilder,
   guardrailSystemRules,
@@ -20,7 +29,8 @@ import type { EventStakes } from './stakes.js';
  */
 
 /** Versão do prompt/fatos: mudar invalida o cache (força regenerar). */
-export const SCENARIO_PROMPT_VERSION = 'scenario@v2';
+// v3: só os stakes salientes (até 3 por time, docs/rules §3.5) e a distância em pontos de cada briga
+export const SCENARIO_PROMPT_VERSION = 'scenario@v3';
 
 /** Títulos anteriores de um time na competição (antes da partida). */
 export interface ScenarioTeamTitles {
@@ -82,10 +92,64 @@ export interface ScenarioFacts {
   history?: ScenarioHistory;
   league?: {
     teams_in_table: number;
-    home: { rank: number; points: number; played: number; remaining: number | null };
-    away: { rank: number; points: number; played: number; remaining: number | null };
+    home: ScenarioLeagueRow;
+    away: ScenarioLeagueRow;
   };
   stakes: ScenarioStakeFact[];
+}
+
+/** Distância em pontos, por briga saliente do time (só as que aparecem nos stakes escolhidos). */
+export interface ScenarioDistances {
+  /** Pontos atrás do líder (briga pelo título). */
+  to_leader?: number;
+  /** Pontos acima do primeiro time na zona de rebaixamento (0 = já está nela). */
+  above_relegation_zone?: number;
+  /** Zona boa (rótulo por locale) → pontos atrás do último time dentro dela. */
+  to_zone?: { zone: Partial<Record<AgentLocale, string>>; points: number }[];
+}
+
+export interface ScenarioLeagueRow {
+  rank: number;
+  points: number;
+  played: number;
+  remaining: number | null;
+  distances?: ScenarioDistances;
+}
+
+/**
+ * Stakes que o Cenário conta: os salientes (até 3 por time; mata-mata passa inteiro). O motor calcula
+ * todos; o texto fala só dos relevantes (o 2º colocado não "corre risco de rebaixamento").
+ */
+export function scenarioStakes(result: Pick<EventStakes, 'stakes' | 'league'>): Stake[] {
+  return salientStakes(result.stakes, result.league?.salience ?? {});
+}
+
+function distancesOf(
+  side: 'home' | 'away',
+  stakes: readonly Stake[],
+  standing: SalienceStanding | null | undefined,
+  locales: readonly AgentLocale[],
+): ScenarioDistances | undefined {
+  if (!standing) return undefined;
+  const out: ScenarioDistances = {};
+  const window = salienceWindow(standing);
+  const zones = new Set<string>();
+  for (const s of stakes) {
+    if (s.team !== side) continue;
+    const gap = salienceGap(s, standing);
+    if (gap === null || gap > window) continue;
+    const fight = salienceFight(s);
+    if (fight === 'title') {
+      if (standing.leaderPoints !== null && standing.rank > 1) out.to_leader = gap;
+    } else if (fight === 'relegation') {
+      out.above_relegation_zone = gap;
+    } else if (fight === 'zone' && s.params?.zone && gap > 0 && !zones.has(s.params.zone)) {
+      const zone = s.params.zone;
+      zones.add(zone);
+      (out.to_zone ??= []).push({ zone: perLocale(locales, (l) => zoneLabel(zone, l)), points: gap });
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** Número da rodada a partir do rótulo do fornecedor ("Regular Season - 30" → 30). */
@@ -125,7 +189,7 @@ export function buildScenarioFacts(
       home: { names: perLocale(locales, (l) => teamName(core.home, l)) },
       away: { names: perLocale(locales, (l) => teamName(core.away, l)) },
     },
-    stakes: result.stakes.map((s) => ({
+    stakes: scenarioStakes(result).map((s) => ({
       team: s.team,
       code: s.code,
       labels: perLocale(locales, (l) => stakeText(s, l)),
@@ -159,14 +223,22 @@ export function buildScenarioFacts(
   if (history.titles || history.last_final_between) facts.history = history;
   const lg = result.league;
   if (lg) {
-    const row = (id: string, remaining: number | null) => {
+    const chosen = scenarioStakes(result);
+    const row = (side: 'home' | 'away', id: string, remaining: number | null): ScenarioLeagueRow => {
       const r = lg.rows.find((x) => x.teamId === id)!;
-      return { rank: r.rank, points: r.points, played: r.played, remaining };
+      const distances = distancesOf(side, chosen, lg.salience?.[side], locales);
+      return {
+        rank: r.rank,
+        points: r.points,
+        played: r.played,
+        remaining,
+        ...(distances ? { distances } : {}),
+      };
     };
     facts.league = {
       teams_in_table: lg.teams,
-      home: row(core.home.id, lg.remaining.home),
-      away: row(core.away.id, lg.remaining.away),
+      home: row('home', core.home.id, lg.remaining.home),
+      away: row('away', core.away.id, lg.remaining.away),
     };
   }
   return facts;
@@ -206,7 +278,12 @@ export function scenarioFactSheet(
     b.number(f.season).score(f.home_goals, f.away_goals).name(f.home, f.away);
   }
   if (facts.league) {
-    for (const r of [facts.league.home, facts.league.away]) b.number(r.rank, r.points, r.played, r.remaining);
+    for (const r of [facts.league.home, facts.league.away]) {
+      b.number(r.rank, r.points, r.played, r.remaining);
+      const d = r.distances;
+      b.number(d?.to_leader, d?.above_relegation_zone, ...(d?.to_zone ?? []).map((z) => z.points));
+      for (const z of d?.to_zone ?? []) b.name(z.zone[locale]);
+    }
     b.number(facts.league.teams_in_table);
   }
   return b.build();
@@ -317,7 +394,11 @@ export function scenarioSystemPrompt(): string {
     '- Em caso de igualdade, conte o que acontece exatamente como os fatos e os stakes dizem: com',
     '  `extra_time = true`, prorrogação e, persistindo, pênaltis; com `extra_time = false`, pênaltis direto',
     '  (não fale em prorrogação).',
-    '- `league`: posição, pontos, jogos e jogos restantes de cada time.',
+    '- `league`: posição, pontos, jogos e jogos restantes de cada time; `distances` (quando houver) = distância em',
+    '  pontos de cada briga que importa: `to_leader` (atrás do líder), `above_relegation_zone` (acima do primeiro',
+    '  time na zona de rebaixamento; 0 = já está nela), `to_zone` (atrás do último time dentro da vaga).',
+    '- `stakes` traz só o que é relevante para cada time (até 3). Não fale de brigas que não estão nos stakes',
+    '  (ex.: não diga que um time "luta contra o rebaixamento" se nenhum stake dele trata disso).',
     '- `stakes[].labels[locale]`: o significado exato de cada código. Reescreva com naturalidade, sem mudar a',
     '  condição, sem acrescentar condições e sem omitir a que decide o jogo.',
     '- `history` (quando houver): `titles.<lado>.won` = títulos daquela competição antes deste jogo;',

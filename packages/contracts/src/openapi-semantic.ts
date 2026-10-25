@@ -19,6 +19,7 @@ import {
   TodayQuery,
 } from './multisport.js';
 import { getOp } from './openapi-ops.js';
+import { DriverEditorial } from './driver-profile.js';
 import {
   CopyQuery,
   CopySuggestion,
@@ -100,6 +101,21 @@ export function semanticPaths(): ZodOpenApiPathsObject {
         ),
         'Mapeamento time → rivais/clássicos para segmentação (rivais declarados pelo time e clássicos que o ' +
           'incluem), por intensidade.',
+      ),
+    },
+    '/v1/teams/{id}/editorial': {
+      get: withDescription(
+        getOp(
+          'Perfil editorial do piloto de F1 (bio, estilo, pontos fortes, momentos e rivalidades, com fonte)',
+          'Semântica',
+          DriverEditorial,
+          { path: SemanticTeamParams, query: ReviewQuery },
+          [400, 401, 403, 404, 429],
+        ),
+        'Lendas (campeões e top 20 em vitórias ou em GPs) têm o perfil completo; regulares (vencedor de GP ou ' +
+          '3 temporadas ou mais), a bio curta. Cada item traz a fonte da pesquisa; os números foram conferidos ' +
+          'contra o F1DB antes da revisão. O texto segue `es-XX → es → pt-BR` (`text_locale`). Sem perfil: 404.' +
+          REVIEW_NOTE,
       ),
     },
     '/v1/glossary': {

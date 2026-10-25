@@ -269,6 +269,13 @@
       "breakpoints": true
     },
     {
+      "idx": 38,
+      "version": "7",
+      "when": 1792878672585,
+      "tag": "0038_piloto_biografia",
+      "breakpoints": true
+    },
+    {
       "idx": 39,
       "version": "7",
       "when": 1792895887245,

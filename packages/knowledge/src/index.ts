@@ -6,6 +6,7 @@ export * from './copy/select-copy.js';
 export * from './copy/library.js';
 export * from './derby.js';
 export * from './liveries.js';
+export * from './editorial.js';
 export * from './seed.js';
 export * from './review.js';
 export * from './overrides.js';

@@ -69,6 +69,35 @@ export async function getExploreSummary(locale: Locale) {
   return api.exploreSummary(localeQuery(locale));
 }
 
+/** Filtros e página da agenda (`/v1/explore/agenda`); o mercado da relevância é o do idioma. */
+export interface AgendaQuery {
+  sport?: string | undefined;
+  country?: string | undefined;
+  competition?: string | undefined;
+  day?: string | undefined;
+  limit?: number | undefined;
+}
+
+const agendaQuery = (locale: Locale, q: AgendaQuery) => ({
+  ...localeQuery(locale),
+  market: defaultMarket(locale),
+  ...Object.fromEntries(Object.entries(q).filter(([, v]) => v !== undefined && v !== null && v !== '')),
+});
+
+export const exploreAgendaRequest = (locale: Locale, q: AgendaQuery = {}): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/explore/agenda',
+  query: agendaQuery(locale, q),
+  description: text(locale).exploreAgenda,
+});
+
+/** Agenda dos próximos 7 dias: os jogos que o resumo conta, com a mesma consulta (a API guarda 60 s). */
+export async function getExploreAgenda(locale: Locale, q: AgendaQuery = {}) {
+  'use cache';
+  cacheLife('minutes');
+  return api.exploreAgenda(agendaQuery(locale, q));
+}
+
 // ─── país ────────────────────────────────────────────────────────────────────────────────────────
 
 export const countryCompetitionsRequest = (
@@ -314,6 +343,37 @@ export async function getTeamCareer(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
   return orNull(api.teamCareer(id, localeQuery(locale)));
+}
+
+export const teamTraitsRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/teams/{id}/traits',
+  params: { id },
+  query: localeQuery(content ?? locale),
+  description: text(locale).teamTraits,
+});
+
+/** Traços do piloto de F1 (calculados do F1DB, para todo piloto). */
+export async function getTeamTraits(id: string, locale: ContentLocale) {
+  'use cache';
+  cacheLife('hours');
+  return orNull(api.teamTraits(id, localeQuery(locale)));
+}
+
+export const teamEditorialRequest = (id: string, locale: Locale, content?: SupportedLocale): ApiRequest => ({
+  method: 'GET',
+  route: '/v1/teams/{id}/editorial',
+  params: { id },
+  query: { ...localeQuery(content ?? locale), min_review_status: 'approved' },
+  description: text(locale).teamEditorial,
+  note: fill(text(locale).requiresModule, { module: 'semantic' }),
+});
+
+/** Perfil editorial do piloto, só o aprovado na revisão (a demo nunca mostra rascunho). */
+export async function getTeamEditorial(id: string, locale: ContentLocale) {
+  'use cache';
+  cacheLife('hours');
+  return orNull(api.teamEditorial(id, { ...localeQuery(locale), min_review_status: 'approved' }));
 }
 
 export const raceLegendsRequest = (locale: Locale): ApiRequest => ({
