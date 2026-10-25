@@ -48,7 +48,7 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
   {
     name: 'live-reconcile',
     description:
-      'Reconciliação do ao vivo (LIVE): confirma pelo detalhe os jogos em andamento que parecem parados (sem observação recente ou além do fim previsto); sob demanda (painel), confere todos',
+      'Reconciliação do ao vivo (LIVE): confirma pelo detalhe os jogos encerrados pelo relógio sem placar da fonte e os acompanhados pelo ao vivo que pararam de atualizar; sob demanda (painel), confere todos',
     cron: '*/10 * * * *',
     script: 'dist/cli/live-reconcile.js',
     args: [],

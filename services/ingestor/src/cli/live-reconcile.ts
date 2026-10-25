@@ -2,8 +2,10 @@
  * Reconciliação do ao vivo: confirma pelo detalhe (`fixtures?id=`, prioridade LIVE) os jogos que o core
  * ainda dá como em andamento e grava status, placar e encerramento. Rede de segurança do scheduler e
  * "botão de pânico" do painel de Operação — não depende do plano nem do processo do ao vivo.
- * Sem --forcar, só confere os parados: acompanhados pelo ao vivo e sem observação válida há N minutos, ou
- * fora do ao vivo e além do fim previsto (os que o poller está atualizando não gastam cota de novo).
+ * Sem --forcar, só confere o que parece errado: encerrados pelo relógio sem confirmação da fonte (qualquer
+ * prioridade, 1 chamada por jogo) e jogos acompanhados pelo ao vivo, já vistos depois do apito, sem
+ * observação válida há N minutos (ou 2× o intervalo do plano do ao vivo; nada com o orçamento LIVE
+ * esgotado). Os que o poller está atualizando não gastam cota de novo.
  * O painel ("rodar agora") e o `scheduler --run` rodam com --forcar.
  *   pnpm --filter @galaxie/ingestor live:reconcile --plan     # quais jogos seriam conferidos (nada é chamado)
  *   pnpm --filter @galaxie/ingestor live:reconcile            # confere e corrige os parados
@@ -27,6 +29,7 @@ import {
   type ReconcileTargetOptions,
 } from '../live/reconcile.js';
 import type { LiveSchedulerOptions } from '../live/schedule.js';
+import { loadLiveState } from '../live/state.js';
 import { PgLiveStore } from '../live/store.js';
 import { logger, report } from '../logger.js';
 import { recomputeStandings } from '../standings/recompute.js';
@@ -65,16 +68,22 @@ await runCli(async () => {
     'medium') as LiveSchedulerOptions['minPriority'];
   if (!['high', 'medium', 'low'].includes(minPriority))
     throw new Error('--prioridade-min deve ser high, medium ou low.');
-  const triage: ReconcileTargetOptions = {
-    lookbackHours,
-    force: values.forcar,
-    staleMinutes: positive(values['parado-min'], '--parado-min'),
-    minPriority,
-  };
   const ctx = contextFromEnv();
   const now = new Date();
 
   try {
+    // plano do ao vivo de hoje (gravado pelo live-run): intervalo atual e orçamento esgotado
+    const live = await loadLiveState(ctx.db, sport);
+    const today = live?.day === now.toISOString().slice(0, 10) ? live : null;
+    const intervalS = Math.max(today?.intervalSeconds ?? 0, today?.baseIntervalSeconds ?? 0);
+    const triage: ReconcileTargetOptions = {
+      lookbackHours,
+      force: values.forcar,
+      staleMinutes: positive(values['parado-min'], '--parado-min'),
+      minPriority,
+      planIntervalMs: intervalS > 0 ? intervalS * 1000 : null,
+      liveBudgetExhausted: !!today && today.included > 0 && today.ticksLeft <= 0,
+    };
     if (values.plan) {
       const store = new PgLiveStore(ctx.db, { publish: false });
       const candidates = await store.candidates(
@@ -94,7 +103,7 @@ await runCli(async () => {
           apito_utc: c.startsAt.toISOString().slice(11, 16),
           ultima_obs_utc: c.lastValidAt?.toISOString().slice(11, 16) ?? '—',
           prioridade: c.livePriority,
-          conferir: motivo ?? 'não (atualizado)',
+          conferir: motivo ?? 'não',
           fornecedor: c.providerEventId,
         })),
       );

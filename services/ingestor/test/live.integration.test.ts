@@ -21,12 +21,14 @@ import {
   syncCursor,
   type Database,
 } from '@galaxie/db';
-import { ApiSportsProvider, normalizeFixtures } from '@galaxie/providers';
+import { ApiSportsProvider, FakeProvider, normalizeFixtures } from '@galaxie/providers';
 import { PgCursorStore } from '../src/jobs/runtime/cursor-store.js';
+import { reconcileLive, reconcileTargets } from '../src/live/reconcile.js';
 import { LiveRunner } from '../src/live/runner.js';
 import { liveStateFromPlan, saveLiveState, LIVE_STATE_ENDPOINT } from '../src/live/state.js';
 import { PgLiveStore } from '../src/live/store.js';
 import { normalizeAfterFetch } from '../src/normalize/after-fetch.js';
+import { advanceEventClock } from '../src/normalize/event-state.js';
 import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { recomputeStandings, seasonsWithNewResults } from '../src/standings/recompute.js';
 import { apiFixture, liveWorld, wednesdayNight, type WorldMatch } from '../src/testing/live-world.js';
@@ -112,6 +114,7 @@ describe('ao vivo no Postgres', () => {
       tier: 1,
       stageKind: 'regular',
       status: 'scheduled',
+      statusSource: 'provider',
       label: 'Palmeiras x Corinthians',
     });
   });
@@ -283,5 +286,62 @@ describe('ao vivo no Postgres', () => {
       fetchedAt: old,
     });
     expect(report().skipped).toBe(1);
+  });
+
+  it('reconciliação: jogo fora do ao vivo encerrado pelo relógio sem placar é conferido uma vez', async () => {
+    // liga menor (live_priority low), jogo nunca observado depois do apito
+    const minor: WorldMatch = {
+      ...arg,
+      fixtureId: 9301,
+      leagueId: 999,
+      leagueName: 'Liga Menor',
+      home: 'Time A',
+      away: 'Time B',
+      kickoff: new Date('2026-10-25T15:00:00Z'),
+      livePriority: 'low',
+      tier: 3,
+      goals: [{ minute: 30, side: 'home' }],
+    };
+    const seededAt = new Date('2026-10-25T00:10:00Z');
+    await upsertBatch(db, normalizeFixtures([apiFixture(minor, seededAt, teamId)], seededAt));
+    const seeded = await eventRow(minor.fixtureId);
+    await db
+      .update(competition)
+      .set({ livePriority: 'low', tier: 3 })
+      .where(eq(competition.id, seeded.competitionId!));
+
+    const kick = minor.kickoff.getTime();
+    const store = new PgLiveStore(db, { publish: false });
+    const targetsAt = async (now: Date) => {
+      const list = await store.candidates(
+        'football',
+        'api-sports',
+        new Date(now.getTime() - 6 * 3_600_000),
+        now,
+      );
+      return reconcileTargets(list, now).map((c) => c.providerEventId);
+    };
+    // no meio do jogo o relógio marca "ao vivo" pelo horário: a agenda não gasta com ele
+    await advanceEventClock(db, new Date(kick + 60 * MIN));
+    expect(await eventRow(minor.fixtureId)).toMatchObject({ status: 'live', statusSource: 'temporal' });
+    expect(await targetsAt(new Date(kick + 60 * MIN))).toEqual([]);
+
+    // em ends_at_expected o relógio encerra sem placar da fonte: vira alvo
+    const now = new Date(kick + 130 * MIN);
+    await advanceEventClock(db, now);
+    expect(await eventRow(minor.fixtureId)).toMatchObject({ status: 'finished', statusSource: 'temporal' });
+    expect(await targetsAt(now)).toEqual(['9301']);
+
+    const provider = new FakeProvider('api-sports').willReturn(
+      'getEventDetail',
+      normalizeFixtures([{ ...apiFixture(minor, now, teamId), lineups: [], statistics: [] }], now),
+    );
+    const r = await reconcileLive(provider, store, { sport: 'football', now });
+    expect(r).toMatchObject({ checked: ['9301'], calls: 1 });
+    const done = await eventRow(minor.fixtureId);
+    expect(done).toMatchObject({ status: 'finished', statusSource: 'provider', statusDetail: 'FT' });
+    expect(done.score).toMatchObject({ home: 1, away: 0 });
+    // confirmado pela fonte: não volta a ser alvo
+    expect(await targetsAt(new Date(now.getTime() + 10 * MIN))).toEqual([]);
   });
 });

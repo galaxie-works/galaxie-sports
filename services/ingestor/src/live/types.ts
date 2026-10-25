@@ -2,7 +2,7 @@
  * Tipos do ao vivo (docs/07 §2.1): candidatos lidos do core, plano do dia do Live Scheduler e
  * decisões de *tick* do Live Poller. Tudo aqui é dado puro — sem banco, sem relógio do sistema.
  */
-import type { EventClock, EventScore, EventStatus } from '@galaxie/providers';
+import type { EventClock, EventScore, EventStatus, StatusSource } from '@galaxie/providers';
 
 /** Prioridade ao vivo do catálogo (`core.competition.live_priority`). */
 export type LivePriority = 'high' | 'medium' | 'low' | 'none';
@@ -21,6 +21,11 @@ export interface LiveCandidate {
   /** Horário oficial do início. */
   startsAt: Date;
   status: EventStatus;
+  /**
+   * Origem do status: `temporal` = avançado pelo relógio dos eventos sem confirmação da fonte (ex.: encerrado
+   * em `ends_at_expected` sem dado fresco). Ausente = desconhecida (tratada como da fonte).
+   */
+  statusSource?: StatusSource | undefined;
   /** Código do fornecedor (NS, 1H, HT, 2H, ET, BT, P, FT...). */
   statusDetail: string | null;
   clock: EventClock | null;

@@ -5,14 +5,19 @@
  * não entrou no plano (prioridade baixa: o relógio marca `live` pelo horário) ou porque o processo do ao
  * vivo caiu. As mudanças vão para o change feed como as do poller.
  *
- * A execução agendada só confere o que parece parado: jogo que o ao vivo acompanha sem observação válida
- * há `staleMinutes`, ou jogo fora do ao vivo que já passou do fim previsto. Os jogos que o poller está
- * atualizando não gastam cota de novo. O modo forçado (`force`, o botão do painel) confere todos.
+ * A execução agendada só confere o que parece errado:
+ * - `unconfirmed`: encerrado pelo relógio dos eventos (sem dado fresco em `ends_at_expected`), ainda sem o
+ *   placar da fonte — qualquer prioridade, inclusive o que o ao vivo não acompanha. Custa 1 chamada por
+ *   jogo: confirmado, o status passa a vir da fonte (ou volta a `live`, se o jogo ainda não acabou);
+ * - `stale`: jogo que o ao vivo acompanha, já visto depois do apito e sem observação válida há mais que
+ *   `staleMinutes` (ou 2× o intervalo do plano, se maior). Com o orçamento LIVE esgotado, não confere.
+ * Os jogos que o poller está atualizando não gastam cota de novo. O modo forçado (`force`, o botão do
+ * painel) confere todos os em andamento.
  */
 import { isInPlay, type SportsDataProvider } from '@galaxie/providers';
 import { diffSnapshot, isSignificant, type LiveChange } from './diff.js';
 import { spent } from './poller.js';
-import { isRelevant, profileFor, type LiveSchedulerOptions } from './schedule.js';
+import { isRelevant, type LiveSchedulerOptions } from './schedule.js';
 import type { LiveStore } from './store.js';
 import type { LiveCandidate } from './types.js';
 
@@ -24,30 +29,47 @@ export interface ReconcileTargetOptions {
   lookbackHours?: number | undefined;
   /** Confere todo jogo em andamento (botão de pânico), não só os parados. */
   force?: boolean | undefined;
-  /** Minutos sem observação válida (contados do apito, se nunca houve) que tornam o jogo suspeito (padrão: 30). */
+  /** Minutos sem observação válida que tornam suspeito um jogo acompanhado pelo ao vivo (padrão: 30). */
   staleMinutes?: number | undefined;
   /** Menor `live_priority` que o ao vivo acompanha (LIVE_MIN_PRIORITY; padrão: medium). */
   minPriority?: LiveSchedulerOptions['minPriority'] | undefined;
+  /**
+   * Intervalo atual do plano do ao vivo (ms): com cota apertada ele passa de `staleMinutes`, e um jogo só
+   * é suspeito depois de 2× esse intervalo sem observação.
+   */
+  planIntervalMs?: number | null | undefined;
+  /** O plano do ao vivo está sem ticks (orçamento LIVE esgotado): não gasta com jogo "parado". */
+  liveBudgetExhausted?: boolean | undefined;
 }
 
 /**
- * Por que conferir o jogo: `forced` (modo forçado), `stale` (o ao vivo deveria estar atualizando e não
- * está) ou `overdue` (fora do ao vivo e além do fim previsto); `null` = não precisa.
+ * Por que conferir o jogo: `unconfirmed` (encerrado pelo relógio, sem placar da fonte), `forced` (modo
+ * forçado) ou `stale` (o ao vivo deveria estar atualizando e não está); `null` = não precisa.
  */
-export type ReconcileReason = 'forced' | 'stale' | 'overdue';
+export type ReconcileReason = 'unconfirmed' | 'forced' | 'stale';
+
+/** Encerrado pelo relógio dos eventos, sem a fonte confirmar o resultado. */
+export function isClockFinished(c: LiveCandidate): boolean {
+  return c.status === 'finished' && c.statusSource === 'temporal';
+}
 
 export function reconcileReason(
   c: LiveCandidate,
   now: Date,
   options: ReconcileTargetOptions = {},
 ): ReconcileReason | null {
+  if (isClockFinished(c)) return 'unconfirmed';
+  if (!isInPlay(c.status) && c.status !== 'starting') return null;
   if (options.force) return 'forced';
-  // nunca observado depois do apito: conta a partir do horário oficial (a agenda do sync é de antes)
-  const seen = Math.max(c.lastValidAt?.getTime() ?? -Infinity, c.startsAt.getTime());
-  if (now.getTime() - seen < (options.staleMinutes ?? DEFAULT_STALE_MINUTES) * 60_000) return null;
-  if (isRelevant(c, options.minPriority)) return 'stale';
-  const expectedEnd = c.startsAt.getTime() + profileFor(c.sport).afterMin * 60_000;
-  return now.getTime() >= expectedEnd ? 'overdue' : null;
+  // fora do ao vivo: só o encerramento (o relógio o fecha em ends_at_expected e ele volta como `unconfirmed`)
+  if (!isRelevant(c, options.minPriority) || options.liveBudgetExhausted) return null;
+  // nunca visto depois do apito: idem (antes do apito, a última observação é a agenda do sync)
+  if (!c.lastValidAt || c.lastValidAt.getTime() < c.startsAt.getTime()) return null;
+  const staleMs = Math.max(
+    (options.staleMinutes ?? DEFAULT_STALE_MINUTES) * 60_000,
+    2 * (options.planIntervalMs ?? 0),
+  );
+  return now.getTime() - c.lastValidAt.getTime() >= staleMs ? 'stale' : null;
 }
 
 export interface ReconcileOptions extends ReconcileTargetOptions {
@@ -61,7 +83,7 @@ export interface ReconcileOptions extends ReconcileTargetOptions {
 }
 
 export interface ReconcileReport {
-  /** Jogos em andamento no core (dentro da janela). */
+  /** Jogos em andamento no core, ou encerrados pelo relógio sem confirmação (dentro da janela). */
   inPlay: number;
   /** Os que precisam de conferência (todos, no modo forçado), antes do corte por `max`. */
   pending: number;
@@ -74,7 +96,10 @@ export interface ReconcileReport {
   finished: string[];
 }
 
-/** Jogos que o core dá como em andamento (ou começando) dentro da janela, os mais antigos primeiro. */
+/**
+ * Jogos que o core dá como em andamento (ou começando), ou que o relógio encerrou sem confirmação, dentro
+ * da janela; os mais antigos primeiro.
+ */
 export function inPlayCandidates(
   candidates: readonly LiveCandidate[],
   now: Date,
@@ -85,14 +110,14 @@ export function inPlayCandidates(
     .filter(
       (c) =>
         c.providerEventId &&
-        (isInPlay(c.status) || c.status === 'starting') &&
+        (isInPlay(c.status) || c.status === 'starting' || isClockFinished(c)) &&
         c.startsAt.getTime() <= now.getTime() &&
         c.startsAt.getTime() >= from,
     )
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }
 
-/** Jogos em andamento que vale confirmar na fonte (todos, no modo forçado). */
+/** Jogos que vale confirmar na fonte (todos os em andamento, no modo forçado). */
 export function reconcileTargets(
   candidates: readonly LiveCandidate[],
   now: Date,

@@ -3,6 +3,7 @@
  * o intervalo dinâmico, o orçamento e as janelas do dia. As métricas (`galaxie_live_poll_interval_seconds`)
  * e o `live:run --plan` leem daqui — sem métricas em memória, vale com qualquer número de processos.
  */
+import { and, eq } from 'drizzle-orm';
 import { syncCursor, type Database } from '@galaxie/db';
 import { windowEnd } from './schedule.js';
 import type { LiveDayPlan } from './types.js';
@@ -78,4 +79,24 @@ export async function saveLiveState(
       target: [syncCursor.provider, syncCursor.sport, syncCursor.endpoint, syncCursor.key],
       set: { cursor: state, completedAt: now, updatedAt: now },
     });
+}
+
+/** Último estado gravado pelo processo do ao vivo (`null` = nunca rodou para o esporte). */
+export async function loadLiveState(
+  db: Database,
+  sport: string,
+  provider = 'api-sports',
+): Promise<LiveSchedulerState | null> {
+  const [row] = await db
+    .select({ cursor: syncCursor.cursor })
+    .from(syncCursor)
+    .where(
+      and(
+        eq(syncCursor.provider, provider),
+        eq(syncCursor.sport, sport),
+        eq(syncCursor.endpoint, LIVE_STATE_ENDPOINT),
+        eq(syncCursor.key, 'state'),
+      ),
+    );
+  return (row?.cursor as LiveSchedulerState | undefined) ?? null;
 }

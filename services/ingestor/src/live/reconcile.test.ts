@@ -123,45 +123,101 @@ describe('reconcileLive', () => {
     expect(r2).toMatchObject({ pending: 1, checked: ['9101'], calls: 1 });
   });
 
-  it('agendada: fora do ao vivo (prioridade baixa), só depois do fim previsto do jogo', () => {
+  it('com o relógio dos eventos: jogo fora do ao vivo nunca observado é conferido uma vez, ao ser encerrado pelo horário', async () => {
+    const low = { ...other, livePriority: 'low' as const, derby: false };
+    const { store, provider } = setup([low]);
+    const okick = low.kickoff.getTime();
+    // o relógio marca "ao vivo" no apito (sem dado da fonte): no meio do jogo não vale a chamada
+    store.advanceClock(new Date(okick + 60 * MIN));
+    expect(store.state('9102')).toMatchObject({ status: 'live', statusSource: 'temporal' });
+    const mid = await reconcileLive(provider, store, { sport: 'football', now: new Date(okick + 60 * MIN) });
+    expect(mid).toMatchObject({ inPlay: 1, pending: 0, calls: 0 });
+
+    // em ends_at_expected o relógio encerra sem placar: a reconciliação confirma na fonte
+    const now = new Date(okick + 130 * MIN);
+    store.advanceClock(now);
+    expect(store.state('9102')).toMatchObject({ status: 'finished', statusSource: 'temporal' });
+    provider.willReturn('getEventDetail', batchAt([low], now, true));
+    const r = await reconcileLive(provider, store, { sport: 'football', now });
+    expect(r).toMatchObject({ pending: 1, checked: ['9102'], calls: 1 });
+    expect(store.state('9102')).toMatchObject({ status: 'finished', statusSource: 'provider' });
+    expect(store.state('9102')!.score).not.toBeNull();
+
+    // confirmado: não gasta de novo
+    const again = await reconcileLive(provider, store, {
+      sport: 'football',
+      now: new Date(now.getTime() + 10 * MIN),
+    });
+    expect(again).toMatchObject({ pending: 0, calls: 0 });
+  });
+
+  it('com o relógio dos eventos: ao vivo caiu perto do fim, o relógio encerra antes dos 30 min de parado e a reconciliação confirma', async () => {
+    const { store, provider } = setup([match]);
+    // última observação do poller aos 100 min (o processo caiu)
+    await store.applyBatch(batchAt([match], new Date(kick + 100 * MIN)));
+    const now = new Date(kick + 120 * MIN);
+    store.advanceClock(now);
+    expect(store.state('9101')).toMatchObject({ status: 'finished', statusSource: 'temporal' });
+    provider.willReturn('getEventDetail', batchAt([match], new Date(kick + 130 * MIN), true));
+    const r = await reconcileLive(provider, store, { sport: 'football', now });
+    expect(r).toMatchObject({ checked: ['9101'], calls: 1 });
+    expect(store.state('9101')).toMatchObject({
+      status: 'finished',
+      statusSource: 'provider',
+      statusDetail: 'FT',
+    });
+  });
+
+  it('parado: só o que o ao vivo acompanha e já viu depois do apito; respeita o intervalo do plano e o orçamento', () => {
     const base: LiveCandidate = {
       eventId: 'ev-1',
       providerEventId: '1',
       sport: 'football',
       competitionId: null,
-      providerCompetitionId: '99',
+      providerCompetitionId: '71',
       seasonId: null,
       startsAt: new Date(kick),
       status: 'live',
+      statusSource: 'provider',
       statusDetail: '2H',
       clock: null,
       score: null,
-      lastValidAt: null,
-      tier: 3,
-      livePriority: 'low',
+      lastValidAt: new Date(kick + 50 * MIN),
+      tier: 1,
+      livePriority: 'high',
       stageKind: null,
       derby: false,
       importance: 0,
       label: null,
     };
     const at = (m: number) => new Date(kick + m * MIN);
-    // o relógio marca "ao vivo" pelo horário: no meio do jogo não vale a chamada
-    expect(reconcileReason(base, at(90))).toBeNull();
-    // passou do fim previsto (apito + 130 min) e ninguém confirmou: confere
-    expect(reconcileReason(base, at(131))).toBe('overdue');
-    // conferido há pouco (ainda em andamento): espera a próxima janela de "parado"
-    expect(reconcileReason({ ...base, lastValidAt: at(131) }, at(141))).toBeNull();
-    expect(reconcileReason({ ...base, lastValidAt: at(131) }, at(161))).toBe('overdue');
-    // com LIVE_MIN_PRIORITY=low o ao vivo acompanha a liga: vale o critério de "parado"
-    expect(reconcileReason(base, at(31), { minPriority: 'low' })).toBe('stale');
-    expect(reconcileReason(base, at(29), { minPriority: 'low' })).toBeNull();
-    // relevante começando: conta do apito oficial (a agenda do sync é de antes do jogo)
-    const starting = { ...base, livePriority: 'high' as const, status: 'starting' as const };
-    expect(reconcileReason({ ...starting, lastValidAt: at(-600) }, at(20))).toBeNull();
-    expect(reconcileReason({ ...starting, lastValidAt: at(-600) }, at(30))).toBe('stale');
-    // botão de pânico: tudo
-    expect(reconcileReason(base, at(10), { force: true })).toBe('forced');
-    expect(reconcileTargets([base], at(90))).toEqual([]);
-    expect(reconcileTargets([base], at(90), { force: true })).toEqual([base]);
+    expect(reconcileReason(base, at(79))).toBeNull();
+    expect(reconcileReason(base, at(80))).toBe('stale');
+    // cota apertada: o plano está em 25 min por tick → só depois de 50 min sem observação
+    expect(reconcileReason(base, at(80), { planIntervalMs: 25 * MIN })).toBeNull();
+    expect(reconcileReason(base, at(100), { planIntervalMs: 25 * MIN })).toBe('stale');
+    // orçamento LIVE esgotado: não gasta com "parado" (o relógio encerra e ele volta como não confirmado)
+    expect(reconcileReason(base, at(100), { liveBudgetExhausted: true })).toBeNull();
+    // nunca visto depois do apito (a última observação é a agenda do sync): espera o relógio encerrar
+    const unseen = {
+      ...base,
+      status: 'live' as const,
+      statusSource: 'temporal' as const,
+      lastValidAt: at(-600),
+    };
+    expect(reconcileReason(unseen, at(100))).toBeNull();
+    // fora do ao vivo (prioridade baixa): idem, mesmo parado; com LIVE_MIN_PRIORITY=low, entra
+    const low = { ...base, livePriority: 'low' as const };
+    expect(reconcileReason(low, at(100))).toBeNull();
+    expect(reconcileReason(low, at(100), { minPriority: 'low' })).toBe('stale');
+    // encerrado pelo relógio: sempre, em qualquer prioridade; da fonte, nunca
+    const clock = { ...low, status: 'finished' as const, statusSource: 'temporal' as const };
+    expect(reconcileReason(clock, at(120))).toBe('unconfirmed');
+    expect(reconcileReason({ ...clock, statusSource: 'provider' }, at(120), { force: true })).toBeNull();
+    expect(reconcileTargets([{ ...clock, statusSource: 'provider' }], at(120), { force: true })).toEqual([]);
+    // botão de pânico: todo jogo em andamento
+    expect(reconcileReason(low, at(10), { force: true })).toBe('forced');
+    expect(reconcileTargets([low], at(90))).toEqual([]);
+    expect(reconcileTargets([low, clock], at(90), { force: true })).toEqual([low, clock]);
   });
 });

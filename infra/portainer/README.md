@@ -167,7 +167,7 @@ tempo limite, sem sobreposição e registrado em `ops.job_run` (alimenta as mét
 |---|---|---|---|
 | `sync-daily` | `5 0 * * *` | `dist/cli/sync-daily.js` | DAILY (agenda D-1/D0/D+1, lesões, detalhes, rodízio) direto ao core + tabelas calculadas; idempotente no dia |
 | `live-run` | `*/5 * * * *` | `dist/cli/live-run.js` | LIVE: planeja o orçamento do dia (LIVE = 0 sem jogos relevantes) e roda o poller enquanto houver janela |
-| `live-reconcile` | `*/10 * * * *` | `dist/cli/live-reconcile.js` | LIVE: `fixtures?id=` só dos jogos em andamento sem observação há 30 min (ou fora do ao vivo e além do fim previsto); no "rodar agora" do painel, `--forcar` confere todos (até 60) |
+| `live-reconcile` | `*/10 * * * *` | `dist/cli/live-reconcile.js` | LIVE: `fixtures?id=` só dos jogos encerrados pelo relógio sem placar da fonte (1 por jogo) e dos acompanhados pelo ao vivo sem observação há 30 min (ou 2× o intervalo do plano); no "rodar agora" do painel, `--forcar` confere todos (até 60) |
 | `normalize-football` | `35 0 * * *` | `dist/cli/normalize-football.js` | 0 (raw → core incremental) |
 | `events-clock` | `* * * * *` | `dist/cli/events-clock.js` | 0 (transições de estado pelo horário previsto) |
 | `events-importance` | `20 * * * *` | `dist/cli/events-importance.js --esporte football --proximos-dias 7` | 0 (sinais da tabela pelo motor de regras e prestígio do catálogo na importância, docs/06 §3.1) |
