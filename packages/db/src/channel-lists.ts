@@ -8,7 +8,7 @@
  * - `setChannelListOverrides` e `confirmChannelList`: o cliente corrige e confirma no portal;
  * - `getConfirmedChannelList`: o que a API serve no onde assistir.
  */
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, lte, or, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
   tenantChannelList,
@@ -100,7 +100,8 @@ export async function saveChannelListAi(
     processedAt: Date;
     revision: number;
     proposed: StoredChannelMatch[];
-    aiStatus: Extract<ChannelListAiStatus, 'done' | 'failed'>;
+    /** `pending` = a rodada parou no teto de pedidos por lista; o próximo job continua. */
+    aiStatus: Extract<ChannelListAiStatus, 'done' | 'failed' | 'pending'>;
     aiNote: string | null;
   },
 ): Promise<boolean> {
@@ -202,17 +203,34 @@ export async function deleteChannelList(db: Database, tenantId: string): Promise
   return rows.length > 0;
 }
 
+/** Intervalo mínimo desde a última tentativa antes de refazer uma lista que falhou. */
+export const CHANNEL_LIST_FAILED_RETRY_MS = 30 * 60_000;
+
 /**
  * Listas com sobras esperando a IA, as mais antigas primeiro; com `retryFailed`, as que falharam vêm
- * depois de todas as pendentes, pela tentativa mais antiga (`updatedAt`): lista que falha sempre não
- * trava a fila nem as outras que falharam.
+ * depois de todas as pendentes, pela tentativa mais antiga (`updatedAt`), e só depois de
+ * `failedRetryAfterMs` desde ela: lista que falha sempre não trava a fila nem gasta toda rodada.
  */
 export async function listChannelListsForAi(
   db: Database,
-  opts: { limit?: number; retryFailed?: boolean; tenantIds?: string[] } = {},
+  opts: {
+    limit?: number;
+    retryFailed?: boolean;
+    tenantIds?: string[];
+    failedRetryAfterMs?: number;
+    now?: Date;
+  } = {},
 ): Promise<TenantChannelList[]> {
-  const statuses: ChannelListAiStatus[] = opts.retryFailed ? ['pending', 'failed'] : ['pending'];
-  const conds = [inArray(tenantChannelList.aiStatus, statuses)];
+  const cutoff = new Date(
+    (opts.now ?? new Date()).getTime() - (opts.failedRetryAfterMs ?? CHANNEL_LIST_FAILED_RETRY_MS),
+  );
+  const status = opts.retryFailed
+    ? or(
+        eq(tenantChannelList.aiStatus, 'pending'),
+        and(eq(tenantChannelList.aiStatus, 'failed'), lte(tenantChannelList.updatedAt, cutoff)),
+      )!
+    : eq(tenantChannelList.aiStatus, 'pending');
+  const conds = [status];
   if (opts.tenantIds?.length) conds.push(inArray(tenantChannelList.tenantId, opts.tenantIds));
   return db
     .select()

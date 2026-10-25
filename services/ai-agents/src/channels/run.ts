@@ -2,7 +2,9 @@
  * Job `channel-lists` (docs/07 §2.2.3): para cada lista de canais com sobras, refaz o casamento por
  * código, manda só as sobras de cada país para o modelo (Gemini por padrão), passa a saída pelo
  * validador determinístico e grava. Falha do provedor não perde nada: a lista fica `failed` com o
- * casamento por código e volta no próximo job com `--repetir-falhas`.
+ * casamento por código e volta no próximo job com `--repetir-falhas`. Cada lista faz no máximo
+ * `CHANNEL_LIST_MAX_BATCHES` pedidos por rodada: o resto fica para a próxima (a lista segue
+ * `pending`, com as decisões já feitas gravadas e reaproveitadas).
  */
 import { listChannelListsForAi, saveChannelListAi, type Database, type TenantChannelList } from '@galaxie/db';
 import {
@@ -13,11 +15,14 @@ import {
   channelMatchInput,
   channelMatchSchema,
   processChannelList,
+  rightKey,
   universeRights,
+  validateAiMatches,
   type AiBatch,
   type ChannelMatchOutput,
   type ChannelOverride,
   type ClientChannel,
+  type RightMatch,
   type WtwConfig,
   type WtwCountry,
 } from '@galaxie/where-to-watch';
@@ -25,9 +30,12 @@ import type { LlmClient } from '../llm/types.js';
 
 export interface ChannelListOutcome {
   tenantId: string;
-  outcome: 'done' | 'failed' | 'stale';
-  /** Pedidos ao modelo (um por país com sobras). */
+  /** `partial` = gravada, mas com pedidos para a próxima rodada (segue `pending`). */
+  outcome: 'done' | 'partial' | 'failed' | 'stale';
+  /** Pedidos ao modelo nesta rodada (um ou mais por país com sobras, até o teto por lista). */
   batches: number;
+  /** Pedidos que passaram do teto e ficaram para a próxima rodada. */
+  deferred: number;
   /** Direitos que a IA casou com canal (depois do validador). */
   matchedByAi: number;
   violations: string[];
@@ -42,10 +50,18 @@ export interface ChannelListRunOptions {
   max?: number;
   tenantIds?: string[];
   retryFailed?: boolean;
+  /** Teto de pedidos ao modelo por lista nesta rodada (padrão `CHANNEL_LIST_MAX_BATCHES`). */
+  maxBatches?: number;
   log?: (msg: string) => void;
 }
 
-/** Listas que o job pegaria (sem chamar o modelo). */
+/** Pedidos ao modelo por lista numa rodada (lista enorme não come a rodada nem o orçamento do dia). */
+export const CHANNEL_LIST_MAX_BATCHES = 6;
+
+/**
+ * Listas que o job pegaria (sem chamar o modelo). Com `--tenant`, a falha volta na hora (sem o
+ * intervalo mínimo entre tentativas do job agendado).
+ */
 export function pendingChannelLists(
   db: Database,
   opts: Pick<ChannelListRunOptions, 'max' | 'tenantIds' | 'retryFailed'> = {},
@@ -53,7 +69,7 @@ export function pendingChannelLists(
   return listChannelListsForAi(db, {
     limit: opts.max ?? 10,
     retryFailed: opts.retryFailed ?? false,
-    ...(opts.tenantIds?.length ? { tenantIds: opts.tenantIds } : {}),
+    ...(opts.tenantIds?.length ? { tenantIds: opts.tenantIds, failedRetryAfterMs: 0 } : {}),
   });
 }
 
@@ -70,13 +86,20 @@ export function processInputOf(row: TenantChannelList, config: WtwConfig, dict: 
   };
 }
 
-/** Um pedido ao modelo por país: só índices e enums na saída (o validador confere depois). */
+/**
+ * Um pedido ao modelo por lote (as sobras de um país, ou parte delas acima do limite de canais): só
+ * índices e enums na saída (o validador confere depois). O `purpose` leva o país e o número do lote
+ * no país (`:CO:1`, `:CO:2`), para cada pedido ter a sua linha no ops.llm_usage.
+ */
 export function channelMatcher(
   llm: LlmClient,
   tenantId: string,
   onCall: (costUsd: number | undefined) => void = () => {},
 ): (batch: AiBatch) => Promise<ChannelMatchOutput> {
+  const perCountry = new Map<string, number>();
   return async (batch) => {
+    const n = (perCountry.get(batch.country) ?? 0) + 1;
+    perCountry.set(batch.country, n);
     const result = await llm.generateJson<ChannelMatchOutput>({
       tier: 'standard',
       system: CHANNEL_MATCH_SYSTEM,
@@ -85,7 +108,7 @@ export function channelMatcher(
       schemaName: CHANNEL_MATCH_SCHEMA_NAME,
       maxOutputTokens: 4_000,
       temperature: 0,
-      purpose: `${CHANNEL_MATCH_PROMPT_VERSION}:${tenantId}:${batch.country}`,
+      purpose: `${CHANNEL_MATCH_PROMPT_VERSION}:${tenantId}:${batch.country}:${n}`,
     });
     onCall(result.usage.costUsd);
     return result.data;
@@ -95,6 +118,7 @@ export function channelMatcher(
 export async function runChannelLists(opts: ChannelListRunOptions): Promise<ChannelListOutcome[]> {
   const log = opts.log ?? (() => {});
   const dict = new ChannelDictionary(opts.config);
+  const cap = Math.max(1, opts.maxBatches ?? CHANNEL_LIST_MAX_BATCHES);
   const rows = await pendingChannelLists(opts.db, opts);
   const outcomes: ChannelListOutcome[] = [];
   for (const row of rows) {
@@ -104,47 +128,68 @@ export async function runChannelLists(opts: ChannelListRunOptions): Promise<Chan
       calls++;
       if (usd !== undefined) cost = (cost ?? 0) + usd;
     });
-    const input = processInputOf(row, opts.config, dict);
+    // código e correções do cliente, sem IA: as sobras saem em `plan.batches`
+    const plan = await processChannelList(processInputOf(row, opts.config, dict));
+    const leftover = new Set(plan.batches.flatMap((b) => b.rights.map(rightKey)));
+    // decisões da IA já gravadas nas sobras (rodada que parou no teto, ou correção que reabriu a
+    // lista): valem, e só os lotes com direito ainda sem decisão vão ao modelo
+    const fromAi = new Map(
+      row.proposed
+        .filter((m) => m.origin === 'ia' && leftover.has(rightKey(m)))
+        .map((m) => [rightKey(m), m as RightMatch]),
+    );
+    const todo = plan.batches.filter((b) => b.rights.some((r) => !fromAi.has(rightKey(r))));
+    const batches = todo.slice(0, cap);
+    const deferred = todo.length - batches.length;
+    const merged = () => plan.matches.map((m) => fromAi.get(rightKey(m)) ?? m);
     try {
-      const res = await processChannelList(input, ai);
-      const omitted = res.batches.reduce((n, b) => n + b.omittedChannels, 0);
+      const violations: string[] = [];
+      for (const batch of batches) {
+        const v = validateAiMatches(batch, await ai(batch), dict);
+        for (const m of v.matches) fromAi.set(rightKey(m), m);
+        violations.push(...v.violations);
+      }
+      const omitted = plan.batches.reduce((n, b) => n + b.omittedChannels, 0);
       const note = [
-        res.batches.length ? `prompt ${CHANNEL_MATCH_PROMPT_VERSION}` : null,
-        res.violations.length
-          ? `${res.violations.length} violação(ões) do validador: ${res.violations.slice(0, 3).join('; ')}`
+        plan.batches.length ? `prompt ${CHANNEL_MATCH_PROMPT_VERSION}` : null,
+        violations.length
+          ? `${violations.length} violação(ões) do validador: ${violations.slice(0, 3).join('; ')}`
           : null,
         omitted ? `${omitted} canal(is) acima do limite por direito ficaram de fora` : null,
+        deferred ? `${deferred} pedido(s) para a próxima rodada` : null,
       ]
         .filter(Boolean)
         .join(' · ');
+      const matches = merged();
       const saved = await saveChannelListAi(opts.db, row.tenantId, {
         processedAt: row.processedAt,
         revision: row.revision,
-        proposed: res.matches,
-        aiStatus: 'done',
+        proposed: matches,
+        aiStatus: deferred ? 'pending' : 'done',
         aiNote: note || null,
       });
-      const matchedByAi = res.matches.filter((m) => m.origin === 'ia' && m.channels.length).length;
+      const matchedByAi = matches.filter((m) => m.origin === 'ia' && m.channels.length).length;
       outcomes.push({
         tenantId: row.tenantId,
-        outcome: saved ? 'done' : 'stale',
+        outcome: saved ? (deferred ? 'partial' : 'done') : 'stale',
         batches: calls,
+        deferred,
         matchedByAi,
-        violations: res.violations,
+        violations,
         costUsd: cost,
       });
       log(
         `${row.tenantId}: ${saved ? 'gravado' : 'lista mudou no meio, nada gravado'} — ${calls} pedido(s), ` +
-          `${matchedByAi} casado(s) pela IA, ${res.violations.length} violação(ões)`,
+          `${matchedByAi} casado(s) pela IA, ${violations.length} violação(ões)` +
+          (deferred ? `; ${deferred} pedido(s) acima do teto de ${cap} ficaram para a próxima rodada` : ''),
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      // o casamento por código continua valendo; a IA tenta de novo depois
-      const fallback = await processChannelList(input);
+      // o casamento por código (e o que a IA já tinha decidido) continua valendo; a IA tenta de novo depois
       await saveChannelListAi(opts.db, row.tenantId, {
         processedAt: row.processedAt,
         revision: row.revision,
-        proposed: fallback.matches,
+        proposed: merged(),
         aiStatus: 'failed',
         aiNote: `IA indisponível: ${message.slice(0, 300)}`,
       });
@@ -152,6 +197,7 @@ export async function runChannelLists(opts: ChannelListRunOptions): Promise<Chan
         tenantId: row.tenantId,
         outcome: 'failed',
         batches: calls,
+        deferred,
         matchedByAi: 0,
         violations: [],
         costUsd: cost,

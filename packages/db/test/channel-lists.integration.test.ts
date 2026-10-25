@@ -149,7 +149,7 @@ describe('setChannelListOverrides', () => {
 });
 
 describe('listChannelListsForAi', () => {
-  it('pendentes antes das que falharam; entre as falhas, a tentativa mais antiga primeiro', async () => {
+  it('pendentes antes das que falharam; entre as falhas, a tentativa mais antiga primeiro e com intervalo', async () => {
     const at = (min: number) => new Date(Date.UTC(2026, 9, 1, 12, min));
     const failed: string[] = [];
     // três listas que falham sempre, enviadas antes da pendente
@@ -166,8 +166,15 @@ describe('listChannelListsForAi', () => {
     await upload(pending, at(20));
     const ids = [...failed, pending];
 
-    const order = async (limit: number) =>
-      (await listChannelListsForAi(db, { limit, retryFailed: true, tenantIds: ids })).map((r) => r.tenantId);
+    const order = async (limit: number, failedRetryAfterMs?: number) =>
+      (
+        await listChannelListsForAi(db, {
+          limit,
+          retryFailed: true,
+          tenantIds: ids,
+          ...(failedRetryAfterMs !== undefined ? { failedRetryAfterMs } : {}),
+        })
+      ).map((r) => r.tenantId);
     // com o limite menor que as falhas, a pendente entra mesmo assim
     expect(await order(2)).toEqual([pending, failed[0]]);
     expect(await order(10)).toEqual([pending, ...failed]);
@@ -180,7 +187,10 @@ describe('listChannelListsForAi', () => {
       aiStatus: 'failed',
       aiNote: 'IA indisponível: teste',
     });
-    expect(await order(10)).toEqual([pending, failed[1], failed[2], failed[0]]);
+    // ela só volta depois do intervalo mínimo desde a tentativa (30 min por padrão)...
+    expect(await order(10)).toEqual([pending, failed[1], failed[2]]);
+    // ...e então vem atrás das outras falhas
+    expect(await order(10, 0)).toEqual([pending, failed[1], failed[2], failed[0]]);
     // sem --repetir-falhas, só as pendentes
     expect((await listChannelListsForAi(db, { tenantIds: ids })).map((r) => r.tenantId)).toEqual([pending]);
   });
