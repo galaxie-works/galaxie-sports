@@ -62,6 +62,25 @@ export function domainHost(domain: string): string {
     .replace(/^www\./, '');
 }
 
+/**
+ * Hosts de uma allowlist sem os subdomínios que um domínio da própria lista já cobre (as buscas e o
+ * guarda de URL aceitam subdomínios): `sportv.globo.com` sai quando `globo.com` está na lista. O
+ * domínio que cobre fica na posição do primeiro host coberto, para não perder prioridade no corte.
+ */
+export function collapseHosts(domains: Iterable<string>): string[] {
+  const hosts = [...new Set([...domains].map(domainHost))];
+  const all = new Set(hosts);
+  const cover = (h: string): string => {
+    const parts = h.split('.');
+    for (let i = parts.length - 2; i >= 1; i--) {
+      const parent = parts.slice(i).join('.');
+      if (all.has(parent)) return parent;
+    }
+    return h;
+  };
+  return [...new Set(hosts.map(cover))];
+}
+
 /** Sufixos de segundo nível usados na região (com.br, com.ar...). */
 const SECOND_LEVEL = new Set(['com', 'org', 'net', 'gob', 'gov', 'edu', 'co', 'tv', 'uol']);
 

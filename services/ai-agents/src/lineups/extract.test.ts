@@ -59,7 +59,7 @@ describe('página oficial renderizada × gabarito do dono do produto', () => {
     const out = extractPlanGrade({ text: page.text, sections: [] }, 'Plano TV', plans, ctx);
     expect([out.gradeFrom, out.channels]).toEqual([null, []]);
     // inclusos e preço continuam do cartão
-    expect(out.services.sort()).toEqual(['prime_video']);
+    expect(out.services.sort()).toEqual(['nfl_game_pass', 'prime_video']);
     expect(out.price).toBe(99.9);
   });
 
@@ -76,9 +76,11 @@ describe('página oficial renderizada × gabarito do dono do produto', () => {
       ['paramount_plus', 'service', null, 34.9, null],
       ['premiere', 'service', null, 59.9, null],
       ['premiere', 'service', null, 49.9, 12],
+      ['sportynet', 'service', null, 29.9, null],
+      ['telecine', 'service', null, 29.9, null],
     ]);
-    // o que o dicionário ainda não conhece vai para a curadoria
-    expect(unknown).toEqual(['Telecine', 'SportyNet+']);
+    // o dicionário conhece todos os complementos da página (o que não conhecesse iria para a curadoria)
+    expect(unknown).toEqual([]);
     // conferência com o gabarito: todas as ofertas conhecidas, com o preço certo
     for (const c of readGabarito().complementos) {
       const id = dir.resolve(c.nome.replace(/\+$/, ''), DAY)?.entry.id;

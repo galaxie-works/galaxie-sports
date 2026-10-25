@@ -234,6 +234,12 @@ export interface AvailabilityOptions extends LineupReadOptions {
   includeStreaming?: boolean;
   /** Data de vigência dos planos (padrão: hoje, UTC). */
   at?: Date;
+  /**
+   * Canais numerados do jogo por id da biblioteca (`{ espn: ['ESPN 4'] }`). Um complemento de canal
+   * ("ESPN 6") só entra quando o jogo passa nesse canal: sem isso, ele não colapsa na emissora
+   * e um plano que já tem a ESPN não ganha "ESPN 6 como complemento" num jogo da ESPN 4.
+   */
+  channelNames?: Record<string, readonly (string | null)[]>;
 }
 
 export interface PlatformLineup {
@@ -743,7 +749,16 @@ export async function availabilityForChannels(
         pe.services.push({ serviceId: p.broadcasterId!, access: 'included' });
     }
   }
-  for (const r of viaAddon) entry(r.platform).addons.push(r.addon);
+  const gameChannels = new Map(
+    Object.entries(opts.channelNames ?? {}).map(([id, names]) => [
+      id,
+      new Set(names.flatMap((n) => (n ? [lineupSlug(n)] : []))),
+    ]),
+  );
+  // complemento de canal: só com o canal do jogo; o de serviço/emissora inteira vale pela emissora
+  const addonMatches = (a: LineupAddon) =>
+    !a.channel || !!gameChannels.get(a.refId)?.has(lineupSlug(a.channel));
+  for (const r of viaAddon) if (addonMatches(r.addon)) entry(r.platform).addons.push(r.addon);
   const rank = (id: string) => order.get(id) ?? Number.MAX_SAFE_INTEGER;
   return [...out.values()]
     .map((e) => ({
