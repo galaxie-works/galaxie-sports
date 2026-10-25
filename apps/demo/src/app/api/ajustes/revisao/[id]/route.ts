@@ -2,8 +2,10 @@
  * Um item da revisão semântica (admin). GET: conteúdo, original da tradução, prévia do que a API
  * serviria, histórico e o piso editorial da API (`serving`, para dizer se o item é servido hoje). POST `{ action, comment?, fields? }`: aprovar (`approve`), voltar para rascunho
  * (`draft`) ou sugerir edição (`suggest`, com comentário obrigatório e edição proposta opcional). Cada
- * ação fica na auditoria com quem fez e quando, e a API reflete a decisão na hora (docs/06 §2.1).
+ * ação fica na auditoria com quem fez e quando, e a API reflete a decisão na hora (docs/06 §2.1); o cache
+ * da demo também é revalidado na hora com as tags da mudança.
  */
+import { revalidateApiTags } from '@/lib/cache/revalidate';
 import { requireAdminApi } from '@/lib/review/guard';
 import { previewFor } from '@/lib/review/preview';
 import {
@@ -60,13 +62,15 @@ export async function POST(request: Request, { params }: Ctx) {
   if (body.comment != null && typeof body.comment !== 'string')
     return Response.json({ code: 'invalid_fields' }, { status: 400, headers: NO_STORE });
   try {
-    const result = await decideReview({
+    const { tags, ...result } = await decideReview({
       itemId: decodeURIComponent(id),
       action: body.action as ReviewAction,
       comment: (body.comment as string | null | undefined) ?? null,
       fields: (body.fields as Record<string, unknown> | null | undefined) ?? null,
       actor,
     });
+    // a página do item (perfil do piloto, clássico...) já mostra a decisão na próxima visita
+    revalidateApiTags(tags);
     return Response.json({ data: result }, { headers: NO_STORE });
   } catch (err) {
     return failure(err);
