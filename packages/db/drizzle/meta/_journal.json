@@ -260,6 +260,13 @@
       "when": 1792877429966,
       "tag": "0036_grade_validacao_paginas",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792877489966,
+      "tag": "0037_standing_inscricao",
+      "breakpoints": true
     }
   ]
 }

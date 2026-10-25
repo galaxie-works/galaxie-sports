@@ -24,6 +24,8 @@ export const F1DB_TABLES = [
   'season_constructor_standing',
   // acervo de fotos (assets:commons): pilotos por equipe e chassi de cada temporada
   'season_entrant_driver',
+  // nome de época da equipe: a inscrição de cada piloto na temporada (Daimler Benz AG, Honda Marlboro McLaren)
+  'entrant',
   'season_entrant_chassis',
   'chassis',
 ] as const;

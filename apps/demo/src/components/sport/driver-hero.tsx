@@ -31,17 +31,20 @@ export async function DriverHero({
   name,
   country,
   career,
+  year,
   children,
 }: {
   name: string;
   country: { code: string; name: string; href: string | null } | null;
   career: RaceCareer;
+  /** Temporada escolhida no seletor (passada); sem ela, a atual ou, na lenda, a mais marcante. */
+  year?: number | undefined;
   /** Seletor de temporada e avisos da página, abaixo do nome. */
   children?: React.ReactNode;
 }) {
   const { locale, t } = await getI18n();
   const tx = t.race.hero;
-  const { season, car, portrait } = heroPhotos(career);
+  const { season, car, portrait } = heroPhotos(career, year);
   const team = season?.teams[0] ?? null;
   const number = heroNumber(career, season);
   const { first, last } = nameParts(career, name);

@@ -131,6 +131,61 @@ describe('temporada do carro no heading do piloto', () => {
     });
   });
 
+  describe('temporada escolhida no seletor', () => {
+    const team = (id: string, name: string) => ({ id, name, logo: null });
+    const alfa = { url: 'https://cdn/alfa-158.jpg', credit: { share_alike: false } } as Photo;
+    // Farina: campeão de 1950 pela Alfa Romeo (o destaque); em 1955, Ferrari e Lancia
+    const farina = {
+      ...career([
+        season(1955, {
+          position: 9,
+          number: 2,
+          teams: [team('ferrari', 'Scuderia Ferrari'), team('lancia', 'Scuderia Lancia')],
+        }),
+        season(1950, { position: 1, wins: 3, number: 2, teams: [team('alfa', 'Alfa Romeo SpA')], car: alfa }),
+      ]),
+      current_season: null,
+      portrait: null,
+      highlight: { season: 1950, car: alfa },
+    } as RaceCareer;
+
+    it('o heading mostra a equipe e o número do ano escolhido, não os do destaque (Farina, 1955)', () => {
+      const shots = heroPhotos(farina, 1955);
+      expect(shots.season?.year).toBe(1955);
+      expect(shots.season?.teams[0]?.name).toBe('Scuderia Ferrari');
+      expect(heroNumber(farina, shots.season)).toBe(2);
+      // o carro da Alfa não vai ao fundo sob a cor da Ferrari
+      expect(shots.car).toBeNull();
+      // sem ano escolhido, o destaque do acervo
+      expect(heroPhotos(farina).season?.year).toBe(1950);
+    });
+
+    it('Fangio em 1958: Maserati e 2, não a Mercedes de 1954 do destaque', () => {
+      const merc = { url: 'https://cdn/w196.jpg', credit: { share_alike: false } } as Photo;
+      const fangio = {
+        ...career([
+          season(1958, { number: 2, teams: [team('maserati', 'Maserati')] }),
+          season(1954, {
+            position: 1,
+            wins: 6,
+            number: 18,
+            teams: [team('mercedes', 'Daimler Benz AG')],
+            car: merc,
+          }),
+        ]),
+        current_season: null,
+        portrait: null,
+        highlight: { season: 1954, car: merc },
+      } as RaceCareer;
+      const shots = heroPhotos(fangio, 1958);
+      expect(shots.season?.teams[0]?.name).toBe('Maserati');
+      expect(heroNumber(fangio, shots.season)).toBe(2);
+      expect(heroPhotos(fangio, 1954).season?.teams[0]?.name).toBe('Daimler Benz AG');
+      // ano fora da carreira: a regra de sempre
+      expect(heroPhotos(fangio, 1990).season?.year).toBe(1954);
+    });
+  });
+
   it('anos de carreira', () => {
     expect(careerSpan(senna)).toEqual({ from: 1984, to: 1993 });
     expect(careerSpan(career([season(2026, { races: 0 })]))).toBeNull();
