@@ -128,7 +128,7 @@ describe('runAssetMirror', () => {
       return put(key, ...rest);
     };
     const report = await runAssetMirror({ assets, objects, fetcher, clock, concurrency: 2, delayMs: 10 });
-    expect(report).toMatchObject({ pending: 4, stored: 3, failed: 1, aborted: null });
+    expect(report).toMatchObject({ pending: 4, stored: 3, failed: 1, errors: 1, aborted: null });
     expect(report.failures).toEqual([{ url: urls[0], reason: 'storage fora do ar' }]);
     // o que falhou continua pendente; os outros foram gravados (no storage e no banco)
     expect((await assets.pending()).map((a) => a.sourceUrl)).toEqual([urls[0]]);

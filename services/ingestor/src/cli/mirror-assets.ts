@@ -169,14 +169,13 @@ try {
         failures: report.failures.slice(0, 50),
         notFoundUrls: report.notFoundUrls.slice(0, 50),
       };
+      // erro inesperado (storage, banco) não é falha transitória da CDN: o job fica com erro mesmo sem abortar
+      const error =
+        report.aborted ??
+        (report.errors ? `${report.errors} assets falharam com erro inesperado (ver stats.failures)` : null);
       await db
         .update(jobRun)
-        .set({
-          status: report.aborted ? 'error' : 'ok',
-          finishedAt: new Date(),
-          stats,
-          error: report.aborted,
-        })
+        .set({ status: error ? 'error' : 'ok', finishedAt: new Date(), stats, error })
         .where(eq(jobRun.id, run!.id));
       console.log(
         `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · fotos genéricas: ${report.placeholders} · logos genéricos: ${report.placeholderLogos} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
@@ -192,7 +191,10 @@ try {
       if (ASSETS_PUBLIC_BASE_URL) {
         console.log(`URLs públicas: ${publicAssetUrl('<storage_key>', ASSETS_PUBLIC_BASE_URL)}`);
       }
-      if (report.aborted) process.exitCode = 1;
+      if (error) {
+        if (!report.aborted) console.warn(error);
+        process.exitCode = 1;
+      }
     } catch (err) {
       await db
         .update(jobRun)

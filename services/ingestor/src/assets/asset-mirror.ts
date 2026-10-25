@@ -77,6 +77,8 @@ export interface MirrorReport {
   /** Fotos genéricas que já estavam no storage (hash catalogado depois) e viraram "sem foto". */
   photoCleanup: number;
   failed: number;
+  /** Das falhas, as por erro inesperado (storage, banco): a execução termina, mas o job fica com erro. */
+  errors: number;
   /** Já espelhados que entraram na lista de bloqueio e foram desvinculados. */
   unlinked: number;
   bytes: number;
@@ -112,6 +114,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     logoCleanup: { placeholders: 0, participants: 0, competitions: 0 },
     photoCleanup: 0,
     failed: 0,
+    errors: 0,
     unlinked: 0,
     bytes: 0,
     aborted: null,
@@ -231,6 +234,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
         consecutiveErrors += 1;
         const reason = err instanceof Error ? err.message : String(err);
         report.failed += 1;
+        report.errors += 1;
         report.failures.push({ url: item.sourceUrl, reason });
         emit({ type: 'failed', asset: item, reason });
         if (consecutiveErrors >= abortAfter && !report.aborted) {
