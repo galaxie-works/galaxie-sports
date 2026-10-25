@@ -112,6 +112,7 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `LOG_LEVEL` | não | `info` | `debug` mostra também as respostas servidas do raw |
 | `METRICS_TOKEN` | recomendado | vazio | Bearer exigido em `/metrics` (o Prometheus da stack já envia) |
 | `LIVE_POLL_INTERVAL_SECONDS` | não | `300` | Intervalo esperado do ao vivo (placeholder até o Live Scheduler) |
+| `TRUST_PROXY` | não | `uniquelocal` | Proxies confiáveis para o IP real do cliente (o Caddy, na rede interna). Nunca vazio atrás do Caddy (todos os clientes teriam o IP dele e dividiriam o mesmo limite por IP) nem `true` (confia no 1º endereço do `X-Forwarded-For`, forjável) |
 | `WEBHOOK_SIGNING_SECRET` | não | vazio | KEK que cifra os segredos dos webhooks no banco (worker e CLI `webhook`; SECURITY.md › Webhooks) |
 | `BACKUP_TIME` | não | `03:30` | Horário do dump diário (UTC) |
 | `BACKUP_RETENTION_DAYS` | não | `30` | Retenção local |
