@@ -4,7 +4,8 @@ import type { Event } from '@galaxie/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, CircleAlert } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { CompetitionCountry } from '@/components/sport/competition-country';
@@ -26,8 +27,22 @@ import { plural } from '@/lib/i18n/text';
 import { SPORTS } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
+import { LiveFilterBar } from './live-filter-bar';
+import {
+  hasLiveFilters,
+  liveFilterOptions,
+  liveFiltersSearch,
+  matchesLiveFilters,
+  parseLiveFilters,
+  showsStatus,
+  type LiveFilters,
+} from './live-filters';
 import { RefreshTimer } from './refresh-timer';
 import { useLiveRefresh } from './use-live-refresh';
+
+/** Próximos apitos buscados (a base das opções e do filtro) e quantos aparecem depois de filtrar. */
+const UPCOMING_FETCH = 100;
+const UPCOMING_SHOWN = 12;
 
 interface CompetitionGroup {
   key: string;
@@ -114,48 +129,85 @@ function LiveCard({ event }: { event: Event }) {
   );
 }
 
-function UpcomingKickoffs() {
-  const { locale, t } = useI18n();
-  const { data, isLoading } = useQuery({
-    queryKey: UPCOMING_KEY,
-    queryFn: () => fetchUpcoming(locale, 6),
-    staleTime: 60_000,
-  });
-  if (isLoading)
-    return (
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 3 }, (_, i) => (
-          <Skeleton key={i} className="h-44" />
-        ))}
-      </div>
-    );
-  if (!data?.length) return null;
+function CardsSkeleton({ count }: { count: number }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: count }, (_, i) => (
+        <Skeleton key={i} className="h-44" />
+      ))}
+    </div>
+  );
+}
+
+/** Enquanto a página não lê a URL (os filtros): o mesmo esqueleto do carregamento. */
+export function LiveBoardFallback() {
+  return <CardsSkeleton count={6} />;
+}
+
+/** Próximos apitos, já filtrados. Sem filtro e sem jogo marcado, a seção não aparece. */
+function UpcomingKickoffs({
+  events,
+  loading,
+  filtered,
+}: {
+  events: Event[];
+  loading: boolean;
+  filtered: boolean;
+}) {
+  const { t } = useI18n();
+  if (loading) return <CardsSkeleton count={3} />;
+  if (!events.length && !filtered) return null;
   return (
     <Section title={t.live.board.upcoming} icon={<CalendarClock className="size-4" aria-hidden />}>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {data.map((e) => (
-          <ClientEventCard key={e.id} event={e} />
-        ))}
-      </div>
+      {events.length ? (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {events.slice(0, UPCOMING_SHOWN).map((e) => (
+            <ClientEventCard key={e.id} event={e} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-sm">{t.live.filters.upcomingEmpty}</p>
+      )}
     </Section>
   );
 }
 
 /**
+ * Grava os filtros na URL sem nova requisição ao servidor. O estado `null` é o que faz o Next sincronizar
+ * o `useSearchParams` (com o estado interno dele, a chamada passa como se fosse do próprio roteador).
+ */
+function writeFilters(filters: LiveFilters) {
+  const { pathname, search, hash } = window.location;
+  window.history.replaceState(null, '', `${pathname}${liveFiltersSearch(filters, search)}${hash}`);
+}
+
+/**
  * Página Ao vivo: tudo que está em andamento agora, por esporte e competição, com placar e relógio que
  * se atualizam sozinhos (SSE do /v1/stream + verificação periódica) e o contador da cadência no topo.
+ * A barra de filtros (status, esporte, país e competição, na URL) recorta os jogos ao vivo e os próximos
+ * no navegador: a consulta e o SSE continuam sobre todos os jogos ao vivo (a sidebar divide a consulta).
  */
 export function LiveBoard({ api }: { api: ApiRequest }) {
   const { locale, t } = useI18n();
   const tb = t.live.board;
+  const searchParams = useSearchParams();
+  const filters = useMemo(() => parseLiveFilters(searchParams), [searchParams]);
+  const filtered = hasLiveFilters(filters);
   const q = useQuery({
     queryKey: LIVE_EVENTS_KEY,
     queryFn: () => fetchLiveEvents(locale),
     staleTime: 10_000,
   });
+  const up = useQuery({
+    queryKey: UPCOMING_KEY,
+    queryFn: () => fetchUpcoming(locale, UPCOMING_FETCH),
+    staleTime: 60_000,
+  });
   const hydrated = useHydrated();
   const data = hydrated ? q.data : undefined;
   const events = useMemo(() => data ?? [], [data]);
+  const upData = hydrated ? up.data : undefined;
+  const upcoming = useMemo(() => upData ?? [], [upData]);
   const refresh = useLiveRefresh({
     queryKey: LIVE_EVENTS_KEY,
     eventIds: events.map((e) => e.id),
@@ -170,39 +222,49 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
       .sort((a, b) => Date.parse(b) - Date.parse(a));
     return times[0] ?? null;
   }, [events]);
-  const groups = useMemo(
-    () =>
-      groupLive(events, (slug) => {
-        const nav = SPORTS.find((s) => s.slug === slug);
-        return nav ? t.nav.sports[nav.slug] : slug;
-      }),
-    [events, t],
+  const sportLabel = useCallback(
+    (slug: string) => {
+      const nav = SPORTS.find((s) => s.slug === slug);
+      return nav ? t.nav.sports[nav.slug] : slug;
+    },
+    [t],
+  );
+  const shown = useMemo(() => events.filter((e) => matchesLiveFilters(e, filters)), [events, filters]);
+  const upcomingShown = useMemo(
+    () => upcoming.filter((e) => matchesLiveFilters(e, filters)),
+    [upcoming, filters],
+  );
+  const groups = useMemo(() => groupLive(shown, sportLabel), [shown, sportLabel]);
+  const options = useMemo(
+    () => liveFilterOptions([...events, ...upcoming], filters, sportLabel),
+    [events, upcoming, filters, sportLabel],
   );
 
   return (
     <div className="flex flex-col gap-6">
+      <LiveFilterBar filters={filters} options={options} onChange={writeFilters} />
       <RefreshTimer state={refresh} sourceLastAt={sourceLastAt} className="sticky top-16 z-[5]" />
 
-      {!hydrated || q.isPending ? (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-44" />
-          ))}
-        </div>
+      {!showsStatus(filters, 'live') ? null : !hydrated || q.isPending ? (
+        <CardsSkeleton count={6} />
       ) : q.isError && !data ? (
         <EmptyState title={tb.errorTitle} description={tb.errorDescription}>
           <CircleAlert className="text-muted-foreground mx-auto size-5" aria-hidden />
         </EmptyState>
       ) : !events.length ? (
-        <>
-          <Section title={tb.liveGames} api={api}>
-            <EmptyState title={tb.emptyTitle} description={tb.emptyDescription} />
-          </Section>
-          <UpcomingKickoffs />
-        </>
+        <Section title={tb.liveGames} api={api}>
+          <EmptyState title={tb.emptyTitle} description={tb.emptyDescription} />
+        </Section>
+      ) : !shown.length ? (
+        <Section title={tb.liveGames} api={api}>
+          <EmptyState
+            title={t.live.filters.liveEmptyTitle}
+            description={plural(locale, events.length, t.live.filters.liveEmptyDescription)}
+          />
+        </Section>
       ) : (
         <Section
-          title={plural(locale, events.length, t.live.nav.count)}
+          title={plural(locale, shown.length, t.live.nav.count)}
           description={tb.description}
           api={api}
         >
@@ -258,6 +320,10 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
           </div>
         </Section>
       )}
+
+      {showsStatus(filters, 'upcoming') ? (
+        <UpcomingKickoffs events={upcomingShown} loading={!hydrated || up.isPending} filtered={filtered} />
+      ) : null}
     </div>
   );
 }

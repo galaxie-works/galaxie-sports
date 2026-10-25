@@ -34,7 +34,7 @@ export async function fetchTimeline(id: string, locale: ContentLocale): Promise<
   return getJson<EventTimeline>(locale, `/v1/events/${encodeURIComponent(id)}/timeline`);
 }
 
-/** Próximos apitos (para o estado vazio do Ao vivo). `from` é o instante atual, calculado na busca. */
+/** Próximos apitos (a seção "Próximos" do Ao vivo). `from` é o instante atual, calculado na busca. */
 export async function fetchUpcoming(locale: Locale, limit = 6): Promise<Event[]> {
   const page = await getJson<Page<Event>>(locale, '/v1/events', {
     from: new Date().toISOString(),
