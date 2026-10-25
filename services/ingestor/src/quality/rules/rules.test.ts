@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { RaceCareer, Team } from '@galaxie/contracts';
-import type { F1dbDriverTruth } from '../sources/f1db.js';
+import type { F1dbDriverTruth, F1dbTruth } from '../sources/f1db.js';
 import {
   checkCareerTotals,
   checkDriverCountry,
+  checkDriverLinks,
   checkSeasonNumbers,
   checkSeasonTeams,
   eraNameOk,
@@ -148,6 +149,43 @@ describe('F1: nome de época da equipe', () => {
       ['GB Wales', 'GB Reino Unido'],
       ['GB-ENG Inglaterra', 'GB Reino Unido'],
     ]);
+  });
+});
+
+describe('F1: vínculo dos pilotos prioritários', () => {
+  const truthOf = (...drivers: Partial<F1dbDriverTruth>[]): F1dbTruth => ({
+    release: 'v0',
+    currentYear: 2026,
+    racesLeft: 0,
+    drivers: new Map(
+      drivers.map((d) => [
+        d.id!,
+        {
+          name: d.id!,
+          nationality: null,
+          starts: 0,
+          wins: 0,
+          titles: [],
+          seasons: new Map(),
+          tags: [],
+          ...d,
+        } as F1dbDriverTruth,
+      ]),
+    ),
+  });
+
+  it('prioritário sem participante no core é falha; quem não é prioritário não conta', () => {
+    const truth = truthOf(
+      { id: 'juan-manuel-fangio', name: 'Juan Manuel Fangio', tags: ['campeão'] },
+      { id: 'alberto-ascari', name: 'Alberto Ascari', tags: ['campeão', 'top 20 vitórias'] },
+      { id: 'piloto-reserva', name: 'Piloto Reserva', tags: [] },
+    );
+    const r = checkDriverLinks(truth, new Map([['juan-manuel-fangio', 'p1']]));
+    expect(r.checked).toBe(2);
+    expect(r.failures.map((f) => [f.key, f.label, f.expected])).toEqual([
+      ['alberto-ascari', 'Alberto Ascari · campeão, top 20 vitórias', 'vínculo f1db driver-alberto-ascari'],
+    ]);
+    expect(checkDriverLinks(truth, new Map()).failures).toHaveLength(2);
   });
 });
 

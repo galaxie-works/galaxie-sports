@@ -6,7 +6,7 @@
 import { sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db';
 import type { RaceCareer, Team } from '@galaxie/contracts';
-import type { F1dbDriverTruth } from '../sources/f1db.js';
+import type { F1dbDriverTruth, F1dbTruth } from '../sources/f1db.js';
 import { AMBIGUOUS_COUNTRIES } from './geo.js';
 import type { QualityContext, QualityFailureItem, QualityRule } from '../types.js';
 
@@ -60,18 +60,24 @@ async function f1dbLinks(db: Database) {
   return { drivers, constructorsOf };
 }
 
+/** Vínculos do F1DB no core (lidos uma vez por execução, para todas as regras da F1). */
+const links = (ctx: QualityContext) => ctx.memo('f1:links', () => f1dbLinks(ctx.db));
+
+/** Pilotos prioritários do F1DB: grid da temporada atual, campeões e os 20 primeiros em vitórias e em GPs. */
+const priorityDrivers = (truth: F1dbTruth) => [...truth.drivers.values()].filter((t) => t.tags.length);
+
 /** Os pilotos prioritários como a API os serve (carregado uma vez por execução, para as quatro regras). */
 export async function loadServedDrivers(ctx: QualityContext) {
   const truth = await ctx.f1db();
-  const links = await f1dbLinks(ctx.db);
+  const { drivers: linked, constructorsOf } = await links(ctx);
   const api = ctx.api!;
-  const targets = [...truth.drivers.values()].filter((t) => t.tags.length);
+  const targets = priorityDrivers(truth);
   const served: ServedDriver[] = [];
   const missing: F1dbDriverTruth[] = [];
   const queue = [...targets];
   const worker = async () => {
     for (let t = queue.shift(); t; t = queue.shift()) {
-      const id = links.drivers.get(t.id);
+      const id = linked.get(t.id);
       if (!id) {
         missing.push(t);
         continue;
@@ -86,7 +92,28 @@ export async function loadServedDrivers(ctx: QualityContext) {
   await Promise.all(Array.from({ length: 4 }, worker));
   served.sort((a, b) => a.name.localeCompare(b.name));
   ctx.log(`F1: ${served.length} pilotos prioritários lidos da API (${missing.length} sem vínculo f1db)`);
-  return { truth, served, missing, constructorsOf: links.constructorsOf };
+  return { truth, served, missing, constructorsOf };
+}
+
+/**
+ * Piloto prioritário sem participante no core (vínculo `f1db` `driver-<id>`): as outras regras da F1 não o conferem,
+ * então a falta de vínculo é falha (senão a auditoria fica verde sem cobrir o piloto).
+ */
+export function checkDriverLinks(
+  truth: F1dbTruth,
+  linked: ReadonlyMap<string, string>,
+): { checked: number; failures: QualityFailureItem[] } {
+  const targets = priorityDrivers(truth);
+  const failures = targets
+    .filter((t) => !linked.has(t.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((t) => ({
+      key: t.id,
+      label: `${t.name} · ${t.tags.join(', ')}`,
+      current: 'sem participante no core',
+      expected: `vínculo f1db driver-${t.id}`,
+    }));
+  return { checked: targets.length, failures };
 }
 
 const driverLink = (d: ServedDriver) => ({
@@ -228,6 +255,20 @@ export function checkDriverCountry(drivers: readonly ServedDriver[]): {
 const served = (ctx: QualityContext) => ctx.memo('f1:served', () => loadServedDrivers(ctx));
 
 export const F1_RULES: QualityRule[] = [
+  {
+    id: 'f1.driver-link',
+    sport: 'formula-1',
+    area: 'f1',
+    severity: 'high',
+    description: {
+      'pt-BR':
+        'Todo piloto prioritário do F1DB (grid atual, campeões, 20 primeiros em vitórias e em GPs) tem participante no core com vínculo f1db',
+      en: 'Every priority F1DB driver (current grid, champions, top 20 in wins and starts) has a core participant linked to F1DB',
+      es: 'Todo piloto prioritario de F1DB (parrilla actual, campeones, 20 primeros en victorias y en GP) tiene participante en el core vinculado a F1DB',
+    },
+    needs: ['f1db'],
+    check: async (ctx) => checkDriverLinks(await ctx.f1db(), (await links(ctx)).drivers),
+  },
   {
     id: 'f1.season-team',
     sport: 'formula-1',

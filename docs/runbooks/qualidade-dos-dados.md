@@ -44,7 +44,7 @@ Sem `--plan`, grava a execução e aplica a retenção: as falhas ficam 30 dias;
 
 | Fonte | Quem usa | Configuração | Sem ela |
 |---|---|---|---|
-| API pública | regras `f1.*` | `QUALITY_API_URL` e `QUALITY_API_KEY`. No dev, caem em `NEXT_PUBLIC_GALAXIE_API_URL` e `GALAXIE_DEMO_KEY` do `.env`. | `skipped` |
+| API pública | regras `f1.*` (menos `f1.driver-link`) | `QUALITY_API_URL` e `QUALITY_API_KEY`. No dev, caem em `NEXT_PUBLIC_GALAXIE_API_URL` e `GALAXIE_DEMO_KEY` do `.env`. | `skipped` |
 | F1DB (release fixado) | regras `f1.*` | `F1DB_DIR` (padrão `~/.galaxie/f1db`). Baixa o zip na primeira vez e confere o sha256. | `skipped` |
 | Wikidata (`wbgetentities`) | `wikidata.team-category` | nenhuma: 50 QIDs por pedido, 1 pedido/s | `error` |
 
@@ -69,6 +69,7 @@ No VPS, a API do próprio stack serve de alvo: `QUALITY_API_URL=http://api:8080`
 
 | Regra | Esporte | O que garante | Referência |
 |---|---|---|---|
+| `f1.driver-link` | F1 | Todo piloto prioritário (grid atual, campeões, 20 primeiros em vitórias e em GPs) tem participante no core com vínculo `f1db`. Sem ele, as outras regras da F1 não conferem o piloto. | F1DB + `core.provider_map` |
 | `f1.season-team` | F1 | A equipe de cada temporada do piloto é o construtor daquele ano, com o **nome da época**. Em 1955, "Mercedes-AMG Petronas" é erro; em 2024, não. | F1DB `race_data` + `season_entrant_driver`/`entrant` |
 | `f1.season-number` | F1 | O número da temporada é um dos mais usados nas corridas do ano. | F1DB `race_data.driver_number` |
 | `f1.career-totals` | F1 | Títulos (quantidade e anos), vitórias e GPs largados. | F1DB |
