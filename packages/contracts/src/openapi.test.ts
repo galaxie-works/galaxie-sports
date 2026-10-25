@@ -2,6 +2,8 @@ import { Validator } from '@seriousme/openapi-schema-validator';
 import { describe, expect, it } from 'vitest';
 import { CompetitionsQuery } from './catalog.js';
 import { LocaleQuery } from './common.js';
+import { EventsQuery } from './events.js';
+import { ExploreAgendaQuery } from './explore.js';
 import { GamesListQuery, MedalHistoryQuery, ScheduleQuery } from './multisport.js';
 import { SearchQuery } from './search.js';
 import { CopyQuery } from './semantic.js';
@@ -270,6 +272,24 @@ describe('schemas de query', () => {
     expect(SearchQuery.safeParse({ q: 'a' }).success).toBe(false);
     expect(SearchQuery.safeParse({ q: 'palmeiras', types: 'clube' }).success).toBe(false);
     expect(SearchQuery.safeParse({ q: 'palmeiras', limit: '21' }).success).toBe(false);
+  });
+
+  it('agenda: rejeita datas que não existem no calendário (o Date.UTC normalizaria para outro dia)', () => {
+    expect(EventsQuery.safeParse({ date: '2026-02-31' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ date: '2026-13-01' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ date: '2026-02-29' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ date: '2028-02-29' }).success).toBe(true);
+    expect(EventsQuery.safeParse({ from: '2026-04-31' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ to: '2026-02-30T12:00:00Z' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ from: '2026-10-01', to: '2026-10-31T23:59:59-03:00' }).success).toBe(true);
+    expect(ExploreAgendaQuery.safeParse({ day: '2026-06-31' }).success).toBe(false);
+    expect(ExploreAgendaQuery.safeParse({ day: '2026-06-30' }).success).toBe(true);
+    // o pattern do OpenAPI continua o mesmo
+    const params = (buildOpenApiDocument().paths?.['/v1/events']?.get?.parameters ?? []) as {
+      name: string;
+      schema?: { pattern?: string };
+    }[];
+    expect(params.find((p) => p.name === 'date')?.schema?.pattern).toBe('^\\d{4}-\\d{2}-\\d{2}$');
   });
 
   it('rejeita locale e fuso desconhecidos', () => {

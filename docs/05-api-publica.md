@@ -349,6 +349,8 @@ Exige `core_data`; os esportes do plano limitam os jogos, como no resumo. Cache 
 | `GET /v1/events/{id}/h2h` | Histórico do confronto (do espelho, sem nova chamada) |
 | `GET /v1/events/{id}/card` | Card de MMA da luta: card principal, preliminares e preliminares iniciais |
 
+**Datas da agenda.** `date`, `from` e `to` (também em `/v1/teams/{id}/events`) e `day` de `/v1/explore/agenda` aceitam só dias que existem no calendário: `2026-02-31`, `2026-04-31` ou `2026-02-29` (ano não bissexto) respondem 400 `INVALID_PARAMS` (`message: "data inexistente"` em `date`/`day`). Antes, a API normalizava a data e devolvia os jogos de outro dia (31/02 virava 03/03); o cliente que montava a data por conta própria precisa validá-la ou tratar o 400.
+
 Exemplo de evento canônico:
 
 ```json

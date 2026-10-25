@@ -591,8 +591,18 @@ export type Event = z.infer<typeof Event>;
 // ─── consultas ───────────────────────────────────────────────────────────────────────────────────
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * Dia AAAA-MM-DD que existe no calendário. A regex só confere o formato e `Date.UTC` (como o
+ * `Date.parse` do V8) normaliza 2026-02-31 para 3 de março: a data montada precisa voltar igual ao texto.
+ */
+export const isCalendarDate = (v: string): boolean => {
+  if (!DATE_RE.test(v)) return false;
+  const [y, m, d] = v.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10) === v;
+};
 const isDateOrInstant = (v: string) =>
-  DATE_RE.test(v) || (/^\d{4}-\d{2}-\d{2}T/.test(v) && !Number.isNaN(Date.parse(v)));
+  isCalendarDate(v) ||
+  (/^\d{4}-\d{2}-\d{2}T/.test(v) && isCalendarDate(v.slice(0, 10)) && !Number.isNaN(Date.parse(v)));
 
 const statusList = z
   .string()
@@ -634,6 +644,7 @@ export const EventsQuery = LocaleQuery.extend(PaginationQuery.shape).extend({
   date: z
     .string()
     .regex(DATE_RE, 'use AAAA-MM-DD')
+    .refine(isCalendarDate, 'data inexistente')
     .optional()
     .meta({ description: 'Dia civil no fuso `tz` (tem precedência sobre from/to).', example: '2026-10-21' }),
   from: z
