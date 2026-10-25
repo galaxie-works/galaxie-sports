@@ -10,6 +10,7 @@ import { normalizeParams, requestHash } from '@galaxie/apisports-client';
 import { apiResponse, jobRun, normalizeFailure, sport, type Database } from '@galaxie/db';
 import {
   NORMALIZE_POISON_ATTEMPTS,
+  NORMALIZE_POISON_RETRY_MS,
   pendingNormalizeFailures,
   readNormalizeCursor,
   runNormalizeFootballJob,
@@ -70,19 +71,15 @@ async function insertRaw(
   return row!.id;
 }
 
+// item sem placar/times: o normalizador quebra sempre nele
+const BROKEN = [{ fixture: { id: 1, date: 'x' }, league: { id: 1, season: 2026 } }];
+
 describe('normalize: resposta com erro determinístico', () => {
   let poison: number;
   let after: number;
 
   it('segura o cursor nas primeiras tentativas e vira poison na N-ésima; o cursor segue', async () => {
-    // item sem placar/times: o normalizador quebra sempre nele
-    poison = await insertRaw(
-      'football',
-      '/fixtures',
-      { id: '1' },
-      [{ fixture: { id: 1, date: 'x' }, league: { id: 1, season: 2026 } }],
-      '2026-10-21T10:00:00Z',
-    );
+    poison = await insertRaw('football', '/fixtures', { id: '1' }, BROKEN, '2026-10-21T10:00:00Z');
     after = await insertRaw('football', '/fixtures', { date: '2026-10-21' }, [], '2026-10-21T10:01:00Z');
 
     for (let attempt = 1; attempt < NORMALIZE_POISON_ATTEMPTS; attempt++) {
@@ -129,7 +126,7 @@ describe('normalize: resposta com erro determinístico', () => {
     expect(await readNormalizeCursor(db)).toBe(after);
   });
 
-  it('falha pendente cuja requisição já tem resposta mais nova no raw fica resolvida no reprocessamento', async () => {
+  it('falha pendente cuja requisição já tem resposta mais nova no raw fica resolvida', async () => {
     const broken = await insertRaw(
       'football',
       '/fixtures',
@@ -143,10 +140,44 @@ describe('normalize: resposta com erro determinístico', () => {
     ]);
     // o fornecedor respondeu de novo a mesma requisição: a resposta velha deixa de ser a vigente
     const fresh = await insertRaw('football', '/fixtures', { id: '2' }, [], '2026-10-21T12:00:00Z');
-    const r = await runNormalizeFootballJob(db, { retryFailures: true });
+    // incremental comum: examinou tudo acima do cursor e a que falhou não é mais a vigente
+    const r = await runNormalizeFootballJob(db);
     expect(r.rows.map((row) => row.id)).toEqual([fresh]);
     expect(await pendingNormalizeFailures(db, 'api-sports', 'football')).toHaveLength(0);
     expect(await readNormalizeCursor(db)).toBe(fresh);
+  });
+
+  it('falha resolvida que volta a falhar recomeça a contagem: não vira poison e segura o cursor', async () => {
+    // a resposta resolvida no teste anterior volta a quebrar (ex.: erro transitório no upsert)
+    await db
+      .update(apiResponse)
+      .set({ body: { get: 'fixtures', parameters: { id: '1' }, errors: [], results: 1, response: BROKEN } })
+      .where(eq(apiResponse.id, poison));
+    const r = await runNormalizeFootballJob(db, { full: true });
+    expect(r.rows.find((row) => row.id === poison)?.outcome).toBe('error');
+    const [f] = await pendingNormalizeFailures(db, 'api-sports', 'football');
+    expect(f).toMatchObject({ rawId: poison, attempts: 1, poisonedAt: null, resolvedAt: null });
+    expect(await readNormalizeCursor(db)).toBe(poison - 1);
+  });
+
+  it('resposta em poison é tentada de novo sozinha depois de um dia desde a última falha', async () => {
+    for (let i = 1; i < NORMALIZE_POISON_ATTEMPTS; i++) await runNormalizeFootballJob(db);
+    const [f] = await pendingNormalizeFailures(db, 'api-sports', 'football');
+    expect(f!.poisonedAt).toBeInstanceOf(Date);
+    expect((await runNormalizeFootballJob(db)).rows).toHaveLength(0);
+
+    // a correção entrou; passado o intervalo, o incremental comum a inclui e ela fica resolvida
+    await db
+      .update(apiResponse)
+      .set({ body: { get: 'fixtures', parameters: { id: '1' }, errors: [], results: 0, response: [] } })
+      .where(eq(apiResponse.id, poison));
+    await db
+      .update(normalizeFailure)
+      .set({ lastFailedAt: new Date(Date.now() - NORMALIZE_POISON_RETRY_MS - 60_000) })
+      .where(eq(normalizeFailure.rawId, poison));
+    const retried = await runNormalizeFootballJob(db);
+    expect(retried.rows.map((row) => [row.id, row.outcome])).toEqual([[poison, 'empty']]);
+    expect(await pendingNormalizeFailures(db, 'api-sports', 'football')).toHaveLength(0);
   });
 });
 

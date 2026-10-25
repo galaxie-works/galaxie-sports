@@ -87,8 +87,10 @@ export const syncCursor = ops.table(
 /**
  * Resposta do raw que a normalização (`normalize:<esporte>`) não conseguiu levar ao core. Cada execução que
  * falha nela soma uma tentativa e segura o cursor incremental; depois de algumas tentativas ela vira poison
- * (`poisoned_at`) e o cursor segue sem ela. `--reprocessar-falhas` tenta de novo as pendentes; quando passa (ou
- * a requisição já tem resposta mais nova no raw), `resolved_at`. Sem FK: a retenção do raw pode apagar a linha.
+ * (`poisoned_at`) e o cursor segue sem ela. O incremental tenta a poison de novo uma vez por dia e
+ * `--reprocessar-falhas` tenta as pendentes na hora; quando passa (ou a requisição já tem resposta mais nova no
+ * raw), `resolved_at`, e uma falha nova depois disso recomeça a contagem. Sem FK: a retenção do raw pode apagar
+ * a linha.
  */
 export const normalizeFailure = ops.table(
   'normalize_failure',

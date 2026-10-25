@@ -308,6 +308,12 @@ export interface NormalizeJobOptions extends NormalizeRawOptions {
  */
 export const NORMALIZE_POISON_ATTEMPTS = 3;
 
+/**
+ * Resposta em poison é tentada de novo sozinha no normalize incremental depois deste intervalo desde a última
+ * falha (uma por dia): a correção do normalizador entra sem ninguém precisar rodar `--reprocessar-falhas`.
+ */
+export const NORMALIZE_POISON_RETRY_MS = 24 * 3_600_000;
+
 /** Falhas pendentes (sem `resolved_at`) de um esporte, poison ou não. */
 export async function pendingNormalizeFailures(
   db: Database,
@@ -329,8 +335,9 @@ export async function pendingNormalizeFailures(
 
 /**
  * Registra o desfecho da execução em `ops.normalize_failure`: cada erro soma uma tentativa (e vira poison na
- * N-ésima); resposta que passou ou que não voltou mais (`retried` sem linha: a requisição tem resposta mais
- * nova no raw) fica resolvida. Devolve os ids em poison, que não seguram o cursor.
+ * N-ésima seguida; falha que já estava resolvida recomeça do 1); resposta que passou ou que não voltou mais
+ * (tentada de novo, ou acima de `scannedAfter`, sem linha: a requisição tem resposta mais nova no raw) fica
+ * resolvida. Devolve os ids em poison, que não seguram o cursor.
  */
 async function recordNormalizeFailures(
   db: Database,
@@ -338,10 +345,14 @@ async function recordNormalizeFailures(
   sport: string,
   rows: readonly RawRowReport[],
   retried: readonly number[],
+  /** A execução examinou todas as respostas vigentes acima deste id (null com filtro de endpoints). */
+  scannedAfter: number | null,
 ): Promise<Set<number>> {
   const errors = rows.filter((r) => r.outcome === 'error');
   const poisoned = new Set<number>();
-  const attempts = sql`${normalizeFailure.attempts} + 1`;
+  const nf = normalizeFailure;
+  const restart = sql`${nf.resolvedAt} is not null`;
+  const attempts = sql`case when ${restart} then 1 else ${nf.attempts} + 1 end`;
   for (let i = 0; i < errors.length; i += 500) {
     const written = await db
       .insert(normalizeFailure)
@@ -359,9 +370,11 @@ async function recordNormalizeFailures(
         set: {
           attempts,
           error: sql`excluded.error`,
+          firstFailedAt: sql`case when ${restart} then now() else ${nf.firstFailedAt} end`,
           lastFailedAt: sql`now()`,
-          poisonedAt: sql`case when ${attempts} >= ${NORMALIZE_POISON_ATTEMPTS}
-            then coalesce(${normalizeFailure.poisonedAt}, now()) else ${normalizeFailure.poisonedAt} end`,
+          poisonedAt: sql`case when ${restart} then null
+            when ${attempts} >= ${NORMALIZE_POISON_ATTEMPTS} then coalesce(${nf.poisonedAt}, now())
+            else ${nf.poisonedAt} end`,
           resolvedAt: sql`null`,
         },
       })
@@ -394,7 +407,11 @@ async function recordNormalizeFailures(
   const retriedSet = new Set(retried);
   const resolved = (await pendingNormalizeFailures(db, provider, sport))
     .map((f) => Number(f.rawId))
-    .filter((id) => !failed.has(id) && (seen.has(id) || retriedSet.has(id)));
+    .filter(
+      (id) =>
+        !failed.has(id) &&
+        (seen.has(id) || retriedSet.has(id) || (scannedAfter !== null && id > scannedAfter)),
+    );
   if (resolved.length)
     await db
       .update(normalizeFailure)
@@ -429,12 +446,23 @@ async function runNormalizeJob(
     .returning();
   try {
     const afterId = options.full ? 0 : await readNormalizeCursor(db, provider, sport);
-    const retried = options.retryFailures
-      ? (await pendingNormalizeFailures(db, provider, sport)).map((f) => Number(f.rawId))
-      : [];
+    // com --reprocessar-falhas, todas as pendentes; sem, só as em poison cuja última falha passou do intervalo
+    const retryBefore = Date.now() - NORMALIZE_POISON_RETRY_MS;
+    const retried = (await pendingNormalizeFailures(db, provider, sport))
+      .filter(
+        (f) => options.retryFailures || (f.poisonedAt !== null && f.lastFailedAt.getTime() < retryBefore),
+      )
+      .map((f) => Number(f.rawId));
     const result = await run({ ...options, afterId, ...(retried.length ? { includeIds: retried } : {}) });
     const errors = result.rows.filter((r) => r.outcome === 'error');
-    const poisoned = await recordNormalizeFailures(db, provider, sport, result.rows, retried);
+    const poisoned = await recordNormalizeFailures(
+      db,
+      provider,
+      sport,
+      result.rows,
+      retried,
+      options.endpoints ? null : afterId,
+    );
     // com erro, o cursor para antes da primeira resposta que falhou (será tentada de novo; o upsert é idempotente);
     // a que já falhou NORMALIZE_POISON_ATTEMPTS vezes não segura mais o cursor
     const blocking = errors.filter((e) => !poisoned.has(e.id));
