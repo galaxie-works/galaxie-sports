@@ -12,6 +12,7 @@ import type { PoolClient } from 'pg';
 
 import { pool } from '@/lib/auth/db';
 
+import { findingCounts } from './findings';
 import { reviewSummary, type SummaryWords } from './summary';
 import {
   PAGE_SIZE,
@@ -178,6 +179,7 @@ export async function listReviewItems(
       summary: reviewSummary(r.kind, r.content, words),
       openSuggestion: r.state === 'needs_review' ? (r.suggestion?.comment ?? null) : null,
       aiRejection: aiRejection(r),
+      findings: findingCounts(r.content),
     })),
     total: total[0]?.n ?? 0,
     counts: byState,

@@ -60,6 +60,8 @@ export interface ReviewListRow extends ReviewListItem {
   openSuggestion: string | null;
   /** Motivo da IA ao recusar a sugestão em aberto (o item segue "precisa de revisão"). */
   aiRejection: string | null;
+  /** Achados do validador (perfil editorial da F1): o selo "N alertas / N graves"; null sem achados. */
+  findings: { alert: number; severe: number } | null;
 }
 
 /** Linha da lista: o item, o que revisar nele e a sugestão em aberto (comentário), se houver. */

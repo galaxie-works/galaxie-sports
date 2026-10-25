@@ -31,7 +31,7 @@ import { DEFAULT_KNOWLEDGE_DIR, loadKnowledge } from '@galaxie/knowledge';
 import { applyBios, DRIVERS_FILE } from '../f1bio/apply.js';
 import { applyProfiles } from '../f1bio/apply-profile.js';
 import { driverFacts } from '../f1bio/facts.js';
-import { mergeProfiles, proposeProfile, type ProfileProposal } from '../f1bio/profile.js';
+import { findingCounts, mergeProfiles, proposeProfile, type ProfileProposal } from '../f1bio/profile.js';
 import { driverRoster, profileFacts } from '../f1bio/profile-facts.js';
 import { mergeProposals, proposeBio, type BioProposal } from '../f1bio/propose.js';
 import { bioReport, profileReport } from '../f1bio/report.js';
@@ -214,9 +214,10 @@ async function profileMode(): Promise<void> {
         const p = await proposeProfile(llm, facts);
         fresh.push(p);
         const pt = p.entries['pt-BR'];
+        const n = findingCounts(pt);
         console.log(
-          `${base.f1dbId}: ${p.status} · ${pt?.moments?.length ?? 0} momento(s) · ${p.dropped.length} item(ns) ` +
-            `descartado(s)${p.entries.es ? ' · es' : ''}${p.reasons.length ? ` · ${p.reasons.join('; ')}` : ''}`,
+          `${base.f1dbId}: ${p.status} · ${pt?.moments?.length ?? 0} momento(s) · ${n.severe} grave(s), ` +
+            `${n.alert} alerta(s)${p.entries.es ? ' · es' : ''}${p.reasons.length ? ` · ${p.reasons.join('; ')}` : ''}`,
         );
       } catch (err) {
         // sem proposta: o piloto volta na próxima execução

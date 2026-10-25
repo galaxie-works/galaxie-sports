@@ -169,29 +169,42 @@ describe('profileFactSheet', () => {
   });
 });
 
-describe('proposeProfile (lenda)', () => {
-  it('cada item com fonte da busca, número do F1DB e corrida da lista; o resto cai com o motivo', async () => {
+describe('proposeProfile (lenda): o validador gera achados, nunca descarta', () => {
+  it('tudo da resposta entra, como veio; cada problema vira achado com a gravidade', async () => {
     const llm = new FakeLlmClient([research, translation]);
     const p = await proposeProfile(llm, senna);
     expect(p.status).toBe('accepted');
     const pt = p.entries['pt-BR']!;
-    expect(pt.bio.sources).toEqual([WIKI, F1]);
+    // as fontes como vieram, inclusive a de fora da busca
+    expect(pt.bio.sources).toEqual([WIKI, F1, 'https://exemplo.invalido/senna']);
     expect(pt.style?.kind).toBe('aggressive');
-    expect(pt.strengths?.map((s) => s.key)).toEqual(['wet_weather', 'qualifying']);
-    // em ordem cronológica, com ano e rodada da lista do F1DB
-    expect(pt.moments?.map((m) => [m.year, m.round, m.wet ?? false])).toEqual([
-      [1984, 6, true],
-      [1991, 2, false],
-      [1993, 3, true],
+    expect(pt.strengths?.map((s) => s.key)).toEqual([
+      'wet_weather',
+      'qualifying',
+      'qualifying',
+      'race_intelligence',
     ]);
-    expect(pt.rivalries?.map((r) => r.driver)).toEqual([{ f1db_id: 'alain-prost', name: 'Alain Prost' }]);
-    expect(p.dropped.map((d) => d.reason)).toEqual(
+    // na ordem da resposta; a corrida fora da lista fica sem ano e rodada da lista (os da chave, sem o evento)
+    expect(pt.moments?.map((m) => [m.year, m.round, m.wet ?? false])).toEqual([
+      [1993, 3, true],
+      [1991, 2, false],
+      [1984, 6, true],
+      [1990, 15, false],
+      [1988, 4, false],
+    ]);
+    expect(pt.rivalries?.map((r) => r.driver)).toEqual([
+      { f1db_id: 'alain-prost', name: 'Alain Prost' },
+      { f1db_id: null, name: 'Fulano de Tal' },
+    ]);
+    const rules = (pt.findings ?? []).map((f) => [f.field, f.rule, f.severity]);
+    expect(rules).toEqual(
       expect.arrayContaining([
-        'fonte não veio da busca',
-        'ponto forte repetido',
-        'corrida fora da lista do piloto (1990-15)',
-        'número fora do F1DB (42)',
-        'rival fora do F1DB (Fulano de Tal)',
+        ['bio.sources[2]', 'source_not_grounded', 'severe'],
+        ['strengths[2]', 'duplicate', 'alert'],
+        ['strengths[3].source', 'source_not_grounded', 'severe'],
+        ['moments[3]', 'race_not_driven', 'severe'],
+        ['moments[4]', 'unknown_number', 'severe'],
+        ['rivalries[1]', 'rival_not_in_race', 'severe'],
       ]),
     );
     expect(llm.calls[0]).toMatchObject({ tier: 'research', webSearch: true });
@@ -199,20 +212,34 @@ describe('proposeProfile (lenda)', () => {
     expect(llm.calls[1]!.webSearch).toBeFalsy();
   });
 
-  it('a tradução es mantém as fontes e os vínculos, item a item', async () => {
+  it('o trecho do achado aponta a frase no texto do campo', async () => {
+    const p = await proposeProfile(new FakeLlmClient([research, translation]), senna);
+    const pt = p.entries['pt-BR']!;
+    const f = pt.findings!.find((x) => x.field === 'moments[4]' && x.rule === 'unknown_number')!;
+    expect(pt.moments![4]!.text.slice(f.start, f.end)).toBe(
+      'Liderava com 42 segundos de vantagem quando bateu.',
+    );
+    expect(f.reason).toBe('número fora do F1DB (42)');
+  });
+
+  it('a tradução es mantém as fontes e os vínculos; lista com outro número de itens fica com o original e um alerta', async () => {
     const p = await proposeProfile(new FakeLlmClient([research, translation]), senna);
     const es = p.entries.es!;
     expect(es.bio.text).toMatch(/^Ayrton Senna disputó/);
     expect(es.bio.sources).toEqual(p.entries['pt-BR']!.bio.sources);
-    expect(es.moments?.map((m) => [m.year, m.round, m.race, m.source])).toEqual([
-      [1984, 6, 'GP de Mónaco', WIKI],
-      [1991, 2, 'GP de Brasil', WIKI],
-      [1993, 3, 'GP de Europa', GE],
-    ]);
+    // 5 momentos no original, 3 na tradução: os textos ficam os do original, com o alerta
+    expect(es.moments?.map((m) => m.text)).toEqual(p.entries['pt-BR']!.moments!.map((m) => m.text));
+    expect(es.findings).toContainEqual(
+      expect.objectContaining({ field: 'moments', rule: 'translation_mismatch', severity: 'alert' }),
+    );
+    // achados de fonte e de item do original valem na versão es
+    expect(es.findings).toContainEqual(
+      expect.objectContaining({ field: 'rivalries[1]', rule: 'rival_not_in_race' }),
+    );
     expect(es.rivalries?.[0]!.driver.f1db_id).toBe('alain-prost');
   });
 
-  it('bio com número fora do F1DB: sem proposta (nada inventado entra)', async () => {
+  it('bio com número fora do F1DB: rascunho com o achado grave (o revisor decide)', async () => {
     const wrong = {
       ...research,
       data: {
@@ -220,13 +247,20 @@ describe('proposeProfile (lenda)', () => {
         bio: { ...research.data.bio, text: 'Ayrton Senna venceu 42 GPs e fez 66 poles na Fórmula 1.' },
       },
     };
-    const p = await proposeProfile(new FakeLlmClient([wrong]), senna);
-    expect(p.status).toBe('rejected');
-    expect(p.reasons).toEqual(['bio recusada: número fora do F1DB (42, 66)']);
-    expect(p.entries).toEqual({ 'pt-BR': null, es: null });
+    const p = await proposeProfile(new FakeLlmClient([wrong, translation]), senna);
+    expect(p.status).toBe('accepted');
+    expect(p.entries['pt-BR']!.bio.text).toBe('Ayrton Senna venceu 42 GPs e fez 66 poles na Fórmula 1.');
+    expect(p.entries['pt-BR']!.findings).toContainEqual({
+      field: 'bio',
+      start: 0,
+      end: p.entries['pt-BR']!.bio.text.length,
+      rule: 'unknown_number',
+      reason: 'número fora do F1DB (42, 66)',
+      severity: 'severe',
+    });
   });
 
-  it('o que veio da produção: marcador de citação, pilotagem agressiva, nome de chassi e uma frase com número errado', async () => {
+  it('marcador de citação, pilotagem agressiva, nome de chassi e frase com número errado: o texto fica intacto', async () => {
     const bio = [
       'Ayrton Senna disputou 161 GPs entre 1984 e 1994 [S1], com 41 vitórias e 65 poles [S2, S3].',
       'Fez da volta de classificação uma assinatura, com uma agressividade controlada.',
@@ -234,26 +268,27 @@ describe('proposeProfile (lenda)', () => {
     ].join('\n\n');
     const reply = { ...research, data: { ...research.data, bio: { ...research.data.bio, text: bio } } };
     const p = await proposeProfile(new FakeLlmClient([reply, translation]), senna);
-    expect(p.status).toBe('accepted');
-    const text = p.entries['pt-BR']!.bio.text;
-    expect(text).not.toMatch(/\[S\d/);
-    expect(text).toContain('disputou 161 GPs entre 1984 e 1994, com 41 vitórias');
-    expect(text).toContain('agressividade controlada');
-    expect(text).toContain('McLaren MP4/4');
-    expect(text).not.toContain('39 dias');
-    expect(p.dropped).toContainEqual({
-      locale: 'pt-BR',
-      field: 'bio',
-      text: 'Voltou ao cockpit 39 dias depois de um susto.',
-      reason: 'frase tirada da bio: número fora do F1DB (39)',
-    });
+    const pt = p.entries['pt-BR']!;
+    expect(pt.bio.text).toBe(bio);
+    const bioFindings = pt.findings!.filter((f) => f.field === 'bio');
+    expect(bioFindings.map((f) => [pt.bio.text.slice(f.start, f.end), f.rule, f.severity])).toEqual([
+      ['[S1]', 'citation_marker', 'alert'],
+      ['[S2, S3]', 'citation_marker', 'alert'],
+      ['Voltou ao cockpit 39 dias depois de um susto.', 'unknown_number', 'severe'],
+    ]);
   });
 
-  it('lenda sem nenhum momento verificável: sem proposta', async () => {
+  it('lenda sem nenhum momento: rascunho com alerta; sem bio, não há proposta', async () => {
     const none = { ...research, data: { ...research.data, moments: [] } };
-    const p = await proposeProfile(new FakeLlmClient([none]), senna);
-    expect(p.status).toBe('rejected');
-    expect(p.reasons).toContain('lenda sem nenhum momento com fonte verificável');
+    const p = await proposeProfile(new FakeLlmClient([none, translation]), senna);
+    expect(p.status).toBe('accepted');
+    expect(p.entries['pt-BR']!.findings).toContainEqual(
+      expect.objectContaining({ field: 'moments', rule: 'no_moments', severity: 'alert' }),
+    );
+    const empty = { ...research, data: { ...research.data, bio: { text: '  ', sources: [] } } };
+    const q = await proposeProfile(new FakeLlmClient([empty]), senna);
+    expect(q.status).toBe('rejected');
+    expect(q.reasons).toEqual(['o modelo não devolveu a bio']);
   });
 });
 

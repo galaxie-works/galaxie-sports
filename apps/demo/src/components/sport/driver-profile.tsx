@@ -140,7 +140,7 @@ export async function DriverStyleCard({
                 <li key={s.key} className="flex flex-col gap-0.5 text-sm">
                   <span className="font-medium">{tx.strengthLabels[s.key] ?? s.key}</span>
                   <span className="text-muted-foreground">
-                    {s.text} <SourceLink url={s.source} label={tx.source} />
+                    {s.text} {s.source ? <SourceLink url={s.source} label={tx.source} /> : null}
                   </span>
                 </li>
               ))}
@@ -284,13 +284,13 @@ export async function DriverMomentsCard({
       <CardContent className="flex flex-col gap-6">
         <ol className="relative flex flex-col gap-5 border-l pl-5">
           {editorial.moments.map((m) => (
-            <li key={`${m.year}-${m.race}`} className="relative flex flex-col gap-1">
+            <li key={`${m.year ?? ''}-${m.race}`} className="relative flex flex-col gap-1">
               <span
                 aria-hidden
                 className="bg-primary ring-background absolute top-1.5 -left-[25px] size-2.5 rounded-full ring-4"
               />
               <span className="flex flex-wrap items-center gap-2">
-                <span className="text-lg font-bold tabular-nums">{m.year}</span>
+                {m.year != null ? <span className="text-lg font-bold tabular-nums">{m.year}</span> : null}
                 {m.event_id ? (
                   <Link href={`/eventos/${m.event_id}`} className="font-medium hover:underline">
                     {m.race}
@@ -306,7 +306,7 @@ export async function DriverMomentsCard({
                 ) : null}
               </span>
               <p className="text-sm">{m.text}</p>
-              <SourceLink url={m.source} label={tx.source} />
+              {m.source ? <SourceLink url={m.source} label={tx.source} /> : null}
             </li>
           ))}
         </ol>
@@ -316,7 +316,7 @@ export async function DriverMomentsCard({
             <span className="text-sm font-semibold">{tx.rivalries}</span>
             <ul className="flex flex-col gap-3">
               {editorial.rivalries.map((r) => (
-                <li key={r.driver.f1db_id} className="flex flex-col gap-0.5 text-sm">
+                <li key={r.driver.f1db_id ?? r.driver.name} className="flex flex-col gap-0.5 text-sm">
                   {r.driver.id ? (
                     <Link
                       href={participantHref({ id: r.driver.id, name: r.driver.name }, 'driver')}
@@ -328,7 +328,7 @@ export async function DriverMomentsCard({
                     <span className="font-medium">{r.driver.name}</span>
                   )}
                   <span className="text-muted-foreground">
-                    {r.text} <SourceLink url={r.source} label={tx.source} />
+                    {r.text} {r.source ? <SourceLink url={r.source} label={tx.source} /> : null}
                   </span>
                 </li>
               ))}

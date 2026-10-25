@@ -1,0 +1,46 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`as 10 lendas da primeira rodada (casos fixos) > placar: graves e alertas por lenda (o selo do painel) 1`] = `
+{
+  "alain-prost": {
+    "alert": 2,
+    "severe": 5,
+  },
+  "ayrton-senna": {
+    "alert": 6,
+    "severe": 0,
+  },
+  "fernando-alonso": {
+    "alert": 0,
+    "severe": 3,
+  },
+  "jim-clark": {
+    "alert": 0,
+    "severe": 0,
+  },
+  "juan-manuel-fangio": {
+    "alert": 17,
+    "severe": 1,
+  },
+  "lewis-hamilton": {
+    "alert": 5,
+    "severe": 0,
+  },
+  "max-verstappen": {
+    "alert": 0,
+    "severe": 1,
+  },
+  "michael-schumacher": {
+    "alert": 1,
+    "severe": 0,
+  },
+  "nelson-piquet": {
+    "alert": 1,
+    "severe": 0,
+  },
+  "niki-lauda": {
+    "alert": 8,
+    "severe": 1,
+  },
+}
+`;

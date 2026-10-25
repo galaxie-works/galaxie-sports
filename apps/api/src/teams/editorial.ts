@@ -60,7 +60,7 @@ export async function editorialBody(
   locale: string,
 ): Promise<DriverEditorial> {
   const e = p.entry;
-  const years = [...new Set((e.moments ?? []).map((m) => m.year))];
+  const years = [...new Set((e.moments ?? []).flatMap((m) => (m.year != null ? [m.year] : [])))];
   const events = years.length
     ? await db.execute<{ year: number; round: number; id: string }>(sql`
         select year, round, (array_agg(id order by f1db desc, id))[1] as id
@@ -77,7 +77,9 @@ export async function editorialBody(
          group by year, round`)
     : [];
   const eventOf = new Map(events.map((r) => [`${r.year}|${r.round}`, r.id]));
-  const rivalIds = [...new Set((e.rivalries ?? []).map((r) => `driver-${r.driver.f1db_id}`))];
+  const rivalIds = [
+    ...new Set((e.rivalries ?? []).flatMap((r) => (r.driver.f1db_id ? [`driver-${r.driver.f1db_id}`] : []))),
+  ];
   const rivals = rivalIds.length
     ? await db.execute<{ provider_id: string; id: string }>(sql`
         select provider_id, entity_id::text as id from core.provider_map
@@ -105,22 +107,27 @@ export async function editorialBody(
     strengths: (e.strengths ?? []).map((s) => ({
       key: s.key as DriverEditorial['strengths'][number]['key'],
       text: s.text,
-      source: s.source,
+      source: s.source ?? null,
     })),
     moments: (e.moments ?? [])
       .map((m) => ({
-        year: m.year,
+        year: m.year ?? null,
         race: m.race,
-        event_id: eventOf.get(`${m.year}|${m.round}`) ?? null,
+        event_id: m.year != null && m.round != null ? (eventOf.get(`${m.year}|${m.round}`) ?? null) : null,
         wet: m.wet ?? false,
         text: m.text,
-        source: m.source,
+        source: m.source ?? null,
       }))
-      .sort((a, b) => a.year - b.year),
+      // em ordem cronológica; o momento sem ano (corrida fora da lista do piloto) vai no fim
+      .sort((a, b) => (a.year ?? Infinity) - (b.year ?? Infinity)),
     rivalries: (e.rivalries ?? []).map((r) => ({
-      driver: { id: rivalOf.get(r.driver.f1db_id) ?? null, f1db_id: r.driver.f1db_id, name: r.driver.name },
+      driver: {
+        id: r.driver.f1db_id ? (rivalOf.get(r.driver.f1db_id) ?? null) : null,
+        f1db_id: r.driver.f1db_id,
+        name: r.driver.name,
+      },
       text: r.text,
-      source: r.source,
+      source: r.source ?? null,
     })),
     review_status: e.review_status,
   };
