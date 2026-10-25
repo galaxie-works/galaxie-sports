@@ -221,13 +221,16 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
   {
     name: 'lineups-revisit',
     description:
-      'Grade de canais e ofertas: revisita o que foi visto há mais de 30 dias (descoberta por país e planos por plataforma); mudanças em itens aprovados vão para revisão no painel',
-    // uma vez por dia, até 4 pesquisas (US$ 0,20–0,40 cada nos testes): ~45 plataformas nos 5 países
-    // voltam a ser vistas em ~12 dias, antes de vencer de novo; sem item vencido, custo zero
+      'Grade de canais e ofertas: revisita o que foi visto há mais de 30 dias pela página oficial de planos (a IA extrai sem busca na web, só se a página mudou); mudanças em itens aprovados vão para revisão no painel',
+    // uma vez por dia, até 4 chamadas ao modelo: a extração da página (~US$ 0,02, sem busca) só roda
+    // se a página mudou desde a última; página igual não chama o modelo nem conta no --max. A busca
+    // só acha a URL da página de planos de plataforma que ainda não tem (até 3 buscas, uma vez) e
+    // descobre as plataformas do país na revisita. Até 10 páginas buscadas por execução (o navegador
+    // leva ~90 s por página); o resto fica para o dia seguinte.
     cron: '50 4 * * *',
     script: 'dist/cli/lineups-research.js',
     cwd: '../ai-agents',
-    args: ['--revisitar', '--dias', '30', '--max', '4'],
+    args: ['--revisitar', '--dias', '30', '--max', '4', '--max-paginas', '10'],
     timeoutMs: 30 * MINUTE,
   },
   {

@@ -336,7 +336,7 @@ export default defineMessages(
         'lineups-revisit': {
           label: 'Grade de canais: revisita',
           description:
-            'Refaz a pesquisa das operadoras e planos vistos há mais de 30 dias (até 4 por execução).',
+            'Relê a página oficial de planos das operadoras vistas há mais de 30 dias; a IA (sem busca na web) só extrai de novo se a página mudou (até 4 chamadas por execução).',
         },
         'lineups-pages': {
           label: 'Grade de canais: página oficial',
@@ -1063,7 +1063,7 @@ export default defineMessages(
           'lineups-revisit': {
             label: 'Channel lineups: revisit',
             description:
-              'Researches again the operators and plans seen more than 30 days ago (up to 4 per run).',
+              'Re-reads the official plans page of operators seen more than 30 days ago; the AI (no web search) only extracts again when the page changed (up to 4 calls per run).',
           },
           'lineups-pages': {
             label: 'Channel lineup: official page',
@@ -1795,7 +1795,7 @@ export default defineMessages(
           'lineups-revisit': {
             label: 'Grilla de canales: revisión',
             description:
-              'Vuelve a investigar los operadores y planes vistos hace más de 30 días (hasta 4 por ejecución).',
+              'Vuelve a leer la página oficial de planes de los operadores vistos hace más de 30 días; la IA (sin búsqueda web) solo extrae de nuevo si la página cambió (hasta 4 llamadas por ejecución).',
           },
           'lineups-pages': {
             label: 'Grilla de canales: página oficial',

@@ -304,7 +304,7 @@ beforeAll(async () => {
 });
 afterAll(() => env.teardown());
 
-describe('lineups-research (LLM falso)', () => {
+describe('lineups-research com busca (--com-busca, LLM falso)', () => {
   it('descobre, levanta os planos e grava só o que tem fonte, como rascunho', async () => {
     expect(await planLineupResearch(db, { countries: ['BR'], now: NOW })).toEqual([
       { kind: 'discover', country: 'BR', reason: 'new_country' },
@@ -318,6 +318,8 @@ describe('lineups-research (LLM falso)', () => {
     const out = await new LineupResearcher({ db, llm: budgeted, config, now: () => NOW, resolveUrl }).run({
       countries: ['BR'],
       maxCalls: 10,
+      // a pesquisa antiga, com busca em cada etapa (a padrão é pela página oficial)
+      mode: 'search',
     });
     expect(out.map((o) => [o.task.kind, o.status])).toEqual([
       ['discover', 'done'],
@@ -443,6 +445,8 @@ describe('lineups-research (LLM falso)', () => {
       countries: ['BR'],
       revisit: true,
       maxCalls: 10,
+      // a pesquisa antiga, com busca em cada etapa (a padrão é pela página oficial)
+      mode: 'search',
     });
     expect(out.map((o) => o.status)).toEqual(['done', 'done', 'done']);
     const changes = out.flatMap((o) => o.changes);

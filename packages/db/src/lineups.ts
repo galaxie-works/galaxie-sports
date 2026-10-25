@@ -1725,6 +1725,55 @@ export async function proposeLineupChange(
   return true;
 }
 
+/** Guarda as páginas oficiais de planos e ofertas da plataforma (só http/https, sem repetir, até 6). */
+export async function setPlatformPlanPages(
+  db: Database,
+  platformId: string,
+  urls: readonly string[],
+): Promise<void> {
+  if (!isUuid(platformId)) return;
+  const clean: string[] = [];
+  for (const u of urls) {
+    const url = cleanUrl(u);
+    if (url && !clean.includes(url)) clean.push(url);
+  }
+  await db
+    .update(platform)
+    .set({ planPages: clean.slice(0, 6), updatedAt: new Date() })
+    .where(eq(platform.id, platformId));
+}
+
+/** Registra o hash das páginas de planos que a extração com IA acabou de ler. */
+export async function recordPlanPagesExtraction(
+  db: Database,
+  platformId: string,
+  hash: string,
+  at: Date,
+): Promise<void> {
+  if (!isUuid(platformId)) return;
+  await db
+    .update(platform)
+    .set({ planPagesHash: hash.slice(0, 64), planPagesExtractedAt: at, updatedAt: new Date() })
+    .where(eq(platform.id, platformId));
+}
+
+/**
+ * Página de planos igual à da última extração: a grade gravada continua valendo. Renova o `seen_at` da
+ * plataforma e dos planos dela (menos os rejeitados), para a revisita não voltar a eles amanhã.
+ */
+export async function touchPlatformLineup(db: Database, platformId: string, seenAt: Date): Promise<number> {
+  if (!isUuid(platformId)) return 0;
+  return db.transaction(async (tx) => {
+    await tx.update(platform).set({ seenAt }).where(eq(platform.id, platformId));
+    const rows = await tx
+      .update(platformPlan)
+      .set({ seenAt })
+      .where(and(eq(platformPlan.platformId, platformId), ne(platformPlan.reviewStatus, 'rejected')))
+      .returning({ id: platformPlan.id });
+    return rows.length;
+  });
+}
+
 /** Leitura em cache de uma página oficial. */
 export async function getLineupPage(db: Database, url: string): Promise<LineupPage | null> {
   const [row] = await db.select().from(lineupPage).where(eq(lineupPage.url, url));
