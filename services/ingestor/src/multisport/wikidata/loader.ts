@@ -15,6 +15,7 @@ import {
 import { refreshMedalTableSnapshot } from '../medal-store.js';
 import { updateMedalDataQuality, type MedalDataQuality } from '../qa/report.js';
 import { disciplineAliasMap, EXCLUDED_SPORT_ALIASES } from '../seed/sports.js';
+import { suspiciousDrop } from './drop-guard.js';
 import {
   buildMedals,
   eventGenderFromLabel,
@@ -84,6 +85,11 @@ export interface GamesLoadReport {
   delegationReferences: number;
   coverage: number | null;
   quality: MedalDataQuality;
+  /**
+   * Remoções não feitas porque a fonte veio vazia ou bem menor que o gravado (medalhas, agregados por delegação),
+   * com o motivo. Vazio = carga completa.
+   */
+  removalSkipped: string[];
 }
 
 export interface LoaderOptions {
@@ -91,11 +97,15 @@ export interface LoaderOptions {
   batchSize?: number;
   log?: (msg: string) => void;
   now?: () => Date;
+  /** Remove o que sumiu da fonte mesmo com a queda abrupta (`--aceitar-queda`). */
+  allowDrop?: boolean;
 }
 
 /**
  * Carga do histórico de medalhas a partir do Wikidata (CC0), uma edição por vez.
- * Idempotente: medalhas são gravadas por chave natural (`source_key`) e as que sumiram da fonte são removidas.
+ * Idempotente: medalhas são gravadas por chave natural (`source_key`) e as que sumiram da fonte são removidas —
+ * salvo quando a fonte veio vazia ou com menos da metade do gravado (`suspiciousDrop`): aí nada é removido e o
+ * motivo vai para `removalSkipped`.
  */
 export class WikidataMedalLoader {
   private iocByQid: Map<string, string[]> | null = null;
@@ -107,6 +117,7 @@ export class WikidataMedalLoader {
   private readonly batchSize: number;
   private readonly log: (msg: string) => void;
   private readonly now: () => Date;
+  private readonly allowDrop: boolean;
 
   constructor(
     private readonly db: Database,
@@ -117,6 +128,7 @@ export class WikidataMedalLoader {
     this.batchSize = options.batchSize ?? 150;
     this.log = options.log ?? (() => {});
     this.now = options.now ?? (() => new Date());
+    this.allowDrop = options.allowDrop ?? false;
   }
 
   private async nocContext() {
@@ -224,8 +236,14 @@ export class WikidataMedalLoader {
     const built = buildMedals(candidates, teamHints);
 
     const unmapped = new Set<string>();
+    const removalSkipped: string[] = [];
     const persisted = await this.persist(g, built.medals, built.teamEvents, events, participants, unmapped);
-    const delegationReferences = await this.loadDelegationReferences(g, ctx);
+    if (persisted.removalSkipped) removalSkipped.push(`medalhas: ${persisted.removalSkipped}`);
+    const delegation = await this.loadDelegationReferences(g, ctx);
+    if (delegation.removalSkipped)
+      removalSkipped.push(`agregados por delegação: ${delegation.removalSkipped}`);
+    for (const r of removalSkipped)
+      this.log(`${g.slug}: remoção não feita (${r}); rode com --aceitar-queda se for real`);
     await refreshMedalTableSnapshot(this.db, g.id);
     const quality = await updateMedalDataQuality(this.db, g.id);
 
@@ -248,9 +266,10 @@ export class WikidataMedalLoader {
         S: active.filter((m) => m.medal === 'S').length,
         B: active.filter((m) => m.medal === 'B').length,
       },
-      delegationReferences,
+      delegationReferences: delegation.count,
       coverage: quality.coverage,
       quality: quality.quality,
+      removalSkipped,
     };
   }
 
@@ -270,9 +289,23 @@ export class WikidataMedalLoader {
     events: Map<string, EventMeta>,
     participants: Map<string, ParticipantMeta>,
     unmapped: Set<string>,
-  ): Promise<{ events: number }> {
+  ): Promise<{ events: number; removalSkipped: string | null }> {
     const fetchedAt = this.now();
     return this.db.transaction(async (tx) => {
+      // quanto a edição tem gravado antes desta carga (para a proteção da remoção)
+      const [stored] = await tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(medal)
+        .where(
+          and(
+            eq(medal.source, 'wikidata'),
+            inArray(
+              medal.eventId,
+              tx.select({ id: msEvent.id }).from(msEvent).where(eq(msEvent.gamesId, g.id)),
+            ),
+          ),
+        );
+      const removalSkipped = this.allowDrop ? null : suspiciousDrop(stored?.n ?? 0, medals.length);
       // provas
       const usedEvents = [...new Set(medals.map((m) => m.eventQid))].sort();
       const eventValues = usedEvents.map((q) => {
@@ -439,18 +472,19 @@ export class WikidataMedalLoader {
         for (const r of rows) medalIds.set(r.key, r.id);
       }
 
-      // medalhas desta edição que sumiram da fonte
+      // medalhas desta edição que sumiram da fonte (fonte vazia ou queda abrupta: nada sai)
       const gamesEventIds = tx.select({ id: msEvent.id }).from(msEvent).where(eq(msEvent.gamesId, g.id));
       const keep = [...medalIds.keys()];
-      await tx
-        .delete(medal)
-        .where(
-          and(
-            eq(medal.source, 'wikidata'),
-            inArray(medal.eventId, gamesEventIds),
-            keep.length ? notInArray(medal.sourceKey, keep) : sql`true`,
-          ),
-        );
+      if (!removalSkipped)
+        await tx
+          .delete(medal)
+          .where(
+            and(
+              eq(medal.source, 'wikidata'),
+              inArray(medal.eventId, gamesEventIds),
+              keep.length ? notInArray(medal.sourceKey, keep) : sql`true`,
+            ),
+          );
 
       // proveniência
       const refs = [
@@ -477,15 +511,18 @@ export class WikidataMedalLoader {
             set: { fetchedAt: sql`excluded.fetched_at` },
           });
 
-      return { events: eventIds.size };
+      return { events: eventIds.size, removalSkipped };
     });
   }
 
-  /** Agregados por delegação (P166 + P1114) → medal_reference (source = wikidata-delegation). */
+  /**
+   * Agregados por delegação (P166 + P1114) → medal_reference (source = wikidata-delegation), trocados numa
+   * transação. Resposta vazia ou com menos da metade das delegações gravadas: os gravados ficam.
+   */
   private async loadDelegationReferences(
     g: GamesRow,
     ctx: { iocByQid: Map<string, string[]>; knownNocs: Set<string> },
-  ): Promise<number> {
+  ): Promise<{ count: number; removalSkipped: string | null }> {
     const { data } = await this.client.query(
       'delegation-aggregates',
       delegationAggregatesQuery(g.wikidataQid!),
@@ -515,21 +552,28 @@ export class WikidataMedalLoader {
       c[colour] = Math.max(c[colour], qty);
       byNoc.set(code, c);
     }
-    await this.db
-      .delete(medalReference)
-      .where(and(eq(medalReference.gamesId, g.id), eq(medalReference.source, 'wikidata-delegation')));
-    if (byNoc.size)
-      await this.db.insert(medalReference).values(
-        [...byNoc.entries()].map(([code, c]) => ({
-          gamesId: g.id,
-          nocCode: code,
-          source: 'wikidata-delegation',
-          gold: c.G,
-          silver: c.S,
-          bronze: c.B,
-          url: wdUrl(g.wikidataQid!),
-        })),
-      );
-    return byNoc.size;
+    return this.db.transaction(async (tx) => {
+      const ours = and(eq(medalReference.gamesId, g.id), eq(medalReference.source, 'wikidata-delegation'));
+      const [stored] = await tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(medalReference)
+        .where(ours);
+      const removalSkipped = this.allowDrop ? null : suspiciousDrop(stored?.n ?? 0, byNoc.size);
+      if (removalSkipped) return { count: stored?.n ?? 0, removalSkipped };
+      await tx.delete(medalReference).where(ours);
+      if (byNoc.size)
+        await tx.insert(medalReference).values(
+          [...byNoc.entries()].map(([code, c]) => ({
+            gamesId: g.id,
+            nocCode: code,
+            source: 'wikidata-delegation',
+            gold: c.G,
+            silver: c.S,
+            bronze: c.B,
+            url: wdUrl(g.wikidataQid!),
+          })),
+        );
+      return { count: byNoc.size, removalSkipped: null };
+    });
   }
 }
