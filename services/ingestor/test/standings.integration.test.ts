@@ -163,6 +163,69 @@ describe('recálculo da tabela com grupos do fornecedor', () => {
     expect(table.map((r) => r.group)).toEqual(['Grupo C', 'Grupo C', 'Grupo D', 'Grupo D']);
   });
 
+  it('time em dois grupos do fornecedor (fase regular + fase final): não recalcula, nada some', async () => {
+    const s = await seedSeason('football', 'liga-com-fase-final', ['F1', 'F2', 'F3', 'F4']);
+    const rows = [
+      ['Regular Season', 'F1'],
+      ['Regular Season', 'F2'],
+      ['Regular Season', 'F3'],
+      ['Regular Season', 'F4'],
+      ['Championship Round', 'F1'],
+      ['Championship Round', 'F2'],
+    ];
+    await db.insert(standing).values(
+      rows.map(([group, team], i) => ({
+        seasonId: s.seasonId,
+        group: group!,
+        participantId: s.team(team!),
+        rank: i + 1,
+        points: 30 - i,
+        played: 10,
+        source: 'provider',
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      })),
+    );
+    await finished('football', s.seasonId, s.team('F1'), s.team('F2'), [1, 0]);
+    await finished('football', s.seasonId, s.team('F3'), s.team('F4'), [1, 0]);
+    for (let i = 0; i < 2; i++) {
+      const report = await recomputeSeasonStandings(db, s.seasonId, { publish: false });
+      expect(report.outcome).toBe('no_groups');
+      expect(report.detail).toMatch(/Championship Round, Regular Season/);
+      await finished('football', s.seasonId, s.team('F2'), s.team('F1'), [2, 0]);
+    }
+    const table = await tableOf(s.seasonId);
+    expect(table.map((r) => [r.group, r.played])).toEqual(rows.map(([g]) => [g, 10]).sort());
+  });
+
+  it('grupo com nome que este recálculo não gravou (sem jogo novo) fica', async () => {
+    const s = await seedSeason('football', 'liga-grupo-parado', ['G1', 'G2', 'H1', 'H2']);
+    await db.insert(standing).values(
+      [
+        ['Grupo G', 'G1'],
+        ['Grupo G', 'G2'],
+        ['Grupo H', 'H1'],
+        ['Grupo H', 'H2'],
+      ].map(([group, team], i) => ({
+        seasonId: s.seasonId,
+        group: group!,
+        participantId: s.team(team!),
+        rank: (i % 2) + 1,
+        points: 3,
+        played: 1,
+        source: 'computed',
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      })),
+    );
+    // só o grupo G tem resultado no core
+    await finished('football', s.seasonId, s.team('G1'), s.team('G2'), [1, 0]);
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+      rows: 2,
+    });
+    const table = await tableOf(s.seasonId);
+    expect(table.map((r) => r.group)).toEqual(['Grupo G', 'Grupo G', 'Grupo H', 'Grupo H']);
+  });
+
   it('linha do provedor não é apagada pela limpeza das calculadas', async () => {
     const s = await seedSeason('football', 'liga-provedor-fresco', ['E1', 'E2']);
     await finished('football', s.seasonId, s.team('E1'), s.team('E2'), [1, 0]);

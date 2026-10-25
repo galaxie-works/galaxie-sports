@@ -7,7 +7,7 @@
  * Quando já existe tabela do provedor (ex.: bootstrap Pro) e ela é mais nova que o último resultado,
  * a do provedor prevalece. Mais velha: a calculada a substitui, com os mesmos nomes de grupo.
  */
-import { and, eq, gte, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { competition, event, publishChange, season, stage, standing, type Database } from '@galaxie/db';
 import { computeStandings, type MatchResult } from '@galaxie/rules';
 import { loadCompetitionRules } from '@galaxie/rules/config';
@@ -150,12 +150,24 @@ export async function recomputeSeasonStandings(
   }
 
   // grupos: os já gravados em core.standing (do provedor ou de recálculo anterior); sem nenhum, tabela única.
-  // Time em mais de uma linha: o provedor vence a calculada, e grupo nomeado vence o vazio (resíduo do
-  // recálculo que perdia os grupos)
-  const rank = (r: { source: string; group: string }) => (r.source === 'provider' ? 2 : r.group ? 1 : 0);
-  const groupOfTeam = new Map(
-    [...tableRows].sort((a, b) => rank(a) - rank(b)).map((r) => [r.participantId, r.group]),
-  );
+  // O grupo vazio de um time que também está num grupo nomeado é resíduo do recálculo que perdia os grupos.
+  // Time em mais de um grupo nomeado (fase regular + fase final, tabela de melhores terceiros): não dá para
+  // saber em qual tabela cada jogo entra, então a do fornecedor fica como está
+  const groupsOfTeam = new Map<string, Set<string>>();
+  for (const r of tableRows) {
+    const set = groupsOfTeam.get(r.participantId) ?? new Set<string>();
+    set.add(r.group);
+    groupsOfTeam.set(r.participantId, set);
+  }
+  const groupOfTeam = new Map<string, string>();
+  for (const [team, set] of groupsOfTeam) {
+    const named = [...set].filter((g) => g !== '');
+    if (named.length > 1)
+      return report('no_groups', {
+        detail: `time em mais de um grupo do fornecedor (${named.sort().join(', ')})`,
+      });
+    groupOfTeam.set(team, named[0] ?? '');
+  }
   const groups = new Set(groupOfTeam.values());
   const singleGroup = groups.size === 1 ? [...groups][0]! : groups.size === 0 ? '' : null;
   // fase de grupos sem a divisão do provedor: não dá para saber quem é de qual grupo
@@ -205,24 +217,27 @@ export async function recomputeSeasonStandings(
 }
 
 /**
- * Linhas calculadas que o recálculo atual não gravou (time/grupo que saiu da tabela, ou o grupo vazio deixado
- * pelo recálculo que perdia os grupos): a tabela calculada é refeita inteira a cada vez, então elas são velhas.
- * Linhas do provedor não são tocadas.
+ * Linhas calculadas velhas: nos grupos que este recálculo gravou, o time que não foi regravado (a tabela do
+ * grupo é refeita inteira); fora deles, só o grupo vazio deixado pelo recálculo que perdia os grupos, e só
+ * quando todos os grupos gravados têm nome. Grupo nomeado que não foi recalculado e linhas do provedor ficam.
  */
 async function dropStaleComputedRows(
   db: Database,
   seasonId: string,
   tables: readonly { group: string; rows: readonly { teamId: string }[] }[],
 ): Promise<void> {
-  const keep = tables.flatMap((t) => t.rows.map((r) => `${t.group}|${r.teamId}`));
+  const keep = tables.flatMap((t) => t.rows.map((r) => sql`(${t.group}, ${r.teamId}::uuid)`));
   if (!keep.length) return;
+  const written = [...new Set(tables.map((t) => t.group))];
+  const scope = written.includes('') ? written : [...written, ''];
   await db
     .delete(standing)
     .where(
       and(
         eq(standing.seasonId, seasonId),
         eq(standing.source, 'computed'),
-        notInArray(sql<string>`${standing.group} || '|' || ${standing.participantId}::text`, keep),
+        inArray(standing.group, scope),
+        sql`(${standing.group}, ${standing.participantId}) not in (${sql.join(keep, sql`, `)})`,
       ),
     );
 }
