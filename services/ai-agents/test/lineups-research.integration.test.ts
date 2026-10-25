@@ -528,4 +528,48 @@ describe('lineups-research: o que entra na fila', () => {
       'br-operadora-rejeitada-exemplo',
     );
   });
+
+  it('plataforma descoberta na revisita já entra na fila dos planos', async () => {
+    const old = new Date(NOW.getTime() + 40 * 86_400_000);
+    const llm = new FakeLlmClient((req: LlmJsonRequest) =>
+      req.purpose.startsWith('lineups:discover:')
+        ? {
+            data: {
+              platforms: [
+                {
+                  name: 'Operadora Nova Exemplo',
+                  kind: 'vmvpd',
+                  website: 'https://nova.exemplo',
+                  dominios_oficiais: [],
+                  sources: [src('https://nova.exemplo/sobre')],
+                },
+              ],
+              notes: null,
+            },
+            groundedUrls: ['https://nova.exemplo/sobre'],
+          }
+        : new Error('sem planos neste teste'),
+    );
+    const out = await new LineupResearcher({ db, llm, config, now: () => old, resolveUrl }).run({
+      countries: ['BR'],
+      revisit: true,
+      maxCalls: 20,
+      mode: 'search',
+    });
+    expect(out[0]!.newPlatforms.map((p) => p.slug)).toEqual(['br-operadora-nova-exemplo']);
+    expect(
+      out.flatMap((o) => (o.task.kind === 'plans' ? [[o.task.slug, o.task.reason]] : [])),
+    ).toContainEqual(['br-operadora-nova-exemplo', 'no_plans']);
+  });
+
+  it('--redescobrir enfileira os planos de todas as plataformas, não só das sem plano', async () => {
+    const tasks = await planLineupResearch(db, { countries: ['BR'], now: later, rediscover: true });
+    expect(tasks.map((t) => [t.kind, t.kind === 'plans' ? t.slug : null, t.reason])).toEqual([
+      ['discover', null, 'rediscover'],
+      ['plans', 'br-operadora-exemplo', 'requested'],
+      ['plans', 'br-operadora-nova-exemplo', 'no_plans'],
+      ['plans', 'br-operadora-rejeitada-exemplo', 'no_plans'],
+      ['plans', 'br-streaming-exemplo', 'requested'],
+    ]);
+  });
 });

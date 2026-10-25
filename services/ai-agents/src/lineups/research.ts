@@ -252,7 +252,8 @@ export interface PlanLineupOptions {
 
 /**
  * O que pesquisar por país. Sem revisita: descoberta onde não há plataformas, e planos das
- * plataformas sem plano. Com revisita: descoberta e planos dos itens vistos há mais de `staleDays`.
+ * plataformas sem plano (com `rediscover`, a descoberta e os planos de todas). Com revisita:
+ * descoberta e planos dos itens vistos há mais de `staleDays`.
  */
 export async function planLineupResearch(db: Database, opts: PlanLineupOptions): Promise<LineupTask[]> {
   const cutoff = new Date(opts.now.getTime() - (opts.staleDays ?? LINEUP_STALE_DAYS) * DAY);
@@ -331,14 +332,15 @@ export async function planLineupResearch(db: Database, opts: PlanLineupOptions):
     }
     if (!mine.length || opts.rediscover)
       tasks.push({ kind: 'discover', country, reason: mine.length ? 'rediscover' : 'new_country' });
-    for (const p of mine.filter((p) => p.plans === 0))
+    // --redescobrir refaz também as páginas de planos: entra toda plataforma, não só a sem plano
+    for (const p of opts.rediscover ? mine : mine.filter((p) => p.plans === 0))
       tasks.push({
         kind: 'plans',
         country,
         platformId: p.id,
         slug: p.slug,
         name: p.name,
-        reason: 'no_plans',
+        reason: p.plans === 0 ? 'no_plans' : 'requested',
       });
   }
   return tasks;
@@ -545,7 +547,8 @@ export class LineupResearcher {
         calls += outcome.calls;
         out.push(outcome);
         if (outcome.status === 'skipped') return out; // orçamento do dia esgotado
-        if (task.kind === 'discover' && !opts.revisit)
+        // plataforma nova entra na fila também na revisita (senão só volta quando ficar velha)
+        if (task.kind === 'discover')
           for (const p of outcome.newPlatforms)
             queue.push({
               kind: 'plans',
