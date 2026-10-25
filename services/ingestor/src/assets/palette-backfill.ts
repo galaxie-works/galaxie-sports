@@ -2,6 +2,9 @@ import type { AssetStore } from './asset-store.js';
 import type { ObjectStore } from './object-store.js';
 import { paletteFromPng, type AssetPalette } from './palette.js';
 
+/** Paletas gravadas por transação. */
+const SAVE_BATCH = 500;
+
 export interface PaletteBackfillOptions {
   assets: AssetStore;
   objects: ObjectStore;
@@ -41,6 +44,12 @@ export async function runPaletteBackfill(options: PaletteBackfillOptions): Promi
     return report;
   }
 
+  // grava em lotes numa transação: os times do lote são purgados do cache de uma vez (change feed)
+  let batch: { id: string; palette: AssetPalette }[] = [];
+  const flush = async () => {
+    if (batch.length) await options.assets.savePalettes(batch);
+    batch = [];
+  };
   let after: string | undefined;
   for (;;) {
     const wanted = options.limit === undefined ? undefined : options.limit - report.saved;
@@ -59,11 +68,13 @@ export async function runPaletteBackfill(options: PaletteBackfillOptions): Promi
         });
         continue;
       }
-      await options.assets.savePalette(item.id, palette);
+      batch.push({ id: item.id, palette });
+      if (batch.length >= SAVE_BATCH) await flush();
       report.saved += 1;
       if (palette.monochrome) report.monochrome += 1;
       emit({ type: 'saved', ...item, palette });
     }
+    await flush();
     // sem limite a primeira página já traz tudo; com limite, uma página incompleta é o fim da fila
     if (wanted === undefined || page.length < wanted) break;
     after = page.at(-1)!.id;

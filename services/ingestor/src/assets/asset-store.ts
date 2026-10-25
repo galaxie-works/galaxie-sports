@@ -127,6 +127,8 @@ export interface AssetStore {
    */
   paletteCandidates(limit?: number, after?: string): Promise<PaletteCandidate[]>;
   savePalette(id: string, palette: AssetPalette): Promise<void>;
+  /** Várias paletas numa transação só (uma página do backfill): os times afetados são purgados juntos. */
+  savePalettes(items: readonly { id: string; palette: AssetPalette }[]): Promise<void>;
 }
 
 // ─── memória (testes) ────────────────────────────────────────────────────────────────────────────
@@ -287,6 +289,10 @@ export class InMemoryAssetStore implements AssetStore {
   async savePalette(id: string, palette: AssetPalette): Promise<void> {
     this.rows.find((r) => r.id === id)!.palette = palette;
   }
+
+  async savePalettes(items: readonly { id: string; palette: AssetPalette }[]): Promise<void> {
+    for (const { id, palette } of items) await this.savePalette(id, palette);
+  }
 }
 
 // ─── Postgres ────────────────────────────────────────────────────────────────────────────────────
@@ -366,8 +372,14 @@ export class PgAssetStore implements AssetStore {
       return;
     }
     await this.db.transaction(async (tx) => {
+      const [old] = await tx
+        .select({
+          changed: sql<boolean>`${asset.palette} is distinct from ${JSON.stringify(info.palette)}::jsonb`,
+        })
+        .from(asset)
+        .where(eq(asset.id, id));
       await tx.update(asset).set(info).where(eq(asset.id, id));
-      await publishTeamLogoChanges(tx, await teamsUsing(tx, [id]));
+      if (old?.changed) await publishTeamLogoChanges(tx, await teamsUsing(tx, [id]));
     });
   }
 
@@ -586,9 +598,25 @@ export class PgAssetStore implements AssetStore {
   }
 
   async savePalette(id: string, palette: AssetPalette): Promise<void> {
+    await this.savePalettes([{ id, palette }]);
+  }
+
+  async savePalettes(items: readonly { id: string; palette: AssetPalette }[]): Promise<void> {
+    if (!items.length) return;
     await this.db.transaction(async (tx) => {
-      await tx.update(asset).set({ palette }).where(eq(asset.id, id));
-      await publishTeamLogoChanges(tx, await teamsUsing(tx, [id]));
+      const changed: string[] = [];
+      for (const { id, palette } of items) {
+        // paleta igual à gravada: nada a purgar
+        const rows = await tx
+          .update(asset)
+          .set({ palette })
+          .where(
+            and(eq(asset.id, id), sql`${asset.palette} is distinct from ${JSON.stringify(palette)}::jsonb`),
+          )
+          .returning({ id: asset.id });
+        changed.push(...rows.map((r) => r.id));
+      }
+      await publishTeamLogoChanges(tx, await teamsUsing(tx, changed));
     });
   }
 

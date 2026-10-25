@@ -505,6 +505,24 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
     expect((await feedFor(ids)).slice(3).sort(byEntity)).toEqual(both);
     await store.markMissing(other, new Date());
     expect((await feedFor(ids)).slice(5)).toEqual([change(third)]);
+
+    // a mesma paleta gravada de novo não purga nada; o lote do backfill publica numa transação só
+    await store.markStored(other, { ...stored(handball('teams/2')), palette: PALETTE });
+    const count = (await feedFor(ids)).length;
+    await store.markStored(other, { ...stored(handball('teams/2')), palette: PALETTE });
+    await store.savePalettes([{ id: other, palette: PALETTE }]);
+    expect(await feedFor(ids)).toHaveLength(count);
+    await store.savePalettes([
+      { id: crest, palette: PALETTE },
+      { id: other, palette: { ...PALETTE, dominant: '#123456' } },
+    ]);
+    const batch = await db
+      .select({ createdAt: changeFeed.createdAt })
+      .from(changeFeed)
+      .where(inArray(changeFeed.entityId, ids))
+      .orderBy(asc(changeFeed.id));
+    expect(batch.slice(count)).toHaveLength(3);
+    expect(new Set(batch.slice(count).map((r) => r.createdAt.getTime())).size).toBe(1);
   });
 
   it('--plan conta no Postgres os times de logos espelhados que entraram na lista de bloqueio', async () => {
