@@ -153,9 +153,9 @@ export async function listDemoUsers(): Promise<{ users: DemoUser[]; tenants: Ten
   };
 }
 
+/** Sessão aberta, como o painel a vê: sem o token (encerrar vai pelo id, ver `revokeSession`). */
 export interface DemoSession {
   id: string;
-  token: string;
   createdAt: string;
   updatedAt: string;
   expiresAt: string;
@@ -206,7 +206,6 @@ export async function getDemoUser(id: string) {
     .filter((s) => new Date(s.expiresAt).getTime() > Date.now())
     .map((s) => ({
       id: s.id,
-      token: s.token,
       createdAt: iso(s.createdAt)!,
       updatedAt: iso(s.updatedAt)!,
       expiresAt: iso(s.expiresAt)!,

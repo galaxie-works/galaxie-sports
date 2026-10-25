@@ -52,6 +52,16 @@ export async function createAuthTestDb(): Promise<AuthTestDb> {
       await pool.end();
       const c = new Client({ connectionString: adminUrl });
       await c.connect();
+      // O pool resolve o end() antes de as conexões fecharem de fato; derrubá-las no meio do caminho
+      // vira erro sem dono no processo do teste. Espera (até ~2 s) elas saírem antes do drop.
+      for (let i = 0; i < 40; i++) {
+        const { rows } = await c.query<{ n: number }>(
+          'select count(*)::int as n from pg_stat_activity where datname = $1',
+          [dbName],
+        );
+        if (!rows[0]?.n) break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
       await c.query(`drop database if exists ${dbName} with (force)`);
       await c.end();
     },

@@ -225,10 +225,18 @@ export async function setDisabled(userId: string, disabled: boolean): Promise<Ac
   }
 }
 
-export async function revokeSession(userId: string, sessionToken: string): Promise<ActionResult> {
+/**
+ * Encerra uma sessão do usuário pelo id. O token (que vale como a própria sessão) fica no servidor: o
+ * painel só conhece o id, e aqui ele vira token entre as sessões daquele usuário.
+ */
+export async function revokeSession(userId: string, sessionId: string): Promise<ActionResult> {
   await requireAdmin();
   try {
-    await auth.api.revokeUserSession({ headers: await headers(), body: { sessionToken } });
+    const h = await headers();
+    const { sessions } = await auth.api.listUserSessions({ headers: h, body: { userId } });
+    const target = sessions.find((s) => s.id === sessionId);
+    if (!target) return fail('sessionNotFound');
+    await auth.api.revokeUserSession({ headers: h, body: { sessionToken: target.token } });
     revalidatePath(`/ajustes/usuarios/${userId}`);
     return { ok: true };
   } catch (err) {

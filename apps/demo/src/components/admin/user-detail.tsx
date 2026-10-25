@@ -382,7 +382,7 @@ function SessionsTab({
               size="sm"
               variant="outline"
               disabled={pending}
-              onClick={() => run(() => revokeSession(user.id, s.token), t.admin.sessions.ended)}
+              onClick={() => run(() => revokeSession(user.id, s.id), t.admin.sessions.ended)}
             >
               {t.admin.sessions.end}
             </Button>

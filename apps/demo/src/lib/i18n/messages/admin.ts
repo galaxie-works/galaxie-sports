@@ -209,6 +209,7 @@ export default defineMessages(
       selfRemove: 'Você não pode remover a sua própria conta.',
       invalidRole: 'Papel inválido.',
       tenantRequired: 'Escolha o tenant da API do cliente.',
+      sessionNotFound: 'Sessão não encontrada (talvez já tenha sido encerrada).',
     },
   },
   {
@@ -419,6 +420,7 @@ export default defineMessages(
         selfRemove: "You can't remove your own account.",
         invalidRole: 'Invalid role.',
         tenantRequired: "Pick the client's API tenant.",
+        sessionNotFound: 'Session not found (it may have already ended).',
       },
     },
     'es-AR': {
@@ -631,6 +633,7 @@ export default defineMessages(
         selfRemove: 'No podés eliminar tu propia cuenta.',
         invalidRole: 'Rol inválido.',
         tenantRequired: 'Elegí el tenant de la API del cliente.',
+        sessionNotFound: 'Sesión no encontrada (quizás ya se cerró).',
       },
     },
   },
