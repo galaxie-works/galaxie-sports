@@ -38,7 +38,7 @@ export interface RightsNeed {
   season: number;
   /** Mercados sem direitos, empacotados por chamada (allowlist ≤ 100 domínios). */
   chunks: string[][];
-  /** Maior relevância de um jogo da competição nos mercados configurados (com ou sem direitos). */
+  /** Maior relevância de um jogo da competição nos mercados considerados (com ou sem direitos). */
   maxRelevance: number;
   firstStart: Date;
   events: number;
@@ -54,9 +54,10 @@ export interface PlanRightsOptions {
   /** Inclui mercados com linha curada (comparar a pesquisa com a curadoria). */
   includeCurated?: boolean;
   /**
-   * Só pesquisa competições com algum jogo de relevância ≥ este valor em algum mercado configurado —
-   * inclusive os que já têm direitos: a chamada cobre todos os mercados sem direitos pelo mesmo custo,
-   * então a liga que importa no próprio país (curado lá) também ganha direitos nos vizinhos.
+   * Só pesquisa competições com algum jogo de relevância ≥ este valor em algum mercado considerado
+   * (`markets`) — inclusive os que já têm direitos: a chamada cobre todos os mercados sem direitos pelo
+   * mesmo custo, então a liga que importa no próprio país (curado lá) também ganha direitos nos
+   * vizinhos. Com `markets` restrito (--pais), a relevância de fora não conta.
    */
   minRelevance?: number;
 }
@@ -98,7 +99,8 @@ export async function planRightsResearch(db: Database, opts: PlanRightsOptions):
     const dirs = lacking.map((m) => opts.config.directory(m));
     const maxRelevance = Math.max(
       ...evs.flatMap((e) =>
-        opts.config.countries.map((m) =>
+        // só os mercados pedidos (--pais): fora deles a relevância não justifica a chamada
+        markets.map((m) =>
           marketRelevance(
             {
               importance: e.importance,

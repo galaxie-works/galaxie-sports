@@ -611,6 +611,9 @@ describe('direitos por temporada (nível 1)', () => {
     });
     // Eredivisie: sem audiência em nenhum mercado, fica abaixo do limiar (30) e não gasta pesquisa
     expect(needs.find((n) => n.competition.slug === 'eredivisie')).toBeUndefined();
+    // --pais BR: a audiência no México não conta (a liga não importa no mercado pedido)
+    const onlyBr = await planRightsResearch(db, { now, config: cfg, markets: ['BR'], minRelevance: 60 });
+    expect(onlyBr.find((n) => n.competition.slug === 'liga-mx')).toBeUndefined();
   });
 
   it('uma chamada cobre os mercados sem direitos; validador confere cada detentor; o resultado alimenta a agenda', async () => {
