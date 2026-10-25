@@ -1,6 +1,13 @@
 import type { Photo } from '@galaxie/contracts';
 import { describe, expect, it } from 'vitest';
-import { coverable, pickHighlight, rankLegends, type DriverTotals, type LegendSeason } from './legends.js';
+import {
+  coverable,
+  pickHighlight,
+  pickListed,
+  rankLegends,
+  type DriverTotals,
+  type LegendSeason,
+} from './legends.js';
 
 const driver = (name: string, titles: number[], wins: number, races: number): DriverTotals => ({
   id: name.toLowerCase().replace(/\W+/g, '-'),
@@ -97,5 +104,22 @@ describe('temporada marcante do card', () => {
       car: null,
     });
     expect(pickHighlight([], null)).toBeNull();
+  });
+});
+
+describe('lista editorial das lendas', () => {
+  const ranked = [{ id: 'ham' }, { id: 'msc' }, { id: 'vet' }, { id: 'sen' }, { id: 'hul' }];
+  const f1db = new Map([
+    ['ham', ['lewis-hamilton']],
+    ['msc', ['michael-schumacher']],
+    ['vet', ['sebastian-vettel']],
+    ['sen', ['ayrton-senna']],
+  ]);
+  it('só as da lista, na ordem dela; quem não está na lista ou não tem id do F1DB fica de fora', () => {
+    const list = ['ayrton-senna', 'michael-schumacher', 'lewis-hamilton', 'jim-clark'];
+    expect(pickListed(ranked, f1db, list).map((d) => d.id)).toEqual(['sen', 'msc', 'ham']);
+  });
+  it('lista vazia: todas as do critério automático, na ordem dele', () => {
+    expect(pickListed(ranked, f1db, []).map((d) => d.id)).toEqual(['ham', 'msc', 'vet', 'sen', 'hul']);
   });
 });

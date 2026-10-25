@@ -43,6 +43,18 @@ export const NO_RECITATION_NOTE =
 export const RESEARCH_STEP_NOTE =
   'Responda em texto corrido (não em JSON), organizado por país, com tudo o que encontrar para preencher a resposta pedida. Use a busca e baseie cada afirmação em fontes encontradas nela.';
 
+/**
+ * Teto de buscas da chamada. A ferramenta `google_search` não tem parâmetro de teto de consultas (nem
+ * na Interactions API nem na generateContent): o modelo decide quantas faz e cada uma é cobrada
+ * (GEMINI_GROUNDING_USD_PER_QUERY). O teto vai como instrução no passo 1; a contagem real volta em
+ * `usage.grounding_tool_count`, fica no ledger (`web_searches`) e o orçamento alerta a chamada acima
+ * do teto (o painel conta essas chamadas).
+ */
+export function searchCapNote(maxSearches: number | undefined): string {
+  if (maxSearches === undefined) return '';
+  return `Faça no máximo ${maxSearches} ${maxSearches === 1 ? 'consulta' : 'consultas'} de busca no total: planeje as consultas antes, combine termos numa mesma consulta e pare quando tiver o suficiente.`;
+}
+
 /** Instrução do passo 2 (estruturação sem busca, só com as fontes do passo 1). */
 export const STRUCTURE_STEP_NOTE =
   'Converta o resultado da pesquisa abaixo no JSON pedido. Use SOMENTE as fontes da lista "Fontes permitidas": todo campo de URL de evidência precisa ser exatamente uma URL dessa lista, e o trecho deve vir do texto da pesquisa associado a essa fonte. Afirmação sem fonte da lista não entra (deixe "a confirmar"/vazio). Não invente URLs. Os rótulos [S1], [S2]... da lista servem só para achar a URL: nunca os escreva dentro dos campos de texto.';
@@ -208,7 +220,11 @@ export class GeminiLlmClient implements LlmClient {
               this.buildBody(req, model, {
                 schema: false,
                 search: true,
-                extraSystem: [RESEARCH_STEP_NOTE, allowlistNote(req.allowedDomains)]
+                extraSystem: [
+                  RESEARCH_STEP_NOTE,
+                  searchCapNote(req.maxSearches),
+                  allowlistNote(req.allowedDomains),
+                ]
                   .filter(Boolean)
                   .join('\n\n'),
               }),

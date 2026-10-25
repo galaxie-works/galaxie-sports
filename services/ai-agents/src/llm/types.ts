@@ -27,6 +27,12 @@ export interface LlmJsonRequest {
   schemaName: string;
   /** Habilita a ferramenta de busca na web do provedor. */
   webSearch?: boolean;
+  /**
+   * Teto de buscas na web desta chamada. O orçamento (BudgetedLlmClient) preenche com
+   * AI_MAX_SEARCHES_PER_CALL quando ausente. OpenAI e Anthropic aplicam na API; o Gemini não tem o
+   * parâmetro e recebe o teto como instrução (a contagem real é conferida depois da chamada).
+   */
+  maxSearches?: number;
   /** Restringe a busca a estes domínios, quando o provedor suportar. */
   allowedDomains?: string[];
   maxOutputTokens?: number;

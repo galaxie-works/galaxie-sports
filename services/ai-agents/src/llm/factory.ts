@@ -16,9 +16,26 @@ export interface CreateLlmClientOptions {
   env?: Record<string, string | undefined>;
   /** Com banco, o orçamento usa ops.llm_usage; sem, um ledger em memória. */
   db?: Database;
-  /** Limites por agente (somados ao global AI_DAILY_TOKEN_BUDGET). */
+  /** Limites por agente em tokens (somados ao global AI_DAILY_TOKEN_BUDGET). */
   agentLimits?: BudgetPolicy['agentLimits'];
   now?: () => Date;
+}
+
+/** Política do orçamento lida do ambiente: tokens, US$ (global e por agente) e buscas por chamada. */
+export function budgetPolicyFromSettings(
+  settings: Pick<
+    LlmSettings,
+    'dailyTokenBudget' | 'dailyUsdBudget' | 'agentUsdBudgets' | 'maxSearchesPerCall'
+  >,
+  agentLimits?: BudgetPolicy['agentLimits'],
+): BudgetPolicy {
+  return {
+    dailyLimit: settings.dailyTokenBudget,
+    ...(agentLimits ? { agentLimits } : {}),
+    dailyUsdLimit: settings.dailyUsdBudget,
+    agentUsdLimits: settings.agentUsdBudgets,
+    maxSearchesPerCall: settings.maxSearchesPerCall,
+  };
 }
 
 export interface LlmRuntime {
@@ -44,10 +61,7 @@ export function createLlmClient(options: CreateLlmClientOptions = {}): LlmRuntim
         : new OpenAiLlmClient(common);
   const budget = new TokenBudget(
     options.db ? new PgTokenBudgetStore(options.db) : new MemoryTokenBudgetStore(),
-    {
-      dailyLimit: settings.dailyTokenBudget,
-      ...(options.agentLimits ? { agentLimits: options.agentLimits } : {}),
-    },
+    budgetPolicyFromSettings(settings, options.agentLimits),
     options.now,
   );
   return {
@@ -75,6 +89,12 @@ export interface WithTokenBudgetOptions {
   /** Limite global do dia (padrão: AI_DAILY_TOKEN_BUDGET do ambiente; null = sem limite). */
   dailyLimit?: number | null;
   agentLimits?: BudgetPolicy['agentLimits'];
+  /** Teto global em US$ (padrão: AI_DAILY_USD_BUDGET do ambiente; null = sem teto). */
+  dailyUsdLimit?: number | null;
+  /** Tetos em US$ por agente (padrão: AI_AGENT_USD_BUDGETS do ambiente). */
+  agentUsdLimits?: Record<string, number>;
+  /** Buscas por chamada (padrão: AI_MAX_SEARCHES_PER_CALL do ambiente; null = sem teto). */
+  maxSearchesPerCall?: number | null;
   env?: Record<string, string | undefined>;
   now?: () => Date;
   /** Usado no registro de falhas (o sucesso registra o provedor/modelo da resposta). */
@@ -82,17 +102,23 @@ export interface WithTokenBudgetOptions {
 }
 
 /**
- * Envolve QUALQUER LlmClient (inclusive o FakeLlmClient dos testes) com o orçamento diário de tokens
- * e o registro de uso por agente (prefixo de `purpose`).
+ * Envolve QUALQUER LlmClient (inclusive o FakeLlmClient dos testes) com o orçamento diário (tokens e US$,
+ * global e por agente) e o registro de uso por agente (prefixo de `purpose`).
  */
 export function withTokenBudget(client: LlmClient, options: WithTokenBudgetOptions = {}): BudgetedLlmClient {
-  const dailyLimit =
-    options.dailyLimit !== undefined
-      ? options.dailyLimit
-      : llmSettingsFromEnv(options.env ?? process.env).dailyTokenBudget;
+  const fromEnv = llmSettingsFromEnv(options.env ?? process.env);
   const budget = new TokenBudget(
     options.db ? new PgTokenBudgetStore(options.db) : new MemoryTokenBudgetStore(),
-    { dailyLimit, ...(options.agentLimits ? { agentLimits: options.agentLimits } : {}) },
+    budgetPolicyFromSettings(
+      {
+        dailyTokenBudget: options.dailyLimit !== undefined ? options.dailyLimit : fromEnv.dailyTokenBudget,
+        dailyUsdBudget: options.dailyUsdLimit !== undefined ? options.dailyUsdLimit : fromEnv.dailyUsdBudget,
+        agentUsdBudgets: options.agentUsdLimits ?? fromEnv.agentUsdBudgets,
+        maxSearchesPerCall:
+          options.maxSearchesPerCall !== undefined ? options.maxSearchesPerCall : fromEnv.maxSearchesPerCall,
+      },
+      options.agentLimits,
+    ),
     options.now,
   );
   return new BudgetedLlmClient(client, budget, (t) => t, options.provider ?? 'unknown');

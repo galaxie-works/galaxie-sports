@@ -57,6 +57,11 @@ export const WEB_SEARCH_USD_PER_CALL = 0.01;
  */
 export const GEMINI_GROUNDING_USD_PER_QUERY = 0.014;
 
+/** US$ por busca na web do provedor (o Gemini cobra por consulta do grounding; os demais por chamada). */
+export function searchUsdFor(provider: string): number {
+  return provider === 'gemini' ? GEMINI_GROUNDING_USD_PER_QUERY : WEB_SEARCH_USD_PER_CALL;
+}
+
 /** Preço do modelo (aceita snapshots datados, ex.: `gpt-6-luna-2026-05-18`). */
 export function priceFor(model: string): ModelPrice | undefined {
   if (MODEL_PRICES[model]) return MODEL_PRICES[model];

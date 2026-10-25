@@ -411,7 +411,7 @@ Vídeos diretos por evento (YouTube Data API v3), classificados por tipo e forma
 | Fonte não confiável | Lista de domínios priorizados por país; confiança mínima 0,8 |
 | Conteúdo ofensivo | Prompt com regras de linguagem segura + filtro de termos proibidos por locale |
 | Direitos autorais | Evidência limitada a trechos curtos (≤ 200 caracteres); nunca reproduzir matérias |
-| Custo descontrolado | Orçamento diário de tokens (`AI_DAILY_TOKEN_BUDGET`, global + limites opcionais por agente) com ledger em `ops.llm_usage`; cache por `(evento, país, janela)` (`enrich.wtw_run`); revalidação T-3h/T-30min sem tokens; modelos menores onde possível |
+| Custo descontrolado | Orçamento diário de tokens (`AI_DAILY_TOKEN_BUDGET`) e em US$ (`AI_DAILY_USD_BUDGET`, tokens + buscas na web; `AI_AGENT_USD_BUDGETS` por agente, que fica sem IA até a virada do dia UTC ao bater o teto) com ledger em `ops.llm_usage`; teto de buscas por chamada (`AI_MAX_SEARCHES_PER_CALL`: OpenAI e Anthropic aplicam na API, o Gemini recebe no prompt e o painel conta as chamadas acima do teto); cache por `(evento, país, janela)` (`enrich.wtw_run`); revalidação T-3h/T-30min sem tokens; modelos menores onde possível |
 | Prompt injection via páginas web | Conteúdo web tratado como dado (regras no prompt de sistema, `wrapUntrusted` para texto externo); saída presa a JSON Schema; toda URL citada é rebuscada e conferida pelo validador; o LLM não publica nada sozinho |
 
 ### 3.1 Camada de LLM (`services/ai-agents/src/llm`)

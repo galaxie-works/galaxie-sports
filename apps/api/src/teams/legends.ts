@@ -3,8 +3,8 @@
  * escopo `lendas` do acervo da Commons (docs/runbooks/fotos-commons.md): todos os campeões mundiais (título de
  * temporada encerrada) e os 20 pilotos com mais vitórias e com mais GPs.
  *
- * - Ordem: títulos, depois vitórias, GPs disputados e o nome. Objetiva e a mesma para todo cliente e idioma; um
- *   campeão novo entra sozinho no fim da temporada.
+ * - Quem aparece: as 10 da lista editorial `F1_LEGENDS`, na ordem dela (relevância histórica); sem a lista, todas
+ *   as do critério acima, por títulos, vitórias, GPs disputados e o nome.
  * - GPs, vitórias e pódios contam como em `/v1/teams/{id}/career` (sessão `Race`, uma vez por corrida, vitória e
  *   pódio só com chegada numérica): o card e a página do piloto mostram os mesmos números.
  * - Temporada marcante: a do carro de destaque do acervo (`highlight_car`, curadoria) ou, sem ele, a de título com
@@ -15,7 +15,7 @@
 import { sql } from 'drizzle-orm';
 import type { Photo, RaceLegend } from '@galaxie/contracts';
 import type { Database } from '@galaxie/db';
-import { liveryFor, type LiveryEntry } from '@galaxie/knowledge';
+import { F1_LEGENDS, liveryFor, type LiveryEntry } from '@galaxie/knowledge';
 import { loadRaceTeams } from '../events/race.js';
 import { pickText } from '../i18n.js';
 import { currentF1Season, f1dbIds, splitName, toLivery } from './career.js';
@@ -108,9 +108,30 @@ export function pickHighlight<S extends LegendSeason>(
   return ranked[0] ? { season: ranked[0], car: null } : null;
 }
 
+/**
+ * Só as lendas da lista editorial (ids do F1DB), na ordem dela. Piloto da lista sem dados no core fica de fora;
+ * lista vazia = todas as do critério automático. Puro.
+ */
+export function pickListed<T extends { id: string }>(
+  ranked: readonly T[],
+  f1dbOf: ReadonlyMap<string, readonly string[]>,
+  list: readonly string[],
+): T[] {
+  if (!list.length) return [...ranked];
+  const position = (d: T) =>
+    Math.min(...(f1dbOf.get(d.id) ?? []).map((id) => list.indexOf(id)).filter((i) => i >= 0), Infinity);
+  return ranked
+    .map((d) => ({ d, at: position(d) }))
+    .filter((x) => x.at !== Infinity)
+    .sort((a, b) => a.at - b.at)
+    .map((x) => x.d);
+}
+
 export interface RaceLegendsOptions {
   /** Pinturas curadas por época (`loadLiveries`), já no piso editorial. */
   liveries?: readonly LiveryEntry[];
+  /** Lendas do carrossel (ids do F1DB, na ordem). Padrão: `F1_LEGENDS`; vazia = critério automático. */
+  list?: readonly string[];
   /** Quantas lendas devolver (padrão: todas). */
   limit?: number | undefined;
 }
@@ -164,13 +185,24 @@ export async function loadRaceLegends(
   for (const r of champions)
     titlesOf.set(r.participant_id, [...(titlesOf.get(r.participant_id) ?? []), Number(r.year)]);
 
-  const ranked = rankLegends(
+  const auto = rankLegends(
     totals.map((t) => ({
       ...t,
       titles: [...new Set(titlesOf.get(t.id) ?? [])].sort((a, b) => a - b),
       wins: Number(t.wins),
       races: Number(t.races),
     })),
+  );
+  const list = options.list ?? F1_LEGENDS;
+  const ranked = pickListed(
+    auto,
+    list.length
+      ? await f1dbIds(
+          db,
+          auto.map((l) => l.id),
+        )
+      : new Map<string, string[]>(),
+    list,
   ).slice(0, options.limit ?? Infinity);
   if (!ranked.length) return [];
   const ids = ranked.map((l) => l.id);

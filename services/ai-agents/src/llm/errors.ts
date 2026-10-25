@@ -15,16 +15,22 @@ export class LlmError extends Error {
   }
 }
 
-/** Orçamento diário de tokens esgotado (AI_DAILY_TOKEN_BUDGET) — não é tentado de novo. */
+/**
+ * Orçamento diário esgotado — de tokens (AI_DAILY_TOKEN_BUDGET) ou de US$ (AI_DAILY_USD_BUDGET, global,
+ * ou AI_AGENT_USD_BUDGETS, do agente). Não é tentado de novo: o agente segue com o determinístico.
+ */
 export class BudgetExceededError extends LlmError {
   constructor(
     readonly agent: string,
     readonly used: number,
     readonly limit: number,
     readonly requested: number,
+    readonly unit: 'tokens' | 'usd' = 'tokens',
   ) {
     super(
-      `Orçamento diário de tokens esgotado (${agent}): usados ${used} de ${limit}, pedido estimado ${requested}.`,
+      unit === 'usd'
+        ? `Orçamento diário em US$ esgotado (${agent}): gastos US$ ${used.toFixed(4)} de US$ ${limit}, pedido estimado US$ ${requested.toFixed(4)}.`
+        : `Orçamento diário de tokens esgotado (${agent}): usados ${used} de ${limit}, pedido estimado ${requested}.`,
       'budget',
       false,
     );

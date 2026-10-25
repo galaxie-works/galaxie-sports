@@ -40,6 +40,24 @@ export function driverTier(d: DriverTierInput): DriverTier {
 export const EDITORIAL_LOCALES = ['pt-BR', 'es'] as const;
 export type EditorialLocale = (typeof EDITORIAL_LOCALES)[number];
 
+/**
+ * As 10 lendas da F1 (id do F1DB), na ordem do carrossel "Legendary" e do perfil editorial completo. Escolha
+ * editorial por relevância histórica (quem qualquer pessoa cita ao falar das lendas da F1), não pelos números:
+ * o critério automático (`driverTier`) traz quase 50 pilotos.
+ */
+export const F1_LEGENDS = [
+  'ayrton-senna',
+  'michael-schumacher',
+  'lewis-hamilton',
+  'juan-manuel-fangio',
+  'alain-prost',
+  'niki-lauda',
+  'nelson-piquet',
+  'jim-clark',
+  'fernando-alonso',
+  'max-verstappen',
+] as const;
+
 /** Modo de pilotagem (o texto curto do estilo diz o resto). */
 export const DRIVING_STYLES = [
   'aggressive',

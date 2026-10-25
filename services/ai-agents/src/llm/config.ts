@@ -35,12 +35,53 @@ export const API_KEY_ENV: Record<LlmProviderName, string> = {
 
 export const DEFAULT_DAILY_TOKEN_BUDGET = 2_000_000;
 
+/**
+ * Teto diário em US$ (dia UTC) somando todos os agentes: custo dos tokens + custo das buscas na web
+ * (`ops.llm_usage.cost_usd`). A busca do Gemini é cobrada por consulta e pesa mais que os tokens
+ * (2026-10-24: 1.101 buscas, US$ 20,88 no dia, sem disparar o teto de tokens). Média da semana
+ * anterior: ~US$ 5/dia; 10 dá folga para o dia normal e corta o dia de pesquisa descontrolada.
+ */
+export const DEFAULT_DAILY_USD_BUDGET = 10;
+
+/**
+ * Teto diário em US$ por agente (prefixo de `purpose`). Agente fora da lista fica só no teto global.
+ * Valores pela semana de 2026-10-18 a 24: lineups ~US$ 1,9/dia (concentrado num dia), wtw ~1,7,
+ * context ~1, related e f1profile pequenos.
+ */
+export const DEFAULT_AGENT_USD_BUDGETS = 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=1';
+
+/** Buscas na web por chamada (teto do provedor quando existe; senão instrução no prompt + alerta). */
+export const DEFAULT_MAX_SEARCHES_PER_CALL = 5;
+
+/** Formato de AI_AGENT_USD_BUDGETS: `agente=US$` separados por vírgula ou espaço. */
+export const AGENT_USD_BUDGET_ENTRY = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?)$/i;
+
+/**
+ * `lineups=2,wtw=3` → `{ lineups: 2, wtw: 3 }`. Vazio → `{}`; formato inválido → null.
+ * US$ 0 num agente = agente sem IA (só o determinístico).
+ */
+export function parseAgentUsdBudgets(raw: string | undefined | null): Record<string, number> | null {
+  const out: Record<string, number> = {};
+  for (const part of (raw ?? '').split(/[,\s;]+/).filter(Boolean)) {
+    const m = AGENT_USD_BUDGET_ENTRY.exec(part);
+    if (!m) return null;
+    out[m[1]!.toLowerCase()] = Number(m[2]);
+  }
+  return out;
+}
+
 export interface LlmSettings {
   provider: LlmProviderName;
   apiKey: string | undefined;
   models: Record<LlmTier, string>;
   /** Tokens (entrada + saída) por dia UTC para todos os agentes; null = sem limite. */
   dailyTokenBudget: number | null;
+  /** US$ (tokens + buscas) por dia UTC para todos os agentes; null = sem limite. */
+  dailyUsdBudget: number | null;
+  /** US$ por dia UTC de cada agente (prefixo de `purpose`); agente ausente = só o teto global. */
+  agentUsdBudgets: Record<string, number>;
+  /** Buscas na web por chamada; null = sem teto. */
+  maxSearchesPerCall: number | null;
   /** Tentativas extras em erros transitórios (429, 5xx, timeout, saída fora do schema). */
   maxRetries: number;
   timeoutMs: number;
@@ -55,6 +96,34 @@ function intEnv(env: Env, name: string, fallback: number): number {
   if (!Number.isInteger(n) || n < 0)
     throw new LlmError(`${name} precisa ser um inteiro ≥ 0.`, 'config', false);
   return n;
+}
+
+const isUnlimited = (raw: string | undefined) => {
+  const v = raw?.trim().toLowerCase();
+  return v === 'unlimited' || v === '0';
+};
+
+function usdEnv(env: Env, name: string, fallback: number): number | null {
+  const raw = env[name]?.trim();
+  if (!raw) return fallback;
+  if (isUnlimited(raw)) return null;
+  const n = Number(raw.replace(',', '.'));
+  if (!Number.isFinite(n) || n < 0)
+    throw new LlmError(`${name} precisa ser um número ≥ 0 (ou "unlimited").`, 'config', false);
+  return n;
+}
+
+/** AI_AGENT_USD_BUDGETS do ambiente (vazio = o padrão); formato inválido falha a configuração. */
+export function agentUsdBudgetsFromEnv(env: Env = process.env): Record<string, number> {
+  const raw = env.AI_AGENT_USD_BUDGETS?.trim();
+  const parsed = parseAgentUsdBudgets(raw || DEFAULT_AGENT_USD_BUDGETS);
+  if (!parsed)
+    throw new LlmError(
+      `AI_AGENT_USD_BUDGETS inválido: ${raw} (use agente=US$, ex.: lineups=2,wtw=3).`,
+      'config',
+      false,
+    );
+  return parsed;
 }
 
 /** Lê AI_PROVIDER, chaves, modelos por nível e orçamento do ambiente. */
@@ -81,6 +150,11 @@ export function llmSettingsFromEnv(env: Env = process.env): LlmSettings {
       research: env.AI_MODEL_RESEARCH?.trim() || defaults.research,
     },
     dailyTokenBudget,
+    dailyUsdBudget: usdEnv(env, 'AI_DAILY_USD_BUDGET', DEFAULT_DAILY_USD_BUDGET),
+    agentUsdBudgets: agentUsdBudgetsFromEnv(env),
+    maxSearchesPerCall: isUnlimited(env.AI_MAX_SEARCHES_PER_CALL)
+      ? null
+      : intEnv(env, 'AI_MAX_SEARCHES_PER_CALL', DEFAULT_MAX_SEARCHES_PER_CALL),
     maxRetries: intEnv(env, 'AI_MAX_RETRIES', 3),
     timeoutMs: intEnv(env, 'AI_TIMEOUT_MS', 180_000),
   };

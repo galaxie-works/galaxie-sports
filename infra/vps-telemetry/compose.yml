@@ -241,7 +241,8 @@ services:
 
   # Agentes de IA (docs/07): resumo pós-jogo, cenário pré-jogo e Onde Assistir. Mesma imagem do
   # ingestor, com o scheduler no perfil `agents`; roda mesmo com o ingestor parado. O gasto com o LLM
-  # tem teto diário em tokens (AI_DAILY_TOKEN_BUDGET), somando todos os agentes (ledger ops.llm_usage).
+  # tem teto diário em tokens (AI_DAILY_TOKEN_BUDGET) e em US$ (AI_DAILY_USD_BUDGET, tokens + buscas na
+  # web; AI_AGENT_USD_BUDGETS por agente), somando todos os agentes (ledger ops.llm_usage).
   agents:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
@@ -267,6 +268,9 @@ services:
       AI_MODEL_STANDARD: ${AI_MODEL_STANDARD:-}
       AI_MODEL_RESEARCH: ${AI_MODEL_RESEARCH:-}
       AI_DAILY_TOKEN_BUDGET: ${AI_DAILY_TOKEN_BUDGET:-1000000}
+      AI_DAILY_USD_BUDGET: ${AI_DAILY_USD_BUDGET:-10}
+      AI_AGENT_USD_BUDGETS: ${AI_AGENT_USD_BUDGETS:-}
+      AI_MAX_SEARCHES_PER_CALL: ${AI_MAX_SEARCHES_PER_CALL:-5}
       WTW_MARKETS: ${WTW_MARKETS:-BR,AR,MX,CO,CL,PE,UY,EC}
       WTW_MIN_RELEVANCE: ${WTW_MIN_RELEVANCE:-60}
       WTW_DAILY_USD_PER_MARKET: ${WTW_DAILY_USD_PER_MARKET:-1}

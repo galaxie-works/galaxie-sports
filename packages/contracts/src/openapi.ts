@@ -380,7 +380,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       '/v1/sports/formula-1/legends': {
         get: getOp(
-          'Lendas da Fórmula 1: os campeões mundiais e os 20 com mais vitórias e com mais GPs, por títulos e vitórias, cada um com a temporada marcante (equipe, pintura da época, número e o carro ao fundo) e o retrato',
+          'Lendas da Fórmula 1: as 10 da lista editorial (Senna, Schumacher, Hamilton, Fangio, Prost, Lauda, Piquet, Clark, Alonso e Verstappen), nessa ordem, cada uma com a temporada marcante (equipe, pintura da época, número e o carro ao fundo) e o retrato',
           'Times e pessoas',
           RaceLegends,
           { query: RaceLegendsQuery },
