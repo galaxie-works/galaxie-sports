@@ -26,6 +26,15 @@ interface Curadoria {
 
 export const CURADORIA: Curadoria[] = [
   {
+    driver: 'driver/ayrton-senna',
+    car: 'car/mclaren/1991',
+    season: 1991,
+    photoIn: 'car/mclaren/1991',
+    role: 'car',
+    file: 'File:Ayrton Senna 1991 USA 3 cropped.jpg',
+    reason: 'curadoria: Phoenix 1991, com o #1 de campeão (pedido do Wagner)',
+  },
+  {
     driver: 'driver/lewis-hamilton',
     car: 'car/ferrari/2026',
     season: 2026,
