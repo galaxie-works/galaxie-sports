@@ -4,7 +4,8 @@
  *
  *   pnpm --filter @galaxie/ingestor assets:mirror --plan              # quantos faltam, sem baixar
  *   pnpm --filter @galaxie/ingestor assets:mirror                     # baixa o que falta em core.asset
- *   pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw     # antes, registra toda URL de mídia do raw
+ *   pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw     # antes, registra as URLs de mídia do raw
+ *                                                                     # novo desde a última descoberta (--raw-completo: todo)
  *   pnpm --filter @galaxie/ingestor assets:mirror --fotos             # só fotos de pessoas, escalados recentes primeiro
  *   pnpm --filter @galaxie/ingestor assets:mirror --so-limpeza        # só a limpeza dos logos genéricos (com --plan: prévia)
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
@@ -27,7 +28,7 @@ import { eq, sql } from 'drizzle-orm';
 import { publicAssetUrl } from '@galaxie/apisports-client';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
-import { mediaPathPrefix, PgAssetStore, type LogoCleanup } from '../assets/asset-store.js'
+import { mediaPathPrefix, PgAssetStore, runRawDiscovery, type LogoCleanup } from '../assets/asset-store.js';
 import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
 import { PLACEHOLDER_PHOTO_SHA256, registerPlayerPhotos } from '../assets/person-photos.js';
@@ -36,6 +37,7 @@ const { values } = parseArgs({
   options: {
     plan: { type: 'boolean', default: false },
     'descobrir-raw': { type: 'boolean', default: false },
+    'raw-completo': { type: 'boolean', default: false },
     'retentar-ausentes': { type: 'boolean', default: false },
     fotos: { type: 'boolean', default: false },
     'so-limpeza': { type: 'boolean', default: false },
@@ -60,9 +62,10 @@ const personPhotos = values.fotos
 
 try {
   if (values['descobrir-raw']) {
-    const urls = await assets.discoverFromRaw();
-    const added = await assets.register(urls.filter((u) => !denylist.has(u)));
-    console.log(`URLs de mídia no raw: ${urls.length} · novas em core.asset: ${added}`);
+    const r = await runRawDiscovery(db, assets, { denylist, full: values['raw-completo'] });
+    console.log(
+      `URLs de mídia no raw${r.since ? ` desde ${r.since.toISOString()}` : ''}: ${r.urls} · novas em core.asset: ${r.added}`,
+    );
   }
 
   // no --plan, numa transação desfeita: a prévia conta as fotos que a execução real vai registrar

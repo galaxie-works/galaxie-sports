@@ -1,14 +1,16 @@
-import { and, asc, eq, inArray, isNotNull, isNull, notInArray, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNotNull, isNull, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import {
   isProviderMediaUrl,
   mediaKindFromUrl,
   normalizeMediaUrl,
   type MediaAssetKind,
+  type MediaDenylist,
 } from '@galaxie/apisports-client';
 import {
   apiResponse,
   asset,
   competition,
+  jobRun,
   participant,
   person,
   type AssetPalette,
@@ -547,7 +549,7 @@ export class PgAssetStore implements AssetStore {
       select distinct m[1] as url
       from ${apiResponse} r,
         lateral regexp_matches(r.body::text, ${`(${pattern})`}, 'g') as m
-      where ${since ? sql`r.fetched_at >= ${since}` : sql`true`}
+      where ${since ? sql`r.fetched_at >= ${since.toISOString()}::timestamptz` : sql`true`}
     `);
     const urls = new Set<string>();
     for (const r of rows) {
@@ -555,5 +557,53 @@ export class PgAssetStore implements AssetStore {
       if (normalized) urls.add(normalized);
     }
     return [...urls].sort();
+  }
+}
+
+const RAW_DISCOVERY_OVERLAP_MS = 3_600_000;
+
+export interface RawDiscoveryReport {
+  /** Início da descoberta anterior, menos 1 h de margem (só o raw gravado desde então foi varrido); null = tudo. */
+  since: Date | null;
+  urls: number;
+  added: number;
+}
+
+/**
+ * `--descobrir-raw`: registra em core.asset as URLs de mídia do raw (fora as bloqueadas). Incremental: só as
+ * respostas gravadas desde o início da última descoberta concluída (`ops.job_run` `assets:discover-raw`), para o
+ * job diário não varrer a tabela inteira; a primeira execução (ou `full`) varre tudo.
+ */
+export async function runRawDiscovery(
+  db: Database,
+  store: PgAssetStore,
+  options: { denylist: MediaDenylist; full?: boolean | undefined },
+): Promise<RawDiscoveryReport> {
+  const [last] = options.full
+    ? []
+    : await db
+        .select({ startedAt: jobRun.startedAt })
+        .from(jobRun)
+        .where(and(eq(jobRun.job, 'assets:discover-raw'), eq(jobRun.status, 'ok')))
+        .orderBy(desc(jobRun.startedAt))
+        .limit(1);
+  // margem para o raw gravado em transações que começaram antes da descoberta anterior e commitaram depois
+  const since = last ? new Date(last.startedAt.getTime() - RAW_DISCOVERY_OVERLAP_MS) : null;
+  const [run] = await db.insert(jobRun).values({ job: 'assets:discover-raw', status: 'running' }).returning();
+  try {
+    const urls = await store.discoverFromRaw(since ?? undefined);
+    const added = await store.register(urls.filter((u) => !options.denylist.has(u)));
+    const report = { since, urls: urls.length, added };
+    await db
+      .update(jobRun)
+      .set({ status: 'ok', finishedAt: new Date(), stats: report })
+      .where(eq(jobRun.id, run!.id));
+    return report;
+  } catch (err) {
+    await db
+      .update(jobRun)
+      .set({ status: 'error', finishedAt: new Date(), error: String(err) })
+      .where(eq(jobRun.id, run!.id));
+    throw err;
   }
 }

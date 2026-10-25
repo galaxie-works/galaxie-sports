@@ -23,7 +23,7 @@ import {
   type NormalizedParticipant,
 } from '@galaxie/providers';
 import { runAssetMirror } from '../src/assets/asset-mirror.js';
-import { PgAssetStore } from '../src/assets/asset-store.js';
+import { PgAssetStore, runRawDiscovery } from '../src/assets/asset-store.js';
 import { MediaFetcher } from '../src/assets/media-fetcher.js';
 import { InMemoryObjectStore, objectStoreFromEnv } from '../src/assets/object-store.js';
 import {
@@ -548,6 +548,24 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
     expect(last!.palette).not.toBeNull();
   });
 
+  it('--descobrir-raw é incremental: só o raw gravado desde a última descoberta', async () => {
+    const store = new PgAssetStore(db);
+    const denylist = new MediaDenylist();
+    const first = await runRawDiscovery(db, store, { denylist });
+    expect(first.since).toBeNull();
+    expect(first.urls).toBe((await store.discoverFromRaw()).length);
+
+    // o raw antigo fica fora da janela (o início da descoberta anterior, com margem de 1 h)
+    await db.update(apiResponse).set({ fetchedAt: new Date(Date.now() - 2 * 3_600_000) });
+    const fresh = 'https://media.api-sports.io/handball/teams/99.png';
+    await saveRaw('handball', '/teams', { response: [{ team: { id: 99, logo: fresh } }] });
+    const second = await runRawDiscovery(db, store, { denylist });
+    expect(second).toMatchObject({ urls: 1, added: 1 });
+    expect(second.since).toBeInstanceOf(Date);
+
+    const full = await runRawDiscovery(db, store, { denylist, full: true });
+    expect(full).toMatchObject({ since: null, urls: first.urls + 1, added: 0 });
+  });
 });
 
 describe.skipIf(!process.env.S3_ENDPOINT)('S3ObjectStore (RustFS local)', () => {
