@@ -419,6 +419,30 @@ describe('autenticação sob chaves aleatórias (auditoria API-2)', () => {
     expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
     // segredo já verificado nesta instância: não passa pelo limite nem pelo scrypt
     expect((await req(key, '192.0.2.10')).statusCode).toBe(200);
+
+    // instância nova (deploy/restart/scale-out), com o prefixo ainda estourado: o Valkey lembra que esta
+    // chave já acertou o segredo, então ela não cai no limite por prefixo
+    const fresh = buildServer({
+      db,
+      redis,
+      keyPrefix,
+      usage: false,
+      authenticator: { cacheTtlMs: 0 },
+      authThrottle: { attemptsPerMinute: 3 },
+    });
+    try {
+      const freshReq = (k: string, ip: string) =>
+        fresh.inject({
+          method: 'GET',
+          url: '/v1/sports',
+          remoteAddress: ip,
+          headers: { 'x-galaxie-key': k },
+        });
+      expect((await freshReq(withSecret(key), '192.0.2.40')).statusCode).toBe(429);
+      expect((await freshReq(key, '192.0.2.10')).statusCode).toBe(200);
+    } finally {
+      await fresh.close();
+    }
   });
 
   it('prefixos aleatórios do mesmo IP esbarram no limite por IP antes do banco', async () => {

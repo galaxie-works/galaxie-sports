@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { InMemoryTenantStore } from './tenant-store.js';
 import { Authenticator } from './authenticator.js';
 import { generateApiKey, hashSecret, parseApiKey, verifySecret } from './keys.js';
-import { AuthThrottle } from './throttle.js';
+import { AuthThrottle, ipBucket } from './throttle.js';
+import { MemoryVerifiedKeyStore } from './verified-keys.js';
 import { MemoryRateLimiter } from '../rate-limit.js';
 import { memoryTenant } from '../test-helpers.js';
 
@@ -65,13 +66,19 @@ describe('Authenticator', () => {
     await expect(auth.authenticate(key)).resolves.toMatchObject({ slug: 'teste' });
   });
 
-  it('rejeita chave expirada', async () => {
+  it('rejeita chave expirada; o motivo só para quem já acertou o segredo', async () => {
     const { store, key, prefix } = await memoryTenant();
+    const auth = new Authenticator(store, { cacheTtlMs: 0 });
+    await auth.authenticate(key);
     store.keys.get(prefix)!.expiresAt = new Date(Date.now() - 1);
-    await expect(new Authenticator(store).authenticate(key)).rejects.toMatchObject({
+    await expect(auth.authenticate(key)).rejects.toMatchObject({
       code: 'INVALID_KEY',
       detail: 'Chave expirada.',
     });
+    // instância que nunca viu o segredo: 401 genérico (não é oráculo de status do prefixo)
+    const fresh = await new Authenticator(store).authenticate(key).catch((e: { detail: string }) => e);
+    expect(fresh).toMatchObject({ code: 'INVALID_KEY' });
+    expect((fresh as { detail: string }).detail).not.toMatch(/expirada/);
   });
 });
 
@@ -149,7 +156,79 @@ describe('Authenticator sob chaves aleatórias (auditoria API-2)', () => {
     for (let i = 0; i < 4; i++)
       await expect(auth.authenticate(randomSecret(key), { ip: `203.0.113.${i}` })).rejects.toMatchObject({
         code: 'INVALID_KEY',
-        detail: 'Chave revogada.',
+        detail: expect.not.stringMatching(/revogada/),
       });
+  });
+
+  it('TTL deslizante: com o prefixo sob ataque contínuo, a chave em uso segue válida depois de 1 h', async () => {
+    const { store, key } = await memoryTenant();
+    let now = Date.parse('2026-10-25T00:00:00Z');
+    const clock = () => now;
+    const auth = new Authenticator(store, {
+      cacheTtlMs: 0,
+      now: () => new Date(now),
+      throttle: new AuthThrottle(new MemoryRateLimiter(clock), { attemptsPerMinute: 3 }),
+    });
+    await expect(auth.authenticate(key, { ip: '198.51.100.1' })).resolves.toMatchObject({ slug: 'teste' });
+    for (let step = 0; step < 6; step++) {
+      now += 30 * 60_000; // 3 h no total, sempre com o prefixo estourado
+      for (let i = 0; i < 5; i++)
+        await auth.authenticate(randomSecret(key), { ip: `203.0.113.${i}` }).catch(() => {});
+      await expect(auth.authenticate(key, { ip: '198.51.100.1' })).resolves.toMatchObject({ slug: 'teste' });
+    }
+  });
+
+  it('instância nova (deploy, restart, scale-out) reconhece a chave verificada por outra', async () => {
+    const { store, key } = await memoryTenant();
+    const shared = new MemoryVerifiedKeyStore();
+    const limiter = new MemoryRateLimiter(); // o mesmo Valkey para as duas instâncias
+    const instance = () =>
+      new Authenticator(store, {
+        cacheTtlMs: 0,
+        verifiedKeys: shared,
+        throttle: new AuthThrottle(limiter, { attemptsPerMinute: 3 }),
+      });
+    await instance().authenticate(key, { ip: '198.51.100.1' });
+    const fresh = instance();
+    // o ataque esgota o prefixo antes de a chave legítima chegar à instância nova
+    for (let i = 0; i < 5; i++)
+      await fresh.authenticate(randomSecret(key), { ip: `203.0.113.${i}` }).catch(() => {});
+    await expect(fresh.authenticate(randomSecret(key), { ip: '203.0.113.50' })).rejects.toMatchObject({
+      code: 'RATE_LIMITED',
+    });
+    await expect(fresh.authenticate(key, { ip: '198.51.100.1' })).resolves.toMatchObject({ slug: 'teste' });
+  });
+
+  it('maxAgeMs relê o registro mesmo com o contexto em cache (revogação no SSE)', async () => {
+    const { store, key, prefix } = await memoryTenant();
+    let now = Date.now();
+    const auth = new Authenticator(store, { now: () => new Date(now) });
+    await auth.authenticate(key);
+    store.keys.get(prefix)!.revokedAt = new Date(now);
+    now += 1_000;
+    await expect(auth.authenticate(key)).resolves.toBeDefined(); // cache de 60 s
+    await expect(auth.authenticate(key, { maxAgeMs: 500 })).rejects.toMatchObject({
+      detail: 'Chave revogada.',
+    });
+  });
+});
+
+describe('AuthThrottle', () => {
+  it('agrupa IPv6 por /64 e trata IPv4 mapeado como IPv4', () => {
+    expect(ipBucket('2001:db8:1:2:aaaa::1')).toBe('2001:db8:1:2::/64');
+    expect(ipBucket('2001:db8:1:2:bbbb:cccc:dddd:eeee')).toBe('2001:db8:1:2::/64');
+    expect(ipBucket('2001:db8::1')).toBe('2001:db8:0:0::/64');
+    expect(ipBucket('::ffff:198.51.100.7')).toBe('198.51.100.7');
+    expect(ipBucket('198.51.100.7')).toBe('198.51.100.7');
+  });
+
+  it('Valkey fora: conta em memória em vez de liberar tudo (fail-open devolveria o DoS de scrypt)', async () => {
+    const errors: unknown[] = [];
+    const broken = { hit: async () => Promise.reject(new Error('valkey fora')) };
+    const t = new AuthThrottle(broken, { attemptsPerMinute: 2, onError: (e) => errors.push(e) });
+    await t.check('ip:203.0.113.1');
+    await t.check('ip:203.0.113.1');
+    await expect(t.check('ip:203.0.113.1')).rejects.toMatchObject({ code: 'RATE_LIMITED' });
+    expect(errors).toHaveLength(3);
   });
 });

@@ -49,11 +49,21 @@ Revisão do esquema de hash (issue #84):
   negativo com prefixo existente também (evita que repetir a mesma chave errada custe um scrypt por requisição).
 - **Chaves aleatórias** (o prefixo é público): numa chave fora do cache, a ordem é limite por IP → banco → revogada,
   expirada ou tenant suspenso (ainda sem scrypt) → limite por prefixo → scrypt. Prefixo inexistente, revogado ou
-  expirado fica em cache negativo por prefixo (60 s). Os limites (`AUTH_ATTEMPTS_PER_MINUTE`, padrão 60 por IP e por
-  prefixo, no Valkey) respondem 429 `RATE_LIMITED` e só contam tentativas que custam banco/scrypt. Um segredo já
-  verificado dispensa os limites e o scrypt por 1 h (o registro da chave continua relido a cada 60 s), então atacar o
-  prefixo de um cliente não derruba a chave legítima. A chave publicável tem o mesmo limite por IP antes do banco.
-- **Consequência do cache**: revogação, suspensão e mudança de plano valem em até 60 s.
+  expirado fica em cache negativo por prefixo (60 s). Os limites (`AUTH_ATTEMPTS_PER_MINUTE`, padrão 60 por IP — IPv6
+  agrupado por /64 — e por prefixo, no Valkey) respondem 429 `RATE_LIMITED` e só contam tentativas que custam
+  banco/scrypt. Com o Valkey fora, a contagem segue em memória, por instância (não libera tudo).
+- **Chave legítima sob ataque ao prefixo**: um segredo já verificado não passa pelos limites. Na instância, o registro
+  dispensa o scrypt e tem TTL deslizante (1 h renovada a cada uso; o registro da chave continua relido a cada 60 s).
+  Entre instâncias, o sha256 da chave completa verificada fica no Valkey (`auth:ok:*`, 24 h renovadas a cada uso):
+  instância nova (deploy, restart, scale-out) também não aplica o limite a ela. Esse registro **não** dispensa o
+  scrypt — escrever no Valkey não dá acesso.
+- **Sem oráculo de status**: o motivo do 401 (revogada, expirada, tenant suspenso) só vai para quem já provou ter o
+  segredo; para quem só tem o prefixo, a resposta é o `INVALID_KEY` genérico.
+- **IP real**: o limite por IP depende de `TRUST_PROXY` correto atrás de proxy. Vazio atrás do Caddy, todo cliente tem
+  o IP do Caddy (um balde só para todos); `true` confia no 1º endereço do `X-Forwarded-For`, que o cliente forja —
+  use os IPs/CIDRs do proxy (a stack Portainer usa `uniquelocal` por padrão; a vps-telemetry, o gateway fixo).
+- **Consequência do cache**: revogação, suspensão e mudança de plano valem em até 60 s — também nos streams SSE já
+  abertos, que revalidam a chave a cada heartbeat com contexto de no máximo 60 s − heartbeat.
 - **Chaves administrativas** (`gs_admin_...`): também 256 bits; guardadas no ambiente como `sha256$...` — hash rápido de
   propósito, para que chaves inválidas em massa não custem CPU numa rota interna. Várias podem coexistir em
   `ADMIN_KEY_HASHES` (rotação sem janela).

@@ -3,7 +3,8 @@ import type { ApiModule, ApiPlan } from '@galaxie/db';
 import { problems } from '../errors.js';
 import { parseApiKey, verifySecret } from './keys.js';
 import type { TenantStore } from './tenant-store.js';
-import type { AuthThrottle } from './throttle.js';
+import { ipBucket, type AuthThrottle } from './throttle.js';
+import type { VerifiedKeyStore } from './verified-keys.js';
 
 /** Contexto do tenant anexado à requisição autenticada. */
 export interface TenantContext {
@@ -36,12 +37,21 @@ export interface AuthenticatorOptions {
   touchIntervalMs?: number;
   /** Limite de tentativas não cacheadas por IP e por prefixo, antes do banco e do scrypt. */
   throttle?: AuthThrottle;
+  /** Chaves já verificadas em qualquer instância (Valkey): não passam pelos limites de tentativa. */
+  verifiedKeys?: VerifiedKeyStore;
+  /** TTL (deslizante) do registro em `verifiedKeys` (ms; padrão 24 h). */
+  rememberTtlMs?: number;
   now?: () => Date;
 }
 
 /** Contexto da requisição usado no limite de tentativas. */
 export interface AuthAttempt {
   ip?: string | undefined;
+  /**
+   * Idade máxima do contexto em cache (ms). Conexões longas (SSE) usam para que revogação e suspensão
+   * valham dentro do mesmo prazo de 60 s das requisições comuns.
+   */
+  maxAgeMs?: number | undefined;
 }
 
 const MAX_ENTRIES = 10_000;
@@ -63,7 +73,7 @@ function put<V>(map: Map<string, V>, key: string, value: V): void {
  * e o scrypt, então um ataque a um prefixo não derruba a chave legítima.
  */
 export class Authenticator {
-  private readonly cache = new Map<string, { ctx: TenantContext; expiresAt: number }>();
+  private readonly cache = new Map<string, { ctx: TenantContext; at: number; expiresAt: number }>();
   /** Chaves com prefixo existente mas segredo errado: evita recalcular o scrypt a cada tentativa. */
   private readonly rejected = new Map<string, number>();
   /** Prefixos inexistentes, revogados ou expirados: evita uma consulta ao banco por tentativa. */
@@ -75,6 +85,8 @@ export class Authenticator {
   private readonly verifiedTtlMs: number;
   private readonly touchIntervalMs: number;
   private readonly throttle: AuthThrottle | undefined;
+  private readonly verifiedKeys: VerifiedKeyStore | undefined;
+  private readonly rememberTtlMs: number;
   private readonly now: () => Date;
 
   constructor(
@@ -85,6 +97,8 @@ export class Authenticator {
     this.verifiedTtlMs = options.verifiedTtlMs ?? 3_600_000;
     this.touchIntervalMs = options.touchIntervalMs ?? 5 * 60_000;
     this.throttle = options.throttle;
+    this.verifiedKeys = options.verifiedKeys;
+    this.rememberTtlMs = options.rememberTtlMs ?? 86_400_000;
     this.now = options.now ?? (() => new Date());
   }
 
@@ -97,36 +111,47 @@ export class Authenticator {
     const t = now.getTime();
     const cacheKey = createHash('sha256').update(rawKey.trim()).digest('base64url');
     const cached = this.cache.get(cacheKey);
-    if (cached && cached.expiresAt > t) return cached.ctx;
+    if (cached && cached.expiresAt > t && (attempt.maxAgeMs == null || t - cached.at <= attempt.maxAgeMs))
+      return cached.ctx;
     if ((this.rejected.get(cacheKey) ?? 0) > t) throw problems.invalidKey();
-    const dead = this.deadPrefixes.get(parsed.prefix);
-    if (dead && dead.expiresAt > t) throw problems.invalidKey(dead.detail);
 
     const known = this.verified.get(cacheKey);
     const isKnown = !!known && known.expiresAt > t;
-    // chave nunca verificada: cada tentativa custa banco (e talvez scrypt) — limite por IP antes
-    if (!isKnown && attempt.ip) await this.throttle?.check(`ip:${attempt.ip}`);
+    const dead = this.deadPrefixes.get(parsed.prefix);
+    // o motivo (revogada, expirada, suspensa) só para quem já provou ter a chave: o prefixo é público
+    if (dead && dead.expiresAt > t) throw problems.invalidKey(isKnown ? dead.detail : undefined);
+
+    // segredo já verificado aqui ou em outra instância (Valkey): fora dos limites de tentativa, para que um
+    // ataque ao prefixo (ou ao IP, atrás de NAT) não derrube a chave legítima — nem após deploy/restart
+    const remembered = isKnown || ((await this.verifiedKeys?.has(cacheKey).catch(() => false)) ?? false);
+    if (!remembered && attempt.ip) await this.throttle?.check(`ip:${ipBucket(attempt.ip)}`);
 
     const record = await this.store.findKeyByPrefix(parsed.prefix);
+    const reveal = (detail: string) => (remembered ? detail : undefined);
     const markDead = (detail?: string): never => {
       if (this.cacheTtlMs > 0)
         put(this.deadPrefixes, parsed.prefix, { detail, expiresAt: t + this.cacheTtlMs });
-      throw problems.invalidKey(detail);
+      throw problems.invalidKey(detail ? reveal(detail) : undefined);
     };
     if (!record) return markDead();
     // estado da chave antes do scrypt: chave revogada/expirada não custa CPU a cada tentativa
     if (record.revokedAt && record.revokedAt <= now) return markDead('Chave revogada.');
     if (record.expiresAt && record.expiresAt <= now) return markDead('Chave expirada.');
-    if (record.tenant.status !== 'active') throw problems.invalidKey('Tenant suspenso.');
+    if (record.tenant.status !== 'active') throw problems.invalidKey(reveal('Tenant suspenso.'));
 
-    if (!isKnown || known.secretHash !== record.secretHash) {
-      await this.throttle?.check(`prefix:${parsed.prefix}`);
+    if (isKnown && known.secretHash === record.secretHash) {
+      // TTL deslizante: chave em uso nunca cai de volta nos limites de tentativa
+      known.expiresAt = t + this.verifiedTtlMs;
+    } else {
+      if (!remembered) await this.throttle?.check(`prefix:${parsed.prefix}`);
       if (!(await verifySecret(parsed.secret, record.secretHash))) {
         put(this.rejected, cacheKey, t + this.cacheTtlMs);
         throw problems.invalidKey();
       }
       put(this.verified, cacheKey, { secretHash: record.secretHash, expiresAt: t + this.verifiedTtlMs });
     }
+    // renovado a cada releitura do registro (uma por chave e instância a cada `cacheTtlMs`)
+    this.verifiedKeys?.add(cacheKey, this.rememberTtlMs).catch(() => {});
 
     const modules = record.scopes
       ? record.tenant.modules.filter((m) => record.scopes!.includes(m))
@@ -142,7 +167,7 @@ export class Authenticator {
       sports: record.tenant.sports,
       rateLimitPerMinute: record.tenant.rateLimitPerMinute,
     };
-    put(this.cache, cacheKey, { ctx, expiresAt: t + this.cacheTtlMs });
+    put(this.cache, cacheKey, { ctx, at: t, expiresAt: t + this.cacheTtlMs });
     this.touch(record.keyId, now);
     return ctx;
   }

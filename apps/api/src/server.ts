@@ -23,6 +23,7 @@ import {
 } from './auth/publishable.js';
 import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
 import { AuthThrottle, type AuthThrottleOptions } from './auth/throttle.js';
+import { RedisVerifiedKeyStore } from './auth/verified-keys.js';
 import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.js';
 import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
@@ -169,7 +170,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
         });
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
   const authenticator = store
-    ? new Authenticator(store, { ...(throttle ? { throttle } : {}), ...options.authenticator })
+    ? new Authenticator(store, {
+        ...(throttle ? { throttle } : {}),
+        // chaves já verificadas, compartilhadas entre instâncias: instância nova não as trata como ataque
+        ...(options.redis ? { verifiedKeys: new RedisVerifiedKeyStore(options.redis, prefix) } : {}),
+        ...options.authenticator,
+      })
     : undefined;
   const publishableStore =
     options.publishableStore ?? (options.db ? new PgPublishableStore(options.db) : undefined);
@@ -222,7 +228,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (!module && !request.routeOptions.config?.authenticated) return;
     const secretKey = apiKeyFrom(request);
     const pk = secretKey ? undefined : publishableKeyFrom(request);
-    let authenticate: () => Promise<TenantContext>;
+    let authenticate: (maxAgeMs?: number) => Promise<TenantContext>;
     const origin = pk ? requestOrigin(request) : undefined;
     if (pk) {
       assertPublishableRoute(request);
@@ -231,7 +237,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     } else {
       if (!authenticator)
         throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
-      authenticate = () => authenticator.authenticate(secretKey, { ip: request.ip });
+      authenticate = (maxAgeMs?: number) =>
+        authenticator.authenticate(secretKey, { ip: request.ip, maxAgeMs });
     }
     const tenant = await authenticate();
     // só depois de a origem conferir com a chave (CORS da resposta)
