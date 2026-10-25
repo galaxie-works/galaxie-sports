@@ -300,6 +300,51 @@ describe('GET /v1/search', () => {
     expect(limited.body.data).toHaveLength(1);
   });
 
+  it('chaves do JSON de apelidos (`en`, `city`) não casam nem ocupam a vaga dos candidatos', async () => {
+    // mais perfis e estádios com a chave do que cabe na pré-seleção (40 por tipo), nenhum com o termo no nome
+    const junk = await db
+      .insert(participant)
+      .values(
+        Array.from({ length: 45 }, (_, i) => ({
+          sport: 'football',
+          kind: 'club' as const,
+          name: `Clube ${i}`,
+        })),
+      )
+      .returning({ id: participant.id });
+    await db.insert(teamProfile).values(
+      junk.map((p, i) => ({
+        slug: `clube-${i}`,
+        participantId: p.id,
+        countryCode: 'BR',
+        names: { official: `Clube ${i}` },
+        labels: { en: `Club ${i}` },
+        nicknames: [],
+        sourceFile: 'teams/br.yaml',
+      })),
+    );
+    await db.insert(venue).values(
+      Array.from({ length: 45 }, (_, i) => ({
+        name: `Arena ${i}`,
+        capacity: 90_000 - i,
+        curated: {
+          name: `Arena ${i}`,
+          city: `Cidade ${i}`,
+          nicknames: [],
+          former_names: [],
+          team_slugs: [],
+          matched_by: 'name' as const,
+        },
+      })),
+    );
+    await db.insert(participant).values({ sport: 'football', kind: 'club', name: 'Enfield Town' });
+    await db.insert(venue).values({ name: 'City Ground', capacity: 30_000 });
+    const en = await search('q=en&types=team');
+    expect(en.body.data.map((r) => [r.name, r.match])).toEqual([['Enfield Town', 'prefix']]);
+    const city = await search('q=city&types=venue');
+    expect(city.body.data.map((r) => [r.name, r.match])).toEqual([['City Ground', 'prefix']]);
+  });
+
   it('valida o termo e os tipos', async () => {
     expect((await search('q=a')).res.statusCode).toBe(400);
     expect((await search('q=palmeiras&types=clube')).res.statusCode).toBe(400);
