@@ -15,6 +15,7 @@
  * item e com as mesmas fontes; a tradução passa pelas mesmas regras de texto.
  */
 import {
+  checkParagraphs,
   checkProse,
   DRIVER_STRENGTHS,
   DRIVING_STYLES,
@@ -214,7 +215,7 @@ export function profilePrompt(f: ProfileFacts): string {
     `Corridas do piloto (chave · GP · largada · chegada):\n${races}`,
     [
       'Pesquise na web e devolva, em português do Brasil, cada item com a URL da fonte que o sustenta:',
-      `- bio: um texto editorial de 3 a 5 parágrafos curtos (até ${LIMITS.legendBio} caracteres), com sources;`,
+      `- bio: um texto editorial de 3 a 5 parágrafos curtos, separados por linha em branco (até ${LIMITS.legendBio} caracteres), com sources. A bio conta a carreira por momentos: cite ao menos três corridas da lista pelo GP e pelo ano, dizendo o que aconteceu nelas, e mostre o estilo do piloto na pista;`,
       `- style: o modo de pilotagem (kind, da lista) e uma ou duas frases que o mostrem na pista, com sources;`,
       `- strengths: até ${MAX.strengths} pontos fortes reconhecidos (key, da lista: perspicácia = race_intelligence; controle do carro = car_control; chuva = wet_weather), cada um com um fato;`,
       `- moments: de 3 a ${MAX.moments} momentos marcantes, cada um numa corrida da lista (race_key), com o nome do GP em português, se choveu (wet) e o que aconteceu;`,
@@ -223,6 +224,7 @@ export function profilePrompt(f: ProfileFacts): string {
     [
       'Tom: o de um bom texto de transmissão esportiva. Narre com momentos concretos (a corrida, o ano, o que aconteceu) e traços de estilo que dão para ver na pista — como, no caso do Senna, a chuva de Donington em 1993, Mônaco, Interlagos em 1991 ou a "obsessão pelo milésimo" na classificação.',
       'Não é para copiar esse exemplo: é o nível de detalhe esperado. Nem toda frase precisa de adjetivo; prefira o fato que impressiona.',
+      'Evite frases genéricas que serviriam para qualquer campeão ("redefiniu o patamar", "deixou um legado", "hall da fama", "um dos maiores de todos os tempos"): troque por um fato que só esse piloto tem.',
     ].join(' '),
     'Regras: só fatos com fonte; número que não esteja nos fatos acima fica de fora (na dúvida, descreva sem o número); mortes e acidentes graves, com sobriedade (sem "tragédia", "trágico" ou "luto"); nada de especulação; não copie texto literal das páginas; prefira fontes de referência (enciclopédias, imprensa esportiva, sites oficiais).',
   ].join('\n\n');
@@ -242,7 +244,9 @@ function textProblem(text: string, locale: ProfileLocale, ctx: Ctx, max: number)
   if (detectPromptInjection(text).length) return 'padrão de prompt injection';
   const hits = findForbiddenTerms(text, locale, { allowPhrases: ctx.sheet.names });
   if (hits.length) return `termo proibido (${hits.map((h) => h.match).join(', ')})`;
-  if (checkProse(text)?.level === 'error') return 'texto reprovado pelo validador da base';
+  // a bio vem em parágrafos (prosa); os itens são frases curtas
+  const prose = /\n\s*\n/.test(text) ? checkParagraphs(text) : checkProse(text);
+  if (prose?.level === 'error') return `texto reprovado pelo validador da base (${prose.reason})`;
   const lang = detectLanguage(text);
   if (lang && lang !== (locale === 'pt-BR' ? 'pt' : 'es')) return 'texto em outro idioma';
   const numbers = checkFacts(text, ctx.sheet, locale).filter((v) => v.kind === 'unknown_number');
