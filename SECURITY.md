@@ -61,7 +61,11 @@ Revisão do esquema de hash (issue #84):
   segredo; para quem só tem o prefixo, a resposta é o `INVALID_KEY` genérico.
 - **IP real**: o limite por IP depende de `TRUST_PROXY` correto atrás de proxy. Vazio atrás do Caddy, todo cliente tem
   o IP do Caddy (um balde só para todos); `true` confia no 1º endereço do `X-Forwarded-For`, que o cliente forja —
-  use os IPs/CIDRs do proxy (a stack Portainer usa `uniquelocal` por padrão; a vps-telemetry, o gateway fixo).
+  use os IPs/CIDRs do proxy (a stack Portainer usa `uniquelocal` por padrão; a vps-telemetry, o gateway fixo). O
+  proxy da frente, por sua vez, não pode confiar no `X-Forwarded-For` que recebe: o Caddy da stack não tem
+  `trusted_proxies` e sobrescreve o cabeçalho com o IP do cliente (confiar em `private_ranges` deixava forjá-lo, porque
+  um cliente IPv6 chega ao Caddy pelo docker-proxy com o IP do gateway, que é privado). Com CDN na frente, confie só
+  nos ranges dela; confira os endereços com `docker network inspect`.
 - **Consequência do cache**: revogação, suspensão e mudança de plano valem em até 60 s — também nos streams SSE já
   abertos, que revalidam a chave a cada heartbeat com contexto de no máximo 60 s − heartbeat.
 - **Chaves administrativas** (`gs_admin_...`): também 256 bits; guardadas no ambiente como `sha256$...` — hash rápido de
