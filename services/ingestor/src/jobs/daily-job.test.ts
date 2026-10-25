@@ -84,6 +84,42 @@ describe('dailyJob', () => {
     expect(h.api.calls.some((u) => u.searchParams.get('ids')?.split('-').length === 3)).toBe(true);
   });
 
+  // a lista de 21/10 foi gravada com os jogos em andamento ("1H") e não foi buscada de novo: no dia 23 ela é
+  // D-2 (TTL eterno no raw) — antes, os jogos ficavam em andamento no raw e nunca recebiam detalhe
+  const openDay = ['202601306', '202607106', '202607206'];
+
+  it('Pro: anteontem gravado com jogo em andamento → rebusca a agenda (1 chamada) e detalha', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const now = () => new Date(h.clock.t);
+    const job = () => dailyJob(h.catalog, h.raw, h.cursors, h.plan, now, derbyKeys);
+    await runJob(job(), h.deps);
+    h.clock.t += 2 * DAY;
+    const calls = h.api.calls.length;
+    const r = await runJob(job(), h.deps);
+    const dates = h.api.calls.slice(calls).flatMap((u) => u.searchParams.get('date') ?? []);
+    expect(dates).toContain('2026-10-21');
+    expect(r.phases[0]!.steps['fixtures-data']!.network).toBe(4);
+    const detailed = h.api.calls.slice(calls).flatMap((u) => u.searchParams.get('ids')?.split('-') ?? []);
+    expect(detailed).toEqual(expect.arrayContaining(openDay));
+
+    // rebuscada hoje: reexecutar não chama de novo
+    expect((await planJob(job(), h.deps)).totals.network).toBe(0);
+  });
+
+  it('free (date= só em hoje ± 1): não pede a agenda de D-2, mas detalha pelo id quem já deveria ter acabado', async () => {
+    const h = harness();
+    const now = () => new Date(h.clock.t);
+    const job = () => dailyJob(h.catalog, h.raw, h.cursors, h.plan, now, derbyKeys);
+    await runJob(job(), h.deps);
+    h.clock.t += 2 * DAY;
+    const calls = h.api.calls.length;
+    const r = await runJob(job(), h.deps);
+    expect(h.api.calls.slice(calls).some((u) => u.searchParams.get('date') === '2026-10-21')).toBe(false);
+    expect(r.phases[0]!.steps['fixtures-data']!.blocked ?? 0).toBe(0);
+    const detailed = h.api.calls.slice(calls).flatMap((u) => u.searchParams.get('id') ?? []);
+    expect(detailed).toEqual(expect.arrayContaining(openDay));
+  });
+
   it('rodízio: elencos tier 1 com cursor vencido (7 dias) entram; recentes não', async () => {
     const h = harness();
     await h.dayWithoutLive();
