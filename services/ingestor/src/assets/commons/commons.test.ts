@@ -422,4 +422,26 @@ describe('passo do Gemini (ranqueador falso)', () => {
     expect(manifest.entries).toEqual([before]);
     expect(stats[0]!.ranking).toBe('gemini falhou');
   });
+
+  it('descoberta vazia (identidade não conferida) não apaga a galeria já mapeada: fica como estava', async () => {
+    const mapped = await mapCommons(client, [senna], null, { revision: '2026-10-22', discover });
+    const before = mapped.manifest.entries[0]!;
+    expect(before.photos.length).toBeGreaterThan(0);
+    const vazia = async () => ({
+      target: senna,
+      wikidata: null,
+      category: null,
+      candidates: [],
+      note: 'sem item conferido no Wikidata',
+    });
+    const { manifest, stats } = await mapCommons(client, [senna], mapped.manifest, {
+      revision: '2026-10-25',
+      discover: vazia,
+    });
+    expect(manifest.entries).toEqual([before]);
+    expect(stats[0]!.note).toBe('pendente: descoberta vazia (sem item conferido no Wikidata)');
+    // sem galeria antes, a descoberta vazia entra como sempre (o alvo fica sem fotos)
+    const fresh = await mapCommons(client, [senna], null, { revision: '2026-10-25', discover: vazia });
+    expect(fresh.manifest.entries[0]!.photos).toEqual([]);
+  });
 });
