@@ -12,7 +12,10 @@
  *   que a demo buscou a API antes de a API purgar o próprio cache (sem ela, o dado velho ficaria horas).
  * - Retoma do último ID salvo depois de reinício ou queda, desde que recente (`resumeMaxAgeMs` e
  *   `resumeMaxLag`); na primeira subida, ou depois de muito tempo parado, começa do ID mais recente — o
- *   histórico não é reprocessado.
+ *   histórico não é reprocessado. Para não perder um ID menor ainda em voo (reservado por uma transação
+ *   que ainda não commitou), o piso fica abaixo das mudanças do último `startGapMs`: as já visíveis entram
+ *   como vistas (sem revalidar) e os IDs que faltam entre elas são lacunas do GapCursor, revalidadas quando
+ *   aparecerem (ou abandonadas depois de `gapTimeoutMs`, como no SSE e nos webhooks).
  * - Nunca derruba o servidor: toda falha vira aviso no log e nova tentativa.
  */
 import { GapCursor, tagsForChange } from '@galaxie/db/change-feed';
@@ -36,6 +39,11 @@ export interface FeedStore {
   latestId(): Promise<number>;
   /** Linhas com id > floor, fora de `skip`, em ordem de id. */
   readAfter(floor: number, skip: readonly number[], limit: number): Promise<FeedRow[]>;
+  /**
+   * IDs visíveis até `latest`, do mais antigo criado nos últimos `maxAgeMs` (relógio do banco) em diante,
+   * em ordem crescente; no máximo os `limit` maiores.
+   */
+  recentIds(latest: number, maxAgeMs: number, limit: number): Promise<number[]>;
   /** Assina o NOTIFY; devolve a função que cancela. */
   listen(onChange: () => void): Promise<() => Promise<void>>;
   loadCursor(name: string): Promise<SavedCursor | null>;
@@ -62,6 +70,10 @@ export interface FollowerOptions {
   gapTimeoutMs?: number;
   resumeMaxAgeMs?: number;
   resumeMaxLag?: number;
+  /** Na primeira subida, as mudanças desse tempo para trás delimitam as lacunas vigiadas. */
+  startGapMs?: number;
+  /** Teto de IDs dessa janela. */
+  startGapWindow?: number;
   retryStartMs?: number;
   saveEveryMs?: number;
   /** Intervalo mínimo entre avisos repetidos de falha na revalidação. */
@@ -107,6 +119,8 @@ export class ChangeFeedFollower {
       gapTimeoutMs: options.gapTimeoutMs ?? 10_000,
       resumeMaxAgeMs: options.resumeMaxAgeMs ?? 24 * 3_600_000,
       resumeMaxLag: options.resumeMaxLag ?? 50_000,
+      startGapMs: options.startGapMs ?? 60_000,
+      startGapWindow: options.startGapWindow ?? 5_000,
       retryStartMs: options.retryStartMs ?? 30_000,
       saveEveryMs: options.saveEveryMs ?? 5_000,
       warnEveryMs: options.warnEveryMs ?? 60_000,
@@ -187,8 +201,17 @@ export class ChangeFeedFollower {
       saved.lastId <= latest &&
       this.now() - saved.updatedAt.getTime() <= this.o.resumeMaxAgeMs &&
       latest - saved.lastId <= this.o.resumeMaxLag;
-    const floor = resumable ? saved.lastId : latest;
-    this.cursor = new GapCursor(floor, { gapTimeoutMs: this.o.gapTimeoutMs, now: this.now });
+    const options = { gapTimeoutMs: this.o.gapTimeoutMs, now: this.now };
+    if (resumable) {
+      this.cursor = new GapCursor(saved.lastId, options);
+    } else {
+      // a partir do mais recente, com as mudanças recentes como vistas: um ID entre elas que ainda não
+      // commitou fica como lacuna e é revalidado quando aparecer
+      const recent = await this.store.recentIds(latest, this.o.startGapMs, this.o.startGapWindow);
+      this.cursor = new GapCursor(recent.length ? recent[0]! - 1 : latest, options);
+      this.cursor.mark(recent);
+    }
+    const floor = this.cursor.floor;
     this.savedFloor = saved?.lastId;
     this.log.info(resumable ? 'retomando o change feed' : 'seguindo o change feed', {
       floor,

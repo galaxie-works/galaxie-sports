@@ -438,7 +438,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2 text-sm">
           <span className="font-medium tabular-nums">
-            {usdBudget
+            {usdBudget !== null
               ? fill(T.status.llmUsd, { used: usd(totals.costUsd), budget: usd(usdBudget) })
               : fill(T.status.llmUsdUnlimited, { used: usd(totals.costUsd) })}
           </span>
@@ -449,7 +449,9 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
             })}
           </span>
         </div>
-        {usdBudget ? <Progress value={Math.min(100, (totals.costUsd / usdBudget) * 100)} /> : null}
+        {usdBudget !== null ? (
+          <Progress value={usdBudget > 0 ? Math.min(100, (totals.costUsd / usdBudget) * 100) : 100} />
+        ) : null}
         <span className="text-muted-foreground text-xs tabular-nums">
           {budget
             ? fill(T.status.llmTokens, { used: f.number(tokens), budget: f.number(budget) })

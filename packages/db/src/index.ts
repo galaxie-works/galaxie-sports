@@ -1,6 +1,7 @@
 export * from './schema/index.js';
 export { createDb, closeDb, pingDb, type Database, type CreateDbOptions } from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
+export { tryJobLock, type JobLock, type JobLockOptions } from './job-lock.js';
 export { loadTitleRecords, titleCoverage, type TitleQuery, type TitleRecord } from './titles.js';
 export {
   publishChange,
