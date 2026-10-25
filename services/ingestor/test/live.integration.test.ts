@@ -349,7 +349,11 @@ describe('ao vivo no Postgres', () => {
     expect((await eventRow(arg.fixtureId)).updatedAt).toEqual(argBefore.updatedAt);
     // tentativa registrada: não confere de novo
     const [state] = [
-      ...(await cursors.load([{ sport: 'football', endpoint: 'live:reconcile', key: 'id=9301' }])).values(),
+      ...(
+        await cursors.load([
+          { sport: 'football', endpoint: 'live:reconcile', key: 'id=9301@2026-10-25T15:00:00.000Z' },
+        ])
+      ).values(),
     ];
     expect(state?.completedAt).toBeInstanceOf(Date);
     // retenção: os cursores da reconciliação (jogo e lote da data) saem depois da janela

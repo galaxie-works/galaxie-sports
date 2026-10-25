@@ -22,12 +22,15 @@ import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
 import { ApiSportsProvider } from '@galaxie/providers';
 import { contextFromEnv } from '../context.js';
-import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
+import { cursorId, PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../jobs/runtime/job-run-store.js';
 import {
   adhocAllowance,
+  candidatesLookbackHours,
   DEFAULT_STALE_MINUTES,
   dueUnconfirmed,
+  nextListAt,
+  RECONCILE_CURSOR_ENDPOINT,
   inPlayCandidates,
   reconcileLive,
   reconcileReason,
@@ -100,17 +103,25 @@ await runCli(async () => {
       const candidates = await store.candidates(
         sport,
         'api-sports',
-        new Date(now.getTime() - lookbackHours * 3_600_000),
+        new Date(now.getTime() - candidatesLookbackHours(lookbackHours) * 3_600_000),
         now,
       );
       const inPlay = inPlayCandidates(candidates, now, lookbackHours);
-      // encerrado pelo relógio só "a conferir" com tentativa devida (esgotado ou espaçando, não)
+      // encerrado pelo relógio só "a conferir" com tentativa devida (esgotado ou espaçando, não) e, se a
+      // data já teve lote há menos de 1 h, mostra quando sai o próximo
+      const planCursors = new PgCursorStore(ctx.db);
       const unconfirmed = inPlay.filter((c) => reconcileReason(c, now, triage) === 'unconfirmed');
-      const due = new Set(await dueUnconfirmed(new PgCursorStore(ctx.db), sport, unconfirmed, now));
+      const due = new Set(await dueUnconfirmed(planCursors, sport, unconfirmed, now));
+      const dateOf = (c: { startsAt: Date }) => c.startsAt.toISOString().slice(0, 10);
+      const nextList = await nextListAt(planCursors, sport, [...new Set([...due].map(dateOf))], now);
       const rows = inPlay.map((c) => {
         const reason = reconcileReason(c, now, triage);
-        const waiting = reason === 'unconfirmed' && !due.has(c);
-        return { c, motivo: waiting ? null : reason, espera: waiting };
+        if (reason !== 'unconfirmed') return { c, motivo: reason, espera: null };
+        if (!due.has(c)) return { c, motivo: null, espera: 'não (tentativas esgotadas ou espaçando)' };
+        const at = nextList.get(dateOf(c));
+        return at
+          ? { c, motivo: null, espera: `${reason}, no lote das ${at.toISOString().slice(11, 16)}` }
+          : { c, motivo: reason, espera: null };
       });
       const pending = rows.filter((r) => r.motivo).length;
       report(
@@ -121,7 +132,7 @@ await runCli(async () => {
           apito_utc: c.startsAt.toISOString().slice(11, 16),
           ultima_obs_utc: c.lastValidAt?.toISOString().slice(11, 16) ?? '—',
           prioridade: c.livePriority,
-          conferir: motivo ?? (espera ? 'não (tentativas esgotadas ou espaçando)' : 'não'),
+          conferir: motivo ?? espera ?? 'não',
           fornecedor: c.providerEventId,
         })),
       );
@@ -173,11 +184,22 @@ await runCli(async () => {
           },
           c.finished ? 'jogo encerrado pela reconciliação' : 'status corrigido pela reconciliação',
         );
-      for (const skip of r.listSkipped)
+      // aviso de falta de cota: uma vez por data e por dia (sem repetir a cada 10 min)
+      const day = now.toISOString().slice(0, 10);
+      const warnRefs = r.listSkipped.map((skip) => ({
+        sport,
+        endpoint: RECONCILE_CURSOR_ENDPOINT,
+        key: `aviso=${skip.date}@${day}`,
+      }));
+      const warned = await cursors.load(warnRefs);
+      for (const [i, skip] of r.listSkipped.entries()) {
+        if (warned.get(cursorId(warnRefs[i]!))?.completedAt) continue;
         log.warn(
           { date: skip.date, reason: skip.reason, games: skip.games, adhoc_available: adhocAvailable },
           'encerrados pelo relógio sem conferência por falta de cota; ficam para o sync D-1',
         );
+        await cursors.complete([warnRefs[i]!], { reason: skip.reason }, now);
+      }
       // cursores da reconciliação só servem dentro da janela de horas: apaga os de mais de 2 dias
       await pruneReconcileCursors(ctx.db, new Date(now.getTime() - 2 * 86_400_000));
       const stats = {

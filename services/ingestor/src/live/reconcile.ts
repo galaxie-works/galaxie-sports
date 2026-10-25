@@ -38,14 +38,27 @@ const MIN = 60_000;
 
 /** Sem observação válida há este tempo, um jogo acompanhado pelo ao vivo é suspeito (intervalo + tick longo cabem). */
 export const DEFAULT_STALE_MINUTES = 30;
-/** Tentativas de confirmar um jogo encerrado pelo relógio (a 1ª logo, depois +30 min e +2 h). */
+/**
+ * Tentativas de confirmar um jogo encerrado pelo relógio: a 1ª no próximo lote da data; as seguintes pelo
+ * menos 30 min e 2 h depois da anterior (na prática, no lote de hora em hora que vier depois).
+ */
 export const UNCONFIRMED_MAX_ATTEMPTS = 3;
 export const UNCONFIRMED_RETRY_MS = [30 * MIN, 120 * MIN];
 /** No máximo uma agenda `fixtures?date=` por data neste intervalo (o raw de hoje só vale 5 min). */
 export const LIST_EVERY_MS = 60 * MIN;
 /**
- * Cursores em ops.sync_cursor: tentativas por jogo (chave `id=<jogo no provedor>`) e último lote por data
- * (chave `date=YYYY-MM-DD`).
+ * Folga nos intervalos acima: o cron roda a cada 10 min, mas o `now` de cada execução atrasa alguns
+ * segundos; sem folga, 59:5x de espera empurra o lote para a execução seguinte (+70 min).
+ */
+export const SCHEDULE_SLACK_MS = 5 * MIN;
+/**
+ * Janela (horas desde o apito) dos encerrados pelo relógio: mais larga que a do em andamento para caber a
+ * 3ª tentativa (encerrado em ~apito + 115 min, mais 1 h e 2 h de espera, mais o lote de hora em hora).
+ */
+export const UNCONFIRMED_LOOKBACK_HOURS = 8;
+/**
+ * Cursores em ops.sync_cursor: tentativas por jogo (chave `id=<jogo no provedor>@<horário do apito>` — um
+ * jogo remarcado começa a contagem do zero) e último lote por data (chave `date=YYYY-MM-DD`).
  */
 export const RECONCILE_CURSOR_ENDPOINT = 'live:reconcile';
 
@@ -135,7 +148,11 @@ export interface ReconcileReport {
   confirmedByList: string[];
   listed: string[];
   /** Datas com jogo devido que ficaram sem agenda nesta execução por falta de cota (fatia ADHOC, plano). */
-  listSkipped: { date: string; reason: 'adhoc_budget' | 'quota' | 'plan'; games: number }[];
+  listSkipped: {
+    date: string;
+    reason: 'adhoc_budget' | 'quota' | 'plan' | 'rate_limited';
+    games: number;
+  }[];
   calls: number;
   errors: number;
   changes: LiveChange[];
@@ -154,15 +171,22 @@ export function inPlayCandidates(
   lookbackHours = 6,
 ): LiveCandidate[] {
   const from = now.getTime() - lookbackHours * 3_600_000;
+  const fromUnconfirmed = now.getTime() - candidatesLookbackHours(lookbackHours) * 3_600_000;
   return candidates
     .filter(
       (c) =>
         c.providerEventId &&
-        (isInPlay(c.status) || c.status === 'starting' || isClockFinished(c)) &&
         c.startsAt.getTime() <= now.getTime() &&
-        c.startsAt.getTime() >= from,
+        (isClockFinished(c)
+          ? c.startsAt.getTime() >= fromUnconfirmed
+          : (isInPlay(c.status) || c.status === 'starting') && c.startsAt.getTime() >= from),
     )
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+}
+
+/** Horas de candidatos a ler do core: a janela do em andamento ou a dos encerrados pelo relógio. */
+export function candidatesLookbackHours(lookbackHours = 6): number {
+  return Math.max(lookbackHours, UNCONFIRMED_LOOKBACK_HOURS);
 }
 
 const REASON_ORDER: Record<ReconcileReason, number> = { stale: 0, forced: 1, unconfirmed: 2 };
@@ -189,8 +213,12 @@ export function reconcileTargets(
     .map((x) => x.c);
 }
 
-function attemptRef(sport: string, providerEventId: string): CursorRef {
-  return { sport, endpoint: RECONCILE_CURSOR_ENDPOINT, key: `id=${providerEventId}` };
+function attemptRef(sport: string, c: LiveCandidate): CursorRef {
+  return {
+    sport,
+    endpoint: RECONCILE_CURSOR_ENDPOINT,
+    key: `id=${c.providerEventId}@${c.startsAt.toISOString()}`,
+  };
 }
 
 function listRef(sport: string, date: string): CursorRef {
@@ -215,9 +243,27 @@ export async function dueUnconfirmed(
   unconfirmed: readonly LiveCandidate[],
   now: Date,
 ): Promise<LiveCandidate[]> {
-  const states = await cursors.load(unconfirmed.map((c) => attemptRef(sport, c.providerEventId!)));
-  return unconfirmed.filter((c) =>
-    unconfirmedDue(states.get(cursorId(attemptRef(sport, c.providerEventId!))), now),
+  const states = await cursors.load(unconfirmed.map((c) => attemptRef(sport, c)));
+  return unconfirmed.filter((c) => unconfirmedDue(states.get(cursorId(attemptRef(sport, c))), now));
+}
+
+/**
+ * Quando sai o próximo lote de cada data (`null` = já pode sair): no máximo um a cada `LIST_EVERY_MS`
+ * (com a folga de `SCHEDULE_SLACK_MS`). O `--plan` mostra a mesma espera.
+ */
+export async function nextListAt(
+  cursors: CursorStore,
+  sport: string,
+  dates: readonly string[],
+  now: Date,
+): Promise<Map<string, Date | null>> {
+  const last = await cursors.load(dates.map((d) => listRef(sport, d)));
+  return new Map(
+    dates.map((date) => {
+      const at = last.get(cursorId(listRef(sport, date)))?.completedAt;
+      const next = at ? at.getTime() + LIST_EVERY_MS - SCHEDULE_SLACK_MS : -Infinity;
+      return [date, next > now.getTime() ? new Date(next) : null];
+    }),
   );
 }
 
@@ -232,7 +278,7 @@ export function unconfirmedDue(
   if (n === 0) return true;
   const last = Date.parse(String(state?.cursor?.lastAttemptAt ?? ''));
   const wait = UNCONFIRMED_RETRY_MS[Math.min(n, UNCONFIRMED_RETRY_MS.length) - 1]!;
-  return !Number.isFinite(last) || now.getTime() - last >= wait;
+  return !Number.isFinite(last) || now.getTime() - last >= wait - SCHEDULE_SLACK_MS;
 }
 
 /** Só os eventos pedidos (e o que eles referenciam) de uma agenda do dia inteiro. */
@@ -263,7 +309,7 @@ export async function reconcileLive(
   const candidates = await store.candidates(
     sport,
     provider.id,
-    new Date(now.getTime() - lookbackHours * 3_600_000),
+    new Date(now.getTime() - candidatesLookbackHours(lookbackHours) * 3_600_000),
     now,
   );
   const inPlay = inPlayCandidates(candidates, now, lookbackHours);
@@ -279,13 +325,8 @@ export async function reconcileLive(
     dueByDate.set(date, [...(dueByDate.get(date) ?? []), c]);
   }
   // no máximo uma agenda por data a cada LIST_EVERY_MS: os devidos esperam o próximo lote
-  const lastList = await cursors.load([...dueByDate.keys()].map((d) => listRef(sport, d)));
-  const byDate = new Map(
-    [...dueByDate].filter(([date]) => {
-      const at = lastList.get(cursorId(listRef(sport, date)))?.completedAt;
-      return !at || now.getTime() - at.getTime() >= LIST_EVERY_MS;
-    }),
-  );
+  const nextList = await nextListAt(cursors, sport, [...dueByDate.keys()], now);
+  const byDate = new Map([...dueByDate].filter(([date]) => nextList.get(date) === null));
   const jobOptions = options.jobId ? { jobId: options.jobId } : {};
   const ids = [...detailIds, ...[...byDate.values()].flat().map((c) => c.providerEventId!)];
 
@@ -317,9 +358,13 @@ export async function reconcileLive(
     }
     const list = await provider.listEvents({ sport, date }, { priority: 'ADHOC', ...jobOptions });
     calls += spent(list);
-    const refs = (gs: LiveCandidate[]) => gs.map((c) => attemptRef(sport, c.providerEventId!));
-    if (list.status === 'error' && (list.error.kind === 'quota' || list.error.kind === 'plan')) {
-      // bloqueio local (cota, plano): nada saiu para a fonte — não conta tentativa nem lote
+    const refs = (gs: LiveCandidate[]) => gs.map((c) => attemptRef(sport, c));
+    if (
+      list.status === 'error' &&
+      (list.error.kind === 'quota' || list.error.kind === 'plan' || list.error.kind === 'rate_limited')
+    ) {
+      // bloqueio local (cota, plano, a mesma agenda já em voo noutro processo) ou limite por minuto:
+      // a fonte não respondeu a agenda — não conta tentativa nem lote
       listSkipped.push({ date, reason: list.error.kind, games: games.length });
       continue;
     }
@@ -353,13 +398,14 @@ export async function reconcileLive(
     confirmedByList.push(
       ...games.filter((c) => usableIds.has(c.providerEventId!)).map((c) => c.providerEventId!),
     );
-    // fora da agenda: encerrado por ora, sem novas tentativas (o sync D-1 confere); confirmado ou
-    // remarcado: resolvido
+    // fora da agenda: encerrado por ora, sem novas tentativas (o sync D-1 confere); confirmado: resolvido.
+    // Remarcado não grava nada: com o horário novo, a chave do cursor é outra e a contagem recomeça se o
+    // relógio o encerrar de novo
     const resolved = games.filter((c) => {
       const e = found.get(c);
-      return !e || e.observation.status === 'finished' || rescheduled(c, e);
+      return !e || e.observation.status === 'finished';
     });
-    const retry = games.filter((c) => !resolved.includes(c));
+    const retry = games.filter((c) => !resolved.includes(c) && !rescheduled(c, found.get(c)!));
     await cursors.complete(refs(resolved), { source: 'live-reconcile', listedAt: now.toISOString() }, now);
     await cursors.fail(refs(retry), 'não confirmado pela agenda do dia', now);
   }

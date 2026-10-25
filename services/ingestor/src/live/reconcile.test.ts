@@ -7,6 +7,7 @@ import {
   adhocAllowance,
   LIST_EVERY_MS,
   reconcileLive,
+  SCHEDULE_SLACK_MS,
   reconcileReason,
   reconcileTargets,
   UNCONFIRMED_MAX_ATTEMPTS,
@@ -201,7 +202,7 @@ describe('reconcileLive', () => {
     expect(r.store.state('9102')).toMatchObject({ status: 'scheduled', startsAt: moved.kickoff });
   });
 
-  it('tentativas: a 1ª logo, a 2ª depois de 30 min, a 3ª depois de 2 h, e para', () => {
+  it('tentativas: a 2ª depois de 30 min, a 3ª depois de 2 h (com 5 min de folga para o atraso do cron), e para', () => {
     const t0 = new Date(kick);
     const after = (n: number) => ({
       completedAt: null,
@@ -209,10 +210,10 @@ describe('reconcileLive', () => {
     });
     const at = (min: number) => new Date(kick + min * MIN);
     expect(unconfirmedDue(undefined, t0)).toBe(true);
-    expect(unconfirmedDue(after(1), at(29))).toBe(false);
-    expect(unconfirmedDue(after(1), at(30))).toBe(true);
-    expect(unconfirmedDue(after(2), at(119))).toBe(false);
-    expect(unconfirmedDue(after(2), at(120))).toBe(true);
+    expect(unconfirmedDue(after(1), at(24))).toBe(false);
+    expect(unconfirmedDue(after(1), at(25))).toBe(true);
+    expect(unconfirmedDue(after(2), at(114))).toBe(false);
+    expect(unconfirmedDue(after(2), at(115))).toBe(true);
     expect(unconfirmedDue(after(3), at(10_000))).toBe(false);
     expect(unconfirmedDue({ completedAt: t0, cursor: null }, at(10_000))).toBe(false);
   });
@@ -284,16 +285,16 @@ describe('reconcileLive', () => {
       return { listCalls, skipped, store };
     };
 
-    const free = await run(undefined);
+    const uncapped = await run(undefined);
     // 15 h de simulação (10:00 → 01:00): ≤ 1 por hora (antes, uma a cada execução com jogo devido: 21)
-    expect(free.listCalls.length).toBeLessThanOrEqual(15);
-    for (let i = 1; i < free.listCalls.length; i++)
-      expect(free.listCalls[i]!.getTime() - free.listCalls[i - 1]!.getTime()).toBeGreaterThanOrEqual(
-        LIST_EVERY_MS,
+    expect(uncapped.listCalls.length).toBeLessThanOrEqual(15);
+    for (let i = 1; i < uncapped.listCalls.length; i++)
+      expect(uncapped.listCalls[i]!.getTime() - uncapped.listCalls[i - 1]!.getTime()).toBeGreaterThanOrEqual(
+        LIST_EVERY_MS - SCHEDULE_SLACK_MS,
       );
     // todos confirmados pela fonte até a 01:00
     const confirmed = matches.filter(
-      (m) => free.store.state(String(m.fixtureId))!.statusSource === 'provider',
+      (m) => uncapped.store.state(String(m.fixtureId))!.statusSource === 'provider',
     );
     expect(confirmed.length).toBe(matches.length);
 
@@ -419,5 +420,68 @@ describe('reconcileLive', () => {
     expect(reconcileReason(base, at(100), { force: true })).toBe('stale');
     expect(reconcileTargets([low], at(90))).toEqual([]);
     expect(reconcileTargets([low, clock], at(90), { force: true })).toEqual([low, clock]);
+  });
+
+  it('remarcado no mesmo dia (+150 min): volta para a agenda e, encerrado de novo pelo relógio, é conferido', async () => {
+    const g = { ...lowMatch, kickoff: new Date('2026-10-24T12:00:00Z') };
+    const moved = { ...g, kickoff: new Date('2026-10-24T14:30:00Z') };
+    const { store, cursors } = setup([g]);
+    let now = new Date(g.kickoff);
+    const calls: string[] = [];
+    const provider = new FakeProvider('api-sports');
+    provider.listEvents = async () => {
+      calls.push(now.toISOString().slice(11, 16));
+      const over = now.getTime() - moved.kickoff.getTime() > 115 * MIN;
+      const at = new Date(moved.kickoff.getTime() + (over ? 200 : -60) * MIN);
+      return batchResult(normalizeFixtures([apiFixture(moved, at, teamId)], now), 'network', 1);
+    };
+    for (let t = 0; t <= 10 * 60; t++) {
+      now = new Date(g.kickoff.getTime() + t * MIN);
+      store.advanceClock(now);
+      if (t % 10) continue;
+      await reconcileLive(provider, store, { cursors, sport: 'football', now });
+    }
+    // 1º lote: remarcado para 14:30; o relógio o encerra de novo às 16:25 e o lote seguinte confirma
+    expect(calls).toEqual(['14:00', '16:30']);
+    expect(store.state(String(g.fixtureId))).toMatchObject({
+      status: 'finished',
+      statusSource: 'provider',
+      startsAt: moved.kickoff,
+    });
+  });
+
+  it('cron com segundos de atraso: o lote de hora em hora não escorrega e cabem as 3 tentativas', async () => {
+    // G às 12:00 e H às 11:50 (o lote de H sai antes de G vencer); a fonte sempre falha
+    const g = { ...lowMatch, fixtureId: 61, kickoff: new Date('2026-10-24T12:00:00Z') };
+    const h = { ...lowMatch, fixtureId: 62, kickoff: new Date('2026-10-24T11:50:00Z') };
+    const { store, provider, cursors } = setup([g, h]);
+    const jitter = [5, 1, 4, 2, 6, 0, 3];
+    let k = 0;
+    for (let t = 0; t <= 9 * 60; t++) {
+      const tick = g.kickoff.getTime() + t * MIN;
+      store.advanceClock(new Date(tick));
+      if (t % 10) continue;
+      const now = new Date(tick + jitter[k++ % jitter.length]! * 1000);
+      provider.willFail('listEvents', { kind: 'http_error', message: '503', retryable: true }, now);
+      await reconcileLive(provider, store, { cursors, sport: 'football', now });
+      (provider as unknown as { queues: Map<string, unknown[]> }).queues.clear();
+    }
+    const attempts = [...cursors.rows.values()]
+      .filter((r) => r.ref.key.startsWith('id='))
+      .map((r) => [r.ref.key.split('@')[0], r.cursor?.attempts]);
+    expect(attempts.sort()).toEqual([
+      ['id=61', UNCONFIRMED_MAX_ATTEMPTS],
+      ['id=62', UNCONFIRMED_MAX_ATTEMPTS],
+    ]);
+  });
+
+  it('limite por minuto (ou a mesma agenda em voo noutro processo) não conta tentativa nem lote', async () => {
+    const { store, provider, cursors } = setup([lowMatch]);
+    const now = new Date(lowMatch.kickoff.getTime() + 130 * MIN);
+    store.advanceClock(now);
+    provider.willFail('listEvents', { kind: 'rate_limited', message: 'em voo', retryable: true }, now);
+    const r = await reconcileLive(provider, store, { cursors, sport: 'football', now });
+    expect(r.listSkipped).toEqual([{ date: '2026-10-21', reason: 'rate_limited', games: 1 }]);
+    expect([...cursors.rows.values()]).toEqual([]);
   });
 });
