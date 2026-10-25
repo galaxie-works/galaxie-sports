@@ -1,9 +1,10 @@
 import type { Event } from '@galaxie/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createFilterQuery, createFilterRule } from '@/components/reui/filters/filters-query';
 
 import {
+  combineUpcoming,
   fromFilterQuery,
   groupUpcoming,
   hasLiveFilters,
@@ -230,5 +231,31 @@ describe('opções de esporte com a agenda', () => {
       ['basketball', 1],
       ['mma', 1],
     ]);
+  });
+});
+
+describe('buscas de próximos combinadas', () => {
+  const ok = (events: Event[]) => ({ data: events, isPending: false, isError: false, refetch: vi.fn() });
+  const failed = () => ({ data: undefined, isPending: false, isError: true, refetch: vi.fn() });
+
+  it('busca que falhou não entra nos dados, mas marca o erro (não é "nada bate com os filtros")', () => {
+    const a = ok([ev('a', 'football', serieA)]);
+    const b = failed();
+    const r = combineUpcoming([a, b]);
+    expect(r.data.map((e) => e.id)).toEqual(['a']);
+    expect(r.error).toBe(true);
+    expect(combineUpcoming([failed(), failed()])).toMatchObject({ data: [], error: true });
+  });
+
+  it('tentar de novo refaz só as buscas que falharam', () => {
+    const a = ok([]);
+    const b = failed();
+    combineUpcoming([a, b]).retry();
+    expect(b.refetch).toHaveBeenCalledOnce();
+    expect(a.refetch).not.toHaveBeenCalled();
+  });
+
+  it('tudo certo: sem erro', () => {
+    expect(combineUpcoming([ok([])]).error).toBe(false);
   });
 });
