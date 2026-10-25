@@ -43,7 +43,11 @@ export async function planFootballCatalog(db: Database, now = new Date()): Promi
   const plan: PlannedCall[] = [];
   for (const endpoint of FOOTBALL_REFERENCE_ENDPOINTS) {
     const hash = requestHash('api-sports', 'football', endpoint, normalizeParams({}));
-    const hit = await store.findFresh(hash, ttlFor(endpoint, {}, now), now);
+    const hit = await store.findFresh(hash, ttlFor(endpoint, {}, now), now, {
+      provider: 'api-sports',
+      sport: 'football',
+      endpoint,
+    });
     plan.push({ endpoint, source: hit ? 'cache' : 'network' });
   }
   return plan;

@@ -127,7 +127,7 @@ export class ApiSportsClient {
     const now = new Date(startedAt);
 
     if (this.options.offline) {
-      const hit = await this.fromCache<T>(hash, FOREVER, now);
+      const hit = await this.fromCache<T>(req, hash, FOREVER, now);
       if (hit) {
         this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
         return hit;
@@ -137,7 +137,7 @@ export class ApiSportsClient {
 
     const maxAge = req.maxAgeMs ?? ttlFor(req.endpoint, params, now);
     if (maxAge > 0) {
-      const hit = await this.fromCache<T>(hash, maxAge, now);
+      const hit = await this.fromCache<T>(req, hash, maxAge, now);
       if (hit) {
         this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
         return hit;
@@ -154,8 +154,17 @@ export class ApiSportsClient {
     return call;
   }
 
-  private async fromCache<T>(hash: string, maxAge: number, now: Date): Promise<CallResult<T> | undefined> {
-    const hit = await this.options.store.findFresh(hash, maxAge, now);
+  private async fromCache<T>(
+    req: CallRequest,
+    hash: string,
+    maxAge: number,
+    now: Date,
+  ): Promise<CallResult<T> | undefined> {
+    const hit = await this.options.store.findFresh(hash, maxAge, now, {
+      provider: PROVIDER,
+      sport: req.sport,
+      endpoint: req.endpoint,
+    });
     if (!hit) return undefined;
     return {
       envelope: hit.body as Envelope<T>,
@@ -191,7 +200,7 @@ export class ApiSportsClient {
         await this.clock.sleep(IN_FLIGHT_POLL_MS);
         const now = this.clock.now();
         const window = maxAge > 0 ? maxAge : now - startedAt + IN_FLIGHT_POLL_MS;
-        const hit = await this.fromCache<T>(hash, window, new Date(now));
+        const hit = await this.fromCache<T>(req, hash, window, new Date(now));
         if (hit) {
           this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
           return hit;

@@ -141,6 +141,14 @@ describe('ApiSportsClient + Postgres', () => {
     const ledger = (await db.select().from(quotaLedger)).filter((l) => l.api === 'volleyball');
     expect(ledger).toHaveLength(1);
     expect(ledger[0]).toMatchObject({ outcome: 'ok', remainingAfter: 99, priority: 'DAILY' });
+
+    // a busca filtra pelas colunas iniciais do índice (provider, sport, endpoint), não só pelo hash
+    const store = new PgRawStore(db);
+    const scope = { provider: 'api-sports', sport: 'volleyball', endpoint: '/leagues' };
+    expect(await store.findFresh(first.requestHash, Infinity, now(), scope)).toBeDefined();
+    expect(
+      await store.findFresh(first.requestHash, Infinity, now(), { ...scope, endpoint: '/teams' }),
+    ).toBeUndefined();
   });
 });
 
