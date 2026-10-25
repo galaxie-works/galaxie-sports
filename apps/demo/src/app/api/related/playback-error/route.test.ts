@@ -70,7 +70,10 @@ describe('POST /api/related/playback-error', () => {
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('http://api.test/v1/related/playback-errors');
     expect(JSON.parse(init.body)).toEqual({ item_id: item(1), code: 150 });
-    expect(console.info).toHaveBeenCalledWith(expect.stringContaining('"user":"guest-1"'));
+    expect(console.info).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('"user":"guest-1"'),
+    );
 
     // o mesmo item de novo não chega à API
     expect((await report({ item_id: item(1), code: 150 })).status).toBe(204);

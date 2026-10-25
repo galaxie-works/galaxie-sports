@@ -24,16 +24,8 @@ export async function POST(request: Request) {
   const code = typeof body?.code === 'number' ? body.code : NaN;
   if (!UUID.test(itemId) || !CODES.has(code)) return new Response(null, { status: 400 });
   const verdict = limiter.take(session.user.id, itemId);
-  console.info(
-    JSON.stringify({
-      msg: 'vídeo relacionado recusado pelo player',
-      user: session.user.id,
-      role: session.user.role ?? null,
-      itemId,
-      code,
-      verdict,
-    }),
-  );
+  const who = { user: session.user.id, role: session.user.role ?? null, itemId, code, verdict };
+  console.info('[demo] vídeo relacionado recusado pelo player', JSON.stringify(who));
   // o mesmo item de novo não muda nada na API: responde como aceito sem repassar
   if (verdict === 'duplicate') return new Response(null, { status: 204 });
   if (verdict === 'limited') return new Response(null, { status: 429 });
