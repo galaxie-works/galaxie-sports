@@ -59,14 +59,21 @@ const byWeight = (a: Hit, b: Hit) => {
   return 0;
 };
 
+/** Todas as strings de um JSON, em qualquer nível (só os valores: as chaves ficam fora). */
+const STRING_VALUES = 'strict $.** ? (@.type() == "string")';
+
 /**
- * Nível do casamento no SQL (0 exato, 1 começo, 2 trecho), sobre o nome e um JSON de apelidos:
- * nos apelidos o JSON entra como texto, e as aspas marcam o começo e o fim de cada string.
+ * Apelidos como texto: um array JSON só com os valores de texto do JSON de apelidos. Chaves de locale e de
+ * objeto (`en`, `official`, `name`) não casam como apelido; as aspas marcam o começo e o fim de cada string.
  */
+const aliasesText = (aliases: SQL) =>
+  sql`jsonb_path_query_array(${aliases}, ${STRING_VALUES}::jsonpath)::text`;
+
+/** Nível do casamento no SQL (0 exato, 1 começo, 2 trecho), sobre o nome e um JSON de apelidos. */
 function rankSql(main: SQL, aliases: SQL, term: string): SQL {
   const t = likeTerm(term);
   const m = foldSql(main);
-  const a = foldSql(sql`(${aliases})::text`);
+  const a = foldSql(aliasesText(aliases));
   return sql`case
     when ${m} = ${term} or ${a} like ${`%"${t}"%`} then 0
     when ${m} like ${`${t}%`} or ${m} like ${`% ${t}%`} or ${a} like ${`%"${t}%`} or ${a} like ${`% ${t}%`} then 1
@@ -79,7 +86,7 @@ function rankSql(main: SQL, aliases: SQL, term: string): SQL {
  */
 function matchesSql(main: SQL, aliases: SQL, term: string): SQL {
   const pattern = term.length < 3 ? `(^|[^[:alnum:]])${accentPattern(term)}` : accentPattern(term);
-  return sql`concat_ws(' ', ${main}, (${aliases})::text) ~* ${pattern}`;
+  return sql`concat_ws(' ', ${main}, ${aliasesText(aliases)}) ~* ${pattern}`;
 }
 
 /** Nome do país para o `detail`; competições e times internacionais (`WORLD`) ficam sem. */
@@ -304,7 +311,9 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
 
   // ─── estádios ──────────────────────────────────────────────────────────────────────────────
   async function venues(db: Database, term: string) {
-    const aliases = sql`jsonb_build_array(v.name, v.curated, v.provider_former_names)`;
+    // da curadoria, só os nomes (cidade, perfis e o modo da ligação não são nome do estádio)
+    const aliases = sql`jsonb_build_array(v.name, v.curated->'name', v.curated->'nicknames',
+                                          v.curated->'former_names', v.provider_former_names)`;
     const rows = await db.execute<{
       id: string;
       name: string;

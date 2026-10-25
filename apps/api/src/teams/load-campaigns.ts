@@ -117,8 +117,8 @@ export async function loadTeamCompetitions(
   if (!selected.length) return [];
   const seasonIds = selected.map((r) => r.s.id);
 
-  // 2. fases, jogos do time, tabela e jogos pendentes da temporada
-  const [stages, teamEvents, tables, openRows] = await Promise.all([
+  // 2. fases, jogos do time, tabela e jogos (e pendentes) de cada fase da temporada
+  const [stages, teamEvents, tables, stageRows] = await Promise.all([
     db
       .select({
         id: stage.id,
@@ -146,20 +146,24 @@ export async function loadTeamCompetitions(
       .from(standing)
       .where(and(eq(standing.participantId, teamId), inArray(standing.seasonId, seasonIds))),
     db
-      .selectDistinct({ seasonId: event.seasonId })
+      .select({
+        seasonId: event.seasonId,
+        stageId: event.stageId,
+        events: sql<number>`count(*)::int`.mapWith(Number),
+        open: sql<number>`(count(*) filter (where ${event.status}
+          not in ('finished', 'cancelled', 'abandoned')))::int`.mapWith(Number),
+      })
       .from(event)
-      .where(
-        and(
-          inArray(event.seasonId, seasonIds),
-          sql`${event.status} not in ('finished', 'cancelled', 'abandoned')`,
-        ),
-      ),
+      .where(inArray(event.seasonId, seasonIds))
+      .groupBy(event.seasonId, event.stageId),
   ]);
+  const stageActivity = new Map<string, { events: number; open: number }>();
+  for (const r of stageRows) if (r.stageId) stageActivity.set(r.stageId, { events: r.events, open: r.open });
   // em aberto: com jogo por disputar ou com o calendário ainda por terminar (o F1DB só cria a sessão disputada, mas
   // fecha a temporada no último GP previsto): a liderança de uma temporada em andamento não é "terminou em"
   const today = bctx.now.toISOString().slice(0, 10);
   const openSeasons = new Set([
-    ...openRows.map((r) => r.seasonId),
+    ...stageRows.filter((r) => r.open > 0).map((r) => r.seasonId),
     ...selected.filter((r) => r.s.endDate != null && r.s.endDate >= today).map((r) => r.s.id),
   ]);
 
@@ -206,6 +210,7 @@ export async function loadTeamCompetitions(
         tieMatches: tieMatches.filter((m) => ids.has(m.stageId)),
         standing: pickStanding(tables.filter((t) => t.seasonId === r.s.id)),
         seasonOpen: openSeasons.has(r.s.id),
+        stageActivity,
         rules: await bctx.rules.get(r.c.slug, r.s.year),
         competitionType: r.c.type,
       });
