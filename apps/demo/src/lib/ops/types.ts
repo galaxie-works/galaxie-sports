@@ -111,6 +111,41 @@ export interface JobRequestRow {
   detail: string | null;
 }
 
+/** Rendimento de uma competição no Conteúdo relacionado (14 dias, enrich.related_run × related_content). */
+export interface YoutubeYieldRow {
+  slug: string;
+  games: number;
+  searches: number;
+  apiUnits: number;
+  searchVideos: number;
+  channelVideos: number;
+}
+
+export interface YoutubeSkippedRow {
+  eventId: string;
+  label: string;
+  competition: string | null;
+  relevance: number;
+  score: number;
+  reason: string;
+  at: string;
+}
+
+/**
+ * Cota do YouTube no dia de cota (meia-noite do Pacífico), nos dois baldes: busca (consultas, com a parte
+ * reservada aos jogos que ainda vão acontecer) e geral (unidades). Vem do orçamento que o `related:run` grava.
+ */
+export interface YoutubeSnapshot {
+  quotaDay: string;
+  /** Última gravação do orçamento (null: o agente ainda não rodou no dia; os limites vêm das flags). */
+  updatedAt: string | null;
+  search: { limit: number; used: number; reserved: number };
+  api: { limit: number; used: number };
+  channels: { club: number; competition: number; broadcaster: number };
+  yields: YoutubeYieldRow[];
+  skipped: YoutubeSkippedRow[];
+}
+
 export interface OpsSnapshot {
   generatedAt: string;
   dayUtc: string;
@@ -125,6 +160,8 @@ export interface OpsSnapshot {
   requests: JobRequestRow[];
   /** Placar da qualidade dos dados (null: migration 0034 ainda não aplicada). */
   quality: QualitySnapshot | null;
+  /** Cota do YouTube do Conteúdo relacionado (null: migration 0039 ainda não aplicada). */
+  youtube: YoutubeSnapshot | null;
 }
 
 // ── Qualidade dos dados (job data-quality, ops.quality_*) ────────────────────────────────────────

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  availableUnits,
   capPublished,
   DEFAULT_RELATED_MARKETS,
   fullSearchDue,
+  nextMode,
   rankRelatedCandidates,
   relatedPolicyFromEnv,
   videoLocale,
@@ -69,13 +69,49 @@ describe('quando buscar de novo', () => {
   });
 });
 
-describe('orçamento de cota', () => {
-  const policy = { highRelevance: 85, highReservePercent: 30 };
+describe('o que fazer em cada execução do cron', () => {
+  const now = at('2026-10-24T03:00:00Z');
+  const base = {
+    now,
+    fullDue: false,
+    searchAllowance: 2,
+    hasChannels: true,
+    hasAlive: true,
+    lastChannels: at('2026-10-24T02:30:00Z'),
+    lastAny: at('2026-10-24T02:30:00Z'),
+    channelRefreshMs: 60 * 60_000,
+    revalidateMs: 120 * 60_000,
+  };
 
-  it('jogo grande usa a cota inteira; os demais não tocam a reserva', () => {
-    expect(availableUnits({ quotaLimit: 9000, used: 6000, relevance: 100, policy })).toBe(3000);
-    expect(availableUnits({ quotaLimit: 9000, used: 6000, relevance: 70, policy })).toBe(300);
-    expect(availableUnits({ quotaLimit: 9000, used: 6400, relevance: 70, policy })).toBe(-100);
+  it('busca completa só quando devida e com consulta disponível', () => {
+    expect(nextMode({ ...base, fullDue: true })).toBe('full');
+    // sem consulta: lê os canais (barato) e a busca fica devida para depois
+    expect(nextMode({ ...base, fullDue: true, searchAllowance: 0, lastChannels: null })).toBe('channels');
+  });
+
+  it('canais a cada hora, revalidação a cada 2 h; no meio, nada (nenhuma chamada)', () => {
+    expect(nextMode(base)).toBeNull();
+    expect(nextMode({ ...base, lastChannels: at('2026-10-24T01:59:00Z') })).toBe('channels');
+    expect(nextMode({ ...base, hasChannels: false, lastAny: at('2026-10-24T00:59:00Z') })).toBe('revalidate');
+    expect(nextMode({ ...base, hasChannels: false, hasAlive: false, lastAny: null })).toBeNull();
+  });
+});
+
+describe('grupos da fila', () => {
+  it('mercados ativos → fora dos mercados → rendimento zero; dentro do grupo, a prioridade', () => {
+    const c = (id: string, group: 0 | 1 | 2, score: number, firstSearchPending = true) => ({
+      id,
+      startsAt: at('2026-10-24T00:00:00Z'),
+      relevance: 90,
+      score,
+      group,
+      firstSearchPending,
+    });
+    const ranked = rankRelatedCandidates(
+      [c('europa', 1, 65), c('colombia', 2, 40), c('mx', 0, 30), c('vasco', 0, 95), c('br-2a', 0, 99, false)],
+      50,
+    );
+    expect(ranked.map((x) => x.id)).toEqual(['vasco', 'mx', 'br-2a', 'europa', 'colombia']);
   });
 });
 
@@ -151,9 +187,19 @@ describe('política pelo ambiente', () => {
   it('valores do painel e limites', () => {
     const p = relatedPolicyFromEnv({
       RELATED_MAX_VIDEOS: '6',
-      RELATED_HIGH_RESERVE_PERCENT: '200',
-      RELATED_MAX_SEARCHES_PER_EVENT: '0',
+      RELATED_RESERVE_MAX_PERCENT: '200',
+      RELATED_MAX_SEARCHES_PER_EVENT: '-1',
+      RELATED_MAX_SEARCHES_PER_RUN: '1',
+      RELATED_MARKET_WEIGHTS: 'br:1, ar:0.5',
     });
-    expect(p).toMatchObject({ maxVideos: 6, highReservePercent: 90, maxSearchesPerEvent: 4 });
+    expect(p).toMatchObject({
+      maxVideos: 6,
+      reserveMaxPercent: 90,
+      maxSearchesPerEvent: 4,
+      maxSearchesPerRun: 1,
+      marketWeights: { BR: 1, AR: 0.5 },
+      channelsFirst: true,
+    });
+    expect(relatedPolicyFromEnv({ RELATED_MARKET_WEIGHTS: 'lixo' }).marketWeights.BR).toBe(1);
   });
 });
