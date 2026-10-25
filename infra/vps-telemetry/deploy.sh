@@ -14,6 +14,7 @@
 #   5. pós-deploy idempotente: seed da base semântica, nomes curados de estádios e importância
 #   6. limpa o cache de respostas da API (senão a versão anterior segue servida por até 24 h)
 #   7. smoke test (infra/vps-telemetry/smoke.mjs); falha → código de saída 1
+#   8. notas de versão: tag deploy-AAAA-MM-DD.N e release no GitHub com os PRs desde o deploy anterior
 set -euo pipefail
 
 VPS="${VPS:-root@145.223.94.149}"
@@ -88,3 +89,8 @@ ssh "$VPS" "cd $DIR && docker compose exec -T agents node -e '
 
 echo "smoke test"
 ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$WT/infra/vps-telemetry/smoke.mjs"
+
+# notas de versão: tag deploy-AAAA-MM-DD.N no commit publicado e release no GitHub com os PRs desde o deploy
+# anterior (infra/vps-telemetry/release-notes.mjs) — só depois do smoke ok; falha aqui não desfaz o deploy
+echo "notas de versão"
+(cd "$ROOT" && node "$WT/infra/vps-telemetry/release-notes.mjs" --to "$SHA") || echo "WARN  release: não publicada"
