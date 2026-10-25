@@ -3,7 +3,8 @@
  *
  * 1. Descarta opções sem URL de evidência acessível (e tudo o que a blocklist editorial pega).
  * 2. Normaliza emissora/canal contra o dicionário do país; nome desconhecido → revisão (`pending`).
- * 3. Deduplica por (região, emissora, meio), juntando as evidências.
+ * 3. Deduplica por (região, emissora, meio), juntando as evidências. O link para assistir só fica
+ *    quando está num domínio oficial da emissora (ou do grupo dela) no dicionário.
  * 4. Confiança: primária (emissora/organizador) 0,9 · imprensa 0,7 · agregador/desconhecida 0,4 ·
  *    +0,1 consistente com a tabela de direitos · −0,2 fora da tabela · +0,1 duas fontes independentes ·
  *    −0,3 fonte com mais de 72 h em competição com escolha por rodada. Limite [0, 1].
@@ -18,7 +19,14 @@ import type { AccessModel, BroadcastMedium, BroadcastStatus, Evidence, SourceKin
 import type { CountryDirectory } from './config/directory.js';
 import type { BroadcasterEntry, RightsEntry } from './config/types.js';
 import { NO_MATCH_FACTS, rightsAnswer, type MatchFacts } from './rights.js';
-import { clipExcerpt, hostOf, isHttpUrl, normalizeName, registrableDomain } from './normalize.js';
+import {
+  clipExcerpt,
+  hostOf,
+  isHttpUrl,
+  matchesDomain,
+  normalizeName,
+  registrableDomain,
+} from './normalize.js';
 
 export const SOURCE_SCORES: Record<SourceKind, number> = {
   broadcaster: 0.9,
@@ -184,6 +192,16 @@ interface Group {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** URL de "assista aqui" num domínio oficial da emissora resolvida (ou do grupo dela)? */
+export function isOfficialWatchUrl(
+  dir: CountryDirectory,
+  entry: BroadcasterEntry | null,
+  url: string | null | undefined,
+): url is string {
+  if (!entry || !isHttpUrl(url) || dir.isAggregator(url) || dir.blocklist.isBlockedUrl(url)) return false;
+  return dir.primaryDomains(entry).some((d) => matchesDomain(url, d));
+}
+
 /** Aplica as regras e devolve as opções com status e confiança (função pura). */
 export function validateCandidates(candidates: Candidate[], ctx: ValidationContext): ValidationReport {
   const { directory: dir } = ctx;
@@ -252,7 +270,9 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
       groups.set(key, g);
     }
     if (!entry) g.flags.add('unknown_broadcaster');
-    if (!g.watchUrl && isHttpUrl(c.watchUrl) && !dir.isAggregator(c.watchUrl)) g.watchUrl = c.watchUrl;
+    // link para assistir só no domínio oficial da emissora (ou do grupo dela) no dicionário: a URL vem
+    // do modelo e uma página injetada não pode publicar um link qualquer como "assista aqui"
+    if (!g.watchUrl && isOfficialWatchUrl(dir, entry, c.watchUrl)) g.watchUrl = c.watchUrl;
     const channel = resolved?.channel ?? (c.channel?.trim() || null);
 
     if (fromRights) {

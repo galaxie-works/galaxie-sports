@@ -143,6 +143,22 @@ describe('validador determinístico — confiança', () => {
 });
 
 describe('validador determinístico — evidência, conflito e política', () => {
+  it('link para assistir só no domínio oficial da emissora (ou do grupo); senão fica sem link', () => {
+    const link = (broadcaster: string, watchUrl: string) =>
+      validateCandidates([cand(broadcaster, [ev('https://ge.globo.com/agenda/jogo')], { watchUrl })], ctx())
+        .options[0]!.url;
+    expect(link('TV Globo', 'https://globoplay.globo.com/ao-vivo')).toBe(
+      'https://globoplay.globo.com/ao-vivo',
+    );
+    // prompt injection: URL de terceiro publicada como "assista aqui"
+    expect(link('TV Globo', 'https://phishing.example/stream')).toBeNull();
+    expect(link('TV Globo', 'https://globo.com.phishing.example/stream')).toBeNull();
+    // domínio de OUTRA emissora do país também não serve
+    expect(link('TV Globo', 'https://www.espn.com.br/ao-vivo')).toBeNull();
+    // emissora fora do dicionário: sem domínio oficial conhecido, sem link
+    expect(link('Canal Desconhecido', 'https://canal-desconhecido.example/live')).toBeNull();
+  });
+
   it('descarta opção sem URL de evidência acessível', () => {
     const r = validateCandidates(
       [
