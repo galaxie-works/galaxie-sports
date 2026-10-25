@@ -1,9 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { ChannelListBody } from '@galaxie/contracts';
+import { ChannelListBody, type ChannelListUpload } from '@galaxie/contracts';
 import { confirmChannelList, getChannelList, type TenantChannelList } from '@galaxie/db';
 import {
   CHANNEL_LIST_MAX_BYTES,
-  CHANNEL_LIST_MAX_CHANNELS,
   ChannelListError,
   parseChannelList,
   WTW_COUNTRIES,
@@ -72,16 +71,6 @@ export async function channelListRoutes(app: FastifyInstance, ctx: AppContext): 
           throw problems.invalidParams([{ path: 'content', message: err.message }]);
         throw err;
       }
-      // o parser descarta o que passa do limite; pela API o cliente não veria o corte, então a lista volta
-      if (parsed.truncated > 0) {
-        const max = CHANNEL_LIST_MAX_CHANNELS.toLocaleString('pt-BR');
-        throw problems.invalidParams([
-          {
-            path: 'content',
-            message: `a lista passa de ${max} canais (${parsed.truncated} a mais, sem contar os repetidos); envie até ${max}`,
-          },
-        ]);
-      }
       const db = requireDb(ctx);
       const current = await getChannelList(db, t.tenantId);
       const row = await storeChannelList(db, config(), t.tenantId, {
@@ -94,10 +83,16 @@ export async function channelListRoutes(app: FastifyInstance, ctx: AppContext): 
       });
       ctx.channelLists.invalidate(t.tenantId);
       request.log.info(
-        { tenant: t.slug, channels: parsed.channels.length, ai: row.aiStatus },
+        { tenant: t.slug, channels: parsed.channels.length, truncated: parsed.truncated, ai: row.aiStatus },
         'lista de canais recebida',
       );
-      return dto(row);
+      // como no portal: grava até o limite e diz quantos repetidos e quantos além dele ficaram de fora
+      const uploaded: ChannelListUpload = {
+        ...dto(row),
+        duplicates: parsed.duplicates,
+        truncated: parsed.truncated,
+      };
+      return uploaded;
     },
   );
 

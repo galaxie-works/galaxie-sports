@@ -42,7 +42,7 @@ let db: Database;
 let redis: Redis;
 let app: FastifyInstance;
 let eventId: string;
-const keys = { main: '', praca: '', none: '' };
+const keys = { main: '', praca: '', none: '', big: '' };
 const tenants = { main: '' };
 
 const req = (method: 'GET' | 'PUT' | 'POST', url: string, key: string, payload?: unknown) =>
@@ -107,7 +107,8 @@ beforeAll(async () => {
   const main = await tenant('lista-canais-principal');
   const praca = await tenant('lista-canais-pracas');
   const none = await tenant('lista-canais-sem-lista');
-  Object.assign(keys, { main: main.key, praca: praca.key, none: none.key });
+  const big = await tenant('lista-canais-grande');
+  Object.assign(keys, { main: main.key, praca: praca.key, none: none.key, big: big.key });
   tenants.main = main.id;
 
   app = buildServer({ db, redis, keyPrefix, usage: false, wtwConfig: config });
@@ -138,20 +139,19 @@ describe('PUT /v1/channel-list', () => {
     expect((await req('GET', '/v1/channel-list', keys.main)).statusCode).toBe(404);
   });
 
-  it('recusa lista acima de 5.000 canais em vez de cortar sem avisar', async () => {
-    const names = (n: number) => Array.from({ length: n }, (_, i) => `CANAL ${i}`);
-    const res = await req('PUT', '/v1/channel-list', keys.main, {
-      content: [...names(5003), 'CANAL 1'].join('\n'),
-    });
-    expect(res.statusCode).toBe(400);
-    expect(res.json().errors).toEqual([
-      {
-        path: 'content',
-        message: 'a lista passa de 5.000 canais (3 a mais, sem contar os repetidos); envie até 5.000',
-      },
-    ]);
-    expect((await req('GET', '/v1/channel-list', keys.main)).statusCode).toBe(404);
-  });
+  it('lista acima de 5.000 canais: grava até o limite e informa o corte e os repetidos', async () => {
+    const names = Array.from({ length: 5003 }, (_, i) => `CANAL ${i}`);
+    const res = await req('PUT', '/v1/channel-list', keys.big, { content: [...names, 'CANAL 1'].join('\n') });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body).toMatchObject({ duplicates: 1, truncated: 3 });
+    expect(body.channels).toHaveLength(5000);
+    // o GET mostra a lista gravada, sem os números do envio
+    const get = (await req('GET', '/v1/channel-list', keys.big)).json();
+    expect(get.channels).toHaveLength(5000);
+    expect(get).not.toHaveProperty('truncated');
+    // 5.000 canais no casamento por código: folga para a máquina de CI carregada
+  }, 120_000);
 
   it('grava só os nomes e propõe o casamento do exemplo de referência', async () => {
     const m3u = [
