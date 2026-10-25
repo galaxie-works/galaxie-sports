@@ -48,7 +48,9 @@ No mesmo espírito da allowlist de domínios do Onde Assistir (`services/ai-agen
 | `media` | `channels.yaml` → `media` | imprensa esportiva de referência |
 | `creator` | Fora da allowlist, conteúdo próprio, ≥ 100 mil inscritos | canal de análise ou de torcida |
 
-O casamento é por **handle** (`snippet.customUrl` do `channels.list`, sem caixa) ou por **id do canal** (`UC…`). A blocklist editorial do Onde Assistir (`_policy.yaml` + `WTW_BLOCKLIST_FILE`/`WTW_BLOCKLIST`) também vale aqui: canal bloqueado não aparece, e o nome não é registrado.
+O casamento é por **handle** (`snippet.customUrl` do `channels.list`, sem caixa) ou por **id do canal** (`UC…`). A blocklist editorial do Onde Assistir (`_policy.yaml` + `WTW_BLOCKLIST_FILE`/`WTW_BLOCKLIST`) também vale aqui: canal bloqueado não aparece, e o nome não é registrado; o vídeo dele que já estava publicado é retirado (`retracted`) na rodada seguinte do jogo.
+
+O selo `official` depende do jogo: canal de clube só é oficial no jogo do clube (pelo time ligado no mapa; a entrada do `channels.yaml` sem time ligado casa pelo nome **e pelo país**, então `@santosfc` não vale para o Santos Laguna), e canal de competição na competição dele (a entrada de federação do `channels.yaml`, como `competition: conmebol`, vale para todas as competições `conmebol-*`). O canal de outro clube ou de outra competição da allowlist conta como `media`.
 
 Toda entrada é conferida com `channels.list?forHandle=` antes de entrar (a lista atual foi conferida em 2026-10-22). Handles parecidos com os dos clubes costumam ser de terceiros — na conferência, `@vascotv` era um canal de torcedor com 1,3 mil inscritos e `@penarol` tinha 3 —, por isso o código também exige **10 mil inscritos** (`ALLOWLIST_MIN_SUBSCRIBERS`) para uma entrada casada só pelo handle dar o selo; entrada por id do canal conferida à mão não passa por esse piso (a do Wikidata passa, §3.2).
 
@@ -62,7 +64,7 @@ Ler os uploads recentes de um canal conhecido custa **1 unidade** do balde geral
 | Competição | `wikidata` / `config` | P2397 do QID da competição (`core.competition_title_coverage`, CLI `titulos:wikidata`) e as entradas `competitions` do `channels.yaml` |
 | Emissora com direitos no país | `config` | `broadcasters` do `channels.yaml` e os `youtube.com/@handle` do dicionário de emissoras; só entram no jogo as detentoras da competição nos mercados (`config/broadcast-rights`) |
 
-- **Carga**: `pnpm --filter @galaxie/ingestor canais:wikidata [--resolver]` grava os canais do Wikidata (sem cota de nenhuma API); `pnpm --filter @galaxie/ai-agents related:canais` soma os da configuração (resolve cada handle uma vez com `channels.list?forHandle=`, 1 unidade) e confere todos no YouTube. P2397 trocado desativa o canal antigo (`active = false`); nada é apagado.
+- **Carga**: `pnpm --filter @galaxie/ingestor canais:wikidata [--resolver]` grava os canais do Wikidata (sem cota de nenhuma API); `pnpm --filter @galaxie/ai-agents related:canais` soma os da configuração (resolve cada handle uma vez com `channels.list?forHandle=`, 1 unidade) e confere todos no YouTube. Entrada de federação (`conmebol`, `uefa`) vira uma linha por competição dela. P2397 trocado desativa o canal antigo (`active = false`), e a linha cuja entrada saiu do `channels.yaml` ou do dicionário de emissoras também (a entrada que continua no arquivo mas ficou sem par nesta execução só vai para o log); nada é apagado.
 - **Cache do `channels.list`** (`enrich.youtube_channel`): playlist de uploads (`contentDetails.relatedPlaylists.uploads`), handle, título e inscritos, renovado a cada 30 dias (a política da API não deixa dado sem atualizar por mais que isso). Canal que a API não devolve fica `missing`.
 - **Piso**: canal do Wikidata abaixo de 10 mil inscritos não é lido nem dá selo (o dado é aberto).
 - **Casamento do upload com o jogo** (`matchUploads`, antes do `videos.list`): publicado entre o apito e 7 dias depois e citando os dois times; no canal de um dos clubes basta o adversário, ou o próprio time até 6 h depois do apito (coletiva, bastidores). Canal da liga ou da emissora cobre vários jogos: só com os dois times. Depois vale a mesma relevância e política de sempre (§5.4–5.6); vídeo achado num canal guarda `channel:<tipo>` em `queries`.
@@ -126,7 +128,7 @@ flowchart LR
    - `goals` (se houve gols): `Palmeiras Fluminense gol <autor 1>|<autor 2>` (até 3 autores de gol do core).
    Todas com `type=video`, `publishedAfter` = início do jogo, `publishedBefore` = início + 7 dias, `videoEmbeddable=true`, `relevanceLanguage` e `regionCode` do locale, `maxResults=25`.
 3. **Detalhe**: um `videos.list` por lote de 50 ids (`snippet,contentDetails,statistics,status`) e um `channels.list` por lote de 50 canais (`snippet,statistics,contentDetails`), com o canal no cache de 30 dias (§3.2).
-4. **Relevância (código)**: o título ou a descrição precisa citar **os dois times** (nome, nome curto, apelidos e rótulos da base semântica, sem acento e sem caixa) — ou um deles, se o canal for oficial de um dos dois. Vídeo privado, não incorporável, publicado antes do apito ou fora do ar → descartado.
+4. **Relevância (código)**: o título ou a descrição precisa citar **os dois times** (nome, nome curto, apelidos e rótulos da base semântica, sem acento e sem caixa) — ou um deles, se o canal for o oficial de um dos dois clubes. Canal da competição e emissora detentora cobrem outros jogos de cada time: precisam dos dois. Vídeo privado, não incorporável, publicado antes do apito ou fora do ar → descartado.
 5. **Classificação**: o LLM tier `light` recebe os fatos do jogo e os vídeos — em lotes de 20, porque uma lista de ~70 vídeos estourou o limite de saída do modelo leve na primeira execução real — (título, trecho da descrição, canal, duração) **como dado** (`<dados_externos>`), e devolve `{ id, content_type, about_this_event, confidence }` por vídeo, em JSON Schema estrito. Guardrails:
    - id que não estava na entrada é ignorado; vídeo que o LLM omitiu cai no classificador por regras;
    - `about_this_event = false` reprova o vídeo (ex.: jogo de outra temporada com os mesmos times);
@@ -287,8 +289,16 @@ Módulo vendável próprio (add-on): incluído no `enterprise` e contratável po
 
 - Só `status = published`, versão vigente, ordenada por `rank_score`.
 - `counts` traz o total por tipo **antes** do filtro (para a vitrine montar as abas).
-- Cache: TTL de 1 h, purgado por `event.related_content_changed` (tag `related_content:<evento>`).
+- Cache: TTL de 1 h, purgado por `event.related_content_changed` (tag `related_content:<evento>`). A resposta varia por tenant (os vídeos que o player dele recusou).
 - Tempo real: tópico `event.related_content_changed` (curto: `related`) no SSE e nos webhooks, para quem tem o módulo.
+
+**Vídeo recusado pelo player** (`POST /v1/related/playback-errors`, chave secreta): o player oficial que dispara `onError` 100, 101 ou 150 avisa a API, e o vídeo sai **na hora da vitrine do tenant que avisou**, em todos os jogos (`enrich.related_playback_report`, uma linha por vídeo e tenant). Só sai da vitrine de todos quando **2 tenants distintos** avisam valendo (`RELATED_GLOBAL_BLOCK_TENANTS`; aí entra em `enrich.related_playback_block`, que também guia a pesquisa do agente). O canal segue a mesma regra com 3 vídeos recusados (`RELATED_CHANNEL_BLOCK_THRESHOLD`): os avisos do tenant e os bloqueios confirmados tiram o canal da vitrine dele, e só 3 bloqueios confirmados tiram o canal de todos. Ao cruzar o limiar, todos os jogos com vídeo do canal são purgados, não só o do vídeo avisado.
+
+- Por quê: o 101/150 pode depender do domínio do embed, e um aviso é só a palavra de um cliente. Com o bloqueio global no primeiro aviso, um tenant (ou um convidado da demo, que usa a chave da demo) tirava qualquer vídeo da vitrine de todos, e 3 avisos derrubavam o canal oficial de um clube.
+- `quorum: false` no corpo: o aviso vem de usuário não verificado (visitante anônimo) e tira o vídeo só da vitrine do tenant, sem contar para os 2 tenants. Um aviso do mesmo tenant que conta, depois, passa a contar.
+- Tempo real: o aviso isolado só purga a vitrine de vídeos do jogo (tag `related_content:<evento>`, pelo tópico interno `related_content.purge`; não chega ao SSE nem aos webhooks de ninguém e não purga o resto do jogo); o bloqueio confirmado sai em `event.related_content_changed` com `removed`, `sport` e `competition_id`.
+- Os bloqueios gravados antes da migração 0046 (um aviso só) continuam valendo para todos; o painel (Ajustes → Vídeos relacionados) libera o canal ou limpa as recusas, confirmadas e avisadas.
+- Demo: todos os usuários da demo (convidados inclusive) são um tenant só e não são clientes verificados, então a rota `/api/related/playback-error` manda sempre `quorum: false`: a demo nunca tira vídeo da vitrine dos outros tenants. A rota registra no log quem avisou, limita cada usuário a 10 avisos por hora e um por vídeo (aviso que não chegou à API, por erro de rede ou 5xx, não conta) e invalida o cache da vitrine da demo (`use cache` com a tag `galaxie:related`). O painel (Ajustes → Vídeos relacionados) mostra as recusas confirmadas e as relatadas por cliente, e "Limpar recusas" apaga as duas.
 
 ## 8. Cota e custo
 
@@ -304,7 +314,7 @@ Desde 1º/6/2026 a YouTube Data API conta `search.list` (e `videos.insert`) num 
 | `channels.list` (50 canais, ou `forHandle`) | geral | 1 unidade | 0–1 (cache de 30 dias) |
 | Revalidação (`videos.list`) | geral | 1 unidade | 1 a cada 2 h |
 
-O agente soma o dia de cota em `enrich.related_run` (`searches` e `api_units`), respeita `YOUTUBE_SEARCH_DAILY_QUOTA` (padrão 100) e `YOUTUBE_DAILY_QUOTA` (padrão 10.000) menos a folga `YOUTUBE_QUOTA_RESERVE_PERCENT` (padrão 10%: **90 consultas e 9.000 unidades úteis**) e grava o orçamento do dia em `enrich.related_budget` para o painel de Operação (Status e aba Conteúdo relacionado: gasta, reservada e livre nos dois baldes, rendimento por competição e jogos pulados por cota). Até a 0039 o código cobrava 100 unidades por busca num balde só; o teto de 9.000 virava ~90 buscas por coincidência, perto do limite real de 100 consultas.
+O agente soma o dia de cota em `enrich.related_run` (`searches` e `api_units`). Um jogo só entra com folga no balde geral para o custo mínimo dele (2 unidades, mais 1 por canal conhecido), e o cliente do YouTube recusa a requisição que passaria do que sobra no dia (o jogo para com erro em vez de estourar a cota). Respeita `YOUTUBE_SEARCH_DAILY_QUOTA` (padrão 100) e `YOUTUBE_DAILY_QUOTA` (padrão 10.000) menos a folga `YOUTUBE_QUOTA_RESERVE_PERCENT` (padrão 10%: **90 consultas e 9.000 unidades úteis**) e grava o orçamento do dia em `enrich.related_budget` para o painel de Operação (Status e aba Conteúdo relacionado: gasta, reservada e livre nos dois baldes, rendimento por competição e jogos pulados por cota). Até a 0039 o código cobrava 100 unidades por busca num balde só; o teto de 9.000 virava ~90 buscas por coincidência, perto do limite real de 100 consultas.
 
 ### 8.2 Reserva por faixa do dia
 
