@@ -289,24 +289,24 @@ O caminho de produção é o worker `services/ingestor` (issue #18), que grava n
 
 ```bash
 pnpm --filter @galaxie/ingestor assets:mirror --plan            # quantos faltam (nenhum download)
-pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw   # registra toda URL de mídia do raw e espelha
+pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw   # registra as URLs de mídia do raw novo e espelha
 pnpm --filter @galaxie/ingestor assets:mirror --limite 500 --concorrencia 3 --pausa-ms 250
 pnpm --filter @galaxie/ingestor assets:mirror --fotos           # só fotos de pessoas, escalados recentes primeiro
 ```
 
 | Aspecto | Comportamento |
 |---|---|
-| Fonte | Linhas de `core.asset` ainda não espelhadas (o bootstrap dos catálogos registra bandeiras, logos, imagens de circuitos) e, com `--descobrir-raw`, toda URL `media(-N).api-sports.io` encontrada nos corpos de `raw.api_response` (12 esportes, qualquer tipo de imagem) |
-| Educação com a CDN | 3 downloads simultâneos, 250 ms de pausa por worker, User-Agent genérico (`galaxie-sports-asset-mirror/0.1`), *backoff* exponencial em 429/5xx respeitando `Retry-After`; um 429 pausa todos os workers e 5 assets seguidos com 429 interrompem a execução |
+| Fonte | Linhas de `core.asset` ainda não espelhadas (o bootstrap dos catálogos registra bandeiras, logos, imagens de circuitos) e, com `--descobrir-raw`, toda URL `media(-N).api-sports.io` encontrada nos corpos de `raw.api_response` (12 esportes, qualquer tipo de imagem). A descoberta é incremental: fica em `ops.job_run` (`assets:discover-raw`) e a seguinte só varre as respostas gravadas desde o início da anterior (1 h de margem); a primeira, ou `--raw-completo`, varre a tabela inteira |
+| Educação com a CDN | 3 downloads simultâneos, 250 ms de pausa por worker, User-Agent genérico (`galaxie-sports-asset-mirror/0.1`), *backoff* exponencial em 429/5xx respeitando `Retry-After`; um 429 pausa todos os workers e 5 assets seguidos com 429 interrompem a execução. Erro inesperado num asset (storage, banco) conta como falha e o asset segue pendente; 5 seguidos também interrompem |
 | 404 | Registrado sem repetir: `fetched_at` preenchido e `storage_key` nulo (estado "ausente"); `--retentar-ausentes` tenta de novo |
 | Gravação | Chave `api-sports/<caminho original>` (ex.: `api-sports/football/teams/121.png`), `sha256`, `bytes`, `width`/`height` (PNG, SVG, GIF, JPEG e WebP lidos pelo cabeçalho), `fetched_at` |
 | Idempotência | A segunda execução não baixa nada: só entram assets com `storage_key` e `fetched_at` nulos. Falhas transitórias continuam pendentes |
-| Lista de bloqueio | `config/assets/denylist.yaml` (também lida pelo script PowerShell): o logo da liga 475 (Paulistão) não é baixado, e se já tiver sido é desvinculado (`storage_key` nulo) |
+| Lista de bloqueio | `config/assets/denylist.yaml` (também lida pelo script PowerShell): o logo da liga 475 (Paulistão) não é baixado (o asset fica ausente e times e competições perdem o logo na hora, como no 404), e se já tiver sido é desvinculado (`storage_key` nulo); a prévia (`--plan`) já conta esses desligamentos |
 | Execução | Registrada em `ops.job_run` (`assets:mirror`) com contagens, 404 e falhas |
-| Fotos de pessoas (`--fotos`) | Antes de baixar, liga cada jogador sem foto à URL `football/players/{id}.png`, que sai do id da api-sports (sem cota). Só entra quem jogou (escalação, lance ou elenco) e nunca foi técnico, porque técnicos e jogadores dividem o espaço de ids. O espelho baixa só fotos de pessoas: primeiro os escalados nos últimos 365 dias (`--desde-dias`), do jogo mais recente para o mais antigo, depois os elencos atuais e por fim o resto |
+| Fotos de pessoas (`--fotos`) | Antes de baixar, liga cada jogador sem foto à URL `football/players/{id}.png`, que sai do id da api-sports (sem cota). Só entra quem jogou (escalação, lance ou elenco) e nunca foi técnico, porque técnicos e jogadores dividem o espaço de ids. O espelho baixa só fotos de pessoas (sem os logos de emissoras): primeiro os escalados nos últimos 365 dias (`--desde-dias`), do jogo mais recente para o mais antigo, depois os elencos atuais (de temporada atual ou o elenco do time sem temporada) e por fim o resto; `--caminho` também vale para essa fila. Com `--plan`, o registro pelo id roda numa transação desfeita e entra na prévia |
 | Foto genérica | A CDN responde 200 com uma silhueta quando a pessoa não tem foto. Os hashes ficam em `PLACEHOLDER_PHOTO_SHA256` (`services/ingestor/src/assets/person-photos.ts`). Uma foto genérica ou um 404 de foto de pessoa deixa o asset "ausente", fora do bucket, e desliga `core.person.photo_asset_id`: a API devolve `photo: null`. O normalizador não religa esses assets. Ao fim, `--fotos` avisa de hashes repetidos em 20 fotos ou mais, que podem ser imagens genéricas novas |
 | Logo genérico | No lugar de muitos escudos de time e de liga, a CDN responde 200 com uma imagem genérica ("image not available", "official logo soon", escudo-contorno cinza). Os hashes ficam em `PLACEHOLDER_LOGO_SHA256` (`services/ingestor/src/assets/palette.ts`). Um logo genérico ou um 404 de `team_logo`/`league_logo` deixa o asset "ausente", fora do bucket, e desliga `core.participant.logo_asset_id` e `core.competition.logo_asset_id`: a API devolve `logo: null` e a demo mostra as iniciais. A normalização e o `bootstrap:catalog` não religam esses assets. Toda execução começa por uma limpeza idempotente (`cleanupLogos`): genéricos gravados antes viram ausentes, e times e competições ligados a qualquer logo ausente perdem o vínculo. `--plan` mostra a prévia |
-| Cores dos times | Ao gravar um `team_logo` em PNG, o mesmo update preenche `core.asset.palette` (`{ version, dominant, secondary, monochrome }`) — ver §7.2 |
+| Cores dos times | Ao gravar um `team_logo` em PNG, o mesmo update preenche `core.asset.palette` (`{ version, dominant, secondary, monochrome }`) — ver §7.2. Gravar ou zerar a paleta (e desligar um logo) publica `catalog`/`participant` no `ops.change_feed` para os times que usam o asset, o que purga `participant:<id>` no cache da API |
 
 ### 7.2 Cores dos times (paleta do escudo)
 
@@ -315,7 +315,7 @@ A API expõe em cada `Team` um `colors` (cor predominante, secundária e o **gra
 - **Decodificador PNG próprio** (`node:zlib`, sem dependências): tipos de cor 0, 2, 3 (paleta + `tRNS`), 4 e 6, 1–16 bits, não entrelaçado, os 5 filtros. SVG, entrelaçado ou arquivo corrompido → sem paleta.
 - **Algoritmo**: só pixels com alfa ≥ 200; quase-branco, quase-preto e cinzas (croma < 40) ficam fora da escolha; o resto vai para faixas de matiz de 15° (suavizadas com as vizinhas) e, na família vencedora, a cor é a média da faixa de luminosidade mais frequente (`dominant`). `secondary` é a próxima família com matiz a ≥ 40° e ao menos 6% dos pixels coloridos (ou `null`). Com menos de 8% de pixels coloridos o escudo é `monochrome` (Botafogo, Vasco, Santos) e `dominant` vira o cinza-escuro neutro `#3a3a3a`, para o gradiente continuar legível.
 - **Placeholders do fornecedor** ("image not available", "official logo soon", escudo-contorno cinza — cada um repetido em dezenas de times) são reconhecidos pelo `sha256` (`PLACEHOLDER_LOGO_SHA256`) e ficam sem paleta: não são cor de time. No banco local eram 309 de 2.101 escudos PNG.
-- Alguns "PNG" da CDN são JPEG com extensão `.png` (54 no banco local): o decodificador os recusa, ficam sem paleta e voltam como candidatos (custo: uma leitura do bucket por execução).
+- Alguns "PNG" da CDN são JPEG com extensão `.png` (54 no banco local): o decodificador os recusa, ficam sem paleta e voltam como candidatos (custo: uma leitura do bucket por execução). Com `--limite`, o limite conta só as paletas gravadas: a fila segue depois desses, que não ocupam o lote.
 - **Novos escudos** recebem a paleta no próprio Asset Mirror; os já espelhados, pelo backfill:
 
 ```bash
