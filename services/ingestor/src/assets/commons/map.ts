@@ -108,17 +108,12 @@ export async function mapCommons(
       stats.push(empty(key, 'rules', `pendente: ${(err as Error).message}`));
       continue;
     }
-    if (
-      !d.candidates.length &&
-      !d.wikidata &&
-      !d.category &&
-      prev?.photos.some((p) => p.match !== 'rejected')
-    ) {
-      // a descoberta não identificou o alvo (sem item do Wikidata nem categoria): a entrada anterior tinha fotos
-      // conferidas, então fica como estava em vez de virar `photos: []`. Alvo identificado sem candidatas (fotos
-      // apagadas na Commons) é refeito normalmente
-      opts.log?.(`${key}: nenhuma candidata (${d.note ?? 'sem nota'}); a entrada anterior fica`);
-      stats.push(empty(key, 'rules', `pendente: descoberta vazia (${d.note ?? 'sem nota'})`));
+    // descoberta sem nenhuma candidata (identidade não conferida, categoria sumida) com galeria já mapeada: é
+    // tratada como falha, e o alvo fica como estava — nunca apaga as fotos (Johansson, 25/10/2026). Arquivo apagado
+    // na Commons sai do mesmo jeito: a importação o desvincula pela resposta `missing` (`imageInfoReport`)
+    if (!d.candidates.length && prev?.photos.some((p) => p.match !== 'rejected')) {
+      opts.log?.(`${key}: descoberta vazia (${d.note ?? 'sem candidatas'}); fica como estava`);
+      stats.push(empty(key, 'rules', `pendente: descoberta vazia (${d.note ?? 'sem candidatas'})`));
       continue;
     }
     const { ok, rejected } = eligible(d);

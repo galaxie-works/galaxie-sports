@@ -459,22 +459,7 @@ describe('descoberta vazia não apaga a galeria do manifesto (Stefan Johansson)'
     entries: [before],
   };
 
-  it('alvo identificado (categoria) sem nenhuma candidata (fotos apagadas na Commons): a entrada é refeita', async () => {
-    const discover = async (): Promise<Discovery> => ({
-      target: johansson,
-      wikidata: null,
-      category: 'Stefan Johansson',
-      candidates: [],
-      note: null,
-    });
-    const { manifest } = await mapCommons({} as WikimediaClient, [johansson], previous, {
-      revision: '2026-10-23',
-      discover,
-    });
-    expect(manifest.entries[0]!.photos).toEqual([]);
-  });
-
-  it('nenhuma candidata nem identidade (com ou sem --refazer): a entrada anterior fica', async () => {
+  it('nenhuma candidata (também com --refazer): a entrada anterior fica (proteção do #299)', async () => {
     const discover = async (): Promise<Discovery> => ({
       target: johansson,
       wikidata: null,
