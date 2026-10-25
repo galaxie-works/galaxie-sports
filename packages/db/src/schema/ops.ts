@@ -1,4 +1,5 @@
 import {
+  bigint,
   bigserial,
   boolean,
   date,
@@ -140,6 +141,18 @@ export const changeFeed = ops.table(
   },
   (t) => [index('change_feed_created_idx').on(t.createdAt)],
 );
+
+/**
+ * Marca da retenção do change feed: maior id já apagado pelo `change-feed-prune` (uma linha, `default`).
+ * O SSE compara o Last-Event-ID com ela: abaixo da marca, parte do histórico pedido já não existe e o
+ * cliente recebe `replay_truncated`. O menor id do feed não serve, porque a retenção mantém a última
+ * mudança de cada entidade, por mais antiga que seja.
+ */
+export const changeFeedPrune = ops.table('change_feed_prune', {
+  name: text('name').primaryKey(),
+  maxDeletedId: bigint('max_deleted_id', { mode: 'number' }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /**
  * Configuração da operação em tempo de execução (painel Ajustes → Operação). Precedência: esta tabela >

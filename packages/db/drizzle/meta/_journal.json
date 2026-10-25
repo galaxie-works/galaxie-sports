@@ -306,8 +306,29 @@
     {
       "idx": 43,
       "version": "7",
-      "when": 1792951151292,
-      "tag": "0043_wtw_research_falhas",
+      "when": 1792948460030,
+      "tag": "0043_chave_rotacionada",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1792949878583,
+      "tag": "0044_poda_do_change_feed",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1792954870136,
+      "tag": "0045_epoca_do_uso",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1792963761902,
+      "tag": "0046_wtw_research_falhas",
       "breakpoints": true
     }
   ]
