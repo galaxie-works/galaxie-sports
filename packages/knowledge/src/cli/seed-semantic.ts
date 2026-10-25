@@ -62,8 +62,7 @@ try {
   if (o.applied + o.absorbed + o.conflicts + o.missing)
     console.log(
       `Edições do banco (review_override): ${o.applied} aplicada(s) por cima do YAML, ${o.absorbed} já no YAML, ` +
-        `${o.conflicts} em conflito (vale o YAML), ${o.missing} de item(ns) fora do YAML` +
-        (o.partial ? `; ${o.partial} aplicada(s) só em parte (campos em conflito ficaram com o YAML).` : '.'),
+        `${o.conflicts} em conflito (vale o YAML), ${o.missing} de item(ns) fora do YAML.`,
     );
 } finally {
   await closeDb(db);

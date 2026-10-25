@@ -21,7 +21,6 @@ import {
  * - O seed e a API (glossário) aplicam a edição por cima do YAML. Para cada campo: YAML = `base` →
  *   aplica; YAML = valor novo → já exportado (absorvido); YAML com um terceiro valor → conflito, e vale
  *   o YAML (alguém mudou o mesmo campo no repositório depois; a decisão fica desatualizada pelo hash).
- *   O conflito num campo não derruba os outros: os campos sem conflito continuam aplicados.
  * - Com a edição aplicada, o `review_hash` do item é o do conteúdo editado: a aprovação gravada junto
  *   continua valendo no próximo deploy, e também depois de o YAML receber a edição (`review:export`).
  */
@@ -59,38 +58,21 @@ export function editableReviewFields(kind: ReviewKind, content: Record<string, u
 
 const same = (a: unknown, b: unknown) => canonicalJson(a ?? null) === canonicalJson(b ?? null);
 
-export interface OverrideResolution {
-  /** `apply` = algum campo entra; `conflict` = nenhum entra e algum está em conflito. */
-  status: OverrideStatus;
-  /** Os campos que entram (o YAML ainda tem o `base` deles). */
-  fields: Record<string, unknown>;
-  /** Os campos em conflito (o YAML mudou para um terceiro valor): vale o YAML. */
-  conflicts: string[];
-}
-
-/** Como a edição se encaixa no conteúdo atual do YAML, campo a campo (ver o comentário do módulo). */
-export function resolveOverrideFields(
+/** Como a edição se encaixa no conteúdo atual do YAML (ver o comentário do módulo). */
+export function resolveOverride(
   current: Record<string, unknown> | null | undefined,
   override: Pick<ReviewOverrideRef, 'fields' | 'base'>,
-): OverrideResolution {
-  if (!current) return { status: 'missing', fields: {}, conflicts: [] };
-  const fields: Record<string, unknown> = {};
-  const conflicts: string[] = [];
+): OverrideStatus {
+  if (!current) return 'missing';
+  let pending = 0;
   for (const [field, next] of Object.entries(override.fields)) {
     const now = current[field];
     if (same(now, next)) continue;
-    if (same(now, override.base[field])) fields[field] = next;
-    else conflicts.push(field);
+    if (!same(now, override.base[field])) return 'conflict';
+    pending++;
   }
-  const status = Object.keys(fields).length ? 'apply' : conflicts.length ? 'conflict' : 'absorbed';
-  return { status, fields, conflicts };
+  return pending ? 'apply' : 'absorbed';
 }
-
-/** O status de `resolveOverrideFields` (`apply` também quando só parte dos campos entra). */
-export const resolveOverride = (
-  current: Record<string, unknown> | null | undefined,
-  override: Pick<ReviewOverrideRef, 'fields' | 'base'>,
-): OverrideStatus => resolveOverrideFields(current, override).status;
 
 /** Conteúdo com os campos trocados (null/undefined = remove o campo). */
 export function patchContent(
@@ -223,15 +205,13 @@ export interface AppliedOverrides {
   applied: string[];
   absorbed: string[];
   conflicts: string[];
-  /** Edições aplicadas só em parte (também em `applied`): os campos em conflito ficaram com o YAML. */
-  partial: { itemId: string; fields: string[] }[];
   /** Edições de itens que não existem mais no YAML. */
   missing: string[];
 }
 
 /** Aplica as edições do banco por cima da base lida do YAML (sem tocar nos arquivos). */
 export function applyReviewOverrides(kb: KnowledgeBase, overrides: ReviewOverrideRef[]): AppliedOverrides {
-  const result: AppliedOverrides = { kb, applied: [], absorbed: [], conflicts: [], partial: [], missing: [] };
+  const result: AppliedOverrides = { kb, applied: [], absorbed: [], conflicts: [], missing: [] };
   if (!overrides.length) return result;
   const located = locateItems(kb);
   const contents = new Map(buildReviewItems(kb).map((i) => [i.id, i.content]));
@@ -242,17 +222,15 @@ export function applyReviewOverrides(kb: KnowledgeBase, overrides: ReviewOverrid
 
   for (const o of overrides) {
     const at = located.get(o.itemId);
-    const r = at ? resolveOverrideFields(contents.get(o.itemId), o) : null;
-    const status = r?.status ?? 'missing';
+    const status = at ? resolveOverride(contents.get(o.itemId), o) : 'missing';
     if (status === 'missing') result.missing.push(o.itemId);
     else if (status === 'conflict') result.conflicts.push(o.itemId);
     else if (status === 'absorbed') result.absorbed.push(o.itemId);
-    if (status !== 'apply' || !at || !r) continue;
+    if (status !== 'apply' || !at) continue;
     result.applied.push(o.itemId);
-    if (r.conflicts.length) result.partial.push({ itemId: o.itemId, fields: r.conflicts });
 
     const list = (lists[at.list] ??= [...(kb[at.list] as { entry: object }[])]);
-    const entry = patchEntry(at.kind, list[at.index]!.entry, r.fields);
+    const entry = patchEntry(at.kind, list[at.index]!.entry, o.fields);
     list[at.index] = { ...list[at.index]!, entry };
 
     const file = kb.files.find((f) => f.rel === at.file);
@@ -280,9 +258,8 @@ export function applyGlossaryOverrides(
   const byId = new Map(overrides.map((o) => [o.itemId, o]));
   return terms.map((t) => {
     const o = byId.get(reviewItemId('glossary', glossaryKey(t)));
-    const r = o ? resolveOverrideFields(reviewContent(t.entry), o) : null;
-    if (r?.status !== 'apply') return t;
-    return { ...t, entry: patchEntry('glossary', t.entry, r.fields) };
+    if (!o || resolveOverride(reviewContent(t.entry), o) !== 'apply') return t;
+    return { ...t, entry: patchEntry('glossary', t.entry, o.fields) };
   });
 }
 
@@ -298,9 +275,8 @@ export function applyEditorialOverrides(
   const byId = new Map(overrides.map((o) => [o.itemId, o]));
   return profiles.map((p) => {
     const o = byId.get(reviewItemId('editorial', editorialKey(p)));
-    const r = o ? resolveOverrideFields(reviewContent(p.entry), o) : null;
-    if (r?.status !== 'apply') return p;
-    return { ...p, entry: patchEntry('editorial', p.entry, r.fields) };
+    if (!o || resolveOverride(reviewContent(p.entry), o) !== 'apply') return p;
+    return { ...p, entry: patchEntry('editorial', p.entry, o.fields) };
   });
 }
 
@@ -328,8 +304,6 @@ export interface OverrideExport {
   /** Texto novo por arquivo (relativo a data/knowledge). */
   files: Map<string, string>;
   exported: string[];
-  /** Exportadas só em parte (também em `exported`): os campos em conflito ficaram com o YAML. */
-  partial: { itemId: string; fields: string[] }[];
   skipped: { itemId: string; status: OverrideStatus }[];
 }
 
@@ -339,15 +313,15 @@ export interface OverrideExport {
  * muda: a aprovação continua na decisão do painel, que segue valendo com o mesmo conteúdo.
  */
 export function exportOverridesToYaml(kb: KnowledgeBase, overrides: ReviewOverrideRef[]): OverrideExport {
-  const out: OverrideExport = { files: new Map(), exported: [], partial: [], skipped: [] };
+  const out: OverrideExport = { files: new Map(), exported: [], skipped: [] };
   const located = locateItems(kb);
   const contents = new Map(buildReviewItems(kb).map((i) => [i.id, i.content]));
   const docs = new Map<string, ReturnType<typeof parseDocument>>();
   for (const o of overrides) {
     const at = located.get(o.itemId);
-    const r = at ? resolveOverrideFields(contents.get(o.itemId), o) : null;
-    if (r?.status !== 'apply' || !at) {
-      out.skipped.push({ itemId: o.itemId, status: r?.status ?? 'missing' });
+    const status = at ? resolveOverride(contents.get(o.itemId), o) : 'missing';
+    if (status !== 'apply' || !at) {
+      out.skipped.push({ itemId: o.itemId, status });
       continue;
     }
     const file = kb.files.find((f) => f.rel === at.file);
@@ -362,7 +336,7 @@ export function exportOverridesToYaml(kb: KnowledgeBase, overrides: ReviewOverri
       out.skipped.push({ itemId: o.itemId, status: 'missing' });
       continue;
     }
-    for (const [field, value] of Object.entries(r.fields)) {
+    for (const [field, value] of Object.entries(o.fields)) {
       if (at.kind === 'all-time') {
         if (field !== 'all_time' || !value || typeof value !== 'object') continue;
         const block = node.get('all_time', true);
@@ -375,7 +349,6 @@ export function exportOverridesToYaml(kb: KnowledgeBase, overrides: ReviewOverri
       else node.set(field, doc.createNode(value));
     }
     out.exported.push(o.itemId);
-    if (r.conflicts.length) out.partial.push({ itemId: o.itemId, fields: r.conflicts });
   }
   for (const [rel, doc] of docs) out.files.set(rel, doc.toString({ lineWidth: 0 }));
   return out;
