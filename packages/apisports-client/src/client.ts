@@ -209,11 +209,14 @@ export class ApiSportsClient {
 
     const url = this.buildUrl(req.sport, req.endpoint, params);
     let response: Response;
+    let text: string;
     try {
       response = await this.fetchFn(url, {
         headers: { 'x-apisports-key': this.options.apiKey },
         signal: AbortSignal.timeout(this.timeoutMs),
       });
+      // o timeout vale também para a leitura do corpo, que pode falhar depois do status
+      text = await response.text();
     } catch (err) {
       const outcome: Outcome = err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'http_error';
       await this.options.governor.settle(ticket, outcome);
@@ -221,7 +224,6 @@ export class ApiSportsClient {
       throw new ApiSportsError(outcome, String(err), hash);
     }
 
-    const text = await response.text();
     const quotaRemaining = toInt(response.headers.get('x-ratelimit-requests-remaining'));
     let envelope: Envelope<T> | undefined;
     try {
@@ -236,24 +238,29 @@ export class ApiSportsClient {
     else outcome = classifyErrors(envelope.errors);
 
     const fetchedAt = new Date(this.clock.now());
-    await this.options.store.save({
-      provider: PROVIDER,
-      sport: req.sport,
-      apiVersion: API_HOSTS[req.sport].version,
-      endpoint: req.endpoint,
-      params,
-      requestHash: hash,
-      page: Number(params.page ?? 1),
-      statusCode: response.status,
-      results: envelope?.results ?? null,
-      errors: envelope?.errors ?? { http: `HTTP ${response.status}` },
-      body: envelope ?? { raw: text.slice(0, 10_000) },
-      bodyHash: createHash('sha256').update(text).digest('hex'),
-      quotaRemaining: quotaRemaining ?? null,
-      jobId: req.jobId ?? null,
-      fetchedAt,
-    });
-    await this.options.governor.settle(ticket, outcome, quotaRemaining);
+    try {
+      await this.options.store.save({
+        provider: PROVIDER,
+        sport: req.sport,
+        apiVersion: API_HOSTS[req.sport].version,
+        endpoint: req.endpoint,
+        params,
+        requestHash: hash,
+        page: Number(params.page ?? 1),
+        statusCode: response.status,
+        results: envelope?.results ?? null,
+        errors: envelope?.errors ?? { http: `HTTP ${response.status}` },
+        body: envelope ?? { raw: text.slice(0, 10_000) },
+        bodyHash: createHash('sha256').update(text).digest('hex'),
+        quotaRemaining: quotaRemaining ?? null,
+        jobId: req.jobId ?? null,
+        fetchedAt,
+      });
+    } finally {
+      // A chamada foi feita: o ticket nunca fica pending, mesmo se a gravação do raw falhar.
+      // O settle vem depois do save para quem espera a mesma requisição já encontrar o raw.
+      await this.options.governor.settle(ticket, outcome, quotaRemaining);
+    }
     this.emit(req, hash, {
       source: 'network',
       outcome,

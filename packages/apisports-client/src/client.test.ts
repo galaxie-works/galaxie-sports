@@ -301,3 +301,71 @@ describe('ApiSportsClient', () => {
     expect(api.calls).toHaveLength(1);
   });
 });
+
+describe('ApiSportsClient: falhas depois do fetch', () => {
+  /** Cliente cujo corpo e raw podem falhar sob comando; o clock falso faz o polling de em-voo andar sozinho. */
+  function failing(opts: { failBody?: () => boolean; failSave?: () => boolean }) {
+    const clock: Clock & { t: number } = {
+      t: Date.parse('2026-10-21T14:00:00Z'),
+      now: () => clock.t,
+      sleep: async (ms) => {
+        clock.t += ms;
+      },
+    };
+    let calls = 0;
+    const fetchFn = (async () => {
+      calls += 1;
+      if (opts.failBody?.()) {
+        const body = new ReadableStream({
+          start: (c) => c.error(new DOMException('The operation was aborted due to timeout', 'TimeoutError')),
+        });
+        return new Response(body, { status: 200 });
+      }
+      return new Response(JSON.stringify(envelope([{ id: 1 }])), { status: 200 });
+    }) as typeof globalThis.fetch;
+    const store = new InMemoryRawStore();
+    const save = store.save.bind(store);
+    store.save = async (record) => {
+      if (opts.failSave?.()) throw new Error('falha ao gravar o raw');
+      await save(record);
+    };
+    const governor = new InMemoryQuotaGovernor(
+      () => defaultPolicy(100),
+      () => new Date(clock.t),
+    );
+    const client = new ApiSportsClient({
+      apiKey: 'test-key',
+      store,
+      governor,
+      fetch: fetchFn,
+      clock,
+      timeoutMs: 30_000,
+      rateLimiter: new RateLimiter(6000, clock),
+    });
+    return { client, governor, calls: () => calls };
+  }
+
+  const req = { sport: 'football', endpoint: '/teams', params: { id: 7 }, priority: 'DAILY' } as const;
+
+  it('timeout na leitura do corpo vira ApiSportsError timeout e o ticket não fica pending', async () => {
+    let fail = true;
+    const { client, governor, calls } = failing({ failBody: () => fail });
+    await expect(client.get(req)).rejects.toMatchObject({ name: 'ApiSportsError', outcome: 'timeout' });
+    fail = false;
+    // com o ticket pendurado, a segunda chamada esperaria o "outro processo" até o timeout
+    const res = await client.get(req);
+    expect(res.source).toBe('network');
+    expect(calls()).toBe(2);
+    expect((await governor.usage('football')).totalUsed).toBe(2);
+  });
+
+  it('falha ao gravar o raw ainda registra o desfecho no ledger', async () => {
+    let fail = true;
+    const { client, calls } = failing({ failSave: () => fail });
+    await expect(client.get(req)).rejects.toThrow('falha ao gravar o raw');
+    fail = false;
+    const res = await client.get(req);
+    expect(res.source).toBe('network');
+    expect(calls()).toBe(2);
+  });
+});
