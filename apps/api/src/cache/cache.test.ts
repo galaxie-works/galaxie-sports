@@ -37,6 +37,8 @@ describe('sendCached', () => {
     expect(first.headers['x-galaxie-cache']).toBe('MISS');
     expect(first.headers['cache-control']).toBe(cacheControl(60));
     expect(first.headers['surrogate-key']).toBe('competition competition:1');
+    // resposta por tenant: a chave secreta e a publicável (widgets) separam as cópias de um cache compartilhado
+    expect(first.headers.vary).toBe('Accept-Language, x-galaxie-key, x-galaxie-publishable-key');
     const second = await app.inject({ url: '/r' });
     expect(second.headers['x-galaxie-cache']).toBe('HIT');
     expect(second.headers.etag).toBe(first.headers.etag);

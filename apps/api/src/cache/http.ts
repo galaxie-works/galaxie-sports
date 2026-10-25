@@ -27,6 +27,14 @@ export interface CachedRouteOptions {
   check?: (meta: Record<string, string>) => void;
 }
 
+/**
+ * `Vary` das respostas cacheadas. A resposta depende do tenant (plano, operadora, lista de canais), e o tenant
+ * vem da chave secreta ou, nos widgets, da chave publicável: as duas entram, para um cache compartilhado
+ * (CDN) nunca servir a resposta de um tenant a outro. A publicável é a mesma para todos os torcedores do
+ * widget de uma operadora, então a CDN ainda guarda uma cópia por operadora (por isso não `private`).
+ */
+export const CACHE_VARY = 'Accept-Language, x-galaxie-key, x-galaxie-publishable-key';
+
 /** Teto do header `surrogate-key`: clientes HTTP (undici/Node) recusam cabeçalhos acima de 16 KB no total. */
 export const SURROGATE_KEY_MAX = 8 * 1024;
 
@@ -135,10 +143,7 @@ export async function sendCached(
 
   options.check?.(entry.meta ?? {});
   for (const [k, v] of Object.entries(entry.headers ?? {})) reply.header(k, v);
-  reply
-    .header('etag', entry.etag)
-    .header('cache-control', cacheControl(ttl))
-    .header('vary', 'Accept-Language, x-galaxie-key');
+  reply.header('etag', entry.etag).header('cache-control', cacheControl(ttl)).header('vary', CACHE_VARY);
   if (entry.tags.length) reply.header('surrogate-key', surrogateKeyHeader(entry.tags));
 
   if (matchesEtag(request.headers['if-none-match'], entry.etag)) return reply.code(304).send();
