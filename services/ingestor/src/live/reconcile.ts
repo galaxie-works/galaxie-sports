@@ -1,21 +1,58 @@
 /**
  * Reconciliação do ao vivo — rede de segurança e "botão de pânico" do painel de Operação: confirma pelo
- * detalhe (`fixtures?id=`) cada jogo que o core ainda dá como em andamento, sem depender do plano do
+ * detalhe (`fixtures?id=`) os jogos que o core ainda dá como em andamento, sem depender do plano do
  * ao vivo. Corrige quem ficou preso em "ao vivo" porque o poller desistiu da confirmação, porque o jogo
  * não entrou no plano (prioridade baixa: o relógio marca `live` pelo horário) ou porque o processo do ao
  * vivo caiu. As mudanças vão para o change feed como as do poller.
+ *
+ * A execução agendada só confere o que parece parado: jogo que o ao vivo acompanha sem observação válida
+ * há `staleMinutes`, ou jogo fora do ao vivo que já passou do fim previsto. Os jogos que o poller está
+ * atualizando não gastam cota de novo. O modo forçado (`force`, o botão do painel) confere todos.
  */
 import { isInPlay, type SportsDataProvider } from '@galaxie/providers';
 import { diffSnapshot, isSignificant, type LiveChange } from './diff.js';
 import { spent } from './poller.js';
+import { isRelevant, profileFor, type LiveSchedulerOptions } from './schedule.js';
 import type { LiveStore } from './store.js';
 import type { LiveCandidate } from './types.js';
 
-export interface ReconcileOptions {
-  sport: string;
-  now: Date;
+/** Sem observação válida há este tempo, um jogo acompanhado pelo ao vivo é suspeito (intervalo + tick longo cabem). */
+export const DEFAULT_STALE_MINUTES = 30;
+
+export interface ReconcileTargetOptions {
   /** Até quantas horas antes de agora um jogo pode ter começado (padrão: 6). */
   lookbackHours?: number | undefined;
+  /** Confere todo jogo em andamento (botão de pânico), não só os parados. */
+  force?: boolean | undefined;
+  /** Minutos sem observação válida (contados do apito, se nunca houve) que tornam o jogo suspeito (padrão: 30). */
+  staleMinutes?: number | undefined;
+  /** Menor `live_priority` que o ao vivo acompanha (LIVE_MIN_PRIORITY; padrão: medium). */
+  minPriority?: LiveSchedulerOptions['minPriority'] | undefined;
+}
+
+/**
+ * Por que conferir o jogo: `forced` (modo forçado), `stale` (o ao vivo deveria estar atualizando e não
+ * está) ou `overdue` (fora do ao vivo e além do fim previsto); `null` = não precisa.
+ */
+export type ReconcileReason = 'forced' | 'stale' | 'overdue';
+
+export function reconcileReason(
+  c: LiveCandidate,
+  now: Date,
+  options: ReconcileTargetOptions = {},
+): ReconcileReason | null {
+  if (options.force) return 'forced';
+  // nunca observado depois do apito: conta a partir do horário oficial (a agenda do sync é de antes)
+  const seen = Math.max(c.lastValidAt?.getTime() ?? -Infinity, c.startsAt.getTime());
+  if (now.getTime() - seen < (options.staleMinutes ?? DEFAULT_STALE_MINUTES) * 60_000) return null;
+  if (isRelevant(c, options.minPriority)) return 'stale';
+  const expectedEnd = c.startsAt.getTime() + profileFor(c.sport).afterMin * 60_000;
+  return now.getTime() >= expectedEnd ? 'overdue' : null;
+}
+
+export interface ReconcileOptions extends ReconcileTargetOptions {
+  sport: string;
+  now: Date;
   /** Máximo de jogos (= chamadas) por execução, os mais antigos primeiro (padrão: 60). */
   max?: number | undefined;
   jobId?: string | undefined;
@@ -24,7 +61,9 @@ export interface ReconcileOptions {
 }
 
 export interface ReconcileReport {
-  /** Jogos em andamento no core (dentro da janela), antes do corte por `max`. */
+  /** Jogos em andamento no core (dentro da janela). */
+  inPlay: number;
+  /** Os que precisam de conferência (todos, no modo forçado), antes do corte por `max`. */
   pending: number;
   checked: string[];
   calls: number;
@@ -35,8 +74,8 @@ export interface ReconcileReport {
   finished: string[];
 }
 
-/** Jogos que o core dá como em andamento (ou começando) e que vale confirmar na fonte. */
-export function reconcileTargets(
+/** Jogos que o core dá como em andamento (ou começando) dentro da janela, os mais antigos primeiro. */
+export function inPlayCandidates(
   candidates: readonly LiveCandidate[],
   now: Date,
   lookbackHours = 6,
@@ -53,6 +92,17 @@ export function reconcileTargets(
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }
 
+/** Jogos em andamento que vale confirmar na fonte (todos, no modo forçado). */
+export function reconcileTargets(
+  candidates: readonly LiveCandidate[],
+  now: Date,
+  options: ReconcileTargetOptions = {},
+): LiveCandidate[] {
+  return inPlayCandidates(candidates, now, options.lookbackHours).filter(
+    (c) => reconcileReason(c, now, options) !== null,
+  );
+}
+
 export async function reconcileLive(
   provider: SportsDataProvider,
   store: LiveStore,
@@ -66,7 +116,8 @@ export async function reconcileLive(
     new Date(now.getTime() - lookbackHours * 3_600_000),
     now,
   );
-  const targets = reconcileTargets(candidates, now, lookbackHours);
+  const inPlay = inPlayCandidates(candidates, now, lookbackHours);
+  const targets = inPlay.filter((c) => reconcileReason(c, now, options) !== null);
   const ids = targets.slice(0, options.max ?? 60).map((c) => c.providerEventId!);
   const callOptions = { priority: 'LIVE' as const, ...(options.jobId ? { jobId: options.jobId } : {}) };
 
@@ -96,6 +147,7 @@ export async function reconcileLive(
   if (done.length) await store.onFinished?.(done);
 
   return {
+    inPlay: inPlay.length,
     pending: targets.length,
     checked: ids,
     calls,

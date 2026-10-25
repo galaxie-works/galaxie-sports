@@ -12,6 +12,8 @@ export interface ScheduledJob {
   /** Raiz do pacote do job, relativa à do ingestor (padrão: o próprio ingestor). */
   cwd?: string;
   args: string[];
+  /** Args quando roda sob demanda (painel "rodar agora", `scheduler --run`); padrão: `args`. */
+  onDemandArgs?: string[];
   timeoutMs: number;
 }
 
@@ -43,10 +45,12 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
   {
     name: 'live-reconcile',
     description:
-      'Reconciliação do ao vivo (LIVE): confirma pelo detalhe os jogos que o core ainda dá como em andamento (rede de segurança do live-run)',
+      'Reconciliação do ao vivo (LIVE): confirma pelo detalhe os jogos em andamento que parecem parados (sem observação recente ou além do fim previsto); sob demanda (painel), confere todos',
     cron: '*/10 * * * *',
     script: 'dist/cli/live-reconcile.js',
     args: [],
+    // botão de pânico do painel: confere todo jogo em andamento, não só os parados
+    onDemandArgs: ['--forcar'],
     timeoutMs: 15 * MINUTE,
   },
   {

@@ -1,10 +1,15 @@
 /**
- * Reconciliação do ao vivo: confirma pelo detalhe (`fixtures?id=`, prioridade LIVE) todo jogo que o core
+ * Reconciliação do ao vivo: confirma pelo detalhe (`fixtures?id=`, prioridade LIVE) os jogos que o core
  * ainda dá como em andamento e grava status, placar e encerramento. Rede de segurança do scheduler e
  * "botão de pânico" do painel de Operação — não depende do plano nem do processo do ao vivo.
+ * Sem --forcar, só confere os parados: acompanhados pelo ao vivo e sem observação válida há N minutos, ou
+ * fora do ao vivo e além do fim previsto (os que o poller está atualizando não gastam cota de novo).
+ * O painel ("rodar agora") e o `scheduler --run` rodam com --forcar.
  *   pnpm --filter @galaxie/ingestor live:reconcile --plan     # quais jogos seriam conferidos (nada é chamado)
- *   pnpm --filter @galaxie/ingestor live:reconcile            # confere e corrige
+ *   pnpm --filter @galaxie/ingestor live:reconcile            # confere e corrige os parados
+ *   pnpm --filter @galaxie/ingestor live:reconcile --forcar   # confere todos os em andamento
  * Opções: --esporte football · --horas 6 (jogos que começaram até N horas atrás) · --max 60 (chamadas)
+ *         · --parado-min 30 · --prioridade-min high|medium|low (padrão: LIVE_MIN_PRIORITY ou medium)
  *         · --sem-publicar · --sem-tabelas
  */
 import { resolve } from 'node:path';
@@ -14,7 +19,14 @@ import { ApiSportsProvider } from '@galaxie/providers';
 import { contextFromEnv } from '../context.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../jobs/runtime/job-run-store.js';
-import { reconcileLive, reconcileTargets } from '../live/reconcile.js';
+import {
+  DEFAULT_STALE_MINUTES,
+  inPlayCandidates,
+  reconcileLive,
+  reconcileReason,
+  type ReconcileTargetOptions,
+} from '../live/reconcile.js';
+import type { LiveSchedulerOptions } from '../live/schedule.js';
 import { PgLiveStore } from '../live/store.js';
 import { logger, report } from '../logger.js';
 import { recomputeStandings } from '../standings/recompute.js';
@@ -37,6 +49,9 @@ await runCli(async () => {
       esporte: { type: 'string', default: 'football' },
       horas: { type: 'string', default: '6' },
       max: { type: 'string', default: '60' },
+      forcar: { type: 'boolean', default: false },
+      'parado-min': { type: 'string', default: String(DEFAULT_STALE_MINUTES) },
+      'prioridade-min': { type: 'string' },
       'sem-publicar': { type: 'boolean', default: false },
       'sem-tabelas': { type: 'boolean', default: false },
     },
@@ -45,6 +60,17 @@ await runCli(async () => {
   const sport = values.esporte;
   const lookbackHours = positive(values.horas, '--horas');
   const max = positive(values.max, '--max');
+  const minPriority = (values['prioridade-min'] ||
+    process.env.LIVE_MIN_PRIORITY?.trim() ||
+    'medium') as LiveSchedulerOptions['minPriority'];
+  if (!['high', 'medium', 'low'].includes(minPriority))
+    throw new Error('--prioridade-min deve ser high, medium ou low.');
+  const triage: ReconcileTargetOptions = {
+    lookbackHours,
+    force: values.forcar,
+    staleMinutes: positive(values['parado-min'], '--parado-min'),
+    minPriority,
+  };
   const ctx = contextFromEnv();
   const now = new Date();
 
@@ -57,14 +83,18 @@ await runCli(async () => {
         new Date(now.getTime() - lookbackHours * 3_600_000),
         now,
       );
-      const targets = reconcileTargets(candidates, now, lookbackHours);
+      const inPlay = inPlayCandidates(candidates, now, lookbackHours);
+      const rows = inPlay.map((c) => ({ c, motivo: reconcileReason(c, now, triage) }));
+      const pending = rows.filter((r) => r.motivo).length;
       report(
-        `Em andamento no core (${targets.length}; conferidos até ${max})`,
-        targets.map((c) => ({
+        `Em andamento no core (${inPlay.length}; ${pending} a conferir, até ${max})`,
+        rows.map(({ c, motivo }) => ({
           jogo: c.label ?? c.eventId,
           status: c.statusDetail ?? c.status,
           apito_utc: c.startsAt.toISOString().slice(11, 16),
+          ultima_obs_utc: c.lastValidAt?.toISOString().slice(11, 16) ?? '—',
           prioridade: c.livePriority,
+          conferir: motivo ?? 'não (atualizado)',
           fornecedor: c.providerEventId,
         })),
       );
@@ -91,7 +121,7 @@ await runCli(async () => {
       const r = await reconcileLive(provider, store, {
         sport,
         now,
-        lookbackHours,
+        ...triage,
         max,
         jobId,
         onDetailFetched: async (providerEventId, at) => {
@@ -113,6 +143,8 @@ await runCli(async () => {
           c.finished ? 'jogo encerrado pela reconciliação' : 'status corrigido pela reconciliação',
         );
       const stats = {
+        forced: values.forcar,
+        inPlay: r.inPlay,
         pending: r.pending,
         checked: r.checked.length,
         changed: r.changes.length,

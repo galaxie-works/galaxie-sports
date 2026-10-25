@@ -45,6 +45,11 @@ describe('scheduleFromEnv', () => {
     });
   });
 
+  it('reconciliação do ao vivo: a agenda confere só os parados; sob demanda (painel) força todos', () => {
+    const job = scheduleFromEnv({}).find((j) => j.name === 'live-reconcile')!;
+    expect(job).toMatchObject({ cron: '*/10 * * * *', args: [], onDemandArgs: ['--forcar'] });
+  });
+
   it('agenda o sync diário logo após a virada da cota (00:05 UTC) e o ao vivo a cada 5 min', () => {
     const jobs = scheduleFromEnv({});
     const daily = jobs.find((j) => j.name === 'sync-daily')!;
