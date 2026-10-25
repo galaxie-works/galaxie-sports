@@ -27,7 +27,8 @@ export function journalProblems(head: Journal, base?: Journal): string[] {
     if (prev && !(e.when > prev.when))
       problems.push(
         `${e.tag}: when ${e.when} não é maior que o de ${prev.tag} (${prev.when}); ` +
-          'o migrator pularia esta migration num banco que já tem a anterior',
+          'o migrator pularia esta migration num banco que já tem a anterior. ' +
+          `Corrija com when > ${prev.when} no journal (ex.: o horário atual em ms) ou regere a migration`,
       );
   });
   base?.entries.forEach((b, i) => {

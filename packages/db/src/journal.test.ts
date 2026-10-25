@@ -24,6 +24,7 @@ describe('journal de migrations', () => {
     const problems = journalProblems(head, base);
     expect(problems).toHaveLength(1);
     expect(problems[0]).toMatch(/^0003_pr: when 250 não é maior que o de 0002_main \(300\)/);
+    expect(problems[0]).toContain('Corrija com when > 300');
   });
 
   it('acusa when igual ao anterior (o migrator compara com <)', () => {

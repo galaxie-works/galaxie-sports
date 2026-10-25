@@ -84,12 +84,18 @@ jobs:
       # O migrator só aplica a migration com `when` maior que o da última aplicada: renumerada no merge e com
       # `when` menor, ela seria pulada em silêncio na produção (aqui o banco é vazio e tudo passa). A base é o
       # 1º pai do commit testado: no PR, a main em que ele entra; no push, o commit anterior da main.
+      # Sem a base, o PR falha (é ali que a renumeração se confere); no push, só avisa.
       - name: Migrations em ordem (when crescente e base preservada)
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
           base=$(git cat-file -p HEAD | awk '/^parent /{print $2; exit}')
           if [ -n "$base" ] && git fetch -q --no-tags --depth=1 origin "$base"; then
             git show "$base:packages/db/drizzle/meta/_journal.json" > "$RUNNER_TEMP/journal-base.json"
             node packages/db/dist/journal-check-cli.js --base "$RUNNER_TEMP/journal-base.json"
+          elif [ "$EVENT" = pull_request ]; then
+            echo "::error::Commit base ($base) indisponível: sem ele não dá para conferir o journal contra a main."
+            exit 1
           else
             echo "::warning::Commit base indisponível: conferindo só a ordem interna do journal."
             node packages/db/dist/journal-check-cli.js
