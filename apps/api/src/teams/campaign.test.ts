@@ -361,6 +361,64 @@ describe('computeCampaign', () => {
     ).toBe('in_progress');
   });
 
+  describe('fase de liga com classificação direta (zonas do regulamento)', () => {
+    const uclStages = [
+      stage('lp', 'league_phase', 2001, { 'pt-BR': 'Fase de liga' }),
+      stage('po', 'playoff', 3000),
+      stage('r16', 'round_of_16', 9000, { 'pt-BR': 'Oitavas de final' }),
+      stage('qf', 'quarter_final', 10000),
+      stage('f', 'final', 13000),
+    ];
+    const ucl = (zones: NonNullable<CompetitionRules['league']>['zones']): CompetitionRules => ({
+      ...rules({}),
+      format: 'league_phase',
+      league: { teams: 36, matchesPerTeam: 8, meetingsPerPair: 1, title: false, zones },
+    });
+    const ZONES = [
+      { id: 'round_of_16', kind: 'qualification' as const, from: 1, to: 8 },
+      { id: 'knockout_playoff', kind: 'qualification' as const, from: 9, to: 24 },
+      { id: 'elimination', kind: 'elimination' as const, from: 25, to: 36 },
+    ];
+    const campaign = (rank: number, r: CompetitionRules | null, seasonOpen = true) =>
+      computeCampaign(
+        input({
+          stages: uclStages,
+          teamEvents: [{ id: 'l8', stageId: 'lp', status: 'finished' }],
+          standing: { rank, points: 16, played: 8, group: null },
+          seasonOpen,
+          // fase de liga encerrada e o playoff já em jogo, sem o time
+          stageActivity: new Map([
+            ['lp', { events: 144, open: 0 }],
+            ['po', { events: 16, open: 8 }],
+          ]),
+          rules: r,
+        }),
+      )!;
+
+    it('o top 8 vai direto às oitavas: em andamento, não eliminado por não jogar o playoff', () => {
+      const c = campaign(3, ucl(ZONES));
+      expect(c).toMatchObject({ status: 'in_progress', stageKind: 'round_of_16', rank: 3, points: 16 });
+      expect(campaignText(c, 'pt-BR', null)).toEqual({
+        label: 'Nas oitavas de final',
+        detail: '3º lugar · 16 pts',
+      });
+      expect(isOngoing(c)).toBe(true);
+    });
+
+    it('9º–24º aguarda o playoff; 25º em diante é eliminado mesmo sem jogo do mata-mata', () => {
+      expect(campaign(15, ucl(ZONES))).toMatchObject({ status: 'in_progress', stageKind: 'playoff' });
+      expect(campaign(30, ucl(ZONES))).toMatchObject({ status: 'eliminated', stageKind: 'league_phase' });
+    });
+
+    it('sem zonas no regulamento (ou zona de vaga em outra competição), segue a evidência dos jogos', () => {
+      expect(campaign(3, null).status).toBe('eliminated');
+      const europa = ucl([{ id: 'europa_league_knockout_playoff', kind: 'qualification', from: 1, to: 36 }]);
+      expect(campaign(3, europa).status).toBe('eliminated');
+      // temporada encerrada sem o mata-mata carregado: a zona não basta para "em andamento"
+      expect(campaign(3, ucl(ZONES), false).status).toBe('eliminated');
+    });
+  });
+
   it('disputa de 3º lugar conta', () => {
     const base = {
       stages: [...cupStages, stage('3p', 'third_place', 12000)],

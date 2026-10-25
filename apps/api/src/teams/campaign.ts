@@ -278,6 +278,26 @@ export function decideTie(
   return won(flagged);
 }
 
+/** Zonas de classificação cujo id não é o tipo da fase seguinte. */
+const ZONE_STAGE: Record<string, string> = { knockout_playoff: 'playoff' };
+
+/**
+ * Zona do regulamento (`league.zones`) em que a posição cai na tabela, com a fase desta competição a que
+ * ela leva (`next`, só nas zonas de classificação cujo id é uma fase: `round_of_16`, `knockout_playoff`...).
+ * Zona de vaga em outra competição (ex.: `europa_league_knockout_playoff`) fica sem `next`.
+ */
+function tableZone(
+  rules: CompetitionRules | null,
+  rank: number | null,
+): { kind: string; next: string | null } | null {
+  if (rank == null) return null;
+  const zone = rules?.league?.zones.find((z) => rank >= z.from && rank <= z.to);
+  if (!zone) return null;
+  const stage = ZONE_STAGE[zone.id] ?? zone.id;
+  const next = zone.kind === 'qualification' && depthOf(stage) !== undefined ? stage : null;
+  return { kind: zone.kind, next };
+}
+
 /** Calcula a situação da campanha do time na temporada. */
 export function computeCampaign(input: CampaignInput): Campaign | null {
   const { teamId, standing } = input;
@@ -322,6 +342,21 @@ export function computeCampaign(input: CampaignInput): Campaign | null {
     const activity = (s: CampaignStage) => input.stageActivity.get(s.id);
     const tableOpen = deepest ? (activity(deepest)?.open ?? 0) > 0 : input.seasonOpen;
     if (tableOpen) return { status: 'in_progress', ...common, advancedFrom: false };
+    // fase encerrada: a zona da classificação no regulamento diz o desfecho (ex.: Champions, 1º–8º direto às
+    // oitavas, 9º–24º playoff, 25º+ eliminado). Sem zonas, ou zona que não leva a uma fase desta competição,
+    // segue a evidência dos jogos abaixo
+    const zone = tableZone(input.rules, standing?.rank ?? null);
+    if (zone?.kind === 'elimination') return { status: 'eliminated', ...common, advancedFrom: false };
+    if (zone && zone.next && input.seasonOpen) {
+      const next = stages.find((s) => s.kind === zone.next);
+      return {
+        status: 'in_progress',
+        ...common,
+        stageKind: zone.next,
+        stageName: next?.name ?? null,
+        advancedFrom: false,
+      };
+    }
     // fase encerrada e o mata-mata já com jogos, sem o time: eliminado na fase de pontos corridos
     const depth = depthOf(kind) ?? 1;
     if (stages.some((s) => (depthOf(s.kind) ?? -1) > depth && (activity(s)?.events ?? 0) > 0))
