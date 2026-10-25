@@ -24,6 +24,7 @@ const item = (over: Partial<TeamItem>): TeamItem => ({
   types: ['Q476028'],
   countries: ['Argentina'],
   leagues: [],
+  partOf: [],
   ...over,
 });
 
@@ -179,6 +180,82 @@ describe('casamento estrito pelo time no Wikidata', () => {
     expect(
       itemCategory({ label: 'X', description: 'football and basketball club', types: ['Q476028'] }),
     ).toBe('senior');
+  });
+
+  it('o clube passa à frente do item do primeiro time dele; nome inteiro igual vale pela categoria', () => {
+    const items = new Map([
+      ['Q162251', item({ label: '1. FC Heidenheim 1846', countries: ['Germany'] })],
+      [
+        'Q97927357',
+        item({
+          label: '1. FC Heidenheim',
+          types: ['Q103229495'],
+          description: "first men's team of 1. FC Heidenheim",
+          countries: ['Germany'],
+          partOf: ['Q162251'],
+        }),
+      ],
+      [
+        'Q113517265',
+        item({ label: 'Östers IF', types: ['Q103229495'], description: "first men's soccer team" }),
+      ],
+      ['Q306787', item({ label: 'Östers IF' })],
+      ['Q332664', item({ label: 'Willem II', countries: ['Netherlands'] })],
+    ]);
+    const t = (name: string, country: string) => ({ providerId: '1', name, country, leagues: [] });
+    expect(resolveTeam(t('1. FC Heidenheim', 'Germany'), ['Q97927357', 'Q162251'], items)).toEqual({
+      qid: 'Q162251',
+    });
+    expect(resolveTeam(t('Osters IF', 'Argentina'), ['Q113517265', 'Q306787'], items)).toEqual({
+      qid: 'Q306787',
+    });
+    // "II" no fim, mas o clube se chama assim
+    expect(resolveTeam(t('Willem II', 'Netherlands'), ['Q332664'], items)).toEqual({ qid: 'Q332664' });
+    // o feminino de mesmo nome não entra pelo nome inteiro
+    const tijuana = new Map([
+      [
+        'Q1103168',
+        item({ label: 'Tijuana opossums', names: ['Club Tijuana', 'Xolos'], countries: ['Mexico'] }),
+      ],
+      [
+        'Q60829969',
+        item({
+          label: 'Club Tijuana',
+          description: "professional Mexican women's football club",
+          countries: ['Mexico'],
+        }),
+      ],
+    ]);
+    expect(resolveTeam(t('Club Tijuana', 'Mexico'), ['Q60829969', 'Q1103168'], tijuana)).toEqual({
+      qid: 'Q1103168',
+    });
+    // "Esports" é "esportes" em catalão
+    expect(
+      itemCategory({
+        label: "Centre d'Esports Sabadell Futbol Club",
+        description: 'football team',
+        types: [],
+      }),
+    ).toBe('senior');
+  });
+
+  it('liga pelo nome contido ("Premiership" em "Scottish Premiership")', () => {
+    const items = new Map([
+      [
+        'Q19593',
+        item({ label: 'Celtic F.C.', countries: ['United Kingdom'], leagues: ['Scottish Premiership'] }),
+      ],
+      [
+        'Q1849964',
+        item({
+          label: 'Stalybridge Celtic F.C.',
+          countries: ['United Kingdom'],
+          leagues: ['Northern Premier League'],
+        }),
+      ],
+    ]);
+    const celtic = { providerId: '247', name: 'Celtic', country: 'Scotland', leagues: ['Premiership'] };
+    expect(resolveTeam(celtic, ['Q1849964', 'Q19593'], items)).toEqual({ qid: 'Q19593' });
   });
 
   it('homônimos do mesmo país: desempata pelo nome exato e depois pela liga', () => {

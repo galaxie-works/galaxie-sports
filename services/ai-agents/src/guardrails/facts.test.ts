@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkFacts, FactSheetBuilder, type FactSheet } from './facts.js';
+import { splitSentences } from './text.js';
 
 /** Fatos do resumo de Palmeiras 4 × 1 Corinthians (timeline do fixture 1492407). */
 function recapSheet(): FactSheet {
@@ -147,5 +148,15 @@ describe('checkFacts — ordinais de título (tetra, penta)', () => {
     expect(checkFacts('O Tricolor recebe o Palmeiras.', s, 'pt-BR').map((v) => v.kind)).not.toContain(
       'unknown_number',
     );
+  });
+});
+
+describe('splitSentences', () => {
+  it('a inicial de um nome não encerra a frase', () => {
+    expect(splitSentences("Gols do Vasco: J. Rodríguez (35') e M. Hinestroza (88'). Fim.")).toEqual([
+      "Gols do Vasco: J. Rodríguez (35') e M. Hinestroza (88').",
+      'Fim.',
+    ]);
+    expect(splitSentences('Venceu. Depois empatou! E agora?')).toHaveLength(3);
   });
 });

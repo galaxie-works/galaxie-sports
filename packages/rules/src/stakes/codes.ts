@@ -82,7 +82,47 @@ export const LEAGUE_FAMILIES = [
  */
 export const HISTORY_FAMILIES = ['seeks_title_n'] as const;
 
-export const STAKE_FAMILIES = [...KNOCKOUT_FAMILIES, ...LEAGUE_FAMILIES, ...HISTORY_FAMILIES] as const;
+/**
+ * Famílias de resultado (pontos corridos, jogo encerrado): o que o placar mudou na tabela, comparando a
+ * tabela de antes do jogo com a de depois (`leagueResultStakes`). Saem junto com o retrato de antes do
+ * jogo, nunca no lugar dele.
+ */
+export const RESULT_FAMILIES = [
+  // posição
+  'moved_up_to_n',
+  'moved_down_to_n',
+  'stayed_at_n',
+  // entrou ou saiu de zona
+  'took_the_lead',
+  'lost_the_lead',
+  'entered_zone',
+  'left_zone',
+  'dropped_into_relegation',
+  'climbed_out_of_relegation',
+  'dropped_into_elimination',
+  'climbed_out_of_elimination',
+  // garantiu ou perdeu matematicamente
+  'clinched_title',
+  'clinched_zone',
+  'clinched_safety',
+  'relegation_confirmed',
+  'elimination_confirmed',
+  'lost_title_chance',
+  'lost_zone_chance',
+  // distância depois do jogo
+  'points_behind_leader_n',
+  'points_ahead_at_top_n',
+  'points_behind_zone_n',
+  'points_above_relegation_n',
+  'points_below_safety_n',
+] as const;
+
+export const STAKE_FAMILIES = [
+  ...KNOCKOUT_FAMILIES,
+  ...LEAGUE_FAMILIES,
+  ...HISTORY_FAMILIES,
+  ...RESULT_FAMILIES,
+] as const;
 export type StakeFamily = (typeof STAKE_FAMILIES)[number];
 
 /** Lado a que o código se refere, relativo ao mando da partida analisada. */
@@ -95,12 +135,22 @@ export interface StakeParams {
   zone?: string;
 }
 
+/** Momento do stake: o que estava em jogo antes da partida ou o que o resultado mudou. */
+export type StakePhase = 'pre_match' | 'result';
+
 export interface Stake {
   team: StakeSide;
   /** Código concreto, estável para a API: ex. `needs_win_by_2`, `qualifies_for_sudamericana`. */
   code: string;
   family: StakeFamily;
   params?: StakeParams;
+}
+
+const RESULT_SET: ReadonlySet<string> = new Set(RESULT_FAMILIES);
+
+/** Fase do stake pela família: as de resultado (`RESULT_FAMILIES`) são `result`; o resto, `pre_match`. */
+export function stakePhase(stake: Pick<Stake, 'family'>): StakePhase {
+  return RESULT_SET.has(stake.family) ? 'result' : 'pre_match';
 }
 
 /** Monta o código concreto a partir da família e dos parâmetros. */
@@ -151,6 +201,30 @@ export function stakeCode(family: StakeFamily, params: StakeParams = {}): string
       return `can_clinch_${zone ?? need('zone')}`;
     case 'can_qualify_for_zone':
       return `can_qualify_for_${zone ?? need('zone')}`;
+    case 'moved_up_to_n':
+      return `moved_up_to_${n ?? need('n')}`;
+    case 'moved_down_to_n':
+      return `moved_down_to_${n ?? need('n')}`;
+    case 'stayed_at_n':
+      return `stayed_at_${n ?? need('n')}`;
+    case 'entered_zone':
+      return `entered_${zone ?? need('zone')}`;
+    case 'left_zone':
+      return `left_${zone ?? need('zone')}`;
+    case 'clinched_zone':
+      return `clinched_${zone ?? need('zone')}`;
+    case 'lost_zone_chance':
+      return `lost_${zone ?? need('zone')}_chance`;
+    case 'points_behind_leader_n':
+      return `points_behind_leader_${n ?? need('n')}`;
+    case 'points_ahead_at_top_n':
+      return `points_ahead_at_top_${n ?? need('n')}`;
+    case 'points_behind_zone_n':
+      return `points_behind_${zone ?? need('zone')}_${n ?? need('n')}`;
+    case 'points_above_relegation_n':
+      return `points_above_relegation_${n ?? need('n')}`;
+    case 'points_below_safety_n':
+      return `points_below_safety_${n ?? need('n')}`;
     default:
       return family;
   }

@@ -5,9 +5,16 @@ import {
   type AgentLocale,
   type FactSheet,
 } from '../guardrails/index.js';
-import { championPhrase } from '@galaxie/rules';
+import { championPhrase, zoneLabel } from '@galaxie/rules';
 import { eventNames, teamName, type EventCore } from '../context/event-core.js';
-import type { RecapFacts, RecapGoal, RecapNextStage, RecapPlayerEvent, Side } from './facts.js';
+import type {
+  RecapFacts,
+  RecapGoal,
+  RecapNextStage,
+  RecapPlayerEvent,
+  RecapStakeFact,
+  Side,
+} from './facts.js';
 
 /**
  * Agente Resumo pós-jogo (issue #58): o LLM redige 2–4 frases por locale a partir da timeline
@@ -15,7 +22,8 @@ import type { RecapFacts, RecapGoal, RecapNextStage, RecapPlayerEvent, Side } fr
  */
 
 // v2: desfecho do mata-mata (agregado, quem passou e para onde) e nome curado do estádio
-export const RECAP_PROMPT_VERSION = 'recap@v3';
+// v4: pontos corridos (o que estava em jogo e o que o resultado mudou) e virada/gol decisivo
+export const RECAP_PROMPT_VERSION = 'recap@v4';
 
 /** Fatos citáveis no texto do locale (validador). */
 export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: AgentLocale): FactSheet {
@@ -56,7 +64,69 @@ export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: Agent
     for (const side of [facts.statistics.home, facts.statistics.away]) b.number(...Object.values(side));
   }
   if (facts.decided_by === 'extra_time') b.number(120);
+  if (facts.flow) b.number(facts.flow.winner_max_deficit || null);
+  const lg = facts.league;
+  if (lg) {
+    b.number(lg.teams_in_table);
+    for (const r of [lg.home, lg.away]) {
+      b.number(r.rank_before, r.rank_after, r.points_before, r.points_after, r.remaining);
+      // "subiu duas posições", "somou três pontos"
+      b.number(Math.abs(r.rank_before - r.rank_after) || null, r.points_after - r.points_before || null);
+    }
+    for (const st of [...lg.before, ...lg.result]) {
+      b.name(st.labels[locale]);
+      if (st.params?.zone) b.name(zoneLabel(st.params.zone, locale));
+      b.number(st.params?.n);
+    }
+  }
   return b.build();
+}
+
+const lowerFirst = (s: string) => (s ? s.charAt(0).toLocaleLowerCase() + s.slice(1) : s);
+
+/**
+ * Frase da tabela (pontos corridos): o que o resultado mudou para cada time, com os rótulos fixos dos
+ * códigos salientes (até 2 por time, para caber); null sem fatos de tabela.
+ */
+export function leagueSentence(core: EventCore, facts: RecapFacts, locale: AgentLocale): string | null {
+  const lg = facts.league;
+  if (!lg) return null;
+  const pt = languageOf(locale) === 'pt';
+  const side = (team: Side) => {
+    const labels = lg.result
+      .filter((s: RecapStakeFact) => s.team === team)
+      .slice(0, 2)
+      .map((s) => s.labels[locale])
+      .filter((t): t is string => !!t)
+      .map(lowerFirst);
+    if (!labels.length) return null;
+    const name = teamName(team === 'home' ? core.home : core.away, locale);
+    return `${name} ${labels.join(pt ? ' e ' : ' y ')}`;
+  };
+  const parts = [side('home'), side('away')].filter((x): x is string => !!x);
+  if (!parts.length) return null;
+  return `${pt ? 'Na tabela' : 'En la tabla'}, ${parts.join('; ')}`;
+}
+
+/** Complemento do placar: virada e gol decisivo no fim ou nos acréscimos (vazio sem nada a dizer). */
+function flowClause(facts: RecapFacts, locale: AgentLocale): string {
+  const f = facts.flow;
+  if (!f || facts.decided_by !== 'regular') return '';
+  const pt = languageOf(locale) === 'pt';
+  const parts: string[] = [];
+  if (f.winner && f.winner_max_deficit > 0) parts.push(pt ? 'de virada' : 'dándolo vuelta');
+  const g = f.decisive_goal;
+  if (g?.late) {
+    const when = g.stoppage_time
+      ? pt
+        ? 'nos acréscimos'
+        : 'en el tiempo de descuento'
+      : `${pt ? 'aos' : 'a los'} ${minuteText(g)}`;
+    if (f.winner) parts.push(pt ? `com o gol da vitória ${when}` : `con el gol del triunfo ${when}`);
+    else if (f.came_back_to_draw)
+      parts.push(pt ? `com o gol de empate ${when}` : `con el gol del empate ${when}`);
+  }
+  return parts.length ? `, ${parts.join(', ')}` : '';
 }
 
 const minuteText = (m: { minute: number | null; extra: number | null }) =>
@@ -219,6 +289,7 @@ export function recapFallback(core: EventCore, facts: RecapFacts, locale: AgentL
   let first = pt
     ? `Fim de jogo: ${home} ${h} x ${a} ${away}`
     : `Final del partido: ${home} ${h}-${a} ${away}`;
+  first += flowClause(facts, locale);
   if (facts.decided_by === 'extra_time') first += pt ? ', após a prorrogação' : ', tras el tiempo extra';
   if (facts.penalties) {
     const p = facts.penalties;
@@ -231,12 +302,15 @@ export function recapFallback(core: EventCore, facts: RecapFacts, locale: AgentL
   // desfecho do confronto primeiro (exceto no jogo de ida, que só ganha a nota depois do placar)
   const sentences = tie && facts.tie?.leg !== 1 ? [tie, first] : [first];
   if (tie && facts.tie?.leg === 1) sentences.push(tie);
+  // pontos corridos: o que o resultado mudou na tabela, logo depois do placar
+  const table = leagueSentence(core, facts, locale);
+  if (table) sentences.push(table);
   const goalLines = [
     goalsSentence(core, facts.goals, 'home', locale),
     goalsSentence(core, facts.goals, 'away', locale),
   ];
   if (h + a === 0) sentences.push(pt ? 'Não houve gols' : 'No hubo goles');
-  else sentences.push(...goalLines.filter((s): s is string => !!s));
+  else sentences.push(...goalLines.filter((s): s is string => !!s).slice(0, 4 - sentences.length));
   for (const extra of [
     playersSentence(core, facts.red_cards, locale, 'red'),
     playersSentence(core, facts.missed_penalties, locale, 'missed'),
@@ -266,6 +340,14 @@ export function recapSystemPrompt(): string {
     '  (bi = 2, tri = 3, tetra = 4, penta = 5... deca = 10; 1 = o primeiro). Ex.: "O Palmeiras é tetracampeão da Libertadores."',
     '  Sem champion_titles, não diga quantos títulos o campeão tem.',
     '- Perder o jogo e passar no confronto não é contradição: diga as duas coisas com clareza.',
+    '- Pontos corridos (campo "league" não nulo): depois do resultado, diga o que o placar mudou na tabela a partir de',
+    '  league.result[].labels (posição, zona, distância para as zonas) e, se couber, o que estava em jogo antes',
+    '  (league.before[].labels). Use rank_before/rank_after e points_after exatamente. Não fale de brigas que não',
+    '  estão nos fatos (ex.: rebaixamento para um time sem código de rebaixamento).',
+    '- "flow" (quando houver): winner_max_deficit > 0 = o vencedor esteve atrás no placar (virada, "de virada" /',
+    '  "lo dio vuelta"); came_back_to_draw = o time que buscou o empate. decisive_goal.stoppage_time = true: o gol',
+    '  decisivo saiu nos acréscimos; decisive_goal.late = true sem stoppage_time: no fim do jogo (cite o minuto, ex.:',
+    '  "aos 90\'"), sem dizer "acréscimos". Sem esses campos, não diga que o jogo foi decidido no fim.',
     '- Estádio: use exatamente match.venue (nome atual); não use nomes antigos.',
     '- Gol contra é creditado ao time beneficiado; diga "contra" (pt) / "en contra" (es) e não chame o jogador de artilheiro.',
     '- Cite times e jogadores exatamente pelos nomes fornecidos. Sem adjetivos de desempenho individual, sem notas e sem opinião.',

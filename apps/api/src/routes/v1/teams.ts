@@ -80,7 +80,7 @@ import {
   UUID_RE,
 } from '../../util.js';
 import { resolveMarket } from '../../events/relevance.js';
-import { buildCtx, eventPage, localeOf, sportCheck } from './events.js';
+import { buildCtx, eventPage, localeOf, sportCheck, stakesVary } from './events.js';
 import { effectiveMinReview, meetsReview } from './semantic.js';
 
 const MODULE = { module: 'core_data' } as const;
@@ -502,10 +502,10 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.schedule,
-      vary: [locale, tz, `market:${market ?? ''}`],
+      vary: [locale, tz, `market:${market ?? ''}`, ...stakesVary(query.stakes)],
       check: sportCheck(request),
       load: async () => {
-        const bctx = buildCtx(ctx, locale, tz);
+        const bctx = buildCtx(ctx, locale, tz, query.stakes);
         const [p] = await bctx.db
           .select({ id: participant.id, sport: participant.sport })
           .from(participant)

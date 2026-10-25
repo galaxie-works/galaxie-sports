@@ -166,7 +166,7 @@ export const CareerSeason = z
     sprint: SprintStats,
     number: z.number().int().nullable().meta({
       description:
-        'Piloto: número do carro na temporada (o mais usado nas sessões; sem ele, o permanente de 2014 em diante).',
+        'Piloto: número do carro na temporada (o mais usado nas corridas; sem corrida, nas demais sessões; sem ele, o permanente de 2014 em diante).',
       example: 12,
     }),
     teams: z
@@ -177,7 +177,10 @@ export const CareerSeason = z
             .meta({ description: 'Piloto: a pintura da equipe naquela temporada (curadoria por época).' }),
         }),
       )
-      .meta({ description: 'Piloto: equipes no ano (a principal primeiro). Construtor: pilotos no ano.' }),
+      .meta({
+        description:
+          'Piloto: equipes no ano (a principal primeiro), com o nome daquela época (a inscrição do F1DB, ex.: "Daimler Benz AG" em 1954; o `id` é o da equipe de hoje). Construtor: pilotos no ano.',
+      }),
     car: Photo.nullable().meta({ description: 'Foto do carro da temporada, quando houver no acervo.' }),
   })
   .meta({ id: 'CareerSeason' });

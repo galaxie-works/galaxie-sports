@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { parseCompetitionRules } from './config/parse.js';
 import type { CompetitionRules } from './config/types.js';
 import type { MatchResult } from './standings/types.js';
+import { parse as parseYaml } from 'yaml';
+import type { Fixture as LeagueFixture } from './stakes/league.js';
+import type { TableSnapshotRow } from './stakes/result.js';
 
 /** PRNG determinístico (mulberry32) para testes de propriedade reprodutíveis. */
 export function rng(seed: number): () => number {
@@ -116,4 +119,65 @@ export function toMatch(f: Fixture2024): MatchResult {
     playedAt: `${f.date}:00Z`,
     round: f.round,
   };
+}
+
+// ─── Brasileirão 2026, rodada 32 ─────────────────────────────────────────────────────────────────
+
+/**
+ * Fixture do Brasileirão 2026, rodada 32 (packages/rules/fixtures/brasileirao-serie-a-2026-r32.json):
+ * tabela da produção depois dos jogos de sábado e domingo e os jogos da rodada. Só para testes.
+ */
+export interface R32Match {
+  id: string;
+  startsAt: string;
+  status: 'finished' | 'scheduled';
+  homeId: string;
+  awayId: string;
+  homeGoals?: number;
+  awayGoals?: number;
+}
+
+export interface R32Fixture {
+  table: (TableSnapshotRow & { name: string })[];
+  round32: R32Match[];
+  goals: Record<string, { minute: number; team: 'home' | 'away'; scorer: string }[]>;
+}
+
+export function loadR32(): R32Fixture {
+  const url = new URL('../fixtures/brasileirao-serie-a-2026-r32.json', import.meta.url);
+  return JSON.parse(readFileSync(url, 'utf8')) as R32Fixture;
+}
+
+export function brasileiraoRules(): CompetitionRules {
+  const url = new URL('../../../config/rules/brasileirao-serie-a.yaml', import.meta.url);
+  return parseCompetitionRules(parseYaml(readFileSync(url, 'utf8')), { season: 2026 });
+}
+
+export const asResult = (m: R32Match): MatchResult => ({
+  id: m.id,
+  homeId: m.homeId,
+  awayId: m.awayId,
+  homeGoals: m.homeGoals!,
+  awayGoals: m.awayGoals!,
+  playedAt: m.startsAt,
+});
+
+/** Entrada de `finishedLeagueMatchStakes` para um jogo encerrado da rodada. */
+export function finishedInput(fx: R32Fixture, id: string) {
+  const match = fx.round32.find((m) => m.id === id)!;
+  const finished = fx.round32.filter((m) => m.status === 'finished' && m.id !== id);
+  return {
+    rules: brasileiraoRules(),
+    current: fx.table,
+    match: asResult(match),
+    later: finished.filter((m) => m.startsAt >= match.startsAt).map(asResult),
+    nextRound: fx.round32
+      .filter((m) => m.id !== id && (m.status !== 'finished' || m.startsAt >= match.startsAt))
+      .map((m): LeagueFixture => ({ homeId: m.homeId, awayId: m.awayId })),
+  };
+}
+
+/** Tabela atual na ordem de classificação, no formato do motor. */
+export function currentTable(fx: R32Fixture) {
+  return fx.table.map((t) => ({ teamId: t.teamId, points: t.points, played: t.played }));
 }

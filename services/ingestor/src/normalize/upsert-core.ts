@@ -80,6 +80,7 @@ import {
   type Tx,
 } from './sql-helpers.js';
 import { uuidv7 } from './uuid.js';
+import { tidyParticles } from './name-case.js';
 
 export interface UpsertOptions {
   precedence?: PrecedencePolicy;
@@ -191,6 +192,8 @@ export function addStats(a: UpsertStats, b: UpsertStats): UpsertStats {
 
 /** Tolerância para reconhecer o mesmo evento descrito por outro provedor. */
 const CROSS_PROVIDER_MATCH_MS = 3 * 3_600_000;
+/** Tolerância quando o horário gravado é estimado (só o dia é certo): a sessão do mesmo tipo no mesmo dia. */
+const ESTIMATED_TIME_MATCH_MS = 18 * 3_600_000;
 
 // ─── referências (países, assets) ────────────────────────────────────────────────────────────────
 
@@ -508,8 +511,8 @@ export async function upsertBatchInTx(
         sport: batch.sport,
         // tipo desconhecido entra como clube e não sobrescreve um tipo já conhecido
         kind: p.kind ?? 'club',
-        name: p.name,
-        shortName: p.shortName,
+        name: tidyParticles(p.name),
+        shortName: tidyParticles(p.shortName),
         code: p.code,
         countryCode: await refs.countryCode(p.countryCode, p.countryName),
         founded: p.founded,
@@ -853,6 +856,7 @@ export async function upsertBatchInTx(
           goalsAgainst: s.goalsAgainst,
           form: s.form,
           description: s.description,
+          entry: s.entry ?? null,
           source: 'provider',
         },
       ];
@@ -860,7 +864,7 @@ export async function upsertBatchInTx(
     (s) => `${s.seasonId}|${s.group}|${s.participantId}`,
   );
   for (const chunk of chunks(standingRows, 500)) {
-    const { set, setWhere } = replaceUpdate(
+    const base = replaceUpdate(
       standing,
       [
         'rank',
@@ -879,6 +883,9 @@ export async function upsertBatchInTx(
       ],
       { touchUpdatedAt: true },
     );
+    // a inscrição (F1DB) não some quando outra fonte reescreve a mesma linha sem ela
+    const set = { ...base.set, entry: sql`coalesce(excluded.entry, ${standing.entry})` };
+    const setWhere = sql`(${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry)`;
     await tx
       .insert(standing)
       .values(chunk)
@@ -1077,6 +1084,10 @@ const text = (v: unknown): string | null => (typeof v === 'string' && v.trim() ?
  * Sessões de corrida (F1) descritas por outra fonte: a lista de sessões não traz pilotos (eles chegam depois,
  * pelos complementos), então o casamento é pelo tipo da sessão no espelho (`summary.type`: corrida, sprint,
  * TL2, Q1...) e pelo horário (±3 h). Só vale para eventos ainda sem vínculo deste provedor.
+ *
+ * Horário estimado (`summary.time_estimated`: o F1DB antes de 2024 só tem o dia) erra por mais de 3 h (Bahrein
+ * 2022: 11h estimado, 15h real): aí a janela é a do dia (±18 h), ainda com o tipo da sessão e um candidato só. Sem
+ * isso, a api-sports de 2022 e 2023, carregada depois do F1DB, duplicou corridas e classificações.
  */
 async function matchRaceSessions(
   tx: Executor,
@@ -1087,10 +1098,15 @@ async function matchRaceSessions(
   const usable = candidates.filter((c) => c.session);
   if (!usable.length) return out;
   const times = usable.map((c) => c.startsAt.getTime());
-  const from = new Date(Math.min(...times) - CROSS_PROVIDER_MATCH_MS);
-  const to = new Date(Math.max(...times) + CROSS_PROVIDER_MATCH_MS);
-  const rows = await tx.execute<{ id: string; starts_at: string; type: string | null }>(sql`
-    select e.id, e.starts_at, sd.summary->>'type' as type
+  const from = new Date(Math.min(...times) - ESTIMATED_TIME_MATCH_MS);
+  const to = new Date(Math.max(...times) + ESTIMATED_TIME_MATCH_MS);
+  const rows = await tx.execute<{
+    id: string;
+    starts_at: string;
+    type: string | null;
+    estimated: boolean | null;
+  }>(sql`
+    select e.id, e.starts_at, sd.summary->>'type' as type, (sd.summary->>'time_estimated')::boolean as estimated
       from core.event e
       join core.sport_event_detail sd on sd.event_id = e.id and sd.kind = 'race'
      where e.sport = ${scope.sport}
@@ -1105,7 +1121,8 @@ async function matchRaceSessions(
       (r) =>
         !taken.has(r.id) &&
         raceSessionKey(r.type) === c.session &&
-        Math.abs(new Date(r.starts_at).getTime() - c.startsAt.getTime()) <= CROSS_PROVIDER_MATCH_MS,
+        Math.abs(new Date(r.starts_at).getTime() - c.startsAt.getTime()) <=
+          (r.estimated ? ESTIMATED_TIME_MATCH_MS : CROSS_PROVIDER_MATCH_MS),
     );
     if (hits.length !== 1) continue;
     out.set(c.providerId, hits[0]!.id);

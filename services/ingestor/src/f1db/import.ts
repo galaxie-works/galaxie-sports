@@ -14,6 +14,7 @@ import {
   F1DB_PROVIDER,
   F1DB_SPORT,
   F1_COMPETITION_ID,
+  f1dbCountries,
   f1dbSeasonRange,
   matchF1db,
   normalizeF1db,
@@ -48,6 +49,8 @@ export interface F1dbImportResult {
   match: MatchReport;
   linked: { participants: number; venues: number; events: number; competition: boolean };
   covered: number;
+  /** Países que o core não tinha, criados a partir do F1DB (códigos ISO). */
+  countries: string[];
   /** Entidades do core que receberam mais de um ID do F1DB (confira). */
   shared: F1dbSharedEntity[];
   batch: { events: number; participants: number; venues: number; stages: number; standings: number };
@@ -58,6 +61,21 @@ class DryRunRollback extends Error {
   constructor(readonly result: F1dbImportResult) {
     super('prévia: transação desfeita');
   }
+}
+
+/** Cria os países do F1DB que o core ainda não tem (`f1dbCountries`); os existentes ficam como estão. */
+async function ensureCountries(tx: Tx, tables: F1dbTables): Promise<string[]> {
+  const rows = f1dbCountries(tables);
+  if (!rows.length) return [];
+  const created = await tx.execute<{ code: string }>(sql`
+    insert into core.country (code, name)
+    values ${sql.join(
+      rows.map((c) => sql`(${c.code}, ${JSON.stringify(c.name)}::jsonb)`),
+      sql`, `,
+    )}
+    on conflict (code) do nothing
+    returning code`);
+  return created.map((r) => r.code).sort();
 }
 
 /** Liga a competição sintética do F1DB à do catálogo (a mesma `world-championship` da api-sports). */
@@ -90,6 +108,8 @@ export async function importF1db(
       await linkIds(tx, scope, 'venue', links.created.venues);
       await linkIds(tx, scope, 'event', links.created.events);
       const competition = await linkCompetition(tx);
+      // antes do upsert: sem a linha do país, o código do piloto é descartado
+      const countries = await ensureCountries(tx, input.tables);
 
       const ctx = {
         observedAt: input.observedAt ?? new Date(),
@@ -126,6 +146,7 @@ export async function importF1db(
           competition,
         },
         covered: links.coveredRaces.size,
+        countries,
         shared: sharedEntities(links.participants, core.participants, input.tables),
         batch: {
           events: counts.events,

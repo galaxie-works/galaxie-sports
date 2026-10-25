@@ -39,7 +39,8 @@ broadcasters:
       - { name: 'TV Gazeta', region: ES }
   - id: sportv
     name: SporTV
-    aliases: ['Sportv']
+    # "SportTV" é grafia comum nas páginas das plataformas
+    aliases: ['Sportv', 'SportTV', 'SportTV 2', 'SportTV 3']
     channels: ['SporTV 2', 'SporTV 3']
     medium: pay_tv
     access_model: subscription

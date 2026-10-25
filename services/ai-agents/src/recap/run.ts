@@ -12,7 +12,13 @@ import {
 } from '../context/run.js';
 import { factsHash, latestFactsHashes, newRunInfo, saveEventContexts } from '../context/store.js';
 import { writeLocalizedTexts } from '../context/writer.js';
-import { buildRecapFacts, loadIncidents, loadRecapKnockout, loadStatistics } from './facts.js';
+import {
+  buildRecapFacts,
+  loadIncidents,
+  loadRecapKnockout,
+  loadRecapLeague,
+  loadStatistics,
+} from './facts.js';
 import {
   RECAP_PROMPT_VERSION,
   recapFactSheet,
@@ -106,6 +112,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         await loadStatistics(db, core),
         locales,
         await loadRecapKnockout(db, core),
+        await loadRecapLeague(db, core),
       );
       if (!facts) {
         item.reason = 'evento encerrado sem placar';
@@ -146,6 +153,8 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
           { kind: 'core', ref: `core.event:${id}` },
           { kind: 'core', ref: `core.event_incident:${id}` },
           ...(facts.statistics ? [{ kind: 'core' as const, ref: `core.football_fixture:${id}` }] : []),
+          // tabela de antes e de depois do jogo, calculadas pelo motor de regras a partir de core.standing
+          ...(facts.league ? [{ kind: 'core' as const, ref: 'core.standing' }] : []),
         ],
         run: newRunInfo({
           llmCalls: written.llmCalls,
@@ -158,6 +167,8 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
           decided_by: facts.decided_by,
           penalties: facts.penalties,
           goals: facts.goals,
+          flow: facts.flow ?? null,
+          league: facts.league ?? null,
         },
       });
       item.action = 'generated';

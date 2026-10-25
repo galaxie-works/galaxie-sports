@@ -45,4 +45,27 @@ describe('checkAiCredit (mesma checagem do deploy.sh)', () => {
     });
     expect((fetch.mock.calls[0] as unknown as [string])[0]).toBe('https://api.anthropic.com/v1/messages');
   });
+
+  it('Gemini usa GEMINI_API_KEY e o modelo leve dele; cota esgotada vira aviso com o status', async () => {
+    const fetch = vi.fn(async () => json(429, { error: { code: 429, status: 'RESOURCE_EXHAUSTED' } }));
+    const r = await checkAiCredit(
+      { AI_PROVIDER: 'gemini', GEMINI_API_KEY: 'g', OPENAI_API_KEY: 'sk' },
+      fetch,
+    );
+    expect(r).toEqual({
+      status: 'warn',
+      detail: {
+        code: 'http',
+        provider: 'gemini',
+        model: 'gemini-3.5-flash-lite',
+        http: 429,
+        error: 'RESOURCE_EXHAUSTED',
+      },
+    });
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
+    );
+    expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe('g');
+  });
 });

@@ -333,6 +333,52 @@ describe('importação do F1DB', () => {
     // a api-sports vira dona do estado; os pilotos do F1DB ficam até ela mandar a classificação
     expect(e[0]).toMatchObject({ source_provider: 'api-sports', n: '2' });
   });
+
+  it('com o horário estimado do F1DB (antes de 2024), a sessão da api-sports casa pelo dia', async () => {
+    const japan = await entityOf('f1db', 'event', 'race-470-race');
+    const [e] = await db.execute<{ starts_at: string; estimated: boolean | null }>(sql`
+      select e.starts_at, (sd.summary->>'time_estimated')::boolean as estimated
+        from core.event e join core.sport_event_detail sd on sd.event_id = e.id
+       where e.id = ${japan}::uuid`);
+    expect(e!.estimated).toBe(true);
+    // a api-sports diz 5 h depois do estimado (Bahrein 2022: 11h estimado, 15h real): fora dos ±3 h, no mesmo dia
+    const real = new Date(new Date(e!.starts_at).getTime() + 5 * 3_600_000).toISOString();
+    const stats = await upsertBatch(
+      db,
+      normalizeF1Races([apiRace(2200, 'Race', real)], new Date('2026-10-23T11:00:00Z')),
+      { derbyLookup: false },
+    );
+    expect(stats.events.matchedAcrossProviders).toBe(1);
+    expect(stats.events.inserted).toBe(0);
+    expect(await entityOf('api-sports', 'event', '2200')).toBe(japan);
+  });
+
+  it('cria o país do F1DB que o core não tem (Mônaco não é da FIFA) e não mexe nos que existem', async () => {
+    const t = tables();
+    t.country = [...t.country!, { id: 'monaco', alpha2_code: 'MC', name: 'Monaco' }];
+    t.driver = [
+      ...t.driver!,
+      {
+        id: 'charles-leclerc',
+        name: 'Charles Leclerc',
+        abbreviation: 'LEC',
+        nationality_country_id: 'monaco',
+      },
+    ];
+    const r = await importF1db(db, { tables: t, release: 'v-test', observedAt: F1DB_AT });
+    expect(r.countries).toEqual(['MC']);
+    const rows = await db.execute<{ code: string; name: Record<string, string> }>(
+      sql`select code, name from core.country where code in ('MC', 'BR') order by code`,
+    );
+    expect(rows.find((c) => c.code === 'MC')!.name).toEqual({
+      en: 'Monaco',
+      'pt-BR': 'Mônaco',
+      es: 'Mónaco',
+    });
+    expect((await importF1db(db, { tables: t, release: 'v-test', observedAt: F1DB_AT })).countries).toEqual(
+      [],
+    );
+  });
 });
 
 describe('raw do release', () => {
