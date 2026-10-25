@@ -1,3 +1,4 @@
+import { agentKey } from './budget.js';
 import { LlmError } from './errors.js';
 import type { LlmTier } from './types.js';
 
@@ -58,14 +59,15 @@ export const AGENT_USD_BUDGET_ENTRY = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?)$
 
 /**
  * `lineups=2,wtw=3` → `{ lineups: 2, wtw: 3 }`. Vazio → `{}`; formato inválido → null.
- * US$ 0 num agente = agente sem IA (só o determinístico).
+ * US$ 0 num agente = agente sem IA (só o determinístico). A chave perde a versão do prompt
+ * (`channels@v1=1` vale para o agente `channels`, como o ledger grava).
  */
 export function parseAgentUsdBudgets(raw: string | undefined | null): Record<string, number> | null {
   const out: Record<string, number> = {};
   for (const part of (raw ?? '').split(/[,\s;]+/).filter(Boolean)) {
     const m = AGENT_USD_BUDGET_ENTRY.exec(part);
     if (!m) return null;
-    out[m[1]!.toLowerCase()] = Number(m[2]);
+    out[agentKey(m[1]!)] = Number(m[2]);
   }
   return out;
 }

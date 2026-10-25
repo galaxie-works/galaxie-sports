@@ -179,6 +179,7 @@ describe('validação por tipo', () => {
       error: { code: 'format' },
     });
     expect(parseAgentUsdBudgets('Lineups=2, wtw=0.5')).toEqual({ lineups: 2, wtw: 0.5 });
+    expect(parseAgentUsdBudgets('channels@v1=1')).toEqual({ channels: 1 });
     expect(parseAgentUsdBudgets('lineups')).toBeNull();
     expect(validateSettingKey('AI_MAX_SEARCHES_PER_CALL', '8')).toEqual({ ok: true, value: '8' });
     expect(validateSettingKey('AI_MAX_SEARCHES_PER_CALL', 'unlimited')).toEqual({

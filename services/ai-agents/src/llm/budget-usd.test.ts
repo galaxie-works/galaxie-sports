@@ -115,10 +115,11 @@ describe('configuração do orçamento em US$', () => {
   });
 
   it('parseAgentUsdBudgets: agente=US$, separadores vírgula/espaço/;, minúsculas', () => {
+    // a versão do prompt sai da chave (o ledger grava `channels`, não `channels@v1`)
     expect(parseAgentUsdBudgets('Lineups=2, wtw=3;channels@v1=0.2')).toEqual({
       lineups: 2,
       wtw: 3,
-      'channels@v1': 0.2,
+      channels: 0.2,
     });
     expect(parseAgentUsdBudgets('')).toEqual({});
     expect(parseAgentUsdBudgets(undefined)).toEqual({});
@@ -425,5 +426,21 @@ describe('o teto em US$ segura', () => {
     expect(out.data.answer).toBe('pago');
     expect(fake.calls).toHaveLength(1);
     expect(String(error.mock.calls[0]![0])).toMatch(/falha ao gravar o uso no ledger.*conexão perdida/);
+  });
+
+  it('teto por agente não depende da versão do prompt (`channels@v2` cai no teto de `channels`)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const budget = new TokenBudget(
+      new MemoryTokenBudgetStore(),
+      { dailyLimit: null, agentUsdLimits: parseAgentUsdBudgets('channels@v1=0')! },
+      () => NOW,
+    );
+    const fake = new FakeLlmClient([{ data: { answer: 'a' } }]);
+    const client = new BudgetedLlmClient(fake, budget);
+    await expect(client.generateJson(req({ purpose: 'channels@v2:tenant:BR' }))).rejects.toMatchObject({
+      agent: 'channels',
+      unit: 'usd',
+    });
+    expect(fake.calls).toHaveLength(0);
   });
 });

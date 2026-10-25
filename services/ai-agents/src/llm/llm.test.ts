@@ -239,6 +239,7 @@ describe('orçamento diário de tokens', () => {
     expect(estimateRequestTokens(req({ maxOutputTokens: 100 }))).toBeLessThan(500);
     expect(estimateRequestTokens(req({ maxOutputTokens: 100, webSearch: true }))).toBeGreaterThan(20_000);
     expect(agentOf('wtw:event:1:BR')).toBe('wtw');
+    expect(agentOf('channels@v1:tenant:BR')).toBe('channels');
     expect(agentOf('')).toBe('unknown');
   });
 });

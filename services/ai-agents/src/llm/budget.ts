@@ -10,8 +10,8 @@
  * virada do dia UTC (segue com o determinístico); AI_DAILY_USD_BUDGET=0 desliga a IA de todos.
  *
  * Uso por outros agentes: envolva o cliente com `new BudgetedLlmClient(client, budget)` e use
- * `purpose` no formato `<agente>:<detalhe>` (ex.: `live:priorities:2026-10-21`) — o prefixo é a
- * chave do limite por agente (opcional) e das métricas.
+ * `purpose` no formato `<agente>:<detalhe>` (ex.: `live:priorities:2026-10-21`) — o prefixo, sem a
+ * versão do prompt (`channels@v1` → `channels`), é a chave do limite por agente (opcional) e das métricas.
  *
  * O limite é "macio" entre processos (a checagem lê o ledger; duas execuções simultâneas podem
  * ultrapassar por no máximo uma chamada cada) — suficiente para conter custo descontrolado.
@@ -50,9 +50,17 @@ export interface TokenBudgetStore {
 
 export const dayUtcOf = (d: Date) => d.toISOString().slice(0, 10);
 
-/** Agente = prefixo de `purpose` (antes do primeiro ":"). */
+/**
+ * Chave do agente sem a versão do prompt (`channels@v1` → `channels`): o teto e as métricas do agente
+ * não mudam de chave quando o prompt sobe de versão.
+ */
+export function agentKey(name: string): string {
+  return name.split('@')[0]!.trim().toLowerCase();
+}
+
+/** Agente = prefixo de `purpose` (antes do primeiro ":"), sem a versão do prompt. */
 export function agentOf(purpose: string): string {
-  return purpose.split(':')[0]?.trim() || 'unknown';
+  return agentKey(purpose.split(':')[0] ?? '') || 'unknown';
 }
 
 export class PgTokenBudgetStore implements TokenBudgetStore {

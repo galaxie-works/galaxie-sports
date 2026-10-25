@@ -166,7 +166,8 @@ export function parseAgentUsdBudgets(raw: string | null | undefined): Record<str
   for (const part of (raw ?? '').split(/[,;\s]+/).filter(Boolean)) {
     const m = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?)$/i.exec(part);
     if (!m) return null;
-    out[m[1]!.toLowerCase()] = Number(m[2]);
+    // sem a versão do prompt (`channels@v1` → `channels`), como o ledger grava o agente
+    out[m[1]!.split('@')[0]!.toLowerCase()] = Number(m[2]);
   }
   return out;
 }
