@@ -365,6 +365,42 @@ describe('applyProfiles', () => {
     expect(second.skipped.map((s) => s.reason)).toEqual(['já está igual no YAML', 'já está igual no YAML']);
   });
 
+  it('fonte ou item vazio da resposta fica de fora com um achado, e o perfil do piloto entra', async () => {
+    const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
+    const d = research.data;
+    const empty = {
+      ...research,
+      data: {
+        ...d,
+        bio: { ...d.bio, sources: [WIKI, '', F1] },
+        style: { ...d.style, text: '  ' },
+        strengths: [{ key: 'starts', text: '', source: '' }, ...d.strengths],
+        moments: [{ race_key: '1993-03', race: '', wet: false, text: ' ', source: '' }, ...d.moments],
+        rivalries: [...d.rivalries, { driver: 'Nigel Mansell', text: '', source: WIKI }],
+      },
+    };
+    const p = await proposeProfile(new FakeLlmClient([empty, translation]), senna);
+    const pt = p.entries['pt-BR']!;
+    expect(pt.bio.sources).toEqual([WIKI, F1]);
+    expect(pt.style).toBeUndefined();
+    expect(pt.strengths).toHaveLength(d.strengths.length);
+    expect(pt.moments).toHaveLength(d.moments.length);
+    expect(pt.rivalries).toHaveLength(d.rivalries.length);
+    expect(pt.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'bio.sources', rule: 'missing_source', severity: 'severe' }),
+        expect.objectContaining({ field: 'style', rule: 'empty_text', severity: 'alert' }),
+        expect.objectContaining({ field: 'strengths', rule: 'empty_text' }),
+        expect.objectContaining({ field: 'moments', rule: 'empty_text' }),
+        expect.objectContaining({ field: 'rivalries', rule: 'empty_text' }),
+      ]),
+    );
+    // antes, a string vazia reprovava no schema e o applyProfiles desfazia o piloto
+    const changes = await applyProfiles(kb, [p]);
+    expect(changes.applied).toEqual(['pt-BR:ayrton-senna', 'es:ayrton-senna']);
+    expect(changes.skipped).toEqual([]);
+  });
+
   it('nunca sobrescreve um perfil aprovado', async () => {
     const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
     const p = await proposeProfile(new FakeLlmClient([research, translation]), senna);
