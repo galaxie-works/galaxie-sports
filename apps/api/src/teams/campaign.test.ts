@@ -173,8 +173,12 @@ describe('decideTie', () => {
     const t = decideTie(PAL, s, ida, rules({}))!;
     expect(t).toMatchObject({ state: 'pending', playedLegs: 1, goalsFor: 3, goalsAgainst: 0 });
     expect(tieScore(t, 'pt-BR')).toBe('ida: 3–0');
-    const c = computeCampaign(input({ stages: [s], tieMatches: ida, rules: rules({}) }))!;
+    const c = computeCampaign(input({ stages: [s], tieMatches: ida, rules: rules({}), seasonOpen: true }))!;
     expect(c.status).toBe('in_progress');
+    // temporada encerrada sem a volta (W.O., cancelada): decide com o que há
+    expect(computeCampaign(input({ stages: [s], tieMatches: ida, rules: rules({}) }))!.status).toBe(
+      'champion',
+    );
     // a final em jogo único no regulamento decide com o jogo que há
     expect(decideTie(PAL, s, ida, rules({ legs: 1 }))!.state).toBe('won');
   });

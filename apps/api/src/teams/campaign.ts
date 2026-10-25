@@ -176,13 +176,15 @@ const playedExtraTime = (p: { home: number | null; away: number | null } | null 
 /**
  * Resultado de um confronto direto para o time: agregado (gols por participante, independente do
  * mando — cuidado: na volta os mandos se invertem), depois o regulamento (gol fora, vantagem do
- * empate), depois os pênaltis e, por fim, o vencedor informado pelo fornecedor.
+ * empate), depois os pênaltis e, por fim, o vencedor informado pelo fornecedor. Com a temporada em
+ * aberto (`seasonOpen`), o confronto de ida e volta só se decide com as duas partidas encerradas.
  */
 export function decideTie(
   teamId: string,
   stage: CampaignStage,
   matches: CampaignMatch[],
   rules: CompetitionRules | null,
+  seasonOpen = true,
 ): TieSummary | null {
   const legsList = matches.filter((m) => m.status !== 'cancelled');
   const first = legsList[0];
@@ -215,8 +217,10 @@ export function decideTie(
   };
   if (legsList.some((m) => isOpen(m.status)) || !last) return base;
   // ida e volta no regulamento com só a ida encerrada (volta ainda não carregada, ou abandonada): segue
-  // em disputa; decidir pelo saldo de um jogo faria campeão quem só venceu a ida
-  if (finished.length < requiredLegs) return base;
+  // em disputa enquanto a temporada estiver aberta; decidir pelo saldo de um jogo faria campeão quem só
+  // venceu a ida. Temporada encerrada (W.O., volta cancelada, fase sem regra própria caindo no `default` de
+  // ida e volta): decide com o que há, para não ficar em disputa para sempre
+  if (seasonOpen && finished.length < requiredLegs) return base;
 
   const won = (winnerId: string | null): TieSummary => ({
     ...base,
@@ -333,7 +337,7 @@ export function computeCampaign(input: CampaignInput): Campaign | null {
     if (key.startsWith(`${deepest.id}|`) && list.some((m) => m.homeId === teamId || m.awayId === teamId))
       tieMatches = list as CampaignMatch[];
   }
-  const tie = decideTie(teamId, deepest, tieMatches, input.rules);
+  const tie = decideTie(teamId, deepest, tieMatches, input.rules, input.seasonOpen);
   const at = (status: CampaignStatus, extra: Partial<Campaign> = {}): Campaign => ({
     status,
     stageKind: deepest.kind,
