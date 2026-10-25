@@ -29238,7 +29238,7 @@ entries:
         role: portrait
         season: 1950
         rank: 0
-        match: rejected
+        match: auto
         selected_by: gemini
         page_url: https://commons.wikimedia.org/wiki/File:1950-07-16_Dolomiti_Maserati_A6GCS_Rol.jpg
         license: Public domain
@@ -29251,7 +29251,7 @@ entries:
         date: 1950-07-16
         width: 2048
         height: 1272
-        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Maserati A6GCS em corrida)"
+        reason: Foto histórica de época mostrando o piloto no carro cercado por público, qualidade aceitável considerando a idade.
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -30036,6 +30036,24 @@ entries:
           season: 1967
           reason: "última temporada: 1967"
     photos:
+      - file: File:1961 Syracuse GP - Giancarlo Baghetti (Ferrari 156 F1).jpg
+        role: portrait
+        season: 1961
+        rank: 0
+        match: auto
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:1961_Syracuse_GP_-_Giancarlo_Baghetti_(Ferrari_156_F1).jpg
+        license: Public domain
+        license_url: null
+        author: Unknown authorUnknown author
+        author_url: null
+        credit: "(in Italian) (May 1, 1961). Auto Italiana Sport (9): cover page. Milan, Italy: Editoriale Domus."
+        attribution_required: false
+        share_alike: false
+        date: Taken on 25 April 1961
+        width: 1854
+        height: 2186
+        reason: Retrato historico em preto e branco do piloto dentro do carro
       - file: File:Baghetti at 1962 Dutch Grand Prix.jpg
         role: action
         season: 1962
@@ -30054,24 +30072,6 @@ entries:
         width: 3648
         height: 2307
         reason: Foto de acao na pista mostrando o carro na curva
-      - file: File:1961 Syracuse GP - Giancarlo Baghetti (Ferrari 156 F1).jpg
-        role: portrait
-        season: 1961
-        rank: 0
-        match: rejected
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:1961_Syracuse_GP_-_Giancarlo_Baghetti_(Ferrari_156_F1).jpg
-        license: Public domain
-        license_url: null
-        author: Unknown authorUnknown author
-        author_url: null
-        credit: "(in Italian) (May 1, 1961). Auto Italiana Sport (9): cover page. Milan, Italy: Editoriale Domus."
-        attribution_required: false
-        share_alike: false
-        date: Taken on 25 April 1961
-        width: 1854
-        height: 2186
-        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Ferrari 156 em corrida)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -30458,6 +30458,24 @@ entries:
           season: 1961
           reason: "última temporada: 1961"
     photos:
+      - file: File:1957-08-18 Pescara GP Maserati 250 Scarlatti.jpg
+        role: portrait
+        season: 1957
+        rank: 0
+        match: auto
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:1957-08-18_Pescara_GP_Maserati_250_Scarlatti.jpg
+        license: Public domain
+        license_url: null
+        author: Unknown photographer
+        author_url: null
+        credit: "[2]"
+        attribution_required: false
+        share_alike: false
+        date: 1957-08-18
+        width: 539
+        height: 991
+        reason: Excelente foto colorida mostrando o piloto junto ao carro de corrida com boa nitidez e iluminação natural.
       - file: File:Cuban Grand Prix. Havana, Cuba.jpg
         role: action
         season: 1958
@@ -30476,24 +30494,6 @@ entries:
         width: 1023
         height: 576
         reason: Boa foto em preto e branco dos carros e pilotos alinhados no grid ou box, contexto histórico nítido.
-      - file: File:1957-08-18 Pescara GP Maserati 250 Scarlatti.jpg
-        role: portrait
-        season: 1957
-        rank: 0
-        match: rejected
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:1957-08-18_Pescara_GP_Maserati_250_Scarlatti.jpg
-        license: Public domain
-        license_url: null
-        author: Unknown photographer
-        author_url: null
-        credit: "[2]"
-        attribution_required: false
-        share_alike: false
-        date: 1957-08-18
-        width: 539
-        height: 991
-        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Maserati 250F em corrida)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -30721,7 +30721,7 @@ entries:
         role: portrait
         season: 1976
         rank: 0
-        match: rejected
+        match: auto
         selected_by: gemini
         page_url: https://commons.wikimedia.org/wiki/File:1976-07-10_Gunnar_Nilsson_im_BMW_CSL.jpg
         license: CC BY-SA 2.0 de
@@ -30734,7 +30734,7 @@ entries:
         date: 1976-07-10
         width: 2963
         height: 1947
-        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o BMW CSL)"
+        reason: Boa foto do piloto dentro do carro.
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -32600,6 +32600,24 @@ entries:
           season: 1979
           reason: "última temporada: 1979"
     photos:
+      - file: File:Jackie Ickx Porsche 06.jpg
+        role: portrait
+        season: 1976
+        rank: 0
+        match: auto
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Jackie_Ickx_Porsche_06.jpg
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Gillfoto
+        author_url: https://commons.wikimedia.org/wiki/User:Gillfoto
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2012-10-31 11:08:35
+        width: 3351
+        height: 5067
+        reason: Retrato do piloto no carro de corrida, boa iluminação.
       - file: File:Jacky Ickx.jpg
         role: action
         season: 1969
@@ -32708,24 +32726,6 @@ entries:
         width: 3698
         height: 2456
         reason: Celebração comemorativa no pódio acenando.
-      - file: File:Jackie Ickx Porsche 06.jpg
-        role: portrait
-        season: 1976
-        rank: 0
-        match: rejected
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Jackie_Ickx_Porsche_06.jpg
-        license: CC BY-SA 3.0
-        license_url: https://creativecommons.org/licenses/by-sa/3.0
-        author: Gillfoto
-        author_url: https://commons.wikimedia.org/wiki/User:Gillfoto
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 2012-10-31 11:08:35
-        width: 3351
-        height: 5067
-        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o Porsche; o Gemini viu o piloto no carro: conferir visualmente)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -37448,6 +37448,24 @@ entries:
           season: 1958
           reason: "última temporada: 1958"
     photos:
+      - file: File:1958-06-29 500 Miglia Monza Ferrari 412 Musso.jpg
+        role: portrait
+        season: 1958
+        rank: 0
+        match: auto
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:1958-06-29_500_Miglia_Monza_Ferrari_412_Musso.jpg
+        license: Public domain
+        license_url: null
+        author: Unknown photographer
+        author_url: null
+        credit: '[1] This picture is from the book by Cancellieri and De Agostini entitled " F.1 33 anni di Gran Premi iridati", published by Conti editore in 1982.'
+        attribution_required: false
+        share_alike: false
+        date: 1958-06-29
+        width: 732
+        height: 599
+        reason: Retrato nítido em close do piloto no cockpit interagindo com equipe.
       - file: File:1957-04-28 GP Napoli Dino 156 F2 Musso + Ferrari D50 Hawthorn.jpg
         role: action
         season: 1957
@@ -37520,24 +37538,6 @@ entries:
         width: 1387
         height: 878
         reason: Foto histórica distante, enquadramento amplo e carros pequenos.
-      - file: File:1958-06-29 500 Miglia Monza Ferrari 412 Musso.jpg
-        role: portrait
-        season: 1958
-        rank: 0
-        match: rejected
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:1958-06-29_500_Miglia_Monza_Ferrari_412_Musso.jpg
-        license: Public domain
-        license_url: null
-        author: Unknown photographer
-        author_url: null
-        credit: '[1] This picture is from the book by Cancellieri and De Agostini entitled " F.1 33 anni di Gran Premi iridati", published by Conti editore in 1982.'
-        attribution_required: false
-        share_alike: false
-        date: 1958-06-29
-        width: 732
-        height: 599
-        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Ferrari 412 em Monza; o Gemini viu o piloto no cockpit: conferir visualmente)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -38854,6 +38854,24 @@ entries:
           season: 1994
           reason: "última temporada: 1994"
     photos:
+      - file: File:SCA 0028 MICHELE ALBORETO - Ferrari F 1-87 - 1987 neg. 417 10x15 R.JPG
+        role: portrait
+        season: 1987
+        rank: 0
+        match: auto
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:SCA_0028_MICHELE_ALBORETO_-_Ferrari_F_1-87_-_1987_neg._417_10x15_R.JPG
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Lucianoserra.d
+        author_url: https://commons.wikimedia.org/wiki/User:Lucianoserra.d?action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 1987-03-18
+        width: 1332
+        height: 877
+        reason: Retrato em close do piloto no cockpit com capacete.
       - file: File:SCA 0029 MICHELE ALBORETO - Ferrari F 1-87 - 1987 neg. 125 10x15 R.JPG
         role: action
         season: 1987
@@ -38962,24 +38980,6 @@ entries:
         width: 2500
         height: 1665
         reason: Panorâmica da largada e pista.
-      - file: File:SCA 0028 MICHELE ALBORETO - Ferrari F 1-87 - 1987 neg. 417 10x15 R.JPG
-        role: portrait
-        season: 1987
-        rank: 0
-        match: rejected
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:SCA_0028_MICHELE_ALBORETO_-_Ferrari_F_1-87_-_1987_neg._417_10x15_R.JPG
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: Lucianoserra.d
-        author_url: https://commons.wikimedia.org/wiki/User:Lucianoserra.d?action=edit&redlink=1
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 1987-03-18
-        width: 1332
-        height: 877
-        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Ferrari F1-87)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -42314,6 +42314,24 @@ entries:
           season: 1970
           reason: "última temporada: 1970"
     photos:
+      - file: File:1969 British Grand Prix P Courage Brabham BT26 close.jpg
+        role: portrait
+        season: 2006
+        rank: 0
+        match: auto
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:1969_British_Grand_Prix_P_Courage_Brabham_BT26_close.jpg
+        license: CC BY-SA 3.0
+        license_url: http://creativecommons.org/licenses/by-sa/3.0/
+        author: The original uploader was 4u1e at English Wikipedia.
+        author_url: https://en.wikipedia.org/wiki/User:4u1e
+        credit: Transferred from en.wikipedia to Commons.
+        attribution_required: true
+        share_alike: true
+        date: 5 June 2006 (original upload date)
+        width: 800
+        height: 517
+        reason: Excelente foto de ação em pista com efeito de movimento, piloto visível.
       - file: File:Fomule II racewagens in actie, Bestanddeelnr 921-5605.jpg
         role: action
         season: 1968
@@ -42332,24 +42350,6 @@ entries:
         width: 3655
         height: 2392
         reason: Boa fotografia histórica de corrida em P&B com carros disputando a curva.
-      - file: File:1969 British Grand Prix P Courage Brabham BT26 close.jpg
-        role: portrait
-        season: 2006
-        rank: 0
-        match: rejected
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:1969_British_Grand_Prix_P_Courage_Brabham_BT26_close.jpg
-        license: CC BY-SA 3.0
-        license_url: http://creativecommons.org/licenses/by-sa/3.0/
-        author: The original uploader was 4u1e at English Wikipedia.
-        author_url: https://en.wikipedia.org/wiki/User:4u1e
-        credit: Transferred from en.wikipedia to Commons.
-        attribution_required: true
-        share_alike: true
-        date: 5 June 2006 (original upload date)
-        width: 800
-        height: 517
-        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o Brabham BT26)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite

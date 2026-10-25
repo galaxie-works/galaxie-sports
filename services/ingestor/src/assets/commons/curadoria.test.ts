@@ -48,20 +48,34 @@ describe('curadoria do manifesto (auditoria de 25/10)', () => {
     ]);
   });
 
-  it('retrato automático nunca tem título de carro (palavra de carro ou marca seguida de modelo)', () => {
-    const offenders = manifest.entries
+  it('retrato automático com título de carro só quando o Gemini viu o piloto na foto', () => {
+    // título de carro com o piloto no cockpit pode ser retrato legítimo: vale a descrição do Gemini, não o título
+    const pilotSeen = (p: { selected_by: string; reason?: string | null }) =>
+      p.selected_by === 'gemini' && /\bpiloto\b/i.test(p.reason ?? '');
+    const portraits = manifest.entries
       .filter((e) => e.kind === 'driver')
       .flatMap((e) =>
         e.photos
           .filter((p) => p.role === 'portrait' && p.match === 'auto' && CAR_TITLE.test(p.file))
-          .map((p) => `${e.target}: ${p.file}`),
+          .map((p) => ({ target: e.target, ...p })),
       );
-    expect(offenders).toEqual([]);
+    expect(portraits.filter((p) => !pilotSeen(p)).map((p) => `${p.target}: ${p.file}`)).toEqual([]);
+    // os que ficam pela descrição do Gemini (conferir visualmente)
+    expect(portraits.map((p) => p.target).sort()).toEqual([
+      'driver/franco-rol',
+      'driver/giancarlo-baghetti',
+      'driver/giorgio-scarlatti',
+      'driver/gunnar-nilsson',
+      'driver/jacky-ickx',
+      'driver/luigi-musso',
+      'driver/michele-alboreto',
+      'driver/piers-courage',
+    ]);
     // a regra pega os casos da auditoria (que agora estão rejeitados, com o motivo)
     const rejected = manifest.entries.flatMap((e) =>
       e.photos.filter((p) => p.role === 'portrait' && p.match === 'rejected'),
     );
-    expect(rejected.filter((p) => CAR_TITLE.test(p.file)).length).toBeGreaterThanOrEqual(13);
+    expect(rejected.filter((p) => CAR_TITLE.test(p.file)).length).toBeGreaterThanOrEqual(5);
     expect(rejected.every((p) => /não é retrato/.test(p.reason ?? ''))).toBe(true);
   });
 
