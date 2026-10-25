@@ -470,7 +470,7 @@ export interface LineupCallOutcome {
   searchCalls: number;
   extractCalls: number;
   /** Pela página oficial: as páginas lidas. */
-  pages: Pick<PageRead, 'url' | 'status' | 'via' | 'fromCache' | 'hashChanged' | 'error'>[];
+  pages: Pick<PageRead, 'url' | 'status' | 'via' | 'fromCache' | 'hashChanged' | 'limited' | 'error'>[];
   /** Pela página oficial: a página não mudou desde a última extração (nenhuma chamada ao modelo). */
   pagesUnchanged: boolean;
   /** Por que a tarefa parou antes de extrair (sem site, nenhuma página lida, sem orçamento). */
@@ -870,7 +870,13 @@ export class LineupResearcher {
         : row.planPages.length
           ? row.planPages
           : candidatePages(row, known, LINEUP_MAX_PLAN_PAGES);
-      if (!urls.length) urls = await this.findPlanPages(task, row, out);
+      // a busca acha URLs que esta execução nem poderia ler: fica para a próxima, sem chamada paga
+      if (!urls.length && reader.exhausted)
+        return stop(
+          'limite de páginas desta execução atingido; a busca das URLs de planos fica para a próxima',
+        );
+      const searched = !urls.length;
+      if (searched) urls = await this.findPlanPages(task, row, out);
       if (!urls.length && row.website) urls = [row.website];
 
       // 2. leitura do nosso lado (cache por URL; estático → JSON embutido → navegador)
@@ -884,6 +890,7 @@ export class LineupResearcher {
           via: read.via,
           fromCache: read.fromCache,
           hashChanged: read.hashChanged,
+          ...(read.limited ? { limited: true } : {}),
           ...(read.error ? { error: read.error } : {}),
         });
         // sem navegador, a página que pede JavaScript ainda pode ter os planos e os preços no estático
@@ -896,16 +903,21 @@ export class LineupResearcher {
             fetchedAt: read.fetchedAt,
           });
       }
-      // guarda as URLs certas (as que existem no site oficial), lidas ou não (robots, bloqueio)
+      // guarda as URLs certas (as que existem no site oficial), lidas ou não (robots, bloqueio, ou não
+      // lidas só pelo limite de páginas desta execução: a busca paga não se repete por isso)
       const keep = out.pages
-        .filter((p) => p.status !== 'error' && p.status !== 'off_domain')
+        .filter((p) => (p.status !== 'error' || p.limited) && p.status !== 'off_domain')
         .map((p) => p.url);
       if (keep.length && keep.join('\n') !== row.planPages.join('\n'))
         await setPlatformPlanPages(db, row.id, keep);
-      if (!reads.length)
+      if (!reads.length) {
+        // a busca rodou e nada foi lido (erro, fora do domínio): espera a próxima revisita, senão a
+        // mesma busca paga volta todo dia
+        if (searched && !out.pages.some((p) => p.limited)) await touchPlatformLineup(db, row.id, this.now());
         return stop(
           `nenhuma página de planos lida (${out.pages.map((p) => `${p.status} ${p.url}`).join('; ') || 'nenhuma URL'})`,
         );
+      }
 
       // 3. página igual à da última extração: nada a extrair
       const hash = pagesHash(reads);

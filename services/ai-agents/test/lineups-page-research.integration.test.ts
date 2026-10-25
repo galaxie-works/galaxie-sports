@@ -5,6 +5,7 @@ import {
   llmUsage,
   platform,
   platformPlan,
+  setLineupReviewStatus,
   upsertLineupDraft,
   type Database,
 } from '@galaxie/db';
@@ -83,7 +84,7 @@ let page = rendered('99,90');
 const renderer: PageRenderer = { render: async () => page, close: async () => undefined };
 
 /** Leitor com fetch falso (HTML sem a grade: precisa do navegador) e cache em memória. */
-const reader = () =>
+const reader = (maxPages?: number) =>
   new OfficialPageReader({
     fetch: async (url) =>
       url.endsWith('/robots.txt')
@@ -95,6 +96,7 @@ const reader = () =>
     store: memoryPageStore(),
     sleep: async () => undefined,
     minIntervalMs: 0,
+    ...(maxPages !== undefined ? { maxPages } : {}),
   });
 
 const extraction = (price: number): LineupPageExtractOutput => ({
@@ -325,5 +327,88 @@ describe('lineups-research pela página oficial (LLM e site falsos)', () => {
     expect(lineup!.addons.map((a) => [a.refId, a.proposedChange])).toEqual([
       ['canal_exemplo_2', expect.objectContaining({ removed: true })],
     ]);
+  });
+
+  /** Plataforma só com plano rejeitado e sem página de planos guardada: a revisita busca as URLs. */
+  const withoutPages = async (name: string, site: string) => {
+    const r = await upsertLineupDraft(db, {
+      platform: { name, kind: 'pay_tv_operator', country: 'BR', website: site, sources: [`${site}/sobre`] },
+      plans: [{ name: 'Plano Errado', sources: [`${site}/plano-errado`] }],
+      seenAt: NOW,
+    });
+    await setLineupReviewStatus(db, { type: 'plan', id: r.planIds['plano-errado']! }, 'rejected', 'wagner');
+    return r.platformId;
+  };
+  const pagesSearch = (urls: string[]) =>
+    new FakeLlmClient((req: LlmJsonRequest) =>
+      req.purpose.startsWith('lineups:pages-url:')
+        ? {
+            data: { paginas: urls.map((url) => ({ url, tipo: 'lista_de_planos' })), notas: null },
+            groundedUrls: urls,
+          }
+        : new Error(`purpose inesperado: ${req.purpose}`),
+    );
+  const taskOf = async (slug: string, at: Date) =>
+    (await planLineupResearch(db, { countries: ['BR'], now: at, revisit: true })).find(
+      (t) => t.kind === 'plans' && t.slug === slug,
+    ) as Extract<Awaited<ReturnType<typeof planLineupResearch>>[number], { kind: 'plans' }> | undefined;
+
+  it('busca das URLs que não leu nada não volta no dia seguinte; sem páginas no limite, nem busca', async () => {
+    const SITE = 'https://rejeitada.exemplo';
+    const id = await withoutPages('Operadora Rejeitada Exemplo', SITE);
+    const day1 = new Date(NOW.getTime() + 40 * 86_400_000);
+    const task = await taskOf('br-operadora-rejeitada-exemplo', day1);
+    expect(task?.platformId).toBe(id);
+
+    // limite de páginas da execução já atingido: a busca paga nem roda
+    const idle = pagesSearch([`${SITE}/planos`]);
+    const skipped = await new LineupResearcher({
+      db,
+      llm: idle,
+      config,
+      now: () => day1,
+      pages: reader(0),
+    }).researchFromPages(task!);
+    expect([skipped.calls, idle.calls.length, skipped.note]).toEqual([
+      0,
+      0,
+      'limite de páginas desta execução atingido; a busca das URLs de planos fica para a próxima',
+    ]);
+
+    // a busca roda, a URL achada dá 404: nada lido, e a revisita espera os 30 dias
+    const llm = pagesSearch([`${SITE}/planos`]);
+    const out = await new LineupResearcher({
+      db,
+      llm,
+      config,
+      now: () => day1,
+      pages: reader(),
+    }).researchFromPages(task!);
+    expect([out.calls, out.pages.map((p) => p.status)]).toEqual([1, ['error']]);
+    const day2 = new Date(day1.getTime() + 86_400_000);
+    expect(await taskOf('br-operadora-rejeitada-exemplo', day2)).toBeUndefined();
+  });
+
+  it('URL achada pela busca e não lida só pelo limite de páginas fica guardada (a busca não se repete)', async () => {
+    const SITE = 'https://limite.exemplo';
+    const id = await withoutPages('Operadora Limite Exemplo', SITE);
+    const day1 = new Date(NOW.getTime() + 40 * 86_400_000);
+    const task = await taskOf('br-operadora-limite-exemplo', day1);
+    const llm = pagesSearch([`${SITE}/planos`, `${SITE}/precos`]);
+    const out = await new LineupResearcher({
+      db,
+      llm,
+      config,
+      now: () => day1,
+      pages: reader(1),
+    }).researchFromPages(task!);
+    expect(out.pages.map((p) => [p.url, p.status, p.limited ?? false])).toEqual([
+      [`${SITE}/planos`, 'error', false],
+      [`${SITE}/precos`, 'error', true],
+    ]);
+    const [row] = await db.select().from(platform).where(eq(platform.id, id));
+    expect(row!.planPages).toEqual([`${SITE}/precos`]);
+    // não renova o seen_at: a página guardada é lida na próxima execução, sem nova busca
+    expect(await taskOf('br-operadora-limite-exemplo', new Date(day1.getTime() + 86_400_000))).toBeDefined();
   });
 });
