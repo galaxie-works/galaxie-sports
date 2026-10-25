@@ -130,7 +130,13 @@ export function mentionsTeam(text: string, team: TeamNames): boolean {
 
 /** Nomes pelos quais a emissora (ou o canal) pode aparecer num texto. */
 export function broadcasterNames(entry: BroadcasterEntry, channel?: string | null): string[] {
-  const names = [entry.name, ...entry.aliases, ...entry.channels, ...(channel ? [channel] : [])];
+  const names = [
+    entry.name,
+    ...entry.aliases,
+    // cada canal com as grafias dele ("SporTV2" também cita a emissora)
+    ...entry.channels.flatMap((c) => channelNames(entry, c)),
+    ...(channel ? [channel] : []),
+  ];
   return [...new Set(names.filter((n) => normalizeName(n).length >= 2))];
 }
 
@@ -148,9 +154,30 @@ export function channelNames(entry: BroadcasterEntry, channel: string): string[]
     ...entry.datedAliases
       .filter((a) => a.channel && normalizeName(a.channel) === normalizeName(channel))
       .map((a) => a.name),
-    ...(suffix.length ? [entry.name, ...entry.aliases].map((n) => `${n} ${suffix.join(' ')}`) : []),
+    // grafias da emissora com o sufixo, separado e junto ("SporTV 2", "SportTV 2", "SporTV2"); o apelido
+    // que já traz o sufixo ("SportTV 2") entra como está
+    ...(suffix.length
+      ? [entry.name, ...entry.aliases].flatMap((n) => {
+          const w = words(n);
+          if (w.length > suffix.length && suffix.every((x, i) => w[w.length - suffix.length + i] === x))
+            return [n];
+          // um apelido de OUTRO canal ("SportTV 3") não vira grafia deste
+          if (entry.channels.some((c) => normalizeName(c) !== normalizeName(channel) && sameStem(n, c, base)))
+            return [];
+          return [`${n} ${suffix.join(' ')}`, `${n}${suffix.join('')}`];
+        })
+      : []),
   ];
   return [...new Set(names.filter((n) => normalizeName(n).length >= 2))];
+}
+
+/** O nome é o de outro canal numerado da emissora com outra grafia ("SportTV 3" para "SporTV 3")? */
+function sameStem(name: string, otherChannel: string, base: string[]): boolean {
+  const w = words(name);
+  const other = words(otherChannel).slice(base.length);
+  return (
+    other.length > 0 && w.length > other.length && other.every((x, i) => w[w.length - other.length + i] === x)
+  );
 }
 
 /**
