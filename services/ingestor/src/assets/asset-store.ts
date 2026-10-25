@@ -13,6 +13,7 @@ import {
   jobRun,
   participant,
   person,
+  publishChange,
   type AssetPalette,
   type Database,
 } from '@galaxie/db';
@@ -310,6 +311,35 @@ const UNLINKED = {
   palette: null,
 } as const;
 
+/** O banco ou uma transação aberta. */
+type Executor = Pick<Database, 'selectDistinct' | 'execute'>;
+
+/** Times (core.participant) que usam algum destes assets como logo, do fornecedor ou do acervo. */
+async function teamsUsing(db: Executor, assetIds: string[]): Promise<string[]> {
+  if (!assetIds.length) return [];
+  const rows = await db
+    .selectDistinct({ id: participant.id })
+    .from(participant)
+    .where(or(inArray(participant.logoAssetId, assetIds), inArray(participant.customLogoAssetId, assetIds)));
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Publica no change feed que o logo ou as cores (`colors`, da paleta do escudo) destes times mudaram: o
+ * consumidor da API purga `participant:<id>`. Não há trigger em core.asset, então quem grava ou limpa a paleta
+ * (ou desliga o logo) chama isto na mesma transação; o NOTIFY só sai no commit.
+ */
+async function publishTeamLogoChanges(db: Executor, participantIds: Iterable<string>): Promise<void> {
+  for (const id of new Set(participantIds)) {
+    await publishChange(db, {
+      topic: 'catalog',
+      entityType: 'participant',
+      entityId: id,
+      payload: { reason: 'logo' },
+    });
+  }
+}
+
 export class PgAssetStore implements AssetStore {
   constructor(private readonly db: Database) {}
 
@@ -330,7 +360,14 @@ export class PgAssetStore implements AssetStore {
   }
 
   async markStored(id: string, info: StoredInfo): Promise<void> {
-    await this.db.update(asset).set(info).where(eq(asset.id, id));
+    if (info.palette === undefined) {
+      await this.db.update(asset).set(info).where(eq(asset.id, id));
+      return;
+    }
+    await this.db.transaction(async (tx) => {
+      await tx.update(asset).set(info).where(eq(asset.id, id));
+      await publishTeamLogoChanges(tx, await teamsUsing(tx, [id]));
+    });
   }
 
   private async pendingPersonPhotos(query: PendingQuery, since: Date): Promise<MirrorAsset[]> {
@@ -357,6 +394,11 @@ export class PgAssetStore implements AssetStore {
 
   async markMissing(id: string, at: Date, options: MissingOptions = {}): Promise<void> {
     await this.db.transaction(async (tx) => {
+      // os times perdem o logo ou as cores (a paleta é zerada): antes de desligar, para ainda achá-los
+      const [old] = options.detachLogos
+        ? [undefined]
+        : await tx.select({ palette: asset.palette }).from(asset).where(eq(asset.id, id));
+      if (options.detachLogos || old?.palette) await publishTeamLogoChanges(tx, await teamsUsing(tx, [id]));
       await tx
         .update(asset)
         .set({ ...UNLINKED, fetchedAt: at })
@@ -465,6 +507,10 @@ export class PgAssetStore implements AssetStore {
         .set({ logoAssetId: null, updatedAt: sql`now()` })
         .where(inArray(competition.logoAssetId, missingLogo(false)))
         .returning({ id: competition.id });
+      await publishTeamLogoChanges(
+        tx,
+        parts.map((p) => p.id),
+      );
       return { placeholders: stored.length, participants: parts.length, competitions: comps.length };
     });
   }
@@ -483,10 +529,13 @@ export class PgAssetStore implements AssetStore {
   async unlink(urls: string[], at: Date): Promise<number> {
     const ids = await this.idsByMediaUrl(urls, isNotNull(asset.storageKey));
     if (!ids.length) return 0;
-    await this.db
-      .update(asset)
-      .set({ ...UNLINKED, fetchedAt: at })
-      .where(inArray(asset.id, ids));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(asset)
+        .set({ ...UNLINKED, fetchedAt: at })
+        .where(inArray(asset.id, ids));
+      await publishTeamLogoChanges(tx, await teamsUsing(tx, ids));
+    });
     return ids.length;
   }
 
@@ -536,7 +585,10 @@ export class PgAssetStore implements AssetStore {
   }
 
   async savePalette(id: string, palette: AssetPalette): Promise<void> {
-    await this.db.update(asset).set({ palette }).where(eq(asset.id, id));
+    await this.db.transaction(async (tx) => {
+      await tx.update(asset).set({ palette }).where(eq(asset.id, id));
+      await publishTeamLogoChanges(tx, await teamsUsing(tx, [id]));
+    });
   }
 
   /**

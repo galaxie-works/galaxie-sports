@@ -1,10 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MediaDenylist, publicAssetUrl } from '@galaxie/apisports-client';
 import {
   apiResponse,
   asset,
+  changeFeed,
   competition,
   event,
   eventIncident,
@@ -442,6 +443,7 @@ describe('logos genéricos ("image not available")', () => {
 /** Só roda com o RustFS/S3 local configurado (S3_ENDPOINT...); usa um prefixo descartável e apaga ao final. */
 describe('auditoria do espelho (change feed, prévias, filtros)', () => {
   const DAY = 86_400_000;
+  const PALETTE = { version: 1, dominant: '#006937', secondary: null, monochrome: false } as const;
   const handball = (path: string) => `https://media.api-sports.io/handball/${path}.png`;
   const stored = (url: string) => ({
     storageKey: `api-sports${new URL(url).pathname}`,
@@ -460,12 +462,48 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
         .values({ sport: 'football', kind: 'club', name, ...logo })
         .returning()
     )[0]!.id;
+  const feedFor = async (ids: string[]) =>
+    db
+      .select({ topic: changeFeed.topic, entityType: changeFeed.entityType, entityId: changeFeed.entityId })
+      .from(changeFeed)
+      .where(inArray(changeFeed.entityId, ids))
+      .orderBy(asc(changeFeed.id));
+  const byEntity = (a: { entityId: string }, b: { entityId: string }) => a.entityId.localeCompare(b.entityId);
 
   beforeAll(async () => {
     await db
       .insert(sport)
       .values({ slug: 'football', name: { 'pt-BR': 'Futebol' } })
       .onConflictDoNothing();
+  });
+
+  it('gravar ou limpar a paleta publica participant:<id> para os times que usam o escudo', async () => {
+    const store = new PgAssetStore(db);
+    const crest = await newAsset(handball('teams/1'));
+    const other = await newAsset(handball('teams/2'));
+    const lonely = await newAsset(handball('teams/3'));
+    const provider = await team('Handebol A', { logoAssetId: crest });
+    const custom = await team('Handebol B', { customLogoAssetId: crest });
+    const third = await team('Handebol C', { logoAssetId: other });
+    const ids = [provider, custom, third];
+    const change = (entityId: string) => ({ topic: 'catalog', entityType: 'participant', entityId });
+    const both = [change(provider), change(custom)].sort(byEntity);
+
+    await store.markStored(crest, stored(handball('teams/1')));
+    await store.markStored(lonely, { ...stored(handball('teams/3')), palette: PALETTE });
+    expect(await feedFor(ids)).toEqual([]); // sem paleta, ou escudo sem time: nada a purgar
+
+    await store.savePalette(crest, PALETTE);
+    expect((await feedFor(ids)).sort(byEntity)).toEqual(both);
+
+    // o espelho grava a paleta no mesmo update do download
+    await store.markStored(other, { ...stored(handball('teams/2')), palette: PALETTE });
+    expect((await feedFor(ids)).slice(2)).toEqual([change(third)]);
+    // asset desvinculado (denylist) ou ausente perde a paleta: os times também
+    await store.unlink([handball('teams/1')], new Date());
+    expect((await feedFor(ids)).slice(3).sort(byEntity)).toEqual(both);
+    await store.markMissing(other, new Date());
+    expect((await feedFor(ids)).slice(5)).toEqual([change(third)]);
   });
 
   it('--plan conta no Postgres os times de logos espelhados que entraram na lista de bloqueio', async () => {
