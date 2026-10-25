@@ -6,6 +6,7 @@ import { WTW_COUNTRIES } from '@galaxie/where-to-watch';
 import {
   AI_DEFAULT_MODELS,
   AI_PROVIDERS,
+  parseAgentStatus as parseAgentStatusPanel,
   parseAgentUsdBudgets as parseAgentUsdBudgetsPanel,
   settingDef,
   validateSettingKey,
@@ -19,6 +20,7 @@ import {
   DEFAULT_MAX_SEARCHES_PER_CALL,
   DEFAULT_MODELS,
   LLM_PROVIDERS,
+  parseAgentStatus,
   parseAgentUsdBudgets,
 } from './llm/config.js';
 import { DEFAULT_MARKET_WEIGHTS, parseMarketWeights } from './related/budget.js';
@@ -79,9 +81,25 @@ describe('tetos por agente: o painel e os agentes leem o mesmo formato', () => {
       'wtw',
       'a=-1',
       'a=1,,b=2',
+      'lineups=2,wtw=UNLIMITED',
+      'lineups=0',
+      'lineups=0.0,wtw=1',
     ])
       expect(parseAgentUsdBudgetsPanel(raw)).toEqual(parseAgentUsdBudgets(raw));
     expect(validateSettingKey('AI_AGENT_USD_BUDGETS', DEFAULT_AGENT_USD_BUDGETS)).toMatchObject({ ok: true });
     expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups:2')).toMatchObject({ ok: false });
+    expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups=2,wtw=unlimited')).toMatchObject({ ok: true });
+    expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups=0,wtw=1')).toMatchObject({
+      ok: false,
+      error: { code: 'zero' },
+    });
+  });
+
+  it('estado por agente: os dois parsers concordam; AI_STATUS on por padrão', () => {
+    for (const raw of ['lineups=on,wtw=off', 'Channels@v1=OFF', '', 'wtw=0', 'wtw'])
+      expect(parseAgentStatusPanel(raw)).toEqual(parseAgentStatus(raw));
+    expect(dflt('AI_STATUS')).toBe('on');
+    expect(validateSettingKey('AI_AGENT_STATUS', 'lineups=on, wtw=off')).toMatchObject({ ok: true });
+    expect(validateSettingKey('AI_AGENT_STATUS', 'wtw=0')).toMatchObject({ ok: false });
   });
 });

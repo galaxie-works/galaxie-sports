@@ -6,7 +6,7 @@ import {
   TokenBudget,
   type BudgetPolicy,
 } from './budget.js';
-import { llmSettingsFromEnv, type LlmSettings } from './config.js';
+import { llmSettingsFromEnv, type AiStatus, type LlmSettings } from './config.js';
 import { AnthropicLlmClient } from './providers/anthropic.js';
 import { GeminiLlmClient } from './providers/gemini.js';
 import { OpenAiLlmClient } from './providers/openai.js';
@@ -21,15 +21,21 @@ export interface CreateLlmClientOptions {
   now?: () => Date;
 }
 
-/** Política do orçamento lida do ambiente: tokens, US$ (global e por agente) e buscas por chamada. */
+/**
+ * Política do orçamento lida do ambiente: estado (global e por agente), tokens, US$ (global e por
+ * agente) e buscas por chamada.
+ */
 export function budgetPolicyFromSettings(
   settings: Pick<
     LlmSettings,
     'dailyTokenBudget' | 'dailyUsdBudget' | 'agentUsdBudgets' | 'maxSearchesPerCall'
-  >,
+  > &
+    Partial<Pick<LlmSettings, 'status' | 'agentStatus'>>,
   agentLimits?: BudgetPolicy['agentLimits'],
 ): BudgetPolicy {
   return {
+    status: settings.status ?? 'on',
+    agentStatus: settings.agentStatus ?? {},
     dailyLimit: settings.dailyTokenBudget,
     ...(agentLimits ? { agentLimits } : {}),
     dailyUsdLimit: settings.dailyUsdBudget,
@@ -91,8 +97,12 @@ export interface WithTokenBudgetOptions {
   agentLimits?: BudgetPolicy['agentLimits'];
   /** Teto global em US$ (padrão: AI_DAILY_USD_BUDGET do ambiente; null = sem teto). */
   dailyUsdLimit?: number | null;
-  /** Tetos em US$ por agente (padrão: AI_AGENT_USD_BUDGETS do ambiente). */
-  agentUsdLimits?: Record<string, number>;
+  /** Tetos em US$ por agente (padrão: AI_AGENT_USD_BUDGETS do ambiente); null = sem teto próprio. */
+  agentUsdLimits?: Record<string, number | null>;
+  /** Estado global (padrão: AI_STATUS do ambiente). */
+  status?: AiStatus;
+  /** Estado por agente (padrão: AI_AGENT_STATUS do ambiente). */
+  agentStatus?: Record<string, AiStatus>;
   /** Buscas por chamada (padrão: AI_MAX_SEARCHES_PER_CALL do ambiente; null = sem teto). */
   maxSearchesPerCall?: number | null;
   env?: Record<string, string | undefined>;
@@ -111,6 +121,8 @@ export function withTokenBudget(client: LlmClient, options: WithTokenBudgetOptio
     options.db ? new PgTokenBudgetStore(options.db) : new MemoryTokenBudgetStore(),
     budgetPolicyFromSettings(
       {
+        status: options.status ?? fromEnv.status,
+        agentStatus: options.agentStatus ?? fromEnv.agentStatus,
         dailyTokenBudget: options.dailyLimit !== undefined ? options.dailyLimit : fromEnv.dailyTokenBudget,
         dailyUsdBudget: options.dailyUsdLimit !== undefined ? options.dailyUsdLimit : fromEnv.dailyUsdBudget,
         agentUsdBudgets: options.agentUsdLimits ?? fromEnv.agentUsdBudgets,

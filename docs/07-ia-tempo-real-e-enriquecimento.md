@@ -381,6 +381,12 @@ pnpm --filter @galaxie/ai-agents recap:run [--plan] [--evento <id>] [--horas 36]
 
 Sem cliente LLM configurado (`src/llm`, por `AI_PROVIDER`), as CLIs avisam e seguem só com o texto determinístico. Com cliente, todas (cenário, resumo, curador, onde assistir) o montam por `createLlmClientFromEnv(env, { db })`, com o orçamento diário no ledger compartilhado `ops.llm_usage`.
 
+**Estado e tetos (literais, sem número mágico):**
+
+- `AI_STATUS=on|off` (padrão `on`) liga ou desliga a IA de todos os agentes; `AI_AGENT_STATUS=lineups=on,wtw=off` faz o mesmo por agente (fora da lista, segue o global). Desligada, nenhuma chamada sai para o provedor: o orçamento recusa antes (`AiDisabledError`, tratado como orçamento esgotado) e o log diz o motivo uma vez por dia.
+- Tetos: `AI_DAILY_USD_BUDGET` e `AI_DAILY_TOKEN_BUDGET` são um número (limitado a ele) ou `unlimited` (sem limite); `AI_AGENT_USD_BUDGETS` aceita `agente=US$` ou `agente=unlimited`. **0 é inválido** em todos: o serviço e o painel recusam com "use AI_STATUS=off para desligar".
+- O estado aparece em texto literal no painel (Gasto de IA hoje), nos avisos de recusa e na CLI `pnpm --filter @galaxie/ai-agents ai:status`: `ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia`, `ligado · sem limite` ou `desligado`.
+
 ### 2.4 Agente Curador Semântico
 
 - Roda semanalmente e sob demanda (time novo promovido, mudança de nome de estádio).
@@ -411,7 +417,7 @@ Vídeos diretos por evento (YouTube Data API v3), classificados por tipo e forma
 | Fonte não confiável | Lista de domínios priorizados por país; confiança mínima 0,8 |
 | Conteúdo ofensivo | Prompt com regras de linguagem segura + filtro de termos proibidos por locale |
 | Direitos autorais | Evidência limitada a trechos curtos (≤ 200 caracteres); nunca reproduzir matérias |
-| Custo descontrolado | Orçamento diário de tokens (`AI_DAILY_TOKEN_BUDGET`) e em US$ (`AI_DAILY_USD_BUDGET`, tokens + buscas na web; `AI_AGENT_USD_BUDGETS` por agente, que fica sem IA até a virada do dia UTC ao bater o teto) com ledger em `ops.llm_usage`; teto de buscas por chamada (`AI_MAX_SEARCHES_PER_CALL`: OpenAI e Anthropic aplicam na API, o Gemini recebe no prompt e o painel conta as chamadas acima do teto); cache por `(evento, país, janela)` (`enrich.wtw_run`); revalidação T-3h/T-30min sem tokens; modelos menores onde possível |
+| Custo descontrolado | IA ligada/desligada por `AI_STATUS` e `AI_AGENT_STATUS`; orçamento diário de tokens (`AI_DAILY_TOKEN_BUDGET`) e em US$ (`AI_DAILY_USD_BUDGET`, tokens + buscas na web; `AI_AGENT_USD_BUDGETS` por agente, que fica sem IA até a virada do dia UTC ao bater o teto), cada um número ou `unlimited` (0 inválido), com ledger em `ops.llm_usage`; teto de buscas por chamada (`AI_MAX_SEARCHES_PER_CALL`: OpenAI e Anthropic aplicam na API, o Gemini recebe no prompt e o painel conta as chamadas acima do teto); cache por `(evento, país, janela)` (`enrich.wtw_run`); revalidação T-3h/T-30min sem tokens; modelos menores onde possível |
 | Prompt injection via páginas web | Conteúdo web tratado como dado (regras no prompt de sistema, `wrapUntrusted` para texto externo); saída presa a JSON Schema; toda URL citada é rebuscada e conferida pelo validador; o LLM não publica nada sozinho |
 
 ### 3.1 Camada de LLM (`services/ai-agents/src/llm`)

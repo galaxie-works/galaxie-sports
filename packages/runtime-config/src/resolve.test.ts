@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { nextCronRuns } from './cron.js';
-import { parseAgentUsdBudgets, SCHEDULED_JOBS, SETTINGS, scheduleKey, settingDef } from './registry.js';
+import {
+  parseAgentStatus,
+  parseAgentUsdBudgets,
+  SCHEDULED_JOBS,
+  SETTINGS,
+  scheduleKey,
+  settingDef,
+} from './registry.js';
 import {
   applyOverrides,
   envReport,
@@ -144,8 +151,10 @@ describe('validação por tipo', () => {
     });
   });
 
-  it('"unlimited" (ou 0) só onde o serviço entende sem limite', () => {
-    expect(validateSettingKey('AI_DAILY_TOKEN_BUDGET', '0')).toEqual({ ok: true, value: 'unlimited' });
+  it('"unlimited" só onde o serviço entende sem limite; nos tetos de IA, 0 é inválido', () => {
+    // 0 não liga, não desliga e não tira o teto: para desligar, AI_STATUS=off
+    expect(validateSettingKey('AI_DAILY_TOKEN_BUDGET', '0')).toEqual({ ok: false, error: { code: 'zero' } });
+    expect(validateSettingKey('AI_MAX_SEARCHES_PER_CALL', '0')).toEqual({ ok: true, value: 'unlimited' });
     expect(validateSettingKey('AI_DAILY_TOKEN_BUDGET', 'Unlimited')).toEqual({
       ok: true,
       value: 'unlimited',
@@ -162,9 +171,8 @@ describe('validação por tipo', () => {
 
   it('orçamento de IA em US$, por agente e buscas por chamada', () => {
     expect(validateSettingKey('AI_DAILY_USD_BUDGET', '7,5')).toEqual({ ok: true, value: '7.5' });
-    // 0 desliga a IA (como `agente=0`), não tira o teto; sem teto só com "unlimited"
-    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0')).toEqual({ ok: true, value: '0' });
-    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0,0')).toEqual({ ok: true, value: '0' });
+    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0')).toEqual({ ok: false, error: { code: 'zero' } });
+    expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0,0')).toEqual({ ok: false, error: { code: 'zero' } });
     expect(validateSettingKey('AI_DAILY_USD_BUDGET', 'unlimited')).toEqual({ ok: true, value: 'unlimited' });
     expect(validateSettingKey('AI_DAILY_USD_BUDGET', '0.1')).toMatchObject({
       ok: false,
@@ -174,6 +182,20 @@ describe('validação por tipo', () => {
       ok: true,
     });
     expect(validateSettingKey('AI_AGENT_USD_BUDGETS', '')).toEqual({ ok: true, value: '' });
+    expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups=2,wtw=unlimited')).toMatchObject({ ok: true });
+    expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups=0.5,wtw=0')).toEqual({
+      ok: false,
+      error: { code: 'zero' },
+    });
+    expect(validateSettingKey('AI_STATUS', 'OFF')).toEqual({ ok: true, value: 'off' });
+    expect(validateSettingKey('AI_STATUS', '0')).toMatchObject({ ok: false, error: { code: 'enum' } });
+    expect(validateSettingKey('AI_AGENT_STATUS', 'lineups=on,wtw=off')).toMatchObject({ ok: true });
+    expect(validateSettingKey('AI_AGENT_STATUS', 'wtw=0')).toMatchObject({
+      ok: false,
+      error: { code: 'format' },
+    });
+    expect(parseAgentUsdBudgets('lineups=2,wtw=unlimited')).toEqual({ lineups: 2, wtw: null });
+    expect(parseAgentStatus('Lineups=ON,wtw=off')).toEqual({ lineups: 'on', wtw: 'off' });
     expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups:2')).toMatchObject({
       ok: false,
       error: { code: 'format' },

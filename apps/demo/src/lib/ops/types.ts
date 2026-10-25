@@ -78,12 +78,18 @@ export interface LlmAgentSpend {
 export interface LlmSpend {
   totals: Omit<LlmAgentSpend, 'agent'>;
   byAgent: LlmAgentSpend[];
+  /** AI_STATUS efetivo: off = nenhuma chamada ao LLM. */
+  status: 'on' | 'off';
+  /** AI_AGENT_STATUS: estado de cada agente listado (os outros seguem o global). */
+  agentStatus: Record<string, 'on' | 'off'>;
+  /** Flags de estado/teto com valor efetivo inválido (`CHAVE=valor`), ex.: 0 vindo do env. */
+  invalid: string[];
   /** Orçamento efetivo (tokens/dia); null = sem limite. */
   budget: number | null;
   /** Orçamento efetivo em US$/dia (tokens + buscas); null = sem limite. */
   usdBudget: number | null;
-  /** Teto em US$/dia de cada agente (AI_AGENT_USD_BUDGETS). */
-  agentUsdBudgets: Record<string, number>;
+  /** Teto em US$/dia de cada agente (AI_AGENT_USD_BUDGETS); null = sem teto próprio. */
+  agentUsdBudgets: Record<string, number | null>;
   /** Buscas na web por chamada; null = sem teto. */
   maxSearchesPerCall: number | null;
 }

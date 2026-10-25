@@ -41,7 +41,8 @@
     "lineups:curate": "node --env-file-if-exists=../../.env dist/cli/lineups-curate.js",
     "wtw:rights:compare": "node --env-file-if-exists=../../.env dist/cli/wtw-rights-compare.js",
     "review:suggestions": "node --env-file-if-exists=../../.env dist/cli/review-suggestions.js",
-    "channels:match": "node --env-file-if-exists=../../.env dist/cli/channel-lists.js"
+    "channels:match": "node --env-file-if-exists=../../.env dist/cli/channel-lists.js",
+    "ai:status": "node --env-file-if-exists=../../.env dist/cli/ai-status.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.136.0",

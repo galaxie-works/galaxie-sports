@@ -2,6 +2,7 @@
 import { createDb, type Database } from '@galaxie/db';
 import type { AgentRunReport } from '../context/run.js';
 import { isAgentLocale, type AgentLocale } from '../guardrails/index.js';
+import { aiStatusFromEnv } from '../llm/config.js';
 import { createLlmClientFromEnv } from '../llm/factory.js';
 import type { LlmClient } from '../llm/types.js';
 
@@ -22,6 +23,8 @@ export function loadLlmClient(
   env: Record<string, string | undefined> = process.env,
 ): { client: LlmClient | null; reason?: string } {
   try {
+    // desligada, o motivo é esse (e não, por exemplo, a falta da chave do provedor)
+    if (aiStatusFromEnv(env) === 'off') return { client: null, reason: 'IA desligada (AI_STATUS=off)' };
     return { client: createLlmClientFromEnv(env, { db }) };
   } catch (err) {
     return { client: null, reason: err instanceof Error ? err.message : String(err) };

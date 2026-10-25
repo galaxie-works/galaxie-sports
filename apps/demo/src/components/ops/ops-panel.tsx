@@ -28,7 +28,7 @@ import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
-import { displayValue, formatDuration, settingText } from './format';
+import { aiStateText, displayValue, formatDuration, settingText } from './format';
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
@@ -425,7 +425,17 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
   const { t, locale } = useI18n();
   const T = t.ops;
   const f = useFormatters(timeZone);
-  const { totals, byAgent, budget, usdBudget, agentUsdBudgets, maxSearchesPerCall } = snapshot.llm;
+  const {
+    totals,
+    byAgent,
+    budget,
+    usdBudget,
+    agentUsdBudgets,
+    maxSearchesPerCall,
+    status,
+    agentStatus,
+    invalid,
+  } = snapshot.llm;
   const tokens = totals.inputTokens + totals.outputTokens;
   const usd = (v: number) =>
     new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(v);
@@ -436,6 +446,16 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
       description={fill(T.status.quotaDay, { day: snapshot.dayUtc })}
     >
       <div className="flex flex-col gap-1.5">
+        <span className={status === 'off' ? 'text-destructive text-sm font-medium' : 'text-sm font-medium'}>
+          {fill(T.status.aiState, {
+            state: aiStateText(T, locale, { status, usdPerDay: usdBudget, tokensPerDay: budget }),
+          })}
+        </span>
+        {invalid.length ? (
+          <span className="text-destructive text-xs">
+            {fill(T.status.aiInvalid, { keys: invalid.join(', ') })}
+          </span>
+        ) : null}
         <div className="flex items-center justify-between gap-2 text-sm">
           <span className="font-medium tabular-nums">
             {usdBudget !== null
@@ -449,9 +469,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
             })}
           </span>
         </div>
-        {usdBudget !== null ? (
-          <Progress value={usdBudget > 0 ? Math.min(100, (totals.costUsd / usdBudget) * 100) : 100} />
-        ) : null}
+        {usdBudget !== null ? <Progress value={Math.min(100, (totals.costUsd / usdBudget) * 100)} /> : null}
         <span className="text-muted-foreground text-xs tabular-nums">
           {budget
             ? fill(T.status.llmTokens, { used: f.number(tokens), budget: f.number(budget) })
@@ -480,12 +498,17 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
           </TableHeader>
           <TableBody>
             {byAgent.map((a) => {
-              const cap = agentUsdBudgets[a.agent];
+              const cap = agentUsdBudgets[a.agent] ?? null;
+              const off = status === 'off' || agentStatus[a.agent] === 'off';
               return (
                 <TableRow key={a.agent}>
                   <TableCell className="font-mono text-xs">
                     {a.agent}
-                    {cap !== undefined && a.costUsd >= cap ? (
+                    {off ? (
+                      <Badge variant="secondary" className="ml-1.5">
+                        {T.status.aiOff}
+                      </Badge>
+                    ) : cap !== null && a.costUsd >= cap ? (
                       <Badge variant="destructive-light" className="ml-1.5">
                         {T.status.llmAgentCapped}
                       </Badge>
@@ -500,7 +523,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {usd(a.costUsd)}
-                    {cap !== undefined ? <span className="text-muted-foreground"> / {usd(cap)}</span> : null}
+                    {cap !== null ? <span className="text-muted-foreground"> / {usd(cap)}</span> : null}
                   </TableCell>
                 </TableRow>
               );

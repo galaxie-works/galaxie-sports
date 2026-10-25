@@ -18,7 +18,8 @@ export type ValidationErrorCode =
   | 'range'
   | 'cron'
   | 'markets'
-  | 'format';
+  | 'format'
+  | 'zero';
 
 export interface ValidationError {
   code: ValidationErrorCode;
@@ -47,8 +48,8 @@ function range(def: SettingDef, n: number, value: string): Validation {
 
 /**
  * Valida e normaliza o valor de uma flag (o que vai para o banco). Segredos nunca são aceitos.
- * Vazio só vale para flags com `allowEmpty`; "unlimited" (ou 0) só para as com `unlimited` (com
- * `zeroIsOff`, 0 fica 0: desliga, não é "sem limite").
+ * Vazio só vale para flags com `allowEmpty`; "unlimited" (ou 0) só para as com `unlimited`. Com
+ * `zeroInvalid`, 0 é recusado (código `zero`): não desliga nem tira o teto (use AI_STATUS=off ou "unlimited").
  */
 export function validateSetting(def: SettingDef, raw: string): Validation {
   if (isSecret(def)) return fail({ code: 'readonly' });
@@ -70,12 +71,12 @@ export function validateSetting(def: SettingDef, raw: string): Validation {
     case 'int':
     case 'number': {
       const lower = value.toLowerCase();
-      if (def.unlimited && (lower === 'unlimited' || (lower === '0' && !def.zeroIsOff)))
+      if (def.unlimited && (lower === 'unlimited' || (lower === '0' && !def.zeroInvalid)))
         return ok('unlimited');
       const pattern = def.type === 'int' ? /^-?\d+$/ : /^-?\d+(\.\d+)?$/;
       const normalized = value.replace(',', '.');
       if (!pattern.test(normalized)) return fail({ code: def.type === 'int' ? 'integer' : 'number' });
-      if (def.zeroIsOff && Number(normalized) === 0) return ok('0');
+      if (def.zeroInvalid && Number(normalized) === 0) return fail({ code: 'zero' });
       return range(def, Number(normalized), String(Number(normalized)));
     }
     case 'markets': {
@@ -93,6 +94,8 @@ export function validateSetting(def: SettingDef, raw: string): Validation {
       return ok((def.options ?? []).filter((c) => list.includes(c)).join(','));
     }
     case 'text':
+      if (def.zeroInvalid && /(^|[,;\s])[^=,;\s]+=0+(\.0+)?(?=$|[,;\s])/.test(value))
+        return fail({ code: 'zero' });
       return def.pattern && !def.pattern.test(value) ? fail({ code: 'format' }) : ok(value);
     default:
       return fail({ code: 'readonly' });

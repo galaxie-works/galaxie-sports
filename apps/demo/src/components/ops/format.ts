@@ -27,7 +27,7 @@ export function settingText(t: T, def: SettingDef): { label: string; description
 
 /** Rótulo de um valor de enum (destaque e prioridade do ao vivo e planos têm nome próprio). */
 export function optionLabel(t: T, def: SettingDef, option: string): string {
-  if (def.key === 'LIVE_FEATURED' || def.key === 'ASSETS_CUSTOM_LOGOS')
+  if (def.key === 'LIVE_FEATURED' || def.key === 'ASSETS_CUSTOM_LOGOS' || def.key === 'AI_STATUS')
     return t.values[option as 'off' | 'auto' | 'on'] ?? option;
   if (def.key === 'LIVE_MIN_PRIORITY')
     return t.values.priorities[option as keyof T['values']['priorities']] ?? option;
@@ -36,6 +36,25 @@ export function optionLabel(t: T, def: SettingDef, option: string): string {
   if (def.key === 'AI_PROVIDER')
     return option === 'openai' ? 'OpenAI' : option === 'anthropic' ? 'Anthropic' : option;
   return option;
+}
+
+/**
+ * Estado literal da IA: "desligado", "ligado · sem limite" ou "ligado · limitado · US$ 10/dia ·
+ * 2.000.000 tokens/dia" (só os tetos que existem), no idioma da pessoa.
+ */
+export function aiStateText(
+  t: T,
+  locale: Locale,
+  state: { status: 'on' | 'off'; usdPerDay?: number | null; tokensPerDay?: number | null },
+): string {
+  const s = t.status;
+  if (state.status === 'off') return s.aiOff;
+  const n = (v: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(v);
+  const limits = [
+    state.usdPerDay != null ? fill(s.aiUsdPerDay, { value: n(state.usdPerDay) }) : '',
+    state.tokensPerDay != null ? fill(s.aiTokensPerDay, { value: n(state.tokensPerDay) }) : '',
+  ].filter(Boolean);
+  return limits.length ? [s.aiOn, s.aiLimited, ...limits].join(' · ') : `${s.aiOn} · ${s.aiUnlimited}`;
 }
 
 /** Valor para leitura (efetivo, do env ou padrão), no idioma da pessoa. */
