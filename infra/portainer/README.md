@@ -101,7 +101,10 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `SCHEDULE_SYNC_DAILY` | não | `5 0 * * *` | Sync diário do futebol logo após a virada do dia de cota |
 | `SCHEDULE_LIVE_RUN` | não | `*/5 * * * *` | Ao vivo: inicia o Live Scheduler/Poller (sai sozinho sem janela próxima; não sobrepõe) |
 | `LIVE_FEATURED` / `LIVE_MAX_INTERVAL_MINUTES` / `LIVE_IDLE_EXIT_MINUTES` / `LIVE_PROTECT_DAILY` | não | `off` / `15` / `15` / fatia DAILY | Detalhe do jogo principal por tick (`off`, `auto`, `on`), teto do intervalo, ociosidade antes de sair e saldo DAILY protegido |
+| `LIVE_MIN_PRIORITY` | não | `medium` | Menor `live_priority` acompanhada pelo ao vivo (`high`, `medium`, `low`); a reconciliação usa o mesmo corte |
+| `SCHEDULE_LIVE_RECONCILE` | não | `*/10 * * * *` | Reconciliação do ao vivo: confere na fonte só os jogos em andamento que parecem parados; `off` desliga |
 | `SCHEDULE_NORMALIZE_FOOTBALL` | não | `35 0 * * *` | Normalização raw → core depois do sync |
+| `SCHEDULE_NORMALIZE_SPORTS` | não | `15 * * * *` | Normalização raw → core das outras 11 APIs e relógio dos eventos (sem cota) |
 | `SCHEDULE_EVENTS_CLOCK` | não | `* * * * *` | Relógio dos eventos (sem cota) |
 | `SCHEDULE_ASSETS_MIRROR` | não | `30 1 * * *` | Espelho de assets (não consome cota) |
 | `SCHEDULE_CHANGE_FEED_PRUNE` / `CHANGE_FEED_RETENTION_DAYS` | não | `45 2 * * *` / `7` | Retenção do `ops.change_feed`: apaga mudanças mais velhas que N dias, mantendo a última de cada entidade e o que os webhooks ainda não leram (limita a retomada do SSE por `Last-Event-ID` a N dias) |
@@ -164,6 +167,7 @@ tempo limite, sem sobreposição e registrado em `ops.job_run` (alimenta as mét
 |---|---|---|---|
 | `sync-daily` | `5 0 * * *` | `dist/cli/sync-daily.js` | DAILY (agenda D-1/D0/D+1, lesões, detalhes, rodízio) direto ao core + tabelas calculadas; idempotente no dia |
 | `live-run` | `*/5 * * * *` | `dist/cli/live-run.js` | LIVE: planeja o orçamento do dia (LIVE = 0 sem jogos relevantes) e roda o poller enquanto houver janela |
+| `live-reconcile` | `*/10 * * * *` | `dist/cli/live-reconcile.js` | LIVE: `fixtures?id=` só dos jogos em andamento sem observação há 30 min (ou fora do ao vivo e além do fim previsto); no "rodar agora" do painel, `--forcar` confere todos (até 60) |
 | `normalize-football` | `35 0 * * *` | `dist/cli/normalize-football.js` | 0 (raw → core incremental) |
 | `events-clock` | `* * * * *` | `dist/cli/events-clock.js` | 0 (transições de estado pelo horário previsto) |
 | `events-importance` | `20 * * * *` | `dist/cli/events-importance.js --esporte football --proximos-dias 7` | 0 (sinais da tabela pelo motor de regras e prestígio do catálogo na importância, docs/06 §3.1) |
