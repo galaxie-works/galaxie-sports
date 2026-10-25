@@ -21,7 +21,8 @@ const positiveInt = (name: string, value: string | undefined): number | undefine
  * - `ADMIN_IP_ALLOWLIST` — IPs/CIDRs autorizados em /internal;
  * - `TRUST_PROXY` — `true`, `false` ou lista de IPs/CIDRs dos proxies confiáveis;
  * - `API_BODY_LIMIT` (bytes), `HSTS_MAX_AGE` (s), `USAGE_FLUSH_MS`, `USAGE_PERSIST_MS`;
- * - `PUBLISHABLE_RATE_LIMIT_PER_MINUTE` — limite da chave publicável por chave × IP (padrão 60).
+ * - `PUBLISHABLE_RATE_LIMIT_PER_MINUTE` — limite da chave publicável por chave × IP (padrão 60);
+ * - `AUTH_ATTEMPTS_PER_MINUTE` — tentativas de autenticação fora do cache por IP e por prefixo (padrão 60).
  */
 export function hardeningFromEnv(env: NodeJS.ProcessEnv = process.env): Partial<ServerOptions> {
   const out: Partial<ServerOptions> = {};
@@ -45,5 +46,7 @@ export function hardeningFromEnv(env: NodeJS.ProcessEnv = process.env): Partial<
   if (persist) out.usagePersistIntervalMs = persist;
   const pkLimit = positiveInt('PUBLISHABLE_RATE_LIMIT_PER_MINUTE', env.PUBLISHABLE_RATE_LIMIT_PER_MINUTE);
   if (pkLimit) out.publishableRateLimitPerMinute = pkLimit;
+  const authAttempts = positiveInt('AUTH_ATTEMPTS_PER_MINUTE', env.AUTH_ATTEMPTS_PER_MINUTE);
+  if (authAttempts) out.authThrottle = { attemptsPerMinute: authAttempts };
   return out;
 }

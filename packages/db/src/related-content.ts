@@ -322,7 +322,7 @@ export async function recordPlaybackBlock(
     .from(relatedPlaybackBlock)
     .where(and(eq(relatedPlaybackBlock.provider, provider), eq(relatedPlaybackBlock.externalId, externalId)))
     .limit(1);
-  // bloqueado para todos antes (inclusive as linhas de antes da 0043): a vitrine de ninguém muda
+  // bloqueado para todos antes (inclusive as linhas de antes da 0046): a vitrine de ninguém muda
   if (already) return result;
 
   const allowed =

@@ -384,7 +384,7 @@ export type RelatedPlaybackBlockCode = (typeof RELATED_PLAYBACK_BLOCK_CODES)[num
 /**
  * Vídeos que o player oficial recusou fora da plataforma, confirmados para todos. O embed bloqueado por
  * reivindicação de direitos (ex.: imagens do jogo num vídeo de outro canal) não aparece na Data API, só
- * quando o player tenta tocar. Desde a 0043 a linha só nasce quando `RELATED_GLOBAL_BLOCK_TENANTS`
+ * quando o player tenta tocar. Desde a 0046 a linha só nasce quando `RELATED_GLOBAL_BLOCK_TENANTS`
  * tenants distintos relatam o vídeo (`related_playback_report`); as linhas anteriores (um relato só)
  * continuam valendo. O bloqueio vale para o vídeo em todos os jogos, e a pesquisa pesa o canal e o
  * formato com bloqueios.

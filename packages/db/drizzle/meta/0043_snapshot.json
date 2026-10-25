@@ -1,5 +1,5 @@
 {
-  "id": "ad26b301-0839-4c00-b246-b1a92ae3a686",
+  "id": "8cdc75b3-7cdb-4ed6-9e5e-34b636cd8e82",
   "prevId": "bbed94fc-8213-44ad-b0fc-c57b575c0f45",
   "version": "7",
   "dialect": "postgresql",
@@ -6599,120 +6599,6 @@
           "columns": [
             "provider",
             "external_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "enrich.related_playback_report": {
-      "name": "related_playback_report",
-      "schema": "enrich",
-      "columns": {
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "external_id": {
-          "name": "external_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "channel_id": {
-          "name": "channel_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "format": {
-          "name": "format",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reports": {
-          "name": "reports",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "quorum": {
-          "name": "quorum",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "first_reported_at": {
-          "name": "first_reported_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "last_reported_at": {
-          "name": "last_reported_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "related_playback_report_tenant_channel_idx": {
-          "name": "related_playback_report_tenant_channel_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "provider",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "channel_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "related_playback_report_provider_external_id_tenant_id_pk": {
-          "name": "related_playback_report_provider_external_id_tenant_id_pk",
-          "columns": [
-            "provider",
-            "external_id",
-            "tenant_id"
           ]
         }
       },
@@ -13881,6 +13767,12 @@
         },
         "revoked_at": {
           "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rotated_at": {
+          "name": "rotated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
