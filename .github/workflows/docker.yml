@@ -8,12 +8,16 @@ on:
       - 'apps/api/**'
       - 'apps/demo/**'
       - 'services/ingestor/**'
+      - 'services/ai-agents/**'
       - 'packages/**'
       - 'config/**'
+      - 'data/knowledge/**'
       - 'infra/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.base.json'
       - '.dockerignore'
       - '.github/workflows/docker.yml'
   push:
@@ -22,19 +26,25 @@ on:
       - 'apps/api/**'
       - 'apps/demo/**'
       - 'services/ingestor/**'
+      - 'services/ai-agents/**'
       - 'packages/**'
       - 'config/**'
+      - 'data/knowledge/**'
       - 'infra/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'tsconfig.base.json'
       - '.dockerignore'
       - '.github/workflows/docker.yml'
   workflow_dispatch:
 
 concurrency:
+  # Na main, a execução em andamento nunca é cancelada (o deploy.sh exige o CI verde do SHA); o grupo continua por
+  # ref para a tag staging sair em ordem, então só uma execução ainda na fila pode ser trocada pela do commit seguinte.
   group: docker-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -76,20 +86,20 @@ jobs:
             context: infra/caddy
             file: infra/caddy/Dockerfile
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Login no GHCR
         if: env.PUBLISH == 'true'
-        uses: docker/login-action@v4
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build (e push na main)
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
@@ -128,7 +138,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: docker compose config (stack do Portainer)
         run: docker compose -f infra/portainer/stack.yml --env-file infra/portainer/stack.env.example config -q
@@ -152,7 +162,14 @@ jobs:
         run: jq empty infra/observability/grafana/dashboards/*.json
 
       - name: shellcheck
-        run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh
+        run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/vps-telemetry/deploy.sh
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Notas de versão (numeração, agrupamento e CLI com gh falso)
+        run: node --test infra/vps-telemetry/release-notes.test.mjs
 
   backup-restore:
     name: backup e restore ponta a ponta (Postgres ${{ matrix.postgres }})
@@ -186,11 +203,11 @@ jobs:
       PGUSER: galaxie
       PGPASSWORD: galaxie
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: pnpm

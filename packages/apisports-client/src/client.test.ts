@@ -173,6 +173,52 @@ describe('ApiSportsClient', () => {
     });
   });
 
+  describe('cota esgotada no fornecedor', () => {
+    const exhausted =
+      (remaining = 0) =>
+      () => ({
+        body: envelope([], { errors: { requests: 'You have reached the request limit for the day.' } }),
+        remaining,
+      });
+    const live = (id: number) =>
+      ({ sport: 'football', endpoint: '/teams', params: { id }, priority: 'LIVE', critical: true }) as const;
+
+    it('nega a API por 15 min (até LIVE crítico) sem gastar outra tentativa, depois tenta de novo', async () => {
+      const { client, api, clock } = setup(exhausted());
+      await expect(
+        client.get({ sport: 'football', endpoint: '/countries', priority: 'DAILY' }),
+      ).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      await expect(client.get(live(1))).rejects.toBeInstanceOf(QuotaExceededError);
+      // a cota de cada API é separada
+      await client
+        .get({ sport: 'hockey', endpoint: '/teams', params: { id: 1 }, priority: 'DAILY' })
+        .catch(() => {});
+      expect(api.calls.map((u) => u.hostname)).toEqual([
+        'v3.football.api-sports.io',
+        'v1.hockey.api-sports.io',
+      ]);
+      // não é piso do dia: passada a janela, uma nova tentativa sai
+      clock.t += 15 * 60_000;
+      await expect(client.get(live(2))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      expect(api.calls).toHaveLength(3);
+    });
+
+    it('não trava o dia novo: resposta "esgotada" nos primeiros minutos do dia UTC é ignorada', async () => {
+      const { client, api, clock } = setup(exhausted());
+      clock.t = Date.parse('2026-10-22T00:00:20Z'); // contador do fornecedor ainda no dia anterior
+      await expect(client.get(live(1))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      await expect(client.get(live(2))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      expect(api.calls).toHaveLength(2);
+    });
+
+    it('ignora a resposta "esgotada" quando o header ainda informa cota restante', async () => {
+      const { client, api } = setup(exhausted(40));
+      await expect(client.get(live(1))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      await expect(client.get(live(2))).rejects.toMatchObject({ outcome: 'quota_exhausted' });
+      expect(api.calls).toHaveLength(2);
+    });
+  });
+
   it('HTTP 429 vira rate_limited', async () => {
     const { client } = setup(() => ({ status: 429, body: { message: 'Too many requests' } }));
     await expect(
@@ -299,5 +345,73 @@ describe('ApiSportsClient', () => {
       offline.get({ sport: 'football', endpoint: '/timezone', priority: 'DAILY' }),
     ).rejects.toBeInstanceOf(OfflineMissError);
     expect(api.calls).toHaveLength(1);
+  });
+});
+
+describe('ApiSportsClient: falhas depois do fetch', () => {
+  /** Cliente cujo corpo e raw podem falhar sob comando; o clock falso faz o polling de em-voo andar sozinho. */
+  function failing(opts: { failBody?: () => boolean; failSave?: () => boolean }) {
+    const clock: Clock & { t: number } = {
+      t: Date.parse('2026-10-21T14:00:00Z'),
+      now: () => clock.t,
+      sleep: async (ms) => {
+        clock.t += ms;
+      },
+    };
+    let calls = 0;
+    const fetchFn = (async () => {
+      calls += 1;
+      if (opts.failBody?.()) {
+        const body = new ReadableStream({
+          start: (c) => c.error(new DOMException('The operation was aborted due to timeout', 'TimeoutError')),
+        });
+        return new Response(body, { status: 200 });
+      }
+      return new Response(JSON.stringify(envelope([{ id: 1 }])), { status: 200 });
+    }) as typeof globalThis.fetch;
+    const store = new InMemoryRawStore();
+    const save = store.save.bind(store);
+    store.save = async (record) => {
+      if (opts.failSave?.()) throw new Error('falha ao gravar o raw');
+      await save(record);
+    };
+    const governor = new InMemoryQuotaGovernor(
+      () => defaultPolicy(100),
+      () => new Date(clock.t),
+    );
+    const client = new ApiSportsClient({
+      apiKey: 'test-key',
+      store,
+      governor,
+      fetch: fetchFn,
+      clock,
+      timeoutMs: 30_000,
+      rateLimiter: new RateLimiter(6000, clock),
+    });
+    return { client, governor, calls: () => calls };
+  }
+
+  const req = { sport: 'football', endpoint: '/teams', params: { id: 7 }, priority: 'DAILY' } as const;
+
+  it('timeout na leitura do corpo vira ApiSportsError timeout e o ticket não fica pending', async () => {
+    let fail = true;
+    const { client, governor, calls } = failing({ failBody: () => fail });
+    await expect(client.get(req)).rejects.toMatchObject({ name: 'ApiSportsError', outcome: 'timeout' });
+    fail = false;
+    // com o ticket pendurado, a segunda chamada esperaria o "outro processo" até o timeout
+    const res = await client.get(req);
+    expect(res.source).toBe('network');
+    expect(calls()).toBe(2);
+    expect((await governor.usage('football')).totalUsed).toBe(2);
+  });
+
+  it('falha ao gravar o raw ainda registra o desfecho no ledger', async () => {
+    let fail = true;
+    const { client, calls } = failing({ failSave: () => fail });
+    await expect(client.get(req)).rejects.toThrow('falha ao gravar o raw');
+    fail = false;
+    const res = await client.get(req);
+    expect(res.source).toBe('network');
+    expect(calls()).toBe(2);
   });
 });
