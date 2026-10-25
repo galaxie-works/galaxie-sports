@@ -62,6 +62,20 @@ describe('critérios de desempate por competição (empate em pontos)', () => {
     expect(t[1]!.decidedBy).toBe('goal_difference');
   });
 
+  it('LaLiga: confronto direto incompleto entre os três; separado C pelo saldo, A e B recomeçam e o confronto direto completo entre eles decide', () => {
+    // A×B completo (B venceu um, empataram o outro); C não jogou todos contra eles. Saldo geral separa C;
+    // A tem mais gols pró que B, mas os critérios voltam ao início para os que seguem empatados
+    // (RFEF, art. 201): o confronto direto entre A e B, agora completo, decide.
+    const t = computeTable({
+      rules: rules('laliga'),
+      matches: [],
+      baseline: [row('A', 10, 5, 5, 34, 24), row('B', 10, 5, 5, 30, 20), row('C', 10, 5, 5, 40, 20)],
+      priorMatches: [match('B', 'A', 1, 0), match('A', 'B', 0, 0), match('C', 'A', 1, 0)],
+    });
+    expect(order(t)).toEqual(['C', 'B', 'A']);
+    expect(t.map((r) => r.decidedBy)).toEqual([null, 'goal_difference', 'h2h_points']);
+  });
+
   // Mesmas vitórias, saldo e gols; B levou a melhor no confronto direto.
   const S2 = {
     baseline: [row('A', 15, 5, 18, 40, 35), row('B', 15, 5, 18, 40, 35)],
@@ -106,19 +120,50 @@ describe('critérios de desempate por competição (empate em pontos)', () => {
     expect(t[1]!.decidedBy).toBe(decidedBy);
   });
 
-  it('Brasileirão: empate triplo pula o confronto direto e o reaplica entre os dois restantes', () => {
-    const t = computeTable({
-      rules: rules('brasileirao-serie-a'),
+  describe('Brasileirão: empate triplo pula o confronto direto (max_teams: 2)', () => {
+    // Vitórias, saldo e gols iguais. C tem um vermelho; B venceu A no confronto direto; A tem menos
+    // amarelos que B. Com três empatados o confronto direto não vale, e não volta entre A e B
+    // depois que os vermelhos separam C (REC, art. 15): os amarelos decidem.
+    const base = {
       matches: [],
       baseline: [
-        row('A', 15, 5, 18, 40, 35),
-        row('B', 15, 5, 18, 40, 35),
-        row('C', 15, 5, 18, 40, 35, { redCards: 1 }),
+        row('A', 15, 5, 18, 40, 35, { yellowCards: 50 }),
+        row('B', 15, 5, 18, 40, 35, { yellowCards: 60 }),
+        row('C', 15, 5, 18, 40, 35, { redCards: 1, yellowCards: 40 }),
       ],
-      priorMatches: [match('B', 'A', 1, 0), match('C', 'A', 3, 0)],
+      priorMatches: [match('B', 'A', 1, 0), match('A', 'B', 0, 0), match('C', 'A', 3, 0)],
+    };
+    it('os critérios seguem em sequência: amarelos entre os dois restantes', () => {
+      const t = computeTable({ rules: rules('brasileirao-serie-a'), ...base });
+      expect(order(t)).toEqual(['A', 'B', 'C']);
+      expect(t.map((r) => r.decidedBy)).toEqual([null, 'fewest_yellow_cards', 'fewest_red_cards']);
     });
-    expect(order(t)).toEqual(['B', 'A', 'C']);
-    expect(t.map((r) => r.decidedBy)).toEqual([null, 'h2h_points', 'fewest_red_cards']);
+    it('com a reaplicação (padrão), o confronto direto voltaria entre A e B: o YAML a desliga', () => {
+      const r = rules('brasileirao-serie-a');
+      expect(r.standings.h2hReapply).toBe(false);
+      const t = computeTable({ rules: { ...r, standings: { ...r.standings, h2hReapply: true } }, ...base });
+      expect(order(t)).toEqual(['B', 'A', 'C']);
+      expect(t[1]!.decidedBy).toBe('h2h_points');
+    });
+    it('persistindo o empate entre os dois, sorteio (sem voltar ao confronto direto)', () => {
+      const t = computeTable({
+        rules: rules('brasileirao-serie-a'),
+        ...base,
+        baseline: base.baseline.map((b) => (b.teamId === 'C' ? b : { ...b, yellowCards: 50 })),
+      });
+      expect(order(t)).toEqual(['A', 'B', 'C']);
+      expect(t[1]!.decidedBy).toBe('drawing_of_lots');
+      expect(t[0]!.unresolvedTieWith).toEqual(['B']);
+    });
+    it('dois empatados (C separado antes, pelas vitórias): o confronto direto vale entre eles', () => {
+      const t = computeTable({
+        rules: rules('brasileirao-serie-a'),
+        ...base,
+        baseline: [...base.baseline.slice(0, 2), row('C', 14, 8, 16, 40, 35)],
+      });
+      expect(order(t)).toEqual(['B', 'A', 'C']);
+      expect(t.map((r) => r.decidedBy)).toEqual([null, 'h2h_points', 'wins']);
+    });
   });
 
   describe('mini-liga de confronto direto com reaplicação (Serie A)', () => {

@@ -66,7 +66,7 @@ Os pontos são sempre o primeiro critério. Os demais, na ordem do YAML (maior �
 | `opponents_points` · `opponents_goal_difference` · `opponents_goals_for` | Soma dos pontos / saldo / gols dos adversários enfrentados (fase de liga da Champions) |
 | `drawing_of_lots` | Sorteio, partida extra ou coeficiente externo: o motor usa a ordem do ID (determinística) e marca `unresolvedTieWith` |
 
-**Reaplicação** (`h2h_reapply`, padrão `true`): se um critério separa parte dos empatados e já houve critério de confronto direto, o subconjunto que continua empatado recomeça do primeiro critério com a mini-tabela restrita a ele (regra UEFA). Com `false`, segue para o próximo critério na mini-tabela original.
+**Reaplicação** (`h2h_reapply`, padrão `true`): se um critério separa parte dos empatados e já houve critério de confronto direto na lista até ali (aplicado ou pulado por `max_teams`/`require_complete`), o subconjunto que continua empatado recomeça do primeiro critério com a mini-tabela restrita a ele (regra UEFA; na LaLiga, o confronto direto incompleto entre os três volta a valer entre os dois que seguem empatados se o deles estiver completo). Com `false`, segue para o próximo critério na mini-tabela original: é o caso do Brasileirão (REC art. 15, critérios em sequência), em que o confronto direto pulado num empate triplo não volta entre os dois restantes.
 
 ### 1.2 Zonas
 
@@ -83,7 +83,7 @@ O `id` da zona vira parte do código (`qualifies_for_sudamericana`) e tem rótul
 
 | Arquivo | Desempate (após pontos) | Observações |
 |---|---|---|
-| `brasileirao-serie-a` | vitórias, saldo, gols pró, confronto direto (2 clubes), vermelhos, amarelos, sorteio | G4 / pré-Libertadores 5º–6º / Sul-Americana 7º–12º / Z4 (nominais; redistribuição de vagas fora do escopo) |
+| `brasileirao-serie-a` | vitórias, saldo, gols pró, confronto direto (2 clubes), vermelhos, amarelos, sorteio (em sequência, sem reaplicação) | G4 / pré-Libertadores 5º–6º / Sul-Americana 7º–12º / Z4 (nominais; redistribuição de vagas fora do escopo) |
 | `premier-league` | saldo, gols pró, confronto direto (pontos, gols fora) | Play-off em empate decisivo → empate não resolvido |
 | `laliga` | **confronto direto primeiro** (pontos, saldo; só com todos os jogos disputados), saldo, gols pró, fair play | |
 | `serie-a-italia` | confronto direto (pontos, saldo), saldo, gols pró | *Spareggio* por título/rebaixamento → empate não resolvido |
