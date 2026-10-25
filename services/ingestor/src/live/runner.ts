@@ -48,6 +48,9 @@ export interface LiveLogger {
 
 const silent: LiveLogger = { info() {}, warn() {}, error() {}, debug() {} };
 
+/** Espera antes de replanejar depois de um erro inesperado (banco, Governor, gancho do plano). */
+export const PLAN_RETRY_MS = 30_000;
+
 export interface LiveRunnerOptions extends LiveSchedulerOptions {
   /**
    * Encerra quando não há janela ativa e a próxima começa daqui a mais que isto (o scheduler do container
@@ -327,8 +330,18 @@ export class LiveRunner {
         break;
       }
 
-      await this.refreshOptions();
-      const { plan, candidates } = await this.plan(now);
+      let step: { plan: LiveDayPlan; candidates: LiveCandidate[] };
+      try {
+        await this.refreshOptions();
+        step = await this.plan(now);
+      } catch (err) {
+        // erro inesperado ao planejar (ex.: banco ou Governor fora): não derruba o processo; tenta de novo
+        this.log.error({ err }, 'falha ao planejar o ao vivo; tentando de novo');
+        summary.errors += 1;
+        await sleepUntil(new Date(now.getTime() + PLAN_RETRY_MS), opts.replanEveryMs);
+        continue;
+      }
+      const { plan, candidates } = step;
       summary.plans.set(plan.day, plan);
       const decision = decideTick(plan, now, this.lastTickAt, opts, { halftimeSeenAt: this.halftimeSeenAt });
 
@@ -433,7 +446,11 @@ export class LiveRunner {
           'tick ao vivo',
         );
       }
-      await this.deps.hooks?.onTick?.(report, plan);
+      try {
+        await this.deps.hooks?.onTick?.(report, plan);
+      } catch (err) {
+        this.log.warn({ err }, 'falha no gancho do tick ao vivo; seguindo');
+      }
     }
     return summary;
   }

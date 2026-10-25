@@ -141,6 +141,29 @@ describe('LiveRunner', () => {
     expect([...summary.plans.values()].some((p) => p.featured)).toBe(true);
   });
 
+  it('erro ao planejar (banco fora) ou no gancho do tick não derruba o ao vivo', async () => {
+    const error = vi.fn();
+    const warn = vi.fn();
+    const onTick = vi.fn().mockRejectedValueOnce(new Error('gancho quebrado'));
+    const { world, runner } = runnerFor(
+      wednesdayNight(),
+      '2026-10-21T16:50:00Z',
+      { idleExitMs: null, until: new Date('2026-10-21T17:20:00Z') },
+      { log: { info() {}, debug() {}, error, warn }, hooks: { onTick } },
+    );
+    vi.spyOn(world.store, 'candidates')
+      .mockRejectedValueOnce(new Error('banco fora'))
+      .mockRejectedValueOnce(new Error('banco fora'));
+    const summary = await runner.run();
+    expect(summary.stoppedBy).toBe('until');
+    expect(summary.errors).toBeGreaterThanOrEqual(2);
+    expect(error).toHaveBeenCalledWith(expect.anything(), 'falha ao planejar o ao vivo; tentando de novo');
+    // seguiu acompanhando depois das falhas
+    expect(summary.ticks).toBeGreaterThan(1);
+    expect(onTick.mock.calls.length).toBe(summary.ticks);
+    expect(warn).toHaveBeenCalledWith(expect.anything(), 'falha no gancho do tick ao vivo; seguindo');
+  });
+
   it('falha ao reler a configuração mantém a atual', async () => {
     const { runner } = runnerFor(
       wednesdayNight(),
