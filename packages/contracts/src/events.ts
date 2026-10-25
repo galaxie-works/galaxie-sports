@@ -598,7 +598,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const isCalendarDate = (v: string): boolean => {
   if (!DATE_RE.test(v)) return false;
   const [y, m, d] = v.split('-').map(Number) as [number, number, number];
-  return new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10) === v;
+  const date = new Date(0);
+  date.setUTCFullYear(y, m - 1, d); // Date.UTC trataria 0000–0099 como 1900–1999
+  return date.toISOString().slice(0, 10) === v;
 };
 const isDateOrInstant = (v: string) =>
   isCalendarDate(v) ||

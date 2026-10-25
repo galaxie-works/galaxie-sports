@@ -614,7 +614,7 @@ describe('/v1/events — agenda e ao vivo', () => {
       errors: [{ path: 'date', message: 'data inexistente' }],
     });
     expect((await get('/v1/events?from=2026-02-30')).statusCode).toBe(400);
-    expect((await get('/v1/events?from=2026-10-01&to=2026-04-31T10:00:00Z')).statusCode).toBe(400);
+    expect((await get('/v1/events?from=2026-04-01&to=2026-04-31T10:00:00Z')).statusCode).toBe(400);
     expect((await get(`/v1/teams/${ids.palmeiras}/events?from=2026-02-29`)).statusCode).toBe(400);
     expect((await get('/v1/explore/agenda?day=2026-11-31')).statusCode).toBe(400);
     // 29/02 de ano bissexto existe

@@ -298,6 +298,8 @@ describe('schemas de query', () => {
     expect(EventsQuery.safeParse({ date: '2026-13-01' }).success).toBe(false);
     expect(EventsQuery.safeParse({ date: '2026-02-29' }).success).toBe(false);
     expect(EventsQuery.safeParse({ date: '2028-02-29' }).success).toBe(true);
+    expect(EventsQuery.safeParse({ date: '0050-02-28' }).success).toBe(true);
+    expect(EventsQuery.safeParse({ date: '0050-02-29' }).success).toBe(false);
     expect(EventsQuery.safeParse({ from: '2026-04-31' }).success).toBe(false);
     expect(EventsQuery.safeParse({ to: '2026-02-30T12:00:00Z' }).success).toBe(false);
     expect(EventsQuery.safeParse({ from: '2026-10-01', to: '2026-10-31T23:59:59-03:00' }).success).toBe(true);
