@@ -183,6 +183,29 @@ describe('regras de escolha', () => {
     expect(ai?.eligible.candidate.file.title).toBe('File:Retrato 1991.jpg');
   });
 
+  it('retrato: o mais recente dentro da carreira; o de depois (o piloto idoso num evento) fica por último', () => {
+    const d = discovery([
+      { f: file('File:Senna 1990.jpg'), portrait: true, season: 1990 },
+      {
+        f: file('File:Homenagem 2014.jpg', {
+          extmetadata: meta('cc-by-2.0', 'CC BY 2.0', { DateTimeOriginal: '2014-05-01' }),
+        }),
+        p18: true,
+        portrait: true,
+      },
+      { f: file('File:Retrato sem data.jpg'), portrait: true },
+    ]);
+    const portrait = choose(d, eligible(d).ok, null).find((c) => c.role === 'portrait');
+    expect(portrait?.eligible.candidate.file.title).toBe('File:Senna 1990.jpg');
+    // sem retrato da carreira, o sem data vem antes do de fora da época
+    const late = discovery(
+      d.candidates.slice(1).map((c) => ({ f: c.file, p18: c.wikidataImage, portrait: true })),
+    );
+    expect(
+      choose(late, eligible(late).ok, null).find((c) => c.role === 'portrait')?.eligible.candidate.file.title,
+    ).toBe('File:Retrato sem data.jpg');
+  });
+
   it('com IA: só entra o que ela manteve, na ordem da nota dela', () => {
     const d = discovery([
       { f: file('File:Estatua.jpg') },
