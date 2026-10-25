@@ -61,7 +61,16 @@ const service = new SchedulerService({
       signal: shutdownController.signal,
       // um processo por job em todo o banco: o `--run` no console ou um contêiner sobreposto no deploy
       // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
-      lock: databaseUrl ? (name) => tryJobLock(databaseUrl, name) : undefined,
+      lock: databaseUrl
+        ? (name) =>
+            tryJobLock(databaseUrl, name, {
+              onLost: () =>
+                log.warn(
+                  { job: name },
+                  'conexão da trava do job caiu com o job rodando; outro processo pode iniciá-lo em paralelo',
+                ),
+            })
+        : undefined,
     }),
 });
 

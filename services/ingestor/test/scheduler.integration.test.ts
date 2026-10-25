@@ -113,7 +113,8 @@ describe('trava por job entre processos (advisory lock de sessão)', () => {
   });
 
   it('a trava não fica presa quando o processo que a segurava cai (a conexão some)', async () => {
-    const held = await lock('crash-test');
+    let lost = 0;
+    const held = await tryJobLock(testUrl, 'crash-test', { onLost: () => (lost += 1) });
     expect(held).not.toBeNull();
     expect(await lock('crash-test')).toBeNull();
     // simula o crash: o Postgres derruba a sessão dona da trava
@@ -122,7 +123,12 @@ describe('trava por job entre processos (advisory lock de sessão)', () => {
     );
     const again = await lock('crash-test');
     expect(again).not.toBeNull();
+    // quem segurava fica sabendo que perdeu a trava (o scheduler loga um aviso)
+    for (let i = 0; i < 50 && lost === 0; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(lost).toBe(1);
     await again!.release();
     await held!.release().catch(() => {});
+    // soltar normalmente não conta como perda
+    expect(lost).toBe(1);
   });
 });
