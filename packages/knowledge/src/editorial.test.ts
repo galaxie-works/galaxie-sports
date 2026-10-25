@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DRIVER_STRENGTHS, DRIVING_STYLES, driverTier } from './editorial.js';
+import { checkParagraphs } from './lyrics.js';
 import { buildKnowledgeBase, DEFAULT_KNOWLEDGE_DIR, parseKnowledgeFile } from './load.js';
 import { applyEditorialOverrides } from './overrides.js';
 import { applyEditorialDecisions, buildReviewItems, reviewContent, reviewHash } from './review.js';
@@ -77,6 +78,21 @@ describe('perfil editorial: schema e regras', () => {
       errors: [],
       warnings: [],
     });
+  });
+
+  it('bio em parágrafos é prosa; quebra de linha dentro do parágrafo parece verso', async () => {
+    const paragraphs = legend().replace(
+      'text: "Tricampeão mundial pela McLaren, Senna fez da volta lançada de classificação uma assinatura."',
+      // no YAML entre aspas duplas, \n é a quebra de linha: três parágrafos
+      'text: "Tricampeão mundial pela McLaren em 1988, 1990 e 1991.\\n\\nFez da volta lançada uma assinatura.\\n\\nEm Donington, em 1993, liderou já na primeira volta."',
+    );
+    expect(paragraphs).not.toBe(legend());
+    expect(await codes({ 'formula-1/editorial/pt-BR.yaml': file('pt-BR', paragraphs) })).toEqual({
+      errors: [],
+      warnings: [],
+    });
+    expect(checkParagraphs('Primeiro parágrafo.\n\nSegundo.\n\nTerceiro.')).toBeNull();
+    expect(checkParagraphs('Verso um\nverso dois\n\nrefrão')?.level).toBe('error');
   });
 
   it('momento sem fonte é erro de schema', async () => {
