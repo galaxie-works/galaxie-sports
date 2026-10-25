@@ -118,40 +118,44 @@ export class MatchChannelRunner {
     let callsLeft = opts.maxCalls;
 
     for (const group of groups) {
-      const markets = [...new Set(group.targets.map((t) => t.country))].sort();
+      const all = [...new Set(group.targets.map((t) => t.country))].sort();
       const out: GroupOutcome = {
         key: group.key,
         window: group.window.window,
         events: new Set(group.targets.map((t) => t.event.id)).size,
-        markets,
+        markets: all,
         status: dryRun ? 'planned' : 'researched',
         calls: 0,
         researchIds: [],
         costUsd: 0,
       };
       report.groups.push(out);
-      // chave da pesquisa do grupo: uma vez por janela (a importação também não se repete)
-      const groupKey = `channel:${group.key}:${group.season}:${markets.join(',')}`;
-      if (await this.researched(groupKey)) {
+      // pesquisa do grupo: uma vez por janela e mercado (a importação também não se repete). O mercado
+      // cortado pelo teto não entra na chave de quem foi pesquisado: volta na próxima rodada.
+      const base = `channel:${group.key}:${group.season}`;
+      const covered = await this.researchedMarkets(base);
+      const targets = group.targets.filter((t) => !covered.has(t.country));
+      const markets = all.filter((m) => !covered.has(m));
+      if (!targets.length) {
         out.status = 'already_researched';
         continue;
       }
 
       // 1. importação das opções salvas (sem LLM)
-      let pending = group.targets;
+      let pending = targets;
       if (opts.importSaved ?? true) {
         const resolved = new Set<string>();
-        for (const t of group.targets) {
+        for (const t of targets) {
           const res = await this.importSaved(t, infos.get(t.event.id), fetcher, group, dryRun, report);
           if (res === 'official') resolved.add(`${t.event.id}:${t.country}`);
         }
-        pending = group.targets.filter((t) => !resolved.has(`${t.event.id}:${t.country}`));
+        pending = targets.filter((t) => !resolved.has(`${t.event.id}:${t.country}`));
         if (!pending.length) {
           out.status = 'resolved_by_import';
           if (!dryRun) {
             const id = await startResearch(db, {
               kind: 'channel',
-              researchKey: `${groupKey}:import`,
+              researchKey: `${base}:${markets.join(',')}:import`,
               competition: group.competition.slug,
               season: group.season,
               round: group.round,
@@ -161,7 +165,7 @@ export class MatchChannelRunner {
             if (id)
               await finishResearch(db, id, {
                 status: 'done',
-                stats: { window: group.window.window, resolvedByImport: group.targets.length },
+                stats: { window: group.window.window, resolvedByImport: targets.length },
                 now: this.now(),
               });
           }
@@ -194,11 +198,25 @@ export class MatchChannelRunner {
       let any = false;
       for (const [i, chunk] of chunks.entries()) {
         const ids = new Set(chunk.map((e) => e.id));
-        const inChunk = pending.filter((t) => ids.has(t.event.id));
+        // o teto vale a cada chamada: o gasto dos pedaços anteriores já conta
+        const capHere = withinCap(
+          spend,
+          [...new Set(pending.filter((t) => ids.has(t.event.id)).map((t) => t.country))].sort(),
+          estimateUsd,
+          this.policy.dailyUsdPerMarket,
+        );
+        if (capHere.blocked.length)
+          this.log(`${group.key}: teto diário de ${capHere.blocked.join(',')} — fica para depois`);
+        const inChunk = pending.filter((t) => ids.has(t.event.id) && capHere.allowed.includes(t.country));
+        if (!inChunk.length) {
+          if (!any) out.status = 'capped';
+          continue;
+        }
         const here = [...new Set(inChunk.map((t) => t.country))].sort();
+        const games = chunk.filter((e) => inChunk.some((t) => t.event.id === e.id));
         const researchId = await startResearch(db, {
           kind: 'channel',
-          researchKey: `${groupKey}:${i}`,
+          researchKey: `${base}:${here.join(',')}:${i}`,
           competition: group.competition.slug,
           season: group.season,
           round: group.round,
@@ -213,8 +231,9 @@ export class MatchChannelRunner {
         out.calls++;
         out.researchIds.push(researchId);
         any = true;
+        if (out.status === 'capped') out.status = 'researched';
         try {
-          const cost = await this.research(group, chunk, inChunk, infos, fetcher, researchId, report);
+          const cost = await this.research(group, games, inChunk, infos, fetcher, researchId, report);
           out.costUsd += cost;
           for (const m of here) spend.set(m, (spend.get(m) ?? 0) + cost / here.length);
         } catch (err) {
@@ -236,19 +255,18 @@ export class MatchChannelRunner {
     return report;
   }
 
-  /** O grupo já foi pesquisado (ou está sendo) nesta janela? */
-  private async researched(groupKey: string): Promise<boolean> {
+  /** Mercados do grupo já pesquisados (ou sendo pesquisados) nesta janela. */
+  private async researchedMarkets(base: string): Promise<Set<string>> {
     const rows = await this.deps.db
-      .select({ id: wtwResearch.id })
+      .select({ markets: wtwResearch.markets })
       .from(wtwResearch)
       .where(
         and(
-          like(wtwResearch.researchKey, `${groupKey.replace(/[\\%_]/g, '\\$&')}:%`),
+          like(wtwResearch.researchKey, `${base.replace(/[\\%_]/g, '\\$&')}:%`),
           inArray(wtwResearch.status, ['done', 'running']),
         ),
-      )
-      .limit(1);
-    return rows.length > 0;
+      );
+    return new Set(rows.flatMap((r) => r.markets));
   }
 
   private get policy(): WtwPolicy {

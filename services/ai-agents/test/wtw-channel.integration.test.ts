@@ -401,3 +401,123 @@ describe('canal do jogo (wtw-channel) com o provedor falso', () => {
     ]);
   });
 });
+
+/** Outra rodada da mesma competição (`games` jogos a partir de `startsAt`, a cada 2 h). */
+async function seedMoreRounds(label: string, startsAt: Date, games: number): Promise<string[]> {
+  const [comp] = await db.select().from(competition).where(eq(competition.slug, 'liga-dividida'));
+  const [ssn] = await db.select().from(season).where(eq(season.competitionId, comp!.id));
+  const [stg] = await db
+    .insert(stage)
+    .values({ seasonId: ssn!.id, kind: 'regular', name: { 'pt-BR': 'Rodada' }, providerLabel: label })
+    .returning();
+  const ids: string[] = [];
+  for (let i = 0; i < games; i++) {
+    const [h, a] = TEAMS[i % TEAMS.length]!;
+    const [home, away] = await db
+      .insert(participant)
+      .values([
+        { sport: 'football', kind: 'club', name: h },
+        { sport: 'football', kind: 'club', name: a },
+      ])
+      .returning();
+    const at = new Date(startsAt.getTime() + i * 2 * H);
+    const [ev] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        competitionId: comp!.id,
+        seasonId: ssn!.id,
+        stageId: stg!.id,
+        startsAt: at,
+        endsAtExpected: new Date(at.getTime() + 2 * H),
+        importance: 70,
+      })
+      .returning();
+    await db.insert(eventParticipant).values([
+      { eventId: ev!.id, participantId: home!.id, side: 'home' },
+      { eventId: ev!.id, participantId: away!.id, side: 'away' },
+    ]);
+    ids.push(ev!.id);
+  }
+  return ids;
+}
+
+describe('canal do jogo: teto diário por mercado', () => {
+  const silent = (cost: number) =>
+    new FakeLlmClient(() => ({
+      data: { assignments: [], notes: null },
+      usage: { inputTokens: 30_000, outputTokens: 2_000, webSearchCalls: 4, costUsd: cost },
+      groundedUrls: [],
+    }));
+  const groupsOf = async (now: Date, markets: string[], round: string) => {
+    const researched = new ResearchedRightsIndex(await currentResearchedRights(db));
+    const plan = await planChannelResearch(db, { now, markets, config, researched, policy });
+    return plan.groups.filter((g) => g.key.includes(round));
+  };
+
+  it('vale a cada pedaço da rodada: o segundo pedaço não passa do teto', async () => {
+    const startsAt = new Date(KICKOFF.getTime() + 10 * 24 * H);
+    const now = new Date(startsAt.getTime() - 30 * H);
+    await seedMoreRounds('Regular Season - 40', startsAt, 13);
+    const groups = await groupsOf(now, ['BR'], 'Regular Season - 40');
+    expect(groups.map((g) => g.targets.length)).toEqual([13]);
+    const llm = silent(0.95);
+    const runner = new MatchChannelRunner({
+      db,
+      llm,
+      config,
+      policy: { ...policy, dailyUsdPerMarket: 1 },
+      fetcher: new FakePageFetcher({}),
+      now: () => now,
+    });
+    const report = await runner.run(groups, { maxCalls: 3, importSaved: false });
+    expect(llm.calls).toHaveLength(1);
+    expect(report.groups[0]).toMatchObject({ status: 'researched', calls: 1 });
+  });
+
+  it('mercado cortado pelo teto não fica marcado como pesquisado: entra na rodada seguinte', async () => {
+    const startsAt = new Date(KICKOFF.getTime() + 20 * 24 * H);
+    const now = new Date(startsAt.getTime() - 30 * H);
+    await seedMoreRounds('Regular Season - 50', startsAt, 2);
+    // o MX já gastou quase o teto do dia
+    await db.insert(wtwResearch).values({
+      kind: 'allocation',
+      researchKey: 'teste:gasto-mx',
+      competitionSlug: 'outra',
+      markets: ['MX'],
+      status: 'done',
+      costUsd: '0.950000',
+      createdAt: now,
+    });
+    const groups = await groupsOf(now, ['BR', 'MX'], 'Regular Season - 50');
+    const capped = silent(0.1);
+    const first = new MatchChannelRunner({
+      db,
+      llm: capped,
+      config,
+      policy: { ...policy, dailyUsdPerMarket: 1 },
+      fetcher: new FakePageFetcher({}),
+      now: () => now,
+    });
+    const r1 = await first.run(groups, { maxCalls: 3, importSaved: false });
+    expect(r1.groups[0]).toMatchObject({ status: 'researched', calls: 1 });
+    expect(capped.calls[0]!.messages[0]!.content).not.toMatch(/- MX \(México\)/);
+
+    // com folga no teto, o MX é pesquisado; o BR, já feito, não volta
+    const later = silent(0.1);
+    const second = new MatchChannelRunner({
+      db,
+      llm: later,
+      config,
+      policy,
+      fetcher: new FakePageFetcher({}),
+      now: () => now,
+    });
+    const r2 = await second.run(groups, { maxCalls: 3, importSaved: false });
+    expect(r2.groups[0]).toMatchObject({ status: 'researched', calls: 1 });
+    expect(later.calls[0]!.messages[0]!.content).toMatch(/- MX \(México\)/);
+    expect(later.calls[0]!.messages[0]!.content).not.toMatch(/- BR \(Brasil\)/);
+    const third = await second.run(groups, { maxCalls: 3, importSaved: false });
+    expect(third.groups[0]!.status).toBe('already_researched');
+  });
+});

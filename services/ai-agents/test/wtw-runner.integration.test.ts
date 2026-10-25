@@ -446,6 +446,36 @@ describe('onde assistir por rodada', () => {
     expect(out.find((o) => o.country === 'BR')!.stats.allocation).toMatch(/teto diário/);
   });
 
+  it('teto diário por mercado vale a cada pedaço da rodada, não só no começo do grupo', async () => {
+    // rodada de 13 jogos = 2 chamadas; a primeira já leva o BR para perto do teto (US$ 1)
+    const startsAt = new Date(KICKOFF.getTime() + 3 * 24 * H);
+    const now = new Date(startsAt.getTime() - 40 * H);
+    const ids = await seedRound({ slug: 'liga-dividida', games: 13, round: 'Rodada 70', startsAt });
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const fake = new FakeLlmClient(() => ({
+      data: { assignments: [assignment('J1', 'BR', 'Emissora A', GRADE_BR)], notes: null },
+      usage: { inputTokens: 40_000, outputTokens: 3_000, webSearchCalls: 6, costUsd: 0.9 },
+    }));
+    const runner = new WtwRunner({
+      db,
+      llm: fake,
+      config,
+      fetcher: new FakePageFetcher({ ...PAGES }),
+      policy,
+      now: () => now,
+    });
+    const out = await runner.runQueued({ limit: 50, maxCalls: 3, eventId: ids[0]! });
+    expect(fake.calls).toHaveLength(1);
+    expect(out).toHaveLength(13);
+    const last = out.find((o) => o.eventId === ids[12])!;
+    expect(last.stats.allocation).toMatch(/teto diário/);
+    expect(out.find((o) => o.eventId === ids[0])!.stats.allocation).toMatch(/alocação por rodada/);
+  });
+
   it('T-3h: revalida sem LLM; fonte que deixou de citar a emissora derruba a opção e volta o "a confirmar"', async () => {
     const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 40' });
     const t48 = new Date(KICKOFF.getTime() - 40 * H);

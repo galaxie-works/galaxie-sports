@@ -199,7 +199,8 @@ export class WtwRunner {
             res.byEvent.get(ctx.info.id)?.get(ctx.run.countryCode) ?? null,
             share,
             {
-              allocation: res.reasons.get(ctx.run.countryCode) ?? res.reason,
+              allocation:
+                res.runReasons.get(ctx.run.id) ?? res.reasons.get(ctx.run.countryCode) ?? res.reason,
               ...(res.notes ? { allocationNotes: res.notes } : {}),
             },
           ),
@@ -238,7 +239,9 @@ export class WtwRunner {
   ): Promise<{
     byEvent: AllocationResult['byEvent'];
     shares: Map<string, CallShare>;
+    /** Motivo por mercado; `runReasons` (por execução) vence — ex.: o pedaço cortado pelo teto. */
     reasons: Map<string, string>;
+    runReasons: Map<string, string>;
     reason: string;
     notes: string | null;
     calls: number;
@@ -249,8 +252,9 @@ export class WtwRunner {
     const byEvent: AllocationResult['byEvent'] = new Map();
     const shares = new Map<string, CallShare>();
     const reasons = new Map<string, string>();
+    const runReasons = new Map<string, string>();
     const manual = group[0]!.run.mode === 'full' && group[0]!.run.window === 'manual';
-    const empty = { byEvent, shares, reasons, notes: null, calls: 0, deferred: false };
+    const empty = { byEvent, shares, reasons, runReasons, notes: null, calls: 0, deferred: false };
 
     // mercados × jogos que precisam do LLM
     const need = group.filter((c) =>
@@ -297,9 +301,24 @@ export class WtwRunner {
     // para a fila em vez de fechar como "feita" só com os direitos — senão nunca mais é alocada
     let transient: string | null = null;
     let allocatedAny = false;
-    for (const [i, chunk] of chunks.entries()) {
-      const ids = new Set(chunk.map((e) => e.id));
-      const inChunk = used.filter((c) => ids.has(c.info.id));
+    for (const [i, all] of chunks.entries()) {
+      const ids = new Set(all.map((e) => e.id));
+      let inChunk = used.filter((c) => ids.has(c.info.id));
+      if (!manual) {
+        // o teto vale a cada chamada: o gasto dos pedaços anteriores já conta
+        const cap = withinCap(
+          spend,
+          [...new Set(inChunk.map((c) => c.run.countryCode))].sort(),
+          estimate,
+          this.policy.dailyUsdPerMarket,
+        );
+        for (const c of inChunk)
+          if (cap.blocked.includes(c.run.countryCode))
+            runReasons.set(c.run.id, 'teto diário do mercado atingido (WTW_DAILY_USD_PER_MARKET)');
+        inChunk = inChunk.filter((c) => cap.allowed.includes(c.run.countryCode));
+        if (!inChunk.length) continue;
+      }
+      const chunk = all.filter((e) => inChunk.some((c) => c.info.id === e.id));
       const marketsHere = [...new Set(inChunk.map((c) => c.run.countryCode))].sort();
       const key = manual
         ? `alloc:manual:${first.run.id}`
@@ -379,6 +398,7 @@ export class WtwRunner {
       byEvent,
       shares,
       reasons,
+      runReasons,
       reason: 'alocação por rodada',
       notes,
       calls,
