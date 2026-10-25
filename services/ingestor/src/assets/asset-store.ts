@@ -596,13 +596,13 @@ export class PgAssetStore implements AssetStore {
    * Varre os corpos em raw.api_response e devolve, normalizadas e sem repetição, todas as URLs de mídia —
    * cobre os 12 esportes e qualquer tipo de imagem (times, jogadores, estádios...) sem adivinhar IDs.
    */
-  async discoverFromRaw(since?: Date): Promise<string[]> {
+  async discoverFromRaw(since?: Date, afterId?: number): Promise<string[]> {
     const pattern = `https?://media(-[0-9]+)?\\.api-sports\\.io(/[A-Za-z0-9_.-]+)+`;
     const rows = await this.db.execute<{ url: string }>(sql`
       select distinct m[1] as url
       from ${apiResponse} r,
         lateral regexp_matches(r.body::text, ${`(${pattern})`}, 'g') as m
-      where ${since ? sql`r.fetched_at >= ${since.toISOString()}::timestamptz` : sql`true`}
+      where ${rawWindow(since, afterId)}
     `);
     const urls = new Set<string>();
     for (const r of rows) {
@@ -615,17 +615,34 @@ export class PgAssetStore implements AssetStore {
 
 const RAW_DISCOVERY_OVERLAP_MS = 3_600_000;
 
+/**
+ * Janela da descoberta incremental: o raw com id acima da marca d'água da descoberta anterior (pega o que
+ * raw:import e snapshot:import gravam com `fetched_at` retroativo) ou gravado desde `since` (pega as
+ * transações que já tinham o id antes da marca e só commitaram depois). Sem nada: a tabela inteira.
+ */
+function rawWindow(since: Date | undefined, afterId: number | undefined): SQL {
+  const conditions: SQL[] = [];
+  if (afterId !== undefined) conditions.push(sql`r.id > ${afterId}`);
+  if (since) conditions.push(sql`r.fetched_at >= ${since.toISOString()}::timestamptz`);
+  return conditions.length ? sql`(${sql.join(conditions, sql` or `)})` : sql`true`;
+}
+
 export interface RawDiscoveryReport {
-  /** Início da descoberta anterior, menos 1 h de margem (só o raw gravado desde então foi varrido); null = tudo. */
+  /** Início da descoberta anterior, menos 1 h de margem; null = varreu a tabela inteira. */
   since: Date | null;
+  /** Maior id de raw.api_response visto pela descoberta anterior (a marca d'água); null = tabela inteira. */
+  afterId: number | null;
+  /** Maior id de raw.api_response no início desta descoberta: a marca d'água da próxima. */
+  maxRawId: number;
   urls: number;
   added: number;
 }
 
 /**
  * `--descobrir-raw`: registra em core.asset as URLs de mídia do raw (fora as bloqueadas). Incremental: só as
- * respostas gravadas desde o início da última descoberta concluída (`ops.job_run` `assets:discover-raw`), para o
- * job diário não varrer a tabela inteira; a primeira execução (ou `full`) varre tudo.
+ * respostas acima da marca d'água (`raw.api_response.id`) da última descoberta concluída (`ops.job_run`
+ * `assets:discover-raw`, em `stats.maxRawId`) ou gravadas desde o início dela, para o job diário não varrer a
+ * tabela inteira; a primeira execução (ou `full`) varre tudo.
  */
 export async function runRawDiscovery(
   db: Database,
@@ -635,18 +652,23 @@ export async function runRawDiscovery(
   const [last] = options.full
     ? []
     : await db
-        .select({ startedAt: jobRun.startedAt })
+        .select({ startedAt: jobRun.startedAt, maxRawId: sql<string | null>`${jobRun.stats}->>'maxRawId'` })
         .from(jobRun)
         .where(and(eq(jobRun.job, 'assets:discover-raw'), eq(jobRun.status, 'ok')))
         .orderBy(desc(jobRun.startedAt))
         .limit(1);
+  // sem marca d'água (execução anterior a ela), varre tudo de novo
+  const afterId = last?.maxRawId != null ? Number(last.maxRawId) : null;
   // margem para o raw gravado em transações que começaram antes da descoberta anterior e commitaram depois
-  const since = last ? new Date(last.startedAt.getTime() - RAW_DISCOVERY_OVERLAP_MS) : null;
+  const since =
+    last && afterId !== null ? new Date(last.startedAt.getTime() - RAW_DISCOVERY_OVERLAP_MS) : null;
   const [run] = await db.insert(jobRun).values({ job: 'assets:discover-raw', status: 'running' }).returning();
   try {
-    const urls = await store.discoverFromRaw(since ?? undefined);
+    const [top] = await db.select({ max: sql<string | null>`max(${apiResponse.id})` }).from(apiResponse);
+    const maxRawId = Number(top?.max ?? 0);
+    const urls = await store.discoverFromRaw(since ?? undefined, afterId ?? undefined);
     const added = await store.register(urls.filter((u) => !options.denylist.has(u)));
-    const report = { since, urls: urls.length, added };
+    const report = { since, afterId, maxRawId, urls: urls.length, added };
     await db
       .update(jobRun)
       .set({ status: 'ok', finishedAt: new Date(), stats: report })
