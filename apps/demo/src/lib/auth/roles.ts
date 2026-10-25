@@ -38,29 +38,39 @@ export const needsTenant = (role: Role) => role === 'client';
 
 const LOCALE_SEGMENTS = new Set(LOCALES.map((l) => l.toLowerCase()));
 
-/**
- * Caminho como as rotas o enxergam, para decidir o acesso: decodificado (`/%61justes` → `/ajustes`),
- * com `\`, `.`, `..` e barras repetidas resolvidos e sem o prefixo de idioma (`/pt-BR/ajustes` →
- * `/ajustes`, o segmento que o proxy acrescenta ao reescrever). Na dúvida, fica mais restrito: decodifica
- * até estabilizar, então um caminho codificado duas vezes também cai na área certa.
- */
-export function accessPathname(pathname: string): string {
-  let path = pathname;
+/** Decodifica até estabilizar (codificado duas vezes também conta); `null` se a codificação é inválida. */
+function decodeFully(value: string): string | null {
+  let current = value;
   for (let i = 0; i < 3; i++) {
     let decoded: string;
     try {
-      decoded = decodeURIComponent(path);
+      decoded = decodeURIComponent(current);
     } catch {
-      break; // codificação inválida: fica como veio
+      return null;
     }
-    if (decoded === path) break;
-    path = decoded;
+    if (decoded === current) break;
+    current = decoded;
   }
+  return current;
+}
+
+/**
+ * Caminho como as rotas o enxergam, para decidir o acesso: decodificado segmento a segmento
+ * (`/%61justes` → `/ajustes`), com `\`, `.`, `..` e barras repetidas resolvidos e sem o prefixo de idioma
+ * (`/pt-BR/ajustes` → `/ajustes`, o segmento que o proxy acrescenta ao reescrever). Na dúvida, fica mais
+ * restrito: decodifica até estabilizar e devolve `null` (nega) quando algum segmento não decodifica, para
+ * um `%E0` no fim não esconder o `/%61justes` do começo.
+ */
+export function accessPathname(pathname: string): string | null {
   const segments: string[] = [];
-  for (const segment of path.replace(/\\/g, '/').split('/')) {
-    if (segment === '' || segment === '.') continue;
-    if (segment === '..') segments.pop();
-    else segments.push(segment);
+  for (const raw of pathname.split(/[/\\]/)) {
+    const decoded = decodeFully(raw);
+    if (decoded === null) return null;
+    for (const segment of decoded.split(/[/\\]/)) {
+      if (segment === '' || segment === '.') continue;
+      if (segment === '..') segments.pop();
+      else segments.push(segment);
+    }
   }
   while (segments.length && LOCALE_SEGMENTS.has(segments[0]!.toLowerCase())) segments.shift();
   return `/${segments.join('/')}`;
@@ -69,10 +79,11 @@ export function accessPathname(pathname: string): string {
 /**
  * O que o proxy faz com um caminho que exige sessão: segue, ou nega (403 na API, volta para a home nas
  * páginas). Prazo de acesso e sessão ficam com o proxy; aqui só o papel. Decide pelo caminho normalizado
- * (`accessPathname`), não pelo texto cru da URL.
+ * (`accessPathname`), não pelo texto cru da URL; caminho que não decodifica é negado.
  */
 export function routeAccess(pathname: string, role: unknown): 'allow' | 'deny' {
   const path = accessPathname(pathname);
+  if (path === null) return 'deny';
   if (matchesPrefix(path, ADMIN_PREFIXES)) return canAccessAdmin(role) ? 'allow' : 'deny';
   if (matchesPrefix(path, CLIENT_PREFIXES)) return canAccessClientPanel(role) ? 'allow' : 'deny';
   return 'allow';

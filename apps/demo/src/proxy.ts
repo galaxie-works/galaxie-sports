@@ -69,7 +69,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
   // Público só se o caminho continuar público depois de normalizado (`/login/..%2Fajustes` não é login).
-  if (isPublicPath(pathname) && isPublicPath(accessPathname(pathname))) return render(request);
+  const access = accessPathname(pathname);
+  if (isPublicPath(pathname) && access !== null && isPublicPath(access)) return render(request);
 
   if (pathname === SMOKE_ROUTE && request.headers.has(SMOKE_HEADER)) return NextResponse.next();
 

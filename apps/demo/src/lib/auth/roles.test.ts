@@ -78,11 +78,16 @@ describe('papéis da demo', () => {
       '//ajustes',
       '/.\\ajustes',
       '/pt-BR/cliente/chaves',
+      // segmento que não decodifica no fim não esconde o começo
+      '/%61justes/%E0',
+      '/ajustes/%E0%A4%A',
     ]) {
       expect(routeAccess(path, 'user'), path).toBe('deny');
     }
     expect(routeAccess('/pt-BR/cliente', 'client')).toBe('allow');
     expect(routeAccess('/en/ajustes', 'admin')).toBe('allow');
+    // caminho comum com codificação inválida: nega (Next também não abre)
+    expect(routeAccess('/times/%E0', 'admin')).toBe('deny');
   });
 
   it('accessPathname mantém os caminhos comuns', () => {
@@ -91,6 +96,7 @@ describe('papéis da demo', () => {
     expect(accessPathname('/api/galaxie/v1/search')).toBe('/api/galaxie/v1/search');
     expect(accessPathname('/pt-BR')).toBe('/');
     expect(accessPathname('/login/..%2Fajustes')).toBe('/ajustes');
-    expect(accessPathname('/%E0%A4%A')).toBe('/%E0%A4%A');
+    expect(accessPathname('/%61justes%2Fusuarios')).toBe('/ajustes/usuarios');
+    expect(accessPathname('/%E0%A4%A')).toBeNull();
   });
 });
