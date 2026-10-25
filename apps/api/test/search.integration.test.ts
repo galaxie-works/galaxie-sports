@@ -124,6 +124,7 @@ async function seed() {
     competitionId: lib!.id,
     nicknames: { 'pt-BR': ['Glória Eterna'] },
     sourceFile: 'competitions/football.yaml',
+    reviewStatus: 'approved',
   });
   const game = (competitionId: string, h: number, status: 'scheduled' | 'live' | 'finished') => ({
     sport: 'football',

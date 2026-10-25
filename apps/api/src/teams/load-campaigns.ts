@@ -15,6 +15,7 @@ import { loadStageMatches, type BuildContext } from '../events/builder.js';
 import { pickText } from '../i18n.js';
 import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
+import { competitionProfileJoin } from '../competitions/profile.js';
 import {
   computeCampaign,
   isOngoing,
@@ -93,7 +94,7 @@ export async function loadTeamCompetitions(
     })
     .from(season)
     .innerJoin(competition, eq(competition.id, season.competitionId))
-    .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
+    .leftJoin(competitionProfile, competitionProfileJoin(bctx.minReview ?? 'approved'))
     .leftJoin(asset, eq(asset.id, competitionLogoId(bctx.customLogos)))
     .where(and(inArray(season.id, candidateIds), year === undefined ? undefined : eq(season.year, year)));
 

@@ -76,6 +76,7 @@ import { assetUrl, decodeCursor, encodeCursor, logoSource, parseInput, UUID_RE }
 import { resolveMarket } from '../../events/relevance.js';
 import { buildCtx, eventPage, localeOf, sportCheck, stakesVary } from './events.js';
 import { effectiveMinReview, meetsReview } from './semantic.js';
+import { competitionProfileJoin, semanticFloor } from '../../competitions/profile.js';
 import { loadTeamNames, teamNameOptions, type TeamNamer } from '../../teams/display-name.js';
 import { accentPattern, fold } from '../../search/match.js';
 
@@ -365,7 +366,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .from(standing)
           .innerJoin(season, eq(season.id, standing.seasonId))
           .innerJoin(competition, eq(competition.id, season.competitionId))
-          .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
+          .leftJoin(competitionProfile, competitionProfileJoin(semanticFloor(ctx)))
           .leftJoin(asset, eq(asset.id, competitionLogoId(ctx.logos.enabled())))
           .where(
             and(eq(standing.participantId, team.id), year === undefined ? undefined : eq(season.year, year)),
