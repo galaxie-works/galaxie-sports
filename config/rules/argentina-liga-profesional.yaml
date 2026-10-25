@@ -1,9 +1,9 @@
 # Liga Profesional de Fútbol (Argentina) — tabela anual de pontos corridos.
 # Desempate: saldo, gols pró, confronto direto, gols como visitante; empate pelo título vai a
 # partida extra (representado como empate não resolvido).
-# ATENÇÃO: o formato muda quase todo ano (Apertura/Clausura com zonas e playoffs desde 2025) e
-# o rebaixamento é decidido pela tabela de "promedios" (média de pontos de 3 temporadas) e pela
-# tabela anual — nenhum dos dois é calculado aqui. Revise a cada temporada.
+# ATENÇÃO: o formato muda quase todo ano (Apertura/Clausura com zonas e playoffs desde 2025, em
+# `overrides`). A tabela anual é recalculada a partir dos dois torneios; os "promedios" (média de
+# pontos de 3 temporadas) não: vêm só do fornecedor. Revise a cada temporada.
 slug: argentina-liga-profesional
 name: Liga Profesional de Fútbol
 format: league
@@ -26,6 +26,58 @@ league:
 
 knockout:
   default: { legs: 1, extra_time: false, penalties: true }
+
+overrides:
+  # Desde 2025: 30 clubes em duas zonas de 15; Apertura e Clausura, cada um com fase de zonas (os 8
+  # primeiros de cada zona vão aos playoffs) e a fecha interzonal de clássicos, que conta na tabela de
+  # cada zona. A tabela anual soma os dois torneios (vagas continentais e um rebaixamento); os promedios
+  # (três temporadas) decidem o outro rebaixamento e só vêm do fornecedor.
+  # Grupos do fornecedor vistos na captura da API (apps/demo/src/lib/example/snapshot.json, 2026):
+  # "Apertura - Group A", "Clausura - Group A"; rodadas
+  # "Clausura - 13". Anual e promedios: nome a confirmar no /standings de produção (regex tolerante).
+  - seasons: { from: 2025 }
+    league:
+      teams: 30
+      matches_per_team: 32
+      title: false
+    tables:
+      - key: apertura
+        kind: phase
+        name: { pt-BR: Apertura, es: Apertura, en: Apertura }
+        subgroup_label: { pt-BR: Grupo, es: Zona, en: Group }
+        groups: '^apertura'
+        exclude: 'anual|annual|promedio'
+        rounds: '^apertura - \d+$'
+        cross_group_matches: true
+        league:
+          teams: 15
+          matches_per_team: 16
+          title: false
+          zones:
+            - { id: playoffs, kind: playoff, from: 1, to: 8 }
+      - key: clausura
+        kind: phase
+        name: { pt-BR: Clausura, es: Clausura, en: Clausura }
+        subgroup_label: { pt-BR: Grupo, es: Zona, en: Group }
+        groups: '^clausura'
+        exclude: 'anual|annual|promedio'
+        rounds: '^clausura - \d+$'
+        cross_group_matches: true
+        league:
+          teams: 15
+          matches_per_team: 16
+          title: false
+          zones:
+            - { id: playoffs, kind: playoff, from: 1, to: 8 }
+      - key: annual
+        kind: annual
+        name: { pt-BR: Tabela anual, es: Tabla anual, en: Annual table }
+        groups: 'anual|annual'
+        group_name: Tabla Anual
+      - key: promedios
+        kind: relegation_average
+        name: { pt-BR: Promedios, es: Promedios, en: Relegation averages }
+        groups: 'promedio'
 
 sources:
   - https://www.afa.com.ar/

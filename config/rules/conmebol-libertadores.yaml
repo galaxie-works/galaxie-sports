@@ -33,6 +33,15 @@ knockout:
   stages:
     final: { legs: 1, extra_time: true, penalties: true, neutral_venue: true, decides_title: true }
 
+# Fase de grupos: grupos "Group A"…"Group H" e rodadas "Group Stage - 1"…"6" (vistos na captura da API
+# em apps/demo/src/lib/example/snapshot.json). Sem os grupos do fornecedor não dá para montar a tabela.
+tables:
+  - key: group_stage
+    kind: phase
+    name: { pt-BR: Fase de grupos, es: Fase de grupos, en: Group stage }
+    groups: '^group [a-z0-9]+$'
+    rounds: '^group stage - \d+$'
+
 overrides:
   # Até 2021 o gol fora desempatava o agregado nos mata-matas (não na final).
   - seasons: { to: 2021 }

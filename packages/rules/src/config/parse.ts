@@ -1,4 +1,5 @@
 import {
+  STANDINGS_TABLE_KINDS,
   TIE_BREAKER_IDS,
   ZONE_KINDS,
   type CompetitionFormat,
@@ -7,6 +8,9 @@ import {
   type KnockoutStageRules,
   type LeagueRules,
   type StandingsRules,
+  type StandingsTableKind,
+  type StandingsTableRule,
+  type TableName,
   type TieBreaker,
   type TieBreakerId,
   type Zone,
@@ -187,6 +191,69 @@ function parseKnockout(slug: string, raw: unknown): KnockoutRules | null {
   return { default: def, stages };
 }
 
+function regex(slug: string, field: string, value: unknown): RegExp {
+  if (typeof value !== 'string' || !value) fail(slug, `${field} deve ser uma expressão regular (texto)`);
+  try {
+    return new RegExp(value, 'i');
+  } catch {
+    fail(slug, `${field}: expressão regular inválida (${value})`);
+  }
+}
+
+function tableName(slug: string, field: string, value: unknown): TableName {
+  if (typeof value === 'string' && value) return { 'pt-BR': value };
+  if (!isObject(value) || typeof value['pt-BR'] !== 'string' || !value['pt-BR'])
+    fail(slug, `${field} precisa de pt-BR`);
+  const name: TableName = { 'pt-BR': value['pt-BR'] };
+  if (typeof value.es === 'string' && value.es) name.es = value.es;
+  if (typeof value.en === 'string' && value.en) name.en = value.en;
+  return name;
+}
+
+/**
+ * `tables:` — tabelas da temporada por fase e auxiliares. A matemática (`league`) de cada uma é a da
+ * competição com o `league` da tabela por cima (merge profundo; zonas substituem).
+ */
+function parseTables(slug: string, raw: unknown, leagueRaw: unknown): StandingsTableRule[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) fail(slug, 'tables deve ser uma lista');
+  const keys = new Set<string>();
+  return raw.map((t, i): StandingsTableRule => {
+    if (!isObject(t)) fail(slug, `tables[${i}] deve ser um objeto`);
+    const key = t.key;
+    if (typeof key !== 'string' || !/^[a-z0-9_]+$/.test(key)) fail(slug, `tables[${i}].key inválida: ${String(key)}`);
+    if (keys.has(key)) fail(slug, `tabela duplicada: ${key}`);
+    keys.add(key);
+    const kind = t.kind ?? 'phase';
+    if (typeof kind !== 'string' || !(STANDINGS_TABLE_KINDS as readonly string[]).includes(kind))
+      fail(slug, `tabela ${key}: kind inválido (${String(kind)})`);
+    const rounds = t.rounds === undefined || t.rounds === null ? null : regex(slug, `tabela ${key}.rounds`, t.rounds);
+    const computable = kind === 'annual' || (kind === 'phase' && rounds !== null);
+    const computed = bool(slug, `tabela ${key}.computed`, t.computed, computable);
+    if (computed && !computable)
+      fail(slug, `tabela ${key}: só fase com rounds ou tabela anual podem ser recalculadas (computed: false)`);
+    const groupName = t.group_name === undefined || t.group_name === null ? null : t.group_name;
+    if (groupName !== null && (typeof groupName !== 'string' || !groupName))
+      fail(slug, `tabela ${key}.group_name deve ser texto`);
+    return {
+      key,
+      kind: kind as StandingsTableKind,
+      name: tableName(slug, `tabela ${key}.name`, t.name),
+      subgroupLabel:
+        t.subgroup_label === undefined || t.subgroup_label === null
+          ? null
+          : tableName(slug, `tabela ${key}.subgroup_label`, t.subgroup_label),
+      groups: regex(slug, `tabela ${key}.groups`, t.groups),
+      exclude: t.exclude === undefined || t.exclude === null ? null : regex(slug, `tabela ${key}.exclude`, t.exclude),
+      rounds,
+      groupName,
+      crossGroupMatches: bool(slug, `tabela ${key}.cross_group_matches`, t.cross_group_matches, false),
+      computed,
+      league: t.league === undefined ? null : parseLeague(slug, deepMerge(leagueRaw ?? {}, t.league)),
+    };
+  });
+}
+
 /** Uma exceção por intervalo de temporadas (`seasons: { from, to }`, ambos inclusivos e opcionais). */
 function overrideApplies(slug: string, raw: unknown, season: number): boolean {
   if (!isObject(raw) || !isObject(raw.seasons)) fail(slug, 'cada override precisa de seasons: { from?, to? }');
@@ -227,8 +294,20 @@ export function parseCompetitionRules(input: unknown, options: { season?: number
     standings: parseStandings(slug, raw.standings),
     league: parseLeague(slug, raw.league),
     knockout: parseKnockout(slug, raw.knockout),
+    tables: parseTables(slug, raw.tables, raw.league),
     sources,
   };
+}
+
+/**
+ * A tabela do regulamento a que um grupo de `core.standing` pertence (a primeira que casa, na ordem do YAML);
+ * null quando nenhuma casa ou a competição não define `tables`.
+ */
+export function standingsTableOf(
+  rules: Pick<CompetitionRules, 'tables'>,
+  group: string,
+): StandingsTableRule | null {
+  return rules.tables.find((t) => t.groups.test(group) && !t.exclude?.test(group)) ?? null;
 }
 
 /** Regras de uma fase de mata-mata: a exceção da fase, se houver, senão o padrão da competição. */

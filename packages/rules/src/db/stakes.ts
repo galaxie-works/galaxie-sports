@@ -10,8 +10,8 @@ import {
   type TitleRecord,
 } from '@galaxie/db';
 import { loadCompetitionRules } from '../config/loader.js';
-import { knockoutStageRules } from '../config/parse.js';
-import type { CompetitionRules } from '../config/types.js';
+import { knockoutStageRules, standingsTableOf } from '../config/parse.js';
+import type { CompetitionRules, StandingsTableRule } from '../config/types.js';
 import type { Stake } from '../stakes/codes.js';
 import { fanTagStanding, type FanTagStanding } from '../stakes/fan-tags.js';
 import { knockoutStakes } from '../stakes/knockout.js';
@@ -257,6 +257,8 @@ function loadOpenRound(db: Database, stageId: string): Promise<Fixture[]> {
 export async function loadLeagueResults(
   db: Database,
   seasonIds: readonly string[],
+  /** Só as rodadas que casam (`core.stage.provider_label`): a fase do regulamento (Apertura, Clausura). */
+  rounds?: RegExp,
 ): Promise<Map<string, MatchResult[]>> {
   const out = new Map<string, MatchResult[]>();
   if (!seasonIds.length) return out;
@@ -270,6 +272,7 @@ export async function loadLeagueResults(
       score: event.score,
       homeId: home.participantId,
       awayId: away.participantId,
+      label: stage.providerLabel,
     })
     .from(event)
     .innerJoin(stage, eq(stage.id, event.stageId))
@@ -285,6 +288,7 @@ export async function loadLeagueResults(
     .orderBy(event.startsAt, event.id);
   for (const r of rows) {
     if (!r.seasonId || typeof r.score?.home !== 'number' || typeof r.score.away !== 'number') continue;
+    if (rounds && !rounds.test(r.label ?? '')) continue;
     const list = out.get(r.seasonId) ?? [];
     list.push({
       id: r.id,
@@ -325,18 +329,40 @@ function isFinishedWithScore(core: StakesEventRef): boolean {
   );
 }
 
+/**
+ * Fase do regulamento (`tables:`) a que o jogo pertence, pela rodada: Apertura e Clausura têm cada um a sua
+ * tabela. Null quando a competição não define fases; `undefined` quando define e a rodada não é de nenhuma
+ * (ex.: mata-mata do torneio rotulado como rodada).
+ */
+async function phaseOf(db: Database, core: StakesEventRef, rules: CompetitionRules) {
+  const phases = rules.tables.filter((t) => t.kind === 'phase' && t.rounds);
+  if (!phases.length) return null;
+  if (!core.stage) return undefined;
+  const [row] = await db
+    .select({ label: stage.providerLabel })
+    .from(stage)
+    .where(eq(stage.id, core.stage.id));
+  return phases.find((t) => t.rounds!.test(row?.label ?? ''));
+}
+
 async function leagueContext(
   db: Database,
   core: StakesEventRef,
-  rules: CompetitionRules,
+  competitionRules: CompetitionRules,
   options: StakesOptions,
 ): Promise<EventStakes> {
-  const league = rules.league!;
   const season = core.season;
-  if (!season) return { stakes: [], rules, reason: 'evento sem temporada' };
-  const rows = await memo(options.cache?.standings, season.id, () =>
+  if (!season) return { stakes: [], rules: competitionRules, reason: 'evento sem temporada' };
+  const phase: StandingsTableRule | null | undefined = await phaseOf(db, core, competitionRules);
+  if (phase === undefined)
+    return { stakes: [], rules: competitionRules, reason: 'rodada fora das fases do regulamento' };
+  // com fases, a matemática (times, jogos, zonas) e a tabela são as da fase
+  const rules = phase?.league ? { ...competitionRules, league: phase.league } : competitionRules;
+  const league = rules.league!;
+  const all = await memo(options.cache?.standings, season.id, () =>
     db.select().from(standing).where(eq(standing.seasonId, season.id)),
   );
+  const rows = phase ? all.filter((r) => standingsTableOf(rules, r.group)?.key === phase.key) : all;
   if (
     !rows.some((r) => r.participantId === core.home.id) ||
     !rows.some((r) => r.participantId === core.away.id)
@@ -353,7 +379,7 @@ async function leagueContext(
   const awayRow = table.find((r) => r.participantId === core.away.id)!;
   if (league.teams !== null && table.length !== league.teams)
     return { stakes: [], rules, reason: `tabela incompleta (${table.length} de ${league.teams} times)` };
-  if (isFinishedWithScore(core)) return finishedLeagueContext(db, core, rules, table, options);
+  if (isFinishedWithScore(core)) return finishedLeagueContext(db, core, rules, table, options, phase);
   const input: LeagueTeamInput[] = table.map((r) => ({
     teamId: r.participantId,
     points: r.points,
@@ -419,11 +445,13 @@ async function finishedLeagueContext(
   rules: CompetitionRules,
   table: StandingRow[],
   options: StakesOptions,
+  phase: StandingsTableRule | null = null,
 ): Promise<EventStakes> {
   const league = rules.league!;
   const season = core.season!;
-  const results = await memo(options.cache?.seasonResults, season.id, async () => {
-    const bySeason = await loadLeagueResults(db, [season.id]);
+  const key = phase ? `${season.id}|${phase.key}` : season.id;
+  const results = await memo(options.cache?.seasonResults, key, async () => {
+    const bySeason = await loadLeagueResults(db, [season.id], phase?.rounds ?? undefined);
     return bySeason.get(season.id) ?? [];
   });
   const ids = new Set(table.map((r) => r.participantId));

@@ -1,0 +1,51 @@
+# Liga MX (México) — Apertura e Clausura na mesma temporada da api-sports (2025 = Apertura 2025 +
+# Clausura 2026), cada um com tabela única de 18 clubes em turno único (17 rodadas).
+# 1º–6º vão direto às quartas da Liguilla; 7º–10º disputam o play-in. Sem rebaixamento (suspenso).
+# Desempate (Reglamento de Competencia): saldo, gols pró, confronto direto, gols como visitante,
+# fair play e sorteio. A Liguilla é mata-mata e não entra na tabela: só contam as rodadas numeradas.
+# Rodadas e grupos do fornecedor: sem amostra no repositório; padrão da api-sports para torneios curtos
+# ("Apertura - 7"; grupo com "Apertura"/"Clausura" no nome). Revise a cada temporada.
+slug: liga-mx
+name: Liga MX
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - away_goals_for
+    - fair_play
+    - drawing_of_lots
+
+league:
+  teams: 18
+  matches_per_team: 17
+  meetings_per_pair: 1
+  title: false
+  zones:
+    - { id: liguilla, kind: playoff, from: 1, to: 6 }
+    - { id: play_in, kind: playoff, from: 7, to: 10 }
+
+# Liguilla: na regra real o empate no agregado classifica o mais bem colocado na tabela (não modelado;
+# pênaltis aqui só para o motor ter como decidir).
+knockout:
+  default: { legs: 2, away_goals: false, extra_time: false, penalties: true }
+
+tables:
+  - key: apertura
+    kind: phase
+    name: { pt-BR: Apertura, es: Apertura, en: Apertura }
+    groups: 'apertura'
+    rounds: '^apertura - \d+$'
+    group_name: Apertura
+  - key: clausura
+    kind: phase
+    name: { pt-BR: Clausura, es: Clausura, en: Clausura }
+    groups: 'clausura'
+    rounds: '^clausura - \d+$'
+    group_name: Clausura
+
+sources:
+  - https://ligamx.net/

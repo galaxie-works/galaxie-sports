@@ -1,0 +1,53 @@
+# Liga 1 (Peru). 18 clubes; Torneo Apertura e Torneo Clausura na mesma temporada da api-sports (id 281),
+# cada um em turno único. A tabela acumulada soma os dois (vagas continentais e rebaixamento).
+# Rodadas e grupos: sem amostra no repositório; padrão da api-sports ("Apertura - 7"). Revise a cada
+# temporada.
+slug: peru-liga-1
+name: Liga 1
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - drawing_of_lots
+
+league:
+  teams: 18
+  matches_per_team: 17
+  meetings_per_pair: 1
+  title: false
+  zones: []
+
+knockout:
+  default: { legs: 2, away_goals: false, extra_time: false, penalties: true }
+
+tables:
+  - key: apertura
+    kind: phase
+    name: { pt-BR: Torneio Apertura, es: Torneo Apertura, en: Apertura }
+    groups: 'apertura'
+    exclude: 'acumulad|anual|annual|promedio'
+    rounds: '^apertura - \d+$'
+    group_name: Apertura
+  - key: clausura
+    kind: phase
+    name: { pt-BR: Torneio Clausura, es: Torneo Clausura, en: Clausura }
+    groups: 'clausura'
+    exclude: 'acumulad|anual|annual|promedio'
+    rounds: '^clausura - \d+$'
+    group_name: Clausura
+  - key: annual
+    kind: annual
+    name: { pt-BR: Tabela acumulada, es: Tabla acumulada, en: Aggregate table }
+    groups: 'acumulad|anual|annual'
+    group_name: Acumulada
+    league:
+      matches_per_team: 34
+      zones:
+        - { id: relegation, kind: relegation, from: 16, to: 18 }
+
+sources:
+  - https://liga1.pe/

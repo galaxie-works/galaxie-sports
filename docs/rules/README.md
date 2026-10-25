@@ -89,12 +89,49 @@ O `id` da zona vira parte do código (`qualifies_for_sudamericana`) e tem rótul
 | `serie-a-italia` | confronto direto (pontos, saldo), saldo, gols pró | *Spareggio* por título/rebaixamento → empate não resolvido |
 | `bundesliga` | saldo, gols pró, confronto direto (pontos, gols fora), gols fora | 16º = playoff de rebaixamento |
 | `ligue-1` | saldo, confronto direto (pontos, saldo, gols), gols pró, gols fora, fair play | 18 clubes |
-| `argentina-liga-profesional` | saldo, gols pró, confronto direto, gols fora | Tabela anual; *promedios* e formatos Apertura/Clausura **não** calculados |
+| `argentina-liga-profesional` | saldo, gols pró, confronto direto, gols fora | Até 2024 tabela anual única; desde 2025 `tables`: zonas do Apertura e do Clausura (fecha interzonal conta), anual recalculada, *promedios* só do fornecedor |
+| `liga-mx` | saldo, gols pró, confronto direto, gols fora, fair play | `tables`: Apertura e Clausura de tabela única; Liguilla fora da tabela (empate no agregado pela posição não modelado) |
+| `uruguay-primera` · `uruguay-primera-clausura` | saldo, gols pró, confronto direto | `tables`: Apertura, Intermedio (séries) e Clausura; anual recalculada só a partir de 2026 (id 268 com a temporada inteira); promedios do fornecedor |
+| `colombia-primera-a` | saldo, gols pró, gols fora | `tables`: Apertura e Finalización (todos contra todos), quadrangulares do fornecedor, reclasificación recalculada, promedios do fornecedor |
+| `peru-liga-1` | saldo, gols pró, confronto direto | `tables`: Apertura, Clausura e acumulada recalculadas |
+| `paraguay-primera-apertura` · `paraguay-primera-clausura` | saldo, gols pró, confronto direto | `tables`: torneio de turno e returno; promedios do fornecedor |
 | `conmebol-libertadores` | saldo, gols pró, gols fora, vermelhos, amarelos | Grupos de 4; mata-mata sem gol fora desde 2022 e sem prorrogação; final única (2019+) |
 | `conmebol-sudamericana` | idem Libertadores | 2º do grupo vai aos playoffs |
 | `uefa-champions-league` | saldo, gols pró, gols fora, vitórias, vitórias fora, adversários (pontos, saldo, gols), fair play | Fase de liga de 36 (2024+); até 2023 grupos com confronto direto; até 2020 gol fora (inclusive na prorrogação) |
 | `copa-do-brasil` | — | 1ª fase: visitante avança com empate; 2ª fase: jogo único com pênaltis; depois ida e volta sem prorrogação |
 | `default` | saldo, gols pró, vitórias | Genérico |
+
+### 1.4 Tabelas da temporada (`tables:`)
+
+Ligas latino-americanas têm várias tabelas na mesma temporada (Apertura, Clausura, zonas, anual, *promedios*). `tables` diz, por competição, o papel de cada grupo de `core.standing` (o nome que o fornecedor dá ao grupo), quais rodadas entram no recálculo e o nome exibido. A ordem das fases é a cronológica.
+
+```yaml
+tables:
+  - key: apertura                    # chave estável (API: table_key)
+    kind: phase                      # phase | annual | relegation_average | other
+    name: { pt-BR: Apertura, es: Apertura, en: Apertura }
+    subgroup_label: { es: Zona }     # "Apertura - Group A" → "Apertura · Zona A" (padrão: Grupo)
+    groups: '^apertura'              # regex (sem maiúsculas) sobre o grupo do fornecedor
+    exclude: 'anual|promedio'        # casa com groups mas não é desta tabela
+    rounds: '^apertura - \d+$'       # rodadas (core.stage.provider_label) do recálculo; sem: só do fornecedor
+    group_name: Apertura             # grupo gravado quando o fornecedor ainda não mandou a tabela (tabela única)
+    cross_group_matches: true        # jogo entre zonas conta para os dois (fecha interzonal)
+    league: { teams: 15, zones: [...] }  # matemática própria, por cima do `league` da competição
+  - key: annual
+    kind: annual                     # sem rounds: soma as rodadas de todas as fases
+    groups: 'anual|annual'
+    group_name: Tabla Anual
+  - key: promedios
+    kind: relegation_average         # nunca recalculado: só a tabela do fornecedor
+    groups: 'promedio'
+```
+
+- **Recálculo** (`standings/phases.ts`): cada tabela `computed` usa só as suas rodadas (o mata-mata do torneio, sem número, fica fora) e os seus grupos. Time em dois grupos da mesma tabela (o fornecedor renomeou o grupo) fica no de linha mais recente; o grupo vazio de quem também tem grupo com nome é resíduo e sai. Fase com mais de um grupo e sem os grupos do fornecedor não é inventada: vai para `skipped` do relatório, com o motivo.
+- **Visível**: tabela sem recálculo (`skipped`) e grupo que o regulamento não reconhece (`unclassified`) saem em `warn` no `sync:daily` e no ao vivo (`needsAttention`), e no `standings:recompute`.
+- **Sem `tables`**: comportamento anterior (tabela única ou grupos do fornecedor; time em dois grupos → `no_groups`, em `warn`).
+- **API**: `/v1/competitions/{id}/seasons/{season}/standings` devolve, por grupo, `display_name`, `table`, `table_key`, `current` (fase em andamento) e `source`, na ordem do regulamento; o overview do time mostra a posição na fase em andamento.
+
+Grupos e rodadas vistos em dados reais do repositório: Argentina 2026 `Apertura - Group A` / `Clausura - Group A` e rodadas `Clausura - 13`; Libertadores `Group A`…`Group H` e `Group Stage - N`; Brasileirão `Serie A` e `Regular Season - N`. Os demais (Liga MX, Uruguai, Colômbia, Peru, Paraguai; anual e promedios da Argentina) seguem o padrão da api-sports e estão marcados nos YAML para confirmar no `/standings` de produção.
 
 > Regulamentos mudam a cada temporada. Antes de usar um arquivo para uma temporada nova, confira o regulamento oficial (fontes em `sources`) e acrescente um `overrides` quando algo mudar.
 
@@ -308,6 +345,6 @@ Os rótulos dos **8 mercados** (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY,
 ## 4. Fora do escopo (por ora)
 
 - Redistribuição de vagas continentais (campeão da Copa do Brasil/Libertadores já classificado etc.).
-- Rebaixamento por *promedios* (Argentina) e formatos com playoffs (Apertura/Clausura, liguilla).
+- Cálculo próprio dos *promedios* (três temporadas): vêm só do fornecedor. Mata-mata dos torneios curtos (Liguilla, quadrangulares) como tabela.
 - Coeficiente UEFA como último critério; partidas extras de desempate (marcadas como empate não resolvido).
 - Gol qualificado na prorrogação com gol fora (UEFA até 2020/21): o motor indica a prorrogação, sem detalhar o que acontece nela.

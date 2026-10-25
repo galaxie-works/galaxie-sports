@@ -6,9 +6,10 @@
  * Carregamento dos YAML: `@galaxie/rules/config`. Gravação em `core.standing`: `@galaxie/rules/db`.
  */
 export type * from './config/types.js';
-export { TIE_BREAKER_IDS, ZONE_KINDS } from './config/types.js';
+export { STANDINGS_TABLE_KINDS, TIE_BREAKER_IDS, ZONE_KINDS } from './config/types.js';
 export {
   parseCompetitionRules,
+  standingsTableOf,
   knockoutStageRules,
   rulesStageKey,
   deepMerge,
@@ -27,6 +28,12 @@ export {
   StandingsInputError,
   totalPoints,
 } from './standings/accumulate.js';
+export {
+  currentPhaseKey,
+  standingsGroupLabel,
+  standingsGroupPriority,
+  type GroupActivity,
+} from './standings/tables.js';
 export {
   computeStandings,
   computeTable,
