@@ -159,8 +159,8 @@ describe('agente', () => {
                 },
               ],
             },
-            // fora da lista de detentores (e fora do dicionário): descartadas aqui
-            ...['SBT', 'Streaming B'].map((broadcaster) => ({
+            // incerto na linha de direitos (SBT) vale; fora da lista ou do dicionário: descartadas aqui
+            ...['SBT', 'Band', 'Streaming B'].map((broadcaster) => ({
               match: 'J2',
               country: 'BR',
               broadcaster,
@@ -204,7 +204,7 @@ describe('agente', () => {
       round: 'Rodada 7',
       events: [J1, J2],
       markets: [
-        { directory: br, holders: ['globo'], known: ['premiere'], matches: ['J1', 'J2'] },
+        { directory: br, holders: ['globo'], known: ['premiere'], uncertain: ['sbt'], matches: ['J1', 'J2'] },
         { directory: config.directory('AR'), holders: [], known: [], matches: ['J1'] },
       ],
     });
@@ -237,7 +237,7 @@ describe('agente', () => {
         .get(J2.id)!
         .get('BR')!
         .map((c) => c.broadcaster),
-    ).toEqual(['Premiere']);
+    ).toEqual(['Premiere', 'SBT']);
   });
 
   it('alocação com grounding: evidência com URL fora da busca do provedor cai antes de ser buscada', async () => {

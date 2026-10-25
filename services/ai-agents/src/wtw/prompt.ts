@@ -145,6 +145,8 @@ export interface AllocationMarket {
   holders: string[];
   /** Detentores já garantidos pela tabela (não precisa repetir). */
   known: string[];
+  /** Detentores incertos da linha de direitos (aceitos na resposta, sem bônus nem penalidade). */
+  uncertain?: string[];
   /** Códigos dos jogos que este país precisa alocar. */
   matches: string[];
 }

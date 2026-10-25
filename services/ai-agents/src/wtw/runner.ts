@@ -382,6 +382,7 @@ export class WtwRunner {
             ? (any.rights?.holders ?? [])
             : [...new Set(ctxs.flatMap((c) => c.answer.toAllocate))],
           known: manual ? [] : [...new Set(ctxs.flatMap((c) => c.answer.deterministic))],
+          uncertain: [...new Set(ctxs.flatMap((c) => c.rights?.uncertainHolders ?? []))],
           matches: chunk.flatMap((e, j) => (ctxs.some((c) => c.info.id === e.id) ? [`J${j + 1}`] : [])),
         };
       });
