@@ -153,7 +153,8 @@ export function MatchDetails({
                 <TabsContent
                   value="estatisticas"
                   keepMounted
-                  className="flex flex-col gap-3"
+                  // container: as duas colunas de MatchStats seguem a largura do painel, não a da tela
+                  className="@container flex flex-col gap-3"
                   {...panelSemantics(tabs, labels.estatisticas)}
                 >
                   <PanelIntro text={t.event.stats.description} api={statsRequest(eventId, locale, content)} />
