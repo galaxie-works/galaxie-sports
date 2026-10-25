@@ -13,7 +13,14 @@ import {
 } from './classify.js';
 import { checkRelevance, decidePublication, rankScore } from './policy.js';
 import { buildRelatedQueries, languagesFor } from './queries.js';
-import { parseIsoDuration, YoutubeClient, YoutubeError, youtubeQuotaDay, type FetchLike } from './youtube.js';
+import {
+  parseIsoDuration,
+  YoutubeClient,
+  YoutubeError,
+  youtubeQuotaDay,
+  youtubeQuotaDayEnd,
+  type FetchLike,
+} from './youtube.js';
 
 const team = (
   id: string,
@@ -113,8 +120,68 @@ describe('YouTube Data API', () => {
       key: 'k-123',
     });
     expect(Object.keys(headers[0]!).sort()).toEqual(['accept', 'user-agent']);
-    expect(yt.units).toBe(100);
-    expect(units).toEqual([100]);
+    // busca: balde próprio, contado em consultas (1 por chamada), fora das unidades do balde geral
+    expect(yt.searchCalls).toBe(1);
+    expect(yt.units).toBe(0);
+    expect(yt.usage).toEqual({ search: 1, api: 0 });
+    expect(units).toEqual([1]);
+  });
+
+  it('playlistItems.list (uploads do canal) e channels.list com a playlist de uploads e forHandle', async () => {
+    const urls: string[] = [];
+    const fetch: FetchLike = async (url) => {
+      urls.push(url);
+      if (url.includes('/playlistItems?'))
+        return new Response(
+          JSON.stringify({
+            nextPageToken: url.includes('pageToken') ? undefined : 'p2',
+            items: [
+              {
+                snippet: {
+                  title: 'MELHORES MOMENTOS | PALMEIRAS 2 X 1 FLUMINENSE',
+                  description: 'Inscreva-se',
+                  channelId: 'UCpal',
+                  videoOwnerChannelId: 'UCpal',
+                  publishedAt: '2026-10-22T03:05:00Z',
+                  resourceId: { videoId: 'v9' },
+                },
+                contentDetails: { videoId: 'v9', videoPublishedAt: '2026-10-22T03:00:00Z' },
+              },
+            ],
+          }),
+        );
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: 'UCpal',
+              snippet: { title: 'TV Palmeiras', customUrl: '@palmeiras' },
+              statistics: { subscriberCount: '2700000' },
+              contentDetails: { relatedPlaylists: { uploads: 'UUpal' } },
+            },
+          ],
+        }),
+      );
+    };
+    const yt = new YoutubeClient({ apiKey: 'k', fetch });
+    const page = await yt.playlistItems('UUpal');
+    expect(page).toEqual({
+      nextPageToken: 'p2',
+      items: [
+        {
+          videoId: 'v9',
+          channelId: 'UCpal',
+          title: 'MELHORES MOMENTOS | PALMEIRAS 2 X 1 FLUMINENSE',
+          description: 'Inscreva-se',
+          publishedAt: '2026-10-22T03:00:00Z',
+        },
+      ],
+    });
+    expect((await yt.playlistItems('UUpal', 'p2')).nextPageToken).toBeNull();
+    expect(new URL(urls[1]!).searchParams.get('pageToken')).toBe('p2');
+    expect(await yt.channelByHandle('palmeiras')).toMatchObject({ id: 'UCpal', uploadsPlaylistId: 'UUpal' });
+    expect(new URL(urls[2]!).searchParams.get('forHandle')).toBe('@palmeiras');
+    expect(yt.usage).toEqual({ search: 0, api: 3 });
   });
 
   it('videos.list e channels.list: duração, status, estatísticas, handle e inscritos', async () => {
@@ -163,7 +230,14 @@ describe('YouTube Data API', () => {
     });
     expect(v!.thumbnailUrl).toBe('https://i.ytimg.com/vi/v1/hqdefault.jpg');
     expect(await yt.channels(['UC1', 'UC1'])).toEqual([
-      { id: 'UC1', title: 'Canal', handle: '@palmeiras', subscribers: 9_000_000, country: 'BR' },
+      {
+        id: 'UC1',
+        title: 'Canal',
+        handle: '@palmeiras',
+        subscribers: 9_000_000,
+        country: 'BR',
+        uploadsPlaylistId: null,
+      },
     ]);
     expect(yt.units).toBe(2);
   });
@@ -181,6 +255,13 @@ describe('YouTube Data API', () => {
   it('dia da cota segue a meia-noite do Pacífico', () => {
     expect(youtubeQuotaDay(new Date('2026-10-22T06:59:00Z'))).toBe('2026-10-21');
     expect(youtubeQuotaDay(new Date('2026-10-22T07:01:00Z'))).toBe('2026-10-22');
+    // fim do dia de cota: 07:00 UTC no horário de verão do Pacífico, 08:00 UTC no inverno
+    expect(youtubeQuotaDayEnd(new Date('2026-10-24T07:00:15Z')).toISOString()).toBe(
+      '2026-10-25T07:00:00.000Z',
+    );
+    expect(youtubeQuotaDayEnd(new Date('2026-12-01T12:00:00Z')).toISOString()).toBe(
+      '2026-12-02T08:00:00.000Z',
+    );
   });
 });
 

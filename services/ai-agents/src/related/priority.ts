@@ -1,37 +1,63 @@
 /**
- * Prioridade e orçamento do Conteúdo relacionado: quais jogos a cota do YouTube atende primeiro
- * (relevância nos mercados ativos, não o tier da competição), quando buscar de novo (logo depois do
- * apito e uma segunda vez quando os melhores momentos já saíram), quantos vídeos guardar e de que
- * país é cada vídeo. Tudo em código — sem chamadas.
+ * Prioridade e tempo do Conteúdo relacionado: em que ordem a fila atende os jogos (grupo, relevância no
+ * mercado × peso do mercado × rendimento da competição), quando ler os canais e buscar de novo (logo depois
+ * do apito e uma segunda vez quando os melhores momentos já saíram), quantos vídeos guardar e de que país é
+ * cada vídeo. O orçamento da cota (dois baldes, reserva por agenda) fica em `budget.ts`. Tudo em código.
  */
 import type { RelatedStatus } from '@galaxie/db';
+import { DEFAULT_MARKET_WEIGHTS, parseMarketWeights, type QueueGroup } from './budget.js';
 import { languageOfCountry, type RelatedLanguage } from './queries.js';
 
 export const DEFAULT_RELATED_MARKETS = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'];
 export const DEFAULT_MIN_RELEVANCE = 50;
-export const DEFAULT_HIGH_RELEVANCE = 85;
-export const DEFAULT_HIGH_RESERVE_PERCENT = 30;
+/** Buscas por jogo no total (todas as execuções). */
 export const DEFAULT_MAX_SEARCHES_PER_EVENT = 4;
+/** Buscas por jogo numa execução (a primeira sai no apito, a segunda quando os melhores momentos saíram). */
+export const DEFAULT_MAX_SEARCHES_PER_RUN = 2;
 export const DEFAULT_MAX_VIDEOS = 12;
 export const DEFAULT_LOOKBACK_HOURS = 24;
 export const DEFAULT_SECOND_SEARCH_MINUTES = 30;
-/** Buscas seguidas sem nenhum resultado antes de desistir do jogo nesta execução. */
-export const EMPTY_SEARCHES_TO_STOP = 2;
+/** Vídeos aproveitáveis de canal oficial/detentor que dispensam a busca do jogo. */
+export const DEFAULT_CHANNEL_ENOUGH = 4;
+/** Releitura dos canais conhecidos de um jogo entre as buscas completas. */
+export const DEFAULT_CHANNEL_REFRESH_MINUTES = 60;
+/** Revalidação (videos.list dos guardados) no máximo a cada N minutos por jogo. */
+export const DEFAULT_REVALIDATE_MINUTES = 120;
+/** Teto da reserva de buscas para os jogos que ainda vão acontecer no dia de cota (% do balde de busca). */
+export const DEFAULT_RESERVE_MAX_PERCENT = 60;
+/**
+ * Primeira busca só a partir de N minutos depois do início (~25 min depois do apito final): no apito a busca
+ * ainda não acha os melhores momentos; os canais oficiais cobrem os primeiros minutos.
+ */
+export const DEFAULT_SEARCH_AFTER_KICKOFF_MINUTES = 140;
 
 export interface RelatedPolicy {
   markets: string[];
   /** Relevância mínima (no mercado mais relevante) para o jogo entrar na fila. */
   minRelevance: number;
-  /** A partir desta relevância o jogo usa a fatia reservada da cota. */
-  highRelevance: number;
-  /** Parte da cota útil do dia guardada para os jogos de relevância alta. */
-  highReservePercent: number;
+  /** Peso de cada mercado na prioridade (BR 1; os demais menores). */
+  marketWeights: Record<string, number>;
+  /** Buscas por jogo no total (todas as execuções). */
   maxSearchesPerEvent: number;
+  /** Buscas por jogo numa execução. */
+  maxSearchesPerRun: number;
   /** Vídeos publicados por jogo e idioma; o excedente fica guardado como `pending`. */
   maxVideos: number;
   lookbackHours: number;
   /** Minutos depois da primeira busca para a segunda (os melhores momentos saem 10–30 min após o apito). */
   secondSearchMinutes: number;
+  /** Vídeos aproveitáveis dos canais conhecidos que dispensam a busca. */
+  channelEnough: number;
+  channelRefreshMinutes: number;
+  revalidateMinutes: number;
+  /** Teto da reserva por agenda (% do balde de busca); 0 desliga a reserva. */
+  reserveMaxPercent: number;
+  /** Busca só a partir de N minutos depois do início do jogo. */
+  searchAfterKickoffMinutes: number;
+  /** Lê os uploads dos canais conhecidos antes de buscar (padrão; desligado só na simulação do modelo antigo). */
+  channelsFirst: boolean;
+  /** Jogos fora dos mercados e de competição com rendimento zero recorrente vão para o fim da fila (padrão). */
+  foreignLast: boolean;
 }
 
 const int = (raw: string | undefined, fallback: number, min = 0): number => {
@@ -55,12 +81,22 @@ export function relatedPolicyFromEnv(env: Record<string, string | undefined> = p
   return {
     markets: markets.length ? markets : DEFAULT_RELATED_MARKETS,
     minRelevance: Math.min(100, int(env.RELATED_MIN_RELEVANCE, DEFAULT_MIN_RELEVANCE)),
-    highRelevance: Math.min(100, int(env.RELATED_HIGH_RELEVANCE, DEFAULT_HIGH_RELEVANCE)),
-    highReservePercent: Math.min(90, int(env.RELATED_HIGH_RESERVE_PERCENT, DEFAULT_HIGH_RESERVE_PERCENT)),
-    maxSearchesPerEvent: int(env.RELATED_MAX_SEARCHES_PER_EVENT, DEFAULT_MAX_SEARCHES_PER_EVENT, 1),
+    marketWeights: parseMarketWeights(env.RELATED_MARKET_WEIGHTS) ?? { ...DEFAULT_MARKET_WEIGHTS },
+    maxSearchesPerEvent: int(env.RELATED_MAX_SEARCHES_PER_EVENT, DEFAULT_MAX_SEARCHES_PER_EVENT, 0),
+    maxSearchesPerRun: int(env.RELATED_MAX_SEARCHES_PER_RUN, DEFAULT_MAX_SEARCHES_PER_RUN, 0),
     maxVideos: int(env.RELATED_MAX_VIDEOS, DEFAULT_MAX_VIDEOS, 1),
     lookbackHours: int(env.RELATED_LOOKBACK_HOURS, DEFAULT_LOOKBACK_HOURS, 1),
     secondSearchMinutes: int(env.RELATED_SECOND_SEARCH_MINUTES, DEFAULT_SECOND_SEARCH_MINUTES, 0),
+    channelEnough: int(env.RELATED_CHANNEL_ENOUGH, DEFAULT_CHANNEL_ENOUGH, 1),
+    channelRefreshMinutes: int(env.RELATED_CHANNEL_REFRESH_MINUTES, DEFAULT_CHANNEL_REFRESH_MINUTES, 0),
+    revalidateMinutes: int(env.RELATED_REVALIDATE_MINUTES, DEFAULT_REVALIDATE_MINUTES, 0),
+    reserveMaxPercent: Math.min(90, int(env.RELATED_RESERVE_MAX_PERCENT, DEFAULT_RESERVE_MAX_PERCENT)),
+    searchAfterKickoffMinutes: int(
+      env.RELATED_SEARCH_AFTER_KICKOFF_MINUTES,
+      DEFAULT_SEARCH_AFTER_KICKOFF_MINUTES,
+    ),
+    channelsFirst: true,
+    foreignLast: true,
   };
 }
 
@@ -71,11 +107,16 @@ export interface RankableCandidate {
   relevance: number;
   /** Ainda não teve busca completa (jogo que acabou de terminar). */
   firstSearchPending: boolean;
+  /** Prioridade: relevância × peso do mercado × rendimento da competição (padrão: a relevância). */
+  score?: number;
+  /** 0 = mercado ativo · 1 = fora dos mercados (Europa) · 2 = competição de rendimento zero recorrente. */
+  group?: QueueGroup;
 }
 
 /**
- * Ordem da fila: quem ainda não teve a primeira busca vem antes (os vídeos têm de aparecer logo após o
- * apito); dentro de cada grupo, a relevância nos mercados e, no empate, o jogo mais recente.
+ * Ordem da fila: grupo (mercados ativos → fora dos mercados → rendimento zero recorrente); dentro dele, quem
+ * ainda não teve a primeira busca vem antes (os vídeos têm de aparecer logo após o apito), depois a prioridade
+ * (relevância × peso do mercado × rendimento) e, no empate, o jogo mais recente.
  */
 export function rankRelatedCandidates<T extends RankableCandidate>(
   cands: readonly T[],
@@ -85,8 +126,9 @@ export function rankRelatedCandidates<T extends RankableCandidate>(
     .filter((c) => c.relevance >= minRelevance)
     .sort(
       (a, b) =>
+        (a.group ?? 0) - (b.group ?? 0) ||
         Number(b.firstSearchPending) - Number(a.firstSearchPending) ||
-        b.relevance - a.relevance ||
+        (b.score ?? b.relevance) - (a.score ?? a.relevance) ||
         b.startsAt.getTime() - a.startsAt.getTime() ||
         a.id.localeCompare(b.id),
     );
@@ -94,7 +136,7 @@ export function rankRelatedCandidates<T extends RankableCandidate>(
 
 /**
  * Busca completa agora? A primeira sempre; a segunda `secondSearchMinutes` depois da primeira (pega os
- * melhores momentos publicados mais tarde); depois, uma a cada `researchMs`. No meio, só revalida.
+ * melhores momentos publicados mais tarde); depois, uma a cada `researchMs`. No meio, canais ou revalidação.
  */
 export function fullSearchDue(input: {
   fullRuns: number;
@@ -109,18 +151,30 @@ export function fullSearchDue(input: {
   return since >= input.researchMs;
 }
 
-/** Saldo de unidades que o jogo pode gastar: os de relevância baixa não tocam a fatia reservada. */
-export function availableUnits(input: {
-  quotaLimit: number;
-  used: number;
-  relevance: number;
-  policy: Pick<RelatedPolicy, 'highRelevance' | 'highReservePercent'>;
-}): number {
-  const reserved =
-    input.relevance >= input.policy.highRelevance
-      ? 0
-      : Math.floor((input.quotaLimit * input.policy.highReservePercent) / 100);
-  return input.quotaLimit - reserved - input.used;
+export type RelatedMode = 'full' | 'channels' | 'revalidate';
+
+/**
+ * O que fazer com o jogo nesta execução do cron (a cada 3 min): busca completa quando devida e com consulta
+ * disponível; senão reler os canais conhecidos (`channelRefreshMs`), senão revalidar os guardados
+ * (`revalidateMs`); senão nada (null) — a execução sem trabalho não chama o YouTube.
+ */
+export function nextMode(input: {
+  fullDue: boolean;
+  /** Consultas que o jogo pode gastar agora (cota, reserva, teto). */
+  searchAllowance: number;
+  hasChannels: boolean;
+  hasAlive: boolean;
+  lastChannels: Date | null;
+  lastAny: Date | null;
+  now: Date;
+  channelRefreshMs: number;
+  revalidateMs: number;
+}): RelatedMode | null {
+  const since = (d: Date | null) => (d ? input.now.getTime() - d.getTime() : Infinity);
+  if (input.fullDue && input.searchAllowance > 0) return 'full';
+  if (input.hasChannels && since(input.lastChannels) >= input.channelRefreshMs) return 'channels';
+  if (input.hasAlive && since(input.lastAny) >= input.revalidateMs) return 'revalidate';
+  return null;
 }
 
 /**

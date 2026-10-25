@@ -20,6 +20,11 @@ export interface ChannelEntry {
   broadcaster: string | null;
   country: string | null;
   label: string | null;
+  /**
+   * De onde veio: `config` (channels.yaml, dicionário de emissoras) ou `wikidata` (P2397 do time/competição,
+   * mapa em enrich.related_channel). Entrada do Wikidata por id passa pelo piso de inscritos: o dado é aberto.
+   */
+  source?: 'config' | 'wikidata';
 }
 
 export interface ChannelRef {
@@ -139,7 +144,8 @@ export class ChannelAllowlist {
   entriesOf(channel: Pick<ChannelRef, 'id' | 'handle' | 'subscribers'>): ChannelEntry[] {
     const byHandle = channel.handle ? (this.byHandle.get(normHandle(channel.handle)) ?? []) : [];
     const tooSmall = channel.subscribers !== null && channel.subscribers < this.allowlistMinSubscribers;
-    return [...(this.byId.get(channel.id) ?? []), ...(tooSmall ? [] : byHandle)];
+    const byId = (this.byId.get(channel.id) ?? []).filter((e) => !(tooSmall && e.source === 'wikidata'));
+    return [...byId, ...(tooSmall ? [] : byHandle)];
   }
 
   /**

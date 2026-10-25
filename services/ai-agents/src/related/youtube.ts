@@ -1,13 +1,43 @@
 /**
- * Cliente mínimo da YouTube Data API v3 (docs/12 §3): `search.list` (descoberta), `videos.list`
- * (duração, status, estatísticas) e `channels.list` (handle e inscritos). Conta as unidades de cota
- * de cada chamada. A chave vai só no parâmetro `key`; nenhum dado do usuário é enviado.
+ * Cliente mínimo da YouTube Data API v3 (docs/12 §3): `playlistItems.list` (uploads dos canais
+ * conhecidos), `search.list` (descoberta, só como complemento), `videos.list` (duração, status,
+ * estatísticas) e `channels.list` (playlist de uploads, handle e inscritos). Conta a cota de cada chamada
+ * no balde dela. A chave vai só no parâmetro `key`; nenhum dado do usuário é enviado.
  */
 
 export const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
 
-/** Custo de cota por método (unidades; tabela oficial da Data API v3). */
-export const YOUTUBE_UNITS = { search: 100, videos: 1, channels: 1 } as const;
+export type YoutubeMethod = 'search' | 'videos' | 'channels' | 'playlistItems';
+
+/**
+ * Balde de cota de cada método. Desde 1º/6/2026 a Data API conta `search.list` (e `videos.insert`) num
+ * balde próprio, em CONSULTAS por dia (padrão de 100 por projeto); os demais métodos dividem o balde de
+ * UNIDADES (padrão de 10.000/dia). Fontes: developers.google.com/youtube/v3/determine_quota_cost e o
+ * histórico de revisões da API.
+ */
+export type QuotaBucket = 'search' | 'api';
+export const YOUTUBE_BUCKET: Readonly<Record<YoutubeMethod, QuotaBucket>> = {
+  search: 'search',
+  videos: 'api',
+  channels: 'api',
+  playlistItems: 'api',
+};
+
+/** Custo por chamada no balde do método: 1 consulta (search) ou 1 unidade por lote/página de 50. */
+export const YOUTUBE_UNITS: Readonly<Record<YoutubeMethod, number>> = {
+  search: 1,
+  videos: 1,
+  channels: 1,
+  playlistItems: 1,
+};
+
+/** Gasto nos dois baldes. */
+export interface QuotaUsage {
+  /** Consultas `search.list`. */
+  search: number;
+  /** Unidades de `videos`, `channels` e `playlistItems`. */
+  api: number;
+}
 
 export type FetchLike = (url: string, init?: { headers?: Record<string, string> }) => Promise<Response>;
 
@@ -78,6 +108,23 @@ export interface ChannelDetail {
   subscribers: number | null;
   /** `snippet.country` (ISO 3166-1, quando o canal declara): localiza o vídeo por país. */
   country?: string | null;
+  /** Playlist de uploads (`contentDetails.relatedPlaylists.uploads`, "UU…"). */
+  uploadsPlaylistId?: string | null;
+}
+
+/** Um upload de canal (`playlistItems.list`). */
+export interface PlaylistVideo {
+  videoId: string;
+  channelId: string;
+  title: string;
+  description: string;
+  /** Publicação do vídeo (`contentDetails.videoPublishedAt`; sem ela, a entrada na playlist). */
+  publishedAt: string;
+}
+
+export interface PlaylistPage {
+  items: PlaylistVideo[];
+  nextPageToken: string | null;
 }
 
 /** Duração ISO 8601 (`PT1H2M3S`, `P0D`) → segundos; null se não reconhecida. */
@@ -108,19 +155,38 @@ function bestThumbnail(thumbs: unknown): string | null {
   return null;
 }
 
+function channelOf(raw: unknown): ChannelDetail | null {
+  const it = obj(raw);
+  const sn = obj(it.snippet);
+  const st = obj(it.statistics);
+  const id = str(it.id);
+  if (!id) return null;
+  const handle = str(sn.customUrl);
+  return {
+    id,
+    title: str(sn.title) ?? '',
+    handle: handle ? (handle.startsWith('@') ? handle : `@${handle}`).toLowerCase() : null,
+    subscribers: st.hiddenSubscriberCount === true ? null : num(st.subscriberCount),
+    country: str(sn.country)?.toUpperCase() ?? null,
+    uploadsPlaylistId: str(obj(obj(it.contentDetails).relatedPlaylists).uploads),
+  };
+}
+
 export interface YoutubeClientOptions {
   apiKey: string;
   fetch?: FetchLike;
   baseUrl?: string;
-  /** Chamado a cada requisição com as unidades gastas (ledger de cota). */
-  onUnits?: (units: number, method: keyof typeof YOUTUBE_UNITS) => void;
+  /** Chamado a cada requisição com o custo e o balde (ledger de cota). */
+  onUnits?: (units: number, method: YoutubeMethod, bucket: QuotaBucket) => void;
 }
 
 export class YoutubeClient {
   private readonly fetchFn: FetchLike;
   private readonly baseUrl: string;
-  /** Unidades gastas por este cliente. */
+  /** Unidades do balde geral (videos, channels, playlistItems) gastas por este cliente. */
   units = 0;
+  /** Consultas `search.list` (balde próprio) feitas por este cliente. */
+  searchCalls = 0;
 
   constructor(private readonly options: YoutubeClientOptions) {
     if (!options.apiKey) throw new Error('YOUTUBE_API_KEY não definida (veja .env.example).');
@@ -128,13 +194,19 @@ export class YoutubeClient {
     this.baseUrl = options.baseUrl ?? YOUTUBE_API_BASE;
   }
 
-  private async get(method: keyof typeof YOUTUBE_UNITS, params: Record<string, string>): Promise<Json> {
-    const path = method === 'search' ? 'search' : method;
+  /** Gasto nos dois baldes até agora. */
+  get usage(): QuotaUsage {
+    return { search: this.searchCalls, api: this.units };
+  }
+
+  private async get(method: YoutubeMethod, params: Record<string, string>): Promise<Json> {
     const qs = new URLSearchParams({ ...params, key: this.options.apiKey });
     // a cota é cobrada mesmo quando a chamada falha
-    this.units += YOUTUBE_UNITS[method];
-    this.options.onUnits?.(YOUTUBE_UNITS[method], method);
-    const res = await this.fetchFn(`${this.baseUrl}/${path}?${qs.toString()}`, {
+    const bucket = YOUTUBE_BUCKET[method];
+    if (bucket === 'search') this.searchCalls += YOUTUBE_UNITS[method];
+    else this.units += YOUTUBE_UNITS[method];
+    this.options.onUnits?.(YOUTUBE_UNITS[method], method, bucket);
+    const res = await this.fetchFn(`${this.baseUrl}/${method}?${qs.toString()}`, {
       headers: { accept: 'application/json', 'user-agent': 'galaxie-sports/0.1' },
     });
     const body = obj(await res.json().catch(() => ({})));
@@ -144,7 +216,7 @@ export class YoutubeClient {
       // a mensagem do Google explica a causa (API desligada, restrição de IP/referer, cota) e não traz a chave
       const detail = str(err.message)?.slice(0, 300);
       throw new YoutubeError(
-        `YouTube ${path}: HTTP ${res.status}${reason ? ` (${reason})` : ''}${detail ? ` — ${detail}` : ''}`,
+        `YouTube ${method}: HTTP ${res.status}${reason ? ` (${reason})` : ''}${detail ? ` — ${detail}` : ''}`,
         res.status,
         reason,
       );
@@ -152,7 +224,7 @@ export class YoutubeClient {
     return body;
   }
 
-  /** `search.list` (100 unidades): vídeos públicos e incorporáveis. */
+  /** `search.list` (1 consulta do balde de busca, ~100/dia): vídeos públicos e incorporáveis. */
   async search(p: SearchParams): Promise<SearchHit[]> {
     const params: Record<string, string> = {
       part: 'snippet',
@@ -225,33 +297,64 @@ export class YoutubeClient {
     return out;
   }
 
-  /** `channels.list` (1 unidade por lote de 50): handle (`customUrl`) e inscritos. */
+  /**
+   * `channels.list` (1 unidade por lote de 50): handle (`customUrl`), inscritos e a playlist de uploads
+   * (`contentDetails.relatedPlaylists.uploads`, na mesma chamada).
+   */
   async channels(ids: readonly string[]): Promise<ChannelDetail[]> {
     const out: ChannelDetail[] = [];
     const unique = [...new Set(ids)];
     for (let i = 0; i < unique.length; i += 50) {
       const body = await this.get('channels', {
-        part: 'snippet,statistics',
+        part: 'snippet,statistics,contentDetails',
         id: unique.slice(i, i + 50).join(','),
         maxResults: '50',
       });
       for (const raw of Array.isArray(body.items) ? body.items : []) {
-        const it = obj(raw);
-        const sn = obj(it.snippet);
-        const st = obj(it.statistics);
-        const id = str(it.id);
-        if (!id) continue;
-        const handle = str(sn.customUrl);
-        out.push({
-          id,
-          title: str(sn.title) ?? '',
-          handle: handle ? (handle.startsWith('@') ? handle : `@${handle}`).toLowerCase() : null,
-          subscribers: st.hiddenSubscriberCount === true ? null : num(st.subscriberCount),
-          country: str(sn.country)?.toUpperCase() ?? null,
-        });
+        const ch = channelOf(raw);
+        if (ch) out.push(ch);
       }
     }
     return out;
+  }
+
+  /** `channels.list?forHandle=` (1 unidade): o canal de um handle (`@palmeiras`), ou null. */
+  async channelByHandle(handle: string): Promise<ChannelDetail | null> {
+    const h = `@${handle.trim().replace(/^@/, '')}`;
+    const body = await this.get('channels', { part: 'snippet,statistics,contentDetails', forHandle: h });
+    const first = Array.isArray(body.items) ? body.items[0] : undefined;
+    return first ? channelOf(first) : null;
+  }
+
+  /**
+   * `playlistItems.list` (1 unidade por página de até 50): os uploads de um canal, do mais novo para o
+   * mais antigo. É o caminho barato para os canais conhecidos (clube, liga, emissora).
+   */
+  async playlistItems(playlistId: string, pageToken?: string | null): Promise<PlaylistPage> {
+    const params: Record<string, string> = {
+      part: 'snippet,contentDetails',
+      playlistId,
+      maxResults: '50',
+    };
+    if (pageToken) params.pageToken = pageToken;
+    const body = await this.get('playlistItems', params);
+    const items = (Array.isArray(body.items) ? body.items : []).flatMap((raw) => {
+      const it = obj(raw);
+      const sn = obj(it.snippet);
+      const cd = obj(it.contentDetails);
+      const videoId = str(cd.videoId) ?? str(obj(sn.resourceId).videoId);
+      if (!videoId) return [];
+      return [
+        {
+          videoId,
+          channelId: str(sn.videoOwnerChannelId) ?? str(sn.channelId) ?? '',
+          title: str(sn.title) ?? '',
+          description: str(sn.description) ?? '',
+          publishedAt: str(cd.videoPublishedAt) ?? str(sn.publishedAt) ?? '',
+        },
+      ];
+    });
+    return { items, nextPageToken: str(body.nextPageToken) };
   }
 }
 
@@ -263,4 +366,15 @@ export function youtubeQuotaDay(at: Date): string {
     month: '2-digit',
     day: '2-digit',
   }).format(at);
+}
+
+/** Fim do dia de cota de `at`: a próxima meia-noite do Pacífico (07:00 ou 08:00 UTC, conforme o horário de verão). */
+export function youtubeQuotaDayEnd(at: Date): Date {
+  const day = youtubeQuotaDay(at);
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  for (const utcHour of [7, 8]) {
+    const end = new Date(Date.UTC(y, m - 1, d + 1, utcHour));
+    if (youtubeQuotaDay(end) !== day && youtubeQuotaDay(new Date(end.getTime() - 1)) === day) return end;
+  }
+  return new Date(Date.UTC(y, m - 1, d + 1, 8));
 }
