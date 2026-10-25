@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LlmError } from '../errors.js';
 import type { LlmJsonRequest } from '../types.js';
-import { AnthropicLlmClient, DELIVERY_NOTE } from './anthropic.js';
+import { AnthropicLlmClient, searchUsesFor } from './anthropic.js';
 import { OpenAiLlmClient } from './openai.js';
 
 const SCHEMA = {
@@ -167,21 +167,26 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
     server_tool_use: { web_search_requests: searches },
   });
 
-  it('pesquisa com web_search, continua pause_turn e lê a ferramenta de saída', async () => {
+  it('pesquisa com web_search, continua pause_turn (mesma conversa) e lê a ferramenta de saída', async () => {
     const sdk = fakeSdk([
       {
+        // pausou depois de 2 buscas cobradas, com uma terceira pendente
         stop_reason: 'pause_turn',
-        // pausou antes de rodar a busca (pendente, ainda não cobrada)
-        content: [{ type: 'server_tool_use', name: 'web_search', input: { query: 'x' } }],
-        usage: usage(500, 50, 0),
+        content: [
+          { type: 'server_tool_use', id: 's1', name: 'web_search', input: { query: 'x' } },
+          {
+            type: 'web_search_tool_result',
+            tool_use_id: 's1',
+            content: [{ type: 'web_search_result', url: 'https://conmebol.com/r', title: 'r' }],
+          },
+          { type: 'server_tool_use', id: 's2', name: 'web_search', input: { query: 'y' } },
+        ],
+        usage: usage(500, 50, 2),
       },
       {
         stop_reason: 'tool_use',
         content: [
-          {
-            type: 'web_search_tool_result',
-            content: [{ type: 'web_search_result', url: 'https://conmebol.com/r', title: 'r' }],
-          },
+          { type: 'web_search_tool_result', tool_use_id: 's2', content: [] },
           {
             type: 'text',
             text: 'achei',
@@ -205,24 +210,24 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
       /^sistema\n\nextra\n\nAo terminar, entregue a resposta final chamando a ferramenta submit_resposta_final/,
     );
     expect(first.tool_choice).toEqual({ type: 'auto' });
+    // teto padrão 6: a conversa declara a metade, para caber uma continuação
     expect(first.tools).toEqual([
       {
         type: 'web_search_20250305',
         name: 'web_search',
-        max_uses: 6,
+        max_uses: 3,
         allowed_domains: ['globo.com', 'conmebol.com'],
         user_location: { type: 'approximate', country: 'BR' },
       },
       expect.objectContaining({ name: 'submit_resposta_final', input_schema: SCHEMA, strict: true }),
     ]);
+    // 2 buscas + max_uses 3 ≤ 6: continua a mesma conversa, com ferramentas e system idênticos
     expect((sdk.calls[1]!.messages as unknown[]).length).toBe(2); // pergunta + turno pausado
-    // a continuação é a mesma conversa: ferramentas e system idênticos (o raciocínio fica preso a eles)
     expect(sdk.calls[1]!.tools).toEqual(first.tools);
     expect(sdk.calls[1]!.system).toBe(first.system);
-    // teto de buscas da chamada (AI_MAX_SEARCHES_PER_CALL, preenchido pelo orçamento) vira max_uses
     expect(client.buildTools(req({ maxSearches: 3 }))[0]).toMatchObject({ max_uses: 3 });
     expect(out.citations.map((c) => c.url)).toEqual(['https://conmebol.com/r', 'https://ge.globo.com/x']);
-    expect(out.usage).toMatchObject({ inputTokens: 1_200, outputTokens: 130, webSearchCalls: 1 });
+    expect(out.usage).toMatchObject({ inputTokens: 1_200, outputTokens: 130, webSearchCalls: 3 });
   });
 
   it('nunca força a ferramenta nem manda temperature (400 nos modelos atuais); sem chamada → pede de novo', async () => {
@@ -266,14 +271,20 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
   });
 
   describe('teto de buscas vale para a chamada inteira (turnos e tentativas)', () => {
+    /** Uma busca cobrada, com o resultado na mesma resposta. */
     const searched = (id: string, url = `https://conmebol.com/${id}`) => [
       { type: 'server_tool_use', id, name: 'web_search', input: { query: id } },
       {
         type: 'web_search_tool_result',
         tool_use_id: id,
-        content: [{ type: 'web_search_result', url, title: id }],
+        content: [{ type: 'web_search_result', url, title: id, encrypted_content: 'cifrado' }],
       },
     ];
+    const cited = (text: string, url: string, quote: string) => ({
+      type: 'text',
+      text,
+      citations: [{ type: 'web_search_result_location', url, title: 't', cited_text: quote }],
+    });
     const submitOk = (answer = 'ok') => ({
       stop_reason: 'tool_use',
       content: [{ type: 'tool_use', name: 'submit_resposta_final', input: { answer } }],
@@ -281,64 +292,81 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
     });
     const toolNames = (call: Record<string, unknown>) =>
       (call.tools as Record<string, unknown>[]).map((t) => t.name);
+    const lastContent = (call: Record<string, unknown>) =>
+      String((call.messages as { content: unknown }[]).at(-1)!.content);
     const client = (create: (p: Record<string, unknown>) => Promise<unknown>, maxRetries = 3) =>
       new AnthropicLlmClient({ models: A_MODELS, sdk: { messages: { create } }, maxRetries, retry: noSleep });
 
-    it('pause_turn depois de buscar: continuar poderia passar do teto → entrega numa conversa nova, sem busca', async () => {
+    it('pause_turn com buscas cobradas: continua enquanto o pior caso cabe; depois, entrega sem busca', async () => {
       const sdk = fakeSdk([
+        { stop_reason: 'pause_turn', content: searched('s1'), usage: usage(100, 10, 2) },
         {
           stop_reason: 'pause_turn',
-          content: [...searched('s1'), { type: 'text', text: 'Globo tem os direitos no Brasil.' }],
-          usage: usage(100, 10, 4),
+          content: [
+            ...searched('s2'),
+            cited('Globo tem os direitos.', 'https://ge.globo.com/x', 'Globo exibe'),
+          ],
+          usage: usage(100, 10, 2),
         },
         submitOk(),
       ]);
       const out = await client(sdk.create).generateJson(req({ maxSearches: 5 }));
-      expect(sdk.calls[0]!.tools).toEqual(client(sdk.create).buildTools(req({ maxSearches: 5 })));
-      expect((sdk.calls[0]!.tools as Record<string, unknown>[])[0]).toMatchObject({ max_uses: 5 });
-      // 4 buscas + max_uses 5 na mesma conversa daria até 9: a entrega vai sem a ferramenta de busca
-      expect(toolNames(sdk.calls[1]!)).toEqual(['submit_resposta_final']);
-      const delivery = sdk.calls[1]!.messages as { role: string; content: string }[];
-      expect(delivery).toHaveLength(1);
-      expect(delivery[0]!.content).toContain('## Resultado da pesquisa\nGlobo tem os direitos no Brasil.');
-      expect(delivery[0]!.content).toContain('- https://conmebol.com/s1 (s1)');
-      expect(sdk.calls[1]!.system).toContain(DELIVERY_NOTE);
+      expect(sdk.calls).toHaveLength(3);
+      // teto 5 → max_uses 2; 2 + 2 ≤ 5: a continuação sai na mesma conversa, com as mesmas ferramentas
+      expect((sdk.calls[0]!.tools as Record<string, unknown>[])[0]).toMatchObject({ max_uses: 2 });
+      expect(sdk.calls[1]!.tools).toEqual(sdk.calls[0]!.tools);
+      expect((sdk.calls[1]!.messages as unknown[]).length).toBe(2);
+      // 4 + 2 > 5: a entrega vai numa conversa nova, sem a busca, com texto, fontes e trechos citados
+      expect(toolNames(sdk.calls[2]!)).toEqual(['submit_resposta_final']);
+      const delivery = lastContent(sdk.calls[2]!);
+      expect(delivery).toContain('## Resultado da pesquisa\nGlobo tem os direitos.');
+      expect(delivery).toContain('- https://conmebol.com/s1 (s1)');
+      expect(delivery).toContain('- https://ge.globo.com/x (t)\n   - "Globo exibe"');
+      expect(sdk.calls[2]!.system).toContain('sem fonte, não entra');
       expect(out.usage).toMatchObject({ webSearchCalls: 4 });
-      expect(out.citations.map((c) => c.url)).toEqual(['https://conmebol.com/s1']);
     });
 
     it('modelo que nunca chama a ferramenta: sem retentativa e sem buscas além do teto', async () => {
       const calls: Record<string, unknown>[] = [];
       const create = async (params: Record<string, unknown>) => {
         calls.push(structuredClone(params));
-        const first = calls.length === 1;
+        const searching = calls.length <= 2;
         return {
           stop_reason: 'end_turn',
-          content: [...(first ? searched('s1') : []), { type: 'text', text: `texto ${calls.length}` }],
-          usage: usage(100, 10, first ? 5 : 0),
+          content: [
+            ...(searching ? searched(`s${calls.length}`) : []),
+            { type: 'text', text: `texto ${calls.length}` },
+          ],
+          usage: usage(100, 10, searching ? 2 : 0),
         };
       };
-      const c = client(create);
-      const err = await c
+      const err = await client(create)
         .generateJson(req({ maxSearches: 5 }))
         .catch((e: unknown) => e as LlmError & { usage: unknown });
       expect(err).toMatchObject({ kind: 'schema', retryable: false });
-      expect(err.usage).toMatchObject({ webSearchCalls: 5 });
-      // 4 requisições (uma tentativa só): a 1ª com busca, as outras na conversa de entrega, sem busca
+      expect(err.usage).toMatchObject({ webSearchCalls: 4 });
+      // uma tentativa só: 2 requisições com busca (pedido de entrega na mesma conversa), 2 de entrega
       expect(calls).toHaveLength(4);
-      expect((calls[0]!.tools as Record<string, unknown>[])[0]).toMatchObject({ max_uses: 5 });
-      for (const call of calls.slice(1)) expect(toolNames(call)).toEqual(['submit_resposta_final']);
-      // dentro da conversa de entrega o histórico só cresce (pedido de entrega anexado)
-      expect((calls[3]!.messages as unknown[]).length).toBe(5);
+      expect(calls[1]!.tools).toEqual(calls[0]!.tools);
+      for (const call of calls.slice(2)) expect(toolNames(call)).toEqual(['submit_resposta_final']);
+      // a conversa de entrega leva só o texto da conversa com busca e cresce só por anexo
+      expect(lastContent(calls[2]!)).toContain('texto 1\n\ntexto 2');
+      expect(calls[3]!.messages).toEqual([
+        ...(calls[2]!.messages as unknown[]),
+        expect.objectContaining({ role: 'assistant' }),
+        expect.objectContaining({ role: 'user' }),
+      ]);
     });
 
-    it('retentativa depois de pesquisar não pesquisa de novo: entrega sobre o que já foi pago', async () => {
+    it('entrega fora do schema depois de pesquisar: a retentativa não pesquisa e recebe a entrada e o erro', async () => {
       const sdk = fakeSdk([
-        // 3 buscas e a entrega fora do schema (retentável)
         {
           stop_reason: 'tool_use',
-          content: [...searched('s1'), { type: 'tool_use', name: 'submit_resposta_final', input: {} }],
-          usage: usage(100, 10, 3),
+          content: [
+            ...searched('s1'),
+            { type: 'tool_use', name: 'submit_resposta_final', input: { resposta: 'x' } },
+          ],
+          usage: usage(100, 10, 2),
         },
         submitOk('certo'),
       ]);
@@ -346,7 +374,60 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
       expect(out.data.answer).toBe('certo');
       expect(sdk.calls).toHaveLength(2);
       expect(toolNames(sdk.calls[1]!)).toEqual(['submit_resposta_final']);
-      expect(out.usage).toMatchObject({ webSearchCalls: 3 });
+      const delivery = lastContent(sdk.calls[1]!);
+      expect(delivery).toContain('## Entrega anterior recusada');
+      expect(delivery).toContain('Entrada recusada: {"resposta":"x"}');
+      expect(delivery).toMatch(/não seguiu o schema \(Saída fora do schema/);
+      // o modelo não deixou texto: avisa em vez de inventar
+      expect(delivery).toContain('(o modelo não deixou texto da pesquisa)');
+      expect(out.usage).toMatchObject({ webSearchCalls: 2 });
+    });
+
+    it('entrega fora do schema sem nenhuma busca: a retentativa refaz a conversa normal com o teto inteiro', async () => {
+      const sdk = fakeSdk([
+        {
+          stop_reason: 'tool_use',
+          content: [
+            { type: 'text', text: 'respondo de memória' },
+            { type: 'tool_use', name: 'submit_resposta_final', input: {} },
+          ],
+          usage: usage(100, 10, 0),
+        },
+        submitOk(),
+      ]);
+      await client(sdk.create).generateJson(req({ maxSearches: 5 }));
+      expect(sdk.calls).toHaveLength(2);
+      expect(sdk.calls[1]!.tools).toEqual(sdk.calls[0]!.tools); // busca com max_uses 2 de novo
+      expect(lastContent(sdk.calls[1]!)).toContain('## Entrega anterior recusada');
+      expect(sdk.calls[1]!.system).toBe(sdk.calls[0]!.system);
+    });
+
+    it('conversa de entrega sem fontes não exige fonte e mantém os exemplos do assistente', async () => {
+      const sdk = fakeSdk([
+        // a busca foi cobrada mas não trouxe resultado nem citação
+        { stop_reason: 'pause_turn', content: [], usage: usage(100, 10, 1) },
+        submitOk(),
+      ]);
+      await client(sdk.create).generateJson(
+        req({
+          maxSearches: 1,
+          messages: [
+            { role: 'user', content: 'exemplo' },
+            { role: 'assistant', content: 'resposta exemplo' },
+            { role: 'user', content: 'pergunta' },
+          ],
+        }),
+      );
+      const delivery = sdk.calls[1]!;
+      expect(toolNames(delivery)).toEqual(['submit_resposta_final']);
+      expect((delivery.messages as { role: string }[]).map((m) => m.role)).toEqual([
+        'user',
+        'assistant',
+        'user',
+        'user',
+      ]);
+      expect(lastContent(delivery)).toContain('## Fontes encontradas\n(nenhuma)');
+      expect(delivery.system).not.toContain('sem fonte, não entra');
     });
 
     it('falha antes de qualquer busca: a nova tentativa ainda tem o teto inteiro', async () => {
@@ -355,8 +436,12 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
       expect(sdk.calls).toHaveLength(2);
       expect((sdk.calls[1]!.tools as Record<string, unknown>[])[0]).toMatchObject({
         name: 'web_search',
-        max_uses: 5,
+        max_uses: 2,
       });
+    });
+
+    it('max_uses por conversa: metade do que sobra (mín. 1)', () => {
+      expect([0, 1, 2, 3, 5, 6].map(searchUsesFor)).toEqual([0, 1, 1, 1, 2, 3]);
     });
   });
 

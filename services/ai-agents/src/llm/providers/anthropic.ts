@@ -4,11 +4,16 @@
  * (com `allowed_domains`). O modelo termina chamando a ferramenta de saída (instrução no system; se não
  * chamar, pedimos de novo). `tool_choice` fica sempre `auto` e `temperature` não vai: os modelos atuais
  * recusam com 400 o `tool_choice` forçado (`tool`/`any`) e o `temperature` fora do padrão.
- * Turnos pausados (`pause_turn`) são continuados reenviando o conteúdo do assistente, enquanto o pior
- * caso da próxima requisição couber no teto de buscas da chamada (o `max_uses` vale por requisição e a
- * lista de ferramentas não muda dentro da conversa); senão a entrega sai numa conversa nova, sem busca.
- * Docs (conferidas em 2026-10-25): platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool,
- * .../tool-use/server-tools e .../api/messages/create (`max_uses` mínimo 1).
+ *
+ * Teto de buscas: vale para a chamada inteira (tentativas e turnos), mas o `max_uses` da API vale por
+ * requisição e a lista de ferramentas não pode mudar dentro da conversa (o raciocínio dos modelos atuais
+ * fica preso a `system`, `tools` e histórico). Então cada conversa declara `max_uses` = metade do que
+ * sobra do teto, o que deixa caber pelo menos uma continuação de `pause_turn` (ou um pedido de entrega)
+ * depois de um turno que gastou tudo; uma requisição a mais só sai se o pior caso dela couber no teto.
+ * Quando não cabe, a entrega sai numa conversa nova, sem busca, com o texto, as fontes e os trechos
+ * citados da pesquisa já paga.
+ * Docs (conferidas em 2026-10-25): platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool
+ * e .../tool-use/server-tools.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { DEFAULT_MAX_OUTPUT_TOKENS } from '../budget.js';
@@ -31,7 +36,7 @@ interface Block {
   name?: string;
   input?: unknown;
   text?: string;
-  citations?: Array<{ type: string; url?: string; title?: string | null }> | null;
+  citations?: Array<{ type: string; url?: string; title?: string | null; cited_text?: string }> | null;
   content?: unknown;
 }
 
@@ -63,11 +68,26 @@ export interface AnthropicClientOptions {
 
 /** Requisições por tentativa (continuações de pause_turn, pedidos de entrega). */
 const MAX_TURNS = 4;
+/** Trechos citados por fonte que vão para a conversa de entrega (e o tamanho da entrada recusada). */
+const MAX_QUOTES_PER_SOURCE = 4;
+const MAX_REJECTED_CHARS = 4_000;
 
-/** Texto e fontes da pesquisa já paga (somados entre as tentativas). */
-interface ResearchNotes {
+type Turn = { role: 'user' | 'assistant'; content: unknown };
+
+/** O que a chamada já pagou e serve às tentativas seguintes. */
+interface CallNotes {
+  /** Texto do modelo nas conversas com busca. */
   texts: string[];
   citations: LlmCitation[];
+  /** Trechos citados (`cited_text`) por URL. */
+  quotes: Map<string, string[]>;
+  /** Última entrega recusada pelo schema: vai para a próxima tentativa corrigir. */
+  rejected?: { input: unknown; error: string };
+}
+
+/** `max_uses` de uma conversa: metade do que sobra do teto (mín. 1), para caber uma continuação. */
+export function searchUsesFor(left: number): number {
+  return left <= 0 ? 0 : Math.max(1, Math.floor(left / 2));
 }
 
 export class AnthropicLlmClient implements LlmClient {
@@ -95,10 +115,8 @@ export class AnthropicLlmClient implements LlmClient {
   }
 
   /**
-   * Ferramentas de uma conversa. `searchUses` (≥ 1) declara a busca com esse `max_uses` (o mínimo da
-   * API é 1); 0 deixa só a ferramenta de saída. A lista não muda dentro de uma conversa: nos modelos
-   * atuais o bloco de raciocínio fica preso ao `system`, às `tools` e ao histórico, e mudar as
-   * ferramentas entre requisições da mesma conversa invalida os blocos já devolvidos (400).
+   * Ferramentas de uma conversa: `searchUses` ≥ 1 declara a busca com esse `max_uses`; 0 deixa só a
+   * ferramenta de saída. A lista não muda dentro de uma conversa (ver o cabeçalho).
    */
   buildTools(req: LlmJsonRequest, searchUses = this.searchCap(req)): Record<string, unknown>[] {
     const tools: Record<string, unknown>[] = [];
@@ -139,8 +157,8 @@ export class AnthropicLlmClient implements LlmClient {
       );
     // cada retentativa e cada continuação são pagas de novo: o orçamento confere o gasto parcial antes
     const checkBudget = () => req.budgetCheck?.(meter.spent(cost()));
-    // a pesquisa já paga (texto e fontes) vale para todas as tentativas, como o passo 1 do Gemini
-    const notes: ResearchNotes = { texts: [], citations: [] };
+    // a pesquisa já paga vale para todas as tentativas, como o passo 1 do Gemini
+    const notes: CallNotes = { texts: [], citations: [], quotes: new Map() };
     try {
       return await withRetry(() => this.once<T>(req, model, meter, cost, checkBudget, notes), {
         retries: this.options.maxRetries ?? 3,
@@ -153,12 +171,8 @@ export class AnthropicLlmClient implements LlmClient {
   }
 
   /**
-   * Uma tentativa. O teto de buscas vale para a chamada inteira (tentativas e turnos), o `max_uses` da
-   * API vale por requisição e a lista de ferramentas não pode mudar dentro da conversa. Então a conversa
-   * com busca declara `max_uses` = o que sobra do teto e só manda mais uma requisição (continuação de
-   * `pause_turn` ou pedido de entrega) se o pior caso dela ainda couber no teto. Se não couber, ou se
-   * outra tentativa já pesquisou, a entrega sai numa conversa nova sem busca, com o texto e as fontes da
-   * pesquisa já paga.
+   * Uma tentativa: a conversa com busca (ou, se outra tentativa já pagou buscas, direto a de entrega).
+   * Mais uma requisição na mesma conversa só sai se buscas feitas + `max_uses` couberem no teto.
    */
   private async once<T>(
     req: LlmJsonRequest,
@@ -166,17 +180,18 @@ export class AnthropicLlmClient implements LlmClient {
     meter: UsageMeter,
     cost: () => number,
     checkBudget: () => void,
-    notes: ResearchNotes,
+    notes: CallNotes,
   ): Promise<LlmResult<T>> {
     const { system, dialog } = splitMessages(req);
     const submit = this.submitToolName(req);
     const cap = this.searchCap(req);
-    const researched = meter.webSearchCalls > 0 || notes.texts.length > 0 || notes.citations.length > 0;
+    // sem busca paga, a tentativa nova refaz a conversa normal com o teto inteiro
+    const researched = meter.webSearchCalls > 0 || notes.citations.length > 0;
     let delivery = req.webSearch === true && researched;
-    let searchUses = delivery ? 0 : Math.max(0, cap - meter.webSearchCalls);
-    let messages: { role: 'user' | 'assistant'; content: unknown }[] = delivery
+    let searchUses = delivery ? 0 : searchUsesFor(cap - meter.webSearchCalls);
+    let messages: Turn[] = delivery
       ? deliveryMessages(dialog, notes)
-      : dialog.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
+      : withFeedback(dialogTurns(dialog), notes);
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       if (turn > 0) checkBudget();
@@ -187,7 +202,9 @@ export class AnthropicLlmClient implements LlmClient {
         res = (await this.sdk.messages.create({
           model,
           max_tokens: req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
-          system: [system, delivery ? DELIVERY_NOTE : '', submitNote(submit)].filter(Boolean).join('\n\n'),
+          system: [system, delivery ? deliveryNote(notes) : '', submitNote(submit)]
+            .filter(Boolean)
+            .join('\n\n'),
           messages,
           tools: this.buildTools(req, searchUses),
           tool_choice: { type: 'auto' },
@@ -201,20 +218,17 @@ export class AnthropicLlmClient implements LlmClient {
         cached: res.usage?.cache_read_input_tokens ?? 0,
         searches: res.usage?.server_tool_use?.web_search_requests ?? 0,
       });
-      for (const b of res.content) {
-        if (b.type === 'text' && b.text?.trim()) notes.texts.push(b.text.trim());
-        for (const c of b.citations ?? [])
-          if (c.type === 'web_search_result_location' && c.url)
-            notes.citations.push({ url: c.url, ...(c.title ? { title: c.title } : {}) });
-        if (b.type === 'web_search_tool_result' && Array.isArray(b.content))
-          for (const r of b.content as Array<{ type?: string; url?: string; title?: string }>)
-            if (r.type === 'web_search_result' && r.url)
-              notes.citations.push({ url: r.url, ...(r.title ? { title: r.title } : {}) });
-      }
+      collect(res.content, notes, req.webSearch === true && !delivery);
 
       const call = res.content.find((b) => b.type === 'tool_use' && b.name === submit);
       if (call) {
-        const data = assertMatchesSchema<T>(req.schema, call.input, req.schemaName);
+        let data: T;
+        try {
+          data = assertMatchesSchema<T>(req.schema, call.input, req.schemaName);
+        } catch (err) {
+          notes.rejected = { input: call.input, error: err instanceof Error ? err.message : String(err) };
+          throw err;
+        }
         return {
           data,
           citations: dedupeCitations(notes.citations),
@@ -248,21 +262,69 @@ export class AnthropicLlmClient implements LlmClient {
   }
 }
 
-/** Instrução da conversa de entrega (sem busca, sobre a pesquisa já feita). */
-export const DELIVERY_NOTE =
-  'A pesquisa na web desta tarefa já foi feita e não há mais busca disponível: use só o resultado e as fontes abaixo. Afirmação sem fonte da lista não entra.';
+/** Guarda fontes, trechos citados e (na conversa com busca) o texto do modelo. */
+function collect(content: Block[], notes: CallNotes, keepText: boolean): void {
+  for (const b of content) {
+    if (keepText && b.type === 'text' && b.text?.trim()) notes.texts.push(b.text.trim());
+    for (const c of b.citations ?? [])
+      if (c.type === 'web_search_result_location' && c.url) {
+        notes.citations.push({ url: c.url, ...(c.title ? { title: c.title } : {}) });
+        const quote = c.cited_text?.replace(/\s+/g, ' ').trim();
+        const list = notes.quotes.get(c.url) ?? [];
+        if (quote && !list.includes(quote) && list.length < MAX_QUOTES_PER_SOURCE) list.push(quote);
+        notes.quotes.set(c.url, list);
+      }
+    if (b.type === 'web_search_tool_result' && Array.isArray(b.content))
+      for (const r of b.content as Array<{ type?: string; url?: string; title?: string }>)
+        if (r.type === 'web_search_result' && r.url)
+          notes.citations.push({ url: r.url, ...(r.title ? { title: r.title } : {}) });
+  }
+}
 
-/** Conversa de entrega: o pedido original, o texto da pesquisa já paga e as fontes encontradas. */
-function deliveryMessages(dialog: LlmMessage[], notes: ResearchNotes): { role: 'user'; content: string }[] {
+const dialogTurns = (dialog: LlmMessage[]): Turn[] =>
+  dialog.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
+
+/** Recusa da entrega anterior (entrada e erro do schema), para a tentativa nova corrigir. */
+function rejectedNote(notes: CallNotes): string {
+  if (!notes.rejected) return '';
+  const input = JSON.stringify(notes.rejected.input) ?? 'null';
+  const shown = input.length > MAX_REJECTED_CHARS ? `${input.slice(0, MAX_REJECTED_CHARS)}…` : input;
+  return `## Entrega anterior recusada\nA chamada anterior da ferramenta de saída não seguiu o schema (${notes.rejected.error}). Entrada recusada: ${shown}\nCorrija e entregue de novo.`;
+}
+
+function withFeedback(turns: Turn[], notes: CallNotes): Turn[] {
+  const note = rejectedNote(notes);
+  return note ? [...turns, { role: 'user', content: note }] : turns;
+}
+
+/** Instrução da conversa de entrega; "sem fonte não entra" só quando há fontes na lista. */
+function deliveryNote(notes: CallNotes): string {
+  const base =
+    'A pesquisa na web desta tarefa já foi feita e não há mais busca disponível: use o resultado e as fontes da última mensagem.';
+  return notes.citations.length
+    ? `${base} Toda afirmação tirada da web precisa de uma fonte da lista; sem fonte, não entra.`
+    : base;
+}
+
+/**
+ * Conversa de entrega: o diálogo original (com os papéis, inclusive exemplos do assistente) e uma
+ * mensagem com o texto da pesquisa já paga, as fontes com os trechos citados e a entrega recusada, se houver.
+ */
+function deliveryMessages(dialog: LlmMessage[], notes: CallNotes): Turn[] {
   const sources = dedupeCitations(notes.citations)
-    .map((c) => `- ${c.url}${c.title ? ` (${c.title})` : ''}`)
+    .map((c) => {
+      const quotes = (notes.quotes.get(c.url) ?? []).map((q) => `\n   - "${q}"`).join('');
+      return `- ${c.url}${c.title ? ` (${c.title})` : ''}${quotes}`;
+    })
     .join('\n');
   const content = [
-    dialog.map((m) => m.content).join('\n\n'),
-    `## Resultado da pesquisa\n${notes.texts.join('\n\n') || '(sem texto)'}`,
+    `## Resultado da pesquisa\n${notes.texts.join('\n\n') || '(o modelo não deixou texto da pesquisa)'}`,
     `## Fontes encontradas\n${sources || '(nenhuma)'}`,
-  ].join('\n\n');
-  return [{ role: 'user', content }];
+    rejectedNote(notes),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  return [...dialogTurns(dialog), { role: 'user', content }];
 }
 
 /** Instrução de entrega (substitui o `tool_choice` forçado, recusado pelos modelos atuais). */

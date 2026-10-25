@@ -393,17 +393,20 @@ describe('o teto em US$ segura', () => {
 
   it('Anthropic: cada continuação (pause_turn) também passa pela conferência', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    // todo turno pausa com a busca pendente (não cobrada): US$ 0,03 em tokens por requisição
-    const api = anthropicSdk(() => ({
+    // todo turno pausa depois de uma busca cobrada: US$ 0,03 em tokens + 0,01 da busca por requisição
+    const api = anthropicSdk((i) => ({
       stop_reason: 'pause_turn',
-      content: [{ type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'q' } }],
-      usage: anthropicUsage(0),
+      content: [
+        { type: 'server_tool_use', id: `s${i}`, name: 'web_search', input: { query: 'q' } },
+        { type: 'web_search_tool_result', tool_use_id: `s${i}`, content: [] },
+      ],
+      usage: anthropicUsage(1),
     }));
     const anthropic = new AnthropicLlmClient({ models: claude, sdk: api.sdk, retry: noSleep });
     const store = new MemoryTokenBudgetStore();
     const budget = new TokenBudget(
       store,
-      { dailyLimit: null, dailyUsdLimit: 0.1, maxSearchesPerCall: 1 },
+      { dailyLimit: null, dailyUsdLimit: 0.15, maxSearchesPerCall: 4 },
       () => NOW,
     );
     const client = new BudgetedLlmClient(anthropic, budget, (t) => claude[t], 'anthropic');
@@ -411,11 +414,13 @@ describe('o teto em US$ segura', () => {
     const err = await client
       .generateJson(req({ webSearch: true, maxOutputTokens: 100 }))
       .catch((e: unknown) => e);
-    // estimativa ≈ US$ 0,05 (overhead de 20 mil tokens da busca + 1 busca): 0,03 + 0,05 cabe; 0,06 + 0,05 não
+    // teto 4 → max_uses 2: a continuação cabe no teto de buscas e segue na mesma conversa; no orçamento,
+    // a estimativa é ≈ US$ 0,08 (overhead de 20 mil tokens da busca + 4 buscas): 0,04 + 0,08 cabe; 0,08 + 0,08 não
     expect(err).toBeInstanceOf(BudgetExceededError);
     expect(err).toMatchObject({ midCall: true, agent: 'global' });
     expect(api.calls).toHaveLength(2);
-    expect(store.entries[0]).toMatchObject({ outcome: 'error', costUsd: 0.06 });
+    expect(api.calls[1]!.tools).toEqual(api.calls[0]!.tools);
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', webSearches: 2, costUsd: 0.08 });
     expect(String(warn.mock.calls.at(-1)![0])).toMatch(/não comporta mais uma tentativa desta chamada/);
   });
 
