@@ -3,7 +3,7 @@
  * Cada função é cacheada (`use cache`): os metadados mudam pouco e a demo precisa navegar sem espera.
  */
 import { createGalaxieClient, GalaxieApiError } from '@galaxie/contracts';
-import { cacheLife } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { notFound } from 'next/navigation';
 
 import type { SupportedLocale } from '@galaxie/contracts';
@@ -12,6 +12,7 @@ import { apiLocale, apiTimeZone, defaultMarket, type ContentLocale, type Locale 
 import { getDictionary } from '../i18n/dictionary';
 import { fill } from '../i18n/text';
 
+import { RELATED_CACHE_TAG } from './related-cache';
 import type { ApiRequest } from './request';
 import { API_URL } from './server';
 
@@ -541,6 +542,7 @@ export const relatedRequest = (
 export async function getRelated(id: string, locale: ContentLocale, country?: string) {
   'use cache';
   cacheLife('minutes');
+  cacheTag(RELATED_CACHE_TAG);
   try {
     return await orNull(
       api.eventRelated(id, { limit: 50, ...(country ? { country } : {}), ...localeQuery(locale) }),

@@ -34,6 +34,17 @@ export class PlaybackReportLimiter {
     return 'ok';
   }
 
+  /**
+   * Devolve o aviso que não chegou à API (erro de rede ou 5xx): o item não fica marcado como avisado e o
+   * teto do usuário não é gasto. Reservar no `take` e devolver aqui evita dois repasses simultâneos.
+   */
+  release(userId: string, itemId: string, at: number) {
+    if (this.byItem.get(`${userId}|${itemId}`) === at) this.byItem.delete(`${userId}|${itemId}`);
+    const recent = this.byUser.get(userId);
+    const i = recent?.indexOf(at) ?? -1;
+    if (recent && i >= 0) recent.splice(i, 1);
+  }
+
   private prune(now: number) {
     const since = now - this.windowMs;
     for (const [user, times] of this.byUser) {

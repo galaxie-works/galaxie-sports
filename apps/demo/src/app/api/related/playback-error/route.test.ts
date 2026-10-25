@@ -6,6 +6,8 @@ const getSession = vi.fn();
 vi.mock('@/lib/auth/server', () => ({
   auth: { api: { getSession: (...a: unknown[]) => getSession(...a) } },
 }));
+const revalidateTag = vi.fn();
+vi.mock('next/cache', () => ({ revalidateTag: (...a: unknown[]) => revalidateTag(...a) }));
 vi.mock('@/lib/galaxie/server', () => ({
   API_URL: 'http://api.test',
   apiHeaders: (extra?: HeadersInit) => new Headers(extra),
@@ -35,12 +37,21 @@ describe('PlaybackReportLimiter', () => {
     expect(l.take('u1', 'c', 1_500)).toBe('ok');
     expect(l.take('u1', 'a', 1_500)).toBe('ok');
   });
+
+  it('aviso devolvido (não chegou à API) não marca o item nem gasta o teto', () => {
+    const l = new PlaybackReportLimiter(1, 1_000);
+    expect(l.take('u1', 'a', 0)).toBe('ok');
+    l.release('u1', 'a', 0);
+    expect(l.take('u1', 'a', 10)).toBe('ok');
+    expect(l.take('u1', 'b', 20)).toBe('limited');
+  });
 });
 
 describe('POST /api/related/playback-error', () => {
   const fetchMock = vi.fn();
   beforeEach(() => {
     getSession.mockReset();
+    revalidateTag.mockReset();
     fetchMock.mockReset().mockResolvedValue(new Response(null, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     vi.spyOn(console, 'info').mockImplementation(() => {});
@@ -63,13 +74,26 @@ describe('POST /api/related/playback-error', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('repassa só item e código, registra quem avisou, ignora o repetido e limita o convidado', async () => {
+  it('API fora (5xx ou rede): o próximo aviso do mesmo item é repassado de novo', async () => {
+    getSession.mockResolvedValue({ user: { id: 'u-retry', role: 'user' } });
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    expect((await report({ item_id: item(1), code: 150 })).status).toBe(503);
+    fetchMock.mockRejectedValueOnce(new Error('rede'));
+    expect((await report({ item_id: item(1), code: 150 })).status).toBe(502);
+    expect((await report({ item_id: item(1), code: 150 })).status).toBe(204);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(revalidateTag).toHaveBeenCalledTimes(1);
+  });
+
+  it('repassa item, código e quorum false, registra quem avisou, ignora o repetido e limita o convidado', async () => {
     getSession.mockResolvedValue({ user: { id: 'guest-1', role: 'user' } });
     expect((await report({ item_id: item(1), code: 150 })).status).toBe(204);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('http://api.test/v1/related/playback-errors');
-    expect(JSON.parse(init.body)).toEqual({ item_id: item(1), code: 150 });
+    // a demo nunca conta para o bloqueio de todos os tenants
+    expect(JSON.parse(init.body)).toEqual({ item_id: item(1), code: 150, quorum: false });
+    expect(revalidateTag).toHaveBeenCalledWith('galaxie:related', { expire: 0 });
     expect(console.info).toHaveBeenCalledWith(
       expect.any(String),
       expect.stringContaining('"user":"guest-1"'),
