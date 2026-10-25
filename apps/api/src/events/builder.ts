@@ -26,10 +26,18 @@ import { isInPlay, momentum } from '@galaxie/providers';
 import {
   fanTags,
   fanTagStanding,
+  finishedLeagueMatchStakes,
   knockoutStageRules,
   knockoutStakes,
+  leagueInputOf,
   leagueMatchStakes,
   localizeStake,
+  pickGroupTable,
+  prepareFinishedLeagueMatch,
+  salienceFight,
+  salienceStanding,
+  salientStakes,
+  stakePhase,
   titleChaseSides,
   titleChaseStakes,
   TITLE_VARIANT_OF,
@@ -37,9 +45,12 @@ import {
   type FanTagLocale,
   type FanTagStanding,
   type Fixture,
+  type LeagueTeamInput,
+  type SalienceStanding,
   type Stake,
   type StakeLocale,
 } from '@galaxie/rules';
+import { loadLeagueResults } from '@galaxie/rules/db';
 import { formatInstant, pickList, pickText } from '../i18n.js';
 import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
@@ -92,6 +103,11 @@ export interface BuildContext {
   /** Flag ASSETS_CUSTOM_LOGOS lida no começo da requisição: logo do acervo onde houver. */
   customLogos: boolean;
   rules: RulesRegistry;
+  /**
+   * `salient` (padrão): até 3 stakes por time e fase (`salientStakes`, docs/rules §3.5); `all`: a lista
+   * completa do motor, com `salient` marcando os escolhidos.
+   */
+  stakes?: 'salient' | 'all';
 }
 
 type Pair = { home: number | null; away: number | null };
@@ -467,12 +483,15 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
   const open = (s: Event['status']) => s !== 'finished' && s !== 'cancelled' && s !== 'abandoned';
   const stageIds = new Set<string>();
   const leagueSeasons = new Set<string>();
+  // jogos encerrados de pontos corridos: tabela de antes do jogo, a partir dos resultados da temporada
+  const finishedLeagueSeasons = new Set<string>();
   for (const r of rows) {
     if (!r.st?.id) continue;
     if (KNOCKOUT_KINDS.has(r.st.kind)) stageIds.add(r.st.id);
-    else if (LEAGUE_KINDS.has(r.st.kind) && open(r.e.status)) {
+    else if (LEAGUE_KINDS.has(r.st.kind) && (open(r.e.status) || r.e.status === 'finished')) {
       stageIds.add(r.st.id);
       if (r.e.seasonId) leagueSeasons.add(r.e.seasonId);
+      if (r.e.seasonId && r.e.status === 'finished') finishedLeagueSeasons.add(r.e.seasonId);
     }
   }
   const stageMatches = await loadStageMatches(db, [...stageIds]);
@@ -493,10 +512,17 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
           rank: standing.rank,
           points: standing.points,
           played: standing.played,
+          won: standing.won,
+          drawn: standing.drawn,
+          lost: standing.lost,
+          goalsFor: standing.goalsFor,
+          goalsAgainst: standing.goalsAgainst,
+          updatedAt: standing.updatedAt,
         })
         .from(standing)
         .where(inArray(standing.seasonId, [...leagueSeasons]))
     : [];
+  const leagueResults = await loadLeagueResults(db, [...finishedLeagueSeasons]);
   const tablesBySeason = new Map<string, Map<string, typeof standingsRows>>();
   for (const s of standingsRows) {
     const groups = tablesBySeason.get(s.seasonId) ?? new Map<string, typeof standingsRows>();
@@ -547,8 +573,13 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     const rules = rulesOf(r);
     const stageKind = r.st?.kind ?? null;
     const stakes: Stake[] = [];
+    // jogo encerrado de pontos corridos: o que o resultado mudou (tabela de depois)
+    const resultStakes: Stake[] = [];
     // situação na tabela por lado: filtra as tags do torcedor de mera possibilidade (pontos corridos)
     const standings: Partial<Record<'home' | 'away', FanTagStanding | null>> = {};
+    // saliência: situação antes do jogo (pré-jogo) e depois (resultado)
+    const salienceBefore: Partial<Record<'home' | 'away', SalienceStanding | null>> = {};
+    const salienceAfter: Partial<Record<'home' | 'away', SalienceStanding | null>> = {};
     const contexts = new Set<Event['competition_context'][number]>();
     // a fase decide o título (final), ida inclusive
     let decidesTitle = false;
@@ -610,12 +641,8 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     if (stageKind && LEAGUE_KINDS.has(stageKind)) {
       contexts.add('regular');
       const groups = e.seasonId ? tablesBySeason.get(e.seasonId) : undefined;
-      const table =
-        groups && homeId && awayId
-          ? [...groups.values()].find(
-              (g) => g.some((s) => s.participantId === homeId) && g.some((s) => s.participantId === awayId),
-            )
-          : undefined;
+      // a mesma liga pode estar gravada sob dois rótulos de grupo (um desatualizado): fica a mais completa
+      const table = groups && homeId && awayId ? pickGroupTable(groups.values(), homeId, awayId) : undefined;
       if (table?.[0] && (table[0].participantId === homeId || table[0].participantId === awayId))
         contexts.add('lead');
       if (table && rules?.league && open(e.status) && homeId && awayId && r.st?.id) {
@@ -638,6 +665,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         }));
         standings.home = fanTagStanding(leagueTable, rules.league, homeId);
         standings.away = fanTagStanding(leagueTable, rules.league, awayId);
+        setSalience(salienceBefore, leagueTable, rules, homeId, awayId);
         try {
           stakes.push(
             ...leagueMatchStakes({
@@ -651,6 +679,49 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
           );
         } catch {
           // tabela incompatível com o regulamento (ex.: mais jogos que o previsto): sem stakes
+        }
+      } else if (
+        table &&
+        rules?.league &&
+        e.status === 'finished' &&
+        typeof e.score?.home === 'number' &&
+        typeof e.score.away === 'number' &&
+        homeId &&
+        awayId &&
+        r.st?.id &&
+        e.seasonId
+      ) {
+        // encerrado: o que estava em jogo (tabela de antes) e o que o resultado mudou (tabela de depois)
+        const inTable = new Set(table.map((s) => s.participantId));
+        const nextRound: Fixture[] = (matchesByStage.get(r.st.id) ?? [])
+          .filter(
+            (m) =>
+              m.id !== id &&
+              m.status !== 'cancelled' &&
+              m.status !== 'abandoned' &&
+              m.startsAt >= e.startsAt &&
+              m.homeId &&
+              m.awayId &&
+              inTable.has(m.homeId) &&
+              inTable.has(m.awayId),
+          )
+          .map((m) => ({ homeId: m.homeId!, awayId: m.awayId! }));
+        try {
+          const finished = finishedLeagueMatchStakes(
+            prepareFinishedLeagueMatch({
+              rules,
+              current: table.map((s) => ({ ...s, teamId: s.participantId })),
+              results: leagueResults.get(e.seasonId) ?? [],
+              matchId: id,
+              nextRound,
+            }),
+          );
+          stakes.push(...finished.pre);
+          resultStakes.push(...finished.result);
+          setSalience(salienceBefore, leagueInputOf(finished.before), rules, homeId, awayId);
+          setSalience(salienceAfter, leagueInputOf(finished.after), rules, homeId, awayId);
+        } catch {
+          // tabela atual não bate com os resultados (ex.: desatualizada): sem stakes, como antes
         }
       }
     }
@@ -668,9 +739,15 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       }
     }
     if (r.d?.slug) contexts.add('derby');
-    for (const s of stakes) {
-      if (TITLE_FAMILIES.has(s.family)) contexts.add('title');
-      if (RELEGATION_FAMILIES.has(s.family)) contexts.add('relegation');
+    // saliência: até 3 por time e fase; mata-mata e `both` passam direto
+    const salient = [...salientStakes(stakes, salienceBefore), ...salientStakes(resultStakes, salienceAfter)];
+    const salientSet = new Set(salient);
+    const listed = ctx.stakes === 'all' ? [...stakes, ...resultStakes] : salient;
+    // título/rebaixamento pelo que é relevante (o Flamengo líder não "briga contra o rebaixamento")
+    for (const s of salient) {
+      const fight = salienceFight(s);
+      if (TITLE_FAMILIES.has(s.family) || fight === 'title') contexts.add('title');
+      if (RELEGATION_FAMILIES.has(s.family) || fight === 'relegation') contexts.add('relegation');
     }
 
     const profile = r.c ? profileBy.get(r.c.id) : undefined;
@@ -694,9 +771,10 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
               photo: gridPhotos.get(p.id)?.[0] ?? null,
             }
           : {}),
-        // tags do torcedor por lado (stakes `both` valem para os dois), no locale da resposta
+        // tags do torcedor por lado (stakes `both` valem para os dois), no locale da resposta; só antes
+        // e durante o jogo (o card de chamada fala do que está em jogo)
         fan_tags:
-          p.side === 'home' || p.side === 'away'
+          (p.side === 'home' || p.side === 'away') && open(e.status)
             ? fanTags(stakes, p.side, [locale as FanTagLocale], undefined, standings[p.side]).map((t) => ({
                 code: t.code,
                 priority: t.priority,
@@ -767,7 +845,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
           }
         : null,
       competition_context: [...contexts],
-      stakes: stakes.map((s): EventStake => {
+      stakes: listed.map((s): EventStake => {
         const l = localizeStake(s, [locale as StakeLocale]);
         const teamId = teamIdOf(l.team);
         const rec = s.family === 'seeks_title_n' && teamId ? titleRecords.get(teamId) : undefined;
@@ -776,6 +854,8 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
           team_id: teamId,
           code: l.code,
           text: l.text as Record<string, string>,
+          phase: stakePhase(s),
+          salient: salientSet.has(s),
           ...(rec ? { titles: { won: rec.won, seasons: rec.seasons, source: 'wikidata' as const } } : {}),
         };
       }),
@@ -801,6 +881,18 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     out.push({ dto, stakeFamilies: stakes.map((s) => s.family) });
   }
   return out;
+}
+
+/** Situação dos dois times na tabela para a saliência dos stakes. */
+function setSalience(
+  target: Partial<Record<'home' | 'away', SalienceStanding | null>>,
+  table: readonly LeagueTeamInput[],
+  rules: CompetitionRules,
+  homeId: string,
+  awayId: string,
+) {
+  target.home = salienceStanding(table, rules.league!, homeId, rules.standings.points);
+  target.away = salienceStanding(table, rules.league!, awayId, rules.standings.points);
 }
 
 /**

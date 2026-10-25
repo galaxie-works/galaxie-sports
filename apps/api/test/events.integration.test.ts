@@ -537,7 +537,14 @@ type EventBody = {
   score: { home: number | null; away: number | null; aggregate: { home: number; away: number } | null };
   competition: { slug: string; name: string; nickname: string | null } | null;
   competition_context: string[];
-  stakes: { team: string; team_id: string | null; code: string; text: Record<string, string> }[];
+  stakes: {
+    team: string;
+    team_id: string | null;
+    code: string;
+    text: Record<string, string>;
+    phase: 'pre_match' | 'result';
+    salient: boolean;
+  }[];
   derby: { slug: string; name: string; intensity: number } | null;
   venue: { id: string; name: string; city: string | null } | null;
   referee: { name: string; country: string | null } | null;
@@ -685,18 +692,24 @@ describe('/v1/events/{id}', () => {
         team_id: home!.id,
         code: 'advances_with_draw',
         text: { 'pt-BR': 'Avança com empate' },
+        phase: 'pre_match',
+        salient: true,
       },
       {
         team: 'away',
         team_id: away!.id,
         code: 'needs_win_by_2',
         text: { 'pt-BR': 'Precisa vencer por 2 gols para avançar direto' },
+        phase: 'pre_match',
+        salient: true,
       },
       {
         team: 'away',
         team_id: away!.id,
         code: 'win_by_1_goes_to_penalties',
         text: { 'pt-BR': 'Vitória por 1 gol leva a decisão aos pênaltis' },
+        phase: 'pre_match',
+        salient: true,
       },
     ]);
     // tags do torcedor por participante e grito da base semântica (só quem tem perfil)
@@ -730,6 +743,8 @@ describe('/v1/events/{id}', () => {
       team_id: e.participants[0]!.id,
       code: 'advances_with_draw',
       text: { 'es-AR': 'Avanza con el empate' },
+      phase: 'pre_match',
+      salient: true,
     });
     expect(e.participants[0]!.fan_tags[0]?.text).toEqual({ 'es-AR': 'Avanza con el empate' });
     // sem dica de copy em espanhol: cai no grito do clube (rallying_cries), nunca no pt-BR
@@ -848,12 +863,23 @@ describe('/v1/events/{id}', () => {
     expect(e.competition_context).toEqual(expect.arrayContaining(['regular', 'lead', 'title']));
     const codes = e.stakes.map((s) => `${s.team}:${s.code}`);
     expect(codes).toEqual(
-      expect.arrayContaining([
-        'home:clinches_title_with_draw',
-        'away:clinches_title_with_win',
-        'home:qualifies_for_libertadores_group_stage',
-      ]),
+      expect.arrayContaining(['home:clinches_title_with_draw', 'away:clinches_title_with_win']),
     );
+    // saliência: "garante ao menos a fase de grupos" é piso superado pelo título em jogo; a lista completa
+    // continua em ?stakes=all, com `salient` marcando os escolhidos
+    expect(codes).not.toContain('home:qualifies_for_libertadores_group_stage');
+    for (const s of e.stakes) expect(s).toMatchObject({ phase: 'pre_match', salient: true });
+    const all = (await get(`/v1/events/${ids.final38}?stakes=all`)).json() as EventBody;
+    expect(all.stakes.find((s) => s.code === 'qualifies_for_libertadores_group_stage')).toMatchObject({
+      team: 'home',
+      salient: false,
+    });
+    expect(
+      all.stakes
+        .filter((s) => s.salient)
+        .map((s) => `${s.team}:${s.code}`)
+        .sort(),
+    ).toEqual([...codes].sort());
     const [home, away] = e.participants;
     for (const s of e.stakes)
       expect(s.team_id).toBe(s.team === 'home' ? home!.id : s.team === 'away' ? away!.id : null);
