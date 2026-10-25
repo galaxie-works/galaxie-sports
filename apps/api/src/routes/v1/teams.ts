@@ -294,7 +294,8 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
   /**
    * Anos de temporada com jogos do time (`season.year`, do mais recente ao mais antigo). A corrente é a
    * mais recente marcada como atual pelo fornecedor; sem nenhuma marcada, a mais recente. Construtor da F1
-   * (`constructorIds`): as sessões dos pilotos da equipe, pelo mesmo vínculo de `constructorEvents`.
+   * (`constructor`, com os IDs dela nas fontes): as sessões dos pilotos da equipe, pelo mesmo vínculo de
+   * `constructorEvents`.
    */
   async function teamSeasons(
     db: Database,
