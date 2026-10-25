@@ -33,6 +33,7 @@ import { formatInstant, pickList, pickText } from '../../i18n.js';
 import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
 import { buildCtx, localeOf, sportCheck } from './events.js';
+import { loadTeamNames, teamNameOptions, type TeamNamer } from '../../teams/display-name.js';
 
 const MODULE = { module: 'core_data' } as const;
 type Group = CompetitionContext['groups'][number];
@@ -114,15 +115,19 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const rules = await ctx.rules.get(c.c.slug, s?.year ?? null);
         const labels = { ...(c.c.labels ?? {}), ...(c.profileLabels ?? {}) } as Record<string, string>;
 
-        const ref = (p: {
-          id: string;
-          name: string;
-          shortName: string | null;
-          key: string | null;
-          url: string | null;
-        }) => ({
+        const nameOptions = teamNameOptions(ctx, locale);
+        const ref = (
+          p: {
+            id: string;
+            name: string;
+            shortName: string | null;
+            key: string | null;
+            url: string | null;
+          },
+          names: TeamNamer,
+        ) => ({
           id: p.id,
-          name: p.name,
+          ...names.of(p.id, p.name),
           short_name: p.shortName,
           logo: assetUrl(ctx.assetsBaseUrl, p.key, p.url),
         });
@@ -142,6 +147,11 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
             .leftJoin(asset, eq(asset.id, teamLogoId(ctx.logos.enabled())))
             .where(eq(standing.seasonId, s.id))
             .orderBy(asc(standing.group), asc(standing.rank));
+          const names = await loadTeamNames(
+            db,
+            rows.map((r) => r.p.id),
+            nameOptions,
+          );
           const byGroup = new Map<string, typeof rows>();
           for (const r of rows) byGroup.set(r.st.group, [...(byGroup.get(r.st.group) ?? []), r]);
           for (const [name, list] of byGroup) {
@@ -149,7 +159,7 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
               rank: r.st.rank,
               points: r.st.points,
               played: r.st.played,
-              participant: ref({ ...r.p, key: r.key, url: r.url }),
+              participant: ref({ ...r.p, key: r.key, url: r.url }, names),
             });
             const zoneDefs = rules?.league?.zones.length
               ? rules.league.zones.map((z) => ({
@@ -208,7 +218,8 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
                 .leftJoin(asset, eq(asset.id, teamLogoId(ctx.logos.enabled())))
                 .where(inArray(participant.id, ids))
             : [];
-          const partBy = new Map(parts.map((p) => [p.id, ref(p)]));
+          const partNames = await loadTeamNames(db, ids, nameOptions);
+          const partBy = new Map(parts.map((p) => [p.id, ref(p, partNames)]));
           const winners = matches.length
             ? await db
                 .select({
@@ -299,7 +310,13 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
   });
 }
 
-type PartRef = { id: string; name: string; short_name: string | null; logo: string | null };
+type PartRef = {
+  id: string;
+  name: string;
+  provider_name?: string;
+  short_name: string | null;
+  logo: string | null;
+};
 
 /**
  * Um confronto do chaveamento: pernas, agregado, vencedor e situação. `expectedLegs` vem do regulamento;

@@ -1,6 +1,12 @@
 import type { ZodOpenApiPathsObject } from 'zod-openapi';
 import { LocaleQuery } from './common.js';
-import { EXPLORE_WINDOW_DAYS, ExploreSummary, ExploreSummaryQuery } from './explore.js';
+import {
+  EXPLORE_WINDOW_DAYS,
+  ExploreAgenda,
+  ExploreAgendaQuery,
+  ExploreSummary,
+  ExploreSummaryQuery,
+} from './explore.js';
 import {
   CountryCompetitions,
   CountryCompetitionsQuery,
@@ -32,6 +38,17 @@ export function navigationPaths(): ZodOpenApiPathsObject {
           'destaque; por país (os da navegação, agrupados por confederação), competições domésticas, liga ' +
           'principal, os 5 clubes mais importantes, jogos e ao vivo (competição do país ou participante do país, ' +
           'como `/v1/events?country=`) e o próximo jogo de maior relevância no mercado do país. Cache de 60 s.',
+      ),
+    },
+    '/v1/explore/agenda': {
+      get: withDescription(
+        getOp('Agenda dos próximos dias: os jogos que o resumo conta', 'Catálogo', ExploreAgenda, {
+          query: ExploreAgendaQuery,
+        }),
+        `Os jogos dos próximos ${EXPLORE_WINDOW_DAYS} dias com a mesma consulta e as mesmas regras do resumo ` +
+          '(`/v1/explore/summary`): sem filtro, `total` é a soma de `upcoming` dos esportes, e `country` conta como ' +
+          'o `upcoming` do país. Traz a contagem por dia no fuso `tz`, as contagens para os filtros (esporte, país ' +
+          'e competição), os destaques por relevância no mercado e os jogos de um dia, por horário. Cache de 60 s.',
       ),
     },
     '/v1/countries/{code}': {

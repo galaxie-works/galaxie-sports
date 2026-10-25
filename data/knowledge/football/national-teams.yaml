@@ -9,7 +9,8 @@ teams:
     official: Seleção Brasileira de Futebol
     short: Brasil
     abbreviation: BRA
-  labels: {pt-BR: Seleção Brasileira, es: Brasil, en: Brazil}
+  # rótulo = nome de exibição do time em toda a API ("Brasil x Argentina"); "Seleção" fica nos apelidos
+  labels: {pt-BR: Brasil, es: Brasil, en: Brazil}
   api_sports:
     team_id: 6
     match: {name: Brazil, country: Brazil}

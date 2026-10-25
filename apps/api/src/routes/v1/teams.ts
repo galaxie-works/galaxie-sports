@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import * as z from 'zod';
 import {
@@ -72,18 +72,12 @@ import {
 import { positionName } from '../../people/stats.js';
 import { scheduleWindow } from '../../time.js';
 import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
-import {
-  assetUrl,
-  decodeCursor,
-  encodeCursor,
-  likeEscape,
-  logoSource,
-  parseInput,
-  UUID_RE,
-} from '../../util.js';
+import { assetUrl, decodeCursor, encodeCursor, logoSource, parseInput, UUID_RE } from '../../util.js';
 import { resolveMarket } from '../../events/relevance.js';
 import { buildCtx, eventPage, localeOf, sportCheck, stakesVary } from './events.js';
 import { effectiveMinReview, meetsReview } from './semantic.js';
+import { loadTeamNames, teamNameOptions, type TeamNamer } from '../../teams/display-name.js';
+import { accentPattern, fold } from '../../search/match.js';
 
 const MODULE = { module: 'core_data' } as const;
 const TeamCursor = z.object({ n: z.string(), i: z.string().regex(UUID_RE) });
@@ -143,11 +137,11 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     return out;
   }
 
-  const toSummary = (r: TeamRow, nicknames: Map<string, string[]>): TeamSummary => ({
+  const toSummary = (r: TeamRow, nicknames: Map<string, string[]>, names: TeamNamer): TeamSummary => ({
     id: r.p.id,
     sport: r.p.sport,
     kind: r.p.kind,
-    name: r.p.name,
+    ...names.of(r.p.id, r.p.name),
     short_name: r.p.shortName,
     code: r.p.code,
     country: r.p.countryCode,
@@ -184,7 +178,10 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
   async function loadTeam(db: Database, id: string, locale: string): Promise<Team> {
     const [row] = await selectTeams(db).where(eq(participant.id, id)).limit(1);
     if (!row) throw problems.notFound('Time');
-    const nick = await nicknamesOf(db, [id]);
+    const [nick, names] = await Promise.all([
+      nicknamesOf(db, [id]),
+      loadTeamNames(db, [id], teamNameOptions(ctx, locale)),
+    ]);
     const [c] = row.p.countryCode
       ? await db.select().from(country).where(eq(country.code, row.p.countryCode)).limit(1)
       : [];
@@ -201,7 +198,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       .from(providerMap)
       .where(and(eq(providerMap.entityType, 'participant'), eq(providerMap.entityId, id)));
     return {
-      ...toSummary(row, nick),
+      ...toSummary(row, nick, names),
       logo_source: logoSource(row.logoOrigin),
       country_ref: c
         ? { code: c.code, name: pickText(c.name as Record<string, string>, locale, c.code)! }
@@ -233,14 +230,16 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         if (sports) conds.push(inArray(participant.sport, sports));
         if (query.country) conds.push(eq(participant.countryCode, query.country));
         if (query.q) {
-          const p = `%${likeEscape(query.q)}%`;
+          // com e sem acento: "sao paulo" acha "São Paulo" (perfil) e "são paulo" acha "Sao Paulo" (fornecedor)
+          const p = accentPattern(fold(query.q));
           conds.push(
             or(
-              ilike(participant.name, p),
-              ilike(participant.shortName, p),
-              ilike(participant.code, p),
+              sql`${participant.name} ~* ${p}`,
+              sql`${participant.shortName} ~* ${p}`,
+              sql`${participant.code} ~* ${p}`,
               sql`exists (select 1 from ${teamProfile} tp where tp.participant_id = ${participant.id}
-                          and (tp.nicknames::text ilike ${p} or tp.names::text ilike ${p} or tp.slug ilike ${p}))`,
+                          and (tp.nicknames::text ~* ${p} or tp.names::text ~* ${p} or tp.labels::text ~* ${p}
+                               or tp.slug ~* ${p}))`,
             )!,
           );
         }
@@ -257,14 +256,15 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .orderBy(asc(participant.name), asc(participant.id))
           .limit(query.limit + 1);
         const pageRows = rows.slice(0, query.limit);
-        const nick = await nicknamesOf(
-          db,
-          pageRows.map((r) => r.p.id),
-        );
+        const ids = pageRows.map((r) => r.p.id);
+        const [nick, names] = await Promise.all([
+          nicknamesOf(db, ids),
+          loadTeamNames(db, ids, teamNameOptions(ctx, locale)),
+        ]);
         const last = pageRows.at(-1);
         return {
           body: {
-            data: pageRows.map((r) => toSummary(r, nick)),
+            data: pageRows.map((r) => toSummary(r, nick, names)),
             next_cursor:
               rows.length > query.limit && last ? encodeCursor({ n: last.p.name, i: last.p.id }) : null,
           },
@@ -829,6 +829,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           ctx.now(),
           params.id,
           ctx.logos.enabled(),
+          teamNameOptions(ctx, locale),
         );
         return {
           body,

@@ -5,6 +5,7 @@ import { apiSportsPersonId } from '@galaxie/providers';
 import { problems } from '../errors.js';
 import { teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
+import { loadTeamNames, type TeamNameOptions } from '../teams/display-name.js';
 
 /** Idade completa em anos numa data (UTC). */
 export function ageAt(birthDate: string | null, now: Date): number | null {
@@ -39,6 +40,7 @@ export async function loadPerson(
   now: Date,
   id: string,
   customLogos = false,
+  nameOptions?: TeamNameOptions,
 ): Promise<Person> {
   const [row] = await db
     .select({ p: person, key: asset.storageKey, url: asset.sourceUrl })
@@ -65,6 +67,13 @@ export async function loadPerson(
     .select({ provider: providerMap.provider, providerId: providerMap.providerId })
     .from(providerMap)
     .where(and(eq(providerMap.entityType, 'person'), eq(providerMap.entityId, row.p.id)));
+  const names = nameOptions
+    ? await loadTeamNames(
+        db,
+        teams.map((t) => t.team.id),
+        nameOptions,
+      )
+    : null;
   return {
     id: row.p.id,
     name: row.p.name,
@@ -81,7 +90,7 @@ export async function loadPerson(
     teams: teams.map((t) => ({
       team: {
         id: t.team.id,
-        name: t.team.name,
+        ...(names ? names.of(t.team.id, t.team.name) : { name: t.team.name }),
         short_name: t.team.shortName,
         logo: assetUrl(assetsBaseUrl, t.logoKey, t.logoUrl),
       },
