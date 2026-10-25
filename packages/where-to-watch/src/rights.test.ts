@@ -79,6 +79,14 @@ const NOW = new Date('2026-10-20T12:00:00Z');
 const KICKOFF = new Date('2026-10-25T20:00:00Z');
 
 describe('tabela de direitos — esquema estendido', () => {
+  it('vigência pelo dia civil do país, não pelo dia UTC', () => {
+    const dir = directory([row({ holders: ['emissora_a'], valid_to: '2026-06-30' })]);
+    // 21h30 em Brasília do último dia de vigência = 00h30 UTC do dia seguinte
+    expect(dir.localDay(new Date('2026-07-01T00:30:00Z'))).toBe('2026-06-30');
+    expect(dir.rightsFor('liga-x', new Date('2026-07-01T00:30:00Z'))?.holders).toEqual(['emissora_a']);
+    expect(dir.rightsFor('liga-x', new Date('2026-07-01T03:30:00Z'))).toBeNull();
+  });
+
   it('lê distribution, all_matches e regras; padrão "a confirmar"', () => {
     const dir = directory([
       row({

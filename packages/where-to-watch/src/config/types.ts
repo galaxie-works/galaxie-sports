@@ -5,6 +5,21 @@ export const WTW_COUNTRIES = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as
 export type WtwCountry = (typeof WTW_COUNTRIES)[number];
 
 /**
+ * Fuso de referência de cada mercado: o dia civil local decide vigência de direitos e de nomes (um
+ * jogo às 21h30 de Brasília no último dia de vigência já é o dia seguinte em UTC).
+ */
+export const WTW_COUNTRY_TIME_ZONES: Record<WtwCountry, string> = {
+  BR: 'America/Sao_Paulo',
+  AR: 'America/Argentina/Buenos_Aires',
+  MX: 'America/Mexico_City',
+  CO: 'America/Bogota',
+  CL: 'America/Santiago',
+  PE: 'America/Lima',
+  UY: 'America/Montevideo',
+  EC: 'America/Guayaquil',
+};
+
+/**
  * Apelido com validade: um nome que só vale como esta emissora num período (renomeação de canal, como
  * "Canal Antigo 2" que virou "Canal Novo 6" em certa data). Fora do período o nome não casa: não conta
  * duas vezes o mesmo canal nem confunde o canal antigo com o novo.
