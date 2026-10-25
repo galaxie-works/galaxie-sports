@@ -137,11 +137,17 @@ export async function saveChannelListAi(
 /**
  * Correções do cliente e o casamento recalculado com elas (volta para `review`). Sobe a `revision`:
  * o resultado da IA que estava em andamento é descartado e o job refaz com as correções novas.
+ * `aiStatus: 'pending'` quando a correção deixa sobras que a IA ainda não conferiu (ex.: desfazer a
+ * correção de uma emissora); sem ele, o `aiStatus` fica como está.
  */
 export async function setChannelListOverrides(
   db: Database,
   tenantId: string,
-  input: { overrides: StoredChannelOverride[]; proposed: StoredChannelMatch[] },
+  input: {
+    overrides: StoredChannelOverride[];
+    proposed: StoredChannelMatch[];
+    aiStatus?: Extract<ChannelListAiStatus, 'pending'>;
+  },
 ): Promise<TenantChannelList | null> {
   const [row] = await db
     .update(tenantChannelList)
@@ -150,6 +156,7 @@ export async function setChannelListOverrides(
       proposed: input.proposed,
       status: 'review',
       revision: sql`${tenantChannelList.revision} + 1`,
+      ...(input.aiStatus ? { aiStatus: input.aiStatus, aiNote: null } : {}),
       updatedAt: new Date(),
     })
     .where(eq(tenantChannelList.tenantId, tenantId))

@@ -90,7 +90,12 @@ describe('saveChannelListAi × correção do cliente', () => {
     const read = (await getChannelList(db, id))!;
     expect(read.revision).toBe(0);
     // ...o cliente corrige no portal enquanto o modelo pensa...
-    const fixed = match({ channels: [0], match: 'exato', origin: 'cliente', note: 'Corrigido pelo cliente.' });
+    const fixed = match({
+      channels: [0],
+      match: 'exato',
+      origin: 'cliente',
+      note: 'Corrigido pelo cliente.',
+    });
     const corrected = await setChannelListOverrides(db, id, {
       overrides: [{ country: 'BR', broadcasterId: 'canal-exemplo', channelKeys: ['canal exemplo'] }],
       proposed: [fixed],
@@ -121,6 +126,25 @@ describe('saveChannelListAi × correção do cliente', () => {
       }),
     ).toBe(true);
     expect((await getChannelList(db, id))!.aiStatus).toBe('done');
+  });
+});
+
+describe('setChannelListOverrides', () => {
+  it("com aiStatus 'pending' a lista volta para o job da IA; sem ele, o status da IA fica", async () => {
+    const id = await newTenant('lista-desfaz-correcao');
+    await upload(id);
+    await db
+      .update(tenantChannelList)
+      .set({ aiStatus: 'done', aiNote: 'prompt channels@v1' })
+      .where(eq(tenantChannelList.tenantId, id));
+    const kept = await setChannelListOverrides(db, id, { overrides: [], proposed: [match()] });
+    expect(kept).toMatchObject({ aiStatus: 'done', aiNote: 'prompt channels@v1', revision: 1 });
+    const reopened = await setChannelListOverrides(db, id, {
+      overrides: [],
+      proposed: [match()],
+      aiStatus: 'pending',
+    });
+    expect(reopened).toMatchObject({ aiStatus: 'pending', aiNote: null, revision: 2, status: 'review' });
   });
 });
 
