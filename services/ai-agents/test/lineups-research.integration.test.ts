@@ -7,6 +7,7 @@ import {
   platform,
   platformPlan,
   setLineupReviewStatus,
+  upsertLineupDraft,
   type Database,
 } from '@galaxie/db';
 import { Blocklist, parseCountryConfig, syncBroadcasterLibrary, WtwConfig } from '@galaxie/where-to-watch';
@@ -491,5 +492,40 @@ describe('lineups-research com busca (--com-busca, LLM falso)', () => {
     });
     expect(out.map((o) => o.status)).toEqual(['skipped']);
     expect(llm.calls).toHaveLength(1);
+  });
+});
+
+describe('lineups-research: o que entra na fila', () => {
+  const later = new Date(NOW.getTime() + 86_400_000);
+
+  it('plataforma só com planos rejeitados volta a ser pesquisada (o rejeitado não conta)', async () => {
+    const r = await upsertLineupDraft(db, {
+      platform: {
+        name: 'Operadora Rejeitada Exemplo',
+        kind: 'pay_tv_operator',
+        country: 'BR',
+        website: 'https://rejeitada.exemplo',
+        sources: ['https://rejeitada.exemplo/sobre'],
+      },
+      plans: [{ name: 'Plano Errado', sources: ['https://rejeitada.exemplo/planos'] }],
+      seenAt: NOW,
+    });
+    await setLineupReviewStatus(db, { type: 'plan', id: r.planIds['plano-errado']! }, 'rejected', 'wagner');
+    expect(await planLineupResearch(db, { countries: ['BR'], now: later })).toEqual([
+      {
+        kind: 'plans',
+        country: 'BR',
+        platformId: r.platformId,
+        slug: 'br-operadora-rejeitada-exemplo',
+        name: 'Operadora Rejeitada Exemplo',
+        reason: 'no_plans',
+      },
+    ]);
+    // na revisita, a plataforma sem plano válido vale pelo seen_at dela
+    const old = new Date(NOW.getTime() + 40 * 86_400_000);
+    const revisit = await planLineupResearch(db, { countries: ['BR'], now: old, revisit: true });
+    expect(revisit.filter((t) => t.kind === 'plans').map((t) => t.kind === 'plans' && t.slug)).toContain(
+      'br-operadora-rejeitada-exemplo',
+    );
   });
 });

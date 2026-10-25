@@ -272,7 +272,8 @@ export async function planLineupResearch(db: Database, opts: PlanLineupOptions):
     ? await db
         .select({
           platformId: platformPlan.platformId,
-          plans: sql<number>`count(*)::int`,
+          // plano rejeitado não conta: a plataforma só com rejeitados volta a ser pesquisada
+          plans: sql<number>`(count(*) filter (where ${platformPlan.reviewStatus} <> 'rejected'))::int`,
           oldestPlan: sql<
             string | null
             // plano que a revisita já marcou como não visto espera o painel, não outra pesquisa
