@@ -12,6 +12,7 @@
  *
  * `dryRun` (prévia `--plan`): faz a importação e mostra o que gravaria, sem gravar e sem LLM.
  */
+import { createHash } from 'node:crypto';
 import { and, eq, inArray, isNull, like } from 'drizzle-orm';
 import { broadcastOption, wtwResearch, type Database, type SourceKind } from '@galaxie/db';
 import {
@@ -141,12 +142,12 @@ export class MatchChannelRunner {
         costUsd: 0,
       };
       report.groups.push(out);
-      // pesquisa do grupo: uma vez por janela e mercado (a importação também não se repete). O mercado
-      // cortado pelo teto não entra na chave de quem foi pesquisado: volta na próxima rodada.
+      // pesquisa do grupo: uma vez por janela e jogo × mercado (a importação também não se repete). O
+      // que o teto cortou não entra como pesquisado: volta na próxima rodada.
       const base = `channel:${group.key}:${group.season}`;
-      const covered = await this.researchedMarkets(base);
-      const targets = group.targets.filter((t) => !covered.has(t.country));
-      const markets = all.filter((m) => !covered.has(m));
+      const covered = await this.researchedTargets(base, group.targets);
+      const targets = group.targets.filter((t) => !covered.has(targetKey(t)));
+      const markets = [...new Set(targets.map((t) => t.country))].sort();
       if (!targets.length) {
         out.status = 'already_researched';
         continue;
@@ -161,25 +162,33 @@ export class MatchChannelRunner {
           if (res === 'official') resolved.add(`${t.event.id}:${t.country}`);
         }
         pending = targets.filter((t) => !resolved.has(`${t.event.id}:${t.country}`));
-        if (!pending.length) {
-          out.status = 'resolved_by_import';
-          if (!dryRun) {
-            const { id } = await startResearch(db, {
-              kind: 'channel',
-              researchKey: `${base}:${markets.join(',')}:import`,
-              competition: group.competition.slug,
-              season: group.season,
-              round: group.round,
-              markets,
+        // os jogos × mercados resolvidos pela importação ficam registrados (não voltam na janela)
+        const imported = targets.filter((t) => resolved.has(targetKey(t)));
+        if (!dryRun && imported.length) {
+          const here = [...new Set(imported.map((t) => t.country))].sort();
+          const { id } = await startResearch(db, {
+            kind: 'channel',
+            researchKey: `${base}:${here.join(',')}:${digest(imported)}:import`,
+            competition: group.competition.slug,
+            season: group.season,
+            round: group.round,
+            markets: here,
+            stats: { targets: imported.map(targetKey) },
+            now: this.now(),
+          });
+          if (id)
+            await finishResearch(db, id, {
+              status: 'done',
+              stats: {
+                window: group.window.window,
+                resolvedByImport: imported.length,
+                targets: imported.map(targetKey),
+              },
               now: this.now(),
             });
-            if (id)
-              await finishResearch(db, id, {
-                status: 'done',
-                stats: { window: group.window.window, resolvedByImport: targets.length },
-                now: this.now(),
-              });
-          }
+        }
+        if (!pending.length) {
+          out.status = 'resolved_by_import';
           continue;
         }
       }
@@ -207,7 +216,7 @@ export class MatchChannelRunner {
         continue;
       }
       let any = false;
-      for (const [i, chunk] of chunks.entries()) {
+      for (const chunk of chunks) {
         const ids = new Set(chunk.map((e) => e.id));
         // o teto vale a cada chamada: o gasto dos pedaços anteriores já conta
         const capHere = withinCap(
@@ -227,11 +236,14 @@ export class MatchChannelRunner {
         const games = chunk.filter((e) => inChunk.some((t) => t.event.id === e.id));
         const started = await startResearch(db, {
           kind: 'channel',
-          researchKey: `${base}:${here.join(',')}:${i}`,
+          // a chave leva os jogos × mercados da chamada; as falhas contam na família do grupo
+          researchKey: `${base}:${here.join(',')}:${digest(inChunk)}`,
+          family: `${base}:`,
           competition: group.competition.slug,
           season: group.season,
           round: group.round,
           markets: here,
+          stats: { targets: inChunk.map(targetKey) },
           now: this.now(),
         });
         if (started.id === null) {
@@ -281,10 +293,13 @@ export class MatchChannelRunner {
     return report;
   }
 
-  /** Mercados do grupo já pesquisados (ou sendo pesquisados) nesta janela. */
-  private async researchedMarkets(base: string): Promise<Set<string>> {
+  /**
+   * Jogos × mercados do grupo já pesquisados (ou sendo pesquisados) nesta janela. Pesquisa antiga, sem
+   * a lista em `stats.targets`, cobre todos os jogos dos mercados dela.
+   */
+  private async researchedTargets(base: string, targets: ChannelTarget[]): Promise<Set<string>> {
     const rows = await this.deps.db
-      .select({ markets: wtwResearch.markets })
+      .select({ markets: wtwResearch.markets, stats: wtwResearch.stats })
       .from(wtwResearch)
       .where(
         and(
@@ -292,7 +307,14 @@ export class MatchChannelRunner {
           inArray(wtwResearch.status, ['done', 'running']),
         ),
       );
-    return new Set(rows.flatMap((r) => r.markets));
+    const out = new Set<string>();
+    for (const r of rows) {
+      const listed = (r.stats as { targets?: unknown } | null)?.targets;
+      if (Array.isArray(listed)) {
+        for (const k of listed) if (typeof k === 'string') out.add(k);
+      } else for (const t of targets) if (r.markets.includes(t.country)) out.add(targetKey(t));
+    }
+    return out;
   }
 
   private get policy(): WtwPolicy {
@@ -383,6 +405,7 @@ export class MatchChannelRunner {
         markets: countries,
         assignments,
         ignored: res.ignored,
+        targets: targets.map(targetKey),
         accepted,
         rejected,
         grounded: res.groundedUrls?.length ?? null,
@@ -496,6 +519,12 @@ export class MatchChannelRunner {
     return pages;
   }
 }
+
+const targetKey = (t: ChannelTarget) => `${t.event.id}:${t.country}`;
+
+/** Resumo curto dos jogos × mercados de uma chamada (entra na chave de idempotência). */
+const digest = (ts: ChannelTarget[]) =>
+  createHash('sha256').update(ts.map(targetKey).sort().join('|')).digest('hex').slice(0, 12);
 
 /** Nomes dos dois times (com o nome curto) para conferir o trecho e a página. */
 export function teamsOf(info: EventInfo): [ReturnType<typeof teamNames>, ReturnType<typeof teamNames>] {

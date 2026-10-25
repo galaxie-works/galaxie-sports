@@ -232,6 +232,7 @@ export class RightsResearcher {
           competition: need.competition.slug,
           season: need.season,
           markets: allowed,
+          family: `rights:${need.competition.slug}:${need.season}:`,
           requestedBy: opts.requestedBy ?? 'scheduler',
           now: this.now(),
         });

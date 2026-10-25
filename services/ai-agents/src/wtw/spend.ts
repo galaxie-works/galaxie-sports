@@ -4,7 +4,7 @@
  * por mercado (WTW_DAILY_USD_PER_MARKET) vale além do orçamento global de tokens — assim um mercado
  * não consome o dia dos outros.
  */
-import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull, like, sql } from 'drizzle-orm';
 import { wtwResearch, type Database } from '@galaxie/db';
 import type { UsageWithSearches } from '../llm/budget.js';
 import { LlmError } from '../llm/errors.js';
@@ -68,6 +68,13 @@ export interface ResearchStart {
   round?: string | null;
   markets: string[];
   requestedBy?: string;
+  /**
+   * Prefixo das chaves da mesma pesquisa (ex.: `alloc:<grupo>:`): as falhas do dia contam somadas na
+   * família, então trocar os mercados da chave (teto, cobertura) não reinicia o limite de falhas.
+   */
+  family?: string;
+  /** Gravado já no início (ex.: os jogos × mercados cobertos, para quem conferir enquanto roda). */
+  stats?: Record<string, unknown>;
   now: Date;
 }
 
@@ -105,24 +112,32 @@ export async function startResearch(db: Database, s: ResearchStart): Promise<Res
     .where(eq(wtwResearch.researchKey, s.researchKey));
   if (existing && (existing.status === 'done' || existing.status === 'running'))
     return { id: null, reason: existing.status };
+  // falhas de outro dia não contam: o limite é por dia
+  const own = existing?.finishedAt && sameUtcDay(existing.finishedAt, s.now) ? existing.failures : 0;
+  let failures = own;
+  // a espera é depois de uma falha do provedor; orçamento esgotado (`skipped`) tenta na próxima
+  let lastFailure = existing?.status === 'failed' && own > 0 ? existing.finishedAt : null;
+  if (s.family) {
+    const fam = await familyFailures(db, s.family, s.now);
+    failures = Math.max(own, fam.failures);
+    if (fam.last && (!lastFailure || fam.last > lastFailure)) lastFailure = fam.last;
+  }
+  if (failures >= WTW_RESEARCH_MAX_FAILURES) return { id: null, reason: 'exhausted' };
+  if (failures > 0 && lastFailure) {
+    const retryAt = new Date(lastFailure.getTime() + researchBackoffMs(failures));
+    if (retryAt > s.now) return { id: null, reason: 'backoff', retryAt };
+  }
   if (existing) {
-    // falhas de outro dia não contam: o limite é por dia
-    const failures = existing.finishedAt && sameUtcDay(existing.finishedAt, s.now) ? existing.failures : 0;
-    if (failures >= WTW_RESEARCH_MAX_FAILURES) return { id: null, reason: 'exhausted' };
-    // a espera é depois de uma falha do provedor; orçamento esgotado (`skipped`) tenta na próxima
-    if (existing.status === 'failed' && failures > 0 && existing.finishedAt) {
-      const retryAt = new Date(existing.finishedAt.getTime() + researchBackoffMs(failures));
-      if (retryAt > s.now) return { id: null, reason: 'backoff', retryAt };
-    }
     const [row] = await db
       .update(wtwResearch)
       .set({
         status: 'running',
         startedAt: s.now,
         createdAt: s.now,
-        failures,
+        failures: own,
         error: null,
         markets: s.markets,
+        ...(s.stats ? { stats: s.stats } : {}),
       })
       // outra execução pode ter pegado a mesma tentativa entre a leitura e aqui
       .where(and(eq(wtwResearch.id, existing.id), eq(wtwResearch.status, existing.status)))
@@ -140,12 +155,35 @@ export async function startResearch(db: Database, s: ResearchStart): Promise<Res
       markets: s.markets,
       status: 'running',
       requestedBy: s.requestedBy ?? 'scheduler',
+      stats: s.stats ?? null,
       startedAt: s.now,
       createdAt: s.now,
     })
     .onConflictDoNothing({ target: wtwResearch.researchKey })
     .returning({ id: wtwResearch.id });
-  return row ? { id: row.id, failures: 0 } : { id: null, reason: 'running' };
+  return row ? { id: row.id, failures } : { id: null, reason: 'running' };
+}
+
+/** Falhas de hoje (UTC) somadas nas chaves da família, e a mais recente. */
+async function familyFailures(
+  db: Database,
+  family: string,
+  now: Date,
+): Promise<{ failures: number; last: Date | null }> {
+  const [r] = await db
+    .select({
+      failures: sql<number>`coalesce(sum(${wtwResearch.failures}), 0)::int`,
+      last: sql<string | null>`max(${wtwResearch.finishedAt})`,
+    })
+    .from(wtwResearch)
+    .where(
+      and(
+        like(wtwResearch.researchKey, `${family.replace(/[\\%_]/g, '\\$&')}%`),
+        eq(wtwResearch.status, 'failed'),
+        gte(wtwResearch.finishedAt, dayStartUtc(now)),
+      ),
+    );
+  return { failures: Number(r?.failures ?? 0), last: r?.last ? new Date(r.last) : null };
 }
 
 /**

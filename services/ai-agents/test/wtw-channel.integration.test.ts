@@ -293,7 +293,14 @@ describe('canal do jogo (wtw-channel) com o provedor falso', () => {
     expect(await currentMatchChannels(db, ids[2]!, 'BR')).toMatchObject([
       { broadcasterId: 'streaming_b', window: 'import', researchId: null },
     ]);
-    const [research] = await db.select().from(wtwResearch).where(eq(wtwResearch.kind, 'channel'));
+    const rows = await db.select().from(wtwResearch).where(eq(wtwResearch.kind, 'channel'));
+    // o jogo resolvido pela importação fica registrado à parte (sem custo)
+    expect(rows.find((r) => r.researchKey.endsWith(':import'))).toMatchObject({
+      markets: ['BR'],
+      costUsd: null,
+      stats: expect.objectContaining({ targets: [`${ids[2]}:BR`] }),
+    });
+    const research = rows.find((r) => !r.researchKey.endsWith(':import'));
     expect(research).toMatchObject({ status: 'done', costUsd: '0.100000', markets: ['BR', 'MX'] });
 
     // a mesma janela não pesquisa de novo
@@ -470,6 +477,26 @@ describe('canal do jogo: teto diário por mercado', () => {
     const report = await runner.run(groups, { maxCalls: 3, importSaved: false });
     expect(llm.calls).toHaveLength(1);
     expect(report.groups[0]).toMatchObject({ status: 'researched', calls: 1 });
+
+    // na execução seguinte, com folga no teto, só o 13º jogo (o BR não fica "coberto" pelo 1º pedaço)
+    const later = silent(0.1);
+    const next = new MatchChannelRunner({
+      db,
+      llm: later,
+      config,
+      policy,
+      fetcher: new FakePageFetcher({}),
+      now: () => now,
+    });
+    const r2 = await next.run(groups, { maxCalls: 3, importSaved: false });
+    expect(r2.groups[0]).toMatchObject({ status: 'researched', calls: 1 });
+    const prompt = later.calls[0]!.messages[0]!.content;
+    expect(prompt).toMatch(/J1:/);
+    expect(prompt).not.toMatch(/J2:/);
+    expect((await next.run(groups, { maxCalls: 3, importSaved: false })).groups[0]!.status).toBe(
+      'already_researched',
+    );
+    expect(later.calls).toHaveLength(1);
   });
 
   it('mercado cortado pelo teto não fica marcado como pesquisado: entra na rodada seguinte', async () => {

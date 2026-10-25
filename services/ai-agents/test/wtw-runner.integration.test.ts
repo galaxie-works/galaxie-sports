@@ -660,6 +660,28 @@ describe('pesquisas retentadas: custo, espera e limite de falhas', () => {
     expect(await start('teste:desiste', new Date('2026-12-04T08:00:00Z'))).toMatchObject({ failures: 0 });
   });
 
+  it('as falhas contam na família da pesquisa: trocar os mercados da chave não reinicia o limite', async () => {
+    let now = new Date('2026-12-05T08:00:00Z');
+    const fam = (key: string) =>
+      startResearch(db, {
+        kind: 'allocation',
+        researchKey: `teste:fam:${key}`,
+        family: 'teste:fam:',
+        competition: 'x',
+        markets: ['XX'],
+        now,
+      });
+    for (const [i, key] of ['BR,MX', 'BR', 'MX'].entries()) {
+      const s = await fam(key);
+      expect(s, key).toMatchObject({ failures: i });
+      await finishResearch(db, s.id!, { status: 'failed', error: 'provedor fora', now });
+      // ainda na espera, nem outra chave da família chama
+      expect(await fam('outra')).toMatchObject({ id: null, reason: i < 2 ? 'backoff' : 'exhausted' });
+      now = new Date(now.getTime() + researchBackoffMs(i + 1));
+    }
+    expect(await fam('outra')).toEqual({ id: null, reason: 'exhausted' });
+  });
+
   it('alocação com o provedor fora: espera entre as rodadas do agendador e desiste no limite do dia', async () => {
     const startsAt = new Date(KICKOFF.getTime() + 6 * 24 * H);
     const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 80', startsAt });

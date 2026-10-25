@@ -353,6 +353,8 @@ export class WtwRunner {
         season: first.info.season ?? null,
         round,
         markets: marketsHere,
+        // falhas contam na rodada inteira: os mercados liberados mudam a chave, não o limite
+        ...(manual ? {} : { family: `alloc:${first.group}:` }),
         requestedBy: manual ? first.run.requestedBy : 'scheduler',
         now: this.now(),
       });
