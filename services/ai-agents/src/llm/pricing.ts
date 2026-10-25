@@ -2,7 +2,7 @@
  * Tabela de preços para estimar custo (USD por 1 milhão de tokens, tier padrão, contexto curto).
  * Fontes oficiais conferidas em 2026-10-21:
  * - https://developers.openai.com/api/docs/pricing
- * - https://platform.claude.com/docs/en/about-claude/pricing
+ * - https://platform.claude.com/docs/en/about-claude/pricing (Anthropic, modelos atuais conferidos em 2026-10-25)
  * - https://ai.google.dev/gemini-api/docs/pricing (Gemini, conferida em 2026-10-23)
  * É uma ESTIMATIVA para orçamento e métricas — a fatura do provedor é a fonte da verdade.
  */
@@ -31,12 +31,19 @@ export const MODEL_PRICES: Record<string, ModelPrice> = {
   'gpt-5.4-nano': { input: 0.2, cachedInput: 0.02, output: 1.25 },
   'gpt-5-mini': { input: 0.25, cachedInput: 0.025, output: 2 },
   'gpt-4.1-mini': { input: 0.4, cachedInput: 0.1, output: 1.6 },
-  // Anthropic
+  // Anthropic (tabela de modelos atuais conferida em 2026-10-25; sem preço de cache publicado ali, o
+  // cache conta como entrada cheia)
+  'claude-fable-5-1': { input: 10, cachedInput: 0.25, output: 50 },
+  'claude-mythos-5-1': { input: 10, cachedInput: 0.25, output: 50 },
+  'claude-fable-5': { input: 10, output: 50 },
   'claude-opus-5-5': { input: 4, cachedInput: 0.2, output: 20 },
-  'claude-sonnet-5-5': { input: 2, cachedInput: 0.1, output: 10 },
+  'claude-sonnet-5-5': { input: 2, cachedInput: 0.2, output: 10 },
   /** Prompts até 100 mil tokens (acima disso: 0,50/2,50). */
   'claude-haiku-5-5': { input: 0.1, cachedInput: 0.01, output: 0.5 },
   'claude-opus-5': { input: 5, cachedInput: 0.5, output: 25 },
+  'claude-opus-4-8': { input: 5, output: 25 },
+  'claude-opus-4-7': { input: 5, output: 25 },
+  'claude-opus-4-6': { input: 5, output: 25 },
   'claude-sonnet-5': { input: 2, cachedInput: 0.2, output: 10 },
   'claude-sonnet-4-6': { input: 3, cachedInput: 0.3, output: 15 },
   'claude-haiku-4-5': { input: 1, cachedInput: 0.1, output: 5 },
