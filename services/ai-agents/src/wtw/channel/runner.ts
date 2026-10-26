@@ -1,12 +1,13 @@
 /**
  * Job do canal do jogo (`wtw-channel`, docs/07 §2.2.4). Para cada grupo devido (competição × rodada ×
- * janela × dia):
+ * momento — consulta semanal, retentativa ou pós-jogo, só com os jogos × mercados sem canal confirmado):
  *
  *   1. importação (sem LLM): as opções salvas pelo agente com fonte de jogo (alocação por rodada,
  *      revalidação) passam pelo validador do canal com a página buscada de novo — o que ele aceitar
- *      vira canal do jogo (`window = import`);
+ *      vira canal do jogo (`window = import`) e sai da pesquisa;
  *   2. pesquisa: UMA chamada (Gemini com grounding) para os jogos × mercados que seguem sem canal
- *      oficial, dentro do teto diário do mercado e do orçamento global de tokens (ops.llm_usage);
+ *      confirmado, dentro do teto diário do mercado, do teto do agente `wtw` e do orçamento global
+ *      (ops.llm_usage; as buscas por chamada seguem AI_MAX_SEARCHES_PER_CALL);
  *   3. validação determinística (`validateMatchChannels`) com as páginas buscadas → gravação em
  *      enrich.match_channel. O que não passa fica "a confirmar".
  *
@@ -142,8 +143,8 @@ export class MatchChannelRunner {
         costUsd: 0,
       };
       report.groups.push(out);
-      // pesquisa do grupo: uma vez por janela e jogo × mercado (a importação também não se repete). O
-      // que o teto cortou não entra como pesquisado: volta na próxima rodada.
+      // pesquisa do grupo: uma vez por momento e jogo × mercado (a importação também não se repete). O
+      // que o teto cortou não entra como pesquisado: volta na próxima execução.
       const base = `channel:${group.key}:${group.season}`;
       const covered = await this.researchedTargets(base, group.targets);
       const targets = group.targets.filter((t) => !covered.has(targetKey(t)));
@@ -159,10 +160,11 @@ export class MatchChannelRunner {
         const resolved = new Set<string>();
         for (const t of targets) {
           const res = await this.importSaved(t, infos.get(t.event.id), fetcher, group, dryRun, report);
-          if (res === 'official') resolved.add(`${t.event.id}:${t.country}`);
+          // canal aceito (oficial ou imprensa) fica confirmado: não gasta pesquisa
+          if (res) resolved.add(`${t.event.id}:${t.country}`);
         }
         pending = targets.filter((t) => !resolved.has(`${t.event.id}:${t.country}`));
-        // os jogos × mercados resolvidos pela importação ficam registrados (não voltam na janela)
+        // os jogos × mercados resolvidos pela importação ficam registrados (não voltam no momento)
         const imported = targets.filter((t) => resolved.has(targetKey(t)));
         if (!dryRun && imported.length) {
           const here = [...new Set(imported.map((t) => t.country))].sort();
@@ -294,7 +296,7 @@ export class MatchChannelRunner {
   }
 
   /**
-   * Jogos × mercados do grupo já pesquisados (ou sendo pesquisados) nesta janela. Pesquisa antiga, sem
+   * Jogos × mercados do grupo já pesquisados (ou sendo pesquisados) neste momento. Pesquisa antiga, sem
    * a lista em `stats.targets`, cobre todos os jogos dos mercados dela.
    */
   private async researchedTargets(base: string, targets: ChannelTarget[]): Promise<Set<string>> {
@@ -421,7 +423,7 @@ export class MatchChannelRunner {
 
   /**
    * Importa as opções salvas pelo agente (com fonte do jogo) para o canal do jogo, com a página buscada
-   * de novo. Devolve `official` quando o jogo × país ficou com canal de fonte oficial.
+   * de novo. Devolve `official` ou `press` (fonte do canal aceito) quando o jogo × país ficou com canal.
    */
   private async importSaved(
     t: ChannelTarget,

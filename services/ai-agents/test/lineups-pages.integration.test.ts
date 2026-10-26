@@ -290,4 +290,26 @@ describe('lineups-curate: curadoria interna com prévia', () => {
     const [antiga] = await db.select().from(platform).where(eq(platform.id, old.platformId));
     expect(antiga!.reviewStatus).toBe('rejected');
   });
+
+  it('confirmação pela página: o preço em US$ do cartão é gravado em USD, não na moeda do país', async () => {
+    const dollar = { ...fixture, text: fixture.text.replaceAll('R$ 149,90', 'US$ 149,90') };
+    const { reader } = readerWith(() => dollar, db);
+    const later = new Date(NOW.getTime() + 86_400_000);
+    await confirmFromPages(
+      { db, config, reader, now: () => later },
+      { countries: ['BR'], platformSlug: 'br-plataforma-a', force: true },
+    );
+    const lineup = (await getPlatformLineup(db, platformId, {
+      minReview: 'draft',
+      includeUnverified: true,
+    }))!;
+    const futebol = lineup.plans.find((p) => p.plan.name === 'Plano Futebol')!;
+    expect([futebol.plan.priceAmount, futebol.plan.priceCurrency, futebol.plan.priceText]).toEqual([
+      149.9,
+      'USD',
+      'US$ 149,90/mês',
+    ]);
+    // o resto da página segue em reais
+    expect(lineup.plans.find((p) => p.plan.name === 'Plano TV')!.plan.priceCurrency).toBe('BRL');
+  });
 });

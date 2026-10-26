@@ -200,22 +200,28 @@ export class WebhookWorker {
         });
       const cursor = this.cursor;
 
-      const endpoints = (
-        await tx
-          .select({ endpoint: webhookEndpoint, tenant })
-          .from(webhookEndpoint)
-          .innerJoin(tenant, eq(tenant.id, webhookEndpoint.tenantId))
-          .where(and(eq(webhookEndpoint.active, true), eq(tenant.status, 'active')))
-      ).map(({ endpoint, tenant: t }) => {
-        const scope: TenantScope = { modules: t.modules, markets: t.markets, sports: t.sports };
-        const filter: ChangeFilter = {
-          topics: new Set<ChangeTopic>(endpoint.topics.length ? endpoint.topics : topicsForTenant(scope)),
-          events: new Set(endpoint.filters.events ?? []),
-          competitions: new Set(endpoint.filters.competitions ?? []),
-          sports: new Set(endpoint.filters.sports ?? []),
-        };
-        return { id: endpoint.id, scope, filter };
-      });
+      // Os endpoints são lidos DEPOIS de cada lote do change feed, nunca antes. Em READ COMMITTED cada
+      // comando tem o seu snapshot: lidos antes, um endpoint commitado entre as duas leituras ficava de fora
+      // e as mudanças commitadas logo depois dele (já visíveis no lote) eram consumidas sem entrega — o
+      // cursor avança sobre elas e a perda é definitiva. Lidos depois, todo endpoint commitado antes de uma
+      // mudança visível no lote está visível.
+      const loadEndpoints = async () =>
+        (
+          await tx
+            .select({ endpoint: webhookEndpoint, tenant })
+            .from(webhookEndpoint)
+            .innerJoin(tenant, eq(tenant.id, webhookEndpoint.tenantId))
+            .where(and(eq(webhookEndpoint.active, true), eq(tenant.status, 'active')))
+        ).map(({ endpoint, tenant: t }) => {
+          const scope: TenantScope = { modules: t.modules, markets: t.markets, sports: t.sports };
+          const filter: ChangeFilter = {
+            topics: new Set<ChangeTopic>(endpoint.topics.length ? endpoint.topics : topicsForTenant(scope)),
+            events: new Set(endpoint.filters.events ?? []),
+            competitions: new Set(endpoint.filters.competitions ?? []),
+            sports: new Set(endpoint.filters.sports ?? []),
+          };
+          return { id: endpoint.id, scope, filter };
+        });
 
       let created = 0;
       for (;;) {
@@ -228,6 +234,7 @@ export class WebhookWorker {
           )
           .orderBy(asc(changeFeed.id))
           .limit(BATCH);
+        const endpoints = rows.length ? await loadEndpoints() : [];
         const deliveries = [];
         for (const row of rows) {
           const change = toRealtimeChange(row);

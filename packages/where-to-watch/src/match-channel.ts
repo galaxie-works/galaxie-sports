@@ -537,7 +537,7 @@ export interface ApplyMatchChannelsInput {
   country: string;
   accepted: ValidatedChannel[];
   phase: MatchChannelPhase;
-  /** T-5d, T-48h, T-6h, post ou import. */
+  /** Momento: weekly, retry-3d, retry-1d, post ou import (T-5d, T-48h e T-6h nas linhas antigas). */
   window: string;
   researchId: string | null;
   now: Date;

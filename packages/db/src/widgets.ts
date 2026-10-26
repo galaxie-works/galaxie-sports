@@ -104,15 +104,33 @@ export async function saveWidget(db: Database, input: SaveWidgetInput): Promise<
   return updated;
 }
 
-/** Arquiva o widget (some da lista; chaves presas a ele param de valer). false se não havia o que arquivar. */
+/**
+ * Arquiva o widget (some da lista) e, na mesma transação, revoga as chaves publicáveis presas a ele:
+ * elas já paravam de valer, e assim o painel também as mostra como revogadas. false se não havia o que
+ * arquivar.
+ */
 export async function archiveWidget(db: Database, tenantId: string, id: string): Promise<boolean> {
   if (!UUID_RE.test(id)) return false;
-  const rows = await db
-    .update(widget)
-    .set({ archivedAt: new Date() })
-    .where(and(eq(widget.id, id), eq(widget.tenantId, tenantId), isNull(widget.archivedAt)))
-    .returning({ id: widget.id });
-  return rows.length > 0;
+  return db.transaction(async (tx) => {
+    const now = new Date();
+    const rows = await tx
+      .update(widget)
+      .set({ archivedAt: now })
+      .where(and(eq(widget.id, id), eq(widget.tenantId, tenantId), isNull(widget.archivedAt)))
+      .returning({ id: widget.id });
+    if (rows.length === 0) return false;
+    await tx
+      .update(publishableKey)
+      .set({ revokedAt: now })
+      .where(
+        and(
+          eq(publishableKey.widgetId, id),
+          eq(publishableKey.tenantId, tenantId),
+          isNull(publishableKey.revokedAt),
+        ),
+      );
+    return true;
+  });
 }
 
 // ─── chaves publicáveis ─────────────────────────────────────────────────────────────────────────

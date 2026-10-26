@@ -1,12 +1,17 @@
 # =============================================================================
 # Tabela de direitos — México (MX). Formato e regras: config/broadcast-rights/br.yaml.
-# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21).
-# Libertadores/Sul-Americana no México: não verificado — sem linha (sem bônus/penalidade).
+# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21) e curadoria de
+# 2026-10-25 (Premier League, Leagues Cup).
+# Libertadores/Sul-Americana no México: não verificado — sem linha (sem bônus/penalidade); clubes
+# mexicanos não disputam, audiência baixa.
+# MLS 2026: só Apple TV (fora da biblioteca de emissoras) — sem linha.
+# Seleção: quartas da Concacaf Nations League contra a Jamaica (13 e 17/11/2026) sem emissora anunciada
+# no México — sem linha. Netflix fica com Nations League Finals e Copa Ouro só a partir de 2027.
 # Operadoras de TV paga omitidas por política editorial não aparecem aqui.
 # =============================================================================
 schema_version: 1
 country: MX
-updated_at: 2026-10-21
+updated_at: 2026-10-25
 rights:
   - competition: liga-mx
     season: 2026
@@ -79,9 +84,28 @@ rights:
     valid_from: 2026-08-01
     valid_to: 2027-06-30
     per_round_selection: false
-    holders: [tnt_sports, fox]
+    distribution: split
+    holders: [tnt_sports, hbo_max, fox, fox_one]
+    notes: >-
+      Dividida entre TNT Sports + HBO Max (Warner Bros. Discovery) e FOX + Fox One; sem TV aberta. Divisão
+      por jogo não publicada (a alocação por rodada decide).
     sources:
       - https://es.digitaltrends.com/deportes/derechos-transmision-ligas-europeas-2026-27-america-latina/
+      - https://www.cronica.com.mx/deportes/2026/08/20/quien-transmite-los-partidos-de-la-premier-league-fechas-y-horarios-de-la-jornada-1/
+  - competition: leagues-cup
+    season: 2026
+    valid_from: 2026-08-04
+    valid_to: 2026-09-06
+    per_round_selection: false
+    distribution: selected
+    holders: [televisa, tudn]
+    notes: >-
+      Os 62 jogos no Apple TV (fora da biblioteca de emissoras). Na TV do México, jogos escolhidos da Fase
+      Uno: Imagen Televisión com 12 (fora da biblioteca) e TelevisaUnivision (Canal 9/TUDN) com 3.
+      Encerrada em 06/09/2026.
+    sources:
+      - https://es.leaguescup.com/noticias/leagues-cup-anuncia-los-detalles-de-transmision-del-torneo-2026
+      - https://www.milenio.com/deportes/futbol-internacional/donde-ver-leagues-cup-2026-en-mexico-canales-de-tv-streaming
   - competition: laliga
     season: 2026
     valid_from: 2026-08-01

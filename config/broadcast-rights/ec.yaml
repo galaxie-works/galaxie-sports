@@ -1,12 +1,29 @@
 # =============================================================================
 # Tabela de direitos — Equador (EC). Formato e regras: config/broadcast-rights/br.yaml.
-# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21).
+# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21) e curadoria de
+# 2026-10-25 (LigaPro).
+# Copa Ecuador 2026: sem fonte de transmissão — sem linha. Seleção: Eliminatórias 2030 só começam em
+# 2027 — sem linha. Zapping (detentor da LigaPro 2024–27) não está na biblioteca de emissoras do EC.
 # Operadoras de TV paga omitidas por política editorial não aparecem aqui.
 # =============================================================================
 schema_version: 1
 country: EC
-updated_at: 2026-10-21
+updated_at: 2026-10-25
 rights:
+  - competition: ecuador-ligapro-serie-a
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: true
+    distribution: selected
+    holders: [teleamazonas]
+    notes: >-
+      Todos os jogos no Zapping (canais e streaming; fora da biblioteca). Teleamazonas com um ou dois jogos
+      por rodada em TV aberta (também simultâneos no Zapping), escolhidos rodada a rodada, inclusive na
+      fase final.
+    sources:
+      - https://www.primicias.ec/deportes/donde-ver-fecha/teleamazonas-fechas-partidos-horarios-fecha-2-hexagonal-cuadrangular-ver-tv134494-134494/
+      - https://www.primicias.ec/deportes/donde-ver-fecha/teleamazonas-partidos-horarios-fecha30-ver-tv-132325/
   - competition: conmebol-libertadores
     season: 2026
     valid_from: 2026-01-01

@@ -7,6 +7,7 @@ import {
   findInLineup,
   flattenLineup,
   isTargetId,
+  libraryTargetType,
   lineupFiltersQuery,
   lineupView,
   matchesFilters,
@@ -313,5 +314,18 @@ describe('filtros da URL', () => {
     expect(matchesFilters(channel, platform, { ...all, type: 'plan' })).toBe(false);
     expect(matchesFilters(channel, platform, { ...all, status: 'pending' })).toBe(false);
     expect(matchesFilters(service, platform, { ...all, status: 'pending' })).toBe(true);
+  });
+});
+
+describe('libraryTargetType', () => {
+  it('canal de TV entra como plan_channel e streaming como plan_service', () => {
+    expect(libraryTargetType('free_tv')).toBe('plan_channel');
+    expect(libraryTargetType('pay_tv')).toBe('plan_channel');
+    expect(libraryTargetType('streaming')).toBe('plan_service');
+  });
+
+  it('rádio (ou tipo desconhecido) não entra em plano', () => {
+    expect(libraryTargetType('radio')).toBeNull();
+    expect(libraryTargetType('outro')).toBeNull();
   });
 });
