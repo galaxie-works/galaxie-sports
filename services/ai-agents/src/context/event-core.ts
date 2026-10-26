@@ -17,6 +17,9 @@ import {
 } from '@galaxie/db';
 import { languageOf, type AgentLocale } from '../guardrails/index.js';
 
+/** Piso editorial do perfil da competição (`semantic.competition_profile`) no texto dos agentes. */
+export const COMPETITION_PROFILE_MIN_REVIEW = 'approved' as const;
+
 /**
  * Fatos básicos de um evento lidos do `core` (e rótulos da base semântica), comuns ao Cenário e
  * ao Resumo. Nada aqui vem de IA.
@@ -126,7 +129,14 @@ export async function loadEventCore(db: Database, eventId: string): Promise<Even
     })
     .from(event)
     .leftJoin(competition, eq(competition.id, event.competitionId))
-    .leftJoin(competitionProfile, eq(competitionProfile.competitionId, event.competitionId))
+    // perfil da competição só no piso editorial (approved, o padrão da API): rascunho não chega ao texto
+    .leftJoin(
+      competitionProfile,
+      and(
+        eq(competitionProfile.competitionId, event.competitionId),
+        eq(competitionProfile.reviewStatus, COMPETITION_PROFILE_MIN_REVIEW),
+      ),
+    )
     .leftJoin(season, eq(season.id, event.seasonId))
     .leftJoin(stage, eq(stage.id, event.stageId))
     .leftJoin(venue, eq(venue.id, event.venueId))

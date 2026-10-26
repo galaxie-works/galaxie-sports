@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { reviewDecision, reviewItem, teamProfile, type Database } from '@galaxie/db';
+import { competitionProfile, reviewDecision, reviewItem, teamProfile, type Database } from '@galaxie/db';
 import { loadKnowledge, type KnowledgeBase } from '../src/load.js';
 import { reviewItemId } from '../src/review.js';
 import { seedSemantic } from '../src/seed.js';
@@ -32,6 +32,14 @@ const statusOf = async (slug: string) =>
       .from(teamProfile)
       .where(eq(teamProfile.slug, slug))
   )[0]!;
+
+const competitionStatusOf = async (slug: string) =>
+  (
+    await db
+      .select({ s: competitionProfile.reviewStatus })
+      .from(competitionProfile)
+      .where(eq(competitionProfile.slug, slug))
+  )[0]!.s;
 
 async function decide(itemId: string, status: 'approved' | 'draft') {
   const [item] = await db.select().from(reviewItem).where(eq(reviewItem.id, itemId));
@@ -96,6 +104,23 @@ describe('decisões × próximo deploy', () => {
     await decide('team:palmeiras', 'approved');
     await seedSemantic(db, kb);
     expect((await statusOf('palmeiras')).s).toBe('approved');
+  });
+
+  it('competição: a decisão do painel vence o YAML no reseed, nos dois sentidos', async () => {
+    // a API filtra o perfil da competição pelo piso (apps/api/src/competitions/profile.ts): o status
+    // gravado aqui é o que ela compara
+    const id = reviewItemId('competition', 'libertadores');
+    const yaml = kb.competitions.find((c) => c.entry.slug === 'libertadores')!.entry.review_status;
+    expect(yaml).toBe('approved');
+    await decide(id, 'draft');
+    await seedSemantic(db, kb);
+    expect(await competitionStatusOf('libertadores')).toBe('draft');
+    await decide(id, 'approved');
+    await seedSemantic(db, kb);
+    expect(await competitionStatusOf('libertadores')).toBe('approved');
+    // e aprovar uma competição não mexe nas outras
+    const other = kb.competitions.find((c) => c.entry.slug === 'sudamericana')!.entry.review_status;
+    expect(await competitionStatusOf('sudamericana')).toBe(other);
   });
 
   it('se o conteúdo mudar no YAML, a decisão fica desatualizada e volta a valer o status do YAML', async () => {

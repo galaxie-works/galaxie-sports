@@ -8,7 +8,7 @@ entrypoints `web`/`websecure`, certresolver `letsencrypt` por HTTP-01).
 |---|---|
 | Sem Caddy; labels do Traefik na `api`, na `demo` e no `s3` | o Traefik da VPS faz TLS e roteamento |
 | `/metrics` e `/internal` fora do router da API | mesmo bloqueio que o Caddy fazia |
-| Sem `build:`; `pull_policy: always` com imagens do GHCR | não compilar o monorepo na VPS (2 vCPU compartilhadas) |
+| Sem `build:`; imagens do GHCR (o deploy baixa as do SHA; `PULL_POLICY=missing` no resto do tempo) | não compilar o monorepo na VPS (2 vCPU compartilhadas) |
 | Sub-rede fixa `172.30.50.0/24` e `TRUST_PROXY=172.30.50.1` | o Traefik chega aos contêineres pelo gateway da rede |
 | `mem_limit` por serviço (S3 1g, Grafana 512m: com 256m os dois chegam ao limite) | a VPS hospeda outras stacks |
 | Serviço `demo` com login próprio (convites, papéis, prazo e atividade) | o app de demonstração (metadados em negociação) |
@@ -30,14 +30,20 @@ Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API p�
 
 ## Imagens
 
-O workflow [`docker.yml`](../../.github/workflows/docker.yml) publica no push para a `main`
-`ghcr.io/galaxie-works/galaxie-sports-<imagem>:<sha>` e `:staging` para `api`, `ingestor`, `demo`, `backup`,
-`prometheus` e `grafana` (o `caddy` não é publicado). Use o **SHA do commit** em `IMAGE_TAG`.
-Com pacotes privados, a VPS precisa de `docker login ghcr.io` com um token só `read:packages`.
+O workflow [`docker.yml`](../../.github/workflows/docker.yml) publica no GHCR `api`, `ingestor`, `demo`, `backup`,
+`prometheus` e `grafana` (o `caddy` não é publicado):
 
-**Sem credencial do GitHub na VPS** (alternativa): construir as imagens no commit mergeado em outra máquina, com os
-mesmos nomes/tags, enviar com `docker save … | gzip | ssh root@<vps> 'gunzip | docker load'` e usar
-`PULL_POLICY=missing` no `.env`.
+- na fila de merge (`merge_group`) com a tag `<sha>` do commit que vai virar a `main`;
+- no push para a `main` com `<sha>`, `main` e `staging`.
+
+Imagem cuja entrada não mudou (o hash vai na tag `in-<hash>` e no rótulo `works.galaxie.context-tree`) não é
+reconstruída: ganha as tags novas. Use o **SHA do commit** em `IMAGE_TAG`. Os pacotes são privados: o deploy pelo
+Actions faz `docker login` na VPS com o token do próprio job, num `DOCKER_CONFIG` temporário que sai no fim. A VPS não
+guarda credencial do GitHub, por isso o `.env` dela fica com `PULL_POLICY=missing`: o `deploy-gh.sh` baixa as imagens
+antes do `up`, e nada vem do registry fora do deploy.
+
+**Plano B, sem GHCR**: o `deploy.sh` constrói as imagens na máquina de dev, com os mesmos nomes e tags, e envia com
+`docker save … | gzip | ssh root@<vps> 'gunzip | docker load'`.
 
 **`lineup-render`** (navegador headless do perfil `render`, [`infra/lineup-render`](../lineup-render/Dockerfile)): a
 imagem oficial do Playwright com o pacote npm já instalado (sem `npx` na partida). A tag é a **versão do Playwright**
@@ -45,7 +51,8 @@ imagem oficial do Playwright com o pacote npm já instalado (sem `npx` na partid
 quando a pasta muda (a base tem ~2 GB e a VPS já a tem; vai só a pasta), no fim do deploy, depois do smoke, em até
 `LR_BUILD_MIN` minutos (padrão 15) e só se couber no teto. Falha ali não para o deploy: o `WARN` diz se o perfil
 `render` segue com a imagem anterior ou se **não sobe** (sem imagem anterior; a VPS não tem credencial do GHCR) e traz
-o comando para construir à mão. O `docker.yml` também a publica no GHCR quando a pasta muda. Subir a versão é mudar
+o comando para construir à mão. O `docker.yml` também a publica no GHCR quando a pasta muda, e o deploy pelo Actions
+(`deploy-gh.sh`) baixa essa imagem na VPS, no fim do deploy, quando a VPS ainda não tem esta versão da pasta. Subir a versão é mudar
 juntos o `FROM` do Dockerfile (tag e digest), o `package.json`/`package-lock.json` da pasta, o `playwright-core` do
 `services/ai-agents` e a tag no `compose.yml` (o CI confere com `infra/lineup-render/versions.mjs`; o Dependabot ignora
 o `playwright-core`). Reconstruir a mesma tag deixa a imagem anterior órfã (`<none>`); não há limpeza automática (e
@@ -55,9 +62,26 @@ o `playwright-core`). Reconstruir a mesma tag deixa a imagem anterior órfã (`<
 
 ## Atualizar (rotina: toda publicação passa por aqui)
 
+O deploy normal roda no GitHub Actions ([`deploy.yml`](../../.github/workflows/deploy.yml) +
+[`deploy-gh.sh`](deploy-gh.sh)). Ele sai sozinho quando o CI e as imagens terminam verdes na ponta da `main` (com a
+variável `DEPLOY_AUTO=on`) e também pode ser disparado à mão. O roteiro é o mesmo de baixo, com `docker compose pull` do
+GHCR no lugar do build local, e com uma diferença: **smoke test com falha também volta para o SHA anterior**, nas mesmas
+condições do `up` e do `migrate`. Configuração, transição e plano B:
+[docs/runbooks/deploy-pelo-github.md](../../docs/runbooks/deploy-pelo-github.md).
+
 ```bash
-infra/vps-telemetry/deploy.sh          # da máquina de desenvolvimento: constrói, envia, sobe, pós-deploy e smoke test
+gh workflow run deploy.yml                          # o commit mais novo da main
+gh workflow run deploy.yml -f sha=<sha> -f force=1  # um SHA específico, mesmo já no ar
 ```
+
+**Plano B**, da máquina de desenvolvimento (constrói, envia, sobe, pós-deploy e smoke test):
+
+```bash
+infra/vps-telemetry/deploy.sh
+```
+
+Os passos pós-deploy (seed, nomes, importância, cache de respostas e conta da IA) estão em
+[`post-deploy.sh`](post-deploy.sh), que os dois roteiros rodam na VPS.
 
 O script confere o CI do commit (padrão `origin/main`) no GitHub (`gh`, execuções do GitHub Actions do SHA: vermelho
 ou cancelado para tudo; ainda rodando espera até `CI_WAIT_MIN` minutos, padrão 20). Um SHA antigo ou intermediário

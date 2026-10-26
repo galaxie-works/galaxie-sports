@@ -1,48 +1,22 @@
 name: Imagens e stack de staging
 
-# Constrói e valida em todo PR; no push para a main publica as imagens no GHCR (exceto o caddy, que a VPS
-# com Traefik não usa) com as tags <sha> e staging — ver infra/vps-telemetry/README.md.
+# Constrói e valida em todo PR. No push para a main e na fila de merge (merge_group) publica no GHCR as imagens que a
+# stack usa (o caddy fica de fora: a VPS usa o Traefik): na fila com a tag <sha> do commit que vai virar a main; no push
+# com <sha>, main e staging. Imagem cuja entrada não mudou não é reconstruída: ganha as tags novas (passo "Entrada da
+# imagem"). O deploy (deploy.yml) sobe a stack com as imagens do SHA — ver infra/vps-telemetry/README.md.
+# Sem filtro de caminhos: todo commit da main precisa das imagens do próprio SHA, e um check obrigatório que não roda
+# (PR só de docs) trava o PR para sempre. PR que não muda a entrada das imagens só reaproveita e termina em segundos.
 on:
   pull_request:
-    paths:
-      - 'apps/api/**'
-      - 'apps/demo/**'
-      - 'services/ingestor/**'
-      - 'services/ai-agents/**'
-      - 'packages/**'
-      - 'config/**'
-      - 'data/knowledge/**'
-      - 'infra/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'turbo.json'
-      - 'tsconfig.base.json'
-      - '.dockerignore'
-      - '.github/workflows/docker.yml'
+  merge_group:
   push:
     branches: [main]
-    paths:
-      - 'apps/api/**'
-      - 'apps/demo/**'
-      - 'services/ingestor/**'
-      - 'services/ai-agents/**'
-      - 'packages/**'
-      - 'config/**'
-      - 'data/knowledge/**'
-      - 'infra/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'turbo.json'
-      - 'tsconfig.base.json'
-      - '.dockerignore'
-      - '.github/workflows/docker.yml'
   workflow_dispatch:
 
 concurrency:
-  # Na main, a execução em andamento nunca é cancelada (o deploy.sh exige o CI verde do SHA); o grupo continua por
-  # ref para a tag staging sair em ordem, então só uma execução ainda na fila pode ser trocada pela do commit seguinte.
+  # Na main, a execução em andamento nunca é cancelada (o deploy exige o CI verde do SHA); o grupo continua por ref para
+  # as tags main/staging saírem em ordem, então só uma execução ainda na fila pode ser trocada pela do commit seguinte.
+  # Na fila de merge cada grupo tem a própria ref.
   group: docker-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
@@ -58,65 +32,130 @@ jobs:
       contents: read
       packages: write
     env:
-      # Publica só no push para a main; o caddy fica de fora (a VPS usa o Traefik).
-      PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.image != 'caddy' }}
+      IMAGE: ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}
+      # Publica no push para a main e na fila de merge; o caddy fica de fora (a VPS usa o Traefik).
+      PUBLISH: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'merge_group') && matrix.image != 'caddy' }}
+      # PR de fork não tem token para o GHCR: constrói sempre, sem consultar o registry
+      SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     strategy:
       fail-fast: false
       matrix:
+        # inputs = o que o build lê do contexto e muda a imagem. As três do Node copiam a raiz inteira (COPY . ., menos
+        # o .dockerignore); docs, .github, infra, scripts e tests ficam de fora porque nenhum build os lê.
         include:
           - image: api
             context: .
             file: apps/api/Dockerfile
+            inputs: apps packages services config data/knowledge package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .nvmrc .dockerignore
           - image: ingestor
             context: .
             file: services/ingestor/Dockerfile
+            inputs: apps packages services config data/knowledge package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .nvmrc .dockerignore
           - image: demo
             context: .
             file: apps/demo/Dockerfile
+            inputs: apps packages services config data/knowledge package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .nvmrc .dockerignore
           - image: backup
             context: infra/backup
             file: infra/backup/Dockerfile
+            inputs: infra/backup
           - image: prometheus
             context: infra/observability/prometheus
             file: infra/observability/prometheus/Dockerfile
+            inputs: infra/observability/prometheus
           - image: grafana
             context: infra/observability/grafana
             file: infra/observability/grafana/Dockerfile
+            inputs: infra/observability/grafana
           - image: caddy
             context: infra/caddy
             file: infra/caddy/Dockerfile
+            inputs: infra/caddy
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Login no GHCR
-        if: env.PUBLISH == 'true'
+        if: env.SAME_REPO == 'true'
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build (e push na main)
+      # Hash da entrada: pasta única = hash git dela (o mesmo rótulo works.galaxie.context-tree que o deploy.sh confere na
+      # VPS); várias = sha256 da listagem git delas. A imagem já publicada com a tag in-<hash> é a que um build agora
+      # daria: ganha as tags deste commit (imagetools, sem baixar camada) em vez de ser reconstruída. Na fila, a imagem
+      # do próprio SHA (publicada pelo grupo) serve também para o push na main que vem logo depois.
+      - name: Entrada da imagem
+        id: input
+        env:
+          INPUTS: ${{ matrix.inputs }}
+          NAME: ${{ matrix.image }}
+        run: |
+          read -ra paths <<< "$INPUTS"
+          if [ "${#paths[@]}" = 1 ]; then
+            hash=$(git rev-parse "HEAD:${paths[0]}")
+          else
+            hash=$(git ls-tree HEAD -- "${paths[@]}" | sha256sum | cut -c1-40)
+          fi
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+          src=""
+          if [ "$SAME_REPO" = true ] && [ "$NAME" != caddy ]; then
+            for ref in "$IMAGE:$GITHUB_SHA" "$IMAGE:in-$hash"; do
+              if docker buildx imagetools inspect "$ref" >/dev/null 2>&1; then
+                src="$ref"
+                break
+              fi
+            done
+          fi
+          echo "source=$src" >> "$GITHUB_OUTPUT"
+          echo "entrada $hash: ${src:-sem imagem publicada, constrói}"
+          {
+            echo 'tags<<FIM'
+            echo "$IMAGE:$GITHUB_SHA"
+            echo "$IMAGE:in-$hash"
+            if [ "$GITHUB_EVENT_NAME" = push ]; then
+              echo "$IMAGE:main"
+              echo "$IMAGE:staging"
+            fi
+            echo FIM
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Reaproveita a imagem publicada (entrada igual)
+        if: env.PUBLISH == 'true' && steps.input.outputs.source != ''
+        env:
+          SOURCE: ${{ steps.input.outputs.source }}
+          TAGS: ${{ steps.input.outputs.tags }}
+        run: |
+          args=()
+          while read -r t; do [ -z "$t" ] || args+=(-t "$t"); done <<< "$TAGS"
+          docker buildx imagetools create "${args[@]}" "$SOURCE"
+          echo "tags deste commit apontam para $SOURCE"
+
+      - name: Build (e push na main e na fila)
+        if: steps.input.outputs.source == ''
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
           push: ${{ env.PUBLISH == 'true' }}
-          # nos PRs a imagem fica no Docker local para a checagem de arquivos abaixo
-          load: ${{ env.PUBLISH != 'true' && (matrix.image == 'api' || matrix.image == 'ingestor') }}
+          # nos PRs as imagens do Node ficam no Docker local para as checagens de arquivos abaixo
+          load: ${{ env.PUBLISH != 'true' && (matrix.image == 'api' || matrix.image == 'ingestor' || matrix.image == 'demo') }}
+          labels: works.galaxie.context-tree=${{ steps.input.outputs.hash }}
           # Só tags do GHCR: com push ligado o Buildx envia TODAS as tags (uma sem registry iria para o Docker Hub).
-          tags: |
-            ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:${{ github.sha }}
-            ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:staging
+          tags: ${{ steps.input.outputs.tags }}
+          # A fila lê o cache da main (o GitHub só deixa ler o da própria ref e o da branch padrão) e não grava: a ref
+          # dela é descartável, e o cache gravado ali tiraria espaço do limite do repositório sem ninguém ler.
           cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-to: ${{ github.event_name != 'merge_group' && format('type=gha,mode=max,scope={0}', matrix.image) || '' }}
 
       # Os pacotes leem config/ e data/knowledge a partir de si mesmos e silenciam quando não acham
-      # (lista vazia): sem esta checagem, faltar um diretório na imagem só aparece na produção.
+      # (lista vazia): sem esta checagem, faltar um diretório na imagem só aparece na produção. Imagem reaproveitada
+      # (entrada igual) já passou por aqui quando foi construída.
       - name: Arquivos de config dentro da imagem
-        if: env.PUBLISH != 'true' && (matrix.image == 'api' || matrix.image == 'ingestor')
+        if: env.PUBLISH != 'true' && steps.input.outputs.source == '' && (matrix.image == 'api' || matrix.image == 'ingestor')
         run: |
           docker run --rm --entrypoint node "ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}:${{ github.sha }}" -e '
             const fs = require("fs");
@@ -133,8 +172,22 @@ jobs:
             if (missing.length) { console.error("faltando na imagem:", missing); process.exit(1); }
             console.log("ok:", need.length, "caminhos");'
 
+      # O repositório é público e as imagens vão para o GHCR: nenhum .env pode entrar (o .dockerignore exclui **/.env*,
+      # menos o .env.example). Segredo só no .env da VPS, em tempo de execução.
+      - name: Nenhum .env dentro da imagem
+        if: env.PUBLISH != 'true' && steps.input.outputs.source == '' && (matrix.image == 'api' || matrix.image == 'ingestor' || matrix.image == 'demo')
+        run: |
+          # /srv é o app inteiro nas três imagens; node_modules de terceiros fica de fora (não é código nosso)
+          found=$(docker run --rm --entrypoint sh "$IMAGE:$GITHUB_SHA" -c \
+            "find /srv -name node_modules -prune -o \( -name .env -o -name '.env.*' \) ! -name .env.example -print")
+          if [ -n "$found" ]; then
+            echo "::error::.env dentro da imagem: $found"
+            exit 1
+          fi
+          echo "nenhum .env na imagem"
+
   # Servidor do Playwright do lineup-render (infra/lineup-render). A base tem ~2 GB: só constrói quando a pasta muda.
-  # No PR, em relação ao 1º pai do commit (a main em que ele entra). No push para a main, em relação ao rótulo
+  # No PR e na fila de merge, em relação ao 1º pai do commit (a main em que ele entra). No push para a main, em relação ao rótulo
   # works.galaxie.context-tree da tag publicada no GHCR: uma execução trocada na fila pela do commit seguinte não deixa
   # a mudança sem imagem. O disparo manual sempre constrói. Na main (push ou disparo manual) publica com a tag da
   # versão do Playwright (a que o compose usa) e a do SHA.
@@ -276,6 +329,15 @@ jobs:
       - name: docker compose config (VPS com Traefik)
         run: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
 
+      # O deploy-gh.sh baixa as imagens dos serviços com IMAGE_TAG no compose; todas precisam sair do job build acima
+      - name: Deploy pelo Actions acha as imagens publicadas (compose ⇄ docker.yml)
+        run: |
+          out=$(SHA=$(git rev-parse HEAD) bash infra/vps-telemetry/deploy-gh.sh --services)
+          echo "$out"
+          got=$(printf '%s\n' "$out" | sed -n 's/.*imagens: //p' | tr ' ' '\n' | sort | tr '\n' ' ')
+          want="api backup demo grafana ingestor prometheus "
+          [ "$got" = "$want" ] || { echo "::error::imagens do compose ($got) ≠ publicadas pelo docker.yml ($want)"; exit 1; }
+
       - name: Alertas — teste simulado (promtool)
         run: |
           docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
@@ -292,7 +354,9 @@ jobs:
         run: jq empty infra/observability/grafana/dashboards/*.json
 
       - name: shellcheck
-        run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh infra/vps-telemetry/deploy.sh
+        run: |
+          shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh \
+            infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
