@@ -284,6 +284,38 @@ describe('outros endpoints', () => {
     expect(b.competitions[0]?.seasons).toEqual([{ year: 2024, label: null, startDate: null, endDate: null }]);
   });
 
+  it('standings com várias tabelas (Argentina 2026): cada grupo do fornecedor vira a sua chave', () => {
+    // mesma forma do fixture real (standings-71-2024), com os grupos vistos na API para a Argentina 2026;
+    // anual e promedios no padrão da api-sports (sem amostra real no repositório)
+    const real = loadFootballFixture<{ response: ApiStandingsItem[] }>('standings-71-2024.json').response[0]!;
+    const row = real.league.standings[0]![0]!;
+    const table = (group: string) => [{ ...row, group }];
+    const b = normalizeStandings(
+      [
+        {
+          league: {
+            ...real.league,
+            id: 128,
+            season: 2026,
+            standings: [
+              table('Apertura - Group A'),
+              table('Clausura - Group A'),
+              table('Tabla Anual'),
+              table('Promedios'),
+            ],
+          },
+        },
+      ],
+      FETCHED,
+    );
+    expect(b.standings.map((s) => s.group)).toEqual([
+      'Apertura - Group A',
+      'Clausura - Group A',
+      'Tabla Anual',
+      'Promedios',
+    ]);
+  });
+
   it('leagues: competições com tipo e temporadas', () => {
     const b = normalizeLeagues(
       [

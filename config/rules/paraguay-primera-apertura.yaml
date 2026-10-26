@@ -1,0 +1,42 @@
+# División Profesional de Paraguay — Torneo Apertura no id próprio da api-sports (250). 12 clubes em
+# turno e returno (22 rodadas). O rebaixamento é pelos promedios (três temporadas), que só vêm do
+# fornecedor. Grupos: qualquer grupo que não seja promedio é a tabela do
+# torneio.
+# A CONFERIR: sem amostra pública da api-sports (busca de out/2026 em documentação, GitHub e fóruns);
+# consulta no raw de produção em docs/runbooks/standings-latam-conferencia.md.
+slug: paraguay-primera-apertura
+name: División Profesional - Apertura
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - drawing_of_lots
+
+league:
+  teams: 12
+  matches_per_team: 22
+  meetings_per_pair: 2
+  title: true
+  zones: []
+
+knockout: null
+
+tables:
+  - key: apertura
+    kind: phase
+    name: { pt-BR: Torneio Apertura, es: Torneo Apertura, en: Apertura }
+    groups: '.'
+    exclude: 'promedio|anual|annual|acumulad'
+    rounds: '\d+$'
+    group_name: Apertura
+  - key: promedios
+    kind: relegation_average
+    name: { pt-BR: Promedios, es: Promedios, en: Relegation averages }
+    groups: 'promedio'
+
+sources:
+  - https://www.apf.org.py/

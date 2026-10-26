@@ -21,6 +21,7 @@ import {
 import {
   PLAN_LIBRARY_KINDS,
   PUBLISHED_MIN_REVIEW,
+  assetUrl,
   awaitsDecision,
   findInLineup,
   flattenLineup,
@@ -35,11 +36,6 @@ import {
   type RequestView,
   type TargetType,
 } from './types';
-
-const ASSETS_BASE = process.env.ASSETS_PUBLIC_BASE_URL;
-
-const assetUrl = (key: string | null, source: string | null) =>
-  key && ASSETS_BASE ? `${ASSETS_BASE.replace(/\/$/, '')}/${key.replace(/^\//, '')}` : source;
 
 const isMissingTable = (err: unknown) => (err as { code?: string }).code === '42P01';
 

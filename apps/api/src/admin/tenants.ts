@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { apiKey, tenant, type ApiModule, type ApiPlan, type Database } from '@galaxie/db';
-import { createApiKey, type CreatedKey } from '../auth/admin.js';
+import { createApiKey, upsertTenant, type CreatedKey, type TenantInput } from '../auth/admin.js';
 import type { KeyEnv } from '../auth/keys.js';
 import type { PlanCatalog } from './plans.js';
 
@@ -201,12 +201,66 @@ export async function listKeys(db: Database, tenantId: string, now = new Date())
   return rows.map((r) => toKeyView(r, now));
 }
 
+/** Chaves secretas válidas por tenant e ambiente, contando as que estão em período de graça. */
+export const MAX_SECRET_KEYS_PER_ENV = 5;
+
+type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/** Chaves válidas (não revogadas nem expiradas) do tenant no ambiente. */
+async function activeKeyCount(tx: Tx, tenantId: string, env: KeyEnv, now: Date): Promise<number> {
+  const [active] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(apiKey)
+    .where(
+      and(
+        eq(apiKey.tenantId, tenantId),
+        eq(apiKey.env, env),
+        or(isNull(apiKey.revokedAt), gt(apiKey.revokedAt, now)),
+        or(isNull(apiKey.expiresAt), gt(apiKey.expiresAt, now)),
+      ),
+    );
+  return active?.n ?? 0;
+}
+
+const tooManyKeys = (env: KeyEnv) =>
+  new KeyPolicyError(
+    'too_many_keys',
+    `O tenant já tem ${MAX_SECRET_KEYS_PER_ENV} chaves ${env} válidas (contando as em período de graça); ` +
+      'revogue as que não usa.',
+  );
+
+/** Emissão com teto dentro de uma transação já aberta: trava o tenant, para que emissões simultâneas não furem o teto. */
+async function issueKeyIn(tx: Tx, tenantId: string, options: NewKeyOptions, now: Date): Promise<CreatedKey> {
+  const env = options.env ?? 'live';
+  await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, tenantId)).for('update');
+  if ((await activeKeyCount(tx, tenantId, env, now)) >= MAX_SECRET_KEYS_PER_ENV) throw tooManyKeys(env);
+  return createApiKey(tx, tenantId, { ...options, env });
+}
+
+/** Emite uma chave secreta, respeitando o teto por ambiente (KeyPolicyError → 409). */
 export async function issueKey(
   db: Database,
   tenantId: string,
   options: NewKeyOptions = {},
+  now = new Date(),
 ): Promise<CreatedKey> {
-  return createApiKey(db, tenantId, options);
+  return db.transaction((tx) => issueKeyIn(tx, tenantId, options, now));
+}
+
+/**
+ * Cria ou atualiza o tenant e emite uma chave numa transação só (`tenant:create`): no teto de chaves do
+ * ambiente (KeyPolicyError), o tenant fica como estava, sem nada do upsert gravado.
+ */
+export async function upsertTenantWithKey(
+  db: Database,
+  input: TenantInput,
+  options: NewKeyOptions = {},
+  now = new Date(),
+): Promise<{ tenant: { id: string; created: boolean }; key: CreatedKey }> {
+  return db.transaction(async (tx) => {
+    const t = await upsertTenant(tx, input);
+    return { tenant: t, key: await issueKeyIn(tx, t.id, options, now) };
+  });
 }
 
 /** Revoga uma chave do tenant; false se a chave não existe, não é do tenant ou já estava revogada. */
@@ -227,20 +281,14 @@ export async function revokeTenantKey(
 /** Período máximo em que a chave antiga continua válida após a rotação. */
 export const MAX_ROTATION_GRACE_SEC = 7 * 86_400;
 
-/**
- * Teto de chaves válidas (não revogadas nem expiradas) por tenant para criar uma chave por rotação.
- * Sem ele, rotações em sequência acumulariam chaves sem limite durante os períodos de graça.
- */
-export const MAX_ACTIVE_KEYS_PER_TENANT = 20;
-
-/** Rotação recusada pelo estado atual (vira 409 nas rotas). */
-export class KeyRotationError extends Error {
+/** Emissão ou rotação recusada pelo estado atual (vira 409 nas rotas). */
+export class KeyPolicyError extends Error {
   constructor(
     readonly reason: 'already_rotated' | 'too_many_keys',
     message: string,
   ) {
     super(message);
-    this.name = 'KeyRotationError';
+    this.name = 'KeyPolicyError';
   }
 }
 
@@ -249,8 +297,9 @@ export class KeyRotationError extends Error {
  * a validade da antiga para `graceSeconds` (0 = revoga já). Assim o cliente troca a chave sem janela
  * de erro, e a rotação nunca estende o prazo de uma chave com validade (ex.: trial).
  * Devolve undefined se a chave não existe, não é do tenant ou já foi revogada/expirou; lança
- * KeyRotationError se a chave já foi rotacionada (está no período de graça) ou se o tenant já tem
- * MAX_ACTIVE_KEYS_PER_TENANT chaves válidas.
+ * KeyPolicyError se a chave já foi rotacionada (está no período de graça) ou se a chave nova passaria
+ * do teto de MAX_SECRET_KEYS_PER_ENV chaves válidas do ambiente (com graça 0 a antiga sai na hora e não
+ * conta).
  */
 export async function rotateKey(
   db: Database,
@@ -272,25 +321,13 @@ export async function rotateKey(
     const status = keyStatus(old, now);
     if (status === 'revoked' || status === 'expired') return undefined;
     if (old.rotatedAt)
-      throw new KeyRotationError(
+      throw new KeyPolicyError(
         'already_rotated',
         'Esta chave já foi rotacionada e só vale até o fim do período de graça; use a chave nova.',
       );
-    const [active] = await tx
-      .select({ n: sql<number>`count(*)::int` })
-      .from(apiKey)
-      .where(
-        and(
-          eq(apiKey.tenantId, tenantId),
-          or(isNull(apiKey.revokedAt), gt(apiKey.revokedAt, now)),
-          or(isNull(apiKey.expiresAt), gt(apiKey.expiresAt, now)),
-        ),
-      );
-    if ((active?.n ?? 0) >= MAX_ACTIVE_KEYS_PER_TENANT)
-      throw new KeyRotationError(
-        'too_many_keys',
-        `O tenant já tem ${MAX_ACTIVE_KEYS_PER_TENANT} chaves válidas; revogue as que não usa antes de rotacionar.`,
-      );
+    const freed = options.graceSeconds <= 0 ? 1 : 0;
+    if ((await activeKeyCount(tx, tenantId, old.env, now)) - freed >= MAX_SECRET_KEYS_PER_ENV)
+      throw tooManyKeys(old.env);
 
     const key = await createApiKey(tx, tenantId, {
       env: old.env,

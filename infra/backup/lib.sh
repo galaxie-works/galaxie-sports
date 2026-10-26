@@ -4,7 +4,12 @@
 
 : "${PGDATABASE:?Defina PGDATABASE}"
 : "${BACKUP_DIR:=/backups}"
-: "${BACKUP_RETENTION_DAYS:=30}"
+# Retenção na VPS por contagem: os N dumps diários mais recentes (a camada longa fica no NAS; ver
+# docs/runbooks/exercicio-dr.md). Por contagem, e não por idade: com o backup parado, nada some.
+: "${BACKUP_KEEP_DAILY:=7}"
+[ "$BACKUP_KEEP_DAILY" -ge 1 ] 2>/dev/null || BACKUP_KEEP_DAILY=1
+# Idade máxima do último dump antes de o verificador acusar (horas): um dia + folga.
+: "${BACKUP_MAX_AGE_H:=26}"
 # Sem NOTICEs do servidor ("does not exist, skipping") poluindo os logs.
 export PGOPTIONS="${PGOPTIONS:--c client_min_messages=warning}"
 
@@ -36,6 +41,32 @@ job_finish() {
   error_sql="null"
   [ -n "$error" ] && error_sql="'$(printf '%s' "$error" | sed "s/'/''/g")'"
   sql_quiet "update ops.job_run set status = '$status', finished_at = now(), error = $error_sql, stats = '$stats'::jsonb where id = '$id'"
+}
+
+# Dumps do banco em BACKUP_DIR, do mais antigo ao mais recente (o nome leva o horário UTC: ordem de nome = ordem de tempo).
+list_dumps() {
+  ls -1 "$BACKUP_DIR"/"${PGDATABASE}"_*.dump 2>/dev/null | sort || true
+}
+
+latest_dump() {
+  list_dumps | tail -n 1
+}
+
+# Idade de um arquivo em segundos (pela data de modificação).
+file_age_s() {
+  echo $(($(date -u +%s) - $(stat -c %Y "$1")))
+}
+
+# Mantém os BACKUP_KEEP_DAILY dumps mais recentes (com o .sha256 de cada); imprime quantos apagou.
+prune_dumps() {
+  total=$(list_dumps | wc -l | tr -d ' ')
+  extra=$((total - BACKUP_KEEP_DAILY))
+  if [ "$extra" -le 0 ]; then
+    echo 0
+    return 0
+  fi
+  list_dumps | head -n "$extra" | while read -r f; do rm -f "$f" "$f.sha256"; done
+  echo "$extra"
 }
 
 s3_enabled() {

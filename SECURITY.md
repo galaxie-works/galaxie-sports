@@ -32,14 +32,17 @@ não há manutenção de versões antigas.
 | Logs | Sem headers de chave e com IP mascarado; a chave do SSE em `?key=` é redigida pela API e pelo Caddy (stack do Portainer). Na VPS, a borda é o Traefik, com access log desligado: a chave na query não vai para log. Ligar o access log exige descartar o `RequestPath` | `apps/api/src/observability.ts`, `infra/caddy/Caddyfile`, [infra/vps-telemetry/README.md](infra/vps-telemetry/README.md#logs-e-a-chave-do-sse-key) |
 | Segredos no Git | gitleaks no CI (histórico completo) + `.gitignore` de `.env*` | `.github/workflows/ci.yml`, `.gitleaks.toml` |
 | Dependências | Dependabot (npm, Actions, Docker, Compose) + `pnpm audit --prod` informativo | `.github/dependabot.yml` |
-| Backups / DR | Dump diário na VPS; cópia dos dumps fora da VPS, no NAS do dono (frequência e retenção a confirmar pelo dono); snapshot diário da VPS no provedor da VPS; ciclo de backup e restore testado no CI em banco descartável; roteiro de DR documentado. A cópia para S3 externo (`BACKUP_S3_*`) segue opcional. **Pendentes**: canal de notificação dos alertas (inclusive `BackupStale`, que hoje só aparece no Prometheus e no Grafana; o canal ainda não foi decidido) e ensaio periódico de restauração do dump real (só há registro de um exercício local) | [infra/portainer/README.md](infra/portainer/README.md#backups), [docs/runbooks/exercicio-dr.md](docs/runbooks/exercicio-dr.md) |
+| Backups / DR | Política 3-2-1 com RPO 24 h e RTO alvo de 2 h: dump diário com 7 na VPS (por contagem), cópia no NAS do dono (14 diários + 8 semanais + 12 mensais) e snapshot diário da VPS no provedor da VPS; verificador a cada 6 h (dump e, com o recibo ligado, cópia do NAS com no máximo 26 h); ensaio de restauração automático todo mês, num banco temporário, com conferência e registro em `ops.job_run`; alertas (backup atrasado, ensaio falhou, disco acima de 85%, API fora, fila do change feed parada) por e-mail pelo Grafana. Cópia do NAS: stack `galaxie-sports-backup-nas`, com chaves SSH restritas (só leitura da pasta e só o `touch` do recibo). **Cabe ao dono**: configurar o SMTP dos alertas (sem ele, ficam só no Grafana) | [docs/runbooks/exercicio-dr.md](docs/runbooks/exercicio-dr.md), [infra/vps-telemetry/README.md](infra/vps-telemetry/README.md#backups-ensaio-e-alertas) |
 
 ## Chaves de API
 
 Revisão do esquema de hash (issue #84):
 
-- **Formato**: `gs_<live|test>_<prefixo 12 hex>_<segredo 43 base64url>`. O prefixo (48 bits) é público e só localiza a
-  linha; o segredo tem 256 bits de entropia (`crypto.randomBytes`).
+- **Formato**: `gs_<live|test>_<prefixo 12 hex>_<segredo 43 base64url>_<crc32 8 hex>`. O prefixo (48 bits) é público e
+  só localiza a linha; o segredo tem 256 bits de entropia (`crypto.randomBytes`). O checksum não protege nada (qualquer
+  um calcula): serve para recusar erro de digitação sem custo e para scanners de segredos (regra `galaxie-api-key` do
+  gitleaks e padrão customizado do secret scanning do GitHub, docs/politica-de-chaves.md §5) acharem a chave sem falso
+  positivo. O ambiente do prefixo precisa bater com o gravado. Chaves anteriores ao checksum: docs/runbooks/migracao-de-chaves.md.
 - **Armazenamento**: `scrypt$N$r$p$sal$hash` com N=2¹⁴, r=8, p=1, sal de 16 bytes e saída de 32 bytes (`node:crypto`).
   Para um segredo de 256 bits aleatórios, um hash rápido já seria resistente a força bruta; o scrypt é defesa em
   profundidade caso um dump do banco vaze junto com segredos de baixa qualidade de outra origem. A doc antiga citava
@@ -108,7 +111,7 @@ Notas para a implementação dos webhooks (docs/05 §5, issue #35):
     publique a versão nova e rode `pnpm --filter @galaxie/api webhook seal-secrets` (idempotente; troca cada
     linha só se o valor não mudou, com o worker no ar; linha que não abre é listada no fim, sem abortar as demais). O
     segredo do cliente continua o mesmo — mas ele já esteve em texto puro e segue nos dumps do banco até o fim da
-    retenção dos backups (`BACKUP_RETENTION_DAYS`, padrão 30 dias). **Recomendado**: recriar os endpoints legados
+    retenção dos backups (7 dumps diários na VPS, `BACKUP_KEEP_DAILY`, e até 12 meses no NAS). **Recomendado**: recriar os endpoints legados
     (segredo novo para o cliente) e, quando todos estiverem cifrados, ligar `WEBHOOK_REJECT_PLAINTEXT_SECRETS=true`
     no worker: segredo em texto puro passa a falhar a entrega em vez de assinar.
   - **Rotação da KEK**: várias KEKs separadas por vírgula (a primeira cifra, todas decifram) + `seal-secrets`.

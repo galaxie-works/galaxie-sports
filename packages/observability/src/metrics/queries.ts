@@ -94,6 +94,8 @@ export interface JobStatsRow {
   lastStartedAt: Date;
   lastFinishedAt: Date | null;
   lastSuccessAt: Date | null;
+  /** Primeira execução registrada: idade de um job que nunca teve sucesso (ex.: ensaio de restauração parado). */
+  firstStartedAt: Date;
   /** Falhas seguidas desde o último sucesso (ou desde sempre, se nunca houve sucesso). */
   consecutiveFailures: number;
 }
@@ -105,6 +107,7 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
     last_started_at: string | Date;
     last_finished_at: string | Date | null;
     last_success_at: string | Date | null;
+    first_started_at: string | Date;
     consecutive_failures: number;
     runs_24h: Record<string, number> | null;
   }>(sql`
@@ -117,6 +120,9 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
       -- budget_skipped: o job gravou o determinístico porque o orçamento de IA recusou; conta como sucesso
       select job, max(started_at) as at from ops.job_run
        where status in ('ok', 'budget_skipped') group by job
+    ),
+    first_run as (
+      select job, min(started_at) as at from ops.job_run group by job
     ),
     recent as (
       select job, jsonb_object_agg(status, n) as runs
@@ -133,12 +139,14 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
            lr.started_at as last_started_at,
            lr.finished_at as last_finished_at,
            lo.at as last_success_at,
+           fr.at as first_started_at,
            (select count(*) from ops.job_run f
              where f.job = lr.job and f.status = 'error'
                and f.started_at > coalesce(lo.at, '-infinity'::timestamptz))::int as consecutive_failures,
            r.runs as runs_24h
     from last_run lr
     left join last_ok lo on lo.job = lr.job
+    join first_run fr on fr.job = lr.job
     left join recent r on r.job = lr.job
   `);
   return rows.map((r) => ({
@@ -148,6 +156,7 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
     lastStartedAt: new Date(r.last_started_at),
     lastFinishedAt: r.last_finished_at ? new Date(r.last_finished_at) : null,
     lastSuccessAt: r.last_success_at ? new Date(r.last_success_at) : null,
+    firstStartedAt: new Date(r.first_started_at),
     consecutiveFailures: Number(r.consecutive_failures),
   }));
 }
@@ -246,4 +255,40 @@ export async function liveSchedulerStates(db: Database): Promise<LiveSchedulerRo
       updatedAt: new Date(r.updated_at),
     };
   });
+}
+
+export interface ChangeFeedConsumerRow {
+  /** `demo-cache:<nome>` (demo_auth.cache_feed_cursor) ou `webhooks:<nome>` (api.webhook_cursor). */
+  consumer: string;
+  /** Mudanças depois do cursor (contadas até 10 000). */
+  pending: number;
+  /** Idade (s) da mudança pendente mais antiga; 0 sem pendência. */
+  oldestPendingAgeSeconds: number;
+}
+
+/**
+ * Consumidores do `ops.change_feed` com cursor salvo no banco: quanto falta e há quanto tempo a mais antiga
+ * espera. O cursor da demo é criado pela própria demo na primeira leitura (a tabela pode não existir).
+ */
+export async function changeFeedConsumers(db: Database): Promise<ChangeFeedConsumerRow[]> {
+  const [reg] = await db.execute<{ demo: boolean }>(
+    sql`select to_regclass('demo_auth.cache_feed_cursor') is not null as demo`,
+  );
+  const sources = [sql`select 'webhooks:' || name as consumer, last_change_id from api.webhook_cursor`];
+  if (reg?.demo)
+    sources.push(sql`select 'demo-cache:' || name, last_change_id from demo_auth.cache_feed_cursor`);
+  const rows = await db.execute<{ consumer: string; pending: number; age: number | string | null }>(sql`
+    with c as (${sql.join(sources, sql` union all `)})
+    select c.consumer,
+           (select count(*) from (select 1 from ops.change_feed f where f.id > c.last_change_id limit 10000) p)::int
+             as pending,
+           extract(epoch from now() - (select f.created_at from ops.change_feed f
+                                        where f.id > c.last_change_id order by f.id limit 1))::float8 as age
+    from c
+  `);
+  return rows.map((r) => ({
+    consumer: r.consumer,
+    pending: Number(r.pending),
+    oldestPendingAgeSeconds: Math.max(0, Number(r.age ?? 0)),
+  }));
 }

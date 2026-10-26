@@ -31,8 +31,11 @@ import {
 
 type FilterText = Dictionary['live']['filters'];
 
-/** Os textos do componente (ReUI) nos três idiomas; os que recebem variáveis viram funções. */
-function filterLabels(locale: Locale, ui: FilterText['ui']): Partial<FilterLabels> {
+/**
+ * Os textos do componente (ReUI) nos três idiomas; os que recebem variáveis viram funções. A revisão
+ * (Ajustes → Revisão) usa os mesmos.
+ */
+export function filterLabels(locale: Locale, ui: FilterText['ui']): Partial<FilterLabels> {
   const {
     moveToGroup,
     rowLabel,
@@ -87,7 +90,7 @@ function filterLabels(locale: Locale, ui: FilterText['ui']): Partial<FilterLabel
  * O chip recém-criado abre sozinho na escolha da condição; aqui só há uma ("é"), já preenchida em
  * `onQueryChange`, então ele abre direto na lista de valores.
  */
-function OpenValuesFirst() {
+export function OpenValuesFirst() {
   const store = useFilterFocusStore();
   useEffect(
     () =>

@@ -2,19 +2,21 @@
 
 import { Check, ChevronLeft, ChevronRight, FilePenLine, Undo2 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, useTransition } from 'react';
 
 import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
 import {
-  PAGE_SIZE,
+  PAGE_SIZES,
   filtersQuery,
   itemSegment,
   type ReviewFilters,
@@ -38,8 +40,8 @@ export const itemHref = (id: string, filters: ReviewFilters) => {
   return `/ajustes/revisao/${itemSegment(id)}${list ? `?lista=${encodeURIComponent(list.slice(1))}` : ''}`;
 };
 
-const pageHref = (filters: ReviewFilters, page: number) =>
-  `/ajustes/revisao${filtersQuery({ ...filters, page })}`;
+const pageHref = (filters: ReviewFilters, page: number, per = filters.per) =>
+  `/ajustes/revisao${filtersQuery({ ...filters, page, per })}`;
 
 function PageButton({ href, children }: { href: string | null; children: React.ReactNode }) {
   return href ? (
@@ -50,6 +52,41 @@ function PageButton({ href, children }: { href: string | null; children: React.R
     <Button size="sm" variant="outline" disabled>
       {children}
     </Button>
+  );
+}
+
+/**
+ * Quantos itens por página (`?per=`), no estilo do seletor do `DataGridPagination` (a tabela não usa o
+ * data-grid). Mudar o tamanho volta para a página 1.
+ */
+function PageSizeSelect({ filters }: { filters: ReviewFilters }) {
+  const { t } = useI18n();
+  const label = t.review.table.perPage;
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="text-muted-foreground text-sm">{label}</div>
+      <Select
+        value={`${filters.per}`}
+        onValueChange={(value) => {
+          const per = Number(value);
+          if (per !== filters.per) startTransition(() => router.push(pageHref(filters, 1, per)));
+        }}
+      >
+        <SelectTrigger aria-label={label} className="w-fit min-w-16" size="sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent align="start" alignItemWithTrigger={false} className="min-w-(--anchor-width)">
+          {PAGE_SIZES.map((size) => (
+            <SelectItem key={size} value={`${size}`}>
+              {size}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {pending ? <Spinner className="size-4" /> : null}
+    </div>
   );
 }
 
@@ -174,7 +211,7 @@ export function ReviewTable({ items, total, filters, timeZone }: Props) {
   const { t, locale } = useI18n();
   const T = t.review;
   const f = useFormatters(timeZone);
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(total / filters.per));
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
   // outra página, outros filtros ou a lista recarregada: a seleção vale só para os itens à vista
@@ -300,7 +337,10 @@ export function ReviewTable({ items, total, filters, timeZone }: Props) {
         </Table>
       </div>
       <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span>{plural(locale, total, T.table.total)}</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span>{plural(locale, total, T.table.total)}</span>
+          <PageSizeSelect filters={filters} />
+        </div>
         {pages > 1 ? (
           <div className="flex items-center gap-2">
             <span>{fill(T.table.page, { page: filters.page, pages })}</span>

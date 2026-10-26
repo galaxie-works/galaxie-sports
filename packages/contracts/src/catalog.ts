@@ -206,13 +206,43 @@ export const StandingRow = z
   })
   .meta({ id: 'StandingRow' });
 
+/** Papel da tabela na temporada, pelo regulamento da competição (config/rules, `tables:`). */
+export const STANDINGS_TABLE_KINDS = ['phase', 'annual', 'relegation_average', 'other'] as const;
+export const StandingsTableKind = z.enum(STANDINGS_TABLE_KINDS).meta({
+  id: 'StandingsTableKind',
+  description:
+    '`phase`: tabela principal de uma fase (Apertura, Clausura, fase de grupos, pontos corridos); `annual`: anual/acumulada (soma das fases); `relegation_average`: promedios (média de pontos de várias temporadas, decide o rebaixamento); `other`: tabela auxiliar exposta como vem do fornecedor (ex.: quadrangulares).',
+});
+
 export const Standings = z
   .object({
     competition_id: z.uuid(),
     season: SeasonRef,
     groups: z.array(
       z.object({
-        name: z.string().nullable().meta({ description: 'Grupo (null em liga de grupo único).' }),
+        name: z
+          .string()
+          .nullable()
+          .meta({ description: 'Grupo como o fornecedor o nomeia (null em liga de grupo único).' }),
+        display_name: z.string().nullable().meta({
+          description:
+            'Nome da tabela no idioma pedido, pelo regulamento da competição (ex.: "Apertura · Zona A", "Tabla anual"). Null quando a competição não tem regulamento de tabelas.',
+          example: 'Apertura · Zona A',
+        }),
+        table: StandingsTableKind.nullable().meta({
+          description: 'Papel da tabela; null sem regulamento de tabelas ou grupo que ele não reconhece.',
+        }),
+        table_key: z.string().nullable().meta({
+          description: 'Chave da tabela no regulamento (`apertura`, `clausura`, `annual`, `promedios`…).',
+          example: 'apertura',
+        }),
+        current: z.boolean().nullable().meta({
+          description:
+            'Tabela principal da fase em andamento (a última fase com jogo disputado). Null sem regulamento de tabelas.',
+        }),
+        source: z.enum(['provider', 'computed']).nullable().meta({
+          description: 'Origem das linhas do grupo: do fornecedor ou calculada a partir dos resultados.',
+        }),
         rows: z.array(StandingRow),
       }),
     ),

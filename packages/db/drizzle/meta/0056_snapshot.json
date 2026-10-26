@@ -1,6 +1,6 @@
 {
-  "id": "b1d77853-4909-40f8-88be-d53f6f5a7966",
-  "prevId": "a6a2b1da-9bc4-4506-9856-32697dd3ad62",
+  "id": "6080447d-6620-48fa-8e60-0874ecafc2d7",
+  "prevId": "f83c5c3f-d38b-4c56-973d-f8ba6517f50c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -14060,6 +14060,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "key_format": {
+          "name": "key_format",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
         "last_used_at": {
           "name": "last_used_at",
           "type": "timestamp with time zone",
@@ -14847,6 +14854,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "env": {
+          "name": "env",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'live'"
         },
         "allowed_origins": {
           "name": "allowed_origins",

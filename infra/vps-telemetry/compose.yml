@@ -174,6 +174,9 @@ services:
     environment:
       GALAXIE_API_URL: http://api:8080
       GALAXIE_DEMO_KEY: ${GALAXIE_DEMO_KEY:-}
+      # Logos da grade em Ajustes → Grades e ofertas, lidos direto do banco: sem a base pública dos assets, a
+      # demo só tinha a origem gravada (`acervo-oficial://…`), que o navegador não carrega
+      ASSETS_PUBLIC_BASE_URL: https://${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}/${S3_BUCKET:-galaxie-sports-assets}
       # Login e usuários da demo (Better Auth): schema demo_auth no mesmo Postgres
       DEMO_DATABASE_URL: postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?defina BETTER_AUTH_SECRET (openssl rand -hex 32)}
@@ -369,8 +372,6 @@ services:
     stop_grace_period: 40s
     logging: *logging
 
-  # ── backups ───────────────────────────────────────────────────────────────────────────────────
-  # pg_dump diário (BACKUP_TIME, UTC) com retenção no volume `backups` e cópia opcional para S3 externo.
   # Navegador headless para a leitura da página oficial do plano que só mostra a grade com JavaScript
   # (lineups:pages). Fora do padrão: sobe só com `--profile render`, durante a leitura, e cai depois.
   # Imagem própria (infra/lineup-render): a oficial do Playwright com o pacote npm já instalado, sem npx na partida.
@@ -393,6 +394,9 @@ services:
     networks: [render]
     logging: *logging
 
+  # ── backups ───────────────────────────────────────────────────────────────────────────────────
+  # pg_dump diário (BACKUP_TIME, UTC), 7 dumps no volume `backups` (o NAS guarda a retenção longa), verificador a cada
+  # 6 h, ensaio de restauração no dia 1 de cada mês e cópia opcional para S3 externo (docs/runbooks/exercicio-dr.md).
   backup:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
@@ -405,7 +409,10 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
       BACKUP_TIME: ${BACKUP_TIME:-03:30}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
+      BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-true}
+      RESTORE_DRILL_DAY: ${RESTORE_DRILL_DAY:-1}
       BACKUP_ON_START: ${BACKUP_ON_START:-true}
       BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
       BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-postgres}
@@ -435,6 +442,21 @@ services:
       - api
     logging: *logging
 
+  # Uso do disco para o alerta DiskAlmostFull. Sem bind mount do host nem privilégio: o volume promdata (montado só
+  # para leitura) fica no disco onde o Docker guarda os volumes (Postgres, backups, Prometheus), e o statfs dele é o
+  # desse disco. Só o coletor de sistemas de arquivos; sem porta publicada (o Prometheus raspa pela rede da stack).
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    restart: unless-stopped
+    mem_limit: 64m
+    command:
+      - --collector.disable-defaults
+      - --collector.filesystem
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|etc)($$|/)
+    volumes:
+      - promdata:/data/promdata:ro
+    logging: *logging
+
   grafana:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-grafana:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
@@ -444,6 +466,12 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD}
       GF_SERVER_ROOT_URL: http://localhost:3000
+      # e-mail dos alertas (infra/observability/grafana/entrypoint.sh); vazio = alertas só no Grafana
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
+      ALERT_SMTP_HOST: ${ALERT_SMTP_HOST:-}
+      ALERT_SMTP_USER: ${ALERT_SMTP_USER:-}
+      ALERT_SMTP_PASSWORD: ${ALERT_SMTP_PASSWORD:-}
     volumes:
       - grafanadata:/var/lib/grafana
     depends_on:

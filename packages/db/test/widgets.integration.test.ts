@@ -12,6 +12,9 @@ import {
   listActivePublishableOrigins,
   listPublishableKeys,
   listWidgets,
+  MAX_PUBLISHABLE_KEYS_PER_TENANT,
+  PUBLISHABLE_TEST_KEY_PREFIX,
+  PublishableKeyLimitError,
   publishableKey,
   revokePublishableKey,
   runMigrations,
@@ -233,6 +236,59 @@ describe('chaves publicáveis', () => {
     expect(keys.find((k) => k.id === created.id)?.revokedAt).toBeInstanceOf(Date);
     expect(keys.find((k) => k.id === free.id)?.revokedAt).toBeNull();
     expect(await verifyPublishableKey(db, free.key)).not.toBeNull();
+  });
+
+  it('publicável de teste: só localhost; produção recusa localhost; o prefixo precisa bater com o ambiente', async () => {
+    await expect(
+      createPublishableKey(db, { tenantId: tenantA, name: 'x', allowedOrigins: ['http://localhost:3000'] }),
+    ).rejects.toThrow(/chave de teste/);
+    await expect(
+      createPublishableKey(db, {
+        tenantId: tenantA,
+        name: 'x',
+        env: 'test',
+        allowedOrigins: ['https://app.exemplo.com'],
+      }),
+    ).rejects.toThrow(/só aceita localhost/);
+    const dev = await createPublishableKey(db, {
+      tenantId: tenantA,
+      name: 'dev',
+      env: 'test',
+      allowedOrigins: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    });
+    expect(dev.key.startsWith(PUBLISHABLE_TEST_KEY_PREFIX)).toBe(true);
+    expect(await verifyPublishableKey(db, dev.key)).toMatchObject({ env: 'test' });
+    expect((await listPublishableKeys(db, tenantA)).find((k) => k.id === dev.id)).toMatchObject({
+      env: 'test',
+    });
+    // linha adulterada para outro ambiente: a chave não autentica
+    await db.update(publishableKey).set({ env: 'live' }).where(eq(publishableKey.id, dev.id));
+    expect(await verifyPublishableKey(db, dev.key)).toBeNull();
+  });
+
+  it('teto de chaves publicáveis ativas por tenant; revogar libera vaga', async () => {
+    const [t] = await db
+      .insert(tenant)
+      .values({ slug: 'teto-pk', name: 'Teto', plan: 'fan_experience', modules: ['core_data'] })
+      .returning();
+    const ids: string[] = [];
+    for (let i = 0; i < MAX_PUBLISHABLE_KEYS_PER_TENANT; i++)
+      ids.push(
+        (
+          await createPublishableKey(db, {
+            tenantId: t!.id,
+            name: `k${i}`,
+            allowedOrigins: ['https://t.test'],
+          })
+        ).id,
+      );
+    await expect(
+      createPublishableKey(db, { tenantId: t!.id, name: 'extra', allowedOrigins: ['https://t.test'] }),
+    ).rejects.toBeInstanceOf(PublishableKeyLimitError);
+    expect(await revokePublishableKey(db, t!.id, ids[0]!)).toBe(true);
+    await expect(
+      createPublishableKey(db, { tenantId: t!.id, name: 'extra', allowedOrigins: ['https://t.test'] }),
+    ).resolves.toBeDefined();
   });
 
   it('tenant suspenso invalida a chave', async () => {

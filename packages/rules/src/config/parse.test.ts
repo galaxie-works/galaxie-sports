@@ -17,7 +17,12 @@ describe('parseCompetitionRules — padrões', () => {
     expect(r.standings.h2hReapply).toBe(true);
     expect(r.standings.fairPlay).toEqual({ yellow: 1, red: 3 });
     expect(r.league).toBeNull();
-    expect(r.knockout?.default).toMatchObject({ legs: 2, awayGoals: false, extraTime: true, penalties: true });
+    expect(r.knockout?.default).toMatchObject({
+      legs: 2,
+      awayGoals: false,
+      extraTime: true,
+      penalties: true,
+    });
   });
 
   it('aceita critério como string ou objeto com max_teams/require_complete', () => {
@@ -36,7 +41,11 @@ describe('parseCompetitionRules — padrões', () => {
   it('normaliza liga e zonas', () => {
     const r = parseCompetitionRules({
       slug: 'x',
-      league: { teams: 4, matches_per_team: 6, zones: [{ id: 'round_of_16', kind: 'qualification', from: 1, to: 2 }] },
+      league: {
+        teams: 4,
+        matches_per_team: 6,
+        zones: [{ id: 'round_of_16', kind: 'qualification', from: 1, to: 2 }],
+      },
     });
     expect(r.league).toEqual({
       teams: 4,

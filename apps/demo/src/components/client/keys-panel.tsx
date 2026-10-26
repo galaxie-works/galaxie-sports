@@ -45,6 +45,7 @@ import { CodeSnippet } from './code-snippet';
 export interface KeyRow {
   id: string;
   name: string;
+  env: 'live' | 'test';
   prefix: string;
   allowedOrigins: string[];
   widgetId: string | null;
@@ -62,15 +63,21 @@ function CreateKeyDialog({ widgets }: { widgets: { id: string; name: string }[] 
   const [name, setName] = useState('');
   const [origins, setOrigins] = useState('');
   const [widgetId, setWidgetId] = useState(ANY);
+  const [env, setEnv] = useState<'live' | 'test'>('live');
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const items = [{ value: ANY, label: k.widgetAny }, ...widgets.map((w) => ({ value: w.id, label: w.name }))];
+  const envItems = [
+    { value: 'live', label: k.envLive },
+    { value: 'test', label: k.envTest },
+  ];
 
   function reset() {
     setName('');
     setOrigins('');
     setWidgetId(ANY);
+    setEnv('live');
     setError(null);
     setKey(null);
   }
@@ -79,7 +86,7 @@ function CreateKeyDialog({ widgets }: { widgets: { id: string; name: string }[] 
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const res = await createKey({ name, origins, widgetId: widgetId === ANY ? null : widgetId });
+      const res = await createKey({ name, origins, env, widgetId: widgetId === ANY ? null : widgetId });
       if (!res.ok || !res.key) return void setError(res.error ?? t.client.errors.generic);
       setKey(res.key);
       router.refresh();
@@ -139,6 +146,26 @@ function CreateKeyDialog({ widgets }: { widgets: { id: string; name: string }[] 
                 />
               </Field>
               <Field>
+                <FieldLabel htmlFor="key-env">{k.env}</FieldLabel>
+                <Select
+                  items={envItems}
+                  value={env}
+                  onValueChange={(v) => setEnv(v === 'test' ? 'test' : 'live')}
+                >
+                  <SelectTrigger id="key-env" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {envItems.map((i) => (
+                      <SelectItem key={i.value} value={i.value}>
+                        {i.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>{env === 'test' ? k.envTestHint : k.envLiveHint}</FieldDescription>
+              </Field>
+              <Field>
                 <FieldLabel htmlFor="key-origins">{k.origins}</FieldLabel>
                 <Textarea
                   id="key-origins"
@@ -146,11 +173,11 @@ function CreateKeyDialog({ widgets }: { widgets: { id: string; name: string }[] 
                   rows={4}
                   spellCheck={false}
                   className="font-mono text-xs"
-                  placeholder={k.originsPlaceholder}
+                  placeholder={env === 'test' ? k.originsPlaceholderTest : k.originsPlaceholder}
                   value={origins}
                   onChange={(e) => setOrigins(e.target.value)}
                 />
-                <FieldDescription>{k.originsHint}</FieldDescription>
+                <FieldDescription>{env === 'test' ? k.originsHintTest : k.originsHint}</FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="key-widget">{k.widget}</FieldLabel>
