@@ -18,11 +18,10 @@ import { closeDb } from '@galaxie/db';
 import { DEFAULT_KNOWLEDGE_DIR, loadKnowledge } from '@galaxie/knowledge';
 import { reviewLlmEnv } from '../llm/config.js';
 import { FakeLlmClient } from '../llm/fake.js';
-import { createLlmClient } from '../llm/factory.js';
 import type { LlmClient } from '../llm/types.js';
 import { pendingSuggestions, SuggestionReviewer, type SuggestionOutcome } from '../review/run.js';
 import type { ReviewModelOutput } from '../review/schema.js';
-import { dbFromEnv, intFlag } from './common.js';
+import { createAgentLlm, dbFromEnv, intFlag } from './common.js';
 
 const LABEL: Record<SuggestionOutcome['outcome'], string> = {
   accepted: 'aprovada',
@@ -97,7 +96,7 @@ async function main(): Promise<void> {
       console.log('Modelo: provedor falso (dev).');
     } else {
       try {
-        const rt = createLlmClient({ db, env: reviewLlmEnv(process.env) });
+        const rt = await createAgentLlm(db, 'review', reviewLlmEnv);
         llm = rt.client;
         console.log(`Modelo: ${rt.settings.provider} · ${rt.settings.models.standard}`);
       } catch (err) {

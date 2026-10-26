@@ -1,14 +1,15 @@
 /**
  * Crédito da conta de IA: a mesma checagem do deploy (infra/vps-telemetry/deploy.sh), feita pelo
  * scheduler dos agentes, que tem a chave. Uma chamada mínima (~20 tokens) ao modelo leve do provedor
- * efetivo; o resultado vai para ops.runtime_check e aparece no painel de Operação.
+ * efetivo; o resultado vai para ops.runtime_check e aparece no painel de Operação. Com a IA desligada
+ * (AI_STATUS=off, inclusive pelo painel) não chama o provedor: `warn` com o código `ai_off`.
  */
 
 export type CreditStatus = 'pass' | 'warn' | 'fail';
 
 export interface CreditCheckDetail {
-  /** ok | no_key | http | network */
-  code: 'ok' | 'no_key' | 'http' | 'network';
+  /** ok | no_key | ai_off | http | network */
+  code: 'ok' | 'no_key' | 'ai_off' | 'http' | 'network';
   provider: string;
   model: string;
   /** Status HTTP e código de erro do provedor (ex.: 429 insufficient_quota). */
@@ -42,6 +43,8 @@ export async function checkAiCredit(
 ): Promise<CreditCheckResult> {
   const provider = env.AI_PROVIDER?.trim().toLowerCase() || 'openai';
   const model = env.AI_MODEL_LIGHT?.trim() || LIGHT_DEFAULT[provider] || '';
+  if (env.AI_STATUS?.trim().toLowerCase() === 'off')
+    return { status: 'warn', detail: { code: 'ai_off', provider, model } };
   const key = env[KEY_ENV[provider] ?? 'OPENAI_API_KEY']?.trim();
   if (!key) return { status: 'warn', detail: { code: 'no_key', provider, model } };
 

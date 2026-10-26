@@ -39,6 +39,20 @@ Com pacotes privados, a VPS precisa de `docker login ghcr.io` com um token só `
 mesmos nomes/tags, enviar com `docker save … | gzip | ssh root@<vps> 'gunzip | docker load'` e usar
 `PULL_POLICY=missing` no `.env`.
 
+**`lineup-render`** (navegador headless do perfil `render`, [`infra/lineup-render`](../lineup-render/Dockerfile)): a
+imagem oficial do Playwright com o pacote npm já instalado (sem `npx` na partida). A tag é a **versão do Playwright**
+(`…-lineup-render:1.64.0`), não o SHA, e o serviço usa `pull_policy: missing`. O `deploy.sh` a constrói **na VPS**
+quando a pasta muda (a base tem ~2 GB e a VPS já a tem; vai só a pasta), no fim do deploy, depois do smoke, em até
+`LR_BUILD_MIN` minutos (padrão 15) e só se couber no teto. Falha ali não para o deploy: o `WARN` diz se o perfil
+`render` segue com a imagem anterior ou se **não sobe** (sem imagem anterior; a VPS não tem credencial do GHCR) e traz
+o comando para construir à mão. O `docker.yml` também a publica no GHCR quando a pasta muda. Subir a versão é mudar
+juntos o `FROM` do Dockerfile (tag e digest), o `package.json`/`package-lock.json` da pasta, o `playwright-core` do
+`services/ai-agents` e a tag no `compose.yml` (o CI confere com `infra/lineup-render/versions.mjs`; o Dependabot ignora
+o `playwright-core`). Reconstruir a mesma tag deixa a imagem anterior órfã (`<none>`); não há limpeza automática (e
+`docker system prune` é proibido aqui): remova com `docker image rm <id>`. Fallback, sem a imagem própria: no
+`compose.yml`, `image: mcr.microsoft.com/playwright:v1.64.0-noble` com `command: ['npx', '-y', 'playwright@1.64.0',
+'run-server', '--port', '3000', '--host', '0.0.0.0']` e `working_dir: /home/pwuser`, o resto igual.
+
 ## Atualizar (rotina: toda publicação passa por aqui)
 
 ```bash
@@ -206,7 +220,26 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://$ASSETS_DOMAIN/$S3_BUCKET/    
 - Apagar os dados (Postgres, S3, backups) só com pedido explícito: `docker compose down -v`.
 - Remover os registros DNS. Nada disto toca nas outras stacks.
 
+## Logs e a chave do SSE (`?key=`)
+
+O `EventSource` não manda header, então o `/v1/stream` aceita a chave em `?key=`. Na VPS a borda é o Traefik (v3,
+configurado por argumentos fora deste repositório; não há Caddy aqui), com **access log desligado** (sem
+`--accesslog`), e a API redige `?key=` nos próprios logs. Hoje a chave na query não vai para log: na verificação de
+2026-10-25 houve 0 ocorrências de `key=` em 7 dias de logs do Traefik e da API.
+
+Se o access log do Traefik for ligado, ele precisa descartar o `RequestPath`, que leva a query:
+
+```text
+--accesslog=true --accesslog.format=json --accesslog.fields.defaultmode=keep
+--accesslog.fields.names.RequestPath=drop --accesslog.fields.headers.defaultmode=drop
+```
+
+Para manter o caminho no log, as alternativas são exigir a chave só no header `x-galaxie-key` no SSE ou reescrever a
+URL num middleware antes do log.
+
 ## Pendências
 
-- Backups no mesmo disco: ligar a cópia para um S3 externo (`BACKUP_S3_*`) quando houver bucket.
+- Cópia dos backups fora da VPS: existe (dumps no NAS do dono e snapshot diário da VPS no provedor, ver
+  [SECURITY.md](../../SECURITY.md)); falta o dono confirmar a frequência e a retenção da cópia no NAS. A cópia para
+  um S3 externo (`BACKUP_S3_*`) segue opcional.
 - Cabeçalhos de cache/CDN para os assets.

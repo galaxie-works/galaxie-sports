@@ -292,9 +292,11 @@ services:
     logging: *logging
 
   # Agentes de IA (docs/07): resumo pós-jogo, cenário pré-jogo e Onde Assistir. Mesma imagem do
-  # ingestor, com o scheduler no perfil `agents`; roda mesmo com o ingestor parado. O gasto com o LLM
-  # tem teto diário em tokens (AI_DAILY_TOKEN_BUDGET) e em US$ (AI_DAILY_USD_BUDGET, tokens + buscas na
-  # web; AI_AGENT_USD_BUDGETS por agente), somando todos os agentes (ledger ops.llm_usage).
+  # ingestor, com o scheduler no perfil `agents`; roda mesmo com o ingestor parado. A IA liga e desliga
+  # por AI_STATUS (on|off) e AI_AGENT_STATUS (agente=on|off); ligada, o gasto com o LLM tem teto diário
+  # em tokens (AI_DAILY_TOKEN_BUDGET) e em US$ (AI_DAILY_USD_BUDGET, tokens + buscas na web;
+  # AI_AGENT_USD_BUDGETS por agente), somando todos os agentes (ledger ops.llm_usage). Tetos: número
+  # ou "unlimited"; 0 é inválido.
   agents:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
@@ -319,6 +321,8 @@ services:
       AI_MODEL_LIGHT: ${AI_MODEL_LIGHT:-}
       AI_MODEL_STANDARD: ${AI_MODEL_STANDARD:-}
       AI_MODEL_RESEARCH: ${AI_MODEL_RESEARCH:-}
+      AI_STATUS: ${AI_STATUS:-on}
+      AI_AGENT_STATUS: ${AI_AGENT_STATUS:-}
       AI_DAILY_TOKEN_BUDGET: ${AI_DAILY_TOKEN_BUDGET:-1000000}
       AI_DAILY_USD_BUDGET: ${AI_DAILY_USD_BUDGET:-10}
       AI_AGENT_USD_BUDGETS: ${AI_AGENT_USD_BUDGETS:-}
@@ -361,15 +365,19 @@ services:
   # pg_dump diário (BACKUP_TIME, UTC) com retenção no volume `backups` e cópia opcional para S3 externo.
   # Navegador headless para a leitura da página oficial do plano que só mostra a grade com JavaScript
   # (lineups:pages). Fora do padrão: sobe só com `--profile render`, durante a leitura, e cai depois.
-  # A versão tem de ser a mesma do playwright-core do services/ai-agents.
+  # Imagem própria (infra/lineup-render): a oficial do Playwright com o pacote npm já instalado, sem npx na partida.
+  # A tag é a versão do Playwright, a mesma do playwright-core do services/ai-agents (o CI confere). O deploy.sh a
+  # constrói na VPS quando a pasta muda; `missing` usa essa e só puxa do GHCR se ela não existir.
+  # Sem a imagem própria (fallback): image mcr.microsoft.com/playwright:v1.64.0-noble com
+  # command ['npx', '-y', 'playwright@1.64.0', 'run-server', '--port', '3000', '--host', '0.0.0.0'] e
+  # working_dir: /home/pwuser, o resto igual.
   # Abre páginas de terceiros: roda como o usuário sem privilégio da imagem (pwuser), com /dev/shm próprio
   # em vez do IPC do host e só na rede `render`, que ele divide com os agents (sem Postgres, Valkey nem S3).
   lineup-render:
     profiles: [render]
-    image: mcr.microsoft.com/playwright:v1.64.0-noble
-    command: ['npx', '-y', 'playwright@1.64.0', 'run-server', '--port', '3000', '--host', '0.0.0.0']
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-lineup-render:1.64.0
+    pull_policy: missing
     user: pwuser
-    working_dir: /home/pwuser
     init: true
     shm_size: 512m
     mem_limit: 1g

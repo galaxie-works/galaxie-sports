@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { teamColors } from '../teams/colors.js';
 import type { Event, EventParticipant, EventStake, ScorePeriod, SupportedLocale } from '@galaxie/contracts';
 import {
@@ -63,6 +63,7 @@ import { loadTeamNames } from '../teams/display-name.js';
 import type { ReviewStatus } from '../context.js';
 import { importanceBreakdownDto } from './relevance.js';
 import { venueTimezone } from './timezone.js';
+import { competitionProfileServed } from '../competitions/profile.js';
 import type { RulesRegistry } from './rules-registry.js';
 
 /** Fases de mata-mata (core.stage.kind). */
@@ -358,7 +359,12 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
           nicknames: competitionProfile.nicknames,
         })
         .from(competitionProfile)
-        .where(inArray(competitionProfile.competitionId, competitionIds))
+        .where(
+          and(
+            inArray(competitionProfile.competitionId, competitionIds),
+            competitionProfileServed(ctx.minReview ?? 'approved'),
+          ),
+        )
     : [];
   const profileBy = new Map(profiles.map((p) => [p.competitionId!, p]));
 
