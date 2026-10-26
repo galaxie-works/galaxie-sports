@@ -18,7 +18,7 @@ NAME="${REPO#*/}"
 WAIT_MIN="${CODEX_WAIT_MIN:-10}"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 
-# estado do review: running | done | none
+# estado do review: running | finished | none
 review_state() {
   local reactions status
   # 👀 = review rodando; 👍 = terminou sem achado
@@ -34,8 +34,8 @@ review_state() {
     ;;
   esac
   case "$status" in
-    completed) echo done ;;
-    '') case " $reactions" in *" +1 "*) echo done ;; *) echo none ;; esac ;;
+    completed) echo finished ;;
+    '') case " $reactions" in *" +1 "*) echo finished ;; *) echo none ;; esac ;;
     *) echo running ;;
   esac
 }
@@ -45,7 +45,7 @@ deadline=$(($(date -d "$created" +%s) + WAIT_MIN * 60))
 while :; do
   state="$(review_state)"
   now=$(date +%s)
-  [ "$state" = done ] && break
+  [ "$state" = finished ] && break
   if [ "$now" -ge "$deadline" ]; then
     if [ "$state" = running ]; then
       echo "::error::Codex ainda revisando o PR #$PR depois de $WAIT_MIN min de PR aberto; rode o check de novo quando ele terminar"

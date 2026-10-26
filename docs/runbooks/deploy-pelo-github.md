@@ -158,7 +158,14 @@ Com a fila ligada, o merge vira `gh pr merge <n> --squash` (entra na fila; com c
 
 ## Configurações a ligar (passo a passo)
 
-Nada disto foi feito pelo PR; cada item precisa do OK do dono.
+Cada item precisa do OK do dono. Estado em 2026-10-26:
+
+- Feitos com o OK do Wagner:
+  - passos 2 a 4: chave `gha-deploy-galaxie-sports` com `restrict` no `authorized_keys` da VPS, impressão digital do
+    host conferida, ambiente `producao` restrito à `main`, secrets gravados;
+  - passo 5: pacotes mantidos privados.
+- Escolhido o caminho B (trem no Actions); o token é do dono.
+- Faltam os passos 1, 6, 7, 8 e 9.
 
 1. **Mergear este PR.** Nada muda no deploy: sem `DEPLOY_AUTO=on` o deploy automático não roda, e o
    `deploy-safe.sh` continua valendo (agora com o `post-deploy.sh`). As imagens passam a sair também com as tags `main`
