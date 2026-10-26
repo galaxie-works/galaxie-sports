@@ -12,7 +12,6 @@ competitions:
     pt-BR:
     - Copa
     - Mundial
-    - Copa do Mundo
     es:
     - Mundial
     - Copa del Mundo
@@ -29,10 +28,8 @@ competitions:
     pt-BR:
     - Mundial de Clubes
     - Mundial
-    - Mundial de Clubes FIFA
     es:
     - Mundial de Clubes
-    - Mundial de Clubes FIFA
   trophy_nickname: null
   sources:
   - https://en.wikipedia.org/wiki/FIFA_Club_World_Cup
@@ -46,7 +43,6 @@ competitions:
     pt-BR:
     - Champions
     - Champions League
-    - Liga dos Campeões
     - Orelhuda
     es:
     - Champions
@@ -66,10 +62,8 @@ competitions:
   labels: {pt-BR: Liga Europa, es: Europa League, en: UEFA Europa League}
   nicknames:
     pt-BR:
-    - Liga Europa
     - Europa League
     es:
-    - Europa League
     - Liga Europa
   trophy_nickname: null
   sources:
@@ -82,10 +76,8 @@ competitions:
   labels: {pt-BR: Conference League, es: Conference League, en: UEFA Conference League}
   nicknames:
     pt-BR:
-    - Conference League
     - Liga Conferência
     es:
-    - Conference League
     - Liga Conferencia
   trophy_nickname: null
   sources:
@@ -98,10 +90,8 @@ competitions:
   labels: {pt-BR: Supercopa da UEFA, es: Supercopa de Europa, en: UEFA Super Cup}
   nicknames:
     pt-BR:
-    - Supercopa da UEFA
     - Supercopa da Europa
-    es:
-    - Supercopa de Europa
+    es: []
   trophy_nickname: null
   sources:
   - https://en.wikipedia.org/wiki/UEFA_Super_Cup
@@ -116,9 +106,7 @@ competitions:
   nicknames:
     pt-BR:
     - Euro
-    - Eurocopa
     es:
-    - Eurocopa
     - EURO
   trophy_nickname: null
   sources:
@@ -131,10 +119,8 @@ competitions:
   labels: {pt-BR: Liga das Nações, es: Liga de Naciones, en: UEFA Nations League}
   nicknames:
     pt-BR:
-    - Liga das Nações
     - Nations League
     es:
-    - Liga de Naciones
     - Nations League
   trophy_nickname: null
   sources:
@@ -147,10 +133,8 @@ competitions:
   labels: {pt-BR: Premier League, es: Premier League, en: Premier League}
   nicknames:
     pt-BR:
-    - Premier League
     - Campeonato Inglês
     es:
-    - Premier League
     - La Premier
   trophy_nickname: null
   sources:
@@ -168,7 +152,6 @@ competitions:
     - La Liga
     - Campeonato Espanhol
     es:
-    - LaLiga
     - Primera División
   trophy_nickname: null
   sources:
@@ -178,23 +161,17 @@ competitions:
   - https://www.api-football.com/news/post/how-to-get-started-with-api-football-the-complete-beginners-guide
   review_status: approved
 - slug: serie-a
-  api_sports_league_id: 135
+  api_sports_league_id: 135 # o do catálogo (config/competitions/football.yaml, conferido no /leagues)
   labels: {pt-BR: Campeonato Italiano, es: Serie A, en: Serie A}
   nicknames:
-    pt-BR:
-    - Série A
-    - Campeonato Italiano
-    - Calcio
+    pt-BR: []
     es:
-    - Serie A
-    - Calcio
     - Liga italiana
   trophy_nickname: null
   sources:
   - https://en.wikipedia.org/wiki/Serie_A
   - https://pt.wikipedia.org/wiki/Campeonato_Italiano_de_Futebol_%E2%80%93_S%C3%A9rie_A
   - https://es.wikipedia.org/wiki/Serie_A_(Italia)
-  - https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data
   - https://blogs.correiobraziliense.com.br/dribledecorpo/guia-campeonato-italiano-2019-2020-10-motivos-para-voce-nao-perder-a-serie-a/
   review_status: approved
 - slug: bundesliga
@@ -202,10 +179,8 @@ competitions:
   labels: {pt-BR: Bundesliga, es: Bundesliga, en: Bundesliga}
   nicknames:
     pt-BR:
-    - Bundesliga
     - Campeonato Alemão
     es:
-    - Bundesliga
     - Liga alemana
   trophy_nickname: null
   sources:
@@ -218,10 +193,8 @@ competitions:
   labels: {pt-BR: Ligue 1, es: Ligue 1, en: Ligue 1}
   nicknames:
     pt-BR:
-    - Ligue 1
     - Campeonato Francês
     es:
-    - Ligue 1
     - Liga francesa
   trophy_nickname: null
   sources:
@@ -235,7 +208,6 @@ competitions:
   nicknames:
     pt-BR:
     - Liga Portugal
-    - Campeonato Português
     - Primeira Liga
     es:
     - Liga portuguesa
@@ -253,11 +225,9 @@ competitions:
   labels: {pt-BR: Eredivisie, es: Eredivisie, en: Eredivisie}
   nicknames:
     pt-BR:
-    - Eredivisie
     - Campeonato Holandês
     - Campeonato Neerlandês
     es:
-    - Eredivisie
     - Liga neerlandesa
   trophy_nickname: null
   sources:
@@ -271,10 +241,8 @@ competitions:
   labels: {pt-BR: Copa da Inglaterra, es: FA Cup, en: FA Cup}
   nicknames:
     pt-BR:
-    - Copa da Inglaterra
     - FA Cup
     es:
-    - FA Cup
     - Copa de Inglaterra
   trophy_nickname: null
   sources:
@@ -287,10 +255,8 @@ competitions:
   labels: {pt-BR: Copa do Rei, es: Copa del Rey, en: Copa del Rey}
   nicknames:
     pt-BR:
-    - Copa do Rei
     - Copa del Rey
     es:
-    - Copa del Rey
     - La Copa
   trophy_nickname: null
   sources:
@@ -304,10 +270,8 @@ competitions:
   labels: {pt-BR: Copa da Itália, es: Copa Italia, en: Coppa Italia}
   nicknames:
     pt-BR:
-    - Copa da Itália
     - Coppa Italia
-    es:
-    - Copa Italia
+    es: []
   trophy_nickname: null
   sources:
   - https://en.wikipedia.org/wiki/Coppa_Italia
@@ -319,10 +283,8 @@ competitions:
   labels: {pt-BR: Copa da Alemanha, es: Copa de Alemania, en: DFB-Pokal}
   nicknames:
     pt-BR:
-    - Copa da Alemanha
     - DFB-Pokal
     es:
-    - Copa de Alemania
     - DFB-Pokal
   trophy_nickname: null
   sources:
@@ -334,10 +296,8 @@ competitions:
   api_sports_league_id: null
   labels: {pt-BR: Copa da França, es: Copa de Francia, en: Coupe de France}
   nicknames:
-    pt-BR:
-    - Copa da França
-    es:
-    - Copa de Francia
+    pt-BR: []
+    es: []
   trophy_nickname: null
   sources:
   - https://en.wikipedia.org/wiki/Coupe_de_France
@@ -348,10 +308,8 @@ competitions:
   api_sports_league_id: null
   labels: {pt-BR: Taça de Portugal, es: Copa de Portugal, en: Taça de Portugal}
   nicknames:
-    pt-BR:
-    - Taça de Portugal
-    es:
-    - Copa de Portugal
+    pt-BR: []
+    es: []
   trophy_nickname: null
   sources:
   - https://en.wikipedia.org/wiki/Ta%C3%A7a_de_Portugal

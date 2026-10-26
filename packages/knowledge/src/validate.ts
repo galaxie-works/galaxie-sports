@@ -402,6 +402,26 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
       );
     else leagueIds.set(id, c.entry.slug);
   }
+  // apelido igual ao rótulo do mesmo idioma: o evento mostra o primeiro apelido ao lado do nome
+  // (`competition.nickname`) e repetiria o nome; a busca já casa pelo rótulo
+  for (const c of kb.competitions) {
+    const labels = (c.entry.labels ?? {}) as Record<string, string>;
+    const nicknames = (c.entry.nicknames ?? {}) as Record<string, unknown>;
+    for (const [locale, list] of Object.entries(nicknames)) {
+      const label = labels[locale]?.trim().toLocaleLowerCase();
+      if (!label || !Array.isArray(list)) continue;
+      list.forEach((n, i) => {
+        if (typeof n === 'string' && n.trim().toLocaleLowerCase() === label)
+          add(
+            'error',
+            'nickname-is-label',
+            c.file,
+            at(c.file, ['competitions', c.index, 'nicknames', locale, i]),
+            `${c.entry.slug}: apelido "${n}" (${locale}) repete o rótulo do mesmo idioma`,
+          );
+      });
+    }
+  }
 
   // 4b. estádios: nomes anteriores coerentes e api_sports_venue_id sem conflito
   const venueOwners = new Map<number, { slug: string; name: string }>();

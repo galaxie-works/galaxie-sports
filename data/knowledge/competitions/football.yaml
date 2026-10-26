@@ -32,7 +32,7 @@ competitions:
       - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
       - "https://github.com/rohunx/goal-edge-copy/blob/main/src/lib/leagues.ts"
       - "https://cdn.conmebol.com/wp-content/uploads/2018/12/reglamento-conmebol-sudamericana-2019-por.pdf"
-      - "https://www.netvasco.com.br/n/382338/edicao-da-copa-sul-americana-de-2026-sera-a-com-maior-numero-de-titulos-continentais"
+      - "https://www.band.com.br/esportes/sul-americana-mais-dificil-que-a-libertadores-em-2026-veja-os-numeros-202607310043"
       - "https://es.soccerway.com/noticias/futbol-copa-sudamericana-lanus-y-racing-club-aspiran-a-derribar-el-poder-brasileno-en-la-sudamericana/h4YEsjSk"
     review_status: approved
 
@@ -51,12 +51,13 @@ competitions:
   - slug: brasileirao-serie-a
     api_sports_league_id: 71
     labels: { pt-BR: "Brasileirão Série A", es: "Brasileirão", en: "Brazilian Série A" }
-    nicknames: { pt-BR: ["Brasileirão", "Campeonato Brasileiro", "Série A"], es: ["Brasileirão"] }
+    nicknames: { pt-BR: ["Brasileirão", "Campeonato Brasileiro", "Série A"] }
     trophy_nickname: null
     sources:
       - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
       - "https://github.com/rohunx/goal-edge-copy/blob/main/src/lib/leagues.ts"
       - "https://br.soccerway.com/noticias/futebol-brasileirao-betano-cbf-divulga-tabela-completa-e-novas-regras-do-brasileirao-2026/vVwLmdho"
+      - "https://www.elgrafico.com.ar/articulo/la-jornada-esta-aqui/95602/como-quedo-el-historial-de-campeones-del-brasileirao"
       - "https://en.wikipedia.org/wiki/2026_in_Brazilian_football"
     review_status: approved
 
@@ -94,13 +95,13 @@ competitions:
   - slug: copa-do-brasil
     api_sports_league_id: 73
     labels: { pt-BR: "Copa do Brasil", es: "Copa de Brasil", en: "Copa do Brasil" }
-    nicknames: { pt-BR: ["Copa do Brasil"] }
+    nicknames: { pt-BR: [] }
     trophy_nickname: null
     sources:
       - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_leagues.sql"
       - "https://istoe.com.br/final-copa-do-brasil-2026-jogo-unico-mane-garrincha"
-      - "https://es.wikipedia.org/wiki/Copa_de_Brasil"
+      - "https://es.soccerway.com/noticias/futbol-copa-brasil-corinthians-campeon-gol-memphis-depay/MeMJEr4E"
     review_status: approved
 
   - slug: supercopa-do-brasil
@@ -155,6 +156,7 @@ competitions:
     sources:
       - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
       - "https://www.band.com.br/esportes/futebol/ferj-formula-carioca-2026"
+      - "https://www.bahianoticias.com.br/esportes/noticia/74491-ferj-reduz-datas-do-cariocao-e-e-primeira-federacao-a-adotar-novo-enxugamento-do-calendario-nacional"
       - "https://en.wikipedia.org/wiki/2026_Campeonato_Carioca"
     review_status: approved
 
