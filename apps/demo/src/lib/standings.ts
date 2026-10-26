@@ -30,11 +30,12 @@ const ZONE_TONE: Record<string, string> = {
 
 /**
  * Código da zona: a tabela calculada já traz o id da regra (`libertadores_group_stage`); a do fornecedor
- * traz texto livre ("Promotion - CONMEBOL Libertadores"), reduzido aqui ao código mais próximo.
+ * traz texto livre ("Promotion - CONMEBOL Libertadores"), reduzido aqui ao código mais próximo. Uma palavra
+ * só que não é código conhecido ("Rebaixamento", "Descenso") também passa pelo texto livre.
  */
 function zoneCode(description: string): string {
   const d = description.trim().toLowerCase();
-  if (/^[a-z0-9_]+$/.test(d)) return d;
+  if (/^[a-z0-9_]+$/.test(d) && ZONE_TONE[d]) return d;
   if (/relegation|rebaix|descenso/.test(d)) return /play/.test(d) ? 'relegation_playoff' : 'relegation';
   if (/sudamericana|sul-americana/.test(d)) return 'sudamericana';
   if (d.includes('europa')) return 'europa_league';

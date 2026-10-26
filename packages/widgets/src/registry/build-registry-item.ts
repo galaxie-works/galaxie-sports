@@ -14,7 +14,9 @@ export const PUBLISHABLE_KEY_ENV = 'NEXT_PUBLIC_GALAXIE_PUBLISHABLE_KEY';
 
 /** Pasta (no app da operadora) onde os arquivos são instalados. */
 const TARGET_DIR = 'components/galaxie';
-const CORE_NAME = 'galaxie-core';
+/** Nome do núcleo comum no registry: nenhum widget pode normalizar para ele (`toRegistryName`). */
+export const REGISTRY_CORE_NAME = 'galaxie-core';
+const CORE_NAME = REGISTRY_CORE_NAME;
 
 export interface BuildRegistryItemInput {
   kind: WidgetKind;

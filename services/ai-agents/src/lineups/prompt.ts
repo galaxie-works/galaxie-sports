@@ -138,19 +138,105 @@ export interface PromptPage {
   sections: { label: string | null; text: string }[];
 }
 
-/** Teto de caracteres das páginas no prompt da extração (por página e no total). */
-export const PAGE_PROMPT_MAX_CHARS = 60_000;
-export const PAGES_PROMPT_MAX_CHARS = 150_000;
+/**
+ * Tetos de caracteres das páginas no prompt da extração (configuráveis no painel de Operação):
+ * - `LINEUP_PROMPT_MAX_CHARS`: o texto de todas as páginas de planos de uma plataforma numa chamada,
+ *   dividido igualmente entre elas (cada página fica com ao menos 5 mil);
+ * - `LINEUP_PAGE_MAX_CHARS`: o teto de uma página sozinha. O padrão é o do total, como era o efeito
+ *   antes (a constante de 60 mil por página não era aplicada na extração).
+ * O que passa do teto é cortado do fim da página (primeiro as listas abertas dos planos, depois os
+ * últimos cartões): o modelo não vê esses planos, preços e canais, e a revisita não marca nada como
+ * removido. Cada corte vai para o log e para o resultado da tarefa (`promptCuts`).
+ */
+export const LINEUP_PROMPT_LIMITS = {
+  page: { key: 'LINEUP_PAGE_MAX_CHARS', default: 150_000, min: 5_000, max: 600_000 },
+  total: { key: 'LINEUP_PROMPT_MAX_CHARS', default: 150_000, min: 10_000, max: 600_000 },
+} as const;
+/** Menor fatia por página quando o total é dividido entre muitas páginas. */
+const MIN_PAGE_SHARE = 5_000;
 
-/** Texto de uma página para o prompt: o texto e, depois, cada lista aberta com o rótulo do plano. */
-export function pageBlock(page: PromptPage, index: number, maxChars = PAGE_PROMPT_MAX_CHARS): string {
-  const body = [
+export interface LineupPromptLimits {
+  /** Teto de uma página (`LINEUP_PAGE_MAX_CHARS`). */
+  pageChars: number;
+  /** Teto de todas as páginas da plataforma (`LINEUP_PROMPT_MAX_CHARS`). */
+  totalChars: number;
+}
+
+export const DEFAULT_LINEUP_PROMPT_LIMITS: LineupPromptLimits = {
+  pageChars: LINEUP_PROMPT_LIMITS.page.default,
+  totalChars: LINEUP_PROMPT_LIMITS.total.default,
+};
+
+/**
+ * Os tetos do env (o painel sobrescreve pelo env de cada execução). Vazio usa o padrão; valor que não é
+ * inteiro ou fora da faixa também, com aviso em `warn`.
+ */
+export function lineupPromptLimitsFromEnv(
+  env: Record<string, string | undefined>,
+  warn: (message: string) => void = () => {},
+): LineupPromptLimits {
+  const read = (def: (typeof LINEUP_PROMPT_LIMITS)['page' | 'total']): number => {
+    const raw = env[def.key]?.trim();
+    if (!raw) return def.default;
+    const n = Number(raw);
+    if (Number.isInteger(n) && n >= def.min && n <= def.max) return n;
+    warn(
+      `${def.key} inválido (${raw}): use um inteiro de ${def.min} a ${def.max}; vale o padrão ${def.default}.`,
+    );
+    return def.default;
+  };
+  return { pageChars: read(LINEUP_PROMPT_LIMITS.page), totalChars: read(LINEUP_PROMPT_LIMITS.total) };
+}
+
+/** O texto e, depois, cada lista aberta com o rótulo do plano. */
+const pageBody = (page: PromptPage) =>
+  [
     page.text,
     ...page.sections.map(
       (s) => `### Lista aberta no cartão: ${sanitizeText(s.label ?? '(sem rótulo)', 160)}\n${s.text}`,
     ),
   ].join('\n\n');
-  return wrapUntrusted(`página P${index + 1}: ${page.url}`, body, maxChars);
+
+/** Texto de uma página para o prompt: o texto e, depois, cada lista aberta com o rótulo do plano. */
+export function pageBlock(
+  page: PromptPage,
+  index: number,
+  maxChars: number = LINEUP_PROMPT_LIMITS.page.default,
+): string {
+  return wrapUntrusted(`página P${index + 1}: ${page.url}`, pageBody(page), maxChars);
+}
+
+/** Teto de cada página na extração: o total dividido entre as páginas (ao menos 5 mil), até o da página. */
+export const pageCharLimit = (pages: number, limits: LineupPromptLimits = DEFAULT_LINEUP_PROMPT_LIMITS) =>
+  Math.min(limits.pageChars, Math.max(MIN_PAGE_SHARE, Math.floor(limits.totalChars / Math.max(1, pages))));
+
+/** Página cortada no prompt da extração: o tamanho original e o teto que valeu. */
+export interface PromptCut {
+  url: string;
+  chars: number;
+  limit: number;
+}
+
+/** As páginas que passam do teto e são cortadas no prompt da extração. */
+export function pageExtractCuts(
+  pages: readonly PromptPage[],
+  limits: LineupPromptLimits = DEFAULT_LINEUP_PROMPT_LIMITS,
+): PromptCut[] {
+  const limit = pageCharLimit(pages.length, limits);
+  return pages
+    .map((p) => ({ url: p.url, chars: sanitizeText(pageBody(p), Infinity).length, limit }))
+    .filter((c) => c.chars > limit);
+}
+
+/**
+ * Alguma página passou do teto e foi cortada no prompt da extração? Então o modelo não viu a página
+ * inteira e a resposta não é a grade completa (não pode marcar o que sumiu).
+ */
+export function pageExtractTruncated(
+  pages: readonly PromptPage[],
+  limits: LineupPromptLimits = DEFAULT_LINEUP_PROMPT_LIMITS,
+): boolean {
+  return pageExtractCuts(pages, limits).length > 0;
 }
 
 export function pageExtractSystemPrompt(): string {
@@ -170,11 +256,10 @@ export function pageExtractPrompt(input: {
   knownPlans: readonly string[];
   channels: readonly string[];
   services: readonly string[];
-  maxChars?: number;
+  limits?: LineupPromptLimits;
 }): string {
   const c = countryOf(input.country);
-  const budget = input.maxChars ?? PAGES_PROMPT_MAX_CHARS;
-  const per = Math.max(5_000, Math.floor(budget / Math.max(1, input.pages.length)));
+  const per = pageCharLimit(input.pages.length, input.limits);
   return [
     `País: ${c.name} (${input.country}).`,
     `Plataforma: ${sanitizeText(input.platform.name, 120)} — ${KIND_LABEL[input.platform.kind]}.`,

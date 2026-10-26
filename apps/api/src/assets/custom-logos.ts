@@ -123,12 +123,16 @@ export class VariantResponseCache implements ResponseCache {
     return this.inner.get(this.key(key));
   }
 
-  set(key: string, value: CachedResponse, ttlSec: number): Promise<void> {
-    return this.inner.set(this.key(key), value, ttlSec);
+  set(key: string, value: CachedResponse, ttlSec: number, since?: number): Promise<boolean> {
+    return this.inner.set(this.key(key), value, ttlSec, since);
   }
 
   purgeTags(tags: string[]): Promise<number> {
     return this.inner.purgeTags(tags);
+  }
+
+  purgeMark(): Promise<number> {
+    return this.inner.purgeMark();
   }
 }
 

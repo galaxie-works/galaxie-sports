@@ -1,33 +1,23 @@
 'use client';
 
-import type { Navigation } from '@galaxie/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 
-import { useI18n } from '@/lib/i18n/client';
-import { apiLocale } from '@/lib/i18n/config';
+import { FLAGS_QUERY_KEY, fetchFlags } from '@/lib/country-flags';
 import { cn } from '@/lib/utils';
 
 const noopSubscribe = () => () => {};
 
 /**
- * Bandeiras dos países da navegação, vindas de /v1/navigation (pelo proxy autenticado da demo).
+ * Bandeiras de todos os países do catálogo, vindas de /v1/countries (pelo proxy autenticado da demo):
+ * não só os da navegação, porque competição, time e piloto podem ser de qualquer país (Nova Zelândia).
  * Buscadas no navegador e guardadas por 1 hora: o build não depende da API e todas as listas
  * compartilham a mesma resposta.
  */
 function useFlags() {
-  const { locale } = useI18n();
   return useQuery({
-    queryKey: ['navigation-flags'],
-    queryFn: async () => {
-      const res = await fetch(`/api/galaxie/v1/navigation?locale=${apiLocale(locale)}`);
-      if (!res.ok) throw new Error(`navigation ${res.status}`);
-      const nav = (await res.json()) as Navigation;
-      return Object.fromEntries(nav.countries.map((c) => [c.code.toUpperCase(), c.flag])) as Record<
-        string,
-        string | null
-      >;
-    },
+    queryKey: FLAGS_QUERY_KEY,
+    queryFn: () => fetchFlags(fetch),
     staleTime: 60 * 60 * 1000,
     retry: 1,
   });

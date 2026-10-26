@@ -3,6 +3,7 @@ import {
   createDocument,
   type ZodOpenApiObject,
   type ZodOpenApiOperationObject,
+  type ZodOpenApiPathsObject,
   type ZodOpenApiResponsesObject,
 } from 'zod-openapi';
 import {
@@ -118,6 +119,28 @@ function getOp(
   };
 }
 
+/** Rotas `/v1` que só aceitam a chave secreta: conta do tenant e SSE (`assertPublishableRoute` na API). */
+const SECRET_KEY_ONLY = ['/v1/account', '/v1/stream'];
+/** Leitura de `/v1`: chave secreta ou, no navegador, a publicável (docs/05 §1.3). */
+const READ_SECURITY = [{ galaxieKey: [] }, { galaxiePublishableKey: [] }];
+
+/** Declara a chave publicável como alternativa nas operações GET/HEAD de `/v1` que a API aceita com ela. */
+function withPublishableKey(paths: ZodOpenApiPathsObject): ZodOpenApiPathsObject {
+  return Object.fromEntries(
+    Object.entries(paths).map(([path, item]) => {
+      const secretOnly =
+        !path.startsWith('/v1/') || SECRET_KEY_ONLY.some((p) => path === p || path.startsWith(`${p}/`));
+      if (secretOnly) return [path, item];
+      const next = { ...item };
+      for (const method of ['get', 'head'] as const) {
+        const op = next[method];
+        if (op && !op.security) next[method] = { ...op, security: READ_SECURITY };
+      }
+      return [path, next];
+    }),
+  );
+}
+
 export interface OpenApiOptions {
   /** URL base anunciada em `servers` (ex.: http://localhost:8080). */
   serverUrl?: string;
@@ -170,7 +193,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'Fora da oferta comercial enquanto o licenciamento com a FEI e as federações não é concluído.',
       },
     ],
-    paths: {
+    paths: withPublishableKey({
       ...semanticPaths(),
       ...multisportPaths(),
       ...navigationPaths(),
@@ -555,7 +578,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...accountPaths,
       ...channelListPaths,
       ...relatedPaths,
-    },
+    }),
     components: {
       securitySchemes: {
         galaxieKey: { type: 'apiKey', in: 'header', name: 'x-galaxie-key' },

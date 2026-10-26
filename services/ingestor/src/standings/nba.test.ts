@@ -1,6 +1,6 @@
 import type { MatchResult } from '@galaxie/rules';
 import { describe, expect, it } from 'vitest';
-import { nbaZone, rankNbaStandings } from './nba.js';
+import { canonicalConference, nbaZone, rankNbaStandings } from './nba.js';
 
 let n = 0;
 const game = (homeId: string, awayId: string, homeGoals: number, awayGoals: number): MatchResult => ({
@@ -70,5 +70,14 @@ describe('rankNbaStandings', () => {
       'NBA Play-in',
       null,
     ]);
+  });
+});
+
+describe('canonicalConference', () => {
+  it('nome legado da NBA v2 vira o do normalizador; os outros passam como estão', () => {
+    expect(canonicalConference('east')).toBe('Eastern Conference');
+    expect(canonicalConference('West')).toBe('Western Conference');
+    expect(canonicalConference('Eastern Conference')).toBe('Eastern Conference');
+    expect(canonicalConference('')).toBe('');
   });
 });
