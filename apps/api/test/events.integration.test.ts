@@ -624,6 +624,21 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect((await get('/v1/events?from=2026-10-22&to=2026-10-01')).statusCode).toBe(400);
   });
 
+  it('data inexistente (31/02, 31/04) → 400 em vez de virar outro dia', async () => {
+    const bad = await get('/v1/events?date=2026-02-31');
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json()).toMatchObject({
+      code: 'INVALID_PARAMS',
+      errors: [{ path: 'date', message: 'data inexistente' }],
+    });
+    expect((await get('/v1/events?from=2026-02-30')).statusCode).toBe(400);
+    expect((await get('/v1/events?from=2026-04-01&to=2026-04-31T10:00:00Z')).statusCode).toBe(400);
+    expect((await get(`/v1/teams/${ids.palmeiras}/events?from=2026-02-29`)).statusCode).toBe(400);
+    expect((await get('/v1/explore/agenda?day=2026-11-31')).statusCode).toBe(400);
+    // 29/02 de ano bissexto existe
+    expect((await get('/v1/events?date=2028-02-29')).statusCode).toBe(200);
+  });
+
   it('paginação por importância não repete nem pula', async () => {
     const all = (await get('/v1/events?from=2020-01-01&order=importance&limit=200')).json()
       .data as EventBody[];
@@ -680,6 +695,21 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect(data.length).toBeGreaterThan(0);
     expect(data.every((e) => ['live', 'break', 'suspended'].includes(e.status))).toBe(true);
     expect(data.every((e) => e.momentum === 'live')).toBe(true);
+  });
+
+  it('detalhe de jogo ao vivo: o HIT do Valkey mantém o TTL de 10 s (não o de 1 h da rota)', async () => {
+    const live = (await get('/v1/events/live')).json().data as EventBody[];
+    const url = `/v1/events/${live[0]!.id}?tz=America/Argentina/Buenos_Aires`;
+    const maxAges = (cc: string | undefined) =>
+      [...String(cc).matchAll(/(?:max-age|s-maxage)=(\d+)/g)].map((m) => Number(m[1]));
+    const miss = await get(url);
+    expect(miss.headers['x-galaxie-cache']).toBe('MISS');
+    expect(miss.headers['cache-control']).toContain('s-maxage=10');
+    const hit = await get(url);
+    expect(hit.headers['x-galaxie-cache']).toBe('HIT');
+    const ages = maxAges(hit.headers['cache-control'] as string);
+    expect(ages).toHaveLength(2);
+    for (const age of ages) expect(age).toBeLessThanOrEqual(10);
   });
 });
 
@@ -1067,10 +1097,20 @@ describe('/v1/events/{id} — timeline, escalações, estatísticas, h2h e .ics'
     });
     expect(goal.flags).toContain('opener');
     expect(card).toMatchObject({ kind: 'yellow_card', weight: 30, key_moment: false, score_after: null });
+    // gol contra do zagueiro do Corinthians (fixture sintético com o time do jogador no lance): o placar
+    // final decide a convenção, soma para o Palmeiras (2–0 no intervalo, como no fixture) e é o decisivo do 4–1
     expect(own).toMatchObject({
       kind: 'own_goal',
       clock: { period: 'first_half', minute: 45, extra_minute: 2, display: "45+2'" },
+      team: { side: 'away' },
+      scoring_team: { id: ids.palmeiras, name: 'Palmeiras', side: 'home' },
+      score_after: { home: 2, away: 0 },
+      flags: ['decisive'],
     });
+    expect(body.score).toEqual({ home: 4, away: 1 });
+    expect(body.incidents.filter((i: { score_after: unknown }) => i.score_after).at(-1).score_after).toEqual(
+      body.score,
+    );
     expect(body).toMatchObject({
       live: false,
       venue_timezone: 'America/Sao_Paulo',

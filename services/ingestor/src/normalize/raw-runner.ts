@@ -3,8 +3,15 @@
  * de cada requisição (`request_hash`) em `raw.api_response`, normaliza e grava no core.
  * Reprocessar tudo duas vezes gera o mesmo estado (issues #22 e #25).
  */
-import { and, eq, sql } from 'drizzle-orm';
-import { apiResponse, jobRun, sport as sportTable, syncCursor, type Database } from '@galaxie/db';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import {
+  apiResponse,
+  jobRun,
+  normalizeFailure,
+  sport as sportTable,
+  syncCursor,
+  type Database,
+} from '@galaxie/db';
 import {
   API_SPORTS_OTHER_SPORTS,
   NORMALIZABLE_FOOTBALL_ENDPOINTS,
@@ -20,6 +27,7 @@ import {
 } from '@galaxie/providers';
 import { linkNbaLogos } from '../catalog/nba-logos.js';
 import { SPORTS } from '../catalog/persist.js';
+import { logger } from '../logger.js';
 import { recomputeNbaStandings } from '../standings/nba.js';
 import { addStats, emptyStats, upsertBatch, type UpsertOptions, type UpsertStats } from './upsert-core.js';
 
@@ -27,6 +35,8 @@ export interface NormalizeRawOptions extends UpsertOptions {
   provider?: string;
   /** Processa só respostas com `id` maior que este (modo incremental). */
   afterId?: number;
+  /** Também estas respostas, mesmo abaixo do cursor (falhas pendentes, `--reprocessar-falhas`). */
+  includeIds?: readonly number[];
   endpoints?: readonly string[];
   /** Chamado a cada resposta processada (progresso no CLI). */
   onRow?: (row: RawRowReport) => void;
@@ -58,8 +68,20 @@ type LatestRow = {
 /** Última resposta bem-sucedida por `request_hash`, em ordem de coleta. */
 export async function latestSuccessfulResponses(
   db: Database,
-  options: { provider: string; sport: string; endpoints: readonly string[]; afterId: number },
+  options: {
+    provider: string;
+    sport: string;
+    endpoints: readonly string[];
+    afterId: number;
+    includeIds?: readonly number[] | undefined;
+  },
 ): Promise<LatestRow[]> {
+  const include = options.includeIds?.length
+    ? sql` or id in (${sql.join(
+        options.includeIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})`
+    : sql``;
   return db.execute<LatestRow>(sql`
     select id, endpoint, params, fetched_at from (
       select distinct on (request_hash) id, endpoint, params, fetched_at
@@ -74,7 +96,7 @@ export async function latestSuccessfulResponses(
         and (errors is null or errors in ('[]'::jsonb, '{}'::jsonb))
       order by request_hash, fetched_at desc, id desc
     ) latest
-    where id > ${options.afterId}
+    where id > ${options.afterId}${include}
     order by fetched_at asc, id asc`);
 }
 
@@ -109,6 +131,7 @@ async function normalizeFromRaw(
       sport,
       endpoints: options.endpoints ?? endpoints,
       afterId: options.afterId ?? 0,
+      includeIds: options.includeIds,
     })
   )
     .map((row, i) => ({ row, i }))
@@ -197,7 +220,7 @@ export async function normalizeSportFromRaw(
  * Times dos jogos da mesma liga e temporada no raw, para a tabela recuperar o time que o fornecedor manda
  * como placeholder (`id: 0`): o Utah Mammoth na NHL 2024/25.
  */
-async function standingsContext(
+export async function standingsContext(
   db: Database,
   sport: string,
   params: Record<string, string>,
@@ -214,9 +237,14 @@ async function standingsContext(
         sql`${apiResponse.params}->>'league' = ${params.league}`,
         sql`${apiResponse.params}->>'season' = ${params.season}`,
         sql`${apiResponse.statusCode} between 200 and 299`,
+        // envelope 200 com `errors` (cota, plano) ou sem jogos não vale: venceria o válido e a tabela perderia
+        // os times recuperados (mesmo critério de latestSuccessfulResponses)
+        sql`(${apiResponse.errors} is null or ${apiResponse.errors} in ('[]'::jsonb, '{}'::jsonb))`,
+        sql`(case when jsonb_typeof(${apiResponse.body}->'response') = 'array'
+                  then jsonb_array_length(${apiResponse.body}->'response') > 0 else false end)`,
       ),
     )
-    .orderBy(sql`${apiResponse.fetchedAt} desc`)
+    .orderBy(sql`${apiResponse.fetchedAt} desc`, sql`${apiResponse.id} desc`)
     .limit(1);
   const response = (games?.body as { response?: unknown } | undefined)?.response;
   return Array.isArray(response) ? { teamsByName: seasonTeamsFromGames(response) } : {};
@@ -270,14 +298,149 @@ export async function writeNormalizeCursor(
 export interface NormalizeJobOptions extends NormalizeRawOptions {
   /** Reprocessa todo o raw (ignora o cursor). */
   full?: boolean;
+  /** Tenta de novo as respostas com falha pendente em `ops.normalize_failure`, mesmo abaixo do cursor. */
+  retryFailures?: boolean;
 }
 
-/** Job com registro em `ops.job_run` (`normalize:<esporte>`) e cursor incremental em `ops.sync_cursor`. */
+/**
+ * Falhas seguidas na mesma resposta do raw até ela virar poison: o erro é determinístico (normalizador ou dado
+ * do fornecedor) e segurar o cursor nela faria todo normalize reprocessar tudo acima, para sempre.
+ */
+export const NORMALIZE_POISON_ATTEMPTS = 3;
+
+/**
+ * Resposta em poison é tentada de novo sozinha no normalize incremental depois deste intervalo desde a última
+ * falha (uma por dia): a correção do normalizador entra sem ninguém precisar rodar `--reprocessar-falhas`.
+ */
+export const NORMALIZE_POISON_RETRY_MS = 24 * 3_600_000;
+
+/** Falhas pendentes (sem `resolved_at`) de um esporte, poison ou não. */
+export async function pendingNormalizeFailures(
+  db: Database,
+  provider: string,
+  sport: string,
+): Promise<(typeof normalizeFailure.$inferSelect)[]> {
+  return db
+    .select()
+    .from(normalizeFailure)
+    .where(
+      and(
+        eq(normalizeFailure.provider, provider),
+        eq(normalizeFailure.sport, sport),
+        isNull(normalizeFailure.resolvedAt),
+      ),
+    )
+    .orderBy(asc(normalizeFailure.rawId));
+}
+
+/**
+ * Registra o desfecho da execução em `ops.normalize_failure`: cada erro soma uma tentativa (e vira poison na
+ * N-ésima seguida; falha que já estava resolvida recomeça do 1); resposta que passou ou que não voltou mais
+ * (tentada de novo, ou acima de `scannedAfter`, sem linha: a requisição tem resposta mais nova no raw) fica
+ * resolvida. Devolve os ids em poison, que não seguram o cursor.
+ */
+async function recordNormalizeFailures(
+  db: Database,
+  provider: string,
+  sport: string,
+  rows: readonly RawRowReport[],
+  retried: readonly number[],
+  /** A execução examinou todas as respostas vigentes acima deste id (null com filtro de endpoints). */
+  scannedAfter: number | null,
+  /** Endpoints examinados (null: todos); falha de outro endpoint nunca é resolvida por esta execução. */
+  examined: readonly string[] | null,
+): Promise<Set<number>> {
+  const errors = rows.filter((r) => r.outcome === 'error');
+  const poisoned = new Set<number>();
+  const nf = normalizeFailure;
+  const restart = sql`${nf.resolvedAt} is not null`;
+  const attempts = sql`case when ${restart} then 1 else ${nf.attempts} + 1 end`;
+  for (let i = 0; i < errors.length; i += 500) {
+    const written = await db
+      .insert(normalizeFailure)
+      .values(
+        errors.slice(i, i + 500).map((e) => ({
+          provider,
+          sport,
+          rawId: e.id,
+          endpoint: e.endpoint,
+          error: e.error ?? null,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [normalizeFailure.provider, normalizeFailure.sport, normalizeFailure.rawId],
+        set: {
+          attempts,
+          error: sql`excluded.error`,
+          firstFailedAt: sql`case when ${restart} then now() else ${nf.firstFailedAt} end`,
+          lastFailedAt: sql`now()`,
+          poisonedAt: sql`case when ${restart} then null
+            when ${attempts} >= ${NORMALIZE_POISON_ATTEMPTS} then coalesce(${nf.poisonedAt}, now())
+            else ${nf.poisonedAt} end`,
+          resolvedAt: sql`null`,
+        },
+      })
+      .returning({
+        rawId: normalizeFailure.rawId,
+        endpoint: normalizeFailure.endpoint,
+        attempts: normalizeFailure.attempts,
+        error: normalizeFailure.error,
+        poisonedAt: normalizeFailure.poisonedAt,
+      });
+    for (const f of written) {
+      if (!f.poisonedAt) continue;
+      poisoned.add(Number(f.rawId));
+      logger.warn(
+        {
+          sport,
+          provider,
+          raw_id: Number(f.rawId),
+          endpoint: f.endpoint,
+          attempts: f.attempts,
+          error: f.error,
+        },
+        'resposta do raw em poison: o cursor da normalização segue sem ela (ops.normalize_failure)',
+      );
+    }
+  }
+  // pendentes são poucas: o cruzamento com as linhas da execução (que podem ser milhares) fica em memória
+  const failed = new Set(errors.map((e) => e.id));
+  const seen = new Set(rows.map((r) => r.id));
+  const retriedSet = new Set(retried);
+  const resolved = (await pendingNormalizeFailures(db, provider, sport))
+    .filter((f) => examined === null || examined.includes(f.endpoint))
+    .map((f) => Number(f.rawId))
+    .filter(
+      (id) =>
+        !failed.has(id) &&
+        (seen.has(id) || retriedSet.has(id) || (scannedAfter !== null && id > scannedAfter)),
+    );
+  if (resolved.length)
+    await db
+      .update(normalizeFailure)
+      .set({ resolvedAt: sql`now()` })
+      .where(
+        and(
+          eq(normalizeFailure.provider, provider),
+          eq(normalizeFailure.sport, sport),
+          inArray(normalizeFailure.rawId, resolved),
+          isNull(normalizeFailure.resolvedAt),
+        ),
+      );
+  return poisoned;
+}
+
+/**
+ * Job com registro em `ops.job_run` (`normalize:<esporte>`) e cursor incremental em `ops.sync_cursor`.
+ * `afterRun` (pós-processamento do esporte) roda antes de o cursor andar: se falhar, a próxima execução
+ * reprocessa as mesmas respostas e tenta de novo.
+ */
 async function runNormalizeJob(
   db: Database,
   sport: string,
   run: (options: NormalizeRawOptions) => Promise<NormalizeRawResult>,
   options: NormalizeJobOptions,
+  afterRun?: (result: NormalizeRawResult) => Promise<void>,
 ): Promise<NormalizeRawResult> {
   const provider = options.provider ?? 'api-sports';
   const [job] = await db
@@ -286,10 +449,31 @@ async function runNormalizeJob(
     .returning();
   try {
     const afterId = options.full ? 0 : await readNormalizeCursor(db, provider, sport);
-    const result = await run({ ...options, afterId });
+    // com --reprocessar-falhas, todas as pendentes; sem, só as em poison cuja última falha passou do intervalo.
+    // Com filtro de endpoints, só as desses endpoints: as outras não seriam examinadas
+    const retryBefore = Date.now() - NORMALIZE_POISON_RETRY_MS;
+    const retried = (await pendingNormalizeFailures(db, provider, sport))
+      .filter((f) => !options.endpoints || options.endpoints.includes(f.endpoint))
+      .filter(
+        (f) => options.retryFailures || (f.poisonedAt !== null && f.lastFailedAt.getTime() < retryBefore),
+      )
+      .map((f) => Number(f.rawId));
+    const result = await run({ ...options, afterId, ...(retried.length ? { includeIds: retried } : {}) });
     const errors = result.rows.filter((r) => r.outcome === 'error');
-    // com erro, o cursor para antes da primeira resposta que falhou (será tentada de novo; o upsert é idempotente)
-    const next = errors.length ? Math.min(...errors.map((e) => e.id)) - 1 : result.lastRawId;
+    const poisoned = await recordNormalizeFailures(
+      db,
+      provider,
+      sport,
+      result.rows,
+      retried,
+      options.endpoints ? null : afterId,
+      options.endpoints ?? null,
+    );
+    // com erro, o cursor para antes da primeira resposta que falhou (será tentada de novo; o upsert é idempotente);
+    // a que já falhou NORMALIZE_POISON_ATTEMPTS vezes não segura mais o cursor
+    const blocking = errors.filter((e) => !poisoned.has(e.id));
+    const next = blocking.length ? Math.min(...blocking.map((e) => e.id)) - 1 : result.lastRawId;
+    if (afterRun) await afterRun(result);
     // com filtro de endpoints o cursor não anda: pularia respostas dos outros endpoints
     if (next != null && !options.endpoints)
       await writeNormalizeCursor(db, Math.max(afterId, next), provider, sport);
@@ -298,10 +482,17 @@ async function runNormalizeJob(
       .set({
         status: errors.length ? 'partial' : 'ok',
         finishedAt: new Date(),
-        stats: { ...result.stats, rows: result.rows.length, errors: errors.length, full: !!options.full },
+        stats: {
+          ...result.stats,
+          rows: result.rows.length,
+          errors: errors.length,
+          poisoned: poisoned.size,
+          retried: retried.length,
+          full: !!options.full,
+        },
         error: errors.length
           ? errors
-              .map((e) => `raw ${e.id}: ${e.error}`)
+              .map((e) => `raw ${e.id}${poisoned.has(e.id) ? ' (poison)' : ''}: ${e.error}`)
               .join('\n')
               .slice(0, 4000)
           : null,
@@ -342,12 +533,23 @@ export async function runNormalizeSportsJob(
   await db.insert(sportTable).values(SPORTS).onConflictDoNothing();
   const out: { sport: ApiSportsOtherSport; result: NormalizeRawResult }[] = [];
   for (const sport of options.sports ?? API_SPORTS_OTHER_SPORTS) {
-    const result = await runNormalizeJob(db, sport, (o) => normalizeSportFromRaw(db, sport, o), options);
-    // NBA: a tabela do fornecedor vem defasada (a dos jogos a substitui) e os logos vêm do api-basketball
-    if (sport === 'nba' && result.rows.length) {
-      await recomputeNbaStandings(db);
-      await linkNbaLogos(db);
-    }
+    // NBA: a tabela do fornecedor vem defasada (a dos jogos a substitui) e os logos vêm do api-basketball;
+    // dentro do job, antes do cursor andar: se falhar, a próxima execução tenta de novo
+    const afterRun =
+      sport === 'nba'
+        ? async (result: NormalizeRawResult) => {
+            if (!result.rows.length) return;
+            await recomputeNbaStandings(db);
+            await linkNbaLogos(db);
+          }
+        : undefined;
+    const result = await runNormalizeJob(
+      db,
+      sport,
+      (o) => normalizeSportFromRaw(db, sport, o),
+      options,
+      afterRun,
+    );
     out.push({ sport, result });
   }
   return out;

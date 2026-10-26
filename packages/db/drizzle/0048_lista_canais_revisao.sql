@@ -1,0 +1,1 @@
+ALTER TABLE "api"."tenant_channel_list" ADD COLUMN "revision" integer DEFAULT 0 NOT NULL;

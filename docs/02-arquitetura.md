@@ -190,7 +190,7 @@ sequenceDiagram
 | ADR-07 | SSE + webhooks para mudanças | Polling do cliente | Correções de "onde assistir" em ≤ 5 min e placares sem reload |
 | ADR-08 | Deploy inicial em VPS com Docker/Portainer | Kubernetes gerenciado | Custo e velocidade ("tempo recorde"); migração posterior possível |
 | ADR-09 | **Camada de provedores plugável** (api-sports é o primeiro, não o único) | Acoplar o core à api-sports | Os termos da api-sports proíbem revender os dados; em produção usamos um provedor licenciado — **candidato principal: Sportmonks (contrato Enterprise com redistribuição)** — ou o que o cliente já licencia, mantendo semântica, onde assistir e IA |
-| ADR-10 | Bootstrap com **plano Pro por 30 dias**, manutenção no free | Só free | O free não acessa a temporada atual nem `ids=`; Pro custa US$ 19 e faz em ~3 dias o que o free levaria um ano |
+| ADR-10 | Bootstrap com **plano Pro por 30 dias**, manutenção no free | Só free | O free não acessa a temporada atual nem `ids=`; Pro custa US$ 19 e faz em ~4 dias o que o free levaria um ano |
 
 ## 7. Requisitos não funcionais
 

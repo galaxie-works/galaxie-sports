@@ -13,6 +13,7 @@ import { getDictionary } from '../i18n/dictionary';
 import { fill } from '../i18n/text';
 
 import { taggedFetch } from './cache-tags';
+import { RELATED_CACHE_TAG } from './related-cache';
 import type { ApiRequest } from './request';
 import { API_URL } from './server';
 
@@ -575,7 +576,7 @@ export const relatedRequest = (
 export async function getRelated(id: string, locale: ContentLocale, country?: string) {
   'use cache';
   cacheLife('minutes');
-  cacheTag(`related_content:${id}`, `event:${id}`);
+  cacheTag(`related_content:${id}`, `event:${id}`, RELATED_CACHE_TAG);
   try {
     return await orNull(
       api.eventRelated(id, { limit: 50, ...(country ? { country } : {}), ...localeQuery(locale) }),

@@ -39,6 +39,23 @@ describe('createLogger', () => {
     expect(JSON.stringify(lines[0])).not.toContain('Bearer');
   });
 
+  it('oculta segredos dentro de erros e objetos aninhados', () => {
+    const { lines, stream } = capture();
+    const log = createLogger({ service: 'ingestor' }, stream);
+    const err = Object.assign(new Error('falhou'), {
+      config: { headers: { 'x-apisports-key': 'chave-1', authorization: 'Bearer x' } },
+      cause: { request: { config: { headers: { 'x-apisports-key': 'chave-2', cookie: 'sid=1' } } } },
+    });
+    log.error({ err, ctx: { a: { b: { apiKey: 'chave-3' } } } }, 'x');
+    log.error(err, 'erro no topo');
+    const out = JSON.stringify(lines);
+    for (const secret of ['chave-1', 'chave-2', 'chave-3', 'Bearer', 'sid=1'])
+      expect(out).not.toContain(secret);
+    expect(lines[0]).toMatchObject({
+      err: { message: 'falhou', config: { headers: { 'x-apisports-key': '[redacted]' } } },
+    });
+  });
+
   it('respeita LOG_LEVEL', () => {
     const { lines, stream } = capture();
     const log = createLogger({ service: 'api' }, stream, { LOG_LEVEL: 'warn' });

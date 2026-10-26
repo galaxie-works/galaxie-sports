@@ -18,7 +18,9 @@
  */
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import {
+  addonSlug,
   platform as platformTable,
+  platformAddon,
   platformPlan,
   platformSlug,
   recordPlanPagesExtraction,
@@ -56,8 +58,12 @@ import {
   catalogPrompt,
   discoveryPrompt,
   lineupSystemPrompt,
+  DEFAULT_LINEUP_PROMPT_LIMITS,
+  pageExtractCuts,
   pageExtractPrompt,
   pageExtractSystemPrompt,
+  type LineupPromptLimits,
+  type PromptCut,
   planPagesPrompt,
   planPrompt,
 } from './prompt.js';
@@ -65,12 +71,14 @@ import {
   acceptableOfficialDomain,
   amountsIn,
   isOfficialUrl,
+  mentionsAny,
   redirectResolver,
   spaced,
   verifyPlans,
   GRADE_CHANNEL_MEDIA,
   verifyAddons,
   type ModelPlan,
+  type VerifiedAddon,
   type VerifyOutcome,
 } from './validate.js';
 import {
@@ -120,8 +128,6 @@ export const extractPurpose = (slug: string, country: string) => `lineups:extrac
  * cada etapa (`--com-busca`, só para comparar ou quando o site não deixa ler).
  */
 export type LineupResearchMode = 'pages' | 'search';
-
-const searchesOf = (r: LlmResult<unknown>) => (r.usage as UsageWithSearches).webSearchCalls ?? 0;
 
 /** Junta as fontes da busca de várias chamadas (as etapas de uma mesma plataforma). */
 function mergeResults(
@@ -252,7 +258,8 @@ export interface PlanLineupOptions {
 
 /**
  * O que pesquisar por país. Sem revisita: descoberta onde não há plataformas, e planos das
- * plataformas sem plano. Com revisita: descoberta e planos dos itens vistos há mais de `staleDays`.
+ * plataformas sem plano (com `rediscover`, a descoberta e os planos de todas). Com revisita:
+ * descoberta e planos dos itens vistos há mais de `staleDays`.
  */
 export async function planLineupResearch(db: Database, opts: PlanLineupOptions): Promise<LineupTask[]> {
   const cutoff = new Date(opts.now.getTime() - (opts.staleDays ?? LINEUP_STALE_DAYS) * DAY);
@@ -272,7 +279,8 @@ export async function planLineupResearch(db: Database, opts: PlanLineupOptions):
     ? await db
         .select({
           platformId: platformPlan.platformId,
-          plans: sql<number>`count(*)::int`,
+          // plano rejeitado não conta: a plataforma só com rejeitados volta a ser pesquisada
+          plans: sql<number>`(count(*) filter (where ${platformPlan.reviewStatus} <> 'rejected'))::int`,
           oldestPlan: sql<
             string | null
             // plano que a revisita já marcou como não visto espera o painel, não outra pesquisa
@@ -330,14 +338,17 @@ export async function planLineupResearch(db: Database, opts: PlanLineupOptions):
     }
     if (!mine.length || opts.rediscover)
       tasks.push({ kind: 'discover', country, reason: mine.length ? 'rediscover' : 'new_country' });
-    for (const p of mine.filter((p) => p.plans === 0))
+    // --redescobrir refaz também as páginas de planos: entra toda plataforma, não só a sem plano, a vista
+    // há mais tempo primeiro (o --max corta a fila; a execução seguinte continua de onde parou)
+    const redo = [...mine].sort((a, b) => new Date(a.seenAt).getTime() - new Date(b.seenAt).getTime());
+    for (const p of opts.rediscover ? redo : mine.filter((p) => p.plans === 0))
       tasks.push({
         kind: 'plans',
         country,
         platformId: p.id,
         slug: p.slug,
         name: p.name,
-        reason: 'no_plans',
+        reason: p.plans === 0 ? 'no_plans' : 'requested',
       });
   }
   return tasks;
@@ -468,9 +479,11 @@ export interface LineupCallOutcome {
   searchCalls: number;
   extractCalls: number;
   /** Pela página oficial: as páginas lidas. */
-  pages: Pick<PageRead, 'url' | 'status' | 'via' | 'fromCache' | 'hashChanged' | 'error'>[];
+  pages: Pick<PageRead, 'url' | 'status' | 'via' | 'fromCache' | 'hashChanged' | 'limited' | 'error'>[];
   /** Pela página oficial: a página não mudou desde a última extração (nenhuma chamada ao modelo). */
   pagesUnchanged: boolean;
+  /** Pela página oficial: páginas cortadas no prompt da extração (LINEUP_PAGE_MAX_CHARS/LINEUP_PROMPT_MAX_CHARS). */
+  promptCuts: PromptCut[];
   /** Por que a tarefa parou antes de extrair (sem site, nenhuma página lida, sem orçamento). */
   note: string | null;
   error?: string;
@@ -486,6 +499,8 @@ export interface LineupResearchDeps {
   resolveUrl?: (url: string) => Promise<string | null>;
   /** Leitor educado do site oficial (rebrand: o site que redireciona para outro domínio). */
   pages?: OfficialPageReader | null;
+  /** Tetos de caracteres das páginas no prompt da extração (padrão: os do código). */
+  promptLimits?: LineupPromptLimits;
 }
 
 export interface LineupRunOptions extends Omit<PlanLineupOptions, 'now'> {
@@ -544,7 +559,8 @@ export class LineupResearcher {
         calls += outcome.calls;
         out.push(outcome);
         if (outcome.status === 'skipped') return out; // orçamento do dia esgotado
-        if (task.kind === 'discover' && !opts.revisit)
+        // plataforma nova entra na fila também na revisita (senão só volta quando ficar velha)
+        if (task.kind === 'discover')
           for (const p of outcome.newPlatforms)
             queue.push({
               kind: 'plans',
@@ -582,25 +598,48 @@ export class LineupResearcher {
       extractCalls: 0,
       pages: [],
       pagesUnchanged: false,
+      promptCuts: [],
       note: null,
     };
   }
 
-  /** Soma o custo, as buscas e a chamada no resultado da tarefa. */
-  private count(out: LineupCallOutcome, r: LlmResult<unknown>, kind: 'search' | 'extract'): void {
+  /**
+   * Uma chamada ao modelo, somada no resultado da tarefa (a chamada, as buscas e o custo). A que falha
+   * também conta no `--max`: o provedor já cobrou as tentativas (o uso vem no erro). Só o orçamento
+   * esgotado, que recusa antes de chamar, não conta.
+   */
+  private async call<T>(
+    out: LineupCallOutcome,
+    kind: 'search' | 'extract',
+    run: () => Promise<LlmResult<T>>,
+  ): Promise<LlmResult<T>> {
+    try {
+      const r = await run();
+      this.count(out, r.usage as UsageWithSearches, kind);
+      return r;
+    } catch (err) {
+      if (!(err instanceof BudgetExceededError))
+        this.count(out, (err as { usage?: UsageWithSearches } | null)?.usage, kind);
+      throw err;
+    }
+  }
+
+  private count(
+    out: LineupCallOutcome,
+    usage: UsageWithSearches | undefined,
+    kind: 'search' | 'extract',
+  ): void {
     out.calls++;
     if (kind === 'search') out.searchCalls++;
     else out.extractCalls++;
-    out.searches += searchesOf(r);
-    if (r.usage.costUsd !== undefined) out.costUsd = (out.costUsd ?? 0) + r.usage.costUsd;
+    out.searches += usage?.webSearchCalls ?? 0;
+    if (usage?.costUsd !== undefined) out.costUsd = (out.costUsd ?? 0) + usage.costUsd;
   }
 
   private failed(out: LineupCallOutcome, err: unknown): LineupCallOutcome {
-    const partial = (err as { usage?: { costUsd?: number } }).usage;
     return {
       ...out,
       status: err instanceof BudgetExceededError ? 'skipped' : 'failed',
-      costUsd: partial?.costUsd ?? out.costUsd,
       error: (err instanceof Error ? err.message : String(err)).slice(0, 500),
     };
   }
@@ -612,25 +651,26 @@ export class LineupResearcher {
     const dir = this.directory(task.country);
     const existing = await db.select().from(platformTable).where(eq(platformTable.country, task.country));
     try {
-      const res = await this.deps.llm.generateJson<LineupDiscoveryOutput>({
-        tier: 'research',
-        system: lineupSystemPrompt(),
-        messages: [
-          {
-            role: 'user',
-            content: discoveryPrompt({
-              country: task.country,
-              known: existing.filter((p) => p.reviewStatus !== 'rejected').map((p) => p.name),
-            }),
-          },
-        ],
-        schema: LINEUP_DISCOVERY_SCHEMA,
-        schemaName: LINEUP_DISCOVERY_SCHEMA_NAME,
-        webSearch: true,
-        maxOutputTokens: 8_000,
-        purpose: discoveryPurpose(task.country),
-      });
-      this.count(out, res, 'search');
+      const res = await this.call(out, 'search', () =>
+        this.deps.llm.generateJson<LineupDiscoveryOutput>({
+          tier: 'research',
+          system: lineupSystemPrompt(),
+          messages: [
+            {
+              role: 'user',
+              content: discoveryPrompt({
+                country: task.country,
+                known: existing.filter((p) => p.reviewStatus !== 'rejected').map((p) => p.name),
+              }),
+            },
+          ],
+          schema: LINEUP_DISCOVERY_SCHEMA,
+          schemaName: LINEUP_DISCOVERY_SCHEMA_NAME,
+          webSearch: true,
+          maxOutputTokens: 8_000,
+          purpose: discoveryPurpose(task.country),
+        }),
+      );
       const gate = new SourceGate(anchorResolver(res), dir);
       const seenAt = this.now();
       const seen = new Set<string>();
@@ -663,7 +703,8 @@ export class LineupResearcher {
           .map((d) => d.trim().toLowerCase())
           .filter((d) => d && acceptableOfficialDomain(d, dir))
           .slice(0, LINEUP_MAX_OFFICIAL_DOMAINS);
-        if (dir.blocklist.isBlockedName(name) || (website && dir.blocklist.isBlockedUrl(website))) {
+        // o site bruto: o bloqueado já não passa em acceptableOfficialDomain e `website` viraria null
+        if (dir.blocklist.isBlockedName(name) || (site && dir.blocklist.isBlockedUrl(site))) {
           out.drops.blocked++;
           continue;
         }
@@ -757,31 +798,32 @@ export class LineupResearcher {
     const officialHosts = [row.website ? hostOf(row.website) : null, ...row.officialDomains].filter(
       (d): d is string => !!d,
     );
-    const res = await this.deps.llm.generateJson<LineupPlanPagesOutput>({
-      tier: 'research',
-      system: lineupSystemPrompt(),
-      messages: [
-        {
-          role: 'user',
-          content: planPagesPrompt({
-            country: task.country,
-            platform: {
-              name: row.name,
-              kind: row.kind,
-              website: row.website,
-              officialDomains: row.officialDomains,
-            },
-          }),
-        },
-      ],
-      schema: LINEUP_PLAN_PAGES_SCHEMA,
-      schemaName: LINEUP_PLAN_PAGES_SCHEMA_NAME,
-      webSearch: true,
-      ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
-      maxOutputTokens: 2_000,
-      purpose: planPagesPurpose(row.slug, task.country),
-    });
-    this.count(out, res, 'search');
+    const res = await this.call(out, 'search', () =>
+      this.deps.llm.generateJson<LineupPlanPagesOutput>({
+        tier: 'research',
+        system: lineupSystemPrompt(),
+        messages: [
+          {
+            role: 'user',
+            content: planPagesPrompt({
+              country: task.country,
+              platform: {
+                name: row.name,
+                kind: row.kind,
+                website: row.website,
+                officialDomains: row.officialDomains,
+              },
+            }),
+          },
+        ],
+        schema: LINEUP_PLAN_PAGES_SCHEMA,
+        schemaName: LINEUP_PLAN_PAGES_SCHEMA_NAME,
+        webSearch: true,
+        ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
+        maxOutputTokens: 2_000,
+        purpose: planPagesPurpose(row.slug, task.country),
+      }),
+    );
     const anchor = anchorResolver(res);
     const dir = this.directory(task.country);
     const urls: { url: string; grounded: boolean }[] = [];
@@ -843,12 +885,20 @@ export class LineupResearcher {
         : row.planPages.length
           ? row.planPages
           : candidatePages(row, known, LINEUP_MAX_PLAN_PAGES);
-      if (!urls.length) urls = await this.findPlanPages(task, row, out);
+      // a busca acha URLs que esta execução nem poderia ler: fica para a próxima, sem chamada paga
+      if (!urls.length && reader.exhausted)
+        return stop(
+          'limite de páginas desta execução atingido; a busca das URLs de planos fica para a próxima',
+        );
+      const searched = !urls.length;
+      if (searched) urls = await this.findPlanPages(task, row, out);
       if (!urls.length && row.website) urls = [row.website];
 
       // 2. leitura do nosso lado (cache por URL; estático → JSON embutido → navegador)
       const enough = enoughForExtraction(dir, row.kind);
       const reads: ReadablePage[] = [];
+      // páginas lidas agora sem redirecionamento (só nelas a ausência de um complemento é prova)
+      const direct = new Set<string>();
       for (const url of urls.slice(0, LINEUP_MAX_PLAN_PAGES)) {
         const read = await reader.read(url, row, { platformId: row.id, force: opts.force ?? false, enough });
         out.pages.push({
@@ -857,8 +907,11 @@ export class LineupResearcher {
           via: read.via,
           fromCache: read.fromCache,
           hashChanged: read.hashChanged,
+          ...(read.limited ? { limited: true } : {}),
           ...(read.error ? { error: read.error } : {}),
         });
+        if (read.status === 'ok' && (!read.finalUrl || comparableUrl(read.finalUrl) === comparableUrl(url)))
+          direct.add(comparableUrl(url));
         // sem navegador, a página que pede JavaScript ainda pode ter os planos e os preços no estático
         if ((read.status === 'ok' || read.status === 'needs_render') && read.content?.text)
           reads.push({
@@ -869,16 +922,21 @@ export class LineupResearcher {
             fetchedAt: read.fetchedAt,
           });
       }
-      // guarda as URLs certas (as que existem no site oficial), lidas ou não (robots, bloqueio)
+      // guarda as URLs certas (as que existem no site oficial), lidas ou não (robots, bloqueio, ou não
+      // lidas só pelo limite de páginas desta execução: a busca paga não se repete por isso)
       const keep = out.pages
-        .filter((p) => p.status !== 'error' && p.status !== 'off_domain')
+        .filter((p) => (p.status !== 'error' || p.limited) && p.status !== 'off_domain')
         .map((p) => p.url);
       if (keep.length && keep.join('\n') !== row.planPages.join('\n'))
         await setPlatformPlanPages(db, row.id, keep);
-      if (!reads.length)
+      if (!reads.length) {
+        // a busca rodou e nada foi lido (erro, fora do domínio): espera a próxima revisita, senão a
+        // mesma busca paga volta todo dia
+        if (searched && !out.pages.some((p) => p.limited)) await touchPlatformLineup(db, row.id, this.now());
         return stop(
           `nenhuma página de planos lida (${out.pages.map((p) => `${p.status} ${p.url}`).join('; ') || 'nenhuma URL'})`,
         );
+      }
 
       // 3. página igual à da última extração: nada a extrair
       const hash = pagesHash(reads);
@@ -892,29 +950,44 @@ export class LineupResearcher {
 
       // 4. extração do texto, sem busca, no nível leve
       const lib = this.libraryNames(dir);
-      const res = await llm.generateJson<LineupPageExtractOutput>({
-        tier: 'light',
-        system: pageExtractSystemPrompt(),
-        messages: [
-          {
-            role: 'user',
-            content: pageExtractPrompt({
-              country: task.country,
-              platform: { name: row.name, kind: row.kind, website: row.website },
-              pages: reads.map((r) => ({ url: r.url, text: r.content.text, sections: r.content.sections })),
-              knownPlans: known.map((k) => k.name),
-              channels: lib.channels,
-              services: [...lib.services, ...lib.channels],
-            }),
-          },
-        ],
-        schema: LINEUP_PAGE_EXTRACT_SCHEMA,
-        schemaName: LINEUP_PAGE_EXTRACT_SCHEMA_NAME,
-        webSearch: false,
-        maxOutputTokens: 16_000,
-        purpose: extractPurpose(row.slug, task.country),
-      });
-      this.count(out, res, 'extract');
+      const promptPages = reads.map((r) => ({
+        url: r.url,
+        text: r.content.text,
+        sections: r.content.sections,
+      }));
+      const limits = this.deps.promptLimits ?? DEFAULT_LINEUP_PROMPT_LIMITS;
+      // o que passa do teto é cortado do fim da página: o modelo não vê esses planos e preços
+      out.promptCuts = pageExtractCuts(promptPages, limits);
+      for (const c of out.promptCuts)
+        this.log(
+          `${row.slug}: página cortada no prompt da extração: ${c.url} (${c.chars} caracteres, teto ${c.limit}; ` +
+            'LINEUP_PAGE_MAX_CHARS/LINEUP_PROMPT_MAX_CHARS); o modelo não vê o fim da página',
+        );
+      const res = await this.call(out, 'extract', () =>
+        llm.generateJson<LineupPageExtractOutput>({
+          tier: 'light',
+          system: pageExtractSystemPrompt(),
+          messages: [
+            {
+              role: 'user',
+              content: pageExtractPrompt({
+                country: task.country,
+                platform: { name: row.name, kind: row.kind, website: row.website },
+                pages: promptPages,
+                limits,
+                knownPlans: known.map((k) => k.name),
+                channels: lib.channels,
+                services: [...lib.services, ...lib.channels],
+              }),
+            },
+          ],
+          schema: LINEUP_PAGE_EXTRACT_SCHEMA,
+          schemaName: LINEUP_PAGE_EXTRACT_SCHEMA_NAME,
+          webSearch: false,
+          maxOutputTokens: 16_000,
+          purpose: extractPurpose(row.slug, task.country),
+        }),
+      );
 
       // 5. o validador decide a prova; o trecho precisa estar na página
       const skip = (name: string) => {
@@ -962,8 +1035,9 @@ export class LineupResearcher {
         })),
       }));
       out.accepted = plans.length;
-      // grade completa só com todas as páginas lidas por inteiro: página que falhou não apaga plano
-      const allRead = out.pages.every((p) => p.status === 'ok');
+      // grade completa só com todas as páginas lidas por inteiro e nada cortado (página que passou do
+      // teto do prompt, planos, canais ou streamings além do limite): o que ficou de fora não é removido
+      const allRead = out.pages.every((p) => p.status === 'ok') && !out.promptCuts.length;
       if (plans.length || catalog.addons.length) {
         const r = await upsertLineupDraft(db, {
           platform: {
@@ -981,9 +1055,15 @@ export class LineupResearcher {
             url: null,
             verification: withPageRef(a.verification, reads),
           })),
-          addonsComplete: task.reason === 'revisit' && allRead && catalog.addons.length > 0,
+          // o catálogo vale como completo (vazio ou não) só com prova de ausência de cada complemento que
+          // sumiu; extração sem nenhum plano não: é mais provável a resposta ter falhado
+          addonsComplete:
+            task.reason === 'revisit' &&
+            allRead &&
+            plans.length > 0 &&
+            (await this.addonsGone(row.id, catalog.addons, direct, reads)),
           seenAt: this.now(),
-          complete: task.reason === 'revisit' && allRead && plans.length > 0,
+          complete: task.reason === 'revisit' && allRead && !models.truncated && plans.length > 0,
         });
         this.add(out, r);
       }
@@ -1037,18 +1117,19 @@ export class LineupResearcher {
       (d): d is string => !!d,
     );
     const ask = <T>(content: string, schema: Record<string, unknown>, schemaName: string, purpose: string) =>
-      llm.generateJson<T>({
-        tier: 'research',
-        system: lineupSystemPrompt(),
-        messages: [{ role: 'user', content }],
-        schema,
-        schemaName,
-        webSearch: true,
-        ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
-        maxOutputTokens: 12_000,
-        purpose,
-      });
-    const cost = (r: LlmResult<unknown>) => this.count(out, r, 'search');
+      this.call(out, 'search', () =>
+        llm.generateJson<T>({
+          tier: 'research',
+          system: lineupSystemPrompt(),
+          messages: [{ role: 'user', content }],
+          schema,
+          schemaName,
+          webSearch: true,
+          ...(officialHosts.length ? { allowedDomains: officialHosts } : {}),
+          maxOutputTokens: 12_000,
+          purpose,
+        }),
+      );
 
     await this.checkRebrand(task, row, out);
 
@@ -1066,7 +1147,6 @@ export class LineupResearcher {
         LINEUP_CATALOG_SCHEMA_NAME,
         catalogPurpose(row.slug, task.country),
       );
-      cost(cat);
       results.push(cat);
       const listed: {
         name: string;
@@ -1116,7 +1196,6 @@ export class LineupResearcher {
             LINEUP_PLAN_SCHEMA_NAME,
             planPurpose(row.slug, task.country),
           );
-          cost(r);
           results.push(r);
           details.set(l.name, { status: r.data.encontrado ? 'ok' : 'not_found', data: r.data });
         } catch (err) {
@@ -1168,6 +1247,18 @@ export class LineupResearcher {
         acceptUrl: (u: string | null) => gate.cite(u),
         now: this.now(),
       };
+      // algum limite cortou a resposta (planos, canais, streamings) ou um plano ficou sem o detalhe
+      // (sem orçamento, falhou, não achado): não é a grade inteira e nada pode virar "removido"
+      const cut =
+        listed.length > LINEUP_MAX_PLANS ||
+        listed.slice(0, LINEUP_MAX_PLANS).some((l) => {
+          const d = details.get(l.name);
+          return (
+            d?.status !== 'ok' ||
+            d.data!.canais.length > LINEUP_MAX_CHANNELS ||
+            d.data!.streamings_inclusos.length > LINEUP_MAX_SERVICES
+          );
+        });
       const verified = await verifyPlans(models, ctx);
       for (const p of verified.plans) {
         const st = details.get(p.name)?.status;
@@ -1229,8 +1320,8 @@ export class LineupResearcher {
           plans,
           addons: catalog.addons.map((a) => ({ ...a, url: null })),
           seenAt: this.now(),
-          // só a revisita com resultado marca o que sumiu: pesquisa vazia não apaga nada
-          complete: task.reason === 'revisit' && plans.length > 0,
+          // só a revisita com a grade inteira marca o que sumiu: pesquisa vazia ou cortada não apaga nada
+          complete: task.reason === 'revisit' && !cut && plans.length > 0,
         });
         this.add(out, r);
       }
@@ -1248,6 +1339,35 @@ export class LineupResearcher {
     } catch (err) {
       return this.failed(out, err);
     }
+  }
+
+  /**
+   * Os complementos gravados que não vieram na extração saíram mesmo da página? Só com prova: a página
+   * de onde cada um veio foi lida agora sem redirecionamento e nenhum nome dele aparece no texto lido.
+   * O modelo que omitiu o catálogo, a página de complementos que redireciona ou que não está entre as
+   * páginas de planos não remove nada.
+   */
+  private async addonsGone(
+    platformId: string,
+    catalog: readonly VerifiedAddon[],
+    direct: ReadonlySet<string>,
+    reads: readonly ReadablePage[],
+  ): Promise<boolean> {
+    const seen = new Set(catalog.map((a) => addonSlug(a.refId, a.channel, a.commitmentMonths)));
+    const stored = await this.deps.db
+      .select()
+      .from(platformAddon)
+      .where(eq(platformAddon.platformId, platformId));
+    const text = reads.flatMap((r) => [r.content.text, ...r.content.sections.map((s) => s.text)]).join('\n');
+    return stored
+      .filter((a) => a.reviewStatus !== 'rejected' && !a.proposedChange?.removed && !seen.has(a.slug))
+      .every((a) => {
+        const v = a.verification;
+        const origin = v?.page?.url ?? v?.final_url ?? v?.source_url ?? a.url ?? a.sources[0]?.url ?? null;
+        const bare = a.name.replace(/\b(fidelidade|permanencia|permanência)\b/gi, '').trim();
+        const names = [a.name, bare, a.channel].filter((n): n is string => !!n);
+        return !!origin && direct.has(comparableUrl(origin)) && !mentionsAny(text, names);
+      });
   }
 
   private tally(out: LineupCallOutcome, v: VerifyOutcome): void {

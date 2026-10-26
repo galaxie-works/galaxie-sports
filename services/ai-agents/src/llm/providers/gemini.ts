@@ -34,7 +34,9 @@ export const GEMINI_THINKING_LEVEL = 'low';
 /**
  * O Gemini bloqueia a resposta que reproduz texto de página protegido ("Request blocked due to
  * copyright/recitation content"). Os trechos de evidência não precisam ser literais: o verificador
- * confere a página (acessível, de domínio permitido, citando a emissora), não o trecho.
+ * confere a página (acessível, de domínio permitido, citando a emissora e, no onde assistir, o trecho
+ * ou os dois times perto dela); o trecho parafraseado que não está na página só custa uma penalidade
+ * leve — rebaixa apenas a fonte que tinha o jogo numa verificação e o perdeu.
  */
 export const NO_RECITATION_NOTE =
   'Não copie texto literal das páginas da web (direitos autorais): nos campos de trecho/citação, escreva uma paráfrase curta com suas palavras, citando a URL da fonte.';

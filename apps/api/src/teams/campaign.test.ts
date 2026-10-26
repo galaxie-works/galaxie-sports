@@ -54,6 +54,7 @@ function input(o: Partial<CampaignInput> & Pick<CampaignInput, 'stages'>): Campa
     tieMatches,
     standing: null,
     seasonOpen: false,
+    stageActivity: new Map(),
     rules: null,
     competitionType: 'cup',
     ...o,
@@ -164,6 +165,22 @@ describe('decideTie', () => {
     )!;
     expect(t).toMatchObject({ state: 'pending', playedLegs: 1, goalsFor: 2, goalsAgainst: 1 });
     expect(tieScore(t, 'pt-BR')).toBe('ida: 2–1');
+  });
+
+  it('ida e volta no regulamento com só a ida carregada fica pendente, mesmo com saldo', () => {
+    const s = stage('f', 'final', 13000);
+    const ida = [match('f', '2026-11-04', [PAL, 'fla'], [3, 0])];
+    const t = decideTie(PAL, s, ida, rules({}))!;
+    expect(t).toMatchObject({ state: 'pending', playedLegs: 1, goalsFor: 3, goalsAgainst: 0 });
+    expect(tieScore(t, 'pt-BR')).toBe('ida: 3–0');
+    const c = computeCampaign(input({ stages: [s], tieMatches: ida, rules: rules({}), seasonOpen: true }))!;
+    expect(c.status).toBe('in_progress');
+    // temporada encerrada sem a volta (W.O., cancelada): decide com o que há
+    expect(computeCampaign(input({ stages: [s], tieMatches: ida, rules: rules({}) }))!.status).toBe(
+      'champion',
+    );
+    // a final em jogo único no regulamento decide com o jogo que há
+    expect(decideTie(PAL, s, ida, rules({ legs: 1 }))!.state).toBe('won');
   });
 });
 
@@ -308,14 +325,98 @@ describe('computeCampaign', () => {
       input({
         stages: cupStages,
         teamEvents: [{ id: 'g1', stageId: 'g', status: 'finished' }],
-        tieMatches: [match('r16', '2026-08-12', ['a', 'b'], [1, 0])],
         standing: { rank: 3, points: 7, played: 6, group: 'Group F' },
         seasonOpen: true,
+        stageActivity: new Map([
+          ['g', { events: 48, open: 0 }],
+          ['r16', { events: 8, open: 7 }],
+        ]),
       }),
       null,
     );
     expect(r.c.status).toBe('eliminated');
     expect([r.label, r.detail]).toEqual(['Eliminado na fase de grupos', '3º lugar · 7 pts']);
+  });
+
+  it('fase de grupos com jogos de outros times por disputar não elimina, mesmo com o mata-mata cadastrado', () => {
+    const groups = (activity: [string, { events: number; open: number }][]) =>
+      computeCampaign(
+        input({
+          stages: cupStages,
+          teamEvents: [{ id: 'g1', stageId: 'g', status: 'finished' }],
+          standing: { rank: 3, points: 7, played: 6, group: 'Group F' },
+          seasonOpen: true,
+          stageActivity: new Map(activity),
+        }),
+      )!.status;
+    // o time já fez os 6 jogos, mas o grupo ainda não acabou
+    expect(groups([['g', { events: 48, open: 2 }]])).toBe('in_progress');
+    // grupos encerrados e o mata-mata ainda sem jogos (sorteio por fazer): sem prova de eliminação
+    expect(groups([['g', { events: 48, open: 0 }]])).toBe('in_progress');
+    expect(
+      groups([
+        ['g', { events: 48, open: 2 }],
+        ['r16', { events: 8, open: 8 }],
+      ]),
+    ).toBe('in_progress');
+  });
+
+  describe('fase de liga com classificação direta (zonas do regulamento)', () => {
+    const uclStages = [
+      stage('lp', 'league_phase', 2001, { 'pt-BR': 'Fase de liga' }),
+      stage('po', 'playoff', 3000),
+      stage('r16', 'round_of_16', 9000, { 'pt-BR': 'Oitavas de final' }),
+      stage('qf', 'quarter_final', 10000),
+      stage('f', 'final', 13000),
+    ];
+    const ucl = (zones: NonNullable<CompetitionRules['league']>['zones']): CompetitionRules => ({
+      ...rules({}),
+      format: 'league_phase',
+      league: { teams: 36, matchesPerTeam: 8, meetingsPerPair: 1, title: false, zones },
+    });
+    const ZONES = [
+      { id: 'round_of_16', kind: 'qualification' as const, from: 1, to: 8 },
+      { id: 'knockout_playoff', kind: 'qualification' as const, from: 9, to: 24 },
+      { id: 'elimination', kind: 'elimination' as const, from: 25, to: 36 },
+    ];
+    const campaign = (rank: number, r: CompetitionRules | null, seasonOpen = true) =>
+      computeCampaign(
+        input({
+          stages: uclStages,
+          teamEvents: [{ id: 'l8', stageId: 'lp', status: 'finished' }],
+          standing: { rank, points: 16, played: 8, group: null },
+          seasonOpen,
+          // fase de liga encerrada e o playoff já em jogo, sem o time
+          stageActivity: new Map([
+            ['lp', { events: 144, open: 0 }],
+            ['po', { events: 16, open: 8 }],
+          ]),
+          rules: r,
+        }),
+      )!;
+
+    it('o top 8 vai direto às oitavas: em andamento, não eliminado por não jogar o playoff', () => {
+      const c = campaign(3, ucl(ZONES));
+      expect(c).toMatchObject({ status: 'in_progress', stageKind: 'round_of_16', rank: 3, points: 16 });
+      expect(campaignText(c, 'pt-BR', null)).toEqual({
+        label: 'Nas oitavas de final',
+        detail: '3º lugar · 16 pts',
+      });
+      expect(isOngoing(c)).toBe(true);
+    });
+
+    it('9º–24º aguarda o playoff; 25º em diante é eliminado mesmo sem jogo do mata-mata', () => {
+      expect(campaign(15, ucl(ZONES))).toMatchObject({ status: 'in_progress', stageKind: 'playoff' });
+      expect(campaign(30, ucl(ZONES))).toMatchObject({ status: 'eliminated', stageKind: 'league_phase' });
+    });
+
+    it('sem zonas no regulamento (ou zona de vaga em outra competição), segue a evidência dos jogos', () => {
+      expect(campaign(3, null).status).toBe('eliminated');
+      const europa = ucl([{ id: 'europa_league_knockout_playoff', kind: 'qualification', from: 1, to: 36 }]);
+      expect(campaign(3, europa).status).toBe('eliminated');
+      // temporada encerrada sem o mata-mata carregado: a zona não basta para "em andamento"
+      expect(campaign(3, ucl(ZONES), false).status).toBe('eliminated');
+    });
   });
 
   it('disputa de 3º lugar conta', () => {

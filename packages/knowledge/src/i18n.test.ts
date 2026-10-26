@@ -34,6 +34,14 @@ describe('textCoverage', () => {
     expect(textCoverage(kb, 'es', 'football/teams/ar.yaml').total).toBe(0);
   });
 
+  it('com o arquivo, as traduções próprias contam só os itens dele', () => {
+    // a tradução es do alfa (br.yaml) não conta no relatório do ar.yaml, e a es-AR do gama não conta no br.yaml
+    expect(textCoverage(kb, 'es', 'football/teams/ar.yaml').own).toBe(0);
+    expect(textCoverage(kb, 'es', 'football/teams/br.yaml').own).toBe(1);
+    expect(textCoverage(kb, 'es-AR', 'football/teams/ar.yaml').own).toBe(1);
+    expect(textCoverage(kb, 'es-AR', 'football/teams/br.yaml').own).toBe(0);
+  });
+
   it('base real: todo texto livre tem tradução es e pt-BR', async () => {
     const real = await loadKnowledge();
     expect(textCoverage(real, 'es').missing).toEqual([]);
