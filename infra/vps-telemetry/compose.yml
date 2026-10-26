@@ -300,9 +300,11 @@ services:
     logging: *logging
 
   # Agentes de IA (docs/07): resumo pós-jogo, cenário pré-jogo e Onde Assistir. Mesma imagem do
-  # ingestor, com o scheduler no perfil `agents`; roda mesmo com o ingestor parado. O gasto com o LLM
-  # tem teto diário em tokens (AI_DAILY_TOKEN_BUDGET) e em US$ (AI_DAILY_USD_BUDGET, tokens + buscas na
-  # web; AI_AGENT_USD_BUDGETS por agente), somando todos os agentes (ledger ops.llm_usage).
+  # ingestor, com o scheduler no perfil `agents`; roda mesmo com o ingestor parado. A IA liga e desliga
+  # por AI_STATUS (on|off) e AI_AGENT_STATUS (agente=on|off); ligada, o gasto com o LLM tem teto diário
+  # em tokens (AI_DAILY_TOKEN_BUDGET) e em US$ (AI_DAILY_USD_BUDGET, tokens + buscas na web;
+  # AI_AGENT_USD_BUDGETS por agente), somando todos os agentes (ledger ops.llm_usage). Tetos: número
+  # ou "unlimited"; 0 é inválido.
   agents:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
@@ -327,6 +329,8 @@ services:
       AI_MODEL_LIGHT: ${AI_MODEL_LIGHT:-}
       AI_MODEL_STANDARD: ${AI_MODEL_STANDARD:-}
       AI_MODEL_RESEARCH: ${AI_MODEL_RESEARCH:-}
+      AI_STATUS: ${AI_STATUS:-on}
+      AI_AGENT_STATUS: ${AI_AGENT_STATUS:-}
       AI_DAILY_TOKEN_BUDGET: ${AI_DAILY_TOKEN_BUDGET:-1000000}
       AI_DAILY_USD_BUDGET: ${AI_DAILY_USD_BUDGET:-10}
       AI_AGENT_USD_BUDGETS: ${AI_AGENT_USD_BUDGETS:-}

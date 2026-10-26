@@ -176,6 +176,24 @@ describe('validateKnowledge — regras', () => {
     expect(codes(report.errors)).toContain('duplicate-provider-id');
   });
 
+  it('competição: apelido igual ao rótulo do mesmo idioma é erro', async () => {
+    const competition = (nicknames: string) => ({
+      'competitions/football.yaml': `schema_version: 1
+competitions:
+  - slug: copa-x
+    api_sports_league_id: null
+    labels: { pt-BR: "Copa X", es: "Copa X" }
+    nicknames: ${nicknames}
+    sources: ["https://example.org/copa-x"]
+    review_status: draft`,
+    });
+    const bad = await validateFiles(competition('{ pt-BR: ["copa x", "Xzão"] }'));
+    expect(codes(bad.errors)).toContain('nickname-is-label');
+    // o mesmo texto como apelido de outro idioma sem rótulo próprio não conta
+    const ok = await validateFiles(competition('{ pt-BR: ["Xzão"], es-AR: ["Copa X"] }'));
+    expect(codes(ok.errors)).not.toContain('nickname-is-label');
+  });
+
   it('estádio: nomes anteriores e api_sports_venue_id', async () => {
     const stadium = (name: string, extra: string) =>
       `\n    stadium:\n      name: ${name}\n      nicknames: ["Arena"]\n      city: Cidade${extra}`;

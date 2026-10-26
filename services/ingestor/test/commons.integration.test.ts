@@ -83,6 +83,10 @@ function fakeCommons(licenses: Record<string, string>) {
             LicenseShortName: { value: licenses[title]?.toUpperCase() },
             Artist: { value: '<a href="//commons.wikimedia.org/wiki/User:Fotografo">Fotógrafo</a>' },
             DateTimeOriginal: { value: '1988-07-10' },
+            // o retrato pede atribuição (com HTML, como a Commons manda)
+            ...(title.includes('retrato')
+              ? { Attribution: { value: '<a href="https://example.org">Instituto</a> &amp; Fotógrafo' } }
+              : {}),
           },
         },
       ],
@@ -170,9 +174,9 @@ describe('importação do acervo de fotos', () => {
     const keys = [...store.objects.keys()];
     expect(keys.every((k) => k.startsWith(`commons/f1/drivers/${sennaId}.`))).toBe(true);
     const credits = await db.select().from(assetCredit);
-    expect(credits.map((c) => [c.license, c.author, c.shareAlike]).sort()).toEqual([
-      ['CC-BY-2.0', 'Fotógrafo', false],
-      ['CC-BY-SA-4.0', 'Fotógrafo', true],
+    expect(credits.map((c) => [c.license, c.author, c.shareAlike, c.attribution]).sort()).toEqual([
+      ['CC-BY-2.0', 'Fotógrafo', false, 'Instituto & Fotógrafo'],
+      ['CC-BY-SA-4.0', 'Fotógrafo', true, null],
     ]);
     const assets = await db
       .select({ origin: asset.origin, kind: asset.kind, width: asset.width })
