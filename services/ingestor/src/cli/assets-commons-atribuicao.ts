@@ -48,6 +48,7 @@ try {
   console.log(
     `${values.plan ? 'PRÉVIA (nada gravado): ' : ''}${report.checked} arquivo(s) conferido(s): ` +
       `${report.updated} com atribuição, ${report.without} sem, ${report.missing.length} fora da Commons · ` +
+      `${report.published} competição(ões)/plataforma(s) para purgar no cache · ` +
       `${client.requests} requisição(ões) à Wikimedia.`,
   );
 } finally {

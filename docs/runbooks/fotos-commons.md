@@ -217,7 +217,7 @@ Dois campos da Commons parecem iguais e não são:
 - `Credit` (`asset_credit.credit`): na prática, a fonte do arquivo ("Own work", link do Flickr, legenda). Não é a linha de crédito.
 - `Attribution` (`asset_credit.attribution`): a atribuição pedida pelo autor, quando o arquivo pede. É a linha que a licença manda exibir; no `logo_credit` da API, ela vira o `text` ("Logo: <atribuição> · <licença>").
 
-A importação (fotos, logos de competição e de plataforma) grava os dois, sem HTML. Os créditos gravados antes da migration `0047_atribuicao_da_commons` ficaram sem `attribution`; o backfill relê só esses na Commons (uma requisição a cada 50 arquivos) e pode rodar de novo sem efeito colateral. Todo crédito consultado fica marcado (`attribution_checked_at`), com ou sem atribuição: rodadas com `--limite` andam pela fila, e `--reconferir` confere de novo os marcados que continuam sem atribuição:
+A importação (fotos, logos de competição e de plataforma) grava os dois, sem HTML. Os créditos gravados antes da migration `0047_atribuicao_da_commons` ficaram sem `attribution`; o backfill relê só esses na Commons (uma requisição a cada 50 arquivos) e pode rodar de novo sem efeito colateral. Todo crédito consultado fica marcado (`attribution_checked_at`), com ou sem atribuição: rodadas com `--limite` andam pela fila, e `--reconferir` confere de novo os marcados que continuam sem atribuição. As competições e plataformas cujo logo ganhou atribuição vão para o change feed, e a API purga as respostas com o `logo_credit`:
 
 ```bash
 pnpm --filter @galaxie/ingestor assets:commons:atribuicao --plan   # o que seria gravado
