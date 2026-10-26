@@ -59,33 +59,68 @@ export async function planKeyMigration(
 }
 
 /**
+ * Falha no meio do `--apply`: as chaves de `migrated` já foram trocadas (commit feito, antigas revogadas) e
+ * `failed` e as seguintes ficaram como estavam. Rodar de novo continua de onde parou.
+ */
+export class KeyMigrationError extends Error {
+  constructor(
+    readonly failed: LegacyKeyPlan,
+    readonly migrated: readonly MigratedKey[],
+    cause: unknown,
+  ) {
+    // a causa mais interna (a do Postgres): a do driver repete a query com os parâmetros, hash incluído
+    let root = cause;
+    while (root instanceof Error && root.cause instanceof Error) root = root.cause;
+    super(
+      `falha ao migrar a chave ${failed.prefix} (${failed.tenant}): ${root instanceof Error ? root.message : String(root)}`,
+      { cause },
+    );
+    this.name = 'KeyMigrationError';
+  }
+}
+
+/**
  * Revoga cada chave legada válida e emite a substituta, uma transação por chave (a antiga só sai se a
  * nova foi criada). Idempotente: rodar de novo não encontra mais chaves de formato 1 válidas. O teto por
  * ambiente não se aplica aqui (cada troca é uma por uma).
+ *
+ * `onMigrated` roda logo depois do commit de cada chave, antes da próxima: é onde a CLI exibe a substituta,
+ * para que uma falha adiante não leve embora segredos já emitidos (a antiga já foi revogada). Uma falha
+ * numa chave para o lote com `KeyMigrationError`.
  */
 export async function applyKeyMigration(
   db: Database,
-  options: { testPrefixes?: readonly string[]; now?: Date } = {},
+  options: {
+    testPrefixes?: readonly string[];
+    now?: Date;
+    onMigrated?: (key: MigratedKey) => void | Promise<void>;
+  } = {},
 ): Promise<MigratedKey[]> {
   const now = options.now ?? new Date();
   const out: MigratedKey[] = [];
   for (const plan of await planKeyMigration(db, options)) {
-    const migrated = await db.transaction(async (tx) => {
-      const [old] = await tx
-        .update(apiKey)
-        .set({ revokedAt: now })
-        .where(and(eq(apiKey.id, plan.keyId), legacyActive(now)))
-        .returning();
-      if (!old) return null; // revogada por outro caminho no meio do caminho
-      const created = await createApiKey(tx, old.tenantId, {
-        env: plan.newEnv,
-        ...(old.label ? { label: old.label } : {}),
-        ...(old.scopes ? { scopes: old.scopes } : {}),
-        ...(old.expiresAt ? { expiresAt: old.expiresAt } : {}),
+    const migrated = await db
+      .transaction(async (tx) => {
+        const [old] = await tx
+          .update(apiKey)
+          .set({ revokedAt: now })
+          .where(and(eq(apiKey.id, plan.keyId), legacyActive(now)))
+          .returning();
+        if (!old) return null; // revogada por outro caminho no meio do caminho
+        const created = await createApiKey(tx, old.tenantId, {
+          env: plan.newEnv,
+          ...(old.label ? { label: old.label } : {}),
+          ...(old.scopes ? { scopes: old.scopes } : {}),
+          ...(old.expiresAt ? { expiresAt: old.expiresAt } : {}),
+        });
+        return { ...plan, newKey: created.key, newPrefix: created.prefix };
+      })
+      .catch((err: unknown) => {
+        throw new KeyMigrationError(plan, [...out], err);
       });
-      return { ...plan, newKey: created.key, newPrefix: created.prefix };
-    });
-    if (migrated) out.push(migrated);
+    if (!migrated) continue;
+    out.push(migrated);
+    await options.onMigrated?.(migrated);
   }
   return out;
 }

@@ -36,9 +36,13 @@ Assim que a versão com a política entra no ar:
    pnpm --filter @galaxie/api keys:migrate --apply --test-prefixes <prefixo1>,<prefixo2>
    ```
 
-   - As chaves novas aparecem **uma única vez** na saída. Guarde-as no cofre de segredos antes de fechar o terminal.
+   - As chaves novas aparecem **uma única vez** na saída, cada uma logo depois da sua troca. Guarde-as no cofre de
+     segredos antes de fechar o terminal.
    - Cada troca roda numa transação: a antiga só é revogada se a nova foi criada.
-   - Rodar de novo não faz nada, porque não sobra chave legada válida.
+   - Se uma troca falhar, o comando para e sai com código 1, dizendo quais chaves já foram migradas (as substitutas
+     delas já estão na saída, acima do erro) e qual falhou. Essa e as seguintes ficam como estavam: corrija a causa e
+     rode `--plan` e `--apply` de novo, que continua de onde parou.
+   - Rodar de novo depois de tudo migrado não faz nada, porque não sobra chave legada válida.
    - As antigas param de valer em até 60 s (cache do autenticador).
 
 4. **Trocar `GALAXIE_DEMO_KEY`** na stack (Portainer ou `infra/vps-telemetry`) pela chave nova da demo e fazer
