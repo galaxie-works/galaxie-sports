@@ -86,6 +86,19 @@ export class WhereToWatchAgent {
     const codes = input.events.map((info, i) => ({ code: `J${i + 1}`, info }));
     const byCode = new Map(codes.map((c) => [c.code, c.info]));
     const holders = new Map<string, string[]>(input.markets.map((m) => [m.directory.country, m.holders]));
+    // com lista de detentores, só eles (e os já garantidos) valem: o validador rebaixa o não detentor
+    // só em 0,2 e uma fonte do organizador ainda o publicaria
+    const markets = new Map(input.markets.map((m) => [m.directory.country as string, m]));
+    // (os incertos da linha também valem: o validador não os bonifica nem penaliza). O nome é
+    // resolvido no dia do jogo (canal renomeado, emissora fora do período)
+    const isHolder = (country: string, at: Date, name: string, channel: string | null) => {
+      const m = markets.get(country)!;
+      if (!m.holders.length) return true;
+      const r =
+        m.directory.resolve(name.trim(), at) ?? (channel ? m.directory.resolve(channel.trim(), at) : null);
+      const id = r?.entry.id;
+      return !!id && [m.holders, m.known, m.uncertain ?? []].some((ids) => ids.includes(id));
+    };
     const countries: string[] = input.markets.map((m) => m.directory.country);
     const result = await this.llm.generateJson<WtwAllocationOutput>({
       tier: 'research',
@@ -113,12 +126,14 @@ export class WhereToWatchAgent {
       purpose: allocationPurpose(input.competition.slug, input.round, countries),
     });
     const { data, ...meta } = result;
+    // como nos direitos: com grounding, só URLs da busca do provedor (nada escrito pelo modelo é buscado)
+    const grounded = groundedFilter(result.groundedUrls);
     const byEvent = new Map<string, Map<string, Candidate[]>>();
     let ignored = 0;
     for (const a of data.assignments.slice(0, WTW_MAX_OPTIONS * Math.max(1, codes.length))) {
       const info = byCode.get(a.match.trim().toUpperCase());
       const country = a.country.trim().toUpperCase();
-      if (!info || !holders.has(country)) {
+      if (!info || !holders.has(country) || !isHolder(country, info.startsAt, a.broadcaster, a.channel)) {
         ignored++;
         continue;
       }
@@ -130,7 +145,10 @@ export class WhereToWatchAgent {
         channel: a.channel ? sanitizeText(a.channel, 80).trim() || null : null,
         region: a.region ? sanitizeText(a.region, 40).trim() || null : null,
         watchUrl: a.watch_url,
-        evidence: a.evidence.slice(0, WTW_MAX_EVIDENCE).map(toEvidence),
+        evidence: a.evidence
+          .filter((e) => grounded(e.url))
+          .slice(0, WTW_MAX_EVIDENCE)
+          .map(toEvidence),
       });
       perCountry.set(country, list);
       byEvent.set(info.id, perCountry);

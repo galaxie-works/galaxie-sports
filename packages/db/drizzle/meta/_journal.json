@@ -334,8 +334,15 @@
     {
       "idx": 47,
       "version": "7",
-      "when": 1792972180829,
-      "tag": "0047_lista_canais_revisao",
+      "when": 1792971767174,
+      "tag": "0047_wtw_research_falhas",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1792976083442,
+      "tag": "0048_lista_canais_revisao",
       "breakpoints": true
     }
   ]

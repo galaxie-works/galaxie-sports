@@ -1,0 +1,1 @@
+ALTER TABLE "enrich"."wtw_research" ADD COLUMN "failures" integer DEFAULT 0 NOT NULL;

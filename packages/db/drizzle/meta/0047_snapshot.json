@@ -1,5 +1,5 @@
 {
-  "id": "a4307cf8-7cc5-4660-b738-0251b0b8ab5f",
+  "id": "fa0c35be-bbeb-4138-a195-790e99541ab1",
   "prevId": "26a3c3c6-5b23-475b-a200-4b054681c5f8",
   "version": "7",
   "dialect": "postgresql",
@@ -6970,6 +6970,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'running'"
+        },
+        "failures": {
+          "name": "failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "requested_by": {
           "name": "requested_by",
@@ -15177,13 +15184,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "uploaded_by": {
           "name": "uploaded_by",

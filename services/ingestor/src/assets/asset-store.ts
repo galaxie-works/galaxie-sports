@@ -1,16 +1,19 @@
-import { and, asc, eq, inArray, isNotNull, isNull, notInArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import {
   isProviderMediaUrl,
   mediaKindFromUrl,
   normalizeMediaUrl,
   type MediaAssetKind,
+  type MediaDenylist,
 } from '@galaxie/apisports-client';
 import {
   apiResponse,
   asset,
   competition,
+  jobRun,
   participant,
   person,
+  publishChange,
   type AssetPalette,
   type Database,
 } from '@galaxie/db';
@@ -30,6 +33,8 @@ export interface MirrorAsset {
   id: string;
   sourceUrl: string;
   kind: MediaAssetKind;
+  /** Já tentado e ausente (404, bloqueado, genérico): só aparece na fila com `includeMissing`. */
+  missing?: boolean;
 }
 
 export interface StoredInfo {
@@ -76,6 +81,11 @@ export interface LogoCleanupOptions {
   placeholders?: ReadonlySet<string> | undefined;
   /** Só conta, sem mudar nada. */
   dryRun?: boolean | undefined;
+  /**
+   * URLs normalizadas da lista de bloqueio. Só no `dryRun`: a execução real tira os já espelhados do storage
+   * (`unlink`) antes da limpeza, então a prévia já os conta como ausentes.
+   */
+  denylisted?: readonly string[] | undefined;
 }
 
 /** Resultado de `cleanupLogos`. */
@@ -113,9 +123,14 @@ export interface AssetStore {
   /** Registra URLs novas (idempotente). Retorna quantas eram novas. */
   register(urls: string[]): Promise<number>;
   counts(): Promise<AssetCounts>;
-  /** team_logo espelhados em PNG com palette nula (fora os placeholders do fornecedor), na ordem de criação. */
-  paletteCandidates(limit?: number): Promise<PaletteCandidate[]>;
+  /**
+   * team_logo espelhados em PNG com palette nula (fora os placeholders do fornecedor), na ordem de criação;
+   * `after` (id de um candidato) pagina a partir do seguinte, para passar dos que não decodificam.
+   */
+  paletteCandidates(limit?: number, after?: string): Promise<PaletteCandidate[]>;
   savePalette(id: string, palette: AssetPalette): Promise<void>;
+  /** Várias paletas numa transação só (uma página do backfill): os times afetados são purgados juntos. */
+  savePalettes(items: readonly { id: string; palette: AssetPalette }[]): Promise<void>;
 }
 
 // ─── memória (testes) ────────────────────────────────────────────────────────────────────────────
@@ -174,7 +189,7 @@ export class InMemoryAssetStore implements AssetStore {
     );
     return rows
       .slice(0, query.limit ?? rows.length)
-      .map(({ id, sourceUrl, kind }) => ({ id, sourceUrl, kind }));
+      .map(({ id, sourceUrl, kind, fetchedAt }) => ({ id, sourceUrl, kind, missing: !!fetchedAt }));
   }
 
   async markStored(id: string, info: StoredInfo): Promise<void> {
@@ -229,9 +244,14 @@ export class InMemoryAssetStore implements AssetStore {
       (r) => LOGO_KINDS.has(r.kind) && r.storageKey && placeholders.has(r.sha256 ?? ''),
     );
     if (!options.dryRun) for (const r of generic) await this.markMissing(r.id, at);
+    const denylisted = new Set(options.dryRun ? options.denylisted : []);
     // sem tabelas de times e competições na memória: conta os logos ausentes que seriam desligados
     const missing = this.rows.filter(
-      (r) => LOGO_KINDS.has(r.kind) && ((!r.storageKey && r.fetchedAt) || generic.includes(r)),
+      (r) =>
+        LOGO_KINDS.has(r.kind) &&
+        ((!r.storageKey && r.fetchedAt) ||
+          generic.includes(r) ||
+          (r.storageKey && denylisted.has(normalizeMediaUrl(r.sourceUrl) ?? ''))),
     );
     if (!options.dryRun) for (const r of missing) this.detachedLogos.add(r.id);
     return { placeholders: generic.length, participants: missing.length, competitions: 0 };
@@ -254,19 +274,26 @@ export class InMemoryAssetStore implements AssetStore {
     return { total: this.rows.length, stored, missing, pending: this.rows.length - stored - missing };
   }
 
-  async paletteCandidates(limit?: number): Promise<PaletteCandidate[]> {
-    const rows = this.rows.filter(
-      (r) =>
-        r.kind === 'team_logo' &&
-        r.storageKey?.toLowerCase().endsWith('.png') &&
-        !r.palette &&
-        !PLACEHOLDER_LOGO_SHA256.has(r.sha256 ?? ''),
-    );
+  async paletteCandidates(limit?: number, after?: string): Promise<PaletteCandidate[]> {
+    const start = after ? this.rows.findIndex((r) => r.id === after) + 1 : 0;
+    const rows = this.rows
+      .slice(start)
+      .filter(
+        (r) =>
+          r.kind === 'team_logo' &&
+          r.storageKey?.toLowerCase().endsWith('.png') &&
+          !r.palette &&
+          !PLACEHOLDER_LOGO_SHA256.has(r.sha256 ?? ''),
+      );
     return rows.slice(0, limit ?? rows.length).map((r) => ({ id: r.id, storageKey: r.storageKey! }));
   }
 
   async savePalette(id: string, palette: AssetPalette): Promise<void> {
     this.rows.find((r) => r.id === id)!.palette = palette;
+  }
+
+  async savePalettes(items: readonly { id: string; palette: AssetPalette }[]): Promise<void> {
+    for (const { id, palette } of items) await this.savePalette(id, palette);
   }
 }
 
@@ -274,6 +301,13 @@ export class InMemoryAssetStore implements AssetStore {
 
 /** Mesma expressão de normalizeMediaUrl, para casar URLs gravadas com variações de host/protocolo. */
 const MEDIA_URL_SQL = `^https?://media(-[0-9]+)?\\.api-sports\\.io/`;
+
+/** Regex das URLs da CDN de mídia, opcionalmente só as sob um caminho (`--caminho volley`). */
+function mediaUrlPattern(pathPrefix: string | undefined): string {
+  if (!pathPrefix) return MEDIA_URL_SQL;
+  const path = mediaPathPrefix(pathPrefix).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return MEDIA_URL_SQL.replace(/\/$/, '') + path;
+}
 
 /** Colunas zeradas quando o asset sai do storage (404, bloqueado). */
 const UNLINKED = {
@@ -285,20 +319,54 @@ const UNLINKED = {
   palette: null,
 } as const;
 
+/** O banco ou uma transação aberta. */
+type Executor = Pick<Database, 'selectDistinct' | 'execute'>;
+
+/** Times (core.participant) que usam algum destes assets como logo, do fornecedor ou do acervo. */
+export async function teamsUsing(db: Executor, assetIds: string[]): Promise<string[]> {
+  if (!assetIds.length) return [];
+  const rows = await db
+    .selectDistinct({ id: participant.id })
+    .from(participant)
+    .where(or(inArray(participant.logoAssetId, assetIds), inArray(participant.customLogoAssetId, assetIds)));
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Publica no change feed que o logo ou as cores (`colors`, da paleta do escudo) destes times mudaram: o
+ * consumidor da API purga `participant:<id>`. Não há trigger em core.asset, então quem grava ou limpa a paleta
+ * (ou desliga o logo) chama isto na mesma transação; o NOTIFY só sai no commit, e o consumidor purga junto as
+ * mudanças que chegam juntas — escrever em lote numa transação evita purgar a coleção `participant` a cada time.
+ */
+export async function publishTeamLogoChanges(db: Executor, participantIds: Iterable<string>): Promise<void> {
+  for (const id of new Set(participantIds)) {
+    await publishChange(db, {
+      topic: 'catalog',
+      entityType: 'participant',
+      entityId: id,
+      payload: { reason: 'logo' },
+    });
+  }
+}
+
 export class PgAssetStore implements AssetStore {
   constructor(private readonly db: Database) {}
 
   async pending(query: PendingQuery = {}): Promise<MirrorAsset[]> {
     if (query.personPhotos) return this.pendingPersonPhotos(query, query.personPhotos.since);
-    const conditions = [isNull(asset.storageKey), sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL}`];
+    const conditions = [
+      isNull(asset.storageKey),
+      sql`${asset.sourceUrl} ~* ${mediaUrlPattern(query.pathPrefix)}`,
+    ];
     if (!query.includeMissing) conditions.push(isNull(asset.fetchedAt));
-    if (query.pathPrefix) {
-      const path = mediaPathPrefix(query.pathPrefix).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      conditions.push(sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL.replace(/\/$/, '') + path}`);
-    }
     const q = this.db
       // só URLs da CDN de mídia (filtro acima): o tipo é sempre um MediaAssetKind
-      .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: sql<MediaAssetKind>`${asset.kind}` })
+      .select({
+        id: asset.id,
+        sourceUrl: asset.sourceUrl,
+        kind: sql<MediaAssetKind>`${asset.kind}`,
+        missing: MISSING_ASSET,
+      })
       .from(asset)
       .where(and(...conditions))
       .orderBy(asc(asset.createdAt), asc(asset.id));
@@ -306,23 +374,43 @@ export class PgAssetStore implements AssetStore {
   }
 
   async markStored(id: string, info: StoredInfo): Promise<void> {
-    await this.db.update(asset).set(info).where(eq(asset.id, id));
+    if (info.palette === undefined) {
+      await this.db.update(asset).set(info).where(eq(asset.id, id));
+      return;
+    }
+    await this.db.transaction(async (tx) => {
+      const [old] = await tx
+        .select({
+          changed: sql<boolean>`${asset.palette} is distinct from ${JSON.stringify(info.palette)}::jsonb`,
+        })
+        .from(asset)
+        .where(eq(asset.id, id));
+      await tx.update(asset).set(info).where(eq(asset.id, id));
+      if (old?.changed) await publishTeamLogoChanges(tx, await teamsUsing(tx, [id]));
+    });
   }
 
   private async pendingPersonPhotos(query: PendingQuery, since: Date): Promise<MirrorAsset[]> {
+    const urlPattern = mediaUrlPattern(query.pathPrefix);
     const ids = await pendingPersonPhotoIds(this.db, {
       since,
       includeMissing: query.includeMissing,
       limit: query.limit,
+      urlPattern,
     });
     const rows: MirrorAsset[] = [];
     for (let i = 0; i < ids.length; i += 1000) {
       const chunk = ids.slice(i, i + 1000);
       rows.push(
         ...(await this.db
-          .select({ id: asset.id, sourceUrl: asset.sourceUrl, kind: sql<MediaAssetKind>`${asset.kind}` })
+          .select({
+            id: asset.id,
+            sourceUrl: asset.sourceUrl,
+            kind: sql<MediaAssetKind>`${asset.kind}`,
+            missing: MISSING_ASSET,
+          })
           .from(asset)
-          .where(and(inArray(asset.id, chunk), sql`${asset.sourceUrl} ~* ${MEDIA_URL_SQL}`))),
+          .where(and(inArray(asset.id, chunk), sql`${asset.sourceUrl} ~* ${urlPattern}`))),
       );
     }
     const order = new Map(ids.map((id, i) => [id, i]));
@@ -331,6 +419,11 @@ export class PgAssetStore implements AssetStore {
 
   async markMissing(id: string, at: Date, options: MissingOptions = {}): Promise<void> {
     await this.db.transaction(async (tx) => {
+      // os times perdem o logo ou as cores (a paleta é zerada): antes de desligar, para ainda achá-los
+      const [old] = options.detachLogos
+        ? [undefined]
+        : await tx.select({ palette: asset.palette }).from(asset).where(eq(asset.id, id));
+      if (options.detachLogos || old?.palette) await publishTeamLogoChanges(tx, await teamsUsing(tx, [id]));
       await tx
         .update(asset)
         .set({ ...UNLINKED, fetchedAt: at })
@@ -393,12 +486,23 @@ export class PgAssetStore implements AssetStore {
     const placeholders = [...(options.placeholders ?? PLACEHOLDER_LOGO_SHA256)];
     const logoKinds = inArray(asset.kind, [...LOGO_KIND_VALUES]);
     const generic = and(logoKinds, isNotNull(asset.storageKey), inArray(asset.sha256, placeholders));
-    // no dry run os genéricos ainda estão no storage: contam como ausentes para a prévia dos desligados
+    // no dry run os genéricos e os bloqueados (o unlink foi pulado) ainda estão no storage: contam como
+    // ausentes para a prévia dos desligados
+    const denied = options.dryRun
+      ? await this.idsByMediaUrl(options.denylisted ?? [], and(logoKinds, isNotNull(asset.storageKey)))
+      : [];
     const missingLogo = (dryRun: boolean) =>
       this.db
         .select({ id: asset.id })
         .from(asset)
-        .where(and(logoKinds, dryRun ? or(MISSING_ASSET, generic) : MISSING_ASSET));
+        .where(
+          and(
+            logoKinds,
+            dryRun
+              ? or(MISSING_ASSET, generic, denied.length ? inArray(asset.id, denied) : undefined)
+              : MISSING_ASSET,
+          ),
+        );
     if (options.dryRun) {
       const [row] = await this.db.execute<{
         placeholders: number;
@@ -428,23 +532,35 @@ export class PgAssetStore implements AssetStore {
         .set({ logoAssetId: null, updatedAt: sql`now()` })
         .where(inArray(competition.logoAssetId, missingLogo(false)))
         .returning({ id: competition.id });
+      await publishTeamLogoChanges(
+        tx,
+        parts.map((p) => p.id),
+      );
       return { placeholders: stored.length, participants: parts.length, competitions: comps.length };
     });
   }
 
-  async unlink(urls: string[], at: Date): Promise<number> {
-    if (!urls.length) return 0;
+  /** Ids dos assets (filtrados por `where`) cuja URL normalizada está em `urls`. */
+  private async idsByMediaUrl(urls: readonly string[], where: SQL | undefined): Promise<string[]> {
+    if (!urls.length) return [];
     const candidates = await this.db
       .select({ id: asset.id, sourceUrl: asset.sourceUrl })
       .from(asset)
-      .where(isNotNull(asset.storageKey));
+      .where(where);
     const set = new Set(urls);
-    const ids = candidates.filter((c) => set.has(normalizeMediaUrl(c.sourceUrl) ?? '')).map((c) => c.id);
+    return candidates.filter((c) => set.has(normalizeMediaUrl(c.sourceUrl) ?? '')).map((c) => c.id);
+  }
+
+  async unlink(urls: string[], at: Date): Promise<number> {
+    const ids = await this.idsByMediaUrl(urls, isNotNull(asset.storageKey));
     if (!ids.length) return 0;
-    await this.db
-      .update(asset)
-      .set({ ...UNLINKED, fetchedAt: at })
-      .where(inArray(asset.id, ids));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(asset)
+        .set({ ...UNLINKED, fetchedAt: at })
+        .where(inArray(asset.id, ids));
+      await publishTeamLogoChanges(tx, await teamsUsing(tx, ids));
+    });
     return ids.length;
   }
 
@@ -474,7 +590,7 @@ export class PgAssetStore implements AssetStore {
     return { total, stored, missing, pending: total - stored - missing };
   }
 
-  async paletteCandidates(limit?: number): Promise<PaletteCandidate[]> {
+  async paletteCandidates(limit?: number, after?: string): Promise<PaletteCandidate[]> {
     const q = this.db
       .select({ id: asset.id, storageKey: sql<string>`${asset.storageKey}` })
       .from(asset)
@@ -484,6 +600,9 @@ export class PgAssetStore implements AssetStore {
           isNull(asset.palette),
           sql`lower(${asset.storageKey}) like '%.png'`,
           or(isNull(asset.sha256), notInArray(asset.sha256, [...PLACEHOLDER_LOGO_SHA256])),
+          after
+            ? sql`(${asset.createdAt}, ${asset.id}) > (select created_at, id from core.asset where id = ${after})`
+            : undefined,
         ),
       )
       .orderBy(asc(asset.createdAt), asc(asset.id));
@@ -491,20 +610,39 @@ export class PgAssetStore implements AssetStore {
   }
 
   async savePalette(id: string, palette: AssetPalette): Promise<void> {
-    await this.db.update(asset).set({ palette }).where(eq(asset.id, id));
+    await this.savePalettes([{ id, palette }]);
+  }
+
+  async savePalettes(items: readonly { id: string; palette: AssetPalette }[]): Promise<void> {
+    if (!items.length) return;
+    await this.db.transaction(async (tx) => {
+      const changed: string[] = [];
+      for (const { id, palette } of items) {
+        // paleta igual à gravada: nada a purgar
+        const rows = await tx
+          .update(asset)
+          .set({ palette })
+          .where(
+            and(eq(asset.id, id), sql`${asset.palette} is distinct from ${JSON.stringify(palette)}::jsonb`),
+          )
+          .returning({ id: asset.id });
+        changed.push(...rows.map((r) => r.id));
+      }
+      await publishTeamLogoChanges(tx, await teamsUsing(tx, changed));
+    });
   }
 
   /**
    * Varre os corpos em raw.api_response e devolve, normalizadas e sem repetição, todas as URLs de mídia —
    * cobre os 12 esportes e qualquer tipo de imagem (times, jogadores, estádios...) sem adivinhar IDs.
    */
-  async discoverFromRaw(since?: Date): Promise<string[]> {
+  async discoverFromRaw(since?: Date, after?: RawWatermark): Promise<string[]> {
     const pattern = `https?://media(-[0-9]+)?\\.api-sports\\.io(/[A-Za-z0-9_.-]+)+`;
     const rows = await this.db.execute<{ url: string }>(sql`
       select distinct m[1] as url
       from ${apiResponse} r,
         lateral regexp_matches(r.body::text, ${`(${pattern})`}, 'g') as m
-      where ${since ? sql`r.fetched_at >= ${since}` : sql`true`}
+      where ${rawWindow(since, after)}
     `);
     const urls = new Set<string>();
     for (const r of rows) {
@@ -512,5 +650,94 @@ export class PgAssetStore implements AssetStore {
       if (normalized) urls.add(normalized);
     }
     return [...urls].sort();
+  }
+}
+
+/**
+ * Marca d'água da descoberta: o maior `raw.api_response.id` visível no início dela e o intervalo de transações
+ * (xid8) ainda em andamento naquele instante (`pg_snapshot_xmin`/`xmax` do mesmo snapshot). Uma transação em
+ * andamento pode ter reservado um id abaixo da marca e commitar depois; as linhas dela entram na descoberta
+ * seguinte pelo xmin, então nada fica para trás mesmo com `fetched_at` retroativo (raw:import, snapshot:import).
+ */
+export interface RawWatermark {
+  maxRawId: number;
+  xmin: number;
+  xmax: number;
+}
+
+const XID_SPACE = 4_294_967_296; // o xmin da linha é o xid de 32 bits
+
+/**
+ * Janela da descoberta incremental: o raw acima da marca, ou gravado por uma transação que estava em andamento
+ * quando a marca foi tirada (xid em [xmin, xmax), comparado no espaço circular de 32 bits; as que já tinham
+ * commitado são relidas, sem efeito). `since` filtra por `fetched_at`. Sem nada: a tabela inteira.
+ */
+function rawWindow(since: Date | undefined, after: RawWatermark | undefined): SQL {
+  const conditions: SQL[] = [];
+  if (after) {
+    const xmin32 = after.xmin % XID_SPACE;
+    const span = Math.max(0, after.xmax - after.xmin);
+    conditions.push(
+      sql`(r.id > ${after.maxRawId} or ((r.xmin::text::bigint - ${xmin32} + ${XID_SPACE}) % ${XID_SPACE}) < ${span})`,
+    );
+  }
+  if (since) conditions.push(sql`r.fetched_at >= ${since.toISOString()}::timestamptz`);
+  return conditions.length ? sql.join(conditions, sql` and `) : sql`true`;
+}
+
+export interface RawDiscoveryReport {
+  /** Marca d'água da descoberta anterior (o que já tinha sido varrido); null = varreu a tabela inteira. */
+  after: RawWatermark | null;
+  /** Marca d'água desta descoberta, gravada em `job_run.stats` para a próxima. */
+  watermark: RawWatermark;
+  urls: number;
+  added: number;
+}
+
+/**
+ * `--descobrir-raw`: registra em core.asset as URLs de mídia do raw (fora as bloqueadas). Incremental: só o raw
+ * que a descoberta anterior concluída (`ops.job_run` `assets:discover-raw`, `stats.watermark`) não podia ter
+ * visto, para o job diário não varrer a tabela inteira; a primeira execução (ou `full`) varre tudo.
+ */
+export async function runRawDiscovery(
+  db: Database,
+  store: PgAssetStore,
+  options: { denylist: MediaDenylist; full?: boolean | undefined },
+): Promise<RawDiscoveryReport> {
+  const [last] = options.full
+    ? []
+    : await db
+        .select({ watermark: sql<RawWatermark | null>`${jobRun.stats}->'watermark'` })
+        .from(jobRun)
+        .where(and(eq(jobRun.job, 'assets:discover-raw'), eq(jobRun.status, 'ok')))
+        .orderBy(desc(jobRun.startedAt))
+        .limit(1);
+  // sem marca d'água completa (execução anterior a ela), varre tudo de novo
+  const w = last?.watermark;
+  const after = w && [w.maxRawId, w.xmin, w.xmax].every(Number.isFinite) ? w : null;
+  const [run] = await db.insert(jobRun).values({ job: 'assets:discover-raw', status: 'running' }).returning();
+  try {
+    // o maior id e as transações em andamento saem do mesmo snapshot (o desta consulta)
+    const [top] = await db.execute<{ max: string | null; xmin: string; xmax: string }>(sql`
+      select max(id)::text as max,
+        pg_snapshot_xmin(pg_current_snapshot())::text as xmin,
+        pg_snapshot_xmax(pg_current_snapshot())::text as xmax
+      from ${apiResponse}
+    `);
+    const watermark = { maxRawId: Number(top?.max ?? 0), xmin: Number(top!.xmin), xmax: Number(top!.xmax) };
+    const urls = await store.discoverFromRaw(undefined, after ?? undefined);
+    const added = await store.register(urls.filter((u) => !options.denylist.has(u)));
+    const report = { after, watermark, urls: urls.length, added };
+    await db
+      .update(jobRun)
+      .set({ status: 'ok', finishedAt: new Date(), stats: report })
+      .where(eq(jobRun.id, run!.id));
+    return report;
+  } catch (err) {
+    await db
+      .update(jobRun)
+      .set({ status: 'error', finishedAt: new Date(), error: String(err) })
+      .where(eq(jobRun.id, run!.id));
+    throw err;
   }
 }
