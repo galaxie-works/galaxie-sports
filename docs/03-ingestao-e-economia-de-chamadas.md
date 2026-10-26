@@ -93,7 +93,7 @@ flowchart LR
 
 ## 3. Fase A — Bootstrap do futebol (plano Pro)
 
-Ordem de execução e custo estimado para as **76 competições** do catálogo (46 tier 1 + 30 tier 2):
+Ordem de execução e custo estimado para as **145 competições** do catálogo (46 tier 1 + 99 tier 2):
 
 | # | Passo | Chamadas | Observação |
 |---|---|---|---|
@@ -101,24 +101,26 @@ Ordem de execução e custo estimado para as **76 competições** do catálogo (
 | 2 | Por competição × temporada: `fixtures?league&season`, `teams?league&season` (traz o estádio), `standings`, `fixtures/rounds?dates=true`, `injuries?league&season`, 4 rankings (`players/top*`) | 9 por temporada | Ler `coverage` antes: não chamar o que é `false` |
 | 3 | Detalhe de partidas: `fixtures?ids=` com 20 jogos | jogos ÷ 20 | Eventos, escalações, estatísticas e jogadores embutidos |
 | 4 | Estatísticas de jogadores: `players?league&season` (20/pág.) | ~30 por temporada | Só tier 1; tier 2 usa o que vem no detalhe da partida |
-| 5 | Por time: `players/squads`, `coachs?team`, `transfers?team` | 3 por time | ~1.100 times únicos |
+| 5 | Por time: `players/squads`, `coachs?team`, `transfers?team` | 3 por time | ~1.900 times únicos |
 | 6 | Por pessoa em lotes de 20: `trophies?players`, `sidelined?players` | 2 por 20 pessoas | Somente elencos atuais tier 1 |
 | 7 | H2H de todos os clássicos da base semântica: `fixtures/headtohead?h2h=` | 1 por clássico | ~100 clássicos |
 | 8 | `venues?country` para os países do catálogo | 1 por país | ~30 |
 
-> ✅ **Passo 1 executado em 21/10/2026** (`pnpm --filter @galaxie/ingestor bootstrap:catalog`): 170 países, **1.249 competições**, **8.781 temporadas** com cobertura e 1.418 logos/bandeiras registrados para o Asset Mirror — custo de **6 chamadas** (`/countries` e `/leagues` vieram do raw). As 76 competições de `config/competitions/football.yaml` conferem com o `/leagues` real. Como a política padrão protege 80 chamadas para DAILY/LIVE e cede só 5 ao BOOTSTRAP, o job aceita `--sem-live` para planejar o dia sem ao vivo enquanto não houver jogos sendo acompanhados.
+> ✅ **Passo 1 executado em 21/10/2026** (`pnpm --filter @galaxie/ingestor bootstrap:catalog`): 170 países, **1.249 competições**, **8.781 temporadas** com cobertura e 1.418 logos/bandeiras registrados para o Asset Mirror — custo de **6 chamadas** (`/countries` e `/leagues` vieram do raw). As 76 competições de `config/competitions/football.yaml` daquele dia conferem com o `/leagues` real; as 69 do tier 2 acrescentadas em 22/10 (#166) foram conferidas no `/leagues` do raw. Como a política padrão protege 80 chamadas para DAILY/LIVE e cede só 5 ao BOOTSTRAP, o job aceita `--sem-live` para planejar o dia sem ao vivo enquanto não houver jogos sendo acompanhados.
 
 **Estimativa** (temporada atual + 5 temporadas históricas para tier 1; atual + 2 para tier 2):
 
 | Bloco | Cálculo | Chamadas |
 |---|---|---|
-| Listas por temporada | (46 × 6 + 30 × 3) × 9 | ≈ 3.300 |
-| Detalhe de partidas | ≈ 110.000 jogos ÷ 20 | ≈ 5.500 |
+| Listas por temporada | (46 × 6 + 99 × 3) × 9 | ≈ 5.200 |
+| Detalhe de partidas | (≈ 110.000 + ≈ 22.000) jogos ÷ 20 | ≈ 6.600 |
 | Jogadores tier 1 | 46 × 6 × 30 | ≈ 8.300 |
-| Times (squads/coachs/transfers) | 1.100 × 3 | ≈ 3.300 |
+| Times (squads/coachs/transfers) | 1.900 × 3 | ≈ 5.700 |
 | Pessoas (trophies/sidelined) | ≈ 15.000 ÷ 20 × 2 | ≈ 1.500 |
 | H2H + venues + referência | | ≈ 150 |
-| **Total** | | **≈ 22.000 → ~3 dias de Pro** |
+| **Total** | | **≈ 27.000 → ~4 dias de Pro** |
+
+As 69 competições do tier 2 acrescentadas em 22/10 (#166) somam ≈ 22.000 jogos em 3 temporadas: cerca de 7.300 por temporada, sobretudo nas 14 segundas divisões (~300 jogos cada), nos 8 femininos (~150) e nos estaduais (~60); as supercopas têm 1 a 3 jogos. Também trazem ≈ 800 times novos, entre estaduais, segundas divisões, femininos e clubes das divisões de baixo que entram nas copas. Os dois números são estimativas: o `--plan` de cada job dá o custo real a partir do raw.
 
 Com 30 dias de Pro, sobra cota para estender o histórico (todas as temporadas disponíveis das competições tier 1) e para fazer o mesmo nas outras APIs que precisarem.
 
@@ -450,19 +452,19 @@ Implementação: [`services/ingestor/src/jobs`](../services/ingestor/src/jobs). 
 
 ¹ só quando o `coverage` da temporada não é `false`.
 
-### 11.1 Custo estimado (catálogo real: 46 competições tier 1 + 30 tier 2)
+### 11.1 Custo estimado (catálogo real: 46 competições tier 1 + 99 tier 2)
 
-Números de `--plan` sobre o catálogo carregado em 21/10/2026 (raw só com a referência global) e, onde o plano depende de listas ainda não baixadas, pelas fórmulas de §3.
+Números de `--plan` sobre o catálogo carregado em 21/10/2026 (76 competições, raw só com a referência global) somados, para as 69 do tier 2 acrescentadas em 22/10, à estimativa pelas fórmulas de §3 (3 temporadas cada, ≈ 8 chamadas por temporada, como no `--plan`). Onde o plano depende de listas ainda não baixadas, valem as fórmulas de §3.
 
 | Job | Free | Pro |
 |---|---|---|
-| `bootstrap:seasons` | **1.573** chamadas (197 temporadas 2022–2024; 219 puladas pelo `coverage`) → ~40 dias a 40/dia | **4.071** (514 temporadas: todas as iniciadas no tier 1, as 3 mais recentes no tier 2; 574 puladas) → < 1 dia |
+| `bootstrap:seasons` | **1.573** chamadas medidas para as 76 (197 temporadas 2022–2024; 219 puladas pelo `coverage`) + ≈ 1.650 das 69 (207 temporadas) ≈ **3.200** → ~80 dias a 40/dia | **4.071** medidas para as 76 (514 temporadas: todas as iniciadas no tier 1, as 3 mais recentes no tier 2; 574 puladas) + ≈ 1.650 das 69 ≈ **5.700** → ~1 dia |
 | `--h2h-temporada-atual` | ≈ 150 por liga (27 ligas tier 1 → ≈ 4.000; use `--ligas` para priorizar) | 0 (a temporada atual vem por `season`) |
-| `bootstrap:details` | 1 por jogo, só clássicos/decisivos (centenas) | ≈ partidas encerradas ÷ 20 (≈ 5.500 para ~110 mil jogos) |
-| `bootstrap:people` | ≈ 3.300 (times) + ≈ 2.000 (pessoas) + 82 (clássicos) — mesmo custo do Pro, mas ~135 dias | ≈ 5.400 → < 1 dia |
+| `bootstrap:details` | 1 por jogo, só clássicos/decisivos (centenas) | ≈ partidas encerradas ÷ 20 (≈ 6.600 para ~132 mil jogos) |
+| `bootstrap:people` | ≈ 5.700 (times) + ≈ 2.000 (pessoas) + 82 (clássicos) — mesmo custo do Pro, mas ~195 dias | ≈ 7.800 → ~1 dia |
 | `sync:daily` | ≤ 45/dia: 5 fixas + até 35 detalhes + 5 do rodízio | ≈ 5 + ⌈encerrados ÷ 20⌉ + 200 do rodízio |
 
-A estimativa de dias do `--plan` usa limite − reserva − sync diário (free 40/dia, Pro 6.275/dia), supondo `--sem-live`; ajuste com `--por-dia`. O total do Pro fica em ≈ 15–17 mil chamadas para listas + detalhe + pessoas — dentro dos ~22 mil de §3 (que incluíam `players?league&season` de todas as temporadas tier 1, opcional aqui).
+A estimativa de dias do `--plan` usa limite − reserva − sync diário (free 40/dia, Pro 6.275/dia), supondo `--sem-live`; ajuste com `--por-dia`. O total do Pro fica em ≈ 19–21 mil chamadas para listas + detalhe + pessoas — dentro dos ~27 mil de §3 (que incluíam `players?league&season` de todas as temporadas tier 1, opcional aqui).
 
 ### 11.2 Ambiente local sem chave
 
