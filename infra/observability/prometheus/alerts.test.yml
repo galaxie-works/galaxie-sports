@@ -126,3 +126,174 @@ tests:
             exp_annotations:
               summary: 'Coletor de métricas quota falhando'
               description: 'A consulta ao banco para as métricas falha há 5 minutos (banco indisponível?).'
+
+  - name: verificador e ensaio de restauração alertam na 1ª falha, sem repetir o JobFailingRepeatedly
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_consecutive_failures{job_name="backup-check"}'
+        values: '0 1 1 3 3'
+      - series: 'galaxie_job_consecutive_failures{job_name="pg-restore-drill"}'
+        values: '0 0 1 3 3'
+    alert_rule_test:
+      - eval_time: 0m
+        alertname: BackupCheckFailed
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: BackupCheckFailed
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job_name: backup-check
+            exp_annotations:
+              summary: 'Verificação do backup falhou'
+              description: 'Último dump atrasado ou cópia do NAS sem recibo recente. Veja ops.job_run (job backup-check, coluna error) e os logs do container backup.'
+      - eval_time: 2m
+        alertname: RestoreDrillFailed
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job_name: pg-restore-drill
+            exp_annotations:
+              summary: 'Ensaio de restauração do backup falhou'
+              description: 'O dump mais recente não restaurou ou não passou na conferência. Veja ops.job_run (job pg-restore-drill, coluna error) e o runbook docs/runbooks/exercicio-dr.md.'
+      - eval_time: 4m
+        alertname: JobFailingRepeatedly
+        exp_alerts: []
+
+  - name: ensaio de restauração sem sucesso há mais de 35 dias
+    # Amostra por minuto: com 1 h entre amostras, a série some fora do lookback de 5 min e o `for: 1h` nunca se cumpre.
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="pg-restore-drill"}'
+        values: '0x52000'
+    alert_rule_test:
+      - eval_time: 34d
+        alertname: RestoreDrillStale
+        exp_alerts: []
+      - eval_time: 36d
+        alertname: RestoreDrillStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job_name: pg-restore-drill
+            exp_annotations:
+              summary: 'Nenhum ensaio de restauração com sucesso há 36d 0h 0m 0s'
+              description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês (sem nenhum sucesso, a idade conta do início do verificador). Confira RESTORE_DRILL_DAY e os logs do container backup.'
+
+  # ensaio que nunca teve sucesso: sem a série do último sucesso, conta da 1ª execução do verificador
+  - name: ensaio que nunca teve sucesso vira stale 35 dias depois do início do verificador
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_first_run_timestamp_seconds{job_name="backup-check"}'
+        values: '0x52000'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: RestoreDrillStale
+        exp_alerts: []
+      - eval_time: 34d
+        alertname: RestoreDrillStale
+        exp_alerts: []
+      - eval_time: 36d
+        alertname: RestoreDrillStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job_name: pg-restore-drill
+            exp_annotations:
+              summary: 'Nenhum ensaio de restauração com sucesso há 36d 0h 0m 0s'
+              description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês (sem nenhum sucesso, a idade conta do início do verificador). Confira RESTORE_DRILL_DAY e os logs do container backup.'
+
+  - name: verificador antigo e ensaio com sucesso recente não alertam
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_first_run_timestamp_seconds{job_name="backup-check"}'
+        values: '0x52000'
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="pg-restore-drill"}'
+        values: '0+60x52000'
+    alert_rule_test:
+      - eval_time: 36d
+        alertname: RestoreDrillStale
+        exp_alerts: []
+
+  - name: disco acima de 85% por 15 minutos
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_size_bytes{job="node",instance="node-exporter:9100",device="/dev/sda1",fstype="ext4",mountpoint="/data/promdata"}'
+        values: '1000x30'
+      - series: 'node_filesystem_avail_bytes{job="node",instance="node-exporter:9100",device="/dev/sda1",fstype="ext4",mountpoint="/data/promdata"}'
+        values: '200x5 100x25'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: DiskAlmostFull
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: DiskAlmostFull
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: node
+              instance: node-exporter:9100
+              device: /dev/sda1
+              fstype: ext4
+              mountpoint: /data/promdata
+            exp_annotations:
+              summary: 'Disco /dev/sda1 com 90% ocupado'
+              description: 'Acima de 85%. O ensaio de restauração precisa de 2x o tamanho do banco livre; veja docker system df (sem prune) e os dumps em /backups.'
+
+  - name: node-exporter fora do ar
+    interval: 1m
+    input_series:
+      - series: 'up{job="node",instance="node-exporter:9100"}'
+        values: '1 0x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: NodeExporterDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node
+              instance: node-exporter:9100
+            exp_annotations:
+              summary: 'node-exporter fora do ar: sem medida de disco'
+              description: 'O alvo node-exporter:9100 não responde há 10 minutos; o alerta DiskAlmostFull fica cego.'
+
+  - name: fila do change feed parada
+    interval: 1m
+    input_series:
+      - series: 'galaxie_change_feed_pending_age_seconds{consumer="demo-cache:demo"}'
+        values: '0 0 700+60x10'
+      - series: 'galaxie_change_feed_pending_age_seconds{consumer="webhooks:default"}'
+        values: '0x12'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ChangeFeedStalled
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: ChangeFeedStalled
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              consumer: demo-cache:demo
+            exp_annotations:
+              summary: 'Fila do change feed parada para demo-cache:demo'
+              description: 'A mudança pendente mais antiga tem 17m 40s. Veja se o consumidor está no ar (demo, worker de webhooks) e o cursor dele.'
+
+  - name: API fora do ar por 2 minutos
+    interval: 1m
+    input_series:
+      - series: 'up{job="galaxie-api",instance="api:8080"}'
+        values: '1 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: ApiDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: ApiDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: galaxie-api
+              instance: api:8080
+            exp_annotations:
+              summary: 'API fora do ar para o Prometheus'
+              description: 'O alvo api:8080 não responde ao /metrics há 2 minutos.'

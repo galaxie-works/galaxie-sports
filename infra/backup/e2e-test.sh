@@ -63,4 +63,23 @@ run restore.sh --yes latest
 [ "$(psql_e2e "select count(*) from ops.job_run where status = 'running'")" = 0 ]
 [ -n "$(psql_admin "select datname from pg_database where datname like '${E2E_DB}_pre_restore_%'")" ]
 
-echo "OK: backup e restauração verificados"
+echo "7) verificador (backup-check.sh) com o dump de agora"
+run backup-check.sh
+[ "$(psql_e2e "select status from ops.job_run where job = 'backup-check' order by started_at desc limit 1")" = ok ]
+
+echo "8) ensaio de restauração no schema real (banco de CI sem partidas: só ops.job_run e sem a checagem de partida)"
+run env RESTORE_DRILL_TABLES=ops.job_run RESTORE_DRILL_EVENT_MAX_AGE_H=0 restore-drill.sh
+[ "$(psql_e2e "select status from ops.job_run where job = 'pg-restore-drill' order by started_at desc limit 1")" = ok ]
+[ -z "$(psql_admin "select datname from pg_database where datname like '${E2E_DB}_drill_%'")" ]
+# com a checagem padrão o banco de CI (sem core.event) falha, registra o erro e também não deixa o temporário
+if run restore-drill.sh >/dev/null 2>&1; then echo "ensaio sem partidas deveria falhar" >&2; exit 1; fi
+[ "$(psql_e2e "select status from ops.job_run where job = 'pg-restore-drill' order by started_at desc limit 1")" = error ]
+[ -z "$(psql_admin "select datname from pg_database where datname like '${E2E_DB}_drill_%'")" ]
+
+echo "9) retenção por contagem (BACKUP_KEEP_DAILY=2)"
+run sh -c "for d in 01 02 03; do : > /backups/${E2E_DB}_202001\${d}T033000Z.dump; done"
+run env BACKUP_KEEP_DAILY=2 backup.sh
+[ "$(run sh -c 'ls /backups/*.dump | wc -l')" = 2 ]
+[ -z "$(run sh -c 'ls /backups/*_202001*.dump 2>/dev/null')" ]
+
+echo "OK: backup, restauração, verificador, ensaio e retenção verificados"
