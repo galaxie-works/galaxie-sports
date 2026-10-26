@@ -22,6 +22,7 @@ import {
   teamProfile,
   type Database,
 } from '@galaxie/db';
+import { publishTeamLogoChanges, teamsUsing } from '../asset-store.js';
 import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
 import { paletteFromPng, type AssetPalette } from '../palette.js';
@@ -297,16 +298,22 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
         acervo: id,
       };
       const { sourceUrl: _url, ...updatable } = values;
-      const [row] = await db
-        .insert(asset)
-        .values(values)
-        .onConflictDoUpdate({
-          target: asset.sourceUrl,
-          set: updatable,
-          // só regrava quando algo mudou: rodar de novo não toca o banco
-          setWhere: sql`${asset.sha256} is distinct from ${hash} or ${asset.storageKey} is distinct from ${storageKey} or ${asset.palette} is null`,
-        })
-        .returning({ id: asset.id });
+      // a regravação de um asset já ligado e o aviso aos times que o usam saem juntos: se um item seguinte
+      // falhar, o que já foi gravado já foi publicado
+      const row = await db.transaction(async (tx) => {
+        const [upserted] = await tx
+          .insert(asset)
+          .values(values)
+          .onConflictDoUpdate({
+            target: asset.sourceUrl,
+            set: updatable,
+            // só regrava quando algo mudou: rodar de novo não toca o banco
+            setWhere: sql`${asset.sha256} is distinct from ${hash} or ${asset.storageKey} is distinct from ${storageKey} or ${asset.palette} is null`,
+          })
+          .returning({ id: asset.id });
+        if (upserted) await publishTeamLogoChanges(tx, await teamsUsing(tx, [upserted.id]));
+        return upserted;
+      });
       const assetId =
         row?.id ??
         (await db.select({ id: asset.id }).from(asset).where(eq(asset.sourceUrl, sourceUrl)))[0]!.id;
@@ -320,6 +327,8 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
   }
 
   await db.transaction(async (tx) => {
+    // times ligados ou desligados: purgados do cache da API pelo change feed (os regravados já foram)
+    const teams: string[] = [];
     for (const [ref, assetId] of assetIdFor) {
       const [kind, targetId] = ref.split(':') as ['team' | 'competition', string];
       const table = kind === 'team' ? participant : competition;
@@ -329,6 +338,7 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
         .where(and(eq(table.id, targetId), sql`${table.customLogoAssetId} is distinct from ${assetId}`))
         .returning({ id: table.id });
       report.changed += updated.length;
+      if (kind === 'team') teams.push(...updated.map((u) => u.id));
     }
     // quem aponta para um asset deste acervo e não está mais no manifesto perde o vínculo
     for (const r of await linkedToAcervo(tx, id)) {
@@ -340,7 +350,9 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
         .set({ customLogoAssetId: null, updatedAt: sql`now()` })
         .where(and(eq(table.id, r.targetId), eq(table.customLogoAssetId, r.assetId)));
       report.detached += 1;
+      if (r.kind === 'team') teams.push(r.targetId);
     }
+    await publishTeamLogoChanges(tx, teams);
   });
   return report;
 }
@@ -388,6 +400,10 @@ export async function detachAcervo(db: Database, id: string, dryRun = false): Pr
         .set({ customLogoAssetId: null, updatedAt: sql`now()` })
         .where(eq(table.id, r.targetId));
     }
+    await publishTeamLogoChanges(
+      tx,
+      rows.filter((r) => r.kind === 'team').map((r) => r.targetId),
+    );
   });
   return rows.length;
 }

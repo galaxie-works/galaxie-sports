@@ -334,8 +334,15 @@
     {
       "idx": 47,
       "version": "7",
-      "when": 1792972005724,
-      "tag": "0047_falhas_da_normalizacao",
+      "when": 1792971767174,
+      "tag": "0047_wtw_research_falhas",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1792975883580,
+      "tag": "0048_falhas_da_normalizacao",
       "breakpoints": true
     }
   ]

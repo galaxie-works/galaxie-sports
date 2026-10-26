@@ -1,5 +1,5 @@
 {
-  "id": "7677dcf9-7ac0-4cf2-8155-601c467d72de",
+  "id": "fa0c35be-bbeb-4138-a195-790e99541ab1",
   "prevId": "26a3c3c6-5b23-475b-a200-4b054681c5f8",
   "version": "7",
   "dialect": "postgresql",
@@ -6971,6 +6971,13 @@
           "notNull": true,
           "default": "'running'"
         },
+        "failures": {
+          "name": "failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "requested_by": {
           "name": "requested_by",
           "type": "text",
@@ -8816,91 +8823,6 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "ops.normalize_failure": {
-      "name": "normalize_failure",
-      "schema": "ops",
-      "columns": {
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sport": {
-          "name": "sport",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "raw_id": {
-          "name": "raw_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "endpoint": {
-          "name": "endpoint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "first_failed_at": {
-          "name": "first_failed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "last_failed_at": {
-          "name": "last_failed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "poisoned_at": {
-          "name": "poisoned_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resolved_at": {
-          "name": "resolved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "normalize_failure_provider_sport_raw_id_pk": {
-          "name": "normalize_failure_provider_sport_raw_id_pk",
-          "columns": [
-            "provider",
-            "sport",
-            "raw_id"
-          ]
-        }
-      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

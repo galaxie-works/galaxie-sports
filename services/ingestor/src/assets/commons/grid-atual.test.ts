@@ -199,10 +199,14 @@ describe('escopo grid-atual', () => {
     expect(keys).not.toContain('driver/frederik-vesti');
   });
 
-  it('o carro da equipe vale pelos dois pilotos (sem piloto de destaque)', () => {
+  it('o carro da equipe vale pelos dois pilotos: é o destaque de cada um, sem o alvo do primeiro tirar o do outro', () => {
     const car = targets.find((t) => targetKey(t) === 'car/mercedes/2026') as CarTarget;
     expect(car.chassis).toEqual(['Mercedes F1 W17']);
-    expect(car.driver).toBeUndefined();
+    // Russell e Antonelli (a foto que cita um deles não é recusada como "outro piloto")
+    expect(car.drivers?.map((d) => d.f1dbId)).toEqual(['george-russell', 'kimi-antonelli']);
+    expect(car.others ?? []).not.toContain('Russell');
+    expect(car.others ?? []).not.toContain('Antonelli');
+    expect(keys.filter((k) => k === 'car/mercedes/2026')).toHaveLength(1);
   });
 
   it('o piloto leva as temporadas (época das fotos) e o carro de destaque pela mesma regra das lendas', () => {
