@@ -44,6 +44,8 @@ export interface MapOptions {
   ranker?: Ranker | null;
   /** Refaz também os alvos já ordenados pelo Gemini. */
   redo?: boolean;
+  /** Falhas seguidas do Gemini (fora o orçamento) que interrompem o lote (padrão 3). */
+  maxConsecutiveFailures?: number;
   log?: (m: string) => void;
   /** Busca das candidatas (a da Commons; injetável nos testes). */
   discover?: (client: WikimediaClient, target: CommonsTarget, thumbWidth: number) => Promise<Discovery>;
@@ -94,6 +96,10 @@ export async function mapCommons(
   });
   // orçamento de IA do dia esgotado (ou IA desligada): os alvos seguintes nem buscam as candidatas
   let noBudget: string | null = null;
+  // Gemini falhando em sequência (chave, cota, resposta cortada): para o lote em vez de insistir
+  let failures = 0;
+  let failedOut: string | null = null;
+  const maxFailures = opts.maxConsecutiveFailures ?? 3;
   for (const target of targets) {
     const key = targetKey(target);
     const prev = before.get(key);
@@ -104,6 +110,10 @@ export async function mapCommons(
     }
     if (opts.ranker && noBudget) {
       stats.push(empty(key, 'sem orçamento de IA', `pendente: ${noBudget}`));
+      continue;
+    }
+    if (opts.ranker && failedOut) {
+      stats.push(empty(key, 'gemini falhou', `pendente: ${failedOut}`));
       continue;
     }
     let d: Discovery;
@@ -135,10 +145,14 @@ export async function mapCommons(
           images.push({ body, mime: contentType?.split(';')[0] ?? f.mime, title: f.title });
         }
         judgements = await opts.ranker.rank(images, subjectOf(target), target.kind);
+        // nenhum julgamento para fotos enviadas não é "nenhuma foto boa": o alvo não vira ordenado sem fotos
+        if (!judgements.length) throw new Error(`nenhuma das ${images.length} fotos voltou julgada`);
+        failures = 0;
       } catch (err) {
         // sem a resposta do Gemini o alvo não muda: a próxima execução tenta de novo
         const budget = err instanceof BudgetExceededError;
         if (budget) noBudget = err.message;
+        else if (++failures >= maxFailures) failedOut = `Gemini falhou ${failures} vezes seguidas`;
         opts.log?.(
           budget
             ? `${key}: ${err.message} O alvo e os seguintes ficam como estavam (voltam na próxima execução).`

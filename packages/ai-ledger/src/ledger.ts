@@ -13,10 +13,11 @@
  * O limite é "macio" entre processos (a checagem lê o ledger; duas execuções simultâneas podem
  * ultrapassar por no máximo uma chamada cada) — suficiente para conter custo descontrolado.
  */
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, notInArray, sql } from 'drizzle-orm';
 import { llmUsage, type Database } from '@galaxie/db';
 import { AiDisabledError, BudgetExceededError } from './errors.js';
 import {
+  SEPARATE_TOKEN_POOLS,
   agentKey,
   describeAiState,
   formatUsdPt,
@@ -42,8 +43,11 @@ export interface UsageRecord {
 }
 
 export interface TokenBudgetStore {
-  /** Tokens (entrada + saída) usados no dia UTC — de um agente ou de todos. */
-  usedTokens(dayUtc: string, agent?: string): Promise<number>;
+  /**
+   * Tokens (entrada + saída) usados no dia UTC — de um agente ou de todos; `exclude`: agentes fora da
+   * soma (os de pool de tokens próprio, que não entram no teto global).
+   */
+  usedTokens(dayUtc: string, agent?: string, exclude?: readonly string[]): Promise<number>;
   /** US$ gastos no dia UTC (tokens + buscas, `cost_usd`) — de um agente ou de todos. */
   usedUsd(dayUtc: string, agent?: string): Promise<number>;
   record(entry: UsageRecord): Promise<void>;
@@ -59,12 +63,16 @@ export function agentOf(purpose: string): string {
 export class PgTokenBudgetStore implements TokenBudgetStore {
   constructor(private readonly db: Database) {}
 
-  async usedTokens(dayUtc: string, agent?: string): Promise<number> {
+  async usedTokens(dayUtc: string, agent?: string, exclude: readonly string[] = []): Promise<number> {
     const [row] = await this.db
       .select({ total: sql<string | null>`sum(${llmUsage.inputTokens} + ${llmUsage.outputTokens})` })
       .from(llmUsage)
       .where(
-        agent ? and(eq(llmUsage.dayUtc, dayUtc), eq(llmUsage.agent, agent)) : eq(llmUsage.dayUtc, dayUtc),
+        and(
+          eq(llmUsage.dayUtc, dayUtc),
+          agent ? eq(llmUsage.agent, agent) : undefined,
+          exclude.length ? notInArray(llmUsage.agent, [...exclude]) : undefined,
+        ),
       );
     return Number(row?.total ?? 0);
   }
@@ -102,9 +110,9 @@ export class PgTokenBudgetStore implements TokenBudgetStore {
 export class MemoryTokenBudgetStore implements TokenBudgetStore {
   readonly entries: UsageRecord[] = [];
 
-  async usedTokens(dayUtc: string, agent?: string): Promise<number> {
+  async usedTokens(dayUtc: string, agent?: string, exclude: readonly string[] = []): Promise<number> {
     return this.entries
-      .filter((e) => dayUtcOf(e.at) === dayUtc && (!agent || e.agent === agent))
+      .filter((e) => dayUtcOf(e.at) === dayUtc && (!agent || e.agent === agent) && !exclude.includes(e.agent))
       .reduce((s, e) => s + e.inputTokens + e.outputTokens, 0);
   }
 
@@ -124,8 +132,13 @@ export interface BudgetPolicy {
   status?: AiStatus;
   /** AI_AGENT_STATUS: `off` recusa as chamadas do agente; `on` ou ausente segue o global (status off vence). */
   agentStatus?: Record<string, AiStatus>;
-  /** Limite global do dia (todos os agentes); null = sem limite. */
+  /** Limite global do dia (todos os agentes, menos os de `tokenPools`); null = sem limite. */
   dailyLimit: number | null;
+  /**
+   * Agentes com pool de tokens próprio (ex.: { assets: 600_000 }; null = sem teto): os tokens deles ficam
+   * fora da soma do teto global, e eles só conferem o próprio pool. O teto em US$ continua somando tudo.
+   */
+  tokenPools?: Record<string, number | null>;
   /** Limites opcionais por agente (ex.: { wtw: 1_200_000 }). */
   agentLimits?: Record<string, number>;
   /** Teto global em US$ do dia (tokens + buscas); null/ausente = sem teto. */
@@ -182,8 +195,14 @@ export class TokenBudget {
     const used = await this.store.usedTokens(
       dayUtc,
       agent && this.policy.agentLimits?.[agent] ? agent : undefined,
+      this.pooledAgents(),
     );
     return { dayUtc, used, limit, remaining: limit === null ? null : Math.max(0, limit - used) };
+  }
+
+  /** Agentes com pool de tokens próprio (fora da soma do teto global de tokens). */
+  pooledAgents(): string[] {
+    return Object.keys(this.policy.tokenPools ?? {});
   }
 
   /** Estado do global (sem agente) ou do agente: o do agente vale se definido, senão o global. */
@@ -253,8 +272,16 @@ export class TokenBudget {
     if (this.policy.status === 'off') throw this.disabled(dayUtc, 'global');
     if (this.policy.agentStatus?.[agent] === 'off') throw this.disabled(dayUtc, agent);
     const limits: ReservedLimit[] = [];
-    if (this.policy.dailyLimit !== null) {
-      const used = await this.store.usedTokens(dayUtc);
+    const pools = this.policy.tokenPools ?? {};
+    if (agent in pools) {
+      // pool próprio: o agente não tira tokens da margem dos outros, e eles não tiram dele
+      const pool = pools[agent] ?? null;
+      if (pool !== null) {
+        const used = await this.store.usedTokens(dayUtc, agent);
+        limits.push({ who: agent, unit: 'tokens', used, limit: pool });
+      }
+    } else if (this.policy.dailyLimit !== null) {
+      const used = await this.store.usedTokens(dayUtc, undefined, this.pooledAgents());
       limits.push({ who: 'global', unit: 'tokens', used, limit: this.policy.dailyLimit });
     }
     const agentLimit = this.policy.agentLimits?.[agent];
@@ -370,6 +397,12 @@ export function ledgerPolicy(
     status: settings.status ?? 'on',
     agentStatus: settings.agentStatus ?? {},
     dailyLimit: settings.dailyTokenBudget,
+    tokenPools: Object.fromEntries(
+      Object.entries(SEPARATE_TOKEN_POOLS).map(([agent, share]) => [
+        agent,
+        settings.dailyTokenBudget === null ? null : Math.round(settings.dailyTokenBudget * share),
+      ]),
+    ),
     dailyUsdLimit: settings.dailyUsdBudget,
     agentUsdLimits: settings.agentUsdBudgets,
     agentDefaultUsdLimit: settings.agentDefaultUsdBudget ?? null,

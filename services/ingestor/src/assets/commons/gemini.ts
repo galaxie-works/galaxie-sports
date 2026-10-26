@@ -91,7 +91,7 @@ export function rankEstimate(
 
 interface GeminiBody {
   error?: { status?: string; message?: string };
-  candidates?: { content?: { parts?: { text?: string }[] } }[];
+  candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
   usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
 }
 
@@ -143,8 +143,9 @@ export async function rankWithGemini(
           `[orçamento de IA] ${purpose}: falha ao gravar o uso no ledger: ${err instanceof Error ? err.message : String(err)}`,
         ),
       );
+  // sem resposta do Gemini, nada foi cobrado de que se saiba: a linha fica com zero (não com a estimativa)
+  const none = { inputTokens: 0, outputTokens: 0 };
   let res: Response;
-  let body: GeminiBody;
   try {
     res = await (options.fetch ?? fetch)(`${API}/${model}:generateContent`, {
       method: 'POST',
@@ -154,20 +155,24 @@ export async function rankWithGemini(
         generationConfig: {
           temperature: 0,
           maxOutputTokens: RANK_MAX_OUTPUT_TOKENS,
+          // raciocínio curto: com o padrão, ele pode gastar a saída inteira e a resposta vir sem texto
+          thinkingConfig: { thinkingLevel: 'low' },
           responseMimeType: 'application/json',
           responseSchema: SCHEMA,
         },
       }),
     });
-    body = (await res.json()) as GeminiBody;
   } catch (err) {
-    // sem resposta não se sabe o que foi cobrado: grava a estimativa (custo conservador)
-    await record(
-      'error',
-      { inputTokens: estimate.inputTokens, outputTokens: RANK_MAX_OUTPUT_TOKENS },
-      err instanceof Error ? err.message : String(err),
-    );
+    await record('error', none, err instanceof Error ? err.message : String(err));
     throw err;
+  }
+  let body: GeminiBody;
+  try {
+    body = (await res.json()) as GeminiBody;
+  } catch {
+    const message = `Gemini: resposta não é JSON (HTTP ${res.status})`;
+    await record('error', none, message);
+    throw new Error(message);
   }
   const meta = body.usageMetadata;
   const usage = meta
@@ -177,17 +182,24 @@ export async function rankWithGemini(
         outputTokens: (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0),
       }
     : res.ok && !body.error
-      ? // resposta sem o uso: conta a estimativa (o teto não trata a chamada paga como de graça)
+      ? // resposta paga sem o uso: conta a estimativa (o teto não trata a chamada paga como de graça)
         { inputTokens: estimate.inputTokens, outputTokens: RANK_MAX_OUTPUT_TOKENS }
-      : { inputTokens: 0, outputTokens: 0 };
+      : none;
   if (!res.ok || body.error) {
     const message =
       `Gemini: ${body.error?.status ?? res.status} ${body.error?.message?.slice(0, 160) ?? ''}`.trim();
     await record('error', usage, message);
     throw new Error(message);
   }
+  const candidate = body.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+  // cortada (MAX_TOKENS), bloqueada ou vazia: não é "nenhuma foto boa", é falha (o alvo fica como estava)
+  if (!text.trim() || candidate?.finishReason !== 'STOP') {
+    const message = `Gemini: resposta sem a ordem (finishReason ${candidate?.finishReason ?? 'ausente'})`;
+    await record('error', usage, message);
+    throw new Error(message);
+  }
   await record('ok', usage);
-  const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '[]';
   const parsed = JSON.parse(text) as AiJudgement[];
   return parsed
     .filter((j) => Number.isInteger(j.index) && j.index >= 0 && j.index < images.length)

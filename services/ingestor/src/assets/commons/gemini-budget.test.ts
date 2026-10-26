@@ -17,7 +17,7 @@ const ok = (usage?: object) =>
     async () =>
       new Response(
         JSON.stringify({
-          candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] } }],
+          candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] }, finishReason: 'STOP' }],
           ...(usage ? { usageMetadata: usage } : {}),
         }),
       ),
@@ -63,8 +63,12 @@ describe('ordem das fotos no ledger de IA (agente assets)', () => {
     expect(e.costUsd).toBeGreaterThan(0);
     // o teto de saída vai no pedido (limita o custo e a estimativa da reserva)
     const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
-    const sent = JSON.parse(String(init.body)) as { generationConfig: { maxOutputTokens: number } };
+    const sent = JSON.parse(String(init.body)) as {
+      generationConfig: { maxOutputTokens: number; thinkingConfig?: { thinkingLevel: string } };
+    };
     expect(sent.generationConfig.maxOutputTokens).toBe(8_192);
+    // raciocínio curto: o padrão pode gastar a saída inteira e a resposta vir sem texto
+    expect(sent.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
   });
 
   it('teto do agente assets gasto no dia: recusa antes de chamar o Gemini (BudgetExceededError em US$)', async () => {
@@ -167,5 +171,52 @@ describe('ordem das fotos no ledger de IA (agente assets)', () => {
     expect(e.tokens).toBe(e.inputTokens + 8_192);
     expect(e.usd).toBeGreaterThan(0.01);
     expect(e.usd).toBeLessThan(0.1);
+  });
+
+  it('falha de rede ou resposta que não é JSON grava zero (não a estimativa cheia)', async () => {
+    const { store, budget } = ledger();
+    const down = vi.fn(async () => {
+      throw new Error('fetch failed');
+    });
+    await expect(
+      rankWithGemini([img], 'Ayrton Senna', 'driver', {
+        apiKey: 'k',
+        fetch: down as unknown as typeof globalThis.fetch,
+        budget,
+      }),
+    ).rejects.toThrow(/fetch failed/);
+    const html = vi.fn(async () => new Response('<html>502</html>', { status: 502 }));
+    await expect(
+      rankWithGemini([img], 'Ayrton Senna', 'driver', {
+        apiKey: 'k',
+        fetch: html as unknown as typeof globalThis.fetch,
+        budget,
+      }),
+    ).rejects.toThrow(/não é JSON/);
+    expect(store.entries.map((e) => [e.outcome, e.inputTokens, e.outputTokens, e.costUsd])).toEqual([
+      ['error', 0, 0, 0],
+      ['error', 0, 0, 0],
+    ]);
+  });
+
+  it('resposta cortada (MAX_TOKENS) ou sem texto é falha, com o uso devolvido, e não uma ordem vazia', async () => {
+    const { store, budget } = ledger();
+    const cut = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [{ content: {}, finishReason: 'MAX_TOKENS' }],
+            usageMetadata: { promptTokenCount: 14_000, candidatesTokenCount: 0, thoughtsTokenCount: 8_192 },
+          }),
+        ),
+    );
+    await expect(
+      rankWithGemini([img], 'Ayrton Senna', 'driver', {
+        apiKey: 'k',
+        fetch: cut as unknown as typeof globalThis.fetch,
+        budget,
+      }),
+    ).rejects.toThrow(/MAX_TOKENS/);
+    expect(store.entries[0]).toMatchObject({ outcome: 'error', inputTokens: 14_000, outputTokens: 8_192 });
   });
 });
