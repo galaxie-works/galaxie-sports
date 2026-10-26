@@ -5,6 +5,10 @@
  *                                                                            # prévia da rodada: canal atual e o que a importação aceitaria
  *   pnpm --filter @galaxie/ai-agents wtw:channel --plan --linha-de-base [--dias 7]   # encerrados com canal, por país
  *   pnpm --filter @galaxie/ai-agents wtw:channel                             # importa e pesquisa os grupos devidos (cron: 10 min)
+ * Momentos (WTW_CHANNEL_*, também em Ajustes → Esportes e features → Onde assistir): consulta semanal
+ * (WTW_CHANNEL_WEEKLY_CRON, padrão segunda 06:00 UTC), retentativas só para quem segue sem canal
+ * confirmado (WTW_CHANNEL_RETRY_OFFSETS, padrão 3d,1d) e pós-jogo dos encerrados sem canal
+ * (WTW_CHANNEL_POST, padrão on). Jogo × mercado com canal confirmado não volta à pesquisa.
  * Opções: --pais BR (senão WTW_MARKETS, senão os mercados dos tenants com where_to_watch), --chamadas N
  * (chamadas ao modelo por execução, padrão 2), --sem-importar (pula a importação das opções salvas).
  * Requer DATABASE_URL; para pesquisar, GEMINI_API_KEY (AI_MATCH_CHANNEL_PROVIDER/AI_MATCH_CHANNEL_MODEL
@@ -20,11 +24,12 @@ import {
   ResearchedRightsIndex,
 } from '@galaxie/where-to-watch';
 import { matchChannelLlmEnv } from '../llm/config.js';
-import { createLlmClient } from '../llm/factory.js';
+import { createAgentLlm } from './common.js';
 import type { LlmClient } from '../llm/types.js';
 import { channelBaseline, type BaselineRow } from '../wtw/channel/baseline.js';
 import { planChannelResearch, type ChannelEventFilter } from '../wtw/channel/plan.js';
 import { MatchChannelRunner, type ChannelRunReport } from '../wtw/channel/runner.js';
+import { channelMoments, channelScheduleFromEnv } from '../wtw/channel/windows.js';
 import { loadEventInfo } from '../wtw/event-info.js';
 import { HttpPageFetcher } from '../wtw/fetcher.js';
 import { activeMarkets } from '../wtw/markets.js';
@@ -84,6 +89,7 @@ async function main(): Promise<void> {
   if (values.rodada && !values.competicao) throw new Error('--rodada exige --competicao.');
   const country = values.pais?.toUpperCase();
   const policy = wtwPolicyFromEnv();
+  const schedule = channelScheduleFromEnv();
   const db = createDb(url, { max: 4 });
   try {
     const config = loadWtwConfig();
@@ -109,13 +115,14 @@ async function main(): Promise<void> {
       config,
       researched,
       policy,
+      schedule,
       ...(filter ? { filter, ignoreWindows: values.plan } : {}),
     });
 
     let llm: LlmClient | undefined;
     if (!values.plan) {
       try {
-        llm = createLlmClient({ db, env: matchChannelLlmEnv(process.env) }).client;
+        llm = (await createAgentLlm(db, 'wtw', matchChannelLlmEnv)).client;
       } catch (err) {
         console.log(
           `Sem LLM (${err instanceof Error ? err.message : String(err)}): só a importação das opções salvas.`,
@@ -134,6 +141,16 @@ async function main(): Promise<void> {
     if (values.plan) {
       console.log(
         `Canal do jogo — prévia (${now.toISOString()}) — mercados: ${markets.join(', ')}; limiar de relevância ${policy.minRelevance} (liga principal entra sempre)`,
+      );
+      const moments = channelMoments(schedule, now);
+      console.log(
+        `Momentos: consulta semanal ${
+          moments.sweep
+            ? `${schedule.weeklyCron} (vigente ${moments.sweep.current.toISOString()}, próxima ${moments.sweep.next.toISOString()})`
+            : 'desligada'
+        } · retentativas ${moments.retries.map((r) => r.label).join(', ') || 'desligadas'} · pós-jogo ${
+          schedule.post ? 'ligado' : 'desligado'
+        }`,
       );
       let before: BaselineRow[] = [];
       const days = values.dias ? Number(values.dias) : 7;
@@ -162,6 +179,7 @@ async function main(): Promise<void> {
             const grp = plan.groups[i]!;
             return {
               grupo: g.key,
+              momento: grp.window.window,
               fase: grp.window.phase,
               liga_principal: grp.mainLeague ? 'sim' : '',
               prioridade: grp.priority,

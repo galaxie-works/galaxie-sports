@@ -38,11 +38,11 @@ import {
   MESSAGE_MAX,
   PROPOSABLE_FIELDS,
   REMOVABLE_TYPES,
+  libraryTargetType,
   type ItemView,
   type LibraryEntry,
   type PlanView,
   type ProposableField,
-  type TargetType,
 } from '@/lib/lineup/types';
 
 const KEEP = '__keep';
@@ -271,8 +271,9 @@ export function RequestAddDialog({ plan, library }: { plan: PlanView; library: L
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const entry = library.find((x) => x.id === entryId);
-    if (!entry) return;
-    const type: TargetType = entry.kind === 'streaming' ? 'plan_service' : 'plan_channel';
+    // rádio não entra em plano (a biblioteca já vem sem ele; o servidor confere de novo)
+    const type = entry ? libraryTargetType(entry.kind) : null;
+    if (!entry || !type) return;
     send({ targetType: type, targetId: `${plan.id}:${entry.id}`, message, proposed: { access } });
   }
 

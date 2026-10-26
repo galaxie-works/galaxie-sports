@@ -2,7 +2,7 @@
 
 import type { Event } from '@galaxie/contracts';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { CalendarClock, CircleAlert } from 'lucide-react';
+import { CalendarClock, CircleAlert, RotateCw } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -12,6 +12,7 @@ import { CompetitionCountry } from '@/components/sport/competition-country';
 import { Crest } from '@/components/sport/crest';
 import { EventCardView } from '@/components/sport/event-card-view';
 import { Section } from '@/components/sport/section';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useHydrated } from '@/hooks/use-hydrated';
 import {
@@ -33,6 +34,7 @@ import { cn } from '@/lib/utils';
 
 import { LiveFilterBar } from './live-filter-bar';
 import {
+  combineUpcoming,
   groupUpcoming,
   hasLiveFilters,
   liveFilterOptions,
@@ -158,12 +160,6 @@ export function LiveBoardFallback() {
   return <CardsSkeleton count={6} />;
 }
 
-/** Junta o resultado de várias buscas de próximos (as que falharam ficam de fora). */
-const combineUpcoming = (results: { data?: Event[]; isPending: boolean }[]) => ({
-  data: results.flatMap((r) => r.data ?? []),
-  pending: results.some((r) => r.isPending),
-});
-
 /**
  * Próximos apitos de todos os esportes: a agenda diz quais esportes têm jogo nos próximos dias e a página
  * busca os próximos de cada um em paralelo (poucos por esporte). Com país ou competição escolhidos, as
@@ -199,23 +195,50 @@ function useUpcoming(locale: Locale, filters: LiveFilters) {
     /** A lista da seção, antes do filtro no navegador. */
     list: list.data,
     loading: sportsQuery.isPending || (list.pending && !list.data.length),
+    /** Alguma busca (a agenda ou os próximos da lista) falhou. */
+    error: sportsQuery.isError || list.error,
+    retry: () => {
+      if (sportsQuery.isError) void sportsQuery.refetch();
+      list.retry();
+    },
   };
 }
 
-/** Próximos apitos por esporte, já filtrados. Sem filtro e sem jogo marcado, a seção não aparece. */
+/**
+ * Próximos apitos por esporte, já filtrados. Sem filtro e sem jogo marcado, a seção não aparece. Busca
+ * que falhou e nada para mostrar: o erro, com "Tentar de novo" (não "nada bate com os filtros").
+ */
 function UpcomingKickoffs({
   groups,
   loading,
   filtered,
+  error,
+  onRetry,
   sportLabel,
 }: {
   groups: UpcomingGroup[];
   loading: boolean;
   filtered: boolean;
+  error: boolean;
+  onRetry: () => void;
   sportLabel: (slug: string) => string;
 }) {
   const { t } = useI18n();
   if (loading) return <CardsSkeleton count={3} />;
+  if (error && !groups.length)
+    return (
+      <Section title={t.live.board.upcoming} icon={<CalendarClock className="size-4" aria-hidden />}>
+        <EmptyState
+          title={t.live.board.upcomingErrorTitle}
+          description={t.live.board.upcomingErrorDescription}
+        >
+          <Button variant="outline" size="sm" className="mx-auto" onClick={onRetry}>
+            <RotateCw aria-hidden />
+            {t.live.filters.ui.retry}
+          </Button>
+        </EmptyState>
+      </Section>
+    );
   if (!groups.length && !filtered) return null;
   return (
     <Section title={t.live.board.upcoming} icon={<CalendarClock className="size-4" aria-hidden />}>
@@ -399,6 +422,8 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
           groups={upcomingGroups}
           loading={!hydrated || up.loading}
           filtered={filtered}
+          error={hydrated && up.error}
+          onRetry={up.retry}
           sportLabel={sportLabel}
         />
       ) : null}

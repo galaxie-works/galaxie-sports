@@ -181,9 +181,10 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
   {
     name: 'wtw-channel',
     description:
-      'Onde Assistir: canal de cada jogo pela escala da rodada (T-5d, T-48h, T-6h) e confirmação depois do jogo (Gemini com fontes, validador determinístico)',
-    // um grupo (competição × rodada × janela × dia) é pesquisado uma vez; execução sem grupo devido só
-    // consulta o banco. Até 2 chamadas por execução (~US$ 0,15 cada), dentro do teto por mercado
+      'Onde Assistir: canal de cada jogo pela escala da rodada — consulta semanal, retentativas só para quem segue sem canal confirmado (3 e 1 dia antes) e pós-jogo dos encerrados sem canal (Gemini com fontes, validador determinístico)',
+    // a cada 10 min só para achar o momento devido (WTW_CHANNEL_WEEKLY_CRON, WTW_CHANNEL_RETRY_OFFSETS,
+    // WTW_CHANNEL_POST): um grupo (competição × rodada × momento) é pesquisado uma vez; execução sem
+    // grupo devido só consulta o banco. Até 2 chamadas por execução, dentro do teto por mercado
     cron: '*/10 * * * *',
     script: 'dist/cli/wtw-channel.js',
     cwd: '../ai-agents',
@@ -228,13 +229,13 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
   {
     name: 'lineups-revisit',
     description:
-      'Grade de canais e ofertas: revisita o que foi visto há mais de 30 dias pela página oficial de planos (a IA extrai sem busca na web, só se a página mudou); mudanças em itens aprovados vão para revisão no painel',
-    // uma vez por dia, até 4 chamadas ao modelo: a extração da página (~US$ 0,02, sem busca) só roda
+      'Grade de canais e ofertas: revisita, uma vez por semana, o que foi visto há mais de 30 dias pela página oficial de planos (a IA extrai sem busca na web, só se a página mudou); mudanças em itens aprovados vão para revisão no painel',
+    // uma vez por semana (segunda), até 4 chamadas ao modelo: a extração da página (~US$ 0,02, sem busca) só roda
     // se a página mudou desde a última; página igual não chama o modelo nem conta no --max. A busca
     // só acha a URL da página de planos de plataforma que ainda não tem (até 3 buscas, uma vez) e
     // descobre as plataformas do país na revisita. Até 10 páginas buscadas por execução (o navegador
-    // leva ~90 s por página); o resto fica para o dia seguinte.
-    cron: '50 4 * * *',
+    // leva ~90 s por página); o resto fica para a semana seguinte.
+    cron: '50 4 * * 1',
     script: 'dist/cli/lineups-research.js',
     cwd: '../ai-agents',
     args: ['--revisitar', '--dias', '30', '--max', '4', '--max-paginas', '10'],

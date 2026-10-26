@@ -169,6 +169,7 @@ export default defineMessages(
       cron: 'Agenda inválida: use 5 campos (minuto hora dia mês dia-da-semana) ou "off".',
       markets: 'Mercados não suportados: {values}.',
       format: 'Formato inválido.',
+      zero: '0 não é um valor válido: para desligar a IA use AI_STATUS=off (ou AI_AGENT_STATUS para um agente); para tirar o teto, "Sem limite" (unlimited).',
       providerKeyMissing: 'A chave desse provedor não está configurada no contêiner dos agentes.',
       alreadyQueued: 'Já existe um pedido para este job na fila.',
       notRunnable: 'Este job não pode ser disparado pelo painel.',
@@ -208,6 +209,16 @@ export default defineMessages(
         other: '{count} chamadas passaram de {max} buscas',
       },
       llmAgentCapped: 'no teto',
+      aiState: 'IA: {state}',
+      aiOn: 'ligado',
+      aiOff: 'desligado',
+      aiLimited: 'limitado',
+      aiUnlimited: 'sem limite',
+      aiUsdPerDay: 'US$ {value}/dia',
+      aiTokensPerDay: '{value} tokens/dia',
+      aiInvalid: 'Configuração inválida: {keys}. Os agentes ficam sem IA até corrigir.',
+      aiInvalidState: 'configuração inválida · sem IA (os agentes seguem só com texto determinístico)',
+      aiAgentOnIgnored: '{agents}: on sem efeito, a IA está desligada (AI_STATUS=off é a chave geral).',
       searchesColumn: 'Buscas',
       agent: 'Agente',
       tokensColumn: 'Tokens',
@@ -221,6 +232,7 @@ export default defineMessages(
       creditCodes: {
         ok: 'A chamada de teste passou.',
         no_key: 'Sem chave do provedor configurada: os agentes seguem só com texto determinístico.',
+        ai_off: 'IA desligada (AI_STATUS=off): o crédito não é verificado e nenhuma chamada sai.',
         http: 'O provedor respondeu {http} {error}: agentes no texto determinístico.',
         network: 'Sem conexão com o provedor ({error}).',
       },
@@ -317,7 +329,7 @@ export default defineMessages(
         'wtw-channel': {
           label: 'Onde Assistir: canal do jogo',
           description:
-            'Descobre o canal de cada jogo pela escala da rodada (5 dias, 48 h e 6 h antes) e confirma depois do jogo.',
+            'Descobre o canal de cada jogo pela escala da rodada: consulta semanal, nova tentativa 3 e 1 dia antes só para quem segue sem canal e, depois do jogo, só os encerrados sem canal.',
         },
         'related-run': {
           label: 'Vídeos relacionados',
@@ -336,7 +348,7 @@ export default defineMessages(
         'lineups-revisit': {
           label: 'Grade de canais: revisita',
           description:
-            'Relê a página oficial de planos das operadoras vistas há mais de 30 dias; a IA (sem busca na web) só extrai de novo se a página mudou (até 4 chamadas por execução).',
+            'Uma vez por semana, relê a página oficial de planos das operadoras vistas há mais de 30 dias; a IA (sem busca na web) só extrai de novo se a página mudou (até 4 chamadas por execução).',
         },
         'lineups-pages': {
           label: 'Grade de canais: página oficial',
@@ -548,22 +560,32 @@ export default defineMessages(
       },
       AI_MODEL_STANDARD: { label: 'Modelo padrão', description: 'Resumos pós-jogo e cenários pré-jogo.' },
       AI_MODEL_RESEARCH: { label: 'Modelo de pesquisa', description: 'Pesquisa na web do Onde Assistir.' },
+      AI_STATUS: {
+        label: 'IA',
+        description:
+          'Chave geral: ligada ou desligada para todos os agentes. Desligada, nenhuma chamada sai para o provedor (nem a dos agentes com agente=on) e os agentes seguem só com texto determinístico.',
+      },
+      AI_AGENT_STATUS: {
+        label: 'IA por agente',
+        description:
+          'Desliga a IA de agentes específicos com a IA ligada, no formato agente=on|off separado por vírgula (ex.: wtw=off). agente=on e agente fora da lista seguem o estado global: com a IA desligada, todos ficam desligados. Vazio: todos seguem o global.',
+      },
       AI_DAILY_TOKEN_BUDGET: {
         label: 'Orçamento diário de tokens',
         description:
-          'Teto de tokens por dia (UTC), somando todos os agentes. Ao bater, os agentes seguem só com texto determinístico.',
+          'Teto de tokens por dia (UTC), somando todos os agentes: um número, ou "Sem limite". Ao bater, os agentes seguem só com texto determinístico. 0 não é aceito: para desligar a IA, use o estado da IA.',
         unit: 'tokens',
       },
       AI_DAILY_USD_BUDGET: {
         label: 'Orçamento diário em US$',
         description:
-          'Teto de gasto de IA por dia (UTC), somando todos os agentes: tokens e buscas na web (a busca do Google no Gemini é cobrada por consulta). Ao bater, os agentes seguem só com texto determinístico. 0 desliga a IA de todos os agentes; "Sem limite" tira o teto.',
+          'Teto de gasto de IA por dia (UTC), somando todos os agentes: tokens e buscas na web (a busca do Google no Gemini é cobrada por consulta). Ao bater, os agentes seguem só com texto determinístico. Um número, ou "Sem limite"; 0 não é aceito (para desligar a IA, use o estado da IA).',
         unit: 'US$',
       },
       AI_AGENT_USD_BUDGETS: {
         label: 'Teto diário por agente',
         description:
-          'US$ por dia de cada agente, no formato agente=valor separado por vírgula (ex.: lineups=2,wtw=3). O agente que bate o teto fica sem IA até a virada do dia UTC; 0 desliga a IA do agente; agente fora da lista fica só no teto global. Vazio usa o padrão.',
+          'US$ por dia de cada agente, no formato agente=valor separado por vírgula (ex.: lineups=2,wtw=unlimited). O agente que bate o teto fica sem IA até a virada do dia UTC; unlimited tira o teto próprio; agente fora da lista fica só no teto global. 0 não é aceito: para desligar um agente, use a IA por agente. Vazio usa o padrão.',
       },
       AI_MAX_SEARCHES_PER_CALL: {
         label: 'Buscas na web por chamada',
@@ -613,6 +635,21 @@ export default defineMessages(
         label: 'Teto diário por mercado',
         description: 'Gasto máximo de IA por país, por dia.',
         unit: 'US$',
+      },
+      WTW_CHANNEL_WEEKLY_CRON: {
+        label: 'Canal do jogo: consulta semanal',
+        description:
+          'Quando pesquisar o canal dos jogos das rodadas que começam de 3 a 10 dias à frente (a escala sai pelo menos uma semana antes). Uma pesquisa cobre a rodada inteira; jogo com canal confirmado não volta à pesquisa. Padrão: segunda às 06:00 UTC.',
+      },
+      WTW_CHANNEL_RETRY_OFFSETS: {
+        label: 'Canal do jogo: novas tentativas',
+        description:
+          'Quanto antes do primeiro jogo da rodada tentar de novo, só para os jogos que seguem sem canal confirmado no mercado (ex.: 3d,1d ou 36h; off desliga). A maior também define onde a consulta semanal começa.',
+      },
+      WTW_CHANNEL_POST: {
+        label: 'Canal do jogo: depois do jogo',
+        description:
+          'Confirma quem transmitiu os jogos encerrados que ficaram sem canal (até 72 horas depois). Também alimenta o onde assistir dos jogos encerrados.',
       },
       AI_RIGHTS_PROVIDER: {
         label: 'Fonte do Onde Assistir (IA)',
@@ -922,6 +959,7 @@ export default defineMessages(
         cron: 'Invalid schedule: use 5 fields (minute hour day month weekday) or "off".',
         markets: 'Unsupported markets: {values}.',
         format: 'Invalid format.',
+        zero: '0 is not a valid value: to turn AI off use AI_STATUS=off (or AI_AGENT_STATUS for one agent); to remove the cap, "No limit" (unlimited).',
         providerKeyMissing: "This provider's key is not set in the agents container.",
         alreadyQueued: 'There is already a queued request for this job.',
         notRunnable: 'This job cannot be triggered from the panel.',
@@ -961,6 +999,16 @@ export default defineMessages(
           other: '{count} calls went over {max} searches',
         },
         llmAgentCapped: 'capped',
+        aiState: 'AI: {state}',
+        aiOn: 'on',
+        aiOff: 'off',
+        aiLimited: 'limited',
+        aiUnlimited: 'no limit',
+        aiUsdPerDay: 'US$ {value}/day',
+        aiTokensPerDay: '{value} tokens/day',
+        aiInvalid: 'Invalid configuration: {keys}. Agents run without AI until it is fixed.',
+        aiInvalidState: 'invalid configuration · no AI (agents fall back to deterministic text)',
+        aiAgentOnIgnored: '{agents}: on has no effect, AI is off (AI_STATUS=off is the master switch).',
         searchesColumn: 'Searches',
         agent: 'Agent',
         tokensColumn: 'Tokens',
@@ -974,6 +1022,7 @@ export default defineMessages(
         creditCodes: {
           ok: 'The test call passed.',
           no_key: 'No provider key set: agents fall back to deterministic text.',
+          ai_off: 'AI is off (AI_STATUS=off): credit is not checked and no call goes out.',
           http: 'The provider answered {http} {error}: agents on deterministic text.',
           network: 'Could not reach the provider ({error}).',
         },
@@ -1056,7 +1105,7 @@ export default defineMessages(
           'wtw-channel': {
             label: 'Where to Watch: match channel',
             description:
-              'Finds each match channel from the round schedule (5 days, 48 h and 6 h before) and confirms it after the match.',
+              'Finds each match channel from the round schedule: a weekly lookup, a new attempt 3 and 1 day before only for matches still without a channel and, after the match, only finished matches without one.',
           },
           'related-run': {
             label: 'Related videos',
@@ -1075,7 +1124,7 @@ export default defineMessages(
           'lineups-revisit': {
             label: 'Channel lineups: revisit',
             description:
-              'Re-reads the official plans page of operators seen more than 30 days ago; the AI (no web search) only extracts again when the page changed (up to 4 calls per run).',
+              'Once a week, re-reads the official plans page of operators seen more than 30 days ago; the AI (no web search) only extracts again when the page changed (up to 4 calls per run).',
           },
           'lineups-pages': {
             label: 'Channel lineup: official page',
@@ -1285,22 +1334,32 @@ export default defineMessages(
           description: 'Post-match recaps and pre-match context.',
         },
         AI_MODEL_RESEARCH: { label: 'Research model', description: 'Web research for Where to Watch.' },
+        AI_STATUS: {
+          label: 'AI',
+          description:
+            'Master switch: on or off for every agent. Off, no call goes to the provider (not even for agents set to agent=on) and agents fall back to deterministic text.',
+        },
+        AI_AGENT_STATUS: {
+          label: 'AI per agent',
+          description:
+            'Turns AI off for specific agents while AI is on, as agent=on|off separated by commas (e.g. wtw=off). agent=on and agents not listed follow the global state: with AI off, all are off. Empty: all follow the global state.',
+        },
         AI_DAILY_TOKEN_BUDGET: {
           label: 'Daily token budget',
           description:
-            'Token cap per day (UTC) across all agents. Once reached, agents fall back to deterministic text.',
+            'Token cap per day (UTC) across all agents: a number, or "No limit". Once reached, agents fall back to deterministic text. 0 is not accepted: to turn AI off, use the AI state.',
           unit: 'tokens',
         },
         AI_DAILY_USD_BUDGET: {
           label: 'Daily budget in US$',
           description:
-            'AI spend cap per day (UTC) across all agents: tokens plus web searches (Google Search on Gemini is billed per query). Once reached, agents fall back to deterministic text. 0 turns AI off for every agent; "No limit" removes the cap.',
+            'AI spend cap per day (UTC) across all agents: tokens plus web searches (Google Search on Gemini is billed per query). Once reached, agents fall back to deterministic text. A number, or "No limit"; 0 is not accepted (to turn AI off, use the AI state).',
           unit: 'US$',
         },
         AI_AGENT_USD_BUDGETS: {
           label: 'Daily cap per agent',
           description:
-            'US$ per day for each agent, as agent=value separated by commas (e.g. lineups=2,wtw=3). An agent that hits its cap gets no AI until the UTC day rolls over; 0 turns AI off for that agent; agents not listed only count against the global cap. Empty uses the default.',
+            'US$ per day for each agent, as agent=value separated by commas (e.g. lineups=2,wtw=unlimited). An agent that hits its cap gets no AI until the UTC day rolls over; unlimited removes its own cap; agents not listed only count against the global cap. 0 is not accepted: to turn an agent off, use AI per agent. Empty uses the default.',
         },
         AI_MAX_SEARCHES_PER_CALL: {
           label: 'Web searches per call',
@@ -1349,6 +1408,21 @@ export default defineMessages(
           label: 'Daily cap per market',
           description: 'Maximum AI spend per country, per day.',
           unit: 'US$',
+        },
+        WTW_CHANNEL_WEEKLY_CRON: {
+          label: 'Match channel: weekly lookup',
+          description:
+            'When to research the channel of matches in rounds starting 3 to 10 days ahead (schedules come out at least a week before). One lookup covers the whole round; a match with a confirmed channel is never researched again. Default: Monday at 06:00 UTC.',
+        },
+        WTW_CHANNEL_RETRY_OFFSETS: {
+          label: 'Match channel: new attempts',
+          description:
+            'How long before the first match of the round to try again, only for matches still without a confirmed channel in the market (e.g. 3d,1d or 36h; off disables). The largest one also sets where the weekly lookup starts.',
+        },
+        WTW_CHANNEL_POST: {
+          label: 'Match channel: after the match',
+          description:
+            'Confirms who aired the finished matches left without a channel (up to 72 hours later). It also feeds Where to Watch for finished matches.',
         },
         AI_RIGHTS_PROVIDER: {
           label: 'Where to Watch source (AI)',
@@ -1662,6 +1736,7 @@ export default defineMessages(
         cron: 'Agenda inválida: usá 5 campos (minuto hora día mes día-de-la-semana) u "off".',
         markets: 'Mercados no soportados: {values}.',
         format: 'Formato inválido.',
+        zero: '0 no es un valor válido: para apagar la IA usa AI_STATUS=off (o AI_AGENT_STATUS para un agente); para quitar el tope, "Sin límite" (unlimited).',
         providerKeyMissing: 'La clave de ese proveedor no está configurada en el contenedor de los agentes.',
         alreadyQueued: 'Ya hay un pedido para este job en la cola.',
         notRunnable: 'Este job no se puede disparar desde el panel.',
@@ -1701,6 +1776,17 @@ export default defineMessages(
           other: '{count} llamadas superaron {max} búsquedas',
         },
         llmAgentCapped: 'en el tope',
+        aiState: 'IA: {state}',
+        aiOn: 'encendido',
+        aiOff: 'apagado',
+        aiLimited: 'limitado',
+        aiUnlimited: 'sin límite',
+        aiUsdPerDay: 'US$ {value}/día',
+        aiTokensPerDay: '{value} tokens/día',
+        aiInvalid: 'Configuración inválida: {keys}. Los agentes quedan sin IA hasta corregirla.',
+        aiInvalidState: 'configuración inválida · sin IA (los agentes siguen solo con texto determinístico)',
+        aiAgentOnIgnored:
+          '{agents}: on sin efecto, la IA está apagada (AI_STATUS=off es el interruptor general).',
         searchesColumn: 'Búsquedas',
         agent: 'Agente',
         tokensColumn: 'Tokens',
@@ -1714,6 +1800,7 @@ export default defineMessages(
         creditCodes: {
           ok: 'La llamada de prueba pasó.',
           no_key: 'Sin clave del proveedor configurada: los agentes siguen solo con texto determinístico.',
+          ai_off: 'IA apagada (AI_STATUS=off): no se verifica el crédito y no sale ninguna llamada.',
           http: 'El proveedor respondió {http} {error}: agentes con texto determinístico.',
           network: 'Sin conexión con el proveedor ({error}).',
         },
@@ -1800,7 +1887,7 @@ export default defineMessages(
           'wtw-channel': {
             label: 'Dónde ver: canal del partido',
             description:
-              'Descubre el canal de cada partido por la programación de la fecha (5 días, 48 h y 6 h antes) y lo confirma después.',
+              'Descubre el canal de cada partido por la programación de la fecha: consulta semanal, nuevo intento 3 y 1 día antes solo para los que siguen sin canal y, después del partido, solo los terminados sin canal.',
           },
           'related-run': {
             label: 'Videos relacionados',
@@ -1819,7 +1906,7 @@ export default defineMessages(
           'lineups-revisit': {
             label: 'Grilla de canales: revisión',
             description:
-              'Vuelve a leer la página oficial de planes de los operadores vistos hace más de 30 días; la IA (sin búsqueda web) solo extrae de nuevo si la página cambió (hasta 4 llamadas por ejecución).',
+              'Una vez por semana, vuelve a leer la página oficial de planes de los operadores vistos hace más de 30 días; la IA (sin búsqueda web) solo extrae de nuevo si la página cambió (hasta 4 llamadas por ejecución).',
           },
           'lineups-pages': {
             label: 'Grilla de canales: página oficial',
@@ -2032,22 +2119,32 @@ export default defineMessages(
           description: 'Resúmenes post-partido y escenarios previos.',
         },
         AI_MODEL_RESEARCH: { label: 'Modelo de investigación', description: 'Búsqueda web de Dónde ver.' },
+        AI_STATUS: {
+          label: 'IA',
+          description:
+            'Interruptor general: encendida o apagada para todos los agentes. Apagada, ninguna llamada va al proveedor (ni la de los agentes con agente=on) y los agentes siguen solo con texto determinístico.',
+        },
+        AI_AGENT_STATUS: {
+          label: 'IA por agente',
+          description:
+            'Apaga la IA de agentes específicos con la IA encendida, en el formato agente=on|off separado por comas (ej.: wtw=off). agente=on y un agente fuera de la lista siguen el estado global: con la IA apagada, todos quedan apagados. Vacío: todos siguen el global.',
+        },
         AI_DAILY_TOKEN_BUDGET: {
           label: 'Presupuesto diario de tokens',
           description:
-            'Tope de tokens por día (UTC), sumando todos los agentes. Al llegar, los agentes siguen solo con texto determinístico.',
+            'Tope de tokens por día (UTC), sumando todos los agentes: un número, o "Sin límite". Al llegar, los agentes siguen solo con texto determinístico. 0 no se acepta: para apagar la IA, usa el estado de la IA.',
           unit: 'tokens',
         },
         AI_DAILY_USD_BUDGET: {
           label: 'Presupuesto diario en US$',
           description:
-            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico. 0 apaga la IA de todos los agentes; "Sin límite" quita el tope.',
+            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico. Un número, o "Sin límite"; 0 no se acepta (para apagar la IA, usa el estado de la IA).',
           unit: 'US$',
         },
         AI_AGENT_USD_BUDGETS: {
           label: 'Tope diario por agente',
           description:
-            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=3). El agente que llega al tope queda sin IA hasta el cambio de día UTC; 0 apaga la IA del agente; un agente fuera de la lista solo cuenta para el tope global. Vacío usa el valor por defecto.',
+            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=unlimited). El agente que llega al tope queda sin IA hasta el cambio de día UTC; unlimited quita su tope propio; un agente fuera de la lista solo cuenta para el tope global. 0 no se acepta: para apagar un agente, usa la IA por agente. Vacío usa el valor por defecto.',
         },
         AI_MAX_SEARCHES_PER_CALL: {
           label: 'Búsquedas web por llamada',
@@ -2098,6 +2195,21 @@ export default defineMessages(
           label: 'Tope diario por mercado',
           description: 'Gasto máximo de IA por país, por día.',
           unit: 'US$',
+        },
+        WTW_CHANNEL_WEEKLY_CRON: {
+          label: 'Canal del partido: consulta semanal',
+          description:
+            'Cuándo investigar el canal de los partidos de las fechas que empiezan de 3 a 10 días adelante (la programación sale al menos una semana antes). Una consulta cubre la fecha entera; un partido con canal confirmado no vuelve a investigarse. Predeterminado: lunes a las 06:00 UTC.',
+        },
+        WTW_CHANNEL_RETRY_OFFSETS: {
+          label: 'Canal del partido: nuevos intentos',
+          description:
+            'Cuánto antes del primer partido de la fecha intentar de nuevo, solo para los partidos que siguen sin canal confirmado en el mercado (ej.: 3d,1d o 36h; off desactiva). El mayor también define dónde empieza la consulta semanal.',
+        },
+        WTW_CHANNEL_POST: {
+          label: 'Canal del partido: después del partido',
+          description:
+            'Confirma quién transmitió los partidos terminados que quedaron sin canal (hasta 72 horas después). También alimenta Dónde ver de los partidos terminados.',
         },
         AI_RIGHTS_PROVIDER: {
           label: 'Fuente de Dónde ver (IA)',

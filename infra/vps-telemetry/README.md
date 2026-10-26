@@ -15,6 +15,7 @@ entrypoints `web`/`websecure`, certresolver `letsencrypt` por HTTP-01).
 | Assets públicos: `GET/HEAD` do bucket via Traefik, bucket com leitura anônima só de objetos | logos, bandeiras e fotos na demo e na API |
 | Grafana sem rota pública | acesso por túnel SSH |
 | Serviço `agents`: imagem do ingestor com `SCHEDULER_PROFILE=agents` (resumo, cenário, Onde Assistir) e teto diário de tokens | IA ligada mesmo com o ingestor parado, com custo previsível |
+| Serviço `maintenance` (Caddy fixo) com routers de prioridade 1 nos hosts da demo e da API | 503 de manutenção em vez do 404 do Traefik enquanto demo ou API são recriadas |
 
 Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API pública) e `ASSETS_DOMAIN` (assets).
 **O DNS precisa resolver antes de subir**, senão o desafio HTTP-01 do Let's Encrypt falha.
@@ -37,6 +38,20 @@ Com pacotes privados, a VPS precisa de `docker login ghcr.io` com um token só `
 **Sem credencial do GitHub na VPS** (alternativa): construir as imagens no commit mergeado em outra máquina, com os
 mesmos nomes/tags, enviar com `docker save … | gzip | ssh root@<vps> 'gunzip | docker load'` e usar
 `PULL_POLICY=missing` no `.env`.
+
+**`lineup-render`** (navegador headless do perfil `render`, [`infra/lineup-render`](../lineup-render/Dockerfile)): a
+imagem oficial do Playwright com o pacote npm já instalado (sem `npx` na partida). A tag é a **versão do Playwright**
+(`…-lineup-render:1.64.0`), não o SHA, e o serviço usa `pull_policy: missing`. O `deploy.sh` a constrói **na VPS**
+quando a pasta muda (a base tem ~2 GB e a VPS já a tem; vai só a pasta), no fim do deploy, depois do smoke, em até
+`LR_BUILD_MIN` minutos (padrão 15) e só se couber no teto. Falha ali não para o deploy: o `WARN` diz se o perfil
+`render` segue com a imagem anterior ou se **não sobe** (sem imagem anterior; a VPS não tem credencial do GHCR) e traz
+o comando para construir à mão. O `docker.yml` também a publica no GHCR quando a pasta muda. Subir a versão é mudar
+juntos o `FROM` do Dockerfile (tag e digest), o `package.json`/`package-lock.json` da pasta, o `playwright-core` do
+`services/ai-agents` e a tag no `compose.yml` (o CI confere com `infra/lineup-render/versions.mjs`; o Dependabot ignora
+o `playwright-core`). Reconstruir a mesma tag deixa a imagem anterior órfã (`<none>`); não há limpeza automática (e
+`docker system prune` é proibido aqui): remova com `docker image rm <id>`. Fallback, sem a imagem própria: no
+`compose.yml`, `image: mcr.microsoft.com/playwright:v1.64.0-noble` com `command: ['npx', '-y', 'playwright@1.64.0',
+'run-server', '--port', '3000', '--host', '0.0.0.0']` e `working_dir: /home/pwuser`, o resto igual.
 
 ## Atualizar (rotina: toda publicação passa por aqui)
 
@@ -73,6 +88,59 @@ Os pacotes leem `config/` e `data/knowledge` a partir de si mesmos e **silenciam
 um diretório fora da imagem não dá erro, só some a funcionalidade. Por isso as imagens levam `config/` inteiro (e a API a
 base semântica), com `RULES_CONFIG_DIR`, `WTW_CONFIG_DIR`, `GEO_CONFIG_DIR`, `KNOWLEDGE_DIR` e `MEDIA_DENYLIST_PATH`, e o
 CI confere os caminhos dentro das imagens de `api` e `ingestor` em todo PR.
+
+## Página de manutenção
+
+Quando um deploy ou um reinício recria a `demo` ou a `api`, o Traefik fica alguns segundos sem backend para o router
+delas e responderia **404** numa página válida. O serviço `maintenance` cobre esse intervalo sem tocar na stack do
+Traefik, só com labels da nossa stack:
+
+- **Routers de prioridade 1** (`gsports-demo-maintenance` e `gsports-api-maintenance`) com as mesmas regras de host dos
+  routers da demo e da API (a da API também sem `/metrics` e `/internal`), `websecure` e o certresolver `letsencrypt`.
+  A prioridade padrão do Traefik é o tamanho da regra, então o router de verdade sempre ganha; o de manutenção só
+  responde quando o outro some: contêiner parado, recriado ou ainda sem healthcheck `healthy` (o provider Docker do
+  Traefik ignora contêiner `starting`/`unhealthy`).
+- **Hosts da demo**: `503` com `Retry-After: 30` e `Cache-Control: no-store`, página HTML no tema escuro da demo (pt-BR
+  com uma linha em inglês e outra em espanhol), sem nenhum recurso externo. Ela pergunta pela mesma URL a cada 10 s e
+  recarrega quando a resposta deixa de ser 503 (sem JavaScript, `meta refresh` de 20 s). O link da página de status
+  está escondido até a URL ser decidida (TODO no HTML).
+- **Host da API**: `503` em `application/problem+json`, no formato dos erros da API, com `Retry-After: 30`:
+  `{"type":"https://docs.galaxie.sports/errors/maintenance","title":"Em manutenção","status":503,"code":"MAINTENANCE",…,"retry_after":30}`.
+- Qualquer caminho e qualquer método, inclusive `/health`, recebem o 503: monitores externos enxergam a manutenção.
+
+**Não é recriado pelos deploys.** Imagem upstream fixa (`caddy:2.11.7-alpine`, `pull_policy: missing`), sem
+`IMAGE_TAG`, e a config inteira (Caddyfile, HTML e JSON) inline no `compose.yml` (`configs:` com `content:`, porque a
+VPS só recebe esse arquivo). O hash do serviço não muda de um deploy para o outro, então o `docker compose up -d
+--scale ingestor=N` do `deploy.sh` deixa o contêiner como está, e ele segue respondendo enquanto demo e API sobem. O
+`deploy.sh` só baixa a imagem antes de trocar o `compose.yml`, se ela ainda não estiver na VPS.
+
+**Editou a página, o JSON ou o Caddyfile?** O compose não recria um serviço quando só muda o conteúdo de uma config
+inline. Atualize o rótulo `works.galaxie.maintenance-rev` do serviço; o CI confere que ele bate com o conteúdo e, se
+não bate, diz o valor certo:
+
+```bash
+docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json \
+  | node infra/vps-telemetry/maintenance-rev.mjs
+```
+
+Com o rótulo novo, o próximo deploy recria só o `maintenance` (cerca de 1 s, normalmente com demo e API no ar).
+
+**Conferir.** O smoke test confere, pela rede da stack, que o contêiner está no ar e responde os dois 503
+(`http://maintenance:8080` e `:8081`). Os routers do Traefik se conferem de fora, numa janela combinada:
+
+```bash
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose stop demo'
+curl -sS -D - -o /dev/null https://$DEMO_DOMAIN/competicoes/brasileirao-serie-a   # 503, Retry-After: 30, text/html
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose start demo'
+curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/                     # de volta: 307 → /login
+```
+
+**Forçar a manutenção** (migração demorada, restauração do banco): `MAINTENANCE_PRIORITY=10000` no `.env` e
+`docker compose up -d maintenance` (recria só ele; os routers passam a ganhar dos de verdade nos dois hosts). Para
+voltar: `MAINTENANCE_PRIORITY=1` (ou apagar a linha) e `docker compose up -d maintenance`. Enquanto forçada, ninguém
+alcança a demo nem a API pelo Traefik (nem admin), um deploy mantém a manutenção (o valor fica no `.env`) e o smoke
+test continua passando, porque fala com os contêineres pela rede interna. Alternativa pontual, para um serviço só:
+`docker compose stop demo` (ou `api`) também cai na página, até o `start`.
 
 ## Painel de Operação (flags sem editar o `.env`)
 
@@ -152,7 +220,26 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://$ASSETS_DOMAIN/$S3_BUCKET/    
 - Apagar os dados (Postgres, S3, backups) só com pedido explícito: `docker compose down -v`.
 - Remover os registros DNS. Nada disto toca nas outras stacks.
 
+## Logs e a chave do SSE (`?key=`)
+
+O `EventSource` não manda header, então o `/v1/stream` aceita a chave em `?key=`. Na VPS a borda é o Traefik (v3,
+configurado por argumentos fora deste repositório; não há Caddy aqui), com **access log desligado** (sem
+`--accesslog`), e a API redige `?key=` nos próprios logs. Hoje a chave na query não vai para log: na verificação de
+2026-10-25 houve 0 ocorrências de `key=` em 7 dias de logs do Traefik e da API.
+
+Se o access log do Traefik for ligado, ele precisa descartar o `RequestPath`, que leva a query:
+
+```text
+--accesslog=true --accesslog.format=json --accesslog.fields.defaultmode=keep
+--accesslog.fields.names.RequestPath=drop --accesslog.fields.headers.defaultmode=drop
+```
+
+Para manter o caminho no log, as alternativas são exigir a chave só no header `x-galaxie-key` no SSE ou reescrever a
+URL num middleware antes do log.
+
 ## Pendências
 
-- Backups no mesmo disco: ligar a cópia para um S3 externo (`BACKUP_S3_*`) quando houver bucket.
+- Cópia dos backups fora da VPS: existe (dumps no NAS do dono e snapshot diário da VPS no provedor, ver
+  [SECURITY.md](../../SECURITY.md)); falta o dono confirmar a frequência e a retenção da cópia no NAS. A cópia para
+  um S3 externo (`BACKUP_S3_*`) segue opcional.
 - Cabeçalhos de cache/CDN para os assets.

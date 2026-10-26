@@ -7,7 +7,7 @@
 schema_version: 1
 country: PE
 language: es-PE
-updated_at: 2026-10-21
+updated_at: 2026-10-25
 broadcasters:
   - id: america_tv
     name: América TV
@@ -41,6 +41,14 @@ broadcasters:
     access_model: subscription
     domains: [golperu.com.pe]
     valid_to: 2025-12-31
+  # Canal oficial da Liga 1 (1190 Sports): todos os jogos da Liga 1 a partir de 2026, na TV paga e no
+  # streaming próprio (l1max.com).
+  - id: l1_max
+    name: L1 MAX
+    aliases: ['L1MAX', 'L1 Max', 'Liga 1 MAX', 'Liga 1 Max']
+    medium: pay_tv
+    access_model: subscription
+    domains: [l1max.com]
   - id: disney_plus
     name: Disney+
     aliases: ['Disney Plus', 'Disney+ Premium']

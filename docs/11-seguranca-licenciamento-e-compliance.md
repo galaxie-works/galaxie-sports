@@ -44,9 +44,9 @@ Política, rotação de segredos e como reportar vulnerabilidades: [SECURITY.md]
 | Entrada | Toda rota valida params/query/corpo com Zod (auditoria automática em `security.test.ts`: rota sem autenticação declarada quebra o teste); corpo máx. 64 KiB (`API_BODY_LIMIT`, 413); query do espelho limitada (20 parâmetros, 200 caracteres) |
 | Webhooks | Assinatura HMAC-SHA256 + timestamp (proteção contra replay) — notas de implementação em [SECURITY.md §Webhooks](../SECURITY.md#webhooks) |
 | Rate limiting | Por tenant e rota (Valkey); por IP na borda |
-| Logs | Sem chaves (`x-galaxie-key`/`x-galaxie-admin-key` removidos também nos logs do Caddy) e com IP mascarado |
+| Logs | Sem chaves (`x-galaxie-key`/`x-galaxie-admin-key` e o `?key=` do SSE removidos também nos logs do Caddy da stack do Portainer) e com IP mascarado. Na VPS a borda é o Traefik, com access log desligado ([infra/vps-telemetry/README.md](../infra/vps-telemetry/README.md#logs-e-a-chave-do-sse-key)) |
 | Dependências | Dependabot (npm, GitHub Actions, Docker/Compose — `.github/dependabot.yml`) + `pnpm audit --prod` informativo no CI |
-| Backups | Dump diário do Postgres (o schema `raw` é o ativo mais caro de reconstruir) com retenção de 30 dias, cópia remota opcional e restore testado no CI — [infra/portainer/README.md](../infra/portainer/README.md#backups); exercício de DR: [docs/runbooks/exercicio-dr.md](runbooks/exercicio-dr.md) |
+| Backups | Dump diário do Postgres (o schema `raw` é o ativo mais caro de reconstruir) com retenção de 30 dias na VPS; cópia fora da VPS no NAS do dono (frequência e retenção a confirmar pelo dono) e snapshot diário da VPS no provedor da VPS; cópia para S3 externo (`BACKUP_S3_*`) opcional; ciclo de backup e restore testado no CI em banco descartável. Pendentes: canal de notificação dos alertas e ensaio periódico de restauração do dump real ([SECURITY.md](../SECURITY.md)) — [infra/portainer/README.md](../infra/portainer/README.md#backups); exercício de DR: [docs/runbooks/exercicio-dr.md](runbooks/exercicio-dr.md) |
 
 ## 5. Neutralidade de marca
 

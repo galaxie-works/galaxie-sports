@@ -48,8 +48,11 @@ export interface SettingDef {
   max?: number;
   /** int/number: aceita "unlimited" (e 0, quando o serviço trata 0 como "sem limite"). */
   unlimited?: boolean;
-  /** Com `unlimited`: 0 é um valor (IA desligada), não "sem limite"; aceito fora da faixa `min`. */
-  zeroIsOff?: boolean;
+  /**
+   * 0 é inválido (código `zero`): não quer dizer "desligado" nem "sem limite". int/number: o valor 0;
+   * text no formato `chave=valor`: qualquer entrada `=0`. Para desligar a IA: AI_STATUS / AI_AGENT_STATUS.
+   */
+  zeroInvalid?: boolean;
   /** Aceita vazio (ex.: herdar o plano padrão, usar os mercados dos tenants, modelo padrão). */
   allowEmpty?: boolean;
   /** text: formato aceito. */
@@ -93,7 +96,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'related-run', service: 'agents', cron: '*/3 * * * *', runNow: false },
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
   { name: 'review-suggestions', service: 'agents', cron: '*/15 * * * *', runNow: true },
-  { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * *', runNow: false },
+  { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * 1', runNow: false },
   { name: 'lineups-pages', service: 'agents', cron: '20 5 * * *', runNow: false },
   { name: 'channel-lists', service: 'agents', cron: '*/10 * * * *', runNow: true },
 ];
@@ -143,6 +146,8 @@ export function planKey(api: string): string {
 export const WTW_MARKET_CODES = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as const;
 
 export const AI_PROVIDERS = ['openai', 'anthropic', 'gemini'] as const;
+/** AI_STATUS: ligada ou desligada (literal; nenhum teto numérico desliga a IA). */
+export const AI_STATUSES = ['on', 'off'] as const;
 
 /** Modelos padrão por nível e provedor (espelho de DEFAULT_MODELS em services/ai-agents). */
 export const AI_DEFAULT_MODELS = {
@@ -153,21 +158,51 @@ export const AI_DEFAULT_MODELS = {
 
 const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,80}$/;
 
-/**
- * AI_AGENT_USD_BUDGETS: `agente=US$` separados por vírgula (agente = prefixo do `purpose` em
- * ops.llm_usage). Espelho de parseAgentUsdBudgets em services/ai-agents/src/llm/config.ts.
- */
-const AGENT_USD_ENTRY = '[a-zA-Z0-9][a-zA-Z0-9@._-]*=\\d+(\\.\\d+)?';
-export const AGENT_USD_BUDGETS_PATTERN = new RegExp(`^${AGENT_USD_ENTRY}([,;\\s]+${AGENT_USD_ENTRY})*$`);
+/** Uma retentativa do canal do jogo: 1–14 dias ou 1–336 horas. */
+const RETRY_OFFSET = '(?:(?:[1-9]|1[0-4])d|(?:[1-9]\\d?|[12]\\d\\d|3[0-2]\\d|33[0-6])h)';
+/** WTW_CHANNEL_RETRY_OFFSETS: `3d,1d`, `36h`, `3d, 12h` ou `off`. */
+export const RETRY_OFFSETS_PATTERN = new RegExp(`^(off|${RETRY_OFFSET}(\\s*,\\s*${RETRY_OFFSET})*)$`);
 
-/** `lineups=2,wtw=3` → `{ lineups: 2, wtw: 3 }`; vazio → `{}`; formato inválido → null. */
-export function parseAgentUsdBudgets(raw: string | null | undefined): Record<string, number> | null {
-  const out: Record<string, number> = {};
-  for (const part of (raw ?? '').split(/[,;\s]+/).filter(Boolean)) {
-    const m = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?)$/i.exec(part);
+/**
+ * AI_AGENT_USD_BUDGETS: `agente=US$` ou `agente=unlimited` separados por vírgula (agente = prefixo do
+ * `purpose` em ops.llm_usage). Espelho de parseAgentUsdBudgets em services/ai-agents/src/llm/config.ts.
+ */
+const AGENT_USD_ENTRY = '[a-z0-9][a-z0-9@._-]*=(\\d+(\\.\\d+)?|unlimited)';
+export const AGENT_USD_BUDGETS_PATTERN = new RegExp(`^${AGENT_USD_ENTRY}([,;\\s]+${AGENT_USD_ENTRY})*$`, 'i');
+/** AI_AGENT_STATUS: `agente=on` ou `agente=off`. Espelho de parseAgentStatus em services/ai-agents. */
+const AGENT_STATUS_ENTRY = '[a-z0-9][a-z0-9@._-]*=(on|off)';
+export const AGENT_STATUS_PATTERN = new RegExp(
+  `^${AGENT_STATUS_ENTRY}([,;\\s]+${AGENT_STATUS_ENTRY})*$`,
+  'i',
+);
+
+const entries = (raw: string | null | undefined) => (raw ?? '').split(/[,;\s]+/).filter(Boolean);
+/** Sem a versão do prompt (`channels@v1` → `channels`), como o ledger grava o agente. */
+const agentKey = (name: string) => name.split('@')[0]!.toLowerCase();
+
+/**
+ * `lineups=2,wtw=unlimited` → `{ lineups: 2, wtw: null }` (null = sem teto próprio); vazio → `{}`;
+ * formato inválido ou US$ 0 → null.
+ */
+export function parseAgentUsdBudgets(raw: string | null | undefined): Record<string, number | null> | null {
+  const out: Record<string, number | null> = {};
+  for (const part of entries(raw)) {
+    const m = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?|unlimited)$/i.exec(part);
     if (!m) return null;
-    // sem a versão do prompt (`channels@v1` → `channels`), como o ledger grava o agente
-    out[m[1]!.split('@')[0]!.toLowerCase()] = Number(m[2]);
+    const value = m[2]!.toLowerCase() === 'unlimited' ? null : Number(m[2]);
+    if (value === 0) return null;
+    out[agentKey(m[1]!)] = value;
+  }
+  return out;
+}
+
+/** `lineups=on,wtw=off` → `{ lineups: 'on', wtw: 'off' }`; vazio → `{}`; formato inválido → null. */
+export function parseAgentStatus(raw: string | null | undefined): Record<string, 'on' | 'off'> | null {
+  const out: Record<string, 'on' | 'off'> = {};
+  for (const part of entries(raw)) {
+    const m = /^([a-z0-9][a-z0-9@._-]*)=(on|off)$/i.exec(part);
+    if (!m) return null;
+    out[agentKey(m[1]!)] = m[2]!.toLowerCase() as 'on' | 'off';
   }
   return out;
 }
@@ -268,12 +303,25 @@ export const SETTINGS: readonly SettingDef[] = [
       defaultBy: { key: 'AI_PROVIDER', values: AI_DEFAULT_MODELS[tier] },
     }),
   ),
+  // ligado/desligado é literal: off = nenhuma chamada ao LLM (os tetos abaixo só limitam)
+  agents('ai', { key: 'AI_STATUS', type: 'enum', options: AI_STATUSES, default: 'on', critical: true }),
+  // desliga agentes com a IA ligada (agente=on e vazio seguem o AI_STATUS, que é a chave geral)
+  agents('ai', {
+    key: 'AI_AGENT_STATUS',
+    type: 'text',
+    pattern: AGENT_STATUS_PATTERN,
+    allowEmpty: true,
+    default: null,
+    critical: true,
+  }),
+  // tetos: "unlimited" ou o número; 0 é inválido (para desligar, AI_STATUS=off)
   agents('ai', {
     key: 'AI_DAILY_TOKEN_BUDGET',
     type: 'int',
     min: 10_000,
     max: 100_000_000,
     unlimited: true,
+    zeroInvalid: true,
     default: '2000000',
     critical: true,
   }),
@@ -284,8 +332,7 @@ export const SETTINGS: readonly SettingDef[] = [
     min: 0.5,
     max: 10_000,
     unlimited: true,
-    // 0 desliga a IA de todos os agentes (como `agente=0` no teto por agente); sem teto = "unlimited"
-    zeroIsOff: true,
+    zeroInvalid: true,
     default: '10',
     critical: true,
   }),
@@ -294,8 +341,10 @@ export const SETTINGS: readonly SettingDef[] = [
     key: 'AI_AGENT_USD_BUDGETS',
     type: 'text',
     pattern: AGENT_USD_BUDGETS_PATTERN,
+    zeroInvalid: true,
     allowEmpty: true,
-    default: 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=1',
+    default:
+      'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=unlimited,curator=unlimited,review=unlimited,channels=unlimited,live=unlimited',
     critical: true,
   }),
   // buscas na web por chamada: OpenAI e Anthropic aplicam na API; o Gemini recebe no prompt e o
@@ -359,6 +408,19 @@ export const SETTINGS: readonly SettingDef[] = [
     default: null,
   }),
   agents('wtw', { key: 'AI_RIGHTS_MODEL', type: 'text', pattern: MODEL_ID, allowEmpty: true, default: null }),
+  // momentos do canal do jogo (wtw-channel roda a cada 10 min; estes decidem quando há pesquisa):
+  // consulta semanal das rodadas de 3 a 10 dias à frente, retentativas só para quem segue sem canal
+  // confirmado e pós-jogo dos encerrados sem canal (services/ai-agents/src/wtw/channel/windows.ts)
+  agents('wtw', { key: 'WTW_CHANNEL_WEEKLY_CRON', type: 'cron', default: '0 6 * * 1', critical: true }),
+  agents('wtw', {
+    key: 'WTW_CHANNEL_RETRY_OFFSETS',
+    type: 'text',
+    // `3d,1d` ou horas (`36h`), de 1 h a 14 d; `off` = sem retentativas (espelho de parseRetryOffsets)
+    pattern: RETRY_OFFSETS_PATTERN,
+    default: '3d,1d',
+    critical: true,
+  }),
+  agents('wtw', { key: 'WTW_CHANNEL_POST', type: 'enum', options: ['off', 'on'], default: 'on' }),
   agents('wtw', {
     key: 'WTW_DAILY_USD_PER_MARKET',
     type: 'number',
