@@ -155,6 +155,7 @@ async function seed() {
     labels: { 'pt-BR': 'Libertadores' },
     nicknames: { 'pt-BR': ['Glória Eterna'], es: ['La Gloria Eterna'] },
     sourceFile: 'competitions/football.yaml',
+    reviewStatus: 'approved',
   });
   await db.insert(season).values([
     { competitionId: id['football/conmebol-libertadores']!, label: '2026', year: 2026, current: true },

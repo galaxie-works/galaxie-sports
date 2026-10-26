@@ -410,6 +410,9 @@ importers:
       '@galaxie/rules':
         specifier: workspace:*
         version: link:../../packages/rules
+      '@galaxie/runtime-config':
+        specifier: workspace:*
+        version: link:../../packages/runtime-config
       '@galaxie/where-to-watch':
         specifier: workspace:*
         version: link:../../packages/where-to-watch
@@ -435,9 +438,6 @@ importers:
       '@galaxie/ingestor':
         specifier: workspace:*
         version: link:../ingestor
-      '@galaxie/runtime-config':
-        specifier: workspace:*
-        version: link:../../packages/runtime-config
       postgres:
         specifier: ^3.4.9
         version: 3.4.9

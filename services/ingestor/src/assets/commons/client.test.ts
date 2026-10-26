@@ -76,6 +76,47 @@ describe('WikimediaClient.items', () => {
   });
 });
 
+describe('WikimediaClient.extMetadata', () => {
+  it('só os campos pedidos, em lotes de 50, pelo título original mesmo quando a Commons normaliza', async () => {
+    const urls: URL[] = [];
+    const client = new WikimediaClient({
+      minIntervalMs: 0,
+      fetch: async (url) => {
+        const u = new URL(String(url));
+        urls.push(u);
+        const titles = u.searchParams.get('titles')!.split('|');
+        return Response.json({
+          query: {
+            normalized: titles
+              .filter((t) => t.includes('_'))
+              .map((t) => ({ from: t, to: t.replaceAll('_', ' ') })),
+            pages: titles
+              .filter((t) => t !== 'File:Sumiu.svg')
+              .map((t) => ({
+                title: t.replaceAll('_', ' '),
+                imageinfo: [{ extmetadata: { Attribution: { value: `de ${t}` } } }],
+              })),
+          },
+        });
+      },
+    });
+    const titles = [
+      'File:Logo_Exemplo.svg',
+      'File:Sumiu.svg',
+      ...Array.from({ length: 50 }, (_, i) => `File:L${i}.svg`),
+    ];
+    const metas = await client.extMetadata(titles, ['Attribution']);
+    expect(urls).toHaveLength(2);
+    expect(urls[0]!.searchParams.get('iiextmetadatafilter')).toBe('Attribution');
+    expect(urls[0]!.searchParams.get('iiprop')).toBe('extmetadata');
+    expect(metas.get('File:Logo_Exemplo.svg')).toEqual({
+      Attribution: { value: 'de File:Logo_Exemplo.svg' },
+    });
+    expect(metas.has('File:Sumiu.svg')).toBe(false);
+    expect(metas.size).toBe(51);
+  });
+});
+
 describe('WikimediaClient.imageInfoReport', () => {
   it('devolve à parte os arquivos que a Commons diz não existirem (apagados ou título inválido)', async () => {
     const client = new WikimediaClient({

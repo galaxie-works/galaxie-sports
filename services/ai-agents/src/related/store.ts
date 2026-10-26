@@ -4,13 +4,20 @@
  * versão `retracted`, e expiração em 30 dias (política de dados da plataforma). Mudança visível →
  * `event.related_content_changed` no change feed (purge de cache, SSE, webhook).
  */
-import { and, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import {
+  event,
+  promoteRefusedChannels,
+  readRelatedContent,
   publishChange,
   RELATED_CONTENT_TOPIC,
   relatedBudget,
+  relatedChannelRule,
   relatedContent,
   relatedContentTag,
+  relatedPlaybackBlock,
+  relatedPlaybackReport,
+  youtubeChannel,
   type Database,
   type RelatedContentRow,
   type RelatedAspectRatio,
@@ -209,72 +216,135 @@ export async function saveRelatedContent(db: Database, input: SaveRelatedInput):
   });
 }
 
+/** Dias que um dado obtido da API do YouTube fica guardado (docs/12 §2.1, política III.E.4). */
+export const YOUTUBE_RETENTION_DAYS = 30;
+
+export interface YoutubeRetentionResult {
+  /** Canais no limiar de recusas que viraram regra `block` do automático antes de os ids saírem. */
+  promoted: string[];
+  /** Linhas de `related_content` apagadas (todas as versões) e os jogos avisados. */
+  rows: number;
+  events: string[];
+  /** Canais do cache do `channels.list` (`youtube_channel`) apagados. */
+  channels: number;
+  /** Recusas do player (`related_playback_block`) e registros de quem relatou apagados. */
+  blocks: number;
+  reports: number;
+  /** Regras de canal que perderam o título (`channel_title`, dado da API). */
+  ruleTitles: number;
+}
+
 /**
- * Expira o que não foi atualizado em `days` dias: título, trecho, miniatura e estatísticas apagados
- * em TODAS as versões (inclusive o histórico); a versão vigente vira `expired`. O id do vídeo e a
- * classificação ficam. Devolve os eventos afetados.
+ * Retenção do que vem da API do YouTube: apaga 30 dias depois de obtido, sem renovação. A revalidação não
+ * estende o prazo: o vídeo sai `YOUTUBE_RETENTION_DAYS` depois do `first_seen_at`, com todas as versões
+ * (título, trecho, miniatura, estatísticas, canal, handle e o próprio id). O cache de canais sai pelo
+ * `fetched_at`; a recusa do player e o registro de quem relatou, pelo primeiro relato; a regra de canal perde
+ * o título. Antes, o canal no limiar de recusas vira regra `block` do automático: o id do canal fica como
+ * configuração nossa, e o bloqueio (e a economia de cota) continua. Idempotente; roda a cada execução do
+ * agente.
  */
-export async function expireStaleRelated(
+export async function purgeYoutubeData(
   db: Database,
   options: { now?: Date; days?: number } = {},
-): Promise<{ events: string[]; rows: number }> {
+): Promise<YoutubeRetentionResult> {
   const now = options.now ?? new Date();
-  const cutoff = new Date(now.getTime() - (options.days ?? 30) * 86_400_000);
+  const cutoff = new Date(now.getTime() - (options.days ?? YOUTUBE_RETENTION_DAYS) * 86_400_000);
   return db.transaction(async (tx) => {
-    const stale = await tx
-      .select({
-        eventId: relatedContent.eventId,
-        externalId: relatedContent.externalId,
-        status: relatedContent.status,
-      })
+    const promoted = await promoteRefusedChannels(tx, { now });
+
+    // vídeos: o que estava na vitrine some dela (aviso por jogo); as versões antigas saem junto
+    const visible = await tx
+      .select({ eventId: relatedContent.eventId, externalId: relatedContent.externalId })
       .from(relatedContent)
       .where(
         and(
+          lt(relatedContent.firstSeenAt, cutoff),
           isNull(relatedContent.supersededBy),
-          lt(relatedContent.lastCheckedAt, cutoff),
-          ne(relatedContent.status, 'expired'),
+          eq(relatedContent.status, 'published'),
         ),
       );
-    if (!stale.length) return { events: [], rows: 0 };
-    let rows = 0;
-    const byEvent = new Map<string, { ids: string[]; visible: boolean }>();
-    for (const s of stale) {
-      const e = byEvent.get(s.eventId) ?? { ids: [], visible: false };
-      e.ids.push(s.externalId);
-      e.visible ||= s.status === 'published';
-      byEvent.set(s.eventId, e);
+    const deleted = await tx
+      .delete(relatedContent)
+      .where(lt(relatedContent.firstSeenAt, cutoff))
+      .returning({ eventId: relatedContent.eventId });
+    const removed = new Map<string, string[]>();
+    for (const v of visible) removed.set(v.eventId, [...(removed.get(v.eventId) ?? []), v.externalId]);
+
+    const channels = await tx
+      .delete(youtubeChannel)
+      .where(lt(youtubeChannel.fetchedAt, cutoff))
+      .returning({ id: youtubeChannel.id });
+    const blocks = await tx
+      .delete(relatedPlaybackBlock)
+      .where(lt(relatedPlaybackBlock.firstReportedAt, cutoff))
+      .returning({ externalId: relatedPlaybackBlock.externalId });
+    const reports = await tx
+      .delete(relatedPlaybackReport)
+      .where(lt(relatedPlaybackReport.firstReportedAt, cutoff))
+      .returning({ externalId: relatedPlaybackReport.externalId });
+    const ruleTitles = await tx
+      .update(relatedChannelRule)
+      .set({ channelTitle: null })
+      .where(and(lt(relatedChannelRule.updatedAt, cutoff), isNotNull(relatedChannelRule.channelTitle)))
+      .returning({ channelId: relatedChannelRule.channelId });
+
+    // vídeo que saiu da lista de recusas e ainda está num jogo mais novo volta à vitrine dele, se o canal não
+    // seguir fora (regra `block` do automático ou do painel, ou ainda no limiar): vai em `added` do aviso
+    const unblockedIds = blocks.map((b) => b.externalId);
+    const candidates = unblockedIds.length
+      ? await tx
+          .select({ eventId: relatedContent.eventId, externalId: relatedContent.externalId })
+          .from(relatedContent)
+          .where(
+            and(
+              inArray(relatedContent.externalId, unblockedIds),
+              isNull(relatedContent.supersededBy),
+              eq(relatedContent.status, 'published'),
+            ),
+          )
+      : [];
+    const added = new Map<string, string[]>();
+    for (const eventId of new Set(candidates.map((c) => c.eventId))) {
+      // a mesma leitura da vitrine decide o que voltou a aparecer
+      const page = await readRelatedContent(tx, eventId, { limit: 1_000 });
+      const visibleNow = new Set(page.rows.map((r) => r.externalId));
+      const back = candidates
+        .filter((c) => c.eventId === eventId && visibleNow.has(c.externalId))
+        .map((c) => c.externalId);
+      if (back.length) added.set(eventId, back);
     }
-    for (const [eventId, { ids, visible }] of byEvent) {
-      const cleared = await tx
-        .update(relatedContent)
-        .set({ title: '', descriptionExcerpt: null, thumbnailUrl: null, statistics: null })
-        .where(and(eq(relatedContent.eventId, eventId), inArray(relatedContent.externalId, ids)))
-        .returning({ id: relatedContent.id });
-      rows += cleared.length;
-      await tx
-        .update(relatedContent)
-        .set({ status: 'expired' })
-        .where(
-          and(
-            eq(relatedContent.eventId, eventId),
-            inArray(relatedContent.externalId, ids),
-            isNull(relatedContent.supersededBy),
-          ),
-        );
-      if (visible)
-        await publishChange(tx, {
-          topic: RELATED_CONTENT_TOPIC,
-          entityType: 'related_content',
-          entityId: eventId,
-          payload: {
-            event_id: eventId,
-            changed: ['related_content'],
-            data: { added: [], removed: ids, changed: [] },
-            tags: [relatedContentTag(eventId), `event:${eventId}`],
-          },
-        });
-    }
-    return { events: [...byEvent.keys()], rows };
+    const events = [...new Set([...removed.keys(), ...added.keys()])];
+    // esporte e competição do jogo: os filtros do SSE/webhook e a restrição de esporte do tenant precisam deles
+    const meta = events.length
+      ? await tx
+          .select({ id: event.id, sport: event.sport, competitionId: event.competitionId })
+          .from(event)
+          .where(inArray(event.id, events))
+      : [];
+    const metaOf = new Map(meta.map((m) => [m.id, m]));
+    for (const eventId of events)
+      await publishChange(tx, {
+        topic: RELATED_CONTENT_TOPIC,
+        entityType: 'related_content',
+        entityId: eventId,
+        payload: {
+          event_id: eventId,
+          sport: metaOf.get(eventId)?.sport ?? null,
+          competition_id: metaOf.get(eventId)?.competitionId ?? null,
+          changed: ['related_content'],
+          data: { added: added.get(eventId) ?? [], removed: removed.get(eventId) ?? [], changed: [] },
+          tags: [relatedContentTag(eventId), `event:${eventId}`],
+        },
+      });
+    return {
+      promoted,
+      rows: deleted.length,
+      events,
+      channels: channels.length,
+      blocks: blocks.length,
+      reports: reports.length,
+      ruleTitles: ruleTitles.length,
+    };
   });
 }
 

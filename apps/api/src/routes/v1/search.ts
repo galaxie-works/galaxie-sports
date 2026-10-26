@@ -28,6 +28,7 @@ import { assetUrl, parseInput } from '../../util.js';
 import { localeOf } from './events.js';
 import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
+import { competitionProfileServedSql, semanticFloor } from '../../competitions/profile.js';
 
 const MODULE = { module: 'core_data' } as const;
 
@@ -220,7 +221,8 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
         from core.competition c
         left join lateral (
           select x.labels, x.nicknames, x.trophy_nickname from semantic.competition_profile x
-           where x.competition_id = c.id order by x.slug limit 1) cp on true
+           where x.competition_id = c.id and ${competitionProfileServedSql('x', semanticFloor(ctx))}
+           order by x.slug limit 1) cp on true
         left join core.asset a on a.id = ${logoIdSql('c', ctx.logos.enabled())}
         left join core.country co on co.code = c.country_code
        where ${matchesSql(sql`c.name`, aliases, term)}

@@ -32,6 +32,7 @@ import { pickList, pickText, resolveLocale } from '../../i18n.js';
 import { competitionLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
+import { competitionProfileServed, semanticFloor } from '../../competitions/profile.js';
 
 const MODULE = { module: 'core_data' } as const;
 const MIRRORED = new Set<string>(MIRROR_SPORTS);
@@ -369,7 +370,9 @@ export async function navigationRoutes(
           nicknames: competitionProfile.nicknames,
         })
         .from(competitionProfile)
-        .where(inArray(competitionProfile.competitionId, ids)),
+        .where(
+          and(inArray(competitionProfile.competitionId, ids), competitionProfileServed(semanticFloor(ctx))),
+        ),
       db
         .selectDistinctOn([season.competitionId], {
           competitionId: season.competitionId,
