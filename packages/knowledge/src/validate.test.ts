@@ -34,7 +34,7 @@ describe('validateKnowledge — base real', () => {
     // futebol 187 times/seleções e 82 clássicos + basquete, vôlei e F1 (issue #44)
     expect(report.counts.teams).toBe(218);
     expect(report.counts.derbies).toBe(93);
-    expect(report.counts.competitions).toBe(43);
+    expect(report.counts.competitions).toBe(58);
     expect(report.counts.copyTemplates).toBeGreaterThanOrEqual(8 * 24);
     expect(report.counts.glossaryTerms).toBeGreaterThanOrEqual(8 * 3);
   });
