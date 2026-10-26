@@ -6,7 +6,9 @@
  */
 import { and, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import {
+  event,
   promoteRefusedChannels,
+  readRelatedContent,
   publishChange,
   RELATED_CONTENT_TOPIC,
   relatedBudget,
@@ -286,24 +288,40 @@ export async function purgeYoutubeData(
       .where(and(lt(relatedChannelRule.updatedAt, cutoff), isNotNull(relatedChannelRule.channelTitle)))
       .returning({ channelId: relatedChannelRule.channelId });
 
-    // vídeo que saiu da lista de recusas e ainda está num jogo mais novo volta à vitrine dele (o canal no limiar
-    // continua fora pela regra): o cache desse jogo também é purgado
-    const unblocked = blocks.length
+    // vídeo que saiu da lista de recusas e ainda está num jogo mais novo volta à vitrine dele, se o canal não
+    // seguir fora (regra `block` do automático ou do painel, ou ainda no limiar): vai em `added` do aviso
+    const unblockedIds = blocks.map((b) => b.externalId);
+    const candidates = unblockedIds.length
       ? await tx
-          .selectDistinct({ eventId: relatedContent.eventId })
+          .select({ eventId: relatedContent.eventId, externalId: relatedContent.externalId })
           .from(relatedContent)
           .where(
             and(
-              inArray(
-                relatedContent.externalId,
-                blocks.map((b) => b.externalId),
-              ),
+              inArray(relatedContent.externalId, unblockedIds),
               isNull(relatedContent.supersededBy),
               eq(relatedContent.status, 'published'),
             ),
           )
       : [];
-    const events = [...new Set([...removed.keys(), ...unblocked.map((u) => u.eventId)])];
+    const added = new Map<string, string[]>();
+    for (const eventId of new Set(candidates.map((c) => c.eventId))) {
+      // a mesma leitura da vitrine decide o que voltou a aparecer
+      const page = await readRelatedContent(tx, eventId, { limit: 1_000 });
+      const visibleNow = new Set(page.rows.map((r) => r.externalId));
+      const back = candidates
+        .filter((c) => c.eventId === eventId && visibleNow.has(c.externalId))
+        .map((c) => c.externalId);
+      if (back.length) added.set(eventId, back);
+    }
+    const events = [...new Set([...removed.keys(), ...added.keys()])];
+    // esporte e competição do jogo: os filtros do SSE/webhook e a restrição de esporte do tenant precisam deles
+    const meta = events.length
+      ? await tx
+          .select({ id: event.id, sport: event.sport, competitionId: event.competitionId })
+          .from(event)
+          .where(inArray(event.id, events))
+      : [];
+    const metaOf = new Map(meta.map((m) => [m.id, m]));
     for (const eventId of events)
       await publishChange(tx, {
         topic: RELATED_CONTENT_TOPIC,
@@ -311,8 +329,10 @@ export async function purgeYoutubeData(
         entityId: eventId,
         payload: {
           event_id: eventId,
+          sport: metaOf.get(eventId)?.sport ?? null,
+          competition_id: metaOf.get(eventId)?.competitionId ?? null,
           changed: ['related_content'],
-          data: { added: [], removed: removed.get(eventId) ?? [], changed: [] },
+          data: { added: added.get(eventId) ?? [], removed: removed.get(eventId) ?? [], changed: [] },
           tags: [relatedContentTag(eventId), `event:${eventId}`],
         },
       });

@@ -8,9 +8,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   AUTO_CHANNEL_RULE_BY,
   changeFeed,
+  event,
+  eventParticipant,
   readRelatedContent,
   RELATED_CONTENT_TOPIC,
   relatedBudget,
+  relatedChannel,
   relatedChannelRule,
   relatedContent,
   relatedPlaybackBlock,
@@ -20,6 +23,7 @@ import {
 } from '@galaxie/db';
 import { Blocklist, loadWtwConfig } from '@galaxie/where-to-watch';
 import { FakeLlmClient } from '../src/llm/fake.js';
+import { ChannelBook } from '../src/related/channel-map.js';
 import { broadcasterChannelsFrom, ChannelAllowlist, loadChannelEntries } from '../src/related/channels.js';
 import { runRelatedAgent, type RelatedRunOptions } from '../src/related/run.js';
 import { relatedPolicyFromEnv } from '../src/related/priority.js';
@@ -460,6 +464,40 @@ describe('Conteúdo relacionado (integração)', () => {
     expect(page.rows.map((r) => r.externalId)).not.toContain('v-react');
   });
 
+  it('canal bloqueado sem cache fresco não vai para o channels.list', async () => {
+    // o canal do Palmeiras no mapa, bloqueado no painel, e sem cache em youtube_channel
+    const [home] = await db
+      .select({ id: eventParticipant.participantId })
+      .from(eventParticipant)
+      .where(and(eq(eventParticipant.eventId, eventId), eq(eventParticipant.side, 'home')));
+    await db.insert(relatedChannel).values({
+      channelId: 'UCbloq',
+      kind: 'club',
+      participantId: home!.id,
+      source: 'config',
+    });
+    await db.insert(relatedChannelRule).values({ provider: 'youtube', channelId: 'UCbloq', mode: 'block' });
+    const calls: string[] = [];
+    const fetch: FetchLike = async (url) => {
+      calls.push(new URL(url).pathname);
+      return new Response(JSON.stringify({ items: [] }));
+    };
+    const book = new ChannelBook(db, new YoutubeClient({ apiKey: 'test', fetch }), { now: NOW });
+    const query = {
+      participantIds: [home!.id],
+      competitionId: null,
+      holders: new Set<string>(),
+      markets: [],
+    };
+    expect(await book.knownChannels(query, new Set(['UCbloq']))).toEqual([]);
+    expect(calls).toEqual([]);
+    // sem o filtro, o mesmo canal pediria o channels.list
+    await book.knownChannels(query);
+    expect(calls.some((c) => c.endsWith('/channels'))).toBe(true);
+    await db.delete(relatedChannel).where(eq(relatedChannel.channelId, 'UCbloq'));
+    await db.delete(relatedChannelRule).where(eq(relatedChannelRule.channelId, 'UCbloq'));
+  });
+
   it('retenção de 30 dias: apaga vídeos, canais e recusas; o canal no limiar fica bloqueado por regra', async () => {
     // a CazéTV de produção: 3 vídeos recusados, nenhuma regra
     const t0 = new Date(NOW.getTime() - 3_600_000);
@@ -483,18 +521,50 @@ describe('Conteúdo relacionado (integração)', () => {
       updatedAt: t0,
     });
     const later = new Date(NOW.getTime() + 31 * 86_400_000);
+    // vídeo achado de novo há pouco (dado fresco), com a recusa antiga: ao sair a recusa, volta à vitrine
+    await db.insert(relatedPlaybackBlock).values({
+      provider: 'youtube',
+      externalId: 'v-volta',
+      code: 150,
+      channelId: 'UCnovo',
+      tenantId: null,
+      firstReportedAt: t0,
+      lastReportedAt: t0,
+    });
+    await db.insert(relatedContent).values({
+      eventId,
+      provider: 'youtube',
+      externalId: 'v-volta',
+      url: 'https://www.youtube.com/watch?v=v-volta',
+      title: 'Palmeiras x Corinthians | Bastidores',
+      channelId: 'UCnovo',
+      channelTitle: 'Canal novo',
+      sourceTier: 'media',
+      contentType: 'behind_the_scenes',
+      format: 'long',
+      aspectRatio: '16:9',
+      publishedAt: NOW,
+      rankScore: '1.000',
+      confidence: '0.90',
+      classifiedBy: 'rules@v1',
+      status: 'published',
+      firstSeenAt: new Date(later.getTime() - 86_400_000),
+      lastCheckedAt: new Date(later.getTime() - 86_400_000),
+    });
     const res = await purgeYoutubeData(db, { now: later });
     expect(res.promoted).toEqual(['UCcaze']);
     expect(res.events).toEqual([eventId]);
     expect(res.rows).toBeGreaterThan(0);
     expect(res.channels).toBeGreaterThan(0);
-    expect(res.blocks).toBe(4); // as 3 da CazéTV e a do v-react
+    expect(res.blocks).toBe(5); // as 3 da CazéTV, a do v-react e a do v-volta
     expect(res.ruleTitles).toBe(1);
-    // nada do YouTube sobra: nem vídeo (com título, canal e handle), nem o cache de canais, nem os ids recusados
-    expect(await db.select().from(relatedContent).where(eq(relatedContent.eventId, eventId))).toEqual([]);
+    // nada do YouTube com mais de 30 dias sobra: nem vídeo (com título, canal e handle), nem o cache de canais,
+    // nem os ids recusados; só o v-volta, obtido há um dia
+    const left = await db.select().from(relatedContent).where(eq(relatedContent.eventId, eventId));
+    expect(left.map((r) => r.externalId)).toEqual(['v-volta']);
     expect(await db.select().from(youtubeChannel)).toEqual([]);
     expect(await db.select().from(relatedPlaybackBlock)).toEqual([]);
-    expect((await readRelatedContent(db, eventId)).rows).toHaveLength(0);
+    expect((await readRelatedContent(db, eventId)).rows.map((r) => r.externalId)).toEqual(['v-volta']);
     // o bloqueio da CazéTV continua, como regra nossa (só o id do canal); a regra manual perdeu o título
     const rules = await db.select().from(relatedChannelRule);
     expect(rules.find((r) => r.channelId === 'UCcaze')).toMatchObject({
@@ -503,9 +573,15 @@ describe('Conteúdo relacionado (integração)', () => {
       channelTitle: null,
     });
     expect(rules.find((r) => r.channelId === 'UCmanual')?.channelTitle).toBeNull();
-    // a vitrine do jogo é avisada
+    // a vitrine do jogo é avisada: o que saiu, o que voltou, e o esporte e a competição para os filtros
     const feed = await db.select().from(changeFeed).where(eq(changeFeed.entityId, eventId));
-    expect(feed.at(-1)!.payload).toMatchObject({ data: { removed: expect.arrayContaining(['v-official']) } });
+    const [ev] = await db.select().from(event).where(eq(event.id, eventId));
+    expect(feed.at(-1)!.payload).toMatchObject({
+      sport: 'football',
+      competition_id: ev!.competitionId,
+      data: { added: ['v-volta'], removed: expect.arrayContaining(['v-official']) },
+    });
+    expect((feed.at(-1)!.payload as { data: { removed: string[] } }).data.removed).not.toContain('v-volta');
     // idempotente
     expect(await purgeYoutubeData(db, { now: later })).toMatchObject({
       promoted: [],

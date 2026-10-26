@@ -771,14 +771,13 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
         // 1. canais conhecidos (clubes, competição, emissoras): 1 unidade por página de uploads
         let channelUsable = 0;
         if (mode !== 'revalidate' && hasChannels) {
-          const known = await book.knownChannels(channelQuery);
+          // canal bloqueado sai antes do channels.list (detalhe do canal) e do playlistItems
+          const links = await book.linksFor(channelQuery);
+          skipped.channels = links.filter((l) => blocks.channels.has(l.channelId)).length;
+          const known = await book.knownChannels(channelQuery, blocks.channels);
           item.channels = known.length;
           let matches = 0;
           for (const ch of known) {
-            if (blocks.channels.has(ch.channelId)) {
-              skipped.channels++;
-              continue;
-            }
             const uploads = await book.recentUploads(ch.uploadsPlaylistId, core.startsAt);
             const side =
               ch.kind === 'club'
