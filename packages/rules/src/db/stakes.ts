@@ -79,6 +79,11 @@ export interface KnockoutContext {
   leg: 1 | 2 | null;
   /** Placar da ida (mandante/visitante da ida). */
   firstLeg?: { homeTeamId: string; awayTeamId: string; homeGoals: number; awayGoals: number };
+  /**
+   * Posição de cada lado na tabela de referência do mata-mata (`level_advantage: better_seed`, Liguilla):
+   * empate no confronto classifica o de melhor campanha.
+   */
+  seed?: { home: number; away: number };
   /** Agregado antes da volta, pela ótica do mandante da volta. */
   aggregateBefore?: { home: number; away: number };
   extraTime: boolean;
@@ -196,6 +201,38 @@ async function findOtherLeg(db: Database, core: StakesEventRef) {
   return rows[0] ?? null;
 }
 
+/** Rótulo da rodada do evento: o que veio no evento (`providerLabel`) ou o da fase no core. */
+async function stageLabelOf(db: Database, core: StakesEventRef): Promise<string | null> {
+  if (!core.stage) return null;
+  if (core.stage.providerLabel !== undefined) return core.stage.providerLabel;
+  const [row] = await db
+    .select({ label: stage.providerLabel })
+    .from(stage)
+    .where(eq(stage.id, core.stage.id));
+  return row?.label ?? null;
+}
+
+/**
+ * Posição dos dois times na tabela de referência do mata-mata (`knockout.seeding`): a fase de classificação
+ * do torneio (ex.: "Apertura - Quarter-finals" → tabela do Apertura). Só com os dois no mesmo grupo.
+ */
+async function seedOf(
+  db: Database,
+  core: StakesEventRef,
+  rules: CompetitionRules,
+): Promise<{ home: number; away: number } | undefined> {
+  const label = await stageLabelOf(db, core);
+  const entry = rules.knockout?.seeding.find((sd) => sd.rounds.test(label ?? ''));
+  if (!entry || !core.season) return undefined;
+  const rows = (await db.select().from(standing).where(eq(standing.seasonId, core.season.id))).filter(
+    (r) => standingsTableOf(rules, r.group)?.key === entry.table,
+  );
+  const home = rows.find((r) => r.participantId === core.home.id);
+  const away = rows.find((r) => r.participantId === core.away.id);
+  if (!home || !away || home.group !== away.group) return undefined;
+  return { home: home.rank, away: away.rank };
+}
+
 async function knockoutContext(
   db: Database,
   core: StakesEventRef,
@@ -205,15 +242,24 @@ async function knockoutContext(
     rules,
     core.stage ? rulesStageKey(core.stage.kind, core.stage.providerLabel ?? null) : null,
   );
+  const seed = stageRules.levelAdvantage === 'better_seed' ? await seedOf(db, core, rules) : undefined;
+  // empate decidido pela campanha sem a posição dos dois: não dá para dizer quem passa com o empate
+  if (stageRules.levelAdvantage === 'better_seed' && !seed)
+    return {
+      stakes: [],
+      rules,
+      reason: 'mata-mata decidido pela campanha, sem a posição dos dois na tabela',
+    };
   const base = {
     legs: stageRules.legs,
     extraTime: stageRules.extraTime,
     penalties: stageRules.penalties,
     decidesTitle: stageRules.decidesTitle,
+    ...(seed ? { seed } : {}),
   };
   if (stageRules.legs === 1) {
     return {
-      stakes: knockoutStakes({ rules: stageRules }),
+      stakes: knockoutStakes({ rules: stageRules, ...(seed ? { seed } : {}) }),
       rules,
       knockout: { ...base, legs: 1, leg: null },
     };
@@ -234,7 +280,12 @@ async function knockoutContext(
   // Na ida, o mandante era o visitante deste jogo.
   const firstLeg = { homeTeamId: core.away.id, awayTeamId: core.home.id, homeGoals: h, awayGoals: a };
   return {
-    stakes: knockoutStakes({ rules: stageRules, leg: 2, firstLeg: { homeGoals: h, awayGoals: a } }),
+    stakes: knockoutStakes({
+      rules: stageRules,
+      leg: 2,
+      firstLeg: { homeGoals: h, awayGoals: a },
+      ...(seed ? { seed } : {}),
+    }),
     rules,
     knockout: { ...base, legs: 2, leg: 2, firstLeg, aggregateBefore: { home: a, away: h } },
   };
@@ -345,12 +396,7 @@ async function phaseOf(db: Database, core: StakesEventRef, rules: CompetitionRul
   const phases = rules.tables.filter((t) => t.kind === 'phase' && t.rounds);
   if (!phases.length) return null;
   if (!core.stage) return undefined;
-  // o rótulo vem no evento quando quem chama o tem (providerLabel); senão, da fase no core
-  const label =
-    core.stage.providerLabel !== undefined
-      ? core.stage.providerLabel
-      : (await db.select({ label: stage.providerLabel }).from(stage).where(eq(stage.id, core.stage.id)))[0]
-          ?.label;
+  const label = await stageLabelOf(db, core);
   return phases.find((t) => t.rounds!.test(label ?? ''));
 }
 

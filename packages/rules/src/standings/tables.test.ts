@@ -160,3 +160,26 @@ describe('nome exibido, fase em andamento e prioridade', () => {
     ).toEqual(['Clausura - Group A', 'Apertura - Group A', 'Tabla Anual', 'Desconhecido', 'Promedios']);
   });
 });
+
+describe('knockout.seeding e level_advantage no regulamento', () => {
+  const ko = (
+    knockout: unknown,
+    tables: unknown = [{ key: 'apertura', name: 'Apertura', groups: 'apertura' }],
+  ) => parseCompetitionRules({ ...base, knockout, tables });
+
+  it('aceita a vantagem da campanha sem prorrogação nem pênaltis e liga a tabela de referência', () => {
+    const rules = ko({
+      default: { legs: 2, extra_time: false, penalties: false, level_advantage: 'better_seed' },
+      seeding: [{ rounds: '^apertura - ', table: 'apertura' }],
+    });
+    expect(rules.knockout!.default.levelAdvantage).toBe('better_seed');
+    expect(rules.knockout!.seeding[0]!.rounds.test('Apertura - Quarter-finals')).toBe(true);
+  });
+
+  it('recusa vantagem desconhecida e tabela de referência fora de tables', () => {
+    expect(() => ko({ default: { level_advantage: 'home' } })).toThrow(/level_advantage/);
+    expect(() => ko({ default: {}, seeding: [{ rounds: 'x', table: 'clausura' }] })).toThrow(
+      /não está em tables/,
+    );
+  });
+});

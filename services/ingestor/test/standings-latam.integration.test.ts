@@ -254,6 +254,36 @@ describe('Liga MX: Apertura e Clausura de tabela única, Liguilla fora', () => {
   });
 });
 
+describe('Liguilla (Liga MX): empate no agregado classifica o de melhor campanha', () => {
+  it('stakes da volta das quartas: o mais bem colocado no Apertura passa com o empate', async () => {
+    const w = await world('liga-mx', 2026, ['Toluca', 'Tigres', 'Monterrey', 'Atlas']);
+    // Apertura: Toluca 1º, Atlas 4º (tabela recalculada a partir das rodadas)
+    await w.play('Apertura - 1', 'Toluca', 'Tigres', [2, 0]);
+    await w.play('Apertura - 1', 'Monterrey', 'Atlas', [1, 0]);
+    await w.play('Apertura - 2', 'Toluca', 'Monterrey', [1, 0]);
+    await w.play('Apertura - 2', 'Tigres', 'Atlas', [1, 0]);
+    expect((await recomputeSeasonStandings(db, w.seasonId, { publish: false })).outcome).toBe('written');
+    // quartas (ida e volta na mesma fase): ida 1 × 1 no Atlas, volta no Toluca
+    await w.play('Apertura - Quarter-finals', 'Atlas', 'Toluca', [1, 1], 'quarter_final');
+    const second = await w.play('Apertura - Quarter-finals', 'Toluca', 'Atlas', null, 'quarter_final');
+    const stakes = await computeEventStakes(db, {
+      id: second.eventId,
+      sport: 'football',
+      startsAt: second.startsAt,
+      competition: { slug: 'liga-mx' },
+      season: { id: w.seasonId, year: 2026 },
+      stage: { id: second.stageId, kind: 'quarter_final' },
+      home: { id: w.team('Toluca') },
+      away: { id: w.team('Atlas') },
+    });
+    expect(stakes.knockout).toMatchObject({ legs: 2, leg: 2, seed: { home: 1, away: 4 } });
+    const codes = stakes.stakes.map((s) => `${s.team}:${s.code}`);
+    expect(codes).toContain('home:advances_with_draw');
+    expect(codes).toContain('away:needs_win');
+    expect(codes.some((c) => c.includes('penalties'))).toBe(false);
+  });
+});
+
 describe('Brasileirão: pontos corridos no grupo do fornecedor', () => {
   it('com "Serie A" do fornecedor e resíduo sem nome: regrava "Serie A" e apaga o resíduo', async () => {
     const w = await world('brasileirao-serie-a', 2026, ['Palmeiras', 'Flamengo', 'Bahia', 'Ceará']);

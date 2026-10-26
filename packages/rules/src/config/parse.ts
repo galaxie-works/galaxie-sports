@@ -35,6 +35,7 @@ const DEFAULT_STAGE: KnockoutStageRules = {
   drawAdvantage: null,
   neutralVenue: false,
   decidesTitle: false,
+  levelAdvantage: null,
 };
 
 const DEFAULT_TIE_BREAKERS: TieBreaker[] = [
@@ -170,9 +171,12 @@ function parseStage(slug: string, field: string, raw: unknown, base: KnockoutSta
     drawAdvantage,
     neutralVenue: bool(slug, `${field}.neutral_venue`, s.neutral_venue, base.neutralVenue),
     decidesTitle: bool(slug, `${field}.decides_title`, s.decides_title, base.decidesTitle),
+    levelAdvantage: s.level_advantage === undefined ? base.levelAdvantage : (s.level_advantage as 'better_seed' | null),
   };
+  if (stage.levelAdvantage !== null && stage.levelAdvantage !== 'better_seed')
+    fail(slug, `${field}.level_advantage deve ser better_seed ou null`);
   if (stage.drawAdvantage && stage.legs !== 1) fail(slug, `${field}: draw_advantage só vale para jogo único`);
-  if (!stage.penalties && !stage.drawAdvantage && !stage.extraTime) {
+  if (!stage.penalties && !stage.drawAdvantage && !stage.extraTime && !stage.levelAdvantage) {
     fail(slug, `${field}: sem prorrogação, pênaltis ou vantagem do empate não há como decidir empates`);
   }
   return stage;
@@ -188,7 +192,13 @@ function parseKnockout(slug: string, raw: unknown): KnockoutRules | null {
       stages[kind] = parseStage(slug, `knockout.stages.${kind}`, stage, def);
     }
   }
-  return { default: def, stages };
+  const seeding = Array.isArray(raw.seeding)
+    ? raw.seeding.map((x, i) => {
+        if (!isObject(x) || typeof x.table !== 'string') fail(slug, `knockout.seeding[${i}] precisa de rounds e table`);
+        return { rounds: regex(slug, `knockout.seeding[${i}].rounds`, x.rounds), table: x.table };
+      })
+    : [];
+  return { default: def, stages, seeding };
 }
 
 function regex(slug: string, field: string, value: unknown): RegExp {
@@ -286,7 +296,7 @@ export function parseCompetitionRules(input: unknown, options: { season?: number
     fail(slug, `format inválido: ${String(format)}`);
   }
   const sources = Array.isArray(raw.sources) ? raw.sources.filter((s): s is string => typeof s === 'string') : [];
-  return {
+  const rules: CompetitionRules = {
     slug,
     name: typeof raw.name === 'string' ? raw.name : slug,
     format: format as CompetitionFormat,
@@ -297,6 +307,10 @@ export function parseCompetitionRules(input: unknown, options: { season?: number
     tables: parseTables(slug, raw.tables, raw.league),
     sources,
   };
+  for (const sd of rules.knockout?.seeding ?? [])
+    if (!rules.tables.some((t) => t.key === sd.table))
+      fail(slug, `knockout.seeding: tabela "${sd.table}" não está em tables`);
+  return rules;
 }
 
 /**
@@ -312,7 +326,7 @@ export function standingsTableOf(
 
 /** Regras de uma fase de mata-mata: a exceção da fase, se houver, senão o padrão da competição. */
 export function knockoutStageRules(rules: CompetitionRules, stageKind?: string | null): KnockoutStageRules {
-  const ko = rules.knockout ?? { default: DEFAULT_STAGE, stages: {} };
+  const ko: KnockoutRules = rules.knockout ?? { default: DEFAULT_STAGE, stages: {}, seeding: [] };
   return (stageKind ? ko.stages[stageKind] : undefined) ?? ko.default;
 }
 

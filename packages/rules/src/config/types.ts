@@ -91,12 +91,26 @@ export interface KnockoutStageRules {
   neutralVenue: boolean;
   /** O vencedor do confronto é o campeão (final). */
   decidesTitle: boolean;
+  /**
+   * Empate no confronto (no agregado, ou no jogo único) sem prorrogação nem pênaltis: `better_seed` classifica
+   * o de melhor campanha na fase de classificação (Liguilla da Liga MX). A tabela de referência vem de
+   * `knockout.seeding`.
+   */
+  levelAdvantage: 'better_seed' | null;
+}
+
+/** Tabela (de `tables:`) que define a melhor campanha nas rodadas de mata-mata que casam com `rounds`. */
+export interface KnockoutSeeding {
+  rounds: RegExp;
+  table: string;
 }
 
 export interface KnockoutRules {
   default: KnockoutStageRules;
   /** Exceções por fase: chave = `core.stage.kind` (final, semi_final, first_round...). */
   stages: Record<string, KnockoutStageRules>;
+  /** De onde sai a melhor campanha para `level_advantage: better_seed` (vazio sem essa regra). */
+  seeding: KnockoutSeeding[];
 }
 
 export type CompetitionFormat = 'league' | 'cup' | 'league_phase' | 'groups_and_knockout';
