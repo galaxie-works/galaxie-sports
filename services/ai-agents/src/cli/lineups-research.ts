@@ -34,7 +34,7 @@ import { dbPageStore, OfficialPageReader, type PageRenderer } from '../lineups/p
 import { lineupPromptLimitsFromEnv } from '../lineups/prompt.js';
 import { lineupReport } from '../lineups/report.js';
 import { llmSettingsFromEnv, rightsLlmEnv } from '../llm/config.js';
-import { createLlmClient } from '../llm/factory.js';
+import type { LlmRuntime } from '../llm/factory.js';
 import {
   estimateLineupCalls,
   LINEUP_COUNTRIES,
@@ -43,7 +43,7 @@ import {
   planLineupResearch,
   type LineupCallOutcome,
 } from '../lineups/research.js';
-import { dbFromEnv, intFlag } from './common.js';
+import { createAgentLlm, dbFromEnv, intFlag } from './common.js';
 
 const REASON: Record<string, string> = {
   new_country: 'país sem plataformas',
@@ -252,7 +252,14 @@ async function main(): Promise<void> {
     const lib = await syncBroadcasterLibrary(db, config);
     console.log(`Biblioteca de emissoras sincronizada: ${lib.upserted} entrada(s).`);
     // o mesmo cliente da pesquisa de direitos (Gemini na VPS): nível research com busca, light sem busca
-    const rt = createLlmClient({ db, env: rightsLlmEnv(process.env) });
+    let rt: LlmRuntime;
+    try {
+      rt = await createAgentLlm(db, 'lineups', rightsLlmEnv);
+    } catch (err) {
+      // IA desligada (ou sem configuração): nada pesquisado, nada marcado como falha
+      console.log(`LLM indisponível (${err instanceof Error ? err.message : String(err)}): nada pesquisado.`);
+      return;
+    }
     console.log(
       `Modelo: ${rt.settings.provider} · busca ${rt.settings.models.research} · extração ${rt.settings.models.light}`,
     );

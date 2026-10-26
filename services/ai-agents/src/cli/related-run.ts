@@ -103,7 +103,7 @@ try {
     blocklist: wtw.blocklist,
     creatorMinSubscribers: envInt('RELATED_CREATOR_MIN_SUBSCRIBERS', DEFAULT_CREATOR_MIN_SUBSCRIBERS),
   });
-  const llm = values.plan ? null : llmOrNull(values['sem-llm'], db);
+  const llm = values.plan ? null : await llmOrNull(values['sem-llm'], db, 'related');
   const lookback = intFlag(values.horas, 'horas');
   const tier = intFlag(values.tier, 'tier');
   const limit = intFlag(values.limite, 'limite');

@@ -139,8 +139,21 @@ export const assetCredit = core.table('asset_credit', {
   /** Nome curto da licença ("CC BY-SA 4.0", "Public domain") e o link do texto da licença. */
   license: text('license').notNull(),
   licenseUrl: text('license_url'),
-  /** Linha de crédito pedida pelo autor (`Credit`), quando houver. */
+  /**
+   * Campo `Credit` da Commons, em texto: na prática a fonte do arquivo ("Own work", link do Flickr, legenda), não a
+   * atribuição pedida pelo autor.
+   */
   credit: text('credit'),
+  /**
+   * Atribuição pedida pelo autor (campo `Attribution` da Commons, em texto), quando houver: é a linha que a licença
+   * manda exibir. Gravada na importação; os assets anteriores, pelo `assets:commons:atribuicao`.
+   */
+  attribution: text('attribution'),
+  /**
+   * Quando o `Attribution` foi conferido na Commons (com ou sem atribuição, ou arquivo que sumiu): o backfill
+   * pula o que já conferiu, para que uma rodada com limite não fique presa nos mesmos arquivos.
+   */
+  attributionCheckedAt: timestamp('attribution_checked_at', { withTimezone: true }),
   attributionRequired: boolean('attribution_required').notNull().default(true),
   /** CC BY-SA: obras derivadas (recorte, edição) têm de sair com a mesma licença; só redimensionamos. */
   shareAlike: boolean('share_alike').notNull().default(false),

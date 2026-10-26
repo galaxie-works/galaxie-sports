@@ -1,3 +1,4 @@
+import { validateSettingKey, type ValidationError } from '@galaxie/runtime-config';
 import { LlmError } from './errors.js';
 import type { LlmTier } from './types.js';
 
@@ -53,42 +54,97 @@ export const DEFAULT_DAILY_USD_BUDGET = 10;
 
 /**
  * Teto diário em US$ por agente (prefixo de `purpose`). Agente fora da lista fica só no teto global.
- * Valores pela semana de 2026-10-18 a 24: lineups ~US$ 1,9/dia (concentrado num dia), wtw ~1,7,
- * context ~1, related e f1profile pequenos.
+ * Os números são os da produção (sobrescrita do painel em 2026-10-26: lineups=2, wtw=3, context=1,5,
+ * related=0,5, f1profile=2). Os agentes sem histórico de gasto que justifique um número (f1bio,
+ * curator, review, channels, live) ficam explícitos como `unlimited`: só o teto global vale para eles.
  */
-export const DEFAULT_AGENT_USD_BUDGETS = 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=1';
+export const DEFAULT_AGENT_USD_BUDGETS =
+  'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=unlimited,curator=unlimited,review=unlimited,channels=unlimited,live=unlimited';
 
 /** Buscas na web por chamada (teto do provedor quando existe; senão instrução no prompt + alerta). */
 export const DEFAULT_MAX_SEARCHES_PER_CALL = 5;
 
-/** Formato de AI_AGENT_USD_BUDGETS: `agente=US$` separados por vírgula ou espaço. */
-export const AGENT_USD_BUDGET_ENTRY = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?)$/i;
+/** Estado da IA (AI_STATUS global, AI_AGENT_STATUS por agente): ligada ou desligada. */
+export type AiStatus = 'on' | 'off';
+
+/** Formato de AI_AGENT_USD_BUDGETS: `agente=US$` ou `agente=unlimited`, separados por vírgula ou espaço. */
+export const AGENT_USD_BUDGET_ENTRY = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?|unlimited)$/i;
+/** Formato de AI_AGENT_STATUS: `agente=on` ou `agente=off`. */
+export const AGENT_STATUS_ENTRY = /^([a-z0-9][a-z0-9@._-]*)=(on|off)$/i;
+
+const entries = (raw: string | undefined | null) => (raw ?? '').split(/[,\s;]+/).filter(Boolean);
 
 /**
- * `lineups=2,wtw=3` → `{ lineups: 2, wtw: 3 }`. Vazio → `{}`; formato inválido → null.
- * US$ 0 num agente = agente sem IA (só o determinístico). A chave perde a versão do prompt
- * (`channels@v1=1` vale para o agente `channels`, como o ledger grava).
+ * `lineups=2,wtw=unlimited` → `{ lineups: 2, wtw: null }` (null = sem teto próprio, só o global).
+ * Vazio → `{}`; formato inválido ou US$ 0 → null (para desligar um agente: AI_AGENT_STATUS). A chave
+ * perde a versão do prompt (`channels@v1=1` vale para o agente `channels`, como o ledger grava).
  */
-export function parseAgentUsdBudgets(raw: string | undefined | null): Record<string, number> | null {
-  const out: Record<string, number> = {};
-  for (const part of (raw ?? '').split(/[,\s;]+/).filter(Boolean)) {
+export function parseAgentUsdBudgets(raw: string | undefined | null): Record<string, number | null> | null {
+  const out: Record<string, number | null> = {};
+  for (const part of entries(raw)) {
     const m = AGENT_USD_BUDGET_ENTRY.exec(part);
     if (!m) return null;
-    out[agentKey(m[1]!)] = Number(m[2]);
+    const value = m[2]!.toLowerCase() === 'unlimited' ? null : Number(m[2]);
+    if (value === 0) return null;
+    out[agentKey(m[1]!)] = value;
   }
   return out;
 }
+
+/** `lineups=on,wtw=off` → `{ lineups: 'on', wtw: 'off' }`. Vazio → `{}`; formato inválido → null. */
+export function parseAgentStatus(raw: string | undefined | null): Record<string, AiStatus> | null {
+  const out: Record<string, AiStatus> = {};
+  for (const part of entries(raw)) {
+    const m = AGENT_STATUS_ENTRY.exec(part);
+    if (!m) return null;
+    out[agentKey(m[1]!)] = m[2]!.toLowerCase() as AiStatus;
+  }
+  return out;
+}
+
+/** Mensagem do 0 recusado: zero não liga nem desliga nada. */
+export const ZERO_BUDGET_HINT =
+  'use AI_STATUS=off (ou AI_AGENT_STATUS=agente=off) para desligar a IA, ou "unlimited" para tirar o teto';
+
+/**
+ * Estado literal, para logs, CLI e painel: "desligado", "ligado · sem limite" ou
+ * "ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia" (só os tetos que existem).
+ */
+export function describeAiState(state: {
+  status: AiStatus;
+  usdPerDay?: number | null;
+  tokensPerDay?: number | null;
+}): string {
+  if (state.status === 'off') return 'desligado';
+  const limits = [
+    state.usdPerDay != null ? `US$ ${formatPt(state.usdPerDay)}/dia` : '',
+    state.tokensPerDay != null ? `${formatPt(state.tokensPerDay)} tokens/dia` : '',
+  ].filter(Boolean);
+  return limits.length ? `ligado · limitado · ${limits.join(' · ')}` : 'ligado · sem limite';
+}
+
+const formatPt = (n: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(n);
 
 export interface LlmSettings {
   provider: LlmProviderName;
   apiKey: string | undefined;
   models: Record<LlmTier, string>;
-  /** Tokens (entrada + saída) por dia UTC para todos os agentes; null = sem limite. */
+  /** AI_STATUS: `off` = nenhuma chamada ao LLM (todos os agentes seguem com o determinístico). */
+  status: AiStatus;
+  /**
+   * AI_AGENT_STATUS: só desliga agentes com a IA ligada; `on` e agente fora da lista seguem o global
+   * (AI_STATUS=off é a chave geral e desliga todos, inclusive os `on`).
+   */
+  agentStatus: Record<string, AiStatus>;
+  /** Tokens (entrada + saída) por dia UTC para todos os agentes; null = sem limite ("unlimited"). */
   dailyTokenBudget: number | null;
-  /** US$ (tokens + buscas) por dia UTC para todos os agentes; null = sem limite; 0 = IA desligada. */
+  /** US$ (tokens + buscas) por dia UTC para todos os agentes; null = sem limite ("unlimited"). */
   dailyUsdBudget: number | null;
-  /** US$ por dia UTC de cada agente (prefixo de `purpose`); agente ausente = só o teto global. */
-  agentUsdBudgets: Record<string, number>;
+  /**
+   * US$ por dia UTC de cada agente (prefixo de `purpose`); null = sem teto próprio; agente ausente =
+   * só o teto global.
+   */
+  agentUsdBudgets: Record<string, number | null>;
   /** Buscas na web por chamada; null = sem teto. */
   maxSearchesPerCall: number | null;
   /** Tentativas extras em erros transitórios (429, 5xx, timeout, saída fora do schema). */
@@ -112,28 +168,67 @@ const isUnlimited = (raw: string | undefined) => {
   return v === 'unlimited' || v === '0';
 };
 
-/** Teto em US$: "unlimited" = sem teto; 0 = IA desligada (como `agente=0`), nunca "sem teto". */
-function usdEnv(env: Env, name: string, fallback: number): number | null {
-  const raw = env[name]?.trim();
-  if (!raw) return fallback;
-  if (raw.toLowerCase() === 'unlimited') return null;
-  const n = Number(raw.replace(',', '.'));
-  if (!Number.isFinite(n) || n < 0)
-    throw new LlmError(`${name} precisa ser um número ≥ 0 (ou "unlimited").`, 'config', false);
-  return n;
+/** Dica de cada recusa do registro, na mensagem de configuração inválida. */
+function validationHint(name: string, error: ValidationError): string {
+  switch (error.code) {
+    case 'zero':
+      return ZERO_BUDGET_HINT;
+    case 'range':
+      return `use um valor entre ${error.min} e ${error.max}, ou "unlimited"`;
+    case 'integer':
+      return 'use um número inteiro, ou "unlimited"';
+    case 'number':
+      return 'use um número, ou "unlimited"';
+    case 'enum':
+      return `use ${(error.values ?? []).join(' ou ')}`;
+    default:
+      return name === 'AI_AGENT_STATUS'
+        ? 'use agente=on ou agente=off, ex.: lineups=on,wtw=off'
+        : 'use agente=US$ ou agente=unlimited, ex.: lineups=2,wtw=3';
+  }
 }
 
-/** AI_AGENT_USD_BUDGETS do ambiente (vazio = o padrão); formato inválido falha a configuração. */
-export function agentUsdBudgetsFromEnv(env: Env = process.env): Record<string, number> {
-  const raw = env.AI_AGENT_USD_BUDGETS?.trim();
-  const parsed = parseAgentUsdBudgets(raw || DEFAULT_AGENT_USD_BUDGETS);
-  if (!parsed)
+/**
+ * Valor de uma flag de estado/teto da IA pelas regras do registro do painel (@galaxie/runtime-config):
+ * o serviço aceita exatamente o que o painel aceita (mesmo formato e faixa). Vazio → undefined;
+ * inválido falha a configuração com a dica (0 nos tetos: "use AI_STATUS=off para desligar").
+ */
+function registryEnv(env: Env, name: string): string | undefined {
+  const raw = env[name]?.trim();
+  if (!raw) return undefined;
+  const checked = validateSettingKey(name, raw);
+  if (!checked.ok)
     throw new LlmError(
-      `AI_AGENT_USD_BUDGETS inválido: ${raw} (use agente=US$, ex.: lineups=2,wtw=3).`,
+      `${name}=${raw} não é válido: ${validationHint(name, checked.error)}.`,
       'config',
       false,
     );
-  return parsed;
+  return checked.value || undefined;
+}
+
+/** Teto diário: "unlimited" = sem teto; número = limitado a ele (faixa do registro). 0 é inválido. */
+function limitEnv(env: Env, name: string, fallback: number): number | null {
+  const value = registryEnv(env, name);
+  if (value === undefined) return fallback;
+  return value === 'unlimited' ? null : Number(value);
+}
+
+/** AI_STATUS do ambiente: on (padrão) ou off. */
+export function aiStatusFromEnv(env: Env = process.env): AiStatus {
+  return (registryEnv(env, 'AI_STATUS') as AiStatus | undefined) ?? 'on';
+}
+
+/**
+ * AI_AGENT_STATUS do ambiente (vazio = todos seguem o AI_STATUS; `agente=on` também segue: não religa
+ * um agente com AI_STATUS=off); formato inválido falha a configuração.
+ */
+export function agentStatusFromEnv(env: Env = process.env): Record<string, AiStatus> {
+  return parseAgentStatus(registryEnv(env, 'AI_AGENT_STATUS')) ?? {};
+}
+
+/** AI_AGENT_USD_BUDGETS do ambiente (vazio = o padrão); formato inválido ou US$ 0 falha a configuração. */
+export function agentUsdBudgetsFromEnv(env: Env = process.env): Record<string, number | null> {
+  return parseAgentUsdBudgets(registryEnv(env, 'AI_AGENT_USD_BUDGETS') ?? DEFAULT_AGENT_USD_BUDGETS) ?? {};
 }
 
 /** Lê AI_PROVIDER, chaves, modelos por nível e orçamento do ambiente. */
@@ -146,11 +241,6 @@ export function llmSettingsFromEnv(env: Env = process.env): LlmSettings {
       false,
     );
   const defaults = DEFAULT_MODELS[provider];
-  const budgetRaw = env.AI_DAILY_TOKEN_BUDGET?.trim().toLowerCase();
-  const dailyTokenBudget =
-    budgetRaw === 'unlimited' || budgetRaw === '0'
-      ? null
-      : intEnv(env, 'AI_DAILY_TOKEN_BUDGET', DEFAULT_DAILY_TOKEN_BUDGET);
   return {
     provider,
     apiKey: env[API_KEY_ENV[provider]]?.trim() || undefined,
@@ -159,8 +249,10 @@ export function llmSettingsFromEnv(env: Env = process.env): LlmSettings {
       standard: env.AI_MODEL_STANDARD?.trim() || defaults.standard,
       research: env.AI_MODEL_RESEARCH?.trim() || defaults.research,
     },
-    dailyTokenBudget,
-    dailyUsdBudget: usdEnv(env, 'AI_DAILY_USD_BUDGET', DEFAULT_DAILY_USD_BUDGET),
+    status: aiStatusFromEnv(env),
+    agentStatus: agentStatusFromEnv(env),
+    dailyTokenBudget: limitEnv(env, 'AI_DAILY_TOKEN_BUDGET', DEFAULT_DAILY_TOKEN_BUDGET),
+    dailyUsdBudget: limitEnv(env, 'AI_DAILY_USD_BUDGET', DEFAULT_DAILY_USD_BUDGET),
     agentUsdBudgets: agentUsdBudgetsFromEnv(env),
     maxSearchesPerCall: isUnlimited(env.AI_MAX_SEARCHES_PER_CALL)
       ? null

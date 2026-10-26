@@ -260,7 +260,8 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
                 license: credit.license,
                 license_url: credit.licenseUrl,
                 attribution_required: credit.attributionRequired,
-                text: logoCreditText(credit.author, credit.license),
+                attribution: credit.attribution,
+                text: logoCreditText(credit.author, credit.license, credit.attribution),
               }
             : null,
           trophy_nickname: profile?.trophy ?? null,

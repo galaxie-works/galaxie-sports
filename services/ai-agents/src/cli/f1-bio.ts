@@ -126,7 +126,7 @@ if (values.perfil) {
   } else {
     const db = dbFromEnv();
     try {
-      const llm = llmOrNull(false, db);
+      const llm = await llmOrNull(false, db);
       if (!llm)
         throw new Error(
           'Sem LLM configurado (AI_PROVIDER e a chave): a biografia exige pesquisa com fontes.',
@@ -266,7 +266,7 @@ async function profileMode(): Promise<void> {
       );
       return;
     }
-    const llm = llmOrNull(false, db);
+    const llm = await llmOrNull(false, db);
     if (!llm)
       throw new Error('Sem LLM configurado (AI_PROVIDER e a chave): o perfil exige pesquisa com fontes.');
     const fresh: ProfileProposal[] = [];
