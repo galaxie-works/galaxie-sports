@@ -327,6 +327,9 @@ describe('perfis por esporte', () => {
     // sessão de dias atrás não muda mais; a de 3 dias atrás ainda pode ter punição
     expect(calls.find((c) => c.params.race === '4')!.final).toBe(true);
     expect(calls.find((c) => c.params.race === '6')!.final).toBe(false);
+    expect(calls.find((c) => c.params.race === '4')!.finalAfter).toBe(
+      Date.parse('2024-03-02T15:00:00+00:00') + 3 * 86_400_000,
+    );
     expect(SPORT_PROFILES['formula-1'].detailCalls!(null, now)).toEqual([]);
   });
 
@@ -425,11 +428,28 @@ describe('AFL: placar por quarto', () => {
       ],
       TODAY,
     );
+    // definitivo 2 dias depois do jogo: a resposta buscada antes disso é buscada uma última vez
+    const after = (date: string) => Date.parse(date) + 2 * 86_400_000;
     expect(calls).toEqual([
       // encerrado há menos de 2 dias: pode ser corrigido, então não é definitivo
-      { endpoint: '/games/quarters', params: { id: '9999' }, final: false },
-      { endpoint: '/games/quarters', params: { id: '3058' }, final: true },
-      { endpoint: '/games/quarters', params: { id: '2952' }, final: true },
+      {
+        endpoint: '/games/quarters',
+        params: { id: '9999' },
+        final: false,
+        finalAfter: after('2026-10-20T09:00:00+00:00'),
+      },
+      {
+        endpoint: '/games/quarters',
+        params: { id: '3058' },
+        final: true,
+        finalAfter: after('2024-09-28T04:30:00+00:00'),
+      },
+      {
+        endpoint: '/games/quarters',
+        params: { id: '2952' },
+        final: true,
+        finalAfter: after('2024-03-07T08:30:00+00:00'),
+      },
     ]);
     expect(SPORT_PROFILES.afl.detailCalls).toBe(aflQuarterCalls);
     expect(aflQuarterCalls(undefined, TODAY)).toEqual([]);

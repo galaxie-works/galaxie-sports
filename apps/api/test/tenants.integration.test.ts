@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { apiKey, closeDb, createDb, runMigrations, tenant, usageDaily, type Database } from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
@@ -51,6 +51,15 @@ const tenantReq = (key: string, method: 'GET' | 'POST', url: string, payload?: u
     ...(payload !== undefined ? { payload: payload as object } : {}),
   });
 const waitFlush = () => new Promise((r) => setTimeout(r, 120));
+
+/**
+ * Os testes de uso leem e gravam o "dia de hoje" (UTC) em vários passos: perto da meia-noite, a contagem cai num dia
+ * e a conferência no outro. Faltando menos de `marginMs`, espera a virada.
+ */
+async function awayFromUtcMidnight(marginMs = 30_000): Promise<void> {
+  const left = 86_400_000 - (Date.now() % 86_400_000);
+  if (left < marginMs) await new Promise((r) => setTimeout(r, left + 1_000));
+}
 
 beforeAll(async () => {
   pg = postgres(adminUrl, { max: 1, onnotice: () => {} });
@@ -261,6 +270,8 @@ describe('onboarding de tenant', () => {
 describe('autoatendimento /v1/account', () => {
   let key: string;
   let tenantId: string;
+
+  beforeEach(() => awayFromUtcMidnight(), 60_000);
 
   beforeAll(async () => {
     const res = await adminReq('POST', '/internal/admin/tenants', {

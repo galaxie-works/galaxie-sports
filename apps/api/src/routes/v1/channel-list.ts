@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { ChannelListBody } from '@galaxie/contracts';
+import { ChannelListBody, type ChannelListUpload } from '@galaxie/contracts';
 import { confirmChannelList, getChannelList, type TenantChannelList } from '@galaxie/db';
 import {
   CHANNEL_LIST_MAX_BYTES,
@@ -83,10 +83,16 @@ export async function channelListRoutes(app: FastifyInstance, ctx: AppContext): 
       });
       ctx.channelLists.invalidate(t.tenantId);
       request.log.info(
-        { tenant: t.slug, channels: parsed.channels.length, ai: row.aiStatus },
+        { tenant: t.slug, channels: parsed.channels.length, truncated: parsed.truncated, ai: row.aiStatus },
         'lista de canais recebida',
       );
-      return dto(row);
+      // como no portal: grava até o limite e diz quantos repetidos e quantos além dele ficaram de fora
+      const uploaded: ChannelListUpload = {
+        ...dto(row),
+        duplicates: parsed.duplicates,
+        truncated: parsed.truncated,
+      };
+      return uploaded;
     },
   );
 

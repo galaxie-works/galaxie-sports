@@ -226,6 +226,18 @@ describe('resumo determinístico', () => {
     });
     expect(ghost.map((v) => [v.kind, v.value])).toContainEqual(['unknown_name', 'Endrick']);
   });
+
+  it('quem só deu assistência ou perdeu pênalti não passa como autor de gol', () => {
+    const sheet = recapFactSheet(core, facts, 'pt-BR');
+    const scorers = (text: string) =>
+      checkGeneratedText(text, { locale: 'pt-BR', facts: sheet })
+        .filter((v) => v.kind === 'wrong_scorer')
+        .map((v) => v.value);
+    // Meia A deu a assistência do gol dos 12' e marcou o pênalti dos 77'; Atacante B perdeu o pênalti dos 58'
+    expect(scorers("Atacante B marcou aos 58'.")).toEqual(['atacante b']);
+    expect(scorers("Atacante B perdeu um pênalti aos 58' e Reserva B descontou aos 81'.")).toEqual([]);
+    expect(scorers("Atacante A abriu o placar aos 12', com assistência de Meia A.")).toEqual([]);
+  });
 });
 
 describe('mata-mata: agregado, quem passou e para onde', () => {
@@ -319,6 +331,18 @@ describe('mata-mata: agregado, quem passou e para onde', () => {
     expect(oldName.map((v) => [v.kind, v.value])).toContainEqual(['unknown_name', 'Allianz Parque']);
   });
 
+  it('texto que troca o classificado é barrado (cai no determinístico)', () => {
+    const kinds = (text: string, locale: AgentLocale = 'pt-BR') =>
+      checkGeneratedText(text, { locale, facts: recapFactSheet(semi, facts, locale) }).map((v) => v.kind);
+    expect(kinds('O Fluminense venceu por 1 a 0 e se classificou para a final.')).toContain('wrong_outcome');
+    expect(kinds('El Palmeiras quedó eliminado pese al 2-2 en el global.', 'es-AR')).toContain(
+      'wrong_outcome',
+    );
+    expect(kinds('O Fluminense venceu por 1 a 0, mas foi eliminado nos pênaltis.')).not.toContain(
+      'wrong_outcome',
+    );
+  });
+
   it('vitória no agregado, gol fora, jogo de ida e final em jogo único', () => {
     const tie = (
       final: { home: number; away: number },
@@ -349,6 +373,27 @@ describe('mata-mata: agregado, quem passou e para onde', () => {
     expect(final).toMatchObject({ legs: 1, winner: 'home', outcome: 'title', next_stage: null });
     // sem contexto do motor de regras e sem agregado do fornecedor: não afirma desfecho
     expect(tie({ home: 0, away: 1 }, null)).toBeNull();
+    // jogo único empatado sem pênaltis: passa quem tem a vantagem do empate (copa-do-brasil, 1ª fase)
+    const single: RecapKnockoutInput = {
+      legs: 1,
+      leg: null,
+      extraTime: false,
+      penalties: false,
+      decidesTitle: false,
+      awayGoals: false,
+      drawAdvantage: 'away',
+    };
+    expect(tie({ home: 1, away: 1 }, single, null, 'knockout_round')).toMatchObject({
+      winner: 'away',
+      decided_by: 'draw_advantage',
+      outcome: 'advances',
+      next_stage: 'next_round',
+    });
+    expect(tie({ home: 2, away: 1 }, single, null, 'knockout_round')).toMatchObject({
+      winner: 'home',
+      decided_by: 'match',
+    });
+    expect(tie({ home: 1, away: 1 }, { ...single, drawAdvantage: null })).toMatchObject({ winner: null });
   });
 });
 
@@ -401,5 +446,124 @@ describe('resumo da final: o campeão e o número do título', () => {
     const plain = buildRecapFacts(finalCore, [], null, AGENT_LOCALES, { ...ko, titlesBefore: { away: 4 } })!;
     expect(plain.champion_titles).toBeUndefined();
     expect(recapFallback(finalCore, plain, 'pt-BR')[0]).toBe('Palmeiras é campeão');
+  });
+});
+
+describe('texto determinístico de outros desfechos passa nos guardrails (casos da revisão)', () => {
+  const inc = (o: Partial<IncidentRow>): IncidentRow => ({
+    sequence: 0,
+    minute: 10,
+    extra: null,
+    type: 'goal',
+    detail: 'Normal Goal',
+    participantId: 'home-id',
+    person: 'X',
+    assist: null,
+    ...o,
+  });
+  // Copa do Brasil, 1ª fase: 1 × 1 e o visitante passa pela vantagem do empate
+  const kr = sampleCore({
+    status: 'finished',
+    statusDetail: 'FT',
+    score: { home: 1, away: 1, halftime: { home: 0, away: 0 }, extratime: null, penalty: null },
+    competition: { id: 'c', slug: 'copa-do-brasil', name: 'Copa do Brasil', tier: 1, labels: {} },
+    stage: {
+      id: 's',
+      kind: 'knockout_round',
+      name: { 'pt-BR': '1ª fase', es: '1ª fase' },
+      providerLabel: '1st Round',
+    },
+  });
+  const tp = sampleCore({
+    status: 'finished',
+    statusDetail: 'FT',
+    score: { home: 2, away: 1, halftime: { home: 0, away: 0 }, extratime: null, penalty: null },
+    stage: {
+      id: 's',
+      kind: 'third_place',
+      name: { 'pt-BR': 'Terceiro lugar', es: 'Tercer puesto' },
+      providerLabel: '3rd Place Final',
+    },
+  });
+  const fin = sampleCore({
+    status: 'finished',
+    statusDetail: 'PEN',
+    score: {
+      home: 1,
+      away: 1,
+      halftime: { home: 0, away: 0 },
+      extratime: { home: 0, away: 0 },
+      penalty: { home: 3, away: 4 },
+    },
+    stage: { id: 's', kind: 'final', name: { 'pt-BR': 'Final', es: 'Final' }, providerLabel: 'Final' },
+  });
+  const single = { legs: 1, leg: null, awayGoals: false } as const;
+  const scenarios: [string, typeof kr, IncidentRow[], RecapKnockoutInput][] = [
+    [
+      'vantagem do empate',
+      kr,
+      [
+        inc({ minute: 12, participantId: kr.home.id, person: 'João Pedro', assist: 'Raphael Veiga' }),
+        inc({
+          sequence: 1,
+          minute: 58,
+          type: 'penalty_missed',
+          detail: 'Missed Penalty',
+          participantId: kr.away.id,
+          person: 'Memphis Depay',
+        }),
+        inc({
+          sequence: 2,
+          minute: 80,
+          detail: 'Penalty',
+          participantId: kr.away.id,
+          person: 'Yuri Alberto',
+        }),
+      ],
+      { ...single, extraTime: false, penalties: false, decidesTitle: false, drawAdvantage: 'away' },
+    ],
+    [
+      'terceiro lugar',
+      tp,
+      [
+        inc({ minute: 12, participantId: tp.home.id, person: 'João Pedro' }),
+        inc({ sequence: 1, minute: 20, participantId: tp.home.id, person: 'João Pedro' }),
+        inc({
+          sequence: 2,
+          minute: 30,
+          type: 'own_goal',
+          detail: 'Own Goal',
+          participantId: tp.away.id,
+          person: 'Yuri Alberto',
+        }),
+      ],
+      { ...single, extraTime: false, penalties: true, decidesTitle: false },
+    ],
+    [
+      'final nos pênaltis',
+      fin,
+      [
+        inc({ minute: 12, participantId: fin.home.id, person: 'João Pedro', assist: 'Raphael Veiga' }),
+        inc({ sequence: 1, minute: 70, participantId: fin.away.id, person: 'Yuri Alberto' }),
+        inc({
+          sequence: 2,
+          minute: 75,
+          type: 'penalty_missed',
+          detail: 'Missed Penalty',
+          participantId: fin.home.id,
+          person: 'Memphis Depay',
+        }),
+      ],
+      { ...single, extraTime: true, penalties: true, decidesTitle: true, titlesBefore: { home: 2, away: 3 } },
+    ],
+  ];
+
+  it.each(scenarios)('%s', (_name, c, incidents, knockout) => {
+    const f = buildRecapFacts(c, incidents, null, AGENT_LOCALES, knockout)!;
+    expect(f.tie?.winner).toBeTruthy();
+    for (const locale of AGENT_LOCALES) {
+      const text = joinSentences(recapFallback(c, f, locale));
+      expect(checkGeneratedText(text, { locale, facts: recapFactSheet(c, f, locale) }), text).toEqual([]);
+    }
   });
 });

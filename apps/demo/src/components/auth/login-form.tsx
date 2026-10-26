@@ -13,6 +13,8 @@ import { authClient } from '@/lib/auth/client';
 import { useI18n } from '@/lib/i18n/client';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { fill, rich } from '@/lib/i18n/text';
+import { internalPath } from '@/lib/internal-path';
+import { clearTrail } from '@/lib/trail';
 
 /** Mesmos valores do servidor (lib/auth/server.ts), repetidos aqui para não importar código do servidor. */
 const OTP_LENGTH = 6;
@@ -30,13 +32,17 @@ const OTP_ERROR: Record<string, keyof AuthErrors> = {
   OTP_EXPIRED: 'otpExpired',
   TOO_MANY_ATTEMPTS: 'tooManyAttempts',
   OTP_RESEND_TOO_SOON: 'resendTooSoon',
+  OTP_LOCKED: 'otpLocked',
   ACCESS_EXPIRED: 'expired',
   BANNED_USER: 'banned',
 };
 
-/** Só aceita voltar para um caminho interno (evita redirecionamento aberto). */
+/**
+ * Só aceita voltar para um caminho da própria origem (evita redirecionamento aberto): resolvido como o
+ * navegador resolveria, porque `/\evil.com` passa numa checagem só de prefixo.
+ */
 function safeNext(value: string | null) {
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/';
+  return internalPath(value, window.location.origin) ?? '/';
 }
 
 type AuthError = { status?: number; code?: string; message?: string };
@@ -140,6 +146,8 @@ export function LoginForm() {
     }
     // O idioma da tela de login passa a ser o do perfil (o dos próximos e-mails da pessoa).
     await authClient.updateUser({ locale }).catch(() => {});
+    // Trilha nova a cada login: a da aba pode ser de outra pessoa (sessão vencida, troca de usuário).
+    clearTrail();
     router.replace(safeNext(params.get('voltar')));
     router.refresh();
   }

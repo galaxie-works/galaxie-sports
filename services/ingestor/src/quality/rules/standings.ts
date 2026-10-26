@@ -97,6 +97,64 @@ async function seasonTable(db: Database, seasonId: string, slug: string, year: n
   return { provider, computed };
 }
 
+export type SeasonRef = {
+  id: string;
+  slug: string;
+  name: string;
+  year: number;
+  competition_id: string;
+};
+
+type SeasonTable = { provider: TableLine[]; computed: Omit<TableLine, 'name'>[] } | null;
+
+/**
+ * Confere cada temporada. A que não deu para recalcular (regulamento quebrado, consulta com erro) vira falha com a
+ * mensagem, em vez de sumir do placar; se nenhuma tabela foi conferida e houve erro, a regra sai como `error`.
+ */
+export async function compareSeasons(
+  seasons: readonly SeasonRef[],
+  tableOf: (s: SeasonRef) => Promise<SeasonTable>,
+  log: (msg: string) => void,
+): Promise<{ checked: number; failures: QualityFailureItem[] }> {
+  let checked = 0;
+  let tables = 0;
+  const errors: string[] = [];
+  const failures: QualityFailureItem[] = [];
+  for (const s of seasons) {
+    let table;
+    try {
+      table = await tableOf(s);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`classificação de ${s.slug} ${s.year}: ${msg}`);
+      errors.push(`${s.slug} ${s.year}: ${msg}`);
+      failures.push({
+        key: `${s.id}:erro`,
+        label: `${s.name} ${s.year}`,
+        current: `erro ao recalcular: ${msg}`,
+        expected: 'tabela recalculada pelo motor',
+        link: { type: 'competition', id: s.competition_id },
+      });
+      continue;
+    }
+    if (!table) continue;
+    tables += 1;
+    const { compared, diffs } = compareTables(table.provider, table.computed);
+    checked += compared;
+    for (const { line, computed } of diffs)
+      failures.push({
+        key: `${s.id}:${line.group}:${line.participantId}`,
+        label: `${s.name} ${s.year}${line.group ? ` (${line.group})` : ''} · ${line.name}`,
+        current: `nosso: ${computed.points} pts, saldo ${computed.goalsFor - computed.goalsAgainst}`,
+        expected: `fornecedor: ${line.points} pts, saldo ${line.goalsFor - line.goalsAgainst} (${line.played} J)`,
+        link: { type: 'competition', id: s.competition_id },
+      });
+  }
+  if (errors.length && !tables)
+    throw new Error(`nenhuma temporada recalculada (${errors.length} com erro; ${errors[0]})`);
+  return { checked, failures };
+}
+
 export const STANDINGS_RULES: QualityRule[] = [
   {
     id: 'standings.recomputed-matches-provider',
@@ -110,42 +168,12 @@ export const STANDINGS_RULES: QualityRule[] = [
       es: 'La tabla recalculada con los resultados coincide con la del proveedor (tier 1, temporada actual)',
     },
     check: async (ctx) => {
-      const seasons = await ctx.db.execute<{
-        id: string;
-        slug: string;
-        name: string;
-        year: number;
-        competition_id: string;
-      }>(sql`
+      const seasons = await ctx.db.execute<SeasonRef>(sql`
         select s.id::text, c.slug, c.name, s.year, c.id::text as competition_id
           from core.season s join core.competition c on c.id = s.competition_id
          where c.sport = 'football' and c.tier = 1 and s.current
            and exists (select 1 from core.standing st where st.season_id = s.id and st.source = 'provider')`);
-      let checked = 0;
-      const failures: QualityFailureItem[] = [];
-      for (const s of seasons) {
-        let table;
-        try {
-          table = await seasonTable(ctx.db, s.id, s.slug, s.year);
-        } catch (err) {
-          ctx.log(
-            `classificação de ${s.slug} ${s.year}: ${err instanceof Error ? err.message : String(err)}`,
-          );
-          continue;
-        }
-        if (!table) continue;
-        const { compared, diffs } = compareTables(table.provider, table.computed);
-        checked += compared;
-        for (const { line, computed } of diffs)
-          failures.push({
-            key: `${s.id}:${line.group}:${line.participantId}`,
-            label: `${s.name} ${s.year}${line.group ? ` (${line.group})` : ''} · ${line.name}`,
-            current: `nosso: ${computed.points} pts, saldo ${computed.goalsFor - computed.goalsAgainst}`,
-            expected: `fornecedor: ${line.points} pts, saldo ${line.goalsFor - line.goalsAgainst} (${line.played} J)`,
-            link: { type: 'competition', id: s.competition_id },
-          });
-      }
-      return { checked, failures };
+      return compareSeasons(seasons, (x) => seasonTable(ctx.db, x.id, x.slug, x.year), ctx.log);
     },
   },
 ];

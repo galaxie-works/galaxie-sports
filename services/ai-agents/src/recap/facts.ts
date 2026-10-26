@@ -2,7 +2,7 @@ import { asc, eq } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { eventIncident, footballFixture, person, type Database } from '@galaxie/db';
 import { teamStatisticValues, type TeamStatisticCode } from '@galaxie/providers';
-import { knockoutStageRules, salientStakes, stakeText, type Stake } from '@galaxie/rules';
+import { knockoutStageRules, rulesStageKey, salientStakes, stakeText, type Stake } from '@galaxie/rules';
 import type { AgentLocale } from '../guardrails/index.js';
 import { competitionName, stageName, teamName, type EventCore } from '../context/event-core.js';
 import { roundNumber } from '../context/scenario.js';
@@ -78,8 +78,8 @@ export interface RecapTie {
   aggregate: { home: number; away: number } | null;
   /** Quem passou / foi campeão; null = confronto em aberto (ida) ou sem dados para afirmar. */
   winner: Side | null;
-  /** Como a vaga foi decidida. */
-  decided_by: 'match' | 'aggregate' | 'away_goals' | 'extra_time' | 'penalties' | null;
+  /** Como a vaga foi decidida (`draw_advantage` = empate em jogo único com vantagem pelo regulamento). */
+  decided_by: 'match' | 'aggregate' | 'away_goals' | 'extra_time' | 'penalties' | 'draw_advantage' | null;
   /** Consequência para o vencedor. */
   outcome: 'title' | 'advances' | 'third_place' | null;
   /** Fase alcançada quando `outcome = advances`. */
@@ -90,6 +90,8 @@ export interface RecapTie {
 export interface RecapKnockoutInput extends KnockoutContext {
   /** Gol fora desempata o agregado nesta fase/temporada. */
   awayGoals: boolean;
+  /** Jogo único: quem avança com empate pelo regulamento (copa-do-brasil, 1ª fase: o visitante). */
+  drawAdvantage?: Side | null;
   /** Títulos da competição antes deste jogo, por lado (só na final e com contagem confiável). */
   titlesBefore?: Partial<Record<Side, number>>;
 }
@@ -442,13 +444,17 @@ export async function loadRecapKnockout(db: Database, core: EventCore): Promise<
   if (!core.stage || !KNOCKOUT_STAGE_KINDS.has(core.stage.kind)) return null;
   const stakes = await computeEventStakes(db, core, { titles: true });
   if (!stakes.knockout) return null;
-  const rules = stakes.rules ? knockoutStageRules(stakes.rules, core.stage.kind) : null;
+  // fases numeradas de copa ("1st Round") pela chave do regulamento, como no motor e na API
+  const rules = stakes.rules
+    ? knockoutStageRules(stakes.rules, rulesStageKey(core.stage.kind, core.stage.providerLabel))
+    : null;
   const titlesBefore: Partial<Record<Side, number>> = {};
   if (stakes.titles?.home) titlesBefore.home = stakes.titles.home.won;
   if (stakes.titles?.away) titlesBefore.away = stakes.titles.away.won;
   return {
     ...stakes.knockout,
     awayGoals: !!rules?.awayGoals && !rules.neutralVenue,
+    ...(stakes.knockout.legs === 1 && rules?.drawAdvantage ? { drawAdvantage: rules.drawAdvantage } : {}),
     ...(Object.keys(titlesBefore).length ? { titlesBefore } : {}),
   };
 }
@@ -492,7 +498,9 @@ export function buildRecapTie(
   }
   if (ko && ko.legs === 1) {
     const byScore = sideOfPair(final);
-    const winner = byScore ?? byPenalties;
+    // empate sem pênaltis: passa quem tem a vantagem do empate no regulamento
+    const byAdvantage = !byScore && !byPenalties ? (ko.drawAdvantage ?? null) : null;
+    const winner = byScore ?? byPenalties ?? byAdvantage;
     return {
       legs: 1,
       leg: null,
@@ -505,7 +513,9 @@ export function buildRecapTie(
           ? decidedBy === 'extra_time'
             ? 'extra_time'
             : 'match'
-          : 'penalties',
+          : byPenalties
+            ? 'penalties'
+            : 'draw_advantage',
       ...consequence(winner),
     };
   }

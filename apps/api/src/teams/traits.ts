@@ -2,7 +2,8 @@
  * Traços do piloto de F1, calculados do core (F1DB + api-sports), sem IA. Critérios (também em
  * docs/runbooks/f1-perfil-editorial.md):
  *
- * - Corrida = sessão `Race` (sprint fora); pole = 1º na classificação do GP (`Qualifying` do F1DB ou `3rd
+ * - Corrida = sessão `Race` (sprint fora) que o piloto largou (`started` da carreira: DNS e afins fora, DNF conta),
+ *   também na contagem de GPs do nível; pole = 1º na classificação do GP (`Qualifying` do F1DB ou `3rd
  *   Qualifying` da api-sports), como na carreira; chegada conta só com bandeirada (posição numérica).
  * - Pistas preferidas: por circuito (o local do evento), vitórias, pódios, poles e chegada média; as 3 melhores na
  *   ordem vitórias → pódios → poles → chegada média, com pelo menos `FAVORITE_MIN_RACES` largadas no circuito.
@@ -29,11 +30,12 @@ import type { Database } from '@galaxie/db';
 import { driverTier } from '@galaxie/knowledge';
 import { loadRaceTeams, type RaceTeams } from '../events/race.js';
 import { pickText } from '../i18n.js';
-import { standings } from './career.js';
+import { NOT_STARTED, standings, started } from './career.js';
 
 type Result = {
   team?: { id?: unknown };
   time?: unknown;
+  laps?: unknown;
   position_text?: unknown;
   grid?: unknown;
   points?: unknown;
@@ -123,8 +125,9 @@ export function computeTraits(
   teams: RaceTeams,
   locale: string,
 ): Omit<DriverTraits, 'participant_id' | 'tier'> {
+  // não largou (DNS e afins) não é GP disputado, como na carreira; abandono (DNF) largou e conta
   const races = rows
-    .filter((r) => r.type === 'race')
+    .filter((r) => r.type === 'race' && started(r))
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   const poleRows = rows.filter((r) => POLE_SESSIONS.has(r.type) && r.position === 1);
   const ref = (r: TraitSessionRow) => ({
@@ -321,6 +324,15 @@ export function computeTraits(
   };
 }
 
+/**
+ * Largou (`started` da carreira, em SQL sobre `ep`): o texto da posição do F1DB; na api-sports, sem posição, sem
+ * tempo e com 0 volta é não largou.
+ */
+const STARTED = sql`coalesce(ep.result->>'position_text' not in (${sql.join(
+  [...NOT_STARTED].map((t) => sql`${t}`),
+  sql`, `,
+)}), not (ep.position is null and ep.result->>'time' is null and coalesce(ep.result->'laps' = '0'::jsonb, false)))`;
+
 /** Nível do piloto: títulos (temporadas encerradas em 1º) e posição na história em vitórias e em GPs. */
 async function tierOf(db: Database, participantId: string): Promise<DriverTraits['tier']> {
   const [row] = await db.execute<{
@@ -337,6 +349,7 @@ async function tierOf(db: Database, participantId: string): Promise<DriverTraits
         join core.event e on e.id = ep.event_id and e.sport = 'formula-1' and e.status = 'finished'
         join core.sport_event_detail sd on sd.event_id = e.id and sd.kind = 'race' and lower(sd.summary->>'type') = 'race'
         left join core.season se on se.id = e.season_id
+       where ${STARTED}
     ),
     totals as (
       select participant_id, count(*) as starts, count(*) filter (where win) as wins,

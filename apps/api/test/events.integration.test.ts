@@ -484,15 +484,20 @@ beforeAll(async () => {
   await app.ready();
 }, 120_000);
 
+/** Apaga as chaves deste arquivo no Valkey (`pattern` relativo ao prefixo; `cache:*` só as respostas). */
+async function clearCache(pattern = '*'): Promise<void> {
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', `${keyPrefix}${pattern}`, 'COUNT', 500);
+    if (keys.length) await redis.del(...keys);
+    cursor = next;
+  } while (cursor !== '0');
+}
+
 afterAll(async () => {
   await app?.close();
   if (redis) {
-    let cursor = '0';
-    do {
-      const [next, keys] = await redis.scan(cursor, 'MATCH', `${keyPrefix}*`, 'COUNT', 500);
-      if (keys.length) await redis.del(...keys);
-      cursor = next;
-    } while (cursor !== '0');
+    await clearCache();
     redis.disconnect();
   }
   if (db) await closeDb(db);
@@ -675,6 +680,21 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect(data.length).toBeGreaterThan(0);
     expect(data.every((e) => ['live', 'break', 'suspended'].includes(e.status))).toBe(true);
     expect(data.every((e) => e.momentum === 'live')).toBe(true);
+  });
+
+  it('detalhe de jogo ao vivo: o HIT do Valkey mantém o TTL de 10 s (não o de 1 h da rota)', async () => {
+    const live = (await get('/v1/events/live')).json().data as EventBody[];
+    const url = `/v1/events/${live[0]!.id}?tz=America/Argentina/Buenos_Aires`;
+    const maxAges = (cc: string | undefined) =>
+      [...String(cc).matchAll(/(?:max-age|s-maxage)=(\d+)/g)].map((m) => Number(m[1]));
+    const miss = await get(url);
+    expect(miss.headers['x-galaxie-cache']).toBe('MISS');
+    expect(miss.headers['cache-control']).toContain('s-maxage=10');
+    const hit = await get(url);
+    expect(hit.headers['x-galaxie-cache']).toBe('HIT');
+    const ages = maxAges(hit.headers['cache-control'] as string);
+    expect(ages).toHaveLength(2);
+    for (const age of ages) expect(age).toBeLessThanOrEqual(10);
   });
 });
 
@@ -1062,10 +1082,20 @@ describe('/v1/events/{id} — timeline, escalações, estatísticas, h2h e .ics'
     });
     expect(goal.flags).toContain('opener');
     expect(card).toMatchObject({ kind: 'yellow_card', weight: 30, key_moment: false, score_after: null });
+    // gol contra do zagueiro do Corinthians (fixture sintético com o time do jogador no lance): o placar
+    // final decide a convenção, soma para o Palmeiras (2–0 no intervalo, como no fixture) e é o decisivo do 4–1
     expect(own).toMatchObject({
       kind: 'own_goal',
       clock: { period: 'first_half', minute: 45, extra_minute: 2, display: "45+2'" },
+      team: { side: 'away' },
+      scoring_team: { id: ids.palmeiras, name: 'Palmeiras', side: 'home' },
+      score_after: { home: 2, away: 0 },
+      flags: ['decisive'],
     });
+    expect(body.score).toEqual({ home: 4, away: 1 });
+    expect(body.incidents.filter((i: { score_after: unknown }) => i.score_after).at(-1).score_after).toEqual(
+      body.score,
+    );
     expect(body).toMatchObject({
       live: false,
       venue_timezone: 'America/Sao_Paulo',
@@ -1704,7 +1734,10 @@ describe('desempenho', () => {
       `/v1/teams/${ids.palmeiras}/overview`,
       '/v1/competitions/conmebol-libertadores/context',
     ];
-    for (const u of urls) await get(u);
+    // aquece do zero: a agenda do dia (com jogo ao vivo) tem TTL de poucos segundos, e a entrada que um teste
+    // anterior gravou pode vencer no meio da medição (CI lento) e voltar como MISS
+    await clearCache('cache:*');
+    for (const u of urls) expect((await get(u)).headers['x-galaxie-cache']).toBe('MISS');
     const times: number[] = [];
     for (let i = 0; i < 20; i++) {
       for (const u of urls) {

@@ -21,6 +21,10 @@ import {
  * - O seed e a API (glossário) aplicam a edição por cima do YAML. Para cada campo: YAML = `base` →
  *   aplica; YAML = valor novo → já exportado (absorvido); YAML com um terceiro valor → conflito, e vale
  *   o YAML (alguém mudou o mesmo campo no repositório depois; a decisão fica desatualizada pelo hash).
+ *   Um campo em conflito derruba a edição inteira do item: os campos de uma edição são acoplados
+ *   (template ↔ tom/intenção/momento; termo ↔ significado ↔ exemplo; cidade ↔ região) e aplicar só
+ *   parte serviria uma combinação que ninguém aprovou. O banco guarda uma edição por item (as
+ *   sugestões seguintes se juntam a ela), então não há grupo menor para separar.
  * - Com a edição aplicada, o `review_hash` do item é o do conteúdo editado: a aprovação gravada junto
  *   continua valendo no próximo deploy, e também depois de o YAML receber a edição (`review:export`).
  */

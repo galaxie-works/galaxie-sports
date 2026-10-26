@@ -360,8 +360,9 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const [row] = await db.select().from(derby).where(eq(derby.slug, params.slug)).limit(1);
         if (!row) throw problems.notFound('Clássico');
         if (!meetsReview(row.reviewStatus, min)) throw notPublished('Clássico', min);
-        const [loaded] = await loadDerbies(db, 'draft', row.id);
-        const d = loaded!;
+        // os dois perfis também passam pelo piso: clássico aprovado com perfil em rascunho não sai
+        const [d] = await loadDerbies(db, min, row.id);
+        if (!d) throw notPublished('Clássico', min);
         const ids = d.teams.map((t) => t.participantId);
         const [a, b] = d.teams;
         const resolved = ids.every((id): id is string => !!id);
@@ -605,7 +606,7 @@ interface LoadedDerby {
   teams: (SemanticTeamRef & { countryCode: string; participantId: string | null; profile: ProfileRow })[];
 }
 
-/** Clássicos (com os dois perfis) acima do status mínimo; `id` restringe a um clássico. */
+/** Clássicos (com os dois perfis) acima do status mínimo, clássico e perfis; `id` restringe a um clássico. */
 async function loadDerbies(db: Database, min: ReviewStatus, id?: string): Promise<LoadedDerby[]> {
   const rows = await db
     .select({ d: derby, slug: derbyTeam.teamSlug })
@@ -620,7 +621,8 @@ async function loadDerbies(db: Database, min: ReviewStatus, id?: string): Promis
   const out = new Map<string, LoadedDerby>();
   for (const r of rows) {
     const p = profiles.get(r.slug);
-    if (!p) continue;
+    // perfil abaixo do piso derruba o clássico inteiro (fica com um time só e sai no filtro abaixo)
+    if (!p || !meetsReview(p.reviewStatus, min)) continue;
     const d = out.get(r.d.id) ?? { row: r.d, teams: [] };
     out.set(r.d.id, d);
     d.teams.push({

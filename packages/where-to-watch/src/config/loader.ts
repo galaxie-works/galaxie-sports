@@ -139,6 +139,7 @@ function parseBroadcaster(raw: unknown, where: string): BroadcasterEntry {
     accessModel: access as AccessModel,
     group: typeof raw.group === 'string' && raw.group.trim() ? raw.group.trim() : null,
     domains,
+    watchDomains: strList(raw.watch_domains, `${where}.watch_domains`),
     regionalVariants: variants.map((v, i) => {
       if (!isObj(v)) throw new WtwConfigError(`${where}.regional_variants[${i}] inválida.`);
       return {
