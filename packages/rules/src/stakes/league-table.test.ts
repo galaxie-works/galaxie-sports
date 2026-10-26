@@ -37,6 +37,20 @@ describe('pickLeagueTable: a tabela da fase do jogo, não a de mais jogos', () =
     );
   });
 
+  it('Brasileirão com a tabela ainda no grupo sem nome (antes do recálculo pelo regulamento)', async () => {
+    const br = await loadCompetitionRules('brasileirao-serie-a', { season: 2026 });
+    const choice = pickLeagueTable(
+      br,
+      regular('Regular Season - 33'),
+      rows('', ['A', 'B', 'C'], 32),
+      'A',
+      'B',
+    );
+    expect(choice.reason).toBeUndefined();
+    expect(choice.phase?.key).toBe('regular');
+    expect(choice.table?.map((r) => r.participantId)).toEqual(['A', 'B', 'C']);
+  });
+
   it('Uruguai: Apertura, Intermedio (séries) e Clausura, cada um na sua tabela, nunca a anual', async () => {
     const uy = await loadCompetitionRules('uruguay-primera', { season: 2026 });
     const teams = ['P', 'N', 'D', 'W'];

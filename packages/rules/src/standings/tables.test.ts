@@ -65,6 +65,13 @@ describe('tables: no regulamento', () => {
     expect(standingsTableOf(rules, 'Apertura - Cuadrangular A')?.key).toBe('cuadrangulares');
     expect(standingsTableOf(rules, 'Clausura')).toBeNull();
   });
+
+  it('tabela sem nome (gravada antes do regulamento) é da fase única; com várias fases, de nenhuma', async () => {
+    const serieA = await loadCompetitionRules('brasileirao-serie-a', { season: 2026 });
+    expect(standingsTableOf(serieA, '')?.key).toBe('regular');
+    const argentina = await loadCompetitionRules('argentina-liga-profesional', { season: 2026 });
+    expect(standingsTableOf(argentina, '')).toBeNull();
+  });
 });
 
 describe('regulamentos da América Latina', () => {

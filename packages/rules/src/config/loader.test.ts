@@ -5,7 +5,12 @@ import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
 import { knockoutStageRules } from './parse.js';
-import { defaultRulesDir, loadAllCompetitionRules, loadCompetitionRules, RulesConfigError } from './loader.js';
+import {
+  defaultRulesDir,
+  loadAllCompetitionRules,
+  loadCompetitionRules,
+  RulesConfigError,
+} from './loader.js';
 
 /** Competições que o issue #24/#28 exige configuradas. */
 const REQUIRED = [
@@ -39,16 +44,19 @@ describe('config/rules — todos os YAML do repositório', () => {
     }
   });
 
-  it.each([2018, 2020, 2021, 2023, 2024, 2026])('continuam válidos com as exceções da temporada %i', async (season) => {
-    const all = await loadAllCompetitionRules({ season });
-    for (const rules of all.values()) {
-      expect(rules.season).toBe(season);
-      expect(rules.standings.tieBreakers.length).toBeGreaterThan(0);
-      if (rules.league?.teams) {
-        for (const z of rules.league.zones) expect(z.to).toBeLessThanOrEqual(rules.league.teams);
+  it.each([2018, 2020, 2021, 2023, 2024, 2026])(
+    'continuam válidos com as exceções da temporada %i',
+    async (season) => {
+      const all = await loadAllCompetitionRules({ season });
+      for (const rules of all.values()) {
+        expect(rules.season).toBe(season);
+        expect(rules.standings.tieBreakers.length).toBeGreaterThan(0);
+        if (rules.league?.teams) {
+          for (const z of rules.league.zones) expect(z.to).toBeLessThanOrEqual(rules.league.teams);
+        }
       }
-    }
-  });
+    },
+  );
 
   it('todo regulamento termina os desempates em sorteio (ordem determinística)', async () => {
     for (const rules of (await loadAllCompetitionRules()).values()) {
@@ -94,9 +102,18 @@ describe('regulamentos específicos', () => {
 
   it('Libertadores: sem gol fora desde 2022, pênaltis direto; final única com prorrogação', async () => {
     const r = await loadCompetitionRules('conmebol-libertadores', { season: 2024 });
-    expect(r.knockout!.default).toMatchObject({ legs: 2, awayGoals: false, extraTime: false, penalties: true });
+    expect(r.knockout!.default).toMatchObject({
+      legs: 2,
+      awayGoals: false,
+      extraTime: false,
+      penalties: true,
+    });
     expect(knockoutStageRules(r, 'final')).toMatchObject({ legs: 1, extraTime: true, decidesTitle: true });
-    expect(r.league!.zones.map((z) => z.id)).toEqual(['round_of_16', 'sudamericana_knockout_playoff', 'elimination']);
+    expect(r.league!.zones.map((z) => z.id)).toEqual([
+      'round_of_16',
+      'sudamericana_knockout_playoff',
+      'elimination',
+    ]);
   });
 
   it('Libertadores 2021: gol fora no mata-mata, não na final', async () => {

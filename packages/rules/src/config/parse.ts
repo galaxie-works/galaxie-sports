@@ -171,7 +171,8 @@ function parseStage(slug: string, field: string, raw: unknown, base: KnockoutSta
     drawAdvantage,
     neutralVenue: bool(slug, `${field}.neutral_venue`, s.neutral_venue, base.neutralVenue),
     decidesTitle: bool(slug, `${field}.decides_title`, s.decides_title, base.decidesTitle),
-    levelAdvantage: s.level_advantage === undefined ? base.levelAdvantage : (s.level_advantage as 'better_seed' | null),
+    levelAdvantage:
+      s.level_advantage === undefined ? base.levelAdvantage : (s.level_advantage as 'better_seed' | null),
   };
   if (stage.levelAdvantage !== null && stage.levelAdvantage !== 'better_seed')
     fail(slug, `${field}.level_advantage deve ser better_seed ou null`);
@@ -194,7 +195,8 @@ function parseKnockout(slug: string, raw: unknown): KnockoutRules | null {
   }
   const seeding = Array.isArray(raw.seeding)
     ? raw.seeding.map((x, i) => {
-        if (!isObject(x) || typeof x.table !== 'string') fail(slug, `knockout.seeding[${i}] precisa de rounds e table`);
+        if (!isObject(x) || typeof x.table !== 'string')
+          fail(slug, `knockout.seeding[${i}] precisa de rounds e table`);
         return { rounds: regex(slug, `knockout.seeding[${i}].rounds`, x.rounds), table: x.table };
       })
     : [];
@@ -231,17 +233,22 @@ function parseTables(slug: string, raw: unknown, leagueRaw: unknown): StandingsT
   return raw.map((t, i): StandingsTableRule => {
     if (!isObject(t)) fail(slug, `tables[${i}] deve ser um objeto`);
     const key = t.key;
-    if (typeof key !== 'string' || !/^[a-z0-9_]+$/.test(key)) fail(slug, `tables[${i}].key inválida: ${String(key)}`);
+    if (typeof key !== 'string' || !/^[a-z0-9_]+$/.test(key))
+      fail(slug, `tables[${i}].key inválida: ${String(key)}`);
     if (keys.has(key)) fail(slug, `tabela duplicada: ${key}`);
     keys.add(key);
     const kind = t.kind ?? 'phase';
     if (typeof kind !== 'string' || !(STANDINGS_TABLE_KINDS as readonly string[]).includes(kind))
       fail(slug, `tabela ${key}: kind inválido (${String(kind)})`);
-    const rounds = t.rounds === undefined || t.rounds === null ? null : regex(slug, `tabela ${key}.rounds`, t.rounds);
+    const rounds =
+      t.rounds === undefined || t.rounds === null ? null : regex(slug, `tabela ${key}.rounds`, t.rounds);
     const computable = kind === 'annual' || (kind === 'phase' && rounds !== null);
     const computed = bool(slug, `tabela ${key}.computed`, t.computed, computable);
     if (computed && !computable)
-      fail(slug, `tabela ${key}: só fase com rounds ou tabela anual podem ser recalculadas (computed: false)`);
+      fail(
+        slug,
+        `tabela ${key}: só fase com rounds ou tabela anual podem ser recalculadas (computed: false)`,
+      );
     const groupName = t.group_name === undefined || t.group_name === null ? null : t.group_name;
     if (groupName !== null && (typeof groupName !== 'string' || !groupName))
       fail(slug, `tabela ${key}.group_name deve ser texto`);
@@ -254,7 +261,10 @@ function parseTables(slug: string, raw: unknown, leagueRaw: unknown): StandingsT
           ? null
           : tableName(slug, `tabela ${key}.subgroup_label`, t.subgroup_label),
       groups: regex(slug, `tabela ${key}.groups`, t.groups),
-      exclude: t.exclude === undefined || t.exclude === null ? null : regex(slug, `tabela ${key}.exclude`, t.exclude),
+      exclude:
+        t.exclude === undefined || t.exclude === null
+          ? null
+          : regex(slug, `tabela ${key}.exclude`, t.exclude),
       rounds,
       groupName,
       crossGroupMatches: bool(slug, `tabela ${key}.cross_group_matches`, t.cross_group_matches, false),
@@ -266,8 +276,10 @@ function parseTables(slug: string, raw: unknown, leagueRaw: unknown): StandingsT
 
 /** Uma exceção por intervalo de temporadas (`seasons: { from, to }`, ambos inclusivos e opcionais). */
 function overrideApplies(slug: string, raw: unknown, season: number): boolean {
-  if (!isObject(raw) || !isObject(raw.seasons)) fail(slug, 'cada override precisa de seasons: { from?, to? }');
-  const from = raw.seasons.from === undefined ? -Infinity : int(slug, 'overrides.seasons.from', raw.seasons.from);
+  if (!isObject(raw) || !isObject(raw.seasons))
+    fail(slug, 'cada override precisa de seasons: { from?, to? }');
+  const from =
+    raw.seasons.from === undefined ? -Infinity : int(slug, 'overrides.seasons.from', raw.seasons.from);
   const to = raw.seasons.to === undefined ? Infinity : int(slug, 'overrides.seasons.to', raw.seasons.to);
   return season >= from && season <= to;
 }
@@ -295,7 +307,9 @@ export function parseCompetitionRules(input: unknown, options: { season?: number
   if (typeof format !== 'string' || !(FORMATS as readonly string[]).includes(format)) {
     fail(slug, `format inválido: ${String(format)}`);
   }
-  const sources = Array.isArray(raw.sources) ? raw.sources.filter((s): s is string => typeof s === 'string') : [];
+  const sources = Array.isArray(raw.sources)
+    ? raw.sources.filter((s): s is string => typeof s === 'string')
+    : [];
   const rules: CompetitionRules = {
     slug,
     name: typeof raw.name === 'string' ? raw.name : slug,
@@ -321,7 +335,12 @@ export function standingsTableOf(
   rules: Pick<CompetitionRules, 'tables'>,
   group: string,
 ): StandingsTableRule | null {
-  return rules.tables.find((t) => t.groups.test(group) && !t.exclude?.test(group)) ?? null;
+  const hit = rules.tables.find((t) => t.groups.test(group) && !t.exclude?.test(group));
+  if (hit || group !== '') return hit ?? null;
+  // tabela gravada sem nome (recálculo anterior ao regulamento, ex.: Brasileirão em `''`): com uma única fase
+  // no regulamento, é dela; com várias (Apertura/Clausura), não dá para saber e fica sem tabela
+  const phases = rules.tables.filter((t) => t.kind === 'phase');
+  return phases.length === 1 ? phases[0]! : null;
 }
 
 /** Regras de uma fase de mata-mata: a exceção da fase, se houver, senão o padrão da competição. */
