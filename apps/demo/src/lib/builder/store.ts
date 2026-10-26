@@ -12,8 +12,11 @@ export {
   listPublishableKeys,
   listWidgets,
   normalizeAllowedOrigin,
+  originsOutsideEnv,
+  PublishableKeyLimitError,
   revokePublishableKey,
   saveWidget,
+  type PublishableKeyEnv,
 } from '@galaxie/db/widgets';
 
 declare global {

@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import { fieldText, parseProposedField, previewFor } from './preview';
 import { reviewSummary } from './summary';
-import { filtersQuery, floorsFrom, parseFilters, servedAt } from './types';
+import {
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  PAGE_SIZES,
+  filtersQuery,
+  floorsFrom,
+  pageWindow,
+  parseFilters,
+  parsePageSize,
+  servedAt,
+} from './types';
 
 describe('filtros da URL', () => {
   it('lê só valores conhecidos e normaliza mercado e página', () => {
@@ -11,17 +21,18 @@ describe('filtros da URL', () => {
         new URLSearchParams('tipo=team&esporte=football&mercado=br&status=needs_review&q=+Verd%C3%A3o+'),
       ),
     ).toEqual({
-      kind: 'team',
-      sport: 'football',
-      market: 'BR',
-      locale: null,
-      state: 'needs_review',
+      kind: ['team'],
+      sport: ['football'],
+      market: ['BR'],
+      locale: [],
+      state: ['needs_review'],
       q: 'Verdão',
       page: 1,
+      per: 50,
     });
     expect(parseFilters({ tipo: 'qualquer', status: 'publicado', pagina: '-3' })).toMatchObject({
-      kind: null,
-      state: null,
+      kind: [],
+      state: [],
       page: 1,
     });
     expect(parseFilters({ pagina: ['4', '9'] }).page).toBe(4);
@@ -32,6 +43,33 @@ describe('filtros da URL', () => {
     expect(filtersQuery(filters)).toBe('?tipo=copy&locale=es-AR&pagina=2');
     expect(parseFilters(new URLSearchParams(filtersQuery(filters).slice(1)))).toEqual(filters);
     expect(filtersQuery({ page: 1 })).toBe('');
+  });
+});
+
+describe('itens por página (?per=)', () => {
+  it('aceita só 25, 50, 100, 250 e 500', () => {
+    for (const per of PAGE_SIZES) expect(parseFilters({ per: String(per) }).per).toBe(per);
+    expect(PAGE_SIZES).toEqual([25, 50, 100, 250, 500]);
+    expect(MAX_PAGE_SIZE).toBe(500);
+  });
+
+  it('valor fora da lista, acima do teto ou inválido cai no padrão (50)', () => {
+    for (const raw of ['10', '75', '501', '1000', '100000', '0', '-25', '50.5', 'abc', '', ' 100'])
+      expect(parsePageSize(raw)).toBe(DEFAULT_PAGE_SIZE);
+    expect(parseFilters({}).per).toBe(50);
+    expect(parseFilters(new URLSearchParams('per=9999')).per).toBe(50);
+    expect(parseFilters({ per: ['250', '25'] }).per).toBe(250);
+  });
+
+  it('o padrão não vai para a URL; os outros vão', () => {
+    expect(filtersQuery({ per: 50 })).toBe('');
+    expect(filtersQuery({ per: 500, page: 2 })).toBe('?pagina=2&per=500');
+  });
+
+  it('limite e deslocamento da página', () => {
+    expect(pageWindow({ page: 1, per: 50 })).toEqual({ limit: 50, offset: 0 });
+    expect(pageWindow({ page: 3, per: 100 })).toEqual({ limit: 100, offset: 200 });
+    expect(pageWindow({ page: 2, per: 500 })).toEqual({ limit: 500, offset: 500 });
   });
 });
 

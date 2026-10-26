@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 
 import { SettingsNav } from '@/components/admin/settings-nav';
 import { PageHeader } from '@/components/app-shell/page-header';
-import { ReviewFiltersBar } from '@/components/review/review-filters';
+import { ReviewFiltersBar } from '@/components/review/review-filter-bar';
 import { ReviewTable } from '@/components/review/review-table';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';

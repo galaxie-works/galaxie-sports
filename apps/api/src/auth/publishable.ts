@@ -107,6 +107,7 @@ export class PublishableAuthenticator {
       plan: key.tenant.plan,
       keyId: key.keyId,
       keyKind: 'publishable',
+      env: key.env,
       widgetId: key.widgetId,
       modules,
       markets: key.tenant.markets,
