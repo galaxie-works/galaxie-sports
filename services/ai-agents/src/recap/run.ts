@@ -1,12 +1,15 @@
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { competition, event, type Database } from '@galaxie/db';
 import { AGENT_LOCALES, type AgentLocale } from '../guardrails/index.js';
+import type { AiPriority, PriorityResolver } from '../llm/priority.js';
 import type { LlmClient } from '../llm/types.js';
 import { loadEventCore } from '../context/event-core.js';
 import {
-  countOrigins,
+  byPriority,
+  countWritten,
   emptyReport,
   eventMatchLabel,
+  usesLlm,
   type AgentRunItem,
   type AgentRunReport,
 } from '../context/run.js';
@@ -44,15 +47,18 @@ export interface RecapRunOptions {
   plan?: boolean;
   llm: LlmClient | null;
   limit?: number;
+  /** Prioridade por competição (#357): fila P0 → P1 → resto; só P0 e P1 chamam o LLM. */
+  priorityOf?: PriorityResolver;
 }
 
+/** Eventos encerrados na janela, por prioridade (P0 → P1 → resto) e, dentro dela, do mais recente. */
 export async function recapCandidates(
   db: Database,
-  opts: { now: Date; lookbackHours: number; maxTier: number; limit: number },
-): Promise<string[]> {
+  opts: { now: Date; lookbackHours: number; maxTier: number; limit: number; priorityOf?: PriorityResolver },
+): Promise<{ id: string; priority: AiPriority }[]> {
   const since = new Date(opts.now.getTime() - opts.lookbackHours * 3_600_000);
   const rows = await db
-    .select({ id: event.id })
+    .select({ id: event.id, startsAt: event.startsAt, sport: competition.sport, slug: competition.slug })
     .from(event)
     .innerJoin(competition, eq(competition.id, event.competitionId))
     .where(
@@ -64,25 +70,25 @@ export async function recapCandidates(
         lte(competition.tier, opts.maxTier),
       ),
     )
-    .orderBy(desc(event.startsAt), desc(event.id))
-    .limit(opts.limit);
-  return rows.map((r) => r.id);
+    .orderBy(desc(event.startsAt), desc(event.id));
+  return byPriority(rows, opts.priorityOf, opts.limit);
 }
 
 export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promise<AgentRunReport> {
   const now = opts.now ?? new Date();
   const locales = opts.locales ?? AGENT_LOCALES;
   const report = emptyReport('recap');
-  const ids = opts.eventId
-    ? [opts.eventId]
+  const queue = opts.eventId
+    ? [{ id: opts.eventId, priority: undefined }]
     : await recapCandidates(db, {
         now,
         lookbackHours: opts.lookbackHours ?? 36,
         maxTier: opts.maxTier ?? 2,
         limit: opts.limit ?? 200,
+        ...(opts.priorityOf ? { priorityOf: opts.priorityOf } : {}),
       });
 
-  for (const id of ids) {
+  for (const { id, priority: queued } of queue) {
     const core = await loadEventCore(db, id);
     if (!core) {
       report.items.push({
@@ -101,6 +107,9 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
       action: 'skipped',
     };
     report.items.push(item);
+    const competitionRef = core.competition ? { sport: 'football', slug: core.competition.slug } : null;
+    const priority = queued ?? (opts.priorityOf ? opts.priorityOf(competitionRef) : ('p1' as const));
+    item.priority = priority;
     try {
       if (core.status !== 'finished') {
         item.reason = `evento ainda não encerrado (${core.status})`;
@@ -140,9 +149,11 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         surface: 'mobile',
         minSentences: 1,
         maxSentences: 4,
-        llm: opts.llm,
+        // só P0 e P1 chamam o LLM; o resto sai com o texto determinístico
+        llm: usesLlm(priority) ? opts.llm : null,
         purpose: `context:recap:${id}`,
         tier: 'standard',
+        competition: competitionRef,
       });
       await saveEventContexts(db, {
         eventId: id,
@@ -171,14 +182,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
           league: facts.league ?? null,
         },
       });
-      item.action = 'generated';
-      item.origins = countOrigins(written.texts);
-      item.llmCalls = written.llmCalls;
-      report.generated++;
-      report.llmCalls += written.llmCalls;
-      report.usage.inputTokens += written.usage.inputTokens;
-      report.usage.outputTokens += written.usage.outputTokens;
-      report.usage.costUsd += written.usage.costUsd ?? 0;
+      countWritten(report, item, written);
     } catch (err) {
       item.action = 'error';
       item.reason = err instanceof Error ? err.message : String(err);

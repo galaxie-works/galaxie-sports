@@ -21,6 +21,7 @@ FROM ${NODE_IMAGE} AS runtime
 RUN apk add --no-cache tini
 ENV NODE_ENV=production SCHEDULER_HEARTBEAT_FILE=/tmp/galaxie-scheduler.heartbeat \
     RULES_CONFIG_DIR=/srv/config/rules WTW_CONFIG_DIR=/srv/config GEO_CONFIG_DIR=/srv/config/geo \
+    AI_POLICY_FILE=/srv/config/ai-policy.yaml \
     KNOWLEDGE_DIR=/srv/data/knowledge
 # Mesmo layout do repositório: os CLIs resolvem ../../config e ../../data a partir do pacote.
 WORKDIR /srv/services/ingestor

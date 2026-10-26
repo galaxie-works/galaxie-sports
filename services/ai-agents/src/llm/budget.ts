@@ -99,7 +99,9 @@ export class BudgetedLlmClient implements LlmClient {
         : original;
     const estimate = estimateRequestTokens(req);
     const estimateUsd = estimateRequestUsd(req, req.model ?? this.modelOf(req.tier), this.providerName);
-    const limits = await this.budget.reserve(agent, estimate, estimateUsd);
+    // faixa da política de execução (#357): manual, a da prioridade da competição ou a fixa do agente
+    const band = this.budget.bandOfCall(agent, original.competition);
+    const limits = await this.budget.reserve(agent, estimate, estimateUsd, band);
     // a reserva cobre uma tentativa: o provedor confere de novo antes de cada retentativa/continuação
     const call: LlmJsonRequest = {
       ...req,
@@ -123,6 +125,7 @@ export class BudgetedLlmClient implements LlmClient {
         costUsd: partial?.costUsd,
         outcome: 'error',
         error: err instanceof Error ? err.message : String(err),
+        band,
       });
       throw err instanceof LlmError ? err : new LlmError(String(err), 'provider', false, { cause: err });
     }
@@ -147,6 +150,7 @@ export class BudgetedLlmClient implements LlmClient {
         webSearches: searches,
         costUsd: usage.costUsd,
         outcome: 'ok',
+        band,
       });
     } catch (recordErr) {
       console.error(

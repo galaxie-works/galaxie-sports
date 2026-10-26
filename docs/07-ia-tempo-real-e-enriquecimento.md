@@ -408,6 +408,25 @@ Sem cliente LLM configurado (`src/llm`, por `AI_PROVIDER`), as CLIs avisam e seg
 - Sobrescrita antiga com 0 é convertida na leitura, com aviso no log: `AI_DAILY_USD_BUDGET=0` vale como `AI_STATUS=off`, `agente=0` em `AI_AGENT_USD_BUDGETS` vale como `agente=off` em `AI_AGENT_STATUS` (os outros tetos da linha ficam) e `AI_DAILY_TOKEN_BUDGET=0` como `unlimited`. O banco não é alterado.
 - O estado aparece em texto literal no painel (Gasto de IA hoje), nos avisos de recusa e na CLI `pnpm --filter @galaxie/ai-agents ai:status` (com `DATABASE_URL`, já com o painel aplicado): `ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia`, `ligado · sem limite` ou `desligado`.
 
+**Política de execução (faixas por prioridade, #357):**
+
+O teto global do dia (`AI_DAILY_USD_BUDGET`) é dividido em faixas. Cada chamada desconta só da sua. Quando a faixa acaba, a chamada é recusada antes do provedor, sem pegar saldo de outra faixa, e o job grava a saída determinística. O resumo e o cenário saem com status `budget_skipped` (código de saída 75), que o scheduler registra em `ops.job_run` como `budget_skipped`, não como erro.
+
+| Faixa | Padrão | Quem cai nela |
+|---|---|---|
+| `p0` futebol LATAM | 55% | competição com audiência ≥ `AI_P0_MIN_AUDIENCE` (padrão 25) em algum mercado de `config/geo/market-audience.yaml`, ou listada em `competitions.p0` de `config/ai-policy.yaml` (Copa do Mundo, Eliminatórias da CONMEBOL, Copa América) |
+| `reserve` | 10% | só a P0, depois de gastar os próprios 55% (o teto da P0 é 65%) |
+| `p1` | 15% | o resto do futebol que o produto cobre: audiência acima de 0 (as europeias, a Concachampions no México) ou `competitions.p1` |
+| `clients` | 12% | agentes de cliente e grade: `lineups`, `channels` |
+| `rest` | 5% | `review`, `curator`, `f1bio`, `f1profile`, `assets`, agente fora da política e chamada `priority` sem competição ou sem audiência |
+| `manual` | 3% | qualquer execução fora do scheduler (CLI rodada à mão), seja qual for o agente |
+
+- A faixa de cada agente fica em `config/ai-policy.yaml` (versionado; na imagem, `AI_POLICY_FILE=/srv/config/ai-policy.yaml`). Ela é fixa, ou `priority`, que quer dizer a prioridade da competição da chamada. `context`, `wtw`, `related` e `live` são `priority`, e quem chama passa a competição (`LlmJsonRequest.competition`). O scheduler marca os jobs com `GALAXIE_INVOKER=scheduler`; sem essa marca, a chamada vai para `manual`.
+- O resumo e o cenário ordenam a fila por prioridade (P0 → P1 → resto) e só depois pelo horário. O corte de `--limite` vem depois da ordem. Só P0 e P1 chamam o LLM; o resto sai com o texto determinístico, que já existia.
+- **Dia de orçamento:** todos os tetos (global, por agente, por faixa, tokens) contam o dia que vira às `AI_BUDGET_DAY_START` (padrão `06:00`) no fuso `AI_BUDGET_TIMEZONE` (padrão `America/Sao_Paulo`), não à meia-noite UTC. Com isso, a rodada da noite na América Latina (19h–23h30 em Brasília, que já é o dia seguinte em UTC) fica num dia só. O ledger grava o dia em `ops.llm_usage.budget_day` e a faixa em `band` (migration 0053). A linha sem `budget_day`, de antes da troca, conta pelo dia UTC.
+- **Painel:** em Ajustes → Operação → IA, o cartão "Política de IA" tem um slider por faixa (precisam somar 100%, com a reserva da P0 dentro), o teto global em US$ (ou "Sem limite") e o corte P0/P1. Ao lado de cada faixa aparece o gasto do dia. Grava `AI_BAND_SHARES` (`p0=55,reserve=10,p1=15,clients=12,rest=5,manual=3`), `AI_DAILY_USD_BUDGET` e `AI_P0_MIN_AUDIENCE` como runtime settings. O painel e o serviço validam pelas mesmas regras do registro: faixas que não somam 100 são recusadas nos dois lados, e no serviço isso falha a configuração (sem IA). A virada do dia (`AI_BUDGET_DAY_START`, `AI_BUDGET_TIMEZONE`) fica na lista de flags da IA.
+- `ai:status` mostra o teto e o gasto do dia de cada faixa, e o "Gasto de IA hoje" usa o mesmo dia de orçamento.
+
 ### 2.4 Agente Curador Semântico
 
 - Roda semanalmente e sob demanda (time novo promovido, mudança de nome de estádio).
@@ -438,7 +457,7 @@ Vídeos diretos por evento (YouTube Data API v3), classificados por tipo e forma
 | Fonte não confiável | Lista de domínios priorizados por país; confiança mínima 0,8 |
 | Conteúdo ofensivo | Prompt com regras de linguagem segura + filtro de termos proibidos por locale |
 | Direitos autorais | Evidência limitada a trechos curtos (≤ 200 caracteres); nunca reproduzir matérias |
-| Custo descontrolado | IA ligada/desligada por `AI_STATUS` e `AI_AGENT_STATUS`; orçamento diário de tokens (`AI_DAILY_TOKEN_BUDGET`) e em US$ (`AI_DAILY_USD_BUDGET`, tokens + buscas na web; `AI_AGENT_USD_BUDGETS` por agente, que fica sem IA até a virada do dia UTC ao bater o teto; `AI_AGENT_DEFAULT_USD_BUDGET` para o agente fora da lista; a ordem das fotos da F1 no mesmo ledger), cada um número ou `unlimited` (0 inválido), com ledger em `ops.llm_usage`; teto de buscas por chamada (`AI_MAX_SEARCHES_PER_CALL`: OpenAI e Anthropic aplicam na API, o Gemini recebe no prompt e o painel conta as chamadas acima do teto); cache por `(evento, país, janela)` (`enrich.wtw_run`); revalidação T-3h/T-30min sem tokens; modelos menores onde possível |
+| Custo descontrolado | IA ligada/desligada por `AI_STATUS` e `AI_AGENT_STATUS`; orçamento diário de tokens (`AI_DAILY_TOKEN_BUDGET`) e em US$ (`AI_DAILY_USD_BUDGET`, tokens + buscas na web; `AI_AGENT_USD_BUDGETS` por agente, que fica sem IA até a virada do dia de orçamento ao bater o teto; `AI_AGENT_DEFAULT_USD_BUDGET` para o agente fora da lista; a ordem das fotos da F1 no mesmo ledger; faixas por prioridade `AI_BAND_SHARES`, com a reserva só para o futebol LATAM e a faixa `manual` para CLI fora do scheduler; dia de orçamento às 06:00 em Brasília), cada um número ou `unlimited` (0 inválido), com ledger em `ops.llm_usage`; teto de buscas por chamada (`AI_MAX_SEARCHES_PER_CALL`: OpenAI e Anthropic aplicam na API, o Gemini recebe no prompt e o painel conta as chamadas acima do teto); cache por `(evento, país, janela)` (`enrich.wtw_run`); revalidação T-3h/T-30min sem tokens; modelos menores onde possível |
 | Prompt injection via páginas web | Conteúdo web tratado como dado (regras no prompt de sistema, `wrapUntrusted` para texto externo); saída presa a JSON Schema; toda URL citada é rebuscada e conferida pelo validador; o LLM não publica nada sozinho |
 
 ### 3.1 Camada de LLM (`services/ai-agents/src/llm`)

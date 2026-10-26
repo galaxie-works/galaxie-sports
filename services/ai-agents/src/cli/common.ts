@@ -1,11 +1,13 @@
 /** Utilitários das CLIs dos agentes: banco, cliente LLM opcional, flags e relatório. */
 import { createDb, readRuntimeOverrides, type Database } from '@galaxie/db';
-import { applyOverrides } from '@galaxie/runtime-config';
+import { DEFAULT_P0_MIN_AUDIENCE, ledgerSettingsFromEnv } from '@galaxie/ai-ledger';
+import { EXIT_BUDGET_SKIPPED, applyOverrides } from '@galaxie/runtime-config';
 import type { AgentRunReport } from '../context/run.js';
 import { isAgentLocale, type AgentLocale } from '../guardrails/index.js';
 import { agentStatusFromEnv, aiStatusFromEnv } from '../llm/config.js';
 import { LlmError } from '../llm/errors.js';
 import { createLlmClient, createLlmClientFromEnv, type LlmRuntime } from '../llm/factory.js';
+import { priorityResolver, type PriorityResolver } from '../llm/priority.js';
 import type { LlmClient } from '../llm/types.js';
 
 export function dbFromEnv(): Database {
@@ -100,6 +102,21 @@ export async function llmOrNull(
   return client;
 }
 
+/**
+ * Prioridade por competição (#357) com o corte do painel (AI_P0_MIN_AUDIENCE) e config/ai-policy.yaml:
+ * a fila do resumo e do cenário sai em P0 → P1 → resto, e só P0 e P1 chamam o LLM.
+ */
+export async function priorityFor(db: Database): Promise<PriorityResolver> {
+  const env = await runtimeEnv(db);
+  let minAudience = DEFAULT_P0_MIN_AUDIENCE;
+  try {
+    minAudience = ledgerSettingsFromEnv(env).p0MinAudience;
+  } catch {
+    // configuração da IA inválida: o LLM já fica de fora (llmOrNull); a fila usa o corte padrão
+  }
+  return priorityResolver({ minAudience, env });
+}
+
 export function intFlag(value: unknown, flag: string): number | undefined {
   if (value === undefined) return undefined;
   const n = Number(value);
@@ -129,6 +146,7 @@ export function printAgentReport(report: AgentRunReport, plan: boolean): void {
     jogo: i.label,
     inicio: i.startsAt.slice(0, 16).replace('T', ' '),
     acao: ACTION_LABEL[i.action] ?? i.action,
+    prioridade: i.priority ?? '',
     detalhe: i.reason ?? i.summary ?? '',
     llm: i.origins ? `${i.origins.llm}/${i.origins.llm + i.origins.fallback}` : '',
   }));
@@ -146,4 +164,11 @@ export function printAgentReport(report: AgentRunReport, plan: boolean): void {
       `${u.inputTokens}+${u.outputTokens} tokens · US$ ${u.costUsd.toFixed(4)}`,
   );
   if (report.items.some((i) => i.action === 'error')) process.exitCode = 1;
+  else if (report.budgetSkipped) {
+    // faixa (ou teto) esgotada: o texto determinístico foi gravado; o scheduler registra `budget_skipped`
+    console.log(
+      `status: budget_skipped · ${report.budgetSkipped} evento(s) com o texto determinístico (orçamento de IA recusou)`,
+    );
+    process.exitCode = EXIT_BUDGET_SKIPPED;
+  }
 }

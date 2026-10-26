@@ -6,7 +6,7 @@
 import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
 import { runScenarioAgent } from '../context/run.js';
-import { dbFromEnv, intFlag, llmOrNull, localesFlag, printAgentReport } from './common.js';
+import { dbFromEnv, intFlag, llmOrNull, localesFlag, printAgentReport, priorityFor } from './common.js';
 
 const { values } = parseArgs({
   options: {
@@ -31,6 +31,7 @@ try {
   const locales = localesFlag(values.locales);
   const report = await runScenarioAgent(db, {
     llm,
+    priorityOf: await priorityFor(db),
     plan: values.plan,
     force: values.forcar,
     ...(values.evento ? { eventId: values.evento } : {}),

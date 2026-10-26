@@ -40,6 +40,11 @@ export interface LlmJsonRequest {
   /** Identifica a tarefa no orçamento de tokens e nos logs (ex.: "wtw:event:<id>:BR"). */
   purpose: string;
   /**
+   * Competição da chamada: a prioridade dela (P0 futebol LATAM, P1, resto) escolhe a faixa de orçamento
+   * dos agentes `priority` de config/ai-policy.yaml. Ausente: a faixa `rest`.
+   */
+  competition?: { sport?: string | null; slug: string } | null;
+  /**
    * Preenchido pelo orçamento (BudgetedLlmClient), que reserva uma tentativa só. O provedor chama antes
    * de cada nova tentativa e de cada continuação, com o gasto parcial da chamada (tokens e US$ já
    * cobrados); lança BudgetExceededError se mais uma rodada estimada não couber no teto do dia. `next`:

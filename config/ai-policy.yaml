@@ -1,0 +1,43 @@
+# =============================================================================
+# Galaxie Sports - política de execução da IA (issue #357; docs/07 "Política de execução").
+# Lido por packages/ai-ledger (loadAiPolicy) nos agentes e no ingestor. Validado no carregamento.
+#
+# O teto global do dia (AI_DAILY_USD_BUDGET) é dividido em faixas (AI_BAND_SHARES, no painel em
+# Ajustes → Operação → IA → Política de IA). Cada chamada ao LLM cai em uma faixa:
+#   - execução fora do scheduler (CLI rodada à mão) → `manual`, seja qual for o agente;
+#   - agente com `priority` → a prioridade da competição da chamada: `p0` (audiência ≥ AI_P0_MIN_AUDIENCE
+#     em algum mercado de config/geo/market-audience.yaml, ou listada em `competitions.p0`), `p1`
+#     (audiência acima de 0, ou listada em `competitions.p1`) ou `rest` (o resto, e chamada sem competição);
+#   - agente com faixa fixa → ela;
+#   - agente fora da lista → `default_band`.
+# A reserva (`reserve`) só serve a P0. Faixa esgotada não pega saldo de outra: a chamada é recusada antes
+# do provedor e o job grava a saída determinística (status `budget_skipped`).
+# =============================================================================
+schema_version: 1
+
+# agente = prefixo do `purpose` em ops.llm_usage (sem a versão do prompt)
+agents:
+  context: priority # resumo (recap) e cenário pré-jogo
+  wtw: priority # canal do jogo, direitos por temporada, alocação
+  related: priority # classificação dos vídeos relacionados
+  live: priority # prioridades do ao vivo
+  lineups: clients # grade das operadoras
+  channels: clients # lista de canais do cliente
+  review: rest # revisão das sugestões da base semântica
+  curator: rest # curadoria (lote manual: na prática cai em `manual`)
+  f1bio: rest # biografias da F1 (lote manual)
+  f1profile: rest # perfil editorial da F1 (lote manual)
+  assets: rest # ordem das fotos da F1 (lote manual)
+
+default_band: rest
+
+# exceções por competição (slug de config/competitions/football.yaml), acima da regra da audiência:
+# seleções e torneios de seleções não estão no market-audience.yaml, mas são o que a região mais vê
+competitions:
+  p0:
+    - fifa-world-cup
+    - wc-qualification-conmebol
+    - copa-america
+  p1:
+    - fifa-club-world-cup
+    - copa-america-femenina

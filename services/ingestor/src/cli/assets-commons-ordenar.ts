@@ -19,11 +19,20 @@
  *
  * Orçamento: cada chamada entra no ledger diário de IA (`ops.llm_usage`) como agente `assets`, com o estado
  * e os tetos dos agentes (AI_STATUS, AI_DAILY_USD_BUDGET, AI_AGENT_USD_BUDGETS `assets=0.5`), já com as
- * sobrescritas do painel. Sem saldo, os alvos restantes ficam como estavam e voltam na próxima execução.
+ * sobrescritas do painel, e na faixa `manual` da política de execução (config/ai-policy.yaml). Sem saldo,
+ * os alvos restantes ficam como estavam e voltam na próxima execução.
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { PgTokenBudgetStore, TokenBudget, ledgerPolicy, ledgerSettingsFromEnv } from '@galaxie/ai-ledger';
+import {
+  PgTokenBudgetStore,
+  TokenBudget,
+  defaultAiPolicyFile,
+  isManualRun,
+  ledgerPolicy,
+  ledgerSettingsFromEnv,
+  loadAiPolicy,
+} from '@galaxie/ai-ledger';
 import { closeDb, createDb, readRuntimeOverrides, type Database } from '@galaxie/db';
 import { applyOverrides } from '@galaxie/runtime-config';
 import { WikimediaClient } from '../assets/commons/client.js';
@@ -109,9 +118,14 @@ if (plan) {
       tables,
       pending.map((e) => e.target),
     );
+    const env = await panelEnv(db);
+    // faixas da política de execução (#357): rodado à mão, desconta da faixa `manual`
     const budget = new TokenBudget(
       new PgTokenBudgetStore(db),
-      ledgerPolicy(ledgerSettingsFromEnv(await panelEnv(db))),
+      ledgerPolicy(ledgerSettingsFromEnv(env), {
+        policy: loadAiPolicy(defaultAiPolicyFile(env)),
+        manual: isManualRun(env),
+      }),
     );
     console.log(
       `${targets.length} alvo(s) a ordenar; F1DB ${release ?? '?'}; Gemini ${model}; ` +

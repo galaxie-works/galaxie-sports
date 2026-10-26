@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { competition, event, type Database } from '@galaxie/db';
 import { AGENT_LOCALES, type AgentLocale } from '../guardrails/index.js';
+import { LLM_PRIORITIES, PRIORITY_RANK, type AiPriority, type PriorityResolver } from '../llm/priority.js';
 import type { LlmClient } from '../llm/types.js';
 import { loadEventCore, type EventCore } from './event-core.js';
 import {
@@ -32,6 +33,10 @@ export interface AgentRunItem {
   summary?: string;
   origins?: { llm: number; fallback: number };
   llmCalls?: number;
+  /** Prioridade do evento (#357): P0 e P1 usam o LLM; o resto sai com o texto determinístico. */
+  priority?: AiPriority;
+  /** O orçamento recusou a chamada (faixa esgotada): o texto gravado é o determinístico. */
+  budgetSkipped?: boolean;
 }
 
 export interface AgentRunReport {
@@ -40,6 +45,8 @@ export interface AgentRunReport {
   generated: number;
   llmCalls: number;
   usage: { inputTokens: number; outputTokens: number; costUsd: number };
+  /** Eventos que ficaram com o texto determinístico porque o orçamento recusou (status `budget_skipped`). */
+  budgetSkipped: number;
 }
 
 export interface ScenarioRunOptions {
@@ -59,6 +66,11 @@ export interface ScenarioRunOptions {
   llm: LlmClient | null;
   rulesDir?: string;
   limit?: number;
+  /**
+   * Prioridade por competição (#357): a fila sai em P0 → P1 → resto (e por horário dentro de cada uma),
+   * e só P0 e P1 chamam o LLM. Ausente: todos contam como P1 (ordem por horário, LLM para todos).
+   */
+  priorityOf?: PriorityResolver;
 }
 
 export function emptyReport(agent: AgentRunReport['agent']): AgentRunReport {
@@ -68,7 +80,65 @@ export function emptyReport(agent: AgentRunReport['agent']): AgentRunReport {
     generated: 0,
     llmCalls: 0,
     usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 },
+    budgetSkipped: 0,
   };
+}
+
+/** Candidato da fila: o evento, o horário e a competição (para a prioridade). */
+export interface QueueCandidate {
+  id: string;
+  startsAt: Date;
+  sport: string | null;
+  slug: string | null;
+}
+
+/**
+ * Fila por prioridade (P0 → P1 → resto) e, dentro dela, pela ordem do horário que veio do banco; corta
+ * no `limit` depois de ordenar (o P0 nunca fica de fora por causa do horário de um jogo do resto).
+ */
+export function byPriority(
+  rows: readonly QueueCandidate[],
+  priorityOf: PriorityResolver | undefined,
+  limit: number,
+): { id: string; priority: AiPriority }[] {
+  return rows
+    .map((r, i) => ({
+      id: r.id,
+      i,
+      priority: priorityOf ? priorityOf(r.slug ? { sport: r.sport, slug: r.slug } : null) : ('p1' as const),
+    }))
+    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.i - b.i)
+    .slice(0, limit)
+    .map(({ id, priority }) => ({ id, priority }));
+}
+
+/** O evento usa o LLM? Só P0 e P1 (#357); o resto, o texto determinístico. */
+export const usesLlm = (priority: AiPriority) => LLM_PRIORITIES.includes(priority);
+
+/** Soma o que saiu da redação ao item e ao relatório (gerado, chamadas, uso, recusa do orçamento). */
+export function countWritten(
+  report: AgentRunReport,
+  item: AgentRunItem,
+  written: {
+    llmCalls: number;
+    usage: { inputTokens: number; outputTokens: number; costUsd?: number };
+    budgetSkipped: boolean;
+    texts: readonly LocaleText[];
+  },
+): void {
+  item.action = 'generated';
+  item.origins = countOrigins(written.texts);
+  item.llmCalls = written.llmCalls;
+  if (written.budgetSkipped) {
+    item.budgetSkipped = true;
+    item.reason = 'orçamento de IA recusou: texto determinístico';
+    report.budgetSkipped++;
+  }
+  report.generated++;
+  report.llmCalls += written.llmCalls;
+  report.usage.inputTokens += written.usage.inputTokens;
+  report.usage.outputTokens += written.usage.outputTokens;
+  report.usage.costUsd += written.usage.costUsd ?? 0;
 }
 
 export function eventMatchLabel(core: EventCore): string {
@@ -82,14 +152,17 @@ export function countOrigins(texts: readonly LocaleText[]) {
   };
 }
 
-/** IDs dos eventos de futebol agendados na janela, das competições até o tier informado. */
+/**
+ * Eventos de futebol agendados na janela, das competições até o tier informado, por prioridade (P0 → P1
+ * → resto) e horário.
+ */
 export async function scenarioCandidates(
   db: Database,
-  opts: { now: Date; horizonHours: number; maxTier: number; limit: number },
-): Promise<string[]> {
+  opts: { now: Date; horizonHours: number; maxTier: number; limit: number; priorityOf?: PriorityResolver },
+): Promise<{ id: string; priority: AiPriority }[]> {
   const until = new Date(opts.now.getTime() + opts.horizonHours * 3_600_000);
   const rows = await db
-    .select({ id: event.id })
+    .select({ id: event.id, startsAt: event.startsAt, sport: competition.sport, slug: competition.slug })
     .from(event)
     .innerJoin(competition, eq(competition.id, event.competitionId))
     .where(
@@ -101,25 +174,25 @@ export async function scenarioCandidates(
         lte(competition.tier, opts.maxTier),
       ),
     )
-    .orderBy(asc(event.startsAt), asc(event.id))
-    .limit(opts.limit);
-  return rows.map((r) => r.id);
+    .orderBy(asc(event.startsAt), asc(event.id));
+  return byPriority(rows, opts.priorityOf, opts.limit);
 }
 
 export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): Promise<AgentRunReport> {
   const now = opts.now ?? new Date();
   const locales = opts.locales ?? AGENT_LOCALES;
   const report = emptyReport('scenario');
-  const ids = opts.eventId
-    ? [opts.eventId]
+  const queue = opts.eventId
+    ? [{ id: opts.eventId, priority: undefined }]
     : await scenarioCandidates(db, {
         now,
         horizonHours: opts.horizonHours ?? 72,
         maxTier: opts.maxTier ?? 2,
         limit: opts.limit ?? 200,
+        ...(opts.priorityOf ? { priorityOf: opts.priorityOf } : {}),
       });
 
-  for (const id of ids) {
+  for (const { id, priority: queued } of queue) {
     const core = await loadEventCore(db, id);
     if (!core) {
       report.items.push({
@@ -138,6 +211,9 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
       action: 'skipped',
     };
     report.items.push(item);
+    const competitionRef = core.competition ? { sport: 'football', slug: core.competition.slug } : null;
+    const priority = queued ?? (opts.priorityOf ? opts.priorityOf(competitionRef) : ('p1' as const));
+    item.priority = priority;
     try {
       if (core.status === 'finished' || core.status === 'cancelled') {
         item.reason = `evento ${core.status}`;
@@ -179,9 +255,11 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
         surface: 'tv',
         minSentences: 1,
         maxSentences: 3,
-        llm: opts.llm,
+        // só P0 e P1 chamam o LLM; o resto sai com o texto determinístico
+        llm: usesLlm(priority) ? opts.llm : null,
         purpose: `context:scenario:${id}`,
         tier: 'standard',
+        competition: competitionRef,
       });
       const sources: ContextSource[] = [
         { kind: 'core', ref: `core.event:${id}` },
@@ -214,14 +292,7 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
           history: facts.history ?? null,
         },
       });
-      item.action = 'generated';
-      item.origins = countOrigins(written.texts);
-      item.llmCalls = written.llmCalls;
-      report.generated++;
-      report.llmCalls += written.llmCalls;
-      report.usage.inputTokens += written.usage.inputTokens;
-      report.usage.outputTokens += written.usage.outputTokens;
-      report.usage.costUsd += written.usage.costUsd ?? 0;
+      countWritten(report, item, written);
     } catch (err) {
       item.action = 'error';
       item.reason = err instanceof Error ? err.message : String(err);

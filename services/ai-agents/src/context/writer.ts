@@ -7,7 +7,8 @@ import {
   type Surface,
   type Violation,
 } from '../guardrails/index.js';
-import type { LlmClient, LlmMessage, LlmTier, LlmUsage } from '../llm/types.js';
+import { BudgetExceededError } from '../llm/errors.js';
+import type { LlmClient, LlmJsonRequest, LlmMessage, LlmTier, LlmUsage } from '../llm/types.js';
 
 /**
  * Redação localizada com validação (docs/07 §2.3), comum ao Cenário e ao Resumo:
@@ -35,6 +36,8 @@ export interface LocalizedWriteRequest {
   purpose: string;
   tier?: LlmTier;
   maxOutputTokens?: number;
+  /** Competição do evento: a faixa de orçamento da chamada sai da prioridade dela (#357). */
+  competition?: LlmJsonRequest['competition'];
 }
 
 export interface RejectedAttempt {
@@ -63,6 +66,8 @@ export interface LocalizedWriteResult {
   usage: LlmUsage;
   llmCalls: number;
   errors: string[];
+  /** O orçamento recusou (faixa, agente ou global esgotado, ou IA desligada): saiu o texto determinístico. */
+  budgetSkipped: boolean;
 }
 
 /** Confiança gravada em enrich.event_context: aprovado de primeira 0,9; na 2ª 0,8; determinístico 1,0. */
@@ -124,6 +129,7 @@ export async function writeLocalizedTexts(req: LocalizedWriteRequest): Promise<L
     usage: { inputTokens: 0, outputTokens: 0 },
     llmCalls: 0,
     errors: [],
+    budgetSkipped: false,
   };
   const check = (locale: AgentLocale, sentences: string[]) =>
     checkGeneratedText(joinSentences(sentences), {
@@ -170,6 +176,7 @@ export async function writeLocalizedTexts(req: LocalizedWriteRequest): Promise<L
         purpose: `${req.purpose}:attempt${attempt}`,
         temperature: 0.3,
         maxOutputTokens: req.maxOutputTokens ?? 1500,
+        ...(req.competition ? { competition: req.competition } : {}),
       });
       result.llmCalls++;
       result.model = res.model;
@@ -185,6 +192,11 @@ export async function writeLocalizedTexts(req: LocalizedWriteRequest): Promise<L
         const list = rejected.get(l) ?? [];
         list.push({ attempt, violations: [] });
         rejected.set(l, list);
+      }
+      // sem orçamento não adianta tentar de novo: a recusa vem antes do provedor, e o texto é o determinístico
+      if (err instanceof BudgetExceededError && !err.midCall) {
+        result.budgetSkipped = true;
+        break;
       }
       continue;
     }

@@ -270,12 +270,14 @@ export class SchedulerService {
         return;
       }
       await finishJobRequest(db, req.id, {
-        status: result.status === 'ok' ? 'done' : 'error',
+        status: result.status === 'ok' || result.status === 'budget_skipped' ? 'done' : 'error',
         runId: result.runId,
         detail:
           result.status === 'ok'
             ? null
-            : `exit_code=${result.exitCode ?? '-'}${result.timedOut ? ' timeout' : ''}`,
+            : result.status === 'budget_skipped'
+              ? 'budget_skipped'
+              : `exit_code=${result.exitCode ?? '-'}${result.timedOut ? ' timeout' : ''}`,
       });
     } catch (err) {
       log.error({ err }, 'falha ao atender pedido do painel');

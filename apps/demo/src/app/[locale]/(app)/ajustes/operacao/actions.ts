@@ -114,6 +114,38 @@ export async function saveSetting(key: string, raw: string): Promise<OpsActionRe
     : { ok: true, warning: t.feedback.serviceOffline };
 }
 
+/** Chaves da Política de IA (#357): o cartão grava as três juntas, conferidas pelas regras do registro. */
+const AI_POLICY_KEYS = ['AI_BAND_SHARES', 'AI_DAILY_USD_BUDGET', 'AI_P0_MIN_AUDIENCE'] as const;
+
+/**
+ * Grava a Política de IA (faixas, teto global, corte P0/P1). Confere todas antes de gravar qualquer uma:
+ * valor inválido (ex.: faixas que não somam 100) não grava nada. O serviço relê pelas mesmas regras.
+ */
+export async function saveAiPolicy(
+  values: Partial<Record<(typeof AI_POLICY_KEYS)[number], string>>,
+): Promise<OpsActionResult> {
+  const me = await requireAdmin();
+  const t = await texts();
+  const checked: { key: string; value: string; type: string }[] = [];
+  for (const [key, raw] of Object.entries(values)) {
+    const def = settingDef(key);
+    if (!def || !(AI_POLICY_KEYS as readonly string[]).includes(key) || typeof raw !== 'string')
+      return { ok: false, error: t.errors.unknown };
+    const v = validateSetting(def, raw);
+    if (!v.ok) return { ok: false, error: `${key}: ${validationMessage(t, v.error)}` };
+    checked.push({ key, value: v.value, type: def.type });
+  }
+  if (!checked.length) return { ok: true };
+  try {
+    for (const c of checked) await write(c.key, c.value, c.type, me.email);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
+  }
+  revalidatePath(PATH);
+  const alive = await serviceAlive('agents').catch(() => false);
+  return alive ? { ok: true } : { ok: true, warning: t.feedback.serviceOffline };
+}
+
 export async function resetSetting(key: string): Promise<OpsActionResult> {
   const me = await requireAdmin();
   const t = await texts();

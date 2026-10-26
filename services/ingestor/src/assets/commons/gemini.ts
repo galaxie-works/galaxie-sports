@@ -116,7 +116,9 @@ export async function rankWithGemini(
   });
   const estimate = rankEstimate([prompt, ...titles], images.length, model);
   // sem saldo (ou IA desligada) a chamada não sai: o alvo fica como estava e volta na próxima execução
-  await options.budget.reserve(ASSETS_AGENT, estimate.tokens, estimate.usd);
+  // faixa da política de execução (#357): `manual` fora do scheduler, senão a do agente assets
+  const band = options.budget.bandOf(ASSETS_AGENT);
+  await options.budget.reserve(ASSETS_AGENT, estimate.tokens, estimate.usd, band);
   const purpose = `${ASSETS_AGENT}:commons:${kind}:${subject}`;
   const record = (
     outcome: 'ok' | 'error',
@@ -136,6 +138,7 @@ export async function rankWithGemini(
         costUsd: estimateCostUsd(model, usage, 0, 0, 'gemini'),
         outcome,
         error,
+        band,
       })
       .catch((err: unknown) =>
         // a chamada já foi paga: falha ao gravar o ledger não descarta a resposta

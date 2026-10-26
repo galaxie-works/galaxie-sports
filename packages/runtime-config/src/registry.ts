@@ -5,6 +5,15 @@
  * nunca têm valor lido, gravado nem exibido.
  */
 
+import {
+  BUDGET_DAY_START_PATTERN,
+  DEFAULT_BAND_SHARES_TEXT,
+  DEFAULT_BUDGET_DAY,
+  checkBandShares,
+  isTimeZone,
+} from './ai-policy.js';
+import type { ValidationError } from './resolve.js';
+
 /** Contêiner (ou processo) que lê a variável. */
 export type RuntimeService = 'ingestor' | 'agents' | 'api' | 'demo';
 
@@ -57,6 +66,8 @@ export interface SettingDef {
   allowEmpty?: boolean;
   /** text: formato aceito. */
   pattern?: RegExp;
+  /** text: regra além do formato (ex.: as faixas da IA somam 100); devolve o erro ou null. */
+  check?: (value: string) => ValidationError | null;
   /** Mudança sensível (custo ou cobertura): o painel pede confirmação. */
   critical?: boolean;
   /** cron: job agendado. */
@@ -356,6 +367,36 @@ export const SETTINGS: readonly SettingDef[] = [
     unlimited: true,
     zeroInvalid: true,
     default: '0.5',
+    critical: true,
+  }),
+  // política de execução (#357): o teto global dividido em faixas por prioridade (% que somam 100)
+  agents('ai', {
+    key: 'AI_BAND_SHARES',
+    type: 'text',
+    pattern: /^[a-z0-9]+=\d{1,3}([,;\s]+[a-z0-9]+=\d{1,3})*$/i,
+    check: (value) => {
+      const r = checkBandShares(value);
+      return r.ok ? null : r.error;
+    },
+    default: DEFAULT_BAND_SHARES_TEXT,
+    critical: true,
+  }),
+  // corte P0/P1: audiência mínima (pontos de config/geo/market-audience.yaml) para a competição ser P0
+  agents('ai', { key: 'AI_P0_MIN_AUDIENCE', type: 'int', min: 1, max: 40, default: '25', critical: true }),
+  // virada do dia de orçamento (todos os tetos de IA): horário local e fuso
+  agents('ai', {
+    key: 'AI_BUDGET_DAY_START',
+    type: 'text',
+    pattern: BUDGET_DAY_START_PATTERN,
+    default: DEFAULT_BUDGET_DAY.start,
+    critical: true,
+  }),
+  agents('ai', {
+    key: 'AI_BUDGET_TIMEZONE',
+    type: 'text',
+    pattern: /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)*$/,
+    check: (value) => (isTimeZone(value) ? null : { code: 'format' }),
+    default: DEFAULT_BUDGET_DAY.timeZone,
     critical: true,
   }),
   // buscas na web por chamada: OpenAI e Anthropic aplicam na API; o Gemini recebe no prompt e o

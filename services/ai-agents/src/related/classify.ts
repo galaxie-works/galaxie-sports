@@ -246,6 +246,8 @@ export interface ClassifyOptions {
   maxOutputTokens?: number;
   /** Vídeos por chamada (padrão 20): listas grandes estouram o limite de saída do modelo leve. */
   batchSize?: number;
+  /** Competição do evento: a faixa de orçamento sai da prioridade dela (#357). */
+  competition?: { sport?: string | null; slug: string } | null;
 }
 
 /**
@@ -291,6 +293,7 @@ export async function classifyVideos(opts: ClassifyOptions): Promise<ClassifyRes
         maxOutputTokens: opts.maxOutputTokens ?? 4_000,
         temperature: 0,
         purpose: `related:event:${opts.eventId}`,
+        ...(opts.competition ? { competition: opts.competition } : {}),
       });
       result.usage = {
         inputTokens: result.usage.inputTokens + res.usage.inputTokens,

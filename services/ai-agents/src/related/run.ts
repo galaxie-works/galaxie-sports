@@ -902,6 +902,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
         const cls = await classifyVideos({
           llm: opts.llm,
           eventId: id,
+          competition: core.competition ? { sport: 'football', slug: core.competition.slug } : null,
           facts: classifyFacts(core, scorers),
           videos: toClassify.map((c) => ({
             id: c.v.id,

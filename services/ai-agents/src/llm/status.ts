@@ -2,6 +2,7 @@
  * Estado literal da IA para a CLI `ai:status`: global e por agente (os que têm estado ou teto próprio),
  * com o gasto do dia UTC quando o ledger está disponível.
  */
+import { AI_CALL_BANDS, describeBudgetDay, UTC_BUDGET_DAY } from '@galaxie/runtime-config';
 import type { TokenBudget } from './budget.js';
 
 const usd = (n: number) =>
@@ -40,5 +41,20 @@ export async function aiStatusLines(budget: TokenBudget, withSpend = true): Prom
     lines.push(
       `  outros agentes: ${fallback === null ? 'só o teto global' : `teto padrão de US$ ${usd(fallback)}/dia`} (AI_AGENT_DEFAULT_USD_BUDGET)`,
     );
+  // faixas por prioridade (#357): o gasto do dia contra o teto de cada uma (a P0 com a reserva)
+  if (!globalOff && budget.policy.bands) {
+    lines.push(
+      `Faixas (dia de orçamento ${budget.today()}, vira às ${describeBudgetDay(budget.policy.day ?? UTC_BUDGET_DAY)}):`,
+    );
+    const rows = withSpend
+      ? await budget.bandStatus()
+      : AI_CALL_BANDS.map((band) => ({ band, usedUsd: 0, limitUsd: budget.bandLimitOf(band) }));
+    for (const b of rows) {
+      const limit = b.limitUsd === null ? 'sem teto' : `US$ ${usd(b.limitUsd)}/dia`;
+      lines.push(
+        `  ${b.band}${b.band === 'p0' ? ' (com a reserva)' : ''}: ${limit}${withSpend ? ` (hoje: US$ ${usd(b.usedUsd)})` : ''}`,
+      );
+    }
+  }
   return lines;
 }

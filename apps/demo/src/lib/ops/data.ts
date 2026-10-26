@@ -9,14 +9,19 @@
 import {
   AI_CREDIT_CHECK,
   API_PLAN_DAILY_LIMITS,
+  AI_CALL_BANDS,
   APISPORTS_APIS,
+  DEFAULT_BUDGET_DAY,
   SCHEDULED_JOBS,
   SETTINGS,
+  bandLimitsUsd,
+  budgetDayOf,
   envReport,
   isSecret,
   nextCronRuns,
   parseAgentStatus,
   parseAgentUsdBudgets,
+  parseBandShares,
   planKey,
   resolveAll,
   validateSettingKey,
@@ -256,6 +261,10 @@ const AI_STATE_KEYS = [
   'AI_DAILY_USD_BUDGET',
   'AI_AGENT_USD_BUDGETS',
   'AI_AGENT_DEFAULT_USD_BUDGET',
+  'AI_BAND_SHARES',
+  'AI_P0_MIN_AUDIENCE',
+  'AI_BUDGET_DAY_START',
+  'AI_BUDGET_TIMEZONE',
 ] as const;
 
 function invalidAiSettings(settings: OpsSetting[]): string[] {
@@ -265,7 +274,22 @@ function invalidAiSettings(settings: OpsSetting[]): string[] {
   });
 }
 
-async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend> {
+/** Virada do dia de orçamento efetiva (AI_BUDGET_TIMEZONE e AI_BUDGET_DAY_START; inválida = o padrão). */
+function budgetDaySetting(settings: OpsSetting[]) {
+  const get = (key: string) => {
+    const value = settings.find((s) => s.key === key)?.value;
+    return value && validateSettingKey(key, value).ok ? value : null;
+  };
+  return {
+    timeZone: get('AI_BUDGET_TIMEZONE') ?? DEFAULT_BUDGET_DAY.timeZone,
+    start: get('AI_BUDGET_DAY_START') ?? DEFAULT_BUDGET_DAY.start,
+  };
+}
+
+async function readLlm(now: Date, settings: OpsSetting[]): Promise<LlmSpend> {
+  const day = budgetDaySetting(settings);
+  // o mesmo dia que o ledger usa nos tetos (vira em AI_BUDGET_DAY_START no fuso AI_BUDGET_TIMEZONE)
+  const budgetDay = budgetDayOf(now, day);
   const maxSearchesPerCall = limitSetting(settings, 'AI_MAX_SEARCHES_PER_CALL');
   const rawAgentBudgets = settings.find((s) => s.key === 'AI_AGENT_USD_BUDGETS');
   const agentUsdBudgets = parseAgentUsdBudgets(rawAgentBudgets?.value || rawAgentBudgets?.defaultValue) ?? {};
@@ -285,9 +309,24 @@ async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend
             sum(web_searches) as web_searches, coalesce(sum(cost_usd), 0)::float8 as cost_usd,
             (count(*) filter (where outcome = 'error'))::int as errors,
             (count(*) filter (where $2::int is not null and web_searches > $2::int))::int as over_search_cap
-       from ops.llm_usage where day_utc = $1 group by agent order by cost_usd desc, agent`,
-    [dayUtc, maxSearchesPerCall],
+       from ops.llm_usage where coalesce(budget_day, day_utc) = $1 group by agent order by cost_usd desc, agent`,
+    [budgetDay, maxSearchesPerCall],
   );
+  const bandRows = await query<{ band: string; cost_usd: number }>(
+    `select band, coalesce(sum(cost_usd), 0)::float8 as cost_usd
+       from ops.llm_usage where coalesce(budget_day, day_utc) = $1 and band is not null group by band`,
+    [budgetDay],
+  );
+  const rawShares = settings.find((s) => s.key === 'AI_BAND_SHARES');
+  const shares = parseBandShares(rawShares?.value || rawShares?.defaultValue) ?? parseBandShares(null)!;
+  const usdBudget = limitSetting(settings, 'AI_DAILY_USD_BUDGET');
+  const limits = bandLimitsUsd(usdBudget, shares);
+  const spentBy = new Map(bandRows.map((r) => [r.band, r.cost_usd]));
+  const bands = AI_CALL_BANDS.map((band) => ({
+    band,
+    usedUsd: spentBy.get(band) ?? 0,
+    limitUsd: limits[band],
+  }));
   const byAgent = rows.map((r) => ({
     agent: r.agent,
     calls: r.calls,
@@ -317,7 +356,12 @@ async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend
     agentStatus,
     invalid: invalidAiSettings(settings),
     budget: limitSetting(settings, 'AI_DAILY_TOKEN_BUDGET'),
-    usdBudget: limitSetting(settings, 'AI_DAILY_USD_BUDGET'),
+    usdBudget,
+    budgetDay,
+    day,
+    bandShares: shares,
+    bands,
+    p0MinAudience: limitSetting(settings, 'AI_P0_MIN_AUDIENCE') ?? 25,
     agentUsdBudgets,
     agentDefaultUsdBudget: limitSetting(settings, 'AI_AGENT_DEFAULT_USD_BUDGET'),
     maxSearchesPerCall,
@@ -417,7 +461,7 @@ export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapsh
   const [jobs, quota, llm, credit, history, requests, quality, youtube] = await Promise.all([
     readJobs(),
     readQuota(dayUtc, settings),
-    readLlm(dayUtc, settings),
+    readLlm(now, settings),
     readCredit(),
     readHistory(),
     readRequests(),
