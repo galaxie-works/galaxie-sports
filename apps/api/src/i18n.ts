@@ -1,4 +1,7 @@
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type SupportedLocale } from '@galaxie/contracts';
+import { fallbackChain } from '@galaxie/knowledge';
+
+export { fallbackChain };
 
 const SUPPORTED = new Map(SUPPORTED_LOCALES.map((l) => [l.toLowerCase(), l]));
 
@@ -45,12 +48,6 @@ export function hintLocales(locale: string, originLocale?: string | null): strin
   const lang = locale.split('-')[0]!;
   const origin = originLocale && originLocale.split('-')[0] === lang ? [originLocale] : [];
   return [...new Set([locale, ...origin, lang])];
-}
-
-/** Cadeia de fallback: es-AR → es → en; pt-BR → pt → en. */
-export function fallbackChain(locale: string): string[] {
-  const lang = locale.split('-')[0]!;
-  return [...new Set([locale, lang, 'en'])];
 }
 
 /**

@@ -254,3 +254,165 @@ competitions:
       - "https://goias.gov.br/abc/tv-brasil-central-vai-transmitir-os-jogos-do-goianao-2026/"
       - "https://en.wikipedia.org/wiki/2026_Campeonato_Goiano"
     review_status: approved
+
+  # --------------------------------------------- LIGAS NACIONAIS — AMÉRICA LATINA
+  # Rótulos iguais aos do catálogo (config/competitions/football.yaml), só nos idiomas com fonte; o
+  # idioma sem rótulo aqui segue o do catálogo. ID = o do catálogo, conferido no /leagues.
+  - slug: argentina-liga-profesional
+    api_sports_league_id: 128
+    labels: { pt-BR: "Campeonato Argentino (Liga Profesional)", es: "Liga Profesional de Fútbol" }
+    nicknames: { es: ["LPF"] }
+    trophy_nickname: null
+    sources:
+      - "https://en.wikipedia.org/wiki/2026_AFA_Liga_Profesional_de_F%C3%BAtbol"
+      - "https://www.lanacion.com.ar/deportes/futbol/las-zonas-a-y-b-del-apertura-y-clausura-2026-asi-quedaron-los-grupos-de-la-proxima-liga-profesional-nid10122025/"
+      - "https://442.perfil.com/noticias/futbol/la-lpf-sorteara-las-zonas-del-apertura-y-clausura-2026-sin-televisacion.phtml"
+      - "https://diariodopara.com.br/bola/boca-juniors-x-racing-onde-assistir-ao-vivo-jogo-do-campeonato-argentino/"
+    review_status: approved
+
+  - slug: argentina-copa-de-la-liga
+    api_sports_league_id: 1032
+    labels: { es: "Copa de la Liga Profesional" }
+    nicknames: { es: ["Copa de la Liga"] }
+    trophy_nickname: null
+    sources:
+      - "https://www.elheraldo.com.ar/noticias/deportes/estudiantes-derroto-a-velez-en-los-penales-y-es-el-campeon-de-la-copa-liga-profesional-2024"
+      - "https://www.lavozdesanjusto.com.ar/estudiantes-derroto-a-velez-en-los-penales-y-es-campeon"
+    review_status: approved
+
+  - slug: copa-argentina
+    api_sports_league_id: 130
+    labels: { es: "Copa Argentina" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://espndeportes.espn.com/futbol/argentina/nota/_/id/16068142/copa-argentina-2026-se-sorteo-el-cuadro"
+      - "https://www.canal26.com/agencias/2026/01/19/el-campeon-independiente-rivadavia-inaugura-con-un-triunfo-la-copa-argentina-2026/"
+    review_status: approved
+
+  - slug: chile-primera-division
+    api_sports_league_id: 265
+    labels: { es: "Campeonato Nacional (Primera División de Chile)" }
+    nicknames: { es: ["Liga de Primera"] }
+    trophy_nickname: null
+    sources:
+      - "https://www.pauta.cl/deportes/2026/03/01/colo-colo-vs-universidad-de-chile-donde-ver-en-vivo-y-online-la-fecha-5-del-campeonato-nacional-2026.html"
+      - "https://www.eldinamo.cl/deportes/2026/01/16/la-u-inaugurara-el-campeonato-nacional-2026-cuando-se-jugara-el-primer-superclasico-del-ano/"
+      - "https://espndeportes.espn.com/futbol/chile/nota/_/id/16162861/el-fixture-de-la-liga-de-primera-2026-fecha-hora-y-resultados-de-los-partidos"
+    review_status: approved
+
+  - slug: uruguay-primera
+    api_sports_league_id: 268
+    labels: { es: "Primera División de Uruguay" }
+    nicknames: { es: ["Liga AUF Uruguaya", "Campeonato Uruguayo"] }
+    trophy_nickname: null
+    sources:
+      - "https://en.wikipedia.org/wiki/2026_Liga_AUF_Uruguaya"
+      - "https://www.elobservador.com.uy/futbol/sorteo-la-liga-auf-uruguaya-2026-vivo-se-conocera-el-fixture-oficial-la-temporada-que-arranca-febrero-n6032619"
+      - "https://espndeportes.espn.com/futbol/uruguay/nota/_/id/16244762/fixture-torneo-apertura-penarol-nacional-campeonato-uruguayo-2026-fecha-hora-resultados-partidos-nombre"
+    review_status: approved
+
+  - slug: uruguay-primera-clausura
+    api_sports_league_id: 270
+    labels: { es: "Primera División de Uruguay - Clausura" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://en.wikipedia.org/wiki/2026_Liga_AUF_Uruguaya"
+    review_status: approved
+
+  - slug: colombia-primera-a
+    api_sports_league_id: 239
+    labels: { es: "Liga BetPlay Dimayor (Primera A)" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://www.infobae.com/colombia/deportes/2026/07/09/asi-se-jugara-la-fecha-1-de-la-liga-betplay-2026-ii-la-dimayor-dio-a-conocer-el-calendario-completo-del-futbol-colombiano/"
+      - "https://espndeportes.espn.com/futbol/table/_/liga/COL.1/colombian-primera-a"
+    review_status: approved
+
+  - slug: peru-liga-1
+    api_sports_league_id: 281
+    labels: { es: "Liga 1 de Perú" }
+    nicknames: { es: ["Descentralizado"] }
+    trophy_nickname: null
+    sources:
+      - "https://en.wikipedia.org/wiki/2026_Liga_1_(Peru)"
+      - "https://rpp.pe/futbol/descentralizado/tabla-de-posiciones-liga-1-2026-en-vivo-resultados-hoy-y-puestos-torneo-apertura-universitario-alianza-lima-sporting-cristal-noticia-1673748"
+      - "https://depor.com/futbol-peruano/descentralizado/tabla-de-posiciones-de-la-liga-1-2026-resultados-de-la-fecha-2-del-torneo-apertura-alianza-lima-universitario-de-deportes-sporting-cristal-noticia/"
+    review_status: approved
+
+  - slug: ecuador-ligapro-serie-a
+    api_sports_league_id: 242
+    labels: { pt-BR: "Campeonato Equatoriano (LigaPro Série A)", es: "LigaPro Serie A" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://en.wikipedia.org/wiki/2026_LigaPro_Serie_A"
+      - "https://www.vistazo.com/deportes/2026-09-15-ligapro-definio-calendario-segunda-fase-hexagonal-titulo-sudamericana-descenso-HA11229187"
+      - "https://placar.com.br/esporte/resultados-e-classificacao-do-campeonato-equatoriano-3"
+    review_status: approved
+
+  # draft: o catálogo chama a 1ª divisão de "División Profesional", mas as fontes de 2026 falam em
+  # "Primera División" (ABC Color) e "División de Honor" (APF); falta decidir o rótulo
+  - slug: paraguay-primera-apertura
+    api_sports_league_id: 250
+    labels: { es: "División Profesional de Paraguay - Apertura" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://www.abc.com.py/deportes/futbol/2025/12/03/definido-el-calendario-2026-de-la-primera-division-del-futbol-paraguayo/"
+      - "https://en.wikipedia.org/wiki/APF_Divisi%C3%B3n_de_Honor"
+    review_status: draft
+
+  # draft: mesmo motivo do Apertura (nome oficial da 1ª divisão paraguaia)
+  - slug: paraguay-primera-clausura
+    api_sports_league_id: 252
+    labels: { es: "División Profesional de Paraguay - Clausura" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://www.abc.com.py/deportes/futbol/2026/07/30/la-historica-marca-de-olimpia-y-cerro-porteno-con-dos-derrotas/"
+      - "https://en.wikipedia.org/wiki/APF_Divisi%C3%B3n_de_Honor"
+    review_status: draft
+
+  - slug: liga-mx
+    api_sports_league_id: 262
+    labels: { pt-BR: "Campeonato Mexicano (Liga MX)", es: "Liga MX" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://www.foxsports.com.mx/2026/05/27/toluca-altas-bajas-fichajes-y-rumores-del-futbol-de-estufa-rumbo-al-apertura-2026-de-la-liga-mx/"
+      - "https://www.goal.com/br/not%C3%ADcias/campeonato-mexicano-entra-na-programacao-do-dazn-com/1p61k29t4v2ya1i9cot9doy8hi"
+    review_status: approved
+
+  # draft: a imprensa mexicana diz que a liga passou a se chamar "Liga Femenil" no Apertura 2026; falta
+  # confirmar o nome oficial antes de aprovar o rótulo
+  - slug: liga-mx-femenil
+    api_sports_league_id: 673
+    labels: { es: "Liga MX Femenil" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://en.wikipedia.org/wiki/Liga_MX_Femenil"
+      - "https://www.chilango.com/noticias/liga-femenil-calendario-apertura-2026/"
+    review_status: draft
+
+  - slug: bolivia-primera-division
+    api_sports_league_id: 344
+    labels: { es: "División Profesional de Bolivia" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://en.wikipedia.org/wiki/2026_FBF_Divisi%C3%B3n_Profesional"
+      - "https://www.lostiempos.com/deportes/futbol/20251231/wilstermann-desciende-2026-no-jugara-division-profesional-del-futbol"
+    review_status: approved
+
+  - slug: venezuela-primera-division
+    api_sports_league_id: 299
+    labels: { es: "Liga FUTVE" }
+    nicknames: { es: [] }
+    trophy_nickname: null
+    sources:
+      - "https://en.wikipedia.org/wiki/2026_Liga_FUTVE"
+    review_status: approved
