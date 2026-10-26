@@ -134,6 +134,7 @@ async function seed() {
     nicknames: { 'pt-BR': ['Glória Eterna', 'Liberta'], es: ['La Gloria Eterna'] },
     trophyNickname: null,
     sourceFile: 'competitions/football.yaml',
+    reviewStatus: 'approved',
   });
   await db.insert(providerMap).values({
     entityType: 'competition',
