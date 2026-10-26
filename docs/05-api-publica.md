@@ -20,7 +20,7 @@ Especificação formal: OpenAPI 3.1 gerada a partir dos schemas Zod de `packages
 
 ### 1.1 Implementação (schema `api`)
 
-**Chaves.** Formato `gs_<live|test>_<prefixo>_<segredo>` — prefixo de 12 caracteres hex (guardado em claro em `api.api_key.prefix` para localizar a chave) e segredo de 32 bytes em base64url, guardado **só como hash scrypt com sal** (`scrypt$N$r$p$sal$hash`, via `node:crypto`). A chave completa é exibida uma única vez, na criação. A verificação positiva fica em cache em memória por 60 s (revogação e mudança de plano valem em até 1 min). `last_used_at` é atualizado no máximo a cada 5 min.
+**Chaves.** Formato `gs_<live|test>_<prefixo>_<segredo>_<checksum>` — prefixo de 12 caracteres hex (guardado em claro em `api.api_key.prefix` para localizar a chave), segredo de 32 bytes em base64url, guardado **só como hash scrypt com sal** (`scrypt$N$r$p$sal$hash`, via `node:crypto`), e CRC32 em 8 hex de tudo o que vem antes (erro de digitação e chave inventada → 401 sem consulta ao banco; scanners de segredos acham a chave sem falso positivo). O ambiente vale: prefixo diferente do ambiente gravado da chave → 401. A chave `gs_test_` tem o mesmo dado da produção, mas limite fixo de 60 req/min por rota (balde próprio, não consome o da produção) e uso contado à parte (`test:<rota>` em `/v1/account/usage`). Teto: 5 chaves secretas válidas por tenant e ambiente, contando as em período de graça (acima → 409 `CONFLICT`). Política completa: [politica-de-chaves.md](politica-de-chaves.md). A chave completa é exibida uma única vez, na criação. A verificação positiva fica em cache em memória por 60 s (revogação e mudança de plano valem em até 1 min). `last_used_at` é atualizado no máximo a cada 5 min.
 
 **Tenants e planos.** `api.tenant` guarda `plan`, `modules`, `markets` (países ISO2; vazio = todos), `sports` (vazio = todos), `rate_limit_per_minute` e `status` (`active`/`suspended`). Módulos: `core_data`, `where_to_watch`, `semantic`, `live_intelligence`, `multisport` e o add-on `related_content` (vídeos relacionados, [12](12-conteudo-relacionado.md); incluído no `enterprise`, contratável à parte em qualquer plano). Cada chave pode restringir os módulos do tenant (`api.api_key.scopes`; `null` = herda).
 
@@ -58,8 +58,8 @@ pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --l
 | `GET /internal/admin/tenants?status=&plan=&limit=&offset=` | Lista |
 | `GET /internal/admin/tenants/{id\|slug}` | Tenant + metadados das chaves (nunca hash/segredo) |
 | `PATCH /internal/admin/tenants/{id\|slug}` | Plano, módulos, mercados, esportes, limites, `status` (`suspended` bloqueia todas as chaves); `applyTemplate: true` reaplica o modelo do plano antes dos demais campos |
-| `POST /internal/admin/tenants/{id}/keys` | Emite chave (escopos ⊆ módulos do tenant) |
-| `POST /internal/admin/tenants/{id}/keys/{keyId}/rotate` | Nova chave (mesmo rótulo/escopos/ambiente/validade); a antiga expira em `graceSeconds` (padrão 86400; 0 = revoga já; máx. 7 dias). Chave já rotacionada ou tenant com 20 chaves válidas → 409 `CONFLICT` |
+| `POST /internal/admin/tenants/{id}/keys` | Emite chave (escopos ⊆ módulos do tenant); 5 válidas por ambiente → 409 `CONFLICT` |
+| `POST /internal/admin/tenants/{id}/keys/{keyId}/rotate` | Nova chave (mesmo rótulo/escopos/ambiente/validade); a antiga expira em `graceSeconds` (padrão 86400; 0 = revoga já; máx. 7 dias). Chave já rotacionada ou ambiente com 5 chaves válidas (com graça 0 a antiga não conta) → 409 `CONFLICT` |
 | `POST /internal/admin/tenants/{id}/keys/{keyId}/revoke` | Revoga |
 | `GET /internal/admin/tenants/{id}/usage?from=&to=` | Uso por dia e rota (dias UTC; padrão últimos 7; máx. 92) |
 | `GET /internal/admin/usage?from=&to=` | Total por tenant no período |
@@ -80,7 +80,7 @@ curl -X POST http://localhost:8080/internal/admin/tenants \
 | `POST /v1/account/keys/rotate` | Rotaciona **a chave usada na requisição**: `{ graceSeconds? }` (padrão 86400) → 201 com a chave nova (exibida uma vez) |
 | `GET /v1/account/usage?from=&to=` | Uso por dia e rota + `dailyRequestQuota` |
 
-A chave nova herda o rótulo, os escopos, o ambiente e a **validade** (`expiresAt`) da antiga: rotacionar não estende o prazo de uma chave com validade (ex.: trial). Cada chave só é rotacionada uma vez: a antiga, já no período de graça, recebe 409 `CONFLICT` (quem tem só a chave vazada não gera outra a partir dela), e a rotação é recusada (409) quando o tenant já tem 20 chaves válidas — revogue as que não usa.
+A chave nova herda o rótulo, os escopos, o ambiente e a **validade** (`expiresAt`) da antiga: rotacionar não estende o prazo de uma chave com validade (ex.: trial). Cada chave só é rotacionada uma vez: a antiga, já no período de graça, recebe 409 `CONFLICT` (quem tem só a chave vazada não gera outra a partir dela), e a rotação é recusada (409) quando o ambiente já tem 5 chaves válidas, contando as em graça (com `graceSeconds: 0` a antiga sai na hora e não conta) — revogue as que não usa.
 
 Revogação, suspensão e mudança de plano valem em até 60 s (cache do autenticador por instância).
 
@@ -92,10 +92,11 @@ O Galaxie Sports Builder gera widgets que a operadora instala no app dela como c
 
 | Item | Regra |
 |---|---|
-| Formato | `gs_pk_live_<32 bytes em base64url>`; o banco guarda só o **sha256** (`ops.publishable_key.key_hash`) e um prefixo visível (`gs_pk_live_AbCd1234`) para a lista. A chave completa é exibida uma única vez, na criação |
+| Formato | `gs_pk_live_<32 bytes em base64url>` (produção) ou `gs_pk_test_...` (teste, `ops.publishable_key.env`); o banco guarda só o **sha256** (`ops.publishable_key.key_hash`) e um prefixo visível (`gs_pk_live_AbCd1234`) para a lista. A chave completa é exibida uma única vez, na criação. Prefixo diferente do ambiente gravado → 401 |
+| Ambiente | A de teste só aceita origens `localhost`, `127.0.0.1` ou `[::1]` (qualquer porta); a de produção não aceita essas origens. Teto: 20 chaves publicáveis ativas por tenant |
 | Header | `x-galaxie-publishable-key` (nunca por query string). Se a requisição trouxer também `x-galaxie-key`, vale a secreta |
 | Alcance | Só `GET`/`HEAD` em rotas `/v1/*` que exigem módulo, com os módulos, mercados e esportes do tenant. Escrita, `/v1/account/*`, `/v1/stream` (SSE), `/mirror` e `/internal/*` → 403 `PUBLISHABLE_KEY_NOT_ALLOWED`. No OpenAPI, essas mesmas operações de leitura declaram `security` com `galaxieKey` **ou** `galaxiePublishableKey` (as demais só a secreta), então geradores de cliente oferecem o header publicável só onde ele vale |
-| Origens | `allowed_origins` da chave: origem exata (`https://app.exemplo.com`, `http://localhost:3000`) ou curinga de subdomínio (`https://*.exemplo.com`, que aceita `app.exemplo.com` e `a.b.exemplo.com`, mas não `exemplo.com`). Esquema e porta precisam bater. A API confere o `Origin` (ou, sem ele, a origem do `Referer`); fora da lista ou sem nenhum dos dois → 403 `ORIGIN_NOT_ALLOWED` |
+| Origens | `allowed_origins` da chave: origem exata (`https://app.exemplo.com`; `http://localhost:3000` só na chave de teste) ou curinga de subdomínio (`https://*.exemplo.com`, que aceita `app.exemplo.com` e `a.b.exemplo.com`, mas não `exemplo.com`). Esquema e porta precisam bater. A API confere o `Origin` (ou, sem ele, a origem do `Referer`); fora da lista ou sem nenhum dos dois → 403 `ORIGIN_NOT_ALLOWED` |
 | Widget | `widget_id` opcional prende a chave a um widget: a chave só alcança os módulos daquele tipo (`WIDGET_KIND_MODULES`: `match_card` e `where_to_watch` → `core_data` + `where_to_watch`; `live_list` e `standings` → `core_data`) e deixa de valer quando o widget é arquivado (arquivar revoga, na mesma transação, as chaves presas a ele: o painel passa a mostrá-las como revogadas) |
 | Rate limit | Próprio, por **chave × IP** (todas as rotas somadas), janela de 60 s, padrão 60 req (`PUBLISHABLE_RATE_LIMIT_PER_MINUTE`), nunca acima de `rate_limit_per_minute` do tenant. Não consome o limite tenant × rota da chave secreta. Mesmos headers `x-ratelimit-*` e 429 `RATE_LIMITED` |
 | CORS | A resposta só leva `Access-Control-Allow-Origin` (a própria origem, sem credenciais) quando a origem bateu com a chave usada. O preflight (`OPTIONS`, que chega sem chave) é respondido com `GET, HEAD` para as origens de alguma chave ativa; vale também sem `CORS_ORIGINS` |

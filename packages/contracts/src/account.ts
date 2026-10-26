@@ -130,7 +130,8 @@ export const accountPaths: ZodOpenApiPathsObject = {
       description:
         'Cria uma chave nova (mesmo rótulo, escopos, ambiente e validade) e mantém a atual válida por ' +
         '`graceSeconds`. A chave nova aparece só nesta resposta. Uma chave já rotacionada (no período de ' +
-        'graça) não pode ser rotacionada de novo, e a rotação exige menos de 20 chaves válidas no tenant.',
+        'graça) não pode ser rotacionada de novo, e a rotação respeita o teto de 5 chaves válidas por ambiente ' +
+        '(contando as em graça; com `graceSeconds: 0` a antiga não conta).',
       tags: ['Conta'],
       requestBody: { content: json(RotateKeyBody) },
       responses: {
