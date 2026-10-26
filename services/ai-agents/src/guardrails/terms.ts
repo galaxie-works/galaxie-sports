@@ -343,7 +343,7 @@ export interface TermCheckOptions {
   allowRivalry?: boolean;
   /**
    * Trechos legítimos que contêm um termo da lista (ex.: nome oficial de um time ou estádio).
-   * São removidos do texto antes da busca.
+   * São removidos do texto antes da busca, só como palavra inteira.
    */
   allowPhrases?: readonly string[];
 }
@@ -351,10 +351,12 @@ export interface TermCheckOptions {
 /** Procura termos proibidos no texto do locale. Lista vazia = aprovado. */
 export function findForbiddenTerms(text: string, locale: string, options: TermCheckOptions = {}): TermHit[] {
   let t = normalizeText(text);
-  for (const phrase of options.allowPhrases ?? []) {
-    const p = normalizeText(phrase);
-    if (p) t = t.split(p).join(' ');
-  }
+  // só a frase inteira sai (fronteira de palavra): o nome "Gil" não apaga parte de "giles"; as mais longas antes
+  const phrases = [...new Set((options.allowPhrases ?? []).map(normalizeText).filter(Boolean))].sort(
+    (a, b) => b.length - a.length,
+  );
+  for (const p of phrases)
+    t = t.replace(new RegExp(`(?<![\\p{L}\\d])${escapeRegExp(p)}(?![\\p{L}\\d])`, 'gu'), ' ');
   const hits: TermHit[] = [];
   for (const { category, term, re } of compiled(locale)) {
     if (category === 'rivalry' && options.allowRivalry) continue;

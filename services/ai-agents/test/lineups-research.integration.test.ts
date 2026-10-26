@@ -7,10 +7,11 @@ import {
   platform,
   platformPlan,
   setLineupReviewStatus,
+  upsertLineupDraft,
   type Database,
 } from '@galaxie/db';
 import { Blocklist, parseCountryConfig, syncBroadcasterLibrary, WtwConfig } from '@galaxie/where-to-watch';
-import { BudgetExceededError } from '../src/llm/errors.js';
+import { BudgetExceededError, LlmError } from '../src/llm/errors.js';
 import { FakeLlmClient, type FakeReply } from '../src/llm/fake.js';
 import { withTokenBudget } from '../src/llm/factory.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
@@ -491,5 +492,150 @@ describe('lineups-research com busca (--com-busca, LLM falso)', () => {
     });
     expect(out.map((o) => o.status)).toEqual(['skipped']);
     expect(llm.calls).toHaveLength(1);
+  });
+});
+
+describe('lineups-research: o que entra na fila', () => {
+  const later = new Date(NOW.getTime() + 86_400_000);
+
+  it('plataforma só com planos rejeitados volta a ser pesquisada (o rejeitado não conta)', async () => {
+    const r = await upsertLineupDraft(db, {
+      platform: {
+        name: 'Operadora Rejeitada Exemplo',
+        kind: 'pay_tv_operator',
+        country: 'BR',
+        website: 'https://rejeitada.exemplo',
+        sources: ['https://rejeitada.exemplo/sobre'],
+      },
+      plans: [{ name: 'Plano Errado', sources: ['https://rejeitada.exemplo/planos'] }],
+      seenAt: NOW,
+    });
+    await setLineupReviewStatus(db, { type: 'plan', id: r.planIds['plano-errado']! }, 'rejected', 'wagner');
+    expect(await planLineupResearch(db, { countries: ['BR'], now: later })).toEqual([
+      {
+        kind: 'plans',
+        country: 'BR',
+        platformId: r.platformId,
+        slug: 'br-operadora-rejeitada-exemplo',
+        name: 'Operadora Rejeitada Exemplo',
+        reason: 'no_plans',
+      },
+    ]);
+    // na revisita, a plataforma sem plano válido vale pelo seen_at dela
+    const old = new Date(NOW.getTime() + 40 * 86_400_000);
+    const revisit = await planLineupResearch(db, { countries: ['BR'], now: old, revisit: true });
+    expect(revisit.filter((t) => t.kind === 'plans').map((t) => t.kind === 'plans' && t.slug)).toContain(
+      'br-operadora-rejeitada-exemplo',
+    );
+  });
+
+  it('plataforma descoberta na revisita já entra na fila dos planos', async () => {
+    const old = new Date(NOW.getTime() + 40 * 86_400_000);
+    const llm = new FakeLlmClient((req: LlmJsonRequest) =>
+      req.purpose.startsWith('lineups:discover:')
+        ? {
+            data: {
+              platforms: [
+                {
+                  name: 'Operadora Nova Exemplo',
+                  kind: 'vmvpd',
+                  website: 'https://nova.exemplo',
+                  dominios_oficiais: [],
+                  sources: [src('https://nova.exemplo/sobre')],
+                },
+              ],
+              notes: null,
+            },
+            groundedUrls: ['https://nova.exemplo/sobre'],
+          }
+        : new Error('sem planos neste teste'),
+    );
+    const out = await new LineupResearcher({ db, llm, config, now: () => old, resolveUrl }).run({
+      countries: ['BR'],
+      revisit: true,
+      maxCalls: 20,
+      mode: 'search',
+    });
+    expect(out[0]!.newPlatforms.map((p) => p.slug)).toEqual(['br-operadora-nova-exemplo']);
+    expect(
+      out.flatMap((o) => (o.task.kind === 'plans' ? [[o.task.slug, o.task.reason]] : [])),
+    ).toContainEqual(['br-operadora-nova-exemplo', 'no_plans']);
+  });
+
+  it('--redescobrir enfileira os planos de todas as plataformas, não só das sem plano', async () => {
+    const tasks = await planLineupResearch(db, { countries: ['BR'], now: later, rediscover: true });
+    expect(tasks.map((t) => [t.kind, t.kind === 'plans' ? t.slug : null, t.reason])).toEqual([
+      ['discover', null, 'rediscover'],
+      // a vista há mais tempo primeiro (o --max corta a fila; a execução seguinte continua)
+      ['plans', 'br-operadora-rejeitada-exemplo', 'no_plans'],
+      ['plans', 'br-operadora-exemplo', 'requested'],
+      ['plans', 'br-streaming-exemplo', 'requested'],
+      ['plans', 'br-operadora-nova-exemplo', 'no_plans'],
+    ]);
+  });
+
+  it('chamada que falha conta no --max (o provedor já cobrou as tentativas)', async () => {
+    const schemaError = () =>
+      Object.assign(new LlmError('saída fora do schema', 'schema', false), {
+        usage: { inputTokens: 100, outputTokens: 50, costUsd: 0.01, webSearchCalls: 4 },
+      });
+    const llm = new FakeLlmClient(() => schemaError());
+    const out = await new LineupResearcher({ db, llm, config, now: () => later, resolveUrl }).run({
+      countries: ['BR'],
+      rediscover: true,
+      maxCalls: 2,
+      mode: 'search',
+    });
+    // descoberta e a 1ª plataforma falham; o --max para a fila aí (antes rodava a fila inteira)
+    expect(llm.calls).toHaveLength(2);
+    expect(out.map((o) => [o.task.kind, o.status, o.calls, o.searchCalls, o.searches, o.costUsd])).toEqual([
+      ['discover', 'failed', 1, 1, 4, 0.01],
+      ['plans', 'failed', 1, 1, 4, 0.01],
+    ]);
+  });
+
+  it('revisita cortada (plano sem detalhe por falta de orçamento) não marca nada como removido', async () => {
+    const [op] = await db.select().from(platform).where(eq(platform.slug, 'br-operadora-exemplo'));
+    const llm = fake({ operator: { catalog: operatorCatalog(false), plan: operatorPlan(109.9) } });
+    const researcher = new LineupResearcher({ db, llm, config, now: () => later, resolveUrl });
+    const task = {
+      kind: 'plans' as const,
+      country: 'BR',
+      platformId: op!.id,
+      slug: op!.slug,
+      name: op!.name,
+      reason: 'revisit' as const,
+    };
+    // orçamento de 1 chamada: só a lista dos planos; o detalhe fica para a próxima
+    const out = await researcher.researchPlans(task, 1);
+    expect([out.status, out.calls, out.skippedPlans]).toEqual(['done', 1, ['Plano Exemplo Esportes']]);
+    expect([out.removed, out.changes.filter((c) => c.fields.includes('removed'))]).toEqual([0, []]);
+  });
+
+  it('site na blocklist descarta a plataforma pela política, mesmo com nome fora da lista', async () => {
+    const llm = new FakeLlmClient(() => ({
+      data: {
+        platforms: [
+          {
+            name: 'Operadora Disfarçada Exemplo',
+            kind: 'pay_tv_operator',
+            website: 'https://www.bloqueada.exemplo',
+            dominios_oficiais: [],
+            sources: [src('https://imprensa.exemplo/operadora')],
+          },
+        ],
+        notes: null,
+      },
+      groundedUrls: ['https://imprensa.exemplo/operadora'],
+    }));
+    const out = await new LineupResearcher({ db, llm, config, now: () => later, resolveUrl }).discover({
+      kind: 'discover',
+      country: 'BR',
+      reason: 'rediscover',
+    });
+    expect([out.status, out.accepted, out.drops.blocked]).toEqual(['done', 0, 1]);
+    expect(
+      await db.select().from(platform).where(eq(platform.slug, 'br-operadora-disfarcada-exemplo')),
+    ).toEqual([]);
   });
 });

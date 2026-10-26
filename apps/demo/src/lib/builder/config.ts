@@ -7,7 +7,7 @@
  * módulo vai para o navegador e para rotas do servidor.
  */
 import type { WidgetLocale as PackageLocale } from '@galaxie/widgets';
-import { toRegistryName } from '@galaxie/widgets/registry';
+import { REGISTRY_CORE_NAME, toRegistryName } from '@galaxie/widgets/registry';
 
 import type { Locale } from '@/lib/i18n/config';
 import { SITE_URL } from '@/lib/site';
@@ -169,6 +169,8 @@ export function parseWidgetInput(
   if (!isWidgetKind(r.kind)) return { ok: false, error: 'kind' };
   const name = typeof r.name === 'string' ? r.name.trim().replace(/\s+/g, ' ') : '';
   if (!name || name.length > NAME_MAX) return { ok: false, error: 'name' };
+  // "Galaxie Core" viraria o arquivo do núcleo comum e todo /r/<id>.json daria erro
+  if (toRegistryName(name) === REGISTRY_CORE_NAME) return { ok: false, error: 'name' };
   const c = (r.config ?? {}) as Record<string, unknown>;
   const theme = parseTheme(c.theme);
   if (!theme) return { ok: false, error: 'theme' };

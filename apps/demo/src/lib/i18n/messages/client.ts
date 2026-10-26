@@ -199,7 +199,7 @@ export default defineMessages(
       generic: 'Não deu certo. Tente de novo.',
       widget: {
         kind: 'Tipo de widget inválido.',
-        name: 'Informe um nome de até 80 caracteres.',
+        name: 'Informe um nome de até 80 caracteres ("Galaxie Core" é reservado).',
         theme: 'Tema inválido: confira as cores (#rrggbb), o raio e a fonte.',
         locale: 'Idioma inválido.',
         market: 'Mercado fora do seu plano.',
@@ -406,7 +406,7 @@ export default defineMessages(
         generic: "That didn't work. Try again.",
         widget: {
           kind: 'Invalid widget type.',
-          name: 'Enter a name of up to 80 characters.',
+          name: 'Enter a name of up to 80 characters ("Galaxie Core" is reserved).',
           theme: 'Invalid theme: check the colors (#rrggbb), radius and font.',
           locale: 'Invalid language.',
           market: 'Market not in your plan.',
@@ -619,7 +619,7 @@ export default defineMessages(
         generic: 'No funcionó. Probá de nuevo.',
         widget: {
           kind: 'Tipo de widget inválido.',
-          name: 'Ingresá un nombre de hasta 80 caracteres.',
+          name: 'Ingresá un nombre de hasta 80 caracteres ("Galaxie Core" está reservado).',
           theme: 'Tema inválido: revisá los colores (#rrggbb), el radio y la fuente.',
           locale: 'Idioma inválido.',
           market: 'Mercado fuera de tu plan.',

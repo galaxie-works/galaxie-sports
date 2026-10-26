@@ -191,10 +191,13 @@ export function sourceTier(url: string, platform: PlatformOfficial, dir: Country
   return 'other';
 }
 
-/** Um domínio oficial informado pela IA não pode ser de comparador, imprensa ou rede social. */
+/** Um domínio oficial informado pela IA não pode ser de comparador, imprensa, rede social nem da blocklist. */
 export function acceptableOfficialDomain(domain: string, dir: CountryDirectory): boolean {
   const url = `https://${domain.replace(/^https?:\/\//, '')}`;
-  return sourceTier(url, { website: null, officialDomains: [] }, dir) === 'other';
+  return (
+    sourceTier(url, { website: null, officialDomains: [] }, dir) === 'other' &&
+    !dir.blocklist.isBlockedUrl(url)
+  );
 }
 
 // ─── texto do trecho ─────────────────────────────────────────────────────────────────────────────
@@ -386,6 +389,69 @@ export function excerptHasAmount(excerpt: string, amount: number): boolean {
   return amountsIn(excerpt).some((a) => a.values.some((v) => close(v, amount)));
 }
 
+/**
+ * Moeda escrita sem ambiguidade junto do número ("$" sozinho é o peso local ou o dólar: não conta). Sem
+ * letra colada antes do símbolo ou do código: "AR$" não é R$, "Open 249" não é PEN, e "s/" minúsculo é
+ * "sem" ("12x s/ juros"), não o sol.
+ */
+const EXPLICIT_CURRENCY_BEFORE =
+  /(?<![A-Za-zÀ-ÿ])(R\$|U\$S|US\$|U\$D|\$U|S\/\.?|USD|BRL|ARS|CLP|COP|PEN|UYU|MXN)\s*$/;
+const EXPLICIT_CURRENCY_AFTER = /^\s*(?:(USD|BRL|ARS|CLP|COP|PEN|UYU|MXN)(?![A-Za-zÀ-ÿ])|([Dd][oó]lares)\b)/;
+const CURRENCY_TOKEN: Record<string, string> = {
+  R$: 'BRL',
+  US$: 'USD',
+  U$S: 'USD',
+  U$D: 'USD',
+  DÓLARES: 'USD',
+  DOLARES: 'USD',
+  $U: 'UYU',
+  'S/': 'PEN',
+  'S/.': 'PEN',
+};
+const isoOf = (token: string) => CURRENCY_TOKEN[token.toUpperCase()] ?? token.toUpperCase();
+
+/**
+ * A moeda (ISO 4217) que o trecho escreve junto de cada ocorrência do número do preço; null onde não há
+ * moeda ou ela é ambígua ("$").
+ */
+export function excerptCurrencies(excerpt: string, amount: number): (string | null)[] {
+  const out: (string | null)[] = [];
+  for (const hit of amountsIn(excerpt)) {
+    if (!hit.values.some((v) => close(v, amount))) continue;
+    const before = EXPLICIT_CURRENCY_BEFORE.exec(excerpt.slice(Math.max(0, hit.index - 8), hit.index));
+    const after = EXPLICIT_CURRENCY_AFTER.exec(excerpt.slice(hit.end, hit.end + 12));
+    const token = before?.[1] ?? after?.[1] ?? after?.[2];
+    out.push(token ? isoOf(token) : null);
+  }
+  return out;
+}
+
+/**
+ * A moeda do preço como a fonte mostra, sem converter (o preço em US$ no Uruguai é gravado em USD):
+ * - a moeda escrita sem ambiguidade junto do número no trecho; com mais de uma, a do país entre elas;
+ * - sem moeda no trecho, ou só "$": a do país, salvo se o modelo informou outra que o trecho não
+ *   confirma (ambígua).
+ * Ilegível ou ambígua: `currency` null e a checagem falha (o preço não é gravado).
+ */
+export function priceCurrency(
+  claimed: string | null,
+  excerpt: string,
+  amount: number | null,
+  country: string | null,
+): { currency: string | null; check: LineupCheckResult } {
+  const seen =
+    amount !== null
+      ? [...new Set(excerptCurrencies(excerpt, amount).filter((c): c is string => c !== null))]
+      : [];
+  const model = claimed?.trim() ? isoOf(claimed.trim()) : null;
+  let currency: string | null;
+  if (seen.length === 1) currency = seen[0]!;
+  else if (seen.length > 1) currency = country && seen.includes(country) ? country : null;
+  else currency = model && model !== country ? null : country;
+  if (currency && !/^[A-Z]{3}$/.test(currency)) currency = null;
+  return { currency, check: currency ? 'pass' : 'fail' };
+}
+
 /** Rótulos do preço cheio de lista (antes do número). */
 const LIST_LABEL =
   /(precio de lista|pre[cç]o (?:cheio|de lista|normal|regular)|precio (?:regular|normal|final)|valor (?:regular|normal|cheio)|o valor [eé] de|el valor es de|depois|despu[eé]s|ap[oó]s|luego|a partir do \d|a partir del \d|antes)[^\d]{0,30}$/i;
@@ -529,6 +595,8 @@ export async function checkEvidence(ctx: VerifyContext, input: CheckInput): Prom
   if (!cited || (!excerpt && !ctx.pageProof)) return null;
   const redirected = isGroundingRedirect(cited);
   const final = await ctx.resolveUrl(cited);
+  // a blocklist vale também para o destino do redirecionamento (antes só o link do Google era conferido)
+  if (final && ctx.dir.blocklist.isBlockedUrl(final)) return null;
   const tier = final ? sourceTier(final, ctx.platform, ctx.dir) : null;
   const proof = ctx.pageProof && excerpt ? ctx.pageProof(final ?? cited, excerpt) : null;
   const byName = excerpt ? namesPlan(excerpt, input.plan, input.siblings) : false;
@@ -660,7 +728,7 @@ export function choosePrice(prices: readonly LineupPriceObservation[]): {
         dateKey(b.p.source_date ?? b.p.seen_at).localeCompare(dateKey(a.p.source_date ?? a.p.seen_at)) ||
         a.i - b.i,
     );
-  const values = new Set(prices.map((p) => Math.round(p.amount * 100)));
+  const values = new Set(prices.map((p) => `${p.currency ?? ''}|${Math.round(p.amount * 100)}`));
   return { chosen: verified[0]?.p ?? null, conflict: values.size > 1 };
 }
 
@@ -702,7 +770,7 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
       : p.priceAmount !== null
         ? [{ amount: p.priceAmount, currency: p.currency, date: null, evidence: p.evidence }]
         : [];
-    const priceChecks: { input: ModelPlanPrice; checked: VerifiedEvidence }[] = [];
+    const priceChecks: { input: ModelPlanPrice; checked: VerifiedEvidence; currency: string | null }[] = [];
     for (const input of priceInputs) {
       const checked = await checkEvidence(ctx, {
         evidence: input.evidence,
@@ -714,14 +782,14 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
       if (!checked) continue;
       const c = checked.verification.checks;
       c.list_price = c.excerpt === 'pass' ? listPriceCheck(checked.fullExcerpt, input.amount) : 'skip';
-      c.currency =
-        !input.currency || !currency || input.currency.toUpperCase() === currency ? 'pass' : 'fail';
-      checked.verification.verified = passed(c) && currency !== null;
-      priceChecks.push({ input, checked });
+      const pc = priceCurrency(input.currency, checked.fullExcerpt, input.amount, currency);
+      c.currency = pc.check;
+      checked.verification.verified = passed(c) && pc.currency !== null;
+      priceChecks.push({ input, checked, currency: pc.currency });
     }
-    const observations: LineupPriceObservation[] = priceChecks.map(({ input, checked }) => ({
+    const observations: LineupPriceObservation[] = priceChecks.map(({ input, checked, currency }) => ({
       amount: input.amount,
-      currency: currency,
+      currency,
       origin: 'research',
       source_url: checked.sourceUrl,
       tier: checked.verification.tier,
@@ -769,7 +837,7 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
     if (p.planUrl) {
       const accepted = ctx.acceptUrl ? ctx.acceptUrl(p.planUrl) : p.planUrl;
       const final = accepted ? await ctx.resolveUrl(accepted) : null;
-      if (final && isOfficialUrl(final, ctx.platform)) {
+      if (final && isOfficialUrl(final, ctx.platform) && !ctx.dir.blocklist.isBlockedUrl(final)) {
         url = final;
         if (!sources.includes(final)) sources.push(final);
       }
@@ -858,8 +926,8 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
     out.plans.push({
       name: p.name,
       priceAmount,
-      priceCurrency: priceOk ? currency : null,
-      priceText: priceOk ? formatPrice(priceAmount!, currency!, ctx.country) : null,
+      priceCurrency: priceOk ? chosen!.currency : null,
+      priceText: priceOk ? formatPrice(priceAmount!, chosen!.currency!, ctx.country) : null,
       url,
       sources,
       verification: v,
@@ -939,11 +1007,12 @@ export async function verifyAddons(
     c.plan_specific = 'skip';
     c.not_reused = 'skip';
     if (!mentionsAny(checked.fullExcerpt, [bare, ...entryNames(entry, day)])) c.excerpt = 'fail';
-    c.currency = !a.currency || !currency || a.currency.toUpperCase() === currency ? 'pass' : 'fail';
+    const pc = priceCurrency(a.currency, checked.fullExcerpt, a.amount, currency);
+    c.currency = pc.check;
     const verified =
       c.official === 'pass' &&
       Object.values(c).every((x) => x === undefined || x !== 'fail') &&
-      currency !== null;
+      pc.currency !== null;
     checked.verification.verified = verified;
     const priceOk = verified && a.amount !== null;
     if (a.amount !== null && !priceOk)
@@ -956,9 +1025,9 @@ export async function verifyAddons(
       channel,
       name,
       priceAmount: priceOk ? a.amount : null,
-      priceCurrency: priceOk ? currency : null,
+      priceCurrency: priceOk ? pc.currency : null,
       priceText: priceOk
-        ? `${formatPrice(a.amount!, currency!, ctx.country)}${months ? ` · fidelidade de ${months} meses` : ''}`
+        ? `${formatPrice(a.amount!, pc.currency!, ctx.country)}${months ? ` · fidelidade de ${months} meses` : ''}`
         : null,
       commitmentMonths: months,
       sources: [checked.sourceUrl],

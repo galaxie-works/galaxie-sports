@@ -258,7 +258,7 @@ export default defineMessages(
         'live-reconcile': {
           label: 'Reconciliação do ao vivo',
           description:
-            'Confirma na fonte os jogos ainda dados como em andamento e corrige status, placar e encerramento. Botão de pânico: gasta até 60 chamadas.',
+            'Confirma na fonte os jogos ainda dados como em andamento e corrige status, placar e encerramento. Pela agenda, só os que parecem parados; rodar agora é o botão de pânico: confere todos, até 60 chamadas.',
         },
         'normalize-football': {
           label: 'Normalização do futebol',
@@ -557,7 +557,7 @@ export default defineMessages(
       AI_DAILY_USD_BUDGET: {
         label: 'Orçamento diário em US$',
         description:
-          'Teto de gasto de IA por dia (UTC), somando todos os agentes: tokens e buscas na web (a busca do Google no Gemini é cobrada por consulta). Ao bater, os agentes seguem só com texto determinístico.',
+          'Teto de gasto de IA por dia (UTC), somando todos os agentes: tokens e buscas na web (a busca do Google no Gemini é cobrada por consulta). Ao bater, os agentes seguem só com texto determinístico. 0 desliga a IA de todos os agentes; "Sem limite" tira o teto.',
         unit: 'US$',
       },
       AI_AGENT_USD_BUDGETS: {
@@ -628,6 +628,18 @@ export default defineMessages(
         label: 'Revisão mínima da grade de canais',
         description:
           'Operadoras, planos e streamings do Onde Assistir só aparecem na API a partir deste status editorial (draft, reviewed ou approved).',
+      },
+      LINEUP_PROMPT_MAX_CHARS: {
+        label: 'Texto das páginas por plataforma (grade de canais)',
+        description:
+          'Para que serve: limita quanto texto das páginas de planos de uma plataforma vai para a IA em cada extração da grade de canais (pesquisa e revisita diária), dividido igualmente entre as páginas; controla o custo por chamada. Custo aproximado: cada 10 mil caracteres são ~2,5 mil tokens de entrada, ~US$ 0,00075 no Gemini Flash-Lite (~US$ 0,011 no padrão de 150 mil). Efeito colateral: o que passa do teto é cortado do fim da página e a IA não vê esses planos, preços e canais; a revisita não marca nada como removido e o corte aparece no log e no resumo da execução.',
+        unit: 'caracteres',
+      },
+      LINEUP_PAGE_MAX_CHARS: {
+        label: 'Texto de uma página (grade de canais)',
+        description:
+          'Teto de uma página sozinha na extração da grade de canais (pesquisa e revisita), dentro do teto por plataforma. O padrão é igual ao da plataforma: só limita quando é menor. O que passa é cortado do fim da página e a IA não vê esses planos e preços; o corte aparece no log e no resumo da execução.',
+        unit: 'caracteres',
       },
       YOUTUBE_SEARCH_DAILY_QUOTA: {
         label: 'Buscas por dia no YouTube',
@@ -987,7 +999,7 @@ export default defineMessages(
           'live-reconcile': {
             label: 'Live reconciliation',
             description:
-              'Checks with the source the matches still shown as in play and fixes status, score and full time. Panic button: spends up to 60 calls.',
+              'Checks with the source the matches still shown as in play and fixes status, score and full time. On schedule, only those that look stuck; run now is the panic button: checks them all, up to 60 calls.',
           },
           'normalize-football': {
             label: 'Football normalization',
@@ -1282,7 +1294,7 @@ export default defineMessages(
         AI_DAILY_USD_BUDGET: {
           label: 'Daily budget in US$',
           description:
-            'AI spend cap per day (UTC) across all agents: tokens plus web searches (Google Search on Gemini is billed per query). Once reached, agents fall back to deterministic text.',
+            'AI spend cap per day (UTC) across all agents: tokens plus web searches (Google Search on Gemini is billed per query). Once reached, agents fall back to deterministic text. 0 turns AI off for every agent; "No limit" removes the cap.',
           unit: 'US$',
         },
         AI_AGENT_USD_BUDGETS: {
@@ -1352,6 +1364,18 @@ export default defineMessages(
           label: 'Minimum review of the channel lineup',
           description:
             'Operators, plans and streaming services in Where to Watch only reach the API from this editorial status on (draft, reviewed or approved).',
+        },
+        LINEUP_PROMPT_MAX_CHARS: {
+          label: 'Page text per platform (channel lineup)',
+          description:
+            "What it does: caps how much text from a platform's plan pages goes to the AI in each channel lineup extraction (research and the daily revisit), split evenly across the pages; it controls the cost per call. Approximate cost: every 10,000 characters are ~2,500 input tokens, ~US$ 0.00075 on Gemini Flash-Lite (~US$ 0.011 at the 150,000 default). Side effect: whatever goes past the cap is cut from the end of the page and the AI does not see those plans, prices and channels; the revisit marks nothing as removed and the cut shows in the log and in the run summary.",
+          unit: 'characters',
+        },
+        LINEUP_PAGE_MAX_CHARS: {
+          label: 'Text of one page (channel lineup)',
+          description:
+            'Cap for a single page in the channel lineup extraction (research and revisit), within the per-platform cap. The default equals the platform cap: it only limits when lower. Whatever goes past it is cut from the end of the page and the AI does not see those plans and prices; the cut shows in the log and in the run summary.',
+          unit: 'characters',
         },
         YOUTUBE_SEARCH_DAILY_QUOTA: {
           label: 'YouTube searches per day',
@@ -1715,7 +1739,7 @@ export default defineMessages(
           'live-reconcile': {
             label: 'Reconciliación del en vivo',
             description:
-              'Confirma en la fuente los partidos que siguen en curso y corrige estado, marcador y final. Botón de pánico: gasta hasta 60 llamadas.',
+              'Confirma en la fuente los partidos que siguen en curso y corrige estado, marcador y final. Por la agenda, solo los que parecen detenidos; correr ahora es el botón de pánico: revisa todos, hasta 60 llamadas.',
           },
           'normalize-football': {
             label: 'Normalización del fútbol',
@@ -2017,7 +2041,7 @@ export default defineMessages(
         AI_DAILY_USD_BUDGET: {
           label: 'Presupuesto diario en US$',
           description:
-            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico.',
+            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico. 0 apaga la IA de todos los agentes; "Sin límite" quita el tope.',
           unit: 'US$',
         },
         AI_AGENT_USD_BUDGETS: {
@@ -2089,6 +2113,18 @@ export default defineMessages(
           label: 'Revisión mínima de la grilla de canales',
           description:
             'Operadoras, planes y streamings de Dónde ver solo llegan a la API desde este estado editorial (draft, reviewed o approved).',
+        },
+        LINEUP_PROMPT_MAX_CHARS: {
+          label: 'Texto de las páginas por plataforma (grilla de canales)',
+          description:
+            'Para qué sirve: limita cuánto texto de las páginas de planes de una plataforma va a la IA en cada extracción de la grilla de canales (investigación y revisita diaria), dividido en partes iguales entre las páginas; controla el costo por llamada. Costo aproximado: cada 10 mil caracteres son ~2,5 mil tokens de entrada, ~US$ 0,00075 en Gemini Flash-Lite (~US$ 0,011 con el valor por defecto de 150 mil). Efecto secundario: lo que pasa del tope se corta del final de la página y la IA no ve esos planes, precios y canales; la revisita no marca nada como eliminado y el corte aparece en el log y en el resumen de la ejecución.',
+          unit: 'caracteres',
+        },
+        LINEUP_PAGE_MAX_CHARS: {
+          label: 'Texto de una página (grilla de canales)',
+          description:
+            'Tope de una sola página en la extracción de la grilla de canales (investigación y revisita), dentro del tope por plataforma. El valor por defecto es igual al de la plataforma: solo limita cuando es menor. Lo que pasa se corta del final de la página y la IA no ve esos planes y precios; el corte aparece en el log y en el resumen de la ejecución.',
+          unit: 'caracteres',
         },
         YOUTUBE_SEARCH_DAILY_QUOTA: {
           label: 'Búsquedas por día en YouTube',

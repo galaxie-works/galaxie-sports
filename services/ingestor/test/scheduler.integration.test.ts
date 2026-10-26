@@ -3,7 +3,15 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defaultPolicy } from '@galaxie/apisports-client';
-import { closeDb, createDb, jobRun, runMigrations, type Database } from '@galaxie/db';
+import {
+  closeDb,
+  createDb,
+  jobRun,
+  mergeJobRunStats,
+  runMigrations,
+  tryJobLock,
+  type Database,
+} from '@galaxie/db';
 import { createLogger, createMetrics } from '@galaxie/observability';
 import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
@@ -33,6 +41,7 @@ beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'galaxie-scheduler-'));
   await writeFile(join(dir, 'fail.mjs'), 'process.exit(1);');
   await writeFile(join(dir, 'ok.mjs'), '');
+  await writeFile(join(dir, 'slow.mjs'), 'await new Promise((r) => setTimeout(r, 1500));');
 }, 60_000);
 
 afterAll(async () => {
@@ -82,5 +91,63 @@ describe('scheduler → ops.job_run → métrica de falhas seguidas', () => {
 
     await runJob(job('ok.mjs'), options);
     expect(await consecutiveFailures()).toBe(0);
+  });
+});
+
+describe('estatísticas do próprio job em ops.job_run', () => {
+  it('o job soma as dele (GALAXIE_SCHEDULER_RUN_ID) e o fim do scheduler não as apaga', async () => {
+    const recorder = new PgRunRecorder(db);
+    const id = await recorder.start('lineups-revisit');
+    await mergeJobRunStats(db, id, { lineups: { prompt_cuts: 2 } });
+    await recorder.finish(id, 'ok', null, { exit_code: 0, duration_ms: 10 });
+    const [row] = await db.select().from(jobRun).where(eq(jobRun.id, id));
+    expect(row!.stats).toEqual({ lineups: { prompt_cuts: 2 }, exit_code: 0, duration_ms: 10 });
+  });
+});
+
+describe('trava por job entre processos (advisory lock de sessão)', () => {
+  const lock = (name: string) => tryJobLock(testUrl, name);
+  const runs = async () => (await db.select().from(jobRun).where(eq(jobRun.job, 'live-run'))).length;
+
+  it('a segunda execução simultânea do mesmo job é pulada sem registro; depois a trava fica livre', async () => {
+    const recorder = new PgRunRecorder(db);
+    const slow = { ...job('slow.mjs'), name: 'live-run' };
+    const options = { cwd: dir, recorder, logger, lock };
+    const before = await runs();
+
+    const first = runJob(slow, { ...options, trigger: 'schedule' });
+    await new Promise((r) => setTimeout(r, 300));
+    // ex.: `scheduler --run live-run` no console com o ao vivo agendado no ar
+    const second = await runJob(slow, { ...options, trigger: 'manual' });
+    expect(second).toMatchObject({ status: 'skipped', runId: undefined, exitCode: null });
+    // outro job não é afetado pela trava do ao vivo
+    expect((await runJob(job('ok.mjs'), { ...options, trigger: 'manual' })).status).toBe('ok');
+    expect((await first).status).toBe('ok');
+    expect(await runs()).toBe(before + 1);
+
+    // terminado o primeiro, o próximo horário da agenda roda normalmente
+    expect(
+      (await runJob({ ...job('ok.mjs'), name: 'live-run' }, { ...options, trigger: 'schedule' })).status,
+    ).toBe('ok');
+  });
+
+  it('a trava não fica presa quando o processo que a segurava cai (a conexão some)', async () => {
+    let lost = 0;
+    const held = await tryJobLock(testUrl, 'crash-test', { onLost: () => (lost += 1) });
+    expect(held).not.toBeNull();
+    expect(await lock('crash-test')).toBeNull();
+    // simula o crash: o Postgres derruba a sessão dona da trava
+    await admin.unsafe(
+      `select pg_terminate_backend(pid) from pg_locks where locktype = 'advisory' and granted and database = (select oid from pg_database where datname = '${dbName}')`,
+    );
+    const again = await lock('crash-test');
+    expect(again).not.toBeNull();
+    // quem segurava fica sabendo que perdeu a trava (o scheduler loga um aviso)
+    for (let i = 0; i < 50 && lost === 0; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(lost).toBe(1);
+    await again!.release();
+    await held!.release().catch(() => {});
+    // soltar normalmente não conta como perda
+    expect(lost).toBe(1);
   });
 });

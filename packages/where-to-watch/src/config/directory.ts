@@ -11,6 +11,7 @@ import type {
   SourceDomains,
   WtwCountry,
 } from './types.js';
+import { WTW_COUNTRY_TIME_ZONES } from './types.js';
 import type { OfficialLogoManifest } from '../official-logos.js';
 
 /** Limite de domínios aceito pelas ferramentas de busca dos provedores de LLM. */
@@ -56,6 +57,7 @@ export class CountryDirectory {
     { resolved: ResolvedBroadcaster; validFrom: string | null; validTo: string | null }[]
   >();
   private readonly byId = new Map<string, BroadcasterEntry>();
+  private readonly dayFormat: Intl.DateTimeFormat;
 
   constructor(
     readonly config: CountryConfig,
@@ -64,6 +66,13 @@ export class CountryDirectory {
     this.country = config.country;
     this.language = config.language;
     this.sources = config.sources;
+    // en-CA formata como AAAA-MM-DD
+    this.dayFormat = new Intl.DateTimeFormat('en-CA', {
+      timeZone: WTW_COUNTRY_TIME_ZONES[config.country] ?? 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
     for (const entry of config.broadcasters) {
       this.byId.set(entry.id, entry);
       this.index(entry.name, { entry, region: null, channel: null, matchedBy: 'name' });
@@ -90,6 +99,11 @@ export class CountryDirectory {
     if (key && !this.byName.has(key)) this.byName.set(key, resolved);
   }
 
+  /** Dia civil (AAAA-MM-DD) do instante no fuso do país. */
+  localDay(at: Date): string {
+    return this.dayFormat.format(at);
+  }
+
   get broadcasters(): BroadcasterEntry[] {
     return this.config.broadcasters;
   }
@@ -114,7 +128,7 @@ export class CountryDirectory {
   /** Como `resolve`, mas diz quando o nome é de uma emissora que existe e está fora do período no dia. */
   lookup(name: string, at: Date | string = new Date()): BroadcasterLookup | null {
     const key = normalizeName(name);
-    const d = typeof at === 'string' ? at.slice(0, 10) : at.toISOString().slice(0, 10);
+    const d = typeof at === 'string' ? at.slice(0, 10) : this.localDay(at);
     const within = (from: string | null, to: string | null) => (!from || from <= d) && (!to || d <= to);
     const dated = (this.byDatedName.get(key) ?? []).find((a) => within(a.validFrom, a.validTo));
     const resolved = this.byName.get(key) ?? dated?.resolved ?? null;
@@ -161,10 +175,10 @@ export class CountryDirectory {
     ]).slice(0, MAX_ALLOWED_DOMAINS);
   }
 
-  /** Linha da tabela de direitos vigente para a competição na data do jogo. */
+  /** Linha da tabela de direitos vigente para a competição no dia do jogo (no fuso do país). */
   rightsFor(competitionSlug: string | null | undefined, date: Date): RightsEntry | null {
     if (!competitionSlug) return null;
-    const day = date.toISOString().slice(0, 10);
+    const day = this.localDay(date);
     return (
       this.config.rights.find(
         (r) => r.competition === competitionSlug && r.validFrom <= day && day <= r.validTo,

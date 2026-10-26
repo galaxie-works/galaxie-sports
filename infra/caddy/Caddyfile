@@ -4,7 +4,8 @@
 {
 	admin off
 	servers {
-		trusted_proxies static private_ranges
+		# sem trusted_proxies: o Caddy sobrescreve o X-Forwarded-For com o IP do cliente (confiar em private_ranges
+		# deixava forjá-lo pelo gateway do Docker, que é privado; a API usa esse IP nos limites por IP)
 	}
 	# Logs internos do Caddy (inclusive erros de proxy) também sem IP completo nem credenciais.
 	log default {
@@ -19,6 +20,10 @@
 				request>headers>X-Galaxie-Key delete
 				request>headers>X-Galaxie-Admin-Key delete
 				request>headers>Cookie delete
+				# chave do EventSource (`?key=`, o SSE não manda header): a API já redige nos logs dela
+				request>uri query {
+					replace key REDACTED
+				}
 			}
 		}
 	}
@@ -46,6 +51,10 @@
 				request>headers>X-Galaxie-Key delete
 				request>headers>X-Galaxie-Admin-Key delete
 				request>headers>Cookie delete
+				# chave do EventSource (`?key=`, o SSE não manda header): a API já redige nos logs dela
+				request>uri query {
+					replace key REDACTED
+				}
 			}
 		}
 	}

@@ -48,6 +48,20 @@ export function pgFeedStore(db: Database): FeedStore {
       }));
     },
 
+    async recentIds(latest, maxAgeMs, limit) {
+      const rows = await sql<{ id: string }[]>`
+        select id::text
+          from ops.change_feed
+         where id <= ${latest}
+           and id >= (select coalesce(min(id), ${latest} + 1)
+                        from ops.change_feed
+                       where id <= ${latest}
+                         and created_at > now() - ${maxAgeMs} * interval '1 millisecond')
+         order by id desc
+         limit ${limit}`;
+      return rows.map((r) => Number(r.id)).reverse();
+    },
+
     async listen(onChange) {
       const sub = await sql.listen(CHANGE_FEED_CHANNEL, () => onChange());
       return () => sub.unlisten();

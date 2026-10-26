@@ -123,6 +123,14 @@ describe('config/broadcasters e config/broadcast-rights do repositório', () => 
     expect(br.classifySource('https://www.youtube.com/@outro/live', br.byIdOrNull('cazetv'))).toBe('unknown');
   });
 
+  it('plataforma própria de assistir no dicionário: RecordPlus da Record (só link, não é fonte)', () => {
+    const br = config.directory('BR');
+    const record = br.byIdOrNull('record')!;
+    expect(record.watchDomains).toEqual(['recordplus.com']);
+    expect(br.classifySource('https://www.recordplus.com/ao-vivo', record)).toBe('unknown');
+    expect(br.allowedDomains()).not.toContain('recordplus.com');
+  });
+
   it('acha a linha vigente da tabela de direitos pela data do jogo', () => {
     const br = config.directory('BR');
     expect(br.rightsFor('conmebol-libertadores', new Date('2026-10-22T00:30:00Z'))?.holders).toContain('globo');

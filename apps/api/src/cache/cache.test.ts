@@ -1,9 +1,18 @@
 import Fastify from 'fastify';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as z from 'zod';
 import { tagsForChange } from './change-feed.js';
-import { matchesEtag, sendCached, SURROGATE_KEY_MAX, surrogateKeyHeader } from './http.js';
+import {
+  LEGACY_ENTRY_TTL_SEC,
+  matchesEtag,
+  remainingTtl,
+  sendCached,
+  SURROGATE_KEY_MAX,
+  surrogateKeyHeader,
+} from './http.js';
 import { cacheControl } from './policy.js';
 import { MemoryResponseCache } from './store.js';
+import { parseInput } from '../util.js';
 
 function appWith(cache: MemoryResponseCache, load: () => unknown, ttl = 60) {
   const app = Fastify();
@@ -30,6 +39,8 @@ describe('sendCached', () => {
     expect(first.headers['x-galaxie-cache']).toBe('MISS');
     expect(first.headers['cache-control']).toBe(cacheControl(60));
     expect(first.headers['surrogate-key']).toBe('competition competition:1');
+    // resposta por tenant: a chave secreta e a publicável (widgets) separam as cópias de um cache compartilhado
+    expect(first.headers.vary).toBe('Accept-Language, x-galaxie-key, x-galaxie-publishable-key');
     const second = await app.inject({ url: '/r' });
     expect(second.headers['x-galaxie-cache']).toBe('HIT');
     expect(second.headers.etag).toBe(first.headers.etag);
@@ -55,6 +66,110 @@ describe('sendCached', () => {
     expect(await cache.purgeTags(['competition:1'])).toBe(1);
     expect((await app.inject({ url: '/r' })).json()).toEqual({ name: 'B' });
     expect(loads()).toBe(2);
+  });
+
+  it('HIT anuncia o que resta do TTL da entrada (o do load), não o TTL da rota', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-21T15:00:00Z'), toFake: ['Date'] });
+    try {
+      const cache = new MemoryResponseCache();
+      const app = Fastify();
+      // rota de 1 h cujo load escolhe 10 s (jogo ao vivo)
+      app.get('/live', (request, reply) =>
+        sendCached(request, reply, cache, {
+          ttl: 3600,
+          load: async () => ({ body: { status: 'live' }, tags: ['event:1'], ttl: 10 }),
+        }),
+      );
+      const miss = await app.inject({ url: '/live' });
+      expect(miss.headers['cache-control']).toBe(cacheControl(10));
+      vi.advanceTimersByTime(4_000);
+      const hit = await app.inject({ url: '/live' });
+      expect(hit.headers['x-galaxie-cache']).toBe('HIT');
+      expect(hit.headers['cache-control']).toBe(cacheControl(6));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('entrada antiga sem ttl gravado: HIT com TTL curto, nunca o da rota', () => {
+    const storedAt = Date.parse('2026-10-21T15:00:00Z');
+    expect(remainingTtl({ storedAt }, 86_400, storedAt + 1_000)).toBe(LEGACY_ENTRY_TTL_SEC);
+    expect(remainingTtl({ storedAt }, 5, storedAt)).toBe(5);
+    expect(remainingTtl({ storedAt, ttl: 60 }, 86_400, storedAt + 59_500)).toBe(1);
+    expect(remainingTtl({ storedAt, ttl: 60 }, 86_400, storedAt + 61_000)).toBe(0);
+    // gravada por uma instância com o relógio adiantado: nunca mais que o TTL da entrada
+    expect(remainingTtl({ storedAt, ttl: 10 }, 3600, storedAt - 30_000)).toBe(10);
+  });
+
+  it('chave usa a query validada: parâmetro desconhecido não fura o cache', async () => {
+    const cache = new MemoryResponseCache();
+    const app = Fastify();
+    const Query = z.object({ limit: z.coerce.number().int().default(50), q: z.string().optional() });
+    let loads = 0;
+    app.get('/q', (request, reply) => {
+      const query = parseInput(Query, request.query);
+      return sendCached(request, reply, cache, {
+        ttl: 60,
+        load: async () => {
+          loads += 1;
+          return { body: query, tags: [] };
+        },
+      });
+    });
+    expect((await app.inject({ url: '/q?x=1' })).headers['x-galaxie-cache']).toBe('MISS');
+    expect((await app.inject({ url: '/q?x=2&y=3' })).headers['x-galaxie-cache']).toBe('HIT');
+    // o padrão do schema e o valor explícito igual caem na mesma entrada
+    expect((await app.inject({ url: '/q?limit=50' })).headers['x-galaxie-cache']).toBe('HIT');
+    expect(loads).toBe(1);
+    // parâmetro conhecido continua separando as respostas
+    expect((await app.inject({ url: '/q?limit=10' })).json()).toEqual({ limit: 10 });
+    expect((await app.inject({ url: '/q?limit=10&q=a' })).json()).toEqual({ limit: 10, q: 'a' });
+    expect(loads).toBe(3);
+  });
+
+  it('rota que não valida a query segue com a query bruta na chave', async () => {
+    const { app, loads } = appWith(new MemoryResponseCache(), () => ({}));
+    await app.inject({ url: '/r?x=1' });
+    await app.inject({ url: '/r?x=2' });
+    expect(loads()).toBe(2);
+  });
+
+  it('purge durante o load: não grava a resposta (pode ser anterior à mudança) e sai sem cache', async () => {
+    const cache = new MemoryResponseCache();
+    let name = 'A';
+    let purgeMidLoad = true;
+    const { app, loads } = appWith(cache, () => {
+      const body = { name };
+      if (purgeMidLoad) {
+        // a mudança comita e o change feed purga enquanto a requisição ainda monta a resposta velha
+        name = 'B';
+        void cache.purgeTags(['competition:1']);
+        purgeMidLoad = false;
+      }
+      return body;
+    });
+    const stale = await app.inject({ url: '/r' });
+    expect(stale.json()).toEqual({ name: 'A' });
+    expect(stale.headers['cache-control']).toBe('no-cache');
+    const next = await app.inject({ url: '/r' });
+    expect(next.headers['x-galaxie-cache']).toBe('MISS');
+    expect(next.json()).toEqual({ name: 'B' });
+    expect(next.headers['cache-control']).toBe(cacheControl(60));
+    expect((await app.inject({ url: '/r' })).headers['x-galaxie-cache']).toBe('HIT');
+    expect(loads()).toBe(2);
+  });
+
+  it('cache fora do ar na leitura: responde do load sem buscar a marca de purge', async () => {
+    const cache = new MemoryResponseCache();
+    cache.get = async () => {
+      throw new Error('fora do ar');
+    };
+    const purgeMark = vi.spyOn(cache, 'purgeMark');
+    const { app } = appWith(cache, () => ({ ok: true }));
+    const res = await app.inject({ url: '/r' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+    expect(purgeMark).not.toHaveBeenCalled();
   });
 
   it('varia por locale', async () => {

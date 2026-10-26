@@ -4,12 +4,15 @@
  *
  *   pnpm --filter @galaxie/ingestor assets:mirror --plan              # quantos faltam, sem baixar
  *   pnpm --filter @galaxie/ingestor assets:mirror                     # baixa o que falta em core.asset
- *   pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw     # antes, registra toda URL de mídia do raw
+ *   pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw     # antes, registra as URLs de mídia do raw
+ *                                                                     # novo desde a última descoberta (--raw-completo: todo)
  *   pnpm --filter @galaxie/ingestor assets:mirror --fotos             # só fotos de pessoas, escalados recentes primeiro
  *   pnpm --filter @galaxie/ingestor assets:mirror --so-limpeza        # só a limpeza dos logos genéricos (com --plan: prévia)
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
  *           --desde-dias N (com --fotos: janela dos "escalados recentes", padrão 365)
  *           --caminho volley    só a mídia de um esporte (pasta na CDN: football, basketball, volley...)
+ * Com `--retentar-ausentes`, os logos de time e competição que voltam (antes 404 ou bloqueados) religam na hora
+ * as entidades que os perderam, pelo par id ↔ logo que o fornecedor já devolveu (raw; sem chamada à API).
  * `--fotos` antes liga cada jogador sem foto à URL `football/players/{id}.png` (sai do id, sem cota) e, no fim,
  * aponta hashes repetidos que podem ser imagens genéricas ainda fora de PLACEHOLDER_PHOTO_SHA256.
  * Logos de time e competição que vêm como imagem genérica ("image not available", PLACEHOLDER_LOGO_SHA256) não vão
@@ -27,15 +30,24 @@ import { eq, sql } from 'drizzle-orm';
 import { publicAssetUrl } from '@galaxie/apisports-client';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
-import { PgAssetStore, type LogoCleanup } from '../assets/asset-store.js';
+import { mediaPathPrefix, PgAssetStore, runRawDiscovery, type LogoCleanup } from '../assets/asset-store.js';
 import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
+import { relinkRecoveredLogos } from '../assets/relink-logos.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
-import { PLACEHOLDER_PHOTO_SHA256, registerPlayerPhotos } from '../assets/person-photos.js';
+import {
+  coachPhotoUrl,
+  PLACEHOLDER_PHOTO_SHA256,
+  playerPhotoUrl,
+  previewPlayerPhotos,
+  registerPlayerPhotos,
+  type PhotoRegistrationPreview,
+} from '../assets/person-photos.js';
 
 const { values } = parseArgs({
   options: {
     plan: { type: 'boolean', default: false },
     'descobrir-raw': { type: 'boolean', default: false },
+    'raw-completo': { type: 'boolean', default: false },
     'retentar-ausentes': { type: 'boolean', default: false },
     fotos: { type: 'boolean', default: false },
     'so-limpeza': { type: 'boolean', default: false },
@@ -60,15 +72,20 @@ const personPhotos = values.fotos
 
 try {
   if (values['descobrir-raw']) {
-    const urls = await assets.discoverFromRaw();
-    const added = await assets.register(urls.filter((u) => !denylist.has(u)));
-    console.log(`URLs de mídia no raw: ${urls.length} · novas em core.asset: ${added}`);
+    const r = await runRawDiscovery(db, assets, { denylist, full: values['raw-completo'] });
+    console.log(
+      `URLs de mídia no raw${r.after ? ` novo (id > ${r.after.maxRawId} e transações em andamento na anterior)` : ''}: ${r.urls} · novas em core.asset: ${r.added}`,
+    );
   }
 
-  if (personPhotos && !values.plan) {
-    const r = await registerPlayerPhotos(db, personPhotos);
+  // no --plan, só leitura: a prévia conta as fotos que a execução real vai registrar
+  const photoPreview = personPhotos && values.plan ? await previewPlayerPhotos(db, personPhotos) : undefined;
+  const photoRegistration =
+    personPhotos && !values.plan ? await registerPlayerPhotos(db, personPhotos) : photoPreview;
+  if (photoRegistration) {
+    const r = photoRegistration;
     console.log(
-      `Fotos ligadas pelo id (jogadores e técnicos): escalados recentes ${r.linked[0]} · elenco atual ${r.linked[1]} · resto ${r.linked[2]}` +
+      `Fotos ${values.plan ? 'a ligar' : 'ligadas'} pelo id (jogadores e técnicos): escalados recentes ${r.linked[0]} · elenco atual ${r.linked[1]} · resto ${r.linked[2]}` +
         ` · assets novos ${r.registered} · já sabidamente sem foto ${r.skippedMissing}`,
     );
   }
@@ -97,20 +114,27 @@ try {
       limit: values.limite ? Number(values.limite) : undefined,
       pathPrefix: values.caminho,
     });
-    console.log(`A baixar nesta execução: ${report.pending} (nenhuma chamada à API de dados).`);
+    // os assets que o registro pelo id criaria ainda não existem: entram os que caem no --caminho
+    const limit = values.limite ? Number(values.limite) : Infinity;
+    const registered = newPhotosUnder(photoPreview, values.caminho);
+    const pending = Math.min(limit, report.pending + registered);
+    console.log(`A baixar nesta execução: ${pending} (nenhuma chamada à API de dados).`);
     console.log(logoCleanupLine(report.logoCleanup, 'a limpar'));
-    const logos = await runBroadcasterLogoMirror({
-      db,
-      objects: {
-        put: async () => {},
-        head: async () => undefined,
-        get: async () => undefined,
-        delete: async () => {},
-      },
-      dryRun: true,
-      includeMissing: values['retentar-ausentes'],
-    });
-    console.log(`Logos de emissoras a baixar: ${logos.pending}.`);
+    if (report.photoCleanup) console.log(`Fotos genéricas já gravadas a desligar: ${report.photoCleanup}`);
+    if (!personPhotos) {
+      const logos = await runBroadcasterLogoMirror({
+        db,
+        objects: {
+          put: async () => {},
+          head: async () => undefined,
+          get: async () => undefined,
+          delete: async () => {},
+        },
+        dryRun: true,
+        includeMissing: values['retentar-ausentes'],
+      });
+      console.log(`Logos de emissoras a baixar: ${logos.pending}.`);
+    }
   } else {
     const objects = objectStoreFromEnv();
     const [run] = await db.insert(jobRun).values({ job: 'assets:mirror', status: 'running' }).returning();
@@ -132,41 +156,62 @@ try {
           if (e.type === 'failed') console.warn(`  falha ${e.asset.sourceUrl}: ${e.reason}`);
         },
       });
-      const logos = await runBroadcasterLogoMirror({
-        db,
-        objects,
-        includeMissing: values['retentar-ausentes'],
-      });
-      for (const f of logos.failures) console.warn(`  logo de emissora ${f.url}: ${f.reason}`);
+      // logos que voltaram (--retentar-ausentes): religa times e competições pelo par id ↔ logo do raw
+      const relinked = report.recoveredLogos.length
+        ? await relinkRecoveredLogos(db, report.recoveredLogos)
+        : undefined;
+      // --fotos é só fotos: os logos de emissoras ficam para a execução normal
+      const logos = personPhotos
+        ? undefined
+        : await runBroadcasterLogoMirror({
+            db,
+            objects,
+            includeMissing: values['retentar-ausentes'],
+          });
+      for (const f of logos?.failures ?? []) console.warn(`  logo de emissora ${f.url}: ${f.reason}`);
       objects.close();
       const stats = {
         ...report,
-        broadcasterLogos: { ...logos, failures: logos.failures.slice(0, 20) },
+        ...(logos && { broadcasterLogos: { ...logos, failures: logos.failures.slice(0, 20) } }),
+        ...(relinked && { relinked: { ...relinked, unresolved: relinked.unresolved.slice(0, 50) } }),
         failures: report.failures.slice(0, 50),
         notFoundUrls: report.notFoundUrls.slice(0, 50),
       };
+      // erro inesperado (storage, banco) não é falha transitória da CDN: o job fica com erro mesmo sem abortar
+      const error =
+        report.aborted ??
+        (report.errors ? `${report.errors} assets falharam com erro inesperado (ver stats.failures)` : null);
       await db
         .update(jobRun)
-        .set({
-          status: report.aborted ? 'error' : 'ok',
-          finishedAt: new Date(),
-          stats,
-          error: report.aborted,
-        })
+        .set({ status: error ? 'error' : 'ok', finishedAt: new Date(), stats, error })
         .where(eq(jobRun.id, run!.id));
       console.log(
         `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · fotos genéricas: ${report.placeholders} · logos genéricos: ${report.placeholderLogos} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
       );
       console.log(logoCleanupLine(report.logoCleanup, 'limpos'));
       if (report.photoCleanup) console.log(`Fotos genéricas já gravadas desligadas: ${report.photoCleanup}`);
+      if (relinked) {
+        console.log(
+          `Logos que voltaram: ${report.recoveredLogos.length} · times religados: ${relinked.participants} · competições religadas: ${relinked.competitions}`,
+        );
+        for (const url of relinked.unresolved.slice(0, 20))
+          console.warn(
+            `  sem resposta no raw que diga de quem é ${url}: religa na próxima normalização do catálogo`,
+          );
+      }
       if (personPhotos) await warnRepeatedPhotos();
-      console.log(
-        `Logos de emissoras: ${logos.stored} espelhados · 404: ${logos.notFound} · recusados: ${logos.rejected} · falhas: ${logos.failed}`,
-      );
+      if (logos) {
+        console.log(
+          `Logos de emissoras: ${logos.stored} espelhados · 404: ${logos.notFound} · recusados: ${logos.rejected} · falhas: ${logos.failed}`,
+        );
+      }
       if (ASSETS_PUBLIC_BASE_URL) {
         console.log(`URLs públicas: ${publicAssetUrl('<storage_key>', ASSETS_PUBLIC_BASE_URL)}`);
       }
-      if (report.aborted) process.exitCode = 1;
+      if (error) {
+        if (!report.aborted) console.warn(error);
+        process.exitCode = 1;
+      }
     } catch (err) {
       await db
         .update(jobRun)
@@ -177,6 +222,16 @@ try {
   }
 } finally {
   await closeDb(db);
+}
+
+/** Assets de foto que a prévia do registro pelo id criaria sob `--caminho` (todos, sem ele). */
+function newPhotosUnder(preview: PhotoRegistrationPreview | undefined, path: string | undefined): number {
+  if (!preview) return 0;
+  const under = (url: string) => !path || new URL(url).pathname.startsWith(mediaPathPrefix(path));
+  return (
+    (under(playerPhotoUrl('0')) ? preview.registeredByKind.player : 0) +
+    (under(coachPhotoUrl('0')) ? preview.registeredByKind.coach : 0)
+  );
 }
 
 function logoCleanupLine(c: LogoCleanup, verb: string): string {

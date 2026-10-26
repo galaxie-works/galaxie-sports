@@ -171,6 +171,13 @@ export default defineMessages(
       ended: 'Sessão encerrada',
       endAll: 'Encerrar todas',
       endedAll: 'Sessões encerradas',
+      otpFailures: {
+        one: '{count} tentativa errada de código na última hora',
+        other: '{count} tentativas erradas de código na última hora',
+      },
+      otpLocked: 'login por código bloqueado',
+      otpUnlock: 'Desbloquear login',
+      otpUnlocked: 'Login por código desbloqueado',
     },
     activity: {
       title: 'Atividade',
@@ -209,6 +216,7 @@ export default defineMessages(
       selfRemove: 'Você não pode remover a sua própria conta.',
       invalidRole: 'Papel inválido.',
       tenantRequired: 'Escolha o tenant da API do cliente.',
+      sessionNotFound: 'Sessão não encontrada (talvez já tenha sido encerrada).',
     },
   },
   {
@@ -381,6 +389,13 @@ export default defineMessages(
         ended: 'Session ended',
         endAll: 'Sign out everywhere',
         endedAll: 'Sessions ended',
+        otpFailures: {
+          one: '{count} wrong code attempt in the last hour',
+          other: '{count} wrong code attempts in the last hour',
+        },
+        otpLocked: 'code sign-in blocked',
+        otpUnlock: 'Unblock sign-in',
+        otpUnlocked: 'Code sign-in unblocked',
       },
       activity: {
         title: 'Activity',
@@ -419,6 +434,7 @@ export default defineMessages(
         selfRemove: "You can't remove your own account.",
         invalidRole: 'Invalid role.',
         tenantRequired: "Pick the client's API tenant.",
+        sessionNotFound: 'Session not found (it may have already ended).',
       },
     },
     'es-AR': {
@@ -593,6 +609,13 @@ export default defineMessages(
         ended: 'Sesión cerrada',
         endAll: 'Cerrar todas',
         endedAll: 'Sesiones cerradas',
+        otpFailures: {
+          one: '{count} intento fallido de código en la última hora',
+          other: '{count} intentos fallidos de código en la última hora',
+        },
+        otpLocked: 'ingreso con código bloqueado',
+        otpUnlock: 'Desbloquear ingreso',
+        otpUnlocked: 'Ingreso con código desbloqueado',
       },
       activity: {
         title: 'Actividad',
@@ -631,6 +654,7 @@ export default defineMessages(
         selfRemove: 'No podés eliminar tu propia cuenta.',
         invalidRole: 'Rol inválido.',
         tenantRequired: 'Elegí el tenant de la API del cliente.',
+        sessionNotFound: 'Sesión no encontrada (quizás ya se cerró).',
       },
     },
   },

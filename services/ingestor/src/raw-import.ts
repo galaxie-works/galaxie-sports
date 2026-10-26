@@ -34,7 +34,9 @@ async function* walk(dir: string): AsyncGenerator<string> {
 
 /**
  * Importa para raw.api_response envelopes salvos em disco (<dir>/<esporte>/*.json), sem gastar cota.
- * O endpoint e os parâmetros vêm do próprio envelope (`get`, `parameters`); o esporte, da pasta.
+ * O endpoint e os parâmetros vêm do próprio envelope (`get`, `parameters`); o esporte, da pasta; a data da
+ * coleta, do nome do arquivo (`<nome>__AAAAMMDDTHHMMSSZ.json`). Arquivo sem a data fica de fora: com a hora
+ * da importação, um envelope antigo viraria a observação mais nova (cache fresco, placar e status velhos).
  * Idempotente: um mesmo corpo para a mesma requisição não é importado duas vezes.
  */
 export async function importRawDirectory(db: Database, dir: string): Promise<ImportResult> {
@@ -44,6 +46,14 @@ export async function importRawDirectory(db: Database, dir: string): Promise<Imp
     const sport = basename(dirname(file)) as ApiSport;
     if (!(sport in API_HOSTS)) {
       result.skipped.push({ file, reason: `pasta "${sport}" não é um esporte conhecido` });
+      continue;
+    }
+    const fetchedAt = fetchedAtFromName(basename(file));
+    if (!fetchedAt || Number.isNaN(fetchedAt.getTime())) {
+      result.skipped.push({
+        file,
+        reason: 'sem a data da coleta no nome (AAAAMMDDTHHMMSSZ, ex.: leagues__20261021T141332Z.json)',
+      });
       continue;
     }
     const text = await readFile(file, 'utf8');
@@ -89,7 +99,7 @@ export async function importRawDirectory(db: Database, dir: string): Promise<Imp
       bodyHash,
       quotaRemaining: null,
       jobId: 'raw-import',
-      fetchedAt: fetchedAtFromName(basename(file)) ?? new Date(),
+      fetchedAt,
     });
     result.imported += 1;
   }

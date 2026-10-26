@@ -15,7 +15,7 @@ import { resolve } from 'node:path';
 import { type ApiSport } from '@galaxie/apisports-client';
 import { closeDb } from '@galaxie/db';
 import { jobContextFromEnv } from '../context.js';
-import { dailyJob, OTHER_SPORTS_SCHEDULE, startOfUtcDay } from '../jobs/daily-job.js';
+import { checkProviderStatus, dailyJob, OTHER_SPORTS_SCHEDULE, startOfUtcDay } from '../jobs/daily-job.js';
 import { resolveDerbiesFromRaw } from '../knowledge/derbies.js';
 import { logger } from '../logger.js';
 import { normalizeAfterFetch } from '../normalize/after-fetch.js';
@@ -44,9 +44,14 @@ await runCli(async () => {
         'football',
         ...(values['outros-esportes'] ? (Object.keys(OTHER_SPORTS_SCHEDULE) as ApiSport[]) : []),
       ];
-      for (const sport of sports) {
-        const s = await ctx.client.status(sport);
-        console.log(`/status ${sport}: ${s.used}/${s.limitDay} (${s.plan ?? '?'})`);
+      for (const r of await checkProviderStatus(sports, (sport) => ctx.client.status(sport))) {
+        if (r.ok)
+          console.log(`/status ${r.sport}: ${r.status.used}/${r.status.limitDay} (${r.status.plan ?? '?'})`);
+        else
+          logger.warn(
+            { err: r.error, sport: r.sport },
+            '/status falhou; seguindo o sync com o contador local da cota',
+          );
       }
     }
     const derbyKeys = async () =>
@@ -90,11 +95,19 @@ await runCli(async () => {
           (written.length ? ` (${written.map((t) => `${t.competition} ${t.year}`).join(', ')})` : '') +
           '.',
       );
-      for (const t of tables.filter((x) => x.outcome !== 'written'))
-        logger.info(
-          { season_id: t.seasonId, competition: t.competition, outcome: t.outcome, detail: t.detail },
-          'tabela não recalculada',
-        );
+      // tabela do fornecedor mais nova, mata-mata ou sem resultado é o normal; grupo ambíguo (time em mais de um
+      // grupo do fornecedor) ou regulamento/entrada inválidos deixam a tabela parada e precisam de atenção
+      const attention = new Set(['no_groups', 'rules_error', 'invalid_input']);
+      for (const t of tables.filter((x) => x.outcome !== 'written')) {
+        const fields = {
+          season_id: t.seasonId,
+          competition: t.competition,
+          outcome: t.outcome,
+          detail: t.detail,
+        };
+        if (attention.has(t.outcome)) logger.warn(fields, 'tabela não recalculada');
+        else logger.info(fields, 'tabela não recalculada');
+      }
     }
   } finally {
     await closeDb(ctx.db);

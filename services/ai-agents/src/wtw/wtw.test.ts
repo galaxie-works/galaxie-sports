@@ -1,6 +1,14 @@
-import { loadWtwConfig, type BroadcastOptionRow, type BroadcastRightsRow } from '@galaxie/where-to-watch';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo, LookupFunction } from 'node:net';
+import { gzipSync } from 'node:zlib';
+import {
+  loadWtwConfig,
+  teamNames,
+  type BroadcastOptionRow,
+  type BroadcastRightsRow,
+} from '@galaxie/where-to-watch';
 import { importance } from '@galaxie/providers';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeLlmClient } from '../llm/fake.js';
 import { strictSchemaProblems } from '../llm/json-schema.js';
 import { allocationPurpose, rightsPurpose, WhereToWatchAgent } from './agent.js';
@@ -9,11 +17,15 @@ import { recheckRightsRow, rowToCandidate, verifyCandidates } from './evidence.j
 import {
   CachingPageFetcher,
   contentHash,
+  decodeBody,
   FakePageFetcher,
   htmlToText,
+  guardedLookup,
   HttpPageFetcher,
+  isPublicAddress,
   isPublicHttpUrl,
   WTW_USER_AGENT,
+  type HostResolver,
 } from './fetcher.js';
 import { groupKeyOf, jointAllowedDomains, packMarkets, roundKeyOf } from './groups.js';
 import { scaleTable } from './plan.js';
@@ -27,7 +39,8 @@ import {
 import { marketRelevance, priorityOf, wtwPolicyFromEnv } from './relevance.js';
 import { dueWindow } from './scheduler.js';
 import { WTW_ALLOCATION_SCHEMA, WTW_RIGHTS_SCHEMA } from './schema.js';
-import { withinCap } from './spend.js';
+import { failureUsage, researchBackoffMs, withinCap } from './spend.js';
+import { LlmError } from '../llm/errors.js';
 
 const config = loadWtwConfig({ env: {} });
 const br = config.directory('BR');
@@ -69,7 +82,13 @@ describe('prompts', () => {
         { code: 'J2', info: J2 },
       ],
       markets: [
-        { directory: br, holders: ['globo', 'premiere'], known: ['sportv'], matches: ['J1', 'J2'] },
+        {
+          directory: br,
+          holders: ['globo', 'premiere'],
+          known: ['sportv'],
+          uncertain: ['sbt'],
+          matches: ['J1', 'J2'],
+        },
         { directory: config.directory('AR'), holders: [], known: [], matches: ['J2'] },
       ],
     });
@@ -77,6 +96,7 @@ describe('prompts', () => {
     expect(user).toMatch(/BR \(Brasil\) — jogos: J1, J2/);
     expect(user).toMatch(/detentores a alocar: Globo; Premiere/);
     expect(user).toMatch(/já garantidos \(não repita\): SporTV/);
+    expect(user).toMatch(/incertos \(confirme com fonte do jogo\): SBT/);
     expect(user).toMatch(/AR \(Argentina\) — jogos: J2\n {2}sem tabela de direitos/);
   });
 
@@ -117,7 +137,7 @@ describe('agente', () => {
             {
               match: 'J1',
               country: 'BR',
-              broadcaster: 'Emissora A\u0000',
+              broadcaster: 'TV Globo\u0000',
               channel: null,
               region: null,
               watch_url: null,
@@ -133,19 +153,36 @@ describe('agente', () => {
             {
               match: 'J2',
               country: 'BR',
-              broadcaster: 'Streaming B',
+              broadcaster: 'Premiere',
               channel: null,
               region: null,
               watch_url: null,
               evidence: [
                 {
                   url: 'https://ge.globo.com/grade',
-                  excerpt: 'J2 no Streaming B',
+                  excerpt: 'J2 no Premiere',
                   published_at: null,
                   stance: 'confirms',
                 },
               ],
             },
+            // incerto na linha de direitos (SBT) vale; fora da lista ou do dicionário: descartadas aqui
+            ...['SBT', 'Band', 'Streaming B'].map((broadcaster) => ({
+              match: 'J2',
+              country: 'BR',
+              broadcaster,
+              channel: null,
+              region: null,
+              watch_url: null,
+              evidence: [
+                {
+                  url: 'https://www.cbf.com.br/grade',
+                  excerpt: `J2 no ${broadcaster}`,
+                  published_at: null,
+                  stance: 'confirms',
+                },
+              ],
+            })),
             {
               match: 'J9',
               country: 'BR',
@@ -174,7 +211,7 @@ describe('agente', () => {
       round: 'Rodada 7',
       events: [J1, J2],
       markets: [
-        { directory: br, holders: ['globo'], known: [], matches: ['J1', 'J2'] },
+        { directory: br, holders: ['globo'], known: ['premiere'], uncertain: ['sbt'], matches: ['J1', 'J2'] },
         { directory: config.directory('AR'), holders: [], known: [], matches: ['J1'] },
       ],
     });
@@ -185,10 +222,10 @@ describe('agente', () => {
     expect(call.allowedDomains).toContain('cbf.com.br');
     expect(call.allowedDomains).not.toContain('livesoccertv.com');
     expect(call.allowedDomains!.length).toBeLessThanOrEqual(100);
-    expect(out.ignored).toBe(2);
+    expect(out.ignored).toBe(4);
     expect(out.byEvent.get(J1.id)!.get('BR')).toEqual([
       {
-        broadcaster: 'Emissora A',
+        broadcaster: 'TV Globo',
         channel: null,
         region: null,
         watchUrl: null,
@@ -202,7 +239,82 @@ describe('agente', () => {
         ],
       },
     ]);
-    expect(out.byEvent.get(J2.id)!.get('BR')![0]!.broadcaster).toBe('Streaming B');
+    expect(
+      out.byEvent
+        .get(J2.id)!
+        .get('BR')!
+        .map((c) => c.broadcaster),
+    ).toEqual(['Premiere', 'SBT']);
+  });
+
+  it('alocação: detentor citado pelo apelido datado vale só no período do apelido (dia do jogo)', async () => {
+    const cl = config.directory('CL');
+    const reply = (match: string) => ({
+      match,
+      country: 'CL',
+      broadcaster: 'Fox Sports 2',
+      channel: null,
+      region: null,
+      watch_url: null,
+      evidence: [{ url: 'https://www.espn.cl/grade', excerpt: 'x', published_at: null, stance: 'confirms' }],
+    });
+    const llm = new FakeLlmClient([{ data: { assignments: [reply('J1'), reply('J2')], notes: null } }]);
+    const old = info(
+      '0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d12',
+      'Time Cinco',
+      'Time Seis',
+      new Date('2023-06-01T23:00:00Z'),
+    );
+    const out = await new WhereToWatchAgent(llm).allocate({
+      competition: { slug: 'liga-x', name: 'Liga X' },
+      round: 'Rodada 7',
+      events: [J1, old],
+      markets: [{ directory: cl, holders: ['espn'], known: [], matches: ['J1', 'J2'] }],
+    });
+    // 2026: "Fox Sports 2" é o ESPN 6; 2023: o nome ainda não era da ESPN
+    expect(out.byEvent.get(J1.id)?.get('CL')).toHaveLength(1);
+    expect(out.byEvent.get(old.id)).toBeUndefined();
+    expect(out.ignored).toBe(1);
+  });
+
+  it('alocação com grounding: evidência com URL fora da busca do provedor cai antes de ser buscada', async () => {
+    const evidence = (url: string) => ({
+      url,
+      excerpt: 'J1 na Globo',
+      published_at: null,
+      stance: 'confirms',
+    });
+    const llm = new FakeLlmClient([
+      {
+        data: {
+          assignments: [
+            {
+              match: 'J1',
+              country: 'BR',
+              broadcaster: 'TV Globo',
+              channel: null,
+              region: null,
+              watch_url: null,
+              evidence: [evidence('https://ge.globo.com/grade'), evidence('http://127.0.0.1.nip.io/x')],
+            },
+          ],
+          notes: null,
+        },
+        groundedUrls: ['https://ge.globo.com/grade'],
+      },
+    ]);
+    const out = await new WhereToWatchAgent(llm).allocate({
+      competition: { slug: 'liga-x', name: 'Liga X' },
+      round: 'Rodada 7',
+      events: [J1],
+      markets: [{ directory: br, holders: ['globo'], known: [], matches: ['J1'] }],
+    });
+    expect(
+      out.byEvent
+        .get(J1.id)!
+        .get('BR')![0]!
+        .evidence.map((e) => e.url),
+    ).toEqual(['https://ge.globo.com/grade']);
   });
 
   it('direitos: devolve só os países pedidos, sem negações como evidência', async () => {
@@ -374,6 +486,30 @@ describe('janelas, relevância e grupos', () => {
       blocked: [],
     });
     expect(withinCap(spend, ['BR'], 5, null).allowed).toEqual(['BR']);
+    // sem o BR, o AR pagaria a chamada inteira e passaria do teto: o rateio é refeito
+    const near = new Map([
+      ['BR', 0.95],
+      ['AR', 0.7],
+    ]);
+    expect(withinCap(near, ['BR', 'AR'], 0.4, 1)).toEqual({ allowed: [], blocked: ['BR', 'AR'] });
+    expect(withinCap(near, ['BR', 'AR', 'MX'], 0.4, 1)).toEqual({
+      allowed: ['AR', 'MX'],
+      blocked: ['BR'],
+    });
+  });
+
+  it('falha: uso parcial do provedor ou, no timeout sem parcial, a estimativa da chamada; espera crescente', () => {
+    const timeout = new LlmError('tempo esgotado', 'timeout', true);
+    expect(failureUsage(timeout, 0.15)).toEqual({
+      usage: { inputTokens: 0, outputTokens: 0, costUsd: 0.15 },
+      stats: { costEstimated: true },
+    });
+    const partial = Object.assign(new LlmError('cortado', 'incomplete', false), {
+      usage: { inputTokens: 10, outputTokens: 2, costUsd: 0.01 },
+    });
+    expect(failureUsage(partial, 0.15).usage).toEqual({ inputTokens: 10, outputTokens: 2, costUsd: 0.01 });
+    expect(failureUsage(new LlmError('fora', 'provider', true), 0.15).usage).toBeUndefined();
+    expect([1, 2, 3, 10].map((n) => researchBackoffMs(n) / 60_000)).toEqual([30, 60, 120, 360]);
   });
 
   it('grupo = competição × rodada (ou data); allowlist conjunta ≤ 100; os 8 mercados cabem numa chamada', () => {
@@ -407,18 +543,36 @@ describe('janelas, relevância e grupos', () => {
 });
 
 describe('fetcher', () => {
-  it('só aceita http(s) públicos', () => {
+  it('só aceita http(s) públicos (nome e IP literal, inclusive IPv6 mapeado e CGNAT)', () => {
     expect(isPublicHttpUrl('https://ge.globo.com/x')).toBe(true);
+    expect(isPublicHttpUrl('http://8.8.8.8/')).toBe(true);
+    expect(isPublicHttpUrl('http://[2606:4700::1111]/')).toBe(true);
     for (const u of [
       'http://localhost/x',
+      'http://localhost./x',
+      'http://metadata/computeMetadata',
+      'http://metadata.google.internal/',
       'http://127.0.0.1',
+      'http://0x7f.1/',
+      'http://2130706433/',
       'http://10.0.0.2/a',
       'http://192.168.1.1',
+      'http://100.64.0.1/',
+      'http://169.254.169.254/latest/meta-data',
+      'http://0.0.0.0/',
       'file:///etc/passwd',
       'http://u:p@x.com',
       'http://[::1]/',
+      'http://[::]/',
+      'http://[::ffff:a9fe:a9fe]/',
+      'http://[::ffff:127.0.0.1]/',
+      'http://[64:ff9b::a9fe:a9fe]/',
+      'http://[fe80::1]/',
+      'http://[fd00:ec2::254]/',
     ])
       expect(isPublicHttpUrl(u), u).toBe(false);
+    expect(isPublicAddress('::ffff:8.8.8.8')).toBe(true);
+    expect(isPublicAddress('not-an-ip')).toBe(false);
   });
 
   it('extrai texto do HTML sem scripts', () => {
@@ -427,26 +581,110 @@ describe('fetcher', () => {
     );
   });
 
-  it('usa User-Agent genérico, segue redirecionamento e bloqueia redirecionamento interno', async () => {
-    const seen: { url: string; ua: string | null }[] = [];
-    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
-      const url = String(input);
-      seen.push({ url, ua: new Headers(init?.headers).get('user-agent') });
-      if (url === 'https://a.example/')
-        return new Response(null, { status: 301, headers: { location: 'https://b.example/' } });
-      if (url === 'https://c.example/')
-        return new Response(null, { status: 302, headers: { location: 'http://127.0.0.1/' } });
-      return new Response('<h1>ok Globo</h1>', { status: 200 });
-    }) as typeof fetch;
-    const f = new HttpPageFetcher({ fetchImpl });
-    expect(await f.fetch('https://a.example/')).toMatchObject({
-      ok: true,
-      text: 'ok Globo',
-      finalUrl: 'https://b.example/',
+  const fakeDns =
+    (table: Record<string, string[]>): HostResolver =>
+    async (host) => {
+      const ips = table[host];
+      if (!ips) throw Object.assign(new Error(`não resolve: ${host}`), { code: 'ENOTFOUND' });
+      return ips.map((address) => ({ address, family: address.includes(':') ? 6 : 4 }));
+    };
+  const call = (lookup: LookupFunction, host: string, all = false) =>
+    new Promise<{ err: NodeJS.ErrnoException | null; address: unknown }>((resolve) =>
+      lookup(host, { all }, (err, address) => resolve({ err, address })),
+    );
+
+  it('na conexão: recusa nome que resolve para endereço interno (qualquer um deles)', async () => {
+    const lookup = guardedLookup(
+      fakeDns({
+        'publico.example': ['93.184.216.34', '2606:2800:220:1::1'],
+        '127.0.0.1.nip.io': ['127.0.0.1'],
+        'misto.example': ['93.184.216.34', '10.0.0.7'],
+        'mapeado.example': ['::ffff:169.254.169.254'],
+        'cgnat.example': ['100.100.100.200'],
+      }),
+    );
+    expect(await call(lookup, 'publico.example')).toEqual({ err: null, address: '93.184.216.34' });
+    expect((await call(lookup, 'publico.example', true)).address).toEqual([
+      { address: '93.184.216.34', family: 4 },
+      { address: '2606:2800:220:1::1', family: 6 },
+    ]);
+    for (const host of ['127.0.0.1.nip.io', 'misto.example', 'mapeado.example', 'cgnat.example'])
+      expect((await call(lookup, host)).err?.code, host).toBe('EADDRNOTPUBLIC');
+    expect((await call(lookup, 'inexistente.example')).err?.code).toBe('ENOTFOUND');
+  });
+
+  describe('HttpPageFetcher com servidor local e DNS falso (sem rede)', () => {
+    let server: Server;
+    let port = 0;
+    const seen: { host: string; ua: string | undefined }[] = [];
+    beforeAll(async () => {
+      server = createServer((req, res) => {
+        const host = (req.headers.host ?? '').split(':')[0]!;
+        seen.push({ host, ua: req.headers['user-agent'] });
+        const redirect = (location: string) => {
+          res.writeHead(302, { location });
+          res.end();
+        };
+        if (host === 'a.example') return redirect(`http://b.example:${port}/`);
+        if (host === 'c.example') return redirect(`http://interno.example:${port}/`);
+        if (host === 'd.example') return redirect('http://[::ffff:a9fe:a9fe]/latest/meta-data');
+        if (host === 'e.example') return redirect(`http://misto.example:${port}/`);
+        if (host === 'grande.example') {
+          res.writeHead(200, { 'content-type': 'text/html' });
+          res.end(`<p>${'x'.repeat(5_000)}</p>`);
+          return;
+        }
+        res.writeHead(200, { 'content-type': 'text/html', 'content-encoding': 'gzip' });
+        res.end(gzipSync('<h1>ok Globo</h1>'));
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      port = (server.address() as AddressInfo).port;
     });
-    expect(await f.fetch('https://c.example/')).toMatchObject({ ok: false, error: 'url_not_allowed' });
-    expect(seen.every((s) => s.ua === WTW_USER_AGENT)).toBe(true);
-    expect(WTW_USER_AGENT).not.toMatch(/@/);
+    afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+    // só o servidor de teste (127.0.0.1) é liberado além dos endereços públicos
+    const local = ['127.0.0.1'];
+    const fetcher = (maxBytes?: number) =>
+      new HttpPageFetcher({
+        resolve: fakeDns({
+          'a.example': local,
+          'b.example': local,
+          'c.example': local,
+          'd.example': local,
+          'e.example': local,
+          'grande.example': local,
+          'interno.example': ['10.0.0.7'],
+          'misto.example': ['127.0.0.1', '192.168.0.10'],
+        }),
+        allowAddress: (ip) => ip === '127.0.0.1' || isPublicAddress(ip),
+        ...(maxBytes ? { maxBytes } : {}),
+      });
+
+    it('segue redirecionamento, descompacta e usa User-Agent genérico', async () => {
+      expect(await fetcher().fetch(`http://a.example:${port}/`)).toMatchObject({
+        ok: true,
+        text: 'ok Globo',
+        finalUrl: `http://b.example:${port}/`,
+      });
+      expect(seen.every((s) => s.ua === WTW_USER_AGENT)).toBe(true);
+      expect(WTW_USER_AGENT).not.toMatch(/@/);
+    });
+
+    it('redirecionamento para host interno é recusado na conexão (o host interno nunca é contatado)', async () => {
+      const f = fetcher();
+      for (const start of ['c.example', 'd.example', 'e.example'])
+        expect(await f.fetch(`http://${start}:${port}/`), start).toMatchObject({
+          ok: false,
+          error: 'url_not_allowed',
+        });
+      expect(seen.some((s) => ['interno.example', 'misto.example'].includes(s.host))).toBe(false);
+    });
+
+    it('limita o tamanho lido', async () => {
+      const r = await fetcher(1_000).fetch(`http://grande.example:${port}/`);
+      expect(r.ok).toBe(true);
+      expect(r.text.length).toBeLessThan(5_000);
+    });
   });
 });
 
@@ -484,6 +722,101 @@ describe('verificação das evidências', () => {
     expect(out.candidates[0]!.evidence[1]).toMatchObject({ accessible: null });
     expect(out.candidates[1]!.evidence[0]).toMatchObject({ accessible: true, mentionsBroadcaster: false });
     expect(out.candidates[1]!.evidence[1]).toMatchObject({ accessible: false });
+  });
+
+  it('confere o trecho salvo na página, não só a menção à emissora', async () => {
+    const fetcher = new FakePageFetcher({
+      'https://ge.globo.com/grade': '<p>Grade da rodada: Time Um x Time Dois na TV Globo</p>',
+    });
+    const out = await verifyCandidates(
+      [
+        {
+          broadcaster: 'Globo',
+          evidence: [
+            { url: 'https://ge.globo.com/grade', excerpt: 'Time Um x Time Dois na TV Globo' },
+            { url: 'https://ge.globo.com/grade', excerpt: 'Time Três x Time Quatro na TV Globo' },
+            { url: 'https://ge.globo.com/grade', excerpt: 'curto' },
+          ],
+        },
+      ],
+      br,
+      fetcher,
+      NOW,
+    );
+    // trecho curto não prova o jogo: sem a proximidade dos times, fica não conferido
+    expect(out.candidates[0]!.evidence.map((e) => [e.mentionsBroadcaster, e.excerptFound])).toEqual([
+      [true, true],
+      [true, false],
+      [true, false],
+    ]);
+    const near = await verifyCandidates(
+      [{ broadcaster: 'Globo', evidence: [{ url: 'https://ge.globo.com/grade', excerpt: 'Globo' }] }],
+      br,
+      fetcher,
+      NOW,
+      { teams: [teamNames('Time Um'), teamNames('Time Dois')] },
+    );
+    expect(near.candidates[0]!.evidence[0]!.excerptFound).toBe(true);
+  });
+
+  it('trecho parafraseado vale quando a página traz os dois times perto da emissora', async () => {
+    const fetcher = new FakePageFetcher({
+      'https://ge.globo.com/grade': `<p>Sábado: Time Um x Time Dois, às 16h, na TV Globo. ${'x '.repeat(80)} Time Três x Time Quatro no SporTV.</p>`,
+    });
+    const teams = [teamNames('Time Um'), teamNames('Time Dois')] as const;
+    const out = await verifyCandidates(
+      [
+        {
+          broadcaster: 'Globo',
+          evidence: [{ url: 'https://ge.globo.com/grade', excerpt: 'A Globo exibe Um e Dois' }],
+        },
+        {
+          broadcaster: 'SporTV',
+          evidence: [{ url: 'https://ge.globo.com/grade', excerpt: 'O SporTV exibe Um e Dois' }],
+        },
+      ],
+      br,
+      fetcher,
+      NOW,
+      { teams },
+    );
+    expect(out.candidates.map((c) => c.evidence[0]!.excerptFound)).toEqual([true, false]);
+  });
+
+  it('agenda compacta: os times perto da emissora valem só para o canal do próprio jogo', async () => {
+    const agenda =
+      '<p>Flamengo x Palmeiras, 16h, Globo e Premiere. Santos x Corinthians, 18h30, SporTV e Premiere. Grêmio x Internacional, 21h, Premiere.</p>';
+    const fetcher = new FakePageFetcher({ 'https://ge.globo.com/agenda': agenda });
+    const found = async (broadcaster: string, home: string, away: string) =>
+      (
+        await verifyCandidates(
+          [
+            {
+              broadcaster,
+              evidence: [
+                { url: 'https://ge.globo.com/agenda', excerpt: `${broadcaster} transmite o jogo da rodada` },
+              ],
+            },
+          ],
+          br,
+          fetcher,
+          NOW,
+          { teams: [teamNames(home), teamNames(away)] },
+        )
+      ).candidates[0]!.evidence[0]!.excerptFound;
+    expect(await found('Globo', 'Flamengo', 'Palmeiras')).toBe(true);
+    expect(await found('SporTV', 'Santos', 'Corinthians')).toBe(true);
+    // emissora do jogo vizinho: não
+    expect(await found('SporTV', 'Flamengo', 'Palmeiras')).toBe(false);
+    expect(await found('Globo', 'Grêmio', 'Internacional')).toBe(false);
+  });
+
+  it('decodifica pelo charset da resposta (ISO-8859-1)', () => {
+    const latin = Buffer.from('<p>Transmissão: São Paulo</p>', 'latin1');
+    expect(decodeBody(latin, 'text/html; charset=ISO-8859-1')).toBe('<p>Transmissão: São Paulo</p>');
+    const meta = Buffer.concat([Buffer.from('<meta charset="iso-8859-1">'), latin]);
+    expect(decodeBody(meta, 'text/html')).toContain('Transmissão');
+    expect(decodeBody(Buffer.from('ação'), 'text/html; charset=nao-existe')).toBe('ação');
   });
 
   it('cache por execução: a grade da rodada é buscada uma vez para todos os jogos e mercados', async () => {

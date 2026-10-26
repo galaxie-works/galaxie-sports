@@ -17,7 +17,9 @@ import {
   type TenantScope,
 } from '../realtime/changes.js';
 import { GapCursor } from '../realtime/gap-cursor.js';
+import { WebhookSecretBox } from './secret-box.js';
 import { SIGNATURE_HEADER, signWebhook } from './signature.js';
+import { postWebhook } from './transport.js';
 
 interface Logger {
   info(obj: object, msg?: string): void;
@@ -43,7 +45,15 @@ export interface WebhookWorkerOptions {
   listen?: boolean;
   /** Nome do cursor em api.webhook_cursor. Padrão `default`. */
   cursorName?: string;
-  fetch?: typeof fetch;
+  /** KEK dos segredos (padrão: `WEBHOOK_SIGNING_SECRET` do ambiente). Legados em texto puro valem sem ela. */
+  secrets?: WebhookSecretBox;
+  /**
+   * Entrega em rede privada/loopback (WEBHOOK_ALLOW_PRIVATE_TARGETS; só desenvolvimento e testes). Padrão
+   * false: destino que resolve para IP privado, link-local (metadata) ou reservado falha a tentativa.
+   */
+  allowPrivateTargets?: boolean;
+  /** Transporte do POST (padrão: postWebhook, com a checagem de destino no socket). */
+  post?: typeof postWebhook;
   logger?: Logger;
 }
 
@@ -66,6 +76,7 @@ type ClaimedDelivery = {
   url: string;
   secret: string;
   active: boolean;
+  tenant_status: string;
 };
 
 /** Atraso exponencial com jitter de ±20%. */
@@ -92,7 +103,7 @@ export class WebhookWorker {
   private running: Promise<void> | undefined;
   private pending = false;
   private stopped = true;
-  private readonly fetch: typeof fetch;
+  private readonly post: typeof postWebhook;
   private readonly maxAttempts: number;
   private readonly baseDelayMs: number;
   private readonly maxDelayMs: number;
@@ -100,12 +111,13 @@ export class WebhookWorker {
   private readonly batchSize: number;
   private readonly concurrency: number;
   private readonly cursorName: string;
+  private readonly secrets: WebhookSecretBox;
 
   constructor(
     private readonly db: Database,
     private readonly options: WebhookWorkerOptions = {},
   ) {
-    this.fetch = options.fetch ?? globalThis.fetch;
+    this.post = options.post ?? postWebhook;
     this.maxAttempts = options.maxAttempts ?? 10;
     this.baseDelayMs = options.baseDelayMs ?? 10_000;
     this.maxDelayMs = options.maxDelayMs ?? 3_600_000;
@@ -113,6 +125,7 @@ export class WebhookWorker {
     this.batchSize = options.batchSize ?? 50;
     this.concurrency = options.concurrency ?? 10;
     this.cursorName = options.cursorName ?? 'default';
+    this.secrets = options.secrets ?? WebhookSecretBox.fromEnv();
   }
 
   async start(): Promise<void> {
@@ -151,6 +164,11 @@ export class WebhookWorker {
     return this.running;
   }
 
+  /** Espera o ciclo em andamento e os coalescidos atrás dele (testes e desligamento). */
+  async idle(): Promise<void> {
+    while (this.running) await this.running;
+  }
+
   private async cycle(): Promise<void> {
     await this.enqueue();
     for (;;) {
@@ -182,22 +200,28 @@ export class WebhookWorker {
         });
       const cursor = this.cursor;
 
-      const endpoints = (
-        await tx
-          .select({ endpoint: webhookEndpoint, tenant })
-          .from(webhookEndpoint)
-          .innerJoin(tenant, eq(tenant.id, webhookEndpoint.tenantId))
-          .where(and(eq(webhookEndpoint.active, true), eq(tenant.status, 'active')))
-      ).map(({ endpoint, tenant: t }) => {
-        const scope: TenantScope = { modules: t.modules, markets: t.markets, sports: t.sports };
-        const filter: ChangeFilter = {
-          topics: new Set<ChangeTopic>(endpoint.topics.length ? endpoint.topics : topicsForTenant(scope)),
-          events: new Set(endpoint.filters.events ?? []),
-          competitions: new Set(endpoint.filters.competitions ?? []),
-          sports: new Set(endpoint.filters.sports ?? []),
-        };
-        return { id: endpoint.id, scope, filter };
-      });
+      // Os endpoints são lidos DEPOIS de cada lote do change feed, nunca antes. Em READ COMMITTED cada
+      // comando tem o seu snapshot: lidos antes, um endpoint commitado entre as duas leituras ficava de fora
+      // e as mudanças commitadas logo depois dele (já visíveis no lote) eram consumidas sem entrega — o
+      // cursor avança sobre elas e a perda é definitiva. Lidos depois, todo endpoint commitado antes de uma
+      // mudança visível no lote está visível.
+      const loadEndpoints = async () =>
+        (
+          await tx
+            .select({ endpoint: webhookEndpoint, tenant })
+            .from(webhookEndpoint)
+            .innerJoin(tenant, eq(tenant.id, webhookEndpoint.tenantId))
+            .where(and(eq(webhookEndpoint.active, true), eq(tenant.status, 'active')))
+        ).map(({ endpoint, tenant: t }) => {
+          const scope: TenantScope = { modules: t.modules, markets: t.markets, sports: t.sports };
+          const filter: ChangeFilter = {
+            topics: new Set<ChangeTopic>(endpoint.topics.length ? endpoint.topics : topicsForTenant(scope)),
+            events: new Set(endpoint.filters.events ?? []),
+            competitions: new Set(endpoint.filters.competitions ?? []),
+            sports: new Set(endpoint.filters.sports ?? []),
+          };
+          return { id: endpoint.id, scope, filter };
+        });
 
       let created = 0;
       for (;;) {
@@ -210,6 +234,7 @@ export class WebhookWorker {
           )
           .orderBy(asc(changeFeed.id))
           .limit(BATCH);
+        const endpoints = rows.length ? await loadEndpoints() : [];
         const deliveries = [];
         for (const row of rows) {
           const change = toRealtimeChange(row);
@@ -248,6 +273,7 @@ export class WebhookWorker {
       update api.webhook_delivery d
          set next_retry_at = now() + make_interval(secs => ${leaseSec})
         from api.webhook_endpoint e
+        join api.tenant t on t.id = e.tenant_id
        where e.id = d.endpoint_id
          and d.id in (
            select id from api.webhook_delivery
@@ -256,7 +282,7 @@ export class WebhookWorker {
             limit ${this.batchSize}
             for update skip locked)
       returning d.id::text, d.endpoint_id, d.change_id::text, d.topic, d.payload, d.attempts,
-                e.url, e.secret, e.active`);
+                e.url, e.secret, e.active, t.status::text as tenant_status`);
     const stats: DeliveryStats = { delivered: 0, failed: 0, dead: 0 };
     const queue = [...claimed];
     const work = async () => {
@@ -272,10 +298,12 @@ export class WebhookWorker {
   private async deliver(d: ClaimedDelivery): Promise<keyof DeliveryStats> {
     const id = Number(d.id);
     const attempts = d.attempts + 1;
-    if (!d.active) {
+    // endpoint desativado ou tenant suspenso depois do enfileiramento: nada é enviado (replay pela DLQ)
+    const off = !d.active ? 'endpoint desativado' : d.tenant_status !== 'active' ? 'tenant suspenso' : null;
+    if (off) {
       await this.db
         .update(webhookDelivery)
-        .set({ status: 'dead', lastError: 'endpoint desativado' })
+        .set({ status: 'dead', lastError: off })
         .where(eq(webhookDelivery.id, id));
       return 'dead';
     }
@@ -284,12 +312,13 @@ export class WebhookWorker {
     let responseCode: number | null = null;
     let error: string;
     try {
-      const res = await this.fetch(d.url, {
-        method: 'POST',
+      // decifra só aqui, no momento de assinar (sem KEK, segredo cifrado vira erro desta tentativa)
+      const secret = this.secrets.open(d.secret, d.endpoint_id);
+      responseCode = await this.post(d.url, {
         headers: {
           'content-type': 'application/json',
           'user-agent': USER_AGENT,
-          [SIGNATURE_HEADER]: signWebhook(d.secret, body, t),
+          [SIGNATURE_HEADER]: signWebhook(secret, body, t),
           'x-galaxie-event': d.topic,
           'x-galaxie-delivery': d.id,
           'x-galaxie-attempt': String(attempts),
@@ -297,12 +326,10 @@ export class WebhookWorker {
           'idempotency-key': `${d.endpoint_id}:${d.change_id}`,
         },
         body,
-        redirect: 'manual',
-        signal: AbortSignal.timeout(this.timeoutMs),
+        timeoutMs: this.timeoutMs,
+        allowPrivateTargets: this.options.allowPrivateTargets ?? false,
       });
-      responseCode = res.status;
-      await res.body?.cancel().catch(() => {});
-      if (res.status >= 200 && res.status < 300) {
+      if (responseCode >= 200 && responseCode < 300) {
         await this.db
           .update(webhookDelivery)
           .set({
@@ -316,7 +343,7 @@ export class WebhookWorker {
           .where(eq(webhookDelivery.id, id));
         return 'delivered';
       }
-      error = `HTTP ${res.status}`;
+      error = `HTTP ${responseCode}`;
     } catch (err) {
       error = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     }

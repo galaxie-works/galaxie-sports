@@ -357,3 +357,29 @@ describe('outros tipos', () => {
     expect((await post('team:nao-existe', { action: 'approve' })).status).toBe(404);
   });
 });
+
+describe('conexão do pool da demo', () => {
+  it('Postgres encerrando conexões ociosas (restart, DROP ... WITH FORCE) não vira erro não tratado', async () => {
+    const { pool } = await import('../src/lib/auth/db');
+    // duas consultas simultâneas deixam duas conexões ociosas no pool
+    await Promise.all([pool.query('select pg_sleep(0.05)'), pool.query('select pg_sleep(0.05)')]);
+    expect(pool.idleCount).toBeGreaterThanOrEqual(2);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      // o que o DROP DATABASE ... WITH FORCE do teardown ou um restart fazem: 57P01 em cada conexão
+      await sql.query(
+        `select pg_terminate_backend(pid) from pg_stat_activity
+          where datname = current_database() and pid <> pg_backend_pid() and backend_type = 'client backend'`,
+      );
+      await expect.poll(() => pool.totalCount, { timeout: 5_000 }).toBe(0);
+      expect(warn).toHaveBeenCalledWith(
+        '[demo-db] conexão ociosa do pool encerrada pelo Postgres',
+        expect.objectContaining({ code: '57P01' }),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+    // o pool descartou as conexões mortas e reconecta na próxima consulta
+    expect((await pool.query<{ ok: number }>('select 1 as ok')).rows).toEqual([{ ok: 1 }]);
+  });
+});

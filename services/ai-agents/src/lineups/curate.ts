@@ -60,6 +60,8 @@ export interface CuratedLineup {
     name: string;
     kind: AddonKind;
     price_amount: number | null;
+    /** ISO 4217 (padrão: a moeda do país). */
+    currency?: string | null;
     commitment_months?: number | null;
   }[];
 }
@@ -138,9 +140,10 @@ export async function curateLineup(
     if (!report.unknown.includes(n)) report.unknown.push(n);
   };
   const resolveId = (name: string) => dir.resolve(name, day)?.entry.id ?? null;
-  const price = (amount: number | null, months: number | null = null) =>
-    amount !== null && currency
-      ? `${formatPrice(amount, currency, input.country)}${months ? ` · fidelidade de ${months} meses` : ''}`
+  // a moeda informada na curadoria (US$ no Uruguai fica em USD); sem ela, a do país
+  const price = (amount: number | null, months: number | null = null, cur: string | null = currency) =>
+    amount !== null && cur
+      ? `${formatPrice(amount, cur, input.country)}${months ? ` · fidelidade de ${months} meses` : ''}`
       : null;
 
   const plans = input.plans.map((p) => {
@@ -165,7 +168,7 @@ export async function curateLineup(
     }
     report.plans.push({
       name: p.name,
-      price: price(p.price_amount),
+      price: price(p.price_amount, null, p.currency ?? currency),
       channels: [...channels],
       services: [...services],
       unknown: planUnknown,
@@ -174,7 +177,7 @@ export async function curateLineup(
       name: p.name.trim(),
       priceAmount: p.price_amount,
       priceCurrency: p.price_amount !== null ? (p.currency ?? currency) : null,
-      priceText: price(p.price_amount),
+      priceText: price(p.price_amount, null, p.currency ?? currency),
       url: p.url ?? null,
       sources: [source],
       channels: [...channels].map((channelId) => ({
@@ -195,7 +198,7 @@ export async function curateLineup(
     report.addons.push({
       name: a.name,
       refId: resolved?.entry.id ?? null,
-      price: price(a.price_amount, months),
+      price: price(a.price_amount, months, a.currency ?? currency),
       commitmentMonths: months,
     });
     if (!resolved) {
@@ -209,8 +212,8 @@ export async function curateLineup(
         channel: resolved.channel,
         name: a.name.trim(),
         priceAmount: a.price_amount,
-        priceCurrency: a.price_amount !== null ? currency : null,
-        priceText: price(a.price_amount, months),
+        priceCurrency: a.price_amount !== null ? (a.currency ?? currency) : null,
+        priceText: price(a.price_amount, months, a.currency ?? currency),
         commitmentMonths: months,
         sources: [source],
       },

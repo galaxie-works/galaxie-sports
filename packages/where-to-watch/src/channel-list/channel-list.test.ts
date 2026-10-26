@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { loadWtwConfig } from '../config/loader.js';
-import { aiBatches, channelMatchInput, channelMatchSchema, validateAiMatches, type AiBatch } from './ai.js';
+import {
+  AI_MAX_CHANNELS,
+  aiBatches,
+  channelMatchInput,
+  channelMatchSchema,
+  validateAiMatches,
+  type AiBatch,
+} from './ai.js';
 import { analyzeChannel } from './analyze.js';
 import { FIXTURE_EXPECTED, FIXTURE_UNMATCHED, fixtureChannels, fixtureRights } from './fixture.js';
 import { ChannelDictionary, resolveChannels, universeRights } from './match.js';
 import { ChannelListError, parseChannelList } from './parse.js';
 import { clientChannelKey, processChannelList } from './process.js';
-import { rightKey, type RightMatch } from './types.js';
+import { rightKey, type ChannelRight, type RightMatch } from './types.js';
 
 const config = loadWtwConfig({ env: {} });
 const dict = new ChannelDictionary(config);
@@ -320,5 +327,45 @@ describe('universo de direitos', () => {
       'linear',
     );
     expect(aiBatches([], [])).toEqual([]);
+  });
+});
+
+describe('pedidos à IA acima do limite de canais', () => {
+  const right = (idx: number, broadcasterId: string, name: string): ChannelRight => ({
+    idx,
+    country: 'BR',
+    broadcasterId,
+    name,
+    medium: 'pay_tv',
+    access: 'linear',
+  });
+  const resolved = (names: string[]) =>
+    resolveChannels(
+      names.map((n, i) => analyzeChannel(ch(n, i))),
+      dict,
+    );
+
+  it('direito cujos candidatos passam do 400º vai em outro pedido, e cada direito volta uma vez', () => {
+    const rights = [right(0, 'alfa', 'Alfa Esportes'), right(1, 'beta', 'Beta Esportes')];
+    // 400 canais Alfa antes do único canal Beta: antes, o Beta ficava de fora e o direito sem canal
+    const channels = resolved([
+      ...Array.from({ length: AI_MAX_CHANNELS }, (_, i) => `BR: ALFA ${i + 1}`),
+      'BR: BETA HD',
+    ]);
+    const batches = aiBatches(rights, channels);
+    expect(batches.map((b) => b.rights.map((r) => r.broadcasterId))).toEqual([['alfa'], ['beta']]);
+    expect(batches.map((b) => b.channels.length)).toEqual([AI_MAX_CHANNELS, 1]);
+    expect(batches[1]!.channels[0]!.facts.name).toBe('BR: BETA HD');
+    expect(batches.every((b) => b.channels.length <= AI_MAX_CHANNELS && b.omittedChannels === 0)).toBe(true);
+  });
+
+  it('direitos que dividem canais ficam no mesmo pedido; só o direito que sozinho passa do limite perde canais', () => {
+    const rights = [right(0, 'alfa', 'Alfa Esportes'), right(1, 'alfa_2', 'Alfa Esportes 2')];
+    const channels = resolved(Array.from({ length: AI_MAX_CHANNELS + 5 }, (_, i) => `BR: ALFA ${i + 1}`));
+    const batches = aiBatches(rights, channels);
+    expect(batches).toHaveLength(1);
+    expect(batches[0]!.rights.map((r) => r.broadcasterId)).toEqual(['alfa', 'alfa_2']);
+    expect(batches[0]!.channels).toHaveLength(AI_MAX_CHANNELS);
+    expect(batches[0]!.omittedChannels).toBe(5);
   });
 });

@@ -77,7 +77,7 @@ Uma única chave do dashboard da api-sports dá acesso às 12 APIs; **cada API t
 
 </details>
 
-**Foco do futebol**: Brasil (Série A–D, Copa do Brasil, estaduais), CONMEBOL (Libertadores, Sul-Americana, Recopa, Eliminatórias, Copa América), ligas de Argentina, Chile, Uruguai, Colômbia, Peru, Equador, Paraguai, Bolívia, Venezuela e México, as grandes ligas e copas europeias e as competições FIFA — **76 competições** catalogadas com ID verificado em [`config/competitions/football.yaml`](config/competitions/football.yaml).
+**Foco do futebol**: Brasil (Série A–D, Copa do Brasil, estaduais), CONMEBOL (Libertadores, Sul-Americana, Recopa, Eliminatórias, Copa América), ligas de Argentina, Chile, Uruguai, Colômbia, Peru, Equador, Paraguai, Bolívia, Venezuela e México, as grandes ligas e copas europeias e as competições FIFA — **145 competições** catalogadas com ID verificado em [`config/competitions/football.yaml`](config/competitions/football.yaml): 46 no tier 1 e 99 no tier 2 (segundas divisões, copas nacionais e regionais, supercopas, femininos e os demais estaduais).
 
 **Olimpíadas e Pan-Americano** combinam a api-sports (torneios coletivos) com fontes abertas e licenciadas — ver [docs/08](docs/08-olimpiadas-e-panamericano.md).
 
@@ -117,7 +117,7 @@ A meta é copiar "tudo" e manter atualizado com **100 chamadas por dia por API**
 5. **Live por janela** — uma única chamada `fixtures?live=<ligas>` cobre todos os jogos ao vivo das ligas prioritárias; o intervalo se ajusta ao orçamento.
 6. **Assets fora da cota** — logos, bandeiras, estádios e fotos são extraídos das URLs presentes no raw e baixados da CDN de mídia ([`scripts/pwsh/Sync-ApiSportsAssets.ps1`](scripts/pwsh/Sync-ApiSportsAssets.ps1)).
 
-> **Atenção — o free mudou.** Desde 2024 o plano gratuito limita temporadas: em 2026 só **2022–2024** são acessíveis por `season`, a janela de datas é **ontem → amanhã** e `ids`/`last`/`next` são bloqueados. A temporada atual não pode ser listada no free. A recomendação é **assinar o plano Pro por 30 dias (US$ 19)** para o bootstrap completo (~22 mil chamadas, ~3 dias) e manter o espelho no free depois. Múltiplas contas para somar cota são proibidas pelos termos — e não fazemos isso.
+> **Atenção — o free mudou.** Desde 2024 o plano gratuito limita temporadas: em 2026 só **2022–2024** são acessíveis por `season`, a janela de datas é **ontem → amanhã** e `ids`/`last`/`next` são bloqueados. A temporada atual não pode ser listada no free. A recomendação é **assinar o plano Pro por 30 dias (US$ 19)** para o bootstrap completo (~27 mil chamadas, ~4 dias) e manter o espelho no free depois. Múltiplas contas para somar cota são proibidas pelos termos — e não fazemos isso.
 
 Estratégia completa, números e cronograma do bootstrap: [docs/03-ingestao-e-economia-de-chamadas.md](docs/03-ingestao-e-economia-de-chamadas.md).
 
@@ -170,7 +170,7 @@ galaxie-sports/
 ├── packages/                   # db · apisports-client · providers · contracts · rules · knowledge · where-to-watch · observability
 ├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS) · portainer · observability · backup
 ├── config/
-│   ├── competitions/football.yaml   # 76 competições com IDs verificados e tiers
+│   ├── competitions/football.yaml   # 145 competições com IDs verificados e tiers
 │   ├── competitions/<esporte>.yaml  # demais 11 APIs, prioridade LatAm (NBB, Liga A, Superliga, LVA, VNL...)
 │   └── assets/denylist.yaml         # mídia do fornecedor que não pode ser usada (ex.: logo do Paulistão)
 ├── data/
@@ -205,7 +205,7 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm db:studio` | Drizzle Studio para inspecionar o banco |
 | `pnpm infra:down` | Para a infra local (volumes preservados) |
 | `pnpm --filter @galaxie/ingestor quota` | Cota do dia por API (lê `/status`, que não consome cota) |
-| `pnpm --filter @galaxie/ingestor raw:import` | Importa respostas brutas salvas em `data/raw/<esporte>/*.json` (zero chamadas) |
+| `pnpm --filter @galaxie/ingestor raw:import` | Importa respostas brutas salvas em `data/raw/<esporte>/<nome>__AAAAMMDDTHHMMSSZ.json` (zero chamadas; sem a data da coleta no nome o arquivo fica de fora) |
 | `pnpm --filter @galaxie/ingestor bootstrap:catalog --plan` | Mostra o que o bootstrap do catálogo gastaria de cota; sem `--plan`, executa |
 | `pnpm --filter @galaxie/ingestor multisport:seed` | CONs, edições (OG/Inverno/Pan), esportes e ligação com os torneios da api-sports (zero chamadas) |
 | `pnpm --filter @galaxie/ingestor multisport:wikidata` | Histórico de medalhas via Wikidata (CC0), com cache no raw — ver [docs/08](docs/08-olimpiadas-e-panamericano.md) |
@@ -228,7 +228,7 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm --filter @galaxie/ai-agents context:run` · `recap:run` · `wtw:run` · `curator:run --dry-run` · `eval:report` | Agentes de IA (cenário, resumo, onde assistir, curador) e painel de custo/qualidade; sem chave de LLM seguem só com o determinístico — ver [docs/07](docs/07-ia-tempo-real-e-enriquecimento.md) |
 | `pnpm --filter @galaxie/ai-agents review:suggestions [--plan] [--falso]` · `pnpm --filter @galaxie/knowledge review:export [--gravar]` | Revisão semântica: o Gemini decide as sugestões de edição em aberto (a aprovada entra no ar como edição no banco, sem deploy; `--falso` = provedor falso do dev) e a exportação leva essas edições para os YAML — ver [docs/06 §2.1.1](docs/06-semantica-e-conteudo.md#211-sugestões-decididas-pela-ia-job-review-suggestions) |
 | `pnpm --filter @galaxie/api tenant:create --slug <slug>` | Cria/atualiza um tenant a partir do modelo do plano (`config/plans.yaml`) e gera uma chave de API (mercados, esportes, limites e escopos por flags) |
-| `pnpm --filter @galaxie/api webhooks:worker` · `webhook create\|list\|dlq\|replay` | Worker e administração dos webhooks assinados — ver [docs/05 §5.2](docs/05-api-publica.md#52-webhooks) |
+| `pnpm --filter @galaxie/api webhooks:worker` · `webhook create\|list\|dlq\|replay\|seal-secrets` | Worker e administração dos webhooks assinados (segredos cifrados com a KEK `WEBHOOK_SIGNING_SECRET`) — ver [docs/05 §5.2](docs/05-api-publica.md#52-webhooks) |
 | `pnpm --filter @galaxie/api admin:key` | Gera uma chave administrativa para `/internal/admin/*` (onboarding de tenants, chaves e uso) e o hash para `ADMIN_KEY_HASHES` — ver [docs/05 §1.2](docs/05-api-publica.md#12-onboarding-autoatendimento-e-uso) |
 | `docker compose -f infra/docker-compose.yml --profile load run --rm k6 run /scripts/<cenário>.js` | Testes de carga k6 (`live-burst`, `catalog-browse`, `cache-hit-vs-miss`) — ver [tests/load](tests/load/README.md) |
 

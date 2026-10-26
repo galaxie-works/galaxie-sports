@@ -221,8 +221,18 @@ describe('chaves publicáveis', () => {
       widgetId: w.id,
       widgetKind: 'standings',
     });
+    const free = await createPublishableKey(db, {
+      tenantId: tenantA,
+      name: 'Qualquer widget',
+      allowedOrigins: ['https://app.exemplo.com'],
+    });
     await archiveWidget(db, tenantA, w.id);
     expect(await verifyPublishableKey(db, created.key)).toBeNull();
+    // o painel mostra a chave presa como revogada; a chave sem widget continua valendo
+    const keys = await listPublishableKeys(db, tenantA);
+    expect(keys.find((k) => k.id === created.id)?.revokedAt).toBeInstanceOf(Date);
+    expect(keys.find((k) => k.id === free.id)?.revokedAt).toBeNull();
+    expect(await verifyPublishableKey(db, free.key)).not.toBeNull();
   });
 
   it('tenant suspenso invalida a chave', async () => {

@@ -126,10 +126,19 @@ export async function recomputeSeasonStandings(
   const stageIds = stages.length || (anyStage[0]?.n ?? 0) > 0 ? stages.map((s) => s.id) : undefined;
   if (stageIds && !stageIds.length) return report('knockout');
 
-  const providerRows = await db
-    .select({ participantId: standing.participantId, group: standing.group, updatedAt: standing.updatedAt })
+  // pertença aos grupos de qualquer origem: o replace grava `computed` sobre a linha do provedor (mesma chave),
+  // então a partir do 2º recálculo não há mais linha `provider` e os grupos sumiriam; a origem só decide o
+  // atalho provider_fresh abaixo
+  const tableRows = await db
+    .select({
+      participantId: standing.participantId,
+      group: standing.group,
+      source: standing.source,
+      updatedAt: standing.updatedAt,
+    })
     .from(standing)
-    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'provider')));
+    .where(eq(standing.seasonId, seasonId));
+  const providerRows = tableRows.filter((r) => r.source === 'provider');
   const [latest] = await db
     .select({ at: sql<string | null>`max(${event.updatedAt})` })
     .from(event)
@@ -140,9 +149,26 @@ export async function recomputeSeasonStandings(
     if (providerAt >= latestResultAt.getTime()) return report('provider_fresh');
   }
 
-  // grupos: os do provedor quando existem (mesma chave em core.standing); senão tabela única
-  const groupOfTeam = new Map(providerRows.map((r) => [r.participantId, r.group]));
-  const groups = new Set(providerRows.map((r) => r.group));
+  // grupos: os já gravados em core.standing (do provedor ou de recálculo anterior); sem nenhum, tabela única.
+  // O grupo vazio de um time que também está num grupo nomeado é resíduo do recálculo que perdia os grupos.
+  // Time em mais de um grupo nomeado (fase regular + fase final, tabela de melhores terceiros): não dá para
+  // saber em qual tabela cada jogo entra, então a do fornecedor fica como está
+  const groupsOfTeam = new Map<string, Set<string>>();
+  for (const r of tableRows) {
+    const set = groupsOfTeam.get(r.participantId) ?? new Set<string>();
+    set.add(r.group);
+    groupsOfTeam.set(r.participantId, set);
+  }
+  const groupOfTeam = new Map<string, string>();
+  for (const [team, set] of groupsOfTeam) {
+    const named = [...set].filter((g) => g !== '');
+    if (named.length > 1)
+      return report('no_groups', {
+        detail: `time em mais de um grupo do fornecedor (${named.sort().join(', ')})`,
+      });
+    groupOfTeam.set(team, named[0] ?? '');
+  }
+  const groups = new Set(groupOfTeam.values());
   const singleGroup = groups.size === 1 ? [...groups][0]! : groups.size === 0 ? '' : null;
   // fase de grupos sem a divisão do provedor: não dá para saber quem é de qual grupo
   if (groups.size === 0 && rules.format === 'groups_and_knockout') return report('no_groups');
@@ -173,6 +199,7 @@ export async function recomputeSeasonStandings(
     });
   }
   const rows = await writeComputedStandings(db, seasonId, tables, { mode: 'replace' });
+  await dropStaleComputedRows(db, seasonId, tables);
   if (options.publish !== false && rows > 0) {
     await publishChange(db, {
       topic: 'standings',
@@ -187,6 +214,33 @@ export async function recomputeSeasonStandings(
     });
   }
   return report('written', { results: matches.length, rows });
+}
+
+/**
+ * Linhas calculadas velhas: nos grupos que este recálculo gravou, o time que não foi regravado (a tabela do
+ * grupo é refeita inteira); fora deles, só o grupo vazio (resíduo do recálculo que perdia os grupos; quando
+ * a tabela gravada é a única, sem nome, ele é o próprio grupo gravado). Grupo nomeado que não foi recalculado
+ * e linhas do provedor ficam.
+ */
+async function dropStaleComputedRows(
+  db: Database,
+  seasonId: string,
+  tables: readonly { group: string; rows: readonly { teamId: string }[] }[],
+): Promise<void> {
+  const keep = tables.flatMap((t) => t.rows.map((r) => sql`(${t.group}, ${r.teamId}::uuid)`));
+  if (!keep.length) return;
+  const written = [...new Set(tables.map((t) => t.group))];
+  const scope = written.includes('') ? written : [...written, ''];
+  await db
+    .delete(standing)
+    .where(
+      and(
+        eq(standing.seasonId, seasonId),
+        eq(standing.source, 'computed'),
+        inArray(standing.group, scope),
+        sql`(${standing.group}, ${standing.participantId}) not in (${sql.join(keep, sql`, `)})`,
+      ),
+    );
 }
 
 /**
