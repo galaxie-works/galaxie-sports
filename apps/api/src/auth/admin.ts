@@ -76,6 +76,7 @@ export async function createApiKey(
       tenantId,
       prefix: generated.prefix,
       env: generated.env,
+      keyFormat: generated.format,
       secretHash: await hashSecret(generated.secret),
       label: options.label ?? null,
       scopes: options.scopes ?? null,

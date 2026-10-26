@@ -6,8 +6,12 @@ import {
   isOriginAllowed,
   isPublishableKey,
   isWidgetKind,
+  isLoopbackOrigin,
   normalizeAllowedOrigin,
+  originsOutsideEnv,
   PUBLISHABLE_KEY_PREFIX,
+  PUBLISHABLE_TEST_KEY_PREFIX,
+  publishableKeyEnv,
 } from './widgets.js';
 
 describe('chave publicável', () => {
@@ -33,7 +37,35 @@ describe('chave publicável', () => {
     expect(isPublishableKey(generatePublishableKey().key)).toBe(true);
     expect(isPublishableKey(`gs_live_0123456789ab_${'a'.repeat(43)}`)).toBe(false);
     expect(isPublishableKey('gs_pk_live_curta')).toBe(false);
-    expect(isPublishableKey(`gs_pk_test_${'a'.repeat(43)}`)).toBe(false);
+    expect(isPublishableKey(`gs_pk_test_${'a'.repeat(43)}`)).toBe(true);
+    expect(isPublishableKey(`gs_pk_prod_${'a'.repeat(43)}`)).toBe(false);
+  });
+
+  it('publicável de teste: prefixo gs_pk_test_ e ambiente pelo prefixo', () => {
+    const t = generatePublishableKey('test');
+    expect(t.key).toMatch(/^gs_pk_test_[A-Za-z0-9_-]{43}$/);
+    expect(t.prefix.startsWith(PUBLISHABLE_TEST_KEY_PREFIX)).toBe(true);
+    expect(publishableKeyEnv(t.key)).toBe('test');
+    expect(publishableKeyEnv(generatePublishableKey().key)).toBe('live');
+    expect(publishableKeyEnv('gs_pk_live_curta')).toBeNull();
+  });
+
+  it('origens por ambiente: teste só localhost/127.0.0.1/[::1]; produção sem eles', () => {
+    for (const o of [
+      'http://localhost:3000',
+      'https://localhost',
+      'http://127.0.0.1:5173',
+      'http://[::1]:8080',
+    ])
+      expect(isLoopbackOrigin(o), o).toBe(true);
+    for (const o of ['https://app.exemplo.com', 'https://*.exemplo.com', 'http://localhost.exemplo.com'])
+      expect(isLoopbackOrigin(o), o).toBe(false);
+    expect(originsOutsideEnv('test', ['http://localhost:3000', 'https://app.exemplo.com'])).toEqual([
+      'https://app.exemplo.com',
+    ]);
+    expect(originsOutsideEnv('live', ['http://localhost:3000', 'https://app.exemplo.com'])).toEqual([
+      'http://localhost:3000',
+    ]);
   });
 });
 

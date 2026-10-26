@@ -120,6 +120,12 @@ export interface ServerOptions {
   lineup?: LineupOptions;
 }
 
+/** Limite fixo da chave secreta de teste, por rota (docs/politica-de-chaves.md §1). */
+export const TEST_KEY_RATE_LIMIT_PER_MINUTE = 60;
+
+/** Rota no contador de uso: as de chave de teste ganham o prefixo `test:` (contadas à parte). */
+export const usageRoute = (env: 'live' | 'test', route: string) => (env === 'test' ? `test:${route}` : route);
+
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
 export function buildServer(options: ServerOptions = {}): FastifyInstance {
   // o serializer de requisição (apiLoggerOptions) não inclui headers: chaves nunca vão para o log
@@ -249,12 +255,19 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (module) assertModule(tenant, module);
 
     const route = `${request.method} ${request.routeOptions.url ?? request.url}`;
-    usage?.record(tenant.tenantId, route);
-    // publicável: limite próprio por chave × IP (o tráfego vem de muitos torcedores, não do backend)
+    // chave de teste: uso contado à parte (`test:<rota>`), fora da cota e de qualquer cobrança
+    usage?.record(tenant.tenantId, usageRoute(tenant.env, route));
+    // publicável: limite próprio por chave × IP (o tráfego vem de muitos torcedores, não do backend);
+    // secreta de teste: balde próprio por rota, com limite fixo (não consome o da produção)
     const [limitKey, limit] =
       tenant.keyKind === 'publishable'
         ? [`pk:${tenant.keyId}:${request.ip}`, Math.min(publishableLimit, tenant.rateLimitPerMinute)]
-        : [`${tenant.tenantId}:${route}`, tenant.rateLimitPerMinute];
+        : tenant.env === 'test'
+          ? [
+              `test:${tenant.tenantId}:${route}`,
+              Math.min(TEST_KEY_RATE_LIMIT_PER_MINUTE, tenant.rateLimitPerMinute),
+            ]
+          : [`${tenant.tenantId}:${route}`, tenant.rateLimitPerMinute];
     try {
       const r = await limiter.hit(limitKey, limit, windowMs);
       const resetSec = Math.ceil(r.resetMs / 1000);

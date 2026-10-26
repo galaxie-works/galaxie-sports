@@ -14,7 +14,7 @@ import {
   getTenant,
   invalidScopes,
   issueKey,
-  KeyRotationError,
+  KeyPolicyError,
   listKeys,
   listTenants,
   MAX_ROTATION_GRACE_SEC,
@@ -183,7 +183,9 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
       throw problems.invalidParams([
         { path: 'scopes', message: `fora dos módulos do tenant: ${bad.join(', ')}` },
       ]);
-    const key = await issueKey(db, t.id, body);
+    const key = await issueKey(db, t.id, body).catch((err) => {
+      throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
+    });
     request.log.info({ tenant: t.slug, key: key.prefix, admin: 'key.issue' }, 'chave emitida');
     return reply.code(201).send({ key: { ...key, notice: SECRET_NOTICE } });
   });
@@ -193,7 +195,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     const { graceSeconds } = parseInput(RotateBody, request.body ?? {});
     const t = await tenantOr404(id);
     const rotated = await rotateKey(db, t.id, keyId, { graceSeconds }).catch((err) => {
-      throw err instanceof KeyRotationError ? problems.conflict(err.message) : err;
+      throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
     });
     if (!rotated) throw problems.notFound('Chave ativa');
     request.log.info(

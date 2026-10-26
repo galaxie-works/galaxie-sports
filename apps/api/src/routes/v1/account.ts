@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { RotateKeyBody } from '@galaxie/contracts';
 import type { Database } from '@galaxie/db';
-import { getTenant, KeyRotationError, listKeys, rotateKey } from '../../admin/tenants.js';
+import { getTenant, KeyPolicyError, listKeys, rotateKey } from '../../admin/tenants.js';
 import type { TenantContext } from '../../auth/authenticator.js';
 import { problems } from '../../errors.js';
 import type { UsageBackend } from '../../usage/counter.js';
@@ -67,7 +67,7 @@ export async function accountRoutes(app: FastifyInstance, opts: AccountRoutesOpt
     const ctx = tenantOf(request);
     const { graceSeconds } = parseInput(RotateKeyBody.strict(), request.body ?? {});
     const rotated = await rotateKey(db(), ctx.tenantId, ctx.keyId, { graceSeconds }).catch((err) => {
-      throw err instanceof KeyRotationError ? problems.conflict(err.message) : err;
+      throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
     });
     if (!rotated) throw problems.invalidKey('Chave já revogada ou expirada.');
     request.log.info({ tenant: ctx.slug, key: rotated.previous.prefix }, 'chave rotacionada pelo tenant');
