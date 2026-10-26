@@ -50,7 +50,7 @@ services:
   # Cria o bucket de assets com leitura pública (imagens servidas pela API/CDN) e encerra. S3 fora do ar depois de
   # 60 s, ou bucket/política que falham, saem com erro (o `pnpm infra:up` falha em vez de seguir sem bucket).
   s3-init:
-    image: amazon/aws-cli:2.38.2
+    image: amazon/aws-cli:2.38.5
     depends_on:
       - s3
     environment:
