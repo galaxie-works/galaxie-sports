@@ -2,6 +2,8 @@ import { Validator } from '@seriousme/openapi-schema-validator';
 import { describe, expect, it } from 'vitest';
 import { CompetitionsQuery } from './catalog.js';
 import { LocaleQuery } from './common.js';
+import { EventsQuery } from './events.js';
+import { ExploreAgendaQuery } from './explore.js';
 import { GamesListQuery, MedalHistoryQuery, ScheduleQuery } from './multisport.js';
 import { SearchQuery } from './search.js';
 import { CopyQuery } from './semantic.js';
@@ -131,6 +133,25 @@ describe('OpenAPI', () => {
       in: 'header',
       name: 'x-galaxie-publishable-key',
     });
+  });
+});
+
+describe('OpenAPI — chave publicável', () => {
+  it('é alternativa à secreta nas leituras de /v1; conta, SSE, escrita e espelho só com a secreta', () => {
+    const doc = buildOpenApiDocument();
+    const read = [{ galaxieKey: [] }, { galaxiePublishableKey: [] }];
+    const security = (path: string, method: 'get' | 'post' | 'put' = 'get') =>
+      (doc.paths?.[path]?.[method] as { security?: unknown } | undefined)?.security;
+    expect(doc.security).toEqual([{ galaxieKey: [] }]);
+    for (const path of ['/v1/events', '/v1/events/{id}', '/v1/competitions/{id}/seasons/{season}/standings'])
+      expect(security(path), path).toEqual(read);
+    expect(security('/v1/events/{id}/where-to-watch')).toEqual(read);
+    for (const path of ['/v1/account', '/v1/account/keys', '/v1/account/usage', '/v1/stream'])
+      expect(security(path), path).toBeUndefined();
+    expect(security('/mirror/{sport}/{endpoint}')).toBeUndefined();
+    expect(security('/v1/account/keys/rotate', 'post')).toBeUndefined();
+    expect(security('/v1/channel-list', 'put')).toBeUndefined();
+    expect(security('/v1/related/playback-errors', 'post')).toBeUndefined();
   });
 });
 
@@ -270,6 +291,26 @@ describe('schemas de query', () => {
     expect(SearchQuery.safeParse({ q: 'a' }).success).toBe(false);
     expect(SearchQuery.safeParse({ q: 'palmeiras', types: 'clube' }).success).toBe(false);
     expect(SearchQuery.safeParse({ q: 'palmeiras', limit: '21' }).success).toBe(false);
+  });
+
+  it('agenda: rejeita datas que não existem no calendário (o Date.UTC normalizaria para outro dia)', () => {
+    expect(EventsQuery.safeParse({ date: '2026-02-31' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ date: '2026-13-01' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ date: '2026-02-29' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ date: '2028-02-29' }).success).toBe(true);
+    expect(EventsQuery.safeParse({ date: '0050-02-28' }).success).toBe(true);
+    expect(EventsQuery.safeParse({ date: '0050-02-29' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ from: '2026-04-31' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ to: '2026-02-30T12:00:00Z' }).success).toBe(false);
+    expect(EventsQuery.safeParse({ from: '2026-10-01', to: '2026-10-31T23:59:59-03:00' }).success).toBe(true);
+    expect(ExploreAgendaQuery.safeParse({ day: '2026-06-31' }).success).toBe(false);
+    expect(ExploreAgendaQuery.safeParse({ day: '2026-06-30' }).success).toBe(true);
+    // o pattern do OpenAPI continua o mesmo
+    const params = (buildOpenApiDocument().paths?.['/v1/events']?.get?.parameters ?? []) as {
+      name: string;
+      schema?: { pattern?: string };
+    }[];
+    expect(params.find((p) => p.name === 'date')?.schema?.pattern).toBe('^\\d{4}-\\d{2}-\\d{2}$');
   });
 
   it('rejeita locale e fuso desconhecidos', () => {

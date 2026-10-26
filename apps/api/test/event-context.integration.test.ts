@@ -236,7 +236,10 @@ describe('GET /v1/events/{id}/context', () => {
       })
       .toEqual(['Fim de jogo: Palmeiras 2 x 0 Corinthians.']);
     expect(Date.now() - t0).toBeLessThan(10_000);
-    expect(cdn.purged.flat()).toContain(`event_context:${eventId}`);
+    // O purge do CDN pode chegar depois da invalidação do Valkey: espera também.
+    await expect
+      .poll(() => cdn.purged.flat(), { timeout: 10_000, interval: 50 })
+      .toContain(`event_context:${eventId}`);
   });
 });
 

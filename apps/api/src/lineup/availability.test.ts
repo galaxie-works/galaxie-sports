@@ -161,6 +161,30 @@ describe('montagem das plataformas', () => {
     ]);
   });
 
+  it('ofertas em moedas diferentes: o "a partir de" só compara as da mesma moeda', () => {
+    const [a, b] = AVAILABILITY[2]!.addons;
+    const out = platformAvailability(
+      [
+        {
+          platform: RIVAL,
+          plans: [],
+          addons: [
+            { ...a!, priceAmount: 59.9, priceCurrency: 'BRL' },
+            { ...b!, priceAmount: 9.9, priceCurrency: 'USD' },
+          ],
+        },
+      ],
+      null,
+      LogoBook.empty(),
+    );
+    const addon = out[0]!.addons![0]!;
+    expect([addon.price_from, addon.currency, addon.offers.map((o) => o.currency)]).toEqual([
+      59.9,
+      'BRL',
+      ['BRL', 'USD'],
+    ]);
+  });
+
   it('filtra as concorrentes mesmo se a consulta devolver todas (show_other_operators = false)', () => {
     expect(platformAvailability(AVAILABILITY, own, logos).map((p) => p.platform.id)).toEqual([
       OPERATOR_ID,

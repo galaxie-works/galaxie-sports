@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
+import { FLAGS_QUERY_KEY } from '@/lib/country-flags';
 import { exampleHref } from '@/lib/example/pages';
 import { useI18n } from '@/lib/i18n/client';
 
@@ -40,9 +41,7 @@ export function ExampleProvider({
   const router = useRouter();
   const queryClient = useQueryClient();
   // as bandeiras já vêm prontas: o CountryFlag não busca nada (sem `Date.now()` no render)
-  useState(() =>
-    queryClient.setQueryDefaults(['navigation-flags'], { initialData: flags, staleTime: Infinity }),
-  );
+  useState(() => queryClient.setQueryDefaults(FLAGS_QUERY_KEY, { initialData: flags, staleTime: Infinity }));
 
   // Esc dentro do iframe não chega à janela da apresentação: avisa a página de fora
   useEffect(() => {

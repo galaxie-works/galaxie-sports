@@ -1,22 +1,45 @@
 # =============================================================================
 # Tabela de direitos — Argentina (AR). Formato e regras: config/broadcast-rights/br.yaml.
-# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21).
+# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21) e curadoria de
+# 2026-10-25 (liga e copa nacionais).
+# Só competições com audiência local: liga e copa nacionais, Libertadores/Sul-Americana, seleção,
+# Champions, Premier League e LaLiga. Seleção: Eliminatórias 2030 só começam em 2027 e a Copa América
+# seguinte é em 2028 — sem linha; amistosos (international-friendlies) é um slug global, sem linha.
 # Operadoras de TV paga omitidas por política editorial não aparecem aqui.
 # =============================================================================
 schema_version: 1
 country: AR
-updated_at: 2026-10-21
+updated_at: 2026-10-25
 rights:
   - competition: argentina-liga-profesional
     season: 2026
     valid_from: 2026-01-01
     valid_to: 2026-12-31
     per_round_selection: true
+    distribution: split
     holders: [espn_premium, tnt_sports_premium]
-    notes: Metade dos jogos de cada rodada em cada um (Pack Fútbol). TNT até 2031, ESPN até 2030 (fonte única).
+    # as guias de rodada escrevem só "TNT Sports" para o canal Premium: sem bônus nem penalidade
+    uncertain_holders: [tnt_sports]
+    notes: >-
+      Metade dos jogos de cada rodada em cada um (Pack Fútbol). TNT até 2031, ESPN até 2030 (fonte única).
+      TV aberta no Clausura 2026 não encontrada nas guias de rodada.
     sources:
       - https://tavilatam.com/en/argentina-tnt-sports-renews-deal-with-afa-to-extend-broadcasting-rights-for-local-soccer-league-until-2031/
       - https://442.perfil.com/noticias/futbol/futbol-libre-en-2026-las-3-alternativas-para-ver-los-partidos-sin-cortes.phtml
+      - https://eleconomista.com.ar/deportes/fecha-12-dias-horarios-torneo-clausura-futbol-argentino-n98745
+  - competition: copa-argentina
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    holders: [tyc_sports]
+    notes: >-
+      TyC Sports em jogos de 2026 (ex.: Independiente x Atlético Tucumán em 12/08; quartas de final "en
+      vivo por TyC Sports"). Sem anúncio do contrato: se há co-detentor (operadora de TV paga omitida por
+      política editorial) e se todos os jogos passam fica a confirmar. Final prevista para 02/12/2026.
+    sources:
+      - https://eleconomista.com.ar/deportes/independiente-vs-atletico-tucuman-copa-argentina-2026-n97337
+      - https://elintransigente.com/2026/09/boca-racing-copa-argentina-3/
   - competition: conmebol-libertadores
     season: 2026
     valid_from: 2026-01-01

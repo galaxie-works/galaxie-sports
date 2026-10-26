@@ -1,12 +1,47 @@
 # =============================================================================
 # Tabela de direitos — Uruguai (UY). Formato e regras: config/broadcast-rights/br.yaml.
-# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21).
+# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21) e curadoria de
+# 2026-10-25 (Campeonato Uruguaio).
+# Copa AUF Uruguay: sem slug no catálogo — sem linha. Seleção: Uruguai é sede de jogos inaugurais
+# de 2030 e as Eliminatórias só começam em 2027; amistosos (international-friendlies) é um slug
+# global — sem linha.
 # Operadoras de TV paga omitidas por política editorial não aparecem aqui.
 # =============================================================================
 schema_version: 1
 country: UY
-updated_at: 2026-10-21
+updated_at: 2026-10-25
 rights:
+  # id 268 (temporada inteira desde 2026) e id 270 (Clausura, legado): mesma tabela de direitos
+  - competition: uruguay-primera
+    season: 2026
+    valid_from: 2026-02-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    distribution: all_matches
+    holders: [disney_plus]
+    uncertain_holders: [espn]
+    notes: >-
+      Ciclo 2026–29: streaming com a Tenfield, distribuído no Disney+ e na AntelTV (fora da biblioteca);
+      TV paga e aberta com consórcio de operadora de TV paga omitida por política editorial. Sem jogos em
+      TV aberta gratuita no início da temporada. ESPN linear aparece em guias de jogos avulsos.
+    sources:
+      - https://www.elobservador.com.uy/futbol/donde-se-podra-ver-el-futbol-uruguayo-los-cables-y-streaming-el-inicio-del-torneo-apertura-2026-n6033687
+      - https://www.elobservador.com.uy/futbol/supercopa-uruguaya-penarol-y-nacional-las-opciones-ver-el-clasico-tv-y-streaming-n6032893
+      - https://espndeportes.espn.com/futbol/uruguay/nota/_/id/16244762/fixture-torneo-apertura-penarol-nacional-campeonato-uruguayo-2026-fecha-hora-resultados-partidos-nombre
+  - competition: uruguay-primera-clausura
+    season: 2026
+    valid_from: 2026-07-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    distribution: all_matches
+    holders: [disney_plus]
+    uncertain_holders: [espn]
+    notes: >-
+      Mesmo ciclo do uruguay-primera: streaming Tenfield no Disney+ e na AntelTV (fora da biblioteca); TV
+      paga com operadora omitida por política editorial.
+    sources:
+      - https://www.elobservador.com.uy/futbol/donde-se-podra-ver-el-futbol-uruguayo-los-cables-y-streaming-el-inicio-del-torneo-apertura-2026-n6033687
+      - https://www.elobservador.com.uy/futbol/supercopa-uruguaya-penarol-y-nacional-las-opciones-ver-el-clasico-tv-y-streaming-n6032893
   - competition: conmebol-libertadores
     season: 2026
     valid_from: 2026-01-01

@@ -398,6 +398,25 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'restart',
     default: 'approved',
   },
+  // texto das páginas de planos que a pesquisa e a revisita da grade (lineups) mandam ao modelo na
+  // extração: por plataforma (dividido entre as páginas) e por página; o que passa é cortado do fim
+  // (services/ai-agents/src/lineups/prompt.ts, LINEUP_PROMPT_LIMITS)
+  agents('wtw', {
+    key: 'LINEUP_PROMPT_MAX_CHARS',
+    type: 'int',
+    min: 10_000,
+    max: 600_000,
+    default: '150000',
+    critical: true,
+  }),
+  agents('wtw', {
+    key: 'LINEUP_PAGE_MAX_CHARS',
+    type: 'int',
+    min: 5_000,
+    max: 600_000,
+    default: '150000',
+    critical: true,
+  }),
 
   // ── Conteúdo relacionado ────────────────────────────────────────────────────────────────────
   // dois baldes da YouTube Data API: busca (consultas/dia) e geral (unidades/dia) — related/budget.ts

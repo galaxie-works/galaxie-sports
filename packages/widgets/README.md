@@ -41,6 +41,12 @@ import { GalaxieMatchCard } from '@/components/galaxie/placar-operadora-exemplo'
 
 Todas as versões aceitam `publishableKey`, `baseUrl` (ex.: um proxy no backend da operadora, docs/05 §1.3),
 `locale` (`pt-BR`, `es`, `en`), `market` (ISO2), `theme` (parcial, por cima do salvo) e `className`.
+Com o proxy na mesma origem da página (`baseUrl` relativo, como `/api/galaxie`, ou a própria origem), a chave
+pode ficar vazia: o widget chama sem o header `x-galaxie-publishable-key`. Base de outra origem sem chave mostra
+o aviso de chave ausente, sem chamar a API.
+
+Polling: 30 s com o jogo ao vivo, 1 min nos 30 min antes do início; jogo agendado mais longe acorda quando entra
+nessa janela (no máximo a cada 6 h). Encerrado, adiado ou cancelado não atualiza mais.
 
 ## Uso como pacote (demo e Builder)
 

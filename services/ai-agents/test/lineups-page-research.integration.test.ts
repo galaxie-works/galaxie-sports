@@ -5,6 +5,7 @@ import {
   llmUsage,
   platform,
   platformPlan,
+  setLineupReviewStatus,
   upsertLineupDraft,
   type Database,
 } from '@galaxie/db';
@@ -14,6 +15,7 @@ import { withTokenBudget } from '../src/llm/factory.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
 import { memoryPageStore, OfficialPageReader, type PageRenderer } from '../src/lineups/pages.js';
 import { LineupResearcher, planLineupResearch } from '../src/lineups/research.js';
+import type { LineupPromptLimits } from '../src/lineups/prompt.js';
 import type { LineupPageExtractOutput } from '../src/lineups/schema.js';
 import { disposableDb } from './helpers.js';
 
@@ -55,6 +57,12 @@ const config = new WtwConfig(
       null,
       { organizers: [], press: [], aggregators: [] },
     ),
+    // Uruguai: só para o preço em dólar (streaming, sem grade)
+    parseCountryConfig('UY', { country: 'UY', broadcasters: [] }, null, {
+      organizers: [],
+      press: [],
+      aggregators: [],
+    }),
   ],
   new Blocklist([]),
 );
@@ -83,7 +91,7 @@ let page = rendered('99,90');
 const renderer: PageRenderer = { render: async () => page, close: async () => undefined };
 
 /** Leitor com fetch falso (HTML sem a grade: precisa do navegador) e cache em memória. */
-const reader = () =>
+const reader = (maxPages?: number) =>
   new OfficialPageReader({
     fetch: async (url) =>
       url.endsWith('/robots.txt')
@@ -95,6 +103,7 @@ const reader = () =>
     store: memoryPageStore(),
     sleep: async () => undefined,
     minIntervalMs: 0,
+    ...(maxPages !== undefined ? { maxPages } : {}),
   });
 
 const extraction = (price: number): LineupPageExtractOutput => ({
@@ -274,5 +283,264 @@ describe('lineups-research pela página oficial (LLM e site falsos)', () => {
     expect(llm.calls.map((c) => c.purpose)).toEqual(['lineups:extract:br-operadora-exemplo:BR']);
     const [plan] = await db.select().from(platformPlan).where(eq(platformPlan.platformId, platformId));
     expect(plan!.priceAmount).toBe(109.9);
+  });
+
+  /** Revisita direta da plataforma (a grade completa marca o que sumiu como `removed`). */
+  const revisit = async (
+    extracted: LineupPageExtractOutput,
+    at: Date,
+    extra: { log?: (m: string) => void; promptLimits?: LineupPromptLimits } = {},
+  ) => {
+    const llm = new FakeLlmClient((req: LlmJsonRequest) =>
+      req.purpose.startsWith('lineups:extract:')
+        ? { data: extracted }
+        : new Error(`purpose inesperado: ${req.purpose}`),
+    );
+    const researcher = new LineupResearcher({ db, llm, config, now: () => at, pages: reader(), ...extra });
+    return researcher.researchFromPages(
+      {
+        kind: 'plans',
+        country: 'BR',
+        platformId,
+        slug: 'br-operadora-exemplo',
+        name: 'Operadora Exemplo',
+        reason: 'revisit',
+      },
+      Infinity,
+      { force: true },
+    );
+  };
+
+  it('revisita com a página cortada no prompt não marca canal nem complemento como removido', async () => {
+    const base = rendered('109,90');
+    // a página passa do teto de caracteres do prompt: o modelo não viu tudo
+    page = { ...base, text: `${base.text}\n${'Texto institucional. '.repeat(10_000)}` };
+    const extracted = extraction(109.9);
+    const logs: string[] = [];
+    const out = await revisit(
+      { ...extracted, planos: [{ ...extracted.planos[0]!, canais: [] }], complementos: [] },
+      new Date(NOW.getTime() + 3 * 86_400_000),
+      { log: (m) => logs.push(m) },
+    );
+    expect(out.status).toBe('done');
+    expect([out.removed, out.changes.filter((c) => c.fields.includes('removed'))]).toEqual([0, []]);
+    // o corte fica registrado: no resultado da tarefa e no log, com a página, o tamanho e o teto
+    expect(out.promptCuts).toEqual([{ url: PLANS, chars: expect.any(Number), limit: 150_000 }]);
+    expect(out.promptCuts[0]!.chars).toBeGreaterThan(150_000);
+    expect(logs.filter((m) => m.includes('página cortada no prompt da extração'))).toEqual([
+      expect.stringMatching(/^br-operadora-exemplo: .*\/planos \(\d+ caracteres, teto 150000;/),
+    ]);
+  });
+
+  it('o teto vindo do painel vale no lugar do padrão: a mesma página normal passa a ser cortada', async () => {
+    // ~8 mil caracteres: cabe no padrão, passa do teto de 5 mil por página
+    const base = rendered('109,90');
+    page = { ...base, text: `${base.text}\n${'Texto institucional. '.repeat(400)}` };
+    const at = new Date(NOW.getTime() + 3 * 86_400_000);
+    expect((await revisit(extraction(109.9), at)).promptCuts).toEqual([]);
+    const logs: string[] = [];
+    const cut = await revisit(extraction(109.9), at, {
+      promptLimits: { pageChars: 5_000, totalChars: 10_000 },
+      log: (m) => logs.push(m),
+    });
+    expect(cut.promptCuts).toEqual([{ url: PLANS, chars: expect.any(Number), limit: 5_000 }]);
+    expect(logs.some((m) => m.includes('teto 5000'))).toBe(true);
+  });
+
+  /** A página sem o bloco de complementos ("Personalize seu plano" e o Canal Exemplo 2 à parte). */
+  const withoutAddons = (finalUrl = PLANS) => {
+    const base = rendered('109,90');
+    return { ...base, finalUrl, text: base.text.split('\nPersonalize seu plano')[0]! };
+  };
+  const removedTypes = (out: Awaited<ReturnType<typeof revisit>>) =>
+    out.changes.filter((c) => c.fields.includes('removed')).map((c) => c.target.type);
+
+  it('complemento omitido pelo modelo, mas ainda na página: não é removido', async () => {
+    page = rendered('109,90');
+    const out = await revisit(
+      { ...extraction(109.9), complementos: [] },
+      new Date(NOW.getTime() + 4 * 86_400_000),
+    );
+    expect([out.status, removedTypes(out)]).toEqual(['done', []]);
+  });
+
+  it('página de planos que redireciona: a ausência do complemento não é prova', async () => {
+    page = withoutAddons(`${OP}/planos-novos`);
+    const out = await revisit(
+      { ...extraction(109.9), complementos: [] },
+      new Date(NOW.getTime() + 5 * 86_400_000),
+    );
+    expect([out.status, removedTypes(out)]).toEqual(['done', []]);
+  });
+
+  it('complemento que saiu da página lida sem redirecionamento: proposta de remoção', async () => {
+    page = withoutAddons();
+    const out = await revisit(
+      { ...extraction(109.9), complementos: [] },
+      new Date(NOW.getTime() + 6 * 86_400_000),
+    );
+    expect([out.status, removedTypes(out)]).toEqual(['done', ['addon']]);
+    const lineup = await getPlatformLineup(db, platformId, { minReview: 'draft', includeUnverified: true });
+    expect(lineup!.addons.map((a) => [a.refId, a.proposedChange])).toEqual([
+      ['canal_exemplo_2', expect.objectContaining({ removed: true })],
+    ]);
+  });
+
+  /** Plataforma só com plano rejeitado e sem página de planos guardada: a revisita busca as URLs. */
+  const withoutPages = async (name: string, site: string) => {
+    const r = await upsertLineupDraft(db, {
+      platform: { name, kind: 'pay_tv_operator', country: 'BR', website: site, sources: [`${site}/sobre`] },
+      plans: [{ name: 'Plano Errado', sources: [`${site}/plano-errado`] }],
+      seenAt: NOW,
+    });
+    await setLineupReviewStatus(db, { type: 'plan', id: r.planIds['plano-errado']! }, 'rejected', 'wagner');
+    return r.platformId;
+  };
+  const pagesSearch = (urls: string[]) =>
+    new FakeLlmClient((req: LlmJsonRequest) =>
+      req.purpose.startsWith('lineups:pages-url:')
+        ? {
+            data: { paginas: urls.map((url) => ({ url, tipo: 'lista_de_planos' })), notas: null },
+            groundedUrls: urls,
+          }
+        : new Error(`purpose inesperado: ${req.purpose}`),
+    );
+  const taskOf = async (slug: string, at: Date) =>
+    (await planLineupResearch(db, { countries: ['BR'], now: at, revisit: true })).find(
+      (t) => t.kind === 'plans' && t.slug === slug,
+    ) as Extract<Awaited<ReturnType<typeof planLineupResearch>>[number], { kind: 'plans' }> | undefined;
+
+  it('busca das URLs que não leu nada não volta no dia seguinte; sem páginas no limite, nem busca', async () => {
+    const SITE = 'https://rejeitada.exemplo';
+    const id = await withoutPages('Operadora Rejeitada Exemplo', SITE);
+    const day1 = new Date(NOW.getTime() + 40 * 86_400_000);
+    const task = await taskOf('br-operadora-rejeitada-exemplo', day1);
+    expect(task?.platformId).toBe(id);
+
+    // limite de páginas da execução já atingido: a busca paga nem roda
+    const idle = pagesSearch([`${SITE}/planos`]);
+    const skipped = await new LineupResearcher({
+      db,
+      llm: idle,
+      config,
+      now: () => day1,
+      pages: reader(0),
+    }).researchFromPages(task!);
+    expect([skipped.calls, idle.calls.length, skipped.note]).toEqual([
+      0,
+      0,
+      'limite de páginas desta execução atingido; a busca das URLs de planos fica para a próxima',
+    ]);
+
+    // a busca roda, a URL achada dá 404: nada lido, e a revisita espera os 30 dias
+    const llm = pagesSearch([`${SITE}/planos`]);
+    const out = await new LineupResearcher({
+      db,
+      llm,
+      config,
+      now: () => day1,
+      pages: reader(),
+    }).researchFromPages(task!);
+    expect([out.calls, out.pages.map((p) => p.status)]).toEqual([1, ['error']]);
+    const day2 = new Date(day1.getTime() + 86_400_000);
+    expect(await taskOf('br-operadora-rejeitada-exemplo', day2)).toBeUndefined();
+  });
+
+  it('URL achada pela busca e não lida só pelo limite de páginas fica guardada (a busca não se repete)', async () => {
+    const SITE = 'https://limite.exemplo';
+    const id = await withoutPages('Operadora Limite Exemplo', SITE);
+    const day1 = new Date(NOW.getTime() + 40 * 86_400_000);
+    const task = await taskOf('br-operadora-limite-exemplo', day1);
+    const llm = pagesSearch([`${SITE}/planos`, `${SITE}/precos`]);
+    const out = await new LineupResearcher({
+      db,
+      llm,
+      config,
+      now: () => day1,
+      pages: reader(1),
+    }).researchFromPages(task!);
+    expect(out.pages.map((p) => [p.url, p.status, p.limited ?? false])).toEqual([
+      [`${SITE}/planos`, 'error', false],
+      [`${SITE}/precos`, 'error', true],
+    ]);
+    const [row] = await db.select().from(platform).where(eq(platform.id, id));
+    expect(row!.planPages).toEqual([`${SITE}/precos`]);
+    // não renova o seen_at: a página guardada é lida na próxima execução, sem nova busca
+    expect(await taskOf('br-operadora-limite-exemplo', new Date(day1.getTime() + 86_400_000))).toBeDefined();
+  });
+
+  it('Uruguai: o preço em US$ é gravado em USD (sem converter) e o em "$" na moeda do país', async () => {
+    const UY = 'https://streaming-uy.exemplo';
+    const r = await upsertLineupDraft(db, {
+      platform: {
+        name: 'Streaming Uruguai Exemplo',
+        kind: 'streaming',
+        country: 'UY',
+        website: UY,
+        sources: [UY],
+      },
+      seenAt: NOW,
+    });
+    const html =
+      '<html><body><h2>Plan Fútbol</h2><p>US$ 29,99 por mes</p><h2>Plan Básico</h2><p>$ 590 por mes</p></body></html>';
+    const uyReader = new OfficialPageReader({
+      fetch: async (url) =>
+        url === `${UY}/planes`
+          ? new Response(html, { status: 200, headers: { 'content-type': 'text/html' } })
+          : new Response('', { status: 404 }),
+      store: memoryPageStore(),
+      sleep: async () => undefined,
+      minIntervalMs: 0,
+    });
+    const plan = (name: string, trecho: string, preco: number) => ({
+      plano_nome: name,
+      trecho_do_plano: name,
+      precos: [{ preco_mensal: preco, moeda_iso: null, trecho }],
+      canais: [],
+      streamings_inclusos: [],
+    });
+    const llm = new FakeLlmClient((req: LlmJsonRequest) =>
+      req.purpose.startsWith('lineups:pages-url:')
+        ? {
+            data: { paginas: [{ url: `${UY}/planes`, tipo: 'lista_de_planos' }], notas: null },
+            groundedUrls: [`${UY}/planes`],
+          }
+        : {
+            data: {
+              planos: [
+                plan('Plan Fútbol', 'Plan Fútbol US$ 29,99 por mes', 29.99),
+                plan('Plan Básico', 'Plan Básico $ 590 por mes', 590),
+              ],
+              complementos: [],
+              notas: null,
+            },
+          },
+    );
+    const out = await new LineupResearcher({
+      db,
+      llm,
+      config,
+      now: () => NOW,
+      pages: uyReader,
+    }).researchFromPages({
+      kind: 'plans',
+      country: 'UY',
+      platformId: r.platformId,
+      slug: 'uy-streaming-uruguai-exemplo',
+      name: 'Streaming Uruguai Exemplo',
+      reason: 'no_plans',
+    });
+    expect([out.status, out.extractCalls]).toEqual(['done', 1]);
+    const lineup = await getPlatformLineup(db, r.platformId, { minReview: 'draft', includeUnverified: true });
+    expect(
+      lineup!.plans
+        .map((p) => [p.plan.name, p.plan.priceAmount, p.plan.priceCurrency, p.plan.priceText])
+        .sort(),
+    ).toEqual(
+      [
+        ['Plan Básico', 590, 'UYU', '$ 590/mes'],
+        ['Plan Fútbol', 29.99, 'USD', 'US$ 29,99/mes'],
+      ].sort(),
+    );
   });
 });
