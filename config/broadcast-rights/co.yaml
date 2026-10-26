@@ -1,13 +1,41 @@
 # =============================================================================
 # Tabela de direitos — Colômbia (CO). Formato e regras: config/broadcast-rights/br.yaml.
-# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21).
+# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21) e curadoria de
+# 2026-10-25 (Liga BetPlay e Copa BetPlay).
 # Canais abertos da Libertadores no país: [incerto] — sem linha própria.
+# Seleção: Eliminatórias 2030 só começam em 2027 — sem linha.
 # Operadoras de TV paga omitidas por política editorial não aparecem aqui.
 # =============================================================================
 schema_version: 1
 country: CO
-updated_at: 2026-10-21
+updated_at: 2026-10-25
 rights:
+  - competition: colombia-primera-a
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    # Win Sports (básico) e Win Sports+ / Win Play são a mesma emissora no dicionário
+    distribution: exclusive
+    holders: [win_sports]
+    notes: >-
+      Liga BetPlay 2026 (I e II): todos os jogos no Win Sports+ (Win+ Fútbol) e no Win Play, alguns também
+      no Win Sports básico. O contrato atual do Win Sports termina em dezembro de 2026 (renegociação aberta).
+    sources:
+      - https://www.publimetro.co/deportes/2026/07/24/regresa-el-fpc-partidos-horarios-y-donde-ver-la-fecha-1-de-la-liga-betplay/
+      - https://www.elpais.com.co/deportes/como-ver-todos-los-partidos-en-simultaneo-de-la-fecha-19-de-la-liga-betplay-i-2026-estos-son-los-canales-autorizados-0245.html
+      - https://www.clarosports.com/colombia/liga-bet-play/la-reparticion-de-los-derechos-de-tv-del-futbol-colombiano-en-puntos-suspensivos/
+  - competition: copa-colombia
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    holders: [win_sports]
+    notes: >-
+      Copa BetPlay 2026 no Win Sports (Win+ nos octavos). Fonte única; se todos os jogos passam (e se algum
+      sai só no YouTube do Win Sports) fica a confirmar.
+    sources:
+      - https://www.elpais.com.co/deportes/deportivo-cali-vs-atletico-nacional-dia-hora-y-canal-para-ver-el-partido-de-los-octavos-de-final-de-la-copa-betplay-2026-0633.html
   - competition: conmebol-libertadores
     season: 2026
     valid_from: 2026-01-01

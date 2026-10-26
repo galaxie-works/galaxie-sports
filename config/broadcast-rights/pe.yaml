@@ -1,11 +1,17 @@
 # =============================================================================
 # Tabela de direitos — Peru (PE). Formato e regras: config/broadcast-rights/br.yaml.
-# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21).
+# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21); revisão de 2026-10-25.
+# Liga 1 2026 (Apertura e Clausura): todos os jogos só no L1 MAX (canal da 1190 Sports), que não está
+# na biblioteca de emissoras do PE — sem linha até a emissora entrar no dicionário. GolPerú deixou de
+# ter jogos da Liga 1 em 2026 (Universitario passou ao L1 MAX). Fontes:
+#   https://libero.pe/futbol-peruano/liga-1/2026/01/29/movistar-tv-se-confirmo-nuevo-canal-transmitira-en-vivo-todos-partidos-de-liga-1-2026-vuelve-casa-1650970
+#   https://www.futbolperuano.com/liga-1/noticias/liga-1-por-movistar-l1-max-ocupara-el-lugar-de-golperu-en-la-temporada-2026-561362
+# Seleção: Eliminatórias 2030 só começam em 2027 — sem linha.
 # Operadoras de TV paga omitidas por política editorial não aparecem aqui.
 # =============================================================================
 schema_version: 1
 country: PE
-updated_at: 2026-10-21
+updated_at: 2026-10-25
 rights:
   - competition: conmebol-libertadores
     season: 2026
