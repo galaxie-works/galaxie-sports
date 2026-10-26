@@ -1,4 +1,4 @@
-import { isCronOff, type SettingDef } from '@galaxie/runtime-config';
+import { SEPARATE_TOKEN_POOLS, isCronOff, type SettingDef } from '@galaxie/runtime-config';
 
 import type { ClientDictionary } from '@/lib/i18n/dictionary';
 import type { Locale } from '@/lib/i18n/config';
@@ -103,4 +103,24 @@ export function formatDuration(locale: Locale, ms: number): string {
   if (ms < 60_000) return unit(ms / 1000, 'second', ms < 10_000 ? 1 : 0);
   if (ms < 3_600_000) return unit(ms / 60_000, 'minute', 1);
   return unit(ms / 3_600_000, 'hour', 1);
+}
+
+/**
+ * Tokens do dia como o serviço conta: os agentes de pool próprio (SEPARATE_TOKEN_POOLS, ex.: `assets`)
+ * ficam fora da soma contra o AI_DAILY_TOKEN_BUDGET e aparecem à parte, contra o próprio pool.
+ */
+export function tokenUsage(
+  byAgent: readonly { agent: string; inputTokens: number; outputTokens: number }[],
+  budget: number | null,
+): { counted: number; pools: { agent: string; used: number; limit: number | null }[] } {
+  const pooled = Object.keys(SEPARATE_TOKEN_POOLS);
+  const used = (a: { inputTokens: number; outputTokens: number }) => a.inputTokens + a.outputTokens;
+  return {
+    counted: byAgent.filter((a) => !pooled.includes(a.agent)).reduce((n, a) => n + used(a), 0),
+    pools: pooled.map((agent) => ({
+      agent,
+      used: byAgent.filter((a) => a.agent === agent).reduce((n, a) => n + used(a), 0),
+      limit: budget === null ? null : Math.round(budget * SEPARATE_TOKEN_POOLS[agent]!),
+    })),
+  };
 }

@@ -524,6 +524,27 @@ describe('passo do Gemini (ranqueador falso)', () => {
     });
   });
 
+  it('miniatura da Wikimedia que não baixa pula o alvo sem contar como falha do Gemini', async () => {
+    const targets = ['a', 'b', 'c', 'd'].map((id): DriverTarget => ({
+      ...senna,
+      f1dbId: `piloto-${id}`,
+      name: `Piloto ${id}`,
+      highlight: null,
+    }));
+    const offline = {
+      download: async () => {
+        throw new Error('HTTP 503');
+      },
+    } as unknown as WikimediaClient;
+    const { ranker, calls } = fake();
+    const { stats } = await mapCommons(offline, targets, null, { revision: '2026-10-26', ranker, discover });
+    // os quatro alvos foram tentados (o lote não parou "por falha do Gemini") e o Gemini nem foi chamado
+    expect(stats).toHaveLength(4);
+    expect(stats.every((s) => s.ranking === 'miniatura falhou')).toBe(true);
+    expect(stats[3]!.note).toBe('pendente: miniatura não baixou (HTTP 503)');
+    expect(calls).toHaveLength(0);
+  });
+
   it('nenhum julgamento para as fotos enviadas: o alvo não vira ordenado sem fotos', async () => {
     const none: Ranker = { model: 'gemini-fake', rank: async () => [] };
     const { manifest, stats } = await mapCommons(client, [senna], null, {
