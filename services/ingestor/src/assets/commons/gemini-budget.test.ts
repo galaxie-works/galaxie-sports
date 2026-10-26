@@ -162,7 +162,7 @@ describe('ordem das fotos no ledger de IA (agente assets)', () => {
     expect(store.entries[1]!.inputTokens).toBeGreaterThanOrEqual(estimate.inputTokens);
   });
 
-  it('a estimativa da reserva cobre 12 miniaturas no modelo leve (~US$ 0,03) e cabe no teto assets=0,5', () => {
+  it('a estimativa da reserva cobre 12 miniaturas no modelo leve (~US$ 0,03) e cabe no teto do agente assets', () => {
     const e = rankEstimate(['x'.repeat(2_000)], 12, MODEL);
     expect(e.tokens).toBe(e.inputTokens + 8_192);
     expect(e.usd).toBeGreaterThan(0.01);

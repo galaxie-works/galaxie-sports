@@ -447,6 +447,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
     budget,
     usdBudget,
     agentUsdBudgets,
+    agentUsdOrigins,
     agentDefaultUsdBudget,
     maxSearchesPerCall,
     status,
@@ -569,7 +570,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
                       <span className="text-muted-foreground">
                         {' '}
                         / {usd(cap)}
-                        {listed ? null : ` (${T.status.llmAgentDefaultCap})`}
+                        {` (${listed ? T.status.llmCapOrigin[agentUsdOrigins[a.agent] ?? 'code'] : T.status.llmAgentDefaultCap})`}
                       </span>
                     ) : null}
                   </TableCell>

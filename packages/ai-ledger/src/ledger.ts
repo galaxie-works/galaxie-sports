@@ -32,7 +32,14 @@ import {
 } from '@galaxie/runtime-config';
 import { AiDisabledError, BudgetExceededError } from './errors.js';
 import { bandFor, type AiPolicy, type AiPriority } from './policy.js';
-import { agentKey, describeAiState, formatUsdPt, type AiStatus, type LedgerSettings } from './state.js';
+import {
+  agentKey,
+  describeAiState,
+  formatUsdPt,
+  type AgentCapOrigin,
+  type AiStatus,
+  type LedgerSettings,
+} from './state.js';
 
 export interface UsageRecord {
   agent: string;
@@ -178,6 +185,8 @@ export interface BudgetPolicy {
    * próprio. O agente novo não fica sem IA nem sem teto: fica no padrão, com aviso uma vez por dia.
    */
   agentDefaultUsdLimit?: number | null;
+  /** Origem de cada teto de `agentUsdLimits` (lista configurada ou padrão do código), para o `ai:status`. */
+  agentUsdOrigins?: Record<string, AgentCapOrigin>;
   /** Buscas na web por chamada; null/ausente = sem teto. */
   maxSearchesPerCall?: number | null;
   /** Virada do dia de orçamento (padrão: 00:00 UTC). */
@@ -289,11 +298,20 @@ export class TokenBudget {
     return (agent && this.policy.agentStatus?.[agent]) || 'on';
   }
 
-  /** Teto em US$ do agente: o da lista (null = sem teto próprio) ou, fora dela, o padrão. */
-  agentUsdLimitOf(agent: string): { limit: number | null; isDefault: boolean } {
+  /**
+   * Teto em US$ do agente: o da lista (null = sem teto próprio) ou, fora dela, o padrão. `origin`: de onde
+   * veio — `config` (AI_AGENT_USD_BUDGETS do painel ou do env), `code` (padrão do código) ou `default`
+   * (AI_AGENT_DEFAULT_USD_BUDGET, o agente fora da lista).
+   */
+  agentUsdLimitOf(agent: string): {
+    limit: number | null;
+    isDefault: boolean;
+    origin: AgentCapOrigin | 'default';
+  } {
     const own = this.policy.agentUsdLimits?.[agent];
-    if (own !== undefined) return { limit: own, isDefault: false };
-    return { limit: this.policy.agentDefaultUsdLimit ?? null, isDefault: true };
+    if (own !== undefined)
+      return { limit: own, isDefault: false, origin: this.policy.agentUsdOrigins?.[agent] ?? 'config' };
+    return { limit: this.policy.agentDefaultUsdLimit ?? null, isDefault: true, origin: 'default' };
   }
 
   /**
@@ -481,7 +499,10 @@ export class TokenBudget {
 export function ledgerPolicy(
   settings: Pick<LedgerSettings, 'dailyTokenBudget' | 'dailyUsdBudget' | 'agentUsdBudgets'> &
     Partial<
-      Pick<LedgerSettings, 'status' | 'agentStatus' | 'agentDefaultUsdBudget' | 'bandShares' | 'budgetDay'>
+      Pick<
+        LedgerSettings,
+        'status' | 'agentStatus' | 'agentDefaultUsdBudget' | 'agentUsdOrigins' | 'bandShares' | 'budgetDay'
+      >
     >,
   bands?: Omit<BandPolicy, 'shares'>,
 ): BudgetPolicy {
@@ -492,6 +513,7 @@ export function ledgerPolicy(
     dailyUsdLimit: settings.dailyUsdBudget,
     agentUsdLimits: settings.agentUsdBudgets,
     agentDefaultUsdLimit: settings.agentDefaultUsdBudget ?? null,
+    ...(settings.agentUsdOrigins ? { agentUsdOrigins: settings.agentUsdOrigins } : {}),
     ...(settings.budgetDay ? { day: settings.budgetDay } : {}),
     ...(bands && settings.bandShares ? { bands: { ...bands, shares: settings.bandShares } } : {}),
   };

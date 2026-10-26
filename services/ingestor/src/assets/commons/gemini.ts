@@ -17,7 +17,7 @@ import type { AiJudgement } from './select.js';
 export const GEMINI_VISION_DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-/** Agente no ledger (prefixo do `purpose`): teto próprio em AI_AGENT_USD_BUDGETS (`assets=0.5`). */
+/** Agente no ledger (prefixo do `purpose`): teto próprio em AI_AGENT_USD_BUDGETS (`assets=1`). */
 export const ASSETS_AGENT = 'assets';
 /** Tokens de entrada presumidos por imagem (resolução padrão das imagens no Gemini 3). */
 export const GEMINI_IMAGE_TOKENS = 1_120;

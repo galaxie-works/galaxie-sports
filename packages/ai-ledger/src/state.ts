@@ -42,11 +42,13 @@ export const DEFAULT_DAILY_USD_BUDGET = 10;
  * - review=0.5: revisão das sugestões, poucas por dia no modelo standard;
  * - channels=1: casamento da lista de canais do cliente, só as sobras do casamento por código, quando chega lista;
  * - live=0.5: prioridades do ao vivo, uma chamada curta por rodada;
- * - assets=0.5: ordem das fotos da F1 (ingestor), lote manual, ~US$ 0,01 por alvo no modelo leve.
- * Agente fora da lista fica no teto padrão (AI_AGENT_DEFAULT_USD_BUDGET), nunca sem teto.
+ * - assets=1: ordem das fotos da F1 (ingestor), lote manual que continua de onde parou; em 25/10 o lote gastou
+ *   ~US$ 4 num dia (fora do ledger), e US$ 1/dia o termina em ~4 dias sem tirar dos outros agentes.
+ * A lista configurada (AI_AGENT_USD_BUDGETS, painel ou env) mescla agente a agente sobre esta (ver
+ * `mergeAgentUsdBudgets`). Agente fora das duas fica no teto padrão (AI_AGENT_DEFAULT_USD_BUDGET), nunca sem teto.
  */
 export const DEFAULT_AGENT_USD_BUDGETS =
-  'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=1,curator=1,review=0.5,channels=1,live=0.5,assets=0.5';
+  'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=1,curator=1,review=0.5,channels=1,live=0.5,assets=1';
 
 /**
  * Teto diário em US$ de um agente fora de AI_AGENT_USD_BUDGETS (agente novo, `purpose` sem prefixo):
@@ -177,9 +179,35 @@ export function agentStatusFromEnv(env: Env = process.env): Record<string, AiSta
   return parseAgentStatus(registryEnv(env, 'AI_AGENT_STATUS')) ?? {};
 }
 
-/** AI_AGENT_USD_BUDGETS do ambiente (vazio = o padrão); formato inválido ou US$ 0 falha a configuração. */
+/** Origem do teto de um agente: `config` = AI_AGENT_USD_BUDGETS (painel ou env); `code` = padrão do código. */
+export type AgentCapOrigin = 'config' | 'code';
+
+/**
+ * Tetos por agente: os padrões do código (DEFAULT_AGENT_USD_BUDGETS) com a lista configurada por cima,
+ * agente a agente. O agente listado vence; o que não está na lista fica com o padrão do código. Assim
+ * a sobrescrita do painel (ex.: `lineups=2,wtw=3`) não apaga o teto dos agentes que ela não cita.
+ */
+export function mergeAgentUsdBudgets(configured: Record<string, number | null>): {
+  budgets: Record<string, number | null>;
+  origins: Record<string, AgentCapOrigin>;
+} {
+  const code = parseAgentUsdBudgets(DEFAULT_AGENT_USD_BUDGETS) ?? {};
+  const origins: Record<string, AgentCapOrigin> = {};
+  for (const agent of Object.keys(code)) origins[agent] = 'code';
+  for (const agent of Object.keys(configured)) origins[agent] = 'config';
+  return { budgets: { ...code, ...configured }, origins };
+}
+
+function agentUsdBudgetsAndOrigins(env: Env) {
+  return mergeAgentUsdBudgets(parseAgentUsdBudgets(registryEnv(env, 'AI_AGENT_USD_BUDGETS')) ?? {});
+}
+
+/**
+ * AI_AGENT_USD_BUDGETS do ambiente mesclado por agente sobre os padrões do código (vazio = só os padrões);
+ * formato inválido ou US$ 0 falha a configuração.
+ */
 export function agentUsdBudgetsFromEnv(env: Env = process.env): Record<string, number | null> {
-  return parseAgentUsdBudgets(registryEnv(env, 'AI_AGENT_USD_BUDGETS') ?? DEFAULT_AGENT_USD_BUDGETS) ?? {};
+  return agentUsdBudgetsAndOrigins(env).budgets;
 }
 
 /** Estado e tetos do dia lidos do ambiente (com as sobrescritas do painel já aplicadas por quem chama). */
@@ -200,6 +228,8 @@ export interface LedgerSettings {
    * agente ausente = o teto padrão (`agentDefaultUsdBudget`).
    */
   agentUsdBudgets: Record<string, number | null>;
+  /** De onde veio o teto de cada agente de `agentUsdBudgets`: a lista configurada ou o padrão do código. */
+  agentUsdOrigins: Record<string, AgentCapOrigin>;
   /** AI_AGENT_DEFAULT_USD_BUDGET: teto do agente fora de `agentUsdBudgets`; null = sem teto próprio. */
   agentDefaultUsdBudget: number | null;
   /** AI_BAND_SHARES: % do teto global de cada faixa (soma 100; a reserva só serve a P0). */
@@ -220,7 +250,9 @@ export function ledgerSettingsFromEnv(env: Env = process.env): LedgerSettings {
     agentStatus: agentStatusFromEnv(env),
     dailyTokenBudget: limitEnv(env, 'AI_DAILY_TOKEN_BUDGET', DEFAULT_DAILY_TOKEN_BUDGET),
     dailyUsdBudget: limitEnv(env, 'AI_DAILY_USD_BUDGET', DEFAULT_DAILY_USD_BUDGET),
-    agentUsdBudgets: agentUsdBudgetsFromEnv(env),
+    ...(({ budgets, origins }) => ({ agentUsdBudgets: budgets, agentUsdOrigins: origins }))(
+      agentUsdBudgetsAndOrigins(env),
+    ),
     agentDefaultUsdBudget: limitEnv(env, 'AI_AGENT_DEFAULT_USD_BUDGET', DEFAULT_AGENT_DEFAULT_USD_BUDGET),
     // o registro já conferiu o formato e a soma; vazio = o padrão
     bandShares: parseBandShares(registryEnv(env, 'AI_BAND_SHARES'))!,

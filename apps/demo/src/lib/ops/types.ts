@@ -99,6 +99,8 @@ export interface LlmSpend {
   p0MinAudience: number;
   /** Teto em US$/dia de cada agente (AI_AGENT_USD_BUDGETS); null = sem teto próprio. */
   agentUsdBudgets: Record<string, number | null>;
+  /** De onde vem o teto de cada agente: painel (`db`), env do contêiner ou padrão do código. */
+  agentUsdOrigins: Record<string, 'db' | 'env' | 'code'>;
   /** Teto em US$/dia do agente fora de `agentUsdBudgets` (AI_AGENT_DEFAULT_USD_BUDGET); null = só o global. */
   agentDefaultUsdBudget: number | null;
   /** Buscas na web por chamada; null = sem teto. */

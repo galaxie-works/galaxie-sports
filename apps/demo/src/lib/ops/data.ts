@@ -291,8 +291,18 @@ async function readLlm(now: Date, settings: OpsSetting[]): Promise<LlmSpend> {
   // o mesmo dia que o ledger usa nos tetos (vira em AI_BUDGET_DAY_START no fuso AI_BUDGET_TIMEZONE)
   const budgetDay = budgetDayOf(now, day);
   const maxSearchesPerCall = limitSetting(settings, 'AI_MAX_SEARCHES_PER_CALL');
+  // como o serviço: a lista configurada (painel ou env) mescla por agente sobre os padrões do código
   const rawAgentBudgets = settings.find((s) => s.key === 'AI_AGENT_USD_BUDGETS');
-  const agentUsdBudgets = parseAgentUsdBudgets(rawAgentBudgets?.value || rawAgentBudgets?.defaultValue) ?? {};
+  const codeBudgets = parseAgentUsdBudgets(rawAgentBudgets?.defaultValue) ?? {};
+  const configured =
+    rawAgentBudgets && rawAgentBudgets.source !== 'default'
+      ? (parseAgentUsdBudgets(rawAgentBudgets.value) ?? {})
+      : {};
+  const agentUsdBudgets = { ...codeBudgets, ...configured };
+  const agentUsdOrigins: Record<string, 'db' | 'env' | 'code'> = {};
+  for (const agent of Object.keys(codeBudgets)) agentUsdOrigins[agent] = 'code';
+  for (const agent of Object.keys(configured))
+    agentUsdOrigins[agent] = rawAgentBudgets?.source === 'db' ? 'db' : 'env';
   const status = settings.find((s) => s.key === 'AI_STATUS')?.value?.toLowerCase() === 'off' ? 'off' : 'on';
   const agentStatus = parseAgentStatus(settings.find((s) => s.key === 'AI_AGENT_STATUS')?.value) ?? {};
   const rows = await query<{
@@ -363,6 +373,7 @@ async function readLlm(now: Date, settings: OpsSetting[]): Promise<LlmSpend> {
     bands,
     p0MinAudience: limitSetting(settings, 'AI_P0_MIN_AUDIENCE') ?? 25,
     agentUsdBudgets,
+    agentUsdOrigins,
     agentDefaultUsdBudget: limitSetting(settings, 'AI_AGENT_DEFAULT_USD_BUDGET'),
     maxSearchesPerCall,
   };

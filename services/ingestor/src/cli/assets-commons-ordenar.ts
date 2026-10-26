@@ -18,7 +18,7 @@
  * Ambiente: GEMINI_API_KEY e GEMINI_MODEL_VISION (padrão: o leve da camada de IA).
  *
  * Orçamento: cada chamada entra no ledger diário de IA (`ops.llm_usage`) como agente `assets`, com o estado
- * e os tetos dos agentes (AI_STATUS, AI_DAILY_USD_BUDGET, AI_AGENT_USD_BUDGETS `assets=0.5`), já com as
+ * e os tetos dos agentes (AI_STATUS, AI_DAILY_USD_BUDGET, AI_AGENT_USD_BUDGETS `assets=1`), já com as
  * sobrescritas do painel, e na faixa `manual` da política de execução (config/ai-policy.yaml). Sem saldo,
  * os alvos restantes ficam como estavam e voltam na próxima execução.
  */
