@@ -1,11 +1,23 @@
 import { randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from 'node:crypto';
+import { crc32 } from 'node:zlib';
 
 /**
- * Formato da chave: `gs_<ambiente>_<prefixo>_<segredo>`.
+ * Formato da chave (2, atual): `gs_<ambiente>_<prefixo>_<segredo>_<checksum>`.
+ * - ambiente: `live` (produção) ou `test` (testes; limite próprio e uso contado à parte) — precisa bater
+ *   com o ambiente gravado da chave;
  * - prefixo: 12 caracteres hex, guardado em claro para localizar a chave;
- * - segredo: 32 bytes aleatórios em base64url (43 caracteres), guardado só como hash scrypt.
+ * - segredo: 32 bytes aleatórios em base64url (43 caracteres), guardado só como hash scrypt;
+ * - checksum: CRC32 em 8 hex de tudo o que vem antes, como nos tokens do GitHub. Erro de digitação ou
+ *   chave inventada é recusado sem consulta ao banco, e um scanner de segredos (gitleaks, secret
+ *   scanning do GitHub) acha a chave sem falso positivo (docs/politica-de-chaves.md §5).
+ *
+ * Formato 1 (legado, sem checksum) ainda é lido para as chaves emitidas antes, até a migração
+ * (`keys:migrate`) revogá-las e reemiti-las.
  */
-const KEY_RE = /^gs_(live|test)_([0-9a-f]{12})_([A-Za-z0-9_-]{43})$/;
+const KEY_RE = /^gs_(live|test)_([0-9a-f]{12})_([A-Za-z0-9_-]{43})(?:_([0-9a-f]{8}))?$/;
+
+/** Regex sem âncoras para scanners de segredos (`.gitleaks.toml`, padrão customizado do GitHub). */
+export const API_KEY_SCAN_PATTERN = 'gs_(live|test)_[0-9a-f]{12}_[A-Za-z0-9_-]{43}_[0-9a-f]{8}';
 
 export type KeyEnv = 'live' | 'test';
 
@@ -13,17 +25,31 @@ export interface ParsedKey {
   env: KeyEnv;
   prefix: string;
   secret: string;
+  /** 2 = com checksum (válido); 1 = legado, sem checksum. */
+  format: 1 | 2;
 }
 
+const checksum = (body: string) => crc32(body).toString(16).padStart(8, '0');
+
+/** null = formato inválido ou checksum que não confere. */
 export function parseApiKey(key: string): ParsedKey | null {
   const m = KEY_RE.exec(key.trim());
-  return m ? { env: m[1] as KeyEnv, prefix: m[2]!, secret: m[3]! } : null;
+  if (!m) return null;
+  const [, env, prefix, secret, sum] = m;
+  if (sum !== undefined && sum !== checksum(`gs_${env}_${prefix}_${secret}`)) return null;
+  return { env: env as KeyEnv, prefix: prefix!, secret: secret!, format: sum === undefined ? 1 : 2 };
+}
+
+/** Monta a chave no formato 2 (com checksum). */
+export function formatApiKey(env: KeyEnv, prefix: string, secret: string): string {
+  const body = `gs_${env}_${prefix}_${secret}`;
+  return `${body}_${checksum(body)}`;
 }
 
 export function generateApiKey(env: KeyEnv = 'live'): ParsedKey & { key: string } {
   const prefix = randomBytes(6).toString('hex');
   const secret = randomBytes(32).toString('base64url');
-  return { env, prefix, secret, key: `gs_${env}_${prefix}_${secret}` };
+  return { env, prefix, secret, format: 2, key: formatApiKey(env, prefix, secret) };
 }
 
 // Parâmetros scrypt (custo ~16 MiB de memória). O resultado verificado fica em cache em memória
