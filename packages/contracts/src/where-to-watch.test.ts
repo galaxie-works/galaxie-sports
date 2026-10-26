@@ -154,6 +154,7 @@ describe('contrato do onde assistir com a grade (availability)', () => {
       license: 'Public domain',
       license_url: null,
       attribution_required: false,
+      attribution: null,
       text: 'Logo: Wikimedia Commons · Public domain',
     };
     expect(

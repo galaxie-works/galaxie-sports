@@ -56,7 +56,7 @@ describe('configuração por ambiente', () => {
 
   it('rejeita provedor desconhecido e orçamento inválido', () => {
     expect(() => llmSettingsFromEnv({ AI_PROVIDER: 'outro' })).toThrow(LlmError);
-    expect(() => llmSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: '-5' })).toThrow(/inteiro/);
+    expect(() => llmSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: '-5' })).toThrow(/entre 10000 e 100000000/);
   });
 });
 
@@ -261,7 +261,7 @@ describe('fábrica e wrapper de orçamento (usados pelos demais agentes)', () =>
     await expect(wrapped.generateJson(req())).rejects.toBeInstanceOf(BudgetExceededError);
     expect(fake.calls).toHaveLength(0);
     const open = withTokenBudget(new FakeLlmClient([{ data: { answer: 'b' } }]), {
-      env: { AI_DAILY_TOKEN_BUDGET: '0' },
+      env: { AI_DAILY_TOKEN_BUDGET: 'unlimited' },
     });
     expect((await open.generateJson<{ answer: string }>(req())).data.answer).toBe('b');
   });
