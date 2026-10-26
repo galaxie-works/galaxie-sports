@@ -34,7 +34,9 @@ import {
   leagueMatchStakes,
   localizeStake,
   pickGroupTable,
+  pickLeagueTable,
   prepareFinishedLeagueMatch,
+  roundWithin,
   salienceFight,
   salienceStanding,
   salientStakes,
@@ -45,7 +47,6 @@ import {
   type CompetitionRules,
   type FanTagLocale,
   type FanTagStanding,
-  type Fixture,
   type LeagueTeamInput,
   type SalienceStanding,
   type Stake,
@@ -676,40 +677,53 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     if (stageKind && LEAGUE_KINDS.has(stageKind)) {
       contexts.add('regular');
       const groups = e.seasonId ? tablesBySeason.get(e.seasonId) : undefined;
-      // a mesma liga pode estar gravada sob dois rótulos de grupo (um desatualizado): fica a mais completa
-      const table = groups && homeId && awayId ? pickGroupTable(groups.values(), homeId, awayId) : undefined;
+      // com regulamento, a tabela e a matemática da fase do jogo (a mesma escolha dos stakes do motor): a zona do
+      // Clausura, não a anual nem os promedios da mesma temporada. Sem regulamento, o grupo com os dois e mais
+      // jogos (a mesma liga pode estar gravada sob dois rótulos de grupo, um desatualizado)
+      const choice =
+        groups && homeId && awayId && rules
+          ? pickLeagueTable(
+              rules,
+              r.st ? { kind: r.st.kind, label: r.st.providerLabel ?? null } : null,
+              [...groups.values()].flat(),
+              homeId,
+              awayId,
+            )
+          : null;
+      const table =
+        choice?.table ??
+        (groups && homeId && awayId && !rules ? pickGroupTable(groups.values(), homeId, awayId) : undefined);
+      const phase = choice?.phase ?? null;
+      const leagueRules = choice?.rules ?? rules;
+      const crossGroup = phase?.crossGroupMatches === true;
       if (table?.[0] && (table[0].participantId === homeId || table[0].participantId === awayId))
         contexts.add('lead');
-      if (table && rules?.league && open(e.status) && homeId && awayId && r.st?.id) {
+      if (table && leagueRules?.league && open(e.status) && homeId && awayId && r.st?.id) {
         const inTable = new Set(table.map((s) => s.participantId));
-        const nextRound: Fixture[] = (matchesByStage.get(r.st.id) ?? [])
-          .filter(
-            (m) =>
-              m.id !== id &&
-              open(m.status) &&
-              m.homeId &&
-              m.awayId &&
-              inTable.has(m.homeId) &&
-              inTable.has(m.awayId),
-          )
-          .map((m) => ({ homeId: m.homeId!, awayId: m.awayId! }));
+        const nextRound = roundWithin(
+          (matchesByStage.get(r.st.id) ?? [])
+            .filter((m) => m.id !== id && open(m.status) && m.homeId && m.awayId)
+            .map((m) => ({ homeId: m.homeId!, awayId: m.awayId! })),
+          inTable,
+          crossGroup,
+        );
         const leagueTable = table.map((s) => ({
           teamId: s.participantId,
           points: s.points,
           played: s.played,
         }));
-        standings.home = fanTagStanding(leagueTable, rules.league, homeId);
-        standings.away = fanTagStanding(leagueTable, rules.league, awayId);
-        setSalience(salienceBefore, leagueTable, rules, homeId, awayId);
+        standings.home = fanTagStanding(leagueTable, leagueRules.league, homeId);
+        standings.away = fanTagStanding(leagueTable, leagueRules.league, awayId);
+        setSalience(salienceBefore, leagueTable, leagueRules, homeId, awayId);
         try {
           stakes.push(
             ...leagueMatchStakes({
               table: leagueTable,
-              league: rules.league,
-              points: rules.standings.points,
+              league: leagueRules.league,
+              points: leagueRules.standings.points,
               homeId,
               awayId,
-              nextRound,
+              ...(nextRound ? { nextRound } : {}),
             }),
           );
         } catch {
@@ -717,7 +731,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         }
       } else if (
         table &&
-        rules?.league &&
+        leagueRules?.league &&
         e.status === 'finished' &&
         typeof e.score?.home === 'number' &&
         typeof e.score.away === 'number' &&
@@ -728,33 +742,40 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       ) {
         // encerrado: o que estava em jogo (tabela de antes) e o que o resultado mudou (tabela de depois)
         const inTable = new Set(table.map((s) => s.participantId));
-        const nextRound: Fixture[] = (matchesByStage.get(r.st.id) ?? [])
-          .filter(
-            (m) =>
-              m.id !== id &&
-              m.status !== 'cancelled' &&
-              m.status !== 'abandoned' &&
-              m.startsAt >= e.startsAt &&
-              m.homeId &&
-              m.awayId &&
-              inTable.has(m.homeId) &&
-              inTable.has(m.awayId),
-          )
-          .map((m) => ({ homeId: m.homeId!, awayId: m.awayId! }));
+        const nextRound = roundWithin(
+          (matchesByStage.get(r.st.id) ?? [])
+            .filter(
+              (m) =>
+                m.id !== id &&
+                m.status !== 'cancelled' &&
+                m.status !== 'abandoned' &&
+                m.startsAt >= e.startsAt &&
+                m.homeId &&
+                m.awayId,
+            )
+            .map((m) => ({ homeId: m.homeId!, awayId: m.awayId! })),
+          inTable,
+          crossGroup,
+        );
+        // só os resultados das rodadas da fase (a zona do Clausura não soma o Apertura)
+        const results = (leagueResults.get(e.seasonId) ?? []).filter(
+          (m) => !phase?.rounds || phase.rounds.test(m.roundLabel ?? ''),
+        );
         try {
           const finished = finishedLeagueMatchStakes(
             prepareFinishedLeagueMatch({
-              rules,
+              rules: leagueRules,
               current: table.map((s) => ({ ...s, teamId: s.participantId })),
-              results: leagueResults.get(e.seasonId) ?? [],
+              results,
               matchId: id,
-              nextRound,
+              ...(nextRound ? { nextRound } : {}),
+              ...(crossGroup ? { crossGroup } : {}),
             }),
           );
           stakes.push(...finished.pre);
           resultStakes.push(...finished.result);
-          setSalience(salienceBefore, leagueInputOf(finished.before), rules, homeId, awayId);
-          setSalience(salienceAfter, leagueInputOf(finished.after), rules, homeId, awayId);
+          setSalience(salienceBefore, leagueInputOf(finished.before), leagueRules, homeId, awayId);
+          setSalience(salienceAfter, leagueInputOf(finished.after), leagueRules, homeId, awayId);
         } catch {
           // tabela atual não bate com os resultados (ex.: desatualizada): sem stakes, como antes
         }

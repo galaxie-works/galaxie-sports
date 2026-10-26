@@ -10,21 +10,17 @@ import {
   type TitleRecord,
 } from '@galaxie/db';
 import { loadCompetitionRules } from '../config/loader.js';
-import { knockoutStageRules, rulesStageKey, standingsTableOf } from '../config/parse.js';
+import { knockoutStageRules, rulesStageKey } from '../config/parse.js';
 import type { CompetitionRules, StandingsTableRule } from '../config/types.js';
 import type { Stake } from '../stakes/codes.js';
 import { fanTagStanding, type FanTagStanding } from '../stakes/fan-tags.js';
 import { knockoutStakes } from '../stakes/knockout.js';
 import { leagueMatchStakes, type Fixture, type LeagueTeamInput } from '../stakes/league.js';
-import {
-  finishedLeagueMatchStakes,
-  leagueInputOf,
-  pickGroupTable,
-  prepareFinishedLeagueMatch,
-} from '../stakes/result.js';
+import { finishedLeagueMatchStakes, leagueInputOf, prepareFinishedLeagueMatch } from '../stakes/result.js';
 import { salienceStanding, type SalienceStanding } from '../stakes/salience.js';
 import type { MatchResult } from '../standings/types.js';
-import { knockoutSeed, unknownRoundPhase } from '../standings/tables.js';
+import { knockoutSeed } from '../standings/tables.js';
+import { pickLeagueTable, roundWithin } from '../stakes/league-table.js';
 import { titleChaseSides, titleChaseStakes } from '../stakes/titles.js';
 
 /**
@@ -303,6 +299,9 @@ function loadOpenRound(db: Database, stageId: string): Promise<Fixture[]> {
     );
 }
 
+/** Resultado de pontos corridos com o rótulo da rodada (`core.stage.provider_label`), para filtrar a fase. */
+export type LeagueResult = MatchResult & { roundLabel: string | null };
+
 /**
  * Jogos encerrados das temporadas nas fases de pontos corridos, por temporada e em ordem cronológica
  * (entrada de `prepareFinishedLeagueMatch`). Jogos sem placar ficam de fora.
@@ -312,8 +311,8 @@ export async function loadLeagueResults(
   seasonIds: readonly string[],
   /** Só as rodadas que casam (`core.stage.provider_label`): a fase do regulamento (Apertura, Clausura). */
   rounds?: RegExp,
-): Promise<Map<string, MatchResult[]>> {
-  const out = new Map<string, MatchResult[]>();
+): Promise<Map<string, LeagueResult[]>> {
+  const out = new Map<string, LeagueResult[]>();
   if (!seasonIds.length) return out;
   const home = alias(eventParticipant, 'home_side');
   const away = alias(eventParticipant, 'away_side');
@@ -350,6 +349,7 @@ export async function loadLeagueResults(
       homeGoals: r.score.home,
       awayGoals: r.score.away,
       playedAt: r.startsAt.toISOString(),
+      roundLabel: r.label,
     });
     out.set(r.seasonId, list);
   }
@@ -382,33 +382,6 @@ function isFinishedWithScore(core: StakesEventRef): boolean {
   );
 }
 
-/**
- * Fase do regulamento (`tables:`) a que o jogo pertence, pela rodada: Apertura e Clausura têm cada um a sua
- * tabela. Null quando a competição não define fases; `undefined` quando define e a rodada não é de nenhuma
- * (ex.: mata-mata do torneio rotulado como rodada).
- */
-/** Tipos de estágio que só podem ser de tabela (rodada fora do regulamento ainda tem tabela). */
-const TABLE_STAGE_KINDS: ReadonlySet<string> = new Set(['group', 'league_phase']);
-
-/**
- * Jogos da rodada para o "nesta rodada", só entre times da tabela. Numa tabela que soma jogos contra
- * times de fora (`cross_group_matches`), um jogo da rodada com um só lado nela deixaria esse time como
- * se não jogasse: aí a rodada fica desconhecida (todos podem pontuar), que é o limite seguro.
- */
-function roundWithin(round: readonly Fixture[], ids: ReadonlySet<string>, crossGroup: boolean) {
-  const sides = (f: Fixture) => Number(ids.has(f.homeId)) + Number(ids.has(f.awayId));
-  if (crossGroup && round.some((f) => sides(f) === 1)) return undefined;
-  return round.filter((f) => sides(f) === 2);
-}
-
-async function phaseOf(db: Database, core: StakesEventRef, rules: CompetitionRules) {
-  const phases = rules.tables.filter((t) => t.kind === 'phase' && t.rounds);
-  if (!phases.length) return null;
-  if (!core.stage) return undefined;
-  const label = await stageLabelOf(db, core);
-  return phases.find((t) => t.rounds!.test(label ?? ''));
-}
-
 async function leagueContext(
   db: Database,
   core: StakesEventRef,
@@ -417,39 +390,22 @@ async function leagueContext(
 ): Promise<EventStakes> {
   const season = core.season;
   if (!season) return { stakes: [], rules: competitionRules, reason: 'evento sem temporada' };
-  const found: StandingsTableRule | null | undefined = await phaseOf(db, core, competitionRules);
-  // rodada que o regulamento não reconhece: em rodada "regular" pode ser mata-mata rotulado como rodada
-  // (Liguilla), então não há stakes
-  if (found === undefined && !TABLE_STAGE_KINDS.has(core.stage?.kind ?? ''))
-    return { stakes: [], rules: competitionRules, reason: 'rodada fora das fases do regulamento' };
   const all = await memo(options.cache?.standings, season.id, () =>
     db.select().from(standing).where(eq(standing.seasonId, season.id)),
   );
-  // em fase de grupos ou de liga, vale a fase só quando é inequívoca pelos grupos dos dois times (a mesma
-  // regra do recálculo): um quadrangular "Group A - 1" também cabe na tabela única do torneio
-  const phase =
-    found === undefined ? unknownRoundPhase(competitionRules, all, core.home.id, core.away.id) : found;
-  if (found === undefined && !phase)
-    return {
-      stakes: [],
-      rules: competitionRules,
-      reason: 'rodada fora das fases do regulamento, sem fase inequívoca para os dois times',
-    };
-  // com fases, a matemática (times, jogos, zonas) e a tabela são as da fase
-  const rules = phase?.league ? { ...competitionRules, league: phase.league } : competitionRules;
+  // a tabela e a matemática da fase do jogo (a mesma escolha do montador de eventos da API)
+  const hasPhases = competitionRules.tables.some((t) => t.kind === 'phase' && t.rounds);
+  const label = hasPhases ? await stageLabelOf(db, core) : null;
+  const choice = pickLeagueTable(
+    competitionRules,
+    core.stage ? { kind: core.stage.kind, label } : null,
+    all,
+    core.home.id,
+    core.away.id,
+  );
+  if (choice.reason !== undefined) return { stakes: [], rules: choice.rules, reason: choice.reason };
+  const { phase, rules, table } = choice;
   const league = rules.league!;
-  const rows = phase ? all.filter((r) => standingsTableOf(rules, r.group)?.key === phase.key) : all;
-  if (
-    !rows.some((r) => r.participantId === core.home.id) ||
-    !rows.some((r) => r.participantId === core.away.id)
-  )
-    return { stakes: [], rules, reason: 'times fora da tabela da temporada' };
-  const groups = new Map<string, StandingRow[]>();
-  for (const r of rows) groups.set(r.group, [...(groups.get(r.group) ?? []), r]);
-  // a mesma liga pode ter dois rótulos de grupo (um desatualizado): fica a tabela mais completa
-  const picked = pickGroupTable(groups.values(), core.home.id, core.away.id);
-  if (!picked) return { stakes: [], rules, reason: 'times em grupos diferentes' };
-  const table = [...picked].sort((x, y) => x.rank - y.rank);
   const group = table[0]!.group;
   const homeRow = table.find((r) => r.participantId === core.home.id)!;
   const awayRow = table.find((r) => r.participantId === core.away.id)!;

@@ -29,6 +29,13 @@ export {
   totalPoints,
 } from './standings/accumulate.js';
 export {
+  pickLeagueTable,
+  roundWithin,
+  TABLE_STAGE_KINDS,
+  type LeagueTableChoice,
+  type LeagueTableRow,
+} from './stakes/league-table.js';
+export {
   currentPhaseKey,
   knockoutSeed,
   standingsGroupLabel,

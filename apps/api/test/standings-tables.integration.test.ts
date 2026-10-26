@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
@@ -18,6 +19,8 @@ import {
   standing,
   type Database,
 } from '@galaxie/db';
+import { computeStandings, type MatchResult } from '@galaxie/rules';
+import { loadCompetitionRules } from '@galaxie/rules/config';
 import { createApiKey, upsertTenant } from '../src/auth/admin.js';
 import { RecordingCdnPurger } from '../src/cache/purger.js';
 import { buildServer } from '../src/server.js';
@@ -107,6 +110,178 @@ async function seed() {
     row('', 'Boca Juniors', 1, 30),
   ]);
   await seedLiguilla();
+  await seedArgentinaPhases(arg!.id);
+  await seedLigaMxClausura();
+}
+
+/**
+ * Liga MX 2026: Clausura inteiro encerrado (18 times, 17 rodadas) com a tabela calculada dos resultados, e a
+ * tabela do Apertura (17 jogos, do fornecedor e mais nova) na mesma temporada.
+ */
+async function seedLigaMxClausura() {
+  const [mx] = await db.select().from(competition).where(eq(competition.slug, 'liga-mx'));
+  const [s] = await db
+    .insert(season)
+    .values({ competitionId: mx!.id, label: '2026', year: 2026, current: false })
+    .returning();
+  const names = Array.from({ length: 18 }, (_, i) => `MX${i + 1}`);
+  const teams = await db
+    .insert(participant)
+    .values(names.map((name) => ({ sport: 'football', kind: 'club' as const, name })))
+    .returning();
+  for (const t of teams) ids[t.name] = t.id;
+  // turno único pelo método do círculo; placar determinístico
+  const results: (MatchResult & { label: string; at: Date })[] = [];
+  const order = names.slice(1);
+  const base = Date.UTC(2026, 0, 10, 20);
+  for (let round = 0; round < 17; round++) {
+    const ring = [names[0]!, ...order];
+    for (let k = 0; k < 9; k++) {
+      const [h, a] = round % 2 ? [ring[17 - k]!, ring[k]!] : [ring[k]!, ring[17 - k]!];
+      results.push({
+        id: `${round}-${k}`,
+        homeId: ids[h]!,
+        awayId: ids[a]!,
+        homeGoals: (round * 7 + k * 3) % 4,
+        awayGoals: (round * 5 + k) % 3,
+        label: `Clausura - ${round + 1}`,
+        at: new Date(base + round * 7 * 86_400_000 + k * 3_600_000),
+        playedAt: new Date(base + round * 7 * 86_400_000 + k * 3_600_000).toISOString(),
+      });
+    }
+    order.unshift(order.pop()!);
+  }
+  const rules = await loadCompetitionRules('liga-mx', { season: 2026 });
+  const [table] = computeStandings({ rules, matches: results.map((m) => ({ ...m, group: 'Clausura' })) });
+  await db.insert(standing).values([
+    ...table!.rows.map((r) => ({
+      seasonId: s!.id,
+      group: 'Clausura',
+      participantId: r.teamId,
+      rank: r.rank,
+      points: r.points,
+      played: r.played,
+      won: r.won,
+      drawn: r.drawn,
+      lost: r.lost,
+      goalsFor: r.goalsFor,
+      goalsAgainst: r.goalsAgainst,
+      source: 'computed',
+      updatedAt: new Date(base),
+    })),
+    // Apertura do fornecedor, atualizado depois: com a mesma soma de jogos, a escolha antiga ficava com ele
+    ...names.map((team, i) => ({
+      seasonId: s!.id,
+      group: 'Apertura',
+      participantId: ids[team]!,
+      rank: i + 1,
+      points: 40 - i,
+      played: 17,
+      source: 'provider',
+      updatedAt: new Date(),
+    })),
+  ]);
+  const stages = new Map<string, string>();
+  for (const m of results) {
+    let stageId = stages.get(m.label);
+    if (!stageId) {
+      const [st] = await db
+        .insert(stage)
+        .values({ seasonId: s!.id, kind: 'regular', name: { 'pt-BR': m.label }, providerLabel: m.label })
+        .returning();
+      stageId = st!.id;
+      stages.set(m.label, stageId);
+    }
+    const [e] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        competitionId: mx!.id,
+        seasonId: s!.id,
+        stageId,
+        startsAt: m.at,
+        endsAtExpected: new Date(m.at.getTime() + 7_200_000),
+        status: 'finished',
+        score: { home: m.homeGoals, away: m.awayGoals },
+      })
+      .returning();
+    await db.insert(eventParticipant).values([
+      { eventId: e!.id, participantId: m.homeId, side: 'home' },
+      { eventId: e!.id, participantId: m.awayId, side: 'away' },
+    ]);
+    ids[`mx-${m.id}`] = e!.id;
+  }
+}
+
+/**
+ * Argentina 2027 com o regulamento real (zonas de 15, playoffs do 1º ao 8º): Apertura encerrado, Clausura na
+ * 15ª rodada (14 de 16 jogos), tabela anual (30 jogos) e promedios no mesmo `core.standing`, e o 8º contra o 9º
+ * da zona A do Clausura por jogar.
+ */
+async function seedArgentinaPhases(competitionId: string) {
+  const [s] = await db
+    .insert(season)
+    .values({ competitionId, label: '2027', year: 2027, current: false })
+    .returning();
+  const zoneA = Array.from({ length: 15 }, (_, i) => `ARG-A${i + 1}`);
+  const zoneB = Array.from({ length: 15 }, (_, i) => `ARG-B${i + 1}`);
+  const teams = await db
+    .insert(participant)
+    .values([...zoneA, ...zoneB].map((name) => ({ sport: 'football', kind: 'club' as const, name })))
+    .returning();
+  for (const t of teams) ids[t.name] = t.id;
+  const rows = (group: string, list: string[], played: number, points: (i: number) => number) =>
+    list.map((team, i) => ({
+      seasonId: s!.id,
+      group,
+      participantId: ids[team]!,
+      rank: i + 1,
+      points: points(i),
+      played,
+      won: 0,
+      drawn: 0,
+      lost: 0,
+      source: 'computed',
+    }));
+  // na anual e nos promedios, a ordem é outra (a zona A no fim)
+  const annual = [...zoneB, ...[...zoneA].reverse()];
+  await db
+    .insert(standing)
+    .values([
+      ...rows('Apertura - Group A', zoneA, 16, (i) => 40 - 2 * i),
+      ...rows('Apertura - Group B', zoneB, 16, (i) => 40 - 2 * i),
+      ...rows('Clausura - Group A', zoneA, 14, (i) => 30 - 2 * i),
+      ...rows('Clausura - Group B', zoneB, 14, (i) => 30 - 2 * i),
+      ...rows('Tabla Anual', annual, 30, (i) => 60 - i),
+      ...rows('Promedios', annual, 78, (i) => 150 - i),
+    ]);
+  const [st] = await db
+    .insert(stage)
+    .values({
+      seasonId: s!.id,
+      kind: 'regular',
+      name: { 'pt-BR': 'Clausura - 15' },
+      providerLabel: 'Clausura - 15',
+    })
+    .returning();
+  const at = Date.now() + 86_400_000;
+  const [e] = await db
+    .insert(event)
+    .values({
+      sport: 'football',
+      competitionId,
+      seasonId: s!.id,
+      stageId: st!.id,
+      startsAt: new Date(at),
+      endsAtExpected: new Date(at + 7_200_000),
+      status: 'scheduled',
+    })
+    .returning();
+  await db.insert(eventParticipant).values([
+    { eventId: e!.id, participantId: ids['ARG-A8']!, side: 'home' },
+    { eventId: e!.id, participantId: ids['ARG-A9']!, side: 'away' },
+  ]);
+  ids.clausuraMatch = e!.id;
 }
 
 /**
@@ -269,5 +444,38 @@ describe('GET /v1/events/{id}: Liguilla decidida pela campanha', () => {
   it('sem a tabela de referência (Clausura): sem stakes, nunca pênaltis', async () => {
     const e = await get<{ stakes: { team: string; code: string }[] }>(`/v1/events/${ids.clausuraLeg2}`);
     expect(e.stakes).toEqual([]);
+  });
+});
+
+describe('GET /v1/events/{id}: pontos corridos na tabela da fase do jogo', () => {
+  it('jogo do Clausura usa a zona do Clausura (15 times, playoffs 1 a 8), não a anual nem os promedios', async () => {
+    const e = await get<{ stakes: { team: string; code: string }[]; competition_context: string[] }>(
+      `/v1/events/${ids.clausuraMatch}?stakes=all`,
+    );
+    // antes: a de mais jogos somados (os promedios), com a matemática da liga inteira (30 times, sem zonas):
+    // nenhum stake
+    expect(e.stakes.map((x) => `${x.team}:${x.code}`)).toEqual([
+      'home:clinches_playoffs_with_win',
+      'away:can_qualify_for_playoffs',
+    ]);
+  });
+});
+
+describe('GET /v1/events/{id}: jogo encerrado na tabela da fase', () => {
+  it('Liga MX: última rodada do Clausura com a tabela e os resultados do Clausura', async () => {
+    const e = await get<{ stakes: { team: string; code: string }[] }>(
+      `/v1/events/${ids['mx-16-4']}?stakes=all`,
+    );
+    // antes: a tabela do Apertura (mais nova, mesma soma de jogos) contra os resultados da temporada inteira não
+    // batia, e o jogo ficava sem stakes; agora, o que estava em jogo e o que o resultado mudou no Clausura
+    expect(e.stakes.map((x) => `${x.team}:${x.code}`)).toEqual([
+      'home:clinches_liguilla_with_win',
+      'away:clinches_liguilla_with_win',
+      'home:stayed_at_7',
+      'home:lost_liguilla_chance',
+      'home:points_behind_liguilla_1',
+      'away:moved_up_to_5',
+      'away:clinched_play_in',
+    ]);
   });
 });
