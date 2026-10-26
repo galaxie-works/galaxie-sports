@@ -484,15 +484,20 @@ beforeAll(async () => {
   await app.ready();
 }, 120_000);
 
+/** Apaga as chaves deste arquivo no Valkey (`pattern` relativo ao prefixo; `cache:*` só as respostas). */
+async function clearCache(pattern = '*'): Promise<void> {
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', `${keyPrefix}${pattern}`, 'COUNT', 500);
+    if (keys.length) await redis.del(...keys);
+    cursor = next;
+  } while (cursor !== '0');
+}
+
 afterAll(async () => {
   await app?.close();
   if (redis) {
-    let cursor = '0';
-    do {
-      const [next, keys] = await redis.scan(cursor, 'MATCH', `${keyPrefix}*`, 'COUNT', 500);
-      if (keys.length) await redis.del(...keys);
-      cursor = next;
-    } while (cursor !== '0');
+    await clearCache();
     redis.disconnect();
   }
   if (db) await closeDb(db);
@@ -619,6 +624,21 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect((await get('/v1/events?from=2026-10-22&to=2026-10-01')).statusCode).toBe(400);
   });
 
+  it('data inexistente (31/02, 31/04) → 400 em vez de virar outro dia', async () => {
+    const bad = await get('/v1/events?date=2026-02-31');
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json()).toMatchObject({
+      code: 'INVALID_PARAMS',
+      errors: [{ path: 'date', message: 'data inexistente' }],
+    });
+    expect((await get('/v1/events?from=2026-02-30')).statusCode).toBe(400);
+    expect((await get('/v1/events?from=2026-04-01&to=2026-04-31T10:00:00Z')).statusCode).toBe(400);
+    expect((await get(`/v1/teams/${ids.palmeiras}/events?from=2026-02-29`)).statusCode).toBe(400);
+    expect((await get('/v1/explore/agenda?day=2026-11-31')).statusCode).toBe(400);
+    // 29/02 de ano bissexto existe
+    expect((await get('/v1/events?date=2028-02-29')).statusCode).toBe(200);
+  });
+
   it('paginação por importância não repete nem pula', async () => {
     const all = (await get('/v1/events?from=2020-01-01&order=importance&limit=200')).json()
       .data as EventBody[];
@@ -675,6 +695,21 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect(data.length).toBeGreaterThan(0);
     expect(data.every((e) => ['live', 'break', 'suspended'].includes(e.status))).toBe(true);
     expect(data.every((e) => e.momentum === 'live')).toBe(true);
+  });
+
+  it('detalhe de jogo ao vivo: o HIT do Valkey mantém o TTL de 10 s (não o de 1 h da rota)', async () => {
+    const live = (await get('/v1/events/live')).json().data as EventBody[];
+    const url = `/v1/events/${live[0]!.id}?tz=America/Argentina/Buenos_Aires`;
+    const maxAges = (cc: string | undefined) =>
+      [...String(cc).matchAll(/(?:max-age|s-maxage)=(\d+)/g)].map((m) => Number(m[1]));
+    const miss = await get(url);
+    expect(miss.headers['x-galaxie-cache']).toBe('MISS');
+    expect(miss.headers['cache-control']).toContain('s-maxage=10');
+    const hit = await get(url);
+    expect(hit.headers['x-galaxie-cache']).toBe('HIT');
+    const ages = maxAges(hit.headers['cache-control'] as string);
+    expect(ages).toHaveLength(2);
+    for (const age of ages) expect(age).toBeLessThanOrEqual(10);
   });
 });
 
@@ -1714,7 +1749,10 @@ describe('desempenho', () => {
       `/v1/teams/${ids.palmeiras}/overview`,
       '/v1/competitions/conmebol-libertadores/context',
     ];
-    for (const u of urls) await get(u);
+    // aquece do zero: a agenda do dia (com jogo ao vivo) tem TTL de poucos segundos, e a entrada que um teste
+    // anterior gravou pode vencer no meio da medição (CI lento) e voltar como MISS
+    await clearCache('cache:*');
+    for (const u of urls) expect((await get(u)).headers['x-galaxie-cache']).toBe('MISS');
     const times: number[] = [];
     for (let i = 0; i < 20; i++) {
       for (const u of urls) {

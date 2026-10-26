@@ -1,4 +1,4 @@
-import { loadWtwConfig } from '@galaxie/where-to-watch';
+import { Blocklist, loadWtwConfig, type CountryDirectory } from '@galaxie/where-to-watch';
 import { describe, expect, it } from 'vitest';
 import {
   aiStudioPlans,
@@ -8,12 +8,15 @@ import {
 } from '../testing/ai-studio-lineups.js';
 import { gabaritoIds, readGabarito } from '../testing/lineup-gabarito.js';
 import {
+  acceptableOfficialDomain,
+  excerptCurrencies,
   excerptHasAmount,
   formatPrice,
   includedCheck,
   isPlanPage,
   listPriceCheck,
   mentionsAny,
+  priceCurrency,
   namesPlan,
   redirectResolver,
   sourceTier,
@@ -134,6 +137,52 @@ describe('nível da fonte pelo domínio final', () => {
   });
 });
 
+describe('blocklist no destino do redirecionamento', () => {
+  // o dicionário do BR com um domínio bloqueado de exemplo
+  const blocked: CountryDirectory = Object.create(config.directory('BR'), {
+    blocklist: {
+      value: new Blocklist([{ name: 'Bloqueada Exemplo', aliases: [], domains: ['bloqueada.exemplo'] }]),
+    },
+  });
+  const R1 = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/BLOQ-1';
+  const R2 = 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/BLOQ-2';
+  const OK = 'https://operadora.exemplo/planos';
+  const vctx: VerifyContext = {
+    country: 'BR',
+    // o domínio bloqueado informado como oficial: sem a checagem, a fonte contaria como oficial
+    platform: {
+      name: 'Operadora Exemplo',
+      website: 'https://operadora.exemplo',
+      officialDomains: ['bloqueada.exemplo'],
+    },
+    dir: blocked,
+    resolveUrl: async (u) => (u === R1 || u === R2 ? 'https://www.bloqueada.exemplo/plano' : u),
+    now: NOW,
+  };
+  const model = (planUrl: string, channelUrl: string): ModelPlan => ({
+    name: 'Plano Exemplo',
+    priceAmount: null,
+    currency: null,
+    planUrl: null,
+    evidence: { url: planUrl, excerpt: 'Plano Exemplo' },
+    channels: [{ name: 'Globo', evidence: { url: channelUrl, excerpt: 'Plano Exemplo: Globo' } }],
+    services: [],
+  });
+
+  it('o link do Google que leva a domínio bloqueado não vira fonte (nem oficial)', async () => {
+    const out = await verifyPlans([model(R1, OK)], vctx);
+    expect([out.plans.length, out.plansWithoutSource]).toEqual([0, 1]);
+    const ok = await verifyPlans([model(OK, R2)], vctx);
+    expect(ok.plans.map((p) => [p.name, p.channels.length])).toEqual([['Plano Exemplo', 0]]);
+    expect(ok.drops).toContainEqual({ reason: 'no_source', name: 'Globo', plan: 'Plano Exemplo' });
+  });
+
+  it('domínio bloqueado não é aceito como domínio oficial da plataforma', () => {
+    expect(acceptableOfficialDomain('bloqueada.exemplo', blocked)).toBe(false);
+    expect(acceptableOfficialDomain('operadora.exemplo', blocked)).toBe(true);
+  });
+});
+
 describe('o trecho contém o dado', () => {
   it('preço em qualquer grafia de milhar e decimal', () => {
     expect(excerptHasAmount('Plano X. R$ 149,90. mês', 149.9)).toBe(true);
@@ -202,6 +251,74 @@ describe('preço cheio de lista', () => {
     expect(listPriceCheck('Plan Lite. $ 13.650. Plan Básico. $ 19.200. Plan Full. $ 28.000.', 28000)).toBe(
       'pass',
     );
+  });
+
+  it('a moeda escrita junto do número no trecho vale, mesmo sem a moeda do modelo', () => {
+    expect(excerptCurrencies('Plan Fútbol US$ 29,99 por mes', 29.99)).toEqual(['USD']);
+    expect(excerptCurrencies('Plan Fútbol U$S 29,99', 29.99)).toEqual(['USD']);
+    expect(excerptCurrencies('Plan Fútbol 29,99 USD al mes', 29.99)).toEqual(['USD']);
+    expect(excerptCurrencies('Plan Fútbol 29,99 dólares', 29.99)).toEqual(['USD']);
+    expect(excerptCurrencies('Plan Fútbol $U 990 por mes', 990)).toEqual(['UYU']);
+    expect(excerptCurrencies('Plan Fútbol S/ 49,90', 49.9)).toEqual(['PEN']);
+    expect(excerptCurrencies('Plano Futebol R$ 149,90', 149.9)).toEqual(['BRL']);
+    // "$" sozinho é ambíguo; e a moeda de outro número do trecho não conta
+    expect(excerptCurrencies('Plan Fútbol $ 990 por mes', 990)).toEqual([null]);
+    expect(excerptCurrencies('Plan Fútbol $ 990 (o US$ 25)', 990)).toEqual([null]);
+  });
+
+  it('letra colada antes do símbolo não é moeda: AR$, MX$, "Open 249", "12x s/ juros"', () => {
+    for (const [excerpt, amount] of [
+      ['Plan Full AR$ 15.999 por mes', 15999],
+      ['Plan Full AR$15.999 por mes', 15999],
+      ['Plan Full ARS$ 15.999', 15999],
+      ['Plan MX$ 299 al mes', 299],
+      ['Plan Mex$299 al mes', 299],
+      ['Plan COL$ 49.900', 49900],
+      ['Plan CLP$ 9.990', 9990],
+      ['Plan UYU$ 590', 590],
+      ['HBO Max Open 249 al mes', 249],
+      ['Plano 12x s/ 49,90', 49.9],
+      ['Plano 49,90 PENDENTE', 49.9],
+    ] as const)
+      expect(excerptCurrencies(excerpt, amount), excerpt).toEqual([null]);
+    const cur = (claimed: string | null, excerpt: string, amount: number, country: string) =>
+      priceCurrency(claimed, excerpt, amount, country).currency;
+    expect(cur(null, 'Plan Full AR$ 15.999 por mes', 15999, 'ARS')).toBe('ARS');
+    expect(cur('ARS', 'Plan Full AR$15.999', 15999, 'ARS')).toBe('ARS');
+    expect(cur(null, 'HBO Max Open 249 al mes', 249, 'MXN')).toBe('MXN');
+    expect(cur(null, 'Plano 12x s/ 49,90', 49.9, 'BRL')).toBe('BRL');
+  });
+
+  it('a moeda do preço é a que a fonte mostra, sem converter; só a ambígua reprova', () => {
+    // US$ no Uruguai é aceito e gravado como USD; o peso continua
+    expect(priceCurrency(null, 'Plan Fútbol US$ 29,99 por mes', 29.99, 'UYU')).toEqual({
+      currency: 'USD',
+      check: 'pass',
+    });
+    expect(priceCurrency('UYU', 'Plan Fútbol US$ 29,99', 29.99, 'UYU').currency).toBe('USD');
+    expect(priceCurrency(null, 'Plan Fútbol $U 990 por mes', 990, 'UYU').currency).toBe('UYU');
+    // "$" sem contexto: a do país, se nem o trecho nem o modelo indicam outra
+    expect(priceCurrency(null, 'Plan Fútbol $ 990 por mes', 990, 'UYU')).toEqual({
+      currency: 'UYU',
+      check: 'pass',
+    });
+    expect(priceCurrency('UYU', 'Plan Fútbol $ 990', 990, 'UYU').currency).toBe('UYU');
+    // o modelo diz dólar e o trecho só tem "$": ambígua, o preço não entra
+    expect(priceCurrency('USD', 'Plan Fútbol $ 990', 990, 'UYU')).toEqual({ currency: null, check: 'fail' });
+    // no Equador o dólar é a moeda do país
+    expect(priceCurrency(null, 'Plan Fútbol $ 29,99', 29.99, 'USD').currency).toBe('USD');
+    // o modelo escreve o símbolo em vez do código
+    expect(priceCurrency('R$', 'Plano R$ 49,90/mês', 49.9, 'BRL').currency).toBe('BRL');
+    // duas moedas explícitas para o mesmo número: a do país entre elas; sem ela, ambígua
+    expect(priceCurrency(null, 'Plan Lite USD 15 o $U 15 por mes', 15, 'UYU').currency).toBe('UYU');
+    expect(priceCurrency(null, 'Plan Lite USD 15 o R$ 15', 15, 'UYU')).toEqual({
+      currency: null,
+      check: 'fail',
+    });
+    // o trecho indica o dólar ao lado de um "$": vale o indicado
+    expect(priceCurrency(null, 'Plan Lite USD 15 o $ 15 por mes', 15, 'UYU').currency).toBe('USD');
+    // país fora da tabela e sem moeda no trecho: ilegível
+    expect(priceCurrency(null, 'Plan Lite 15', 15, null)).toEqual({ currency: null, check: 'fail' });
   });
 
   it('formata como publicado, na moeda do país', () => {
@@ -340,12 +457,48 @@ describe('fixtures do AI Studio (BR e AR com grounding)', () => {
     }
   });
 
-  it('moeda fora do país: o preço não entra', async () => {
+  it('trecho em dólar: o preço é gravado em USD, sem converter', async () => {
+    const out = await verifyPlans(
+      [
+        {
+          name: 'Plan Lite',
+          priceAmount: null,
+          currency: null,
+          prices: [
+            {
+              amount: 29.99,
+              currency: null,
+              date: null,
+              evidence: {
+                url: 'https://plataforma-e.exemplo/planes/lite',
+                excerpt: 'Plan Lite US$ 29,99 por mes',
+              },
+            },
+          ],
+          planUrl: null,
+          evidence: { url: 'https://plataforma-e.exemplo/planes/lite', excerpt: 'Plan Lite' },
+          channels: [],
+          services: [],
+        },
+      ],
+      { ...ctx('AR', 'ar-plataforma-e'), resolveUrl: async (u) => u },
+    );
+    const p = out.plans[0]!;
+    expect([p.verification.checks.currency, p.priceAmount, p.priceCurrency, p.priceText]).toEqual([
+      'pass',
+      29.99,
+      'USD',
+      'US$ 29,99/mes',
+    ]);
+    expect(p.verification.prices?.map((o) => [o.amount, o.currency])).toEqual([[29.99, 'USD']]);
+  });
+
+  it('o modelo diz outra moeda, mas o trecho mostra R$: vale a do trecho', async () => {
     const out = await verify('br-plataforma-c', (plans) => {
       plans[1]!.currency = 'USD';
     });
-    expect(plan(out, 'Pacote Full').verification.checks.currency).toBe('fail');
-    expect(plan(out, 'Pacote Full').priceAmount).toBeNull();
+    expect(plan(out, 'Pacote Full').verification.checks.currency).toBe('pass');
+    expect(plan(out, 'Pacote Full').priceCurrency).toBe('BRL');
   });
 
   it('sem fonte, sem conteúdo: item sem URL ou sem trecho não entra', async () => {

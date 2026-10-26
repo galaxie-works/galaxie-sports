@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { jobRun, type Database, type JobLock } from '@galaxie/db';
 import type { Logger } from '@galaxie/observability';
 import type { ScheduledJob } from './schedule.js';
@@ -35,7 +35,13 @@ export class PgRunRecorder implements RunRecorder {
   ): Promise<void> {
     await this.db
       .update(jobRun)
-      .set({ status, error, stats, finishedAt: new Date() })
+      // soma às estatísticas que o próprio job gravou (mergeJobRunStats), sem apagá-las
+      .set({
+        status,
+        error,
+        stats: sql`coalesce(${jobRun.stats}, '{}'::jsonb) || ${JSON.stringify(stats)}::jsonb`,
+        finishedAt: new Date(),
+      })
       .where(eq(jobRun.id, id));
   }
 }

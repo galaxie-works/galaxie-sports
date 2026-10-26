@@ -109,8 +109,24 @@ export class GalaxieApiError extends Error {
 
 type Query = Record<string, string | number | boolean | undefined>;
 type LocaleOpts = { locale?: SupportedLocale; tz?: string };
-/** Filtros de query sem o locale (o cliente injeta o padrão) e com listas como string ou array. */
-type Q<T> = { [K in keyof Omit<T, 'locale' | 'tz'>]?: unknown } & LocaleOpts;
+/**
+ * Valor de um filtro: o tipo de entrada do schema. `z.coerce.number()` entra como `unknown`, então aceita
+ * número ou texto; `'true' | 'false'` aceita também boolean (vira o mesmo texto na URL).
+ */
+type QueryValue<V> = unknown extends V
+  ? number | string | undefined
+  : V extends 'true' | 'false'
+    ? V | boolean
+    : V;
+/**
+ * Filtros de query sem o locale (o cliente injeta o padrão), com o tipo de entrada de cada campo:
+ * os erros aparecem na compilação, não como 400. `L` = listas separadas por vírgula, que aceitam array.
+ */
+type Q<T, L extends keyof T = never> = {
+  [K in Exclude<keyof T, 'locale' | 'tz'>]?: K extends L
+    ? QueryValue<T[K]> | readonly string[]
+    : QueryValue<T[K]>;
+} & LocaleOpts;
 const toQuery = (q: object): Query =>
   Object.fromEntries(
     Object.entries(q).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : (v as Query[string])]),
@@ -225,7 +241,8 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
 
     // ─── times e pessoas ─────────────────────────────────────────────────────────────────────────
     /** Busca global: times, competições, jogos, pessoas, estádios e países. */
-    search: (query: Q<SearchQuery> & { q: string }) => v1<SearchResponse>('/v1/search', toQuery(query)),
+    search: (query: Q<SearchQuery, 'types'> & { q: string }) =>
+      v1<SearchResponse>('/v1/search', toQuery(query)),
     teams: (query: Omit<TeamsQuery, 'locale'> & LocaleOpts = {}) =>
       v1<Page<TeamSummary>>('/v1/teams', query as Query & LocaleOpts),
     team: (id: string, opts: LocaleOpts = {}) => v1<Team>(`/v1/teams/${seg(id)}`, opts),
@@ -266,11 +283,11 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     glossary: (query: Q<GlossaryQuery> = {}) => v1<Glossary>('/v1/glossary', toQuery(query)),
     copy: (query: Q<CopyQuery> & { intent: string }) => v1<CopySuggestion>('/v1/copy', toQuery(query)),
     // ─── multiesporte (docs/08 §4) ───
-    games: (query: Q<GamesListQuery> = {}) =>
+    games: (query: Q<GamesListQuery, 'type'> = {}) =>
       v1<{ data: GamesSummary[] }>('/v1/multisport/games', toQuery(query)),
     gamesEdition: (slug: string, opts: LocaleOpts = {}) =>
       v1<GamesDetail>(`/v1/multisport/games/${seg(slug)}`, opts),
-    medals: (slug: string, query: Q<MedalsQuery> = {}) =>
+    medals: (slug: string, query: Q<MedalsQuery, 'noc'> = {}) =>
       v1<MedalTable>(`/v1/multisport/games/${seg(slug)}/medals`, toQuery(query)),
     schedule: (slug: string, query: Q<ScheduleQuery> = {}) =>
       v1<Page<ScheduleUnit>>(`/v1/multisport/games/${seg(slug)}/schedule`, toQuery(query)),
@@ -280,7 +297,7 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       v1<Delegation>(`/v1/multisport/games/${seg(slug)}/nocs/${seg(noc)}/athletes`, opts),
     nocToday: (slug: string, noc: string, query: LocaleOpts & { date?: string } = {}) =>
       v1<NocToday>(`/v1/multisport/games/${seg(slug)}/today/${seg(noc)}`, query),
-    medalHistory: (query: Q<MedalHistoryQuery> & { noc: string | string[] }) =>
+    medalHistory: (query: Q<MedalHistoryQuery, 'noc' | 'type'> & { noc: string | readonly string[] }) =>
       v1<MedalHistory>('/v1/multisport/history/medals', toQuery(query)),
     /** Espelho compatível: mesmo endpoint e parâmetros da api-sports. */
     mirror: async (sport: MirrorSport, endpoint: string, params: Query = {}): Promise<MirrorResult> => {

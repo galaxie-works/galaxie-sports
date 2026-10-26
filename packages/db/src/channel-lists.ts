@@ -3,11 +3,12 @@
  * com os direitos é `@galaxie/where-to-watch` (código antes, IA nas sobras, validador depois); aqui só
  * gravação e leitura:
  * - `saveChannelList`: lista nova ou reprocessada (o casamento volta para revisão; correções mantidas);
- * - `saveChannelListAi`: o job da IA grava o resultado validado, se a lista não mudou no meio;
+ * - `saveChannelListAi`: o job da IA grava o resultado validado, se a lista não mudou no meio (nem as
+ *   correções do cliente: `revision`);
  * - `setChannelListOverrides` e `confirmChannelList`: o cliente corrige e confirma no portal;
  * - `getConfirmedChannelList`: o que a API serve no onde assistir.
  */
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, lte, or, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
   tenantChannelList,
@@ -89,21 +90,28 @@ export async function saveChannelList(
 }
 
 /**
- * Resultado da IA (já validado). Só grava se a lista não foi reprocessada depois que o job a leu
- * (`processedAt` igual); devolve false quando ela mudou no meio.
+ * Resultado da IA (já validado). Só grava se a lista não foi reprocessada nem corrigida pelo cliente
+ * depois que o job a leu (`processedAt` e `revision` iguais); devolve false quando ela mudou no meio.
  */
 export async function saveChannelListAi(
   db: Database,
   tenantId: string,
   input: {
     processedAt: Date;
+    revision: number;
     proposed: StoredChannelMatch[];
-    aiStatus: Extract<ChannelListAiStatus, 'done' | 'failed'>;
+    /** `pending` = a rodada parou no teto de pedidos por lista; o próximo job continua. */
+    aiStatus: Extract<ChannelListAiStatus, 'done' | 'failed' | 'pending'>;
     aiNote: string | null;
   },
 ): Promise<boolean> {
   const current = await getChannelList(db, tenantId);
-  if (!current || current.processedAt.getTime() !== input.processedAt.getTime()) return false;
+  if (
+    !current ||
+    current.processedAt.getTime() !== input.processedAt.getTime() ||
+    current.revision !== input.revision
+  )
+    return false;
   // casamento mudou depois da confirmação: volta para revisão (a API segue com a confirmada)
   const unchanged =
     current.status === 'confirmed' && sameMatches(current.confirmed?.matches ?? [], input.proposed);
@@ -117,21 +125,41 @@ export async function saveChannelListAi(
       updatedAt: new Date(),
     })
     .where(
-      and(eq(tenantChannelList.tenantId, tenantId), eq(tenantChannelList.processedAt, input.processedAt)),
+      and(
+        eq(tenantChannelList.tenantId, tenantId),
+        eq(tenantChannelList.processedAt, input.processedAt),
+        eq(tenantChannelList.revision, input.revision),
+      ),
     )
     .returning({ tenantId: tenantChannelList.tenantId });
   return rows.length > 0;
 }
 
-/** Correções do cliente e o casamento recalculado com elas (volta para `review`). */
+/**
+ * Correções do cliente e o casamento recalculado com elas (volta para `review`). Sobe a `revision`:
+ * o resultado da IA que estava em andamento é descartado e o job refaz com as correções novas.
+ * `aiStatus: 'pending'` quando a correção deixa sobras que a IA ainda não conferiu (ex.: desfazer a
+ * correção de uma emissora); sem ele, o `aiStatus` fica como está.
+ */
 export async function setChannelListOverrides(
   db: Database,
   tenantId: string,
-  input: { overrides: StoredChannelOverride[]; proposed: StoredChannelMatch[] },
+  input: {
+    overrides: StoredChannelOverride[];
+    proposed: StoredChannelMatch[];
+    aiStatus?: Extract<ChannelListAiStatus, 'pending'>;
+  },
 ): Promise<TenantChannelList | null> {
   const [row] = await db
     .update(tenantChannelList)
-    .set({ overrides: input.overrides, proposed: input.proposed, status: 'review', updatedAt: new Date() })
+    .set({
+      overrides: input.overrides,
+      proposed: input.proposed,
+      status: 'review',
+      revision: sql`${tenantChannelList.revision} + 1`,
+      ...(input.aiStatus ? { aiStatus: input.aiStatus, aiNote: null } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(tenantChannelList.tenantId, tenantId))
     .returning();
   return row ?? null;
@@ -156,7 +184,11 @@ export async function confirmChannelList(
       updatedAt: now,
     })
     .where(
-      and(eq(tenantChannelList.tenantId, tenantId), eq(tenantChannelList.processedAt, current.processedAt)),
+      and(
+        eq(tenantChannelList.tenantId, tenantId),
+        eq(tenantChannelList.processedAt, current.processedAt),
+        eq(tenantChannelList.revision, current.revision),
+      ),
     )
     .returning();
   return row ?? null;
@@ -171,19 +203,45 @@ export async function deleteChannelList(db: Database, tenantId: string): Promise
   return rows.length > 0;
 }
 
-/** Listas com sobras esperando a IA (ou que falharam), as mais antigas primeiro. */
+/** Intervalo mínimo desde a última tentativa antes de refazer uma lista que falhou. */
+export const CHANNEL_LIST_FAILED_RETRY_MS = 30 * 60_000;
+
+/**
+ * Listas com sobras esperando a IA, as mais antigas primeiro; com `retryFailed`, as que falharam vêm
+ * depois de todas as pendentes, pela tentativa mais antiga (`updatedAt`), e só depois de
+ * `failedRetryAfterMs` desde ela: lista que falha sempre não trava a fila nem gasta toda rodada.
+ */
 export async function listChannelListsForAi(
   db: Database,
-  opts: { limit?: number; retryFailed?: boolean; tenantIds?: string[] } = {},
+  opts: {
+    limit?: number;
+    retryFailed?: boolean;
+    tenantIds?: string[];
+    failedRetryAfterMs?: number;
+    now?: Date;
+  } = {},
 ): Promise<TenantChannelList[]> {
-  const statuses: ChannelListAiStatus[] = opts.retryFailed ? ['pending', 'failed'] : ['pending'];
-  const conds = [inArray(tenantChannelList.aiStatus, statuses)];
+  const cutoff = new Date(
+    (opts.now ?? new Date()).getTime() - (opts.failedRetryAfterMs ?? CHANNEL_LIST_FAILED_RETRY_MS),
+  );
+  const status = opts.retryFailed
+    ? or(
+        eq(tenantChannelList.aiStatus, 'pending'),
+        and(eq(tenantChannelList.aiStatus, 'failed'), lte(tenantChannelList.updatedAt, cutoff)),
+      )!
+    : eq(tenantChannelList.aiStatus, 'pending');
+  const conds = [status];
   if (opts.tenantIds?.length) conds.push(inArray(tenantChannelList.tenantId, opts.tenantIds));
   return db
     .select()
     .from(tenantChannelList)
     .where(and(...conds))
-    .orderBy(asc(tenantChannelList.processedAt))
+    .orderBy(
+      asc(sql`${tenantChannelList.aiStatus} = 'failed'`),
+      asc(
+        sql`case when ${tenantChannelList.aiStatus} = 'failed' then ${tenantChannelList.updatedAt} else ${tenantChannelList.processedAt} end`,
+      ),
+    )
     .limit(opts.limit ?? 20);
 }
 

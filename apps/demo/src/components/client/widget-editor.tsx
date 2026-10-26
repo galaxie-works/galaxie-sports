@@ -29,6 +29,7 @@ import {
   ENTITY_TYPES,
   NAME_MAX,
   PUBLISHABLE_KEY_ENV,
+  REQUIRED_ENTITY,
   WIDGET_KINDS,
   WIDGET_LOCALES,
   defaultsFromEntity,
@@ -313,7 +314,7 @@ export function WidgetEditor({
                   <FieldLabel>{e.entity}</FieldLabel>
                   <EntityPicker types={entityTypes} value={draft.entity} onChange={(v) => set('entity', v)} />
                   <FieldDescription>
-                    {fill(e.entityHint, {
+                    {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
                       types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
                     })}
                   </FieldDescription>

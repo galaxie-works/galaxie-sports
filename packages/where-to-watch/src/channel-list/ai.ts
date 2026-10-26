@@ -14,18 +14,22 @@ import {
   type RightMatch,
 } from './types.js';
 
-/** Canais por pedido (os de fora ficam para o próximo processamento, com nota). */
+/**
+ * Canais por pedido. Com mais candidatos, as sobras do país vão em mais de um pedido (cada direito
+ * num só, com todos os candidatos dele); só os de um direito que sozinho passa do limite ficam de
+ * fora, com nota.
+ */
 export const AI_MAX_CHANNELS = 400;
 export const AI_NOTE_MAX = 200;
 
-/** Um pedido à IA: as sobras de um país. */
+/** Um pedido à IA: as sobras de um país (ou parte delas, quando passam de `AI_MAX_CHANNELS` canais). */
 export interface AiBatch {
   country: WtwCountry;
   /** `direito_idx` = posição aqui. */
   rights: ChannelRight[];
   /** `canal_cliente_idx` = índice do canal na lista do cliente. */
   channels: ResolvedChannel[];
-  /** Canais do país que ficaram de fora pelo limite. */
+  /** Candidatos que ficaram de fora pelo limite (direito que sozinho passa de `AI_MAX_CHANNELS`). */
   omittedChannels: number;
 }
 
@@ -51,7 +55,9 @@ export function brandWords(name: string): string[] {
  * Sobras agrupadas por país, já filtradas pelo código: os direitos sem candidato do país e os canais
  * ao vivo sem uso que podem ser dele (do próprio país ou pan-regionais), só quando direito e canal
  * dividem ao menos uma palavra de marca. Canal que o dicionário diz ser de outra emissora não vai.
- * País sem par possível não vai para a IA.
+ * País sem par possível não vai para a IA. Passou de `AI_MAX_CHANNELS` canais, o país vai em mais de
+ * um pedido: cada direito entra no primeiro em que os candidatos dele ainda cabem (os da mesma marca
+ * dividem canais e tendem a ficar juntos), então todo direito volta exatamente uma vez.
  */
 export function aiBatches(
   rights: ChannelRight[],
@@ -74,15 +80,26 @@ export function aiBatches(
       const w = words.get(c.facts.idx)!;
       return names.some((n) => brandWords(n).some((x) => w.has(x)));
     };
-    const pairedRights = countryRights.filter((r) => open.some((c) => shares(r, c)));
-    const candidates = open.filter((c) => pairedRights.some((r) => shares(r, c)));
-    if (!pairedRights.length || !candidates.length) continue;
-    out.push({
-      country,
-      rights: pairedRights,
-      channels: candidates.slice(0, AI_MAX_CHANNELS),
-      omittedChannels: Math.max(0, candidates.length - AI_MAX_CHANNELS),
-    });
+    const groups: { rights: ChannelRight[]; idx: Set<number>; left: Set<number> }[] = [];
+    for (const r of countryRights) {
+      const own = open.filter((c) => shares(r, c)).map((c) => c.facts.idx);
+      if (!own.length) continue;
+      const take = own.slice(0, AI_MAX_CHANNELS);
+      const fits = (g: (typeof groups)[number]) =>
+        g.idx.size + take.filter((i) => !g.idx.has(i)).length <= AI_MAX_CHANNELS;
+      let g = groups.find(fits);
+      if (!g) groups.push((g = { rights: [], idx: new Set(), left: new Set() }));
+      g.rights.push(r);
+      for (const i of take) g.idx.add(i);
+      for (const i of own.slice(AI_MAX_CHANNELS)) g.left.add(i);
+    }
+    for (const g of groups)
+      out.push({
+        country,
+        rights: g.rights,
+        channels: open.filter((c) => g.idx.has(c.facts.idx)),
+        omittedChannels: [...g.left].filter((i) => !g.idx.has(i)).length,
+      });
   }
   return out;
 }

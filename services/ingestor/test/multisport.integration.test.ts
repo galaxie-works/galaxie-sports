@@ -167,7 +167,7 @@ const EV_JUDO = 'Q90001';
 const EV_RELAY = 'Q90002';
 const EV_HEAT = 'Q90003';
 
-function fakeWdqs(statements: StatementSpec[]) {
+function fakeWdqs(statements: StatementSpec[], opts: { delegation?: boolean } = {}) {
   const calls: string[] = [];
   const fetchFn: typeof fetch = async (_url, init) => {
     const q = new URLSearchParams(String(init!.body)).get('query')!;
@@ -224,7 +224,10 @@ function fakeWdqs(statements: StatementSpec[]) {
       calls.push('labels');
     } else if (q.includes('pq:P1114')) {
       calls.push('delegation');
-      rows = [{ d: uri('Q17741814'), country: uri('Q155'), medal: uri(GOLD), qty: lit(7) }];
+      rows =
+        opts.delegation === false
+          ? []
+          : [{ d: uri('Q17741814'), country: uri('Q155'), medal: uri(GOLD), qty: lit(7) }];
     }
     return new Response(JSON.stringify(response(rows)), { status: 200 });
   };
@@ -317,6 +320,50 @@ describe('WikidataMedalLoader', () => {
     const [cov] = await coverageByEdition(db, ['og-summer-2016']);
     expect(cov).toMatchObject({ games: 'og-summer-2016', events: 3 });
     expect(cov!.expected?.total).toBe(972);
+  });
+
+  const wikidataMedals = async () =>
+    (await db.select({ key: medal.sourceKey }).from(medal).where(eq(medal.source, 'wikidata')))
+      .map((m) => m.key)
+      .sort();
+  const delegationRefs = () =>
+    db.select().from(medalReference).where(eq(medalReference.source, 'wikidata-delegation'));
+  const refreshing = (statements: StatementSpec[], opts?: { delegation?: boolean }) =>
+    new SparqlClient({
+      fetch: fakeWdqs(statements, opts).fetchFn,
+      cache: new PgSparqlCache(db),
+      minIntervalMs: 0,
+      refresh: true,
+    });
+
+  it('fonte vazia (WDQS sem linhas): nenhuma medalha nem agregado sai, e o motivo fica no relatório', async () => {
+    const [rio] = await db.select().from(games).where(eq(games.slug, 'og-summer-2016'));
+    const before = await wikidataMedals();
+    expect(before).toHaveLength(7);
+    const report = await new WikidataMedalLoader(db, refreshing([], { delegation: false })).loadGames(rio!);
+    expect(report.removalSkipped).toEqual([
+      'medalhas: a fonte veio vazia e há 7 gravado(s)',
+      'agregados por delegação: a fonte veio vazia e há 1 gravado(s)',
+    ]);
+    expect(report.delegationReferences).toBe(1);
+    expect(await wikidataMedals()).toEqual(before);
+    expect(await delegationRefs()).toHaveLength(1);
+  });
+
+  it('queda abrupta (só uma prova veio): nada sai; com --aceitar-queda, a remoção vale', async () => {
+    const [rio] = await db.select().from(games).where(eq(games.slug, 'og-summer-2016'));
+    const only100m = RIO_STATEMENTS.filter((s) => s.ev === EV_100M);
+    const before = await wikidataMedals();
+    const report = await new WikidataMedalLoader(db, refreshing(only100m)).loadGames(rio!);
+    expect(report.removalSkipped).toEqual([
+      'medalhas: queda abrupta: 7 gravado(s), a fonte trouxe 3 (menos de 50%)',
+    ]);
+    expect(await wikidataMedals()).toEqual(before);
+    const forced = await new WikidataMedalLoader(db, refreshing(only100m), { allowDrop: true }).loadGames(
+      rio!,
+    );
+    expect(forced.removalSkipped).toEqual([]);
+    expect(await wikidataMedals()).toHaveLength(3);
   });
 });
 

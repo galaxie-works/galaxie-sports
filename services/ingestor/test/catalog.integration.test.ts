@@ -115,9 +115,18 @@ describe('importRawDirectory', () => {
     const fileStamp = stamp.toISOString().replace(/[-:]/g, '').replace('.000', '');
     await writeFile(join(dir, 'football', `leagues__${fileStamp}.json`), body);
     await writeFile(join(dir, 'notas.json'), '{"x":1}');
+    // sem a data da coleta no nome: com a hora da importação, viraria a observação mais nova do /teams
+    const undated = join(dir, 'football', 'teams.json');
+    await writeFile(
+      undated,
+      JSON.stringify({ get: 'teams', parameters: { id: '1' }, errors: [], results: 0, response: [] }),
+    );
     try {
       const a = await importRawDirectory(db, dir);
       const b = await importRawDirectory(db, dir);
+      expect(a.skipped.find((s) => s.file === undated)?.reason).toMatch(/sem a data da coleta/);
+      const imported = await db.select().from(apiResponse).where(eq(apiResponse.jobId, 'raw-import'));
+      expect(imported.map((r) => r.endpoint)).toEqual(['/leagues']);
       expect(a).toMatchObject({ imported: 1, duplicates: 0 });
       expect(b).toMatchObject({ imported: 0, duplicates: 1 });
       const [row] = await db.select().from(apiResponse).where(eq(apiResponse.endpoint, '/leagues'));

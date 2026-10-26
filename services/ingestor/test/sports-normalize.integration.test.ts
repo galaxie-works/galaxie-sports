@@ -28,7 +28,7 @@ import {
 } from '@galaxie/db';
 import { upsertCatalog } from '../src/catalog/persist.js';
 import { SPORT_PROFILES } from '../src/catalog/sport-catalog.js';
-import { runNormalizeSportsJob } from '../src/normalize/raw-runner.js';
+import { runNormalizeSportsJob, standingsContext } from '../src/normalize/raw-runner.js';
 import { disposableDb } from './db.js';
 
 const FIXTURES = new URL('../../../packages/providers/test/fixtures/api-sports/', import.meta.url);
@@ -423,5 +423,32 @@ describe('normalize:sports (raw → core dos 11 esportes)', () => {
     expect(cursors).toHaveLength(11);
     const incremental = await runNormalizeSportsJob(db, { sports: ['volleyball', 'formula-1'] });
     expect(incremental.map(({ result }) => result.rows.length)).toEqual([0, 0]);
+  });
+
+  it('hóquei: /games mais novo com erro de cota (200 com errors) ou vazio não apaga os times da tabela', async () => {
+    const params = normalizeParams({ league: '57', season: '2024' });
+    for (const [i, body] of [
+      { errors: { requests: 'You have reached the request limit for the day' }, response: [] },
+      { errors: [], response: [] },
+    ].entries()) {
+      const envelope = { get: 'games', parameters: params, results: 0, ...body };
+      await db.insert(apiResponse).values({
+        provider: 'api-sports',
+        sport: 'hockey',
+        apiVersion: 'v1',
+        endpoint: '/games',
+        params,
+        requestHash: requestHash('api-sports', 'hockey', '/games', params),
+        statusCode: 200,
+        results: 0,
+        errors: body.errors,
+        body: envelope,
+        bodyHash: createHash('sha256').update(JSON.stringify(envelope)).digest('hex'),
+        fetchedAt: new Date(Date.parse('2026-10-22T12:00:00Z') + i * 60_000),
+        jobId: 'teste',
+      });
+    }
+    const context = await standingsContext(db, 'hockey', { league: '57', season: '2024' });
+    expect(context.teamsByName?.size).toBeGreaterThan(0);
   });
 });

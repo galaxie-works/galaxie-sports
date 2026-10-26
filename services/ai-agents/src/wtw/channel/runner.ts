@@ -12,10 +12,12 @@
  *
  * `dryRun` (prévia `--plan`): faz a importação e mostra o que gravaria, sem gravar e sem LLM.
  */
+import { createHash } from 'node:crypto';
 import { and, eq, inArray, isNull, like } from 'drizzle-orm';
-import { broadcastOption, wtwResearch, type Database } from '@galaxie/db';
+import { broadcastOption, wtwResearch, type Database, type SourceKind } from '@galaxie/db';
 import {
   applyMatchChannels,
+  comparableUrl,
   isEditorial,
   teamNames,
   validateMatchChannels,
@@ -33,7 +35,15 @@ import { shouldFetch } from '../evidence.js';
 import { CachingPageFetcher, type PageFetcher } from '../fetcher.js';
 import type { WtwPolicy } from '../relevance.js';
 import { WTW_MAX_MATCHES_PER_CALL } from '../schema.js';
-import { estimateCallUsd, finishResearch, marketSpendToday, startResearch, withinCap } from '../spend.js';
+import {
+  estimateCallUsd,
+  failureUsage,
+  finishResearch,
+  marketSpendToday,
+  startResearch,
+  withinCap,
+  WTW_RESEARCH_MAX_FAILURES,
+} from '../spend.js';
 import { MatchChannelAgent } from './agent.js';
 import type { ChannelGroup, ChannelTarget } from './plan.js';
 import type { ChannelMarket } from './prompt.js';
@@ -87,6 +97,8 @@ export interface ChannelRunReport {
 }
 
 const ACTIVE_OPTION = new Set(['confirmed', 'pending', 'probable']);
+/** Tipos de fonte que o validador do canal aceita (os demais nem são buscados). */
+const FETCHABLE = new Set<SourceKind>(['broadcaster', 'organizer', 'press']);
 
 export class MatchChannelRunner {
   private readonly now: () => Date;
@@ -118,53 +130,65 @@ export class MatchChannelRunner {
     let callsLeft = opts.maxCalls;
 
     for (const group of groups) {
-      const markets = [...new Set(group.targets.map((t) => t.country))].sort();
+      const all = [...new Set(group.targets.map((t) => t.country))].sort();
       const out: GroupOutcome = {
         key: group.key,
         window: group.window.window,
         events: new Set(group.targets.map((t) => t.event.id)).size,
-        markets,
+        markets: all,
         status: dryRun ? 'planned' : 'researched',
         calls: 0,
         researchIds: [],
         costUsd: 0,
       };
       report.groups.push(out);
-      // chave da pesquisa do grupo: uma vez por janela (a importação também não se repete)
-      const groupKey = `channel:${group.key}:${group.season}:${markets.join(',')}`;
-      if (await this.researched(groupKey)) {
+      // pesquisa do grupo: uma vez por janela e jogo × mercado (a importação também não se repete). O
+      // que o teto cortou não entra como pesquisado: volta na próxima rodada.
+      const base = `channel:${group.key}:${group.season}`;
+      const covered = await this.researchedTargets(base, group.targets);
+      const targets = group.targets.filter((t) => !covered.has(targetKey(t)));
+      const markets = [...new Set(targets.map((t) => t.country))].sort();
+      if (!targets.length) {
         out.status = 'already_researched';
         continue;
       }
 
       // 1. importação das opções salvas (sem LLM)
-      let pending = group.targets;
+      let pending = targets;
       if (opts.importSaved ?? true) {
         const resolved = new Set<string>();
-        for (const t of group.targets) {
+        for (const t of targets) {
           const res = await this.importSaved(t, infos.get(t.event.id), fetcher, group, dryRun, report);
           if (res === 'official') resolved.add(`${t.event.id}:${t.country}`);
         }
-        pending = group.targets.filter((t) => !resolved.has(`${t.event.id}:${t.country}`));
-        if (!pending.length) {
-          out.status = 'resolved_by_import';
-          if (!dryRun) {
-            const id = await startResearch(db, {
-              kind: 'channel',
-              researchKey: `${groupKey}:import`,
-              competition: group.competition.slug,
-              season: group.season,
-              round: group.round,
-              markets,
+        pending = targets.filter((t) => !resolved.has(`${t.event.id}:${t.country}`));
+        // os jogos × mercados resolvidos pela importação ficam registrados (não voltam na janela)
+        const imported = targets.filter((t) => resolved.has(targetKey(t)));
+        if (!dryRun && imported.length) {
+          const here = [...new Set(imported.map((t) => t.country))].sort();
+          const { id } = await startResearch(db, {
+            kind: 'channel',
+            researchKey: `${base}:${here.join(',')}:${digest(imported)}:import`,
+            competition: group.competition.slug,
+            season: group.season,
+            round: group.round,
+            markets: here,
+            stats: { targets: imported.map(targetKey) },
+            now: this.now(),
+          });
+          if (id)
+            await finishResearch(db, id, {
+              status: 'done',
+              stats: {
+                window: group.window.window,
+                resolvedByImport: imported.length,
+                targets: imported.map(targetKey),
+              },
               now: this.now(),
             });
-            if (id)
-              await finishResearch(db, id, {
-                status: 'done',
-                stats: { window: group.window.window, resolvedByImport: group.targets.length },
-                now: this.now(),
-              });
-          }
+        }
+        if (!pending.length) {
+          out.status = 'resolved_by_import';
           continue;
         }
       }
@@ -192,40 +216,73 @@ export class MatchChannelRunner {
         continue;
       }
       let any = false;
-      for (const [i, chunk] of chunks.entries()) {
+      for (const chunk of chunks) {
         const ids = new Set(chunk.map((e) => e.id));
-        const inChunk = pending.filter((t) => ids.has(t.event.id));
+        // o teto vale a cada chamada: o gasto dos pedaços anteriores já conta
+        const capHere = withinCap(
+          spend,
+          [...new Set(pending.filter((t) => ids.has(t.event.id)).map((t) => t.country))].sort(),
+          estimateUsd,
+          this.policy.dailyUsdPerMarket,
+        );
+        if (capHere.blocked.length)
+          this.log(`${group.key}: teto diário de ${capHere.blocked.join(',')} — fica para depois`);
+        const inChunk = pending.filter((t) => ids.has(t.event.id) && capHere.allowed.includes(t.country));
+        if (!inChunk.length) {
+          if (!any) out.status = 'capped';
+          continue;
+        }
         const here = [...new Set(inChunk.map((t) => t.country))].sort();
-        const researchId = await startResearch(db, {
+        const games = chunk.filter((e) => inChunk.some((t) => t.event.id === e.id));
+        const started = await startResearch(db, {
           kind: 'channel',
-          researchKey: `${groupKey}:${i}`,
+          // a chave leva os jogos × mercados da chamada; as falhas contam na família do grupo
+          researchKey: `${base}:${here.join(',')}:${digest(inChunk)}`,
+          family: `${base}:`,
           competition: group.competition.slug,
           season: group.season,
           round: group.round,
           markets: here,
+          stats: { targets: inChunk.map(targetKey) },
           now: this.now(),
         });
-        if (!researchId) {
-          out.status = any ? out.status : 'already_researched';
+        if (started.id === null) {
+          // espera depois de falha do provedor (ou desistência no dia): sem chamada agora
+          if (started.reason === 'backoff' || started.reason === 'exhausted') {
+            if (!any) out.status = started.reason === 'backoff' ? 'deferred' : 'failed';
+            this.log(
+              `${group.key} [${here.join(',')}]: ${
+                started.reason === 'backoff'
+                  ? `em espera depois de falha até ${started.retryAt!.toISOString()}`
+                  : `desistiu hoje depois de ${WTW_RESEARCH_MAX_FAILURES} falhas`
+              }`,
+            );
+          } else if (!any) out.status = 'already_researched';
           continue;
         }
+        const researchId = started.id;
         callsLeft--;
         out.calls++;
         out.researchIds.push(researchId);
         any = true;
+        if (out.status === 'capped') out.status = 'researched';
         try {
-          const cost = await this.research(group, chunk, inChunk, infos, fetcher, researchId, report);
+          const cost = await this.research(group, games, inChunk, infos, fetcher, researchId, report);
           out.costUsd += cost;
           for (const m of here) spend.set(m, (spend.get(m) ?? 0) + cost / here.length);
         } catch (err) {
-          const partial = (err as { usage?: UsageWithSearches }).usage;
           const message = err instanceof LlmError || err instanceof Error ? err.message : String(err);
+          const failed = failureUsage(err, estimateUsd);
           await finishResearch(db, researchId, {
             status: err instanceof BudgetExceededError ? 'skipped' : 'failed',
-            usage: partial,
+            usage: failed.usage,
+            ...(failed.stats ? { stats: failed.stats } : {}),
             error: message.slice(0, 500),
             now: this.now(),
           });
+          const lost = failed.usage?.costUsd ?? 0;
+          out.costUsd += lost;
+          for (const m of here) spend.set(m, (spend.get(m) ?? 0) + lost / here.length);
           out.status = 'failed';
           out.error = message.slice(0, 200);
           this.log(`${group.key}: pesquisa falhou — ${out.error}`);
@@ -236,19 +293,28 @@ export class MatchChannelRunner {
     return report;
   }
 
-  /** O grupo já foi pesquisado (ou está sendo) nesta janela? */
-  private async researched(groupKey: string): Promise<boolean> {
+  /**
+   * Jogos × mercados do grupo já pesquisados (ou sendo pesquisados) nesta janela. Pesquisa antiga, sem
+   * a lista em `stats.targets`, cobre todos os jogos dos mercados dela.
+   */
+  private async researchedTargets(base: string, targets: ChannelTarget[]): Promise<Set<string>> {
     const rows = await this.deps.db
-      .select({ id: wtwResearch.id })
+      .select({ markets: wtwResearch.markets, stats: wtwResearch.stats })
       .from(wtwResearch)
       .where(
         and(
-          like(wtwResearch.researchKey, `${groupKey.replace(/[\\%_]/g, '\\$&')}:%`),
+          like(wtwResearch.researchKey, `${base.replace(/[\\%_]/g, '\\$&')}:%`),
           inArray(wtwResearch.status, ['done', 'running']),
         ),
-      )
-      .limit(1);
-    return rows.length > 0;
+      );
+    const out = new Set<string>();
+    for (const r of rows) {
+      const listed = (r.stats as { targets?: unknown } | null)?.targets;
+      if (Array.isArray(listed)) {
+        for (const k of listed) if (typeof k === 'string') out.add(k);
+      } else for (const t of targets) if (r.markets.includes(t.country)) out.add(targetKey(t));
+    }
+    return out;
   }
 
   private get policy(): WtwPolicy {
@@ -298,7 +364,7 @@ export class MatchChannelRunner {
       const info = infos.get(t.event.id);
       if (!info) continue;
       const directory = config.directory(t.country);
-      const pages = await this.fetchPages(proposals, directory, fetcher);
+      const pages = await this.fetchPages(proposals, directory, fetcher, res.groundedUrls);
       const r = validateMatchChannels(proposals, {
         directory,
         rights: t.rights,
@@ -339,6 +405,7 @@ export class MatchChannelRunner {
         markets: countries,
         assignments,
         ignored: res.ignored,
+        targets: targets.map(targetKey),
         accepted,
         rejected,
         grounded: res.groundedUrls?.length ?? null,
@@ -418,14 +485,30 @@ export class MatchChannelRunner {
     return r.accepted.some((a) => a.sourceKind === 'official') ? 'official' : 'press';
   }
 
+  /**
+   * Busca só o que o validador pode aceitar: URL da busca do provedor (quando há grounding) e fonte
+   * oficial ou imprensa do dicionário — URL inventada ou injetada pelo modelo nunca é buscada.
+   */
   private async fetchPages(
     proposals: ChannelProposal[],
     directory: CountryDirectory,
     fetcher: CachingPageFetcher,
+    groundedUrls: readonly string[] | null = null,
   ): Promise<Map<string, FetchedPage>> {
+    const grounded = groundedUrls ? new Set(groundedUrls.map(comparableUrl)) : null;
     const urls = [
       ...new Set(
-        proposals.flatMap((p) => p.evidence.map((e) => e.url)).filter((u) => shouldFetch(directory, u)),
+        proposals.flatMap((p) => {
+          const entry = directory.byIdOrNull(p.broadcasterId);
+          return p.evidence
+            .map((e) => e.url.trim())
+            .filter(
+              (u) =>
+                shouldFetch(directory, u) &&
+                (!grounded || grounded.has(comparableUrl(u))) &&
+                FETCHABLE.has(directory.classifySource(u, entry)),
+            );
+        }),
       ),
     ];
     const pages = new Map<string, FetchedPage>();
@@ -436,6 +519,12 @@ export class MatchChannelRunner {
     return pages;
   }
 }
+
+const targetKey = (t: ChannelTarget) => `${t.event.id}:${t.country}`;
+
+/** Resumo curto dos jogos × mercados de uma chamada (entra na chave de idempotência). */
+const digest = (ts: ChannelTarget[]) =>
+  createHash('sha256').update(ts.map(targetKey).sort().join('|')).digest('hex').slice(0, 12);
 
 /** Nomes dos dois times (com o nome curto) para conferir o trecho e a página. */
 export function teamsOf(info: EventInfo): [ReturnType<typeof teamNames>, ReturnType<typeof teamNames>] {

@@ -129,6 +129,8 @@ describe('chave publicável', () => {
     expect(res.headers['access-control-allow-origin']).toBe(ORIGIN);
     expect(res.headers['access-control-allow-credentials']).toBeUndefined();
     expect(res.headers.vary).toContain('Origin');
+    // resposta por tenant: a CDN separa as cópias também pela chave publicável
+    expect(res.headers.vary).toContain('x-galaxie-publishable-key');
     expect(res.headers['x-ratelimit-limit']).toBe(String(PK_LIMIT));
 
     await expect
