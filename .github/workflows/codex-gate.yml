@@ -1,0 +1,67 @@
+name: Codex
+
+# Portão do review do Codex como check obrigatório da main: falha se o PR tem thread P1 do Codex sem resolver
+# (infra/ops/codex-gate.sh; a mesma regra do merge-train.sh). Só lê o PR: nenhum comentário, nenhuma escrita.
+#
+# Reavalia quando o PR muda (push, reabertura, saída de rascunho), quando chega um review (o do Codex inclusive) e na
+# fila de merge. Resolver uma thread não dispara workflow no GitHub: depois de resolver, rode o check de novo
+# ("Re-run" na aba Checks do PR, ou gh run rerun <id>) ou mande um commit.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Número do PR (rode com --ref <branch do PR> para o check aparecer no PR)
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  # o evento mais novo do mesmo PR vale; o anterior (esperando o review) é cancelado
+  group: codex-gate-${{ github.event.pull_request.number || github.event.merge_group.head_ref || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Codex sem P1 aberto
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Na fila, a ref do grupo é gh-readonly-queue/main/pr-<n>-<sha>: o PR é o último que entrou no grupo (os de
+      # antes já passaram por este check para entrar na fila).
+      - name: Número do PR
+        id: pr
+        env:
+          PR_EVENT: ${{ github.event.pull_request.number }}
+          PR_INPUT: ${{ inputs.pr }}
+          QUEUE_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          n="${PR_EVENT:-$PR_INPUT}"
+          if [ -z "$n" ] && [ -n "$QUEUE_REF" ]; then
+            n=$(printf '%s' "$QUEUE_REF" | sed -n 's|.*/pr-\([0-9][0-9]*\)-[0-9a-f]*$|\1|p')
+          fi
+          case "$n" in '' | *[!0-9]*)
+            echo "::error::não deu para saber o número do PR (ref: ${QUEUE_REF:-?})"
+            exit 1
+            ;;
+          esac
+          echo "n=$n" >> "$GITHUB_OUTPUT"
+
+      - name: Threads P1 do Codex
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          # na fila e no disparo manual o review já aconteceu: sem espera
+          CODEX_WAIT_MIN: ${{ (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch') && '0' || '10' }}
+        run: bash infra/ops/codex-gate.sh "${{ steps.pr.outputs.n }}"
