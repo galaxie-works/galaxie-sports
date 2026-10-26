@@ -136,8 +136,24 @@ export async function archiveWidget(db: Database, tenantId: string, id: string):
 // ─── chaves publicáveis ─────────────────────────────────────────────────────────────────────────
 
 export const PUBLISHABLE_KEY_PREFIX = 'gs_pk_live_';
-/** `gs_pk_live_` + 32 bytes aleatórios em base64url (43 caracteres). */
-const PUBLISHABLE_KEY_RE = /^gs_pk_live_[A-Za-z0-9_-]{43}$/;
+/** Publicável de teste: só vale em localhost/127.0.0.1/[::1] (docs/politica-de-chaves.md §1). */
+export const PUBLISHABLE_TEST_KEY_PREFIX = 'gs_pk_test_';
+/** `gs_pk_<live|test>_` + 32 bytes aleatórios em base64url (43 caracteres). */
+const PUBLISHABLE_KEY_RE = /^gs_pk_(live|test)_[A-Za-z0-9_-]{43}$/;
+/** Chaves publicáveis ativas (não revogadas) por tenant. */
+export const MAX_PUBLISHABLE_KEYS_PER_TENANT = 20;
+
+export type PublishableKeyEnv = 'live' | 'test';
+
+/** Teto de chaves publicáveis ativas do tenant atingido. */
+export class PublishableKeyLimitError extends Error {
+  constructor() {
+    super(
+      `O tenant já tem ${MAX_PUBLISHABLE_KEYS_PER_TENANT} chaves publicáveis ativas; revogue as que não usa.`,
+    );
+    this.name = 'PublishableKeyLimitError';
+  }
+}
 /** Caracteres do segredo exibidos no prefixo (só para a operadora reconhecer a chave). */
 const PREFIX_VISIBLE = 8;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -147,18 +163,29 @@ export function isPublishableKey(key: string): boolean {
   return PUBLISHABLE_KEY_RE.test(key.trim());
 }
 
+/** Ambiente pelo prefixo (`gs_pk_test_` = teste); null se o formato for inválido. */
+export function publishableKeyEnv(key: string): PublishableKeyEnv | null {
+  const m = PUBLISHABLE_KEY_RE.exec(key.trim());
+  return m ? (m[1] as PublishableKeyEnv) : null;
+}
+
 /** sha256 da chave em hex — o que o banco guarda em `key_hash`. */
 export function hashPublishableKey(key: string): string {
   return createHash('sha256').update(key.trim()).digest('hex');
 }
 
 /** Gera uma chave nova: o texto puro, o prefixo visível e o hash. */
-export function generatePublishableKey(): { key: string; prefix: string; keyHash: string } {
+export function generatePublishableKey(env: PublishableKeyEnv = 'live'): {
+  key: string;
+  prefix: string;
+  keyHash: string;
+} {
   const secret = randomBytes(32).toString('base64url');
-  const key = `${PUBLISHABLE_KEY_PREFIX}${secret}`;
+  const head = env === 'test' ? PUBLISHABLE_TEST_KEY_PREFIX : PUBLISHABLE_KEY_PREFIX;
+  const key = `${head}${secret}`;
   return {
     key,
-    prefix: `${PUBLISHABLE_KEY_PREFIX}${secret.slice(0, PREFIX_VISIBLE)}`,
+    prefix: `${head}${secret.slice(0, PREFIX_VISIBLE)}`,
     keyHash: hashPublishableKey(key),
   };
 }
@@ -180,6 +207,15 @@ export function normalizeAllowedOrigin(pattern: string): string | null {
     return rest.replace('://', '://*.');
   }
   return normalizeOrigin(raw);
+}
+
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/** A origem (ou o padrão de origem) é da máquina local: localhost, 127.0.0.1 ou [::1], em qualquer porta. */
+export function isLoopbackOrigin(origin: string): boolean {
+  const n = normalizeAllowedOrigin(origin);
+  if (!n || n.includes('://*.')) return false;
+  return LOOPBACK_HOSTS.has(new URL(n).hostname);
 }
 
 /** Origem concreta (`Origin` do navegador) normalizada; `null`, caminhos e esquemas não-http → null. */
@@ -226,11 +262,20 @@ export interface CreatePublishableKeyInput {
   allowedOrigins: string[];
   /** Restringe a chave a um widget do mesmo tenant. */
   widgetId?: string | null;
+  /** `live` (padrão): origens públicas; `test`: só localhost/127.0.0.1/[::1]. */
+  env?: PublishableKeyEnv;
+}
+
+/** Origens que não servem ao ambiente: produção sem localhost, teste só com localhost. */
+export function originsOutsideEnv(env: PublishableKeyEnv, origins: readonly string[]): string[] {
+  return origins.filter((o) => (env === 'test') !== isLoopbackOrigin(o));
 }
 
 /**
  * Cria a chave e devolve o texto puro **só agora** (o banco fica com o sha256). Valida as origens
- * (ao menos uma) e, se houver `widgetId`, que o widget é do tenant e está ativo.
+ * (ao menos uma, e do ambiente: produção sem localhost, teste só com localhost), o teto de
+ * `MAX_PUBLISHABLE_KEYS_PER_TENANT` ativas (PublishableKeyLimitError) e, se houver `widgetId`, que o
+ * widget é do tenant e está ativo.
  */
 export async function createPublishableKey(
   db: Database,
@@ -245,30 +290,49 @@ export async function createPublishableKey(
     if (!origins.includes(n)) origins.push(n);
   }
   if (!origins.length) throw new Error('Informe ao menos uma origem permitida.');
+  const env = input.env ?? 'live';
+  const outside = originsOutsideEnv(env, origins);
+  if (outside.length)
+    throw new Error(
+      env === 'test'
+        ? `Chave de teste só aceita localhost, 127.0.0.1 ou [::1]: ${outside.join(', ')}`
+        : `Chave de produção não aceita localhost (use uma chave de teste): ${outside.join(', ')}`,
+    );
   if (input.widgetId) {
     const w = await getWidget(db, input.widgetId);
     if (!w || w.tenantId !== input.tenantId || w.archivedAt)
       throw new Error(`Widget ${input.widgetId} não encontrado para este tenant.`);
   }
-  const generated = generatePublishableKey();
-  const [row] = await db
-    .insert(publishableKey)
-    .values({
-      tenantId: input.tenantId,
-      name,
-      prefix: generated.prefix,
-      keyHash: generated.keyHash,
-      allowedOrigins: origins,
-      widgetId: input.widgetId ?? null,
-    })
-    .returning({ id: publishableKey.id });
-  return { id: row!.id, key: generated.key };
+  const generated = generatePublishableKey(env);
+  return db.transaction(async (tx) => {
+    // trava o tenant: duas criações simultâneas não furam o teto
+    await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, input.tenantId)).for('update');
+    const [active] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(publishableKey)
+      .where(and(eq(publishableKey.tenantId, input.tenantId), isNull(publishableKey.revokedAt)));
+    if ((active?.n ?? 0) >= MAX_PUBLISHABLE_KEYS_PER_TENANT) throw new PublishableKeyLimitError();
+    const [row] = await tx
+      .insert(publishableKey)
+      .values({
+        tenantId: input.tenantId,
+        name,
+        env,
+        prefix: generated.prefix,
+        keyHash: generated.keyHash,
+        allowedOrigins: origins,
+        widgetId: input.widgetId ?? null,
+      })
+      .returning({ id: publishableKey.id });
+    return { id: row!.id, key: generated.key };
+  });
 }
 
 /** Chave publicável como listada no painel: sem o hash. */
 export interface PublishableKeySummary {
   id: string;
   name: string;
+  env: PublishableKeyEnv;
   prefix: string;
   allowedOrigins: string[];
   widgetId: string | null;
@@ -280,6 +344,7 @@ export interface PublishableKeySummary {
 const summaryColumns = {
   id: publishableKey.id,
   name: publishableKey.name,
+  env: publishableKey.env,
   prefix: publishableKey.prefix,
   allowedOrigins: publishableKey.allowedOrigins,
   widgetId: publishableKey.widgetId,
@@ -314,6 +379,7 @@ export async function revokePublishableKey(db: Database, tenantId: string, id: s
 export interface VerifiedPublishableKey {
   keyId: string;
   tenantId: string;
+  env: PublishableKeyEnv;
   tenant: {
     id: string;
     slug: string;
@@ -342,6 +408,7 @@ export async function verifyPublishableKey(
   const [row] = await db
     .select({
       keyId: publishableKey.id,
+      env: publishableKey.env,
       revokedAt: publishableKey.revokedAt,
       allowedOrigins: publishableKey.allowedOrigins,
       widgetId: publishableKey.widgetId,
@@ -356,10 +423,13 @@ export async function verifyPublishableKey(
     .where(eq(publishableKey.keyHash, hashPublishableKey(key)))
     .limit(1);
   if (!row || row.revokedAt || row.tenant.status !== 'active') return null;
+  // o prefixo vale: o ambiente gravado precisa ser o do prefixo
+  if (row.env !== publishableKeyEnv(key)) return null;
   if (row.widgetId && (row.widgetArchivedAt || row.widgetTenantId !== row.tenant.id)) return null;
   return {
     keyId: row.keyId,
     tenantId: row.tenant.id,
+    env: row.env,
     tenant: {
       id: row.tenant.id,
       slug: row.tenant.slug,

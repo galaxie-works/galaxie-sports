@@ -23,6 +23,7 @@
     "webhook": "node --env-file-if-exists=../../.env dist/cli/webhook.js",
     "webhooks:worker": "node --env-file-if-exists=../../.env dist/webhooks/worker-main.js",
     "admin:key": "node dist/cli/admin-key.js",
+    "keys:migrate": "node --env-file-if-exists=../../.env dist/cli/keys-migrate.js",
     "f1:auditoria": "node --env-file-if-exists=../../.env dist/cli/f1-auditoria.js"
   },
   "dependencies": {

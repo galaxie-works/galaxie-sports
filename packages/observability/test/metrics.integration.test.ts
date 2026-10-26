@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { defaultPolicy } from '@galaxie/apisports-client';
 import {
   apiResponse,
+  changeFeed,
   closeDb,
   createDb,
   event,
@@ -12,8 +13,10 @@ import {
   runMigrations,
   sport,
   syncCursor,
+  webhookCursor,
   type Database,
 } from '@galaxie/db';
+import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createMetrics } from '../src/index.js';
@@ -259,6 +262,15 @@ describe('métricas de jobs (ops.job_run)', () => {
       0,
     );
     expect(m.get('galaxie_job_last_success_timestamp_seconds', { job_name: 'never-ok' })).toBeUndefined();
+    // job que nunca teve sucesso continua com idade: a da primeira execução
+    expect(m.get('galaxie_job_first_run_timestamp_seconds', { job_name: 'never-ok' })).toBeCloseTo(
+      ago(30 * HOUR).getTime() / 1000,
+      0,
+    );
+    expect(m.get('galaxie_job_first_run_timestamp_seconds', { job_name: 'daily-sync' })).toBeCloseTo(
+      ago(4 * HOUR).getTime() / 1000,
+      0,
+    );
     expect(m.get('galaxie_job_last_duration_seconds', { job_name: 'daily-sync' })).toBeCloseTo(120, 0);
   });
 });
@@ -307,9 +319,44 @@ describe('frescor e ao vivo', () => {
     );
   });
 
+  it('consumidores do change feed: pendência e idade da mais antiga (cursor da demo só quando a tabela existe)', async () => {
+    const ids = await db
+      .insert(changeFeed)
+      .values([
+        { topic: 'event.status_changed', entityType: 'event', entityId: 'e1', createdAt: ago(20 * MIN) },
+        { topic: 'event.status_changed', entityType: 'event', entityId: 'e2', createdAt: ago(5 * MIN) },
+      ])
+      .returning({ id: changeFeed.id });
+    const [first, last] = ids.map((r) => r.id) as [number, number];
+    // sem a tabela da demo: só o cursor de webhooks, em dia
+    await db.insert(webhookCursor).values({ name: 'default', lastChangeId: last });
+    let m = await scrape();
+    expect(m.get('galaxie_change_feed_pending', { consumer: 'webhooks:default' })).toBe(0);
+    expect(m.get('galaxie_change_feed_pending_age_seconds', { consumer: 'webhooks:default' })).toBe(0);
+    expect(m.series('galaxie_change_feed_pending')).toHaveLength(1);
+
+    // demo parada antes das duas mudanças: duas pendentes, a mais antiga com ~20 min
+    await db.execute(sql`create schema if not exists demo_auth`);
+    await db.execute(sql`
+      create table demo_auth.cache_feed_cursor (name text primary key, last_change_id bigint not null,
+        updated_at timestamptz not null default now())`);
+    try {
+      await db.execute(
+        sql`insert into demo_auth.cache_feed_cursor (name, last_change_id) values ('demo', ${first - 1})`,
+      );
+      m = await scrape();
+      expect(m.get('galaxie_change_feed_pending', { consumer: 'demo-cache:demo' })).toBe(2);
+      const age = m.get('galaxie_change_feed_pending_age_seconds', { consumer: 'demo-cache:demo' })!;
+      expect(age).toBeGreaterThan(20 * 60 - 5);
+      expect(age).toBeLessThan(20 * 60 + 120);
+    } finally {
+      await db.execute(sql`drop schema demo_auth cascade`);
+    }
+  });
+
   it('coletores reportam saúde', async () => {
     const m = await scrape();
-    for (const collector of ['quota', 'jobs', 'freshness', 'live']) {
+    for (const collector of ['quota', 'jobs', 'freshness', 'live', 'change_feed']) {
       expect(m.get('galaxie_metrics_collector_up', { collector })).toBe(1);
     }
   });
@@ -319,7 +366,8 @@ describe('banco indisponível', () => {
   it('a coleta não falha: coletores ficam com up = 0 e as métricas do banco somem', async () => {
     const u = new URL(testUrl);
     u.port = '1';
-    const broken = createDb(u.toString(), { max: 1 });
+    // uma conexão por coletor: com max 1 as consultas fazem fila atrás do recuo de reconexão do postgres.js
+    const broken = createDb(u.toString(), { max: 8 });
     try {
       const m = await scrape(broken);
       expect(m.get('galaxie_metrics_collector_up', { collector: 'quota' })).toBe(0);

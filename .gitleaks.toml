@@ -6,6 +6,13 @@ title = "galaxie-sports"
 [extend]
 useDefault = true
 
+[[rules]]
+id = "galaxie-api-key"
+description = "Chave secreta da API Galaxie Sports (formato com checksum, docs/politica-de-chaves.md)"
+# O mesmo padrão de API_KEY_SCAN_PATTERN (apps/api/src/auth/keys.ts) e do padrão customizado do secret scanning
+regex = '''gs_(live|test)_[0-9a-f]{12}_[A-Za-z0-9_-]{43}_[0-9a-f]{8}'''
+keywords = ["gs_live_", "gs_test_"]
+
 [[allowlists]]
 description = "Chaves de template de copy em testes (identificadores, não segredos)"
 regexTarget = "line"

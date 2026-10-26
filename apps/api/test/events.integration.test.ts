@@ -472,7 +472,7 @@ beforeAll(async () => {
     plan: 'enterprise',
     rateLimitPerMinute: 5000,
   });
-  key = (await createApiKey(db, t.id, { env: 'test', label: 'integração' })).key;
+  key = (await createApiKey(db, t.id, { env: 'live', label: 'integração' })).key;
   app = buildServer({
     db,
     redis,

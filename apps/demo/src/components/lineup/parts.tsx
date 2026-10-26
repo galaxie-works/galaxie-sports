@@ -1,6 +1,7 @@
 'use client';
 
 import { ExternalLink } from 'lucide-react';
+import { useState } from 'react';
 
 import { Badge } from '@/components/reui/badge';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
@@ -31,31 +32,50 @@ export function RequestBadge({ status }: { status: RequestStatus }) {
   return <Badge variant={REQUEST_BADGE[status]}>{t.lineup.requestStatuses[status]}</Badge>;
 }
 
-/** Logo do canal, da operadora ou do streaming; sem logo, as iniciais. */
-export function ItemLogo({ name, url, className }: { name: string; url: string | null; className?: string }) {
-  const initials = name
+/**
+ * URL que o navegador consegue carregar: http(s) ou caminho da própria demo. A origem gravada de um logo do
+ * acervo (`acervo-oficial://…`, `commons://…`) não é URL pública: sem o storage, fica sem imagem.
+ */
+export function loadableLogoUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return /^https?:\/\//i.test(url) || (url.startsWith('/') && !url.startsWith('//')) ? url : null;
+}
+
+/** Iniciais do nome (até duas palavras). */
+export const logoInitials = (name: string) =>
+  name
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0]!.toUpperCase())
     .join('');
-  return url ? (
+
+/**
+ * Logo do canal, da operadora ou do streaming; sem logo, ou se a imagem não carregar (404, storage fora
+ * do ar), as iniciais. Imagem quebrada nunca aparece.
+ */
+export function ItemLogo({ name, url, className }: { name: string; url: string | null; className?: string }) {
+  const src = loadableLogoUrl(url);
+  const [failed, setFailed] = useState<string | null>(null);
+  return src && failed !== src ? (
     <img
-      src={url}
+      src={src}
       alt=""
       aria-hidden
       className={cn('size-8 shrink-0 rounded-md object-contain', className)}
       loading="lazy"
+      onError={() => setFailed(src)}
     />
   ) : (
     <span
       aria-hidden
+      data-slot="logo-fallback"
       className={cn(
         'bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md text-xs font-semibold',
         className,
       )}
     >
-      {initials}
+      {logoInitials(name)}
     </span>
   );
 }

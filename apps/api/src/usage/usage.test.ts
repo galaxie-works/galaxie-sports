@@ -70,6 +70,29 @@ describe('UsageCounter', () => {
       'GET /v1/competitions/:id': 2,
     });
   });
+
+  it('chave de teste: uso contado à parte (test:<rota>) e limite fixo de 60/min em balde próprio', async () => {
+    const live = await memoryTenant({ id: 'tenant-b', rateLimitPerMinute: 1000 });
+    const test = await memoryTenant({ id: 'tenant-b', rateLimitPerMinute: 1000, env: 'test' }, live.store);
+    const usage = new MemoryUsageBackend();
+    const app = buildServer({ tenantStore: live.store, usage });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/sports',
+      headers: { 'x-galaxie-key': test.key },
+    });
+    expect(res.headers['x-ratelimit-limit']).toBe('60');
+    const prod = await app.inject({
+      method: 'GET',
+      url: '/v1/sports',
+      headers: { 'x-galaxie-key': live.key },
+    });
+    expect(prod.headers['x-ratelimit-limit']).toBe('1000');
+    // baldes separados: a produção não perdeu a requisição do teste
+    expect(prod.headers['x-ratelimit-remaining']).toBe('999');
+    await app.close();
+    expect(await usage.get(utcDay(), 'tenant-b')).toEqual({ 'GET /v1/sports': 1, 'test:GET /v1/sports': 1 });
+  });
 });
 
 describe('épocas do contador (Codex C17)', () => {

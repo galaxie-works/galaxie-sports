@@ -18,6 +18,7 @@ const ctx: TenantContext = {
   plan: 'enterprise',
   keyId: 'k-1',
   keyKind: 'secret',
+  env: 'live',
   modules: ['core_data'],
   markets: [],
   sports: [],
