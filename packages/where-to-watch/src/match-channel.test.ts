@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadWtwConfig } from './config/loader.js';
 import {
   CHANNEL_SCORING,
+  channelNames,
   matchChannelHeadline,
   matchChannelState,
   matchPhaseOf,
@@ -149,6 +150,41 @@ describe('canal do jogo: validador determinístico', () => {
       ctx(),
     );
     expect(other.accepted[0]).toMatchObject({ broadcasterId: 'sportv', channel: null });
+  });
+
+  it('o canal só fica quando a fonte cita aquele canal, não um irmão ou só a emissora', () => {
+    const run = (channel: string | string[], excerpt: string, page?: string) =>
+      validateMatchChannels(
+        (Array.isArray(channel) ? channel : [channel]).map((c) => prop('sportv', [ev(OFFICIAL, excerpt)], c)),
+        ctx(page ? { pages: new Map([[OFFICIAL, { ok: true, text: page }]]) } : {}),
+      ).accepted[0];
+    // fonte do SporTV 3 sustenta a emissora, não o SporTV 2
+    expect(run('SporTV 2', 'São Paulo x Mirassol no SporTV 3')).toMatchObject({
+      broadcasterId: 'sportv',
+      channel: null,
+    });
+    expect(run('SporTV 2', 'São Paulo x Mirassol no SporTV')).toMatchObject({ channel: null });
+    // grafia da emissora com o número do canal, separado ou junto
+    expect(run('SporTV 2', 'São Paulo x Mirassol no SportTV 2')).toMatchObject({ channel: 'SporTV 2' });
+    expect(run('SporTV 2', 'São Paulo x Mirassol no SporTV2')).toMatchObject({ channel: 'SporTV 2' });
+    expect(run('SporTV 3', 'São Paulo x Mirassol no SporTV2')).toMatchObject({ channel: null });
+    // entre os canais propostos, fica o que a fonte cita
+    expect(run(['SporTV 2', 'SporTV 3'], 'São Paulo x Mirassol no SporTV 3')).toMatchObject({
+      channel: 'SporTV 3',
+    });
+    // a página buscada também precisa citar o canal
+    expect(
+      run('SporTV 2', 'São Paulo x Mirassol no SporTV 2', 'Rodada 32: São Paulo x Mirassol no SporTV 3.'),
+    ).toMatchObject({ channel: null });
+  });
+
+  it('nomes de um canal: grafias com o sufixo, sem apelido de canal irmão nem duplicado', () => {
+    const sportv = BR.byIdOrNull('sportv')!;
+    const names = channelNames(sportv, 'SporTV 2');
+    expect(names).toEqual(expect.arrayContaining(['SporTV 2', 'SporTV2', 'SportTV 2', 'Sportv2']));
+    expect(names.some((n) => /3/.test(n) || / 2 2$/.test(n))).toBe(false);
+    const espn = BR.byIdOrNull('espn')!;
+    expect(channelNames(espn, 'ESPN 2')).toEqual(expect.arrayContaining(['ESPN 2', 'ESPN2']));
   });
 
   it('limiar de gravação', () => {

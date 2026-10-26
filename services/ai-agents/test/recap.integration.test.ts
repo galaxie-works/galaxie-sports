@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { changeFeed, eventContext, eventStateLog, type Database } from '@galaxie/db';
+import { changeFeed, event, eventContext, eventStateLog, sport, type Database } from '@galaxie/db';
 import { readEventContext } from '../src/context/store.js';
 import { computeAiMetrics } from '../src/evaluation/metrics.js';
 import { languageOf } from '../src/guardrails/index.js';
@@ -100,6 +100,29 @@ describe('Agente Resumo (integração)', () => {
     // FT registrado na ingestão (out/2026); o resumo foi gerado só agora: fora da meta de 10 min
     const [ft] = await db.select().from(eventStateLog).where(eq(eventStateLog.eventId, eventId));
     expect(ft).toMatchObject({ toStatus: 'finished' });
+    // jogo de outro esporte na mesma competição tier 1: não entra na cobertura de cenário/resumo
+    const [football] = await db.select().from(event).where(eq(event.id, eventId));
+    await db
+      .insert(sport)
+      .values({ slug: 'basketball', name: { 'pt-BR': 'Basquete' } })
+      .onConflictDoNothing();
+    const [other] = await db
+      .insert(event)
+      .values({
+        sport: 'basketball',
+        competitionId: football!.competitionId,
+        startsAt: football!.startsAt,
+        endsAtExpected: football!.endsAtExpected,
+        status: 'finished',
+      })
+      .returning({ id: event.id });
+    await db.insert(eventStateLog).values({
+      eventId: other!.id,
+      fromStatus: 'live',
+      toStatus: 'finished',
+      reason: 'provider',
+      occurredAt: football!.startsAt,
+    });
     const m = await computeAiMetrics(db, {
       from: new Date('2026-10-01T00:00:00Z'),
       to: new Date(Date.now() + 60_000),
@@ -117,6 +140,8 @@ describe('Agente Resumo (integração)', () => {
     expect(m.cost.costUsd).toBeCloseTo(0.002 * 9);
     expect(m.cost.costPerEventUsd).toBeCloseTo(0.018);
     expect(m.coverage.recapTier1Within10Min).toMatchObject({ numerator: 0, denominator: 1 });
+    expect(m.coverage.scenarioTier1.denominator).toBe(1);
+    expect(m.coverage.whereToWatchTier1ByT3h.denominator).toBe(2);
     expect(m.coverage.recapTier1Within10Min.medianMinutes).toBeGreaterThan(10);
     expect(m.targets.find((t) => t.metric.startsWith('Resumo tier 1'))).toMatchObject({ ok: false });
     expect(m.targets.find((t) => t.metric.startsWith('Fidelidade do resumo'))).toMatchObject({ ok: true });

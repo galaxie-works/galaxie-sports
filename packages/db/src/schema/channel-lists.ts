@@ -1,4 +1,4 @@
-import { jsonb, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { integer, jsonb, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { createdAt, updatedAt } from './_shared.js';
 import { api, tenant } from './api.js';
 
@@ -76,6 +76,11 @@ export const tenantChannelList = api.table('tenant_channel_list', {
   /** Resumo da última passada da IA (violações do validador, erro). */
   aiNote: text('ai_note'),
   processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
+  /**
+   * Sobe a cada correção do cliente (`setChannelListOverrides`). O job da IA e a confirmação só gravam
+   * se ela e `processedAt` forem os que leram (a correção feita no meio não se perde).
+   */
+  revision: integer('revision').notNull().default(0),
   uploadedBy: text('uploaded_by'),
   confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
   confirmedBy: text('confirmed_by'),

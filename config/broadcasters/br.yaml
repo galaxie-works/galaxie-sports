@@ -9,6 +9,8 @@
 # medium: free_tv | pay_tv | streaming_svod | streaming_free | youtube | official_app | radio
 # access_model: free | subscription | ppv | unknown
 # domains: domínios oficiais (subdomínios incluídos; caminho opcional, ex. youtube.com/@canal).
+# watch_domains (opcional): plataforma própria de assistir fora de `domains` — só para o link
+#   "assista aqui" (não é fonte nem entra na busca).
 # group: entradas do mesmo grupo compartilham domínios como fonte primária.
 # regional_variants: afiliadas/praças — o nome casa com a entrada e fixa a região (UF).
 #
@@ -79,6 +81,8 @@ broadcasters:
     medium: free_tv
     access_model: free
     domains: [record.r7.com, r7.com]
+    # RecordPlus (antigo PlayPlus), streaming próprio com a Record ao vivo: www.recordplus.com/help/faq
+    watch_domains: [recordplus.com]
   - id: sbt
     name: SBT
     aliases: ['Sistema Brasileiro de Televisão', 'TV SBT']

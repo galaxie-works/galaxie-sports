@@ -49,6 +49,12 @@ describe('termos proibidos por locale', () => {
     expect(findForbiddenTerms('Gil marcou o gol.', 'es-AR', { allowPhrases: ['Gil'] })).toEqual([]);
   });
 
+  it('allowPhrases só libera a palavra inteira, não um pedaço de termo proibido', () => {
+    const hits = findForbiddenTerms('Gil marcó, pero son unos giles.', 'es-AR', { allowPhrases: ['Gil'] });
+    expect(hits.map((h) => h.match)).toEqual(['giles']);
+    expect(findForbiddenTerms('Um time de vagabundos.', 'pt-BR', { allowPhrases: ['Vaga'] }).length).toBe(1);
+  });
+
   it('expressões comuns do futebol não são barradas', () => {
     for (const text of [
       'Cobrou o tiro livre.',

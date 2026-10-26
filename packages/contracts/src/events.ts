@@ -826,7 +826,11 @@ export const TimelineIncident = z
     type: z.string().meta({ description: 'goal, own_goal, penalty_missed, card, subst, var, other.' }),
     detail: z.string().nullable().meta({ example: 'Yellow Card' }),
     comments: z.string().nullable(),
-    team: TeamSideRef.nullable(),
+    team: TeamSideRef.nullable().meta({
+      description:
+        'Time do lance como o fornecedor manda. No gol contra pode ser o do jogador ou o beneficiado; ' +
+        'o lado que somou o gol está em `scoring_team`.',
+    }),
     player: TimelinePerson.nullable().meta({
       description: 'Autor do lance. Na substituição, quem sai (prefira `player_out`/`player_in`).',
     }),
@@ -847,11 +851,16 @@ export const TimelineIncident = z
     key_moment: z.boolean().meta({ description: 'Momento-chave (`weight` ≥ 60).' }),
     flags: z.array(z.enum(TIMELINE_FLAGS)).meta({
       description:
-        '`opener` (1º gol), `go_ahead` (põe o time na frente), `equalizer` (empata), `decisive` (gol da vitória ' +
-        'ou cobrança que decide os pênaltis; só com o jogo encerrado).',
+        '`opener` (1º gol), `go_ahead` (põe na frente o time de `scoring_team`), `equalizer` (empata), ' +
+        '`decisive` (gol da vitória ou cobrança que decide os pênaltis; só com o jogo encerrado).',
     }),
     score_after: ScorePair.nullable().meta({
       description: 'Placar depois do gol (na disputa de pênaltis, o placar da disputa).',
+    }),
+    scoring_team: TeamSideRef.nullable().meta({
+      description:
+        'Time que somou o gol (no gol contra, o beneficiado; na disputa, quem converteu). ' +
+        'Null fora dos gols ou com o lado desconhecido.',
     }),
     player_in: TimelinePerson.nullable().meta({ description: 'Substituição: quem entra.' }),
     player_out: TimelinePerson.nullable().meta({ description: 'Substituição: quem sai.' }),

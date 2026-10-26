@@ -21001,49 +21001,11 @@ entries:
     wikidata: null
     category: Watson Indy Roadster (1962 Indianapolis 500, No.3)
     photos:
-      - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
-        role: car
-        season: 1956
-        rank: 0
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: OctaviaCombi
-        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 2026-05-12 15:26:03
-        width: 4032
-        height: 3024
-        reason: Carro em exposição no museu, limpo e bem iluminado.
-        hero: 0.5
-      - file: File:Ansted-Thompson Racing Watson-Offenhauser 1964 Indy 500 Winner - A.J. Foyt.jpg
-        role: car
-        season: 1956
-        rank: 1
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Ansted-Thompson_Racing_Watson-Offenhauser_1964_Indy_500_Winner_-_A.J._Foyt.jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: OctaviaCombi
-        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 2026-05-12 15:27:27
-        width: 4032
-        height: 3024
-        reason: Boa tomada do carro número 1 em museu.
-        hero: 0.5
       - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
         role: car
         season: 1956
         rank: 2
-        match: auto
+        match: rejected
         selected_by: gemini
         page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
         license: CC BY-SA 4.0
@@ -21056,7 +21018,45 @@ entries:
         date: Taken on 9 May 2026
         width: 6000
         height: 4000
-        reason: Enquadramento limpo e nítido do modelo de 1963.
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1956"
+        hero: 0.5
+      - file: File:Ansted-Thompson Racing Watson-Offenhauser 1964 Indy 500 Winner - A.J. Foyt.jpg
+        role: car
+        season: 1956
+        rank: 1
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Ansted-Thompson_Racing_Watson-Offenhauser_1964_Indy_500_Winner_-_A.J._Foyt.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: OctaviaCombi
+        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2026-05-12 15:27:27
+        width: 4032
+        height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1964 (categoria do carro de 1962), não o chassi de 1956"
+        hero: 0.5
+      - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
+        role: car
+        season: 1956
+        rank: 0
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: OctaviaCombi
+        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2026-05-12 15:26:03
+        width: 4032
+        height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1956"
         hero: 0.5
     ranking:
       by: gemini
@@ -21071,49 +21071,11 @@ entries:
     wikidata: null
     category: Watson Indy Roadster (1962 Indianapolis 500, No.3)
     photos:
-      - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
-        role: car
-        season: 1958
-        rank: 0
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: OctaviaCombi
-        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 2026-05-12 15:26:03
-        width: 4032
-        height: 3024
-        reason: Foto de museu com boa nitidez e enquadramento limpo.
-        hero: 0.5
-      - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
-        role: car
-        season: 1958
-        rank: 1
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: Michael Barera
-        author_url: https://commons.wikimedia.org/wiki/User:Michael_Barera
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: Taken on 9 May 2026
-        width: 6000
-        height: 4000
-        reason: Boa iluminação e foco no carro exposto no museu.
-        hero: 0.5
       - file: File:Indy500winningcar1962.JPG
         role: car
         season: 1958
         rank: 2
-        match: auto
+        match: rejected
         selected_by: gemini
         page_url: https://commons.wikimedia.org/wiki/File:Indy500winningcar1962.JPG
         license: CC BY-SA 3.0
@@ -21126,7 +21088,45 @@ entries:
         date: 2011-05-28
         width: 3648
         height: 2736
-        reason: Carro vencedor em museu, enquadramento agradável.
+        reason: "curadoria (auditoria 25/10): veio da categoria do roadster Watson de 1962; sem como confirmar o chassi de 1958"
+        hero: 0.5
+      - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
+        role: car
+        season: 1958
+        rank: 1
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Michael Barera
+        author_url: https://commons.wikimedia.org/wiki/User:Michael_Barera
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: Taken on 9 May 2026
+        width: 6000
+        height: 4000
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1958"
+        hero: 0.5
+      - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
+        role: car
+        season: 1958
+        rank: 0
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: OctaviaCombi
+        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2026-05-12 15:26:03
+        width: 4032
+        height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1958"
         hero: 0.5
     ranking:
       by: gemini
@@ -21141,49 +21141,11 @@ entries:
     wikidata: null
     category: Watson Indy Roadster (1962 Indianapolis 500, No.3)
     photos:
-      - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
-        role: car
-        season: 1959
-        rank: 0
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: OctaviaCombi
-        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 2026-05-12 15:26:03
-        width: 4032
-        height: 3024
-        reason: Carro inteiro exposto no museu, boa iluminação.
-        hero: 0.5
-      - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
-        role: car
-        season: 1959
-        rank: 1
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: Michael Barera
-        author_url: https://commons.wikimedia.org/wiki/User:Michael_Barera
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: Taken on 9 May 2026
-        width: 6000
-        height: 4000
-        reason: Ângulo semelhante ao anterior, limpo e nítido.
-        hero: 0.5
       - file: File:Indy500winningcar1964.JPG
         role: car
         season: 1959
         rank: 2
-        match: auto
+        match: rejected
         selected_by: gemini
         page_url: https://commons.wikimedia.org/wiki/File:Indy500winningcar1964.JPG
         license: CC BY-SA 3.0
@@ -21196,7 +21158,45 @@ entries:
         date: 2011-05-28
         width: 3648
         height: 2736
-        reason: Carro em exposição com bom enquadramento frontal.
+        reason: "curadoria (auditoria 25/10): veio da categoria do roadster Watson de 1962; sem como confirmar o chassi de 1959"
+        hero: 0.5
+      - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
+        role: car
+        season: 1959
+        rank: 1
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Michael Barera
+        author_url: https://commons.wikimedia.org/wiki/User:Michael_Barera
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: Taken on 9 May 2026
+        width: 6000
+        height: 4000
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1959"
+        hero: 0.5
+      - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
+        role: car
+        season: 1959
+        rank: 0
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: OctaviaCombi
+        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2026-05-12 15:26:03
+        width: 4032
+        height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1959"
         hero: 0.5
     ranking:
       by: gemini
@@ -21211,49 +21211,29 @@ entries:
     wikidata: null
     category: Watson Indy Roadster (1962 Indianapolis 500, No.3)
     photos:
-      - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
+      - file: File:Indy500winningcar1960.JPG
         role: car
         season: 1960
         rank: 0
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: OctaviaCombi
-        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
+        match: manual
+        selected_by: manual
+        page_url: https://commons.wikimedia.org/wiki/File:Indy500winningcar1960.JPG
+        license: CC BY-SA 3.0
+        license_url: https://creativecommons.org/licenses/by-sa/3.0
+        author: Doctorindy
+        author_url: https://commons.wikimedia.org/wiki/User:Doctorindy
         credit: Own work
         attribution_required: true
         share_alike: true
-        date: 2026-05-12 15:26:03
-        width: 4032
-        height: 3024
-        reason: Foto limpa e nítida do carro de museu, bom enquadramento.
-        hero: 0.5
-      - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
-        role: car
-        season: 1960
-        rank: 1
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: Michael Barera
-        author_url: https://commons.wikimedia.org/wiki/User:Michael_Barera
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: Taken on 9 May 2026
-        width: 6000
-        height: 4000
-        reason: Boa foto do carro em exposição, similar à anterior mas ligeiramente mais escura.
-        hero: 0.5
+        date: Taken on 28 May 2005
+        width: 2304
+        height: 1728
+        reason: "curadoria (auditoria 25/10): o Watson vencedor de Indianápolis 1960 (Jim Rathmann), fotografado em 2005; antes estava como retrato do piloto"
       - file: File:Indianapolis Motor Speedway Museum in 2017 - Racecars 25.jpg
         role: car
         season: 1960
         rank: 2
-        match: auto
+        match: rejected
         selected_by: gemini
         page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_in_2017_-_Racecars_25.jpg
         license: CC BY-SA 4.0
@@ -21266,7 +21246,45 @@ entries:
         date: 2017-05-25
         width: 2592
         height: 1944
-        reason: Boa iluminação e foco em carro de museu.
+        reason: "curadoria (auditoria 25/10): veio da categoria do roadster Watson de 1962; sem como confirmar o chassi de 1960"
+        hero: 0.5
+      - file: File:Indianapolis Motor Speedway Museum May 2026 44 (Parnelli Jones's 1963 Agajanian Willard Battery Special Watson).jpg
+        role: car
+        season: 1960
+        rank: 1
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Indianapolis_Motor_Speedway_Museum_May_2026_44_(Parnelli_Jones%27s_1963_Agajanian_Willard_Battery_Special_Watson).jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Michael Barera
+        author_url: https://commons.wikimedia.org/wiki/User:Michael_Barera
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: Taken on 9 May 2026
+        width: 6000
+        height: 4000
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1960"
+        hero: 0.5
+      - file: File:Agajanian Racing Enterprises Watson-Offenhauser 1963 Indy 500 Winner - Parnelli Jones.jpg
+        role: car
+        season: 1960
+        rank: 0
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Agajanian_Racing_Enterprises_Watson-Offenhauser_1963_Indy_500_Winner_-_Parnelli_Jones.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: OctaviaCombi
+        author_url: https://commons.wikimedia.org/w/index.php?title=User:OctaviaCombi&action=edit&redlink=1
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2026-05-12 15:26:03
+        width: 4032
+        height: 3024
+        reason: "curadoria (auditoria 25/10): roadster Watson de 1963 (categoria do carro de 1962), não o chassi de 1960"
         hero: 0.5
     ranking:
       by: gemini
@@ -23407,7 +23425,7 @@ entries:
         role: portrait
         season: 1950
         rank: 0
-        match: auto
+        match: rejected
         selected_by: gemini
         page_url: https://commons.wikimedia.org/wiki/File:1950-07-23_12h_Paris_Montlh%C3%A9ry_Ferrari_0014M_0052M.jpg
         license: Public domain
@@ -23420,7 +23438,7 @@ entries:
         date: 1950-07-23
         width: 960
         height: 592
-        reason: Foto historica de carros de corrida e pilotos alinhados, boa composicao geral.
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, as Ferrari 0014M e 0052M em Montlhéry)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -25784,24 +25802,6 @@ entries:
           season: 1976
           reason: "última temporada: 1976"
     photos:
-      - file: File:Chris Amon Ensign 76.jpg
-        role: portrait
-        season: 1976
-        rank: 0
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Chris_Amon_Ensign_76.jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: 50DAG2026
-        author_url: https://commons.wikimedia.org/wiki/User:50DAG2026
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 2026-07-12 15:03:11
-        width: 2496
-        height: 1684
-        reason: Retrato de perfil muito nítido e bem composto.
       - file: File:Chris Amon, Bestanddeelnr 924-6566.jpg
         role: action
         season: 1971
@@ -25910,6 +25910,24 @@ entries:
         width: 3323
         height: 2382
         reason: Foto histórica de pódio com o piloto no centro, mas qualidade de cor e foco mediana.
+      - file: File:Chris Amon Ensign 76.jpg
+        role: portrait
+        season: 1976
+        rank: 0
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Chris_Amon_Ensign_76.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: 50DAG2026
+        author_url: https://commons.wikimedia.org/wiki/User:50DAG2026
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2026-07-12 15:03:11
+        width: 2496
+        height: 1684
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, a Ensign N176, fotografada em 2026)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -27359,7 +27377,7 @@ entries:
         role: portrait
         season: 2020
         rank: 0
-        match: auto
+        match: rejected
         selected_by: gemini
         page_url: https://commons.wikimedia.org/wiki/File:SAF1_Lupini_Cooper_Maser.jpg
         license: CC0
@@ -27372,7 +27390,7 @@ entries:
         date: 2020-04-25 20:35:54
         width: 2500
         height: 1667
-        reason: Foto historica em acao em preto e branco, com qualidade razoavel e baixa nitidez.
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro (Cooper-Maserati))"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -28067,7 +28085,7 @@ entries:
         date: 1981-08-30
         width: 3683
         height: 2445
-        reason: "curadoria: não é o Salazar (auditoria do Codex, item 183)"
+        reason: "curadoria (auditoria 25/10): conferir visualmente; provavelmente é o próprio Salazar (o nº 14 de 1981 era a Ensign dele), mas a legenda do arquivo diz Eddie Cheever"
       - file: File:Grand Prix van NL op circuit van Zandvoort nr. 10 , 11 officials en politie la, Bestanddeelnr 253-8581.jpg
         role: action
         season: 1981
@@ -32244,7 +32262,7 @@ entries:
         role: portrait
         season: 2015
         rank: 0
-        match: auto
+        match: rejected
         selected_by: gemini
         page_url: https://commons.wikimedia.org/wiki/File:Allard_J2X_Le_Mans_(1952)_(18678221540).jpg
         license: CC BY-SA 2.0
@@ -32257,7 +32275,7 @@ entries:
         date: 2015-06-11 16:36
         width: 2000
         height: 1333
-        reason: Foto nítida de ação mostrando o carro na pista com o piloto.
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o carro (Allard J2X))"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -43468,24 +43486,6 @@ entries:
           season: 2011
           reason: "última temporada: 2011"
     photos:
-      - file: File:Rubens Barrichello 2008 Turkish GP helmet 2014 Honda Collection Hall.jpg
-        role: portrait
-        season: 2008
-        rank: 0
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:Rubens_Barrichello_2008_Turkish_GP_helmet_2014_Honda_Collection_Hall.jpg
-        license: CC BY-SA 4.0
-        license_url: https://creativecommons.org/licenses/by-sa/4.0
-        author: Morio
-        author_url: https://commons.wikimedia.org/wiki/User:Morio
-        credit: Own work
-        attribution_required: true
-        share_alike: true
-        date: 2014-08-23
-        width: 2560
-        height: 1707
-        reason: Foto detalhada e de alta qualidade de um capacete.
       - file: File:Rubens Barrichello - Ferrari F2004 approaches the grid at the 2004 British Grand Prix (50835442441).jpg
         role: action
         season: 2004
@@ -43594,6 +43594,24 @@ entries:
         width: 3483
         height: 2310
         reason: Foto de pódio aceitável, enquadramento um pouco fechado.
+      - file: File:Rubens Barrichello 2008 Turkish GP helmet 2014 Honda Collection Hall.jpg
+        role: portrait
+        season: 2008
+        rank: 0
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:Rubens_Barrichello_2008_Turkish_GP_helmet_2014_Honda_Collection_Hall.jpg
+        license: CC BY-SA 4.0
+        license_url: https://creativecommons.org/licenses/by-sa/4.0
+        author: Morio
+        author_url: https://commons.wikimedia.org/wiki/User:Morio
+        credit: Own work
+        attribution_required: true
+        share_alike: true
+        date: 2014-08-23
+        width: 2560
+        height: 1707
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (só o capacete, num museu)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -45446,7 +45464,25 @@ entries:
       season: 1977
       reason: "melhor temporada: ?º em 1977"
       match: auto
-    photos: []
+    photos:
+      - file: File:GTC Mirage 11.jpg
+        role: action
+        season: 1976
+        rank: 0
+        match: manual
+        selected_by: manual
+        page_url: https://commons.wikimedia.org/wiki/File:GTC_Mirage_11.jpg
+        license: CC BY-SA 2.0
+        license_url: https://creativecommons.org/licenses/by-sa/2.0
+        author: John Pease
+        author_url: null
+        credit: https://www.flickr.com/photos/ashfordjohn/11340108133/in/photostream/
+        attribution_required: true
+        share_alike: true
+        date: 1976-06-13
+        width: 2628
+        height: 1934
+        reason: "curadoria (auditoria 25/10): a Mirage em Le Mans 1976, que o Schuppan pilotou (conferir visualmente); não é retrato, fica como foto de ação"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
@@ -45835,24 +45871,6 @@ entries:
       reason: "melhor temporada: ?º em 1962"
       match: auto
     photos:
-      - file: File:1955-05-01 Mille Miglia Porsche 550-15 Seidel Glöckler.jpg
-        role: portrait
-        season: 1955
-        rank: 0
-        match: auto
-        selected_by: gemini
-        page_url: https://commons.wikimedia.org/wiki/File:1955-05-01_Mille_Miglia_Porsche_550-15_Seidel_Gl%C3%B6ckler.jpg
-        license: Public domain
-        license_url: null
-        author: Unknown photographer
-        author_url: null
-        credit: ebayimg.com
-        attribution_required: false
-        share_alike: false
-        date: 1955-05-01
-        width: 1706
-        height: 1158
-        reason: Boa foto histórica em P&B mostrando o Porsche 550 com espectadores ao fundo.
       - file: File:Nürburgring- Nr. 36; Wolfgang Seidel; Ferrari - LABW - Staatsarchiv Freiburg W 134 Nr. 048156.jpeg
         role: action
         season: 1957
@@ -45871,6 +45889,24 @@ entries:
         width: 1656
         height: 1118
         reason: Foto de ação clássica no Nürburgring com efeito de movimento nítido no fundo.
+      - file: File:1955-05-01 Mille Miglia Porsche 550-15 Seidel Glöckler.jpg
+        role: portrait
+        season: 1955
+        rank: 0
+        match: rejected
+        selected_by: gemini
+        page_url: https://commons.wikimedia.org/wiki/File:1955-05-01_Mille_Miglia_Porsche_550-15_Seidel_Gl%C3%B6ckler.jpg
+        license: Public domain
+        license_url: null
+        author: Unknown photographer
+        author_url: null
+        credit: ebayimg.com
+        attribution_required: false
+        share_alike: false
+        date: 1955-05-01
+        width: 1706
+        height: 1158
+        reason: "curadoria (auditoria 25/10): não é retrato do piloto (pelo título, o Porsche 550 na Mille Miglia)"
     ranking:
       by: gemini
       model: gemini-3.5-flash-lite
