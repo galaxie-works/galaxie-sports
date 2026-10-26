@@ -32,6 +32,13 @@ import {
 } from './related/run.js';
 import { LINEUP_PROMPT_LIMITS } from './lineups/prompt.js';
 import { DEFAULT_DAILY_USD_PER_MARKET, DEFAULT_MIN_RELEVANCE } from './wtw/relevance.js';
+import {
+  channelScheduleFromEnv,
+  DEFAULT_CHANNEL_POST,
+  DEFAULT_CHANNEL_RETRY_OFFSETS,
+  DEFAULT_CHANNEL_WEEKLY_CRON,
+  parseRetryOffsets,
+} from './wtw/channel/windows.js';
 
 const dflt = (key: string) => settingDef(key)?.default;
 
@@ -68,6 +75,41 @@ describe('registro do painel × padrões dos agentes', () => {
     expect(dflt('RELATED_LOOKBACK_HOURS')).toBe(String(p.lookbackHours));
     expect(dflt('RELATED_SECOND_SEARCH_MINUTES')).toBe(String(p.secondSearchMinutes));
     expect(parseMarketWeights(dflt('RELATED_MARKET_WEIGHTS'))).toEqual(DEFAULT_MARKET_WEIGHTS);
+  });
+});
+
+describe('momentos do canal do jogo: o painel e o job leem o mesmo formato', () => {
+  it('padrões iguais aos do código e válidos no painel', () => {
+    expect(dflt('WTW_CHANNEL_WEEKLY_CRON')).toBe(DEFAULT_CHANNEL_WEEKLY_CRON);
+    expect(dflt('WTW_CHANNEL_RETRY_OFFSETS')).toBe(DEFAULT_CHANNEL_RETRY_OFFSETS);
+    expect(dflt('WTW_CHANNEL_POST')).toBe(DEFAULT_CHANNEL_POST);
+    for (const key of ['WTW_CHANNEL_WEEKLY_CRON', 'WTW_CHANNEL_RETRY_OFFSETS', 'WTW_CHANNEL_POST'])
+      expect(validateSettingKey(key, dflt(key)!), key).toMatchObject({ ok: true });
+  });
+
+  it('o que o painel aceita o job lê (e o que o job recusa o painel não grava)', () => {
+    for (const raw of [
+      '3d,1d',
+      '36h',
+      '3d, 12h',
+      '14d',
+      '336h',
+      '1h',
+      'off',
+      '0h',
+      '15d',
+      '337h',
+      '3',
+      '3d;1d',
+      'x',
+    ])
+      if (validateSettingKey('WTW_CHANNEL_RETRY_OFFSETS', raw).ok)
+        expect(parseRetryOffsets(raw), raw).not.toBeNull();
+      else expect(['0h', '15d', '337h', '3', '3d;1d', 'x']).toContain(raw);
+    for (const raw of ['30 7 * * 4', 'off', '0 6 * * 1'])
+      expect(() => channelScheduleFromEnv({ WTW_CHANNEL_WEEKLY_CRON: raw })).not.toThrow();
+    expect(validateSettingKey('WTW_CHANNEL_POST', 'off')).toMatchObject({ ok: true, value: 'off' });
+    expect(channelScheduleFromEnv({ WTW_CHANNEL_POST: 'off' }).post).toBe(false);
   });
 });
 

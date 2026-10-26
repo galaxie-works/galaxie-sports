@@ -326,6 +326,11 @@ services:
       WTW_MARKETS: ${WTW_MARKETS:-BR,AR,MX,CO,CL,PE,UY,EC}
       WTW_MIN_RELEVANCE: ${WTW_MIN_RELEVANCE:-60}
       WTW_DAILY_USD_PER_MARKET: ${WTW_DAILY_USD_PER_MARKET:-1}
+      # canal do jogo: consulta semanal (cron UTC), retentativas só sem canal confirmado e pós-jogo
+      # (vazio = padrão do código: "0 6 * * 1", "3d,1d" e "on"; também em Ajustes → Onde assistir)
+      WTW_CHANNEL_WEEKLY_CRON: ${WTW_CHANNEL_WEEKLY_CRON:-}
+      WTW_CHANNEL_RETRY_OFFSETS: ${WTW_CHANNEL_RETRY_OFFSETS:-}
+      WTW_CHANNEL_POST: ${WTW_CHANNEL_POST:-}
       # texto das páginas de planos no prompt da extração da grade (o painel sobrescreve; vazio = padrão)
       LINEUP_PROMPT_MAX_CHARS: ${LINEUP_PROMPT_MAX_CHARS:-}
       LINEUP_PAGE_MAX_CHARS: ${LINEUP_PAGE_MAX_CHARS:-}
@@ -336,9 +341,9 @@ services:
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
       SCHEDULE_RELATED_RUN: ${SCHEDULE_RELATED_RUN:-*/3 * * * *}
       SCHEDULE_WTW_RIGHTS: ${SCHEDULE_WTW_RIGHTS:-40 5,17 * * *}
-      # revisita da grade de canais e ofertas pela página oficial (até 4 chamadas ao modelo por execução,
+      # revisita semanal da grade de canais e ofertas pela página oficial (até 4 chamadas ao modelo por execução,
       # extração sem busca só se a página mudou; AI_RIGHTS_PROVIDER vale aqui)
-      SCHEDULE_LINEUPS_REVISIT: ${SCHEDULE_LINEUPS_REVISIT:-50 4 * * *}
+      SCHEDULE_LINEUPS_REVISIT: ${SCHEDULE_LINEUPS_REVISIT:-50 4 * * 1}
       # página oficial do plano lida do nosso lado (sem LLM; cache de 25 dias por URL)
       SCHEDULE_LINEUPS_PAGES: ${SCHEDULE_LINEUPS_PAGES:-20 5 * * *}
       # navegador headless para página que só mostra a grade com JavaScript (vazio = só HTML estático);

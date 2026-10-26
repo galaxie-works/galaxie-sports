@@ -53,6 +53,7 @@
     "@galaxie/rules": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
     "ajv": "^8.20.0",
+    "croner": "^10.0.1",
     "drizzle-orm": "^0.45.4",
     "openai": "^7.39.0",
     "playwright-core": "1.64.0",
