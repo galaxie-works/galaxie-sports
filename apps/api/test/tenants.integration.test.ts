@@ -7,7 +7,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { apiKey, closeDb, createDb, runMigrations, tenant, usageDaily, type Database } from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
+import { applyKeyMigration, KeyMigrationError, planKeyMigration } from '../src/admin/key-migration.js';
+import { KeyPolicyError, resolveTenantValues, upsertTenantWithKey } from '../src/admin/tenants.js';
+import { formatApiKey, parseApiKey } from '../src/auth/keys.js';
 import { buildServer } from '../src/server.js';
+import { withRandomSecret } from '../src/test-helpers.js';
 import { RedisUsageBackend, utcDay } from '../src/usage/counter.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -437,7 +441,7 @@ describe('autenticação sob chaves aleatórias (auditoria API-2)', () => {
       remoteAddress: ip,
       headers: { 'x-galaxie-key': k },
     });
-  const withSecret = (k: string) => `${k.slice(0, -43)}${randomBytes(32).toString('base64url')}`;
+  const withSecret = withRandomSecret;
 
   beforeAll(async () => {
     // limite baixo e compartilhado no Valkey (o padrão é 60 por IP e por prefixo)
@@ -551,16 +555,182 @@ describe('rotação não gera chave eterna (auditoria API-1)', () => {
     expect(admin.statusCode).toBe(409);
   });
 
-  it('teto de chaves válidas por tenant: rotação recusada até revogar uma', async () => {
+  it('teto de 5 chaves válidas por ambiente (contando as em graça) na emissão e na rotação', async () => {
     const issued: { id: string; key: string }[] = [];
-    // 2 válidas da etapa anterior + 18 = 20 (o teto)
-    for (let i = 0; i < 18; i++)
-      issued.push((await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys`, {})).json().key);
-    const blocked = await tenantReq(issued[0]!.key, 'POST', '/v1/account/keys/rotate', { graceSeconds: 0 });
-    expect(blocked.statusCode).toBe(409);
-    expect(blocked.json().detail).toMatch(/20 chaves/);
+    // 2 live válidas da etapa anterior (uma em graça) + 3 = 5 (o teto)
+    for (let i = 0; i < 3; i++) {
+      const res = await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys`, { env: 'live' });
+      expect(res.statusCode).toBe(201);
+      issued.push(res.json().key);
+    }
+    const sixth = await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys`, { env: 'live' });
+    expect(sixth.statusCode).toBe(409);
+    expect(sixth.json().detail).toMatch(/5 chaves live/);
+    // o teto é por ambiente: teste tem as próprias 5
+    expect(
+      (await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys`, { env: 'test' })).statusCode,
+    ).toBe(201);
+    // rotação com graça somaria uma sexta; com graça 0 a antiga sai na hora
+    const graced = await tenantReq(issued[0]!.key, 'POST', '/v1/account/keys/rotate', { graceSeconds: 3600 });
+    expect(graced.statusCode).toBe(409);
+    const now = await tenantReq(issued[0]!.key, 'POST', '/v1/account/keys/rotate', { graceSeconds: 0 });
+    expect(now.statusCode).toBe(201);
     await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys/${issued[1]!.id}/revoke`);
-    const ok = await tenantReq(issued[0]!.key, 'POST', '/v1/account/keys/rotate', { graceSeconds: 0 });
-    expect(ok.statusCode).toBe(201);
+    expect(
+      (await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys`, { env: 'live' })).statusCode,
+    ).toBe(201);
+  });
+});
+
+describe('ambiente e formato da chave (docs/politica-de-chaves.md §1)', () => {
+  it('prefixo trocado (gs_test_ ↔ gs_live_) → 401; chave legada sem checksum segue até a migração', async () => {
+    const res = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'ambiente-chave',
+      name: 'Ambiente',
+      plan: 'core_data',
+      key: { env: 'test' },
+    });
+    const key = res.json().key.key as string;
+    expect(key).toMatch(/^gs_test_[0-9a-f]{12}_[A-Za-z0-9_-]{43}_[0-9a-f]{8}$/);
+    expect((await tenantReq(key, 'GET', '/v1/sports')).statusCode).toBe(200);
+    const p = parseApiKey(key)!;
+    expect((await tenantReq(formatApiKey('live', p.prefix, p.secret), 'GET', '/v1/sports')).statusCode).toBe(
+      401,
+    );
+    // chave de teste: limite fixo de 60 por rota e uso contado à parte
+    const me = await tenantReq(key, 'GET', '/v1/sports');
+    expect(me.headers['x-ratelimit-limit']).toBe('60');
+
+    // formato 1 (emitida antes do checksum): ainda lida no formato antigo até keys:migrate revogá-la
+    await db.update(apiKey).set({ keyFormat: 1 }).where(eq(apiKey.prefix, p.prefix));
+    expect((await tenantReq(`gs_test_${p.prefix}_${p.secret}`, 'GET', '/v1/sports')).statusCode).toBe(200);
+  });
+});
+
+describe('migração das chaves legadas (keys:migrate, docs/runbooks/migracao-de-chaves.md)', () => {
+  it('--plan não muda nada; --apply revoga cada legada e reemite no formato 2, com o ambiente corrigido', async () => {
+    const res = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'legado',
+      name: 'Legado',
+      plan: 'core_data',
+      key: { label: 'producao' },
+    });
+    const liveKey = res.json().key.key as string;
+    const testKey = (
+      await adminReq('POST', `/internal/admin/tenants/legado/keys`, { label: 'homolog', env: 'test' })
+    ).json().key.key as string;
+    const live = parseApiKey(liveKey)!;
+    const test = parseApiKey(testKey)!;
+    // estado de antes do checksum: formato 1 e, na de teste, o ambiente gravado errado (C18)
+    await db.update(apiKey).set({ keyFormat: 1 }).where(eq(apiKey.prefix, live.prefix));
+    await db.update(apiKey).set({ keyFormat: 1, env: 'live' }).where(eq(apiKey.prefix, test.prefix));
+    const legacyLive = `gs_live_${live.prefix}_${live.secret}`;
+    const legacyTest = `gs_test_${test.prefix}_${test.secret}`;
+    expect((await tenantReq(legacyLive, 'GET', '/v1/sports')).statusCode).toBe(200);
+    // a de teste com o ambiente errado no banco já não autentica (é o que a migração conserta)
+    expect((await tenantReq(legacyTest, 'GET', '/v1/sports')).statusCode).toBe(401);
+
+    const mine = <T extends { tenant: string }>(rows: T[]) => rows.filter((r) => r.tenant === 'legado');
+    const plan = mine(await planKeyMigration(db, { testPrefixes: [test.prefix] }));
+    expect(plan.map((k) => [k.prefix, k.storedEnv, k.newEnv])).toEqual([
+      [live.prefix, 'live', 'live'],
+      [test.prefix, 'live', 'test'],
+    ]);
+    expect((await tenantReq(legacyLive, 'GET', '/v1/sports')).statusCode).toBe(200); // --plan não mexe
+
+    const done = mine(await applyKeyMigration(db, { testPrefixes: [test.prefix] }));
+    expect(done).toHaveLength(2);
+    const [newLive, newTest] = done;
+    expect(newLive!.newKey).toMatch(/^gs_live_[0-9a-f]{12}_[A-Za-z0-9_-]{43}_[0-9a-f]{8}$/);
+    expect(newTest!.newKey).toMatch(/^gs_test_/);
+    expect((await tenantReq(legacyLive, 'GET', '/v1/sports')).statusCode).toBe(401);
+    expect((await tenantReq(newLive!.newKey, 'GET', '/v1/sports')).statusCode).toBe(200);
+    const me = await tenantReq(newTest!.newKey, 'GET', '/v1/account');
+    expect(me.json().key).toMatchObject({ label: 'homolog', env: 'test' });
+    // idempotente
+    expect(mine(await applyKeyMigration(db))).toEqual([]);
+  });
+
+  it('--apply que falha na 2ª chave já entregou a 1ª substituta e para, dizendo o que foi migrado', async () => {
+    await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'legado-falha',
+      name: 'Legado com falha',
+      plan: 'core_data',
+      key: { label: 'primeira', env: 'live' },
+    });
+    await adminReq('POST', '/internal/admin/tenants/legado-falha/keys', { label: 'segunda', env: 'live' });
+    const ids = await db
+      .select({ id: apiKey.id })
+      .from(apiKey)
+      .innerJoin(tenant, eq(tenant.id, apiKey.tenantId))
+      .where(eq(tenant.slug, 'legado-falha'));
+    for (const { id } of ids) await db.update(apiKey).set({ keyFormat: 1 }).where(eq(apiKey.id, id));
+    // a substituta da 2ª falha ao ser gravada (a 1ª já fez commit)
+    await db.execute(sql`create function test_falha_migracao() returns trigger language plpgsql as $$
+      begin
+        if new.label = 'segunda' and new.key_format = 2 then raise exception 'falha simulada na 2ª chave'; end if;
+        return new;
+      end $$`);
+    await db.execute(sql`create trigger test_falha_migracao before insert on api.api_key
+      for each row execute function test_falha_migracao()`);
+    const printed: { tenant: string; label: string | null; newKey: string }[] = [];
+    let err: unknown;
+    try {
+      await applyKeyMigration(db, { onMigrated: (k) => void printed.push(k) });
+    } catch (e) {
+      err = e;
+    } finally {
+      await db.execute(sql`drop trigger test_falha_migracao on api.api_key`);
+      await db.execute(sql`drop function test_falha_migracao()`);
+    }
+    const mine = printed.filter((k) => k.tenant === 'legado-falha');
+    expect(mine.map((k) => k.label)).toEqual(['primeira']);
+    expect(err).toBeInstanceOf(KeyMigrationError);
+    const failure = err as KeyMigrationError;
+    expect(failure.failed).toMatchObject({ tenant: 'legado-falha', label: 'segunda' });
+    // a mensagem traz a causa do Postgres, não a query do driver com o hash da chave
+    expect(failure.message).toContain('falha simulada na 2ª chave');
+    expect(failure.message).not.toContain('scrypt');
+    expect(failure.migrated.map((k) => k.newKey)).toEqual(printed.map((k) => k.newKey));
+    // a 1ª substituta entregue vale; a 2ª legada continua como estava (válida, formato 1)
+    expect((await tenantReq(mine[0]!.newKey, 'GET', '/v1/sports')).statusCode).toBe(200);
+    const left = await planKeyMigration(db);
+    expect(left.filter((k) => k.tenant === 'legado-falha').map((k) => k.label)).toEqual(['segunda']);
+    // corrigida a causa, rodar de novo continua de onde parou
+    const rest = (await applyKeyMigration(db)).filter((k) => k.tenant === 'legado-falha');
+    expect(rest.map((k) => k.label)).toEqual(['segunda']);
+  });
+});
+
+describe('tenant:create no teto de chaves (upsertTenantWithKey)', () => {
+  const input = (name: string, plan: 'core_data' | 'enterprise') => ({
+    slug: 'cli-teto',
+    name,
+    ...resolveTenantValues(plans, { plan }),
+  });
+
+  it('cria o tenant e a chave juntos; no teto, falha sem reescrever o tenant', async () => {
+    const first = await upsertTenantWithKey(db, input('Original', 'core_data'), { env: 'live' });
+    expect(first.tenant.created).toBe(true);
+    expect((await tenantReq(first.key.key, 'GET', '/v1/sports')).statusCode).toBe(200);
+    for (let i = 0; i < 4; i++)
+      await upsertTenantWithKey(db, input('Original', 'core_data'), { env: 'live' });
+    const before = await db.select().from(tenant).where(eq(tenant.slug, 'cli-teto'));
+
+    await expect(
+      upsertTenantWithKey(db, input('Trocado', 'enterprise'), { env: 'live', label: 'sexta' }),
+    ).rejects.toBeInstanceOf(KeyPolicyError);
+    const after = await db.select().from(tenant).where(eq(tenant.slug, 'cli-teto'));
+    expect(after).toEqual(before);
+    expect(after[0]).toMatchObject({ name: 'Original', plan: 'core_data' });
+    const keys = await db.select({ id: apiKey.id }).from(apiKey).where(eq(apiKey.tenantId, first.tenant.id));
+    expect(keys).toHaveLength(5);
+
+    // o teto é por ambiente: em test, atualiza o tenant e emite
+    const test = await upsertTenantWithKey(db, input('Trocado', 'enterprise'), { env: 'test' });
+    expect(test.tenant.created).toBe(false);
+    expect(test.key.key).toMatch(/^gs_test_/);
+    const [updated] = await db.select().from(tenant).where(eq(tenant.slug, 'cli-teto'));
+    expect(updated).toMatchObject({ name: 'Trocado', plan: 'enterprise' });
   });
 });

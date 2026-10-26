@@ -38,8 +38,11 @@ não há manutenção de versões antigas.
 
 Revisão do esquema de hash (issue #84):
 
-- **Formato**: `gs_<live|test>_<prefixo 12 hex>_<segredo 43 base64url>`. O prefixo (48 bits) é público e só localiza a
-  linha; o segredo tem 256 bits de entropia (`crypto.randomBytes`).
+- **Formato**: `gs_<live|test>_<prefixo 12 hex>_<segredo 43 base64url>_<crc32 8 hex>`. O prefixo (48 bits) é público e
+  só localiza a linha; o segredo tem 256 bits de entropia (`crypto.randomBytes`). O checksum não protege nada (qualquer
+  um calcula): serve para recusar erro de digitação sem custo e para scanners de segredos (regra `galaxie-api-key` do
+  gitleaks e padrão customizado do secret scanning do GitHub, docs/politica-de-chaves.md §5) acharem a chave sem falso
+  positivo. O ambiente do prefixo precisa bater com o gravado. Chaves anteriores ao checksum: docs/runbooks/migracao-de-chaves.md.
 - **Armazenamento**: `scrypt$N$r$p$sal$hash` com N=2¹⁴, r=8, p=1, sal de 16 bytes e saída de 32 bytes (`node:crypto`).
   Para um segredo de 256 bits aleatórios, um hash rápido já seria resistente a força bruta; o scrypt é defesa em
   profundidade caso um dump do banco vaze junto com segredos de baixa qualidade de outra origem. A doc antiga citava

@@ -181,6 +181,21 @@ export function libraryTargetType(kind: string): 'plan_channel' | 'plan_service'
   return kind === 'free_tv' || kind === 'pay_tv' ? 'plan_channel' : null;
 }
 
+/**
+ * URL pública do logo, pela mesma regra da API (`loadLogoBook`): o nosso storage (`ASSETS_PUBLIC_BASE_URL` +
+ * storage_key) quando o arquivo já está lá; senão a origem, só se for http(s). A origem do acervo oficial
+ * (`acervo-oficial://…`) e da Commons (`commons://…`) não é URL: sem a base, o logo fica nas iniciais em vez
+ * de virar imagem quebrada. Lida a cada chamada (a base vem do ambiente do contêiner, não do build).
+ */
+export function assetUrl(
+  key: string | null,
+  source: string | null,
+  base: string | undefined = process.env.ASSETS_PUBLIC_BASE_URL,
+): string | null {
+  if (key && base) return `${base.replace(/\/+$/, '')}/${key.replace(/^\/+/, '')}`;
+  return source && /^https?:\/\//i.test(source) ? source : null;
+}
+
 // ─── conversão do que vem do banco ───────────────────────────────────────────────────────────────
 
 interface SourceLike {

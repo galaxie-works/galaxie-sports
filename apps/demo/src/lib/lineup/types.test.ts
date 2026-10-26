@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  assetUrl,
   awaitsDecision,
   emailDomain,
   emailMatchesDomains,
@@ -327,5 +328,20 @@ describe('libraryTargetType', () => {
   it('rádio (ou tipo desconhecido) não entra em plano', () => {
     expect(libraryTargetType('radio')).toBeNull();
     expect(libraryTargetType('outro')).toBeNull();
+  });
+});
+
+describe('assetUrl', () => {
+  const base = 'https://assets.exemplo.test/bucket/';
+  it('arquivo no storage: base + chave', () => {
+    expect(assetUrl('broadcasters/abc.svg', 'acervo-oficial://1-2', base)).toBe(
+      'https://assets.exemplo.test/bucket/broadcasters/abc.svg',
+    );
+  });
+  it('sem base, a origem só se for http(s)', () => {
+    expect(assetUrl('broadcasters/abc.svg', 'acervo-oficial://1-2', undefined)).toBeNull();
+    expect(assetUrl(null, 'commons://File:Logo.svg', base)).toBeNull();
+    expect(assetUrl(null, 'https://canal.exemplo/logo.png', base)).toBe('https://canal.exemplo/logo.png');
+    expect(assetUrl(null, null, base)).toBeNull();
   });
 });

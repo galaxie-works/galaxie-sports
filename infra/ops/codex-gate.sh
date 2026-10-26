@@ -31,7 +31,7 @@ read -r created head < <(gh api "repos/$REPO/pulls/$PR" --jq '"\(.created_at) \(
 pushed="$(gh api "repos/$REPO/commits/$head" --jq .commit.committer.date)"
 
 # "<estado> <commit do último review>": running | current (terminado no commit atual) | stale (terminado num commit
-# anterior, ou só o 👍) | none
+# anterior, ou só o 👍) | failed (o Codex não terminou: sem cota ou erro dele; o 👀 pode ficar) | none
 review_state() {
   local reactions status sha state
   # 👀 = review rodando; 👍 = terminou sem achado
@@ -43,6 +43,7 @@ review_state() {
       | capture("codex-review-state:v1 (?<j>[{].*?[}]) -->").j | fromjson
       | "\(.code_review.status // "-") \(.code_review.commit_sha // "-")"' | tail -n 1) || true
   case " $reactions ${status:--}" in
+    *" failed") state=failed ;;
     *" eyes "*) state=running ;;
     *" completed") if [ "${sha:--}" = "$head" ]; then state=current; else state=stale; fi ;;
     *" -") case " $reactions" in *" +1 "*) state=stale ;; *) state=none ;; esac ;;
@@ -58,6 +59,8 @@ while :; do
   read -r state reviewed < <(review_state)
   now=$(date +%s)
   [ "$state" = current ] && break
+  # review que falhou não vai terminar: decide já, como no fim da espera
+  [ "$state" = failed ] && deadline=$now
   if [ "$now" -ge "$deadline" ]; then
     if [ "$state" = running ]; then
       if [ "$now" -lt $((deadline + WAIT_MIN * 60)) ]; then
@@ -69,7 +72,9 @@ while :; do
       echo "Codex ainda revisando o PR #$PR: rode de novo quando terminar." >> "$SUMMARY"
       exit 1
     fi
-    if [ "$state" = stale ]; then
+    if [ "$state" = failed ]; then
+      msg="o review do Codex do commit ${reviewed:0:7} falhou (sem cota ou erro do Codex; peça \"@codex review\" quando ele voltar)"
+    elif [ "$state" = stale ]; then
       msg="o último review do Codex é do commit ${reviewed:0:7}, não do atual ${head:0:7} (o Codex revisa ao abrir o PR, ao sair de rascunho ou com \"@codex review\")"
     else
       msg="nenhum review do Codex no PR"
