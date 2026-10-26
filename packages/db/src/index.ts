@@ -20,7 +20,9 @@ export {
   type EventContextContentBase,
 } from './event-context.js';
 export {
+  AUTO_CHANNEL_RULE_BY,
   clearRelatedChannelRefusals,
+  promoteRefusedChannels,
   listRelatedChannels,
   setRelatedChannelRule,
   type ListRelatedChannelsOptions,
@@ -30,9 +32,7 @@ export {
   readRelatedContent,
   recordPlaybackBlock,
   RELATED_CHANNEL_BLOCK_THRESHOLD,
-  RELATED_GLOBAL_BLOCK_TENANTS,
   relatedContentTag,
-  RELATED_CONTENT_PURGE_TOPIC,
   RELATED_CONTENT_TOPIC,
   type PlaybackBlockIndex,
   type PlaybackBlockInput,
