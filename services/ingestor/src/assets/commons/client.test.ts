@@ -116,3 +116,89 @@ describe('WikimediaClient.extMetadata', () => {
     expect(metas.size).toBe(51);
   });
 });
+
+describe('WikimediaClient.imageInfoReport', () => {
+  it('devolve à parte os arquivos que a Commons diz não existirem (apagados ou título inválido)', async () => {
+    const client = new WikimediaClient({
+      minIntervalMs: 0,
+      fetch: async () =>
+        Response.json({
+          query: {
+            pages: [
+              { title: 'File:Apagada.jpg', missing: true },
+              { title: 'File:<inválido>', invalid: true },
+              {
+                title: 'File:Viva.jpg',
+                imageinfo: [{ url: 'u', descriptionurl: 'd', width: 10, height: 10, mime: 'image/jpeg' }],
+              },
+            ],
+          },
+        }),
+    });
+    const r = await client.imageInfoReport(['File:Apagada.jpg', 'File:<inválido>', 'File:Viva.jpg'], 100);
+    expect(r.missing).toEqual(['File:Apagada.jpg', 'File:<inválido>']);
+    expect(r.files.map((f) => f.title)).toEqual(['File:Viva.jpg']);
+  });
+});
+
+describe('WikimediaClient: rede instável', () => {
+  const reset = () => Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } });
+
+  it('erro de rede (ECONNRESET) é tentado de novo com espera; depois a resposta vale', async () => {
+    const waits: number[] = [];
+    let calls = 0;
+    const client = new WikimediaClient({
+      minIntervalMs: 0,
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+      fetch: async () => {
+        calls += 1;
+        if (calls <= 2) throw reset();
+        return Response.json({ search: [{ id: 'Q1' }] });
+      },
+    });
+    expect(await client.searchItems('Senna')).toEqual(['Q1']);
+    expect(calls).toBe(3);
+    expect(waits).toEqual([1000, 2000]);
+  });
+
+  it('esgotadas as tentativas, vira WikimediaError (a varredura trata como Wikimedia fora)', async () => {
+    let calls = 0;
+    const client = new WikimediaClient({
+      minIntervalMs: 0,
+      maxRetries: 2,
+      sleep: async () => {},
+      fetch: async () => {
+        calls += 1;
+        throw reset();
+      },
+    });
+    await expect(client.download('https://upload.wikimedia.org/x.jpg')).rejects.toMatchObject({
+      name: 'WikimediaError',
+      message: expect.stringMatching(/falha de rede/),
+    });
+    expect(calls).toBe(3);
+    await expect(client.entityClaims('Q1', ['P18'])).rejects.toMatchObject({ name: 'WikimediaError' });
+  });
+
+  it('conexão pendurada cai no tempo-limite e é tentada de novo, sem travar', async () => {
+    let calls = 0;
+    const client = new WikimediaClient({
+      minIntervalMs: 0,
+      timeoutMs: 20,
+      sleep: async () => {},
+      fetch: (async (_url: string | URL | Request, init?: RequestInit) => {
+        calls += 1;
+        // a primeira nunca responde: só o sinal de tempo-limite a encerra
+        if (calls === 1)
+          return new Promise<Response>((_resolve, reject) =>
+            init?.signal?.addEventListener('abort', () => reject(init.signal!.reason)),
+          );
+        return Response.json({ search: [] });
+      }) as typeof fetch,
+    });
+    expect(await client.searchItems('Senna')).toEqual([]);
+    expect(calls).toBe(2);
+  });
+});

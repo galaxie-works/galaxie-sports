@@ -43,6 +43,11 @@ export interface ManifestPhoto {
   reason?: string | null;
   /** Carro: nota do Gemini (0–1) para o fundo do heading; abaixo de `HERO_MIN`, a foto não vai ao fundo. */
   hero?: number;
+  /**
+   * Carro de destaque: os pilotos do destaque (id do F1DB) que a foto cita no título ou na categoria. A importação
+   * leva ao fundo de cada piloto a foto que o cita, e não a do companheiro.
+   */
+  drivers?: string[];
 }
 
 export interface ManifestEntry {
@@ -139,6 +144,7 @@ const photoOf = (c: ChosenPhoto, license: CommonsLicense): ManifestPhoto => {
     height: f.height,
     ...(c.reason ? { reason: c.reason } : {}),
     ...(c.hero != null ? { hero: c.hero } : {}),
+    ...(c.eligible.candidate.drivers?.length ? { drivers: c.eligible.candidate.drivers } : {}),
   };
 };
 

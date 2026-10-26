@@ -6,10 +6,12 @@
  * 4. registra `core.asset` (origin `commons`), o crédito (`core.asset_credit`) e o vínculo com o piloto ou o
  *    construtor (`core.participant_photo`). O logo do participante não muda.
  * 5. carro de destaque do piloto (`highlight_car` no manifesto, com os candidatos em `fallbacks`): a primeira
- *    foto do primeiro carro candidato que pode ir ao fundo (`highlightPhoto`: sem CC BY-SA) também vira vínculo
- *    do piloto, com o papel `highlight_car` e a temporada (heading da página do piloto).
+ *    foto do primeiro carro candidato que pode ir ao fundo (`highlightPhoto`: sem CC BY-SA pela licença conferida
+ *    de novo, e a que cita o piloto antes da do companheiro) também vira vínculo do piloto, com o papel
+ *    `highlight_car` e a temporada (heading da página do piloto).
  * Idempotente: o mesmo manifesto não regrava nada; foto que saiu do manifesto (ou foi rejeitada) sai do
- * participante (o asset fica).
+ * participante (o asset fica), e o arquivo apagado na Commons também. Entrada sem nenhuma foto e sem identidade
+ * (descoberta que não achou o piloto) ou resposta da Commons sem nenhuma página não apaga a galeria já vinculada.
  * 6. avisa o `ops.change_feed` (`team:<participante>` e `asset`): a API purga as fotos, a carreira e as lendas
  *    em cache, e a demo revalida as páginas do piloto e da F1.
  */
@@ -21,6 +23,8 @@ import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
 import type { WikimediaClient } from './client.js';
 import { readLicense } from './license.js';
+import { citesDriver, plainWords } from './cites.js';
+import { surname } from './scope.js';
 import {
   COMMONS_ACERVO_ID,
   type CommonsManifest,
@@ -96,6 +100,8 @@ export async function importCommons(
     withoutHighlight: [],
     skipped: [],
   };
+  /** Licença conferida nesta importação: arquivo → CC BY-SA (null = recusada ou sumiu da Commons). */
+  const revalidated = new Map<string, boolean | null>();
   /** Participantes cujas fotos foram regravadas nesta importação (avisados no change feed no fim). */
   const touched = new Set<string>();
   for (const entry of manifest.entries) {
@@ -112,24 +118,35 @@ export async function importCommons(
     }
     /** Pares (asset, papel) que ficam: o mesmo asset em outro papel é vínculo antigo. */
     const keep: { assetId: string; role: string }[] = [];
+    /**
+     * A Commons não devolveu nenhuma página (nem o arquivo nem "apagado"): falha da fonte, a galeria fica. Arquivo
+     * apagado na Commons (`missing`) sai normalmente.
+     */
+    let sourceEmpty = false;
     if (photos.length) {
       // licença conferida de novo, na hora da importação
-      const infos = await client.imageInfo(
+      const { files: infos, missing } = await client.imageInfoReport(
         photos.map((p) => p.file),
         COMMONS_THUMB_WIDTH,
       );
+      sourceEmpty = !infos.length && !missing.length;
+      const gone = new Set(missing);
       const byTitle = new Map(infos.map((i) => [i.title, i]));
       for (const photo of photos) {
         report.photos += 1;
         const info = byTitle.get(photo.file);
         const license = info ? readLicense(info.extmetadata) : null;
+        // o carro de destaque usa a licença conferida agora, não a do manifesto
+        revalidated.set(photo.file, license?.ok ? license.value.shareAlike : null);
         if (!info || !license?.ok) {
           report.skipped.push({
             key: entry.target,
             file: photo.file,
             reason: info
               ? `licença: ${license && !license.ok ? license.reason : '?'}`
-              : 'arquivo sumiu da Commons',
+              : gone.has(photo.file)
+                ? 'arquivo apagado na Commons'
+                : 'arquivo sumiu da Commons',
           });
           continue;
         }
@@ -248,32 +265,52 @@ export async function importCommons(
       }
     }
     if (opts.plan) continue;
+    // fotos do acervo do participante (carro: só as da temporada da entrada)
+    const ours = and(
+      eq(participantPhoto.participantId, participantId),
+      entry.kind === 'car'
+        ? and(eq(participantPhoto.role, 'car'), eq(participantPhoto.seasonYear, entry.season!))
+        : inArray(participantPhoto.role, ['portrait', 'action']),
+      inArray(
+        participantPhoto.assetId,
+        db.select({ id: asset.id }).from(asset).where(eq(asset.origin, 'commons')),
+      ),
+    );
+    // entrada sem nenhuma foto e sem identidade (nem item do Wikidata nem categoria: a descoberta não achou o
+    // piloto, como a do Stefan Johansson em 23/10) ou sem resposta da Commons: não é curadoria, e apagar levaria a
+    // galeria inteira. A rejeição explícita (`match: rejected`) e o arquivo apagado na Commons tiram foto
+    const unidentified = !entry.photos.length && !entry.wikidata && !entry.category;
+    if (unidentified || sourceEmpty) {
+      const [linked] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(participantPhoto)
+        .where(ours);
+      if (linked?.n)
+        report.skipped.push({
+          key: entry.target,
+          reason: `${sourceEmpty ? 'a Commons não devolveu nenhum dos arquivos' : 'entrada sem fotos no manifesto'}: as ${linked.n} foto(s) já vinculada(s) ficam`,
+        });
+      continue;
+    }
     touched.add(participantId);
-    // fotos do acervo que saíram do manifesto deixam o participante (carro: só as da temporada da entrada)
+    // as que saíram do manifesto deixam o participante
     const stale = await db
       .delete(participantPhoto)
       .where(
         and(
-          eq(participantPhoto.participantId, participantId),
-          entry.kind === 'car'
-            ? and(eq(participantPhoto.role, 'car'), eq(participantPhoto.seasonYear, entry.season!))
-            : inArray(participantPhoto.role, ['portrait', 'action']),
+          ours,
           keep.length
             ? sql`(${participantPhoto.assetId}, ${participantPhoto.role}) not in (${sql.join(
                 keep.map((k) => sql`(${k.assetId}::uuid, ${k.role})`),
                 sql`, `,
               )})`
             : sql`true`,
-          inArray(
-            participantPhoto.assetId,
-            db.select({ id: asset.id }).from(asset).where(eq(asset.origin, 'commons')),
-          ),
         ),
       )
       .returning({ id: participantPhoto.assetId });
     report.unlinked += stale.length;
   }
-  await linkHighlights(db, manifest, report, opts, touched);
+  await linkHighlights(db, manifest, report, revalidated, opts, touched);
   for (const id of touched)
     await publishChange(db, {
       topic: 'catalog',
@@ -288,6 +325,40 @@ export async function importCommons(
 /** Nota mínima do Gemini (`hero`) para a foto do carro ir ao fundo do heading. */
 export const HERO_MIN = 0.5;
 
+/** Piloto do carro de destaque, para casar com a foto: id do F1DB, nome e sobrenome. */
+export interface HighlightDriver {
+  f1dbId: string;
+  name: string;
+  surname: string;
+}
+
+export interface HighlightOptions {
+  /** Só foto com a nota do Gemini para o fundo (ou da curadoria). */
+  scored?: boolean;
+  /** O piloto do heading: a foto que o cita vem antes. */
+  driver?: HighlightDriver;
+  /** Os outros pilotos com o mesmo carro de destaque: a foto que cita só um deles é a do carro do companheiro. */
+  teammates?: HighlightDriver[];
+  /** A foto pode ir ao fundo (licença conferida, sem CC BY-SA)? Padrão: o `share_alike` do manifesto. */
+  free?: (p: ManifestPhoto) => boolean;
+}
+
+/** Nomes do carro (construtor, chassi da categoria): o sobrenome igual a um deles só cita com o nome inteiro. */
+const carNamesOf = (car: ManifestEntry | undefined): string[] =>
+  car ? [car.name, car.category, car.f1db_id?.replace(/-/g, ' ')].filter((n): n is string => !!n) : [];
+
+/**
+ * A foto cita o piloto: o que a varredura registrou (`drivers`) ou o sobrenome no título do arquivo, como palavra
+ * inteira. Sobrenome que é também o nome do carro (Jack Brabham no "1971 Brabham BT33") só com o nome inteiro.
+ */
+export function photoCites(p: ManifestPhoto, d: HighlightDriver, carNames: readonly string[] = []): boolean {
+  if (p.drivers?.includes(d.f1dbId)) return true;
+  return citesDriver(p.file.replace(/^File:/, ''), d, carNames);
+}
+
+/** Sobrenome do piloto pelo nome do manifesto ("Carlos Sainz Jr." → "Sainz"). */
+export const driverSurname = (name: string) => surname(name).split(/\s+/).at(-1) ?? name;
+
 /**
  * Foto do carro de destaque: a primeira não rejeitada e sem CC BY-SA. O heading recorta a foto no navegador
  * (cover), o que é uma adaptação; BY-SA pediria a mesma licença na obra derivada. Só BY-SA no carro: o piloto
@@ -295,64 +366,108 @@ export const HERO_MIN = 0.5;
  * Com a nota do Gemini para o fundo (`hero`): a curadoria manual primeiro, depois a de maior nota a partir de
  * `HERO_MIN` (close de gente, detalhe ou pessoa moderna em primeiro plano ficam de fora). `scored`: só foto com
  * nota (ou da curadoria) — carro ainda sem a nota do Gemini não vai ao fundo (o heading usa a cor da equipe).
+ * Com o piloto (`driver`): a foto que cita só um companheiro do mesmo carro fica de fora (é o carro dele), e a que
+ * cita o piloto passa à frente das que não citam ninguém.
  */
 export function highlightPhoto(
   car: ManifestEntry | undefined,
-  opts: { scored?: boolean } = {},
+  opts: HighlightOptions = {},
 ): ManifestPhoto | undefined {
-  const ok = (car?.photos ?? []).filter((p) => p.match !== 'rejected' && !p.share_alike);
-  if (!opts.scored && !ok.some((p) => p.hero != null)) return ok[0];
+  const free = opts.free ?? ((p: ManifestPhoto) => !p.share_alike);
+  const { driver } = opts;
+  // o mesmo sobrenome (os Hill, os Verstappen) não separa as fotos
+  const mates = (opts.teammates ?? []).filter(
+    (t) => !driver || plainWords(t.surname) !== plainWords(driver.surname),
+  );
+  const carNames = carNamesOf(car);
+  const own = (p: ManifestPhoto) => !!driver && photoCites(p, driver, carNames);
+  const ok = (car?.photos ?? []).filter(
+    (p) => p.match !== 'rejected' && free(p) && (own(p) || !mates.some((t) => photoCites(p, t, carNames))),
+  );
+  if (!opts.scored && !ok.some((p) => p.hero != null)) return ok.find(own) ?? ok[0];
   return ok
     .filter((p) => p.match === 'manual' || (p.hero ?? 0) >= HERO_MIN)
     .sort(
-      (a, b) => Number(b.match === 'manual') - Number(a.match === 'manual') || (b.hero ?? 0) - (a.hero ?? 0),
+      (a, b) =>
+        Number(b.match === 'manual') - Number(a.match === 'manual') ||
+        Number(own(b)) - Number(own(a)) ||
+        (b.hero ?? 0) - (a.hero ?? 0),
     )[0];
 }
+
+/** Carros candidatos a destaque do piloto (`highlight_car` e os `fallbacks`). */
+const highlightTargets = (e: ManifestEntry) =>
+  e.highlight_car ? [e.highlight_car.target, ...(e.highlight_car.fallbacks ?? []).map((f) => f.target)] : [];
 
 /**
  * Carro de destaque do piloto, com a foto e a temporada: a curadoria (`manual`, com a foto escolhida em `file`,
  * de qualquer alvo) ou o primeiro candidato da regra (`highlight_car` e os `fallbacks`) cujo carro tem foto com
  * a nota do Gemini para o fundo (`highlightPhoto` com `scored`). O carro escolhido na curadoria vale sem a nota.
+ * O carro que é destaque de mais de um piloto (companheiros de equipe) dá a cada um a foto que o cita.
  */
 export function pickHighlight(
   entry: ManifestEntry,
   byTarget: Map<string, ManifestEntry>,
+  opts: Pick<HighlightOptions, 'free'> = {},
 ): { target: string; season: number; photo: ManifestPhoto } | undefined {
   const h = entry.highlight_car;
   if (!h) return undefined;
+  const free = opts.free ?? ((p: ManifestPhoto) => !p.share_alike);
   if (h.file) {
     const own = [byTarget.get(h.target), entry, ...byTarget.values()];
     const photo = own
       .flatMap((e) => e?.photos ?? [])
-      .find((p) => p.file === h.file && p.match !== 'rejected' && !p.share_alike);
+      .find((p) => p.file === h.file && p.match !== 'rejected' && free(p));
     return photo ? { target: h.target, season: h.season, photo } : undefined;
   }
+  const driver = { f1dbId: entry.f1db_id, name: entry.name, surname: driverSurname(entry.name) };
+  const teammates = (target: string) =>
+    [...byTarget.values()]
+      .filter((e) => e.kind === 'driver' && e.target !== entry.target && highlightTargets(e).includes(target))
+      .map((e) => ({ f1dbId: e.f1db_id, name: e.name, surname: driverSurname(e.name) }));
+  const forCar = (target: string, scored: boolean) =>
+    highlightPhoto(byTarget.get(target), { scored, driver, teammates: teammates(target), free });
   if (h.match === 'manual') {
-    const photo = highlightPhoto(byTarget.get(h.target));
+    const photo = forCar(h.target, false);
     return photo ? { target: h.target, season: h.season, photo } : undefined;
   }
   for (const c of [h, ...(h.fallbacks ?? [])]) {
-    const photo = highlightPhoto(byTarget.get(c.target), { scored: true });
+    const photo = forCar(c.target, true);
     if (photo) return { target: c.target, season: c.season, photo };
   }
   return undefined;
 }
 
-/** Carro de destaque de cada piloto (`pickHighlight`), com a foto já no storage. */
+/**
+ * Carro de destaque de cada piloto (`pickHighlight`), com a foto já no storage. A licença que vale é a conferida
+ * nesta importação (`revalidated`); a foto que esta importação não conferiu usa o crédito gravado na anterior e,
+ * sem ele, o manifesto.
+ */
 async function linkHighlights(
   db: Database,
   manifest: CommonsManifest,
   report: ImportReport,
+  revalidated: ReadonlyMap<string, boolean | null>,
   opts: { plan?: boolean; only?: Set<string> },
   touched: Set<string>,
 ): Promise<void> {
   const byTarget = new Map(manifest.entries.map((e) => [e.target, e]));
+  const credits = new Map(
+    (
+      await db
+        .select({ title: assetCredit.title, shareAlike: assetCredit.shareAlike })
+        .from(assetCredit)
+        .where(eq(assetCredit.source, 'wikimedia-commons'))
+    ).map((c) => [c.title, c.shareAlike]),
+  );
+  const free = (p: ManifestPhoto) =>
+    revalidated.has(p.file) ? revalidated.get(p.file) === false : !(credits.get(p.file) ?? p.share_alike);
   for (const entry of manifest.entries) {
     if (entry.kind !== 'driver') continue;
     const h = entry.highlight_car ?? null;
-    const cars = h ? [h.target, ...(h.fallbacks ?? []).map((f) => f.target)] : [];
+    const cars = highlightTargets(entry);
     if (opts.only && !opts.only.has(entry.target) && !cars.some((c) => opts.only!.has(c))) continue;
-    const picked = pickHighlight(entry, byTarget);
+    const picked = pickHighlight(entry, byTarget, { free });
     const photo = picked?.photo;
     if (!picked) report.withoutHighlight.push(entry.target);
     if (opts.plan) {
