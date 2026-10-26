@@ -11,6 +11,9 @@
 const API = process.env.GALAXIE_API_URL ?? 'http://api:8080';
 const KEY = process.env.GALAXIE_DEMO_KEY ?? '';
 const DEMO = process.env.SMOKE_DEMO_URL ?? 'http://127.0.0.1:3000';
+// página de manutenção (serviço maintenance): 8080 = HTML dos hosts da demo, 8081 = problem+json do host da API
+const MAINT_SITE = process.env.SMOKE_MAINTENANCE_SITE_URL ?? 'http://maintenance:8080';
+const MAINT_API = process.env.SMOKE_MAINTENANCE_API_URL ?? 'http://maintenance:8081';
 
 // IDs canônicos estáveis usados como referência (time e jogo com dados completos)
 const PALMEIRAS = '01a15fba-ec17-7d8b-90d7-47b3ccbe967e';
@@ -48,6 +51,33 @@ const warn = (detail) => ({ level: 'WARN', detail });
 await check('API /health', async () => {
   const res = await fetch(`${API}/health`);
   return res.ok ? true : fail(`status ${res.status}`);
+});
+
+await check('Página de manutenção (503 do Traefik quando demo ou API saem do ar)', async () => {
+  // O serviço maintenance só aparece para o usuário durante um deploy ou reinício; aqui, pela rede da stack, confere
+  // que ele está no ar e responde o 503 certo. Os routers dele no Traefik (prioridade 1) se conferem de fora: README.
+  const get = (url) =>
+    fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(5000) }).catch((err) => {
+      throw new Error(`contêiner maintenance fora do ar? ${url}: ${err.cause?.code ?? err.message}`);
+    });
+  const nocache = (res) =>
+    res.headers.get('retry-after') === '30' && res.headers.get('cache-control') === 'no-store';
+  const site = await get(`${MAINT_SITE}/competicoes/brasileirao-serie-a`);
+  const html = await site.text();
+  if (site.status !== 503) return fail(`página: status ${site.status} (esperado 503)`);
+  if (!nocache(site)) return fail('página sem Retry-After: 30 e Cache-Control: no-store');
+  if (!site.headers.get('content-type')?.startsWith('text/html') || !html.includes('Galaxie Sports'))
+    return fail('página sem o HTML de manutenção');
+  const api = await get(`${MAINT_API}/health`);
+  const problem = await api.json().catch(() => null);
+  if (api.status !== 503) return fail(`API: status ${api.status} (esperado 503)`);
+  if (!nocache(api)) return fail('API sem Retry-After: 30 e Cache-Control: no-store');
+  if (
+    !api.headers.get('content-type')?.startsWith('application/problem+json') ||
+    problem?.code !== 'MAINTENANCE'
+  )
+    return fail('API sem o problem+json MAINTENANCE');
+  return '503 em HTML (demo) e em problem+json (API), Retry-After: 30';
 });
 
 await check('Glossário (data/knowledge na imagem da API)', async () => {

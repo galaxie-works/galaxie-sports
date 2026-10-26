@@ -18,8 +18,10 @@
 #      menos 30), para o resto caber no teto; trava mais velha que LOCK_STALE_MIN (padrão: teto + 10 min, no
 #      mínimo 60) é de deploy morto e é tomada, com WARN
 #   4. docker save | ssh docker load
-#   5. compose.yml do SHA e IMAGE_TAG no .env, validados antes de trocar (com backup dos dois)
-#   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry)
+#   5. compose.yml do SHA e IMAGE_TAG no .env, validados antes de trocar (com backup dos dois); a imagem da página de
+#      manutenção (caddy fixo do Docker Hub) é baixada antes, só se faltar
+#   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry). A
+#      página de manutenção não é recriada: enquanto demo e API sobem, o Traefik responde 503 por ela, não 404
 #      → o migrate tem de sair com 0. Falha aqui sem migration nova aplicada → volta compose.yml/.env anteriores e
 #      sobe de novo; com migration nova (ou sem como saber) → rollback manual. Sempre sai com 1
 #   7. pós-deploy idempotente: seed da base semântica, nomes curados de estádios e importância
@@ -271,6 +273,13 @@ case "$SCALE" in
     exit 1
     ;;
 esac
+# página de manutenção (serviço maintenance: imagem upstream fixa, sem IMAGE_TAG): baixa a imagem só se ainda não
+# estiver na VPS, antes de trocar qualquer coisa. O up não recria o serviço (o hash dele não muda de um deploy para o
+# outro); só quando o compose dele muda (rótulo works.galaxie.maintenance-rev), e aí em ~1 s, com demo e API no ar.
+if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new pull --policy missing --quiet maintenance"; then
+  echo "FAIL  não deu para baixar a imagem da página de manutenção (Docker Hub fora? docker compose < 2.23?); nada foi trocado na VPS"
+  exit 1
+fi
 ssh "$VPS" "$CD && (umask 077 && sed 's/^IMAGE_TAG=.*/IMAGE_TAG=$SHA/' .env > .env.check) \
   && { docker compose -f compose.yml.new --env-file .env.check config -q; ok=\$?; rm -f .env.check; [ \$ok = 0 ]; } \
   && cp compose.yml compose.yml.bak-${OLD:0:7} && cp .env .env.bak-${OLD:0:7} \
