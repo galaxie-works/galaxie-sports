@@ -9,7 +9,7 @@
  */
 import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { competition, event, publishChange, season, stage, standing, type Database } from '@galaxie/db';
-import { computeStandings, type CompetitionRules, type MatchResult } from '@galaxie/rules';
+import { computeStandings, standingsTableOf, type CompetitionRules, type MatchResult } from '@galaxie/rules';
 import { loadCompetitionRules } from '@galaxie/rules/config';
 import { loadSeasonResults, writeComputedStandings } from '@galaxie/rules/db';
 import { computeTablesByRule, type TableRow } from './phases.js';
@@ -51,6 +51,10 @@ export interface SeasonStandingsReport {
   unclassified?: string[] | undefined;
   /** Rodadas de fase de grupos que o regulamento não reconhece (contadas pelo grupo dos dois times). */
   unmatchedRounds?: string[] | undefined;
+  /** Tabelas do regulamento em que a do fornecedor, mais nova que os resultados, prevaleceu. */
+  fresh?: string[] | undefined;
+  /** Grupos com o nome antigo de uma tabela renomeada pelo fornecedor (apagados). */
+  superseded?: string[] | undefined;
 }
 
 /**
@@ -143,7 +147,7 @@ export async function recomputeSeasonStandings(
 
   // pertença aos grupos de qualquer origem: o replace grava `computed` sobre a linha do provedor (mesma chave),
   // então a partir do 2º recálculo não há mais linha `provider` e os grupos sumiriam; a origem só decide o
-  // atalho provider_fresh abaixo
+  // atalho provider_fresh
   const tableRows = await db
     .select({
       participantId: standing.participantId,
@@ -153,6 +157,12 @@ export async function recomputeSeasonStandings(
     })
     .from(standing)
     .where(eq(standing.seasonId, seasonId));
+
+  // regulamento com as tabelas da temporada (Apertura/Clausura, anual, promedios...): cada fase com as suas
+  // rodadas e os seus grupos, e a frescura do fornecedor vista por tabela (não pela temporada inteira)
+  if (rules.tables.length)
+    return recomputeByTables(db, seasonId, info.competitionId, rules, tableRows, report, options);
+
   const providerRows = tableRows.filter((r) => r.source === 'provider');
   const [latest] = await db
     .select({ at: sql<string | null>`max(${event.updatedAt})` })
@@ -163,11 +173,6 @@ export async function recomputeSeasonStandings(
     const providerAt = Math.max(...providerRows.map((r) => r.updatedAt.getTime()));
     if (providerAt >= latestResultAt.getTime()) return report('provider_fresh');
   }
-
-  // regulamento com as tabelas da temporada (Apertura/Clausura, anual, promedios...): cada fase com as suas
-  // rodadas e os seus grupos
-  if (rules.tables.length)
-    return recomputeByTables(db, seasonId, info.competitionId, rules, tableRows, report, options);
 
   const stages = await db
     .select({ id: stage.id })
@@ -251,7 +256,9 @@ export async function recomputeSeasonStandings(
 /**
  * Recálculo pelas tabelas do regulamento: cada fase com as rodadas e os grupos dela, a anual com todas as
  * fases. Tabela sem como montar (sem grupos do fornecedor, grupo ambíguo) e grupo que o regulamento não
- * reconhece vão para o relatório; as demais são gravadas mesmo assim.
+ * reconhece vão para o relatório; as demais são gravadas mesmo assim. A tabela do fornecedor mais nova que
+ * os resultados dela prevalece só nela; o grupo de nome antigo de uma tabela renomeada e o resíduo no grupo
+ * sem nome saem mesmo quando nada é regravado.
  */
 async function recomputeByTables(
   db: Database,
@@ -267,6 +274,8 @@ async function recomputeByTables(
     ...(out.skipped.length ? { skipped: out.skipped } : {}),
     ...(out.unclassified.length ? { unclassified: out.unclassified } : {}),
     ...(out.unmatchedRounds.length ? { unmatchedRounds: out.unmatchedRounds } : {}),
+    ...(out.fresh.length ? { fresh: out.fresh } : {}),
+    ...(out.superseded.length ? { superseded: out.superseded } : {}),
   };
   const detail = [
     ...out.skipped.map((t) => `${t.table}: ${t.reason}`),
@@ -274,28 +283,83 @@ async function recomputeByTables(
     ...(out.unmatchedRounds.length
       ? [`rodadas de grupo fora do regulamento (contadas pelo grupo): ${out.unmatchedRounds.join(', ')}`]
       : []),
+    ...(out.fresh.length ? [`tabela do fornecedor mais nova: ${out.fresh.join(', ')}`] : []),
+    ...(out.superseded.length
+      ? [`grupo renomeado pelo fornecedor (apagado): ${out.superseded.join(', ')}`]
+      : []),
   ].join('; ');
-  if (!out.tables.length)
-    return report(out.skipped.length ? 'no_groups' : 'no_results', {
-      ...extra,
-      ...(detail ? { detail } : {}),
-    });
+  const removed = await dropRenamedAndResidue(db, seasonId, rules, tableRows, out.superseded);
+  if (!out.tables.length) {
+    if (options.publish !== false && removed > 0) await publishStandings(db, seasonId, competitionId, 0, []);
+    const outcome = out.skipped.length ? 'no_groups' : out.fresh.length ? 'provider_fresh' : 'no_results';
+    return report(outcome, { ...extra, ...(detail ? { detail } : {}) });
+  }
   const rows = await writeComputedStandings(db, seasonId, out.tables, { mode: 'replace' });
   await dropStaleComputedRows(db, seasonId, out.tables);
-  if (options.publish !== false && rows > 0) {
-    await publishChange(db, {
-      topic: 'standings',
-      entityType: 'season',
-      entityId: seasonId,
-      payload: {
-        source: 'computed',
-        rows,
-        groups: out.tables.map((t) => t.group),
-        tags: [`competition:${competitionId}`, 'standing'],
-      },
-    });
-  }
+  if (options.publish !== false && (rows > 0 || removed > 0))
+    await publishStandings(
+      db,
+      seasonId,
+      competitionId,
+      rows,
+      out.tables.map((t) => t.group),
+    );
   return report('written', { results: out.results, rows, ...extra, ...(detail ? { detail } : {}) });
+}
+
+/** Avisa o change feed de que a tabela da temporada mudou. */
+async function publishStandings(
+  db: Database,
+  seasonId: string,
+  competitionId: string,
+  rows: number,
+  groups: readonly string[],
+): Promise<void> {
+  await publishChange(db, {
+    topic: 'standings',
+    entityType: 'season',
+    entityId: seasonId,
+    payload: {
+      source: 'computed',
+      rows,
+      groups: [...groups],
+      tags: [`competition:${competitionId}`, 'standing'],
+    },
+  });
+}
+
+/**
+ * Com as tabelas do regulamento: apaga o grupo de nome antigo de uma tabela renomeada (de qualquer origem; os
+ * times dele estão no nome novo) e o resíduo calculado no grupo sem nome ao lado de grupos com nome (quando
+ * nenhuma tabela do regulamento usa o sem nome). Devolve as linhas apagadas.
+ */
+async function dropRenamedAndResidue(
+  db: Database,
+  seasonId: string,
+  rules: CompetitionRules,
+  tableRows: readonly TableRow[],
+  superseded: readonly string[],
+): Promise<number> {
+  let removed = 0;
+  if (superseded.length) {
+    const gone = await db
+      .delete(standing)
+      .where(and(eq(standing.seasonId, seasonId), inArray(standing.group, [...superseded])))
+      .returning({ id: standing.participantId });
+    removed += gone.length;
+  }
+  const residue =
+    !standingsTableOf(rules, '') &&
+    tableRows.some((r) => r.group !== '') &&
+    tableRows.some((r) => r.group === '' && r.source === 'computed');
+  if (residue) {
+    const gone = await db
+      .delete(standing)
+      .where(and(eq(standing.seasonId, seasonId), eq(standing.group, ''), eq(standing.source, 'computed')))
+      .returning({ id: standing.participantId });
+    removed += gone.length;
+  }
+  return removed;
 }
 
 /**

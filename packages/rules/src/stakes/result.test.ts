@@ -288,6 +288,41 @@ describe('tablesAroundMatch e prepareFinishedLeagueMatch', () => {
     expect(out.after.find((r) => r.teamId === 'A')!.points).toBe(0);
   });
 
+  it('zona que soma jogos interzonais (Argentina): confere e desfaz só os lados da zona', () => {
+    // zona 1 = A, B, C; D e E são da outra zona
+    const played: MatchResult[] = [
+      { id: 'm1', homeId: 'A', awayId: 'B', homeGoals: 2, awayGoals: 0, playedAt: '2026-01-01T00:00:00Z' },
+      { id: 'm2', homeId: 'A', awayId: 'D', homeGoals: 0, awayGoals: 1, playedAt: '2026-01-02T00:00:00Z' },
+      { id: 'm3', homeId: 'B', awayId: 'C', homeGoals: 1, awayGoals: 1, playedAt: '2026-01-03T00:00:00Z' },
+      { id: 'm4', homeId: 'C', awayId: 'E', homeGoals: 3, awayGoals: 0, playedAt: '2026-01-04T00:00:00Z' },
+      { id: 'm5', homeId: 'D', awayId: 'E', homeGoals: 1, awayGoals: 0, playedAt: '2026-01-04T00:00:00Z' },
+    ];
+    const zone = new Set(['A', 'B', 'C']);
+    const current = computeTable({ rules, matches: played, teams: all6 }).filter((r) => zone.has(r.teamId));
+    // sem o modo entre grupos, os interzonais ficam fora e a tabela não bate (o bug)
+    expect(() => prepareFinishedLeagueMatch({ rules, current, results: played, matchId: 'm3' })).toThrow(
+      LeagueInputError,
+    );
+    const out = tablesAroundMatch(
+      prepareFinishedLeagueMatch({ rules, current, results: played, matchId: 'm3', crossGroup: true }),
+    );
+    const view = (rows: ReturnType<typeof computeTable>) =>
+      Object.fromEntries(rows.map((r) => [r.teamId, [r.played, r.points, r.goalsFor, r.goalsAgainst]]));
+    // antes: A com o interzonal anterior (m2); C sem o interzonal posterior (m4)
+    expect(view(out.before)).toEqual({ A: [2, 3, 2, 1], B: [1, 0, 0, 2], C: [0, 0, 0, 0] });
+    expect(view(out.after)).toEqual({ A: [2, 3, 2, 1], B: [2, 1, 1, 3], C: [1, 1, 1, 1] });
+    expect(out.before.map((r) => r.teamId)).toEqual(['A', 'C', 'B']); // C (saldo 0) à frente de B (−2)
+    // o jogo encerrado tem de ser da zona: um interzonal não tem tabela de antes nela
+    expect(() =>
+      prepareFinishedLeagueMatch({ rules, current, results: played, matchId: 'm2', crossGroup: true }),
+    ).toThrow(/não está entre os resultados/);
+    // e a conferência continua valendo: placar do interzonal corrigido só nos resultados
+    const fixed = played.map((m) => (m.id === 'm4' ? { ...m, homeGoals: 4 } : m));
+    expect(() =>
+      prepareFinishedLeagueMatch({ rules, current, results: fixed, matchId: 'm3', crossGroup: true }),
+    ).toThrow(/time C, goalsFor/);
+  });
+
   it('recusa tabela que não bate com os resultados (tabela desatualizada)', () => {
     const played = randomDoubleRoundRobin(teams, rng(7)).slice(0, 12);
     const current = computeTable({ rules, matches: played.slice(0, 11) });

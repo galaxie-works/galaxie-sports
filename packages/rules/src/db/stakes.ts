@@ -392,6 +392,20 @@ function isFinishedWithScore(core: StakesEventRef): boolean {
  * tabela. Null quando a competição não define fases; `undefined` quando define e a rodada não é de nenhuma
  * (ex.: mata-mata do torneio rotulado como rodada).
  */
+/** Tipos de estágio que só podem ser de tabela (rodada fora do regulamento ainda tem tabela). */
+const TABLE_STAGE_KINDS: ReadonlySet<string> = new Set(['group', 'league_phase']);
+
+/**
+ * Jogos da rodada para o "nesta rodada", só entre times da tabela. Numa tabela que soma jogos contra
+ * times de fora (`cross_group_matches`), um jogo da rodada com um só lado nela deixaria esse time como
+ * se não jogasse: aí a rodada fica desconhecida (todos podem pontuar), que é o limite seguro.
+ */
+function roundWithin(round: readonly Fixture[], ids: ReadonlySet<string>, crossGroup: boolean) {
+  const sides = (f: Fixture) => Number(ids.has(f.homeId)) + Number(ids.has(f.awayId));
+  if (crossGroup && round.some((f) => sides(f) === 1)) return undefined;
+  return round.filter((f) => sides(f) === 2);
+}
+
 async function phaseOf(db: Database, core: StakesEventRef, rules: CompetitionRules) {
   const phases = rules.tables.filter((t) => t.kind === 'phase' && t.rounds);
   if (!phases.length) return null;
@@ -409,10 +423,10 @@ async function leagueContext(
   const season = core.season;
   if (!season) return { stakes: [], rules: competitionRules, reason: 'evento sem temporada' };
   const found: StandingsTableRule | null | undefined = await phaseOf(db, core, competitionRules);
-  // rodada que o regulamento não reconhece: em fase de grupos (rótulo de grupo inequívoco) vale a tabela do
-  // grupo dos dois times, como sem regulamento de fases; em rodada "regular" pode ser mata-mata rotulado como
-  // rodada (Liguilla), então não há stakes
-  if (found === undefined && core.stage?.kind !== 'group')
+  // rodada que o regulamento não reconhece: em fase de grupos ou fase de liga (tipo de estágio inequívoco)
+  // vale a tabela do grupo dos dois times, como sem regulamento de fases (o recálculo adota essas rodadas do
+  // mesmo jeito); em rodada "regular" pode ser mata-mata rotulado como rodada (Liguilla), então não há stakes
+  if (found === undefined && !TABLE_STAGE_KINDS.has(core.stage?.kind ?? ''))
     return { stakes: [], rules: competitionRules, reason: 'rodada fora das fases do regulamento' };
   const phase = found ?? null;
   // com fases, a matemática (times, jogos, zonas) e a tabela são as da fase
@@ -451,7 +465,7 @@ async function leagueContext(
   if (stage) {
     const ids = new Set(input.map((t) => t.teamId));
     const round = await memo(options.cache?.openRound, stage.id, () => loadOpenRound(db, stage.id));
-    nextRound = round.filter((f) => ids.has(f.homeId) && ids.has(f.awayId));
+    nextRound = roundWithin(round, ids, phase?.crossGroupMatches === true);
   }
   const remaining = (played: number) =>
     league.matchesPerTeam === null ? null : league.matchesPerTeam - played;
@@ -514,10 +528,9 @@ async function finishedLeagueContext(
     return bySeason.get(season.id) ?? [];
   });
   const ids = new Set(table.map((r) => r.participantId));
+  const crossGroup = phase?.crossGroupMatches === true;
   const nextRound = core.stage
-    ? (await loadRoundAtKickoff(db, core, core.stage.id)).filter(
-        (f) => ids.has(f.homeId) && ids.has(f.awayId),
-      )
+    ? roundWithin(await loadRoundAtKickoff(db, core, core.stage.id), ids, crossGroup)
     : undefined;
   const finished = finishedLeagueMatchStakes(
     prepareFinishedLeagueMatch({
@@ -535,6 +548,7 @@ async function finishedLeagueContext(
       results,
       matchId: core.id,
       ...(nextRound ? { nextRound } : {}),
+      ...(crossGroup ? { crossGroup } : {}),
     }),
   );
   const before = leagueInputOf(finished.before);

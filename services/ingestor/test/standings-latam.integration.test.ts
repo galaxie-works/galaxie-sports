@@ -18,6 +18,10 @@ import {
   standing,
   type Database,
 } from '@galaxie/db';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { defaultRulesDir } from '@galaxie/rules/config';
 import { computeEventStakes } from '@galaxie/rules/db';
 import { cleanupEmptyGroupResidue } from '../src/standings/empty-group-cleanup.js';
 import { recomputeSeasonStandings } from '../src/standings/recompute.js';
@@ -218,6 +222,128 @@ describe('Argentina (2026): zonas do Apertura e do Clausura, anual e promedios',
   });
 });
 
+describe('Argentina: stakes de jogo encerrado da zona depois da fecha interzonal', () => {
+  it('a tabela de antes desfaz o interzonal posterior só do lado da zona', async () => {
+    // o regulamento real com zonas de 4 (o de produção pede 15 por zona para ter stakes)
+    const dir = await mkdtemp(join(tmpdir(), 'rules-'));
+    const yaml = (await readFile(join(defaultRulesDir(), 'argentina-liga-profesional.yaml'), 'utf8'))
+      .replaceAll('teams: 15', 'teams: 4')
+      .replaceAll('matches_per_team: 16', 'matches_per_team: 6')
+      .replaceAll('from: 1, to: 8', 'from: 1, to: 2');
+    await writeFile(join(dir, 'argentina-liga-profesional.yaml'), yaml);
+    const X = ['X1', 'X2', 'X3', 'X4'];
+    const Y = ['Y1', 'Y2', 'Y3', 'Y4'];
+    const w = await world('argentina-liga-profesional', 2027, [...X, ...Y]);
+    await w.provider('Apertura - Group A', X);
+    await w.provider('Apertura - Group B', Y);
+    await w.play('Apertura - 1', 'X1', 'X2', [2, 0]);
+    await w.play('Apertura - 1', 'X3', 'X4', [1, 1]);
+    await w.play('Apertura - 1', 'Y1', 'Y2', [1, 0]);
+    await w.play('Apertura - 1', 'Y3', 'Y4', [0, 0]);
+    // fecha interzonal antes do jogo
+    await w.play('Apertura - 2', 'X1', 'Y1', [0, 1]);
+    await w.play('Apertura - 2', 'X2', 'Y2', [1, 1]);
+    await w.play('Apertura - 2', 'X3', 'Y3', [2, 0]);
+    await w.play('Apertura - 2', 'X4', 'Y4', [0, 0]);
+    const target = await w.play('Apertura - 3', 'X1', 'X3', [1, 0]);
+    await w.play('Apertura - 3', 'X2', 'X4', [0, 0]);
+    // e um interzonal depois (outra rodada), que a tabela atual já soma
+    await w.play('Apertura - 4', 'X3', 'Y2', [3, 0]);
+    expect((await recomputeSeasonStandings(db, w.seasonId, { publish: false })).outcome).toBe('written');
+    const ref = {
+      id: target.eventId,
+      sport: 'football',
+      startsAt: target.startsAt,
+      status: 'finished',
+      score: { home: 1, away: 0 },
+      competition: { slug: 'argentina-liga-profesional' },
+      season: { id: w.seasonId, year: 2027 },
+      stage: { id: target.stageId, kind: 'regular' },
+      home: { id: w.team('X1') },
+      away: { id: w.team('X3') },
+    } as const;
+    const stakes = await computeEventStakes(db, ref, { rulesDir: dir });
+    // antes da correção: "motor de regras recusou a entrada: A tabela atual (…) não bate com os resultados"
+    expect(stakes.reason).toBeUndefined();
+    expect(stakes.league?.group).toBe('Apertura - Group A');
+    // antes do jogo: X1 com 3 pontos em 2 jogos (vitória + derrota no interzonal); X3 com 4 em 2 (o 3 × 0
+    // interzonal posterior desfeito)
+    expect(stakes.league?.rows).toEqual([
+      expect.objectContaining({ teamId: w.team('X1'), played: 2, points: 3 }),
+      expect.objectContaining({ teamId: w.team('X3'), played: 2, points: 4 }),
+    ]);
+  });
+});
+
+describe('Argentina: zona do fornecedor mais nova não segura a anual calculada', () => {
+  it('a fase fresca do fornecedor prevalece; a anual (que o fornecedor não mandou) é calculada', async () => {
+    const X = ['F1', 'F2'];
+    const Y = ['G1', 'G2'];
+    const w = await world('argentina-liga-profesional', 2028, [...X, ...Y]);
+    await w.provider('Apertura - Group A', X);
+    await w.provider('Apertura - Group B', Y);
+    await w.provider('', [...X, ...Y], 'computed');
+    await w.play('Apertura - 1', 'F1', 'F2', [1, 0]);
+    await w.play('Apertura - 1', 'G1', 'G2', [2, 2]);
+    // o fornecedor atualizou as zonas depois do último resultado
+    await db
+      .update(standing)
+      .set({ updatedAt: new Date(Date.now() + 60_000) })
+      .where(and(eq(standing.seasonId, w.seasonId), eq(standing.source, 'provider')));
+    const report = await recomputeSeasonStandings(db, w.seasonId, { publish: false });
+    // antes: "provider_fresh" para a temporada inteira, sem a anual e com o resíduo sem nome
+    expect(report).toMatchObject({ outcome: 'written', fresh: ['apertura'] });
+    const t = await w.table();
+    expect(t.filter((r) => r.group.startsWith('Apertura')).every((r) => r.source === 'provider')).toBe(true);
+    expect(t.filter((r) => r.group === 'Tabla Anual').map((r) => [r.team, r.played, r.points])).toEqual([
+      ['F1', 1, 3],
+      ['G2', 1, 1], // empate com o G1 desfeito pelos gols como visitante
+      ['G1', 1, 1],
+      ['F2', 1, 0],
+    ]);
+    expect(t.filter((r) => r.group === '')).toHaveLength(0);
+    // com tudo do fornecedor mais novo, nada é regravado
+    await db
+      .update(standing)
+      .set({ source: 'provider', updatedAt: new Date(Date.now() + 120_000) })
+      .where(eq(standing.seasonId, w.seasonId));
+    expect(await recomputeSeasonStandings(db, w.seasonId, { publish: false })).toMatchObject({
+      outcome: 'provider_fresh',
+      fresh: ['apertura', 'annual'],
+    });
+  });
+});
+
+describe('grupo renomeado pelo fornecedor', () => {
+  it('as linhas do nome antigo saem; zona de outros times com a mesma idade fica', async () => {
+    const w = await world('conmebol-libertadores', 2029, ['R1', 'R2', 'S1', 'S2']);
+    // recálculo anterior gravou "Group A" e "Group B"; o fornecedor depois mandou o grupo A como "Group 1"
+    await w.provider('Group A', ['R1', 'R2'], 'computed');
+    await w.provider('Group B', ['S1', 'S2'], 'computed');
+    await w.provider('Group 1', ['R1', 'R2']);
+    await db
+      .update(standing)
+      .set({ updatedAt: new Date(OLD.getTime() + 86_400_000) })
+      .where(and(eq(standing.seasonId, w.seasonId), eq(standing.group, 'Group 1')));
+    await w.play('Group Stage - 1', 'R1', 'R2', [1, 0]);
+    await w.play('Group Stage - 1', 'S1', 'S2', [0, 0]);
+    const report = await recomputeSeasonStandings(db, w.seasonId, { publish: false });
+    expect(report).toMatchObject({ outcome: 'written', superseded: ['Group A'] });
+    const t = await w.table();
+    // antes: "Group A" (calculado, nome velho) ficava ao lado de "Group 1" na API e no chaveamento
+    expect(t.map((r) => [r.group, r.team, r.points, r.source])).toEqual([
+      ['Group 1', 'R1', 3, 'computed'],
+      ['Group 1', 'R2', 0, 'computed'],
+      ['Group B', 'S1', 1, 'computed'],
+      ['Group B', 'S2', 1, 'computed'],
+    ]);
+    // idempotente
+    const again = await recomputeSeasonStandings(db, w.seasonId, { publish: false });
+    expect(again.superseded).toBeUndefined();
+    expect(await w.table()).toEqual(t);
+  });
+});
+
 describe('Liga MX: Apertura e Clausura de tabela única, Liguilla fora', () => {
   it('sem tabela do fornecedor, grava "Apertura" e "Clausura" só com as rodadas numeradas', async () => {
     const w = await world('liga-mx', 2025, ['América', 'Chivas', 'Cruz Azul', 'Pumas']);
@@ -355,6 +481,19 @@ describe('Libertadores: fase de grupos', () => {
       away: { id: w.team('Q1') },
     });
     expect(stakes.reason).toBe('tabela incompleta (2 de 4 times)');
+    // o mesmo com o estágio tipado como fase de liga (league_phase), que o recálculo também adota
+    const lp = await w.play('Fase de Liga - 1', 'P2', 'P1', null, 'league_phase');
+    const lpStakes = await computeEventStakes(db, {
+      id: lp.eventId,
+      sport: 'football',
+      startsAt: lp.startsAt,
+      competition: { slug: 'conmebol-libertadores' },
+      season: { id: w.seasonId, year: 2028 },
+      stage: { id: lp.stageId, kind: 'league_phase' },
+      home: { id: w.team('P2') },
+      away: { id: w.team('P1') },
+    });
+    expect(lpStakes.reason).toBe('tabela incompleta (2 de 4 times)');
   });
 
   it('sem os grupos do fornecedor: não inventa a divisão e registra o motivo', async () => {
